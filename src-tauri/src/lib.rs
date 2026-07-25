@@ -19,7 +19,7 @@ use std::{str::FromStr, sync::Arc};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, State, WindowEvent,
+    AppHandle, Manager, State, WebviewWindowBuilder, WindowEvent,
 };
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_updater::UpdaterExt;
@@ -249,6 +249,24 @@ pub fn run() {
             Some(vec!["--hidden"]),
         ))
         .setup(|app| {
+            let start_hidden = std::env::args().any(|argument| argument == "--hidden");
+            let window_config = app
+                .config()
+                .app
+                .windows
+                .iter()
+                .find(|config| config.label == "main")
+                .cloned()
+                .ok_or_else(|| std::io::Error::other("main window configuration is missing"))?;
+            let mut window_builder = WebviewWindowBuilder::from_config(app.handle(), &window_config)?;
+            if let Some(icon) = app.default_window_icon() {
+                window_builder = window_builder.icon(icon.clone())?;
+            }
+            if start_hidden {
+                window_builder = window_builder.visible(false);
+            }
+            let window = window_builder.build()?;
+
             let data_dir = app.path().app_data_dir()?;
             let token = load_or_create_bridge_token()
                 .map_err(|error| std::io::Error::other(error.to_string()))?;
@@ -295,21 +313,13 @@ pub fn run() {
             }
             tray.build(app)?;
 
-            if let Some(window) = app.get_webview_window("main") {
-                if let Some(icon) = app.default_window_icon() {
-                    let _ = window.set_icon(icon.clone());
+            let window_for_event = window.clone();
+            window.on_window_event(move |event| {
+                if let WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window_for_event.hide();
                 }
-                if std::env::args().any(|argument| argument == "--hidden") {
-                    let _ = window.hide();
-                }
-                let window_for_event = window.clone();
-                window.on_window_event(move |event| {
-                    if let WindowEvent::CloseRequested { api, .. } = event {
-                        api.prevent_close();
-                        let _ = window_for_event.hide();
-                    }
-                });
-            }
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
