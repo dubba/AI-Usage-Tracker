@@ -1,0 +1,24 @@
+:root {
+  --dashboard-body-text-size: 14px;
+}
+
+/* Keep dashboard helper text at least as large as the page description. */
+.main-stage .button,
+.main-stage .summary-card small,
+.main-stage .summary-card span:not(.summary-icon),
+.main-stage .selected-account-meta,
+.main-stage .status-pill,
+.main-stage .plan-pill,
+.main-stage .usage-label,
+.main-stage .window-pill,
+.main-stage .reset-label,
+.main-stage .usage-card.compact small,
+.main-stage .empty-metric small {
+  font-size: var(--dashboard-body-text-size);
+  line-height: 1.45;
+}
+
+/* AI SUBSCRIPTIONS and SELECTED ACCOUNT were 11px; increase both by 4px. */
+.main-stage .eyebrow {
+  font-size: 15px;
+}

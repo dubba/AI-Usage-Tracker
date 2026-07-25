@@ -12,6 +12,7 @@ import "./sidebar-width.css";
 import "./macos-account-actions.css";
 import "./provider-icon-fixes.css";
 import "./sidebar-resize.css";
+import "./dashboard-typography.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
