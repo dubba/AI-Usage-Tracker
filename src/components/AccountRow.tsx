@@ -1,7 +1,9 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, PointerEvent } from "react";
+import { ACCOUNT_METADATA_EVENT, getCustomAccountEmail } from "../account-metadata";
+import { bridgeApi } from "../api";
 import type { Account, Provider, UsageWindow } from "../types";
-import { ChevronIcon, EditIcon, LinkIcon, RefreshIcon, SettingsIcon, TrashIcon } from "../icons";
+import { ChevronIcon, EditIcon, LinkIcon, SettingsIcon } from "../icons";
 import { ProviderIcon } from "./ProviderIcon";
 
 const DRAG_START_DISTANCE_PX = 6;
@@ -36,14 +38,7 @@ function windowRemaining(account: Account, target: "five_hour" | "weekly"): numb
   return window?.remainingPercent ?? null;
 }
 
-function lastRefreshed(value: string | null | undefined): string {
-  if (!value) return "Never refreshed";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Refresh time unavailable";
-  return `Refreshed ${date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}`;
-}
-
-function RemainingStat({ label, value }: { label: string; value: number | null }) {
+function RemainingStat({ label, value }: { label: "H" | "W"; value: number | null }) {
   return (
     <span className="account-window-stat">
       <strong>{value == null ? "—" : `${Math.round(value)}%`}</strong>
@@ -56,15 +51,16 @@ function isInteractiveTarget(target: EventTarget | null): boolean {
   return target instanceof Element && Boolean(target.closest("button, a, input, select, textarea, [contenteditable='true']"));
 }
 
+function refreshDashboard() {
+  window.dispatchEvent(new Event("focus"));
+}
+
 export function AccountRow({
   account,
   selected,
   busy,
   onSelect,
-  onRefresh,
   onReconnect,
-  onRename,
-  onRemove,
   onSettings,
   onMove,
 }: {
@@ -82,12 +78,36 @@ export function AccountRow({
   const fiveHour = windowRemaining(account, "five_hour");
   const weekly = windowRemaining(account, "weekly");
   const state = account.authRequired ? "auth" : account.lastUsage?.freshness === "stale" ? "stale" : account.lastUsage ? "live" : "idle";
-  const refreshBusy = busy === `refresh:${account.id}`;
-  const renameBusy = busy === `rename:${account.id}`;
-  const removeBusy = busy === `remove:${account.id}`;
   const pointerDrag = useRef<PointerDragState | null>(null);
   const suppressClick = useRef(false);
+  const renameInput = useRef<HTMLInputElement | null>(null);
+  const renameInFlight = useRef(false);
+  const cancelRename = useRef(false);
   const [pointerDragging, setPointerDragging] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [renameValue, setRenameValue] = useState(account.label);
+  const [renameBusy, setRenameBusy] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const [customEmail, setCustomEmail] = useState(() => getCustomAccountEmail(account.id));
+
+  useEffect(() => {
+    if (!editingName) setRenameValue(account.label);
+  }, [account.label, editingName]);
+
+  useEffect(() => {
+    if (!editingName) return;
+    renameInput.current?.focus();
+    renameInput.current?.select();
+  }, [editingName]);
+
+  useEffect(() => {
+    const updateEmail = (event: Event) => {
+      const accountId = (event as CustomEvent<{ accountId?: string }>).detail?.accountId;
+      if (!accountId || accountId === account.id) setCustomEmail(getCustomAccountEmail(account.id));
+    };
+    window.addEventListener(ACCOUNT_METADATA_EVENT, updateEmail);
+    return () => window.removeEventListener(ACCOUNT_METADATA_EVENT, updateEmail);
+  }, [account.id]);
 
   const activate = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Enter" || event.key === " ") {
@@ -172,6 +192,51 @@ export function AccountRow({
     }
   };
 
+  const beginRename = () => {
+    if (renameBusy) return;
+    cancelRename.current = false;
+    setRenameValue(account.label);
+    setRenameError(null);
+    setEditingName(true);
+  };
+
+  const commitRename = async () => {
+    if (cancelRename.current) {
+      cancelRename.current = false;
+      return;
+    }
+    if (renameInFlight.current) return;
+
+    const label = renameValue.trim();
+    if (!label) {
+      setRenameError("Account name is required.");
+      window.setTimeout(() => renameInput.current?.focus(), 0);
+      return;
+    }
+    if (label === account.label) {
+      setEditingName(false);
+      setRenameError(null);
+      return;
+    }
+
+    renameInFlight.current = true;
+    setRenameBusy(true);
+    setRenameError(null);
+    try {
+      await bridgeApi.renameAccount(account.id, label);
+      setEditingName(false);
+      refreshDashboard();
+    } catch (cause) {
+      setRenameError(String(cause));
+      window.setTimeout(() => renameInput.current?.focus(), 0);
+    } finally {
+      renameInFlight.current = false;
+      setRenameBusy(false);
+    }
+  };
+
+  const displayEmail = account.email ?? customEmail ?? providerName(account.provider);
+
   return (
     <div className={`account-row-shell ${selected ? "expanded" : ""}`} data-account-id={account.id}>
       <div
@@ -194,43 +259,74 @@ export function AccountRow({
         onPointerUp={(event) => finishPointerDrag(event, true)}
         onPointerCancel={(event) => finishPointerDrag(event, false)}
       >
-        <span className="account-provider-stack">
-          <span className={`account-provider-icon state-${state}`}><ProviderIcon provider={account.provider} /></span>
-          <button
-            type="button"
-            className="account-refresh-icon"
-            aria-label={`Refresh ${account.label}`}
-            title="Refresh usage"
-            disabled={refreshBusy || account.authRequired}
-            onClick={(event) => {
-              event.stopPropagation();
-              onRefresh();
-            }}
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <RefreshIcon className={refreshBusy ? "spinning" : ""} />
-          </button>
-        </span>
+        <span className={`account-provider-icon state-${state}`}><ProviderIcon provider={account.provider} /></span>
         <span className="account-row-copy">
-          <strong>{account.label}</strong>
-          <small>{account.email ?? providerName(account.provider)}</small>
-          <small className="account-refresh-time">{lastRefreshed(account.lastUsage?.fetchedAt)}</small>
+          <span className="account-name-line">
+            {editingName ? (
+              <input
+                ref={renameInput}
+                className="account-inline-name"
+                value={renameValue}
+                maxLength={80}
+                disabled={renameBusy}
+                aria-label={`Rename ${account.label}`}
+                onClick={(event) => event.stopPropagation()}
+                onPointerDown={(event) => event.stopPropagation()}
+                onChange={(event) => setRenameValue(event.target.value)}
+                onBlur={() => void commitRename()}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    event.currentTarget.blur();
+                  } else if (event.key === "Escape") {
+                    event.preventDefault();
+                    cancelRename.current = true;
+                    setRenameValue(account.label);
+                    setRenameError(null);
+                    setEditingName(false);
+                  }
+                }}
+              />
+            ) : <strong>{account.label}</strong>}
+            <span className="account-name-actions">
+              <button
+                type="button"
+                className="account-inline-action"
+                aria-label={`Open settings for ${account.label}`}
+                title="Account settings"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSettings();
+                }}
+              ><SettingsIcon /></button>
+              <button
+                type="button"
+                className="account-inline-action"
+                aria-label={`Edit ${account.label}`}
+                title="Edit account name"
+                disabled={renameBusy}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  beginRename();
+                }}
+              ><EditIcon /></button>
+            </span>
+          </span>
+          <small>{displayEmail}</small>
+          {renameError ? <small className="account-inline-error">{renameError}</small> : null}
         </span>
         <span className="account-row-meta">
-          {fiveHour != null ? <RemainingStat label="5 hour" value={fiveHour} /> : null}
-          <RemainingStat label="weekly" value={weekly} />
+          {fiveHour != null ? <RemainingStat label="H" value={fiveHour} /> : null}
+          <RemainingStat label="W" value={weekly} />
         </span>
         <ChevronIcon className="chevron" />
       </div>
 
-      {selected ? (
-        <div className="account-row-actions">
-          {account.authRequired ? (
-            <button className="sidebar-action primary-action" onClick={onReconnect}><LinkIcon />Reconnect</button>
-          ) : null}
-          <button className="sidebar-action" onClick={onRename} disabled={renameBusy}><EditIcon />Rename</button>
-          <button className="sidebar-action danger-text" onClick={onRemove} disabled={removeBusy}><TrashIcon />Remove</button>
-          <button className="sidebar-action" onClick={onSettings}><SettingsIcon />Settings</button>
+      {selected && account.authRequired ? (
+        <div className="account-reconnect-row">
+          <button className="sidebar-action primary-action" onClick={onReconnect}><LinkIcon />Reconnect</button>
         </div>
       ) : null}
     </div>
