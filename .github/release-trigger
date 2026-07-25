@@ -1,1 +1,1 @@
-Release build requested on 2026-07-25 for Paseo Usage Bridge v0.2.14 with the purple gauge app icon, simplified account rows, inline rename, account settings cleanup, OpenCode email support, and macOS account-action fixes.
+Release build retried on 2026-07-25 for Paseo Usage Bridge v0.2.14 after generating the required Windows ICO and macOS ICNS assets before Tauri bundling.
