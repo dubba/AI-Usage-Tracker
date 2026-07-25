@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import type { KeyboardEvent, PointerEvent } from "react";
+import type { FormEvent, KeyboardEvent, PointerEvent } from "react";
+import { bridgeApi } from "../api";
 import type { Account, Provider, UsageWindow } from "../types";
 import { ChevronIcon, EditIcon, LinkIcon, RefreshIcon, SettingsIcon, TrashIcon } from "../icons";
 import { ProviderIcon } from "./ProviderIcon";
@@ -14,6 +15,8 @@ type PointerDragState = {
   targetAccountId: string | null;
   targetElement: HTMLElement | null;
 };
+
+type AccountAction = "rename" | "remove" | null;
 
 function providerName(provider: Provider): string {
   switch (provider) {
@@ -56,6 +59,10 @@ function isInteractiveTarget(target: EventTarget | null): boolean {
   return target instanceof Element && Boolean(target.closest("button, a, input, select, textarea, [contenteditable='true']"));
 }
 
+function refreshDashboard() {
+  window.dispatchEvent(new Event("focus"));
+}
+
 export function AccountRow({
   account,
   selected,
@@ -63,8 +70,6 @@ export function AccountRow({
   onSelect,
   onRefresh,
   onReconnect,
-  onRename,
-  onRemove,
   onSettings,
   onMove,
 }: {
@@ -83,11 +88,13 @@ export function AccountRow({
   const weekly = windowRemaining(account, "weekly");
   const state = account.authRequired ? "auth" : account.lastUsage?.freshness === "stale" ? "stale" : account.lastUsage ? "live" : "idle";
   const refreshBusy = busy === `refresh:${account.id}`;
-  const renameBusy = busy === `rename:${account.id}`;
-  const removeBusy = busy === `remove:${account.id}`;
   const pointerDrag = useRef<PointerDragState | null>(null);
   const suppressClick = useRef(false);
   const [pointerDragging, setPointerDragging] = useState(false);
+  const [action, setAction] = useState<AccountAction>(null);
+  const [renameValue, setRenameValue] = useState(account.label);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const activate = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Enter" || event.key === " ") {
@@ -172,6 +179,62 @@ export function AccountRow({
     }
   };
 
+  const openRename = () => {
+    setRenameValue(account.label);
+    setActionError(null);
+    setAction("rename");
+  };
+
+  const openRemove = () => {
+    setActionError(null);
+    setAction("remove");
+  };
+
+  const closeAction = () => {
+    if (actionBusy) return;
+    setAction(null);
+    setActionError(null);
+  };
+
+  const submitRename = async (event: FormEvent) => {
+    event.preventDefault();
+    const label = renameValue.trim();
+    if (!label) {
+      setActionError("Account label is required.");
+      return;
+    }
+    if (label === account.label) {
+      closeAction();
+      return;
+    }
+
+    setActionBusy(true);
+    setActionError(null);
+    try {
+      await bridgeApi.renameAccount(account.id, label);
+      setAction(null);
+      refreshDashboard();
+    } catch (cause) {
+      setActionError(String(cause));
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const confirmRemove = async () => {
+    setActionBusy(true);
+    setActionError(null);
+    try {
+      await bridgeApi.removeAccount(account.id);
+      setAction(null);
+      refreshDashboard();
+    } catch (cause) {
+      setActionError(String(cause));
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
   return (
     <div className={`account-row-shell ${selected ? "expanded" : ""}`} data-account-id={account.id}>
       <div
@@ -228,9 +291,58 @@ export function AccountRow({
           {account.authRequired ? (
             <button className="sidebar-action primary-action" onClick={onReconnect}><LinkIcon />Reconnect</button>
           ) : null}
-          <button className="sidebar-action" onClick={onRename} disabled={renameBusy}><EditIcon />Rename</button>
-          <button className="sidebar-action danger-text" onClick={onRemove} disabled={removeBusy}><TrashIcon />Remove</button>
+          <button className="sidebar-action" onClick={openRename}><EditIcon />Rename</button>
+          <button className="sidebar-action danger-text" onClick={openRemove}><TrashIcon />Remove</button>
           <button className="sidebar-action" onClick={onSettings}><SettingsIcon />Settings</button>
+        </div>
+      ) : null}
+
+      {action === "rename" ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) closeAction();
+        }}>
+          <form className="modal-card" onSubmit={submitRename}>
+            <span className="modal-kicker">Account settings</span>
+            <h2>Rename account</h2>
+            <p>Choose the label shown throughout Paseo Usage Bridge.</p>
+            <label>
+              <span className="field-label">Account label</span>
+              <input
+                className="text-input"
+                autoFocus
+                maxLength={80}
+                value={renameValue}
+                onChange={(event) => setRenameValue(event.target.value)}
+                disabled={actionBusy}
+              />
+            </label>
+            {actionError ? <div className="error-panel">{actionError}</div> : null}
+            <div className="modal-actions">
+              <button type="button" className="button ghost" onClick={closeAction} disabled={actionBusy}>Cancel</button>
+              <button type="submit" className="button primary" disabled={actionBusy || !renameValue.trim()}>
+                {actionBusy ? "Saving…" : "Save name"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      {action === "remove" ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) closeAction();
+        }}>
+          <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby={`remove-account-${account.id}`}>
+            <span className="modal-kicker danger-text">Remove account</span>
+            <h2 id={`remove-account-${account.id}`}>Remove {account.label}?</h2>
+            <p>This removes the account and deletes its stored provider credentials from the operating-system credential store.</p>
+            {actionError ? <div className="error-panel">{actionError}</div> : null}
+            <div className="modal-actions">
+              <button type="button" className="button ghost" onClick={closeAction} disabled={actionBusy}>Cancel</button>
+              <button type="button" className="button primary danger-text" onClick={() => void confirmRemove()} disabled={actionBusy}>
+                {actionBusy ? "Removing…" : "Remove account"}
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
     </div>
