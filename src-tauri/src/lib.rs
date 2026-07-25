@@ -296,6 +296,9 @@ pub fn run() {
             tray.build(app)?;
 
             if let Some(window) = app.get_webview_window("main") {
+                if let Some(icon) = app.default_window_icon() {
+                    let _ = window.set_icon(icon.clone());
+                }
                 if std::env::args().any(|argument| argument == "--hidden") {
                     let _ = window.hide();
                 }
