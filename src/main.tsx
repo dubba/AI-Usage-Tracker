@@ -8,6 +8,7 @@ import "./readability.css";
 import "./dashboard-layout.css";
 import "./sidebar-controls.css";
 import "./sidebar-width.css";
+import "./macos-account-actions.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
