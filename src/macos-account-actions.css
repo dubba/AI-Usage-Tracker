@@ -1,0 +1,26 @@
+.account-row-actions {
+  position: relative;
+  z-index: 2;
+}
+
+.account-row-actions .sidebar-action {
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+/* WKWebView can clip fixed descendants of an overflow-scrolling sidebar. */
+.account-list:has(.modal-backdrop),
+.sidebar:has(.modal-backdrop),
+.account-row-shell:has(.modal-backdrop) {
+  overflow: visible;
+}
+
+.sidebar:has(.modal-backdrop) {
+  position: relative;
+  z-index: 30;
+}
+
+.modal-backdrop {
+  z-index: 1000;
+}
