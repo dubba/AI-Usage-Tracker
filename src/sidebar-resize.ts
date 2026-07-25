@@ -38,7 +38,7 @@ export function installSidebarResize(): void {
     const sidebar = shell?.querySelector<HTMLElement>(":scope > .sidebar");
     const main = shell?.querySelector<HTMLElement>(":scope > .main-stage");
     if (!shell || !sidebar || !main) return false;
-    if (shell.querySelector(":scope > .sidebar-resize-handle")) return true;
+    if (sidebar.querySelector(":scope > .sidebar-resize-handle")) return true;
 
     const handle = document.createElement("div");
     handle.className = "sidebar-resize-handle";
@@ -47,7 +47,7 @@ export function installSidebarResize(): void {
     handle.setAttribute("aria-label", "Resize account sidebar");
     handle.setAttribute("aria-orientation", "vertical");
     handle.title = "Drag to resize. Double-click to reset.";
-    sidebar.insertAdjacentElement("afterend", handle);
+    sidebar.append(handle);
 
     let width = readSavedWidth() ?? defaultSidebarWidth();
     let dragging = false;
