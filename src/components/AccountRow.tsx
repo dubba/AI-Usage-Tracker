@@ -3,10 +3,11 @@ import type { KeyboardEvent, PointerEvent } from "react";
 import { ACCOUNT_METADATA_EVENT, getCustomAccountEmail } from "../account-metadata";
 import { bridgeApi } from "../api";
 import type { Account, Provider, UsageWindow } from "../types";
-import { ChevronIcon, EditIcon, LinkIcon, SettingsIcon } from "../icons";
+import { EditIcon, LinkIcon, SettingsIcon } from "../icons";
 import { ProviderIcon } from "./ProviderIcon";
 
 const DRAG_START_DISTANCE_PX = 6;
+const REORDER_ANIMATION_MS = 150;
 
 type PointerDragState = {
   pointerId: number;
@@ -15,6 +16,8 @@ type PointerDragState = {
   started: boolean;
   targetAccountId: string | null;
   targetElement: HTMLElement | null;
+  listElement: HTMLElement | null;
+  originalOrder: string[];
 };
 
 function providerName(provider: Provider): string {
@@ -53,6 +56,55 @@ function isInteractiveTarget(target: EventTarget | null): boolean {
 
 function refreshDashboard() {
   window.dispatchEvent(new Event("focus"));
+}
+
+function accountShells(list: HTMLElement | null): HTMLElement[] {
+  if (!list) return [];
+  return Array.from(list.querySelectorAll<HTMLElement>(":scope > .account-row-shell[data-account-id]"));
+}
+
+function clearPreviewOrder(drag: PointerDragState): void {
+  drag.listElement?.classList.remove("reorder-previewing");
+  for (const shell of accountShells(drag.listElement)) {
+    shell.style.removeProperty("order");
+    for (const animation of shell.getAnimations()) animation.cancel();
+  }
+}
+
+function previewOrder(drag: PointerDragState, sourceAccountId: string, targetAccountId: string): void {
+  const sourceIndex = drag.originalOrder.indexOf(sourceAccountId);
+  const targetIndex = drag.originalOrder.indexOf(targetAccountId);
+  if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return;
+
+  const shells = accountShells(drag.listElement);
+  const before = new Map(
+    shells.map((shell) => [shell.dataset.accountId ?? "", shell.getBoundingClientRect().top]),
+  );
+  const reordered = [...drag.originalOrder];
+  const [moved] = reordered.splice(sourceIndex, 1);
+  reordered.splice(targetIndex, 0, moved);
+
+  drag.listElement?.classList.add("reorder-previewing");
+  for (const shell of shells) {
+    const accountId = shell.dataset.accountId;
+    const index = accountId ? reordered.indexOf(accountId) : -1;
+    if (index >= 0) shell.style.order = String(index);
+  }
+
+  window.requestAnimationFrame(() => {
+    for (const shell of shells) {
+      if (shell.dataset.accountId === sourceAccountId) continue;
+      const previousTop = before.get(shell.dataset.accountId ?? "");
+      if (previousTop == null) continue;
+      const delta = previousTop - shell.getBoundingClientRect().top;
+      if (Math.abs(delta) < 1) continue;
+      for (const animation of shell.getAnimations()) animation.cancel();
+      shell.animate(
+        [{ transform: `translateY(${delta}px)` }, { transform: "translateY(0)" }],
+        { duration: REORDER_ANIMATION_MS, easing: "ease-out" },
+      );
+    }
+  });
 }
 
 export function AccountRow({
@@ -127,6 +179,7 @@ export function AccountRow({
   const startPointerDrag = (event: PointerEvent<HTMLDivElement>) => {
     if (busy != null || event.button !== 0 || isInteractiveTarget(event.target)) return;
 
+    const listElement = event.currentTarget.closest<HTMLElement>(".account-list");
     pointerDrag.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -134,6 +187,10 @@ export function AccountRow({
       started: false,
       targetAccountId: null,
       targetElement: null,
+      listElement,
+      originalOrder: accountShells(listElement)
+        .map((shell) => shell.dataset.accountId)
+        .filter((accountId): accountId is string => Boolean(accountId)),
     };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
@@ -161,6 +218,9 @@ export function AccountRow({
       targetElement.classList.add("drop-target");
       drag.targetElement = targetElement;
       drag.targetAccountId = targetAccountId;
+      previewOrder(drag, account.id, targetAccountId);
+    } else {
+      clearPreviewOrder(drag);
     }
   };
 
@@ -189,6 +249,9 @@ export function AccountRow({
 
     if (targetAccountId && targetAccountId !== account.id) {
       onMove(account.id, targetAccountId);
+      window.requestAnimationFrame(() => clearPreviewOrder(drag));
+    } else {
+      clearPreviewOrder(drag);
     }
   };
 
@@ -321,7 +384,6 @@ export function AccountRow({
           {fiveHour != null ? <RemainingStat label="H" value={fiveHour} /> : null}
           <RemainingStat label="W" value={weekly} />
         </span>
-        <ChevronIcon className="chevron" />
       </div>
 
       {selected && account.authRequired ? (

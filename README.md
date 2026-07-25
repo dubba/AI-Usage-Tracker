@@ -1,6 +1,6 @@
-# Paseo Usage Bridge
+# AI Subscription Tracker
 
-[![Validate](https://github.com/yajinni/Paseo-Usage-Bridge/actions/workflows/validate.yml/badge.svg)](https://github.com/yajinni/Paseo-Usage-Bridge/actions/workflows/validate.yml)
+[![Validate](https://github.com/yajinni/AI-Subscription-Tracker/actions/workflows/validate.yml/badge.svg)](https://github.com/yajinni/AI-Subscription-Tracker/actions/workflows/validate.yml)
 
 A standalone Windows and macOS desktop app for monitoring AI subscription usage across OpenAI Codex, Anthropic Claude, Google Antigravity, and OpenCode Go. It can optionally expose normalized, sanitized usage data to Paseo over localhost.
 
@@ -23,7 +23,7 @@ The Anthropic, Antigravity, and OpenCode Go integrations rely on provider interf
 - Displays provider-reported usage percentages, remaining quota, reset times, plan information, and credits when available.
 - Retains last-known-good usage and marks it stale during transient failures.
 - Refreshes provider credentials under a per-account lock.
-- Exposes a bearer-protected loopback API at `http://127.0.0.1:47831/v1/paseo-usage`.
+- Exposes a bearer-protected loopback API at `http://127.0.0.1:47831/v1/paseo-usage` for optional Paseo integration.
 - Checks GitHub Releases for signed updates at startup and every six hours.
 - Runs from one installer; end users do not need Node.js, Rust, Python, Docker, OpenCode, Claude Code, or another CLI.
 
@@ -122,7 +122,7 @@ Every release must use a newer semantic version in all three locations:
 - `src-tauri/Cargo.toml`
 - `src-tauri/tauri.conf.json`
 
-Version `0.1.1` was the first updater-enabled build. Version `0.2.0` adds the multi-provider account and usage architecture.
+Version `0.1.1` was the first updater-enabled build. Version `0.2.0` added the multi-provider account and usage architecture. Version `0.2.20` adopts the public name **AI Subscription Tracker** while retaining the existing bundle identifier and credential namespaces so installed users keep their accounts and update path.
 
 ## Local API
 
@@ -176,14 +176,14 @@ Response contract:
 ## Repository structure
 
 ```text
-src/                              React dashboard
-src-tauri/src/oauth.rs            Provider browser OAuth and callback flows
-src-tauri/src/providers/          Provider-specific usage clients and parsers
-src-tauri/src/usage.rs            Common refresh, cache, and stale-state behavior
-src-tauri/src/store.rs            Metadata and native credential storage
-src-tauri/src/bridge_api.rs       Versioned localhost API
+src/                               React dashboard
+src-tauri/src/oauth.rs             Provider browser OAuth and callback flows
+src-tauri/src/providers/           Provider-specific usage clients and parsers
+src-tauri/src/usage.rs             Common refresh, cache, and stale-state behavior
+src-tauri/src/store.rs             Metadata and native credential storage
+src-tauri/src/bridge_api.rs        Versioned localhost API
 
-docs/provider-integrations-plan.md  Implementation and security plan
+docs/provider-integrations-plan.md Implementation and security plan
 ```
 
 ## License
