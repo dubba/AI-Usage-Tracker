@@ -1,0 +1,58 @@
+:root {
+  --sidebar-width: 480px;
+}
+
+.app-shell {
+  grid-template-columns: var(--sidebar-width) 8px minmax(0, 1fr);
+}
+
+.sidebar {
+  grid-column: 1;
+  border-right: 0;
+}
+
+.sidebar-resize-handle {
+  grid-column: 2;
+  position: relative;
+  z-index: 8;
+  width: 8px;
+  min-width: 8px;
+  height: 100vh;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+
+.sidebar-resize-handle::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: var(--border);
+  transition: width .12s ease, background .12s ease, box-shadow .12s ease;
+}
+
+.sidebar-resize-handle:hover::before,
+.sidebar-resize-handle:focus-visible::before,
+.sidebar-resize-handle.dragging::before {
+  width: 3px;
+  background: var(--purple);
+  box-shadow: 0 0 12px rgba(159, 103, 255, .42);
+}
+
+.main-stage {
+  grid-column: 3;
+}
+
+body.sidebar-resizing,
+body.sidebar-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+@media (max-width: 1220px) {
+  :root {
+    --sidebar-width: 442px;
+  }
+}
