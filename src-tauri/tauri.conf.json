@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Paseo Usage Bridge",
-  "version": "0.2.16",
+  "version": "0.2.17",
   "identifier": "com.yajinni.paseousagebridge",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -14,6 +14,7 @@
       {
         "title": "Paseo Usage Bridge",
         "label": "main",
+        "create": false,
         "width": 1440,
         "height": 850,
         "minWidth": 960,
@@ -43,7 +44,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM0RjhBNTZBRjU5MjNFRUUKUldUdVBwTDFhcVg0eE0vZ2NtaDBRYXk4RUJRcThBRi9FL1E4NmFXYkJDWE1XMFVzcHFzMzNsWlkK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnN1Z25pbmcga2V5OiBDNEY4QTU2QUY1OTIzRUVFCkRXdFVQcEwxYXFYNHhNL2djbWgwUWF5OEVCUXE4QUYvRS9RODZhV2JCQ1hNVzBVc3BxczMzbFpZCg==",
       "endpoints": [
         "https://github.com/yajinni/Paseo-Usage-Bridge/releases/latest/download/latest.json"
       ],
