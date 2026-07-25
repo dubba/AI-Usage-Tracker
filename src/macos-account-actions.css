@@ -1,26 +1,215 @@
-.account-row-actions {
-  position: relative;
-  z-index: 2;
+.account-row {
+  grid-template-columns: 58px minmax(0, 1fr) 72px 16px !important;
+  min-height: 76px;
+  padding: 12px 11px;
 }
 
-.account-row-actions .sidebar-action {
-  -webkit-app-region: no-drag;
-  pointer-events: auto;
-  touch-action: manipulation;
+.account-provider-icon {
+  width: 52px !important;
+  height: 52px !important;
+  border-radius: 13px !important;
+  flex: 0 0 52px;
 }
 
-/* WKWebView can clip fixed descendants of an overflow-scrolling sidebar. */
-.account-list:has(.modal-backdrop),
-.sidebar:has(.modal-backdrop),
-.account-row-shell:has(.modal-backdrop) {
+.account-provider-icon svg,
+.account-provider-icon .provider-icon-image {
+  width: 34px !important;
+  height: 34px !important;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}
+
+.account-row-copy {
+  gap: 3px !important;
   overflow: visible;
 }
 
-.sidebar:has(.modal-backdrop) {
-  position: relative;
-  z-index: 30;
+.account-name-line {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.account-name-line > strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-name-actions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.account-inline-action {
+  width: 25px;
+  height: 25px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  touch-action: manipulation;
+}
+
+.account-inline-action:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--panel-3);
+}
+
+.account-inline-action:disabled {
+  opacity: .45;
+}
+
+.account-inline-action svg {
+  width: 15px;
+  height: 15px;
+}
+
+.account-inline-name {
+  width: min(220px, 100%);
+  min-width: 80px;
+  height: 29px;
+  border: 1px solid rgba(159, 103, 255, .65);
+  border-radius: 7px;
+  background: #0f1311;
+  color: var(--text);
+  padding: 0 8px;
+  outline: none;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  -webkit-app-region: no-drag;
+}
+
+.account-inline-name:focus {
+  box-shadow: 0 0 0 3px rgba(159, 103, 255, .12);
+}
+
+.account-inline-error {
+  color: #ff9d9d !important;
+  font-size: 11px !important;
+  white-space: normal !important;
+}
+
+.account-row-meta {
+  gap: 5px !important;
+}
+
+.account-window-stat {
+  grid-template-columns: auto 14px !important;
+  gap: 4px !important;
+}
+
+.account-window-stat small {
+  text-align: left;
+  font-weight: 800 !important;
+}
+
+.account-reconnect-row {
+  padding: 0 11px 11px;
+}
+
+.account-reconnect-row .sidebar-action {
+  width: 100%;
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
+}
+
+.alert-settings-modal {
+  width: min(680px, calc(100vw - 48px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+
+.account-settings-section {
+  margin-top: 14px;
+  padding: 15px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #131816;
+}
+
+.account-settings-section-heading {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.account-settings-section-heading strong {
+  font-size: 13px;
+}
+
+.account-settings-section-heading small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.compact-alert-empty {
+  min-height: 112px !important;
+}
+
+.danger-settings-section {
+  border-color: rgba(255, 111, 111, .24);
+  background: rgba(255, 111, 111, .045);
+}
+
+.danger-button {
+  color: #ff9d9d !important;
+  border-color: rgba(255, 111, 111, .35) !important;
+}
+
+.danger-button:hover:not(:disabled) {
+  background: rgba(255, 111, 111, .12) !important;
+  border-color: rgba(255, 111, 111, .55) !important;
+}
+
+.danger-button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.remove-account-confirmation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.remove-account-confirmation > div {
+  display: flex;
+  gap: 8px;
 }
 
 .modal-backdrop {
   z-index: 1000;
+}
+
+@media (max-width: 760px) {
+  .account-row {
+    grid-template-columns: 54px minmax(0, 1fr) 66px 14px !important;
+  }
+
+  .account-provider-icon {
+    width: 48px !important;
+    height: 48px !important;
+  }
+
+  .remove-account-confirmation {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
