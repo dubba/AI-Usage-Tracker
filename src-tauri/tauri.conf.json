@@ -44,7 +44,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnN1Z25pbmcga2V5OiBDNEY4QTU2QUY1OTIzRUVFCkRXdFVQcEwxYXFYNHhNL2djbWgwUWF5OEVCUXE4QUYvRS9RODZhV2JCQ1hNVzBVc3BxczMzbFpZCg==",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM0RjhBNTZBRjU5MjNFRUUKUldUdVBwTDFhcVg0eE0vZ2NtaDBRYXk4RUJRcThBRi9FL1E4NmFXYkJDWE1XMFVzcHFzMzNsWlkK",
       "endpoints": [
         "https://github.com/yajinni/Paseo-Usage-Bridge/releases/latest/download/latest.json"
       ],
