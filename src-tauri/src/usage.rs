@@ -1,9 +1,12 @@
+#[path = "credential_store.rs"]
+mod credential_store;
+
 use crate::{
     model::{now_rfc3339, Account, Provider, UsageFreshness, UsageSnapshot},
     providers::{self, ProviderError, ProviderUsage},
     state::AppState,
-    store::{load_provider_secret, save_provider_secret},
 };
+use credential_store::{load_provider_secret, save_provider_secret};
 use std::sync::Arc;
 use tauri_plugin_notification::NotificationExt;
 
