@@ -285,7 +285,8 @@ pub fn run() {
                 }
             });
 
-            let show = MenuItem::with_id(app, "show", "Open Paseo Usage Bridge", true, None::<&str>)?;
+            let show_label = format!("Open {}", app.package_info().name);
+            let show = MenuItem::with_id(app, "show", show_label, true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show, &quit])?;
             let mut tray = TrayIconBuilder::new()
@@ -339,5 +340,5 @@ pub fn run() {
             install_app_update,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running Paseo Usage Bridge");
+        .expect("error while running AI Subscription Tracker");
 }
