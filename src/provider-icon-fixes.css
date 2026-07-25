@@ -5,5 +5,6 @@
 }
 
 .account-provider-icon .provider-icon-image {
-  filter: brightness(0);
+  filter: none !important;
+  object-fit: contain;
 }
