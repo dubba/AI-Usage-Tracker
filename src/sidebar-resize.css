@@ -3,21 +3,21 @@
 }
 
 .app-shell {
-  grid-template-columns: var(--sidebar-width) 8px minmax(0, 1fr);
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
 }
 
 .sidebar {
+  position: relative;
   grid-column: 1;
-  border-right: 0;
 }
 
 .sidebar-resize-handle {
-  grid-column: 2;
-  position: relative;
-  z-index: 8;
-  width: 8px;
-  min-width: 8px;
-  height: 100vh;
+  position: absolute;
+  z-index: 20;
+  top: 0;
+  right: -5px;
+  width: 10px;
+  height: 100%;
   cursor: col-resize;
   touch-action: none;
   outline: none;
@@ -42,7 +42,7 @@
 }
 
 .main-stage {
-  grid-column: 3;
+  grid-column: 2;
 }
 
 body.sidebar-resizing,
