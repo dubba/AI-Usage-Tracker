@@ -1,1 +1,1 @@
-Release build retried on 2026-07-25 for Paseo Usage Bridge v0.2.14 after generating the required Windows ICO and macOS ICNS assets before Tauri bundling.
+Release build requested on 2026-07-25 for Paseo Usage Bridge v0.2.15 with the supplied OpenAI mark, explicit main-window taskbar icon assignment, and a multi-resolution Windows ICO.
