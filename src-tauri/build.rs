@@ -2,27 +2,49 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use image::{imageops::FilterType, ImageFormat};
 use std::{env, fs, io::Cursor, path::PathBuf};
 
-fn write_windows_icon(icon_dir: &PathBuf, source_png: &[u8]) {
-    let image = image::load_from_memory_with_format(source_png, ImageFormat::Png)
-        .expect("embedded application icon must be a valid PNG");
-    let resized = image.resize_exact(256, 256, FilterType::Lanczos3);
+const WINDOWS_ICON_SIZES: [u32; 9] = [16, 20, 24, 32, 40, 48, 64, 128, 256];
+
+fn encode_png(source: &image::DynamicImage, size: u32) -> Vec<u8> {
+    let resized = source.resize_exact(size, size, FilterType::Lanczos3);
     let mut png_cursor = Cursor::new(Vec::new());
     resized
         .write_to(&mut png_cursor, ImageFormat::Png)
-        .expect("Windows icon PNG must be encodable");
-    let png = png_cursor.into_inner();
+        .expect("native icon PNG must be encodable");
+    png_cursor.into_inner()
+}
 
-    // ICO header + one 256x256 PNG-backed image directory entry.
-    let mut ico = Vec::with_capacity(22 + png.len());
+fn write_windows_icon(icon_dir: &PathBuf, source_png: &[u8]) {
+    let image = image::load_from_memory_with_format(source_png, ImageFormat::Png)
+        .expect("embedded application icon must be a valid PNG");
+    let images: Vec<(u32, Vec<u8>)> = WINDOWS_ICON_SIZES
+        .into_iter()
+        .map(|size| (size, encode_png(&image, size)))
+        .collect();
+
+    let directory_size = 6 + images.len() * 16;
+    let image_bytes = images.iter().map(|(_, png)| png.len()).sum::<usize>();
+    let mut ico = Vec::with_capacity(directory_size + image_bytes);
     ico.extend_from_slice(&0_u16.to_le_bytes());
     ico.extend_from_slice(&1_u16.to_le_bytes());
-    ico.extend_from_slice(&1_u16.to_le_bytes());
-    ico.extend_from_slice(&[0, 0, 0, 0]);
-    ico.extend_from_slice(&1_u16.to_le_bytes());
-    ico.extend_from_slice(&32_u16.to_le_bytes());
-    ico.extend_from_slice(&(png.len() as u32).to_le_bytes());
-    ico.extend_from_slice(&22_u32.to_le_bytes());
-    ico.extend_from_slice(&png);
+    ico.extend_from_slice(&(images.len() as u16).to_le_bytes());
+
+    let mut offset = directory_size as u32;
+    for (size, png) in &images {
+        let dimension = if *size == 256 { 0 } else { *size as u8 };
+        ico.push(dimension);
+        ico.push(dimension);
+        ico.push(0);
+        ico.push(0);
+        ico.extend_from_slice(&1_u16.to_le_bytes());
+        ico.extend_from_slice(&32_u16.to_le_bytes());
+        ico.extend_from_slice(&(png.len() as u32).to_le_bytes());
+        ico.extend_from_slice(&offset.to_le_bytes());
+        offset += png.len() as u32;
+    }
+
+    for (_, png) in images {
+        ico.extend_from_slice(&png);
+    }
 
     fs::write(icon_dir.join("icon.ico"), ico)
         .expect("Windows application icon must be writable during the build");

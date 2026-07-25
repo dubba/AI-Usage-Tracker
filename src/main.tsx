@@ -9,6 +9,7 @@ import "./dashboard-layout.css";
 import "./sidebar-controls.css";
 import "./sidebar-width.css";
 import "./macos-account-actions.css";
+import "./provider-icon-fixes.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
