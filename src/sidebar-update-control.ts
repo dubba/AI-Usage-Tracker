@@ -1,7 +1,9 @@
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { bridgeApi } from "./api";
 import type { AppUpdateStatus } from "./types";
 
-const DEFAULT_LABEL = "Check for updates";
+const DEFAULT_LABEL = "Check for App Updates";
+const CHANGELOG_URL = "https://github.com/yajinni/AI-Subscription-Tracker/blob/main/CHANGELOG.md";
 const RESET_LABEL_DELAY_MS = 3_000;
 
 function setLabel(footer: HTMLElement, label: string): void {
@@ -20,6 +22,15 @@ export function installSidebarUpdateControl(): void {
     footer.setAttribute("role", "button");
     setLabel(footer, DEFAULT_LABEL);
 
+    const changelogLink = document.createElement("a");
+    changelogLink.className = "sidebar-changelog-link";
+    changelogLink.href = CHANGELOG_URL;
+    changelogLink.target = "_blank";
+    changelogLink.rel = "noreferrer";
+    changelogLink.textContent = "View Change Log";
+    changelogLink.hidden = true;
+    footer.insertAdjacentElement("afterend", changelogLink);
+
     let busy = false;
     let availableUpdate: AppUpdateStatus | null = null;
     let resetTimer: number | null = null;
@@ -30,18 +41,35 @@ export function installSidebarUpdateControl(): void {
       resetTimer = null;
     };
 
-    const restoreDefaultLater = () => {
+    const setAvailableState = (available: boolean) => {
+      footer.classList.toggle("update-available", available);
+      changelogLink.hidden = !available;
+    };
+
+    const restoreCurrentStateLater = () => {
       clearResetTimer();
       resetTimer = window.setTimeout(() => {
-        if (!availableUpdate?.available) setLabel(footer, DEFAULT_LABEL);
+        if (availableUpdate?.available && availableUpdate.availableVersion) {
+          setLabel(footer, `Install v${availableUpdate.availableVersion}`);
+        } else {
+          setLabel(footer, DEFAULT_LABEL);
+        }
       }, RESET_LABEL_DELAY_MS);
     };
+
+    changelogLink.addEventListener("click", (event) => {
+      event.preventDefault();
+      void openUrl(CHANGELOG_URL).catch((cause) => {
+        footer.title = `Could not open changelog: ${String(cause)}`;
+      });
+    });
 
     const activate = async () => {
       if (busy) return;
       clearResetTimer();
       busy = true;
       footer.setAttribute("aria-busy", "true");
+      footer.title = "";
 
       try {
         if (availableUpdate?.available) {
@@ -54,16 +82,22 @@ export function installSidebarUpdateControl(): void {
         const status = await bridgeApi.checkForUpdate();
         availableUpdate = status;
         if (status.available && status.availableVersion) {
+          setAvailableState(true);
           setLabel(footer, `Install v${status.availableVersion}`);
         } else {
+          setAvailableState(false);
           setLabel(footer, "You’re up to date");
-          restoreDefaultLater();
+          restoreCurrentStateLater();
         }
       } catch (cause) {
-        availableUpdate = null;
-        setLabel(footer, "Update check failed");
+        const updateWasAvailable = Boolean(availableUpdate?.available);
+        if (!updateWasAvailable) {
+          availableUpdate = null;
+          setAvailableState(false);
+        }
+        setLabel(footer, updateWasAvailable ? "Update install failed" : "Update check failed");
         footer.title = String(cause);
-        restoreDefaultLater();
+        restoreCurrentStateLater();
       } finally {
         busy = false;
         footer.removeAttribute("aria-busy");

@@ -10,7 +10,8 @@
       "allow": [
         { "url": "https://auth.openai.com/*" },
         { "url": "https://claude.ai/*" },
-        { "url": "https://accounts.google.com/*" }
+        { "url": "https://accounts.google.com/*" },
+        { "url": "https://github.com/yajinni/AI-Subscription-Tracker/blob/main/CHANGELOG.md" }
       ]
     },
     "autostart:allow-enable",
