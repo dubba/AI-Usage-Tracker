@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { bridgeApi } from "../api";
+import { saveOpenCodeAccountEmail } from "../opencode-account-email";
 import type { Account, LoginStatus, Provider } from "../types";
 
 const providerOptions: Array<{ id: Provider; label: string; detail: string }> = [
@@ -12,6 +13,10 @@ const providerOptions: Array<{ id: Provider; label: string; detail: string }> = 
 
 function providerName(provider: Provider): string {
   return providerOptions.find((option) => option.id === provider)?.label ?? provider;
+}
+
+function validEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
 export function AddAccountModal({
@@ -29,6 +34,7 @@ export function AddAccountModal({
 }) {
   const [label, setLabel] = useState("OpenAI Codex");
   const [provider, setProvider] = useState<Provider>("openai");
+  const [email, setEmail] = useState("");
   const [workspaceId, setWorkspaceId] = useState("");
   const [authCookie, setAuthCookie] = useState("");
   const [advancedManual, setAdvancedManual] = useState(false);
@@ -40,6 +46,7 @@ export function AddAccountModal({
     if (!open) {
       setLabel("OpenAI Codex");
       setProvider("openai");
+      setEmail("");
       setWorkspaceId("");
       setAuthCookie("");
       setAdvancedManual(false);
@@ -50,6 +57,7 @@ export function AddAccountModal({
       const nextProvider = initialProvider ?? "openai";
       setProvider(nextProvider);
       setLabel(initialLabel?.trim() || providerName(nextProvider));
+      setEmail("");
       setAdvancedManual(false);
     }
   }, [open, initialLabel, initialProvider]);
@@ -62,6 +70,9 @@ export function AddAccountModal({
         setStatus(next);
         if (next.status === "complete" && next.account) {
           window.clearInterval(timer);
+          if (provider === "opencode_go") {
+            saveOpenCodeAccountEmail(next.account.id, next.account.label, email);
+          }
           onAdded(next.account);
         }
         if (next.status === "failed") {
@@ -76,11 +87,16 @@ export function AddAccountModal({
       }
     }, 900);
     return () => window.clearInterval(timer);
-  }, [status, onAdded, provider]);
+  }, [status, onAdded, provider, email]);
 
   if (!open) return null;
 
   const begin = async () => {
+    if (provider === "opencode_go" && !validEmail(email)) {
+      setError("A valid email address is required for OpenCode Go accounts.");
+      return;
+    }
+
     setBusy(true);
     setError(null);
     try {
@@ -90,6 +106,7 @@ export function AddAccountModal({
           workspaceId.trim(),
           authCookie.trim(),
         );
+        saveOpenCodeAccountEmail(account.id, account.label, email);
         onAdded(account);
         return;
       }
@@ -132,6 +149,7 @@ export function AddAccountModal({
             const nextProvider = event.target.value as Provider;
             setLabel((current) => !current.trim() || current === providerName(provider) ? providerName(nextProvider) : current);
             setProvider(nextProvider);
+            setEmail("");
             setAdvancedManual(false);
             setStatus(null);
             setError(null);
@@ -156,6 +174,23 @@ export function AddAccountModal({
 
         {provider === "opencode_go" ? (
           <>
+            <label className="field-label field-spaced" htmlFor="opencode-email">Email address</label>
+            <input
+              id="opencode-email"
+              className="text-input"
+              type="email"
+              value={email}
+              onChange={(event) => {
+                setEmail(event.target.value);
+                setError(null);
+              }}
+              placeholder="you@example.com"
+              autoComplete="email"
+              required
+              disabled={busy}
+            />
+            <div className="credential-note opencode-email-note">Required so the account card can identify which OpenCode account is connected.</div>
+
             {!advancedManual ? (
               <div className="guided-login-card">
                 <strong>What happens next</strong>
@@ -217,7 +252,7 @@ export function AddAccountModal({
         {error ? <div className="error-panel modal-error">{error}</div> : null}
         <div className="modal-actions">
           <button className="button ghost" onClick={onClose} disabled={busy}>Cancel</button>
-          <button className="button primary" onClick={begin} disabled={busy}>
+          <button className="button primary" onClick={begin} disabled={busy || (provider === "opencode_go" && !email.trim())}>
             {busy
               ? provider === "opencode_go" ? "Waiting for OpenCode…" : "Connecting…"
               : provider === "opencode_go"

@@ -6,6 +6,25 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 _No unreleased user-facing changes yet._
 
+## 0.2.29 - 2026-07-26
+
+### Added
+
+- OpenCode Go accounts now require an email address during setup so the connected email can be shown under the account name.
+
+### Improved
+
+- OpenAI now uses a high-contrast white Blossom icon throughout the dark dashboard.
+- All provider and account usage bars now use the dashboard’s purple accent color.
+- Account plan badges now sit beside the account status badge.
+- Account card actions are now unboxed and ordered as notifications, remove, and refresh, with a trash icon used for removal.
+- Usage-window badges now sit directly above their usage bars and use white text and outlines.
+- OpenAI account cards no longer show the Session metric or the provider-reported credit helper text.
+- Google account cards no longer repeat Five Hour Limit or Weekly Limit in metric names and no longer show an empty credits metric.
+- OpenCode Go account cards no longer show an empty credits metric.
+- The sidebar update control now displays its label only once.
+- The Account alerts label now has clearer spacing above the notification heading.
+
 ## 0.2.28 - 2026-07-26
 
 ### Added

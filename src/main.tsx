@@ -5,6 +5,7 @@ import App from "./App";
 import { PaseoBridgeWindow } from "./PaseoBridgeWindow";
 import { installSidebarResize } from "./sidebar-resize";
 import { installSidebarUpdateControl } from "./sidebar-update-control";
+import { installUiRefinements } from "./ui-refinements";
 import "./styles.css";
 import "./updater.css";
 import "./provider.css";
@@ -19,6 +20,7 @@ import "./dashboard-typography.css";
 import "./app-shell-polish.css";
 import "./paseo-bridge.css";
 import "./obsidian-dashboard.css";
+import "./ui-refinements.css";
 
 const isPaseoBridgeWindow = getCurrentWindow().label === "paseo-bridge";
 document.documentElement.classList.toggle("paseo-bridge-window-root", isPaseoBridgeWindow);
@@ -32,4 +34,5 @@ createRoot(document.getElementById("root")!).render(
 if (!isPaseoBridgeWindow) {
   installSidebarResize();
   installSidebarUpdateControl();
+  installUiRefinements();
 }
