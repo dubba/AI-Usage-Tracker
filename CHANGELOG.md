@@ -6,6 +6,14 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 _No unreleased user-facing changes yet._
 
+## 0.2.25 - 2026-07-26
+
+### Improved
+
+- Dashboard summary cards now use compact single-line layouts for connected accounts, accounts needing attention, and the next reset.
+- The **Next Reset** card now shows only the countdown and account name.
+- Accounts that need attention are now highlighted with a transparent red warning outline in the sidebar.
+
 ## 0.2.24 - 2026-07-26
 
 ### Added

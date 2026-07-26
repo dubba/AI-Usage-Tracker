@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import { installDashboardSummaryPolish } from "./dashboard-summary-polish";
 import { installSidebarResize } from "./sidebar-resize";
 import { installSidebarUpdateControl } from "./sidebar-update-control";
 import "./styles.css";
@@ -24,3 +25,4 @@ createRoot(document.getElementById("root")!).render(
 
 installSidebarResize();
 installSidebarUpdateControl();
+installDashboardSummaryPolish();
