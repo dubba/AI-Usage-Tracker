@@ -3,7 +3,6 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import { PaseoBridgeWindow } from "./PaseoBridgeWindow";
-import { installDashboardSummaryPolish } from "./dashboard-summary-polish";
 import { installSidebarResize } from "./sidebar-resize";
 import { installSidebarUpdateControl } from "./sidebar-update-control";
 import "./styles.css";
@@ -19,6 +18,7 @@ import "./sidebar-resize.css";
 import "./dashboard-typography.css";
 import "./app-shell-polish.css";
 import "./paseo-bridge.css";
+import "./obsidian-dashboard.css";
 
 const isPaseoBridgeWindow = getCurrentWindow().label === "paseo-bridge";
 document.documentElement.classList.toggle("paseo-bridge-window-root", isPaseoBridgeWindow);
@@ -32,5 +32,4 @@ createRoot(document.getElementById("root")!).render(
 if (!isPaseoBridgeWindow) {
   installSidebarResize();
   installSidebarUpdateControl();
-  installDashboardSummaryPolish();
 }

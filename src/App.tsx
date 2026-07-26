@@ -2,33 +2,53 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { bridgeApi } from "./api";
 import { AccountAlertModal } from "./components/AccountAlertModal";
-import { AccountRow } from "./components/AccountRow";
 import { AddAccountModal } from "./components/AddAccountModal";
-import { UsageBar } from "./components/UsageBar";
+import { ProviderIcon } from "./components/ProviderIcon";
 import {
+  BellIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  CloseIcon,
+  EditIcon,
   GaugeIcon,
   LinkIcon,
   PlusIcon,
   RefreshIcon,
   SettingsIcon,
-  ShieldIcon,
   UsersIcon,
 } from "./icons";
 import { APP_UPDATE_STATUS_EVENT, publishAppUpdateStatus } from "./sidebar-update-control";
-import type { Account, AppSettings, AppUpdateStatus, BridgeInfo, DashboardSnapshot, Provider } from "./types";
+import type {
+  Account,
+  AppSettings,
+  AppUpdateStatus,
+  BridgeInfo,
+  DashboardSnapshot,
+  Provider,
+  UsageWindow,
+} from "./types";
 
 type Section = "accounts" | "integration" | "settings";
 type UpdateBusy = "checking" | "installing" | null;
+type SidebarWindow = "five_hour" | "weekly";
+
+type ProviderGroup = {
+  provider: Provider;
+  accounts: Account[];
+};
 
 type NextResetSummary = {
+  account: string | null;
   value: string;
-  helper: string;
+  resetsAt: string | null;
 };
 
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const DASHBOARD_SYNC_INTERVAL_MS = 30 * 1000;
 const STARTUP_REFRESH_DELAY_MS = 3 * 1000;
 const ACCOUNT_REFRESH_OPTIONS = Array.from({ length: 12 }, (_, index) => (index + 1) * 5);
+const SIDEBAR_WINDOW_KEY = "ai-subscription-tracker:provider-average-window";
+const PROVIDER_ORDER: Provider[] = ["openai", "anthropic", "antigravity", "opencode_go"];
 
 function providerName(provider: Provider): string {
   switch (provider) {
@@ -40,18 +60,10 @@ function providerName(provider: Provider): string {
 }
 
 function formatTime(value: string | null | undefined): string {
-  if (!value) return "Never";
+  if (!value) return "Reset time unavailable";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Unknown";
+  if (Number.isNaN(date.getTime())) return "Reset time unavailable";
   return date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
-}
-
-function accountState(account: Account): { label: string; className: string } {
-  if (account.authRequired || account.lastUsage?.freshness === "auth_required") return { label: "Auth needed", className: "danger" };
-  if (!account.lastUsage) return { label: "Not refreshed", className: "neutral" };
-  if (account.lastUsage.freshness === "stale") return { label: "Stale", className: "warning" };
-  if (account.lastUsage.freshness === "unavailable") return { label: "Unavailable", className: "neutral" };
-  return { label: "Live", className: "success" };
 }
 
 function accountNeedsAttention(account: Account): boolean {
@@ -63,6 +75,49 @@ function accountNeedsAttention(account: Account): boolean {
   );
 }
 
+function accountStatus(account: Account): { label: string; className: string } {
+  if (account.authRequired || account.lastUsage?.freshness === "auth_required") {
+    return { label: "AUTH NEEDED", className: "danger" };
+  }
+  if (account.lastError || account.lastUsage?.freshness === "stale") {
+    return { label: "ATTENTION", className: "warning" };
+  }
+  if (!account.lastUsage || account.lastUsage.freshness === "unavailable") {
+    return { label: "INACTIVE", className: "neutral" };
+  }
+  return { label: "LIVE", className: "success" };
+}
+
+function canonicalWindow(window: UsageWindow, target: SidebarWindow): boolean {
+  const id = window.id.toLowerCase().replaceAll("-", "_");
+  const label = window.label.toLowerCase();
+  if (target === "five_hour") {
+    return id === "five_hour"
+      || id === "rolling"
+      || window.windowSeconds === 18_000
+      || label.includes("5 hour")
+      || label.includes("five hour");
+  }
+  return id === "weekly"
+    || window.windowSeconds === 604_800
+    || label.includes("weekly")
+    || label.includes("7 day")
+    || label.includes("seven day");
+}
+
+function accountWindowRemaining(account: Account, target: SidebarWindow): number | null {
+  const window = account.lastUsage?.windows.find((candidate) => canonicalWindow(candidate, target));
+  return window?.remainingPercent ?? null;
+}
+
+function providerAverage(accounts: Account[], target: SidebarWindow): number | null {
+  const values = accounts
+    .map((account) => accountWindowRemaining(account, target))
+    .filter((value): value is number => value != null && Number.isFinite(value));
+  if (!values.length) return null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
 function nextResetSummary(accounts: Account[]): NextResetSummary {
   const now = Date.now();
   const candidates = accounts.flatMap((account) =>
@@ -70,12 +125,12 @@ function nextResetSummary(accounts: Account[]): NextResetSummary {
       if (!window.resetsAt) return [];
       const resetAt = new Date(window.resetsAt).getTime();
       if (!Number.isFinite(resetAt) || resetAt <= now) return [];
-      return [{ resetAt, account: account.label, window: window.label }];
+      return [{ resetAt, account: account.label, resetsAt: window.resetsAt }];
     }),
   );
 
   if (!candidates.length) {
-    return { value: "—", helper: "No upcoming reset reported" };
+    return { account: null, value: "—", resetsAt: null };
   }
 
   candidates.sort((left, right) => left.resetAt - right.resetAt);
@@ -87,15 +142,59 @@ function nextResetSummary(accounts: Account[]): NextResetSummary {
       ? `${Math.ceil(remainingMinutes / 60)}h`
       : `${Math.ceil(remainingMinutes / (24 * 60))}d`;
 
-  return {
-    value,
-    helper: `${next.account} · ${next.window}`,
+  return { account: next.account, value, resetsAt: next.resetsAt };
+}
+
+function readSidebarWindow(): SidebarWindow {
+  try {
+    return window.localStorage.getItem(SIDEBAR_WINDOW_KEY) === "five_hour" ? "five_hour" : "weekly";
+  } catch {
+    return "weekly";
+  }
+}
+
+function storeSidebarWindow(value: SidebarWindow): void {
+  try {
+    window.localStorage.setItem(SIDEBAR_WINDOW_KEY, value);
+  } catch {
+    // The toggle remains usable if WebView storage is unavailable.
+  }
+}
+
+function usageTone(remaining: number | null): string {
+  if (remaining == null) return "neutral";
+  if (remaining <= 10) return "critical";
+  if (remaining <= 30) return "warning";
+  return "healthy";
+}
+
+function orderedWindows(windows: UsageWindow[]): UsageWindow[] {
+  const weight = (window: UsageWindow) => {
+    if (canonicalWindow(window, "five_hour")) return 0;
+    if (canonicalWindow(window, "weekly")) return 1;
+    if (window.id.toLowerCase().includes("monthly") || window.label.toLowerCase().includes("monthly")) return 2;
+    return 3;
   };
+  return [...windows].sort((left, right) => weight(left) - weight(right));
+}
+
+function windowLength(window: UsageWindow): string | null {
+  if (!window.windowSeconds) return null;
+  const hours = Math.round(window.windowSeconds / 3600);
+  if (hours >= 24 && hours % 24 === 0) return `${hours / 24}d window`;
+  return `${hours}h window`;
+}
+
+function displayPlan(account: Account): string | null {
+  const plan = account.plan?.trim();
+  if (!plan) return null;
+  return plan.replaceAll("_", " ").toUpperCase();
 }
 
 export default function App() {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
+  const [sidebarWindow, setSidebarWindow] = useState<SidebarWindow>(readSidebarWindow);
   const [section, setSection] = useState<Section>("accounts");
   const [addOpen, setAddOpen] = useState(false);
   const [alertAccount, setAlertAccount] = useState<Account | null>(null);
@@ -110,9 +209,9 @@ export default function App() {
   const [updateBusy, setUpdateBusy] = useState<UpdateBusy>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
 
-  const openAdd = useCallback((account?: Account) => {
+  const openAdd = useCallback((account?: Account, provider?: Provider) => {
     setLoginLabel(account?.label ?? "");
-    setLoginProvider(account?.provider);
+    setLoginProvider(account?.provider ?? provider);
     setAddOpen(true);
   }, []);
 
@@ -120,7 +219,10 @@ export default function App() {
     try {
       const next = await bridgeApi.snapshot();
       setSnapshot(next);
-      setSelectedId((current) => current && next.accounts.some((account) => account.id === current) ? current : next.accounts[0]?.id ?? null);
+      setSelectedProvider((current) => {
+        if (current && next.accounts.some((account) => account.provider === current)) return current;
+        return PROVIDER_ORDER.find((provider) => next.accounts.some((account) => account.provider === provider)) ?? null;
+      });
       setError(null);
     } catch (cause) {
       setError(String(cause));
@@ -227,8 +329,16 @@ export default function App() {
   }, [load, checkForUpdate]);
 
   const accounts = snapshot?.accounts ?? [];
-  const selected = accounts.find((account) => account.id === selectedId) ?? null;
-  const selectedState = selected ? accountState(selected) : null;
+  const providerGroups = useMemo<ProviderGroup[]>(
+    () => PROVIDER_ORDER.flatMap((provider) => {
+      const providerAccounts = accounts.filter((account) => account.provider === provider);
+      return providerAccounts.length ? [{ provider, accounts: providerAccounts }] : [];
+    }),
+    [accounts],
+  );
+  const visibleAccounts = selectedProvider
+    ? accounts.filter((account) => account.provider === selectedProvider)
+    : [];
   const needsAttention = accounts.filter(accountNeedsAttention).length;
   const nextReset = nextResetSummary(accounts);
 
@@ -256,46 +366,23 @@ export default function App() {
     }
   };
 
-  const moveAccount = async (sourceAccountId: string, targetAccountId: string) => {
-    if (!snapshot || sourceAccountId === targetAccountId || busy) return;
-    const previousAccounts = snapshot.accounts;
-    const sourceIndex = previousAccounts.findIndex((account) => account.id === sourceAccountId);
-    const targetIndex = previousAccounts.findIndex((account) => account.id === targetAccountId);
-    if (sourceIndex < 0 || targetIndex < 0) return;
-
-    const reordered = [...previousAccounts];
-    const [moved] = reordered.splice(sourceIndex, 1);
-    reordered.splice(targetIndex, 0, moved);
-
-    setSnapshot({ ...snapshot, accounts: reordered });
-    setBusy("reorder-accounts");
-    try {
-      const saved = await bridgeApi.reorderAccounts(reordered.map((account) => account.id));
-      setSnapshot((current) => current ? { ...current, accounts: saved } : current);
-    } catch (cause) {
-      setSnapshot((current) => current ? { ...current, accounts: previousAccounts } : current);
-      setError(String(cause));
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const rename = async (account: Account) => {
-    const label = window.prompt("Account label", account.label)?.trim();
-    if (!label || label === account.label) return;
+  const rename = async (account: Account, label: string) => {
+    const trimmed = label.trim();
+    if (!trimmed || trimmed === account.label) return;
     setBusy(`rename:${account.id}`);
     try {
-      await bridgeApi.renameAccount(account.id, label);
+      await bridgeApi.renameAccount(account.id, trimmed);
       await load();
     } catch (cause) {
       setError(String(cause));
+      throw cause;
     } finally {
       setBusy(null);
     }
   };
 
   const remove = async (account: Account) => {
-    if (!window.confirm(`Remove ${account.label}? This deletes its stored provider credentials from the operating-system credential store.`)) return;
+    if (!window.confirm(`Remove ${account.label}? This deletes its stored provider credentials from this computer.`)) return;
     setBusy(`remove:${account.id}`);
     try {
       await bridgeApi.removeAccount(account.id);
@@ -316,6 +403,11 @@ export default function App() {
     } catch (cause) {
       setError(String(cause));
     }
+  };
+
+  const changeSidebarWindow = (value: SidebarWindow) => {
+    setSidebarWindow(value);
+    storeSidebarWindow(value);
   };
 
   const content = useMemo(() => {
@@ -343,24 +435,52 @@ export default function App() {
     }
     return (
       <AccountsView
-        accounts={accounts}
-        selected={selected}
-        selectedState={selectedState}
+        allAccounts={accounts}
+        accounts={visibleAccounts}
+        selectedProvider={selectedProvider}
         needsAttention={needsAttention}
         nextReset={nextReset}
-        onAdd={() => openAdd()}
+        onAdd={() => openAdd(undefined, selectedProvider ?? undefined)}
         onRefreshAll={refreshAll}
+        onRefresh={(account) => void refreshOne(account.id)}
+        onReconnect={(account) => openAdd(account)}
+        onRename={(account, label) => rename(account, label)}
+        onRemove={(account) => void remove(account)}
+        onNotifications={setAlertAccount}
         busy={busy}
       />
     );
-  }, [section, snapshot?.bridge, busy, autostart, appSettings, settingsBusy, accounts, selected, selectedState, needsAttention, nextReset.value, nextReset.helper, appUpdate, updateBusy, updateError, checkForUpdate, installUpdate, openAdd, saveAccountRefreshMinutes, setPaseoBridgeEnabled, openPaseoBridgeWindow]);
+  }, [
+    section,
+    snapshot?.bridge,
+    busy,
+    autostart,
+    appSettings,
+    settingsBusy,
+    accounts,
+    visibleAccounts,
+    selectedProvider,
+    needsAttention,
+    nextReset.account,
+    nextReset.value,
+    nextReset.resetsAt,
+    appUpdate,
+    updateBusy,
+    updateError,
+    checkForUpdate,
+    installUpdate,
+    openAdd,
+    saveAccountRefreshMinutes,
+    setPaseoBridgeEnabled,
+    openPaseoBridgeWindow,
+  ]);
 
   return (
-    <div className="app-shell">
+    <div className="app-shell obsidian-shell">
       <aside className="sidebar">
         <div className="brand">
           <span className="brand-mark"><GaugeIcon /></span>
-          <div><strong>Paseo Usage</strong><small>Bridge</small></div>
+          <strong>AI Subscriptions</strong>
         </div>
 
         <nav className="primary-nav">
@@ -369,43 +489,51 @@ export default function App() {
           <button className={section === "settings" ? "active" : ""} onClick={() => setSection("settings")}><SettingsIcon />Settings</button>
         </nav>
 
-        <div className="sidebar-section-title"><span>Usage accounts</span></div>
-        <div className="account-list">
-          {accounts.length ? accounts.map((account) => (
-            <AccountRow
-              key={account.id}
-              account={account}
-              selected={account.id === selectedId}
-              busy={busy}
-              onSelect={() => {
-                setSelectedId(account.id);
-                setSection("accounts");
-              }}
-              onRefresh={() => void refreshOne(account.id)}
-              onReconnect={() => openAdd(account)}
-              onRename={() => void rename(account)}
-              onRemove={() => void remove(account)}
-              onSettings={() => setAlertAccount(account)}
-              onMove={(sourceAccountId, targetAccountId) => void moveAccount(sourceAccountId, targetAccountId)}
-            />
-          )) : <button className="empty-account" onClick={() => openAdd()}><PlusIcon /><span>Add your first account</span></button>}
+        <div className="provider-sidebar-heading">
+          <span>Usage accounts</span>
+          <div className="provider-window-toggle" aria-label="Provider average usage window">
+            <button
+              type="button"
+              className={sidebarWindow === "five_hour" ? "active" : ""}
+              aria-pressed={sidebarWindow === "five_hour"}
+              title="Show average 5-hour remaining usage"
+              onClick={() => changeSidebarWindow("five_hour")}
+            >H</button>
+            <button
+              type="button"
+              className={sidebarWindow === "weekly" ? "active" : ""}
+              aria-pressed={sidebarWindow === "weekly"}
+              title="Show average weekly remaining usage"
+              onClick={() => changeSidebarWindow("weekly")}
+            >W</button>
+          </div>
         </div>
 
-        <div className="sidebar-footer">
-          <span className={`connection-dot ${snapshot?.bridge.running ? "online" : "offline"}`} />
-          <div><strong>{snapshot?.bridge.running ? "Bridge online" : "Bridge offline"}</strong><small>{snapshot?.bridge.endpoint ?? "Starting…"}</small></div>
+        <div className="provider-list">
+          {providerGroups.length ? providerGroups.map((group) => (
+            <ProviderSidebarRow
+              key={group.provider}
+              group={group}
+              window={sidebarWindow}
+              selected={section === "accounts" && selectedProvider === group.provider}
+              onSelect={() => {
+                setSelectedProvider(group.provider);
+                setSection("accounts");
+              }}
+            />
+          )) : (
+            <button className="empty-account provider-empty" onClick={() => openAdd()}>
+              <PlusIcon /><span>Add your first account</span>
+            </button>
+          )}
         </div>
+
+        <div className="sidebar-footer"><RefreshIcon /><span>Check for App Updates</span></div>
       </aside>
 
       <main className="main-stage">
         {error ? <div className="global-error"><span>{error}</span><button onClick={() => setError(null)}>Dismiss</button></div> : null}
-        {appUpdate?.available ? (
-          <div className="update-banner">
-            <div><RefreshIcon /><span><strong>Version {appUpdate.availableVersion} is available</strong><small>The signed update is ready to download from GitHub Releases.</small></span></div>
-            <button className="button primary" disabled={updateBusy === "installing"} onClick={() => void installUpdate()}>{updateBusy === "installing" ? "Installing…" : "Restart and update"}</button>
-          </div>
-        ) : null}
-        {snapshot ? content : <div className="loading-screen"><span className="spinner" />Loading bridge…</div>}
+        {snapshot ? content : <div className="loading-screen"><span className="spinner" />Loading accounts…</div>}
       </main>
 
       <AddAccountModal
@@ -415,8 +543,9 @@ export default function App() {
         onClose={() => setAddOpen(false)}
         onAdded={async (account) => {
           setAddOpen(false);
-          setSelectedId(account.id);
-          try { await bridgeApi.refreshAccount(account.id); } catch { /* cached or newly connected account remains available */ }
+          setSelectedProvider(account.provider);
+          setSection("accounts");
+          try { await bridgeApi.refreshAccount(account.id); } catch { /* The account remains available with cached state. */ }
           await load();
         }}
       />
@@ -432,68 +561,286 @@ export default function App() {
   );
 }
 
+function ProviderSidebarRow({
+  group,
+  window,
+  selected,
+  onSelect,
+}: {
+  group: ProviderGroup;
+  window: SidebarWindow;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const average = providerAverage(group.accounts, window);
+  const width = average == null ? 0 : Math.min(100, Math.max(0, average));
+  const tone = usageTone(average);
+  return (
+    <button
+      type="button"
+      className={`provider-summary-row ${selected ? "selected" : ""}`}
+      onClick={onSelect}
+      aria-label={`${providerName(group.provider)}, ${group.accounts.length} accounts, ${average == null ? "usage unavailable" : `${Math.round(average)} percent average remaining`}`}
+    >
+      <span className={`provider-summary-icon provider-${group.provider}`}><ProviderIcon provider={group.provider} /></span>
+      <span className="provider-summary-content">
+        <span className="provider-summary-topline">
+          <strong>{providerName(group.provider)}</strong>
+          <span className={`provider-average tone-${tone}`}>{average == null ? "—" : `${Math.round(average)}%`}</span>
+        </span>
+        <span className="provider-summary-track"><span className={`tone-${tone}`} style={{ width: `${width}%` }} /></span>
+      </span>
+    </button>
+  );
+}
+
 function AccountsView(props: {
+  allAccounts: Account[];
   accounts: Account[];
-  selected: Account | null;
-  selectedState: { label: string; className: string } | null;
+  selectedProvider: Provider | null;
   needsAttention: number;
   nextReset: NextResetSummary;
   onAdd: () => void;
   onRefreshAll: () => void;
+  onRefresh: (account: Account) => void;
+  onReconnect: (account: Account) => void;
+  onRename: (account: Account, label: string) => Promise<void>;
+  onRemove: (account: Account) => void;
+  onNotifications: (account: Account) => void;
   busy: string | null;
 }) {
-  const { accounts, selected } = props;
-  const windows = selected?.lastUsage?.windows ?? [];
-
   return (
-    <div className="content-scroll">
-      <header className="page-header">
-        <div><span className="eyebrow">AI subscriptions</span><h1>Usage dashboard</h1><p>Monitor OpenAI Codex, Anthropic Claude, Google Antigravity, and OpenCode Go from one native desktop app.</p></div>
-        <div className="header-actions"><button className="button ghost" onClick={props.onRefreshAll} disabled={props.busy === "refresh-all"}><RefreshIcon />{props.busy === "refresh-all" ? "Refreshing…" : "Refresh all"}</button><button className="button primary" onClick={props.onAdd}><PlusIcon />Add account</button></div>
+    <div className="content-scroll dashboard-content">
+      <header className="dashboard-header">
+        <div>
+          <h1>Usage Dashboard</h1>
+          {props.selectedProvider ? <p>{providerName(props.selectedProvider)} accounts</p> : null}
+        </div>
+        <div className="header-actions">
+          <button className="button ghost" onClick={props.onRefreshAll} disabled={props.busy === "refresh-all"}>
+            <RefreshIcon />{props.busy === "refresh-all" ? "Refreshing…" : "Refresh All"}
+          </button>
+          <button className="button primary" onClick={props.onAdd}><PlusIcon />Add Account</button>
+        </div>
       </header>
 
-      <section className="summary-grid summary-grid-three">
-        <SummaryCard label="Connected accounts" value={String(accounts.length)} helper="Subscriptions being monitored" icon={<UsersIcon />} />
-        <SummaryCard label="Needs attention" value={String(props.needsAttention)} helper={props.needsAttention ? "Reconnect or refresh an account" : "All accounts are current"} icon={<ShieldIcon />} tone={props.needsAttention ? "warning" : "success"} />
-        <SummaryCard label="Next reset" value={props.nextReset.value} helper={props.nextReset.helper} icon={<GaugeIcon />} />
+      <section className="summary-grid mockup-summary-grid">
+        <div className="mockup-summary-card total-card">
+          <div><span className="summary-label">Total accounts</span><strong className="summary-helper">Active</strong></div>
+          <div className="summary-value-cluster"><strong>{props.allAccounts.length}</strong><UsersIcon /></div>
+        </div>
+        <div className={`mockup-summary-card attention-card ${props.needsAttention ? "has-attention" : ""}`}>
+          <div>
+            <span className="summary-label">Needs attention</span>
+            <strong className="summary-helper"><CheckCircleIcon />{props.needsAttention ? `${props.needsAttention} account${props.needsAttention === 1 ? "" : "s"}` : "All good"}</strong>
+          </div>
+          <div className="summary-value-cluster"><strong>{props.needsAttention}</strong><span className="summary-info">!</span></div>
+        </div>
+        <div className="mockup-summary-card next-reset-card">
+          <div>
+            <span className="summary-label">Next reset</span>
+            <strong className="next-reset-account">{props.nextReset.account ?? "No upcoming reset"}</strong>
+          </div>
+          <div className="next-reset-actions">
+            <span className="next-reset-pill">{props.nextReset.value === "—" ? "—" : `${props.nextReset.value} remaining`}</span>
+            <ClockIcon />
+          </div>
+        </div>
       </section>
 
-      {selected ? (
-        <section className="selected-panel">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">Selected account</span>
-              <h2>{selected.label}</h2>
-              <p className="selected-account-meta">{selected.email ?? providerName(selected.provider)} · Last refreshed {formatTime(selected.lastUsage?.fetchedAt)}</p>
-            </div>
-            <div className="badge-row">
-              <span className={`status-pill ${props.selectedState?.className}`}>{props.selectedState?.label}</span>
-              <span className="plan-pill">{providerName(selected.provider)}</span>
-              {selected.plan ? <span className="plan-pill">{selected.plan}</span> : null}
-            </div>
-          </div>
-          {selected.lastError ? <div className="error-panel selected-account-error">{selected.lastError}</div> : null}
-          <div className="usage-grid">
-            {windows.map((window) => <div className="usage-card wide" key={window.id}><UsageBar window={window} /></div>)}
-            {selected.lastUsage?.creditsUsd != null || selected.lastUsage?.unlimitedCredits ? (
-              <div className="usage-card compact"><span className="usage-label">Credits</span><strong>{selected.lastUsage.unlimitedCredits ? "Unlimited" : `$${selected.lastUsage.creditsUsd?.toFixed(2)}`}</strong><small>Provider-reported remaining credit balance</small></div>
-            ) : null}
-            {!windows.length ? <div className="usage-card wide"><EmptyMetric label="Provider usage" /></div> : null}
-          </div>
-        </section>
-      ) : (
-        <section className="welcome-panel"><GaugeIcon /><h2>Connect a provider account</h2><p>Each account is authenticated separately and its credentials remain in the operating-system credential manager.</p><button className="button primary" onClick={props.onAdd}><PlusIcon />Add account</button></section>
-      )}
+      <section className="provider-account-cards">
+        {props.accounts.length ? props.accounts.map((account) => (
+          <AccountDashboardCard
+            key={account.id}
+            account={account}
+            busy={props.busy}
+            onRefresh={() => props.onRefresh(account)}
+            onReconnect={() => props.onReconnect(account)}
+            onRename={(label) => props.onRename(account, label)}
+            onRemove={() => props.onRemove(account)}
+            onNotifications={() => props.onNotifications(account)}
+          />
+        )) : (
+          <section className="welcome-panel mockup-empty-panel">
+            <UsersIcon />
+            <h2>{props.selectedProvider ? `No ${providerName(props.selectedProvider)} accounts` : "Connect a provider account"}</h2>
+            <p>Add an account to begin monitoring its limits.</p>
+            <button className="button primary" onClick={props.onAdd}><PlusIcon />Add Account</button>
+          </section>
+        )}
+      </section>
     </div>
   );
 }
 
-function SummaryCard({ label, value, helper, icon, tone }: { label: string; value: string; helper: string; icon: React.ReactNode; tone?: "success" | "warning" }) {
-  return <div className={`summary-card ${tone ? `summary-${tone}` : ""}`}><span className="summary-icon">{icon}</span><div><small>{label}</small><strong>{value}</strong><span>{helper}</span></div></div>;
+function AccountDashboardCard({
+  account,
+  busy,
+  onRefresh,
+  onReconnect,
+  onRename,
+  onRemove,
+  onNotifications,
+}: {
+  account: Account;
+  busy: string | null;
+  onRefresh: () => void;
+  onReconnect: () => void;
+  onRename: (label: string) => Promise<void>;
+  onRemove: () => void;
+  onNotifications: () => void;
+}) {
+  const status = accountStatus(account);
+  const needsAttention = accountNeedsAttention(account);
+  const [editing, setEditing] = useState(false);
+  const [label, setLabel] = useState(account.label);
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const isRefreshing = busy === `refresh:${account.id}`;
+  const isRenaming = busy === `rename:${account.id}`;
+  const isRemoving = busy === `remove:${account.id}`;
+  const windows = orderedWindows(account.lastUsage?.windows ?? []);
+
+  useEffect(() => {
+    if (!editing) setLabel(account.label);
+  }, [account.label, editing]);
+
+  const commitRename = async () => {
+    const next = label.trim();
+    if (!next) {
+      setRenameError("Account name is required.");
+      return;
+    }
+    if (next === account.label) {
+      setEditing(false);
+      setRenameError(null);
+      return;
+    }
+    try {
+      await onRename(next);
+      setEditing(false);
+      setRenameError(null);
+    } catch {
+      setRenameError("Unable to rename this account.");
+    }
+  };
+
+  return (
+    <article className={`provider-account-card ${needsAttention ? "needs-attention" : ""}`}>
+      <header className="provider-account-card-header">
+        <span className={`account-card-provider-icon provider-${account.provider}`}><ProviderIcon provider={account.provider} /></span>
+        <div className="account-card-identity">
+          <div className="account-card-name-row">
+            {editing ? (
+              <input
+                className="account-card-name-input"
+                value={label}
+                maxLength={80}
+                disabled={isRenaming}
+                autoFocus
+                aria-label={`Rename ${account.label}`}
+                onChange={(event) => {
+                  setLabel(event.target.value);
+                  setRenameError(null);
+                }}
+                onBlur={() => void commitRename()}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    event.currentTarget.blur();
+                  } else if (event.key === "Escape") {
+                    event.preventDefault();
+                    setLabel(account.label);
+                    setRenameError(null);
+                    setEditing(false);
+                  }
+                }}
+              />
+            ) : <h2>{account.label}</h2>}
+            {!editing ? (
+              <button type="button" className="account-name-edit" title="Edit account name" aria-label={`Edit ${account.label}`} onClick={() => setEditing(true)}>
+                <EditIcon />
+              </button>
+            ) : null}
+            <span className={`account-status-badge ${status.className}`}>{status.label}</span>
+          </div>
+          <p>{account.email ?? providerName(account.provider)}</p>
+          {renameError ? <small className="account-card-inline-error">{renameError}</small> : null}
+        </div>
+        <div className="account-card-header-actions">
+          {displayPlan(account) ? <span className="account-plan-badge">{displayPlan(account)}</span> : null}
+          <button
+            type="button"
+            className={`account-card-action ${isRefreshing ? "spinning" : ""}`}
+            title="Refresh this account"
+            aria-label={`Refresh ${account.label}`}
+            disabled={Boolean(busy)}
+            onClick={onRefresh}
+          ><RefreshIcon /></button>
+          <button
+            type="button"
+            className="account-card-action remove-action"
+            title="Remove this account"
+            aria-label={`Remove ${account.label}`}
+            disabled={Boolean(busy)}
+            onClick={onRemove}
+          >{isRemoving ? <span className="mini-spinner" /> : <CloseIcon />}</button>
+          <button
+            type="button"
+            className="account-card-action"
+            title="Usage notifications"
+            aria-label={`Configure usage notifications for ${account.label}`}
+            disabled={Boolean(busy)}
+            onClick={onNotifications}
+          ><BellIcon /></button>
+        </div>
+      </header>
+
+      {account.lastError ? (
+        <div className="account-card-error">
+          <span>{account.lastError}</span>
+          {account.authRequired ? <button className="button ghost compact-button" onClick={onReconnect}>Reconnect</button> : null}
+        </div>
+      ) : null}
+
+      <div className="account-card-metrics">
+        {windows.length ? windows.map((window) => <AccountUsageMetric key={window.id} window={window} />) : (
+          <div className="account-usage-metric unavailable-metric">
+            <span className="metric-label">Usage</span>
+            <strong>Unavailable</strong>
+            <span className="metric-reset">Refresh this account to retrieve its limits.</span>
+          </div>
+        )}
+        <div className="account-credit-metric">
+          <span className="metric-label">Credits</span>
+          <strong>
+            {account.lastUsage?.unlimitedCredits
+              ? "Unlimited"
+              : account.lastUsage?.creditsUsd != null
+                ? `$${account.lastUsage.creditsUsd.toFixed(2)}`
+                : "—"}
+          </strong>
+          <span>{account.lastUsage?.creditsUsd != null || account.lastUsage?.unlimitedCredits ? "Provider-reported remaining credit balance" : "Not reported by this provider"}</span>
+        </div>
+      </div>
+    </article>
+  );
 }
 
-function EmptyMetric({ label }: { label: string }) {
-  return <div className="empty-metric"><span>{label}</span><strong>Unavailable</strong><small>Refresh this account to retrieve its current limits.</small></div>;
+function AccountUsageMetric({ window }: { window: UsageWindow }) {
+  const remaining = window.remainingPercent;
+  const width = remaining == null ? 0 : Math.min(100, Math.max(0, remaining));
+  const tone = usageTone(remaining);
+  return (
+    <div className="account-usage-metric">
+      <div className="metric-heading">
+        <span className="metric-label">{window.label}</span>
+        {windowLength(window) ? <span className="metric-window-pill">{windowLength(window)}</span> : null}
+      </div>
+      <strong>{remaining == null ? "Unavailable" : `${Math.round(remaining)}% remaining`}</strong>
+      <span className="account-metric-track"><span className={`tone-${tone}`} style={{ width: `${width}%` }} /></span>
+      <span className="metric-reset">{window.resetsAt ? `Resets ${formatTime(window.resetsAt)}` : "Reset time unavailable"}</span>
+    </div>
+  );
 }
 
 function IntegrationView({ bridge, onToggle, onView, busy }: {
@@ -512,7 +859,7 @@ function IntegrationView({ bridge, onToggle, onView, busy }: {
         : { label: "On · Starting", className: "starting" };
 
   return (
-    <div className="content-scroll narrow-content">
+    <div className="content-scroll narrow-content settings-style-content">
       <header className="page-header"><div><span className="eyebrow">Optional integration</span><h1>Integrations</h1><p>Connect AI Subscription Tracker to other local tools only when you need them.</p></div></header>
       <section className="settings-card paseo-integration-card">
         <div className={`settings-row paseo-integration-row ${busy ? "busy" : ""}`}>
@@ -556,12 +903,12 @@ function SettingsView({
   onInstallUpdate: () => void;
 }) {
   return (
-    <div className="content-scroll narrow-content">
-      <header className="page-header"><div><span className="eyebrow">Application</span><h1>Settings</h1><p>Control how the bridge behaves on this computer.</p></div></header>
+    <div className="content-scroll narrow-content settings-style-content">
+      <header className="page-header"><div><span className="eyebrow">Application</span><h1>Settings</h1><p>Control how AI Subscription Tracker behaves on this computer.</p></div></header>
       <section className="settings-card">
-        <div className="settings-row"><div><strong>Start at login</strong><small>Keep usage available to Paseo after signing in.</small></div><button className={`toggle ${autostart ? "on" : ""}`} onClick={onToggleAutostart} aria-pressed={autostart}><span /></button></div>
-        <div className="settings-row"><div><strong>Automatic updates</strong><small>Checks GitHub Releases at startup and every hour.</small></div>{update?.available ? <button className="button primary" disabled={updateBusy !== null} onClick={onInstallUpdate}>{updateBusy === "installing" ? "Installing…" : `Install v${update.availableVersion}`}</button> : <button className="button ghost" disabled={updateBusy !== null} onClick={onCheckForUpdate}>{updateBusy === "checking" ? "Checking…" : "Check for App Updates"}</button>}</div>
-        <div className="settings-row"><div><strong>Installed version</strong><small>{update?.available ? `Version ${update.availableVersion} is available.` : "The app installs only signed update packages."}</small></div><span className="setting-value mono">v{update?.currentVersion ?? "0.1.1"}</span></div>
+        <div className="settings-row"><div><strong>Start at login</strong><small>Keep account usage available after signing in.</small></div><button className={`toggle ${autostart ? "on" : ""}`} onClick={onToggleAutostart} aria-pressed={autostart}><span /></button></div>
+        <div className="settings-row"><div><strong>Automatic updates</strong><small>Checks GitHub Releases at startup and every hour.</small></div>{update?.available ? <button className="button primary" disabled={updateBusy !== null} onClick={onInstallUpdate}>{updateBusy === "installing" ? "Installing…" : `Update to v${update.availableVersion}`}</button> : <button className="button ghost" disabled={updateBusy !== null} onClick={onCheckForUpdate}>{updateBusy === "checking" ? "Checking…" : "Check for App Updates"}</button>}</div>
+        <div className="settings-row"><div><strong>Installed version</strong><small>{update?.available ? `Version ${update.availableVersion} is available.` : "The app installs only signed update packages."}</small></div><span className="setting-value mono">v{update?.currentVersion ?? "0.2.28"}</span></div>
         <div className="settings-row"><div><strong>Account Updates</strong><small>The selected number of minutes controls how often the app checks your AI usage percentages.</small></div><select className="account-update-select" aria-label="Account update interval" value={appSettings?.accountRefreshMinutes ?? 5} disabled={!appSettings || settingsBusy} onChange={(event) => onAccountRefreshMinutesChange(Number(event.target.value))}>{ACCOUNT_REFRESH_OPTIONS.map((minutes) => <option key={minutes} value={minutes}>{minutes} minutes</option>)}</select></div>
       </section>
       {update?.available && update.body ? <section className="update-notes"><strong>What changed in v{update.availableVersion}</strong><p>{update.body}</p>{update.date ? <small>Published {formatTime(update.date)}</small> : null}</section> : null}

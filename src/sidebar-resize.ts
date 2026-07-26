@@ -5,7 +5,7 @@ const MIN_MAIN_WIDTH = 520;
 const KEYBOARD_STEP = 16;
 
 function defaultSidebarWidth(): number {
-  return window.innerWidth <= 1220 ? 442 : 480;
+  return 300;
 }
 
 function maximumSidebarWidth(shell: HTMLElement): number {

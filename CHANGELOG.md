@@ -6,6 +6,20 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 _No unreleased user-facing changes yet._
 
+## 0.2.28 - 2026-07-26
+
+### Added
+
+- The account sidebar now groups accounts by provider and shows the provider’s average remaining 5-hour or weekly usage.
+- **H** and **W** controls beside **Usage Accounts** switch the provider averages between the 5-hour and weekly limits.
+- Each account card now has dedicated refresh, remove, and notification controls, plus inline account-name editing.
+
+### Improved
+
+- The Accounts dashboard has been rebuilt to closely follow the new Obsidian utility mockup, including its colors, typography, navigation, summary cards, spacing, and account-card layout.
+- Selecting a provider in the sidebar now displays all accounts connected to that provider in the main dashboard.
+- Account notification settings now focus on the 5-hour and weekly limits.
+
 ## 0.2.27 - 2026-07-26
 
 ### Added
