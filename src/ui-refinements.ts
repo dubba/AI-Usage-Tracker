@@ -34,8 +34,13 @@ function refineMetric(metric: HTMLElement, provider: CardProvider): void {
   if (!label) return;
 
   const labelText = label.textContent?.trim() ?? "";
-  metric.classList.toggle(
-    "ui-hidden-metric",
+
+  // v0.2.29 mistakenly hid the complete OpenAI metric when its label was
+  // "Session". Keep the quota value, window badge, bar, and reset time;
+  // only hide the redundant heading text.
+  metric.classList.remove("ui-hidden-metric");
+  label.classList.toggle(
+    "ui-hidden-metric-label",
     provider === "openai" && labelText.toLowerCase() === "session",
   );
 

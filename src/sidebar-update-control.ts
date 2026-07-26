@@ -15,6 +15,8 @@ export function publishAppUpdateStatus(status: AppUpdateStatus): void {
 function setLabel(footer: HTMLElement, label: string): void {
   footer.dataset.updateLabel = label;
   footer.setAttribute("aria-label", label);
+  const visibleLabel = footer.querySelector<HTMLElement>(":scope > span");
+  if (visibleLabel) visibleLabel.textContent = label;
 }
 
 function installSettingsChangelogControl(): void {

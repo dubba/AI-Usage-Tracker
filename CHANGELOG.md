@@ -6,6 +6,13 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 _No unreleased user-facing changes yet._
 
+## 0.2.30 - 2026-07-26
+
+### Fixed
+
+- Restored the OpenAI quota details that were accidentally hidden in v0.2.29. OpenAI cards again show the remaining percentage, usage-window badge, purple usage bar, and reset time while omitting only the redundant **Session** heading.
+- The sidebar update control now uses one real text label instead of displaying both its label and a generated duplicate.
+
 ## 0.2.29 - 2026-07-26
 
 ### Added

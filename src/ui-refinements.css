@@ -126,7 +126,13 @@
   grid-row: 5;
 }
 
-.ui-hidden-metric,
+/* Keep the full quota metric visible. Only the redundant OpenAI "Session"
+   heading is hidden. */
+.ui-hidden-metric {
+  display: grid !important;
+}
+
+.ui-hidden-metric-label,
 .ui-hidden-credit,
 .ui-hidden-credit-helper {
   display: none !important;
@@ -136,7 +142,13 @@
   margin-bottom: 0;
 }
 
+/* Use the real footer label and suppress the older generated duplicate. */
 .sidebar-footer > span {
+  display: inline !important;
+}
+
+.sidebar-footer::after {
+  content: none !important;
   display: none !important;
 }
 
