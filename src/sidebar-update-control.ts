@@ -97,7 +97,7 @@ export function installSidebarUpdateControl(): void {
       availableUpdate = status;
       if (status.available && status.availableVersion) {
         setAvailableState(true);
-        setLabel(footer, `Install v${status.availableVersion}`);
+        setLabel(footer, `Update to v${status.availableVersion}`);
       } else {
         setAvailableState(false);
         setLabel(footer, DEFAULT_LABEL);

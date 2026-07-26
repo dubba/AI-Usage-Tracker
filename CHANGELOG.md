@@ -6,6 +6,13 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 _No unreleased user-facing changes yet._
 
+## 0.2.26 - 2026-07-26
+
+### Improved
+
+- The sidebar update button now says **Update to v…** when a new version is available.
+- The duplicate update banner and restart button in the main dashboard have been removed.
+
 ## 0.2.25 - 2026-07-26
 
 ### Improved

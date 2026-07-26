@@ -1,49 +1,5 @@
 .update-banner {
-  position: absolute;
-  z-index: 7;
-  left: 18px;
-  right: 18px;
-  bottom: 18px;
-  min-height: 64px;
-  padding: 12px 14px;
-  border: 1px solid rgba(159, 103, 255, .42);
-  border-radius: 13px;
-  background: rgba(27, 23, 39, .96);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, .36);
-  backdrop-filter: blur(14px);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-}
-
-.update-banner > div {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  min-width: 0;
-}
-
-.update-banner > div > svg {
-  flex: 0 0 auto;
-  width: 20px;
-  height: 20px;
-  color: #b896ff;
-}
-
-.update-banner span {
-  display: grid;
-  min-width: 0;
-}
-
-.update-banner strong {
-  font-size: 12px;
-}
-
-.update-banner small {
-  margin-top: 4px;
-  color: var(--muted);
-  font-size: 10px;
+  display: none !important;
 }
 
 .update-notes {
