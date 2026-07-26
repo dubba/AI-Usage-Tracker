@@ -9,3 +9,4 @@ src-tauri/gen/
 .env
 .env.*
 !.env.example
+gemini-quota-probe-*.json

@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "check": "tsc -b --pretty false",
+    "probe:gemini-quota": "node scripts/gemini-quota-probe.mjs",
+    "test:gemini-quota-probe": "node --test scripts/gemini-quota-probe.test.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
