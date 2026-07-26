@@ -13,7 +13,9 @@ export function publishAppUpdateStatus(status: AppUpdateStatus): void {
 }
 
 function setLabel(footer: HTMLElement, label: string): void {
-  footer.dataset.updateLabel = label;
+  // The footer owns one real text node. Remove the legacy data attribute so
+  // older generated-label CSS cannot render a second copy.
+  footer.removeAttribute("data-update-label");
   footer.setAttribute("aria-label", label);
   const visibleLabel = footer.querySelector<HTMLElement>(":scope > span");
   if (visibleLabel) visibleLabel.textContent = label;

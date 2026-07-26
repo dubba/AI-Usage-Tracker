@@ -6,6 +6,16 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 _No unreleased user-facing changes yet._
 
+## 0.2.31 - 2026-07-26
+
+### Fixed
+
+- The bottom-left update control now displays **Check for App Updates** only once in every update state.
+
+### Improved
+
+- Usage-window badges such as **7d window** now share the percentage row and are right-aligned within each account metric.
+
 ## 0.2.30 - 2026-07-26
 
 ### Fixed

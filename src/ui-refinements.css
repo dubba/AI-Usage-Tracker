@@ -100,16 +100,19 @@
 }
 
 .account-usage-metric > strong {
-  grid-column: 1 / -1;
+  grid-column: 1;
   grid-row: 2;
+  align-self: center;
+  margin-right: 12px;
 }
 
 .account-usage-metric .metric-window-pill {
-  grid-column: 1;
-  grid-row: 3;
-  justify-self: start;
+  grid-column: 2;
+  grid-row: 2;
+  align-self: center;
+  justify-self: end;
   width: fit-content;
-  margin: 0 0 8px;
+  margin: 10px 0;
   padding: 2px 7px;
   color: #fff;
   border-color: rgba(255, 255, 255, 0.92);
@@ -118,12 +121,12 @@
 
 .account-usage-metric .account-metric-track {
   grid-column: 1 / -1;
-  grid-row: 4;
+  grid-row: 3;
 }
 
 .account-usage-metric .metric-reset {
   grid-column: 1 / -1;
-  grid-row: 5;
+  grid-row: 4;
 }
 
 /* Keep the full quota metric visible. Only the redundant OpenAI "Session"
@@ -142,12 +145,13 @@
   margin-bottom: 0;
 }
 
-/* Use the real footer label and suppress the older generated duplicate. */
-.sidebar-footer > span {
+/* The update control uses one real text node. The exact selector below wins
+   over the older Obsidian generated-label rule. */
+.obsidian-shell .sidebar-footer > span {
   display: inline !important;
 }
 
-.sidebar-footer::after {
+.obsidian-shell .sidebar-footer::after {
   content: none !important;
   display: none !important;
 }
