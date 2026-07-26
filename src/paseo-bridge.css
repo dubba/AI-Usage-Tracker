@@ -1,0 +1,277 @@
+.paseo-bridge-window-root,
+.paseo-bridge-window-root body,
+.paseo-bridge-window-root #root {
+  min-width: 0;
+  min-height: 100%;
+  overflow: auto;
+}
+
+.paseo-integration-card {
+  overflow: visible;
+}
+
+.paseo-integration-row {
+  align-items: center;
+}
+
+.paseo-integration-row > div:first-child {
+  display: grid;
+  gap: 5px;
+}
+
+.paseo-integration-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  flex: 0 0 auto;
+}
+
+.paseo-view-link {
+  border: 0;
+  background: transparent;
+  color: #b896ff;
+  padding: 5px 0;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.paseo-view-link:hover:not(:disabled) {
+  color: #d4c3ff;
+}
+
+.paseo-view-link:disabled {
+  opacity: .55;
+  cursor: wait;
+}
+
+.paseo-view-link[hidden] {
+  display: none !important;
+}
+
+.paseo-bridge-inline-status {
+  color: var(--muted-2);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.paseo-bridge-inline-status.running {
+  color: #82e9a9;
+}
+
+.paseo-bridge-inline-status.error {
+  color: #ff9d9d;
+}
+
+.paseo-bridge-inline-status.starting {
+  color: #ffd073;
+}
+
+.paseo-integration-row.busy {
+  opacity: .72;
+}
+
+.paseo-integration-error {
+  margin-top: 14px;
+}
+
+.bridge-window-loading {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 30px;
+  background: var(--bg);
+  color: var(--muted);
+}
+
+.bridge-window-shell {
+  min-height: 100vh;
+  padding: 30px;
+  background: var(--bg);
+  color: var(--text);
+  overflow-y: auto;
+}
+
+.bridge-window-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 22px;
+}
+
+.bridge-window-header h1 {
+  margin: 5px 0 7px;
+  font-size: 28px;
+  letter-spacing: -.035em;
+}
+
+.bridge-window-header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.bridge-window-status {
+  flex: 0 0 auto;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: var(--muted);
+  background: var(--panel-2);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.bridge-window-status.running {
+  color: #82e9a9;
+  border-color: rgba(68, 209, 122, .35);
+  background: var(--green-soft);
+}
+
+.bridge-window-status.error {
+  color: #ff9d9d;
+  border-color: rgba(255, 111, 111, .35);
+  background: rgba(255, 111, 111, .1);
+}
+
+.bridge-window-warning {
+  margin-bottom: 14px;
+  padding: 13px 15px;
+  border: 1px solid rgba(245, 182, 66, .32);
+  border-radius: 12px;
+  color: #ffd073;
+  background: rgba(245, 182, 66, .1);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.bridge-detail-card,
+.bridge-config-card,
+.bridge-security-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.bridge-detail-card {
+  overflow: hidden;
+}
+
+.bridge-detail-row {
+  min-height: 74px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.bridge-detail-row:first-child {
+  border-top: 0;
+}
+
+.bridge-detail-row > div:first-child {
+  display: grid;
+  gap: 4px;
+  min-width: 170px;
+}
+
+.bridge-detail-row strong,
+.bridge-config-heading strong,
+.bridge-security-card > strong {
+  font-size: 12px;
+}
+
+.bridge-detail-row small,
+.bridge-config-heading small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.bridge-detail-value {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.bridge-detail-value code {
+  min-width: 0;
+  max-width: 380px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #d9d1e8;
+  font-size: 10px;
+}
+
+.bridge-token-value code {
+  max-width: 310px;
+}
+
+.bridge-config-card,
+.bridge-security-card {
+  margin-top: 15px;
+  padding: 16px;
+}
+
+.bridge-config-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.bridge-config-heading > div {
+  display: grid;
+  gap: 4px;
+}
+
+.bridge-config-card pre {
+  margin: 14px 0 0;
+  padding: 14px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #0b0e0c;
+  color: #d9d1e8;
+  font-size: 10px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.bridge-security-card ul {
+  margin: 12px 0 0;
+  padding-left: 20px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.bridge-security-card code {
+  color: #d9d1e8;
+}
+
+@media (max-width: 720px) {
+  .bridge-window-shell {
+    padding: 22px;
+  }
+
+  .bridge-detail-row,
+  .bridge-config-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .bridge-detail-value {
+    justify-content: flex-start;
+  }
+}

@@ -14,31 +14,62 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 
 const API_ADDR: &str = "127.0.0.1:47831";
+const RETRY_DELAY_SECONDS: u64 = 3;
 
-pub async fn run(app: Arc<AppState>) {
-    match TcpListener::bind(API_ADDR).await {
-        Ok(listener) => {
-            {
-                let mut runtime = app.api_runtime.write();
-                runtime.running = true;
-                runtime.error = None;
-            }
-            let router = Router::new()
-                .route("/v1/health", get(health))
-                .route("/v1/paseo-usage", get(usage))
-                .with_state(app.clone());
-            if let Err(error) = axum::serve(listener, router).await {
-                let mut runtime = app.api_runtime.write();
-                runtime.running = false;
-                runtime.error = Some(format!("Local API stopped: {error}"));
-            }
+pub async fn run_controller(app: Arc<AppState>) {
+    loop {
+        if !app.settings.paseo_bridge_enabled() {
+            set_runtime(&app, false, None);
+            app.settings.wait_for_bridge_state_change().await;
+            continue;
         }
-        Err(error) => {
-            let mut runtime = app.api_runtime.write();
-            runtime.running = false;
-            runtime.error = Some(format!("Unable to bind {API_ADDR}: {error}"));
+
+        match TcpListener::bind(API_ADDR).await {
+            Ok(listener) => {
+                set_runtime(&app, true, None);
+                let router = Router::new()
+                    .route("/v1/health", get(health))
+                    .route("/v1/paseo-usage", get(usage))
+                    .with_state(app.clone());
+                let shutdown_state = app.clone();
+                let server = axum::serve(listener, router).with_graceful_shutdown(async move {
+                    loop {
+                        shutdown_state.settings.wait_for_bridge_state_change().await;
+                        if !shutdown_state.settings.paseo_bridge_enabled() {
+                            break;
+                        }
+                    }
+                });
+
+                match server.await {
+                    Ok(()) => set_runtime(&app, false, None),
+                    Err(error) => {
+                        set_runtime(&app, false, Some(format!("Local API stopped: {error}")));
+                        if app.settings.paseo_bridge_enabled() {
+                            tokio::time::sleep(std::time::Duration::from_secs(RETRY_DELAY_SECONDS)).await;
+                        }
+                    }
+                }
+            }
+            Err(error) => {
+                set_runtime(
+                    &app,
+                    false,
+                    Some(format!("Unable to bind {API_ADDR}: {error}")),
+                );
+                tokio::select! {
+                    _ = tokio::time::sleep(std::time::Duration::from_secs(RETRY_DELAY_SECONDS)) => {},
+                    _ = app.settings.wait_for_bridge_state_change() => {},
+                }
+            }
         }
     }
+}
+
+fn set_runtime(app: &AppState, running: bool, error: Option<String>) {
+    let mut runtime = app.api_runtime.write();
+    runtime.running = running;
+    runtime.error = error;
 }
 
 async fn health() -> impl IntoResponse {

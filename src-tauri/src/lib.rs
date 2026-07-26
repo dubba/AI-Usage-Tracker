@@ -21,7 +21,7 @@ use std::{str::FromStr, sync::Arc};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, State, WebviewWindowBuilder, WindowEvent,
+    AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder, WindowEvent,
 };
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_notification::NotificationExt;
@@ -98,6 +98,58 @@ fn set_account_refresh_minutes(
     minutes: u64,
 ) -> Result<AppSettings, String> {
     state.settings.set_account_refresh_minutes(minutes)
+}
+
+#[tauri::command]
+async fn set_paseo_bridge_enabled(
+    state: State<'_, Arc<AppState>>,
+    enabled: bool,
+) -> Result<BridgeInfo, String> {
+    state.settings.set_paseo_bridge_enabled(enabled)?;
+
+    for _ in 0..20 {
+        let info = bridge_info(state.inner().as_ref());
+        if (!enabled && !info.running) || (enabled && (info.running || info.error.is_some())) {
+            return Ok(info);
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+
+    Ok(bridge_info(state.inner().as_ref()))
+}
+
+#[tauri::command]
+async fn open_paseo_bridge_window(
+    app: AppHandle,
+    state: State<'_, Arc<AppState>>,
+) -> Result<(), String> {
+    if !state.settings.paseo_bridge_enabled() {
+        return Err("Enable the Paseo Bridge before opening its configuration.".into());
+    }
+
+    if let Some(window) = app.get_webview_window("paseo-bridge") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+        return Ok(());
+    }
+
+    let mut builder = WebviewWindowBuilder::new(
+        &app,
+        "paseo-bridge",
+        WebviewUrl::App("index.html".into()),
+    )
+    .title("Paseo Bridge")
+    .inner_size(780.0, 760.0)
+    .min_inner_size(640.0, 560.0)
+    .center();
+
+    if let Some(icon) = app.default_window_icon() {
+        builder = builder.icon(icon.clone()).map_err(|error| error.to_string())?;
+    }
+
+    builder.build().map_err(|error| error.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -257,6 +309,7 @@ fn bridge_info(state: &AppState) -> BridgeInfo {
     BridgeInfo {
         endpoint: runtime.endpoint.clone(),
         token: state.bridge_token.read().clone(),
+        enabled: state.settings.paseo_bridge_enabled(),
         running: runtime.running,
         error: runtime.error.clone(),
     }
@@ -310,7 +363,7 @@ pub fn run() {
             );
             state.set_app_handle(app.handle().clone());
             app.manage(state.clone());
-            tauri::async_runtime::spawn(bridge_api::run(state.clone()));
+            tauri::async_runtime::spawn(bridge_api::run_controller(state.clone()));
             tauri::async_runtime::spawn(async move {
                 tokio::time::sleep(std::time::Duration::from_secs(2)).await;
                 loop {
@@ -370,6 +423,8 @@ pub fn run() {
             refresh_all,
             get_app_settings,
             set_account_refresh_minutes,
+            set_paseo_bridge_enabled,
+            open_paseo_bridge_window,
             reorder_accounts,
             get_account_alerts,
             save_account_alerts,

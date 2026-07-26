@@ -46,6 +46,7 @@ export interface UsageAlertSetting {
 export interface BridgeInfo {
   endpoint: string;
   token: string;
+  enabled: boolean;
   running: boolean;
   error: string | null;
 }
@@ -57,6 +58,7 @@ export interface DashboardSnapshot {
 
 export interface AppSettings {
   accountRefreshMinutes: number;
+  paseoBridgeEnabled: boolean;
 }
 
 export interface LoginStart {

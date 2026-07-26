@@ -6,6 +6,18 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 _No unreleased user-facing changes yet._
 
+## 0.2.27 - 2026-07-26
+
+### Added
+
+- Integrations now includes a toggle for enabling or disabling the Paseo Bridge.
+- When the bridge is enabled, a **View** link opens a separate window with its status, endpoints, bearer token, environment configuration, token rotation control, and connection details.
+
+### Improved
+
+- The Paseo Bridge is now disabled by default and no longer opens its localhost listener until explicitly enabled.
+- Disabling the bridge now shuts down its local listener while preserving its configuration for later use.
+
 ## 0.2.26 - 2026-07-26
 
 ### Improved

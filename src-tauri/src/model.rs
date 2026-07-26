@@ -181,6 +181,7 @@ pub struct LoginStatus {
 pub struct BridgeInfo {
     pub endpoint: String,
     pub token: String,
+    pub enabled: bool,
     pub running: bool,
     pub error: Option<String>,
 }

@@ -6,7 +6,6 @@ import { AccountRow } from "./components/AccountRow";
 import { AddAccountModal } from "./components/AddAccountModal";
 import { UsageBar } from "./components/UsageBar";
 import {
-  CopyIcon,
   GaugeIcon,
   LinkIcon,
   PlusIcon,
@@ -94,10 +93,6 @@ function nextResetSummary(accounts: Account[]): NextResetSummary {
   };
 }
 
-function copy(value: string) {
-  return navigator.clipboard.writeText(value);
-}
-
 export default function App() {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -171,6 +166,32 @@ export default function App() {
       setError(String(cause));
     } finally {
       setSettingsBusy(false);
+    }
+  }, []);
+
+  const setPaseoBridgeEnabled = useCallback(async (enabled: boolean) => {
+    setBusy("toggle-paseo-bridge");
+    try {
+      const bridge = await bridgeApi.setPaseoBridgeEnabled(enabled);
+      setSnapshot((current) => current ? { ...current, bridge } : current);
+      setAppSettings((current) => current ? { ...current, paseoBridgeEnabled: enabled } : current);
+      setError(null);
+    } catch (cause) {
+      setError(String(cause));
+    } finally {
+      setBusy(null);
+    }
+  }, []);
+
+  const openPaseoBridgeWindow = useCallback(async () => {
+    setBusy("open-paseo-bridge");
+    try {
+      await bridgeApi.openPaseoBridgeWindow();
+      setError(null);
+    } catch (cause) {
+      setError(String(cause));
+    } finally {
+      setBusy(null);
     }
   }, []);
 
@@ -299,17 +320,12 @@ export default function App() {
 
   const content = useMemo(() => {
     if (section === "integration") {
-      return <IntegrationView bridge={snapshot?.bridge ?? null} onRegenerate={async () => {
-        setBusy("regenerate-token");
-        try {
-          const bridge = await bridgeApi.regenerateToken();
-          setSnapshot((current) => current ? { ...current, bridge } : current);
-        } catch (cause) {
-          setError(String(cause));
-        } finally {
-          setBusy(null);
-        }
-      }} busy={busy === "regenerate-token"} />;
+      return <IntegrationView
+        bridge={snapshot?.bridge ?? null}
+        busy={busy === "toggle-paseo-bridge" || busy === "open-paseo-bridge"}
+        onToggle={(enabled) => void setPaseoBridgeEnabled(enabled)}
+        onView={() => void openPaseoBridgeWindow()}
+      />;
     }
     if (section === "settings") {
       return <SettingsView
@@ -337,7 +353,7 @@ export default function App() {
         busy={busy}
       />
     );
-  }, [section, snapshot?.bridge, busy, autostart, appSettings, settingsBusy, accounts, selected, selectedState, needsAttention, nextReset.value, nextReset.helper, appUpdate, updateBusy, updateError, checkForUpdate, installUpdate, openAdd, saveAccountRefreshMinutes]);
+  }, [section, snapshot?.bridge, busy, autostart, appSettings, settingsBusy, accounts, selected, selectedState, needsAttention, nextReset.value, nextReset.helper, appUpdate, updateBusy, updateError, checkForUpdate, installUpdate, openAdd, saveAccountRefreshMinutes, setPaseoBridgeEnabled, openPaseoBridgeWindow]);
 
   return (
     <div className="app-shell">
@@ -349,7 +365,7 @@ export default function App() {
 
         <nav className="primary-nav">
           <button className={section === "accounts" ? "active" : ""} onClick={() => setSection("accounts")}><UsersIcon />Accounts</button>
-          <button className={section === "integration" ? "active" : ""} onClick={() => setSection("integration")}><LinkIcon />Integration</button>
+          <button className={section === "integration" ? "active" : ""} onClick={() => setSection("integration")}><LinkIcon />Integrations</button>
           <button className={section === "settings" ? "active" : ""} onClick={() => setSection("settings")}><SettingsIcon />Settings</button>
         </nav>
 
@@ -480,20 +496,38 @@ function EmptyMetric({ label }: { label: string }) {
   return <div className="empty-metric"><span>{label}</span><strong>Unavailable</strong><small>Refresh this account to retrieve its current limits.</small></div>;
 }
 
-function IntegrationView({ bridge, onRegenerate, busy }: { bridge: BridgeInfo | null; onRegenerate: () => void; busy: boolean }) {
+function IntegrationView({ bridge, onToggle, onView, busy }: {
+  bridge: BridgeInfo | null;
+  onToggle: (enabled: boolean) => void;
+  onView: () => void;
+  busy: boolean;
+}) {
+  const enabled = bridge?.enabled ?? false;
+  const status = !enabled
+    ? { label: "Off", className: "off" }
+    : bridge?.running
+      ? { label: "On · Running locally", className: "running" }
+      : bridge?.error
+        ? { label: "On · Needs attention", className: "error" }
+        : { label: "On · Starting", className: "starting" };
+
   return (
     <div className="content-scroll narrow-content">
-      <header className="page-header"><div><span className="eyebrow">Optional integration</span><h1>Paseo bridge API</h1><p>The desktop app exposes normalized, sanitized provider usage over localhost. Provider credentials never leave the native backend.</p></div></header>
-      <section className="integration-hero"><span className={`connection-badge ${bridge?.running ? "online" : "offline"}`}><span />{bridge?.running ? "Local API running" : "Local API unavailable"}</span><h2>{bridge?.endpoint ?? "Starting…"}</h2><p>Configure Paseo's external provider-usage adapter to read this versioned endpoint.</p></section>
-      <section className="settings-card">
-        <div className="settings-row"><div><strong>Endpoint</strong><small>Loopback only; never listens on the network.</small></div><div className="copy-value"><code>{bridge?.endpoint ?? "—"}</code><button className="icon-button" onClick={() => bridge && void copy(bridge.endpoint)}><CopyIcon /></button></div></div>
-        <div className="settings-row"><div><strong>Bearer token</strong><small>Required for every usage request.</small></div><div className="copy-value secret"><code>{bridge?.token ?? "—"}</code><button className="icon-button" onClick={() => bridge && void copy(bridge.token)}><CopyIcon /></button></div></div>
-        <div className="settings-row"><div><strong>Rotate token</strong><small>Existing integrations stop working until updated.</small></div><button className="button ghost" onClick={onRegenerate} disabled={busy}>{busy ? "Rotating…" : "Regenerate"}</button></div>
+      <header className="page-header"><div><span className="eyebrow">Optional integration</span><h1>Integrations</h1><p>Connect AI Subscription Tracker to other local tools only when you need them.</p></div></header>
+      <section className="settings-card paseo-integration-card">
+        <div className={`settings-row paseo-integration-row ${busy ? "busy" : ""}`}>
+          <div>
+            <strong>Paseo Bridge</strong>
+            <small>Expose sanitized usage data to Paseo over an authenticated localhost endpoint. Disabled by default.</small>
+            <span className={`paseo-bridge-inline-status ${status.className}`}>{status.label}</span>
+          </div>
+          <div className="paseo-integration-actions">
+            {enabled ? <button type="button" className="paseo-view-link" disabled={busy} onClick={onView}>View</button> : null}
+            <button type="button" className={`toggle ${enabled ? "on" : ""}`} disabled={busy || !bridge} aria-label={enabled ? "Disable Paseo Bridge" : "Enable Paseo Bridge"} aria-pressed={enabled} onClick={() => onToggle(!enabled)}><span /></button>
+          </div>
+        </div>
       </section>
-      <section className="code-card"><div className="code-card-heading"><strong>Environment configuration</strong><button className="icon-button" onClick={() => bridge && void copy(`PASEO_EXTERNAL_PROVIDER_USAGE_URL=${bridge.endpoint}
-PASEO_EXTERNAL_PROVIDER_USAGE_TOKEN=${bridge.token}`)}><CopyIcon /></button></div><pre>{bridge ? `PASEO_EXTERNAL_PROVIDER_USAGE_URL=${bridge.endpoint}
-PASEO_EXTERNAL_PROVIDER_USAGE_TOKEN=${bridge.token}` : "Bridge is starting…"}</pre></section>
-      {bridge?.error ? <div className="error-panel">{bridge.error}</div> : null}
+      {bridge?.error ? <div className="error-panel paseo-integration-error">{bridge.error}</div> : null}
     </div>
   );
 }

@@ -1,6 +1,9 @@
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use std::{fs, path::{Path, PathBuf}};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 use tokio::sync::Notify;
 
 const SETTINGS_FILE_NAME: &str = "app-settings.json";
@@ -13,6 +16,7 @@ pub const ACCOUNT_REFRESH_STEP_MINUTES: u64 = 5;
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
     pub account_refresh_minutes: u64,
+    pub paseo_bridge_enabled: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -23,6 +27,8 @@ struct StoredAppSettings {
     #[serde(default = "default_account_refresh_minutes")]
     account_refresh_minutes: u64,
     #[serde(default)]
+    paseo_bridge_enabled: bool,
+    #[serde(default)]
     last_notified_update_version: Option<String>,
 }
 
@@ -31,6 +37,7 @@ impl Default for StoredAppSettings {
         Self {
             version: settings_version(),
             account_refresh_minutes: DEFAULT_ACCOUNT_REFRESH_MINUTES,
+            paseo_bridge_enabled: false,
             last_notified_update_version: None,
         }
     }
@@ -40,6 +47,7 @@ pub struct SettingsStore {
     path: PathBuf,
     settings: RwLock<StoredAppSettings>,
     refresh_schedule_changed: Notify,
+    bridge_state_changed: Notify,
 }
 
 impl SettingsStore {
@@ -57,17 +65,21 @@ impl SettingsStore {
         if !valid_refresh_minutes(settings.account_refresh_minutes) {
             settings.account_refresh_minutes = DEFAULT_ACCOUNT_REFRESH_MINUTES;
         }
+        settings.version = settings_version();
 
         Ok(Self {
             path,
             settings: RwLock::new(settings),
             refresh_schedule_changed: Notify::new(),
+            bridge_state_changed: Notify::new(),
         })
     }
 
     pub fn get(&self) -> AppSettings {
+        let settings = self.settings.read();
         AppSettings {
-            account_refresh_minutes: self.settings.read().account_refresh_minutes,
+            account_refresh_minutes: settings.account_refresh_minutes,
+            paseo_bridge_enabled: settings.paseo_bridge_enabled,
         }
     }
 
@@ -84,6 +96,7 @@ impl SettingsStore {
         if settings.account_refresh_minutes == minutes {
             return Ok(AppSettings {
                 account_refresh_minutes: minutes,
+                paseo_bridge_enabled: settings.paseo_bridge_enabled,
             });
         }
 
@@ -95,11 +108,41 @@ impl SettingsStore {
 
         Ok(AppSettings {
             account_refresh_minutes: minutes,
+            paseo_bridge_enabled: settings.paseo_bridge_enabled,
         })
     }
 
     pub async fn wait_for_refresh_schedule_change(&self) {
         self.refresh_schedule_changed.notified().await;
+    }
+
+    pub fn paseo_bridge_enabled(&self) -> bool {
+        self.settings.read().paseo_bridge_enabled
+    }
+
+    pub fn set_paseo_bridge_enabled(&self, enabled: bool) -> Result<AppSettings, String> {
+        let mut settings = self.settings.write();
+        if settings.paseo_bridge_enabled == enabled {
+            return Ok(AppSettings {
+                account_refresh_minutes: settings.account_refresh_minutes,
+                paseo_bridge_enabled: enabled,
+            });
+        }
+
+        let mut next = settings.clone();
+        next.paseo_bridge_enabled = enabled;
+        self.persist(&next)?;
+        *settings = next;
+        self.bridge_state_changed.notify_one();
+
+        Ok(AppSettings {
+            account_refresh_minutes: settings.account_refresh_minutes,
+            paseo_bridge_enabled: enabled,
+        })
+    }
+
+    pub async fn wait_for_bridge_state_change(&self) {
+        self.bridge_state_changed.notified().await;
     }
 
     pub fn update_notification_needed(&self, version: &str) -> bool {
@@ -130,7 +173,7 @@ impl SettingsStore {
 }
 
 fn settings_version() -> u32 {
-    1
+    2
 }
 
 fn default_account_refresh_minutes() -> u64 {
@@ -162,6 +205,15 @@ mod tests {
         assert!(store.set_account_refresh_minutes(0).is_err());
         assert!(store.set_account_refresh_minutes(7).is_err());
         assert!(store.set_account_refresh_minutes(65).is_err());
+    }
+
+    #[test]
+    fn bridge_is_disabled_by_default_and_persists_when_enabled() {
+        let directory = tempfile::tempdir().unwrap();
+        let store = SettingsStore::load(directory.path()).unwrap();
+        assert!(!store.get().paseo_bridge_enabled);
+        assert!(store.set_paseo_bridge_enabled(true).unwrap().paseo_bridge_enabled);
+        assert!(SettingsStore::load(directory.path()).unwrap().get().paseo_bridge_enabled);
     }
 
     #[test]
