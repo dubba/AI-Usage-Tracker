@@ -15,7 +15,8 @@ import {
   ShieldIcon,
   UsersIcon,
 } from "./icons";
-import type { Account, AppUpdateStatus, BridgeInfo, DashboardSnapshot, Provider } from "./types";
+import { APP_UPDATE_STATUS_EVENT, publishAppUpdateStatus } from "./sidebar-update-control";
+import type { Account, AppSettings, AppUpdateStatus, BridgeInfo, DashboardSnapshot, Provider } from "./types";
 
 type Section = "accounts" | "integration" | "settings";
 type UpdateBusy = "checking" | "installing" | null;
@@ -25,9 +26,10 @@ type NextResetSummary = {
   helper: string;
 };
 
-const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const DASHBOARD_SYNC_INTERVAL_MS = 30 * 1000;
 const STARTUP_REFRESH_DELAY_MS = 3 * 1000;
+const ACCOUNT_REFRESH_OPTIONS = Array.from({ length: 12 }, (_, index) => (index + 1) * 5);
 
 function providerName(provider: Provider): string {
   switch (provider) {
@@ -107,6 +109,8 @@ export default function App() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [autostart, setAutostart] = useState(false);
+  const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
+  const [settingsBusy, setSettingsBusy] = useState(false);
   const [appUpdate, setAppUpdate] = useState<AppUpdateStatus | null>(null);
   const [updateBusy, setUpdateBusy] = useState<UpdateBusy>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
@@ -133,6 +137,7 @@ export default function App() {
     try {
       const status = await bridgeApi.checkForUpdate();
       setAppUpdate(status);
+      publishAppUpdateStatus(status);
       setUpdateError(null);
     } catch (cause) {
       const message = String(cause);
@@ -156,9 +161,23 @@ export default function App() {
     }
   }, []);
 
+  const saveAccountRefreshMinutes = useCallback(async (minutes: number) => {
+    setSettingsBusy(true);
+    try {
+      const saved = await bridgeApi.setAccountRefreshMinutes(minutes);
+      setAppSettings(saved);
+      setError(null);
+    } catch (cause) {
+      setError(String(cause));
+    } finally {
+      setSettingsBusy(false);
+    }
+  }, []);
+
   useEffect(() => {
     void load();
     void isEnabled().then(setAutostart).catch(() => setAutostart(false));
+    void bridgeApi.getAppSettings().then(setAppSettings).catch((cause) => setError(String(cause)));
     void checkForUpdate(false);
 
     const startupRefresh = window.setTimeout(() => void load(), STARTUP_REFRESH_DELAY_MS);
@@ -167,8 +186,13 @@ export default function App() {
     const refreshVisible = () => {
       if (document.visibilityState === "visible") void load();
     };
+    const syncUpdateStatus = (event: Event) => {
+      const status = (event as CustomEvent<AppUpdateStatus>).detail;
+      if (status) setAppUpdate(status);
+    };
 
     window.addEventListener("focus", refreshVisible);
+    window.addEventListener(APP_UPDATE_STATUS_EVENT, syncUpdateStatus);
     document.addEventListener("visibilitychange", refreshVisible);
 
     return () => {
@@ -176,6 +200,7 @@ export default function App() {
       window.clearInterval(dashboardInterval);
       window.clearInterval(updateInterval);
       window.removeEventListener("focus", refreshVisible);
+      window.removeEventListener(APP_UPDATE_STATUS_EVENT, syncUpdateStatus);
       document.removeEventListener("visibilitychange", refreshVisible);
     };
   }, [load, checkForUpdate]);
@@ -290,6 +315,9 @@ export default function App() {
       return <SettingsView
         autostart={autostart}
         onToggleAutostart={toggleAutostart}
+        appSettings={appSettings}
+        settingsBusy={settingsBusy}
+        onAccountRefreshMinutesChange={(minutes) => void saveAccountRefreshMinutes(minutes)}
         update={appUpdate}
         updateBusy={updateBusy}
         updateError={updateError}
@@ -309,7 +337,7 @@ export default function App() {
         busy={busy}
       />
     );
-  }, [section, snapshot?.bridge, busy, autostart, accounts, selected, selectedState, needsAttention, nextReset.value, nextReset.helper, appUpdate, updateBusy, updateError, checkForUpdate, installUpdate, openAdd]);
+  }, [section, snapshot?.bridge, busy, autostart, appSettings, settingsBusy, accounts, selected, selectedState, needsAttention, nextReset.value, nextReset.helper, appUpdate, updateBusy, updateError, checkForUpdate, installUpdate, openAdd, saveAccountRefreshMinutes]);
 
   return (
     <div className="app-shell">
@@ -473,6 +501,9 @@ PASEO_EXTERNAL_PROVIDER_USAGE_TOKEN=${bridge.token}` : "Bridge is starting…"}<
 function SettingsView({
   autostart,
   onToggleAutostart,
+  appSettings,
+  settingsBusy,
+  onAccountRefreshMinutesChange,
   update,
   updateBusy,
   updateError,
@@ -481,6 +512,9 @@ function SettingsView({
 }: {
   autostart: boolean;
   onToggleAutostart: () => void;
+  appSettings: AppSettings | null;
+  settingsBusy: boolean;
+  onAccountRefreshMinutesChange: (minutes: number) => void;
   update: AppUpdateStatus | null;
   updateBusy: UpdateBusy;
   updateError: string | null;
@@ -492,15 +526,12 @@ function SettingsView({
       <header className="page-header"><div><span className="eyebrow">Application</span><h1>Settings</h1><p>Control how the bridge behaves on this computer.</p></div></header>
       <section className="settings-card">
         <div className="settings-row"><div><strong>Start at login</strong><small>Keep usage available to Paseo after signing in.</small></div><button className={`toggle ${autostart ? "on" : ""}`} onClick={onToggleAutostart} aria-pressed={autostart}><span /></button></div>
-        <div className="settings-row"><div><strong>Automatic updates</strong><small>Checks GitHub Releases at startup and every six hours.</small></div>{update?.available ? <button className="button primary" disabled={updateBusy !== null} onClick={onInstallUpdate}>{updateBusy === "installing" ? "Installing…" : `Install v${update.availableVersion}`}</button> : <button className="button ghost" disabled={updateBusy !== null} onClick={onCheckForUpdate}>{updateBusy === "checking" ? "Checking…" : "Check now"}</button>}</div>
+        <div className="settings-row"><div><strong>Automatic updates</strong><small>Checks GitHub Releases at startup and every hour.</small></div>{update?.available ? <button className="button primary" disabled={updateBusy !== null} onClick={onInstallUpdate}>{updateBusy === "installing" ? "Installing…" : `Install v${update.availableVersion}`}</button> : <button className="button ghost" disabled={updateBusy !== null} onClick={onCheckForUpdate}>{updateBusy === "checking" ? "Checking…" : "Check for App Updates"}</button>}</div>
         <div className="settings-row"><div><strong>Installed version</strong><small>{update?.available ? `Version ${update.availableVersion} is available.` : "The app installs only signed update packages."}</small></div><span className="setting-value mono">v{update?.currentVersion ?? "0.1.1"}</span></div>
-        <div className="settings-row"><div><strong>Credential storage</strong><small>Windows Credential Manager or macOS Keychain.</small></div><span className="setting-value"><ShieldIcon />Native</span></div>
-        <div className="settings-row"><div><strong>Usage cache</strong><small>Last-known-good results remain visible during transient provider failures.</small></div><span className="setting-value">5 minutes</span></div>
-        <div className="settings-row"><div><strong>Provider connectors</strong><small>Each provider uses its own read-only quota or usage source.</small></div><span className="setting-value mono">4 enabled</span></div>
+        <div className="settings-row"><div><strong>Account Updates</strong><small>The selected number of minutes controls how often the app checks your AI usage percentages.</small></div><select className="account-update-select" aria-label="Account update interval" value={appSettings?.accountRefreshMinutes ?? 5} disabled={!appSettings || settingsBusy} onChange={(event) => onAccountRefreshMinutesChange(Number(event.target.value))}>{ACCOUNT_REFRESH_OPTIONS.map((minutes) => <option key={minutes} value={minutes}>{minutes} minutes</option>)}</select></div>
       </section>
       {update?.available && update.body ? <section className="update-notes"><strong>What changed in v{update.availableVersion}</strong><p>{update.body}</p>{update.date ? <small>Published {formatTime(update.date)}</small> : null}</section> : null}
       {updateError ? <div className="error-panel settings-update-error">{updateError}</div> : null}
-      <section className="notice-card"><ShieldIcon /><div><strong>Independent account storage</strong><p>This application owns its provider credentials independently and does not read them from other developer tools.</p></div></section>
     </div>
   );
 }

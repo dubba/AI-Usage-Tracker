@@ -2,9 +2,15 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { bridgeApi } from "./api";
 import type { AppUpdateStatus } from "./types";
 
+export const APP_UPDATE_STATUS_EVENT = "ai-subscription-tracker:app-update-status";
+
 const DEFAULT_LABEL = "Check for App Updates";
 const CHANGELOG_URL = "https://github.com/yajinni/AI-Subscription-Tracker/blob/main/CHANGELOG.md";
 const RESET_LABEL_DELAY_MS = 3_000;
+
+export function publishAppUpdateStatus(status: AppUpdateStatus): void {
+  window.dispatchEvent(new CustomEvent<AppUpdateStatus>(APP_UPDATE_STATUS_EVENT, { detail: status }));
+}
 
 function setLabel(footer: HTMLElement, label: string): void {
   footer.dataset.updateLabel = label;
@@ -46,16 +52,30 @@ export function installSidebarUpdateControl(): void {
       changelogLink.hidden = !available;
     };
 
+    const applyStatus = (status: AppUpdateStatus) => {
+      availableUpdate = status;
+      if (status.available && status.availableVersion) {
+        setAvailableState(true);
+        setLabel(footer, `Install v${status.availableVersion}`);
+      } else {
+        setAvailableState(false);
+        setLabel(footer, DEFAULT_LABEL);
+      }
+    };
+
     const restoreCurrentStateLater = () => {
       clearResetTimer();
       resetTimer = window.setTimeout(() => {
-        if (availableUpdate?.available && availableUpdate.availableVersion) {
-          setLabel(footer, `Install v${availableUpdate.availableVersion}`);
-        } else {
-          setLabel(footer, DEFAULT_LABEL);
-        }
+        if (availableUpdate) applyStatus(availableUpdate);
+        else setLabel(footer, DEFAULT_LABEL);
       }, RESET_LABEL_DELAY_MS);
     };
+
+    const syncAutomaticStatus = (event: Event) => {
+      const status = (event as CustomEvent<AppUpdateStatus>).detail;
+      if (status) applyStatus(status);
+    };
+    window.addEventListener(APP_UPDATE_STATUS_EVENT, syncAutomaticStatus);
 
     changelogLink.addEventListener("click", (event) => {
       event.preventDefault();
@@ -80,12 +100,8 @@ export function installSidebarUpdateControl(): void {
 
         setLabel(footer, "Checking…");
         const status = await bridgeApi.checkForUpdate();
-        availableUpdate = status;
-        if (status.available && status.availableVersion) {
-          setAvailableState(true);
-          setLabel(footer, `Install v${status.availableVersion}`);
-        } else {
-          setAvailableState(false);
+        publishAppUpdateStatus(status);
+        if (!status.available) {
           setLabel(footer, "You’re up to date");
           restoreCurrentStateLater();
         }

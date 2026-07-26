@@ -2,6 +2,7 @@ use crate::{
     account_order::AccountOrderStore,
     alerts::AlertStore,
     model::LoginStatus,
+    settings::SettingsStore,
     store::AccountStore,
 };
 use parking_lot::{Mutex, RwLock};
@@ -21,6 +22,7 @@ pub struct AppState {
     pub store: AccountStore,
     pub account_order: AccountOrderStore,
     pub alerts: AlertStore,
+    pub settings: SettingsStore,
     pub client: Client,
     pub pending_login: RwLock<Option<LoginStatus>>,
     pub bridge_token: RwLock<String>,
@@ -36,6 +38,7 @@ impl AppState {
         let store = AccountStore::load(data_dir.clone()).map_err(|error| error.to_string())?;
         let account_order = AccountOrderStore::load(&data_dir)?;
         let alerts = AlertStore::load(&data_dir)?;
+        let settings = SettingsStore::load(&data_dir)?;
         let client = Client::builder()
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(15))
@@ -46,6 +49,7 @@ impl AppState {
             store,
             account_order,
             alerts,
+            settings,
             client,
             pending_login: RwLock::new(None),
             bridge_token: RwLock::new(bridge_token),

@@ -6,6 +6,18 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 _No unreleased user-facing changes yet._
 
+## 0.2.23 - 2026-07-26
+
+### Added
+
+- Account update timing can now be selected from 5 to 60 minutes in 5-minute increments.
+- A system notification now appears when a new app update is detected.
+
+### Improved
+
+- The app now checks for updates every hour instead of every six hours.
+- Settings now describes account refresh timing as **Account Updates** and focuses on the controls users need.
+
 ## 0.2.22 - 2026-07-26
 
 ### Improved

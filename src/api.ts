@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Account, AppUpdateStatus, BridgeInfo, DashboardSnapshot, LoginStart, LoginStatus, Provider, UsageAlertSetting } from "./types";
+import type { Account, AppSettings, AppUpdateStatus, BridgeInfo, DashboardSnapshot, LoginStart, LoginStatus, Provider, UsageAlertSetting } from "./types";
 
 export const bridgeApi = {
   snapshot: () => invoke<DashboardSnapshot>("get_dashboard_snapshot"),
@@ -9,6 +9,8 @@ export const bridgeApi = {
   loginStatus: (attemptId: string) => invoke<LoginStatus>("get_login_status", { attemptId }),
   refreshAccount: (accountId: string) => invoke<Account>("refresh_account", { accountId }),
   refreshAll: () => invoke<Account[]>("refresh_all"),
+  getAppSettings: () => invoke<AppSettings>("get_app_settings"),
+  setAccountRefreshMinutes: (minutes: number) => invoke<AppSettings>("set_account_refresh_minutes", { minutes }),
   reorderAccounts: (accountIds: string[]) => invoke<Account[]>("reorder_accounts", { accountIds }),
   getAccountAlerts: (accountId: string) => invoke<UsageAlertSetting[]>("get_account_alerts", { accountId }),
   saveAccountAlerts: (accountId: string, settings: UsageAlertSetting[]) =>

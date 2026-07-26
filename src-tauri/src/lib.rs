@@ -5,6 +5,7 @@ mod model;
 mod oauth;
 mod opencode_login;
 mod providers;
+mod settings;
 mod state;
 mod store;
 mod usage;
@@ -12,6 +13,7 @@ mod usage;
 use crate::{
     alerts::UsageAlertSetting,
     model::{Account, AppUpdateStatus, BridgeInfo, DashboardSnapshot, LoginStart, LoginStatus, Provider},
+    settings::AppSettings,
     state::AppState,
     store::{load_or_create_bridge_token, rotate_bridge_token},
 };
@@ -22,6 +24,7 @@ use tauri::{
     AppHandle, Manager, State, WebviewWindowBuilder, WindowEvent,
 };
 use tauri_plugin_autostart::MacosLauncher;
+use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_updater::UpdaterExt;
 
 #[tauri::command]
@@ -82,6 +85,19 @@ async fn refresh_account(state: State<'_, Arc<AppState>>, account_id: String) ->
 #[tauri::command]
 async fn refresh_all(state: State<'_, Arc<AppState>>) -> Result<Vec<Account>, String> {
     Ok(usage::refresh_all(state.inner().clone()).await)
+}
+
+#[tauri::command]
+fn get_app_settings(state: State<'_, Arc<AppState>>) -> Result<AppSettings, String> {
+    Ok(state.settings.get())
+}
+
+#[tauri::command]
+fn set_account_refresh_minutes(
+    state: State<'_, Arc<AppState>>,
+    minutes: u64,
+) -> Result<AppSettings, String> {
+    state.settings.set_account_refresh_minutes(minutes)
 }
 
 #[tauri::command]
@@ -161,7 +177,10 @@ fn regenerate_bridge_token(state: State<'_, Arc<AppState>>) -> Result<BridgeInfo
 }
 
 #[tauri::command]
-async fn check_for_app_update(app: AppHandle) -> Result<AppUpdateStatus, String> {
+async fn check_for_app_update(
+    app: AppHandle,
+    state: State<'_, Arc<AppState>>,
+) -> Result<AppUpdateStatus, String> {
     let current_version = app.package_info().version.to_string();
     let update = app
         .updater()
@@ -171,13 +190,28 @@ async fn check_for_app_update(app: AppHandle) -> Result<AppUpdateStatus, String>
         .map_err(|error| format!("Unable to check for updates: {error}"))?;
 
     Ok(match update {
-        Some(update) => AppUpdateStatus {
-            current_version,
-            available: true,
-            available_version: Some(update.version.to_string()),
-            date: update.date.map(|date| date.to_string()),
-            body: update.body,
-        },
+        Some(update) => {
+            let available_version = update.version.to_string();
+            if state.settings.update_notification_needed(&available_version) {
+                let shown = app
+                    .notification()
+                    .builder()
+                    .title("AI Subscription Tracker update available")
+                    .body(format!("Version {available_version} is ready to install."))
+                    .show();
+                if shown.is_ok() {
+                    let _ = state.settings.mark_update_notified(&available_version);
+                }
+            }
+
+            AppUpdateStatus {
+                current_version,
+                available: true,
+                available_version: Some(available_version),
+                date: update.date.map(|date| date.to_string()),
+                body: update.body,
+            }
+        }
         None => AppUpdateStatus {
             current_version,
             available: false,
@@ -281,7 +315,11 @@ pub fn run() {
                 tokio::time::sleep(std::time::Duration::from_secs(2)).await;
                 loop {
                     let _ = usage::refresh_all(state.clone()).await;
-                    tokio::time::sleep(std::time::Duration::from_secs(5 * 60)).await;
+                    let minutes = state.settings.account_refresh_minutes();
+                    tokio::select! {
+                        _ = tokio::time::sleep(std::time::Duration::from_secs(minutes * 60)) => {},
+                        _ = state.settings.wait_for_refresh_schedule_change() => {},
+                    }
                 }
             });
 
@@ -330,6 +368,8 @@ pub fn run() {
             get_login_status,
             refresh_account,
             refresh_all,
+            get_app_settings,
+            set_account_refresh_minutes,
             reorder_accounts,
             get_account_alerts,
             save_account_alerts,

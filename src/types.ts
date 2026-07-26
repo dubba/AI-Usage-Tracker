@@ -55,6 +55,10 @@ export interface DashboardSnapshot {
   bridge: BridgeInfo;
 }
 
+export interface AppSettings {
+  accountRefreshMinutes: number;
+}
+
 export interface LoginStart {
   attemptId: string;
   authorizationUrl: string;

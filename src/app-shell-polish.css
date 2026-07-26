@@ -166,6 +166,28 @@
   display: none !important;
 }
 
+.account-update-select {
+  min-width: 132px;
+  min-height: 38px;
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+  background: var(--panel-2);
+  color: var(--text);
+  padding: 0 34px 0 11px;
+  cursor: pointer;
+}
+
+.account-update-select:hover:not(:disabled),
+.account-update-select:focus-visible {
+  border-color: #4a554e;
+  background: #202620;
+}
+
+.account-update-select:disabled {
+  opacity: .55;
+  cursor: wait;
+}
+
 @container (max-width: 355px) {
   .account-row {
     grid-template-columns: 58px minmax(0, 1fr) !important;
