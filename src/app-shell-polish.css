@@ -5,34 +5,93 @@
 
 .sidebar {
   container-type: inline-size;
+  min-height: 0;
+  overflow: hidden;
   padding-top: 16px;
   padding-bottom: 12px;
 }
 
 .primary-nav {
+  flex: 0 0 auto;
   padding-top: 0;
 }
 
-.account-row {
-  grid-template-columns: 58px minmax(0, 1fr) 78px !important;
+.sidebar-section-title {
+  flex: 0 0 auto;
 }
 
-.account-row-shell {
+.account-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex !important;
+  flex-direction: column;
+  gap: 8px;
+  overflow-x: hidden;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-color: #3b433e transparent;
+  padding-right: 4px;
+  margin-right: -4px;
+}
+
+.account-row {
+  grid-template-columns: 58px minmax(0, 1fr) max-content !important;
+  column-gap: 5px !important;
+}
+
+.account-row-copy {
   min-width: 0;
 }
 
-.account-list.reorder-previewing .account-row-shell {
+.account-row-meta {
+  width: max-content;
+  min-width: 0;
+  gap: 4px !important;
+}
+
+.account-row-shell {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.account-list.reorder-previewing {
+  user-select: none;
+}
+
+.account-list.reorder-previewing .account-row-shell:not(.dragging-shell) {
   will-change: transform;
 }
 
-.account-list.reorder-previewing .account-row.dragging {
-  opacity: .62;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, .28);
+.account-row-shell.dragging-shell {
+  position: fixed !important;
+  z-index: 1000;
+  margin: 0 !important;
+  transform-origin: center;
+}
+
+.account-row-shell.dragging-shell .account-row {
+  opacity: .97 !important;
+  transform: none !important;
+  cursor: grabbing;
+  background: #242a26;
+  border-color: rgba(159, 103, 255, .78);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, .42), 0 0 0 1px rgba(159, 103, 255, .18);
+}
+
+.account-row-placeholder {
+  flex: 0 0 auto;
+  min-height: 58px;
+  border: 1px dashed rgba(159, 103, 255, .78);
+  border-radius: 10px;
+  background: rgba(159, 103, 255, .09);
+  box-shadow: inset 0 0 0 1px rgba(159, 103, 255, .08);
 }
 
 .sidebar-footer {
+  flex: 0 0 auto;
   min-height: 46px;
-  margin-top: auto;
+  margin-top: 10px;
   padding: 0 10px;
   border: 1px solid var(--border-strong);
   border-radius: 9px;
@@ -68,10 +127,10 @@
   content: attr(data-update-label);
 }
 
-@container (max-width: 410px) {
+@container (max-width: 355px) {
   .account-row {
     grid-template-columns: 58px minmax(0, 1fr) !important;
-    row-gap: 7px;
+    row-gap: 3px;
   }
 
   .account-provider-icon {
@@ -93,7 +152,7 @@
     flex-wrap: wrap;
     justify-content: flex-start;
     align-items: baseline;
-    gap: 6px 16px !important;
+    gap: 4px 10px !important;
     text-align: left;
   }
 
@@ -101,6 +160,6 @@
     display: inline-flex !important;
     align-items: baseline;
     justify-content: flex-start;
-    gap: 5px !important;
+    gap: 4px !important;
   }
 }
