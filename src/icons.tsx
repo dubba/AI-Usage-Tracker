@@ -9,7 +9,7 @@ const Base = ({ children, ...props }: IconProps) => (
 );
 
 export const PlusIcon = (props: IconProps) => <Base {...props}><path d="M12 5v14M5 12h14" /></Base>;
-export const RefreshIcon = (props: IconProps) => <Base {...props}><path d="M20 11a8 8 0 1 0 2 5.5"/><path d="M20 4v7h-7"/></Base>;
+export const RefreshIcon = (props: IconProps) => <Base {...props}><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4"/></Base>;
 export const UsersIcon = (props: IconProps) => <Base {...props}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></Base>;
 export const GaugeIcon = (props: IconProps) => <Base {...props}><path d="M3 12a9 9 0 1 1 18 0"/><path d="m12 12 4-4"/><path d="M5.6 19h12.8"/></Base>;
 export const LinkIcon = (props: IconProps) => <Base {...props}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></Base>;

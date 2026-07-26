@@ -6,6 +6,16 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 _No unreleased user-facing changes yet._
 
+## 0.2.32 - 2026-07-26
+
+### Fixed
+
+- Replaced the clipped-looking refresh symbol with a complete circular two-arrow icon that renders cleanly at the account-card action size.
+
+### Improved
+
+- Account usage metrics now show the reset date on the left and a right-aligned **Resets in: _Xh_** countdown calculated from the provider’s reset timestamp.
+
 ## 0.2.31 - 2026-07-26
 
 ### Fixed

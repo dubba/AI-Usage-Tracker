@@ -127,6 +127,23 @@
 .account-usage-metric .metric-reset {
   grid-column: 1 / -1;
   grid-row: 4;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 14px;
+  width: 100%;
+}
+
+.account-usage-metric .metric-reset::after {
+  content: attr(data-reset-countdown);
+  justify-self: end;
+  color: #cbc3d7;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.account-usage-metric .metric-reset:not([data-reset-countdown])::after {
+  display: none;
 }
 
 /* Keep the full quota metric visible. Only the redundant OpenAI "Session"
