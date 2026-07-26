@@ -6,6 +6,13 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 _No unreleased user-facing changes yet._
 
+## 0.2.34 - 2026-07-26
+
+### Fixed
+
+- The global **Add Account** button now opens an unlocked provider-selection window so you can choose which account type to add.
+- Reconnect actions still remain locked to the existing account’s provider.
+
 ## 0.2.33 - 2026-07-26
 
 ### Added

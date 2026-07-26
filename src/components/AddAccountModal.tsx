@@ -41,6 +41,7 @@ export function AddAccountModal({
   const [status, setStatus] = useState<LoginStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const providerLocked = Boolean(initialProvider && initialLabel?.trim());
 
   useEffect(() => {
     if (!open) {
@@ -54,13 +55,13 @@ export function AddAccountModal({
       setBusy(false);
       setError(null);
     } else {
-      const nextProvider = initialProvider ?? "openai";
+      const nextProvider = providerLocked && initialProvider ? initialProvider : "openai";
       setProvider(nextProvider);
       setLabel(initialLabel?.trim() || providerName(nextProvider));
       setEmail("");
       setAdvancedManual(false);
     }
-  }, [open, initialLabel, initialProvider]);
+  }, [open, initialLabel, initialProvider, providerLocked]);
 
   useEffect(() => {
     if (!status || status.status !== "waiting") return;
@@ -137,8 +138,8 @@ export function AddAccountModal({
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !busy && onClose()}>
       <section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="add-account-title">
         <div className="modal-kicker">Provider connection</div>
-        <h2 id="add-account-title">Add a usage account</h2>
-        <p>{providerCopy}</p>
+        <h2 id="add-account-title">{providerLocked ? `Reconnect ${providerName(provider)}` : "Which account do you want to add?"}</h2>
+        <p>{providerLocked ? providerCopy : "Choose a provider, name the account, and continue to its secure sign-in."}</p>
 
         <label className="field-label" htmlFor="account-provider">Provider</label>
         <select
@@ -154,7 +155,7 @@ export function AddAccountModal({
             setStatus(null);
             setError(null);
           }}
-          disabled={busy || Boolean(initialProvider)}
+          disabled={busy || providerLocked}
           autoFocus
         >
           {providerOptions.map((option) => (
