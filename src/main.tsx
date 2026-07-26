@@ -3,6 +3,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import { PaseoBridgeWindow } from "./PaseoBridgeWindow";
+import { installDashboardReorder } from "./dashboard-reorder";
 import { installSidebarResize } from "./sidebar-resize";
 import { installSidebarUpdateControl } from "./sidebar-update-control";
 import { installUiRefinements } from "./ui-refinements";
@@ -35,4 +36,5 @@ if (!isPaseoBridgeWindow) {
   installSidebarResize();
   installSidebarUpdateControl();
   installUiRefinements();
+  installDashboardReorder();
 }

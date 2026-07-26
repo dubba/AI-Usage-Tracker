@@ -6,6 +6,18 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 _No unreleased user-facing changes yet._
 
+## 0.2.33 - 2026-07-26
+
+### Added
+
+- Provider groups in the sidebar and account cards within each provider can once again be reordered by dragging, with the saved order restored after relaunch.
+- Dragging near the top or bottom edge automatically scrolls long provider and account lists.
+
+### Improved
+
+- The notification, trash, and refresh icons in account cards are now 50% larger while keeping transparent action buttons.
+- Long provider and account lists now scroll independently within the available sidebar and dashboard space.
+
 ## 0.2.32 - 2026-07-26
 
 ### Fixed

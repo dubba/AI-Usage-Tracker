@@ -48,12 +48,17 @@
 }
 
 .account-card-action {
-  width: 24px !important;
-  height: 24px !important;
-  padding: 2px !important;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 1px !important;
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
+}
+
+.provider-account-card .account-card-header-actions .account-card-action svg {
+  width: 27px !important;
+  height: 27px !important;
 }
 
 .account-card-action:hover:not(:disabled) {
@@ -73,8 +78,8 @@
 
 .account-card-action.remove-action::before {
   content: "";
-  width: 18px;
-  height: 18px;
+  width: 27px;
+  height: 27px;
   background: currentColor;
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5'/%3E%3C/svg%3E") center / contain no-repeat;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5'/%3E%3C/svg%3E") center / contain no-repeat;
@@ -185,4 +190,62 @@
 
 .opencode-email-note {
   margin-top: 8px;
+}
+
+/* Provider and account ordering */
+.obsidian-shell .provider-list {
+  flex: 1 1 auto;
+  max-height: 100%;
+  overscroll-behavior: contain;
+}
+
+.obsidian-shell .dashboard-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.obsidian-shell .dashboard-header,
+.obsidian-shell .mockup-summary-grid {
+  flex: 0 0 auto;
+}
+
+.obsidian-shell .provider-account-cards {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 6px 28px 0;
+  scrollbar-width: thin;
+  scrollbar-color: #494454 transparent;
+}
+
+.provider-summary-row[draggable="true"],
+.provider-account-card[draggable="true"] {
+  cursor: grab;
+  user-select: none;
+}
+
+.provider-summary-row.is-dragging,
+.provider-account-card.is-dragging {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+
+.provider-summary-row.drag-before,
+.provider-account-card.drag-before {
+  box-shadow: 0 -3px 0 var(--obsidian-purple-strong, #a078ff) !important;
+}
+
+.provider-summary-row.drag-after,
+.provider-account-card.drag-after {
+  box-shadow: 0 3px 0 var(--obsidian-purple-strong, #a078ff) !important;
+}
+
+.provider-account-card button,
+.provider-account-card input,
+.provider-account-card select,
+.provider-account-card textarea,
+.provider-account-card a {
+  user-select: auto;
 }
