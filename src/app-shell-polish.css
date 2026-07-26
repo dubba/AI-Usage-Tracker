@@ -6,7 +6,6 @@
 .sidebar {
   container-type: inline-size;
   min-height: 0;
-  overflow: hidden;
   padding-top: 16px;
   padding-bottom: 12px;
 }
@@ -21,6 +20,7 @@
 }
 
 .account-list {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
   display: flex !important;
