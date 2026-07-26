@@ -7,17 +7,22 @@ import { EditIcon, LinkIcon, SettingsIcon } from "../icons";
 import { ProviderIcon } from "./ProviderIcon";
 
 const DRAG_START_DISTANCE_PX = 6;
-const REORDER_ANIMATION_MS = 150;
+const REORDER_ANIMATION_MS = 170;
+const AUTO_SCROLL_EDGE_PX = 54;
+const AUTO_SCROLL_MAX_STEP_PX = 18;
 
 type PointerDragState = {
   pointerId: number;
   startX: number;
   startY: number;
+  lastClientY: number;
   started: boolean;
-  targetAccountId: string | null;
-  targetElement: HTMLElement | null;
-  listElement: HTMLElement | null;
+  insertionIndex: number;
+  listElement: HTMLElement;
+  sourceShell: HTMLElement;
+  placeholder: HTMLElement | null;
   originalOrder: string[];
+  autoScrollFrame: number | null;
 };
 
 function providerName(provider: Provider): string {
@@ -63,35 +68,19 @@ function accountShells(list: HTMLElement | null): HTMLElement[] {
   return Array.from(list.querySelectorAll<HTMLElement>(":scope > .account-row-shell[data-account-id]"));
 }
 
-function clearPreviewOrder(drag: PointerDragState): void {
-  drag.listElement?.classList.remove("reorder-previewing");
-  for (const shell of accountShells(drag.listElement)) {
-    shell.style.removeProperty("order");
+function cancelAnimations(shells: HTMLElement[]): void {
+  for (const shell of shells) {
     for (const animation of shell.getAnimations()) animation.cancel();
   }
 }
 
-function previewOrder(drag: PointerDragState, sourceAccountId: string, targetAccountId: string): void {
-  const sourceIndex = drag.originalOrder.indexOf(sourceAccountId);
-  const targetIndex = drag.originalOrder.indexOf(targetAccountId);
-  if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return;
-
-  const shells = accountShells(drag.listElement);
-  const before = new Map(
-    shells.map((shell) => [shell.dataset.accountId ?? "", shell.getBoundingClientRect().top]),
-  );
-  const reordered = [...drag.originalOrder];
-  const [moved] = reordered.splice(sourceIndex, 1);
-  reordered.splice(targetIndex, 0, moved);
-
-  drag.listElement?.classList.add("reorder-previewing");
-  for (const shell of shells) {
-    const accountId = shell.dataset.accountId;
-    const index = accountId ? reordered.indexOf(accountId) : -1;
-    if (index >= 0) shell.style.order = String(index);
-  }
-
+function animateLayout(
+  list: HTMLElement,
+  sourceAccountId: string,
+  before: Map<string, number>,
+): void {
   window.requestAnimationFrame(() => {
+    const shells = accountShells(list);
     for (const shell of shells) {
       if (shell.dataset.accountId === sourceAccountId) continue;
       const previousTop = before.get(shell.dataset.accountId ?? "");
@@ -101,10 +90,80 @@ function previewOrder(drag: PointerDragState, sourceAccountId: string, targetAcc
       for (const animation of shell.getAnimations()) animation.cancel();
       shell.animate(
         [{ transform: `translateY(${delta}px)` }, { transform: "translateY(0)" }],
-        { duration: REORDER_ANIMATION_MS, easing: "ease-out" },
+        { duration: REORDER_ANIMATION_MS, easing: "cubic-bezier(.2,.8,.2,1)" },
       );
     }
   });
+}
+
+function setPreviewInsertion(
+  drag: PointerDragState,
+  sourceAccountId: string,
+  requestedIndex: number,
+): void {
+  const withoutSource = drag.originalOrder.filter((accountId) => accountId !== sourceAccountId);
+  const insertionIndex = Math.max(0, Math.min(withoutSource.length, requestedIndex));
+  if (insertionIndex === drag.insertionIndex) return;
+
+  const shells = accountShells(drag.listElement);
+  const before = new Map(
+    shells.map((shell) => [shell.dataset.accountId ?? "", shell.getBoundingClientRect().top]),
+  );
+
+  for (const shell of shells) {
+    const accountId = shell.dataset.accountId;
+    if (!accountId || accountId === sourceAccountId) continue;
+    const compactIndex = withoutSource.indexOf(accountId);
+    if (compactIndex < 0) continue;
+    shell.style.order = String(compactIndex >= insertionIndex ? compactIndex + 1 : compactIndex);
+  }
+
+  drag.sourceShell.style.order = String(withoutSource.length + 1);
+  if (drag.placeholder) drag.placeholder.style.order = String(insertionIndex);
+  drag.insertionIndex = insertionIndex;
+  animateLayout(drag.listElement, sourceAccountId, before);
+}
+
+function updatePreviewFromPointer(
+  drag: PointerDragState,
+  sourceAccountId: string,
+  clientY: number,
+): void {
+  const listRect = drag.listElement.getBoundingClientRect();
+  const withoutSource = drag.originalOrder.filter((accountId) => accountId !== sourceAccountId);
+  const shellsById = new Map(
+    accountShells(drag.listElement).map((shell) => [shell.dataset.accountId ?? "", shell]),
+  );
+
+  let insertionIndex = 0;
+  for (const accountId of withoutSource) {
+    const shell = shellsById.get(accountId);
+    if (!shell) continue;
+    const centerY = listRect.top + shell.offsetTop - drag.listElement.scrollTop + shell.offsetHeight / 2;
+    if (clientY > centerY) insertionIndex += 1;
+  }
+
+  setPreviewInsertion(drag, sourceAccountId, insertionIndex);
+}
+
+function clearPreview(drag: PointerDragState): void {
+  if (drag.autoScrollFrame != null) window.cancelAnimationFrame(drag.autoScrollFrame);
+  const shells = accountShells(drag.listElement);
+  cancelAnimations(shells);
+  drag.listElement.classList.remove("reorder-previewing");
+  drag.placeholder?.remove();
+  drag.placeholder = null;
+
+  for (const shell of shells) {
+    shell.style.removeProperty("order");
+  }
+
+  drag.sourceShell.classList.remove("dragging-shell");
+  drag.sourceShell.style.removeProperty("left");
+  drag.sourceShell.style.removeProperty("top");
+  drag.sourceShell.style.removeProperty("width");
+  drag.sourceShell.style.removeProperty("height");
+  drag.sourceShell.style.removeProperty("transform");
 }
 
 export function AccountRow({
@@ -168,29 +227,73 @@ export function AccountRow({
     }
   };
 
-  const clearDropTarget = () => {
+  const runAutoScroll = () => {
     const drag = pointerDrag.current;
-    if (!drag) return;
-    drag.targetElement?.classList.remove("drop-target");
-    drag.targetElement = null;
-    drag.targetAccountId = null;
+    if (!drag?.started) return;
+
+    const rect = drag.listElement.getBoundingClientRect();
+    let delta = 0;
+    if (drag.lastClientY < rect.top + AUTO_SCROLL_EDGE_PX) {
+      const strength = 1 - Math.max(0, drag.lastClientY - rect.top) / AUTO_SCROLL_EDGE_PX;
+      delta = -Math.max(4, Math.round(AUTO_SCROLL_MAX_STEP_PX * strength));
+    } else if (drag.lastClientY > rect.bottom - AUTO_SCROLL_EDGE_PX) {
+      const strength = 1 - Math.max(0, rect.bottom - drag.lastClientY) / AUTO_SCROLL_EDGE_PX;
+      delta = Math.max(4, Math.round(AUTO_SCROLL_MAX_STEP_PX * strength));
+    }
+
+    if (delta !== 0) {
+      const previousScrollTop = drag.listElement.scrollTop;
+      drag.listElement.scrollTop += delta;
+      if (drag.listElement.scrollTop !== previousScrollTop) {
+        updatePreviewFromPointer(drag, account.id, drag.lastClientY);
+      }
+    }
+
+    drag.autoScrollFrame = window.requestAnimationFrame(runAutoScroll);
+  };
+
+  const beginVisualDrag = (drag: PointerDragState) => {
+    const sourceIndex = drag.originalOrder.indexOf(account.id);
+    const rect = drag.sourceShell.getBoundingClientRect();
+    const placeholder = document.createElement("div");
+    placeholder.className = "account-row-placeholder";
+    placeholder.setAttribute("aria-hidden", "true");
+    placeholder.style.height = `${rect.height}px`;
+    drag.listElement.append(placeholder);
+    drag.placeholder = placeholder;
+
+    drag.listElement.classList.add("reorder-previewing");
+    drag.sourceShell.classList.add("dragging-shell");
+    drag.sourceShell.style.left = `${rect.left}px`;
+    drag.sourceShell.style.top = `${rect.top}px`;
+    drag.sourceShell.style.width = `${rect.width}px`;
+    drag.sourceShell.style.height = `${rect.height}px`;
+    setPointerDragging(true);
+    setPreviewInsertion(drag, account.id, Math.max(0, sourceIndex));
+    drag.autoScrollFrame = window.requestAnimationFrame(runAutoScroll);
   };
 
   const startPointerDrag = (event: PointerEvent<HTMLDivElement>) => {
     if (busy != null || event.button !== 0 || isInteractiveTarget(event.target)) return;
 
     const listElement = event.currentTarget.closest<HTMLElement>(".account-list");
+    const sourceShell = event.currentTarget.closest<HTMLElement>(".account-row-shell[data-account-id]");
+    if (!listElement || !sourceShell) return;
+
     pointerDrag.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
+      lastClientY: event.clientY,
       started: false,
-      targetAccountId: null,
-      targetElement: null,
+      insertionIndex: -1,
       listElement,
+      sourceShell,
+      placeholder: null,
       originalOrder: accountShells(listElement)
         .map((shell) => shell.dataset.accountId)
         .filter((accountId): accountId is string => Boolean(accountId)),
+      autoScrollFrame: null,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
@@ -203,36 +306,26 @@ export function AccountRow({
       const distance = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY);
       if (distance < DRAG_START_DISTANCE_PX) return;
       drag.started = true;
-      setPointerDragging(true);
+      beginVisualDrag(drag);
     }
 
     event.preventDefault();
-    const targetElement = document.elementFromPoint(event.clientX, event.clientY)
-      ?.closest<HTMLElement>(".account-row-shell[data-account-id]") ?? null;
-    const targetAccountId = targetElement?.dataset.accountId ?? null;
-
-    if (targetAccountId === drag.targetAccountId) return;
-
-    clearDropTarget();
-    if (targetElement && targetAccountId && targetAccountId !== account.id) {
-      targetElement.classList.add("drop-target");
-      drag.targetElement = targetElement;
-      drag.targetAccountId = targetAccountId;
-      previewOrder(drag, account.id, targetAccountId);
-    } else {
-      clearPreviewOrder(drag);
-    }
+    drag.lastClientY = event.clientY;
+    const horizontalOffset = Math.max(-18, Math.min(18, event.clientX - drag.startX));
+    drag.sourceShell.style.transform = `translate3d(${horizontalOffset}px, ${event.clientY - drag.startY}px, 0)`;
+    updatePreviewFromPointer(drag, account.id, event.clientY);
   };
 
   const finishPointerDrag = (event: PointerEvent<HTMLDivElement>, commit: boolean) => {
     const drag = pointerDrag.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
 
-    const targetAccountId = commit && drag.started ? drag.targetAccountId : null;
     const didDrag = drag.started;
-    clearDropTarget();
-    pointerDrag.current = null;
+    const targetAccountId = commit && didDrag && drag.insertionIndex >= 0
+      ? drag.originalOrder[drag.insertionIndex] ?? null
+      : null;
 
+    pointerDrag.current = null;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
@@ -241,6 +334,7 @@ export function AccountRow({
 
     event.preventDefault();
     event.stopPropagation();
+    clearPreview(drag);
     setPointerDragging(false);
     suppressClick.current = true;
     window.setTimeout(() => {
@@ -249,9 +343,6 @@ export function AccountRow({
 
     if (targetAccountId && targetAccountId !== account.id) {
       onMove(account.id, targetAccountId);
-      window.requestAnimationFrame(() => clearPreviewOrder(drag));
-    } else {
-      clearPreviewOrder(drag);
     }
   };
 
@@ -301,7 +392,7 @@ export function AccountRow({
   const displayEmail = account.email ?? customEmail ?? providerName(account.provider);
 
   return (
-    <div className={`account-row-shell ${selected ? "expanded" : ""}`} data-account-id={account.id}>
+    <div className={`account-row-shell ${selected ? "expanded" : ""}${pointerDragging ? " dragging-shell" : ""}`} data-account-id={account.id}>
       <div
         className={`account-row ${selected ? "selected" : ""}${pointerDragging ? " dragging" : ""}`}
         role="button"

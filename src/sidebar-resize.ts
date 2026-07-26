@@ -1,5 +1,5 @@
 const STORAGE_KEY = "paseo-usage-bridge:sidebar-width";
-const MIN_SIDEBAR_WIDTH = 340;
+const MIN_SIDEBAR_WIDTH = 300;
 const MAX_SIDEBAR_WIDTH = 720;
 const MIN_MAIN_WIDTH = 520;
 const KEYBOARD_STEP = 16;
