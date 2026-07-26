@@ -10,6 +10,12 @@ Before changing behavior:
 4. Do not add a secondary usage endpoint without an explicit product decision.
 5. Do not introduce dependencies on external coding CLIs.
 
+Changelog:
+
+- Read `docs/CHANGELOG_WORKFLOW.md` before completing a pull request.
+- Every user-visible change must update `CHANGELOG.md` under `## Unreleased` in the same pull request.
+- When there is no user-facing change, leave `CHANGELOG.md` unchanged and state `No user-facing change` in the pull request description.
+
 Validation:
 
 ```bash
