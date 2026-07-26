@@ -17,7 +17,48 @@ function setLabel(footer: HTMLElement, label: string): void {
   footer.setAttribute("aria-label", label);
 }
 
+function installSettingsChangelogControl(): void {
+  const attach = () => {
+    const settingsHeading = Array.from(document.querySelectorAll<HTMLElement>(".page-header h1"))
+      .find((heading) => heading.textContent?.trim() === "Settings");
+    const settingsView = settingsHeading?.closest<HTMLElement>(".content-scroll");
+    const settingsCard = settingsView?.querySelector<HTMLElement>(".settings-card");
+    if (!settingsCard || settingsCard.querySelector("[data-settings-changelog-control='true']")) return;
+
+    const row = document.createElement("div");
+    row.className = "settings-row";
+    row.dataset.settingsChangelogControl = "true";
+
+    const description = document.createElement("div");
+    const title = document.createElement("strong");
+    title.textContent = "Change Log";
+    const helper = document.createElement("small");
+    helper.textContent = "View the full history of user-facing app changes.";
+    description.append(title, helper);
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "button ghost";
+    button.textContent = "View Change Log";
+    button.addEventListener("click", () => {
+      button.title = "";
+      void openUrl(CHANGELOG_URL).catch((cause) => {
+        button.title = `Could not open changelog: ${String(cause)}`;
+      });
+    });
+
+    row.append(description, button);
+    settingsCard.append(row);
+  };
+
+  attach();
+  const observer = new MutationObserver(attach);
+  observer.observe(document.body, { childList: true, subtree: true });
+}
+
 export function installSidebarUpdateControl(): void {
+  installSettingsChangelogControl();
+
   const attach = (): boolean => {
     const footer = document.querySelector<HTMLElement>(".sidebar-footer");
     if (!footer) return false;

@@ -6,6 +6,12 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 _No unreleased user-facing changes yet._
 
+## 0.2.24 - 2026-07-26
+
+### Added
+
+- Settings now includes a **View Change Log** button that opens the repository changelog.
+
 ## 0.2.23 - 2026-07-26
 
 ### Added
