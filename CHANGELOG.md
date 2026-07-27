@@ -4,6 +4,10 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 ## Unreleased
 
+_No unreleased user-facing changes yet._
+
+## 0.2.38 - 2026-07-27
+
 ### Fixed
 
 - Google AI Studio Cloud setup no longer opens a Google 403 page caused by OAuth scopes that the current Google client does not accept.
