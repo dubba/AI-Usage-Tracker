@@ -4,6 +4,10 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 ## Unreleased
 
+_No unreleased user-facing changes yet._
+
+## 0.2.35 - 2026-07-27
+
 ### Added
 
 - **Add Account** now includes a testing option for Google AI Studio API keys that validates the key, loads the model list directly from Google, and lets you choose which returned models to track.
@@ -140,5 +144,5 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 ### Improved
 
-- The sidebar update button now says **Check for App Updates** and changes to a purple install button when an update is available.
+- The sidebar update button now says **Check for App Updates** and changes to a purple install button when a new version is available.
 - A **View Change Log** link now appears below available updates and opens this repository changelog.

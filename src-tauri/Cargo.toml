@@ -1,6 +1,6 @@
 [package]
 name = "ai-subscription-tracker"
-version = "0.2.34"
+version = "0.2.35"
 description = "Standalone multi-provider AI subscription usage monitor and optional Paseo integration"
 authors = ["AI Subscription Tracker contributors"]
 edition = "2021"
