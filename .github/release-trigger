@@ -1,1 +1,1 @@
-Release build requested on 2026-07-27 for AI Subscription Tracker v0.2.37 with one-sign-in Google AI Studio Cloud setup, automatic API-key project discovery, an accessible-project picker fallback, Cloud Monitoring status detection, and progressive authorization for one-click Monitoring enablement.
+Release build requested on 2026-07-27 for AI Subscription Tracker v0.2.38 with the Google AI Studio OAuth 403 fix, accurate Google Cloud permission wording, and a consistent top-right close button on every popup dialog.
