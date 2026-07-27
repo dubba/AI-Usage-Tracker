@@ -3,11 +3,37 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { bridgeApi } from "../api";
 import type { Account, LoginStatus } from "../types";
 
-function savedProjectId(account: Account | null): string {
-  const value = account?.providerAccountId ?? "";
-  return value.startsWith("google-ai-studio-project:")
-    ? value.slice("google-ai-studio-project:".length)
-    : "";
+type CloudProjectOption = {
+  projectId: string;
+  projectNumber: string;
+  displayName: string;
+};
+
+type CloudSetupMessage = {
+  projects: CloudProjectOption[];
+  selectedProjectId: string | null;
+};
+
+type SetupStage = "signin" | "choose_project" | "monitoring_disabled";
+
+function parseSetupMessage(message: string | null): CloudSetupMessage | null {
+  if (!message) return null;
+  try {
+    const value = JSON.parse(message) as Partial<CloudSetupMessage>;
+    if (!Array.isArray(value.projects)) return null;
+    const projects = value.projects.filter((project): project is CloudProjectOption =>
+      Boolean(project)
+      && typeof project.projectId === "string"
+      && typeof project.projectNumber === "string"
+      && typeof project.displayName === "string",
+    );
+    return {
+      projects,
+      selectedProjectId: typeof value.selectedProjectId === "string" ? value.selectedProjectId : null,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function GoogleAiStudioUsageModal({
@@ -19,14 +45,18 @@ export function GoogleAiStudioUsageModal({
   onClose: () => void;
   onConnected: (account: Account) => void;
 }) {
-  const [projectId, setProjectId] = useState("");
   const [status, setStatus] = useState<LoginStatus | null>(null);
+  const [stage, setStage] = useState<SetupStage>("signin");
+  const [projects, setProjects] = useState<CloudProjectOption[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setProjectId(savedProjectId(account));
     setStatus(null);
+    setStage("signin");
+    setProjects([]);
+    setSelectedProjectId("");
     setBusy(false);
     setError(null);
   }, [account]);
@@ -39,11 +69,27 @@ export function GoogleAiStudioUsageModal({
         setStatus(next);
         if (next.status === "complete" && next.account) {
           window.clearInterval(timer);
+          setBusy(false);
           onConnected(next.account);
-        } else if (next.status === "failed") {
+          return;
+        }
+        if (next.status === "failed") {
           window.clearInterval(timer);
           setBusy(false);
-          setError(next.message ?? "Google Cloud usage authorization failed.");
+          setError(next.message ?? "Google usage connection failed.");
+          return;
+        }
+        if (next.status === "choose_project" || next.status === "monitoring_disabled") {
+          window.clearInterval(timer);
+          setBusy(false);
+          const setup = parseSetupMessage(next.message);
+          if (!setup || !setup.projects.length) {
+            setError("Google sign-in succeeded, but the project information could not be read.");
+            return;
+          }
+          setProjects(setup.projects);
+          setSelectedProjectId(setup.selectedProjectId ?? setup.projects[0].projectId);
+          setStage(next.status);
         }
       } catch (cause) {
         window.clearInterval(timer);
@@ -56,64 +102,104 @@ export function GoogleAiStudioUsageModal({
 
   if (!account) return null;
 
-  const connect = async () => {
-    if (!projectId.trim()) {
-      setError("Enter the Google Cloud project ID associated with this AI Studio API key.");
-      return;
-    }
+  const start = async (projectId = "") => {
     setBusy(true);
     setError(null);
     try {
-      const start = await bridgeApi.startGoogleAiStudioUsageLogin(account.id, projectId.trim());
+      const next = await bridgeApi.startGoogleAiStudioUsageLogin(account.id, projectId);
       setStatus({
-        attemptId: start.attemptId,
+        attemptId: next.attemptId,
         status: "waiting",
-        message: "Authorize read-only Cloud Monitoring access in your browser.",
+        message: null,
         account: null,
       });
-      await openUrl(start.authorizationUrl);
+      if (next.authorizationUrl) {
+        await openUrl(next.authorizationUrl);
+      }
     } catch (cause) {
       setBusy(false);
       setError(String(cause));
     }
   };
 
+  const selectedProject = projects.find((project) => project.projectId === selectedProjectId) ?? null;
+
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !busy && onClose()}>
       <section className="modal-card google-cloud-usage-modal" role="dialog" aria-modal="true" aria-labelledby="google-cloud-usage-title">
         <div className="modal-kicker">Google AI Studio quota usage</div>
-        <h2 id="google-cloud-usage-title">Connect Google Cloud Usage</h2>
-        <p>Authorize read-only Cloud Monitoring access to the project that owns this API key. The API key remains responsible only for model discovery.</p>
+        <h2 id="google-cloud-usage-title">
+          {stage === "choose_project" ? "Choose the API key project" : stage === "monitoring_disabled" ? "Enable Cloud Monitoring" : "Connect Google Usage"}
+        </h2>
 
-        <label className="field-label" htmlFor="google-cloud-project-id">Google Cloud project ID</label>
-        <input
-          id="google-cloud-project-id"
-          className="text-input"
-          value={projectId}
-          onChange={(event) => {
-            setProjectId(event.target.value.toLowerCase());
-            setError(null);
-          }}
-          placeholder="example-project-123"
-          autoComplete="off"
-          spellCheck={false}
-          disabled={busy}
-          autoFocus
-        />
-        <div className="credential-note">Use the project ID, not its display name or numeric project number. The Google account must be able to view Cloud Monitoring data for this project.</div>
+        {stage === "signin" ? (
+          <>
+            <p>Sign in once. The app will find the Google Cloud project that owns this API key and connect its reported Gemini quota usage automatically.</p>
+            <div className="guided-login-card google-cloud-scope-card">
+              <strong>Automatic, read-only setup</strong>
+              <p>The first sign-in can find accessible projects, identify the API key’s project, inspect Cloud Monitoring status, and read quota metrics. It cannot change the project.</p>
+            </div>
+          </>
+        ) : null}
 
-        <div className="guided-login-card google-cloud-scope-card">
-          <strong>Read-only access</strong>
-          <p>The authorization requests the <code>monitoring.read</code> scope. It cannot create resources, change quotas, or make Gemini requests.</p>
-        </div>
+        {stage === "choose_project" ? (
+          <>
+            <p>Google could not identify the API key’s project automatically. Choose it from the projects available to this Google account.</p>
+            <label className="field-label" htmlFor="google-cloud-project-choice">Google Cloud project</label>
+            <select
+              id="google-cloud-project-choice"
+              className="text-input"
+              value={selectedProjectId}
+              onChange={(event) => {
+                setSelectedProjectId(event.target.value);
+                setError(null);
+              }}
+              disabled={busy}
+            >
+              {projects.map((project) => (
+                <option key={project.projectId} value={project.projectId}>
+                  {project.displayName} ({project.projectId})
+                </option>
+              ))}
+            </select>
+            <div className="credential-note">Only projects this Google account can view are shown.</div>
+          </>
+        ) : null}
 
-        {status?.status === "waiting" ? <div className="login-status"><span className="spinner" />Waiting for Google authorization…</div> : null}
+        {stage === "monitoring_disabled" ? (
+          <>
+            <p>
+              The app found <strong>{selectedProject?.displayName ?? selectedProjectId}</strong>, but Cloud Monitoring is disabled for it.
+            </p>
+            <div className="guided-login-card google-cloud-scope-card">
+              <strong>One additional approval</strong>
+              <p>Google requires broader permission only for the single action of enabling Cloud Monitoring. The app does not change quotas, billing, IAM roles, or other services.</p>
+            </div>
+          </>
+        ) : null}
+
+        {status?.status === "waiting" ? (
+          <div className="login-status"><span className="spinner" />Waiting for Google…</div>
+        ) : null}
         {error ? <div className="error-panel modal-error">{error}</div> : null}
+
         <div className="modal-actions">
           <button className="button ghost" onClick={onClose} disabled={busy}>Cancel</button>
-          <button className="button primary" onClick={() => void connect()} disabled={busy || !projectId.trim()}>
-            {busy ? "Waiting for Google…" : "Connect Google Cloud Usage"}
-          </button>
+          {stage === "signin" ? (
+            <button className="button primary" onClick={() => void start()} disabled={busy}>
+              {busy ? "Waiting for Google…" : "Sign in with Google"}
+            </button>
+          ) : null}
+          {stage === "choose_project" ? (
+            <button className="button primary" onClick={() => void start(selectedProjectId)} disabled={busy || !selectedProjectId}>
+              {busy ? "Checking project…" : "Connect This Project"}
+            </button>
+          ) : null}
+          {stage === "monitoring_disabled" ? (
+            <button className="button primary" onClick={() => void start(`enable:${selectedProjectId}`)} disabled={busy || !selectedProjectId}>
+              {busy ? "Waiting for Google…" : "Enable Cloud Monitoring"}
+            </button>
+          ) : null}
         </div>
       </section>
     </div>
