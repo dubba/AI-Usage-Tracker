@@ -4,7 +4,14 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 ## Unreleased
 
-_No unreleased user-facing changes yet._
+### Fixed
+
+- Google AI Studio Cloud setup no longer opens a Google 403 page caused by OAuth scopes that the current Google client does not accept.
+- Every popup dialog now includes a visible top-right **X** close button.
+
+### Improved
+
+- Google AI Studio setup now accurately explains that Google grants Cloud access while the app limits its own actions to project discovery, Cloud Monitoring usage, and an explicitly approved Monitoring enable action.
 
 ## 0.2.37 - 2026-07-27
 

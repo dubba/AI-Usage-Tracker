@@ -146,6 +146,34 @@ function refineOpenCodeEmails(cards: HTMLElement[]): void {
   }
 }
 
+function modalCancelButton(modal: HTMLElement): HTMLButtonElement | null {
+  return Array.from(modal.querySelectorAll<HTMLButtonElement>(".modal-actions button"))
+    .find((button) => {
+      const label = button.textContent?.trim().toLowerCase();
+      return label === "cancel" || label === "close";
+    }) ?? null;
+}
+
+function refineModalCloseButton(modal: HTMLElement): void {
+  let close = modal.querySelector<HTMLButtonElement>(":scope > .ui-modal-close");
+  if (!close) {
+    close = document.createElement("button");
+    close.type = "button";
+    close.className = "ui-modal-close";
+    close.setAttribute("aria-label", "Close dialog");
+    close.title = "Close";
+    close.textContent = "×";
+    modal.prepend(close);
+  }
+
+  const cancel = modalCancelButton(modal);
+  close.disabled = !cancel || cancel.disabled;
+  close.onclick = () => {
+    const currentCancel = modalCancelButton(modal);
+    if (currentCancel && !currentCancel.disabled) currentCancel.click();
+  };
+}
+
 function clearResetCountdowns(cards: HTMLElement[]): void {
   for (const card of cards) {
     for (const reset of Array.from(card.querySelectorAll<HTMLElement>(".metric-reset"))) {
@@ -203,6 +231,9 @@ function applyRefinements(): void {
   const cards = Array.from(document.querySelectorAll<HTMLElement>(".provider-account-card"));
   for (const card of cards) refineAccountCard(card);
   refineOpenCodeEmails(cards);
+
+  const modals = Array.from(document.querySelectorAll<HTMLElement>(".modal-card[role=\"dialog\"]"));
+  for (const modal of modals) refineModalCloseButton(modal);
 }
 
 export function installUiRefinements(): void {
@@ -213,7 +244,7 @@ export function installUiRefinements(): void {
     applyRefinements();
     scheduleResetCountdownSync();
   });
-  observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+  observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["disabled"] });
 
   window.addEventListener("focus", () => scheduleResetCountdownSync(0));
   document.addEventListener("visibilitychange", () => {
