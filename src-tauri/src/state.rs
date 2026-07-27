@@ -7,7 +7,13 @@ use crate::{
 };
 use parking_lot::{Mutex, RwLock};
 use reqwest::Client;
-use std::{collections::HashMap, path::PathBuf, sync::Arc, time::Duration};
+use std::{
+    collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
+    sync::Arc,
+    time::Duration,
+};
 use tauri::AppHandle;
 use tokio::sync::Mutex as AsyncMutex;
 
@@ -35,10 +41,18 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(data_dir: PathBuf, bridge_token: String) -> Result<Self, String> {
-        let store = AccountStore::load(data_dir.clone()).map_err(|error| error.to_string())?;
-        let account_order = AccountOrderStore::load(&data_dir)?;
-        let alerts = AlertStore::load(&data_dir)?;
-        let settings = SettingsStore::load(&data_dir)?;
+        let store = load_with_metadata_recovery(&data_dir, "accounts.json", || {
+            AccountStore::load(data_dir.clone()).map_err(|error| error.to_string())
+        })?;
+        let account_order = load_with_metadata_recovery(&data_dir, "account-order.json", || {
+            AccountOrderStore::load(&data_dir)
+        })?;
+        let alerts = load_with_metadata_recovery(&data_dir, "usage-alerts.json", || {
+            AlertStore::load(&data_dir)
+        })?;
+        let settings = load_with_metadata_recovery(&data_dir, "app-settings.json", || {
+            SettingsStore::load(&data_dir)
+        })?;
         let client = Client::builder()
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(15))
@@ -74,5 +88,119 @@ impl AppState {
             .entry(account_id.to_string())
             .or_insert_with(|| Arc::new(AsyncMutex::new(())))
             .clone()
+    }
+}
+
+fn load_with_metadata_recovery<T, F>(
+    data_dir: &Path,
+    file_name: &str,
+    load: F,
+) -> Result<T, String>
+where
+    F: Fn() -> Result<T, String>,
+{
+    match load() {
+        Ok(value) => Ok(value),
+        Err(original_error) => {
+            let Some(quarantined_path) = quarantine_metadata_file(data_dir, file_name)? else {
+                return Err(original_error);
+            };
+            load().map_err(|recovery_error| {
+                format!(
+                    "Unable to recover {file_name} after moving the unreadable file to {}. Original error: {original_error}. Recovery error: {recovery_error}",
+                    quarantined_path.display()
+                )
+            })
+        }
+    }
+}
+
+fn quarantine_metadata_file(data_dir: &Path, file_name: &str) -> Result<Option<PathBuf>, String> {
+    let source = data_dir.join(file_name);
+    if !source.exists() {
+        return Ok(None);
+    }
+
+    for index in 0..1000 {
+        let suffix = if index == 0 {
+            "invalid".to_string()
+        } else {
+            format!("invalid-{index}")
+        };
+        let destination = data_dir.join(format!("{file_name}.{suffix}"));
+        if destination.exists() {
+            continue;
+        }
+        fs::rename(&source, &destination).map_err(|error| {
+            format!(
+                "Unable to preserve unreadable startup metadata {}: {error}",
+                source.display()
+            )
+        })?;
+        return Ok(Some(destination));
+    }
+
+    Err(format!(
+        "Unable to preserve unreadable startup metadata {} because too many quarantine files already exist.",
+        source.display()
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn invalid_primary_accounts_fall_back_to_backup() {
+        let directory = tempfile::tempdir().unwrap();
+        fs::write(directory.path().join("accounts.json"), r#"{"version":2,"accounts":[{"provider":"unsupported"}]}"#).unwrap();
+        fs::write(
+            directory.path().join("accounts.json.bak"),
+            r#"{
+              "version": 2,
+              "accounts": [{
+                "id": "restored",
+                "label": "Restored account",
+                "provider": "openai",
+                "email": null,
+                "providerAccountId": null,
+                "chatgptAccountId": null,
+                "plan": null,
+                "createdAt": "2026-01-01T00:00:00Z",
+                "updatedAt": "2026-01-01T00:00:00Z",
+                "lastUsage": null,
+                "lastError": null,
+                "authRequired": false
+              }]
+            }"#,
+        )
+        .unwrap();
+
+        let store = load_with_metadata_recovery(directory.path(), "accounts.json", || {
+            AccountStore::load(directory.path().to_path_buf()).map_err(|error| error.to_string())
+        })
+        .unwrap();
+
+        assert_eq!(store.list().len(), 1);
+        assert_eq!(store.list()[0].id, "restored");
+        assert!(directory.path().join("accounts.json.invalid").exists());
+    }
+
+    #[test]
+    fn invalid_settings_are_quarantined_and_defaults_load() {
+        let directory = tempfile::tempdir().unwrap();
+        fs::write(
+            directory.path().join("app-settings.json"),
+            r#"{"accountRefreshMinutes":"not-a-number"}"#,
+        )
+        .unwrap();
+
+        let settings = load_with_metadata_recovery(directory.path(), "app-settings.json", || {
+            SettingsStore::load(directory.path())
+        })
+        .unwrap();
+
+        assert_eq!(settings.get().account_refresh_minutes, 5);
+        assert!(directory.path().join("app-settings.json.invalid").exists());
     }
 }

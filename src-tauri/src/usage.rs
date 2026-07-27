@@ -10,6 +10,8 @@ use credential_store::{load_provider_secret, save_provider_secret};
 use std::sync::Arc;
 use tauri_plugin_notification::NotificationExt;
 
+const GOOGLE_AI_STUDIO_MODELS_ONLY_SOURCE: &str = "google_ai_studio_model_access";
+
 pub async fn refresh_account(app: Arc<AppState>, account_id: &str) -> Result<Account, String> {
     let lock = app.account_lock(account_id);
     let _guard = lock.lock().await;
@@ -38,10 +40,10 @@ pub async fn refresh_account(app: Arc<AppState>, account_id: &str) -> Result<Acc
         }
         Ok(_) => return save_failure(&app, account_id, ProviderError::Auth),
         Err(error) => {
-            return save_failure(
+            return save_credential_failure(
                 &app,
                 account_id,
-                ProviderError::Transient(format!("Unable to load provider credentials: {error}")),
+                format!("Unable to load provider credentials: {error}"),
             )
         }
     };
@@ -57,24 +59,86 @@ pub async fn refresh_account(app: Arc<AppState>, account_id: &str) -> Result<Acc
 }
 
 pub async fn refresh_all(app: Arc<AppState>) -> Vec<Account> {
-    let ids: Vec<String> = app
-        .store
-        .list()
-        .into_iter()
-        .map(|account| account.id)
-        .collect();
-    let mut refreshed = Vec::with_capacity(ids.len());
-    for id in ids {
-        match refresh_account(app.clone(), &id).await {
-            Ok(account) => refreshed.push(account),
-            Err(_) => {
+    let accounts = app.store.list();
+    let mut refreshed = Vec::with_capacity(accounts.len());
+
+    for account in accounts {
+        if !should_auto_refresh(&account) {
+            refreshed.push(account);
+            continue;
+        }
+
+        let id = account.id.clone();
+        let refresh_app = app.clone();
+        let refresh_id = id.clone();
+        let result = tokio::spawn(async move {
+            refresh_account(refresh_app, &refresh_id).await
+        })
+        .await;
+
+        match result {
+            Ok(Ok(account)) => refreshed.push(account),
+            Ok(Err(_)) => {
+                if let Some(account) = app.store.get(&id) {
+                    refreshed.push(account);
+                }
+            }
+            Err(error) => {
+                let message = if error.is_panic() {
+                    "Automatic refresh stopped unexpectedly. Reconnect this account before trying again."
+                        .to_string()
+                } else {
+                    format!("Automatic refresh was cancelled: {error}")
+                };
+                let _ = mark_account_refresh_suspended(app.as_ref(), &id, message);
                 if let Some(account) = app.store.get(&id) {
                     refreshed.push(account);
                 }
             }
         }
     }
+
     refreshed
+}
+
+fn should_auto_refresh(account: &Account) -> bool {
+    if account.auth_required {
+        return false;
+    }
+
+    if account.provider == Provider::GoogleAiStudio
+        && account.last_usage.as_ref().is_some_and(|usage| {
+            usage.source == GOOGLE_AI_STUDIO_MODELS_ONLY_SOURCE
+        })
+    {
+        return false;
+    }
+
+    true
+}
+
+fn mark_account_refresh_suspended(
+    app: &AppState,
+    account_id: &str,
+    message: String,
+) -> Result<Account, String> {
+    app.store
+        .mutate(account_id, |account| {
+            if let Some(usage) = account.last_usage.as_mut() {
+                usage.freshness = UsageFreshness::AuthRequired;
+            }
+            account.last_error = Some(message);
+            account.auth_required = true;
+        })
+        .map_err(|error| error.to_string())
+}
+
+fn save_credential_failure(
+    app: &AppState,
+    account_id: &str,
+    message: String,
+) -> Result<Account, String> {
+    mark_account_refresh_suspended(app, account_id, message)
 }
 
 fn save_success(app: &AppState, account_id: &str, usage: ProviderUsage) -> Result<Account, String> {
@@ -166,4 +230,63 @@ fn save_failure(app: &AppState, account_id: &str, error: ProviderError) -> Resul
             account.auth_required = is_auth;
         })
         .map_err(|error| error.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn account(provider: Provider, source: &str, auth_required: bool) -> Account {
+        let now = now_rfc3339();
+        Account {
+            id: "account".into(),
+            label: "Account".into(),
+            provider,
+            email: None,
+            provider_account_id: None,
+            chatgpt_account_id: None,
+            plan: None,
+            created_at: now.clone(),
+            updated_at: now.clone(),
+            last_usage: Some(UsageSnapshot {
+                plan: None,
+                email: None,
+                windows: Vec::new(),
+                credits_usd: None,
+                unlimited_credits: false,
+                fetched_at: now,
+                freshness: UsageFreshness::Live,
+                source: source.into(),
+            }),
+            last_error: None,
+            auth_required,
+        }
+    }
+
+    #[test]
+    fn skips_accounts_that_require_reconnection() {
+        assert!(!should_auto_refresh(&account(
+            Provider::Openai,
+            "wham",
+            true,
+        )));
+    }
+
+    #[test]
+    fn skips_google_ai_studio_until_cloud_setup_finishes() {
+        assert!(!should_auto_refresh(&account(
+            Provider::GoogleAiStudio,
+            GOOGLE_AI_STUDIO_MODELS_ONLY_SOURCE,
+            false,
+        )));
+    }
+
+    #[test]
+    fn refreshes_connected_google_ai_studio_accounts() {
+        assert!(should_auto_refresh(&account(
+            Provider::GoogleAiStudio,
+            "google_ai_studio_cloud_monitoring",
+            false,
+        )));
+    }
 }

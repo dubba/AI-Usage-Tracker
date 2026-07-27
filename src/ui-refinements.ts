@@ -167,7 +167,8 @@ function refineModalCloseButton(modal: HTMLElement): void {
   }
 
   const cancel = modalCancelButton(modal);
-  close.disabled = !cancel || cancel.disabled;
+  const shouldDisable = !cancel || cancel.disabled;
+  if (close.disabled !== shouldDisable) close.disabled = shouldDisable;
   close.onclick = () => {
     const currentCancel = modalCancelButton(modal);
     if (currentCancel && !currentCancel.disabled) currentCancel.click();
@@ -244,7 +245,7 @@ export function installUiRefinements(): void {
     applyRefinements();
     scheduleResetCountdownSync();
   });
-  observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["disabled"] });
+  observer.observe(document.body, { childList: true, subtree: true, characterData: true });
 
   window.addEventListener("focus", () => scheduleResetCountdownSync(0));
   document.addEventListener("visibilitychange", () => {

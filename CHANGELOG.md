@@ -4,7 +4,11 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 ## Unreleased
 
-_No unreleased user-facing changes yet._
+### Fixed
+
+- Opening Google AI Studio OAuth no longer triggers a self-repeating popup observer loop that can crash the app or leave it running invisibly in the system tray.
+- Popup close buttons now update their disabled state without recursively retriggering the shared dialog observer.
+- Invalid startup metadata is now preserved in a quarantine file while the app recovers from `accounts.json.bak` or safe defaults instead of closing immediately after launch.
 
 ## 0.2.38 - 2026-07-27
 
