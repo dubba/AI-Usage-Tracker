@@ -1,0 +1,41 @@
+.modal-card[role="dialog"] {
+  position: relative;
+}
+
+.modal-card[role="dialog"] > .modal-kicker,
+.modal-card[role="dialog"] > h2 {
+  padding-right: 42px;
+}
+
+.ui-modal-close {
+  position: absolute;
+  top: 13px;
+  right: 13px;
+  z-index: 2;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  padding: 0 0 2px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted, #8e9791);
+  font-size: 25px;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ui-modal-close:hover:not(:disabled),
+.ui-modal-close:focus-visible {
+  color: var(--text, #f4f6f8);
+  border-color: var(--border-strong, #343c37);
+  background: var(--panel-2, #171c19);
+  outline: none;
+}
+
+.ui-modal-close:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
