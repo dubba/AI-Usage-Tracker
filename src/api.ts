@@ -1,11 +1,29 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Account, AppSettings, AppUpdateStatus, BridgeInfo, DashboardSnapshot, LoginStart, LoginStatus, Provider, UsageAlertSetting } from "./types";
 
+const GOOGLE_AI_STUDIO_PROBE_WORKSPACE_ID = "google-ai-studio:probe";
+
+function googleAiStudioWorkspaceId(selectedModels: string[]): string {
+  return `google-ai-studio:${JSON.stringify({ selectedModels })}`;
+}
+
 export const bridgeApi = {
   snapshot: () => invoke<DashboardSnapshot>("get_dashboard_snapshot"),
   startLogin: (label: string, provider: Provider) => invoke<LoginStart>("start_login", { label, provider }),
   addOpenCodeGoAccount: (label: string, workspaceId: string, authCookie: string) =>
     invoke<Account>("add_opencode_go_account", { label, workspaceId, authCookie }),
+  testGoogleAiStudioKey: (apiKey: string) =>
+    invoke<Account>("add_opencode_go_account", {
+      label: "Google AI Studio",
+      workspaceId: GOOGLE_AI_STUDIO_PROBE_WORKSPACE_ID,
+      authCookie: apiKey,
+    }),
+  addGoogleAiStudioAccount: (label: string, apiKey: string, selectedModels: string[]) =>
+    invoke<Account>("add_opencode_go_account", {
+      label,
+      workspaceId: googleAiStudioWorkspaceId(selectedModels),
+      authCookie: apiKey,
+    }),
   loginStatus: (attemptId: string) => invoke<LoginStatus>("get_login_status", { attemptId }),
   refreshAccount: (accountId: string) => invoke<Account>("refresh_account", { accountId }),
   refreshAll: () => invoke<Account[]>("refresh_all"),

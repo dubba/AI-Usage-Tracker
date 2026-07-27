@@ -117,3 +117,126 @@ select.text-input option {
 .usage-grid .usage-card.wide {
   min-height: 134px;
 }
+
+.google-key-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.google-load-models {
+  min-width: 112px;
+  white-space: nowrap;
+}
+
+.google-model-picker {
+  margin-top: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: #111512;
+}
+
+.google-model-picker-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 13px;
+  border-bottom: 1px solid var(--border);
+}
+
+.google-model-picker-header > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.google-model-picker-header strong {
+  font-size: 12px;
+}
+
+.google-model-picker-header small {
+  color: var(--muted-2);
+  font-size: 10px;
+}
+
+.google-model-picker-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.google-model-picker-actions button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #c8b4ff;
+  font-size: 10px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.google-model-picker-actions button:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.google-model-picker-actions button:disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+.google-model-list {
+  max-height: 250px;
+  overflow-y: auto;
+  scrollbar-color: #3b433e transparent;
+}
+
+.google-model-option {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 10px 13px;
+  border-top: 1px solid rgba(255, 255, 255, .045);
+  cursor: pointer;
+}
+
+.google-model-option:first-child {
+  border-top: 0;
+}
+
+.google-model-option:hover {
+  background: rgba(159, 103, 255, .07);
+}
+
+.google-model-option input {
+  margin: 2px 0 0;
+  accent-color: var(--purple);
+}
+
+.google-model-option span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.google-model-option strong {
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.google-model-option small {
+  overflow: hidden;
+  color: var(--muted-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.google-usage-note {
+  margin: 0;
+  padding: 11px 13px;
+  border-top: 1px solid var(--border);
+  background: rgba(159, 103, 255, .055);
+}

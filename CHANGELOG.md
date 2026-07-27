@@ -4,7 +4,13 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 ## Unreleased
 
-_No unreleased user-facing changes yet._
+### Added
+
+- **Add Account** now includes a testing option for Google AI Studio API keys that validates the key, loads the model list directly from Google, and lets you choose which returned models to track.
+
+### Improved
+
+- Google AI Studio testing accounts leave usage values unavailable when Google does not report them instead of estimating or calculating quota usage.
 
 ## 0.2.34 - 2026-07-26
 

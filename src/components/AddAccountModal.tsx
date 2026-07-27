@@ -4,14 +4,22 @@ import { bridgeApi } from "../api";
 import { saveOpenCodeAccountEmail } from "../opencode-account-email";
 import type { Account, LoginStatus, Provider } from "../types";
 
-const providerOptions: Array<{ id: Provider; label: string; detail: string }> = [
+type ConnectionProvider = Provider | "google_ai_studio";
+
+type GoogleModelOption = {
+  name: string;
+  label: string;
+};
+
+const providerOptions: Array<{ id: ConnectionProvider; label: string; detail: string }> = [
   { id: "openai", label: "OpenAI Codex", detail: "ChatGPT Plus, Pro, Business, or other Codex-enabled plans" },
   { id: "anthropic", label: "Anthropic Claude", detail: "Claude Pro or Max through Anthropic OAuth" },
   { id: "antigravity", label: "Google Antigravity", detail: "Google OAuth and Cloud Code quota data" },
+  { id: "google_ai_studio", label: "Google AI Studio API Key (testing)", detail: "Validate a key and choose models returned by Google" },
   { id: "opencode_go", label: "OpenCode Go", detail: "Sign in and select Go; setup is detected automatically" },
 ];
 
-function providerName(provider: Provider): string {
+function providerName(provider: ConnectionProvider): string {
   return providerOptions.find((option) => option.id === provider)?.label ?? provider;
 }
 
@@ -33,11 +41,15 @@ export function AddAccountModal({
   onAdded: (account: Account) => void;
 }) {
   const [label, setLabel] = useState("OpenAI Codex");
-  const [provider, setProvider] = useState<Provider>("openai");
+  const [provider, setProvider] = useState<ConnectionProvider>("openai");
   const [email, setEmail] = useState("");
   const [workspaceId, setWorkspaceId] = useState("");
   const [authCookie, setAuthCookie] = useState("");
   const [advancedManual, setAdvancedManual] = useState(false);
+  const [apiKey, setApiKey] = useState("");
+  const [availableModels, setAvailableModels] = useState<GoogleModelOption[]>([]);
+  const [selectedModels, setSelectedModels] = useState<string[]>([]);
+  const [modelsBusy, setModelsBusy] = useState(false);
   const [status, setStatus] = useState<LoginStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +63,10 @@ export function AddAccountModal({
       setWorkspaceId("");
       setAuthCookie("");
       setAdvancedManual(false);
+      setApiKey("");
+      setAvailableModels([]);
+      setSelectedModels([]);
+      setModelsBusy(false);
       setStatus(null);
       setBusy(false);
       setError(null);
@@ -60,6 +76,10 @@ export function AddAccountModal({
       setLabel(initialLabel?.trim() || providerName(nextProvider));
       setEmail("");
       setAdvancedManual(false);
+      setApiKey("");
+      setAvailableModels([]);
+      setSelectedModels([]);
+      setModelsBusy(false);
     }
   }, [open, initialLabel, initialProvider, providerLocked]);
 
@@ -92,7 +112,70 @@ export function AddAccountModal({
 
   if (!open) return null;
 
+  const loadGoogleModels = async () => {
+    const key = apiKey.trim();
+    if (!key) {
+      setError("Enter a Google AI Studio API key first.");
+      return;
+    }
+
+    setModelsBusy(true);
+    setError(null);
+    try {
+      const probe = await bridgeApi.testGoogleAiStudioKey(key);
+      const models = (probe.lastUsage?.windows ?? []).map((model) => ({
+        name: model.id,
+        label: model.label,
+      }));
+      if (!models.length) {
+        setAvailableModels([]);
+        setSelectedModels([]);
+        setError("Google returned no models that can be tracked with this key.");
+        return;
+      }
+      const availableNames = new Set(models.map((model) => model.name));
+      setAvailableModels(models);
+      setSelectedModels((current) => current.filter((name) => availableNames.has(name)));
+    } catch (cause) {
+      setAvailableModels([]);
+      setSelectedModels([]);
+      setError(String(cause));
+    } finally {
+      setModelsBusy(false);
+    }
+  };
+
   const begin = async () => {
+    if (provider === "google_ai_studio") {
+      if (!apiKey.trim()) {
+        setError("A Google AI Studio API key is required.");
+        return;
+      }
+      if (!availableModels.length) {
+        setError("Load the models from Google before adding this account.");
+        return;
+      }
+      if (!selectedModels.length) {
+        setError("Select at least one Google model to track.");
+        return;
+      }
+
+      setBusy(true);
+      setError(null);
+      try {
+        const account = await bridgeApi.addGoogleAiStudioAccount(
+          label.trim() || providerName(provider),
+          apiKey.trim(),
+          selectedModels,
+        );
+        onAdded(account);
+      } catch (cause) {
+        setBusy(false);
+        setError(String(cause));
+      }
+      return;
+    }
+
     if (provider === "opencode_go" && !validEmail(email)) {
       setError("A valid email address is required for OpenCode Go accounts.");
       return;
@@ -132,14 +215,23 @@ export function AddAccountModal({
 
   const providerCopy = provider === "opencode_go"
     ? "A private OpenCode window will open in the app. Sign in, then select Go from the OpenCode sidebar. The bridge detects the workspace and session automatically and closes the window when the account is connected."
-    : `Finish the ${providerName(provider)} login in your browser. Passwords never pass through this app.`;
+    : provider === "google_ai_studio"
+      ? "Enter an AI Studio API key, load the model list directly from Google, and choose which returned models should appear in the tracker. The app will not estimate usage values Google does not report."
+      : `Finish the ${providerName(provider)} login in your browser. Passwords never pass through this app.`;
+
+  const googleReady = Boolean(
+    apiKey.trim()
+    && availableModels.length
+    && selectedModels.length
+    && !modelsBusy,
+  );
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !busy && onClose()}>
+    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !busy && !modelsBusy && onClose()}>
       <section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="add-account-title">
         <div className="modal-kicker">Provider connection</div>
         <h2 id="add-account-title">{providerLocked ? `Reconnect ${providerName(provider)}` : "Which account do you want to add?"}</h2>
-        <p>{providerLocked ? providerCopy : "Choose a provider, name the account, and continue to its secure sign-in."}</p>
+        <p>{providerLocked ? providerCopy : "Choose a provider, name the account, and enter its secure connection details."}</p>
 
         <label className="field-label" htmlFor="account-provider">Provider</label>
         <select
@@ -147,15 +239,19 @@ export function AddAccountModal({
           className="text-input"
           value={provider}
           onChange={(event) => {
-            const nextProvider = event.target.value as Provider;
+            const nextProvider = event.target.value as ConnectionProvider;
             setLabel((current) => !current.trim() || current === providerName(provider) ? providerName(nextProvider) : current);
             setProvider(nextProvider);
             setEmail("");
             setAdvancedManual(false);
+            setApiKey("");
+            setAvailableModels([]);
+            setSelectedModels([]);
+            setModelsBusy(false);
             setStatus(null);
             setError(null);
           }}
-          disabled={busy || providerLocked}
+          disabled={busy || modelsBusy || providerLocked}
           autoFocus
         >
           {providerOptions.map((option) => (
@@ -170,8 +266,78 @@ export function AddAccountModal({
           value={label}
           onChange={(event) => setLabel(event.target.value)}
           placeholder={providerName(provider)}
-          disabled={busy}
+          disabled={busy || modelsBusy}
         />
+
+        {provider === "google_ai_studio" ? (
+          <>
+            <label className="field-label field-spaced" htmlFor="google-ai-studio-key">Google AI Studio API key</label>
+            <div className="google-key-row">
+              <input
+                id="google-ai-studio-key"
+                className="text-input"
+                type="password"
+                value={apiKey}
+                onChange={(event) => {
+                  setApiKey(event.target.value);
+                  setAvailableModels([]);
+                  setSelectedModels([]);
+                  setError(null);
+                }}
+                placeholder="Paste the API key"
+                autoComplete="off"
+                spellCheck={false}
+                disabled={busy || modelsBusy}
+              />
+              <button
+                type="button"
+                className="button ghost google-load-models"
+                onClick={() => void loadGoogleModels()}
+                disabled={busy || modelsBusy || !apiKey.trim()}
+              >
+                {modelsBusy ? "Loading…" : availableModels.length ? "Reload models" : "Load models"}
+              </button>
+            </div>
+            <div className="credential-note">The key is sent only to the Rust backend and saved in Credential Manager or Keychain after you add the account.</div>
+
+            {availableModels.length ? (
+              <div className="google-model-picker">
+                <div className="google-model-picker-header">
+                  <div>
+                    <strong>Models to track</strong>
+                    <small>{selectedModels.length} of {availableModels.length} selected</small>
+                  </div>
+                  <div className="google-model-picker-actions">
+                    <button type="button" onClick={() => setSelectedModels(availableModels.map((model) => model.name))} disabled={busy}>Select all</button>
+                    <button type="button" onClick={() => setSelectedModels([])} disabled={busy || !selectedModels.length}>Clear</button>
+                  </div>
+                </div>
+                <div className="google-model-list">
+                  {availableModels.map((model) => (
+                    <label className="google-model-option" key={model.name}>
+                      <input
+                        type="checkbox"
+                        checked={selectedModels.includes(model.name)}
+                        disabled={busy}
+                        onChange={(event) => {
+                          setSelectedModels((current) => event.target.checked
+                            ? [...current, model.name]
+                            : current.filter((name) => name !== model.name));
+                          setError(null);
+                        }}
+                      />
+                      <span>
+                        <strong>{model.label}</strong>
+                        <small>{model.name}</small>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <div className="credential-note google-usage-note">Testing mode reports the selected models Google returns. Missing usage values remain unavailable instead of being calculated.</div>
+              </div>
+            ) : null}
+          </>
+        ) : null}
 
         {provider === "opencode_go" ? (
           <>
@@ -252,13 +418,23 @@ export function AddAccountModal({
         ) : null}
         {error ? <div className="error-panel modal-error">{error}</div> : null}
         <div className="modal-actions">
-          <button className="button ghost" onClick={onClose} disabled={busy}>Cancel</button>
-          <button className="button primary" onClick={begin} disabled={busy || (provider === "opencode_go" && !email.trim())}>
+          <button className="button ghost" onClick={onClose} disabled={busy || modelsBusy}>Cancel</button>
+          <button
+            className="button primary"
+            onClick={begin}
+            disabled={busy || modelsBusy || (provider === "opencode_go" && !email.trim()) || (provider === "google_ai_studio" && !googleReady)}
+          >
             {busy
-              ? provider === "opencode_go" ? "Waiting for OpenCode…" : "Connecting…"
+              ? provider === "opencode_go"
+                ? "Waiting for OpenCode…"
+                : provider === "google_ai_studio"
+                  ? "Adding account…"
+                  : "Connecting…"
               : provider === "opencode_go"
                 ? advancedManual ? "Connect manually" : "Open OpenCode login"
-                : `Continue with ${providerName(provider)}`}
+                : provider === "google_ai_studio"
+                  ? "Add selected models"
+                  : `Continue with ${providerName(provider)}`}
           </button>
         </div>
       </section>

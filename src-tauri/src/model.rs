@@ -140,12 +140,20 @@ pub struct OpenCodeGoSecret {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GoogleAiStudioSecret {
+    pub api_key: String,
+    pub selected_models: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "provider", content = "credentials", rename_all = "snake_case")]
 pub enum ProviderSecret {
     Openai(OAuthSecret),
     Anthropic(OAuthSecret),
     Antigravity(OAuthSecret),
     OpencodeGo(OpenCodeGoSecret),
+    GoogleAiStudio(GoogleAiStudioSecret),
 }
 
 impl ProviderSecret {
@@ -153,7 +161,7 @@ impl ProviderSecret {
         match self {
             Self::Openai(_) => Provider::Openai,
             Self::Anthropic(_) => Provider::Anthropic,
-            Self::Antigravity(_) => Provider::Antigravity,
+            Self::Antigravity(_) | Self::GoogleAiStudio(_) => Provider::Antigravity,
             Self::OpencodeGo(_) => Provider::OpencodeGo,
         }
     }

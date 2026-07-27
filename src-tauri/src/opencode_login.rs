@@ -9,6 +9,7 @@ use crate::{
     usage,
 };
 use chrono::{Duration, Utc};
+use serde::Deserialize;
 use std::{
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -28,6 +29,14 @@ const LOGIN_URL: &str = "https://opencode.ai/auth";
 const LOGIN_TIMEOUT_MINUTES: i64 = 10;
 const COOKIE_CAPTURE_ATTEMPTS: usize = 30;
 const COOKIE_CAPTURE_RETRY_DELAY_MS: u64 = 500;
+const GOOGLE_AI_STUDIO_PROBE_WORKSPACE_ID: &str = "google-ai-studio:probe";
+const GOOGLE_AI_STUDIO_WORKSPACE_PREFIX: &str = "google-ai-studio:";
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GoogleAiStudioConnectionPayload {
+    selected_models: Vec<String>,
+}
 
 const CONNECT_BANNER_SCRIPT: &str = r#"
 (() => {
@@ -250,6 +259,21 @@ pub async fn add_account(
     auth_cookie: String,
 ) -> Result<Account, String> {
     let workspace_id = workspace_id.trim();
+    if workspace_id == GOOGLE_AI_STUDIO_PROBE_WORKSPACE_ID {
+        return providers::google_ai_studio::probe_account(state, label, auth_cookie).await;
+    }
+    if let Some(payload) = workspace_id.strip_prefix(GOOGLE_AI_STUDIO_WORKSPACE_PREFIX) {
+        let payload = serde_json::from_str::<GoogleAiStudioConnectionPayload>(payload)
+            .map_err(|_| "The Google AI Studio model selection is invalid. Load the models again.".to_string())?;
+        return providers::google_ai_studio::add_account(
+            state,
+            label,
+            auth_cookie,
+            payload.selected_models,
+        )
+        .await;
+    }
+
     if workspace_id.is_empty() || workspace_id.chars().count() > 160 {
         return Err("A valid OpenCode workspace ID is required.".into());
     }
@@ -476,5 +500,14 @@ mod tests {
             ),
             None
         );
+    }
+
+    #[test]
+    fn parses_google_ai_studio_connection_payload() {
+        let payload = serde_json::from_str::<GoogleAiStudioConnectionPayload>(
+            r#"{"selectedModels":["models/gemini-test"]}"#,
+        )
+        .unwrap();
+        assert_eq!(payload.selected_models, vec!["models/gemini-test"]);
     }
 }

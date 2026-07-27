@@ -1,5 +1,6 @@
 pub mod anthropic;
 pub mod antigravity;
+pub mod google_ai_studio;
 pub mod openai;
 pub mod opencode_go;
 
@@ -50,6 +51,10 @@ pub async fn refresh(
         ProviderSecret::OpencodeGo(secret) => {
             let usage = opencode_go::refresh(app.as_ref(), account, &secret).await?;
             Ok((usage, ProviderSecret::OpencodeGo(secret)))
+        }
+        ProviderSecret::GoogleAiStudio(secret) => {
+            let usage = google_ai_studio::refresh(app.as_ref(), account, &secret).await?;
+            Ok((usage, ProviderSecret::GoogleAiStudio(secret)))
         }
     }
 }
