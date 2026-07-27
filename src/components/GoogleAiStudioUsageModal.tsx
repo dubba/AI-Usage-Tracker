@@ -16,6 +16,19 @@ type CloudSetupMessage = {
 
 type SetupStage = "signin" | "choose_project" | "monitoring_disabled";
 
+const GOOGLE_CLOUD_AUTH_SCOPES = [
+  "openid",
+  "email",
+  "profile",
+  "https://www.googleapis.com/auth/cloud-platform",
+].join(" ");
+
+function compatibleGoogleAuthorizationUrl(value: string): string {
+  const url = new URL(value);
+  url.searchParams.set("scope", GOOGLE_CLOUD_AUTH_SCOPES);
+  return url.toString();
+}
+
 function parseSetupMessage(message: string | null): CloudSetupMessage | null {
   if (!message) return null;
   try {
@@ -114,7 +127,7 @@ export function GoogleAiStudioUsageModal({
         account: null,
       });
       if (next.authorizationUrl) {
-        await openUrl(next.authorizationUrl);
+        await openUrl(compatibleGoogleAuthorizationUrl(next.authorizationUrl));
       }
     } catch (cause) {
       setBusy(false);
@@ -136,8 +149,8 @@ export function GoogleAiStudioUsageModal({
           <>
             <p>Sign in once. The app will find the Google Cloud project that owns this API key and connect its reported Gemini quota usage automatically.</p>
             <div className="guided-login-card google-cloud-scope-card">
-              <strong>Automatic, read-only setup</strong>
-              <p>The first sign-in can find accessible projects, identify the API key’s project, inspect Cloud Monitoring status, and read quota metrics. It cannot change the project.</p>
+              <strong>Automatic Google Cloud setup</strong>
+              <p>Google grants Cloud access to complete setup. The app uses it only to find the API key project, inspect or read Cloud Monitoring, and enable Monitoring when you explicitly approve that action. It does not change billing, quotas, IAM roles, or other services.</p>
             </div>
           </>
         ) : null}
@@ -172,8 +185,8 @@ export function GoogleAiStudioUsageModal({
               The app found <strong>{selectedProject?.displayName ?? selectedProjectId}</strong>, but Cloud Monitoring is disabled for it.
             </p>
             <div className="guided-login-card google-cloud-scope-card">
-              <strong>One additional approval</strong>
-              <p>Google requires broader permission only for the single action of enabling Cloud Monitoring. The app does not change quotas, billing, IAM roles, or other services.</p>
+              <strong>Confirm the one-time action</strong>
+              <p>Clicking Enable authorizes the app to turn on Cloud Monitoring for this project. The app does not change quotas, billing, IAM roles, or other services.</p>
             </div>
           </>
         ) : null}
