@@ -4,6 +4,10 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 ## Unreleased
 
+_No unreleased user-facing changes yet._
+
+## 0.2.36 - 2026-07-27
+
 ### Added
 
 - Google AI Studio accounts can connect the Google Cloud project that owns their API key with read-only Cloud Monitoring access and display provider-reported RPM, TPM, RPD, and TPD quota usage when Google publishes those metrics.

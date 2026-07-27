@@ -1,1 +1,1 @@
-Release build requested on 2026-07-27 for AI Subscription Tracker v0.2.35 with Google AI Studio API-key testing, Google-provided model selection, secure native credential storage, and unreported usage left unavailable.
+Release build requested on 2026-07-27 for AI Subscription Tracker v0.2.36 with Google AI Studio as a first-class provider, read-only Google Cloud Monitoring authorization, provider-reported RPM/TPM/RPD/TPD quota usage, automatic account migration, and Connected/Waiting setup states.
