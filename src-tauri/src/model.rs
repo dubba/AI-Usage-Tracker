@@ -9,6 +9,7 @@ pub enum Provider {
     Openai,
     Anthropic,
     Antigravity,
+    GoogleAiStudio,
     OpencodeGo,
 }
 
@@ -18,6 +19,7 @@ impl Provider {
             Self::Openai => "openai",
             Self::Anthropic => "anthropic",
             Self::Antigravity => "antigravity",
+            Self::GoogleAiStudio => "google_ai_studio",
             Self::OpencodeGo => "opencode_go",
         }
     }
@@ -27,6 +29,7 @@ impl Provider {
             Self::Openai => "OpenAI Codex",
             Self::Anthropic => "Anthropic Claude",
             Self::Antigravity => "Google Antigravity",
+            Self::GoogleAiStudio => "Google AI Studio",
             Self::OpencodeGo => "OpenCode Go",
         }
     }
@@ -45,7 +48,9 @@ impl FromStr for Provider {
         match value.trim().to_ascii_lowercase().replace('-', "_").as_str() {
             "openai" | "codex" => Ok(Self::Openai),
             "anthropic" | "claude" => Ok(Self::Anthropic),
-            "antigravity" | "google_antigravity" | "google" => Ok(Self::Antigravity),
+            "antigravity" | "google_antigravity" => Ok(Self::Antigravity),
+            "google_ai_studio" | "ai_studio" | "gemini_api" => Ok(Self::GoogleAiStudio),
+            "google" => Ok(Self::Antigravity),
             "opencode_go" | "opencode" | "go" => Ok(Self::OpencodeGo),
             _ => Err("Unsupported provider.".into()),
         }
@@ -144,6 +149,10 @@ pub struct OpenCodeGoSecret {
 pub struct GoogleAiStudioSecret {
     pub api_key: String,
     pub selected_models: Vec<String>,
+    #[serde(default)]
+    pub cloud_project_id: Option<String>,
+    #[serde(default)]
+    pub cloud_oauth: Option<OAuthSecret>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -161,7 +170,8 @@ impl ProviderSecret {
         match self {
             Self::Openai(_) => Provider::Openai,
             Self::Anthropic(_) => Provider::Anthropic,
-            Self::Antigravity(_) | Self::GoogleAiStudio(_) => Provider::Antigravity,
+            Self::Antigravity(_) => Provider::Antigravity,
+            Self::GoogleAiStudio(_) => Provider::GoogleAiStudio,
             Self::OpencodeGo(_) => Provider::OpencodeGo,
         }
     }

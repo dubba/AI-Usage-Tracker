@@ -1,6 +1,7 @@
 mod account_order;
 mod alerts;
 mod bridge_api;
+mod google_ai_studio_oauth;
 mod model;
 mod oauth;
 mod opencode_login;
@@ -12,7 +13,9 @@ mod usage;
 
 use crate::{
     alerts::UsageAlertSetting,
-    model::{Account, AppUpdateStatus, BridgeInfo, DashboardSnapshot, LoginStart, LoginStatus, Provider},
+    model::{
+        Account, AppUpdateStatus, BridgeInfo, DashboardSnapshot, LoginStart, LoginStatus, Provider,
+    },
     settings::AppSettings,
     state::AppState,
     store::{load_or_create_bridge_token, rotate_bridge_token},
@@ -28,7 +31,10 @@ use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_updater::UpdaterExt;
 
 #[tauri::command]
-async fn get_dashboard_snapshot(state: State<'_, Arc<AppState>>) -> Result<DashboardSnapshot, String> {
+async fn get_dashboard_snapshot(
+    state: State<'_, Arc<AppState>>,
+) -> Result<DashboardSnapshot, String> {
+    migrate_google_ai_studio_accounts(state.inner().as_ref());
     let accounts = state.account_order.apply(state.store.list())?;
     Ok(DashboardSnapshot {
         accounts,
@@ -50,11 +56,52 @@ async fn start_login(
         validate_label(&label)?
     };
 
+    if provider == Provider::GoogleAiStudio {
+        return Err("Google AI Studio setup begins with an API key in Add Account.".into());
+    }
     if provider == Provider::OpencodeGo {
         opencode_login::start_login(app, state.inner().clone(), label).await
     } else {
         oauth::start_login(state.inner().clone(), label, provider).await
     }
+}
+
+#[tauri::command]
+async fn probe_google_ai_studio_key(
+    state: State<'_, Arc<AppState>>,
+    api_key: String,
+) -> Result<Account, String> {
+    providers::google_ai_studio::probe_account(
+        state.inner().clone(),
+        "Google AI Studio".into(),
+        api_key,
+    )
+    .await
+}
+
+#[tauri::command]
+async fn add_google_ai_studio_account(
+    state: State<'_, Arc<AppState>>,
+    label: String,
+    api_key: String,
+    selected_models: Vec<String>,
+) -> Result<Account, String> {
+    providers::google_ai_studio::add_account(
+        state.inner().clone(),
+        validate_label(&label)?,
+        api_key,
+        selected_models,
+    )
+    .await
+}
+
+#[tauri::command]
+async fn start_google_ai_studio_usage_login(
+    state: State<'_, Arc<AppState>>,
+    account_id: String,
+    project_id: String,
+) -> Result<LoginStart, String> {
+    google_ai_studio_oauth::start_login(state.inner().clone(), account_id, project_id).await
 }
 
 #[tauri::command]
@@ -73,12 +120,18 @@ async fn add_opencode_go_account(
 }
 
 #[tauri::command]
-fn get_login_status(state: State<'_, Arc<AppState>>, attempt_id: String) -> Result<LoginStatus, String> {
+fn get_login_status(
+    state: State<'_, Arc<AppState>>,
+    attempt_id: String,
+) -> Result<LoginStatus, String> {
     oauth::login_status(state.inner().as_ref(), &attempt_id)
 }
 
 #[tauri::command]
-async fn refresh_account(state: State<'_, Arc<AppState>>, account_id: String) -> Result<Account, String> {
+async fn refresh_account(
+    state: State<'_, Arc<AppState>>,
+    account_id: String,
+) -> Result<Account, String> {
     usage::refresh_account(state.inner().clone(), &account_id).await
 }
 
@@ -134,18 +187,17 @@ async fn open_paseo_bridge_window(
         return Ok(());
     }
 
-    let mut builder = WebviewWindowBuilder::new(
-        &app,
-        "paseo-bridge",
-        WebviewUrl::App("index.html".into()),
-    )
-    .title("Paseo Bridge")
-    .inner_size(780.0, 760.0)
-    .min_inner_size(640.0, 560.0)
-    .center();
+    let mut builder =
+        WebviewWindowBuilder::new(&app, "paseo-bridge", WebviewUrl::App("index.html".into()))
+            .title("Paseo Bridge")
+            .inner_size(780.0, 760.0)
+            .min_inner_size(640.0, 560.0)
+            .center();
 
     if let Some(icon) = app.default_window_icon() {
-        builder = builder.icon(icon.clone()).map_err(|error| error.to_string())?;
+        builder = builder
+            .icon(icon.clone())
+            .map_err(|error| error.to_string())?;
     }
 
     builder.build().map_err(|error| error.to_string())?;
@@ -183,14 +235,11 @@ fn save_account_alerts(
         .ok_or_else(|| "Account not found.".to_string())?;
 
     for setting in &settings {
-        let available = account
-            .last_usage
-            .as_ref()
-            .is_some_and(|usage| {
-                usage.windows.iter().any(|window| {
-                    alerts::canonical_window_id(window) == Some(setting.window_id.as_str())
-                })
-            });
+        let available = account.last_usage.as_ref().is_some_and(|usage| {
+            usage.windows.iter().any(|window| {
+                alerts::canonical_window_id(window) == Some(setting.window_id.as_str())
+            })
+        });
         if !available {
             return Err(format!(
                 "{} is not available for this account's current plan.",
@@ -205,7 +254,11 @@ fn save_account_alerts(
 }
 
 #[tauri::command]
-fn rename_account(state: State<'_, Arc<AppState>>, account_id: String, label: String) -> Result<Account, String> {
+fn rename_account(
+    state: State<'_, Arc<AppState>>,
+    account_id: String,
+    label: String,
+) -> Result<Account, String> {
     let label = validate_label(&label)?;
     state
         .store
@@ -215,7 +268,10 @@ fn rename_account(state: State<'_, Arc<AppState>>, account_id: String, label: St
 
 #[tauri::command]
 fn remove_account(state: State<'_, Arc<AppState>>, account_id: String) -> Result<(), String> {
-    state.store.remove(&account_id).map_err(|error| error.to_string())?;
+    state
+        .store
+        .remove(&account_id)
+        .map_err(|error| error.to_string())?;
     state.account_order.remove(&account_id)?;
     state.alerts.remove(&account_id)?;
     Ok(())
@@ -244,7 +300,10 @@ async fn check_for_app_update(
     Ok(match update {
         Some(update) => {
             let available_version = update.version.to_string();
-            if state.settings.update_notification_needed(&available_version) {
+            if state
+                .settings
+                .update_notification_needed(&available_version)
+            {
                 let shown = app
                     .notification()
                     .builder()
@@ -291,6 +350,22 @@ async fn install_app_update(app: AppHandle) -> Result<(), String> {
 
     app.restart();
     Ok(())
+}
+
+fn migrate_google_ai_studio_accounts(state: &AppState) {
+    for account in state.store.list() {
+        let legacy_ai_studio = account.provider == Provider::Antigravity
+            && account
+                .provider_account_id
+                .as_deref()
+                .is_some_and(|value| value.starts_with("google-ai-studio:"));
+        if legacy_ai_studio {
+            let _ = state.store.mutate(&account.id, |account| {
+                account.provider = Provider::GoogleAiStudio;
+                account.plan = Some("Google AI Studio".into());
+            });
+        }
+    }
 }
 
 fn validate_label(label: &str) -> Result<String, String> {
@@ -345,7 +420,8 @@ pub fn run() {
                 .find(|config| config.label == "main")
                 .cloned()
                 .ok_or_else(|| std::io::Error::other("main window configuration is missing"))?;
-            let mut window_builder = WebviewWindowBuilder::from_config(app.handle(), &window_config)?;
+            let mut window_builder =
+                WebviewWindowBuilder::from_config(app.handle(), &window_config)?;
             if let Some(icon) = app.default_window_icon() {
                 window_builder = window_builder.icon(icon.clone())?;
             }
@@ -357,10 +433,7 @@ pub fn run() {
             let data_dir = app.path().app_data_dir()?;
             let token = load_or_create_bridge_token()
                 .map_err(|error| std::io::Error::other(error.to_string()))?;
-            let state = Arc::new(
-                AppState::new(data_dir, token)
-                    .map_err(std::io::Error::other)?,
-            );
+            let state = Arc::new(AppState::new(data_dir, token).map_err(std::io::Error::other)?);
             state.set_app_handle(app.handle().clone());
             app.manage(state.clone());
             tauri::async_runtime::spawn(bridge_api::run_controller(state.clone()));
@@ -417,6 +490,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_dashboard_snapshot,
             start_login,
+            probe_google_ai_studio_key,
+            add_google_ai_studio_account,
+            start_google_ai_studio_usage_login,
             add_opencode_go_account,
             get_login_status,
             refresh_account,

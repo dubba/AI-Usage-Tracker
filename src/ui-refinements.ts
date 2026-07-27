@@ -6,7 +6,7 @@ import {
 } from "./opencode-account-email";
 import type { UsageWindow } from "./types";
 
-type CardProvider = "openai" | "anthropic" | "antigravity" | "opencode_go";
+type CardProvider = "openai" | "anthropic" | "antigravity" | "google_ai_studio" | "opencode_go";
 type ResetWindow = "five_hour" | "weekly";
 
 const RESET_COUNTDOWN_SYNC_MS = 60_000;
@@ -19,6 +19,7 @@ function cardProvider(card: HTMLElement): CardProvider | null {
   if (icon?.classList.contains("provider-openai")) return "openai";
   if (icon?.classList.contains("provider-anthropic")) return "anthropic";
   if (icon?.classList.contains("provider-antigravity")) return "antigravity";
+  if (icon?.classList.contains("provider-google_ai_studio")) return "google_ai_studio";
   if (icon?.classList.contains("provider-opencode_go")) return "opencode_go";
   return null;
 }

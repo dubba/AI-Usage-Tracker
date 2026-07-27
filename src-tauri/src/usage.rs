@@ -10,25 +10,33 @@ use credential_store::{load_provider_secret, save_provider_secret};
 use std::sync::Arc;
 use tauri_plugin_notification::NotificationExt;
 
-pub async fn refresh_account(
-    app: Arc<AppState>,
-    account_id: &str,
-) -> Result<Account, String> {
+pub async fn refresh_account(app: Arc<AppState>, account_id: &str) -> Result<Account, String> {
     let lock = app.account_lock(account_id);
     let _guard = lock.lock().await;
-    let account = app
+    let mut account = app
         .store
         .get(account_id)
         .ok_or_else(|| "Account not found.".to_string())?;
     let secret = match load_provider_secret(account_id) {
         Ok(secret) if secret.provider() == account.provider => secret,
-        Ok(_) => {
-            return save_failure(
-                &app,
-                account_id,
-                ProviderError::Auth,
-            )
+        Ok(secret)
+            if secret.provider() == Provider::GoogleAiStudio
+                && account.provider == Provider::Antigravity
+                && account
+                    .provider_account_id
+                    .as_deref()
+                    .is_some_and(|value| value.starts_with("google-ai-studio:")) =>
+        {
+            account = app
+                .store
+                .mutate(account_id, |account| {
+                    account.provider = Provider::GoogleAiStudio;
+                    account.plan = Some("Google AI Studio".into());
+                })
+                .map_err(|error| error.to_string())?;
+            secret
         }
+        Ok(_) => return save_failure(&app, account_id, ProviderError::Auth),
         Err(error) => {
             return save_failure(
                 &app,
@@ -69,11 +77,7 @@ pub async fn refresh_all(app: Arc<AppState>) -> Vec<Account> {
     refreshed
 }
 
-fn save_success(
-    app: &AppState,
-    account_id: &str,
-    usage: ProviderUsage,
-) -> Result<Account, String> {
+fn save_success(app: &AppState, account_id: &str, usage: ProviderUsage) -> Result<Account, String> {
     if usage.windows.is_empty() {
         return save_failure(
             app,
@@ -146,11 +150,7 @@ pub fn emit_alerts_for_account(app: &AppState, account: &Account) {
     }
 }
 
-fn save_failure(
-    app: &AppState,
-    account_id: &str,
-    error: ProviderError,
-) -> Result<Account, String> {
+fn save_failure(app: &AppState, account_id: &str, error: ProviderError) -> Result<Account, String> {
     let is_auth = matches!(&error, ProviderError::Auth);
     let message = error.to_string();
     app.store

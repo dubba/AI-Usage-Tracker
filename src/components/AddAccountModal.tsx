@@ -15,7 +15,7 @@ const providerOptions: Array<{ id: ConnectionProvider; label: string; detail: st
   { id: "openai", label: "OpenAI Codex", detail: "ChatGPT Plus, Pro, Business, or other Codex-enabled plans" },
   { id: "anthropic", label: "Anthropic Claude", detail: "Claude Pro or Max through Anthropic OAuth" },
   { id: "antigravity", label: "Google Antigravity", detail: "Google OAuth and Cloud Code quota data" },
-  { id: "google_ai_studio", label: "Google AI Studio API Key (testing)", detail: "Validate a key and choose models returned by Google" },
+  { id: "google_ai_studio", label: "Google AI Studio", detail: "Validate an API key, choose models, and optionally connect project quota usage" },
   { id: "opencode_go", label: "OpenCode Go", detail: "Sign in and select Go; setup is detected automatically" },
 ];
 
@@ -216,7 +216,7 @@ export function AddAccountModal({
   const providerCopy = provider === "opencode_go"
     ? "A private OpenCode window will open in the app. Sign in, then select Go from the OpenCode sidebar. The bridge detects the workspace and session automatically and closes the window when the account is connected."
     : provider === "google_ai_studio"
-      ? "Enter an AI Studio API key, load the model list directly from Google, and choose which returned models should appear in the tracker. The app will not estimate usage values Google does not report."
+      ? "Enter an AI Studio API key, load the model list directly from Google, and choose which models to track. After the account is added, connect its Google Cloud project to retrieve provider-reported quota usage."
       : `Finish the ${providerName(provider)} login in your browser. Passwords never pass through this app.`;
 
   const googleReady = Boolean(
@@ -333,7 +333,7 @@ export function AddAccountModal({
                     </label>
                   ))}
                 </div>
-                <div className="credential-note google-usage-note">Testing mode reports the selected models Google returns. Missing usage values remain unavailable instead of being calculated.</div>
+                <div className="credential-note google-usage-note">The API key confirms model access. Project-level RPM, TPM, and daily quotas require the separate read-only Google Cloud connection available on the account card.</div>
               </div>
             ) : null}
           </>

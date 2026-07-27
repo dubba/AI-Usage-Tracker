@@ -53,7 +53,7 @@ pub async fn refresh(
             Ok((usage, ProviderSecret::OpencodeGo(secret)))
         }
         ProviderSecret::GoogleAiStudio(secret) => {
-            let usage = google_ai_studio::refresh(app.as_ref(), account, &secret).await?;
+            let (usage, secret) = google_ai_studio::refresh(app.as_ref(), account, secret).await?;
             Ok((usage, ProviderSecret::GoogleAiStudio(secret)))
         }
     }

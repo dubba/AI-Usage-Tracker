@@ -240,3 +240,22 @@ select.text-input option {
   border-top: 1px solid var(--border);
   background: rgba(159, 103, 255, .055);
 }
+
+
+.google-cloud-connect-action {
+  min-width: 126px;
+  white-space: nowrap;
+}
+
+.google-cloud-usage-modal {
+  max-width: 610px;
+}
+
+.google-cloud-scope-card {
+  margin-top: 16px;
+}
+
+.google-cloud-scope-card code {
+  color: #d7c7ff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}

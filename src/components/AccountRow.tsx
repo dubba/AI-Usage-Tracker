@@ -30,6 +30,7 @@ function providerName(provider: Provider): string {
     case "openai": return "OpenAI Codex";
     case "anthropic": return "Anthropic Claude";
     case "antigravity": return "Google Antigravity";
+    case "google_ai_studio": return "Google AI Studio";
     case "opencode_go": return "OpenCode Go";
   }
 }

@@ -4,7 +4,15 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 ## Unreleased
 
-_No unreleased user-facing changes yet._
+### Added
+
+- Google AI Studio accounts can connect the Google Cloud project that owns their API key with read-only Cloud Monitoring access and display provider-reported RPM, TPM, RPD, and TPD quota usage when Google publishes those metrics.
+- Google AI Studio now appears as its own provider group instead of being mixed with Google Antigravity accounts.
+
+### Improved
+
+- API-key-only Google AI Studio accounts now show **Connected** instead of **Live**, and project connections waiting for delayed Google metrics show **Waiting** instead of an unexplained unavailable value.
+- Existing Google AI Studio testing accounts are migrated automatically without requiring the API key to be added again.
 
 ## 0.2.35 - 2026-07-27
 

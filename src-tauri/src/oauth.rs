@@ -84,7 +84,10 @@ pub async fn start_login(
     provider: Provider,
 ) -> Result<LoginStart, String> {
     if provider == Provider::OpencodeGo {
-        return Err("OpenCode Go uses a workspace ID and console session cookie instead of browser OAuth.".into());
+        return Err(
+            "OpenCode Go uses a workspace ID and console session cookie instead of browser OAuth."
+                .into(),
+        );
     }
     if app
         .pending_login
@@ -310,6 +313,9 @@ async fn exchange_tokens(
         Provider::Openai => exchange_openai(context, code).await,
         Provider::Anthropic => exchange_anthropic(context, code).await,
         Provider::Antigravity => exchange_antigravity(context, code).await,
+        Provider::GoogleAiStudio => {
+            Err("Google AI Studio usage uses its dedicated Google Cloud authorization flow.".into())
+        }
         Provider::OpencodeGo => Err("OpenCode Go does not use OAuth.".into()),
     }
 }
@@ -436,8 +442,7 @@ async fn exchange_anthropic(
             access_token: tokens.access_token,
             refresh_token,
             id_token: tokens.id_token,
-            expires_at: Utc::now().timestamp_millis()
-                + tokens.expires_in.unwrap_or(3600) * 1000,
+            expires_at: Utc::now().timestamp_millis() + tokens.expires_in.unwrap_or(3600) * 1000,
         }),
         identity,
     ))
@@ -495,8 +500,7 @@ async fn exchange_antigravity(
             access_token: tokens.access_token,
             refresh_token,
             id_token: tokens.id_token,
-            expires_at: Utc::now().timestamp_millis()
-                + tokens.expires_in.unwrap_or(3600) * 1000,
+            expires_at: Utc::now().timestamp_millis() + tokens.expires_in.unwrap_or(3600) * 1000,
         }),
         identity,
     ))
@@ -527,8 +531,8 @@ fn build_authorization_url(
             Ok(url.to_string())
         }
         Provider::Anthropic => {
-            let mut url =
-                Url::parse("https://claude.ai/oauth/authorize").map_err(|error| error.to_string())?;
+            let mut url = Url::parse("https://claude.ai/oauth/authorize")
+                .map_err(|error| error.to_string())?;
             url.query_pairs_mut()
                 .append_pair("code", "true")
                 .append_pair("client_id", ANTHROPIC_CLIENT_ID)
@@ -560,6 +564,9 @@ fn build_authorization_url(
                 .append_pair("include_granted_scopes", "true");
             Ok(url.to_string())
         }
+        Provider::GoogleAiStudio => {
+            Err("Google AI Studio usage uses its dedicated Google Cloud authorization flow.".into())
+        }
         Provider::OpencodeGo => Err("OpenCode Go does not use OAuth.".into()),
     }
 }
@@ -569,7 +576,7 @@ fn redirect_uri(provider: &Provider, port: u16) -> String {
         Provider::Openai => format!("http://localhost:{port}/auth/callback"),
         Provider::Anthropic => format!("http://localhost:{port}/callback"),
         Provider::Antigravity => format!("http://127.0.0.1:{port}"),
-        Provider::OpencodeGo => String::new(),
+        Provider::GoogleAiStudio | Provider::OpencodeGo => String::new(),
     }
 }
 
@@ -578,7 +585,7 @@ async fn bind_callback_port(provider: &Provider) -> Result<(TcpListener, u16), S
         Provider::Openai => (1455..=1459).collect(),
         Provider::Anthropic => (53692..=53696).collect(),
         Provider::Antigravity => (11451..=11455).collect(),
-        Provider::OpencodeGo => Vec::new(),
+        Provider::GoogleAiStudio | Provider::OpencodeGo => Vec::new(),
     };
     for port in ports {
         match TcpListener::bind(("127.0.0.1", port)).await {
@@ -631,8 +638,8 @@ pub fn decode_claims(token: &str) -> Option<TokenClaims> {
     let decoded = URL_SAFE_NO_PAD.decode(segment).ok()?;
     let value: Value = serde_json::from_slice(&decoded).ok()?;
     let auth = value.get("https://api.openai.com/auth");
-    let email = string_at(&value, "email")
-        .or_else(|| auth.and_then(|value| string_at(value, "email")));
+    let email =
+        string_at(&value, "email").or_else(|| auth.and_then(|value| string_at(value, "email")));
     let account_id = auth
         .and_then(|value| string_at(value, "chatgpt_account_id"))
         .or_else(|| string_at(&value, "chatgpt_account_id"));
@@ -690,10 +697,7 @@ fn find_string(value: &Value, keys: &[&str]) -> Option<String> {
 }
 
 fn string_at(value: &Value, key: &str) -> Option<String> {
-    value
-        .get(key)
-        .and_then(Value::as_str)
-        .map(str::to_string)
+    value.get(key).and_then(Value::as_str).map(str::to_string)
 }
 
 fn fail_login(store: &RwLock<Option<LoginStatus>>, attempt_id: &str, message: String) {

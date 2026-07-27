@@ -20,6 +20,7 @@ function providerFromClassList(classList: DOMTokenList): Provider | null {
   if (classList.contains("provider-openai")) return "openai";
   if (classList.contains("provider-anthropic")) return "anthropic";
   if (classList.contains("provider-antigravity")) return "antigravity";
+  if (classList.contains("provider-google_ai_studio")) return "google_ai_studio";
   if (classList.contains("provider-opencode_go")) return "opencode_go";
   return null;
 }
@@ -42,6 +43,7 @@ function readProviderOrder(): Provider[] {
       value === "openai"
       || value === "anthropic"
       || value === "antigravity"
+      || value === "google_ai_studio"
       || value === "opencode_go",
     );
   } catch {

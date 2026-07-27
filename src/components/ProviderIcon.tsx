@@ -27,7 +27,7 @@ export function ProviderIcon({ provider, className, ...props }: ProviderIconProp
     );
   }
 
-  if (provider === "antigravity") {
+  if (provider === "antigravity" || provider === "google_ai_studio") {
     return (
       <svg viewBox="0 0 24 24" aria-label="Google" role="img" className={className} {...props}>
         <path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.7 4.7 0 0 1-2 3v2.5h3.2c1.9-1.8 3-4.3 3-7.3Z" />

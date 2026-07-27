@@ -3,6 +3,7 @@ import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { bridgeApi } from "./api";
 import { AccountAlertModal } from "./components/AccountAlertModal";
 import { AddAccountModal } from "./components/AddAccountModal";
+import { GoogleAiStudioUsageModal } from "./components/GoogleAiStudioUsageModal";
 import { ProviderIcon } from "./components/ProviderIcon";
 import {
   BellIcon,
@@ -48,13 +49,14 @@ const DASHBOARD_SYNC_INTERVAL_MS = 30 * 1000;
 const STARTUP_REFRESH_DELAY_MS = 3 * 1000;
 const ACCOUNT_REFRESH_OPTIONS = Array.from({ length: 12 }, (_, index) => (index + 1) * 5);
 const SIDEBAR_WINDOW_KEY = "ai-subscription-tracker:provider-average-window";
-const PROVIDER_ORDER: Provider[] = ["openai", "anthropic", "antigravity", "opencode_go"];
+const PROVIDER_ORDER: Provider[] = ["openai", "anthropic", "antigravity", "google_ai_studio", "opencode_go"];
 
 function providerName(provider: Provider): string {
   switch (provider) {
     case "openai": return "OpenAI Codex";
     case "anthropic": return "Anthropic Claude";
     case "antigravity": return "Google Antigravity";
+    case "google_ai_studio": return "Google AI Studio";
     case "opencode_go": return "OpenCode Go";
   }
 }
@@ -66,7 +68,14 @@ function formatTime(value: string | null | undefined): string {
   return date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
 }
 
+function isGoogleAiStudioSetupSource(account: Account): boolean {
+  return account.provider === "google_ai_studio"
+    && (account.lastUsage?.source === "google_ai_studio_model_access"
+      || account.lastUsage?.source === "google_ai_studio_monitoring_waiting");
+}
+
 function accountNeedsAttention(account: Account): boolean {
+  if (!account.authRequired && !account.lastError && isGoogleAiStudioSetupSource(account)) return false;
   return Boolean(
     account.authRequired
     || account.lastError
@@ -81,6 +90,12 @@ function accountStatus(account: Account): { label: string; className: string } {
   }
   if (account.lastError || account.lastUsage?.freshness === "stale") {
     return { label: "ATTENTION", className: "warning" };
+  }
+  if (account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_model_access") {
+    return { label: "CONNECTED", className: "success" };
+  }
+  if (account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_monitoring_waiting") {
+    return { label: "WAITING", className: "neutral" };
   }
   if (!account.lastUsage || account.lastUsage.freshness === "unavailable") {
     return { label: "INACTIVE", className: "neutral" };
@@ -198,6 +213,7 @@ export default function App() {
   const [section, setSection] = useState<Section>("accounts");
   const [addOpen, setAddOpen] = useState(false);
   const [alertAccount, setAlertAccount] = useState<Account | null>(null);
+  const [googleUsageAccount, setGoogleUsageAccount] = useState<Account | null>(null);
   const [loginLabel, setLoginLabel] = useState("");
   const [loginProvider, setLoginProvider] = useState<Provider | undefined>(undefined);
   const [busy, setBusy] = useState<string | null>(null);
@@ -443,7 +459,8 @@ export default function App() {
         onAdd={() => openAdd(undefined, selectedProvider ?? undefined)}
         onRefreshAll={refreshAll}
         onRefresh={(account) => void refreshOne(account.id)}
-        onReconnect={(account) => openAdd(account)}
+        onReconnect={(account) => account.provider === "google_ai_studio" ? setGoogleUsageAccount(account) : openAdd(account)}
+        onConnectGoogleUsage={setGoogleUsageAccount}
         onRename={(account, label) => rename(account, label)}
         onRemove={(account) => void remove(account)}
         onNotifications={setAlertAccount}
@@ -549,6 +566,14 @@ export default function App() {
           await load();
         }}
       />
+      <GoogleAiStudioUsageModal
+        account={googleUsageAccount}
+        onClose={() => setGoogleUsageAccount(null)}
+        onConnected={async () => {
+          setGoogleUsageAccount(null);
+          await load();
+        }}
+      />
       <AccountAlertModal
         account={alertAccount}
         onClose={() => setAlertAccount(null)}
@@ -604,6 +629,7 @@ function AccountsView(props: {
   onRefreshAll: () => void;
   onRefresh: (account: Account) => void;
   onReconnect: (account: Account) => void;
+  onConnectGoogleUsage: (account: Account) => void;
   onRename: (account: Account, label: string) => Promise<void>;
   onRemove: (account: Account) => void;
   onNotifications: (account: Account) => void;
@@ -656,6 +682,7 @@ function AccountsView(props: {
             busy={props.busy}
             onRefresh={() => props.onRefresh(account)}
             onReconnect={() => props.onReconnect(account)}
+            onConnectGoogleUsage={() => props.onConnectGoogleUsage(account)}
             onRename={(label) => props.onRename(account, label)}
             onRemove={() => props.onRemove(account)}
             onNotifications={() => props.onNotifications(account)}
@@ -678,6 +705,7 @@ function AccountDashboardCard({
   busy,
   onRefresh,
   onReconnect,
+  onConnectGoogleUsage,
   onRename,
   onRemove,
   onNotifications,
@@ -686,6 +714,7 @@ function AccountDashboardCard({
   busy: string | null;
   onRefresh: () => void;
   onReconnect: () => void;
+  onConnectGoogleUsage: () => void;
   onRename: (label: string) => Promise<void>;
   onRemove: () => void;
   onNotifications: () => void;
@@ -699,6 +728,9 @@ function AccountDashboardCard({
   const isRenaming = busy === `rename:${account.id}`;
   const isRemoving = busy === `remove:${account.id}`;
   const windows = orderedWindows(account.lastUsage?.windows ?? []);
+  const modelsOnly = account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_model_access";
+  const waitingForMetrics = account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_monitoring_waiting";
+  const googleUnavailableLabel = modelsOnly ? "Model connected" : waitingForMetrics ? "Waiting for metrics" : "Unavailable";
 
   useEffect(() => {
     if (!editing) setLabel(account.label);
@@ -768,6 +800,11 @@ function AccountDashboardCard({
         </div>
         <div className="account-card-header-actions">
           {displayPlan(account) ? <span className="account-plan-badge">{displayPlan(account)}</span> : null}
+          {account.provider === "google_ai_studio" ? (
+            <button type="button" className="button ghost compact-button google-cloud-connect-action" disabled={Boolean(busy)} onClick={onConnectGoogleUsage}>
+              {modelsOnly ? "Connect Cloud Usage" : "Change Cloud Project"}
+            </button>
+          ) : null}
           <button
             type="button"
             className={`account-card-action ${isRefreshing ? "spinning" : ""}`}
@@ -798,12 +835,12 @@ function AccountDashboardCard({
       {account.lastError ? (
         <div className="account-card-error">
           <span>{account.lastError}</span>
-          {account.authRequired ? <button className="button ghost compact-button" onClick={onReconnect}>Reconnect</button> : null}
+          {account.authRequired ? <button className="button ghost compact-button" onClick={onReconnect}>{account.provider === "google_ai_studio" ? "Reconnect Cloud Usage" : "Reconnect"}</button> : null}
         </div>
       ) : null}
 
       <div className="account-card-metrics">
-        {windows.length ? windows.map((window) => <AccountUsageMetric key={window.id} window={window} />) : (
+        {windows.length ? windows.map((window) => <AccountUsageMetric key={window.id} window={window} unavailableLabel={googleUnavailableLabel} />) : (
           <div className="account-usage-metric unavailable-metric">
             <span className="metric-label">Usage</span>
             <strong>Unavailable</strong>
@@ -826,7 +863,7 @@ function AccountDashboardCard({
   );
 }
 
-function AccountUsageMetric({ window }: { window: UsageWindow }) {
+function AccountUsageMetric({ window, unavailableLabel = "Unavailable" }: { window: UsageWindow; unavailableLabel?: string }) {
   const remaining = window.remainingPercent;
   const width = remaining == null ? 0 : Math.min(100, Math.max(0, remaining));
   const tone = usageTone(remaining);
@@ -836,9 +873,9 @@ function AccountUsageMetric({ window }: { window: UsageWindow }) {
         <span className="metric-label">{window.label}</span>
         {windowLength(window) ? <span className="metric-window-pill">{windowLength(window)}</span> : null}
       </div>
-      <strong>{remaining == null ? "Unavailable" : `${Math.round(remaining)}% remaining`}</strong>
+      <strong>{remaining == null ? unavailableLabel : `${Math.round(remaining)}% remaining`}</strong>
       <span className="account-metric-track"><span className={`tone-${tone}`} style={{ width: `${width}%` }} /></span>
-      <span className="metric-reset">{window.resetsAt ? `Resets ${formatTime(window.resetsAt)}` : "Reset time unavailable"}</span>
+      <span className="metric-reset">{window.resetsAt ? `Resets ${formatTime(window.resetsAt)}` : remaining == null ? "Google Cloud usage has not reported a quota value yet" : "Rolling window"}</span>
     </div>
   );
 }
