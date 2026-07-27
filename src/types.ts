@@ -69,7 +69,7 @@ export interface LoginStart {
 
 export interface LoginStatus {
   attemptId: string;
-  status: "waiting" | "complete" | "failed";
+  status: "waiting" | "complete" | "failed" | "choose_project" | "monitoring_disabled";
   message: string | null;
   account: Account | null;
 }
