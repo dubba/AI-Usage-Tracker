@@ -1,1 +1,1 @@
-Release build requested on 2026-07-27 for AI Subscription Tracker v0.2.38 with the Google AI Studio OAuth 403 fix, accurate Google Cloud permission wording, and a consistent top-right close button on every popup dialog.
+Release build requested on 2026-07-27 for AI Subscription Tracker v0.2.39 with interrupted Google AI Studio OAuth startup protection, isolated automatic account refreshes, credential failure containment, popup observer crash prevention, and startup metadata recovery.

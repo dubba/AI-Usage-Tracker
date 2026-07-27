@@ -4,11 +4,19 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 ## Unreleased
 
+_No unreleased user-facing changes yet._
+
+## 0.2.39 - 2026-07-27
+
 ### Fixed
 
+- Interrupted Google AI Studio OAuth setup can no longer leave the app stuck closing during startup refresh.
+- Automatic account refreshes are isolated so one provider failure cannot take down the refresh controller or the desktop app.
+- Google AI Studio accounts that have not completed Cloud setup, plus accounts already requiring reconnection, are skipped during automatic startup refresh.
+- Provider credential read failures now suspend only the affected account and require reconnection instead of being retried as an application-wide startup failure.
 - Opening Google AI Studio OAuth no longer triggers a self-repeating popup observer loop that can crash the app or leave it running invisibly in the system tray.
 - Popup close buttons now update their disabled state without recursively retriggering the shared dialog observer.
-- Invalid startup metadata is now preserved in a quarantine file while the app recovers from `accounts.json.bak` or safe defaults instead of closing immediately after launch.
+- Invalid startup metadata is preserved in a quarantine file while the app recovers from `accounts.json.bak` or safe defaults instead of closing immediately after launch.
 
 ## 0.2.38 - 2026-07-27
 
