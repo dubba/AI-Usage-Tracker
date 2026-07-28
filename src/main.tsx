@@ -22,6 +22,7 @@ import "./app-shell-polish.css";
 import "./paseo-bridge.css";
 import "./obsidian-dashboard.css";
 import "./ui-refinements.css";
+import "./dashboard-reorder.css";
 import "./modal-close.css";
 
 const isPaseoBridgeWindow = getCurrentWindow().label === "paseo-bridge";

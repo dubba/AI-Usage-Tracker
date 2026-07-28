@@ -38,6 +38,17 @@ export function ProviderIcon({ provider, className, ...props }: ProviderIconProp
     );
   }
 
+  if (provider === "grok") {
+    return (
+      <svg viewBox="0 0 24 24" aria-label="Grok" role="img" className={className} {...props}>
+        <path
+          fill="currentColor"
+          d="M4.2 4.4h4.2l3.8 5.1 4.3-5.1h3.3l-6 7.1 6.1 8.1h-4.2l-4.1-5.6-4.8 5.6H3.5l6.5-7.6-5.8-7.6Zm4.7 2.2 7.4 10.8h1.5L10.4 6.6H8.9Z"
+        />
+      </svg>
+    );
+  }
+
   return (
     <svg viewBox="0 0 24 24" aria-label="OpenCode" role="img" className={className} {...props}>
       <rect x="2.5" y="3.5" width="19" height="17" rx="3" fill="none" stroke="currentColor" strokeWidth="1.8" />

@@ -1,0 +1,17 @@
+.provider-summary-row[data-reorder-enabled="true"],
+.provider-account-card[data-reorder-enabled="true"] {
+  cursor: grab;
+  user-select: none;
+  touch-action: pan-y;
+}
+
+html.dashboard-reordering,
+html.dashboard-reordering * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
+html.dashboard-reordering .provider-summary-row.is-dragging,
+html.dashboard-reordering .provider-account-card.is-dragging {
+  opacity: 0.45;
+}

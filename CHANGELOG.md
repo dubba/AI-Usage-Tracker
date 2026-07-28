@@ -4,7 +4,14 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 ## Unreleased
 
-_No unreleased user-facing changes yet._
+### Added
+
+- Grok / SuperGrok accounts can now sign in through xAI's official Grok Build CLI and display provider-reported included-usage percentage and reset timing when xAI exposes that billing data.
+
+### Fixed
+
+- Provider groups and account cards now use pointer-based reordering that works reliably in the desktop WebView and persists the resulting order.
+- React now renders provider groups from the saved provider order instead of restoring the old fixed order after a drag.
 
 ## 0.2.39 - 2026-07-27
 

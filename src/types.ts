@@ -1,4 +1,4 @@
-export type Provider = "openai" | "anthropic" | "antigravity" | "google_ai_studio" | "opencode_go";
+export type Provider = "openai" | "anthropic" | "antigravity" | "google_ai_studio" | "grok" | "opencode_go";
 
 export type UsageFreshness = "live" | "stale" | "unavailable" | "auth_required";
 

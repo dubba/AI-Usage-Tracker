@@ -6,6 +6,10 @@ import { AddAccountModal } from "./components/AddAccountModal";
 import { GoogleAiStudioUsageModal } from "./components/GoogleAiStudioUsageModal";
 import { ProviderIcon } from "./components/ProviderIcon";
 import {
+  DASHBOARD_PROVIDER_ORDER_EVENT,
+  readDashboardProviderOrder,
+} from "./dashboard-reorder";
+import {
   BellIcon,
   CheckCircleIcon,
   ClockIcon,
@@ -49,7 +53,6 @@ const DASHBOARD_SYNC_INTERVAL_MS = 30 * 1000;
 const STARTUP_REFRESH_DELAY_MS = 3 * 1000;
 const ACCOUNT_REFRESH_OPTIONS = Array.from({ length: 12 }, (_, index) => (index + 1) * 5);
 const SIDEBAR_WINDOW_KEY = "ai-subscription-tracker:provider-average-window";
-const PROVIDER_ORDER: Provider[] = ["openai", "anthropic", "antigravity", "google_ai_studio", "opencode_go"];
 
 function providerName(provider: Provider): string {
   switch (provider) {
@@ -57,6 +60,7 @@ function providerName(provider: Provider): string {
     case "anthropic": return "Anthropic Claude";
     case "antigravity": return "Google Antigravity";
     case "google_ai_studio": return "Google AI Studio";
+    case "grok": return "Grok / SuperGrok";
     case "opencode_go": return "OpenCode Go";
   }
 }
@@ -209,6 +213,7 @@ function displayPlan(account: Account): string | null {
 export default function App() {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
+  const [providerOrder, setProviderOrder] = useState<Provider[]>(readDashboardProviderOrder);
   const [sidebarWindow, setSidebarWindow] = useState<SidebarWindow>(readSidebarWindow);
   const [section, setSection] = useState<Section>("accounts");
   const [addOpen, setAddOpen] = useState(false);
@@ -237,7 +242,7 @@ export default function App() {
       setSnapshot(next);
       setSelectedProvider((current) => {
         if (current && next.accounts.some((account) => account.provider === current)) return current;
-        return PROVIDER_ORDER.find((provider) => next.accounts.some((account) => account.provider === provider)) ?? null;
+        return readDashboardProviderOrder().find((provider) => next.accounts.some((account) => account.provider === provider)) ?? null;
       });
       setError(null);
     } catch (cause) {
@@ -329,9 +334,14 @@ export default function App() {
       const status = (event as CustomEvent<AppUpdateStatus>).detail;
       if (status) setAppUpdate(status);
     };
+    const syncProviderOrder = (event: Event) => {
+      const order = (event as CustomEvent<Provider[]>).detail;
+      setProviderOrder(order?.length ? order : readDashboardProviderOrder());
+    };
 
     window.addEventListener("focus", refreshVisible);
     window.addEventListener(APP_UPDATE_STATUS_EVENT, syncUpdateStatus);
+    window.addEventListener(DASHBOARD_PROVIDER_ORDER_EVENT, syncProviderOrder);
     document.addEventListener("visibilitychange", refreshVisible);
 
     return () => {
@@ -340,17 +350,18 @@ export default function App() {
       window.clearInterval(updateInterval);
       window.removeEventListener("focus", refreshVisible);
       window.removeEventListener(APP_UPDATE_STATUS_EVENT, syncUpdateStatus);
+      window.removeEventListener(DASHBOARD_PROVIDER_ORDER_EVENT, syncProviderOrder);
       document.removeEventListener("visibilitychange", refreshVisible);
     };
   }, [load, checkForUpdate]);
 
   const accounts = snapshot?.accounts ?? [];
   const providerGroups = useMemo<ProviderGroup[]>(
-    () => PROVIDER_ORDER.flatMap((provider) => {
+    () => providerOrder.flatMap((provider) => {
       const providerAccounts = accounts.filter((account) => account.provider === provider);
       return providerAccounts.length ? [{ provider, accounts: providerAccounts }] : [];
     }),
-    [accounts],
+    [accounts, providerOrder],
   );
   const visibleAccounts = selectedProvider
     ? accounts.filter((account) => account.provider === selectedProvider)
@@ -875,7 +886,7 @@ function AccountUsageMetric({ window, unavailableLabel = "Unavailable" }: { wind
       </div>
       <strong>{remaining == null ? unavailableLabel : `${Math.round(remaining)}% remaining`}</strong>
       <span className="account-metric-track"><span className={`tone-${tone}`} style={{ width: `${width}%` }} /></span>
-      <span className="metric-reset">{window.resetsAt ? `Resets ${formatTime(window.resetsAt)}` : remaining == null ? "Google Cloud usage has not reported a quota value yet" : "Rolling window"}</span>
+      <span className="metric-reset">{window.resetsAt ? `Resets ${formatTime(window.resetsAt)}` : remaining == null ? "This provider has not reported a quota value yet" : "Rolling window"}</span>
     </div>
   );
 }

@@ -83,11 +83,11 @@ pub async fn start_login(
     label: String,
     provider: Provider,
 ) -> Result<LoginStart, String> {
-    if provider == Provider::OpencodeGo {
-        return Err(
-            "OpenCode Go uses a workspace ID and console session cookie instead of browser OAuth."
-                .into(),
-        );
+    if matches!(provider, Provider::OpencodeGo | Provider::Grok) {
+        return Err(format!(
+            "{} uses its dedicated login flow instead of browser OAuth.",
+            provider.display_name()
+        ));
     }
     if app
         .pending_login
@@ -316,6 +316,7 @@ async fn exchange_tokens(
         Provider::GoogleAiStudio => {
             Err("Google AI Studio usage uses its dedicated Google Cloud authorization flow.".into())
         }
+        Provider::Grok => Err("Grok uses the official Grok Build CLI login flow.".into()),
         Provider::OpencodeGo => Err("OpenCode Go does not use OAuth.".into()),
     }
 }
@@ -567,6 +568,7 @@ fn build_authorization_url(
         Provider::GoogleAiStudio => {
             Err("Google AI Studio usage uses its dedicated Google Cloud authorization flow.".into())
         }
+        Provider::Grok => Err("Grok uses the official Grok Build CLI login flow.".into()),
         Provider::OpencodeGo => Err("OpenCode Go does not use OAuth.".into()),
     }
 }
@@ -576,7 +578,7 @@ fn redirect_uri(provider: &Provider, port: u16) -> String {
         Provider::Openai => format!("http://localhost:{port}/auth/callback"),
         Provider::Anthropic => format!("http://localhost:{port}/callback"),
         Provider::Antigravity => format!("http://127.0.0.1:{port}"),
-        Provider::GoogleAiStudio | Provider::OpencodeGo => String::new(),
+        Provider::GoogleAiStudio | Provider::Grok | Provider::OpencodeGo => String::new(),
     }
 }
 
@@ -585,7 +587,7 @@ async fn bind_callback_port(provider: &Provider) -> Result<(TcpListener, u16), S
         Provider::Openai => (1455..=1459).collect(),
         Provider::Anthropic => (53692..=53696).collect(),
         Provider::Antigravity => (11451..=11455).collect(),
-        Provider::GoogleAiStudio | Provider::OpencodeGo => Vec::new(),
+        Provider::GoogleAiStudio | Provider::Grok | Provider::OpencodeGo => Vec::new(),
     };
     for port in ports {
         match TcpListener::bind(("127.0.0.1", port)).await {

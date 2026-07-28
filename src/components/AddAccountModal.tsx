@@ -4,7 +4,7 @@ import { bridgeApi } from "../api";
 import { saveOpenCodeAccountEmail } from "../opencode-account-email";
 import type { Account, LoginStatus, Provider } from "../types";
 
-type ConnectionProvider = Provider | "google_ai_studio";
+type ConnectionProvider = Provider;
 
 type GoogleModelOption = {
   name: string;
@@ -16,6 +16,7 @@ const providerOptions: Array<{ id: ConnectionProvider; label: string; detail: st
   { id: "anthropic", label: "Anthropic Claude", detail: "Claude Pro or Max through Anthropic OAuth" },
   { id: "antigravity", label: "Google Antigravity", detail: "Google OAuth and Cloud Code quota data" },
   { id: "google_ai_studio", label: "Google AI Studio", detail: "Validate an API key, choose models, and optionally connect project quota usage" },
+  { id: "grok", label: "Grok / SuperGrok", detail: "Private grok.com sign-in and provider-reported weekly usage" },
   { id: "opencode_go", label: "OpenCode Go", detail: "Sign in and select Go; setup is detected automatically" },
 ];
 
@@ -201,10 +202,12 @@ export function AddAccountModal({
         status: "waiting",
         message: provider === "opencode_go"
           ? "Sign in to OpenCode and select Go from the sidebar."
-          : null,
+          : provider === "grok"
+            ? "Sign in to Grok in the private window."
+            : null,
         account: null,
       });
-      if (provider !== "opencode_go") {
+      if (start.authorizationUrl.trim()) {
         await openUrl(start.authorizationUrl);
       }
     } catch (cause) {
@@ -217,7 +220,9 @@ export function AddAccountModal({
     ? "A private OpenCode window will open in the app. Sign in, then select Go from the OpenCode sidebar. The bridge detects the workspace and session automatically and closes the window when the account is connected."
     : provider === "google_ai_studio"
       ? "Enter an AI Studio API key, load the model list directly from Google, and choose which models to track. After the account is added, connect its Google Cloud project to retrieve provider-reported quota usage."
-      : `Finish the ${providerName(provider)} login in your browser. Passwords never pass through this app.`;
+      : provider === "grok"
+        ? "A private Grok window opens inside the tracker. After you sign in, the tracker securely saves only the Grok session needed to read the provider-reported weekly usage percentage and reset time. Your xAI password never passes through the tracker."
+        : `Finish the ${providerName(provider)} login in your browser. Passwords never pass through this app.`;
 
   const googleReady = Boolean(
     apiKey.trim()
@@ -339,6 +344,18 @@ export function AddAccountModal({
           </>
         ) : null}
 
+        {provider === "grok" ? (
+          <div className="guided-login-card grok-login-card">
+            <strong>What happens next</strong>
+            <ol>
+              <li>The tracker opens a temporary private <strong>grok.com</strong> window.</li>
+              <li>Sign in normally to your Grok or SuperGrok account.</li>
+              <li>The window closes after Grok reports your weekly usage percentage and reset time.</li>
+            </ol>
+            <small>The session needed for read-only usage checks is stored in Credential Manager or Keychain. The tracker does not estimate tokens or message counts and never receives your xAI password.</small>
+          </div>
+        ) : null}
+
         {provider === "opencode_go" ? (
           <>
             <label className="field-label field-spaced" htmlFor="opencode-email">Email address</label>
@@ -413,7 +430,9 @@ export function AddAccountModal({
             <span className="spinner" />
             {provider === "opencode_go"
               ? status.message ?? "Waiting for the OpenCode Go page…"
-              : "Waiting for the browser callback…"}
+              : provider === "grok"
+                ? status.message ?? "Waiting for the Grok login…"
+                : "Waiting for the browser callback…"}
           </div>
         ) : null}
         {error ? <div className="error-panel modal-error">{error}</div> : null}
@@ -427,14 +446,18 @@ export function AddAccountModal({
             {busy
               ? provider === "opencode_go"
                 ? "Waiting for OpenCode…"
-                : provider === "google_ai_studio"
-                  ? "Adding account…"
-                  : "Connecting…"
+                : provider === "grok"
+                  ? "Waiting for Grok…"
+                  : provider === "google_ai_studio"
+                    ? "Adding account…"
+                    : "Connecting…"
               : provider === "opencode_go"
                 ? advancedManual ? "Connect manually" : "Open OpenCode login"
-                : provider === "google_ai_studio"
-                  ? "Add selected models"
-                  : `Continue with ${providerName(provider)}`}
+                : provider === "grok"
+                  ? "Open Grok login"
+                  : provider === "google_ai_studio"
+                    ? "Add selected models"
+                    : `Continue with ${providerName(provider)}`}
           </button>
         </div>
       </section>

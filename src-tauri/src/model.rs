@@ -10,6 +10,7 @@ pub enum Provider {
     Anthropic,
     Antigravity,
     GoogleAiStudio,
+    Grok,
     OpencodeGo,
 }
 
@@ -20,6 +21,7 @@ impl Provider {
             Self::Anthropic => "anthropic",
             Self::Antigravity => "antigravity",
             Self::GoogleAiStudio => "google_ai_studio",
+            Self::Grok => "grok",
             Self::OpencodeGo => "opencode_go",
         }
     }
@@ -30,6 +32,7 @@ impl Provider {
             Self::Anthropic => "Anthropic Claude",
             Self::Antigravity => "Google Antigravity",
             Self::GoogleAiStudio => "Google AI Studio",
+            Self::Grok => "Grok / SuperGrok",
             Self::OpencodeGo => "OpenCode Go",
         }
     }
@@ -51,6 +54,7 @@ impl FromStr for Provider {
             "antigravity" | "google_antigravity" => Ok(Self::Antigravity),
             "google_ai_studio" | "ai_studio" | "gemini_api" => Ok(Self::GoogleAiStudio),
             "google" => Ok(Self::Antigravity),
+            "grok" | "xai" | "supergrok" | "super_grok" => Ok(Self::Grok),
             "opencode_go" | "opencode" | "go" => Ok(Self::OpencodeGo),
             _ => Err("Unsupported provider.".into()),
         }
@@ -156,6 +160,15 @@ pub struct GoogleAiStudioSecret {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GrokSecret {
+    #[serde(default)]
+    pub cookie_header: Option<String>,
+    #[serde(default)]
+    pub auth_file: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "provider", content = "credentials", rename_all = "snake_case")]
 pub enum ProviderSecret {
     Openai(OAuthSecret),
@@ -163,6 +176,7 @@ pub enum ProviderSecret {
     Antigravity(OAuthSecret),
     OpencodeGo(OpenCodeGoSecret),
     GoogleAiStudio(GoogleAiStudioSecret),
+    Grok(GrokSecret),
 }
 
 impl ProviderSecret {
@@ -172,6 +186,7 @@ impl ProviderSecret {
             Self::Anthropic(_) => Provider::Anthropic,
             Self::Antigravity(_) => Provider::Antigravity,
             Self::GoogleAiStudio(_) => Provider::GoogleAiStudio,
+            Self::Grok(_) => Provider::Grok,
             Self::OpencodeGo(_) => Provider::OpencodeGo,
         }
     }

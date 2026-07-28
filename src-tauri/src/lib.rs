@@ -2,6 +2,7 @@ mod account_order;
 mod alerts;
 mod bridge_api;
 mod google_ai_studio_oauth;
+mod grok_login;
 mod model;
 mod oauth;
 mod opencode_login;
@@ -52,6 +53,8 @@ async fn start_login(
     let provider = Provider::from_str(&provider)?;
     let label = if provider == Provider::OpencodeGo && label.trim().is_empty() {
         "OpenCode Go".to_string()
+    } else if provider == Provider::Grok && label.trim().is_empty() {
+        "Grok / SuperGrok".to_string()
     } else {
         validate_label(&label)?
     };
@@ -61,6 +64,8 @@ async fn start_login(
     }
     if provider == Provider::OpencodeGo {
         opencode_login::start_login(app, state.inner().clone(), label).await
+    } else if provider == Provider::Grok {
+        grok_login::start_login(state.inner().clone(), label).await
     } else {
         oauth::start_login(state.inner().clone(), label, provider).await
     }
