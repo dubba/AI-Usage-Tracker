@@ -4,6 +4,10 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 ## Unreleased
 
+_No unreleased user-facing changes yet._
+
+## 0.2.41 - 2026-07-28
+
 ### Improved
 
 - Provider groups and account cards now move through the list while dragging, with a full-size destination preview showing the exact order before release.
