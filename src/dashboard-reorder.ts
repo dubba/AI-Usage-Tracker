@@ -3,8 +3,9 @@ import type { Account, Provider } from "./types";
 
 const PROVIDER_ORDER_KEY = "ai-subscription-tracker:provider-order";
 const EDGE_SCROLL_ZONE_PX = 52;
-const EDGE_SCROLL_STEP_PX = 14;
+const EDGE_SCROLL_MAX_STEP_PX = 18;
 const DRAG_THRESHOLD_PX = 5;
+const REORDER_ANIMATION_MS = 150;
 
 export const DASHBOARD_PROVIDER_ORDER_EVENT = "ai-subscription-tracker:provider-order-changed";
 
@@ -17,7 +18,7 @@ const KNOWN_PROVIDERS: Provider[] = [
   "opencode_go",
 ];
 
-type DragState =
+type DragDescriptor =
   | { kind: "provider"; provider: Provider; source: HTMLElement }
   | { kind: "account"; accountId: string; provider: Provider; source: HTMLElement };
 
@@ -25,11 +26,28 @@ type PointerCandidate = {
   pointerId: number;
   startX: number;
   startY: number;
-  drag: DragState;
+  drag: DragDescriptor;
+};
+
+type ActiveDrag = {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  lastClientX: number;
+  lastClientY: number;
+  descriptor: DragDescriptor;
+  container: HTMLElement;
+  scrollContainer: HTMLElement;
+  source: HTMLElement;
+  placeholder: HTMLElement;
+  originalNextSibling: ChildNode | null;
+  originalStyle: string | null;
+  originalOrder: string[];
+  autoScrollFrame: number | null;
 };
 
 let pointerCandidate: PointerCandidate | null = null;
-let dragState: DragState | null = null;
+let dragState: ActiveDrag | null = null;
 let lastDropAt = 0;
 let latestAccounts: Account[] = [];
 let snapshotSyncInFlight = false;
@@ -92,59 +110,8 @@ function normalizeProviderOrder(available: Provider[]): Provider[] {
   ];
 }
 
-function moveItem<T>(items: T[], source: T, target: T, after: boolean): T[] {
-  const next = items.filter((item) => item !== source);
-  const targetIndex = next.indexOf(target);
-  if (targetIndex < 0) return items;
-  next.splice(targetIndex + (after ? 1 : 0), 0, source);
-  return next;
-}
-
-function autoScroll(container: HTMLElement, clientY: number): void {
-  const bounds = container.getBoundingClientRect();
-  if (clientY < bounds.top + EDGE_SCROLL_ZONE_PX) {
-    container.scrollBy({ top: -EDGE_SCROLL_STEP_PX });
-  } else if (clientY > bounds.bottom - EDGE_SCROLL_ZONE_PX) {
-    container.scrollBy({ top: EDGE_SCROLL_STEP_PX });
-  }
-}
-
-function clearDropMarkers(): void {
-  document.querySelectorAll<HTMLElement>(".drag-before, .drag-after").forEach((element) => {
-    element.classList.remove("drag-before", "drag-after");
-  });
-}
-
-function markDropTarget(element: HTMLElement, clientY: number): void {
-  clearDropMarkers();
-  const bounds = element.getBoundingClientRect();
-  const after = clientY >= bounds.top + bounds.height / 2;
-  element.classList.add(after ? "drag-after" : "drag-before");
-}
-
-function nearestElement(elements: HTMLElement[], clientY: number): HTMLElement | null {
-  let nearest: HTMLElement | null = null;
-  let nearestDistance = Number.POSITIVE_INFINITY;
-  for (const element of elements) {
-    const bounds = element.getBoundingClientRect();
-    if (clientY >= bounds.top && clientY <= bounds.bottom) return element;
-    const distance = Math.abs(clientY - (bounds.top + bounds.height / 2));
-    if (distance < nearestDistance) {
-      nearest = element;
-      nearestDistance = distance;
-    }
-  }
-  return nearest;
-}
-
-function finishDrag(): void {
-  document.querySelectorAll<HTMLElement>(".is-dragging").forEach((element) => {
-    element.classList.remove("is-dragging");
-  });
-  clearDropMarkers();
-  document.documentElement.classList.remove("dashboard-reordering");
-  pointerCandidate = null;
-  dragState = null;
+function arraysEqual<T>(left: T[], right: T[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function providerRows(container: HTMLElement): HTMLElement[] {
@@ -189,7 +156,18 @@ function enhanceProviderList(): void {
   }
 }
 
+function validExistingAccountMapping(cards: HTMLElement[], accounts: Account[]): boolean {
+  const validIds = new Set(accounts.map((account) => account.id));
+  const assigned = cards
+    .map((card) => card.dataset.accountId)
+    .filter((accountId): accountId is string => Boolean(accountId));
+  return assigned.length === cards.length
+    && new Set(assigned).size === assigned.length
+    && assigned.every((accountId) => validIds.has(accountId));
+}
+
 function mapAccountCards(cards: HTMLElement[], accounts: Account[]): void {
+  if (validExistingAccountMapping(cards, accounts)) return;
   cards.forEach((card, index) => {
     const account = accounts[index];
     if (account) {
@@ -220,19 +198,273 @@ function enhanceAccountList(): void {
   }
 }
 
-function dragFromPointerTarget(target: HTMLElement): DragState | null {
+function dragFromPointerTarget(target: HTMLElement): DragDescriptor | null {
   const providerRow = target.closest<HTMLElement>(".provider-summary-row[data-reorder-enabled='true']");
   if (providerRow) {
     const provider = providerFromRow(providerRow);
     return provider ? { kind: "provider", provider, source: providerRow } : null;
   }
 
-  if (target.closest("button, input, select, textarea, a")) return null;
+  if (target.closest("button, input, select, textarea, a, [contenteditable='true']")) return null;
   const card = target.closest<HTMLElement>(".provider-account-card[data-reorder-enabled='true']");
   if (!card) return null;
   const accountId = card.dataset.accountId;
   const provider = providerFromCard(card);
   return accountId && provider ? { kind: "account", accountId, provider, source: card } : null;
+}
+
+function originalOrder(descriptor: DragDescriptor, container: HTMLElement): string[] {
+  if (descriptor.kind === "provider") {
+    return providerRows(container)
+      .map(providerFromRow)
+      .filter((provider): provider is Provider => provider != null);
+  }
+  return accountCards(container)
+    .filter((card) => providerFromCard(card) === descriptor.provider)
+    .map((card) => card.dataset.accountId)
+    .filter((accountId): accountId is string => Boolean(accountId));
+}
+
+function reorderElements(drag: ActiveDrag): HTMLElement[] {
+  if (drag.descriptor.kind === "provider") {
+    return providerRows(drag.container).filter((row) => row !== drag.source);
+  }
+  return accountCards(drag.container).filter(
+    (card) => card !== drag.source && providerFromCard(card) === drag.descriptor.provider,
+  );
+}
+
+function capturePositions(elements: HTMLElement[]): Map<HTMLElement, { left: number; top: number }> {
+  return new Map(elements.map((element) => {
+    const bounds = element.getBoundingClientRect();
+    return [element, { left: bounds.left, top: bounds.top }];
+  }));
+}
+
+function animateReorder(elements: HTMLElement[], before: Map<HTMLElement, { left: number; top: number }>): void {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  window.requestAnimationFrame(() => {
+    for (const element of elements) {
+      const previous = before.get(element);
+      if (!previous) continue;
+      const bounds = element.getBoundingClientRect();
+      const deltaX = previous.left - bounds.left;
+      const deltaY = previous.top - bounds.top;
+      if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) continue;
+      for (const animation of element.getAnimations()) animation.cancel();
+      element.animate(
+        [
+          { transform: `translate3d(${deltaX}px, ${deltaY}px, 0)` },
+          { transform: "translate3d(0, 0, 0)" },
+        ],
+        { duration: REORDER_ANIMATION_MS, easing: "cubic-bezier(.2,.8,.2,1)" },
+      );
+    }
+  });
+}
+
+function placeholderIndex(drag: ActiveDrag, elements: HTMLElement[]): number {
+  const sequence = Array.from(drag.container.children).filter(
+    (child) => child === drag.placeholder || elements.includes(child as HTMLElement),
+  );
+  return sequence.indexOf(drag.placeholder);
+}
+
+function updatePlaceholderFromPointer(drag: ActiveDrag, clientY: number): void {
+  const elements = reorderElements(drag);
+  let reference: HTMLElement | null = null;
+  for (const element of elements) {
+    const bounds = element.getBoundingClientRect();
+    if (clientY < bounds.top + bounds.height / 2) {
+      reference = element;
+      break;
+    }
+  }
+
+  const desiredIndex = reference ? elements.indexOf(reference) : elements.length;
+  if (placeholderIndex(drag, elements) === desiredIndex) return;
+
+  const before = capturePositions(elements);
+  mutationGuard = true;
+  try {
+    if (reference) drag.container.insertBefore(drag.placeholder, reference);
+    else drag.container.appendChild(drag.placeholder);
+  } finally {
+    mutationGuard = false;
+  }
+  animateReorder(elements, before);
+}
+
+function autoScrollStep(drag: ActiveDrag): number {
+  const bounds = drag.scrollContainer.getBoundingClientRect();
+  if (drag.lastClientY < bounds.top + EDGE_SCROLL_ZONE_PX) {
+    const strength = 1 - Math.max(0, drag.lastClientY - bounds.top) / EDGE_SCROLL_ZONE_PX;
+    return -Math.max(4, Math.round(EDGE_SCROLL_MAX_STEP_PX * strength));
+  }
+  if (drag.lastClientY > bounds.bottom - EDGE_SCROLL_ZONE_PX) {
+    const strength = 1 - Math.max(0, bounds.bottom - drag.lastClientY) / EDGE_SCROLL_ZONE_PX;
+    return Math.max(4, Math.round(EDGE_SCROLL_MAX_STEP_PX * strength));
+  }
+  return 0;
+}
+
+function runAutoScroll(): void {
+  const drag = dragState;
+  if (!drag) return;
+  const delta = autoScrollStep(drag);
+  if (delta !== 0) {
+    const previousScrollTop = drag.scrollContainer.scrollTop;
+    drag.scrollContainer.scrollTop += delta;
+    if (drag.scrollContainer.scrollTop !== previousScrollTop) {
+      updatePlaceholderFromPointer(drag, drag.lastClientY);
+    }
+  }
+  drag.autoScrollFrame = window.requestAnimationFrame(runAutoScroll);
+}
+
+function beginVisualDrag(event: PointerEvent, candidate: PointerCandidate): ActiveDrag | null {
+  const descriptor = candidate.drag;
+  const container = descriptor.source.parentElement;
+  if (!container) return null;
+  const scrollContainer = descriptor.kind === "provider"
+    ? container
+    : descriptor.source.closest<HTMLElement>(".dashboard-content") ?? container;
+  const bounds = descriptor.source.getBoundingClientRect();
+  const placeholder = document.createElement("div");
+  placeholder.className = `dashboard-reorder-placeholder ${descriptor.kind}-reorder-placeholder`;
+  placeholder.setAttribute("aria-hidden", "true");
+  placeholder.style.height = `${bounds.height}px`;
+
+  const active: ActiveDrag = {
+    pointerId: event.pointerId,
+    startX: candidate.startX,
+    startY: candidate.startY,
+    lastClientX: event.clientX,
+    lastClientY: event.clientY,
+    descriptor,
+    container,
+    scrollContainer,
+    source: descriptor.source,
+    placeholder,
+    originalNextSibling: descriptor.source.nextSibling,
+    originalStyle: descriptor.source.getAttribute("style"),
+    originalOrder: originalOrder(descriptor, container),
+    autoScrollFrame: null,
+  };
+
+  dragState = active;
+  mutationGuard = true;
+  try {
+    descriptor.source.after(placeholder);
+  } finally {
+    mutationGuard = false;
+  }
+
+  container.classList.add("reorder-previewing");
+  descriptor.source.classList.add("is-dragging");
+  Object.assign(descriptor.source.style, {
+    position: "fixed",
+    left: `${bounds.left}px`,
+    top: `${bounds.top}px`,
+    width: `${bounds.width}px`,
+    height: `${bounds.height}px`,
+    margin: "0",
+    zIndex: "10000",
+    pointerEvents: "none",
+    boxSizing: "border-box",
+    transform: "translate3d(0, 0, 0)",
+    transformOrigin: "top left",
+    willChange: "transform",
+  });
+  document.documentElement.classList.add("dashboard-reordering");
+  try {
+    descriptor.source.setPointerCapture(event.pointerId);
+  } catch {
+    // Document-level pointer handlers continue the drag when capture is unavailable.
+  }
+  updatePlaceholderFromPointer(active, event.clientY);
+  active.autoScrollFrame = window.requestAnimationFrame(runAutoScroll);
+  return active;
+}
+
+function updateFloatingSource(drag: ActiveDrag): void {
+  const deltaX = drag.lastClientX - drag.startX;
+  const deltaY = drag.lastClientY - drag.startY;
+  drag.source.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`;
+}
+
+function restoreSourceStyle(drag: ActiveDrag): void {
+  if (drag.originalStyle == null) drag.source.removeAttribute("style");
+  else drag.source.setAttribute("style", drag.originalStyle);
+}
+
+function settleVisualDrag(drag: ActiveDrag, commit: boolean): void {
+  if (drag.autoScrollFrame != null) window.cancelAnimationFrame(drag.autoScrollFrame);
+  for (const element of reorderElements(drag)) {
+    for (const animation of element.getAnimations()) animation.cancel();
+  }
+
+  mutationGuard = true;
+  try {
+    if (commit) {
+      drag.container.insertBefore(drag.source, drag.placeholder);
+    } else if (drag.originalNextSibling && drag.originalNextSibling.parentNode === drag.container) {
+      drag.container.insertBefore(drag.source, drag.originalNextSibling);
+    } else {
+      drag.container.appendChild(drag.source);
+    }
+    drag.placeholder.remove();
+  } finally {
+    mutationGuard = false;
+  }
+
+  drag.source.classList.remove("is-dragging");
+  drag.container.classList.remove("reorder-previewing");
+  restoreSourceStyle(drag);
+  try {
+    if (drag.source.hasPointerCapture(drag.pointerId)) {
+      drag.source.releasePointerCapture(drag.pointerId);
+    }
+  } catch {
+    // The pointer may already have been released by the WebView.
+  }
+  document.documentElement.classList.remove("dashboard-reordering");
+}
+
+function committedOrder(drag: ActiveDrag): string[] {
+  if (drag.descriptor.kind === "provider") {
+    return providerRows(drag.container)
+      .map(providerFromRow)
+      .filter((provider): provider is Provider => provider != null);
+  }
+  return accountCards(drag.container)
+    .filter((card) => providerFromCard(card) === drag.descriptor.provider)
+    .map((card) => card.dataset.accountId)
+    .filter((accountId): accountId is string => Boolean(accountId));
+}
+
+function finishDrag(commit: boolean): void {
+  const drag = dragState;
+  pointerCandidate = null;
+  if (!drag) return;
+
+  settleVisualDrag(drag, commit);
+  const nextOrder = commit ? committedOrder(drag) : drag.originalOrder;
+  dragState = null;
+
+  if (!commit || arraysEqual(drag.originalOrder, nextOrder)) {
+    scheduleSnapshotSync(0);
+    return;
+  }
+
+  lastDropAt = Date.now();
+  if (drag.descriptor.kind === "provider") {
+    const providers = nextOrder.filter((value): value is Provider => KNOWN_PROVIDERS.includes(value as Provider));
+    storeProviderOrder(providers);
+    void persistProviderOrder(providers);
+  } else {
+    void persistAccountOrder(drag.descriptor.provider, nextOrder);
+  }
 }
 
 function beginPointerCandidate(event: PointerEvent): void {
@@ -257,28 +489,19 @@ function movePointerCandidate(event: PointerEvent): void {
       event.clientY - pointerCandidate.startY,
     );
     if (distance < DRAG_THRESHOLD_PX) return;
-    dragState = pointerCandidate.drag;
-    dragState.source.classList.add("is-dragging");
-    document.documentElement.classList.add("dashboard-reordering");
+    if (!beginVisualDrag(event, pointerCandidate)) {
+      pointerCandidate = null;
+      return;
+    }
   }
 
+  const drag = dragState;
+  if (!drag) return;
   event.preventDefault();
-  if (dragState.kind === "provider") {
-    const container = document.querySelector<HTMLElement>(".provider-list");
-    if (!container) return;
-    autoScroll(container, event.clientY);
-    const target = nearestElement(providerRows(container), event.clientY);
-    if (target) markDropTarget(target, event.clientY);
-  } else {
-    const container = document.querySelector<HTMLElement>(".provider-account-cards");
-    if (!container) return;
-    autoScroll(container, event.clientY);
-    const targets = accountCards(container).filter(
-      (card) => providerFromCard(card) === dragState?.provider,
-    );
-    const target = nearestElement(targets, event.clientY);
-    if (target) markDropTarget(target, event.clientY);
-  }
+  drag.lastClientX = event.clientX;
+  drag.lastClientY = event.clientY;
+  updateFloatingSource(drag);
+  updatePlaceholderFromPointer(drag, event.clientY);
 }
 
 function endPointerCandidate(event: PointerEvent): void {
@@ -287,50 +510,14 @@ function endPointerCandidate(event: PointerEvent): void {
     pointerCandidate = null;
     return;
   }
-
   event.preventDefault();
-  if (dragState.kind === "provider") {
-    const container = document.querySelector<HTMLElement>(".provider-list");
-    const targetRow = container?.querySelector<HTMLElement>(".provider-summary-row.drag-before, .provider-summary-row.drag-after");
-    const targetProvider = targetRow ? providerFromRow(targetRow) : null;
-    if (container && targetRow && targetProvider && targetProvider !== dragState.provider) {
-      const after = targetRow.classList.contains("drag-after");
-      const current = providerRows(container)
-        .map(providerFromRow)
-        .filter((provider): provider is Provider => provider != null);
-      const next = moveItem(current, dragState.provider, targetProvider, after);
-      storeProviderOrder(next);
-      applyProviderOrder(container);
-      lastDropAt = Date.now();
-      void persistProviderOrder(next);
-    }
-  } else {
-    const container = document.querySelector<HTMLElement>(".provider-account-cards");
-    const targetCard = container?.querySelector<HTMLElement>(".provider-account-card.drag-before, .provider-account-card.drag-after");
-    const targetId = targetCard?.dataset.accountId;
-    if (container && targetCard && targetId && targetId !== dragState.accountId) {
-      const after = targetCard.classList.contains("drag-after");
-      const currentCards = accountCards(container);
-      const currentIds = currentCards
-        .filter((card) => providerFromCard(card) === dragState?.provider)
-        .map((card) => card.dataset.accountId)
-        .filter((id): id is string => Boolean(id));
-      const nextIds = moveItem(currentIds, dragState.accountId, targetId, after);
+  event.stopPropagation();
+  finishDrag(true);
+}
 
-      mutationGuard = true;
-      try {
-        for (const id of nextIds) {
-          const candidate = currentCards.find((item) => item.dataset.accountId === id);
-          if (candidate) container.appendChild(candidate);
-        }
-      } finally {
-        mutationGuard = false;
-      }
-      lastDropAt = Date.now();
-      void persistAccountOrder(dragState.provider, nextIds);
-    }
-  }
-  finishDrag();
+function cancelPointerCandidate(event?: PointerEvent): void {
+  if (event && pointerCandidate && pointerCandidate.pointerId !== event.pointerId) return;
+  finishDrag(false);
 }
 
 async function persistProviderOrder(order: Provider[]): Promise<void> {
@@ -404,8 +591,14 @@ export function installDashboardReorder(): void {
   document.addEventListener("pointerdown", beginPointerCandidate, true);
   document.addEventListener("pointermove", movePointerCandidate, { capture: true, passive: false });
   document.addEventListener("pointerup", endPointerCandidate, { capture: true, passive: false });
-  document.addEventListener("pointercancel", finishDrag, true);
-  window.addEventListener("blur", finishDrag);
+  document.addEventListener("pointercancel", cancelPointerCandidate, true);
+  window.addEventListener("blur", () => cancelPointerCandidate());
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && dragState) {
+      event.preventDefault();
+      cancelPointerCandidate();
+    }
+  }, true);
 
   document.addEventListener("click", (event) => {
     if (Date.now() - lastDropAt > 300) return;
