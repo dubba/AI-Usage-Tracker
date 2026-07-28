@@ -4,6 +4,10 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 ## Unreleased
 
+_No unreleased user-facing changes yet._
+
+## 0.2.40 - 2026-07-28
+
 ### Added
 
 - Grok / SuperGrok accounts can now sign in through xAI's official Grok Build CLI and display provider-reported included-usage percentage and reset timing when xAI exposes that billing data.
