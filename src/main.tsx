@@ -24,6 +24,7 @@ import "./obsidian-dashboard.css";
 import "./ui-refinements.css";
 import "./dashboard-reorder.css";
 import "./modal-close.css";
+import "./account-card-responsive.css";
 
 const isPaseoBridgeWindow = getCurrentWindow().label === "paseo-bridge";
 document.documentElement.classList.toggle("paseo-bridge-window-root", isPaseoBridgeWindow);
