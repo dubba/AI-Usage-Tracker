@@ -1,1 +1,1 @@
-Release build requested on 2026-07-30 for AI Subscription Tracker v0.2.43 with compact account-card actions, concise percentage and usage-window summaries, corrected multi-row metric alignment, and Trello-style live reorder previews.
+Release build requested on 2026-07-30 for AI Subscription Tracker v0.2.44 with the detailed two-column account-card layout retained until cards are genuinely narrow, compact mode delayed to 760px, and the one-column fallback delayed to 520px.

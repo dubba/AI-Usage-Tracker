@@ -6,6 +6,12 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 _No unreleased user-facing changes yet._
 
+## 0.2.44 - 2026-07-30
+
+### Improved
+
+- Detailed two-column account usage stays visible until an account card is genuinely narrow; compact mode now begins at 760px and the one-column fallback begins at 520px.
+
 ## 0.2.43 - 2026-07-30
 
 ### Improved
