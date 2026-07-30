@@ -805,41 +805,46 @@ function AccountDashboardCard({
               </button>
             ) : null}
             <span className={`account-status-badge ${status.className}`}>{status.label}</span>
+            <div className="account-card-name-actions">
+              <button
+                type="button"
+                className="account-card-action"
+                title="Usage notifications"
+                aria-label={`Configure usage notifications for ${account.label}`}
+                disabled={Boolean(busy)}
+                onClick={onNotifications}
+              ><BellIcon /></button>
+              <button
+                type="button"
+                className="account-card-action remove-action"
+                title="Remove this account"
+                aria-label={`Remove ${account.label}`}
+                disabled={Boolean(busy)}
+                onClick={onRemove}
+              >{isRemoving ? <span className="mini-spinner" /> : <CloseIcon />}</button>
+              <button
+                type="button"
+                className={`account-card-action ${isRefreshing ? "spinning" : ""}`}
+                title="Refresh this account"
+                aria-label={`Refresh ${account.label}`}
+                disabled={Boolean(busy)}
+                onClick={onRefresh}
+              ><RefreshIcon /></button>
+            </div>
           </div>
           <p>{account.email ?? providerName(account.provider)}</p>
           {renameError ? <small className="account-card-inline-error">{renameError}</small> : null}
         </div>
-        <div className="account-card-header-actions">
+        <div className={`account-card-header-actions ${account.provider === "google_ai_studio" ? "has-google-action" : "plan-only-actions"}`}>
           {displayPlan(account) ? <span className="account-plan-badge">{displayPlan(account)}</span> : null}
           {account.provider === "google_ai_studio" ? (
             <button type="button" className="button ghost compact-button google-cloud-connect-action" disabled={Boolean(busy)} onClick={onConnectGoogleUsage}>
               {modelsOnly ? "Connect Cloud Usage" : "Change Cloud Project"}
             </button>
           ) : null}
-          <button
-            type="button"
-            className={`account-card-action ${isRefreshing ? "spinning" : ""}`}
-            title="Refresh this account"
-            aria-label={`Refresh ${account.label}`}
-            disabled={Boolean(busy)}
-            onClick={onRefresh}
-          ><RefreshIcon /></button>
-          <button
-            type="button"
-            className="account-card-action remove-action"
-            title="Remove this account"
-            aria-label={`Remove ${account.label}`}
-            disabled={Boolean(busy)}
-            onClick={onRemove}
-          >{isRemoving ? <span className="mini-spinner" /> : <CloseIcon />}</button>
-          <button
-            type="button"
-            className="account-card-action"
-            title="Usage notifications"
-            aria-label={`Configure usage notifications for ${account.label}`}
-            disabled={Boolean(busy)}
-            onClick={onNotifications}
-          ><BellIcon /></button>
+
+
+
         </div>
       </header>
 
@@ -850,7 +855,7 @@ function AccountDashboardCard({
         </div>
       ) : null}
 
-      <div className="account-card-metrics">
+      <div className={`account-card-metrics ${windows.length > 2 ? "multi-row-metrics" : ""}`}>
         {windows.length ? windows.map((window) => <AccountUsageMetric key={window.id} window={window} unavailableLabel={googleUnavailableLabel} />) : (
           <div className="account-usage-metric unavailable-metric">
             <span className="metric-label">Usage</span>
@@ -884,7 +889,8 @@ function AccountUsageMetric({ window, unavailableLabel = "Unavailable" }: { wind
         <span className="metric-label">{window.label}</span>
         {windowLength(window) ? <span className="metric-window-pill">{windowLength(window)}</span> : null}
       </div>
-      <strong>{remaining == null ? unavailableLabel : `${Math.round(remaining)}% remaining`}</strong>
+      <strong className="metric-full-value">{remaining == null ? unavailableLabel : `${Math.round(remaining)}% remaining`}</strong>
+      <span className="metric-compact-value">{remaining == null ? unavailableLabel : `${Math.round(remaining)}%`}</span>
       <span className="account-metric-track"><span className={`tone-${tone}`} style={{ width: `${width}%` }} /></span>
       <span className="metric-reset">{window.resetsAt ? `Resets ${formatTime(window.resetsAt)}` : remaining == null ? "This provider has not reported a quota value yet" : "Rolling window"}</span>
     </div>

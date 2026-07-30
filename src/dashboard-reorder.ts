@@ -35,6 +35,8 @@ type ActiveDrag = {
   startY: number;
   lastClientX: number;
   lastClientY: number;
+  grabOffsetY: number;
+  sourceHeight: number;
   descriptor: DragDescriptor;
   container: HTMLElement;
   scrollContainer: HTMLElement;
@@ -270,7 +272,12 @@ function placeholderIndex(drag: ActiveDrag, elements: HTMLElement[]): number {
   return sequence.indexOf(drag.placeholder);
 }
 
-function updatePlaceholderFromPointer(drag: ActiveDrag, clientY: number): void {
+function floatingCenterY(drag: ActiveDrag): number {
+  return drag.lastClientY - drag.grabOffsetY + drag.sourceHeight / 2;
+}
+
+function updatePlaceholderFromPointer(drag: ActiveDrag): void {
+  const clientY = floatingCenterY(drag);
   const elements = reorderElements(drag);
   let reference: HTMLElement | null = null;
   for (const element of elements) {
@@ -316,7 +323,7 @@ function runAutoScroll(): void {
     const previousScrollTop = drag.scrollContainer.scrollTop;
     drag.scrollContainer.scrollTop += delta;
     if (drag.scrollContainer.scrollTop !== previousScrollTop) {
-      updatePlaceholderFromPointer(drag, drag.lastClientY);
+      updatePlaceholderFromPointer(drag);
     }
   }
   drag.autoScrollFrame = window.requestAnimationFrame(runAutoScroll);
@@ -341,6 +348,8 @@ function beginVisualDrag(event: PointerEvent, candidate: PointerCandidate): Acti
     startY: candidate.startY,
     lastClientX: event.clientX,
     lastClientY: event.clientY,
+    grabOffsetY: candidate.startY - bounds.top,
+    sourceHeight: bounds.height,
     descriptor,
     container,
     scrollContainer,
@@ -372,7 +381,7 @@ function beginVisualDrag(event: PointerEvent, candidate: PointerCandidate): Acti
     zIndex: "10000",
     pointerEvents: "none",
     boxSizing: "border-box",
-    transform: "translate3d(0, 0, 0)",
+    transform: "translate3d(0, 0, 0) rotate(0.8deg) scale(1.01)",
     transformOrigin: "top left",
     willChange: "transform",
   });
@@ -382,7 +391,7 @@ function beginVisualDrag(event: PointerEvent, candidate: PointerCandidate): Acti
   } catch {
     // Document-level pointer handlers continue the drag when capture is unavailable.
   }
-  updatePlaceholderFromPointer(active, event.clientY);
+  updatePlaceholderFromPointer(active);
   active.autoScrollFrame = window.requestAnimationFrame(runAutoScroll);
   return active;
 }
@@ -390,7 +399,7 @@ function beginVisualDrag(event: PointerEvent, candidate: PointerCandidate): Acti
 function updateFloatingSource(drag: ActiveDrag): void {
   const deltaX = drag.lastClientX - drag.startX;
   const deltaY = drag.lastClientY - drag.startY;
-  drag.source.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`;
+  drag.source.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0) rotate(0.8deg) scale(1.01)`;
 }
 
 function restoreSourceStyle(drag: ActiveDrag): void {
@@ -501,7 +510,7 @@ function movePointerCandidate(event: PointerEvent): void {
   drag.lastClientX = event.clientX;
   drag.lastClientY = event.clientY;
   updateFloatingSource(drag);
-  updatePlaceholderFromPointer(drag, event.clientY);
+  updatePlaceholderFromPointer(drag);
 }
 
 function endPointerCandidate(event: PointerEvent): void {

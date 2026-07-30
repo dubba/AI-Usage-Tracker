@@ -249,3 +249,155 @@
 .provider-account-card a {
   user-select: auto;
 }
+
+
+/* Compact account cards and Trello-style reorder support */
+.account-card-name-row > h2,
+.account-card-name-row > .account-card-name-input,
+.account-card-name-row > .account-name-edit,
+.account-card-name-row > .account-status-badge {
+  order: 1;
+}
+
+.account-card-name-row > h2,
+.account-card-name-row > .account-card-name-input {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.account-card-name-row::after {
+  order: 2;
+  flex: 0 0 auto;
+}
+
+.account-card-name-actions {
+  order: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.account-card-header-actions.plan-only-actions {
+  display: none;
+}
+
+.metric-compact-value {
+  display: none;
+}
+
+.account-card-metrics.multi-row-metrics {
+  grid-template-columns: repeat(2, minmax(210px, 1fr));
+  column-gap: 28px;
+}
+
+.account-card-metrics.multi-row-metrics .account-usage-metric,
+.account-card-metrics.multi-row-metrics .account-usage-metric + .account-usage-metric {
+  padding-left: 0;
+  padding-right: 0;
+  border-left: 0;
+}
+
+@media (max-width: 1180px) {
+  .provider-account-card-header {
+    grid-template-columns: 46px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    min-height: 72px;
+    padding: 12px 14px;
+  }
+
+  .account-card-provider-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .account-card-provider-icon svg,
+  .account-card-provider-icon img {
+    width: 28px;
+    height: 28px;
+  }
+
+  .account-card-name-row {
+    gap: 6px;
+  }
+
+  .account-card-name-actions {
+    gap: 2px;
+  }
+
+  .account-card-action {
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  .provider-account-card .account-card-name-actions .account-card-action svg,
+  .provider-account-card .account-card-name-actions .account-card-action::before {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .account-card-header-actions.has-google-action {
+    grid-column: 2 / -1;
+    justify-content: flex-start;
+    padding-top: 4px;
+    border-top: 0;
+  }
+
+  .account-card-metrics,
+  .account-card-metrics.multi-row-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 18px;
+    padding: 0 14px;
+  }
+
+  .account-card-metrics .account-usage-metric,
+  .account-card-metrics .account-usage-metric + .account-usage-metric {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    min-height: 48px;
+    padding: 10px 0;
+    border: 0;
+  }
+
+  .account-card-metrics .metric-heading {
+    display: contents;
+  }
+
+  .account-card-metrics .metric-label,
+  .account-card-metrics .metric-full-value,
+  .account-card-metrics .account-metric-track,
+  .account-card-metrics .metric-reset {
+    display: none !important;
+  }
+
+  .account-card-metrics .metric-compact-value {
+    order: 1;
+    display: inline;
+    color: #f5f1ef;
+    font-size: 15px;
+    line-height: 20px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .account-card-metrics .metric-window-pill {
+    order: 2;
+    display: inline-flex;
+    grid-column: auto;
+    grid-row: auto;
+    align-self: center;
+    width: fit-content;
+    margin: 0;
+    padding: 2px 7px;
+    white-space: nowrap;
+  }
+
+  .account-card-metrics .account-credit-metric {
+    display: none !important;
+  }
+}
