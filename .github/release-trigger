@@ -1,1 +1,1 @@
-Release build requested on 2026-07-28 for AI Subscription Tracker v0.2.41 with live provider and account reorder previews, a full-size destination slot, animated layout shifts, and corrected account-list edge scrolling.
+Release build requested on 2026-07-30 for AI Subscription Tracker v0.2.42 with cancellable account authentication, always-available popup close controls, loopback callback shutdown, and embedded provider window cancellation.

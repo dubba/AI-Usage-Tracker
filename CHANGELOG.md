@@ -4,6 +4,10 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 ## Unreleased
 
+_No unreleased user-facing changes yet._
+
+## 0.2.42 - 2026-07-30
+
 ### Fixed
 
 - Cancel and close controls now remain available while account authentication is waiting, immediately stop the active login attempt, and close private provider windows without waiting for a timeout.
