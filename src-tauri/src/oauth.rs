@@ -44,7 +44,6 @@ struct LoginContext {
     verifier: String,
     expected_state: String,
     redirect_uri: String,
-    shutdown: Arc<tokio::sync::Mutex<Option<oneshot::Sender<()>>>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -116,6 +115,7 @@ pub async fn start_login(
     });
 
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
+    app.register_login_shutdown(attempt_id.clone(), shutdown_tx);
     let context = Arc::new(LoginContext {
         app: app.clone(),
         attempt_id: attempt_id.clone(),
@@ -124,7 +124,6 @@ pub async fn start_login(
         verifier,
         expected_state,
         redirect_uri,
-        shutdown: Arc::new(tokio::sync::Mutex::new(Some(shutdown_tx))),
     });
     let router = Router::new()
         .route("/", get(callback))
@@ -145,6 +144,7 @@ pub async fn start_login(
                 &server_context.attempt_id,
                 format!("Callback server failed: {error}"),
             );
+            server_context.app.stop_login_shutdown(&server_context.attempt_id);
         }
     });
 
@@ -193,6 +193,13 @@ pub fn login_status(app: &AppState, attempt_id: &str) -> Result<LoginStatus, Str
     Ok(status.clone())
 }
 
+fn is_waiting(app: &AppState, attempt_id: &str) -> bool {
+    app.pending_login
+        .read()
+        .as_ref()
+        .is_some_and(|login| login.attempt_id == attempt_id && login.status == "waiting")
+}
+
 async fn callback(
     State(context): State<Arc<LoginContext>>,
     Query(query): Query<CallbackQuery>,
@@ -234,8 +241,14 @@ async fn complete_callback(
     if query.state.as_deref() != Some(context.expected_state.as_str()) {
         return Err("OAuth state validation failed.".into());
     }
+    if !is_waiting(context.app.as_ref(), &context.attempt_id) {
+        return Err("The login attempt was cancelled.".into());
+    }
 
     let (secret, identity) = exchange_tokens(&context, &code).await?;
+    if !is_waiting(context.app.as_ref(), &context.attempt_id) {
+        return Err("The login attempt was cancelled.".into());
+    }
     let duplicate = context.app.store.find_duplicate(
         &context.provider,
         identity.account_id.as_deref(),
@@ -290,13 +303,20 @@ async fn complete_callback(
         last_error: None,
         auth_required: false,
     };
+    let mut pending = context.app.pending_login.write();
+    if !pending
+        .as_ref()
+        .is_some_and(|login| login.attempt_id == context.attempt_id && login.status == "waiting")
+    {
+        return Err("The login attempt was cancelled.".into());
+    }
     save_provider_secret(&account.id, &secret).map_err(|error| error.to_string())?;
     let account = context
         .app
         .store
         .upsert(account)
         .map_err(|error| error.to_string())?;
-    *context.app.pending_login.write() = Some(LoginStatus {
+    *pending = Some(LoginStatus {
         attempt_id: context.attempt_id.clone(),
         status: "complete".into(),
         message: None,
@@ -703,18 +723,22 @@ fn string_at(value: &Value, key: &str) -> Option<String> {
 }
 
 fn fail_login(store: &RwLock<Option<LoginStatus>>, attempt_id: &str, message: String) {
-    *store.write() = Some(LoginStatus {
-        attempt_id: attempt_id.into(),
-        status: "failed".into(),
-        message: Some(message),
-        account: None,
-    });
+    let mut pending = store.write();
+    if pending
+        .as_ref()
+        .is_some_and(|login| login.attempt_id == attempt_id && login.status == "waiting")
+    {
+        *pending = Some(LoginStatus {
+  attempt_id: attempt_id.into(),
+  status: "failed".into(),
+  message: Some(message),
+  account: None,
+        });
+    }
 }
 
 async fn stop_callback(context: &LoginContext) {
-    if let Some(sender) = context.shutdown.lock().await.take() {
-        let _ = sender.send(());
-    }
+    context.app.stop_login_shutdown(&context.attempt_id);
 }
 
 fn escape_html(input: &str) -> String {

@@ -133,6 +133,45 @@ fn get_login_status(
 }
 
 #[tauri::command]
+fn cancel_login(
+    app: AppHandle,
+    state: State<'_, Arc<AppState>>,
+    attempt_id: String,
+) -> Result<(), String> {
+    let cancelled = {
+        let mut pending = state.pending_login.write();
+        let cancellable = pending.as_ref().is_some_and(|login| {
+  login.attempt_id == attempt_id
+      && matches!(
+          login.status.as_str(),
+          "waiting" | "choose_project" | "monitoring_disabled"
+      )
+        });
+        if cancellable {
+  *pending = Some(LoginStatus {
+      attempt_id: attempt_id.clone(),
+      status: "failed".into(),
+      message: Some("Authentication was cancelled.".into()),
+      account: None,
+  });
+        }
+        cancellable
+    };
+
+    state.stop_login_shutdown(&attempt_id);
+    if !cancelled {
+        return Ok(());
+    }
+
+    for label in ["opencode-go-login", "grok-login"] {
+        if let Some(window) = app.get_webview_window(label) {
+  let _ = window.destroy();
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
 async fn refresh_account(
     state: State<'_, Arc<AppState>>,
     account_id: String,
@@ -500,6 +539,7 @@ pub fn run() {
             start_google_ai_studio_usage_login,
             add_opencode_go_account,
             get_login_status,
+            cancel_login,
             refresh_account,
             refresh_all,
             get_app_settings,

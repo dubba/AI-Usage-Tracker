@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { bridgeApi } from "../api";
 import { saveOpenCodeAccountEmail } from "../opencode-account-email";
@@ -54,10 +54,12 @@ export function AddAccountModal({
   const [status, setStatus] = useState<LoginStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const closeRequestedRef = useRef(false);
   const providerLocked = Boolean(initialProvider && initialLabel?.trim());
 
   useEffect(() => {
     if (!open) {
+      closeRequestedRef.current = true;
       setLabel("OpenAI Codex");
       setProvider("openai");
       setEmail("");
@@ -72,6 +74,7 @@ export function AddAccountModal({
       setBusy(false);
       setError(null);
     } else {
+      closeRequestedRef.current = false;
       const nextProvider = providerLocked && initialProvider ? initialProvider : "openai";
       setProvider(nextProvider);
       setLabel(initialLabel?.trim() || providerName(nextProvider));
@@ -89,6 +92,7 @@ export function AddAccountModal({
     const timer = window.setInterval(async () => {
       try {
         const next = await bridgeApi.loginStatus(status.attemptId);
+        if (closeRequestedRef.current) return;
         setStatus(next);
         if (next.status === "complete" && next.account) {
           window.clearInterval(timer);
@@ -110,6 +114,15 @@ export function AddAccountModal({
     }, 900);
     return () => window.clearInterval(timer);
   }, [status, onAdded, provider, email]);
+
+  const closeModal = () => {
+    closeRequestedRef.current = true;
+    const attemptId = status?.attemptId;
+    setStatus(null);
+    setBusy(false);
+    if (attemptId) void bridgeApi.cancelLogin(attemptId);
+    onClose();
+  };
 
   if (!open) return null;
 
@@ -197,6 +210,10 @@ export function AddAccountModal({
       }
 
       const start = await bridgeApi.startLogin(label.trim() || providerName(provider), provider);
+      if (closeRequestedRef.current) {
+        await bridgeApi.cancelLogin(start.attemptId).catch(() => undefined);
+        return;
+      }
       setStatus({
         attemptId: start.attemptId,
         status: "waiting",
@@ -211,8 +228,10 @@ export function AddAccountModal({
         await openUrl(start.authorizationUrl);
       }
     } catch (cause) {
-      setBusy(false);
-      setError(String(cause));
+      if (!closeRequestedRef.current) {
+        setBusy(false);
+        setError(String(cause));
+      }
     }
   };
 
@@ -232,7 +251,7 @@ export function AddAccountModal({
   );
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !busy && !modelsBusy && onClose()}>
+    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && closeModal()}>
       <section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="add-account-title">
         <div className="modal-kicker">Provider connection</div>
         <h2 id="add-account-title">{providerLocked ? `Reconnect ${providerName(provider)}` : "Which account do you want to add?"}</h2>
@@ -437,7 +456,7 @@ export function AddAccountModal({
         ) : null}
         {error ? <div className="error-panel modal-error">{error}</div> : null}
         <div className="modal-actions">
-          <button className="button ghost" onClick={onClose} disabled={busy || modelsBusy}>Cancel</button>
+          <button className="button ghost" onClick={closeModal}>Cancel</button>
           <button
             className="button primary"
             onClick={begin}

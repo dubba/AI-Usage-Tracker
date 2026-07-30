@@ -15,7 +15,7 @@ use std::{
     time::Duration,
 };
 use tauri::AppHandle;
-use tokio::sync::Mutex as AsyncMutex;
+use tokio::sync::{oneshot, Mutex as AsyncMutex};
 
 #[derive(Clone, Debug)]
 pub struct ApiRuntime {
@@ -31,6 +31,7 @@ pub struct AppState {
     pub settings: SettingsStore,
     pub client: Client,
     pub pending_login: RwLock<Option<LoginStatus>>,
+    login_shutdowns: Mutex<HashMap<String, oneshot::Sender<()>>>,
     pub bridge_token: RwLock<String>,
     pub api_runtime: RwLock<ApiRuntime>,
     pub app_handle: RwLock<Option<AppHandle>>,
@@ -66,6 +67,7 @@ impl AppState {
             settings,
             client,
             pending_login: RwLock::new(None),
+            login_shutdowns: Mutex::new(HashMap::new()),
             bridge_token: RwLock::new(bridge_token),
             api_runtime: RwLock::new(ApiRuntime {
                 endpoint: "http://127.0.0.1:47831/v1/paseo-usage".into(),
@@ -80,6 +82,18 @@ impl AppState {
 
     pub fn set_app_handle(&self, app_handle: AppHandle) {
         *self.app_handle.write() = Some(app_handle);
+    }
+
+    pub fn register_login_shutdown(&self, attempt_id: String, sender: oneshot::Sender<()>) {
+        if let Some(previous) = self.login_shutdowns.lock().insert(attempt_id, sender) {
+            let _ = previous.send(());
+        }
+    }
+
+    pub fn stop_login_shutdown(&self, attempt_id: &str) {
+        if let Some(sender) = self.login_shutdowns.lock().remove(attempt_id) {
+            let _ = sender.send(());
+        }
     }
 
     pub fn account_lock(&self, account_id: &str) -> Arc<AsyncMutex<()>> {

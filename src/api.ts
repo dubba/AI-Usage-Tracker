@@ -13,6 +13,7 @@ export const bridgeApi = {
   startGoogleAiStudioUsageLogin: (accountId: string, projectId: string) =>
     invoke<LoginStart>("start_google_ai_studio_usage_login", { accountId, projectId }),
   loginStatus: (attemptId: string) => invoke<LoginStatus>("get_login_status", { attemptId }),
+  cancelLogin: (attemptId: string) => invoke<void>("cancel_login", { attemptId }),
   refreshAccount: (accountId: string) => invoke<Account>("refresh_account", { accountId }),
   refreshAll: () => invoke<Account[]>("refresh_all"),
   getAppSettings: () => invoke<AppSettings>("get_app_settings"),

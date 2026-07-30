@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { bridgeApi } from "../api";
 import type { Account, LoginStatus } from "../types";
@@ -64,8 +64,10 @@ export function GoogleAiStudioUsageModal({
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const closeRequestedRef = useRef(false);
 
   useEffect(() => {
+    closeRequestedRef.current = account == null;
     setStatus(null);
     setStage("signin");
     setProjects([]);
@@ -79,6 +81,7 @@ export function GoogleAiStudioUsageModal({
     const timer = window.setInterval(async () => {
       try {
         const next = await bridgeApi.loginStatus(status.attemptId);
+        if (closeRequestedRef.current) return;
         setStatus(next);
         if (next.status === "complete" && next.account) {
           window.clearInterval(timer);
@@ -113,6 +116,15 @@ export function GoogleAiStudioUsageModal({
     return () => window.clearInterval(timer);
   }, [status, onConnected]);
 
+  const closeModal = () => {
+    closeRequestedRef.current = true;
+    const attemptId = status?.attemptId;
+    setStatus(null);
+    setBusy(false);
+    if (attemptId) void bridgeApi.cancelLogin(attemptId);
+    onClose();
+  };
+
   if (!account) return null;
 
   const start = async (projectId = "") => {
@@ -120,6 +132,10 @@ export function GoogleAiStudioUsageModal({
     setError(null);
     try {
       const next = await bridgeApi.startGoogleAiStudioUsageLogin(account.id, projectId);
+      if (closeRequestedRef.current) {
+        await bridgeApi.cancelLogin(next.attemptId).catch(() => undefined);
+        return;
+      }
       setStatus({
         attemptId: next.attemptId,
         status: "waiting",
@@ -130,15 +146,17 @@ export function GoogleAiStudioUsageModal({
         await openUrl(compatibleGoogleAuthorizationUrl(next.authorizationUrl));
       }
     } catch (cause) {
-      setBusy(false);
-      setError(String(cause));
+      if (!closeRequestedRef.current) {
+        setBusy(false);
+        setError(String(cause));
+      }
     }
   };
 
   const selectedProject = projects.find((project) => project.projectId === selectedProjectId) ?? null;
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !busy && onClose()}>
+    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && closeModal()}>
       <section className="modal-card google-cloud-usage-modal" role="dialog" aria-modal="true" aria-labelledby="google-cloud-usage-title">
         <div className="modal-kicker">Google AI Studio quota usage</div>
         <h2 id="google-cloud-usage-title">
@@ -197,7 +215,7 @@ export function GoogleAiStudioUsageModal({
         {error ? <div className="error-panel modal-error">{error}</div> : null}
 
         <div className="modal-actions">
-          <button className="button ghost" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="button ghost" onClick={closeModal}>Cancel</button>
           {stage === "signin" ? (
             <button className="button primary" onClick={() => void start()} disabled={busy}>
               {busy ? "Waiting for Google…" : "Sign in with Google"}

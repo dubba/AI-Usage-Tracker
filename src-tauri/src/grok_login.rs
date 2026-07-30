@@ -252,6 +252,11 @@ async fn complete_cookie_login(
         }
     };
 
+    if !is_waiting(&state, &attempt_id) {
+        let _ = window.destroy();
+        return;
+    }
+
     let duplicate = state
         .store
         .find_duplicate(&Provider::Grok, Some(GROK_BROWSER_ACCOUNT_ID), None)
@@ -362,13 +367,26 @@ async fn complete_cookie_login(
         },
     };
 
-    *state.pending_login.write() = Some(LoginStatus {
-        attempt_id,
-        status: "complete".into(),
-        message: None,
-        account: Some(account),
-    });
-    let _ = window.destroy();
+    let completed = {
+        let mut pending = state.pending_login.write();
+        if pending
+            .as_ref()
+            .is_some_and(|login| login.attempt_id == attempt_id && login.status == "waiting")
+        {
+            *pending = Some(LoginStatus {
+                attempt_id,
+                status: "complete".into(),
+                message: None,
+                account: Some(account),
+            });
+            true
+        } else {
+            false
+        }
+    };
+    if completed {
+        let _ = window.destroy();
+    }
 }
 
 fn read_cookie_header(window: &WebviewWindow) -> Result<String, String> {

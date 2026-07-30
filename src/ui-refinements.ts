@@ -167,12 +167,9 @@ function refineModalCloseButton(modal: HTMLElement): void {
     modal.prepend(close);
   }
 
-  const cancel = modalCancelButton(modal);
-  const shouldDisable = !cancel || cancel.disabled;
-  if (close.disabled !== shouldDisable) close.disabled = shouldDisable;
+  close.disabled = false;
   close.onclick = () => {
-    const currentCancel = modalCancelButton(modal);
-    if (currentCancel && !currentCancel.disabled) currentCancel.click();
+    modalCancelButton(modal)?.click();
   };
 }
 

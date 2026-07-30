@@ -92,7 +92,7 @@ export function AccountAlertModal({
   };
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !saving && onClose()}>
+    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section className="modal-card alert-settings-modal notification-only-modal" role="dialog" aria-modal="true" aria-labelledby="alert-settings-title">
         <div className="modal-kicker">Account alerts</div>
         <div className="alert-settings-heading">
@@ -152,7 +152,7 @@ export function AccountAlertModal({
         </div>
         {error ? <div className="error-panel modal-error">{error}</div> : null}
         <div className="modal-actions">
-          <button className="button ghost" onClick={onClose} disabled={saving}>Cancel</button>
+          <button className="button ghost" onClick={onClose}>Cancel</button>
           <button className="button primary" onClick={() => void save()} disabled={loading || saving || !availableWindows.length}>{saving ? "Saving…" : "Save Notifications"}</button>
         </div>
       </section>

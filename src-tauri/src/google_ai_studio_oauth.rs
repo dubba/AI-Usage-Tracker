@@ -47,7 +47,6 @@ struct LoginContext {
     mode: LoginMode,
     expected_state: String,
     redirect_uri: String,
-    shutdown: Arc<tokio::sync::Mutex<Option<oneshot::Sender<()>>>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -192,6 +191,7 @@ async fn start_oauth(
     );
 
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
+    app.register_login_shutdown(attempt_id.clone(), shutdown_tx);
     let context = Arc::new(LoginContext {
         app: app.clone(),
         attempt_id: attempt_id.clone(),
@@ -199,7 +199,6 @@ async fn start_oauth(
         mode,
         expected_state,
         redirect_uri,
-        shutdown: Arc::new(tokio::sync::Mutex::new(Some(shutdown_tx))),
     });
     let router = Router::new()
         .route("/", get(callback))
@@ -218,6 +217,7 @@ async fn start_oauth(
                 &server_context,
                 format!("Google Cloud callback server failed: {error}"),
             );
+            server_context.app.stop_login_shutdown(&server_context.attempt_id);
         }
     });
 
@@ -331,9 +331,15 @@ async fn complete_callback(
     if query.state.as_deref() != Some(context.expected_state.as_str()) {
         return Err("OAuth state validation failed.".into());
     }
+    if !is_waiting(context.app.as_ref(), &context.attempt_id) {
+        return Err("The Google authorization was cancelled.".into());
+    }
 
     let mut stored = load_google_ai_studio_secret(&context.account_id)?;
     let tokens = exchange_tokens(&context, &code).await?;
+    if !is_waiting(context.app.as_ref(), &context.attempt_id) {
+        return Err("The Google authorization was cancelled.".into());
+    }
     let refresh_token = tokens
         .refresh_token
         .or_else(|| {
@@ -355,6 +361,9 @@ async fn complete_callback(
     let email = fetch_email(context.app.as_ref(), &oauth.access_token)
         .await
         .ok();
+    if !is_waiting(context.app.as_ref(), &context.attempt_id) {
+        return Err("The Google authorization was cancelled.".into());
+    }
     stored.cloud_oauth = Some(oauth.clone());
     save_provider_secret(
         &context.account_id,
@@ -544,7 +553,14 @@ fn apply_outcome(app: &AppState, attempt_id: &str, outcome: CallbackOutcome) -> 
             account: None,
         },
     };
-    set_login_status(app, status);
+    let mut pending = app.pending_login.write();
+    if !pending
+        .as_ref()
+        .is_some_and(|login| login.attempt_id == attempt_id && login.status == "waiting")
+    {
+        return Err("The Google authorization was cancelled.".into());
+    }
+    *pending = Some(status);
     Ok(())
 }
 
@@ -981,22 +997,29 @@ fn set_login_status(app: &AppState, status: LoginStatus) {
     *app.pending_login.write() = Some(status);
 }
 
+fn is_waiting(app: &AppState, attempt_id: &str) -> bool {
+    app.pending_login
+        .read()
+        .as_ref()
+        .is_some_and(|login| login.attempt_id == attempt_id && login.status == "waiting")
+}
+
 fn fail_login(context: &LoginContext, message: String) {
-    set_login_status(
-        context.app.as_ref(),
-        LoginStatus {
-            attempt_id: context.attempt_id.clone(),
-            status: "failed".into(),
-            message: Some(message),
-            account: None,
-        },
-    );
+    if is_waiting(context.app.as_ref(), &context.attempt_id) {
+        set_login_status(
+  context.app.as_ref(),
+  LoginStatus {
+      attempt_id: context.attempt_id.clone(),
+      status: "failed".into(),
+      message: Some(message),
+      account: None,
+  },
+        );
+    }
 }
 
 async fn stop_callback(context: &LoginContext) {
-    if let Some(shutdown) = context.shutdown.lock().await.take() {
-        let _ = shutdown.send(());
-    }
+    context.app.stop_login_shutdown(&context.attempt_id);
 }
 
 fn escape_html(value: &str) -> String {

@@ -345,13 +345,25 @@ async fn complete_login(
 
     match add_account(state.clone(), label, workspace_id, auth_cookie).await {
         Ok(account) => {
-            *state.pending_login.write() = Some(LoginStatus {
-                attempt_id,
-                status: "complete".into(),
-                message: None,
-                account: Some(account),
-            });
-            let _ = window.destroy();
+            let completed = {
+                let mut pending = state.pending_login.write();
+                if pending.as_ref().is_some_and(|login| {
+                    login.attempt_id == attempt_id && login.status == "waiting"
+                }) {
+                    *pending = Some(LoginStatus {
+                        attempt_id,
+                        status: "complete".into(),
+                        message: None,
+                        account: Some(account),
+                    });
+                    true
+                } else {
+                    false
+                }
+            };
+            if completed {
+                let _ = window.destroy();
+            }
         }
         Err(error) => {
             fail_if_waiting(&state, &attempt_id, error);
