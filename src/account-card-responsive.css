@@ -54,8 +54,8 @@
   border-left: 0 !important;
 }
 
-/* Compact the card whenever the card itself is narrow, even in a wide app window. */
-@container account-card (max-width: 980px) {
+/* Keep the detailed two-column view until those columns approach their minimum usable width. */
+@container account-card (max-width: 760px) {
   .provider-account-card-header {
     grid-template-columns: 46px minmax(0, 1fr) auto;
     align-items: center;
@@ -158,7 +158,7 @@
   }
 }
 
-@container account-card (max-width: 560px) {
+@container account-card (max-width: 520px) {
   .account-card-metrics,
   .account-card-metrics.multi-row-metrics {
     grid-template-columns: 1fr;
