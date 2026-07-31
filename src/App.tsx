@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { bridgeApi } from "./api";
 import { AccountAlertModal } from "./components/AccountAlertModal";
@@ -745,113 +745,16 @@ function AccountDashboardCard({
   const modelsOnly = account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_model_access";
   const waitingForMetrics = account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_monitoring_waiting";
   const googleUnavailableLabel = modelsOnly ? "Model connected" : waitingForMetrics ? "Waiting for metrics" : "Unavailable";
-  const cardRef = useRef<HTMLElement | null>(null);
-  const identityRef = useRef<HTMLDivElement | null>(null);
-  const nameRowRef = useRef<HTMLDivElement | null>(null);
-  const actionsRef = useRef<HTMLDivElement | null>(null);
-  const metricsRef = useRef<HTMLDivElement | null>(null);
-  const compactTriggerWidthRef = useRef<number | null>(null);
-  const [actionsOnEmail, setActionsOnEmail] = useState(false);
-  const [compactMetrics, setCompactMetrics] = useState(false);
-  const metricContentKey = windows
-    .map((window) => [window.id, window.label, window.remainingPercent, window.windowSeconds, window.resetsAt].join(":"))
-    .join("|");
+  const creditLabel = account.lastUsage?.unlimitedCredits
+    ? "Credits: Unlimited"
+    : account.lastUsage?.creditsUsd != null
+      ? `Credits: $${account.lastUsage.creditsUsd.toFixed(2)}`
+      : "Credits: —";
 
   useEffect(() => {
     if (!editing) setLabel(account.label);
   }, [account.label, editing]);
 
-  useLayoutEffect(() => {
-    compactTriggerWidthRef.current = null;
-    setCompactMetrics(false);
-  }, [metricContentKey]);
-
-  useLayoutEffect(() => {
-    const card = cardRef.current;
-    const identity = identityRef.current;
-    const nameRow = nameRowRef.current;
-    const actions = actionsRef.current;
-    const metrics = metricsRef.current;
-    if (!card || !identity || !nameRow || !actions || !metrics) return;
-
-    let frame = 0;
-    const numericStyle = (value: string): number => {
-      const parsed = Number.parseFloat(value);
-      return Number.isFinite(parsed) ? parsed : 0;
-    };
-    const measurementCanvas = document.createElement("canvas");
-    const measurementContext = measurementCanvas.getContext("2d");
-    const intrinsicWidth = (element: HTMLElement): number => {
-      const style = window.getComputedStyle(element);
-      let contentWidth = Math.max(element.scrollWidth, element.getBoundingClientRect().width);
-      if (measurementContext && element.matches("h2, .account-card-name-input")) {
-        const text = element instanceof HTMLInputElement ? element.value : element.textContent ?? "";
-        measurementContext.font = style.font || `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-        const letterSpacing = numericStyle(style.letterSpacing);
-        contentWidth = measurementContext.measureText(text).width
-          + Math.max(0, text.length - 1) * letterSpacing
-          + numericStyle(style.paddingLeft)
-          + numericStyle(style.paddingRight)
-          + numericStyle(style.borderLeftWidth)
-          + numericStyle(style.borderRightWidth);
-      }
-      return Math.ceil(contentWidth + numericStyle(style.marginLeft) + numericStyle(style.marginRight));
-    };
-    const textIsCrowded = (element: HTMLElement): boolean => {
-      if (element.scrollWidth > element.clientWidth + 1) return true;
-      const lineHeight = numericStyle(window.getComputedStyle(element).lineHeight);
-      return lineHeight > 0 && element.scrollHeight > lineHeight * 1.6;
-    };
-
-    const measure = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => {
-        const nameChildren = Array.from(nameRow.children).filter(
-          (child): child is HTMLElement => child instanceof HTMLElement,
-        );
-        const nameStyle = window.getComputedStyle(nameRow);
-        const nameGap = numericStyle(nameStyle.columnGap || nameStyle.gap);
-        let nameRequired = nameChildren.reduce((sum, child) => sum + intrinsicWidth(child), 0)
-          + Math.max(0, nameChildren.length - 1) * nameGap;
-        const generatedPlan = window.getComputedStyle(nameRow, "::after");
-        if (generatedPlan.content && generatedPlan.content !== "none" && generatedPlan.content !== '""') {
-          nameRequired += numericStyle(generatedPlan.width) + numericStyle(generatedPlan.marginLeft);
-        }
-        const identityGap = numericStyle(window.getComputedStyle(identity).columnGap);
-        const shouldMoveActions = nameRequired + intrinsicWidth(actions) + identityGap > identity.clientWidth + 1;
-        setActionsOnEmail((current) => current === shouldMoveActions ? current : shouldMoveActions);
-
-        const cardWidth = card.clientWidth;
-        if (!compactMetrics) {
-          const detailedOverflow = metrics.scrollWidth > metrics.clientWidth + 1
-            || Array.from(metrics.querySelectorAll<HTMLElement>(".account-usage-metric")).some((metric) => {
-              if (metric.scrollWidth > metric.clientWidth + 1) return true;
-              return Array.from(metric.querySelectorAll<HTMLElement>(".metric-label, .metric-window-pill, .metric-full-value, .metric-reset"))
-                .some(textIsCrowded);
-            });
-          if (detailedOverflow) {
-            compactTriggerWidthRef.current = cardWidth;
-            setCompactMetrics(true);
-          }
-        } else {
-          const trigger = compactTriggerWidthRef.current;
-          if (trigger != null && cardWidth > trigger + 24) {
-            setCompactMetrics(false);
-          }
-        }
-      });
-    };
-
-    const observer = new ResizeObserver(measure);
-    observer.observe(card);
-    observer.observe(identity);
-    observer.observe(metrics);
-    measure();
-    return () => {
-      observer.disconnect();
-      window.cancelAnimationFrame(frame);
-    };
-  }, [account.email, account.label, account.plan, compactMetrics, metricContentKey, status.label]);
 
   const commitRename = async () => {
     const next = label.trim();
@@ -874,14 +777,11 @@ function AccountDashboardCard({
   };
 
   return (
-    <article
-      ref={cardRef}
-      className={`provider-account-card ${needsAttention ? "needs-attention" : ""}${actionsOnEmail ? " account-actions-on-email" : ""}${compactMetrics ? " account-metrics-compact" : ""}`}
-    >
+    <article className={`provider-account-card ${needsAttention ? "needs-attention" : ""}`}>
       <header className="provider-account-card-header">
         <span className={`account-card-provider-icon provider-${account.provider}`}><ProviderIcon provider={account.provider} /></span>
-        <div ref={identityRef} className="account-card-identity">
-          <div ref={nameRowRef} className="account-card-name-row">
+        <div className="account-card-identity">
+          <div className="account-card-name-row">
             {editing ? (
               <input
                 className="account-card-name-input"
@@ -916,7 +816,7 @@ function AccountDashboardCard({
             <span className={`account-status-badge ${status.className}`}>{status.label}</span>
           </div>
           <p className="account-card-email">{account.email ?? providerName(account.provider)}</p>
-          <div ref={actionsRef} className="account-card-name-actions">
+          <div className="account-card-name-actions">
             <button
               type="button"
               className="account-card-action"
@@ -964,31 +864,39 @@ function AccountDashboardCard({
         </div>
       ) : null}
 
-      <div ref={metricsRef} className={`account-card-metrics ${windows.length > 2 ? "multi-row-metrics" : ""}`}>
-        {windows.length ? windows.map((window) => <AccountUsageMetric key={window.id} window={window} unavailableLabel={googleUnavailableLabel} />) : (
+      <div className={`account-card-metrics ${windows.length > 2 ? "multi-row-metrics" : ""}`}>
+        {windows.length ? windows.map((window, index) => (
+          <AccountUsageMetric
+            key={window.id}
+            window={window}
+            unavailableLabel={googleUnavailableLabel}
+            creditLabel={index === 0 ? creditLabel : null}
+          />
+        )) : (
           <div className="account-usage-metric unavailable-metric">
             <span className="metric-label">Usage</span>
-            <strong>Unavailable</strong>
+            <div className="metric-value-row">
+              <strong className="metric-full-value">Unavailable</strong>
+              <span className="account-metric-track"><span className="tone-neutral" style={{ width: "0%" }} /></span>
+              <span className="metric-inline-credit">{creditLabel}</span>
+            </div>
             <span className="metric-reset">Refresh this account to retrieve its limits.</span>
           </div>
         )}
-        <div className="account-credit-metric">
-          <span className="metric-label">Credits</span>
-          <strong>
-            {account.lastUsage?.unlimitedCredits
-              ? "Unlimited"
-              : account.lastUsage?.creditsUsd != null
-                ? `$${account.lastUsage.creditsUsd.toFixed(2)}`
-                : "—"}
-          </strong>
-          <span>{account.lastUsage?.creditsUsd != null || account.lastUsage?.unlimitedCredits ? "Provider-reported remaining credit balance" : "Not reported by this provider"}</span>
-        </div>
       </div>
     </article>
   );
 }
 
-function AccountUsageMetric({ window, unavailableLabel = "Unavailable" }: { window: UsageWindow; unavailableLabel?: string }) {
+function AccountUsageMetric({
+  window,
+  unavailableLabel = "Unavailable",
+  creditLabel = null,
+}: {
+  window: UsageWindow;
+  unavailableLabel?: string;
+  creditLabel?: string | null;
+}) {
   const remaining = window.remainingPercent;
   const width = remaining == null ? 0 : Math.min(100, Math.max(0, remaining));
   const tone = usageTone(remaining);
@@ -998,9 +906,11 @@ function AccountUsageMetric({ window, unavailableLabel = "Unavailable" }: { wind
         <span className="metric-label">{window.label}</span>
         {windowLength(window) ? <span className="metric-window-pill">{windowLength(window)}</span> : null}
       </div>
-      <strong className="metric-full-value">{remaining == null ? unavailableLabel : `${Math.round(remaining)}% remaining`}</strong>
-      <span className="metric-compact-value">{remaining == null ? unavailableLabel : `${Math.round(remaining)}%`}</span>
-      <span className="account-metric-track"><span className={`tone-${tone}`} style={{ width: `${width}%` }} /></span>
+      <div className="metric-value-row">
+        <strong className="metric-full-value">{remaining == null ? unavailableLabel : `${Math.round(remaining)}% remaining`}</strong>
+        <span className="account-metric-track"><span className={`tone-${tone}`} style={{ width: `${width}%` }} /></span>
+        {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
+      </div>
       <span className="metric-reset">{window.resetsAt ? `Resets ${formatTime(window.resetsAt)}` : remaining == null ? "This provider has not reported a quota value yet" : "Rolling window"}</span>
     </div>
   );

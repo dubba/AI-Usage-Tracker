@@ -886,22 +886,19 @@ select {
 
 .account-card-metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  align-items: stretch;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+  align-items: start;
+  grid-auto-rows: max-content;
+  gap: 0 18px;
   padding: 0 16px;
+  overflow: visible;
 }
 
-.account-usage-metric,
-.account-credit-metric {
+.account-usage-metric {
   min-width: 0;
-  min-height: 112px;
-  padding: 14px 16px 14px 0;
-}
-
-.account-usage-metric + .account-usage-metric,
-.account-credit-metric {
-  padding-left: 22px;
-  border-left: 1px solid #2d2c2c;
+  min-height: 0;
+  height: auto;
+  padding: 14px 0;
 }
 
 .metric-heading {
@@ -912,7 +909,8 @@ select {
   min-width: 0;
 }
 
-.metric-window-pill {
+.metric-window-pill,
+.metric-inline-credit {
   flex: 0 0 auto;
   padding: 2px 7px;
   border: 1px solid #37343b;
@@ -923,25 +921,40 @@ select {
   white-space: nowrap;
 }
 
-.account-usage-metric > strong,
-.account-credit-metric > strong {
+.metric-value-row {
+  display: grid;
+  grid-template-columns: auto minmax(44px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin: 10px 0 8px;
+}
+
+.metric-full-value {
   display: block;
-  margin: 10px 0 10px;
+  margin: 0;
   color: #f5f1ef;
   font-size: 20px;
   line-height: 24px;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.metric-inline-credit {
+  overflow: hidden;
+  max-width: 150px;
+  text-overflow: ellipsis;
 }
 
 .account-metric-track {
+  min-width: 44px;
   height: 6px;
 }
 
-.metric-reset,
-.account-credit-metric > span:last-child {
+.metric-reset {
   display: block;
-  margin-top: 8px;
+  margin-top: 0;
   color: #a8a1ac;
   font-size: 12px;
   line-height: 16px;

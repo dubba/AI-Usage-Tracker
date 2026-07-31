@@ -4,7 +4,14 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 ## Unreleased
 
-_No unreleased user-facing changes yet._
+### Fixed
+
+- OpenAI account cards now grow to fit all quota content instead of clipping shorter than their metrics.
+
+### Improved
+
+- Provider-reported credits now appear inline with the percentage and usage bar instead of occupying a separate quota tile.
+- Narrow account cards preserve the same information and visual structure while progressively tightening spacing, icons, and typography instead of switching to a different compact design.
 
 ## 0.2.45 - 2026-07-31
 

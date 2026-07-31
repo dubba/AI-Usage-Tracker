@@ -1,7 +1,8 @@
-/* Account-card responsive behavior follows real content pressure, not the app window. */
+/* Account cards keep one stable visual structure at every width. */
 .provider-account-card {
   container-name: account-card;
   container-type: inline-size;
+  min-height: max-content;
 }
 
 .provider-account-card .account-card-identity {
@@ -19,19 +20,13 @@
   grid-area: name;
   min-width: 0;
   flex-wrap: nowrap;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .provider-account-card .account-card-name-row > h2,
 .provider-account-card .account-card-name-row > .account-card-name-input {
   min-width: 0;
   flex: 1 1 auto;
-}
-
-.provider-account-card .account-card-name-row[data-plan]::after {
-  max-width: 9rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .provider-account-card .account-card-email {
@@ -43,7 +38,6 @@
   white-space: nowrap;
 }
 
-/* Reserve the controls, then move them beside the email only when measured content would crowd the title row. */
 .provider-account-card .account-card-name-actions {
   grid-area: actions;
   display: inline-flex !important;
@@ -53,12 +47,6 @@
   flex: 0 0 auto;
   margin-left: auto;
   visibility: visible;
-}
-
-.provider-account-card.account-actions-on-email .account-card-identity {
-  grid-template-areas:
-    "name name"
-    "email actions";
 }
 
 .provider-account-card .account-card-name-actions .account-card-action {
@@ -74,159 +62,175 @@
   height: 24px !important;
 }
 
-/* Multi-row usage grids may shrink until their real text begins to overflow. */
 .provider-account-card .account-card-metrics.multi-row-metrics {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.provider-account-card .account-card-metrics.multi-row-metrics .account-usage-metric,
-.provider-account-card .account-card-metrics.multi-row-metrics .account-usage-metric + .account-usage-metric {
+.provider-account-card .account-card-metrics .account-usage-metric,
+.provider-account-card .account-card-metrics .account-usage-metric + .account-usage-metric {
   min-width: 0;
-  padding-left: 0;
-  padding-right: 0;
+  height: auto;
   border-left: 0 !important;
 }
 
-/* Override the older viewport media rule unless measured overflow has selected compact mode. */
-.provider-account-card:not(.account-metrics-compact) .account-card-metrics .account-usage-metric {
-  display: grid !important;
+@container account-card (max-width: 760px) {
+  .provider-account-card-header {
+    grid-template-columns: 46px minmax(0, 1fr) auto;
+    gap: 12px;
+    min-height: 72px;
+    padding: 11px 13px;
+  }
+
+  .account-card-provider-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .account-card-provider-icon svg,
+  .account-card-provider-icon img {
+    width: 28px;
+    height: 28px;
+  }
+
+  .account-card-name-row {
+    gap: 6px;
+  }
+
+  .account-card-name-row h2 {
+    font-size: 16px;
+    line-height: 21px;
+  }
+
+  .account-card-identity p {
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  .account-card-name-actions {
+    gap: 2px !important;
+  }
+
+  .account-card-name-actions .account-card-action {
+    width: 27px !important;
+    height: 27px !important;
+  }
+
+  .account-card-name-actions .account-card-action svg,
+  .account-card-name-actions .account-card-action::before {
+    width: 21px !important;
+    height: 21px !important;
+  }
+
+  .account-status-badge,
+  .account-plan-badge {
+    padding-inline: 6px;
+    font-size: 9px;
+  }
+
+  .account-card-metrics {
+    gap: 0 12px;
+    padding-inline: 13px;
+  }
+
+  .account-usage-metric {
+    padding: 12px 0;
+  }
+
+  .metric-value-row {
+    grid-template-columns: auto minmax(34px, 1fr) auto;
+    gap: 7px;
+  }
+
+  .metric-full-value {
+    font-size: 17px !important;
+    line-height: 21px !important;
+  }
+
+  .metric-inline-credit,
+  .metric-window-pill,
+  .metric-reset {
+    font-size: 10px;
+  }
 }
 
-.provider-account-card:not(.account-metrics-compact) .account-card-metrics .metric-heading {
-  display: contents !important;
-}
+@container account-card (max-width: 560px) {
+  .provider-account-card-header {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 9px 10px;
+  }
 
-.provider-account-card:not(.account-metrics-compact) .account-card-metrics .metric-label,
-.provider-account-card:not(.account-metrics-compact) .account-card-metrics .metric-window-pill {
-  display: inline-flex !important;
-}
+  .account-card-provider-icon {
+    width: 38px;
+    height: 38px;
+  }
 
-.provider-account-card:not(.account-metrics-compact) .account-card-metrics .metric-full-value,
-.provider-account-card:not(.account-metrics-compact) .account-card-metrics .account-metric-track {
-  display: block !important;
-}
+  .account-card-provider-icon svg,
+  .account-card-provider-icon img {
+    width: 24px;
+    height: 24px;
+  }
 
-.provider-account-card:not(.account-metrics-compact) .account-card-metrics .metric-reset {
-  display: grid !important;
-}
+  .account-card-name-row {
+    gap: 4px;
+  }
 
-.provider-account-card:not(.account-metrics-compact) .account-card-metrics .metric-compact-value {
-  display: none !important;
-}
+  .account-card-name-row h2 {
+    font-size: 14px;
+    line-height: 19px;
+  }
 
-.provider-account-card.account-actions-on-email .provider-account-card-header,
-.provider-account-card.account-metrics-compact .provider-account-card-header {
-  grid-template-columns: 46px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  min-height: 72px;
-  padding: 12px 14px;
-}
+  .account-card-name-actions .account-card-action {
+    width: 24px !important;
+    height: 24px !important;
+  }
 
-.provider-account-card.account-actions-on-email .account-card-provider-icon,
-.provider-account-card.account-metrics-compact .account-card-provider-icon {
-  width: 44px;
-  height: 44px;
-}
+  .account-card-name-actions .account-card-action svg,
+  .account-card-name-actions .account-card-action::before {
+    width: 18px !important;
+    height: 18px !important;
+  }
 
-.provider-account-card.account-actions-on-email .account-card-provider-icon svg,
-.provider-account-card.account-actions-on-email .account-card-provider-icon img,
-.provider-account-card.account-metrics-compact .account-card-provider-icon svg,
-.provider-account-card.account-metrics-compact .account-card-provider-icon img {
-  width: 28px;
-  height: 28px;
-}
+  .account-card-header-actions {
+    gap: 4px;
+  }
 
-.provider-account-card.account-actions-on-email .account-card-name-row,
-.provider-account-card.account-metrics-compact .account-card-name-row {
-  gap: 6px;
-}
+  .account-card-metrics {
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 0 9px;
+    padding-inline: 10px;
+  }
 
-.provider-account-card.account-actions-on-email .account-card-name-actions,
-.provider-account-card.account-metrics-compact .account-card-name-actions {
-  gap: 2px;
-}
+  .account-usage-metric {
+    padding: 10px 0;
+  }
 
-.provider-account-card.account-actions-on-email .account-card-action,
-.provider-account-card.account-metrics-compact .account-card-action {
-  width: 28px !important;
-  height: 28px !important;
-}
+  .metric-heading {
+    gap: 6px;
+  }
 
-.provider-account-card.account-actions-on-email .account-card-action svg,
-.provider-account-card.account-actions-on-email .account-card-action::before,
-.provider-account-card.account-metrics-compact .account-card-action svg,
-.provider-account-card.account-metrics-compact .account-card-action::before {
-  width: 22px !important;
-  height: 22px !important;
-}
+  .metric-label {
+    font-size: 9px;
+    letter-spacing: 0.05em;
+  }
 
-.provider-account-card.account-metrics-compact .account-card-header-actions.has-google-action {
-  grid-column: 2 / -1;
-  justify-content: flex-start;
-  padding-top: 4px;
-  border-top: 0;
-}
+  .metric-window-pill,
+  .metric-inline-credit {
+    padding: 1px 5px;
+  }
 
-.provider-account-card.account-metrics-compact .account-card-metrics,
-.provider-account-card.account-metrics-compact .account-card-metrics.multi-row-metrics {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 18px;
-  padding: 0 14px;
-}
+  .metric-value-row {
+    gap: 5px;
+    margin-block: 7px 6px;
+  }
 
-.provider-account-card.account-metrics-compact .account-card-metrics .account-usage-metric,
-.provider-account-card.account-metrics-compact .account-card-metrics .account-usage-metric + .account-usage-metric {
-  display: flex !important;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-  min-height: 48px;
-  padding: 10px 0;
-  border: 0 !important;
-}
+  .metric-full-value {
+    font-size: 15px !important;
+    line-height: 19px !important;
+  }
 
-.provider-account-card.account-metrics-compact .account-card-metrics .metric-heading {
-  display: contents !important;
-}
-
-.provider-account-card.account-metrics-compact .account-card-metrics .metric-label,
-.provider-account-card.account-metrics-compact .account-card-metrics .metric-full-value,
-.provider-account-card.account-metrics-compact .account-card-metrics .account-metric-track,
-.provider-account-card.account-metrics-compact .account-card-metrics .metric-reset {
-  display: none !important;
-}
-
-.provider-account-card.account-metrics-compact .account-card-metrics .metric-compact-value {
-  order: 1;
-  display: inline !important;
-  color: #f5f1ef;
-  font-size: 15px;
-  line-height: 20px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.provider-account-card.account-metrics-compact .account-card-metrics .metric-window-pill {
-  order: 2;
-  display: inline-flex !important;
-  grid-column: auto;
-  grid-row: auto;
-  align-self: center;
-  width: fit-content;
-  margin: 0;
-  padding: 2px 7px;
-  white-space: nowrap;
-}
-
-.provider-account-card.account-metrics-compact .account-card-metrics .account-credit-metric {
-  display: none !important;
-}
-
-@container account-card (max-width: 360px) {
-  .provider-account-card.account-metrics-compact .account-card-metrics,
-  .provider-account-card.account-metrics-compact .account-card-metrics.multi-row-metrics {
-    grid-template-columns: 1fr;
+  .account-metric-track {
+    min-width: 28px;
+    height: 5px;
   }
 }
