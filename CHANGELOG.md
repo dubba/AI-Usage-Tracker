@@ -4,6 +4,10 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 ## Unreleased
 
+_No unreleased user-facing changes yet._
+
+## 0.2.45 - 2026-07-31
+
 ### Improved
 
 - OpenCode Go's monthly quota now shows a **Monthly** usage-window badge alongside its percentage.

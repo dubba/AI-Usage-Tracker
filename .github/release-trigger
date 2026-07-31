@@ -1,1 +1,1 @@
-Release build requested on 2026-07-30 for AI Subscription Tracker v0.2.44 with the detailed two-column account-card layout retained until cards are genuinely narrow, compact mode delayed to 760px, and the one-column fallback delayed to 520px.
+Release build requested on 2026-07-31 for AI Subscription Tracker v0.2.45 with an OpenCode Go Monthly quota badge, account actions that move beside the email only when title content crowds, and compact quota summaries activated by measured card-content overflow.
