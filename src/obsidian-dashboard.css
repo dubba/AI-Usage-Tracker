@@ -886,12 +886,16 @@ select {
 
 .account-card-metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   grid-auto-rows: max-content;
   gap: 0 18px;
   padding: 0 16px;
   overflow: visible;
+}
+
+.account-card-metrics.two-column-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .account-usage-metric {
@@ -923,7 +927,7 @@ select {
 
 .metric-value-row {
   display: grid;
-  grid-template-columns: auto minmax(44px, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   min-width: 0;
@@ -948,7 +952,7 @@ select {
 }
 
 .account-metric-track {
-  min-width: 44px;
+  min-width: 0;
   height: 6px;
 }
 

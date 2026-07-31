@@ -1,7 +1,5 @@
-/* Account cards keep one stable visual structure at every width. */
+/* Account cards keep one stable, unchanged structure at every width. */
 .provider-account-card {
-  container-name: account-card;
-  container-type: inline-size;
   min-height: max-content;
 }
 
@@ -62,6 +60,11 @@
   height: 24px !important;
 }
 
+.provider-account-card .account-card-metrics {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.provider-account-card .account-card-metrics.two-column-metrics,
 .provider-account-card .account-card-metrics.multi-row-metrics {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -73,164 +76,17 @@
   border-left: 0 !important;
 }
 
-@container account-card (max-width: 760px) {
-  .provider-account-card-header {
-    grid-template-columns: 46px minmax(0, 1fr) auto;
-    gap: 12px;
-    min-height: 72px;
-    padding: 11px 13px;
-  }
-
-  .account-card-provider-icon {
-    width: 44px;
-    height: 44px;
-  }
-
-  .account-card-provider-icon svg,
-  .account-card-provider-icon img {
-    width: 28px;
-    height: 28px;
-  }
-
-  .account-card-name-row {
-    gap: 6px;
-  }
-
-  .account-card-name-row h2 {
-    font-size: 16px;
-    line-height: 21px;
-  }
-
-  .account-card-identity p {
-    font-size: 12px;
-    line-height: 16px;
-  }
-
-  .account-card-name-actions {
-    gap: 2px !important;
-  }
-
-  .account-card-name-actions .account-card-action {
-    width: 27px !important;
-    height: 27px !important;
-  }
-
-  .account-card-name-actions .account-card-action svg,
-  .account-card-name-actions .account-card-action::before {
-    width: 21px !important;
-    height: 21px !important;
-  }
-
-  .account-status-badge,
-  .account-plan-badge {
-    padding-inline: 6px;
-    font-size: 9px;
-  }
-
-  .account-card-metrics {
-    gap: 0 12px;
-    padding-inline: 13px;
-  }
-
-  .account-usage-metric {
-    padding: 12px 0;
-  }
-
-  .metric-value-row {
-    grid-template-columns: auto minmax(34px, 1fr) auto;
-    gap: 7px;
-  }
-
-  .metric-full-value {
-    font-size: 17px !important;
-    line-height: 21px !important;
-  }
-
-  .metric-inline-credit,
-  .metric-window-pill,
-  .metric-reset {
-    font-size: 10px;
-  }
+.provider-account-card .metric-value-row {
+  grid-template-columns: auto minmax(0, 1fr) auto;
 }
 
-@container account-card (max-width: 560px) {
-  .provider-account-card-header {
-    grid-template-columns: 40px minmax(0, 1fr) auto;
-    gap: 8px;
-    padding: 9px 10px;
-  }
+.provider-account-card .account-metric-track {
+  min-width: 0;
+}
 
-  .account-card-provider-icon {
-    width: 38px;
-    height: 38px;
-  }
-
-  .account-card-provider-icon svg,
-  .account-card-provider-icon img {
-    width: 24px;
-    height: 24px;
-  }
-
-  .account-card-name-row {
-    gap: 4px;
-  }
-
-  .account-card-name-row h2 {
-    font-size: 14px;
-    line-height: 19px;
-  }
-
-  .account-card-name-actions .account-card-action {
-    width: 24px !important;
-    height: 24px !important;
-  }
-
-  .account-card-name-actions .account-card-action svg,
-  .account-card-name-actions .account-card-action::before {
-    width: 18px !important;
-    height: 18px !important;
-  }
-
-  .account-card-header-actions {
-    gap: 4px;
-  }
-
-  .account-card-metrics {
-    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-    gap: 0 9px;
-    padding-inline: 10px;
-  }
-
-  .account-usage-metric {
-    padding: 10px 0;
-  }
-
-  .metric-heading {
-    gap: 6px;
-  }
-
-  .metric-label {
-    font-size: 9px;
-    letter-spacing: 0.05em;
-  }
-
-  .metric-window-pill,
-  .metric-inline-credit {
-    padding: 1px 5px;
-  }
-
-  .metric-value-row {
-    gap: 5px;
-    margin-block: 7px 6px;
-  }
-
-  .metric-full-value {
-    font-size: 15px !important;
-    line-height: 19px !important;
-  }
-
-  .account-metric-track {
-    min-width: 28px;
-    height: 5px;
-  }
+.provider-account-card .metric-inline-credit {
+  min-width: 0;
+  max-width: min(150px, 30%);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

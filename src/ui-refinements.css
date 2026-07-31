@@ -90,48 +90,44 @@
 }
 
 .account-usage-metric {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-content: start;
+  display: block;
 }
 
 .account-usage-metric .metric-heading {
-  display: contents;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
 }
 
 .account-usage-metric .metric-label {
-  grid-column: 1 / -1;
-  grid-row: 1;
-}
-
-.account-usage-metric > strong {
-  grid-column: 1;
-  grid-row: 2;
-  align-self: center;
-  margin-right: 12px;
+  min-width: 0;
 }
 
 .account-usage-metric .metric-window-pill {
-  grid-column: 2;
-  grid-row: 2;
-  align-self: center;
-  justify-self: end;
+  flex: 0 0 auto;
   width: fit-content;
-  margin: 10px 0;
+  margin: 0;
   padding: 2px 7px;
   color: #fff;
   border-color: rgba(255, 255, 255, 0.92);
   background: transparent;
 }
 
+.account-usage-metric .metric-value-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
 .account-usage-metric .account-metric-track {
-  grid-column: 1 / -1;
-  grid-row: 3;
+  min-width: 0;
 }
 
 .account-usage-metric .metric-reset {
-  grid-column: 1 / -1;
-  grid-row: 4;
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -151,20 +147,14 @@
   display: none;
 }
 
-/* Keep the full quota metric visible. Only the redundant OpenAI "Session"
-   heading is hidden. */
 .ui-hidden-metric {
-  display: grid !important;
+  display: block !important;
 }
 
 .ui-hidden-metric-label,
 .ui-hidden-credit,
 .ui-hidden-credit-helper {
   display: none !important;
-}
-
-.provider-account-card[data-provider="openai"] .account-credit-metric > strong {
-  margin-bottom: 0;
 }
 
 /* The update control uses one real text node. The exact selector below wins
@@ -288,7 +278,7 @@
 }
 
 .account-card-metrics.multi-row-metrics {
-  grid-template-columns: repeat(2, minmax(210px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 28px;
 }
 
@@ -299,105 +289,3 @@
   border-left: 0;
 }
 
-@media (max-width: 1180px) {
-  .provider-account-card-header {
-    grid-template-columns: 46px minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 12px;
-    min-height: 72px;
-    padding: 12px 14px;
-  }
-
-  .account-card-provider-icon {
-    width: 44px;
-    height: 44px;
-  }
-
-  .account-card-provider-icon svg,
-  .account-card-provider-icon img {
-    width: 28px;
-    height: 28px;
-  }
-
-  .account-card-name-row {
-    gap: 6px;
-  }
-
-  .account-card-name-actions {
-    gap: 2px;
-  }
-
-  .account-card-action {
-    width: 28px !important;
-    height: 28px !important;
-  }
-
-  .provider-account-card .account-card-name-actions .account-card-action svg,
-  .provider-account-card .account-card-name-actions .account-card-action::before {
-    width: 22px !important;
-    height: 22px !important;
-  }
-
-  .account-card-header-actions.has-google-action {
-    grid-column: 2 / -1;
-    justify-content: flex-start;
-    padding-top: 4px;
-    border-top: 0;
-  }
-
-  .account-card-metrics,
-  .account-card-metrics.multi-row-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0 18px;
-    padding: 0 14px;
-  }
-
-  .account-card-metrics .account-usage-metric,
-  .account-card-metrics .account-usage-metric + .account-usage-metric {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 8px;
-    min-height: 48px;
-    padding: 10px 0;
-    border: 0;
-  }
-
-  .account-card-metrics .metric-heading {
-    display: contents;
-  }
-
-  .account-card-metrics .metric-label,
-  .account-card-metrics .metric-full-value,
-  .account-card-metrics .account-metric-track,
-  .account-card-metrics .metric-reset {
-    display: none !important;
-  }
-
-  .account-card-metrics .metric-compact-value {
-    order: 1;
-    display: inline;
-    color: #f5f1ef;
-    font-size: 15px;
-    line-height: 20px;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-  }
-
-  .account-card-metrics .metric-window-pill {
-    order: 2;
-    display: inline-flex;
-    grid-column: auto;
-    grid-row: auto;
-    align-self: center;
-    width: fit-content;
-    margin: 0;
-    padding: 2px 7px;
-    white-space: nowrap;
-  }
-
-  .account-card-metrics .account-credit-metric {
-    display: none !important;
-  }
-}

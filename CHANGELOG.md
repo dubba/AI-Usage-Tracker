@@ -4,7 +4,15 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 ## Unreleased
 
-_No unreleased user-facing changes yet._
+### Fixed
+
+- Credits are no longer shown on Google Antigravity or OpenCode Go accounts, which do not report a credit balance.
+- OpenAI usage-window badges now stay in the same top-row position used by other providers.
+
+### Improved
+
+- Usage percentages now omit the redundant word **remaining**.
+- Narrower account cards retain the exact same content, element positions, icon sizes, and typography; only flexible widths such as account names and usage bars contract.
 
 ## 0.2.46 - 2026-07-31
 

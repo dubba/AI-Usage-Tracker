@@ -745,11 +745,13 @@ function AccountDashboardCard({
   const modelsOnly = account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_model_access";
   const waitingForMetrics = account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_monitoring_waiting";
   const googleUnavailableLabel = modelsOnly ? "Model connected" : waitingForMetrics ? "Waiting for metrics" : "Unavailable";
-  const creditLabel = account.lastUsage?.unlimitedCredits
-    ? "Credits: Unlimited"
-    : account.lastUsage?.creditsUsd != null
-      ? `Credits: $${account.lastUsage.creditsUsd.toFixed(2)}`
-      : "Credits: —";
+  const creditLabel = account.provider !== "openai"
+    ? null
+    : account.lastUsage?.unlimitedCredits
+      ? "Credits: Unlimited"
+      : account.lastUsage?.creditsUsd != null
+        ? `Credits: $${account.lastUsage.creditsUsd.toFixed(2)}`
+        : null;
 
   useEffect(() => {
     if (!editing) setLabel(account.label);
@@ -864,7 +866,7 @@ function AccountDashboardCard({
         </div>
       ) : null}
 
-      <div className={`account-card-metrics ${windows.length > 2 ? "multi-row-metrics" : ""}`}>
+      <div className={`account-card-metrics${windows.length > 1 ? " two-column-metrics" : ""}${windows.length > 2 ? " multi-row-metrics" : ""}`}>
         {windows.length ? windows.map((window, index) => (
           <AccountUsageMetric
             key={window.id}
@@ -878,7 +880,7 @@ function AccountDashboardCard({
             <div className="metric-value-row">
               <strong className="metric-full-value">Unavailable</strong>
               <span className="account-metric-track"><span className="tone-neutral" style={{ width: "0%" }} /></span>
-              <span className="metric-inline-credit">{creditLabel}</span>
+              {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
             </div>
             <span className="metric-reset">Refresh this account to retrieve its limits.</span>
           </div>
@@ -907,7 +909,7 @@ function AccountUsageMetric({
         {windowLength(window) ? <span className="metric-window-pill">{windowLength(window)}</span> : null}
       </div>
       <div className="metric-value-row">
-        <strong className="metric-full-value">{remaining == null ? unavailableLabel : `${Math.round(remaining)}% remaining`}</strong>
+        <strong className="metric-full-value">{remaining == null ? unavailableLabel : `${Math.round(remaining)}%`}</strong>
         <span className="account-metric-track"><span className={`tone-${tone}`} style={{ width: `${width}%` }} /></span>
         {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
       </div>
