@@ -4,7 +4,11 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 ## Unreleased
 
-_No unreleased user-facing changes yet._
+### Improved
+
+- OpenCode Go's monthly quota now shows a **Monthly** usage-window badge alongside its percentage.
+- Account-card notification, remove, and refresh controls move beside the email only when the title row would otherwise become crowded.
+- Detailed account usage remains visible while the card can still contain its real text; compact percentages activate only after measured content overflow instead of at a fixed card width.
 
 ## 0.2.44 - 2026-07-30
 
