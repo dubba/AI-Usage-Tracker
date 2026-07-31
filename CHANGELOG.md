@@ -4,6 +4,10 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 ## Unreleased
 
+_No unreleased user-facing changes yet._
+
+## 0.2.47 - 2026-07-31
+
 ### Fixed
 
 - Credits are no longer shown on Google Antigravity or OpenCode Go accounts, which do not report a credit balance.
