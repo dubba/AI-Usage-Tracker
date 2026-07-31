@@ -4,6 +4,10 @@ This file tracks notable user-facing changes to AI Subscription Tracker.
 
 ## Unreleased
 
+_No unreleased user-facing changes yet._
+
+## 0.2.46 - 2026-07-31
+
 ### Fixed
 
 - OpenAI account cards now grow to fit all quota content instead of clipping shorter than their metrics.
