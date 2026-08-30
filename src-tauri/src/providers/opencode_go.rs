@@ -14,6 +14,16 @@ struct ParsedWindow {
     reset_in_seconds: f64,
 }
 
+pub fn is_valid_workspace_id(workspace_id: &str) -> bool {
+    let trimmed = workspace_id.trim();
+    if trimmed.is_empty() || trimmed.len() > 160 {
+        return false;
+    }
+    trimmed
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
 pub async fn refresh(
     app: &AppState,
     account: &Account,
@@ -21,7 +31,7 @@ pub async fn refresh(
 ) -> Result<ProviderUsage, ProviderError> {
     let workspace_id = secret.workspace_id.trim();
     let auth_cookie = normalize_cookie(&secret.auth_cookie);
-    if workspace_id.is_empty() || auth_cookie.is_empty() {
+    if !is_valid_workspace_id(workspace_id) || auth_cookie.is_empty() {
         return Err(ProviderError::Auth);
     }
 
@@ -275,5 +285,22 @@ mod tests {
     #[test]
     fn parses_human_reset_duration() {
         assert_eq!(parse_human_duration("1 hour 30 minutes"), Some(5400.0));
+    }
+
+    #[test]
+    fn validates_opencode_workspace_ids() {
+        assert!(is_valid_workspace_id("mystic-patrol-3ls3t"));
+        assert!(is_valid_workspace_id("workspace_123"));
+        assert!(is_valid_workspace_id("ABC-123_xyz"));
+
+        assert!(!is_valid_workspace_id(""));
+        assert!(!is_valid_workspace_id("   "));
+        assert!(!is_valid_workspace_id("../admin"));
+        assert!(!is_valid_workspace_id("foo/bar"));
+        assert!(!is_valid_workspace_id("foo\\bar"));
+        assert!(!is_valid_workspace_id("foo?bar"));
+        assert!(!is_valid_workspace_id("foo#bar"));
+        assert!(!is_valid_workspace_id("foo bar"));
+        assert!(!is_valid_workspace_id(&"a".repeat(161)));
     }
 }

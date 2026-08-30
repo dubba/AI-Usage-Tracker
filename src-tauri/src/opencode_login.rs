@@ -271,8 +271,11 @@ pub async fn add_account(
     auth_cookie: String,
 ) -> Result<Account, String> {
     let workspace_id = workspace_id.trim();
-    if workspace_id.is_empty() || workspace_id.chars().count() > 160 {
-        return Err("A valid OpenCode workspace ID is required.".into());
+    if !providers::opencode_go::is_valid_workspace_id(workspace_id) {
+        return Err(
+            "A valid OpenCode workspace ID is required (letters, numbers, hyphens, and underscores only)."
+                .into(),
+        );
     }
 
     let auth_cookie = providers::opencode_go::normalize_cookie(&auth_cookie);
@@ -439,7 +442,7 @@ fn workspace_id_from_url(url: &Url) -> Option<String> {
         return None;
     }
     let workspace_id = segments.get(workspace_index + 1)?.trim();
-    if workspace_id.is_empty() || workspace_id.chars().count() > 160 {
+    if !providers::opencode_go::is_valid_workspace_id(workspace_id) {
         return None;
     }
     Some(workspace_id.to_string())
@@ -510,6 +513,12 @@ mod tests {
         assert_eq!(
             workspace_id_from_url(
                 &Url::parse("https://example.com/workspace/mystic-patrol-3ls3t/go").unwrap()
+            ),
+            None
+        );
+        assert_eq!(
+            workspace_id_from_url(
+                &Url::parse("https://opencode.ai/workspace/../admin/go").unwrap()
             ),
             None
         );

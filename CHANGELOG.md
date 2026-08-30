@@ -39,6 +39,7 @@ This file tracks notable user-facing changes to AI Usage Tracker.
 - Google AI Studio authorization now opens backend-defined least-privilege OAuth scopes directly without frontend scope escalation.
 - Credential operations across all providers and login workflows now consistently use unified macOS Keychain single-item storage with automatic legacy chunk cleanup.
 - Grok quota tracking now communicates exclusively via standard HTTPS API requests, eliminating external CLI subprocess execution and unsafe relative home directory fallbacks.
+- OpenCode workspace identifiers are strictly validated to alphanumeric slugs, preventing path traversal and URL parameter injection.
 
 ### Fixed
 
