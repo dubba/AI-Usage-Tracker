@@ -202,11 +202,23 @@ pub struct LoginStart {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CloudProjectOption {
+    pub project_id: String,
+    pub project_number: String,
+    pub display_name: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LoginStatus {
     pub attempt_id: String,
     pub status: String,
     pub message: Option<String>,
     pub account: Option<Account>,
+    #[serde(default)]
+    pub projects: Option<Vec<CloudProjectOption>>,
+    #[serde(default)]
+    pub selected_project_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]

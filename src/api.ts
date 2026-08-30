@@ -10,8 +10,8 @@ export const bridgeApi = {
     invoke<Account>("probe_google_ai_studio_key", { apiKey }),
   addGoogleAiStudioAccount: (label: string, apiKey: string, selectedModels: string[]) =>
     invoke<Account>("add_google_ai_studio_account", { label, apiKey, selectedModels }),
-  startGoogleAiStudioUsageLogin: (accountId: string, projectId: string) =>
-    invoke<LoginStart>("start_google_ai_studio_usage_login", { accountId, projectId }),
+  startGoogleAiStudioUsageLogin: (accountId: string, projectId: string, enableMonitoring: boolean) =>
+    invoke<LoginStart>("start_google_ai_studio_usage_login", { accountId, projectId, enableMonitoring }),
   loginStatus: (attemptId: string) => invoke<LoginStatus>("get_login_status", { attemptId }),
   cancelLogin: (attemptId: string) => invoke<void>("cancel_login", { attemptId }),
   refreshAccount: (accountId: string) => invoke<Account>("refresh_account", { accountId }),

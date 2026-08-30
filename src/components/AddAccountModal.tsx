@@ -223,6 +223,8 @@ export function AddAccountModal({
             ? "Sign in to Grok in the private window."
             : null,
         account: null,
+        projects: null,
+        selectedProjectId: null,
       });
       if (start.authorizationUrl.trim()) {
         await openUrl(start.authorizationUrl);
@@ -416,14 +418,16 @@ export function AddAccountModal({
                   disabled={busy}
                 />
                 <label className="field-label field-spaced" htmlFor="auth-cookie">OpenCode console auth cookie</label>
-                <textarea
+                <input
                   id="auth-cookie"
-                  className="text-input secret-input"
+                  className="text-input"
+                  type="password"
                   value={authCookie}
                   onChange={(event) => setAuthCookie(event.target.value)}
                   placeholder="Paste the auth cookie value, with or without auth="
+                  autoComplete="off"
+                  spellCheck={false}
                   disabled={busy}
-                  rows={3}
                 />
                 <div className="credential-note">Manual connection is intended only when embedded sign-in is blocked by an identity provider.</div>
               </div>

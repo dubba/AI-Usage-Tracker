@@ -93,6 +93,8 @@ pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginSta
                     .into(),
             ),
             account: None,
+            projects: None,
+            selected_project_id: None,
         });
     }
 
@@ -136,7 +138,7 @@ pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginSta
     .devtools(false)
     .initialization_script(CONNECT_BANNER_SCRIPT)
     .on_navigation(|url| {
-        matches!(url.scheme(), "http" | "https") || url.as_str() == "about:blank"
+        url.scheme() == "https" || url.as_str() == "about:blank"
     })
     .build()
     {
@@ -403,6 +405,8 @@ async fn complete_cookie_login(
                 status: "complete".into(),
                 message: None,
                 account: Some(account),
+                projects: None,
+                selected_project_id: None,
             });
             true
         } else {
@@ -452,6 +456,8 @@ fn update_waiting_message(state: &AppState, attempt_id: &str, message: String) {
         status: "waiting".into(),
         message: Some(message),
         account: None,
+        projects: None,
+        selected_project_id: None,
     });
 }
 
@@ -464,6 +470,8 @@ fn fail_if_waiting(state: &AppState, attempt_id: &str, message: String) {
         status: "failed".into(),
         message: Some(message),
         account: None,
+        projects: None,
+        selected_project_id: None,
     });
 }
 

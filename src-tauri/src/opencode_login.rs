@@ -121,6 +121,8 @@ pub async fn start_login(
             status: "waiting".into(),
             message: Some("Sign in to OpenCode and open your Go subscription.".into()),
             account: None,
+            projects: None,
+            selected_project_id: None,
         });
     }
 
@@ -161,7 +163,7 @@ pub async fn start_login(
     .devtools(false)
     .initialization_script(CONNECT_BANNER_SCRIPT)
     .on_navigation(|url| {
-        matches!(url.scheme(), "http" | "https") || url.as_str() == "about:blank"
+        url.scheme() == "https" || url.as_str() == "about:blank"
     })
     .on_page_load(move |window, payload| {
         if !matches!(payload.event(), PageLoadEvent::Finished) {
@@ -350,6 +352,8 @@ async fn complete_login(
                         status: "complete".into(),
                         message: None,
                         account: Some(account),
+                        projects: None,
+                        selected_project_id: None,
                     });
                     true
                 } else {
@@ -465,6 +469,8 @@ fn fail_if_waiting(state: &AppState, attempt_id: &str, message: String) {
             status: "failed".into(),
             message: Some(message),
             account: None,
+            projects: None,
+            selected_project_id: None,
         });
     }
 }

@@ -112,8 +112,15 @@ async fn start_google_ai_studio_usage_login(
     state: State<'_, Arc<AppState>>,
     account_id: String,
     project_id: String,
+    enable_monitoring: bool,
 ) -> Result<LoginStart, String> {
-    google_ai_studio_oauth::start_login(state.inner().clone(), account_id, project_id).await
+    google_ai_studio_oauth::start_login(
+        state.inner().clone(),
+        account_id,
+        project_id,
+        enable_monitoring,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -160,6 +167,8 @@ fn cancel_login(
       status: "failed".into(),
       message: Some("Authentication was cancelled.".into()),
       account: None,
+      projects: None,
+      selected_project_id: None,
   });
         }
         cancellable

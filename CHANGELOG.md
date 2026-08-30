@@ -24,6 +24,10 @@ This file tracks notable user-facing changes to AI Usage Tracker.
 
 ### Security
 
+- Google Cloud project choices during AI Studio usage setup now use typed login-status fields instead of JSON embedded in the status message, and enabling Cloud Monitoring uses an explicit flag instead of a magic `enable:` prefix.
+- Grok and OpenCode login windows now only navigate to `https://` pages; plain `http://` pages are blocked.
+- The OpenCode manual-connection auth cookie field is now a masked password input.
+- CI now audits frontend (`npm audit`) and Rust (`cargo audit`) dependencies for known vulnerabilities on every change.
 - OpenAI and Anthropic login callbacks now use `127.0.0.1` instead of `localhost`, matching the loopback listener.
 - Anthropic sign-in no longer requests API-key creation, Claude Code sessions, MCP servers, or file-upload access. Reconnect an Anthropic account to drop previously granted extra scopes.
 - After credentials are copied into the current Keychain name, leftover **Paseo Usage Bridge** Keychain items are deleted.

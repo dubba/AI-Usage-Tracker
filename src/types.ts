@@ -68,11 +68,19 @@ export interface LoginStart {
   expiresAt: string;
 }
 
+export interface CloudProjectOption {
+  projectId: string;
+  projectNumber: string;
+  displayName: string;
+}
+
 export interface LoginStatus {
   attemptId: string;
   status: "waiting" | "complete" | "failed" | "choose_project" | "monitoring_disabled";
   message: string | null;
   account: Account | null;
+  projects: CloudProjectOption[] | null;
+  selectedProjectId: string | null;
 }
 
 export interface AppUpdateStatus {

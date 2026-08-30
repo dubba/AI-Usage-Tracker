@@ -107,6 +107,8 @@ pub async fn start_login(
             status: "waiting".into(),
             message: None,
             account: None,
+            projects: None,
+            selected_project_id: None,
         });
     }
 
@@ -344,6 +346,8 @@ async fn complete_callback(
         status: "complete".into(),
         message: None,
         account: Some(account.clone()),
+        projects: None,
+        selected_project_id: None,
     });
     Ok(account)
 }
@@ -726,6 +730,8 @@ fn fail_login(store: &RwLock<Option<LoginStatus>>, attempt_id: &str, message: St
   status: "failed".into(),
   message: Some(message),
   account: None,
+  projects: None,
+  selected_project_id: None,
         });
     }
 }
@@ -871,6 +877,8 @@ mod tests {
                 status: status.into(),
                 message: None,
                 account: None,
+                projects: None,
+                selected_project_id: None,
             });
 
             let result = start_login(app.clone(), "Test".into(), Provider::Openai).await;

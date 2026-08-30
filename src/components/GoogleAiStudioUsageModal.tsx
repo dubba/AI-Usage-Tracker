@@ -1,18 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { bridgeApi } from "../api";
-import type { Account, LoginStatus } from "../types";
-
-type CloudProjectOption = {
-  projectId: string;
-  projectNumber: string;
-  displayName: string;
-};
-
-type CloudSetupMessage = {
-  projects: CloudProjectOption[];
-  selectedProjectId: string | null;
-};
+import type { Account, CloudProjectOption, LoginStatus } from "../types";
 
 type SetupStage = "signin" | "choose_project" | "monitoring_disabled";
 
@@ -27,26 +16,6 @@ function compatibleGoogleAuthorizationUrl(value: string): string {
   const url = new URL(value);
   url.searchParams.set("scope", GOOGLE_CLOUD_AUTH_SCOPES);
   return url.toString();
-}
-
-function parseSetupMessage(message: string | null): CloudSetupMessage | null {
-  if (!message) return null;
-  try {
-    const value = JSON.parse(message) as Partial<CloudSetupMessage>;
-    if (!Array.isArray(value.projects)) return null;
-    const projects = value.projects.filter((project): project is CloudProjectOption =>
-      Boolean(project)
-      && typeof project.projectId === "string"
-      && typeof project.projectNumber === "string"
-      && typeof project.displayName === "string",
-    );
-    return {
-      projects,
-      selectedProjectId: typeof value.selectedProjectId === "string" ? value.selectedProjectId : null,
-    };
-  } catch {
-    return null;
-  }
 }
 
 export function GoogleAiStudioUsageModal({
@@ -98,13 +67,12 @@ export function GoogleAiStudioUsageModal({
         if (next.status === "choose_project" || next.status === "monitoring_disabled") {
           window.clearInterval(timer);
           setBusy(false);
-          const setup = parseSetupMessage(next.message);
-          if (!setup || !setup.projects.length) {
+          if (!next.projects?.length) {
             setError("Google sign-in succeeded, but the project information could not be read.");
             return;
           }
-          setProjects(setup.projects);
-          setSelectedProjectId(setup.selectedProjectId ?? setup.projects[0].projectId);
+          setProjects(next.projects);
+          setSelectedProjectId(next.selectedProjectId ?? next.projects[0].projectId);
           setStage(next.status);
         }
       } catch (cause) {
@@ -127,11 +95,11 @@ export function GoogleAiStudioUsageModal({
 
   if (!account) return null;
 
-  const start = async (projectId = "") => {
+  const start = async (projectId = "", enableMonitoring = false) => {
     setBusy(true);
     setError(null);
     try {
-      const next = await bridgeApi.startGoogleAiStudioUsageLogin(account.id, projectId);
+      const next = await bridgeApi.startGoogleAiStudioUsageLogin(account.id, projectId, enableMonitoring);
       if (closeRequestedRef.current) {
         await bridgeApi.cancelLogin(next.attemptId).catch(() => undefined);
         return;
@@ -141,6 +109,8 @@ export function GoogleAiStudioUsageModal({
         status: "waiting",
         message: null,
         account: null,
+        projects: null,
+        selectedProjectId: null,
       });
       if (next.authorizationUrl) {
         await openUrl(compatibleGoogleAuthorizationUrl(next.authorizationUrl));
@@ -227,7 +197,7 @@ export function GoogleAiStudioUsageModal({
             </button>
           ) : null}
           {stage === "monitoring_disabled" ? (
-            <button className="button primary" onClick={() => void start(`enable:${selectedProjectId}`)} disabled={busy || !selectedProjectId}>
+            <button className="button primary" onClick={() => void start(selectedProjectId, true)} disabled={busy || !selectedProjectId}>
               {busy ? "Waiting for Google…" : "Enable Cloud Monitoring"}
             </button>
           ) : null}

@@ -1,5 +1,5 @@
 use crate::{
-    model::{Account, LoginStart, LoginStatus, OAuthSecret, Provider, ProviderSecret},
+    model::{Account, CloudProjectOption, LoginStart, LoginStatus, OAuthSecret, Provider, ProviderSecret},
     providers::google_ai_studio,
     state::AppState,
     store::{load_provider_secret, save_provider_secret},
@@ -15,7 +15,7 @@ use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use chrono::{Duration, Utc};
 use rand::RngCore;
 use reqwest::StatusCode;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use std::sync::Arc;
 use tokio::{net::TcpListener, sync::oneshot};
@@ -82,21 +82,6 @@ struct ProjectSearchResponse {
     next_page_token: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct CloudProjectOption {
-    project_id: String,
-    project_number: String,
-    display_name: String,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct CloudSetupMessage {
-    projects: Vec<CloudProjectOption>,
-    selected_project_id: Option<String>,
-}
-
 #[derive(Debug, Deserialize)]
 struct LookupKeyResponse {
     parent: Option<String>,
@@ -125,11 +110,12 @@ pub async fn start_login(
     app: Arc<AppState>,
     account_id: String,
     project_id: String,
+    enable_monitoring: bool,
 ) -> Result<LoginStart, String> {
     validate_google_ai_studio_account(app.as_ref(), &account_id)?;
 
     let project_id = project_id.trim();
-    if let Some(project_id) = project_id.strip_prefix("enable:") {
+    if enable_monitoring {
         return start_oauth(
             app,
             account_id,
@@ -178,6 +164,8 @@ async fn start_oauth(
             status: "waiting".into(),
             message,
             account: None,
+            projects: None,
+            selected_project_id: None,
         });
     }
 
@@ -288,6 +276,8 @@ async fn select_project(
             status: "waiting".into(),
             message: Some("Checking the selected Google Cloud project.".into()),
             account: None,
+            projects: None,
+            selected_project_id: None,
         });
     }
 
@@ -559,21 +549,24 @@ fn apply_outcome(app: &AppState, attempt_id: &str, outcome: CallbackOutcome) -> 
             status: "complete".into(),
             message: None,
             account: Some(account),
+            projects: None,
+            selected_project_id: None,
         },
         CallbackOutcome::ChooseProject(projects) => LoginStatus {
             attempt_id: attempt_id.into(),
             status: "choose_project".into(),
-            message: Some(setup_message(projects, None)?),
+            message: None,
             account: None,
+            projects: Some(projects),
+            selected_project_id: None,
         },
         CallbackOutcome::MonitoringDisabled(project) => LoginStatus {
             attempt_id: attempt_id.into(),
             status: "monitoring_disabled".into(),
-            message: Some(setup_message(
-                vec![project.clone()],
-                Some(project.project_id),
-            )?),
+            message: None,
             account: None,
+            selected_project_id: Some(project.project_id.clone()),
+            projects: Some(vec![project]),
         },
     };
     let mut pending = app.pending_login.write();
@@ -585,17 +578,6 @@ fn apply_outcome(app: &AppState, attempt_id: &str, outcome: CallbackOutcome) -> 
     }
     *pending = Some(status);
     Ok(())
-}
-
-fn setup_message(
-    projects: Vec<CloudProjectOption>,
-    selected_project_id: Option<String>,
-) -> Result<String, String> {
-    serde_json::to_string(&CloudSetupMessage {
-        projects,
-        selected_project_id,
-    })
-    .map_err(|error| format!("Unable to prepare Google Cloud project choices: {error}"))
 }
 
 async fn lookup_key_project(
@@ -1035,6 +1017,8 @@ fn fail_login(context: &LoginContext, message: String) {
       status: "failed".into(),
       message: Some(message),
       account: None,
+      projects: None,
+      selected_project_id: None,
   },
         );
     }
@@ -1082,16 +1066,20 @@ mod tests {
     }
 
     #[test]
-    fn serializes_project_choices_for_the_frontend() {
-        let message = setup_message(
-            vec![CloudProjectOption {
+    fn login_status_serializes_project_choices_for_the_frontend() {
+        let status = LoginStatus {
+            attempt_id: "attempt".into(),
+            status: "monitoring_disabled".into(),
+            message: None,
+            account: None,
+            selected_project_id: Some("example-project-123".into()),
+            projects: Some(vec![CloudProjectOption {
                 project_id: "example-project-123".into(),
                 project_number: "123456789".into(),
                 display_name: "Example Project".into(),
-            }],
-            Some("example-project-123".into()),
-        )
-        .unwrap();
+            }]),
+        };
+        let message = serde_json::to_string(&status).unwrap();
         assert!(message.contains("projectId"));
         assert!(message.contains("example-project-123"));
     }
