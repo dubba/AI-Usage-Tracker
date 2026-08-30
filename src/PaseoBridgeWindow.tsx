@@ -117,7 +117,8 @@ export function PaseoBridgeWindow() {
         <ul>
           <li>Listens only on <code>127.0.0.1:47831</code>.</li>
           <li>Usage route: <code>/v1/paseo-usage</code>.</li>
-          <li>Health route: <code>/v1/health</code>.</li>
+          <li>Health route: <code>/v1/health</code> (same bearer token as usage).</li>
+          <li>Authenticated requests are limited to one per second. Extra requests return <code>429</code> with <code>Retry-After: 1</code>.</li>
           <li>Schema version: <code>1</code>.</li>
           <li>Provider credentials are never returned by the bridge.</li>
         </ul>

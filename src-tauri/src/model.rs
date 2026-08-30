@@ -261,6 +261,7 @@ pub struct PublicUsageResponse {
     pub accounts: Vec<PublicUsageAccount>,
 }
 
+#[cfg(test)]
 #[derive(Clone, Debug)]
 pub struct TokenClaims {
     pub email: Option<String>,

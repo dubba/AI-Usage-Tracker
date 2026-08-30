@@ -1,7 +1,6 @@
 use super::{ProviderError, ProviderUsage};
 use crate::{
     model::{Account, OAuthSecret, UsageWindow},
-    oauth::decode_claims,
     state::AppState,
 };
 use chrono::{TimeZone, Utc};
@@ -72,7 +71,6 @@ pub async fn refresh(
         result => result?,
     };
 
-    let claims = decode_claims(&secret.access_token);
     let mut windows = Vec::new();
     if let Some(window) = raw
         .rate_limit
@@ -114,17 +112,9 @@ pub async fn refresh(
 
     Ok((
         ProviderUsage {
-            plan: raw
-                .plan_type
-                .or_else(|| claims.as_ref().and_then(|claims| claims.plan.clone()))
-                .or_else(|| account.plan.clone()),
-            email: raw
-                .email
-                .or_else(|| claims.as_ref().and_then(|claims| claims.email.clone()))
-                .or_else(|| account.email.clone()),
-            provider_account_id: claims
-                .and_then(|claims| claims.account_id)
-                .or_else(|| account.effective_account_id().map(str::to_string)),
+            plan: raw.plan_type.or_else(|| account.plan.clone()),
+            email: raw.email.or_else(|| account.email.clone()),
+            provider_account_id: account.effective_account_id().map(str::to_string),
             windows,
             credits_usd,
             unlimited_credits,
@@ -225,11 +215,7 @@ async fn refresh_secret(
     let tokens: RefreshResponse = response.json().await.map_err(|error| {
         ProviderError::Transient(format!("Invalid OpenAI token refresh response: {error}"))
     })?;
-    let claims = decode_claims(&tokens.access_token);
-    let expires_at = claims
-        .as_ref()
-        .and_then(|claims| claims.expires_at)
-        .unwrap_or_else(|| Utc::now().timestamp_millis() + tokens.expires_in * 1000);
+    let expires_at = Utc::now().timestamp_millis() + tokens.expires_in * 1000;
     Ok(OAuthSecret {
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token.unwrap_or(secret.refresh_token),

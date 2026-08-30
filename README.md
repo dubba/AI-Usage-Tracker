@@ -58,6 +58,7 @@ The cookie is stored only in the native credential store and is used only for a 
 - OAuth callback listeners bind only to loopback.
 - The local API binds only to `127.0.0.1`.
 - The local API requires a random bearer token stored in the native credential store.
+- Authenticated local API requests are limited to one per second. Extra requests return `429` with `Retry-After: 1`.
 - The local API never returns access tokens, refresh tokens, ID tokens, session cookies, or raw provider responses.
 - The app does not perform inference requests merely to probe usage limits.
 - Application updates must pass Tauri signature verification before installation.
@@ -130,7 +131,10 @@ Version `0.1.1` was the first updater-enabled build. Version `0.2.0` added the m
 
 ```http
 GET http://127.0.0.1:47831/v1/health
+Authorization: Bearer <token shown in the Integration screen>
 ```
+
+Authenticated health and usage requests are limited to one per second. Additional requests return `429` with `Retry-After: 1`.
 
 ### Usage
 

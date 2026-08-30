@@ -77,13 +77,15 @@ pub(super) fn load_provider_secret(account_id: &str) -> Result<ProviderSecret, S
         // Older releases used Windows-sized credential chunks on every platform. Once all
         // chunks have been approved and read successfully, replace the manifest with the
         // complete secret so future refreshes require only one macOS Keychain item.
-        let _ = entry.set_password(&payload);
+        if entry.set_password(&payload).is_ok() {
+            discard_legacy_credentials(account_id, Some(&manifest));
+        }
         return Ok(secret);
     }
 
     let secret = decode_provider_secret(&stored)?;
-    if from_legacy {
-        let _ = entry.set_password(&stored);
+    if from_legacy && entry.set_password(&stored).is_ok() {
+        discard_legacy_credentials(account_id, None);
     }
     Ok(secret)
 }
@@ -104,6 +106,27 @@ fn credential_entry_for(service: &str, user: &str) -> Result<Entry, StoreError> 
 }
 
 #[cfg(target_os = "macos")]
+fn delete_legacy_entry(user: &str) -> Result<(), StoreError> {
+    match credential_entry_for(LEGACY_CREDENTIAL_SERVICE, user)?.delete_credential() {
+        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+        Err(error) => Err(StoreError::Credential(error.to_string())),
+    }
+}
+
+fn discard_legacy_credentials(account_id: &str, manifest: Option<&CredentialManifest>) {
+    let user = format!("account:{account_id}");
+    let _ = delete_legacy_entry(&user);
+    let Some(manifest) = manifest else {
+        return;
+    };
+    for generation in std::iter::once(&manifest.active).chain(manifest.previous.as_ref()) {
+        for index in 0..generation.chunks {
+            let chunk_user = credential_chunk_user(account_id, &generation.generation, index);
+            let _ = delete_legacy_entry(&chunk_user);
+        }
+    }
+}
+
 fn read_password(user: &str) -> Result<(String, bool), StoreError> {
     match credential_entry_for(CREDENTIAL_SERVICE, user)?.get_password() {
         Ok(value) => Ok((value, false)),

@@ -12,7 +12,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
     sync::Arc,
-    time::Duration,
+    time::{Duration, Instant},
 };
 use tauri::AppHandle;
 use tokio::sync::{oneshot, Mutex as AsyncMutex};
@@ -33,6 +33,7 @@ pub struct AppState {
     pub pending_login: RwLock<Option<LoginStatus>>,
     login_shutdowns: Mutex<HashMap<String, oneshot::Sender<()>>>,
     pub bridge_token: RwLock<String>,
+    pub bridge_rate_limit: Mutex<Option<Instant>>,
     pub api_runtime: RwLock<ApiRuntime>,
     pub app_handle: RwLock<Option<AppHandle>>,
     account_locks: Mutex<HashMap<String, Arc<AsyncMutex<()>>>>,
@@ -69,6 +70,7 @@ impl AppState {
             pending_login: RwLock::new(None),
             login_shutdowns: Mutex::new(HashMap::new()),
             bridge_token: RwLock::new(bridge_token),
+            bridge_rate_limit: Mutex::new(None),
             api_runtime: RwLock::new(ApiRuntime {
                 endpoint: "http://127.0.0.1:47831/v1/paseo-usage".into(),
                 running: false,

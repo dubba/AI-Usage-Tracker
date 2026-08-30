@@ -22,6 +22,17 @@ This file tracks notable user-facing changes to AI Usage Tracker.
 - The main window now reopens at its last size and position after Quit.
 - Account passwords and the local API token are now stored in the Keychain as **AI Usage Tracker**. Existing **Paseo Usage Bridge** items are copied on first use.
 
+### Security
+
+- OpenAI and Anthropic login callbacks now use `127.0.0.1` instead of `localhost`, matching the loopback listener.
+- Anthropic sign-in no longer requests API-key creation, Claude Code sessions, MCP servers, or file-upload access. Reconnect an Anthropic account to drop previously granted extra scopes.
+- After credentials are copied into the current Keychain name, leftover **Paseo Usage Bridge** Keychain items are deleted.
+- OpenAI account identity now comes from the authenticated userinfo and usage APIs instead of unverified JWT payload fields.
+- OpenAI sign-in identifies this app instead of Codex CLI.
+- The local health endpoint now requires the same bearer token as the usage endpoint.
+- The local API allows at most one authenticated request per second. Extra requests return `429` with `Retry-After: 1`.
+- Google Antigravity and Google AI Studio sign-in no longer request previously granted extra OAuth scopes.
+
 ### Fixed
 
 - Login and callback pages no longer still refer to the former **Paseo Usage Bridge** name.

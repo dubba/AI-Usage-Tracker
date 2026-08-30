@@ -195,14 +195,42 @@ pub fn save_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result
 }
 
 pub fn load_provider_secret(account_id: &str) -> Result<ProviderSecret, StoreError> {
-    let stored = read_password(&account_credential_user(account_id))?;
+    let user = account_credential_user(account_id);
+    let (stored, from_legacy) = match credential_entry(&user)?.get_password() {
+        Ok(value) => (value, false),
+        Err(keyring::Error::NoEntry) => (
+            credential_entry_for(LEGACY_CREDENTIAL_SERVICE, &user)?
+                .get_password()
+                .map_err(|error| StoreError::Credential(error.to_string()))?,
+            true,
+        ),
+        Err(error) => return Err(StoreError::Credential(error.to_string())),
+    };
 
-    if let Some(manifest) = parse_credential_manifest(&stored)? {
+    let manifest = parse_credential_manifest(&stored)?;
+    let secret = if let Some(manifest) = manifest.as_ref() {
         let payload = read_credential_generation(account_id, &manifest.active)?;
-        decode_provider_secret(&payload)
+        decode_provider_secret(&payload)?
     } else {
-        decode_provider_secret(&stored)
+        decode_provider_secret(&stored)?
+    };
+
+    if from_legacy && save_provider_secret(account_id, &secret).is_ok() {
+        let _ = delete_legacy_credential(&user);
+        if let Some(manifest) = manifest.as_ref() {
+            for generation in std::iter::once(&manifest.active).chain(manifest.previous.as_ref()) {
+                for index in 0..generation.chunks {
+                    let _ = delete_legacy_credential(&credential_chunk_user(
+                        account_id,
+                        &generation.generation,
+                        index,
+                    ));
+                }
+            }
+        }
     }
+
+    Ok(secret)
 }
 
 pub fn delete_secret(account_id: &str) -> Result<(), StoreError> {
@@ -254,6 +282,9 @@ pub fn load_or_create_bridge_token() -> Result<String, StoreError> {
                     entry
                         .set_password(&value)
                         .map_err(|error| StoreError::Credential(error.to_string()))?;
+                    if entry.get_password().ok().as_deref() == Some(value.as_str()) {
+                        let _ = delete_legacy_credential(BRIDGE_TOKEN_USER);
+                    }
                     return Ok(value);
                 }
             }
@@ -310,6 +341,13 @@ fn read_optional_password(user: &str) -> Result<Option<String>, StoreError> {
             Err(keyring::Error::NoEntry) => Ok(None),
             Err(error) => Err(StoreError::Credential(error.to_string())),
         },
+        Err(error) => Err(StoreError::Credential(error.to_string())),
+    }
+}
+
+fn delete_legacy_credential(user: &str) -> Result<(), StoreError> {
+    match credential_entry_for(LEGACY_CREDENTIAL_SERVICE, user)?.delete_credential() {
+        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
         Err(error) => Err(StoreError::Credential(error.to_string())),
     }
 }

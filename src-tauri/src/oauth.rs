@@ -1,7 +1,6 @@
 use crate::{
     model::{
         now_rfc3339, Account, LoginStart, LoginStatus, OAuthSecret, Provider, ProviderSecret,
-        TokenClaims,
     },
     state::AppState,
     store::save_provider_secret,
@@ -26,7 +25,11 @@ use uuid::Uuid;
 
 const OPENAI_ISSUER: &str = "https://auth.openai.com";
 const OPENAI_CLIENT_ID: &str = "app_EMoamEEZ73f0CkXaXp7hrann";
+const OPENAI_ORIGINATOR: &str = "ai_usage_tracker";
 const ANTHROPIC_CLIENT_ID: &str = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
+/// Profile identity plus subscription usage. Intentionally omits API-key creation,
+/// Claude Code sessions, MCP servers, and file upload.
+const ANTHROPIC_SCOPES: &str = "user:profile user:inference";
 const ANTIGRAVITY_CLIENT_ID: &str =
     "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com";
 const ANTIGRAVITY_CLIENT_SECRET_BYTES: &[u8] = &[
@@ -390,39 +393,22 @@ async fn exchange_openai(
         .refresh_token
         .clone()
         .ok_or_else(|| "OpenAI did not return a refresh token.".to_string())?;
-    let access_claims = decode_claims(&tokens.access_token);
-    let id_claims = tokens.id_token.as_deref().and_then(decode_claims);
-    let mut claims = merge_claims(access_claims, id_claims);
-    if claims.email.is_none() {
-        claims.email = fetch_json(
-            &context.app,
-            &format!("{OPENAI_ISSUER}/userinfo"),
-            &tokens.access_token,
-        )
-        .await
-        .ok()
-        .and_then(|value| {
-            value
-                .get("email")
-                .and_then(Value::as_str)
-                .map(str::to_string)
-        });
-    }
-    let expires_at = claims
-        .expires_at
-        .unwrap_or_else(|| Utc::now().timestamp_millis() + tokens.expires_in * 1000);
+    let userinfo = fetch_json(
+        &context.app,
+        &format!("{OPENAI_ISSUER}/userinfo"),
+        &tokens.access_token,
+    )
+    .await
+    .unwrap_or(Value::Null);
+    let identity = identity_from_userinfo(&userinfo);
     Ok((
         ProviderSecret::Openai(OAuthSecret {
             access_token: tokens.access_token,
             refresh_token,
             id_token: tokens.id_token,
-            expires_at,
+            expires_at: Utc::now().timestamp_millis() + tokens.expires_in * 1000,
         }),
-        ProviderIdentity {
-            email: claims.email,
-            account_id: claims.account_id,
-            plan: claims.plan,
-        },
+        identity,
     ))
 }
 
@@ -567,8 +553,7 @@ fn build_authorization_url(
                 .append_pair("state", state)
                 .append_pair("audience", "https://api.openai.com/v1")
                 .append_pair("id_token_add_organizations", "true")
-                .append_pair("codex_cli_simplified_flow", "true")
-                .append_pair("originator", "codex_cli_rs");
+                .append_pair("originator", OPENAI_ORIGINATOR);
             Ok(url.to_string())
         }
         Provider::Anthropic => {
@@ -579,10 +564,7 @@ fn build_authorization_url(
                 .append_pair("client_id", ANTHROPIC_CLIENT_ID)
                 .append_pair("response_type", "code")
                 .append_pair("redirect_uri", redirect_uri)
-                .append_pair(
-                    "scope",
-                    "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers user:file_upload",
-                )
+                .append_pair("scope", ANTHROPIC_SCOPES)
                 .append_pair("code_challenge", challenge)
                 .append_pair("code_challenge_method", "S256")
                 .append_pair("state", state);
@@ -601,8 +583,7 @@ fn build_authorization_url(
                 )
                 .append_pair("state", state)
                 .append_pair("access_type", "offline")
-                .append_pair("prompt", "consent")
-                .append_pair("include_granted_scopes", "true");
+                .append_pair("prompt", "consent");
             Ok(url.to_string())
         }
         Provider::GoogleAiStudio => {
@@ -615,8 +596,8 @@ fn build_authorization_url(
 
 fn redirect_uri(provider: &Provider, port: u16) -> String {
     match provider {
-        Provider::Openai => format!("http://localhost:{port}/auth/callback"),
-        Provider::Anthropic => format!("http://localhost:{port}/callback"),
+        Provider::Openai => format!("http://127.0.0.1:{port}/auth/callback"),
+        Provider::Anthropic => format!("http://127.0.0.1:{port}/callback"),
         Provider::Antigravity => format!("http://127.0.0.1:{port}"),
         Provider::GoogleAiStudio | Provider::Grok | Provider::OpencodeGo => String::new(),
     }
@@ -675,6 +656,18 @@ fn random_base64(bytes: usize) -> String {
     URL_SAFE_NO_PAD.encode(value)
 }
 
+fn identity_from_userinfo(value: &Value) -> ProviderIdentity {
+    ProviderIdentity {
+        email: find_string(value, &["email", "email_address"]),
+        account_id: find_string(value, &["chatgpt_account_id", "account_id", "sub"]),
+        plan: find_string(value, &["chatgpt_plan_type", "plan_type", "plan"]),
+    }
+}
+
+#[cfg(test)]
+use crate::model::TokenClaims;
+
+#[cfg(test)]
 pub fn decode_claims(token: &str) -> Option<TokenClaims> {
     let segment = token.split('.').nth(1)?;
     let decoded = URL_SAFE_NO_PAD.decode(segment).ok()?;
@@ -700,27 +693,6 @@ pub fn decode_claims(token: &str) -> Option<TokenClaims> {
     })
 }
 
-fn merge_claims(primary: Option<TokenClaims>, secondary: Option<TokenClaims>) -> TokenClaims {
-    let primary = primary.unwrap_or(TokenClaims {
-        email: None,
-        account_id: None,
-        plan: None,
-        expires_at: None,
-    });
-    let secondary = secondary.unwrap_or(TokenClaims {
-        email: None,
-        account_id: None,
-        plan: None,
-        expires_at: None,
-    });
-    TokenClaims {
-        email: secondary.email.or(primary.email),
-        account_id: secondary.account_id.or(primary.account_id),
-        plan: secondary.plan.or(primary.plan),
-        expires_at: primary.expires_at.or(secondary.expires_at),
-    }
-}
-
 fn find_string(value: &Value, keys: &[&str]) -> Option<String> {
     match value {
         Value::Object(object) => {
@@ -738,6 +710,7 @@ fn find_string(value: &Value, keys: &[&str]) -> Option<String> {
     }
 }
 
+#[cfg(test)]
 fn string_at(value: &Value, key: &str) -> Option<String> {
     value.get(key).and_then(Value::as_str).map(str::to_string)
 }
@@ -789,14 +762,102 @@ mod tests {
         assert_eq!(claims.email.as_deref(), Some("person@example.com"));
         assert_eq!(claims.account_id.as_deref(), Some("acct_123"));
         assert_eq!(claims.plan.as_deref(), Some("plus"));
+        assert_eq!(claims.expires_at, Some(2_000_000_000_000));
     }
 
     #[test]
-    fn antigravity_redirect_is_loopback() {
+    fn openai_identity_comes_from_userinfo() {
+        let userinfo = serde_json::json!({
+            "email": "person@example.com",
+            "https://api.openai.com/auth": {
+                "chatgpt_account_id": "acct_123",
+                "chatgpt_plan_type": "plus"
+            }
+        });
+        let identity = identity_from_userinfo(&userinfo);
+        assert_eq!(identity.email.as_deref(), Some("person@example.com"));
+        assert_eq!(identity.account_id.as_deref(), Some("acct_123"));
+        assert_eq!(identity.plan.as_deref(), Some("plus"));
+    }
+
+    #[test]
+    fn oauth_redirects_use_loopback_ipv4() {
+        assert_eq!(
+            redirect_uri(&Provider::Openai, 1455),
+            "http://127.0.0.1:1455/auth/callback"
+        );
+        assert_eq!(
+            redirect_uri(&Provider::Anthropic, 53692),
+            "http://127.0.0.1:53692/callback"
+        );
         assert_eq!(
             redirect_uri(&Provider::Antigravity, 11451),
             "http://127.0.0.1:11451"
         );
+    }
+
+    #[test]
+    fn anthropic_authorize_url_omits_unused_scopes() {
+        let url = build_authorization_url(
+            &Provider::Anthropic,
+            "http://127.0.0.1:53692/callback",
+            "challenge",
+            "state",
+        )
+        .unwrap();
+        let parsed = Url::parse(&url).unwrap();
+        let scopes = parsed
+            .query_pairs()
+            .find(|(key, _)| key == "scope")
+            .map(|(_, value)| value.into_owned())
+            .unwrap();
+        assert_eq!(scopes, ANTHROPIC_SCOPES);
+        for unused in [
+            "org:create_api_key",
+            "user:sessions:claude_code",
+            "user:mcp_servers",
+            "user:file_upload",
+        ] {
+            assert!(!scopes.split_whitespace().any(|scope| scope == unused));
+        }
+    }
+
+    #[test]
+    fn antigravity_authorize_url_omits_granted_scopes() {
+        let url = build_authorization_url(
+            &Provider::Antigravity,
+            "http://127.0.0.1:11451",
+            "challenge",
+            "state",
+        )
+        .unwrap();
+        let parsed = Url::parse(&url).unwrap();
+        let pairs: Vec<(String, String)> = parsed
+            .query_pairs()
+            .map(|(key, value)| (key.into_owned(), value.into_owned()))
+            .collect();
+        assert!(!pairs
+            .iter()
+            .any(|(key, _)| key == "include_granted_scopes"));
+    }
+
+    #[test]
+    fn openai_authorize_url_identifies_this_app() {
+        let url = build_authorization_url(
+            &Provider::Openai,
+            "http://127.0.0.1:1455/auth/callback",
+            "challenge",
+            "state",
+        )
+        .unwrap();
+        let parsed = Url::parse(&url).unwrap();
+        let pairs: Vec<(String, String)> = parsed
+            .query_pairs()
+            .map(|(key, value)| (key.into_owned(), value.into_owned()))
+            .collect();
+        assert!(pairs.iter().any(|(key, value)| key == "originator" && value == OPENAI_ORIGINATOR));
+        assert!(!pairs.iter().any(|(_, value)| value.contains("codex_cli")));
+        assert!(!pairs.iter().any(|(key, _)| key == "codex_cli_simplified_flow"));
     }
 
     #[tokio::test]

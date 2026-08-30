@@ -10,11 +10,15 @@ use axum::{
     Json, Router,
 };
 use serde_json::json;
-use std::sync::Arc;
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
 use tokio::net::TcpListener;
 
 const API_ADDR: &str = "127.0.0.1:47831";
 const RETRY_DELAY_SECONDS: u64 = 3;
+const MIN_REQUEST_INTERVAL: Duration = Duration::from_secs(1);
 
 pub async fn run_controller(app: Arc<AppState>) {
     loop {
@@ -72,17 +76,22 @@ fn set_runtime(app: &AppState, running: bool, error: Option<String>) {
     runtime.error = error;
 }
 
-async fn health() -> impl IntoResponse {
-    Json(json!({ "ok": true, "schemaVersion": 1 }))
+async fn health(State(app): State<Arc<AppState>>, headers: HeaderMap) -> impl IntoResponse {
+    if !authorized(&app, &headers) {
+        return unauthorized();
+    }
+    if rate_limited(&app) {
+        return too_many_requests();
+    }
+    Json(json!({ "ok": true, "schemaVersion": 1 })).into_response()
 }
 
 async fn usage(State(app): State<Arc<AppState>>, headers: HeaderMap) -> impl IntoResponse {
     if !authorized(&app, &headers) {
-        return (
-            StatusCode::UNAUTHORIZED,
-            Json(json!({ "error": "unauthorized" })),
-        )
-            .into_response();
+        return unauthorized();
+    }
+    if rate_limited(&app) {
+        return too_many_requests();
     }
     let accounts = app
         .store
@@ -132,6 +141,35 @@ async fn usage(State(app): State<Arc<AppState>>, headers: HeaderMap) -> impl Int
         .into_response()
 }
 
+fn too_many_requests() -> axum::response::Response {
+    (
+        StatusCode::TOO_MANY_REQUESTS,
+        [(axum::http::header::RETRY_AFTER, "1")],
+        Json(json!({ "error": "rate_limited" })),
+    )
+        .into_response()
+}
+
+fn rate_limited(app: &AppState) -> bool {
+    let now = Instant::now();
+    let mut last = app.bridge_rate_limit.lock();
+    if let Some(previous) = *last {
+        if now.duration_since(previous) < MIN_REQUEST_INTERVAL {
+            return true;
+        }
+    }
+    *last = Some(now);
+    false
+}
+
+fn unauthorized() -> axum::response::Response {
+    (
+        StatusCode::UNAUTHORIZED,
+        Json(json!({ "error": "unauthorized" })),
+    )
+        .into_response()
+}
+
 fn authorized(app: &AppState, headers: &HeaderMap) -> bool {
     let expected = app.bridge_token.read();
     headers
@@ -150,4 +188,60 @@ fn constant_time_equal(left: &[u8], right: &[u8]) -> bool {
         difference |= *left ^ *right;
     }
     difference == 0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::AppState;
+    use axum::http::HeaderValue;
+
+    fn test_app() -> Arc<AppState> {
+        let directory = tempfile::tempdir().unwrap();
+        Arc::new(
+            AppState::new(
+                directory.path().to_path_buf(),
+                "test-bridge-token-32-chars-minimum-xx".into(),
+            )
+            .unwrap(),
+        )
+    }
+
+    #[test]
+    fn local_api_requires_bearer_token() {
+        let app = test_app();
+        assert!(!authorized(&app, &HeaderMap::new()));
+
+        let mut headers = HeaderMap::new();
+        headers.insert(AUTHORIZATION, HeaderValue::from_static("Bearer wrong-token"));
+        assert!(!authorized(&app, &headers));
+
+        headers.insert(
+            AUTHORIZATION,
+            HeaderValue::from_static("Bearer test-bridge-token-32-chars-minimum-xx"),
+        );
+        assert!(authorized(&app, &headers));
+    }
+
+    #[test]
+    fn local_api_rate_limits_authenticated_requests() {
+        let app = test_app();
+        assert!(!rate_limited(&app));
+        assert!(rate_limited(&app));
+        *app.bridge_rate_limit.lock() = Some(Instant::now() - MIN_REQUEST_INTERVAL);
+        assert!(!rate_limited(&app));
+    }
+
+    #[test]
+    fn rate_limit_response_includes_retry_after() {
+        let response = too_many_requests();
+        assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+        assert_eq!(
+            response
+                .headers()
+                .get(axum::http::header::RETRY_AFTER)
+                .and_then(|value| value.to_str().ok()),
+            Some("1")
+        );
+    }
 }

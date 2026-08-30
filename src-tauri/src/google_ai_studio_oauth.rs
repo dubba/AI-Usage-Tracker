@@ -977,8 +977,7 @@ fn build_authorization_url(
         .append_pair("scope", scopes)
         .append_pair("state", state)
         .append_pair("access_type", "offline")
-        .append_pair("prompt", "consent")
-        .append_pair("include_granted_scopes", "true");
+        .append_pair("prompt", "consent");
     Ok(url.to_string())
 }
 
@@ -1066,6 +1065,20 @@ mod tests {
         );
         assert!(validate_project_id("Example Project").is_err());
         assert!(validate_project_id("123-project").is_err());
+    }
+
+    #[test]
+    fn authorize_url_omits_granted_scopes() {
+        let url = build_authorization_url(
+            "http://127.0.0.1:11461",
+            "state",
+            "openid email https://www.googleapis.com/auth/cloud-platform.read-only",
+        )
+        .unwrap();
+        let parsed = Url::parse(&url).unwrap();
+        assert!(!parsed
+            .query_pairs()
+            .any(|(key, _)| key == "include_granted_scopes"));
     }
 
     #[test]
