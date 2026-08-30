@@ -2,9 +2,11 @@ use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
+    io::Write,
     path::{Path, PathBuf},
 };
 use tokio::sync::Notify;
+use uuid::Uuid;
 
 const SETTINGS_FILE_NAME: &str = "app-settings.json";
 pub const DEFAULT_ACCOUNT_REFRESH_MINUTES: u64 = 5;
@@ -184,7 +186,32 @@ impl SettingsStore {
 
     fn persist(&self, settings: &StoredAppSettings) -> Result<(), String> {
         let payload = serde_json::to_vec_pretty(settings).map_err(|error| error.to_string())?;
-        fs::write(&self.path, payload).map_err(|error| error.to_string())
+        let temporary_path = self.path.with_extension(format!("tmp.{}", Uuid::new_v4()));
+        let mut file = fs::File::create(&temporary_path).map_err(|error| error.to_string())?;
+        file.write_all(&payload)
+            .map_err(|error| error.to_string())?;
+        file.sync_all().map_err(|error| error.to_string())?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = fs::set_permissions(&temporary_path, fs::Permissions::from_mode(0o600));
+        }
+        match fs::rename(&temporary_path, &self.path) {
+            Ok(()) => Ok(()),
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::AlreadyExists | std::io::ErrorKind::PermissionDenied
+                ) =>
+            {
+                let _ = fs::remove_file(&self.path);
+                fs::rename(&temporary_path, &self.path).map_err(|error| error.to_string())
+            }
+            Err(error) => {
+                let _ = fs::remove_file(&temporary_path);
+                Err(error.to_string())
+            }
+        }
     }
 }
 

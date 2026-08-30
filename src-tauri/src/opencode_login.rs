@@ -269,6 +269,7 @@ pub async fn add_account(
     label: String,
     workspace_id: String,
     auth_cookie: String,
+    email: Option<String>,
 ) -> Result<Account, String> {
     let workspace_id = workspace_id.trim();
     if !providers::opencode_go::is_valid_workspace_id(workspace_id) {
@@ -299,7 +300,10 @@ pub async fn add_account(
             label.trim().to_string()
         },
         provider,
-        email: duplicate.as_ref().and_then(|account| account.email.clone()),
+        email: email
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .or_else(|| duplicate.as_ref().and_then(|account| account.email.clone())),
         provider_account_id: Some(workspace_id.to_string()),
         chatgpt_account_id: None,
         plan: Some("OpenCode Go".into()),
@@ -343,7 +347,7 @@ async fn complete_login(
         return;
     }
 
-    match add_account(state.clone(), label, workspace_id, auth_cookie).await {
+    match add_account(state.clone(), label, workspace_id, auth_cookie, None).await {
         Ok(account) => {
             let completed = {
                 let mut pending = state.pending_login.write();

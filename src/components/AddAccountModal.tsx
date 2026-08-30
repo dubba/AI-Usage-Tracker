@@ -203,6 +203,7 @@ export function AddAccountModal({
           label.trim() || providerName(provider),
           workspaceId.trim(),
           authCookie.trim(),
+          email.trim() || undefined,
         );
         saveOpenCodeAccountEmail(account.id, account.label, email);
         onAdded(account);

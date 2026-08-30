@@ -7,6 +7,7 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
 };
+use uuid::Uuid;
 
 const ALERTS_FILE_NAME: &str = "usage-alerts.json";
 const ALERT_WINDOW_IDS: [&str; 3] = ["five_hour", "weekly", "monthly"];
@@ -251,11 +252,31 @@ where
 }
 
 fn atomic_write(path: &Path, payload: &[u8]) -> Result<(), String> {
-    let temporary_path = path.with_extension("json.tmp");
+    let temporary_path = path.with_extension(format!("tmp.{}", Uuid::new_v4()));
     let mut file = fs::File::create(&temporary_path).map_err(|error| error.to_string())?;
     file.write_all(payload).map_err(|error| error.to_string())?;
     file.sync_all().map_err(|error| error.to_string())?;
-    fs::rename(&temporary_path, path).map_err(|error| error.to_string())
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(&temporary_path, fs::Permissions::from_mode(0o600));
+    }
+    match fs::rename(&temporary_path, path) {
+        Ok(()) => Ok(()),
+        Err(error)
+            if matches!(
+                error.kind(),
+                std::io::ErrorKind::AlreadyExists | std::io::ErrorKind::PermissionDenied
+            ) =>
+        {
+            let _ = fs::remove_file(path);
+            fs::rename(&temporary_path, path).map_err(|error| error.to_string())
+        }
+        Err(error) => {
+            let _ = fs::remove_file(&temporary_path);
+            Err(error.to_string())
+        }
+    }
 }
 
 #[cfg(test)]

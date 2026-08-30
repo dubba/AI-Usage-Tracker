@@ -40,8 +40,12 @@ This file tracks notable user-facing changes to AI Usage Tracker.
 - Credential operations across all providers and login workflows now consistently use unified macOS Keychain single-item storage with automatic legacy chunk cleanup.
 - Grok quota tracking now communicates exclusively via standard HTTPS API requests, eliminating external CLI subprocess execution and unsafe relative home directory fallbacks.
 - OpenCode workspace identifiers are strictly validated to alphanumeric slugs, preventing path traversal and URL parameter injection.
+- Local bridge API bearer token validation now hashes inputs with fixed-length digests before constant-time comparison to prevent timing side-channel length leaks.
+- App settings, alert thresholds, and account ordering are written atomically via unique temporary files to prevent data corruption.
 
 ### Fixed
+
+- OpenCode account connection now persists email addresses directly into backend storage and includes them in local API usage responses.
 
 - Login and callback pages no longer still refer to the former **Paseo Usage Bridge** name.
 - Provider connection flows now atomically synchronize pending authentication state across all active setup stages, preventing concurrent connection attempts from colliding.

@@ -10,6 +10,7 @@ use axum::{
     Json, Router,
 };
 use serde_json::json;
+use sha2::{Digest, Sha256};
 use std::{
     sync::Arc,
     time::{Duration, Instant},
@@ -180,12 +181,11 @@ fn authorized(app: &AppState, headers: &HeaderMap) -> bool {
 }
 
 fn constant_time_equal(left: &[u8], right: &[u8]) -> bool {
-    if left.len() != right.len() {
-        return false;
-    }
+    let left_digest = Sha256::digest(left);
+    let right_digest = Sha256::digest(right);
     let mut difference = 0u8;
-    for (left, right) in left.iter().zip(right.iter()) {
-        difference |= *left ^ *right;
+    for (a, b) in left_digest.iter().zip(right_digest.iter()) {
+        difference |= *a ^ *b;
     }
     difference == 0
 }
@@ -205,6 +205,15 @@ mod tests {
             )
             .unwrap(),
         )
+    }
+
+    #[test]
+    fn constant_time_equal_compares_accurately() {
+        assert!(constant_time_equal(b"correct-token", b"correct-token"));
+        assert!(!constant_time_equal(b"short", b"longer-token"));
+        assert!(!constant_time_equal(b"longer-token", b"short"));
+        assert!(!constant_time_equal(b"wrong-token", b"correct-token"));
+        assert!(constant_time_equal(b"", b""));
     }
 
     #[test]

@@ -129,13 +129,21 @@ async fn add_opencode_go_account(
     label: String,
     workspace_id: String,
     auth_cookie: String,
+    email: Option<String>,
 ) -> Result<Account, String> {
     let label = if label.trim().is_empty() {
         "OpenCode Go".to_string()
     } else {
         validate_label(&label)?
     };
-    opencode_login::add_account(state.inner().clone(), label, workspace_id, auth_cookie).await
+    opencode_login::add_account(
+        state.inner().clone(),
+        label,
+        workspace_id,
+        auth_cookie,
+        email,
+    )
+    .await
 }
 
 #[tauri::command]

@@ -4,8 +4,8 @@ import type { Account, AppSettings, AppUpdateStatus, BridgeInfo, DashboardSnapsh
 export const bridgeApi = {
   snapshot: () => invoke<DashboardSnapshot>("get_dashboard_snapshot"),
   startLogin: (label: string, provider: Provider) => invoke<LoginStart>("start_login", { label, provider }),
-  addOpenCodeGoAccount: (label: string, workspaceId: string, authCookie: string) =>
-    invoke<Account>("add_opencode_go_account", { label, workspaceId, authCookie }),
+  addOpenCodeGoAccount: (label: string, workspaceId: string, authCookie: string, email?: string) =>
+    invoke<Account>("add_opencode_go_account", { label, workspaceId, authCookie, email }),
   testGoogleAiStudioKey: (apiKey: string) =>
     invoke<Account>("probe_google_ai_studio_key", { apiKey }),
   addGoogleAiStudioAccount: (label: string, apiKey: string, selectedModels: string[]) =>
