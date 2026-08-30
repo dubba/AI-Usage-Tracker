@@ -234,7 +234,7 @@ select {
 }
 
 .provider-summary-row:hover {
-  border-color: #46434a;
+  border-color: var(--obsidian-purple-strong);
   background: #211f20;
 }
 
@@ -641,20 +641,20 @@ select {
 }
 
 .provider-account-card {
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid var(--obsidian-border);
   border-radius: 8px;
   background: #1c1b1b;
   transition: border-color 120ms ease, background 120ms ease;
 }
 
-.provider-account-card:hover {
-  border-color: #3e3c40;
-}
-
 .provider-account-card.needs-attention {
   border-color: rgba(255, 117, 107, 0.42);
   background: linear-gradient(90deg, rgba(147, 0, 10, 0.12), #1c1b1b 18%);
+}
+
+.provider-account-card:hover {
+  border-color: var(--obsidian-purple-strong);
 }
 
 .provider-account-card-header {
@@ -836,6 +836,12 @@ select {
 .account-name-edit:disabled {
   opacity: 0.48;
   cursor: not-allowed;
+}
+
+.account-card-action.spinning,
+.account-card-action.spinning:disabled {
+  opacity: 1;
+  animation: none;
 }
 
 .account-card-action.spinning svg {

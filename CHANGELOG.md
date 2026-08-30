@@ -12,13 +12,20 @@ This file tracks notable user-facing changes to AI Usage Tracker.
 
 - The app now uses the name **AI Usage Tracker** in the installer, Dock, menu bar, window title, and GitHub releases.
 - Account cards keep the rename control beside the account name, with Live/plan badges above the notification, remove, and refresh icons.
+- Account notification, remove, and refresh controls are matched-size bordered buttons, colored amber, red, and green.
+- Account cards and sidebar provider cards use the app purple for their border on hover.
+- Account-card actions are ordered remove, notifications, then refresh.
 - Long account lists now scroll in the dashboard instead of compressing cards to fit the window.
+- The main window now reopens at its last size and position after Quit.
 - Account passwords and the local API token are now stored in the Keychain as **AI Usage Tracker**. Existing **Paseo Usage Bridge** items are copied on first use.
 
 ### Fixed
 
 - Login and callback pages no longer still refer to the former **Paseo Usage Bridge** name.
-- The remove-account control between the notification and refresh buttons now confirms in the app and actually removes the account.
+- The remove-account control now opens a confirmation dialog and actually removes the account.
+- The remove confirmation uses a red Remove button. Dialog close controls stay muted until hover, then use a red background and white X.
+- Escape now closes add-account, notification, Google Cloud, and remove-account dialogs.
+- Hovering account rename, remove, notification, and refresh controls now shows a tooltip.
 
 ## 0.2.47 - 2026-07-31
 

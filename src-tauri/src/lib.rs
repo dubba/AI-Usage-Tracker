@@ -30,6 +30,14 @@ use tauri::{
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_updater::UpdaterExt;
+use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
+
+const SAVED_WINDOW_STATE: StateFlags = StateFlags::from_bits_truncate(
+    StateFlags::SIZE.bits()
+        | StateFlags::POSITION.bits()
+        | StateFlags::MAXIMIZED.bits()
+        | StateFlags::FULLSCREEN.bits(),
+);
 
 #[tauri::command]
 async fn get_dashboard_snapshot(
@@ -463,6 +471,11 @@ pub fn run() {
             MacosLauncher::LaunchAgent,
             Some(vec!["--hidden"]),
         ))
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(SAVED_WINDOW_STATE)
+                .build(),
+        )
         .setup(|app| {
             let start_hidden = std::env::args().any(|argument| argument == "--hidden");
             let window_config = app
@@ -478,10 +491,13 @@ pub fn run() {
             if let Some(icon) = app.default_window_icon() {
                 window_builder = window_builder.icon(icon.clone())?;
             }
-            if start_hidden {
-                window_builder = window_builder.visible(false);
-            }
+            // Restore size and position before showing so the default 1440x850 window does not flash.
+            window_builder = window_builder.visible(false);
             let window = window_builder.build()?;
+            let _ = window.restore_state(SAVED_WINDOW_STATE);
+            if !start_hidden {
+                let _ = window.show();
+            }
 
             let data_dir = app.path().app_data_dir()?;
             let token = load_or_create_bridge_token()
@@ -511,7 +527,10 @@ pub fn run() {
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "show" => show_main_window(app),
-                    "quit" => app.exit(0),
+                    "quit" => {
+                        let _ = app.save_window_state(SAVED_WINDOW_STATE);
+                        app.exit(0);
+                    }
                     _ => {}
                 })
                 .on_tray_icon_event(|tray, event| match event {
@@ -535,6 +554,7 @@ pub fn run() {
             window.on_window_event(move |event| {
                 if let WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
+                    let _ = window_for_event.app_handle().save_window_state(SAVED_WINDOW_STATE);
                     let _ = window_for_event.hide();
                 }
             });

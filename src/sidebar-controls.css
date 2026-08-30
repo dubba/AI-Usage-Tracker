@@ -139,7 +139,7 @@
   height: 14px;
 }
 
-.spinning {
+.account-refresh-icon.spinning {
   animation: account-refresh-spin .8s linear infinite;
 }
 

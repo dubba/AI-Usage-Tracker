@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { bridgeApi } from "./api";
 import { AccountAlertModal } from "./components/AccountAlertModal";
+import { RemoveAccountModal } from "./components/RemoveAccountModal";
 import { AddAccountModal } from "./components/AddAccountModal";
 import { GoogleAiStudioUsageModal } from "./components/GoogleAiStudioUsageModal";
 import { ProviderIcon } from "./components/ProviderIcon";
@@ -221,6 +222,7 @@ export default function App() {
   const [section, setSection] = useState<Section>("accounts");
   const [addOpen, setAddOpen] = useState(false);
   const [alertAccount, setAlertAccount] = useState<Account | null>(null);
+  const [accountToRemove, setAccountToRemove] = useState<Account | null>(null);
   const [googleUsageAccount, setGoogleUsageAccount] = useState<Account | null>(null);
   const [loginLabel, setLoginLabel] = useState("");
   const [loginProvider, setLoginProvider] = useState<Provider | undefined>(undefined);
@@ -434,6 +436,7 @@ export default function App() {
     try {
       await bridgeApi.removeAccount(account.id);
       if (alertAccount?.id === account.id) setAlertAccount(null);
+      if (accountToRemove?.id === account.id) setAccountToRemove(null);
       await load();
     } catch (cause) {
       setError(String(cause));
@@ -494,7 +497,7 @@ export default function App() {
         onReconnect={(account) => account.provider === "google_ai_studio" ? setGoogleUsageAccount(account) : openAdd(account)}
         onConnectGoogleUsage={setGoogleUsageAccount}
         onRename={(account, label) => rename(account, label)}
-        onRemove={(account) => void remove(account)}
+        onRemove={setAccountToRemove}
         onNotifications={setAlertAccount}
         busy={busy}
       />
@@ -613,6 +616,14 @@ export default function App() {
         onSaved={async () => {
           setAlertAccount(null);
           await load();
+        }}
+      />
+      <RemoveAccountModal
+        account={accountToRemove}
+        busy={Boolean(accountToRemove && busy === `remove:${accountToRemove.id}`)}
+        onClose={() => setAccountToRemove(null)}
+        onConfirm={() => {
+          if (accountToRemove) void remove(accountToRemove);
         }}
       />
     </div>
@@ -757,7 +768,6 @@ function AccountDashboardCard({
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(account.label);
   const [renameError, setRenameError] = useState<string | null>(null);
-  const [confirmingRemove, setConfirmingRemove] = useState(false);
   const isRefreshing = busy === `refresh:${account.id}`;
   const isRenaming = busy === `rename:${account.id}`;
   const isRemoving = busy === `remove:${account.id}`;
@@ -776,11 +786,6 @@ function AccountDashboardCard({
   useEffect(() => {
     if (!editing) setLabel(account.label);
   }, [account.label, editing]);
-
-  useEffect(() => {
-    setConfirmingRemove(false);
-  }, [account.id]);
-
 
   const commitRename = async () => {
     const next = label.trim();
@@ -835,22 +840,13 @@ function AccountDashboardCard({
               />
             ) : <h2>{account.label}</h2>}
             {!editing ? (
-              <button type="button" className="account-name-edit" title="Edit account name" aria-label={`Edit ${account.label}`} onClick={() => setEditing(true)}>
+              <button type="button" className="account-name-edit" data-tooltip="Edit account name" aria-label={`Edit ${account.label}`} onClick={() => setEditing(true)}>
                 <EditIcon />
               </button>
             ) : null}
           </div>
           <p className="account-card-email">{account.email ?? providerName(account.provider)}</p>
           {renameError ? <small className="account-card-inline-error">{renameError}</small> : null}
-          {confirmingRemove ? (
-            <div className="remove-account-confirmation" onPointerDown={(event) => event.stopPropagation()}>
-              <span>Remove {account.label}? This deletes stored credentials from this computer.</span>
-              <div>
-                <button type="button" className="button ghost compact-button" disabled={isRemoving} onClick={() => setConfirmingRemove(false)}>Cancel</button>
-                <button type="button" className="button ghost compact-button danger-button" disabled={Boolean(busy)} onClick={onRemove}>{isRemoving ? "Removing…" : "Remove"}</button>
-              </div>
-            </div>
-          ) : null}
         </div>
         <div className={`account-card-header-actions ${account.provider === "google_ai_studio" ? "has-google-action" : ""}`}>
           <div className="account-card-header-meta">
@@ -865,8 +861,17 @@ function AccountDashboardCard({
           <div className="account-card-name-actions">
             <button
               type="button"
-              className="account-card-action"
-              title="Usage notifications"
+              className="account-card-action remove-action"
+              data-tooltip="Remove this account"
+              aria-label={`Remove ${account.label}`}
+              disabled={Boolean(busy)}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={onRemove}
+            >{isRemoving ? <span className="mini-spinner" /> : <CloseIcon />}</button>
+            <button
+              type="button"
+              className="account-card-action notify-action"
+              data-tooltip="Usage notifications"
               aria-label={`Configure usage notifications for ${account.label}`}
               disabled={Boolean(busy)}
               onPointerDown={(event) => event.stopPropagation()}
@@ -874,20 +879,10 @@ function AccountDashboardCard({
             ><BellIcon /></button>
             <button
               type="button"
-              className="account-card-action remove-action"
-              title="Remove this account"
-              aria-label={`Remove ${account.label}`}
-              disabled={Boolean(busy)}
-              aria-expanded={confirmingRemove}
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={() => setConfirmingRemove(true)}
-            >{isRemoving ? <span className="mini-spinner" /> : <CloseIcon />}</button>
-            <button
-              type="button"
-              className={`account-card-action ${isRefreshing ? "spinning" : ""}`}
-              title="Refresh this account"
+              className={`account-card-action refresh-action ${isRefreshing ? "spinning" : ""}`}
+              data-tooltip="Refresh this account"
               aria-label={`Refresh ${account.label}`}
-              disabled={Boolean(busy)}
+              disabled={Boolean(busy) && !isRefreshing}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={onRefresh}
             ><RefreshIcon /></button>

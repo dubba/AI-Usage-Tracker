@@ -27,41 +27,61 @@
   flex-wrap: wrap;
 }
 
-.account-card-header-actions button[title="Usage notifications"] {
-  order: 1;
-}
-
-.account-card-header-actions .remove-action {
-  order: 2;
-}
-
-.account-card-header-actions button[title="Refresh this account"] {
-  order: 3;
+.account-card-name-actions {
+  gap: 8px;
 }
 
 .account-card-action {
+  box-sizing: border-box;
   width: 32px !important;
   height: 32px !important;
-  padding: 1px !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
+  padding: 0 !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+  border-radius: 6px !important;
 }
 
-.provider-account-card .account-card-header-actions .account-card-action svg {
-  width: 27px !important;
-  height: 27px !important;
+.account-card-action svg,
+.account-card-action.remove-action::before,
+.account-card-action .mini-spinner {
+  width: 16px !important;
+  height: 16px !important;
 }
 
-.account-card-action:hover:not(:disabled) {
-  border: 0 !important;
-  background: transparent !important;
+.account-card-action.notify-action {
+  color: var(--obsidian-amber);
+  border-color: rgba(255, 184, 105, 0.5) !important;
+  background: rgba(72, 41, 0, 0.42) !important;
+}
+
+.account-card-action.notify-action:hover:not(:disabled) {
+  color: #ffd19a;
+  border-color: rgba(255, 184, 105, 0.9) !important;
+  background: rgba(72, 41, 0, 0.72) !important;
+}
+
+.account-card-action.remove-action {
+  color: var(--obsidian-red);
+  border-color: rgba(255, 117, 107, 0.5) !important;
+  background: rgba(147, 0, 10, 0.28) !important;
 }
 
 .account-card-action.remove-action:hover:not(:disabled) {
   color: #ffb4ab;
-  border: 0 !important;
-  background: transparent !important;
+  border-color: rgba(255, 117, 107, 0.9) !important;
+  background: rgba(147, 0, 10, 0.5) !important;
+}
+
+.account-card-action.refresh-action {
+  color: var(--obsidian-green);
+  border-color: rgba(78, 222, 163, 0.45) !important;
+  background: rgba(0, 56, 36, 0.42) !important;
+}
+
+.account-card-action.refresh-action:hover:not(:disabled) {
+  color: #8af0c2;
+  border-color: rgba(78, 222, 163, 0.9) !important;
+  background: rgba(0, 56, 36, 0.72) !important;
 }
 
 .account-card-action.remove-action svg {
@@ -70,8 +90,6 @@
 
 .account-card-action.remove-action::before {
   content: "";
-  width: 27px;
-  height: 27px;
   background: currentColor;
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5'/%3E%3C/svg%3E") center / contain no-repeat;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5'/%3E%3C/svg%3E") center / contain no-repeat;
@@ -79,6 +97,61 @@
 
 .account-card-action.remove-action.showing-spinner::before {
   display: none;
+}
+
+.account-card-action,
+.account-name-edit {
+  position: relative;
+  overflow: visible;
+  z-index: 2;
+}
+
+.account-card-action:hover,
+.account-card-action:focus-visible,
+.account-name-edit:hover,
+.account-name-edit:focus-visible {
+  z-index: 9;
+}
+
+.account-card-action[data-tooltip]::after,
+.account-name-edit[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 26px);
+  z-index: 10;
+  transform: translateX(-50%);
+  padding: 6px 9px;
+  border: 1px solid #3d3b3d;
+  border-radius: 6px;
+  background: #121111;
+  color: #f5f1f0;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+}
+
+.account-card-action[data-tooltip]:hover::after,
+.account-card-action[data-tooltip]:focus-visible::after,
+.account-name-edit[data-tooltip]:hover::after,
+.account-name-edit[data-tooltip]:focus-visible::after {
+  opacity: 1;
+}
+
+.account-card-name-actions .account-card-action[data-tooltip]::after {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+.account-name-edit[data-tooltip]::after {
+  left: 0;
+  right: auto;
+  transform: none;
 }
 
 .account-usage-metric {

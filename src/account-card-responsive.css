@@ -15,7 +15,7 @@
   min-width: 0;
   max-width: 100%;
   flex-wrap: nowrap;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .provider-account-card .account-card-name-row > h2,
@@ -37,7 +37,7 @@
   display: inline-flex !important;
   align-items: center;
   justify-content: flex-end;
-  gap: 4px;
+  gap: 8px;
   flex: 0 0 auto;
   visibility: visible;
   z-index: 2;
@@ -48,14 +48,15 @@
 .provider-account-card .account-card-name-actions .account-card-action {
   display: grid !important;
   flex: 0 0 auto;
-  width: 30px !important;
-  height: 30px !important;
+  width: 32px !important;
+  height: 32px !important;
 }
 
 .provider-account-card .account-card-name-actions .account-card-action svg,
-.provider-account-card .account-card-name-actions .account-card-action::before {
-  width: 24px !important;
-  height: 24px !important;
+.provider-account-card .account-card-name-actions .account-card-action::before,
+.provider-account-card .account-card-name-actions .account-card-action .mini-spinner {
+  width: 16px !important;
+  height: 16px !important;
 }
 
 .provider-account-card .account-card-metrics {

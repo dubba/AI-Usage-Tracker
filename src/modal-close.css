@@ -29,13 +29,24 @@
 
 .ui-modal-close:hover:not(:disabled),
 .ui-modal-close:focus-visible {
-  color: var(--text, #f4f6f8);
-  border-color: var(--border-strong, #343c37);
-  background: var(--panel-2, #171c19);
+  color: #fff;
+  border-color: #d92d20;
+  background: #b42318;
   outline: none;
 }
 
 .ui-modal-close:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+.remove-confirm-button {
+  color: #fff !important;
+  background: #b42318 !important;
+  border-color: #d92d20 !important;
+}
+
+.remove-confirm-button:hover:not(:disabled) {
+  background: #d92d20 !important;
+  border-color: #f97066 !important;
 }

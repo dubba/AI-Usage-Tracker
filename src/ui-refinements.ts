@@ -63,8 +63,7 @@ function resetCountdownLabel(value: string | null | undefined): string | null {
 }
 
 function refineHeader(card: HTMLElement): void {
-  const remove = Array.from(card.querySelectorAll<HTMLButtonElement>(".account-card-name-actions button, .account-card-header-actions button"))
-    .find((button) => button.title === "Remove this account");
+  const remove = card.querySelector<HTMLButtonElement>(".account-card-name-actions .remove-action, .account-card-header-actions .remove-action");
   remove?.classList.toggle("showing-spinner", Boolean(remove.querySelector(".mini-spinner")));
 }
 
@@ -227,6 +226,23 @@ function applyRefinements(): void {
   for (const modal of modals) refineModalCloseButton(modal);
 }
 
+function closeOpenDialog(): boolean {
+  const modals = Array.from(document.querySelectorAll<HTMLElement>('.modal-card[role="dialog"]'));
+  const modal = modals.at(-1);
+  if (!modal) return false;
+  const close = modal.querySelector<HTMLButtonElement>(":scope > .ui-modal-close");
+  if (close && !close.disabled) {
+    close.click();
+    return true;
+  }
+  const cancel = modalCancelButton(modal);
+  if (cancel && !cancel.disabled) {
+    cancel.click();
+    return true;
+  }
+  return false;
+}
+
 export function installUiRefinements(): void {
   applyRefinements();
   scheduleResetCountdownSync(0);
@@ -236,6 +252,15 @@ export function installUiRefinements(): void {
     scheduleResetCountdownSync();
   });
   observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+
+  window.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || event.defaultPrevented) return;
+    if (event.target instanceof HTMLElement && event.target.closest(".account-card-name-input")) return;
+    if (closeOpenDialog()) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  });
 
   window.addEventListener("focus", () => scheduleResetCountdownSync(0));
   document.addEventListener("visibilitychange", () => {
