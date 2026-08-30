@@ -54,6 +54,7 @@ This file tracks notable user-facing changes to AI Usage Tracker.
 
 ### Fixed
 
+- The top of the window on macOS no longer flashes a titlebar document proxy icon when moving the mouse near the top edge.
 - OpenCode account connection now persists email addresses directly into backend storage and includes them in local API usage responses.
 - The app no longer asks for Keychain access on every usage refresh. It asks when credentials are first unlocked or when they actually change.
 - Account usage refresh now stops after 45 seconds if a provider does not finish responding.

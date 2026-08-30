@@ -271,6 +271,7 @@ async fn open_paseo_bridge_window(
         return Ok(());
     }
 
+    #[allow(unused_mut)]
     let mut builder =
         WebviewWindowBuilder::new(&app, "paseo-bridge", WebviewUrl::App("index.html".into()))
             .title("Paseo Bridge")
@@ -278,6 +279,7 @@ async fn open_paseo_bridge_window(
             .min_inner_size(640.0, 560.0)
             .center();
 
+    #[cfg(target_os = "windows")]
     if let Some(icon) = app.default_window_icon() {
         builder = builder
             .icon(icon.clone())
@@ -528,6 +530,7 @@ pub fn run() {
                 .ok_or_else(|| std::io::Error::other("main window configuration is missing"))?;
             let mut window_builder =
                 WebviewWindowBuilder::from_config(app.handle(), &window_config)?;
+            #[cfg(target_os = "windows")]
             if let Some(icon) = app.default_window_icon() {
                 window_builder = window_builder.icon(icon.clone())?;
             }
