@@ -74,39 +74,55 @@ const CONNECT_BANNER_SCRIPT: &str = r#"
 "#;
 
 pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginStart, String> {
-    if state
-        .pending_login
-        .read()
-        .as_ref()
-        .is_some_and(|login| login.status == "waiting")
+    let attempt_id = Uuid::new_v4().to_string();
     {
-        return Err("Another provider login is already in progress.".into());
+        let mut pending = state.pending_login.write();
+        if pending.as_ref().is_some_and(|login| {
+            matches!(
+                login.status.as_str(),
+                "waiting" | "choose_project" | "monitoring_disabled"
+            )
+        }) {
+            return Err("Another provider login is already in progress.".into());
+        }
+        *pending = Some(LoginStatus {
+            attempt_id: attempt_id.clone(),
+            status: "waiting".into(),
+            message: Some(
+                "Sign in to Grok in the private window. The tracker will close it after the Usage service recognizes your session."
+                    .into(),
+            ),
+            account: None,
+        });
     }
 
-    let app = state
-        .app_handle
-        .read()
-        .clone()
-        .ok_or_else(|| "The desktop application is not ready to open Grok login.".to_string())?;
+    let app = match state.app_handle.read().clone() {
+        Some(app) => app,
+        None => {
+            let mut pending = state.pending_login.write();
+            if pending.as_ref().is_some_and(|login| login.attempt_id == attempt_id) {
+                *pending = None;
+            }
+            return Err("The desktop application is not ready to open Grok login.".to_string());
+        }
+    };
     if let Some(window) = app.get_webview_window(LOGIN_WINDOW_LABEL) {
         let _ = window.destroy();
     }
 
-    let attempt_id = Uuid::new_v4().to_string();
     let expires_at = (Utc::now() + ChronoDuration::minutes(LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
-    *state.pending_login.write() = Some(LoginStatus {
-        attempt_id: attempt_id.clone(),
-        status: "waiting".into(),
-        message: Some(
-            "Sign in to Grok in the private window. The tracker will close it after the Usage service recognizes your session."
-                .into(),
-        ),
-        account: None,
-    });
-
-    let login_url = Url::parse(LOGIN_URL).map_err(|error| error.to_string())?;
+    let login_url = match Url::parse(LOGIN_URL) {
+        Ok(url) => url,
+        Err(error) => {
+            let mut pending = state.pending_login.write();
+            if pending.as_ref().is_some_and(|login| login.attempt_id == attempt_id) {
+                *pending = None;
+            }
+            return Err(error.to_string());
+        }
+    };
     let (width, height) = login_window_size(&app);
-    let login_window = WebviewWindowBuilder::new(
+    let login_window = match WebviewWindowBuilder::new(
         &app,
         LOGIN_WINDOW_LABEL,
         WebviewUrl::External(login_url),
@@ -123,7 +139,16 @@ pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginSta
         matches!(url.scheme(), "http" | "https") || url.as_str() == "about:blank"
     })
     .build()
-    .map_err(|error| format!("Unable to open the Grok login window: {error}"))?;
+    {
+        Ok(window) => window,
+        Err(error) => {
+            let mut pending = state.pending_login.write();
+            if pending.as_ref().is_some_and(|login| login.attempt_id == attempt_id) {
+                *pending = None;
+            }
+            return Err(format!("Unable to open the Grok login window: {error}"));
+        }
+    };
 
     start_cookie_poll(
         login_window.clone(),

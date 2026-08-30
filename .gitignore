@@ -10,3 +10,4 @@ src-tauri/gen/
 .env.*
 !.env.example
 gemini-quota-probe-*.json
+*.tsbuildinfo

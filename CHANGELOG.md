@@ -16,12 +16,17 @@ This file tracks notable user-facing changes to AI Usage Tracker.
 - Account cards and sidebar provider cards use the app purple for their border on hover.
 - Account-card actions are ordered remove, notifications, then refresh.
 - Long account lists now scroll in the dashboard instead of compressing cards to fit the window.
+- Background account quota refreshes now run concurrently rather than sequentially, reducing refresh latency when monitoring multiple accounts.
+- Legacy account data migrations now execute once during application startup instead of running on every snapshot polling cycle.
+- The Settings screen now retrieves the installed application version dynamically from the application runtime.
 - The main window now reopens at its last size and position after Quit.
 - Account passwords and the local API token are now stored in the Keychain as **AI Usage Tracker**. Existing **Paseo Usage Bridge** items are copied on first use.
 
 ### Fixed
 
 - Login and callback pages no longer still refer to the former **Paseo Usage Bridge** name.
+- Provider connection flows now atomically synchronize pending authentication state across all active setup stages, preventing concurrent connection attempts from colliding.
+- Removing an account now synchronizes with background refresh tasks so in-flight refreshes cannot modify or resurrect deleted accounts.
 - The remove-account control now opens a confirmation dialog and actually removes the account.
 - The remove confirmation uses a red Remove button. Dialog close controls stay muted until hover, then use a red background and white X.
 - Escape now closes add-account, notification, Google Cloud, and remove-account dialogs.

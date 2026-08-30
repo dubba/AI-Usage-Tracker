@@ -88,31 +88,51 @@ pub async fn start_login(
             provider.display_name()
         ));
     }
-    if app
-        .pending_login
-        .read()
-        .as_ref()
-        .is_some_and(|login| login.status == "waiting")
+    let attempt_id = Uuid::new_v4().to_string();
     {
-        return Err("Another provider login is already in progress.".into());
+        let mut pending = app.pending_login.write();
+        if pending.as_ref().is_some_and(|login| {
+            matches!(
+                login.status.as_str(),
+                "waiting" | "choose_project" | "monitoring_disabled"
+            )
+        }) {
+            return Err("Another provider login is already in progress.".into());
+        }
+        *pending = Some(LoginStatus {
+            attempt_id: attempt_id.clone(),
+            status: "waiting".into(),
+            message: None,
+            account: None,
+        });
     }
 
-    let (listener, port) = bind_callback_port(&provider).await?;
+    let (listener, port) = match bind_callback_port(&provider).await {
+        Ok(bound) => bound,
+        Err(error) => {
+            let mut pending = app.pending_login.write();
+            if pending.as_ref().is_some_and(|login| login.attempt_id == attempt_id) {
+                *pending = None;
+            }
+            return Err(error);
+        }
+    };
     let verifier = random_base64(32);
     let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
     let expected_state = random_base64(24);
-    let attempt_id = Uuid::new_v4().to_string();
     let redirect_uri = redirect_uri(&provider, port);
     let authorization_url =
-        build_authorization_url(&provider, &redirect_uri, &challenge, &expected_state)?;
+        match build_authorization_url(&provider, &redirect_uri, &challenge, &expected_state) {
+            Ok(url) => url,
+            Err(error) => {
+                let mut pending = app.pending_login.write();
+                if pending.as_ref().is_some_and(|login| login.attempt_id == attempt_id) {
+                    *pending = None;
+                }
+                return Err(error);
+            }
+        };
     let expires_at = (Utc::now() + Duration::minutes(LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
-
-    *app.pending_login.write() = Some(LoginStatus {
-        attempt_id: attempt_id.clone(),
-        status: "waiting".into(),
-        message: None,
-        account: None,
-    });
 
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
     app.register_login_shutdown(attempt_id.clone(), shutdown_tx);
@@ -777,5 +797,27 @@ mod tests {
             redirect_uri(&Provider::Antigravity, 11451),
             "http://127.0.0.1:11451"
         );
+    }
+
+    #[tokio::test]
+    async fn rejects_start_login_when_another_login_in_progress() {
+        let temp = tempfile::tempdir().unwrap();
+        let app = Arc::new(AppState::new(temp.path().to_path_buf(), "test-token".into()).unwrap());
+
+        for status in ["waiting", "choose_project", "monitoring_disabled"] {
+            *app.pending_login.write() = Some(LoginStatus {
+                attempt_id: "active-attempt".into(),
+                status: status.into(),
+                message: None,
+                account: None,
+            });
+
+            let result = start_login(app.clone(), "Test".into(), Provider::Openai).await;
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err(),
+                "Another provider login is already in progress."
+            );
+        }
     }
 }

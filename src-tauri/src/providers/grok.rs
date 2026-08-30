@@ -6,7 +6,7 @@
 
 use super::{ProviderError, ProviderUsage};
 use crate::{
-    model::{Account, GrokSecret, UsageWindow},
+    model::{parse_rfc3339, Account, GrokSecret, UsageWindow},
     state::AppState,
 };
 use chrono::{DateTime, TimeZone, Utc};
@@ -33,6 +33,7 @@ const BILLING_TIMEOUT: Duration = Duration::from_secs(12);
 const MAX_COOKIE_HEADER_BYTES: usize = 32 * 1024;
 
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub(crate) struct GrokCredentials {
     pub access_token: String,
     pub email: Option<String>,
@@ -536,12 +537,6 @@ fn nested_number(value: &Value, path: &[&str]) -> Option<f64> {
         .as_f64()
         .or_else(|| current.as_i64().map(|value| value as f64))
         .or_else(|| current.as_str()?.parse().ok())
-}
-
-fn parse_rfc3339(value: &str) -> Option<DateTime<Utc>> {
-    DateTime::parse_from_rfc3339(value)
-        .ok()
-        .map(|value| value.with_timezone(&Utc))
 }
 
 async fn fetch_web_billing(

@@ -14,7 +14,6 @@ const CREDENTIAL_SERVICE: &str = "ai-usage-tracker";
 const LEGACY_CREDENTIAL_SERVICE: &str = "paseo-usage-bridge";
 const BRIDGE_TOKEN_USER: &str = "bridge-api-token";
 const CHUNKED_CREDENTIAL_FORMAT: &str = "chunked-v1";
-const WINDOWS_CREDENTIAL_BLOB_LIMIT_BYTES: usize = 2560;
 const CREDENTIAL_CHUNK_UTF16_UNITS: usize = 1200;
 const MAX_CREDENTIAL_CHUNKS: usize = 32;
 const CREDENTIAL_GENERATION_LENGTH: usize = 16;
@@ -569,6 +568,8 @@ fn write_account_file(data_dir: &Path, accounts: &[Account]) -> Result<(), Store
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    const WINDOWS_CREDENTIAL_BLOB_LIMIT_BYTES: usize = 2560;
 
     #[test]
     fn metadata_round_trip() {

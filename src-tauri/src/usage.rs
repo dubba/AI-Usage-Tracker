@@ -60,45 +60,31 @@ pub async fn refresh_account(app: Arc<AppState>, account_id: &str) -> Result<Acc
 
 pub async fn refresh_all(app: Arc<AppState>) -> Vec<Account> {
     let accounts = app.store.list();
-    let mut refreshed = Vec::with_capacity(accounts.len());
+    let mut tasks = tokio::task::JoinSet::new();
 
-    for account in accounts {
-        if !should_auto_refresh(&account) {
-            refreshed.push(account);
-            continue;
+    for account in &accounts {
+        if should_auto_refresh(account) {
+            let refresh_app = app.clone();
+            let refresh_id = account.id.clone();
+            tasks.spawn(async move {
+                let result = refresh_account(refresh_app, &refresh_id).await;
+                (refresh_id, result)
+            });
         }
+    }
 
-        let id = account.id.clone();
-        let refresh_app = app.clone();
-        let refresh_id = id.clone();
-        let result = tokio::spawn(async move {
-            refresh_account(refresh_app, &refresh_id).await
-        })
-        .await;
-
-        match result {
-            Ok(Ok(account)) => refreshed.push(account),
-            Ok(Err(_)) => {
-                if let Some(account) = app.store.get(&id) {
-                    refreshed.push(account);
-                }
-            }
+    while let Some(join_result) = tasks.join_next().await {
+        match join_result {
+            Ok((_id, _result)) => {}
             Err(error) => {
-                let message = if error.is_panic() {
-                    "Automatic refresh stopped unexpectedly. Reconnect this account before trying again."
-                        .to_string()
-                } else {
-                    format!("Automatic refresh was cancelled: {error}")
-                };
-                let _ = mark_account_refresh_suspended(app.as_ref(), &id, message);
-                if let Some(account) = app.store.get(&id) {
-                    refreshed.push(account);
+                if error.is_panic() {
+                    eprintln!("Automatic refresh task stopped unexpectedly: {error}");
                 }
             }
         }
     }
 
-    refreshed
+    app.store.list()
 }
 
 fn should_auto_refresh(account: &Account) -> bool {
@@ -288,5 +274,21 @@ mod tests {
             "google_ai_studio_cloud_monitoring",
             false,
         )));
+    }
+
+    #[tokio::test]
+    async fn refresh_all_runs_without_panicking_on_empty_or_skipped() {
+        let temp = tempfile::tempdir().unwrap();
+        let app = Arc::new(AppState::new(temp.path().to_path_buf(), "test-token".into()).unwrap());
+
+        let mut account1 = account(Provider::Openai, "test", true);
+        account1.id = "account1".into();
+        let mut account2 = account(Provider::GoogleAiStudio, GOOGLE_AI_STUDIO_MODELS_ONLY_SOURCE, false);
+        account2.id = "account2".into();
+        app.store.upsert(account1).unwrap();
+        app.store.upsert(account2).unwrap();
+
+        let list = refresh_all(app.clone()).await;
+        assert_eq!(list.len(), 2);
     }
 }

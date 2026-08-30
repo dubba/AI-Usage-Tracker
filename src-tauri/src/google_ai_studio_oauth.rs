@@ -128,15 +128,6 @@ pub async fn start_login(
 ) -> Result<LoginStart, String> {
     validate_google_ai_studio_account(app.as_ref(), &account_id)?;
 
-    if app
-        .pending_login
-        .read()
-        .as_ref()
-        .is_some_and(|login| login.status == "waiting")
-    {
-        return Err("Another provider login is already in progress.".into());
-    }
-
     let project_id = project_id.trim();
     if let Some(project_id) = project_id.strip_prefix("enable:") {
         return start_oauth(
@@ -161,34 +152,63 @@ async fn start_oauth(
     account_id: String,
     mode: LoginMode,
 ) -> Result<LoginStart, String> {
-    let (listener, port) = bind_callback_port().await?;
-    let expected_state = random_base64(24);
     let attempt_id = Uuid::new_v4().to_string();
+    let message = Some(match &mode {
+        LoginMode::Connect => {
+            "Sign in to Google so the app can find the API key's Cloud project automatically."
+                .into()
+        }
+        LoginMode::EnableMonitoring { project_id } => {
+            format!("Authorize enabling Cloud Monitoring for project {project_id}.")
+        }
+    });
+
+    {
+        let mut pending = app.pending_login.write();
+        if pending.as_ref().is_some_and(|login| {
+            matches!(
+                login.status.as_str(),
+                "waiting" | "choose_project" | "monitoring_disabled"
+            )
+        }) {
+            return Err("Another provider login is already in progress.".into());
+        }
+        *pending = Some(LoginStatus {
+            attempt_id: attempt_id.clone(),
+            status: "waiting".into(),
+            message,
+            account: None,
+        });
+    }
+
+    let (listener, port) = match bind_callback_port().await {
+        Ok(bound) => bound,
+        Err(error) => {
+            let mut pending = app.pending_login.write();
+            if pending.as_ref().is_some_and(|login| login.attempt_id == attempt_id) {
+                *pending = None;
+            }
+            return Err(error);
+        }
+    };
+    let expected_state = random_base64(24);
     let redirect_uri = format!("http://127.0.0.1:{port}");
     let scopes = match &mode {
         LoginMode::Connect => READ_ONLY_SCOPES,
         LoginMode::EnableMonitoring { .. } => ENABLE_SCOPES,
     };
-    let authorization_url = build_authorization_url(&redirect_uri, &expected_state, scopes)?;
+    let authorization_url =
+        match build_authorization_url(&redirect_uri, &expected_state, scopes) {
+            Ok(url) => url,
+            Err(error) => {
+                let mut pending = app.pending_login.write();
+                if pending.as_ref().is_some_and(|login| login.attempt_id == attempt_id) {
+                    *pending = None;
+                }
+                return Err(error);
+            }
+        };
     let expires_at = (Utc::now() + Duration::minutes(LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
-
-    set_login_status(
-        app.as_ref(),
-        LoginStatus {
-            attempt_id: attempt_id.clone(),
-            status: "waiting".into(),
-            message: Some(match &mode {
-                LoginMode::Connect => {
-                    "Sign in to Google so the app can find the API key's Cloud project automatically."
-                        .into()
-                }
-                LoginMode::EnableMonitoring { project_id } => {
-                    format!("Authorize enabling Cloud Monitoring for project {project_id}.")
-                }
-            }),
-            account: None,
-        },
-    );
 
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
     app.register_login_shutdown(attempt_id.clone(), shutdown_tx);
@@ -258,15 +278,18 @@ async fn select_project(
 ) -> Result<LoginStart, String> {
     let attempt_id = Uuid::new_v4().to_string();
     let expires_at = (Utc::now() + Duration::minutes(LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
-    set_login_status(
-        app.as_ref(),
-        LoginStatus {
+    {
+        let mut pending = app.pending_login.write();
+        if pending.as_ref().is_some_and(|login| login.status == "waiting") {
+            return Err("Another provider login is already in progress.".into());
+        }
+        *pending = Some(LoginStatus {
             attempt_id: attempt_id.clone(),
             status: "waiting".into(),
             message: Some("Checking the selected Google Cloud project.".into()),
             account: None,
-        },
-    );
+        });
+    }
 
     let mut stored = load_google_ai_studio_secret(&account_id)?;
     let oauth = stored

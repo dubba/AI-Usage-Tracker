@@ -9,7 +9,6 @@ use crate::{
     usage,
 };
 use chrono::{Duration, Utc};
-use serde::Deserialize;
 use std::{
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -29,14 +28,6 @@ const LOGIN_URL: &str = "https://opencode.ai/auth";
 const LOGIN_TIMEOUT_MINUTES: i64 = 10;
 const COOKIE_CAPTURE_ATTEMPTS: usize = 30;
 const COOKIE_CAPTURE_RETRY_DELAY_MS: u64 = 500;
-const GOOGLE_AI_STUDIO_PROBE_WORKSPACE_ID: &str = "google-ai-studio:probe";
-const GOOGLE_AI_STUDIO_WORKSPACE_PREFIX: &str = "google-ai-studio:";
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct GoogleAiStudioConnectionPayload {
-    selected_models: Vec<String>,
-}
 
 const CONNECT_BANNER_SCRIPT: &str = r#"
 (() => {
@@ -114,30 +105,41 @@ pub async fn start_login(
     state: Arc<AppState>,
     label: String,
 ) -> Result<LoginStart, String> {
-    if state
-        .pending_login
-        .read()
-        .as_ref()
-        .is_some_and(|login| login.status == "waiting")
+    let attempt_id = Uuid::new_v4().to_string();
     {
-        return Err("Another provider login is already in progress.".into());
+        let mut pending = state.pending_login.write();
+        if pending.as_ref().is_some_and(|login| {
+            matches!(
+                login.status.as_str(),
+                "waiting" | "choose_project" | "monitoring_disabled"
+            )
+        }) {
+            return Err("Another provider login is already in progress.".into());
+        }
+        *pending = Some(LoginStatus {
+            attempt_id: attempt_id.clone(),
+            status: "waiting".into(),
+            message: Some("Sign in to OpenCode and open your Go subscription.".into()),
+            account: None,
+        });
     }
 
     if let Some(window) = app.get_webview_window(LOGIN_WINDOW_LABEL) {
         let _ = window.destroy();
     }
 
-    let attempt_id = Uuid::new_v4().to_string();
     let expires_at = (Utc::now() + Duration::minutes(LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
-    *state.pending_login.write() = Some(LoginStatus {
-        attempt_id: attempt_id.clone(),
-        status: "waiting".into(),
-        message: Some("Sign in to OpenCode and open your Go subscription.".into()),
-        account: None,
-    });
-
     let (width, height) = login_window_size(&app);
-    let login_url = Url::parse(LOGIN_URL).map_err(|error| error.to_string())?;
+    let login_url = match Url::parse(LOGIN_URL) {
+        Ok(url) => url,
+        Err(error) => {
+            let mut pending = state.pending_login.write();
+            if pending.as_ref().is_some_and(|login| login.attempt_id == attempt_id) {
+                *pending = None;
+            }
+            return Err(error.to_string());
+        }
+    };
     let capture_started = Arc::new(AtomicBool::new(false));
 
     let page_state = state.clone();
@@ -145,7 +147,7 @@ pub async fn start_login(
     let page_label = label.clone();
     let page_capture_started = capture_started.clone();
 
-    let login_window = WebviewWindowBuilder::new(
+    let login_window = match WebviewWindowBuilder::new(
         &app,
         LOGIN_WINDOW_LABEL,
         WebviewUrl::External(login_url.clone()),
@@ -180,7 +182,7 @@ pub async fn start_login(
         let completion_state = page_state.clone();
         let completion_attempt = page_attempt.clone();
         let completion_label = page_label.clone();
-        let capture_flag = page_capture_started.clone();
+        let completion_capture_started = page_capture_started.clone();
 
         std::thread::spawn(move || {
             let cookie_result = read_auth_cookie_with_retry(&cookie_window);
@@ -199,7 +201,7 @@ pub async fn start_login(
                         .await;
                     }
                     Err(error) => {
-                        capture_flag.store(false, Ordering::SeqCst);
+                        completion_capture_started.store(false, Ordering::SeqCst);
                         update_waiting_message(
                             &completion_state,
                             &completion_attempt,
@@ -210,8 +212,16 @@ pub async fn start_login(
             });
         });
     })
-    .build()
-    .map_err(|error| format!("Unable to open the OpenCode login window: {error}"))?;
+    .build() {
+        Ok(window) => window,
+        Err(error) => {
+            let mut pending = state.pending_login.write();
+            if pending.as_ref().is_some_and(|login| login.attempt_id == attempt_id) {
+                *pending = None;
+            }
+            return Err(format!("Unable to open the OpenCode login window: {error}"));
+        }
+    };
 
     let close_state = state.clone();
     let close_attempt = attempt_id.clone();
@@ -259,21 +269,6 @@ pub async fn add_account(
     auth_cookie: String,
 ) -> Result<Account, String> {
     let workspace_id = workspace_id.trim();
-    if workspace_id == GOOGLE_AI_STUDIO_PROBE_WORKSPACE_ID {
-        return providers::google_ai_studio::probe_account(state, label, auth_cookie).await;
-    }
-    if let Some(payload) = workspace_id.strip_prefix(GOOGLE_AI_STUDIO_WORKSPACE_PREFIX) {
-        let payload = serde_json::from_str::<GoogleAiStudioConnectionPayload>(payload)
-            .map_err(|_| "The Google AI Studio model selection is invalid. Load the models again.".to_string())?;
-        return providers::google_ai_studio::add_account(
-            state,
-            label,
-            auth_cookie,
-            payload.selected_models,
-        )
-        .await;
-    }
-
     if workspace_id.is_empty() || workspace_id.chars().count() > 160 {
         return Err("A valid OpenCode workspace ID is required.".into());
     }
@@ -512,14 +507,5 @@ mod tests {
             ),
             None
         );
-    }
-
-    #[test]
-    fn parses_google_ai_studio_connection_payload() {
-        let payload = serde_json::from_str::<GoogleAiStudioConnectionPayload>(
-            r#"{"selectedModels":["models/gemini-test"]}"#,
-        )
-        .unwrap();
-        assert_eq!(payload.selected_models, vec!["models/gemini-test"]);
     }
 }

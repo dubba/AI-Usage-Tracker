@@ -43,7 +43,6 @@ const SAVED_WINDOW_STATE: StateFlags = StateFlags::from_bits_truncate(
 async fn get_dashboard_snapshot(
     state: State<'_, Arc<AppState>>,
 ) -> Result<DashboardSnapshot, String> {
-    migrate_google_ai_studio_accounts(state.inner().as_ref());
     let accounts = state.account_order.apply(state.store.list())?;
     Ok(DashboardSnapshot {
         accounts,
@@ -327,7 +326,12 @@ fn rename_account(
 }
 
 #[tauri::command]
-fn remove_account(state: State<'_, Arc<AppState>>, account_id: String) -> Result<(), String> {
+async fn remove_account(
+    state: State<'_, Arc<AppState>>,
+    account_id: String,
+) -> Result<(), String> {
+    let lock = state.account_lock(&account_id);
+    let _guard = lock.lock().await;
     state
         .store
         .remove(&account_id)
@@ -410,6 +414,7 @@ async fn install_app_update(app: AppHandle) -> Result<(), String> {
         .map_err(|error| format!("Unable to install the update: {error}"))?;
 
     app.restart();
+    #[allow(unreachable_code)]
     Ok(())
 }
 
@@ -503,6 +508,7 @@ pub fn run() {
             let token = load_or_create_bridge_token()
                 .map_err(|error| std::io::Error::other(error.to_string()))?;
             let state = Arc::new(AppState::new(data_dir, token).map_err(std::io::Error::other)?);
+            migrate_google_ai_studio_accounts(state.as_ref());
             state.set_app_handle(app.handle().clone());
             app.manage(state.clone());
             tauri::async_runtime::spawn(bridge_api::run_controller(state.clone()));
