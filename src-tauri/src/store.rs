@@ -1,13 +1,21 @@
-use crate::model::{now_rfc3339, Account, OAuthSecret, Provider, ProviderSecret};
+use crate::{
+    fs_util::{ensure_private_file, restrict_private_permissions},
+    model::{now_rfc3339, Account, OAuthSecret, Provider, ProviderSecret, UsageSnapshot},
+};
 use keyring::Entry;
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::HashMap,
     fs,
     io::Write,
     path::{Path, PathBuf},
+    sync::LazyLock,
 };
+
+static SECRET_CACHE: LazyLock<Mutex<HashMap<String, ProviderSecret>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 use thiserror::Error;
 
 const CREDENTIAL_SERVICE: &str = "ai-usage-tracker";
@@ -61,6 +69,8 @@ impl AccountStore {
     pub fn load(data_dir: PathBuf) -> Result<Self, StoreError> {
         fs::create_dir_all(&data_dir).map_err(|error| StoreError::Io(error.to_string()))?;
         let accounts = read_account_file(&data_dir)?;
+        ensure_private_file(&account_path(&data_dir)).map_err(StoreError::Io)?;
+        ensure_private_file(&data_dir.join("accounts.json.bak")).map_err(StoreError::Io)?;
         Ok(Self {
             data_dir,
             accounts: RwLock::new(accounts),
@@ -83,13 +93,19 @@ impl AccountStore {
 
     pub fn upsert(&self, account: Account) -> Result<Account, StoreError> {
         let mut accounts = self.accounts.write();
-        if let Some(existing) = accounts.iter_mut().find(|candidate| candidate.id == account.id) {
-            *existing = account.clone();
+        let saved = if let Some(existing) = accounts
+            .iter_mut()
+            .find(|candidate| candidate.id == account.id)
+        {
+            merge_account(existing, account);
+            existing.touch();
+            existing.clone()
         } else {
             accounts.push(account.clone());
-        }
+            account
+        };
         write_account_file(&self.data_dir, &accounts)?;
-        Ok(account)
+        Ok(saved)
     }
 
     pub fn mutate<F>(&self, id: &str, update: F) -> Result<Account, StoreError>
@@ -109,11 +125,54 @@ impl AccountStore {
     }
 
     pub fn remove(&self, id: &str) -> Result<(), StoreError> {
+        self.remove_after_secret_result(id, delete_secret(id))
+    }
+
+    fn remove_after_secret_result(
+        &self,
+        id: &str,
+        secret: Result<(), StoreError>,
+    ) -> Result<(), StoreError> {
+        secret.map_err(|error| {
+            StoreError::Credential(format!(
+                "Unable to delete saved credentials; the account was not removed ({error})"
+            ))
+        })?;
+        self.remove_account_metadata(id)
+    }
+
+    fn remove_account_metadata(&self, id: &str) -> Result<(), StoreError> {
         let mut accounts = self.accounts.write();
-        accounts.retain(|account| account.id != id);
-        write_account_file(&self.data_dir, &accounts)?;
-        let _ = delete_secret(id);
+        if !accounts.iter().any(|account| account.id == id) {
+            return Ok(());
+        }
+        let remaining: Vec<_> = accounts
+            .iter()
+            .filter(|account| account.id != id)
+            .cloned()
+            .collect();
+        write_account_file(&self.data_dir, &remaining)?;
+        *accounts = remaining;
         Ok(())
+    }
+
+    pub fn persist_account(
+        &self,
+        account: Account,
+        secret: &ProviderSecret,
+    ) -> Result<Account, StoreError> {
+        let id = account.id.clone();
+        let existed = self.get(&id).is_some();
+        save_provider_secret(&id, secret)?;
+        match self.upsert(account) {
+            Ok(saved) => Ok(saved),
+            Err(error) => {
+                if !existed {
+                    let _ = delete_secret(&id);
+                }
+                Err(error)
+            }
+        }
     }
 
     pub fn find_duplicate(
@@ -145,8 +204,54 @@ impl AccountStore {
     }
 }
 
-#[cfg(target_os = "macos")]
+fn merge_account(existing: &mut Account, incoming: Account) {
+    existing.label = incoming.label;
+    existing.provider = incoming.provider;
+    if incoming.email.is_some() {
+        existing.email = incoming.email;
+    }
+    if incoming.provider_account_id.is_some() {
+        existing.provider_account_id = incoming.provider_account_id;
+    }
+    if incoming.chatgpt_account_id.is_some() {
+        existing.chatgpt_account_id = incoming.chatgpt_account_id;
+    }
+    if incoming.plan.is_some() {
+        existing.plan = incoming.plan;
+    }
+    existing.auth_required = incoming.auth_required;
+    existing.last_error = incoming.last_error;
+    existing.last_usage = newer_usage(existing.last_usage.take(), incoming.last_usage);
+}
+
+fn newer_usage(
+    existing: Option<UsageSnapshot>,
+    incoming: Option<UsageSnapshot>,
+) -> Option<UsageSnapshot> {
+    match (existing, incoming) {
+        (None, incoming) => incoming,
+        (existing, None) => existing,
+        (Some(left), Some(right)) => {
+            if right.fetched_at >= left.fetched_at {
+                Some(right)
+            } else {
+                Some(left)
+            }
+        }
+    }
+}
+
 pub fn save_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result<(), StoreError> {
+    if cached_secret(account_id).as_ref() == Some(secret) {
+        return Ok(());
+    }
+    persist_provider_secret(account_id, secret)?;
+    remember_secret(account_id, secret.clone());
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn persist_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result<(), StoreError> {
     let payload =
         serde_json::to_string(secret).map_err(|error| StoreError::Invalid(error.to_string()))?;
     account_credential_entry(account_id)?
@@ -155,7 +260,7 @@ pub fn save_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result
 }
 
 #[cfg(not(target_os = "macos"))]
-pub fn save_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result<(), StoreError> {
+fn persist_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result<(), StoreError> {
     let payload =
         serde_json::to_string(secret).map_err(|error| StoreError::Invalid(error.to_string()))?;
     let chunks = split_utf16_chunks(&payload, CREDENTIAL_CHUNK_UTF16_UNITS);
@@ -206,6 +311,9 @@ pub fn save_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result
 }
 
 pub fn load_provider_secret(account_id: &str) -> Result<ProviderSecret, StoreError> {
+    if let Some(secret) = cached_secret(account_id) {
+        return Ok(secret);
+    }
     let user = account_credential_user(account_id);
     let (stored, from_legacy) = match credential_entry(&user)?.get_password() {
         Ok(value) => (value, false),
@@ -231,7 +339,7 @@ pub fn load_provider_secret(account_id: &str) -> Result<ProviderSecret, StoreErr
     #[cfg(not(target_os = "macos"))]
     let should_migrate = from_legacy;
 
-    if should_migrate && save_provider_secret(account_id, &secret).is_ok() {
+    if should_migrate && persist_provider_secret(account_id, &secret).is_ok() {
         let _ = delete_legacy_credential(&user);
         if let Some(manifest) = manifest.as_ref() {
             for generation in std::iter::once(&manifest.active).chain(manifest.previous.as_ref()) {
@@ -248,6 +356,7 @@ pub fn load_provider_secret(account_id: &str) -> Result<ProviderSecret, StoreErr
         }
     }
 
+    remember_secret(account_id, secret.clone());
     Ok(secret)
 }
 
@@ -256,17 +365,27 @@ pub fn delete_secret(account_id: &str) -> Result<(), StoreError> {
     let mut first_error = None;
     let mut manifests = Vec::new();
 
-    for service in [CREDENTIAL_SERVICE, LEGACY_CREDENTIAL_SERVICE] {
-        match credential_entry_for(service, &user)?.get_password() {
-            Ok(stored) => {
-                if let Some(manifest) = parse_credential_manifest(&stored)? {
-                    manifests.push(manifest);
+    match credential_entry_for(CREDENTIAL_SERVICE, &user)?.get_password() {
+        Ok(stored) => {
+            if let Some(manifest) = parse_credential_manifest(&stored)? {
+                manifests.push(manifest);
+            }
+        }
+        Err(keyring::Error::NoEntry) => {
+            match credential_entry_for(LEGACY_CREDENTIAL_SERVICE, &user)?.get_password() {
+                Ok(stored) => {
+                    if let Some(manifest) = parse_credential_manifest(&stored)? {
+                        manifests.push(manifest);
+                    }
+                }
+                Err(keyring::Error::NoEntry) => {}
+                Err(error) => {
+                    first_error.get_or_insert(StoreError::Credential(error.to_string()));
                 }
             }
-            Err(keyring::Error::NoEntry) => {}
-            Err(error) => {
-                first_error.get_or_insert(StoreError::Credential(error.to_string()));
-            }
+        }
+        Err(error) => {
+            first_error.get_or_insert(StoreError::Credential(error.to_string()));
         }
     }
 
@@ -284,7 +403,10 @@ pub fn delete_secret(account_id: &str) -> Result<(), StoreError> {
 
     match first_error {
         Some(error) => Err(error),
-        None => Ok(()),
+        None => {
+            forget_secret(account_id);
+            Ok(())
+        }
     }
 }
 
@@ -300,9 +422,7 @@ pub fn load_or_create_bridge_token() -> Result<String, StoreError> {
                     entry
                         .set_password(&value)
                         .map_err(|error| StoreError::Credential(error.to_string()))?;
-                    if entry.get_password().ok().as_deref() == Some(value.as_str()) {
-                        let _ = delete_legacy_credential(BRIDGE_TOKEN_USER);
-                    }
+                    let _ = delete_legacy_credential(BRIDGE_TOKEN_USER);
                     return Ok(value);
                 }
             }
@@ -323,6 +443,18 @@ pub fn rotate_bridge_token() -> Result<String, StoreError> {
         .set_password(&token)
         .map_err(|error| StoreError::Credential(error.to_string()))?;
     Ok(token)
+}
+
+fn cached_secret(account_id: &str) -> Option<ProviderSecret> {
+    SECRET_CACHE.lock().get(account_id).cloned()
+}
+
+fn remember_secret(account_id: &str, secret: ProviderSecret) {
+    SECRET_CACHE.lock().insert(account_id.to_string(), secret);
+}
+
+fn forget_secret(account_id: &str) {
+    SECRET_CACHE.lock().remove(account_id);
 }
 
 fn account_credential_user(account_id: &str) -> String {
@@ -600,15 +732,11 @@ fn write_account_file(data_dir: &Path, accounts: &[Account]) -> Result<(), Store
     output
         .sync_all()
         .map_err(|error| StoreError::Io(error.to_string()))?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&temp, fs::Permissions::from_mode(0o600))
-            .map_err(|error| StoreError::Io(error.to_string()))?;
-    }
+    restrict_private_permissions(&temp).map_err(StoreError::Io)?;
     if path.exists() {
         let backup = data_dir.join("accounts.json.bak");
-        let _ = fs::copy(&path, backup);
+        let _ = fs::copy(&path, &backup);
+        let _ = restrict_private_permissions(&backup);
     }
     match fs::rename(&temp, &path) {
         Ok(()) => Ok(()),
@@ -750,5 +878,108 @@ mod tests {
         assert!(parse_credential_manifest(r#"{"openai":{"accessToken":"token"}}"#)
             .unwrap()
             .is_none());
+    }
+
+    #[test]
+    fn upsert_preserves_newer_usage_when_reconnecting() {
+        use crate::model::UsageFreshness;
+        let dir = tempdir().unwrap();
+        let store = AccountStore::load(dir.path().to_path_buf()).unwrap();
+        let mut current = sample_account("one", "Main");
+        current.email = Some("old@example.com".into());
+        current.last_usage = Some(UsageSnapshot {
+            plan: Some("plus".into()),
+            email: Some("old@example.com".into()),
+            windows: Vec::new(),
+            credits_usd: None,
+            unlimited_credits: false,
+            fetched_at: "2026-08-30T12:00:00Z".into(),
+            freshness: UsageFreshness::Live,
+            source: "wham".into(),
+        });
+        store.upsert(current).unwrap();
+
+        let mut incoming = sample_account("one", "Renamed");
+        incoming.email = Some("new@example.com".into());
+        incoming.last_usage = Some(UsageSnapshot {
+            plan: Some("plus".into()),
+            email: Some("new@example.com".into()),
+            windows: Vec::new(),
+            credits_usd: None,
+            unlimited_credits: false,
+            fetched_at: "2026-08-30T11:00:00Z".into(),
+            freshness: UsageFreshness::Live,
+            source: "wham".into(),
+        });
+        let saved = store.upsert(incoming).unwrap();
+        assert_eq!(saved.label, "Renamed");
+        assert_eq!(saved.email.as_deref(), Some("new@example.com"));
+        assert_eq!(
+            saved.last_usage.as_ref().map(|usage| usage.fetched_at.as_str()),
+            Some("2026-08-30T12:00:00Z")
+        );
+    }
+
+    fn sample_account(id: &str, label: &str) -> Account {
+        let now = now_rfc3339();
+        Account {
+            id: id.into(),
+            label: label.into(),
+            provider: Provider::Openai,
+            email: None,
+            provider_account_id: None,
+            chatgpt_account_id: None,
+            plan: None,
+            created_at: now.clone(),
+            updated_at: now,
+            last_usage: None,
+            last_error: None,
+            auth_required: false,
+        }
+    }
+
+    #[test]
+    fn remove_keeps_account_when_secret_delete_fails() {
+        let dir = tempdir().unwrap();
+        let store = AccountStore::load(dir.path().to_path_buf()).unwrap();
+        store.upsert(sample_account("one", "Main")).unwrap();
+
+        let error = store
+            .remove_after_secret_result("one", Err(StoreError::Credential("denied".into())))
+            .unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("Unable to delete saved credentials; the account was not removed"));
+        assert_eq!(store.list().len(), 1);
+        assert_eq!(store.list()[0].id, "one");
+    }
+
+    #[test]
+    fn cached_secret_skips_keychain_read_and_unchanged_write() {
+        let id = "cache-skip-keychain-io";
+        forget_secret(id);
+        let secret = ProviderSecret::Openai(OAuthSecret {
+            access_token: "access".into(),
+            refresh_token: "refresh".into(),
+            id_token: None,
+            expires_at: 1,
+        });
+        remember_secret(id, secret.clone());
+        assert_eq!(load_provider_secret(id).unwrap(), secret);
+        save_provider_secret(id, &secret).unwrap();
+        forget_secret(id);
+    }
+
+    #[test]
+    fn remove_drops_account_after_secret_delete() {
+        let dir = tempdir().unwrap();
+        let store = AccountStore::load(dir.path().to_path_buf()).unwrap();
+        store.upsert(sample_account("one", "Main")).unwrap();
+        store
+            .remove_after_secret_result("one", Ok(()))
+            .unwrap();
+        assert!(store.list().is_empty());
+        let reopened = AccountStore::load(dir.path().to_path_buf()).unwrap();
+        assert!(reopened.list().is_empty());
     }
 }

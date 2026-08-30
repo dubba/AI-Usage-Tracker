@@ -1,8 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Account, AppSettings, AppUpdateStatus, BridgeInfo, DashboardSnapshot, LoginStart, LoginStatus, Provider, UsageAlertSetting } from "./types";
+import type { Account, AppSettings, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, Provider, UsageAlertSetting } from "./types";
 
 export const bridgeApi = {
   snapshot: () => invoke<DashboardSnapshot>("get_dashboard_snapshot"),
+  bridgeInfo: () => invoke<BridgeInfo>("get_bridge_info"),
   startLogin: (label: string, provider: Provider) => invoke<LoginStart>("start_login", { label, provider }),
   addOpenCodeGoAccount: (label: string, workspaceId: string, authCookie: string, email?: string) =>
     invoke<Account>("add_opencode_go_account", { label, workspaceId, authCookie, email }),
@@ -19,7 +20,7 @@ export const bridgeApi = {
   getAppSettings: () => invoke<AppSettings>("get_app_settings"),
   setAccountRefreshMinutes: (minutes: number) => invoke<AppSettings>("set_account_refresh_minutes", { minutes }),
   setAutomaticUpdatesEnabled: (enabled: boolean) => invoke<AppSettings>("set_automatic_updates_enabled", { enabled }),
-  setPaseoBridgeEnabled: (enabled: boolean) => invoke<BridgeInfo>("set_paseo_bridge_enabled", { enabled }),
+  setPaseoBridgeEnabled: (enabled: boolean) => invoke<BridgeStatus>("set_paseo_bridge_enabled", { enabled }),
   openPaseoBridgeWindow: () => invoke<void>("open_paseo_bridge_window"),
   reorderAccounts: (accountIds: string[]) => invoke<Account[]>("reorder_accounts", { accountIds }),
   getAccountAlerts: (accountId: string) => invoke<UsageAlertSetting[]>("get_account_alerts", { accountId }),

@@ -18,8 +18,8 @@ export function PaseoBridgeWindow() {
 
   const load = useCallback(async () => {
     try {
-      const snapshot = await bridgeApi.snapshot();
-      setBridge(snapshot.bridge);
+      const next = await bridgeApi.bridgeInfo();
+      setBridge(next);
       setError(null);
     } catch (cause) {
       setError(String(cause));

@@ -5,7 +5,6 @@ use crate::{
     },
     providers::{ProviderError, ProviderUsage},
     state::AppState,
-    store::save_provider_secret,
 };
 use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Utc, Weekday};
 use reqwest::{RequestBuilder, StatusCode};
@@ -308,22 +307,19 @@ pub async fn add_account(
         auth_required: false,
     };
 
-    save_provider_secret(
-        &account.id,
-        &ProviderSecret::GoogleAiStudio(GoogleAiStudioSecret {
-            api_key,
-            selected_models,
-            cloud_project_id: existing_secret
-                .as_ref()
-                .and_then(|secret| secret.cloud_project_id.clone()),
-            cloud_oauth: existing_secret.and_then(|secret| secret.cloud_oauth),
-        }),
-    )
-    .map_err(|error| error.to_string())?;
-
     state
-        .store
-        .upsert(account)
+        .persist_connected_account(
+            account,
+            &ProviderSecret::GoogleAiStudio(GoogleAiStudioSecret {
+                api_key,
+                selected_models,
+                cloud_project_id: existing_secret
+                    .as_ref()
+                    .and_then(|secret| secret.cloud_project_id.clone()),
+                cloud_oauth: existing_secret.and_then(|secret| secret.cloud_oauth),
+            }),
+        )
+        .await
         .map_err(|error| error.to_string())
 }
 

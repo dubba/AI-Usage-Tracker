@@ -6,7 +6,6 @@ use crate::{
         ProviderError,
     },
     state::AppState,
-    store::save_provider_secret,
     usage,
 };
 use chrono::{Duration as ChronoDuration, Utc};
@@ -351,29 +350,23 @@ async fn complete_cookie_login(
             return;
         }
     };
-    if let Err(error) = save_provider_secret(
-        &account_id,
-        &ProviderSecret::Grok(GrokSecret {
-            cookie_header: Some(normalized_cookie),
-            auth_file: auth_file
-                .as_ref()
-                .filter(|path| path.is_file())
-                .map(|path| path.to_string_lossy().to_string()),
-        }),
-    ) {
+    if let Err(error) = state
+        .persist_connected_account(
+            account,
+            &ProviderSecret::Grok(GrokSecret {
+                cookie_header: Some(normalized_cookie),
+                auth_file: auth_file
+                    .as_ref()
+                    .filter(|path| path.is_file())
+                    .map(|path| path.to_string_lossy().to_string()),
+            }),
+        )
+        .await
+    {
         fail_if_waiting(
             &state,
             &attempt_id,
             format!("Unable to save the Grok connection: {error}"),
-        );
-        let _ = window.destroy();
-        return;
-    }
-    if let Err(error) = state.store.upsert(account) {
-        fail_if_waiting(
-            &state,
-            &attempt_id,
-            format!("Unable to save the Grok account: {error}"),
         );
         let _ = window.destroy();
         return;

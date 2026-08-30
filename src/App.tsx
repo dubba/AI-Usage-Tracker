@@ -28,7 +28,7 @@ import type {
   Account,
   AppSettings,
   AppUpdateStatus,
-  BridgeInfo,
+  BridgeStatus,
   DashboardSnapshot,
   Provider,
   UsageWindow,
@@ -950,7 +950,7 @@ function AccountUsageMetric({
 }
 
 function IntegrationView({ bridge, onToggle, onView, busy }: {
-  bridge: BridgeInfo | null;
+  bridge: BridgeStatus | null;
   onToggle: (enabled: boolean) => void;
   onView: () => void;
   busy: boolean;

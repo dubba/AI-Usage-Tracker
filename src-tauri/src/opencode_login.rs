@@ -5,7 +5,6 @@ use crate::{
     },
     providers,
     state::AppState,
-    store::save_provider_secret,
     usage,
 };
 use chrono::{Duration, Utc};
@@ -319,18 +318,15 @@ pub async fn add_account(
         auth_required: false,
     };
 
-    save_provider_secret(
-        &account.id,
-        &ProviderSecret::OpencodeGo(OpenCodeGoSecret {
-            workspace_id: workspace_id.to_string(),
-            auth_cookie,
-        }),
-    )
-    .map_err(|error| error.to_string())?;
-
     let account = state
-        .store
-        .upsert(account)
+        .persist_connected_account(
+            account,
+            &ProviderSecret::OpencodeGo(OpenCodeGoSecret {
+                workspace_id: workspace_id.to_string(),
+                auth_cookie,
+            }),
+        )
+        .await
         .map_err(|error| error.to_string())?;
     usage::refresh_account(state, &account.id).await
 }

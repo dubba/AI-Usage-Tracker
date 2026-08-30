@@ -3,7 +3,6 @@ use crate::{
         now_rfc3339, Account, LoginStart, LoginStatus, OAuthSecret, Provider, ProviderSecret,
     },
     state::AppState,
-    store::save_provider_secret,
 };
 use axum::{
     extract::{Query, State},
@@ -30,6 +29,9 @@ const ANTHROPIC_CLIENT_ID: &str = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
 /// Profile identity plus subscription usage. Intentionally omits API-key creation,
 /// Claude Code sessions, MCP servers, and file upload.
 const ANTHROPIC_SCOPES: &str = "user:profile user:inference";
+/// Identity plus read-only Cloud access for quota APIs. Intentionally omits
+/// Cloud Platform write, client logging, and experiment-config scopes.
+const ANTIGRAVITY_SCOPES: &str = "openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/cloud-platform.read-only";
 const ANTIGRAVITY_CLIENT_ID: &str =
     "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com";
 const ANTIGRAVITY_CLIENT_SECRET_BYTES: &[u8] = &[
@@ -328,27 +330,28 @@ async fn complete_callback(
         last_error: None,
         auth_required: false,
     };
-    let mut pending = context.app.pending_login.write();
-    if !pending
-        .as_ref()
-        .is_some_and(|login| login.attempt_id == context.attempt_id && login.status == "waiting")
-    {
+    if !is_waiting(context.app.as_ref(), &context.attempt_id) {
         return Err("The login attempt was cancelled.".into());
     }
-    save_provider_secret(&account.id, &secret).map_err(|error| error.to_string())?;
     let account = context
         .app
-        .store
-        .upsert(account)
+        .persist_connected_account(account, &secret)
+        .await
         .map_err(|error| error.to_string())?;
-    *pending = Some(LoginStatus {
-        attempt_id: context.attempt_id.clone(),
-        status: "complete".into(),
-        message: None,
-        account: Some(account.clone()),
-        projects: None,
-        selected_project_id: None,
-    });
+    let mut pending = context.app.pending_login.write();
+    if pending
+        .as_ref()
+        .is_some_and(|login| login.attempt_id == context.attempt_id)
+    {
+        *pending = Some(LoginStatus {
+            attempt_id: context.attempt_id.clone(),
+            status: "complete".into(),
+            message: None,
+            account: Some(account.clone()),
+            projects: None,
+            selected_project_id: None,
+        });
+    }
     Ok(account)
 }
 
@@ -581,10 +584,7 @@ fn build_authorization_url(
                 .append_pair("client_id", ANTIGRAVITY_CLIENT_ID)
                 .append_pair("redirect_uri", redirect_uri)
                 .append_pair("response_type", "code")
-                .append_pair(
-                    "scope",
-                    "openid https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/cclog https://www.googleapis.com/auth/experimentsandconfigs",
-                )
+                .append_pair("scope", ANTIGRAVITY_SCOPES)
                 .append_pair("state", state)
                 .append_pair("access_type", "offline")
                 .append_pair("prompt", "consent");
@@ -829,7 +829,7 @@ mod tests {
     }
 
     #[test]
-    fn antigravity_authorize_url_omits_granted_scopes() {
+    fn antigravity_authorize_url_omits_write_and_unused_scopes() {
         let url = build_authorization_url(
             &Provider::Antigravity,
             "http://127.0.0.1:11451",
@@ -842,9 +842,25 @@ mod tests {
             .query_pairs()
             .map(|(key, value)| (key.into_owned(), value.into_owned()))
             .collect();
+        let scopes = pairs
+            .iter()
+            .find(|(key, _)| key == "scope")
+            .map(|(_, value)| value.as_str())
+            .unwrap();
+        assert_eq!(scopes, ANTIGRAVITY_SCOPES);
         assert!(!pairs
             .iter()
             .any(|(key, _)| key == "include_granted_scopes"));
+        for unused in [
+            "https://www.googleapis.com/auth/cloud-platform",
+            "https://www.googleapis.com/auth/cclog",
+            "https://www.googleapis.com/auth/experimentsandconfigs",
+        ] {
+            assert!(!scopes.split_whitespace().any(|scope| scope == unused));
+        }
+        assert!(scopes
+            .split_whitespace()
+            .any(|scope| scope == "https://www.googleapis.com/auth/cloud-platform.read-only"));
     }
 
     #[test]

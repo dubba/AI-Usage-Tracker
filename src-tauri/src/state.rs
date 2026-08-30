@@ -1,9 +1,9 @@
 use crate::{
     account_order::AccountOrderStore,
     alerts::AlertStore,
-    model::LoginStatus,
+    model::{Account, LoginStatus, ProviderSecret},
     settings::SettingsStore,
-    store::AccountStore,
+    store::{AccountStore, StoreError},
 };
 use parking_lot::{Mutex, RwLock};
 use reqwest::Client;
@@ -104,6 +104,16 @@ impl AppState {
             .entry(account_id.to_string())
             .or_insert_with(|| Arc::new(AsyncMutex::new(())))
             .clone()
+    }
+
+    pub async fn persist_connected_account(
+        &self,
+        account: Account,
+        secret: &ProviderSecret,
+    ) -> Result<Account, StoreError> {
+        let lock = self.account_lock(&account.id);
+        let _guard = lock.lock().await;
+        self.store.persist_account(account, secret)
     }
 }
 

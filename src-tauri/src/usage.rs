@@ -4,12 +4,33 @@ use crate::{
     state::AppState,
     store::{load_provider_secret, save_provider_secret},
 };
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 use tauri_plugin_notification::NotificationExt;
 
 const GOOGLE_AI_STUDIO_MODELS_ONLY_SOURCE: &str = "google_ai_studio_model_access";
+const ACCOUNT_REFRESH_TIMEOUT: Duration = Duration::from_secs(45);
 
 pub async fn refresh_account(app: Arc<AppState>, account_id: &str) -> Result<Account, String> {
+    match tokio::time::timeout(
+        ACCOUNT_REFRESH_TIMEOUT,
+        refresh_account_inner(app.clone(), account_id.to_string()),
+    )
+    .await
+    {
+        Ok(result) => result,
+        Err(_) => {
+            let _ = save_failure(
+                &app,
+                account_id,
+                ProviderError::Transient("Account refresh timed out.".into()),
+            );
+            Err("Account refresh timed out.".into())
+        }
+    }
+}
+
+async fn refresh_account_inner(app: Arc<AppState>, account_id: String) -> Result<Account, String> {
+    let account_id = account_id.as_str();
     let lock = app.account_lock(account_id);
     let _guard = lock.lock().await;
     let mut account = app
@@ -271,6 +292,11 @@ mod tests {
             "google_ai_studio_cloud_monitoring",
             false,
         )));
+    }
+
+    #[test]
+    fn account_refresh_timeout_is_bounded() {
+        assert_eq!(ACCOUNT_REFRESH_TIMEOUT, Duration::from_secs(45));
     }
 
     #[tokio::test]

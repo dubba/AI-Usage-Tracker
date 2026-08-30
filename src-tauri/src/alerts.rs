@@ -1,13 +1,14 @@
-use crate::model::{Account, UsageWindow};
+use crate::{
+    fs_util::{atomic_write_private, ensure_private_file},
+    model::{Account, UsageWindow},
+};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     fs,
-    io::Write,
     path::{Path, PathBuf},
 };
-use uuid::Uuid;
 
 const ALERTS_FILE_NAME: &str = "usage-alerts.json";
 const ALERT_WINDOW_IDS: [&str; 3] = ["five_hour", "weekly", "monthly"];
@@ -55,9 +56,11 @@ impl AlertStore {
         let path = data_dir.join(ALERTS_FILE_NAME);
         let accounts = if path.exists() {
             let payload = fs::read_to_string(&path).map_err(|error| error.to_string())?;
-            serde_json::from_str::<AlertFile>(&payload)
+            let parsed = serde_json::from_str::<AlertFile>(&payload)
                 .map_err(|error| format!("Unable to read usage alert settings: {error}"))?
-                .accounts
+                .accounts;
+            ensure_private_file(&path)?;
+            parsed
         } else {
             HashMap::new()
         };
@@ -204,7 +207,7 @@ impl AlertStore {
             accounts: accounts.clone(),
         };
         let payload = serde_json::to_vec_pretty(&file).map_err(|error| error.to_string())?;
-        atomic_write(&self.path, &payload)
+        atomic_write_private(&self.path, &payload)
     }
 }
 
@@ -249,34 +252,6 @@ where
             .position(|candidate| candidate == &window_id(setting))
             .unwrap_or(ALERT_WINDOW_IDS.len())
     });
-}
-
-fn atomic_write(path: &Path, payload: &[u8]) -> Result<(), String> {
-    let temporary_path = path.with_extension(format!("tmp.{}", Uuid::new_v4()));
-    let mut file = fs::File::create(&temporary_path).map_err(|error| error.to_string())?;
-    file.write_all(payload).map_err(|error| error.to_string())?;
-    file.sync_all().map_err(|error| error.to_string())?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = fs::set_permissions(&temporary_path, fs::Permissions::from_mode(0o600));
-    }
-    match fs::rename(&temporary_path, path) {
-        Ok(()) => Ok(()),
-        Err(error)
-            if matches!(
-                error.kind(),
-                std::io::ErrorKind::AlreadyExists | std::io::ErrorKind::PermissionDenied
-            ) =>
-        {
-            let _ = fs::remove_file(path);
-            fs::rename(&temporary_path, path).map_err(|error| error.to_string())
-        }
-        Err(error) => {
-            let _ = fs::remove_file(&temporary_path);
-            Err(error.to_string())
-        }
-    }
 }
 
 #[cfg(test)]

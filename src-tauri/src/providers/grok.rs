@@ -75,14 +75,21 @@ struct BillingSnapshot {
 
 #[derive(Debug)]
 enum GrokFetchError {
-    Auth(String),
-    Unavailable(String),
+    Auth,
+    TeamUnavailable,
+    Unavailable,
 }
 
 impl GrokFetchError {
-    fn message(&self) -> &str {
+    fn into_provider_error(self) -> ProviderError {
         match self {
-            Self::Auth(message) | Self::Unavailable(message) => message,
+            Self::Auth => ProviderError::Auth,
+            Self::TeamUnavailable => ProviderError::Transient(
+                "Grok team usage is unavailable from the current billing surface.".into(),
+            ),
+            Self::Unavailable => {
+                ProviderError::Transient("Grok did not provide current billing usage.".into())
+            }
         }
     }
 }
@@ -104,11 +111,7 @@ pub async fn refresh(
 
     match fetch_web_billing(app, cookie_header).await {
         Ok(snapshot) => Ok(usage_from_snapshot(account, credentials.as_ref(), snapshot)),
-        Err(GrokFetchError::Auth(_)) => Err(ProviderError::Auth),
-        Err(error) => Err(ProviderError::Transient(format!(
-            "Grok did not provide current billing usage: {}",
-            error.message()
-        ))),
+        Err(error) => Err(error.into_provider_error()),
     }
 }
 
@@ -119,8 +122,7 @@ pub async fn probe_cookie(
     let cookie_header = normalize_cookie_header(cookie_header).map_err(ProviderError::Transient)?;
     let snapshot = match fetch_web_billing(app, &cookie_header).await {
         Ok(snapshot) => snapshot,
-        Err(GrokFetchError::Auth(_)) => return Err(ProviderError::Auth),
-        Err(error) => return Err(ProviderError::Transient(error.message().to_string())),
+        Err(error) => return Err(error.into_provider_error()),
     };
     Ok(usage_from_snapshot(
         &Account {
@@ -311,7 +313,7 @@ async fn fetch_web_billing(
     cookie_header: &str,
 ) -> Result<BillingSnapshot, GrokFetchError> {
     let cookie_header = normalize_cookie_header(cookie_header)
-        .map_err(GrokFetchError::Unavailable)?;
+        .map_err(|_| GrokFetchError::Unavailable)?;
     let response = app
         .client
         .post(WEB_BILLING_ENDPOINT)
@@ -325,23 +327,19 @@ async fn fetch_web_billing(
         .body(vec![0u8; 5])
         .send()
         .await
-        .map_err(|error| GrokFetchError::Unavailable(format!("Grok billing request failed: {error}")))?;
+        .map_err(|_| GrokFetchError::Unavailable)?;
     let status = response.status();
     let headers = response.headers().clone();
     let body = response
         .bytes()
         .await
-        .map_err(|error| GrokFetchError::Unavailable(format!("Unable to read Grok billing response: {error}")))?;
+        .map_err(|_| GrokFetchError::Unavailable)?;
 
     if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
-        return Err(GrokFetchError::Auth(
-            "Grok rejected the saved browser session.".into(),
-        ));
+        return Err(GrokFetchError::Auth);
     }
     if !status.is_success() {
-        return Err(GrokFetchError::Unavailable(format!(
-            "Grok billing returned HTTP {status}."
-        )));
+        return Err(GrokFetchError::Unavailable);
     }
     validate_grpc_status(
         headers
@@ -383,16 +381,12 @@ fn validate_grpc_status(
         || lower.contains("unauthenticated")
         || lower.contains("session")
     {
-        return Err(GrokFetchError::Auth(message.into()));
+        return Err(GrokFetchError::Auth);
     }
     if status == 9 && lower.trim_end_matches('.') == "no personal team" {
-        return Err(GrokFetchError::Unavailable(
-            "Grok team usage is unavailable from the current billing surface.".into(),
-        ));
+        return Err(GrokFetchError::TeamUnavailable);
     }
-    Err(GrokFetchError::Unavailable(format!(
-        "Grok billing RPC failed with status {status}: {message}"
-    )))
+    Err(GrokFetchError::Unavailable)
 }
 
 fn grpc_trailer_fields(data: &[u8]) -> HashMap<String, String> {
@@ -462,9 +456,7 @@ fn parse_web_billing_response(
         payloads.push(data.to_vec());
     }
     if payloads.is_empty() {
-        return Err(GrokFetchError::Unavailable(
-            "Grok billing returned no protobuf payload.".into(),
-        ));
+        return Err(GrokFetchError::Unavailable);
     }
 
     let mut scan = ProtobufScan::default();
@@ -529,7 +521,7 @@ fn parse_web_billing_response(
     let used_percent = percent
         .or_else(|| resets_at.is_some().then_some(0.0))
         .ok_or_else(|| {
-            GrokFetchError::Unavailable("Could not parse Grok billing usage.".into())
+            GrokFetchError::Unavailable
         })?;
     Ok((used_percent, period_start, resets_at))
 }
@@ -797,6 +789,31 @@ mod tests {
         let end = start + 7 * 86_400;
         let (percent, _, _) = parse_web_billing_response(&fixture(None, start, end)).unwrap();
         assert_eq!(percent, 0.0);
+    }
+
+    #[test]
+    fn grok_rpc_errors_are_sanitized_for_the_ui() {
+        let auth = validate_grpc_status(Some("16"), Some("bad-credentials: leaked session token"));
+        assert!(matches!(auth, Err(GrokFetchError::Auth)));
+        assert_eq!(
+            GrokFetchError::Auth.into_provider_error().to_string(),
+            "authentication is required"
+        );
+
+        let team = validate_grpc_status(Some("9"), Some("no personal team"));
+        assert!(matches!(team, Err(GrokFetchError::TeamUnavailable)));
+        assert_eq!(
+            GrokFetchError::TeamUnavailable.into_provider_error().to_string(),
+            "Grok team usage is unavailable from the current billing surface."
+        );
+
+        let leaked = validate_grpc_status(Some("13"), Some("internal: cookie=abc; Authorization: Bearer leaked"));
+        assert!(matches!(leaked, Err(GrokFetchError::Unavailable)));
+        let message = GrokFetchError::Unavailable.into_provider_error().to_string();
+        assert_eq!(message, "Grok did not provide current billing usage.");
+        assert!(!message.contains("cookie"));
+        assert!(!message.contains("Bearer"));
+        assert!(!message.contains("leaked"));
     }
 
     #[test]

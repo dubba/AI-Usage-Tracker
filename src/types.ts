@@ -43,17 +43,20 @@ export interface UsageAlertSetting {
   thresholdPercent: number;
 }
 
-export interface BridgeInfo {
+export interface BridgeStatus {
   endpoint: string;
-  token: string;
   enabled: boolean;
   running: boolean;
   error: string | null;
 }
 
+export interface BridgeInfo extends BridgeStatus {
+  token: string;
+}
+
 export interface DashboardSnapshot {
   accounts: Account[];
-  bridge: BridgeInfo;
+  bridge: BridgeStatus;
 }
 
 export interface AppSettings {

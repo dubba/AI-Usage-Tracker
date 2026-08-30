@@ -1,13 +1,14 @@
-use crate::model::Account;
+use crate::{
+    fs_util::{atomic_write_private, ensure_private_file},
+    model::Account,
+};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     fs,
-    io::Write,
     path::{Path, PathBuf},
 };
-use uuid::Uuid;
 
 const ORDER_FILE_NAME: &str = "account-order.json";
 
@@ -29,9 +30,11 @@ impl AccountOrderStore {
         let path = data_dir.join(ORDER_FILE_NAME);
         let account_ids = if path.exists() {
             let payload = fs::read_to_string(&path).map_err(|error| error.to_string())?;
-            serde_json::from_str::<AccountOrderFile>(&payload)
+            let parsed = serde_json::from_str::<AccountOrderFile>(&payload)
                 .map_err(|error| format!("Unable to read saved account order: {error}"))?
-                .account_ids
+                .account_ids;
+            ensure_private_file(&path)?;
+            parsed
         } else {
             Vec::new()
         };
@@ -104,35 +107,7 @@ impl AccountOrderStore {
             account_ids: self.account_ids.read().clone(),
         };
         let payload = serde_json::to_vec_pretty(&file).map_err(|error| error.to_string())?;
-        atomic_write(&self.path, &payload)
-    }
-}
-
-fn atomic_write(path: &Path, payload: &[u8]) -> Result<(), String> {
-    let temporary_path = path.with_extension(format!("tmp.{}", Uuid::new_v4()));
-    let mut file = fs::File::create(&temporary_path).map_err(|error| error.to_string())?;
-    file.write_all(payload).map_err(|error| error.to_string())?;
-    file.sync_all().map_err(|error| error.to_string())?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = fs::set_permissions(&temporary_path, fs::Permissions::from_mode(0o600));
-    }
-    match fs::rename(&temporary_path, path) {
-        Ok(()) => Ok(()),
-        Err(error)
-            if matches!(
-                error.kind(),
-                std::io::ErrorKind::AlreadyExists | std::io::ErrorKind::PermissionDenied
-            ) =>
-        {
-            let _ = fs::remove_file(path);
-            fs::rename(&temporary_path, path).map_err(|error| error.to_string())
-        }
-        Err(error) => {
-            let _ = fs::remove_file(&temporary_path);
-            Err(error.to_string())
-        }
+        atomic_write_private(&self.path, &payload)
     }
 }
 

@@ -500,6 +500,8 @@ fn save_project_selection(
     oauth: OAuthSecret,
     email: Option<String>,
 ) -> Result<(), String> {
+    let lock = app.account_lock(account_id);
+    let _guard = lock.blocking_lock();
     let mut stored = load_google_ai_studio_secret(account_id)?;
     stored.cloud_project_id = Some(project.project_id.clone());
     stored.cloud_oauth = Some(oauth);

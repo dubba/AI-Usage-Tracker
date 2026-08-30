@@ -1,12 +1,11 @@
+use crate::fs_util::{atomic_write_private, ensure_private_file};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
-    io::Write,
     path::{Path, PathBuf},
 };
 use tokio::sync::Notify;
-use uuid::Uuid;
 
 const SETTINGS_FILE_NAME: &str = "app-settings.json";
 pub const DEFAULT_ACCOUNT_REFRESH_MINUTES: u64 = 5;
@@ -72,8 +71,10 @@ impl SettingsStore {
         let path = data_dir.join(SETTINGS_FILE_NAME);
         let mut settings = if path.exists() {
             let payload = fs::read_to_string(&path).map_err(|error| error.to_string())?;
-            serde_json::from_str::<StoredAppSettings>(&payload)
-                .map_err(|error| format!("Unable to read app settings: {error}"))?
+            let parsed = serde_json::from_str::<StoredAppSettings>(&payload)
+                .map_err(|error| format!("Unable to read app settings: {error}"))?;
+            ensure_private_file(&path)?;
+            parsed
         } else {
             StoredAppSettings::default()
         };
@@ -186,32 +187,7 @@ impl SettingsStore {
 
     fn persist(&self, settings: &StoredAppSettings) -> Result<(), String> {
         let payload = serde_json::to_vec_pretty(settings).map_err(|error| error.to_string())?;
-        let temporary_path = self.path.with_extension(format!("tmp.{}", Uuid::new_v4()));
-        let mut file = fs::File::create(&temporary_path).map_err(|error| error.to_string())?;
-        file.write_all(&payload)
-            .map_err(|error| error.to_string())?;
-        file.sync_all().map_err(|error| error.to_string())?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let _ = fs::set_permissions(&temporary_path, fs::Permissions::from_mode(0o600));
-        }
-        match fs::rename(&temporary_path, &self.path) {
-            Ok(()) => Ok(()),
-            Err(error)
-                if matches!(
-                    error.kind(),
-                    std::io::ErrorKind::AlreadyExists | std::io::ErrorKind::PermissionDenied
-                ) =>
-            {
-                let _ = fs::remove_file(&self.path);
-                fs::rename(&temporary_path, &self.path).map_err(|error| error.to_string())
-            }
-            Err(error) => {
-                let _ = fs::remove_file(&temporary_path);
-                Err(error.to_string())
-            }
-        }
+        atomic_write_private(&self.path, &payload)
     }
 }
 
@@ -280,6 +256,24 @@ mod tests {
         assert!(store.get().automatic_updates_enabled);
         assert!(!store.set_automatic_updates_enabled(false).unwrap().automatic_updates_enabled);
         assert!(!SettingsStore::load(directory.path()).unwrap().get().automatic_updates_enabled);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn settings_file_is_restricted_to_the_owner() {
+        use std::os::unix::fs::PermissionsExt;
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join(SETTINGS_FILE_NAME);
+        fs::write(
+            &path,
+            r#"{"version":3,"accountRefreshMinutes":10,"paseoBridgeEnabled":false,"automaticUpdatesEnabled":true}"#,
+        )
+        .unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).unwrap();
+        let store = SettingsStore::load(directory.path()).unwrap();
+        assert_eq!(fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+        store.set_paseo_bridge_enabled(true).unwrap();
+        assert_eq!(fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
     }
 
     #[test]

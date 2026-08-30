@@ -36,16 +36,24 @@ This file tracks notable user-facing changes to AI Usage Tracker.
 - The local health endpoint now requires the same bearer token as the usage endpoint.
 - The local API allows at most one authenticated request per second. Extra requests return `429` with `Retry-After: 1`.
 - Google Antigravity and Google AI Studio sign-in no longer request previously granted extra OAuth scopes.
+- Google Antigravity sign-in no longer requests Cloud Platform write access, client logging, or experiment-config scopes. Reconnect an Antigravity account to drop previously granted extra scopes.
+- Removing an account now fails if saved credentials cannot be deleted, so tokens are not left behind.
 - Google AI Studio authorization now opens backend-defined least-privilege OAuth scopes directly without frontend scope escalation.
 - Credential operations across all providers and login workflows now consistently use unified macOS Keychain single-item storage with automatic legacy chunk cleanup.
 - Grok quota tracking now communicates exclusively via standard HTTPS API requests, eliminating external CLI subprocess execution and unsafe relative home directory fallbacks.
 - OpenCode workspace identifiers are strictly validated to alphanumeric slugs, preventing path traversal and URL parameter injection.
 - Local bridge API bearer token validation now hashes inputs with fixed-length digests before constant-time comparison to prevent timing side-channel length leaks.
 - App settings, alert thresholds, and account ordering are written atomically via unique temporary files to prevent data corruption.
+- The dashboard snapshot no longer includes the local API bearer token. The token is available only in the Integration details window.
+- Grok account errors no longer show raw provider RPC text on the dashboard.
+- Settings, alert, account-order, and account files are restricted to owner access. Existing world-readable copies are tightened on startup.
+- Connecting or reconnecting an account no longer overwrites newer usage data and uses the same account lock as refresh.
 
 ### Fixed
 
 - OpenCode account connection now persists email addresses directly into backend storage and includes them in local API usage responses.
+- The app no longer asks for Keychain access on every usage refresh. It asks when credentials are first unlocked or when they actually change.
+- Account usage refresh now stops after 45 seconds if a provider does not finish responding.
 
 - Login and callback pages no longer still refer to the former **Paseo Usage Bridge** name.
 - Provider connection flows now atomically synchronize pending authentication state across all active setup stages, preventing concurrent connection attempts from colliding.

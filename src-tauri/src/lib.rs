@@ -1,6 +1,7 @@
 mod account_order;
 mod alerts;
 mod bridge_api;
+mod fs_util;
 mod google_ai_studio_oauth;
 mod grok_login;
 mod model;
@@ -15,7 +16,8 @@ mod usage;
 use crate::{
     alerts::UsageAlertSetting,
     model::{
-        Account, AppUpdateStatus, BridgeInfo, DashboardSnapshot, LoginStart, LoginStatus, Provider,
+        Account, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart,
+        LoginStatus, Provider,
     },
     settings::AppSettings,
     state::AppState,
@@ -46,8 +48,13 @@ async fn get_dashboard_snapshot(
     let accounts = state.account_order.apply(state.store.list())?;
     Ok(DashboardSnapshot {
         accounts,
-        bridge: bridge_info(state.inner().as_ref()),
+        bridge: bridge_status(state.inner().as_ref()),
     })
+}
+
+#[tauri::command]
+fn get_bridge_info(state: State<'_, Arc<AppState>>) -> Result<BridgeInfo, String> {
+    Ok(bridge_info(state.inner().as_ref()))
 }
 
 #[tauri::command]
@@ -233,18 +240,18 @@ fn set_automatic_updates_enabled(
 async fn set_paseo_bridge_enabled(
     state: State<'_, Arc<AppState>>,
     enabled: bool,
-) -> Result<BridgeInfo, String> {
+) -> Result<BridgeStatus, String> {
     state.settings.set_paseo_bridge_enabled(enabled)?;
 
     for _ in 0..20 {
-        let info = bridge_info(state.inner().as_ref());
-        if (!enabled && !info.running) || (enabled && (info.running || info.error.is_some())) {
-            return Ok(info);
+        let status = bridge_status(state.inner().as_ref());
+        if (!enabled && !status.running) || (enabled && (status.running || status.error.is_some())) {
+            return Ok(status);
         }
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
 
-    Ok(bridge_info(state.inner().as_ref()))
+    Ok(bridge_status(state.inner().as_ref()))
 }
 
 #[tauri::command]
@@ -462,14 +469,24 @@ fn validate_label(label: &str) -> Result<String, String> {
     Ok(label.to_string())
 }
 
-fn bridge_info(state: &AppState) -> BridgeInfo {
+fn bridge_status(state: &AppState) -> BridgeStatus {
     let runtime = state.api_runtime.read();
-    BridgeInfo {
+    BridgeStatus {
         endpoint: runtime.endpoint.clone(),
-        token: state.bridge_token.read().clone(),
         enabled: state.settings.paseo_bridge_enabled(),
         running: runtime.running,
         error: runtime.error.clone(),
+    }
+}
+
+fn bridge_info(state: &AppState) -> BridgeInfo {
+    let status = bridge_status(state);
+    BridgeInfo {
+        endpoint: status.endpoint,
+        token: state.bridge_token.read().clone(),
+        enabled: status.enabled,
+        running: status.running,
+        error: status.error,
     }
 }
 
@@ -585,6 +602,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_dashboard_snapshot,
+            get_bridge_info,
             start_login,
             probe_google_ai_studio_key,
             add_google_ai_studio_account,

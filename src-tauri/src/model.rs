@@ -126,7 +126,7 @@ impl Account {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OAuthSecret {
     pub access_token: String,
@@ -141,14 +141,14 @@ impl OAuthSecret {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OpenCodeGoSecret {
     pub workspace_id: String,
     pub auth_cookie: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GoogleAiStudioSecret {
     pub api_key: String,
@@ -159,7 +159,7 @@ pub struct GoogleAiStudioSecret {
     pub cloud_oauth: Option<OAuthSecret>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GrokSecret {
     #[serde(default)]
@@ -168,7 +168,7 @@ pub struct GrokSecret {
     pub auth_file: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "provider", content = "credentials", rename_all = "snake_case")]
 pub enum ProviderSecret {
     Openai(OAuthSecret),
@@ -223,6 +223,15 @@ pub struct LoginStatus {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct BridgeStatus {
+    pub endpoint: String,
+    pub enabled: bool,
+    pub running: bool,
+    pub error: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BridgeInfo {
     pub endpoint: String,
     pub token: String,
@@ -235,7 +244,7 @@ pub struct BridgeInfo {
 #[serde(rename_all = "camelCase")]
 pub struct DashboardSnapshot {
     pub accounts: Vec<Account>,
-    pub bridge: BridgeInfo,
+    pub bridge: BridgeStatus,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -284,4 +293,28 @@ pub struct TokenClaims {
 
 pub fn now_rfc3339() -> String {
     Utc::now().to_rfc3339()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dashboard_snapshot_omits_bridge_token() {
+        let snapshot = DashboardSnapshot {
+            accounts: Vec::new(),
+            bridge: BridgeStatus {
+                endpoint: "http://127.0.0.1:47831/v1/paseo-usage".into(),
+                enabled: true,
+                running: true,
+                error: None,
+            },
+        };
+        let json = serde_json::to_value(&snapshot).unwrap();
+        assert!(json["bridge"].get("token").is_none());
+        assert_eq!(
+            json["bridge"]["endpoint"],
+            "http://127.0.0.1:47831/v1/paseo-usage"
+        );
+    }
 }
