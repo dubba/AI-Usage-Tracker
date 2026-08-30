@@ -711,6 +711,7 @@ select {
 .account-card-name-row h2 {
   overflow: hidden;
   margin: 0;
+  flex: 0 1 auto;
   color: #f5f1f0;
   font-size: 18px;
   line-height: 24px;
@@ -798,9 +799,18 @@ select {
 
 .account-card-header-actions {
   display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+}
+
+.account-card-header-meta {
+  display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .account-card-action {

@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default permissions for the AI Subscription Tracker desktop windows",
+  "description": "Default permissions for the AI Usage Tracker desktop windows",
   "windows": ["main", "paseo-bridge"],
   "permissions": [
     "core:default",
@@ -11,7 +11,7 @@
         { "url": "https://auth.openai.com/*" },
         { "url": "https://claude.ai/*" },
         { "url": "https://accounts.google.com/*" },
-        { "url": "https://github.com/yajinni/AI-Subscription-Tracker/blob/main/CHANGELOG.md" }
+        { "url": "https://github.com/yajinni/AI-Usage-Tracker/blob/main/CHANGELOG.md" }
       ]
     },
     "autostart:allow-enable",

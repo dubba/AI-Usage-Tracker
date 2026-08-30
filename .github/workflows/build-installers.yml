@@ -70,7 +70,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         with:
           tagName: v__VERSION__
-          releaseName: Paseo Usage Bridge v__VERSION__
+          releaseName: AI Usage Tracker v__VERSION__
           releaseBody: |
             ## Which download should I use?
 

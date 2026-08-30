@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    paseo_usage_bridge_lib::run();
+    ai_usage_tracker_lib::run();
 }

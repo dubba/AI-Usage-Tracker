@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "AI Subscription Tracker",
+  "productName": "AI Usage Tracker",
   "version": "0.2.47",
   "identifier": "com.yajinni.paseousagebridge",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "AI Subscription Tracker",
+        "title": "AI Usage Tracker",
         "label": "main",
         "create": false,
         "width": 1440,
@@ -39,14 +39,14 @@
       "icons/icon.icns"
     ],
     "category": "Utility",
-    "shortDescription": "Track AI subscription usage across multiple providers",
-    "longDescription": "AI Subscription Tracker is a standalone Windows and macOS desktop app for monitoring OpenAI Codex, Anthropic Claude, Google Antigravity, Google AI Studio, Grok / SuperGrok, and OpenCode Go subscription usage, with an optional sanitized Paseo integration over localhost."
+    "shortDescription": "Track AI usage across multiple providers",
+    "longDescription": "AI Usage Tracker is a standalone Windows and macOS desktop app for monitoring OpenAI Codex, Anthropic Claude, Google Antigravity, Google AI Studio, Grok / SuperGrok, and OpenCode Go usage, with an optional sanitized Paseo integration over localhost."
   },
   "plugins": {
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM0RjhBNTZBRjU5MjNFRUUKUldUdVBwTDFhcVg0eE0vZ2NtaDBRYXk4RUJRcThBRi9FL1E4NmFXYkJDWE1XMFVzcHFzMzNsWlkK",
       "endpoints": [
-        "https://github.com/yajinni/Paseo-Usage-Bridge/releases/latest/download/latest.json"
+        "https://github.com/yajinni/AI-Usage-Tracker/releases/latest/download/latest.json"
       ],
       "windows": {
         "installMode": "passive"

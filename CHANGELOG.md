@@ -1,10 +1,24 @@
 # Changelog
 
-This file tracks notable user-facing changes to AI Subscription Tracker.
+This file tracks notable user-facing changes to AI Usage Tracker.
 
 ## Unreleased
 
-_No unreleased user-facing changes yet._
+### Added
+
+- Settings now includes a toggle for automatic app updates. Manual update checks still work when the toggle is off.
+
+### Improved
+
+- The app now uses the name **AI Usage Tracker** in the installer, Dock, menu bar, window title, and GitHub releases.
+- Account cards keep the rename control beside the account name, with Live/plan badges above the notification, remove, and refresh icons.
+- Long account lists now scroll in the dashboard instead of compressing cards to fit the window.
+- Account passwords and the local API token are now stored in the Keychain as **AI Usage Tracker**. Existing **Paseo Usage Bridge** items are copied on first use.
+
+### Fixed
+
+- Login and callback pages no longer still refer to the former **Paseo Usage Bridge** name.
+- The remove-account control between the notification and refresh buttons now confirms in the app and actually removes the account.
 
 ## 0.2.47 - 2026-07-31
 

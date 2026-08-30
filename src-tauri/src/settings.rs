@@ -17,6 +17,7 @@ pub const ACCOUNT_REFRESH_STEP_MINUTES: u64 = 5;
 pub struct AppSettings {
     pub account_refresh_minutes: u64,
     pub paseo_bridge_enabled: bool,
+    pub automatic_updates_enabled: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -28,6 +29,8 @@ struct StoredAppSettings {
     account_refresh_minutes: u64,
     #[serde(default)]
     paseo_bridge_enabled: bool,
+    #[serde(default = "default_automatic_updates_enabled")]
+    automatic_updates_enabled: bool,
     #[serde(default)]
     last_notified_update_version: Option<String>,
 }
@@ -38,7 +41,18 @@ impl Default for StoredAppSettings {
             version: settings_version(),
             account_refresh_minutes: DEFAULT_ACCOUNT_REFRESH_MINUTES,
             paseo_bridge_enabled: false,
+            automatic_updates_enabled: true,
             last_notified_update_version: None,
+        }
+    }
+}
+
+impl StoredAppSettings {
+    fn public(&self) -> AppSettings {
+        AppSettings {
+            account_refresh_minutes: self.account_refresh_minutes,
+            paseo_bridge_enabled: self.paseo_bridge_enabled,
+            automatic_updates_enabled: self.automatic_updates_enabled,
         }
     }
 }
@@ -76,11 +90,7 @@ impl SettingsStore {
     }
 
     pub fn get(&self) -> AppSettings {
-        let settings = self.settings.read();
-        AppSettings {
-            account_refresh_minutes: settings.account_refresh_minutes,
-            paseo_bridge_enabled: settings.paseo_bridge_enabled,
-        }
+        self.settings.read().public()
     }
 
     pub fn account_refresh_minutes(&self) -> u64 {
@@ -94,10 +104,7 @@ impl SettingsStore {
 
         let mut settings = self.settings.write();
         if settings.account_refresh_minutes == minutes {
-            return Ok(AppSettings {
-                account_refresh_minutes: minutes,
-                paseo_bridge_enabled: settings.paseo_bridge_enabled,
-            });
+            return Ok(settings.public());
         }
 
         let mut next = settings.clone();
@@ -106,10 +113,7 @@ impl SettingsStore {
         *settings = next;
         self.refresh_schedule_changed.notify_one();
 
-        Ok(AppSettings {
-            account_refresh_minutes: minutes,
-            paseo_bridge_enabled: settings.paseo_bridge_enabled,
-        })
+        Ok(settings.public())
     }
 
     pub async fn wait_for_refresh_schedule_change(&self) {
@@ -123,10 +127,7 @@ impl SettingsStore {
     pub fn set_paseo_bridge_enabled(&self, enabled: bool) -> Result<AppSettings, String> {
         let mut settings = self.settings.write();
         if settings.paseo_bridge_enabled == enabled {
-            return Ok(AppSettings {
-                account_refresh_minutes: settings.account_refresh_minutes,
-                paseo_bridge_enabled: enabled,
-            });
+            return Ok(settings.public());
         }
 
         let mut next = settings.clone();
@@ -135,10 +136,25 @@ impl SettingsStore {
         *settings = next;
         self.bridge_state_changed.notify_one();
 
-        Ok(AppSettings {
-            account_refresh_minutes: settings.account_refresh_minutes,
-            paseo_bridge_enabled: enabled,
-        })
+        Ok(settings.public())
+    }
+
+    pub fn automatic_updates_enabled(&self) -> bool {
+        self.settings.read().automatic_updates_enabled
+    }
+
+    pub fn set_automatic_updates_enabled(&self, enabled: bool) -> Result<AppSettings, String> {
+        let mut settings = self.settings.write();
+        if settings.automatic_updates_enabled == enabled {
+            return Ok(settings.public());
+        }
+
+        let mut next = settings.clone();
+        next.automatic_updates_enabled = enabled;
+        self.persist(&next)?;
+        *settings = next;
+
+        Ok(settings.public())
     }
 
     pub async fn wait_for_bridge_state_change(&self) {
@@ -173,11 +189,15 @@ impl SettingsStore {
 }
 
 fn settings_version() -> u32 {
-    2
+    3
 }
 
 fn default_account_refresh_minutes() -> u64 {
     DEFAULT_ACCOUNT_REFRESH_MINUTES
+}
+
+fn default_automatic_updates_enabled() -> bool {
+    true
 }
 
 fn valid_refresh_minutes(minutes: u64) -> bool {
@@ -224,5 +244,27 @@ mod tests {
         store.mark_update_notified("0.2.23").unwrap();
         assert!(!SettingsStore::load(directory.path()).unwrap().update_notification_needed("0.2.23"));
         assert!(store.update_notification_needed("0.2.24"));
+    }
+
+    #[test]
+    fn automatic_updates_are_enabled_by_default_and_persist_when_disabled() {
+        let directory = tempfile::tempdir().unwrap();
+        let store = SettingsStore::load(directory.path()).unwrap();
+        assert!(store.get().automatic_updates_enabled);
+        assert!(!store.set_automatic_updates_enabled(false).unwrap().automatic_updates_enabled);
+        assert!(!SettingsStore::load(directory.path()).unwrap().get().automatic_updates_enabled);
+    }
+
+    #[test]
+    fn missing_automatic_updates_setting_defaults_to_enabled() {
+        let directory = tempfile::tempdir().unwrap();
+        fs::write(
+            directory.path().join(SETTINGS_FILE_NAME),
+            r#"{"version":2,"accountRefreshMinutes":10,"paseoBridgeEnabled":false}"#,
+        )
+        .unwrap();
+        let store = SettingsStore::load(directory.path()).unwrap();
+        assert!(store.get().automatic_updates_enabled);
+        assert_eq!(store.get().account_refresh_minutes, 10);
     }
 }

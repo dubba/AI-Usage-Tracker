@@ -5,7 +5,7 @@ import type { AppUpdateStatus } from "./types";
 export const APP_UPDATE_STATUS_EVENT = "ai-subscription-tracker:app-update-status";
 
 const DEFAULT_LABEL = "Check for App Updates";
-const CHANGELOG_URL = "https://github.com/yajinni/AI-Subscription-Tracker/blob/main/CHANGELOG.md";
+const CHANGELOG_URL = "https://github.com/yajinni/AI-Usage-Tracker/blob/main/CHANGELOG.md";
 const RESET_LABEL_DELAY_MS = 3_000;
 
 export function publishAppUpdateStatus(status: AppUpdateStatus): void {

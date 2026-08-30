@@ -40,7 +40,7 @@ const CONNECT_BANNER_SCRIPT: &str = r#"
     const banner = document.createElement('div');
     banner.id = 'ai-tracker-grok-connect-banner';
     banner.setAttribute('role', 'status');
-    banner.textContent = 'AI Subscription Tracker: Sign in to Grok. This private window closes automatically after your provider-reported weekly usage is detected.';
+    banner.textContent = 'AI Usage Tracker: Sign in to Grok. This private window closes automatically after your provider-reported weekly usage is detected.';
     Object.assign(banner.style, {
       position: 'fixed',
       top: '0',

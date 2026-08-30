@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-AI Subscription Tracker includes code adapted from the following open-source project.
+AI Usage Tracker includes code adapted from the following open-source project.
 
 ## CodexBar
 

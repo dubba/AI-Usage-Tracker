@@ -10,7 +10,8 @@ use std::{
 };
 use thiserror::Error;
 
-const CREDENTIAL_SERVICE: &str = "paseo-usage-bridge";
+const CREDENTIAL_SERVICE: &str = "ai-usage-tracker";
+const LEGACY_CREDENTIAL_SERVICE: &str = "paseo-usage-bridge";
 const BRIDGE_TOKEN_USER: &str = "bridge-api-token";
 const CHUNKED_CREDENTIAL_FORMAT: &str = "chunked-v1";
 const WINDOWS_CREDENTIAL_BLOB_LIMIT_BYTES: usize = 2560;
@@ -111,7 +112,7 @@ impl AccountStore {
         let mut accounts = self.accounts.write();
         accounts.retain(|account| account.id != id);
         write_account_file(&self.data_dir, &accounts)?;
-        delete_secret(id)?;
+        let _ = delete_secret(id);
         Ok(())
     }
 
@@ -195,10 +196,7 @@ pub fn save_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result
 }
 
 pub fn load_provider_secret(account_id: &str) -> Result<ProviderSecret, StoreError> {
-    let entry = account_credential_entry(account_id)?;
-    let stored = entry
-        .get_password()
-        .map_err(|error| StoreError::Credential(error.to_string()))?;
+    let stored = read_password(&account_credential_user(account_id))?;
 
     if let Some(manifest) = parse_credential_manifest(&stored)? {
         let payload = read_credential_generation(account_id, &manifest.active)?;
@@ -209,29 +207,34 @@ pub fn load_provider_secret(account_id: &str) -> Result<ProviderSecret, StoreErr
 }
 
 pub fn delete_secret(account_id: &str) -> Result<(), StoreError> {
-    let entry = account_credential_entry(account_id)?;
-    let stored = match entry.get_password() {
-        Ok(value) => Some(value),
-        Err(keyring::Error::NoEntry) => None,
-        Err(error) => return Err(StoreError::Credential(error.to_string())),
-    };
-
+    let user = account_credential_user(account_id);
     let mut first_error = None;
-    if let Some(stored) = stored.as_deref() {
-        if let Some(manifest) = parse_credential_manifest(stored)? {
-            for generation in std::iter::once(&manifest.active).chain(manifest.previous.as_ref()) {
-                if let Err(error) = delete_credential_generation(account_id, generation) {
-                    first_error.get_or_insert(error);
+    let mut manifests = Vec::new();
+
+    for service in [CREDENTIAL_SERVICE, LEGACY_CREDENTIAL_SERVICE] {
+        match credential_entry_for(service, &user)?.get_password() {
+            Ok(stored) => {
+                if let Some(manifest) = parse_credential_manifest(&stored)? {
+                    manifests.push(manifest);
                 }
+            }
+            Err(keyring::Error::NoEntry) => {}
+            Err(error) => {
+                first_error.get_or_insert(StoreError::Credential(error.to_string()));
             }
         }
     }
 
-    match entry.delete_credential() {
-        Ok(()) | Err(keyring::Error::NoEntry) => {}
-        Err(error) => {
-            first_error.get_or_insert(StoreError::Credential(error.to_string()));
+    for manifest in &manifests {
+        for generation in std::iter::once(&manifest.active).chain(manifest.previous.as_ref()) {
+            if let Err(error) = delete_credential_generation(account_id, generation) {
+                first_error.get_or_insert(error);
+            }
         }
+    }
+
+    if let Err(error) = delete_credential(&user) {
+        first_error.get_or_insert(error);
     }
 
     match first_error {
@@ -241,11 +244,20 @@ pub fn delete_secret(account_id: &str) -> Result<(), StoreError> {
 }
 
 pub fn load_or_create_bridge_token() -> Result<String, StoreError> {
-    let entry = Entry::new(CREDENTIAL_SERVICE, BRIDGE_TOKEN_USER)
-        .map_err(|error| StoreError::Credential(error.to_string()))?;
+    let entry = credential_entry(BRIDGE_TOKEN_USER)?;
     match entry.get_password() {
         Ok(value) if value.len() >= 32 => Ok(value),
         Ok(_) | Err(keyring::Error::NoEntry) => {
+            if let Ok(value) = credential_entry_for(LEGACY_CREDENTIAL_SERVICE, BRIDGE_TOKEN_USER)?
+                .get_password()
+            {
+                if value.len() >= 32 {
+                    entry
+                        .set_password(&value)
+                        .map_err(|error| StoreError::Credential(error.to_string()))?;
+                    return Ok(value);
+                }
+            }
             let token = generate_bridge_token();
             entry
                 .set_password(&token)
@@ -258,8 +270,7 @@ pub fn load_or_create_bridge_token() -> Result<String, StoreError> {
 
 pub fn rotate_bridge_token() -> Result<String, StoreError> {
     let token = generate_bridge_token();
-    let entry = Entry::new(CREDENTIAL_SERVICE, BRIDGE_TOKEN_USER)
-        .map_err(|error| StoreError::Credential(error.to_string()))?;
+    let entry = credential_entry(BRIDGE_TOKEN_USER)?;
     entry
         .set_password(&token)
         .map_err(|error| StoreError::Credential(error.to_string()))?;
@@ -279,16 +290,51 @@ fn credential_chunk_user(account_id: &str, generation: &str, index: usize) -> St
 }
 
 fn credential_entry(user: &str) -> Result<Entry, StoreError> {
-    Entry::new(CREDENTIAL_SERVICE, user)
-        .map_err(|error| StoreError::Credential(error.to_string()))
+    credential_entry_for(CREDENTIAL_SERVICE, user)
+}
+
+fn credential_entry_for(service: &str, user: &str) -> Result<Entry, StoreError> {
+    Entry::new(service, user).map_err(|error| StoreError::Credential(error.to_string()))
+}
+
+fn read_password(user: &str) -> Result<String, StoreError> {
+    read_optional_password(user)?.ok_or_else(|| StoreError::Credential("No matching entry".into()))
+}
+
+fn read_optional_password(user: &str) -> Result<Option<String>, StoreError> {
+    match credential_entry_for(CREDENTIAL_SERVICE, user)?.get_password() {
+        Ok(value) => Ok(Some(value)),
+        Err(keyring::Error::NoEntry) => match credential_entry_for(LEGACY_CREDENTIAL_SERVICE, user)?
+            .get_password()
+        {
+            Ok(value) => Ok(Some(value)),
+            Err(keyring::Error::NoEntry) => Ok(None),
+            Err(error) => Err(StoreError::Credential(error.to_string())),
+        },
+        Err(error) => Err(StoreError::Credential(error.to_string())),
+    }
+}
+
+fn delete_credential(user: &str) -> Result<(), StoreError> {
+    let mut first_error = None;
+    for service in [CREDENTIAL_SERVICE, LEGACY_CREDENTIAL_SERVICE] {
+        match credential_entry_for(service, user)?.delete_credential() {
+            Ok(()) | Err(keyring::Error::NoEntry) => {}
+            Err(error) => {
+                first_error.get_or_insert(StoreError::Credential(error.to_string()));
+            }
+        }
+    }
+    match first_error {
+        Some(error) => Err(error),
+        None => Ok(()),
+    }
 }
 
 fn read_credential_manifest(account_id: &str) -> Result<Option<CredentialManifest>, StoreError> {
-    let entry = account_credential_entry(account_id)?;
-    match entry.get_password() {
-        Ok(value) => parse_credential_manifest(&value),
-        Err(keyring::Error::NoEntry) => Ok(None),
-        Err(error) => Err(StoreError::Credential(error.to_string())),
+    match read_optional_password(&account_credential_user(account_id))? {
+        Some(value) => parse_credential_manifest(&value),
+        None => Ok(None),
     }
 }
 
@@ -377,9 +423,7 @@ fn read_credential_generation(
     let mut payload = String::new();
     for index in 0..generation.chunks {
         let user = credential_chunk_user(account_id, &generation.generation, index);
-        let chunk = credential_entry(&user)?
-            .get_password()
-            .map_err(|error| StoreError::Credential(error.to_string()))?;
+        let chunk = read_password(&user)?;
         payload.push_str(&chunk);
     }
     Ok(payload)
@@ -393,11 +437,8 @@ fn delete_credential_generation(
     let mut first_error = None;
     for index in 0..generation.chunks {
         let user = credential_chunk_user(account_id, &generation.generation, index);
-        match credential_entry(&user)?.delete_credential() {
-            Ok(()) | Err(keyring::Error::NoEntry) => {}
-            Err(error) => {
-                first_error.get_or_insert(StoreError::Credential(error.to_string()));
-            }
+        if let Err(error) = delete_credential(&user) {
+            first_error.get_or_insert(error);
         }
     }
     match first_error {

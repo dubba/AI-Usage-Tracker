@@ -228,7 +228,7 @@ async function googleFetchJson(url, token, quotaProjectId) {
     headers: {
       Authorization: `Bearer ${token}`,
       "X-Goog-User-Project": quotaProjectId,
-      "User-Agent": "ai-subscription-tracker-gemini-quota-probe/1",
+      "User-Agent": "ai-usage-tracker-gemini-quota-probe/1",
     },
   });
 

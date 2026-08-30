@@ -59,6 +59,7 @@ export interface DashboardSnapshot {
 export interface AppSettings {
   accountRefreshMinutes: number;
   paseoBridgeEnabled: boolean;
+  automaticUpdatesEnabled: boolean;
 }
 
 export interface LoginStart {

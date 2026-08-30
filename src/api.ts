@@ -18,6 +18,7 @@ export const bridgeApi = {
   refreshAll: () => invoke<Account[]>("refresh_all"),
   getAppSettings: () => invoke<AppSettings>("get_app_settings"),
   setAccountRefreshMinutes: (minutes: number) => invoke<AppSettings>("set_account_refresh_minutes", { minutes }),
+  setAutomaticUpdatesEnabled: (enabled: boolean) => invoke<AppSettings>("set_automatic_updates_enabled", { enabled }),
   setPaseoBridgeEnabled: (enabled: boolean) => invoke<BridgeInfo>("set_paseo_bridge_enabled", { enabled }),
   openPaseoBridgeWindow: () => invoke<void>("open_paseo_bridge_window"),
   reorderAccounts: (accountIds: string[]) => invoke<Account[]>("reorder_accounts", { accountIds }),

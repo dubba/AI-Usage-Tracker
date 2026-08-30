@@ -11,7 +11,9 @@ use keyring::Entry;
 use serde::Deserialize;
 
 #[cfg(target_os = "macos")]
-const CREDENTIAL_SERVICE: &str = "paseo-usage-bridge";
+const CREDENTIAL_SERVICE: &str = "ai-usage-tracker";
+#[cfg(target_os = "macos")]
+const LEGACY_CREDENTIAL_SERVICE: &str = "paseo-usage-bridge";
 #[cfg(target_os = "macos")]
 const CHUNKED_CREDENTIAL_FORMAT: &str = "chunked-v1";
 #[cfg(target_os = "macos")]
@@ -64,23 +66,25 @@ pub(super) fn save_provider_secret(
 
 #[cfg(target_os = "macos")]
 pub(super) fn load_provider_secret(account_id: &str) -> Result<ProviderSecret, StoreError> {
-    let entry = account_credential_entry(account_id)?;
-    let stored = entry
-        .get_password()
-        .map_err(|error| StoreError::Credential(error.to_string()))?;
+    let user = format!("account:{account_id}");
+    let (stored, from_legacy) = read_password(&user)?;
+    let entry = credential_entry(&user)?;
 
-    let Some(manifest) = parse_credential_manifest(&stored)? else {
-        return decode_provider_secret(&stored);
-    };
+    if let Some(manifest) = parse_credential_manifest(&stored)? {
+        let payload = read_credential_generation(account_id, &manifest.active)?;
+        let secret = decode_provider_secret(&payload)?;
 
-    let payload = read_credential_generation(account_id, &manifest.active)?;
-    let secret = decode_provider_secret(&payload)?;
+        // Older releases used Windows-sized credential chunks on every platform. Once all
+        // chunks have been approved and read successfully, replace the manifest with the
+        // complete secret so future refreshes require only one macOS Keychain item.
+        let _ = entry.set_password(&payload);
+        return Ok(secret);
+    }
 
-    // Older releases used Windows-sized credential chunks on every platform. Once all
-    // chunks have been approved and read successfully, replace the manifest with the
-    // complete secret so future refreshes require only one macOS Keychain item.
-    let _ = entry.set_password(&payload);
-
+    let secret = decode_provider_secret(&stored)?;
+    if from_legacy {
+        let _ = entry.set_password(&stored);
+    }
     Ok(secret)
 }
 
@@ -91,8 +95,26 @@ fn account_credential_entry(account_id: &str) -> Result<Entry, StoreError> {
 
 #[cfg(target_os = "macos")]
 fn credential_entry(user: &str) -> Result<Entry, StoreError> {
-    Entry::new(CREDENTIAL_SERVICE, user)
-        .map_err(|error| StoreError::Credential(error.to_string()))
+    credential_entry_for(CREDENTIAL_SERVICE, user)
+}
+
+#[cfg(target_os = "macos")]
+fn credential_entry_for(service: &str, user: &str) -> Result<Entry, StoreError> {
+    Entry::new(service, user).map_err(|error| StoreError::Credential(error.to_string()))
+}
+
+#[cfg(target_os = "macos")]
+fn read_password(user: &str) -> Result<(String, bool), StoreError> {
+    match credential_entry_for(CREDENTIAL_SERVICE, user)?.get_password() {
+        Ok(value) => Ok((value, false)),
+        Err(keyring::Error::NoEntry) => match credential_entry_for(LEGACY_CREDENTIAL_SERVICE, user)?
+            .get_password()
+        {
+            Ok(value) => Ok((value, true)),
+            Err(error) => Err(StoreError::Credential(error.to_string())),
+        },
+        Err(error) => Err(StoreError::Credential(error.to_string())),
+    }
 }
 
 #[cfg(target_os = "macos")]
@@ -147,9 +169,7 @@ fn read_credential_generation(
     let mut payload = String::new();
     for index in 0..generation.chunks {
         let user = credential_chunk_user(account_id, &generation.generation, index);
-        let chunk = credential_entry(&user)?
-            .get_password()
-            .map_err(|error| StoreError::Credential(error.to_string()))?;
+        let (chunk, _) = read_password(&user)?;
         payload.push_str(&chunk);
     }
     Ok(payload)

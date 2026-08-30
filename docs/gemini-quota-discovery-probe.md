@@ -1,6 +1,6 @@
 # Gemini quota discovery probe
 
-This probe is the mandatory discovery step before AI Subscription Tracker adds production Google AI Studio/Gemini quota calculations.
+This probe is the mandatory discovery step before AI Usage Tracker adds production Google AI Studio/Gemini quota calculations.
 
 It intentionally does **not** calculate remaining quota, assign reset windows, or expose a new provider in the desktop interface. Its job is to capture the real Google Cloud metric shapes for a test project so the production adapter can be based on observed data rather than assumptions.
 

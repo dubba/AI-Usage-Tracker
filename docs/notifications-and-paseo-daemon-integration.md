@@ -7,7 +7,7 @@ Paseo upstream reviewed: `getpaseo/paseo` at commit `b4ab0d9db6e5668218e5aaa34f1
 
 ## Purpose
 
-Add a unified notification system to Paseo Usage Bridge that can notify the user locally and on their phone about:
+Add a unified notification system to AI Usage Tracker that can notify the user locally and on their phone about:
 
 1. An agent stopping work.
 2. An agent finishing its task.
@@ -185,7 +185,7 @@ Current upstream fetchers are registered for:
 - Kimi.
 - MiniMax.
 
-Paseo currently does not register provider-usage fetchers for Antigravity or OpenCode Go. Paseo Usage Bridge must continue using its own connectors for those providers and for independently authenticated accounts.
+Paseo currently does not register provider-usage fetchers for Antigravity or OpenCode Go. AI Usage Tracker must continue using its own connectors for those providers and for independently authenticated accounts.
 
 Primary references:
 
@@ -288,7 +288,7 @@ Default behavior:
 
 Sources:
 
-1. Usage windows tracked by Paseo Usage Bridge.
+1. Usage windows tracked by AI Usage Tracker.
 2. Optional normalized results from Paseo's `provider.usage.list.request` for providers/accounts not represented in the bridge.
 
 Default thresholds:

@@ -181,12 +181,17 @@
 }
 
 .remove-account-confirmation {
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
+  margin-top: 8px;
   color: var(--muted);
   font-size: 12px;
+  z-index: 2;
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
 }
 
 .remove-account-confirmation > div {

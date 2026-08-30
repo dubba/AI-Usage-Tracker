@@ -1,6 +1,6 @@
-# AI Subscription Tracker
+# AI Usage Tracker
 
-[![Validate](https://github.com/yajinni/AI-Subscription-Tracker/actions/workflows/validate.yml/badge.svg)](https://github.com/yajinni/AI-Subscription-Tracker/actions/workflows/validate.yml)
+[![Validate](https://github.com/yajinni/AI-Usage-Tracker/actions/workflows/validate.yml/badge.svg)](https://github.com/yajinni/AI-Usage-Tracker/actions/workflows/validate.yml)
 
 A standalone Windows and macOS desktop app for monitoring AI subscription usage across OpenAI Codex, Anthropic Claude, Google Antigravity, and OpenCode Go. It can optionally expose normalized, sanitized usage data to Paseo over localhost.
 
@@ -122,7 +122,7 @@ Every release must use a newer semantic version in all three locations:
 - `src-tauri/Cargo.toml`
 - `src-tauri/tauri.conf.json`
 
-Version `0.1.1` was the first updater-enabled build. Version `0.2.0` added the multi-provider account and usage architecture. Version `0.2.20` adopts the public name **AI Subscription Tracker** while retaining the existing bundle identifier and credential namespaces so installed users keep their accounts and update path.
+Version `0.1.1` was the first updater-enabled build. Version `0.2.0` added the multi-provider account and usage architecture. The public name is now **AI Usage Tracker**. The existing bundle identifier is unchanged so installed users keep their update path. Keychain items now use the `ai-usage-tracker` service name; items still stored as `paseo-usage-bridge` are copied on first use.
 
 ## Local API
 

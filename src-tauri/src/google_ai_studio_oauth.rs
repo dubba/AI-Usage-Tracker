@@ -301,14 +301,14 @@ async fn callback(
 
     match result {
         Ok(CallbackOutcome::Complete(account)) => Html(format!(
-            r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Google usage connected</h1><p>{}</p><p style="color:#8e9791">You can close this tab and return to AI Subscription Tracker.</p></body></html>"#,
+            r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Google usage connected</h1><p>{}</p><p style="color:#8e9791">You can close this tab and return to AI Usage Tracker.</p></body></html>"#,
             escape_html(account.email.as_deref().unwrap_or(&account.label))
         )),
         Ok(CallbackOutcome::ChooseProject(_)) => Html(
-            r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Google sign-in complete</h1><p>Return to AI Subscription Tracker and choose the project that owns this API key.</p></body></html>"#.into(),
+            r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Google sign-in complete</h1><p>Return to AI Usage Tracker and choose the project that owns this API key.</p></body></html>"#.into(),
         ),
         Ok(CallbackOutcome::MonitoringDisabled(project)) => Html(format!(
-            r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Project found</h1><p>{}</p><p>Return to AI Subscription Tracker to enable Cloud Monitoring.</p></body></html>"#,
+            r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Project found</h1><p>{}</p><p>Return to AI Usage Tracker to enable Cloud Monitoring.</p></body></html>"#,
             escape_html(&project.display_name)
         )),
         Err(error) => Html(format!(

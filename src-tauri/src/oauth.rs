@@ -215,7 +215,7 @@ async fn callback(
     stop_callback(&context).await;
     match result {
         Ok(account) => Html(format!(
-            r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Account connected</h1><p>{}</p><p style="color:#8e9791">You can close this tab and return to Paseo Usage Bridge.</p></body></html>"#,
+            r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Account connected</h1><p>{}</p><p style="color:#8e9791">You can close this tab and return to AI Usage Tracker.</p></body></html>"#,
             escape_html(account.email.as_deref().unwrap_or(&account.label))
         )),
         Err(error) => Html(format!(

@@ -5,7 +5,7 @@
 **Last updated:** 2026-07-13  
 **Upstream research baseline:** `getpaseo/paseo` at commit `b4ab0d9db6e5668218e5aaa34f15ef3dd133e3ec`
 
-This file is the implementation tracker for adding phone and desktop notifications to Paseo Usage Bridge. It replaces the earlier assumption that Windows toast interception should be the primary Paseo integration.
+This file is the implementation tracker for adding phone and desktop notifications to AI Usage Tracker. It replaces the earlier assumption that Windows toast interception should be the primary Paseo integration.
 
 The preferred design is to connect directly to Paseo's local daemon and consume its structured agent and provider events. Windows Notification Center interception remains a fallback only.
 
@@ -176,9 +176,9 @@ Agent needs attention
 Agent needs permission
 ```
 
-The daemon's internal callback distinguishes `finished`, `error`, and `permission`. Therefore, Paseo Usage Bridge should consume the structured daemon event rather than trying to rediscover these conditions from visible Windows notifications.
+The daemon's internal callback distinguishes `finished`, `error`, and `permission`. Therefore, AI Usage Tracker should consume the structured daemon event rather than trying to rediscover these conditions from visible Windows notifications.
 
-## Event definitions for Paseo Usage Bridge
+## Event definitions for AI Usage Tracker
 
 ### 1. Agent stopped coding
 
@@ -443,7 +443,7 @@ Requirements:
 
 ## Interaction with direct provider accounts
 
-Paseo Usage Bridge already tracks independently authenticated provider accounts. Paseo daemon usage is an additional local source, not a replacement.
+AI Usage Tracker already tracks independently authenticated provider accounts. Paseo daemon usage is an additional local source, not a replacement.
 
 Source precedence:
 

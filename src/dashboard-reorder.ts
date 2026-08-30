@@ -207,7 +207,7 @@ function dragFromPointerTarget(target: HTMLElement): DragDescriptor | null {
     return provider ? { kind: "provider", provider, source: providerRow } : null;
   }
 
-  if (target.closest("button, input, select, textarea, a, [contenteditable='true']")) return null;
+  if (target.closest("button, input, select, textarea, a, [contenteditable='true'], .account-card-name-actions, .account-card-header-actions, .remove-account-confirmation")) return null;
   const card = target.closest<HTMLElement>(".provider-account-card[data-reorder-enabled='true']");
   if (!card) return null;
   const accountId = card.dataset.accountId;

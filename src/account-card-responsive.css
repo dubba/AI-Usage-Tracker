@@ -4,19 +4,16 @@
 }
 
 .provider-account-card .account-card-identity {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas:
-    "name actions"
-    "email empty";
-  align-items: center;
-  column-gap: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
   min-width: 0;
 }
 
 .provider-account-card .account-card-name-row {
-  grid-area: name;
   min-width: 0;
+  max-width: 100%;
   flex-wrap: nowrap;
   overflow: hidden;
 }
@@ -24,27 +21,28 @@
 .provider-account-card .account-card-name-row > h2,
 .provider-account-card .account-card-name-row > .account-card-name-input {
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
 }
 
 .provider-account-card .account-card-email {
-  grid-area: email;
   min-width: 0;
-  margin: 0;
+  max-width: 100%;
+  margin: 3px 0 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .provider-account-card .account-card-name-actions {
-  grid-area: actions;
   display: inline-flex !important;
   align-items: center;
   justify-content: flex-end;
   gap: 4px;
   flex: 0 0 auto;
-  margin-left: auto;
   visibility: visible;
+  z-index: 2;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
 }
 
 .provider-account-card .account-card-name-actions .account-card-action {

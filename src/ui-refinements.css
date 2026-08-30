@@ -11,28 +11,20 @@
   background: var(--obsidian-purple-strong, #a078ff) !important;
 }
 
-.provider-account-card .account-card-header-actions > .account-plan-badge {
-  display: none;
-}
-
-.account-card-name-row[data-plan]::after {
-  content: attr(data-plan);
-  display: inline-flex;
-  align-items: center;
-  min-height: 18px;
-  padding: 1px 8px;
-  border-radius: 3px;
-  color: #ddd7e2;
-  background: #3a3939;
-  font-size: 10px;
-  line-height: 14px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-}
-
 .account-card-header-actions {
-  gap: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+}
+
+.account-card-header-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .account-card-header-actions button[title="Usage notifications"] {
@@ -183,8 +175,22 @@
 }
 
 /* Provider and account ordering */
+.obsidian-shell {
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+.obsidian-shell .sidebar,
+.obsidian-shell .main-stage {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
 .obsidian-shell .provider-list {
   flex: 1 1 auto;
+  min-height: 0;
   max-height: 100%;
   overscroll-behavior: contain;
 }
@@ -192,6 +198,8 @@
 .obsidian-shell .dashboard-content {
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  height: 100%;
   overflow: hidden;
 }
 
@@ -201,13 +209,24 @@
 }
 
 .obsidian-shell .provider-account-cards {
+  display: grid;
+  align-content: start;
+  grid-auto-rows: max-content;
   flex: 1 1 auto;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 0 6px 28px 0;
+  scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: #494454 transparent;
+}
+
+.obsidian-shell .provider-account-card {
+  height: auto;
+  min-height: max-content;
+  flex-shrink: 0;
 }
 
 .provider-summary-row[draggable="true"],
@@ -243,34 +262,20 @@
 
 /* Compact account cards and Trello-style reorder support */
 .account-card-name-row > h2,
-.account-card-name-row > .account-card-name-input,
-.account-card-name-row > .account-name-edit,
-.account-card-name-row > .account-status-badge {
-  order: 1;
-}
-
-.account-card-name-row > h2,
 .account-card-name-row > .account-card-name-input {
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
 }
 
-.account-card-name-row::after {
-  order: 2;
+.account-card-name-row > .account-name-edit {
   flex: 0 0 auto;
 }
 
 .account-card-name-actions {
-  order: 3;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   flex: 0 0 auto;
-  margin-left: auto;
-}
-
-.account-card-header-actions.plan-only-actions {
-  display: none;
 }
 
 .metric-compact-value {

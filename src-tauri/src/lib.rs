@@ -198,6 +198,14 @@ fn set_account_refresh_minutes(
 }
 
 #[tauri::command]
+fn set_automatic_updates_enabled(
+    state: State<'_, Arc<AppState>>,
+    enabled: bool,
+) -> Result<AppSettings, String> {
+    state.settings.set_automatic_updates_enabled(enabled)
+}
+
+#[tauri::command]
 async fn set_paseo_bridge_enabled(
     state: State<'_, Arc<AppState>>,
     enabled: bool,
@@ -344,14 +352,15 @@ async fn check_for_app_update(
     Ok(match update {
         Some(update) => {
             let available_version = update.version.to_string();
-            if state
-                .settings
-                .update_notification_needed(&available_version)
+            if state.settings.automatic_updates_enabled()
+                && state
+                    .settings
+                    .update_notification_needed(&available_version)
             {
                 let shown = app
                     .notification()
                     .builder()
-                    .title("AI Subscription Tracker update available")
+                    .title("AI Usage Tracker update available")
                     .body(format!("Version {available_version} is ready to install."))
                     .show();
                 if shown.is_ok() {
@@ -544,6 +553,7 @@ pub fn run() {
             refresh_all,
             get_app_settings,
             set_account_refresh_minutes,
+            set_automatic_updates_enabled,
             set_paseo_bridge_enabled,
             open_paseo_bridge_window,
             reorder_accounts,
@@ -556,5 +566,5 @@ pub fn run() {
             install_app_update,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running AI Subscription Tracker");
+        .expect("error while running AI Usage Tracker");
 }

@@ -75,7 +75,7 @@ const CONNECT_BANNER_SCRIPT: &str = r#"
     const banner = document.createElement('div');
     banner.id = 'paseo-opencode-connect-banner';
     banner.setAttribute('role', 'status');
-    banner.textContent = 'Paseo Usage Bridge: Sign in to OpenCode, then select Go from the sidebar. This window will close automatically when your Go usage page is detected.';
+    banner.textContent = 'AI Usage Tracker: Sign in to OpenCode, then select Go from the sidebar. This window will close automatically when your Go usage page is detected.';
     Object.assign(banner.style, {
       position: 'fixed',
       top: '0',

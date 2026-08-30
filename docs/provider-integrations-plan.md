@@ -2,7 +2,7 @@
 
 ## Goal
 
-Maintain Paseo Usage Bridge as a standalone Windows and macOS app that:
+Maintain AI Usage Tracker as a standalone Windows and macOS app that:
 
 1. Monitors subscription usage across multiple AI providers.
 2. Connects read-only to the local Paseo daemon to observe agent lifecycle and provider events.
@@ -275,7 +275,7 @@ A provider usage window crosses a remaining threshold, such as:
 
 This uses normalized usage from:
 
-1. Accounts connected directly to Paseo Usage Bridge.
+1. Accounts connected directly to AI Usage Tracker.
 2. Paseo daemon provider-usage responses for additional providers the bridge does not own.
 
 #### Active rate-limit failure

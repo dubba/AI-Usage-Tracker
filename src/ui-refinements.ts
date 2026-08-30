@@ -63,15 +63,7 @@ function resetCountdownLabel(value: string | null | undefined): string | null {
 }
 
 function refineHeader(card: HTMLElement): void {
-  const nameRow = card.querySelector<HTMLElement>(".account-card-name-row");
-  const plan = card.querySelector<HTMLElement>(".account-plan-badge");
-  if (nameRow && plan?.textContent?.trim()) {
-    nameRow.dataset.plan = plan.textContent.trim();
-  } else if (nameRow) {
-    delete nameRow.dataset.plan;
-  }
-
-  const remove = Array.from(card.querySelectorAll<HTMLButtonElement>(".account-card-header-actions button"))
+  const remove = Array.from(card.querySelectorAll<HTMLButtonElement>(".account-card-name-actions button, .account-card-header-actions button"))
     .find((button) => button.title === "Remove this account");
   remove?.classList.toggle("showing-spinner", Boolean(remove.querySelector(".mini-spinner")));
 }
