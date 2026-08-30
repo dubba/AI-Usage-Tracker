@@ -1,9 +1,4 @@
 import { bridgeApi } from "./api";
-import {
-  getOpenCodeEmailRecord,
-  renameOpenCodeEmailRecord,
-  resolveOpenCodeEmailRecord,
-} from "./opencode-account-email";
 import type { UsageWindow } from "./types";
 
 type CardProvider = "openai" | "anthropic" | "antigravity" | "google_ai_studio" | "grok" | "opencode_go";
@@ -115,29 +110,6 @@ function refineAccountCard(card: HTMLElement): void {
   refineCredits(card, provider);
 }
 
-function refineOpenCodeEmails(cards: HTMLElement[]): void {
-  const usedAccountIds = new Set<string>();
-  const openCodeCards = cards.filter((candidate) => candidate.dataset.provider === "opencode_go");
-
-  for (const card of [...openCodeCards].reverse()) {
-    const name = card.querySelector<HTMLElement>(".account-card-name-row h2")?.textContent?.trim();
-    const subtitle = card.querySelector<HTMLElement>(".account-card-identity > p");
-    if (!name || !subtitle) continue;
-
-    const assignedId = card.dataset.emailAccountId;
-    const assignedRecord = assignedId ? getOpenCodeEmailRecord(assignedId) : null;
-    const record = assignedRecord && !usedAccountIds.has(assignedRecord.accountId)
-      ? assignedRecord
-      : resolveOpenCodeEmailRecord(name, usedAccountIds);
-    if (!record) continue;
-
-    usedAccountIds.add(record.accountId);
-    card.dataset.emailAccountId = record.accountId;
-    renameOpenCodeEmailRecord(record.accountId, name);
-    if (subtitle.textContent !== record.email) subtitle.textContent = record.email;
-  }
-}
-
 function modalCancelButton(modal: HTMLElement): HTMLButtonElement | null {
   return Array.from(modal.querySelectorAll<HTMLButtonElement>(".modal-actions button"))
     .find((button) => {
@@ -220,7 +192,6 @@ function scheduleResetCountdownSync(delay = 120): void {
 function applyRefinements(): void {
   const cards = Array.from(document.querySelectorAll<HTMLElement>(".provider-account-card"));
   for (const card of cards) refineAccountCard(card);
-  refineOpenCodeEmails(cards);
 
   const modals = Array.from(document.querySelectorAll<HTMLElement>(".modal-card[role=\"dialog\"]"));
   for (const modal of modals) refineModalCloseButton(modal);

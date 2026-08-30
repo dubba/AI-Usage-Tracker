@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { bridgeApi } from "../api";
-import { saveOpenCodeAccountEmail } from "../opencode-account-email";
 import type { Account, LoginStatus, Provider } from "../types";
 
 type ConnectionProvider = Provider;
@@ -96,9 +95,6 @@ export function AddAccountModal({
         setStatus(next);
         if (next.status === "complete" && next.account) {
           window.clearInterval(timer);
-          if (provider === "opencode_go") {
-            saveOpenCodeAccountEmail(next.account.id, next.account.label, email);
-          }
           onAdded(next.account);
         }
         if (next.status === "failed") {
@@ -205,12 +201,15 @@ export function AddAccountModal({
           authCookie.trim(),
           email.trim() || undefined,
         );
-        saveOpenCodeAccountEmail(account.id, account.label, email);
         onAdded(account);
         return;
       }
 
-      const start = await bridgeApi.startLogin(label.trim() || providerName(provider), provider);
+      const start = await bridgeApi.startLogin(
+        label.trim() || providerName(provider),
+        provider,
+        provider === "opencode_go" ? email.trim() || undefined : undefined,
+      );
       if (closeRequestedRef.current) {
         await bridgeApi.cancelLogin(start.attemptId).catch(() => undefined);
         return;

@@ -24,6 +24,9 @@ This file tracks notable user-facing changes to AI Usage Tracker.
 
 ### Security
 
+- Google authorization flows (Google AI Studio usage and legacy Antigravity) now use PKCE, so an intercepted authorization code cannot be exchanged without the verifier.
+- The tracker no longer reads the Grok CLI's `~/.grok/auth.json`; Grok accounts rely solely on the browser session captured during guided sign-in. Reconnect a Grok account if its details were missing.
+- OpenCode Go account emails are stored only in the backend account store; the app no longer writes them to browser storage and deletes the old entries on launch.
 - Google Cloud project choices during AI Studio usage setup now use typed login-status fields instead of JSON embedded in the status message, and enabling Cloud Monitoring uses an explicit flag instead of a magic `enable:` prefix.
 - Grok and OpenCode login windows now only navigate to `https://` pages; plain `http://` pages are blocked.
 - The OpenCode manual-connection auth cookie field is now a masked password input.

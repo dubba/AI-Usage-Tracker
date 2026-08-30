@@ -17,6 +17,7 @@ use rand::RngCore;
 use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use tokio::{net::TcpListener, sync::oneshot};
 use url::Url;
@@ -47,6 +48,7 @@ struct LoginContext {
     mode: LoginMode,
     expected_state: String,
     redirect_uri: String,
+    verifier: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -181,12 +183,14 @@ async fn start_oauth(
     };
     let expected_state = random_base64(24);
     let redirect_uri = format!("http://127.0.0.1:{port}");
+    let verifier = random_base64(48);
+    let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
     let scopes = match &mode {
         LoginMode::Connect => READ_ONLY_SCOPES,
         LoginMode::EnableMonitoring { .. } => ENABLE_SCOPES,
     };
     let authorization_url =
-        match build_authorization_url(&redirect_uri, &expected_state, scopes) {
+        match build_authorization_url(&redirect_uri, &expected_state, scopes, &challenge) {
             Ok(url) => url,
             Err(error) => {
                 let mut pending = app.pending_login.write();
@@ -207,6 +211,7 @@ async fn start_oauth(
         mode,
         expected_state,
         redirect_uri,
+        verifier,
     });
     let router = Router::new()
         .route("/", get(callback))
@@ -877,6 +882,7 @@ async fn exchange_tokens(context: &LoginContext, code: &str) -> Result<TokenResp
             ("code", code),
             ("redirect_uri", context.redirect_uri.as_str()),
             ("grant_type", "authorization_code"),
+            ("code_verifier", context.verifier.as_str()),
         ])
         .send()
         .await
@@ -951,6 +957,7 @@ fn build_authorization_url(
     redirect_uri: &str,
     state: &str,
     scopes: &str,
+    challenge: &str,
 ) -> Result<String, String> {
     let mut url = Url::parse("https://accounts.google.com/o/oauth2/auth")
         .map_err(|error| error.to_string())?;
@@ -960,6 +967,8 @@ fn build_authorization_url(
         .append_pair("response_type", "code")
         .append_pair("scope", scopes)
         .append_pair("state", state)
+        .append_pair("code_challenge", challenge)
+        .append_pair("code_challenge_method", "S256")
         .append_pair("access_type", "offline")
         .append_pair("prompt", "consent");
     Ok(url.to_string())
@@ -1059,12 +1068,16 @@ mod tests {
             "http://127.0.0.1:11461",
             "state",
             "openid email https://www.googleapis.com/auth/cloud-platform.read-only",
+            "challenge",
         )
         .unwrap();
         let parsed = Url::parse(&url).unwrap();
         assert!(!parsed
             .query_pairs()
             .any(|(key, _)| key == "include_granted_scopes"));
+        assert!(parsed
+            .query_pairs()
+            .any(|(key, value)| key == "code_challenge" && value == "challenge"));
     }
 
     #[test]

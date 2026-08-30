@@ -497,6 +497,7 @@ async fn exchange_antigravity(
             ("code", code),
             ("redirect_uri", context.redirect_uri.as_str()),
             ("grant_type", "authorization_code"),
+            ("code_verifier", context.verifier.as_str()),
         ])
         .send()
         .await
@@ -586,6 +587,8 @@ fn build_authorization_url(
                 .append_pair("response_type", "code")
                 .append_pair("scope", ANTIGRAVITY_SCOPES)
                 .append_pair("state", state)
+                .append_pair("code_challenge", challenge)
+                .append_pair("code_challenge_method", "S256")
                 .append_pair("access_type", "offline")
                 .append_pair("prompt", "consent");
             Ok(url.to_string())

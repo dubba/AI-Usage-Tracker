@@ -1,7 +1,7 @@
 // Grok billing integration is adapted from the MIT-licensed CodexBar Grok
 // provider and the MIT-licensed Grok Rate Limit Display userscript. The live
 // path uses the same grok.com billing request as Grok's own Usage page. The
-// Grok Build CLI RPC remains a best-effort fallback for versions that expose it.
+// tracker never reads the Grok Build CLI's ~/.grok/auth.json credentials.
 // No message or token allowance is estimated.
 
 use super::{ProviderError, ProviderUsage};
@@ -14,7 +14,7 @@ use reqwest::{header, StatusCode};
 use serde_json::Value;
 use std::{
     collections::HashMap,
-    env, fs,
+    fs,
     path::{Path, PathBuf},
 };
 
@@ -37,11 +37,6 @@ pub(crate) struct GrokCredentials {
 }
 
 impl GrokCredentials {
-    pub(crate) fn is_expired(&self) -> bool {
-        self.expires_at
-            .is_some_and(|expires_at| expires_at <= Utc::now())
-    }
-
     pub(crate) fn account_id(&self) -> Option<String> {
         self.user_id.clone().or_else(|| self.team_id.clone())
     }
@@ -184,31 +179,15 @@ fn usage_from_snapshot(
 }
 
 fn load_optional_credentials(secret: &GrokSecret) -> Option<GrokCredentials> {
-    let configured = secret
+    let path = secret
         .auth_file
         .as_deref()
         .map(str::trim)
         .filter(|value| !value.is_empty())
-        .map(PathBuf::from);
-    let path = configured.or_else(|| {
-        let path = default_auth_file()?;
-        path.is_file().then_some(path)
-    })?;
-    load_credentials(&path).ok()
-}
-
-pub(crate) fn default_auth_file() -> Option<PathBuf> {
-    grok_home().map(|dir| dir.join("auth.json"))
-}
-
-fn grok_home() -> Option<PathBuf> {
-    if let Some(path) = env::var_os("GROK_HOME").filter(|value| !value.is_empty()) {
-        return Some(PathBuf::from(path));
-    }
-    env::var_os("HOME")
-        .or_else(|| env::var_os("USERPROFILE"))
-        .filter(|value| !value.is_empty())
-        .map(|home| PathBuf::from(home).join(".grok"))
+        .map(PathBuf::from)?;
+    path.is_file()
+        .then(|| load_credentials(&path).ok())
+        .flatten()
 }
 
 pub(crate) fn load_credentials(path: &Path) -> Result<GrokCredentials, String> {
@@ -814,13 +793,5 @@ mod tests {
         assert!(!message.contains("cookie"));
         assert!(!message.contains("Bearer"));
         assert!(!message.contains("leaked"));
-    }
-
-    #[test]
-    fn default_auth_file_resolves_properly() {
-        if let Some(path) = default_auth_file() {
-            assert!(path.ends_with(".grok/auth.json") || path.ends_with(".grok\\auth.json"));
-            assert!(!path.starts_with("."));
-        }
     }
 }

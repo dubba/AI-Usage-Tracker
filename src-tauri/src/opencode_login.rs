@@ -103,6 +103,7 @@ pub async fn start_login(
     app: AppHandle,
     state: Arc<AppState>,
     label: String,
+    email: Option<String>,
 ) -> Result<LoginStart, String> {
     let attempt_id = Uuid::new_v4().to_string();
     {
@@ -146,6 +147,7 @@ pub async fn start_login(
     let page_state = state.clone();
     let page_attempt = attempt_id.clone();
     let page_label = label.clone();
+    let page_email = email.clone();
     let page_capture_started = capture_started.clone();
 
     let login_window = match WebviewWindowBuilder::new(
@@ -183,6 +185,7 @@ pub async fn start_login(
         let completion_state = page_state.clone();
         let completion_attempt = page_attempt.clone();
         let completion_label = page_label.clone();
+        let completion_email = page_email.clone();
         let completion_capture_started = page_capture_started.clone();
 
         std::thread::spawn(move || {
@@ -197,6 +200,7 @@ pub async fn start_login(
                             completion_label,
                             workspace_id,
                             auth_cookie,
+                            completion_email,
                             completion_window,
                         )
                         .await;
@@ -337,13 +341,14 @@ async fn complete_login(
     label: String,
     workspace_id: String,
     auth_cookie: String,
+    email: Option<String>,
     window: WebviewWindow,
 ) {
     if !is_waiting(&state, &attempt_id) {
         return;
     }
 
-    match add_account(state.clone(), label, workspace_id, auth_cookie, None).await {
+    match add_account(state.clone(), label, workspace_id, auth_cookie, email).await {
         Ok(account) => {
             let completed = {
                 let mut pending = state.pending_login.write();

@@ -29,6 +29,16 @@ import "./account-card-responsive.css";
 const isPaseoBridgeWindow = getCurrentWindow().label === "paseo-bridge";
 document.documentElement.classList.toggle("paseo-bridge-window-root", isPaseoBridgeWindow);
 
+// One-time removal of legacy localStorage account emails, now stored in the backend.
+try {
+  window.localStorage.removeItem("ai-subscription-tracker:opencode-account-emails");
+  for (const key of Object.keys(window.localStorage)) {
+    if (key.startsWith("paseo-usage-bridge:account-email:")) window.localStorage.removeItem(key);
+  }
+} catch {
+  // WebView storage may be unavailable; nothing critical depends on the cleanup.
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     {isPaseoBridgeWindow ? <PaseoBridgeWindow /> : <App />}

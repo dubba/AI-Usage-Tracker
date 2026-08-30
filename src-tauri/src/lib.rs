@@ -63,6 +63,7 @@ async fn start_login(
     state: State<'_, Arc<AppState>>,
     label: String,
     provider: String,
+    email: Option<String>,
 ) -> Result<LoginStart, String> {
     let provider = Provider::from_str(&provider)?;
     let label = if provider == Provider::OpencodeGo && label.trim().is_empty() {
@@ -77,7 +78,7 @@ async fn start_login(
         return Err("Google AI Studio setup begins with an API key in Add Account.".into());
     }
     if provider == Provider::OpencodeGo {
-        opencode_login::start_login(app, state.inner().clone(), label).await
+        opencode_login::start_login(app, state.inner().clone(), label, email).await
     } else if provider == Provider::Grok {
         grok_login::start_login(state.inner().clone(), label).await
     } else {

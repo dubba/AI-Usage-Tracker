@@ -2,7 +2,7 @@ use crate::{
     model::{now_rfc3339, Account, GrokSecret, LoginStart, LoginStatus, Provider, ProviderSecret},
     providers::{
         self,
-        grok::{default_auth_file, load_credentials, normalize_cookie_header},
+        grok::normalize_cookie_header,
         ProviderError,
     },
     state::AppState,
@@ -294,12 +294,6 @@ async fn complete_cookie_login(
                     && account.label.eq_ignore_ascii_case(requested_label)
             })
         });
-    let auth_file = default_auth_file();
-    let credentials = auth_file
-        .as_ref()
-        .filter(|path| path.is_file())
-        .and_then(|path| load_credentials(path).ok())
-        .filter(|value| !value.is_expired());
     let now = now_rfc3339();
     let account_id = duplicate
         .as_ref()
@@ -308,27 +302,22 @@ async fn complete_cookie_login(
     let account = Account {
         id: account_id.clone(),
         label: if label.trim().is_empty() {
-            credentials
+            duplicate
                 .as_ref()
-                .and_then(|value| value.email.clone())
+                .and_then(|account| account.email.clone())
                 .unwrap_or_else(|| "Grok / SuperGrok".into())
         } else {
             label.trim().to_string()
         },
         provider: Provider::Grok,
-        email: credentials
+        email: duplicate
             .as_ref()
-            .and_then(|value| value.email.clone())
-            .or_else(|| duplicate.as_ref().and_then(|account| account.email.clone())),
-        provider_account_id: credentials
-            .as_ref()
-            .and_then(|value| value.account_id())
-            .or_else(|| Some(GROK_BROWSER_ACCOUNT_ID.into())),
+            .and_then(|account| account.email.clone()),
+        provider_account_id: Some(GROK_BROWSER_ACCOUNT_ID.into()),
         chatgpt_account_id: None,
         plan: usage
             .plan
             .clone()
-            .or_else(|| credentials.as_ref().map(|value| value.plan()))
             .or_else(|| Some("Grok / SuperGrok".into())),
         created_at: duplicate
             .as_ref()
@@ -355,10 +344,7 @@ async fn complete_cookie_login(
             account,
             &ProviderSecret::Grok(GrokSecret {
                 cookie_header: Some(normalized_cookie),
-                auth_file: auth_file
-                    .as_ref()
-                    .filter(|path| path.is_file())
-                    .map(|path| path.to_string_lossy().to_string()),
+                auth_file: None,
             }),
         )
         .await
