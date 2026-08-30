@@ -5,19 +5,6 @@ import type { Account, CloudProjectOption, LoginStatus } from "../types";
 
 type SetupStage = "signin" | "choose_project" | "monitoring_disabled";
 
-const GOOGLE_CLOUD_AUTH_SCOPES = [
-  "openid",
-  "email",
-  "profile",
-  "https://www.googleapis.com/auth/cloud-platform",
-].join(" ");
-
-function compatibleGoogleAuthorizationUrl(value: string): string {
-  const url = new URL(value);
-  url.searchParams.set("scope", GOOGLE_CLOUD_AUTH_SCOPES);
-  return url.toString();
-}
-
 export function GoogleAiStudioUsageModal({
   account,
   onClose,
@@ -113,7 +100,7 @@ export function GoogleAiStudioUsageModal({
         selectedProjectId: null,
       });
       if (next.authorizationUrl) {
-        await openUrl(compatibleGoogleAuthorizationUrl(next.authorizationUrl));
+        await openUrl(next.authorizationUrl);
       }
     } catch (cause) {
       if (!closeRequestedRef.current) {

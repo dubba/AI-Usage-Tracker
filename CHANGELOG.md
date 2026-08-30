@@ -36,6 +36,8 @@ This file tracks notable user-facing changes to AI Usage Tracker.
 - The local health endpoint now requires the same bearer token as the usage endpoint.
 - The local API allows at most one authenticated request per second. Extra requests return `429` with `Retry-After: 1`.
 - Google Antigravity and Google AI Studio sign-in no longer request previously granted extra OAuth scopes.
+- Google AI Studio authorization now opens backend-defined least-privilege OAuth scopes directly without frontend scope escalation.
+- Credential operations across all providers and login workflows now consistently use unified macOS Keychain single-item storage with automatic legacy chunk cleanup.
 
 ### Fixed
 

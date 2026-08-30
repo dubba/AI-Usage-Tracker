@@ -14,6 +14,7 @@ const CREDENTIAL_SERVICE: &str = "ai-usage-tracker";
 const LEGACY_CREDENTIAL_SERVICE: &str = "paseo-usage-bridge";
 const BRIDGE_TOKEN_USER: &str = "bridge-api-token";
 const CHUNKED_CREDENTIAL_FORMAT: &str = "chunked-v1";
+#[allow(dead_code)]
 const CREDENTIAL_CHUNK_UTF16_UNITS: usize = 1200;
 const MAX_CREDENTIAL_CHUNKS: usize = 32;
 const CREDENTIAL_GENERATION_LENGTH: usize = 16;
@@ -144,6 +145,16 @@ impl AccountStore {
     }
 }
 
+#[cfg(target_os = "macos")]
+pub fn save_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result<(), StoreError> {
+    let payload =
+        serde_json::to_string(secret).map_err(|error| StoreError::Invalid(error.to_string()))?;
+    account_credential_entry(account_id)?
+        .set_password(&payload)
+        .map_err(|error| StoreError::Credential(error.to_string()))
+}
+
+#[cfg(not(target_os = "macos"))]
 pub fn save_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result<(), StoreError> {
     let payload =
         serde_json::to_string(secret).map_err(|error| StoreError::Invalid(error.to_string()))?;
@@ -215,16 +226,23 @@ pub fn load_provider_secret(account_id: &str) -> Result<ProviderSecret, StoreErr
         decode_provider_secret(&stored)?
     };
 
-    if from_legacy && save_provider_secret(account_id, &secret).is_ok() {
+    #[cfg(target_os = "macos")]
+    let should_migrate = from_legacy || manifest.is_some();
+    #[cfg(not(target_os = "macos"))]
+    let should_migrate = from_legacy;
+
+    if should_migrate && save_provider_secret(account_id, &secret).is_ok() {
         let _ = delete_legacy_credential(&user);
         if let Some(manifest) = manifest.as_ref() {
             for generation in std::iter::once(&manifest.active).chain(manifest.previous.as_ref()) {
                 for index in 0..generation.chunks {
-                    let _ = delete_legacy_credential(&credential_chunk_user(
+                    let chunk_user = credential_chunk_user(
                         account_id,
                         &generation.generation,
                         index,
-                    ));
+                    );
+                    let _ = delete_legacy_credential(&chunk_user);
+                    let _ = delete_credential(&chunk_user);
                 }
             }
         }
@@ -368,6 +386,7 @@ fn delete_credential(user: &str) -> Result<(), StoreError> {
     }
 }
 
+#[allow(dead_code)]
 fn read_credential_manifest(account_id: &str) -> Result<Option<CredentialManifest>, StoreError> {
     match read_optional_password(&account_credential_user(account_id))? {
         Some(value) => parse_credential_manifest(&value),
@@ -409,6 +428,7 @@ fn validate_credential_generation(generation: &CredentialGeneration) -> Result<(
     Ok(())
 }
 
+#[allow(dead_code)]
 fn write_credential_manifest(
     account_id: &str,
     manifest: &CredentialManifest,
@@ -420,6 +440,7 @@ fn write_credential_manifest(
         .map_err(|error| StoreError::Credential(error.to_string()))
 }
 
+#[allow(dead_code)]
 fn write_credential_generation(
     account_id: &str,
     generation: &CredentialGeneration,
@@ -497,6 +518,7 @@ fn decode_provider_secret(payload: &str) -> Result<ProviderSecret, StoreError> {
     }
 }
 
+#[allow(dead_code)]
 fn split_utf16_chunks(value: &str, max_utf16_units: usize) -> Vec<String> {
     if value.is_empty() || max_utf16_units == 0 {
         return Vec::new();
@@ -518,6 +540,7 @@ fn split_utf16_chunks(value: &str, max_utf16_units: usize) -> Vec<String> {
     chunks
 }
 
+#[allow(dead_code)]
 fn generate_credential_generation() -> String {
     rand::thread_rng()
         .sample_iter(&Alphanumeric)
@@ -709,5 +732,23 @@ mod tests {
         let payload = serde_json::to_string(&legacy).unwrap();
         let decoded = decode_provider_secret(&payload).unwrap();
         assert!(matches!(decoded, ProviderSecret::Openai(_)));
+    }
+
+    #[test]
+    fn recognizes_legacy_chunked_manifest() {
+        let manifest = r#"{
+            "format":"chunked-v1",
+            "active":{"generation":"AbCdEf0123456789","chunks":3},
+            "previous":null
+        }"#;
+        let parsed = parse_credential_manifest(manifest).unwrap().unwrap();
+        assert_eq!(parsed.active.chunks, 3);
+    }
+
+    #[test]
+    fn ignores_regular_provider_secret_json() {
+        assert!(parse_credential_manifest(r#"{"openai":{"accessToken":"token"}}"#)
+            .unwrap()
+            .is_none());
     }
 }
