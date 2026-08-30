@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::{fmt, str::FromStr};
 
@@ -284,10 +284,4 @@ pub struct TokenClaims {
 
 pub fn now_rfc3339() -> String {
     Utc::now().to_rfc3339()
-}
-
-pub fn parse_rfc3339(value: &str) -> Option<DateTime<Utc>> {
-    DateTime::parse_from_rfc3339(value)
-        .ok()
-        .map(|value| value.with_timezone(&Utc))
 }

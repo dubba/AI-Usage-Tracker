@@ -297,9 +297,9 @@ async fn complete_cookie_login(
         });
     let auth_file = default_auth_file();
     let credentials = auth_file
-        .is_file()
-        .then(|| load_credentials(&auth_file).ok())
-        .flatten()
+        .as_ref()
+        .filter(|path| path.is_file())
+        .and_then(|path| load_credentials(path).ok())
         .filter(|value| !value.is_expired());
     let now = now_rfc3339();
     let account_id = duplicate
@@ -356,8 +356,9 @@ async fn complete_cookie_login(
         &ProviderSecret::Grok(GrokSecret {
             cookie_header: Some(normalized_cookie),
             auth_file: auth_file
-                .is_file()
-                .then(|| auth_file.to_string_lossy().to_string()),
+                .as_ref()
+                .filter(|path| path.is_file())
+                .map(|path| path.to_string_lossy().to_string()),
         }),
     ) {
         fail_if_waiting(

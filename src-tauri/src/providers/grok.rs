@@ -6,30 +6,22 @@
 
 use super::{ProviderError, ProviderUsage};
 use crate::{
-    model::{parse_rfc3339, Account, GrokSecret, UsageWindow},
+    model::{Account, GrokSecret, UsageWindow},
     state::AppState,
 };
 use chrono::{DateTime, TimeZone, Utc};
 use reqwest::{header, StatusCode};
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::{
     collections::HashMap,
     env, fs,
     path::{Path, PathBuf},
-    process::Stdio,
-    time::Duration,
-};
-use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader, Lines},
-    process::{ChildStdout, Command},
 };
 
 const OIDC_SCOPE_PREFIX: &str = "https://auth.x.ai::";
 const LEGACY_SCOPE: &str = "https://accounts.x.ai/sign-in";
 const WEB_BILLING_ENDPOINT: &str =
     "https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig";
-const INITIALIZE_TIMEOUT: Duration = Duration::from_secs(8);
-const BILLING_TIMEOUT: Duration = Duration::from_secs(12);
 const MAX_COOKIE_HEADER_BYTES: usize = 32 * 1024;
 
 #[derive(Clone, Debug)]
@@ -101,54 +93,23 @@ pub async fn refresh(
     secret: &GrokSecret,
 ) -> Result<ProviderUsage, ProviderError> {
     let credentials = load_optional_credentials(secret);
-    let mut diagnostics = Vec::new();
-    let mut browser_auth_failed = false;
 
-    if let Some(cookie_header) = secret
+    let Some(cookie_header) = secret
         .cookie_header
         .as_deref()
         .filter(|value| !value.trim().is_empty())
-    {
-        match fetch_web_billing(app, cookie_header).await {
-            Ok(snapshot) => {
-                return Ok(usage_from_snapshot(account, credentials.as_ref(), snapshot));
-            }
-            Err(GrokFetchError::Auth(message)) => {
-                browser_auth_failed = true;
-                diagnostics.push(format!("browser session: {message}"));
-            }
-            Err(error) => diagnostics.push(format!("browser session: {}", error.message())),
-        }
-    }
-
-    if credentials.as_ref().is_some_and(|value| !value.is_expired()) {
-        match fetch_cli_billing().await {
-            Ok(snapshot) => {
-                return Ok(usage_from_snapshot(account, credentials.as_ref(), snapshot));
-            }
-            Err(GrokFetchError::Auth(message)) => {
-                diagnostics.push(format!("Grok Build CLI: {message}"));
-                if secret.cookie_header.is_none() {
-                    return Err(ProviderError::Auth);
-                }
-            }
-            Err(error) => diagnostics.push(format!("Grok Build CLI: {}", error.message())),
-        }
-    }
-
-    if browser_auth_failed || (secret.cookie_header.is_none() && credentials.is_none()) {
+    else {
         return Err(ProviderError::Auth);
-    }
+    };
 
-    Err(ProviderError::Transient(if diagnostics.is_empty() {
-        "Grok did not provide current billing usage. Reconnect the account and try again."
-            .into()
-    } else {
-        format!(
-            "Grok did not provide current billing usage. {}",
-            diagnostics.join(" ")
-        )
-    }))
+    match fetch_web_billing(app, cookie_header).await {
+        Ok(snapshot) => Ok(usage_from_snapshot(account, credentials.as_ref(), snapshot)),
+        Err(GrokFetchError::Auth(_)) => Err(ProviderError::Auth),
+        Err(error) => Err(ProviderError::Transient(format!(
+            "Grok did not provide current billing usage: {}",
+            error.message()
+        ))),
+    }
 }
 
 pub async fn probe_cookie(
@@ -228,71 +189,24 @@ fn load_optional_credentials(secret: &GrokSecret) -> Option<GrokCredentials> {
         .filter(|value| !value.is_empty())
         .map(PathBuf::from);
     let path = configured.or_else(|| {
-        let path = default_auth_file();
+        let path = default_auth_file()?;
         path.is_file().then_some(path)
     })?;
     load_credentials(&path).ok()
 }
 
-pub(crate) fn default_auth_file() -> PathBuf {
-    grok_home().join("auth.json")
+pub(crate) fn default_auth_file() -> Option<PathBuf> {
+    grok_home().map(|dir| dir.join("auth.json"))
 }
 
-fn grok_home() -> PathBuf {
+fn grok_home() -> Option<PathBuf> {
     if let Some(path) = env::var_os("GROK_HOME").filter(|value| !value.is_empty()) {
-        return PathBuf::from(path);
+        return Some(PathBuf::from(path));
     }
     env::var_os("HOME")
         .or_else(|| env::var_os("USERPROFILE"))
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join(".grok")
-}
-
-pub(crate) fn find_grok_binary() -> Option<PathBuf> {
-    if let Some(path) = env::var_os("GROK_BINARY").map(PathBuf::from) {
-        if path.is_file() {
-            return Some(path);
-        }
-    }
-
-    let names: &[&str] = if cfg!(windows) {
-        &["grok.exe", "grok"]
-    } else {
-        &["grok"]
-    };
-    if let Some(paths) = env::var_os("PATH") {
-        for directory in env::split_paths(&paths) {
-            for name in names {
-                let candidate = directory.join(name);
-                if candidate.is_file() {
-                    return Some(candidate);
-                }
-            }
-        }
-    }
-
-    let home = env::var_os("HOME")
-        .or_else(|| env::var_os("USERPROFILE"))
-        .map(PathBuf::from);
-    if let Some(home) = home {
-        for relative in [".local/bin/grok", ".local/bin/grok.exe", ".grok/bin/grok", ".grok/bin/grok.exe"] {
-            let candidate = home.join(relative);
-            if candidate.is_file() {
-                return Some(candidate);
-            }
-        }
-    }
-
-    if cfg!(target_os = "macos") {
-        for candidate in ["/opt/homebrew/bin/grok", "/usr/local/bin/grok"] {
-            let candidate = PathBuf::from(candidate);
-            if candidate.is_file() {
-                return Some(candidate);
-            }
-        }
-    }
-    None
+        .filter(|value| !value.is_empty())
+        .map(|home| PathBuf::from(home).join(".grok"))
 }
 
 pub(crate) fn load_credentials(path: &Path) -> Result<GrokCredentials, String> {
@@ -390,153 +304,6 @@ pub(crate) fn normalize_cookie_header(value: &str) -> Result<String, String> {
         return Err("The Grok browser session is unexpectedly large. Sign out of Grok, sign in again, and retry.".into());
     }
     Ok(normalized)
-}
-
-async fn fetch_cli_billing() -> Result<BillingSnapshot, GrokFetchError> {
-    let binary = find_grok_binary().ok_or_else(|| {
-        GrokFetchError::Unavailable("The Grok Build CLI is not installed.".into())
-    })?;
-    let mut child = Command::new(binary)
-        .args(["agent", "stdio"])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .kill_on_drop(true)
-        .spawn()
-        .map_err(|error| GrokFetchError::Unavailable(format!("Unable to start Grok CLI: {error}")))?;
-    let mut stdin = child
-        .stdin
-        .take()
-        .ok_or_else(|| GrokFetchError::Unavailable("Grok CLI stdin is unavailable.".into()))?;
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| GrokFetchError::Unavailable("Grok CLI stdout is unavailable.".into()))?;
-    let mut lines = BufReader::new(stdout).lines();
-
-    send_rpc(
-        &mut stdin,
-        1,
-        "initialize",
-        json!({
-            "protocolVersion": "1",
-            "clientCapabilities": {
-                "fs": { "readTextFile": false, "writeTextFile": false },
-                "terminal": false
-            }
-        }),
-    )
-    .await?;
-    let _ = read_rpc_response(&mut lines, 1, INITIALIZE_TIMEOUT).await?;
-
-    send_rpc(&mut stdin, 2, "x.ai/billing", json!({})).await?;
-    let response = read_rpc_response(&mut lines, 2, BILLING_TIMEOUT).await;
-    let _ = child.kill().await;
-    let _ = child.wait().await;
-    parse_rpc_billing(response?)
-}
-
-async fn send_rpc(
-    stdin: &mut tokio::process::ChildStdin,
-    id: i64,
-    method: &str,
-    params: Value,
-) -> Result<(), GrokFetchError> {
-    let mut payload = serde_json::to_vec(&json!({
-        "jsonrpc": "2.0",
-        "id": id,
-        "method": method,
-        "params": params,
-    }))
-    .map_err(|error| GrokFetchError::Unavailable(format!("Unable to encode Grok RPC request: {error}")))?;
-    payload.push(b'\n');
-    stdin
-        .write_all(&payload)
-        .await
-        .map_err(|error| GrokFetchError::Unavailable(format!("Unable to write to Grok CLI: {error}")))?;
-    stdin
-        .flush()
-        .await
-        .map_err(|error| GrokFetchError::Unavailable(format!("Unable to flush Grok CLI request: {error}")))
-}
-
-async fn read_rpc_response(
-    lines: &mut Lines<BufReader<ChildStdout>>,
-    expected_id: i64,
-    timeout: Duration,
-) -> Result<Value, GrokFetchError> {
-    tokio::time::timeout(timeout, async {
-        loop {
-            let line = lines
-                .next_line()
-                .await
-                .map_err(|error| GrokFetchError::Unavailable(format!("Unable to read Grok CLI response: {error}")))?
-                .ok_or_else(|| GrokFetchError::Unavailable("Grok CLI closed before returning billing data.".into()))?;
-            let Ok(value) = serde_json::from_str::<Value>(&line) else {
-                continue;
-            };
-            if value.get("id").and_then(Value::as_i64) != Some(expected_id) {
-                continue;
-            }
-            if let Some(error) = value.get("error") {
-                let message = error
-                    .get("message")
-                    .and_then(Value::as_str)
-                    .unwrap_or("Unknown Grok RPC error")
-                    .to_string();
-                let lower = message.to_ascii_lowercase();
-                if lower.contains("authentication required") || lower.contains("grok login") {
-                    return Err(GrokFetchError::Auth(message));
-                }
-                return Err(GrokFetchError::Unavailable(message));
-            }
-            return Ok(value);
-        }
-    })
-    .await
-    .map_err(|_| GrokFetchError::Unavailable("Grok billing RPC timed out.".into()))?
-}
-
-fn parse_rpc_billing(response: Value) -> Result<BillingSnapshot, GrokFetchError> {
-    let result = response
-        .get("result")
-        .ok_or_else(|| GrokFetchError::Unavailable("Grok billing RPC omitted its result.".into()))?;
-    let limit = nested_number(result, &["monthlyLimit", "val"])
-        .ok_or_else(|| GrokFetchError::Unavailable("Grok billing RPC omitted the included limit.".into()))?;
-    let used = nested_number(result, &["usage", "totalUsed", "val"])
-        .or_else(|| nested_number(result, &["usage", "includedUsed", "val"]))
-        .unwrap_or(0.0);
-    if limit <= 0.0 {
-        return Err(GrokFetchError::Unavailable(
-            "Grok billing RPC returned no positive included limit.".into(),
-        ));
-    }
-    let cycle = result.get("billingCycle");
-    let period_start = cycle
-        .and_then(|value| value.get("billingPeriodStart"))
-        .and_then(Value::as_str)
-        .and_then(parse_rfc3339);
-    let resets_at = cycle
-        .and_then(|value| value.get("billingPeriodEnd"))
-        .and_then(Value::as_str)
-        .and_then(parse_rfc3339);
-    Ok(BillingSnapshot {
-        used_percent: used / limit * 100.0,
-        resets_at,
-        period_start,
-        source: "grok_build_billing_rpc",
-    })
-}
-
-fn nested_number(value: &Value, path: &[&str]) -> Option<f64> {
-    let mut current = value;
-    for key in path {
-        current = current.get(*key)?;
-    }
-    current
-        .as_f64()
-        .or_else(|| current.as_i64().map(|value| value as f64))
-        .or_else(|| current.as_str()?.parse().ok())
 }
 
 async fn fetch_web_billing(
@@ -1033,18 +800,10 @@ mod tests {
     }
 
     #[test]
-    fn parses_cli_billing_contract() {
-        let response = json!({
-            "result": {
-                "billingCycle": {
-                    "billingPeriodStart": "2026-07-01T00:00:00Z",
-                    "billingPeriodEnd": "2026-08-01T00:00:00Z"
-                },
-                "monthlyLimit": { "val": 1000 },
-                "usage": { "totalUsed": { "val": 250 } }
-            }
-        });
-        let parsed = parse_rpc_billing(response).unwrap();
-        assert_eq!(parsed.used_percent, 25.0);
+    fn default_auth_file_resolves_properly() {
+        if let Some(path) = default_auth_file() {
+            assert!(path.ends_with(".grok/auth.json") || path.ends_with(".grok\\auth.json"));
+            assert!(!path.starts_with("."));
+        }
     }
 }
