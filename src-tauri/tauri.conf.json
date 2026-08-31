@@ -46,7 +46,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM0RjhBNTZBRjU5MjNFRUUKUldUdVBwTDFhcVg0eE0vZ2NtaDBRYXk4RUJRcThBRi9FL1E4NmFXYkJDWE1XMFVzcHFzMzNsWlkK",
       "endpoints": [
-        "https://github.com/yajinni/AI-Usage-Tracker/releases/latest/download/latest.json"
+        "https://github.com/dubba/AI-Usage-Tracker/releases/latest/download/latest.json"
       ],
       "windows": {
         "installMode": "passive"
