@@ -100,14 +100,13 @@ jobs:
             These builds are not yet backed by paid platform code-signing certificates. Windows and macOS may display an unverified-publisher warning. The macOS builds use an ad-hoc signature, so you may need to approve the app in **System Settings → Privacy & Security** after downloading it.
           releaseDraft: false
           prerelease: false
-          uploadUpdaterJson: true
-          uploadUpdaterSignatures: true
-          updaterJsonPreferNsis: true
+          uploadUpdaterJson: false
           args: ${{ matrix.args }}
 
   build-android:
     runs-on: ubuntu-latest
-    needs: [publish]
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
