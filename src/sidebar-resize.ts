@@ -47,6 +47,15 @@ export function installSidebarResize(): void {
     handle.setAttribute("aria-label", "Resize account sidebar");
     handle.setAttribute("aria-orientation", "vertical");
     handle.title = "Drag to resize. Double-click to reset.";
+
+    const grip = document.createElement("div");
+    grip.className = "sidebar-resize-grip";
+    grip.setAttribute("aria-hidden", "true");
+    for (let index = 0; index < 3; index++) {
+      grip.appendChild(document.createElement("span"));
+    }
+    handle.appendChild(grip);
+
     sidebar.append(handle);
 
     let width = readSavedWidth() ?? defaultSidebarWidth();

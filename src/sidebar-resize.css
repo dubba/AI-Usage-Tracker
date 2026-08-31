@@ -15,12 +15,15 @@
   position: absolute;
   z-index: 20;
   top: 0;
-  right: -5px;
-  width: 10px;
+  right: -6px;
+  width: 12px;
   height: 100%;
   cursor: col-resize;
   touch-action: none;
   outline: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .sidebar-resize-handle::before {
@@ -39,6 +42,35 @@
   width: 3px;
   background: var(--purple);
   box-shadow: 0 0 12px rgba(159, 103, 255, .42);
+}
+
+.sidebar-resize-grip {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4.5px;
+  padding: 6px 2px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.sidebar-resize-grip span {
+  width: 3.5px;
+  height: 3.5px;
+  border-radius: 50%;
+  background: #7a8580;
+  transition: background .12s ease, box-shadow .12s ease, transform .12s ease;
+}
+
+.sidebar-resize-handle:hover .sidebar-resize-grip span,
+.sidebar-resize-handle:focus-visible .sidebar-resize-grip span,
+.sidebar-resize-handle.dragging .sidebar-resize-grip span {
+  background: #d4c3ff;
+  box-shadow: 0 0 6px rgba(159, 103, 255, .7);
+  transform: scale(1.15);
 }
 
 .main-stage {

@@ -20,6 +20,7 @@ This file tracks notable user-facing changes to AI Usage Tracker.
 - Legacy account data migrations now execute once during application startup instead of running on every snapshot polling cycle.
 - The Settings screen now retrieves the installed application version dynamically from the application runtime.
 - The main window now reopens at its last size and position after Quit.
+- The sidebar resize divider now features a 3-dot grip handle to indicate where the sidebar can be dragged to resize.
 - Account passwords and the local API token are now stored in the Keychain as **AI Usage Tracker**. Existing **Paseo Usage Bridge** items are copied on first use.
 
 ### Security
