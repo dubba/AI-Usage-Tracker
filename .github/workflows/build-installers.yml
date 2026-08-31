@@ -132,10 +132,33 @@ jobs:
           NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.2.12479018
         run: |
           npx tauri android build --apk
-      - name: Collect and Rename APKs
+      - name: Sign and Align Android APKs
+        shell: bash
         run: |
           mkdir -p release-apks
-          find src-tauri/gen/android/app/build/outputs/apk -name "*.apk" -exec cp {} release-apks/ \;
+          # Generate a self-signed release keystore
+          keytool -genkeypair -v -keystore release.jks -alias ai-usage-tracker -keyalg RSA -keysize 2048 -validity 10000 -storepass password -keypass password -dname "CN=AI Usage Tracker, OU=Mobile, O=AI Usage Tracker, L=Unknown, ST=Unknown, C=US"
+          
+          ZIPALIGN="$ANDROID_HOME/build-tools/34.0.0/zipalign"
+          APKSIGNER="$ANDROID_HOME/build-tools/34.0.0/apksigner"
+
+          for apk in $(find src-tauri/gen/android/app/build/outputs/apk -name "*.apk"); do
+            echo "Processing and signing $apk..."
+            base_name=$(basename "$apk" .apk)
+            
+            clean_name="AI-Usage-Tracker-$(echo "$base_name" | sed -e 's/app-//' -e 's/-release-unsigned//' -e 's/-unsigned//').apk"
+            if [ "$clean_name" = "AI-Usage-Tracker-universal.apk" ] || [ "$clean_name" = "AI-Usage-Tracker-release.apk" ]; then
+              clean_name="AI-Usage-Tracker.apk"
+            fi
+            
+            "$ZIPALIGN" -v -p 4 "$apk" "aligned.apk"
+            "$APKSIGNER" sign --ks release.jks --ks-pass pass:password --key-pass pass:password --out "release-apks/$clean_name" "aligned.apk"
+            "$APKSIGNER" verify --verbose "release-apks/$clean_name"
+            rm -f "aligned.apk"
+          done
+          
+          echo "Signed Android packages:"
+          ls -la release-apks/
       - name: Upload APK Artifacts
         uses: actions/upload-artifact@v4
         with:
