@@ -5,7 +5,8 @@ dist/
 .DS_Store
 Thumbs.db
 src-tauri/target/
-src-tauri/gen/
+src-tauri/gen/*
+!src-tauri/gen/android/
 .env
 .env.*
 !.env.example

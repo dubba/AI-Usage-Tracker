@@ -6,6 +6,7 @@ This file tracks notable user-facing changes to AI Usage Tracker.
 
 ### Added
 
+- Added support for building and sideloading on **Android**. Releases now provide an `.apk` package (`AI-Usage-Tracker.apk`) that can be installed directly onto Android phones.
 - You can now create custom **Bucket Groups** to combine accounts (e.g. splitting multiple Antigravity or Grok accounts into separate work vs personal buckets). Each bucket shows as an independent row in the sidebar with its own usage calculations and filters the dashboard when selected.
 - Settings now includes a toggle for automatic app updates. Manual update checks still work when the toggle is off.
 

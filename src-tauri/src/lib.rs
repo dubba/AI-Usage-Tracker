@@ -25,16 +25,21 @@ use crate::{
     store::{load_or_create_bridge_token, rotate_bridge_token},
 };
 use std::{str::FromStr, sync::Arc};
+#[cfg(desktop)]
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder, WindowEvent,
+    WindowEvent,
 };
+use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
+#[cfg(desktop)]
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_updater::UpdaterExt;
+#[cfg(desktop)]
 use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 
+#[cfg(desktop)]
 const SAVED_WINDOW_STATE: StateFlags = StateFlags::from_bits_truncate(
     StateFlags::SIZE.bits()
         | StateFlags::POSITION.bits()
@@ -532,47 +537,60 @@ fn show_main_window(app: &AppHandle) {
     }
 }
 
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
-            show_main_window(app);
-        }))
+    #[allow(unused_mut)]
+    let mut builder = tauri::Builder::default();
+
+    #[cfg(desktop)]
+    {
+        builder = builder
+            .plugin(tauri_plugin_single_instance::init(|app, _, _| {
+                show_main_window(app);
+            }))
+            .plugin(tauri_plugin_autostart::init(
+                MacosLauncher::LaunchAgent,
+                Some(vec!["--hidden"]),
+            ))
+            .plugin(
+                tauri_plugin_window_state::Builder::default()
+                    .with_state_flags(SAVED_WINDOW_STATE)
+                    .build(),
+            );
+    }
+
+    builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_autostart::init(
-            MacosLauncher::LaunchAgent,
-            Some(vec!["--hidden"]),
-        ))
-        .plugin(
-            tauri_plugin_window_state::Builder::default()
-                .with_state_flags(SAVED_WINDOW_STATE)
-                .build(),
-        )
         .setup(|app| {
-            let start_hidden = std::env::args().any(|argument| argument == "--hidden");
-            let window_config = app
-                .config()
-                .app
-                .windows
-                .iter()
-                .find(|config| config.label == "main")
-                .cloned()
-                .ok_or_else(|| std::io::Error::other("main window configuration is missing"))?;
-            let mut window_builder =
-                WebviewWindowBuilder::from_config(app.handle(), &window_config)?;
-            if let Some(icon) = app.default_window_icon() {
-                window_builder = window_builder.icon(icon.clone())?;
-            }
-            // Restore size and position before showing so the default 1440x850 window does not flash.
-            window_builder = window_builder.visible(false);
-            let window = window_builder.build()?;
-            let _ = window.restore_state(SAVED_WINDOW_STATE);
-            if !start_hidden {
-                let _ = window.unminimize();
-                let _ = window.show();
-                let _ = window.set_focus();
-            }
+            #[cfg(desktop)]
+            let window = {
+                let start_hidden = std::env::args().any(|argument| argument == "--hidden");
+                let window_config = app
+                    .config()
+                    .app
+                    .windows
+                    .iter()
+                    .find(|config| config.label == "main")
+                    .cloned()
+                    .ok_or_else(|| std::io::Error::other("main window configuration is missing"))?;
+                let mut window_builder =
+                    WebviewWindowBuilder::from_config(app.handle(), &window_config)?;
+                if let Some(icon) = app.default_window_icon() {
+                    window_builder = window_builder.icon(icon.clone())?;
+                }
+                // Restore size and position before showing so the default 1440x850 window does not flash.
+                window_builder = window_builder.visible(false);
+                let window = window_builder.build()?;
+                let _ = window.restore_state(SAVED_WINDOW_STATE);
+                if !start_hidden {
+                    let _ = window.unminimize();
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+                window
+            };
 
             let data_dir = app.path().app_data_dir()?;
             let token = load_or_create_bridge_token()
@@ -594,46 +612,49 @@ pub fn run() {
                 }
             });
 
-            let show_label = format!("Open {}", app.package_info().name);
-            let show = MenuItem::with_id(app, "show", show_label, true, None::<&str>)?;
-            let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show, &quit])?;
-            let mut tray = TrayIconBuilder::new()
-                .menu(&menu)
-                .show_menu_on_left_click(false)
-                .on_menu_event(|app, event| match event.id.as_ref() {
-                    "show" => show_main_window(app),
-                    "quit" => {
-                        let _ = app.save_window_state(SAVED_WINDOW_STATE);
-                        app.exit(0);
-                    }
-                    _ => {}
-                })
-                .on_tray_icon_event(|tray, event| match event {
-                    TrayIconEvent::Click {
-                        button: MouseButton::Left,
-                        button_state: MouseButtonState::Up,
-                        ..
-                    }
-                    | TrayIconEvent::DoubleClick {
-                        button: MouseButton::Left,
-                        ..
-                    } => show_main_window(tray.app_handle()),
-                    _ => {}
-                });
-            if let Some(icon) = app.default_window_icon() {
-                tray = tray.icon(icon.clone());
-            }
-            tray.build(app)?;
-
-            let window_for_event = window.clone();
-            window.on_window_event(move |event| {
-                if let WindowEvent::CloseRequested { api, .. } = event {
-                    api.prevent_close();
-                    let _ = window_for_event.app_handle().save_window_state(SAVED_WINDOW_STATE);
-                    let _ = window_for_event.hide();
+            #[cfg(desktop)]
+            {
+                let show_label = format!("Open {}", app.package_info().name);
+                let show = MenuItem::with_id(app, "show", show_label, true, None::<&str>)?;
+                let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+                let menu = Menu::with_items(app, &[&show, &quit])?;
+                let mut tray = TrayIconBuilder::new()
+                    .menu(&menu)
+                    .show_menu_on_left_click(false)
+                    .on_menu_event(|app, event| match event.id.as_ref() {
+                        "show" => show_main_window(app),
+                        "quit" => {
+                            let _ = app.save_window_state(SAVED_WINDOW_STATE);
+                            app.exit(0);
+                        }
+                        _ => {}
+                    })
+                    .on_tray_icon_event(|tray, event| match event {
+                        TrayIconEvent::Click {
+                            button: MouseButton::Left,
+                            button_state: MouseButtonState::Up,
+                            ..
+                        }
+                        | TrayIconEvent::DoubleClick {
+                            button: MouseButton::Left,
+                            ..
+                        } => show_main_window(tray.app_handle()),
+                        _ => {}
+                    });
+                if let Some(icon) = app.default_window_icon() {
+                    tray = tray.icon(icon.clone());
                 }
-            });
+                tray.build(app)?;
+
+                let window_for_event = window.clone();
+                window.on_window_event(move |event| {
+                    if let WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = window_for_event.app_handle().save_window_state(SAVED_WINDOW_STATE);
+                        let _ = window_for_event.hide();
+                    }
+                });
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
