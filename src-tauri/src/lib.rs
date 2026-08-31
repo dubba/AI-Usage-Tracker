@@ -273,6 +273,7 @@ async fn open_paseo_bridge_window(
     }
 
     if let Some(window) = app.get_webview_window("paseo-bridge") {
+        #[cfg(desktop)]
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
@@ -284,8 +285,12 @@ async fn open_paseo_bridge_window(
         WebviewWindowBuilder::new(&app, "paseo-bridge", WebviewUrl::App("index.html".into()))
             .title("Paseo Bridge")
             .inner_size(780.0, 760.0)
-            .min_inner_size(640.0, 560.0)
-            .center();
+            .min_inner_size(640.0, 560.0);
+
+    #[cfg(desktop)]
+    {
+        builder = builder.center();
+    }
 
     if let Some(icon) = app.default_window_icon() {
         builder = builder
@@ -531,6 +536,7 @@ fn bridge_info(state: &AppState) -> BridgeInfo {
 
 fn show_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
+        #[cfg(desktop)]
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();

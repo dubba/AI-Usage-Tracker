@@ -150,7 +150,8 @@ pub async fn start_login(
     let page_email = email.clone();
     let page_capture_started = capture_started.clone();
 
-    let login_window = match WebviewWindowBuilder::new(
+    #[allow(unused_mut)]
+    let mut builder = WebviewWindowBuilder::new(
         &app,
         LOGIN_WINDOW_LABEL,
         WebviewUrl::External(login_url.clone()),
@@ -158,15 +159,21 @@ pub async fn start_login(
     .title("Connect OpenCode Go — sign in, then select Go")
     .inner_size(width, height)
     .min_inner_size(820.0, 620.0)
-    .center()
     .resizable(true)
     .incognito(true)
     .devtools(false)
     .initialization_script(CONNECT_BANNER_SCRIPT)
     .on_navigation(|url| {
         url.scheme() == "https" || url.as_str() == "about:blank"
-    })
-    .on_page_load(move |window, payload| {
+    });
+
+    #[cfg(desktop)]
+    {
+        builder = builder.center();
+    }
+
+    let login_window = match builder
+        .on_page_load(move |window, payload| {
         if !matches!(payload.event(), PageLoadEvent::Finished) {
             return;
         }

@@ -123,7 +123,8 @@ pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginSta
         }
     };
     let (width, height) = login_window_size(&app);
-    let login_window = match WebviewWindowBuilder::new(
+    #[allow(unused_mut)]
+    let mut builder = WebviewWindowBuilder::new(
         &app,
         LOGIN_WINDOW_LABEL,
         WebviewUrl::External(login_url),
@@ -131,15 +132,20 @@ pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginSta
     .title("Connect Grok / SuperGrok")
     .inner_size(width, height)
     .min_inner_size(820.0, 620.0)
-    .center()
     .resizable(true)
     .incognito(true)
     .devtools(false)
     .initialization_script(CONNECT_BANNER_SCRIPT)
     .on_navigation(|url| {
         url.scheme() == "https" || url.as_str() == "about:blank"
-    })
-    .build()
+    });
+
+    #[cfg(desktop)]
+    {
+        builder = builder.center();
+    }
+
+    let login_window = match builder.build()
     {
         Ok(window) => window,
         Err(error) => {
