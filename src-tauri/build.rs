@@ -13,12 +13,10 @@ fn encode_png(source: &image::DynamicImage, size: u32) -> Vec<u8> {
     png_cursor.into_inner()
 }
 
-fn write_windows_icon(icon_dir: &PathBuf, source_png: &[u8]) {
-    let image = image::load_from_memory_with_format(source_png, ImageFormat::Png)
-        .expect("embedded application icon must be a valid PNG");
+fn write_windows_icon(icon_dir: &PathBuf, image: &image::DynamicImage) {
     let images: Vec<(u32, Vec<u8>)> = WINDOWS_ICON_SIZES
         .into_iter()
-        .map(|size| (size, encode_png(&image, size)))
+        .map(|size| (size, encode_png(image, size)))
         .collect();
 
     let directory_size = 6 + images.len() * 16;
@@ -50,16 +48,30 @@ fn write_windows_icon(icon_dir: &PathBuf, source_png: &[u8]) {
         .expect("Windows application icon must be writable during the build");
 }
 
-fn write_macos_icon(icon_dir: &PathBuf, source_png: &[u8]) {
-    // A 512x512 PNG stored as the standard ic09 ICNS entry.
-    let entry_len = 8_u32 + source_png.len() as u32;
-    let total_len = 8_u32 + entry_len;
+fn write_macos_icon(icon_dir: &PathBuf, image: &image::DynamicImage) {
+    let entries: [(&[u8], u32); 6] = [
+        (b"icp4", 16),
+        (b"icp5", 32),
+        (b"icp6", 64),
+        (b"ic07", 128),
+        (b"ic08", 256),
+        (b"ic09", 512),
+    ];
+
+    let mut body = Vec::new();
+    for (tag, size) in entries {
+        let png = encode_png(image, size);
+        let entry_len = 8_u32 + png.len() as u32;
+        body.extend_from_slice(tag);
+        body.extend_from_slice(&entry_len.to_be_bytes());
+        body.extend_from_slice(&png);
+    }
+
+    let total_len = 8_u32 + body.len() as u32;
     let mut icns = Vec::with_capacity(total_len as usize);
     icns.extend_from_slice(b"icns");
     icns.extend_from_slice(&total_len.to_be_bytes());
-    icns.extend_from_slice(b"ic09");
-    icns.extend_from_slice(&entry_len.to_be_bytes());
-    icns.extend_from_slice(source_png);
+    icns.extend_from_slice(&body);
 
     fs::write(icon_dir.join("icon.icns"), icns)
         .expect("macOS application icon must be writable during the build");
@@ -76,10 +88,20 @@ fn main() {
     );
     let icon_dir = manifest_dir.join("icons");
 
-    fs::write(icon_dir.join("icon.png"), &icon_bytes)
+    let image = image::load_from_memory_with_format(&icon_bytes, ImageFormat::Png)
+        .expect("embedded application icon must be a valid PNG");
+
+    fs::write(icon_dir.join("icon.png"), encode_png(&image, 128))
         .expect("application icon must be writable during the build");
-    write_windows_icon(&icon_dir, &icon_bytes);
-    write_macos_icon(&icon_dir, &icon_bytes);
+    fs::write(icon_dir.join("32x32.png"), encode_png(&image, 32))
+        .expect("32x32 icon must be writable during the build");
+    fs::write(icon_dir.join("128x128.png"), encode_png(&image, 128))
+        .expect("128x128 icon must be writable during the build");
+    fs::write(icon_dir.join("128x128@2x.png"), encode_png(&image, 256))
+        .expect("128x128@2x icon must be writable during the build");
+
+    write_windows_icon(&icon_dir, &image);
+    write_macos_icon(&icon_dir, &image);
 
     tauri_build::build()
 }
