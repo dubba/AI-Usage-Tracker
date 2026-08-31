@@ -12,6 +12,7 @@ This file tracks notable user-facing changes to AI Usage Tracker.
 
 ### Improved
 
+- Sidebar provider and bucket rows now display the count of connected accounts in brackets next to their name (e.g. Antigravity (3), Grok (1)).
 - The app now uses the name **AI Usage Tracker** in the installer, Dock, menu bar, window title, and GitHub releases.
 - Account cards keep the rename control beside the account name, with Live/plan badges above the notification, remove, and refresh icons.
 - Account notification, remove, and refresh controls are matched-size bordered buttons, colored amber, red, and green.

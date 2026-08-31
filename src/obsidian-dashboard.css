@@ -330,12 +330,29 @@ select {
 }
 
 .provider-summary-topline strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   overflow: hidden;
   color: #eeeaea;
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
   text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.sidebar-group-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-group-count {
+  color: var(--obsidian-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  flex-shrink: 0;
 }
 
 .provider-average {

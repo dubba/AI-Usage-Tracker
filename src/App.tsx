@@ -736,7 +736,8 @@ function SidebarGroupRow({
       <span className="provider-summary-content">
         <span className="provider-summary-topline">
           <strong className="sidebar-group-title">
-            {group.title}
+            <span className="sidebar-group-name">{group.title}</span>
+            <span className="sidebar-group-count">({group.accounts.length})</span>
             {group.type === "bucket" ? <span className="bucket-mini-badge">Bucket</span> : null}
           </strong>
           <span className={`provider-average tone-${tone}`}>{average == null ? "—" : `${Math.round(average)}%`}</span>
