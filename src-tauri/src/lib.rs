@@ -290,12 +290,11 @@ async fn open_paseo_bridge_window(
     #[cfg(desktop)]
     {
         builder = builder.center();
-    }
-
-    if let Some(icon) = app.default_window_icon() {
-        builder = builder
-            .icon(icon.clone())
-            .map_err(|error| error.to_string())?;
+        if let Some(icon) = app.default_window_icon() {
+            builder = builder
+                .icon(icon.clone())
+                .map_err(|error| error.to_string())?;
+        }
     }
 
     builder.build().map_err(|error| error.to_string())?;
