@@ -859,187 +859,194 @@ function AccountDashboardCard({
   busy: string | null;
   onRefresh: () => void;
   onReconnect: () => void;
-  onConnectGoogleUsage: (account: Account) => void;
+  onConnectGoogleUsage: () => void;
   onRename: (label: string) => Promise<void>;
   onRemove: () => void;
   onNotifications: () => void;
 }) {
+  const status = accountStatus(account);
+  const needsAttention = accountNeedsAttention(account);
   const [editing, setEditing] = useState(false);
-  const [draftLabel, setDraftLabel] = useState(account.label);
+  const [label, setLabel] = useState(account.label);
   const [renameError, setRenameError] = useState<string | null>(null);
-  const [renameBusy, setRenameBusy] = useState(false);
+  const isRefreshing = busy === `refresh:${account.id}`;
+  const isRenaming = busy === `rename:${account.id}`;
+  const isRemoving = busy === `remove:${account.id}`;
+  const windows = orderedWindows(account.lastUsage?.windows ?? []);
+  const modelsOnly = account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_model_access";
+  const waitingForMetrics = account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_monitoring_waiting";
+  const googleUnavailableLabel = modelsOnly ? "Model connected" : waitingForMetrics ? "Waiting for metrics" : "Unavailable";
+  const creditLabel = account.provider !== "openai"
+    ? null
+    : account.lastUsage?.unlimitedCredits
+      ? "Credits: Unlimited"
+      : account.lastUsage?.creditsUsd != null
+        ? `Credits: $${account.lastUsage.creditsUsd.toFixed(2)}`
+        : null;
 
   useEffect(() => {
-    setDraftLabel(account.label);
-    setEditing(false);
-    setRenameError(null);
-  }, [account.label]);
+    if (!editing) setLabel(account.label);
+  }, [account.label, editing]);
 
-  const saveRename = async () => {
-    const trimmed = draftLabel.trim();
-    if (!trimmed || trimmed === account.label) {
-      setDraftLabel(account.label);
-      setEditing(false);
+  const commitRename = async () => {
+    const next = label.trim();
+    if (!next) {
+      setRenameError("Account name is required.");
       return;
     }
-    setRenameBusy(true);
-    setRenameError(null);
-    try {
-      await onRename(trimmed);
+    if (next === account.label) {
       setEditing(false);
-    } catch (cause) {
-      setRenameError(String(cause));
-    } finally {
-      setRenameBusy(false);
+      setRenameError(null);
+      return;
+    }
+    try {
+      await onRename(next);
+      setEditing(false);
+      setRenameError(null);
+    } catch {
+      setRenameError("Unable to rename this account.");
     }
   };
 
-  const cancelRename = () => {
-    setDraftLabel(account.label);
-    setEditing(false);
-    setRenameError(null);
-  };
-
-  const status = accountStatus(account);
-  const plan = displayPlan(account);
-  const windows = orderedWindows(account.lastUsage?.windows ?? []);
-  const isRefreshing = busy === `refresh:${account.id}`;
-  const isGoogleSetup = isGoogleAiStudioSetupSource(account);
-
   return (
-    <article className="provider-account-card">
-      <div className="account-card-header">
-        <div className="account-card-heading">
-          <div className="account-card-title-row">
+    <article className={`provider-account-card ${needsAttention ? "needs-attention" : ""}`}>
+      <header className="provider-account-card-header">
+        <span className={`account-card-provider-icon provider-${account.provider}`}><ProviderIcon provider={account.provider} /></span>
+        <div className="account-card-identity">
+          <div className="account-card-name-row">
             {editing ? (
-              <div className="account-card-edit-row">
-                <input
-                  type="text"
-                  className="account-card-rename-input"
-                  value={draftLabel}
-                  disabled={renameBusy}
-                  autoFocus
-                  onChange={(event) => setDraftLabel(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") void saveRename();
-                    if (event.key === "Escape") cancelRename();
-                  }}
-                />
-                <button type="button" className="account-card-save-button" disabled={renameBusy} onClick={() => void saveRename()}>
-                  Save
-                </button>
-                <button type="button" className="account-card-icon-button cancel" disabled={renameBusy} onClick={cancelRename}>
-                  <CloseIcon />
-                </button>
-              </div>
-            ) : (
-              <>
-                <strong>{account.label}</strong>
-                <button
-                  type="button"
-                  className="account-card-icon-button"
-                  title="Rename account"
-                  onClick={() => setEditing(true)}
-                >
-                  <EditIcon />
-                </button>
-              </>
-            )}
+              <input
+                className="account-card-name-input"
+                value={label}
+                maxLength={80}
+                disabled={isRenaming}
+                autoFocus
+                aria-label={`Rename ${account.label}`}
+                onChange={(event) => {
+                  setLabel(event.target.value);
+                  setRenameError(null);
+                }}
+                onBlur={() => void commitRename()}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    event.currentTarget.blur();
+                  } else if (event.key === "Escape") {
+                    event.preventDefault();
+                    setLabel(account.label);
+                    setRenameError(null);
+                    setEditing(false);
+                  }
+                }}
+              />
+            ) : <h2>{account.label}</h2>}
+            {!editing ? (
+              <button type="button" className="account-name-edit" data-tooltip="Edit account name" aria-label={`Edit ${account.label}`} onClick={() => setEditing(true)}>
+                <EditIcon />
+              </button>
+            ) : null}
           </div>
-          <div className="account-card-subline">
-            <span className="account-card-email">{account.email ?? account.providerAccountId ?? providerName(account.provider)}</span>
-          </div>
+          <p className="account-card-email">{account.email ?? providerName(account.provider)}</p>
+          {renameError ? <small className="account-card-inline-error">{renameError}</small> : null}
         </div>
-
-        <div className="account-card-header-actions">
-          <div className="account-card-badges">
-            <span className={`status-pill ${status.className}`}>{status.label}</span>
-            {plan ? <span className="plan-pill">{plan}</span> : null}
+        <div className={`account-card-header-actions ${account.provider === "google_ai_studio" ? "has-google-action" : ""}`}>
+          <div className="account-card-header-meta">
+            <span className={`account-status-badge ${status.className}`}>{status.label}</span>
+            {displayPlan(account) ? <span className="account-plan-badge">{displayPlan(account)}</span> : null}
+            {account.provider === "google_ai_studio" ? (
+              <button type="button" className="button ghost compact-button google-cloud-connect-action" disabled={Boolean(busy)} onClick={onConnectGoogleUsage}>
+                {modelsOnly ? "Connect Cloud Usage" : "Change Cloud Project"}
+              </button>
+            ) : null}
           </div>
-          <div className="account-card-action-buttons">
+          <div className="account-card-name-actions">
             <button
               type="button"
-              className="account-card-action-btn remove-btn"
-              title="Remove account"
+              className="account-card-action remove-action"
+              data-tooltip="Remove this account"
+              aria-label={`Remove ${account.label}`}
               disabled={Boolean(busy)}
+              onPointerDown={(event) => event.stopPropagation()}
               onClick={onRemove}
-            >
-              <CloseIcon />
-            </button>
+            >{isRemoving ? <span className="mini-spinner" /> : <CloseIcon />}</button>
             <button
               type="button"
-              className="account-card-action-btn notify-btn"
-              title="Notification settings"
+              className="account-card-action notify-action"
+              data-tooltip="Usage notifications"
+              aria-label={`Configure usage notifications for ${account.label}`}
               disabled={Boolean(busy)}
+              onPointerDown={(event) => event.stopPropagation()}
               onClick={onNotifications}
-            >
-              <BellIcon />
-            </button>
+            ><BellIcon /></button>
             <button
               type="button"
-              className={`account-card-action-btn refresh-btn ${isRefreshing ? "spin" : ""}`}
-              title="Refresh quota"
-              disabled={Boolean(busy)}
+              className={`account-card-action refresh-action ${isRefreshing ? "spinning" : ""}`}
+              data-tooltip="Refresh this account"
+              aria-label={`Refresh ${account.label}`}
+              disabled={Boolean(busy) && !isRefreshing}
+              onPointerDown={(event) => event.stopPropagation()}
               onClick={onRefresh}
-            >
-              <RefreshIcon />
-            </button>
+            ><RefreshIcon /></button>
           </div>
         </div>
-      </div>
-
-      {renameError ? <div className="account-card-error-banner">{renameError}</div> : null}
+      </header>
 
       {account.lastError ? (
-        <div className="account-card-error-banner">
+        <div className="account-card-error">
           <span>{account.lastError}</span>
-          {account.authRequired ? (
-            <button type="button" className="button ghost compact-button" onClick={onReconnect}>Reconnect</button>
-          ) : null}
+          {account.authRequired ? <button className="button ghost compact-button" onClick={onReconnect}>{account.provider === "google_ai_studio" ? "Reconnect Cloud Usage" : "Reconnect"}</button> : null}
         </div>
       ) : null}
 
-      {isGoogleSetup ? (
-        <div className="google-studio-setup-card">
-          <p>Connect Google Cloud usage monitoring to display active quota windows.</p>
-          <button type="button" className="button ghost" onClick={() => onConnectGoogleUsage(account)}>
-            Connect Cloud Usage
-          </button>
-        </div>
-      ) : null}
-
-      <div className="account-card-windows">
-        {windows.length ? windows.map((window) => {
-          const used = window.usedPercent == null ? null : Math.round(window.usedPercent);
-          const remaining = window.remainingPercent == null ? null : Math.round(window.remainingPercent);
-          const width = remaining == null ? 0 : Math.min(100, Math.max(0, remaining));
-          const tone = usageTone(remaining);
-          const length = windowLength(window);
-          return (
-            <div key={window.id} className="account-window-row">
-              <div className="account-window-topline">
-                <span className="account-window-label">
-                  <strong>{window.label}</strong>
-                  {length ? <small>{length}</small> : null}
-                </span>
-                <span className="account-window-values">
-                  {remaining != null ? <strong className={`tone-${tone}`}>{remaining}% left</strong> : null}
-                  {used != null ? <small>{used}% used</small> : null}
-                </span>
-              </div>
-              <div className="account-window-track">
-                <span className={`tone-${tone}`} style={{ width: `${width}%` }} />
-              </div>
-              <div className="account-window-footer">
-                <small>{formatTime(window.resetsAt)}</small>
-              </div>
+      <div className={`account-card-metrics${windows.length > 1 ? " two-column-metrics" : ""}${windows.length > 2 ? " multi-row-metrics" : ""}`}>
+        {windows.length ? windows.map((window, index) => (
+          <AccountUsageMetric
+            key={window.id}
+            window={window}
+            unavailableLabel={googleUnavailableLabel}
+            creditLabel={index === 0 ? creditLabel : null}
+          />
+        )) : (
+          <div className="account-usage-metric unavailable-metric">
+            <span className="metric-label">Usage</span>
+            <div className="metric-value-row">
+              <strong className="metric-full-value">Unavailable</strong>
+              <span className="account-metric-track"><span className="tone-neutral" style={{ width: "0%" }} /></span>
+              {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
             </div>
-          );
-        }) : (
-          <div className="account-card-no-windows">No quota windows reported yet.</div>
+            <span className="metric-reset">Refresh this account to retrieve its limits.</span>
+          </div>
         )}
       </div>
     </article>
+  );
+}
+
+function AccountUsageMetric({
+  window,
+  unavailableLabel = "Unavailable",
+  creditLabel = null,
+}: {
+  window: UsageWindow;
+  unavailableLabel?: string;
+  creditLabel?: string | null;
+}) {
+  const remaining = window.remainingPercent;
+  const width = remaining == null ? 0 : Math.min(100, Math.max(0, remaining));
+  const tone = usageTone(remaining);
+  return (
+    <div className="account-usage-metric">
+      <div className="metric-heading">
+        <span className="metric-label">{window.label}</span>
+        {windowLength(window) ? <span className="metric-window-pill">{windowLength(window)}</span> : null}
+      </div>
+      <div className="metric-value-row">
+        <strong className="metric-full-value">{remaining == null ? unavailableLabel : `${Math.round(remaining)}%`}</strong>
+        <span className="account-metric-track"><span className={`tone-${tone}`} style={{ width: `${width}%` }} /></span>
+        {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
+      </div>
+      <span className="metric-reset">{window.resetsAt ? `Resets ${formatTime(window.resetsAt)}` : remaining == null ? "This provider has not reported a quota value yet" : "Rolling window"}</span>
+    </div>
   );
 }
 
