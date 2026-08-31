@@ -54,8 +54,18 @@ export interface BridgeInfo extends BridgeStatus {
   token: string;
 }
 
+export interface AccountBucket {
+  id: string;
+  name: string;
+  provider: Provider | null;
+  accountIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface DashboardSnapshot {
   accounts: Account[];
+  buckets: AccountBucket[];
   bridge: BridgeStatus;
 }
 

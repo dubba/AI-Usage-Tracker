@@ -4,6 +4,7 @@ import { bridgeApi } from "./api";
 import { AccountAlertModal } from "./components/AccountAlertModal";
 import { RemoveAccountModal } from "./components/RemoveAccountModal";
 import { AddAccountModal } from "./components/AddAccountModal";
+import { BucketModal } from "./components/BucketModal";
 import { GoogleAiStudioUsageModal } from "./components/GoogleAiStudioUsageModal";
 import { ProviderIcon } from "./components/ProviderIcon";
 import {
@@ -26,6 +27,7 @@ import {
 import { APP_UPDATE_STATUS_EVENT, publishAppUpdateStatus } from "./sidebar-update-control";
 import type {
   Account,
+  AccountBucket,
   AppSettings,
   AppUpdateStatus,
   BridgeStatus,
@@ -38,9 +40,13 @@ type Section = "accounts" | "integration" | "settings";
 type UpdateBusy = "checking" | "installing" | null;
 type SidebarWindow = "five_hour" | "weekly";
 
-type ProviderGroup = {
+export type SidebarGroup = {
+  id: string;
+  type: "bucket" | "provider";
+  title: string;
   provider: Provider;
   accounts: Account[];
+  bucket?: AccountBucket;
 };
 
 type NextResetSummary = {
@@ -130,7 +136,7 @@ function accountWindowRemaining(account: Account, target: SidebarWindow): number
   return window?.remainingPercent ?? null;
 }
 
-function providerAverage(accounts: Account[], target: SidebarWindow): number | null {
+function groupAverage(accounts: Account[], target: SidebarWindow): number | null {
   const values = accounts
     .map((account) => accountWindowRemaining(account, target))
     .filter((value): value is number => value != null && Number.isFinite(value));
@@ -216,11 +222,14 @@ function displayPlan(account: Account): string | null {
 
 export default function App() {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
-  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [providerOrder, setProviderOrder] = useState<Provider[]>(readDashboardProviderOrder);
   const [sidebarWindow, setSidebarWindow] = useState<SidebarWindow>(readSidebarWindow);
   const [section, setSection] = useState<Section>("accounts");
   const [addOpen, setAddOpen] = useState(false);
+  const [bucketModalOpen, setBucketModalOpen] = useState(false);
+  const [bucketToEdit, setBucketToEdit] = useState<AccountBucket | null>(null);
+  const [bucketInitialProvider, setBucketInitialProvider] = useState<Provider | null>(null);
   const [alertAccount, setAlertAccount] = useState<Account | null>(null);
   const [accountToRemove, setAccountToRemove] = useState<Account | null>(null);
   const [googleUsageAccount, setGoogleUsageAccount] = useState<Account | null>(null);
@@ -241,14 +250,22 @@ export default function App() {
     setAddOpen(true);
   }, []);
 
+  const openNewBucket = useCallback((provider?: Provider | null) => {
+    setBucketToEdit(null);
+    setBucketInitialProvider(provider ?? null);
+    setBucketModalOpen(true);
+  }, []);
+
+  const openEditBucket = useCallback((bucket: AccountBucket) => {
+    setBucketToEdit(bucket);
+    setBucketInitialProvider(bucket.provider);
+    setBucketModalOpen(true);
+  }, []);
+
   const load = useCallback(async () => {
     try {
       const next = await bridgeApi.snapshot();
       setSnapshot(next);
-      setSelectedProvider((current) => {
-        if (current && next.accounts.some((account) => account.provider === current)) return current;
-        return readDashboardProviderOrder().find((provider) => next.accounts.some((account) => account.provider === provider)) ?? null;
-      });
       setError(null);
     } catch (cause) {
       setError(String(cause));
@@ -303,20 +320,18 @@ export default function App() {
       const saved = await bridgeApi.setAutomaticUpdatesEnabled(enabled);
       setAppSettings(saved);
       setError(null);
-      if (enabled) void checkForUpdate(false);
     } catch (cause) {
       setError(String(cause));
     } finally {
       setSettingsBusy(false);
     }
-  }, [checkForUpdate]);
+  }, []);
 
   const setPaseoBridgeEnabled = useCallback(async (enabled: boolean) => {
     setBusy("toggle-paseo-bridge");
     try {
-      const bridge = await bridgeApi.setPaseoBridgeEnabled(enabled);
-      setSnapshot((current) => current ? { ...current, bridge } : current);
-      setAppSettings((current) => current ? { ...current, paseoBridgeEnabled: enabled } : current);
+      const status = await bridgeApi.setPaseoBridgeEnabled(enabled);
+      setSnapshot((current) => current ? { ...current, bridge: status } : null);
       setError(null);
     } catch (cause) {
       setError(String(cause));
@@ -339,37 +354,30 @@ export default function App() {
 
   useEffect(() => {
     void load();
-    void isEnabled().then(setAutostart).catch(() => setAutostart(false));
-    void bridgeApi.getAppSettings().then(setAppSettings).catch((cause) => setError(String(cause)));
-
-    const startupRefresh = window.setTimeout(() => void load(), STARTUP_REFRESH_DELAY_MS);
-    const dashboardInterval = window.setInterval(() => void load(), DASHBOARD_SYNC_INTERVAL_MS);
-    const refreshVisible = () => {
-      if (document.visibilityState === "visible") void load();
-    };
-    const syncUpdateStatus = (event: Event) => {
-      const status = (event as CustomEvent<AppUpdateStatus>).detail;
-      if (status) setAppUpdate(status);
-    };
-    const syncProviderOrder = (event: Event) => {
-      const order = (event as CustomEvent<Provider[]>).detail;
-      setProviderOrder(order?.length ? order : readDashboardProviderOrder());
-    };
-
-    window.addEventListener("focus", refreshVisible);
-    window.addEventListener(APP_UPDATE_STATUS_EVENT, syncUpdateStatus);
-    window.addEventListener(DASHBOARD_PROVIDER_ORDER_EVENT, syncProviderOrder);
-    document.addEventListener("visibilitychange", refreshVisible);
-
+    bridgeApi.getAppSettings().then(setAppSettings).catch((cause) => setError(String(cause)));
+    isEnabled().then(setAutostart).catch(() => setAutostart(false));
+    const syncInterval = window.setInterval(() => void load(), DASHBOARD_SYNC_INTERVAL_MS);
+    const initialRefreshTimeout = window.setTimeout(() => void bridgeApi.refreshAll().then(() => load()), STARTUP_REFRESH_DELAY_MS);
     return () => {
-      window.clearTimeout(startupRefresh);
-      window.clearInterval(dashboardInterval);
-      window.removeEventListener("focus", refreshVisible);
-      window.removeEventListener(APP_UPDATE_STATUS_EVENT, syncUpdateStatus);
-      window.removeEventListener(DASHBOARD_PROVIDER_ORDER_EVENT, syncProviderOrder);
-      document.removeEventListener("visibilitychange", refreshVisible);
+      window.clearInterval(syncInterval);
+      window.clearTimeout(initialRefreshTimeout);
     };
   }, [load]);
+
+  useEffect(() => {
+    const handleOrderChange = () => setProviderOrder(readDashboardProviderOrder());
+    window.addEventListener(DASHBOARD_PROVIDER_ORDER_EVENT, handleOrderChange);
+    return () => window.removeEventListener(DASHBOARD_PROVIDER_ORDER_EVENT, handleOrderChange);
+  }, []);
+
+  useEffect(() => {
+    const handleUpdateEvent = (event: Event) => {
+      const custom = event as CustomEvent<AppUpdateStatus | null>;
+      if (custom.detail) setAppUpdate(custom.detail);
+    };
+    window.addEventListener(APP_UPDATE_STATUS_EVENT, handleUpdateEvent);
+    return () => window.removeEventListener(APP_UPDATE_STATUS_EVENT, handleUpdateEvent);
+  }, []);
 
   useEffect(() => {
     if (!appSettings?.automaticUpdatesEnabled) return;
@@ -379,18 +387,58 @@ export default function App() {
   }, [appSettings?.automaticUpdatesEnabled, checkForUpdate]);
 
   const accounts = snapshot?.accounts ?? [];
-  const providerGroups = useMemo<ProviderGroup[]>(
-    () => providerOrder.flatMap((provider) => {
-      const providerAccounts = accounts.filter((account) => account.provider === provider);
-      return providerAccounts.length ? [{ provider, accounts: providerAccounts }] : [];
-    }),
-    [accounts, providerOrder],
-  );
-  const visibleAccounts = selectedProvider
-    ? accounts.filter((account) => account.provider === selectedProvider)
-    : [];
+  const buckets = snapshot?.buckets ?? [];
+
+  const sidebarGroups = useMemo<SidebarGroup[]>(() => {
+    const assignedIds = new Set<string>();
+    const bucketGroups: SidebarGroup[] = [];
+
+    for (const bucket of buckets) {
+      const bucketAccounts = accounts.filter((a) => bucket.accountIds.includes(a.id));
+      if (bucketAccounts.length > 0) {
+        bucket.accountIds.forEach((id) => assignedIds.add(id));
+        const provider = bucket.provider ?? bucketAccounts[0]?.provider ?? "antigravity";
+        bucketGroups.push({
+          id: `bucket:${bucket.id}`,
+          type: "bucket",
+          title: bucket.name,
+          provider,
+          accounts: bucketAccounts,
+          bucket,
+        });
+      }
+    }
+
+    const providerGroups: SidebarGroup[] = [];
+    for (const provider of providerOrder) {
+      const unassigned = accounts.filter(
+        (a) => a.provider === provider && !assignedIds.has(a.id),
+      );
+      if (unassigned.length > 0) {
+        providerGroups.push({
+          id: `provider:${provider}`,
+          type: "provider",
+          title: providerName(provider),
+          provider,
+          accounts: unassigned,
+        });
+      }
+    }
+
+    return [...bucketGroups, ...providerGroups];
+  }, [accounts, buckets, providerOrder]);
+
+  const selectedGroup = useMemo<SidebarGroup | null>(() => {
+    if (selectedGroupId) {
+      const found = sidebarGroups.find((g) => g.id === selectedGroupId);
+      if (found) return found;
+    }
+    return sidebarGroups[0] ?? null;
+  }, [selectedGroupId, sidebarGroups]);
+
+  const visibleAccounts = selectedGroup?.accounts ?? [];
   const needsAttention = accounts.filter(accountNeedsAttention).length;
-  const nextReset = nextResetSummary(accounts);
+  const nextReset = nextResetSummary(visibleAccounts.length ? visibleAccounts : accounts);
 
   const refreshOne = async (id: string) => {
     setBusy(`refresh:${id}`);
@@ -488,11 +536,12 @@ export default function App() {
       <AccountsView
         allAccounts={accounts}
         accounts={visibleAccounts}
-        selectedProvider={selectedProvider}
+        selectedGroup={selectedGroup}
         needsAttention={needsAttention}
         nextReset={nextReset}
-        onAdd={() => openAdd(undefined, selectedProvider ?? undefined)}
+        onAdd={() => openAdd(undefined, selectedGroup?.provider ?? undefined)}
         onRefreshAll={refreshAll}
+        onEditBucket={openEditBucket}
         onRefresh={(account) => void refreshOne(account.id)}
         onReconnect={(account) => account.provider === "google_ai_studio" ? setGoogleUsageAccount(account) : openAdd(account)}
         onConnectGoogleUsage={setGoogleUsageAccount}
@@ -511,7 +560,7 @@ export default function App() {
     settingsBusy,
     accounts,
     visibleAccounts,
-    selectedProvider,
+    selectedGroup,
     needsAttention,
     nextReset.account,
     nextReset.value,
@@ -522,6 +571,7 @@ export default function App() {
     checkForUpdate,
     installUpdate,
     openAdd,
+    openEditBucket,
     saveAccountRefreshMinutes,
     saveAutomaticUpdatesEnabled,
     setPaseoBridgeEnabled,
@@ -544,33 +594,43 @@ export default function App() {
 
         <div className="provider-sidebar-heading">
           <span>Usage accounts</span>
-          <div className="provider-window-toggle" aria-label="Provider average usage window">
+          <div className="provider-sidebar-heading-actions">
             <button
               type="button"
-              className={sidebarWindow === "five_hour" ? "active" : ""}
-              aria-pressed={sidebarWindow === "five_hour"}
-              title="Show average 5-hour remaining usage"
-              onClick={() => changeSidebarWindow("five_hour")}
-            >H</button>
-            <button
-              type="button"
-              className={sidebarWindow === "weekly" ? "active" : ""}
-              aria-pressed={sidebarWindow === "weekly"}
-              title="Show average weekly remaining usage"
-              onClick={() => changeSidebarWindow("weekly")}
-            >W</button>
+              className="button ghost compact-button add-bucket-header-button"
+              title="Create a custom bucket group"
+              onClick={() => openNewBucket(selectedGroup?.provider)}
+            >
+              <PlusIcon />Bucket
+            </button>
+            <div className="provider-window-toggle" aria-label="Provider average usage window">
+              <button
+                type="button"
+                className={sidebarWindow === "five_hour" ? "active" : ""}
+                aria-pressed={sidebarWindow === "five_hour"}
+                title="Show average 5-hour remaining usage"
+                onClick={() => changeSidebarWindow("five_hour")}
+              >H</button>
+              <button
+                type="button"
+                className={sidebarWindow === "weekly" ? "active" : ""}
+                aria-pressed={sidebarWindow === "weekly"}
+                title="Show average weekly remaining usage"
+                onClick={() => changeSidebarWindow("weekly")}
+              >W</button>
+            </div>
           </div>
         </div>
 
         <div className="provider-list">
-          {providerGroups.length ? providerGroups.map((group) => (
-            <ProviderSidebarRow
-              key={group.provider}
+          {sidebarGroups.length ? sidebarGroups.map((group) => (
+            <SidebarGroupRow
+              key={group.id}
               group={group}
               window={sidebarWindow}
-              selected={section === "accounts" && selectedProvider === group.provider}
+              selected={section === "accounts" && selectedGroup?.id === group.id}
               onSelect={() => {
-                setSelectedProvider(group.provider);
+                setSelectedGroupId(group.id);
                 setSection("accounts");
               }}
             />
@@ -596,9 +656,28 @@ export default function App() {
         onClose={() => setAddOpen(false)}
         onAdded={async (account) => {
           setAddOpen(false);
-          setSelectedProvider(account.provider);
+          setSelectedGroupId(`provider:${account.provider}`);
           setSection("accounts");
           try { await bridgeApi.refreshAccount(account.id); } catch { /* The account remains available with cached state. */ }
+          await load();
+        }}
+      />
+      <BucketModal
+        open={bucketModalOpen}
+        bucket={bucketToEdit}
+        initialProvider={bucketInitialProvider}
+        accounts={accounts}
+        onClose={() => setBucketModalOpen(false)}
+        onSaved={async (saved) => {
+          setBucketModalOpen(false);
+          setSelectedGroupId(`bucket:${saved.id}`);
+          await load();
+        }}
+        onDeleted={async (deletedId) => {
+          setBucketModalOpen(false);
+          if (selectedGroupId === `bucket:${deletedId}`) {
+            setSelectedGroupId(null);
+          }
           await load();
         }}
       />
@@ -630,31 +709,36 @@ export default function App() {
   );
 }
 
-function ProviderSidebarRow({
+function SidebarGroupRow({
   group,
   window,
   selected,
   onSelect,
 }: {
-  group: ProviderGroup;
+  group: SidebarGroup;
   window: SidebarWindow;
   selected: boolean;
   onSelect: () => void;
 }) {
-  const average = providerAverage(group.accounts, window);
+  const average = groupAverage(group.accounts, window);
   const width = average == null ? 0 : Math.min(100, Math.max(0, average));
   const tone = usageTone(average);
   return (
     <button
       type="button"
-      className={`provider-summary-row ${selected ? "selected" : ""}`}
+      className={`provider-summary-row ${group.type === "bucket" ? "is-bucket-row" : ""} ${selected ? "selected" : ""}`}
       onClick={onSelect}
-      aria-label={`${providerName(group.provider)}, ${group.accounts.length} accounts, ${average == null ? "usage unavailable" : `${Math.round(average)} percent average remaining`}`}
+      data-provider={group.provider}
+      data-group-id={group.id}
+      aria-label={`${group.title}, ${group.accounts.length} accounts, ${average == null ? "usage unavailable" : `${Math.round(average)} percent average remaining`}`}
     >
       <span className={`provider-summary-icon provider-${group.provider}`}><ProviderIcon provider={group.provider} /></span>
       <span className="provider-summary-content">
         <span className="provider-summary-topline">
-          <strong>{providerName(group.provider)}</strong>
+          <strong className="sidebar-group-title">
+            {group.title}
+            {group.type === "bucket" ? <span className="bucket-mini-badge">Bucket</span> : null}
+          </strong>
           <span className={`provider-average tone-${tone}`}>{average == null ? "—" : `${Math.round(average)}%`}</span>
         </span>
         <span className="provider-summary-track"><span className={`tone-${tone}`} style={{ width: `${width}%` }} /></span>
@@ -666,11 +750,12 @@ function ProviderSidebarRow({
 function AccountsView(props: {
   allAccounts: Account[];
   accounts: Account[];
-  selectedProvider: Provider | null;
+  selectedGroup: SidebarGroup | null;
   needsAttention: number;
   nextReset: NextResetSummary;
   onAdd: () => void;
   onRefreshAll: () => void;
+  onEditBucket?: (bucket: AccountBucket) => void;
   onRefresh: (account: Account) => void;
   onReconnect: (account: Account) => void;
   onConnectGoogleUsage: (account: Account) => void;
@@ -683,10 +768,26 @@ function AccountsView(props: {
     <div className="content-scroll dashboard-content">
       <header className="dashboard-header">
         <div>
-          <h1>Usage Dashboard</h1>
-          {props.selectedProvider ? <p>{providerName(props.selectedProvider)} accounts</p> : null}
+          <div className="dashboard-title-row">
+            <h1>{props.selectedGroup ? props.selectedGroup.title : "Usage Dashboard"}</h1>
+            {props.selectedGroup?.type === "bucket" ? (
+              <span className="dashboard-bucket-pill">Custom Bucket</span>
+            ) : null}
+          </div>
+          {props.selectedGroup ? (
+            <p>{props.selectedGroup.accounts.length} {props.selectedGroup.accounts.length === 1 ? "account" : "accounts"}</p>
+          ) : null}
         </div>
         <div className="header-actions">
+          {props.selectedGroup?.type === "bucket" && props.selectedGroup.bucket ? (
+            <button
+              type="button"
+              className="button ghost edit-bucket-header-btn"
+              onClick={() => props.onEditBucket?.(props.selectedGroup!.bucket!)}
+            >
+              <EditIcon />Edit Bucket
+            </button>
+          ) : null}
           <button className="button ghost" onClick={props.onRefreshAll} disabled={props.busy === "refresh-all"}>
             <RefreshIcon />{props.busy === "refresh-all" ? "Refreshing…" : "Refresh All"}
           </button>
@@ -696,8 +797,8 @@ function AccountsView(props: {
 
       <section className="summary-grid mockup-summary-grid">
         <div className="mockup-summary-card total-card">
-          <div><span className="summary-label">Total accounts</span><strong className="summary-helper">Active</strong></div>
-          <div className="summary-value-cluster"><strong>{props.allAccounts.length}</strong><UsersIcon /></div>
+          <div><span className="summary-label">{props.selectedGroup ? `${props.selectedGroup.title} Accounts` : "Total accounts"}</span><strong className="summary-helper">Active</strong></div>
+          <div className="summary-value-cluster"><strong>{props.accounts.length}</strong><UsersIcon /></div>
         </div>
         <div className={`mockup-summary-card attention-card ${props.needsAttention ? "has-attention" : ""}`}>
           <div>
@@ -734,7 +835,7 @@ function AccountsView(props: {
         )) : (
           <section className="welcome-panel mockup-empty-panel">
             <UsersIcon />
-            <h2>{props.selectedProvider ? `No ${providerName(props.selectedProvider)} accounts` : "Connect a provider account"}</h2>
+            <h2>{props.selectedGroup ? `No accounts in ${props.selectedGroup.title}` : "Connect a provider account"}</h2>
             <p>Add an account to begin monitoring its limits.</p>
             <button className="button primary" onClick={props.onAdd}><PlusIcon />Add Account</button>
           </section>
@@ -758,202 +859,200 @@ function AccountDashboardCard({
   busy: string | null;
   onRefresh: () => void;
   onReconnect: () => void;
-  onConnectGoogleUsage: () => void;
+  onConnectGoogleUsage: (account: Account) => void;
   onRename: (label: string) => Promise<void>;
   onRemove: () => void;
   onNotifications: () => void;
 }) {
-  const status = accountStatus(account);
-  const needsAttention = accountNeedsAttention(account);
   const [editing, setEditing] = useState(false);
-  const [label, setLabel] = useState(account.label);
+  const [draftLabel, setDraftLabel] = useState(account.label);
   const [renameError, setRenameError] = useState<string | null>(null);
-  const isRefreshing = busy === `refresh:${account.id}`;
-  const isRenaming = busy === `rename:${account.id}`;
-  const isRemoving = busy === `remove:${account.id}`;
-  const windows = orderedWindows(account.lastUsage?.windows ?? []);
-  const modelsOnly = account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_model_access";
-  const waitingForMetrics = account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_monitoring_waiting";
-  const googleUnavailableLabel = modelsOnly ? "Model connected" : waitingForMetrics ? "Waiting for metrics" : "Unavailable";
-  const creditLabel = account.provider !== "openai"
-    ? null
-    : account.lastUsage?.unlimitedCredits
-      ? "Credits: Unlimited"
-      : account.lastUsage?.creditsUsd != null
-        ? `Credits: $${account.lastUsage.creditsUsd.toFixed(2)}`
-        : null;
+  const [renameBusy, setRenameBusy] = useState(false);
 
   useEffect(() => {
-    if (!editing) setLabel(account.label);
-  }, [account.label, editing]);
+    setDraftLabel(account.label);
+    setEditing(false);
+    setRenameError(null);
+  }, [account.label]);
 
-  const commitRename = async () => {
-    const next = label.trim();
-    if (!next) {
-      setRenameError("Account name is required.");
-      return;
-    }
-    if (next === account.label) {
+  const saveRename = async () => {
+    const trimmed = draftLabel.trim();
+    if (!trimmed || trimmed === account.label) {
+      setDraftLabel(account.label);
       setEditing(false);
-      setRenameError(null);
       return;
     }
+    setRenameBusy(true);
+    setRenameError(null);
     try {
-      await onRename(next);
+      await onRename(trimmed);
       setEditing(false);
-      setRenameError(null);
-    } catch {
-      setRenameError("Unable to rename this account.");
+    } catch (cause) {
+      setRenameError(String(cause));
+    } finally {
+      setRenameBusy(false);
     }
   };
 
+  const cancelRename = () => {
+    setDraftLabel(account.label);
+    setEditing(false);
+    setRenameError(null);
+  };
+
+  const status = accountStatus(account);
+  const plan = displayPlan(account);
+  const windows = orderedWindows(account.lastUsage?.windows ?? []);
+  const isRefreshing = busy === `refresh:${account.id}`;
+  const isGoogleSetup = isGoogleAiStudioSetupSource(account);
+
   return (
-    <article className={`provider-account-card ${needsAttention ? "needs-attention" : ""}`}>
-      <header className="provider-account-card-header">
-        <span className={`account-card-provider-icon provider-${account.provider}`}><ProviderIcon provider={account.provider} /></span>
-        <div className="account-card-identity">
-          <div className="account-card-name-row">
+    <article className="provider-account-card">
+      <div className="account-card-header">
+        <div className="account-card-heading">
+          <div className="account-card-title-row">
             {editing ? (
-              <input
-                className="account-card-name-input"
-                value={label}
-                maxLength={80}
-                disabled={isRenaming}
-                autoFocus
-                aria-label={`Rename ${account.label}`}
-                onChange={(event) => {
-                  setLabel(event.target.value);
-                  setRenameError(null);
-                }}
-                onBlur={() => void commitRename()}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    event.currentTarget.blur();
-                  } else if (event.key === "Escape") {
-                    event.preventDefault();
-                    setLabel(account.label);
-                    setRenameError(null);
-                    setEditing(false);
-                  }
-                }}
-              />
-            ) : <h2>{account.label}</h2>}
-            {!editing ? (
-              <button type="button" className="account-name-edit" data-tooltip="Edit account name" aria-label={`Edit ${account.label}`} onClick={() => setEditing(true)}>
-                <EditIcon />
-              </button>
-            ) : null}
+              <div className="account-card-edit-row">
+                <input
+                  type="text"
+                  className="account-card-rename-input"
+                  value={draftLabel}
+                  disabled={renameBusy}
+                  autoFocus
+                  onChange={(event) => setDraftLabel(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") void saveRename();
+                    if (event.key === "Escape") cancelRename();
+                  }}
+                />
+                <button type="button" className="account-card-save-button" disabled={renameBusy} onClick={() => void saveRename()}>
+                  Save
+                </button>
+                <button type="button" className="account-card-icon-button cancel" disabled={renameBusy} onClick={cancelRename}>
+                  <CloseIcon />
+                </button>
+              </div>
+            ) : (
+              <>
+                <strong>{account.label}</strong>
+                <button
+                  type="button"
+                  className="account-card-icon-button"
+                  title="Rename account"
+                  onClick={() => setEditing(true)}
+                >
+                  <EditIcon />
+                </button>
+              </>
+            )}
           </div>
-          <p className="account-card-email">{account.email ?? providerName(account.provider)}</p>
-          {renameError ? <small className="account-card-inline-error">{renameError}</small> : null}
+          <div className="account-card-subline">
+            <span className="account-card-email">{account.email ?? account.providerAccountId ?? providerName(account.provider)}</span>
+          </div>
         </div>
-        <div className={`account-card-header-actions ${account.provider === "google_ai_studio" ? "has-google-action" : ""}`}>
-          <div className="account-card-header-meta">
-            <span className={`account-status-badge ${status.className}`}>{status.label}</span>
-            {displayPlan(account) ? <span className="account-plan-badge">{displayPlan(account)}</span> : null}
-            {account.provider === "google_ai_studio" ? (
-              <button type="button" className="button ghost compact-button google-cloud-connect-action" disabled={Boolean(busy)} onClick={onConnectGoogleUsage}>
-                {modelsOnly ? "Connect Cloud Usage" : "Change Cloud Project"}
-              </button>
-            ) : null}
+
+        <div className="account-card-header-actions">
+          <div className="account-card-badges">
+            <span className={`status-pill ${status.className}`}>{status.label}</span>
+            {plan ? <span className="plan-pill">{plan}</span> : null}
           </div>
-          <div className="account-card-name-actions">
+          <div className="account-card-action-buttons">
             <button
               type="button"
-              className="account-card-action remove-action"
-              data-tooltip="Remove this account"
-              aria-label={`Remove ${account.label}`}
+              className="account-card-action-btn remove-btn"
+              title="Remove account"
               disabled={Boolean(busy)}
-              onPointerDown={(event) => event.stopPropagation()}
               onClick={onRemove}
-            >{isRemoving ? <span className="mini-spinner" /> : <CloseIcon />}</button>
+            >
+              <CloseIcon />
+            </button>
             <button
               type="button"
-              className="account-card-action notify-action"
-              data-tooltip="Usage notifications"
-              aria-label={`Configure usage notifications for ${account.label}`}
+              className="account-card-action-btn notify-btn"
+              title="Notification settings"
               disabled={Boolean(busy)}
-              onPointerDown={(event) => event.stopPropagation()}
               onClick={onNotifications}
-            ><BellIcon /></button>
+            >
+              <BellIcon />
+            </button>
             <button
               type="button"
-              className={`account-card-action refresh-action ${isRefreshing ? "spinning" : ""}`}
-              data-tooltip="Refresh this account"
-              aria-label={`Refresh ${account.label}`}
-              disabled={Boolean(busy) && !isRefreshing}
-              onPointerDown={(event) => event.stopPropagation()}
+              className={`account-card-action-btn refresh-btn ${isRefreshing ? "spin" : ""}`}
+              title="Refresh quota"
+              disabled={Boolean(busy)}
               onClick={onRefresh}
-            ><RefreshIcon /></button>
+            >
+              <RefreshIcon />
+            </button>
           </div>
         </div>
-      </header>
+      </div>
+
+      {renameError ? <div className="account-card-error-banner">{renameError}</div> : null}
 
       {account.lastError ? (
-        <div className="account-card-error">
+        <div className="account-card-error-banner">
           <span>{account.lastError}</span>
-          {account.authRequired ? <button className="button ghost compact-button" onClick={onReconnect}>{account.provider === "google_ai_studio" ? "Reconnect Cloud Usage" : "Reconnect"}</button> : null}
+          {account.authRequired ? (
+            <button type="button" className="button ghost compact-button" onClick={onReconnect}>Reconnect</button>
+          ) : null}
         </div>
       ) : null}
 
-      <div className={`account-card-metrics${windows.length > 1 ? " two-column-metrics" : ""}${windows.length > 2 ? " multi-row-metrics" : ""}`}>
-        {windows.length ? windows.map((window, index) => (
-          <AccountUsageMetric
-            key={window.id}
-            window={window}
-            unavailableLabel={googleUnavailableLabel}
-            creditLabel={index === 0 ? creditLabel : null}
-          />
-        )) : (
-          <div className="account-usage-metric unavailable-metric">
-            <span className="metric-label">Usage</span>
-            <div className="metric-value-row">
-              <strong className="metric-full-value">Unavailable</strong>
-              <span className="account-metric-track"><span className="tone-neutral" style={{ width: "0%" }} /></span>
-              {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
+      {isGoogleSetup ? (
+        <div className="google-studio-setup-card">
+          <p>Connect Google Cloud usage monitoring to display active quota windows.</p>
+          <button type="button" className="button ghost" onClick={() => onConnectGoogleUsage(account)}>
+            Connect Cloud Usage
+          </button>
+        </div>
+      ) : null}
+
+      <div className="account-card-windows">
+        {windows.length ? windows.map((window) => {
+          const used = window.usedPercent == null ? null : Math.round(window.usedPercent);
+          const remaining = window.remainingPercent == null ? null : Math.round(window.remainingPercent);
+          const width = remaining == null ? 0 : Math.min(100, Math.max(0, remaining));
+          const tone = usageTone(remaining);
+          const length = windowLength(window);
+          return (
+            <div key={window.id} className="account-window-row">
+              <div className="account-window-topline">
+                <span className="account-window-label">
+                  <strong>{window.label}</strong>
+                  {length ? <small>{length}</small> : null}
+                </span>
+                <span className="account-window-values">
+                  {remaining != null ? <strong className={`tone-${tone}`}>{remaining}% left</strong> : null}
+                  {used != null ? <small>{used}% used</small> : null}
+                </span>
+              </div>
+              <div className="account-window-track">
+                <span className={`tone-${tone}`} style={{ width: `${width}%` }} />
+              </div>
+              <div className="account-window-footer">
+                <small>{formatTime(window.resetsAt)}</small>
+              </div>
             </div>
-            <span className="metric-reset">Refresh this account to retrieve its limits.</span>
-          </div>
+          );
+        }) : (
+          <div className="account-card-no-windows">No quota windows reported yet.</div>
         )}
       </div>
     </article>
   );
 }
 
-function AccountUsageMetric({
-  window,
-  unavailableLabel = "Unavailable",
-  creditLabel = null,
+function IntegrationView({
+  bridge,
+  busy,
+  onToggle,
+  onView,
 }: {
-  window: UsageWindow;
-  unavailableLabel?: string;
-  creditLabel?: string | null;
-}) {
-  const remaining = window.remainingPercent;
-  const width = remaining == null ? 0 : Math.min(100, Math.max(0, remaining));
-  const tone = usageTone(remaining);
-  return (
-    <div className="account-usage-metric">
-      <div className="metric-heading">
-        <span className="metric-label">{window.label}</span>
-        {windowLength(window) ? <span className="metric-window-pill">{windowLength(window)}</span> : null}
-      </div>
-      <div className="metric-value-row">
-        <strong className="metric-full-value">{remaining == null ? unavailableLabel : `${Math.round(remaining)}%`}</strong>
-        <span className="account-metric-track"><span className={`tone-${tone}`} style={{ width: `${width}%` }} /></span>
-        {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
-      </div>
-      <span className="metric-reset">{window.resetsAt ? `Resets ${formatTime(window.resetsAt)}` : remaining == null ? "This provider has not reported a quota value yet" : "Rolling window"}</span>
-    </div>
-  );
-}
-
-function IntegrationView({ bridge, onToggle, onView, busy }: {
   bridge: BridgeStatus | null;
+  busy: boolean;
   onToggle: (enabled: boolean) => void;
   onView: () => void;
-  busy: boolean;
 }) {
   const enabled = bridge?.enabled ?? false;
   const status = !enabled

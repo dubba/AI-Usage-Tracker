@@ -1,6 +1,7 @@
 use crate::{
     account_order::AccountOrderStore,
     alerts::AlertStore,
+    buckets::BucketStore,
     model::{Account, LoginStatus, ProviderSecret},
     settings::SettingsStore,
     store::{AccountStore, StoreError},
@@ -28,6 +29,7 @@ pub struct AppState {
     pub store: AccountStore,
     pub account_order: AccountOrderStore,
     pub alerts: AlertStore,
+    pub buckets: BucketStore,
     pub settings: SettingsStore,
     pub client: Client,
     pub pending_login: RwLock<Option<LoginStatus>>,
@@ -52,6 +54,9 @@ impl AppState {
         let alerts = load_with_metadata_recovery(&data_dir, "usage-alerts.json", || {
             AlertStore::load(&data_dir)
         })?;
+        let buckets = load_with_metadata_recovery(&data_dir, "account-buckets.json", || {
+            BucketStore::load(&data_dir)
+        })?;
         let settings = load_with_metadata_recovery(&data_dir, "app-settings.json", || {
             SettingsStore::load(&data_dir)
         })?;
@@ -65,6 +70,7 @@ impl AppState {
             store,
             account_order,
             alerts,
+            buckets,
             settings,
             client,
             pending_login: RwLock::new(None),

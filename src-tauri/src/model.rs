@@ -240,10 +240,22 @@ pub struct BridgeInfo {
     pub error: Option<String>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountBucket {
+    pub id: String,
+    pub name: String,
+    pub provider: Option<Provider>,
+    pub account_ids: Vec<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DashboardSnapshot {
     pub accounts: Vec<Account>,
+    pub buckets: Vec<AccountBucket>,
     pub bridge: BridgeStatus,
 }
 
@@ -303,6 +315,7 @@ mod tests {
     fn dashboard_snapshot_omits_bridge_token() {
         let snapshot = DashboardSnapshot {
             accounts: Vec::new(),
+            buckets: Vec::new(),
             bridge: BridgeStatus {
                 endpoint: "http://127.0.0.1:47831/v1/paseo-usage".into(),
                 enabled: true,

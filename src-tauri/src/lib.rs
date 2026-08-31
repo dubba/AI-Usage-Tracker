@@ -1,6 +1,7 @@
 mod account_order;
 mod alerts;
 mod bridge_api;
+mod buckets;
 mod fs_util;
 mod google_ai_studio_oauth;
 mod grok_login;
@@ -16,8 +17,8 @@ mod usage;
 use crate::{
     alerts::UsageAlertSetting,
     model::{
-        Account, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart,
-        LoginStatus, Provider,
+        Account, AccountBucket, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot,
+        LoginStart, LoginStatus, Provider,
     },
     settings::AppSettings,
     state::AppState,
@@ -46,8 +47,10 @@ async fn get_dashboard_snapshot(
     state: State<'_, Arc<AppState>>,
 ) -> Result<DashboardSnapshot, String> {
     let accounts = state.account_order.apply(state.store.list())?;
+    let buckets = state.buckets.list();
     Ok(DashboardSnapshot {
         accounts,
+        buckets,
         bridge: bridge_status(state.inner().as_ref()),
     })
 }
@@ -352,6 +355,34 @@ fn rename_account(
 }
 
 #[tauri::command]
+fn get_account_buckets(state: State<'_, Arc<AppState>>) -> Result<Vec<AccountBucket>, String> {
+    Ok(state.buckets.list())
+}
+
+#[tauri::command]
+fn save_account_bucket(
+    state: State<'_, Arc<AppState>>,
+    id: Option<String>,
+    name: String,
+    provider: Option<String>,
+    account_ids: Vec<String>,
+) -> Result<AccountBucket, String> {
+    let provider = match provider {
+        Some(p) if !p.trim().is_empty() => Some(Provider::from_str(&p)?),
+        _ => None,
+    };
+    state.buckets.save(id, name, provider, account_ids)
+}
+
+#[tauri::command]
+fn delete_account_bucket(
+    state: State<'_, Arc<AppState>>,
+    id: String,
+) -> Result<(), String> {
+    state.buckets.delete(&id)
+}
+
+#[tauri::command]
 async fn remove_account(
     state: State<'_, Arc<AppState>>,
     account_id: String,
@@ -364,6 +395,7 @@ async fn remove_account(
         .map_err(|error| error.to_string())?;
     state.account_order.remove(&account_id)?;
     state.alerts.remove(&account_id)?;
+    state.buckets.cleanup_account(&account_id)?;
     Ok(())
 }
 
@@ -624,6 +656,9 @@ pub fn run() {
             save_account_alerts,
             rename_account,
             remove_account,
+            get_account_buckets,
+            save_account_bucket,
+            delete_account_bucket,
             regenerate_bridge_token,
             check_for_app_update,
             install_app_update,

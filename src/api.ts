@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Account, AppSettings, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, Provider, UsageAlertSetting } from "./types";
+import type { Account, AccountBucket, AppSettings, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, Provider, UsageAlertSetting } from "./types";
 
 export const bridgeApi = {
   snapshot: () => invoke<DashboardSnapshot>("get_dashboard_snapshot"),
@@ -27,6 +27,10 @@ export const bridgeApi = {
   getAccountAlerts: (accountId: string) => invoke<UsageAlertSetting[]>("get_account_alerts", { accountId }),
   saveAccountAlerts: (accountId: string, settings: UsageAlertSetting[]) =>
     invoke<UsageAlertSetting[]>("save_account_alerts", { accountId, settings }),
+  getBuckets: () => invoke<AccountBucket[]>("get_account_buckets"),
+  saveBucket: (name: string, provider: Provider | null, accountIds: string[], id?: string) =>
+    invoke<AccountBucket>("save_account_bucket", { id: id ?? null, name, provider, accountIds }),
+  deleteBucket: (id: string) => invoke<void>("delete_account_bucket", { id }),
   renameAccount: (accountId: string, label: string) =>
     invoke<Account>("rename_account", { accountId, label }),
   removeAccount: (accountId: string) => invoke<void>("remove_account", { accountId }),
