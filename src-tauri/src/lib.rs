@@ -561,41 +561,36 @@ pub fn run() {
                 tauri_plugin_window_state::Builder::default()
                     .with_state_flags(SAVED_WINDOW_STATE)
                     .build(),
-            );
+            )
+            .plugin(tauri_plugin_updater::Builder::new().build());
     }
 
     builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             #[cfg(desktop)]
-            let window = {
+            if let Some(window) = app.get_webview_window("main") {
                 let start_hidden = std::env::args().any(|argument| argument == "--hidden");
-                let window_config = app
-                    .config()
-                    .app
-                    .windows
-                    .iter()
-                    .find(|config| config.label == "main")
-                    .cloned()
-                    .ok_or_else(|| std::io::Error::other("main window configuration is missing"))?;
-                let mut window_builder =
-                    WebviewWindowBuilder::from_config(app.handle(), &window_config)?;
                 if let Some(icon) = app.default_window_icon() {
-                    window_builder = window_builder.icon(icon.clone())?;
+                    let _ = window.set_icon(icon.clone());
                 }
-                // Restore size and position before showing so the default 1440x850 window does not flash.
-                window_builder = window_builder.visible(false);
-                let window = window_builder.build()?;
                 let _ = window.restore_state(SAVED_WINDOW_STATE);
                 if !start_hidden {
                     let _ = window.unminimize();
                     let _ = window.show();
                     let _ = window.set_focus();
                 }
-                window
-            };
+
+                let window_for_event = window.clone();
+                window.on_window_event(move |event| {
+                    if let WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = window_for_event.app_handle().save_window_state(SAVED_WINDOW_STATE);
+                        let _ = window_for_event.hide();
+                    }
+                });
+            }
 
             let data_dir = app.path().app_data_dir()?;
             let token = load_or_create_bridge_token()
@@ -650,15 +645,6 @@ pub fn run() {
                     tray = tray.icon(icon.clone());
                 }
                 tray.build(app)?;
-
-                let window_for_event = window.clone();
-                window.on_window_event(move |event| {
-                    if let WindowEvent::CloseRequested { api, .. } = event {
-                        api.prevent_close();
-                        let _ = window_for_event.app_handle().save_window_state(SAVED_WINDOW_STATE);
-                        let _ = window_for_event.hide();
-                    }
-                });
             }
             Ok(())
         })

@@ -14,7 +14,7 @@
       {
         "title": "AI Usage Tracker",
         "label": "main",
-        "create": false,
+        "create": true,
         "width": 1440,
         "height": 850,
         "minWidth": 960,
@@ -26,7 +26,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://tauri.localhost https://tauri.localhost; img-src 'self' asset: http://asset.localhost data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
     }
   },
   "bundle": {
