@@ -31,8 +31,8 @@ const GOOGLE_CLIENT_SECRET_BYTES: &[u8] = &[
 ];
 const LOGIN_TIMEOUT_MINUTES: i64 = 5;
 const MONITORING_SERVICE: &str = "monitoring.googleapis.com";
-const READ_ONLY_SCOPES: &str = "openid email profile https://www.googleapis.com/auth/cloud-platform.read-only https://www.googleapis.com/auth/monitoring.read";
-const ENABLE_SCOPES: &str = "openid email profile https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/monitoring.read";
+const READ_ONLY_SCOPES: &str = "openid email profile https://www.googleapis.com/auth/cloud-platform";
+const ENABLE_SCOPES: &str = "openid email profile https://www.googleapis.com/auth/cloud-platform";
 
 #[derive(Clone, Debug)]
 enum LoginMode {
@@ -1067,7 +1067,7 @@ mod tests {
         let url = build_authorization_url(
             "http://127.0.0.1:11461",
             "state",
-            "openid email https://www.googleapis.com/auth/cloud-platform.read-only",
+            "openid email https://www.googleapis.com/auth/cloud-platform",
             "challenge",
         )
         .unwrap();

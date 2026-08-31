@@ -29,9 +29,8 @@ const ANTHROPIC_CLIENT_ID: &str = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
 /// Profile identity plus subscription usage. Intentionally omits API-key creation,
 /// Claude Code sessions, MCP servers, and file upload.
 const ANTHROPIC_SCOPES: &str = "user:profile user:inference";
-/// Identity plus read-only Cloud access for quota APIs. Intentionally omits
-/// Cloud Platform write, client logging, and experiment-config scopes.
-const ANTIGRAVITY_SCOPES: &str = "openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/cloud-platform.read-only";
+/// Identity plus Cloud access for quota APIs.
+const ANTIGRAVITY_SCOPES: &str = "openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/cloud-platform";
 const ANTIGRAVITY_CLIENT_ID: &str =
     "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com";
 const ANTIGRAVITY_CLIENT_SECRET_BYTES: &[u8] = &[
@@ -832,7 +831,7 @@ mod tests {
     }
 
     #[test]
-    fn antigravity_authorize_url_omits_write_and_unused_scopes() {
+    fn antigravity_authorize_url_uses_cloud_platform_scope() {
         let url = build_authorization_url(
             &Provider::Antigravity,
             "http://127.0.0.1:11451",
@@ -855,7 +854,6 @@ mod tests {
             .iter()
             .any(|(key, _)| key == "include_granted_scopes"));
         for unused in [
-            "https://www.googleapis.com/auth/cloud-platform",
             "https://www.googleapis.com/auth/cclog",
             "https://www.googleapis.com/auth/experimentsandconfigs",
         ] {
@@ -863,7 +861,7 @@ mod tests {
         }
         assert!(scopes
             .split_whitespace()
-            .any(|scope| scope == "https://www.googleapis.com/auth/cloud-platform.read-only"));
+            .any(|scope| scope == "https://www.googleapis.com/auth/cloud-platform"));
     }
 
     #[test]
