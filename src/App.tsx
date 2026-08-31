@@ -19,6 +19,7 @@ import {
   EditIcon,
   GaugeIcon,
   LinkIcon,
+  MenuIcon,
   PlusIcon,
   RefreshIcon,
   SettingsIcon,
@@ -237,6 +238,7 @@ export default function App() {
   const [loginProvider, setLoginProvider] = useState<Provider | undefined>(undefined);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [autostart, setAutostart] = useState(false);
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
   const [settingsBusy, setSettingsBusy] = useState(false);
@@ -515,6 +517,7 @@ export default function App() {
         busy={busy === "toggle-paseo-bridge" || busy === "open-paseo-bridge"}
         onToggle={(enabled) => void setPaseoBridgeEnabled(enabled)}
         onView={() => void openPaseoBridgeWindow()}
+        onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
       />;
     }
     if (section === "settings") {
@@ -530,6 +533,7 @@ export default function App() {
         updateError={updateError}
         onCheckForUpdate={() => void checkForUpdate(true)}
         onInstallUpdate={() => void installUpdate()}
+        onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
       />;
     }
     return (
@@ -539,6 +543,7 @@ export default function App() {
         selectedGroup={selectedGroup}
         needsAttention={needsAttention}
         nextReset={nextReset}
+        onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
         onAdd={() => openAdd(undefined, selectedGroup?.provider ?? undefined)}
         onRefreshAll={refreshAll}
         onEditBucket={openEditBucket}
@@ -580,16 +585,29 @@ export default function App() {
 
   return (
     <div className="app-shell obsidian-shell">
-      <aside className="sidebar">
+      <div
+        className={`sidebar-backdrop ${sidebarOpen ? "active" : ""}`}
+        onClick={() => setSidebarOpen(false)}
+        aria-hidden="true"
+      />
+      <aside className={`sidebar ${sidebarOpen ? "mobile-open" : ""}`}>
         <div className="brand">
           <span className="brand-mark"><GaugeIcon /></span>
           <strong>AI Usage Tracker</strong>
+          <button
+            type="button"
+            className="sidebar-mobile-close-btn"
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Close navigation"
+          >
+            <CloseIcon />
+          </button>
         </div>
 
         <nav className="primary-nav">
-          <button className={section === "accounts" ? "active" : ""} onClick={() => setSection("accounts")}><UsersIcon />Accounts</button>
-          <button className={section === "integration" ? "active" : ""} onClick={() => setSection("integration")}><LinkIcon />Integrations</button>
-          <button className={section === "settings" ? "active" : ""} onClick={() => setSection("settings")}><SettingsIcon />Settings</button>
+          <button className={section === "accounts" ? "active" : ""} onClick={() => { setSection("accounts"); setSidebarOpen(false); }}><UsersIcon />Accounts</button>
+          <button className={section === "integration" ? "active" : ""} onClick={() => { setSection("integration"); setSidebarOpen(false); }}><LinkIcon />Integrations</button>
+          <button className={section === "settings" ? "active" : ""} onClick={() => { setSection("settings"); setSidebarOpen(false); }}><SettingsIcon />Settings</button>
         </nav>
 
         <div className="provider-sidebar-heading">
@@ -599,7 +617,7 @@ export default function App() {
               type="button"
               className="button ghost compact-button add-bucket-header-button"
               title="Create a custom bucket group"
-              onClick={() => openNewBucket(selectedGroup?.provider)}
+              onClick={() => { openNewBucket(selectedGroup?.provider); setSidebarOpen(false); }}
             >
               <PlusIcon />Bucket
             </button>
@@ -632,10 +650,11 @@ export default function App() {
               onSelect={() => {
                 setSelectedGroupId(group.id);
                 setSection("accounts");
+                setSidebarOpen(false);
               }}
             />
           )) : (
-            <button className="empty-account provider-empty" onClick={() => openAdd()}>
+            <button className="empty-account provider-empty" onClick={() => { openAdd(); setSidebarOpen(false); }}>
               <PlusIcon /><span>Add your first account</span>
             </button>
           )}
@@ -754,6 +773,7 @@ function AccountsView(props: {
   selectedGroup: SidebarGroup | null;
   needsAttention: number;
   nextReset: NextResetSummary;
+  onToggleSidebar?: () => void;
   onAdd: () => void;
   onRefreshAll: () => void;
   onEditBucket?: (bucket: AccountBucket) => void;
@@ -770,6 +790,17 @@ function AccountsView(props: {
       <header className="dashboard-header">
         <div>
           <div className="dashboard-title-row">
+            {props.onToggleSidebar ? (
+              <button
+                type="button"
+                className="mobile-sidebar-toggle-btn"
+                onClick={props.onToggleSidebar}
+                aria-label="Toggle navigation menu"
+                title="Toggle navigation menu"
+              >
+                <MenuIcon />
+              </button>
+            ) : null}
             <h1>{props.selectedGroup ? props.selectedGroup.title : "Usage Dashboard"}</h1>
             {props.selectedGroup?.type === "bucket" ? (
               <span className="dashboard-bucket-pill">Custom Bucket</span>
@@ -1056,11 +1087,13 @@ function IntegrationView({
   busy,
   onToggle,
   onView,
+  onToggleSidebar,
 }: {
   bridge: BridgeStatus | null;
   busy: boolean;
   onToggle: (enabled: boolean) => void;
   onView: () => void;
+  onToggleSidebar?: () => void;
 }) {
   const enabled = bridge?.enabled ?? false;
   const status = !enabled
@@ -1073,7 +1106,26 @@ function IntegrationView({
 
   return (
     <div className="content-scroll narrow-content settings-style-content">
-      <header className="page-header"><div><span className="eyebrow">Optional integration</span><h1>Integrations</h1><p>Connect AI Usage Tracker to other local tools only when you need them.</p></div></header>
+      <header className="page-header">
+        <div>
+          <div className="dashboard-title-row">
+            {onToggleSidebar ? (
+              <button
+                type="button"
+                className="mobile-sidebar-toggle-btn"
+                onClick={onToggleSidebar}
+                aria-label="Toggle navigation menu"
+                title="Toggle navigation menu"
+              >
+                <MenuIcon />
+              </button>
+            ) : null}
+            <span className="eyebrow">Optional integration</span>
+          </div>
+          <h1>Integrations</h1>
+          <p>Connect AI Usage Tracker to other local tools only when you need them.</p>
+        </div>
+      </header>
       <section className="settings-card paseo-integration-card">
         <div className={`settings-row paseo-integration-row ${busy ? "busy" : ""}`}>
           <div>
@@ -1104,6 +1156,7 @@ function SettingsView({
   updateError,
   onCheckForUpdate,
   onInstallUpdate,
+  onToggleSidebar,
 }: {
   autostart: boolean;
   onToggleAutostart: () => void;
@@ -1116,11 +1169,31 @@ function SettingsView({
   updateError: string | null;
   onCheckForUpdate: () => void;
   onInstallUpdate: () => void;
+  onToggleSidebar?: () => void;
 }) {
   const automaticUpdates = appSettings?.automaticUpdatesEnabled ?? true;
   return (
     <div className="content-scroll narrow-content settings-style-content">
-      <header className="page-header"><div><span className="eyebrow">Application</span><h1>Settings</h1><p>Control how AI Usage Tracker behaves on this computer.</p></div></header>
+      <header className="page-header">
+        <div>
+          <div className="dashboard-title-row">
+            {onToggleSidebar ? (
+              <button
+                type="button"
+                className="mobile-sidebar-toggle-btn"
+                onClick={onToggleSidebar}
+                aria-label="Toggle navigation menu"
+                title="Toggle navigation menu"
+              >
+                <MenuIcon />
+              </button>
+            ) : null}
+            <span className="eyebrow">Application</span>
+          </div>
+          <h1>Settings</h1>
+          <p>Control how AI Usage Tracker behaves on this computer.</p>
+        </div>
+      </header>
       <section className="settings-card">
         <div className="settings-row"><div><strong>Start at login</strong><small>Keep account usage available after signing in.</small></div><button className={`toggle ${autostart ? "on" : ""}`} onClick={onToggleAutostart} aria-pressed={autostart}><span /></button></div>
         <div className="settings-row"><div><strong>Automatic updates</strong><small>When on, the app checks GitHub Releases at startup and every hour, and can notify you when a signed update is ready.</small></div><button type="button" className={`toggle ${automaticUpdates ? "on" : ""}`} disabled={!appSettings || settingsBusy} aria-label={automaticUpdates ? "Disable automatic updates" : "Enable automatic updates"} aria-pressed={automaticUpdates} onClick={() => onAutomaticUpdatesChange(!automaticUpdates)}><span /></button></div>

@@ -11,6 +11,7 @@ _No unreleased user-facing changes yet._
 ### Added
 
 - Added support for building and sideloading on **Android**. Releases now provide an `.apk` package (`AI-Usage-Tracker.apk`) that can be installed directly onto Android phones.
+- Added responsive **Mobile Navigation Drawer** with smooth slide-out transitions and safe-area padding for Android status bars and gesture bars.
 - You can now create custom **Bucket Groups** to combine accounts (e.g. splitting multiple Antigravity or Grok accounts into separate work vs personal buckets). Each bucket shows as an independent row in the sidebar with its own usage calculations and filters the dashboard when selected.
 - Settings now includes a toggle for automatic app updates. Manual update checks still work when the toggle is off.
 

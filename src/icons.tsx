@@ -23,3 +23,5 @@ export const BellIcon = (props: IconProps) => <Base {...props}><path d="M18 8a6 
 export const CloseIcon = (props: IconProps) => <Base {...props}><path d="M6 6l12 12M18 6 6 18"/></Base>;
 export const ClockIcon = (props: IconProps) => <Base {...props}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></Base>;
 export const CheckCircleIcon = (props: IconProps) => <Base {...props}><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></Base>;
+export const MenuIcon = (props: IconProps) => <Base {...props}><path d="M4 6h16M4 12h16M4 18h16" /></Base>;
+export const PanelLeftIcon = (props: IconProps) => <Base {...props}><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M9 3v18" /></Base>;
