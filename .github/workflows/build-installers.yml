@@ -170,8 +170,9 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
       - name: Attach APK to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: release-apks/*.apk
-          tag_name: v${{ steps.pkg_version.outputs.version }}
-        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ steps.pkg_version.outputs.version }}"
+          gh release upload "$TAG" release-apks/*.apk --clobber || true
