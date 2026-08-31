@@ -37,9 +37,9 @@
 .sidebar-resize-handle:hover::before,
 .sidebar-resize-handle:focus-visible::before,
 .sidebar-resize-handle.dragging::before {
-  width: 3px;
+  width: 4.5px;
   background: var(--purple);
-  box-shadow: 0 0 12px rgba(159, 103, 255, .42);
+  box-shadow: 0 0 10px rgba(159, 103, 255, .45);
 }
 
 .sidebar-resize-grip {
@@ -47,22 +47,22 @@
   z-index: 2;
   top: 50%;
   transform: translateY(-50%);
-  right: 17px;
+  right: 13px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 4px;
+  gap: 4.5px;
+  padding: 4px 2px;
   pointer-events: none;
   user-select: none;
 }
 
 .sidebar-resize-grip span {
-  width: 5.5px;
-  height: 5.5px;
+  width: 4.2px;
+  height: 4.2px;
   border-radius: 50%;
-  background: #88938d;
+  background: #7e8a84;
   transition: background .12s ease, box-shadow .12s ease, transform .12s ease;
 }
 
@@ -70,8 +70,8 @@
 .sidebar-resize-handle:focus-visible .sidebar-resize-grip span,
 .sidebar-resize-handle.dragging .sidebar-resize-grip span {
   background: #d4c3ff;
-  box-shadow: 0 0 8px rgba(159, 103, 255, .75);
-  transform: scale(1.15);
+  box-shadow: 0 0 7px rgba(159, 103, 255, .75);
+  transform: scale(1.1);
 }
 
 .main-stage {
