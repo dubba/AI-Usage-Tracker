@@ -15,10 +15,12 @@
   position: absolute;
   z-index: 20;
   top: 0;
-  right: -8px;
-  width: 20px;
+  right: -10px;
+  width: 30px;
   height: 100%;
+  cursor: ew-resize;
   cursor: col-resize;
+  cursor: ew-resize !important;
   touch-action: none;
   outline: none;
 }
@@ -28,8 +30,9 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  right: 7px;
+  right: 10px;
   width: 1px;
+  transform: translateX(50%);
   background: var(--border);
   transition: width .12s ease, background .12s ease, box-shadow .12s ease;
 }
@@ -47,7 +50,7 @@
   z-index: 2;
   top: 50%;
   transform: translateY(-50%);
-  right: 13px;
+  right: 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -56,6 +59,7 @@
   padding: 4px 2px;
   pointer-events: none;
   user-select: none;
+  cursor: ew-resize !important;
 }
 
 .sidebar-resize-grip span {
@@ -63,6 +67,7 @@
   height: 4.2px;
   border-radius: 50%;
   background: #7e8a84;
+  cursor: ew-resize !important;
   transition: background .12s ease, box-shadow .12s ease, transform .12s ease;
 }
 
@@ -80,7 +85,9 @@
 
 body.sidebar-resizing,
 body.sidebar-resizing * {
+  cursor: ew-resize !important;
   cursor: col-resize !important;
+  cursor: ew-resize !important;
   user-select: none !important;
 }
 
