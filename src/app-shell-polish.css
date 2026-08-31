@@ -190,7 +190,7 @@
 .sidebar-footer:hover,
 .sidebar-footer:focus-visible {
   background: #202620;
-  border-color: #4a554e;
+  border-color: var(--purple);
 }
 
 .sidebar-footer.update-available {

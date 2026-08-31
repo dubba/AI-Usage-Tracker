@@ -13,7 +13,7 @@ This file tracks notable user-facing changes to AI Usage Tracker.
 - The app now uses the name **AI Usage Tracker** in the installer, Dock, menu bar, window title, and GitHub releases.
 - Account cards keep the rename control beside the account name, with Live/plan badges above the notification, remove, and refresh icons.
 - Account notification, remove, and refresh controls are matched-size bordered buttons, colored amber, red, and green.
-- Account cards and sidebar provider cards use the app purple for their border on hover.
+- Account cards, summary cards, settings cards, action buttons, and sidebar navigation controls use the app purple for their border on hover.
 - Account-card actions are ordered remove, notifications, then refresh.
 - Long account lists now scroll in the dashboard instead of compressing cards to fit the window.
 - Background account quota refreshes now run concurrently rather than sequentially, reducing refresh latency when monitoring multiple accounts.

@@ -139,6 +139,7 @@ select {
 }
 
 .obsidian-shell .primary-nav button:hover {
+  border-color: var(--obsidian-purple-strong);
   background: rgba(255, 255, 255, 0.035);
   color: #f0edef;
 }
@@ -147,6 +148,10 @@ select {
   color: var(--obsidian-purple);
   background: #353434;
   border-color: #3e3c40;
+}
+
+.obsidian-shell .primary-nav button.active:hover {
+  border-color: var(--obsidian-purple-strong);
 }
 
 .obsidian-shell .primary-nav button.active::before {
@@ -182,6 +187,11 @@ select {
   border: 1px solid var(--obsidian-border-strong);
   border-radius: 4px;
   background: #232222;
+  transition: border-color 120ms ease;
+}
+
+.provider-window-toggle:hover {
+  border-color: var(--obsidian-purple-strong);
 }
 
 .provider-window-toggle button {
@@ -194,6 +204,12 @@ select {
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.provider-window-toggle button:hover:not(.active) {
+  color: #f0edef;
+  background: rgba(160, 120, 255, 0.14);
 }
 
 .provider-window-toggle button:last-child {
@@ -376,6 +392,7 @@ select {
   background: #171616;
   color: #a9a3ae;
   cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
 }
 
 .obsidian-shell .sidebar-footer svg {
@@ -393,8 +410,9 @@ select {
   font-weight: 500;
 }
 
-.obsidian-shell .sidebar-footer:hover {
-  border-color: #4a4650;
+.obsidian-shell .sidebar-footer:hover,
+.obsidian-shell .sidebar-footer:focus-visible {
+  border-color: var(--obsidian-purple-strong);
   color: #ddd7e1;
   background: #1f1e1e;
 }
@@ -468,6 +486,7 @@ select {
   font-size: 14px;
   font-weight: 600;
   box-shadow: none !important;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
 }
 
 .button svg {
@@ -483,6 +502,7 @@ select {
 
 .button.primary:hover:not(:disabled) {
   background: #dfd0ff !important;
+  border-color: var(--obsidian-purple-strong) !important;
 }
 
 .button.ghost {
@@ -491,9 +511,10 @@ select {
   border: 1px solid #494454 !important;
 }
 
-.button.ghost:hover:not(:disabled) {
+.button.ghost:hover:not(:disabled),
+.button:hover:not(:disabled):not(.primary) {
   background: #222121 !important;
-  border-color: #625c6a !important;
+  border-color: var(--obsidian-purple-strong) !important;
 }
 
 .mockup-summary-grid {
@@ -513,6 +534,11 @@ select {
   border: 1px solid var(--obsidian-border);
   border-radius: 8px;
   background: #201f1f;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.mockup-summary-card:hover {
+  border-color: var(--obsidian-purple-strong);
 }
 
 .mockup-summary-card.total-card {
@@ -1028,6 +1054,12 @@ select {
   border-radius: 8px;
   background: #1c1b1b;
   box-shadow: none;
+  transition: border-color 120ms ease;
+}
+
+.settings-style-content .settings-card:hover,
+.settings-style-content .update-notes:hover {
+  border-color: var(--obsidian-purple-strong);
 }
 
 .settings-style-content .settings-row {
@@ -1041,6 +1073,16 @@ select {
   border-radius: 4px !important;
   background: #0f0f0f !important;
   color: var(--obsidian-text) !important;
+  transition: border-color 120ms ease;
+}
+
+.account-update-select:hover,
+.alert-threshold select:hover,
+.text-input:hover,
+.account-update-select:focus,
+.alert-threshold select:focus,
+.text-input:focus {
+  border-color: var(--obsidian-purple-strong) !important;
 }
 
 .toggle {

@@ -81,7 +81,7 @@ svg { width: 18px; height: 18px; }
 .eyebrow { font-size: 10px; color: var(--purple); text-transform: uppercase; letter-spacing: .13em; font-weight: 800; }
 .header-actions { display: flex; gap: 9px; flex: 0 0 auto; }
 .button { border: 1px solid var(--border-strong); border-radius: 9px; min-height: 38px; padding: 0 13px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; font-size: 12px; font-weight: 650; background: var(--panel-2); }
-.button:hover:not(:disabled) { border-color: #4a554e; background: #202620; }
+.button:hover:not(:disabled) { border-color: var(--purple); background: #202620; }
 .button:disabled { opacity: .55; cursor: default; }
 .button.primary { border-color: #6e4fc1; background: #7654d5; color: #fff; }
 .button.primary:hover:not(:disabled) { background: #835fe8; border-color: #8d69e4; }
