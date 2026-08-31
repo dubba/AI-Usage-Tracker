@@ -569,7 +569,9 @@ pub fn run() {
             let window = window_builder.build()?;
             let _ = window.restore_state(SAVED_WINDOW_STATE);
             if !start_hidden {
+                let _ = window.unminimize();
                 let _ = window.show();
+                let _ = window.set_focus();
             }
 
             let data_dir = app.path().app_data_dir()?;
