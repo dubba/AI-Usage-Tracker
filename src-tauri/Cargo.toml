@@ -1,6 +1,6 @@
 [package]
 name = "ai-usage-tracker"
-version = "0.2.47"
+version = "0.3.0"
 description = "Standalone multi-provider AI usage monitor and optional Paseo integration"
 authors = ["AI Usage Tracker contributors"]
 edition = "2021"

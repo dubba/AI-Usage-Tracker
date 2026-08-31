@@ -4,6 +4,10 @@ This file tracks notable user-facing changes to AI Usage Tracker.
 
 ## Unreleased
 
+_No unreleased user-facing changes yet._
+
+## 0.3.0 - 2026-08-31
+
 ### Added
 
 - Added support for building and sideloading on **Android**. Releases now provide an `.apk` package (`AI-Usage-Tracker.apk`) that can be installed directly onto Android phones.
