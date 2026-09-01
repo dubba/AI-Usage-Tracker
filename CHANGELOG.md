@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- GitHub now builds a sideloadable Android APK on every push to main. Download `AI-Usage-Tracker.apk` from that run’s Actions artifacts.
+
 ### Fixed
 
 - The mobile sidebar drawer now sits flush against the bottom of the status bar instead of leaving a gap below it.

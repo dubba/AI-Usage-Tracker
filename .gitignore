@@ -12,3 +12,6 @@ src-tauri/gen/*
 !.env.example
 gemini-quota-probe-*.json
 *.tsbuildinfo
+*.apk
+*.apk.idsig
+.secrets/

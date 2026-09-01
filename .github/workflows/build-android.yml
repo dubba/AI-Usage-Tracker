@@ -1,0 +1,125 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      attach_to_versioned_release:
+        description: Attach the APK to the GitHub Release for this package version
+        type: boolean
+        required: false
+        default: false
+  push:
+    branches: [main]
+    paths-ignore:
+      - ".github/release-trigger"
+      - "docs/**"
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - name: Install Android NDK & Build Tools
+        run: |
+          sdkmanager --install "ndk;27.2.12479018" "platforms;android-34" "build-tools;34.0.0"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm install
+      - name: Build Android APK
+        env:
+          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.2.12479018
+        run: |
+          npx tauri android build --apk --ci
+      - name: Sign and align Android APK
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ANDROID_KEYSTORE_BASE64:-}" ] || [ -z "${ANDROID_KEYSTORE_PASSWORD:-}" ] || [ -z "${ANDROID_KEY_ALIAS:-}" ] || [ -z "${ANDROID_KEY_PASSWORD:-}" ]; then
+            echo "Missing Android signing secrets. Set ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD."
+            exit 1
+          fi
+
+          mkdir -p release-apks
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/android-sideload.p12"
+
+          ZIPALIGN="$ANDROID_HOME/build-tools/34.0.0/zipalign"
+          APKSIGNER="$ANDROID_HOME/build-tools/34.0.0/apksigner"
+
+          found=0
+          while IFS= read -r apk; do
+            found=1
+            echo "Processing and signing $apk..."
+            base_name=$(basename "$apk" .apk)
+            clean_name="AI-Usage-Tracker-$(echo "$base_name" | sed -e 's/app-//' -e 's/-release-unsigned//' -e 's/-unsigned//').apk"
+            if [ "$clean_name" = "AI-Usage-Tracker-universal.apk" ] || [ "$clean_name" = "AI-Usage-Tracker-release.apk" ]; then
+              clean_name="AI-Usage-Tracker.apk"
+            fi
+
+            "$ZIPALIGN" -f -p 4 "$apk" "$RUNNER_TEMP/aligned.apk"
+            "$APKSIGNER" sign \
+              --ks "$RUNNER_TEMP/android-sideload.p12" \
+              --ks-pass "pass:$ANDROID_KEYSTORE_PASSWORD" \
+              --ks-key-alias "$ANDROID_KEY_ALIAS" \
+              --key-pass "pass:$ANDROID_KEY_PASSWORD" \
+              --out "release-apks/$clean_name" \
+              "$RUNNER_TEMP/aligned.apk"
+            "$APKSIGNER" verify --verbose "release-apks/$clean_name"
+            rm -f "$RUNNER_TEMP/aligned.apk"
+          done < <(find src-tauri/gen/android/app/build/outputs/apk -name "*.apk" | sort)
+
+          rm -f "$RUNNER_TEMP/android-sideload.p12"
+
+          if [ "$found" -eq 0 ]; then
+            echo "No APK files were produced."
+            exit 1
+          fi
+
+          echo "Signed Android packages:"
+          ls -la release-apks/
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: release-apks/*.apk
+          if-no-files-found: error
+          retention-days: 30
+      - name: Attach APK to GitHub Release
+        if: ${{ inputs.attach_to_versioned_release }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="v$(node -p "require('./package.json').version")"
+          for i in $(seq 1 20); do
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              gh release upload "$TAG" release-apks/*.apk --clobber
+              echo "Attached APK to $TAG"
+              exit 0
+            fi
+            echo "Waiting for release $TAG ($i/20)..."
+            sleep 30
+          done
+          echo "Release $TAG was not created in time; the APK is available as an Actions artifact."
+          exit 1

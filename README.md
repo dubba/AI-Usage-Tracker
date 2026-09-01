@@ -110,12 +110,18 @@ Tauri generates the platform-appropriate Windows or macOS bundle under `src-taur
 
 The `Publish desktop release` workflow builds Windows, macOS Apple Silicon, and macOS Intel packages. It also uploads signed updater artifacts and a `latest.json` manifest to the GitHub Release.
 
+The `Build Android APK` workflow compiles a sideloadable `AI-Usage-Tracker.apk` on every push to `main`, on manual dispatch, and as part of a versioned desktop release. Download the APK from the Actions run artifacts, or from a versioned GitHub Release.
+
 The repository requires these Actions secrets:
 
 - `TAURI_SIGNING_PRIVATE_KEY`: the complete contents of the updater private-key file.
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`: optional; leave unset when the key has no password.
+- `ANDROID_KEYSTORE_BASE64`: Base64-encoded PKCS12 keystore used to sign sideload APKs.
+- `ANDROID_KEYSTORE_PASSWORD`: password for that keystore.
+- `ANDROID_KEY_ALIAS`: key alias inside the keystore.
+- `ANDROID_KEY_PASSWORD`: password for that key.
 
-Never commit or share the private key. Keep a secure backup: losing it prevents installed copies from accepting future updates.
+Never commit or share the private key or Android keystore. Keep a secure backup of both: losing the updater key prevents installed copies from accepting future updates, and losing the Android keystore means later APKs cannot update an existing sideload install. These Android builds are not Play Store signed; enable **Install unknown apps** when sideloading. Updating over an APK signed with a different key requires uninstalling first.
 
 Every release must use a newer semantic version in all three locations:
 
