@@ -10,7 +10,6 @@
 - Positioned the expanded mobile sidebar drawer flush directly below the mobile status bar with square corners, eliminating the top gap and preventing the drawer from covering status bar indicators.
 - Expanded account usage progress bar tracks to span the full available width of the card, aligning flush with window badges and reset countdown timestamps.
 - Styled the account rename pen button with a compact 22px badge and obsidian violet font, border, and background colors matching the visual style of the header action buttons.
-- Ensured the pointer cursor switches to an open grab hand when hovering over the card header and 3-dots drag handle.
 
 ## 0.3.1 - 2026-08-31
 
