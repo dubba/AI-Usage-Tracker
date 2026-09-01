@@ -2,7 +2,17 @@
 
 ## Unreleased
 
-_No unreleased user-facing changes yet._
+### Improved
+
+- The Settings update button is now labeled Check Now and stays compact on mobile, with a narrower Account Updates dropdown.
+- Clarified the Automatic updates description: the app checks GitHub Releases for updates at startup and every hour.
+- The Settings Change Log action is now a compact View button with a new-window icon, and the description reads “View full history of app changes.”
+- The accounts page title now uses the same purple uppercase heading style as Settings and Integrations, including Accounts Dashboard when empty and the connected account/group name when accounts exist.
+- Aligned the accounts page heading with the Settings and Integrations headings so they sit at the same height on desktop.
+- Matched the accounts page “N accounts” subtitle to the Settings and Integrations description size and spacing.
+- Settings now uses a single purple Application Settings heading instead of a separate Settings title.
+- Integrations now uses a single purple Paseo API Integration heading instead of Local API plus Paseo Integration.
+- Renamed the sidebar section from Usage accounts to Accounts, and kept the Group / H / W header visible on Android instead of clipping it off the narrow drawer.
 
 ## 0.3.3 - 2026-09-01
 

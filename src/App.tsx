@@ -838,7 +838,7 @@ export default function App() {
         </nav>
 
         <div className="provider-sidebar-heading">
-          <span>Usage accounts</span>
+          <span>Accounts</span>
           <div className="provider-sidebar-heading-actions">
             <button
               type="button"
@@ -1050,7 +1050,9 @@ function AccountsView(props: {
                 <MenuIcon />
               </button>
             ) : null}
-            <h1>{props.selectedGroup ? props.selectedGroup.title : "Usage Dashboard"}</h1>
+            <h1 className="eyebrow">
+              {props.selectedGroup ? props.selectedGroup.title : props.allAccounts.length === 0 ? "Accounts Dashboard" : "Usage Dashboard"}
+            </h1>
             {props.selectedGroup?.type === "bucket" ? (
               <span className="dashboard-bucket-pill">Custom Group</span>
             ) : null}
@@ -1370,9 +1372,8 @@ function IntegrationView({
                 <MenuIcon />
               </button>
             ) : null}
-            <span className="eyebrow">Local API</span>
+            <span className="eyebrow">Paseo API Integration</span>
           </div>
-          <h1>Paseo Integration</h1>
           <p>Expose a read-only localhost API for Paseo and other status tools.</p>
         </div>
       </header>
@@ -1461,23 +1462,22 @@ function SettingsView({
                 <MenuIcon />
               </button>
             ) : null}
-            <span className="eyebrow">Application</span>
+            <span className="eyebrow">Application Settings</span>
           </div>
-          <h1>Settings</h1>
           <p>Control how AI Usage Tracker behaves on this computer.</p>
         </div>
       </header>
       <section className="settings-card">
         <div className="settings-row"><div><strong>Start at login</strong><small>Keep account usage available after signing in.</small></div><button className={`toggle ${autostart ? "on" : ""}`} onClick={onToggleAutostart} aria-pressed={autostart}><span /></button></div>
-        <div className="settings-row"><div><strong>Automatic updates</strong><small>When on, the app checks GitHub Releases at startup &amp; every hour to notify you when update is ready.</small></div><button type="button" className={`toggle ${automaticUpdates ? "on" : ""}`} disabled={!appSettings || settingsBusy} aria-label={automaticUpdates ? "Disable automatic updates" : "Enable automatic updates"} aria-pressed={automaticUpdates} onClick={() => onAutomaticUpdatesChange(!automaticUpdates)}><span /></button></div>
-        <div className="settings-row"><div><strong>App updates</strong><small>Checks GitHub Releases for update.</small></div>{update?.available ? <button className="button primary" disabled={updateBusy !== null} onClick={onInstallUpdate}>{updateBusy === "installing" ? "Installing…" : `Update to v${update.availableVersion}`}</button> : <button className="button ghost" disabled={updateBusy !== null} onClick={onCheckForUpdate}>{updateBusy === "checking" ? "Checking…" : "Check for Updates"}</button>}</div>
+        <div className="settings-row"><div><strong>Automatic updates</strong><small>When enabled, the app checks GitHub Releases for updates at startup and every hour.</small></div><button type="button" className={`toggle ${automaticUpdates ? "on" : ""}`} disabled={!appSettings || settingsBusy} aria-label={automaticUpdates ? "Disable automatic updates" : "Enable automatic updates"} aria-pressed={automaticUpdates} onClick={() => onAutomaticUpdatesChange(!automaticUpdates)}><span /></button></div>
+        <div className="settings-row"><div><strong>App updates</strong><small>Checks GitHub Releases for update.</small></div>{update?.available ? <button className="button primary" disabled={updateBusy !== null} onClick={onInstallUpdate}>{updateBusy === "installing" ? "Installing…" : `Update to v${update.availableVersion}`}</button> : <button className="button ghost" disabled={updateBusy !== null} onClick={onCheckForUpdate}>{updateBusy === "checking" ? "Checking…" : "Check Now"}</button>}</div>
         <div className="settings-row"><div><strong>Installed version</strong><small>{update?.available ? `Version ${update.availableVersion} is available.` : "The app installs only signed update packages."}</small></div><span className="setting-value mono">{`v${update?.currentVersion || installedVersion}`}</span></div>
         <div className="settings-row">
           <div>
             <strong>Account Updates</strong>
             <small>How often app updates your AI usage percentage.</small>
           </div>
-          <div style={{ width: 160, flexShrink: 0 }}>
+          <div className="settings-account-refresh">
             <CustomDropdown<number>
               value={appSettings?.accountRefreshMinutes ?? 5}
               disabled={!appSettings || settingsBusy}

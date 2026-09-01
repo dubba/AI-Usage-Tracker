@@ -195,12 +195,15 @@ select {
   gap: 8px;
   padding: 0 12px 10px;
   color: #958ea0;
+  flex: 0 0 auto;
+  min-width: 0;
 }
 
 .provider-sidebar-heading-actions {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 0 0 auto;
 }
 
 .add-bucket-header-button {
@@ -514,7 +517,7 @@ select {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
-  padding: 18px 24px 36px;
+  padding: 24px 24px 36px;
   scrollbar-width: thin;
   scrollbar-color: var(--obsidian-purple-strong, #a078ff) transparent;
 }
@@ -538,11 +541,24 @@ select {
   letter-spacing: -0.01em;
 }
 
+.dashboard-header h1.eyebrow {
+  color: var(--purple);
+  font-size: 15px;
+  line-height: 1.45;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.dashboard-header .dashboard-title-row {
+  margin-bottom: 8px;
+}
+
 .dashboard-header p {
-  margin: 2px 0 0;
-  color: #8f8993;
-  font-size: 12px;
-  line-height: 16px;
+  margin: 0;
+  color: #958ea0;
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 .header-actions {
@@ -1144,6 +1160,10 @@ select {
   border-bottom: 1px solid #1f1e1f;
 }
 
+.settings-style-content .page-header .dashboard-title-row {
+  margin-bottom: 8px;
+}
+
 .settings-style-content .page-header h1 {
   color: #f3f0ef;
   font-size: 24px;
@@ -1174,6 +1194,26 @@ select {
 .settings-row {
   border-color: #2d2c2c;
   overflow: visible !important;
+}
+
+.settings-account-refresh {
+  width: 160px;
+  flex-shrink: 0;
+}
+
+.settings-changelog-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  padding-inline: 10px 8px;
+  white-space: nowrap;
+}
+
+.settings-changelog-button svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 .account-update-select,
@@ -1870,6 +1910,12 @@ select.account-update-select option,
     display: inline-flex;
   }
 
+  .provider-sidebar-heading {
+    flex-wrap: wrap;
+    row-gap: 8px;
+    padding: 4px 8px 10px;
+  }
+
   .obsidian-shell .main-stage {
     width: 100%;
     min-width: 0;
@@ -1907,6 +1953,12 @@ select.account-update-select option,
     line-height: 26px;
   }
 
+  .dashboard-header h1.eyebrow,
+  .dashboard-title-row h1.eyebrow {
+    font-size: 15px;
+    line-height: 1.45;
+  }
+
   .dashboard-header > div:first-child {
     display: grid;
     grid-template-columns: 36px 1fr;
@@ -1934,7 +1986,6 @@ select.account-update-select option,
     grid-column: 2;
     grid-row: 2;
     margin: 0;
-    line-height: 14px;
   }
 
   .header-actions {
@@ -2069,5 +2120,35 @@ select.account-update-select option,
   .settings-row > div:first-child {
     flex: 1 1 auto;
     min-width: 0;
+  }
+
+  .settings-style-content .settings-row > .button {
+    flex: 0 0 auto;
+    width: auto;
+    max-width: max-content;
+    padding-inline: 10px;
+    white-space: nowrap;
+  }
+
+  .settings-style-content .settings-changelog-button {
+    padding-inline: 10px 8px;
+  }
+
+  .settings-account-refresh {
+    width: auto;
+    max-width: max-content;
+    flex: 0 0 auto;
+  }
+
+  .settings-account-refresh .custom-dropdown-container,
+  .settings-account-refresh .custom-dropdown-trigger {
+    width: auto;
+    min-width: 6.75rem;
+  }
+
+  .settings-account-refresh .custom-dropdown-menu {
+    right: auto;
+    min-width: 100%;
+    width: max-content;
   }
 }
