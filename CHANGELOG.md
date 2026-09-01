@@ -16,6 +16,8 @@
 
 ### Fixed
 
+- Fixed installed version display in Settings to always show the active application build version (`v0.3.1`) regardless of remote update status.
+- Enabled updater artifacts generation and updater manifest uploads in GitHub release automation.
 - Fixed stale cached web views on Android after installing updated APKs by automatically invalidating and clearing the internal WebView cache upon version change.
 - Fixed mobile touch scrolling flickering and jitter by ignoring touch events in card drag-and-drop reordering and enabling GPU compositing acceleration on dashboard cards.
 - Configured light status bar text and icons (dark-theme system bar styling) on Android and refined mobile top spacing to eliminate status bar overlap and excessive gaps.
