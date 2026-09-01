@@ -480,10 +480,8 @@ export default function App() {
     bridgeApi.getAppSettings().then(setAppSettings).catch((cause) => setError(String(cause)));
     isEnabled().then(setAutostart).catch(() => setAutostart(false));
     const syncInterval = window.setInterval(() => void load(), DASHBOARD_SYNC_INTERVAL_MS);
-    const initialRefreshTimeout = window.setTimeout(() => void bridgeApi.refreshAll().then(() => load()), STARTUP_REFRESH_DELAY_MS);
     return () => {
       window.clearInterval(syncInterval);
-      window.clearTimeout(initialRefreshTimeout);
     };
   }, [load]);
 
