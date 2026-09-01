@@ -1,7 +1,9 @@
 .provider-summary-row[data-reorder-enabled="true"],
-.provider-account-card[data-reorder-enabled="true"] {
+.provider-account-card[data-reorder-enabled="true"],
+.provider-account-card[data-reorder-enabled="true"] .provider-account-card-header {
   position: relative;
-  cursor: grab;
+  cursor: grab !important;
+  cursor: -webkit-grab !important;
   user-select: none;
   touch-action: pan-y;
 }
@@ -17,6 +19,16 @@
 .provider-account-card[data-reorder-enabled="true"] .provider-account-card-header {
   position: relative;
   padding-left: 28px !important;
+}
+
+.provider-account-card[data-reorder-enabled="true"] button,
+.provider-account-card[data-reorder-enabled="true"] .account-card-action,
+.provider-account-card[data-reorder-enabled="true"] .account-name-edit {
+  cursor: pointer !important;
+}
+
+.provider-account-card[data-reorder-enabled="true"] input {
+  cursor: text !important;
 }
 
 .provider-summary-row[data-reorder-enabled="true"]::before,
