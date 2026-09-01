@@ -31,7 +31,8 @@ const COOKIE_POLL_INTERVAL_MS: u64 = 750;
 const COOKIE_POLL_ATTEMPTS: usize = 800;
 const GROK_BROWSER_ACCOUNT_ID: &str = "grok-browser-session";
 
-pub(crate) const CONNECT_BANNER_SCRIPT: &str = r#"
+#[cfg(desktop)]
+const CONNECT_BANNER_SCRIPT: &str = r#"
 (() => {
   if (window.top !== window || (!window.location.hostname.endsWith('grok.com') && !window.location.hostname.endsWith('x.ai'))) return;
 
@@ -40,7 +41,7 @@ pub(crate) const CONNECT_BANNER_SCRIPT: &str = r#"
     const banner = document.createElement('div');
     banner.id = 'ai-tracker-grok-connect-banner';
     banner.setAttribute('role', 'status');
-    banner.textContent = 'AI Usage Tracker: Sign in to Grok. The tracker returns to the app automatically after your provider-reported weekly usage is detected.';
+    banner.textContent = 'AI Usage Tracker: Sign in to Grok. This private window closes automatically after your provider-reported weekly usage is detected.';
     Object.assign(banner.style, {
       position: 'fixed',
       top: '0',
@@ -654,7 +655,7 @@ fn is_waiting(state: &AppState, attempt_id: &str) -> bool {
         .is_some_and(|login| login.attempt_id == attempt_id && login.status == "waiting")
 }
 
-pub(crate) fn update_waiting_message(state: &AppState, attempt_id: &str, message: String) {
+fn update_waiting_message(state: &AppState, attempt_id: &str, message: String) {
     if !is_waiting(state, attempt_id) {
         return;
     }

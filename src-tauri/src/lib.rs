@@ -35,6 +35,7 @@ use tauri::{
 use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
 #[cfg(desktop)]
 use tauri_plugin_autostart::MacosLauncher;
+#[cfg(desktop)]
 use tauri_plugin_notification::NotificationExt;
 #[cfg(desktop)]
 use tauri_plugin_updater::UpdaterExt;
@@ -53,11 +54,7 @@ const SAVED_WINDOW_STATE: StateFlags = StateFlags::from_bits_truncate(
 async fn get_dashboard_snapshot(
     state: State<'_, Arc<AppState>>,
 ) -> Result<DashboardSnapshot, String> {
-    let raw_accounts = state.store.list();
-    let accounts = state
-        .account_order
-        .apply(raw_accounts.clone())
-        .unwrap_or(raw_accounts);
+    let accounts = state.account_order.apply(state.store.list())?;
     let buckets = state.buckets.list();
     Ok(DashboardSnapshot {
         accounts,

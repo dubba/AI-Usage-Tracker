@@ -216,11 +216,14 @@ pub async fn start_login(
         });
     }
 
-    Ok(LoginStart {
-        attempt_id,
-        authorization_url,
-        expires_at,
-    })
+    #[cfg(desktop)]
+    {
+        Ok(LoginStart {
+            attempt_id,
+            authorization_url,
+            expires_at,
+        })
+    }
 }
 
 #[cfg(mobile)]

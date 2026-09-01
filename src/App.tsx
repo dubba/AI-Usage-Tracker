@@ -480,8 +480,10 @@ export default function App() {
     bridgeApi.getAppSettings().then(setAppSettings).catch((cause) => setError(String(cause)));
     isEnabled().then(setAutostart).catch(() => setAutostart(false));
     const syncInterval = window.setInterval(() => void load(), DASHBOARD_SYNC_INTERVAL_MS);
+    const initialRefreshTimeout = window.setTimeout(() => void bridgeApi.refreshAll().then(() => load()), STARTUP_REFRESH_DELAY_MS);
     return () => {
       window.clearInterval(syncInterval);
+      window.clearTimeout(initialRefreshTimeout);
     };
   }, [load]);
 
@@ -818,18 +820,8 @@ export default function App() {
       </aside>
 
       <main className="main-stage">
-        {error && snapshot ? <div className="global-error"><span>{error}</span><button onClick={() => setError(null)}>Dismiss</button></div> : null}
-        {snapshot ? (
-          content
-        ) : error ? (
-          <div className="loading-screen" style={{ flexDirection: "column", gap: "12px", textAlign: "center", padding: "24px" }}>
-            <div style={{ fontWeight: 600, color: "var(--obsidian-text)" }}>Unable to load accounts</div>
-            <div style={{ fontSize: "13px", color: "var(--obsidian-muted)", maxWidth: "360px" }}>{error}</div>
-            <button className="button primary" style={{ marginTop: "8px" }} onClick={() => void load()}>Retry</button>
-          </div>
-        ) : (
-          <div className="loading-screen"><span className="spinner" />Loading accounts…</div>
-        )}
+        {error ? <div className="global-error"><span>{error}</span><button onClick={() => setError(null)}>Dismiss</button></div> : null}
+        {snapshot ? content : <div className="loading-screen"><span className="spinner" />Loading accounts…</div>}
       </main>
 
       <AddAccountModal
