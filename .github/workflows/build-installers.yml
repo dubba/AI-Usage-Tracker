@@ -22,9 +22,6 @@ jobs:
           - os: macos-15
             args: ""
             apple_signing_identity: "-"
-          - os: macos-15-intel
-            args: ""
-            apple_signing_identity: "-"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
