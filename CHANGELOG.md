@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Fixed
+
+- The mobile sidebar drawer now sits flush against the bottom of the status bar instead of leaving a gap below it.
+- The mobile sidebar’s Check for Updates button now sits above the home indicator, with the same 12px gap below it as above Accounts.
+
 ## 0.3.2 - 2026-09-01
 
 ### Security
