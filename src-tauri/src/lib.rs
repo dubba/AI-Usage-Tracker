@@ -5,6 +5,7 @@ mod buckets;
 mod fs_util;
 mod google_ai_studio_oauth;
 mod grok_login;
+mod mobile_auth;
 mod model;
 mod oauth;
 mod opencode_login;
@@ -183,6 +184,11 @@ async fn get_login_status(
     attempt_id: String,
 ) -> Result<LoginStatus, String> {
     oauth::login_status(state.inner(), &attempt_id).await
+}
+
+#[tauri::command]
+fn current_login_status(state: State<'_, Arc<AppState>>) -> Option<LoginStatus> {
+    state.pending_login.read().clone()
 }
 
 #[tauri::command]
@@ -702,6 +708,7 @@ pub fn run() {
             add_opencode_go_account,
             add_grok_account,
             get_login_status,
+            current_login_status,
             cancel_login,
             refresh_account,
             refresh_all,

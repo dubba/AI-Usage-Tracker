@@ -1391,13 +1391,15 @@ select {
 }
 
 .bucket-delete-button {
-  color: #ff9a9a !important;
-  border-color: rgba(255, 100, 100, 0.25) !important;
+  color: #fff !important;
+  background: #c53131 !important;
+  border-color: #d94a4a !important;
 }
 
 .bucket-delete-button:hover {
-  background: rgba(255, 60, 60, 0.15) !important;
+  background: #d93d3d !important;
   border-color: #ff6464 !important;
+  color: #fff !important;
 }
 
 .sidebar-backdrop {

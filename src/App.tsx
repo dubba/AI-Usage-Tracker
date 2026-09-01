@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { getVersion } from "@tauri-apps/api/app";
-import { bridgeApi } from "./api";
+import { bridgeApi, clearLoginAttempt, readLoginAttempt } from "./api";
 import { AccountAlertModal } from "./components/AccountAlertModal";
 import { RemoveAccountModal } from "./components/RemoveAccountModal";
 import { AddAccountModal } from "./components/AddAccountModal";
@@ -484,6 +484,37 @@ export default function App() {
     return () => {
       window.clearInterval(syncInterval);
       window.clearTimeout(initialRefreshTimeout);
+    };
+  }, [load]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const attemptId = readLoginAttempt();
+      try {
+        const status = attemptId
+          ? await bridgeApi.loginStatus(attemptId)
+          : await bridgeApi.currentLoginStatus();
+        if (cancelled || !status) return;
+        if (status.status === "complete") {
+          clearLoginAttempt();
+          await load();
+          return;
+        }
+        if (status.status === "failed") {
+          clearLoginAttempt();
+          if (status.message) setError(status.message);
+          return;
+        }
+        if ((status.status === "choose_project" || status.status === "monitoring_disabled") && status.account) {
+          setGoogleUsageAccount(status.account);
+        }
+      } catch {
+        clearLoginAttempt();
+      }
+    })();
+    return () => {
+      cancelled = true;
     };
   }, [load]);
 

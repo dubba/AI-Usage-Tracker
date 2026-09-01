@@ -17,12 +17,13 @@ use std::{
     },
     time::Duration,
 };
-use tauri::{
-    AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
-};
+use tauri::{AppHandle, WebviewWindow};
+#[cfg(desktop)]
+use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use url::Url;
 use uuid::Uuid;
 
+#[cfg(desktop)]
 const LOGIN_WINDOW_LABEL: &str = "grok-login";
 const LOGIN_URL: &str = "https://accounts.x.ai/";
 const LOGIN_TIMEOUT_MINUTES: i64 = 10;
@@ -30,6 +31,7 @@ const COOKIE_POLL_INTERVAL_MS: u64 = 750;
 const COOKIE_POLL_ATTEMPTS: usize = 800;
 const GROK_BROWSER_ACCOUNT_ID: &str = "grok-browser-session";
 
+#[cfg(desktop)]
 const CONNECT_BANNER_SCRIPT: &str = r#"
 (() => {
   if (window.top !== window || (!window.location.hostname.endsWith('grok.com') && !window.location.hostname.endsWith('x.ai'))) return;
@@ -163,16 +165,6 @@ pub async fn add_account(
 }
 
 pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginStart, String> {
-    #[cfg(not(desktop))]
-    {
-        let _ = (state, label);
-        return Err(
-            "Automatic Grok sign-in is only available on the desktop app. On Android, use the manual connection option: open grok.com in your mobile browser, sign in, copy your session cookies, and paste them into the manual connection field.".into()
-        );
-    }
-
-    #[cfg(desktop)]
-    {
     let attempt_id = Uuid::new_v4().to_string();
     {
         let mut pending = state.pending_login.write();
@@ -204,12 +196,9 @@ pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginSta
             if pending.as_ref().is_some_and(|login| login.attempt_id == attempt_id) {
                 *pending = None;
             }
-            return Err("The desktop application is not ready to open Grok login.".to_string());
+            return Err("The application is not ready to open Grok login.".to_string());
         }
     };
-    if let Some(window) = app.get_webview_window(LOGIN_WINDOW_LABEL) {
-        close_login_window(&window);
-    }
 
     let expires_at = (Utc::now() + ChronoDuration::minutes(LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
     let login_url = match Url::parse(LOGIN_URL) {
@@ -222,6 +211,18 @@ pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginSta
             return Err(error.to_string());
         }
     };
+
+    #[cfg(mobile)]
+    {
+        return start_mobile_login(app, state, attempt_id, label, login_url, expires_at).await;
+    }
+
+    #[cfg(desktop)]
+    {
+    if let Some(window) = app.get_webview_window(LOGIN_WINDOW_LABEL) {
+        close_login_window(&window);
+    }
+
     let (width, height) = login_window_size(&app);
     #[allow(unused_mut)]
     let mut builder = WebviewWindowBuilder::new(
@@ -301,6 +302,85 @@ pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginSta
         authorization_url: String::new(),
         expires_at,
     })
+    }
+}
+
+#[cfg(mobile)]
+async fn start_mobile_login(
+    app: AppHandle,
+    state: Arc<AppState>,
+    attempt_id: String,
+    label: String,
+    login_url: Url,
+    expires_at: String,
+) -> Result<LoginStart, String> {
+    {
+        let mut pending = state.pending_login.write();
+        if pending
+            .as_ref()
+            .is_some_and(|login| login.attempt_id == attempt_id)
+        {
+            pending.as_mut().unwrap().message = Some(
+                "Sign in to Grok. The app returns here after your weekly usage is detected.".into(),
+            );
+        }
+    }
+
+    let window = match crate::mobile_auth::main_window(&app) {
+        Ok(window) => window,
+        Err(error) => {
+            clear_pending(&state, &attempt_id);
+            return Err(error);
+        }
+    };
+    start_cookie_poll(
+        window,
+        state.clone(),
+        attempt_id.clone(),
+        label,
+    );
+    if let Err(error) = crate::mobile_auth::open_in_main_webview(
+        app,
+        state.clone(),
+        attempt_id.clone(),
+        login_url,
+        |_| {},
+    ) {
+        clear_pending(&state, &attempt_id);
+        return Err(error);
+    }
+
+    let timeout_state = state.clone();
+    let timeout_attempt = attempt_id.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(
+            (LOGIN_TIMEOUT_MINUTES * 60) as u64,
+        ))
+        .await;
+        if is_waiting(&timeout_state, &timeout_attempt) {
+            fail_if_waiting(
+                &timeout_state,
+                &timeout_attempt,
+                "Grok login timed out. Start the connection again.".into(),
+            );
+        }
+    });
+
+    Ok(LoginStart {
+        attempt_id,
+        authorization_url: String::new(),
+        expires_at,
+    })
+}
+
+#[cfg(mobile)]
+fn clear_pending(state: &AppState, attempt_id: &str) {
+    let mut pending = state.pending_login.write();
+    if pending
+        .as_ref()
+        .is_some_and(|login| login.attempt_id == attempt_id)
+    {
+        *pending = None;
     }
 }
 
@@ -521,8 +601,7 @@ async fn complete_cookie_login(
 }
 
 fn close_login_window(window: &WebviewWindow) {
-    let _ = window.close();
-    let _ = window.destroy();
+    crate::mobile_auth::dismiss_login_window(window);
 }
 
 fn read_cookie_header(window: &WebviewWindow) -> Result<String, String> {
@@ -604,6 +683,7 @@ fn fail_if_waiting(state: &AppState, attempt_id: &str, message: String) {
     });
 }
 
+#[cfg(desktop)]
 fn login_window_size(app: &AppHandle) -> (f64, f64) {
     let Some(monitor) = app.primary_monitor().ok().flatten() else {
         return (1080.0, 760.0);

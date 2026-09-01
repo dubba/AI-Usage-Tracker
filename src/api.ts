@@ -1,6 +1,32 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Account, AccountBucket, AppSettings, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, Provider, UsageAlertSetting } from "./types";
 
+const LOGIN_ATTEMPT_KEY = "ai-usage-tracker:login-attempt";
+
+export function rememberLoginAttempt(attemptId: string) {
+  try {
+    sessionStorage.setItem(LOGIN_ATTEMPT_KEY, attemptId);
+  } catch {
+    /* sessionStorage can be unavailable in private webviews */
+  }
+}
+
+export function clearLoginAttempt() {
+  try {
+    sessionStorage.removeItem(LOGIN_ATTEMPT_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function readLoginAttempt(): string | null {
+  try {
+    return sessionStorage.getItem(LOGIN_ATTEMPT_KEY);
+  } catch {
+    return null;
+  }
+}
+
 export const bridgeApi = {
   snapshot: () => invoke<DashboardSnapshot>("get_dashboard_snapshot"),
   bridgeInfo: () => invoke<BridgeInfo>("get_bridge_info"),
@@ -17,6 +43,7 @@ export const bridgeApi = {
   startGoogleAiStudioUsageLogin: (accountId: string, projectId: string, enableMonitoring: boolean) =>
     invoke<LoginStart>("start_google_ai_studio_usage_login", { accountId, projectId, enableMonitoring }),
   loginStatus: (attemptId: string) => invoke<LoginStatus>("get_login_status", { attemptId }),
+  currentLoginStatus: () => invoke<LoginStatus | null>("current_login_status"),
   cancelLogin: (attemptId: string) => invoke<void>("cancel_login", { attemptId }),
   refreshAccount: (accountId: string) => invoke<Account>("refresh_account", { accountId }),
   refreshAll: () => invoke<Account[]>("refresh_all"),

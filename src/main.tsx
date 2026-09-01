@@ -26,7 +26,15 @@ import "./dashboard-reorder.css";
 import "./modal-close.css";
 import "./account-card-responsive.css";
 
-const isPaseoBridgeWindow = getCurrentWindow().label === "paseo-bridge";
+// On Android, getCurrentWindow() may throw because the window plugin metadata
+// is not injected the same way as on desktop. There is only one window on
+// mobile, so isPaseoBridgeWindow is always false on Android.
+let isPaseoBridgeWindow = false;
+try {
+  isPaseoBridgeWindow = getCurrentWindow().label === "paseo-bridge";
+} catch {
+  // mobile / test environment — no Paseo Bridge window possible
+}
 document.documentElement.classList.toggle("paseo-bridge-window-root", isPaseoBridgeWindow);
 
 // One-time removal of legacy localStorage account emails, now stored in the backend.

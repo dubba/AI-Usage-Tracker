@@ -257,11 +257,69 @@ async fn start_oauth(
         }
     });
 
+    #[cfg(mobile)]
+    {
+        if let Err(error) = open_mobile_oauth(&app, context.clone(), &authorization_url) {
+            fail_login(&context, error.clone());
+            stop_callback(&context).await;
+            return Err(error);
+        }
+        return Ok(LoginStart {
+            attempt_id,
+            authorization_url: String::new(),
+            expires_at,
+        });
+    }
+
     Ok(LoginStart {
         attempt_id,
         authorization_url,
         expires_at,
     })
+}
+
+#[cfg(mobile)]
+fn open_mobile_oauth(
+    app: &Arc<AppState>,
+    context: Arc<LoginContext>,
+    authorization_url: &str,
+) -> Result<(), String> {
+    let handle = app
+        .app_handle
+        .read()
+        .clone()
+        .ok_or_else(|| "The app is not ready for in-app sign-in.".to_string())?;
+    let target = Url::parse(authorization_url).map_err(|error| error.to_string())?;
+    let intercept_started = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    crate::mobile_auth::open_in_main_webview(
+        handle,
+        app.clone(),
+        context.attempt_id.clone(),
+        target,
+        move |url| {
+            if !crate::oauth::looks_like_oauth_callback(&url) {
+                return;
+            }
+            if intercept_started.swap(true, std::sync::atomic::Ordering::SeqCst) {
+                return;
+            }
+            let context = context.clone();
+            tauri::async_runtime::spawn(async move {
+                let parsed = crate::oauth::callback_query_from_url(&url);
+                let query = CallbackQuery {
+                    code: parsed.code,
+                    state: parsed.state,
+                    error: parsed.error,
+                    error_description: parsed.error_description,
+                };
+                let result = complete_callback(context.clone(), query).await;
+                if let Err(error) = &result {
+                    fail_login(&context, error.clone());
+                }
+                stop_callback(&context).await;
+            });
+        },
+    )
 }
 
 async fn select_project(

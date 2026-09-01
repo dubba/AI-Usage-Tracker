@@ -6,6 +6,7 @@
 
 - Fixed "Open Grok login" button crashing the Android app by guarding the desktop WebView window creation with a compile-time platform check; on Android the manual cookie-paste path is now shown automatically.
 - Fixed Antigravity (Google), OpenAI, and Anthropic OAuth sign-in permanently hanging on Android; the loopback TCP callback server is desktop-only and cannot receive redirects from the Android system browser. These providers now show a clear message directing Android users to link accounts on the desktop app.
+- Fixed `getCurrentWindow()` crash at startup on Android caused by missing window plugin metadata; the Paseo Bridge window check now falls back safely to `false` on mobile.
 
 ## 0.3.1 - 2026-08-31
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { bridgeApi } from "../api";
+import { bridgeApi, clearLoginAttempt, rememberLoginAttempt } from "../api";
 import type { Account, LoginStatus, Provider } from "../types";
 
 type ConnectionProvider = Provider;
@@ -81,14 +81,13 @@ export function AddAccountModal({
       setProvider(nextProvider);
       setLabel(initialLabel?.trim() || providerName(nextProvider));
       setEmail("");
-      // Default Grok to manual cookie mode on Android (automatic window login not supported)
-      setAdvancedManual(isAndroid && nextProvider === "grok");
+      setAdvancedManual(false);
       setApiKey("");
       setAvailableModels([]);
       setSelectedModels([]);
       setModelsBusy(false);
     }
-  }, [open, initialLabel, initialProvider, providerLocked, isAndroid]);
+  }, [open, initialLabel, initialProvider, providerLocked]);
 
   useEffect(() => {
     if (!status || status.status !== "waiting") return;
@@ -99,10 +98,12 @@ export function AddAccountModal({
         setStatus(next);
         if (next.status === "complete" && next.account) {
           window.clearInterval(timer);
+          clearLoginAttempt();
           onAdded(next.account);
         }
         if (next.status === "failed") {
           window.clearInterval(timer);
+          clearLoginAttempt();
           setBusy(false);
           setError(next.message ?? `${providerName(provider)} authentication failed.`);
         }
@@ -120,7 +121,10 @@ export function AddAccountModal({
     const attemptId = status?.attemptId;
     setStatus(null);
     setBusy(false);
-    if (attemptId) void bridgeApi.cancelLogin(attemptId);
+    if (attemptId) {
+      clearLoginAttempt();
+      void bridgeApi.cancelLogin(attemptId);
+    }
     onClose();
   };
 
@@ -232,6 +236,7 @@ export function AddAccountModal({
         await bridgeApi.cancelLogin(start.attemptId).catch(() => undefined);
         return;
       }
+      rememberLoginAttempt(start.attemptId);
       setStatus({
         attemptId: start.attemptId,
         status: "waiting",
@@ -260,8 +265,12 @@ export function AddAccountModal({
     : provider === "google_ai_studio"
       ? "Enter an AI Studio API key, load the model list directly from Google, and choose which models to track. After the account is added, connect its Google Cloud project to retrieve provider-reported quota usage."
       : provider === "grok"
-        ? "A private Grok window opens inside the tracker. After you sign in, the tracker securely saves only the Grok session needed to read the provider-reported weekly usage percentage and reset time. Your xAI password never passes through the tracker."
-        : `Finish the ${providerName(provider)} login in your browser. Passwords never pass through this app.`;
+        ? isAndroid
+          ? "The app opens Grok sign-in in this window. After you sign in, it returns to the dashboard and securely saves only the session needed to read weekly usage. Your xAI password never passes through the tracker."
+          : "A private Grok window opens inside the tracker. After you sign in, the tracker securely saves only the Grok session needed to read the provider-reported weekly usage percentage and reset time. Your xAI password never passes through the tracker."
+        : isAndroid
+          ? `The app opens the ${providerName(provider)} sign-in page in this window. After you finish, it returns here and links the account. Passwords never pass through this app.`
+          : `Finish the ${providerName(provider)} login in your browser. Passwords never pass through this app.`;
 
   const googleReady = Boolean(
     apiKey.trim()
@@ -290,7 +299,7 @@ export function AddAccountModal({
             setWorkspaceId("");
             setAuthCookie("");
             setGrokCookie("");
-            setAdvancedManual(isAndroid && nextProvider === "grok");
+            setAdvancedManual(false);
             setApiKey("");
             setAvailableModels([]);
             setSelectedModels([]);
@@ -315,12 +324,6 @@ export function AddAccountModal({
           placeholder={providerName(provider)}
           disabled={busy || modelsBusy}
         />
-
-        {isAndroid && (provider === "antigravity" || provider === "openai" || provider === "anthropic") ? (
-          <div className="credential-note android-oauth-note" style={{ marginTop: "12px", padding: "10px 12px", background: "rgba(255,200,60,0.1)", borderLeft: "3px solid #f5a623", borderRadius: "4px" }}>
-            <strong>Desktop required for {providerName(provider)} sign-in.</strong> Browser OAuth with Google, OpenAI, and Anthropic uses a loopback redirect that Android browsers cannot deliver back to the app. To link this account, open AI Usage Tracker on Windows or macOS and connect from there.
-          </div>
-        ) : null}
 
         {provider === "google_ai_studio" ? (
           <>
@@ -398,9 +401,9 @@ export function AddAccountModal({
               <div className="guided-login-card grok-login-card">
                 <strong>What happens next</strong>
                 <ol>
-                  <li>The tracker opens a temporary private <strong>accounts.x.ai</strong> sign-in window.</li>
+                  <li>The tracker opens {isAndroid ? "Grok sign-in in this window" : "a temporary private accounts.x.ai sign-in window"}.</li>
                   <li>Sign in normally to your Grok or SuperGrok account.</li>
-                  <li>The window closes after Grok reports your weekly usage percentage and reset time.</li>
+                  <li>{isAndroid ? "The app returns to the dashboard" : "The window closes"} after Grok reports your weekly usage percentage and reset time.</li>
                 </ol>
                 <small>The session needed for read-only usage checks is stored securely on your device. The tracker does not estimate tokens or message counts and never receives your xAI password.</small>
               </div>

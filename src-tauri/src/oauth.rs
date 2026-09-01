@@ -51,11 +51,11 @@ struct LoginContext {
 }
 
 #[derive(Debug, Deserialize)]
-struct CallbackQuery {
-    code: Option<String>,
-    state: Option<String>,
-    error: Option<String>,
-    error_description: Option<String>,
+pub(crate) struct CallbackQuery {
+    pub code: Option<String>,
+    pub state: Option<String>,
+    pub error: Option<String>,
+    pub error_description: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -93,16 +93,6 @@ pub async fn start_login(
         ));
     }
 
-    #[cfg(not(desktop))]
-    {
-        let _ = (app, label, provider);
-        return Err(
-            "Browser OAuth sign-in (Google, OpenAI, Anthropic) requires the desktop app. On Android, account linking through these providers is only supported on the Windows or macOS version of AI Usage Tracker.".into()
-        );
-    }
-
-    #[cfg(desktop)]
-    {
     let attempt_id = Uuid::new_v4().to_string();
     {
         let mut pending = app.pending_login.write();
@@ -212,12 +202,58 @@ pub async fn start_login(
         }
     });
 
+    #[cfg(mobile)]
+    {
+        if let Err(error) = open_mobile_oauth(&app, context.clone(), &authorization_url) {
+            fail_login(&app.pending_login, &attempt_id, error.clone());
+            stop_callback(&context).await;
+            return Err(error);
+        }
+        return Ok(LoginStart {
+            attempt_id,
+            authorization_url: String::new(),
+            expires_at,
+        });
+    }
+
     Ok(LoginStart {
         attempt_id,
         authorization_url,
         expires_at,
     })
-    }
+}
+
+#[cfg(mobile)]
+fn open_mobile_oauth(
+    app: &Arc<AppState>,
+    context: Arc<LoginContext>,
+    authorization_url: &str,
+) -> Result<(), String> {
+    let handle = app
+        .app_handle
+        .read()
+        .clone()
+        .ok_or_else(|| "The app is not ready for in-app sign-in.".to_string())?;
+    let target = Url::parse(authorization_url).map_err(|error| error.to_string())?;
+    let intercept_started = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    crate::mobile_auth::open_in_main_webview(
+        handle,
+        app.clone(),
+        context.attempt_id.clone(),
+        target,
+        move |url| {
+            if !looks_like_oauth_callback(&url) {
+                return;
+            }
+            if intercept_started.swap(true, std::sync::atomic::Ordering::SeqCst) {
+                return;
+            }
+            let context = context.clone();
+            tauri::async_runtime::spawn(async move {
+                let _ = handle_callback(context, callback_query_from_url(&url)).await;
+            });
+        },
+    )
 }
 
 fn is_transient_network_error(err: &str) -> bool {
@@ -300,10 +336,42 @@ fn is_waiting(app: &AppState, attempt_id: &str) -> bool {
         .is_some_and(|login| login.attempt_id == attempt_id && login.status == "waiting")
 }
 
+#[cfg_attr(not(any(test, mobile)), allow(dead_code))]
+pub(crate) fn looks_like_oauth_callback(url: &Url) -> bool {
+    matches!(url.host_str(), Some("127.0.0.1") | Some("localhost"))
+        && url
+            .query_pairs()
+            .any(|(key, _)| key == "code" || key == "error")
+}
+
+#[cfg_attr(not(any(test, mobile)), allow(dead_code))]
+pub(crate) fn callback_query_from_url(url: &Url) -> CallbackQuery {
+    let mut query = CallbackQuery {
+        code: None,
+        state: None,
+        error: None,
+        error_description: None,
+    };
+    for (key, value) in url.query_pairs() {
+        match key.as_ref() {
+            "code" => query.code = Some(value.into_owned()),
+            "state" => query.state = Some(value.into_owned()),
+            "error" => query.error = Some(value.into_owned()),
+            "error_description" => query.error_description = Some(value.into_owned()),
+            _ => {}
+        }
+    }
+    query
+}
+
 async fn callback(
     State(context): State<Arc<LoginContext>>,
     Query(query): Query<CallbackQuery>,
 ) -> Html<String> {
+    handle_callback(context, query).await
+}
+
+async fn handle_callback(context: Arc<LoginContext>, query: CallbackQuery) -> Html<String> {
     if let Some(error) = query.error {
         let message = query.error_description.unwrap_or(error);
         fail_login(
@@ -1015,6 +1083,27 @@ mod tests {
         assert!(scopes
             .split_whitespace()
             .any(|scope| scope == "https://www.googleapis.com/auth/cloud-platform"));
+    }
+
+    #[test]
+    fn detects_loopback_oauth_callback_urls() {
+        assert!(looks_like_oauth_callback(
+            &Url::parse("http://127.0.0.1:11451/?code=abc&state=xyz").unwrap()
+        ));
+        assert!(looks_like_oauth_callback(
+            &Url::parse("http://127.0.0.1:1455/auth/callback?error=access_denied").unwrap()
+        ));
+        assert!(!looks_like_oauth_callback(
+            &Url::parse("https://accounts.google.com/o/oauth2/auth?code=abc").unwrap()
+        ));
+        assert!(!looks_like_oauth_callback(
+            &Url::parse("http://127.0.0.1:11451/").unwrap()
+        ));
+        let query = callback_query_from_url(
+            &Url::parse("http://127.0.0.1:11451/?code=abc&state=xyz").unwrap(),
+        );
+        assert_eq!(query.code.as_deref(), Some("abc"));
+        assert_eq!(query.state.as_deref(), Some("xyz"));
     }
 
     #[test]

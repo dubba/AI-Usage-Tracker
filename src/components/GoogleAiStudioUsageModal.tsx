@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { bridgeApi } from "../api";
+import { bridgeApi, clearLoginAttempt, readLoginAttempt, rememberLoginAttempt } from "../api";
 import type { Account, CloudProjectOption, LoginStatus } from "../types";
 
 type SetupStage = "signin" | "choose_project" | "monitoring_disabled";
@@ -30,6 +30,18 @@ export function GoogleAiStudioUsageModal({
     setSelectedProjectId("");
     setBusy(false);
     setError(null);
+    if (!account) return;
+    const attemptId = readLoginAttempt();
+    if (!attemptId) return;
+    void bridgeApi.loginStatus(attemptId).then((next) => {
+      if (closeRequestedRef.current) return;
+      if (next.status === "choose_project" || next.status === "monitoring_disabled") {
+        setStatus(next);
+        setProjects(next.projects ?? []);
+        setSelectedProjectId(next.selectedProjectId ?? next.projects?.[0]?.projectId ?? "");
+        setStage(next.status);
+      }
+    }).catch(() => undefined);
   }, [account]);
 
   useEffect(() => {
@@ -41,12 +53,14 @@ export function GoogleAiStudioUsageModal({
         setStatus(next);
         if (next.status === "complete" && next.account) {
           window.clearInterval(timer);
+          clearLoginAttempt();
           setBusy(false);
           onConnected(next.account);
           return;
         }
         if (next.status === "failed") {
           window.clearInterval(timer);
+          clearLoginAttempt();
           setBusy(false);
           setError(next.message ?? "Google usage connection failed.");
           return;
@@ -76,7 +90,10 @@ export function GoogleAiStudioUsageModal({
     const attemptId = status?.attemptId;
     setStatus(null);
     setBusy(false);
-    if (attemptId) void bridgeApi.cancelLogin(attemptId);
+    if (attemptId) {
+      clearLoginAttempt();
+      void bridgeApi.cancelLogin(attemptId);
+    }
     onClose();
   };
 
@@ -91,6 +108,7 @@ export function GoogleAiStudioUsageModal({
         await bridgeApi.cancelLogin(next.attemptId).catch(() => undefined);
         return;
       }
+      rememberLoginAttempt(next.attemptId);
       setStatus({
         attemptId: next.attemptId,
         status: "waiting",

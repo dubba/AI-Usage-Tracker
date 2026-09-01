@@ -15,19 +15,20 @@ use std::{
     },
     time::Duration as StdDuration,
 };
-use tauri::{
-    webview::PageLoadEvent, AppHandle, Manager, WebviewUrl, WebviewWindow,
-    WebviewWindowBuilder, WindowEvent,
-};
+use tauri::{AppHandle, WebviewWindow};
+#[cfg(desktop)]
+use tauri::{webview::PageLoadEvent, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use url::Url;
 use uuid::Uuid;
 
+#[cfg(desktop)]
 const LOGIN_WINDOW_LABEL: &str = "opencode-go-login";
 const LOGIN_URL: &str = "https://opencode.ai/auth";
 const LOGIN_TIMEOUT_MINUTES: i64 = 10;
 const COOKIE_CAPTURE_ATTEMPTS: usize = 30;
 const COOKIE_CAPTURE_RETRY_DELAY_MS: u64 = 500;
 
+#[cfg(desktop)]
 const CONNECT_BANNER_SCRIPT: &str = r#"
 (() => {
   if (window.top !== window || window.location.hostname !== 'opencode.ai') return;
@@ -126,6 +127,14 @@ pub async fn start_login(
         });
     }
 
+    #[cfg(mobile)]
+    {
+        let expires_at = (Utc::now() + Duration::minutes(LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
+        return start_mobile_login(app, state, attempt_id, label, email, expires_at).await;
+    }
+
+    #[cfg(desktop)]
+    {
     if let Some(window) = app.get_webview_window(LOGIN_WINDOW_LABEL) {
         close_login_window(&window);
     }
@@ -272,6 +281,7 @@ pub async fn start_login(
         authorization_url: LOGIN_URL.into(),
         expires_at,
     })
+    }
 }
 
 pub async fn add_account(
@@ -386,9 +396,135 @@ async fn complete_login(
     }
 }
 
+#[cfg(mobile)]
+async fn start_mobile_login(
+    app: AppHandle,
+    state: Arc<AppState>,
+    attempt_id: String,
+    label: String,
+    email: Option<String>,
+    expires_at: String,
+) -> Result<LoginStart, String> {
+    let login_url = match Url::parse(LOGIN_URL) {
+        Ok(url) => url,
+        Err(error) => {
+            let mut pending = state.pending_login.write();
+            if pending
+                .as_ref()
+                .is_some_and(|login| login.attempt_id == attempt_id)
+            {
+                *pending = None;
+            }
+            return Err(error.to_string());
+        }
+    };
+    let window = match crate::mobile_auth::main_window(&app) {
+        Ok(window) => window,
+        Err(error) => {
+            let mut pending = state.pending_login.write();
+            if pending
+                .as_ref()
+                .is_some_and(|login| login.attempt_id == attempt_id)
+            {
+                *pending = None;
+            }
+            return Err(error);
+        }
+    };
+    let capture_started = Arc::new(AtomicBool::new(false));
+    let page_state = state.clone();
+    let page_attempt = attempt_id.clone();
+    let page_label = label;
+    let page_email = email;
+    let page_window = window;
+    if let Err(error) = crate::mobile_auth::open_in_main_webview(
+        app.clone(),
+        state.clone(),
+        attempt_id.clone(),
+        login_url,
+        move |url| {
+            let Some(workspace_id) = workspace_id_from_url(&url) else {
+                return;
+            };
+            if !is_waiting(&page_state, &page_attempt) {
+                return;
+            }
+            if capture_started.swap(true, Ordering::SeqCst) {
+                return;
+            }
+            let cookie_window = page_window.clone();
+            let completion_window = page_window.clone();
+            let completion_state = page_state.clone();
+            let completion_attempt = page_attempt.clone();
+            let completion_label = page_label.clone();
+            let completion_email = page_email.clone();
+            let completion_capture_started = capture_started.clone();
+            std::thread::spawn(move || {
+                let cookie_result = read_auth_cookie_with_retry(&cookie_window);
+                tauri::async_runtime::spawn(async move {
+                    match cookie_result {
+                        Ok(auth_cookie) => {
+                            complete_login(
+                                completion_state,
+                                completion_attempt,
+                                completion_label,
+                                workspace_id,
+                                auth_cookie,
+                                completion_email,
+                                completion_window,
+                            )
+                            .await;
+                        }
+                        Err(error) => {
+                            completion_capture_started.store(false, Ordering::SeqCst);
+                            update_waiting_message(
+                                &completion_state,
+                                &completion_attempt,
+                                format!(
+                                    "{error} Navigate away from Go, then select Go again to retry."
+                                ),
+                            );
+                        }
+                    }
+                });
+            });
+        },
+    ) {
+        let mut pending = state.pending_login.write();
+        if pending
+            .as_ref()
+            .is_some_and(|login| login.attempt_id == attempt_id)
+        {
+            *pending = None;
+        }
+        return Err(error);
+    }
+
+    let timeout_state = state.clone();
+    let timeout_attempt = attempt_id.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(StdDuration::from_secs(
+            (LOGIN_TIMEOUT_MINUTES * 60) as u64,
+        ))
+        .await;
+        if is_waiting(&timeout_state, &timeout_attempt) {
+            fail_if_waiting(
+                &timeout_state,
+                &timeout_attempt,
+                "OpenCode login timed out. Start the connection again.".into(),
+            );
+        }
+    });
+
+    Ok(LoginStart {
+        attempt_id,
+        authorization_url: String::new(),
+        expires_at,
+    })
+}
+
 fn close_login_window(window: &WebviewWindow) {
-    let _ = window.close();
-    let _ = window.destroy();
+    crate::mobile_auth::dismiss_login_window(window);
 }
 
 fn read_auth_cookie_with_retry(window: &WebviewWindow) -> Result<String, String> {
@@ -433,6 +569,7 @@ fn read_auth_cookie_with_retry(window: &WebviewWindow) -> Result<String, String>
     }
 }
 
+#[cfg(desktop)]
 fn login_window_size(app: &AppHandle) -> (f64, f64) {
     let Some(main) = app.get_webview_window("main") else {
         return (1150.0, 760.0);

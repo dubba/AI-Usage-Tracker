@@ -104,22 +104,151 @@ fn main() {
 
     write_windows_icon(&icon_dir, &image);
     write_macos_icon(&icon_dir, &image);
-    patch_android_webview_templates(&manifest_dir);
 
-    tauri_build::build()
+    tauri_build::build();
+    patch_android_webview_templates(&manifest_dir);
 }
 
 fn patch_android_webview_templates(manifest_dir: &PathBuf) {
-    let generated_webview = manifest_dir.join("gen/android/app/src/main/java/com/yajinni/paseousagebridge/generated/RustWebView.kt");
-    if generated_webview.exists() {
-        if let Ok(content) = fs::read_to_string(&generated_webview) {
-            let patched = content.replace(
-                "return cookieManager.getCookie(url)\n",
-                "return cookieManager.getCookie(url) ?: \"\"\n",
-            );
-            if patched != content {
-                let _ = fs::write(&generated_webview, patched);
-            }
-        }
+    let generated = manifest_dir.join("gen/android/app/src/main/java/com/yajinni/paseousagebridge/generated");
+    patch_file(&generated.join("RustWebView.kt"), patch_rust_webview);
+    patch_file(&generated.join("RustWebChromeClient.kt"), patch_chrome_client);
+    patch_file(&generated.join("RustWebViewClient.kt"), patch_webview_client);
+}
+
+fn patch_file(path: &PathBuf, patch: fn(&str) -> String) {
+    let Ok(content) = fs::read_to_string(path) else {
+        return;
+    };
+    let patched = patch(&content);
+    if patched != content {
+        let _ = fs::write(path, patched);
     }
+}
+
+fn patch_rust_webview(content: &str) -> String {
+    let mut patched = content.replace(
+        "return cookieManager.getCookie(url)\n",
+        "return cookieManager.getCookie(url) ?: \"\"\n",
+    );
+    if !patched.contains("setSupportMultipleWindows(true)")
+        && patched.contains("settings.javaScriptCanOpenWindowsAutomatically = true")
+    {
+        patched = patched.replace(
+            "settings.javaScriptCanOpenWindowsAutomatically = true",
+            "settings.javaScriptCanOpenWindowsAutomatically = true\n        settings.setSupportMultipleWindows(true)\n        CookieManager.getInstance().setAcceptCookie(true)\n        CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)",
+        );
+    }
+    if !patched.contains("replace(\"; wv\"")
+        && patched.contains("settings.javaScriptCanOpenWindowsAutomatically = true")
+    {
+        patched = patched.replace(
+            "settings.javaScriptCanOpenWindowsAutomatically = true",
+            "settings.javaScriptCanOpenWindowsAutomatically = true\n        val defaultUa = settings.userAgentString ?: \"\"\n        if (defaultUa.contains(\"; wv\")) {\n            settings.userAgentString = defaultUa.replace(\"; wv\", \"\")\n        }",
+        );
+    }
+    patched
+}
+
+fn patch_chrome_client(content: &str) -> String {
+    if content.contains("override fun onCreateWindow") {
+        return content.to_string();
+    }
+    let hook = r#"  override fun onReceivedTitle(
+      view: WebView,
+      title: String
+  ) {
+    Rust.handleReceivedTitle((view as RustWebView).id, title)
+  }
+}"#;
+    let replacement = r#"  override fun onReceivedTitle(
+      view: WebView,
+      title: String
+  ) {
+    Rust.handleReceivedTitle((view as RustWebView).id, title)
+  }
+
+  override fun onCreateWindow(
+      view: WebView,
+      isDialog: Boolean,
+      isUserGesture: Boolean,
+      resultMsg: android.os.Message
+  ): Boolean {
+    val extra = view.hitTestResult.extra
+    if (!extra.isNullOrBlank() && (extra.startsWith("http://") || extra.startsWith("https://"))) {
+      view.post { view.loadUrl(extra) }
+      return false
+    }
+    val temp = WebView(view.context)
+    temp.settings.javaScriptEnabled = true
+    temp.webViewClient = object : WebViewClient() {
+      private fun hijack(url: String?) {
+        if (url.isNullOrBlank() || url == "about:blank") return
+        view.post { view.loadUrl(url) }
+      }
+      override fun shouldOverrideUrlLoading(v: WebView, request: WebResourceRequest): Boolean {
+        hijack(request.url.toString())
+        return true
+      }
+      override fun onPageStarted(v: WebView, url: String, favicon: android.graphics.Bitmap?) {
+        hijack(url)
+      }
+    }
+    val transport = resultMsg.obj as? WebView.WebViewTransport ?: return false
+    transport.webView = temp
+    resultMsg.sendToTarget()
+    return true
+  }
+
+  override fun onCloseWindow(window: WebView) {
+    window.destroy()
+  }
+}"#;
+    if content.contains(hook) {
+        content.replace(hook, replacement)
+    } else {
+        content.to_string()
+    }
+}
+
+fn patch_webview_client(content: &str) -> String {
+    if content.contains("browser_fallback_url") {
+        return content.to_string();
+    }
+    let mut patched = content.to_string();
+    if !patched.contains("import android.content.Intent") {
+        patched = patched.replace(
+            "import android.content.Context",
+            "import android.content.Context\nimport android.content.Intent",
+        );
+    }
+    patched = patched.replace(
+        r#"    override fun shouldOverrideUrlLoading(
+        view: WebView,
+        request: WebResourceRequest
+    ): Boolean {
+        return Rust.shouldOverride((view as RustWebView).id, request.url.toString())
+    }"#,
+        r#"    override fun shouldOverrideUrlLoading(
+        view: WebView,
+        request: WebResourceRequest
+    ): Boolean {
+        val uri = request.url
+        val scheme = uri.scheme ?: ""
+        if (scheme == "intent" || scheme == "android-app") {
+            try {
+                val intent = Intent.parseUri(uri.toString(), Intent.URI_INTENT_SCHEME)
+                val fallback = intent.getStringExtra("browser_fallback_url")
+                if (!fallback.isNullOrBlank()) {
+                    view.loadUrl(fallback)
+                    return true
+                }
+            } catch (_: Exception) {
+            }
+            return true
+        }
+        return Rust.shouldOverride((view as RustWebView).id, uri.toString())
+    }"#,
+    );
+    patched
 }
