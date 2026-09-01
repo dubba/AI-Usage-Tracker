@@ -264,8 +264,16 @@ function resetCountdownLabel(value: string | null | undefined): string | null {
   if (!Number.isFinite(resetAt)) return null;
   const remainingMs = resetAt - Date.now();
   if (remainingMs <= 0) return null;
-  const remainingHours = Math.max(1, Math.ceil(remainingMs / 3_600_000));
-  return `Resets in: ${remainingHours}h`;
+  const totalHours = Math.max(1, Math.ceil(remainingMs / 3_600_000));
+  if (totalHours < 24) {
+    return `Resets in: ${totalHours}h`;
+  }
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  if (hours === 0) {
+    return `Resets in: ${days}d`;
+  }
+  return `Resets in: ${days}d ${hours}h`;
 }
 
 function cleanModelPrefix(prefix: string): string {

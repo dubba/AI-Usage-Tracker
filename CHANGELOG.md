@@ -8,7 +8,7 @@
 
 ### Fixed
 
-- Fixed missing "Resets in: Xh" countdown on Claude & GPT and multi-window quota metrics by calculating and binding countdown attributes directly in the React metric component.
+- Quota reset countdown badges now format as `Resets in: Xh` for windows under 24 hours and `Resets in: Xd Yh` (e.g. `1d 12h`, `6d 10h`) for windows over 24 hours, and are calculated directly in React across all models and windows.
 - The mobile sidebar drawer now sits flush against the bottom of the status bar instead of leaving a gap below it.
 - The mobile sidebar’s Check for Updates button now sits above the home indicator, with the same 12px gap below it as above Accounts.
 
