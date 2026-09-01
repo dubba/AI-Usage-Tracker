@@ -40,6 +40,7 @@ export function AddAccountModal({
   onClose: () => void;
   onAdded: (account: Account) => void;
 }) {
+  const isAndroid = /android/i.test(navigator.userAgent);
   const [label, setLabel] = useState("Codex/GPT");
   const [provider, setProvider] = useState<ConnectionProvider>("openai");
   const [email, setEmail] = useState("");
@@ -56,7 +57,6 @@ export function AddAccountModal({
   const [error, setError] = useState<string | null>(null);
   const closeRequestedRef = useRef(false);
   const providerLocked = Boolean(initialProvider && initialLabel?.trim());
-  const isAndroid = /android/i.test(navigator.userAgent);
 
   useEffect(() => {
     if (!open) {
@@ -81,13 +81,14 @@ export function AddAccountModal({
       setProvider(nextProvider);
       setLabel(initialLabel?.trim() || providerName(nextProvider));
       setEmail("");
-      setAdvancedManual(false);
+      // Default Grok to manual cookie mode on Android (automatic window login not supported)
+      setAdvancedManual(isAndroid && nextProvider === "grok");
       setApiKey("");
       setAvailableModels([]);
       setSelectedModels([]);
       setModelsBusy(false);
     }
-  }, [open, initialLabel, initialProvider, providerLocked]);
+  }, [open, initialLabel, initialProvider, providerLocked, isAndroid]);
 
   useEffect(() => {
     if (!status || status.status !== "waiting") return;
@@ -289,7 +290,7 @@ export function AddAccountModal({
             setWorkspaceId("");
             setAuthCookie("");
             setGrokCookie("");
-            setAdvancedManual(false);
+            setAdvancedManual(isAndroid && nextProvider === "grok");
             setApiKey("");
             setAvailableModels([]);
             setSelectedModels([]);
@@ -314,6 +315,12 @@ export function AddAccountModal({
           placeholder={providerName(provider)}
           disabled={busy || modelsBusy}
         />
+
+        {isAndroid && (provider === "antigravity" || provider === "openai" || provider === "anthropic") ? (
+          <div className="credential-note android-oauth-note" style={{ marginTop: "12px", padding: "10px 12px", background: "rgba(255,200,60,0.1)", borderLeft: "3px solid #f5a623", borderRadius: "4px" }}>
+            <strong>Desktop required for {providerName(provider)} sign-in.</strong> Browser OAuth with Google, OpenAI, and Anthropic uses a loopback redirect that Android browsers cannot deliver back to the app. To link this account, open AI Usage Tracker on Windows or macOS and connect from there.
+          </div>
+        ) : null}
 
         {provider === "google_ai_studio" ? (
           <>

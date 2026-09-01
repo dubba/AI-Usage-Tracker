@@ -92,6 +92,17 @@ pub async fn start_login(
             provider.display_name()
         ));
     }
+
+    #[cfg(not(desktop))]
+    {
+        let _ = (app, label, provider);
+        return Err(
+            "Browser OAuth sign-in (Google, OpenAI, Anthropic) requires the desktop app. On Android, account linking through these providers is only supported on the Windows or macOS version of AI Usage Tracker.".into()
+        );
+    }
+
+    #[cfg(desktop)]
+    {
     let attempt_id = Uuid::new_v4().to_string();
     {
         let mut pending = app.pending_login.write();
@@ -206,6 +217,7 @@ pub async fn start_login(
         authorization_url,
         expires_at,
     })
+    }
 }
 
 fn is_transient_network_error(err: &str) -> bool {

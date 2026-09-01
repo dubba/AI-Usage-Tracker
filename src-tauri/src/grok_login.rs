@@ -163,6 +163,16 @@ pub async fn add_account(
 }
 
 pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginStart, String> {
+    #[cfg(not(desktop))]
+    {
+        let _ = (state, label);
+        return Err(
+            "Automatic Grok sign-in is only available on the desktop app. On Android, use the manual connection option: open grok.com in your mobile browser, sign in, copy your session cookies, and paste them into the manual connection field.".into()
+        );
+    }
+
+    #[cfg(desktop)]
+    {
     let attempt_id = Uuid::new_v4().to_string();
     {
         let mut pending = state.pending_login.write();
@@ -291,6 +301,7 @@ pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginSta
         authorization_url: String::new(),
         expires_at,
     })
+    }
 }
 
 fn start_cookie_poll(
