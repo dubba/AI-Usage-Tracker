@@ -38,8 +38,7 @@
   flex-shrink: 0;
 }
 
-.account-card-action,
-.account-name-edit {
+.account-card-action {
   box-sizing: border-box;
   width: 30px !important;
   height: 30px !important;
@@ -52,16 +51,32 @@
 
 .account-card-action svg,
 .account-card-action.remove-action::before,
-.account-card-action .mini-spinner,
-.account-name-edit svg {
+.account-card-action .mini-spinner {
   width: 18px !important;
   height: 18px !important;
 }
 
 .account-name-edit {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  padding: 0 !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+  border-radius: 4px !important;
   color: var(--obsidian-purple) !important;
   border-color: rgba(208, 188, 255, 0.45) !important;
   background: rgba(90, 40, 180, 0.35) !important;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.account-name-edit svg {
+  width: 13px !important;
+  height: 13px !important;
 }
 
 .account-name-edit:hover:not(:disabled),
