@@ -214,6 +214,7 @@ svg { width: 18px; height: 18px; }
 .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.22); border-top-color: currentColor; border-radius: 99px; animation: spin .75s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading-screen { height: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--muted); }
+.loading-error { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 420px; padding: 20px; text-align: center; }
 .global-error { position: absolute; z-index: 8; top: 14px; left: 50%; transform: translateX(-50%); width: min(680px, calc(100% - 30px)); background: #301d1d; border: 1px solid #653737; border-radius: 10px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px; color: #ffc0c0; font-size: 10px; box-shadow: 0 12px 40px rgba(0,0,0,.28); }
 .global-error button { border: 0; background: transparent; color: #fff; cursor: pointer; }
 

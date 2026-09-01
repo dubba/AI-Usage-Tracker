@@ -1,8 +1,6 @@
-#[allow(unused_imports)]
-use crate::fs_util::atomic_write_private;
 use crate::{
-    fs_util::{ensure_private_file, restrict_private_permissions},
-    model::{now_rfc3339, Account, OAuthSecret, Provider, ProviderSecret, UsageSnapshot},
+    fs_util::{atomic_write_private, ensure_private_file},
+    model::{Account, OAuthSecret, Provider, ProviderSecret, UsageSnapshot},
 };
 #[cfg(not(target_os = "android"))]
 use keyring::Entry;
@@ -12,7 +10,6 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     fs,
-    io::Write,
     path::{Path, PathBuf},
     sync::LazyLock,
 };
@@ -824,45 +821,18 @@ fn write_account_file(data_dir: &Path, accounts: &[Account]) -> Result<(), Store
     let payload =
         serde_json::to_vec_pretty(&file).map_err(|error| StoreError::Invalid(error.to_string()))?;
     let path = account_path(data_dir);
-    let temp = data_dir.join(format!(
-        "accounts.{}.tmp",
-        now_rfc3339().replace(':', "-").replace('.', "-")
-    ));
-    let mut output = fs::OpenOptions::new()
-        .create_new(true)
-        .write(true)
-        .open(&temp)
-        .map_err(|error| StoreError::Io(error.to_string()))?;
-    output
-        .write_all(&payload)
-        .map_err(|error| StoreError::Io(error.to_string()))?;
-    output
-        .sync_all()
-        .map_err(|error| StoreError::Io(error.to_string()))?;
-    restrict_private_permissions(&temp).map_err(StoreError::Io)?;
     if path.exists() {
         let backup = data_dir.join("accounts.json.bak");
-        let _ = fs::copy(&path, &backup);
-        let _ = restrict_private_permissions(&backup);
+        let existing = fs::read(&path).map_err(|error| StoreError::Io(error.to_string()))?;
+        atomic_write_private(&backup, &existing).map_err(StoreError::Io)?;
     }
-    match fs::rename(&temp, &path) {
-        Ok(()) => Ok(()),
-        Err(error)
-            if matches!(
-                error.kind(),
-                std::io::ErrorKind::AlreadyExists | std::io::ErrorKind::PermissionDenied
-            ) =>
-        {
-            fs::remove_file(&path).map_err(|error| StoreError::Io(error.to_string()))?;
-            fs::rename(&temp, &path).map_err(|error| StoreError::Io(error.to_string()))
-        }
-        Err(error) => Err(StoreError::Io(error.to_string())),
-    }
+    atomic_write_private(&path, &payload).map_err(StoreError::Io)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::model::now_rfc3339;
     use tempfile::tempdir;
 
     const WINDOWS_CREDENTIAL_BLOB_LIMIT_BYTES: usize = 2560;
@@ -892,6 +862,23 @@ mod tests {
         assert_eq!(reopened.list().len(), 1);
         assert_eq!(reopened.list()[0].label, "Main");
         assert_eq!(reopened.list()[0].provider, Provider::Openai);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn account_metadata_files_are_owner_only() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempdir().unwrap();
+        let store = AccountStore::load(dir.path().to_path_buf()).unwrap();
+        store.upsert(sample_account("one", "Main")).unwrap();
+        store
+            .mutate("one", |account| account.label = "Renamed".into())
+            .unwrap();
+        for name in ["accounts.json", "accounts.json.bak"] {
+            let path = dir.path().join(name);
+            let mode = fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+            assert_eq!(mode, 0o600, "{name} should be owner-only");
+        }
     }
 
     #[test]

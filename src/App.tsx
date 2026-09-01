@@ -383,7 +383,15 @@ export default function App() {
 
   const load = useCallback(async () => {
     try {
-      const next = await bridgeApi.snapshot();
+      const next = await Promise.race([
+        bridgeApi.snapshot(),
+        new Promise<DashboardSnapshot>((_, reject) => {
+          window.setTimeout(
+            () => reject(new Error("Timed out loading accounts from the app backend.")),
+            10_000,
+          );
+        }),
+      ]);
       setSnapshot(next);
       setError(null);
     } catch (cause) {
@@ -821,7 +829,20 @@ export default function App() {
 
       <main className="main-stage">
         {error ? <div className="global-error"><span>{error}</span><button onClick={() => setError(null)}>Dismiss</button></div> : null}
-        {snapshot ? content : <div className="loading-screen"><span className="spinner" />Loading accounts…</div>}
+        {snapshot ? content : (
+          <div className="loading-screen">
+            {error ? (
+              <div className="loading-error">
+                <div className="error-panel">{error}</div>
+                <button className="button" type="button" onClick={() => { setError(null); void load(); }}>
+                  Retry
+                </button>
+              </div>
+            ) : (
+              <><span className="spinner" />Loading accounts…</>
+            )}
+          </div>
+        )}
       </main>
 
       <AddAccountModal

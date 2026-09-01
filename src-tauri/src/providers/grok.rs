@@ -6,8 +6,9 @@
 
 use super::{ProviderError, ProviderUsage};
 use crate::{
-    model::{Account, GrokSecret, UsageWindow},
+    model::{Account, GrokSecret, ProviderSecret, UsageWindow},
     state::AppState,
+    store::save_provider_secret,
 };
 use base64::{
     engine::general_purpose::{URL_SAFE, URL_SAFE_NO_PAD},
@@ -17,7 +18,7 @@ use chrono::{DateTime, TimeZone, Utc};
 use reqwest::{header, StatusCode};
 use serde_json::Value;
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     fs,
     path::{Path, PathBuf},
 };
@@ -27,6 +28,11 @@ const LEGACY_SCOPE: &str = "https://accounts.x.ai/sign-in";
 const WEB_BILLING_ENDPOINT: &str =
     "https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig";
 const MAX_COOKIE_HEADER_BYTES: usize = 32 * 1024;
+pub(crate) const GROK_COOKIE_URLS: &[&str] = &[
+    "https://grok.com/",
+    "https://grok.com/?_s=usage",
+    "https://accounts.x.ai/",
+];
 
 fn percent_decode(input: &str) -> String {
     let mut bytes = Vec::with_capacity(input.len());
@@ -247,8 +253,9 @@ pub async fn refresh(
     app: &AppState,
     account: &Account,
     secret: &GrokSecret,
-) -> Result<ProviderUsage, ProviderError> {
+) -> Result<(ProviderUsage, GrokSecret), ProviderError> {
     let credentials = load_optional_credentials(secret);
+    let secret = recapture_stored_cookies(&account.id, secret)?;
 
     let Some(cookie_header) = secret
         .cookie_header
@@ -270,7 +277,7 @@ pub async fn refresh(
             if usage.email.is_none() {
                 usage.email = discovered_email.or_else(|| account.email.clone());
             }
-            Ok(usage)
+            Ok((usage, secret))
         }
         Err(error) => Err(error.into_provider_error()),
     }
@@ -438,20 +445,97 @@ fn timestamp_to_datetime(timestamp: i64) -> Option<DateTime<Utc>> {
     Utc.timestamp_opt(seconds, 0).single()
 }
 
+pub(crate) fn is_allowed_cookie_host(host: &str) -> bool {
+    let host = host.trim().trim_end_matches('.').to_ascii_lowercase();
+    host == "grok.com" || host.ends_with(".grok.com") || host == "accounts.x.ai"
+}
+
+pub(crate) fn has_grok_session_cookie(header: &str) -> bool {
+    header.split(';').any(|part| {
+        part.split_once('=')
+            .is_some_and(|(name, value)| !value.trim().is_empty() && is_session_cookie_name(name))
+    })
+}
+
+fn recapture_stored_cookies(account_id: &str, secret: &GrokSecret) -> Result<GrokSecret, ProviderError> {
+    let Some(raw) = secret
+        .cookie_header
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    else {
+        return Ok(secret.clone());
+    };
+
+    let next = match normalize_cookie_header(raw) {
+        Ok(cookie_header) => GrokSecret {
+            cookie_header: Some(cookie_header),
+            auth_file: secret.auth_file.clone(),
+        },
+        Err(_) => GrokSecret {
+            cookie_header: None,
+            auth_file: secret.auth_file.clone(),
+        },
+    };
+
+    if &next != secret {
+        let _ = save_provider_secret(account_id, &ProviderSecret::Grok(next.clone()));
+    }
+    if next.cookie_header.is_none() {
+        return Err(ProviderError::Auth);
+    }
+    Ok(next)
+}
+
+fn is_session_cookie_name(name: &str) -> bool {
+    let name = canonical_cookie_name(name);
+    matches!(
+        name.as_str(),
+        "sso" | "sso-token" | "sso_token" | "auth_token" | "jwt" | "session"
+    ) || name.starts_with("sso-")
+        || name.starts_with("sso_")
+}
+
+fn is_allowed_grok_cookie_name(name: &str) -> bool {
+    is_session_cookie_name(name)
+}
+
+fn canonical_cookie_name(name: &str) -> String {
+    let trimmed = name.trim();
+    let without_prefix = trimmed
+        .strip_prefix("__Host-")
+        .or_else(|| trimmed.strip_prefix("__Secure-"))
+        .or_else(|| trimmed.strip_prefix("__host-"))
+        .or_else(|| trimmed.strip_prefix("__secure-"))
+        .unwrap_or(trimmed);
+    without_prefix.to_ascii_lowercase()
+}
+
 pub(crate) fn normalize_cookie_header(value: &str) -> Result<String, String> {
     if value.contains(['\r', '\n']) {
         return Err("The Grok browser session contains invalid header characters.".into());
     }
     let value = value.trim().strip_prefix("Cookie:").unwrap_or(value.trim());
-    let normalized = value
-        .split(';')
-        .map(str::trim)
-        .filter(|part| !part.is_empty() && part.contains('='))
-        .collect::<Vec<_>>()
-        .join("; ");
-    if normalized.is_empty() {
+    let mut pairs = BTreeMap::new();
+    for part in value.split(';') {
+        let Some((name, cookie_value)) = part.split_once('=') else {
+            continue;
+        };
+        let name = name.trim();
+        let cookie_value = cookie_value.trim();
+        if name.is_empty() || cookie_value.is_empty() || !is_allowed_grok_cookie_name(name) {
+            continue;
+        }
+        pairs.insert(name.to_string(), cookie_value.to_string());
+    }
+    if pairs.is_empty() {
         return Err("No Grok browser session cookies were found.".into());
     }
+    let normalized = pairs
+        .into_iter()
+        .map(|(name, value)| format!("{name}={value}"))
+        .collect::<Vec<_>>()
+        .join("; ");
     if normalized.len() > MAX_COOKIE_HEADER_BYTES {
         return Err("The Grok browser session is unexpectedly large. Sign out of Grok, sign in again, and retry.".into());
     }
@@ -917,9 +1001,36 @@ mod tests {
     fn normalizes_cookie_headers_without_accepting_injection() {
         assert_eq!(
             normalize_cookie_header(" Cookie: session=abc; theme=dark ").unwrap(),
-            "session=abc; theme=dark"
+            "session=abc"
         );
         assert!(normalize_cookie_header("session=abc\r\nAuthorization: bad").is_err());
+        assert!(normalize_cookie_header("theme=dark; twid=u123").is_err());
+    }
+
+    #[test]
+    fn drops_unrelated_cookies_from_stored_headers() {
+        let mega = "sso=grok-session; auth_token=maybe-grok; twid=u=123; ct0=twitter; theme=dark; guest_id=v1%3A1; __cf_bm=bot";
+        assert_eq!(
+            normalize_cookie_header(mega).unwrap(),
+            "auth_token=maybe-grok; sso=grok-session"
+        );
+        assert!(has_grok_session_cookie(&normalize_cookie_header(mega).unwrap()));
+    }
+
+    #[test]
+    fn allows_only_grok_and_accounts_xai_cookie_hosts() {
+        assert!(is_allowed_cookie_host("grok.com"));
+        assert!(is_allowed_cookie_host("www.grok.com"));
+        assert!(is_allowed_cookie_host("accounts.x.ai"));
+        assert!(!is_allowed_cookie_host("x.com"));
+        assert!(!is_allowed_cookie_host("x.ai"));
+        assert!(!is_allowed_cookie_host("auth.x.ai"));
+        assert!(!is_allowed_cookie_host("api.x.ai"));
+        assert!(!is_allowed_cookie_host("notgrok.com"));
+        for target in GROK_COOKIE_URLS {
+            let host = url::Url::parse(target).unwrap().host_str().unwrap().to_string();
+            assert!(is_allowed_cookie_host(&host), "{target}");
+        }
     }
 
     #[test]

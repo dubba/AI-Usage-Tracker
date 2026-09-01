@@ -127,10 +127,18 @@ pub async fn start_login(
         });
     }
 
+    // On mobile we cannot capture OpenCode cookies in a webview without loading
+    // third-party sign-in pages into the privileged main webview, which would
+    // let page scripts invoke Tauri IPC commands. Manual cookie entry
+    // (add_account) remains available on mobile instead.
     #[cfg(mobile)]
     {
-        let expires_at = (Utc::now() + Duration::minutes(LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
-        return start_mobile_login(app, state, attempt_id, label, email, expires_at).await;
+        let _ = (app, label, email);
+        *state.pending_login.write() = None;
+        return Err(
+            "OpenCode Go sign-in is not available in-app on mobile. Use manual cookie entry instead."
+                .into(),
+        );
     }
 
     #[cfg(desktop)]
@@ -172,9 +180,7 @@ pub async fn start_login(
     .incognito(true)
     .devtools(false)
     .initialization_script(CONNECT_BANNER_SCRIPT)
-    .on_navigation(|url| {
-        url.scheme() == "https" || url.as_str() == "about:blank"
-    });
+    .on_navigation(is_allowed_login_navigation);
 
     #[cfg(desktop)]
     {
@@ -396,133 +402,6 @@ async fn complete_login(
     }
 }
 
-#[cfg(mobile)]
-async fn start_mobile_login(
-    app: AppHandle,
-    state: Arc<AppState>,
-    attempt_id: String,
-    label: String,
-    email: Option<String>,
-    expires_at: String,
-) -> Result<LoginStart, String> {
-    let login_url = match Url::parse(LOGIN_URL) {
-        Ok(url) => url,
-        Err(error) => {
-            let mut pending = state.pending_login.write();
-            if pending
-                .as_ref()
-                .is_some_and(|login| login.attempt_id == attempt_id)
-            {
-                *pending = None;
-            }
-            return Err(error.to_string());
-        }
-    };
-    let window = match crate::mobile_auth::main_window(&app) {
-        Ok(window) => window,
-        Err(error) => {
-            let mut pending = state.pending_login.write();
-            if pending
-                .as_ref()
-                .is_some_and(|login| login.attempt_id == attempt_id)
-            {
-                *pending = None;
-            }
-            return Err(error);
-        }
-    };
-    let capture_started = Arc::new(AtomicBool::new(false));
-    let page_state = state.clone();
-    let page_attempt = attempt_id.clone();
-    let page_label = label;
-    let page_email = email;
-    let page_window = window;
-    if let Err(error) = crate::mobile_auth::open_in_main_webview(
-        app.clone(),
-        state.clone(),
-        attempt_id.clone(),
-        login_url,
-        move |url| {
-            let Some(workspace_id) = workspace_id_from_url(&url) else {
-                return;
-            };
-            if !is_waiting(&page_state, &page_attempt) {
-                return;
-            }
-            if capture_started.swap(true, Ordering::SeqCst) {
-                return;
-            }
-            let cookie_window = page_window.clone();
-            let completion_window = page_window.clone();
-            let completion_state = page_state.clone();
-            let completion_attempt = page_attempt.clone();
-            let completion_label = page_label.clone();
-            let completion_email = page_email.clone();
-            let completion_capture_started = capture_started.clone();
-            std::thread::spawn(move || {
-                let cookie_result = read_auth_cookie_with_retry(&cookie_window);
-                tauri::async_runtime::spawn(async move {
-                    match cookie_result {
-                        Ok(auth_cookie) => {
-                            complete_login(
-                                completion_state,
-                                completion_attempt,
-                                completion_label,
-                                workspace_id,
-                                auth_cookie,
-                                completion_email,
-                                completion_window,
-                            )
-                            .await;
-                        }
-                        Err(error) => {
-                            completion_capture_started.store(false, Ordering::SeqCst);
-                            update_waiting_message(
-                                &completion_state,
-                                &completion_attempt,
-                                format!(
-                                    "{error} Navigate away from Go, then select Go again to retry."
-                                ),
-                            );
-                        }
-                    }
-                });
-            });
-        },
-    ) {
-        let mut pending = state.pending_login.write();
-        if pending
-            .as_ref()
-            .is_some_and(|login| login.attempt_id == attempt_id)
-        {
-            *pending = None;
-        }
-        return Err(error);
-    }
-
-    let timeout_state = state.clone();
-    let timeout_attempt = attempt_id.clone();
-    tauri::async_runtime::spawn(async move {
-        tokio::time::sleep(StdDuration::from_secs(
-            (LOGIN_TIMEOUT_MINUTES * 60) as u64,
-        ))
-        .await;
-        if is_waiting(&timeout_state, &timeout_attempt) {
-            fail_if_waiting(
-                &timeout_state,
-                &timeout_attempt,
-                "OpenCode login timed out. Start the connection again.".into(),
-            );
-        }
-    });
-
-    Ok(LoginStart {
-        attempt_id,
-        authorization_url: String::new(),
-        expires_at,
-    })
-}
-
 fn close_login_window(window: &WebviewWindow) {
     crate::mobile_auth::dismiss_login_window(window);
 }
@@ -584,6 +463,27 @@ fn login_window_size(app: &AppHandle) -> (f64, f64) {
         (logical_width * 0.8).clamp(820.0, 1500.0),
         (logical_height * 0.8).clamp(620.0, 1000.0),
     )
+}
+
+/// Restrict the private login window to OpenCode hosts (plus the SSO providers
+/// used for sign-in). Prevents a link or open redirect from steering the
+/// cookie-capture window to an attacker-controlled page.
+#[cfg(desktop)]
+fn is_allowed_login_navigation(url: &Url) -> bool {
+    if url.as_str() == "about:blank" {
+        return true;
+    }
+    if url.scheme() != "https" {
+        return false;
+    }
+    let Some(host) = url.host_str().map(str::to_ascii_lowercase) else {
+        return false;
+    };
+    host == "opencode.ai"
+        || host.ends_with(".opencode.ai")
+        || host == "accounts.google.com"
+        || host == "github.com"
+        || host == "appleid.apple.com"
 }
 
 fn workspace_id_from_url(url: &Url) -> Option<String> {
@@ -672,9 +572,31 @@ mod tests {
         );
         assert_eq!(
             workspace_id_from_url(
-                &Url::parse("https://opencode.ai/workspace/../admin/go").unwrap()
-            ),
+            &Url::parse("https://opencode.ai/workspace/../admin/go").unwrap()
+        ),
             None
         );
+    }
+
+    #[test]
+    fn login_window_navigation_is_host_allowlisted() {
+        for allowed in [
+            "https://opencode.ai/auth",
+            "https://opencode.ai/workspace/team-one/go",
+            "https://accounts.google.com/o/oauth2/auth",
+            "https://github.com/login/oauth/authorize",
+        ] {
+            let url = Url::parse(allowed).unwrap();
+            assert!(is_allowed_login_navigation(&url), "{allowed}");
+        }
+        for blocked in [
+            "https://evil.com/phish",
+            "https://opencode.ai.evil.com/",
+            "http://opencode.ai/auth",
+            "data:text/html,<script>1</script>",
+        ] {
+            let url = Url::parse(blocked).unwrap();
+            assert!(!is_allowed_login_navigation(&url), "{blocked}");
+        }
     }
 }

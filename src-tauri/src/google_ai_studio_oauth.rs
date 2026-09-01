@@ -31,8 +31,8 @@ const GOOGLE_CLIENT_SECRET_BYTES: &[u8] = &[
 ];
 const LOGIN_TIMEOUT_MINUTES: i64 = 5;
 const MONITORING_SERVICE: &str = "monitoring.googleapis.com";
-const READ_ONLY_SCOPES: &str = "openid email profile https://www.googleapis.com/auth/cloud-platform";
-const ENABLE_SCOPES: &str = "openid email profile https://www.googleapis.com/auth/cloud-platform";
+const READ_ONLY_SCOPES: &str = "openid email profile https://www.googleapis.com/auth/monitoring.read https://www.googleapis.com/auth/cloudplatformprojects.readonly https://www.googleapis.com/auth/cloud-platform.read-only";
+const ENABLE_SCOPES: &str = "openid email profile https://www.googleapis.com/auth/monitoring.read https://www.googleapis.com/auth/cloudplatformprojects.readonly https://www.googleapis.com/auth/service.management";
 
 #[derive(Clone, Debug)]
 enum LoginMode {
@@ -257,72 +257,16 @@ async fn start_oauth(
         }
     });
 
-    #[cfg(mobile)]
-    {
-        if let Err(error) = open_mobile_oauth(&app, context.clone(), &authorization_url) {
-            fail_login(&context, error.clone());
-            stop_callback(&context).await;
-            return Err(error);
-        }
-        return Ok(LoginStart {
-            attempt_id,
-            authorization_url: String::new(),
-            expires_at,
-        });
-    }
-
-    #[cfg(desktop)]
-    {
-        Ok(LoginStart {
-            attempt_id,
-            authorization_url,
-            expires_at,
-        })
-    }
-}
-
-#[cfg(mobile)]
-fn open_mobile_oauth(
-    app: &Arc<AppState>,
-    context: Arc<LoginContext>,
-    authorization_url: &str,
-) -> Result<(), String> {
-    let handle = app
-        .app_handle
-        .read()
-        .clone()
-        .ok_or_else(|| "The app is not ready for in-app sign-in.".to_string())?;
-    let target = Url::parse(authorization_url).map_err(|error| error.to_string())?;
-    let intercept_started = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-    crate::mobile_auth::open_in_main_webview(
-        handle,
-        app.clone(),
-        context.attempt_id.clone(),
-        target,
-        move |url| {
-            if !crate::oauth::looks_like_oauth_callback(&url) {
-                return;
-            }
-            if intercept_started.swap(true, std::sync::atomic::Ordering::SeqCst) {
-                return;
-            }
-            let context = context.clone();
-            tauri::async_runtime::spawn(async move {
-                let parsed = crate::oauth::callback_query_from_url(&url);
-                let query = CallbackQuery {
-                    code: parsed.code,
-                    state: parsed.state,
-                    error: parsed.error,
-                    error_description: parsed.error_description,
-                };
-                let result = complete_callback(context.clone(), query).await;
-                if let Err(error) = &result {
-                    fail_login(&context, error.clone());
-                }
-                stop_callback(&context).await;
-            });
-        },
-    )
+    // The authorization URL is returned to the UI, which opens it in the user's
+    // browser (on mobile, the system browser). Third-party sign-in pages must
+    // never load in the main webview, which carries privileged Tauri IPC
+    // capabilities; the loopback callback server completes the exchange either
+    // way.
+    Ok(LoginStart {
+        attempt_id,
+        authorization_url,
+        expires_at,
+    })
 }
 
 async fn select_project(
@@ -1047,14 +991,14 @@ fn build_authorization_url(
 }
 
 async fn bind_callback_port() -> Result<(TcpListener, u16), String> {
-    for port in 11461..=11465 {
-        match TcpListener::bind(("127.0.0.1", port)).await {
-            Ok(listener) => return Ok((listener, port)),
-            Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => continue,
-            Err(error) => return Err(format!("Unable to start OAuth callback server: {error}")),
-        }
-    }
-    Err("No callback port is available for Google AI Studio usage authorization.".into())
+    let listener = TcpListener::bind(("127.0.0.1", 0))
+        .await
+        .map_err(|error| format!("Unable to start OAuth callback server: {error}"))?;
+    let port = listener
+        .local_addr()
+        .map_err(|error| format!("Unable to read OAuth callback port: {error}"))?
+        .port();
+    Ok((listener, port))
 }
 
 fn validate_project_id(value: &str) -> Result<String, String> {

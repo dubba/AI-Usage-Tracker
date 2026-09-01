@@ -2,7 +2,10 @@ use crate::{
     model::{now_rfc3339, Account, GrokSecret, LoginStart, LoginStatus, Provider, ProviderSecret},
     providers::{
         self,
-        grok::normalize_cookie_header,
+        grok::{
+            has_grok_session_cookie, is_allowed_cookie_host, normalize_cookie_header,
+            GROK_COOKIE_URLS,
+        },
         ProviderError,
     },
     state::AppState,
@@ -237,9 +240,7 @@ pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginSta
     .incognito(true)
     .devtools(false)
     .initialization_script(CONNECT_BANNER_SCRIPT)
-    .on_navigation(|url| {
-        url.scheme() == "https" || url.as_str() == "about:blank"
-    });
+    .on_navigation(is_allowed_login_navigation);
 
     #[cfg(desktop)]
     {
@@ -449,10 +450,7 @@ async fn complete_cookie_login(
             if let Ok(current_url) = window.url() {
                 let current_str = current_url.as_str();
                 if current_str.contains("accounts.x.ai") || current_str.contains("x.ai") {
-                    if cookie_header.contains("sso")
-                        || cookie_header.contains("auth_token")
-                        || cookie_header.contains("jwt")
-                    {
+                    if has_grok_session_cookie(&cookie_header) {
                         if let Ok(grok_target) = Url::parse("https://grok.com/?_s=usage") {
                             let _ = window.navigate(grok_target);
                         }
@@ -604,39 +602,39 @@ fn close_login_window(window: &WebviewWindow) {
     crate::mobile_auth::dismiss_login_window(window);
 }
 
+/// Restrict the private login window to Grok/X sign-in hosts (plus the SSO
+/// providers they let you sign in with). Prevents a link or open redirect on a
+/// sign-in page from steering our cookie-capture window to an arbitrary site
+/// that could run scripts able to observe credentials.
+#[cfg(desktop)]
+fn is_allowed_login_navigation(url: &Url) -> bool {
+    if url.as_str() == "about:blank" {
+        return true;
+    }
+    if url.scheme() != "https" {
+        return false;
+    }
+    let Some(host) = url.host_str().map(str::to_ascii_lowercase) else {
+        return false;
+    };
+    host == "grok.com"
+        || host.ends_with(".grok.com")
+        || host == "x.ai"
+        || host.ends_with(".x.ai")
+        || host == "x.com"
+        || host.ends_with(".x.com")
+        || host == "accounts.google.com"
+        || host == "appleid.apple.com"
+}
+
 fn read_cookie_header(window: &WebviewWindow) -> Result<String, String> {
     let mut pairs = BTreeMap::new();
-    let targets = [
-        "https://grok.com/",
-        "https://grok.com/?_s=usage",
-        "https://accounts.x.ai/",
-        "https://x.ai/",
-        "https://auth.x.ai/",
-        "https://api.x.ai/",
-        "https://x.com/",
-    ];
     if let Ok(current_url) = window.url() {
-        if let Ok(target) = Url::parse(current_url.as_str()) {
-            if let Ok(cookies) = window.cookies_for_url(target) {
-                for cookie in cookies {
-                    let value = cookie.value().trim();
-                    if !value.is_empty() {
-                        pairs.insert(cookie.name().to_string(), value.to_string());
-                    }
-                }
-            }
-        }
+        collect_cookies_for_url(window, &current_url, &mut pairs);
     }
-    for target in targets {
+    for target in GROK_COOKIE_URLS {
         if let Ok(url) = Url::parse(target) {
-            if let Ok(cookies) = window.cookies_for_url(url) {
-                for cookie in cookies {
-                    let value = cookie.value().trim();
-                    if !value.is_empty() {
-                        pairs.insert(cookie.name().to_string(), value.to_string());
-                    }
-                }
-            }
+            collect_cookies_for_url(window, &url, &mut pairs);
         }
     }
     let header = pairs
@@ -645,6 +643,29 @@ fn read_cookie_header(window: &WebviewWindow) -> Result<String, String> {
         .collect::<Vec<_>>()
         .join("; ");
     normalize_cookie_header(&header)
+}
+
+fn collect_cookies_for_url(
+    window: &WebviewWindow,
+    url: &Url,
+    pairs: &mut BTreeMap<String, String>,
+) {
+    let Some(host) = url.host_str() else {
+        return;
+    };
+    if !is_allowed_cookie_host(host) {
+        return;
+    }
+    let Ok(cookies) = window.cookies_for_url(url.clone()) else {
+        return;
+    };
+    for cookie in cookies {
+        let value = cookie.value().trim();
+        if value.is_empty() {
+            continue;
+        }
+        pairs.insert(cookie.name().to_string(), value.to_string());
+    }
 }
 
 fn is_waiting(state: &AppState, attempt_id: &str) -> bool {
@@ -693,4 +714,31 @@ fn login_window_size(app: &AppHandle) -> (f64, f64) {
     let width = (f64::from(size.width) / scale * 0.82).clamp(900.0, 1280.0);
     let height = (f64::from(size.height) / scale * 0.82).clamp(680.0, 900.0);
     (width, height)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn login_window_navigation_is_host_allowlisted() {
+        for allowed in [
+            "https://accounts.x.ai/sign-in",
+            "https://grok.com/?_s=usage",
+            "https://accounts.google.com/o/oauth2/auth?client_id=x",
+            "https://appleid.apple.com/auth/authorize",
+        ] {
+            let url = Url::parse(allowed).unwrap();
+            assert!(is_allowed_login_navigation(&url), "{allowed}");
+        }
+        for blocked in [
+            "https://evil.com/phish",
+            "https://grok.com.evil.com/",
+            "http://accounts.x.ai/sign-in",
+            "javascript:alert(1)",
+        ] {
+            let url = Url::parse(blocked).unwrap();
+            assert!(!is_allowed_login_navigation(&url), "{blocked}");
+        }
+    }
 }

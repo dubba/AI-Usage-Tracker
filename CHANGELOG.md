@@ -2,9 +2,19 @@
 
 ## Unreleased
 
+### Security
+
+- Local account metadata, settings, and Android credential files are now created with owner-only permissions so they are never briefly readable by other users on the same machine.
+- Grok connections now store and send only grok.com / accounts.x.ai session cookies. Existing saved Grok cookie bundles are trimmed on the next refresh, and a reconnect is required if no Grok session remains.
+- Provider sign-in pages loaded inside the app are now restricted to each provider's own domains, so pop-ups and malicious links can no longer navigate the sign-in window to unrelated or script-based (javascript:, intent:) addresses.
+- On Android, Google, Anthropic, and OpenAI sign-in now opens in the system browser instead of inside the app, so those sign-in pages can't reach the app's internal functions. In-app Grok sign-in on mobile still opens in the app so session cookies can be captured without pasting them. OpenCode Go on mobile still uses manual cookie entry.
+- Switched Antigravity and Google AI Studio OAuth callback listeners to dynamic ephemeral loopback ports (`127.0.0.1:0`), eliminating loopback port contention and local pre-binding denial-of-service risks.
+- Reduced Google AI Studio default connection scopes from broad administrative `cloud-platform` to least-privilege read-only monitoring and project inspection scopes, requesting service management only when Cloud Monitoring is explicitly enabled.
+
 ### Improved
 
 - Updated the in-app Grok login window to open `https://accounts.x.ai/sign-in` directly.
+- If accounts fail to load, the dashboard now shows the error and a Retry button instead of staying on “Loading accounts…”.
 
 ### Fixed
 

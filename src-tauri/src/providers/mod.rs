@@ -58,7 +58,7 @@ pub async fn refresh(
             Ok((usage, ProviderSecret::GoogleAiStudio(secret)))
         }
         ProviderSecret::Grok(secret) => {
-            let usage = grok::refresh(app.as_ref(), account, &secret).await?;
+            let (usage, secret) = grok::refresh(app.as_ref(), account, &secret).await?;
             Ok((usage, ProviderSecret::Grok(secret)))
         }
     }

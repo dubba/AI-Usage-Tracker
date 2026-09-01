@@ -184,6 +184,9 @@ fn patch_chrome_client(content: &str) -> String {
     temp.webViewClient = object : WebViewClient() {
       private fun hijack(url: String?) {
         if (url.isNullOrBlank() || url == "about:blank") return
+        // Never load javascript:, file:, content:, or other non-web schemes
+        // into the host WebView — that would allow universal XSS.
+        if (!url.startsWith("https://")) return
         view.post { view.loadUrl(url) }
       }
       override fun shouldOverrideUrlLoading(v: WebView, request: WebResourceRequest): Boolean {
@@ -239,7 +242,9 @@ fn patch_webview_client(content: &str) -> String {
             try {
                 val intent = Intent.parseUri(uri.toString(), Intent.URI_INTENT_SCHEME)
                 val fallback = intent.getStringExtra("browser_fallback_url")
-                if (!fallback.isNullOrBlank()) {
+                // Only load HTTPS fallbacks. A javascript:/file: fallback would run
+                // arbitrary script inside the WebView (universal XSS).
+                if (!fallback.isNullOrBlank() && fallback.startsWith("https://")) {
                     view.loadUrl(fallback)
                     return true
                 }

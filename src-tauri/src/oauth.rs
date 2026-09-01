@@ -202,61 +202,17 @@ pub async fn start_login(
         }
     });
 
-    #[cfg(mobile)]
-    {
-        if let Err(error) = open_mobile_oauth(&app, context.clone(), &authorization_url) {
-            fail_login(&app.pending_login, &attempt_id, error.clone());
-            stop_callback(&context).await;
-            return Err(error);
-        }
-        return Ok(LoginStart {
-            attempt_id,
-            authorization_url: String::new(),
-            expires_at,
-        });
-    }
-
-    #[cfg(desktop)]
-    {
-        Ok(LoginStart {
-            attempt_id,
-            authorization_url,
-            expires_at,
-        })
-    }
-}
-
-#[cfg(mobile)]
-fn open_mobile_oauth(
-    app: &Arc<AppState>,
-    context: Arc<LoginContext>,
-    authorization_url: &str,
-) -> Result<(), String> {
-    let handle = app
-        .app_handle
-        .read()
-        .clone()
-        .ok_or_else(|| "The app is not ready for in-app sign-in.".to_string())?;
-    let target = Url::parse(authorization_url).map_err(|error| error.to_string())?;
-    let intercept_started = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-    crate::mobile_auth::open_in_main_webview(
-        handle,
-        app.clone(),
-        context.attempt_id.clone(),
-        target,
-        move |url| {
-            if !looks_like_oauth_callback(&url) {
-                return;
-            }
-            if intercept_started.swap(true, std::sync::atomic::Ordering::SeqCst) {
-                return;
-            }
-            let context = context.clone();
-            tauri::async_runtime::spawn(async move {
-                let _ = handle_callback(context, callback_query_from_url(&url)).await;
-            });
-        },
-    )
+    // The authorization URL is returned to the UI, which opens it in the user's
+    // browser (on mobile, the system browser via the Tauri opener). We
+    // deliberately never load third-party sign-in pages in the main app webview:
+    // it carries Tauri IPC capabilities, so any script on those pages could
+    // invoke privileged commands. The loopback callback server completes the
+    // exchange regardless of which browser delivers the redirect.
+    Ok(LoginStart {
+        attempt_id,
+        authorization_url,
+        expires_at,
+    })
 }
 
 fn is_transient_network_error(err: &str) -> bool {
@@ -834,10 +790,20 @@ fn redirect_uri(provider: &Provider, port: u16) -> String {
 }
 
 async fn bind_callback_port(provider: &Provider) -> Result<(TcpListener, u16), String> {
+    if matches!(provider, Provider::Antigravity) {
+        let listener = TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .map_err(|error| format!("Unable to start OAuth callback server: {error}"))?;
+        let port = listener
+            .local_addr()
+            .map_err(|error| format!("Unable to read OAuth callback port: {error}"))?
+            .port();
+        return Ok((listener, port));
+    }
     let ports: Vec<u16> = match provider {
         Provider::Openai => (1455..=1459).collect(),
         Provider::Anthropic => (53692..=53696).collect(),
-        Provider::Antigravity => (11451..=11455).collect(),
+        Provider::Antigravity => Vec::new(),
         Provider::GoogleAiStudio | Provider::Grok | Provider::OpencodeGo => Vec::new(),
     };
     for port in ports {
