@@ -76,11 +76,21 @@
 }
 
 .provider-account-card .metric-value-row {
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.provider-account-card .metric-full-value {
+  flex: 0 0 auto !important;
 }
 
 .provider-account-card .account-metric-track {
-  min-width: 0;
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  width: auto !important;
 }
 
 .provider-account-card .metric-inline-credit {

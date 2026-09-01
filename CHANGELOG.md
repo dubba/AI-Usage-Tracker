@@ -8,6 +8,7 @@
 - Fixed Antigravity (Google), OpenAI, and Anthropic OAuth sign-in permanently hanging on Android; the loopback TCP callback server is desktop-only and cannot receive redirects from the Android system browser. These providers now show a clear message directing Android users to link accounts on the desktop app.
 - Fixed `getCurrentWindow()` crash at startup on Android caused by missing window plugin metadata; the Paseo Bridge window check now falls back safely to `false` on mobile.
 - Positioned the expanded mobile sidebar drawer below the status bar with top border rounding and safe-area clearance, preventing the drawer from covering or clipping into the mobile status bar.
+- Expanded account usage progress bar tracks to span the full available width of the card, aligning flush with window badges and reset countdown timestamps.
 
 ## 0.3.1 - 2026-08-31
 

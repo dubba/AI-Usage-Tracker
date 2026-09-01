@@ -1043,15 +1043,16 @@ select {
 }
 
 .metric-value-row {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
   min-width: 0;
   margin: 10px 0 8px;
 }
 
 .metric-full-value {
+  flex: 0 0 auto;
   display: block;
   margin: 0;
   color: #f5f1ef;
@@ -1063,13 +1064,16 @@ select {
 }
 
 .metric-inline-credit {
+  flex: 0 0 auto;
   overflow: hidden;
   max-width: 150px;
   text-overflow: ellipsis;
 }
 
 .account-metric-track {
+  flex: 1 1 0;
   min-width: 0;
+  width: auto;
   height: 6px;
 }
 

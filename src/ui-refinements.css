@@ -226,15 +226,21 @@
 }
 
 .account-usage-metric .metric-value-row {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
   min-width: 0;
 }
 
+.account-usage-metric .metric-full-value {
+  flex: 0 0 auto;
+}
+
 .account-usage-metric .account-metric-track {
+  flex: 1 1 0;
   min-width: 0;
+  width: auto;
 }
 
 .account-usage-metric .metric-reset {
