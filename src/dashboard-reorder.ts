@@ -235,14 +235,11 @@ function enhanceAccountList(): void {
   const container = document.querySelector<HTMLElement>(".provider-account-cards");
   if (!container) return;
   const cards = accountCards(container);
-  const provider = cards.length ? providerFromCard(cards[0]) : null;
-  if (provider && latestAccounts.length) {
-    mapAccountCards(cards, latestAccounts.filter((account) => account.provider === provider));
-  } else {
-    for (const card of cards) {
-      card.draggable = false;
-      card.dataset.reorderEnabled = "true";
-    }
+  for (const card of cards) {
+    card.draggable = false;
+    card.dataset.reorderEnabled = "true";
+    const provider = providerFromCard(card);
+    if (provider) card.dataset.reorderProvider = provider;
   }
 }
 

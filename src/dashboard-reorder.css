@@ -1,3 +1,6 @@
+.provider-summary-row,
+.provider-account-card,
+.provider-account-card .provider-account-card-header,
 .provider-summary-row[data-reorder-enabled="true"],
 .provider-account-card[data-reorder-enabled="true"],
 .provider-account-card[data-reorder-enabled="true"] .provider-account-card-header {
@@ -8,29 +11,38 @@
   touch-action: pan-y;
 }
 
+.provider-summary-row,
 .provider-summary-row[data-reorder-enabled="true"] {
   padding-left: 22px !important;
 }
 
+.provider-account-card,
 .provider-account-card[data-reorder-enabled="true"] {
   padding-left: 0;
 }
 
+.provider-account-card .provider-account-card-header,
 .provider-account-card[data-reorder-enabled="true"] .provider-account-card-header {
   position: relative;
   padding-left: 28px !important;
 }
 
+.provider-account-card button,
+.provider-account-card .account-card-action,
+.provider-account-card .account-name-edit,
 .provider-account-card[data-reorder-enabled="true"] button,
 .provider-account-card[data-reorder-enabled="true"] .account-card-action,
 .provider-account-card[data-reorder-enabled="true"] .account-name-edit {
   cursor: pointer !important;
 }
 
+.provider-account-card input,
 .provider-account-card[data-reorder-enabled="true"] input {
   cursor: text !important;
 }
 
+.provider-summary-row::before,
+.provider-account-card .provider-account-card-header::before,
 .provider-summary-row[data-reorder-enabled="true"]::before,
 .provider-account-card[data-reorder-enabled="true"] .provider-account-card-header::before {
   content: "";
@@ -47,10 +59,13 @@
   pointer-events: none;
 }
 
+.provider-account-card .provider-account-card-header::before,
 .provider-account-card[data-reorder-enabled="true"] .provider-account-card-header::before {
   left: 10px;
 }
 
+.provider-summary-row:hover::before,
+.provider-account-card:hover .provider-account-card-header::before,
 .provider-summary-row[data-reorder-enabled="true"]:hover::before,
 .provider-account-card[data-reorder-enabled="true"]:hover .provider-account-card-header::before {
   background: #d4c3ff;
@@ -58,12 +73,16 @@
 }
 
 @media (max-width: 860px), (pointer: coarse) {
+  .provider-summary-row,
   .provider-summary-row[data-reorder-enabled="true"] {
     padding-left: 10px !important;
   }
+  .provider-account-card .provider-account-card-header,
   .provider-account-card[data-reorder-enabled="true"] .provider-account-card-header {
     padding-left: 14px !important;
   }
+  .provider-summary-row::before,
+  .provider-account-card .provider-account-card-header::before,
   .provider-summary-row[data-reorder-enabled="true"]::before,
   .provider-account-card[data-reorder-enabled="true"] .provider-account-card-header::before {
     display: none;

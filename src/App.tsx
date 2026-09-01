@@ -1097,7 +1097,12 @@ function AccountDashboardCard({
   };
 
   return (
-    <article className={`provider-account-card ${needsAttention ? "needs-attention" : ""}`}>
+    <article
+      className={`provider-account-card ${needsAttention ? "needs-attention" : ""}`}
+      data-account-id={account.id}
+      data-reorder-provider={account.provider}
+      data-reorder-enabled="true"
+    >
       <header className="provider-account-card-header">
         <span className={`account-card-provider-icon provider-${account.provider}`}><ProviderIcon provider={account.provider} /></span>
         <div className="account-card-identity">
