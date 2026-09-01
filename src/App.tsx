@@ -258,6 +258,16 @@ function windowLength(window: UsageWindow): string | null {
   return `${hours}h window`;
 }
 
+function resetCountdownLabel(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const resetAt = new Date(value).getTime();
+  if (!Number.isFinite(resetAt)) return null;
+  const remainingMs = resetAt - Date.now();
+  if (remainingMs <= 0) return null;
+  const remainingHours = Math.max(1, Math.ceil(remainingMs / 3_600_000));
+  return `Resets in: ${remainingHours}h`;
+}
+
 function cleanModelPrefix(prefix: string): string {
   return prefix
     .replace(/\bclaude\s+and\s+gpt\b/i, "Claude & GPT")
@@ -1279,6 +1289,7 @@ function AccountUsageMetric({
   const remaining = window.remainingPercent;
   const width = remaining == null ? 0 : Math.min(100, Math.max(0, remaining));
   const tone = usageTone(remaining);
+  const countdown = resetCountdownLabel(window.resetsAt);
   return (
     <div className="account-usage-metric">
       <div className="metric-heading">
@@ -1294,7 +1305,12 @@ function AccountUsageMetric({
         <span className="account-metric-track"><span className={`tone-${tone}`} style={{ width: `${width}%` }} /></span>
         {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
       </div>
-      <span className="metric-reset">{window.resetsAt ? `Resets ${formatTime(window.resetsAt)}` : remaining == null ? "This provider has not reported a quota value yet" : "Rolling window"}</span>
+      <span
+        className="metric-reset"
+        data-reset-countdown={countdown ?? undefined}
+      >
+        {window.resetsAt ? `Resets ${formatTime(window.resetsAt)}` : remaining == null ? "This provider has not reported a quota value yet" : "Rolling window"}
+      </span>
     </div>
   );
 }

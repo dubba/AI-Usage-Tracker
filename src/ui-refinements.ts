@@ -1,13 +1,4 @@
-import { bridgeApi } from "./api";
-import type { UsageWindow } from "./types";
-
 type CardProvider = "openai" | "anthropic" | "antigravity" | "google_ai_studio" | "grok" | "opencode_go";
-type ResetWindow = "five_hour" | "weekly";
-
-const RESET_COUNTDOWN_SYNC_MS = 60_000;
-
-let resetCountdownSyncInFlight = false;
-let resetCountdownSyncTimer: number | null = null;
 
 function cardProvider(card: HTMLElement): CardProvider | null {
   const icon = card.querySelector<HTMLElement>(".account-card-provider-icon");
@@ -18,43 +9,6 @@ function cardProvider(card: HTMLElement): CardProvider | null {
   if (icon?.classList.contains("provider-grok")) return "grok";
   if (icon?.classList.contains("provider-opencode_go")) return "opencode_go";
   return null;
-}
-
-function canonicalWindow(window: UsageWindow, target: ResetWindow): boolean {
-  const id = window.id.toLowerCase().replaceAll("-", "_");
-  const label = window.label.toLowerCase();
-  if (target === "five_hour") {
-    return id === "five_hour"
-      || id === "rolling"
-      || window.windowSeconds === 18_000
-      || label.includes("5 hour")
-      || label.includes("five hour");
-  }
-  return id === "weekly"
-    || window.windowSeconds === 604_800
-    || label.includes("weekly")
-    || label.includes("7 day")
-    || label.includes("seven day");
-}
-
-function orderedWindows(windows: UsageWindow[]): UsageWindow[] {
-  const weight = (window: UsageWindow) => {
-    if (canonicalWindow(window, "five_hour")) return 0;
-    if (canonicalWindow(window, "weekly")) return 1;
-    if (window.id.toLowerCase().includes("monthly") || window.label.toLowerCase().includes("monthly")) return 2;
-    return 3;
-  };
-  return [...windows].sort((left, right) => weight(left) - weight(right));
-}
-
-function resetCountdownLabel(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const resetAt = new Date(value).getTime();
-  if (!Number.isFinite(resetAt)) return null;
-  const remainingMs = resetAt - Date.now();
-  if (remainingMs <= 0) return null;
-  const remainingHours = Math.max(1, Math.ceil(remainingMs / 3_600_000));
-  return `Resets in: ${remainingHours}h`;
 }
 
 function refineHeader(card: HTMLElement): void {
@@ -136,59 +90,6 @@ function refineModalCloseButton(modal: HTMLElement): void {
   };
 }
 
-function clearResetCountdowns(cards: HTMLElement[]): void {
-  for (const card of cards) {
-    for (const reset of Array.from(card.querySelectorAll<HTMLElement>(".metric-reset"))) {
-      reset.removeAttribute("data-reset-countdown");
-    }
-  }
-}
-
-async function syncResetCountdowns(): Promise<void> {
-  if (resetCountdownSyncInFlight) return;
-
-  const cards = Array.from(document.querySelectorAll<HTMLElement>(".provider-account-card"));
-  if (!cards.length) return;
-
-  const provider = cardProvider(cards[0]);
-  if (!provider) {
-    clearResetCountdowns(cards);
-    return;
-  }
-
-  resetCountdownSyncInFlight = true;
-  try {
-    const snapshot = await bridgeApi.snapshot();
-    const accounts = snapshot.accounts.filter((account) => account.provider === provider);
-
-    cards.forEach((card, cardIndex) => {
-      const account = accounts[cardIndex];
-      const windows = orderedWindows(account?.lastUsage?.windows ?? []);
-      const metrics = Array.from(card.querySelectorAll<HTMLElement>(".account-usage-metric"));
-
-      metrics.forEach((metric, metricIndex) => {
-        const reset = metric.querySelector<HTMLElement>(".metric-reset");
-        if (!reset) return;
-        const label = resetCountdownLabel(windows[metricIndex]?.resetsAt);
-        if (label) reset.dataset.resetCountdown = label;
-        else reset.removeAttribute("data-reset-countdown");
-      });
-    });
-  } catch {
-    // Keep the last known countdown while a local snapshot is temporarily unavailable.
-  } finally {
-    resetCountdownSyncInFlight = false;
-  }
-}
-
-function scheduleResetCountdownSync(delay = 120): void {
-  if (resetCountdownSyncTimer != null) window.clearTimeout(resetCountdownSyncTimer);
-  resetCountdownSyncTimer = window.setTimeout(() => {
-    resetCountdownSyncTimer = null;
-    void syncResetCountdowns();
-  }, delay);
-}
-
 function applyRefinements(): void {
   const cards = Array.from(document.querySelectorAll<HTMLElement>(".provider-account-card"));
   for (const card of cards) refineAccountCard(card);
@@ -216,11 +117,9 @@ function closeOpenDialog(): boolean {
 
 export function installUiRefinements(): void {
   applyRefinements();
-  scheduleResetCountdownSync(0);
 
   const observer = new MutationObserver(() => {
     applyRefinements();
-    scheduleResetCountdownSync();
   });
   observer.observe(document.body, { childList: true, subtree: true, characterData: true });
 
@@ -232,10 +131,4 @@ export function installUiRefinements(): void {
       event.stopPropagation();
     }
   });
-
-  window.addEventListener("focus", () => scheduleResetCountdownSync(0));
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") scheduleResetCountdownSync(0);
-  });
-  window.setInterval(() => void syncResetCountdowns(), RESET_COUNTDOWN_SYNC_MS);
 }
