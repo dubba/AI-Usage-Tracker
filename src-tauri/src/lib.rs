@@ -33,10 +33,9 @@ use tauri::{
     WindowEvent,
 };
 use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_notification::NotificationExt;
 #[cfg(desktop)]
 use tauri_plugin_autostart::MacosLauncher;
-#[cfg(desktop)]
-use tauri_plugin_notification::NotificationExt;
 #[cfg(desktop)]
 use tauri_plugin_updater::UpdaterExt;
 #[cfg(desktop)]
@@ -438,6 +437,33 @@ fn regenerate_bridge_token(state: State<'_, Arc<AppState>>) -> Result<BridgeInfo
     Ok(bridge_info(state.inner().as_ref()))
 }
 
+#[allow(dead_code)]
+fn is_newer_version(candidate: &str, current: &str) -> bool {
+    let parse = |v: &str| -> Vec<u64> {
+        v.trim_start_matches('v')
+            .split('.')
+            .filter_map(|s| {
+                let num_str: String = s.chars().take_while(|c| c.is_ascii_digit()).collect();
+                num_str.parse::<u64>().ok()
+            })
+            .collect()
+    };
+    let cand_parts = parse(candidate);
+    let curr_parts = parse(current);
+    let max_len = cand_parts.len().max(curr_parts.len());
+    for i in 0..max_len {
+        let cand = cand_parts.get(i).copied().unwrap_or(0);
+        let curr = curr_parts.get(i).copied().unwrap_or(0);
+        if cand > curr {
+            return true;
+        }
+        if cand < curr {
+            return false;
+        }
+    }
+    false
+}
+
 #[tauri::command]
 async fn check_for_app_update(
     app: AppHandle,
@@ -447,6 +473,52 @@ async fn check_for_app_update(
 
     #[cfg(not(desktop))]
     {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()
+            .unwrap_or_default();
+
+        let latest_info = client
+            .get("https://api.github.com/repos/dubba/AI-Usage-Tracker/releases/latest")
+            .header("User-Agent", "AI-Usage-Tracker-Mobile")
+            .send()
+            .await;
+
+        if let Ok(response) = latest_info {
+            if response.status().is_success() {
+                if let Ok(json) = response.json::<serde_json::Value>().await {
+                    let tag = json.get("tag_name").and_then(|v| v.as_str()).unwrap_or("");
+                    let version = tag.trim_start_matches('v');
+                    if !version.is_empty() && is_newer_version(version, &current_version) {
+                        let body = json.get("body").and_then(|v| v.as_str()).map(|s| s.to_string());
+                        let published_at = json.get("published_at").and_then(|v| v.as_str()).map(|s| s.to_string());
+
+                        if state.settings.automatic_updates_enabled()
+                            && state.settings.update_notification_needed(version)
+                        {
+                            let shown = app
+                                .notification()
+                                .builder()
+                                .title("AI Usage Tracker update available")
+                                .body(format!("Version {version} is ready to download."))
+                                .show();
+                            if shown.is_ok() {
+                                let _ = state.settings.mark_update_notified(version);
+                            }
+                        }
+
+                        return Ok(AppUpdateStatus {
+                            current_version,
+                            available: true,
+                            available_version: Some(version.to_string()),
+                            date: published_at,
+                            body,
+                        });
+                    }
+                }
+            }
+        }
+
         let _ = state;
         return Ok(AppUpdateStatus {
             current_version,
@@ -459,12 +531,26 @@ async fn check_for_app_update(
 
     #[cfg(desktop)]
     {
-        let update = app
-            .updater()
-            .map_err(|error| format!("Unable to initialize the updater: {error}"))?
-            .check()
-            .await
-            .map_err(|error| format!("Unable to check for updates: {error}"))?;
+        let update_result = match app.updater() {
+            Ok(updater) => updater.check().await,
+            Err(_) => Ok(None),
+        };
+
+        let update = match update_result {
+            Ok(update) => update,
+            Err(error) => {
+                let err_str = error.to_string();
+                if err_str.contains("Could not fetch a valid release JSON")
+                    || err_str.contains("404")
+                    || err_str.contains("not found")
+                    || err_str.contains("invalid status code")
+                {
+                    None
+                } else {
+                    return Err(format!("Unable to check for updates: {error}"));
+                }
+            }
+        };
 
         Ok(match update {
             Some(update) => {
@@ -508,8 +594,11 @@ async fn check_for_app_update(
 async fn install_app_update(app: AppHandle) -> Result<(), String> {
     #[cfg(not(desktop))]
     {
-        let _ = app;
-        return Err("App updates are only supported on desktop platforms.".to_string());
+        use tauri_plugin_opener::OpenerExt;
+        app.opener()
+            .open_url("https://github.com/dubba/AI-Usage-Tracker/releases/latest", None::<&str>)
+            .map_err(|error| format!("Unable to open download page: {error}"))?;
+        return Ok(());
     }
 
     #[cfg(desktop)]
@@ -732,4 +821,23 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running AI Usage Tracker");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_newer_version;
+
+    #[test]
+    fn version_comparison_detects_newer_versions() {
+        assert!(is_newer_version("0.3.3", "0.3.2"));
+        assert!(is_newer_version("v0.3.3", "0.3.2"));
+        assert!(is_newer_version("1.0.0", "0.9.9"));
+        assert!(is_newer_version("0.4.0", "0.3.9"));
+        assert!(is_newer_version("0.3.3.1", "0.3.3"));
+
+        assert!(!is_newer_version("0.3.2", "0.3.3"));
+        assert!(!is_newer_version("0.3.3", "0.3.3"));
+        assert!(!is_newer_version("v0.3.3", "v0.3.3"));
+        assert!(!is_newer_version("0.2.9", "0.3.0"));
+    }
 }

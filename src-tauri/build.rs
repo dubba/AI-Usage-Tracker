@@ -77,6 +77,46 @@ fn write_macos_icon(icon_dir: &PathBuf, image: &image::DynamicImage) {
         .expect("macOS application icon must be writable during the build");
 }
 
+const ANDROID_MIPMAP_SIZES: [(&str, u32, u32); 5] = [
+    ("mipmap-mdpi", 48, 108),
+    ("mipmap-hdpi", 72, 162),
+    ("mipmap-xhdpi", 96, 216),
+    ("mipmap-xxhdpi", 144, 324),
+    ("mipmap-xxxhdpi", 192, 432),
+];
+
+fn write_android_icons(manifest_dir: &PathBuf, image: &image::DynamicImage) {
+    let res_dir = manifest_dir.join("gen/android/app/src/main/res");
+    if !res_dir.exists() {
+        return;
+    }
+
+    for (dir_name, launcher_size, foreground_size) in ANDROID_MIPMAP_SIZES {
+        let dir = res_dir.join(dir_name);
+        let _ = fs::create_dir_all(&dir);
+
+        let launcher_png = encode_png(image, launcher_size);
+        let _ = fs::write(dir.join("ic_launcher.png"), &launcher_png);
+        let _ = fs::write(dir.join("ic_launcher_round.png"), &launcher_png);
+
+        let foreground_png = encode_png(image, foreground_size);
+        let _ = fs::write(dir.join("ic_launcher_foreground.png"), &foreground_png);
+    }
+
+    let anydpi_dir = res_dir.join("mipmap-anydpi-v26");
+    let _ = fs::create_dir_all(&anydpi_dir);
+
+    let adaptive_xml = r#"<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+</adaptive-icon>
+"#;
+
+    let _ = fs::write(anydpi_dir.join("ic_launcher.xml"), adaptive_xml);
+    let _ = fs::write(anydpi_dir.join("ic_launcher_round.xml"), adaptive_xml);
+}
+
 fn main() {
     println!("cargo:rerun-if-changed=icons/app-icon.b64");
     println!("cargo:rerun-if-changed=tauri.conf.json");
@@ -104,6 +144,7 @@ fn main() {
 
     write_windows_icon(&icon_dir, &image);
     write_macos_icon(&icon_dir, &image);
+    write_android_icons(&manifest_dir, &image);
 
     tauri_build::build();
     patch_android_webview_templates(&manifest_dir);

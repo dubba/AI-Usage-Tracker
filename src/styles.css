@@ -161,6 +161,7 @@ svg { width: 18px; height: 18px; }
 .detail-list dd { margin: 0; font-size: 11px; }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inspector-error, .error-panel { background: rgba(255,111,111,.08); border: 1px solid rgba(255,111,111,.22); color: #ffaaaa; border-radius: 10px; padding: 11px; font-size: 10px; line-height: 1.45; }
+.info-panel { background: rgba(160, 120, 255, 0.08); border: 1px solid rgba(160, 120, 255, 0.25); color: #d0bcff; border-radius: 8px; padding: 11px 14px; font-size: 13px; line-height: 1.45; margin-top: 14px; }
 .inspector-actions { margin-top: 18px; display: grid; gap: 8px; }
 .split-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .empty-inspector { height: 100%; display: grid; place-content: center; justify-items: center; text-align: center; color: var(--muted); }
@@ -175,7 +176,7 @@ svg { width: 18px; height: 18px; }
 .connection-badge span { width: 7px; height: 7px; border-radius: 99px; background: var(--red); }
 .connection-badge.online { color: #8ce8ae; border-color: rgba(68,209,122,.3); }
 .connection-badge.online span { background: var(--green); }
-.settings-card { margin-top: 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 15px; overflow: hidden; }
+.settings-card { margin-top: 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 15px; overflow: visible; }
 .settings-row { min-height: 76px; padding: 15px 17px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; gap: 25px; align-items: center; }
 .settings-row:first-child { border-top: 0; }
 .settings-row > div:first-child { display: grid; }

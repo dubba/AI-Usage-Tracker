@@ -14,6 +14,9 @@ _No unreleased user-facing changes yet._
 - Reorganized the mobile layout of the Usage Notifications dialog so window toggles and threshold labels stack vertically above their dropdowns with full width, preventing squishing on small screens.
 - Enhanced modal containers and dropdown menus to float completely above dialog boundaries with elevated z-indexing and dynamic upward opening when near the bottom of the screen to prevent cutoff.
 - Formatted Android release package names as `AI Usage Tracker_<version>.apk` to include the version number and match macOS and Windows release asset conventions.
+- Replaced raw manifest error banners with a clean informational message ("You are on the latest version") when checking for updates and no newer release is found.
+- Added mobile update checking for Android: queries GitHub for new releases, displays update notifications, and automatically opens the latest APK release page in the mobile browser when tapped.
+- Updated Settings descriptions for Automatic updates, App updates, and Account updates, and resolved dropdown clipping in Settings by enabling visible card overflow.
 
 ### Fixed
 
@@ -21,6 +24,7 @@ _No unreleased user-facing changes yet._
 - Fixed Antigravity (Google) OAuth sign-in hanging on Android after selecting an email address by routing authentication through the in-app WebView interceptor, preventing OS background process freezing.
 - Quota reset countdown badges now format as `Resets in: Xh` for windows under 24 hours and `Resets in: Xd Yh` (e.g. `1d 12h`, `6d 10h`) for windows over 24 hours, and are calculated directly in React across all models and windows.
 - The mobile sidebar drawer now sits flush against the bottom of the status bar instead of leaving a gap below it.
+- Replaced the Android launcher icon with the full-bleed purple design matching macOS and Windows, resolving the white background border and shrunken icon issue on Android devices.
 - The mobile sidebar’s Check for Updates button now sits above the home indicator, with the same 12px gap below it as above Accounts.
 
 ## 0.3.2 - 2026-09-01

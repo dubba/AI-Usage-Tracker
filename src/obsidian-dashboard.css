@@ -1154,21 +1154,26 @@ select {
 }
 
 .settings-style-content .settings-card,
+.settings-card,
 .settings-style-content .update-notes {
   border: 1px solid var(--obsidian-border);
   border-radius: 8px;
   background: #1c1b1b;
   box-shadow: none;
+  overflow: visible !important;
   transition: border-color 120ms ease;
 }
 
 .settings-style-content .settings-card:hover,
+.settings-card:hover,
 .settings-style-content .update-notes:hover {
   border-color: var(--obsidian-purple-strong);
 }
 
-.settings-style-content .settings-row {
+.settings-style-content .settings-row,
+.settings-row {
   border-color: #2d2c2c;
+  overflow: visible !important;
 }
 
 .account-update-select,
