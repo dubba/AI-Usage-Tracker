@@ -32,7 +32,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "createUpdaterArtifacts": "v1Compatible",
+    "createUpdaterArtifacts": false,
     "icon": [
       "icons/icon.png",
       "icons/icon.ico",
