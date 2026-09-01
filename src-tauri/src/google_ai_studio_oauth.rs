@@ -870,6 +870,17 @@ fn load_google_ai_studio_secret(
     }
 }
 
+fn format_reqwest_error(prefix: &str, error: &reqwest::Error) -> String {
+    use std::error::Error;
+    let mut message = format!("{prefix}: {error}");
+    let mut current: Option<&(dyn Error + 'static)> = error.source();
+    while let Some(source) = current {
+        message.push_str(&format!(" -> {source}"));
+        current = source.source();
+    }
+    message
+}
+
 async fn exchange_tokens(context: &LoginContext, code: &str) -> Result<TokenResponse, String> {
     let client_secret = String::from_utf8_lossy(GOOGLE_CLIENT_SECRET_BYTES).to_string();
     let response = context
@@ -886,7 +897,7 @@ async fn exchange_tokens(context: &LoginContext, code: &str) -> Result<TokenResp
         ])
         .send()
         .await
-        .map_err(|error| format!("Google token exchange failed: {error}"))?;
+        .map_err(|error| format_reqwest_error("Google token exchange failed", &error))?;
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     if !status.is_success() {
@@ -911,7 +922,7 @@ async fn ensure_fresh_oauth(app: &AppState, oauth: OAuthSecret) -> Result<OAuthS
         ])
         .send()
         .await
-        .map_err(|error| format!("Google token refresh failed: {error}"))?;
+        .map_err(|error| format_reqwest_error("Google token refresh failed", &error))?;
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     if !status.is_success() {

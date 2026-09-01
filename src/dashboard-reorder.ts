@@ -478,6 +478,7 @@ function finishDrag(commit: boolean): void {
 
 function beginPointerCandidate(event: PointerEvent): void {
   if (event.button !== 0 || event.isPrimary === false || dragState) return;
+  if (event.pointerType === "touch") return;
   const target = event.target instanceof HTMLElement ? event.target : null;
   if (!target) return;
   const drag = dragFromPointerTarget(target);

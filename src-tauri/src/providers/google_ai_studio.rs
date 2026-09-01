@@ -567,6 +567,17 @@ async fn query_time_series(
     Ok(result)
 }
 
+fn format_reqwest_error(prefix: &str, error: &reqwest::Error) -> String {
+    use std::error::Error;
+    let mut message = format!("{prefix}: {error}");
+    let mut current: Option<&(dyn Error + 'static)> = error.source();
+    while let Some(source) = current {
+        message.push_str(&format!(" -> {source}"));
+        current = source.source();
+    }
+    message
+}
+
 async fn google_json<T: DeserializeOwned>(
     request: RequestBuilder,
     context: &str,
@@ -574,7 +585,7 @@ async fn google_json<T: DeserializeOwned>(
     let response = request
         .send()
         .await
-        .map_err(|error| ProviderError::Transient(format!("{context} request failed: {error}")))?;
+        .map_err(|error| ProviderError::Transient(format_reqwest_error(&format!("{context} request failed"), &error)))?;
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     if status == StatusCode::UNAUTHORIZED {

@@ -1,6 +1,6 @@
 [package]
 name = "ai-usage-tracker"
-version = "0.3.0"
+version = "0.3.1"
 description = "Standalone multi-provider AI usage monitor and optional Paseo integration"
 authors = ["AI Usage Tracker contributors"]
 edition = "2021"
@@ -23,6 +23,7 @@ keyring = { version = "3", features = ["apple-native", "windows-native"] }
 parking_lot = "0.12"
 rand = "0.8"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"

@@ -25,6 +25,17 @@ pub struct ApiRuntime {
     pub error: Option<String>,
 }
 
+#[derive(Clone, Debug)]
+pub struct PendingAuthExchange {
+    pub attempt_id: String,
+    pub provider: crate::model::Provider,
+    pub label: String,
+    pub code: String,
+    pub verifier: String,
+    pub expected_state: String,
+    pub redirect_uri: String,
+}
+
 pub struct AppState {
     pub store: AccountStore,
     pub account_order: AccountOrderStore,
@@ -33,6 +44,7 @@ pub struct AppState {
     pub settings: SettingsStore,
     pub client: Client,
     pub pending_login: RwLock<Option<LoginStatus>>,
+    pub pending_auth_exchange: Mutex<Option<PendingAuthExchange>>,
     login_shutdowns: Mutex<HashMap<String, oneshot::Sender<()>>>,
     pub bridge_token: RwLock<String>,
     pub bridge_rate_limit: Mutex<Option<Instant>>,
@@ -63,7 +75,7 @@ impl AppState {
         let client = Client::builder()
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(15))
-            .user_agent("AI-Usage-Tracker/0.1")
+            .user_agent("AI-Usage-Tracker/0.3.1")
             .build()
             .map_err(|error| error.to_string())?;
         Ok(Self {
@@ -74,6 +86,7 @@ impl AppState {
             settings,
             client,
             pending_login: RwLock::new(None),
+            pending_auth_exchange: Mutex::new(None),
             login_shutdowns: Mutex::new(HashMap::new()),
             bridge_token: RwLock::new(bridge_token),
             bridge_rate_limit: Mutex::new(None),

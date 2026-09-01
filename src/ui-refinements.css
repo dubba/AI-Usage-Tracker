@@ -13,28 +13,36 @@
 
 .account-card-header-actions {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: center;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
   gap: 6px;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  margin-left: auto;
 }
 
 .account-card-header-meta {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
+  justify-content: center;
+  gap: 3px;
+  flex-shrink: 0;
 }
 
 .account-card-name-actions {
-  gap: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .account-card-action {
   box-sizing: border-box;
-  width: 32px !important;
-  height: 32px !important;
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px !important;
   padding: 0 !important;
   border-width: 1px !important;
   border-style: solid !important;
@@ -175,9 +183,31 @@
   width: fit-content;
   margin: 0;
   padding: 2px 7px;
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.92);
-  background: transparent;
+  color: var(--obsidian-muted-bright, #cbc3d7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  background: var(--obsidian-surface-low, #1c1b1b);
+  font-size: 11px;
+  font-weight: 550;
+  letter-spacing: 0.03em;
+}
+
+.account-usage-metric .metric-window-pill.window-pill-5h {
+  color: var(--obsidian-amber, #ffb869);
+  border-color: rgba(255, 184, 105, 0.32);
+  background: rgba(255, 184, 105, 0.09);
+}
+
+.account-usage-metric .metric-window-pill.window-pill-7d {
+  color: var(--obsidian-green, #4edea3);
+  border-color: rgba(78, 222, 163, 0.32);
+  background: rgba(78, 222, 163, 0.09);
+}
+
+.account-usage-metric .metric-window-pill.window-pill-monthly {
+  color: var(--obsidian-purple, #d0bcff);
+  border-color: rgba(208, 188, 255, 0.32);
+  background: rgba(160, 120, 255, 0.09);
 }
 
 .account-usage-metric .metric-value-row {
@@ -366,4 +396,22 @@
   padding-right: 0;
   border-left: 0;
 }
+
+@media (max-width: 860px) {
+  .account-card-header-actions {
+    gap: 6px !important;
+  }
+
+  .account-card-header-meta {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .account-card-name-actions {
+    gap: 6px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}
+
 

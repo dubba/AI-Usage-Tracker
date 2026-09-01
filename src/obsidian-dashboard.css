@@ -488,6 +488,8 @@ select {
   box-sizing: border-box;
   height: 100%;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
   padding: 18px 24px 36px;
   scrollbar-width: thin;
   scrollbar-color: #494454 transparent;
@@ -716,6 +718,8 @@ select {
   border: 1px solid var(--obsidian-border);
   border-radius: 8px;
   background: #1c1b1b;
+  transform: translateZ(0);
+  backface-visibility: hidden;
   transition: border-color 120ms ease, background 120ms ease;
 }
 
@@ -729,30 +733,31 @@ select {
 }
 
 .provider-account-card-header {
-  display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
-  gap: 16px;
-  min-height: 82px;
-  padding: 14px 16px;
+  gap: 12px;
+  min-height: 56px;
+  padding: 12px 14px;
   border-bottom: 1px solid #292828;
 }
 
 .account-card-provider-icon {
   display: grid;
   place-items: center;
-  width: 50px;
-  height: 50px;
-  border-radius: 5px;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  border-radius: 6px;
   color: #d7d1da;
   background: #353434;
   border: 1px solid #3d3b3d;
+  flex-shrink: 0;
 }
 
 .account-card-provider-icon svg,
 .account-card-provider-icon img {
-  width: 31px;
-  height: 31px;
+  width: 26px;
+  height: 26px;
   object-fit: contain;
 }
 
@@ -878,10 +883,11 @@ select {
 
 .account-card-header-meta {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
+  justify-content: center;
+  gap: 3px;
+  flex-shrink: 0;
 }
 
 .account-card-action {
@@ -1001,15 +1007,39 @@ select {
 }
 
 .metric-window-pill,
-.metric-inline-credit {
+.metric-inline-credit,
+.window-pill {
   flex: 0 0 auto;
   padding: 2px 7px;
   border: 1px solid #37343b;
-  border-radius: 3px;
-  color: #b3acb8;
-  background: #181717;
+  border-radius: 4px;
+  color: var(--obsidian-muted-bright, #cbc3d7);
+  background: var(--obsidian-surface-low, #181717);
   font-size: 11px;
+  font-weight: 550;
+  letter-spacing: 0.03em;
   white-space: nowrap;
+}
+
+.metric-window-pill.window-pill-5h,
+.window-pill.window-pill-5h {
+  color: var(--obsidian-amber, #ffb869);
+  border-color: rgba(255, 184, 105, 0.32);
+  background: rgba(255, 184, 105, 0.09);
+}
+
+.metric-window-pill.window-pill-7d,
+.window-pill.window-pill-7d {
+  color: var(--obsidian-green, #4edea3);
+  border-color: rgba(78, 222, 163, 0.32);
+  background: rgba(78, 222, 163, 0.09);
+}
+
+.metric-window-pill.window-pill-monthly,
+.window-pill.window-pill-monthly {
+  color: var(--obsidian-purple, #d0bcff);
+  border-color: rgba(208, 188, 255, 0.32);
+  background: rgba(160, 120, 255, 0.09);
 }
 
 .metric-value-row {
@@ -1437,17 +1467,6 @@ select {
   .mockup-summary-card {
     min-height: 70px;
   }
-
-  .provider-account-card-header {
-    grid-template-columns: 46px minmax(0, 1fr);
-  }
-
-  .account-card-header-actions {
-    grid-column: 1 / -1;
-    justify-content: flex-end;
-    padding-top: 8px;
-    border-top: 1px solid #292828;
-  }
 }
 
 @media (max-width: 860px) {
@@ -1488,9 +1507,9 @@ select {
     max-width: 320px;
     height: 100vh;
     height: 100dvh;
-    padding-top: max(18px, calc(env(safe-area-inset-top, 0px) + 12px));
-    padding-bottom: max(18px, calc(env(safe-area-inset-bottom, 0px) + 16px));
-    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-top: max(28px, calc(env(safe-area-inset-top, 0px) + 10px));
+    padding-bottom: max(20px, calc(env(safe-area-inset-bottom, 0px) + 16px));
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
     transform: translateX(-100%);
     transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 260ms ease;
     box-shadow: none;
@@ -1518,10 +1537,14 @@ select {
 
   .dashboard-content,
   .narrow-content {
-    padding-top: max(14px, calc(env(safe-area-inset-top, 0px) + 10px)) !important;
-    padding-bottom: max(32px, calc(env(safe-area-inset-bottom, 0px) + 24px)) !important;
-    padding-left: max(14px, calc(env(safe-area-inset-left, 0px) + 14px)) !important;
-    padding-right: max(14px, calc(env(safe-area-inset-right, 0px) + 14px)) !important;
+    padding-top: max(28px, calc(env(safe-area-inset-top, 0px) + 8px)) !important;
+    padding-bottom: max(28px, calc(env(safe-area-inset-bottom, 0px) + 20px)) !important;
+    padding-left: max(16px, calc(env(safe-area-inset-left, 0px) + 14px)) !important;
+    padding-right: max(16px, calc(env(safe-area-inset-right, 0px) + 14px)) !important;
+  }
+
+  .modal-backdrop {
+    padding: max(28px, calc(env(safe-area-inset-top, 0px) + 12px)) 16px max(24px, calc(env(safe-area-inset-bottom, 0px) + 16px)) 16px !important;
   }
 
   .dashboard-header,
@@ -1564,6 +1587,85 @@ select {
   .provider-account-cards {
     grid-template-columns: 1fr !important;
     gap: 14px;
+    padding: 0 0 28px 0 !important;
+    scrollbar-gutter: auto !important;
+  }
+
+  .provider-account-card-header {
+    padding: 10px 10px;
+    gap: 6px;
+  }
+
+  .account-card-provider-icon {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    border-radius: 5px;
+  }
+
+  .account-card-provider-icon svg,
+  .account-card-provider-icon img {
+    width: 20px;
+    height: 20px;
+  }
+
+  .account-card-identity {
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .account-card-name-row h2 {
+    font-size: 15px;
+    line-height: 19px;
+  }
+
+  .account-card-identity p {
+    font-size: 11px;
+    line-height: 15px;
+  }
+
+  .account-card-header-actions {
+    gap: 6px !important;
+    flex-shrink: 0;
+  }
+
+  .account-card-name-actions {
+    gap: 6px !important;
+    flex-shrink: 0;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .account-card-action {
+    width: 26px !important;
+    height: 26px !important;
+    min-width: 26px !important;
+    border-radius: 5px !important;
+  }
+
+  .account-card-action svg,
+  .account-card-action.remove-action::before,
+  .account-card-action .mini-spinner {
+    width: 13px !important;
+    height: 13px !important;
+  }
+
+  .account-card-header-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  .account-status-badge,
+  .account-plan-badge {
+    min-height: 15px;
+    padding: 1px 5px;
+    font-size: 9px;
+    line-height: 11px;
   }
 
   .account-card-metrics {

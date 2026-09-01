@@ -24,7 +24,7 @@ use url::Url;
 use uuid::Uuid;
 
 const LOGIN_WINDOW_LABEL: &str = "grok-login";
-const LOGIN_URL: &str = "https://grok.com/?_s=usage";
+const LOGIN_URL: &str = "https://accounts.x.ai/";
 const LOGIN_TIMEOUT_MINUTES: i64 = 10;
 const COOKIE_POLL_INTERVAL_MS: u64 = 750;
 const COOKIE_POLL_ATTEMPTS: usize = 800;
@@ -32,7 +32,7 @@ const GROK_BROWSER_ACCOUNT_ID: &str = "grok-browser-session";
 
 const CONNECT_BANNER_SCRIPT: &str = r#"
 (() => {
-  if (window.top !== window || window.location.hostname !== 'grok.com') return;
+  if (window.top !== window || (!window.location.hostname.endsWith('grok.com') && !window.location.hostname.endsWith('x.ai'))) return;
 
   const installBanner = () => {
     if (!document.body || document.getElementById('ai-tracker-grok-connect-banner')) return;
@@ -47,7 +47,7 @@ const CONNECT_BANNER_SCRIPT: &str = r#"
       right: '0',
       zIndex: '2147483647',
       boxSizing: 'border-box',
-      padding: '14px 22px',
+      padding: 'max(28px, calc(env(safe-area-inset-top, 0px) + 10px)) 18px 12px 18px',
       background: '#211936',
       color: '#f7f4ff',
       borderBottom: '1px solid #7c52d9',
@@ -71,6 +71,96 @@ const CONNECT_BANNER_SCRIPT: &str = r#"
   }
 })();
 "#;
+
+/// Add a Grok account from a manually supplied cookie header (no WebView).
+pub async fn add_account(
+    state: Arc<AppState>,
+    label: String,
+    cookie_header: String,
+) -> Result<Account, String> {
+    let probe = providers::grok::probe_cookie(state.as_ref(), &cookie_header)
+        .await
+        .map_err(|error| match error {
+            ProviderError::Auth => {
+                "The cookie does not contain a valid Grok session. Sign in to grok.com in your browser and try again.".to_string()
+            }
+            ProviderError::Transient(message) => format!(
+                "Grok's Usage service did not return readable billing data: {message}"
+            ),
+        })?;
+
+    let duplicate = state
+        .store
+        .find_duplicate(&Provider::Grok, Some(GROK_BROWSER_ACCOUNT_ID), None)
+        .or_else(|| {
+            let requested_label = label.trim();
+            state.store.list().into_iter().find(|account| {
+                account.provider == Provider::Grok
+                    && !requested_label.is_empty()
+                    && account.label.eq_ignore_ascii_case(requested_label)
+            })
+        });
+    let now = now_rfc3339();
+    let account_id = duplicate
+        .as_ref()
+        .map(|account| account.id.clone())
+        .unwrap_or_else(|| Uuid::new_v4().to_string());
+    let account = Account {
+        id: account_id.clone(),
+        label: if label.trim().is_empty() {
+            duplicate
+                .as_ref()
+                .and_then(|account| account.email.clone())
+                .unwrap_or_else(|| "Grok".into())
+        } else {
+            label.trim().to_string()
+        },
+        provider: Provider::Grok,
+        email: probe
+            .email
+            .clone()
+            .or_else(|| duplicate.as_ref().and_then(|account| account.email.clone())),
+        provider_account_id: Some(GROK_BROWSER_ACCOUNT_ID.into()),
+        chatgpt_account_id: None,
+        plan: probe
+            .plan
+            .clone()
+            .or_else(|| Some("Grok".into())),
+        created_at: duplicate
+            .as_ref()
+            .map(|account| account.created_at.clone())
+            .unwrap_or_else(|| now.clone()),
+        updated_at: now,
+        last_usage: duplicate
+            .as_ref()
+            .and_then(|account| account.last_usage.clone()),
+        last_error: None,
+        auth_required: false,
+    };
+
+    let normalized_cookie =
+        normalize_cookie_header(&cookie_header).map_err(|error| error.to_string())?;
+    state
+        .persist_connected_account(
+            account,
+            &ProviderSecret::Grok(GrokSecret {
+                cookie_header: Some(normalized_cookie),
+                auth_file: None,
+            }),
+        )
+        .await
+        .map_err(|error| format!("Unable to save the Grok connection: {error}"))?;
+
+    let account = match usage::refresh_account(state.clone(), &account_id).await {
+        Ok(account) => account,
+        Err(_) => state
+            .store
+            .get(&account_id)
+            .ok_or_else(|| "The Grok account disappeared after saving.".to_string())?,
+    };
+
+    Ok(account)
+}
 
 pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginStart, String> {
     let attempt_id = Uuid::new_v4().to_string();
@@ -108,7 +198,7 @@ pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginSta
         }
     };
     if let Some(window) = app.get_webview_window(LOGIN_WINDOW_LABEL) {
-        let _ = window.destroy();
+        close_login_window(&window);
     }
 
     let expires_at = (Utc::now() + ChronoDuration::minutes(LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
@@ -129,7 +219,7 @@ pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginSta
         LOGIN_WINDOW_LABEL,
         WebviewUrl::External(login_url),
     )
-    .title("Connect Grok / SuperGrok")
+    .title("Connect Grok")
     .inner_size(width, height)
     .min_inner_size(820.0, 620.0)
     .resizable(true)
@@ -191,7 +281,7 @@ pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginSta
                 "Grok login timed out. Start the connection again.".into(),
             );
             if let Some(window) = timeout_app.get_webview_window(LOGIN_WINDOW_LABEL) {
-                let _ = window.destroy();
+                close_login_window(&window);
             }
         }
     });
@@ -264,6 +354,20 @@ async fn complete_cookie_login(
         Ok(usage) => usage,
         Err(ProviderError::Auth) => {
             capture_in_flight.store(false, Ordering::SeqCst);
+            // If the user signed in on accounts.x.ai, navigate to grok.com to establish the session
+            if let Ok(current_url) = window.url() {
+                let current_str = current_url.as_str();
+                if current_str.contains("accounts.x.ai") || current_str.contains("x.ai") {
+                    if cookie_header.contains("sso")
+                        || cookie_header.contains("auth_token")
+                        || cookie_header.contains("jwt")
+                    {
+                        if let Ok(grok_target) = Url::parse("https://grok.com/?_s=usage") {
+                            let _ = window.navigate(grok_target);
+                        }
+                    }
+                }
+            }
             update_waiting_message(
                 &state,
                 &attempt_id,
@@ -285,7 +389,7 @@ async fn complete_cookie_login(
     };
 
     if !is_waiting(&state, &attempt_id) {
-        let _ = window.destroy();
+        close_login_window(&window);
         return;
     }
 
@@ -311,20 +415,21 @@ async fn complete_cookie_login(
             duplicate
                 .as_ref()
                 .and_then(|account| account.email.clone())
-                .unwrap_or_else(|| "Grok / SuperGrok".into())
+                .unwrap_or_else(|| "Grok".into())
         } else {
             label.trim().to_string()
         },
         provider: Provider::Grok,
-        email: duplicate
-            .as_ref()
-            .and_then(|account| account.email.clone()),
+        email: usage
+            .email
+            .clone()
+            .or_else(|| duplicate.as_ref().and_then(|account| account.email.clone())),
         provider_account_id: Some(GROK_BROWSER_ACCOUNT_ID.into()),
         chatgpt_account_id: None,
         plan: usage
             .plan
             .clone()
-            .or_else(|| Some("Grok / SuperGrok".into())),
+            .or_else(|| Some("Grok".into())),
         created_at: duplicate
             .as_ref()
             .map(|account| account.created_at.clone())
@@ -341,7 +446,7 @@ async fn complete_cookie_login(
         Ok(value) => value,
         Err(error) => {
             fail_if_waiting(&state, &attempt_id, error);
-            let _ = window.destroy();
+            close_login_window(&window);
             return;
         }
     };
@@ -360,7 +465,7 @@ async fn complete_cookie_login(
             &attempt_id,
             format!("Unable to save the Grok connection: {error}"),
         );
-        let _ = window.destroy();
+        close_login_window(&window);
         return;
     }
 
@@ -374,7 +479,7 @@ async fn complete_cookie_login(
                     &attempt_id,
                     "The Grok account disappeared after login.".into(),
                 );
-                let _ = window.destroy();
+                close_login_window(&window);
                 return;
             }
         },
@@ -400,21 +505,48 @@ async fn complete_cookie_login(
         }
     };
     if completed {
-        let _ = window.destroy();
+        close_login_window(&window);
     }
 }
 
+fn close_login_window(window: &WebviewWindow) {
+    let _ = window.close();
+    let _ = window.destroy();
+}
+
 fn read_cookie_header(window: &WebviewWindow) -> Result<String, String> {
-    let url = Url::parse("https://grok.com/")
-        .map_err(|error| format!("Unable to prepare the Grok cookie request: {error}"))?;
-    let cookies = window
-        .cookies_for_url(url)
-        .map_err(|error| format!("Unable to read the private Grok browser session: {error}"))?;
     let mut pairs = BTreeMap::new();
-    for cookie in cookies {
-        let value = cookie.value().trim();
-        if !value.is_empty() {
-            pairs.insert(cookie.name().to_string(), value.to_string());
+    let targets = [
+        "https://grok.com/",
+        "https://grok.com/?_s=usage",
+        "https://accounts.x.ai/",
+        "https://x.ai/",
+        "https://auth.x.ai/",
+        "https://api.x.ai/",
+        "https://x.com/",
+    ];
+    if let Ok(current_url) = window.url() {
+        if let Ok(target) = Url::parse(current_url.as_str()) {
+            if let Ok(cookies) = window.cookies_for_url(target) {
+                for cookie in cookies {
+                    let value = cookie.value().trim();
+                    if !value.is_empty() {
+                        pairs.insert(cookie.name().to_string(), value.to_string());
+                    }
+                }
+            }
+        }
+    }
+    for target in targets {
+        if let Ok(url) = Url::parse(target) {
+            if let Ok(cookies) = window.cookies_for_url(url) {
+                for cookie in cookies {
+                    let value = cookie.value().trim();
+                    if !value.is_empty() {
+                        pairs.insert(cookie.name().to_string(), value.to_string());
+                    }
+                }
+            }
         }
     }
     let header = pairs

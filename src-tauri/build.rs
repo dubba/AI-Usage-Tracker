@@ -79,6 +79,8 @@ fn write_macos_icon(icon_dir: &PathBuf, image: &image::DynamicImage) {
 
 fn main() {
     println!("cargo:rerun-if-changed=icons/app-icon.b64");
+    println!("cargo:rerun-if-changed=tauri.conf.json");
+    println!("cargo:rerun-if-changed=../dist");
 
     let icon_bytes = STANDARD
         .decode(include_str!("icons/app-icon.b64").trim())
@@ -102,6 +104,22 @@ fn main() {
 
     write_windows_icon(&icon_dir, &image);
     write_macos_icon(&icon_dir, &image);
+    patch_android_webview_templates(&manifest_dir);
 
     tauri_build::build()
+}
+
+fn patch_android_webview_templates(manifest_dir: &PathBuf) {
+    let generated_webview = manifest_dir.join("gen/android/app/src/main/java/com/yajinni/paseousagebridge/generated/RustWebView.kt");
+    if generated_webview.exists() {
+        if let Ok(content) = fs::read_to_string(&generated_webview) {
+            let patched = content.replace(
+                "return cookieManager.getCookie(url)\n",
+                "return cookieManager.getCookie(url) ?: \"\"\n",
+            );
+            if patched != content {
+                let _ = fs::write(&generated_webview, patched);
+            }
+        }
+    }
 }

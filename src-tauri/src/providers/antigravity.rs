@@ -294,7 +294,31 @@ fn parse_quota_value(value: &Value) -> Vec<UsageWindow> {
     let mut windows = Vec::new();
     let mut ids = HashSet::new();
     walk_quota(value, None, &mut windows, &mut ids);
+    sort_quota_windows(&mut windows);
     windows
+}
+
+fn sort_quota_windows(windows: &mut [UsageWindow]) {
+    let mut group_order = Vec::new();
+    for window in windows.iter() {
+        let group = window.label.split(" · ").next().unwrap_or(&window.label).to_string();
+        if !group_order.contains(&group) {
+            group_order.push(group);
+        }
+    }
+    windows.sort_by(|a, b| {
+        let group_a = a.label.split(" · ").next().unwrap_or(&a.label);
+        let group_b = b.label.split(" · ").next().unwrap_or(&b.label);
+        let idx_a = group_order.iter().position(|g| g == group_a).unwrap_or(usize::MAX);
+        let idx_b = group_order.iter().position(|g| g == group_b).unwrap_or(usize::MAX);
+        let group_cmp = idx_a.cmp(&idx_b);
+        if group_cmp != std::cmp::Ordering::Equal {
+            return group_cmp;
+        }
+        let sec_a = a.window_seconds.unwrap_or(u64::MAX);
+        let sec_b = b.window_seconds.unwrap_or(u64::MAX);
+        sec_a.cmp(&sec_b)
+    });
 }
 
 fn walk_quota(

@@ -89,9 +89,14 @@ pub async fn refresh(
         ));
     }
 
+    let email = account.email.clone().or_else(|| {
+        crate::providers::grok::extract_identity_from_jwt(&auth_cookie)
+            .or_else(|| crate::providers::grok::extract_identity_from_cookies(&auth_cookie))
+    });
+
     Ok(ProviderUsage {
         plan: Some("OpenCode Go".into()),
-        email: account.email.clone(),
+        email,
         provider_account_id: Some(workspace_id.to_string()),
         windows,
         credits_usd: None,

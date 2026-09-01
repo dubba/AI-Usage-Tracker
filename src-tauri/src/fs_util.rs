@@ -4,7 +4,8 @@ use uuid::Uuid;
 #[cfg(unix)]
 pub fn restrict_private_permissions(path: &Path) -> Result<(), String> {
     use std::os::unix::fs::PermissionsExt;
-    fs::set_permissions(path, fs::Permissions::from_mode(0o600)).map_err(|error| {
+    let mode = if path.is_dir() { 0o700 } else { 0o600 };
+    fs::set_permissions(path, fs::Permissions::from_mode(mode)).map_err(|error| {
         format!(
             "Unable to restrict permissions for {}: {error}",
             path.display()

@@ -5,11 +5,11 @@ import { ProviderIcon } from "./ProviderIcon";
 import type { Account, AccountBucket, Provider } from "../types";
 
 const ALL_PROVIDERS: { id: Provider; label: string }[] = [
-  { id: "antigravity", label: "Google Antigravity" },
-  { id: "grok", label: "Grok / SuperGrok" },
-  { id: "openai", label: "OpenAI Codex" },
-  { id: "anthropic", label: "Anthropic Claude" },
-  { id: "google_ai_studio", label: "Google AI Studio" },
+  { id: "antigravity", label: "Antigravity" },
+  { id: "grok", label: "Grok" },
+  { id: "openai", label: "Codex/GPT" },
+  { id: "anthropic", label: "Claude" },
+  { id: "google_ai_studio", label: "AI Studio" },
   { id: "opencode_go", label: "OpenCode Go" },
 ];
 

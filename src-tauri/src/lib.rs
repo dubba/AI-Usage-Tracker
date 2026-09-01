@@ -35,6 +35,7 @@ use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
 #[cfg(desktop)]
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_notification::NotificationExt;
+#[cfg(desktop)]
 use tauri_plugin_updater::UpdaterExt;
 #[cfg(desktop)]
 use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
@@ -77,7 +78,7 @@ async fn start_login(
     let label = if provider == Provider::OpencodeGo && label.trim().is_empty() {
         "OpenCode Go".to_string()
     } else if provider == Provider::Grok && label.trim().is_empty() {
-        "Grok / SuperGrok".to_string()
+        "Grok".to_string()
     } else {
         validate_label(&label)?
     };
@@ -140,6 +141,20 @@ async fn start_google_ai_studio_usage_login(
 }
 
 #[tauri::command]
+async fn add_grok_account(
+    state: State<'_, Arc<AppState>>,
+    label: String,
+    cookie_header: String,
+) -> Result<Account, String> {
+    let label = if label.trim().is_empty() {
+        "Grok".to_string()
+    } else {
+        validate_label(&label)?
+    };
+    grok_login::add_account(state.inner().clone(), label, cookie_header).await
+}
+
+#[tauri::command]
 async fn add_opencode_go_account(
     state: State<'_, Arc<AppState>>,
     label: String,
@@ -163,11 +178,11 @@ async fn add_opencode_go_account(
 }
 
 #[tauri::command]
-fn get_login_status(
+async fn get_login_status(
     state: State<'_, Arc<AppState>>,
     attempt_id: String,
 ) -> Result<LoginStatus, String> {
-    oauth::login_status(state.inner().as_ref(), &attempt_id)
+    oauth::login_status(state.inner(), &attempt_id).await
 }
 
 #[tauri::command]
@@ -205,7 +220,8 @@ fn cancel_login(
 
     for label in ["opencode-go-login", "grok-login"] {
         if let Some(window) = app.get_webview_window(label) {
-  let _ = window.destroy();
+            let _ = window.close();
+            let _ = window.destroy();
         }
     }
     Ok(())
@@ -421,68 +437,93 @@ async fn check_for_app_update(
     state: State<'_, Arc<AppState>>,
 ) -> Result<AppUpdateStatus, String> {
     let current_version = app.package_info().version.to_string();
-    let update = app
-        .updater()
-        .map_err(|error| format!("Unable to initialize the updater: {error}"))?
-        .check()
-        .await
-        .map_err(|error| format!("Unable to check for updates: {error}"))?;
 
-    Ok(match update {
-        Some(update) => {
-            let available_version = update.version.to_string();
-            if state.settings.automatic_updates_enabled()
-                && state
-                    .settings
-                    .update_notification_needed(&available_version)
-            {
-                let shown = app
-                    .notification()
-                    .builder()
-                    .title("AI Usage Tracker update available")
-                    .body(format!("Version {available_version} is ready to install."))
-                    .show();
-                if shown.is_ok() {
-                    let _ = state.settings.mark_update_notified(&available_version);
-                }
-            }
-
-            AppUpdateStatus {
-                current_version,
-                available: true,
-                available_version: Some(available_version),
-                date: update.date.map(|date| date.to_string()),
-                body: update.body,
-            }
-        }
-        None => AppUpdateStatus {
+    #[cfg(not(desktop))]
+    {
+        let _ = state;
+        return Ok(AppUpdateStatus {
             current_version,
             available: false,
             available_version: None,
             date: None,
             body: None,
-        },
-    })
+        });
+    }
+
+    #[cfg(desktop)]
+    {
+        let update = app
+            .updater()
+            .map_err(|error| format!("Unable to initialize the updater: {error}"))?
+            .check()
+            .await
+            .map_err(|error| format!("Unable to check for updates: {error}"))?;
+
+        Ok(match update {
+            Some(update) => {
+                let available_version = update.version.to_string();
+                if state.settings.automatic_updates_enabled()
+                    && state
+                        .settings
+                        .update_notification_needed(&available_version)
+                {
+                    let shown = app
+                        .notification()
+                        .builder()
+                        .title("AI Usage Tracker update available")
+                        .body(format!("Version {available_version} is ready to install."))
+                        .show();
+                    if shown.is_ok() {
+                        let _ = state.settings.mark_update_notified(&available_version);
+                    }
+                }
+
+                AppUpdateStatus {
+                    current_version,
+                    available: true,
+                    available_version: Some(available_version),
+                    date: update.date.map(|date| date.to_string()),
+                    body: update.body,
+                }
+            }
+            None => AppUpdateStatus {
+                current_version,
+                available: false,
+                available_version: None,
+                date: None,
+                body: None,
+            },
+        })
+    }
 }
 
 #[tauri::command]
 async fn install_app_update(app: AppHandle) -> Result<(), String> {
-    let update = app
-        .updater()
-        .map_err(|error| format!("Unable to initialize the updater: {error}"))?
-        .check()
-        .await
-        .map_err(|error| format!("Unable to check for updates: {error}"))?
-        .ok_or_else(|| "No newer release is available.".to_string())?;
+    #[cfg(not(desktop))]
+    {
+        let _ = app;
+        return Err("App updates are only supported on desktop platforms.".to_string());
+    }
 
-    update
-        .download_and_install(|_, _| {}, || {})
-        .await
-        .map_err(|error| format!("Unable to install the update: {error}"))?;
+    #[cfg(desktop)]
+    {
+        let update = app
+            .updater()
+            .map_err(|error| format!("Unable to initialize the updater: {error}"))?
+            .check()
+            .await
+            .map_err(|error| format!("Unable to check for updates: {error}"))?
+            .ok_or_else(|| "No newer release is available.".to_string())?;
 
-    app.restart();
-    #[allow(unreachable_code)]
-    Ok(())
+        update
+            .download_and_install(|_, _| {}, || {})
+            .await
+            .map_err(|error| format!("Unable to install the update: {error}"))?;
+
+        app.restart();
+        #[allow(unreachable_code)]
+        Ok(())
+    }
 }
 
 fn migrate_google_ai_studio_accounts(state: &AppState) {
@@ -544,6 +585,8 @@ fn show_main_window(app: &AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+
     #[allow(unused_mut)]
     let mut builder = tauri::Builder::default();
 
@@ -593,6 +636,7 @@ pub fn run() {
             }
 
             let data_dir = app.path().app_data_dir()?;
+            crate::store::set_data_dir(data_dir.clone());
             let token = load_or_create_bridge_token()
                 .map_err(|error| std::io::Error::other(error.to_string()))?;
             let state = Arc::new(AppState::new(data_dir, token).map_err(std::io::Error::other)?);
@@ -656,6 +700,7 @@ pub fn run() {
             add_google_ai_studio_account,
             start_google_ai_studio_usage_login,
             add_opencode_go_account,
+            add_grok_account,
             get_login_status,
             cancel_login,
             refresh_account,

@@ -8,6 +8,8 @@ export const bridgeApi = {
     invoke<LoginStart>("start_login", { label, provider, email: email ?? null }),
   addOpenCodeGoAccount: (label: string, workspaceId: string, authCookie: string, email?: string) =>
     invoke<Account>("add_opencode_go_account", { label, workspaceId, authCookie, email }),
+  addGrokAccount: (label: string, cookieHeader: string) =>
+    invoke<Account>("add_grok_account", { label, cookieHeader }),
   testGoogleAiStudioKey: (apiKey: string) =>
     invoke<Account>("probe_google_ai_studio_key", { apiKey }),
   addGoogleAiStudioAccount: (label: string, apiKey: string, selectedModels: string[]) =>

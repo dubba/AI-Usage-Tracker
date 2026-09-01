@@ -1,10 +1,32 @@
 # Changelog
 
-This file tracks notable user-facing changes to AI Usage Tracker.
-
 ## Unreleased
 
-_No unreleased user-facing changes yet._
+## 0.3.1 - 2026-08-31
+
+### Improved
+
+- Standardized "5 hour", "Weekly", and rolling window metric labels to "Remaining Limit" across all provider account cards while preserving clean model categories for Antigravity (e.g. `Gemini · Remaining Limit`, `Claude & GPT · Remaining Limit`) and Claude.
+- Styled `5h window` (Warm Amber), `7d window` (Obsidian Mint), and `Monthly` (Obsidian Lavender) duration badges with dark-mode theme colors for visual differentiation and contrast.
+- Updated the in-app private Grok login window to open `https://accounts.x.ai/` directly for signing in.
+- On mobile and small screens, account quota and usage metrics now render one per line with full-width progress bars for easier reading.
+- Account card headers now display provider icons, account titles, status/plan badges, and action buttons in a single inline row across desktop and mobile screens, with status and plan badges neatly stacked and uniform 6px spacing between badges and action buttons across mobile and desktop screens.
+- Renamed provider display names across sidebar navigation, dashboard headers, account cards, and modals: "OpenAI Codex" to "Codex/GPT", "Anthropic Claude" to "Claude", "Google Antigravity" to "Antigravity", "Google AI Studio" to "AI Studio", and "Grok / SuperGrok" to "Grok".
+- Renamed "Check for App Updates" buttons to "Check for Updates" across the sidebar footer and Settings view.
+
+### Fixed
+
+- Fixed stale cached web views on Android after installing updated APKs by automatically invalidating and clearing the internal WebView cache upon version change.
+- Fixed mobile touch scrolling flickering and jitter by ignoring touch events in card drag-and-drop reordering and enabling GPU compositing acceleration on dashboard cards.
+- Configured light status bar text and icons (dark-theme system bar styling) on Android and refined mobile top spacing to eliminate status bar overlap and excessive gaps.
+- Fixed duplicate account title rendering for Grok and added automatic email and user identity discovery from Grok session tokens and user profile endpoints.
+- Fixed Grok and OpenCode in-app private login windows not closing automatically on Android by ensuring proper WebviewWindow closure and expanding multi-domain session polling across `accounts.x.ai` and `grok.com`.
+- Resolved an Android initialization issue where invoking the desktop updater plugin or missing notification capabilities caused the mobile WebView to show a blank screen.
+- Resolved Google / Antigravity OAuth login `Unregistered scope(s)` errors by standardizing the Cloud Code OAuth scope to `https://www.googleapis.com/auth/cloud-platform`.
+- Fixed Android OAuth token exchange network failures caused by OS background connectivity restrictions by deferring and resuming token exchange when the app returns to the foreground.
+- Fixed Android credential persistence and startup crash by using sandboxed private app storage permissions and early storage initialization.
+- Fixed an Android crash when opening the Grok login window caused by a null pointer exception when reading empty webview cookie sessions.
+- Added safe-area padding and a responsive slide-out mobile drawer navigation for Android and small touch screens.
 
 ## 0.3.0 - 2026-08-31
 

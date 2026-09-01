@@ -89,3 +89,21 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+@media (max-width: 860px) {
+  .provider-account-card .account-card-metrics,
+  .provider-account-card .account-card-metrics.two-column-metrics,
+  .provider-account-card .account-card-metrics.multi-row-metrics,
+  .account-card-metrics,
+  .account-card-metrics.two-column-metrics,
+  .account-card-metrics.multi-row-metrics {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 0 !important;
+  }
+
+  .provider-account-card .account-card-metrics .account-usage-metric + .account-usage-metric,
+  .account-card-metrics .account-usage-metric + .account-usage-metric {
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+    padding-top: 14px !important;
+  }
+}

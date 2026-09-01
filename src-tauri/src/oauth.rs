@@ -208,7 +208,69 @@ pub async fn start_login(
     })
 }
 
-pub fn login_status(app: &AppState, attempt_id: &str) -> Result<LoginStatus, String> {
+fn is_transient_network_error(err: &str) -> bool {
+    let lower = err.to_lowercase();
+    lower.contains("dns error")
+        || lower.contains("connect")
+        || lower.contains("no address associated")
+        || lower.contains("connection refused")
+        || lower.contains("network is unreachable")
+        || lower.contains("timed out")
+        || lower.contains("timeout")
+}
+
+pub async fn login_status(app: &Arc<AppState>, attempt_id: &str) -> Result<LoginStatus, String> {
+    let pending_exchange = {
+        let mut guard = app.pending_auth_exchange.lock();
+        if guard.as_ref().is_some_and(|p| p.attempt_id == attempt_id) {
+            guard.take()
+        } else {
+            None
+        }
+    };
+
+    if let Some(exchange) = pending_exchange {
+        if is_waiting(app.as_ref(), attempt_id) {
+            let context = LoginContext {
+                app: app.clone(),
+                attempt_id: exchange.attempt_id.clone(),
+                label: exchange.label.clone(),
+                provider: exchange.provider.clone(),
+                verifier: exchange.verifier.clone(),
+                expected_state: exchange.expected_state.clone(),
+                redirect_uri: exchange.redirect_uri.clone(),
+            };
+            match complete_exchange(&context, &exchange.code).await {
+                Ok(account) => {
+                    return Ok(LoginStatus {
+                        attempt_id: attempt_id.into(),
+                        status: "complete".into(),
+                        message: None,
+                        account: Some(account),
+                        projects: None,
+                        selected_project_id: None,
+                    });
+                }
+                Err(error) => {
+                    if is_transient_network_error(&error) {
+                        // Keep exchange queued for when foreground connectivity is restored
+                        *app.pending_auth_exchange.lock() = Some(exchange);
+                    } else {
+                        fail_login(&app.pending_login, attempt_id, error.clone());
+                        return Ok(LoginStatus {
+                            attempt_id: attempt_id.into(),
+                            status: "failed".into(),
+                            message: Some(error),
+                            account: None,
+                            projects: None,
+                            selected_project_id: None,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
     let pending = app.pending_login.read();
     let status = pending
         .as_ref()
@@ -230,48 +292,116 @@ async fn callback(
     State(context): State<Arc<LoginContext>>,
     Query(query): Query<CallbackQuery>,
 ) -> Html<String> {
-    let result = complete_callback(context.clone(), query).await;
-    if let Err(error) = &result {
+    if let Some(error) = query.error {
+        let message = query.error_description.unwrap_or(error);
         fail_login(
             &context.app.pending_login,
             &context.attempt_id,
-            error.clone(),
+            message.clone(),
+        );
+        stop_callback(&context).await;
+        return Html(format!(
+            r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Authentication failed</h1><p style="color:#ff9d9d">{}</p><p style="color:#8e9791">Return to the app and try again.</p></body></html>"#,
+            escape_html(&message)
+        ));
+    }
+    let code = match query.code {
+        Some(code) => code,
+        None => {
+            let message = format!(
+                "{} did not return an authorization code.",
+                context.provider.display_name()
+            );
+            fail_login(
+                &context.app.pending_login,
+                &context.attempt_id,
+                message.clone(),
+            );
+            stop_callback(&context).await;
+            return Html(format!(
+                r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Authentication failed</h1><p style="color:#ff9d9d">{}</p><p style="color:#8e9791">Return to the app and try again.</p></body></html>"#,
+                escape_html(&message)
+            ));
+        }
+    };
+    if query.state.as_deref() != Some(context.expected_state.as_str()) {
+        let message = "OAuth state validation failed.".to_string();
+        fail_login(
+            &context.app.pending_login,
+            &context.attempt_id,
+            message.clone(),
+        );
+        stop_callback(&context).await;
+        return Html(format!(
+            r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Authentication failed</h1><p style="color:#ff9d9d">{}</p><p style="color:#8e9791">Return to the app and try again.</p></body></html>"#,
+            escape_html(&message)
+        ));
+    }
+    if !is_waiting(context.app.as_ref(), &context.attempt_id) {
+        stop_callback(&context).await;
+        return Html(
+            r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Login cancelled</h1></body></html>"#
+                .into(),
         );
     }
-    stop_callback(&context).await;
-    match result {
-        Ok(account) => Html(format!(
-            r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Account connected</h1><p>{}</p><p style="color:#8e9791">You can close this tab and return to AI Usage Tracker.</p></body></html>"#,
-            escape_html(account.email.as_deref().unwrap_or(&account.label))
-        )),
-        Err(error) => Html(format!(
-            r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Authentication failed</h1><p style="color:#ff9d9d">{}</p><p style="color:#8e9791">Return to the app and try again.</p></body></html>"#,
-            escape_html(&error)
-        )),
+
+    match complete_exchange(&context, &code).await {
+        Ok(account) => {
+            stop_callback(&context).await;
+            Html(format!(
+                r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Account connected</h1><p>{}</p><p style="color:#8e9791">You can close this tab and return to AI Usage Tracker.</p></body></html>"#,
+                escape_html(account.email.as_deref().unwrap_or(&account.label))
+            ))
+        }
+        Err(_) => {
+            {
+                let mut pending = context.app.pending_auth_exchange.lock();
+                *pending = Some(crate::state::PendingAuthExchange {
+                    attempt_id: context.attempt_id.clone(),
+                    provider: context.provider.clone(),
+                    label: context.label.clone(),
+                    code,
+                    verifier: context.verifier.clone(),
+                    expected_state: context.expected_state.clone(),
+                    redirect_uri: context.redirect_uri.clone(),
+                });
+            }
+            stop_callback(&context).await;
+            Html(
+                r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px 20px;text-align:center"><h1 style="color:#4ade80">Authorization received</h1><p style="color:#d1d5db;font-size:16px;margin:16px 0">Return to AI Usage Tracker to complete connection.</p></body></html>"#
+                    .into(),
+            )
+        }
     }
 }
 
-async fn complete_callback(
-    context: Arc<LoginContext>,
-    query: CallbackQuery,
+async fn complete_exchange(
+    context: &LoginContext,
+    code: &str,
 ) -> Result<Account, String> {
-    if let Some(error) = query.error {
-        return Err(query.error_description.unwrap_or(error));
+    let mut last_error = String::new();
+    let mut exchanged = None;
+    for attempt in 0..5 {
+        if !is_waiting(context.app.as_ref(), &context.attempt_id) {
+            return Err("The login attempt was cancelled.".into());
+        }
+        match exchange_tokens(context, code).await {
+            Ok(res) => {
+                exchanged = Some(res);
+                break;
+            }
+            Err(err) => {
+                last_error = err;
+                if attempt < 4 {
+                    tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+                }
+            }
+        }
     }
-    let code = query.code.ok_or_else(|| {
-        format!(
-            "{} did not return an authorization code.",
-            context.provider.display_name()
-        )
-    })?;
-    if query.state.as_deref() != Some(context.expected_state.as_str()) {
-        return Err("OAuth state validation failed.".into());
-    }
-    if !is_waiting(context.app.as_ref(), &context.attempt_id) {
-        return Err("The login attempt was cancelled.".into());
-    }
-
-    let (secret, identity) = exchange_tokens(&context, &code).await?;
+    let (secret, identity) = match exchanged {
+        Some(res) => res,
+        None => return Err(last_error),
+    };
     if !is_waiting(context.app.as_ref(), &context.attempt_id) {
         return Err("The login attempt was cancelled.".into());
     }
@@ -370,6 +500,17 @@ async fn exchange_tokens(
     }
 }
 
+fn format_reqwest_error(prefix: &str, error: &reqwest::Error) -> String {
+    use std::error::Error;
+    let mut message = format!("{prefix}: {error}");
+    let mut current: Option<&(dyn Error + 'static)> = error.source();
+    while let Some(source) = current {
+        message.push_str(&format!(" -> {source}"));
+        current = source.source();
+    }
+    message
+}
+
 async fn exchange_openai(
     context: &LoginContext,
     code: &str,
@@ -387,7 +528,7 @@ async fn exchange_openai(
         ])
         .send()
         .await
-        .map_err(|error| format!("OpenAI token exchange failed: {error}"))?;
+        .map_err(|error| format_reqwest_error("OpenAI token exchange failed", &error))?;
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     if !status.is_success() {
@@ -436,7 +577,7 @@ async fn exchange_anthropic(
         }))
         .send()
         .await
-        .map_err(|error| format!("Anthropic token exchange failed: {error}"))?;
+        .map_err(|error| format_reqwest_error("Anthropic token exchange failed", &error))?;
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     if !status.is_success() {
@@ -500,7 +641,7 @@ async fn exchange_antigravity(
         ])
         .send()
         .await
-        .map_err(|error| format!("Google token exchange failed: {error}"))?;
+        .map_err(|error| format_reqwest_error("Google token exchange failed", &error))?;
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     if !status.is_success() {

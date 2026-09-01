@@ -11,11 +11,11 @@ type GoogleModelOption = {
 };
 
 const providerOptions: Array<{ id: ConnectionProvider; label: string; detail: string }> = [
-  { id: "openai", label: "OpenAI Codex", detail: "ChatGPT Plus, Pro, Business, or other Codex-enabled plans" },
-  { id: "anthropic", label: "Anthropic Claude", detail: "Claude Pro or Max through Anthropic OAuth" },
-  { id: "antigravity", label: "Google Antigravity", detail: "Google OAuth and Cloud Code quota data" },
-  { id: "google_ai_studio", label: "Google AI Studio", detail: "Validate an API key, choose models, and optionally connect project quota usage" },
-  { id: "grok", label: "Grok / SuperGrok", detail: "Private grok.com sign-in and provider-reported weekly usage" },
+  { id: "openai", label: "Codex/GPT", detail: "ChatGPT Plus, Pro, Business, or other Codex-enabled plans" },
+  { id: "anthropic", label: "Claude", detail: "Claude Pro or Max through Anthropic OAuth" },
+  { id: "antigravity", label: "Antigravity", detail: "Google OAuth and Cloud Code quota data" },
+  { id: "google_ai_studio", label: "AI Studio", detail: "Validate an API key, choose models, and optionally connect project quota usage" },
+  { id: "grok", label: "Grok", detail: "Private grok.com sign-in and provider-reported weekly usage" },
   { id: "opencode_go", label: "OpenCode Go", detail: "Sign in and select Go; setup is detected automatically" },
 ];
 
@@ -40,11 +40,12 @@ export function AddAccountModal({
   onClose: () => void;
   onAdded: (account: Account) => void;
 }) {
-  const [label, setLabel] = useState("OpenAI Codex");
+  const [label, setLabel] = useState("Codex/GPT");
   const [provider, setProvider] = useState<ConnectionProvider>("openai");
   const [email, setEmail] = useState("");
   const [workspaceId, setWorkspaceId] = useState("");
   const [authCookie, setAuthCookie] = useState("");
+  const [grokCookie, setGrokCookie] = useState("");
   const [advancedManual, setAdvancedManual] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [availableModels, setAvailableModels] = useState<GoogleModelOption[]>([]);
@@ -55,15 +56,17 @@ export function AddAccountModal({
   const [error, setError] = useState<string | null>(null);
   const closeRequestedRef = useRef(false);
   const providerLocked = Boolean(initialProvider && initialLabel?.trim());
+  const isAndroid = /android/i.test(navigator.userAgent);
 
   useEffect(() => {
     if (!open) {
       closeRequestedRef.current = true;
-      setLabel("OpenAI Codex");
+      setLabel("Codex/GPT");
       setProvider("openai");
       setEmail("");
       setWorkspaceId("");
       setAuthCookie("");
+      setGrokCookie("");
       setAdvancedManual(false);
       setApiKey("");
       setAvailableModels([]);
@@ -205,6 +208,20 @@ export function AddAccountModal({
         return;
       }
 
+      if (provider === "grok" && advancedManual) {
+        if (!grokCookie.trim()) {
+          setError("Grok session cookies are required for manual connection.");
+          setBusy(false);
+          return;
+        }
+        const account = await bridgeApi.addGrokAccount(
+          label.trim() || providerName(provider),
+          grokCookie.trim(),
+        );
+        onAdded(account);
+        return;
+      }
+
       const start = await bridgeApi.startLogin(
         label.trim() || providerName(provider),
         provider,
@@ -269,6 +286,9 @@ export function AddAccountModal({
             setLabel((current) => !current.trim() || current === providerName(provider) ? providerName(nextProvider) : current);
             setProvider(nextProvider);
             setEmail("");
+            setWorkspaceId("");
+            setAuthCookie("");
+            setGrokCookie("");
             setAdvancedManual(false);
             setApiKey("");
             setAvailableModels([]);
@@ -366,15 +386,51 @@ export function AddAccountModal({
         ) : null}
 
         {provider === "grok" ? (
-          <div className="guided-login-card grok-login-card">
-            <strong>What happens next</strong>
-            <ol>
-              <li>The tracker opens a temporary private <strong>grok.com</strong> window.</li>
-              <li>Sign in normally to your Grok or SuperGrok account.</li>
-              <li>The window closes after Grok reports your weekly usage percentage and reset time.</li>
-            </ol>
-            <small>The session needed for read-only usage checks is stored in Credential Manager or Keychain. The tracker does not estimate tokens or message counts and never receives your xAI password.</small>
-          </div>
+          <>
+            {!advancedManual ? (
+              <div className="guided-login-card grok-login-card">
+                <strong>What happens next</strong>
+                <ol>
+                  <li>The tracker opens a temporary private <strong>accounts.x.ai</strong> sign-in window.</li>
+                  <li>Sign in normally to your Grok or SuperGrok account.</li>
+                  <li>The window closes after Grok reports your weekly usage percentage and reset time.</li>
+                </ol>
+                <small>The session needed for read-only usage checks is stored securely on your device. The tracker does not estimate tokens or message counts and never receives your xAI password.</small>
+              </div>
+            ) : (
+              <div className="manual-connection-fields">
+                <label className="field-label field-spaced" htmlFor="grok-cookie">Grok session cookie or cookie header</label>
+                <input
+                  id="grok-cookie"
+                  className="text-input"
+                  type="password"
+                  value={grokCookie}
+                  onChange={(event) => {
+                    setGrokCookie(event.target.value);
+                    setError(null);
+                  }}
+                  placeholder="Paste grok.com cookies (e.g. sso=... or full cookie header)"
+                  autoComplete="off"
+                  spellCheck={false}
+                  disabled={busy}
+                />
+                <div className="credential-note">Manual connection is recommended on mobile or if sign-in opens the external Grok or X app. Sign in to grok.com in your mobile browser, copy your cookies, and paste them here.</div>
+              </div>
+            )}
+
+            {!busy ? (
+              <button
+                type="button"
+                className="advanced-connection-toggle"
+                onClick={() => {
+                  setAdvancedManual((current) => !current);
+                  setError(null);
+                }}
+              >
+                {advancedManual ? "Use automatic sign-in instead" : "Advanced manual connection"}
+              </button>
+            ) : null}
+          </>
         ) : null}
 
         {provider === "opencode_go" ? (
@@ -464,20 +520,26 @@ export function AddAccountModal({
           <button
             className="button primary"
             onClick={begin}
-            disabled={busy || modelsBusy || (provider === "opencode_go" && !email.trim()) || (provider === "google_ai_studio" && !googleReady)}
+            disabled={
+              busy ||
+              modelsBusy ||
+              (provider === "opencode_go" && !email.trim()) ||
+              (provider === "google_ai_studio" && !googleReady) ||
+              (provider === "grok" && advancedManual && !grokCookie.trim())
+            }
           >
             {busy
               ? provider === "opencode_go"
                 ? "Waiting for OpenCode…"
                 : provider === "grok"
-                  ? "Waiting for Grok…"
+                  ? advancedManual ? "Adding account…" : "Waiting for Grok…"
                   : provider === "google_ai_studio"
                     ? "Adding account…"
                     : "Connecting…"
               : provider === "opencode_go"
                 ? advancedManual ? "Connect manually" : "Open OpenCode login"
                 : provider === "grok"
-                  ? "Open Grok login"
+                  ? advancedManual ? "Connect manually" : "Open Grok login"
                   : provider === "google_ai_studio"
                     ? "Add selected models"
                     : `Continue with ${providerName(provider)}`}

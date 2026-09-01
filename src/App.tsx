@@ -64,13 +64,34 @@ const SIDEBAR_WINDOW_KEY = "ai-subscription-tracker:provider-average-window";
 
 function providerName(provider: Provider): string {
   switch (provider) {
-    case "openai": return "OpenAI Codex";
-    case "anthropic": return "Anthropic Claude";
-    case "antigravity": return "Google Antigravity";
-    case "google_ai_studio": return "Google AI Studio";
-    case "grok": return "Grok / SuperGrok";
+    case "openai": return "Codex/GPT";
+    case "anthropic": return "Claude";
+    case "antigravity": return "Antigravity";
+    case "google_ai_studio": return "AI Studio";
+    case "grok": return "Grok";
     case "opencode_go": return "OpenCode Go";
   }
+}
+
+function displayAccountLabel(label: string): string {
+  if (label === "Google Antigravity" || label === "Antigravity") return "Antigravity";
+  if (label === "Grok / SuperGrok" || label === "Grok") return "Grok";
+  if (label === "OpenAI Codex" || label === "OpenAI" || label === "Codex/GPT") return "Codex/GPT";
+  if (label === "Anthropic Claude" || label === "Anthropic" || label === "Claude") return "Claude";
+  if (label === "Google AI Studio" || label === "AI Studio") return "AI Studio";
+  return label;
+}
+
+function displayAccountSubtitle(account: Account): string {
+  if (account.email && account.email.trim()) {
+    return account.email.trim();
+  }
+  const label = displayAccountLabel(account.label);
+  const pName = providerName(account.provider);
+  if (label.trim().toLowerCase() === pName.trim().toLowerCase()) {
+    return "Connected account";
+  }
+  return pName;
 }
 
 function formatTime(value: string | null | undefined): string {
@@ -152,7 +173,7 @@ function nextResetSummary(accounts: Account[]): NextResetSummary {
       if (!window.resetsAt) return [];
       const resetAt = new Date(window.resetsAt).getTime();
       if (!Number.isFinite(resetAt) || resetAt <= now) return [];
-      return [{ resetAt, account: account.label, resetsAt: window.resetsAt }];
+      return [{ resetAt, account: displayAccountLabel(account.label), resetsAt: window.resetsAt }];
     }),
   );
 
@@ -196,13 +217,31 @@ function usageTone(remaining: number | null): string {
 }
 
 function orderedWindows(windows: UsageWindow[]): UsageWindow[] {
-  const weight = (window: UsageWindow) => {
+  const groupOrder: string[] = [];
+  for (const w of windows) {
+    const group = w.label.includes(" · ") ? w.label.split(" · ")[0] : "";
+    if (!groupOrder.includes(group)) {
+      groupOrder.push(group);
+    }
+  }
+
+  const windowWeight = (window: UsageWindow) => {
     if (canonicalWindow(window, "five_hour")) return 0;
     if (canonicalWindow(window, "weekly")) return 1;
     if (window.id.toLowerCase().includes("monthly") || window.label.toLowerCase().includes("monthly")) return 2;
     return 3;
   };
-  return [...windows].sort((left, right) => weight(left) - weight(right));
+
+  return [...windows].sort((left, right) => {
+    const groupLeft = left.label.includes(" · ") ? left.label.split(" · ")[0] : "";
+    const groupRight = right.label.includes(" · ") ? right.label.split(" · ")[0] : "";
+    const idxLeft = groupOrder.indexOf(groupLeft);
+    const idxRight = groupOrder.indexOf(groupRight);
+    if (idxLeft !== idxRight) {
+      return idxLeft - idxRight;
+    }
+    return windowWeight(left) - windowWeight(right);
+  });
 }
 
 function windowLength(window: UsageWindow): string | null {
@@ -215,9 +254,85 @@ function windowLength(window: UsageWindow): string | null {
   return `${hours}h window`;
 }
 
+function cleanModelPrefix(prefix: string): string {
+  return prefix
+    .replace(/\bclaude\s+and\s+gpt\b/i, "Claude & GPT")
+    .replace(/\s+models$/i, "")
+    .replace(/\s+model$/i, "")
+    .trim();
+}
+
+function displayMetricLabel(window: UsageWindow): string {
+  const label = window.label.trim();
+  const lower = label.toLowerCase();
+
+  // Model-grouped windows, e.g. "Gemini models · 5 hour", "Claude & GPT models · 5 hour"
+  if (label.includes(" · ")) {
+    const parts = label.split(" · ");
+    const prefix = cleanModelPrefix(parts.slice(0, -1).join(" · "));
+    const last = parts[parts.length - 1].trim().toLowerCase();
+    if (
+      last === "5 hour" ||
+      last === "5-hour" ||
+      last === "five hour" ||
+      last === "weekly" ||
+      last === "rolling" ||
+      last.includes("limit")
+    ) {
+      return `${prefix} · Remaining Limit`;
+    }
+    return `${prefix} · ${parts[parts.length - 1].trim()}`;
+  }
+
+  // Model-specific suffixes like "Sonnet weekly" -> "Sonnet · Remaining Limit"
+  if (lower.endsWith(" weekly") && lower !== "weekly") {
+    const base = cleanModelPrefix(label.slice(0, -7).trim());
+    return `${base} · Remaining Limit`;
+  }
+  if ((lower.endsWith(" 5 hour") || lower.endsWith(" 5-hour")) && lower !== "5 hour" && lower !== "5-hour") {
+    const base = cleanModelPrefix(label.slice(0, -7).trim());
+    return `${base} · Remaining Limit`;
+  }
+  if (lower.endsWith(" five hour") && lower !== "five hour") {
+    const base = cleanModelPrefix(label.slice(0, -10).trim());
+    return `${base} · Remaining Limit`;
+  }
+
+  // Pure standalone window labels
+  if (
+    lower === "weekly" ||
+    lower === "5 hour" ||
+    lower === "5-hour" ||
+    lower === "five hour" ||
+    lower === "five_hour" ||
+    lower === "rolling" ||
+    lower === "five hour limit remaining" ||
+    lower === "weekly limit remaining" ||
+    lower === "5 hour limit remaining" ||
+    lower === "5-hour limit remaining" ||
+    lower === "limit remaining" ||
+    lower === "usage"
+  ) {
+    return "Remaining Limit";
+  }
+
+  return cleanModelPrefix(label);
+}
+
+function windowPillClass(window: UsageWindow): string {
+  if (canonicalWindow(window, "five_hour")) return "window-pill-5h";
+  if (canonicalWindow(window, "weekly")) return "window-pill-7d";
+  const id = window.id.toLowerCase();
+  const label = window.label.toLowerCase();
+  if (id.includes("monthly") || label.includes("monthly")) return "window-pill-monthly";
+  return "window-pill-default";
+}
+
 function displayPlan(account: Account): string | null {
   const plan = account.plan?.trim();
   if (!plan) return null;
+  if (plan.toLowerCase() === "grok / supergrok" || plan.toLowerCase() === "grok") return "GROK";
+  if (plan.toLowerCase() === "google antigravity") return "ANTIGRAVITY";
   return plan.replaceAll("_", " ").toUpperCase();
 }
 
@@ -660,7 +775,7 @@ export default function App() {
           )}
         </div>
 
-        <div className="sidebar-footer"><RefreshIcon /><span>Check for App Updates</span></div>
+        <div className="sidebar-footer"><RefreshIcon /><span>Check for Updates</span></div>
       </aside>
 
       <main className="main-stage">
@@ -971,14 +1086,14 @@ function AccountDashboardCard({
                   }
                 }}
               />
-            ) : <h2>{account.label}</h2>}
+            ) : <h2>{displayAccountLabel(account.label)}</h2>}
             {!editing ? (
               <button type="button" className="account-name-edit" data-tooltip="Edit account name" aria-label={`Edit ${account.label}`} onClick={() => setEditing(true)}>
                 <EditIcon />
               </button>
             ) : null}
           </div>
-          <p className="account-card-email">{account.email ?? providerName(account.provider)}</p>
+          <p className="account-card-email">{displayAccountSubtitle(account)}</p>
           {renameError ? <small className="account-card-inline-error">{renameError}</small> : null}
         </div>
         <div className={`account-card-header-actions ${account.provider === "google_ai_studio" ? "has-google-action" : ""}`}>
@@ -1069,8 +1184,12 @@ function AccountUsageMetric({
   return (
     <div className="account-usage-metric">
       <div className="metric-heading">
-        <span className="metric-label">{window.label}</span>
-        {windowLength(window) ? <span className="metric-window-pill">{windowLength(window)}</span> : null}
+        <span className="metric-label">{displayMetricLabel(window)}</span>
+        {windowLength(window) ? (
+          <span className={`metric-window-pill ${windowPillClass(window)}`}>
+            {windowLength(window)}
+          </span>
+        ) : null}
       </div>
       <div className="metric-value-row">
         <strong className="metric-full-value">{remaining == null ? unavailableLabel : `${Math.round(remaining)}%`}</strong>
@@ -1197,7 +1316,7 @@ function SettingsView({
       <section className="settings-card">
         <div className="settings-row"><div><strong>Start at login</strong><small>Keep account usage available after signing in.</small></div><button className={`toggle ${autostart ? "on" : ""}`} onClick={onToggleAutostart} aria-pressed={autostart}><span /></button></div>
         <div className="settings-row"><div><strong>Automatic updates</strong><small>When on, the app checks GitHub Releases at startup and every hour, and can notify you when a signed update is ready.</small></div><button type="button" className={`toggle ${automaticUpdates ? "on" : ""}`} disabled={!appSettings || settingsBusy} aria-label={automaticUpdates ? "Disable automatic updates" : "Enable automatic updates"} aria-pressed={automaticUpdates} onClick={() => onAutomaticUpdatesChange(!automaticUpdates)}><span /></button></div>
-        <div className="settings-row"><div><strong>App updates</strong><small>Checks GitHub Releases for a signed installer. Automatic checks stay off when the toggle above is off.</small></div>{update?.available ? <button className="button primary" disabled={updateBusy !== null} onClick={onInstallUpdate}>{updateBusy === "installing" ? "Installing…" : `Update to v${update.availableVersion}`}</button> : <button className="button ghost" disabled={updateBusy !== null} onClick={onCheckForUpdate}>{updateBusy === "checking" ? "Checking…" : "Check for App Updates"}</button>}</div>
+        <div className="settings-row"><div><strong>App updates</strong><small>Checks GitHub Releases for a signed installer. Automatic checks stay off when the toggle above is off.</small></div>{update?.available ? <button className="button primary" disabled={updateBusy !== null} onClick={onInstallUpdate}>{updateBusy === "installing" ? "Installing…" : `Update to v${update.availableVersion}`}</button> : <button className="button ghost" disabled={updateBusy !== null} onClick={onCheckForUpdate}>{updateBusy === "checking" ? "Checking…" : "Check for Updates"}</button>}</div>
         <div className="settings-row"><div><strong>Installed version</strong><small>{update?.available ? `Version ${update.availableVersion} is available.` : "The app installs only signed update packages."}</small></div><span className="setting-value mono">{update?.currentVersion ? `v${update.currentVersion}` : "—"}</span></div>
         <div className="settings-row"><div><strong>Account Updates</strong><small>The selected number of minutes controls how often the app checks your AI usage percentages.</small></div><select className="account-update-select" aria-label="Account update interval" value={appSettings?.accountRefreshMinutes ?? 5} disabled={!appSettings || settingsBusy} onChange={(event) => onAccountRefreshMinutesChange(Number(event.target.value))}>{ACCOUNT_REFRESH_OPTIONS.map((minutes) => <option key={minutes} value={minutes}>{minutes} minutes</option>)}</select></div>
       </section>

@@ -73,7 +73,7 @@ const CONNECT_BANNER_SCRIPT: &str = r#"
       right: '0',
       zIndex: '2147483647',
       boxSizing: 'border-box',
-      padding: '14px 22px',
+      padding: 'max(28px, calc(env(safe-area-inset-top, 0px) + 10px)) 18px 12px 18px',
       background: '#211936',
       color: '#f7f4ff',
       borderBottom: '1px solid #7c52d9',
@@ -127,7 +127,7 @@ pub async fn start_login(
     }
 
     if let Some(window) = app.get_webview_window(LOGIN_WINDOW_LABEL) {
-        let _ = window.destroy();
+        close_login_window(&window);
     }
 
     let expires_at = (Utc::now() + Duration::minutes(LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
@@ -262,7 +262,7 @@ pub async fn start_login(
                 "OpenCode login timed out. Start the connection again.".into(),
             );
             if let Some(window) = timeout_app.get_webview_window(LOGIN_WINDOW_LABEL) {
-                let _ = window.destroy();
+                close_login_window(&window);
             }
         }
     });
@@ -376,14 +376,19 @@ async fn complete_login(
                 }
             };
             if completed {
-                let _ = window.destroy();
+                close_login_window(&window);
             }
         }
         Err(error) => {
             fail_if_waiting(&state, &attempt_id, error);
-            let _ = window.destroy();
+            close_login_window(&window);
         }
     }
+}
+
+fn close_login_window(window: &WebviewWindow) {
+    let _ = window.close();
+    let _ = window.destroy();
 }
 
 fn read_auth_cookie_with_retry(window: &WebviewWindow) -> Result<String, String> {

@@ -11,12 +11,17 @@
         { "url": "https://auth.openai.com/*" },
         { "url": "https://claude.ai/*" },
         { "url": "https://accounts.google.com/*" },
+        { "url": "https://accounts.x.ai/*" },
+        { "url": "https://grok.com/*" },
+        { "url": "https://x.ai/*" },
+        { "url": "https://opencode.ai/*" },
         { "url": "https://github.com/yajinni/AI-Usage-Tracker/blob/main/CHANGELOG.md" }
       ]
     },
     "autostart:allow-enable",
     "autostart:allow-disable",
     "autostart:allow-is-enabled",
+    "notification:default",
     "window-state:default"
   ]
 }
