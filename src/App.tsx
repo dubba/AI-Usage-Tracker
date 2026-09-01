@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { getVersion } from "@tauri-apps/api/app";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { bridgeApi, clearLoginAttempt, readLoginAttempt } from "./api";
 import { AccountAlertModal } from "./components/AccountAlertModal";
 import { RemoveAccountModal } from "./components/RemoveAccountModal";
@@ -22,6 +23,7 @@ import {
   ClockIcon,
   CloseIcon,
   EditIcon,
+  ExternalLinkIcon,
   GaugeIcon,
   LinkIcon,
   MenuIcon,
@@ -30,7 +32,7 @@ import {
   SettingsIcon,
   UsersIcon,
 } from "./icons";
-import { APP_UPDATE_STATUS_EVENT, publishAppUpdateStatus } from "./sidebar-update-control";
+import { APP_UPDATE_STATUS_EVENT, CHANGELOG_URL, publishAppUpdateStatus } from "./sidebar-update-control";
 import type {
   Account,
   AccountBucket,
@@ -1488,6 +1490,28 @@ function SettingsView({
               onChange={(minutes) => onAccountRefreshMinutesChange(minutes)}
             />
           </div>
+        </div>
+        <div className="settings-row">
+          <div>
+            <strong>Change Log</strong>
+            <small>View full history of app changes.</small>
+          </div>
+          <button
+            type="button"
+            className="button ghost settings-changelog-button"
+            aria-label="View change log (opens in a new window)"
+            title="Opens in a new window"
+            onClick={(event) => {
+              const button = event.currentTarget;
+              button.title = "Opens in a new window";
+              void openUrl(CHANGELOG_URL).catch((cause) => {
+                button.title = `Could not open changelog: ${String(cause)}`;
+              });
+            }}
+          >
+            <span>View</span>
+            <ExternalLinkIcon />
+          </button>
         </div>
       </section>
       {update?.available && update.body ? <section className="update-notes"><strong>What changed in v{update.availableVersion}</strong><p>{update.body}</p>{update.date ? <small>Published {formatTime(update.date)}</small> : null}</section> : null}

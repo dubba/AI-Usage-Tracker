@@ -3,6 +3,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { bridgeApi, clearLoginAttempt, rememberLoginAttempt } from "../api";
 import type { Account, LoginStatus, Provider } from "../types";
 import { CustomDropdown, type DropdownOption } from "./CustomDropdown";
+import { useModalA11y } from "./useModalA11y";
 
 type ConnectionProvider = Provider;
 
@@ -63,6 +64,7 @@ export function AddAccountModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const closeRequestedRef = useRef(false);
+  const dialogRef = useRef<HTMLElement>(null);
   const providerLocked = Boolean(initialProvider && initialLabel?.trim());
 
   useEffect(() => {
@@ -134,6 +136,8 @@ export function AddAccountModal({
     }
     onClose();
   };
+
+  useModalA11y(dialogRef, open, closeModal);
 
   if (!open) return null;
 
@@ -288,7 +292,7 @@ export function AddAccountModal({
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && closeModal()}>
-      <section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="add-account-title">
+      <section ref={dialogRef} className="modal-card" role="dialog" aria-modal="true" aria-labelledby="add-account-title" tabIndex={-1}>
         <div className="modal-kicker">Provider connection</div>
         <h2 id="add-account-title">{providerLocked ? `Reconnect ${providerName(provider)}` : "Which account do you want to add?"}</h2>
         <p>{providerLocked ? providerCopy : "Choose a provider, name the account, and enter its secure connection details."}</p>

@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { bridgeApi } from "../api";
 import { BellIcon } from "../icons";
 import type { Account, UsageAlertSetting, UsageWindow } from "../types";
 import { CustomDropdown } from "./CustomDropdown";
+import { useModalA11y } from "./useModalA11y";
 
 const THRESHOLDS = [10, 20, 30, 40, 50];
 const WINDOW_ORDER = ["five_hour", "weekly"] as const;
@@ -37,6 +38,8 @@ export function AccountAlertModal({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLElement>(null);
+  useModalA11y(dialogRef, account != null, onClose);
 
   const availableWindows = useMemo(() => {
     const available = new Set<AlertWindowId>();
@@ -94,7 +97,7 @@ export function AccountAlertModal({
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section className="modal-card alert-settings-modal notification-only-modal" role="dialog" aria-modal="true" aria-labelledby="alert-settings-title">
+      <section ref={dialogRef} className="modal-card alert-settings-modal notification-only-modal" role="dialog" aria-modal="true" aria-labelledby="alert-settings-title" tabIndex={-1}>
         <div className="modal-kicker">Account alerts</div>
         <div className="alert-settings-heading">
           <span className="alert-settings-icon"><BellIcon /></span>

@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { bridgeApi } from "../api";
 import { CloseIcon, TrashIcon } from "../icons";
 import { ProviderIcon } from "./ProviderIcon";
 import type { Account, AccountBucket, Provider } from "../types";
 import { CustomDropdown } from "./CustomDropdown";
+import { useModalA11y } from "./useModalA11y";
 
 const ALL_PROVIDERS: { id: Provider; label: string }[] = [
   { id: "antigravity", label: "Antigravity" },
@@ -36,6 +37,10 @@ export function BucketModal({
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLElement>(null);
+  useModalA11y(dialogRef, open, () => {
+    if (!busy) onClose();
+  });
 
   useEffect(() => {
     if (open) {
@@ -132,7 +137,7 @@ export function BucketModal({
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !busy && onClose()}>
-      <section className="modal-card bucket-modal-card" role="dialog" aria-modal="true" aria-labelledby="bucket-modal-title">
+      <section ref={dialogRef} className="modal-card bucket-modal-card" role="dialog" aria-modal="true" aria-labelledby="bucket-modal-title" tabIndex={-1}>
         <header className="modal-card-header">
           <div className="modal-kicker">Account Grouping</div>
           <h2 id="bucket-modal-title">{bucket ? "Edit Group" : "Create Group"}</h2>

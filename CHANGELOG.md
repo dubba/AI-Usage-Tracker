@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Fixed
+
+- Dialogs (Add Account, Account Grouping, Usage Notifications, Google Cloud Usage, Remove Account) now trap keyboard focus, close with Escape unless a dropdown is open, restore focus to the button that opened them, and stop the background from scrolling while open.
+- Restored the Settings Change Log row, which disappeared after the Settings title was removed.
+
 ### Improved
 
 - The Settings update button is now labeled Check Now and stays compact on mobile, with a narrower Account Updates dropdown.

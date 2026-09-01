@@ -5,36 +5,11 @@ import type { AppUpdateStatus } from "./types";
 export const APP_UPDATE_STATUS_EVENT = "ai-subscription-tracker:app-update-status";
 
 const DEFAULT_LABEL = "Check for Updates";
-const CHANGELOG_URL = "https://github.com/dubba/AI-Usage-Tracker/blob/main/CHANGELOG.md";
+export const CHANGELOG_URL = "https://github.com/dubba/AI-Usage-Tracker/blob/main/CHANGELOG.md";
 const RESET_LABEL_DELAY_MS = 3_000;
 
 export function publishAppUpdateStatus(status: AppUpdateStatus): void {
   window.dispatchEvent(new CustomEvent<AppUpdateStatus>(APP_UPDATE_STATUS_EVENT, { detail: status }));
-}
-
-function createExternalLinkIcon(): SVGSVGElement {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("width", "14");
-  svg.setAttribute("height", "14");
-  svg.setAttribute("fill", "none");
-  svg.setAttribute("stroke", "currentColor");
-  svg.setAttribute("stroke-width", "2");
-  svg.setAttribute("stroke-linecap", "round");
-  svg.setAttribute("stroke-linejoin", "round");
-  svg.setAttribute("aria-hidden", "true");
-
-  const box = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  box.setAttribute("d", "M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6");
-  const poly = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-  poly.setAttribute("points", "15 3 21 3 21 9");
-  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  line.setAttribute("x1", "10");
-  line.setAttribute("y1", "14");
-  line.setAttribute("x2", "21");
-  line.setAttribute("y2", "3");
-  svg.append(box, poly, line);
-  return svg;
 }
 
 function setLabel(footer: HTMLElement, label: string): void {
@@ -46,52 +21,7 @@ function setLabel(footer: HTMLElement, label: string): void {
   if (visibleLabel) visibleLabel.textContent = label;
 }
 
-function installSettingsChangelogControl(): void {
-  const attach = () => {
-    const settingsHeading = Array.from(document.querySelectorAll<HTMLElement>(".page-header h1"))
-      .find((heading) => heading.textContent?.trim() === "Settings");
-    const settingsView = settingsHeading?.closest<HTMLElement>(".content-scroll");
-    const settingsCard = settingsView?.querySelector<HTMLElement>(".settings-card");
-    if (!settingsCard || settingsCard.querySelector("[data-settings-changelog-control='true']")) return;
-
-    const row = document.createElement("div");
-    row.className = "settings-row";
-    row.dataset.settingsChangelogControl = "true";
-
-    const description = document.createElement("div");
-    const title = document.createElement("strong");
-    title.textContent = "Change Log";
-    const helper = document.createElement("small");
-    helper.textContent = "View full history of app changes.";
-    description.append(title, helper);
-
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "button ghost settings-changelog-button";
-    button.setAttribute("aria-label", "View change log (opens in a new window)");
-    button.title = "Opens in a new window";
-    const label = document.createElement("span");
-    label.textContent = "View";
-    button.append(label, createExternalLinkIcon());
-    button.addEventListener("click", () => {
-      button.title = "Opens in a new window";
-      void openUrl(CHANGELOG_URL).catch((cause) => {
-        button.title = `Could not open changelog: ${String(cause)}`;
-      });
-    });
-
-    row.append(description, button);
-    settingsCard.append(row);
-  };
-
-  attach();
-  const observer = new MutationObserver(attach);
-  observer.observe(document.body, { childList: true, subtree: true });
-}
-
 export function installSidebarUpdateControl(): void {
-  installSettingsChangelogControl();
-
   const attach = (): boolean => {
     const footer = document.querySelector<HTMLElement>(".sidebar-footer");
     if (!footer) return false;

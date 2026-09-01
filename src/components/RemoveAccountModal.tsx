@@ -1,4 +1,6 @@
+import { useRef } from "react";
 import type { Account } from "../types";
+import { useModalA11y } from "./useModalA11y";
 
 export function RemoveAccountModal({
   account,
@@ -11,11 +13,15 @@ export function RemoveAccountModal({
   onClose: () => void;
   onConfirm: () => void;
 }) {
+  const dialogRef = useRef<HTMLElement>(null);
+  useModalA11y(dialogRef, account != null, () => {
+    if (!busy) onClose();
+  });
   if (!account) return null;
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !busy && onClose()}>
-      <section className="modal-card remove-account-modal" role="dialog" aria-modal="true" aria-labelledby="remove-account-title">
+      <section ref={dialogRef} className="modal-card remove-account-modal" role="dialog" aria-modal="true" aria-labelledby="remove-account-title" tabIndex={-1}>
         <div className="modal-kicker">Remove account</div>
         <h2 id="remove-account-title">Remove {account.label}?</h2>
         <p>This deletes stored credentials for this account from this computer. The provider account itself is not cancelled.</p>
