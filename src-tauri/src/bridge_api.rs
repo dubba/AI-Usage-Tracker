@@ -10,11 +10,11 @@ use axum::{
     Json, Router,
 };
 use serde_json::json;
-use sha2::{Digest, Sha256};
 use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
+use subtle::ConstantTimeEq;
 use tokio::net::TcpListener;
 
 const API_ADDR: &str = "127.0.0.1:47831";
@@ -181,13 +181,10 @@ fn authorized(app: &AppState, headers: &HeaderMap) -> bool {
 }
 
 fn constant_time_equal(left: &[u8], right: &[u8]) -> bool {
-    let left_digest = Sha256::digest(left);
-    let right_digest = Sha256::digest(right);
-    let mut difference = 0u8;
-    for (a, b) in left_digest.iter().zip(right_digest.iter()) {
-        difference |= *a ^ *b;
+    if left.len() != right.len() {
+        return false;
     }
-    difference == 0
+    left.ct_eq(right).unwrap_u8() == 1
 }
 
 #[cfg(test)]

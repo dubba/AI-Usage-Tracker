@@ -15,6 +15,7 @@ export function PaseoBridgeWindow() {
   const [bridge, setBridge] = useState<BridgeInfo | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [revealed, setRevealed] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -40,6 +41,12 @@ export function PaseoBridgeWindow() {
     ? `PASEO_EXTERNAL_PROVIDER_USAGE_URL=${bridge.endpoint}\nPASEO_EXTERNAL_PROVIDER_USAGE_TOKEN=${bridge.token}`
     : "";
 
+  const maskedToken = useMemo(() => {
+    if (!bridge?.token) return "";
+    if (bridge.token.length <= 8) return "•".repeat(bridge.token.length);
+    return `${bridge.token.slice(0, 4)}${"•".repeat(Math.max(12, bridge.token.length - 8))}${bridge.token.slice(-4)}`;
+  }, [bridge?.token]);
+
   const copy = async (value: string) => {
     try {
       await navigator.clipboard.writeText(value);
@@ -54,6 +61,7 @@ export function PaseoBridgeWindow() {
     try {
       const next = await bridgeApi.regenerateToken();
       setBridge(next);
+      setRevealed(false);
       setError(null);
     } catch (cause) {
       setError(String(cause));
@@ -95,8 +103,8 @@ export function PaseoBridgeWindow() {
           <div className="bridge-detail-value"><code>{healthEndpoint}</code><button className="button ghost" onClick={() => void copy(healthEndpoint)}>Copy</button></div>
         </div>
         <div className="bridge-detail-row">
-          <div><strong>Bearer token</strong><small>Required in the Authorization header for usage requests.</small></div>
-          <div className="bridge-detail-value bridge-token-value"><code>{bridge.token}</code><button className="button ghost" onClick={() => void copy(bridge.token)}>Copy</button></div>
+          <div><strong>Bearer token</strong><small>Required in the Authorization header for usage requests. Hidden by default.</small></div>
+          <div className="bridge-detail-value bridge-token-value"><code>{revealed ? bridge.token : maskedToken}</code><button className="button ghost" onClick={() => setRevealed((v) => !v)}>{revealed ? "Hide" : "Reveal"}</button><button className="button ghost" onClick={() => void copy(bridge.token)}>Copy</button></div>
         </div>
         <div className="bridge-detail-row">
           <div><strong>Rotate token</strong><small>Existing Paseo configuration stops working until its token is replaced.</small></div>
@@ -109,7 +117,7 @@ export function PaseoBridgeWindow() {
           <div><strong>Environment configuration</strong><small>Add these values to Paseo's external provider-usage adapter.</small></div>
           <button className="button ghost" onClick={() => void copy(environment)}>Copy all</button>
         </div>
-        <pre>{environment}</pre>
+        <pre>{revealed ? environment : environment.replace(bridge.token, maskedToken)}</pre>
       </section>
 
       <section className="bridge-security-card">

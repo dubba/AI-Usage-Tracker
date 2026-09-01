@@ -7,7 +7,8 @@ use crate::{
 };
 use axum::{
     extract::{Query, State},
-    response::Html,
+    http::{HeaderMap, HeaderValue},
+    response::{Html, IntoResponse},
     routing::get,
     Router,
 };
@@ -315,30 +316,31 @@ async fn select_project(
 async fn callback(
     State(context): State<Arc<LoginContext>>,
     Query(query): Query<CallbackQuery>,
-) -> Html<String> {
+) -> axum::response::Response {
     let result = complete_callback(context.clone(), query).await;
     if let Err(error) = &result {
         fail_login(&context, error.clone());
     }
     stop_callback(&context).await;
 
-    match result {
-        Ok(CallbackOutcome::Complete(account)) => Html(format!(
+    let body = match result {
+        Ok(CallbackOutcome::Complete(account)) => format!(
             r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Google usage connected</h1><p>{}</p><p style="color:#8e9791">You can close this tab and return to AI Usage Tracker.</p></body></html>"#,
             escape_html(account.email.as_deref().unwrap_or(&account.label))
-        )),
-        Ok(CallbackOutcome::ChooseProject(_)) => Html(
-            r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Google sign-in complete</h1><p>Return to AI Usage Tracker and choose the project that owns this API key.</p></body></html>"#.into(),
         ),
-        Ok(CallbackOutcome::MonitoringDisabled(project)) => Html(format!(
+        Ok(CallbackOutcome::ChooseProject(_)) => {
+            r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Google sign-in complete</h1><p>Return to AI Usage Tracker and choose the project that owns this API key.</p></body></html>"#.into()
+        }
+        Ok(CallbackOutcome::MonitoringDisabled(project)) => format!(
             r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Project found</h1><p>{}</p><p>Return to AI Usage Tracker to enable Cloud Monitoring.</p></body></html>"#,
             escape_html(&project.display_name)
-        )),
-        Err(error) => Html(format!(
+        ),
+        Err(error) => format!(
             r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Authorization failed</h1><p style="color:#ff9d9d">{}</p><p style="color:#8e9791">Return to the app and try again.</p></body></html>"#,
             escape_html(&error)
-        )),
-    }
+        ),
+    };
+    callback_html(body)
 }
 
 async fn complete_callback(
@@ -1053,6 +1055,33 @@ fn fail_login(context: &LoginContext, message: String) {
 
 async fn stop_callback(context: &LoginContext) {
     context.app.stop_login_shutdown(&context.attempt_id);
+}
+
+fn callback_html(body: String) -> axum::response::Response {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        axum::http::header::CACHE_CONTROL,
+        HeaderValue::from_static("no-store, no-cache, must-revalidate"),
+    );
+    headers.insert(
+        axum::http::header::PRAGMA,
+        HeaderValue::from_static("no-cache"),
+    );
+    headers.insert(
+        axum::http::header::HeaderName::from_static("content-security-policy"),
+        HeaderValue::from_static(
+            "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'",
+        ),
+    );
+    headers.insert(
+        axum::http::header::X_CONTENT_TYPE_OPTIONS,
+        HeaderValue::from_static("nosniff"),
+    );
+    headers.insert(
+        axum::http::header::HeaderName::from_static("referrer-policy"),
+        HeaderValue::from_static("no-referrer"),
+    );
+    (headers, Html(body)).into_response()
 }
 
 fn escape_html(value: &str) -> String {

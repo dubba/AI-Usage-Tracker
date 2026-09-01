@@ -10,9 +10,12 @@
 - On Android, Google, Anthropic, and OpenAI sign-in now opens in the system browser instead of inside the app, so those sign-in pages can't reach the app's internal functions. In-app Grok sign-in on mobile still opens in the app so session cookies can be captured without pasting them. OpenCode Go on mobile still uses manual cookie entry.
 - Switched Antigravity and Google AI Studio OAuth callback listeners to dynamic ephemeral loopback ports (`127.0.0.1:0`), eliminating loopback port contention and local pre-binding denial-of-service risks.
 - Reduced Google AI Studio default connection scopes from broad administrative `cloud-platform` to least-privilege read-only monitoring and project inspection scopes, requesting service management only when Cloud Monitoring is explicitly enabled.
+- OAuth sign-in success and error pages now send `no-store` caching and strict content security headers so those one-time callback pages are never cached or framed.
+- The local bridge now verifies its bearer token with a standard constant-time comparison.
 
 ### Improved
 
+- The Paseo Bridge token in the integration window is now hidden by default and can be revealed with a single click, keeping the masked value in the copied environment block as well.
 - Updated the in-app Grok login window to open `https://accounts.x.ai/sign-in` directly.
 - If accounts fail to load, the dashboard now shows the error and a Retry button instead of staying on “Loading accounts…”.
 

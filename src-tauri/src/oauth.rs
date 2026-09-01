@@ -6,7 +6,8 @@ use crate::{
 };
 use axum::{
     extract::{Query, State},
-    response::Html,
+    http::{HeaderMap, HeaderValue},
+    response::{Html, IntoResponse},
     routing::get,
     Router,
 };
@@ -326,11 +327,11 @@ pub(crate) fn callback_query_from_url(url: &Url) -> CallbackQuery {
 async fn callback(
     State(context): State<Arc<LoginContext>>,
     Query(query): Query<CallbackQuery>,
-) -> Html<String> {
-    handle_callback(context, query).await
+) -> axum::response::Response {
+    handle_callback(context, query).await.into_response()
 }
 
-async fn handle_callback(context: Arc<LoginContext>, query: CallbackQuery) -> Html<String> {
+async fn handle_callback(context: Arc<LoginContext>, query: CallbackQuery) -> axum::response::Response {
     if let Some(error) = query.error {
         let message = query.error_description.unwrap_or(error);
         fail_login(
@@ -339,7 +340,7 @@ async fn handle_callback(context: Arc<LoginContext>, query: CallbackQuery) -> Ht
             message.clone(),
         );
         stop_callback(&context).await;
-        return Html(format!(
+        return callback_html(format!(
             r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Authentication failed</h1><p style="color:#ff9d9d">{}</p><p style="color:#8e9791">Return to the app and try again.</p></body></html>"#,
             escape_html(&message)
         ));
@@ -357,7 +358,7 @@ async fn handle_callback(context: Arc<LoginContext>, query: CallbackQuery) -> Ht
                 message.clone(),
             );
             stop_callback(&context).await;
-            return Html(format!(
+            return callback_html(format!(
                 r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Authentication failed</h1><p style="color:#ff9d9d">{}</p><p style="color:#8e9791">Return to the app and try again.</p></body></html>"#,
                 escape_html(&message)
             ));
@@ -371,14 +372,14 @@ async fn handle_callback(context: Arc<LoginContext>, query: CallbackQuery) -> Ht
             message.clone(),
         );
         stop_callback(&context).await;
-        return Html(format!(
+        return callback_html(format!(
             r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Authentication failed</h1><p style="color:#ff9d9d">{}</p><p style="color:#8e9791">Return to the app and try again.</p></body></html>"#,
             escape_html(&message)
         ));
     }
     if !is_waiting(context.app.as_ref(), &context.attempt_id) {
         stop_callback(&context).await;
-        return Html(
+        return callback_html(
             r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Login cancelled</h1></body></html>"#
                 .into(),
         );
@@ -387,7 +388,7 @@ async fn handle_callback(context: Arc<LoginContext>, query: CallbackQuery) -> Ht
     match complete_exchange(&context, &code).await {
         Ok(account) => {
             stop_callback(&context).await;
-            Html(format!(
+            callback_html(format!(
                 r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Account connected</h1><p>{}</p><p style="color:#8e9791">You can close this tab and return to AI Usage Tracker.</p></body></html>"#,
                 escape_html(account.email.as_deref().unwrap_or(&account.label))
             ))
@@ -406,7 +407,7 @@ async fn handle_callback(context: Arc<LoginContext>, query: CallbackQuery) -> Ht
                 });
             }
             stop_callback(&context).await;
-            Html(
+            callback_html(
                 r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px 20px;text-align:center"><h1 style="color:#4ade80">Authorization received</h1><p style="color:#d1d5db;font-size:16px;margin:16px 0">Return to AI Usage Tracker to complete connection.</p></body></html>"#
                     .into(),
             )
@@ -930,6 +931,33 @@ fn fail_login(store: &RwLock<Option<LoginStatus>>, attempt_id: &str, message: St
 
 async fn stop_callback(context: &LoginContext) {
     context.app.stop_login_shutdown(&context.attempt_id);
+}
+
+fn callback_html(body: String) -> axum::response::Response {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        axum::http::header::CACHE_CONTROL,
+        HeaderValue::from_static("no-store, no-cache, must-revalidate"),
+    );
+    headers.insert(
+        axum::http::header::PRAGMA,
+        HeaderValue::from_static("no-cache"),
+    );
+    headers.insert(
+        axum::http::header::HeaderName::from_static("content-security-policy"),
+        HeaderValue::from_static(
+            "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'",
+        ),
+    );
+    headers.insert(
+        axum::http::header::X_CONTENT_TYPE_OPTIONS,
+        HeaderValue::from_static("nosniff"),
+    );
+    headers.insert(
+        axum::http::header::HeaderName::from_static("referrer-policy"),
+        HeaderValue::from_static("no-referrer"),
+    );
+    (headers, Html(body)).into_response()
 }
 
 fn escape_html(input: &str) -> String {
