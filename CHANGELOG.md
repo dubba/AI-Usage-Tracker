@@ -4,12 +4,17 @@
 
 ### Fixed
 
+- Fixed Grok "Open Grok login" provider buttons (X, Apple, Email) doing nothing on Android: the WebView shim is now installed as a document-start initialization script on the mobile main window instead of racing the page via delayed script evaluation, and the "Sign in to Grok" banner now appears on mobile too.
+- Fixed Android app links (`intent:` / `android-app:` URLs) from Grok sign-in buttons being silently dropped by following their embedded browser fallback URL when available.
+- Fixed the Android build failing to compile due to a missing `update_waiting_message` helper reference in the mobile webview auth flow.
+
 - Fixed "Open Grok login" button crashing the Android app by guarding the desktop WebView window creation with a compile-time platform check; on Android the manual cookie-paste path is now shown automatically.
 - Fixed Antigravity (Google), OpenAI, and Anthropic OAuth sign-in permanently hanging on Android; the loopback TCP callback server is desktop-only and cannot receive redirects from the Android system browser. These providers now show a clear message directing Android users to link accounts on the desktop app.
 - Fixed `getCurrentWindow()` crash at startup on Android caused by missing window plugin metadata; the Paseo Bridge window check now falls back safely to `false` on mobile.
 - Positioned the expanded mobile sidebar drawer flush directly below the mobile status bar with square corners, eliminating the top gap and preventing the drawer from covering status bar indicators.
 - Expanded account usage progress bar tracks to span the full available width of the card, aligning flush with window badges and reset countdown timestamps.
 - Styled the account rename pen button with a compact 22px badge and obsidian violet font, border, and background colors matching the visual style of the header action buttons.
+- Hardened dashboard snapshot retrieval to gracefully fall back to the raw account list if account order persistence fails, and provided a clear error description and Retry button on the startup loading screen instead of an infinite loading spinner.
 
 ## 0.3.1 - 2026-08-31
 

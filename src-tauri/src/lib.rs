@@ -53,7 +53,11 @@ const SAVED_WINDOW_STATE: StateFlags = StateFlags::from_bits_truncate(
 async fn get_dashboard_snapshot(
     state: State<'_, Arc<AppState>>,
 ) -> Result<DashboardSnapshot, String> {
-    let accounts = state.account_order.apply(state.store.list())?;
+    let raw_accounts = state.store.list();
+    let accounts = state
+        .account_order
+        .apply(raw_accounts.clone())
+        .unwrap_or(raw_accounts);
     let buckets = state.buckets.list();
     Ok(DashboardSnapshot {
         accounts,
@@ -649,6 +653,11 @@ pub fn run() {
             migrate_google_ai_studio_accounts(state.as_ref());
             state.set_app_handle(app.handle().clone());
             app.manage(state.clone());
+            #[cfg(mobile)]
+            {
+                crate::mobile_auth::recreate_main_window_with_scripts(app.handle());
+                crate::mobile_auth::install_global_shim(app.handle());
+            }
             tauri::async_runtime::spawn(bridge_api::run_controller(state.clone()));
             tauri::async_runtime::spawn(async move {
                 tokio::time::sleep(std::time::Duration::from_secs(2)).await;
