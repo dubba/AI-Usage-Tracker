@@ -2,16 +2,22 @@
 
 ## Unreleased
 
-### Added
+_No unreleased user-facing changes yet._
 
-- GitHub now builds a sideloadable Android APK on every push to main. Download `AI-Usage-Tracker.apk` from that run’s Actions artifacts.
+## 0.3.3 - 2026-09-01
 
 ### Improved
 
 - Reduced account card email subtitle font size and compacted header action padding on mobile screens so badges and action buttons fit cleanly within narrow viewports.
+- Styled scrollbars across desktop and mobile with a custom Obsidian purple theme, adding a slim purple scrollbar along the right side of the account cards list on mobile when multiple cards overflow the screen.
+- Replaced default OS select elements across all dialogs (Add Account provider picker, Google Cloud project selector, Bucket filters, Usage Alert thresholds, and Settings refresh intervals) with a custom theme-styled dropdown component featuring obsidian dark styling, smooth purple animations, multiline text wrapping for long provider descriptions on mobile, full keyboard navigation, and checkmark indicators, with Grok listed directly above Antigravity.
+- Reorganized the mobile layout of the Usage Notifications dialog so window toggles and threshold labels stack vertically above their dropdowns with full width, preventing squishing on small screens.
+- Enhanced modal containers and dropdown menus to float completely above dialog boundaries with elevated z-indexing and dynamic upward opening when near the bottom of the screen to prevent cutoff.
 
 ### Fixed
 
+- Adding multiple Grok accounts now isolates the sign-in session in a clean, ephemeral profile so opening the sign-in window always displays a fresh login prompt instead of prematurely capturing an existing account, and distinct Grok accounts are now saved independently.
+- Fixed Antigravity (Google) OAuth sign-in hanging on Android after selecting an email address by routing authentication through the in-app WebView interceptor, preventing OS background process freezing.
 - Quota reset countdown badges now format as `Resets in: Xh` for windows under 24 hours and `Resets in: Xd Yh` (e.g. `1d 12h`, `6d 10h`) for windows over 24 hours, and are calculated directly in React across all models and windows.
 - The mobile sidebar drawer now sits flush against the bottom of the status bar instead of leaving a gap below it.
 - The mobile sidebar’s Check for Updates button now sits above the home indicator, with the same 12px gap below it as above Accounts.

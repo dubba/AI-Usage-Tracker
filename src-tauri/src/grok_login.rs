@@ -28,16 +28,15 @@ use uuid::Uuid;
 
 #[cfg(desktop)]
 const LOGIN_WINDOW_LABEL: &str = "grok-login";
-const LOGIN_URL: &str = "https://accounts.x.ai/sign-in";
+const LOGIN_URL: &str = "https://accounts.x.ai/sign-in?redirect_uri=https%3A%2F%2Fgrok.com%2F";
 const LOGIN_TIMEOUT_MINUTES: i64 = 10;
 const COOKIE_POLL_INTERVAL_MS: u64 = 750;
 const COOKIE_POLL_ATTEMPTS: usize = 800;
-const GROK_BROWSER_ACCOUNT_ID: &str = "grok-browser-session";
 
 #[cfg(desktop)]
 const CONNECT_BANNER_SCRIPT: &str = r#"
 (() => {
-  if (window.top !== window || (!window.location.hostname.endsWith('grok.com') && !window.location.hostname.endsWith('x.ai'))) return;
+  if (window.top !== window || !window.location.hostname.endsWith('grok.com')) return;
 
   const installBanner = () => {
     if (!document.body || document.getElementById('ai-tracker-grok-connect-banner')) return;
@@ -77,6 +76,26 @@ const CONNECT_BANNER_SCRIPT: &str = r#"
 })();
 "#;
 
+fn default_grok_label(state: &AppState, email: Option<&str>) -> String {
+    if let Some(email) = email {
+        let trimmed = email.trim();
+        if !trimmed.is_empty() {
+            return trimmed.to_string();
+        }
+    }
+    let existing_grok_count = state
+        .store
+        .list()
+        .into_iter()
+        .filter(|account| account.provider == Provider::Grok)
+        .count();
+    if existing_grok_count == 0 {
+        "Grok".into()
+    } else {
+        format!("Grok {}", existing_grok_count + 1)
+    }
+}
+
 /// Add a Grok account from a manually supplied cookie header (no WebView).
 pub async fn add_account(
     state: Arc<AppState>,
@@ -96,27 +115,40 @@ pub async fn add_account(
 
     let duplicate = state
         .store
-        .find_duplicate(&Provider::Grok, Some(GROK_BROWSER_ACCOUNT_ID), None)
+        .find_duplicate(
+            &Provider::Grok,
+            probe.provider_account_id.as_deref(),
+            probe.email.as_deref(),
+        )
         .or_else(|| {
             let requested_label = label.trim();
-            state.store.list().into_iter().find(|account| {
-                account.provider == Provider::Grok
-                    && !requested_label.is_empty()
-                    && account.label.eq_ignore_ascii_case(requested_label)
-            })
+            if requested_label.is_empty() {
+                None
+            } else {
+                state.store.list().into_iter().find(|account| {
+                    account.provider == Provider::Grok
+                        && account.label.eq_ignore_ascii_case(requested_label)
+                })
+            }
         });
     let now = now_rfc3339();
     let account_id = duplicate
         .as_ref()
         .map(|account| account.id.clone())
         .unwrap_or_else(|| Uuid::new_v4().to_string());
+    let provider_account_id = probe
+        .provider_account_id
+        .clone()
+        .or_else(|| probe.email.clone())
+        .or_else(|| duplicate.as_ref().and_then(|account| account.provider_account_id.clone()))
+        .or_else(|| Some(Uuid::new_v4().to_string()));
     let account = Account {
         id: account_id.clone(),
         label: if label.trim().is_empty() {
             duplicate
                 .as_ref()
-                .and_then(|account| account.email.clone())
-                .unwrap_or_else(|| "Grok".into())
+                .map(|account| account.label.clone())
+                .unwrap_or_else(|| default_grok_label(state.as_ref(), probe.email.as_deref()))
         } else {
             label.trim().to_string()
         },
@@ -125,7 +157,7 @@ pub async fn add_account(
             .email
             .clone()
             .or_else(|| duplicate.as_ref().and_then(|account| account.email.clone())),
-        provider_account_id: Some(GROK_BROWSER_ACCOUNT_ID.into()),
+        provider_account_id,
         chatgpt_account_id: None,
         plan: probe
             .plan
@@ -226,6 +258,9 @@ pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginSta
         close_login_window(&window);
     }
 
+    let temp_data_dir = std::env::temp_dir().join(format!("ai-usage-grok-{}", attempt_id));
+    let _ = std::fs::create_dir_all(&temp_data_dir);
+
     let (width, height) = login_window_size(&app);
     #[allow(unused_mut)]
     let mut builder = WebviewWindowBuilder::new(
@@ -237,20 +272,19 @@ pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginSta
     .inner_size(width, height)
     .min_inner_size(820.0, 620.0)
     .resizable(true)
-    .incognito(true)
+    .data_directory(temp_data_dir.clone())
     .devtools(false)
     .initialization_script(CONNECT_BANNER_SCRIPT)
+    .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15")
     .on_navigation(is_allowed_login_navigation);
 
-    #[cfg(desktop)]
-    {
-        builder = builder.center();
-    }
+    builder = builder.center();
 
     let login_window = match builder.build()
     {
         Ok(window) => window,
         Err(error) => {
+            let _ = std::fs::remove_dir_all(&temp_data_dir);
             let mut pending = state.pending_login.write();
             if pending.as_ref().is_some_and(|login| login.attempt_id == attempt_id) {
                 *pending = None;
@@ -259,17 +293,21 @@ pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginSta
         }
     };
 
+    let cleanup_dir = temp_data_dir.clone();
     start_cookie_poll(
         login_window.clone(),
         state.clone(),
         attempt_id.clone(),
         label,
+        Some(cleanup_dir),
     );
 
     let close_state = state.clone();
     let close_attempt = attempt_id.clone();
+    let close_dir = temp_data_dir.clone();
     login_window.on_window_event(move |event| {
         if matches!(event, WindowEvent::CloseRequested { .. }) {
+            let _ = std::fs::remove_dir_all(&close_dir);
             fail_if_waiting(
                 &close_state,
                 &close_attempt,
@@ -281,12 +319,14 @@ pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginSta
     let timeout_state = state.clone();
     let timeout_attempt = attempt_id.clone();
     let timeout_app = app.clone();
+    let timeout_dir = temp_data_dir.clone();
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(Duration::from_secs(
             (LOGIN_TIMEOUT_MINUTES * 60) as u64,
         ))
         .await;
         if is_waiting(&timeout_state, &timeout_attempt) {
+            let _ = std::fs::remove_dir_all(&timeout_dir);
             fail_if_waiting(
                 &timeout_state,
                 &timeout_attempt,
@@ -339,6 +379,7 @@ async fn start_mobile_login(
         state.clone(),
         attempt_id.clone(),
         label,
+        None,
     );
     if let Err(error) = crate::mobile_auth::open_in_main_webview(
         app,
@@ -390,12 +431,16 @@ fn start_cookie_poll(
     state: Arc<AppState>,
     attempt_id: String,
     label: String,
+    temp_data_dir: Option<std::path::PathBuf>,
 ) {
     let capture_in_flight = Arc::new(AtomicBool::new(false));
     std::thread::spawn(move || {
         let mut last_attempted_header: Option<String> = None;
         for _ in 0..COOKIE_POLL_ATTEMPTS {
             if !is_waiting(&state, &attempt_id) {
+                if let Some(dir) = &temp_data_dir {
+                    let _ = std::fs::remove_dir_all(dir);
+                }
                 break;
             }
 
@@ -409,6 +454,7 @@ fn start_cookie_poll(
                         let completion_label = label.clone();
                         let completion_window = window.clone();
                         let completion_flag = capture_in_flight.clone();
+                        let completion_dir = temp_data_dir.clone();
                         tauri::async_runtime::spawn(async move {
                             complete_cookie_login(
                                 completion_state,
@@ -417,6 +463,7 @@ fn start_cookie_poll(
                                 cookie_header,
                                 completion_window,
                                 completion_flag,
+                                completion_dir,
                             )
                             .await;
                         });
@@ -425,6 +472,9 @@ fn start_cookie_poll(
             }
 
             std::thread::sleep(Duration::from_millis(COOKIE_POLL_INTERVAL_MS));
+        }
+        if let Some(dir) = &temp_data_dir {
+            let _ = std::fs::remove_dir_all(dir);
         }
     });
 }
@@ -436,8 +486,12 @@ async fn complete_cookie_login(
     cookie_header: String,
     window: WebviewWindow,
     capture_in_flight: Arc<AtomicBool>,
+    temp_data_dir: Option<std::path::PathBuf>,
 ) {
     if !is_waiting(&state, &attempt_id) {
+        if let Some(dir) = &temp_data_dir {
+            let _ = std::fs::remove_dir_all(dir);
+        }
         return;
     }
 
@@ -478,33 +532,49 @@ async fn complete_cookie_login(
     };
 
     if !is_waiting(&state, &attempt_id) {
+        if let Some(dir) = &temp_data_dir {
+            let _ = std::fs::remove_dir_all(dir);
+        }
         close_login_window(&window);
         return;
     }
 
     let duplicate = state
         .store
-        .find_duplicate(&Provider::Grok, Some(GROK_BROWSER_ACCOUNT_ID), None)
+        .find_duplicate(
+            &Provider::Grok,
+            usage.provider_account_id.as_deref(),
+            usage.email.as_deref(),
+        )
         .or_else(|| {
             let requested_label = label.trim();
-            state.store.list().into_iter().find(|account| {
-                account.provider == Provider::Grok
-                    && !requested_label.is_empty()
-                    && account.label.eq_ignore_ascii_case(requested_label)
-            })
+            if requested_label.is_empty() {
+                None
+            } else {
+                state.store.list().into_iter().find(|account| {
+                    account.provider == Provider::Grok
+                        && account.label.eq_ignore_ascii_case(requested_label)
+                })
+            }
         });
     let now = now_rfc3339();
     let account_id = duplicate
         .as_ref()
         .map(|account| account.id.clone())
         .unwrap_or_else(|| Uuid::new_v4().to_string());
+    let provider_account_id = usage
+        .provider_account_id
+        .clone()
+        .or_else(|| usage.email.clone())
+        .or_else(|| duplicate.as_ref().and_then(|account| account.provider_account_id.clone()))
+        .or_else(|| Some(Uuid::new_v4().to_string()));
     let account = Account {
         id: account_id.clone(),
         label: if label.trim().is_empty() {
             duplicate
                 .as_ref()
-                .and_then(|account| account.email.clone())
-                .unwrap_or_else(|| "Grok".into())
+                .map(|account| account.label.clone())
+                .unwrap_or_else(|| default_grok_label(state.as_ref(), usage.email.as_deref()))
         } else {
             label.trim().to_string()
         },
@@ -513,7 +583,7 @@ async fn complete_cookie_login(
             .email
             .clone()
             .or_else(|| duplicate.as_ref().and_then(|account| account.email.clone())),
-        provider_account_id: Some(GROK_BROWSER_ACCOUNT_ID.into()),
+        provider_account_id,
         chatgpt_account_id: None,
         plan: usage
             .plan
@@ -534,6 +604,9 @@ async fn complete_cookie_login(
     let normalized_cookie = match normalize_cookie_header(&cookie_header) {
         Ok(value) => value,
         Err(error) => {
+            if let Some(dir) = &temp_data_dir {
+                let _ = std::fs::remove_dir_all(dir);
+            }
             fail_if_waiting(&state, &attempt_id, error);
             close_login_window(&window);
             return;
@@ -549,6 +622,9 @@ async fn complete_cookie_login(
         )
         .await
     {
+        if let Some(dir) = &temp_data_dir {
+            let _ = std::fs::remove_dir_all(dir);
+        }
         fail_if_waiting(
             &state,
             &attempt_id,
@@ -563,6 +639,9 @@ async fn complete_cookie_login(
         Err(_) => match state.store.get(&account_id) {
             Some(account) => account,
             None => {
+                if let Some(dir) = &temp_data_dir {
+                    let _ = std::fs::remove_dir_all(dir);
+                }
                 fail_if_waiting(
                     &state,
                     &attempt_id,
@@ -594,6 +673,9 @@ async fn complete_cookie_login(
         }
     };
     if completed {
+        if let Some(dir) = &temp_data_dir {
+            let _ = std::fs::remove_dir_all(dir);
+        }
         close_login_window(&window);
     }
 }
@@ -608,7 +690,7 @@ fn close_login_window(window: &WebviewWindow) {
 /// that could run scripts able to observe credentials.
 #[cfg(desktop)]
 fn is_allowed_login_navigation(url: &Url) -> bool {
-    if url.as_str() == "about:blank" {
+    if url.as_str() == "about:blank" || url.scheme() == "blob" {
         return true;
     }
     if url.scheme() != "https" {
@@ -621,10 +703,36 @@ fn is_allowed_login_navigation(url: &Url) -> bool {
         || host.ends_with(".grok.com")
         || host == "x.ai"
         || host.ends_with(".x.ai")
+        || host == "xai.com"
+        || host.ends_with(".xai.com")
         || host == "x.com"
         || host.ends_with(".x.com")
-        || host == "accounts.google.com"
+        || host == "twitter.com"
+        || host.ends_with(".twitter.com")
+        || host == "t.co"
+        || host.ends_with(".t.co")
+        || host == "twimg.com"
+        || host.ends_with(".twimg.com")
+        || host == "cloudflare.com"
+        || host.ends_with(".cloudflare.com")
+        || host == "challenges.cloudflare.com"
+        || host == "arkoselabs.com"
+        || host.ends_with(".arkoselabs.com")
+        || host == "hcaptcha.com"
+        || host.ends_with(".hcaptcha.com")
+        || host == "recaptcha.net"
+        || host.ends_with(".recaptcha.net")
+        || host == "google.com"
+        || host.ends_with(".google.com")
+        || host == "gstatic.com"
+        || host.ends_with(".gstatic.com")
+        || host == "apple.com"
+        || host.ends_with(".apple.com")
         || host == "appleid.apple.com"
+        || host == "auth0.com"
+        || host.ends_with(".auth0.com")
+        || host == "okta.com"
+        || host.ends_with(".okta.com")
 }
 
 fn read_cookie_header(window: &WebviewWindow) -> Result<String, String> {
@@ -740,5 +848,13 @@ mod tests {
             let url = Url::parse(blocked).unwrap();
             assert!(!is_allowed_login_navigation(&url), "{blocked}");
         }
+    }
+
+    #[test]
+    fn default_grok_label_handles_empty_and_numbered_accounts() {
+        let temp = tempfile::tempdir().unwrap();
+        let state = AppState::new(temp.path().to_path_buf(), "test-token".into()).unwrap();
+        assert_eq!(default_grok_label(&state, Some("user@example.com")), "user@example.com");
+        assert_eq!(default_grok_label(&state, None), "Grok");
     }
 }

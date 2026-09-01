@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { bridgeApi, clearLoginAttempt, readLoginAttempt, rememberLoginAttempt } from "../api";
 import type { Account, CloudProjectOption, LoginStatus } from "../types";
+import { CustomDropdown } from "./CustomDropdown";
 
 type SetupStage = "signin" | "choose_project" | "monitoring_disabled";
 
@@ -152,22 +153,20 @@ export function GoogleAiStudioUsageModal({
           <>
             <p>Google could not identify the API key’s project automatically. Choose it from the projects available to this Google account.</p>
             <label className="field-label" htmlFor="google-cloud-project-choice">Google Cloud project</label>
-            <select
+            <CustomDropdown<string>
               id="google-cloud-project-choice"
-              className="text-input"
               value={selectedProjectId}
-              onChange={(event) => {
-                setSelectedProjectId(event.target.value);
+              options={projects.map((project) => ({
+                value: project.projectId,
+                label: project.displayName,
+                detail: project.projectId,
+              }))}
+              onChange={(projectId) => {
+                setSelectedProjectId(projectId);
                 setError(null);
               }}
               disabled={busy}
-            >
-              {projects.map((project) => (
-                <option key={project.projectId} value={project.projectId}>
-                  {project.displayName} ({project.projectId})
-                </option>
-              ))}
-            </select>
+            />
             <div className="credential-note">Only projects this Google account can view are shown.</div>
           </>
         ) : null}

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { bridgeApi } from "../api";
 import { BellIcon } from "../icons";
 import type { Account, UsageAlertSetting, UsageWindow } from "../types";
+import { CustomDropdown } from "./CustomDropdown";
 
 const THRESHOLDS = [10, 20, 30, 40, 50];
 const WINDOW_ORDER = ["five_hour", "weekly"] as const;
@@ -122,16 +123,18 @@ export function AccountAlertModal({
                       <span className="alert-checkbox" />
                       <span><strong>{windowLabel(windowId)}</strong><small>Notify once per quota period</small></span>
                     </label>
-                    <label className="alert-threshold">
+                    <div className="alert-threshold">
                       <span>At or below</span>
-                      <select
+                      <CustomDropdown<number>
                         value={setting.thresholdPercent}
                         disabled={!setting.enabled || saving}
-                        onChange={(event) => updateSetting(windowId, { thresholdPercent: Number(event.target.value) })}
-                      >
-                        {THRESHOLDS.map((threshold) => <option value={threshold} key={threshold}>{threshold}% remaining</option>)}
-                      </select>
-                    </label>
+                        options={THRESHOLDS.map((threshold) => ({
+                          value: threshold,
+                          label: `${threshold}% remaining`,
+                        }))}
+                        onChange={(threshold) => updateSetting(windowId, { thresholdPercent: threshold })}
+                      />
+                    </div>
                   </div>
                 );
               })}

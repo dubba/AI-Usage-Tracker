@@ -3,6 +3,7 @@ import { bridgeApi } from "../api";
 import { CloseIcon, TrashIcon } from "../icons";
 import { ProviderIcon } from "./ProviderIcon";
 import type { Account, AccountBucket, Provider } from "../types";
+import { CustomDropdown } from "./CustomDropdown";
 
 const ALL_PROVIDERS: { id: Provider; label: string }[] = [
   { id: "antigravity", label: "Antigravity" },
@@ -156,18 +157,18 @@ export function BucketModal({
             <div className="bucket-account-heading">
               <span className="field-label">Select Accounts ({selectedAccountIds.length} selected)</span>
               <div className="bucket-filter-actions">
-                <select
-                  className="bucket-provider-select"
+                <CustomDropdown<Provider | "all">
                   value={selectedProvider}
                   disabled={busy}
-                  onChange={(event) => setSelectedProvider(event.target.value as Provider | "all")}
-                  aria-label="Filter accounts by provider"
-                >
-                  <option value="all">All Providers</option>
-                  {ALL_PROVIDERS.map((item) => (
-                    <option key={item.id} value={item.id}>{item.label}</option>
-                  ))}
-                </select>
+                  options={[
+                    { value: "all", label: "All Providers" },
+                    ...ALL_PROVIDERS.map((item) => ({
+                      value: item.id,
+                      label: item.label,
+                    })),
+                  ]}
+                  onChange={(val) => setSelectedProvider(val)}
+                />
                 <button type="button" className="button ghost compact-button" onClick={selectAllFiltered} disabled={busy || !filteredAccounts.length}>
                   {filteredAccounts.length && filteredAccounts.every((a) => selectedAccountIds.includes(a.id)) ? "Deselect All" : "Select All"}
                 </button>

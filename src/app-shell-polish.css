@@ -30,7 +30,8 @@
   overflow-y: auto !important;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
-  scrollbar-color: #3b433e transparent;
+  scrollbar-width: thin;
+  scrollbar-color: var(--obsidian-purple-strong, #a078ff) transparent;
   padding-right: 4px;
   margin-right: -4px;
 }

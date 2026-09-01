@@ -16,9 +16,9 @@ export const DASHBOARD_GROUP_ORDER_EVENT = "ai-subscription-tracker:group-order-
 const KNOWN_PROVIDERS: Provider[] = [
   "openai",
   "anthropic",
+  "grok",
   "antigravity",
   "google_ai_studio",
-  "grok",
   "opencode_go",
 ];
 

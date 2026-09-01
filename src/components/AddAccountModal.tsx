@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { bridgeApi, clearLoginAttempt, rememberLoginAttempt } from "../api";
 import type { Account, LoginStatus, Provider } from "../types";
+import { CustomDropdown, type DropdownOption } from "./CustomDropdown";
 
 type ConnectionProvider = Provider;
 
@@ -13,11 +14,17 @@ type GoogleModelOption = {
 const providerOptions: Array<{ id: ConnectionProvider; label: string; detail: string }> = [
   { id: "openai", label: "Codex/GPT", detail: "ChatGPT Plus, Pro, Business, or other Codex-enabled plans" },
   { id: "anthropic", label: "Claude", detail: "Claude Pro or Max through Anthropic OAuth" },
+  { id: "grok", label: "Grok", detail: "Private grok.com sign-in and provider-reported weekly usage" },
   { id: "antigravity", label: "Antigravity", detail: "Google OAuth and Cloud Code quota data" },
   { id: "google_ai_studio", label: "AI Studio", detail: "Validate an API key, choose models, and optionally connect project quota usage" },
-  { id: "grok", label: "Grok", detail: "Private grok.com sign-in and provider-reported weekly usage" },
   { id: "opencode_go", label: "OpenCode Go", detail: "Sign in and select Go; setup is detected automatically" },
 ];
+
+const providerDropdownOptions: DropdownOption<ConnectionProvider>[] = providerOptions.map((option) => ({
+  value: option.id,
+  label: option.label,
+  detail: option.detail,
+}));
 
 function providerName(provider: ConnectionProvider): string {
   return providerOptions.find((option) => option.id === provider)?.label ?? provider;
@@ -287,12 +294,11 @@ export function AddAccountModal({
         <p>{providerLocked ? providerCopy : "Choose a provider, name the account, and enter its secure connection details."}</p>
 
         <label className="field-label" htmlFor="account-provider">Provider</label>
-        <select
+        <CustomDropdown<ConnectionProvider>
           id="account-provider"
-          className="text-input"
           value={provider}
-          onChange={(event) => {
-            const nextProvider = event.target.value as ConnectionProvider;
+          options={providerDropdownOptions}
+          onChange={(nextProvider) => {
             setLabel((current) => !current.trim() || current === providerName(provider) ? providerName(nextProvider) : current);
             setProvider(nextProvider);
             setEmail("");
@@ -308,12 +314,7 @@ export function AddAccountModal({
             setError(null);
           }}
           disabled={busy || modelsBusy || providerLocked}
-          autoFocus
-        >
-          {providerOptions.map((option) => (
-            <option key={option.id} value={option.id}>{option.label} — {option.detail}</option>
-          ))}
-        </select>
+        />
 
         <label className="field-label field-spaced" htmlFor="account-label">Account name</label>
         <input
