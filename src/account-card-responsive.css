@@ -101,6 +101,36 @@
 }
 
 @media (max-width: 860px) {
+  .provider-account-card .account-card-email,
+  .account-card-email,
+  .account-card-identity p {
+    font-size: 11px !important;
+    line-height: 14px !important;
+    letter-spacing: -0.01em;
+  }
+
+  .provider-account-card .account-card-name-row > h2 {
+    font-size: 14px !important;
+    line-height: 18px !important;
+  }
+
+  .provider-account-card .account-card-name-actions {
+    gap: 5px !important;
+  }
+
+  .provider-account-card .account-card-name-actions .account-card-action {
+    width: 26px !important;
+    height: 26px !important;
+    min-width: 26px !important;
+  }
+
+  .provider-account-card .account-card-name-actions .account-card-action svg,
+  .provider-account-card .account-card-name-actions .account-card-action::before,
+  .provider-account-card .account-card-name-actions .account-card-action .mini-spinner {
+    width: 14px !important;
+    height: 14px !important;
+  }
+
   .provider-account-card .account-card-metrics,
   .provider-account-card .account-card-metrics.two-column-metrics,
   .provider-account-card .account-card-metrics.multi-row-metrics,
@@ -115,5 +145,14 @@
   .account-card-metrics .account-usage-metric + .account-usage-metric {
     border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
     padding-top: 14px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .provider-account-card .account-card-email,
+  .account-card-email,
+  .account-card-identity p {
+    font-size: 10px !important;
+    line-height: 13px !important;
   }
 }

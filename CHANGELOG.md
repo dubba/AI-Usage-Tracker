@@ -6,6 +6,10 @@
 
 - GitHub now builds a sideloadable Android APK on every push to main. Download `AI-Usage-Tracker.apk` from that run’s Actions artifacts.
 
+### Improved
+
+- Reduced account card email subtitle font size and compacted header action padding on mobile screens so badges and action buttons fit cleanly within narrow viewports.
+
 ### Fixed
 
 - Quota reset countdown badges now format as `Resets in: Xh` for windows under 24 hours and `Resets in: Xd Yh` (e.g. `1d 12h`, `6d 10h`) for windows over 24 hours, and are calculated directly in React across all models and windows.
