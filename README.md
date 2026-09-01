@@ -110,7 +110,7 @@ Tauri generates the platform-appropriate Windows or macOS bundle under `src-taur
 
 The `Publish desktop release` workflow builds Windows, macOS Apple Silicon, and macOS Intel packages. It also uploads signed updater artifacts and a `latest.json` manifest to the GitHub Release.
 
-The `Build Android APK` workflow compiles a sideloadable `AI-Usage-Tracker.apk` on every push to `main`, on manual dispatch, and as part of a versioned desktop release. Download the APK from the Actions run artifacts, or from a versioned GitHub Release.
+The `Build Android APK` workflow compiles a sideloadable `AI Usage Tracker_<version>.apk` on every push to `main`, on manual dispatch, and as part of a versioned desktop release. Download the APK from the Actions run artifacts, or from a versioned GitHub Release.
 
 The repository requires these Actions secrets:
 

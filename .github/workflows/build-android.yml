@@ -66,14 +66,17 @@ jobs:
           ZIPALIGN="$ANDROID_HOME/build-tools/34.0.0/zipalign"
           APKSIGNER="$ANDROID_HOME/build-tools/34.0.0/apksigner"
 
+          VERSION=$(node -p "require('./package.json').version")
           found=0
           while IFS= read -r apk; do
             found=1
             echo "Processing and signing $apk..."
             base_name=$(basename "$apk" .apk)
-            clean_name="AI-Usage-Tracker-$(echo "$base_name" | sed -e 's/app-//' -e 's/-release-unsigned//' -e 's/-unsigned//').apk"
-            if [ "$clean_name" = "AI-Usage-Tracker-universal.apk" ] || [ "$clean_name" = "AI-Usage-Tracker-release.apk" ]; then
-              clean_name="AI-Usage-Tracker.apk"
+            arch=$(echo "$base_name" | sed -e 's/app-//' -e 's/-release-unsigned//' -e 's/-unsigned//' -e 's/-release//' -e 's/-debug//')
+            if [ "$arch" = "universal" ] || [ "$arch" = "app" ] || [ -z "$arch" ]; then
+              clean_name="AI Usage Tracker_${VERSION}.apk"
+            else
+              clean_name="AI Usage Tracker_${VERSION}_${arch}.apk"
             fi
 
             "$ZIPALIGN" -f -p 4 "$apk" "$RUNNER_TEMP/aligned.apk"
@@ -114,7 +117,11 @@ jobs:
           TAG="v$(node -p "require('./package.json').version")"
           for i in $(seq 1 20); do
             if gh release view "$TAG" >/dev/null 2>&1; then
-              gh release upload "$TAG" release-apks/*.apk --clobber
+              for apk_file in release-apks/*.apk; do
+                [ -f "$apk_file" ] || continue
+                file_name=$(basename "$apk_file")
+                gh release upload "$TAG" "${apk_file}#${file_name}" --clobber
+              done
               echo "Attached APK to $TAG"
               exit 0
             fi

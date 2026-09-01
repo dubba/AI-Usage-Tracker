@@ -13,6 +13,7 @@ _No unreleased user-facing changes yet._
 - Replaced default OS select elements across all dialogs (Add Account provider picker, Google Cloud project selector, Bucket filters, Usage Alert thresholds, and Settings refresh intervals) with a custom theme-styled dropdown component featuring obsidian dark styling, smooth purple animations, multiline text wrapping for long provider descriptions on mobile, full keyboard navigation, and checkmark indicators, with Grok listed directly above Antigravity.
 - Reorganized the mobile layout of the Usage Notifications dialog so window toggles and threshold labels stack vertically above their dropdowns with full width, preventing squishing on small screens.
 - Enhanced modal containers and dropdown menus to float completely above dialog boundaries with elevated z-indexing and dynamic upward opening when near the bottom of the screen to prevent cutoff.
+- Formatted Android release package names as `AI Usage Tracker_<version>.apk` to include the version number and match macOS and Windows release asset conventions.
 
 ### Fixed
 
