@@ -564,7 +564,10 @@ export default function App() {
     }
 
     const providerGroups: SidebarGroup[] = [];
+    const seenProviders = new Set<Provider>();
     for (const provider of providerOrder) {
+      if (seenProviders.has(provider)) continue;
+      seenProviders.add(provider);
       const unassigned = accounts.filter(
         (a) => a.provider === provider && !assignedIds.has(a.id),
       );
@@ -772,7 +775,7 @@ export default function App() {
               title="Create a custom bucket group"
               onClick={() => { openNewBucket(selectedGroup?.provider); setSidebarOpen(false); }}
             >
-              <PlusIcon />Bucket
+              <PlusIcon />Group
             </button>
             <div className="provider-window-toggle" aria-label="Provider average usage window">
               <button
@@ -910,7 +913,7 @@ function SidebarGroupRow({
           <strong className="sidebar-group-title">
             <span className="sidebar-group-name">{group.title}</span>
             <span className="sidebar-group-count">({group.accounts.length})</span>
-            {group.type === "bucket" ? <span className="bucket-mini-badge">Bucket</span> : null}
+            {group.type === "bucket" ? <span className="bucket-mini-badge">Group</span> : null}
           </strong>
           <span className={`provider-average tone-${tone}`}>{average == null ? "—" : `${Math.round(average)}%`}</span>
         </span>
@@ -956,7 +959,7 @@ function AccountsView(props: {
             ) : null}
             <h1>{props.selectedGroup ? props.selectedGroup.title : "Usage Dashboard"}</h1>
             {props.selectedGroup?.type === "bucket" ? (
-              <span className="dashboard-bucket-pill">Custom Bucket</span>
+              <span className="dashboard-bucket-pill">Custom Group</span>
             ) : null}
           </div>
           {props.selectedGroup ? (
@@ -970,7 +973,7 @@ function AccountsView(props: {
               className="button ghost edit-bucket-header-btn"
               onClick={() => props.onEditBucket?.(props.selectedGroup!.bucket!)}
             >
-              <EditIcon />Edit Bucket
+              <EditIcon />Edit Group
             </button>
           ) : null}
           <button className="button ghost" onClick={props.onRefreshAll} disabled={props.busy === "refresh-all"}>

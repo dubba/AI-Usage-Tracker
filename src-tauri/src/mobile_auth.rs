@@ -59,25 +59,95 @@ const POPUP_SHIM_SCRIPT: &str = r#"
     return popup;
   };
 
-  window.open = function (url) {
-    if (!url || String(url) === 'about:blank') {
-      return fakePopup();
+  const openOverride = function (url, target, features) {
+    const next = url ? String(url) : '';
+    if (!next || next === 'about:blank') {
+      const p = fakePopup();
+      return p;
     }
-    return navigate(url);
+    const popup = fakePopup();
+    navigate(next);
+    try { popup.location.href = next; } catch (e) {}
+    return popup;
   };
+  window.open = openOverride;
+  try {
+    Window.prototype.open = openOverride;
+  } catch (e) {}
+  try {
+    HTMLAnchorElement.prototype.click = (function (orig) {
+      return function () {
+        const href = this.getAttribute('href') || this.href || '';
+        const target = this.getAttribute('target') || this.target || '';
+        if (target === '_blank' && href) {
+          let absolute = href;
+          try { absolute = new URL(href, window.location.href).href; } catch (e2) {}
+          if (absolute.startsWith('https:') || absolute.startsWith('http:') || absolute.startsWith('/') || absolute.startsWith('intent:')) {
+            navigate(absolute);
+            return;
+          }
+        }
+        return orig.apply(this, arguments);
+      };
+    })(HTMLAnchorElement.prototype.click);
+  } catch (e) {}
 
   document.addEventListener('click', (event) => {
     const target = event.target;
     if (!target || !target.closest) return;
     const link = target.closest('a[href]');
     if (!link) return;
-    const href = link.href || '';
+    const href = link.getAttribute('href') || link.href || '';
+    const resolved = href ? (link.href || href) : '';
     const blank = link.target === '_blank' || (link.getAttribute('target') || '') === '_blank';
     if (!blank) return;
-    if (href.startsWith('https:') || href.startsWith('http:') || href.startsWith('intent:')) {
+    if (resolved.startsWith('https:') || resolved.startsWith('http:') || resolved.startsWith('intent:') || resolved.startsWith('/')) {
       event.preventDefault();
       event.stopPropagation();
-      navigate(href);
+      // Resolve relative URLs against current location
+      let absolute = resolved;
+      try { absolute = new URL(resolved, window.location.href).href; } catch (e) {}
+      navigate(absolute);
+    }
+  }, true);
+
+  document.addEventListener('submit', (event) => {
+    const form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    const target = form.getAttribute('target') || form.target || '';
+    const action = form.getAttribute('action') || form.action || '';
+    if (!action) return;
+    // For OAuth, the form action is the provider URL – handle regardless of target value
+    if (action.startsWith('https:') || action.startsWith('http:') || action.startsWith('/') || action.startsWith('intent:')) {
+      // If the form would open a new window, fold it into this one
+      if (target === '_blank') {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      // Let same-window submits proceed normally (WebView will navigate), but ensure shim stays injected
+      if (target === '_blank') {
+        let absolute = action;
+        try { absolute = new URL(action, window.location.href).href; } catch (e) {}
+        navigate(absolute);
+      }
+    }
+  }, true);
+
+  document.addEventListener('click', (event) => {
+    const btn = event.target.closest('button, [role="button"], input[type="button"], input[type="submit"]');
+    if (!btn) return;
+    const formAction = btn.getAttribute('formaction') || btn.form?.getAttribute('action') || '';
+    const dataUrl = btn.getAttribute('data-href') || btn.getAttribute('data-url') || btn.getAttribute('href') || '';
+    const candidate = formAction || dataUrl;
+    if (candidate && (candidate.startsWith('https:') || candidate.startsWith('http:') || candidate.startsWith('/') || candidate.startsWith('intent:'))) {
+      const isBlank = btn.getAttribute('target') === '_blank' || btn.form?.getAttribute('target') === '_blank' || btn.getAttribute('formtarget') === '_blank';
+      if (isBlank) {
+        event.preventDefault();
+        event.stopPropagation();
+        let absolute = candidate;
+        try { absolute = new URL(candidate, window.location.href).href; } catch (e) {}
+        navigate(absolute);
+      }
     }
   }, true);
 })();
@@ -130,6 +200,11 @@ pub fn open_in_main_webview(
             );
             return;
         }
+        // Inject shim immediately and then aggressively every 100ms until login completes.
+        // This ensures window.open / target=_blank are captured before user taps a provider button.
+        let _ = window.eval(POPUP_SHIM_SCRIPT);
+        // Also inject after a short delay to catch the new document's window object.
+        tokio::time::sleep(Duration::from_millis(150)).await;
         let _ = window.eval(POPUP_SHIM_SCRIPT);
 
         loop {

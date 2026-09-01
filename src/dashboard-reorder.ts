@@ -80,35 +80,66 @@ function providerFromCard(card: HTMLElement): Provider | null {
   return icon ? providerFromClassList(icon.classList) : null;
 }
 
+function uniqueProviders(list: Provider[]): Provider[] {
+  const seen = new Set<Provider>();
+  const result: Provider[] = [];
+  for (const item of list) {
+    if (!seen.has(item)) {
+      seen.add(item);
+      result.push(item);
+    }
+  }
+  return result;
+}
+
 export function readDashboardProviderOrder(): Provider[] {
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(PROVIDER_ORDER_KEY) ?? "[]");
+    const raw = window.localStorage.getItem(PROVIDER_ORDER_KEY);
+    const parsed = JSON.parse(raw ?? "[]");
     const saved = Array.isArray(parsed)
-      ? parsed.filter((value): value is Provider => KNOWN_PROVIDERS.includes(value as Provider))
+      ? uniqueProviders(parsed.filter((value): value is Provider => KNOWN_PROVIDERS.includes(value as Provider)))
       : [];
-    return [
+    // Persist deduped correction and missing-provider backfill immediately.
+    const canonical = [
       ...saved,
       ...KNOWN_PROVIDERS.filter((provider) => !saved.includes(provider)),
     ];
+    if (raw != null) {
+      try {
+        const dedupedRaw = JSON.stringify(canonical.slice(0, saved.length + KNOWN_PROVIDERS.filter((p) => !saved.includes(p)).length));
+        // Only rewrite if original was duplicated or missing providers
+        if (raw !== JSON.stringify(saved) && raw !== JSON.stringify(canonical)) {
+          // Rewrite to remove duplicates; keep full canonical order for consistency
+          window.localStorage.setItem(PROVIDER_ORDER_KEY, JSON.stringify(uniqueProviders(canonical)));
+        } else if (raw !== JSON.stringify(uniqueProviders(JSON.parse(raw)))) {
+          window.localStorage.setItem(PROVIDER_ORDER_KEY, JSON.stringify(uniqueProviders(JSON.parse(raw) as Provider[]).filter((p): p is Provider => KNOWN_PROVIDERS.includes(p))));
+        }
+      } catch {
+        // Ignore storage write failures
+      }
+    }
+    return canonical;
   } catch {
     return [...KNOWN_PROVIDERS];
   }
 }
 
 function storeProviderOrder(order: Provider[]): void {
+  const deduped = uniqueProviders(order.filter((p): p is Provider => KNOWN_PROVIDERS.includes(p)));
   try {
-    window.localStorage.setItem(PROVIDER_ORDER_KEY, JSON.stringify(order));
+    window.localStorage.setItem(PROVIDER_ORDER_KEY, JSON.stringify(deduped));
   } catch {
     // Ordering remains usable for this session when WebView storage is unavailable.
   }
-  window.dispatchEvent(new CustomEvent<Provider[]>(DASHBOARD_PROVIDER_ORDER_EVENT, { detail: order }));
+  window.dispatchEvent(new CustomEvent<Provider[]>(DASHBOARD_PROVIDER_ORDER_EVENT, { detail: deduped }));
 }
 
 function normalizeProviderOrder(available: Provider[]): Provider[] {
   const saved = readDashboardProviderOrder();
+  const dedupedAvailable = uniqueProviders(available);
   return [
-    ...saved.filter((provider) => available.includes(provider)),
-    ...available.filter((provider) => !saved.includes(provider)),
+    ...saved.filter((provider) => dedupedAvailable.includes(provider)),
+    ...dedupedAvailable.filter((provider) => !saved.includes(provider)),
   ];
 }
 
@@ -117,6 +148,21 @@ function arraysEqual<T>(left: T[], right: T[]): boolean {
 }
 
 function providerRows(container: HTMLElement): HTMLElement[] {
+  const all = Array.from(container.querySelectorAll<HTMLElement>(":scope > .provider-summary-row"));
+  // Remove DOM-level duplicates that can appear when React and manual reordering race.
+  // Bucket and provider groups can share the same provider value but have distinct groupIds,
+  // so deduplicate by groupId (e.g. "bucket:xxx" vs "provider:antigravity").
+  const seen = new Set<string>();
+  for (const row of [...all]) {
+    const groupId = row.dataset.groupId as string | undefined;
+    const provider = providerFromRow(row);
+    const key = groupId ?? provider ?? row.outerHTML;
+    if (seen.has(key)) {
+      row.remove();
+    } else {
+      seen.add(key);
+    }
+  }
   return Array.from(container.querySelectorAll<HTMLElement>(":scope > .provider-summary-row"));
 }
 
@@ -442,14 +488,18 @@ function settleVisualDrag(drag: ActiveDrag, commit: boolean): void {
 
 function committedOrder(drag: ActiveDrag): string[] {
   if (drag.descriptor.kind === "provider") {
-    return providerRows(drag.container)
-      .map(providerFromRow)
-      .filter((provider): provider is Provider => provider != null);
+    return uniqueProviders(
+      providerRows(drag.container)
+        .map(providerFromRow)
+        .filter((provider): provider is Provider => provider != null),
+    );
   }
-  return accountCards(drag.container)
+  const ids = accountCards(drag.container)
     .filter((card) => providerFromCard(card) === drag.descriptor.provider)
     .map((card) => card.dataset.accountId)
     .filter((accountId): accountId is string => Boolean(accountId));
+  // Deduplicate accountIds while preserving order (guards against DOM duplicate nodes)
+  return Array.from(new Set(ids));
 }
 
 function finishDrag(commit: boolean): void {
@@ -548,14 +598,20 @@ async function persistProviderOrder(order: Provider[]): Promise<void> {
 
 async function persistAccountOrder(provider: Provider, orderedProviderIds: string[]): Promise<void> {
   try {
+    const dedupedOrdered = Array.from(new Set(orderedProviderIds));
     const accounts = latestAccounts.length ? latestAccounts : (await bridgeApi.snapshot()).accounts;
     let providerIndex = 0;
     const fullOrder = accounts.map((account) => {
       if (account.provider !== provider) return account.id;
-      const replacement = orderedProviderIds[providerIndex];
+      const replacement = dedupedOrdered[providerIndex];
       providerIndex += 1;
       return replacement ?? account.id;
     });
+    // Final safeguard: ensure fullOrder has no duplicates before sending to backend
+    if (new Set(fullOrder).size !== fullOrder.length) {
+      scheduleSnapshotSync(0);
+      return;
+    }
     latestAccounts = await bridgeApi.reorderAccounts(fullOrder);
     window.dispatchEvent(new Event("focus"));
   } catch {

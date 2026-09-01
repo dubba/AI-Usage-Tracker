@@ -38,7 +38,8 @@
   flex-shrink: 0;
 }
 
-.account-card-action {
+.account-card-action,
+.account-name-edit {
   box-sizing: border-box;
   width: 30px !important;
   height: 30px !important;
@@ -51,9 +52,23 @@
 
 .account-card-action svg,
 .account-card-action.remove-action::before,
-.account-card-action .mini-spinner {
-  width: 16px !important;
-  height: 16px !important;
+.account-card-action .mini-spinner,
+.account-name-edit svg {
+  width: 18px !important;
+  height: 18px !important;
+}
+
+.account-name-edit {
+  color: #958ea0 !important;
+  border-color: #3d3b3d !important;
+  background: #1b1a1a !important;
+}
+
+.account-name-edit:hover:not(:disabled),
+.account-name-edit:focus-visible {
+  color: var(--obsidian-purple) !important;
+  border-color: rgba(208, 188, 255, 0.55) !important;
+  background: rgba(160, 120, 255, 0.14) !important;
 }
 
 .account-card-action.notify-action {
@@ -69,15 +84,15 @@
 }
 
 .account-card-action.remove-action {
-  color: var(--obsidian-red);
-  border-color: rgba(255, 117, 107, 0.5) !important;
-  background: rgba(147, 0, 10, 0.28) !important;
+  color: #fff !important;
+  border-color: #d94a4a !important;
+  background: #c53131 !important;
 }
 
 .account-card-action.remove-action:hover:not(:disabled) {
-  color: #ffb4ab;
-  border-color: rgba(255, 117, 107, 0.9) !important;
-  background: rgba(147, 0, 10, 0.5) !important;
+  color: #fff !important;
+  border-color: #ff6464 !important;
+  background: #d93d3d !important;
 }
 
 .account-card-action.refresh-action {

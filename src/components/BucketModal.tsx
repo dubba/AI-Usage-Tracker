@@ -84,11 +84,11 @@ export function BucketModal({
     event.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) {
-      setError("Please enter a name for this bucket group.");
+      setError("Please enter a name for this group.");
       return;
     }
     if (selectedAccountIds.length === 0) {
-      setError("Please select at least one account for this bucket.");
+      setError("Please select at least one account for this group.");
       return;
     }
 
@@ -134,13 +134,13 @@ export function BucketModal({
       <section className="modal-card bucket-modal-card" role="dialog" aria-modal="true" aria-labelledby="bucket-modal-title">
         <header className="modal-card-header">
           <div className="modal-kicker">Account Grouping</div>
-          <h2 id="bucket-modal-title">{bucket ? "Edit Bucket Group" : "Create Bucket Group"}</h2>
-          <p>Combine accounts into an independent sidebar bucket to track their combined usage and limits.</p>
+          <h2 id="bucket-modal-title">{bucket ? "Edit Group" : "Create Group"}</h2>
+          <p>Combine accounts into an independent sidebar group to track their combined usage and limits.</p>
         </header>
 
         <form onSubmit={handleSave} className="bucket-modal-form">
           <label className="field-group">
-            <span className="field-label">Bucket Name</span>
+            <span className="field-label">Group Name</span>
             <input
               type="text"
               className="text-input"
@@ -216,7 +216,7 @@ export function BucketModal({
                 disabled={busy}
                 onClick={handleDelete}
               >
-                <TrashIcon /> Delete Bucket
+                <TrashIcon /> Delete Group
               </button>
             ) : null}
             <div className="bucket-modal-save-group">
@@ -224,7 +224,7 @@ export function BucketModal({
                 Cancel
               </button>
               <button type="submit" className="button primary" disabled={busy}>
-                {busy ? "Saving…" : bucket ? "Save Changes" : "Create Bucket"}
+                {busy ? "Saving…" : bucket ? "Save Changes" : "Create Group"}
               </button>
             </div>
           </footer>
