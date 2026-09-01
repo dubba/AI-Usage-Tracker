@@ -25,7 +25,7 @@ use uuid::Uuid;
 
 #[cfg(desktop)]
 const LOGIN_WINDOW_LABEL: &str = "grok-login";
-const LOGIN_URL: &str = "https://accounts.x.ai/";
+const LOGIN_URL: &str = "https://accounts.x.ai/sign-in";
 const LOGIN_TIMEOUT_MINUTES: i64 = 10;
 const COOKIE_POLL_INTERVAL_MS: u64 = 750;
 const COOKIE_POLL_ATTEMPTS: usize = 800;

@@ -1,21 +1,19 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
-
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
-
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
-
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# JNI entry points used by wry/tauri from Rust. R8 otherwise strips them
+# because they are never called from Kotlin, which crashes Grok/OpenCode login.
+-keep class com.yajinni.paseousagebridge.Rust { *; }
+-keep class com.yajinni.paseousagebridge.RustWebView { *; }
+-keep class com.yajinni.paseousagebridge.RustWebViewClient { *; }
+-keep class com.yajinni.paseousagebridge.RustWebChromeClient { *; }
+-keep class com.yajinni.paseousagebridge.Ipc { *; }
+-keep class com.yajinni.paseousagebridge.WryActivity { *; }
+-keep class com.yajinni.paseousagebridge.TauriActivity { *; }
+-keep class com.yajinni.paseousagebridge.MainActivity { *; }
+-keepclassmembers class com.yajinni.paseousagebridge.RustWebView {
+    public <init>(...);
+    public java.lang.String getCookies(java.lang.String);
+    public void evalScript(int, java.lang.String);
+    public void loadUrlMainThread(java.lang.String);
+    public void loadUrlMainThread(java.lang.String, java.util.Map);
+    public void loadHTMLMainThread(java.lang.String);
+    public void clearAllBrowsingData();
+}
