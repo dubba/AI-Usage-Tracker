@@ -7,7 +7,7 @@
 - Fixed "Open Grok login" button crashing the Android app by guarding the desktop WebView window creation with a compile-time platform check; on Android the manual cookie-paste path is now shown automatically.
 - Fixed Antigravity (Google), OpenAI, and Anthropic OAuth sign-in permanently hanging on Android; the loopback TCP callback server is desktop-only and cannot receive redirects from the Android system browser. These providers now show a clear message directing Android users to link accounts on the desktop app.
 - Fixed `getCurrentWindow()` crash at startup on Android caused by missing window plugin metadata; the Paseo Bridge window check now falls back safely to `false` on mobile.
-- Positioned the expanded mobile sidebar drawer below the status bar with top border rounding and safe-area clearance, preventing the drawer from covering or clipping into the mobile status bar.
+- Positioned the expanded mobile sidebar drawer flush directly below the mobile status bar with square corners, eliminating the top gap and preventing the drawer from covering status bar indicators.
 - Expanded account usage progress bar tracks to span the full available width of the card, aligning flush with window badges and reset countdown timestamps.
 - Styled the account rename pen button with a compact 22px badge and obsidian violet font, border, and background colors matching the visual style of the header action buttons.
 
