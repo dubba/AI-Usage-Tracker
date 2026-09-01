@@ -75,7 +75,7 @@ impl AppState {
         let client = Client::builder()
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(15))
-            .user_agent("AI-Usage-Tracker/0.3.1")
+            .user_agent(concat!("AI-Usage-Tracker/", env!("CARGO_PKG_VERSION")))
             .build()
             .map_err(|error| error.to_string())?;
         Ok(Self {

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.2 - 2026-09-01
+
 ### Security
 
 - Local account metadata, settings, and Android credential files are now created with owner-only permissions so they are never briefly readable by other users on the same machine.
@@ -15,6 +17,8 @@
 
 ### Improved
 
+- Sidebar cards (both custom groups/buckets and provider summaries) and dashboard account cards can now be dragged or long-pressed on touch screens to swap and customize their order, preserving natural scrolling and syncing backend account ordering.
+- Active card selection is preserved when dragging or swapping cards, preventing the displayed account view from unexpectedly switching.
 - The Paseo Bridge token in the integration window is now hidden by default and can be revealed with a single click, keeping the masked value in the copied environment block as well.
 - Updated the in-app Grok login window to open `https://accounts.x.ai/sign-in` directly.
 - If accounts fail to load, the dashboard now shows the error and a Retry button instead of staying on “Loading accounts…”.

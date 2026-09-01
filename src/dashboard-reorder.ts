@@ -1,13 +1,17 @@
 import { bridgeApi } from "./api";
 import type { Account, Provider } from "./types";
 
+const SIDEBAR_GROUP_ORDER_KEY = "ai-subscription-tracker:sidebar-group-order";
 const PROVIDER_ORDER_KEY = "ai-subscription-tracker:provider-order";
 const EDGE_SCROLL_ZONE_PX = 52;
 const EDGE_SCROLL_MAX_STEP_PX = 18;
 const DRAG_THRESHOLD_PX = 5;
+const TOUCH_CANCEL_MOVE_PX = 8;
+const LONG_PRESS_DELAY_MS = 350;
 const REORDER_ANIMATION_MS = 150;
 
 export const DASHBOARD_PROVIDER_ORDER_EVENT = "ai-subscription-tracker:provider-order-changed";
+export const DASHBOARD_GROUP_ORDER_EVENT = "ai-subscription-tracker:group-order-changed";
 
 const KNOWN_PROVIDERS: Provider[] = [
   "openai",
@@ -19,14 +23,18 @@ const KNOWN_PROVIDERS: Provider[] = [
 ];
 
 type DragDescriptor =
-  | { kind: "provider"; provider: Provider; source: HTMLElement }
+  | { kind: "group"; groupId: string; provider: Provider; source: HTMLElement }
   | { kind: "account"; accountId: string; provider: Provider; source: HTMLElement };
 
 type PointerCandidate = {
   pointerId: number;
+  pointerType: string;
   startX: number;
   startY: number;
+  currentX: number;
+  currentY: number;
   drag: DragDescriptor;
+  longPressTimer: number | null;
 };
 
 type ActiveDrag = {
@@ -80,6 +88,18 @@ function providerFromCard(card: HTMLElement): Provider | null {
   return icon ? providerFromClassList(icon.classList) : null;
 }
 
+function uniqueStrings(list: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const item of list) {
+    if (item && !seen.has(item)) {
+      seen.add(item);
+      result.push(item);
+    }
+  }
+  return result;
+}
+
 function uniqueProviders(list: Provider[]): Provider[] {
   const seen = new Set<Provider>();
   const result: Provider[] = [];
@@ -92,6 +112,62 @@ function uniqueProviders(list: Provider[]): Provider[] {
   return result;
 }
 
+function groupIdFromRow(row: HTMLElement): string | null {
+  const groupId = row.dataset.groupId;
+  if (groupId && groupId.trim().length > 0) return groupId.trim();
+  const provider = row.dataset.reorderProvider as Provider | undefined;
+  if (provider && KNOWN_PROVIDERS.includes(provider)) return `provider:${provider}`;
+  const icon = row.querySelector<HTMLElement>(".provider-summary-icon");
+  const p = icon ? providerFromClassList(icon.classList) : null;
+  return p ? `provider:${p}` : null;
+}
+
+export function readSidebarGroupOrder(): string[] {
+  try {
+    const raw = window.localStorage.getItem(SIDEBAR_GROUP_ORDER_KEY);
+    const parsed = JSON.parse(raw ?? "[]");
+    if (Array.isArray(parsed)) {
+      return uniqueStrings(parsed.filter((item): item is string => typeof item === "string" && item.length > 0));
+    }
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
+export function storeSidebarGroupOrder(order: string[]): void {
+  const deduped = uniqueStrings(order);
+  try {
+    window.localStorage.setItem(SIDEBAR_GROUP_ORDER_KEY, JSON.stringify(deduped));
+  } catch {
+    // ignore
+  }
+
+  // Also derive Provider[] order for backwards compatibility
+  const derivedProviders: Provider[] = [];
+  for (const id of deduped) {
+    if (id.startsWith("provider:")) {
+      const p = id.slice(9) as Provider;
+      if (KNOWN_PROVIDERS.includes(p) && !derivedProviders.includes(p)) {
+        derivedProviders.push(p);
+      }
+    }
+  }
+  for (const p of KNOWN_PROVIDERS) {
+    if (!derivedProviders.includes(p)) {
+      derivedProviders.push(p);
+    }
+  }
+  try {
+    window.localStorage.setItem(PROVIDER_ORDER_KEY, JSON.stringify(derivedProviders));
+  } catch {
+    // ignore
+  }
+
+  window.dispatchEvent(new CustomEvent<string[]>(DASHBOARD_GROUP_ORDER_EVENT, { detail: deduped }));
+  window.dispatchEvent(new CustomEvent<Provider[]>(DASHBOARD_PROVIDER_ORDER_EVENT, { detail: derivedProviders }));
+}
+
 export function readDashboardProviderOrder(): Provider[] {
   try {
     const raw = window.localStorage.getItem(PROVIDER_ORDER_KEY);
@@ -99,17 +175,13 @@ export function readDashboardProviderOrder(): Provider[] {
     const saved = Array.isArray(parsed)
       ? uniqueProviders(parsed.filter((value): value is Provider => KNOWN_PROVIDERS.includes(value as Provider)))
       : [];
-    // Persist deduped correction and missing-provider backfill immediately.
     const canonical = [
       ...saved,
       ...KNOWN_PROVIDERS.filter((provider) => !saved.includes(provider)),
     ];
     if (raw != null) {
       try {
-        const dedupedRaw = JSON.stringify(canonical.slice(0, saved.length + KNOWN_PROVIDERS.filter((p) => !saved.includes(p)).length));
-        // Only rewrite if original was duplicated or missing providers
         if (raw !== JSON.stringify(saved) && raw !== JSON.stringify(canonical)) {
-          // Rewrite to remove duplicates; keep full canonical order for consistency
           window.localStorage.setItem(PROVIDER_ORDER_KEY, JSON.stringify(uniqueProviders(canonical)));
         } else if (raw !== JSON.stringify(uniqueProviders(JSON.parse(raw)))) {
           window.localStorage.setItem(PROVIDER_ORDER_KEY, JSON.stringify(uniqueProviders(JSON.parse(raw) as Provider[]).filter((p): p is Provider => KNOWN_PROVIDERS.includes(p))));
@@ -147,16 +219,11 @@ function arraysEqual<T>(left: T[], right: T[]): boolean {
   return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
-function providerRows(container: HTMLElement): HTMLElement[] {
+function groupRows(container: HTMLElement): HTMLElement[] {
   const all = Array.from(container.querySelectorAll<HTMLElement>(":scope > .provider-summary-row"));
-  // Remove DOM-level duplicates that can appear when React and manual reordering race.
-  // Bucket and provider groups can share the same provider value but have distinct groupIds,
-  // so deduplicate by groupId (e.g. "bucket:xxx" vs "provider:antigravity").
   const seen = new Set<string>();
   for (const row of [...all]) {
-    const groupId = row.dataset.groupId as string | undefined;
-    const provider = providerFromRow(row);
-    const key = groupId ?? provider ?? row.outerHTML;
+    const key = groupIdFromRow(row) ?? row.outerHTML;
     if (seen.has(key)) {
       row.remove();
     } else {
@@ -170,20 +237,29 @@ function accountCards(container: HTMLElement): HTMLElement[] {
   return Array.from(container.querySelectorAll<HTMLElement>(":scope > .provider-account-card"));
 }
 
-function applyProviderOrder(container: HTMLElement): void {
-  const rows = providerRows(container);
+function normalizeGroupOrder(available: string[]): string[] {
+  const saved = readSidebarGroupOrder();
+  const dedupedAvailable = uniqueStrings(available);
+  return [
+    ...saved.filter((id) => dedupedAvailable.includes(id)),
+    ...dedupedAvailable.filter((id) => !saved.includes(id)),
+  ];
+}
+
+function applyGroupOrder(container: HTMLElement): void {
+  const rows = groupRows(container);
   const available = rows.flatMap((row) => {
-    const provider = providerFromRow(row);
-    return provider ? [provider] : [];
+    const id = groupIdFromRow(row);
+    return id ? [id] : [];
   });
-  const order = normalizeProviderOrder(available);
-  const current = rows.map(providerFromRow).filter((provider): provider is Provider => provider != null);
-  if (order.length !== current.length || order.every((provider, index) => current[index] === provider)) return;
+  const order = normalizeGroupOrder(available);
+  const current = rows.map(groupIdFromRow).filter((id): id is string => Boolean(id));
+  if (order.length !== current.length || order.every((id, index) => current[index] === id)) return;
 
   mutationGuard = true;
   try {
-    for (const provider of order) {
-      const row = rows.find((candidate) => providerFromRow(candidate) === provider);
+    for (const id of order) {
+      const row = rows.find((candidate) => groupIdFromRow(candidate) === id);
       if (row) container.appendChild(row);
     }
   } finally {
@@ -194,13 +270,15 @@ function applyProviderOrder(container: HTMLElement): void {
 function enhanceProviderList(): void {
   const container = document.querySelector<HTMLElement>(".provider-list");
   if (!container) return;
-  applyProviderOrder(container);
-  for (const row of providerRows(container)) {
-    const provider = providerFromRow(row);
-    if (!provider) continue;
+  applyGroupOrder(container);
+  for (const row of groupRows(container)) {
+    const id = groupIdFromRow(row);
+    if (!id) continue;
     row.draggable = false;
     row.dataset.reorderEnabled = "true";
-    row.dataset.reorderProvider = provider;
+    row.dataset.groupId = id;
+    const provider = providerFromRow(row);
+    if (provider) row.dataset.reorderProvider = provider;
   }
 }
 
@@ -247,10 +325,11 @@ function enhanceAccountList(): void {
 }
 
 function dragFromPointerTarget(target: HTMLElement): DragDescriptor | null {
-  const providerRow = target.closest<HTMLElement>(".provider-summary-row[data-reorder-enabled='true']");
-  if (providerRow) {
-    const provider = providerFromRow(providerRow);
-    return provider ? { kind: "provider", provider, source: providerRow } : null;
+  const groupRow = target.closest<HTMLElement>(".provider-summary-row[data-reorder-enabled='true']");
+  if (groupRow) {
+    const groupId = groupIdFromRow(groupRow);
+    const provider = providerFromRow(groupRow) ?? "openai";
+    return groupId ? { kind: "group", groupId, provider, source: groupRow } : null;
   }
 
   if (target.closest("button, input, select, textarea, a, [contenteditable='true'], .account-card-name-actions, .account-card-header-actions, .remove-account-confirmation")) return null;
@@ -262,10 +341,10 @@ function dragFromPointerTarget(target: HTMLElement): DragDescriptor | null {
 }
 
 function originalOrder(descriptor: DragDescriptor, container: HTMLElement): string[] {
-  if (descriptor.kind === "provider") {
-    return providerRows(container)
-      .map(providerFromRow)
-      .filter((provider): provider is Provider => provider != null);
+  if (descriptor.kind === "group") {
+    return groupRows(container)
+      .map(groupIdFromRow)
+      .filter((id): id is string => Boolean(id));
   }
   return accountCards(container)
     .filter((card) => providerFromCard(card) === descriptor.provider)
@@ -274,8 +353,8 @@ function originalOrder(descriptor: DragDescriptor, container: HTMLElement): stri
 }
 
 function reorderElements(drag: ActiveDrag): HTMLElement[] {
-  if (drag.descriptor.kind === "provider") {
-    return providerRows(drag.container).filter((row) => row !== drag.source);
+  if (drag.descriptor.kind === "group") {
+    return groupRows(drag.container).filter((row) => row !== drag.source);
   }
   return accountCards(drag.container).filter(
     (card) => card !== drag.source && providerFromCard(card) === drag.descriptor.provider,
@@ -375,25 +454,26 @@ function runAutoScroll(): void {
   drag.autoScrollFrame = window.requestAnimationFrame(runAutoScroll);
 }
 
-function beginVisualDrag(event: PointerEvent, candidate: PointerCandidate): ActiveDrag | null {
+function beginVisualDrag(clientX: number, clientY: number, candidate: PointerCandidate): ActiveDrag | null {
   const descriptor = candidate.drag;
   const container = descriptor.source.parentElement;
   if (!container) return null;
-  const scrollContainer = descriptor.kind === "provider"
+  const scrollContainer = descriptor.kind === "group"
     ? container
     : descriptor.source.closest<HTMLElement>(".dashboard-content") ?? container;
   const bounds = descriptor.source.getBoundingClientRect();
   const placeholder = document.createElement("div");
-  placeholder.className = `dashboard-reorder-placeholder ${descriptor.kind}-reorder-placeholder`;
+  const placeholderClass = descriptor.kind === "group" ? "provider-reorder-placeholder" : "account-reorder-placeholder";
+  placeholder.className = `dashboard-reorder-placeholder ${placeholderClass}`;
   placeholder.setAttribute("aria-hidden", "true");
   placeholder.style.height = `${bounds.height}px`;
 
   const active: ActiveDrag = {
-    pointerId: event.pointerId,
+    pointerId: candidate.pointerId,
     startX: candidate.startX,
     startY: candidate.startY,
-    lastClientX: event.clientX,
-    lastClientY: event.clientY,
+    lastClientX: clientX,
+    lastClientY: clientY,
     grabOffsetY: candidate.startY - bounds.top,
     sourceHeight: bounds.height,
     descriptor,
@@ -433,7 +513,7 @@ function beginVisualDrag(event: PointerEvent, candidate: PointerCandidate): Acti
   });
   document.documentElement.classList.add("dashboard-reordering");
   try {
-    descriptor.source.setPointerCapture(event.pointerId);
+    descriptor.source.setPointerCapture(candidate.pointerId);
   } catch {
     // Document-level pointer handlers continue the drag when capture is unavailable.
   }
@@ -487,19 +567,21 @@ function settleVisualDrag(drag: ActiveDrag, commit: boolean): void {
 }
 
 function committedOrder(drag: ActiveDrag): string[] {
-  if (drag.descriptor.kind === "provider") {
-    return uniqueProviders(
-      providerRows(drag.container)
-        .map(providerFromRow)
-        .filter((provider): provider is Provider => provider != null),
-    );
+  if (drag.descriptor.kind === "group") {
+    const ids = groupRows(drag.container)
+      .map(groupIdFromRow)
+      .filter((id): id is string => Boolean(id));
+    return uniqueStrings(ids);
   }
   const ids = accountCards(drag.container)
     .filter((card) => providerFromCard(card) === drag.descriptor.provider)
     .map((card) => card.dataset.accountId)
     .filter((accountId): accountId is string => Boolean(accountId));
-  // Deduplicate accountIds while preserving order (guards against DOM duplicate nodes)
   return Array.from(new Set(ids));
+}
+
+export function isReordering(): boolean {
+  return dragState != null || Date.now() - lastDropAt < 600;
 }
 
 function finishDrag(commit: boolean): void {
@@ -510,17 +592,16 @@ function finishDrag(commit: boolean): void {
   settleVisualDrag(drag, commit);
   const nextOrder = commit ? committedOrder(drag) : drag.originalOrder;
   dragState = null;
+  lastDropAt = Date.now();
 
   if (!commit || arraysEqual(drag.originalOrder, nextOrder)) {
     scheduleSnapshotSync(0);
     return;
   }
 
-  lastDropAt = Date.now();
-  if (drag.descriptor.kind === "provider") {
-    const providers = nextOrder.filter((value): value is Provider => KNOWN_PROVIDERS.includes(value as Provider));
-    storeProviderOrder(providers);
-    void persistProviderOrder(providers);
+  if (drag.descriptor.kind === "group") {
+    storeSidebarGroupOrder(nextOrder);
+    void persistGroupOrder(nextOrder);
   } else {
     void persistAccountOrder(drag.descriptor.provider, nextOrder);
   }
@@ -528,28 +609,68 @@ function finishDrag(commit: boolean): void {
 
 function beginPointerCandidate(event: PointerEvent): void {
   if (event.button !== 0 || event.isPrimary === false || dragState) return;
-  if (event.pointerType === "touch") return;
   const target = event.target instanceof HTMLElement ? event.target : null;
   if (!target) return;
   const drag = dragFromPointerTarget(target);
   if (!drag) return;
-  pointerCandidate = {
+
+  if (pointerCandidate?.longPressTimer != null) {
+    window.clearTimeout(pointerCandidate.longPressTimer);
+  }
+
+  const isTouch = event.pointerType === "touch" || event.pointerType === "pen";
+  const candidate: PointerCandidate = {
     pointerId: event.pointerId,
+    pointerType: event.pointerType,
     startX: event.clientX,
     startY: event.clientY,
+    currentX: event.clientX,
+    currentY: event.clientY,
     drag,
+    longPressTimer: null,
   };
+
+  if (isTouch) {
+    candidate.longPressTimer = window.setTimeout(() => {
+      if (pointerCandidate !== candidate || dragState) return;
+      try {
+        navigator.vibrate?.(40);
+      } catch {
+        // Haptics may be unavailable on some platforms.
+      }
+      beginVisualDrag(candidate.currentX, candidate.currentY, candidate);
+    }, LONG_PRESS_DELAY_MS);
+  }
+
+  pointerCandidate = candidate;
 }
 
 function movePointerCandidate(event: PointerEvent): void {
   if (!pointerCandidate || pointerCandidate.pointerId !== event.pointerId) return;
+
+  pointerCandidate.currentX = event.clientX;
+  pointerCandidate.currentY = event.clientY;
+
   if (!dragState) {
+    const isTouch = pointerCandidate.pointerType === "touch" || pointerCandidate.pointerType === "pen";
     const distance = Math.hypot(
       event.clientX - pointerCandidate.startX,
       event.clientY - pointerCandidate.startY,
     );
+
+    if (isTouch) {
+      if (distance > TOUCH_CANCEL_MOVE_PX) {
+        if (pointerCandidate.longPressTimer != null) {
+          window.clearTimeout(pointerCandidate.longPressTimer);
+          pointerCandidate.longPressTimer = null;
+        }
+        pointerCandidate = null;
+      }
+      return;
+    }
+
     if (distance < DRAG_THRESHOLD_PX) return;
-    if (!beginVisualDrag(event, pointerCandidate)) {
+    if (!beginVisualDrag(event.clientX, event.clientY, pointerCandidate)) {
       pointerCandidate = null;
       return;
     }
@@ -566,6 +687,10 @@ function movePointerCandidate(event: PointerEvent): void {
 
 function endPointerCandidate(event: PointerEvent): void {
   if (!pointerCandidate || pointerCandidate.pointerId !== event.pointerId) return;
+  if (pointerCandidate.longPressTimer != null) {
+    window.clearTimeout(pointerCandidate.longPressTimer);
+    pointerCandidate.longPressTimer = null;
+  }
   if (!dragState) {
     pointerCandidate = null;
     return;
@@ -577,19 +702,124 @@ function endPointerCandidate(event: PointerEvent): void {
 
 function cancelPointerCandidate(event?: PointerEvent): void {
   if (event && pointerCandidate && pointerCandidate.pointerId !== event.pointerId) return;
+  if (pointerCandidate?.longPressTimer != null) {
+    window.clearTimeout(pointerCandidate.longPressTimer);
+    pointerCandidate.longPressTimer = null;
+  }
+  // On Android, WebView may dispatch synthetic pointercancel when a touch moves.
+  // If dragState is already active on touch, let onTouchMove and onTouchEnd drive the drag.
+  if (dragState && (event?.pointerType === "touch" || event?.pointerType === "pen")) {
+    return;
+  }
   finishDrag(false);
 }
 
-async function persistProviderOrder(order: Provider[]): Promise<void> {
-  try {
-    const accounts = latestAccounts.length ? latestAccounts : (await bridgeApi.snapshot()).accounts;
-    const orderedIds = order.flatMap((provider) =>
-      accounts.filter((account) => account.provider === provider).map((account) => account.id),
+function onTouchMove(event: TouchEvent): void {
+  if (!pointerCandidate && !dragState) return;
+  const touch = event.touches[0];
+  if (!touch) return;
+
+  if (dragState) {
+    if (event.cancelable) {
+      event.preventDefault();
+    }
+    dragState.lastClientX = touch.clientX;
+    dragState.lastClientY = touch.clientY;
+    updateFloatingSource(dragState);
+    updatePlaceholderFromPointer(dragState);
+    return;
+  }
+
+  if (pointerCandidate) {
+    pointerCandidate.currentX = touch.clientX;
+    pointerCandidate.currentY = touch.clientY;
+    const distance = Math.hypot(
+      touch.clientX - pointerCandidate.startX,
+      touch.clientY - pointerCandidate.startY,
     );
-    const remainingIds = accounts
-      .filter((account) => !order.includes(account.provider))
-      .map((account) => account.id);
-    latestAccounts = await bridgeApi.reorderAccounts([...orderedIds, ...remainingIds]);
+    if (distance > TOUCH_CANCEL_MOVE_PX) {
+      if (pointerCandidate.longPressTimer != null) {
+        window.clearTimeout(pointerCandidate.longPressTimer);
+        pointerCandidate.longPressTimer = null;
+      }
+      pointerCandidate = null;
+    }
+  }
+}
+
+function onTouchEnd(event: TouchEvent): void {
+  if (pointerCandidate?.longPressTimer != null) {
+    window.clearTimeout(pointerCandidate.longPressTimer);
+    pointerCandidate.longPressTimer = null;
+  }
+  if (dragState) {
+    if (event.cancelable) {
+      event.preventDefault();
+    }
+    event.stopPropagation();
+    finishDrag(true);
+  } else {
+    pointerCandidate = null;
+  }
+}
+
+function onTouchCancel(event: TouchEvent): void {
+  if (pointerCandidate?.longPressTimer != null) {
+    window.clearTimeout(pointerCandidate.longPressTimer);
+    pointerCandidate.longPressTimer = null;
+  }
+  if (dragState) {
+    finishDrag(true);
+  } else {
+    pointerCandidate = null;
+  }
+}
+
+async function persistGroupOrder(orderedGroupIds: string[]): Promise<void> {
+  try {
+    const snapshot = await bridgeApi.snapshot();
+    const accounts = latestAccounts.length ? latestAccounts : snapshot.accounts;
+    const buckets = snapshot.buckets ?? [];
+
+    const orderedAccountIds: string[] = [];
+    const assignedAccountIds = new Set<string>();
+
+    for (const groupId of orderedGroupIds) {
+      if (groupId.startsWith("bucket:")) {
+        const bucketId = groupId.slice(7);
+        const bucket = buckets.find((b) => b.id === bucketId);
+        if (bucket) {
+          for (const accId of bucket.accountIds) {
+            if (!assignedAccountIds.has(accId)) {
+              assignedAccountIds.add(accId);
+              orderedAccountIds.push(accId);
+            }
+          }
+        }
+      } else if (groupId.startsWith("provider:")) {
+        const providerStr = groupId.slice(9);
+        const providerAccounts = accounts.filter(
+          (acc) => acc.provider === providerStr && !assignedAccountIds.has(acc.id),
+        );
+        for (const acc of providerAccounts) {
+          if (!assignedAccountIds.has(acc.id)) {
+            assignedAccountIds.add(acc.id);
+            orderedAccountIds.push(acc.id);
+          }
+        }
+      }
+    }
+
+    for (const acc of accounts) {
+      if (!assignedAccountIds.has(acc.id)) {
+        assignedAccountIds.add(acc.id);
+        orderedAccountIds.push(acc.id);
+      }
+    }
+
+    if (orderedAccountIds.length === accounts.length) {
+      latestAccounts = await bridgeApi.reorderAccounts(orderedAccountIds);
+    }
     window.dispatchEvent(new Event("focus"));
   } catch {
     scheduleSnapshotSync(0);
@@ -658,6 +888,9 @@ export function installDashboardReorder(): void {
   document.addEventListener("pointermove", movePointerCandidate, { capture: true, passive: false });
   document.addEventListener("pointerup", endPointerCandidate, { capture: true, passive: false });
   document.addEventListener("pointercancel", cancelPointerCandidate, true);
+  document.addEventListener("touchmove", onTouchMove, { capture: true, passive: false });
+  document.addEventListener("touchend", onTouchEnd, { capture: true, passive: false });
+  document.addEventListener("touchcancel", onTouchCancel, { capture: true, passive: false });
   window.addEventListener("blur", () => cancelPointerCandidate());
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && dragState) {
@@ -667,11 +900,17 @@ export function installDashboardReorder(): void {
   }, true);
 
   document.addEventListener("click", (event) => {
-    if (Date.now() - lastDropAt > 300) return;
+    if (Date.now() - lastDropAt > 600) return;
     const target = event.target as HTMLElement | null;
     if (!target?.closest(".provider-summary-row, .provider-account-card")) return;
     event.preventDefault();
     event.stopPropagation();
+  }, true);
+
+  document.addEventListener("contextmenu", (event) => {
+    if (dragState || Date.now() - lastDropAt < 500) {
+      event.preventDefault();
+    }
   }, true);
 
   window.addEventListener("focus", () => scheduleSnapshotSync(0));

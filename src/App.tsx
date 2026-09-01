@@ -9,8 +9,11 @@ import { BucketModal } from "./components/BucketModal";
 import { GoogleAiStudioUsageModal } from "./components/GoogleAiStudioUsageModal";
 import { ProviderIcon } from "./components/ProviderIcon";
 import {
+  DASHBOARD_GROUP_ORDER_EVENT,
   DASHBOARD_PROVIDER_ORDER_EVENT,
+  isReordering,
   readDashboardProviderOrder,
+  readSidebarGroupOrder,
 } from "./dashboard-reorder";
 import {
   BellIcon,
@@ -341,6 +344,7 @@ export default function App() {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [providerOrder, setProviderOrder] = useState<Provider[]>(readDashboardProviderOrder);
+  const [sidebarGroupOrder, setSidebarGroupOrder] = useState<string[]>(readSidebarGroupOrder);
   const [sidebarWindow, setSidebarWindow] = useState<SidebarWindow>(readSidebarWindow);
   const [section, setSection] = useState<Section>("accounts");
   const [addOpen, setAddOpen] = useState(false);
@@ -358,7 +362,7 @@ export default function App() {
   const [autostart, setAutostart] = useState(false);
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
   const [settingsBusy, setSettingsBusy] = useState(false);
-  const [installedVersion, setInstalledVersion] = useState("0.3.1");
+  const [installedVersion, setInstalledVersion] = useState("0.3.2");
   const [appUpdate, setAppUpdate] = useState<AppUpdateStatus | null>(null);
   const [updateBusy, setUpdateBusy] = useState<UpdateBusy>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
@@ -484,7 +488,7 @@ export default function App() {
 
   useEffect(() => {
     void load();
-    getVersion().then(setInstalledVersion).catch(() => setInstalledVersion("0.3.1"));
+    getVersion().then(setInstalledVersion).catch(() => setInstalledVersion("0.3.2"));
     bridgeApi.getAppSettings().then(setAppSettings).catch((cause) => setError(String(cause)));
     isEnabled().then(setAutostart).catch(() => setAutostart(false));
     const syncInterval = window.setInterval(() => void load(), DASHBOARD_SYNC_INTERVAL_MS);
@@ -527,9 +531,16 @@ export default function App() {
   }, [load]);
 
   useEffect(() => {
-    const handleOrderChange = () => setProviderOrder(readDashboardProviderOrder());
+    const handleOrderChange = () => {
+      setProviderOrder(readDashboardProviderOrder());
+      setSidebarGroupOrder(readSidebarGroupOrder());
+    };
+    window.addEventListener(DASHBOARD_GROUP_ORDER_EVENT, handleOrderChange);
     window.addEventListener(DASHBOARD_PROVIDER_ORDER_EVENT, handleOrderChange);
-    return () => window.removeEventListener(DASHBOARD_PROVIDER_ORDER_EVENT, handleOrderChange);
+    return () => {
+      window.removeEventListener(DASHBOARD_GROUP_ORDER_EVENT, handleOrderChange);
+      window.removeEventListener(DASHBOARD_PROVIDER_ORDER_EVENT, handleOrderChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -590,8 +601,24 @@ export default function App() {
       }
     }
 
-    return [...bucketGroups, ...providerGroups];
-  }, [accounts, buckets, providerOrder]);
+    const allGroups = [...bucketGroups, ...providerGroups];
+    if (sidebarGroupOrder.length === 0) return allGroups;
+
+    return [...allGroups].sort((a, b) => {
+      const indexA = sidebarGroupOrder.indexOf(a.id);
+      const indexB = sidebarGroupOrder.indexOf(b.id);
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      if (indexA !== -1) return -1;
+      if (indexB !== -1) return 1;
+      return 0;
+    });
+  }, [accounts, buckets, providerOrder, sidebarGroupOrder]);
+
+  useEffect(() => {
+    if (!selectedGroupId && sidebarGroups.length > 0) {
+      setSelectedGroupId(sidebarGroups[0].id);
+    }
+  }, [selectedGroupId, sidebarGroups]);
 
   const selectedGroup = useMemo<SidebarGroup | null>(() => {
     if (selectedGroupId) {
@@ -923,9 +950,18 @@ function SidebarGroupRow({
     <button
       type="button"
       className={`provider-summary-row ${group.type === "bucket" ? "is-bucket-row" : ""} ${selected ? "selected" : ""}`}
-      onClick={onSelect}
+      onClick={(e) => {
+        if (isReordering()) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        onSelect();
+      }}
       data-provider={group.provider}
+      data-reorder-provider={group.provider}
       data-group-id={group.id}
+      data-reorder-enabled="true"
       aria-label={`${group.title}, ${group.accounts.length} accounts, ${average == null ? "usage unavailable" : `${Math.round(average)} percent average remaining`}`}
     >
       <span className={`provider-summary-icon provider-${group.provider}`}><ProviderIcon provider={group.provider} /></span>
