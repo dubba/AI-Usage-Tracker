@@ -12,9 +12,8 @@
 - Deleting an account group now opens a confirmation dialog (“Are you sure you want to delete this group?”) instead of deleting immediately, and account removal can no longer be triggered twice by rapid clicks.
 - Dialogs (Add Account, Account Grouping, Usage Notifications, Google Cloud Usage, Remove Account) now trap keyboard focus, close with Escape unless a dropdown is open, restore focus to the button that opened them, and stop the background from scrolling while open.
 - Restored the Settings Change Log row, which disappeared after the Settings title was removed.
-- Clicking outside the Add Account dialog no longer cancels an in-progress provider sign-in; use Cancel to stop it deliberately.
-- On Android, Grok and OpenCode connect screens now show the manual cookie-entry steps with matching button text instead of instructions for an in-app sign-in window that mobile no longer provides.
-- Accounts renamed to the same text as an old provider name (for example “OpenAI Codex”) keep the exact name the user typed; only accounts still carrying the original auto-generated legacy name display the modern provider name.
+ - Clicking outside the Add Account dialog no longer cancels an in-progress provider sign-in; use Cancel to stop it deliberately.
+ - Accounts renamed to the same text as an old provider name (for example “OpenAI Codex”) keep the exact name the user typed; only accounts still carrying the original auto-generated legacy name display the modern provider name.
 - Provider sign-in no longer stays on “Waiting for the browser callback…” if the app loses contact with the login. The dialog shows an error and a Retry button that resumes the same attempt.
 - Reordering accounts in a mixed group now moves those cards only, instead of applying another provider’s order to them.
 - AI Studio accounts added with only an API key now show KEY ONLY instead of CONNECTED, and the Cloud Usage connection opens immediately so quota setup is not skipped.

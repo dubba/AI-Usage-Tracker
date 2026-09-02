@@ -206,7 +206,7 @@ export function AddAccountModal({
     setBusy(true);
     setError(null);
     try {
-      if (provider === "opencode_go" && manualMode) {
+      if (provider === "opencode_go" && advancedManual) {
         const account = await bridgeApi.addOpenCodeGoAccount(
           label.trim() || providerName(provider),
           workspaceId.trim(),
@@ -217,7 +217,7 @@ export function AddAccountModal({
         return;
       }
 
-      if (provider === "grok" && manualMode) {
+      if (provider === "grok" && advancedManual) {
         if (!grokCookie.trim()) {
           setError("Grok session cookies are required for manual connection.");
           setBusy(false);
@@ -283,21 +283,14 @@ export function AddAccountModal({
     void begin();
   };
 
-  // On Android the backend cannot capture Grok/OpenCode cookies from a
-  // webview sign-in, so manual cookie entry is the only supported mode there.
-  const manualOnly = isAndroid && (provider === "grok" || provider === "opencode_go");
-  const manualMode = advancedManual || manualOnly;
-
   const providerCopy = provider === "opencode_go"
-    ? (manualOnly
-      ? "Sign in to opencode.ai in your browser, then paste your workspace ID and auth cookie below. Only the session needed for read-only usage checks is saved on this device."
-      : "A private OpenCode window will open in the app. Sign in, then select Go from the OpenCode sidebar. The bridge detects the workspace and session automatically and closes the window when the account is connected.")
+    ? "A private OpenCode window will open in the app. Sign in, then select Go from the OpenCode sidebar. The bridge detects the workspace and session automatically and closes the window when the account is connected."
     : provider === "google_ai_studio"
       ? "Enter an AI Studio API key, load the model list directly from Google, and choose which models to track. After the account is added, connect its Google Cloud project to retrieve provider-reported quota usage."
       : provider === "grok"
-        ? (manualOnly
-          ? "Sign in to grok.com in your browser, copy your session cookies, and paste them below. The tracker securely saves only the session needed to read the provider-reported weekly usage percentage and reset time. Your xAI password never passes through the tracker."
-          : "A private Grok window opens inside the tracker. After you sign in, the tracker securely saves only the Grok session needed to read the provider-reported weekly usage percentage and reset time. Your xAI password never passes through the tracker.")
+        ? isAndroid
+          ? "The app opens Grok sign-in in this window. After you sign in, it returns to the dashboard and securely saves only the session needed to read weekly usage. Your xAI password never passes through the tracker."
+          : "A private Grok window opens inside the tracker. After you sign in, the tracker securely saves only the Grok session needed to read the provider-reported weekly usage percentage and reset time. Your xAI password never passes through the tracker."
         : isAndroid
           ? `Your browser opens the ${providerName(provider)} sign-in page. After you finish, return to the app; it links the account automatically. Passwords never pass through this app.`
           : `Finish the ${providerName(provider)} login in your browser. Passwords never pass through this app.`;
@@ -421,7 +414,7 @@ export function AddAccountModal({
 
         {provider === "grok" ? (
           <>
-            {!manualMode ? (
+            {!advancedManual ? (
               <div className="guided-login-card grok-login-card">
                 <strong>What happens next</strong>
                 <ol>
@@ -452,7 +445,7 @@ export function AddAccountModal({
               </div>
             )}
 
-            {!busy && !manualOnly ? (
+            {!busy ? (
               <button
                 type="button"
                 className="advanced-connection-toggle"
@@ -486,7 +479,7 @@ export function AddAccountModal({
             />
             <div className="credential-note opencode-email-note">Required so the account card can identify which OpenCode account is connected.</div>
 
-            {!manualMode ? (
+            {!advancedManual ? (
               <div className="guided-login-card">
                 <strong>What happens next</strong>
                 <ol>
@@ -523,7 +516,7 @@ export function AddAccountModal({
               </div>
             )}
 
-            {!busy && !manualOnly ? (
+            {!busy ? (
               <button
                 type="button"
                 className="advanced-connection-toggle"
@@ -564,21 +557,21 @@ export function AddAccountModal({
               modelsBusy ||
               (provider === "opencode_go" && !email.trim()) ||
               (provider === "google_ai_studio" && !googleReady) ||
-              (provider === "grok" && manualMode && !grokCookie.trim())
+              (provider === "grok" && advancedManual && !grokCookie.trim())
             }
           >
             {busy
               ? provider === "opencode_go"
                 ? "Waiting for OpenCode…"
                 : provider === "grok"
-                  ? manualMode ? "Adding account…" : "Waiting for Grok…"
+                  ? advancedManual ? "Adding account…" : "Waiting for Grok…"
                   : provider === "google_ai_studio"
                     ? "Adding account…"
                     : "Connecting…"
               : provider === "opencode_go"
-                ? manualMode ? "Connect manually" : "Open OpenCode login"
+                ? advancedManual ? "Connect manually" : "Open OpenCode login"
                 : provider === "grok"
-                  ? manualMode ? "Connect manually" : "Open Grok login"
+                  ? advancedManual ? "Connect manually" : "Open Grok login"
                   : provider === "google_ai_studio"
                     ? "Add selected models"
                     : `Continue with ${providerName(provider)}`}
