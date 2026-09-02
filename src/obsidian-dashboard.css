@@ -603,9 +603,10 @@ select {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 12px;
+  justify-content: flex-end;
+  gap: 8px;
   flex-shrink: 0;
-  margin-top: -6px;
+  margin: 0;
 }
 
 .account-card-updated {
@@ -831,10 +832,10 @@ select {
 
 .provider-account-card-header {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 12px;
-  min-height: 56px;
-  padding: 12px 14px;
+  min-height: 60px;
+  padding: 8px 16px 16px 16px;
   border-bottom: 1px solid #292828;
 }
 
@@ -935,11 +936,14 @@ select {
 .account-plan-badge {
   display: inline-flex;
   align-items: center;
-  min-height: 18px;
+  justify-content: center;
+  height: 20px;
+  min-height: 20px;
+  box-sizing: border-box;
   padding: 1px 8px;
   border-radius: 3px;
   font-size: 10px;
-  line-height: 14px;
+  line-height: 1;
   font-weight: 700;
   letter-spacing: 0.04em;
   white-space: nowrap;
@@ -972,18 +976,19 @@ select {
 
 .account-card-header-actions {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: flex-end;
-  justify-content: center;
-  gap: 6px;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .account-card-header-meta {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 3px;
+  justify-content: flex-end;
+  gap: 4px;
   flex-shrink: 0;
 }
 
@@ -1251,6 +1256,14 @@ select {
 .settings-row {
   border-color: #2d2c2c;
   overflow: visible !important;
+}
+
+.settings-installed-version,
+.setting-value.settings-installed-version {
+  color: var(--purple) !important;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  letter-spacing: 0.02em;
 }
 
 .settings-account-refresh {
@@ -1657,6 +1670,10 @@ select.account-update-select option,
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 8px;
+}
+
+.bucket-account-heading .field-label {
+  margin: 0 !important;
 }
 
 .bucket-filter-actions {
@@ -2183,7 +2200,8 @@ select.account-update-select option,
   }
 
   .provider-account-card-header {
-    padding: 10px 10px;
+    align-items: flex-end;
+    padding: 6px 10px 10px 10px !important;
     gap: 6px;
   }
 
@@ -2192,6 +2210,7 @@ select.account-update-select option,
     height: 34px;
     min-width: 34px;
     border-radius: 5px;
+    align-self: flex-end;
   }
 
   .account-card-provider-icon svg,
@@ -2201,31 +2220,110 @@ select.account-update-select option,
   }
 
   .account-card-identity {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-self: flex-end;
+    height: 34px;
     flex: 1 1 0;
     min-width: 0;
-    overflow: hidden;
+    overflow: visible !important;
+    gap: 2px;
+  }
+
+  .account-card-name-row {
+    display: flex !important;
+    align-items: center !important;
+    height: auto !important;
+    min-height: 0 !important;
+    gap: 6px !important;
   }
 
   .account-card-name-row h2 {
-    font-size: 15px;
-    line-height: 19px;
+    font-size: 15px !important;
+    line-height: 18px !important;
+    margin: 0 !important;
   }
 
-  .account-card-identity p {
-    font-size: 11px;
-    line-height: 15px;
+  .account-name-edit {
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+  }
+
+  .account-name-edit svg {
+    width: 12px !important;
+    height: 12px !important;
+  }
+
+  .account-card-identity p,
+  .account-card-email {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    font-size: 11px !important;
+    line-height: 14px !important;
+    margin: 0 !important;
   }
 
   .account-card-header-actions {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-end !important;
     gap: 6px !important;
+    flex-shrink: 0;
+    height: auto !important;
+  }
+
+  .account-card-header-meta {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 4px !important;
     flex-shrink: 0;
   }
 
+  .account-status-badge,
+  .account-plan-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 20px !important;
+    min-height: 20px !important;
+    box-sizing: border-box !important;
+    padding: 1px 6px !important;
+    font-size: 9px !important;
+    line-height: 1 !important;
+  }
+
   .account-card-action-stack {
-    align-items: flex-end;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-end !important;
+    justify-content: flex-end !important;
+    gap: 6px !important;
+    margin: 0 !important;
+    flex-shrink: 0;
+    height: auto !important;
+  }
+
+  .account-card-updated {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    height: auto !important;
+    min-height: 0 !important;
+    font-size: 10px !important;
+    line-height: 14px !important;
+    margin: 0 !important;
   }
 
   .account-card-name-actions {
+    display: flex !important;
+    align-items: center !important;
+    height: 26px !important;
+    min-height: 26px !important;
     gap: 6px !important;
     flex-shrink: 0;
     margin: 0 !important;
@@ -2244,23 +2342,6 @@ select.account-update-select option,
   .account-card-action .mini-spinner {
     width: 14px !important;
     height: 14px !important;
-  }
-
-  .account-card-header-meta {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    flex-shrink: 0;
-  }
-
-  .account-status-badge,
-  .account-plan-badge {
-    min-height: 15px;
-    padding: 1px 5px;
-    font-size: 9px;
-    line-height: 11px;
   }
 
   .account-card-metrics {
@@ -2356,6 +2437,38 @@ select.account-update-select option,
   @keyframes skeletonShimmer {
     0% { background-position: 100% 0; }
     100% { background-position: -100% 0; }
+  }
+
+  .bucket-account-heading {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 7px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .bucket-account-heading .field-label {
+    margin: 0 !important;
+    width: 100%;
+  }
+
+  .bucket-filter-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .bucket-filter-actions .custom-dropdown-container {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+
+  .bucket-filter-actions .button {
+    flex: 0 0 auto;
+    white-space: nowrap;
   }
 
   .sr-only {

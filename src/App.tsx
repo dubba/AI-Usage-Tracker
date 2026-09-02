@@ -1299,7 +1299,7 @@ function AccountsView(props: {
                   <button type="button" className="button ghost" onClick={() => props.onEditBucket?.(props.selectedGroup.bucket!)}>
                     <EditIcon />Edit Group
                   </button>
-                  <button type="button" className="button ghost" onClick={() => props.onDeleteBucket?.(props.selectedGroup.bucket!)}>
+                  <button type="button" className="button ghost bucket-delete-button" onClick={() => props.onDeleteBucket?.(props.selectedGroup.bucket!)}>
                     <TrashIcon />Delete Group
                   </button>
                 </>
@@ -1452,7 +1452,7 @@ function AccountDashboardCard({
               disabled={cardBusy}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={onRemove}
-            >{isRemoving ? <span className="mini-spinner" /> : <CloseIcon />}</button>
+            >{isRemoving ? <span className="mini-spinner" /> : <TrashIcon />}</button>
             <button
               type="button"
               className="account-card-action notify-action"
@@ -1673,7 +1673,7 @@ function SettingsView({
         <div className="settings-row"><div><strong>Start at login</strong><small>Keep account usage available after signing in.</small></div><button className={`toggle ${autostart ? "on" : ""}`} onClick={onToggleAutostart} aria-pressed={autostart}><span /></button></div>
         <div className="settings-row"><div><strong>Automatic updates</strong><small>When enabled, the app checks GitHub Releases for updates at startup and every hour.</small></div><button type="button" className={`toggle ${automaticUpdates ? "on" : ""}`} disabled={!appSettings || settingsBusy} aria-label={automaticUpdates ? "Disable automatic updates" : "Enable automatic updates"} aria-pressed={automaticUpdates} onClick={() => onAutomaticUpdatesChange(!automaticUpdates)}><span /></button></div>
         <div className="settings-row"><div><strong>App updates</strong><small>Checks GitHub Releases for update.</small></div>{update?.available ? <button className="button primary" disabled={updateBusy !== null} onClick={onInstallUpdate}>{updateBusy === "installing" ? "Installing…" : `Update to v${update.availableVersion}`}</button> : <button className="button ghost" disabled={updateBusy !== null} onClick={onCheckForUpdate}>{updateBusy === "checking" ? "Checking…" : "Check Now"}</button>}</div>
-        <div className="settings-row"><div><strong>Installed version</strong><small>{update?.available ? `Version ${update.availableVersion} is available.` : "The app installs only signed update packages."}</small></div><span className="setting-value mono">{`v${update?.currentVersion || installedVersion}`}</span></div>
+        <div className="settings-row"><div><strong>Installed version</strong><small>{update?.available ? `Version ${update.availableVersion} is available.` : "The app installs only signed update packages."}</small></div><span className="setting-value mono settings-installed-version">{`v${update?.currentVersion || installedVersion}`}</span></div>
         <div className="settings-row">
           <div>
             <strong>Account Updates</strong>

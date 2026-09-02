@@ -11,12 +11,32 @@
   background: var(--obsidian-purple-strong, #a078ff) !important;
 }
 
+.account-status-badge,
+.account-plan-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 20px !important;
+  min-height: 20px !important;
+  max-height: 20px !important;
+  box-sizing: border-box !important;
+  padding: 1px 8px !important;
+  margin: 0 !important;
+  border-radius: 3px !important;
+  font-size: 10px !important;
+  line-height: 1 !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.04em !important;
+  white-space: nowrap !important;
+  vertical-align: middle !important;
+}
+
 .account-card-header-actions {
   display: flex;
   flex-direction: row;
-  align-items: center;
+  align-items: flex-end;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 8px;
   flex-shrink: 0;
   flex-wrap: nowrap;
   margin-left: auto;
@@ -26,9 +46,19 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 3px;
+  justify-content: flex-end;
+  gap: 4px;
   flex-shrink: 0;
+}
+
+.account-card-action-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+  margin: 0;
 }
 
 .account-card-name-actions {
@@ -36,24 +66,34 @@
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
+  margin: 0;
+  padding: 0;
 }
 
 .account-card-action {
-  box-sizing: border-box;
-  width: 30px !important;
-  height: 30px !important;
-  min-width: 30px !important;
+  box-sizing: border-box !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  max-width: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
   padding: 0 !important;
+  margin: 0 !important;
   border-width: 1px !important;
   border-style: solid !important;
   border-radius: 6px !important;
+  line-height: 1 !important;
 }
 
 .account-card-action svg,
-.account-card-action.remove-action::before,
+.account-card-action.remove-action svg,
 .account-card-action .mini-spinner {
-  width: 18px !important;
-  height: 18px !important;
+  width: 15px !important;
+  height: 15px !important;
+  display: block !important;
 }
 
 .account-name-edit {
@@ -99,9 +139,9 @@
 }
 
 .account-card-action.remove-action {
-  color: #fff !important;
-  border-color: #d94a4a !important;
-  background: #c53131 !important;
+  color: #ff8585 !important;
+  border-color: rgba(255, 117, 107, 0.45) !important;
+  background: rgba(85, 15, 15, 0.42) !important;
 }
 
 .account-card-action.remove-action:hover:not(:disabled) {
@@ -120,21 +160,6 @@
   color: #8af0c2;
   border-color: rgba(78, 222, 163, 0.9) !important;
   background: rgba(0, 56, 36, 0.72) !important;
-}
-
-.account-card-action.remove-action svg {
-  display: none;
-}
-
-.account-card-action.remove-action::before {
-  content: "";
-  background: currentColor;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5'/%3E%3C/svg%3E") center / contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5'/%3E%3C/svg%3E") center / contain no-repeat;
-}
-
-.account-card-action.remove-action.showing-spinner::before {
-  display: none;
 }
 
 .account-card-action,

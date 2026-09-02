@@ -101,10 +101,6 @@ export function BucketModal({
       setError("Please enter a name for this group.");
       return;
     }
-    if (selectedAccountIds.length === 0) {
-      setError("Please select at least one account for this group.");
-      return;
-    }
 
     // Determine bucket provider: if all selected accounts share the same provider, use it.
     const selectedAccounts = accounts.filter((a) => selectedAccountIds.includes(a.id));
@@ -149,7 +145,7 @@ export function BucketModal({
         <header className="modal-card-header">
           <div className="modal-kicker">Account Grouping</div>
           <h2 id="bucket-modal-title">{bucket ? "Edit Group" : "Create Group"}</h2>
-          <p>Combine accounts into an independent sidebar group to track their combined usage and limits.</p>
+          <p>Combine accounts into an independent sidebar group to track their combined usage and limits. Groups can be empty.</p>
         </header>
 
         <form onSubmit={handleSave} className="bucket-modal-form">

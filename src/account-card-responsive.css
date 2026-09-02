@@ -8,6 +8,8 @@
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
+  align-self: flex-end;
+  max-height: 42px;
   min-width: 0;
 }
 
@@ -47,16 +49,18 @@
 
 .provider-account-card .account-card-name-actions .account-card-action {
   display: grid !important;
+  place-items: center !important;
   flex: 0 0 auto;
-  width: 32px !important;
-  height: 32px !important;
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  max-width: 28px !important;
 }
 
 .provider-account-card .account-card-name-actions .account-card-action svg,
-.provider-account-card .account-card-name-actions .account-card-action::before,
 .provider-account-card .account-card-name-actions .account-card-action .mini-spinner {
-  width: 16px !important;
-  height: 16px !important;
+  width: 15px !important;
+  height: 15px !important;
 }
 
 .provider-account-card .account-card-metrics {

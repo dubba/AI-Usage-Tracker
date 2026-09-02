@@ -202,6 +202,44 @@ mod tests {
     }
 
     #[test]
+    fn keeps_empty_bucket_after_last_account_is_removed() {
+        let dir = tempdir().expect("tempdir");
+        let store = BucketStore::load(dir.path()).expect("load");
+
+        let bucket = store
+            .save(
+                None,
+                "Emptyable".into(),
+                Some(Provider::Grok),
+                vec!["only".into()],
+            )
+            .expect("save");
+
+        store.cleanup_account("only").expect("cleanup");
+        let listed = store.list();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].id, bucket.id);
+        assert!(listed[0].account_ids.is_empty());
+    }
+
+    #[test]
+    fn saves_bucket_with_no_accounts() {
+        let dir = tempdir().expect("tempdir");
+        let store = BucketStore::load(dir.path()).expect("load");
+        let created = store
+            .save(None, "Placeholder".into(), None, vec![])
+            .expect("save empty");
+        assert!(created.account_ids.is_empty());
+        assert_eq!(store.list().len(), 1);
+
+        let updated = store
+            .save(Some(created.id.clone()), "Placeholder".into(), None, vec![])
+            .expect("update empty");
+        assert!(updated.account_ids.is_empty());
+        assert_eq!(store.list().len(), 1);
+    }
+
+    #[test]
     fn deletes_bucket() {
         let dir = tempdir().expect("tempdir");
         let store = BucketStore::load(dir.path()).expect("load");

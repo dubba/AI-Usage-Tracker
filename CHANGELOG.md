@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Custom groups stay in the sidebar after every account is removed from them. Edit Group can now save with no accounts selected, and the empty group still has Edit and Delete.
+- Account card remove, notification, and refresh buttons now sit on the same bottom edge as the provider icon.
+- Desktop account cards now use 16px padding above and below the provider icon, with the updated-time label kept inside that header instead of sitting above the icon.
+- On mobile, the account name and email are vertically centered with the provider icon instead of sitting above it.
+
 ## 0.3.4 - 2026-09-02
 
 ### Improved
