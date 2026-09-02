@@ -268,6 +268,44 @@ fn set_automatic_updates_enabled(
 }
 
 #[tauri::command]
+fn get_autostart(app: AppHandle, state: State<'_, Arc<AppState>>) -> Result<bool, String> {
+    #[cfg(desktop)]
+    {
+        use tauri_plugin_autostart::ManagerExt;
+        let enabled = app.autolaunch().is_enabled().map_err(|error| error.to_string())?;
+        let _ = state.settings.set_autostart_enabled(enabled);
+        Ok(enabled)
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = app;
+        Ok(state.settings.autostart_enabled())
+    }
+}
+
+#[tauri::command]
+fn set_autostart(
+    app: AppHandle,
+    state: State<'_, Arc<AppState>>,
+    enabled: bool,
+) -> Result<bool, String> {
+    #[cfg(desktop)]
+    {
+        use tauri_plugin_autostart::ManagerExt;
+        if enabled {
+            app.autolaunch().enable().map_err(|error| error.to_string())?;
+        } else {
+            app.autolaunch().disable().map_err(|error| error.to_string())?;
+        }
+    }
+    #[cfg(not(desktop))]
+    let _ = app;
+
+    state.settings.set_autostart_enabled(enabled)?;
+    Ok(enabled)
+}
+
+#[tauri::command]
 async fn set_paseo_bridge_enabled(
     state: State<'_, Arc<AppState>>,
     enabled: bool,
@@ -850,6 +888,8 @@ pub fn run() {
             get_app_settings,
             set_account_refresh_minutes,
             set_automatic_updates_enabled,
+            get_autostart,
+            set_autostart,
             set_paseo_bridge_enabled,
             open_paseo_bridge_window,
             reorder_accounts,

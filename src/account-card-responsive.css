@@ -151,32 +151,58 @@
     padding-top: 14px !important;
   }
 
-  /* Purple Mobile Scrollbar on Cards */
-  .dashboard-content,
-  .provider-account-cards {
-    scrollbar-gutter: stable;
-    scrollbar-width: thin !important;
-    scrollbar-color: var(--obsidian-purple-strong, #a078ff) rgba(25, 20, 36, 0.3) !important;
-    padding-right: 6px !important;
+  /* Dashboard container must NEVER scroll or create a secondary gutter */
+  .obsidian-shell .dashboard-content,
+  .dashboard-content {
+    overflow: hidden !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    box-sizing: border-box !important;
   }
 
-  .dashboard-content::-webkit-scrollbar,
+  /* Purple Mobile Scrollbar on Cards */
+  .obsidian-shell .provider-account-cards,
+  .provider-account-cards {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-content: start !important;
+    grid-auto-rows: max-content !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+    overflow-y: scroll !important;
+    scrollbar-gutter: stable !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: var(--obsidian-purple-strong, #a078ff) rgba(25, 20, 36, 0.3) !important;
+    padding: 0 6px 28px 0 !important;
+    margin: 0 !important;
+  }
+
   .provider-account-cards::-webkit-scrollbar {
     width: 4px !important;
     height: 4px !important;
     display: block !important;
   }
 
-  .dashboard-content::-webkit-scrollbar-track,
   .provider-account-cards::-webkit-scrollbar-track {
     background: rgba(25, 20, 36, 0.3) !important;
     border-radius: 999px !important;
   }
 
-  .dashboard-content::-webkit-scrollbar-thumb,
   .provider-account-cards::-webkit-scrollbar-thumb {
     background: var(--obsidian-purple-strong, #a078ff) !important;
     border-radius: 999px !important;
+  }
+
+  .provider-account-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
   }
 
   /* Mobile Usage Notification Modal Styles */

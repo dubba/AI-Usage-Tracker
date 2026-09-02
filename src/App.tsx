@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { bridgeApi } from "./api";
@@ -70,7 +69,7 @@ const FALLBACK_APP_VERSION = "0.3.4";
 const DASHBOARD_SYNC_INTERVAL_MS = 30 * 1000;
 const STARTUP_REFRESH_DELAY_MS = 3 * 1000;
 const SIDEBAR_UPDATE_FEEDBACK_MS = 3_000;
-const ACCOUNT_REFRESH_OPTIONS = Array.from({ length: 12 }, (_, index) => (index + 1) * 5);
+const ACCOUNT_REFRESH_OPTIONS = [5, 10, 15, 30, 45, 60] as const;
 const SIDEBAR_WINDOW_KEY = "ai-subscription-tracker:provider-average-window";
 const ALL_ACCOUNTS_GROUP_ID = "all";
 const RELATIVE_TIME_TICK_MS = 30 * 1000;
@@ -458,6 +457,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!error) return;
+    const timer = window.setTimeout(() => {
+      setError(null);
+    }, 5_000);
+    return () => window.clearTimeout(timer);
+  }, [error]);
+
+  useEffect(() => {
     return () => {
       if (updateMessageTimerRef.current) window.clearTimeout(updateMessageTimerRef.current);
       if (updateErrorTimerRef.current) window.clearTimeout(updateErrorTimerRef.current);
@@ -609,7 +616,7 @@ export default function App() {
     void load();
     getVersion().then(setInstalledVersion).catch(() => setInstalledVersion(FALLBACK_APP_VERSION));
     bridgeApi.getAppSettings().then(setAppSettings).catch((cause) => setError(String(cause)));
-    isEnabled().then(setAutostart).catch(() => setAutostart(false));
+    bridgeApi.getAutostart().then(setAutostart).catch(() => setAutostart(false));
     const syncInterval = window.setInterval(() => void load(), DASHBOARD_SYNC_INTERVAL_MS);
     const initialRefreshTimeout = window.setTimeout(() => void bridgeApi.refreshAll().then(() => load()), STARTUP_REFRESH_DELAY_MS);
     return () => {
@@ -797,9 +804,9 @@ export default function App() {
 
   const toggleAutostart = async () => {
     try {
-      if (autostart) await disable();
-      else await enable();
-      setAutostart(await isEnabled());
+      const next = !autostart;
+      const updated = await bridgeApi.setAutostart(next);
+      setAutostart(updated);
     } catch (cause) {
       setError(String(cause));
     }
@@ -819,6 +826,7 @@ export default function App() {
           onToggle={(enabled) => void setPaseoBridgeEnabled(enabled)}
           onView={() => void openPaseoBridgeWindow()}
           onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+          error={error}
         />
       );
     }
@@ -836,6 +844,7 @@ export default function App() {
           updateBusy={updateBusy}
           updateError={updateError}
           updateMessage={updateMessage}
+          error={error}
           onCheckForUpdate={() => void checkForUpdate(true)}
           onInstallUpdate={() => void installUpdate()}
           onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
@@ -862,6 +871,7 @@ export default function App() {
         onRemove={setAccountToRemove}
         onNotifications={setAlertAccount}
         busy={busy}
+        error={error}
       />
     );
   };
@@ -964,7 +974,6 @@ export default function App() {
       </aside>
 
       <main className="main-stage">
-        {error ? <div className="global-error" role="alert" aria-live="assertive"><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError(null)}>Dismiss</button></div> : null}
         {snapshot ? renderContent() : (
           <div className="loading-screen" aria-busy="true" aria-live="polite">
             {error ? (
@@ -1209,6 +1218,7 @@ function AccountsView(props: {
   onRemove: (account: Account) => void;
   onNotifications: (account: Account) => void;
   busy: string | null;
+  error?: string | null;
 }) {
   return (
     <div className="content-scroll dashboard-content">
@@ -1329,6 +1339,7 @@ function AccountsView(props: {
           </section>
         )}
       </section>
+      {props.error ? <div className="error-panel settings-update-error">{props.error}</div> : null}
     </div>
   );
 }
@@ -1571,12 +1582,14 @@ function IntegrationView({
   onToggle,
   onView,
   onToggleSidebar,
+  error,
 }: {
   bridge: BridgeStatus | null;
   busy: boolean;
   onToggle: (enabled: boolean) => void;
   onView: () => void;
   onToggleSidebar?: () => void;
+  error?: string | null;
 }) {
   return (
     <div className="content-scroll narrow-content settings-style-content">
@@ -1632,6 +1645,7 @@ function IntegrationView({
         </div>
       </section>
       {bridge?.error ? <div className="error-panel paseo-integration-error">{bridge.error}</div> : null}
+      {error ? <div className="error-panel settings-update-error">{error}</div> : null}
     </div>
   );
 }
@@ -1648,6 +1662,7 @@ function SettingsView({
   updateBusy,
   updateError,
   updateMessage,
+  error,
   onCheckForUpdate,
   onInstallUpdate,
   onToggleSidebar,
@@ -1663,6 +1678,7 @@ function SettingsView({
   updateBusy: UpdateBusy;
   updateError: string | null;
   updateMessage?: string | null;
+  error?: string | null;
   onCheckForUpdate: () => void;
   onInstallUpdate: () => void;
   onToggleSidebar?: () => void;
@@ -1690,7 +1706,13 @@ function SettingsView({
         </div>
       </header>
       <section className="settings-card">
-        <div className="settings-row"><div><strong>Start at login</strong><small>Keep account usage available after signing in.</small></div><button className={`toggle ${autostart ? "on" : ""}`} onClick={onToggleAutostart} aria-pressed={autostart}><span /></button></div>
+        <div className="settings-row">
+          <div>
+            <strong>{typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? "Start on device boot" : "Start at login"}</strong>
+            <small>{typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? "Start app automatically when device powers on." : "Keep account usage available after signing in."}</small>
+          </div>
+          <button className={`toggle ${autostart ? "on" : ""}`} onClick={onToggleAutostart} aria-pressed={autostart}><span /></button>
+        </div>
         <div className="settings-row"><div><strong>Automatic updates</strong><small>When enabled, the app checks GitHub Releases for updates at startup and every hour.</small></div><button type="button" className={`toggle ${automaticUpdates ? "on" : ""}`} disabled={!appSettings || settingsBusy} aria-label={automaticUpdates ? "Disable automatic updates" : "Enable automatic updates"} aria-pressed={automaticUpdates} onClick={() => onAutomaticUpdatesChange(!automaticUpdates)}><span /></button></div>
         <div className="settings-row"><div><strong>App updates</strong><small>Checks GitHub Releases for update.</small></div>{update?.available ? <button className="button primary" disabled={updateBusy !== null} onClick={onInstallUpdate}>{updateBusy === "installing" ? "Installing…" : `Update to v${update.availableVersion}`}</button> : <button className="button ghost" disabled={updateBusy !== null} onClick={onCheckForUpdate}>{updateBusy === "checking" ? "Checking…" : "Check Now"}</button>}</div>
         <div className="settings-row"><div><strong>Installed version</strong><small>{update?.available ? `Version ${update.availableVersion} is available.` : "The app installs only signed update packages."}</small></div><span className="setting-value mono settings-installed-version">{`v${update?.currentVersion || installedVersion}`}</span></div>
@@ -1701,7 +1723,12 @@ function SettingsView({
           </div>
           <div className="settings-account-refresh">
             <CustomDropdown<number>
-              value={appSettings?.accountRefreshMinutes ?? 5}
+              value={
+                appSettings?.accountRefreshMinutes != null &&
+                (ACCOUNT_REFRESH_OPTIONS as readonly number[]).includes(appSettings.accountRefreshMinutes)
+                  ? appSettings.accountRefreshMinutes
+                  : 5
+              }
               disabled={!appSettings || settingsBusy}
               options={ACCOUNT_REFRESH_OPTIONS.map((minutes) => ({
                 value: minutes,
@@ -1737,6 +1764,7 @@ function SettingsView({
       {update?.available && update.body ? <section className="update-notes"><strong>What changed in v{update.availableVersion}</strong><p>{update.body}</p>{update.date ? <small>Published {formatTime(update.date)}</small> : null}</section> : null}
       {updateMessage ? <div className="info-panel settings-update-info">{updateMessage}</div> : null}
       {updateError ? <div className="error-panel settings-update-error">{updateError}</div> : null}
+      {error ? <div className="error-panel settings-update-error">{error}</div> : null}
     </div>
   );
 }

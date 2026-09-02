@@ -8,6 +8,9 @@
 - Desktop and mobile sidebars can be narrowed until just before the Group button would wrap under Accounts.
 - On mobile, centered the sidebar 3-dots resize grip with balanced left and right spacing along the edge.
 - The "You are on the latest version" update status toast in Settings now automatically dismisses after 5 seconds.
+- Added mobile support for automatic startup on device boot with a native Android BootReceiver and unified settings storage.
+- Standardized Account Updates dropdown options to 5, 10, 15, 30, 45, and 60 minutes.
+- Permanently reserved scrollbar gutter space on the dashboard page so account cards do not horizontally shift when scrollbars appear.
 
 ### Fixed
 
@@ -16,6 +19,9 @@
 - Desktop account cards now use 16px padding above and below the provider icon, with the updated-time label kept inside that header instead of sitting above the icon.
 - On mobile, the account name and email are vertically centered with the provider icon instead of sitting above it.
 - Fixed an issue where Settings update toasts remained visible indefinitely due to stale component memoization.
+- Fixed an issue where toggling startup on mobile threw "plugin autostart not found"; startup behavior is now fully handled across desktop and mobile.
+- Red error toasts now render in the page flow directly beneath the settings card in the exact same position as the update toast, and automatically dismiss after 5 seconds.
+- Fixed horizontal card width jumping and size discrepancies on mobile between providers by dedicating `.provider-account-cards` as the sole scroll container and preserving invariant gutter room whether scrollbars are displayed or not.
 
 ## 0.3.4 - 2026-09-02
 

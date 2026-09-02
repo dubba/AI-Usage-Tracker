@@ -19,6 +19,7 @@ pub struct AppSettings {
     pub account_refresh_minutes: u64,
     pub paseo_bridge_enabled: bool,
     pub automatic_updates_enabled: bool,
+    pub autostart_enabled: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -33,6 +34,8 @@ struct StoredAppSettings {
     #[serde(default = "default_automatic_updates_enabled")]
     automatic_updates_enabled: bool,
     #[serde(default)]
+    autostart_enabled: bool,
+    #[serde(default)]
     last_notified_update_version: Option<String>,
 }
 
@@ -43,6 +46,7 @@ impl Default for StoredAppSettings {
             account_refresh_minutes: DEFAULT_ACCOUNT_REFRESH_MINUTES,
             paseo_bridge_enabled: false,
             automatic_updates_enabled: true,
+            autostart_enabled: false,
             last_notified_update_version: None,
         }
     }
@@ -54,6 +58,7 @@ impl StoredAppSettings {
             account_refresh_minutes: self.account_refresh_minutes,
             paseo_bridge_enabled: self.paseo_bridge_enabled,
             automatic_updates_enabled: self.automatic_updates_enabled,
+            autostart_enabled: self.autostart_enabled,
         }
     }
 }
@@ -154,6 +159,25 @@ impl SettingsStore {
 
         let mut next = settings.clone();
         next.automatic_updates_enabled = enabled;
+        self.persist(&next)?;
+        *settings = next;
+
+        Ok(settings.public())
+    }
+
+    #[allow(dead_code)]
+    pub fn autostart_enabled(&self) -> bool {
+        self.settings.read().autostart_enabled
+    }
+
+    pub fn set_autostart_enabled(&self, enabled: bool) -> Result<AppSettings, String> {
+        let mut settings = self.settings.write();
+        if settings.autostart_enabled == enabled {
+            return Ok(settings.public());
+        }
+
+        let mut next = settings.clone();
+        next.autostart_enabled = enabled;
         self.persist(&next)?;
         *settings = next;
 

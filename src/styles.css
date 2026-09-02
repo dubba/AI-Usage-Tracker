@@ -216,8 +216,8 @@ svg { width: 18px; height: 18px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading-screen { height: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--muted); }
 .loading-error { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 420px; padding: 20px; text-align: center; }
-.global-error { position: absolute; z-index: 8; top: 14px; left: 50%; transform: translateX(-50%); width: min(680px, calc(100% - 30px)); background: #301d1d; border: 1px solid #653737; border-radius: 10px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px; color: #ffc0c0; font-size: 10px; box-shadow: 0 12px 40px rgba(0,0,0,.28); }
-.global-error button { border: 0; background: transparent; color: #fff; cursor: pointer; }
+.global-error { position: fixed; z-index: 200; bottom: 24px; top: auto; left: 50%; transform: translateX(-50%); width: min(680px, calc(100% - 30px)); background: #301d1d; border: 1px solid #653737; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; color: #ffc0c0; font-size: 13px; box-shadow: 0 12px 40px rgba(0,0,0,.45); }
+.global-error button { border: 0; background: rgba(255,255,255,.12); color: #fff; border-radius: 4px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
 
 @media (max-width: 1220px) {
   .app-shell { grid-template-columns: 260px minmax(620px, 1fr); }
