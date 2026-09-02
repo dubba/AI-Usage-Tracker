@@ -1571,14 +1571,27 @@ select.account-update-select option,
   gap: 10px;
 }
 
+.dashboard-title-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.dashboard-title-heading h1 {
+  min-width: 0;
+}
+
 .dashboard-bucket-pill {
   display: inline-flex;
   align-items: center;
+  flex: 0 0 auto;
   padding: 2px 8px;
   border-radius: 4px;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.03em;
+  white-space: nowrap;
   color: #f3f0ef;
   background: rgba(160, 120, 255, 0.22);
   border: 1px solid rgba(160, 120, 255, 0.4);
@@ -2016,13 +2029,20 @@ select.account-update-select option,
 
   .dashboard-header > div:first-child .mobile-sidebar-toggle-btn {
     grid-column: 1;
-    grid-row: 1;
+    grid-row: 1 / span 2;
     align-self: center;
   }
 
-  .dashboard-header > div:first-child .dashboard-title-row h1 {
+  .dashboard-header > div:first-child .dashboard-title-heading {
     grid-column: 2;
     grid-row: 1;
+    align-self: center;
+    min-width: 0;
+  }
+
+  .dashboard-header > div:first-child .dashboard-title-row h1 {
+    grid-column: auto;
+    grid-row: auto;
     align-self: center;
   }
 

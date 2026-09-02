@@ -1206,14 +1206,16 @@ function AccountsView(props: {
                 <MenuIcon />
               </button>
             ) : null}
-            <h1 className="eyebrow">
-              {props.selectedGroup.type === "all"
-                ? props.allAccounts.length === 0 ? "Accounts Dashboard" : "All accounts"
-                : props.selectedGroup.title}
-            </h1>
-            {props.selectedGroup.type === "bucket" ? (
-              <span className="dashboard-bucket-pill">Custom Group</span>
-            ) : null}
+            <div className="dashboard-title-heading">
+              <h1 className="eyebrow">
+                {props.selectedGroup.type === "all"
+                  ? props.allAccounts.length === 0 ? "Accounts Dashboard" : "All accounts"
+                  : props.selectedGroup.title}
+              </h1>
+              {props.selectedGroup.type === "bucket" ? (
+                <span className="dashboard-bucket-pill">Custom Group</span>
+              ) : null}
+            </div>
           </div>
           <p>{props.selectedGroup.accounts.length} {props.selectedGroup.accounts.length === 1 ? "account" : "accounts"}</p>
         </div>

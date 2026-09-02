@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- On mobile, the Custom Group badge now stays to the right of the group name instead of wrapping under the menu button.
+
 ## 0.3.4 - 2026-09-02
 
 ### Fixed
