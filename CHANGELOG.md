@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.4 - 2026-09-02
+
 ### Fixed
 
 - Checking for updates no longer reports that you’re up to date when the check actually failed (for example a network error or a missing package for this computer).
@@ -18,9 +20,15 @@
 - Reordering accounts in a mixed group now moves those cards only, instead of applying another provider’s order to them.
 - AI Studio accounts added with only an API key now show KEY ONLY instead of CONNECTED, and the Cloud Usage connection opens immediately so quota setup is not skipped.
  - Quota reset countdowns on account cards now show minutes when less than an hour remains (for example `8m` instead of `1h`).
+- Empty custom groups stay in the sidebar after their last account is removed, with Edit and Delete on the empty dashboard.
  - Paseo Bridge copy buttons now show a transient “Copied!” label and announce the result to screen readers.
  - Provider and account dropdowns now expose listbox roles and active-descendant tracking so keyboard and screen reader navigation works.
  - The global error banner and the empty loading state now use alert semantics, focus the Retry button, and show skeleton placeholders while accounts load.
+
+### Added
+
+- The sidebar now has an All row as the default dashboard view, with provider and custom groups remaining as filters.
+- Account cards and Refresh All now show when usage was last fetched, as relative time such as “Updated 2m ago”.
 
 ### Improved
 

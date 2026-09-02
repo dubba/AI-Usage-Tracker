@@ -279,6 +279,14 @@ select {
   scrollbar-color: var(--obsidian-purple-strong, #a078ff) transparent;
 }
 
+.provider-summary-row.is-all-row {
+  border-color: rgba(208, 188, 255, 0.28);
+}
+
+.provider-summary-icon.provider-all {
+  color: var(--obsidian-purple, #d0bcff);
+}
+
 .provider-summary-row {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);
@@ -546,6 +554,35 @@ select {
   color: #958ea0;
   font-size: 14px;
   line-height: 1.6;
+}
+
+.header-refresh-cluster {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.header-refresh-age {
+  color: #958ea0;
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 600;
+}
+
+.empty-group-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.account-card-updated {
+  margin: 3px 0 0;
+  color: #958ea0;
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 600;
 }
 
 .header-actions {
@@ -2010,6 +2047,15 @@ select.account-update-select option,
     flex: 1 1 auto;
     justify-content: center;
     min-height: 38px;
+  }
+
+  .header-refresh-cluster {
+    align-items: stretch;
+    flex: 1 1 auto;
+  }
+
+  .header-refresh-age {
+    text-align: center;
   }
 
   .mockup-summary-grid {

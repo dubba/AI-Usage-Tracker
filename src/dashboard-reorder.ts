@@ -137,7 +137,7 @@ export function readSidebarGroupOrder(): string[] {
 }
 
 export function storeSidebarGroupOrder(order: string[]): void {
-  const deduped = uniqueStrings(order);
+  const deduped = uniqueStrings(order.filter((id) => id !== "all"));
   try {
     window.localStorage.setItem(SIDEBAR_GROUP_ORDER_KEY, JSON.stringify(deduped));
   } catch {
@@ -225,13 +225,17 @@ function groupRows(container: HTMLElement): HTMLElement[] {
   const seen = new Set<string>();
   for (const row of [...all]) {
     const key = groupIdFromRow(row) ?? row.outerHTML;
+    if (row.dataset.groupId === "all" || row.classList.contains("is-all-row")) {
+      continue;
+    }
     if (seen.has(key)) {
       row.remove();
     } else {
       seen.add(key);
     }
   }
-  return Array.from(container.querySelectorAll<HTMLElement>(":scope > .provider-summary-row"));
+  return Array.from(container.querySelectorAll<HTMLElement>(":scope > .provider-summary-row"))
+    .filter((row) => row.dataset.groupId !== "all" && !row.classList.contains("is-all-row"));
 }
 
 function accountCards(container: HTMLElement): HTMLElement[] {
@@ -761,6 +765,7 @@ async function persistGroupOrder(orderedGroupIds: string[]): Promise<void> {
     const assignedAccountIds = new Set<string>();
 
     for (const groupId of orderedGroupIds) {
+      if (groupId === "all") continue;
       if (groupId.startsWith("bucket:")) {
         const bucketId = groupId.slice(7);
         const bucket = buckets.find((b) => b.id === bucketId);

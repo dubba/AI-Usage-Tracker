@@ -19,6 +19,7 @@ export function BucketModal({
   open,
   bucket,
   initialProvider,
+  initialConfirmDelete = false,
   accounts,
   onClose,
   onSaved,
@@ -27,6 +28,7 @@ export function BucketModal({
   open: boolean;
   bucket: AccountBucket | null;
   initialProvider?: Provider | null;
+  initialConfirmDelete?: boolean;
   accounts: Account[];
   onClose: () => void;
   onSaved: (bucket: AccountBucket) => void;
@@ -65,9 +67,9 @@ export function BucketModal({
       }
       setError(null);
       setBusy(false);
-      setConfirmingDelete(false);
+      setConfirmingDelete(Boolean(initialConfirmDelete && bucket));
     }
-  }, [open, bucket, initialProvider, accounts]);
+  }, [open, bucket, initialProvider, initialConfirmDelete, accounts]);
 
   const filteredAccounts = useMemo(() => {
     if (selectedProvider === "all") return accounts;

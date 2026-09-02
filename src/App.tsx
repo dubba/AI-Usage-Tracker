@@ -31,6 +31,7 @@ import {
   PlusIcon,
   RefreshIcon,
   SettingsIcon,
+  TrashIcon,
   UsersIcon,
 } from "./icons";
 import type {
@@ -50,9 +51,9 @@ type SidebarWindow = "five_hour" | "weekly";
 
 export type SidebarGroup = {
   id: string;
-  type: "bucket" | "provider";
+  type: "all" | "bucket" | "provider";
   title: string;
-  provider: Provider;
+  provider: Provider | null;
   accounts: Account[];
   bucket?: AccountBucket;
 };
@@ -65,12 +66,14 @@ type NextResetSummary = {
 
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 // Shown only until getVersion() resolves; getVersion() is the single source of truth.
-const FALLBACK_APP_VERSION = "0.3.3";
+const FALLBACK_APP_VERSION = "0.3.4";
 const DASHBOARD_SYNC_INTERVAL_MS = 30 * 1000;
 const STARTUP_REFRESH_DELAY_MS = 3 * 1000;
 const SIDEBAR_UPDATE_FEEDBACK_MS = 3_000;
 const ACCOUNT_REFRESH_OPTIONS = Array.from({ length: 12 }, (_, index) => (index + 1) * 5);
 const SIDEBAR_WINDOW_KEY = "ai-subscription-tracker:provider-average-window";
+const ALL_ACCOUNTS_GROUP_ID = "all";
+const RELATIVE_TIME_TICK_MS = 30 * 1000;
 const CHANGELOG_URL = "https://github.com/dubba/AI-Usage-Tracker/blob/main/CHANGELOG.md";
 
 function providerName(provider: Provider): string {
@@ -223,6 +226,36 @@ function formatRemainingDuration(remainingMs: number): string | null {
   const remainingMinutes = Math.max(1, Math.ceil(remainingMs / 60_000));
   if (remainingMinutes < 60) return `${remainingMinutes}m`;
   return formatHoursAndDays(Math.max(1, Math.ceil(remainingMs / 3_600_000)));
+}
+
+function formatUpdatedAt(value: string | null | undefined, now = Date.now()): string | null {
+  if (!value) return null;
+  const then = new Date(value).getTime();
+  if (!Number.isFinite(then)) return null;
+  const elapsed = Math.max(0, now - then);
+  const minutes = Math.floor(elapsed / 60_000);
+  if (minutes < 1) return "Updated just now";
+  if (minutes < 60) return `Updated ${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `Updated ${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `Updated ${days}d ago`;
+}
+
+function latestFetchedAt(accounts: Account[]): string | null {
+  let latest: number | null = null;
+  let latestValue: string | null = null;
+  for (const account of accounts) {
+    const value = account.lastUsage?.fetchedAt;
+    if (!value) continue;
+    const time = new Date(value).getTime();
+    if (!Number.isFinite(time)) continue;
+    if (latest == null || time > latest) {
+      latest = time;
+      latestValue = value;
+    }
+  }
+  return latestValue;
 }
 
 function readSidebarWindow(): SidebarWindow {
@@ -378,7 +411,8 @@ function displayPlan(account: Account): string | null {
 
 export default function App() {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState(ALL_ACCOUNTS_GROUP_ID);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const [providerOrder, setProviderOrder] = useState<Provider[]>(readDashboardProviderOrder);
   const [sidebarGroupOrder, setSidebarGroupOrder] = useState<string[]>(readSidebarGroupOrder);
   const [sidebarWindow, setSidebarWindow] = useState<SidebarWindow>(readSidebarWindow);
@@ -387,6 +421,7 @@ export default function App() {
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
   const [bucketToEdit, setBucketToEdit] = useState<AccountBucket | null>(null);
   const [bucketInitialProvider, setBucketInitialProvider] = useState<Provider | null>(null);
+  const [bucketConfirmDelete, setBucketConfirmDelete] = useState(false);
   const [alertAccount, setAlertAccount] = useState<Account | null>(null);
   const [accountToRemove, setAccountToRemove] = useState<Account | null>(null);
   const [googleUsageAccount, setGoogleUsageAccount] = useState<Account | null>(null);
@@ -417,12 +452,21 @@ export default function App() {
   const openNewBucket = useCallback((provider?: Provider | null) => {
     setBucketToEdit(null);
     setBucketInitialProvider(provider ?? null);
+    setBucketConfirmDelete(false);
     setBucketModalOpen(true);
   }, []);
 
   const openEditBucket = useCallback((bucket: AccountBucket) => {
     setBucketToEdit(bucket);
     setBucketInitialProvider(bucket.provider);
+    setBucketConfirmDelete(false);
+    setBucketModalOpen(true);
+  }, []);
+
+  const openDeleteBucket = useCallback((bucket: AccountBucket) => {
+    setBucketToEdit(bucket);
+    setBucketInitialProvider(bucket.provider);
+    setBucketConfirmDelete(true);
     setBucketModalOpen(true);
   }, []);
 
@@ -586,6 +630,11 @@ export default function App() {
     return () => window.clearInterval(updateInterval);
   }, [appSettings?.automaticUpdatesEnabled, checkForUpdate]);
 
+  useEffect(() => {
+    const tick = window.setInterval(() => setNowMs(Date.now()), RELATIVE_TIME_TICK_MS);
+    return () => window.clearInterval(tick);
+  }, []);
+
   const accounts = snapshot?.accounts ?? [];
   const buckets = snapshot?.buckets ?? [];
 
@@ -597,18 +646,15 @@ export default function App() {
       const bucketAccounts = bucket.accountIds
         .map((id) => accounts.find((account) => account.id === id))
         .filter((account): account is Account => Boolean(account));
-      if (bucketAccounts.length > 0) {
-        bucket.accountIds.forEach((id) => assignedIds.add(id));
-        const provider = bucket.provider ?? bucketAccounts[0]?.provider ?? "antigravity";
-        bucketGroups.push({
-          id: `bucket:${bucket.id}`,
-          type: "bucket",
-          title: bucket.name,
-          provider,
-          accounts: bucketAccounts,
-          bucket,
-        });
-      }
+      bucket.accountIds.forEach((id) => assignedIds.add(id));
+      bucketGroups.push({
+        id: `bucket:${bucket.id}`,
+        type: "bucket",
+        title: bucket.name,
+        provider: bucket.provider ?? bucketAccounts[0]?.provider ?? null,
+        accounts: bucketAccounts,
+        bucket,
+      });
     }
 
     const providerGroups: SidebarGroup[] = [];
@@ -643,23 +689,30 @@ export default function App() {
     });
   }, [accounts, buckets, providerOrder, sidebarGroupOrder]);
 
+  const allAccountsGroup = useMemo<SidebarGroup>(() => ({
+    id: ALL_ACCOUNTS_GROUP_ID,
+    type: "all",
+    title: "All",
+    provider: null,
+    accounts,
+  }), [accounts]);
+
   useEffect(() => {
-    if (!selectedGroupId && sidebarGroups.length > 0) {
-      setSelectedGroupId(sidebarGroups[0].id);
+    if (selectedGroupId === ALL_ACCOUNTS_GROUP_ID) return;
+    if (!sidebarGroups.some((group) => group.id === selectedGroupId)) {
+      setSelectedGroupId(ALL_ACCOUNTS_GROUP_ID);
     }
   }, [selectedGroupId, sidebarGroups]);
 
-  const selectedGroup = useMemo<SidebarGroup | null>(() => {
-    if (selectedGroupId) {
-      const found = sidebarGroups.find((g) => g.id === selectedGroupId);
-      if (found) return found;
-    }
-    return sidebarGroups[0] ?? null;
-  }, [selectedGroupId, sidebarGroups]);
+  const selectedGroup = useMemo<SidebarGroup>(() => {
+    if (selectedGroupId === ALL_ACCOUNTS_GROUP_ID) return allAccountsGroup;
+    return sidebarGroups.find((group) => group.id === selectedGroupId) ?? allAccountsGroup;
+  }, [selectedGroupId, sidebarGroups, allAccountsGroup]);
 
-  const visibleAccounts = selectedGroup?.accounts ?? [];
-  const needsAttention = accounts.filter(accountNeedsAttention).length;
-  const nextReset = nextResetSummary(visibleAccounts.length ? visibleAccounts : accounts);
+  const visibleAccounts = selectedGroup.accounts;
+  const needsAttention = visibleAccounts.filter(accountNeedsAttention).length;
+  const nextReset = nextResetSummary(visibleAccounts);
+  const visibleUpdatedAt = formatUpdatedAt(latestFetchedAt(visibleAccounts), nowMs);
 
   const refreshOne = async (id: string) => {
     if (busy === `refresh:${id}` || busy === "refresh-all") return;
@@ -767,9 +820,12 @@ export default function App() {
         needsAttention={needsAttention}
         nextReset={nextReset}
         onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
-        onAdd={() => openAdd(undefined, selectedGroup?.provider ?? undefined)}
+        onAdd={() => openAdd(undefined, selectedGroup.provider ?? undefined)}
         onRefreshAll={refreshAll}
         onEditBucket={openEditBucket}
+        onDeleteBucket={openDeleteBucket}
+        updatedAtLabel={visibleUpdatedAt}
+        nowMs={nowMs}
         onRefresh={(account) => void refreshOne(account.id)}
         onReconnect={(account) => account.provider === "google_ai_studio" ? setGoogleUsageAccount(account) : openAdd(account)}
         onConnectGoogleUsage={setGoogleUsageAccount}
@@ -800,6 +856,9 @@ export default function App() {
     installUpdate,
     openAdd,
     openEditBucket,
+    openDeleteBucket,
+    visibleUpdatedAt,
+    nowMs,
     saveAccountRefreshMinutes,
     saveAutomaticUpdatesEnabled,
     setPaseoBridgeEnabled,
@@ -840,7 +899,7 @@ export default function App() {
               type="button"
               className="button primary compact-button add-bucket-header-button"
               title="Create a custom bucket group"
-              onClick={() => { openNewBucket(selectedGroup?.provider); setSidebarOpen(false); }}
+              onClick={() => { openNewBucket(selectedGroup.provider); setSidebarOpen(false); }}
             >
               <PlusIcon />Group
             </button>
@@ -864,23 +923,34 @@ export default function App() {
         </div>
 
         <div className="provider-list">
-          {sidebarGroups.length ? sidebarGroups.map((group) => (
+          <SidebarGroupRow
+            group={allAccountsGroup}
+            window={sidebarWindow}
+            selected={section === "accounts" && selectedGroup.id === ALL_ACCOUNTS_GROUP_ID}
+            onSelect={() => {
+              setSelectedGroupId(ALL_ACCOUNTS_GROUP_ID);
+              setSection("accounts");
+              setSidebarOpen(false);
+            }}
+          />
+          {sidebarGroups.map((group) => (
             <SidebarGroupRow
               key={group.id}
               group={group}
               window={sidebarWindow}
-              selected={section === "accounts" && selectedGroup?.id === group.id}
+              selected={section === "accounts" && selectedGroup.id === group.id}
               onSelect={() => {
                 setSelectedGroupId(group.id);
                 setSection("accounts");
                 setSidebarOpen(false);
               }}
             />
-          )) : (
+          ))}
+          {accounts.length === 0 && buckets.length === 0 ? (
             <button className="empty-account provider-empty" onClick={() => { openAdd(); setSidebarOpen(false); }}>
               <PlusIcon /><span>Add your first account</span>
             </button>
-          )}
+          ) : null}
         </div>
 
         <SidebarUpdateButton
@@ -941,16 +1011,22 @@ export default function App() {
         bucket={bucketToEdit}
         initialProvider={bucketInitialProvider}
         accounts={accounts}
-        onClose={() => setBucketModalOpen(false)}
+        initialConfirmDelete={bucketConfirmDelete}
+        onClose={() => {
+          setBucketModalOpen(false);
+          setBucketConfirmDelete(false);
+        }}
         onSaved={async (saved) => {
           setBucketModalOpen(false);
+          setBucketConfirmDelete(false);
           setSelectedGroupId(`bucket:${saved.id}`);
           await load();
         }}
         onDeleted={async (deletedId) => {
           setBucketModalOpen(false);
+          setBucketConfirmDelete(false);
           if (selectedGroupId === `bucket:${deletedId}`) {
-            setSelectedGroupId(null);
+            setSelectedGroupId(ALL_ACCOUNTS_GROUP_ID);
           }
           await load();
         }}
@@ -1076,10 +1152,11 @@ function SidebarGroupRow({
   const average = groupAverage(group.accounts, window);
   const width = average == null ? 0 : Math.min(100, Math.max(0, average));
   const tone = usageTone(average);
+  const reorderable = group.type !== "all";
   return (
     <button
       type="button"
-      className={`provider-summary-row ${group.type === "bucket" ? "is-bucket-row" : ""} ${selected ? "selected" : ""}`}
+      className={`provider-summary-row ${group.type === "bucket" ? "is-bucket-row" : ""} ${group.type === "all" ? "is-all-row" : ""} ${selected ? "selected" : ""}`}
       onClick={(e) => {
         if (isReordering()) {
           e.preventDefault();
@@ -1088,13 +1165,15 @@ function SidebarGroupRow({
         }
         onSelect();
       }}
-      data-provider={group.provider}
-      data-reorder-provider={group.provider}
+      data-provider={group.provider ?? undefined}
+      data-reorder-provider={group.provider ?? undefined}
       data-group-id={group.id}
-      data-reorder-enabled="true"
+      data-reorder-enabled={reorderable ? "true" : undefined}
       aria-label={`${group.title}, ${group.accounts.length} accounts, ${average == null ? "usage unavailable" : `${Math.round(average)} percent average remaining`}`}
     >
-      <span className={`provider-summary-icon provider-${group.provider}`}><ProviderIcon provider={group.provider} /></span>
+      <span className={`provider-summary-icon ${group.provider ? `provider-${group.provider}` : "provider-all"}`}>
+        {group.provider ? <ProviderIcon provider={group.provider} /> : <UsersIcon />}
+      </span>
       <span className="provider-summary-content">
         <span className="provider-summary-topline">
           <strong className="sidebar-group-title">
@@ -1113,13 +1192,16 @@ function SidebarGroupRow({
 function AccountsView(props: {
   allAccounts: Account[];
   accounts: Account[];
-  selectedGroup: SidebarGroup | null;
+  selectedGroup: SidebarGroup;
   needsAttention: number;
   nextReset: NextResetSummary;
   onToggleSidebar?: () => void;
   onAdd: () => void;
   onRefreshAll: () => void;
   onEditBucket?: (bucket: AccountBucket) => void;
+  onDeleteBucket?: (bucket: AccountBucket) => void;
+  updatedAtLabel: string | null;
+  nowMs: number;
   onRefresh: (account: Account) => void;
   onReconnect: (account: Account) => void;
   onConnectGoogleUsage: (account: Account) => void;
@@ -1145,29 +1227,40 @@ function AccountsView(props: {
               </button>
             ) : null}
             <h1 className="eyebrow">
-              {props.selectedGroup ? props.selectedGroup.title : props.allAccounts.length === 0 ? "Accounts Dashboard" : "Usage Dashboard"}
+              {props.selectedGroup.type === "all"
+                ? props.allAccounts.length === 0 ? "Accounts Dashboard" : "All accounts"
+                : props.selectedGroup.title}
             </h1>
-            {props.selectedGroup?.type === "bucket" ? (
+            {props.selectedGroup.type === "bucket" ? (
               <span className="dashboard-bucket-pill">Custom Group</span>
             ) : null}
           </div>
-          {props.selectedGroup ? (
-            <p>{props.selectedGroup.accounts.length} {props.selectedGroup.accounts.length === 1 ? "account" : "accounts"}</p>
-          ) : null}
+          <p>{props.selectedGroup.accounts.length} {props.selectedGroup.accounts.length === 1 ? "account" : "accounts"}</p>
         </div>
         <div className="header-actions">
-          {props.selectedGroup?.type === "bucket" && props.selectedGroup.bucket ? (
+          {props.selectedGroup.type === "bucket" && props.selectedGroup.bucket ? (
             <button
               type="button"
               className="button ghost edit-bucket-header-btn"
-              onClick={() => props.onEditBucket?.(props.selectedGroup!.bucket!)}
+              onClick={() => props.onEditBucket?.(props.selectedGroup.bucket!)}
             >
               <EditIcon />Edit Group
             </button>
           ) : null}
-          <button className="button ghost" onClick={props.onRefreshAll} disabled={props.busy === "refresh-all"}>
-            <RefreshIcon />{props.busy === "refresh-all" ? "Refreshing…" : "Refresh All"}
-          </button>
+          <div className="header-refresh-cluster">
+            <button
+              className="button ghost"
+              onClick={props.onRefreshAll}
+              disabled={props.busy === "refresh-all"}
+              title={props.updatedAtLabel ?? undefined}
+              aria-label={props.updatedAtLabel ? `Refresh all accounts. ${props.updatedAtLabel}` : "Refresh all accounts"}
+            >
+              <RefreshIcon />{props.busy === "refresh-all" ? "Refreshing…" : "Refresh All"}
+            </button>
+            {props.updatedAtLabel && props.busy !== "refresh-all" ? (
+              <span className="header-refresh-age">{props.updatedAtLabel}</span>
+            ) : null}
+          </div>
           <button className="button primary" onClick={props.onAdd}><PlusIcon />Add Account</button>
         </div>
       </header>
@@ -1202,6 +1295,7 @@ function AccountsView(props: {
             key={account.id}
             account={account}
             busy={props.busy}
+            nowMs={props.nowMs}
             onRefresh={() => props.onRefresh(account)}
             onReconnect={() => props.onReconnect(account)}
             onConnectGoogleUsage={() => props.onConnectGoogleUsage(account)}
@@ -1212,9 +1306,31 @@ function AccountsView(props: {
         )) : (
           <section className="welcome-panel mockup-empty-panel">
             <UsersIcon />
-            <h2>{props.selectedGroup ? `No accounts in ${props.selectedGroup.title}` : "Connect a provider account"}</h2>
-            <p>Add an account to begin monitoring its limits.</p>
-            <button className="button primary" onClick={props.onAdd}><PlusIcon />Add Account</button>
+            <h2>
+              {props.selectedGroup.type === "bucket"
+                ? `No accounts in ${props.selectedGroup.title}`
+                : props.selectedGroup.type === "all"
+                  ? "Connect a provider account"
+                  : `No accounts in ${props.selectedGroup.title}`}
+            </h2>
+            <p>
+              {props.selectedGroup.type === "bucket"
+                ? "This group is still saved. Add accounts to it, or delete the group."
+                : "Add an account to begin monitoring its limits."}
+            </p>
+            <div className="empty-group-actions">
+              {props.selectedGroup.type === "bucket" && props.selectedGroup.bucket ? (
+                <>
+                  <button type="button" className="button ghost" onClick={() => props.onEditBucket?.(props.selectedGroup.bucket!)}>
+                    <EditIcon />Edit Group
+                  </button>
+                  <button type="button" className="button ghost" onClick={() => props.onDeleteBucket?.(props.selectedGroup.bucket!)}>
+                    <TrashIcon />Delete Group
+                  </button>
+                </>
+              ) : null}
+              <button className="button primary" onClick={props.onAdd}><PlusIcon />Add Account</button>
+            </div>
           </section>
         )}
       </section>
@@ -1225,6 +1341,7 @@ function AccountsView(props: {
 function AccountDashboardCard({
   account,
   busy,
+  nowMs,
   onRefresh,
   onReconnect,
   onConnectGoogleUsage,
@@ -1234,6 +1351,7 @@ function AccountDashboardCard({
 }: {
   account: Account;
   busy: string | null;
+  nowMs: number;
   onRefresh: () => void;
   onReconnect: () => void;
   onConnectGoogleUsage: () => void;
@@ -1259,6 +1377,7 @@ function AccountDashboardCard({
   const modelsOnly = account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_model_access";
   const waitingForMetrics = account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_monitoring_waiting";
   const googleUnavailableLabel = modelsOnly ? "Key only" : waitingForMetrics ? "Setup in progress" : "Unavailable";
+  const updatedAtLabel = formatUpdatedAt(account.lastUsage?.fetchedAt, nowMs) ?? "Not updated yet";
   const creditLabel = account.provider !== "openai"
     ? null
     : account.lastUsage?.unlimitedCredits
@@ -1335,6 +1454,7 @@ function AccountDashboardCard({
             ) : null}
           </div>
           <p className="account-card-email">{displayAccountSubtitle(account)}</p>
+          <p className="account-card-updated">{updatedAtLabel}</p>
           {renameError ? <small className="account-card-inline-error">{renameError}</small> : null}
         </div>
         <div className={`account-card-header-actions ${account.provider === "google_ai_studio" ? "has-google-action" : ""}`}>
@@ -1369,8 +1489,8 @@ function AccountDashboardCard({
             <button
               type="button"
               className={`account-card-action refresh-action ${isRefreshing ? "spinning" : ""}`}
-              data-tooltip="Refresh this account"
-              aria-label={`Refresh ${account.label}`}
+              data-tooltip={`Refresh this account · ${updatedAtLabel}`}
+              aria-label={`Refresh ${account.label}. ${updatedAtLabel}`}
               disabled={cardBusy || isGlobalRefresh}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={onRefresh}
