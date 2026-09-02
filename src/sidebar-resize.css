@@ -89,10 +89,43 @@ body.sidebar-resizing * {
   cursor: col-resize !important;
   cursor: ew-resize !important;
   user-select: none !important;
+  -webkit-user-select: none !important;
 }
 
 @media (max-width: 1220px) {
   :root {
     --sidebar-width: 442px;
+  }
+}
+
+@media (max-width: 860px) {
+  :root {
+    --sidebar-width: 268px;
+  }
+
+  .sidebar-resize-handle {
+    top: 0;
+    right: 0;
+    width: 32px;
+    height: 100%;
+    z-index: 30;
+    -webkit-touch-callout: none;
+  }
+
+  /* The sidebar already has a 1px border. Don't draw a second, thicker edge. */
+  .sidebar-resize-handle::before {
+    display: none;
+  }
+
+  .sidebar-resize-handle.dragging::before,
+  .sidebar-resize-handle:focus-visible::before {
+    display: block;
+    right: 0;
+    width: 4.5px;
+    transform: none;
+  }
+
+  .sidebar-resize-grip {
+    right: 6px;
   }
 }

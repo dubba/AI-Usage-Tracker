@@ -82,7 +82,7 @@ select {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-width: 300px;
+  min-width: 0;
   width: auto !important;
   min-height: 100vh;
   overflow: hidden;
@@ -192,6 +192,7 @@ select {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: nowrap;
   gap: 8px;
   padding: 0 12px 10px;
   color: #958ea0;
@@ -204,6 +205,7 @@ select {
   align-items: center;
   gap: 8px;
   flex: 0 0 auto;
+  flex-shrink: 0;
 }
 
 .add-bucket-header-button {
@@ -221,11 +223,13 @@ select {
 }
 
 .provider-sidebar-heading > span {
+  flex-shrink: 0;
   font-size: 11px;
   font-weight: 700;
   line-height: 16px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .provider-window-toggle {
@@ -1926,6 +1930,8 @@ select.account-update-select option,
 
 .sidebar-mobile-close-btn {
   display: none;
+  position: relative;
+  z-index: 40;
   align-items: center;
   justify-content: center;
   width: 32px;
@@ -1973,6 +1979,10 @@ select.account-update-select option,
 }
 
 @media (max-width: 860px) {
+  :root {
+    --sidebar-width: 268px;
+  }
+
   .obsidian-shell {
     display: flex !important;
     flex-direction: column !important;
@@ -2007,9 +2017,9 @@ select.account-update-select option,
     bottom: 0;
     left: 0;
     z-index: 250;
-    width: min(75vw, 268px) !important;
+    width: var(--sidebar-width) !important;
     min-width: 0 !important;
-    max-width: 268px;
+    max-width: calc(100vw - 48px);
     height: auto;
     max-height: none;
     padding-top: 12px;
@@ -2039,8 +2049,6 @@ select.account-update-select option,
   }
 
   .provider-sidebar-heading {
-    flex-wrap: wrap;
-    row-gap: 8px;
     padding: 4px 8px 10px;
   }
 

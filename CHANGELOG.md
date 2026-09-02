@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Improved
+
+- On mobile, the navigation sidebar can be resized by dragging its right edge, the same way it can on desktop.
+- Desktop and mobile sidebars can be narrowed until just before the Group button would wrap under Accounts.
+
 ### Fixed
 
 - Custom groups stay in the sidebar after every account is removed from them. Edit Group can now save with no accounts selected, and the empty group still has Edit and Delete.
