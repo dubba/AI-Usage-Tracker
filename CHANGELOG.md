@@ -1,15 +1,19 @@
 # Changelog
 
-## Unreleased
-
-### Fixed
-
-- On mobile, the Custom Group badge now stays to the right of the group name instead of wrapping under the menu button.
-
 ## 0.3.4 - 2026-09-02
 
+### Improved
+
+- On mobile, placed the "Total accounts" and "Needs attention" summary cards side-by-side in the same row with "Next reset" spanning underneath.
+- Made the mobile navigation sidebar narrower for a cleaner drawer layout.
+- On mobile, tightened the spacing between the dashboard title and account count, and vertically centered both lines with the hamburger menu button.
+- Balanced vertical spacing on mobile with equal padding above and below the header separator line.
+
 ### Fixed
 
+- Fixed baseline alignment in the sidebar so group titles and account counts are horizontally aligned with provider entries like Grok and Antigravity.
+- Standardized header typography and vertical baseline alignment across all provider and custom group views.
+- On mobile, the Custom Group badge now stays to the right of the group name instead of wrapping under the menu button.
 - Checking for updates no longer reports that you’re up to date when the check actually failed (for example a network error or a missing package for this computer).
 - The sidebar Check for Updates control is now a real button that stays in sync with Settings.
 - Signing in to a provider no longer gets stuck or misses the result when the dashboard and the sign-in window both check login progress at the same time.

@@ -1207,17 +1207,21 @@ function AccountsView(props: {
               </button>
             ) : null}
             <div className="dashboard-title-heading">
-              <h1 className="eyebrow">
-                {props.selectedGroup.type === "all"
-                  ? props.allAccounts.length === 0 ? "Accounts Dashboard" : "All accounts"
-                  : props.selectedGroup.title}
-              </h1>
-              {props.selectedGroup.type === "bucket" ? (
-                <span className="dashboard-bucket-pill">Custom Group</span>
-              ) : null}
+              <div className="dashboard-title-top">
+                <h1 className="eyebrow">
+                  {props.selectedGroup.type === "all"
+                    ? props.allAccounts.length === 0 ? "Accounts Dashboard" : "All accounts"
+                    : props.selectedGroup.title}
+                </h1>
+                {props.selectedGroup.type === "bucket" ? (
+                  <span className="dashboard-bucket-pill">Custom Group</span>
+                ) : null}
+              </div>
+              <p className="dashboard-account-count">
+                {props.selectedGroup.accounts.length} {props.selectedGroup.accounts.length === 1 ? "account" : "accounts"}
+              </p>
             </div>
           </div>
-          <p>{props.selectedGroup.accounts.length} {props.selectedGroup.accounts.length === 1 ? "account" : "accounts"}</p>
         </div>
         <div className="header-actions">
           {props.selectedGroup.type === "bucket" && props.selectedGroup.bucket ? (
@@ -1238,7 +1242,7 @@ function AccountsView(props: {
 
       <section className="summary-grid mockup-summary-grid">
         <div className="mockup-summary-card total-card">
-          <div><span className="summary-label">{props.selectedGroup ? `${props.selectedGroup.title} Accounts` : "Total accounts"}</span><strong className="summary-helper">Active</strong></div>
+          <div><span className="summary-label">{props.selectedGroup && props.selectedGroup.type !== "all" ? `${props.selectedGroup.title} Accounts` : "Total accounts"}</span><strong className="summary-helper">Active</strong></div>
           <div className="summary-value-cluster"><strong>{props.accounts.length}</strong><UsersIcon /></div>
         </div>
         <div className={`mockup-summary-card attention-card ${props.needsAttention ? "has-attention" : ""}`}>
@@ -1572,7 +1576,7 @@ function IntegrationView({
             ) : null}
             <span className="eyebrow">API Integration</span>
           </div>
-          <p>Expose a read-only localhost API for Paseo and other status tools.</p>
+          <p>Expose localhost API for Paseo & other status tools.</p>
         </div>
       </header>
       <section className="settings-card">
@@ -1662,7 +1666,7 @@ function SettingsView({
             ) : null}
             <span className="eyebrow">App Settings</span>
           </div>
-          <p>Control how AI Usage Tracker behaves on this computer.</p>
+          <p>Control how AI Usage Tracker app behaves.</p>
         </div>
       </header>
       <section className="settings-card">
