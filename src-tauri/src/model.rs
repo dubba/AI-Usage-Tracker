@@ -259,7 +259,7 @@ pub struct DashboardSnapshot {
     pub bridge: BridgeStatus,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct AppUpdateStatus {
     pub current_version: String,
@@ -267,6 +267,48 @@ pub struct AppUpdateStatus {
     pub available_version: Option<String>,
     pub date: Option<String>,
     pub body: Option<String>,
+    /// Set when the check failed. `available` is always false in that case.
+    pub error: Option<String>,
+}
+
+impl AppUpdateStatus {
+    pub fn up_to_date(current_version: String) -> Self {
+        Self {
+            current_version,
+            available: false,
+            available_version: None,
+            date: None,
+            body: None,
+            error: None,
+        }
+    }
+
+    pub fn available(
+        current_version: String,
+        available_version: String,
+        date: Option<String>,
+        body: Option<String>,
+    ) -> Self {
+        Self {
+            current_version,
+            available: true,
+            available_version: Some(available_version),
+            date,
+            body,
+            error: None,
+        }
+    }
+
+    pub fn failed(current_version: String, error: impl Into<String>) -> Self {
+        Self {
+            current_version,
+            available: false,
+            available_version: None,
+            date: None,
+            body: None,
+            error: Some(error.into()),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -329,5 +371,31 @@ mod tests {
             json["bridge"]["endpoint"],
             "http://127.0.0.1:47831/v1/paseo-usage"
         );
+    }
+
+    #[test]
+    fn app_update_status_serializes_structured_error() {
+        let failed = AppUpdateStatus::failed("0.3.3".into(), "Unable to check for updates: network down");
+        let json = serde_json::to_value(&failed).unwrap();
+        assert_eq!(json["currentVersion"], "0.3.3");
+        assert_eq!(json["available"], false);
+        assert_eq!(json["availableVersion"], serde_json::Value::Null);
+        assert_eq!(json["error"], "Unable to check for updates: network down");
+
+        let current = AppUpdateStatus::up_to_date("0.3.3".into());
+        let json = serde_json::to_value(&current).unwrap();
+        assert_eq!(json["available"], false);
+        assert_eq!(json["error"], serde_json::Value::Null);
+
+        let newer = AppUpdateStatus::available(
+            "0.3.3".into(),
+            "0.3.4".into(),
+            Some("2026-09-01".into()),
+            Some("notes".into()),
+        );
+        let json = serde_json::to_value(&newer).unwrap();
+        assert_eq!(json["available"], true);
+        assert_eq!(json["availableVersion"], "0.3.4");
+        assert_eq!(json["error"], serde_json::Value::Null);
     }
 }

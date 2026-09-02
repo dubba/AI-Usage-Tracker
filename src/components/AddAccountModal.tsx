@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { bridgeApi, clearLoginAttempt, rememberLoginAttempt } from "../api";
+import { bridgeApi } from "../api";
+import { abandonLoginAttempt, retryLoginAttempt, subscribeLoginStatus, watchLoginAttempt } from "../login-status";
 import type { Account, LoginStatus, Provider } from "../types";
 import { CustomDropdown, type DropdownOption } from "./CustomDropdown";
 import { useModalA11y } from "./useModalA11y";
@@ -64,6 +65,7 @@ export function AddAccountModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const closeRequestedRef = useRef(false);
+  const attemptIdRef = useRef<string | null>(null);
   const dialogRef = useRef<HTMLElement>(null);
   const providerLocked = Boolean(initialProvider && initialLabel?.trim());
 
@@ -84,6 +86,7 @@ export function AddAccountModal({
       setStatus(null);
       setBusy(false);
       setError(null);
+      attemptIdRef.current = null;
     } else {
       closeRequestedRef.current = false;
       const nextProvider = providerLocked && initialProvider ? initialProvider : "openai";
@@ -99,40 +102,30 @@ export function AddAccountModal({
   }, [open, initialLabel, initialProvider, providerLocked]);
 
   useEffect(() => {
-    if (!status || status.status !== "waiting") return;
-    const timer = window.setInterval(async () => {
-      try {
-        const next = await bridgeApi.loginStatus(status.attemptId);
-        if (closeRequestedRef.current) return;
-        setStatus(next);
-        if (next.status === "complete" && next.account) {
-          window.clearInterval(timer);
-          clearLoginAttempt();
-          onAdded(next.account);
-        }
-        if (next.status === "failed") {
-          window.clearInterval(timer);
-          clearLoginAttempt();
-          setBusy(false);
-          setError(next.message ?? `${providerName(provider)} authentication failed.`);
-        }
-      } catch (cause) {
-        window.clearInterval(timer);
-        setBusy(false);
-        setError(String(cause));
+    if (!open) return;
+    return subscribeLoginStatus((next) => {
+      if (closeRequestedRef.current) return;
+      if (attemptIdRef.current !== next.attemptId) return;
+      setStatus(next);
+      if (next.status === "complete" && next.account) {
+        onAdded(next.account);
+        return;
       }
-    }, 900);
-    return () => window.clearInterval(timer);
-  }, [status, onAdded, provider, email]);
+      if (next.status === "failed") {
+        setBusy(false);
+        setError(next.message ?? `${providerName(provider)} authentication failed.`);
+      }
+    });
+  }, [open, onAdded, provider]);
 
   const closeModal = () => {
     closeRequestedRef.current = true;
-    const attemptId = status?.attemptId;
+    const attemptId = status?.attemptId ?? attemptIdRef.current;
     setStatus(null);
     setBusy(false);
+    attemptIdRef.current = null;
     if (attemptId) {
-      clearLoginAttempt();
-      void bridgeApi.cancelLogin(attemptId);
+      abandonLoginAttempt(attemptId);
     }
     onClose();
   };
@@ -213,7 +206,7 @@ export function AddAccountModal({
     setBusy(true);
     setError(null);
     try {
-      if (provider === "opencode_go" && advancedManual) {
+      if (provider === "opencode_go" && manualMode) {
         const account = await bridgeApi.addOpenCodeGoAccount(
           label.trim() || providerName(provider),
           workspaceId.trim(),
@@ -224,7 +217,7 @@ export function AddAccountModal({
         return;
       }
 
-      if (provider === "grok" && advancedManual) {
+      if (provider === "grok" && manualMode) {
         if (!grokCookie.trim()) {
           setError("Grok session cookies are required for manual connection.");
           setBusy(false);
@@ -247,7 +240,7 @@ export function AddAccountModal({
         await bridgeApi.cancelLogin(start.attemptId).catch(() => undefined);
         return;
       }
-      rememberLoginAttempt(start.attemptId);
+      attemptIdRef.current = start.attemptId;
       setStatus({
         attemptId: start.attemptId,
         status: "waiting",
@@ -260,6 +253,7 @@ export function AddAccountModal({
         projects: null,
         selectedProjectId: null,
       });
+      watchLoginAttempt(start.attemptId);
       if (start.authorizationUrl.trim()) {
         await openUrl(start.authorizationUrl);
       }
@@ -271,16 +265,41 @@ export function AddAccountModal({
     }
   };
 
+  const retry = () => {
+    const attemptId = status?.attemptId ?? attemptIdRef.current;
+    if (attemptId && retryLoginAttempt(attemptId)) {
+      setError(null);
+      setBusy(true);
+      setStatus({
+        attemptId,
+        status: "waiting",
+        message: "Reconnecting to the sign-in…",
+        account: null,
+        projects: null,
+        selectedProjectId: null,
+      });
+      return;
+    }
+    void begin();
+  };
+
+  // On Android the backend cannot capture Grok/OpenCode cookies from a
+  // webview sign-in, so manual cookie entry is the only supported mode there.
+  const manualOnly = isAndroid && (provider === "grok" || provider === "opencode_go");
+  const manualMode = advancedManual || manualOnly;
+
   const providerCopy = provider === "opencode_go"
-    ? "A private OpenCode window will open in the app. Sign in, then select Go from the OpenCode sidebar. The bridge detects the workspace and session automatically and closes the window when the account is connected."
+    ? (manualOnly
+      ? "Sign in to opencode.ai in your browser, then paste your workspace ID and auth cookie below. Only the session needed for read-only usage checks is saved on this device."
+      : "A private OpenCode window will open in the app. Sign in, then select Go from the OpenCode sidebar. The bridge detects the workspace and session automatically and closes the window when the account is connected.")
     : provider === "google_ai_studio"
       ? "Enter an AI Studio API key, load the model list directly from Google, and choose which models to track. After the account is added, connect its Google Cloud project to retrieve provider-reported quota usage."
       : provider === "grok"
-        ? isAndroid
-          ? "The app opens Grok sign-in in this window. After you sign in, it returns to the dashboard and securely saves only the session needed to read weekly usage. Your xAI password never passes through the tracker."
-          : "A private Grok window opens inside the tracker. After you sign in, the tracker securely saves only the Grok session needed to read the provider-reported weekly usage percentage and reset time. Your xAI password never passes through the tracker."
+        ? (manualOnly
+          ? "Sign in to grok.com in your browser, copy your session cookies, and paste them below. The tracker securely saves only the session needed to read the provider-reported weekly usage percentage and reset time. Your xAI password never passes through the tracker."
+          : "A private Grok window opens inside the tracker. After you sign in, the tracker securely saves only the Grok session needed to read the provider-reported weekly usage percentage and reset time. Your xAI password never passes through the tracker.")
         : isAndroid
-          ? `The app opens the ${providerName(provider)} sign-in page in this window. After you finish, it returns here and links the account. Passwords never pass through this app.`
+          ? `Your browser opens the ${providerName(provider)} sign-in page. After you finish, return to the app; it links the account automatically. Passwords never pass through this app.`
           : `Finish the ${providerName(provider)} login in your browser. Passwords never pass through this app.`;
 
   const googleReady = Boolean(
@@ -291,7 +310,7 @@ export function AddAccountModal({
   );
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && closeModal()}>
+    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !busy && closeModal()}>
       <section ref={dialogRef} className="modal-card" role="dialog" aria-modal="true" aria-labelledby="add-account-title" tabIndex={-1}>
         <div className="modal-kicker">Provider connection</div>
         <h2 id="add-account-title">{providerLocked ? `Reconnect ${providerName(provider)}` : "Which account do you want to add?"}</h2>
@@ -402,7 +421,7 @@ export function AddAccountModal({
 
         {provider === "grok" ? (
           <>
-            {!advancedManual ? (
+            {!manualMode ? (
               <div className="guided-login-card grok-login-card">
                 <strong>What happens next</strong>
                 <ol>
@@ -433,7 +452,7 @@ export function AddAccountModal({
               </div>
             )}
 
-            {!busy ? (
+            {!busy && !manualOnly ? (
               <button
                 type="button"
                 className="advanced-connection-toggle"
@@ -467,7 +486,7 @@ export function AddAccountModal({
             />
             <div className="credential-note opencode-email-note">Required so the account card can identify which OpenCode account is connected.</div>
 
-            {!advancedManual ? (
+            {!manualMode ? (
               <div className="guided-login-card">
                 <strong>What happens next</strong>
                 <ol>
@@ -504,7 +523,7 @@ export function AddAccountModal({
               </div>
             )}
 
-            {!busy ? (
+            {!busy && !manualOnly ? (
               <button
                 type="button"
                 className="advanced-connection-toggle"
@@ -532,6 +551,11 @@ export function AddAccountModal({
         {error ? <div className="error-panel modal-error">{error}</div> : null}
         <div className="modal-actions">
           <button className="button ghost" onClick={closeModal}>Cancel</button>
+          {status?.status === "failed" ? (
+            <button className="button primary" onClick={retry} disabled={busy || modelsBusy}>
+              Retry
+            </button>
+          ) : (
           <button
             className="button primary"
             onClick={begin}
@@ -540,25 +564,26 @@ export function AddAccountModal({
               modelsBusy ||
               (provider === "opencode_go" && !email.trim()) ||
               (provider === "google_ai_studio" && !googleReady) ||
-              (provider === "grok" && advancedManual && !grokCookie.trim())
+              (provider === "grok" && manualMode && !grokCookie.trim())
             }
           >
             {busy
               ? provider === "opencode_go"
                 ? "Waiting for OpenCode…"
                 : provider === "grok"
-                  ? advancedManual ? "Adding account…" : "Waiting for Grok…"
+                  ? manualMode ? "Adding account…" : "Waiting for Grok…"
                   : provider === "google_ai_studio"
                     ? "Adding account…"
                     : "Connecting…"
               : provider === "opencode_go"
-                ? advancedManual ? "Connect manually" : "Open OpenCode login"
+                ? manualMode ? "Connect manually" : "Open OpenCode login"
                 : provider === "grok"
-                  ? advancedManual ? "Connect manually" : "Open Grok login"
+                  ? manualMode ? "Connect manually" : "Open Grok login"
                   : provider === "google_ai_studio"
                     ? "Add selected models"
                     : `Continue with ${providerName(provider)}`}
           </button>
+          )}
         </div>
       </section>
     </div>

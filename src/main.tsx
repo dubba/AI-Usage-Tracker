@@ -5,7 +5,6 @@ import App from "./App";
 import { PaseoBridgeWindow } from "./PaseoBridgeWindow";
 import { installDashboardReorder } from "./dashboard-reorder";
 import { installSidebarResize } from "./sidebar-resize";
-import { installSidebarUpdateControl } from "./sidebar-update-control";
 import { installUiRefinements } from "./ui-refinements";
 import "./styles.css";
 import "./updater.css";
@@ -55,7 +54,6 @@ createRoot(document.getElementById("root")!).render(
 
 if (!isPaseoBridgeWindow) {
   installSidebarResize();
-  installSidebarUpdateControl();
   installUiRefinements();
   installDashboardReorder();
 }

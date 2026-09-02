@@ -26,6 +26,7 @@ export function CustomDropdown<T extends string | number>({
 }) {
   const generatedId = useId();
   const dropdownId = id ?? generatedId;
+  const listboxId = `${dropdownId}-listbox`;
   const [isOpen, setIsOpen] = useState(false);
   const [openUpward, setOpenUpward] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
@@ -123,7 +124,10 @@ export function CustomDropdown<T extends string | number>({
         className="custom-dropdown-trigger"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        aria-labelledby={dropdownId}
+        aria-controls={listboxId}
+        aria-activedescendant={
+          isOpen && highlightedIndex >= 0 ? `${dropdownId}-opt-${highlightedIndex}` : undefined
+        }
         disabled={disabled}
         onClick={() => !disabled && setIsOpen((prev) => !prev)}
         onKeyDown={handleKeyDown}
@@ -160,10 +164,10 @@ export function CustomDropdown<T extends string | number>({
       {isOpen && (
         <ul
           ref={listRef}
+          id={listboxId}
           className={`custom-dropdown-menu ${openUpward ? "upward" : ""}`}
           role="listbox"
           aria-labelledby={dropdownId}
-          tabIndex={-1}
         >
           {options.map((option, index) => {
             const isSelected = option.value === value;
@@ -171,6 +175,7 @@ export function CustomDropdown<T extends string | number>({
             return (
               <li
                 key={String(option.value)}
+                id={`${dropdownId}-opt-${index}`}
                 role="option"
                 aria-selected={isSelected}
                 className={`custom-dropdown-item ${isSelected ? "selected" : ""} ${

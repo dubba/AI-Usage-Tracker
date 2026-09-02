@@ -37,9 +37,14 @@ export function BucketModal({
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const dialogRef = useRef<HTMLElement>(null);
-  useModalA11y(dialogRef, open, () => {
+  const confirmDeleteRef = useRef<HTMLElement>(null);
+  useModalA11y(dialogRef, open && !confirmingDelete, () => {
     if (!busy) onClose();
+  });
+  useModalA11y(confirmDeleteRef, open && confirmingDelete, () => {
+    if (!busy) setConfirmingDelete(false);
   });
 
   useEffect(() => {
@@ -60,6 +65,7 @@ export function BucketModal({
       }
       setError(null);
       setBusy(false);
+      setConfirmingDelete(false);
     }
   }, [open, bucket, initialProvider, accounts]);
 
@@ -220,7 +226,7 @@ export function BucketModal({
                 type="button"
                 className="button ghost bucket-delete-button"
                 disabled={busy}
-                onClick={handleDelete}
+                onClick={() => setConfirmingDelete(true)}
               >
                 <TrashIcon /> Delete Group
               </button>
@@ -236,6 +242,37 @@ export function BucketModal({
           </footer>
         </form>
       </section>
+      {bucket && confirmingDelete ? (
+        <div
+          className="modal-backdrop bucket-delete-confirm-backdrop"
+          role="presentation"
+          onMouseDown={(event) => event.target === event.currentTarget && !busy && setConfirmingDelete(false)}
+        >
+          <section
+            ref={confirmDeleteRef}
+            className="modal-card remove-account-modal bucket-delete-confirm-modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="bucket-delete-confirm-title"
+            aria-describedby="bucket-delete-confirm-body"
+            tabIndex={-1}
+          >
+            <div className="modal-kicker">Delete group</div>
+            <h2 id="bucket-delete-confirm-title">Delete “{bucket.name}”?</h2>
+            <p id="bucket-delete-confirm-body">
+              Are you sure you want to delete this group? The accounts stay connected and keep their settings — only the grouping is removed.
+            </p>
+            <div className="modal-actions">
+              <button type="button" className="button ghost" disabled={busy} onClick={() => setConfirmingDelete(false)} autoFocus>
+                Cancel
+              </button>
+              <button type="button" className="button remove-confirm-button" disabled={busy} onClick={handleDelete}>
+                {busy ? "Removing…" : "Delete Group"}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }

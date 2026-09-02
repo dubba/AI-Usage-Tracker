@@ -4,10 +4,31 @@
 
 ### Fixed
 
+- Checking for updates no longer reports that you’re up to date when the check actually failed (for example a network error or a missing package for this computer).
+- The sidebar Check for Updates control is now a real button that stays in sync with Settings.
+- Signing in to a provider no longer gets stuck or misses the result when the dashboard and the sign-in window both check login progress at the same time.
+- Refreshing, renaming, or removing one account no longer freezes the action buttons on every other account card; only the affected card's controls are disabled.
+- The “Next reset” summary now shows a larger plain countdown value (e.g. “45m”) instead of “… remaining”.
+- Deleting an account group now opens a confirmation dialog (“Are you sure you want to delete this group?”) instead of deleting immediately, and account removal can no longer be triggered twice by rapid clicks.
 - Dialogs (Add Account, Account Grouping, Usage Notifications, Google Cloud Usage, Remove Account) now trap keyboard focus, close with Escape unless a dropdown is open, restore focus to the button that opened them, and stop the background from scrolling while open.
 - Restored the Settings Change Log row, which disappeared after the Settings title was removed.
+- Clicking outside the Add Account dialog no longer cancels an in-progress provider sign-in; use Cancel to stop it deliberately.
+- On Android, Grok and OpenCode connect screens now show the manual cookie-entry steps with matching button text instead of instructions for an in-app sign-in window that mobile no longer provides.
+- Accounts renamed to the same text as an old provider name (for example “OpenAI Codex”) keep the exact name the user typed; only accounts still carrying the original auto-generated legacy name display the modern provider name.
+- Provider sign-in no longer stays on “Waiting for the browser callback…” if the app loses contact with the login. The dialog shows an error and a Retry button that resumes the same attempt.
+- Reordering accounts in a mixed group now moves those cards only, instead of applying another provider’s order to them.
+- AI Studio accounts added with only an API key now show KEY ONLY instead of CONNECTED, and the Cloud Usage connection opens immediately so quota setup is not skipped.
+ - Quota reset countdowns on account cards now show minutes when less than an hour remains (for example `8m` instead of `1h`).
+ - Paseo Bridge copy buttons now show a transient “Copied!” label and announce the result to screen readers.
+ - Provider and account dropdowns now expose listbox roles and active-descendant tracking so keyboard and screen reader navigation works.
+ - The global error banner and the empty loading state now use alert semantics, focus the Retry button, and show skeleton placeholders while accounts load.
 
 ### Improved
+
+- The sidebar + Group button now uses the same purple background as Add Account.
+- The Next reset pill now shows days and hours when more than a day remains (for example `1d 9h`).
+- Renamed the sidebar navigation item from “Accounts” to “Dashboard.”
+- Renamed the Settings heading from “Application Settings” to “App Settings.”
 
 - The Settings update button is now labeled Check Now and stays compact on mobile, with a narrower Account Updates dropdown.
 - Clarified the Automatic updates description: the app checks GitHub Releases for updates at startup and every hour.
@@ -16,7 +37,7 @@
 - Aligned the accounts page heading with the Settings and Integrations headings so they sit at the same height on desktop.
 - Matched the accounts page “N accounts” subtitle to the Settings and Integrations description size and spacing.
 - Settings now uses a single purple Application Settings heading instead of a separate Settings title.
-- Integrations now uses a single purple Paseo API Integration heading instead of Local API plus Paseo Integration.
+- Integrations now uses a single purple API Integration heading instead of Local API plus Paseo Integration.
 - Renamed the sidebar section from Usage accounts to Accounts, and kept the Group / H / W header visible on Android instead of clipping it off the narrow drawer.
 
 ## 0.3.3 - 2026-09-01

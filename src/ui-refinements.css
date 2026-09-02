@@ -288,17 +288,6 @@
   display: none !important;
 }
 
-/* The update control uses one real text node. The exact selector below wins
-   over the older Obsidian generated-label rule. */
-.obsidian-shell .sidebar-footer > span {
-  display: inline !important;
-}
-
-.obsidian-shell .sidebar-footer::after {
-  content: none !important;
-  display: none !important;
-}
-
 .notification-only-modal .modal-kicker {
   display: block;
   margin-bottom: 14px;

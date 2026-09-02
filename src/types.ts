@@ -102,4 +102,6 @@ export interface AppUpdateStatus {
   availableVersion: string | null;
   date: string | null;
   body: string | null;
+  /** Set when the backend check failed. `available` is always false in that case. */
+  error: string | null;
 }

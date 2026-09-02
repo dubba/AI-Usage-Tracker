@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { bridgeApi, clearLoginAttempt, readLoginAttempt, rememberLoginAttempt } from "../api";
+import { bridgeApi, readLoginAttempt } from "../api";
+import { abandonLoginAttempt, getLastLoginStatus, retryLoginAttempt, subscribeLoginStatus, watchLoginAttempt } from "../login-status";
 import type { Account, CloudProjectOption, LoginStatus } from "../types";
 import { CustomDropdown } from "./CustomDropdown";
 import { useModalA11y } from "./useModalA11y";
@@ -23,10 +24,12 @@ export function GoogleAiStudioUsageModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const closeRequestedRef = useRef(false);
+  const attemptIdRef = useRef<string | null>(null);
   const dialogRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     closeRequestedRef.current = account == null;
+    if (!account) attemptIdRef.current = null;
     setStatus(null);
     setStage("signin");
     setProjects([]);
@@ -34,68 +37,59 @@ export function GoogleAiStudioUsageModal({
     setBusy(false);
     setError(null);
     if (!account) return;
+    const last = getLastLoginStatus();
+    if (last && (last.status === "choose_project" || last.status === "monitoring_disabled")) {
+      attemptIdRef.current = last.attemptId;
+      setStatus(last);
+      setProjects(last.projects ?? []);
+      setSelectedProjectId(last.selectedProjectId ?? last.projects?.[0]?.projectId ?? "");
+      setStage(last.status);
+    }
     const attemptId = readLoginAttempt();
-    if (!attemptId) return;
-    void bridgeApi.loginStatus(attemptId).then((next) => {
-      if (closeRequestedRef.current) return;
-      if (next.status === "choose_project" || next.status === "monitoring_disabled") {
-        setStatus(next);
-        setProjects(next.projects ?? []);
-        setSelectedProjectId(next.selectedProjectId ?? next.projects?.[0]?.projectId ?? "");
-        setStage(next.status);
-      }
-    }).catch(() => undefined);
+    if (attemptId) {
+      attemptIdRef.current = attemptId;
+      watchLoginAttempt(attemptId);
+    }
   }, [account]);
 
   useEffect(() => {
-    if (!status || status.status !== "waiting") return;
-    const timer = window.setInterval(async () => {
-      try {
-        const next = await bridgeApi.loginStatus(status.attemptId);
-        if (closeRequestedRef.current) return;
-        setStatus(next);
-        if (next.status === "complete" && next.account) {
-          window.clearInterval(timer);
-          clearLoginAttempt();
-          setBusy(false);
-          onConnected(next.account);
-          return;
-        }
-        if (next.status === "failed") {
-          window.clearInterval(timer);
-          clearLoginAttempt();
-          setBusy(false);
-          setError(next.message ?? "Google usage connection failed.");
-          return;
-        }
-        if (next.status === "choose_project" || next.status === "monitoring_disabled") {
-          window.clearInterval(timer);
-          setBusy(false);
-          if (!next.projects?.length) {
-            setError("Google sign-in succeeded, but the project information could not be read.");
-            return;
-          }
-          setProjects(next.projects);
-          setSelectedProjectId(next.selectedProjectId ?? next.projects[0].projectId);
-          setStage(next.status);
-        }
-      } catch (cause) {
-        window.clearInterval(timer);
+    if (!account) return;
+    return subscribeLoginStatus((next) => {
+      if (closeRequestedRef.current) return;
+      if (attemptIdRef.current && next.attemptId !== attemptIdRef.current) return;
+      if (!attemptIdRef.current) return;
+      setStatus(next);
+      if (next.status === "complete" && next.account) {
         setBusy(false);
-        setError(String(cause));
+        onConnected(next.account);
+        return;
       }
-    }, 900);
-    return () => window.clearInterval(timer);
-  }, [status, onConnected]);
+      if (next.status === "failed") {
+        setBusy(false);
+        setError(next.message ?? "Google usage connection failed.");
+        return;
+      }
+      if (next.status === "choose_project" || next.status === "monitoring_disabled") {
+        setBusy(false);
+        if (!next.projects?.length) {
+          setError("Google sign-in succeeded, but the project information could not be read.");
+          return;
+        }
+        setProjects(next.projects);
+        setSelectedProjectId(next.selectedProjectId ?? next.projects[0].projectId);
+        setStage(next.status);
+      }
+    });
+  }, [account, onConnected]);
 
   const closeModal = () => {
     closeRequestedRef.current = true;
-    const attemptId = status?.attemptId;
+    const attemptId = status?.attemptId ?? attemptIdRef.current;
     setStatus(null);
     setBusy(false);
+    attemptIdRef.current = null;
     if (attemptId) {
-      clearLoginAttempt();
-      void bridgeApi.cancelLogin(attemptId);
+      abandonLoginAttempt(attemptId);
     }
     onClose();
   };
@@ -113,7 +107,7 @@ export function GoogleAiStudioUsageModal({
         await bridgeApi.cancelLogin(next.attemptId).catch(() => undefined);
         return;
       }
-      rememberLoginAttempt(next.attemptId);
+      attemptIdRef.current = next.attemptId;
       setStatus({
         attemptId: next.attemptId,
         status: "waiting",
@@ -122,6 +116,7 @@ export function GoogleAiStudioUsageModal({
         projects: null,
         selectedProjectId: null,
       });
+      watchLoginAttempt(next.attemptId);
       if (next.authorizationUrl) {
         await openUrl(next.authorizationUrl);
       }
@@ -131,6 +126,32 @@ export function GoogleAiStudioUsageModal({
         setError(String(cause));
       }
     }
+  };
+
+  const retry = () => {
+    const attemptId = status?.attemptId ?? attemptIdRef.current;
+    if (attemptId && retryLoginAttempt(attemptId)) {
+      setError(null);
+      setBusy(true);
+      setStatus({
+        attemptId,
+        status: "waiting",
+        message: "Reconnecting to Google…",
+        account: null,
+        projects: status?.projects ?? projects,
+        selectedProjectId: selectedProjectId || null,
+      });
+      return;
+    }
+    if (stage === "choose_project") {
+      void start(selectedProjectId);
+      return;
+    }
+    if (stage === "monitoring_disabled") {
+      void start(selectedProjectId, true);
+      return;
+    }
+    void start();
   };
 
   const selectedProject = projects.find((project) => project.projectId === selectedProjectId) ?? null;
@@ -194,17 +215,22 @@ export function GoogleAiStudioUsageModal({
 
         <div className="modal-actions">
           <button className="button ghost" onClick={closeModal}>Cancel</button>
-          {stage === "signin" ? (
+          {status?.status === "failed" ? (
+            <button className="button primary" onClick={retry} disabled={busy}>
+              Retry
+            </button>
+          ) : null}
+          {status?.status !== "failed" && stage === "signin" ? (
             <button className="button primary" onClick={() => void start()} disabled={busy}>
               {busy ? "Waiting for Google…" : "Sign in with Google"}
             </button>
           ) : null}
-          {stage === "choose_project" ? (
+          {status?.status !== "failed" && stage === "choose_project" ? (
             <button className="button primary" onClick={() => void start(selectedProjectId)} disabled={busy || !selectedProjectId}>
               {busy ? "Checking project…" : "Connect This Project"}
             </button>
           ) : null}
-          {stage === "monitoring_disabled" ? (
+          {status?.status !== "failed" && stage === "monitoring_disabled" ? (
             <button className="button primary" onClick={() => void start(selectedProjectId, true)} disabled={busy || !selectedProjectId}>
               {busy ? "Waiting for Google…" : "Enable Cloud Monitoring"}
             </button>

@@ -16,6 +16,7 @@ export function PaseoBridgeWindow() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -47,10 +48,12 @@ export function PaseoBridgeWindow() {
     return `${bridge.token.slice(0, 4)}${"•".repeat(Math.max(12, bridge.token.length - 8))}${bridge.token.slice(-4)}`;
   }, [bridge?.token]);
 
-  const copy = async (value: string) => {
+  const copy = async (value: string, key: string) => {
     try {
       await navigator.clipboard.writeText(value);
       setError(null);
+      setCopiedKey(key);
+      window.setTimeout(() => setCopiedKey((c) => (c === key ? null : c)), 2000);
     } catch (cause) {
       setError(`Unable to copy: ${String(cause)}`);
     }
@@ -91,20 +94,21 @@ export function PaseoBridgeWindow() {
         <div className="bridge-window-warning">The Paseo Bridge is disabled. Return to Integrations in the main app to turn it on.</div>
       ) : null}
       {bridge.error ? <div className="error-panel">{bridge.error}</div> : null}
-      {error ? <div className="error-panel">{error}</div> : null}
+      {error ? <div className="error-panel" role="alert">{error}</div> : null}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">{copiedKey ? "Copied!" : ""}</div>
 
       <section className="bridge-detail-card">
         <div className="bridge-detail-row">
           <div><strong>Usage endpoint</strong><small>Authenticated usage data for Paseo.</small></div>
-          <div className="bridge-detail-value"><code>{bridge.endpoint}</code><button className="button ghost" onClick={() => void copy(bridge.endpoint)}>Copy</button></div>
+          <div className="bridge-detail-value"><code>{bridge.endpoint}</code><button className="button ghost" aria-live="polite" onClick={() => void copy(bridge.endpoint, "endpoint")}>{copiedKey === "endpoint" ? "Copied!" : "Copy"}</button></div>
         </div>
         <div className="bridge-detail-row">
           <div><strong>Health endpoint</strong><small>Confirms that the local bridge listener is available.</small></div>
-          <div className="bridge-detail-value"><code>{healthEndpoint}</code><button className="button ghost" onClick={() => void copy(healthEndpoint)}>Copy</button></div>
+          <div className="bridge-detail-value"><code>{healthEndpoint}</code><button className="button ghost" aria-live="polite" onClick={() => void copy(healthEndpoint, "health")}>{copiedKey === "health" ? "Copied!" : "Copy"}</button></div>
         </div>
         <div className="bridge-detail-row">
           <div><strong>Bearer token</strong><small>Required in the Authorization header for usage requests. Hidden by default.</small></div>
-          <div className="bridge-detail-value bridge-token-value"><code>{revealed ? bridge.token : maskedToken}</code><button className="button ghost" onClick={() => setRevealed((v) => !v)}>{revealed ? "Hide" : "Reveal"}</button><button className="button ghost" onClick={() => void copy(bridge.token)}>Copy</button></div>
+          <div className="bridge-detail-value bridge-token-value"><code>{revealed ? bridge.token : maskedToken}</code><button className="button ghost" onClick={() => setRevealed((v) => !v)}>{revealed ? "Hide" : "Reveal"}</button><button className="button ghost" aria-live="polite" onClick={() => void copy(bridge.token, "token")}>{copiedKey === "token" ? "Copied!" : "Copy"}</button></div>
         </div>
         <div className="bridge-detail-row">
           <div><strong>Rotate token</strong><small>Existing Paseo configuration stops working until its token is replaced.</small></div>
@@ -115,7 +119,7 @@ export function PaseoBridgeWindow() {
       <section className="bridge-config-card">
         <div className="bridge-config-heading">
           <div><strong>Environment configuration</strong><small>Add these values to Paseo's external provider-usage adapter.</small></div>
-          <button className="button ghost" onClick={() => void copy(environment)}>Copy all</button>
+          <button className="button ghost" aria-live="polite" onClick={() => void copy(environment, "env")}>{copiedKey === "env" ? "Copied!" : "Copy all"}</button>
         </div>
         <pre>{revealed ? environment : environment.replace(bridge.token, maskedToken)}</pre>
       </section>

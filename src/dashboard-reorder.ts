@@ -1,5 +1,5 @@
 import { bridgeApi } from "./api";
-import type { Account, Provider } from "./types";
+import type { Account, AccountBucket, Provider } from "./types";
 
 const SIDEBAR_GROUP_ORDER_KEY = "ai-subscription-tracker:sidebar-group-order";
 const PROVIDER_ORDER_KEY = "ai-subscription-tracker:provider-order";
@@ -60,6 +60,7 @@ let pointerCandidate: PointerCandidate | null = null;
 let dragState: ActiveDrag | null = null;
 let lastDropAt = 0;
 let latestAccounts: Account[] = [];
+let latestBuckets: AccountBucket[] = [];
 let snapshotSyncInFlight = false;
 let snapshotSyncTimer: number | null = null;
 let mutationGuard = false;
@@ -282,45 +283,28 @@ function enhanceProviderList(): void {
   }
 }
 
-function validExistingAccountMapping(cards: HTMLElement[], accounts: Account[]): boolean {
-  const validIds = new Set(accounts.map((account) => account.id));
-  const assigned = cards
-    .map((card) => card.dataset.accountId)
-    .filter((accountId): accountId is string => Boolean(accountId));
-  return assigned.length === cards.length
-    && new Set(assigned).size === assigned.length
-    && assigned.every((accountId) => validIds.has(accountId));
-}
-
-function mapAccountCards(cards: HTMLElement[], accounts: Account[]): void {
-  if (validExistingAccountMapping(cards, accounts)) return;
-  cards.forEach((card, index) => {
-    const account = accounts[index];
-    if (account) {
-      card.dataset.accountId = account.id;
-      card.dataset.reorderProvider = account.provider;
-      card.dataset.reorderEnabled = "true";
-      card.draggable = false;
-    } else {
-      delete card.dataset.accountId;
-      delete card.dataset.reorderProvider;
-      delete card.dataset.reorderEnabled;
-    }
-  });
+function visibleAccountIds(container: HTMLElement): string[] {
+  return uniqueStrings(
+    accountCards(container)
+      .map((card) => card.dataset.accountId?.trim() ?? "")
+      .filter((accountId) => accountId.length > 0),
+  );
 }
 
 function enhanceAccountList(): void {
   const container = document.querySelector<HTMLElement>(".provider-account-cards");
   if (!container) return;
-  const cards = accountCards(container);
-  const provider = cards.length ? providerFromCard(cards[0]) : null;
-  if (provider && latestAccounts.length) {
-    mapAccountCards(cards, latestAccounts.filter((account) => account.provider === provider));
-  } else {
-    for (const card of cards) {
-      card.draggable = false;
-      card.dataset.reorderEnabled = "true";
+  for (const card of accountCards(container)) {
+    const accountId = card.dataset.accountId?.trim();
+    const provider = providerFromCard(card);
+    card.draggable = false;
+    if (!accountId || !provider) {
+      delete card.dataset.reorderEnabled;
+      continue;
     }
+    card.dataset.accountId = accountId;
+    card.dataset.reorderProvider = provider;
+    card.dataset.reorderEnabled = "true";
   }
 }
 
@@ -346,19 +330,14 @@ function originalOrder(descriptor: DragDescriptor, container: HTMLElement): stri
       .map(groupIdFromRow)
       .filter((id): id is string => Boolean(id));
   }
-  return accountCards(container)
-    .filter((card) => providerFromCard(card) === descriptor.provider)
-    .map((card) => card.dataset.accountId)
-    .filter((accountId): accountId is string => Boolean(accountId));
+  return visibleAccountIds(container);
 }
 
 function reorderElements(drag: ActiveDrag): HTMLElement[] {
   if (drag.descriptor.kind === "group") {
     return groupRows(drag.container).filter((row) => row !== drag.source);
   }
-  return accountCards(drag.container).filter(
-    (card) => card !== drag.source && providerFromCard(card) === drag.descriptor.provider,
-  );
+  return accountCards(drag.container).filter((card) => card !== drag.source);
 }
 
 function capturePositions(elements: HTMLElement[]): Map<HTMLElement, { left: number; top: number }> {
@@ -573,11 +552,7 @@ function committedOrder(drag: ActiveDrag): string[] {
       .filter((id): id is string => Boolean(id));
     return uniqueStrings(ids);
   }
-  const ids = accountCards(drag.container)
-    .filter((card) => providerFromCard(card) === drag.descriptor.provider)
-    .map((card) => card.dataset.accountId)
-    .filter((accountId): accountId is string => Boolean(accountId));
-  return Array.from(new Set(ids));
+  return visibleAccountIds(drag.container);
 }
 
 export function isReordering(): boolean {
@@ -603,7 +578,7 @@ function finishDrag(commit: boolean): void {
     storeSidebarGroupOrder(nextOrder);
     void persistGroupOrder(nextOrder);
   } else {
-    void persistAccountOrder(drag.descriptor.provider, nextOrder);
+    void persistVisibleAccountOrder(nextOrder, drag.container.dataset.groupId ?? null);
   }
 }
 
@@ -779,7 +754,8 @@ async function persistGroupOrder(orderedGroupIds: string[]): Promise<void> {
   try {
     const snapshot = await bridgeApi.snapshot();
     const accounts = latestAccounts.length ? latestAccounts : snapshot.accounts;
-    const buckets = snapshot.buckets ?? [];
+    const buckets = snapshot.buckets ?? latestBuckets;
+    if (snapshot.buckets) latestBuckets = snapshot.buckets;
 
     const orderedAccountIds: string[] = [];
     const assignedAccountIds = new Set<string>();
@@ -826,22 +802,46 @@ async function persistGroupOrder(orderedGroupIds: string[]): Promise<void> {
   }
 }
 
-async function persistAccountOrder(provider: Provider, orderedProviderIds: string[]): Promise<void> {
+function spliceSubsetOrder(full: string[], subsetInNewOrder: string[]): string[] | null {
+  const uniqueSubset = uniqueStrings(subsetInNewOrder);
+  if (uniqueSubset.length !== subsetInNewOrder.length || uniqueSubset.length === 0) return null;
+  const subset = new Set(uniqueSubset);
+  const fullSet = new Set(full);
+  if (uniqueSubset.some((id) => !fullSet.has(id))) return null;
+  const remaining = [...uniqueSubset];
+  const next = full.map((id) => (subset.has(id) ? remaining.shift() ?? id : id));
+  if (remaining.length > 0 || new Set(next).size !== next.length) return null;
+  return next;
+}
+
+async function persistVisibleAccountOrder(orderedVisibleIds: string[], groupId: string | null): Promise<void> {
   try {
-    const dedupedOrdered = Array.from(new Set(orderedProviderIds));
-    const accounts = latestAccounts.length ? latestAccounts : (await bridgeApi.snapshot()).accounts;
-    let providerIndex = 0;
-    const fullOrder = accounts.map((account) => {
-      if (account.provider !== provider) return account.id;
-      const replacement = dedupedOrdered[providerIndex];
-      providerIndex += 1;
-      return replacement ?? account.id;
-    });
-    // Final safeguard: ensure fullOrder has no duplicates before sending to backend
-    if (new Set(fullOrder).size !== fullOrder.length) {
+    const snapshot = latestAccounts.length
+      ? { accounts: latestAccounts, buckets: latestBuckets }
+      : await bridgeApi.snapshot();
+    const accounts = snapshot.accounts;
+    const buckets = snapshot.buckets ?? latestBuckets;
+    const fullOrder = spliceSubsetOrder(
+      accounts.map((account) => account.id),
+      orderedVisibleIds,
+    );
+    if (!fullOrder) {
       scheduleSnapshotSync(0);
       return;
     }
+
+    if (groupId?.startsWith("bucket:")) {
+      const bucket = buckets.find((candidate) => candidate.id === groupId.slice(7));
+      if (bucket) {
+        const visible = new Set(orderedVisibleIds);
+        const nextAccountIds = [...orderedVisibleIds, ...bucket.accountIds.filter((id) => !visible.has(id))];
+        await bridgeApi.saveBucket(bucket.name, bucket.provider, nextAccountIds, bucket.id);
+        latestBuckets = buckets.map((candidate) => (
+          candidate.id === bucket.id ? { ...candidate, accountIds: nextAccountIds } : candidate
+        ));
+      }
+    }
+
     latestAccounts = await bridgeApi.reorderAccounts(fullOrder);
     window.dispatchEvent(new Event("focus"));
   } catch {
@@ -853,7 +853,9 @@ async function syncSnapshotAndMappings(): Promise<void> {
   if (snapshotSyncInFlight || dragState) return;
   snapshotSyncInFlight = true;
   try {
-    latestAccounts = (await bridgeApi.snapshot()).accounts;
+    const snapshot = await bridgeApi.snapshot();
+    latestAccounts = snapshot.accounts;
+    latestBuckets = snapshot.buckets ?? [];
     enhanceProviderList();
     enhanceAccountList();
   } catch {

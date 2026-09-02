@@ -177,8 +177,10 @@
   border-radius: 9px;
   background: #151a17;
   color: var(--text);
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
   cursor: pointer;
   font-size: 13px;
   font-weight: 700;
@@ -211,19 +213,22 @@
   cursor: wait;
 }
 
-.sidebar-footer > * {
-  display: none !important;
-}
-
-.sidebar-footer::before {
-  content: attr(data-update-label);
+button.sidebar-footer {
+  width: 100%;
+  appearance: none;
+  font: inherit;
+  color: inherit;
 }
 
 .sidebar-changelog-link {
   flex: 0 0 auto;
   align-self: center;
   margin-top: 8px;
+  border: 0;
+  padding: 0;
+  background: transparent;
   color: #b896ff;
+  font: inherit;
   font-size: 12px;
   font-weight: 650;
   line-height: 1.3;

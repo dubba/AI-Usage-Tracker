@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { bridgeApi, clearLoginAttempt, readLoginAttempt } from "./api";
+import { bridgeApi } from "./api";
+import { resumeLoginAttemptWatch, subscribeLoginStatus } from "./login-status";
 import { AccountAlertModal } from "./components/AccountAlertModal";
 import { RemoveAccountModal } from "./components/RemoveAccountModal";
 import { AddAccountModal } from "./components/AddAccountModal";
@@ -32,7 +33,6 @@ import {
   SettingsIcon,
   UsersIcon,
 } from "./icons";
-import { APP_UPDATE_STATUS_EVENT, CHANGELOG_URL, publishAppUpdateStatus } from "./sidebar-update-control";
 import type {
   Account,
   AccountBucket,
@@ -64,10 +64,14 @@ type NextResetSummary = {
 };
 
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
+// Shown only until getVersion() resolves; getVersion() is the single source of truth.
+const FALLBACK_APP_VERSION = "0.3.3";
 const DASHBOARD_SYNC_INTERVAL_MS = 30 * 1000;
 const STARTUP_REFRESH_DELAY_MS = 3 * 1000;
+const SIDEBAR_UPDATE_FEEDBACK_MS = 3_000;
 const ACCOUNT_REFRESH_OPTIONS = Array.from({ length: 12 }, (_, index) => (index + 1) * 5);
 const SIDEBAR_WINDOW_KEY = "ai-subscription-tracker:provider-average-window";
+const CHANGELOG_URL = "https://github.com/dubba/AI-Usage-Tracker/blob/main/CHANGELOG.md";
 
 function providerName(provider: Provider): string {
   switch (provider) {
@@ -80,20 +84,28 @@ function providerName(provider: Provider): string {
   }
 }
 
-function displayAccountLabel(label: string): string {
-  if (label === "Google Antigravity" || label === "Antigravity") return "Antigravity";
-  if (label === "Grok / SuperGrok" || label === "Grok") return "Grok";
-  if (label === "OpenAI Codex" || label === "OpenAI" || label === "Codex/GPT") return "Codex/GPT";
-  if (label === "Anthropic Claude" || label === "Anthropic" || label === "Claude") return "Claude";
-  if (label === "Google AI Studio" || label === "AI Studio") return "AI Studio";
-  return label;
+// Legacy accounts were auto-labelled with an older provider display name
+// (e.g. "Google Antigravity"). Collapse only those legacy labels and only for
+// the matching provider; a user who renames an account keeps their exact name.
+const LEGACY_DEFAULT_LABELS: Partial<Record<Provider, string[]>> = {
+  antigravity: ["Google Antigravity"],
+  grok: ["Grok / SuperGrok"],
+  openai: ["OpenAI Codex", "OpenAI", "Codex"],
+  anthropic: ["Anthropic Claude", "Anthropic"],
+  google_ai_studio: ["Google AI Studio"],
+};
+
+function displayAccountLabel(account: Account): string {
+  const legacy = LEGACY_DEFAULT_LABELS[account.provider] ?? [];
+  if (legacy.includes(account.label)) return providerName(account.provider);
+  return account.label;
 }
 
 function displayAccountSubtitle(account: Account): string {
   if (account.email && account.email.trim()) {
     return account.email.trim();
   }
-  const label = displayAccountLabel(account.label);
+  const label = displayAccountLabel(account);
   const pName = providerName(account.provider);
   if (label.trim().toLowerCase() === pName.trim().toLowerCase()) {
     return "Connected account";
@@ -108,14 +120,16 @@ function formatTime(value: string | null | undefined): string {
   return date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
 }
 
-function isGoogleAiStudioSetupSource(account: Account): boolean {
+function googleAiStudioHasQuotaWindows(account: Account): boolean {
   return account.provider === "google_ai_studio"
-    && (account.lastUsage?.source === "google_ai_studio_model_access"
-      || account.lastUsage?.source === "google_ai_studio_monitoring_waiting");
+    && account.lastUsage?.source === "google_ai_studio_cloud_monitoring"
+    && (account.lastUsage.windows ?? []).some((window) => window.remainingPercent != null);
 }
 
 function accountNeedsAttention(account: Account): boolean {
-  if (!account.authRequired && !account.lastError && isGoogleAiStudioSetupSource(account)) return false;
+  if (account.provider === "google_ai_studio" && !googleAiStudioHasQuotaWindows(account)) {
+    return true;
+  }
   return Boolean(
     account.authRequired
     || account.lastError
@@ -132,10 +146,10 @@ function accountStatus(account: Account): { label: string; className: string } {
     return { label: "ATTENTION", className: "warning" };
   }
   if (account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_model_access") {
-    return { label: "CONNECTED", className: "success" };
+    return { label: "KEY ONLY", className: "warning" };
   }
-  if (account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_monitoring_waiting") {
-    return { label: "WAITING", className: "neutral" };
+  if (account.provider === "google_ai_studio" && !googleAiStudioHasQuotaWindows(account)) {
+    return { label: "SETUP", className: "warning" };
   }
   if (!account.lastUsage || account.lastUsage.freshness === "unavailable") {
     return { label: "INACTIVE", className: "neutral" };
@@ -180,7 +194,7 @@ function nextResetSummary(accounts: Account[]): NextResetSummary {
       if (!window.resetsAt) return [];
       const resetAt = new Date(window.resetsAt).getTime();
       if (!Number.isFinite(resetAt) || resetAt <= now) return [];
-      return [{ resetAt, account: displayAccountLabel(account.label), resetsAt: window.resetsAt }];
+      return [{ resetAt, account: displayAccountLabel(account), resetsAt: window.resetsAt }];
     }),
   );
 
@@ -190,14 +204,25 @@ function nextResetSummary(accounts: Account[]): NextResetSummary {
 
   candidates.sort((left, right) => left.resetAt - right.resetAt);
   const next = candidates[0];
-  const remainingMinutes = Math.max(1, Math.ceil((next.resetAt - now) / 60_000));
-  const value = remainingMinutes < 60
-    ? `${remainingMinutes}m`
-    : remainingMinutes < 24 * 60
-      ? `${Math.ceil(remainingMinutes / 60)}h`
-      : `${Math.ceil(remainingMinutes / (24 * 60))}d`;
+  return {
+    account: next.account,
+    value: formatRemainingDuration(next.resetAt - now) ?? "—",
+    resetsAt: next.resetsAt,
+  };
+}
 
-  return { account: next.account, value, resetsAt: next.resetsAt };
+function formatHoursAndDays(totalHours: number): string {
+  if (totalHours < 24) return `${totalHours}h`;
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  return hours === 0 ? `${days}d` : `${days}d ${hours}h`;
+}
+
+function formatRemainingDuration(remainingMs: number): string | null {
+  if (!Number.isFinite(remainingMs) || remainingMs <= 0) return null;
+  const remainingMinutes = Math.max(1, Math.ceil(remainingMs / 60_000));
+  if (remainingMinutes < 60) return `${remainingMinutes}m`;
+  return formatHoursAndDays(Math.max(1, Math.ceil(remainingMs / 3_600_000)));
 }
 
 function readSidebarWindow(): SidebarWindow {
@@ -265,18 +290,8 @@ function resetCountdownLabel(value: string | null | undefined): string | null {
   if (!value) return null;
   const resetAt = new Date(value).getTime();
   if (!Number.isFinite(resetAt)) return null;
-  const remainingMs = resetAt - Date.now();
-  if (remainingMs <= 0) return null;
-  const totalHours = Math.max(1, Math.ceil(remainingMs / 3_600_000));
-  if (totalHours < 24) {
-    return `Resets in: ${totalHours}h`;
-  }
-  const days = Math.floor(totalHours / 24);
-  const hours = totalHours % 24;
-  if (hours === 0) {
-    return `Resets in: ${days}d`;
-  }
-  return `Resets in: ${days}d ${hours}h`;
+  const remaining = formatRemainingDuration(resetAt - Date.now());
+  return remaining ? `Resets in: ${remaining}` : null;
 }
 
 function cleanModelPrefix(prefix: string): string {
@@ -375,6 +390,10 @@ export default function App() {
   const [alertAccount, setAlertAccount] = useState<Account | null>(null);
   const [accountToRemove, setAccountToRemove] = useState<Account | null>(null);
   const [googleUsageAccount, setGoogleUsageAccount] = useState<Account | null>(null);
+  const addOpenRef = useRef(addOpen);
+  const googleUsageAccountRef = useRef(googleUsageAccount);
+  addOpenRef.current = addOpen;
+  googleUsageAccountRef.current = googleUsageAccount;
   const [loginLabel, setLoginLabel] = useState("");
   const [loginProvider, setLoginProvider] = useState<Provider | undefined>(undefined);
   const [busy, setBusy] = useState<string | null>(null);
@@ -383,7 +402,7 @@ export default function App() {
   const [autostart, setAutostart] = useState(false);
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
   const [settingsBusy, setSettingsBusy] = useState(false);
-  const [installedVersion, setInstalledVersion] = useState("0.3.3");
+  const [installedVersion, setInstalledVersion] = useState(FALLBACK_APP_VERSION);
   const [appUpdate, setAppUpdate] = useState<AppUpdateStatus | null>(null);
   const [updateBusy, setUpdateBusy] = useState<UpdateBusy>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
@@ -431,9 +450,12 @@ export default function App() {
     setUpdateError(null);
     try {
       const status = await bridgeApi.checkForUpdate();
+      if (status.error) {
+        setUpdateError(status.error);
+        setAppUpdate((current) => (current?.available && !showFeedback ? current : status));
+        return;
+      }
       setAppUpdate(status);
-      publishAppUpdateStatus(status);
-      setUpdateError(null);
       if (showFeedback) {
         if (status.available && status.availableVersion) {
           setUpdateMessage(`Version ${status.availableVersion} is ready to install.`);
@@ -442,18 +464,7 @@ export default function App() {
         }
       }
     } catch (cause) {
-      const message = String(cause);
-      if (
-        message.includes("Could not fetch a valid release JSON") ||
-        message.includes("404") ||
-        message.includes("not found")
-      ) {
-        if (showFeedback) {
-          setUpdateMessage(`You are on the latest version (v${installedVersion}).`);
-        }
-      } else {
-        setUpdateError(message);
-      }
+      setUpdateError(String(cause));
     } finally {
       setUpdateBusy(null);
     }
@@ -525,7 +536,7 @@ export default function App() {
 
   useEffect(() => {
     void load();
-    getVersion().then(setInstalledVersion).catch(() => setInstalledVersion("0.3.3"));
+    getVersion().then(setInstalledVersion).catch(() => setInstalledVersion(FALLBACK_APP_VERSION));
     bridgeApi.getAppSettings().then(setAppSettings).catch((cause) => setError(String(cause)));
     isEnabled().then(setAutostart).catch(() => setAutostart(false));
     const syncInterval = window.setInterval(() => void load(), DASHBOARD_SYNC_INTERVAL_MS);
@@ -537,34 +548,22 @@ export default function App() {
   }, [load]);
 
   useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const attemptId = readLoginAttempt();
-      try {
-        const status = attemptId
-          ? await bridgeApi.loginStatus(attemptId)
-          : await bridgeApi.currentLoginStatus();
-        if (cancelled || !status) return;
-        if (status.status === "complete") {
-          clearLoginAttempt();
-          await load();
-          return;
-        }
-        if (status.status === "failed") {
-          clearLoginAttempt();
-          if (status.message) setError(status.message);
-          return;
-        }
-        if ((status.status === "choose_project" || status.status === "monitoring_disabled") && status.account) {
-          setGoogleUsageAccount(status.account);
-        }
-      } catch {
-        clearLoginAttempt();
+    void resumeLoginAttemptWatch();
+    return subscribeLoginStatus((status) => {
+      if (status.status === "complete") {
+        void load();
+        return;
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
+      if (status.status === "failed") {
+        if (status.message && !addOpenRef.current && googleUsageAccountRef.current == null) {
+          setError(status.message);
+        }
+        return;
+      }
+      if ((status.status === "choose_project" || status.status === "monitoring_disabled") && status.account) {
+        setGoogleUsageAccount(status.account);
+      }
+    });
   }, [load]);
 
   useEffect(() => {
@@ -578,15 +577,6 @@ export default function App() {
       window.removeEventListener(DASHBOARD_GROUP_ORDER_EVENT, handleOrderChange);
       window.removeEventListener(DASHBOARD_PROVIDER_ORDER_EVENT, handleOrderChange);
     };
-  }, []);
-
-  useEffect(() => {
-    const handleUpdateEvent = (event: Event) => {
-      const custom = event as CustomEvent<AppUpdateStatus | null>;
-      if (custom.detail) setAppUpdate(custom.detail);
-    };
-    window.addEventListener(APP_UPDATE_STATUS_EVENT, handleUpdateEvent);
-    return () => window.removeEventListener(APP_UPDATE_STATUS_EVENT, handleUpdateEvent);
   }, []);
 
   useEffect(() => {
@@ -604,7 +594,9 @@ export default function App() {
     const bucketGroups: SidebarGroup[] = [];
 
     for (const bucket of buckets) {
-      const bucketAccounts = accounts.filter((a) => bucket.accountIds.includes(a.id));
+      const bucketAccounts = bucket.accountIds
+        .map((id) => accounts.find((account) => account.id === id))
+        .filter((account): account is Account => Boolean(account));
       if (bucketAccounts.length > 0) {
         bucket.accountIds.forEach((id) => assignedIds.add(id));
         const provider = bucket.provider ?? bucketAccounts[0]?.provider ?? "antigravity";
@@ -670,6 +662,7 @@ export default function App() {
   const nextReset = nextResetSummary(visibleAccounts.length ? visibleAccounts : accounts);
 
   const refreshOne = async (id: string) => {
+    if (busy === `refresh:${id}` || busy === "refresh-all") return;
     setBusy(`refresh:${id}`);
     try {
       await bridgeApi.refreshAccount(id);
@@ -709,6 +702,7 @@ export default function App() {
   };
 
   const remove = async (account: Account) => {
+    if (busy === `remove:${account.id}`) return;
     setBusy(`remove:${account.id}`);
     try {
       await bridgeApi.removeAccount(account.id);
@@ -834,7 +828,7 @@ export default function App() {
         </div>
 
         <nav className="primary-nav">
-          <button className={section === "accounts" ? "active" : ""} onClick={() => { setSection("accounts"); setSidebarOpen(false); }}><UsersIcon />Accounts</button>
+          <button className={section === "accounts" ? "active" : ""} onClick={() => { setSection("accounts"); setSidebarOpen(false); }}><UsersIcon />Dashboard</button>
           <button className={section === "integration" ? "active" : ""} onClick={() => { setSection("integration"); setSidebarOpen(false); }}><LinkIcon />Integrations</button>
           <button className={section === "settings" ? "active" : ""} onClick={() => { setSection("settings"); setSidebarOpen(false); }}><SettingsIcon />Settings</button>
         </nav>
@@ -844,7 +838,7 @@ export default function App() {
           <div className="provider-sidebar-heading-actions">
             <button
               type="button"
-              className="button ghost compact-button add-bucket-header-button"
+              className="button primary compact-button add-bucket-header-button"
               title="Create a custom bucket group"
               onClick={() => { openNewBucket(selectedGroup?.provider); setSidebarOpen(false); }}
             >
@@ -889,22 +883,33 @@ export default function App() {
           )}
         </div>
 
-        <div className="sidebar-footer"><RefreshIcon /><span>Check for Updates</span></div>
+        <SidebarUpdateButton
+          update={appUpdate}
+          updateBusy={updateBusy}
+          updateError={updateError}
+          onCheck={() => void checkForUpdate(true)}
+          onInstall={() => void installUpdate()}
+        />
       </aside>
 
       <main className="main-stage">
-        {error ? <div className="global-error"><span>{error}</span><button onClick={() => setError(null)}>Dismiss</button></div> : null}
+        {error ? <div className="global-error" role="alert" aria-live="assertive"><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError(null)}>Dismiss</button></div> : null}
         {snapshot ? content : (
-          <div className="loading-screen">
+          <div className="loading-screen" aria-busy="true" aria-live="polite">
             {error ? (
-              <div className="loading-error">
+              <div className="loading-error" role="alert">
                 <div className="error-panel">{error}</div>
-                <button className="button" type="button" onClick={() => { setError(null); void load(); }}>
+                <button className="button" type="button" autoFocus onClick={() => { setError(null); void load(); }}>
                   Retry
                 </button>
               </div>
             ) : (
-              <><span className="spinner" />Loading accounts…</>
+              <div className="skeleton-grid" aria-label="Loading accounts">
+                <div className="skeleton-card" aria-hidden="true"><span className="skeleton-line" /><span className="skeleton-line short" /></div>
+                <div className="skeleton-card" aria-hidden="true"><span className="skeleton-line" /><span className="skeleton-line short" /></div>
+                <div className="skeleton-card" aria-hidden="true"><span className="skeleton-line" /><span className="skeleton-line short" /></div>
+                <span className="sr-only">Loading accounts…</span>
+              </div>
             )}
           </div>
         )}
@@ -919,8 +924,16 @@ export default function App() {
           setAddOpen(false);
           setSelectedGroupId(`provider:${account.provider}`);
           setSection("accounts");
-          try { await bridgeApi.refreshAccount(account.id); } catch { /* The account remains available with cached state. */ }
+          let nextAccount = account;
+          try {
+            nextAccount = await bridgeApi.refreshAccount(account.id);
+          } catch {
+            /* The account remains available with cached state. */
+          }
           await load();
+          if (nextAccount.provider === "google_ai_studio" && !googleAiStudioHasQuotaWindows(nextAccount)) {
+            setGoogleUsageAccount(nextAccount);
+          }
         }}
       />
       <BucketModal
@@ -967,6 +980,85 @@ export default function App() {
         }}
       />
     </div>
+  );
+}
+
+function SidebarUpdateButton({
+  update,
+  updateBusy,
+  updateError,
+  onCheck,
+  onInstall,
+}: {
+  update: AppUpdateStatus | null;
+  updateBusy: UpdateBusy;
+  updateError: string | null;
+  onCheck: () => void;
+  onInstall: () => void;
+}) {
+  const [transientLabel, setTransientLabel] = useState<string | null>(null);
+  const initiatedRef = useRef<"check" | "install" | null>(null);
+  const available = Boolean(update?.available && update.availableVersion);
+
+  useEffect(() => {
+    if (updateBusy) {
+      setTransientLabel(null);
+      return;
+    }
+    const action = initiatedRef.current;
+    if (!action) return;
+    initiatedRef.current = null;
+    if (action === "check" && available) return;
+    const label = updateError
+      ? action === "install"
+        ? "Update install failed"
+        : "Update check failed"
+      : "You’re up to date";
+    setTransientLabel(label);
+    const timer = window.setTimeout(() => setTransientLabel(null), SIDEBAR_UPDATE_FEEDBACK_MS);
+    return () => window.clearTimeout(timer);
+  }, [updateBusy, available, updateError]);
+
+  let label = "Check for Updates";
+  if (updateBusy === "installing") label = "Installing update…";
+  else if (updateBusy === "checking") label = "Checking…";
+  else if (transientLabel) label = transientLabel;
+  else if (available) label = `Update to v${update!.availableVersion}`;
+
+  const activate = () => {
+    if (updateBusy) return;
+    initiatedRef.current = available ? "install" : "check";
+    if (available) onInstall();
+    else onCheck();
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        className={`sidebar-footer${available ? " update-available" : ""}`}
+        onClick={activate}
+        aria-busy={updateBusy !== null}
+        aria-label={label}
+        title={updateError ?? undefined}
+      >
+        <RefreshIcon />
+        <span>{label}</span>
+      </button>
+      {available ? (
+        <button
+          type="button"
+          className="sidebar-changelog-link"
+          onClick={() => {
+            void openUrl(CHANGELOG_URL).catch(() => {
+              /* opener errors surface through the native dialog */
+            });
+          }}
+        >
+          View Change Log
+        </button>
+      ) : null}
+    </>
   );
 }
 
@@ -1098,13 +1190,13 @@ function AccountsView(props: {
             <strong className="next-reset-account">{props.nextReset.account ?? "No upcoming reset"}</strong>
           </div>
           <div className="next-reset-actions">
-            <span className="next-reset-pill">{props.nextReset.value === "—" ? "—" : `${props.nextReset.value} remaining`}</span>
+            <span className="next-reset-pill">{props.nextReset.value}</span>
             <ClockIcon />
           </div>
         </div>
       </section>
 
-      <section className="provider-account-cards">
+      <section className="provider-account-cards" data-group-id={props.selectedGroup?.id || undefined}>
         {props.accounts.length ? props.accounts.map((account) => (
           <AccountDashboardCard
             key={account.id}
@@ -1157,10 +1249,16 @@ function AccountDashboardCard({
   const isRefreshing = busy === `refresh:${account.id}`;
   const isRenaming = busy === `rename:${account.id}`;
   const isRemoving = busy === `remove:${account.id}`;
+  // Gate actions per account: refreshing or renaming one card must not freeze
+  // the controls of every other card. A global "Refresh All" still locks
+  // per-account refresh to avoid redundant provider calls, but leaves
+  // remove/notify usable.
+  const isGlobalRefresh = busy === "refresh-all";
+  const cardBusy = isRefreshing || isRenaming || isRemoving;
   const windows = orderedWindows(account.lastUsage?.windows ?? []);
   const modelsOnly = account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_model_access";
   const waitingForMetrics = account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_monitoring_waiting";
-  const googleUnavailableLabel = modelsOnly ? "Model connected" : waitingForMetrics ? "Waiting for metrics" : "Unavailable";
+  const googleUnavailableLabel = modelsOnly ? "Key only" : waitingForMetrics ? "Setup in progress" : "Unavailable";
   const creditLabel = account.provider !== "openai"
     ? null
     : account.lastUsage?.unlimitedCredits
@@ -1194,7 +1292,12 @@ function AccountDashboardCard({
   };
 
   return (
-    <article className={`provider-account-card ${needsAttention ? "needs-attention" : ""}`}>
+    <article
+      className={`provider-account-card ${needsAttention ? "needs-attention" : ""}`}
+      data-account-id={account.id}
+      data-reorder-provider={account.provider}
+      data-reorder-enabled="true"
+    >
       <header className="provider-account-card-header">
         <span className={`account-card-provider-icon provider-${account.provider}`}><ProviderIcon provider={account.provider} /></span>
         <div className="account-card-identity">
@@ -1224,7 +1327,7 @@ function AccountDashboardCard({
                   }
                 }}
               />
-            ) : <h2>{displayAccountLabel(account.label)}</h2>}
+            ) : <h2>{displayAccountLabel(account)}</h2>}
             {!editing ? (
               <button type="button" className="account-name-edit" data-tooltip="Edit account name" aria-label={`Edit ${account.label}`} onClick={() => setEditing(true)}>
                 <EditIcon />
@@ -1239,8 +1342,8 @@ function AccountDashboardCard({
             <span className={`account-status-badge ${status.className}`}>{status.label}</span>
             {displayPlan(account) ? <span className="account-plan-badge">{displayPlan(account)}</span> : null}
             {account.provider === "google_ai_studio" ? (
-              <button type="button" className="button ghost compact-button google-cloud-connect-action" disabled={Boolean(busy)} onClick={onConnectGoogleUsage}>
-                {modelsOnly ? "Connect Cloud Usage" : "Change Cloud Project"}
+              <button type="button" className="button ghost compact-button google-cloud-connect-action" disabled={cardBusy} onClick={onConnectGoogleUsage}>
+                {modelsOnly || waitingForMetrics ? "Connect Cloud Usage" : "Change Cloud Project"}
               </button>
             ) : null}
           </div>
@@ -1250,7 +1353,7 @@ function AccountDashboardCard({
               className="account-card-action remove-action"
               data-tooltip="Remove this account"
               aria-label={`Remove ${account.label}`}
-              disabled={Boolean(busy)}
+              disabled={cardBusy}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={onRemove}
             >{isRemoving ? <span className="mini-spinner" /> : <CloseIcon />}</button>
@@ -1259,7 +1362,7 @@ function AccountDashboardCard({
               className="account-card-action notify-action"
               data-tooltip="Usage notifications"
               aria-label={`Configure usage notifications for ${account.label}`}
-              disabled={Boolean(busy)}
+              disabled={cardBusy}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={onNotifications}
             ><BellIcon /></button>
@@ -1268,7 +1371,7 @@ function AccountDashboardCard({
               className={`account-card-action refresh-action ${isRefreshing ? "spinning" : ""}`}
               data-tooltip="Refresh this account"
               aria-label={`Refresh ${account.label}`}
-              disabled={Boolean(busy) && !isRefreshing}
+              disabled={cardBusy || isGlobalRefresh}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={onRefresh}
             ><RefreshIcon /></button>
@@ -1374,7 +1477,7 @@ function IntegrationView({
                 <MenuIcon />
               </button>
             ) : null}
-            <span className="eyebrow">Paseo API Integration</span>
+            <span className="eyebrow">API Integration</span>
           </div>
           <p>Expose a read-only localhost API for Paseo and other status tools.</p>
         </div>
@@ -1464,7 +1567,7 @@ function SettingsView({
                 <MenuIcon />
               </button>
             ) : null}
-            <span className="eyebrow">Application Settings</span>
+            <span className="eyebrow">App Settings</span>
           </div>
           <p>Control how AI Usage Tracker behaves on this computer.</p>
         </div>

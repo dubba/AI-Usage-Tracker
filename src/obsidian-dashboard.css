@@ -212,20 +212,12 @@ select {
   font-size: 11px !important;
   font-weight: 700 !important;
   border-radius: 4px !important;
-  border-color: var(--obsidian-border-strong) !important;
-  color: #b4adb9 !important;
   gap: 4px !important;
 }
 
 .add-bucket-header-button svg {
   width: 13px !important;
   height: 13px !important;
-}
-
-.add-bucket-header-button:hover {
-  border-color: var(--obsidian-purple-strong) !important;
-  color: #f0edef !important;
-  background: rgba(160, 120, 255, 0.14) !important;
 }
 
 .provider-sidebar-heading > span {
@@ -473,11 +465,6 @@ select {
 }
 
 .obsidian-shell .sidebar-footer > span {
-  display: none;
-}
-
-.obsidian-shell .sidebar-footer::after {
-  content: attr(data-update-label);
   font-size: 13px;
   font-weight: 500;
 }
@@ -733,11 +720,11 @@ select {
 }
 
 .next-reset-pill {
-  padding: 3px 8px;
+  padding: 4px 10px;
   border-radius: 3px;
   color: var(--obsidian-amber);
   background: rgba(202, 128, 30, 0.18);
-  font-size: 12px;
+  font-size: 18px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -1775,6 +1762,28 @@ select.account-update-select option,
   color: #fff !important;
 }
 
+.bucket-delete-confirm-backdrop {
+  z-index: 1100;
+  background: rgba(0, 0, 0, 0.55) !important;
+}
+
+.bucket-delete-confirm-modal {
+  max-width: 420px;
+}
+
+.bucket-delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bucket-delete-confirm > span {
+  font-size: 13px;
+  color: #ffb4b4;
+  margin-right: 4px;
+}
+
 .sidebar-backdrop {
   display: none;
 }
@@ -1973,13 +1982,14 @@ select.account-update-select option,
 
   .dashboard-header > div:first-child .mobile-sidebar-toggle-btn {
     grid-column: 1;
-    grid-row: 1 / span 2;
+    grid-row: 1;
     align-self: center;
   }
 
   .dashboard-header > div:first-child .dashboard-title-row h1 {
     grid-column: 2;
     grid-row: 1;
+    align-self: center;
   }
 
   .dashboard-header p {
@@ -2150,5 +2160,51 @@ select.account-update-select option,
     right: auto;
     min-width: 100%;
     width: max-content;
+  }
+
+  .skeleton-grid {
+    display: grid;
+    gap: 16px;
+    width: min(560px, 90vw);
+  }
+
+  .skeleton-card {
+    height: 92px;
+    border: 1px solid var(--obsidian-border);
+    border-radius: 8px;
+    background: linear-gradient(90deg, #1c1b1b 25%, #232222 37%, #1c1b1b 63%);
+    background-size: 400% 100%;
+    animation: skeletonShimmer 1.4s ease infinite;
+    display: grid;
+    align-content: center;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .skeleton-line {
+    height: 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+  }
+
+  .skeleton-line.short {
+    width: 38%;
+  }
+
+  @keyframes skeletonShimmer {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 }
