@@ -9,8 +9,9 @@
 - On mobile, centered the sidebar 3-dots resize grip with balanced left and right spacing along the edge.
 - The "You are on the latest version" update status toast in Settings now automatically dismisses after 5 seconds.
 - Added mobile support for automatic startup on device boot with a native Android BootReceiver and unified settings storage.
-- Standardized Account Updates dropdown options to 5, 10, 15, 30, 45, and 60 minutes.
+- Standardized Account Updates dropdown options to 5, 10, 15, 30, 45, and 60 minutes, setting the default interval to 15 minutes.
 - Permanently reserved scrollbar gutter space on the dashboard page so account cards do not horizontally shift when scrollbars appear.
+- Refined descriptive copy across account removal, alert notifications, group creation, group deletion, and local API integration settings, and aligned the Integration window action button to a "View" button with icon matching Settings.
 
 ### Fixed
 

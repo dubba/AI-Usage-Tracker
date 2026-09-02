@@ -145,7 +145,7 @@ export function BucketModal({
         <header className="modal-card-header">
           <div className="modal-kicker">Account Grouping</div>
           <h2 id="bucket-modal-title">{bucket ? "Edit Group" : "Create Group"}</h2>
-          <p>Combine accounts into an independent sidebar group to track their combined usage and limits. Groups can be empty.</p>
+          <p>Group accounts together in the sidebar to track their combined usage and limits. Groups can be empty.</p>
         </header>
 
         <form onSubmit={handleSave} className="bucket-modal-form">
@@ -258,7 +258,7 @@ export function BucketModal({
             <div className="modal-kicker">Delete group</div>
             <h2 id="bucket-delete-confirm-title">Delete “{bucket.name}”?</h2>
             <p id="bucket-delete-confirm-body">
-              Are you sure you want to delete this group? The accounts stay connected and keep their settings — only the grouping is removed.
+              Are you sure you want to delete this group? The accounts will stay connected and keep their settings. Only the grouping will be removed.
             </p>
             <div className="modal-actions">
               <button type="button" className="button ghost" disabled={busy} onClick={() => setConfirmingDelete(false)} autoFocus>

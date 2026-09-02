@@ -245,7 +245,7 @@ mod tests {
         })
         .unwrap();
 
-        assert_eq!(settings.get().account_refresh_minutes, 5);
+        assert_eq!(settings.get().account_refresh_minutes, 15);
         assert!(directory.path().join("app-settings.json.invalid").exists());
     }
 }

@@ -8,7 +8,7 @@ use std::{
 use tokio::sync::Notify;
 
 const SETTINGS_FILE_NAME: &str = "app-settings.json";
-pub const DEFAULT_ACCOUNT_REFRESH_MINUTES: u64 = 5;
+pub const DEFAULT_ACCOUNT_REFRESH_MINUTES: u64 = 15;
 pub const MIN_ACCOUNT_REFRESH_MINUTES: u64 = 5;
 pub const MAX_ACCOUNT_REFRESH_MINUTES: u64 = 60;
 pub const ACCOUNT_REFRESH_STEP_MINUTES: u64 = 5;
@@ -240,7 +240,7 @@ mod tests {
     fn saves_supported_refresh_intervals() {
         let directory = tempfile::tempdir().unwrap();
         let store = SettingsStore::load(directory.path()).unwrap();
-        assert_eq!(store.get().account_refresh_minutes, 5);
+        assert_eq!(store.get().account_refresh_minutes, 15);
         assert_eq!(store.set_account_refresh_minutes(35).unwrap().account_refresh_minutes, 35);
         assert_eq!(SettingsStore::load(directory.path()).unwrap().get().account_refresh_minutes, 35);
     }

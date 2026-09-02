@@ -1616,7 +1616,7 @@ function IntegrationView({
         <div className="settings-row">
           <div>
             <strong>Enable Paseo bridge</strong>
-            <small>Allows local HTTP tools to read quota usage and notification state.</small>
+            <small>Allows local HTTP tools to access quota usage & notification status.</small>
           </div>
           <button
             type="button"
@@ -1632,15 +1632,16 @@ function IntegrationView({
         <div className="settings-row">
           <div>
             <strong>Integration window</strong>
-            <small>Inspect the local bridge status, auth tokens, and connection URL.</small>
+            <small>View the local bridge status, auth tokens, and connection URL.</small>
           </div>
           <button
             type="button"
-            className="button ghost"
+            className="button ghost settings-changelog-button"
             disabled={busy}
             onClick={onView}
           >
-            Open Window
+            <span>View</span>
+            <ExternalLinkIcon />
           </button>
         </div>
       </section>
@@ -1727,7 +1728,7 @@ function SettingsView({
                 appSettings?.accountRefreshMinutes != null &&
                 (ACCOUNT_REFRESH_OPTIONS as readonly number[]).includes(appSettings.accountRefreshMinutes)
                   ? appSettings.accountRefreshMinutes
-                  : 5
+                  : 15
               }
               disabled={!appSettings || settingsBusy}
               options={ACCOUNT_REFRESH_OPTIONS.map((minutes) => ({

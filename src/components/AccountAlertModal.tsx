@@ -154,7 +154,7 @@ export function AccountAlertModal({
         </section>
 
         <div className="credential-note alert-notification-note">
-          Alerts use the operating system notification system and fire only once for each quota period.
+          Alerts use your OS notifications and are sent only once per quota period.
         </div>
         {error ? <div className="error-panel modal-error">{error}</div> : null}
         <div className="modal-actions">

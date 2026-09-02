@@ -24,7 +24,7 @@ export function RemoveAccountModal({
       <section ref={dialogRef} className="modal-card remove-account-modal" role="dialog" aria-modal="true" aria-labelledby="remove-account-title" tabIndex={-1}>
         <div className="modal-kicker">Remove account</div>
         <h2 id="remove-account-title">Remove {account.label}?</h2>
-        <p>This deletes stored credentials for this account from this computer. The provider account itself is not cancelled.</p>
+        <p>Deletes stored credentials for this account from device. The provider account itself will not be canceled.</p>
         <div className="modal-actions">
           <button type="button" className="button ghost" disabled={busy} onClick={onClose}>Cancel</button>
           <button type="button" className="button remove-confirm-button" disabled={busy} onClick={onConfirm}>{busy ? "Removing…" : "Remove"}</button>
