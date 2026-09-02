@@ -426,6 +426,43 @@ export default function App() {
   const [updateBusy, setUpdateBusy] = useState<UpdateBusy>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateMessage, setUpdateMessage] = useState<string | null>(null);
+  const updateMessageTimerRef = useRef<number | null>(null);
+  const updateErrorTimerRef = useRef<number | null>(null);
+
+  const showTransientUpdateMessage = useCallback((msg: string | null) => {
+    if (updateMessageTimerRef.current) {
+      window.clearTimeout(updateMessageTimerRef.current);
+      updateMessageTimerRef.current = null;
+    }
+    setUpdateMessage(msg);
+    if (msg) {
+      updateMessageTimerRef.current = window.setTimeout(() => {
+        setUpdateMessage(null);
+        updateMessageTimerRef.current = null;
+      }, 5_000);
+    }
+  }, []);
+
+  const showTransientUpdateError = useCallback((err: string | null) => {
+    if (updateErrorTimerRef.current) {
+      window.clearTimeout(updateErrorTimerRef.current);
+      updateErrorTimerRef.current = null;
+    }
+    setUpdateError(err);
+    if (err) {
+      updateErrorTimerRef.current = window.setTimeout(() => {
+        setUpdateError(null);
+        updateErrorTimerRef.current = null;
+      }, 5_000);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (updateMessageTimerRef.current) window.clearTimeout(updateMessageTimerRef.current);
+      if (updateErrorTimerRef.current) window.clearTimeout(updateErrorTimerRef.current);
+    };
+  }, []);
 
   const openAdd = useCallback((account?: Account, provider?: Provider) => {
     setLoginLabel(account?.label ?? "");
@@ -474,29 +511,35 @@ export default function App() {
 
   const checkForUpdate = useCallback(async (showFeedback = false) => {
     setUpdateBusy("checking");
-    setUpdateMessage(null);
-    setUpdateError(null);
+    if (showFeedback) {
+      showTransientUpdateMessage(null);
+      showTransientUpdateError(null);
+    }
     try {
       const status = await bridgeApi.checkForUpdate();
       if (status.error) {
-        setUpdateError(status.error);
+        if (showFeedback) {
+          showTransientUpdateError(status.error);
+        }
         setAppUpdate((current) => (current?.available && !showFeedback ? current : status));
         return;
       }
       setAppUpdate(status);
       if (showFeedback) {
         if (status.available && status.availableVersion) {
-          setUpdateMessage(`Version ${status.availableVersion} is ready to install.`);
+          showTransientUpdateMessage(`Version ${status.availableVersion} is ready to install.`);
         } else {
-          setUpdateMessage(`You are on the latest version (v${status.currentVersion || installedVersion}).`);
+          showTransientUpdateMessage(`You are on the latest version (v${status.currentVersion || installedVersion}).`);
         }
       }
     } catch (cause) {
-      setUpdateError(String(cause));
+      if (showFeedback) {
+        showTransientUpdateError(String(cause));
+      }
     } finally {
       setUpdateBusy(null);
     }
-  }, [installedVersion]);
+  }, [installedVersion, showTransientUpdateMessage, showTransientUpdateError]);
 
   const installUpdate = useCallback(async () => {
     setUpdateBusy("installing");
@@ -767,33 +810,37 @@ export default function App() {
     storeSidebarWindow(value);
   };
 
-  const content = useMemo(() => {
+  const renderContent = () => {
     if (section === "integration") {
-      return <IntegrationView
-        bridge={snapshot?.bridge ?? null}
-        busy={busy === "toggle-paseo-bridge" || busy === "open-paseo-bridge"}
-        onToggle={(enabled) => void setPaseoBridgeEnabled(enabled)}
-        onView={() => void openPaseoBridgeWindow()}
-        onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
-      />;
+      return (
+        <IntegrationView
+          bridge={snapshot?.bridge ?? null}
+          busy={busy === "toggle-paseo-bridge" || busy === "open-paseo-bridge"}
+          onToggle={(enabled) => void setPaseoBridgeEnabled(enabled)}
+          onView={() => void openPaseoBridgeWindow()}
+          onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+        />
+      );
     }
     if (section === "settings") {
-      return <SettingsView
-        autostart={autostart}
-        onToggleAutostart={toggleAutostart}
-        appSettings={appSettings}
-        settingsBusy={settingsBusy}
-        onAccountRefreshMinutesChange={(minutes) => void saveAccountRefreshMinutes(minutes)}
-        onAutomaticUpdatesChange={(enabled) => void saveAutomaticUpdatesEnabled(enabled)}
-        installedVersion={installedVersion}
-        update={appUpdate}
-        updateBusy={updateBusy}
-        updateError={updateError}
-        updateMessage={updateMessage}
-        onCheckForUpdate={() => void checkForUpdate(true)}
-        onInstallUpdate={() => void installUpdate()}
-        onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
-      />;
+      return (
+        <SettingsView
+          autostart={autostart}
+          onToggleAutostart={toggleAutostart}
+          appSettings={appSettings}
+          settingsBusy={settingsBusy}
+          onAccountRefreshMinutesChange={(minutes) => void saveAccountRefreshMinutes(minutes)}
+          onAutomaticUpdatesChange={(enabled) => void saveAutomaticUpdatesEnabled(enabled)}
+          installedVersion={installedVersion}
+          update={appUpdate}
+          updateBusy={updateBusy}
+          updateError={updateError}
+          updateMessage={updateMessage}
+          onCheckForUpdate={() => void checkForUpdate(true)}
+          onInstallUpdate={() => void installUpdate()}
+          onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+        />
+      );
     }
     return (
       <AccountsView
@@ -817,34 +864,7 @@ export default function App() {
         busy={busy}
       />
     );
-  }, [
-    section,
-    snapshot?.bridge,
-    busy,
-    autostart,
-    appSettings,
-    settingsBusy,
-    accounts,
-    visibleAccounts,
-    selectedGroup,
-    needsAttention,
-    nextReset.account,
-    nextReset.value,
-    nextReset.resetsAt,
-    appUpdate,
-    updateBusy,
-    updateError,
-    checkForUpdate,
-    installUpdate,
-    openAdd,
-    openEditBucket,
-    openDeleteBucket,
-    nowMs,
-    saveAccountRefreshMinutes,
-    saveAutomaticUpdatesEnabled,
-    setPaseoBridgeEnabled,
-    openPaseoBridgeWindow,
-  ]);
+  };
 
   return (
     <div className="app-shell obsidian-shell">
@@ -945,7 +965,7 @@ export default function App() {
 
       <main className="main-stage">
         {error ? <div className="global-error" role="alert" aria-live="assertive"><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError(null)}>Dismiss</button></div> : null}
-        {snapshot ? content : (
+        {snapshot ? renderContent() : (
           <div className="loading-screen" aria-busy="true" aria-live="polite">
             {error ? (
               <div className="loading-error" role="alert">

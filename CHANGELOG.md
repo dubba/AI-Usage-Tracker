@@ -6,6 +6,8 @@
 
 - On mobile, the navigation sidebar can be resized by dragging its right edge, the same way it can on desktop.
 - Desktop and mobile sidebars can be narrowed until just before the Group button would wrap under Accounts.
+- On mobile, centered the sidebar 3-dots resize grip with balanced left and right spacing along the edge.
+- The "You are on the latest version" update status toast in Settings now automatically dismisses after 5 seconds.
 
 ### Fixed
 
@@ -13,6 +15,7 @@
 - Account card remove, notification, and refresh buttons now sit on the same bottom edge as the provider icon.
 - Desktop account cards now use 16px padding above and below the provider icon, with the updated-time label kept inside that header instead of sitting above the icon.
 - On mobile, the account name and email are vertically centered with the provider icon instead of sitting above it.
+- Fixed an issue where Settings update toasts remained visible indefinitely due to stale component memoization.
 
 ## 0.3.4 - 2026-09-02
 

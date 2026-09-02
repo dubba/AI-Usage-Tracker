@@ -2028,6 +2028,7 @@ select.account-update-select option,
        standard navigation-bar height. */
     padding-bottom: calc(12px + max(48px, env(safe-area-inset-bottom, 0px)));
     padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: 16px !important;
     border-top: 0;
     border-radius: 0;
     transform: translateX(-100%);
