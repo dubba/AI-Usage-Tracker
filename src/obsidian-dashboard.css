@@ -556,20 +556,6 @@ select {
   line-height: 1.6;
 }
 
-.header-refresh-cluster {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-}
-
-.header-refresh-age {
-  color: #958ea0;
-  font-size: 11px;
-  line-height: 14px;
-  font-weight: 600;
-}
-
 .empty-group-actions {
   display: flex;
   flex-wrap: wrap;
@@ -577,12 +563,23 @@ select {
   justify-content: center;
 }
 
+.account-card-action-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+  flex-shrink: 0;
+  margin-top: -6px;
+}
+
 .account-card-updated {
-  margin: 3px 0 0;
+  margin: 0;
   color: #958ea0;
   font-size: 11px;
   line-height: 14px;
   font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .header-actions {
@@ -2049,15 +2046,6 @@ select.account-update-select option,
     min-height: 38px;
   }
 
-  .header-refresh-cluster {
-    align-items: stretch;
-    flex: 1 1 auto;
-  }
-
-  .header-refresh-age {
-    text-align: center;
-  }
-
   .mockup-summary-grid {
     grid-template-columns: 1fr !important;
     gap: 10px;
@@ -2107,6 +2095,10 @@ select.account-update-select option,
   .account-card-header-actions {
     gap: 6px !important;
     flex-shrink: 0;
+  }
+
+  .account-card-action-stack {
+    align-items: flex-end;
   }
 
   .account-card-name-actions {

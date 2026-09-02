@@ -28,7 +28,7 @@
 ### Added
 
 - The sidebar now has an All row as the default dashboard view, with provider and custom groups remaining as filters.
-- Account cards and Refresh All now show when usage was last fetched, as relative time such as “Updated 2m ago”.
+- Account cards now show when usage was last fetched, as relative time such as “Updated 2m ago”, above the remove, notification, and refresh buttons.
 
 ### Improved
 

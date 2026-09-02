@@ -242,22 +242,6 @@ function formatUpdatedAt(value: string | null | undefined, now = Date.now()): st
   return `Updated ${days}d ago`;
 }
 
-function latestFetchedAt(accounts: Account[]): string | null {
-  let latest: number | null = null;
-  let latestValue: string | null = null;
-  for (const account of accounts) {
-    const value = account.lastUsage?.fetchedAt;
-    if (!value) continue;
-    const time = new Date(value).getTime();
-    if (!Number.isFinite(time)) continue;
-    if (latest == null || time > latest) {
-      latest = time;
-      latestValue = value;
-    }
-  }
-  return latestValue;
-}
-
 function readSidebarWindow(): SidebarWindow {
   try {
     return window.localStorage.getItem(SIDEBAR_WINDOW_KEY) === "five_hour" ? "five_hour" : "weekly";
@@ -712,7 +696,6 @@ export default function App() {
   const visibleAccounts = selectedGroup.accounts;
   const needsAttention = visibleAccounts.filter(accountNeedsAttention).length;
   const nextReset = nextResetSummary(visibleAccounts);
-  const visibleUpdatedAt = formatUpdatedAt(latestFetchedAt(visibleAccounts), nowMs);
 
   const refreshOne = async (id: string) => {
     if (busy === `refresh:${id}` || busy === "refresh-all") return;
@@ -824,7 +807,6 @@ export default function App() {
         onRefreshAll={refreshAll}
         onEditBucket={openEditBucket}
         onDeleteBucket={openDeleteBucket}
-        updatedAtLabel={visibleUpdatedAt}
         nowMs={nowMs}
         onRefresh={(account) => void refreshOne(account.id)}
         onReconnect={(account) => account.provider === "google_ai_studio" ? setGoogleUsageAccount(account) : openAdd(account)}
@@ -857,7 +839,6 @@ export default function App() {
     openAdd,
     openEditBucket,
     openDeleteBucket,
-    visibleUpdatedAt,
     nowMs,
     saveAccountRefreshMinutes,
     saveAutomaticUpdatesEnabled,
@@ -1200,7 +1181,6 @@ function AccountsView(props: {
   onRefreshAll: () => void;
   onEditBucket?: (bucket: AccountBucket) => void;
   onDeleteBucket?: (bucket: AccountBucket) => void;
-  updatedAtLabel: string | null;
   nowMs: number;
   onRefresh: (account: Account) => void;
   onReconnect: (account: Account) => void;
@@ -1247,20 +1227,9 @@ function AccountsView(props: {
               <EditIcon />Edit Group
             </button>
           ) : null}
-          <div className="header-refresh-cluster">
-            <button
-              className="button ghost"
-              onClick={props.onRefreshAll}
-              disabled={props.busy === "refresh-all"}
-              title={props.updatedAtLabel ?? undefined}
-              aria-label={props.updatedAtLabel ? `Refresh all accounts. ${props.updatedAtLabel}` : "Refresh all accounts"}
-            >
-              <RefreshIcon />{props.busy === "refresh-all" ? "Refreshing…" : "Refresh All"}
-            </button>
-            {props.updatedAtLabel && props.busy !== "refresh-all" ? (
-              <span className="header-refresh-age">{props.updatedAtLabel}</span>
-            ) : null}
-          </div>
+          <button className="button ghost" onClick={props.onRefreshAll} disabled={props.busy === "refresh-all"}>
+            <RefreshIcon />{props.busy === "refresh-all" ? "Refreshing…" : "Refresh All"}
+          </button>
           <button className="button primary" onClick={props.onAdd}><PlusIcon />Add Account</button>
         </div>
       </header>
@@ -1454,7 +1423,6 @@ function AccountDashboardCard({
             ) : null}
           </div>
           <p className="account-card-email">{displayAccountSubtitle(account)}</p>
-          <p className="account-card-updated">{updatedAtLabel}</p>
           {renameError ? <small className="account-card-inline-error">{renameError}</small> : null}
         </div>
         <div className={`account-card-header-actions ${account.provider === "google_ai_studio" ? "has-google-action" : ""}`}>
@@ -1467,7 +1435,9 @@ function AccountDashboardCard({
               </button>
             ) : null}
           </div>
-          <div className="account-card-name-actions">
+          <div className="account-card-action-stack">
+            <p className="account-card-updated">{updatedAtLabel}</p>
+            <div className="account-card-name-actions">
             <button
               type="button"
               className="account-card-action remove-action"
@@ -1495,6 +1465,7 @@ function AccountDashboardCard({
               onPointerDown={(event) => event.stopPropagation()}
               onClick={onRefresh}
             ><RefreshIcon /></button>
+          </div>
           </div>
         </div>
       </header>
