@@ -21,9 +21,12 @@
 - Shortened the App Updates setting description to "Automatically check for updates."
 - Refined the Account Updates setting description to "Set how often the app updates your AI usage."
 - Removed the excessive bottom spacing beneath account cards on mobile when scrolling to the bottom of the dashboard.
+- Aligned the dashboard 5h window badge to the red tone of the card trash button and the 7d window badge to the yellow/amber tone of the notification button.
+- Aligned the dashboard Next Reset summary time badge to the green color, border, and background tone of the card refresh button.
 
 ### Fixed
 
+- Optically aligned the account card timestamp on the right side with the rounded top corner and boundary of the refresh button.
 - Eliminated the highlight box flash when tapping the hamburger button on mobile by disabling default tap highlights and suppressing active/focus state flashing during sidebar slide-out.
 - Returning to the app after the account-update interval has elapsed now refreshes accounts automatically, including when Android had paused the app in the background.
 - Custom groups stay in the sidebar after every account is removed from them. Edit Group can now save with no accounts selected, and the empty group still has Edit and Delete.

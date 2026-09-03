@@ -248,15 +248,15 @@
 }
 
 .account-usage-metric .metric-window-pill.window-pill-5h {
-  color: var(--obsidian-amber, #ffb869);
-  border-color: rgba(255, 184, 105, 0.32);
-  background: rgba(255, 184, 105, 0.09);
+  color: #ff8585 !important;
+  border-color: rgba(255, 117, 107, 0.45) !important;
+  background: rgba(85, 15, 15, 0.42) !important;
 }
 
 .account-usage-metric .metric-window-pill.window-pill-7d {
-  color: var(--obsidian-green, #4edea3);
-  border-color: rgba(78, 222, 163, 0.32);
-  background: rgba(78, 222, 163, 0.09);
+  color: var(--obsidian-amber, #ffb869) !important;
+  border-color: rgba(255, 184, 105, 0.5) !important;
+  background: rgba(72, 41, 0, 0.42) !important;
 }
 
 .account-usage-metric .metric-window-pill.window-pill-monthly {
