@@ -11,7 +11,7 @@ export function ProviderIcon({ provider, className, ...props }: ProviderIconProp
     return (
       <img
         src={OPENAI_MARK_DATA_URI}
-        aria-label="OpenAI"
+        aria-label="GPT/Codex"
         role="img"
         className={`provider-icon-image${className ? ` ${className}` : ""}`}
         draggable={false}
@@ -40,7 +40,7 @@ export function ProviderIcon({ provider, className, ...props }: ProviderIconProp
 
   if (provider === "grok") {
     return (
-      <svg viewBox="0 0 24 24" aria-label="Grok" role="img" className={className} {...props}>
+      <svg viewBox="0 0 24 24" aria-label="Grok/Cursor" role="img" className={className} {...props}>
         <path
           fill="currentColor"
           d="M4.2 4.4h4.2l3.8 5.1 4.3-5.1h3.3l-6 7.1 6.1 8.1h-4.2l-4.1-5.6-4.8 5.6H3.5l6.5-7.6-5.8-7.6Zm4.7 2.2 7.4 10.8h1.5L10.4 6.6H8.9Z"

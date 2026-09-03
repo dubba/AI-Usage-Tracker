@@ -28,11 +28,11 @@ impl Provider {
 
     pub fn display_name(&self) -> &'static str {
         match self {
-            Self::Openai => "Codex/GPT",
+            Self::Openai => "GPT/Codex",
             Self::Anthropic => "Claude",
             Self::Antigravity => "Antigravity",
             Self::GoogleAiStudio => "AI Studio",
-            Self::Grok => "Grok",
+            Self::Grok => "Grok/Cursor",
             Self::OpencodeGo => "OpenCode Go",
         }
     }
@@ -49,12 +49,12 @@ impl FromStr for Provider {
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value.trim().to_ascii_lowercase().replace('-', "_").as_str() {
-            "openai" | "codex" => Ok(Self::Openai),
+            "openai" | "codex" | "codex/gpt" | "gpt/codex" | "gpt" => Ok(Self::Openai),
             "anthropic" | "claude" => Ok(Self::Anthropic),
             "antigravity" | "google_antigravity" => Ok(Self::Antigravity),
             "google_ai_studio" | "ai_studio" | "gemini_api" => Ok(Self::GoogleAiStudio),
             "google" => Ok(Self::Antigravity),
-            "grok" | "xai" | "supergrok" | "super_grok" => Ok(Self::Grok),
+            "grok" | "xai" | "supergrok" | "super_grok" | "grok/cursor" | "cursor" => Ok(Self::Grok),
             "opencode_go" | "opencode" | "go" => Ok(Self::OpencodeGo),
             _ => Err("Unsupported provider.".into()),
         }

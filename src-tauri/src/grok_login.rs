@@ -90,9 +90,9 @@ fn default_grok_label(state: &AppState, email: Option<&str>) -> String {
         .filter(|account| account.provider == Provider::Grok)
         .count();
     if existing_grok_count == 0 {
-        "Grok".into()
+        "Grok/Cursor".into()
     } else {
-        format!("Grok {}", existing_grok_count + 1)
+        format!("Grok/Cursor {}", existing_grok_count + 1)
     }
 }
 
@@ -855,6 +855,6 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let state = AppState::new(temp.path().to_path_buf(), "test-token".into()).unwrap();
         assert_eq!(default_grok_label(&state, Some("user@example.com")), "user@example.com");
-        assert_eq!(default_grok_label(&state, None), "Grok");
+        assert_eq!(default_grok_label(&state, None), "Grok/Cursor");
     }
 }

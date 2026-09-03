@@ -58,12 +58,16 @@ async function tick(): Promise<void> {
       activeAttemptId = null;
       clearLoginAttempt();
     }
-  } catch {
-    if (activeAttemptId === attemptId) {
-      stopPolling();
-      // Keep the attempt id so the modal can Retry without starting a new login.
-      publishLoginStatus(retryableFailure(attemptId));
+  } catch (cause) {
+    if (activeAttemptId !== attemptId) return;
+    if (String(cause).toLowerCase().includes("no login attempt is available")) {
+      stopWatchingLoginAttempt();
+      clearLoginAttempt();
+      return;
     }
+    stopPolling();
+    // Keep the attempt id so the modal can Retry without starting a new login.
+    publishLoginStatus(retryableFailure(attemptId));
   } finally {
     tickInFlight = false;
   }
@@ -114,6 +118,16 @@ export function abandonLoginAttempt(attemptId: string): void {
   stopWatchingLoginAttempt();
   clearLoginAttempt();
   void bridgeApi.cancelLogin(attemptId);
+}
+
+export async function recoverFromStaleLogin(): Promise<void> {
+  const stored = readLoginAttempt();
+  const current = await bridgeApi.currentLoginStatus().catch(() => null);
+  const attemptId = current?.attemptId ?? stored;
+  if (!attemptId) return;
+  stopWatchingLoginAttempt();
+  clearLoginAttempt();
+  await bridgeApi.cancelLogin(attemptId).catch(() => undefined);
 }
 
 export async function resumeLoginAttemptWatch(): Promise<void> {

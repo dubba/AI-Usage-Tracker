@@ -79,11 +79,11 @@ const CHANGELOG_URL = "https://github.com/dubba/AI-Usage-Tracker/blob/main/CHANG
 
 function providerName(provider: Provider): string {
   switch (provider) {
-    case "openai": return "Codex/GPT";
+    case "openai": return "GPT/Codex";
     case "anthropic": return "Claude";
     case "antigravity": return "Antigravity";
     case "google_ai_studio": return "AI Studio";
-    case "grok": return "Grok";
+    case "grok": return "Grok/Cursor";
     case "opencode_go": return "OpenCode Go";
   }
 }
@@ -93,8 +93,8 @@ function providerName(provider: Provider): string {
 // the matching provider; a user who renames an account keeps their exact name.
 const LEGACY_DEFAULT_LABELS: Partial<Record<Provider, string[]>> = {
   antigravity: ["Google Antigravity"],
-  grok: ["Grok / SuperGrok"],
-  openai: ["OpenAI Codex", "OpenAI", "Codex"],
+  grok: ["Grok / SuperGrok", "Grok"],
+  openai: ["OpenAI Codex", "OpenAI", "Codex", "Codex/GPT"],
   anthropic: ["Anthropic Claude", "Anthropic"],
   google_ai_studio: ["Google AI Studio"],
 };

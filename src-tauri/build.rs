@@ -194,58 +194,99 @@ fn patch_rust_webview(content: &str) -> String {
             "settings.javaScriptCanOpenWindowsAutomatically = true\n        val defaultUa = settings.userAgentString ?: \"\"\n        if (defaultUa.contains(\"; wv\")) {\n            settings.userAgentString = defaultUa.replace(\"; wv\", \"\")\n        }",
         );
     }
+    patched = patched.replace(
+        "WebViewCompat.addDocumentStartJavaScript(this, script, setOf(\"*\"))\n            WebViewCompat.addDocumentStartJavaScript(this, \"try{const c=navigator.credentials;if(c&&c.get){const o=c.get.bind(c);c.get=function(opts){if(opts&&opts.identity){return Promise.reject(new DOMException('FedCM unavailable','NotSupportedError'));}return o(opts);};}}catch(e){}\", setOf(\"*\"))\n            }",
+        "WebViewCompat.addDocumentStartJavaScript(this, script, setOf(\"*\"))\n            }\n            WebViewCompat.addDocumentStartJavaScript(this, \"try{const c=navigator.credentials;if(c&&c.get){const o=c.get.bind(c);c.get=function(opts){if(opts&&opts.identity){return Promise.reject(new DOMException('FedCM unavailable','NotSupportedError'));}return o(opts);};}}catch(e){}\", setOf(\"*\"))",
+    );
+    if !patched.contains("FedCM unavailable") {
+        let loop_end = "                WebViewCompat.addDocumentStartJavaScript(this, script, setOf(\"*\"));\n            }";
+        if patched.contains(loop_end) {
+            patched = patched.replace(
+                loop_end,
+                "                WebViewCompat.addDocumentStartJavaScript(this, script, setOf(\"*\"));\n            }\n            WebViewCompat.addDocumentStartJavaScript(this, \"try{const c=navigator.credentials;if(c&&c.get){const o=c.get.bind(c);c.get=function(opts){if(opts&&opts.identity){return Promise.reject(new DOMException('FedCM unavailable','NotSupportedError'));}return o(opts);};}}catch(e){}\", setOf(\"*\"))",
+            );
+        }
+    }
     patched
 }
 
-fn patch_chrome_client(content: &str) -> String {
-    if content.contains("override fun onCreateWindow") {
-        return content.to_string();
-    }
-    let hook = r#"  override fun onReceivedTitle(
-      view: WebView,
-      title: String
-  ) {
-    Rust.handleReceivedTitle((view as RustWebView).id, title)
-  }
-}"#;
-    let replacement = r#"  override fun onReceivedTitle(
-      view: WebView,
-      title: String
-  ) {
-    Rust.handleReceivedTitle((view as RustWebView).id, title)
-  }
-
+fn oauth_popup_window_methods() -> &'static str {
+    r#"  // Visible popup WebView so provider Google/Apple SSO can finish without
+  // destroying the host sign-in page that is waiting for the popup result.
   override fun onCreateWindow(
       view: WebView,
       isDialog: Boolean,
       isUserGesture: Boolean,
       resultMsg: android.os.Message
   ): Boolean {
-    val extra = view.hitTestResult.extra
-    if (!extra.isNullOrBlank() && (extra.startsWith("http://") || extra.startsWith("https://"))) {
-      view.post { view.loadUrl(extra) }
-      return false
+    val popup = WebView(view.context)
+    popup.settings.javaScriptEnabled = true
+    popup.settings.domStorageEnabled = true
+    popup.settings.databaseEnabled = true
+    popup.settings.javaScriptCanOpenWindowsAutomatically = true
+    popup.settings.setSupportMultipleWindows(false)
+    val ua = popup.settings.userAgentString ?: ""
+    if (ua.contains("; wv")) {
+      popup.settings.userAgentString = ua.replace("; wv", "")
     }
-    val temp = WebView(view.context)
-    temp.settings.javaScriptEnabled = true
-    temp.webViewClient = object : WebViewClient() {
-      private fun hijack(url: String?) {
-        if (url.isNullOrBlank() || url == "about:blank") return
-        // Never load javascript:, file:, content:, or other non-web schemes
-        // into the host WebView — that would allow universal XSS.
-        if (!url.startsWith("https://")) return
-        view.post { view.loadUrl(url) }
+    CookieManager.getInstance().setAcceptCookie(true)
+    CookieManager.getInstance().setAcceptThirdPartyCookies(popup, true)
+
+    val dialog = android.app.Dialog(view.context, android.R.style.Theme_DeviceDefault_NoActionBar)
+    popup.webViewClient = object : WebViewClient() {
+      private fun isLoopback(url: String): Boolean {
+        return url.startsWith("http://localhost") || url.startsWith("http://127.0.0.1")
       }
       override fun shouldOverrideUrlLoading(v: WebView, request: WebResourceRequest): Boolean {
-        hijack(request.url.toString())
-        return true
-      }
-      override fun onPageStarted(v: WebView, url: String, favicon: android.graphics.Bitmap?) {
-        hijack(url)
+        val url = request.url.toString()
+        val scheme = request.url.scheme ?: ""
+        if (scheme == "javascript" || scheme == "file" || scheme == "content") {
+          return true
+        }
+        if (isLoopback(url)) {
+          view.post { view.loadUrl(url) }
+          dialog.dismiss()
+          return true
+        }
+        return false
       }
     }
+    popup.webChromeClient = object : WebChromeClient() {
+      override fun onCloseWindow(window: WebView) {
+        dialog.dismiss()
+      }
+    }
+    dialog.setContentView(
+      popup,
+      android.view.ViewGroup.LayoutParams(
+        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+        android.view.ViewGroup.LayoutParams.MATCH_PARENT
+      )
+    )
+    dialog.setCanceledOnTouchOutside(false)
+    dialog.setOnKeyListener { _, keyCode, event ->
+      if (keyCode == android.view.KeyEvent.KEYCODE_BACK && event.action == android.view.KeyEvent.ACTION_UP) {
+        if (popup.canGoBack()) {
+          popup.goBack()
+        } else {
+          dialog.dismiss()
+        }
+        true
+      } else {
+        false
+      }
+    }
+    dialog.setOnDismissListener {
+      popup.destroy()
+    }
+    dialog.show()
+    dialog.window?.setLayout(
+      android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+      android.view.ViewGroup.LayoutParams.MATCH_PARENT
+    )
+
     val transport = resultMsg.obj as? WebView.WebViewTransport ?: return false
-    transport.webView = temp
+    transport.webView = popup
     resultMsg.sendToTarget()
     return true
   }
@@ -253,9 +294,33 @@ fn patch_chrome_client(content: &str) -> String {
   override fun onCloseWindow(window: WebView) {
     window.destroy()
   }
+}"#
+}
+
+fn patch_chrome_client(content: &str) -> String {
+    if content.contains("Visible popup WebView so provider Google/Apple") {
+        return content.to_string();
+    }
+    let methods = oauth_popup_window_methods();
+    let title_hook = r#"  override fun onReceivedTitle(
+      view: WebView,
+      title: String
+  ) {
+    Rust.handleReceivedTitle((view as RustWebView).id, title)
+  }
 }"#;
-    if content.contains(hook) {
-        content.replace(hook, replacement)
+    if content.contains("override fun onCreateWindow") {
+        if let Some(start) = content.find("  override fun onCreateWindow") {
+            return format!("{}{}", &content[..start], methods);
+        }
+    }
+    if content.contains(title_hook) {
+        content.replace(
+            title_hook,
+            &format!(
+                "  override fun onReceivedTitle(\n      view: WebView,\n      title: String\n  ) {{\n    Rust.handleReceivedTitle((view as RustWebView).id, title)\n  }}\n\n{methods}"
+            ),
+        )
     } else {
         content.to_string()
     }

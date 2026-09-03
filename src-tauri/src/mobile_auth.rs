@@ -7,7 +7,6 @@ use std::time::Duration;
 #[cfg(mobile)]
 use tauri::{AppHandle, Manager};
 use tauri::WebviewWindow;
-#[cfg(mobile)]
 use url::Url;
 
 const MAIN_WINDOW: &str = "main";
@@ -16,140 +15,24 @@ const NAVIGATE_DELAY: Duration = Duration::from_millis(250);
 #[cfg(mobile)]
 const POLL_INTERVAL: Duration = Duration::from_millis(400);
 
-/// xAI/Google/Apple/X login buttons use window.open or target=_blank.
-/// Android WebView ignores those unless we fold them into this window.
-#[cfg(mobile)]
+/// Force Google Identity Services off FedCM. FedCM hangs in Android WebView
+/// (infinite spinner on "Continue with Google"). Real popups are handled natively.
+#[cfg_attr(not(any(test, mobile)), allow(dead_code))]
 const POPUP_SHIM_SCRIPT: &str = r#"
 (() => {
-  if (window.__aiTrackerPopupShim) return;
-  window.__aiTrackerPopupShim = true;
-
-  const navigate = (url) => {
-    if (!url) return null;
-    const next = String(url);
-    if (!next || next === 'about:blank') return null;
-    try { window.location.assign(next); } catch (e) { window.location.href = next; }
-    return window;
-  };
-
-  const fakePopup = () => {
-    const popup = {
-      closed: false,
-      opener: window,
-      close() { this.closed = true; },
-      focus() {},
-      blur() {},
-      postMessage() {},
-    };
-    const location = {
-      get href() { return 'about:blank'; },
-      set href(value) { navigate(value); },
-      assign(value) { navigate(value); },
-      replace(value) { navigate(value); },
-      toString() { return 'about:blank'; },
-    };
-    try {
-      Object.defineProperty(popup, 'location', {
-        get() { return location; },
-        set(value) { navigate(value); },
-      });
-    } catch (e) {
-      popup.location = location;
-    }
-    return popup;
-  };
-
-  const openOverride = function (url, target, features) {
-    const next = url ? String(url) : '';
-    if (!next || next === 'about:blank') {
-      const p = fakePopup();
-      return p;
-    }
-    const popup = fakePopup();
-    navigate(next);
-    try { popup.location.href = next; } catch (e) {}
-    return popup;
-  };
-  window.open = openOverride;
   try {
-    Window.prototype.open = openOverride;
-  } catch (e) {}
-  try {
-    HTMLAnchorElement.prototype.click = (function (orig) {
-      return function () {
-        const href = this.getAttribute('href') || this.href || '';
-        const target = this.getAttribute('target') || this.target || '';
-        if (target === '_blank' && href) {
-          let absolute = href;
-          try { absolute = new URL(href, window.location.href).href; } catch (e2) {}
-          if (absolute.startsWith('https:') || absolute.startsWith('http:') || absolute.startsWith('/') || absolute.startsWith('intent:')) {
-            navigate(absolute);
-            return;
-          }
+    const cred = navigator.credentials;
+    if (cred && cred.get && !cred.__aiTrackerFedCm) {
+      cred.__aiTrackerFedCm = true;
+      const orig = cred.get.bind(cred);
+      cred.get = function (opts) {
+        if (opts && opts.identity) {
+          return Promise.reject(new DOMException('FedCM unavailable', 'NotSupportedError'));
         }
-        return orig.apply(this, arguments);
+        return orig(opts);
       };
-    })(HTMLAnchorElement.prototype.click);
+    }
   } catch (e) {}
-
-  document.addEventListener('click', (event) => {
-    const target = event.target;
-    if (!target || !target.closest) return;
-    const link = target.closest('a[href]');
-    if (!link) return;
-    const href = link.getAttribute('href') || link.href || '';
-    const resolved = href ? (link.href || href) : '';
-    const blank = link.target === '_blank' || (link.getAttribute('target') || '') === '_blank';
-    if (!blank) return;
-    if (resolved.startsWith('https:') || resolved.startsWith('http:') || resolved.startsWith('intent:') || resolved.startsWith('/')) {
-      event.preventDefault();
-      event.stopPropagation();
-      // Resolve relative URLs against current location
-      let absolute = resolved;
-      try { absolute = new URL(resolved, window.location.href).href; } catch (e) {}
-      navigate(absolute);
-    }
-  }, true);
-
-  document.addEventListener('submit', (event) => {
-    const form = event.target;
-    if (!form || form.tagName !== 'FORM') return;
-    const target = form.getAttribute('target') || form.target || '';
-    const action = form.getAttribute('action') || form.action || '';
-    if (!action) return;
-    // For OAuth, the form action is the provider URL – handle regardless of target value
-    if (action.startsWith('https:') || action.startsWith('http:') || action.startsWith('/') || action.startsWith('intent:')) {
-      // If the form would open a new window, fold it into this one
-      if (target === '_blank') {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-      // Let same-window submits proceed normally (WebView will navigate), but ensure shim stays injected
-      if (target === '_blank') {
-        let absolute = action;
-        try { absolute = new URL(action, window.location.href).href; } catch (e) {}
-        navigate(absolute);
-      }
-    }
-  }, true);
-
-  document.addEventListener('click', (event) => {
-    const btn = event.target.closest('button, [role="button"], input[type="button"], input[type="submit"]');
-    if (!btn) return;
-    const formAction = btn.getAttribute('formaction') || btn.form?.getAttribute('action') || '';
-    const dataUrl = btn.getAttribute('data-href') || btn.getAttribute('data-url') || btn.getAttribute('href') || '';
-    const candidate = formAction || dataUrl;
-    if (candidate && (candidate.startsWith('https:') || candidate.startsWith('http:') || candidate.startsWith('/') || candidate.startsWith('intent:'))) {
-      const isBlank = btn.getAttribute('target') === '_blank' || btn.form?.getAttribute('target') === '_blank' || btn.getAttribute('formtarget') === '_blank';
-      if (isBlank) {
-        event.preventDefault();
-        event.stopPropagation();
-        let absolute = candidate;
-        try { absolute = new URL(candidate, window.location.href).href; } catch (e) {}
-        navigate(absolute);
-      }
-    }
-  }, true);
 })();
 "#;
 
@@ -200,15 +83,18 @@ pub fn open_in_main_webview(
             );
             return;
         }
-        // Inject shim immediately and then aggressively every 100ms until login completes.
-        // This ensures window.open / target=_blank are captured before user taps a provider button.
+        // Disable FedCM before the provider page's Google button initializes.
         let _ = window.eval(POPUP_SHIM_SCRIPT);
         // Also inject after a short delay to catch the new document's window object.
         tokio::time::sleep(Duration::from_millis(150)).await;
         let _ = window.eval(POPUP_SHIM_SCRIPT);
 
+        let mut left_app_shell = false;
         loop {
             tokio::time::sleep(POLL_INTERVAL).await;
+            if !attempt_matches(&state, &attempt_id) {
+                break;
+            }
             let waiting = state.pending_login.read().as_ref().is_some_and(|login| {
                 login.attempt_id == attempt_id && login.status == "waiting"
             });
@@ -218,12 +104,26 @@ pub fn open_in_main_webview(
                 .as_ref()
                 .is_some_and(|pending| pending.attempt_id == attempt_id);
             if !waiting || exchange_queued {
-                let _ = window.navigate(restore_url);
+                if let Ok(current) = window.url() {
+                    if !urls_share_origin(&current, &restore_url) {
+                        let _ = window.navigate(restore_url);
+                    }
+                } else {
+                    let _ = window.navigate(restore_url);
+                }
                 break;
             }
             let _ = window.eval(POPUP_SHIM_SCRIPT);
             if let Ok(current) = window.url() {
-                on_url(current);
+                on_url(current.clone());
+                if urls_share_origin(&current, &restore_url) {
+                    if left_app_shell {
+                        let _ = state.abandon_waiting_login(&attempt_id);
+                        break;
+                    }
+                } else {
+                    left_app_shell = true;
+                }
             }
         }
     });
@@ -237,6 +137,13 @@ fn attempt_matches(state: &AppState, attempt_id: &str) -> bool {
         .read()
         .as_ref()
         .is_some_and(|login| login.attempt_id == attempt_id)
+}
+
+#[cfg_attr(not(any(test, mobile)), allow(dead_code))]
+pub(crate) fn urls_share_origin(left: &Url, right: &Url) -> bool {
+    left.scheme() == right.scheme()
+        && left.host() == right.host()
+        && left.port_or_known_default() == right.port_or_known_default()
 }
 
 #[cfg(mobile)]
@@ -271,5 +178,23 @@ mod tests {
         for status in ["complete", "failed", "choose_project", "monitoring_disabled"] {
             assert_ne!(status, "waiting");
         }
+    }
+
+    #[test]
+    fn login_shim_disables_fedcm_and_leaves_window_open_native() {
+        assert!(POPUP_SHIM_SCRIPT.contains("FedCM unavailable"));
+        assert!(POPUP_SHIM_SCRIPT.contains("opts.identity"));
+        assert!(!POPUP_SHIM_SCRIPT.contains("window.open ="));
+    }
+
+    #[test]
+    fn app_shell_origin_matches_dashboard_and_not_oauth_callback() {
+        let dashboard = Url::parse("http://127.0.0.1:1420/").unwrap();
+        let dashboard_path = Url::parse("http://127.0.0.1:1420/index.html").unwrap();
+        let openai = Url::parse("https://auth.openai.com/oauth/authorize").unwrap();
+        let callback = Url::parse("http://localhost:1455/auth/callback?code=abc").unwrap();
+        assert!(urls_share_origin(&dashboard, &dashboard_path));
+        assert!(!urls_share_origin(&dashboard, &openai));
+        assert!(!urls_share_origin(&dashboard, &callback));
     }
 }

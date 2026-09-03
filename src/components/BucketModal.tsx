@@ -8,8 +8,8 @@ import { useModalA11y } from "./useModalA11y";
 
 const ALL_PROVIDERS: { id: Provider; label: string }[] = [
   { id: "antigravity", label: "Antigravity" },
-  { id: "grok", label: "Grok" },
-  { id: "openai", label: "Codex/GPT" },
+  { id: "grok", label: "Grok/Cursor" },
+  { id: "openai", label: "GPT/Codex" },
   { id: "anthropic", label: "Claude" },
   { id: "google_ai_studio", label: "AI Studio" },
   { id: "opencode_go", label: "OpenCode Go" },

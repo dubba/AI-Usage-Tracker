@@ -180,6 +180,7 @@
     scrollbar-color: var(--obsidian-purple-strong, #a078ff) rgba(25, 20, 36, 0.3) !important;
     padding: 0 6px 0 0 !important;
     margin: 0 !important;
+    gap: 10px !important;
   }
 
   .provider-account-cards::-webkit-scrollbar {

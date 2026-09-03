@@ -84,7 +84,9 @@ async fn start_login(
     let label = if provider == Provider::OpencodeGo && label.trim().is_empty() {
         "OpenCode Go".to_string()
     } else if provider == Provider::Grok && label.trim().is_empty() {
-        "Grok".to_string()
+        "Grok/Cursor".to_string()
+    } else if provider == Provider::Openai && label.trim().is_empty() {
+        "GPT/Codex".to_string()
     } else {
         validate_label(&label)?
     };
@@ -153,7 +155,7 @@ async fn add_grok_account(
     cookie_header: String,
 ) -> Result<Account, String> {
     let label = if label.trim().is_empty() {
-        "Grok".to_string()
+        "Grok/Cursor".to_string()
     } else {
         validate_label(&label)?
     };

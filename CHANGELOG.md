@@ -25,9 +25,15 @@
 - Aligned the dashboard Next Reset summary time badge to the green color, border, and background tone of the card refresh button.
 - Standardized spacing in the mobile sidebar with 18px gaps between the close button and Dashboard, 18px above and below the navigation divider, and a 36px bottom clearance beneath the update button.
 - Redesigned the installed version display in Settings to show "Current Version: 0.3.4" on the first line, with the update status on the next line accompanied by a green status indicator dot when up to date, and a red status indicator dot with a red action button when an update is available. Checking for updates now overwrites "Up to date" and remains visible for a minimum of 0.5s.
+- Renamed provider display names: "Codex/GPT" to "GPT/Codex", and "Grok" to "Grok/Cursor" across sidebar navigation, dashboard headers, account cards, modals, and backend defaults.
+- Standardized gaps between account cards on mobile to 10px, matching the uniform spacing between the summary cards and the card list.
 
 ### Fixed
 
+- Backing out of a provider sign-in page on Android no longer blocks adding an account with “Another provider login is already in progress.”
+- On Android, tapping Continue with Google on Claude (and other provider sign-in pages) no longer hangs on a spinner. Google sign-in now opens in a real in-app window so it can finish.
+- Claude sign-in now uses the same localhost callback Claude Code uses, so Anthropic does not reject the redirect the way OpenAI did for Codex/GPT.
+- Signing in to Codex/GPT no longer fails on OpenAI’s generic Authentication Error page. The app now uses the same localhost callback OpenAI allows for Codex.
 - Optically aligned the account card timestamp on the right side with the rounded top corner and boundary of the refresh button.
 - Eliminated the highlight box flash when tapping the hamburger button on mobile by disabling default tap highlights and suppressing active/focus state flashing during sidebar slide-out.
 - Returning to the app after the account-update interval has elapsed now refreshes accounts automatically, including when Android had paused the app in the background.

@@ -26,6 +26,8 @@ use uuid::Uuid;
 const OPENAI_ISSUER: &str = "https://auth.openai.com";
 const OPENAI_CLIENT_ID: &str = "app_EMoamEEZ73f0CkXaXp7hrann";
 const OPENAI_ORIGINATOR: &str = "ai_usage_tracker";
+/// Codex CLI Hydra allow-list: 1455 preferred, 1457 fallback.
+const OPENAI_CALLBACK_PORTS: &[u16] = &[1455, 1457];
 const ANTHROPIC_CLIENT_ID: &str = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
 /// Profile identity plus subscription usage. Intentionally omits API-key creation,
 /// Claude Code sessions, MCP servers, and file upload.
@@ -776,15 +778,15 @@ fn build_authorization_url(
             let mut url = Url::parse(&format!("{OPENAI_ISSUER}/oauth/authorize"))
                 .map_err(|error| error.to_string())?;
             url.query_pairs_mut()
+                .append_pair("response_type", "code")
                 .append_pair("client_id", OPENAI_CLIENT_ID)
                 .append_pair("redirect_uri", redirect_uri)
-                .append_pair("response_type", "code")
                 .append_pair("scope", "openid profile email offline_access")
                 .append_pair("code_challenge", challenge)
                 .append_pair("code_challenge_method", "S256")
-                .append_pair("state", state)
-                .append_pair("audience", "https://api.openai.com/v1")
                 .append_pair("id_token_add_organizations", "true")
+                .append_pair("codex_cli_simplified_flow", "true")
+                .append_pair("state", state)
                 .append_pair("originator", OPENAI_ORIGINATOR);
             Ok(url.to_string())
         }
@@ -827,8 +829,13 @@ fn build_authorization_url(
 
 fn redirect_uri(provider: &Provider, port: u16) -> String {
     match provider {
-        Provider::Openai => format!("http://127.0.0.1:{port}/auth/callback"),
-        Provider::Anthropic => format!("http://127.0.0.1:{port}/callback"),
+        // OpenAI's Codex client allow-list is `http://localhost:<port>/auth/callback`
+        // on 1455/1457. `127.0.0.1` is not an exact match and OpenAI returns a generic
+        // Authentication Error page before the callback.
+        Provider::Openai => format!("http://localhost:{port}/auth/callback"),
+        // Claude Code advertises `http://localhost:<port>/callback`. Anthropic
+        // matches that string; `127.0.0.1` is not an exact match.
+        Provider::Anthropic => format!("http://localhost:{port}/callback"),
         Provider::Antigravity => format!("http://127.0.0.1:{port}"),
         Provider::GoogleAiStudio | Provider::Grok | Provider::OpencodeGo => String::new(),
     }
@@ -846,7 +853,7 @@ async fn bind_callback_port(provider: &Provider) -> Result<(TcpListener, u16), S
         return Ok((listener, port));
     }
     let ports: Vec<u16> = match provider {
-        Provider::Openai => (1455..=1459).collect(),
+        Provider::Openai => OPENAI_CALLBACK_PORTS.to_vec(),
         Provider::Anthropic => (53692..=53696).collect(),
         Provider::Antigravity => Vec::new(),
         Provider::GoogleAiStudio | Provider::Grok | Provider::OpencodeGo => Vec::new(),
@@ -858,10 +865,11 @@ async fn bind_callback_port(provider: &Provider) -> Result<(TcpListener, u16), S
             Err(error) => return Err(format!("Unable to start OAuth callback server: {error}")),
         }
     }
-    Err(format!(
-        "No callback port is available for {}.",
-        provider.display_name()
-    ))
+    Err(if matches!(provider, Provider::Openai) {
+        "GPT/Codex login needs localhost port 1455 (or 1457). Close another Codex login and try again.".into()
+    } else {
+        format!("No callback port is available for {}.", provider.display_name())
+    })
 }
 
 async fn fetch_json(app: &AppState, url: &str, access_token: &str) -> Result<Value, String> {
@@ -1054,11 +1062,15 @@ mod tests {
     fn oauth_redirects_use_loopback_ipv4() {
         assert_eq!(
             redirect_uri(&Provider::Openai, 1455),
-            "http://127.0.0.1:1455/auth/callback"
+            "http://localhost:1455/auth/callback"
+        );
+        assert_eq!(
+            redirect_uri(&Provider::Openai, 1457),
+            "http://localhost:1457/auth/callback"
         );
         assert_eq!(
             redirect_uri(&Provider::Anthropic, 53692),
-            "http://127.0.0.1:53692/callback"
+            "http://localhost:53692/callback"
         );
         assert_eq!(
             redirect_uri(&Provider::Antigravity, 11451),
@@ -1070,16 +1082,37 @@ mod tests {
     fn anthropic_authorize_url_omits_unused_scopes() {
         let url = build_authorization_url(
             &Provider::Anthropic,
-            "http://127.0.0.1:53692/callback",
+            "http://localhost:53692/callback",
             "challenge",
             "state",
         )
         .unwrap();
         let parsed = Url::parse(&url).unwrap();
-        let scopes = parsed
+        let pairs: Vec<(String, String)> = parsed
             .query_pairs()
+            .map(|(key, value)| (key.into_owned(), value.into_owned()))
+            .collect();
+        assert_eq!(
+            pairs.iter().find(|(key, _)| key == "client_id").map(|(_, value)| value.as_str()),
+            Some(ANTHROPIC_CLIENT_ID)
+        );
+        assert_eq!(
+            pairs.iter().find(|(key, _)| key == "redirect_uri").map(|(_, value)| value.as_str()),
+            Some("http://localhost:53692/callback")
+        );
+        assert!(pairs.iter().any(|(key, value)| key == "code" && value == "true"));
+        assert_eq!(
+            pairs.iter().find(|(key, _)| key == "response_type").map(|(_, value)| value.as_str()),
+            Some("code")
+        );
+        assert_eq!(
+            pairs.iter().find(|(key, _)| key == "code_challenge_method").map(|(_, value)| value.as_str()),
+            Some("S256")
+        );
+        let scopes = pairs
+            .iter()
             .find(|(key, _)| key == "scope")
-            .map(|(_, value)| value.into_owned())
+            .map(|(_, value)| value.as_str())
             .unwrap();
         assert_eq!(scopes, ANTHROPIC_SCOPES);
         for unused in [
@@ -1134,6 +1167,12 @@ mod tests {
         assert!(looks_like_oauth_callback(
             &Url::parse("http://127.0.0.1:1455/auth/callback?error=access_denied").unwrap()
         ));
+        assert!(looks_like_oauth_callback(
+            &Url::parse("http://localhost:1455/auth/callback?code=abc&state=xyz").unwrap()
+        ));
+        assert!(looks_like_oauth_callback(
+            &Url::parse("http://localhost:53692/callback?code=abc&state=xyz").unwrap()
+        ));
         assert!(!looks_like_oauth_callback(
             &Url::parse("https://accounts.google.com/o/oauth2/auth?code=abc").unwrap()
         ));
@@ -1151,7 +1190,7 @@ mod tests {
     fn openai_authorize_url_identifies_this_app() {
         let url = build_authorization_url(
             &Provider::Openai,
-            "http://127.0.0.1:1455/auth/callback",
+            "http://localhost:1455/auth/callback",
             "challenge",
             "state",
         )
@@ -1161,9 +1200,30 @@ mod tests {
             .query_pairs()
             .map(|(key, value)| (key.into_owned(), value.into_owned()))
             .collect();
+        assert_eq!(
+            pairs.iter().find(|(key, _)| key == "response_type").map(|(_, value)| value.as_str()),
+            Some("code")
+        );
+        assert_eq!(
+            pairs.iter().find(|(key, _)| key == "client_id").map(|(_, value)| value.as_str()),
+            Some(OPENAI_CLIENT_ID)
+        );
+        assert_eq!(
+            pairs.iter().find(|(key, _)| key == "redirect_uri").map(|(_, value)| value.as_str()),
+            Some("http://localhost:1455/auth/callback")
+        );
+        assert_eq!(
+            pairs.iter().find(|(key, _)| key == "scope").map(|(_, value)| value.as_str()),
+            Some("openid profile email offline_access")
+        );
+        assert_eq!(
+            pairs.iter().find(|(key, _)| key == "code_challenge_method").map(|(_, value)| value.as_str()),
+            Some("S256")
+        );
+        assert!(pairs.iter().any(|(key, value)| key == "id_token_add_organizations" && value == "true"));
+        assert!(pairs.iter().any(|(key, value)| key == "codex_cli_simplified_flow" && value == "true"));
         assert!(pairs.iter().any(|(key, value)| key == "originator" && value == OPENAI_ORIGINATOR));
-        assert!(!pairs.iter().any(|(_, value)| value.contains("codex_cli")));
-        assert!(!pairs.iter().any(|(key, _)| key == "codex_cli_simplified_flow"));
+        assert!(!pairs.iter().any(|(key, _)| key == "audience"));
     }
 
     #[tokio::test]

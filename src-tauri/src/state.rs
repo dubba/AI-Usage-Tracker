@@ -127,6 +127,37 @@ impl AppState {
         }
     }
 
+    /// Drops a waiting in-app login so backing out of the provider page does not
+    /// block the next Add Account attempt. Returns whether an attempt was cleared.
+    #[cfg_attr(not(any(test, mobile)), allow(dead_code))]
+    pub fn abandon_waiting_login(&self, attempt_id: &str) -> bool {
+        let abandoned = {
+            let mut pending = self.pending_login.write();
+            let matches = pending.as_ref().is_some_and(|login| {
+                login.attempt_id == attempt_id
+                    && matches!(
+                        login.status.as_str(),
+                        "waiting" | "choose_project" | "monitoring_disabled"
+                    )
+            });
+            if matches {
+                *pending = None;
+            }
+            matches
+        };
+        if abandoned {
+            self.stop_login_shutdown(attempt_id);
+            let mut exchange = self.pending_auth_exchange.lock();
+            if exchange
+                .as_ref()
+                .is_some_and(|pending| pending.attempt_id == attempt_id)
+            {
+                *exchange = None;
+            }
+        }
+        abandoned
+    }
+
     pub fn account_lock(&self, account_id: &str) -> Arc<AsyncMutex<()>> {
         let mut locks = self.account_locks.lock();
         locks
@@ -204,6 +235,25 @@ fn quarantine_metadata_file(data_dir: &Path, file_name: &str) -> Result<Option<P
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::model::LoginStatus;
+
+    #[test]
+    fn abandon_waiting_login_clears_in_progress_attempt() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = AppState::new(directory.path().to_path_buf(), "test-token".into()).unwrap();
+        *state.pending_login.write() = Some(LoginStatus {
+            attempt_id: "attempt-1".into(),
+            status: "waiting".into(),
+            message: None,
+            account: None,
+            projects: None,
+            selected_project_id: None,
+        });
+
+        assert!(state.abandon_waiting_login("attempt-1"));
+        assert!(state.pending_login.read().is_none());
+        assert!(!state.abandon_waiting_login("attempt-1"));
+    }
 
     #[test]
     fn invalid_primary_accounts_fall_back_to_backup() {

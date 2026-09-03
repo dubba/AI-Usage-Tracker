@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { bridgeApi } from "../api";
-import { abandonLoginAttempt, retryLoginAttempt, subscribeLoginStatus, watchLoginAttempt } from "../login-status";
+import { abandonLoginAttempt, recoverFromStaleLogin, retryLoginAttempt, subscribeLoginStatus, watchLoginAttempt } from "../login-status";
 import type { Account, LoginStatus, Provider } from "../types";
 import { CustomDropdown, type DropdownOption } from "./CustomDropdown";
 import { useModalA11y } from "./useModalA11y";
@@ -14,9 +14,9 @@ type GoogleModelOption = {
 };
 
 const providerOptions: Array<{ id: ConnectionProvider; label: string; detail: string }> = [
-  { id: "openai", label: "Codex/GPT", detail: "ChatGPT Plus, Pro, Business, or other Codex-enabled plans" },
+  { id: "openai", label: "GPT/Codex", detail: "ChatGPT Plus, Pro, Business, or other Codex-enabled plans" },
   { id: "anthropic", label: "Claude", detail: "Claude Pro or Max through Anthropic OAuth" },
-  { id: "grok", label: "Grok", detail: "Private grok.com sign-in and provider-reported weekly usage" },
+  { id: "grok", label: "Grok/Cursor", detail: "Private grok.com sign-in and provider-reported weekly usage" },
   { id: "antigravity", label: "Antigravity", detail: "Google OAuth and Cloud Code quota data" },
   { id: "google_ai_studio", label: "AI Studio", detail: "Validate an API key, choose models, and optionally connect project quota usage" },
   { id: "opencode_go", label: "OpenCode Go", detail: "Sign in and select Go; setup is detected automatically" },
@@ -50,7 +50,7 @@ export function AddAccountModal({
   onAdded: (account: Account) => void;
 }) {
   const isAndroid = /android/i.test(navigator.userAgent);
-  const [label, setLabel] = useState("Codex/GPT");
+  const [label, setLabel] = useState("GPT/Codex");
   const [provider, setProvider] = useState<ConnectionProvider>("openai");
   const [email, setEmail] = useState("");
   const [workspaceId, setWorkspaceId] = useState("");
@@ -72,7 +72,7 @@ export function AddAccountModal({
   useEffect(() => {
     if (!open) {
       closeRequestedRef.current = true;
-      setLabel("Codex/GPT");
+      setLabel("GPT/Codex");
       setProvider("openai");
       setEmail("");
       setWorkspaceId("");
@@ -231,11 +231,22 @@ export function AddAccountModal({
         return;
       }
 
-      const start = await bridgeApi.startLogin(
-        label.trim() || providerName(provider),
-        provider,
-        provider === "opencode_go" ? email.trim() || undefined : undefined,
-      );
+      const startLogin = () =>
+        bridgeApi.startLogin(
+          label.trim() || providerName(provider),
+          provider,
+          provider === "opencode_go" ? email.trim() || undefined : undefined,
+        );
+      let start;
+      try {
+        start = await startLogin();
+      } catch (cause) {
+        if (!String(cause).toLowerCase().includes("already in progress")) {
+          throw cause;
+        }
+        await recoverFromStaleLogin();
+        start = await startLogin();
+      }
       if (closeRequestedRef.current) {
         await bridgeApi.cancelLogin(start.attemptId).catch(() => undefined);
         return;

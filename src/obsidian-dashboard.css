@@ -2381,7 +2381,7 @@ select.account-update-select option,
 
   .provider-account-cards {
     grid-template-columns: minmax(0, 1fr) !important;
-    gap: 14px;
+    gap: 10px !important;
     padding: 0 6px 0 0 !important;
     scrollbar-gutter: stable !important;
   }
