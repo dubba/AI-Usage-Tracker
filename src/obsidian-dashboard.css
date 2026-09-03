@@ -1264,36 +1264,103 @@ select {
 
 .settings-style-content .settings-row,
 .settings-row {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: flex-start !important;
+  gap: 16px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
   border-color: #2d2c2c;
   overflow: visible !important;
 }
 
+.settings-style-content .settings-updates-group-row,
+.settings-updates-group-row {
+  display: block !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.settings-row > div:first-child,
+.settings-updates-group-header > div:first-child {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.settings-style-content .settings-updates-group-row > div:first-child,
+.settings-updates-group-row > div:first-child,
+.settings-updates-group-header {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  align-items: flex-start !important;
+  gap: 16px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.settings-updates-group-header > div:first-child {
+  display: grid !important;
+  gap: 4px;
+  padding-left: 0.4px !important;
+}
+
+.settings-updates-subcard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  width: auto !important;
+  box-sizing: border-box !important;
+  margin-top: 13px;
+  margin-left: 0 !important;
+  margin-right: -0.6px !important;
+  padding: 10px 14px;
+  background: #141313;
+  border: 1px solid #2d2c2c;
+  border-radius: 8px;
+  transition: border-color 120ms ease;
+}
+
+.settings-updates-subcard:hover {
+  border-color: #3d3b3b;
+}
+
+.settings-updates-subcard-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
 .settings-installed-version,
-.setting-value.settings-installed-version {
-  color: var(--purple) !important;
-  font-weight: 700 !important;
-  font-size: 14px !important;
+.setting-value.settings-installed-version,
+.settings-updates-subcard .settings-installed-version {
+  color: var(--purple, #9f67ff) !important;
+  font-size: 15px !important;
+  font-weight: 750 !important;
   letter-spacing: 0.02em;
 }
 
-.settings-account-refresh {
-  width: 160px;
-  flex-shrink: 0;
+.settings-updates-subcard-dot {
+  color: #6e6978;
+  font-size: 13px;
 }
 
-.settings-changelog-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  width: auto;
-  padding-inline: 10px 8px;
-  white-space: nowrap;
+.settings-updates-subcard-status {
+  font-size: 13px;
+  color: #a8a2b5;
+  font-weight: 500;
 }
 
-.settings-changelog-button svg {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
+.settings-updates-subcard-status.update-available {
+  color: #82e9a9;
+  font-weight: 600;
 }
 
 .account-update-select,
@@ -1562,6 +1629,14 @@ select.account-update-select option,
 }
 
 .toggle {
+  width: 42px !important;
+  min-width: 42px !important;
+  max-width: 42px !important;
+  height: 23px !important;
+  flex: 0 0 42px !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
   border-color: #494454 !important;
   background: #292829 !important;
 }
@@ -1934,6 +2009,10 @@ select.account-update-select option,
   height: 20px;
 }
 
+.sidebar-mobile-header {
+  display: none;
+}
+
 .sidebar-mobile-close-btn {
   display: none;
   position: relative;
@@ -2017,9 +2096,7 @@ select.account-update-select option,
 
   .obsidian-shell .sidebar {
     position: fixed;
-    /* Flush to the bottom of the status bar. env() is 0 in some Android
-       WebViews, so 24px (standard 24dp status bar) is the floor. */
-    top: max(24px, env(safe-area-inset-top, 0px));
+    top: 0 !important;
     bottom: 0;
     left: 0;
     z-index: 250;
@@ -2028,12 +2105,9 @@ select.account-update-select option,
     max-width: calc(100vw - 48px);
     height: auto;
     max-height: none;
-    padding-top: 12px;
-    /* Match the 12px gap above Accounts, plus a floor for the home
-       indicator. env() is 0 in some Android WebViews; 48px is the
-       standard navigation-bar height. */
+    padding-top: max(28px, calc(env(safe-area-inset-top, 0px) + 8px)) !important;
     padding-bottom: calc(12px + max(48px, env(safe-area-inset-bottom, 0px)));
-    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-left: max(16px, calc(env(safe-area-inset-left, 0px) + 14px)) !important;
     padding-right: 16px !important;
     border-top: 0;
     border-radius: 0;
@@ -2047,8 +2121,33 @@ select.account-update-select option,
     box-shadow: 8px 0 36px rgba(0, 0, 0, 0.85);
   }
 
+  .sidebar-mobile-header {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    margin-bottom: 14px !important;
+    padding: 0 !important;
+    position: relative !important;
+    z-index: 300 !important;
+  }
+
+  .sidebar-mobile-header .mobile-sidebar-close-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 36px !important;
+    height: 36px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    flex-shrink: 0 !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    position: relative !important;
+    z-index: 301 !important;
+  }
+
   .sidebar-mobile-close-btn {
-    display: inline-flex;
+    display: none;
   }
 
   .mobile-sidebar-toggle-btn {
@@ -2126,7 +2225,8 @@ select.account-update-select option,
 
   .dashboard-header h1.eyebrow,
   .dashboard-title-row h1.eyebrow,
-  .page-header .dashboard-title-row .eyebrow {
+  .page-header .dashboard-title-row .eyebrow,
+  .sidebar-mobile-header .eyebrow {
     font-size: 15px !important;
     line-height: 1.15 !important;
     font-weight: 800 !important;
@@ -2409,8 +2509,15 @@ select.account-update-select option,
     white-space: nowrap;
   }
 
-  .settings-style-content .settings-changelog-button {
+  .settings-style-content .settings-changelog-button,
+  .settings-style-content .settings-update-action {
     padding-inline: 10px 8px;
+  }
+
+  .settings-updates-subcard {
+    padding: 9px 12px;
+    gap: 10px;
+    margin-top: 10px;
   }
 
   .settings-account-refresh {

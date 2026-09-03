@@ -942,17 +942,21 @@ export default function App() {
         aria-hidden="true"
       />
       <aside className={`sidebar ${sidebarOpen ? "mobile-open" : ""}`}>
-        <div className="brand">
-          <span className="brand-mark"><GaugeIcon /></span>
-          <strong>AI Usage Tracker</strong>
+        <div className="sidebar-mobile-header">
           <button
             type="button"
-            className="sidebar-mobile-close-btn"
+            className="mobile-sidebar-toggle-btn mobile-sidebar-close-btn"
             onClick={() => setSidebarOpen(false)}
-            aria-label="Close navigation"
+            aria-label="Close navigation menu"
+            title="Close navigation menu"
           >
             <CloseIcon />
           </button>
+          <span className="eyebrow sidebar-title">AI Usage Tracker</span>
+        </div>
+        <div className="brand">
+          <span className="brand-mark"><GaugeIcon /></span>
+          <strong>AI Usage Tracker</strong>
         </div>
 
         <nav className="primary-nav">
@@ -1298,7 +1302,7 @@ function AccountsView(props: {
               <div className="dashboard-title-top">
                 <h1 className="eyebrow">
                   {props.selectedGroup.type === "all"
-                    ? props.allAccounts.length === 0 ? "Accounts Dashboard" : "All accounts"
+                    ? props.allAccounts.length === 0 ? "Dashboard" : "All accounts"
                     : props.selectedGroup.title}
                 </h1>
                 {props.selectedGroup.type === "bucket" ? (
@@ -1335,7 +1339,7 @@ function AccountsView(props: {
         </div>
         <div className={`mockup-summary-card attention-card ${props.needsAttention ? "has-attention" : ""}`}>
           <div>
-            <span className="summary-label">Needs attention</span>
+            <span className="summary-label">Action Needed</span>
             <strong className="summary-helper"><CheckCircleIcon />{props.needsAttention ? `${props.needsAttention} account${props.needsAttention === 1 ? "" : "s"}` : "All good"}</strong>
           </div>
           <div className="summary-value-cluster"><strong>{props.needsAttention}</strong><span className="summary-info">!</span></div>
@@ -1772,9 +1776,57 @@ function SettingsView({
           </div>
           <button className={`toggle ${autostart ? "on" : ""}`} onClick={onToggleAutostart} aria-pressed={autostart}><span /></button>
         </div>
-        <div className="settings-row"><div><strong>Automatic updates</strong><small>When enabled, the app checks GitHub Releases for updates at startup and every hour.</small></div><button type="button" className={`toggle ${automaticUpdates ? "on" : ""}`} disabled={!appSettings || settingsBusy} aria-label={automaticUpdates ? "Disable automatic updates" : "Enable automatic updates"} aria-pressed={automaticUpdates} onClick={() => onAutomaticUpdatesChange(!automaticUpdates)}><span /></button></div>
-        <div className="settings-row"><div><strong>App updates</strong><small>Checks GitHub Releases for update.</small></div>{update?.available ? <button className="button primary" disabled={updateBusy !== null} onClick={onInstallUpdate}>{updateBusy === "installing" ? "Installing…" : `Update to v${update.availableVersion}`}</button> : <button className="button ghost" disabled={updateBusy !== null} onClick={onCheckForUpdate}>{updateBusy === "checking" ? "Checking…" : "Check Now"}</button>}</div>
-        <div className="settings-row"><div><strong>Installed version</strong><small>{update?.available ? `Version ${update.availableVersion} is available.` : "The app installs only signed update packages."}</small></div><span className="setting-value mono settings-installed-version">{`v${update?.currentVersion || installedVersion}`}</span></div>
+        <div className="settings-row settings-updates-group-row">
+          <div className="settings-updates-group-header">
+            <div>
+              <strong>App Updates</strong>
+              <small>Automatically check for updates in the background.</small>
+            </div>
+            <button
+              type="button"
+              className={`toggle ${automaticUpdates ? "on" : ""}`}
+              disabled={!appSettings || settingsBusy}
+              aria-label={automaticUpdates ? "Disable automatic updates" : "Enable automatic updates"}
+              aria-pressed={automaticUpdates}
+              onClick={() => onAutomaticUpdatesChange(!automaticUpdates)}
+            >
+              <span />
+            </button>
+          </div>
+
+          <div className="settings-updates-subcard">
+            <div className="settings-updates-subcard-info">
+              <span className="settings-installed-version mono">{`v${update?.currentVersion || installedVersion}`}</span>
+              <span className="settings-updates-subcard-dot">•</span>
+              <span className={`settings-updates-subcard-status ${update?.available ? "update-available" : ""}`}>
+                {update?.available && update.availableVersion
+                  ? `Version ${update.availableVersion} available`
+                  : updateBusy === "checking"
+                  ? "Checking for updates…"
+                  : "Up to date"}
+              </span>
+            </div>
+            {update?.available ? (
+              <button
+                type="button"
+                className="button primary settings-update-action"
+                disabled={updateBusy !== null}
+                onClick={onInstallUpdate}
+              >
+                {updateBusy === "installing" ? "Installing…" : `Update to v${update.availableVersion}`}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="button ghost settings-update-action"
+                disabled={updateBusy !== null}
+                onClick={onCheckForUpdate}
+              >
+                {updateBusy === "checking" ? "Checking…" : "Check Now"}
+              </button>
+            )}
+          </div>
+        </div>
         <div className="settings-row">
           <div>
             <strong>Account Updates</strong>

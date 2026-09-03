@@ -75,9 +75,9 @@ function polishSummaryCards(): void {
       continue;
     }
 
-    if (normalized === "needs attention") {
+    if (normalized === "needs attention" || normalized === "action needed") {
       card.classList.add("summary-attention");
-      if (label.textContent !== "Needs Attention") label.textContent = "Needs Attention";
+      if (label.textContent !== "Action Needed") label.textContent = "Action Needed";
       continue;
     }
 

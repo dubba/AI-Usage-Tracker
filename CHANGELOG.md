@@ -13,6 +13,9 @@
 - Standardized Account Updates dropdown options to 5, 10, 15, 30, 45, and 60 minutes, setting the default interval to 15 minutes.
 - Permanently reserved scrollbar gutter space on the dashboard page so account cards do not horizontally shift when scrollbars appear.
 - Refined descriptive copy across account removal, alert notifications, group creation, group deletion, and local API integration settings, and aligned the Integration window action button to a "View" button with icon matching Settings.
+- Consolidated App Updates in Settings into a unified group card with a top-level automatic updates toggle and an embedded version status card with the Check Now action.
+- Added a dedicated close button ("X") on the mobile sidebar positioned at the exact same screen coordinates as the collapsed hamburger menu button for seamless in-place toggling, alongside the purple "AI Usage Tracker" app title.
+- Renamed the dashboard "Needs attention" metric card to "Action Needed".
 
 ### Fixed
 
