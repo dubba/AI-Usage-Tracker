@@ -199,7 +199,7 @@
     border-radius: 999px !important;
   }
 
-  .provider-account-card {
+  .provider-account-card:not(.is-dragging) {
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;

@@ -35,6 +35,7 @@ type PointerCandidate = {
   currentY: number;
   drag: DragDescriptor;
   longPressTimer: number | null;
+  isInteractive?: boolean;
 };
 
 type ActiveDrag = {
@@ -312,7 +313,7 @@ function enhanceAccountList(): void {
   }
 }
 
-function dragFromPointerTarget(target: HTMLElement): DragDescriptor | null {
+function dragFromPointerTarget(target: Element): DragDescriptor | null {
   const groupRow = target.closest<HTMLElement>(".provider-summary-row[data-reorder-enabled='true']");
   if (groupRow) {
     const groupId = groupIdFromRow(groupRow);
@@ -320,7 +321,7 @@ function dragFromPointerTarget(target: HTMLElement): DragDescriptor | null {
     return groupId ? { kind: "group", groupId, provider, source: groupRow } : null;
   }
 
-  if (target.closest("button, input, select, textarea, a, [contenteditable='true'], .account-card-name-actions, .account-card-header-actions, .remove-account-confirmation")) return null;
+  if (target.closest("input, textarea, select, [contenteditable='true'], .remove-account-confirmation")) return null;
   const card = target.closest<HTMLElement>(".provider-account-card[data-reorder-enabled='true']");
   if (!card) return null;
   const accountId = card.dataset.accountId;
@@ -484,16 +485,17 @@ function beginVisualDrag(clientX: number, clientY: number, candidate: PointerCan
     position: "fixed",
     left: `${bounds.left}px`,
     top: `${bounds.top}px`,
-    width: `${bounds.width}px`,
-    height: `${bounds.height}px`,
     margin: "0",
     zIndex: "10000",
     pointerEvents: "none",
     boxSizing: "border-box",
-    transform: "translate3d(0, 0, 0) rotate(0.8deg) scale(1.01)",
+    transform: "translate3d(0, 0, 0)",
     transformOrigin: "top left",
     willChange: "transform",
   });
+  descriptor.source.style.setProperty("width", `${bounds.width}px`, "important");
+  descriptor.source.style.setProperty("max-width", `${bounds.width}px`, "important");
+  descriptor.source.style.setProperty("height", `${bounds.height}px`, "important");
   document.documentElement.classList.add("dashboard-reordering");
   try {
     descriptor.source.setPointerCapture(candidate.pointerId);
@@ -508,7 +510,7 @@ function beginVisualDrag(clientX: number, clientY: number, candidate: PointerCan
 function updateFloatingSource(drag: ActiveDrag): void {
   const deltaX = drag.lastClientX - drag.startX;
   const deltaY = drag.lastClientY - drag.startY;
-  drag.source.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0) rotate(0.8deg) scale(1.01)`;
+  drag.source.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`;
 }
 
 function restoreSourceStyle(drag: ActiveDrag): void {
@@ -588,7 +590,7 @@ function finishDrag(commit: boolean): void {
 
 function beginPointerCandidate(event: PointerEvent): void {
   if (event.button !== 0 || event.isPrimary === false || dragState) return;
-  const target = event.target instanceof HTMLElement ? event.target : null;
+  const target = event.target instanceof Element ? event.target : null;
   if (!target) return;
   const drag = dragFromPointerTarget(target);
   if (!drag) return;
@@ -598,6 +600,7 @@ function beginPointerCandidate(event: PointerEvent): void {
   }
 
   const isTouch = event.pointerType === "touch" || event.pointerType === "pen";
+  const isInteractive = Boolean(target.closest("button, a, .account-card-action, .account-card-provider-icon, .account-name-edit"));
   const candidate: PointerCandidate = {
     pointerId: event.pointerId,
     pointerType: event.pointerType,
@@ -607,9 +610,10 @@ function beginPointerCandidate(event: PointerEvent): void {
     currentY: event.clientY,
     drag,
     longPressTimer: null,
+    isInteractive,
   };
 
-  if (isTouch) {
+  if (isTouch || isInteractive) {
     candidate.longPressTimer = window.setTimeout(() => {
       if (pointerCandidate !== candidate || dragState) return;
       try {
@@ -644,6 +648,19 @@ function movePointerCandidate(event: PointerEvent): void {
           pointerCandidate.longPressTimer = null;
         }
         pointerCandidate = null;
+      }
+      return;
+    }
+
+    if (pointerCandidate.isInteractive) {
+      if (distance < DRAG_THRESHOLD_PX) return;
+      if (pointerCandidate.longPressTimer != null) {
+        window.clearTimeout(pointerCandidate.longPressTimer);
+        pointerCandidate.longPressTimer = null;
+      }
+      if (!beginVisualDrag(event.clientX, event.clientY, pointerCandidate)) {
+        pointerCandidate = null;
+        return;
       }
       return;
     }

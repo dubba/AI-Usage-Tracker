@@ -100,4 +100,5 @@ html.dashboard-reordering .provider-account-card.is-dragging {
   border-color: rgba(208, 188, 255, 0.88) !important;
   background-color: #242222;
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.48);
+  max-width: none !important;
 }

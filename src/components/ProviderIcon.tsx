@@ -14,6 +14,7 @@ export function ProviderIcon({ provider, className, ...props }: ProviderIconProp
         aria-label="GPT/Codex"
         role="img"
         className={`provider-icon-image${className ? ` ${className}` : ""}`}
+        style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", ...props.style }}
         draggable={false}
       />
     );

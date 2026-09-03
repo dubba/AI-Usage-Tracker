@@ -854,6 +854,33 @@ select {
   flex-shrink: 0;
 }
 
+button.account-card-provider-icon {
+  border: 1px solid #3d3b3d;
+  cursor: pointer;
+  padding: 0;
+  outline: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 120ms ease, filter 120ms ease, border-color 120ms ease;
+}
+
+button.account-card-provider-icon:hover {
+  filter: brightness(1.18);
+  border-color: var(--obsidian-purple-strong, #a078ff);
+}
+
+button.account-card-provider-icon:active {
+  transform: scale(0.92);
+}
+
+.provider-account-card.is-collapsed {
+  min-height: 0 !important;
+}
+
+.provider-account-card.is-collapsed .provider-account-card-header {
+  border-bottom-color: transparent !important;
+}
+
 .account-card-provider-icon svg,
 .account-card-provider-icon img {
   width: 26px;
@@ -1679,8 +1706,39 @@ select.account-update-select option,
 }
 
 .modal-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  z-index: 1000 !important;
   background: rgba(0, 0, 0, 0.72) !important;
   backdrop-filter: blur(3px);
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box !important;
+  padding: 20px !important;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--obsidian-purple-strong, #a078ff) transparent;
+}
+
+.modal-backdrop::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-backdrop::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal-backdrop::-webkit-scrollbar-thumb {
+  background: var(--obsidian-purple-strong, #a078ff);
+  border-radius: 3px;
 }
 
 .modal-card {
@@ -1689,6 +1747,9 @@ select.account-update-select option,
   background: #1c1b1b !important;
   box-shadow: 0 22px 80px rgba(0, 0, 0, 0.52) !important;
   overflow: visible !important;
+  margin: auto !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
 }
 
 .notification-only-modal {
@@ -1917,11 +1978,16 @@ select.account-update-select option,
   height: 22px;
   border-radius: 4px;
   flex: 0 0 auto;
+  overflow: hidden;
 }
 
-.bucket-account-provider-icon svg {
+.bucket-account-provider-icon svg,
+.bucket-account-provider-icon img {
   width: 16px;
   height: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  object-fit: contain;
 }
 
 .bucket-account-info {
@@ -2246,7 +2312,13 @@ select.account-update-select option,
   }
 
   .modal-backdrop {
-    padding: max(28px, calc(env(safe-area-inset-top, 0px) + 12px)) 16px max(24px, calc(env(safe-area-inset-bottom, 0px) + 16px)) 16px !important;
+    padding: max(20px, calc(env(safe-area-inset-top, 0px) + 12px)) 16px max(24px, calc(env(safe-area-inset-bottom, 0px) + 16px)) 16px !important;
+  }
+
+  .modal-card {
+    width: min(100%, 540px) !important;
+    max-width: 100% !important;
+    padding: 20px 16px !important;
   }
 
   .dashboard-header,
@@ -2392,7 +2464,7 @@ select.account-update-select option,
 
   .provider-account-card-header {
     align-items: flex-end;
-    padding: 6px var(--account-card-inline-padding) 10px var(--account-card-inline-padding) !important;
+    padding: 6px var(--account-card-inline-padding) 14px var(--account-card-inline-padding) !important;
     gap: 6px;
   }
 

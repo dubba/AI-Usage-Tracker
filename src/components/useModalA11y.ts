@@ -90,8 +90,20 @@ export function useModalA11y(
       }
     };
 
+    const handleFocusIn = (event: FocusEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target || !container.contains(target)) return;
+      if (target.matches("input, textarea, select, [contenteditable='true']")) {
+        window.setTimeout(() => {
+          target.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }, 120);
+      }
+    };
+
+    container.addEventListener("focusin", handleFocusIn);
     document.addEventListener("keydown", handleKeyDown, true);
     return () => {
+      container.removeEventListener("focusin", handleFocusIn);
       document.removeEventListener("keydown", handleKeyDown, true);
       document.body.style.overflow = previousOverflow;
       if (previousActiveElement?.isConnected) {

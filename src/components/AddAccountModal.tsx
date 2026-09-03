@@ -315,7 +315,7 @@ export function AddAccountModal({
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !busy && closeModal()}>
-      <section ref={dialogRef} className="modal-card" role="dialog" aria-modal="true" aria-labelledby="add-account-title" tabIndex={-1}>
+      <section ref={dialogRef} className="modal-card provider-connection-modal" role="dialog" aria-modal="true" aria-labelledby="add-account-title" tabIndex={-1}>
         <div className="modal-kicker">Provider connection</div>
         <h2 id="add-account-title">{providerLocked ? `Reconnect ${providerName(provider)}` : "Which account do you want to add?"}</h2>
         <p>{providerLocked ? providerCopy : "Choose a provider, name the account, and enter its secure connection details."}</p>

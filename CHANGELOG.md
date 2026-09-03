@@ -27,9 +27,17 @@
 - Redesigned the installed version display in Settings to show "Current Version: 0.3.4" on the first line, with the update status on the next line accompanied by a green status indicator dot when up to date, and a red status indicator dot with a red action button when an update is available. Checking for updates now overwrites "Up to date" and remains visible for a minimum of 0.5s.
 - Renamed provider display names: "Codex/GPT" to "GPT/Codex", and "Grok" to "Grok/Cursor" across sidebar navigation, dashboard headers, account cards, modals, and backend defaults.
 - Standardized gaps between account cards on mobile to 10px, matching the uniform spacing between the summary cards and the card list.
+- Clicking a provider icon on an account card collapses the card down to its header and divider, hiding the metrics section. Clicking the icon again expands the card back out, with collapsed state remembered per account.
+- Increased the vertical spacing between the account email and the card divider line on mobile for improved readability and balance.
+- Enabled long-press card dragging across the entire account card (including the provider icon, header, and action buttons), while preserving quick click/tap actions for collapsing cards and header buttons.
 
 ### Fixed
 
+- Removed the inner divider line along the bottom border of collapsed account cards while keeping header text position stationary.
+- Eliminated text shifting and jumping when collapsing and expanding account cards by preserving exact header padding and divider line dimensions in both states.
+- Standardized full vertical scrolling across all dialog boxes in the app (Provider Connection, Create/Edit Group, Group Delete Confirmation, Usage Notifications, Remove Account, and Google Cloud Quotas) so modal content and focused input fields remain fully accessible on small screens and when the virtual keyboard is open.
+- Prevented dragged account cards from expanding wider than their original bounds or scaling up during reordering.
+- Fixed the GPT icon scaling in the Create/Edit Group account picker modal by constraining provider images to the icon container bounds.
 - Backing out of a provider sign-in page on Android no longer blocks adding an account with “Another provider login is already in progress.”
 - On Android, tapping Continue with Google on Claude (and other provider sign-in pages) no longer hangs on a spinner. Google sign-in now opens in a real in-app window so it can finish.
 - Claude sign-in now uses the same localhost callback Claude Code uses, so Anthropic does not reject the redirect the way OpenAI did for Codex/GPT.

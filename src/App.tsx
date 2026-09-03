@@ -1413,6 +1413,28 @@ function AccountsView(props: {
   );
 }
 
+const COLLAPSED_CARDS_STORAGE_PREFIX = "ai-usage-tracker:card-collapsed:";
+
+function isCardCollapsed(accountId: string): boolean {
+  try {
+    return window.localStorage.getItem(`${COLLAPSED_CARDS_STORAGE_PREFIX}${accountId}`) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function setCardCollapsedStorage(accountId: string, collapsed: boolean): void {
+  try {
+    if (collapsed) {
+      window.localStorage.setItem(`${COLLAPSED_CARDS_STORAGE_PREFIX}${accountId}`, "true");
+    } else {
+      window.localStorage.removeItem(`${COLLAPSED_CARDS_STORAGE_PREFIX}${accountId}`);
+    }
+  } catch {
+    // Ignore localStorage errors
+  }
+}
+
 function AccountDashboardCard({
   account,
   busy,
@@ -1436,9 +1458,18 @@ function AccountDashboardCard({
 }) {
   const status = accountStatus(account);
   const needsAttention = accountNeedsAttention(account);
+  const [isCollapsed, setIsCollapsed] = useState(() => isCardCollapsed(account.id));
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(account.label);
   const [renameError, setRenameError] = useState<string | null>(null);
+
+  const toggleCollapse = () => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      setCardCollapsedStorage(account.id, next);
+      return next;
+    });
+  };
   const isRefreshing = busy === `refresh:${account.id}`;
   const isRenaming = busy === `rename:${account.id}`;
   const isRemoving = busy === `remove:${account.id}`;
@@ -1487,13 +1518,25 @@ function AccountDashboardCard({
 
   return (
     <article
-      className={`provider-account-card ${needsAttention ? "needs-attention" : ""}`}
+      className={`provider-account-card ${needsAttention ? "needs-attention" : ""} ${isCollapsed ? "is-collapsed" : ""}`}
       data-account-id={account.id}
       data-reorder-provider={account.provider}
       data-reorder-enabled="true"
     >
       <header className="provider-account-card-header">
-        <span className={`account-card-provider-icon provider-${account.provider}`}><ProviderIcon provider={account.provider} /></span>
+        <button
+          type="button"
+          className={`account-card-provider-icon provider-${account.provider}${isCollapsed ? " is-collapsed" : ""}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            toggleCollapse();
+          }}
+          data-tooltip={isCollapsed ? "Click to expand card" : "Click to shrink card"}
+          aria-label={isCollapsed ? `Expand ${displayAccountLabel(account)}` : `Shrink ${displayAccountLabel(account)} to divider`}
+          aria-expanded={!isCollapsed}
+        >
+          <ProviderIcon provider={account.provider} />
+        </button>
         <div className="account-card-identity">
           <div className="account-card-name-row">
             {editing ? (
@@ -1550,7 +1593,6 @@ function AccountDashboardCard({
               data-tooltip="Remove this account"
               aria-label={`Remove ${account.label}`}
               disabled={cardBusy}
-              onPointerDown={(event) => event.stopPropagation()}
               onClick={onRemove}
             >{isRemoving ? <span className="mini-spinner" /> : <TrashIcon />}</button>
             <button
@@ -1559,7 +1601,6 @@ function AccountDashboardCard({
               data-tooltip="Usage notifications"
               aria-label={`Configure usage notifications for ${account.label}`}
               disabled={cardBusy}
-              onPointerDown={(event) => event.stopPropagation()}
               onClick={onNotifications}
             ><BellIcon /></button>
             <button
@@ -1568,7 +1609,6 @@ function AccountDashboardCard({
               data-tooltip={`Refresh this account · ${updatedAtLabel}`}
               aria-label={`Refresh ${account.label}. ${updatedAtLabel}`}
               disabled={cardBusy || isGlobalRefresh}
-              onPointerDown={(event) => event.stopPropagation()}
               onClick={onRefresh}
             ><RefreshIcon /></button>
           </div>
@@ -1576,33 +1616,37 @@ function AccountDashboardCard({
         </div>
       </header>
 
-      {account.lastError ? (
-        <div className="account-card-error">
-          <span>{account.lastError}</span>
-          {account.authRequired ? <button className="button ghost compact-button" onClick={onReconnect}>{account.provider === "google_ai_studio" ? "Reconnect Cloud Usage" : "Reconnect"}</button> : null}
-        </div>
-      ) : null}
-
-      <div className={`account-card-metrics${windows.length > 1 ? " two-column-metrics" : ""}${windows.length > 2 ? " multi-row-metrics" : ""}`}>
-        {windows.length ? windows.map((window, index) => (
-          <AccountUsageMetric
-            key={window.id}
-            window={window}
-            unavailableLabel={googleUnavailableLabel}
-            creditLabel={index === 0 ? creditLabel : null}
-          />
-        )) : (
-          <div className="account-usage-metric unavailable-metric">
-            <span className="metric-label">Usage</span>
-            <div className="metric-value-row">
-              <strong className="metric-full-value">Unavailable</strong>
-              <span className="account-metric-track"><span className="tone-neutral" style={{ width: "0%" }} /></span>
-              {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
+      {!isCollapsed ? (
+        <>
+          {account.lastError ? (
+            <div className="account-card-error">
+              <span>{account.lastError}</span>
+              {account.authRequired ? <button className="button ghost compact-button" onClick={onReconnect}>{account.provider === "google_ai_studio" ? "Reconnect Cloud Usage" : "Reconnect"}</button> : null}
             </div>
-            <span className="metric-reset">Refresh this account to retrieve its limits.</span>
+          ) : null}
+
+          <div className={`account-card-metrics${windows.length > 1 ? " two-column-metrics" : ""}${windows.length > 2 ? " multi-row-metrics" : ""}`}>
+            {windows.length ? windows.map((window, index) => (
+              <AccountUsageMetric
+                key={window.id}
+                window={window}
+                unavailableLabel={googleUnavailableLabel}
+                creditLabel={index === 0 ? creditLabel : null}
+              />
+            )) : (
+              <div className="account-usage-metric unavailable-metric">
+                <span className="metric-label">Usage</span>
+                <div className="metric-value-row">
+                  <strong className="metric-full-value">Unavailable</strong>
+                  <span className="account-metric-track"><span className="tone-neutral" style={{ width: "0%" }} /></span>
+                  {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
+                </div>
+                <span className="metric-reset">Refresh this account to retrieve its limits.</span>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      ) : null}
     </article>
   );
 }
