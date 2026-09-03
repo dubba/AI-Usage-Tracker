@@ -4,6 +4,18 @@ use std::{env, fs, io::Cursor, path::PathBuf};
 
 const WINDOWS_ICON_SIZES: [u32; 9] = [16, 20, 24, 32, 40, 48, 64, 128, 256];
 
+fn write_file_if_changed<P: AsRef<std::path::Path>>(path: P, data: &[u8]) {
+    let path = path.as_ref();
+    if let Ok(existing) = fs::read(path) {
+        if existing == data {
+            return;
+        }
+    }
+    fs::write(path, data).unwrap_or_else(|err| {
+        panic!("failed to write {}: {}", path.display(), err);
+    });
+}
+
 fn encode_png(source: &image::DynamicImage, size: u32) -> Vec<u8> {
     let resized = source.resize_exact(size, size, FilterType::Lanczos3);
     let mut png_cursor = Cursor::new(Vec::new());
@@ -44,8 +56,7 @@ fn write_windows_icon(icon_dir: &PathBuf, image: &image::DynamicImage) {
         ico.extend_from_slice(&png);
     }
 
-    fs::write(icon_dir.join("icon.ico"), ico)
-        .expect("Windows application icon must be writable during the build");
+    write_file_if_changed(icon_dir.join("icon.ico"), &ico);
 }
 
 fn write_macos_icon(icon_dir: &PathBuf, image: &image::DynamicImage) {
@@ -73,8 +84,7 @@ fn write_macos_icon(icon_dir: &PathBuf, image: &image::DynamicImage) {
     icns.extend_from_slice(&total_len.to_be_bytes());
     icns.extend_from_slice(&body);
 
-    fs::write(icon_dir.join("icon.icns"), icns)
-        .expect("macOS application icon must be writable during the build");
+    write_file_if_changed(icon_dir.join("icon.icns"), &icns);
 }
 
 const ANDROID_MIPMAP_SIZES: [(&str, u32, u32); 5] = [
@@ -96,11 +106,11 @@ fn write_android_icons(manifest_dir: &PathBuf, image: &image::DynamicImage) {
         let _ = fs::create_dir_all(&dir);
 
         let launcher_png = encode_png(image, launcher_size);
-        let _ = fs::write(dir.join("ic_launcher.png"), &launcher_png);
-        let _ = fs::write(dir.join("ic_launcher_round.png"), &launcher_png);
+        write_file_if_changed(dir.join("ic_launcher.png"), &launcher_png);
+        write_file_if_changed(dir.join("ic_launcher_round.png"), &launcher_png);
 
         let foreground_png = encode_png(image, foreground_size);
-        let _ = fs::write(dir.join("ic_launcher_foreground.png"), &foreground_png);
+        write_file_if_changed(dir.join("ic_launcher_foreground.png"), &foreground_png);
     }
 
     let anydpi_dir = res_dir.join("mipmap-anydpi-v26");
@@ -113,8 +123,8 @@ fn write_android_icons(manifest_dir: &PathBuf, image: &image::DynamicImage) {
 </adaptive-icon>
 "#;
 
-    let _ = fs::write(anydpi_dir.join("ic_launcher.xml"), adaptive_xml);
-    let _ = fs::write(anydpi_dir.join("ic_launcher_round.xml"), adaptive_xml);
+    write_file_if_changed(anydpi_dir.join("ic_launcher.xml"), adaptive_xml.as_bytes());
+    write_file_if_changed(anydpi_dir.join("ic_launcher_round.xml"), adaptive_xml.as_bytes());
 }
 
 fn main() {
@@ -133,14 +143,10 @@ fn main() {
     let image = image::load_from_memory_with_format(&icon_bytes, ImageFormat::Png)
         .expect("embedded application icon must be a valid PNG");
 
-    fs::write(icon_dir.join("icon.png"), encode_png(&image, 128))
-        .expect("application icon must be writable during the build");
-    fs::write(icon_dir.join("32x32.png"), encode_png(&image, 32))
-        .expect("32x32 icon must be writable during the build");
-    fs::write(icon_dir.join("128x128.png"), encode_png(&image, 128))
-        .expect("128x128 icon must be writable during the build");
-    fs::write(icon_dir.join("128x128@2x.png"), encode_png(&image, 256))
-        .expect("128x128@2x icon must be writable during the build");
+    write_file_if_changed(icon_dir.join("icon.png"), &encode_png(&image, 128));
+    write_file_if_changed(icon_dir.join("32x32.png"), &encode_png(&image, 32));
+    write_file_if_changed(icon_dir.join("128x128.png"), &encode_png(&image, 128));
+    write_file_if_changed(icon_dir.join("128x128@2x.png"), &encode_png(&image, 256));
 
     write_windows_icon(&icon_dir, &image);
     write_macos_icon(&icon_dir, &image);
