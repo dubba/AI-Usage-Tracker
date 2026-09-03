@@ -1,32 +1,32 @@
-.paseo-bridge-window-root,
-.paseo-bridge-window-root body,
-.paseo-bridge-window-root #root {
+.api-integration-window-root,
+.api-integration-window-root body,
+.api-integration-window-root #root {
   min-width: 0;
   min-height: 100%;
   overflow: auto;
 }
 
-.paseo-integration-card {
+.api-integration-card {
   overflow: visible;
 }
 
-.paseo-integration-row {
+.api-integration-row {
   align-items: center;
 }
 
-.paseo-integration-row > div:first-child {
+.api-integration-row > div:first-child {
   display: grid;
   gap: 5px;
 }
 
-.paseo-integration-actions {
+.api-integration-actions {
   display: inline-flex;
   align-items: center;
   gap: 16px;
   flex: 0 0 auto;
 }
 
-.paseo-view-link {
+.api-integration-view-link {
   border: 0;
   background: transparent;
   color: #b896ff;
@@ -38,42 +38,42 @@
   cursor: pointer;
 }
 
-.paseo-view-link:hover:not(:disabled) {
+.api-integration-view-link:hover:not(:disabled) {
   color: #d4c3ff;
 }
 
-.paseo-view-link:disabled {
+.api-integration-view-link:disabled {
   opacity: .55;
   cursor: wait;
 }
 
-.paseo-view-link[hidden] {
+.api-integration-view-link[hidden] {
   display: none !important;
 }
 
-.paseo-bridge-inline-status {
+.api-integration-inline-status {
   color: var(--muted-2);
   font-size: 11px;
   font-weight: 650;
 }
 
-.paseo-bridge-inline-status.running {
+.api-integration-inline-status.running {
   color: #82e9a9;
 }
 
-.paseo-bridge-inline-status.error {
+.api-integration-inline-status.error {
   color: #ff9d9d;
 }
 
-.paseo-bridge-inline-status.starting {
+.api-integration-inline-status.starting {
   color: #ffd073;
 }
 
-.paseo-integration-row.busy {
+.api-integration-row.busy {
   opacity: .72;
 }
 
-.paseo-integration-error {
+.api-integration-error {
   margin-top: 14px;
 }
 

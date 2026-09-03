@@ -2214,9 +2214,13 @@ select.account-update-select option,
     scrollbar-gutter: stable !important;
   }
 
+  .provider-account-card {
+    --account-card-inline-padding: 12px;
+  }
+
   .provider-account-card-header {
     align-items: flex-end;
-    padding: 6px 10px 10px 10px !important;
+    padding: 6px var(--account-card-inline-padding) 10px var(--account-card-inline-padding) !important;
     gap: 6px;
   }
 
@@ -2361,6 +2365,13 @@ select.account-update-select option,
 
   .account-card-metrics {
     grid-template-columns: 1fr;
+    padding-left: var(--account-card-inline-padding) !important;
+    padding-right: var(--account-card-inline-padding) !important;
+  }
+
+  .account-card-error {
+    padding-left: var(--account-card-inline-padding) !important;
+    padding-right: var(--account-card-inline-padding) !important;
   }
 
   .account-usage-metric,

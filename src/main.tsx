@@ -2,7 +2,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
-import { PaseoBridgeWindow } from "./PaseoBridgeWindow";
+import { ApiIntegrationWindow } from "./ApiIntegrationWindow";
 import { installDashboardReorder } from "./dashboard-reorder";
 import { installSidebarResize } from "./sidebar-resize";
 import { installUiRefinements } from "./ui-refinements";
@@ -18,7 +18,7 @@ import "./provider-icon-fixes.css";
 import "./sidebar-resize.css";
 import "./dashboard-typography.css";
 import "./app-shell-polish.css";
-import "./paseo-bridge.css";
+import "./api-integration.css";
 import "./obsidian-dashboard.css";
 import "./ui-refinements.css";
 import "./dashboard-reorder.css";
@@ -27,14 +27,15 @@ import "./account-card-responsive.css";
 
 // On Android, getCurrentWindow() may throw because the window plugin metadata
 // is not injected the same way as on desktop. There is only one window on
-// mobile, so isPaseoBridgeWindow is always false on Android.
-let isPaseoBridgeWindow = false;
+// mobile, so isApiIntegrationWindow is always false on Android.
+const API_INTEGRATION_WINDOW_LABEL = "api-integration";
+let isApiIntegrationWindow = false;
 try {
-  isPaseoBridgeWindow = getCurrentWindow().label === "paseo-bridge";
+  isApiIntegrationWindow = getCurrentWindow().label === API_INTEGRATION_WINDOW_LABEL;
 } catch {
-  // mobile / test environment — no Paseo Bridge window possible
+  // mobile / test environment — no API integration window possible
 }
-document.documentElement.classList.toggle("paseo-bridge-window-root", isPaseoBridgeWindow);
+document.documentElement.classList.toggle("api-integration-window-root", isApiIntegrationWindow);
 
 // One-time removal of legacy localStorage account emails, now stored in the backend.
 try {
@@ -48,11 +49,11 @@ try {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    {isPaseoBridgeWindow ? <PaseoBridgeWindow /> : <App />}
+    {isApiIntegrationWindow ? <ApiIntegrationWindow /> : <App />}
   </StrictMode>,
 );
 
-if (!isPaseoBridgeWindow) {
+if (!isApiIntegrationWindow) {
   installSidebarResize();
   installUiRefinements();
   installDashboardReorder();

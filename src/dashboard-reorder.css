@@ -52,7 +52,7 @@
     padding-left: 10px !important;
   }
   .provider-account-card[data-reorder-enabled="true"] .provider-account-card-header {
-    padding-left: 14px !important;
+    padding-left: var(--account-card-inline-padding, 16px) !important;
   }
   .provider-summary-row[data-reorder-enabled="true"]::before,
   .provider-account-card[data-reorder-enabled="true"] .provider-account-card-header::before {

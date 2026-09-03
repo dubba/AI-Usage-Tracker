@@ -68,6 +68,8 @@ const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const FALLBACK_APP_VERSION = "0.3.4";
 const DASHBOARD_SYNC_INTERVAL_MS = 30 * 1000;
 const STARTUP_REFRESH_DELAY_MS = 3 * 1000;
+const GOOGLE_AI_STUDIO_MODELS_ONLY_SOURCE = "google_ai_studio_model_access";
+const DEFAULT_ACCOUNT_REFRESH_MINUTES = 15;
 const SIDEBAR_UPDATE_FEEDBACK_MS = 3_000;
 const ACCOUNT_REFRESH_OPTIONS = [5, 10, 15, 30, 45, 60] as const;
 const SIDEBAR_WINDOW_KEY = "ai-subscription-tracker:provider-average-window";
@@ -225,6 +227,26 @@ function formatRemainingDuration(remainingMs: number): string | null {
   const remainingMinutes = Math.max(1, Math.ceil(remainingMs / 60_000));
   if (remainingMinutes < 60) return `${remainingMinutes}m`;
   return formatHoursAndDays(Math.max(1, Math.ceil(remainingMs / 3_600_000)));
+}
+
+function accountAutoRefreshEligible(account: Account): boolean {
+  if (account.authRequired) return false;
+  if (account.provider === "google_ai_studio" && account.lastUsage?.source === GOOGLE_AI_STUDIO_MODELS_ONLY_SOURCE) {
+    return false;
+  }
+  return true;
+}
+
+function accountsNeedScheduledRefresh(accounts: Account[], minutes: number, now = Date.now()): boolean {
+  const maxAgeMs = minutes * 60_000;
+  return accounts.some((account) => {
+    if (!accountAutoRefreshEligible(account)) return false;
+    const fetchedAt = account.lastUsage?.fetchedAt;
+    if (!fetchedAt) return true;
+    const then = Date.parse(fetchedAt);
+    if (!Number.isFinite(then)) return true;
+    return now - then >= maxAgeMs;
+  });
 }
 
 function formatUpdatedAt(value: string | null | undefined, now = Date.now()): string | null {
@@ -427,6 +449,10 @@ export default function App() {
   const [updateMessage, setUpdateMessage] = useState<string | null>(null);
   const updateMessageTimerRef = useRef<number | null>(null);
   const updateErrorTimerRef = useRef<number | null>(null);
+  const appSettingsRef = useRef(appSettings);
+  const refreshDueInFlightRef = useRef(false);
+  const wasHiddenRef = useRef(false);
+  appSettingsRef.current = appSettings;
 
   const showTransientUpdateMessage = useCallback((msg: string | null) => {
     if (updateMessageTimerRef.current) {
@@ -587,10 +613,10 @@ export default function App() {
     }
   }, []);
 
-  const setPaseoBridgeEnabled = useCallback(async (enabled: boolean) => {
-    setBusy("toggle-paseo-bridge");
+  const setApiIntegrationEnabled = useCallback(async (enabled: boolean) => {
+    setBusy("toggle-api-integration");
     try {
-      const status = await bridgeApi.setPaseoBridgeEnabled(enabled);
+      const status = await bridgeApi.setApiIntegrationEnabled(enabled);
       setSnapshot((current) => current ? { ...current, bridge: status } : null);
       setError(null);
     } catch (cause) {
@@ -600,10 +626,10 @@ export default function App() {
     }
   }, []);
 
-  const openPaseoBridgeWindow = useCallback(async () => {
-    setBusy("open-paseo-bridge");
+  const openApiIntegrationWindow = useCallback(async () => {
+    setBusy("open-api-integration");
     try {
-      await bridgeApi.openPaseoBridgeWindow();
+      await bridgeApi.openApiIntegrationWindow();
       setError(null);
     } catch (cause) {
       setError(String(cause));
@@ -624,6 +650,38 @@ export default function App() {
       window.clearTimeout(initialRefreshTimeout);
     };
   }, [load]);
+
+  const refreshAccountsIfDue = useCallback(async () => {
+    if (refreshDueInFlightRef.current) return;
+    refreshDueInFlightRef.current = true;
+    try {
+      const latest = await bridgeApi.snapshot();
+      setSnapshot(latest);
+      const minutes = appSettingsRef.current?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES;
+      if (!accountsNeedScheduledRefresh(latest.accounts, minutes)) return;
+      await bridgeApi.refreshAll();
+      await load();
+    } catch (cause) {
+      setError(String(cause));
+    } finally {
+      refreshDueInFlightRef.current = false;
+    }
+  }, [load]);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        wasHiddenRef.current = true;
+        return;
+      }
+      if (document.visibilityState === "visible" && wasHiddenRef.current) {
+        wasHiddenRef.current = false;
+        void refreshAccountsIfDue();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [refreshAccountsIfDue]);
 
   useEffect(() => {
     void resumeLoginAttemptWatch();
@@ -822,9 +880,9 @@ export default function App() {
       return (
         <IntegrationView
           bridge={snapshot?.bridge ?? null}
-          busy={busy === "toggle-paseo-bridge" || busy === "open-paseo-bridge"}
-          onToggle={(enabled) => void setPaseoBridgeEnabled(enabled)}
-          onView={() => void openPaseoBridgeWindow()}
+          busy={busy === "toggle-api-integration" || busy === "open-api-integration"}
+          onToggle={(enabled) => void setApiIntegrationEnabled(enabled)}
+          onView={() => void openApiIntegrationWindow()}
           onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
           error={error}
         />
@@ -1645,7 +1703,7 @@ function IntegrationView({
           </button>
         </div>
       </section>
-      {bridge?.error ? <div className="error-panel paseo-integration-error">{bridge.error}</div> : null}
+      {bridge?.error ? <div className="error-panel api-integration-error">{bridge.error}</div> : null}
       {error ? <div className="error-panel settings-update-error">{error}</div> : null}
     </div>
   );

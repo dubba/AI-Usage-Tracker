@@ -4,6 +4,7 @@
 
 ### Improved
 
+- On mobile, account cards use the same inset from the provider icon and action buttons to the card edges, and that spacing is shared by the rest of the card content.
 - On mobile, the navigation sidebar can be resized by dragging its right edge, the same way it can on desktop.
 - Desktop and mobile sidebars can be narrowed until just before the Group button would wrap under Accounts.
 - On mobile, centered the sidebar 3-dots resize grip with balanced left and right spacing along the edge.
@@ -15,6 +16,7 @@
 
 ### Fixed
 
+- Returning to the app after the account-update interval has elapsed now refreshes accounts automatically, including when Android had paused the app in the background.
 - Custom groups stay in the sidebar after every account is removed from them. Edit Group can now save with no accounts selected, and the empty group still has Edit and Delete.
 - Account card remove, notification, and refresh buttons now sit on the same bottom edge as the provider icon.
 - Desktop account cards now use 16px padding above and below the provider icon, with the updated-time label kept inside that header instead of sitting above the icon.

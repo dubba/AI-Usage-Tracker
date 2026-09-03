@@ -1,6 +1,6 @@
 # AI Usage Tracker
 
-[![Validate](https://github.com/yajinni/AI-Usage-Tracker/actions/workflows/validate.yml/badge.svg)](https://github.com/yajinni/AI-Usage-Tracker/actions/workflows/validate.yml)
+[![Validate](https://github.com/dubba/AI-Usage-Tracker/actions/workflows/validate.yml/badge.svg)](https://github.com/dubba/AI-Usage-Tracker/actions/workflows/validate.yml)
 
 A standalone Windows and macOS desktop app for monitoring AI subscription usage across OpenAI Codex, Anthropic Claude, Google Antigravity, and OpenCode Go. It can optionally expose normalized, sanitized usage data to Paseo over localhost.
 

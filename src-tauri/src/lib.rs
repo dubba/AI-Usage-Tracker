@@ -25,7 +25,11 @@ use crate::{
     state::AppState,
     store::{load_or_create_bridge_token, rotate_bridge_token},
 };
-use std::{str::FromStr, sync::Arc};
+use std::{
+    str::FromStr,
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
 #[cfg(desktop)]
 use tauri::{
     menu::{Menu, MenuItem},
@@ -48,6 +52,7 @@ const SAVED_WINDOW_STATE: StateFlags = StateFlags::from_bits_truncate(
         | StateFlags::MAXIMIZED.bits()
         | StateFlags::FULLSCREEN.bits(),
 );
+const API_INTEGRATION_WINDOW_LABEL: &str = "api-integration";
 
 #[tauri::command]
 async fn get_dashboard_snapshot(
@@ -306,7 +311,7 @@ fn set_autostart(
 }
 
 #[tauri::command]
-async fn set_paseo_bridge_enabled(
+async fn set_api_integration_enabled(
     state: State<'_, Arc<AppState>>,
     enabled: bool,
 ) -> Result<BridgeStatus, String> {
@@ -324,7 +329,7 @@ async fn set_paseo_bridge_enabled(
 }
 
 #[tauri::command]
-async fn open_paseo_bridge_window(
+async fn open_api_integration_window(
     app: AppHandle,
     state: State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
@@ -332,7 +337,7 @@ async fn open_paseo_bridge_window(
         return Err("Enable the Paseo Bridge before opening its configuration.".into());
     }
 
-    if let Some(window) = app.get_webview_window("paseo-bridge") {
+    if let Some(window) = app.get_webview_window(API_INTEGRATION_WINDOW_LABEL) {
         #[cfg(desktop)]
         let _ = window.unminimize();
         let _ = window.show();
@@ -342,7 +347,7 @@ async fn open_paseo_bridge_window(
 
     #[allow(unused_mut)]
     let mut builder =
-        WebviewWindowBuilder::new(&app, "paseo-bridge", WebviewUrl::App("index.html".into()))
+        WebviewWindowBuilder::new(&app, API_INTEGRATION_WINDOW_LABEL, WebviewUrl::App("index.html".into()))
             .title("Paseo Bridge")
             .inner_size(780.0, 760.0)
             .min_inner_size(640.0, 560.0);
@@ -823,17 +828,7 @@ pub fn run() {
             state.set_app_handle(app.handle().clone());
             app.manage(state.clone());
             tauri::async_runtime::spawn(bridge_api::run_controller(state.clone()));
-            tauri::async_runtime::spawn(async move {
-                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-                loop {
-                    let _ = usage::refresh_all(state.clone()).await;
-                    let minutes = state.settings.account_refresh_minutes();
-                    tokio::select! {
-                        _ = tokio::time::sleep(std::time::Duration::from_secs(minutes * 60)) => {},
-                        _ = state.settings.wait_for_refresh_schedule_change() => {},
-                    }
-                }
-            });
+            tauri::async_runtime::spawn(run_account_refresh_loop(state.clone()));
 
             #[cfg(desktop)]
             {
@@ -890,8 +885,8 @@ pub fn run() {
             set_automatic_updates_enabled,
             get_autostart,
             set_autostart,
-            set_paseo_bridge_enabled,
-            open_paseo_bridge_window,
+            set_api_integration_enabled,
+            open_api_integration_window,
             reorder_accounts,
             get_account_alerts,
             save_account_alerts,
@@ -904,15 +899,52 @@ pub fn run() {
             check_for_app_update,
             install_app_update,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running AI Usage Tracker");
+        .build(tauri::generate_context!())
+        .expect("error while building AI Usage Tracker")
+        .run(|app_handle, event| {
+            if let tauri::RunEvent::Resumed = event {
+                if let Some(state) = app_handle.try_state::<Arc<AppState>>() {
+                    state.wakeup_refresh();
+                }
+            }
+        });
+}
+
+fn account_refresh_is_due(last_refresh: SystemTime, now: SystemTime, interval: Duration) -> bool {
+    now.duration_since(last_refresh).unwrap_or(Duration::MAX) >= interval
+}
+
+async fn run_account_refresh_loop(state: Arc<AppState>) {
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    loop {
+        let _ = usage::refresh_all(state.clone()).await;
+        let last_refresh = SystemTime::now();
+        loop {
+            let interval = Duration::from_secs(state.settings.account_refresh_minutes() * 60);
+            if account_refresh_is_due(last_refresh, SystemTime::now(), interval) {
+                break;
+            }
+            let remaining = interval.saturating_sub(
+                SystemTime::now()
+                    .duration_since(last_refresh)
+                    .unwrap_or(Duration::ZERO),
+            );
+            tokio::select! {
+                _ = tokio::time::sleep(remaining) => break,
+                _ = state.settings.wait_for_refresh_schedule_change() => break,
+                _ = state.wait_for_refresh_wakeup() => {}
+            }
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        github_latest_http_means_no_release, is_newer_version, updater_error_is_no_release,
+        account_refresh_is_due, github_latest_http_means_no_release, is_newer_version,
+        updater_error_is_no_release,
     };
+    use std::time::{Duration, SystemTime};
 
     #[test]
     fn version_comparison_detects_newer_versions() {
@@ -926,6 +958,18 @@ mod tests {
         assert!(!is_newer_version("0.3.3", "0.3.3"));
         assert!(!is_newer_version("v0.3.3", "v0.3.3"));
         assert!(!is_newer_version("0.2.9", "0.3.0"));
+    }
+
+    #[test]
+    fn account_refresh_is_due_after_the_configured_interval() {
+        let last = SystemTime::UNIX_EPOCH;
+        let interval = Duration::from_secs(15 * 60);
+        let just_before = last + interval - Duration::from_secs(1);
+        let exactly = last + interval;
+        let later = last + interval + Duration::from_secs(1);
+        assert!(!account_refresh_is_due(last, just_before, interval));
+        assert!(account_refresh_is_due(last, exactly, interval));
+        assert!(account_refresh_is_due(last, later, interval));
     }
 
     #[cfg(any(test, desktop))]

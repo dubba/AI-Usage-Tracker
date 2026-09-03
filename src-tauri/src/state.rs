@@ -16,7 +16,7 @@ use std::{
     time::{Duration, Instant},
 };
 use tauri::AppHandle;
-use tokio::sync::{oneshot, Mutex as AsyncMutex};
+use tokio::sync::{oneshot, Mutex as AsyncMutex, Notify};
 
 #[derive(Clone, Debug)]
 pub struct ApiRuntime {
@@ -51,6 +51,7 @@ pub struct AppState {
     pub api_runtime: RwLock<ApiRuntime>,
     pub app_handle: RwLock<Option<AppHandle>>,
     account_locks: Mutex<HashMap<String, Arc<AsyncMutex<()>>>>,
+    refresh_wakeup: Notify,
     #[allow(dead_code)]
     pub data_dir: PathBuf,
 }
@@ -97,8 +98,17 @@ impl AppState {
             }),
             app_handle: RwLock::new(None),
             account_locks: Mutex::new(HashMap::new()),
+            refresh_wakeup: Notify::new(),
             data_dir,
         })
+    }
+
+    pub fn wakeup_refresh(&self) {
+        self.refresh_wakeup.notify_waiters();
+    }
+
+    pub async fn wait_for_refresh_wakeup(&self) {
+        self.refresh_wakeup.notified().await;
     }
 
     pub fn set_app_handle(&self, app_handle: AppHandle) {

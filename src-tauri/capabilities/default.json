@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Default permissions for the AI Usage Tracker desktop windows",
-  "windows": ["main", "paseo-bridge"],
+  "windows": ["main", "api-integration"],
   "permissions": [
     "core:default",
     {
@@ -15,8 +15,7 @@
         { "url": "https://grok.com/*" },
         { "url": "https://x.ai/*" },
         { "url": "https://opencode.ai/*" },
-        { "url": "https://github.com/dubba/AI-Usage-Tracker/*" },
-        { "url": "https://github.com/yajinni/AI-Usage-Tracker/*" }
+        { "url": "https://github.com/dubba/AI-Usage-Tracker/*" }
       ]
     },
     "autostart:allow-enable",

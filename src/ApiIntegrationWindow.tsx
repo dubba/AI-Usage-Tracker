@@ -11,7 +11,7 @@ function statusLabel(bridge: BridgeInfo): string {
   return "Starting";
 }
 
-export function PaseoBridgeWindow() {
+export function ApiIntegrationWindow() {
   const [bridge, setBridge] = useState<BridgeInfo | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
