@@ -129,7 +129,7 @@ select {
 .obsidian-shell .primary-nav {
   display: grid;
   gap: 4px;
-  margin: 12px 0 28px;
+  margin: 12px 0 18px;
 }
 
 .obsidian-shell .primary-nav button {
@@ -1334,10 +1334,10 @@ select {
 
 .settings-updates-subcard-info {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
   min-width: 0;
-  flex-wrap: wrap;
 }
 
 .settings-installed-version,
@@ -1350,19 +1350,50 @@ select {
 }
 
 .settings-updates-subcard-dot {
-  color: #6e6978;
-  font-size: 13px;
+  display: none;
 }
 
 .settings-updates-subcard-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   font-size: 13px;
   color: #a8a2b5;
   font-weight: 500;
 }
 
 .settings-updates-subcard-status.update-available {
-  color: #82e9a9;
+  color: #ff9d9d;
   font-weight: 600;
+}
+
+.status-indicator-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-indicator-dot.green {
+  background: var(--obsidian-green, #4edea3);
+  box-shadow: 0 0 6px rgba(78, 222, 163, 0.5);
+}
+
+.status-indicator-dot.red {
+  background: #ff5449;
+  box-shadow: 0 0 6px rgba(255, 84, 73, 0.5);
+}
+
+.settings-updates-subcard .settings-update-action.settings-update-action-danger {
+  background: #c93b3b !important;
+  border: 1px solid #e04848 !important;
+  color: #ffffff !important;
+}
+
+.settings-updates-subcard .settings-update-action.settings-update-action-danger:hover:not(:disabled) {
+  background: #db4444 !important;
+  border-color: #f05252 !important;
 }
 
 .account-update-select,
@@ -2116,7 +2147,7 @@ select.account-update-select option,
     height: auto;
     max-height: none;
     padding-top: max(28px, calc(env(safe-area-inset-top, 0px) + 8px)) !important;
-    padding-bottom: calc(12px + max(48px, env(safe-area-inset-bottom, 0px)));
+    padding-bottom: calc(36px + env(safe-area-inset-bottom, 0px)) !important;
     padding-left: max(16px, calc(env(safe-area-inset-left, 0px) + 14px)) !important;
     padding-right: 16px !important;
     border-top: 0;
@@ -2135,10 +2166,14 @@ select.account-update-select option,
     display: flex !important;
     align-items: center !important;
     gap: 12px !important;
-    margin-bottom: 14px !important;
+    margin-bottom: 18px !important;
     padding: 0 !important;
     position: relative !important;
     z-index: 300 !important;
+  }
+
+  .obsidian-shell .primary-nav {
+    margin: 0 0 18px !important;
   }
 
   .sidebar-mobile-header .mobile-sidebar-close-btn {
@@ -2186,7 +2221,7 @@ select.account-update-select option,
   }
 
   .provider-sidebar-heading {
-    padding: 4px 8px 10px;
+    padding: 0 8px 10px !important;
   }
 
   .obsidian-shell .main-stage {

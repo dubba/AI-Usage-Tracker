@@ -23,6 +23,8 @@
 - Removed the excessive bottom spacing beneath account cards on mobile when scrolling to the bottom of the dashboard.
 - Aligned the dashboard 5h window badge to the red tone of the card trash button and the 7d window badge to the yellow/amber tone of the notification button.
 - Aligned the dashboard Next Reset summary time badge to the green color, border, and background tone of the card refresh button.
+- Standardized spacing in the mobile sidebar with 18px gaps between the close button and Dashboard, 18px above and below the navigation divider, and a 36px bottom clearance beneath the update button.
+- Redesigned the installed version display in Settings to show "Current Version: 0.3.4" on the first line, with the update status on the next line accompanied by a green status indicator dot when up to date, and a red status indicator dot with a red action button when an update is available. Checking for updates now overwrites "Up to date" and remains visible for a minimum of 0.5s.
 
 ### Fixed
 

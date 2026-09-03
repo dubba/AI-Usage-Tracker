@@ -544,12 +544,16 @@ export default function App() {
 
   const checkForUpdate = useCallback(async (showFeedback = false) => {
     setUpdateBusy("checking");
+    const minDelayPromise = new Promise((resolve) => setTimeout(resolve, 500));
     if (showFeedback) {
       showTransientUpdateMessage(null);
       showTransientUpdateError(null);
     }
     try {
-      const status = await bridgeApi.checkForUpdate();
+      const [status] = await Promise.all([
+        bridgeApi.checkForUpdate(),
+        minDelayPromise,
+      ]);
       if (status.error) {
         if (showFeedback) {
           showTransientUpdateError(status.error);
@@ -566,6 +570,7 @@ export default function App() {
         }
       }
     } catch (cause) {
+      await minDelayPromise;
       if (showFeedback) {
         showTransientUpdateError(String(cause));
       }
@@ -640,7 +645,9 @@ export default function App() {
 
   useEffect(() => {
     void load();
-    getVersion().then(setInstalledVersion).catch(() => setInstalledVersion(FALLBACK_APP_VERSION));
+    getVersion()
+      .then((ver) => setInstalledVersion(ver || FALLBACK_APP_VERSION))
+      .catch(() => setInstalledVersion(FALLBACK_APP_VERSION));
     bridgeApi.getAppSettings().then(setAppSettings).catch((cause) => setError(String(cause)));
     bridgeApi.getAutostart().then(setAutostart).catch(() => setAutostart(false));
     const syncInterval = window.setInterval(() => void load(), DASHBOARD_SYNC_INTERVAL_MS);
@@ -1796,20 +1803,29 @@ function SettingsView({
 
           <div className="settings-updates-subcard">
             <div className="settings-updates-subcard-info">
-              <span className="settings-installed-version mono">{`v${update?.currentVersion || installedVersion}`}</span>
-              <span className="settings-updates-subcard-dot">•</span>
-              <span className={`settings-updates-subcard-status ${update?.available ? "update-available" : ""}`}>
-                {update?.available && update.availableVersion
-                  ? `Version ${update.availableVersion} available`
-                  : updateBusy === "checking"
-                  ? "Checking for updates…"
-                  : "Up to date"}
+              <span className="settings-installed-version mono">
+                {`Current Version: ${String(update?.currentVersion || installedVersion || FALLBACK_APP_VERSION).replace(/^v/i, "")}`}
               </span>
+              <div className={`settings-updates-subcard-status ${!updateBusy && update?.available ? "update-available" : ""}`}>
+                {updateBusy === "checking" ? (
+                  <span>Checking for updates…</span>
+                ) : update?.available && update.availableVersion ? (
+                  <>
+                    <span className="status-indicator-dot red" aria-hidden="true" />
+                    <span>{`Version ${update.availableVersion} available`}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="status-indicator-dot green" aria-hidden="true" />
+                    <span>Up to date</span>
+                  </>
+                )}
+              </div>
             </div>
             {update?.available ? (
               <button
                 type="button"
-                className="button primary settings-update-action"
+                className="button danger settings-update-action settings-update-action-danger"
                 disabled={updateBusy !== null}
                 onClick={onInstallUpdate}
               >
