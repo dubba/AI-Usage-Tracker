@@ -65,7 +65,7 @@ type NextResetSummary = {
 
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 // Shown only until getVersion() resolves; getVersion() is the single source of truth.
-const FALLBACK_APP_VERSION = "0.3.4";
+const FALLBACK_APP_VERSION = "0.3.5";
 const DASHBOARD_SYNC_INTERVAL_MS = 30 * 1000;
 const STARTUP_REFRESH_DELAY_MS = 3 * 1000;
 const GOOGLE_AI_STUDIO_MODELS_ONLY_SOURCE = "google_ai_studio_model_access";

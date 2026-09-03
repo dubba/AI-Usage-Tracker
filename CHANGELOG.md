@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+_No unreleased user-facing changes yet._
+
+## 0.3.5 - 2026-09-03
+
 ### Improved
 
 - On mobile, account cards use the same inset from the provider icon and action buttons to the card edges, and that spacing is shared by the rest of the card content.
@@ -24,7 +28,7 @@
 - Aligned the dashboard 5h window badge to the red tone of the card trash button and the 7d window badge to the yellow/amber tone of the notification button.
 - Aligned the dashboard Next Reset summary time badge to the green color, border, and background tone of the card refresh button.
 - Standardized spacing in the mobile sidebar with 18px gaps between the close button and Dashboard, 18px above and below the navigation divider, and a 36px bottom clearance beneath the update button.
-- Redesigned the installed version display in Settings to show "Current Version: 0.3.4" on the first line, with the update status on the next line accompanied by a green status indicator dot when up to date, and a red status indicator dot with a red action button when an update is available. Checking for updates now overwrites "Up to date" and remains visible for a minimum of 0.5s.
+- Redesigned the installed version display in Settings to show "Current Version: 0.3.5" on the first line, with the update status on the next line accompanied by a green status indicator dot when up to date, and a red status indicator dot with a red action button when an update is available. Checking for updates now overwrites "Up to date" and remains visible for a minimum of 0.5s.
 - Renamed provider display names: "Codex/GPT" to "GPT/Codex", and "Grok" to "Grok/Cursor" across sidebar navigation, dashboard headers, account cards, modals, and backend defaults.
 - Standardized gaps between account cards on mobile to 10px, matching the uniform spacing between the summary cards and the card list.
 - Clicking a provider icon on an account card collapses the card down to its header and divider, hiding the metrics section. Clicking the icon again expands the card back out, with collapsed state remembered per account.
