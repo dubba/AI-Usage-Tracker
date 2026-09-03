@@ -16,9 +16,15 @@
 - Consolidated App Updates in Settings into a unified group card with a top-level automatic updates toggle and an embedded version status card with the Check Now action.
 - Added a dedicated close button ("X") on the mobile sidebar positioned at the exact same screen coordinates as the collapsed hamburger menu button for seamless in-place toggling, alongside the purple "AI Usage Tracker" app title.
 - Renamed the dashboard "Needs attention" metric card to "Action Needed".
+- Reduced horizontal padding on account card status and plan badges (such as LIVE, GROK, and tier labels) for a more compact and balanced appearance.
+- Refined the startup toggle descriptions in Settings to "Start app automatically at device startup." on mobile and "Start app automatically at login." on desktop.
+- Shortened the App Updates setting description to "Automatically check for updates."
+- Refined the Account Updates setting description to "Set how often the app updates your AI usage."
+- Removed the excessive bottom spacing beneath account cards on mobile when scrolling to the bottom of the dashboard.
 
 ### Fixed
 
+- Eliminated the highlight box flash when tapping the hamburger button on mobile by disabling default tap highlights and suppressing active/focus state flashing during sidebar slide-out.
 - Returning to the app after the account-update interval has elapsed now refreshes accounts automatically, including when Android had paused the app in the background.
 - Custom groups stay in the sidebar after every account is removed from them. Edit Group can now save with no accounts selected, and the empty group still has Edit and Delete.
 - Account card remove, notification, and refresh buttons now sit on the same bottom edge as the provider icon.

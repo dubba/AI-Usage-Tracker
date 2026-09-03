@@ -940,7 +940,7 @@ select {
   height: 20px;
   min-height: 20px;
   box-sizing: border-box;
-  padding: 1px 8px;
+  padding: 1px 4px;
   border-radius: 3px;
   font-size: 10px;
   line-height: 1;
@@ -1995,13 +1995,21 @@ select.account-update-select option,
   cursor: pointer;
   flex-shrink: 0;
   transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
 }
 
-.mobile-sidebar-toggle-btn:hover,
+@media (hover: hover) {
+  .mobile-sidebar-toggle-btn:hover {
+    border-color: var(--obsidian-purple-strong);
+    background: #2a2929;
+    color: #fff;
+  }
+}
+
+.mobile-sidebar-toggle-btn:focus,
 .mobile-sidebar-toggle-btn:focus-visible {
-  border-color: var(--obsidian-purple-strong);
-  background: #2a2929;
-  color: #fff;
+  outline: none;
 }
 
 .mobile-sidebar-toggle-btn svg {
@@ -2152,6 +2160,27 @@ select.account-update-select option,
 
   .mobile-sidebar-toggle-btn {
     display: inline-flex;
+    -webkit-tap-highlight-color: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
+    user-select: none !important;
+    -webkit-touch-callout: none !important;
+    transition: none !important;
+  }
+
+  .mobile-sidebar-toggle-btn:hover,
+  .mobile-sidebar-toggle-btn:focus,
+  .mobile-sidebar-toggle-btn:active,
+  .mobile-sidebar-toggle-btn:focus-visible,
+  .mobile-sidebar-close-btn:hover,
+  .mobile-sidebar-close-btn:focus,
+  .mobile-sidebar-close-btn:active,
+  .mobile-sidebar-close-btn:focus-visible {
+    border-color: var(--obsidian-border) !important;
+    background: #201f1f !important;
+    color: #d7d0dc !important;
+    outline: none !important;
+    box-shadow: none !important;
   }
 
   .provider-sidebar-heading {
@@ -2165,7 +2194,13 @@ select.account-update-select option,
     height: 100dvh;
   }
 
-  .dashboard-content,
+  .dashboard-content {
+    padding-top: max(28px, calc(env(safe-area-inset-top, 0px) + 8px)) !important;
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)) !important;
+    padding-left: max(16px, calc(env(safe-area-inset-left, 0px) + 14px)) !important;
+    padding-right: max(16px, calc(env(safe-area-inset-right, 0px) + 14px)) !important;
+  }
+
   .narrow-content {
     padding-top: max(28px, calc(env(safe-area-inset-top, 0px) + 8px)) !important;
     padding-bottom: max(28px, calc(env(safe-area-inset-bottom, 0px) + 20px)) !important;
@@ -2310,7 +2345,7 @@ select.account-update-select option,
   .provider-account-cards {
     grid-template-columns: minmax(0, 1fr) !important;
     gap: 14px;
-    padding: 0 6px 28px 0 !important;
+    padding: 0 6px 0 0 !important;
     scrollbar-gutter: stable !important;
   }
 
@@ -2411,7 +2446,7 @@ select.account-update-select option,
     height: 20px !important;
     min-height: 20px !important;
     box-sizing: border-box !important;
-    padding: 1px 6px !important;
+    padding: 1px 4px !important;
     font-size: 9px !important;
     line-height: 1 !important;
   }

@@ -1772,7 +1772,7 @@ function SettingsView({
         <div className="settings-row">
           <div>
             <strong>{typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? "Start on device boot" : "Start at login"}</strong>
-            <small>{typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? "Start app automatically when device powers on." : "Keep account usage available after signing in."}</small>
+            <small>{typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? "Start app automatically at device startup." : "Start app automatically at login."}</small>
           </div>
           <button className={`toggle ${autostart ? "on" : ""}`} onClick={onToggleAutostart} aria-pressed={autostart}><span /></button>
         </div>
@@ -1780,7 +1780,7 @@ function SettingsView({
           <div className="settings-updates-group-header">
             <div>
               <strong>App Updates</strong>
-              <small>Automatically check for updates in the background.</small>
+              <small>Automatically check for updates.</small>
             </div>
             <button
               type="button"
@@ -1830,7 +1830,7 @@ function SettingsView({
         <div className="settings-row">
           <div>
             <strong>Account Updates</strong>
-            <small>How often app updates your AI usage percentage.</small>
+            <small>Set how often the app updates your AI usage.</small>
           </div>
           <div className="settings-account-refresh">
             <CustomDropdown<number>

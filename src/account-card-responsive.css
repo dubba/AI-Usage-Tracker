@@ -178,7 +178,7 @@
     scrollbar-gutter: stable !important;
     scrollbar-width: thin !important;
     scrollbar-color: var(--obsidian-purple-strong, #a078ff) rgba(25, 20, 36, 0.3) !important;
-    padding: 0 6px 28px 0 !important;
+    padding: 0 6px 0 0 !important;
     margin: 0 !important;
   }
 
