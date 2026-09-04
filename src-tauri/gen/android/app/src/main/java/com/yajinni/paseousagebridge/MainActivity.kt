@@ -15,11 +15,67 @@ import androidx.core.view.WindowCompat
 import java.io.File
 
 class MainActivity : TauriActivity() {
+  companion object {
+    private const val TAG = "AIUsagePairing"
+
+    init {
+      try {
+        System.loadLibrary("ai_usage_tracker_lib")
+      } catch (e: Throwable) {
+        android.util.Log.w(TAG, "Early loadLibrary info: ${e.message}")
+      }
+    }
+
+    @Volatile
+    private var pendingUriMemory: String? = null
+
+    @JvmStatic
+    external fun setPendingPairingUri(uri: String)
+  }
+
+  private fun handlePairingIntent(intent: Intent?) {
+    val uri = intent?.dataString ?: return
+    android.util.Log.i(TAG, "Received pairing intent data: $uri")
+    if (uri.startsWith("aiusage-pair:") || uri.startsWith("aiusage:")) {
+      pendingUriMemory = uri
+      try {
+        setPendingPairingUri(uri)
+        android.util.Log.i(TAG, "Successfully forwarded pairing URI to Rust: $uri")
+      } catch (e: Throwable) {
+        android.util.Log.w(TAG, "setPendingPairingUri deferred until runtime init: ${e.message}")
+      }
+    }
+  }
+
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
+    handlePairingIntent(intent)
+  }
+
   override fun onCreate(savedInstanceState: Bundle?) {
+    window.decorView.setBackgroundColor(Color.BLACK)
+    window.setBackgroundDrawableResource(android.R.color.black)
+    super.onCreate(savedInstanceState)
+    window.decorView.setBackgroundColor(Color.BLACK)
+    window.setBackgroundDrawableResource(android.R.color.black)
+    WindowCompat.getInsetsController(window, window.decorView).apply {
+      isAppearanceLightStatusBars = false
+      isAppearanceLightNavigationBars = false
+    }
+
     enableEdgeToEdge(
       statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
       navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT)
     )
+
+    handlePairingIntent(intent)
+    pendingUriMemory?.let { uri ->
+      try {
+        setPendingPairingUri(uri)
+      } catch (e: Throwable) {
+        android.util.Log.e(TAG, "Retry setPendingPairingUri failed: ${e.message}")
+      }
+    }
 
     // Invalidate stale WebView cache when APK is updated to a new version
     val prefs = getSharedPreferences("app_version_prefs", Context.MODE_PRIVATE)
@@ -41,12 +97,6 @@ class MainActivity : TauriActivity() {
         WebView(this).clearCache(true)
       } catch (_: Exception) {}
       prefs.edit().putLong("last_version_code", currentVersionCode).apply()
-    }
-
-    super.onCreate(savedInstanceState)
-    WindowCompat.getInsetsController(window, window.decorView).apply {
-      isAppearanceLightStatusBars = false
-      isAppearanceLightNavigationBars = false
     }
   }
 

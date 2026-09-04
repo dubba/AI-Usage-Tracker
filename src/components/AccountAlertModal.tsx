@@ -99,13 +99,8 @@ export function AccountAlertModal({
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section ref={dialogRef} className="modal-card alert-settings-modal notification-only-modal" role="dialog" aria-modal="true" aria-labelledby="alert-settings-title" tabIndex={-1}>
         <div className="modal-kicker">Account alerts</div>
-        <div className="alert-settings-heading">
-          <span className="alert-settings-icon"><BellIcon /></span>
-          <div>
-            <h2 id="alert-settings-title">Usage notifications</h2>
-            <p>Choose when to notify you about the 5-hour and weekly limits for <strong>{account.label}</strong>.</p>
-          </div>
-        </div>
+        <h2 id="alert-settings-title">Usage notifications</h2>
+        <p>Choose when to notify you about the 5-hour and weekly limits for <strong>{account.label}</strong>.</p>
 
         <section className="account-settings-section">
           {loading ? <div className="waiting-panel"><span className="spinner" />Loading notification settings…</div> : null}

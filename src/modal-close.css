@@ -26,14 +26,29 @@
   font-weight: 400;
   line-height: 1;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 
-.ui-modal-close:hover:not(:disabled),
+@media (hover: hover) and (pointer: fine) {
+  .ui-modal-close:hover:not(:disabled) {
+    color: #fff;
+    border-color: #ff6464;
+    background: #d93d3d;
+  }
+}
+
 .ui-modal-close:focus-visible {
   color: #fff;
   border-color: #ff6464;
   background: #d93d3d;
   outline: none;
+}
+
+.ui-modal-close:active:not(:disabled) {
+  background: #b52828;
+  border-color: #a82020;
 }
 
 .ui-modal-close:disabled {

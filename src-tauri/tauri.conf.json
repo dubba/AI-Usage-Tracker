@@ -5,7 +5,7 @@
   "identifier": "com.yajinni.paseousagebridge",
   "build": {
     "beforeDevCommand": "npm run dev",
-    "devUrl": "http://127.0.0.1:1420",
+    "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
@@ -22,7 +22,8 @@
         "center": true,
         "resizable": true,
         "fullscreen": false,
-        "theme": "Dark"
+        "theme": "Dark",
+        "backgroundColor": "#000000"
       }
     ],
     "security": {
@@ -40,7 +41,11 @@
     ],
     "category": "Utility",
     "shortDescription": "Track AI usage across multiple providers",
-    "longDescription": "AI Usage Tracker is a standalone Windows and macOS desktop app for monitoring OpenAI Codex, Anthropic Claude, Google Antigravity, Google AI Studio, Grok / SuperGrok, and OpenCode Go usage, with an optional sanitized Paseo integration over localhost."
+    "longDescription": "AI Usage Tracker is a standalone Windows and macOS desktop app for monitoring OpenAI Codex, Anthropic Claude, Google Antigravity, Google AI Studio, Grok / SuperGrok, and OpenCode Go usage, with an optional sanitized Paseo integration over localhost.",
+    "macOS": {
+      "infoPlist": "Info.plist",
+      "entitlements": "Entitlements.plist"
+    }
   },
   "plugins": {
     "updater": {

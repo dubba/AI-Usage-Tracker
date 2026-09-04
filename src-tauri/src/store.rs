@@ -3,6 +3,7 @@ use crate::{
     model::{Account, OAuthSecret, Provider, ProviderSecret, UsageSnapshot},
 };
 #[cfg(not(target_os = "android"))]
+#[allow(unused_imports)]
 use keyring::Entry;
 use parking_lot::{Mutex, RwLock};
 use rand::{distributions::Alphanumeric, Rng};
@@ -16,28 +17,48 @@ use std::{
 
 static SECRET_CACHE: LazyLock<Mutex<HashMap<String, ProviderSecret>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
-static DATA_DIR: LazyLock<RwLock<Option<PathBuf>>> =
-    LazyLock::new(|| RwLock::new(None));
+static DATA_DIRS: LazyLock<RwLock<Vec<PathBuf>>> =
+    LazyLock::new(|| RwLock::new(Vec::new()));
 
 pub fn set_data_dir(path: PathBuf) {
-    *DATA_DIR.write() = Some(path);
+    let mut dirs = DATA_DIRS.write();
+    dirs.retain(|p| p.exists());
+    if let Some(pos) = dirs.iter().position(|p| p == &path) {
+        dirs.remove(pos);
+    }
+    dirs.insert(0, path);
 }
 
-#[cfg(target_os = "android")]
-fn credentials_dir() -> Result<PathBuf, StoreError> {
-    let base = DATA_DIR
-        .read()
-        .clone()
+#[cfg(any(target_os = "android", debug_assertions))]
+fn current_credentials_dir() -> Result<PathBuf, StoreError> {
+    let dirs = DATA_DIRS.read();
+    let base = dirs
+        .iter()
+        .find(|p| p.exists())
+        .cloned()
         .ok_or_else(|| StoreError::Credential("Storage directory has not been initialized".into()))?;
     let dir = base.join("credentials");
     fs::create_dir_all(&dir).map_err(|e| StoreError::Io(e.to_string()))?;
     ensure_private_file(&dir).map_err(StoreError::Io)?;
     Ok(dir)
 }
+
+#[cfg(any(target_os = "android", debug_assertions))]
+fn find_credential_file(filename: &str) -> Option<PathBuf> {
+    let dirs = DATA_DIRS.read().clone();
+    for base in dirs {
+        let path = base.join("credentials").join(filename);
+        if path.exists() {
+            return Some(path);
+        }
+    }
+    None
+}
 use thiserror::Error;
 
 const CREDENTIAL_SERVICE: &str = "ai-usage-tracker";
 const LEGACY_CREDENTIAL_SERVICE: &str = "paseo-usage-bridge";
+#[allow(dead_code)]
 const BRIDGE_TOKEN_USER: &str = "bridge-api-token";
 const CHUNKED_CREDENTIAL_FORMAT: &str = "chunked-v1";
 #[allow(dead_code)]
@@ -180,6 +201,7 @@ impl AccountStore {
         account: Account,
         secret: &ProviderSecret,
     ) -> Result<Account, StoreError> {
+        set_data_dir(self.data_dir.clone());
         let id = account.id.clone();
         let existed = self.get(&id).is_some();
         save_provider_secret(&id, secret)?;
@@ -269,17 +291,17 @@ pub fn save_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result
     Ok(())
 }
 
-#[cfg(target_os = "android")]
+#[cfg(any(target_os = "android", debug_assertions))]
 fn persist_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result<(), StoreError> {
     let payload =
         serde_json::to_vec(secret).map_err(|error| StoreError::Invalid(error.to_string()))?;
-    let dir = credentials_dir()?;
+    let dir = current_credentials_dir()?;
     let path = dir.join(format!("{account_id}.json"));
     atomic_write_private(&path, &payload).map_err(StoreError::Credential)?;
     Ok(())
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", not(debug_assertions)))]
 fn persist_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result<(), StoreError> {
     let payload =
         serde_json::to_string(secret).map_err(|error| StoreError::Invalid(error.to_string()))?;
@@ -288,7 +310,7 @@ fn persist_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result<
         .map_err(|error| StoreError::Credential(error.to_string()))
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "android")))]
+#[cfg(all(not(any(target_os = "macos", target_os = "android")), not(debug_assertions)))]
 fn persist_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result<(), StoreError> {
     let payload =
         serde_json::to_string(secret).map_err(|error| StoreError::Invalid(error.to_string()))?;
@@ -339,30 +361,10 @@ fn persist_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result<
     Ok(())
 }
 
-#[cfg(target_os = "android")]
-pub fn load_provider_secret(account_id: &str) -> Result<ProviderSecret, StoreError> {
-    if let Some(secret) = cached_secret(account_id) {
-        return Ok(secret);
-    }
-    let dir = credentials_dir()?;
-    let path = dir.join(format!("{account_id}.json"));
-    if !path.exists() {
-        return Err(StoreError::Credential("No matching entry found in secure storage".into()));
-    }
-    let data = fs::read(&path).map_err(|error| StoreError::Credential(error.to_string()))?;
-    let secret: ProviderSecret =
-        serde_json::from_slice(&data).map_err(|error| StoreError::Invalid(error.to_string()))?;
-    remember_secret(account_id, secret.clone());
-    Ok(secret)
-}
-
 #[cfg(not(target_os = "android"))]
-pub fn load_provider_secret(account_id: &str) -> Result<ProviderSecret, StoreError> {
-    if let Some(secret) = cached_secret(account_id) {
-        return Ok(secret);
-    }
+fn load_keychain_secret(account_id: &str) -> Result<ProviderSecret, StoreError> {
     let user = account_credential_user(account_id);
-    let (stored, from_legacy) = match credential_entry(&user)?.get_password() {
+    let (stored, _from_legacy) = match credential_entry(&user)?.get_password() {
         Ok(value) => (value, false),
         Err(keyring::Error::NoEntry) => (
             credential_entry_for(LEGACY_CREDENTIAL_SERVICE, &user)?
@@ -381,11 +383,12 @@ pub fn load_provider_secret(account_id: &str) -> Result<ProviderSecret, StoreErr
         decode_provider_secret(&stored)?
     };
 
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", not(debug_assertions)))]
     let should_migrate = from_legacy || manifest.is_some();
-    #[cfg(not(any(target_os = "macos", target_os = "android")))]
+    #[cfg(all(not(any(target_os = "macos", target_os = "android")), not(debug_assertions)))]
     let should_migrate = from_legacy;
 
+    #[cfg(not(debug_assertions))]
     if should_migrate && persist_provider_secret(account_id, &secret).is_ok() {
         let _ = delete_legacy_credential(&user);
         if let Some(manifest) = manifest.as_ref() {
@@ -403,24 +406,51 @@ pub fn load_provider_secret(account_id: &str) -> Result<ProviderSecret, StoreErr
         }
     }
 
+    Ok(secret)
+}
+
+#[cfg(any(target_os = "android", debug_assertions))]
+pub fn load_provider_secret(account_id: &str) -> Result<ProviderSecret, StoreError> {
+    if let Some(secret) = cached_secret(account_id) {
+        return Ok(secret);
+    }
+    let filename = format!("{account_id}.json");
+    let path = find_credential_file(&filename)
+        .or_else(|| current_credentials_dir().ok().map(|d| d.join(&filename)));
+
+    if let Some(path) = path.as_ref().filter(|p| p.exists()) {
+        let data = fs::read(path).map_err(|error| StoreError::Credential(error.to_string()))?;
+        let secret: ProviderSecret =
+            serde_json::from_slice(&data).map_err(|error| StoreError::Invalid(error.to_string()))?;
+        remember_secret(account_id, secret.clone());
+        return Ok(secret);
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        // In dev mode on desktop, fall back to native keychain if file is not yet created
+        if let Ok(secret) = load_keychain_secret(account_id) {
+            let _ = persist_provider_secret(account_id, &secret);
+            remember_secret(account_id, secret.clone());
+            return Ok(secret);
+        }
+    }
+
+    Err(StoreError::Credential("No matching entry found in secure storage".into()))
+}
+
+#[cfg(all(not(target_os = "android"), not(debug_assertions)))]
+pub fn load_provider_secret(account_id: &str) -> Result<ProviderSecret, StoreError> {
+    if let Some(secret) = cached_secret(account_id) {
+        return Ok(secret);
+    }
+    let secret = load_keychain_secret(account_id)?;
     remember_secret(account_id, secret.clone());
     Ok(secret)
 }
 
-#[cfg(target_os = "android")]
-pub fn delete_secret(account_id: &str) -> Result<(), StoreError> {
-    if let Ok(dir) = credentials_dir() {
-        let path = dir.join(format!("{account_id}.json"));
-        if path.exists() {
-            let _ = fs::remove_file(path);
-        }
-    }
-    forget_secret(account_id);
-    Ok(())
-}
-
 #[cfg(not(target_os = "android"))]
-pub fn delete_secret(account_id: &str) -> Result<(), StoreError> {
+fn delete_keychain_secret(account_id: &str) -> Result<(), StoreError> {
     let user = account_credential_user(account_id);
     let mut first_error = None;
     let mut manifests = Vec::new();
@@ -461,20 +491,41 @@ pub fn delete_secret(account_id: &str) -> Result<(), StoreError> {
         first_error.get_or_insert(error);
     }
 
-    match first_error {
-        Some(error) => Err(error),
-        None => {
-            forget_secret(account_id);
-            Ok(())
-        }
+    if let Some(error) = first_error {
+        Err(error)
+    } else {
+        Ok(())
     }
 }
 
-#[cfg(target_os = "android")]
+#[cfg(any(target_os = "android", debug_assertions))]
+pub fn delete_secret(account_id: &str) -> Result<(), StoreError> {
+    let filename = format!("{account_id}.json");
+    let dirs = DATA_DIRS.read().clone();
+    for base in dirs {
+        let path = base.join("credentials").join(&filename);
+        if path.exists() {
+            let _ = fs::remove_file(path);
+        }
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = delete_keychain_secret(account_id);
+    }
+    forget_secret(account_id);
+    Ok(())
+}
+
+#[cfg(all(not(target_os = "android"), not(debug_assertions)))]
+pub fn delete_secret(account_id: &str) -> Result<(), StoreError> {
+    let res = delete_keychain_secret(account_id);
+    forget_secret(account_id);
+    res
+}
+
+#[cfg(any(target_os = "android", debug_assertions))]
 pub fn load_or_create_bridge_token() -> Result<String, StoreError> {
-    let dir = credentials_dir()?;
-    let path = dir.join("bridge-token.txt");
-    if path.exists() {
+    if let Some(path) = find_credential_file("bridge-token.txt") {
         if let Ok(value) = fs::read_to_string(&path) {
             let trimmed = value.trim().to_string();
             if trimmed.len() >= 32 {
@@ -482,12 +533,14 @@ pub fn load_or_create_bridge_token() -> Result<String, StoreError> {
             }
         }
     }
+    let dir = current_credentials_dir()?;
+    let path = dir.join("bridge-token.txt");
     let token = generate_bridge_token();
     atomic_write_private(&path, token.as_bytes()).map_err(StoreError::Credential)?;
     Ok(token)
 }
 
-#[cfg(not(target_os = "android"))]
+#[cfg(all(not(target_os = "android"), not(debug_assertions)))]
 pub fn load_or_create_bridge_token() -> Result<String, StoreError> {
     let entry = credential_entry(BRIDGE_TOKEN_USER)?;
     match entry.get_password() {
@@ -514,16 +567,16 @@ pub fn load_or_create_bridge_token() -> Result<String, StoreError> {
     }
 }
 
-#[cfg(target_os = "android")]
+#[cfg(any(target_os = "android", debug_assertions))]
 pub fn rotate_bridge_token() -> Result<String, StoreError> {
-    let dir = credentials_dir()?;
+    let dir = current_credentials_dir()?;
     let path = dir.join("bridge-token.txt");
     let token = generate_bridge_token();
     atomic_write_private(&path, token.as_bytes()).map_err(StoreError::Credential)?;
     Ok(token)
 }
 
-#[cfg(not(target_os = "android"))]
+#[cfg(all(not(target_os = "android"), not(debug_assertions)))]
 pub fn rotate_bridge_token() -> Result<String, StoreError> {
     let token = generate_bridge_token();
     let entry = credential_entry(BRIDGE_TOKEN_USER)?;
@@ -546,36 +599,43 @@ fn forget_secret(account_id: &str) {
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(dead_code)]
 fn account_credential_user(account_id: &str) -> String {
     format!("account:{account_id}")
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(dead_code)]
 fn account_credential_entry(account_id: &str) -> Result<Entry, StoreError> {
     credential_entry(&account_credential_user(account_id))
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(dead_code)]
 fn credential_chunk_user(account_id: &str, generation: &str, index: usize) -> String {
     format!("account:{account_id}:chunk:{generation}:{index}")
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(dead_code)]
 fn credential_entry(user: &str) -> Result<Entry, StoreError> {
     credential_entry_for(CREDENTIAL_SERVICE, user)
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(dead_code)]
 fn credential_entry_for(service: &str, user: &str) -> Result<Entry, StoreError> {
     Entry::new(service, user).map_err(|error| StoreError::Credential(error.to_string()))
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(dead_code)]
 fn read_password(user: &str) -> Result<String, StoreError> {
     read_optional_password(user)?.ok_or_else(|| StoreError::Credential("No matching entry".into()))
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(dead_code)]
 fn read_optional_password(user: &str) -> Result<Option<String>, StoreError> {
     match credential_entry_for(CREDENTIAL_SERVICE, user)?.get_password() {
         Ok(value) => Ok(Some(value)),
@@ -591,6 +651,7 @@ fn read_optional_password(user: &str) -> Result<Option<String>, StoreError> {
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(dead_code)]
 fn delete_legacy_credential(user: &str) -> Result<(), StoreError> {
     match credential_entry_for(LEGACY_CREDENTIAL_SERVICE, user)?.delete_credential() {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
@@ -599,6 +660,7 @@ fn delete_legacy_credential(user: &str) -> Result<(), StoreError> {
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(dead_code)]
 fn delete_credential(user: &str) -> Result<(), StoreError> {
     let mut first_error = None;
     for service in [CREDENTIAL_SERVICE, LEGACY_CREDENTIAL_SERVICE] {
@@ -708,6 +770,7 @@ fn write_credential_generation(
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(dead_code)]
 fn read_credential_generation(
     account_id: &str,
     generation: &CredentialGeneration,
@@ -723,6 +786,7 @@ fn read_credential_generation(
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(dead_code)]
 fn delete_credential_generation(
     account_id: &str,
     generation: &CredentialGeneration,
@@ -741,6 +805,7 @@ fn delete_credential_generation(
     }
 }
 
+#[allow(dead_code)]
 fn decode_provider_secret(payload: &str) -> Result<ProviderSecret, StoreError> {
     match serde_json::from_str::<ProviderSecret>(payload) {
         Ok(secret) => Ok(secret),
@@ -1075,5 +1140,26 @@ mod tests {
         assert!(store.list().is_empty());
         let reopened = AccountStore::load(dir.path().to_path_buf()).unwrap();
         assert!(reopened.list().is_empty());
+    }
+
+    #[test]
+    fn file_storage_secret_round_trip() {
+        let dir = tempdir().unwrap();
+        set_data_dir(dir.path().to_path_buf());
+        let id = "test-file-storage-round-trip";
+        forget_secret(id);
+        let secret = ProviderSecret::Openai(OAuthSecret {
+            access_token: "file_access".into(),
+            refresh_token: "file_refresh".into(),
+            id_token: None,
+            expires_at: 12345,
+        });
+        save_provider_secret(id, &secret).unwrap();
+        forget_secret(id);
+        let loaded = load_provider_secret(id).unwrap();
+        assert_eq!(loaded, secret);
+        delete_secret(id).unwrap();
+        forget_secret(id);
+        assert!(load_provider_secret(id).is_err());
     }
 }

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Account, AccountBucket, AppSettings, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, Provider, UsageAlertSetting } from "./types";
+import type { Account, AccountBucket, AppSettings, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, PairingHostInit, PairingReceiverInit, PairingStatus, Provider, UsageAlertSetting } from "./types";
 
 const LOGIN_ATTEMPT_KEY = "ai-usage-tracker:login-attempt";
 
@@ -68,4 +68,18 @@ export const bridgeApi = {
   regenerateToken: () => invoke<BridgeInfo>("regenerate_bridge_token"),
   checkForUpdate: () => invoke<AppUpdateStatus>("check_for_app_update"),
   installUpdate: () => invoke<void>("install_app_update"),
+};
+
+export const pairingApi = {
+  startHost: () => invoke<PairingHostInit>("pairing_start_host"),
+  startReceiver: () => invoke<PairingReceiverInit>("pairing_start_receiver"),
+  startClient: (qrUri: string) => invoke<void>("pairing_start_client", { qrUri }),
+  startClientByCode: (code: string) => invoke<void>("pairing_start_client_by_code", { code }),
+  startSender: (qrUri: string) => invoke<void>("pairing_start_sender", { qrUri }),
+  selectRole: (role: "send" | "receive") => invoke<void>("pairing_select_role", { role }),
+  confirmSas: (sessionId: string, confirmed: boolean) =>
+    invoke<void>("pairing_confirm_sas", { sessionId, confirmed }),
+  cancel: () => invoke<void>("pairing_cancel"),
+  status: () => invoke<PairingStatus>("pairing_status"),
+  getPendingPairingUri: () => invoke<string | null>("get_pending_pairing_uri"),
 };

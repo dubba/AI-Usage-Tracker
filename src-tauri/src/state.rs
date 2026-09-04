@@ -50,6 +50,7 @@ pub struct AppState {
     pub bridge_rate_limit: Mutex<Option<Instant>>,
     pub api_runtime: RwLock<ApiRuntime>,
     pub app_handle: RwLock<Option<AppHandle>>,
+    pub pairing: Arc<crate::pairing::PairingSessionManager>,
     account_locks: Mutex<HashMap<String, Arc<AsyncMutex<()>>>>,
     refresh_wakeup: Notify,
     #[allow(dead_code)]
@@ -97,6 +98,7 @@ impl AppState {
                 error: None,
             }),
             app_handle: RwLock::new(None),
+            pairing: Arc::new(crate::pairing::PairingSessionManager::new()),
             account_locks: Mutex::new(HashMap::new()),
             refresh_wakeup: Notify::new(),
             data_dir,

@@ -61,12 +61,43 @@
 }
 
 html.dashboard-reordering,
-html.dashboard-reordering * {
+html.dashboard-reordering *,
+html.dashboard-reordering *::before,
+html.dashboard-reordering *::after {
   cursor: grabbing !important;
   user-select: none !important;
   -webkit-user-select: none !important;
   -webkit-touch-callout: none !important;
   touch-action: none !important;
+}
+
+/* Override more-specific cursor !important rules on controls during drag. */
+html.dashboard-reordering a,
+html.dashboard-reordering button,
+html.dashboard-reordering button:disabled,
+html.dashboard-reordering input,
+html.dashboard-reordering label,
+html.dashboard-reordering select,
+html.dashboard-reordering svg,
+html.dashboard-reordering textarea,
+html.dashboard-reordering [role="button"],
+html.dashboard-reordering .account-card-action,
+html.dashboard-reordering .account-card-action:disabled,
+html.dashboard-reordering .account-card-action svg,
+html.dashboard-reordering .account-card-provider-icon,
+html.dashboard-reordering .account-card-provider-icon svg,
+html.dashboard-reordering .account-name-edit,
+html.dashboard-reordering .account-name-edit svg,
+html.dashboard-reordering .provider-account-card button,
+html.dashboard-reordering .provider-account-card button:disabled,
+html.dashboard-reordering .provider-account-card .account-card-action,
+html.dashboard-reordering .provider-account-card .account-card-action:disabled,
+html.dashboard-reordering .provider-account-card .account-card-action svg,
+html.dashboard-reordering .provider-account-card input.account-card-name-input,
+html.dashboard-reordering .sidebar-resize-grip span,
+html.dashboard-reordering .sidebar-resize-handle,
+html.dashboard-reordering .sidebar-resize-handle * {
+  cursor: grabbing !important;
 }
 
 html.dashboard-reordering {

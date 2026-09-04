@@ -11,6 +11,7 @@ mod mobile_auth;
 mod model;
 mod oauth;
 mod opencode_login;
+mod pairing;
 mod providers;
 mod settings;
 mod state;
@@ -488,6 +489,102 @@ fn regenerate_bridge_token(state: State<'_, Arc<AppState>>) -> Result<BridgeInfo
     Ok(bridge_info(state.inner().as_ref()))
 }
 
+#[tauri::command]
+async fn pairing_start_host(
+    state: State<'_, Arc<AppState>>,
+) -> Result<crate::pairing::PairingHostInit, String> {
+    state.pairing.start_host(state.inner().clone()).await
+}
+
+#[tauri::command]
+async fn pairing_start_receiver(
+    state: State<'_, Arc<AppState>>,
+) -> Result<crate::pairing::PairingReceiverInit, String> {
+    state.pairing.start_receiver(state.inner().clone()).await
+}
+
+#[tauri::command]
+async fn pairing_start_client(
+    state: State<'_, Arc<AppState>>,
+    qr_uri: String,
+) -> Result<(), String> {
+    state.pairing.start_client(state.inner().clone(), qr_uri).await
+}
+
+#[tauri::command]
+async fn pairing_start_sender(
+    state: State<'_, Arc<AppState>>,
+    qr_uri: String,
+) -> Result<(), String> {
+    state.pairing.start_sender(state.inner().clone(), qr_uri).await
+}
+
+#[tauri::command]
+async fn pairing_start_client_by_code(
+    state: State<'_, Arc<AppState>>,
+    code: String,
+) -> Result<(), String> {
+    state
+        .pairing
+        .start_client_by_code(state.inner().clone(), code)
+        .await
+}
+
+#[tauri::command]
+async fn pairing_select_role(
+    state: State<'_, Arc<AppState>>,
+    role: String,
+) -> Result<(), String> {
+    state.pairing.select_role(&role).await
+}
+
+#[tauri::command]
+async fn pairing_confirm_sas(
+    state: State<'_, Arc<AppState>>,
+    session_id: String,
+    confirmed: bool,
+) -> Result<(), String> {
+    state.pairing.confirm_sas(&session_id, confirmed).await
+}
+
+#[tauri::command]
+async fn pairing_cancel(state: State<'_, Arc<AppState>>) -> Result<(), String> {
+    state.pairing.cancel().await;
+    Ok(())
+}
+
+#[tauri::command]
+async fn pairing_status(
+    state: State<'_, Arc<AppState>>,
+) -> Result<crate::pairing::PairingStatus, String> {
+    Ok(state.pairing.get_status().await)
+}
+
+static PENDING_PAIRING_URI: parking_lot::Mutex<Option<String>> = parking_lot::Mutex::new(None);
+static GLOBAL_APP_HANDLE: parking_lot::Mutex<Option<AppHandle>> = parking_lot::Mutex::new(None);
+
+#[cfg(target_os = "android")]
+#[no_mangle]
+pub extern "C" fn Java_com_yajinni_paseousagebridge_MainActivity_setPendingPairingUri(
+    mut env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+    uri: jni::objects::JString,
+) {
+    if let Ok(uri_str) = env.get_string(&uri) {
+        let uri_val = uri_str.to_string_lossy().into_owned();
+        *PENDING_PAIRING_URI.lock() = Some(uri_val.clone());
+        if let Some(app) = GLOBAL_APP_HANDLE.lock().as_ref() {
+            use tauri::Emitter;
+            let _ = app.emit("pairing-uri-received", uri_val);
+        }
+    }
+}
+
+#[tauri::command]
+async fn get_pending_pairing_uri() -> Result<Option<String>, String> {
+    Ok(PENDING_PAIRING_URI.lock().take())
+}
+
 #[allow(dead_code)]
 fn is_newer_version(candidate: &str, current: &str) -> bool {
     let parse = |v: &str| -> Vec<u64> {
@@ -905,6 +1002,7 @@ pub fn run() {
             let state = Arc::new(AppState::new(data_dir, token).map_err(std::io::Error::other)?);
             migrate_google_ai_studio_accounts(state.as_ref());
             state.set_app_handle(app.handle().clone());
+            *GLOBAL_APP_HANDLE.lock() = Some(app.handle().clone());
             app.manage(state.clone());
             tauri::async_runtime::spawn(bridge_api::run_controller(state.clone()));
             tauri::async_runtime::spawn(run_account_refresh_loop(state.clone()));
@@ -977,6 +1075,16 @@ pub fn run() {
             regenerate_bridge_token,
             check_for_app_update,
             install_app_update,
+            pairing_start_host,
+            pairing_start_receiver,
+            pairing_start_client,
+            pairing_start_client_by_code,
+            pairing_start_sender,
+            pairing_select_role,
+            pairing_confirm_sas,
+            pairing_cancel,
+            pairing_status,
+            get_pending_pairing_uri,
         ])
         .build(tauri::generate_context!())
         .expect("error while building AI Usage Tracker")

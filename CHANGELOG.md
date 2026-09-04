@@ -2,7 +2,50 @@
 
 ## Unreleased
 
-_No unreleased user-facing changes yet._
+### Added
+
+- Added secure, direct device-to-device credential transfer ("Link Devices") over local Wi-Fi, allowing you to synchronize your AI provider accounts and groups to another device without re-entering tokens or passwords. Pairing supports symmetric role selection ("Send accounts from this device" or "Receive accounts on this device") so either device can initiate. The sharing device shows a QR code and a 6-digit local-network join code; the joining device can scan the QR code or type the code. Security uses end-to-end authenticated encryption with visual fingerprint/SAS verification. The long pairing-link paste field has been removed.
+
+### Improved
+
+- The sidebar resize-handle tooltip now uses the same dark in-app tooltip as the account card trash, notification, and refresh buttons.
+- Clickable controls now consistently use a pointing-hand cursor. The open-hand cursor is reserved for surfaces you can drag to reorder.
+- The account card refresh button tooltip no longer repeats the last-updated time already shown on the card.
+- Renamed device pairing action and modal title to "Link Devices" in Settings.
+- Refined the Device Transfer setting description to "Sync accounts & credentials across devices securely over local Wi-Fi." and the Link Devices dialog subtitle to "Transfer accounts & credentials securely over Wi-Fi."
+- Standardized modal header spacing and hierarchy across all dialogs (Link Devices, Edit Group, Account Alerts, and Add Account) so the vertical gap between the purple kicker and white heading is uniformly aligned.
+- Redesigned the application icon to "Neural Orbit", featuring concentric telemetry quota rings and a central luminous AI spark on a modern dark squircle canvas across macOS, Windows, and Android.
+- Enabled the grab hand cursor when hovering over account cards in the desktop dashboard, keeping pointer cursors on buttons and inputs.
+- Fixed tooltips on action buttons (trash, notifications, refresh) being hidden behind adjacent cards when a card is collapsed; tooltips now always render above all other elements.
+- Added a tooltip on the provider icon button in the dashboard showing "Click to expand card" or "Click to shrink card" to indicate the card can be collapsed or expanded.
+- When quota reset countdowns are under 1 minute, the remaining time now steps down through 45s, 30s, 15s, and 5s instead of staying fixed at 1m.
+- Configured application windows, Android launch themes, and the root document shell with a black background to eliminate the initial white flash during startup.
+- In Link Devices, clicking "Confirm Transfer" during verification code confirmation now immediately shows a waiting spinner and status note ("Confirmed on this device. Waiting for the other device to confirm...") with the button disabled while waiting for the other device.
+- In Link Devices, entering the 6-digit join code no longer auto-connects immediately upon typing the sixth digit, waiting until you click the "Connect to Device" button.
+- Balanced the desktop sidebar "Check for Updates" button spacing so the gap below it matches the gap to its left and right.
+- Redesigned the Link Devices dialog for maximum space efficiency and visual clarity by renaming "Join Code" to "Link Code" across the linking flow, adding clear instructions to enter the link code or scan the QR code from the other device, styling the "Back to My QR" button with a red background positioned consistently as the first button on the left across sub-views, removing the redundant "Copy Link" row, converting the code display into a clean static card without the unnecessary click-to-copy pill, combining session fingerprint and expiration countdown into a compact horizontal metadata row, balancing the Scan QR and Enter Code action buttons into a sleek two-button grid, optimizing QR code and camera scanner dimensions, and removing duplicate Cancel and Close buttons across all pairing steps.
+- Positioned Device Transfer as its own dedicated section card in Settings, placed directly above the Start at login / device boot section.
+- In the Link Devices code entry screen, styled the end-to-end encryption badge with a green shield icon, optimized horizontal spacing and font sizing so the security note fits on a single line without wrapping on mobile screens, flattened internal container nesting, reset conflicting inherited paragraph margins, and calibrated all vertical gaps between consecutive elements to a uniform 24px.
+- Desktop development builds now store credentials using private user-only file storage, eliminating macOS Keychain password prompts during `tauri dev`.
+
+### Fixed
+
+- Fixed camera QR code scanning across Windows laptops, macOS desktops (such as Mac mini with USB webcams), and MacBooks by declaring macOS `NSCameraUsageDescription` and `Entitlements.plist` permissions, configuring device constraint adaptation (`facingMode: "user"` on laptops/desktops vs. `"environment"` on mobile), adding natural mirrored preview on front-facing webcams, serving dev through a secure `localhost` origin, adding graceful fallback constraints for external USB webcams and built-in cameras, and integrating cross-platform dual-inversion QR decoding via `jsQR` for platforms where native `BarcodeDetector` is unsupported in WebKit or Windows WebView2.
+- Fixed buttons in Link Devices (such as "Back to My QR" and the "×" close button) requiring a double tap/click on touch screens and mobile WebViews by guarding CSS `:hover` states with pointer media queries, setting immediate touch-action manipulation, managing view focus transitions, and preventing DOM recreation conflicts.
+- Fixed the top-right "×" modal close button being unresponsive in certain Link Devices views (camera scanner, manual code entry, and completed screen) by providing explicit modal close triggers and resolving close targets across all dialog sub-views.
+- Fixed the Next Reset countdown on the dashboard intermittently flickering back and forth between "4h 59m" and "5h 0m" by ensuring current timestamps during render cycles, capping rolling-window countdowns to window boundaries, and omitting synthetic reset timers for accounts with unused quota.
+- Fixed custom bucket groups and group-assigned provider accounts failing to transfer during device linking by properly mapping remote account IDs to local receiver IDs, upserting groups without duplicates, and automatically reloading the dashboard upon transfer completion.
+- In desktop development mode, fixed accounts skipping export during device linking if their credentials were stored in macOS Keychain prior to private file storage.
+- Fixed device linking failing when pairing with devices that have multiple network interfaces or VPNs (such as Tailscale) by directly discovering the local Wi-Fi subnet and prioritizing private LAN IPv4 addresses over VPN or loopback interfaces.
+- Fixed scanning a device-link QR code with an external camera or QR scanner on Android opening the app without launching the pairing flow; the app now immediately opens Link Devices and connects as a client.
+
+- Fixed Link Devices getting stuck on "Starting pairing session..." on Android caused by an uninitialized `ndk-context` panic when checking for pending pairing intents.
+- Link Devices on Android now shows the join code, QR code, and copy-link row instead of hanging on local-network advertisement before the pairing screen can render.
+- Choosing Send or Receive during device linking now continues to verification instead of appearing to do nothing after a short wait.
+- The session fingerprint on mobile Link Devices is labeled Session, matching desktop.
+- Reset countdowns under 24 hours now show hours and minutes (for example 1h 3m) instead of rounding up to the next whole hour.
+- Dragging a dashboard card now keeps a grabbing-hand cursor everywhere — including over buttons, links, and empty space — until the card is dropped.
+- The provider icon tooltip on dashboard cards now sits fully below the pointing-hand cursor so the label is not covered.
 
 ## 0.3.5 - 2026-09-03
 

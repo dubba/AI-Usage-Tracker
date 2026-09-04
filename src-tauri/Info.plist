@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>AI Usage Tracker uses the local network to pair devices and transfer accounts.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_aiut-pair._tcp</string>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>AI Usage Tracker requires camera access to scan device linking QR codes.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>AI Usage Tracker requires microphone access if requested by media devices.</string>
+</dict>
+</plist>

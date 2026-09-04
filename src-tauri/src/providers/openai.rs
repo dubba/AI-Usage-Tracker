@@ -234,6 +234,7 @@ fn normalize_window(id: &str, label: &str, raw: &RawWindow) -> UsageWindow {
         raw.reset_after_seconds
             .as_ref()
             .and_then(value_as_i64)
+            .filter(|_| used.unwrap_or(0.0) > 0.0)
             .map(|seconds| Utc::now().timestamp() + seconds)
     });
     let resets_at = reset_at_seconds
@@ -269,3 +270,40 @@ fn value_as_u64(value: &Value) -> Option<u64> {
         .or_else(|| value.as_i64().and_then(|value| u64::try_from(value).ok()))
         .or_else(|| value.as_str()?.parse().ok())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn normalize_window_skips_synthetic_resets_at_when_quota_unused() {
+        let raw: RawWindow = serde_json::from_value(json!({
+            "used_percent": 0.0,
+            "reset_after_seconds": 18000,
+            "limit_window_seconds": 18000
+        }))
+        .unwrap();
+
+        let window = normalize_window("session", "Session", &raw);
+        assert_eq!(window.used_percent, Some(0.0));
+        assert_eq!(window.remaining_percent, Some(100.0));
+        assert!(window.resets_at.is_none());
+    }
+
+    #[test]
+    fn normalize_window_synthesizes_resets_at_when_quota_used() {
+        let raw: RawWindow = serde_json::from_value(json!({
+            "used_percent": 15.0,
+            "reset_after_seconds": 18000,
+            "limit_window_seconds": 18000
+        }))
+        .unwrap();
+
+        let window = normalize_window("session", "Session", &raw);
+        assert_eq!(window.used_percent, Some(15.0));
+        assert_eq!(window.remaining_percent, Some(85.0));
+        assert!(window.resets_at.is_some());
+    }
+}
+

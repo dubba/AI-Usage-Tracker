@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
+import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { bridgeApi } from "./api";
+import { bridgeApi, pairingApi } from "./api";
 import { resumeLoginAttemptWatch, subscribeLoginStatus } from "./login-status";
 import { AccountAlertModal } from "./components/AccountAlertModal";
 import { RemoveAccountModal } from "./components/RemoveAccountModal";
@@ -9,7 +10,9 @@ import { AddAccountModal } from "./components/AddAccountModal";
 import { BucketModal } from "./components/BucketModal";
 import { CustomDropdown } from "./components/CustomDropdown";
 import { GoogleAiStudioUsageModal } from "./components/GoogleAiStudioUsageModal";
+import { PairingModal } from "./components/PairingModal";
 import { ProviderIcon } from "./components/ProviderIcon";
+import "./pairing.css";
 import {
   DASHBOARD_GROUP_ORDER_EVENT,
   DASHBOARD_PROVIDER_ORDER_EVENT,
@@ -74,7 +77,7 @@ const SIDEBAR_UPDATE_FEEDBACK_MS = 3_000;
 const ACCOUNT_REFRESH_OPTIONS = [5, 10, 15, 30, 45, 60] as const;
 const SIDEBAR_WINDOW_KEY = "ai-subscription-tracker:provider-average-window";
 const ALL_ACCOUNTS_GROUP_ID = "all";
-const RELATIVE_TIME_TICK_MS = 30 * 1000;
+const RELATIVE_TIME_TICK_MS = 1000;
 const CHANGELOG_URL = "https://github.com/dubba/AI-Usage-Tracker/blob/main/CHANGELOG.md";
 
 function providerName(provider: Provider): string {
@@ -191,14 +194,20 @@ function groupAverage(accounts: Account[], target: SidebarWindow): number | null
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
-function nextResetSummary(accounts: Account[]): NextResetSummary {
-  const now = Date.now();
+function nextResetSummary(accounts: Account[], now: number = Date.now()): NextResetSummary {
+  const currentNow = Math.max(now, Date.now());
   const candidates = accounts.flatMap((account) =>
     (account.lastUsage?.windows ?? []).flatMap((window) => {
       if (!window.resetsAt) return [];
+      if (window.usedPercent === 0 || window.remainingPercent === 100) return [];
       const resetAt = new Date(window.resetsAt).getTime();
-      if (!Number.isFinite(resetAt) || resetAt <= now) return [];
-      return [{ resetAt, account: displayAccountLabel(account), resetsAt: window.resetsAt }];
+      if (!Number.isFinite(resetAt) || resetAt <= currentNow) return [];
+      return [{
+        resetAt,
+        account: displayAccountLabel(account),
+        resetsAt: window.resetsAt,
+        windowSeconds: window.windowSeconds,
+      }];
     }),
   );
 
@@ -208,25 +217,38 @@ function nextResetSummary(accounts: Account[]): NextResetSummary {
 
   candidates.sort((left, right) => left.resetAt - right.resetAt);
   const next = candidates[0];
+  let remainingMs = next.resetAt - currentNow;
+  if (next.windowSeconds && remainingMs >= next.windowSeconds * 1000) {
+    remainingMs = next.windowSeconds * 1000 - 1;
+  }
   return {
     account: next.account,
-    value: formatRemainingDuration(next.resetAt - now) ?? "—",
+    value: formatRemainingDuration(remainingMs) ?? "—",
     resetsAt: next.resetsAt,
   };
 }
 
-function formatHoursAndDays(totalHours: number): string {
-  if (totalHours < 24) return `${totalHours}h`;
-  const days = Math.floor(totalHours / 24);
-  const hours = totalHours % 24;
-  return hours === 0 ? `${days}d` : `${days}d ${hours}h`;
-}
-
 function formatRemainingDuration(remainingMs: number): string | null {
   if (!Number.isFinite(remainingMs) || remainingMs <= 0) return null;
-  const remainingMinutes = Math.max(1, Math.ceil(remainingMs / 60_000));
-  if (remainingMinutes < 60) return `${remainingMinutes}m`;
-  return formatHoursAndDays(Math.max(1, Math.ceil(remainingMs / 3_600_000)));
+  const totalMinutes = Math.floor(remainingMs / 60_000);
+  if (totalMinutes === 0) {
+    const totalSeconds = Math.max(1, Math.floor(remainingMs / 1000));
+    if (totalSeconds >= 45) return "45s";
+    if (totalSeconds >= 30) return "30s";
+    if (totalSeconds >= 15) return "15s";
+    return "5s";
+  }
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days > 0) {
+    return hours === 0 ? `${days}d` : `${days}d ${hours}h`;
+  }
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+  return `${minutes}m`;
 }
 
 function accountAutoRefreshEligible(account: Account): boolean {
@@ -324,11 +346,20 @@ function windowLength(window: UsageWindow): string | null {
   return `${hours}h window`;
 }
 
-function resetCountdownLabel(value: string | null | undefined): string | null {
+function resetCountdownLabel(
+  value: string | null | undefined,
+  now: number = Date.now(),
+  windowSeconds?: number | null,
+): string | null {
   if (!value) return null;
   const resetAt = new Date(value).getTime();
   if (!Number.isFinite(resetAt)) return null;
-  const remaining = formatRemainingDuration(resetAt - Date.now());
+  const currentNow = Math.max(now, Date.now());
+  let remainingMs = resetAt - currentNow;
+  if (windowSeconds && remainingMs >= windowSeconds * 1000) {
+    remainingMs = windowSeconds * 1000 - 1;
+  }
+  const remaining = formatRemainingDuration(remainingMs);
   return remaining ? `Resets in: ${remaining}` : null;
 }
 
@@ -430,6 +461,8 @@ export default function App() {
   const [alertAccount, setAlertAccount] = useState<Account | null>(null);
   const [accountToRemove, setAccountToRemove] = useState<Account | null>(null);
   const [googleUsageAccount, setGoogleUsageAccount] = useState<Account | null>(null);
+  const [pairingOpen, setPairingOpen] = useState(false);
+  const [pairingInitialUri, setPairingInitialUri] = useState<string | null>(null);
   const addOpenRef = useRef(addOpen);
   const googleUsageAccountRef = useRef(googleUsageAccount);
   addOpenRef.current = addOpen;
@@ -734,6 +767,36 @@ export default function App() {
     return () => window.clearInterval(tick);
   }, []);
 
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+
+    const checkPending = async () => {
+      try {
+        const uri = await pairingApi.getPendingPairingUri();
+        if (uri && (uri.startsWith("aiusage-pair:") || uri.startsWith("aiusage:"))) {
+          setPairingInitialUri(uri);
+          setPairingOpen(true);
+        }
+      } catch {}
+    };
+
+    void checkPending();
+
+    void listen<string>("pairing-uri-received", (event) => {
+      const uri = event.payload;
+      if (uri && (uri.startsWith("aiusage-pair:") || uri.startsWith("aiusage:"))) {
+        setPairingInitialUri(uri);
+        setPairingOpen(true);
+      }
+    }).then((fn) => {
+      unlisten = fn;
+    }).catch(() => {});
+
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
+
   const accounts = snapshot?.accounts ?? [];
   const buckets = snapshot?.buckets ?? [];
 
@@ -810,7 +873,7 @@ export default function App() {
 
   const visibleAccounts = selectedGroup.accounts;
   const needsAttention = visibleAccounts.filter(accountNeedsAttention).length;
-  const nextReset = nextResetSummary(visibleAccounts);
+  const nextReset = nextResetSummary(visibleAccounts, nowMs);
 
   const refreshOne = async (id: string) => {
     if (busy === `refresh:${id}` || busy === "refresh-all") return;
@@ -913,6 +976,7 @@ export default function App() {
           onCheckForUpdate={() => void checkForUpdate(true)}
           onInstallUpdate={() => void installUpdate()}
           onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+          onOpenPairing={() => setPairingOpen(true)}
         />
       );
     }
@@ -1132,6 +1196,18 @@ export default function App() {
         onClose={() => setAccountToRemove(null)}
         onConfirm={() => {
           if (accountToRemove) void remove(accountToRemove);
+        }}
+      />
+      <PairingModal
+        open={pairingOpen}
+        initialJoinUri={pairingInitialUri}
+        onClose={() => {
+          setPairingOpen(false);
+          setPairingInitialUri(null);
+        }}
+        onCompleted={async () => {
+          await load();
+          await refreshAll();
         }}
       />
     </div>
@@ -1606,8 +1682,8 @@ function AccountDashboardCard({
             <button
               type="button"
               className={`account-card-action refresh-action ${isRefreshing ? "spinning" : ""}`}
-              data-tooltip={`Refresh this account · ${updatedAtLabel}`}
-              aria-label={`Refresh ${account.label}. ${updatedAtLabel}`}
+              data-tooltip="Refresh this account"
+              aria-label={`Refresh ${account.label}`}
               disabled={cardBusy || isGlobalRefresh}
               onClick={onRefresh}
             ><RefreshIcon /></button>
@@ -1630,6 +1706,7 @@ function AccountDashboardCard({
               <AccountUsageMetric
                 key={window.id}
                 window={window}
+                nowMs={nowMs}
                 unavailableLabel={googleUnavailableLabel}
                 creditLabel={index === 0 ? creditLabel : null}
               />
@@ -1653,17 +1730,19 @@ function AccountDashboardCard({
 
 function AccountUsageMetric({
   window,
+  nowMs,
   unavailableLabel = "Unavailable",
   creditLabel = null,
 }: {
   window: UsageWindow;
+  nowMs?: number;
   unavailableLabel?: string;
   creditLabel?: string | null;
 }) {
   const remaining = window.remainingPercent;
   const width = remaining == null ? 0 : Math.min(100, Math.max(0, remaining));
   const tone = usageTone(remaining);
-  const countdown = resetCountdownLabel(window.resetsAt);
+  const countdown = resetCountdownLabel(window.resetsAt, nowMs, window.windowSeconds);
   return (
     <div className="account-usage-metric">
       <div className="metric-heading">
@@ -1780,6 +1859,7 @@ function SettingsView({
   onCheckForUpdate,
   onInstallUpdate,
   onToggleSidebar,
+  onOpenPairing,
 }: {
   autostart: boolean;
   onToggleAutostart: () => void;
@@ -1796,6 +1876,7 @@ function SettingsView({
   onCheckForUpdate: () => void;
   onInstallUpdate: () => void;
   onToggleSidebar?: () => void;
+  onOpenPairing?: () => void;
 }) {
   const automaticUpdates = appSettings?.automaticUpdatesEnabled ?? true;
   return (
@@ -1819,6 +1900,21 @@ function SettingsView({
           <p>Control how AI Usage Tracker app behaves.</p>
         </div>
       </header>
+      <section className="settings-card">
+        <div className="settings-row">
+          <div>
+            <strong>Device Transfer</strong>
+            <small>Sync accounts & credentials across devices securely over local Wi-Fi.</small>
+          </div>
+          <button
+            type="button"
+            className="button ghost"
+            onClick={onOpenPairing}
+          >
+            Link Devices
+          </button>
+        </div>
+      </section>
       <section className="settings-card">
         <div className="settings-row">
           <div>

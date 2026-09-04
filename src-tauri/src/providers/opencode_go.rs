@@ -260,12 +260,17 @@ fn normalize_window(
 ) -> UsageWindow {
     let used = raw.usage_percent.clamp(0.0, 100.0);
     let reset_in_seconds = raw.reset_in_seconds.max(0.0).round() as i64;
+    let resets_at = if used > 0.0 && reset_in_seconds > 0 {
+        Some((Utc::now() + Duration::seconds(reset_in_seconds)).to_rfc3339())
+    } else {
+        None
+    };
     UsageWindow {
         id: id.into(),
         label: label.into(),
         used_percent: Some(used),
         remaining_percent: Some((100.0 - used).max(0.0)),
-        resets_at: Some((Utc::now() + Duration::seconds(reset_in_seconds)).to_rfc3339()),
+        resets_at,
         window_seconds,
     }
 }
@@ -307,5 +312,27 @@ mod tests {
         assert!(!is_valid_workspace_id("foo#bar"));
         assert!(!is_valid_workspace_id("foo bar"));
         assert!(!is_valid_workspace_id(&"a".repeat(161)));
+    }
+
+    #[test]
+    fn normalize_window_skips_resets_at_when_unused() {
+        let raw = ParsedWindow {
+            usage_percent: 0.0,
+            reset_in_seconds: 1800.0,
+        };
+        let window = normalize_window("rolling", "Rolling", raw, Some(1800));
+        assert_eq!(window.used_percent, Some(0.0));
+        assert!(window.resets_at.is_none());
+    }
+
+    #[test]
+    fn normalize_window_synthesizes_resets_at_when_used() {
+        let raw = ParsedWindow {
+            usage_percent: 25.0,
+            reset_in_seconds: 1800.0,
+        };
+        let window = normalize_window("rolling", "Rolling", raw, Some(1800));
+        assert_eq!(window.used_percent, Some(25.0));
+        assert!(window.resets_at.is_some());
     }
 }

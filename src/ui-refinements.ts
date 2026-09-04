@@ -65,14 +65,29 @@ function refineAccountCard(card: HTMLElement): void {
 }
 
 function modalCancelButton(modal: HTMLElement): HTMLButtonElement | null {
-  return Array.from(modal.querySelectorAll<HTMLButtonElement>(".modal-actions button"))
+  const explicit = modal.querySelector<HTMLButtonElement>("button[data-modal-close], button[data-modal-cancel]");
+  if (explicit) return explicit;
+
+  const actionsButton = Array.from(modal.querySelectorAll<HTMLButtonElement>(".modal-actions button"))
     .find((button) => {
       const label = button.textContent?.trim().toLowerCase();
-      return label === "cancel" || label === "close";
+      return label === "cancel" || label === "close" || label === "done";
+    });
+  if (actionsButton) return actionsButton;
+
+  return Array.from(modal.querySelectorAll<HTMLButtonElement>("button"))
+    .find((button) => {
+      if (button.classList.contains("ui-modal-close")) return false;
+      const label = button.textContent?.trim().toLowerCase();
+      return label === "cancel" || label === "close" || label === "done";
     }) ?? null;
 }
 
 function refineModalCloseButton(modal: HTMLElement): void {
+  if (modal.querySelector<HTMLButtonElement>(":scope > .ui-modal-close[data-react-close]")) {
+    return;
+  }
+
   let close = modal.querySelector<HTMLButtonElement>(":scope > .ui-modal-close");
   if (!close) {
     close = document.createElement("button");
@@ -84,9 +99,13 @@ function refineModalCloseButton(modal: HTMLElement): void {
     modal.prepend(close);
   }
 
-  close.disabled = false;
+  const cancel = modalCancelButton(modal);
+  close.disabled = cancel ? cancel.disabled : false;
   close.onclick = () => {
-    modalCancelButton(modal)?.click();
+    const target = modalCancelButton(modal);
+    if (target && !target.disabled) {
+      target.click();
+    }
   };
 }
 

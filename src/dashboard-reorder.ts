@@ -497,6 +497,8 @@ function beginVisualDrag(clientX: number, clientY: number, candidate: PointerCan
   descriptor.source.style.setProperty("max-width", `${bounds.width}px`, "important");
   descriptor.source.style.setProperty("height", `${bounds.height}px`, "important");
   document.documentElement.classList.add("dashboard-reordering");
+  document.documentElement.style.setProperty("cursor", "grabbing", "important");
+  document.body.style.setProperty("cursor", "grabbing", "important");
   try {
     descriptor.source.setPointerCapture(candidate.pointerId);
   } catch {
@@ -549,6 +551,8 @@ function settleVisualDrag(drag: ActiveDrag, commit: boolean): void {
     // The pointer may already have been released by the WebView.
   }
   document.documentElement.classList.remove("dashboard-reordering");
+  document.documentElement.style.removeProperty("cursor");
+  document.body.style.removeProperty("cursor");
 }
 
 function committedOrder(drag: ActiveDrag): string[] {

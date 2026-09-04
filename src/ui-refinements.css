@@ -163,7 +163,8 @@
 }
 
 .account-card-action,
-.account-name-edit {
+.account-name-edit,
+.account-card-provider-icon {
   position: relative;
   overflow: visible;
   z-index: 2;
@@ -172,12 +173,26 @@
 .account-card-action:hover,
 .account-card-action:focus-visible,
 .account-name-edit:hover,
-.account-name-edit:focus-visible {
+.account-name-edit:focus-visible,
+.account-card-provider-icon:hover,
+.account-card-provider-icon:focus-visible {
   z-index: 9;
 }
 
+/* Raise the entire card above siblings so tooltips aren't clipped by adjacent cards */
+.provider-account-card:has(.account-card-action:hover),
+.provider-account-card:has(.account-card-action:focus-visible),
+.provider-account-card:has(.account-name-edit:hover),
+.provider-account-card:has(.account-name-edit:focus-visible),
+.provider-account-card:has(.account-card-provider-icon:hover),
+.provider-account-card:has(.account-card-provider-icon:focus-visible) {
+  z-index: 50;
+}
+
 .account-card-action[data-tooltip]::after,
-.account-name-edit[data-tooltip]::after {
+.account-name-edit[data-tooltip]::after,
+.account-card-provider-icon[data-tooltip]::after,
+.sidebar-resize-grip[data-tooltip]::after {
   content: attr(data-tooltip);
   position: absolute;
   left: 50%;
@@ -201,20 +216,37 @@
 .account-card-action[data-tooltip]:hover::after,
 .account-card-action[data-tooltip]:focus-visible::after,
 .account-name-edit[data-tooltip]:hover::after,
-.account-name-edit[data-tooltip]:focus-visible::after {
+.account-name-edit[data-tooltip]:focus-visible::after,
+.account-card-provider-icon[data-tooltip]:hover::after,
+.account-card-provider-icon[data-tooltip]:focus-visible::after,
+.sidebar-resize-grip[data-tooltip]:hover::after,
+.sidebar-resize-handle:focus-visible .sidebar-resize-grip[data-tooltip]::after {
   opacity: 1;
 }
 
-.account-card-name-actions .account-card-action[data-tooltip]::after {
+.account-card-name-actions .account-card-action[data-tooltip]::after,
+.sidebar-resize-grip[data-tooltip]::after {
   left: auto;
   right: 0;
   transform: none;
+}
+
+.sidebar-resize-handle.dragging .sidebar-resize-grip[data-tooltip]::after {
+  opacity: 0;
 }
 
 .account-name-edit[data-tooltip]::after {
   left: 0;
   right: auto;
   transform: none;
+}
+
+/* Provider icon tooltip: below the icon, clear of the pointing-hand cursor */
+.account-card-provider-icon[data-tooltip]::after {
+  left: 0;
+  right: auto;
+  transform: none;
+  top: calc(100% + 24px);
 }
 
 .account-usage-metric {
@@ -313,15 +345,6 @@
   display: none !important;
 }
 
-.notification-only-modal .modal-kicker {
-  display: block;
-  margin-bottom: 14px;
-  transform: translateY(-4px);
-}
-
-.notification-only-modal .alert-settings-heading {
-  margin-top: 0;
-}
 
 .opencode-email-note {
   margin-top: 8px;
@@ -382,12 +405,15 @@
   flex-shrink: 0;
 }
 
-.provider-summary-row[draggable="true"],
-.provider-account-card[draggable="true"] {
+.provider-summary-row[data-reorder-enabled="true"],
+.provider-account-card {
   cursor: grab;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
 }
 
+.provider-account-card:active,
 .provider-summary-row.is-dragging,
 .provider-account-card.is-dragging {
   opacity: 0.45;
@@ -404,12 +430,14 @@
   box-shadow: 0 3px 0 var(--obsidian-purple-strong, #a078ff) !important;
 }
 
-.provider-account-card button,
-.provider-account-card input,
-.provider-account-card select,
-.provider-account-card textarea,
-.provider-account-card a {
-  user-select: auto;
+html:not(.dashboard-reordering) .provider-account-card .account-card-action:disabled,
+html:not(.dashboard-reordering) .provider-account-card button:disabled {
+  cursor: not-allowed !important;
+}
+
+html:not(.dashboard-reordering) .provider-account-card input.account-card-name-input {
+  cursor: text !important;
+  user-select: text !important;
 }
 
 

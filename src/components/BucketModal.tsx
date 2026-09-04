@@ -142,11 +142,9 @@ export function BucketModal({
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !busy && onClose()}>
       <section ref={dialogRef} className="modal-card bucket-modal-card" role="dialog" aria-modal="true" aria-labelledby="bucket-modal-title" tabIndex={-1}>
-        <header className="modal-card-header">
-          <div className="modal-kicker">Account Grouping</div>
-          <h2 id="bucket-modal-title">{bucket ? "Edit Group" : "Create Group"}</h2>
-          <p>Group accounts together in the sidebar to track their combined usage and limits. Groups can be empty.</p>
-        </header>
+        <div className="modal-kicker">Account Grouping</div>
+        <h2 id="bucket-modal-title">{bucket ? "Edit Group" : "Create Group"}</h2>
+        <p>Group accounts together in the sidebar to track their combined usage and limits. Groups can be empty.</p>
 
         <form onSubmit={handleSave} className="bucket-modal-form">
           <label className="field-group">

@@ -105,3 +105,85 @@ export interface AppUpdateStatus {
   /** Set when the backend check failed. `available` is always false in that case. */
   error: string | null;
 }
+
+export interface SyncSummary {
+  added: number;
+  updated: number;
+  skipped: number;
+}
+
+export interface PairingHostInit {
+  sessionId: string;
+  qrSvg: string;
+  qrUri: string;
+  fingerprint: string;
+  joinCode: string;
+  expiresAt: number;
+}
+
+export type PairingReceiverInit = PairingHostInit;
+
+export type PairingStatus =
+  | { status: "idle" }
+  | {
+      status: "hostWaiting" | "receiverWaiting";
+      data: {
+        sessionId: string;
+        qrSvg: string;
+        qrUri: string;
+        fingerprint: string;
+        joinCode: string;
+        expiresAt: number;
+      };
+    }
+  | {
+      status: "clientConnecting" | "senderConnecting";
+      data: {
+        sessionId: string;
+      };
+    }
+  | {
+      status: "peerConnected";
+      data: {
+        sessionId: string;
+        fingerprint: string;
+        sasCode: string;
+      };
+    }
+  | {
+      status: "roleSelection";
+      data: {
+        sessionId: string;
+        fingerprint: string;
+        sasCode: string;
+      };
+    }
+  | {
+      status: "sasVerification";
+      data: {
+        sessionId: string;
+        sasCode: string;
+        fingerprint: string;
+        role: "receiver" | "sender";
+        accountCount?: number;
+      };
+    }
+  | {
+      status: "transferring";
+      data: {
+        sessionId: string;
+      };
+    }
+  | {
+      status: "completed";
+      data: {
+        summary: SyncSummary;
+      };
+    }
+  | {
+      status: "failed";
+      data: {
+        error: string;
+      };
+    };
+

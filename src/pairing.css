@@ -1,0 +1,775 @@
+/* Pairing Modal Styles */
+.pairing-modal {
+  max-width: 440px;
+  width: 100%;
+}
+
+.pairing-modal button,
+.pairing-modal .button,
+.pairing-modal input {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pairing-subtitle,
+.modal-card.pairing-modal .pairing-subtitle,
+.modal-card.pairing-modal p.pairing-subtitle {
+  margin: 0 0 14px 0 !important;
+  font-size: 0.85rem !important;
+  line-height: 1.4 !important;
+  color: var(--obsidian-muted, #958ea0) !important;
+}
+
+.modal-card.pairing-modal.view-code-entry .pairing-subtitle,
+.modal-card.pairing-modal.view-code-entry p.pairing-subtitle,
+.modal-card.pairing-modal:has(.pairing-code-entry-view) .pairing-subtitle,
+.modal-card.pairing-modal:has(.pairing-code-entry-view) p.pairing-subtitle {
+  margin: 0 0 24px 0 !important;
+}
+
+.pairing-body {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Host Screen: QR + Link Code */
+.pairing-host-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.pairing-host-content .pairing-instruction {
+  max-width: 320px;
+  font-size: 0.84rem;
+  color: var(--obsidian-text, #e5e2e1);
+  margin: 0 0 2px;
+}
+
+.pairing-join-code-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  max-width: 320px;
+  padding: 8px 14px;
+  border: 1px solid rgba(160, 120, 255, 0.28);
+  border-radius: 12px;
+  background: rgba(160, 120, 255, 0.08);
+  color: inherit;
+  user-select: text;
+}
+
+.pairing-join-code-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--obsidian-purple, #d0bcff);
+}
+
+.pairing-join-code-val {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 1.95rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  line-height: 1.15;
+  color: #ffffff;
+}
+
+.pairing-qr-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  padding: 10px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+  margin: 2px 0 6px;
+}
+
+.pairing-qr-card svg {
+  display: block;
+  width: 165px;
+  height: 165px;
+}
+
+/* Horizontal Meta Row (Session & Expiration) */
+.pairing-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 2px 0 6px;
+}
+
+.pairing-meta-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  border-radius: 14px;
+  padding: 3px 10px;
+}
+
+.pairing-meta-tag.session {
+  background: rgba(160, 120, 255, 0.08);
+  border: 1px solid rgba(160, 120, 255, 0.22);
+  color: var(--obsidian-purple, #d0bcff);
+}
+
+.pairing-meta-tag.session strong {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing: 0.06em;
+  color: #ffffff;
+}
+
+.pairing-meta-tag.timer {
+  background: rgba(255, 184, 105, 0.08);
+  border: 1px solid rgba(255, 184, 105, 0.22);
+  color: var(--obsidian-amber, #ffb869);
+}
+
+/* Action Switcher (Scan QR / Enter Code) */
+.pairing-switch-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  max-width: 320px;
+  margin: 4px 0 6px;
+}
+
+.pairing-switch-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 7px 12px;
+  border-radius: 8px;
+}
+
+.pairing-switch-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.pairing-waiting-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.775rem;
+  color: var(--obsidian-muted, #958ea0);
+  margin-top: 2px;
+}
+
+/* Camera Scanner View */
+.pairing-scanner-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+}
+
+.pairing-scanner-box {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #000000;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  margin-bottom: 14px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.pairing-scanner-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.pairing-scanner-video.mirrored {
+  transform: scaleX(-1);
+}
+
+.pairing-scanner-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.pairing-scanner-frame {
+  position: relative;
+  width: 150px;
+  height: 150px;
+}
+
+.pairing-scanner-frame .corner {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-color: var(--obsidian-purple-strong, #a078ff);
+  border-style: solid;
+  border-width: 0;
+}
+
+.pairing-scanner-frame .corner.top-left {
+  top: 0;
+  left: 0;
+  border-top-width: 3px;
+  border-left-width: 3px;
+  border-top-left-radius: 4px;
+}
+
+.pairing-scanner-frame .corner.top-right {
+  top: 0;
+  right: 0;
+  border-top-width: 3px;
+  border-right-width: 3px;
+  border-top-right-radius: 4px;
+}
+
+.pairing-scanner-frame .corner.bottom-left {
+  bottom: 0;
+  left: 0;
+  border-bottom-width: 3px;
+  border-left-width: 3px;
+  border-bottom-left-radius: 4px;
+}
+
+.pairing-scanner-frame .corner.bottom-right {
+  bottom: 0;
+  right: 0;
+  border-bottom-width: 3px;
+  border-right-width: 3px;
+  border-bottom-right-radius: 4px;
+}
+
+.pairing-scan-beam {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--obsidian-purple, #d0bcff), #ffffff, var(--obsidian-purple, #d0bcff), transparent);
+  box-shadow: 0 0 8px rgba(160, 120, 255, 0.8);
+  animation: scanBeam 2.2s ease-in-out infinite alternate;
+}
+
+@keyframes scanBeam {
+  0% {
+    top: 4px;
+  }
+  100% {
+    top: 144px;
+  }
+}
+
+.pairing-scanner-controls {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.pairing-scanner-controls .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pairing-back-btn,
+.pairing-scanner-controls .button.pairing-back-btn {
+  background: #c53030 !important;
+  border-color: #a82828 !important;
+  color: #ffffff !important;
+  font-weight: 500;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pairing-back-btn:hover:not(:disabled),
+  .pairing-scanner-controls .button.pairing-back-btn:hover:not(:disabled) {
+    background: #dc2626 !important;
+    border-color: #b91c1c !important;
+    color: #ffffff !important;
+  }
+}
+
+.pairing-back-btn:active:not(:disabled),
+.pairing-scanner-controls .button.pairing-back-btn:active:not(:disabled) {
+  background: #991b1b !important;
+  border-color: #7f1d1d !important;
+}
+
+.pairing-scanner-controls .button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Code Entry View */
+.pairing-code-entry-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 24px !important;
+  width: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.modal-card.pairing-modal .pairing-code-entry-view > *,
+.pairing-code-entry-view > * {
+  margin: 0 !important;
+}
+
+.pairing-instruction,
+.modal-card.pairing-modal .pairing-instruction {
+  font-size: 0.85rem !important;
+  color: var(--obsidian-text, #e5e2e1) !important;
+  margin: 0 0 4px 0;
+  line-height: 1.4 !important;
+}
+
+.pairing-code-input {
+  width: 100%;
+  max-width: 280px;
+  background: var(--obsidian-surface-low, #1c1b1b);
+  border: 1px solid rgba(160, 120, 255, 0.35);
+  color: #ffffff;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 1.85rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-align: center;
+  padding: 10px 14px;
+  border-radius: 10px;
+  outline: none;
+  transition: all 0.18s ease;
+}
+
+.pairing-code-input:focus {
+  border-color: var(--obsidian-purple-strong, #a078ff);
+  box-shadow: 0 0 0 3px rgba(160, 120, 255, 0.2);
+}
+
+.pairing-code-help,
+.modal-card.pairing-modal .pairing-code-help {
+  font-size: 0.75rem !important;
+  line-height: 1.4 !important;
+  color: var(--obsidian-muted, #958ea0) !important;
+}
+
+.pairing-security-note {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.71rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  color: var(--obsidian-muted, #958ea0);
+  background: rgba(160, 120, 255, 0.06);
+  border: 1px solid rgba(160, 120, 255, 0.15);
+  border-radius: 8px;
+  padding: 6px 10px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 360px) {
+  .pairing-security-note {
+    font-size: 0.68rem;
+    padding: 5px 8px;
+    gap: 5px;
+  }
+}
+
+.pairing-security-note svg {
+  width: 14px;
+  height: 14px;
+  color: var(--obsidian-green, #4edea3);
+  flex-shrink: 0;
+}
+
+/* Role Selection View */
+.pairing-role-selection-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.pairing-section-heading h3 {
+  margin: 0 0 4px 0;
+  font-size: 1.1rem;
+  color: var(--obsidian-text, #e5e2e1);
+}
+
+.pairing-role-instruction {
+  margin: 0;
+  font-size: 0.825rem;
+  color: var(--obsidian-muted, #958ea0);
+}
+
+.pairing-fingerprint-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(160, 120, 255, 0.08);
+  border: 1px solid rgba(160, 120, 255, 0.25);
+  border-radius: 20px;
+  padding: 4px 14px;
+  font-size: 0.8rem;
+  color: var(--obsidian-purple, #d0bcff);
+}
+
+.pairing-fingerprint-badge strong {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing: 0.08em;
+  color: #ffffff;
+}
+
+.pairing-role-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.pairing-role-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--obsidian-surface-low, #1c1b1b);
+  border: 1px solid var(--obsidian-border, #2e2e2e);
+  border-radius: 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  color: var(--obsidian-text, #e5e2e1);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pairing-role-card:hover {
+    background: var(--obsidian-surface-container, #222124);
+    border-color: var(--obsidian-purple-strong, #a078ff);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  }
+
+  .pairing-role-card:hover .pairing-role-card-arrow {
+    transform: translateX(3px);
+    color: var(--obsidian-purple, #d0bcff);
+  }
+}
+
+.pairing-role-card:active {
+  transform: translateY(0);
+  background: var(--obsidian-surface-container, #222124);
+}
+
+.pairing-role-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+  flex-shrink: 0;
+}
+
+.pairing-role-card-icon.send {
+  background: rgba(160, 120, 255, 0.14);
+  color: var(--obsidian-purple, #d0bcff);
+}
+
+.pairing-role-card-icon.receive {
+  background: rgba(78, 222, 163, 0.14);
+  color: var(--obsidian-green, #4edea3);
+}
+
+.pairing-role-card-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.pairing-role-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.pairing-role-card-content h4 {
+  margin: 0 0 2px 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--obsidian-text, #e5e2e1);
+}
+
+.pairing-role-card-content p {
+  margin: 0;
+  font-size: 0.775rem;
+  color: var(--obsidian-muted, #958ea0);
+  line-height: 1.3;
+}
+
+.pairing-role-card-arrow {
+  display: flex;
+  align-items: center;
+  color: var(--obsidian-muted, #958ea0);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.pairing-role-card-arrow svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Status Panels */
+.pairing-panel-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 20px 12px;
+  gap: 10px;
+}
+
+.pairing-panel-status h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--obsidian-text, #e5e2e1);
+}
+
+.pairing-panel-status p {
+  margin: 0;
+  font-size: 0.825rem;
+  color: var(--obsidian-muted, #958ea0);
+  max-width: 320px;
+}
+
+/* SAS Verification Card */
+.pairing-sas-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 8px 4px;
+  gap: 10px;
+  width: 100%;
+}
+
+.pairing-sas-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(160, 120, 255, 0.15);
+  color: var(--obsidian-purple, #d0bcff);
+  box-shadow: 0 0 16px rgba(160, 120, 255, 0.25);
+}
+
+.pairing-sas-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.pairing-sas-card h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--obsidian-text, #e5e2e1);
+}
+
+.pairing-sas-instruction {
+  margin: 0;
+  font-size: 0.825rem;
+  color: var(--obsidian-muted, #958ea0);
+}
+
+.pairing-sas-badge {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 1.85rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  padding: 10px 22px;
+  background: rgba(160, 120, 255, 0.1);
+  border: 2px solid var(--obsidian-purple-strong, #a078ff);
+  border-radius: 10px;
+  color: #ffffff;
+  text-shadow: 0 0 14px rgba(160, 120, 255, 0.5);
+  margin: 2px 0;
+}
+
+.pairing-transfer-info {
+  font-size: 0.8rem;
+  padding: 5px 14px;
+  border-radius: 16px;
+  background: var(--obsidian-surface-low, #1c1b1b);
+  border: 1px solid var(--obsidian-border, #2e2e2e);
+  color: var(--obsidian-muted-bright, #cbc3d7);
+}
+
+.pairing-transfer-info strong {
+  color: var(--obsidian-purple, #d0bcff);
+}
+
+.pairing-sas-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.pairing-sas-waiting-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--obsidian-purple, #d0bcff);
+  background: rgba(160, 120, 255, 0.1);
+  border: 1px solid rgba(160, 120, 255, 0.3);
+  padding: 8px 14px;
+  border-radius: 8px;
+  margin-top: 6px;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+/* Completed Card */
+.pairing-completed-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 14px 8px 8px;
+  gap: 12px;
+  width: 100%;
+}
+
+.pairing-success-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(78, 222, 163, 0.15);
+  color: var(--obsidian-green, #4edea3);
+  box-shadow: 0 0 16px rgba(78, 222, 163, 0.25);
+}
+
+.pairing-success-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.pairing-completed-card h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--obsidian-text, #e5e2e1);
+}
+
+.pairing-summary-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.pairing-summary-chip {
+  font-size: 0.8rem;
+  padding: 4px 12px;
+  border-radius: 14px;
+  background: var(--obsidian-surface-low, #1c1b1b);
+  border: 1px solid var(--obsidian-border, #2e2e2e);
+  color: var(--obsidian-text, #e5e2e1);
+}
+
+.pairing-summary-chip.added strong {
+  color: var(--obsidian-green, #4edea3);
+}
+
+.pairing-summary-chip.updated strong {
+  color: var(--obsidian-purple, #d0bcff);
+}
+
+.pairing-summary-chip.skipped strong {
+  color: var(--obsidian-muted, #958ea0);
+}
+
+.pairing-completed-text {
+  font-size: 0.825rem;
+  color: var(--obsidian-muted, #958ea0);
+  margin: 0;
+  max-width: 320px;
+}
+
+.pairing-done-btn {
+  margin-top: 6px;
+  min-width: 130px;
+}
+
+/* Error Card */
+.pairing-error-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 14px 8px;
+  gap: 12px;
+  width: 100%;
+}
+
+.pairing-error-card h3 {
+  margin: 0;
+  color: var(--obsidian-red, #ff756b);
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 480px) {
+  .pairing-modal {
+    padding: 18px 14px 16px;
+  }
+  .pairing-join-code-val {
+    font-size: 1.75rem;
+  }
+  .pairing-qr-card svg {
+    width: 150px;
+    height: 150px;
+  }
+  .pairing-scanner-box {
+    width: 200px;
+    height: 200px;
+  }
+  .pairing-scanner-frame {
+    width: 140px;
+    height: 140px;
+  }
+}

@@ -102,6 +102,36 @@ impl BucketStore {
         Ok(bucket)
     }
 
+    pub fn upsert_imported(&self, incoming: AccountBucket) -> Result<(), String> {
+        let mut buckets = self.buckets.write();
+        let now = now_rfc3339();
+
+        let existing_index = buckets.iter().position(|b| {
+            b.id == incoming.id
+                || (b.name.trim().eq_ignore_ascii_case(incoming.name.trim())
+                    && b.provider == incoming.provider)
+        });
+
+        if let Some(index) = existing_index {
+            let existing = &mut buckets[index];
+            for id in incoming.account_ids {
+                if !existing.account_ids.contains(&id) {
+                    existing.account_ids.push(id);
+                }
+            }
+            existing.updated_at = now;
+        } else {
+            buckets.push(incoming);
+        }
+        drop(buckets);
+        self.persist()
+    }
+
+    #[allow(dead_code)]
+    pub fn insert_imported(&self, bucket: AccountBucket) -> Result<(), String> {
+        self.upsert_imported(bucket)
+    }
+
     pub fn delete(&self, id: &str) -> Result<(), String> {
         let mut buckets = self.buckets.write();
         let initial_len = buckets.len();
