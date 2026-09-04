@@ -1,5 +1,7 @@
 mod account_order;
 mod alerts;
+#[cfg(target_os = "android")]
+mod apk_install;
 mod bridge_api;
 mod buckets;
 mod fs_util;
@@ -38,6 +40,7 @@ use tauri::{
 };
 use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_notification::NotificationExt;
+use tauri_plugin_opener::OpenerExt;
 #[cfg(desktop)]
 use tauri_plugin_autostart::MacosLauncher;
 #[cfg(desktop)]
@@ -53,6 +56,9 @@ const SAVED_WINDOW_STATE: StateFlags = StateFlags::from_bits_truncate(
         | StateFlags::FULLSCREEN.bits(),
 );
 const API_INTEGRATION_WINDOW_LABEL: &str = "api-integration";
+const GITHUB_LATEST_RELEASE_URL: &str =
+    "https://api.github.com/repos/dubba/AI-Usage-Tracker/releases/latest";
+const GITHUB_RELEASES_PAGE_URL: &str = "https://github.com/dubba/AI-Usage-Tracker/releases/latest";
 
 #[tauri::command]
 async fn get_dashboard_snapshot(
@@ -510,17 +516,168 @@ fn is_newer_version(candidate: &str, current: &str) -> bool {
 }
 
 /// Only the updater's dedicated "no latest.json / no release metadata" variant
-/// is treated as up to date. Other errors whose messages happen to contain
-/// "not found" (missing platform package, temp dir, archive binary, etc.) are
-/// reported to the UI.
+/// is treated as a missing updater manifest. Other errors whose messages happen
+/// to contain "not found" (missing platform package, temp dir, archive binary,
+/// etc.) are reported to the UI.
 #[cfg(any(test, desktop))]
 fn updater_error_is_no_release(error: &tauri_plugin_updater::Error) -> bool {
     matches!(error, tauri_plugin_updater::Error::ReleaseNotFound)
 }
 
-#[cfg(any(test, not(desktop)))]
-fn github_latest_http_means_no_release(status: reqwest::StatusCode) -> bool {
-    status == reqwest::StatusCode::NOT_FOUND
+fn github_latest_http_is_inaccessible(status: reqwest::StatusCode) -> bool {
+    matches!(
+        status,
+        reqwest::StatusCode::NOT_FOUND
+            | reqwest::StatusCode::UNAUTHORIZED
+            | reqwest::StatusCode::FORBIDDEN
+    )
+}
+
+struct GitHubLatestRelease {
+    version: String,
+    published_at: Option<String>,
+    body: Option<String>,
+    #[cfg_attr(not(target_os = "android"), allow(dead_code))]
+    apk_url: Option<String>,
+}
+
+fn apk_url_from_github_assets(json: &serde_json::Value) -> Option<String> {
+    let assets = json.get("assets")?.as_array()?;
+    let mut fallback = None;
+    for asset in assets {
+        let name = asset.get("name")?.as_str()?.to_ascii_lowercase();
+        if !name.ends_with(".apk") || name.contains("unsigned") {
+            continue;
+        }
+        let url = asset.get("browser_download_url")?.as_str()?.to_string();
+        let has_arch = name.contains("arm") || name.contains("x86") || name.contains("universal");
+        if !has_arch {
+            return Some(url);
+        }
+        fallback = Some(url);
+    }
+    fallback
+}
+
+async fn fetch_github_latest_release() -> Result<GitHubLatestRelease, String> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(8))
+        .build()
+        .map_err(|error| format!("Unable to check for updates: {error}"))?;
+
+    let response = client
+        .get(GITHUB_LATEST_RELEASE_URL)
+        .header("User-Agent", "AI-Usage-Tracker")
+        .header("Accept", "application/vnd.github+json")
+        .send()
+        .await
+        .map_err(|error| format!("Unable to check for updates: {error}"))?;
+
+    let status = response.status();
+    if github_latest_http_is_inaccessible(status) {
+        return Err(format!(
+            "Unable to check for updates: GitHub returned HTTP {status}. In-app checks only work when the GitHub repository is public."
+        ));
+    }
+    if !status.is_success() {
+        return Err(format!(
+            "Unable to check for updates: GitHub returned HTTP {status}"
+        ));
+    }
+
+    let json = response
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|error| format!("Unable to check for updates: {error}"))?;
+    let tag = json.get("tag_name").and_then(|value| value.as_str()).unwrap_or("");
+    let version = tag.trim_start_matches('v');
+    if version.is_empty() {
+        return Err(
+            "Unable to check for updates: latest GitHub release has no version tag.".into(),
+        );
+    }
+
+    Ok(GitHubLatestRelease {
+        version: version.to_string(),
+        published_at: json
+            .get("published_at")
+            .and_then(|value| value.as_str())
+            .map(str::to_string),
+        body: json
+            .get("body")
+            .and_then(|value| value.as_str())
+            .map(str::to_string),
+        apk_url: apk_url_from_github_assets(&json),
+    })
+}
+
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+async fn download_android_apk(url: &str, dest: &std::path::Path) -> Result<(), String> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(120))
+        .redirect(reqwest::redirect::Policy::limited(10))
+        .build()
+        .map_err(|error| format!("Unable to download the update: {error}"))?;
+    let response = client
+        .get(url)
+        .header("User-Agent", "AI-Usage-Tracker")
+        .send()
+        .await
+        .map_err(|error| format!("Unable to download the update: {error}"))?;
+    if !response.status().is_success() {
+        return Err(format!(
+            "Unable to download the update: GitHub returned HTTP {}",
+            response.status()
+        ));
+    }
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|error| format!("Unable to download the update: {error}"))?;
+    if bytes.len() < 1024 || !bytes.starts_with(b"PK") {
+        return Err("Downloaded update is not a valid Android package.".into());
+    }
+    if let Some(parent) = dest.parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .map_err(|error| format!("Unable to save the update: {error}"))?;
+    }
+    tokio::fs::write(dest, &bytes)
+        .await
+        .map_err(|error| format!("Unable to save the update: {error}"))?;
+    Ok(())
+}
+
+fn status_from_github_latest(
+    current_version: String,
+    latest: GitHubLatestRelease,
+    app: &AppHandle,
+    state: &AppState,
+) -> AppUpdateStatus {
+    if !is_newer_version(&latest.version, &current_version) {
+        return AppUpdateStatus::up_to_date(current_version);
+    }
+
+    if state.settings.automatic_updates_enabled()
+        && state.settings.update_notification_needed(&latest.version)
+    {
+        let shown = app
+            .notification()
+            .builder()
+            .title("AI Usage Tracker update available")
+            .body(format!("Version {} is ready to download.", latest.version))
+            .show();
+        if shown.is_ok() {
+            let _ = state.settings.mark_update_notified(&latest.version);
+        }
+    }
+
+    AppUpdateStatus::available(
+        current_version,
+        latest.version,
+        latest.published_at,
+        latest.body,
+    )
 }
 
 #[tauri::command]
@@ -530,186 +687,106 @@ async fn check_for_app_update(
 ) -> Result<AppUpdateStatus, String> {
     let current_version = app.package_info().version.to_string();
 
-    #[cfg(not(desktop))]
-    {
-        let client = match reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-        {
-            Ok(client) => client,
-            Err(error) => {
-                return Ok(AppUpdateStatus::failed(
-                    current_version,
-                    format!("Unable to check for updates: {error}"),
-                ));
-            }
-        };
-
-        let response = match client
-            .get("https://api.github.com/repos/dubba/AI-Usage-Tracker/releases/latest")
-            .header("User-Agent", "AI-Usage-Tracker-Mobile")
-            .send()
-            .await
-        {
-            Ok(response) => response,
-            Err(error) => {
-                return Ok(AppUpdateStatus::failed(
-                    current_version,
-                    format!("Unable to check for updates: {error}"),
-                ));
-            }
-        };
-
-        if github_latest_http_means_no_release(response.status()) {
-            return Ok(AppUpdateStatus::up_to_date(current_version));
-        }
-        if !response.status().is_success() {
-            return Ok(AppUpdateStatus::failed(
-                current_version,
-                format!(
-                    "Unable to check for updates: GitHub returned HTTP {}",
-                    response.status()
-                ),
-            ));
-        }
-
-        let json = match response.json::<serde_json::Value>().await {
-            Ok(json) => json,
-            Err(error) => {
-                return Ok(AppUpdateStatus::failed(
-                    current_version,
-                    format!("Unable to check for updates: {error}"),
-                ));
-            }
-        };
-
-        let tag = json.get("tag_name").and_then(|v| v.as_str()).unwrap_or("");
-        let version = tag.trim_start_matches('v');
-        if version.is_empty() {
-            return Ok(AppUpdateStatus::failed(
-                current_version,
-                "Unable to check for updates: latest GitHub release has no version tag.",
-            ));
-        }
-        if !is_newer_version(version, &current_version) {
-            return Ok(AppUpdateStatus::up_to_date(current_version));
-        }
-
-        let body = json
-            .get("body")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
-        let published_at = json
-            .get("published_at")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
-
-        if state.settings.automatic_updates_enabled()
-            && state.settings.update_notification_needed(version)
-        {
-            let shown = app
-                .notification()
-                .builder()
-                .title("AI Usage Tracker update available")
-                .body(format!("Version {version} is ready to download."))
-                .show();
-            if shown.is_ok() {
-                let _ = state.settings.mark_update_notified(version);
-            }
-        }
-
-        return Ok(AppUpdateStatus::available(
-            current_version,
-            version.to_string(),
-            published_at,
-            body,
-        ));
-    }
-
     #[cfg(desktop)]
     {
-        let updater = match app.updater() {
-            Ok(updater) => updater,
+        match app.updater() {
+            Ok(updater) => match updater.check().await {
+                Ok(Some(update)) => {
+                    let available_version = update.version.to_string();
+                    if state.settings.automatic_updates_enabled()
+                        && state
+                            .settings
+                            .update_notification_needed(&available_version)
+                    {
+                        let shown = app
+                            .notification()
+                            .builder()
+                            .title("AI Usage Tracker update available")
+                            .body(format!("Version {available_version} is ready to install."))
+                            .show();
+                        if shown.is_ok() {
+                            let _ = state.settings.mark_update_notified(&available_version);
+                        }
+                    }
+
+                    return Ok(AppUpdateStatus::available(
+                        current_version,
+                        available_version,
+                        update.date.map(|date| date.to_string()),
+                        update.body,
+                    ));
+                }
+                Ok(None) => {}
+                Err(error) if updater_error_is_no_release(&error) => {}
+                Err(error) => {
+                    return Ok(AppUpdateStatus::failed(
+                        current_version,
+                        format!("Unable to check for updates: {error}"),
+                    ));
+                }
+            },
             Err(error) => {
                 return Ok(AppUpdateStatus::failed(
                     current_version,
                     format!("Unable to initialize the updater: {error}"),
                 ));
             }
-        };
+        }
+    }
 
-        let update = match updater.check().await {
-            Ok(update) => update,
-            Err(error) if updater_error_is_no_release(&error) => None,
-            Err(error) => {
-                return Ok(AppUpdateStatus::failed(
-                    current_version,
-                    format!("Unable to check for updates: {error}"),
-                ));
-            }
-        };
-
-        Ok(match update {
-            Some(update) => {
-                let available_version = update.version.to_string();
-                if state.settings.automatic_updates_enabled()
-                    && state
-                        .settings
-                        .update_notification_needed(&available_version)
-                {
-                    let shown = app
-                        .notification()
-                        .builder()
-                        .title("AI Usage Tracker update available")
-                        .body(format!("Version {available_version} is ready to install."))
-                        .show();
-                    if shown.is_ok() {
-                        let _ = state.settings.mark_update_notified(&available_version);
-                    }
-                }
-
-                AppUpdateStatus::available(
-                    current_version,
-                    available_version,
-                    update.date.map(|date| date.to_string()),
-                    update.body,
-                )
-            }
-            None => AppUpdateStatus::up_to_date(current_version),
-        })
+    // Mobile always uses GitHub Releases. Desktop falls back here when latest.json
+    // was not published, so Check Now still sees a newer tag.
+    match fetch_github_latest_release().await {
+        Ok(latest) => Ok(status_from_github_latest(
+            current_version,
+            latest,
+            &app,
+            state.inner().as_ref(),
+        )),
+        Err(error) => Ok(AppUpdateStatus::failed(current_version, error)),
     }
 }
 
 #[tauri::command]
 async fn install_app_update(app: AppHandle) -> Result<(), String> {
-    #[cfg(not(desktop))]
+    #[cfg(desktop)]
     {
-        use tauri_plugin_opener::OpenerExt;
-        app.opener()
-            .open_url("https://github.com/dubba/AI-Usage-Tracker/releases/latest", None::<&str>)
-            .map_err(|error| format!("Unable to open download page: {error}"))?;
+        if let Ok(updater) = app.updater() {
+            if let Ok(Some(update)) = updater.check().await {
+                update
+                    .download_and_install(|_, _| {}, || {})
+                    .await
+                    .map_err(|error| format!("Unable to install the update: {error}"))?;
+                app.restart();
+                #[allow(unreachable_code)]
+                return Ok(());
+            }
+        }
+    }
+
+    #[cfg(target_os = "android")]
+    {
+        let latest = fetch_github_latest_release().await?;
+        let apk_url = latest
+            .apk_url
+            .ok_or_else(|| "The latest GitHub release does not include an Android APK.".to_string())?;
+        let cache = app
+            .path()
+            .app_cache_dir()
+            .map_err(|error| format!("Unable to save the update: {error}"))?;
+        let dest = cache.join("ai-usage-tracker-update.apk");
+        download_android_apk(&apk_url, &dest).await?;
+        apk_install::prompt_apk_install(&dest)?;
         return Ok(());
     }
 
-    #[cfg(desktop)]
+    #[cfg(not(target_os = "android"))]
     {
-        let update = app
-            .updater()
-            .map_err(|error| format!("Unable to initialize the updater: {error}"))?
-            .check()
-            .await
-            .map_err(|error| format!("Unable to check for updates: {error}"))?
-            .ok_or_else(|| "No newer release is available.".to_string())?;
-
-        update
-            .download_and_install(|_, _| {}, || {})
-            .await
-            .map_err(|error| format!("Unable to install the update: {error}"))?;
-
-        app.restart();
-        #[allow(unreachable_code)]
-        Ok(())
+        app.opener()
+            .open_url(GITHUB_RELEASES_PAGE_URL, None::<&str>)
+            .map_err(|error| format!("Unable to open download page: {error}"))?;
     }
+    Ok(())
 }
 
 fn migrate_google_ai_studio_accounts(state: &AppState) {
@@ -943,7 +1020,7 @@ async fn run_account_refresh_loop(state: Arc<AppState>) {
 #[cfg(test)]
 mod tests {
     use super::{
-        account_refresh_is_due, github_latest_http_means_no_release, is_newer_version,
+        account_refresh_is_due, github_latest_http_is_inaccessible, is_newer_version,
         updater_error_is_no_release,
     };
     use std::time::{Duration, SystemTime};
@@ -994,19 +1071,42 @@ mod tests {
     }
 
     #[test]
-    fn github_http_404_is_the_only_missing_release_status() {
-        assert!(github_latest_http_means_no_release(
+    fn github_inaccessible_statuses_are_not_treated_as_success() {
+        assert!(github_latest_http_is_inaccessible(
             reqwest::StatusCode::NOT_FOUND
         ));
-        assert!(!github_latest_http_means_no_release(
+        assert!(github_latest_http_is_inaccessible(
             reqwest::StatusCode::FORBIDDEN
         ));
-        assert!(!github_latest_http_means_no_release(
+        assert!(github_latest_http_is_inaccessible(
+            reqwest::StatusCode::UNAUTHORIZED
+        ));
+        assert!(!github_latest_http_is_inaccessible(
             reqwest::StatusCode::INTERNAL_SERVER_ERROR
         ));
-        assert!(!github_latest_http_means_no_release(reqwest::StatusCode::OK));
-        assert!(!github_latest_http_means_no_release(
+        assert!(!github_latest_http_is_inaccessible(reqwest::StatusCode::OK));
+        assert!(!github_latest_http_is_inaccessible(
             reqwest::StatusCode::NO_CONTENT
         ));
+    }
+
+    #[test]
+    fn apk_url_prefers_unadorned_apk_asset() {
+        let json = serde_json::json!({
+            "assets": [
+                {
+                    "name": "AI.Usage.Tracker_0.3.5_aarch64.app.tar.gz",
+                    "browser_download_url": "https://example.com/app.tar.gz"
+                },
+                {
+                    "name": "AI.Usage.Tracker_0.3.5.apk",
+                    "browser_download_url": "https://example.com/app.apk"
+                }
+            ]
+        });
+        assert_eq!(
+            super::apk_url_from_github_assets(&json).as_deref(),
+            Some("https://example.com/app.apk")
+        );
     }
 }

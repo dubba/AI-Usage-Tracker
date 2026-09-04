@@ -8,6 +8,8 @@ _No unreleased user-facing changes yet._
 
 ### Improved
 
+- On Android, tapping Update downloads the APK in the app and opens the system installer instead of sending you to GitHub in a browser.
+- When an app update is available, the Settings action button now says Update instead of including the version number.
 - On mobile, account cards use the same inset from the provider icon and action buttons to the card edges, and that spacing is shared by the rest of the card content.
 - On mobile, the navigation sidebar can be resized by dragging its right edge, the same way it can on desktop.
 - Desktop and mobile sidebars can be narrowed until just before the Group button would wrap under Accounts.
@@ -37,6 +39,7 @@ _No unreleased user-facing changes yet._
 
 ### Fixed
 
+- Checking for app updates no longer reports that you’re up to date when GitHub hides the latest release (for example a private repository returning HTTP 404). Check Now now falls back to the GitHub Releases API so a newer tag such as 0.3.5 is detected even without `latest.json`.
 - Removed the inner divider line along the bottom border of collapsed account cards while keeping header text position stationary.
 - Eliminated text shifting and jumping when collapsing and expanding account cards by preserving exact header padding and divider line dimensions in both states.
 - Standardized full vertical scrolling across all dialog boxes in the app (Provider Connection, Create/Edit Group, Group Delete Confirmation, Usage Notifications, Remove Account, and Google Cloud Quotas) so modal content and focused input fields remain fully accessible on small screens and when the virtual keyboard is open.

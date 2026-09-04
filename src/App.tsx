@@ -1873,7 +1873,7 @@ function SettingsView({
                 disabled={updateBusy !== null}
                 onClick={onInstallUpdate}
               >
-                {updateBusy === "installing" ? "Installing…" : `Update to v${update.availableVersion}`}
+                {updateBusy === "installing" ? "Installing…" : "Update"}
               </button>
             ) : (
               <button
