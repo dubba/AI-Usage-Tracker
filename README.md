@@ -2,66 +2,79 @@
 
 [![Validate](https://github.com/dubba/AI-Usage-Tracker/actions/workflows/validate.yml/badge.svg)](https://github.com/dubba/AI-Usage-Tracker/actions/workflows/validate.yml)
 
-A standalone Windows and macOS desktop app for monitoring AI subscription usage across OpenAI Codex, Anthropic Claude, Google Antigravity, and OpenCode Go. It can optionally expose normalized, sanitized usage data to Paseo over localhost.
+A standalone desktop and mobile application (Windows, macOS, and Android) for monitoring AI subscription quotas and usage across GPT/Codex (OpenAI), Claude (Anthropic), Google Antigravity, Google AI Studio, Grok/Cursor (xAI), and OpenCode Go. It can optionally expose normalized, sanitized usage data to Paseo over localhost.
 
 ## Supported providers
 
 | Provider | Authentication | Usage source |
 | --- | --- | --- |
-| OpenAI Codex | Browser OAuth with PKCE | ChatGPT Codex `wham/usage` endpoint |
-| Anthropic Claude | Browser OAuth with PKCE | Anthropic OAuth usage endpoint |
-| Google Antigravity | Browser Google OAuth with offline refresh token | Internal Cloud Code quota APIs |
-| OpenCode Go | Workspace ID and OpenCode console `auth` cookie | Server-rendered Go dashboard |
+| **GPT/Codex** (OpenAI) | Browser OAuth with PKCE | ChatGPT Codex `wham/usage` endpoint |
+| **Claude** (Anthropic) | Browser OAuth with PKCE | Anthropic OAuth usage endpoint |
+| **Google Antigravity** | Browser Google OAuth with offline refresh token | Internal Cloud Code quota APIs |
+| **Google AI Studio** | API key validation + optional Cloud Monitoring OAuth | Google AI Studio model list & Cloud Monitoring quota metrics |
+| **Grok / Cursor** (xAI) | Guided browser sign-in / session cookie capture | Grok rate-limit and subscription RPC endpoints |
+| **OpenCode Go** | Workspace ID and OpenCode console `auth` cookie | Server-rendered Go dashboard |
 
-The Anthropic, Antigravity, and OpenCode Go integrations rely on provider interfaces that are not documented as stable third-party APIs. Each connector is isolated so it can be repaired without changing the dashboard or localhost response contract. Last-known-good results remain visible and are marked stale when a provider changes or temporarily rejects a request.
+The Anthropic, Antigravity, Google AI Studio, Grok, and OpenCode Go integrations rely on provider interfaces that are not documented as stable third-party APIs. Each connector is isolated so it can be repaired without changing the dashboard or localhost response contract. Last-known-good results remain visible and are marked stale when a provider changes or temporarily rejects a request.
 
-## What it does
+## Key Features
 
-- Authenticates OpenAI, Anthropic, and Antigravity accounts independently in the browser.
-- Connects OpenCode Go through its exact server-rendered rolling, weekly, and monthly dashboard values.
-- Stores OAuth tokens and OpenCode console cookies in Windows Credential Manager or macOS Keychain.
-- Displays provider-reported usage percentages, remaining quota, reset times, plan information, and credits when available.
-- Retains last-known-good usage and marks it stale during transient failures.
-- Refreshes provider credentials under a per-account lock.
-- Exposes a bearer-protected loopback API at `http://127.0.0.1:47831/v1/paseo-usage` for optional Paseo integration.
-- Checks GitHub Releases for signed updates at startup and every six hours.
-- Runs from one installer; end users do not need Node.js, Rust, Python, Docker, OpenCode, Claude Code, or another CLI.
+- **Multi-Provider Account Tracking**: Authenticates multiple accounts across OpenAI, Anthropic, Google Antigravity, Google AI Studio, Grok, and OpenCode Go independently.
+- **Cross-Platform**: Runs natively on Windows (x64), macOS (Apple Silicon & Intel), and Android (sideloadable APK with full touch support and automatic start-on-boot).
+- **Custom Groups (Buckets)**: Organize accounts into custom groups (e.g. Work vs. Personal, or team pools) with aggregate usage summaries and dedicated sidebar navigation.
+- **Drag-and-Drop Card Reordering**: Reorder account cards freely with drag-and-drop on desktop or long-press (≥350ms) dragging on mobile with haptic vibration feedback. Custom sort order is persisted across app launches.
+- **Collapsible Account Cards**: Click any provider icon to collapse the card down to its header, hiding metrics for a compact overview. Collapsed state is remembered per account with zero layout shift.
+- **Usage Threshold Alerts & System Notifications**: Configure custom alert thresholds (e.g., alert when remaining limit drops below 20%) with native system notifications per account.
+- **Configurable Refresh Intervals**: Customize background update intervals (5, 10, 15, 30, 45, 60 minutes; 15 minutes default) with automatic refresh on window focus and device resume.
+- **Secure Native Credential Storage**: Stores OAuth access and refresh tokens, API keys, and session cookies strictly in the native OS credential store (Windows Credential Manager, macOS Keychain, or private Android encrypted storage). Credentials are never exposed to the frontend or local API.
+- **Localhost API**: Exposes a rate-limited, bearer-protected loopback API at `http://127.0.0.1:47831/v1/paseo-usage` for optional Paseo integration.
+- **In-App & Automatic Updates**: Integrated update checker with signed updater support, real-time update status indicators, and background checks.
+- **Obsidian Dark Theme & Responsive UI**: Beautiful obsidian dark styling with custom dropdown components, resizable navigation sidebar (desktop & mobile), and mobile slide-out drawer with dedicated close controls.
 
 ## Connecting providers
 
-### OpenAI Codex
+### GPT/Codex (OpenAI)
 
-Choose **OpenAI Codex** in the Add Account window and complete the browser login. The app requests only the OAuth access needed to identify the account and read Codex subscription usage.
+Choose **GPT/Codex** in the Add Account modal and complete the browser sign-in. The app requests only the OAuth access needed to identify the account and read Codex subscription usage through OpenAI's loopback callback.
 
-### Anthropic Claude
+### Claude (Anthropic)
 
-Choose **Anthropic Claude** and complete the browser login. The app reads the five-hour, seven-day, model-specific, and extra-usage windows returned by Anthropic's OAuth usage service.
+Choose **Claude** and complete the browser sign-in. The app reads the 5-hour, 7-day, model-specific, and extra-usage windows returned by Anthropic's OAuth usage service.
 
 ### Google Antigravity
 
-Choose **Google Antigravity** and complete the Google consent screen. The app keeps the offline refresh token in the native keychain, discovers the Cloud AI Companion project, and reads the account's quota-summary or model-quota response.
+Choose **Google Antigravity** and complete the Google consent screen. The app stores the offline refresh token securely, discovers the Cloud AI Companion project, and reads the account's quota-summary and model-quota metrics.
+
+### Google AI Studio
+
+Choose **Google AI Studio** to connect via API key or Google Cloud:
+- **API Key**: Enter a Google AI Studio API key to validate and retrieve accessible Gemini models directly from Google.
+- **Google Cloud Monitoring**: Optionally connect the owning Google Cloud project via least-privilege OAuth to track real-time RPM, TPM, RPD, and TPD quota metrics.
+
+### Grok / Cursor (xAI)
+
+Choose **Grok** and complete the guided in-app sign-in. The app captures only the necessary session cookies (`grok.com` and `accounts.x.ai`) in an isolated private window and polls xAI's subscription and rate-limit RPCs.
 
 ### OpenCode Go
 
-OpenCode currently does not expose Go plan percentages through an API-key-authenticated usage endpoint. The connector therefore needs:
+Choose **OpenCode Go** and provide:
+- The OpenCode workspace ID (`wrk_...`).
+- The `auth` session cookie from the signed-in OpenCode console.
 
-- The OpenCode workspace ID, such as `wrk_...`.
-- The value of the `auth` cookie from the signed-in OpenCode console.
-
-The cookie is stored only in the native credential store and is used only for a read-only request to `https://opencode.ai/workspace/<workspace-id>/go`. It is never written to `accounts.json`, returned to the React frontend after submission, logged, or exposed through the localhost API.
+The cookie is stored only in the native credential store and is used only for read-only requests to `https://opencode.ai/workspace/<workspace-id>/go`.
 
 ## Security model
 
 - Passwords are never requested or handled by the app.
-- OAuth tokens and OpenCode session cookies remain in the native operating-system credential store.
+- OAuth tokens, API keys, and session cookies remain in the native operating-system credential store.
 - Account metadata and cached usage are stored separately in the app data directory.
-- OAuth callback listeners bind only to loopback.
+- OAuth callback listeners bind only to loopback (`127.0.0.1`) on dynamic ephemeral ports with PKCE.
 - The local API binds only to `127.0.0.1`.
 - The local API requires a random bearer token stored in the native credential store.
-- Authenticated local API requests are limited to one per second. Extra requests return `429` with `Retry-After: 1`.
+- Authenticated local API requests are rate-limited to 1 request per second (extra requests return `429` with `Retry-After: 1`).
 - The local API never returns access tokens, refresh tokens, ID tokens, session cookies, or raw provider responses.
 - The app does not perform inference requests merely to probe usage limits.
-- Application updates must pass Tauri signature verification before installation.
+- Desktop application updates must pass Tauri signature verification before installation.
 - The updater private key is stored only as a GitHub Actions repository secret.
 
 ## Development
@@ -70,8 +83,9 @@ The cookie is stored only in the native credential store and is used only for a 
 
 - Node.js 22+
 - Rust stable
-- Windows: Microsoft C++ Build Tools and WebView2
-- macOS: Xcode Command Line Tools
+- **Windows**: Microsoft C++ Build Tools and WebView2
+- **macOS**: Xcode Command Line Tools
+- **Android**: Android SDK (API 34+), NDK 27+, Java 17 (OpenJDK)
 
 ### Run the web interface
 
@@ -87,6 +101,12 @@ npm install
 npm run tauri:dev
 ```
 
+### Run the Android app (Live Dev with HMR)
+
+```bash
+npx tauri android dev
+```
+
 ### Validate
 
 ```bash
@@ -96,40 +116,31 @@ cargo test --manifest-path src-tauri/Cargo.toml
 cargo check --manifest-path src-tauri/Cargo.toml
 ```
 
-Provider network calls require real user credentials and are not exercised in CI. Parser, migration, and normalization behavior is covered by unit tests; each live login flow must also be exercised in a packaged Windows or macOS build before release.
+Provider network calls require real user credentials and are not exercised in CI. Parser, migration, and normalization behavior is covered by unit tests; each live login flow must also be exercised in a packaged build before release.
 
-### Build an installer
+### Build installers
+
+#### Desktop (Windows / macOS)
 
 ```bash
 npm run tauri:build
 ```
 
-Tauri generates the platform-appropriate Windows or macOS bundle under `src-tauri/target/release/bundle`.
+Tauri generates the platform-appropriate bundle under `src-tauri/target/release/bundle`.
+
+#### Android APK
+
+```bash
+npx tauri android build --target aarch64 --apk
+```
+
+Outputs the APK under `src-tauri/gen/android/app/build/outputs/apk/`.
 
 ## Releases and automatic updates
 
-The `Publish desktop release` workflow builds Windows, macOS Apple Silicon, and macOS Intel packages. It also uploads signed updater artifacts and a `latest.json` manifest to the GitHub Release.
-
-The `Build Android APK` workflow compiles a sideloadable `AI Usage Tracker_<version>.apk` on every push to `main`, on manual dispatch, and as part of a versioned desktop release. Download the APK from the Actions run artifacts, or from a versioned GitHub Release.
-
-The repository requires these Actions secrets:
-
-- `TAURI_SIGNING_PRIVATE_KEY`: the complete contents of the updater private-key file.
-- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`: optional; leave unset when the key has no password.
-- `ANDROID_KEYSTORE_BASE64`: Base64-encoded PKCS12 keystore used to sign sideload APKs.
-- `ANDROID_KEYSTORE_PASSWORD`: password for that keystore.
-- `ANDROID_KEY_ALIAS`: key alias inside the keystore.
-- `ANDROID_KEY_PASSWORD`: password for that key.
-
-Never commit or share the private key or Android keystore. Keep a secure backup of both: losing the updater key prevents installed copies from accepting future updates, and losing the Android keystore means later APKs cannot update an existing sideload install. These Android builds are not Play Store signed; enable **Install unknown apps** when sideloading. Updating over an APK signed with a different key requires uninstalling first.
-
-Every release must use a newer semantic version in all three locations:
-
-- `package.json`
-- `src-tauri/Cargo.toml`
-- `src-tauri/tauri.conf.json`
-
-Version `0.1.1` was the first updater-enabled build. Version `0.2.0` added the multi-provider account and usage architecture. The public name is now **AI Usage Tracker**. The existing bundle identifier is unchanged so installed users keep their update path. Keychain items now use the `ai-usage-tracker` service name; items still stored as `paseo-usage-bridge` are copied on first use.
+- The **`Publish desktop release`** workflow builds Windows (`.exe` / `.msi`), macOS Apple Silicon (`aarch64`), and macOS Intel (`x64`) packages, uploading signed updater artifacts and a `latest.json` manifest to the GitHub Release.
+- The **`Build Android APK`** workflow compiles a sideloadable `AI Usage Tracker_<version>.apk` on every push to `main` and attaches it directly to versioned GitHub Releases.
+- Releases can be triggered by pushing a version request string to `.github/release-trigger`.
 
 ## Local API
 
@@ -154,7 +165,7 @@ Response contract:
 ```json
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-13T12:00:00Z",
+  "generatedAt": "2026-09-03T12:00:00Z",
   "accounts": [
     {
       "id": "local-account-id",
@@ -171,12 +182,12 @@ Response contract:
           "label": "5 hour",
           "usedPercent": 18,
           "remainingPercent": 82,
-          "resetsAt": "2026-07-13T17:00:00Z",
+          "resetsAt": "2026-09-03T17:00:00Z",
           "windowSeconds": 18000
         }
       ],
       "creditsUsd": null,
-      "fetchedAt": "2026-07-13T12:00:00Z",
+      "fetchedAt": "2026-09-03T12:00:00Z",
       "error": null
     }
   ]
@@ -186,14 +197,17 @@ Response contract:
 ## Repository structure
 
 ```text
-src/                               React dashboard
+src/                               React dashboard and components
 src-tauri/src/oauth.rs             Provider browser OAuth and callback flows
 src-tauri/src/providers/           Provider-specific usage clients and parsers
 src-tauri/src/usage.rs             Common refresh, cache, and stale-state behavior
 src-tauri/src/store.rs             Metadata and native credential storage
 src-tauri/src/bridge_api.rs        Versioned localhost API
+src-tauri/src/buckets.rs           Custom group (bucket) data and filtering
+src-tauri/src/alerts.rs            Quota usage threshold alerts and notifications
 
 docs/provider-integrations-plan.md Implementation and security plan
+docs/CHANGELOG_WORKFLOW.md         Changelog maintenance guide
 ```
 
 ## License
