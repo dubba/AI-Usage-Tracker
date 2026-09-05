@@ -22,6 +22,8 @@
 
 ### Improved
 
+- On mobile devices, the Add Account modal now positions with a 20px clearance directly above the on-screen keyboard when entering account names, API keys, or connection credentials instead of pinning against the top status bar, featuring responsive header compression, compact field spacing, and internal scrolling so fields and action buttons remain visible and easily reachable.
+
 - Adjusted the tooltip offset for the "+ Group" button to sit 24px below the button, matching the provider icon tooltip distance to prevent the pointing-hand cursor from obscuring the tooltip text, and enabled full tooltip display for the "H" (5-hour) and "W" (weekly) average usage window toggle buttons with container overflow clearance and clean sidebar alignment.
 - Positioned the 3-dot sidebar resize grip directly in the center between the sidebar card border and the sidebar edge, and broadened the purple hover accent line from 4.5px to 6.5px with an enhanced glow for a bolder, more responsive resizing indicator across desktop and mobile.
 - Enhanced in-app notification toasts to display timestamps (e.g. `3:22 AM`), remain visible for 15 seconds, stack up to 5 concurrent alerts, and automatically reveal older queued alerts as alerts are dismissed.

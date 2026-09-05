@@ -64,6 +64,7 @@ export function AddAccountModal({
   const [status, setStatus] = useState<LoginStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const closeRequestedRef = useRef(false);
   const attemptIdRef = useRef<string | null>(null);
   const dialogRef = useRef<HTMLElement>(null);
@@ -72,6 +73,7 @@ export function AddAccountModal({
   useEffect(() => {
     if (!open) {
       closeRequestedRef.current = true;
+      setIsKeyboardOpen(false);
       setLabel("GPT/Codex");
       setProvider("openai");
       setEmail("");
@@ -101,6 +103,99 @@ export function AddAccountModal({
     }
   }, [open, initialLabel, initialProvider, providerLocked]);
 
+  // Monitor virtual keyboard appearance on mobile to float 20px above keyboard
+  useEffect(() => {
+    if (!open) {
+      setIsKeyboardOpen(false);
+      return;
+    }
+
+    const checkKeyboard = () => {
+      const isMobile =
+        typeof navigator !== "undefined" &&
+        (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+          (typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches));
+
+      if (!isMobile) {
+        setIsKeyboardOpen(false);
+        document.documentElement.style.removeProperty("--visual-keyboard-height");
+        return;
+      }
+
+      // 1. Check visualViewport height reduction (standard across modern mobile browsers/WebViews)
+      const vv = window.visualViewport;
+      if (vv && window.innerHeight > 0) {
+        const heightDiff = window.innerHeight - vv.height;
+        if (heightDiff > 100) {
+          document.documentElement.style.setProperty("--visual-keyboard-height", `${heightDiff}px`);
+          setIsKeyboardOpen(true);
+          return;
+        } else {
+          document.documentElement.style.removeProperty("--visual-keyboard-height");
+        }
+      }
+
+      // 2. Check native Android IME class set by MainActivity
+      if (document.documentElement.classList.contains("keyboard-active")) {
+        setIsKeyboardOpen(true);
+        return;
+      }
+
+      // 3. Check if an input inside this modal is actively focused
+      const activeEl = document.activeElement;
+      if (
+        activeEl &&
+        dialogRef.current?.contains(activeEl) &&
+        (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "SELECT")
+      ) {
+        setIsKeyboardOpen(true);
+        return;
+      }
+
+      setIsKeyboardOpen(false);
+      document.documentElement.style.removeProperty("--visual-keyboard-height");
+    };
+
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener("resize", checkKeyboard);
+      vv.addEventListener("scroll", checkKeyboard);
+    }
+    window.addEventListener("resize", checkKeyboard);
+
+    const observer = new MutationObserver(() => {
+      checkKeyboard();
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class", "style"],
+    });
+
+    const handleFocusIn = () => {
+      setTimeout(checkKeyboard, 50);
+    };
+    const handleFocusOut = () => {
+      setTimeout(checkKeyboard, 100);
+    };
+    window.addEventListener("focusin", handleFocusIn);
+    window.addEventListener("focusout", handleFocusOut);
+
+    // Run initial check
+    checkKeyboard();
+
+    return () => {
+      if (vv) {
+        vv.removeEventListener("resize", checkKeyboard);
+        vv.removeEventListener("scroll", checkKeyboard);
+      }
+      window.removeEventListener("resize", checkKeyboard);
+      window.removeEventListener("focusin", handleFocusIn);
+      window.removeEventListener("focusout", handleFocusOut);
+      observer.disconnect();
+      document.documentElement.style.removeProperty("--visual-keyboard-height");
+    };
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     return subscribeLoginStatus((next) => {
@@ -123,6 +218,8 @@ export function AddAccountModal({
     const attemptId = status?.attemptId ?? attemptIdRef.current;
     setStatus(null);
     setBusy(false);
+    setIsKeyboardOpen(false);
+    document.documentElement.style.removeProperty("--visual-keyboard-height");
     attemptIdRef.current = null;
     if (attemptId) {
       abandonLoginAttempt(attemptId);
@@ -314,8 +411,19 @@ export function AddAccountModal({
   );
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !busy && closeModal()}>
-      <section ref={dialogRef} className="modal-card provider-connection-modal" role="dialog" aria-modal="true" aria-labelledby="add-account-title" tabIndex={-1}>
+    <div
+      className={`modal-backdrop ${isKeyboardOpen ? "keyboard-open" : ""}`}
+      role="presentation"
+      onMouseDown={(event) => event.target === event.currentTarget && !busy && closeModal()}
+    >
+      <section
+        ref={dialogRef}
+        className={`modal-card provider-connection-modal ${isKeyboardOpen ? "keyboard-open" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-account-title"
+        tabIndex={-1}
+      >
         <div className="modal-kicker">Provider connection</div>
         <h2 id="add-account-title">{providerLocked ? `Reconnect ${providerName(provider)}` : "Which account do you want to add?"}</h2>
         <p>{providerLocked ? providerCopy : "Choose a provider, name the account, and enter its secure connection details."}</p>

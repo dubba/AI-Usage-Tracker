@@ -844,12 +844,16 @@
   }
 }
 
-/* Mobile Keyboard Adaptation: Move modal up when keyboard appears */
+/* Mobile Keyboard Adaptation: Move modals 20px above on-screen keyboard when keyboard appears */
 @media (max-width: 768px) {
   .modal-backdrop.keyboard-open,
   html.keyboard-active .modal-backdrop:has(.pairing-modal),
+  html.keyboard-active .modal-backdrop:has(.provider-connection-modal),
+  .modal-backdrop:has(.pairing-modal.keyboard-open),
   .modal-backdrop:has(.pairing-modal.view-code-entry.keyboard-open),
-  .modal-backdrop:has(.pairing-modal.view-code-entry:focus-within) {
+  .modal-backdrop:has(.pairing-modal.view-code-entry:focus-within),
+  .modal-backdrop:has(.provider-connection-modal.keyboard-open),
+  .modal-backdrop:has(.provider-connection-modal:focus-within) {
     align-items: flex-end !important;
     justify-content: center !important;
     padding-top: calc(max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px), 16px) + 8px) !important;
@@ -861,7 +865,10 @@
   .modal-card.pairing-modal.keyboard-open,
   html.keyboard-active .modal-card.pairing-modal,
   .modal-card.pairing-modal.view-code-entry.keyboard-open,
-  .modal-card.pairing-modal.view-code-entry:focus-within {
+  .modal-card.pairing-modal.view-code-entry:focus-within,
+  .modal-card.provider-connection-modal.keyboard-open,
+  html.keyboard-active .modal-card.provider-connection-modal,
+  .modal-card.provider-connection-modal:focus-within {
     margin-top: auto !important;
     margin-bottom: 0 !important;
     transform: translateY(0) !important;
@@ -876,7 +883,10 @@
   .modal-card.pairing-modal.keyboard-open .modal-kicker,
   html.keyboard-active .modal-card.pairing-modal .modal-kicker,
   .modal-card.pairing-modal.view-code-entry.keyboard-open .modal-kicker,
-  .modal-card.pairing-modal.view-code-entry:focus-within .modal-kicker {
+  .modal-card.pairing-modal.view-code-entry:focus-within .modal-kicker,
+  .modal-card.provider-connection-modal.keyboard-open .modal-kicker,
+  html.keyboard-active .modal-card.provider-connection-modal .modal-kicker,
+  .modal-card.provider-connection-modal:focus-within .modal-kicker {
     font-size: 8px !important;
     margin-bottom: 2px !important;
   }
@@ -884,7 +894,10 @@
   .modal-card.pairing-modal.keyboard-open h2,
   html.keyboard-active .modal-card.pairing-modal h2,
   .modal-card.pairing-modal.view-code-entry.keyboard-open h2,
-  .modal-card.pairing-modal.view-code-entry:focus-within h2 {
+  .modal-card.pairing-modal.view-code-entry:focus-within h2,
+  .modal-card.provider-connection-modal.keyboard-open h2,
+  html.keyboard-active .modal-card.provider-connection-modal h2,
+  .modal-card.provider-connection-modal:focus-within h2 {
     font-size: 18px !important;
     margin: 2px 0 4px !important;
   }
@@ -901,6 +914,68 @@
   .modal-card.pairing-modal:has(.pairing-code-entry-view):focus-within .pairing-subtitle {
     margin: 0 0 24px 0 !important;
     font-size: 0.78rem !important;
+  }
+
+  /* Compact copy and fields in Add Account modal when keyboard is open */
+  .modal-card.provider-connection-modal.keyboard-open p,
+  html.keyboard-active .modal-card.provider-connection-modal p,
+  .modal-card.provider-connection-modal:focus-within p {
+    margin: 0 0 10px 0 !important;
+    font-size: 0.78rem !important;
+    line-height: 1.35 !important;
+  }
+
+  .modal-card.provider-connection-modal.keyboard-open .field-spaced,
+  html.keyboard-active .modal-card.provider-connection-modal .field-spaced,
+  .modal-card.provider-connection-modal:focus-within .field-spaced {
+    margin-top: 8px !important;
+  }
+
+  .modal-card.provider-connection-modal.keyboard-open .field-label,
+  html.keyboard-active .modal-card.provider-connection-modal .field-label,
+  .modal-card.provider-connection-modal:focus-within .field-label {
+    font-size: 0.78rem !important;
+    margin-bottom: 3px !important;
+  }
+
+  .modal-card.provider-connection-modal.keyboard-open .text-input,
+  html.keyboard-active .modal-card.provider-connection-modal .text-input,
+  .modal-card.provider-connection-modal:focus-within .text-input {
+    padding: 8px 12px !important;
+    font-size: 0.88rem !important;
+  }
+
+  .modal-card.provider-connection-modal.keyboard-open .credential-note,
+  html.keyboard-active .modal-card.provider-connection-modal .credential-note,
+  .modal-card.provider-connection-modal:focus-within .credential-note {
+    margin-top: 4px !important;
+    font-size: 10px !important;
+    line-height: 1.35 !important;
+  }
+
+  .modal-card.provider-connection-modal.keyboard-open .guided-login-card,
+  html.keyboard-active .modal-card.provider-connection-modal .guided-login-card,
+  .modal-card.provider-connection-modal:focus-within .guided-login-card {
+    margin-top: 8px !important;
+    padding: 8px 12px !important;
+  }
+
+  .modal-card.provider-connection-modal.keyboard-open .guided-login-card ol,
+  html.keyboard-active .modal-card.provider-connection-modal .guided-login-card ol,
+  .modal-card.provider-connection-modal:focus-within .guided-login-card ol {
+    margin: 6px 0 8px !important;
+  }
+
+  .modal-card.provider-connection-modal.keyboard-open .google-model-list,
+  html.keyboard-active .modal-card.provider-connection-modal .google-model-list,
+  .modal-card.provider-connection-modal:focus-within .google-model-list {
+    max-height: 140px !important;
+  }
+
+  .modal-card.provider-connection-modal.keyboard-open .modal-actions,
+  html.keyboard-active .modal-card.provider-connection-modal .modal-actions,
+  .modal-card.provider-connection-modal:focus-within .modal-actions {
+    margin-top: 12px !important;
   }
 
   /* Compact code entry elements so Back and Connect buttons remain comfortably visible above keyboard */
