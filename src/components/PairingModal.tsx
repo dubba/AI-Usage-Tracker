@@ -409,13 +409,6 @@ export function PairingModal({
         return;
       }
 
-      // 3. Check if join code input is actively focused
-      const activeEl = document.activeElement;
-      if (activeEl && activeEl.id === "pairing-join-code-input") {
-        setIsKeyboardOpen(true);
-        return;
-      }
-
       setIsKeyboardOpen(false);
       document.documentElement.style.removeProperty("--visual-keyboard-height");
     };

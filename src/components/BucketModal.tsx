@@ -95,17 +95,6 @@ export function BucketModal({
         return;
       }
 
-      // 3. Check if an input inside this modal is actively focused
-      const activeEl = document.activeElement;
-      if (
-        activeEl &&
-        dialogRef.current?.contains(activeEl) &&
-        (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "SELECT")
-      ) {
-        setIsKeyboardOpen(true);
-        return;
-      }
-
       setIsKeyboardOpen(false);
       document.documentElement.style.removeProperty("--visual-keyboard-height");
     };

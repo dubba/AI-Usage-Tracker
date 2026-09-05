@@ -10,6 +10,7 @@
 
 ### Fixed
 
+- Fixed the Create / Edit Group modal remaining pinned to the top ceiling or stuck in compact sizing after the mobile virtual keyboard closes by decoupling keyboard styling from lingering text input focus and ensuring smooth animated transitions back to centered positioning and standard spacing.
 - Fixed the usage notification and remove account modals jumping to the top of the screen on mobile by removing overly broad keyboard ceiling pinning rules and eliminating false-positive keyboard detection when focusing checkboxes, buttons, or non-text controls.
 - Fixed a regression where dropdown menus (such as provider selection, alert thresholds, and group filters) were clipped and could no longer display above or outside the modal when extended or opened upward.
 - Fixed inconsistent header font sizes in Link Devices by ensuring the "Link Devices" title, kicker, and subtitle retain identical font styling between the 6-digit code entry view and all other Link Devices views.
