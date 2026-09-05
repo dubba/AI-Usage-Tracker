@@ -386,6 +386,7 @@ export function PairingModal({
 
       if (!isMobile) {
         setIsKeyboardOpen(false);
+        document.documentElement.style.removeProperty("--visual-keyboard-height");
         return;
       }
 
@@ -394,8 +395,11 @@ export function PairingModal({
       if (vv && window.innerHeight > 0) {
         const heightDiff = window.innerHeight - vv.height;
         if (heightDiff > 100) {
+          document.documentElement.style.setProperty("--visual-keyboard-height", `${heightDiff}px`);
           setIsKeyboardOpen(true);
           return;
+        } else {
+          document.documentElement.style.removeProperty("--visual-keyboard-height");
         }
       }
 
@@ -413,6 +417,7 @@ export function PairingModal({
       }
 
       setIsKeyboardOpen(false);
+      document.documentElement.style.removeProperty("--visual-keyboard-height");
     };
 
     const vv = window.visualViewport;
@@ -440,6 +445,7 @@ export function PairingModal({
       }
       window.removeEventListener("resize", checkKeyboard);
       observer.disconnect();
+      document.documentElement.style.removeProperty("--visual-keyboard-height");
     };
   }, [open]);
 

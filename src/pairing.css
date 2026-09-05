@@ -850,10 +850,10 @@
   html.keyboard-active .modal-backdrop:has(.pairing-modal),
   .modal-backdrop:has(.pairing-modal.view-code-entry.keyboard-open),
   .modal-backdrop:has(.pairing-modal.view-code-entry:focus-within) {
-    align-items: flex-start !important;
+    align-items: flex-end !important;
     justify-content: center !important;
     padding-top: calc(max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px), 16px) + 8px) !important;
-    padding-bottom: calc(max(var(--android-keyboard-height, 0px), 240px) + 16px) !important;
+    padding-bottom: calc(max(var(--android-keyboard-height, 0px), var(--visual-keyboard-height, 0px), 240px) + 20px) !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
   }
@@ -862,11 +862,11 @@
   html.keyboard-active .modal-card.pairing-modal,
   .modal-card.pairing-modal.view-code-entry.keyboard-open,
   .modal-card.pairing-modal.view-code-entry:focus-within {
-    margin-top: 0 !important;
-    margin-bottom: auto !important;
+    margin-top: auto !important;
+    margin-bottom: 0 !important;
     transform: translateY(0) !important;
     padding: 16px 18px 18px !important;
-    max-height: calc(100dvh - max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px), 16px) - var(--android-keyboard-height, 0px) - 24px);
+    max-height: calc(100dvh - max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px), 16px) - max(var(--android-keyboard-height, 0px), var(--visual-keyboard-height, 0px), 240px) - 28px);
     overflow-y: auto;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.75);
     transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), padding 0.2s ease;
