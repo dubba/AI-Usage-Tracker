@@ -40,14 +40,115 @@ export function BucketModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const dialogRef = useRef<HTMLElement>(null);
   const confirmDeleteRef = useRef<HTMLElement>(null);
+
+  const handleClose = () => {
+    setIsKeyboardOpen(false);
+    document.documentElement.style.removeProperty("--visual-keyboard-height");
+    onClose();
+  };
+
   useModalA11y(dialogRef, open && !confirmingDelete, () => {
-    if (!busy) onClose();
+    if (!busy) handleClose();
   });
   useModalA11y(confirmDeleteRef, open && confirmingDelete, () => {
     if (!busy) setConfirmingDelete(false);
   });
+
+  // Monitor virtual keyboard appearance on mobile to pin to top ceiling
+  useEffect(() => {
+    if (!open) {
+      setIsKeyboardOpen(false);
+      return;
+    }
+
+    const checkKeyboard = () => {
+      const isMobile =
+        typeof navigator !== "undefined" &&
+        (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+          (typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches));
+
+      if (!isMobile) {
+        setIsKeyboardOpen(false);
+        document.documentElement.style.removeProperty("--visual-keyboard-height");
+        return;
+      }
+
+      // 1. Check visualViewport height reduction
+      const vv = window.visualViewport;
+      if (vv && window.innerHeight > 0) {
+        const heightDiff = window.innerHeight - vv.height;
+        if (heightDiff > 100) {
+          document.documentElement.style.setProperty("--visual-keyboard-height", `${heightDiff}px`);
+          setIsKeyboardOpen(true);
+          return;
+        } else {
+          document.documentElement.style.removeProperty("--visual-keyboard-height");
+        }
+      }
+
+      // 2. Check native Android IME class set by MainActivity
+      if (document.documentElement.classList.contains("keyboard-active")) {
+        setIsKeyboardOpen(true);
+        return;
+      }
+
+      // 3. Check if an input inside this modal is actively focused
+      const activeEl = document.activeElement;
+      if (
+        activeEl &&
+        dialogRef.current?.contains(activeEl) &&
+        (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "SELECT")
+      ) {
+        setIsKeyboardOpen(true);
+        return;
+      }
+
+      setIsKeyboardOpen(false);
+      document.documentElement.style.removeProperty("--visual-keyboard-height");
+    };
+
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener("resize", checkKeyboard);
+      vv.addEventListener("scroll", checkKeyboard);
+    }
+    window.addEventListener("resize", checkKeyboard);
+
+    const observer = new MutationObserver(() => {
+      checkKeyboard();
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class", "style"],
+    });
+
+    const handleFocusIn = () => {
+      setTimeout(checkKeyboard, 50);
+    };
+    const handleFocusOut = () => {
+      setTimeout(checkKeyboard, 100);
+    };
+    window.addEventListener("focusin", handleFocusIn);
+    window.addEventListener("focusout", handleFocusOut);
+
+    // Run initial check
+    checkKeyboard();
+
+    return () => {
+      if (vv) {
+        vv.removeEventListener("resize", checkKeyboard);
+        vv.removeEventListener("scroll", checkKeyboard);
+      }
+      window.removeEventListener("resize", checkKeyboard);
+      window.removeEventListener("focusin", handleFocusIn);
+      window.removeEventListener("focusout", handleFocusOut);
+      observer.disconnect();
+      document.documentElement.style.removeProperty("--visual-keyboard-height");
+    };
+  }, [open]);
 
   useEffect(() => {
     if (open) {
@@ -140,8 +241,19 @@ export function BucketModal({
   };
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !busy && onClose()}>
-      <section ref={dialogRef} className="modal-card bucket-modal-card" role="dialog" aria-modal="true" aria-labelledby="bucket-modal-title" tabIndex={-1}>
+    <div
+      className={`modal-backdrop ${isKeyboardOpen ? "keyboard-open" : ""}`}
+      role="presentation"
+      onMouseDown={(event) => event.target === event.currentTarget && !busy && handleClose()}
+    >
+      <section
+        ref={dialogRef}
+        className={`modal-card bucket-modal-card ${isKeyboardOpen ? "keyboard-open" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="bucket-modal-title"
+        tabIndex={-1}
+      >
         <div className="modal-kicker">Account Grouping</div>
         <h2 id="bucket-modal-title">{bucket ? "Edit Group" : "Create Group"}</h2>
         <p>Group accounts together in the sidebar to track their combined usage and limits. Groups can be empty.</p>
@@ -228,7 +340,7 @@ export function BucketModal({
               </button>
             ) : null}
             <div className="bucket-modal-save-group">
-              <button type="button" className="button ghost" disabled={busy} onClick={onClose}>
+              <button type="button" className="button ghost" disabled={busy} onClick={handleClose}>
                 Cancel
               </button>
               <button type="submit" className="button primary" disabled={busy}>

@@ -846,7 +846,7 @@
 
 /* Mobile Keyboard Adaptation: Move modals 20px above on-screen keyboard when keyboard appears */
 @media (max-width: 768px) {
-  .modal-backdrop.keyboard-open,
+  .modal-backdrop.keyboard-open:not(:has(.bucket-modal-card)),
   html.keyboard-active .modal-backdrop:has(.pairing-modal),
   html.keyboard-active .modal-backdrop:has(.provider-connection-modal),
   .modal-backdrop:has(.pairing-modal.keyboard-open),
@@ -976,6 +976,105 @@
   html.keyboard-active .modal-card.provider-connection-modal .modal-actions,
   .modal-card.provider-connection-modal:focus-within .modal-actions {
     margin-top: 12px !important;
+  }
+
+  /* Create / Edit Group Modal: Pin to top ceiling when keyboard is open on mobile */
+  .modal-backdrop.keyboard-open:has(.bucket-modal-card),
+  html.keyboard-active .modal-backdrop:has(.bucket-modal-card),
+  .modal-backdrop:has(.bucket-modal-card.keyboard-open),
+  .modal-backdrop:has(.bucket-modal-card:focus-within) {
+    align-items: flex-start !important;
+    justify-content: center !important;
+    padding-top: calc(max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px), 16px) + 6px) !important;
+    padding-bottom: calc(max(var(--android-keyboard-height, 0px), var(--visual-keyboard-height, 0px), 0px) + 10px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .modal-card.bucket-modal-card.keyboard-open,
+  html.keyboard-active .modal-card.bucket-modal-card,
+  .modal-card.bucket-modal-card:focus-within {
+    margin-top: 0 !important;
+    margin-bottom: auto !important;
+    transform: translateY(0) !important;
+    padding: 14px 16px 16px !important;
+    max-height: calc(100dvh - max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px), 16px) - max(var(--android-keyboard-height, 0px), var(--visual-keyboard-height, 0px), 0px) - 20px) !important;
+    overflow-y: auto !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.75);
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), padding 0.2s ease;
+  }
+
+  /* Compact header and elements for Group modal when keyboard is open */
+  .modal-card.bucket-modal-card.keyboard-open .modal-kicker,
+  html.keyboard-active .modal-card.bucket-modal-card .modal-kicker,
+  .modal-card.bucket-modal-card:focus-within .modal-kicker {
+    font-size: 8px !important;
+    margin-bottom: 2px !important;
+  }
+
+  .modal-card.bucket-modal-card.keyboard-open h2,
+  html.keyboard-active .modal-card.bucket-modal-card h2,
+  .modal-card.bucket-modal-card:focus-within h2 {
+    font-size: 17px !important;
+    margin: 2px 0 3px !important;
+  }
+
+  .modal-card.bucket-modal-card.keyboard-open p,
+  html.keyboard-active .modal-card.bucket-modal-card p,
+  .modal-card.bucket-modal-card:focus-within p {
+    font-size: 0.74rem !important;
+    margin: 0 0 6px 0 !important;
+    line-height: 1.3 !important;
+  }
+
+  .modal-card.bucket-modal-card.keyboard-open .bucket-modal-form,
+  html.keyboard-active .modal-card.bucket-modal-card .bucket-modal-form,
+  .modal-card.bucket-modal-card:focus-within .bucket-modal-form {
+    margin-top: 6px !important;
+    gap: 8px !important;
+  }
+
+  .modal-card.bucket-modal-card.keyboard-open .field-label,
+  html.keyboard-active .modal-card.bucket-modal-card .field-label,
+  .modal-card.bucket-modal-card:focus-within .field-label {
+    font-size: 0.76rem !important;
+    margin-bottom: 2px !important;
+  }
+
+  .modal-card.bucket-modal-card.keyboard-open .text-input,
+  html.keyboard-active .modal-card.bucket-modal-card .text-input,
+  .modal-card.bucket-modal-card:focus-within .text-input {
+    padding: 6px 10px !important;
+    font-size: 0.85rem !important;
+  }
+
+  .modal-card.bucket-modal-card.keyboard-open .bucket-account-heading,
+  html.keyboard-active .modal-card.bucket-modal-card .bucket-account-heading,
+  .modal-card.bucket-modal-card:focus-within .bucket-account-heading {
+    margin-bottom: 4px !important;
+    gap: 8px !important;
+  }
+
+  .modal-card.bucket-modal-card.keyboard-open .bucket-account-picker-list,
+  html.keyboard-active .modal-card.bucket-modal-card .bucket-account-picker-list,
+  .modal-card.bucket-modal-card:focus-within .bucket-account-picker-list {
+    max-height: 140px !important;
+    padding: 4px !important;
+    gap: 4px !important;
+  }
+
+  .modal-card.bucket-modal-card.keyboard-open .bucket-account-item,
+  html.keyboard-active .modal-card.bucket-modal-card .bucket-account-item,
+  .modal-card.bucket-modal-card:focus-within .bucket-account-item {
+    padding: 6px 8px !important;
+    gap: 8px !important;
+  }
+
+  .modal-card.bucket-modal-card.keyboard-open .bucket-modal-actions,
+  html.keyboard-active .modal-card.bucket-modal-card .bucket-modal-actions,
+  .modal-card.bucket-modal-card:focus-within .bucket-modal-actions {
+    margin-top: 6px !important;
+    gap: 8px !important;
   }
 
   /* Compact code entry elements so Back and Connect buttons remain comfortably visible above keyboard */

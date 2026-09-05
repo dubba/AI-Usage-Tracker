@@ -22,6 +22,7 @@
 
 ### Improved
 
+- On mobile devices, the Create Group / Edit Group modal now pins against the top ceiling when the on-screen keyboard is displayed, maximizing vertical visibility so the group name input, account selection picker, and action buttons remain visible and operable above the keyboard.
 - On mobile devices, the Add Account modal now positions with a 20px clearance directly above the on-screen keyboard when entering account names, API keys, or connection credentials instead of pinning against the top status bar, featuring responsive header compression, compact field spacing, and internal scrolling so fields and action buttons remain visible and easily reachable.
 
 - Adjusted the tooltip offset for the "+ Group" button to sit 24px below the button, matching the provider icon tooltip distance to prevent the pointing-hand cursor from obscuring the tooltip text, and enabled full tooltip display for the "H" (5-hour) and "W" (weekly) average usage window toggle buttons with container overflow clearance and clean sidebar alignment.
