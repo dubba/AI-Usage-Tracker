@@ -151,6 +151,9 @@ impl PairingSessionManager {
     }
 
     pub async fn select_role(&self, role: &str) -> Result<(), String> {
+        if role != "send" && role != "receive" {
+            return Err(format!("Invalid role '{role}'. Expected 'send' or 'receive'."));
+        }
         let mut active = self.active.write().await;
         let Some(session) = active.as_mut() else {
             return Err("No active pairing session".into());
@@ -237,7 +240,12 @@ impl PairingSessionManager {
         };
 
         if self.epoch.load(Ordering::SeqCst) != epoch {
-            return Ok(init);
+            // A concurrent start/cancel superseded this session. Never hand the
+            // caller a QR for a session that has no listener behind it.
+            return Err(
+                "Pairing session was interrupted. Please try starting the transfer again."
+                    .to_string(),
+            );
         }
 
         *self.status.write().await = new_status.clone();

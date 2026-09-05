@@ -6,7 +6,7 @@ use super::{
     },
     payload::{create_export_payload, import_sync_payload},
     protocol::{
-        generate_qr_uri, parse_qr_uri, read_frame, write_frame, MSG_HANDSHAKE_INIT,
+        generate_qr_uri, parse_qr_uri, read_frame, write_frame, MSG_ABORT, MSG_HANDSHAKE_INIT,
         MSG_HANDSHAKE_RESP,
     },
     transport::{
@@ -331,6 +331,175 @@ async fn test_export_and_import_payload() {
     assert_eq!(summary2.added, 0);
     assert_eq!(summary2.updated, 1);
     assert_eq!(buckets[0].account_ids, vec!["acc-1".to_string()]);
+}
+
+#[tokio::test]
+async fn test_select_role_rejects_invalid_role_string() {
+    let manager = crate::pairing::PairingSessionManager::new();
+    let err = manager.select_role("nonsense").await.unwrap_err();
+    assert!(err.contains("Invalid role"), "unexpected error: {err}");
+}
+
+#[tokio::test]
+async fn test_host_survives_garbage_and_squatter_before_real_peer() {
+    // A LAN attacker who learns the (broadcast) session id must neither crash
+    // the session with garbage handshakes nor wedge it by squatting: the host
+    // must keep accepting until the legitimate peer shows up.
+    let dir_host = tempfile::tempdir().unwrap();
+    let state_host = Arc::new(AppState::new(dir_host.path().to_path_buf(), "tok-h4".into()).unwrap());
+
+    let dir_client = tempfile::tempdir().unwrap();
+    let state_client =
+        Arc::new(AppState::new(dir_client.path().to_path_buf(), "tok-c4".into()).unwrap());
+
+    let account = Account {
+        id: "client-acc-9".into(),
+        label: "Real Peer Account".into(),
+        provider: Provider::Anthropic,
+        email: Some("real@example.com".into()),
+        provider_account_id: None,
+        chatgpt_account_id: None,
+        plan: None,
+        created_at: Utc::now().to_rfc3339(),
+        updated_at: Utc::now().to_rfc3339(),
+        last_usage: None,
+        last_error: None,
+        auth_required: false,
+    };
+    let secret = ProviderSecret::Anthropic(crate::model::OAuthSecret {
+        access_token: "sk-ant-real".into(),
+        refresh_token: "sk-ant-real-ref".into(),
+        id_token: None,
+        expires_at: 0,
+    });
+    state_client
+        .persist_connected_account(account, &secret)
+        .await
+        .unwrap();
+
+    let host_keypair = EphemeralKeyPair::generate();
+    let session_id = Uuid::new_v4();
+    let host_nonce = vec![55u8; 16];
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+
+    let qr_uri = generate_qr_uri(
+        "127.0.0.1",
+        port,
+        &host_keypair.public_bytes(),
+        session_id,
+        &host_nonce,
+    );
+    let parsed_qr = parse_qr_uri(&qr_uri).unwrap();
+
+    let (host_status_tx, mut host_status_rx) = mpsc::channel(16);
+    let (host_confirm_tx, host_confirm_rx) = oneshot::channel();
+    let (_host_cancel_tx, host_cancel_rx) = oneshot::channel();
+
+    tokio::spawn(run_host_listener(
+        state_host.clone(),
+        session_id,
+        listener,
+        host_keypair,
+        host_nonce,
+        parsed_qr.fingerprint.clone(),
+        host_status_tx,
+        host_confirm_rx,
+        host_cancel_rx,
+    ));
+
+    // 1) Garbage handshake: wrong session id must be aborted, not kill the session.
+    {
+        let mut garbage = TcpStream::connect(("127.0.0.1", port)).await.unwrap();
+        let mut bad_init = Vec::with_capacity(48);
+        bad_init.extend_from_slice(&[7u8; 32]);
+        bad_init.extend_from_slice(Uuid::new_v4().as_bytes());
+        write_frame(&mut garbage, MSG_HANDSHAKE_INIT, &bad_init)
+            .await
+            .unwrap();
+        let (msg_type, _) = read_frame(&mut garbage).await.unwrap();
+        assert_eq!(msg_type, MSG_ABORT);
+    }
+
+    // 2) Squatter: completes the handshake (knows the public session id),
+    //    receives the host response, then disconnects without choosing a role.
+    {
+        let mut squatter = TcpStream::connect(("127.0.0.1", port)).await.unwrap();
+        let mut init = Vec::with_capacity(48);
+        init.extend_from_slice(&EphemeralKeyPair::generate().public_bytes());
+        init.extend_from_slice(session_id.as_bytes());
+        write_frame(&mut squatter, MSG_HANDSHAKE_INIT, &init)
+            .await
+            .unwrap();
+        let (msg_type, _) = read_frame(&mut squatter).await.unwrap();
+        assert_eq!(msg_type, MSG_HANDSHAKE_RESP);
+        // squatter dropped here
+    }
+
+    // Give the host a moment to notice the squatter's disconnect and loop back.
+    tokio::time::sleep(Duration::from_millis(300)).await;
+
+    // 3) The real client must still be able to pair and transfer.
+    let (send_status_tx, mut send_status_rx) = mpsc::channel(16);
+    let (send_confirm_tx, send_confirm_rx) = oneshot::channel();
+    let (_send_cancel_tx, send_cancel_rx) = oneshot::channel();
+
+    tokio::spawn(run_sender_client(
+        state_client.clone(),
+        parsed_qr,
+        send_status_tx,
+        send_confirm_rx,
+        send_cancel_rx,
+    ));
+
+    // Drain host events until SasVerification (host may report the squatter as
+    // PeerConnected first; keep going), then confirm.
+    let mut host_sas_seen = false;
+    while let Some(ev) = timeout(Duration::from_secs(5), host_status_rx.recv())
+        .await
+        .unwrap()
+    {
+        match ev {
+            HostEvent::SasVerification { role, account_count, .. } => {
+                assert_eq!(role, "receiver");
+                assert_eq!(account_count, 1);
+                host_sas_seen = true;
+                break;
+            }
+            HostEvent::Failed(e) => panic!("Host failed: {e}"),
+            _ => {}
+        }
+    }
+    assert!(host_sas_seen);
+
+    host_confirm_tx.send(true).unwrap();
+
+    let mut send_confirm_tx = Some(send_confirm_tx);
+    let mut send_completed = false;
+    while let Some(ev) = timeout(Duration::from_secs(5), send_status_rx.recv())
+        .await
+        .unwrap()
+    {
+        match ev {
+            SenderEvent::SasVerification { .. } => {
+                if let Some(tx) = send_confirm_tx.take() {
+                    tx.send(true).unwrap();
+                }
+            }
+            SenderEvent::Completed(summary) => {
+                assert_eq!(summary.added, 1);
+                send_completed = true;
+                break;
+            }
+            SenderEvent::Failed(e) => panic!("Sender failed: {e}"),
+            _ => {}
+        }
+    }
+    assert!(send_completed);
+
+    let host_accounts = state_host.store.list();
+    assert_eq!(host_accounts.len(), 1);
+    assert_eq!(host_accounts[0].label, "Real Peer Account");
 }
 
 #[tokio::test]

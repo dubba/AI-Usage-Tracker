@@ -6,6 +6,13 @@
 
 - Hardened Link Devices pairing against low-order key attacks: the Elliptic-curve Diffie-Hellman step now rejects non-contributory (low-order) peer public keys on both devices, preventing a malicious pairing link from forcing a predictable session key.
 - Restricted Link Devices pairing links to local network addresses only (private, loopback, link-local, or Tailscale CGNAT IP literals); pairing links pointing at public internet hosts or DNS names are now refused instead of connecting.
+- Link Devices sessions can no longer be crashed by another device on the local network sending garbage handshakes: rejected connections are throttled and the session keeps listening instead of shutting down after 5 failures. A device that connects but disconnects or misbehaves before picking a transfer direction no longer blocks the pairing; the sharing device returns to waiting so the intended device can still join.
+
+### Fixed
+
+- Fixed a pairing failure where a joining device silently ignored the host's rejection message and continued against a peer that had already aborted, producing confusing follow-up errors instead of a clear "host rejected the connection" message.
+- Fixed the transfer-direction (send/receive) choice silently defaulting to "receive" when an unexpected value was sent; invalid choices are now rejected with an error on both devices.
+- Fixed a race where rapidly starting or cancelling Link Devices sessions could leave the sharing device showing a QR code for a session with no listener behind it; the interrupted start now reports an error asking you to retry.
 
 ### Added
 
@@ -50,6 +57,7 @@
 
 ### Fixed
 
+- Fixed the modal "×" close button automatically displaying its tooltip upon opening a dialog by directing initial dialog focus to interactive content rather than the close control, restricting tooltip displays to genuine user interactions or keyboard navigation, and ignoring programmatic focus events on touch devices.
 - Fixed regression where modal "×" close buttons and the Link Devices switch-camera button lost their absolute positioning due to universal tooltip styling rules, restoring the close button to the top-right corner of all modals and keeping the switch-camera button docked directly to the right of the QR viewfinder.
 - Fixed sidebar window toggle evaluation: selecting 'H' (hourly / 5-hour) now strictly includes providers that actually have an hourly rate, correctly displaying a dash ('—') for Grok (7-day limit) and free ChatGPT (30-day limit), while selecting 'W' (weekly) displays the 30-day limit for free ChatGPT alongside 7-day and weekly provider limits.
 - Fixed the 3-dot sidebar resize grip positioning at the bottom of the screen on mobile devices by enforcing absolute positioning and normalizing the resize handle layout to maintain vertical centering matching the desktop layout.
