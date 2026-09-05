@@ -185,19 +185,36 @@
 .provider-account-card:has(.account-name-edit:hover),
 .provider-account-card:has(.account-name-edit:focus-visible),
 .provider-account-card:has(.account-card-provider-icon:hover),
-.provider-account-card:has(.account-card-provider-icon:focus-visible) {
+.provider-account-card:has(.account-card-provider-icon:focus-visible),
+.provider-account-card:has([data-tooltip-active]),
+.provider-account-card:has([data-tooltip]:hover),
+.provider-account-card:has([data-tooltip]:focus-visible) {
   z-index: 50;
 }
 
-.account-card-action[data-tooltip]::after,
-.account-name-edit[data-tooltip]::after,
-.account-card-provider-icon[data-tooltip]::after,
-.sidebar-resize-grip[data-tooltip]::after {
+.provider-account-card:has([data-tooltip-dismissed]:not([data-tooltip-active])) {
+  z-index: auto;
+}
+
+/* ==========================================================================
+   Universal Custom Tooltips
+   Matches the Obsidian dark theme, timing, and mobile touch behavior.
+   ========================================================================== */
+
+[data-tooltip]:not(.sidebar-resize-grip) {
+  position: relative;
+}
+
+.sidebar-resize-grip[data-tooltip] {
+  position: absolute !important;
+}
+
+[data-tooltip]::after {
   content: attr(data-tooltip);
   position: absolute;
   left: 50%;
-  top: calc(100% + 26px);
-  z-index: 10;
+  top: calc(100% + 8px);
+  z-index: 100;
   transform: translateX(-50%);
   padding: 6px 9px;
   border: 1px solid #3d3b3d;
@@ -211,21 +228,69 @@
   opacity: 0;
   pointer-events: none;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+  transition: opacity 0.15s ease-out;
 }
 
-.account-card-action[data-tooltip]:hover::after,
-.account-card-action[data-tooltip]:focus-visible::after,
-.account-name-edit[data-tooltip]:hover::after,
-.account-name-edit[data-tooltip]:focus-visible::after,
-.account-card-provider-icon[data-tooltip]:hover::after,
-.account-card-provider-icon[data-tooltip]:focus-visible::after,
-.sidebar-resize-grip[data-tooltip]:hover::after,
-.sidebar-resize-handle:focus-visible .sidebar-resize-grip[data-tooltip]::after {
+/* Suppress empty or invalid tooltips */
+[data-tooltip=""]::after,
+[data-tooltip="false"]::after,
+[data-tooltip="undefined"]::after {
+  display: none !important;
+}
+
+/* Hover and focus states on desktop / pointer devices */
+[data-tooltip]:hover::after,
+[data-tooltip]:focus-visible::after,
+.sidebar-resize-handle:focus-visible .sidebar-resize-grip[data-tooltip]::after,
+[data-tooltip-active]::after {
   opacity: 1;
+}
+
+/* On mobile / touch devices: auto-dismiss tooltips after 3 seconds */
+@media (hover: none), (pointer: coarse) {
+  [data-tooltip]:hover::after,
+  [data-tooltip]:focus::after,
+  [data-tooltip]:focus-visible::after,
+  .sidebar-resize-handle:focus .sidebar-resize-grip[data-tooltip]::after,
+  .sidebar-resize-handle:focus-visible .sidebar-resize-grip[data-tooltip]::after,
+  [data-tooltip-active]::after {
+    animation: mobile-tooltip-timer 3s forwards ease-out;
+  }
+}
+
+@keyframes mobile-tooltip-timer {
+  0% {
+    opacity: 1;
+    visibility: visible;
+  }
+  88% {
+    opacity: 1;
+    visibility: visible;
+  }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
+/* Explicitly dismissed tooltip state on mobile */
+[data-tooltip-dismissed]::after {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  animation: none !important;
+}
+
+/* Specific position adjustments for accounts and grips */
+.account-card-action[data-tooltip]::after {
+  top: calc(100% + 26px);
+  z-index: 10;
 }
 
 .account-card-name-actions .account-card-action[data-tooltip]::after,
 .sidebar-resize-grip[data-tooltip]::after {
+  top: calc(100% + 26px);
   left: auto;
   right: 0;
   transform: none;
@@ -236,6 +301,7 @@
 }
 
 .account-name-edit[data-tooltip]::after {
+  top: calc(100% + 26px);
   left: 0;
   right: auto;
   transform: none;
@@ -247,6 +313,71 @@
   right: auto;
   transform: none;
   top: calc(100% + 24px);
+}
+
+/* Sidebar heading actions: + Group button and H / W window toggle buttons */
+.provider-sidebar-heading {
+  position: relative;
+  z-index: 10;
+}
+
+.add-bucket-header-button[data-tooltip]::after {
+  top: calc(100% + 24px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+}
+
+.provider-window-toggle button[data-tooltip]::after {
+  top: calc(100% + 24px);
+  left: auto;
+  right: 0;
+  transform: none;
+  z-index: 100;
+}
+
+.provider-window-toggle button:first-child[data-tooltip]::after {
+  right: -31px;
+}
+
+/* Modal close button: right-aligned so it doesn't escape the top-right corner of the modal */
+.ui-modal-close[data-tooltip]::after {
+  top: calc(100% + 6px);
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+/* Header sidebar toggle buttons: left-aligned so it stays cleanly within window bounds */
+.mobile-sidebar-toggle-btn[data-tooltip]::after,
+.sidebar-toggle[data-tooltip]::after {
+  top: calc(100% + 8px);
+  left: 0;
+  transform: none;
+}
+
+/* Sidebar mobile close button */
+.mobile-sidebar-close-btn[data-tooltip]::after {
+  top: calc(100% + 8px);
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+/* Pairing switch camera FAB button: centered below the purple circle, shifts inward on tiny screens */
+.pairing-switch-camera-fab[data-tooltip]::after {
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+}
+
+@media (max-width: 400px) {
+  .pairing-switch-camera-fab[data-tooltip]::after {
+    left: auto;
+    right: 0;
+    transform: none;
+  }
 }
 
 .account-usage-metric {
@@ -491,5 +622,132 @@ html:not(.dashboard-reordering) .provider-account-card input.account-card-name-i
     padding: 0 !important;
   }
 }
+
+/* In-App Usage Alert Toasts */
+.usage-alert-toast-container {
+  position: fixed;
+  bottom: calc(24px + var(--android-safe-bottom, 0px));
+  right: 24px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 420px;
+  width: calc(100vw - 48px);
+  pointer-events: none;
+}
+
+.usage-alert-toast {
+  pointer-events: auto;
+  background: rgba(22, 19, 32, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(192, 132, 252, 0.35);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 0 0 16px rgba(168, 85, 247, 0.22);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: #f3f4f6;
+  animation: toastSlideIn 0.25s ease-out;
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.usage-alert-toast-icon {
+  color: #c084fc;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+
+.usage-alert-toast-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.usage-alert-toast-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.usage-alert-toast-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.usage-alert-toast-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: #f5f3ff;
+  line-height: 1.3;
+  min-width: 0;
+}
+
+.usage-alert-toast-time {
+  font-size: 11px;
+  color: #c084fc;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.usage-alert-toast-body {
+  font-size: 12px;
+  color: #d1d5db;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.usage-alert-toast-close {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.usage-alert-toast-close svg {
+  width: 14px;
+  height: 14px;
+}
+
+.usage-alert-toast-close:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+@media (max-width: 600px) {
+  .usage-alert-toast-container {
+    left: 16px;
+    right: 16px;
+    width: auto;
+    bottom: calc(16px + var(--android-safe-bottom, 0px));
+  }
+}
+
 
 

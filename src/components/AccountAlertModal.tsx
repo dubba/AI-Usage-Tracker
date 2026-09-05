@@ -6,19 +6,58 @@ import { CustomDropdown } from "./CustomDropdown";
 import { useModalA11y } from "./useModalA11y";
 
 const THRESHOLDS = [10, 20, 30, 40, 50];
-const WINDOW_ORDER = ["five_hour", "weekly"] as const;
+const WINDOW_ORDER = ["five_hour", "weekly", "monthly"] as const;
 type AlertWindowId = typeof WINDOW_ORDER[number];
 
 function canonicalWindowId(window: UsageWindow): AlertWindowId | null {
   const id = window.id.toLowerCase().replaceAll("-", "_");
   const label = window.label.toLowerCase();
-  if (id === "five_hour" || id === "rolling" || window.windowSeconds === 18_000 || label.includes("5 hour") || label.includes("five hour")) return "five_hour";
-  if (id === "weekly" || window.windowSeconds === 604_800 || label.includes("weekly") || label.includes("7 day") || label.includes("seven day")) return "weekly";
+  if (
+    id === "five_hour" ||
+    id.startsWith("five_hour") ||
+    id === "rolling" ||
+    window.windowSeconds === 18_000 ||
+    label.includes("5 hour") ||
+    label.includes("five hour") ||
+    label.includes("5h") ||
+    label.includes("5-hour")
+  ) return "five_hour";
+  if (
+    id === "weekly" ||
+    id.startsWith("weekly") ||
+    window.windowSeconds === 604_800 ||
+    label.includes("weekly") ||
+    label.includes("7 day") ||
+    label.includes("seven day") ||
+    label.includes("7d") ||
+    label.includes("7-day")
+  ) return "weekly";
+  if (
+    id === "monthly" ||
+    id.startsWith("monthly") ||
+    id === "thirty_day" ||
+    id.startsWith("thirty_day") ||
+    id.includes("30d") ||
+    id.includes("30_day") ||
+    (window.windowSeconds != null && window.windowSeconds >= 2_000_000 && window.windowSeconds <= 2_700_000) ||
+    label.includes("monthly") ||
+    label.includes("30 day") ||
+    label.includes("thirty day") ||
+    label.includes("30d") ||
+    label.includes("30-day")
+  ) return "monthly";
   return null;
 }
 
 function windowLabel(windowId: AlertWindowId): string {
-  return windowId === "five_hour" ? "5 hour" : "Weekly";
+  switch (windowId) {
+    case "five_hour":
+      return "5 hour";
+    case "weekly":
+      return "Weekly";
+    case "monthly":
+      return "30-day";
+  }
 }
 
 function defaultSetting(windowId: AlertWindowId): UsageAlertSetting {
@@ -100,7 +139,7 @@ export function AccountAlertModal({
       <section ref={dialogRef} className="modal-card alert-settings-modal notification-only-modal" role="dialog" aria-modal="true" aria-labelledby="alert-settings-title" tabIndex={-1}>
         <div className="modal-kicker">Account alerts</div>
         <h2 id="alert-settings-title">Usage notifications</h2>
-        <p>Choose when to notify you about the 5-hour and weekly limits for <strong>{account.label}</strong>.</p>
+        <p>Choose when to notify you about the 5-hour, weekly, and 30-day limits for <strong>{account.label}</strong>.</p>
 
         <section className="account-settings-section">
           {loading ? <div className="waiting-panel"><span className="spinner" />Loading notification settings…</div> : null}
@@ -142,7 +181,7 @@ export function AccountAlertModal({
           {!loading && !availableWindows.length ? (
             <div className="alert-empty-state compact-alert-empty">
               <BellIcon />
-              <strong>No 5-hour or weekly limits detected yet</strong>
+              <strong>No 5-hour, weekly, or 30-day limits detected yet</strong>
               <span>Refresh this account so the app can detect its available usage windows.</span>
             </div>
           ) : null}

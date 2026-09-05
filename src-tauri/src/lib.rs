@@ -394,6 +394,33 @@ fn get_account_alerts(
     Ok(state.alerts.get(&account_id))
 }
 
+fn is_alert_window_available(account: &Account, window_id: &str) -> bool {
+    if let Some(usage) = account.last_usage.as_ref() {
+        if usage.windows.iter().any(|window| {
+            alerts::canonical_window_id(window) == Some(window_id)
+        }) {
+            return true;
+        }
+    }
+    // Free OpenAI/ChatGPT accounts operate on a 30-day (monthly) quota limit.
+    // Recognize monthly limit for OpenAI free tier accounts even if last_usage is pending
+    // or cached with legacy session labels.
+    if account.provider == Provider::Openai
+        && window_id == "monthly"
+        && account.plan.as_deref().map_or(true, |p| p.eq_ignore_ascii_case("free"))
+    {
+        return true;
+    }
+    // Paid OpenAI accounts support 5-hour and weekly limits.
+    if account.provider == Provider::Openai
+        && (window_id == "five_hour" || window_id == "weekly")
+        && account.plan.as_deref().map_or(false, |p| !p.eq_ignore_ascii_case("free"))
+    {
+        return true;
+    }
+    false
+}
+
 #[tauri::command]
 fn save_account_alerts(
     state: State<'_, Arc<AppState>>,
@@ -406,12 +433,10 @@ fn save_account_alerts(
         .ok_or_else(|| "Account not found.".to_string())?;
 
     for setting in &settings {
-        let available = account.last_usage.as_ref().is_some_and(|usage| {
-            usage.windows.iter().any(|window| {
-                alerts::canonical_window_id(window) == Some(setting.window_id.as_str())
-            })
-        });
-        if !available {
+        if !setting.enabled {
+            continue;
+        }
+        if !is_alert_window_available(&account, &setting.window_id) {
             return Err(format!(
                 "{} is not available for this account's current plan.",
                 setting.window_id.replace('_', " ")
@@ -470,8 +495,6 @@ async fn remove_account(
     state: State<'_, Arc<AppState>>,
     account_id: String,
 ) -> Result<(), String> {
-    let lock = state.account_lock(&account_id);
-    let _guard = lock.lock().await;
     state
         .store
         .remove(&account_id)
@@ -995,6 +1018,9 @@ pub fn run() {
                 });
             }
 
+            #[cfg(target_os = "macos")]
+            setup_macos_notification_delegate();
+
             let data_dir = app.path().app_data_dir()?;
             crate::store::set_data_dir(data_dir.clone());
             let token = load_or_create_bridge_token()
@@ -1119,10 +1145,162 @@ async fn run_account_refresh_loop(state: Arc<AppState>) {
             tokio::select! {
                 _ = tokio::time::sleep(remaining) => break,
                 _ = state.settings.wait_for_refresh_schedule_change() => break,
-                _ = state.wait_for_refresh_wakeup() => {}
+                _ = state.wait_for_refresh_wakeup() => break,
             }
         }
     }
+}
+
+#[cfg(target_os = "macos")]
+fn setup_macos_notification_delegate() {
+    use std::ffi::{c_char, c_void};
+    use std::sync::Once;
+
+    static INIT: Once = Once::new();
+    INIT.call_once(|| unsafe {
+        type Id = *mut c_void;
+        type Sel = *mut c_void;
+        type Class = *mut c_void;
+        type Imp = unsafe extern "C" fn(Id, Sel, Id, Id) -> bool;
+
+        extern "C" {
+            fn objc_getClass(name: *const c_char) -> Class;
+            fn sel_registerName(name: *const c_char) -> Sel;
+            fn objc_allocateClassPair(superclass: Class, name: *const c_char, extra_bytes: usize) -> Class;
+            fn class_addMethod(cls: Class, name: Sel, imp: Imp, types: *const c_char) -> bool;
+            fn objc_registerClassPair(cls: Class);
+            fn objc_msgSend();
+        }
+
+        unsafe extern "C" fn should_present_notification(
+            _this: Id,
+            _cmd: Sel,
+            _center: Id,
+            _notification: Id,
+        ) -> bool {
+            true
+        }
+
+        let center_class = objc_getClass(b"NSUserNotificationCenter\0".as_ptr() as *const c_char);
+        if center_class.is_null() {
+            return;
+        }
+
+        let default_center_sel =
+            sel_registerName(b"defaultUserNotificationCenter\0".as_ptr() as *const c_char);
+        let msg_send_get_center: unsafe extern "C" fn(Class, Sel) -> Id =
+            std::mem::transmute(objc_msgSend as *const ());
+        let center = msg_send_get_center(center_class, default_center_sel);
+        if center.is_null() {
+            return;
+        }
+
+        let nsobject_class = objc_getClass(b"NSObject\0".as_ptr() as *const c_char);
+        if nsobject_class.is_null() {
+            return;
+        }
+
+        let class_name = b"AiUsageNotificationCenterDelegate\0".as_ptr() as *const c_char;
+        let mut delegate_class = objc_getClass(class_name);
+        if delegate_class.is_null() {
+            delegate_class = objc_allocateClassPair(nsobject_class, class_name, 0);
+            if !delegate_class.is_null() {
+                let should_present_sel = sel_registerName(
+                    b"userNotificationCenter:shouldPresentNotification:\0".as_ptr() as *const c_char,
+                );
+                let types = b"c@:@@\0".as_ptr() as *const c_char;
+                class_addMethod(
+                    delegate_class,
+                    should_present_sel,
+                    should_present_notification,
+                    types,
+                );
+                objc_registerClassPair(delegate_class);
+            }
+        }
+
+        if !delegate_class.is_null() {
+            let new_sel = sel_registerName(b"new\0".as_ptr() as *const c_char);
+            let msg_send_new: unsafe extern "C" fn(Class, Sel) -> Id =
+                std::mem::transmute(objc_msgSend as *const ());
+            let delegate_instance = msg_send_new(delegate_class, new_sel);
+            if !delegate_instance.is_null() {
+                let set_delegate_sel = sel_registerName(b"setDelegate:\0".as_ptr() as *const c_char);
+                let msg_send_set_delegate: unsafe extern "C" fn(Id, Sel, Id) =
+                    std::mem::transmute(objc_msgSend as *const ());
+                msg_send_set_delegate(center, set_delegate_sel, delegate_instance);
+            }
+        }
+
+        // Modern macOS (10.14+): UNUserNotificationCenter delegate
+        #[repr(C)]
+        struct BlockLiteral {
+            _isa: *const c_void,
+            _flags: i32,
+            _reserved: i32,
+            invoke: unsafe extern "C" fn(*const c_void, u64),
+        }
+
+        unsafe extern "C" fn will_present_notification(
+            _this: Id,
+            _cmd: Sel,
+            _center: Id,
+            _notification: Id,
+            completion_handler: *const BlockLiteral,
+        ) {
+            if !completion_handler.is_null() {
+                let options: u64 = (1 << 4) | (1 << 3) | (1 << 2) | (1 << 1) | (1 << 0); // Banner, List, Alert, Sound, Badge
+                let invoke = (*completion_handler).invoke;
+                invoke(completion_handler as *const c_void, options);
+            }
+        }
+
+        let un_center_class = objc_getClass(b"UNUserNotificationCenter\0".as_ptr() as *const c_char);
+        if !un_center_class.is_null() {
+            let current_center_sel =
+                sel_registerName(b"currentNotificationCenter\0".as_ptr() as *const c_char);
+            let msg_send_get_center: unsafe extern "C" fn(Class, Sel) -> Id =
+                std::mem::transmute(objc_msgSend as *const ());
+            let center = msg_send_get_center(un_center_class, current_center_sel);
+            if !center.is_null() {
+                let class_name = b"AiUsageModernNotificationCenterDelegate\0".as_ptr() as *const c_char;
+                let mut delegate_class = objc_getClass(class_name);
+                if delegate_class.is_null() {
+                    delegate_class = objc_allocateClassPair(nsobject_class, class_name, 0);
+                    if !delegate_class.is_null() {
+                        let will_present_sel = sel_registerName(
+                            b"userNotificationCenter:willPresentNotification:withCompletionHandler:\0"
+                                .as_ptr() as *const c_char,
+                        );
+                        let types = b"v@:@@@?\0".as_ptr() as *const c_char;
+                        class_addMethod(
+                            delegate_class,
+                            will_present_sel,
+                            std::mem::transmute::<
+                                unsafe extern "C" fn(Id, Sel, Id, Id, *const BlockLiteral),
+                                Imp,
+                            >(will_present_notification),
+                            types,
+                        );
+                        objc_registerClassPair(delegate_class);
+                    }
+                }
+                if !delegate_class.is_null() {
+                    let new_sel = sel_registerName(b"new\0".as_ptr() as *const c_char);
+                    let msg_send_new: unsafe extern "C" fn(Class, Sel) -> Id =
+                        std::mem::transmute(objc_msgSend as *const ());
+                    let delegate_instance = msg_send_new(delegate_class, new_sel);
+                    if !delegate_instance.is_null() {
+                        let set_delegate_sel =
+                            sel_registerName(b"setDelegate:\0".as_ptr() as *const c_char);
+                        let msg_send_set_delegate: unsafe extern "C" fn(Id, Sel, Id) =
+                            std::mem::transmute(objc_msgSend as *const ());
+                        msg_send_set_delegate(center, set_delegate_sel, delegate_instance);
+                    }
+                }
+            }
+        }
+    });
 }
 
 #[cfg(test)]
@@ -1216,5 +1394,29 @@ mod tests {
             super::apk_url_from_github_assets(&json).as_deref(),
             Some("https://example.com/app.apk")
         );
+    }
+
+    #[test]
+    fn recognizes_monthly_window_for_free_openai_accounts() {
+        use crate::model::{now_rfc3339, Account, Provider};
+
+        let now = now_rfc3339();
+        let free_account = Account {
+            id: "openai-free".into(),
+            label: "Free ChatGPT".into(),
+            provider: Provider::Openai,
+            email: None,
+            provider_account_id: None,
+            chatgpt_account_id: None,
+            plan: Some("free".into()),
+            created_at: now.clone(),
+            updated_at: now.clone(),
+            last_usage: None,
+            last_error: None,
+            auth_required: false,
+        };
+
+        assert!(super::is_alert_window_available(&free_account, "monthly"));
+        assert!(!super::is_alert_window_available(&free_account, "five_hour"));
     }
 }

@@ -183,6 +183,14 @@
   width: 100%;
 }
 
+.pairing-scanner-stage {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
+}
+
 .pairing-scanner-box {
   position: relative;
   width: 220px;
@@ -191,9 +199,71 @@
   overflow: hidden;
   background: #000000;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
-  margin-bottom: 14px;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
   user-select: none;
+}
+
+.pairing-switch-camera-fab {
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(160, 120, 255, 0.16);
+  border: 1.5px solid var(--obsidian-purple-strong, #a078ff);
+  color: var(--obsidian-purple, #d0bcff);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pairing-switch-camera-fab:hover:not(:disabled) {
+    background: rgba(160, 120, 255, 0.28);
+    border-color: #bfa0ff;
+    color: #ffffff;
+    box-shadow: 0 0 16px rgba(160, 120, 255, 0.5);
+    transform: translateY(-50%) scale(1.06);
+  }
+}
+
+.pairing-switch-camera-fab:active:not(:disabled) {
+  background: rgba(160, 120, 255, 0.42);
+  border-color: #d0bcff;
+  transform: translateY(-50%) scale(0.94);
+}
+
+.pairing-switch-camera-fab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pairing-switch-camera-fab svg {
+  width: 22px;
+  height: 22px;
+}
+
+@media (max-width: 360px) {
+  .pairing-switch-camera-fab {
+    width: 38px;
+    height: 38px;
+    left: calc(100% + 8px);
+  }
+  .pairing-switch-camera-fab svg {
+    width: 20px;
+    height: 20px;
+  }
 }
 
 .pairing-scanner-video {
@@ -771,5 +841,107 @@
   .pairing-scanner-frame {
     width: 140px;
     height: 140px;
+  }
+}
+
+/* Mobile Keyboard Adaptation: Move modal up when keyboard appears */
+@media (max-width: 768px) {
+  .modal-backdrop.keyboard-open,
+  html.keyboard-active .modal-backdrop:has(.pairing-modal),
+  .modal-backdrop:has(.pairing-modal.view-code-entry.keyboard-open),
+  .modal-backdrop:has(.pairing-modal.view-code-entry:focus-within) {
+    align-items: flex-start !important;
+    justify-content: center !important;
+    padding-top: calc(max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px), 16px) + 8px) !important;
+    padding-bottom: calc(max(var(--android-keyboard-height, 0px), 240px) + 16px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .modal-card.pairing-modal.keyboard-open,
+  html.keyboard-active .modal-card.pairing-modal,
+  .modal-card.pairing-modal.view-code-entry.keyboard-open,
+  .modal-card.pairing-modal.view-code-entry:focus-within {
+    margin-top: 0 !important;
+    margin-bottom: auto !important;
+    transform: translateY(0) !important;
+    padding: 16px 18px 18px !important;
+    max-height: calc(100dvh - max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px), 16px) - var(--android-keyboard-height, 0px) - 24px);
+    overflow-y: auto;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.75);
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), padding 0.2s ease;
+  }
+
+  /* Compact header in keyboard mode */
+  .modal-card.pairing-modal.keyboard-open .modal-kicker,
+  html.keyboard-active .modal-card.pairing-modal .modal-kicker,
+  .modal-card.pairing-modal.view-code-entry.keyboard-open .modal-kicker,
+  .modal-card.pairing-modal.view-code-entry:focus-within .modal-kicker {
+    font-size: 8px !important;
+    margin-bottom: 2px !important;
+  }
+
+  .modal-card.pairing-modal.keyboard-open h2,
+  html.keyboard-active .modal-card.pairing-modal h2,
+  .modal-card.pairing-modal.view-code-entry.keyboard-open h2,
+  .modal-card.pairing-modal.view-code-entry:focus-within h2 {
+    font-size: 18px !important;
+    margin: 2px 0 4px !important;
+  }
+
+  .modal-card.pairing-modal.keyboard-open .pairing-subtitle,
+  html.keyboard-active .modal-card.pairing-modal .pairing-subtitle,
+  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-subtitle,
+  .modal-card.pairing-modal.view-code-entry:focus-within .pairing-subtitle {
+    margin: 0 0 10px 0 !important;
+    font-size: 0.78rem !important;
+  }
+
+  /* Compact code entry elements so Back and Connect buttons remain comfortably visible above keyboard */
+  .modal-card.pairing-modal.keyboard-open .pairing-code-entry-view,
+  html.keyboard-active .modal-card.pairing-modal .pairing-code-entry-view,
+  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-code-entry-view,
+  .modal-card.pairing-modal.view-code-entry:focus-within .pairing-code-entry-view {
+    gap: 12px !important;
+  }
+
+  .modal-card.pairing-modal.keyboard-open .pairing-code-input,
+  html.keyboard-active .modal-card.pairing-modal .pairing-code-input,
+  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-code-input,
+  .modal-card.pairing-modal.view-code-entry:focus-within .pairing-code-input {
+    font-size: 1.6rem !important;
+    padding: 8px 12px !important;
+    max-width: 250px !important;
+  }
+
+  .modal-card.pairing-modal.keyboard-open .pairing-code-help,
+  html.keyboard-active .modal-card.pairing-modal .pairing-code-help,
+  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-code-help,
+  .modal-card.pairing-modal.view-code-entry:focus-within .pairing-code-help {
+    font-size: 0.72rem !important;
+    margin: 0 !important;
+  }
+
+  .modal-card.pairing-modal.keyboard-open .pairing-security-note,
+  html.keyboard-active .modal-card.pairing-modal .pairing-security-note,
+  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-security-note,
+  .modal-card.pairing-modal.view-code-entry:focus-within .pairing-security-note {
+    font-size: 0.68rem !important;
+    padding: 4px 8px !important;
+  }
+
+  .modal-card.pairing-modal.keyboard-open .pairing-scanner-controls,
+  html.keyboard-active .modal-card.pairing-modal .pairing-scanner-controls,
+  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-scanner-controls,
+  .modal-card.pairing-modal.view-code-entry:focus-within .pairing-scanner-controls {
+    margin-top: 2px !important;
+  }
+
+  .modal-card.pairing-modal.keyboard-open .pairing-scanner-controls .button,
+  html.keyboard-active .modal-card.pairing-modal .pairing-scanner-controls .button,
+  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-scanner-controls .button,
+  .modal-card.pairing-modal.view-code-entry:focus-within .pairing-scanner-controls .button {
+    padding: 10px 14px !important;
+    font-size: 0.85rem !important;
   }
 }

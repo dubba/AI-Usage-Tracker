@@ -31,12 +31,13 @@ pub fn set_data_dir(path: PathBuf) {
 
 #[cfg(any(target_os = "android", debug_assertions))]
 fn current_credentials_dir() -> Result<PathBuf, StoreError> {
-    let dirs = DATA_DIRS.read();
+    let mut dirs = DATA_DIRS.write();
+    dirs.retain(|p| p.exists());
     let base = dirs
-        .iter()
-        .find(|p| p.exists())
+        .first()
         .cloned()
         .ok_or_else(|| StoreError::Credential("Storage directory has not been initialized".into()))?;
+    drop(dirs);
     let dir = base.join("credentials");
     fs::create_dir_all(&dir).map_err(|e| StoreError::Io(e.to_string()))?;
     ensure_private_file(&dir).map_err(StoreError::Io)?;
@@ -295,6 +296,21 @@ pub fn save_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result
 fn persist_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result<(), StoreError> {
     let payload =
         serde_json::to_vec(secret).map_err(|error| StoreError::Invalid(error.to_string()))?;
+    for _ in 0..3 {
+        let dir = match current_credentials_dir() {
+            Ok(d) => d,
+            Err(_) => continue,
+        };
+        let _ = fs::create_dir_all(&dir);
+        let path = dir.join(format!("{account_id}.json"));
+        match atomic_write_private(&path, &payload) {
+            Ok(()) => return Ok(()),
+            Err(_) => {
+                let mut dirs = DATA_DIRS.write();
+                dirs.retain(|p| p.exists());
+            }
+        }
+    }
     let dir = current_credentials_dir()?;
     let path = dir.join(format!("{account_id}.json"));
     atomic_write_private(&path, &payload).map_err(StoreError::Credential)?;

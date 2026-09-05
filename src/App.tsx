@@ -127,6 +127,11 @@ function formatTime(value: string | null | undefined): string {
   return date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
 }
 
+function formatAlertTime(timestamp: number): string {
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
 function googleAiStudioHasQuotaWindows(account: Account): boolean {
   return account.provider === "google_ai_studio"
     && account.lastUsage?.source === "google_ai_studio_cloud_monitoring"
@@ -169,21 +174,61 @@ function canonicalWindow(window: UsageWindow, target: SidebarWindow): boolean {
   const label = window.label.toLowerCase();
   if (target === "five_hour") {
     return id === "five_hour"
+      || id.startsWith("five_hour")
       || id === "rolling"
       || window.windowSeconds === 18_000
       || label.includes("5 hour")
-      || label.includes("five hour");
+      || label.includes("five hour")
+      || label.includes("5h")
+      || label.includes("5-hour");
   }
   return id === "weekly"
+    || id.startsWith("weekly")
     || window.windowSeconds === 604_800
     || label.includes("weekly")
     || label.includes("7 day")
-    || label.includes("seven day");
+    || label.includes("seven day")
+    || label.includes("7d")
+    || label.includes("7-day");
+}
+function isMonthlyWindow(window: UsageWindow): boolean {
+  const id = window.id.toLowerCase().replaceAll("-", "_");
+  const label = window.label.toLowerCase();
+  return (
+    id.includes("monthly") ||
+    id.includes("30d") ||
+    id.includes("30_day") ||
+    id.includes("thirty_day") ||
+    (window.windowSeconds != null && window.windowSeconds >= 2_000_000 && window.windowSeconds <= 2_700_000) ||
+    label.includes("monthly") ||
+    label.includes("30d") ||
+    label.includes("30-day") ||
+    label.includes("30 day") ||
+    label.includes("thirty day")
+  );
 }
 
 function accountWindowRemaining(account: Account, target: SidebarWindow): number | null {
-  const window = account.lastUsage?.windows.find((candidate) => canonicalWindow(candidate, target));
-  return window?.remainingPercent ?? null;
+  const windows = account.lastUsage?.windows ?? [];
+  if (!windows.length) return null;
+
+  // 1. If H (hourly / 5-hour) is selected, only return usage for providers that actually have an hourly rate.
+  // Accounts without an hourly window (such as Grok with a 7d limit, or free GPT with a 30d limit) return null (dash "—").
+  if (target === "five_hour") {
+    const hourly = windows.find((candidate) => canonicalWindow(candidate, "five_hour"));
+    return hourly?.remainingPercent ?? null;
+  }
+
+  // 2. If W (weekly) is selected:
+  // First look for a 7-day / weekly window.
+  const weekly = windows.find((candidate) => canonicalWindow(candidate, "weekly"));
+  if (weekly?.remainingPercent != null) return weekly.remainingPercent;
+
+  // For GPT or accounts with a monthly / 30-day limit, show the 30-day limit under W.
+  const monthly = windows.find(isMonthlyWindow);
+  if (monthly?.remainingPercent != null) return monthly.remainingPercent;
+
+  return null;
 }
 
 function groupAverage(accounts: Account[], target: SidebarWindow): number | null {
@@ -339,11 +384,15 @@ function orderedWindows(windows: UsageWindow[]): UsageWindow[] {
 function windowLength(window: UsageWindow): string | null {
   const id = window.id.toLowerCase().replaceAll("-", "_");
   const label = window.label.toLowerCase();
-  if (id.includes("monthly") || label.includes("monthly")) return "Monthly";
-  if (!window.windowSeconds) return null;
-  const hours = Math.round(window.windowSeconds / 3600);
-  if (hours >= 24 && hours % 24 === 0) return `${hours / 24}d window`;
-  return `${hours}h window`;
+  if (window.windowSeconds) {
+    const hours = Math.round(window.windowSeconds / 3600);
+    if (hours >= 24 && hours % 24 === 0) return `${hours / 24}d window`;
+    return `${hours}h window`;
+  }
+  if (id.includes("monthly") || label.includes("monthly") || id.includes("30d") || label.includes("30d")) {
+    return "30d window";
+  }
+  return null;
 }
 
 function resetCountdownLabel(
@@ -371,11 +420,12 @@ function cleanModelPrefix(prefix: string): string {
     .trim();
 }
 
-function displayMetricLabel(window: UsageWindow): string {
+function displayMetricLabel(window: UsageWindow, provider?: Provider | string): string {
   const label = window.label.trim();
   const lower = label.toLowerCase();
+  const providerLower = provider?.toLowerCase();
 
-  // Model-grouped windows, e.g. "Gemini models · 5 hour", "Claude & GPT models · 5 hour"
+  // Model-grouped windows, e.g. "Gemini models · 5 hour", "Claude & GPT models · 5 hour", "GPT · 30-Day Limit"
   if (label.includes(" · ")) {
     const parts = label.split(" · ");
     const prefix = cleanModelPrefix(parts.slice(0, -1).join(" · "));
@@ -407,14 +457,23 @@ function displayMetricLabel(window: UsageWindow): string {
     return `${base} · Remaining Limit`;
   }
 
-  // Pure standalone window labels
+  // Pure standalone window labels or provider-specific defaults
+  if (providerLower === "openai") {
+    if (window.id.toLowerCase().includes("code_review") || lower.includes("code review")) {
+      return "Code Review · Remaining Limit";
+    }
+    return "GPT · Remaining Limit";
+  }
+
   if (
     lower === "weekly" ||
     lower === "5 hour" ||
     lower === "5-hour" ||
     lower === "five hour" ||
     lower === "five_hour" ||
+    lower === "monthly" ||
     lower === "rolling" ||
+    lower === "session" ||
     lower === "five hour limit remaining" ||
     lower === "weekly limit remaining" ||
     lower === "5 hour limit remaining" ||
@@ -422,6 +481,7 @@ function displayMetricLabel(window: UsageWindow): string {
     lower === "limit remaining" ||
     lower === "usage"
   ) {
+    if (providerLower === "grok") return "Grok · Remaining Limit";
     return "Remaining Limit";
   }
 
@@ -431,9 +491,7 @@ function displayMetricLabel(window: UsageWindow): string {
 function windowPillClass(window: UsageWindow): string {
   if (canonicalWindow(window, "five_hour")) return "window-pill-5h";
   if (canonicalWindow(window, "weekly")) return "window-pill-7d";
-  const id = window.id.toLowerCase();
-  const label = window.label.toLowerCase();
-  if (id.includes("monthly") || label.includes("monthly")) return "window-pill-monthly";
+  if (isMonthlyWindow(window)) return "window-pill-monthly";
   return "window-pill-default";
 }
 
@@ -476,6 +534,7 @@ export default function App() {
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [installedVersion, setInstalledVersion] = useState(FALLBACK_APP_VERSION);
+  const [inAppAlerts, setInAppAlerts] = useState<Array<{ id: string; title: string; body: string; timestamp: number }>>([]);
   const [appUpdate, setAppUpdate] = useState<AppUpdateStatus | null>(null);
   const [updateBusy, setUpdateBusy] = useState<UpdateBusy>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
@@ -512,6 +571,15 @@ export default function App() {
         setUpdateError(null);
         updateErrorTimerRef.current = null;
       }, 5_000);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent)) {
+      const root = document.documentElement;
+      if (!root.style.getPropertyValue("--android-safe-top")) {
+        root.style.setProperty("--android-safe-top", "48px");
+      }
     }
   }, []);
 
@@ -574,6 +642,10 @@ export default function App() {
       setError(String(cause));
     }
   }, []);
+
+  const handlePairingCompleted = useCallback(async () => {
+    await load();
+  }, [load]);
 
   const checkForUpdate = useCallback(async (showFeedback = false) => {
     setUpdateBusy("checking");
@@ -797,6 +869,35 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    let unlistenAlerts: (() => void) | undefined;
+    void listen<{
+      accountId: string;
+      accountLabel: string;
+      provider: string;
+      windowLabel: string;
+      remainingPercent: number;
+      thresholdPercent: number;
+      title: string;
+      body: string;
+    }>("usage-alert", (event) => {
+      const payload = event.payload;
+      if (!payload) return;
+      const now = Date.now();
+      const alertId = `${payload.accountId}-${payload.windowLabel}-${now}`;
+      setInAppAlerts((prev) => [...prev, { id: alertId, title: payload.title, body: payload.body, timestamp: now }]);
+      window.setTimeout(() => {
+        setInAppAlerts((prev) => prev.filter((a) => a.id !== alertId));
+      }, 15000);
+    }).then((fn) => {
+      unlistenAlerts = fn;
+    }).catch(() => {});
+
+    return () => {
+      if (unlistenAlerts) unlistenAlerts();
+    };
+  }, []);
+
   const accounts = snapshot?.accounts ?? [];
   const buckets = snapshot?.buckets ?? [];
 
@@ -917,11 +1018,11 @@ export default function App() {
 
   const remove = async (account: Account) => {
     if (busy === `remove:${account.id}`) return;
+    setAccountToRemove(null);
+    if (alertAccount?.id === account.id) setAlertAccount(null);
     setBusy(`remove:${account.id}`);
     try {
       await bridgeApi.removeAccount(account.id);
-      if (alertAccount?.id === account.id) setAlertAccount(null);
-      if (accountToRemove?.id === account.id) setAccountToRemove(null);
       await load();
     } catch (cause) {
       setError(String(cause));
@@ -1019,7 +1120,7 @@ export default function App() {
             className="mobile-sidebar-toggle-btn mobile-sidebar-close-btn"
             onClick={() => setSidebarOpen(false)}
             aria-label="Close navigation menu"
-            title="Close navigation menu"
+            data-tooltip="Close navigation menu"
           >
             <CloseIcon />
           </button>
@@ -1042,7 +1143,8 @@ export default function App() {
             <button
               type="button"
               className="button primary compact-button add-bucket-header-button"
-              title="Create a custom bucket group"
+              data-tooltip="Create a custom bucket group"
+              aria-label="Create a custom bucket group"
               onClick={() => { openNewBucket(selectedGroup.provider); setSidebarOpen(false); }}
             >
               <PlusIcon />Group
@@ -1052,14 +1154,16 @@ export default function App() {
                 type="button"
                 className={sidebarWindow === "five_hour" ? "active" : ""}
                 aria-pressed={sidebarWindow === "five_hour"}
-                title="Show average 5-hour remaining usage"
+                data-tooltip="Show average 5-hour remaining usage"
+                aria-label="Show average 5-hour remaining usage"
                 onClick={() => changeSidebarWindow("five_hour")}
               >H</button>
               <button
                 type="button"
                 className={sidebarWindow === "weekly" ? "active" : ""}
                 aria-pressed={sidebarWindow === "weekly"}
-                title="Show average weekly remaining usage"
+                data-tooltip="Show average weekly remaining usage"
+                aria-label="Show average weekly remaining usage"
                 onClick={() => changeSidebarWindow("weekly")}
               >W</button>
             </div>
@@ -1205,11 +1309,35 @@ export default function App() {
           setPairingOpen(false);
           setPairingInitialUri(null);
         }}
-        onCompleted={async () => {
-          await load();
-          await refreshAll();
-        }}
+        onCompleted={handlePairingCompleted}
       />
+      {inAppAlerts.length > 0 && (
+        <div className="usage-alert-toast-container" role="region" aria-label="Usage limit alerts">
+          {inAppAlerts.slice(-5).map((alert) => (
+            <div key={alert.id} className="usage-alert-toast" role="alert">
+              <div className="usage-alert-toast-icon">
+                <BellIcon />
+              </div>
+              <div className="usage-alert-toast-content">
+                <div className="usage-alert-toast-header">
+                  <span className="usage-alert-toast-title">{alert.title}</span>
+                  <span className="usage-alert-toast-time">{formatAlertTime(alert.timestamp)}</span>
+                </div>
+                <div className="usage-alert-toast-body">{alert.body}</div>
+              </div>
+              <button
+                type="button"
+                className="usage-alert-toast-close"
+                onClick={() => setInAppAlerts((prev) => prev.filter((a) => a.id !== alert.id))}
+                aria-label="Dismiss alert"
+                data-tooltip="Dismiss"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1271,7 +1399,7 @@ function SidebarUpdateButton({
         onClick={activate}
         aria-busy={updateBusy !== null}
         aria-label={label}
-        title={updateError ?? undefined}
+        data-tooltip={updateError ?? undefined}
       >
         <RefreshIcon />
         <span>{label}</span>
@@ -1376,7 +1504,7 @@ function AccountsView(props: {
                 className="mobile-sidebar-toggle-btn"
                 onClick={props.onToggleSidebar}
                 aria-label="Toggle navigation menu"
-                title="Toggle navigation menu"
+                data-tooltip="Toggle navigation menu"
               >
                 <MenuIcon />
               </button>
@@ -1706,6 +1834,7 @@ function AccountDashboardCard({
               <AccountUsageMetric
                 key={window.id}
                 window={window}
+                provider={account.provider}
                 nowMs={nowMs}
                 unavailableLabel={googleUnavailableLabel}
                 creditLabel={index === 0 ? creditLabel : null}
@@ -1730,11 +1859,13 @@ function AccountDashboardCard({
 
 function AccountUsageMetric({
   window,
+  provider,
   nowMs,
   unavailableLabel = "Unavailable",
   creditLabel = null,
 }: {
   window: UsageWindow;
+  provider?: Provider | string;
   nowMs?: number;
   unavailableLabel?: string;
   creditLabel?: string | null;
@@ -1746,7 +1877,7 @@ function AccountUsageMetric({
   return (
     <div className="account-usage-metric">
       <div className="metric-heading">
-        <span className="metric-label">{displayMetricLabel(window)}</span>
+        <span className="metric-label">{displayMetricLabel(window, provider)}</span>
         {windowLength(window) ? (
           <span className={`metric-window-pill ${windowPillClass(window)}`}>
             {windowLength(window)}
@@ -1794,7 +1925,7 @@ function IntegrationView({
                 className="mobile-sidebar-toggle-btn"
                 onClick={onToggleSidebar}
                 aria-label="Toggle navigation menu"
-                title="Toggle navigation menu"
+                data-tooltip="Toggle navigation menu"
               >
                 <MenuIcon />
               </button>
@@ -1890,7 +2021,7 @@ function SettingsView({
                 className="mobile-sidebar-toggle-btn"
                 onClick={onToggleSidebar}
                 aria-label="Toggle navigation menu"
-                title="Toggle navigation menu"
+                data-tooltip="Toggle navigation menu"
               >
                 <MenuIcon />
               </button>
@@ -2014,12 +2145,12 @@ function SettingsView({
             type="button"
             className="button ghost settings-changelog-button"
             aria-label="View change log (opens in a new window)"
-            title="Opens in a new window"
+            data-tooltip="Opens in a new window"
             onClick={(event) => {
               const button = event.currentTarget;
-              button.title = "Opens in a new window";
+              button.setAttribute("data-tooltip", "Opens in a new window");
               void openUrl(CHANGELOG_URL).catch((cause) => {
-                button.title = `Could not open changelog: ${String(cause)}`;
+                button.setAttribute("data-tooltip", `Could not open changelog: ${String(cause)}`);
               });
             }}
           >

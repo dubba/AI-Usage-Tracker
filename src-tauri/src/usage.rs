@@ -5,6 +5,7 @@ use crate::{
     store::{load_provider_secret, save_provider_secret},
 };
 use std::{sync::Arc, time::Duration};
+use tauri::Emitter;
 use tauri_plugin_notification::NotificationExt;
 
 const GOOGLE_AI_STUDIO_MODELS_ONLY_SOURCE: &str = "google_ai_studio_model_access";
@@ -19,11 +20,13 @@ pub async fn refresh_account(app: Arc<AppState>, account_id: &str) -> Result<Acc
     {
         Ok(result) => result,
         Err(_) => {
-            let _ = save_failure(
-                &app,
-                account_id,
-                ProviderError::Transient("Account refresh timed out.".into()),
-            );
+            if app.store.get(account_id).is_some() {
+                let _ = save_failure(
+                    &app,
+                    account_id,
+                    ProviderError::Transient("Account refresh timed out.".into()),
+                );
+            }
             Err("Account refresh timed out.".into())
         }
     }
@@ -66,7 +69,12 @@ async fn refresh_account_inner(app: Arc<AppState>, account_id: String) -> Result
         }
     };
 
-    match providers::refresh(app.clone(), &account, secret).await {
+    let refresh_result = providers::refresh(app.clone(), &account, secret).await;
+    if app.store.get(account_id).is_none() {
+        return Err("Account removed during refresh.".into());
+    }
+
+    match refresh_result {
         Ok((usage, refreshed_secret)) => {
             save_provider_secret(account_id, &refreshed_secret)
                 .map_err(|error| format!("Unable to save refreshed credentials: {error}"))?;
@@ -184,6 +192,19 @@ fn save_success(app: &AppState, account_id: &str, usage: ProviderUsage) -> Resul
     Ok(account)
 }
 
+#[derive(serde::Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct UsageAlertPayload {
+    pub account_id: String,
+    pub account_label: String,
+    pub provider: String,
+    pub window_label: String,
+    pub remaining_percent: u8,
+    pub threshold_percent: u8,
+    pub title: String,
+    pub body: String,
+}
+
 pub fn emit_alerts_for_account(app: &AppState, account: &Account) {
     let Ok(notifications) = app.alerts.evaluate(account) else {
         return;
@@ -209,12 +230,27 @@ pub fn emit_alerts_for_account(app: &AppState, account: &Account) {
             notification.window_label,
             notification.threshold_percent
         );
-        let _ = app_handle
+        if let Err(err) = app_handle
             .notification()
             .builder()
-            .title(title)
-            .body(body)
-            .show();
+            .title(&title)
+            .body(&body)
+            .show()
+        {
+            eprintln!("[Notification] System notification error: {err}");
+        }
+
+        let payload = UsageAlertPayload {
+            account_id: account.id.clone(),
+            account_label: account.label.clone(),
+            provider: account.provider.display_name().to_string(),
+            window_label: notification.window_label,
+            remaining_percent: notification.remaining_percent,
+            threshold_percent: notification.threshold_percent,
+            title,
+            body,
+        };
+        let _ = app_handle.emit("usage-alert", payload);
     }
 }
 
@@ -313,5 +349,15 @@ mod tests {
 
         let list = refresh_all(app.clone()).await;
         assert_eq!(list.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn refresh_account_aborts_cleanly_if_account_is_missing() {
+        let temp = tempfile::tempdir().unwrap();
+        let app = Arc::new(AppState::new(temp.path().to_path_buf(), "test-token".into()).unwrap());
+
+        let result = refresh_account_inner(app.clone(), "nonexistent".to_string()).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Account not found.");
     }
 }

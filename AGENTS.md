@@ -16,6 +16,11 @@ Changelog:
 - Every user-visible change must update `CHANGELOG.md` under `## Unreleased` in the same pull request.
 - When there is no user-facing change, leave `CHANGELOG.md` unchanged and state `No user-facing change` in the pull request description.
 
+Android APK builds:
+
+- Do not build a new APK automatically; only build an APK when explicitly instructed by the user.
+- When asked to build an APK containing code for an unreleased version, increment the latest release version by `0.0.1` and append `-unrel` to the version number (e.g. if the latest release on GitHub is `0.3.5`, name the APK `AI Usage Tracker_0.3.6-unrel.apk`).
+
 Validation:
 
 ```bash

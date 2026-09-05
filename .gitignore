@@ -7,6 +7,7 @@ Thumbs.db
 src-tauri/target/
 src-tauri/gen/*
 !src-tauri/gen/android/
+src-tauri/gen/android/app/src/main/assets/
 .env
 .env.*
 !.env.example

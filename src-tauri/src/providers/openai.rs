@@ -71,27 +71,55 @@ pub async fn refresh(
         result => result?,
     };
 
+    let is_free_plan = raw
+        .plan_type
+        .as_deref()
+        .or_else(|| account.plan.as_deref())
+        .map_or(false, |p| p.eq_ignore_ascii_case("free"));
+
     let mut windows = Vec::new();
     if let Some(window) = raw
         .rate_limit
         .as_ref()
         .and_then(|rate| rate.primary_window.as_ref())
     {
-        windows.push(normalize_window("session", "Session", window));
+        let window_seconds = window
+            .limit_window_seconds
+            .as_ref()
+            .and_then(value_as_u64)
+            .or_else(|| window.reset_after_seconds.as_ref().and_then(value_as_u64));
+        let (id, label) = if window_seconds.map_or(false, |s| s >= 2_000_000) || is_free_plan {
+            ("monthly", "GPT · 30-Day Limit")
+        } else if window_seconds.map_or(false, |s| s >= 500_000) {
+            ("weekly", "GPT · Weekly Limit")
+        } else {
+            ("session", "GPT · Session Limit")
+        };
+        windows.push(normalize_window(id, label, window));
     }
     if let Some(window) = raw
         .rate_limit
         .as_ref()
         .and_then(|rate| rate.secondary_window.as_ref())
     {
-        windows.push(normalize_window("weekly", "Weekly", window));
+        let window_seconds = window
+            .limit_window_seconds
+            .as_ref()
+            .and_then(value_as_u64)
+            .or_else(|| window.reset_after_seconds.as_ref().and_then(value_as_u64));
+        let (id, label) = if window_seconds.map_or(false, |s| s >= 2_000_000) {
+            ("monthly", "GPT · 30-Day Limit")
+        } else {
+            ("weekly", "GPT · Weekly Limit")
+        };
+        windows.push(normalize_window(id, label, window));
     }
     if let Some(window) = raw
         .code_review_rate_limit
         .as_ref()
         .and_then(|rate| rate.primary_window.as_ref())
     {
-        windows.push(normalize_window("code_review", "Code review", window));
+        windows.push(normalize_window("code_review", "Code Review · Limit", window));
     }
     if windows.is_empty() {
         return Err(ProviderError::Transient(
@@ -240,16 +268,24 @@ fn normalize_window(id: &str, label: &str, raw: &RawWindow) -> UsageWindow {
     let resets_at = reset_at_seconds
         .and_then(|seconds| Utc.timestamp_opt(seconds, 0).single())
         .map(|value| value.to_rfc3339());
+    let window_seconds = raw
+        .limit_window_seconds
+        .as_ref()
+        .and_then(value_as_u64)
+        .or_else(|| {
+            if id == "monthly" {
+                Some(2_592_000)
+            } else {
+                raw.reset_after_seconds.as_ref().and_then(value_as_u64)
+            }
+        });
     UsageWindow {
         id: id.into(),
         label: label.into(),
         used_percent: used,
         remaining_percent: used.map(|value| (100.0 - value).max(0.0)),
         resets_at,
-        window_seconds: raw
-            .limit_window_seconds
-            .as_ref()
-            .and_then(value_as_u64),
+        window_seconds,
     }
 }
 
@@ -303,6 +339,24 @@ mod tests {
         let window = normalize_window("session", "Session", &raw);
         assert_eq!(window.used_percent, Some(15.0));
         assert_eq!(window.remaining_percent, Some(85.0));
+        assert!(window.resets_at.is_some());
+    }
+
+    #[test]
+    fn normalize_window_handles_thirty_day_window() {
+        let raw: RawWindow = serde_json::from_value(json!({
+            "used_percent": 25.0,
+            "reset_after_seconds": 2592000,
+            "limit_window_seconds": 2592000
+        }))
+        .unwrap();
+
+        let window = normalize_window("monthly", "GPT · 30-Day Limit", &raw);
+        assert_eq!(window.id, "monthly");
+        assert_eq!(window.label, "GPT · 30-Day Limit");
+        assert_eq!(window.used_percent, Some(25.0));
+        assert_eq!(window.remaining_percent, Some(75.0));
+        assert_eq!(window.window_seconds, Some(2592000));
         assert!(window.resets_at.is_some());
     }
 }

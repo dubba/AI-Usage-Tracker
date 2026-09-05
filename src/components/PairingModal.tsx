@@ -6,6 +6,7 @@ import {
   CheckCircleIcon,
   ChevronIcon,
   DownloadIcon,
+  FlipCameraIcon,
   KeypadIcon,
   RefreshIcon,
   ShieldIcon,
@@ -43,6 +44,286 @@ function formatJoinCode(code: string): string {
   return `${digits.slice(0, 3)} ${digits.slice(3)}`;
 }
 
+function scoreCamera(device: MediaDeviceInfo): number {
+  const label = (device.label || "").toLowerCase();
+
+  // Strongly penalize front / selfie / user cameras
+  if (
+    label.includes("front") ||
+    label.includes("user") ||
+    label.includes("selfie") ||
+    label.includes("forward")
+  ) {
+    return -1000;
+  }
+
+  let score = 0;
+
+  // Confirm it is a back / rear / environment camera
+  const isBack =
+    label.includes("back") ||
+    label.includes("rear") ||
+    label.includes("environment");
+  if (isBack) {
+    score += 100;
+  }
+
+  // De-prioritize auxiliary lenses that cannot focus closely on QR codes
+  if (
+    label.includes("ultra") ||
+    label.includes("wide-angle") ||
+    label.includes("ultrawide") ||
+    label.includes("0.5x")
+  ) {
+    score -= 80;
+  }
+  if (
+    label.includes("tele") ||
+    label.includes("zoom") ||
+    label.includes("periscope") ||
+    /\b(2x|3x|5x|10x)\b/.test(label)
+  ) {
+    score -= 70;
+  }
+  if (
+    label.includes("macro") ||
+    label.includes("depth") ||
+    label.includes("virtual") ||
+    label.includes("ir") ||
+    label.includes("infrared") ||
+    label.includes("logical")
+  ) {
+    score -= 60;
+  }
+
+  // Favor primary / main / standard wide camera
+  if (
+    label.includes("main") ||
+    label.includes("primary") ||
+    label.includes("standard") ||
+    label.includes("1x")
+  ) {
+    score += 80;
+  }
+  if (label.includes("wide") && !label.includes("ultra")) {
+    score += 50;
+  }
+
+  // Android Camera HAL 0 (or camera2 0) is the primary back camera across virtually all Android devices
+  if (
+    /camera2?\s*0\b/.test(label) ||
+    /\bcamera\s*0\b/.test(label) ||
+    /\(0\)/.test(label) ||
+    label.endsWith(" 0") ||
+    label.includes("camera 0,")
+  ) {
+    score += 90;
+  } else if (/camera2?\s*[2-9]\b/.test(label)) {
+    // Camera 2, 3, etc. are auxiliary lenses
+    score -= 40;
+  }
+
+  return score;
+}
+
+function extractCameraIndex(label: string): number | null {
+  const normalized = label.toLowerCase();
+  const match =
+    normalized.match(/camera2?\s*(\d+)/) ||
+    normalized.match(/\bcamera\s*(\d+)/) ||
+    normalized.match(/\((\d+)\)/);
+  if (match && match[1] !== undefined) {
+    return parseInt(match[1], 10);
+  }
+  return null;
+}
+
+function isFrontFacingCamera(device: MediaDeviceInfo): boolean {
+  const label = (device.label || "").toLowerCase();
+  if (
+    label.includes("front") ||
+    label.includes("user") ||
+    label.includes("selfie")
+  ) {
+    return true;
+  }
+  // Android Camera2 HAL: camera 1 is standard front facing
+  const idx = extractCameraIndex(label);
+  if (idx === 1 && !label.includes("back") && !label.includes("rear")) {
+    return true;
+  }
+  return false;
+}
+
+function classifyAndDeduplicateCameras(devices: MediaDeviceInfo[]): MediaDeviceInfo[] {
+  const videoInputs = devices.filter((d) => d.kind === "videoinput");
+  if (videoInputs.length <= 1) return videoInputs;
+
+  // Deduplicate by deviceId or label or fallback index
+  const uniqueDevices: MediaDeviceInfo[] = [];
+  const seenKeys = new Set<string>();
+  for (let i = 0; i < videoInputs.length; i++) {
+    const d = videoInputs[i];
+    const key = (d.deviceId && d.deviceId.length > 0) ? d.deviceId : (d.label || `camera_${i}`);
+    if (!seenKeys.has(key)) {
+      seenKeys.add(key);
+      uniqueDevices.push(d);
+    }
+  }
+
+  const devicesToProcess = uniqueDevices.length > 0 ? uniqueDevices : videoInputs;
+
+  const frontCameras: MediaDeviceInfo[] = [];
+  const rearCameras: MediaDeviceInfo[] = [];
+
+  for (const d of devicesToProcess) {
+    if (isFrontFacingCamera(d)) {
+      frontCameras.push(d);
+    } else {
+      rearCameras.push(d);
+    }
+  }
+
+  // Deduplicate front cameras:
+  // Android Camera2 HAL on multi-camera devices (e.g. Samsung Galaxy S26 Ultra) often exposes
+  // duplicate or auxiliary front camera entries (e.g. standard selfie and wide selfie).
+  // Keep only ONE front camera in the cycle so the front camera never appears twice.
+  let singleFront: MediaDeviceInfo[] = [];
+  if (frontCameras.length > 0) {
+    const primaryFront =
+      frontCameras.find((d) => extractCameraIndex(d.label) === 1) ||
+      frontCameras[0];
+    singleFront = [primaryFront];
+  }
+
+  // Sort rear cameras:
+  // 1. Primary main (1x) camera first (determined by scoreCamera)
+  // 2. Remaining rear cameras sorted by HAL camera index (e.g. Camera 2 ultra-wide, Camera 4 telephoto 3x, Camera 5 periscope)
+  let sortedRear: MediaDeviceInfo[] = [];
+  if (rearCameras.length > 0) {
+    const scored = rearCameras.map((device) => ({ device, score: scoreCamera(device) }));
+    scored.sort((a, b) => b.score - a.score);
+    const primaryDevice = scored[0]?.device;
+
+    const remaining = rearCameras.filter(
+      (d) => d.deviceId !== primaryDevice?.deviceId
+    );
+
+    remaining.sort((a, b) => {
+      const idxA = extractCameraIndex(a.label);
+      const idxB = extractCameraIndex(b.label);
+      if (idxA !== null && idxB !== null && idxA !== idxB) {
+        return idxA - idxB;
+      }
+      const isUltraA = /ultra|0\.5x|0\.6x/i.test(a.label);
+      const isUltraB = /ultra|0\.5x|0\.6x/i.test(b.label);
+      if (isUltraA && !isUltraB) return -1;
+      if (!isUltraA && isUltraB) return 1;
+      return a.label.localeCompare(b.label);
+    });
+
+    sortedRear = primaryDevice ? [primaryDevice, ...remaining] : remaining;
+  }
+
+  // Desired cycle: [Main Rear (1x), Ultra-wide (0.5x), Telephoto 1, Telephoto 2, Front Camera]
+  const combined = [...sortedRear, ...singleFront];
+  return combined.length > 0 ? combined : videoInputs;
+}
+
+function pickPrimaryRearCamera(devices: MediaDeviceInfo[]): MediaDeviceInfo | null {
+  const classified = classifyAndDeduplicateCameras(devices);
+  if (classified.length > 0) {
+    return classified[0];
+  }
+  return null;
+}
+
+async function getCameraStream(
+  getUserMediaFn: (c: MediaStreamConstraints) => Promise<MediaStream>,
+  deviceId: string | null,
+  isMobile: boolean
+): Promise<MediaStream> {
+  if (deviceId) {
+    // Attempt 1: exact deviceId with ideal 720p resolution
+    try {
+      return await getUserMediaFn({
+        video: {
+          deviceId: { exact: deviceId },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+      });
+    } catch {
+      // Attempt 2: exact deviceId without resolution constraints.
+      // Auxiliary lenses (telephoto, periscope, ultra-wide) on Android often reject
+      // standard resolution constraints; relaxing them allows the HAL to use native lens resolution.
+      try {
+        return await getUserMediaFn({
+          video: {
+            deviceId: { exact: deviceId },
+          },
+        });
+      } catch {
+        // Attempt 3: ideal deviceId constraint
+        try {
+          return await getUserMediaFn({
+            video: {
+              deviceId: { ideal: deviceId },
+            },
+          });
+        } catch {
+          // Fall through to general constraints below
+        }
+      }
+    }
+  }
+
+  // Fallbacks: prefer rear camera on mobile, user camera on desktop
+  try {
+    return await getUserMediaFn({
+      video: {
+        facingMode: { ideal: isMobile ? "environment" : "user" },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+    });
+  } catch {
+    return await getUserMediaFn({ video: true });
+  }
+}
+
+async function applyAutofocusAndZoom(track: MediaStreamTrack | undefined) {
+  if (!track) return;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const trackAny = track as any;
+    const capabilities = trackAny.getCapabilities?.() || {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const advanced: any = {};
+
+    if (capabilities.focusMode && Array.isArray(capabilities.focusMode)) {
+      if (capabilities.focusMode.includes("continuous")) {
+        advanced.focusMode = "continuous";
+      } else if (capabilities.focusMode.includes("auto")) {
+        advanced.focusMode = "auto";
+      }
+    }
+
+    if (capabilities.zoom && typeof capabilities.zoom.min === "number") {
+      const idealZoom = Math.max(capabilities.zoom.min, 1);
+      if (capabilities.zoom.max >= idealZoom) {
+        advanced.zoom = idealZoom;
+      }
+    }
+
+    if (Object.keys(advanced).length > 0 && typeof trackAny.applyConstraints === "function") {
+      await trackAny.applyConstraints({ advanced: [advanced] });
+    }
+  } catch {
+    // Constraints are optional enhancements
+  }
+}
+
 export function PairingModal({
   open,
   initialJoinUri,
@@ -63,18 +344,25 @@ export function PairingModal({
   const [remainingSecs, setRemainingSecs] = useState<number | null>(null);
   const [confirmedSas, setConfirmedSas] = useState(false);
   const [isFrontCamera, setIsFrontCamera] = useState(false);
+  const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
   const dialogRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const hostStartIdRef = useRef(0);
+  const hasCompletedRef = useRef(false);
+  const selectedCameraIdRef = useRef<string | null>(null);
+  const switchingCameraRef = useRef(false);
 
   const handleClose = () => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
-    if (status.status === "completed") {
+    if (status.status === "completed" && !hasCompletedRef.current) {
+      hasCompletedRef.current = true;
       onCompleted();
     }
     void pairingApi.cancel().catch(() => {});
@@ -82,6 +370,78 @@ export function PairingModal({
   };
 
   useModalA11y(dialogRef, open, handleClose);
+
+  // Monitor virtual keyboard appearance on mobile to keep action buttons visible
+  useEffect(() => {
+    if (!open) {
+      setIsKeyboardOpen(false);
+      return;
+    }
+
+    const checkKeyboard = () => {
+      const isMobile =
+        typeof navigator !== "undefined" &&
+        (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+          (typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches));
+
+      if (!isMobile) {
+        setIsKeyboardOpen(false);
+        return;
+      }
+
+      // 1. Check visualViewport height reduction (standard across modern mobile browsers/WebViews)
+      const vv = window.visualViewport;
+      if (vv && window.innerHeight > 0) {
+        const heightDiff = window.innerHeight - vv.height;
+        if (heightDiff > 100) {
+          setIsKeyboardOpen(true);
+          return;
+        }
+      }
+
+      // 2. Check native Android IME class set by MainActivity
+      if (document.documentElement.classList.contains("keyboard-active")) {
+        setIsKeyboardOpen(true);
+        return;
+      }
+
+      // 3. Check if join code input is actively focused
+      const activeEl = document.activeElement;
+      if (activeEl && activeEl.id === "pairing-join-code-input") {
+        setIsKeyboardOpen(true);
+        return;
+      }
+
+      setIsKeyboardOpen(false);
+    };
+
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener("resize", checkKeyboard);
+      vv.addEventListener("scroll", checkKeyboard);
+    }
+    window.addEventListener("resize", checkKeyboard);
+
+    const observer = new MutationObserver(() => {
+      checkKeyboard();
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class", "style"],
+    });
+
+    // Run initial check
+    checkKeyboard();
+
+    return () => {
+      if (vv) {
+        vv.removeEventListener("resize", checkKeyboard);
+        vv.removeEventListener("scroll", checkKeyboard);
+      }
+      window.removeEventListener("resize", checkKeyboard);
+      observer.disconnect();
+    };
+  }, [open]);
 
   // Listen for Tauri backend pairing events and poll fallback
   useEffect(() => {
@@ -159,7 +519,10 @@ export function PairingModal({
       setConfirmedSas(false);
     }
     if (status.status === "completed") {
-      onCompleted();
+      if (!hasCompletedRef.current) {
+        hasCompletedRef.current = true;
+        onCompleted();
+      }
     }
   }, [status.status, onCompleted]);
 
@@ -224,6 +587,7 @@ export function PairingModal({
 
   useEffect(() => {
     if (!open) {
+      hasCompletedRef.current = false;
       setStatus({ status: "idle" });
       setErrorMessage(null);
       setJoinCodeInput("");
@@ -231,6 +595,10 @@ export function PairingModal({
       setBusy(false);
       setConfirmedSas(false);
       setIsFrontCamera(false);
+      setIsKeyboardOpen(false);
+      setSelectedCameraId(null);
+      selectedCameraIdRef.current = null;
+      setAvailableCameras([]);
       hostStartIdRef.current += 1;
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
@@ -284,6 +652,9 @@ export function PairingModal({
         streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
       }
+      setSelectedCameraId(null);
+      selectedCameraIdRef.current = null;
+      setAvailableCameras([]);
       return;
     }
 
@@ -325,38 +696,40 @@ export function PairingModal({
           /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
         let stream: MediaStream | null = null;
-        try {
-          // Attempt 1: On mobile phones/tablets, prefer rear camera ("environment") to point at other screens.
-          // On laptops/desktops (Windows laptops, MacBooks, PC webcams), prefer front-facing camera ("user").
-          stream = await getUserMediaFn({
-            video: {
-              facingMode: { ideal: isMobile ? "environment" : "user" },
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-            },
-          });
-        } catch (initialErr) {
-          // Attempt 2: Fall back to basic video constraint (USB webcams on Mac mini/PC, integrated laptop cameras)
+        let chosenDeviceId = selectedCameraIdRef.current;
+
+        // Step 1: If devices already have labels (e.g. permission was previously granted),
+        // pre-identify the primary rear camera to avoid initializing auxiliary/ultra-wide lenses.
+        if (!chosenDeviceId && mediaDevices?.enumerateDevices && isMobile) {
           try {
-            stream = await getUserMediaFn({ video: true });
-          } catch (fallbackErr) {
-            const err = fallbackErr || initialErr;
-            const errName = (err as { name?: string })?.name;
-            if (errName === "NotAllowedError" || errName === "PermissionDeniedError") {
-              setCameraError(
-                "Camera permission was denied. Please allow camera access in System Settings > Privacy & Security > Camera."
-              );
-            } else if (errName === "NotFoundError" || errName === "DevicesNotFoundError") {
-              setCameraError(
-                "No camera detected. Please verify your webcam is connected."
-              );
-            } else if (errName === "NotReadableError" || errName === "TrackStartError") {
-              setCameraError("Camera is currently in use by another application.");
-            } else {
-              setCameraError(`Camera error: ${String(err)}`);
+            const initialDevices = await mediaDevices.enumerateDevices();
+            const classified = classifyAndDeduplicateCameras(initialDevices);
+            if (classified.length > 0 && classified[0].label && classified[0].deviceId) {
+              chosenDeviceId = classified[0].deviceId;
             }
-            return;
+          } catch {
+            // Permission might not be granted yet
           }
+        }
+
+        try {
+          stream = await getCameraStream(getUserMediaFn, chosenDeviceId, isMobile);
+        } catch (err) {
+          const errName = (err as { name?: string })?.name;
+          if (errName === "NotAllowedError" || errName === "PermissionDeniedError") {
+            setCameraError(
+              "Camera permission was denied. Please allow camera access in System Settings > Privacy & Security > Camera."
+            );
+          } else if (errName === "NotFoundError" || errName === "DevicesNotFoundError") {
+            setCameraError(
+              "No camera detected. Please verify your webcam is connected."
+            );
+          } else if (errName === "NotReadableError" || errName === "TrackStartError") {
+            setCameraError("Camera is currently in use by another application.");
+          } else {
+            setCameraError(`Camera error: ${String(err)}`);
+          }
+          return;
         }
 
         if (!active || !stream) {
@@ -366,10 +739,42 @@ export function PairingModal({
           return;
         }
 
+        // Step 2: Now that camera permission is active, query device list and classify
+        if (mediaDevices?.enumerateDevices) {
+          try {
+            const allDevices = await mediaDevices.enumerateDevices();
+            const classified = classifyAndDeduplicateCameras(allDevices);
+            setAvailableCameras(classified);
+
+            // On mobile, if no camera was explicitly selected yet:
+            // Ensure we are using the primary rear camera (classified[0])
+            if (isMobile && !selectedCameraIdRef.current && classified.length > 0) {
+              const primary = classified[0];
+              const currentTrack = stream.getVideoTracks()[0];
+              const currentDeviceId = currentTrack?.getSettings?.()?.deviceId;
+
+              if (primary && primary.deviceId && currentDeviceId && primary.deviceId !== currentDeviceId) {
+                currentTrack.stop();
+                stream = await getCameraStream(getUserMediaFn, primary.deviceId, isMobile);
+                selectedCameraIdRef.current = primary.deviceId;
+                setSelectedCameraId(primary.deviceId);
+              } else if (primary?.deviceId) {
+                selectedCameraIdRef.current = primary.deviceId;
+                setSelectedCameraId(primary.deviceId);
+              }
+            }
+          } catch (enumErr) {
+            console.warn("Camera enumeration error:", enumErr);
+          }
+        }
+
         const videoTrack = stream.getVideoTracks()[0];
         const settings = videoTrack?.getSettings?.();
         const facing = settings?.facingMode;
         setIsFrontCamera(facing === "user" || (!facing && !isMobile));
+
+        // Step 3: Apply continuous autofocus and standard 1x zoom
+        await applyAutofocusAndZoom(videoTrack);
 
         streamRef.current = stream;
         if (videoRef.current) {
@@ -475,6 +880,106 @@ export function PairingModal({
     };
   }, [viewMode, open]);
 
+  const handleScannerTap = async () => {
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (track) {
+      await applyAutofocusAndZoom(track);
+    }
+  };
+
+  const handleSwitchCamera = async () => {
+    if (switchingCameraRef.current) return;
+    switchingCameraRef.current = true;
+
+    try {
+      const mediaDevices = navigator.mediaDevices;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const nav = navigator as any;
+      const getUserMediaFn = mediaDevices?.getUserMedia
+        ? (c: MediaStreamConstraints) => mediaDevices.getUserMedia(c)
+        : nav.webkitGetUserMedia
+        ? (c: MediaStreamConstraints) =>
+            new Promise<MediaStream>((res, rej) => nav.webkitGetUserMedia(c, res, rej))
+        : nav.mozGetUserMedia
+        ? (c: MediaStreamConstraints) =>
+            new Promise<MediaStream>((res, rej) => nav.mozGetUserMedia(c, res, rej))
+        : null;
+
+      if (!getUserMediaFn) return;
+
+      const isMobile =
+        typeof navigator !== "undefined" &&
+        /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+      let newStream: MediaStream | null = null;
+      let nextIsFront = !isFrontCamera;
+
+      if (availableCameras.length > 1) {
+        const currentIndex = availableCameras.findIndex(
+          (c) => c.deviceId && c.deviceId === selectedCameraIdRef.current
+        );
+        const nextIndex = (currentIndex + 1) % availableCameras.length;
+        const nextDevice = availableCameras[nextIndex];
+
+        if (nextDevice?.deviceId) {
+          if (streamRef.current) {
+            streamRef.current.getTracks().forEach((track) => track.stop());
+            streamRef.current = null;
+          }
+
+          newStream = await getCameraStream(getUserMediaFn, nextDevice.deviceId, isMobile);
+          selectedCameraIdRef.current = nextDevice.deviceId;
+          setSelectedCameraId(nextDevice.deviceId);
+
+          const videoTrack = newStream.getVideoTracks()[0];
+          const settings = videoTrack?.getSettings?.();
+          const facing = settings?.facingMode;
+          nextIsFront = isFrontFacingCamera(nextDevice) || facing === "user" || (!facing && !isMobile);
+        }
+      }
+
+      // Fallback toggle for single-camera devices / dev mode
+      if (!newStream) {
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((track) => track.stop());
+          streamRef.current = null;
+        }
+        const targetFacing = isFrontCamera ? "environment" : "user";
+        try {
+          newStream = await getUserMediaFn({
+            video: {
+              facingMode: { ideal: targetFacing },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
+          });
+        } catch {
+          newStream = await getUserMediaFn({ video: true });
+        }
+        nextIsFront = !isFrontCamera;
+      }
+
+      streamRef.current = newStream;
+      setIsFrontCamera(nextIsFront);
+
+      const videoTrack = newStream.getVideoTracks()[0];
+      if (videoRef.current) {
+        videoRef.current.srcObject = newStream;
+        try {
+          await videoRef.current.play();
+        } catch {
+          // Playback starts on loadedmetadata
+        }
+      }
+
+      await applyAutofocusAndZoom(videoTrack);
+    } catch (err) {
+      console.warn("Failed to switch camera:", err);
+    } finally {
+      switchingCameraRef.current = false;
+    }
+  };
+
   if (!open) return null;
 
   const handleConnectByCode = async (code: string) => {
@@ -519,7 +1024,10 @@ export function PairingModal({
   };
 
   const handleDone = () => {
-    onCompleted();
+    if (!hasCompletedRef.current) {
+      hasCompletedRef.current = true;
+      onCompleted();
+    }
     handleClose();
   };
 
@@ -539,15 +1047,25 @@ export function PairingModal({
     status.status === "sasVerification" ||
     (isWaitingState && viewMode !== "host");
 
+  const isMobileDevice =
+    typeof navigator !== "undefined" &&
+    (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+      (typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches));
+
+  const showSwitchCamera =
+    availableCameras.length > 1 || isMobileDevice || Boolean(import.meta.env?.DEV);
+
   return (
     <div
-      className="modal-backdrop"
+      className={`modal-backdrop ${isKeyboardOpen ? "keyboard-open" : ""}`}
       role="presentation"
       onMouseDown={(e) => e.target === e.currentTarget && handleClose()}
     >
       <section
         ref={dialogRef}
-        className={`modal-card pairing-modal ${isWaitingState && viewMode === "code" ? "view-code-entry" : ""}`}
+        className={`modal-card pairing-modal ${
+          isWaitingState && viewMode === "code" ? "view-code-entry" : ""
+        } ${isKeyboardOpen ? "keyboard-open" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="pairing-modal-title"
@@ -560,7 +1078,7 @@ export function PairingModal({
           onClick={handleClose}
           disabled={status.status === "transferring"}
           aria-label="Close dialog"
-          title="Close"
+          data-tooltip="Close"
         >
           ×
         </button>
@@ -657,25 +1175,43 @@ export function PairingModal({
                 Scan the QR code on your other device, or click Enter Code to enter its Link Code:
               </p>
 
-              <div className="pairing-scanner-box">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  tabIndex={-1}
-                  className={`pairing-scanner-video ${isFrontCamera ? "mirrored" : ""}`}
-                  style={{ pointerEvents: "none" }}
-                />
-                <div className="pairing-scanner-overlay">
-                  <div className="pairing-scanner-frame">
-                    <span className="corner top-left" />
-                    <span className="corner top-right" />
-                    <span className="corner bottom-left" />
-                    <span className="corner bottom-right" />
-                    <div className="pairing-scan-beam" />
+              <div className="pairing-scanner-stage">
+                <div
+                  className="pairing-scanner-box"
+                  onClick={handleScannerTap}
+                  aria-label="Tap to focus camera"
+                >
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    tabIndex={-1}
+                    className={`pairing-scanner-video ${isFrontCamera ? "mirrored" : ""}`}
+                    style={{ pointerEvents: "none" }}
+                  />
+                  <div className="pairing-scanner-overlay">
+                    <div className="pairing-scanner-frame">
+                      <span className="corner top-left" />
+                      <span className="corner top-right" />
+                      <span className="corner bottom-left" />
+                      <span className="corner bottom-right" />
+                      <div className="pairing-scan-beam" />
+                    </div>
                   </div>
                 </div>
+
+                {showSwitchCamera && (
+                  <button
+                    type="button"
+                    className="pairing-switch-camera-fab"
+                    onClick={() => void handleSwitchCamera()}
+                    data-tooltip="Switch camera"
+                    aria-label="Switch camera"
+                  >
+                    <FlipCameraIcon />
+                  </button>
+                )}
               </div>
 
               {cameraError && (
@@ -719,6 +1255,24 @@ export function PairingModal({
                 value={joinCodeInput}
                 autoFocus
                 disabled={busy}
+                onFocus={() => {
+                  const isMobile =
+                    typeof navigator !== "undefined" &&
+                    (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+                      (typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches));
+                  if (isMobile) setIsKeyboardOpen(true);
+                }}
+                onBlur={() => {
+                  setTimeout(() => {
+                    const activeEl = document.activeElement;
+                    if (activeEl?.id !== "pairing-join-code-input") {
+                      const vv = window.visualViewport;
+                      if (!vv || window.innerHeight - vv.height <= 100) {
+                        setIsKeyboardOpen(false);
+                      }
+                    }
+                  }, 120);
+                }}
                 onChange={(event) => {
                   const digits = event.target.value.replace(/\D/g, "").slice(0, 6);
                   setJoinCodeInput(digits);

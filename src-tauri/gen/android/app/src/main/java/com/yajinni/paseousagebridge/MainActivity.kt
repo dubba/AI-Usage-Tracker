@@ -1,7 +1,9 @@
 package com.yajinni.paseousagebridge
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
@@ -11,7 +13,9 @@ import android.webkit.WebView
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.core.content.FileProvider
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import java.io.File
 
 class MainActivity : TauriActivity() {
@@ -31,6 +35,39 @@ class MainActivity : TauriActivity() {
 
     @JvmStatic
     external fun setPendingPairingUri(uri: String)
+  }
+
+  private var activeWebView: WebView? = null
+  private var safeTopDp: Int = 48
+  private var safeBottomDp: Int = 0
+  private var safeImeDp: Int = 0
+
+  override fun onWebViewCreate(webView: WebView) {
+    super.onWebViewCreate(webView)
+    activeWebView = webView
+    applyInsetsToWebView()
+  }
+
+  private fun applyInsetsToWebView() {
+    val wv = activeWebView ?: return
+    wv.post {
+      val js = """
+        (function() {
+          var root = document.documentElement;
+          if (root) {
+            root.style.setProperty('--android-safe-top', '${safeTopDp}px');
+            root.style.setProperty('--android-safe-bottom', '${safeBottomDp}px');
+            root.style.setProperty('--android-keyboard-height', '${safeImeDp}px');
+            if (${safeImeDp} > 0) {
+              root.classList.add('keyboard-active');
+            } else {
+              root.classList.remove('keyboard-active');
+            }
+          }
+        })();
+      """.trimIndent()
+      wv.evaluateJavascript(js, null)
+    }
   }
 
   private fun handlePairingIntent(intent: Intent?) {
@@ -68,12 +105,58 @@ class MainActivity : TauriActivity() {
       navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT)
     )
 
+    ViewCompat.setOnApplyWindowInsetsListener(window.decorView) { _, windowInsets ->
+      val statusInsets = windowInsets.getInsets(
+        WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.displayCutout()
+      )
+      val navInsets = windowInsets.getInsets(
+        WindowInsetsCompat.Type.navigationBars()
+      )
+      val imeInsets = windowInsets.getInsets(
+        WindowInsetsCompat.Type.ime()
+      )
+      val density = resources.displayMetrics.density
+      if (density > 0f) {
+        val top = (statusInsets.top / density).toInt()
+        val bottom = (navInsets.bottom / density).toInt()
+        val ime = (imeInsets.bottom / density).toInt()
+        if (top > 0) {
+          safeTopDp = top
+        }
+        safeBottomDp = bottom
+        safeImeDp = ime
+        applyInsetsToWebView()
+      }
+      windowInsets
+    }
+
     handlePairingIntent(intent)
     pendingUriMemory?.let { uri ->
       try {
         setPendingPairingUri(uri)
       } catch (e: Throwable) {
         android.util.Log.e(TAG, "Retry setPendingPairingUri failed: ${e.message}")
+      }
+    }
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      val notificationManager = getSystemService(android.app.NotificationManager::class.java)
+      val defaultChannel = android.app.NotificationChannel(
+        "default",
+        "AI Usage Alerts",
+        android.app.NotificationManager.IMPORTANCE_HIGH
+      ).apply {
+        description = "Notifications for quota limits and alerts"
+        enableVibration(true)
+        setShowBadge(true)
+        lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+      }
+      notificationManager?.createNotificationChannel(defaultChannel)
+    }
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+        requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1002)
       }
     }
 

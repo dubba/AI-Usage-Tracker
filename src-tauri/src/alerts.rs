@@ -156,30 +156,84 @@ impl AlertStore {
         let mut notifications = Vec::new();
         let mut changed = false;
         for setting in settings.iter_mut().filter(|setting| setting.enabled) {
-            let Some(window) = usage
+            let matching_windows: Vec<&UsageWindow> = usage
                 .windows
                 .iter()
-                .find(|window| canonical_window_id(window) == Some(setting.window_id.as_str()))
-            else {
+                .filter(|window| {
+                    if canonical_window_id(window) == Some(setting.window_id.as_str()) {
+                        return true;
+                    }
+                    if account.provider == crate::model::Provider::Openai
+                        && setting.window_id == "monthly"
+                        && account.plan.as_deref().map_or(true, |p| p.eq_ignore_ascii_case("free"))
+                        && (window.id == "session" || window.id == "monthly")
+                    {
+                        return true;
+                    }
+                    false
+                })
+                .collect();
+
+            if matching_windows.is_empty() {
                 continue;
-            };
-            let Some(remaining) = window.remaining_percent.filter(|value| value.is_finite()) else {
-                continue;
-            };
-            let remaining = remaining.clamp(0.0, 100.0).round() as u8;
-            if remaining <= setting.threshold_percent {
+            }
+
+            let mut notified_keys: HashSet<String> = setting
+                .last_notified_key
+                .as_deref()
+                .unwrap_or("")
+                .split('|')
+                .filter(|k| !k.is_empty())
+                .map(str::to_string)
+                .collect();
+
+            for window in matching_windows {
+                let Some(remaining) = window.remaining_percent.filter(|value| value.is_finite()) else {
+                    continue;
+                };
+                let remaining = remaining.clamp(0.0, 100.0).round() as u8;
                 let period = window.resets_at.as_deref().unwrap_or(&usage.fetched_at);
-                let notification_key = format!("{period}:{}", setting.threshold_percent);
-                if setting.last_notified_key.as_deref() != Some(notification_key.as_str()) {
-                    setting.last_notified_key = Some(notification_key);
+                let notification_key = format!("{}:{}:{}", window.id, period, setting.threshold_percent);
+                let legacy_key = format!("{period}:{}", setting.threshold_percent);
+
+                if remaining <= setting.threshold_percent {
+                    if !notified_keys.contains(&notification_key) && !notified_keys.contains(&legacy_key) {
+                        notified_keys.insert(notification_key);
+                        changed = true;
+
+                        let base_label = display_window_label(&setting.window_id);
+                        let window_label = if let Some((group, _)) = window.label.split_once(" · ") {
+                            let clean_group = group.trim();
+                            if !clean_group.is_empty() {
+                                format!("{base_label} ({clean_group})")
+                            } else {
+                                base_label.into()
+                            }
+                        } else {
+                            base_label.into()
+                        };
+
+                        notifications.push(AlertNotification {
+                            window_label,
+                            remaining_percent: remaining,
+                            threshold_percent: setting.threshold_percent,
+                        });
+                    }
+                } else if notified_keys.remove(&notification_key) || notified_keys.remove(&legacy_key) {
                     changed = true;
-                    notifications.push(AlertNotification {
-                        window_label: display_window_label(&setting.window_id).into(),
-                        remaining_percent: remaining,
-                        threshold_percent: setting.threshold_percent,
-                    });
                 }
-            } else if setting.last_notified_key.take().is_some() {
+            }
+
+            let updated_key = if notified_keys.is_empty() {
+                None
+            } else {
+                let mut keys: Vec<String> = notified_keys.into_iter().collect();
+                keys.sort();
+                Some(keys.join("|"))
+            };
+
+            if setting.last_notified_key != updated_key {
+                setting.last_notified_key = updated_key;
                 changed = true;
             }
         }
@@ -215,18 +269,41 @@ pub fn canonical_window_id(window: &UsageWindow) -> Option<&'static str> {
     let id = window.id.to_ascii_lowercase().replace('-', "_");
     let label = window.label.to_ascii_lowercase();
     if id == "five_hour"
+        || id.starts_with("five_hour")
         || id == "rolling"
         || window.window_seconds == Some(18_000)
         || label.contains("5 hour")
         || label.contains("five hour")
+        || label.contains("5h")
+        || label.contains("5-hour")
     {
         Some("five_hour")
     } else if id == "weekly"
+        || id.starts_with("weekly")
         || window.window_seconds == Some(604_800)
         || label.contains("weekly")
+        || label.contains("7 day")
+        || label.contains("seven day")
+        || label.contains("7d")
+        || label.contains("7-day")
     {
         Some("weekly")
-    } else if id == "monthly" || label.contains("monthly") {
+    } else if id == "monthly"
+        || id.starts_with("monthly")
+        || id == "thirty_day"
+        || id.starts_with("thirty_day")
+        || id.contains("30d")
+        || id.contains("30-day")
+        || id.contains("30_day")
+        || window
+            .window_seconds
+            .map_or(false, |s| s >= 2_000_000 && s <= 2_700_000)
+        || label.contains("monthly")
+        || label.contains("30 day")
+        || label.contains("thirty day")
+        || label.contains("30d")
+        || label.contains("30-day")
+    {
         Some("monthly")
     } else {
         None
@@ -237,7 +314,7 @@ fn display_window_label(window_id: &str) -> &'static str {
     match window_id {
         "five_hour" => "5 hour",
         "weekly" => "Weekly",
-        "monthly" => "Monthly",
+        "monthly" => "30-day",
         _ => "Usage",
     }
 }
@@ -326,5 +403,246 @@ mod tests {
                 }],
             )
             .is_err());
+    }
+
+    #[test]
+    fn canonical_window_id_recognizes_aliases_and_sub_windows() {
+        let w1 = UsageWindow {
+            id: "five_hour_2".into(),
+            label: "Gemini models · 5-Hour Limit".into(),
+            used_percent: Some(85.0),
+            remaining_percent: Some(15.0),
+            resets_at: None,
+            window_seconds: Some(18_000),
+        };
+        let w2 = UsageWindow {
+            id: "weekly_2".into(),
+            label: "Gemini models · 7-Day Limit".into(),
+            used_percent: Some(90.0),
+            remaining_percent: Some(10.0),
+            resets_at: None,
+            window_seconds: Some(604_800),
+        };
+        let w3 = UsageWindow {
+            id: "window-5h".into(),
+            label: "5h Limit".into(),
+            used_percent: None,
+            remaining_percent: None,
+            resets_at: None,
+            window_seconds: None,
+        };
+        let w4 = UsageWindow {
+            id: "window-7d".into(),
+            label: "7d Limit".into(),
+            used_percent: None,
+            remaining_percent: None,
+            resets_at: None,
+            window_seconds: None,
+        };
+
+        assert_eq!(canonical_window_id(&w1), Some("five_hour"));
+        assert_eq!(canonical_window_id(&w2), Some("weekly"));
+        assert_eq!(canonical_window_id(&w3), Some("five_hour"));
+        assert_eq!(canonical_window_id(&w4), Some("weekly"));
+    }
+
+    #[test]
+    fn antigravity_multi_window_evaluation_triggers_alert_for_depleted_window() {
+        let directory = tempfile::tempdir().unwrap();
+        let store = AlertStore::load(directory.path()).unwrap();
+        store
+            .save(
+                "antigravity-1",
+                vec![
+                    UsageAlertSetting {
+                        window_id: "five_hour".into(),
+                        enabled: true,
+                        threshold_percent: 20,
+                    },
+                    UsageAlertSetting {
+                        window_id: "weekly".into(),
+                        enabled: true,
+                        threshold_percent: 20,
+                    },
+                ],
+            )
+            .unwrap();
+
+        let now = now_rfc3339();
+        let mut account = Account {
+            id: "antigravity-1".into(),
+            label: "Work Antigravity".into(),
+            provider: Provider::Antigravity,
+            email: None,
+            provider_account_id: None,
+            chatgpt_account_id: None,
+            plan: None,
+            created_at: now.clone(),
+            updated_at: now.clone(),
+            last_usage: Some(UsageSnapshot {
+                plan: None,
+                email: None,
+                windows: vec![
+                    UsageWindow {
+                        id: "five_hour_1".into(),
+                        label: "Claude models · 5-Hour Limit".into(),
+                        used_percent: Some(5.0),
+                        remaining_percent: Some(95.0),
+                        resets_at: Some("2026-09-05T06:00:00Z".into()),
+                        window_seconds: Some(18_000),
+                    },
+                    UsageWindow {
+                        id: "weekly_1".into(),
+                        label: "Claude models · Weekly Limit".into(),
+                        used_percent: Some(10.0),
+                        remaining_percent: Some(90.0),
+                        resets_at: Some("2026-09-12T00:00:00Z".into()),
+                        window_seconds: Some(604_800),
+                    },
+                    UsageWindow {
+                        id: "five_hour_2".into(),
+                        label: "Gemini models · 5-Hour Limit".into(),
+                        used_percent: Some(85.0),
+                        remaining_percent: Some(15.0),
+                        resets_at: Some("2026-09-05T07:00:00Z".into()),
+                        window_seconds: Some(18_000),
+                    },
+                    UsageWindow {
+                        id: "weekly_2".into(),
+                        label: "Gemini models · Weekly Limit".into(),
+                        used_percent: Some(92.0),
+                        remaining_percent: Some(8.0),
+                        resets_at: Some("2026-09-12T00:00:00Z".into()),
+                        window_seconds: Some(604_800),
+                    },
+                ],
+                credits_usd: None,
+                unlimited_credits: false,
+                fetched_at: now.clone(),
+                freshness: UsageFreshness::Live,
+                source: "antigravity".into(),
+            }),
+            last_error: None,
+            auth_required: false,
+        };
+
+        // First evaluation: Gemini 5h and Gemini weekly are below 20%
+        let alerts = store.evaluate(&account).unwrap();
+        assert_eq!(alerts.len(), 2);
+        assert!(alerts.iter().any(|a| a.window_label == "5 hour (Gemini models)" && a.remaining_percent == 15));
+        assert!(alerts.iter().any(|a| a.window_label == "Weekly (Gemini models)" && a.remaining_percent == 8));
+
+        // Second evaluation with identical usage: no duplicate alerts
+        let alerts_second = store.evaluate(&account).unwrap();
+        assert!(alerts_second.is_empty());
+
+        // Now Claude 5h also drops below threshold (to 10%)
+        if let Some(usage) = account.last_usage.as_mut() {
+            usage.windows[0].remaining_percent = Some(10.0);
+            usage.windows[0].used_percent = Some(90.0);
+        }
+
+        let alerts_third = store.evaluate(&account).unwrap();
+        assert_eq!(alerts_third.len(), 1);
+        assert_eq!(alerts_third[0].window_label, "5 hour (Claude models)");
+        assert_eq!(alerts_third[0].remaining_percent, 10);
+    }
+
+    #[test]
+    fn canonical_window_id_recognizes_thirty_day_windows() {
+        let w1 = UsageWindow {
+            id: "monthly".into(),
+            label: "GPT · 30-Day Limit".into(),
+            used_percent: Some(90.0),
+            remaining_percent: Some(10.0),
+            resets_at: None,
+            window_seconds: Some(2_592_000),
+        };
+        let w2 = UsageWindow {
+            id: "session".into(),
+            label: "Session".into(),
+            used_percent: Some(85.0),
+            remaining_percent: Some(15.0),
+            resets_at: None,
+            window_seconds: Some(2_592_000),
+        };
+        let w3 = UsageWindow {
+            id: "window-30d".into(),
+            label: "30d window".into(),
+            used_percent: None,
+            remaining_percent: None,
+            resets_at: None,
+            window_seconds: None,
+        };
+        let w4 = UsageWindow {
+            id: "thirty_day".into(),
+            label: "Monthly Limit".into(),
+            used_percent: None,
+            remaining_percent: None,
+            resets_at: None,
+            window_seconds: None,
+        };
+
+        assert_eq!(canonical_window_id(&w1), Some("monthly"));
+        assert_eq!(canonical_window_id(&w2), Some("monthly"));
+        assert_eq!(canonical_window_id(&w3), Some("monthly"));
+        assert_eq!(canonical_window_id(&w4), Some("monthly"));
+    }
+
+    #[test]
+    fn thirty_day_alert_triggers_and_formats_label() {
+        let directory = tempfile::tempdir().unwrap();
+        let store = AlertStore::load(directory.path()).unwrap();
+        store
+            .save(
+                "openai-1",
+                vec![UsageAlertSetting {
+                    window_id: "monthly".into(),
+                    enabled: true,
+                    threshold_percent: 20,
+                }],
+            )
+            .unwrap();
+
+        let now = now_rfc3339();
+        let account = Account {
+            id: "openai-1".into(),
+            label: "Free ChatGPT".into(),
+            provider: Provider::Openai,
+            email: None,
+            provider_account_id: None,
+            chatgpt_account_id: None,
+            plan: None,
+            created_at: now.clone(),
+            updated_at: now.clone(),
+            last_usage: Some(UsageSnapshot {
+                plan: None,
+                email: None,
+                windows: vec![UsageWindow {
+                    id: "monthly".into(),
+                    label: "GPT · 30-Day Limit".into(),
+                    used_percent: Some(85.0),
+                    remaining_percent: Some(15.0),
+                    resets_at: Some("2026-10-01T00:00:00Z".into()),
+                    window_seconds: Some(2_592_000),
+                }],
+                credits_usd: None,
+                unlimited_credits: false,
+                fetched_at: now,
+                freshness: UsageFreshness::Live,
+                source: "wham".into(),
+            }),
+            last_error: None,
+            auth_required: false,
+        };
+
+        let alerts = store.evaluate(&account).unwrap();
+        assert_eq!(alerts.len(), 1);
+        assert_eq!(alerts[0].window_label, "30-day (GPT)");
+        assert_eq!(alerts[0].remaining_percent, 15);
+        assert_eq!(alerts[0].threshold_percent, 20);
+
+        // Deduplication
+        assert!(store.evaluate(&account).unwrap().is_empty());
     }
 }
