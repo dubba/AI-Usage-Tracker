@@ -22,6 +22,7 @@
 
 ### Improved
 
+- Enhanced all modal dialogs (including Account Alerts, Remove Account, Group Editor, and Usage details) to be fully vertically scrollable with touch-momentum scrolling and custom compact scrollbars when the on-screen mobile keyboard appears or when modal content exceeds the viewport height, ensuring all inputs, guidance text, and action buttons remain reachable.
 - On mobile devices, the Create Group / Edit Group modal now pins against the top ceiling when the on-screen keyboard is displayed, maximizing vertical visibility so the group name input, account selection picker, and action buttons remain visible and operable above the keyboard.
 - On mobile devices, the Add Account modal now positions with a 20px clearance directly above the on-screen keyboard when entering account names, API keys, or connection credentials instead of pinning against the top status bar, featuring responsive header compression, compact field spacing, and internal scrolling so fields and action buttons remain visible and easily reachable.
 

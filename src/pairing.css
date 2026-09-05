@@ -846,7 +846,8 @@
 
 /* Mobile Keyboard Adaptation: Move modals 20px above on-screen keyboard when keyboard appears */
 @media (max-width: 768px) {
-  .modal-backdrop.keyboard-open:not(:has(.bucket-modal-card)),
+  .modal-backdrop.keyboard-open:has(.pairing-modal),
+  .modal-backdrop.keyboard-open:has(.provider-connection-modal),
   html.keyboard-active .modal-backdrop:has(.pairing-modal),
   html.keyboard-active .modal-backdrop:has(.provider-connection-modal),
   .modal-backdrop:has(.pairing-modal.keyboard-open),
@@ -859,7 +860,8 @@
     padding-top: calc(max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px), 16px) + 8px) !important;
     padding-bottom: calc(max(var(--android-keyboard-height, 0px), var(--visual-keyboard-height, 0px), 240px) + 20px) !important;
     overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 
   .modal-card.pairing-modal.keyboard-open,
@@ -873,8 +875,11 @@
     margin-bottom: 0 !important;
     transform: translateY(0) !important;
     padding: 16px 18px 18px !important;
-    max-height: calc(100dvh - max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px), 16px) - max(var(--android-keyboard-height, 0px), var(--visual-keyboard-height, 0px), 240px) - 28px);
-    overflow-y: auto;
+    max-height: calc(100dvh - max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px), 16px) - max(var(--android-keyboard-height, 0px), var(--visual-keyboard-height, 0px), 240px) - 28px) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain !important;
+    -webkit-overflow-scrolling: touch !important;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.75);
     transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), padding 0.2s ease;
   }
@@ -1000,6 +1005,9 @@
     padding: 14px 16px 16px !important;
     max-height: calc(100dvh - max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px), 16px) - max(var(--android-keyboard-height, 0px), var(--visual-keyboard-height, 0px), 0px) - 20px) !important;
     overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain !important;
+    -webkit-overflow-scrolling: touch !important;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.75);
     transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), padding 0.2s ease;
   }
@@ -1123,5 +1131,36 @@
   .modal-card.pairing-modal.view-code-entry:focus-within .pairing-scanner-controls .button {
     padding: 10px 14px !important;
     font-size: 0.85rem !important;
+  }
+
+  /* Universal rule for all other modals when keyboard is open on mobile: pin to top ceiling and allow vertical scrolling */
+  .modal-backdrop.keyboard-open:not(:has(.pairing-modal)):not(:has(.provider-connection-modal)):not(:has(.bucket-modal-card)),
+  html.keyboard-active .modal-backdrop:not(:has(.pairing-modal)):not(:has(.provider-connection-modal)):not(:has(.bucket-modal-card)),
+  .modal-backdrop:has(.keyboard-open):not(:has(.pairing-modal)):not(:has(.provider-connection-modal)):not(:has(.bucket-modal-card)),
+  .modal-backdrop:has(:focus-within):not(:has(.pairing-modal)):not(:has(.provider-connection-modal)):not(:has(.bucket-modal-card)) {
+    align-items: flex-start !important;
+    justify-content: center !important;
+    padding-top: calc(max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px), 16px) + 8px) !important;
+    padding-bottom: calc(max(var(--android-keyboard-height, 0px), var(--visual-keyboard-height, 0px), 0px) + 16px) !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .modal-card.keyboard-open:not(.pairing-modal):not(.provider-connection-modal):not(.bucket-modal-card),
+  html.keyboard-active .modal-card:not(.pairing-modal):not(.provider-connection-modal):not(.bucket-modal-card),
+  .modal-backdrop.keyboard-open .modal-card:not(.pairing-modal):not(.provider-connection-modal):not(.bucket-modal-card),
+  .modal-backdrop:has(:focus-within) .modal-card:not(.pairing-modal):not(.provider-connection-modal):not(.bucket-modal-card),
+  .modal-card:focus-within:not(.pairing-modal):not(.provider-connection-modal):not(.bucket-modal-card) {
+    margin-top: 0 !important;
+    margin-bottom: auto !important;
+    transform: translateY(0) !important;
+    max-height: calc(100dvh - max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px), 16px) - max(var(--android-keyboard-height, 0px), var(--visual-keyboard-height, 0px), 0px) - 24px) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.75);
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), padding 0.2s ease;
   }
 }
