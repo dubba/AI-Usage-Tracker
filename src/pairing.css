@@ -875,20 +875,12 @@
     margin-bottom: 0 !important;
     transform: translateY(0) !important;
     padding: 16px 18px 18px !important;
-    max-height: calc(100dvh - max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px), 16px) - max(var(--android-keyboard-height, 0px), var(--visual-keyboard-height, 0px), 240px) - 28px) !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    overscroll-behavior: contain !important;
-    -webkit-overflow-scrolling: touch !important;
+    overflow: visible !important;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.75);
     transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), padding 0.2s ease;
   }
 
-  /* Compact header in keyboard mode */
-  .modal-card.pairing-modal.keyboard-open .modal-kicker,
-  html.keyboard-active .modal-card.pairing-modal .modal-kicker,
-  .modal-card.pairing-modal.view-code-entry.keyboard-open .modal-kicker,
-  .modal-card.pairing-modal.view-code-entry:focus-within .modal-kicker,
+  /* Compact header in keyboard mode only for Add Account modal */
   .modal-card.provider-connection-modal.keyboard-open .modal-kicker,
   html.keyboard-active .modal-card.provider-connection-modal .modal-kicker,
   .modal-card.provider-connection-modal:focus-within .modal-kicker {
@@ -896,29 +888,11 @@
     margin-bottom: 2px !important;
   }
 
-  .modal-card.pairing-modal.keyboard-open h2,
-  html.keyboard-active .modal-card.pairing-modal h2,
-  .modal-card.pairing-modal.view-code-entry.keyboard-open h2,
-  .modal-card.pairing-modal.view-code-entry:focus-within h2,
   .modal-card.provider-connection-modal.keyboard-open h2,
   html.keyboard-active .modal-card.provider-connection-modal h2,
   .modal-card.provider-connection-modal:focus-within h2 {
     font-size: 18px !important;
     margin: 2px 0 4px !important;
-  }
-
-  .modal-card.pairing-modal.keyboard-open .pairing-subtitle,
-  html.keyboard-active .modal-card.pairing-modal .pairing-subtitle {
-    margin: 0 0 10px 0 !important;
-    font-size: 0.78rem !important;
-  }
-
-  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-subtitle,
-  .modal-card.pairing-modal.view-code-entry:focus-within .pairing-subtitle,
-  .modal-card.pairing-modal:has(.pairing-code-entry-view).keyboard-open .pairing-subtitle,
-  .modal-card.pairing-modal:has(.pairing-code-entry-view):focus-within .pairing-subtitle {
-    margin: 0 0 24px 0 !important;
-    font-size: 0.78rem !important;
   }
 
   /* Compact copy and fields in Add Account modal when keyboard is open */
@@ -1003,11 +977,7 @@
     margin-bottom: auto !important;
     transform: translateY(0) !important;
     padding: 14px 16px 16px !important;
-    max-height: calc(100dvh - max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px), 16px) - max(var(--android-keyboard-height, 0px), var(--visual-keyboard-height, 0px), 0px) - 20px) !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    overscroll-behavior: contain !important;
-    -webkit-overflow-scrolling: touch !important;
+    overflow: visible !important;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.75);
     transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), padding 0.2s ease;
   }
@@ -1155,11 +1125,7 @@
     margin-top: 0 !important;
     margin-bottom: auto !important;
     transform: translateY(0) !important;
-    max-height: calc(100dvh - max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px), 16px) - max(var(--android-keyboard-height, 0px), var(--visual-keyboard-height, 0px), 0px) - 24px) !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    overscroll-behavior: contain !important;
-    -webkit-overflow-scrolling: touch !important;
+    overflow: visible !important;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.75);
     transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), padding 0.2s ease;
   }

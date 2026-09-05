@@ -44,7 +44,8 @@ export function CustomDropdown<T extends string | number>({
 
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      const spaceBelow = viewportHeight - rect.bottom;
       const spaceAbove = rect.top;
       setOpenUpward(spaceBelow < 240 && spaceAbove > spaceBelow);
     }

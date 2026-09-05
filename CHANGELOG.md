@@ -10,6 +10,8 @@
 
 ### Fixed
 
+- Fixed a regression where dropdown menus (such as provider selection, alert thresholds, and group filters) were clipped and could no longer display above or outside the modal when extended or opened upward.
+- Fixed inconsistent header font sizes in Link Devices by ensuring the "Link Devices" title, kicker, and subtitle retain identical font styling between the 6-digit code entry view and all other Link Devices views.
 - Fixed the modal close ("×") button automatically displaying its tooltip immediately upon opening a modal by excluding close buttons from initial programmatic auto-focus and restricting touch/focus tooltip triggers to visible user interaction.
 - Fixed a pairing failure where a joining device silently ignored the host's rejection message and continued against a peer that had already aborted, producing confusing follow-up errors instead of a clear "host rejected the connection" message.
 - Fixed the transfer-direction (send/receive) choice silently defaulting to "receive" when an unexpected value was sent; invalid choices are now rejected with an error on both devices.
