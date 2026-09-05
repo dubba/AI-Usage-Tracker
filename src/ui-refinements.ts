@@ -204,18 +204,6 @@ export function installMobileTooltips(): void {
 
   window.addEventListener("pointerdown", handlePointerInteraction, { capture: true, passive: true });
   window.addEventListener("touchstart", handlePointerInteraction, { capture: true, passive: true });
-  window.addEventListener(
-    "focusin",
-    (event: FocusEvent) => {
-      if (!isMobileOrTouch(event)) return;
-      const target = event.target as HTMLElement | null;
-      const tooltipTarget = target?.closest<HTMLElement>("[data-tooltip]");
-      if (tooltipTarget) {
-        triggerMobileTooltip(tooltipTarget);
-      }
-    },
-    { capture: true, passive: true }
-  );
 }
 
 export function upgradeNativeTooltips(root: ParentNode = document): void {

@@ -10,6 +10,7 @@
 
 ### Fixed
 
+- Fixed the modal close ("×") button automatically displaying its tooltip immediately upon opening a modal by excluding close buttons from initial programmatic auto-focus and restricting touch/focus tooltip triggers to visible user interaction.
 - Fixed a pairing failure where a joining device silently ignored the host's rejection message and continued against a peer that had already aborted, producing confusing follow-up errors instead of a clear "host rejected the connection" message.
 - Fixed the transfer-direction (send/receive) choice silently defaulting to "receive" when an unexpected value was sent; invalid choices are now rejected with an error on both devices.
 - Fixed a race where rapidly starting or cancelling Link Devices sessions could leave the sharing device showing a QR code for a session with no listener behind it; the interrupted start now reports an error asking you to retry.

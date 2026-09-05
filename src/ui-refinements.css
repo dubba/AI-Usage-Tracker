@@ -251,13 +251,16 @@
 /* On mobile / touch devices: auto-dismiss tooltips after 3 seconds */
 @media (hover: none), (pointer: coarse) {
   [data-tooltip]:hover::after,
-  [data-tooltip]:focus::after,
   [data-tooltip]:focus-visible::after,
-  .sidebar-resize-handle:focus .sidebar-resize-grip[data-tooltip]::after,
   .sidebar-resize-handle:focus-visible .sidebar-resize-grip[data-tooltip]::after,
   [data-tooltip-active]::after {
     animation: mobile-tooltip-timer 3s forwards ease-out;
   }
+}
+
+.ui-modal-close:focus:not(:focus-visible)::after {
+  display: none !important;
+  opacity: 0 !important;
 }
 
 @keyframes mobile-tooltip-timer {

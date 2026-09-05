@@ -48,8 +48,12 @@ export function useModalA11y(
     document.body.style.overflow = "hidden";
 
     if (!container.contains(document.activeElement)) {
-      const first = focusableElements(container)[0] ?? container;
-      first.focus({ preventScroll: true });
+      const candidates = focusableElements(container);
+      const initial =
+        candidates.find((el) => !el.classList.contains("ui-modal-close")) ??
+        candidates[0] ??
+        container;
+      initial.focus({ preventScroll: true });
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
