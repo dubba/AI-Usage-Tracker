@@ -402,7 +402,7 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 20px !important;
+  gap: 24px !important;
   width: 100%;
   margin: 0 !important;
   padding: 0 !important;
@@ -890,10 +890,16 @@
   }
 
   .modal-card.pairing-modal.keyboard-open .pairing-subtitle,
-  html.keyboard-active .modal-card.pairing-modal .pairing-subtitle,
-  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-subtitle,
-  .modal-card.pairing-modal.view-code-entry:focus-within .pairing-subtitle {
+  html.keyboard-active .modal-card.pairing-modal .pairing-subtitle {
     margin: 0 0 10px 0 !important;
+    font-size: 0.78rem !important;
+  }
+
+  .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-subtitle,
+  .modal-card.pairing-modal.view-code-entry:focus-within .pairing-subtitle,
+  .modal-card.pairing-modal:has(.pairing-code-entry-view).keyboard-open .pairing-subtitle,
+  .modal-card.pairing-modal:has(.pairing-code-entry-view):focus-within .pairing-subtitle {
+    margin: 0 0 24px 0 !important;
     font-size: 0.78rem !important;
   }
 
@@ -902,7 +908,7 @@
   html.keyboard-active .modal-card.pairing-modal .pairing-code-entry-view,
   .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-code-entry-view,
   .modal-card.pairing-modal.view-code-entry:focus-within .pairing-code-entry-view {
-    gap: 20px !important;
+    gap: 24px !important;
   }
 
   .modal-card.pairing-modal.keyboard-open .pairing-code-input,
