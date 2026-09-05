@@ -127,16 +127,6 @@ export function useModalA11y(
         keyboardDetected = true;
       }
 
-      // 3. Check if an input inside this modal is actively focused
-      const activeEl = document.activeElement;
-      if (
-        activeEl &&
-        container.contains(activeEl) &&
-        (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "SELECT")
-      ) {
-        keyboardDetected = true;
-      }
-
       if (keyboardDetected) {
         container.classList.add("keyboard-open");
         backdrop?.classList.add("keyboard-open");
@@ -172,7 +162,7 @@ export function useModalA11y(
     const handleFocusIn = (event: FocusEvent) => {
       const target = event.target as HTMLElement | null;
       if (!target || !container.contains(target)) return;
-      if (target.matches("input, textarea, select, [contenteditable='true']")) {
+      if (target.matches("input:not([type='checkbox']):not([type='radio']):not([type='button']):not([type='submit']):not([type='reset']), textarea, [contenteditable='true']")) {
         checkKeyboard();
         window.setTimeout(() => {
           target.scrollIntoView({ block: "nearest", behavior: "smooth" });
