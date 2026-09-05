@@ -402,7 +402,7 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 24px !important;
+  gap: 20px !important;
   width: 100%;
   margin: 0 !important;
   padding: 0 !important;
@@ -417,7 +417,7 @@
 .modal-card.pairing-modal .pairing-instruction {
   font-size: 0.85rem !important;
   color: var(--obsidian-text, #e5e2e1) !important;
-  margin: 0 0 4px 0;
+  margin: 0 !important;
   line-height: 1.4 !important;
 }
 
@@ -902,7 +902,7 @@
   html.keyboard-active .modal-card.pairing-modal .pairing-code-entry-view,
   .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-code-entry-view,
   .modal-card.pairing-modal.view-code-entry:focus-within .pairing-code-entry-view {
-    gap: 12px !important;
+    gap: 20px !important;
   }
 
   .modal-card.pairing-modal.keyboard-open .pairing-code-input,
@@ -934,7 +934,7 @@
   html.keyboard-active .modal-card.pairing-modal .pairing-scanner-controls,
   .modal-card.pairing-modal.view-code-entry.keyboard-open .pairing-scanner-controls,
   .modal-card.pairing-modal.view-code-entry:focus-within .pairing-scanner-controls {
-    margin-top: 2px !important;
+    margin-top: 0 !important;
   }
 
   .modal-card.pairing-modal.keyboard-open .pairing-scanner-controls .button,
