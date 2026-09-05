@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Security
+
+- Hardened Link Devices pairing against low-order key attacks: the Elliptic-curve Diffie-Hellman step now rejects non-contributory (low-order) peer public keys on both devices, preventing a malicious pairing link from forcing a predictable session key.
+- Restricted Link Devices pairing links to local network addresses only (private, loopback, link-local, or Tailscale CGNAT IP literals); pairing links pointing at public internet hosts or DNS names are now refused instead of connecting.
+
 ### Added
 
 - Added support for 30-day (`30d` / monthly) quota limits in the account notification modal and backend alert evaluation, allowing notifications to be configured for free ChatGPT / OpenAI accounts with monthly limit windows.
@@ -39,8 +44,13 @@
 - On mobile and touch devices, tooltips (such as account card action buttons, provider icons, and sidebar resize grips) now automatically dismiss after 3 seconds so they do not remain permanently visible on screen after a tap.
 - Desktop development builds now store credentials using private user-only file storage, eliminating macOS Keychain password prompts during `tauri dev`.
 
+### Security
+
+- Hardened Link Devices peer-to-peer authentication by rejecting low-order (non-contributory) Diffie-Hellman public keys that could produce predictable shared secrets, and requiring pairing connection hosts to be local network IP addresses (private LAN, loopback, link-local, or Tailscale CGNAT) to prevent accidental connection or exfiltration over the public internet.
+
 ### Fixed
 
+- Fixed regression where modal "×" close buttons and the Link Devices switch-camera button lost their absolute positioning due to universal tooltip styling rules, restoring the close button to the top-right corner of all modals and keeping the switch-camera button docked directly to the right of the QR viewfinder.
 - Fixed sidebar window toggle evaluation: selecting 'H' (hourly / 5-hour) now strictly includes providers that actually have an hourly rate, correctly displaying a dash ('—') for Grok (7-day limit) and free ChatGPT (30-day limit), while selecting 'W' (weekly) displays the 30-day limit for free ChatGPT alongside 7-day and weekly provider limits.
 - Fixed the 3-dot sidebar resize grip positioning at the bottom of the screen on mobile devices by enforcing absolute positioning and normalizing the resize handle layout to maintain vertical centering matching the desktop layout.
 - Fixed saving alert thresholds for OpenAI / ChatGPT accounts on free plans by correctly recognizing the primary rate limit as a 30-day (`monthly`) window, ensuring fallback window duration detection, and permitting alert configuration saves even when cached usage data lacks duration metadata.

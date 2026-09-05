@@ -18,6 +18,7 @@ use crate::{
     model::{Account, Provider, ProviderSecret},
     state::AppState,
 };
+use base64::Engine as _;
 use chrono::Utc;
 use std::{sync::Arc, time::Duration};
 use tokio::{
@@ -63,13 +64,17 @@ fn test_ephemeral_diffie_hellman_and_hkdf() {
     assert_eq!(alice_transcript, bob_transcript);
 
     let bob_point = x25519_dalek::PublicKey::from(bob_pub);
-    let alice_derived = alice.diffie_hellman(&bob_point);
+    let alice_derived = alice
+        .diffie_hellman(&bob_point)
+        .expect("DH should succeed for a valid peer key");
     let alice_key = alice_derived
         .derive_encryption_key(&session_nonce)
         .unwrap();
 
     let alice_point = x25519_dalek::PublicKey::from(alice_pub);
-    let bob_derived = bob.diffie_hellman(&alice_point);
+    let bob_derived = bob
+        .diffie_hellman(&alice_point)
+        .expect("DH should succeed for a valid peer key");
     let bob_key = bob_derived
         .derive_encryption_key(&session_nonce)
         .unwrap();
@@ -81,6 +86,15 @@ fn test_ephemeral_diffie_hellman_and_hkdf() {
     let bob_sas = compute_sas_code(&bob_key, &bob_transcript);
     assert_eq!(alice_sas, bob_sas);
     assert_eq!(alice_sas.len(), 9);
+}
+
+#[test]
+fn test_diffie_hellman_rejects_low_order_public_key() {
+    let alice = EphemeralKeyPair::generate();
+    // All-zero public key is a classic low-order point: DH against it yields a
+    // predictable all-zero shared secret and must be rejected.
+    let low_order = x25519_dalek::PublicKey::from([0u8; 32]);
+    assert!(alice.diffie_hellman(&low_order).is_err());
 }
 
 #[test]
@@ -98,7 +112,9 @@ fn test_confirmation_tags() {
     );
 
     let bob_point = x25519_dalek::PublicKey::from(bob.public_bytes());
-    let alice_derived = alice.diffie_hellman(&bob_point);
+    let alice_derived = alice
+        .diffie_hellman(&bob_point)
+        .expect("DH should succeed for a valid peer key");
     let key = alice_derived
         .derive_encryption_key(&session_nonce)
         .unwrap();
@@ -177,15 +193,41 @@ fn test_qr_uri_parsing_and_formatting() {
     assert_eq!(parsed.session_nonce, nonce);
     assert!(!parsed.fingerprint.is_empty());
     assert_eq!(parsed.fingerprint.len(), 9); // e.g. "XXXX-XXXX"
-
     // Bad scheme
     assert!(parse_qr_uri("http://example.com").is_err());
+
     // Missing host
     assert!(parse_qr_uri("aiusage-pair://:8080?pk=aa&sid=bb&n=cc").is_err());
     // Missing pk
     assert!(parse_qr_uri(&format!("aiusage-pair://{ip}:{port}?sid={session_id}&n=aa")).is_err());
     // Corrupt hex in pk
     assert!(parse_qr_uri(&format!("aiusage-pair://{ip}:{port}?pk=nothex&sid={session_id}&n=aa")).is_err());
+
+    // Non-local hosts are refused (credential exfiltration prevention)
+    assert!(parse_qr_uri(&format!("aiusage-pair://8.8.8.8:{port}?sid={session_id}&n=aa")).is_err());
+    assert!(parse_qr_uri(&format!("aiusage-pair://203.0.113.5:{port}?sid={session_id}&n=aa")).is_err());
+    assert!(parse_qr_uri(&format!("aiusage-pair://example.com:{port}?sid={session_id}&n=aa")).is_err());
+
+    // Loopback, link-local, CGNAT (Tailscale) and other private ranges are allowed
+    let pk_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(pubkey);
+    let nonce_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(nonce);
+    let query = format!("session_id={session_id}&pk={pk_b64}&nonce={nonce_b64}");
+    for host in [
+        "127.0.0.1",
+        "10.0.0.5",
+        "172.16.3.4",
+        "192.168.0.2",
+        "169.254.1.1",
+        "100.64.1.1",
+        "::1",
+    ] {
+        let uri = if host.contains(':') {
+            format!("aiusage-pair://[{host}]:{port}?{query}")
+        } else {
+            format!("aiusage-pair://{host}:{port}?{query}")
+        };
+        assert!(parse_qr_uri(&uri).is_ok(), "host {host} should be allowed");
+    }
 }
 
 #[tokio::test]

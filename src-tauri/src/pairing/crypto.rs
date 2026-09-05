@@ -38,9 +38,17 @@ impl EphemeralKeyPair {
         *self.public.as_bytes()
     }
 
-    pub fn diffie_hellman(self, peer_public: &PublicKey) -> DerivedKeys {
+    pub fn diffie_hellman(self, peer_public: &PublicKey) -> Result<DerivedKeys, String> {
         let shared = self.secret.diffie_hellman(peer_public);
-        DerivedKeys::from_shared_secret(shared.as_bytes())
+        // Reject low-order (non-contributory) peer public keys: they force a
+        // predictable all-zero shared secret, which would make the derived
+        // encryption key and SAS code attacker-known.
+        if !bool::from(shared.was_contributory()) {
+            return Err(
+                "Peer public key is invalid (non-contributory). Aborting pairing.".to_string(),
+            );
+        }
+        Ok(DerivedKeys::from_shared_secret(shared.as_bytes()))
     }
 }
 

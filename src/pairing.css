@@ -205,7 +205,7 @@
 }
 
 .pairing-switch-camera-fab {
-  position: absolute;
+  position: absolute !important;
   left: calc(100% + 12px);
   top: 50%;
   transform: translateY(-50%);

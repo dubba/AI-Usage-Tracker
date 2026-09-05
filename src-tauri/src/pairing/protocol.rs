@@ -18,6 +18,37 @@ pub const MSG_ROLE_SELECT: u8 = 0x10;
 pub const MSG_ROLE_SELECT_RESP: u8 = 0x11;
 pub const MSG_ABORT: u8 = 0xFF;
 
+/// Pairing must stay on the local network. The host must be an IP literal
+/// (no DNS names, to avoid DNS-rebinding style redirects) in a private,
+/// loopback, link-local, or CGNAT (Tailscale) range.
+fn is_allowed_pairing_host(host: &str) -> bool {
+    use std::net::IpAddr;
+    // url::Url::host_str() keeps square brackets around IPv6 literals
+    let host = host
+        .strip_prefix('[')
+        .and_then(|h| h.strip_suffix(']'))
+        .unwrap_or(host);
+    match host.parse::<IpAddr>() {
+        Ok(IpAddr::V4(v4)) => {
+            let octets = v4.octets();
+            v4.is_private()
+                || v4.is_loopback()
+                || v4.is_link_local()
+                // CGNAT range 100.64.0.0/10 (e.g. Tailscale mesh IPs)
+                || (octets[0] == 100 && (64..=127).contains(&octets[1]))
+        }
+        Ok(IpAddr::V6(v6)) => {
+            let segments = v6.segments();
+            v6.is_loopback()
+                // ULA fc00::/7
+                || (segments[0] & 0xfe00) == 0xfc00
+                // Link-local fe80::/10
+                || (segments[0] & 0xffc0) == 0xfe80
+        }
+        Err(_) => false,
+    }
+}
+
 pub fn compute_display_fingerprint(
     session_id: &Uuid,
     public_key: &[u8; 32],
@@ -86,6 +117,13 @@ impl ParsedQrPayload {
             || host.contains('#')
         {
             return Err("Invalid host in pairing URI".to_string());
+        }
+
+        if !is_allowed_pairing_host(&host) {
+            return Err(
+                "Pairing host must be a local network address (private, loopback, or link-local IP). Refusing to connect."
+                    .to_string(),
+            );
         }
 
         let port = url

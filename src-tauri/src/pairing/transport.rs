@@ -227,7 +227,14 @@ pub async fn run_host_listener(
 
     // Perform DH and key derivation
     let client_point = x25519_dalek::PublicKey::from(client_pubkey);
-    let derived = keypair.diffie_hellman(&client_point);
+    let derived = match keypair.diffie_hellman(&client_point) {
+        Ok(d) => d,
+        Err(e) => {
+            let _ = write_frame(&mut stream, MSG_ABORT, &[0x0D]).await;
+            let _ = status_tx.send(HostEvent::Failed(e)).await;
+            return;
+        }
+    };
     let mut encryption_key = match derived.derive_encryption_key(&session_nonce) {
         Ok(k) => k,
         Err(e) => {
@@ -438,7 +445,13 @@ pub async fn run_client_connector(
 
     // Derive encryption key & SAS code
     let host_point = x25519_dalek::PublicKey::from(parsed.peer_public_key);
-    let derived = keypair.diffie_hellman(&host_point);
+    let derived = match keypair.diffie_hellman(&host_point) {
+        Ok(d) => d,
+        Err(e) => {
+            let _ = status_tx.send(ClientEvent::Failed(e)).await;
+            return;
+        }
+    };
     let mut encryption_key = match derived.derive_encryption_key(&parsed.session_nonce) {
         Ok(k) => k,
         Err(e) => {

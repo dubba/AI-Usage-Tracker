@@ -1,17 +1,20 @@
+.modal-card,
 .modal-card[role="dialog"] {
-  position: relative;
+  position: relative !important;
 }
 
+.modal-card > .modal-kicker,
+.modal-card > h2,
 .modal-card[role="dialog"] > .modal-kicker,
 .modal-card[role="dialog"] > h2 {
   padding-right: 42px;
 }
 
 .ui-modal-close {
-  position: absolute;
-  top: 13px;
-  right: 13px;
-  z-index: 2;
+  position: absolute !important;
+  top: 13px !important;
+  right: 13px !important;
+  z-index: 10;
   width: 32px;
   height: 32px;
   display: flex;

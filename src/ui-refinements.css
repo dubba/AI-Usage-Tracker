@@ -201,11 +201,13 @@
    Matches the Obsidian dark theme, timing, and mobile touch behavior.
    ========================================================================== */
 
-[data-tooltip]:not(.sidebar-resize-grip) {
+[data-tooltip]:not(.sidebar-resize-grip):not(.ui-modal-close):not(.pairing-switch-camera-fab) {
   position: relative;
 }
 
-.sidebar-resize-grip[data-tooltip] {
+.sidebar-resize-grip[data-tooltip],
+.ui-modal-close[data-tooltip],
+.pairing-switch-camera-fab[data-tooltip] {
   position: absolute !important;
 }
 
