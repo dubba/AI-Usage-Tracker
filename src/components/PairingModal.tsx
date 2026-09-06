@@ -344,6 +344,7 @@ export function PairingModal({
   const [remainingSecs, setRemainingSecs] = useState<number | null>(null);
   const [confirmedSas, setConfirmedSas] = useState(false);
   const [isFrontCamera, setIsFrontCamera] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
   const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
@@ -661,6 +662,7 @@ export function PairingModal({
     let animFrameId: number;
 
     const startCamera = async () => {
+      setVideoReady(false);
       try {
         setCameraError(null);
 
@@ -889,6 +891,7 @@ export function PairingModal({
   const handleSwitchCamera = async () => {
     if (switchingCameraRef.current) return;
     switchingCameraRef.current = true;
+    setVideoReady(false);
 
     try {
       const mediaDevices = navigator.mediaDevices;
@@ -1186,7 +1189,9 @@ export function PairingModal({
                     playsInline
                     muted
                     tabIndex={-1}
-                    className={`pairing-scanner-video ${isFrontCamera ? "mirrored" : ""}`}
+                    onPlaying={() => setVideoReady(true)}
+                    onLoadedData={() => setVideoReady(true)}
+                    className={`pairing-scanner-video ${isFrontCamera ? "mirrored" : ""} ${videoReady ? "ready" : ""}`}
                     style={{ pointerEvents: "none" }}
                   />
                   <div className="pairing-scanner-overlay">

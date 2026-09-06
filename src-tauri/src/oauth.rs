@@ -745,15 +745,32 @@ async fn exchange_antigravity(
     )
     .await
     .unwrap_or(Value::Null);
+    // Fallback when userinfo fails: decode the OpenID id_token for the stable
+    // Google user id (`sub`) and email so the account still has an identity.
+    let id_token_claims = tokens.id_token.as_deref().and_then(decode_jwt_payload);
     let identity = ProviderIdentity {
         email: profile
             .get("email")
             .and_then(Value::as_str)
-            .map(str::to_string),
+            .map(str::to_string)
+            .or_else(|| {
+                id_token_claims
+                    .as_ref()
+                    .and_then(|claims| claims.get("email"))
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+            }),
         account_id: profile
             .get("id")
             .and_then(Value::as_str)
-            .map(str::to_string),
+            .map(str::to_string)
+            .or_else(|| {
+                id_token_claims
+                    .as_ref()
+                    .and_then(|claims| claims.get("sub"))
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+            }),
         plan: Some("Antigravity".into()),
     };
     Ok((
@@ -903,6 +920,14 @@ fn random_base64(bytes: usize) -> String {
     let mut value = vec![0u8; bytes];
     rand::thread_rng().fill_bytes(&mut value);
     URL_SAFE_NO_PAD.encode(value)
+}
+
+/// Decodes the payload segment of a JWT (no signature verification; the token
+/// came straight from the provider's token endpoint over TLS).
+fn decode_jwt_payload(token: &str) -> Option<Value> {
+    let segment = token.split('.').nth(1)?;
+    let decoded = URL_SAFE_NO_PAD.decode(segment).ok()?;
+    serde_json::from_slice(&decoded).ok()
 }
 
 fn identity_from_userinfo(value: &Value) -> ProviderIdentity {

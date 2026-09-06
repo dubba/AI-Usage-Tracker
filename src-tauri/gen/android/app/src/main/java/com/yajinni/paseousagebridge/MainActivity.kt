@@ -41,6 +41,7 @@ class MainActivity : TauriActivity() {
   private var safeTopDp: Int = 48
   private var safeBottomDp: Int = 0
   private var safeImeDp: Int = 0
+  private var multicastLock: android.net.wifi.WifiManager.MulticastLock? = null
 
   override fun onWebViewCreate(webView: WebView) {
     super.onWebViewCreate(webView)
@@ -158,6 +159,20 @@ class MainActivity : TauriActivity() {
       if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
         requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1002)
       }
+    }
+
+    // Pairing (Link Devices) uses mDNS over multicast. On Android, inbound
+    // multicast packets are filtered unless the app holds a MulticastLock —
+    // without this, code joins time out on the phone.
+    try {
+      val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE)
+        as android.net.wifi.WifiManager
+      multicastLock = wifiManager.createMulticastLock("aiut-pairing").apply {
+        setReferenceCounted(false)
+        acquire()
+      }
+    } catch (e: Throwable) {
+      android.util.Log.w(TAG, "Failed to acquire multicast lock: ${e.message}")
     }
 
     // Invalidate stale WebView cache when APK is updated to a new version

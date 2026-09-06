@@ -3,6 +3,34 @@
   display: none !important;
 }
 
+/* Desktop: show the app title above the sidebar navigation with the same
+   style and vertical position as the "All Accounts" eyebrow heading. */
+@media (min-width: 861px) {
+  .obsidian-shell .sidebar .brand {
+    display: flex !important;
+    align-items: center;
+    min-height: 0 !important;
+    /* 18px sidebar padding-top + 6px = 24px, matching .dashboard-content
+       padding-top so the baselines sit on the same horizontal line. Gap
+       to "Dashboard" below = 6px padding + 12px nav margin = 18px. */
+    padding: 6px 14px 6px;
+    margin: 0;
+  }
+  .obsidian-shell .sidebar .brand .brand-mark {
+    display: none;
+  }
+  .obsidian-shell .sidebar .brand strong {
+    /* Must stay in lockstep with .dashboard-header h1.eyebrow
+       (obsidian-dashboard.css:565 / dashboard-typography.css:22) */
+    font-size: 15px;
+    line-height: 1.15;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--purple, #a078ff);
+  }
+}
+
 .sidebar {
   container-type: inline-size;
   min-height: 0;

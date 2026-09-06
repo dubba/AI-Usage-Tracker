@@ -10,7 +10,13 @@
 
 ### Fixed
 
+- Fixed Link Devices transfers merging multiple distinct accounts on the receiving device when the provider supplied a shared project id instead of unique account identities (most visible with several Antigravity accounts, where only one survived the transfer while the summary counted the merged ones as "updated"), and hardened account matching so accounts with different emails are never merged.
+- Fixed Link Devices resurrecting accounts you had previously deleted: deletions now leave tombstones that travel with transfers, so the receiving device removes its copy and never re-adds the deleted account.
+- Fixed Link Devices join codes timing out on Android ("No device found with that pairing code") when the phone was any side of a code-based connection, by acquiring the system multicast lock Android requires for mDNS traffic.
+- Fixed the "Current Version" label in Settings wrapping to two lines with longer prerelease version names (e.g. `0.3.6-unrel`) by reducing its font size and keeping it on a single line on mobile, and kept the "Check Now" button label on one line.
+- Restored the app title above the navigation menu in the desktop sidebar, styled to match the size and color of the "All Accounts" label with spacing that mirrors the gap below the Integrations item.
 - Fixed the Create / Edit Group modal remaining pinned to the top ceiling or stuck in compact sizing after the mobile virtual keyboard closes by decoupling keyboard styling from lingering text input focus and ensuring smooth animated transitions back to centered positioning and standard spacing.
+- Fixed a flicker and gray "play button" media placeholder briefly appearing in the QR camera viewfinder when switching cameras on Android; the viewfinder now stays dark and smoothly fades in once the new camera stream is ready.
 - Fixed the usage notification and remove account modals jumping to the top of the screen on mobile by removing overly broad keyboard ceiling pinning rules and eliminating false-positive keyboard detection when focusing checkboxes, buttons, or non-text controls.
 - Fixed a regression where dropdown menus (such as provider selection, alert thresholds, and group filters) were clipped and could no longer display above or outside the modal when extended or opened upward.
 - Fixed inconsistent header font sizes in Link Devices by ensuring the "Link Devices" title, kicker, and subtitle retain identical font styling between the 6-digit code entry view and all other Link Devices views.
@@ -26,6 +32,11 @@
 
 ### Improved
 
+- Moved the mobile sidebar's top content up to match the main pages, so the sidebar's close button horizontally aligns with the hamburger menu when the menu opens.
+- The selected Dashboard and Integrations entries now use the exact same active highlight as the Settings footer entry: a full-height purple left edge inset into the button (replacing the previous shorter floating accent bar), along with the faded purple gradient and light border.
+- Moved the mobile hamburger menu and page title closer to the status bar by reducing the top safe-area offset, tightening the previously large gap below the status bar on tall-cutout devices.
+- The sidebar footer button now opens Settings instead of triggering an update check; update availability, manual checks, and installing updates remain available in Settings under App Updates.
+- The app now always checks for a new version once at launch, even when the "Automatic updates" setting is turned off, so you are still informed about available updates; with the setting enabled, background checks now run every 8 hours instead of every hour.
 - Enhanced all modal dialogs (including Account Alerts, Remove Account, Group Editor, and Usage details) to be fully vertically scrollable with touch-momentum scrolling and custom compact scrollbars when the on-screen mobile keyboard appears or when modal content exceeds the viewport height, ensuring all inputs, guidance text, and action buttons remain reachable.
 - On mobile devices, the Create Group / Edit Group modal now pins against the top ceiling when the on-screen keyboard is displayed, maximizing vertical visibility so the group name input, account selection picker, and action buttons remain visible and operable above the keyboard.
 - On mobile devices, the Add Account modal now positions with a 20px clearance directly above the on-screen keyboard when entering account names, API keys, or connection credentials instead of pinning against the top status bar, featuring responsive header compression, compact field spacing, and internal scrolling so fields and action buttons remain visible and easily reachable.

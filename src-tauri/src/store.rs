@@ -84,6 +84,14 @@ struct AccountFile {
     accounts: Vec<Account>,
 }
 
+/// Tracks recently deleted account ids so a peer device does not resurrect
+/// them during pairing syncs.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TombstoneFile {
+    deleted_account_ids: Vec<String>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 struct CredentialGeneration {
@@ -166,7 +174,38 @@ impl AccountStore {
     }
 
     pub fn remove(&self, id: &str) -> Result<(), StoreError> {
-        self.remove_after_secret_result(id, delete_secret(id))
+        self.remove_after_secret_result(id, delete_secret(id))?;
+        self.record_deletion(id);
+        Ok(())
+    }
+
+    pub fn tombstones(&self) -> Vec<String> {
+        read_tombstone_file(&self.data_dir).deleted_account_ids
+    }
+
+    pub fn merge_tombstones(&self, deleted_ids: &[String]) {
+        if deleted_ids.is_empty() {
+            return;
+        }
+        let mut tombstones = read_tombstone_file(&self.data_dir);
+        let before = tombstones.deleted_account_ids.len();
+        for id in deleted_ids {
+            if !tombstones.deleted_account_ids.iter().any(|t| t == id) {
+                tombstones.deleted_account_ids.push(id.clone());
+            }
+        }
+        if tombstones.deleted_account_ids.len() != before {
+            const MAX_TOMBSTONES: usize = 500;
+            if tombstones.deleted_account_ids.len() > MAX_TOMBSTONES {
+                let excess = tombstones.deleted_account_ids.len() - MAX_TOMBSTONES;
+                tombstones.deleted_account_ids.drain(..excess);
+            }
+            let _ = write_tombstone_file(&self.data_dir, &tombstones);
+        }
+    }
+
+    fn record_deletion(&self, id: &str) {
+        self.merge_tombstones(&[id.to_string()]);
     }
 
     fn remove_after_secret_result(
@@ -229,6 +268,13 @@ impl AccountStore {
             .find(|account| {
                 if &account.provider != provider {
                     return false;
+                }
+                // Conflicting emails prove these are different people, even if a
+                // provider-side id (projects, legacy caches) happens to match.
+                if let (Some(a), Some(b)) = (account.email.as_deref(), email) {
+                    if !a.is_empty() && !b.is_empty() && !a.eq_ignore_ascii_case(b) {
+                        return false;
+                    }
                 }
                 account_id
                     .filter(|value| !value.is_empty())
@@ -521,12 +567,12 @@ pub fn delete_secret(account_id: &str) -> Result<(), StoreError> {
     for base in dirs {
         let path = base.join("credentials").join(&filename);
         if path.exists() {
-            let _ = fs::remove_file(path);
+            fs::remove_file(&path).map_err(|error| StoreError::Io(error.to_string()))?;
         }
     }
     #[cfg(not(target_os = "android"))]
     {
-        let _ = delete_keychain_secret(account_id);
+        delete_keychain_secret(account_id)?;
     }
     forget_secret(account_id);
     Ok(())
@@ -876,6 +922,27 @@ fn generate_bridge_token() -> String {
 
 fn account_path(data_dir: &Path) -> PathBuf {
     data_dir.join("accounts.json")
+}
+
+fn tombstone_path(data_dir: &Path) -> PathBuf {
+    data_dir.join("deleted-accounts.json")
+}
+
+fn read_tombstone_file(data_dir: &Path) -> TombstoneFile {
+    let path = tombstone_path(data_dir);
+    fs::read_to_string(path)
+        .ok()
+        .and_then(|raw| serde_json::from_str(&raw).ok())
+        .unwrap_or_default()
+}
+
+fn write_tombstone_file(data_dir: &Path, tombstones: &TombstoneFile) -> Result<(), StoreError> {
+    let raw = serde_json::to_string(tombstones)
+        .map_err(|error| StoreError::Invalid(error.to_string()))?;
+    atomic_write_private(&tombstone_path(data_dir), raw.as_bytes())
+        .map_err(|error| StoreError::Io(error.to_string()))?;
+    ensure_private_file(&tombstone_path(data_dir)).map_err(StoreError::Io)?;
+    Ok(())
 }
 
 fn read_account_file(data_dir: &Path) -> Result<Vec<Account>, StoreError> {

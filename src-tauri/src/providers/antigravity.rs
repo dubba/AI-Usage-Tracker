@@ -63,7 +63,16 @@ async fn fetch_usage(
     .await?;
 
     let project_id = extract_project_id(load.get("cloudaicompanionProject"))
-        .or_else(|| account.provider_account_id.clone())
+        // Legacy fallback: older builds cached the Cloud project id in the
+        // identity field. It always contains at least one letter or hyphen;
+        // Google numeric user ids are never valid project ids, so don't
+        // mistake an all-digit identity value for a project.
+        .or_else(|| {
+            account
+                .provider_account_id
+                .clone()
+                .filter(|value| !value.bytes().all(|b| b.is_ascii_digit()))
+        })
         .ok_or_else(|| {
             ProviderError::Transient(
                 "Antigravity did not return a Cloud AI Companion project for this account.".into(),

@@ -271,6 +271,12 @@
   height: 100%;
   object-fit: cover;
   pointer-events: none;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.pairing-scanner-video.ready {
+  opacity: 1;
 }
 
 .pairing-scanner-video.mirrored {

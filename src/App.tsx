@@ -66,14 +66,13 @@ type NextResetSummary = {
   resetsAt: string | null;
 };
 
-const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
+const UPDATE_CHECK_INTERVAL_MS = 8 * 60 * 60 * 1000; // 8 hours
 // Shown only until getVersion() resolves; getVersion() is the single source of truth.
 const FALLBACK_APP_VERSION = "0.3.5";
 const DASHBOARD_SYNC_INTERVAL_MS = 30 * 1000;
 const STARTUP_REFRESH_DELAY_MS = 3 * 1000;
 const GOOGLE_AI_STUDIO_MODELS_ONLY_SOURCE = "google_ai_studio_model_access";
 const DEFAULT_ACCOUNT_REFRESH_MINUTES = 15;
-const SIDEBAR_UPDATE_FEEDBACK_MS = 3_000;
 const ACCOUNT_REFRESH_OPTIONS = [5, 10, 15, 30, 45, 60] as const;
 const SIDEBAR_WINDOW_KEY = "ai-subscription-tracker:provider-average-window";
 const ALL_ACCOUNTS_GROUP_ID = "all";
@@ -828,8 +827,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!appSettings?.automaticUpdatesEnabled) return;
+    // Always check once at launch so users are informed about new versions
+    // even when automatic checks are disabled in Settings.
     void checkForUpdate(false);
+    if (!appSettings?.automaticUpdatesEnabled) return;
     const updateInterval = window.setInterval(() => void checkForUpdate(false), UPDATE_CHECK_INTERVAL_MS);
     return () => window.clearInterval(updateInterval);
   }, [appSettings?.automaticUpdatesEnabled, checkForUpdate]);
@@ -1134,7 +1135,6 @@ export default function App() {
         <nav className="primary-nav">
           <button className={section === "accounts" ? "active" : ""} onClick={() => { setSection("accounts"); setSidebarOpen(false); }}><UsersIcon />Dashboard</button>
           <button className={section === "integration" ? "active" : ""} onClick={() => { setSection("integration"); setSidebarOpen(false); }}><LinkIcon />Integrations</button>
-          <button className={section === "settings" ? "active" : ""} onClick={() => { setSection("settings"); setSidebarOpen(false); }}><SettingsIcon />Settings</button>
         </nav>
 
         <div className="provider-sidebar-heading">
@@ -1201,13 +1201,19 @@ export default function App() {
           ) : null}
         </div>
 
-        <SidebarUpdateButton
-          update={appUpdate}
-          updateBusy={updateBusy}
-          updateError={updateError}
-          onCheck={() => void checkForUpdate(true)}
-          onInstall={() => void installUpdate()}
-        />
+        <button
+          type="button"
+          className={`sidebar-footer${section === "settings" ? " active" : ""}`}
+          aria-current={section === "settings" ? "page" : undefined}
+          onClick={() => {
+            setSection("settings");
+            setSidebarOpen(false);
+          }}
+          aria-label="Open settings"
+        >
+          <SettingsIcon />
+          <span>Settings</span>
+        </button>
       </aside>
 
       <main className="main-stage">
@@ -1339,85 +1345,6 @@ export default function App() {
         </div>
       )}
     </div>
-  );
-}
-
-function SidebarUpdateButton({
-  update,
-  updateBusy,
-  updateError,
-  onCheck,
-  onInstall,
-}: {
-  update: AppUpdateStatus | null;
-  updateBusy: UpdateBusy;
-  updateError: string | null;
-  onCheck: () => void;
-  onInstall: () => void;
-}) {
-  const [transientLabel, setTransientLabel] = useState<string | null>(null);
-  const initiatedRef = useRef<"check" | "install" | null>(null);
-  const available = Boolean(update?.available && update.availableVersion);
-
-  useEffect(() => {
-    if (updateBusy) {
-      setTransientLabel(null);
-      return;
-    }
-    const action = initiatedRef.current;
-    if (!action) return;
-    initiatedRef.current = null;
-    if (action === "check" && available) return;
-    const label = updateError
-      ? action === "install"
-        ? "Update install failed"
-        : "Update check failed"
-      : "You’re up to date";
-    setTransientLabel(label);
-    const timer = window.setTimeout(() => setTransientLabel(null), SIDEBAR_UPDATE_FEEDBACK_MS);
-    return () => window.clearTimeout(timer);
-  }, [updateBusy, available, updateError]);
-
-  let label = "Check for Updates";
-  if (updateBusy === "installing") label = "Installing update…";
-  else if (updateBusy === "checking") label = "Checking…";
-  else if (transientLabel) label = transientLabel;
-  else if (available) label = `Update to v${update!.availableVersion}`;
-
-  const activate = () => {
-    if (updateBusy) return;
-    initiatedRef.current = available ? "install" : "check";
-    if (available) onInstall();
-    else onCheck();
-  };
-
-  return (
-    <>
-      <button
-        type="button"
-        className={`sidebar-footer${available ? " update-available" : ""}`}
-        onClick={activate}
-        aria-busy={updateBusy !== null}
-        aria-label={label}
-        data-tooltip={updateError ?? undefined}
-      >
-        <RefreshIcon />
-        <span>{label}</span>
-      </button>
-      {available ? (
-        <button
-          type="button"
-          className="sidebar-changelog-link"
-          onClick={() => {
-            void openUrl(CHANGELOG_URL).catch(() => {
-              /* opener errors surface through the native dialog */
-            });
-          }}
-        >
-          View Change Log
-        </button>
-      ) : null}
-    </>
   );
 }
 

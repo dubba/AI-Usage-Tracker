@@ -333,6 +333,210 @@ async fn test_export_and_import_payload() {
     assert_eq!(buckets[0].account_ids, vec!["acc-1".to_string()]);
 }
 
+fn antigravity_account(id: &str, label: &str, email: &str, project_id: Option<&str>) -> Account {
+    Account {
+        id: id.into(),
+        label: label.into(),
+        provider: Provider::Antigravity,
+        email: Some(email.into()),
+        provider_account_id: project_id.map(str::to_string),
+        chatgpt_account_id: None,
+        plan: Some("Antigravity".into()),
+        created_at: Utc::now().to_rfc3339(),
+        updated_at: Utc::now().to_rfc3339(),
+        last_usage: None,
+        last_error: None,
+        auth_required: false,
+    }
+}
+
+fn antigravity_secret(tag: &str) -> ProviderSecret {
+    ProviderSecret::Antigravity(crate::model::OAuthSecret {
+        access_token: format!("ya29-access-{tag}"),
+        refresh_token: format!("refresh-{tag}"),
+        id_token: None,
+        expires_at: 0,
+    })
+}
+
+// Regression test for the project-id collision: three Antigravity accounts whose
+// usage polling resolved the SAME cloud project id must NOT collapse on import.
+// Different emails prove they are different accounts even when the provider id
+// (project id, cached by older builds) matches.
+#[tokio::test]
+async fn test_import_keeps_accounts_sharing_project_id() {
+    let dir_sender = tempfile::tempdir().unwrap();
+    let state_sender =
+        Arc::new(AppState::new(dir_sender.path().to_path_buf(), "tok-as".into()).unwrap());
+
+    for (id, email) in [
+        ("sender-ag-1", "alice@example.com"),
+        ("sender-ag-2", "bob@example.com"),
+        ("sender-ag-3", "carol@example.com"),
+    ] {
+        state_sender
+            .persist_connected_account(
+                antigravity_account(id, id, email, Some("shared-project-123")),
+                &antigravity_secret(id),
+            )
+            .await
+            .unwrap();
+    }
+    state_sender
+        .buckets
+        .save(
+            None,
+            "Antigravity Team".into(),
+            Some(Provider::Antigravity),
+            vec!["sender-ag-1".into(), "sender-ag-2".into()],
+        )
+        .unwrap();
+
+    let export_bytes = create_export_payload(&state_sender).unwrap();
+
+    let dir_receiver = tempfile::tempdir().unwrap();
+    let state_receiver =
+        Arc::new(AppState::new(dir_receiver.path().to_path_buf(), "tok-ar".into()).unwrap());
+
+    let summary = import_sync_payload(&state_receiver, &export_bytes)
+        .await
+        .unwrap();
+    let accounts = state_receiver.store.list();
+    assert_eq!(summary.added, 3, "all three distinct accounts must survive");
+    assert_eq!(summary.updated, 0);
+    assert_eq!(accounts.len(), 3);
+
+    // The group keeps both grouped accounts after id remapping.
+    let buckets = state_receiver.buckets.list();
+    assert_eq!(buckets.len(), 1);
+    assert_eq!(buckets[0].account_ids.len(), 2);
+
+    // A second import of the same payload updates all three accounts in place.
+    let summary2 = import_sync_payload(&state_receiver, &export_bytes)
+        .await
+        .unwrap();
+    assert_eq!(summary2.added, 0);
+    assert_eq!(summary2.updated, 3);
+    assert_eq!(state_receiver.store.list().len(), 3);
+}
+
+// Control: distinct identity fields import independently.
+#[tokio::test]
+async fn test_import_keeps_distinct_antigravity_accounts() {
+    let dir_sender = tempfile::tempdir().unwrap();
+    let state_sender =
+        Arc::new(AppState::new(dir_sender.path().to_path_buf(), "tok-bs".into()).unwrap());
+
+    for (id, email, project) in [
+        ("sender-bg-1", "alice@example.com", Some("proj-a")),
+        ("sender-bg-2", "bob@example.com", Some("proj-b")),
+        ("sender-bg-3", "carol@example.com", None),
+    ] {
+        state_sender
+            .persist_connected_account(
+                antigravity_account(id, id, email, project),
+                &antigravity_secret(id),
+            )
+            .await
+            .unwrap();
+    }
+
+    let dir_receiver = tempfile::tempdir().unwrap();
+    let state_receiver =
+        Arc::new(AppState::new(dir_receiver.path().to_path_buf(), "tok-br".into()).unwrap());
+
+    let export_bytes = create_export_payload(&state_sender).unwrap();
+    let summary = import_sync_payload(&state_receiver, &export_bytes)
+        .await
+        .unwrap();
+    assert_eq!(summary.added, 3);
+    assert_eq!(state_receiver.store.list().len(), 3);
+}
+
+// Duplicate email (case-insensitive) also collapses two different accounts that
+// have no provider_account_id yet (e.g. before first successful refresh).
+#[tokio::test]
+async fn test_import_collapses_accounts_with_duplicate_email() {
+    let dir_sender = tempfile::tempdir().unwrap();
+    let state_sender =
+        Arc::new(AppState::new(dir_sender.path().to_path_buf(), "tok-cs".into()).unwrap());
+
+    let mut first = antigravity_account("sender-ce-1", "Main", "User@Example.com", None);
+    let mut second = antigravity_account("sender-ce-2", "Re-added", "user@example.com", None);
+    first.plan = Some("Antigravity".into());
+    second.plan = Some("Antigravity".into());
+    state_sender
+        .persist_connected_account(first, &antigravity_secret("ce1"))
+        .await
+        .unwrap();
+    state_sender
+        .persist_connected_account(second, &antigravity_secret("ce2"))
+        .await
+        .unwrap();
+
+    let dir_receiver = tempfile::tempdir().unwrap();
+    let state_receiver =
+        Arc::new(AppState::new(dir_receiver.path().to_path_buf(), "tok-cr".into()).unwrap());
+
+    let export_bytes = create_export_payload(&state_sender).unwrap();
+    let summary = import_sync_payload(&state_receiver, &export_bytes)
+        .await
+        .unwrap();
+    assert_eq!(summary.added, 1);
+    assert_eq!(summary.updated, 1);
+    assert_eq!(state_receiver.store.list().len(), 1);
+}
+
+// Ghost account regression: B received an account from A; A deletes it; a later
+// B -> A transfer must NOT resurrect it. A's tombstone marks the id as deleted,
+// so the incoming entry is skipped.
+#[tokio::test]
+async fn test_deleted_account_does_not_reappear_after_reverse_sync() {
+    let dir_a = tempfile::tempdir().unwrap();
+    let state_a = Arc::new(AppState::new(dir_a.path().to_path_buf(), "tok-da".into()).unwrap());
+    state_a
+        .persist_connected_account(
+            antigravity_account("ghost-1", "Ghost", "ghost@example.com", Some("proj-g")),
+            &antigravity_secret("ghost"),
+        )
+        .await
+        .unwrap();
+
+    let export_ab = create_export_payload(&state_a).unwrap();
+
+    let dir_b = tempfile::tempdir().unwrap();
+    let state_b = Arc::new(AppState::new(dir_b.path().to_path_buf(), "tok-db".into()).unwrap());
+    let summary = import_sync_payload(&state_b, &export_ab).await.unwrap();
+    assert_eq!(summary.added, 1);
+    assert!(state_b.store.get("ghost-1").is_some());
+
+    // User deletes the account on A (records a tombstone).
+    state_a.store.remove("ghost-1").unwrap();
+    assert!(state_a.store.list().is_empty());
+    assert_eq!(state_a.store.tombstones(), vec!["ghost-1".to_string()]);
+
+    // Test-environment isolation: A and B are separate devices in production,
+    // but this single test process shares SECRET_CACHE/DATA_DIRS, so A's
+    // delete_secret also wiped B's credential copy. Restore B's copy so B's
+    // export behaves as it would on a separate device.
+    crate::store::save_provider_secret("ghost-1", &antigravity_secret("ghost")).unwrap();
+
+    // Later B exports back to A: the tombstone blocks resurrection.
+    let export_ba = create_export_payload(&state_b).unwrap();
+    let summary = import_sync_payload(&state_a, &export_ba).await.unwrap();
+    assert_eq!(summary.added, 0, "deleted account must not be resurrected");
+    assert_eq!(summary.skipped, 1);
+    assert!(state_a.store.list().is_empty());
+
+    // And when A exports again, its tombstone propagates to B, which then
+    // removes its copy of the deleted account.
+    let export_a2 = create_export_payload(&state_a).unwrap();
+    let summary = import_sync_payload(&state_b, &export_a2).await.unwrap();
+    // Account was removed locally on B (skipped on import, deleted on arrival).
+    assert_eq!(summary.added, 0);
+    assert!(state_b.store.get("ghost-1").is_none());
+}
+
 #[tokio::test]
 async fn test_select_role_rejects_invalid_role_string() {
     let manager = crate::pairing::PairingSessionManager::new();

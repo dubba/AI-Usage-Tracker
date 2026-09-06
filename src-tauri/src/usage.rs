@@ -167,10 +167,16 @@ fn save_success(app: &AppState, account_id: &str, usage: ProviderUsage) -> Resul
         .mutate(account_id, |account| {
             account.plan = usage.plan.clone().or_else(|| account.plan.clone());
             account.email = usage.email.clone().or_else(|| account.email.clone());
-            account.provider_account_id = usage
-                .provider_account_id
-                .clone()
-                .or_else(|| account.provider_account_id.clone());
+            // Antigravity reports its Google Cloud project id in the usage
+            // response. That is NOT an account identity: every project id is
+            // shared across accounts, so persisting it here would make distinct
+            // Antigravity accounts look like duplicates during device pairing.
+            if account.provider != Provider::Antigravity {
+                account.provider_account_id = usage
+                    .provider_account_id
+                    .clone()
+                    .or_else(|| account.provider_account_id.clone());
+            }
             if account.provider == Provider::Openai {
                 account.chatgpt_account_id = account.provider_account_id.clone();
             }

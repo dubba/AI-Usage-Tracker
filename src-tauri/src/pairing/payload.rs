@@ -23,6 +23,10 @@ pub struct SyncPayload {
     pub exported_at: String,
     pub accounts: Vec<SyncAccountEntry>,
     pub buckets: Vec<AccountBucket>,
+    /// Ids of accounts deleted on the sender since the last sync. Older peers
+    /// will not send this field; receivers that do not understand it ignore it.
+    #[serde(default)]
+    pub deleted_account_ids: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -63,6 +67,7 @@ pub fn create_export_payload(state: &AppState) -> Result<Vec<u8>, String> {
         exported_at: Utc::now().to_rfc3339(),
         accounts: entries,
         buckets,
+        deleted_account_ids: state.store.tombstones(),
     };
 
     let serialized = serde_json::to_vec(&payload)
@@ -96,8 +101,29 @@ pub async fn import_sync_payload(
     let mut summary = SyncSummary::default();
     let mut id_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
 
+    // Apply deletions from the peer: remove accounts the sender deleted so
+    // they don't linger as ghosts, then remember the ids locally so a later
+    // re-transfer of this payload (or any peer still holding the account)
+    // cannot resurrect them.
+    state.store.merge_tombstones(&payload.deleted_account_ids);
+    for deleted_id in &payload.deleted_account_ids {
+        if state.store.get(deleted_id).is_some() {
+            // store::remove deletes the credential, drops the metadata, and
+            // records the tombstone locally.
+            let _ = state.store.remove(deleted_id);
+            let _ = state.buckets.cleanup_account(deleted_id);
+        }
+    }
+    let tombstones = state.store.tombstones();
+
     for entry in payload.accounts {
         let sender_id = entry.account.id.clone();
+
+        // Never re-add an account that was explicitly deleted on this device.
+        if tombstones.iter().any(|t| t == &sender_id) {
+            summary.skipped += 1;
+            continue;
+        }
 
         // Enforce per-secret serialized size limit
         let secret_bytes = serde_json::to_vec(&entry.secret)
