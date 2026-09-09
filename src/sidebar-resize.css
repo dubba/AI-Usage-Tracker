@@ -13,7 +13,7 @@
 
 .sidebar-resize-handle {
   position: absolute;
-  z-index: 20;
+  z-index: 30;
   top: 0;
   right: -10px;
   width: 30px;

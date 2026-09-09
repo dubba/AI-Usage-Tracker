@@ -2,17 +2,17 @@
 
 [![Validate](https://github.com/dubba/AI-Usage-Tracker/actions/workflows/validate.yml/badge.svg)](https://github.com/dubba/AI-Usage-Tracker/actions/workflows/validate.yml)
 
-A standalone desktop and mobile application (Windows, macOS, and Android) for monitoring AI subscription quotas and usage across GPT/Codex (OpenAI), Claude (Anthropic), Google Antigravity, Google AI Studio, Grok/Cursor (xAI), and OpenCode Go. It can optionally expose normalized, sanitized usage data to Paseo over localhost.
+A standalone desktop and mobile application (Windows, macOS, and Android) for monitoring AI subscription quotas and usage across ChatGPT (OpenAI), Claude (Anthropic), Google Antigravity, Google AI Studio, Grok (xAI), and OpenCode Go. It can optionally expose normalized, sanitized usage data to Paseo over localhost.
 
 ## Supported providers
 
 | Provider | Authentication | Usage source |
 | --- | --- | --- |
-| **GPT/Codex** (OpenAI) | Browser OAuth with PKCE | ChatGPT Codex `wham/usage` endpoint |
+| **ChatGPT** (OpenAI) | Browser OAuth with PKCE | ChatGPT Codex `wham/usage` endpoint |
 | **Claude** (Anthropic) | Browser OAuth with PKCE | Anthropic OAuth usage endpoint |
 | **Google Antigravity** | Browser Google OAuth with offline refresh token | Internal Cloud Code quota APIs |
 | **Google AI Studio** | API key validation + optional Cloud Monitoring OAuth | Google AI Studio model list & Cloud Monitoring quota metrics |
-| **Grok / Cursor** (xAI) | Guided browser sign-in / session cookie capture | Grok rate-limit and subscription RPC endpoints |
+| **Grok** (xAI) | Guided browser sign-in / session cookie capture | Grok rate-limit and subscription RPC endpoints |
 | **OpenCode Go** | Workspace ID and OpenCode console `auth` cookie | Server-rendered Go dashboard |
 
 The Anthropic, Antigravity, Google AI Studio, Grok, and OpenCode Go integrations rely on provider interfaces that are not documented as stable third-party APIs. Each connector is isolated so it can be repaired without changing the dashboard or localhost response contract. Last-known-good results remain visible and are marked stale when a provider changes or temporarily rejects a request.
@@ -33,9 +33,9 @@ The Anthropic, Antigravity, Google AI Studio, Grok, and OpenCode Go integrations
 
 ## Connecting providers
 
-### GPT/Codex (OpenAI)
+### ChatGPT (OpenAI)
 
-Choose **GPT/Codex** in the Add Account modal and complete the browser sign-in. The app requests only the OAuth access needed to identify the account and read Codex subscription usage through OpenAI's loopback callback.
+Choose **ChatGPT** in the Add Account modal and complete the browser sign-in. The app requests only the OAuth access needed to identify the account and read Codex subscription usage through OpenAI's loopback callback.
 
 ### Claude (Anthropic)
 

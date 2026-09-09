@@ -246,6 +246,7 @@
   line-height: 1.55;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  clip-path: inset(0 round 10px);
 }
 
 .bridge-security-card ul {

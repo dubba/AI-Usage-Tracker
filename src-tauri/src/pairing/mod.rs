@@ -184,6 +184,9 @@ impl PairingSessionManager {
 
     pub async fn start_host(&self, state: Arc<AppState>) -> Result<PairingHostInit, String> {
         self.cancel().await;
+        // Reset per-transfer settings inclusion for the new session
+        *state.pairing_include_settings.write() = false;
+        *state.pairing_pending_ui_state.write() = None;
         let epoch = self.epoch.fetch_add(1, Ordering::SeqCst) + 1;
 
         let keypair = EphemeralKeyPair::generate();
@@ -361,6 +364,7 @@ impl PairingSessionManager {
                     PairingStatus::Completed { .. }
                     | PairingStatus::Failed { .. }
                     | PairingStatus::Idle => {
+                        crate::lan_binding::configure_pairing_network(false);
                         let mut act = active_lock.write().await;
                         if act.as_ref().map(|s| &s.session_id) == Some(&session_id_str) {
                             if let Some(session) = act.take() {
@@ -388,6 +392,8 @@ impl PairingSessionManager {
 
     pub async fn start_client(&self, state: Arc<AppState>, qr_uri: String) -> Result<(), String> {
         self.cancel().await;
+        *state.pairing_include_settings.write() = false;
+        *state.pairing_pending_ui_state.write() = None;
         self.epoch.fetch_add(1, Ordering::SeqCst);
 
         let parsed = parse_qr_uri(&qr_uri)?;
@@ -473,6 +479,7 @@ impl PairingSessionManager {
                     PairingStatus::Completed { .. }
                     | PairingStatus::Failed { .. }
                     | PairingStatus::Idle => {
+                        crate::lan_binding::configure_pairing_network(false);
                         let mut act = active_lock.write().await;
                         if act.as_ref().map(|s| &s.session_id) == Some(&sid) {
                             *act = None;

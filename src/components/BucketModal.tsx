@@ -8,8 +8,8 @@ import { useModalA11y } from "./useModalA11y";
 
 const ALL_PROVIDERS: { id: Provider; label: string }[] = [
   { id: "antigravity", label: "Antigravity" },
-  { id: "grok", label: "Grok/Cursor" },
-  { id: "openai", label: "GPT/Codex" },
+  { id: "grok", label: "Grok" },
+  { id: "openai", label: "ChatGPT" },
   { id: "anthropic", label: "Claude" },
   { id: "google_ai_studio", label: "AI Studio" },
   { id: "opencode_go", label: "OpenCode Go" },
@@ -333,7 +333,7 @@ export function BucketModal({
                 Cancel
               </button>
               <button type="submit" className="button primary" disabled={busy}>
-                {busy ? "Saving…" : bucket ? "Save Changes" : "Create Group"}
+                {busy ? "Saving…" : bucket ? "Save" : "Create Group"}
               </button>
             </div>
           </footer>

@@ -883,7 +883,7 @@ async fn bind_callback_port(provider: &Provider) -> Result<(TcpListener, u16), S
         }
     }
     Err(if matches!(provider, Provider::Openai) {
-        "GPT/Codex login needs localhost port 1455 (or 1457). Close another Codex login and try again.".into()
+        "ChatGPT login needs localhost port 1455 (or 1457). Close another ChatGPT login and try again.".into()
     } else {
         format!("No callback port is available for {}.", provider.display_name())
     })

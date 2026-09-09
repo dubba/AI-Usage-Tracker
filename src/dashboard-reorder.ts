@@ -1,4 +1,5 @@
 import { bridgeApi } from "./api";
+import { storePageAccountOrder } from "./dashboard-page-state";
 import type { Account, AccountBucket, Provider } from "./types";
 
 const SIDEBAR_GROUP_ORDER_KEY = "ai-subscription-tracker:sidebar-group-order";
@@ -828,36 +829,23 @@ async function persistGroupOrder(orderedGroupIds: string[]): Promise<void> {
   }
 }
 
-function spliceSubsetOrder(full: string[], subsetInNewOrder: string[]): string[] | null {
-  const uniqueSubset = uniqueStrings(subsetInNewOrder);
-  if (uniqueSubset.length !== subsetInNewOrder.length || uniqueSubset.length === 0) return null;
-  const subset = new Set(uniqueSubset);
-  const fullSet = new Set(full);
-  if (uniqueSubset.some((id) => !fullSet.has(id))) return null;
-  const remaining = [...uniqueSubset];
-  const next = full.map((id) => (subset.has(id) ? remaining.shift() ?? id : id));
-  if (remaining.length > 0 || new Set(next).size !== next.length) return null;
-  return next;
-}
-
 async function persistVisibleAccountOrder(orderedVisibleIds: string[], groupId: string | null): Promise<void> {
+  const pageId = groupId && groupId.length > 0 ? groupId : "all";
+  storePageAccountOrder(pageId, orderedVisibleIds);
+
   try {
-    const snapshot = latestAccounts.length
-      ? { accounts: latestAccounts, buckets: latestBuckets }
-      : await bridgeApi.snapshot();
-    const accounts = snapshot.accounts;
-    const buckets = snapshot.buckets ?? latestBuckets;
-    const fullOrder = spliceSubsetOrder(
-      accounts.map((account) => account.id),
-      orderedVisibleIds,
-    );
-    if (!fullOrder) {
-      scheduleSnapshotSync(0);
+    if (pageId === "all") {
+      latestAccounts = await bridgeApi.reorderAccounts(orderedVisibleIds);
+      window.dispatchEvent(new Event("focus"));
       return;
     }
 
-    if (groupId?.startsWith("bucket:")) {
-      const bucket = buckets.find((candidate) => candidate.id === groupId.slice(7));
+    if (pageId.startsWith("bucket:")) {
+      const snapshot = latestAccounts.length
+        ? { accounts: latestAccounts, buckets: latestBuckets }
+        : await bridgeApi.snapshot();
+      const buckets = snapshot.buckets ?? latestBuckets;
+      const bucket = buckets.find((candidate) => candidate.id === pageId.slice(7));
       if (bucket) {
         const visible = new Set(orderedVisibleIds);
         const nextAccountIds = [...orderedVisibleIds, ...bucket.accountIds.filter((id) => !visible.has(id))];
@@ -868,7 +856,6 @@ async function persistVisibleAccountOrder(orderedVisibleIds: string[], groupId: 
       }
     }
 
-    latestAccounts = await bridgeApi.reorderAccounts(fullOrder);
     window.dispatchEvent(new Event("focus"));
   } catch {
     scheduleSnapshotSync(0);

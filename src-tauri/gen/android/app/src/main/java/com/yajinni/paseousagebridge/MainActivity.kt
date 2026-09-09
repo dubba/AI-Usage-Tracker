@@ -42,6 +42,7 @@ class MainActivity : TauriActivity() {
   private var safeBottomDp: Int = 0
   private var safeImeDp: Int = 0
   private var multicastLock: android.net.wifi.WifiManager.MulticastLock? = null
+  private var boundLanNetwork: Boolean = false
 
   override fun onWebViewCreate(webView: WebView) {
     super.onWebViewCreate(webView)
@@ -195,6 +196,60 @@ class MainActivity : TauriActivity() {
         WebView(this).clearCache(true)
       } catch (_: Exception) {}
       prefs.edit().putLong("last_version_code", currentVersionCode).apply()
+    }
+  }
+
+  /**
+   * Called from Rust when a Link Devices session starts/stops. While a VPN or
+   * DNS-based ad blocker is running, Android routes ALL app traffic through the
+   * VPN tunnel — including LAN packets — which silently breaks pairing. Binding
+   * the process to the Wi-Fi network for the duration of the pairing session
+   * keeps the LAN connection working.
+   */
+  fun setPairingLanBinding(enabled: Boolean) {
+    runOnUiThread {
+      try {
+        val cm = applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE)
+          as android.net.ConnectivityManager
+        if (enabled) {
+          if (boundLanNetwork) return@runOnUiThread
+          val wifi = cm.allNetworks.firstOrNull { network ->
+            cm.getNetworkCapabilities(network)
+              ?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true
+          }
+          boundLanNetwork = if (wifi != null) {
+            cm.bindProcessToNetwork(wifi)
+          } else {
+            false
+          }
+        } else {
+          if (boundLanNetwork) {
+            cm.bindProcessToNetwork(null)
+            boundLanNetwork = false
+          }
+        }
+      } catch (e: Throwable) {
+        android.util.Log.w(TAG, "setPairingLanBinding failed: ${e.message}")
+      }
+    }
+  }
+
+  /** Posts an alert notification whose body stays fully readable when expanded. */
+  fun postExpandableNotification(title: String, body: String) {
+    try {
+      val notification = androidx.core.app.NotificationCompat.Builder(this, "default")
+        .setSmallIcon(applicationInfo.icon)
+        .setContentTitle(title)
+        .setContentText(body)
+        .setStyle(androidx.core.app.NotificationCompat.BigTextStyle().bigText(body))
+        .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+        .setAutoCancel(true)
+        .build()
+      val manager = getSystemService(Context.NOTIFICATION_SERVICE)
+        as android.app.NotificationManager
+      manager.notify((System.currentTimeMillis() % Int.MAX_VALUE).toInt(), notification)
+    } catch (e: Throwable) {
+      android.util.Log.w(TAG, "postExpandableNotification failed: ${e.message}")
     }
   }
 

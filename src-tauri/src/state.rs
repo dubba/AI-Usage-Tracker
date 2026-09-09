@@ -55,6 +55,8 @@ pub struct AppState {
     refresh_wakeup: Notify,
     #[allow(dead_code)]
     pub data_dir: PathBuf,
+    pub pairing_include_settings: RwLock<bool>,
+    pub pairing_pending_ui_state: RwLock<Option<serde_json::Value>>,
 }
 
 impl AppState {
@@ -102,6 +104,8 @@ impl AppState {
             account_locks: Mutex::new(HashMap::new()),
             refresh_wakeup: Notify::new(),
             data_dir,
+            pairing_include_settings: RwLock::new(false),
+            pairing_pending_ui_state: RwLock::new(None),
         })
     }
 

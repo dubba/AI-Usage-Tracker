@@ -28,11 +28,11 @@ impl Provider {
 
     pub fn display_name(&self) -> &'static str {
         match self {
-            Self::Openai => "GPT/Codex",
+            Self::Openai => "ChatGPT",
             Self::Anthropic => "Claude",
             Self::Antigravity => "Antigravity",
             Self::GoogleAiStudio => "AI Studio",
-            Self::Grok => "Grok/Cursor",
+            Self::Grok => "Grok",
             Self::OpencodeGo => "OpenCode Go",
         }
     }

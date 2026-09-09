@@ -27,7 +27,10 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://tauri.localhost https://tauri.localhost; img-src 'self' asset: http://asset.localhost data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://tauri.localhost https://tauri.localhost; img-src 'self' asset: http://asset.localhost data: blob:; media-src 'self' blob: mediastream:; style-src 'self' 'unsafe-inline'; script-src 'self'",
+      "headers": {
+        "Permissions-Policy": "camera=*"
+      }
     }
   },
   "bundle": {
@@ -41,7 +44,7 @@
     ],
     "category": "Utility",
     "shortDescription": "Track AI usage across multiple providers",
-    "longDescription": "AI Usage Tracker is a standalone Windows and macOS desktop app for monitoring OpenAI Codex, Anthropic Claude, Google Antigravity, Google AI Studio, Grok / SuperGrok, and OpenCode Go usage, with an optional sanitized Paseo integration over localhost.",
+    "longDescription": "AI Usage Tracker is a standalone Windows and macOS desktop app for monitoring ChatGPT, Anthropic Claude, Google Antigravity, Google AI Studio, Grok, and OpenCode Go usage, with an optional sanitized Paseo integration over localhost.",
     "macOS": {
       "infoPlist": "Info.plist",
       "entitlements": "Entitlements.plist"

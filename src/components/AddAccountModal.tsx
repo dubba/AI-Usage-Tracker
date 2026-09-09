@@ -14,12 +14,12 @@ type GoogleModelOption = {
 };
 
 const providerOptions: Array<{ id: ConnectionProvider; label: string; detail: string }> = [
-  { id: "openai", label: "GPT/Codex", detail: "ChatGPT Plus, Pro, Business, or other Codex-enabled plans" },
-  { id: "anthropic", label: "Claude", detail: "Claude Pro or Max through Anthropic OAuth" },
-  { id: "grok", label: "Grok/Cursor", detail: "Private grok.com sign-in and provider-reported weekly usage" },
-  { id: "antigravity", label: "Antigravity", detail: "Google OAuth and Cloud Code quota data" },
-  { id: "google_ai_studio", label: "AI Studio", detail: "Validate an API key, choose models, and optionally connect project quota usage" },
-  { id: "opencode_go", label: "OpenCode Go", detail: "Sign in and select Go; setup is detected automatically" },
+  { id: "openai", label: "OpenAI ChatGPT", detail: "ChatGPT Go, Plus or Pro plans using OpenAI Browser OAuth" },
+  { id: "anthropic", label: "Anthropic Claude", detail: "Claude Pro or Max plans using Anthropic Browser OAuth" },
+  { id: "antigravity", label: "Google Antigravity", detail: "Gemini Plus, Pro or Ultra using Google Browser OAuth" },
+  { id: "grok", label: "xAI Grok", detail: "SuperGrok, Plus or Heavy plans using Grok.com sign-in" },
+  { id: "google_ai_studio", label: "Google AI Studio", detail: "AI Studio Gemini models using API key validation" },
+  { id: "opencode_go", label: "OpenCode", detail: "Go plan using opencode.ai sign-in" },
 ];
 
 const providerDropdownOptions: DropdownOption<ConnectionProvider>[] = providerOptions.map((option) => ({
@@ -30,6 +30,30 @@ const providerDropdownOptions: DropdownOption<ConnectionProvider>[] = providerOp
 
 function providerName(provider: ConnectionProvider): string {
   return providerOptions.find((option) => option.id === provider)?.label ?? provider;
+}
+
+function defaultAccountName(provider: ConnectionProvider): string {
+  switch (provider) {
+    case "openai":
+      return "ChatGPT";
+    case "anthropic":
+      return "Claude";
+    case "antigravity":
+      return "Antigravity";
+    case "google_ai_studio":
+      return "AI Studio";
+    case "grok":
+      return "Grok";
+    case "opencode_go":
+      return "OpenCode Go";
+    case "cursor":
+      return "Grok";
+  }
+}
+
+function isAutoAccountName(value: string, provider: ConnectionProvider): boolean {
+  const trimmed = value.trim();
+  return !trimmed || trimmed === defaultAccountName(provider) || trimmed === providerName(provider);
 }
 
 function validEmail(value: string): boolean {
@@ -50,7 +74,7 @@ export function AddAccountModal({
   onAdded: (account: Account) => void;
 }) {
   const isAndroid = /android/i.test(navigator.userAgent);
-  const [label, setLabel] = useState("GPT/Codex");
+  const [label, setLabel] = useState("ChatGPT");
   const [provider, setProvider] = useState<ConnectionProvider>("openai");
   const [email, setEmail] = useState("");
   const [workspaceId, setWorkspaceId] = useState("");
@@ -74,7 +98,7 @@ export function AddAccountModal({
     if (!open) {
       closeRequestedRef.current = true;
       setIsKeyboardOpen(false);
-      setLabel("GPT/Codex");
+      setLabel(defaultAccountName("openai"));
       setProvider("openai");
       setEmail("");
       setWorkspaceId("");
@@ -93,7 +117,7 @@ export function AddAccountModal({
       closeRequestedRef.current = false;
       const nextProvider = providerLocked && initialProvider ? initialProvider : "openai";
       setProvider(nextProvider);
-      setLabel(initialLabel?.trim() || providerName(nextProvider));
+      setLabel(initialLabel?.trim() || defaultAccountName(nextProvider));
       setEmail("");
       setAdvancedManual(false);
       setApiKey("");
@@ -272,7 +296,7 @@ export function AddAccountModal({
       setError(null);
       try {
         const account = await bridgeApi.addGoogleAiStudioAccount(
-          label.trim() || providerName(provider),
+          label.trim() || defaultAccountName(provider),
           apiKey.trim(),
           selectedModels,
         );
@@ -294,7 +318,7 @@ export function AddAccountModal({
     try {
       if (provider === "opencode_go" && advancedManual) {
         const account = await bridgeApi.addOpenCodeGoAccount(
-          label.trim() || providerName(provider),
+          label.trim() || defaultAccountName(provider),
           workspaceId.trim(),
           authCookie.trim(),
           email.trim() || undefined,
@@ -310,7 +334,7 @@ export function AddAccountModal({
           return;
         }
         const account = await bridgeApi.addGrokAccount(
-          label.trim() || providerName(provider),
+          label.trim() || defaultAccountName(provider),
           grokCookie.trim(),
         );
         onAdded(account);
@@ -319,7 +343,7 @@ export function AddAccountModal({
 
       const startLogin = () =>
         bridgeApi.startLogin(
-          label.trim() || providerName(provider),
+          label.trim() || defaultAccountName(provider),
           provider,
           provider === "opencode_go" ? email.trim() || undefined : undefined,
         );
@@ -351,7 +375,7 @@ export function AddAccountModal({
         selectedProjectId: null,
       });
       watchLoginAttempt(start.attemptId);
-      if (start.authorizationUrl.trim()) {
+      if (provider !== "opencode_go" && provider !== "grok" && start.authorizationUrl.trim()) {
         await openUrl(start.authorizationUrl);
       }
     } catch (cause) {
@@ -381,7 +405,9 @@ export function AddAccountModal({
   };
 
   const providerCopy = provider === "opencode_go"
-    ? "A private OpenCode window will open in the app. Sign in, then select Go from the OpenCode sidebar. The bridge detects the workspace and session automatically and closes the window when the account is connected."
+    ? isAndroid
+      ? "The app opens OpenCode sign-in in this window. Sign in, then select Go from the OpenCode sidebar. After your limits are found, the app returns to the dashboard."
+      : "A private OpenCode window will open in the app. Sign in, then select Go from the OpenCode sidebar. The bridge detects the workspace and session automatically and closes the window when the account is connected."
     : provider === "google_ai_studio"
       ? "Enter an AI Studio API key, load the model list directly from Google, and choose which models to track. After the account is added, connect its Google Cloud project to retrieve provider-reported quota usage."
       : provider === "grok"
@@ -423,7 +449,9 @@ export function AddAccountModal({
           value={provider}
           options={providerDropdownOptions}
           onChange={(nextProvider) => {
-            setLabel((current) => !current.trim() || current === providerName(provider) ? providerName(nextProvider) : current);
+            setLabel((current) =>
+              isAutoAccountName(current, provider) ? defaultAccountName(nextProvider) : current,
+            );
             setProvider(nextProvider);
             setEmail("");
             setWorkspaceId("");
@@ -446,7 +474,7 @@ export function AddAccountModal({
           className="text-input"
           value={label}
           onChange={(event) => setLabel(event.target.value)}
-          placeholder={providerName(provider)}
+          placeholder={defaultAccountName(provider)}
           disabled={busy || modelsBusy}
         />
 
@@ -591,11 +619,11 @@ export function AddAccountModal({
               <div className="guided-login-card">
                 <strong>What happens next</strong>
                 <ol>
-                  <li>The app opens an OpenCode sign-in window.</li>
+                  <li>The app opens {isAndroid ? "OpenCode sign-in in this window" : "an OpenCode sign-in window"}.</li>
                   <li>Sign in normally, then click <strong>Go</strong> in OpenCode’s sidebar.</li>
-                  <li>The window closes automatically after your limits are found.</li>
+                  <li>{isAndroid ? "The app returns to the dashboard" : "The window closes"} automatically after your limits are found.</li>
                 </ol>
-                <small>Your OpenCode session is kept in a temporary private webview. Only the Go session value needed for read-only usage checks is saved in Credential Manager or Keychain.</small>
+                <small>{isAndroid ? "The session needed for read-only usage checks is stored securely on your device." : "Your OpenCode session is kept in a temporary private webview. Only the Go session value needed for read-only usage checks is saved in Credential Manager or Keychain."}</small>
               </div>
             ) : (
               <div className="manual-connection-fields">
@@ -682,7 +710,13 @@ export function AddAccountModal({
                   ? advancedManual ? "Connect manually" : "Open Grok login"
                   : provider === "google_ai_studio"
                     ? "Add selected models"
-                    : `Continue with ${providerName(provider)}`}
+                    : provider === "openai"
+                      ? "Open ChatGPT login"
+                      : provider === "anthropic"
+                        ? "Open Claude login"
+                        : provider === "antigravity"
+                          ? "Open Antigravity login"
+                          : `Open ${defaultAccountName(provider)} login`}
           </button>
           )}
         </div>

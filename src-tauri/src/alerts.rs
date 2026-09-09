@@ -88,6 +88,26 @@ impl AlertStore {
         settings
     }
 
+    pub fn export_all(&self) -> Vec<(String, Vec<UsageAlertSetting>)> {
+        let accounts = self.accounts.read().clone();
+        let mut out = Vec::new();
+        for (account_id, stored) in accounts {
+            let mut settings = stored
+                .into_iter()
+                .map(|setting| UsageAlertSetting {
+                    window_id: setting.window_id,
+                    enabled: setting.enabled,
+                    threshold_percent: setting.threshold_percent,
+                })
+                .collect::<Vec<_>>();
+            sort_settings(&mut settings, |setting| setting.window_id.as_str());
+            if !settings.is_empty() {
+                out.push((account_id, settings));
+            }
+        }
+        out
+    }
+
     pub fn save(
         &self,
         account_id: &str,

@@ -71,6 +71,7 @@ export const bridgeApi = {
 };
 
 export const pairingApi = {
+  ensureCameraPermission: () => invoke<void>("ensure_camera_permission"),
   startHost: () => invoke<PairingHostInit>("pairing_start_host"),
   startReceiver: () => invoke<PairingReceiverInit>("pairing_start_receiver"),
   startClient: (qrUri: string) => invoke<void>("pairing_start_client", { qrUri }),
@@ -82,4 +83,9 @@ export const pairingApi = {
   cancel: () => invoke<void>("pairing_cancel"),
   status: () => invoke<PairingStatus>("pairing_status"),
   getPendingPairingUri: () => invoke<string | null>("get_pending_pairing_uri"),
+  setIncludeSettings: (include: boolean) =>
+    invoke<void>("pairing_set_include_settings", { include }),
+  setPendingUiState: (uiState: Record<string, unknown>) =>
+    invoke<void>("pairing_set_pending_ui_state", { uiState }),
+  clearPendingUiState: () => invoke<void>("pairing_clear_pending_ui_state"),
 };

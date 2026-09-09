@@ -13,6 +13,7 @@ import {
   UploadIcon,
 } from "../icons";
 import type { PairingStatus } from "../types";
+import { applyPageUiState, collectPageUiState } from "../dashboard-page-state";
 import { useModalA11y } from "./useModalA11y";
 import jsQR from "jsqr";
 
@@ -238,6 +239,34 @@ function pickPrimaryRearCamera(devices: MediaDeviceInfo[]): MediaDeviceInfo | nu
   return null;
 }
 
+function isVirtualOrPhoneCamera(device: MediaDeviceInfo): boolean {
+  const label = (device.label || "").toLowerCase();
+  return (
+    label.includes("continuity") ||
+    label.includes("desk view") ||
+    label.includes("iphone") ||
+    label.includes("ipad") ||
+    label.includes("virtual") ||
+    label.includes("obs virtual") ||
+    /\bir\b/.test(label) ||
+    label.includes("infrared")
+  );
+}
+
+function listDesktopCameras(devices: MediaDeviceInfo[]): MediaDeviceInfo[] {
+  const videoInputs = devices.filter((d) => d.kind === "videoinput" && d.deviceId);
+  const physical = videoInputs.filter((d) => !isVirtualOrPhoneCamera(d));
+  const pool = physical.length > 0 ? physical : videoInputs;
+  const rank = (d: MediaDeviceInfo) => {
+    const label = (d.label || "").toLowerCase();
+    if (label.includes("usb") || label.includes("webcam")) return 3;
+    if (label.includes("facetime") || label.includes("built-in")) return 2;
+    if (d.label) return 1;
+    return 0;
+  };
+  return [...pool].sort((a, b) => rank(b) - rank(a));
+}
+
 async function getCameraStream(
   getUserMediaFn: (c: MediaStreamConstraints) => Promise<MediaStream>,
   deviceId: string | null,
@@ -278,11 +307,25 @@ async function getCameraStream(
     }
   }
 
-  // Fallbacks: prefer rear camera on mobile, user camera on desktop
+  // Desktop / USB webcams: never ask for facingMode "user". WebKit treats that as a
+  // laptop FaceTime camera and fails on Mac mini / external webcams even when `ideal`.
+  if (!isMobile) {
+    try {
+      return await getUserMediaFn({ video: true });
+    } catch {
+      return await getUserMediaFn({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+      });
+    }
+  }
+
   try {
     return await getUserMediaFn({
       video: {
-        facingMode: { ideal: isMobile ? "environment" : "user" },
+        facingMode: { ideal: "environment" },
         width: { ideal: 1280 },
         height: { ideal: 720 },
       },
@@ -324,6 +367,67 @@ async function applyAutofocusAndZoom(track: MediaStreamTrack | undefined) {
   }
 }
 
+function collectUiStateForSync(): Record<string, unknown> {
+  const ui: Record<string, unknown> = {};
+  try {
+    const groupRaw = window.localStorage.getItem("ai-subscription-tracker:sidebar-group-order");
+    if (groupRaw) {
+      const parsed = JSON.parse(groupRaw);
+      if (Array.isArray(parsed) && parsed.length) ui.sidebar_group_order = parsed;
+    }
+  } catch {}
+  try {
+    const provRaw = window.localStorage.getItem("ai-subscription-tracker:provider-order");
+    if (provRaw) {
+      const parsed = JSON.parse(provRaw);
+      if (Array.isArray(parsed) && parsed.length) ui.provider_order = parsed;
+    }
+  } catch {}
+  Object.assign(ui, collectPageUiState());
+  try {
+    const w = window.localStorage.getItem("paseo-usage-bridge:sidebar-width");
+    if (w) {
+      const n = parseInt(w, 10);
+      if (!Number.isNaN(n) && n > 0) ui.sidebar_width = n;
+    }
+  } catch {}
+  return ui;
+}
+
+function applyUiStateFromSync(payload: Record<string, unknown>) {
+  try {
+    if (Array.isArray(payload.sidebar_group_order)) {
+      window.localStorage.setItem(
+        "ai-subscription-tracker:sidebar-group-order",
+        JSON.stringify(payload.sidebar_group_order),
+      );
+      window.dispatchEvent(
+        new CustomEvent("ai-subscription-tracker:group-order-changed", {
+          detail: payload.sidebar_group_order,
+        }),
+      );
+    }
+    if (Array.isArray(payload.provider_order)) {
+      window.localStorage.setItem(
+        "ai-subscription-tracker:provider-order",
+        JSON.stringify(payload.provider_order),
+      );
+      window.dispatchEvent(
+        new CustomEvent("ai-subscription-tracker:provider-order-changed", {
+          detail: payload.provider_order,
+        }),
+      );
+    }
+    applyPageUiState(payload);
+    if (typeof payload.sidebar_width === "number" && payload.sidebar_width > 0) {
+      window.localStorage.setItem("paseo-usage-bridge:sidebar-width", String(payload.sidebar_width));
+      document.documentElement.style.setProperty("--sidebar-width", `${payload.sidebar_width}px`);
+    }
+  } catch {}
+  // Force a snapshot refresh so reordering and settings take effect
+  window.dispatchEvent(new Event("focus"));
+}
+
 export function PairingModal({
   open,
   initialJoinUri,
@@ -343,6 +447,7 @@ export function PairingModal({
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [remainingSecs, setRemainingSecs] = useState<number | null>(null);
   const [confirmedSas, setConfirmedSas] = useState(false);
+  const [includeSettings, setIncludeSettings] = useState(false);
   const [isFrontCamera, setIsFrontCamera] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
@@ -448,6 +553,7 @@ export function PairingModal({
     if (!open) return;
 
     let unlisten: (() => void) | undefined;
+    let unlistenUi: (() => void) | undefined;
     let pollInterval: ReturnType<typeof setInterval> | undefined;
 
     const setupListener = async () => {
@@ -458,6 +564,14 @@ export function PairingModal({
         unlisten = unsubscribe;
       } catch {
         // Event listener unavailable, polling will handle it
+      }
+      try {
+        const unsubscribeUi = await listen<Record<string, unknown>>("pairing-ui-state", (event) => {
+          applyUiStateFromSync(event.payload);
+        });
+        unlistenUi = unsubscribeUi;
+      } catch {
+        // UI state sync not available on this platform
       }
     };
 
@@ -472,6 +586,7 @@ export function PairingModal({
 
     return () => {
       if (unlisten) unlisten();
+      if (unlistenUi) unlistenUi();
       if (pollInterval) clearInterval(pollInterval);
     };
   }, [open]);
@@ -517,6 +632,7 @@ export function PairingModal({
     }
     if (status.status !== "sasVerification") {
       setConfirmedSas(false);
+      setIncludeSettings(false);
     }
     if (status.status === "completed") {
       if (!hasCompletedRef.current) {
@@ -692,6 +808,15 @@ export function PairingModal({
           return;
         }
 
+        let nativePermissionError: string | null = null;
+        try {
+          await pairingApi.ensureCameraPermission();
+        } catch (permErr) {
+          // Native TCC preflight is best-effort. WKWebView getUserMedia is what
+          // actually opens USB webcams (Mac mini) especially in `tauri dev`.
+          nativePermissionError = String(permErr).replace(/^Error:\s*/, "");
+        }
+
         const isMobile =
           typeof navigator !== "undefined" &&
           /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -700,13 +825,20 @@ export function PairingModal({
         let chosenDeviceId = selectedCameraIdRef.current;
 
         // Step 1: If devices already have labels (e.g. permission was previously granted),
-        // pre-identify the primary rear camera to avoid initializing auxiliary/ultra-wide lenses.
-        if (!chosenDeviceId && mediaDevices?.enumerateDevices && isMobile) {
+        // pre-identify the camera so we skip auxiliary mobile lenses / Continuity Camera.
+        if (!chosenDeviceId && mediaDevices?.enumerateDevices) {
           try {
             const initialDevices = await mediaDevices.enumerateDevices();
-            const classified = classifyAndDeduplicateCameras(initialDevices);
-            if (classified.length > 0 && classified[0].label && classified[0].deviceId) {
-              chosenDeviceId = classified[0].deviceId;
+            if (isMobile) {
+              const classified = classifyAndDeduplicateCameras(initialDevices);
+              if (classified.length > 0 && classified[0].label && classified[0].deviceId) {
+                chosenDeviceId = classified[0].deviceId;
+              }
+            } else {
+              const desktopCam = listDesktopCameras(initialDevices)[0];
+              if (desktopCam?.deviceId && desktopCam.label) {
+                chosenDeviceId = desktopCam.deviceId;
+              }
             }
           } catch {
             // Permission might not be granted yet
@@ -719,7 +851,8 @@ export function PairingModal({
           const errName = (err as { name?: string })?.name;
           if (errName === "NotAllowedError" || errName === "PermissionDeniedError") {
             setCameraError(
-              "Camera permission was denied. Please allow camera access in System Settings > Privacy & Security > Camera."
+              nativePermissionError ||
+                "Camera permission was denied. Please allow camera access in System Settings > Privacy & Security > Camera."
             );
           } else if (errName === "NotFoundError" || errName === "DevicesNotFoundError") {
             setCameraError(
@@ -744,13 +877,15 @@ export function PairingModal({
         if (mediaDevices?.enumerateDevices) {
           try {
             const allDevices = await mediaDevices.enumerateDevices();
-            const classified = classifyAndDeduplicateCameras(allDevices);
-            setAvailableCameras(classified);
+            const preferredList = isMobile
+              ? classifyAndDeduplicateCameras(allDevices)
+              : listDesktopCameras(allDevices);
+            setAvailableCameras(preferredList);
 
-            // On mobile, if no camera was explicitly selected yet:
-            // Ensure we are using the primary rear camera (classified[0])
-            if (isMobile && !selectedCameraIdRef.current && classified.length > 0) {
-              const primary = classified[0];
+            // If no camera was explicitly selected yet, prefer the primary rear
+            // (mobile) or a physical USB/built-in webcam (desktop) over Continuity Camera.
+            if (!selectedCameraIdRef.current && preferredList.length > 0) {
+              const primary = preferredList[0];
               const currentTrack = stream.getVideoTracks()[0];
               const currentDeviceId = currentTrack?.getSettings?.()?.deviceId;
 
@@ -946,17 +1081,21 @@ export function PairingModal({
           streamRef.current.getTracks().forEach((track) => track.stop());
           streamRef.current = null;
         }
-        const targetFacing = isFrontCamera ? "environment" : "user";
-        try {
-          newStream = await getUserMediaFn({
-            video: {
-              facingMode: { ideal: targetFacing },
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-            },
-          });
-        } catch {
-          newStream = await getUserMediaFn({ video: true });
+        if (isMobile) {
+          const targetFacing = isFrontCamera ? "environment" : "user";
+          try {
+            newStream = await getUserMediaFn({
+              video: {
+                facingMode: { ideal: targetFacing },
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+              },
+            });
+          } catch {
+            newStream = await getUserMediaFn({ video: true });
+          }
+        } else {
+          newStream = await getCameraStream(getUserMediaFn, null, false);
         }
         nextIsFront = !isFrontCamera;
       }
@@ -1010,12 +1149,28 @@ export function PairingModal({
     }
   };
 
-  const handleConfirmSas = async (sessionId: string, confirmed: boolean) => {
+  const handleConfirmSas = async (sessionId: string, confirmed: boolean, role?: string) => {
     if (confirmed) {
       setConfirmedSas(true);
     }
     setBusy(true);
     try {
+      if (confirmed) {
+        const shouldInclude = role === "sender" && includeSettings;
+        try {
+          await pairingApi.setIncludeSettings(shouldInclude);
+        } catch {}
+        if (shouldInclude) {
+          try {
+            const ui = collectUiStateForSync();
+            await pairingApi.setPendingUiState(ui);
+          } catch {}
+        } else {
+          try {
+            await pairingApi.clearPendingUiState();
+          } catch {}
+        }
+      }
       await pairingApi.confirmSas(sessionId, confirmed);
     } catch (err) {
       setErrorMessage(String(err));
@@ -1107,7 +1262,7 @@ export function PairingModal({
             return (
               <div className="pairing-host-content">
                 <p className="pairing-instruction">
-                  To link your devices, enter the below code or scan the QR code from your other device.
+                  To link your devices, use your other device to enter the Link Code below or scan the QR code.
                 </p>
 
                 {joinCode ? (
@@ -1147,7 +1302,14 @@ export function PairingModal({
                   <button
                     type="button"
                     className="button secondary pairing-switch-btn"
-                    onClick={() => setViewMode("scanner")}
+                    onClick={() => {
+                      setCameraError(null);
+                      void pairingApi.ensureCameraPermission()
+                        .catch(() => {
+                          // Still open the scanner; getUserMedia opens USB webcams in tauri dev.
+                        })
+                        .finally(() => setViewMode("scanner"));
+                    }}
                   >
                     <CameraIcon />
                     <span>Scan QR</span>
@@ -1228,7 +1390,8 @@ export function PairingModal({
                   className="button pairing-back-btn"
                   onClick={() => setViewMode("host")}
                 >
-                  Back to My QR
+                  <ChevronIcon style={{ transform: "rotate(180deg)" }} />
+                  <span>Back</span>
                 </button>
                 <button
                   type="button"
@@ -1303,7 +1466,8 @@ export function PairingModal({
                   className="button pairing-back-btn"
                   onClick={() => setViewMode("host")}
                 >
-                  Back to My QR
+                  <ChevronIcon style={{ transform: "rotate(180deg)" }} />
+                  <span>Back</span>
                 </button>
                 <button
                   type="button"
@@ -1432,12 +1596,29 @@ export function PairingModal({
                   )}
                 </div>
 
+                {isSender && !confirmedSas && (
+                  <label className="pairing-settings-toggle">
+                    <input
+                      type="checkbox"
+                      checked={includeSettings}
+                      disabled={busy}
+                      onChange={(e) => setIncludeSettings(e.target.checked)}
+                    />
+                    <span>
+                      Also transfer the settings &amp; layout configuration:
+                      <small>
+                        Including settings for launch-at-login, app updates, account refresh intervals, notifications, and card order.
+                      </small>
+                    </span>
+                  </label>
+                )}
+
                 <div className="pairing-sas-actions">
                   <button
                     type="button"
                     className="button primary"
                     disabled={busy || confirmedSas}
-                    onClick={() => void handleConfirmSas(sessionId, true)}
+                    onClick={() => void handleConfirmSas(sessionId, true, role)}
                   >
                     {confirmedSas ? (
                       <>
@@ -1452,7 +1633,7 @@ export function PairingModal({
                     type="button"
                     className="button ghost"
                     disabled={busy || confirmedSas}
-                    onClick={() => void handleConfirmSas(sessionId, false)}
+                    onClick={() => void handleConfirmSas(sessionId, false, role)}
                   >
                     Cancel
                   </button>

@@ -21,8 +21,18 @@ import {
   readSidebarGroupOrder,
 } from "./dashboard-reorder";
 import {
+  applyPageAccountOrder,
+  applyPageUiState,
+  DASHBOARD_PAGE_ORDER_EVENT,
+  isCardCollapsedOnPage,
+  migrateLegacyCollapsedCards,
+  setCardCollapsedOnPage,
+} from "./dashboard-page-state";
+import {
   BellIcon,
   CheckCircleIcon,
+  CheckIcon,
+  ChevronIcon,
   ClockIcon,
   CloseIcon,
   EditIcon,
@@ -74,37 +84,53 @@ const STARTUP_REFRESH_DELAY_MS = 3 * 1000;
 const GOOGLE_AI_STUDIO_MODELS_ONLY_SOURCE = "google_ai_studio_model_access";
 const DEFAULT_ACCOUNT_REFRESH_MINUTES = 15;
 const ACCOUNT_REFRESH_OPTIONS = [5, 10, 15, 30, 45, 60] as const;
-const SIDEBAR_WINDOW_KEY = "ai-subscription-tracker:provider-average-window";
 const ALL_ACCOUNTS_GROUP_ID = "all";
 const RELATIVE_TIME_TICK_MS = 1000;
 const CHANGELOG_URL = "https://github.com/dubba/AI-Usage-Tracker/blob/main/CHANGELOG.md";
 
 function providerName(provider: Provider): string {
   switch (provider) {
-    case "openai": return "GPT/Codex";
+    case "openai": return "ChatGPT";
     case "anthropic": return "Claude";
     case "antigravity": return "Antigravity";
     case "google_ai_studio": return "AI Studio";
-    case "grok": return "Grok/Cursor";
+    case "grok": return "Grok";
     case "opencode_go": return "OpenCode Go";
+    case "cursor": return "Cursor";
   }
 }
 
 // Legacy accounts were auto-labelled with an older provider display name
-// (e.g. "Google Antigravity"). Collapse only those legacy labels and only for
-// the matching provider; a user who renames an account keeps their exact name.
+// (e.g. "Google Antigravity"). Collapse only those obsolete branded defaults
+// for the matching provider, including numbered copies ("Grok/Cursor 2").
 const LEGACY_DEFAULT_LABELS: Partial<Record<Provider, string[]>> = {
   antigravity: ["Google Antigravity"],
-  grok: ["Grok / SuperGrok", "Grok"],
-  openai: ["OpenAI Codex", "OpenAI", "Codex", "Codex/GPT"],
-  anthropic: ["Anthropic Claude", "Anthropic"],
+  grok: ["Grok / SuperGrok", "Grok/Cursor"],
+  openai: ["OpenAI Codex", "Codex/GPT", "GPT/Codex"],
+  anthropic: ["Anthropic Claude"],
   google_ai_studio: ["Google AI Studio"],
 };
 
 function displayAccountLabel(account: Account): string {
+  const current = providerName(account.provider);
   const legacy = LEGACY_DEFAULT_LABELS[account.provider] ?? [];
-  if (legacy.includes(account.label)) return providerName(account.provider);
+  if (legacy.includes(account.label)) return current;
+  for (const old of legacy) {
+    const prefix = `${old} `;
+    if (account.label.startsWith(prefix)) {
+      const rest = account.label.slice(prefix.length);
+      if (/^\d+$/.test(rest)) return `${current} ${rest}`;
+    }
+  }
   return account.label;
+}
+
+function displayProviderGroupTitle(provider: Provider, accounts: Account[]): string {
+  const labels = accounts.map(displayAccountLabel).filter((label) => label.trim());
+  if (labels.length === 0) return providerName(provider);
+  const first = labels[0];
+  if (labels.every((label) => label === first)) return first;
+  return providerName(provider);
 }
 
 function displayAccountSubtitle(account: Account): string {
@@ -154,7 +180,7 @@ function accountStatus(account: Account): { label: string; className: string } {
     return { label: "AUTH NEEDED", className: "danger" };
   }
   if (account.lastError || account.lastUsage?.freshness === "stale") {
-    return { label: "ATTENTION", className: "warning" };
+    return { label: "ACTION NEEDED", className: "warning" };
   }
   if (account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_model_access") {
     return { label: "KEY ONLY", className: "warning" };
@@ -243,7 +269,6 @@ function nextResetSummary(accounts: Account[], now: number = Date.now()): NextRe
   const candidates = accounts.flatMap((account) =>
     (account.lastUsage?.windows ?? []).flatMap((window) => {
       if (!window.resetsAt) return [];
-      if (window.usedPercent === 0 || window.remainingPercent === 100) return [];
       const resetAt = new Date(window.resetsAt).getTime();
       if (!Number.isFinite(resetAt) || resetAt <= currentNow) return [];
       return [{
@@ -327,22 +352,6 @@ function formatUpdatedAt(value: string | null | undefined, now = Date.now()): st
   if (hours < 24) return `Updated ${hours}h ago`;
   const days = Math.floor(hours / 24);
   return `Updated ${days}d ago`;
-}
-
-function readSidebarWindow(): SidebarWindow {
-  try {
-    return window.localStorage.getItem(SIDEBAR_WINDOW_KEY) === "five_hour" ? "five_hour" : "weekly";
-  } catch {
-    return "weekly";
-  }
-}
-
-function storeSidebarWindow(value: SidebarWindow): void {
-  try {
-    window.localStorage.setItem(SIDEBAR_WINDOW_KEY, value);
-  } catch {
-    // The toggle remains usable if WebView storage is unavailable.
-  }
 }
 
 function usageTone(remaining: number | null): string {
@@ -495,11 +504,101 @@ function windowPillClass(window: UsageWindow): string {
 }
 
 function displayPlan(account: Account): string | null {
-  const plan = account.plan?.trim();
-  if (!plan) return null;
-  if (plan.toLowerCase() === "grok / supergrok" || plan.toLowerCase() === "grok") return "GROK";
-  if (plan.toLowerCase() === "google antigravity") return "ANTIGRAVITY";
-  return plan.replaceAll("_", " ").toUpperCase();
+  const raw = account.plan?.trim();
+  if (!raw) return null;
+  const lower = raw.toLowerCase();
+  const provider = account.provider;
+  const withoutTier = raw.replace(/-tier$/i, "").trim();
+  const lowStrip = withoutTier.toLowerCase();
+
+  // Reference: user-provided plan table (Free | Budget $5-10 | Standard $20-30 | Mid $100 | Max $200-300)
+  // OpenCode: Free | Go $10 | Zen PAYG | Black Tier
+  // OpenAI: Free | Go $8 | Plus $20 | Pro $100 | Pro $200
+  // Anthropic: Free | Pro $20 | Max $100 | Max $200
+  // Google: Free | Plus $5 (4.99→5) | Pro $20 (19.99→20) | Ultra $100 | Ultra $200 - cents rounded to nearest dollar (AI prefix removed)
+  // xAI: Free | SuperGrok $30 | SuperGrok $100 | Heavy $300
+  // Cursor: Free $0 | Start ~$8-10 | Pro $20 | Pro+ $60 | Ultra $200
+
+  if (provider === "openai") {
+    if (lower.includes("free")) return "Free";
+    if (lower === "go" || lower.includes("go/") || lowStrip === "go") return "Go/$8";
+    if (lower.includes("plus")) return "Plus/$20";
+    if (lower.includes("pro")) {
+      if (lower.includes("100") || lower.includes("pro/$100")) return "Pro/$100";
+      if (lower.includes("200") || lower.includes("enterprise")) return "Pro/$200";
+      return "Pro/$200";
+    }
+    if (lower.includes("team")) return "Team";
+    return withoutTier.toUpperCase() || "Free";
+  }
+
+  if (provider === "anthropic") {
+    if (lower.includes("free")) return "Free";
+    if (lower.includes("max")) {
+      if (lower.includes("200")) return "Max/$200";
+      return "Max/$100";
+    }
+    if (lower.includes("pro")) return "Pro/$20";
+    if (lower === "claude subscription") return "Pro/$20";
+    return "Free";
+  }
+
+  if (provider === "antigravity") {
+    if (lower === "google antigravity" || lower === "antigravity") return "ANTIGRAVITY";
+    if (lowStrip === "free" || lower === "free" || lower === "free-tier") return "Free";
+    // G1-Pro/$20 removed as redundant
+    if (lower.includes("ultra")) {
+      if (lower.includes("200") || lower.includes("30tb") || lower.includes("genie")) return "Ultra/$200";
+      return "Ultra/$100";
+    }
+    if (lower.includes("plus")) return "Plus/$5";
+    if (lower.includes("pro")) return "Pro/$20";
+    const cleaned = withoutTier.replaceAll("_", " ").trim();
+    // G1-Pro fallback also removed - treat as Pro
+    if (cleaned.toLowerCase().startsWith("g1-")) return "Pro/$20";
+    return cleaned.toUpperCase() || "Free";
+  }
+
+  if (provider === "google_ai_studio") {
+    if (lower.includes("free") || lower === "google ai studio") return "Free";
+    if (lower.includes("ultra")) {
+      if (lower.includes("200") || lower.includes("30tb") || lower.includes("genie")) return "Ultra/$200";
+      return "Ultra/$100";
+    }
+    if (lower.includes("plus")) return "Plus/$5";
+    if (lower.includes("pro")) return "Pro/$20";
+    return withoutTier.toUpperCase() || "Free";
+  }
+
+  if (provider === "grok") {
+    if (lower.includes("free")) return "Free";
+    if (lower.includes("heavy")) return "SuperGrok Heavy/$300";
+    if (lower.includes("100") || lower.includes("plus")) return "SuperGrok Plus/$100";
+    if (lower.includes("supergrok") || lower.includes("sgrok") || lower === "grok" || lower === "grok / supergrok" || lower === "supergrok / grok") {
+      return "SuperGrok/$30";
+    }
+    return "SuperGrok/$30";
+  }
+
+  if ((provider as string) === "cursor") {
+    if (lower.includes("free")) return "Free";
+    if (lower.includes("start")) return "Start/$8";
+    if (lower.includes("pro+") || lower.includes("pro +") || lower.includes("60")) return "Pro+/$60";
+    if (lower.includes("ultra") || lower.includes("200")) return "Ultra/$200";
+    if (lower.includes("pro")) return "Pro/$20";
+    return withoutTier.toUpperCase() || "Free";
+  }
+
+  if (provider === "opencode_go") {
+    if (lower.includes("free")) return "Free";
+    if (lower.includes("go")) return "Go/$10";
+    if (lower.includes("zen")) return "Zen/PAYG";
+    if (lower.includes("black")) return "Black Tier";
+    return withoutTier.toUpperCase() || "Go/$10";
+  }
+
+  if (lowStrip === "free" || lower === "free" || lower === "free-tier") return "Free";
+  return withoutTier.replaceAll("_", " ").toUpperCase() || raw.toUpperCase();
 }
 
 export default function App() {
@@ -508,7 +607,7 @@ export default function App() {
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [providerOrder, setProviderOrder] = useState<Provider[]>(readDashboardProviderOrder);
   const [sidebarGroupOrder, setSidebarGroupOrder] = useState<string[]>(readSidebarGroupOrder);
-  const [sidebarWindow, setSidebarWindow] = useState<SidebarWindow>(readSidebarWindow);
+  const [pageOrderTick, setPageOrderTick] = useState(0);
   const [section, setSection] = useState<Section>("accounts");
   const [addOpen, setAddOpen] = useState(false);
   const [bucketModalOpen, setBucketModalOpen] = useState(false);
@@ -644,7 +743,61 @@ export default function App() {
 
   const handlePairingCompleted = useCallback(async () => {
     await load();
+    // Refresh app-level settings that may have been imported via pairing
+    try {
+      const settings = await bridgeApi.getAppSettings();
+      setAppSettings(settings);
+    } catch {}
+    try {
+      const auto = await bridgeApi.getAutostart();
+      setAutostart(auto);
+    } catch {}
+    // Force dashboard reorder to re-apply any transferred UI state
+    window.dispatchEvent(new Event("focus"));
   }, [load]);
+
+  // Apply UI state transferred via pairing (sidebar order, collapsed cards, etc.)
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    void listen<Record<string, unknown>>("pairing-ui-state", (event) => {
+      const payload = event.payload as Record<string, unknown>;
+      try {
+        if (Array.isArray(payload.sidebar_group_order)) {
+          window.localStorage.setItem(
+            "ai-subscription-tracker:sidebar-group-order",
+            JSON.stringify(payload.sidebar_group_order),
+          );
+          window.dispatchEvent(
+            new CustomEvent("ai-subscription-tracker:group-order-changed", {
+              detail: payload.sidebar_group_order,
+            }),
+          );
+        }
+        if (Array.isArray(payload.provider_order)) {
+          window.localStorage.setItem(
+            "ai-subscription-tracker:provider-order",
+            JSON.stringify(payload.provider_order),
+          );
+          window.dispatchEvent(
+            new CustomEvent("ai-subscription-tracker:provider-order-changed", {
+              detail: payload.provider_order,
+            }),
+          );
+        }
+        applyPageUiState(payload);
+        if (typeof payload.sidebar_width === "number" && payload.sidebar_width > 0) {
+          window.localStorage.setItem("paseo-usage-bridge:sidebar-width", String(payload.sidebar_width));
+          document.documentElement.style.setProperty("--sidebar-width", `${payload.sidebar_width}px`);
+        }
+      } catch {}
+      window.dispatchEvent(new Event("focus"));
+    }).then((fn) => {
+      unlisten = fn;
+    }).catch(() => {});
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
 
   const checkForUpdate = useCallback(async (showFeedback = false) => {
     setUpdateBusy("checking");
@@ -745,6 +898,13 @@ export default function App() {
     } finally {
       setBusy(null);
     }
+  }, []);
+
+  useEffect(() => {
+    migrateLegacyCollapsedCards();
+    const onPageOrder = () => setPageOrderTick((tick) => tick + 1);
+    window.addEventListener(DASHBOARD_PAGE_ORDER_EVENT, onPageOrder);
+    return () => window.removeEventListener(DASHBOARD_PAGE_ORDER_EVENT, onPageOrder);
   }, []);
 
   useEffect(() => {
@@ -923,6 +1083,23 @@ export default function App() {
 
     const providerGroups: SidebarGroup[] = [];
     const seenProviders = new Set<Provider>();
+    // Follow dashboard card order (oldest → newest) instead of a fixed provider list.
+    for (const account of accounts) {
+      if (assignedIds.has(account.id) || seenProviders.has(account.provider)) continue;
+      seenProviders.add(account.provider);
+      const unassigned = accounts.filter(
+        (a) => a.provider === account.provider && !assignedIds.has(a.id),
+      );
+      if (unassigned.length > 0) {
+        providerGroups.push({
+          id: `provider:${account.provider}`,
+          type: "provider",
+          title: displayProviderGroupTitle(account.provider, unassigned),
+          provider: account.provider,
+          accounts: unassigned,
+        });
+      }
+    }
     for (const provider of providerOrder) {
       if (seenProviders.has(provider)) continue;
       seenProviders.add(provider);
@@ -933,7 +1110,7 @@ export default function App() {
         providerGroups.push({
           id: `provider:${provider}`,
           type: "provider",
-          title: providerName(provider),
+          title: displayProviderGroupTitle(provider, unassigned),
           provider,
           accounts: unassigned,
         });
@@ -973,7 +1150,10 @@ export default function App() {
     return sidebarGroups.find((group) => group.id === selectedGroupId) ?? allAccountsGroup;
   }, [selectedGroupId, sidebarGroups, allAccountsGroup]);
 
-  const visibleAccounts = selectedGroup.accounts;
+  const visibleAccounts = useMemo(
+    () => applyPageAccountOrder(selectedGroup.accounts, selectedGroup.id),
+    [selectedGroup, pageOrderTick],
+  );
   const needsAttention = visibleAccounts.filter(accountNeedsAttention).length;
   const nextReset = nextResetSummary(visibleAccounts, nowMs);
 
@@ -1040,11 +1220,6 @@ export default function App() {
     } catch (cause) {
       setError(String(cause));
     }
-  };
-
-  const changeSidebarWindow = (value: SidebarWindow) => {
-    setSidebarWindow(value);
-    storeSidebarWindow(value);
   };
 
   const renderContent = () => {
@@ -1143,37 +1318,18 @@ export default function App() {
             <button
               type="button"
               className="button primary compact-button add-bucket-header-button"
-              data-tooltip="Create a custom bucket group"
-              aria-label="Create a custom bucket group"
+              data-tooltip="Create a custom group"
+              aria-label="Create a custom group"
               onClick={() => { openNewBucket(selectedGroup.provider); setSidebarOpen(false); }}
             >
               <PlusIcon />Group
             </button>
-            <div className="provider-window-toggle" aria-label="Provider average usage window">
-              <button
-                type="button"
-                className={sidebarWindow === "five_hour" ? "active" : ""}
-                aria-pressed={sidebarWindow === "five_hour"}
-                data-tooltip="Show average 5-hour remaining usage"
-                aria-label="Show average 5-hour remaining usage"
-                onClick={() => changeSidebarWindow("five_hour")}
-              >H</button>
-              <button
-                type="button"
-                className={sidebarWindow === "weekly" ? "active" : ""}
-                aria-pressed={sidebarWindow === "weekly"}
-                data-tooltip="Show average weekly remaining usage"
-                aria-label="Show average weekly remaining usage"
-                onClick={() => changeSidebarWindow("weekly")}
-              >W</button>
-            </div>
           </div>
         </div>
 
         <div className="provider-list">
           <SidebarGroupRow
             group={allAccountsGroup}
-            window={sidebarWindow}
             selected={section === "accounts" && selectedGroup.id === ALL_ACCOUNTS_GROUP_ID}
             onSelect={() => {
               setSelectedGroupId(ALL_ACCOUNTS_GROUP_ID);
@@ -1185,7 +1341,6 @@ export default function App() {
             <SidebarGroupRow
               key={group.id}
               group={group}
-              window={sidebarWindow}
               selected={section === "accounts" && selectedGroup.id === group.id}
               onSelect={() => {
                 setSelectedGroupId(group.id);
@@ -1350,18 +1505,23 @@ export default function App() {
 
 function SidebarGroupRow({
   group,
-  window,
   selected,
   onSelect,
 }: {
   group: SidebarGroup;
-  window: SidebarWindow;
   selected: boolean;
   onSelect: () => void;
 }) {
-  const average = groupAverage(group.accounts, window);
-  const width = average == null ? 0 : Math.min(100, Math.max(0, average));
-  const tone = usageTone(average);
+  const five = groupAverage(group.accounts, "five_hour");
+  const weekly = groupAverage(group.accounts, "weekly");
+  const displayValue = five ?? weekly;
+  const toneValue = five != null && weekly != null ? Math.min(five, weekly) : displayValue;
+  const width = toneValue == null ? 0 : Math.min(100, Math.max(0, toneValue));
+  const tone = usageTone(toneValue);
+  const toneFive = five == null ? null : usageTone(five);
+  const toneWeekly = weekly == null ? null : usageTone(weekly);
+  const labelFive = five == null ? "NA" : `${Math.round(five)}%`;
+  const labelWeekly = weekly == null ? "—" : `${Math.round(weekly)}%`;
   const reorderable = group.type !== "all";
   return (
     <button
@@ -1379,7 +1539,7 @@ function SidebarGroupRow({
       data-reorder-provider={group.provider ?? undefined}
       data-group-id={group.id}
       data-reorder-enabled={reorderable ? "true" : undefined}
-      aria-label={`${group.title}, ${group.accounts.length} accounts, ${average == null ? "usage unavailable" : `${Math.round(average)} percent average remaining`}`}
+      aria-label={`${group.title}, ${group.accounts.length} accounts, 5h ${labelFive}, 7d ${labelWeekly}`}
     >
       <span className={`provider-summary-icon ${group.provider ? `provider-${group.provider}` : "provider-all"}`}>
         {group.provider ? <ProviderIcon provider={group.provider} /> : <UsersIcon />}
@@ -1391,7 +1551,11 @@ function SidebarGroupRow({
             <span className="sidebar-group-count">({group.accounts.length})</span>
             {group.type === "bucket" ? <span className="bucket-mini-badge">Group</span> : null}
           </strong>
-          <span className={`provider-average tone-${tone}`}>{average == null ? "—" : `${Math.round(average)}%`}</span>
+          <span className="provider-average">
+            <span className={five == null ? "tone-na" : `tone-${toneFive}`}>{labelFive}</span>
+            <span className="tone-pipe"> | </span>
+            <span className={weekly == null ? "tone-na" : `tone-${toneWeekly}`}>{labelWeekly}</span>
+          </span>
         </span>
         <span className="provider-summary-track"><span className={`tone-${tone}`} style={{ width: `${width}%` }} /></span>
       </span>
@@ -1436,22 +1600,27 @@ function AccountsView(props: {
                 <MenuIcon />
               </button>
             ) : null}
-            <div className="dashboard-title-heading">
-              <div className="dashboard-title-top">
-                <h1 className="eyebrow">
-                  {props.selectedGroup.type === "all"
-                    ? props.allAccounts.length === 0 ? "Dashboard" : "All accounts"
-                    : props.selectedGroup.title}
-                </h1>
-                {props.selectedGroup.type === "bucket" ? (
-                  <span className="dashboard-bucket-pill">Custom Group</span>
-                ) : null}
-              </div>
-              <p className="dashboard-account-count">
-                {props.selectedGroup.accounts.length} {props.selectedGroup.accounts.length === 1 ? "account" : "accounts"}
-              </p>
-            </div>
+            <h1 className="eyebrow">
+              {props.selectedGroup.type === "all"
+                ? props.allAccounts.length === 0 ? "Dashboard" : "All accounts"
+                : `${props.selectedGroup.title} Accounts`}
+            </h1>
+            {props.selectedGroup.type === "bucket" ? (
+              <span className="dashboard-bucket-pill">Custom Group</span>
+            ) : null}
+            {props.selectedGroup.type === "bucket" && props.selectedGroup.bucket ? (
+              <button
+                type="button"
+                className="button ghost edit-bucket-title-btn"
+                onClick={() => props.onEditBucket?.(props.selectedGroup.bucket!)}
+                aria-label="Edit Group"
+                data-tooltip="Edit Group"
+              >
+                <EditIcon />
+              </button>
+            ) : null}
           </div>
+          <p className="dashboard-description">This is a dashboard of all your AI subscriptions by usage.</p>
         </div>
         <div className="header-actions">
           {props.selectedGroup.type === "bucket" && props.selectedGroup.bucket ? (
@@ -1459,45 +1628,49 @@ function AccountsView(props: {
               type="button"
               className="button ghost edit-bucket-header-btn"
               onClick={() => props.onEditBucket?.(props.selectedGroup.bucket!)}
+              aria-label="Edit Group"
+              data-tooltip="Edit Group"
             >
-              <EditIcon />Edit Group
+              <EditIcon /><span className="edit-bucket-label">Edit Group</span>
             </button>
           ) : null}
-          <button className="button ghost" onClick={props.onRefreshAll} disabled={props.busy === "refresh-all"}>
+          <button className="button ghost dashboard-header-refresh" onClick={props.onRefreshAll} disabled={props.busy === "refresh-all"}>
             <RefreshIcon />{props.busy === "refresh-all" ? "Refreshing…" : "Refresh All"}
           </button>
-          <button className="button primary" onClick={props.onAdd}><PlusIcon />Add Account</button>
+          <button className="button primary dashboard-header-add" onClick={props.onAdd}><PlusIcon />Add Account</button>
         </div>
       </header>
 
-      <section className="summary-grid mockup-summary-grid">
-        <div className="mockup-summary-card total-card">
-          <div><span className="summary-label">{props.selectedGroup && props.selectedGroup.type !== "all" ? `${props.selectedGroup.title} Accounts` : "Total accounts"}</span><strong className="summary-helper">Active</strong></div>
-          <div className="summary-value-cluster"><strong>{props.accounts.length}</strong><UsersIcon /></div>
-        </div>
-        <div className={`mockup-summary-card attention-card ${props.needsAttention ? "has-attention" : ""}`}>
-          <div>
-            <span className="summary-label">Action Needed</span>
-            <strong className="summary-helper"><CheckCircleIcon />{props.needsAttention ? `${props.needsAttention} account${props.needsAttention === 1 ? "" : "s"}` : "All good"}</strong>
+      <div className="dashboard-scroll">
+        <section className="summary-grid mockup-summary-grid">
+          <div className="mockup-summary-card total-card">
+            <div><span className="summary-label">Accounts</span><strong className="summary-helper">Active</strong></div>
+            <div className="summary-value-cluster"><strong>{props.accounts.length}</strong><UsersIcon /></div>
           </div>
-          <div className="summary-value-cluster"><strong>{props.needsAttention}</strong><span className="summary-info">!</span></div>
-        </div>
-        <div className="mockup-summary-card next-reset-card">
-          <div>
-            <span className="summary-label">Next reset</span>
-            <strong className="next-reset-account">{props.nextReset.account ?? "No upcoming reset"}</strong>
+          <div className={`mockup-summary-card attention-card ${props.needsAttention ? "has-attention" : ""}`}>
+            <div>
+              <span className="summary-label">Action Needed</span>
+              <strong className="summary-helper"><CheckCircleIcon />{props.needsAttention ? `${props.needsAttention} account${props.needsAttention === 1 ? "" : "s"}` : "All good"}</strong>
+            </div>
+            <div className="summary-value-cluster"><strong>{props.needsAttention}</strong><span className="summary-info">!</span></div>
           </div>
-          <div className="next-reset-actions">
-            <span className="next-reset-pill">{props.nextReset.value}</span>
-            <ClockIcon />
+          <div className="mockup-summary-card next-reset-card">
+            <div>
+              <span className="summary-label">Next reset</span>
+              <strong className="next-reset-account">{props.nextReset.account ?? "No upcoming reset"}</strong>
+            </div>
+            <div className="next-reset-actions">
+              <span className="next-reset-pill">{props.nextReset.value}</span>
+              <ClockIcon />
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="provider-account-cards" data-group-id={props.selectedGroup?.id || undefined}>
+        <section className="provider-account-cards" data-group-id={props.selectedGroup?.id || undefined}>
         {props.accounts.length ? props.accounts.map((account) => (
           <AccountDashboardCard
-            key={account.id}
+            key={`${props.selectedGroup.id}:${account.id}`}
+            pageId={props.selectedGroup.id}
             account={account}
             busy={props.busy}
             nowMs={props.nowMs}
@@ -1526,8 +1699,8 @@ function AccountsView(props: {
             <div className="empty-group-actions">
               {props.selectedGroup.type === "bucket" && props.selectedGroup.bucket ? (
                 <>
-                  <button type="button" className="button ghost" onClick={() => props.onEditBucket?.(props.selectedGroup.bucket!)}>
-                    <EditIcon />Edit Group
+                  <button type="button" className="button ghost edit-bucket-empty-btn" onClick={() => props.onEditBucket?.(props.selectedGroup.bucket!)}>
+                    <EditIcon /><span className="edit-bucket-label">Edit Group</span>
                   </button>
                   <button type="button" className="button ghost bucket-delete-button" onClick={() => props.onDeleteBucket?.(props.selectedGroup.bucket!)}>
                     <TrashIcon />Delete Group
@@ -1539,34 +1712,20 @@ function AccountsView(props: {
           </section>
         )}
       </section>
+      </div>
+      <div className="dashboard-mobile-actions">
+        <button className="button ghost" onClick={props.onRefreshAll} disabled={props.busy === "refresh-all"}>
+          <RefreshIcon />{props.busy === "refresh-all" ? "Refreshing…" : "Refresh All"}
+        </button>
+        <button className="button primary" onClick={props.onAdd}><PlusIcon />Add Account</button>
+      </div>
       {props.error ? <div className="error-panel settings-update-error">{props.error}</div> : null}
     </div>
   );
 }
 
-const COLLAPSED_CARDS_STORAGE_PREFIX = "ai-usage-tracker:card-collapsed:";
-
-function isCardCollapsed(accountId: string): boolean {
-  try {
-    return window.localStorage.getItem(`${COLLAPSED_CARDS_STORAGE_PREFIX}${accountId}`) === "true";
-  } catch {
-    return false;
-  }
-}
-
-function setCardCollapsedStorage(accountId: string, collapsed: boolean): void {
-  try {
-    if (collapsed) {
-      window.localStorage.setItem(`${COLLAPSED_CARDS_STORAGE_PREFIX}${accountId}`, "true");
-    } else {
-      window.localStorage.removeItem(`${COLLAPSED_CARDS_STORAGE_PREFIX}${accountId}`);
-    }
-  } catch {
-    // Ignore localStorage errors
-  }
-}
-
 function AccountDashboardCard({
+  pageId,
   account,
   busy,
   nowMs,
@@ -1577,6 +1736,7 @@ function AccountDashboardCard({
   onRemove,
   onNotifications,
 }: {
+  pageId: string;
   account: Account;
   busy: string | null;
   nowMs: number;
@@ -1589,15 +1749,16 @@ function AccountDashboardCard({
 }) {
   const status = accountStatus(account);
   const needsAttention = accountNeedsAttention(account);
-  const [isCollapsed, setIsCollapsed] = useState(() => isCardCollapsed(account.id));
+  const [isCollapsed, setIsCollapsed] = useState(() => isCardCollapsedOnPage(pageId, account.id));
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(account.label);
   const [renameError, setRenameError] = useState<string | null>(null);
+  const committingRenameRef = useRef(false);
 
   const toggleCollapse = () => {
     setIsCollapsed((prev) => {
       const next = !prev;
-      setCardCollapsedStorage(account.id, next);
+      setCardCollapsedOnPage(pageId, account.id, next);
       return next;
     });
   };
@@ -1627,6 +1788,29 @@ function AccountDashboardCard({
     if (!editing) setLabel(account.label);
   }, [account.label, editing]);
 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+        setMobileMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMobileMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [mobileMenuOpen]);
+
   const commitRename = async () => {
     const next = label.trim();
     if (!next) {
@@ -1638,13 +1822,23 @@ function AccountDashboardCard({
       setRenameError(null);
       return;
     }
+    if (committingRenameRef.current) return;
+    committingRenameRef.current = true;
     try {
       await onRename(next);
       setEditing(false);
       setRenameError(null);
     } catch {
       setRenameError("Unable to rename this account.");
+    } finally {
+      committingRenameRef.current = false;
     }
+  };
+
+  const cancelRename = () => {
+    setLabel(account.label);
+    setRenameError(null);
+    setEditing(false);
   };
 
   return (
@@ -1671,30 +1865,54 @@ function AccountDashboardCard({
         <div className="account-card-identity">
           <div className="account-card-name-row">
             {editing ? (
-              <input
-                className="account-card-name-input"
-                value={label}
-                maxLength={80}
-                disabled={isRenaming}
-                autoFocus
-                aria-label={`Rename ${account.label}`}
-                onChange={(event) => {
-                  setLabel(event.target.value);
-                  setRenameError(null);
-                }}
-                onBlur={() => void commitRename()}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    event.currentTarget.blur();
-                  } else if (event.key === "Escape") {
-                    event.preventDefault();
-                    setLabel(account.label);
+              <div className="account-card-name-edit-wrap">
+                <input
+                  className="account-card-name-input"
+                  value={label}
+                  maxLength={80}
+                  disabled={isRenaming}
+                  autoFocus
+                  aria-label={`Rename ${account.label}`}
+                  onChange={(event) => {
+                    setLabel(event.target.value);
                     setRenameError(null);
-                    setEditing(false);
-                  }
-                }}
-              />
+                  }}
+                  onBlur={() => void commitRename()}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void commitRename();
+                    } else if (event.key === "Escape") {
+                      event.preventDefault();
+                      cancelRename();
+                    }
+                  }}
+                />
+                <div className="account-card-name-edit-actions">
+                  <button
+                    type="button"
+                    className="account-name-cancel"
+                    data-tooltip="Cancel"
+                    aria-label={`Cancel renaming ${account.label}`}
+                    disabled={isRenaming}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={cancelRename}
+                  >
+                    <CloseIcon />
+                  </button>
+                  <button
+                    type="button"
+                    className="account-name-confirm"
+                    data-tooltip="Save name"
+                    aria-label={`Save name for ${account.label}`}
+                    disabled={isRenaming}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => void commitRename()}
+                  >
+                    {isRenaming ? <span className="mini-spinner" /> : <CheckIcon />}
+                  </button>
+                </div>
+              </div>
             ) : <h2>{displayAccountLabel(account)}</h2>}
             {!editing ? (
               <button type="button" className="account-name-edit" data-tooltip="Edit account name" aria-label={`Edit ${account.label}`} onClick={() => setEditing(true)}>
@@ -1707,8 +1925,14 @@ function AccountDashboardCard({
         </div>
         <div className={`account-card-header-actions ${account.provider === "google_ai_studio" ? "has-google-action" : ""}`}>
           <div className="account-card-header-meta">
-            <span className={`account-status-badge ${status.className}`}>{status.label}</span>
-            {displayPlan(account) ? <span className="account-plan-badge">{displayPlan(account)}</span> : null}
+            {status.label !== "LIVE" ? <span className={`account-status-badge ${status.className}`}>{status.label}</span> : null}
+            <span className="plan-with-dot">
+              <span
+                className={`live-dot ${needsAttention || status.label !== "LIVE" ? "attention" : ""}`}
+                aria-hidden="true"
+              />
+              {displayPlan(account) ? <span className="account-plan-badge">{displayPlan(account)}</span> : null}
+            </span>
             {account.provider === "google_ai_studio" ? (
               <button type="button" className="button ghost compact-button google-cloud-connect-action" disabled={cardBusy} onClick={onConnectGoogleUsage}>
                 {modelsOnly || waitingForMetrics ? "Connect Cloud Usage" : "Change Cloud Project"}
@@ -1717,7 +1941,7 @@ function AccountDashboardCard({
           </div>
           <div className="account-card-action-stack">
             <p className="account-card-updated">{updatedAtLabel}</p>
-            <div className="account-card-name-actions">
+            <div className="account-card-name-actions desktop-only">
             <button
               type="button"
               className="account-card-action remove-action"
@@ -1742,7 +1966,31 @@ function AccountDashboardCard({
               disabled={cardBusy || isGlobalRefresh}
               onClick={onRefresh}
             ><RefreshIcon /></button>
-          </div>
+           </div>
+            <div className="mobile-actions-dropdown" ref={mobileMenuRef}>
+              <button
+                type="button"
+                className="mobile-dropdown-toggle"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-expanded={mobileMenuOpen}
+                aria-label="More actions"
+              >
+                <ChevronIcon className={mobileMenuOpen ? "open" : ""} />
+              </button>
+              {mobileMenuOpen ? (
+                <div className="mobile-dropdown-menu">
+                  <button type="button" className="mobile-dropdown-item refresh-action" disabled={cardBusy || isGlobalRefresh} onClick={() => { setMobileMenuOpen(false); onRefresh(); }}>
+                    <RefreshIcon /> Refresh
+                  </button>
+                  <button type="button" className="mobile-dropdown-item notify-action" disabled={cardBusy} onClick={() => { setMobileMenuOpen(false); onNotifications(); }}>
+                    <BellIcon /> Notifications
+                  </button>
+                  <button type="button" className="mobile-dropdown-item remove-action" disabled={cardBusy} onClick={() => { setMobileMenuOpen(false); onRemove(); }}>
+                    <TrashIcon /> Delete
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       </header>
@@ -1966,7 +2214,7 @@ function SettingsView({
           </div>
           <button
             type="button"
-            className="button ghost"
+            className="button primary"
             onClick={onOpenPairing}
           >
             Link Devices

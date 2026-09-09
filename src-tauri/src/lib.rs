@@ -4,9 +4,11 @@ mod alerts;
 mod apk_install;
 mod bridge_api;
 mod buckets;
+mod camera_permission;
 mod fs_util;
 mod google_ai_studio_oauth;
 mod grok_login;
+mod lan_binding;
 mod mobile_auth;
 mod model;
 mod oauth;
@@ -89,11 +91,17 @@ async fn start_login(
 ) -> Result<LoginStart, String> {
     let provider = Provider::from_str(&provider)?;
     let label = if provider == Provider::OpencodeGo && label.trim().is_empty() {
-        "OpenCode Go".to_string()
+        "OpenCode-Go".to_string()
     } else if provider == Provider::Grok && label.trim().is_empty() {
-        "Grok/Cursor".to_string()
+        "Grok".to_string()
     } else if provider == Provider::Openai && label.trim().is_empty() {
-        "GPT/Codex".to_string()
+        "ChatGPT".to_string()
+    } else if provider == Provider::Anthropic && label.trim().is_empty() {
+        "Claude".to_string()
+    } else if provider == Provider::Antigravity && label.trim().is_empty() {
+        "Antigravity".to_string()
+    } else if provider == Provider::GoogleAiStudio && label.trim().is_empty() {
+        "AI-Studio".to_string()
     } else {
         validate_label(&label)?
     };
@@ -162,7 +170,7 @@ async fn add_grok_account(
     cookie_header: String,
 ) -> Result<Account, String> {
     let label = if label.trim().is_empty() {
-        "Grok/Cursor".to_string()
+        "Grok".to_string()
     } else {
         validate_label(&label)?
     };
@@ -516,6 +524,7 @@ fn regenerate_bridge_token(state: State<'_, Arc<AppState>>) -> Result<BridgeInfo
 async fn pairing_start_host(
     state: State<'_, Arc<AppState>>,
 ) -> Result<crate::pairing::PairingHostInit, String> {
+    crate::lan_binding::configure_pairing_network(true);
     state.pairing.start_host(state.inner().clone()).await
 }
 
@@ -527,10 +536,18 @@ async fn pairing_start_receiver(
 }
 
 #[tauri::command]
+async fn ensure_camera_permission() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(crate::camera_permission::ensure)
+        .await
+        .map_err(|e| format!("Camera permission check failed: {e}"))?
+}
+
+#[tauri::command]
 async fn pairing_start_client(
     state: State<'_, Arc<AppState>>,
     qr_uri: String,
 ) -> Result<(), String> {
+    crate::lan_binding::configure_pairing_network(true);
     state.pairing.start_client(state.inner().clone(), qr_uri).await
 }
 
@@ -547,6 +564,7 @@ async fn pairing_start_client_by_code(
     state: State<'_, Arc<AppState>>,
     code: String,
 ) -> Result<(), String> {
+    crate::lan_binding::configure_pairing_network(true);
     state
         .pairing
         .start_client_by_code(state.inner().clone(), code)
@@ -573,6 +591,9 @@ async fn pairing_confirm_sas(
 #[tauri::command]
 async fn pairing_cancel(state: State<'_, Arc<AppState>>) -> Result<(), String> {
     state.pairing.cancel().await;
+    *state.pairing_include_settings.write() = false;
+    *state.pairing_pending_ui_state.write() = None;
+    crate::lan_binding::configure_pairing_network(false);
     Ok(())
 }
 
@@ -581,6 +602,32 @@ async fn pairing_status(
     state: State<'_, Arc<AppState>>,
 ) -> Result<crate::pairing::PairingStatus, String> {
     Ok(state.pairing.get_status().await)
+}
+
+#[tauri::command]
+fn pairing_set_include_settings(state: State<'_, Arc<AppState>>, include: bool) -> Result<(), String> {
+    *state.pairing_include_settings.write() = include;
+    Ok(())
+}
+
+#[tauri::command]
+fn pairing_set_pending_ui_state(
+    state: State<'_, Arc<AppState>>,
+    ui_state: serde_json::Value,
+) -> Result<(), String> {
+    // Validate that it's an object with expected optional fields
+    if !ui_state.is_object() && !ui_state.is_null() {
+        return Err("UI state must be an object".into());
+    }
+    *state.pairing_pending_ui_state.write() = Some(ui_state);
+    Ok(())
+}
+
+#[tauri::command]
+fn pairing_clear_pending_ui_state(state: State<'_, Arc<AppState>>) -> Result<(), String> {
+    *state.pairing_pending_ui_state.write() = None;
+    *state.pairing_include_settings.write() = false;
+    Ok(())
 }
 
 static PENDING_PAIRING_URI: parking_lot::Mutex<Option<String>> = parking_lot::Mutex::new(None);
@@ -1116,6 +1163,7 @@ pub fn run() {
             regenerate_bridge_token,
             check_for_app_update,
             install_app_update,
+            ensure_camera_permission,
             pairing_start_host,
             pairing_start_receiver,
             pairing_start_client,
@@ -1125,6 +1173,9 @@ pub fn run() {
             pairing_confirm_sas,
             pairing_cancel,
             pairing_status,
+            pairing_set_include_settings,
+            pairing_set_pending_ui_state,
+            pairing_clear_pending_ui_state,
             get_pending_pairing_uri,
         ])
         .build(tauri::generate_context!())

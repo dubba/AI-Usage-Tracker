@@ -120,6 +120,19 @@ impl AccountStore {
         let accounts = read_account_file(&data_dir)?;
         ensure_private_file(&account_path(&data_dir)).map_err(StoreError::Io)?;
         ensure_private_file(&data_dir.join("accounts.json.bak")).map_err(StoreError::Io)?;
+        // Prune tombstones for live accounts (upgrade wipe-fix: old deleted-accounts.json may contain live ids)
+        {
+            let live_ids: std::collections::HashSet<String> =
+                accounts.iter().map(|a| a.id.clone()).collect();
+            let mut tombstones = read_tombstone_file(&data_dir);
+            let before = tombstones.deleted_account_ids.len();
+            tombstones
+                .deleted_account_ids
+                .retain(|id| !live_ids.contains(id));
+            if tombstones.deleted_account_ids.len() != before {
+                let _ = write_tombstone_file(&data_dir, &tombstones);
+            }
+        }
         Ok(Self {
             data_dir,
             accounts: RwLock::new(accounts),
@@ -200,6 +213,15 @@ impl AccountStore {
                 let excess = tombstones.deleted_account_ids.len() - MAX_TOMBSTONES;
                 tombstones.deleted_account_ids.drain(..excess);
             }
+            let _ = write_tombstone_file(&self.data_dir, &tombstones);
+        }
+    }
+
+    pub fn clear_tombstone(&self, id: &str) {
+        let mut tombstones = read_tombstone_file(&self.data_dir);
+        let before = tombstones.deleted_account_ids.len();
+        tombstones.deleted_account_ids.retain(|t| t != id);
+        if tombstones.deleted_account_ids.len() != before {
             let _ = write_tombstone_file(&self.data_dir, &tombstones);
         }
     }
@@ -426,7 +448,8 @@ fn persist_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result<
 #[cfg(not(target_os = "android"))]
 fn load_keychain_secret(account_id: &str) -> Result<ProviderSecret, StoreError> {
     let user = account_credential_user(account_id);
-    let (stored, _from_legacy) = match credential_entry(&user)?.get_password() {
+    #[allow(unused_variables)]
+    let (stored, from_legacy) = match credential_entry(&user)?.get_password() {
         Ok(value) => (value, false),
         Err(keyring::Error::NoEntry) => (
             credential_entry_for(LEGACY_CREDENTIAL_SERVICE, &user)?

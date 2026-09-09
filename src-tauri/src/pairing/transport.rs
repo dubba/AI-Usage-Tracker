@@ -752,7 +752,13 @@ async fn run_authenticated_transfer<E>(
     if is_sender {
         // SENDER: Export state, encrypt, and send payload
         let mut export_bytes = match create_export_payload(&state) {
-            Ok(b) => b,
+            Ok(b) => {
+                // Clear per-transfer settings flag after snapshotting payload so it
+                // does not leak into the next session.
+                *state.pairing_include_settings.write() = false;
+                *state.pairing_pending_ui_state.write() = None;
+                b
+            }
             Err(e) => {
                 let _ = status_tx.send(TransferEvent::Failed(e).into()).await;
                 encryption_key.zeroize();

@@ -60,7 +60,11 @@ impl AccountOrderStore {
         }
 
         let mut remaining = account_by_id.into_values().collect::<Vec<_>>();
-        remaining.sort_by(|left, right| left.label.to_lowercase().cmp(&right.label.to_lowercase()));
+        remaining.sort_by(|left, right| {
+            left.created_at
+                .cmp(&right.created_at)
+                .then_with(|| left.id.cmp(&right.id))
+        });
         for account in remaining {
             normalized_ids.push(account.id.clone());
             ordered.push(account);
@@ -90,6 +94,10 @@ impl AccountOrderStore {
         self.apply(accounts)
     }
 
+    pub fn snapshot_ids(&self) -> Vec<String> {
+        self.account_ids.read().clone()
+    }
+
     pub fn remove(&self, account_id: &str) -> Result<(), String> {
         let mut account_ids = self.account_ids.write();
         let previous_len = account_ids.len();
@@ -117,7 +125,10 @@ mod tests {
     use crate::model::{now_rfc3339, Provider};
 
     fn account(id: &str, label: &str) -> Account {
-        let now = now_rfc3339();
+        account_at(id, label, &now_rfc3339())
+    }
+
+    fn account_at(id: &str, label: &str, created_at: &str) -> Account {
         Account {
             id: id.into(),
             label: label.into(),
@@ -126,8 +137,8 @@ mod tests {
             provider_account_id: None,
             chatgpt_account_id: None,
             plan: None,
-            created_at: now.clone(),
-            updated_at: now,
+            created_at: created_at.into(),
+            updated_at: created_at.into(),
             last_usage: None,
             last_error: None,
             auth_required: false,
@@ -149,5 +160,23 @@ mod tests {
         let store = AccountOrderStore::load(directory.path()).unwrap();
         let accounts = vec![account("a", "Alpha"), account("b", "Beta")];
         assert!(store.save(vec!["a".into(), "a".into()], accounts).is_err());
+    }
+
+    #[test]
+    fn appends_unknown_accounts_oldest_first() {
+        let directory = tempfile::tempdir().unwrap();
+        let store = AccountOrderStore::load(directory.path()).unwrap();
+        let first = account_at("a", "Zed", "2026-01-01T00:00:00Z");
+        store.save(vec!["a".into()], vec![first.clone()]).unwrap();
+        let newer = account_at("c", "Alpha", "2026-03-01T00:00:00Z");
+        let older_new = account_at("b", "Beta", "2026-02-01T00:00:00Z");
+        let ordered = store.apply(vec![newer, first, older_new]).unwrap();
+        assert_eq!(
+            ordered
+                .iter()
+                .map(|account| account.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["a", "b", "c"]
+        );
     }
 }

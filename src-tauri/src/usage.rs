@@ -236,13 +236,17 @@ pub fn emit_alerts_for_account(app: &AppState, account: &Account) {
             notification.window_label,
             notification.threshold_percent
         );
-        if let Err(err) = app_handle
+        #[cfg(target_os = "android")]
+        let notify_result =
+            crate::lan_binding::post_expandable_notification(&title, &body);
+        #[cfg(not(target_os = "android"))]
+        let notify_result = app_handle
             .notification()
             .builder()
             .title(&title)
             .body(&body)
-            .show()
-        {
+            .show();
+        if let Err(err) = notify_result {
             eprintln!("[Notification] System notification error: {err}");
         }
 
