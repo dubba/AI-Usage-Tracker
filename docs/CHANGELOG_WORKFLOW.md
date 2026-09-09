@@ -14,8 +14,9 @@ For every pull request that changes something a user can see or experience:
    - `Fixed` — incorrect or broken behavior was corrected.
    - `Security` — a user-relevant security improvement.
    - `Removed` — a user-facing capability was removed.
-4. Write one bullet for each distinct user-visible result.
-5. If the pull request has no user-facing change, do not add a changelog entry and state `No user-facing change` in the pull request description.
+4. Update item counts in parentheses next to each affected category heading (e.g. `### Fixed (46)`) and update the total item count on the release header (e.g. `## Unreleased (111 items)`).
+5. Write one bullet for each distinct user-visible result.
+6. If the pull request has no user-facing change, do not add a changelog entry and state `No user-facing change` in the pull request description.
 
 ## Writing rules
 
@@ -44,20 +45,20 @@ Also avoid:
 
 ## `Unreleased` format
 
-Keep unreleased changes at the top of `CHANGELOG.md`:
+Keep unreleased changes at the top of `CHANGELOG.md` with total item counts next to the release and category headings:
 
 ```markdown
-## Unreleased
+## Unreleased (3 items)
 
-### Added
+### Added (1)
 
 - Example new feature.
 
-### Improved
+### Improved (1)
 
 - Example improvement.
 
-### Fixed
+### Fixed (1)
 
 - Example bug fix.
 ```
@@ -70,8 +71,8 @@ Normal coding tasks must only update `## Unreleased`.
 
 A release task may:
 
-1. Rename the completed `## Unreleased` section to `## <version> - <YYYY-MM-DD>`.
-2. Insert a new empty `## Unreleased` section above it.
+1. Rename the completed `## Unreleased (X items)` section to `## <version> - <YYYY-MM-DD> (X items)`.
+2. Insert a new empty `## Unreleased (0 items)` section above it.
 3. Reuse the completed section as the GitHub Release description.
 
 Released entries should remain unchanged except for correcting a clear typo or factual error.

@@ -14,6 +14,7 @@ Changelog:
 
 - Read `docs/CHANGELOG_WORKFLOW.md` before completing a pull request.
 - Every user-visible change must update `CHANGELOG.md` under `## Unreleased` in the same pull request.
+- Always keep item counts up to date in parentheses next to each category header (e.g. `### Security (4)`) and total items next to the release header (e.g. `## Unreleased (111 items)`).
 - When there is no user-facing change, leave `CHANGELOG.md` unchanged and state `No user-facing change` in the pull request description.
 
 Android APK builds:

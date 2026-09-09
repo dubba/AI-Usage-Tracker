@@ -1,15 +1,15 @@
 # Changelog
 
-## Unreleased
+## Unreleased (111 items)
 
-### Security
+### Security (4)
 
 - Hardened Link Devices pairing against low-order key attacks: the Elliptic-curve Diffie-Hellman step now rejects non-contributory (low-order) peer public keys on both devices, preventing a malicious pairing link from forcing a predictable session key.
 - Restricted Link Devices pairing links to local network addresses only (private, loopback, link-local, or Tailscale CGNAT IP literals); pairing links pointing at public internet hosts or DNS names are now refused instead of connecting.
 - Link Devices sessions can no longer be crashed by another device on the local network sending garbage handshakes: rejected connections are throttled and the session keeps listening instead of shutting down after 5 failures. A device that connects but disconnects or misbehaves before picking a transfer direction no longer blocks the pairing; the sharing device returns to waiting so the intended device can still join.
 - Hardened Link Devices peer-to-peer authentication by rejecting low-order (non-contributory) Diffie-Hellman public keys that could produce predictable shared secrets, and requiring pairing connection hosts to be local network IP addresses (private LAN, loopback, link-local, or Tailscale CGNAT) to prevent accidental connection or exfiltration over the public internet.
 
-### Fixed
+### Fixed (46)
 
 - Restored in-app browser sign-in for OpenCode Go on mobile, matching the Grok login flow, and prevented desktop OpenCode sign-in from opening an extra window in the system's default browser.
 - Renaming a Grok/Cursor account to "Grok" now keeps that name on the dashboard instead of snapping back to Grok/Cursor.
@@ -58,13 +58,13 @@
 - Dragging a dashboard card now keeps a grabbing-hand cursor everywhere — including over buttons, links, and empty space — until the card is dropped.
 - The provider icon tooltip on dashboard cards now sits fully below the pointing-hand cursor so the label is not covered.
 
-### Added
+### Added (3)
 
 - Link Devices can now optionally transfer app settings and layout when sending accounts: enable "Also send settings & layout" on the verification screen to include App Updates and Start at Login toggles, account refresh interval, notification thresholds per account, backend card order, and sidebar layout (group order, provider order, 5h/weekly toggle, collapsed cards, and sidebar width). The receiver applies them automatically; older app versions ignore the extra data so transfers remain compatible.
 - Added support for 30-day (`30d` / monthly) quota limits in the account notification modal and backend alert evaluation, allowing notifications to be configured for free ChatGPT / OpenAI accounts with monthly limit windows.
 - Added secure, direct device-to-device credential transfer ("Link Devices") over local Wi-Fi, allowing you to synchronize your AI provider accounts and groups to another device without re-entering tokens or passwords. Pairing supports symmetric role selection ("Send accounts from this device" or "Receive accounts on this device") so either device can initiate. The sharing device shows a QR code and a 6-digit local-network join code; the joining device can scan the QR code or type the code. Security uses end-to-end authenticated encryption with visual fingerprint/SAS verification. The long pairing-link paste field has been removed.
 
-### Improved
+### Improved (58)
 
 - Account cards on the dashboard now display a pulsing red glowing dot centered with the plan badge (e.g. Go/$10) whenever an account requires attention or is disconnected, and the warning status badge now reads "ACTION NEEDED" instead of "ATTENTION".
 - Renamed the primary connection buttons in the Add Account modal to "Open ChatGPT login", "Open Claude login", and "Open Antigravity login" (matching "Open Grok login" and "Open OpenCode login").
@@ -127,9 +127,9 @@
 - Dragging a dashboard card now keeps a grabbing-hand cursor everywhere — including over buttons, links, and empty space — until the card is dropped.
 - The provider icon tooltip on dashboard cards now sits fully below the pointing-hand cursor so the label is not covered.
 
-## 0.3.5 - 2026-09-03
+## 0.3.5 - 2026-09-03 (49 items)
 
-### Improved
+### Improved (28)
 
 - On Android, tapping Update downloads the APK in the app and opens the system installer instead of sending you to GitHub in a browser.
 - When an app update is available, the Settings action button now says Update instead of including the version number.
@@ -160,7 +160,7 @@
 - Increased the vertical spacing between the account email and the card divider line on mobile for improved readability and balance.
 - Enabled long-press card dragging across the entire account card (including the provider icon, header, and action buttons), while preserving quick click/tap actions for collapsing cards and header buttons.
 
-### Fixed
+### Fixed (21)
 
 - Checking for app updates no longer reports that you’re up to date when GitHub hides the latest release (for example a private repository returning HTTP 404). Check Now now falls back to the GitHub Releases API so a newer tag such as 0.3.5 is detected even without `latest.json`.
 - Removed the inner divider line along the bottom border of collapsed account cards while keeping header text position stationary.
@@ -184,16 +184,16 @@
 - Red error toasts now render in the page flow directly beneath the settings card in the exact same position as the update toast, and automatically dismiss after 5 seconds.
 - Fixed horizontal card width jumping and size discrepancies on mobile between providers by dedicating `.provider-account-cards` as the sole scroll container and preserving invariant gutter room whether scrollbars are displayed or not.
 
-## 0.3.4 - 2026-09-02
+## 0.3.4 - 2026-09-02 (40 items)
 
-### Improved
+### Improved (4)
 
 - On mobile, placed the "Total accounts" and "Needs attention" summary cards side-by-side in the same row with "Next reset" spanning underneath.
 - Made the mobile navigation sidebar narrower for a cleaner drawer layout.
 - On mobile, tightened the spacing between the dashboard title and account count, and vertically centered both lines with the hamburger menu button.
 - Balanced vertical spacing on mobile with equal padding above and below the header separator line.
 
-### Fixed
+### Fixed (21)
 
 - Fixed baseline alignment in the sidebar so group titles and account counts are horizontally aligned with provider entries like Grok and Antigravity.
 - Standardized header typography and vertical baseline alignment across all provider and custom group views.
@@ -206,23 +206,23 @@
 - Deleting an account group now opens a confirmation dialog (“Are you sure you want to delete this group?”) instead of deleting immediately, and account removal can no longer be triggered twice by rapid clicks.
 - Dialogs (Add Account, Account Grouping, Usage Notifications, Google Cloud Usage, Remove Account) now trap keyboard focus, close with Escape unless a dropdown is open, restore focus to the button that opened them, and stop the background from scrolling while open.
 - Restored the Settings Change Log row, which disappeared after the Settings title was removed.
- - Clicking outside the Add Account dialog no longer cancels an in-progress provider sign-in; use Cancel to stop it deliberately.
- - Accounts renamed to the same text as an old provider name (for example “OpenAI Codex”) keep the exact name the user typed; only accounts still carrying the original auto-generated legacy name display the modern provider name.
+- Clicking outside the Add Account dialog no longer cancels an in-progress provider sign-in; use Cancel to stop it deliberately.
+- Accounts renamed to the same text as an old provider name (for example “OpenAI Codex”) keep the exact name the user typed; only accounts still carrying the original auto-generated legacy name display the modern provider name.
 - Provider sign-in no longer stays on “Waiting for the browser callback…” if the app loses contact with the login. The dialog shows an error and a Retry button that resumes the same attempt.
 - Reordering accounts in a mixed group now moves those cards only, instead of applying another provider’s order to them.
 - AI Studio accounts added with only an API key now show KEY ONLY instead of CONNECTED, and the Cloud Usage connection opens immediately so quota setup is not skipped.
- - Quota reset countdowns on account cards now show minutes when less than an hour remains (for example `8m` instead of `1h`).
+- Quota reset countdowns on account cards now show minutes when less than an hour remains (for example `8m` instead of `1h`).
 - Empty custom groups stay in the sidebar after their last account is removed, with Edit and Delete on the empty dashboard.
- - Paseo Bridge copy buttons now show a transient “Copied!” label and announce the result to screen readers.
- - Provider and account dropdowns now expose listbox roles and active-descendant tracking so keyboard and screen reader navigation works.
- - The global error banner and the empty loading state now use alert semantics, focus the Retry button, and show skeleton placeholders while accounts load.
+- Paseo Bridge copy buttons now show a transient “Copied!” label and announce the result to screen readers.
+- Provider and account dropdowns now expose listbox roles and active-descendant tracking so keyboard and screen reader navigation works.
+- The global error banner and the empty loading state now use alert semantics, focus the Retry button, and show skeleton placeholders while accounts load.
 
-### Added
+### Added (2)
 
 - The sidebar now has an All row as the default dashboard view, with provider and custom groups remaining as filters.
 - Account cards now show when usage was last fetched, as relative time such as “Updated 2m ago”, above the remove, notification, and refresh buttons.
 
-### Improved
+### Improved (13)
 
 - The sidebar + Group button now uses the same purple background as Add Account.
 - The Next reset pill now shows days and hours when more than a day remains (for example `1d 9h`).
@@ -239,9 +239,9 @@
 - Integrations now uses a single purple API Integration heading instead of Local API plus Paseo Integration.
 - Renamed the sidebar section from Usage accounts to Accounts, and kept the Group / H / W header visible on Android instead of clipping it off the narrow drawer.
 
-## 0.3.3 - 2026-09-01
+## 0.3.3 - 2026-09-01 (15 items)
 
-### Improved
+### Improved (9)
 
 - Reduced account card email subtitle font size and compacted header action padding on mobile screens so badges and action buttons fit cleanly within narrow viewports.
 - Styled scrollbars across desktop and mobile with a custom Obsidian purple theme, adding a slim purple scrollbar along the right side of the account cards list on mobile when multiple cards overflow the screen.
@@ -253,7 +253,7 @@
 - Added mobile update checking for Android: queries GitHub for new releases, displays update notifications, and automatically opens the latest APK release page in the mobile browser when tapped.
 - Updated Settings descriptions for Automatic updates, App updates, and Account updates, and resolved dropdown clipping in Settings by enabling visible card overflow.
 
-### Fixed
+### Fixed (6)
 
 - Adding multiple Grok accounts now isolates the sign-in session in a clean, ephemeral profile so opening the sign-in window always displays a fresh login prompt instead of prematurely capturing an existing account, and distinct Grok accounts are now saved independently.
 - Fixed Antigravity (Google) OAuth sign-in hanging on Android after selecting an email address by routing authentication through the in-app WebView interceptor, preventing OS background process freezing.
@@ -262,9 +262,9 @@
 - Replaced the Android launcher icon with the full-bleed purple design matching macOS and Windows, resolving the white background border and shrunken icon issue on Android devices.
 - The mobile sidebar’s Check for Updates button now sits above the home indicator, with the same 12px gap below it as above Accounts.
 
-## 0.3.2 - 2026-09-01
+## 0.3.2 - 2026-09-01 (20 items)
 
-### Security
+### Security (8)
 
 - Local account metadata, settings, and Android credential files are now created with owner-only permissions so they are never briefly readable by other users on the same machine.
 - Grok connections now store and send only grok.com / accounts.x.ai session cookies. Existing saved Grok cookie bundles are trimmed on the next refresh, and a reconnect is required if no Grok session remains.
@@ -275,7 +275,7 @@
 - OAuth sign-in success and error pages now send `no-store` caching and strict content security headers so those one-time callback pages are never cached or framed.
 - The local bridge now verifies its bearer token with a standard constant-time comparison.
 
-### Improved
+### Improved (5)
 
 - Sidebar cards (both custom groups/buckets and provider summaries) and dashboard account cards can now be dragged or long-pressed on touch screens to swap and customize their order, preserving natural scrolling and syncing backend account ordering.
 - Active card selection is preserved when dragging or swapping cards, preventing the displayed account view from unexpectedly switching.
@@ -283,7 +283,7 @@
 - Updated the in-app Grok login window to open `https://accounts.x.ai/sign-in` directly.
 - If accounts fail to load, the dashboard now shows the error and a Retry button instead of staying on “Loading accounts…”.
 
-### Fixed
+### Fixed (7)
 
 - Fixed Open Grok login crashing the Android app immediately after tapping the button by keeping WebView cookie JNI methods through release minification.
 - Fixed "Open Grok login" button crashing the Android app by guarding the desktop WebView window creation with a compile-time platform check; on Android the manual cookie-paste path is now shown automatically.
@@ -293,9 +293,9 @@
 - Expanded account usage progress bar tracks to span the full available width of the card, aligning flush with window badges and reset countdown timestamps.
 - Styled the account rename pen button with a compact 22px badge and obsidian violet font, border, and background colors matching the visual style of the header action buttons.
 
-## 0.3.1 - 2026-08-31
+## 0.3.1 - 2026-08-31 (20 items)
 
-### Improved
+### Improved (7)
 
 - Standardized "5 hour", "Weekly", and rolling window metric labels to "Remaining Limit" across all provider account cards while preserving clean model categories for Antigravity (e.g. `Gemini · Remaining Limit`, `Claude & GPT · Remaining Limit`) and Claude.
 - Styled `5h window` (Warm Amber), `7d window` (Obsidian Mint), and `Monthly` (Obsidian Lavender) duration badges with dark-mode theme colors for visual differentiation and contrast.
@@ -305,7 +305,7 @@
 - Renamed provider display names across sidebar navigation, dashboard headers, account cards, and modals: "OpenAI Codex" to "Codex/GPT", "Anthropic Claude" to "Claude", "Google Antigravity" to "Antigravity", "Google AI Studio" to "AI Studio", and "Grok / SuperGrok" to "Grok".
 - Renamed "Check for App Updates" buttons to "Check for Updates" across the sidebar footer and Settings view.
 
-### Fixed
+### Fixed (13)
 
 - Fixed installed version display in Settings to always show the active application build version (`v0.3.1`) regardless of remote update status.
 - Enabled updater artifacts generation and updater manifest uploads in GitHub release automation.
@@ -321,16 +321,16 @@
 - Fixed an Android crash when opening the Grok login window caused by a null pointer exception when reading empty webview cookie sessions.
 - Added safe-area padding and a responsive slide-out mobile drawer navigation for Android and small touch screens.
 
-## 0.3.0 - 2026-08-31
+## 0.3.0 - 2026-08-31 (54 items)
 
-### Added
+### Added (4)
 
 - Added support for building and sideloading on **Android**. Releases now provide an `.apk` package (`AI-Usage-Tracker.apk`) that can be installed directly onto Android phones.
 - Added responsive **Mobile Navigation Drawer** with smooth slide-out transitions and safe-area padding for Android status bars and gesture bars.
 - You can now create custom **Bucket Groups** to combine accounts (e.g. splitting multiple Antigravity or Grok accounts into separate work vs personal buckets). Each bucket shows as an independent row in the sidebar with its own usage calculations and filters the dashboard when selected.
 - Settings now includes a toggle for automatic app updates. Manual update checks still work when the toggle is off.
 
-### Improved
+### Improved (13)
 
 - Sidebar provider and bucket rows now display the count of connected accounts in brackets next to their name (e.g. Antigravity (3), Grok (1)).
 - The app now uses the name **AI Usage Tracker** in the installer, Dock, menu bar, window title, and GitHub releases.
@@ -346,7 +346,7 @@
 - The sidebar resize divider now features a 3-dot grip handle to indicate where the sidebar can be dragged to resize.
 - Account passwords and the local API token are now stored in the Keychain as **AI Usage Tracker**. Existing **Paseo Usage Bridge** items are copied on first use.
 
-### Security
+### Security (27)
 
 - Google authorization flows (Google AI Studio usage and legacy Antigravity) now use PKCE, so an intercepted authorization code cannot be exchanged without the verifier.
 - The tracker no longer reads the Grok CLI's `~/.grok/auth.json`; Grok accounts rely solely on the browser session captured during guided sign-in. Reconnect a Grok account if its details were missing.
@@ -376,7 +376,7 @@
 - Settings, alert, account-order, and account files are restricted to owner access. Existing world-readable copies are tightened on startup.
 - Connecting or reconnecting an account no longer overwrites newer usage data and uses the same account lock as refresh.
 
-### Fixed
+### Fixed (10)
 
 - OpenCode account connection now persists email addresses directly into backend storage and includes them in local API usage responses.
 - The app no longer asks for Keychain access on every usage refresh. It asks when credentials are first unlocked or when they actually change.
@@ -390,80 +390,80 @@
 - Escape now closes add-account, notification, Google Cloud, and remove-account dialogs.
 - Hovering account rename, remove, notification, and refresh controls now shows a tooltip.
 
-## 0.2.47 - 2026-07-31
+## 0.2.47 - 2026-07-31 (4 items)
 
-### Fixed
+### Fixed (2)
 
 - Credits are no longer shown on Google Antigravity or OpenCode Go accounts, which do not report a credit balance.
 - OpenAI usage-window badges now stay in the same top-row position used by other providers.
 
-### Improved
+### Improved (2)
 
 - Usage percentages now omit the redundant word **remaining**.
 - Narrower account cards retain the exact same content, element positions, icon sizes, and typography; only flexible widths such as account names and usage bars contract.
 
-## 0.2.46 - 2026-07-31
+## 0.2.46 - 2026-07-31 (3 items)
 
-### Fixed
+### Fixed (1)
 
 - OpenAI account cards now grow to fit all quota content instead of clipping shorter than their metrics.
 
-### Improved
+### Improved (2)
 
 - Provider-reported credits now appear inline with the percentage and usage bar instead of occupying a separate quota tile.
 - Narrow account cards preserve the same information and visual structure while progressively tightening spacing, icons, and typography instead of switching to a different compact design.
 
-## 0.2.45 - 2026-07-31
+## 0.2.45 - 2026-07-31 (3 items)
 
-### Improved
+### Improved (3)
 
 - OpenCode Go's monthly quota now shows a **Monthly** usage-window badge alongside its percentage.
 - Account-card notification, remove, and refresh controls move beside the email only when the title row would otherwise become crowded.
 - Detailed account usage remains visible while the card can still contain its real text; compact percentages activate only after measured content overflow instead of at a fixed card width.
 
-## 0.2.44 - 2026-07-30
+## 0.2.44 - 2026-07-30 (1 item)
 
-### Improved
+### Improved (1)
 
 - Detailed two-column account usage stays visible until an account card is genuinely narrow; compact mode now begins at 760px and the one-column fallback begins at 520px.
 
-## 0.2.43 - 2026-07-30
+## 0.2.43 - 2026-07-30 (3 items)
 
-### Improved
+### Improved (2)
 
 - Compact account cards now keep notification, remove, and refresh controls beside the account name and use the lower row for concise percentage and usage-window summaries based on each card's actual width.
 - Provider and account dragging now follows the Trello-style interaction reference: the floating card tracks the pointer while a transparent full-size gap moves through the list and neighboring items animate into the exact pending order.
 
-### Fixed
+### Fixed (1)
 
 - Accounts with multiple rows of usage limits no longer indent later rows with a misplaced vertical separator.
 
-## 0.2.42 - 2026-07-30
+## 0.2.42 - 2026-07-30 (1 item)
 
-### Fixed
+### Fixed (1)
 
 - Cancel and close controls now remain available while account authentication is waiting, immediately stop the active login attempt, and close private provider windows without waiting for a timeout.
 
-## 0.2.41 - 2026-07-28
+## 0.2.41 - 2026-07-28 (1 item)
 
-### Improved
+### Improved (1)
 
 - Provider groups and account cards now move through the list while dragging, with a full-size destination preview showing the exact order before release.
 
-## 0.2.40 - 2026-07-28
+## 0.2.40 - 2026-07-28 (3 items)
 
-### Added
+### Added (1)
 
 - Grok / SuperGrok accounts can now sign in through xAI's official Grok Build CLI and display provider-reported included-usage percentage and reset timing when xAI exposes that billing data.
 
-### Fixed
+### Fixed (2)
 
 - Provider groups and account cards now use pointer-based reordering that works reliably in the desktop WebView and persists the resulting order.
 - React now renders provider groups from the saved provider order instead of restoring the old fixed order after a drag.
 
-## 0.2.39 - 2026-07-27
+## 0.2.39 - 2026-07-27 (7 items)
 
-### Fixed
+### Fixed (7)
 
 - Interrupted Google AI Studio OAuth setup can no longer leave the app stuck closing during startup refresh.
 - Automatic account refreshes are isolated so one provider failure cannot take down the refresh controller or the desktop app.
@@ -473,104 +473,104 @@
 - Popup close buttons now update their disabled state without recursively retriggering the shared dialog observer.
 - Invalid startup metadata is preserved in a quarantine file while the app recovers from `accounts.json.bak` or safe defaults instead of closing immediately after launch.
 
-## 0.2.38 - 2026-07-27
+## 0.2.38 - 2026-07-27 (3 items)
 
-### Fixed
+### Fixed (2)
 
 - Google AI Studio Cloud setup no longer opens a Google 403 page caused by OAuth scopes that the current Google client does not accept.
 - Every popup dialog now includes a visible top-right **X** close button.
 
-### Improved
+### Improved (1)
 
 - Google AI Studio setup now accurately explains that Google grants Cloud access while the app limits its own actions to project discovery, Cloud Monitoring usage, and an explicitly approved Monitoring enable action.
 
-## 0.2.37 - 2026-07-27
+## 0.2.37 - 2026-07-27 (4 items)
 
-### Added
+### Added (2)
 
 - Google AI Studio usage setup now signs in with Google once, automatically identifies the Cloud project that owns the API key when Google permits it, and falls back to a project picker only when automatic discovery is unavailable.
 - When Cloud Monitoring is disabled, setup now offers a separate **Enable Cloud Monitoring** approval instead of sending users through manual Google Cloud Console steps.
 
-### Improved
+### Improved (2)
 
 - Google AI Studio setup no longer asks users to find and paste a Cloud project ID.
 - The initial Google authorization remains read-only; broader Cloud permission is requested only for the explicit one-time action of enabling Cloud Monitoring.
 
-## 0.2.36 - 2026-07-27
+## 0.2.36 - 2026-07-27 (4 items)
 
-### Added
+### Added (2)
 
 - Google AI Studio accounts can connect the Google Cloud project that owns their API key with read-only Cloud Monitoring access and display provider-reported RPM, TPM, RPD, and TPD quota usage when Google publishes those metrics.
 - Google AI Studio now appears as its own provider group instead of being mixed with Google Antigravity accounts.
 
-### Improved
+### Improved (2)
 
 - API-key-only Google AI Studio accounts now show **Connected** instead of **Live**, and project connections waiting for delayed Google metrics show **Waiting** instead of an unexplained unavailable value.
 - Existing Google AI Studio testing accounts are migrated automatically without requiring the API key to be added again.
 
-## 0.2.35 - 2026-07-27
+## 0.2.35 - 2026-07-27 (2 items)
 
-### Added
+### Added (1)
 
 - **Add Account** now includes a testing option for Google AI Studio API keys that validates the key, loads the model list directly from Google, and lets you choose which returned models to track.
 
-### Improved
+### Improved (1)
 
 - Google AI Studio testing accounts leave usage values unavailable when Google does not report them instead of estimating or calculating quota usage.
 
-## 0.2.34 - 2026-07-26
+## 0.2.34 - 2026-07-26 (2 items)
 
-### Fixed
+### Fixed (2)
 
 - The global **Add Account** button now opens an unlocked provider-selection window so you can choose which account type to add.
 - Reconnect actions still remain locked to the existing account’s provider.
 
-## 0.2.33 - 2026-07-26
+## 0.2.33 - 2026-07-26 (4 items)
 
-### Added
+### Added (2)
 
 - Provider groups in the sidebar and account cards within each provider can once again be reordered by dragging, with the saved order restored after relaunch.
 - Dragging near the top or bottom edge automatically scrolls long provider and account lists.
 
-### Improved
+### Improved (2)
 
 - The notification, trash, and refresh icons in account cards are now 50% larger while keeping transparent action buttons.
 - Long provider and account lists now scroll independently within the available sidebar and dashboard space.
 
-## 0.2.32 - 2026-07-26
+## 0.2.32 - 2026-07-26 (2 items)
 
-### Fixed
+### Fixed (1)
 
 - Replaced the clipped-looking refresh symbol with a complete circular two-arrow icon that renders cleanly at the account-card action size.
 
-### Improved
+### Improved (1)
 
 - Account usage metrics now show the reset date on the left and a right-aligned **Resets in: _Xh_** countdown calculated from the provider’s reset timestamp.
 
-## 0.2.31 - 2026-07-26
+## 0.2.31 - 2026-07-26 (2 items)
 
-### Fixed
+### Fixed (1)
 
 - The bottom-left update control now displays **Check for App Updates** only once in every update state.
 
-### Improved
+### Improved (1)
 
 - Usage-window badges such as **7d window** now share the percentage row and are right-aligned within each account metric.
 
-## 0.2.30 - 2026-07-26
+## 0.2.30 - 2026-07-26 (2 items)
 
-### Fixed
+### Fixed (2)
 
 - Restored the OpenAI quota details that were accidentally hidden in v0.2.29. OpenAI cards again show the remaining percentage, usage-window badge, purple usage bar, and reset time while omitting only the redundant **Session** heading.
 - The sidebar update control now uses one real text label instead of displaying both its label and a generated duplicate.
 
-## 0.2.29 - 2026-07-26
+## 0.2.29 - 2026-07-26 (11 items)
 
-### Added
+### Added (1)
 
 - OpenCode Go accounts now require an email address during setup so the connected email can be shown under the account name.
 
-### Improved
+### Improved (10)
 
 - OpenAI now uses a high-contrast white Blossom icon throughout the dark dashboard.
 - All provider and account usage bars now use the dashboard’s purple accent color.
@@ -583,68 +583,68 @@
 - The sidebar update control now displays its label only once.
 - The Account alerts label now has clearer spacing above the notification heading.
 
-## 0.2.28 - 2026-07-26
+## 0.2.28 - 2026-07-26 (6 items)
 
-### Added
+### Added (3)
 
 - The account sidebar now groups accounts by provider and shows the provider’s average remaining 5-hour or weekly usage.
 - **H** and **W** controls beside **Usage Accounts** switch the provider averages between the 5-hour and weekly limits.
 - Each account card now has dedicated refresh, remove, and notification controls, plus inline account-name editing.
 
-### Improved
+### Improved (3)
 
 - The Accounts dashboard has been rebuilt to closely follow the new Obsidian utility mockup, including its colors, typography, navigation, summary cards, spacing, and account-card layout.
 - Selecting a provider in the sidebar now displays all accounts connected to that provider in the main dashboard.
 - Account notification settings now focus on the 5-hour and weekly limits.
 
-## 0.2.27 - 2026-07-26
+## 0.2.27 - 2026-07-26 (4 items)
 
-### Added
+### Added (2)
 
 - Integrations now includes a toggle for enabling or disabling the Paseo Bridge.
 - When the bridge is enabled, a **View** link opens a separate window with its status, endpoints, bearer token, environment configuration, token rotation control, and connection details.
 
-### Improved
+### Improved (2)
 
 - The Paseo Bridge is now disabled by default and no longer opens its localhost listener until explicitly enabled.
 - Disabling the bridge now shuts down its local listener while preserving its configuration for later use.
 
-## 0.2.26 - 2026-07-26
+## 0.2.26 - 2026-07-26 (2 items)
 
-### Improved
+### Improved (2)
 
 - The sidebar update button now says **Update to v…** when a new version is available.
 - The duplicate update banner and restart button in the main dashboard have been removed.
 
-## 0.2.25 - 2026-07-26
+## 0.2.25 - 2026-07-26 (3 items)
 
-### Improved
+### Improved (3)
 
 - Dashboard summary cards now use compact single-line layouts for connected accounts, accounts needing attention, and the next reset.
 - The **Next Reset** card now shows only the countdown and account name.
 - Accounts that need attention are now highlighted with a transparent red warning outline in the sidebar.
 
-## 0.2.24 - 2026-07-26
+## 0.2.24 - 2026-07-26 (1 item)
 
-### Added
+### Added (1)
 
 - Settings now includes a **View Change Log** button that opens the repository changelog.
 
-## 0.2.23 - 2026-07-26
+## 0.2.23 - 2026-07-26 (4 items)
 
-### Added
+### Added (2)
 
 - Account update timing can now be selected from 5 to 60 minutes in 5-minute increments.
 - A system notification now appears when a new app update is detected.
 
-### Improved
+### Improved (2)
 
 - The app now checks for updates every hour instead of every six hours.
 - Settings now describes account refresh timing as **Account Updates** and focuses on the controls users need.
 
-## 0.2.22 - 2026-07-26
+## 0.2.22 - 2026-07-26 (2 items)
 
-### Improved
+### Improved (2)
 
 - The sidebar update button now says **Check for App Updates** and changes to a purple install button when a new version is available.
 - A **View Change Log** link now appears below available updates and opens this repository changelog.
