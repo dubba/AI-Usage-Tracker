@@ -106,6 +106,8 @@ export interface AppUpdateStatus {
   error: string | null;
 }
 
+export type UpdateBusy = "checking" | "installing" | null;
+
 export interface SyncSummary {
   added: number;
   updated: number;

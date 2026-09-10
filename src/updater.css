@@ -2,33 +2,6 @@
   display: none !important;
 }
 
-.update-notes {
-  margin-top: 14px;
-  padding: 16px 17px;
-  border: 1px solid rgba(159, 103, 255, .25);
-  border-radius: 14px;
-  background: var(--purple-soft);
-}
-
-.update-notes strong {
-  display: block;
-  font-size: 12px;
-}
-
-.update-notes p {
-  margin: 8px 0 0;
-  color: #d5cde4;
-  white-space: pre-wrap;
-  line-height: 1.55;
-  font-size: 10px;
-}
-
-.update-notes small {
-  display: block;
-  margin-top: 10px;
-  color: var(--muted);
-  font-size: 9px;
-}
 
 .settings-update-error {
   margin-top: 14px;

@@ -1384,8 +1384,7 @@ button.account-card-provider-icon:active {
 }
 
 .settings-style-content .settings-card,
-.settings-card,
-.settings-style-content .update-notes {
+.settings-card {
   border: 1px solid var(--obsidian-border);
   border-radius: 8px;
   background: #1c1b1b;
@@ -1395,8 +1394,7 @@ button.account-card-provider-icon:active {
 }
 
 .settings-style-content .settings-card:hover,
-.settings-card:hover,
-.settings-style-content .update-notes:hover {
+.settings-card:hover {
   border-color: var(--obsidian-purple-strong);
 }
 
@@ -1501,6 +1499,35 @@ button.account-card-provider-icon:active {
 .settings-updates-subcard-status.update-available {
   color: #ff9d9d;
   font-weight: 600;
+}
+
+.settings-view-changelog-link {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 1px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--obsidian-purple-strong, #a078ff);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2.5px;
+  text-decoration-color: rgba(160, 120, 255, 0.45);
+  transition: color 120ms ease, text-decoration-color 120ms ease;
+  line-height: 1.4;
+}
+
+.settings-view-changelog-link:hover {
+  color: #c9b1ff;
+  text-decoration-color: #c9b1ff;
+}
+
+.settings-view-changelog-link:focus-visible {
+  outline: 2px solid var(--obsidian-purple, #9f67ff);
+  outline-offset: 2px;
+  border-radius: 3px;
 }
 
 .status-indicator-dot {
@@ -1992,6 +2019,183 @@ select.account-update-select option,
   border-color: rgba(208, 188, 255, 0.58);
   background: rgba(109, 59, 215, 0.12);
   overflow: visible !important;
+}
+
+.update-notes-modal {
+  width: min(640px, calc(100vw - 32px)) !important;
+  max-height: min(84vh, 700px) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 24px !important;
+  overflow: hidden !important;
+}
+
+.update-notes-subtitle {
+  margin: 4px 0 16px 0 !important;
+  color: #958ea0 !important;
+  font-size: 12px !important;
+}
+
+.update-notes-content {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding-right: 8px;
+  margin-bottom: 20px;
+  border-top: 1px solid #2d2c2c;
+  border-bottom: 1px solid #2d2c2c;
+  padding-top: 16px;
+  padding-bottom: 16px;
+  min-height: 120px;
+}
+
+.update-notes-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.update-notes-content::-webkit-scrollbar-thumb {
+  background: #3a373f;
+  border-radius: 3px;
+}
+
+.update-notes-content::-webkit-scrollbar-thumb:hover {
+  background: #504c57;
+}
+
+.update-notes-heading-2 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #f3f0ef;
+  margin: 14px 0 8px 0;
+}
+
+.update-notes-heading-2:first-child {
+  margin-top: 0;
+}
+
+.update-notes-heading-3 {
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--obsidian-purple-strong, #a078ff);
+  margin: 14px 0 6px 0;
+}
+
+.update-notes-heading-3:first-child {
+  margin-top: 0;
+}
+
+.update-notes-heading-4 {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #d5cde4;
+  margin: 10px 0 4px 0;
+}
+
+.update-notes-paragraph {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #d5cde4;
+  margin: 6px 0;
+}
+
+.update-notes-list {
+  margin: 6px 0 12px 0;
+  padding-left: 20px;
+  list-style-type: disc;
+}
+
+.update-notes-list li {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #d5cde4;
+  margin-bottom: 5px;
+}
+
+.update-notes-list li::marker {
+  color: var(--obsidian-purple-strong, #a078ff);
+}
+
+.update-notes-code {
+  display: inline-block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  background: #151318;
+  color: #cbb8ff;
+  border: 1px solid #3d354a;
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin: 0 1px;
+}
+
+.update-notes-link {
+  color: var(--obsidian-purple-strong, #a078ff);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.update-notes-link:hover {
+  color: #cbb8ff;
+}
+
+.update-notes-empty {
+  font-size: 13px;
+  color: #958ea0;
+  text-align: center;
+  padding: 32px 0;
+}
+
+.update-notes-actions {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  margin-top: 0 !important;
+  gap: 12px !important;
+}
+
+.update-notes-primary-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.update-notes-changelog-btn {
+  font-size: 12px !important;
+  color: #a8a2b5 !important;
+  padding: 6px 10px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.update-notes-changelog-btn:hover {
+  color: #f3f0ef !important;
+}
+
+.update-notes-changelog-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+@media (max-width: 640px) {
+  .update-notes-modal {
+    width: calc(100vw - 24px) !important;
+    max-height: 86vh !important;
+    padding: 18px 16px !important;
+  }
+
+  .update-notes-actions {
+    flex-direction: column-reverse !important;
+    align-items: stretch !important;
+  }
+
+  .update-notes-primary-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .update-notes-changelog-btn {
+    justify-content: center;
+    width: 100%;
+  }
 }
 
 .bucket-mini-badge {

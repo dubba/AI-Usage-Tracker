@@ -12,6 +12,7 @@ import { CustomDropdown } from "./components/CustomDropdown";
 import { GoogleAiStudioUsageModal } from "./components/GoogleAiStudioUsageModal";
 import { PairingModal } from "./components/PairingModal";
 import { ProviderIcon } from "./components/ProviderIcon";
+import { UpdateNotesModal } from "./components/UpdateNotesModal";
 import "./pairing.css";
 import {
   DASHBOARD_GROUP_ORDER_EVENT,
@@ -54,11 +55,11 @@ import type {
   BridgeStatus,
   DashboardSnapshot,
   Provider,
+  UpdateBusy,
   UsageWindow,
 } from "./types";
 
 type Section = "accounts" | "integration" | "settings";
-type UpdateBusy = "checking" | "installing" | null;
 type SidebarWindow = "five_hour" | "weekly";
 
 export type SidebarGroup = {
@@ -2184,6 +2185,7 @@ function SettingsView({
   onToggleSidebar?: () => void;
   onOpenPairing?: () => void;
 }) {
+  const [updateNotesOpen, setUpdateNotesOpen] = useState(false);
   const automaticUpdates = appSettings?.automaticUpdatesEnabled ?? true;
   return (
     <div className="content-scroll narrow-content settings-style-content">
@@ -2258,7 +2260,7 @@ function SettingsView({
                 ) : update?.available && update.availableVersion ? (
                   <>
                     <span className="status-indicator-dot red" aria-hidden="true" />
-                    <span>{`Version ${update.availableVersion} available`}</span>
+                    <span>{`Version ${update.availableVersion.replace(/^v/i, "")} available`}</span>
                   </>
                 ) : (
                   <>
@@ -2267,6 +2269,15 @@ function SettingsView({
                   </>
                 )}
               </div>
+              {!updateBusy && update?.available && update.availableVersion ? (
+                <button
+                  type="button"
+                  className="settings-view-changelog-link"
+                  onClick={() => setUpdateNotesOpen(true)}
+                >
+                  {`View what changed in v${update.availableVersion.replace(/^v/i, "")}`}
+                </button>
+              ) : null}
             </div>
             {update?.available ? (
               <button
@@ -2334,7 +2345,15 @@ function SettingsView({
           </button>
         </div>
       </section>
-      {update?.available && update.body ? <section className="update-notes"><strong>What changed in v{update.availableVersion}</strong><p>{update.body}</p>{update.date ? <small>Published {formatTime(update.date)}</small> : null}</section> : null}
+      <UpdateNotesModal
+        open={updateNotesOpen}
+        version={update?.availableVersion ?? null}
+        releaseDate={update?.date}
+        releaseNotes={update?.body}
+        onClose={() => setUpdateNotesOpen(false)}
+        onInstallUpdate={onInstallUpdate}
+        updateBusy={updateBusy}
+      />
       {updateMessage ? <div className="info-panel settings-update-info">{updateMessage}</div> : null}
       {updateError ? <div className="error-panel settings-update-error">{updateError}</div> : null}
       {error ? <div className="error-panel settings-update-error">{error}</div> : null}

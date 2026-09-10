@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (111 items)
+## Unreleased (112 items)
 
 ### Security (4)
 
@@ -64,8 +64,9 @@
 - Added support for 30-day (`30d` / monthly) quota limits in the account notification modal and backend alert evaluation, allowing notifications to be configured for free ChatGPT / OpenAI accounts with monthly limit windows.
 - Added secure, direct device-to-device credential transfer ("Link Devices") over local Wi-Fi, allowing you to synchronize your AI provider accounts and groups to another device without re-entering tokens or passwords. Pairing supports symmetric role selection ("Send accounts from this device" or "Receive accounts on this device") so either device can initiate. The sharing device shows a QR code and a 6-digit local-network join code; the joining device can scan the QR code or type the code. Security uses end-to-end authenticated encryption with visual fingerprint/SAS verification. The long pairing-link paste field has been removed.
 
-### Improved (58)
+### Improved (59)
 
+- Replaced the inline release notes section in Settings with a "View what changed in v<version>" link directly below the update available status indicator, opening a dedicated modal displaying formatted release notes with Markdown rendering.
 - Account cards on the dashboard now display a pulsing red glowing dot centered with the plan badge (e.g. Go/$10) whenever an account requires attention or is disconnected, and the warning status badge now reads "ACTION NEEDED" instead of "ATTENTION".
 - Renamed the primary connection buttons in the Add Account modal to "Open ChatGPT login", "Open Claude login", and "Open Antigravity login" (matching "Open Grok login" and "Open OpenCode login").
 - Provider labels in the sidebar, cards, and related UI now use ChatGPT and Grok instead of GPT/Codex and Grok/Cursor.
