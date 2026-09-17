@@ -188,7 +188,7 @@ fn test_qr_uri_parsing_and_formatting() {
 
     assert_eq!(parsed.host, ip);
     assert_eq!(parsed.port, port);
-    assert_eq!(parsed.receiver_public_key, pubkey);
+    assert_eq!(parsed.peer_public_key, pubkey);
     assert_eq!(parsed.session_id, session_id);
     assert_eq!(parsed.session_nonce, nonce);
     assert!(!parsed.fingerprint.is_empty());
@@ -487,11 +487,10 @@ async fn test_import_collapses_accounts_with_duplicate_email() {
     assert_eq!(state_receiver.store.list().len(), 1);
 }
 
-// Ghost account regression: B received an account from A; A deletes it; a later
-// B -> A transfer must NOT resurrect it. A's tombstone marks the id as deleted,
-// so the incoming entry is skipped.
+// Deleting an account on the receiving device must not permanently block it.
+// A later transfer of the same live account from another device restores it.
 #[tokio::test]
-async fn test_deleted_account_does_not_reappear_after_reverse_sync() {
+async fn test_live_retransfer_restores_locally_deleted_account() {
     let dir_a = tempfile::tempdir().unwrap();
     let state_a = Arc::new(AppState::new(dir_a.path().to_path_buf(), "tok-da".into()).unwrap());
     state_a
@@ -510,31 +509,50 @@ async fn test_deleted_account_does_not_reappear_after_reverse_sync() {
     assert_eq!(summary.added, 1);
     assert!(state_b.store.get("ghost-1").is_some());
 
-    // User deletes the account on A (records a tombstone).
-    state_a.store.remove("ghost-1").unwrap();
-    assert!(state_a.store.list().is_empty());
-    assert_eq!(state_a.store.tombstones(), vec!["ghost-1".to_string()]);
+    state_b.store.remove("ghost-1").unwrap();
+    assert!(state_b.store.list().is_empty());
+    assert_eq!(state_b.store.tombstones(), vec!["ghost-1".to_string()]);
 
-    // Test-environment isolation: A and B are separate devices in production,
-    // but this single test process shares SECRET_CACHE/DATA_DIRS, so A's
-    // delete_secret also wiped B's credential copy. Restore B's copy so B's
-    // export behaves as it would on a separate device.
     crate::store::save_provider_secret("ghost-1", &antigravity_secret("ghost")).unwrap();
 
-    // Later B exports back to A: the tombstone blocks resurrection.
-    let export_ba = create_export_payload(&state_b).unwrap();
-    let summary = import_sync_payload(&state_a, &export_ba).await.unwrap();
-    assert_eq!(summary.added, 0, "deleted account must not be resurrected");
-    assert_eq!(summary.skipped, 1);
-    assert!(state_a.store.list().is_empty());
+    let export_ab2 = create_export_payload(&state_a).unwrap();
+    let summary = import_sync_payload(&state_b, &export_ab2).await.unwrap();
+    assert_eq!(summary.added, 1, "live re-transfer must restore a locally deleted account");
+    assert_eq!(summary.skipped, 0);
+    assert!(state_b.store.get("ghost-1").is_some());
+    assert!(state_b.store.tombstones().is_empty());
+}
 
-    // And when A exports again, its tombstone propagates to B, which then
-    // removes its copy of the deleted account.
+// Deleting an account on the sender must not remove it from the receiver.
+#[tokio::test]
+async fn test_sender_deletion_does_not_remove_receiver_account() {
+    let dir_a = tempfile::tempdir().unwrap();
+    let state_a = Arc::new(AppState::new(dir_a.path().to_path_buf(), "tok-da2".into()).unwrap());
+    state_a
+        .persist_connected_account(
+            antigravity_account("ghost-2", "Ghost", "ghost2@example.com", Some("proj-g2")),
+            &antigravity_secret("ghost2"),
+        )
+        .await
+        .unwrap();
+
+    let export_ab = create_export_payload(&state_a).unwrap();
+
+    let dir_b = tempfile::tempdir().unwrap();
+    let state_b = Arc::new(AppState::new(dir_b.path().to_path_buf(), "tok-db2".into()).unwrap());
+    let summary = import_sync_payload(&state_b, &export_ab).await.unwrap();
+    assert_eq!(summary.added, 1);
+
+    state_a.store.remove("ghost-2").unwrap();
+    crate::store::save_provider_secret("ghost-2", &antigravity_secret("ghost2")).unwrap();
+
     let export_a2 = create_export_payload(&state_a).unwrap();
     let summary = import_sync_payload(&state_b, &export_a2).await.unwrap();
-    // Account was removed locally on B (skipped on import, deleted on arrival).
     assert_eq!(summary.added, 0);
-    assert!(state_b.store.get("ghost-1").is_none());
+    assert!(
+        state_b.store.get("ghost-2").is_some(),
+        "receiver accounts must not be deleted by a transfer"
+    );
 }
 
 #[tokio::test]

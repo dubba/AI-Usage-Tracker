@@ -24,6 +24,7 @@ hkdf = "0.12"
 if-addrs = "0.13"
 keyring = { version = "3", features = ["apple-native", "windows-native"] }
 mdns-sd = "0.13"
+miniz_oxide = "0.8"
 parking_lot = "0.12"
 qrcode = { version = "0.14", default-features = false, features = ["svg"] }
 rand = "0.8"

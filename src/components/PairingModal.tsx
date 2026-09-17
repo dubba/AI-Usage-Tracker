@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { pairingApi } from "../api";
 import {
@@ -8,16 +8,33 @@ import {
   DownloadIcon,
   FlipCameraIcon,
   KeypadIcon,
+  PauseIcon,
+  PlayIcon,
+  QrIcon,
   RefreshIcon,
   ShieldIcon,
   UploadIcon,
 } from "../icons";
-import type { PairingStatus } from "../types";
+import type { AirgapExport, PairingStatus } from "../types";
 import { applyPageUiState, collectPageUiState } from "../dashboard-page-state";
 import { useModalA11y } from "./useModalA11y";
 import jsQR from "jsqr";
 
-type ViewMode = "host" | "scanner" | "code";
+type ViewMode = "select-role" | "select-mode" | "host" | "scanner" | "code" | "airgap-sender" | "airgap-confirm";
+type IntendedRole = "send" | "receive";
+
+function pairingStep(status: PairingStatus["status"], viewMode: ViewMode): 1 | 2 | 3 {
+  if (status === "sasVerification" || status === "transferring" || status === "completed") {
+    return 3;
+  }
+  if (
+    viewMode === "select-role" &&
+    (status === "idle" || status === "hostWaiting" || status === "receiverWaiting")
+  ) {
+    return 1;
+  }
+  return 2;
+}
 
 function hostWaitingFields(status: PairingStatus): {
   qrSvg: string;
@@ -439,7 +456,9 @@ export function PairingModal({
   onClose: () => void;
   onCompleted: () => void;
 }) {
-  const [viewMode, setViewMode] = useState<ViewMode>("host");
+  const [viewMode, setViewMode] = useState<ViewMode>("select-role");
+  const [intendedRole, setIntendedRole] = useState<IntendedRole | null>(null);
+  const [activeFlow, setActiveFlow] = useState<"wifi" | "airgap" | null>(null);
   const [status, setStatus] = useState<PairingStatus>({ status: "idle" });
   const [joinCodeInput, setJoinCodeInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -454,6 +473,20 @@ export function PairingModal({
   const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
+  // Air-gap visual transfer states
+  const [airgapExport, setAirgapExport] = useState<AirgapExport | null>(null);
+  const [airgapFrameIndex, setAirgapFrameIndex] = useState(0);
+  const [airgapPlaying, setAirgapPlaying] = useState(true);
+  const [airgapSpeed, setAirgapSpeed] = useState<"normal" | "slow">("normal");
+  const [airgapCapturedChunks, setAirgapCapturedChunks] = useState<Map<number, string>>(new Map());
+  const [airgapTotalChunks, setAirgapTotalChunks] = useState<number>(0);
+  const [airgapVerifyPrompt, setAirgapPinPrompt] = useState(false);
+  const [airgapVerifyCode, setAirgapVerifyCode] = useState<string | null>(null);
+  const [airgapVerifying, setAirgapVerifying] = useState(false);
+  const [airgapImporting, setAirgapImporting] = useState(false);
+  const [scannerRestartKey, setScannerRestartKey] = useState(0);
+  const [airgapCaptureSecs, setAirgapCaptureSecs] = useState<number | null>(null);
+
   const dialogRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -461,6 +494,11 @@ export function PairingModal({
   const hasCompletedRef = useRef(false);
   const selectedCameraIdRef = useRef<string | null>(null);
   const switchingCameraRef = useRef(false);
+  const airgapSessionIdRef = useRef<string | null>(null);
+  const airgapVerifyPromptRef = useRef(false);
+  const airgapCaptureStartRef = useRef<number | null>(null);
+  const airgapVerifyStartedRef = useRef(false);
+  const roleAutoSelectedRef = useRef(false);
 
   const handleClose = () => {
     if (streamRef.current) {
@@ -559,7 +597,10 @@ export function PairingModal({
     const setupListener = async () => {
       try {
         const unsubscribe = await listen<PairingStatus>("pairing-status", (event) => {
-          setStatus(event.payload);
+          setStatus((prev) => {
+            if (hasCompletedRef.current && prev.status === "completed") return prev;
+            return event.payload;
+          });
         });
         unlisten = unsubscribe;
       } catch {
@@ -580,7 +621,10 @@ export function PairingModal({
     // Poll status every 800ms
     pollInterval = setInterval(() => {
       void pairingApi.status().then((current) => {
-        setStatus(current);
+        setStatus((prev) => {
+          if (hasCompletedRef.current && prev.status === "completed") return prev;
+          return current;
+        });
       }).catch(() => {});
     }, 800);
 
@@ -632,7 +676,6 @@ export function PairingModal({
     }
     if (status.status !== "sasVerification") {
       setConfirmedSas(false);
-      setIncludeSettings(false);
     }
     if (status.status === "completed") {
       if (!hasCompletedRef.current) {
@@ -641,6 +684,35 @@ export function PairingModal({
       }
     }
   }, [status.status, onCompleted]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (status.status !== "roleSelection") {
+      roleAutoSelectedRef.current = false;
+      return;
+    }
+    if (!intendedRole || roleAutoSelectedRef.current) return;
+    roleAutoSelectedRef.current = true;
+    setBusy(true);
+    setErrorMessage(null);
+    void pairingApi.selectRole(intendedRole).catch((err) => {
+      setErrorMessage(String(err));
+      roleAutoSelectedRef.current = false;
+      setBusy(false);
+    });
+  }, [open, status.status, intendedRole]);
+
+  // Playback timer for animated QR code frames in air-gap sender mode
+  useEffect(() => {
+    if (viewMode !== "airgap-sender" || !airgapExport || !airgapPlaying) return;
+    const total = airgapExport.frames.length;
+    if (total <= 1) return;
+    const intervalMs = airgapSpeed === "slow" ? 280 : 150;
+    const timer = setInterval(() => {
+      setAirgapFrameIndex((prev) => (prev + 1) % total);
+    }, intervalMs);
+    return () => clearInterval(timer);
+  }, [viewMode, airgapExport, airgapPlaying, airgapSpeed]);
 
   // Focus management when viewMode or status changes so focus doesn't get lost
   useEffect(() => {
@@ -707,14 +779,30 @@ export function PairingModal({
       setStatus({ status: "idle" });
       setErrorMessage(null);
       setJoinCodeInput("");
-      setViewMode("host");
+      setViewMode("select-role");
+      setIntendedRole(null);
+      setActiveFlow(null);
+      roleAutoSelectedRef.current = false;
       setBusy(false);
       setConfirmedSas(false);
+      setIncludeSettings(false);
       setIsFrontCamera(false);
       setIsKeyboardOpen(false);
       setSelectedCameraId(null);
       selectedCameraIdRef.current = null;
       setAvailableCameras([]);
+      setAirgapExport(null);
+      setAirgapCapturedChunks(new Map());
+      setAirgapTotalChunks(0);
+      setAirgapPinPrompt(false);
+      airgapVerifyPromptRef.current = false;
+      setAirgapVerifyCode(null);
+      setAirgapVerifying(false);
+      setAirgapImporting(false);
+      airgapVerifyStartedRef.current = false;
+      airgapSessionIdRef.current = null;
+      airgapCaptureStartRef.current = null;
+      setAirgapCaptureSecs(null);
       hostStartIdRef.current += 1;
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
@@ -739,6 +827,7 @@ export function PairingModal({
         (pendingUri.startsWith("aiusage-pair:") || pendingUri.startsWith("aiusage:"))
       ) {
         hostStartIdRef.current += 1;
+        setActiveFlow("wifi");
         setBusy(true);
         setStatus({ status: "clientConnecting", data: { sessionId: "" } });
         try {
@@ -755,7 +844,7 @@ export function PairingModal({
         return;
       }
 
-      await initHostSession();
+      // Normal modal open: wait on Step 1 for user Wi-Fi network selection
     };
 
     void checkPendingAndStart();
@@ -990,6 +1079,50 @@ export function PairingModal({
                 await pairingApi.startClient(detectedCode);
                 return;
               }
+
+              if (
+                detectedCode &&
+                (detectedCode.startsWith("aiut-airgap:") || detectedCode.startsWith("aiut-airgap://"))
+              ) {
+                const match = detectedCode.match(
+                  /aiut-airgap:\/\/(?:1\/)?([^/]+)\/(\d+)\/(\d+)\/([0-9a-fA-F]+)\?d=(.+)/
+                );
+                if (match) {
+                  const [, sessionId, chunkStr, totalStr] = match;
+                  const chunkIndex = parseInt(chunkStr, 10);
+                  const totalChunks = parseInt(totalStr, 10);
+                  if (chunkIndex > 0 && totalChunks > 0) {
+                    setAirgapCapturedChunks((prev) => {
+                      if (airgapSessionIdRef.current !== sessionId) {
+                        airgapSessionIdRef.current = sessionId;
+                        airgapCaptureStartRef.current = Date.now();
+                        setAirgapCaptureSecs(null);
+                        const next = new Map<number, string>();
+                        next.set(chunkIndex, detectedCode);
+                        setAirgapTotalChunks(totalChunks);
+                        return next;
+                      }
+                      if (prev.has(chunkIndex)) return prev;
+                      const next = new Map(prev);
+                      next.set(chunkIndex, detectedCode);
+                      setAirgapTotalChunks(totalChunks);
+                      if (next.size === totalChunks) {
+                        const start = airgapCaptureStartRef.current;
+                        if (start !== null) {
+                          setAirgapCaptureSecs(Math.max(1, Math.round((Date.now() - start) / 1000)));
+                        }
+                        airgapVerifyPromptRef.current = true;
+                        setAirgapPinPrompt(true);
+                        if (streamRef.current) {
+                          streamRef.current.getTracks().forEach((t) => t.stop());
+                          streamRef.current = null;
+                        }
+                      }
+                      return next;
+                    });
+                  }
+                }
+              }
             }
           } catch {
             // Ignore per-frame processing errors
@@ -1014,7 +1147,41 @@ export function PairingModal({
         streamRef.current = null;
       }
     };
-  }, [viewMode, open]);
+  }, [viewMode, open, scannerRestartKey]);
+
+  // When all air-gap frames are captured, ask the backend for the
+  // verification code to display for human comparison with the sender.
+  // Do not put airgapVerifying in the deps: flipping it to true used to
+  // cancel this effect and skip a new run, leaving "Checking captured
+  // frames…" on screen forever.
+  useEffect(() => {
+    if (!open || viewMode !== "scanner" || !airgapVerifyPrompt) return;
+    if (airgapVerifyCode || airgapVerifyStartedRef.current) return;
+    if (airgapTotalChunks === 0 || airgapCapturedChunks.size < airgapTotalChunks) return;
+    airgapVerifyStartedRef.current = true;
+    setAirgapVerifying(true);
+    setErrorMessage(null);
+    const chunks = Array.from(airgapCapturedChunks.values());
+    void pairingApi
+      .verifyAirgapFrames(chunks)
+      .then((res) => {
+        setAirgapVerifyCode(res.verifyCode);
+      })
+      .catch((err) => {
+        setErrorMessage(err instanceof Error ? err.message : String(err));
+        airgapVerifyStartedRef.current = false;
+        setAirgapPinPrompt(false);
+        airgapVerifyPromptRef.current = false;
+        airgapCaptureStartRef.current = null;
+        setAirgapCaptureSecs(null);
+        setAirgapCapturedChunks(new Map());
+        airgapSessionIdRef.current = null;
+        setScannerRestartKey((k) => k + 1);
+      })
+      .finally(() => {
+        setAirgapVerifying(false);
+      });
+  }, [open, viewMode, airgapVerifyPrompt, airgapCapturedChunks, airgapTotalChunks, airgapVerifyCode]);
 
   const handleScannerTap = async () => {
     const track = streamRef.current?.getVideoTracks()[0];
@@ -1145,7 +1312,56 @@ export function PairingModal({
       await pairingApi.selectRole(role);
     } catch (err) {
       setErrorMessage(String(err));
+      roleAutoSelectedRef.current = false;
       setBusy(false);
+    }
+  };
+
+  const startAirgapSender = async (includeSettingsOpt?: boolean) => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    setBusy(true);
+    setErrorMessage(null);
+    setViewMode("airgap-sender");
+    try {
+      const shouldInclude = includeSettingsOpt ?? includeSettings;
+      const ui = shouldInclude ? collectUiStateForSync() : undefined;
+      const exp = await pairingApi.prepareAirgapExport(shouldInclude, ui);
+      setAirgapExport(exp);
+      setAirgapFrameIndex(0);
+      setAirgapPlaying(true);
+    } catch (err) {
+      setErrorMessage(String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleAirgapImport = async () => {
+    if (airgapImporting || !airgapVerifyCode) return;
+    setAirgapImporting(true);
+    setErrorMessage(null);
+    try {
+      const chunks = Array.from(airgapCapturedChunks.values());
+      const summary = await pairingApi.importAirgapFrames(chunks);
+      hasCompletedRef.current = true;
+      airgapVerifyPromptRef.current = false;
+      setAirgapPinPrompt(false);
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
+      setStatus({
+        status: "completed",
+        data: { summary },
+      });
+      onCompleted();
+    } catch (err) {
+      setErrorMessage(String(err));
+    } finally {
+      setAirgapImporting(false);
     }
   };
 
@@ -1202,7 +1418,10 @@ export function PairingModal({
   const hasOwnActionButtons =
     status.status === "completed" ||
     status.status === "sasVerification" ||
-    (isWaitingState && viewMode !== "host");
+    (isWaitingState &&
+      viewMode !== "host" &&
+      viewMode !== "select-mode" &&
+      viewMode !== "select-role");
 
   const isMobileDevice =
     typeof navigator !== "undefined" &&
@@ -1211,6 +1430,68 @@ export function PairingModal({
 
   const showSwitchCamera =
     availableCameras.length > 1 || isMobileDevice || Boolean(import.meta.env?.DEV);
+
+  const step = airgapVerifyPrompt || viewMode === "airgap-confirm" ? 3 : pairingStep(status.status, viewMode);
+  const stepDotsVisible = status.status !== "failed";
+
+  let modalTitle = "Link Devices";
+  let modalSubtitle: ReactNode = "Transfer accounts & credentials between devices.";
+  if (activeFlow === "airgap" || viewMode === "airgap-sender") {
+    modalSubtitle = "On the other device, open Link Devices, select Scan QR code, then scan this QR code below.";
+  }
+  if (status.status === "clientConnecting" || status.status === "senderConnecting") {
+    modalTitle = "Connecting";
+    modalSubtitle = "Finding the other device on your Wi-Fi.";
+  } else if (isWaitingState && viewMode === "airgap-sender") {
+    modalTitle = "Show QR code";
+  } else if (isWaitingState && viewMode === "host") {
+    modalTitle = "Show Link code";
+    modalSubtitle = "On the other device, open Link Devices, select Enter Link code, then enter the code below.";
+  } else if (isWaitingState && viewMode === "scanner") {
+    modalTitle = "Scan QR code";
+    modalSubtitle =
+      activeFlow === "airgap"
+        ? "Point the camera at the animated QR code on the other device."
+        : "Point the camera at the QR code on the other device.";
+  } else if (isWaitingState && viewMode === "code") {
+    modalTitle = "Enter Link code";
+    modalSubtitle = "Type the 6-digit link code shown on the other device.";
+  } else if (status.status === "roleSelection") {
+    modalTitle = intendedRole ? "Connecting" : "Send or receive accounts";
+    modalSubtitle = intendedRole
+      ? "Applying send or receive on this device."
+      : "Choose what this device should do.";
+  } else if (status.status === "peerConnected") {
+    modalTitle = "Connected";
+    modalSubtitle = "Waiting for the other device to finish connecting.";
+  } else if (status.status === "sasVerification") {
+    modalTitle = "Confirm the connection";
+    modalSubtitle = "Step 3: Make sure both screens show the same code to begin the transfer.";
+  } else if (status.status === "transferring") {
+    modalTitle = "Transferring";
+    modalSubtitle = "Encrypted accounts and groups are moving between devices.";
+  } else if (status.status === "completed") {
+    modalTitle = "Devices linked";
+    modalSubtitle = "Accounts and credentials are synchronized.";
+  } else if (isWaitingState && viewMode === "select-mode") {
+    modalTitle = "How to connect devices";
+    modalSubtitle = "Step 2: Show a pairing code here, or scan or enter the code from your other device.";
+  } else if (isWaitingState && viewMode === "select-role") {
+    modalTitle = "Send or receive accounts";
+    modalSubtitle = "Step 1: Choose a role for this device.";
+  }
+
+  // Air-gap receiver finished scanning, or sender opened the confirm
+  // view: mirror the Wi-Fi confirm header (title, step 3, subtitle) while
+  // codes are compared.
+  if (
+    isWaitingState &&
+    ((viewMode === "scanner" && airgapVerifyPrompt) ||
+      viewMode === "airgap-confirm")
+  ) {
+    modalTitle = "Confirm the connection";
+    modalSubtitle = "Step 3: Make sure both screens show the same code to begin the transfer.";
+  }
 
   return (
     <div
@@ -1240,12 +1521,179 @@ export function PairingModal({
           ×
         </button>
         <div className="modal-kicker">Local Device Sync</div>
-        <h2 id="pairing-modal-title">Link Devices</h2>
-        <p className="pairing-subtitle">
-          Transfer accounts & credentials securely over Wi-Fi.
-        </p>
+        <h2 id="pairing-modal-title">{modalTitle}</h2>
+        {stepDotsVisible ? (
+          <ol className="pairing-step-dots" aria-label={`Step ${step} of 3`}>
+            <li className={step === 1 ? "is-active" : step > 1 ? "is-complete" : ""}>Send/receive</li>
+            <li className={step === 2 ? "is-active" : step > 2 ? "is-complete" : ""}>Connect</li>
+            <li className={step === 3 ? "is-active" : ""}>Confirm</li>
+          </ol>
+        ) : null}
+        <p className="pairing-subtitle">{modalSubtitle}</p>
 
         <div className="pairing-body">
+          {/* STEP 1: SEND OR RECEIVE */}
+          {isWaitingState && viewMode === "select-role" && (
+            <div className="pairing-role-selection-view">
+              <div className="pairing-role-cards">
+                <button
+                  type="button"
+                  className="pairing-role-card"
+                  onClick={() => {
+                    setIntendedRole("send");
+                    setViewMode("select-mode");
+                  }}
+                >
+                  <div className="pairing-role-card-icon send">
+                    <UploadIcon />
+                  </div>
+                  <div className="pairing-role-card-content">
+                    <h4>Send accounts from this device</h4>
+                    <p>Export accounts, tokens, and groups to another device.</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  className="pairing-role-card"
+                  onClick={() => {
+                    setIntendedRole("receive");
+                    setViewMode("select-mode");
+                  }}
+                >
+                  <div className="pairing-role-card-icon receive">
+                    <DownloadIcon />
+                  </div>
+                  <div className="pairing-role-card-content">
+                    <h4 className="pairing-role-title-receive">Receive accounts on this device</h4>
+                    <p>Import accounts, tokens, and groups from another device.</p>
+                  </div>
+                </button>
+              </div>
+
+              <label className="pairing-settings-toggle">
+                <input
+                  type="checkbox"
+                  checked={includeSettings}
+                  onChange={(e) => setIncludeSettings(e.target.checked)}
+                />
+                <span>
+                  Transfer the settings &amp; layout config:
+                  <small>
+                    Including launch-at-login, auto app updates, accounts refresh intervals, alerts & card order.
+                  </small>
+                </span>
+              </label>
+
+              <div className="pairing-security-note">
+                <ShieldIcon />
+                <span>End-to-end encrypted · Direct device-to-device transfer</span>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 2: SHOW A CODE OR SCAN / ENTER */}
+          {isWaitingState && viewMode === "select-mode" && (
+            <div className="pairing-mode-select-view">
+              <div className="pairing-mode-cards">
+                <button
+                  type="button"
+                  className="pairing-mode-card"
+                  onClick={() => {
+                    setActiveFlow("wifi");
+                    setViewMode("host");
+                    void initHostSession();
+                  }}
+                >
+                  <div className="pairing-mode-card-icon wifi">
+                    <KeypadIcon />
+                  </div>
+                  <div className="pairing-mode-card-body">
+                    <div className="pairing-mode-card-header">
+                      <span className="pairing-mode-card-title">Show Link code</span>
+                      <span className="pairing-mode-badge wifi">On same Wi-Fi</span>
+                    </div>
+                    <p className="pairing-mode-card-desc">
+                      Display code to enter on other device. Use if devices are on the same Wi-Fi.
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  className="pairing-mode-card"
+                  onClick={() => {
+                    setActiveFlow("wifi");
+                    setJoinCodeInput("");
+                    setViewMode("code");
+                  }}
+                >
+                  <div className="pairing-mode-card-icon enter">
+                    <KeypadIcon />
+                  </div>
+                  <div className="pairing-mode-card-body">
+                    <div className="pairing-mode-card-header">
+                      <span className="pairing-mode-card-title">Enter Link code</span>
+                      <span className="pairing-mode-badge enter">On same Wi-Fi</span>
+                    </div>
+                    <p className="pairing-mode-card-desc">
+                      Type Link code shown on other device.
+                    </p>
+                  </div>
+                </button>
+
+                {intendedRole !== "receive" ? (
+                <button
+                  type="button"
+                  className="pairing-mode-card"
+                  onClick={() => {
+                    setActiveFlow("airgap");
+                    void startAirgapSender();
+                  }}
+                >
+                  <div className="pairing-mode-card-icon qr">
+                    <QrIcon />
+                  </div>
+                  <div className="pairing-mode-card-body">
+                    <div className="pairing-mode-card-header">
+                      <span className="pairing-mode-card-title">Show QR code</span>
+                      <span className="pairing-mode-badge qr">No Wi-Fi needed</span>
+                    </div>
+                    <p className="pairing-mode-card-desc">
+                      Displays animated QR code to scan. Use if devices are on different networks.
+                    </p>
+                  </div>
+                </button>
+                ) : null}
+
+                <button
+                  type="button"
+                  className="pairing-mode-card"
+                  onClick={() => {
+                    setActiveFlow("wifi");
+                    setCameraError(null);
+                    void pairingApi.ensureCameraPermission()
+                      .catch(() => {})
+                      .finally(() => setViewMode("scanner"));
+                  }}
+                >
+                  <div className="pairing-mode-card-icon scan">
+                    <CameraIcon />
+                  </div>
+                  <div className="pairing-mode-card-body">
+                    <div className="pairing-mode-card-header">
+                      <span className="pairing-mode-card-title">Scan QR code</span>
+                      <span className="pairing-mode-badge scan">Uses camera</span>
+                    </div>
+                    <p className="pairing-mode-card-desc">
+                      Scan QR code shown on other device.
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* VIEW 1: HOST QR CODE DISPLAY */}
           {isWaitingState && viewMode === "host" && (() => {
             const host = hostWaitingFields(status);
@@ -1255,16 +1703,12 @@ export function PairingModal({
                 <div className="pairing-panel-status">
                   <span className="spinner" />
                   <h3>Starting pairing session…</h3>
-                  <p>Preparing a link code and QR code for the other device.</p>
+                  <p>Preparing a link code for the other device.</p>
                 </div>
               );
             }
             return (
               <div className="pairing-host-content">
-                <p className="pairing-instruction">
-                  To link your devices, use your other device to enter the Link Code below or scan the QR code.
-                </p>
-
                 {joinCode ? (
                   <div
                     className="pairing-join-code-card"
@@ -1275,58 +1719,17 @@ export function PairingModal({
                   </div>
                 ) : null}
 
-                {host?.qrSvg ? (
-                  <div
-                    className="pairing-qr-card"
-                    dangerouslySetInnerHTML={{
-                      __html: host.qrSvg.replace(/^<\?xml[^>]*\?>/i, "").trim(),
-                    }}
-                    aria-label="Pairing QR Code"
-                  />
-                ) : null}
-
-                <div className="pairing-meta-row">
-                  {host?.fingerprint ? (
-                    <span className="pairing-meta-tag session" aria-label={`Session: ${host.fingerprint}`}>
-                      Session: <strong>{host.fingerprint}</strong>
-                    </span>
-                  ) : null}
-                  {remainingSecs !== null && (
+                {remainingSecs !== null && (
+                  <div className="pairing-meta-row">
                     <span className="pairing-meta-tag timer">
                       Expires in <strong>{formatCountdown(remainingSecs)}</strong>
                     </span>
-                  )}
-                </div>
-
-                <div className="pairing-switch-actions">
-                  <button
-                    type="button"
-                    className="button secondary pairing-switch-btn"
-                    onClick={() => {
-                      setCameraError(null);
-                      void pairingApi.ensureCameraPermission()
-                        .catch(() => {
-                          // Still open the scanner; getUserMedia opens USB webcams in tauri dev.
-                        })
-                        .finally(() => setViewMode("scanner"));
-                    }}
-                  >
-                    <CameraIcon />
-                    <span>Scan QR</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="button secondary pairing-switch-btn"
-                    onClick={() => setViewMode("code")}
-                  >
-                    <KeypadIcon />
-                    <span>Enter Code</span>
-                  </button>
-                </div>
+                  </div>
+                )}
 
                 <div className="pairing-waiting-indicator">
                   <span className="spinner" />
-                  <span>Waiting for connection from other device…</span>
+                  <span>Waiting for the other device to connect…</span>
                 </div>
               </div>
             );
@@ -1335,82 +1738,169 @@ export function PairingModal({
           {/* VIEW 2: IN-APP CAMERA SCANNER */}
           {isWaitingState && viewMode === "scanner" && (
             <div className="pairing-scanner-view">
-              <p className="pairing-instruction">
-                Scan the QR code on your other device, or click Enter Code to enter its Link Code:
-              </p>
+              {airgapVerifyPrompt ? (
+                <div className="airgap-pin-prompt-card">
+                  <div className="pairing-sas-icon"><ShieldIcon /></div>
+                  <h3>Do both devices show this code?</h3>
+                  <p className="pairing-instruction">
+                    Captured all {airgapTotalChunks} frames{airgapCaptureSecs !== null ? ` in ${airgapCaptureSecs} seconds` : ""}! Compare this code with the sending device. If they match, the transfer is intact.
+                  </p>
 
-              <div className="pairing-scanner-stage">
-                <div
-                  className="pairing-scanner-box"
-                  onClick={handleScannerTap}
-                  aria-label="Tap to focus camera"
-                >
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    tabIndex={-1}
-                    onPlaying={() => setVideoReady(true)}
-                    onLoadedData={() => setVideoReady(true)}
-                    className={`pairing-scanner-video ${isFrontCamera ? "mirrored" : ""} ${videoReady ? "ready" : ""}`}
-                    style={{ pointerEvents: "none" }}
-                  />
-                  <div className="pairing-scanner-overlay">
-                    <div className="pairing-scanner-frame">
-                      <span className="corner top-left" />
-                      <span className="corner top-right" />
-                      <span className="corner bottom-left" />
-                      <span className="corner bottom-right" />
-                      <div className="pairing-scan-beam" />
+                  {airgapVerifying || !airgapVerifyCode ? (
+                    <div className="pairing-panel-status">
+                      <span className="spinner" />
+                      <p>Assembling scanned frames…</p>
                     </div>
+                  ) : (
+                    <div
+                      className="pairing-sas-badge"
+                      aria-label={`Verification code ${airgapVerifyCode}`}
+                    >
+                      {airgapVerifyCode}
+                    </div>
+                  )}
+
+                  <div className="airgap-prompt-actions">
+                    <button
+                      type="button"
+                      className="button pairing-back-btn"
+                      disabled={airgapImporting || airgapVerifying}
+                      onClick={() => {
+                        setAirgapPinPrompt(false);
+                        airgapVerifyPromptRef.current = false;
+                        airgapVerifyStartedRef.current = false;
+                        airgapCaptureStartRef.current = null;
+                        setAirgapCaptureSecs(null);
+                        setAirgapCapturedChunks(new Map());
+                        setAirgapVerifyCode(null);
+                        setViewMode("scanner");
+                        setScannerRestartKey((k) => k + 1);
+                      }}
+                    >
+                      <ChevronIcon style={{ transform: "rotate(180deg)" }} />
+                      <span>Back</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="button primary"
+                      disabled={!airgapVerifyCode || airgapImporting || airgapVerifying}
+                      onClick={() => void handleAirgapImport()}
+                    >
+                      {airgapImporting ? (
+                        <>
+                          <span className="spinner button-spinner" />
+                          <span>Decrypting &amp; Importing…</span>
+                        </>
+                      ) : (
+                        "Yes, codes match"
+                      )}
+                    </button>
                   </div>
                 </div>
+              ) : (
+                <>
+                  <div className="pairing-scanner-stage">
+                    <span className="pairing-scanner-gutter" aria-hidden="true" />
+                    <div
+                      className="pairing-scanner-box"
+                      onClick={handleScannerTap}
+                      aria-label="Tap to focus camera"
+                    >
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        tabIndex={-1}
+                        onPlaying={() => setVideoReady(true)}
+                        onLoadedData={() => setVideoReady(true)}
+                        className={`pairing-scanner-video ${isFrontCamera ? "mirrored" : ""} ${videoReady ? "ready" : ""}`}
+                        style={{ pointerEvents: "none" }}
+                      />
+                      <div className="pairing-scanner-overlay">
+                        <div className="pairing-scanner-frame">
+                          <span className="corner top-left" />
+                          <span className="corner top-right" />
+                          <span className="corner bottom-left" />
+                          <span className="corner bottom-right" />
+                          <div className="pairing-scan-beam" />
+                        </div>
+                      </div>
+                    </div>
 
-                {showSwitchCamera && (
-                  <button
-                    type="button"
-                    className="pairing-switch-camera-fab"
-                    onClick={() => void handleSwitchCamera()}
-                    data-tooltip="Switch camera"
-                    aria-label="Switch camera"
-                  >
-                    <FlipCameraIcon />
-                  </button>
-                )}
-              </div>
+                    <div className="pairing-scanner-side">
+                      {showSwitchCamera && (
+                        <button
+                          type="button"
+                          className="pairing-switch-camera-fab"
+                          onClick={() => void handleSwitchCamera()}
+                          data-tooltip="Switch camera"
+                          aria-label="Switch camera"
+                        >
+                          <FlipCameraIcon />
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
-              {cameraError && (
-                <div className="error-panel modal-error">{cameraError}</div>
+                  {airgapCapturedChunks.size > 0 && (
+                    <div className="airgap-capture-status">
+                      <div className="airgap-capture-header">
+                        <span className="spinner button-spinner" />
+                        <span>Transferring…</span>
+                        <strong>
+                          {airgapCapturedChunks.size} / {airgapTotalChunks} frames (
+                          {Math.round((airgapCapturedChunks.size / Math.max(1, airgapTotalChunks)) * 100)}%)
+                        </strong>
+                      </div>
+                      <div className="airgap-progress-bar">
+                        <div
+                          className="airgap-progress-fill"
+                          style={{
+                            width: `${(airgapCapturedChunks.size / Math.max(1, airgapTotalChunks)) * 100}%`,
+                          }}
+                        />
+                      </div>
+                      <p className="airgap-capture-hint">Hold steady while camera reads all animated frames.</p>
+                    </div>
+                  )}
+
+                  <div className="pairing-scanner-controls pairing-scan-actions">
+                    <button
+                      type="button"
+                      className="button pairing-back-btn"
+                      onClick={() => {
+                        if (activeFlow === "airgap") {
+                          setViewMode("airgap-sender");
+                          return;
+                        }
+                        void pairingApi.cancel().catch(() => {});
+                        setStatus({ status: "idle" });
+                        setAirgapCapturedChunks(new Map());
+                        setAirgapTotalChunks(0);
+                        setAirgapVerifyCode(null);
+                        airgapVerifyStartedRef.current = false;
+                        airgapSessionIdRef.current = null;
+                        airgapCaptureStartRef.current = null;
+                        setAirgapCaptureSecs(null);
+                        setViewMode("select-mode");
+                      }}
+                    >
+                      <ChevronIcon style={{ transform: "rotate(180deg)" }} />
+                      <span>Back</span>
+                    </button>
+                  </div>
+
+                  {cameraError && (
+                    <div className="error-panel modal-error">{cameraError}</div>
+                  )}
+                </>
               )}
-
-              <div className="pairing-scanner-controls">
-                <button
-                  type="button"
-                  className="button pairing-back-btn"
-                  onClick={() => setViewMode("host")}
-                >
-                  <ChevronIcon style={{ transform: "rotate(180deg)" }} />
-                  <span>Back</span>
-                </button>
-                <button
-                  type="button"
-                  className="button secondary"
-                  onClick={() => setViewMode("code")}
-                >
-                  <KeypadIcon />
-                  <span>Enter Code</span>
-                </button>
-              </div>
             </div>
           )}
 
           {isWaitingState && viewMode === "code" && (
             <div className="pairing-code-entry-view">
-              <p className="pairing-instruction">
-                Enter the 6-digit link code shown on the other device:
-              </p>
-
               <input
                 id="pairing-join-code-input"
                 className="pairing-code-input"
@@ -1460,11 +1950,11 @@ export function PairingModal({
                 <span>End-to-end encrypted · Direct peer-to-peer transfer</span>
               </div>
 
-              <div className="pairing-scanner-controls">
+              <div className="pairing-scanner-controls pairing-code-actions">
                 <button
                   type="button"
                   className="button pairing-back-btn"
-                  onClick={() => setViewMode("host")}
+                  onClick={() => setViewMode("select-mode")}
                 >
                   <ChevronIcon style={{ transform: "rotate(180deg)" }} />
                   <span>Back</span>
@@ -1481,12 +1971,138 @@ export function PairingModal({
             </div>
           )}
 
+          {/* VIEW 4: AIR-GAP ANIMATED QR SENDER */}
+          {isWaitingState && viewMode === "airgap-sender" && (
+            <div className="airgap-sender-view">
+              {busy || !airgapExport ? (
+                <div className="pairing-panel-status">
+                  <span className="spinner" />
+                  <h3>Preparing animated transfer…</h3>
+                  <p>Compressing and encrypting accounts with air-gap PIN.</p>
+                </div>
+              ) : (
+                <div className="airgap-sender-content">
+                  <div className="airgap-qr-stage">
+                    <div
+                      className="pairing-qr-card airgap-qr-card"
+                      dangerouslySetInnerHTML={{
+                        __html: (airgapExport.frames[airgapFrameIndex]?.svg || "")
+                          .replace(/^<\?xml[^>]*\?>/i, "")
+                          .trim(),
+                      }}
+                      aria-label={`Air-gap Frame ${airgapFrameIndex + 1} of ${airgapExport.totalChunks}`}
+                    />
+
+                    <div className="airgap-playback-bar">
+                      <span className="airgap-frame-pill">
+                        Frame {String(airgapFrameIndex + 1).padStart(String(airgapExport.totalChunks).length, "0")}/{airgapExport.totalChunks}
+                      </span>
+                      <button
+                        type="button"
+                        className="button ghost compact-button airgap-control-btn"
+                        onClick={() => setAirgapPlaying((p) => !p)}
+                        aria-label={airgapPlaying ? "Pause animation" : "Play animation"}
+                      >
+                        {airgapPlaying ? <PauseIcon /> : <PlayIcon />}
+                        <span>{airgapPlaying ? "Pause" : "Play"}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="button ghost compact-button airgap-control-btn"
+                        onClick={() => setAirgapSpeed((s) => (s === "normal" ? "slow" : "normal"))}
+                        aria-label="Toggle playback speed"
+                      >
+                        Speed: {airgapSpeed === "normal" ? "Normal" : "Slow"}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="airgap-verify-block">
+                    <p className="airgap-pin-hint">
+                      <button
+                        type="button"
+                        className="pairing-offline-link"
+                        onClick={() => setViewMode("airgap-confirm")}
+                      >
+                        After all frames are scanned, click here to continue.
+                      </button>
+                    </p>
+                    <div className="pairing-nav-row">
+                      <button
+                        type="button"
+                        className="button pairing-back-btn"
+                      onClick={() => {
+                        setAirgapExport(null);
+                        setActiveFlow(null);
+                        setAirgapCapturedChunks(new Map());
+                        setAirgapTotalChunks(0);
+                        setAirgapVerifyCode(null);
+                        airgapVerifyStartedRef.current = false;
+                        airgapSessionIdRef.current = null;
+                        airgapCaptureStartRef.current = null;
+                        setAirgapCaptureSecs(null);
+                        setViewMode("select-mode");
+                      }}
+                      >
+                        <ChevronIcon style={{ transform: "rotate(180deg)" }} />
+                        <span>Back</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="button ghost"
+                        onClick={handleClose}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* AIR-GAP SENDER CONFIRM: verification code reveal */}
+          {isWaitingState && viewMode === "airgap-confirm" && airgapExport && (
+            <div className="airgap-pin-prompt-card">
+              <div className="pairing-sas-icon"><ShieldIcon /></div>
+              <h3>Do both devices show this code?</h3>
+              <p className="pairing-instruction">
+                Compare this code with the receiving device. Import only if both screens match.
+              </p>
+
+              <div
+                className="pairing-sas-badge"
+                aria-label={`Verification code ${airgapExport.verifyCode}`}
+              >
+                {airgapExport.verifyCode}
+              </div>
+
+              <div className="airgap-prompt-actions">
+                <button
+                  type="button"
+                  className="button pairing-back-btn"
+                  onClick={() => setViewMode("airgap-sender")}
+                >
+                  <ChevronIcon style={{ transform: "rotate(180deg)" }} />
+                  <span>Back</span>
+                </button>
+                <button
+                  type="button"
+                  className="button ghost"
+                  onClick={handleClose}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* CLIENT CONNECTING */}
           {(status.status === "clientConnecting" || status.status === "senderConnecting") && (
             <div className="pairing-panel-status">
               <span className="spinner" />
-              <h3>Connecting to Device…</h3>
-              <p>Establishing direct encrypted peer-to-peer channel over local network.</p>
+              <h3>Connecting…</h3>
+              <p>Finding the other device on your Wi-Fi and opening an encrypted link.</p>
             </div>
           )}
 
@@ -1494,31 +2110,19 @@ export function PairingModal({
           {status.status === "peerConnected" && (
             <div className="pairing-panel-status">
               <span className="spinner" />
-              <h3>Device Connected!</h3>
-              <p>Waiting for the other device to choose the transfer direction…</p>
-              {status.data.fingerprint && (
-                <div className="pairing-fingerprint-badge">
-                  Session: <strong>{status.data.fingerprint}</strong>
-                </div>
-              )}
+              <h3>Connected</h3>
+              <p>Waiting for the other device to finish connecting…</p>
             </div>
           )}
 
-          {/* ROLE SELECTION (CLIENT CHOOSES ROLE) */}
-          {status.status === "roleSelection" && (
+          {/* ROLE SELECTION: auto-applied when chosen in step 1; fallback if this device joined via a pairing link */}
+          {status.status === "roleSelection" && !intendedRole && (
             <div className="pairing-role-selection-view">
               <div className="pairing-section-heading">
-                <h3>Choose Transfer Direction</h3>
                 <p className="pairing-role-instruction">
-                  Select what you want to do on this device:
+                  Devices are connected. Choose what this device should do:
                 </p>
               </div>
-
-              {status.data.fingerprint && (
-                <div className="pairing-fingerprint-badge">
-                  Session: <strong>{status.data.fingerprint}</strong>
-                </div>
-              )}
 
               <div className="pairing-role-cards">
                 <button
@@ -1532,10 +2136,7 @@ export function PairingModal({
                   </div>
                   <div className="pairing-role-card-content">
                     <h4>Send accounts from this device</h4>
-                    <p>Export accounts, tokens, and groups to the other device.</p>
-                  </div>
-                  <div className="pairing-role-card-arrow">
-                    <ChevronIcon />
+                    <p>Export accounts, tokens, and groups to another device.</p>
                   </div>
                 </button>
 
@@ -1549,14 +2150,19 @@ export function PairingModal({
                     <DownloadIcon />
                   </div>
                   <div className="pairing-role-card-content">
-                    <h4>Receive accounts on this device</h4>
-                    <p>Import accounts and groups from the other device.</p>
-                  </div>
-                  <div className="pairing-role-card-arrow">
-                    <ChevronIcon />
+                    <h4 className="pairing-role-title-receive">Receive accounts on this device</h4>
+                    <p>Import accounts, tokens, and groups from another device.</p>
                   </div>
                 </button>
               </div>
+            </div>
+          )}
+
+          {status.status === "roleSelection" && intendedRole && (
+            <div className="pairing-panel-status">
+              <span className="spinner" />
+              <h3>{intendedRole === "send" ? "Sending from this device…" : "Receiving on this device…"}</h3>
+              <p>Finishing the connection so both devices can confirm the code.</p>
             </div>
           )}
 
@@ -1565,7 +2171,6 @@ export function PairingModal({
             const rawSas = status.data as unknown as Record<string, unknown>;
             const sasCode = status.data.sasCode || (rawSas.sas_code as string) || "";
             const sessionId = status.data.sessionId || (rawSas.session_id as string) || "";
-            const fingerprint = status.data.fingerprint || (rawSas.fingerprint as string) || "";
             const role = status.data.role || (rawSas.role as string) || "";
             const accountCount = status.data.accountCount ?? (rawSas.account_count as number | undefined);
             const isSender = role === "sender";
@@ -1573,16 +2178,7 @@ export function PairingModal({
             return (
               <div className="pairing-sas-card">
                 <div className="pairing-sas-icon"><ShieldIcon /></div>
-                <h3>Confirm Verification Code</h3>
-                <p className="pairing-sas-instruction">
-                  Both devices must display the exact same code:
-                </p>
-
-                {fingerprint && (
-                  <div className="pairing-fingerprint-badge">
-                    Session: <strong>{fingerprint}</strong>
-                  </div>
-                )}
+                <h3>Do both devices show this code?</h3>
 
                 <div className="pairing-sas-badge" aria-label={`Verification code ${sasCode}`}>
                   {sasCode}
@@ -1595,23 +2191,6 @@ export function PairingModal({
                     <>Ready to <strong>receive {accountCount ?? ""} account(s)</strong> and groups</>
                   )}
                 </div>
-
-                {isSender && !confirmedSas && (
-                  <label className="pairing-settings-toggle">
-                    <input
-                      type="checkbox"
-                      checked={includeSettings}
-                      disabled={busy}
-                      onChange={(e) => setIncludeSettings(e.target.checked)}
-                    />
-                    <span>
-                      Also transfer the settings &amp; layout configuration:
-                      <small>
-                        Including settings for launch-at-login, app updates, account refresh intervals, notifications, and card order.
-                      </small>
-                    </span>
-                  </label>
-                )}
 
                 <div className="pairing-sas-actions">
                   <button
@@ -1626,7 +2205,7 @@ export function PairingModal({
                         <span>Waiting for other device…</span>
                       </>
                     ) : (
-                      "Confirm Transfer"
+                      "Yes, codes match"
                     )}
                   </button>
                   <button
@@ -1692,17 +2271,28 @@ export function PairingModal({
             <div className="pairing-error-card">
               <h3>Pairing Failed</h3>
               <div className="error-panel modal-error">{status.data.error}</div>
-              <button
-                type="button"
-                className="button primary"
-                onClick={() => {
-                  setErrorMessage(null);
-                  void initHostSession();
-                }}
-              >
-                <RefreshIcon />
-                <span>Try Again</span>
-              </button>
+              <div className="pairing-error-actions">
+                <button
+                  type="button"
+                  className="button primary"
+                  onClick={() => {
+                    setErrorMessage(null);
+                    if (activeFlow === "airgap") {
+                      void startAirgapSender();
+                    } else if (viewMode === "host") {
+                      void initHostSession();
+                    } else {
+                      void pairingApi.cancel().catch(() => {});
+                      setStatus({ status: "idle" });
+                      setActiveFlow(null);
+                      setViewMode("select-mode");
+                    }
+                  }}
+                >
+                  <RefreshIcon />
+                  <span>Try Again</span>
+                </button>
+              </div>
             </div>
           )}
 
@@ -1713,7 +2303,55 @@ export function PairingModal({
 
         {/* Modal footer actions: only shown when the active view doesn't have inline action buttons */}
         {!hasOwnActionButtons && (
-          <div className="modal-actions">
+          <div
+            className={`modal-actions${
+              (isWaitingState && (viewMode === "host" || viewMode === "select-mode")) ||
+              status.status === "failed"
+                ? " pairing-host-actions"
+                : ""
+            }`}
+          >
+            {isWaitingState && viewMode === "select-mode" ? (
+              <button
+                type="button"
+                className="button pairing-back-btn"
+                onClick={() => setViewMode("select-role")}
+              >
+                <ChevronIcon style={{ transform: "rotate(180deg)" }} />
+                <span>Back</span>
+              </button>
+            ) : null}
+            {isWaitingState && viewMode === "host" ? (
+              <button
+                type="button"
+                className="button pairing-back-btn"
+                onClick={() => {
+                  void pairingApi.cancel().catch(() => {});
+                  setStatus({ status: "idle" });
+                  setActiveFlow(null);
+                  setViewMode("select-mode");
+                }}
+              >
+                <ChevronIcon style={{ transform: "rotate(180deg)" }} />
+                <span>Back</span>
+              </button>
+            ) : null}
+            {status.status === "failed" ? (
+              <button
+                type="button"
+                className="button pairing-back-btn"
+                onClick={() => {
+                  void pairingApi.cancel().catch(() => {});
+                  setErrorMessage(null);
+                  setStatus({ status: "idle" });
+                  setActiveFlow(null);
+                  setViewMode("select-mode");
+                }}
+              >
+                <ChevronIcon style={{ transform: "rotate(180deg)" }} />
+                <span>Back</span>
+              </button>
+            ) : null}
             <button
               type="button"
               className="button ghost"

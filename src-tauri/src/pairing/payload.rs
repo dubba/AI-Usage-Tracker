@@ -5,7 +5,7 @@ use crate::{
 };
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashSet, sync::Arc};
+use std::sync::Arc;
 
 pub const PAYLOAD_FORMAT: &str = "ai-usage-tracker-pairing-v1";
 pub const MAX_ACCOUNTS: usize = 64;
@@ -117,17 +117,6 @@ pub fn create_export_payload(state: &AppState) -> Result<Vec<u8>, String> {
 
     let buckets = state.buckets.list();
 
-    // Prune tombstones that are still live on this device before exporting
-    // to avoid poisoning the receiver (wipe-fix for upgrade path).
-    let live_ids: std::collections::HashSet<String> =
-        state.store.list().iter().map(|a| a.id.clone()).collect();
-    let tombstones = state
-        .store
-        .tombstones()
-        .into_iter()
-        .filter(|id| !live_ids.contains(id))
-        .collect::<Vec<String>>();
-
     let include_settings = *state.pairing_include_settings.read();
 
     let (settings, account_order, alerts, ui_state) = if include_settings {
@@ -196,7 +185,7 @@ pub fn create_export_payload(state: &AppState) -> Result<Vec<u8>, String> {
         exported_at: Utc::now().to_rfc3339(),
         accounts: entries,
         buckets,
-        deleted_account_ids: tombstones,
+        deleted_account_ids: Vec::new(),
         settings,
         account_order,
         alerts,
@@ -234,44 +223,12 @@ pub async fn import_sync_payload(
     let mut summary = SyncSummary::default();
     let mut id_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
 
-    // Apply deletions from the peer: remove accounts the sender deleted so
-    // they don't linger as ghosts, then remember the ids locally so a later
-    // re-transfer of this payload (or any peer still holding the account)
-    // cannot resurrect them. Filter out live ids to avoid poisoning
-    // the receiver when sender's tombstones incorrectly contain live ids
-    // (wipe-fix for upgrade path).
-    let incoming: HashSet<String> = payload
-        .accounts
-        .iter()
-        .map(|e| e.account.id.clone())
-        .collect();
-    let filtered_deleted: Vec<String> = payload
-        .deleted_account_ids
-        .into_iter()
-        .filter(|id| !incoming.contains(id))
-        .collect();
-    let pre_tombstones = state.store.tombstones();
-    state.store.merge_tombstones(&filtered_deleted);
-    for deleted_id in &filtered_deleted {
-        if state.store.get(deleted_id).is_some() {
-            // store::remove deletes the credential, drops the metadata, and
-            // records the tombstone locally.
-            let _ = state.store.remove(deleted_id);
-            let _ = state.buckets.cleanup_account(deleted_id);
-        }
-    }
+    // Transfers only add or update accounts on the receiver. Deletions on
+    // the sender are not applied here, so existing accounts on this device
+    // stay until the user removes them.
 
     for entry in payload.accounts {
         let sender_id = entry.account.id.clone();
-
-        // Never re-add an account that was explicitly deleted on this device
-        // (pre-transfer snapshot only - do not use post-merge poisoned set).
-        if pre_tombstones.iter().any(|t| t == &sender_id)
-            || filtered_deleted.iter().any(|t| t == &sender_id)
-        {
-            summary.skipped += 1;
-            continue;
-        }
 
         // Enforce per-secret serialized size limit
         let secret_bytes = serde_json::to_vec(&entry.secret)

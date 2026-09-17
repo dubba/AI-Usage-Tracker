@@ -1,3 +1,4 @@
+pub mod airgap;
 pub mod crypto;
 pub mod discovery;
 pub mod payload;

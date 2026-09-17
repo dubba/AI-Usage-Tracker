@@ -189,3 +189,21 @@ export type PairingStatus =
       };
     };
 
+export interface AirgapExportFrame {
+  chunkIndex: number;
+  totalChunks: number;
+  uri: string;
+  svg: string;
+}
+
+export interface AirgapExport {
+  sessionId: string;
+  verifyCode: string;
+  totalChunks: number;
+  frames: AirgapExportFrame[];
+}
+
+export interface AirgapVerifyResult {
+  verifyCode: string;
+  totalChunks: number;
+}

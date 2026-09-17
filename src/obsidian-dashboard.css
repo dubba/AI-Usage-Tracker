@@ -771,6 +771,63 @@ select {
   background: linear-gradient(110deg, #241e19, #2c231a);
 }
 
+.mockup-summary-card.is-clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.mockup-summary-card.attention-card.is-clickable:hover {
+  border-color: var(--obsidian-amber, #ffb869);
+}
+
+.mockup-summary-card.total-card.is-clickable:hover {
+  border-color: var(--obsidian-purple-strong, #a078ff);
+}
+
+.mockup-summary-card.attention-card.is-filtering {
+  border-color: var(--obsidian-amber, #ffb869);
+  background: linear-gradient(110deg, #2a1c12, #392617);
+  box-shadow: 0 0 16px rgba(255, 184, 105, 0.25);
+}
+
+.filter-active-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  margin: 0 0 12px;
+  background: rgba(255, 184, 105, 0.08);
+  border: 1px solid rgba(255, 184, 105, 0.3);
+  border-radius: 8px;
+  color: var(--obsidian-amber, #ffb869);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.filter-active-banner .compact-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border-color: rgba(255, 184, 105, 0.4);
+  color: var(--obsidian-amber, #ffb869);
+}
+
+.filter-active-banner .compact-button:hover {
+  background: rgba(255, 184, 105, 0.2);
+  border-color: var(--obsidian-amber, #ffb869);
+  color: #fff;
+}
+
+.filter-active-banner .compact-button svg {
+  width: 12px;
+  height: 12px;
+}
+
 .mockup-summary-card.next-reset-card {
   background: linear-gradient(110deg, #211f1f, #29241f);
 }
@@ -1965,7 +2022,7 @@ select.account-update-select option,
   -webkit-overflow-scrolling: touch;
   box-sizing: border-box !important;
   padding: 20px !important;
-  scrollbar-gutter: stable;
+  scrollbar-gutter: stable both-edges;
   scrollbar-width: thin;
   scrollbar-color: var(--obsidian-purple-strong, #a078ff) transparent;
 }

@@ -242,7 +242,6 @@ pub fn parsed_from_resolved(
         port,
         session_id,
         peer_public_key,
-        receiver_public_key: peer_public_key,
         session_nonce,
         fingerprint,
         version,

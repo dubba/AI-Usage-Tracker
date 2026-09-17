@@ -42,6 +42,7 @@ dependencies = [
  "jni 0.21.1",
  "keyring",
  "mdns-sd",
+ "miniz_oxide 0.8.9",
  "ndk-context",
  "objc2",
  "parking_lot",

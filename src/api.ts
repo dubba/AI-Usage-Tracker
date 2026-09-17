@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Account, AccountBucket, AppSettings, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, PairingHostInit, PairingReceiverInit, PairingStatus, Provider, UsageAlertSetting } from "./types";
+import type { Account, AccountBucket, AirgapExport, AirgapVerifyResult, AppSettings, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, PairingHostInit, PairingReceiverInit, PairingStatus, Provider, SyncSummary, UsageAlertSetting } from "./types";
 
 const LOGIN_ATTEMPT_KEY = "ai-usage-tracker:login-attempt";
 
@@ -88,4 +88,13 @@ export const pairingApi = {
   setPendingUiState: (uiState: Record<string, unknown>) =>
     invoke<void>("pairing_set_pending_ui_state", { uiState }),
   clearPendingUiState: () => invoke<void>("pairing_clear_pending_ui_state"),
+  prepareAirgapExport: (includeSettings: boolean, uiState?: Record<string, unknown>) =>
+    invoke<AirgapExport>("pairing_prepare_airgap_export", {
+      includeSettings,
+      uiState: uiState ?? null,
+    }),
+  verifyAirgapFrames: (chunks: string[]) =>
+    invoke<AirgapVerifyResult>("pairing_verify_airgap", { chunks }),
+  importAirgapFrames: (chunks: string[]) =>
+    invoke<SyncSummary>("pairing_import_airgap", { chunks }),
 };

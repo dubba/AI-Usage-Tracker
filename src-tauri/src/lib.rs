@@ -630,6 +630,36 @@ fn pairing_clear_pending_ui_state(state: State<'_, Arc<AppState>>) -> Result<(),
     Ok(())
 }
 
+#[tauri::command]
+fn pairing_prepare_airgap_export(
+    state: State<'_, Arc<AppState>>,
+    include_settings: bool,
+    ui_state: Option<serde_json::Value>,
+) -> Result<pairing::airgap::AirgapExport, String> {
+    *state.pairing_include_settings.write() = include_settings;
+    if let Some(ui) = ui_state {
+        *state.pairing_pending_ui_state.write() = Some(ui);
+    } else if !include_settings {
+        *state.pairing_pending_ui_state.write() = None;
+    }
+    pairing::airgap::prepare_airgap_export(state.inner().as_ref())
+}
+
+#[tauri::command]
+fn pairing_verify_airgap(
+    chunks: Vec<String>,
+) -> Result<pairing::airgap::AirgapVerifyResult, String> {
+    pairing::airgap::verify_airgap_frames(chunks)
+}
+
+#[tauri::command]
+async fn pairing_import_airgap(
+    state: State<'_, Arc<AppState>>,
+    chunks: Vec<String>,
+) -> Result<pairing::payload::SyncSummary, String> {
+    pairing::airgap::import_airgap_payload(state.inner(), chunks).await
+}
+
 static PENDING_PAIRING_URI: parking_lot::Mutex<Option<String>> = parking_lot::Mutex::new(None);
 static GLOBAL_APP_HANDLE: parking_lot::Mutex<Option<AppHandle>> = parking_lot::Mutex::new(None);
 
@@ -1176,6 +1206,9 @@ pub fn run() {
             pairing_set_include_settings,
             pairing_set_pending_ui_state,
             pairing_clear_pending_ui_state,
+            pairing_prepare_airgap_export,
+            pairing_verify_airgap,
+            pairing_import_airgap,
             get_pending_pairing_uri,
         ])
         .build(tauri::generate_context!())

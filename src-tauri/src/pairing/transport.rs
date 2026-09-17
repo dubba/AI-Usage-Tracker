@@ -31,6 +31,10 @@ use zeroize::Zeroize;
 
 pub const SESSION_TIMEOUT_SECS: u64 = 300; // 5 minutes
 pub const SOCKET_TIMEOUT_SECS: u64 = 30; // 30 seconds
+/// Time allowed for both users to compare verification codes and confirm.
+/// Longer than the socket timeout: comparing two screens and tapping twice
+/// on two devices takes a while.
+pub const CONFIRM_TIMEOUT_SECS: u64 = 60; // 60 seconds
 /// Delay before rejecting a bad handshake, throttles brute-force/garbage
 /// connections without letting them kill the pairing session.
 const FAILED_HANDSHAKE_DELAY: Duration = Duration::from_millis(300);
@@ -717,7 +721,7 @@ async fn run_authenticated_transfer<E>(
     };
 
     let exchange_res = timeout(
-        Duration::from_secs(SOCKET_TIMEOUT_SECS),
+        Duration::from_secs(CONFIRM_TIMEOUT_SECS),
         exchange_task,
     )
     .await;

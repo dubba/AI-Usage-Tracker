@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (112 items)
+## Unreleased (133 items)
 
 ### Security (4)
 
@@ -9,8 +9,20 @@
 - Link Devices sessions can no longer be crashed by another device on the local network sending garbage handshakes: rejected connections are throttled and the session keeps listening instead of shutting down after 5 failures. A device that connects but disconnects or misbehaves before picking a transfer direction no longer blocks the pairing; the sharing device returns to waiting so the intended device can still join.
 - Hardened Link Devices peer-to-peer authentication by rejecting low-order (non-contributory) Diffie-Hellman public keys that could produce predictable shared secrets, and requiring pairing connection hosts to be local network IP addresses (private LAN, loopback, link-local, or Tailscale CGNAT) to prevent accidental connection or exfiltration over the public internet.
 
-### Fixed (46)
+### Fixed (51)
 
+- After scanning animated transfer codes, the verification code now appears instead of getting stuck on “Checking captured frames…”.
+- Transferring accounts to a device again now restores accounts you deleted on that device, instead of skipping them.
+- Link Devices transfers no longer remove accounts on the receiving device when those accounts were deleted on the sending device. Transfers only add or update.
+- Tightened Link Devices spacing: halved the gaps around the air-gap “compare this code” line, and matched the space above and below the “Keep this screen visible” instruction on Show code.
+- Choosing Receive in Link Devices no longer offers Show QR code in step 2, since that path exports this device’s accounts.
+- The “Receive accounts on this device” label wraps instead of using an ellipsis.
+- The Scan the code camera-switch button sits in the gap to the right of the viewfinder instead of overlapping it.
+- Show code plus “No, use camera transfer” now always displays the animated QR codes, including after choosing Receive in step 1, instead of opening the camera viewfinder.
+- Opening Link Devices no longer blanks the window after choosing Send or Receive first; a hook ran only while the modal was open and crashed the screen.
+- Confirm & Import after an offline camera transfer now stays on Transfer Complete instead of flashing that screen and returning to the Transfer PIN prompt.
+- Fixed account card header layout on mobile so the plan tier badge (e.g. Pro/$20) is positioned directly next to the actions drop-down toggle.
+- In the Link Devices modal on mobile devices, kept the "Transfer accounts & credentials securely over Wi-Fi." subtitle on a single line across all views by normalizing the modal's horizontal padding during virtual keyboard mode, adjusting mobile subtitle sizing, and preventing awkward hyphen breaks in "Wi-Fi".
 - Restored in-app browser sign-in for OpenCode Go on mobile, matching the Grok login flow, and prevented desktop OpenCode sign-in from opening an extra window in the system's default browser.
 - Renaming a Grok/Cursor account to "Grok" now keeps that name on the dashboard instead of snapping back to Grok/Cursor.
 - Sidebar provider rows now use the same name as the account cards, including after you rename an account.
@@ -58,14 +70,27 @@
 - Dragging a dashboard card now keeps a grabbing-hand cursor everywhere — including over buttons, links, and empty space — until the card is dropped.
 - The provider icon tooltip on dashboard cards now sits fully below the pointing-hand cursor so the label is not covered.
 
-### Added (3)
+### Added (5)
+
+- Added air-gapped animated QR code transfer to Link Devices, enabling direct account and settings synchronization between nearby devices that are not on the same Wi-Fi network (such as mobile cellular vs. laptop Wi-Fi or guest Wi-Fi client isolation) without third-party servers or hotspot configuration. The sender displays an animated looping sequence of encrypted QR frames alongside a 6-digit PIN, while the receiver automatically captures the frames via camera, verifies the PIN, and imports the credentials.
+- Clicking the Action Needed summary card now filters the dashboard to only display accounts requiring attention, with a quick action to restore all accounts.
 
 - Link Devices can now optionally transfer app settings and layout when sending accounts: enable "Also send settings & layout" on the verification screen to include App Updates and Start at Login toggles, account refresh interval, notification thresholds per account, backend card order, and sidebar layout (group order, provider order, 5h/weekly toggle, collapsed cards, and sidebar width). The receiver applies them automatically; older app versions ignore the extra data so transfers remain compatible.
 - Added support for 30-day (`30d` / monthly) quota limits in the account notification modal and backend alert evaluation, allowing notifications to be configured for free ChatGPT / OpenAI accounts with monthly limit windows.
 - Added secure, direct device-to-device credential transfer ("Link Devices") over local Wi-Fi, allowing you to synchronize your AI provider accounts and groups to another device without re-entering tokens or passwords. Pairing supports symmetric role selection ("Send accounts from this device" or "Receive accounts on this device") so either device can initiate. The sharing device shows a QR code and a 6-digit local-network join code; the joining device can scan the QR code or type the code. Security uses end-to-end authenticated encryption with visual fingerprint/SAS verification. The long pairing-link paste field has been removed.
 
-### Improved (59)
+### Improved (73)
 
+- Show Link code, Show QR code, Enter Link code, and Scan QR code each use a distinct icon and badge color.
+- The Link Devices step 2 screen uses the same title and subtitle after Send or Receive; Receive omits Show QR code (3 cards instead of 4).
+- Link Devices copy: send/receive descriptions now say “another device”, the step 2 heading “How should this device connect?” is removed, and the Show QR continue line is a full underlined link: “After all frames are scanned, click here to continue.”
+- Increased the space between “click here after scan complete” and the Back/Cancel buttons on the Show QR code screen.
+- Tweaked the Link Devices settings-transfer note to use “alerts & card order”.
+- Renamed the first Link Devices screen to “Send or receive accounts”, removed the chevrons from those role cards, and set the Enter Link code card description to “Type Link code shown on other device.”
+- Link Devices step 2 now has separate Enter Link Code and Scan QR code cards, each opening the matching screen.
+- Link Devices now starts with Send or Receive, then Show a code vs Scan or enter, then confirm the matching code. Only the device that shows a code hosts the session; the camera device can still scan. Choosing Show a code asks whether both devices are on the same Wi-Fi, then shows a static QR and link code or animated camera-transfer codes.
+- The Link Devices step bar (Connect, Send or receive, Confirm) now draws connecting lines between the steps so progress from one to the next is visible.
+- Aligned Link Devices Back actions: left on Scan / Enter code / Show this code, with Or Enter Code centered on Scan and Connect to Device on the right of Enter code, and a matching Back style next to Cancel on Show this code.
 - Replaced the inline release notes section in Settings with a "View what changed in v<version>" link directly below the update available status indicator, opening a dedicated modal displaying formatted release notes with Markdown rendering.
 - Account cards on the dashboard now display a pulsing red glowing dot centered with the plan badge (e.g. Go/$10) whenever an account requires attention or is disconnected, and the warning status badge now reads "ACTION NEEDED" instead of "ATTENTION".
 - Renamed the primary connection buttons in the Add Account modal to "Open ChatGPT login", "Open Claude login", and "Open Antigravity login" (matching "Open Grok login" and "Open OpenCode login").
@@ -127,6 +152,12 @@
 - Reset countdowns under 24 hours now show hours and minutes (for example 1h 3m) instead of rounding up to the next whole hour.
 - Dragging a dashboard card now keeps a grabbing-hand cursor everywhere — including over buttons, links, and empty space — until the card is dropped.
 - The provider icon tooltip on dashboard cards now sits fully below the pointing-hand cursor so the label is not covered.
+- Camera transfers in Link Devices no longer ask you to type a 6-digit PIN: after the receiving device scans the animated codes, both devices show the same verification code, and you confirm the codes match before anything is imported — mirroring the Wi-Fi confirmation step.
+- The Link Devices connection screen now offers three explicit choices — Show link code (same Wi-Fi), Show QR code (different networks), and Scan or Enter code — instead of asking a follow-up Wi-Fi question after tapping Show code.
+ - Camera transfers in Link Devices now finish faster: larger QR frames cut a typical transfer from 23 animated frames to 16 with no change to the scanning process.
+- Renamed the Link Devices card "Scan or enter code" to "Scan or Enter code".
+- In the Link Devices “Show or scan a code” screen, the Enter Link code card now appears above Show QR code.
+- Renamed the Link Devices step 2 screen from “Show or scan a code” to “How to connect devices”.
 
 ## 0.3.5 - 2026-09-03 (49 items)
 

@@ -250,9 +250,12 @@
 }
 
 .sidebar-resize-grip[data-tooltip],
-.ui-modal-close[data-tooltip],
-.pairing-switch-camera-fab[data-tooltip] {
+.ui-modal-close[data-tooltip] {
   position: absolute !important;
+}
+
+.pairing-switch-camera-fab[data-tooltip] {
+  position: relative !important;
 }
 
 [data-tooltip]::after {

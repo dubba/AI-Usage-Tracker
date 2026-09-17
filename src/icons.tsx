@@ -72,6 +72,18 @@ export const KeypadIcon = (props: IconProps) => (
   </Base>
 );
 
+export const QrIcon = (props: IconProps) => (
+  <Base {...props}>
+    <rect x="3" y="3" width="7" height="7" rx="1" />
+    <rect x="14" y="3" width="7" height="7" rx="1" />
+    <rect x="3" y="14" width="7" height="7" rx="1" />
+    <rect x="5.5" y="5.5" width="2" height="2" />
+    <rect x="16.5" y="5.5" width="2" height="2" />
+    <rect x="5.5" y="16.5" width="2" height="2" />
+    <path d="M14 14h3v3h-3zM18 14h3v2M14 18h2v3M19 19h2v2" />
+  </Base>
+);
+
 export const FlipCameraIcon = (props: IconProps) => (
   <Base {...props}>
     <path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5" />
@@ -79,6 +91,28 @@ export const FlipCameraIcon = (props: IconProps) => (
     <circle cx="12" cy="12" r="3" />
     <path d="m18 22-3-3 3-3" />
     <path d="m6 2 3 3-3 3" />
+  </Base>
+);
+
+export const WifiIcon = (props: IconProps) => (
+  <Base {...props}>
+    <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+    <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+    <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+    <line x1="12" y1="20" x2="12.01" y2="20" strokeWidth="2.5" />
+  </Base>
+);
+
+export const PlayIcon = (props: IconProps) => (
+  <Base {...props}>
+    <polygon points="6 3 20 12 6 21 6 3" />
+  </Base>
+);
+
+export const PauseIcon = (props: IconProps) => (
+  <Base {...props}>
+    <rect x="5" y="4" width="4" height="16" rx="1" />
+    <rect x="15" y="4" width="4" height="16" rx="1" />
   </Base>
 );
 

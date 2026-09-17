@@ -1585,6 +1585,23 @@ function AccountsView(props: {
   busy: string | null;
   error?: string | null;
 }) {
+  const [showAttentionOnly, setShowAttentionOnly] = useState(false);
+
+  useEffect(() => {
+    setShowAttentionOnly(false);
+  }, [props.selectedGroup.id]);
+
+  useEffect(() => {
+    if (showAttentionOnly && props.needsAttention === 0) {
+      setShowAttentionOnly(false);
+    }
+  }, [showAttentionOnly, props.needsAttention]);
+
+  const displayedAccounts = useMemo(() => {
+    if (!showAttentionOnly) return props.accounts;
+    return props.accounts.filter(accountNeedsAttention);
+  }, [showAttentionOnly, props.accounts]);
+
   return (
     <div className="content-scroll dashboard-content">
       <header className="dashboard-header">
@@ -1644,11 +1661,56 @@ function AccountsView(props: {
 
       <div className="dashboard-scroll">
         <section className="summary-grid mockup-summary-grid">
-          <div className="mockup-summary-card total-card">
+          <div
+            className={`mockup-summary-card total-card ${showAttentionOnly ? "is-clickable" : ""}`}
+            role={showAttentionOnly ? "button" : undefined}
+            tabIndex={showAttentionOnly ? 0 : undefined}
+            aria-label={showAttentionOnly ? "Show all accounts" : undefined}
+            data-tooltip={showAttentionOnly ? "Show all accounts" : undefined}
+            onClick={() => {
+              if (showAttentionOnly) setShowAttentionOnly(false);
+            }}
+            onKeyDown={(event) => {
+              if (showAttentionOnly && (event.key === "Enter" || event.key === " ")) {
+                event.preventDefault();
+                setShowAttentionOnly(false);
+              }
+            }}
+          >
             <div><span className="summary-label">Accounts</span><strong className="summary-helper">Active</strong></div>
             <div className="summary-value-cluster"><strong>{props.accounts.length}</strong><UsersIcon /></div>
           </div>
-          <div className={`mockup-summary-card attention-card ${props.needsAttention ? "has-attention" : ""}`}>
+          <div
+            className={`mockup-summary-card attention-card ${props.needsAttention ? "has-attention is-clickable" : ""} ${showAttentionOnly ? "is-filtering" : ""}`}
+            role={props.needsAttention ? "button" : undefined}
+            tabIndex={props.needsAttention ? 0 : undefined}
+            aria-pressed={props.needsAttention ? showAttentionOnly : undefined}
+            aria-label={
+              props.needsAttention > 0
+                ? showAttentionOnly
+                  ? "Showing accounts needing attention. Click to show all."
+                  : "Show only accounts needing attention"
+                : undefined
+            }
+            data-tooltip={
+              props.needsAttention > 0
+                ? showAttentionOnly
+                  ? "Click to show all accounts"
+                  : "Click to filter accounts needing attention"
+                : undefined
+            }
+            onClick={() => {
+              if (props.needsAttention > 0) {
+                setShowAttentionOnly((prev) => !prev);
+              }
+            }}
+            onKeyDown={(event) => {
+              if (props.needsAttention > 0 && (event.key === "Enter" || event.key === " ")) {
+                event.preventDefault();
+                setShowAttentionOnly((prev) => !prev);
+              }
+            }}
+          >
             <div>
               <span className="summary-label">Action Needed</span>
               <strong className="summary-helper"><CheckCircleIcon />{props.needsAttention ? `${props.needsAttention} account${props.needsAttention === 1 ? "" : "s"}` : "All good"}</strong>
@@ -1667,8 +1729,22 @@ function AccountsView(props: {
           </div>
         </section>
 
+        {showAttentionOnly ? (
+          <div className="filter-active-banner">
+            <span>Showing {displayedAccounts.length} account{displayedAccounts.length === 1 ? "" : "s"} needing attention</span>
+            <button
+              type="button"
+              className="button ghost compact-button filter-active-clear-btn"
+              onClick={() => setShowAttentionOnly(false)}
+              aria-label="Show all accounts"
+            >
+              Show all <CloseIcon />
+            </button>
+          </div>
+        ) : null}
+
         <section className="provider-account-cards" data-group-id={props.selectedGroup?.id || undefined}>
-        {props.accounts.length ? props.accounts.map((account) => (
+        {displayedAccounts.length ? displayedAccounts.map((account) => (
           <AccountDashboardCard
             key={`${props.selectedGroup.id}:${account.id}`}
             pageId={props.selectedGroup.id}
@@ -1686,29 +1762,41 @@ function AccountsView(props: {
           <section className="welcome-panel mockup-empty-panel">
             <UsersIcon />
             <h2>
-              {props.selectedGroup.type === "bucket"
-                ? `No accounts in ${props.selectedGroup.title}`
-                : props.selectedGroup.type === "all"
-                  ? "Connect a provider account"
-                  : `No accounts in ${props.selectedGroup.title}`}
+              {showAttentionOnly
+                ? "No accounts need attention"
+                : props.selectedGroup.type === "bucket"
+                  ? `No accounts in ${props.selectedGroup.title}`
+                  : props.selectedGroup.type === "all"
+                    ? "Connect a provider account"
+                    : `No accounts in ${props.selectedGroup.title}`}
             </h2>
             <p>
-              {props.selectedGroup.type === "bucket"
-                ? "This group is still saved. Add accounts to it, or delete the group."
-                : "Add an account to begin monitoring its limits."}
+              {showAttentionOnly
+                ? "All accounts in this view are healthy and reporting live quota."
+                : props.selectedGroup.type === "bucket"
+                  ? "This group is still saved. Add accounts to it, or delete the group."
+                  : "Add an account to begin monitoring its limits."}
             </p>
             <div className="empty-group-actions">
-              {props.selectedGroup.type === "bucket" && props.selectedGroup.bucket ? (
+              {showAttentionOnly ? (
+                <button type="button" className="button primary" onClick={() => setShowAttentionOnly(false)}>
+                  Show All Accounts
+                </button>
+              ) : (
                 <>
-                  <button type="button" className="button ghost edit-bucket-empty-btn" onClick={() => props.onEditBucket?.(props.selectedGroup.bucket!)}>
-                    <EditIcon /><span className="edit-bucket-label">Edit Group</span>
-                  </button>
-                  <button type="button" className="button ghost bucket-delete-button" onClick={() => props.onDeleteBucket?.(props.selectedGroup.bucket!)}>
-                    <TrashIcon />Delete Group
-                  </button>
+                  {props.selectedGroup.type === "bucket" && props.selectedGroup.bucket ? (
+                    <>
+                      <button type="button" className="button ghost edit-bucket-empty-btn" onClick={() => props.onEditBucket?.(props.selectedGroup.bucket!)}>
+                        <EditIcon /><span className="edit-bucket-label">Edit Group</span>
+                      </button>
+                      <button type="button" className="button ghost bucket-delete-button" onClick={() => props.onDeleteBucket?.(props.selectedGroup.bucket!)}>
+                        <TrashIcon />Delete Group
+                      </button>
+                    </>
+                  ) : null}
+                  <button className="button primary" onClick={props.onAdd}><PlusIcon />Add Account</button>
                 </>
-              ) : null}
-              <button className="button primary" onClick={props.onAdd}><PlusIcon />Add Account</button>
+              )}
             </div>
           </section>
         )}
@@ -2291,7 +2379,7 @@ function SettingsView({
             ) : (
               <button
                 type="button"
-                className="button ghost settings-update-action"
+                className="button primary settings-update-action"
                 disabled={updateBusy !== null}
                 onClick={onCheckForUpdate}
               >
