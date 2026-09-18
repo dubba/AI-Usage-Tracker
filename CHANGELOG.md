@@ -4,7 +4,7 @@
 
 _No unreleased user-facing changes yet._
 
-## 0.3.7 - 2026-09-18 (29 items)
+## 0.3.7 - 2026-09-18 (31 items)
 
 ### Security (17)
 
@@ -34,8 +34,10 @@ _No unreleased user-facing changes yet._
 - Removed the redundant Dashboard navigation item from the sidebar since the All accounts view provides the same dashboard overview.
 - The Active Accounts summary card is now display-only, removing redundant click-to-reset behavior now that clicking the Action Needed card directly toggles between filtered accounts and all accounts.
 
-### Fixed (7)
+### Fixed (9)
 
+- The Settings header now keeps the same space under the menu button as All Accounts, so the title is no longer tight against the header’s bottom edge.
+- Settings no longer leaves an empty footer bar on mobile. That bar is only for All Accounts actions such as Refresh All and Add Account.
 - Tapping Update on Android no longer jumps straight to a stuck “Installing…” state. The app downloads first, reports errors if the installer cannot open, and asks you to allow unknown-app installs before downloading when that permission is missing.
 - Removed the debug readout box that followed the mouse pointer and listed the element under the cursor.
 - Clicking and holding an account card on the dashboard now keeps the grabbing cursor instead of snapping back to the default arrow. Trash, notification, refresh, and other card buttons still show the pointing hand.

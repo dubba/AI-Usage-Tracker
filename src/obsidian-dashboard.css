@@ -1753,6 +1753,10 @@ button.account-card-provider-icon:active {
     padding-bottom: calc(76px + var(--safe-area-bottom, env(safe-area-inset-bottom, 0px))) !important;
   }
 
+  .settings-style-content.dashboard-content {
+    padding-bottom: 0 !important;
+  }
+
   .dashboard-mobile-actions .button {
     flex: 1;
     justify-content: center;
@@ -2891,6 +2895,11 @@ select.account-update-select option,
     scrollbar-color: var(--obsidian-purple-strong, #a078ff) transparent !important;
   }
 
+  .settings-style-content .dashboard-scroll {
+    margin-bottom: 0 !important;
+    padding-bottom: max(16px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 16px)) !important;
+  }
+
   .dashboard-title-row {
     display: flex !important;
     align-items: center !important;
@@ -2964,17 +2973,10 @@ select.account-update-select option,
   }
 
   .dashboard-header {
-    padding-bottom: 0 !important;
+    padding-bottom: 8px !important;
   }
 
   .dashboard-header .header-actions {
-    background: transparent !important;
-    border: none !important;
-    padding: 0 !important;
-    min-height: 0 !important;
-  }
-
-  .dashboard-header .header-actions:empty {
     display: none !important;
   }
 
