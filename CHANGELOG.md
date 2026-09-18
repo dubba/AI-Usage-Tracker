@@ -4,7 +4,7 @@
 
 _No unreleased user-facing changes yet._
 
-## 0.3.7 - 2026-09-18 (28 items)
+## 0.3.7 - 2026-09-18 (29 items)
 
 ### Security (17)
 
@@ -26,8 +26,9 @@ _No unreleased user-facing changes yet._
 - Google Antigravity account identity comes from Google’s signed-in userinfo response, not from unverified ID-token contents.
 - Camera access is limited to this app (`camera=(self)`) instead of allowing any origin.
 
-### Improved (4)
+### Improved (5)
 
+- The Settings header now matches All Accounts: no subtitle, the same gray bar and bottom border, and the same gap down to the first card.
 - Android in-app updates now show download progress from 0–100% in Settings and a system notification, then switch to installing when the package is ready.
 - Moved the Paseo Bridge integration controls to a dedicated section on the Settings page beneath Change Log, making bridge status and settings accessible alongside app preferences.
 - Removed the redundant Dashboard navigation item from the sidebar since the All accounts view provides the same dashboard overview.

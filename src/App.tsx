@@ -2249,8 +2249,8 @@ function SettingsView({
   const [updateNotesOpen, setUpdateNotesOpen] = useState(false);
   const automaticUpdates = appSettings?.automaticUpdatesEnabled ?? true;
   return (
-    <div className="content-scroll narrow-content settings-style-content">
-      <header className="page-header">
+    <div className="content-scroll dashboard-content settings-style-content">
+      <header className="dashboard-header">
         <div>
           <div className="dashboard-title-row">
             {onToggleSidebar ? (
@@ -2264,11 +2264,11 @@ function SettingsView({
                 <MenuIcon />
               </button>
             ) : null}
-            <span className="eyebrow">App Settings</span>
+            <h1 className="eyebrow">App Settings</h1>
           </div>
-          <p>Control how AI Usage Tracker app behaves.</p>
         </div>
       </header>
+      <div className="dashboard-scroll">
       <section className="settings-card">
         <div className="settings-row">
           <div>
@@ -2445,6 +2445,10 @@ function SettingsView({
         </div>
       </section>
       {bridge?.error ? <div className="error-panel api-integration-error">{bridge.error}</div> : null}
+      {updateMessage ? <div className="info-panel settings-update-info">{updateMessage}</div> : null}
+      {updateError ? <div className="error-panel settings-update-error">{updateError}</div> : null}
+      {error ? <div className="error-panel settings-update-error">{error}</div> : null}
+      </div>
       <UpdateNotesModal
         open={updateNotesOpen}
         version={update?.availableVersion ?? null}
@@ -2455,9 +2459,6 @@ function SettingsView({
         updateBusy={updateBusy}
         updatePercent={updateProgress?.percent ?? null}
       />
-      {updateMessage ? <div className="info-panel settings-update-info">{updateMessage}</div> : null}
-      {updateError ? <div className="error-panel settings-update-error">{updateError}</div> : null}
-      {error ? <div className="error-panel settings-update-error">{error}</div> : null}
     </div>
   );
 }

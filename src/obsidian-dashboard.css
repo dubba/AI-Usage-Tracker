@@ -1432,26 +1432,16 @@ button.account-card-provider-icon:active {
 .settings-style-content {
   box-sizing: border-box;
   height: 100%;
-  padding: 24px;
+  padding: 24px 24px 36px;
   background: #0e0e0e;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.settings-style-content .page-header {
-  padding-bottom: 18px;
-  border-bottom: 1px solid #1f1e1f;
-}
-
-.settings-style-content .page-header .dashboard-title-row {
-  margin-bottom: 8px;
-}
-
-.settings-style-content .page-header h1 {
-  color: #f3f0ef;
-  font-size: 24px;
-}
-
-.settings-style-content .page-header p {
-  color: #958ea0;
+.settings-style-content .dashboard-scroll > .settings-card:first-child {
+  margin-top: 18px;
 }
 
 .settings-style-content .settings-card,
@@ -2961,20 +2951,12 @@ select.account-update-select option,
     margin: 0 !important;
   }
 
-  .settings-style-content .page-header .dashboard-title-row {
-    margin-bottom: 8px !important;
-  }
-
-  .settings-style-content .page-header p {
-    font-size: 14px !important;
-    line-height: 1.5 !important;
-    color: #958ea0 !important;
-    margin: 0 !important;
+  .settings-style-content .dashboard-scroll > .settings-card:first-child {
+    margin-top: 0;
   }
 
   .dashboard-header,
-  .page-header,
-  .settings-style-content .page-header {
+  .page-header {
     border-top: 0 !important;
     border-left: 0 !important;
     border-right: 0 !important;
