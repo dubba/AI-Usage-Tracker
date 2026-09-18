@@ -63,9 +63,12 @@ fn call_path(
         .new_string(path.to_string_lossy().as_ref())
         .map_err(|error| format!("Unable to start the Android installer: {error}"))?;
     let path_obj = JObject::from(path);
-    finish(
+    invoke(
         &mut env,
-        env.call_method(&activity, name, sig, &[JValue::Object(&path_obj)]),
+        &activity,
+        name,
+        sig,
+        &[JValue::Object(&path_obj)],
         expect_string,
     )
 }
@@ -78,15 +81,18 @@ fn call(name: &str, sig: &str, args: &[JValue], expect_string: bool) -> Result<S
         .attach_current_thread()
         .map_err(|error| format!("Unable to start the Android installer: {error}"))?;
     let activity = unsafe { JObject::from_raw(ctx.context() as jni::sys::jobject) };
-    finish(&mut env, env.call_method(&activity, name, sig, args), expect_string)
+    invoke(&mut env, &activity, name, sig, args, expect_string)
 }
 
-fn finish(
+fn invoke(
     env: &mut JNIEnv,
-    result: jni::errors::Result<jni::objects::JValueOwned<'_>>,
+    activity: &JObject,
+    name: &str,
+    sig: &str,
+    args: &[JValue],
     expect_string: bool,
 ) -> Result<String, String> {
-    match result {
+    match env.call_method(activity, name, sig, args) {
         Ok(value) => {
             if env.exception_check().unwrap_or(false) {
                 Err(jni_exception_message(env))
