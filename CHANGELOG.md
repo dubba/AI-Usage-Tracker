@@ -4,7 +4,7 @@
 
 _No unreleased user-facing changes yet._
 
-## 0.3.7 - 2026-09-18 (26 items)
+## 0.3.7 - 2026-09-18 (28 items)
 
 ### Security (17)
 
@@ -26,14 +26,16 @@ _No unreleased user-facing changes yet._
 - Google Antigravity account identity comes from Google’s signed-in userinfo response, not from unverified ID-token contents.
 - Camera access is limited to this app (`camera=(self)`) instead of allowing any origin.
 
-### Improved (3)
+### Improved (4)
 
+- Android in-app updates now show download progress from 0–100% in Settings and a system notification, then switch to installing when the package is ready.
 - Moved the Paseo Bridge integration controls to a dedicated section on the Settings page beneath Change Log, making bridge status and settings accessible alongside app preferences.
 - Removed the redundant Dashboard navigation item from the sidebar since the All accounts view provides the same dashboard overview.
 - The Active Accounts summary card is now display-only, removing redundant click-to-reset behavior now that clicking the Action Needed card directly toggles between filtered accounts and all accounts.
 
-### Fixed (6)
+### Fixed (7)
 
+- Tapping Update on Android no longer jumps straight to a stuck “Installing…” state. The app downloads first, reports errors if the installer cannot open, and asks you to allow unknown-app installs before downloading when that permission is missing.
 - Removed the debug readout box that followed the mouse pointer and listed the element under the cursor.
 - Clicking and holding an account card on the dashboard now keeps the grabbing cursor instead of snapping back to the default arrow. Trash, notification, refresh, and other card buttons still show the pointing hand.
 - Restored the required client secret on Google OAuth token refresh and authorization code exchange, fixing the "google token refresh returned 400 bad request" error when refreshing Antigravity and Google AI Studio accounts.

@@ -50,6 +50,7 @@ import type {
   Account,
   AccountBucket,
   AppSettings,
+  AppUpdateProgress,
   AppUpdateStatus,
   BridgeStatus,
   DashboardSnapshot,
@@ -635,6 +636,7 @@ export default function App() {
   const [inAppAlerts, setInAppAlerts] = useState<Array<{ id: string; title: string; body: string; timestamp: number }>>([]);
   const [appUpdate, setAppUpdate] = useState<AppUpdateStatus | null>(null);
   const [updateBusy, setUpdateBusy] = useState<UpdateBusy>(null);
+  const [updateProgress, setUpdateProgress] = useState<AppUpdateProgress | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateMessage, setUpdateMessage] = useState<string | null>(null);
   const updateMessageTimerRef = useRef<number | null>(null);
@@ -837,17 +839,22 @@ export default function App() {
   }, [installedVersion, showTransientUpdateMessage, showTransientUpdateError]);
 
   const installUpdate = useCallback(async () => {
-    setUpdateBusy("installing");
+    setUpdateBusy("downloading");
+    setUpdateProgress({ phase: "downloading", downloaded: 0, total: null, percent: null });
     setUpdateError(null);
     try {
       await bridgeApi.installUpdate();
+      setUpdateBusy(null);
+      setUpdateProgress(null);
+      showTransientUpdateMessage("The installer should be open. Confirm the update on the next screen.");
     } catch (cause) {
       const message = String(cause);
       setUpdateError(message);
       setError(message);
       setUpdateBusy(null);
+      setUpdateProgress(null);
     }
-  }, []);
+  }, [showTransientUpdateMessage]);
 
   const saveAccountRefreshMinutes = useCallback(async (minutes: number) => {
     setSettingsBusy(true);
@@ -998,6 +1005,23 @@ export default function App() {
   useEffect(() => {
     const tick = window.setInterval(() => setNowMs(Date.now()), RELATIVE_TIME_TICK_MS);
     return () => window.clearInterval(tick);
+  }, []);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    void listen<AppUpdateProgress>("app-update-progress", (event) => {
+      const payload = event.payload;
+      if (!payload?.phase) return;
+      setUpdateBusy(payload.phase);
+      setUpdateProgress(payload);
+    })
+      .then((fn) => {
+        unlisten = fn;
+      })
+      .catch(() => {});
+    return () => {
+      if (unlisten) unlisten();
+    };
   }, []);
 
   useEffect(() => {
@@ -1235,6 +1259,7 @@ export default function App() {
           installedVersion={installedVersion}
           update={appUpdate}
           updateBusy={updateBusy}
+          updateProgress={updateProgress}
           updateError={updateError}
           updateMessage={updateMessage}
           error={error}
@@ -2134,6 +2159,48 @@ function AccountUsageMetric({
   );
 }
 
+function updateProgressLabel(busy: UpdateBusy, percent: number | null): string {
+  if (busy === "downloading") {
+    return percent != null ? `Downloading… ${percent}%` : "Downloading…";
+  }
+  if (busy === "verifying") return "Verifying update…";
+  if (busy === "installing") return "Opening installer…";
+  return "";
+}
+
+function updateInstallLabel(busy: UpdateBusy, percent: number | null): string {
+  if (busy === "downloading") {
+    return percent != null ? `Downloading ${percent}%` : "Downloading…";
+  }
+  if (busy === "verifying") return "Verifying…";
+  if (busy === "installing") return "Installing…";
+  return "Update";
+}
+
+function UpdateProgressBar({ busy, percent }: { busy: UpdateBusy; percent: number | null }) {
+  if (busy !== "downloading" && busy !== "verifying" && busy !== "installing") return null;
+  const label = updateProgressLabel(busy, percent);
+  const determinate = busy === "downloading" && percent != null;
+  return (
+    <div className="settings-update-progress" role="status" aria-live="polite">
+      <span className="settings-update-progress-label">{label}</span>
+      <div
+        className={`settings-update-progress-track${determinate ? "" : " is-indeterminate"}`}
+        role="progressbar"
+        aria-label={label}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={determinate ? percent ?? undefined : undefined}
+      >
+        <div
+          className="settings-update-progress-fill"
+          style={determinate ? { width: `${percent}%` } : undefined}
+        />
+      </div>
+    </div>
+  );
+}
+
 function SettingsView({
   autostart,
   onToggleAutostart,
@@ -2144,6 +2211,7 @@ function SettingsView({
   installedVersion,
   update,
   updateBusy,
+  updateProgress,
   updateError,
   updateMessage,
   error,
@@ -2165,6 +2233,7 @@ function SettingsView({
   installedVersion: string;
   update: AppUpdateStatus | null;
   updateBusy: UpdateBusy;
+  updateProgress: AppUpdateProgress | null;
   updateError: string | null;
   updateMessage?: string | null;
   error?: string | null;
@@ -2249,6 +2318,8 @@ function SettingsView({
               <div className={`settings-updates-subcard-status ${!updateBusy && update?.available ? "update-available" : ""}`}>
                 {updateBusy === "checking" ? (
                   <span>Checking for updates…</span>
+                ) : updateBusy === "downloading" || updateBusy === "verifying" || updateBusy === "installing" ? (
+                  <span>{updateProgressLabel(updateBusy, updateProgress?.percent ?? null)}</span>
                 ) : update?.available && update.availableVersion ? (
                   <>
                     <span className="status-indicator-dot red" aria-hidden="true" />
@@ -2278,7 +2349,7 @@ function SettingsView({
                 disabled={updateBusy !== null}
                 onClick={onInstallUpdate}
               >
-                {updateBusy === "installing" ? "Installing…" : "Update"}
+                {updateInstallLabel(updateBusy, updateProgress?.percent ?? null)}
               </button>
             ) : (
               <button
@@ -2290,6 +2361,7 @@ function SettingsView({
                 {updateBusy === "checking" ? "Checking…" : "Check Now"}
               </button>
             )}
+            <UpdateProgressBar busy={updateBusy} percent={updateProgress?.percent ?? null} />
           </div>
         </div>
         <div className="settings-row">
@@ -2381,6 +2453,7 @@ function SettingsView({
         onClose={() => setUpdateNotesOpen(false)}
         onInstallUpdate={onInstallUpdate}
         updateBusy={updateBusy}
+        updatePercent={updateProgress?.percent ?? null}
       />
       {updateMessage ? <div className="info-panel settings-update-info">{updateMessage}</div> : null}
       {updateError ? <div className="error-panel settings-update-error">{updateError}</div> : null}

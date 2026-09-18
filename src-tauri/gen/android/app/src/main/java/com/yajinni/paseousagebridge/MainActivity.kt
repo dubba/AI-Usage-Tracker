@@ -9,14 +9,18 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.os.SystemClock
 import android.webkit.WebView
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
+import androidx.core.app.NotificationCompat
 import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class MainActivity : TauriActivity() {
   companion object {
@@ -35,9 +39,13 @@ class MainActivity : TauriActivity() {
 
     @JvmStatic
     external fun setPendingPairingUri(uri: String)
+
+    private const val UPDATE_CHANNEL = "updates"
+    private const val UPDATE_NOTIFICATION_ID = 47001
   }
 
   private var activeWebView: WebView? = null
+  @Volatile private var lastUpdateNotifyAt: Long = 0L
   private var safeTopDp: Int = 48
   private var safeBottomDp: Int = 0
   private var safeImeDp: Int = 0
@@ -162,6 +170,16 @@ class MainActivity : TauriActivity() {
         lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
       }
       notificationManager?.createNotificationChannel(defaultChannel)
+      val updateChannel = android.app.NotificationChannel(
+        UPDATE_CHANNEL,
+        "App updates",
+        android.app.NotificationManager.IMPORTANCE_LOW
+      ).apply {
+        description = "Download and install progress for app updates"
+        enableVibration(false)
+        setShowBadge(false)
+      }
+      notificationManager?.createNotificationChannel(updateChannel)
     }
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -261,6 +279,89 @@ class MainActivity : TauriActivity() {
     }
   }
 
+  fun ensureCanInstallUpdates(): String {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {
+      runOnUiThread {
+        startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+          data = Uri.parse("package:$packageName")
+          addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        })
+      }
+      return "Allow AI Usage Tracker to install updates, then tap Update again."
+    }
+    return "ok"
+  }
+
+  fun showUpdateDownloadProgress(percent: Int, indeterminate: Boolean) {
+    val now = SystemClock.elapsedRealtime()
+    if (!indeterminate && percent < 100 && now - lastUpdateNotifyAt < 250L) {
+      return
+    }
+    lastUpdateNotifyAt = now
+    val text = if (indeterminate) "Downloading update…" else "Downloading update… $percent%"
+    notifyUpdate(
+      title = "Downloading update",
+      text = text,
+      ongoing = true,
+      progressMax = 100,
+      progress = percent.coerceIn(0, 100),
+      indeterminate = indeterminate,
+      autoCancel = false
+    )
+  }
+
+  fun showUpdateInstalling() {
+    notifyUpdate(
+      title = "Installing update",
+      text = "Opening the Android installer…",
+      ongoing = true,
+      progressMax = 0,
+      progress = 0,
+      indeterminate = true,
+      autoCancel = false
+    )
+  }
+
+  fun clearUpdateNotification() {
+    try {
+      val manager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+      manager.cancel(UPDATE_NOTIFICATION_ID)
+    } catch (e: Throwable) {
+      android.util.Log.w(TAG, "clearUpdateNotification failed: ${e.message}")
+    }
+  }
+
+  private fun notifyUpdate(
+    title: String,
+    text: String,
+    ongoing: Boolean,
+    progressMax: Int,
+    progress: Int,
+    indeterminate: Boolean,
+    autoCancel: Boolean
+  ) {
+    try {
+      val builder = NotificationCompat.Builder(this, UPDATE_CHANNEL)
+        .setSmallIcon(applicationInfo.icon)
+        .setContentTitle(title)
+        .setContentText(text)
+        .setOnlyAlertOnce(true)
+        .setOngoing(ongoing)
+        .setAutoCancel(autoCancel)
+        .setPriority(NotificationCompat.PRIORITY_LOW)
+        .setSilent(true)
+      if (progressMax > 0) {
+        builder.setProgress(progressMax, progress, indeterminate)
+      } else if (indeterminate) {
+        builder.setProgress(100, 0, true)
+      }
+      val manager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+      manager.notify(UPDATE_NOTIFICATION_ID, builder.build())
+    } catch (e: Throwable) {
+      android.util.Log.w(TAG, "notifyUpdate failed: ${e.message}")
+    }
+  }
+
   fun verifyDownloadedApk(path: String): String {
     val file = File(path)
     if (!file.exists() || file.length() < 1024L) {
@@ -321,18 +422,43 @@ class MainActivity : TauriActivity() {
       throw IllegalArgumentException("The downloaded update is missing or incomplete.")
     }
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {
-      startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-        data = Uri.parse("package:$packageName")
-      })
+      runOnUiThread {
+        startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+          data = Uri.parse("package:$packageName")
+          addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        })
+      }
       throw IllegalStateException("Allow AI Usage Tracker to install updates, then tap Update again.")
     }
-    runOnUiThread {
-      val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
-      startActivity(Intent(Intent.ACTION_VIEW).apply {
-        setDataAndType(uri, "application/vnd.android.package-archive")
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-      })
+    val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+    val intent = Intent(Intent.ACTION_VIEW).apply {
+      setDataAndType(uri, "application/vnd.android.package-archive")
+      addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+      addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
+    val resolvers = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+    for (resolve in resolvers) {
+      grantUriPermission(
+        resolve.activityInfo.packageName,
+        uri,
+        Intent.FLAG_GRANT_READ_URI_PERMISSION
+      )
+    }
+    val latch = CountDownLatch(1)
+    var launchError: Exception? = null
+    runOnUiThread {
+      try {
+        startActivity(intent)
+      } catch (error: Exception) {
+        launchError = error
+      } finally {
+        latch.countDown()
+      }
+    }
+    if (!latch.await(8, TimeUnit.SECONDS)) {
+      throw IllegalStateException("Timed out waiting for the Android installer to open.")
+    }
+    launchError?.let { throw it }
   }
 }
 

@@ -41,7 +41,9 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     WindowEvent,
 };
-use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
+use serde::Serialize;
+use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
+use tokio::io::AsyncWriteExt;
 use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_opener::OpenerExt;
 #[cfg(desktop)]
@@ -978,7 +980,7 @@ fn parse_sha256_digest(body: &str) -> Option<String> {
     }
 }
 
-#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+#[allow(dead_code)]
 fn sha256_hex(bytes: &[u8]) -> String {
     use sha2::{Digest, Sha256};
     Sha256::digest(bytes)
@@ -987,14 +989,59 @@ fn sha256_hex(bytes: &[u8]) -> String {
         .collect()
 }
 
+const MAX_APK_BYTES: u64 = 250 * 1024 * 1024;
+
+#[derive(Clone, Serialize)]
+struct AppUpdateProgress {
+    phase: &'static str,
+    downloaded: u64,
+    total: Option<u64>,
+    percent: Option<u8>,
+}
+
+fn update_download_percent(downloaded: u64, total: Option<u64>) -> Option<u8> {
+    let total = total.filter(|value| *value > 0)?;
+    Some(((downloaded.min(total).saturating_mul(100)) / total) as u8)
+}
+
+fn emit_update_progress(
+    app: &AppHandle,
+    phase: &'static str,
+    downloaded: u64,
+    total: Option<u64>,
+) {
+    let payload = AppUpdateProgress {
+        phase,
+        downloaded,
+        total,
+        percent: update_download_percent(downloaded, total),
+    };
+    let _ = app.emit("app-update-progress", payload);
+}
+
+#[cfg(target_os = "android")]
+fn notify_android_download_progress(percent: Option<u8>) {
+    match percent {
+        Some(value) => apk_install::show_download_progress(i32::from(value), false),
+        None => apk_install::show_download_progress(0, true),
+    }
+}
+
 #[cfg_attr(not(target_os = "android"), allow(dead_code))]
-async fn download_android_apk(url: &str, dest: &std::path::Path) -> Result<String, String> {
+async fn download_android_apk(
+    app: &AppHandle,
+    url: &str,
+    dest: &std::path::Path,
+) -> Result<String, String> {
+    use sha2::{Digest, Sha256};
+
     let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(120))
+        .connect_timeout(Duration::from_secs(20))
+        .timeout(Duration::from_secs(15 * 60))
         .redirect(reqwest::redirect::Policy::limited(10))
         .build()
         .map_err(|error| format!("Unable to download the update: {error}"))?;
-    let response = client
+    let mut response = client
         .get(url)
         .header("User-Agent", "AI-Usage-Tracker")
         .send()
@@ -1006,22 +1053,90 @@ async fn download_android_apk(url: &str, dest: &std::path::Path) -> Result<Strin
             response.status()
         ));
     }
-    let bytes = response
-        .bytes()
-        .await
-        .map_err(|error| format!("Unable to download the update: {error}"))?;
-    if bytes.len() < 1024 || !bytes.starts_with(b"PK") {
-        return Err("Downloaded update is not a valid Android package.".into());
+    let total = response.content_length();
+    if total.is_some_and(|size| size > MAX_APK_BYTES) {
+        return Err("The update package is larger than expected.".into());
     }
+
     if let Some(parent) = dest.parent() {
         tokio::fs::create_dir_all(parent)
             .await
             .map_err(|error| format!("Unable to save the update: {error}"))?;
     }
-    tokio::fs::write(dest, &bytes)
+    let mut file = tokio::fs::File::create(dest)
         .await
         .map_err(|error| format!("Unable to save the update: {error}"))?;
-    Ok(sha256_hex(&bytes))
+    let mut hasher = Sha256::new();
+    let mut downloaded: u64 = 0;
+    let mut header = Vec::new();
+    let mut last_emit = std::time::Instant::now()
+        .checked_sub(Duration::from_secs(1))
+        .unwrap_or_else(std::time::Instant::now);
+
+    emit_update_progress(app, "downloading", 0, total);
+    #[cfg(target_os = "android")]
+    notify_android_download_progress(update_download_percent(0, total));
+
+    let download = async {
+        loop {
+            let chunk = response
+                .chunk()
+                .await
+                .map_err(|error| format!("Unable to download the update: {error}"))?;
+            let Some(chunk) = chunk else {
+                break;
+            };
+            downloaded = downloaded.saturating_add(chunk.len() as u64);
+            if downloaded > MAX_APK_BYTES {
+                return Err("The update package is larger than expected.".into());
+            }
+            if header.len() < 4 {
+                let take = (4 - header.len()).min(chunk.len());
+                header.extend_from_slice(&chunk[..take]);
+                if header.len() >= 4 && !header.starts_with(b"PK") {
+                    return Err("Downloaded update is not a valid Android package.".into());
+                }
+            }
+            hasher.update(&chunk);
+            file.write_all(&chunk)
+                .await
+                .map_err(|error| format!("Unable to save the update: {error}"))?;
+            if last_emit.elapsed() >= Duration::from_millis(200)
+                || total.is_some_and(|size| downloaded >= size)
+            {
+                last_emit = std::time::Instant::now();
+                emit_update_progress(app, "downloading", downloaded, total);
+                #[cfg(target_os = "android")]
+                notify_android_download_progress(update_download_percent(downloaded, total));
+            }
+        }
+        file.flush()
+            .await
+            .map_err(|error| format!("Unable to save the update: {error}"))?;
+        if downloaded < 1024 || !header.starts_with(b"PK") {
+            return Err("Downloaded update is not a valid Android package.".into());
+        }
+        Ok(())
+    };
+
+    match download.await {
+        Ok(()) => {
+            emit_update_progress(app, "downloading", downloaded, total.or(Some(downloaded)));
+            #[cfg(target_os = "android")]
+            apk_install::show_download_progress(100, false);
+            Ok(hasher
+                .finalize()
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect())
+        }
+        Err(error) => {
+            let _ = tokio::fs::remove_file(dest).await;
+            #[cfg(target_os = "android")]
+            apk_install::clear_update_notification();
+            Err(error)
+        }
+    }
 }
 
 fn status_from_github_latest(
@@ -1129,10 +1244,22 @@ async fn install_app_update(app: AppHandle) -> Result<(), String> {
     {
         if let Ok(updater) = app.updater() {
             if let Ok(Some(update)) = updater.check().await {
-                update
-                    .download_and_install(|_, _| {}, || {})
-                    .await
-                    .map_err(|error| format!("Unable to install the update: {error}"))?;
+                emit_update_progress(&app, "downloading", 0, None);
+                let downloaded = std::sync::atomic::AtomicU64::new(0);
+                let result = update
+                    .download_and_install(
+                        |chunk, total| {
+                            let so_far = downloaded
+                                .fetch_add(chunk as u64, std::sync::atomic::Ordering::Relaxed)
+                                + chunk as u64;
+                            emit_update_progress(&app, "downloading", so_far, total);
+                        },
+                        || {
+                            emit_update_progress(&app, "installing", 0, None);
+                        },
+                    )
+                    .await;
+                result.map_err(|error| format!("Unable to install the update: {error}"))?;
                 app.restart();
                 #[allow(unreachable_code)]
                 return Ok(());
@@ -1142,25 +1269,38 @@ async fn install_app_update(app: AppHandle) -> Result<(), String> {
 
     #[cfg(target_os = "android")]
     {
+        apk_install::ensure_can_install()?;
         let latest = fetch_github_latest_release().await?;
-        let apk_url = latest
-            .apk_url
-            .ok_or_else(|| "The latest GitHub release does not include an Android APK.".to_string())?;
-        let cache = app
+        let apk_url = latest.apk_url.ok_or_else(|| {
+            "The latest GitHub release does not include an Android APK.".to_string()
+        })?;
+        let dest_dir = app
             .path()
-            .app_cache_dir()
+            .app_data_dir()
+            .or_else(|_| app.path().app_cache_dir())
             .map_err(|error| format!("Unable to save the update: {error}"))?;
-        let dest = cache.join("ai-usage-tracker-update.apk");
-        let digest = download_android_apk(&apk_url, &dest).await?;
+        let dest = dest_dir.join("updates").join("ai-usage-tracker-update.apk");
+        let digest = download_android_apk(&app, &apk_url, &dest).await?;
+        emit_update_progress(&app, "verifying", 0, None);
         if let Some(sha_url) = latest.apk_sha256_url.as_deref() {
             let expected = fetch_apk_sha256(sha_url).await?;
             if expected != digest {
                 let _ = tokio::fs::remove_file(&dest).await;
+                apk_install::clear_update_notification();
                 return Err("The downloaded update did not match the published checksum.".into());
             }
         }
-        apk_install::verify_apk_signature(&dest)?;
-        apk_install::prompt_apk_install(&dest)?;
+        apk_install::verify_apk_signature(&dest).map_err(|error| {
+            apk_install::clear_update_notification();
+            error
+        })?;
+        emit_update_progress(&app, "installing", 0, None);
+        apk_install::show_installing();
+        apk_install::prompt_apk_install(&dest).map_err(|error| {
+            apk_install::clear_update_notification();
+            error
+        })?;
+        apk_install::clear_update_notification();
         return Ok(());
     }
 
@@ -1648,6 +1788,15 @@ mod tests {
         assert!(!github_latest_http_is_inaccessible(
             reqwest::StatusCode::NO_CONTENT
         ));
+    }
+
+    #[test]
+    fn update_download_percent_scales_and_handles_unknown_total() {
+        assert_eq!(super::update_download_percent(0, Some(100)), Some(0));
+        assert_eq!(super::update_download_percent(50, Some(100)), Some(50));
+        assert_eq!(super::update_download_percent(100, Some(100)), Some(100));
+        assert_eq!(super::update_download_percent(12, None), None);
+        assert_eq!(super::update_download_percent(1, Some(0)), None);
     }
 
     #[test]

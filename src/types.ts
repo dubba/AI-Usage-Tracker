@@ -108,7 +108,14 @@ export interface AppUpdateStatus {
   error: string | null;
 }
 
-export type UpdateBusy = "checking" | "installing" | null;
+export type UpdateBusy = "checking" | "downloading" | "verifying" | "installing" | null;
+
+export interface AppUpdateProgress {
+  phase: "downloading" | "verifying" | "installing";
+  downloaded: number;
+  total: number | null;
+  percent: number | null;
+}
 
 export interface SyncSummary {
   added: number;

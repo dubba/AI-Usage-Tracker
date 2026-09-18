@@ -158,6 +158,7 @@ export function UpdateNotesModal({
   onClose,
   onInstallUpdate,
   updateBusy,
+  updatePercent,
 }: {
   open: boolean;
   version: string | null;
@@ -166,6 +167,7 @@ export function UpdateNotesModal({
   onClose: () => void;
   onInstallUpdate?: () => void;
   updateBusy?: UpdateBusy;
+  updatePercent?: number | null;
 }) {
   const dialogRef = useRef<HTMLElement>(null);
   useModalA11y(dialogRef, open, onClose);
@@ -254,6 +256,32 @@ export function UpdateNotesModal({
           )}
         </div>
 
+        {updateBusy === "downloading" || updateBusy === "verifying" || updateBusy === "installing" ? (
+          <div className="settings-update-progress update-notes-progress" role="status" aria-live="polite">
+            <span className="settings-update-progress-label">
+              {updateBusy === "downloading"
+                ? updatePercent != null
+                  ? `Downloading… ${updatePercent}%`
+                  : "Downloading…"
+                : updateBusy === "verifying"
+                  ? "Verifying update…"
+                  : "Opening installer…"}
+            </span>
+            <div
+              className={`settings-update-progress-track${updateBusy === "downloading" && updatePercent != null ? "" : " is-indeterminate"}`}
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={updateBusy === "downloading" && updatePercent != null ? updatePercent : undefined}
+            >
+              <div
+                className="settings-update-progress-fill"
+                style={updateBusy === "downloading" && updatePercent != null ? { width: `${updatePercent}%` } : undefined}
+              />
+            </div>
+          </div>
+        ) : null}
+
         <div className="modal-actions update-notes-actions">
           <button
             type="button"
@@ -275,11 +303,18 @@ export function UpdateNotesModal({
                 className="button danger settings-update-action-danger"
                 disabled={updateBusy != null}
                 onClick={() => {
-                  onClose();
                   onInstallUpdate();
                 }}
               >
-                {updateBusy === "installing" ? "Installing…" : "Update"}
+                {updateBusy === "downloading"
+                  ? updatePercent != null
+                    ? `Downloading ${updatePercent}%`
+                    : "Downloading…"
+                  : updateBusy === "verifying"
+                    ? "Verifying…"
+                    : updateBusy === "installing"
+                      ? "Installing…"
+                      : "Update"}
               </button>
             ) : null}
           </div>
