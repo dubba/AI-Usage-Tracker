@@ -5,6 +5,7 @@ use jni::JNIEnv;
 
 pub fn prompt_apk_install(path: &Path) -> Result<(), String> {
     call_activity_string_method("installDownloadedApk", "(Ljava/lang/String;)V", path, false)
+        .map(|_| ())
 }
 
 pub fn verify_apk_signature(path: &Path) -> Result<(), String> {
