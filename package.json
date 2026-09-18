@@ -1,7 +1,7 @@
 {
   "name": "ai-usage-tracker",
   "private": true,
-  "version": "0.3.6-unrel",
+  "version": "0.3.6",
   "type": "module",
   "scripts": {
     "dev": "vite",
