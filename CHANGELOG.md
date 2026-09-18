@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased (26 items)
+## Unreleased (0 items)
+
+_No unreleased user-facing changes yet._
+
+## 0.3.7 - 2026-09-18 (26 items)
 
 ### Security (17)
 
