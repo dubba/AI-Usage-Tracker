@@ -65,6 +65,27 @@ pub fn open_in_main_webview(
     target: Url,
     mut on_url: impl FnMut(Url) + Send + 'static,
 ) -> Result<(), String> {
+    if target.scheme() != "https" {
+        return Err("Only HTTPS URLs are allowed for in-app sign-in".to_string());
+    }
+    let host = target.host_str().unwrap_or("");
+    let allowed_hosts = [
+        "auth.openai.com",
+        "openai.com",
+        "claude.ai",
+        "anthropic.com",
+        "accounts.google.com",
+        "google.com",
+        "aistudio.google.com",
+        "accounts.x.ai",
+        "grok.com",
+        "x.ai",
+        "opencode.ai",
+    ];
+    if !allowed_hosts.iter().any(|&h| host == h || host.ends_with(&format!(".{h}"))) {
+        return Err(format!("Disallowed host for in-app sign-in: {host}"));
+    }
+
     let window = main_window(&app)?;
     let restore_url = window
         .url()

@@ -550,6 +550,12 @@
   box-shadow: 0 0 0 3px rgba(160, 120, 255, 0.2);
 }
 
+.pairing-code-input.pairing-sas-input {
+  max-width: 100%;
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+}
+
 .pairing-code-help,
 .modal-card.pairing-modal .pairing-code-help {
   font-size: 0.75rem !important;

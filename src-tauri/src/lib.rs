@@ -241,7 +241,7 @@ fn cancel_login(
         cancellable
     };
 
-    state.stop_login_shutdown(&attempt_id);
+    state.abort_login_resources(&attempt_id);
     if !cancelled {
         return Ok(());
     }
@@ -517,7 +517,18 @@ async fn remove_account(
 fn regenerate_bridge_token(state: State<'_, Arc<AppState>>) -> Result<BridgeInfo, String> {
     let token = rotate_bridge_token().map_err(|error| error.to_string())?;
     *state.bridge_token.write() = token;
+    // Return masked info only; the UI must call reveal_bridge_token after
+    // explicit user confirmation to display or copy the new value once.
     Ok(bridge_info(state.inner().as_ref()))
+}
+
+/// Explicit user-confirmed reveal of the full bridge bearer token.
+/// The frontend must call this only from a Reveal/Copy click handler — never
+/// on a timer — so the full token crosses IPC once per user action instead of
+/// on every `get_bridge_info` poll.
+#[tauri::command]
+fn reveal_bridge_token(state: State<'_, Arc<AppState>>) -> Result<String, String> {
+    Ok(state.bridge_token.read().clone())
 }
 
 #[tauri::command]
@@ -593,6 +604,7 @@ async fn pairing_cancel(state: State<'_, Arc<AppState>>) -> Result<(), String> {
     state.pairing.cancel().await;
     *state.pairing_include_settings.write() = false;
     *state.pairing_pending_ui_state.write() = None;
+    *state.pairing_allow_credential_replace.write() = false;
     crate::lan_binding::configure_pairing_network(false);
     Ok(())
 }
@@ -607,6 +619,17 @@ async fn pairing_status(
 #[tauri::command]
 fn pairing_set_include_settings(state: State<'_, Arc<AppState>>, include: bool) -> Result<(), String> {
     *state.pairing_include_settings.write() = include;
+    Ok(())
+}
+
+#[tauri::command]
+fn pairing_set_allow_credential_replace(
+    state: State<'_, Arc<AppState>>,
+    allow: bool,
+) -> Result<(), String> {
+    // Explicit per-transfer opt-in to overwrite credentials of existing local
+    // accounts during the next pairing import. Defaults to false (preserve).
+    *state.pairing_allow_credential_replace.write() = allow;
     Ok(())
 }
 
@@ -647,17 +670,28 @@ fn pairing_prepare_airgap_export(
 
 #[tauri::command]
 fn pairing_verify_airgap(
+    state: State<'_, Arc<AppState>>,
     chunks: Vec<String>,
 ) -> Result<pairing::airgap::AirgapVerifyResult, String> {
-    pairing::airgap::verify_airgap_frames(chunks)
+    pairing::airgap::verify_airgap_frames(state.inner().as_ref(), chunks)
+}
+
+#[tauri::command]
+fn pairing_confirm_airgap(
+    state: State<'_, Arc<AppState>>,
+    session_id: String,
+    typed_code: String,
+) -> Result<String, String> {
+    pairing::airgap::confirm_airgap_session(state.inner().as_ref(), &session_id, &typed_code)
 }
 
 #[tauri::command]
 async fn pairing_import_airgap(
     state: State<'_, Arc<AppState>>,
+    import_token: String,
     chunks: Vec<String>,
 ) -> Result<pairing::payload::SyncSummary, String> {
-    pairing::airgap::import_airgap_payload(state.inner(), chunks).await
+    pairing::airgap::import_airgap_payload(state.inner(), &import_token, chunks).await
 }
 
 static PENDING_PAIRING_URI: parking_lot::Mutex<Option<String>> = parking_lot::Mutex::new(None);
@@ -672,6 +706,11 @@ pub extern "C" fn Java_com_yajinni_paseousagebridge_MainActivity_setPendingPairi
 ) {
     if let Ok(uri_str) = env.get_string(&uri) {
         let uri_val = uri_str.to_string_lossy().into_owned();
+        // Validate before storing: any app can fire a VIEW intent, and the
+        // URI carries key material. Never log its contents.
+        if !is_valid_incoming_pairing_uri(&uri_val) {
+            return;
+        }
         *PENDING_PAIRING_URI.lock() = Some(uri_val.clone());
         if let Some(app) = GLOBAL_APP_HANDLE.lock().as_ref() {
             use tauri::Emitter;
@@ -680,36 +719,85 @@ pub extern "C" fn Java_com_yajinni_paseousagebridge_MainActivity_setPendingPairi
     }
 }
 
+/// Length-bounded allowlist check for pairing URIs arriving from Android
+/// intents. Full cryptographic validation happens in
+/// `pairing::protocol::ParsedQrPayload::parse` before any connection.
+#[cfg(target_os = "android")]
+fn is_valid_incoming_pairing_uri(uri: &str) -> bool {
+    if uri.len() > 2048 {
+        return false;
+    }
+    uri.starts_with("aiusage-pair:") || uri.starts_with("aiusage:")
+}
+
 #[tauri::command]
 async fn get_pending_pairing_uri() -> Result<Option<String>, String> {
     Ok(PENDING_PAIRING_URI.lock().take())
 }
 
+fn split_version(v: &str) -> (Vec<u64>, Option<String>) {
+    let v = v.trim().trim_start_matches(['v', 'V']);
+    let numeric_end = v
+        .char_indices()
+        .find(|(_, ch)| !ch.is_ascii_digit() && *ch != '.')
+        .map(|(i, _)| i)
+        .unwrap_or(v.len());
+    let numeric = v[..numeric_end]
+        .split('.')
+        .filter_map(|part| {
+            if part.is_empty() {
+                None
+            } else {
+                part.parse::<u64>().ok()
+            }
+        })
+        .collect();
+    let pre = v[numeric_end..]
+        .trim_start_matches(|ch: char| !ch.is_ascii_alphanumeric())
+        .to_ascii_lowercase();
+    (numeric, if pre.is_empty() { None } else { Some(pre) })
+}
+
+fn compare_prerelease(cand: &str, curr: &str) -> bool {
+    let cand_tokens: Vec<&str> = cand.split(['.', '-', '_']).filter(|s| !s.is_empty()).collect();
+    let curr_tokens: Vec<&str> = curr.split(['.', '-', '_']).filter(|s| !s.is_empty()).collect();
+    let min_len = cand_tokens.len().min(curr_tokens.len());
+    for i in 0..min_len {
+        let c = cand_tokens[i];
+        let u = curr_tokens[i];
+        if c == u {
+            continue;
+        }
+        let c_num = c.parse::<u64>();
+        let u_num = u.parse::<u64>();
+        match (c_num, u_num) {
+            (Ok(cn), Ok(un)) => return cn > un,
+            (Ok(_), Err(_)) => return false,
+            (Err(_), Ok(_)) => return true,
+            (Err(_), Err(_)) => return c > u,
+        }
+    }
+    cand_tokens.len() > curr_tokens.len()
+}
+
 #[allow(dead_code)]
 fn is_newer_version(candidate: &str, current: &str) -> bool {
-    let parse = |v: &str| -> Vec<u64> {
-        v.trim_start_matches('v')
-            .split('.')
-            .filter_map(|s| {
-                let num_str: String = s.chars().take_while(|c| c.is_ascii_digit()).collect();
-                num_str.parse::<u64>().ok()
-            })
-            .collect()
-    };
-    let cand_parts = parse(candidate);
-    let curr_parts = parse(current);
+    let (cand_parts, cand_pre) = split_version(candidate);
+    let (curr_parts, curr_pre) = split_version(current);
     let max_len = cand_parts.len().max(curr_parts.len());
     for i in 0..max_len {
         let cand = cand_parts.get(i).copied().unwrap_or(0);
         let curr = curr_parts.get(i).copied().unwrap_or(0);
-        if cand > curr {
-            return true;
-        }
-        if cand < curr {
-            return false;
+        if cand != curr {
+            return cand > curr;
         }
     }
-    false
+    match (cand_pre.as_deref(), curr_pre.as_deref()) {
+        (None, Some(_)) => true,
+        (Some(_), None) => false,
+        (None, None) => false,
+        (Some(cand), Some(curr)) => compare_prerelease(cand, curr),
+    }
 }
 
 /// Only the updater's dedicated "no latest.json / no release metadata" variant
@@ -736,24 +824,67 @@ struct GitHubLatestRelease {
     body: Option<String>,
     #[cfg_attr(not(target_os = "android"), allow(dead_code))]
     apk_url: Option<String>,
+    #[cfg_attr(not(target_os = "android"), allow(dead_code))]
+    apk_sha256_url: Option<String>,
 }
 
-fn apk_url_from_github_assets(json: &serde_json::Value) -> Option<String> {
-    let assets = json.get("assets")?.as_array()?;
-    let mut fallback = None;
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+fn is_expected_apk_name(name: &str) -> bool {
+    let name = name.to_ascii_lowercase();
+    name.ends_with(".apk")
+        && !name.contains("unsigned")
+        && name.replace(['.', '_', ' '], "-").contains("ai-usage-tracker")
+}
+
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+fn apk_assets_from_github(json: &serde_json::Value) -> (Option<String>, Option<String>) {
+    let Some(assets) = json.get("assets").and_then(|value| value.as_array()) else {
+        return (None, None);
+    };
+    let mut apk_url = None;
+    let mut apk_fallback = None;
+    let mut apk_name = None;
+    let mut sha_by_name = std::collections::HashMap::new();
     for asset in assets {
-        let name = asset.get("name")?.as_str()?.to_ascii_lowercase();
-        if !name.ends_with(".apk") || name.contains("unsigned") {
+        let Some(name) = asset.get("name").and_then(|value| value.as_str()) else {
+            continue;
+        };
+        let Some(url) = asset
+            .get("browser_download_url")
+            .and_then(|value| value.as_str())
+            .map(str::to_string)
+        else {
+            continue;
+        };
+        let lower = name.to_ascii_lowercase();
+        if lower.ends_with(".apk.sha256") || lower.ends_with(".apk.sha256.txt") {
+            let stem = lower
+                .trim_end_matches(".txt")
+                .trim_end_matches(".sha256")
+                .to_string();
+            sha_by_name.insert(stem, url);
             continue;
         }
-        let url = asset.get("browser_download_url")?.as_str()?.to_string();
-        let has_arch = name.contains("arm") || name.contains("x86") || name.contains("universal");
-        if !has_arch {
-            return Some(url);
+        if !is_expected_apk_name(name) {
+            continue;
         }
-        fallback = Some(url);
+        let has_arch = lower.contains("arm") || lower.contains("x86") || lower.contains("universal");
+        if !has_arch && apk_url.is_none() {
+            apk_url = Some(url);
+            apk_name = Some(lower);
+        } else if apk_fallback.is_none() {
+            apk_fallback = Some((url, lower));
+        }
     }
-    fallback
+    let (url, name) = match (apk_url, apk_name) {
+        (Some(url), Some(name)) => (Some(url), Some(name)),
+        _ => match apk_fallback {
+            Some((url, name)) => (Some(url), Some(name)),
+            None => (None, None),
+        },
+    };
+    let sha = name.and_then(|name| sha_by_name.remove(&name));
+    (url, sha)
 }
 
 async fn fetch_github_latest_release() -> Result<GitHubLatestRelease, String> {
@@ -787,13 +918,14 @@ async fn fetch_github_latest_release() -> Result<GitHubLatestRelease, String> {
         .await
         .map_err(|error| format!("Unable to check for updates: {error}"))?;
     let tag = json.get("tag_name").and_then(|value| value.as_str()).unwrap_or("");
-    let version = tag.trim_start_matches('v');
+    let version = tag.trim().trim_start_matches(['v', 'V']);
     if version.is_empty() {
         return Err(
             "Unable to check for updates: latest GitHub release has no version tag.".into(),
         );
     }
 
+    let (apk_url, apk_sha256_url) = apk_assets_from_github(&json);
     Ok(GitHubLatestRelease {
         version: version.to_string(),
         published_at: json
@@ -804,12 +936,59 @@ async fn fetch_github_latest_release() -> Result<GitHubLatestRelease, String> {
             .get("body")
             .and_then(|value| value.as_str())
             .map(str::to_string),
-        apk_url: apk_url_from_github_assets(&json),
+        apk_url,
+        apk_sha256_url,
     })
 }
 
 #[cfg_attr(not(target_os = "android"), allow(dead_code))]
-async fn download_android_apk(url: &str, dest: &std::path::Path) -> Result<(), String> {
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+async fn fetch_apk_sha256(url: &str) -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(15))
+        .build()
+        .map_err(|error| format!("Unable to verify the update checksum: {error}"))?;
+    let response = client
+        .get(url)
+        .header("User-Agent", "AI-Usage-Tracker")
+        .send()
+        .await
+        .map_err(|error| format!("Unable to verify the update checksum: {error}"))?;
+    if !response.status().is_success() {
+        return Err("Unable to download the update checksum.".into());
+    }
+    let body = response
+        .text()
+        .await
+        .map_err(|error| format!("Unable to read the update checksum: {error}"))?;
+    parse_sha256_digest(&body).ok_or_else(|| "The published update checksum is invalid.".into())
+}
+
+fn parse_sha256_digest(body: &str) -> Option<String> {
+    let token = body
+        .split_whitespace()
+        .next()?
+        .trim()
+        .trim_start_matches("sha256:")
+        .to_ascii_lowercase();
+    if token.len() == 64 && token.chars().all(|ch| ch.is_ascii_hexdigit()) {
+        Some(token)
+    } else {
+        None
+    }
+}
+
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+fn sha256_hex(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(bytes)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
+}
+
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+async fn download_android_apk(url: &str, dest: &std::path::Path) -> Result<String, String> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(120))
         .redirect(reqwest::redirect::Policy::limited(10))
@@ -842,7 +1021,7 @@ async fn download_android_apk(url: &str, dest: &std::path::Path) -> Result<(), S
     tokio::fs::write(dest, &bytes)
         .await
         .map_err(|error| format!("Unable to save the update: {error}"))?;
-    Ok(())
+    Ok(sha256_hex(&bytes))
 }
 
 fn status_from_github_latest(
@@ -972,7 +1151,15 @@ async fn install_app_update(app: AppHandle) -> Result<(), String> {
             .app_cache_dir()
             .map_err(|error| format!("Unable to save the update: {error}"))?;
         let dest = cache.join("ai-usage-tracker-update.apk");
-        download_android_apk(&apk_url, &dest).await?;
+        let digest = download_android_apk(&apk_url, &dest).await?;
+        if let Some(sha_url) = latest.apk_sha256_url.as_deref() {
+            let expected = fetch_apk_sha256(sha_url).await?;
+            if expected != digest {
+                let _ = tokio::fs::remove_file(&dest).await;
+                return Err("The downloaded update did not match the published checksum.".into());
+            }
+        }
+        apk_install::verify_apk_signature(&dest)?;
         apk_install::prompt_apk_install(&dest)?;
         return Ok(());
     }
@@ -1040,9 +1227,16 @@ fn bridge_status(state: &AppState) -> BridgeStatus {
 
 fn bridge_info(state: &AppState) -> BridgeInfo {
     let status = bridge_status(state);
+    let token = state.bridge_token.read().clone();
+    let token_last4 = if token.len() >= 4 {
+        token[token.len() - 4..].to_string()
+    } else {
+        String::new()
+    };
     BridgeInfo {
         endpoint: status.endpoint,
-        token: state.bridge_token.read().clone(),
+        token: crate::model::mask_bridge_token(&token),
+        token_last4,
         enabled: status.enabled,
         running: status.running,
         error: status.error,
@@ -1115,6 +1309,10 @@ pub fn run() {
 
             let data_dir = app.path().app_data_dir()?;
             crate::store::set_data_dir(data_dir.clone());
+            // Crash-safe cleanup: remove stale private Grok login profiles left
+            // by a previous crash/kill before any new login window opens.
+            #[cfg(desktop)]
+            crate::grok_login::sweep_stale_grok_profiles();
             let token = load_or_create_bridge_token()
                 .map_err(|error| std::io::Error::other(error.to_string()))?;
             let state = Arc::new(AppState::new(data_dir, token).map_err(std::io::Error::other)?);
@@ -1191,6 +1389,7 @@ pub fn run() {
             save_account_bucket,
             delete_account_bucket,
             regenerate_bridge_token,
+            reveal_bridge_token,
             check_for_app_update,
             install_app_update,
             ensure_camera_permission,
@@ -1204,10 +1403,12 @@ pub fn run() {
             pairing_cancel,
             pairing_status,
             pairing_set_include_settings,
+            pairing_set_allow_credential_replace,
             pairing_set_pending_ui_state,
             pairing_clear_pending_ui_state,
             pairing_prepare_airgap_export,
             pairing_verify_airgap,
+            pairing_confirm_airgap,
             pairing_import_airgap,
             get_pending_pairing_uri,
         ])
@@ -1252,152 +1453,93 @@ async fn run_account_refresh_loop(state: Arc<AppState>) {
 
 #[cfg(target_os = "macos")]
 fn setup_macos_notification_delegate() {
-    use std::ffi::{c_char, c_void};
+    use block2::Block;
+    use objc2::runtime::{AnyClass, AnyObject};
+    use objc2::{define_class, msg_send, sel, ClassType};
     use std::sync::Once;
 
     static INIT: Once = Once::new();
-    INIT.call_once(|| unsafe {
-        type Id = *mut c_void;
-        type Sel = *mut c_void;
-        type Class = *mut c_void;
-        type Imp = unsafe extern "C" fn(Id, Sel, Id, Id) -> bool;
+    INIT.call_once(|| {
+        // Legacy NSUserNotificationCenter delegate. Declared with
+        // `define_class!` so the runtime verifies the method encoding;
+        // messaging goes through the typed `msg_send!` macro instead of a
+        // transmuted `objc_msgSend` function pointer.
+        define_class!(
+            #[unsafe(super(objc2::runtime::NSObject))]
+            struct AiUsageNotificationCenterDelegate;
 
-        extern "C" {
-            fn objc_getClass(name: *const c_char) -> Class;
-            fn sel_registerName(name: *const c_char) -> Sel;
-            fn objc_allocateClassPair(superclass: Class, name: *const c_char, extra_bytes: usize) -> Class;
-            fn class_addMethod(cls: Class, name: Sel, imp: Imp, types: *const c_char) -> bool;
-            fn objc_registerClassPair(cls: Class);
-            fn objc_msgSend();
-        }
+            impl AiUsageNotificationCenterDelegate {
+                #[unsafe(method(userNotificationCenter:shouldPresentNotification:))]
+                unsafe fn should_present(
+                    &self,
+                    _center: *mut AnyObject,
+                    _notification: *mut AnyObject,
+                ) -> bool {
+                    true
+                }
+            }
+        );
 
-        unsafe extern "C" fn should_present_notification(
-            _this: Id,
-            _cmd: Sel,
-            _center: Id,
-            _notification: Id,
-        ) -> bool {
-            true
-        }
+        // Modern UNUserNotificationCenter delegate. The completion handler is
+        // typed as a real block and invoked via `block2::Block::call`
+        // instead of calling a raw function pointer from a C struct.
+        define_class!(
+            #[unsafe(super(objc2::runtime::NSObject))]
+            struct AiUsageModernNotificationCenterDelegate;
 
-        let center_class = objc_getClass(b"NSUserNotificationCenter\0".as_ptr() as *const c_char);
-        if center_class.is_null() {
+            impl AiUsageModernNotificationCenterDelegate {
+                #[unsafe(method(userNotificationCenter:willPresentNotification:withCompletionHandler:))]
+                unsafe fn will_present(
+                    &self,
+                    _center: *mut AnyObject,
+                    _notification: *mut AnyObject,
+                    completion_handler: *mut Block<dyn Fn(u64)>,
+                ) {
+                    if completion_handler.is_null() {
+                        return;
+                    }
+                    // Banner, List, Alert, Sound, Badge.
+                    let options: u64 = (1 << 4) | (1 << 3) | (1 << 2) | (1 << 1) | (1 << 0);
+                    (*completion_handler).call((options,));
+                }
+            }
+        );
+
+        // NSUserNotificationCenter.defaultUserNotificationCenter
+        let Some(center_class) = AnyClass::get(c"NSUserNotificationCenter") else {
             return;
-        }
-
-        let default_center_sel =
-            sel_registerName(b"defaultUserNotificationCenter\0".as_ptr() as *const c_char);
-        let msg_send_get_center: unsafe extern "C" fn(Class, Sel) -> Id =
-            std::mem::transmute(objc_msgSend as *const ());
-        let center = msg_send_get_center(center_class, default_center_sel);
+        };
+        let center: *mut AnyObject = unsafe { msg_send![center_class, defaultUserNotificationCenter] };
         if center.is_null() {
             return;
         }
 
-        let nsobject_class = objc_getClass(b"NSObject\0".as_ptr() as *const c_char);
-        if nsobject_class.is_null() {
+        let delegate_class = AiUsageNotificationCenterDelegate::class();
+        let delegate: *mut AnyObject = unsafe { msg_send![delegate_class, new] };
+        if !delegate.is_null() {
+            unsafe {
+                let _: () = msg_send![center, setDelegate: delegate];
+            }
+        }
+
+        // UNUserNotificationCenter.currentNotificationCenter
+        let Some(un_center_class) = AnyClass::get(c"UNUserNotificationCenter") else {
+            return;
+        };
+        let un_center: *mut AnyObject =
+            unsafe { msg_send![un_center_class, currentNotificationCenter] };
+        if un_center.is_null() {
             return;
         }
-
-        let class_name = b"AiUsageNotificationCenterDelegate\0".as_ptr() as *const c_char;
-        let mut delegate_class = objc_getClass(class_name);
-        if delegate_class.is_null() {
-            delegate_class = objc_allocateClassPair(nsobject_class, class_name, 0);
-            if !delegate_class.is_null() {
-                let should_present_sel = sel_registerName(
-                    b"userNotificationCenter:shouldPresentNotification:\0".as_ptr() as *const c_char,
-                );
-                let types = b"c@:@@\0".as_ptr() as *const c_char;
-                class_addMethod(
-                    delegate_class,
-                    should_present_sel,
-                    should_present_notification,
-                    types,
-                );
-                objc_registerClassPair(delegate_class);
+        let modern_class = AiUsageModernNotificationCenterDelegate::class();
+        let modern_delegate: *mut AnyObject = unsafe { msg_send![modern_class, new] };
+        if !modern_delegate.is_null() {
+            unsafe {
+                let _: () = msg_send![un_center, setDelegate: modern_delegate];
             }
-        }
-
-        if !delegate_class.is_null() {
-            let new_sel = sel_registerName(b"new\0".as_ptr() as *const c_char);
-            let msg_send_new: unsafe extern "C" fn(Class, Sel) -> Id =
-                std::mem::transmute(objc_msgSend as *const ());
-            let delegate_instance = msg_send_new(delegate_class, new_sel);
-            if !delegate_instance.is_null() {
-                let set_delegate_sel = sel_registerName(b"setDelegate:\0".as_ptr() as *const c_char);
-                let msg_send_set_delegate: unsafe extern "C" fn(Id, Sel, Id) =
-                    std::mem::transmute(objc_msgSend as *const ());
-                msg_send_set_delegate(center, set_delegate_sel, delegate_instance);
-            }
-        }
-
-        // Modern macOS (10.14+): UNUserNotificationCenter delegate
-        #[repr(C)]
-        struct BlockLiteral {
-            _isa: *const c_void,
-            _flags: i32,
-            _reserved: i32,
-            invoke: unsafe extern "C" fn(*const c_void, u64),
-        }
-
-        unsafe extern "C" fn will_present_notification(
-            _this: Id,
-            _cmd: Sel,
-            _center: Id,
-            _notification: Id,
-            completion_handler: *const BlockLiteral,
-        ) {
-            if !completion_handler.is_null() {
-                let options: u64 = (1 << 4) | (1 << 3) | (1 << 2) | (1 << 1) | (1 << 0); // Banner, List, Alert, Sound, Badge
-                let invoke = (*completion_handler).invoke;
-                invoke(completion_handler as *const c_void, options);
-            }
-        }
-
-        let un_center_class = objc_getClass(b"UNUserNotificationCenter\0".as_ptr() as *const c_char);
-        if !un_center_class.is_null() {
-            let current_center_sel =
-                sel_registerName(b"currentNotificationCenter\0".as_ptr() as *const c_char);
-            let msg_send_get_center: unsafe extern "C" fn(Class, Sel) -> Id =
-                std::mem::transmute(objc_msgSend as *const ());
-            let center = msg_send_get_center(un_center_class, current_center_sel);
-            if !center.is_null() {
-                let class_name = b"AiUsageModernNotificationCenterDelegate\0".as_ptr() as *const c_char;
-                let mut delegate_class = objc_getClass(class_name);
-                if delegate_class.is_null() {
-                    delegate_class = objc_allocateClassPair(nsobject_class, class_name, 0);
-                    if !delegate_class.is_null() {
-                        let will_present_sel = sel_registerName(
-                            b"userNotificationCenter:willPresentNotification:withCompletionHandler:\0"
-                                .as_ptr() as *const c_char,
-                        );
-                        let types = b"v@:@@@?\0".as_ptr() as *const c_char;
-                        class_addMethod(
-                            delegate_class,
-                            will_present_sel,
-                            std::mem::transmute::<
-                                unsafe extern "C" fn(Id, Sel, Id, Id, *const BlockLiteral),
-                                Imp,
-                            >(will_present_notification),
-                            types,
-                        );
-                        objc_registerClassPair(delegate_class);
-                    }
-                }
-                if !delegate_class.is_null() {
-                    let new_sel = sel_registerName(b"new\0".as_ptr() as *const c_char);
-                    let msg_send_new: unsafe extern "C" fn(Class, Sel) -> Id =
-                        std::mem::transmute(objc_msgSend as *const ());
-                    let delegate_instance = msg_send_new(delegate_class, new_sel);
-                    if !delegate_instance.is_null() {
-                        let set_delegate_sel =
-                            sel_registerName(b"setDelegate:\0".as_ptr() as *const c_char);
-                        let msg_send_set_delegate: unsafe extern "C" fn(Id, Sel, Id) =
-                            std::mem::transmute(objc_msgSend as *const ());
-                        msg_send_set_delegate(center, set_delegate_sel, delegate_instance);
-                    }
-                }
-            }
+            // Keep the selector referenced so the intent is explicit even
+            // though `define_class!` registers the method encoding.
+            let _ = sel!(userNotificationCenter:willPresentNotification:withCompletionHandler:);
         }
     });
 }
@@ -1405,8 +1547,8 @@ fn setup_macos_notification_delegate() {
 #[cfg(test)]
 mod tests {
     use super::{
-        account_refresh_is_due, github_latest_http_is_inaccessible, is_newer_version,
-        updater_error_is_no_release,
+        account_refresh_is_due, github_latest_http_is_inaccessible, is_expected_apk_name,
+        is_newer_version, parse_sha256_digest, updater_error_is_no_release,
     };
     use std::time::{Duration, SystemTime};
 
@@ -1422,6 +1564,39 @@ mod tests {
         assert!(!is_newer_version("0.3.3", "0.3.3"));
         assert!(!is_newer_version("v0.3.3", "v0.3.3"));
         assert!(!is_newer_version("0.2.9", "0.3.0"));
+
+        assert!(is_newer_version("0.3.6", "0.3.6-unrel"));
+        assert!(is_newer_version("0.3.6", "0.3.6 unrel"));
+        assert!(is_newer_version("0.3.7", "0.3.6-unrel"));
+        assert!(is_newer_version("0.3.7-unrel", "0.3.6"));
+        assert!(!is_newer_version("0.3.6", "0.3.7-unrel"));
+        assert!(!is_newer_version("0.3.6-unrel", "0.3.6"));
+        assert!(!is_newer_version("0.3.6-unrel", "0.3.6-unrel"));
+        assert!(is_newer_version("0.3.7-unrel.2", "0.3.7-unrel.1"));
+        assert!(is_newer_version("0.3.7-unrel.10", "0.3.7-unrel.2"));
+        assert!(!is_newer_version("0.3.7-unrel.2", "0.3.7-unrel.10"));
+        assert!(is_newer_version("V0.3.6", "0.3.6-unrel"));
+    }
+
+    #[test]
+    fn expected_apk_asset_names_match_this_app() {
+        assert!(is_expected_apk_name("AI Usage Tracker_0.3.6.apk"));
+        assert!(is_expected_apk_name("ai-usage-tracker-0.3.6.apk"));
+        assert!(!is_expected_apk_name("other-app.apk"));
+        assert!(!is_expected_apk_name("AI Usage Tracker_0.3.6-unsigned.apk"));
+        assert!(!is_expected_apk_name("AI Usage Tracker_0.3.6.apk.sha256"));
+    }
+
+    #[test]
+    fn sha256_digest_parses_common_checksum_files() {
+        assert_eq!(
+            parse_sha256_digest(
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef  AI Usage Tracker_0.3.6.apk\n"
+            )
+            .as_deref(),
+            Some("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+        );
+        assert!(parse_sha256_digest("not-a-hash").is_none());
     }
 
     #[test]
@@ -1490,7 +1665,7 @@ mod tests {
             ]
         });
         assert_eq!(
-            super::apk_url_from_github_assets(&json).as_deref(),
+            super::apk_assets_from_github(&json).0.as_deref(),
             Some("https://example.com/app.apk")
         );
     }

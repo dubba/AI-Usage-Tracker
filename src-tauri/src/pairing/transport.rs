@@ -7,9 +7,10 @@ use crate::{
         },
         payload::{create_export_payload, import_sync_payload, SyncSummary},
         protocol::{
-            read_frame, write_frame, ParsedQrPayload, MSG_ABORT, MSG_ACK, MSG_ENCRYPTED_PAYLOAD,
-            MSG_HANDSHAKE_INIT, MSG_HANDSHAKE_RESP, MSG_ROLE_SELECT, MSG_ROLE_SELECT_RESP,
-            MSG_SAS_CONFIRM,
+            compute_display_fingerprint, format_uri_host, read_frame_limited, write_frame,
+            ParsedQrPayload, MAX_CONTROL_FRAME_SIZE, MAX_FRAME_SIZE, MAX_PREAUTH_FRAME_SIZE,
+            MSG_ABORT, MSG_ACK, MSG_ENCRYPTED_PAYLOAD, MSG_HANDSHAKE_INIT, MSG_HANDSHAKE_RESP,
+            MSG_ROLE_SELECT, MSG_ROLE_SELECT_RESP, MSG_SAS_CONFIRM,
         },
     },
     state::AppState,
@@ -91,6 +92,25 @@ pub fn generate_qr_svg(uri: &str) -> Result<String, String> {
         .dark_color(svg::Color("#000000"))
         .light_color(svg::Color("#ffffff"))
         .build();
+
+    let trimmed = image.trim();
+    if !trimmed.starts_with("<?xml") && !trimmed.starts_with("<svg") {
+        return Err("Generated QR is not valid SVG markup".into());
+    }
+    if !trimmed.contains("<svg") || !trimmed.ends_with("</svg>") {
+        return Err("Malformed QR SVG markup".into());
+    }
+    let lower = trimmed.to_ascii_lowercase();
+    if lower.contains("<script")
+        || lower.contains("<foreignobject")
+        || lower.contains("<use")
+        || lower.contains("onload")
+        || lower.contains("onerror")
+        || lower.contains("javascript:")
+    {
+        return Err("Generated QR SVG contains disallowed elements or attributes".into());
+    }
+
     Ok(image)
 }
 
@@ -193,7 +213,10 @@ pub async fn run_host_listener(
                 let mut stream = accepted;
                 let handshake_res: Result<Result<[u8; 32], String>, _> =
                     timeout(Duration::from_secs(SOCKET_TIMEOUT_SECS), async {
-                        let (msg_type, payload) = read_frame(&mut stream).await?;
+                        // Pre-authentication: strict 1 KiB budget so an
+                        // unauthenticated LAN peer cannot force a 16 MB allocation.
+                        let (msg_type, payload) =
+                            read_frame_limited(&mut stream, MAX_PREAUTH_FRAME_SIZE).await?;
                         if msg_type != MSG_HANDSHAKE_INIT {
                             return Err("Expected MSG_HANDSHAKE_INIT".into());
                         }
@@ -278,12 +301,13 @@ pub async fn run_host_listener(
             // uses the session timeout rather than the short socket timeout.
             let role_res: Result<Result<(bool, usize), String>, _> =
                 timeout(Duration::from_secs(SESSION_TIMEOUT_SECS), async {
-                    let (msg_type, payload) = read_frame(&mut stream).await?;
+                    let (msg_type, payload) =
+                        read_frame_limited(&mut stream, MAX_PREAUTH_FRAME_SIZE).await?;
                     if msg_type != MSG_ROLE_SELECT {
                         return Err("Expected MSG_ROLE_SELECT".into());
                     }
-                    if payload.is_empty() {
-                        return Err("Empty role selection payload".into());
+                    if payload.is_empty() || payload.len() > 3 {
+                        return Err("Invalid role selection payload length".into());
                     }
 
                     match payload[0] {
@@ -396,7 +420,11 @@ pub async fn run_client_connector(
     sas_confirm_rx: oneshot::Receiver<bool>,
     mut cancel_rx: oneshot::Receiver<()>,
 ) {
-    let connect_addr = format!("{}:{}", parsed.host, parsed.port);
+    let connect_addr = parsed
+        .host
+        .parse::<std::net::IpAddr>()
+        .map(|ip| std::net::SocketAddr::new(ip, parsed.port).to_string())
+        .unwrap_or_else(|_| format!("{}:{}", format_uri_host(&parsed.host), parsed.port));
     let mut stream = match timeout(
         Duration::from_secs(10),
         TcpStream::connect(&connect_addr),
@@ -435,11 +463,12 @@ pub async fn run_client_connector(
     // Read Handshake Resp
     let resp_res: Result<Result<(), String>, _> =
         timeout(Duration::from_secs(SOCKET_TIMEOUT_SECS), async {
-            let (msg_type, payload) = read_frame(&mut stream).await?;
+            let (msg_type, payload) =
+                read_frame_limited(&mut stream, MAX_PREAUTH_FRAME_SIZE).await?;
             if msg_type != MSG_HANDSHAKE_RESP {
                 return Err("Expected MSG_HANDSHAKE_RESP".into());
             }
-            if payload.is_empty() || payload[0] != 0x00 {
+            if payload.len() != 1 || payload[0] != 0x00 {
                 return Err("Host rejected handshake".into());
             }
             Ok(())
@@ -488,20 +517,24 @@ pub async fn run_client_connector(
     );
 
     let sas_code = compute_sas_code(&encryption_key, &transcript);
+    // Recompute the fingerprint from the actual peer key — never display the
+    // peer-supplied `fp` value (already rejected on mismatch at parse time).
+    let verified_fingerprint =
+        compute_display_fingerprint(&parsed.session_id, &parsed.peer_public_key, &parsed.session_nonce);
     let local_account_count = state.store.list().len();
 
     // Emit Connected for backward compatibility and RoleSelection for UI
     let _ = status_tx
         .send(ClientEvent::Connected {
             sas_code: sas_code.clone(),
-            fingerprint: parsed.fingerprint.clone(),
+            fingerprint: verified_fingerprint.clone(),
             account_count: local_account_count,
         })
         .await;
     let _ = status_tx
         .send(ClientEvent::RoleSelection {
             sas_code: sas_code.clone(),
-            fingerprint: parsed.fingerprint.clone(),
+            fingerprint: verified_fingerprint.clone(),
         })
         .await;
 
@@ -550,8 +583,18 @@ pub async fn run_client_connector(
         }
 
         // Wait for Host response
-        let resp = match timeout(Duration::from_secs(SOCKET_TIMEOUT_SECS), read_frame(&mut stream)).await {
-            Ok(Ok((msg_type, _))) if msg_type == MSG_ROLE_SELECT_RESP => Ok(()),
+        let resp = match timeout(
+            Duration::from_secs(SOCKET_TIMEOUT_SECS),
+            read_frame_limited(&mut stream, MAX_CONTROL_FRAME_SIZE),
+        )
+        .await {
+            Ok(Ok((msg_type, payload))) if msg_type == MSG_ROLE_SELECT_RESP => {
+                if payload.len() > MAX_CONTROL_FRAME_SIZE {
+                    Err("Role select response too large".into())
+                } else {
+                    Ok(())
+                }
+            }
             Ok(Ok((msg_type, _))) => Err(format!("Unexpected message type 0x{msg_type:02X} after role select")),
             Ok(Err(e)) => Err(e),
             Err(_) => Err("Timed out waiting for host role select response".into()),
@@ -576,11 +619,12 @@ pub async fn run_client_connector(
         // Host responds with its account count
         let host_count_res: Result<Result<usize, String>, _> =
             timeout(Duration::from_secs(SOCKET_TIMEOUT_SECS), async {
-                let (msg_type, payload) = read_frame(&mut stream).await?;
+                let (msg_type, payload) =
+                    read_frame_limited(&mut stream, MAX_CONTROL_FRAME_SIZE).await?;
                 if msg_type != MSG_ROLE_SELECT_RESP {
                     return Err("Expected MSG_ROLE_SELECT_RESP".into());
                 }
-                if payload.len() < 2 {
+                if payload.len() != 2 {
                     return Err("Invalid role select response length".into());
                 }
                 let count = u16::from_be_bytes([payload[0], payload[1]]) as usize;
@@ -611,7 +655,7 @@ pub async fn run_client_connector(
     let _ = status_tx
         .send(ClientEvent::SasVerification {
             sas_code: sas_code.clone(),
-            fingerprint: parsed.fingerprint.clone(),
+            fingerprint: verified_fingerprint,
             role: client_role.to_string(),
             account_count,
         })
@@ -700,7 +744,10 @@ async fn run_authenticated_transfer<E>(
     };
 
     let reader_task = async {
-        let (msg_type, payload) = read_frame(&mut read_half).await?;
+        // Still pre-authentication (SAS not yet mutually confirmed): keep the
+        // 1 KiB budget. The large encrypted payload is only accepted later.
+        let (msg_type, payload) =
+            read_frame_limited(&mut read_half, MAX_PREAUTH_FRAME_SIZE).await?;
         if msg_type != MSG_SAS_CONFIRM {
             return Err("Expected MSG_SAS_CONFIRM from peer".to_string());
         }
@@ -788,14 +835,15 @@ async fn run_authenticated_transfer<E>(
             return;
         }
 
-        // Read ACK
+        // Read ACK (small authenticated control frame)
         let ack_res: Result<Result<SyncSummary, String>, _> =
             timeout(Duration::from_secs(SOCKET_TIMEOUT_SECS), async {
-                let (msg_type, payload) = read_frame(&mut stream).await?;
+                let (msg_type, payload) =
+                    read_frame_limited(&mut stream, MAX_CONTROL_FRAME_SIZE).await?;
                 if msg_type != MSG_ACK {
                     return Err("Expected MSG_ACK".into());
                 }
-                if payload.len() < 6 {
+                if payload.len() != 6 {
                     return Err("Invalid ACK payload length".into());
                 }
 
@@ -827,10 +875,13 @@ async fn run_authenticated_transfer<E>(
             }
         }
     } else {
-        // RECEIVER: Read encrypted payload, decrypt, and import
+        // RECEIVER: Read encrypted payload, decrypt, and import.
+        // This is the only large frame in the protocol and it is accepted
+        // solely after mutual SAS confirmation succeeded.
         let payload_res: Result<Result<Vec<u8>, String>, _> =
             timeout(Duration::from_secs(SOCKET_TIMEOUT_SECS), async {
-                let (msg_type, payload) = read_frame(&mut stream).await?;
+                let (msg_type, payload) =
+                    read_frame_limited(&mut stream, MAX_FRAME_SIZE).await?;
                 if msg_type != MSG_ENCRYPTED_PAYLOAD {
                     return Err("Expected MSG_ENCRYPTED_PAYLOAD".into());
                 }

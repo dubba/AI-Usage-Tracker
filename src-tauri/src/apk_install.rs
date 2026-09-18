@@ -4,6 +4,29 @@ use jni::objects::{JObject, JValue};
 use jni::JNIEnv;
 
 pub fn prompt_apk_install(path: &Path) -> Result<(), String> {
+    call_activity_string_method("installDownloadedApk", "(Ljava/lang/String;)V", path, false)
+}
+
+pub fn verify_apk_signature(path: &Path) -> Result<(), String> {
+    let result = call_activity_string_method(
+        "verifyDownloadedApk",
+        "(Ljava/lang/String;)Ljava/lang/String;",
+        path,
+        true,
+    )?;
+    if result == "ok" {
+        Ok(())
+    } else {
+        Err(result)
+    }
+}
+
+fn call_activity_string_method(
+    name: &str,
+    sig: &str,
+    path: &Path,
+    expect_string: bool,
+) -> Result<String, String> {
     let ctx = ndk_context::android_context();
     let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }
         .map_err(|error| format!("Unable to start the Android installer: {error}"))?;
@@ -16,17 +39,19 @@ pub fn prompt_apk_install(path: &Path) -> Result<(), String> {
         .map_err(|error| format!("Unable to start the Android installer: {error}"))?;
     let path_obj = JObject::from(path);
 
-    match env.call_method(
-        &activity,
-        "installDownloadedApk",
-        "(Ljava/lang/String;)V",
-        &[JValue::Object(&path_obj)],
-    ) {
-        Ok(_) => {
+    match env.call_method(&activity, name, sig, &[JValue::Object(&path_obj)]) {
+        Ok(value) => {
             if env.exception_check().unwrap_or(false) {
                 Err(jni_exception_message(&mut env))
+            } else if expect_string {
+                let obj = value
+                    .l()
+                    .map_err(|error| format!("Unable to verify the update: {error}"))?;
+                env.get_string((&obj).into())
+                    .map(|s| s.to_string_lossy().into_owned())
+                    .map_err(|error| format!("Unable to verify the update: {error}"))
             } else {
-                Ok(())
+                Ok(String::new())
             }
         }
         Err(_) => Err(jni_exception_message(&mut env)),

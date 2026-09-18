@@ -23,7 +23,7 @@ ensure_identity() {
   openssl pkcs12 -export -legacy -inkey "$TMP/key.pem" -in "$TMP/cert.pem" \
     -out "$TMP/id.p12" -passout pass:dev >/dev/null 2>&1
   security import "$TMP/id.p12" -k "$KEYCHAIN" -P dev -T /usr/bin/codesign -T /usr/bin/security >/dev/null
-  security add-trusted-cert -r trustAsRoot -k "$KEYCHAIN" "$TMP/cert.pem" >/dev/null 2>&1 || true
+  security add-trusted-cert -p codesigning -k "$KEYCHAIN" "$TMP/cert.pem" >/dev/null 2>&1 || true
   rm -rf "$TMP"
 }
 

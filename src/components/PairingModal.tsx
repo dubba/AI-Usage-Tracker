@@ -23,6 +23,146 @@ import jsQR from "jsqr";
 type ViewMode = "select-role" | "select-mode" | "host" | "scanner" | "code" | "airgap-sender" | "airgap-confirm";
 type IntendedRole = "send" | "receive";
 
+const ALLOWED_SVG_TAGS = new Set(["svg", "path", "rect", "g", "defs", "clippath"]);
+const ALLOWED_SVG_ATTRS = new Set([
+  "viewbox",
+  "width",
+  "height",
+  "fill",
+  "stroke",
+  "stroke-width",
+  "d",
+  "shape-rendering",
+  "xmlns",
+  "version",
+  "x",
+  "y",
+  "id",
+  "class",
+]);
+
+export function sanitizeQrSvg(rawSvg: string): string {
+  if (!rawSvg || typeof rawSvg !== "string") return "";
+
+  const trimmed = rawSvg.replace(/^<\?xml[^>]*\?>/i, "").trim();
+  if (!trimmed) return "";
+
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(trimmed, "image/svg+xml");
+
+    if (doc.getElementsByTagName("parsererror").length > 0) {
+      return "";
+    }
+
+    const root = doc.documentElement;
+    if (!root || root.nodeName.toLowerCase() !== "svg") {
+      return "";
+    }
+
+    const elements = Array.from(doc.getElementsByTagName("*"));
+    for (const el of elements) {
+      const tag = el.nodeName.toLowerCase();
+      if (!ALLOWED_SVG_TAGS.has(tag)) {
+        el.remove();
+        continue;
+      }
+
+      const attrs = Array.from(el.attributes);
+      for (const attr of attrs) {
+        const attrName = attr.name.toLowerCase();
+        const attrValue = attr.value.trim().toLowerCase();
+
+        if (
+          attrName.startsWith("on") ||
+          attrName.includes("href") ||
+          attrValue.includes("javascript:") ||
+          attrValue.includes("data:") ||
+          !ALLOWED_SVG_ATTRS.has(attrName)
+        ) {
+          el.removeAttribute(attr.name);
+        }
+      }
+    }
+
+    return new XMLSerializer().serializeToString(root);
+  } catch {
+    return "";
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Sandboxed QR decoding.
+//
+// `jsqr` is unmaintained, so untrusted camera pixels reach it only through
+// this strict boundary: frame dimensions and pixel counts are capped (large
+// frames are downscaled first), the call is exception-isolated so a crafted
+// frame cannot break the scan loop, and decoded text is length-capped and
+// scheme-allowlisted before anything else touches it. The platform-native
+// `BarcodeDetector` remains the primary decoder where available; jsQR is only
+// the cross-platform fallback.
+// ---------------------------------------------------------------------------
+const QR_MAX_DIMENSION = 960;
+const QR_MAX_PIXELS = QR_MAX_DIMENSION * QR_MAX_DIMENSION;
+const QR_MAX_PAYLOAD_CHARS = 2048;
+const QR_ALLOWED_PREFIXES = ["aiusage-pair:", "aiusage:", "aiut-airgap:", "aiut-airgap://"];
+
+function sanitizeDecodedQrText(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const text = raw.trim();
+  if (text.length === 0 || text.length > QR_MAX_PAYLOAD_CHARS) return null;
+  // Reject control characters (except whitespace already trimmed at the ends).
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000-\u001F\u007F]/.test(text)) return null;
+  if (!QR_ALLOWED_PREFIXES.some((prefix) => text.startsWith(prefix))) return null;
+  return text;
+}
+
+function decodeQrSandboxed(imageData: ImageData): string | null {
+  // Dimension guard: jsQR is O(pixels), so refuse absurd frames outright.
+  if (
+    imageData.width <= 0 ||
+    imageData.height <= 0 ||
+    imageData.width > 4096 ||
+    imageData.height > 4096 ||
+    imageData.width * imageData.height > 16 * QR_MAX_PIXELS
+  ) {
+    return null;
+  }
+  let data = imageData.data;
+  let width = imageData.width;
+  let height = imageData.height;
+  // Downscale large frames before handing pixels to the fallback decoder.
+  if (width * height > QR_MAX_PIXELS) {
+    const scale = Math.sqrt((width * height) / QR_MAX_PIXELS);
+    const targetWidth = Math.max(1, Math.floor(width / scale));
+    const targetHeight = Math.max(1, Math.floor(height / scale));
+    const source = document.createElement("canvas");
+    source.width = width;
+    source.height = height;
+    const sourceCtx = source.getContext("2d");
+    if (!sourceCtx) return null;
+    sourceCtx.putImageData(imageData, 0, 0);
+    const target = document.createElement("canvas");
+    target.width = targetWidth;
+    target.height = targetHeight;
+    const targetCtx = target.getContext("2d", { willReadFrequently: true });
+    if (!targetCtx) return null;
+    targetCtx.drawImage(source, 0, 0, targetWidth, targetHeight);
+    const scaled = targetCtx.getImageData(0, 0, targetWidth, targetHeight);
+    data = scaled.data;
+    width = scaled.width;
+    height = scaled.height;
+  }
+  let result: { data: string } | null = null;
+  try {
+    result = jsQR(data, width, height, { inversionAttempts: "attemptBoth" });
+  } catch {
+    return null;
+  }
+  return sanitizeDecodedQrText(result?.data);
+}
+
 function pairingStep(status: PairingStatus["status"], viewMode: ViewMode): 1 | 2 | 3 {
   if (status === "sasVerification" || status === "transferring" || status === "completed") {
     return 3;
@@ -482,6 +622,8 @@ export function PairingModal({
   const [airgapTotalChunks, setAirgapTotalChunks] = useState<number>(0);
   const [airgapVerifyPrompt, setAirgapPinPrompt] = useState(false);
   const [airgapVerifyCode, setAirgapVerifyCode] = useState<string | null>(null);
+  const [airgapVerifySessionId, setAirgapVerifySessionId] = useState<string | null>(null);
+  const [airgapTypedCode, setAirgapTypedCode] = useState("");
   const [airgapVerifying, setAirgapVerifying] = useState(false);
   const [airgapImporting, setAirgapImporting] = useState(false);
   const [scannerRestartKey, setScannerRestartKey] = useState(0);
@@ -797,6 +939,8 @@ export function PairingModal({
       setAirgapPinPrompt(false);
       airgapVerifyPromptRef.current = false;
       setAirgapVerifyCode(null);
+      setAirgapVerifySessionId(null);
+      setAirgapTypedCode("");
       setAirgapVerifying(false);
       setAirgapImporting(false);
       airgapVerifyStartedRef.current = false;
@@ -1022,12 +1166,22 @@ export function PairingModal({
         const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
         let scanning = false;
+        let lastScanAt = 0;
+        const SCAN_THROTTLE_MS = 150;
         const scan = async () => {
           if (!active || !videoRef.current) return;
           if (scanning) {
             animFrameId = requestAnimationFrame(scan);
             return;
           }
+          // Throttle decode attempts so a malicious/high-fps stream cannot
+          // pin the renderer CPU via the fallback decoder.
+          const now = performance.now();
+          if (now - lastScanAt < SCAN_THROTTLE_MS) {
+            animFrameId = requestAnimationFrame(scan);
+            return;
+          }
+          lastScanAt = now;
           scanning = true;
 
           try {
@@ -1040,15 +1194,16 @@ export function PairingModal({
                 try {
                   const codes = await nativeDetector.detect(video);
                   if (codes.length > 0 && codes[0].rawValue) {
-                    detectedCode = codes[0].rawValue.trim();
+                    detectedCode = sanitizeDecodedQrText(codes[0].rawValue);
                   }
                 } catch {
                   // Fall back to jsQR
                 }
               }
 
-              // 2. Cross-platform fallback: decode with jsQR via offscreen canvas
-              // attemptBoth checks standard (dark-on-light) and inverted (light-on-dark), resilient to screen reflections
+              // 2. Cross-platform fallback: decode via the sandboxed jsQR
+              // boundary (dimension caps, exception isolation, allowlisted
+              // output). Resilient to screen reflections via attemptBoth.
               if (!detectedCode && ctx) {
                 if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
                   canvas.width = video.videoWidth;
@@ -1056,12 +1211,7 @@ export function PairingModal({
                 }
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const result = jsQR(imageData.data, imageData.width, imageData.height, {
-                  inversionAttempts: "attemptBoth",
-                });
-                if (result?.data) {
-                  detectedCode = result.data.trim();
-                }
+                detectedCode = decodeQrSandboxed(imageData);
               }
 
               if (
@@ -1165,7 +1315,9 @@ export function PairingModal({
     void pairingApi
       .verifyAirgapFrames(chunks)
       .then((res) => {
+        setAirgapVerifySessionId(res.sessionId);
         setAirgapVerifyCode(res.verifyCode);
+        setAirgapTypedCode("");
       })
       .catch((err) => {
         setErrorMessage(err instanceof Error ? err.message : String(err));
@@ -1340,12 +1492,13 @@ export function PairingModal({
   };
 
   const handleAirgapImport = async () => {
-    if (airgapImporting || !airgapVerifyCode) return;
+    if (airgapImporting || !airgapVerifyCode || !airgapVerifySessionId) return;
     setAirgapImporting(true);
     setErrorMessage(null);
     try {
       const chunks = Array.from(airgapCapturedChunks.values());
-      const summary = await pairingApi.importAirgapFrames(chunks);
+      const token = await pairingApi.confirmAirgap(airgapVerifySessionId, airgapTypedCode);
+      const summary = await pairingApi.importAirgapFrames(token, chunks);
       hasCompletedRef.current = true;
       airgapVerifyPromptRef.current = false;
       setAirgapPinPrompt(false);
@@ -1743,7 +1896,7 @@ export function PairingModal({
                   <div className="pairing-sas-icon"><ShieldIcon /></div>
                   <h3>Do both devices show this code?</h3>
                   <p className="pairing-instruction">
-                    Captured all {airgapTotalChunks} frames{airgapCaptureSecs !== null ? ` in ${airgapCaptureSecs} seconds` : ""}! Compare this code with the sending device. If they match, the transfer is intact.
+                    Captured all {airgapTotalChunks} frames{airgapCaptureSecs !== null ? ` in ${airgapCaptureSecs} seconds` : ""}. Type the code shown on the sending device. Import only if both screens match.
                   </p>
 
                   {airgapVerifying || !airgapVerifyCode ? (
@@ -1752,12 +1905,24 @@ export function PairingModal({
                       <p>Assembling scanned frames…</p>
                     </div>
                   ) : (
-                    <div
-                      className="pairing-sas-badge"
-                      aria-label={`Verification code ${airgapVerifyCode}`}
-                    >
-                      {airgapVerifyCode}
-                    </div>
+                    <input
+                      className="pairing-code-input pairing-sas-input"
+                      inputMode="text"
+                      autoCapitalize="characters"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      maxLength={19}
+                      placeholder="XXXX-XXXX-XXXX-XXXX"
+                      value={airgapTypedCode}
+                      aria-label="Verification code from the other device"
+                      onChange={(event) => setAirgapTypedCode(event.target.value.toUpperCase())}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          void handleAirgapImport();
+                        }
+                      }}
+                    />
                   )}
 
                   <div className="airgap-prompt-actions">
@@ -1773,6 +1938,8 @@ export function PairingModal({
                         setAirgapCaptureSecs(null);
                         setAirgapCapturedChunks(new Map());
                         setAirgapVerifyCode(null);
+                        setAirgapVerifySessionId(null);
+                        setAirgapTypedCode("");
                         setViewMode("scanner");
                         setScannerRestartKey((k) => k + 1);
                       }}
@@ -1783,7 +1950,12 @@ export function PairingModal({
                     <button
                       type="button"
                       className="button primary"
-                      disabled={!airgapVerifyCode || airgapImporting || airgapVerifying}
+                      disabled={
+                        !airgapVerifyCode ||
+                        airgapImporting ||
+                        airgapVerifying ||
+                        airgapTypedCode.replace(/[^0-9A-Fa-f]/g, "").length < 16
+                      }
                       onClick={() => void handleAirgapImport()}
                     >
                       {airgapImporting ? (
@@ -1879,6 +2051,8 @@ export function PairingModal({
                         setAirgapCapturedChunks(new Map());
                         setAirgapTotalChunks(0);
                         setAirgapVerifyCode(null);
+                        setAirgapVerifySessionId(null);
+                        setAirgapTypedCode("");
                         airgapVerifyStartedRef.current = false;
                         airgapSessionIdRef.current = null;
                         airgapCaptureStartRef.current = null;
@@ -1986,9 +2160,7 @@ export function PairingModal({
                     <div
                       className="pairing-qr-card airgap-qr-card"
                       dangerouslySetInnerHTML={{
-                        __html: (airgapExport.frames[airgapFrameIndex]?.svg || "")
-                          .replace(/^<\?xml[^>]*\?>/i, "")
-                          .trim(),
+                        __html: sanitizeQrSvg(airgapExport.frames[airgapFrameIndex]?.svg || ""),
                       }}
                       aria-label={`Air-gap Frame ${airgapFrameIndex + 1} of ${airgapExport.totalChunks}`}
                     />
@@ -2037,6 +2209,8 @@ export function PairingModal({
                         setAirgapCapturedChunks(new Map());
                         setAirgapTotalChunks(0);
                         setAirgapVerifyCode(null);
+                        setAirgapVerifySessionId(null);
+                        setAirgapTypedCode("");
                         airgapVerifyStartedRef.current = false;
                         airgapSessionIdRef.current = null;
                         airgapCaptureStartRef.current = null;

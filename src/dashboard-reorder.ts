@@ -60,6 +60,28 @@ type ActiveDrag = {
 
 let pointerCandidate: PointerCandidate | null = null;
 let dragState: ActiveDrag | null = null;
+
+function isInteractivePointerTarget(target: Element): boolean {
+  return Boolean(
+    target.closest(
+      "button, a, input, textarea, select, label, .account-card-action, .account-card-provider-icon, .account-name-edit, .account-name-confirm, .account-name-cancel",
+    ),
+  );
+}
+
+function applyPressCursor(): void {
+  document.documentElement.classList.add("dashboard-holding");
+  document.documentElement.style.setProperty("cursor", "grabbing", "important");
+  document.body.style.setProperty("cursor", "grabbing", "important");
+}
+
+function clearPressCursor(): void {
+  document.documentElement.classList.remove("dashboard-holding");
+  if (dragState || document.documentElement.classList.contains("dashboard-reordering")) return;
+  document.documentElement.style.removeProperty("cursor");
+  document.body.style.removeProperty("cursor");
+}
+
 let lastDropAt = 0;
 let latestAccounts: Account[] = [];
 let latestBuckets: AccountBucket[] = [];
@@ -552,6 +574,7 @@ function settleVisualDrag(drag: ActiveDrag, commit: boolean): void {
     // The pointer may already have been released by the WebView.
   }
   document.documentElement.classList.remove("dashboard-reordering");
+  document.documentElement.classList.remove("dashboard-holding");
   document.documentElement.style.removeProperty("cursor");
   document.body.style.removeProperty("cursor");
 }
@@ -605,7 +628,7 @@ function beginPointerCandidate(event: PointerEvent): void {
   }
 
   const isTouch = event.pointerType === "touch" || event.pointerType === "pen";
-  const isInteractive = Boolean(target.closest("button, a, .account-card-action, .account-card-provider-icon, .account-name-edit"));
+  const isInteractive = isInteractivePointerTarget(target);
   const candidate: PointerCandidate = {
     pointerId: event.pointerId,
     pointerType: event.pointerType,
@@ -628,6 +651,11 @@ function beginPointerCandidate(event: PointerEvent): void {
       }
       beginVisualDrag(candidate.currentX, candidate.currentY, candidate);
     }, LONG_PRESS_DELAY_MS);
+  } else {
+    // WKWebView resets non-control cursors to the default arrow on mousedown.
+    // Pin grabbing on html/body for the hold, before the drag threshold.
+    event.preventDefault();
+    applyPressCursor();
   }
 
   pointerCandidate = candidate;
@@ -694,6 +722,7 @@ function endPointerCandidate(event: PointerEvent): void {
   }
   if (!dragState) {
     pointerCandidate = null;
+    clearPressCursor();
     return;
   }
   event.preventDefault();
@@ -706,6 +735,11 @@ function cancelPointerCandidate(event?: PointerEvent): void {
   if (pointerCandidate?.longPressTimer != null) {
     window.clearTimeout(pointerCandidate.longPressTimer);
     pointerCandidate.longPressTimer = null;
+  }
+  if (!dragState) {
+    pointerCandidate = null;
+    clearPressCursor();
+    return;
   }
   // On Android, WebView may dispatch synthetic pointercancel when a touch moves.
   // If dragState is already active on touch, let onTouchMove and onTouchEnd drive the drag.

@@ -599,19 +599,43 @@
   flex-shrink: 0;
 }
 
+.provider-summary-row.is-all-row,
+.provider-summary-row.is-all-row * {
+  cursor: pointer !important;
+}
+
+.provider-summary-row:not(.is-all-row),
 .provider-summary-row[data-reorder-enabled="true"],
 .provider-account-card {
-  cursor: grab;
+  cursor: grab !important;
   user-select: none;
   -webkit-user-select: none;
   -webkit-user-drag: none;
 }
 
-html.dashboard-reordering .provider-account-card:active,
+.provider-summary-row:not(.is-all-row) *,
+.provider-summary-row[data-reorder-enabled="true"] *,
+.provider-account-card[data-reorder-enabled="true"] * {
+  cursor: inherit !important;
+}
+
+.provider-account-card[data-reorder-enabled="true"]:active,
+.provider-summary-row:not(.is-all-row):active,
+.provider-summary-row.is-dragging,
+.provider-account-card.is-dragging {
+  cursor: grabbing !important;
+}
+
 .provider-summary-row.is-dragging,
 .provider-account-card.is-dragging {
   opacity: 0.45;
-  cursor: grabbing;
+}
+
+.provider-account-card[data-reorder-enabled="true"]:active *,
+.provider-summary-row:not(.is-all-row):active *,
+.provider-summary-row.is-dragging *,
+.provider-account-card.is-dragging * {
+  cursor: inherit !important;
 }
 
 .provider-summary-row.drag-before,
@@ -624,12 +648,12 @@ html.dashboard-reordering .provider-account-card:active,
   box-shadow: 0 3px 0 var(--obsidian-purple-strong, #a078ff) !important;
 }
 
-html:not(.dashboard-reordering) .provider-account-card .account-card-action:disabled,
-html:not(.dashboard-reordering) .provider-account-card button:disabled {
+html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .account-card-action:disabled,
+html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card button:disabled {
   cursor: not-allowed !important;
 }
 
-html:not(.dashboard-reordering) .provider-account-card input.account-card-name-input {
+html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card input.account-card-name-input {
   cursor: text !important;
   user-select: text !important;
 }

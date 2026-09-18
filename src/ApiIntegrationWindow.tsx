@@ -16,10 +16,13 @@ export function ApiIntegrationWindow() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
+  const [fullToken, setFullToken] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
+      // Polls masked token info only; the full bearer token is fetched
+      // exclusively via revealBridgeToken() after explicit user action.
       const next = await bridgeApi.bridgeInfo();
       setBridge(next);
       setError(null);
@@ -34,19 +37,32 @@ export function ApiIntegrationWindow() {
     return () => window.clearInterval(interval);
   }, [load]);
 
+  // Clear the in-memory full token when hiding or unmounting so it does not
+  // linger in renderer memory longer than the reveal session.
+  useEffect(() => {
+    if (!revealed) setFullToken(null);
+    return () => setFullToken(null);
+  }, [revealed]);
+
   const healthEndpoint = useMemo(
     () => bridge?.endpoint.replace(/\/v1\/paseo-usage$/, "/v1/health") ?? "",
     [bridge?.endpoint],
   );
+  const displayToken = revealed && fullToken ? fullToken : (bridge?.token ?? "");
   const environment = bridge
-    ? `PASEO_EXTERNAL_PROVIDER_USAGE_URL=${bridge.endpoint}\nPASEO_EXTERNAL_PROVIDER_USAGE_TOKEN=${bridge.token}`
+    ? `PASEO_EXTERNAL_PROVIDER_USAGE_URL=${bridge.endpoint}\nPASEO_EXTERNAL_PROVIDER_USAGE_TOKEN=${revealed && fullToken ? fullToken : bridge.token}`
     : "";
 
-  const maskedToken = useMemo(() => {
-    if (!bridge?.token) return "";
-    if (bridge.token.length <= 8) return "•".repeat(bridge.token.length);
-    return `${bridge.token.slice(0, 4)}${"•".repeat(Math.max(12, bridge.token.length - 8))}${bridge.token.slice(-4)}`;
-  }, [bridge?.token]);
+  const reveal = async () => {
+    try {
+      const token = await bridgeApi.revealBridgeToken();
+      setFullToken(token);
+      setRevealed(true);
+      setError(null);
+    } catch (cause) {
+      setError(String(cause));
+    }
+  };
 
   const copy = async (value: string, key: string) => {
     try {
@@ -59,12 +75,37 @@ export function ApiIntegrationWindow() {
     }
   };
 
+  // Copying the bearer token or the env block counts as an explicit reveal:
+  // fetch the full token once for the copy without leaving it displayed.
+  const copyToken = async () => {
+    try {
+      const token = fullToken ?? (await bridgeApi.revealBridgeToken());
+      await copy(token, "token");
+    } catch (cause) {
+      setError(String(cause));
+    }
+  };
+
+  const copyEnv = async () => {
+    if (!bridge) return;
+    try {
+      const token = fullToken ?? (await bridgeApi.revealBridgeToken());
+      await copy(
+        `PASEO_EXTERNAL_PROVIDER_USAGE_URL=${bridge.endpoint}\nPASEO_EXTERNAL_PROVIDER_USAGE_TOKEN=${token}`,
+        "env",
+      );
+    } catch (cause) {
+      setError(String(cause));
+    }
+  };
+
   const rotateToken = async () => {
     setBusy(true);
     try {
       const next = await bridgeApi.regenerateToken();
       setBridge(next);
       setRevealed(false);
+      setFullToken(null);
       setError(null);
     } catch (cause) {
       setError(String(cause));
@@ -91,7 +132,7 @@ export function ApiIntegrationWindow() {
       </header>
 
       {!bridge.enabled ? (
-        <div className="bridge-window-warning">The Paseo Bridge is disabled. Return to Integrations in the main app to turn it on.</div>
+        <div className="bridge-window-warning">The Paseo Bridge is disabled. Return to Settings in the main app to turn it on.</div>
       ) : null}
       {bridge.error ? <div className="error-panel">{bridge.error}</div> : null}
       {error ? <div className="error-panel" role="alert">{error}</div> : null}
@@ -108,7 +149,7 @@ export function ApiIntegrationWindow() {
         </div>
         <div className="bridge-detail-row">
           <div><strong>Bearer token</strong><small>Required in the Authorization header for usage requests. Hidden by default.</small></div>
-          <div className="bridge-detail-value bridge-token-value"><code>{revealed ? bridge.token : maskedToken}</code><button className="button ghost" onClick={() => setRevealed((v) => !v)}>{revealed ? "Hide" : "Reveal"}</button><button className="button ghost" aria-live="polite" onClick={() => void copy(bridge.token, "token")}>{copiedKey === "token" ? "Copied!" : "Copy"}</button></div>
+          <div className="bridge-detail-value bridge-token-value"><code>{displayToken}</code>{revealed ? (<button className="button ghost" onClick={() => setRevealed(false)}>Hide</button>) : (<button className="button ghost" onClick={() => void reveal()}>Reveal</button>)}<button className="button ghost" aria-live="polite" onClick={() => void copyToken()}>{copiedKey === "token" ? "Copied!" : "Copy"}</button></div>
         </div>
         <div className="bridge-detail-row">
           <div><strong>Rotate token</strong><small>Existing Paseo configuration stops working until its token is replaced.</small></div>
@@ -119,9 +160,9 @@ export function ApiIntegrationWindow() {
       <section className="bridge-config-card">
         <div className="bridge-config-heading">
           <div><strong>Environment configuration</strong><small>Add these values to Paseo's external provider-usage adapter.</small></div>
-          <button className="button ghost" aria-live="polite" onClick={() => void copy(environment, "env")}>{copiedKey === "env" ? "Copied!" : "Copy all"}</button>
+          <button className="button ghost" aria-live="polite" onClick={() => void copyEnv()}>{copiedKey === "env" ? "Copied!" : "Copy all"}</button>
         </div>
-        <pre>{revealed ? environment : environment.replace(bridge.token, maskedToken)}</pre>
+        <pre>{environment}</pre>
       </section>
 
       <section className="bridge-security-card">

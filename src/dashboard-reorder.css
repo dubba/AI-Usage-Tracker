@@ -1,11 +1,35 @@
+.provider-summary-row.is-all-row,
+.provider-summary-row.is-all-row * {
+  cursor: pointer !important;
+}
+
 .provider-summary-row[data-reorder-enabled="true"],
+.provider-summary-row:not(.is-all-row),
 .provider-account-card[data-reorder-enabled="true"] {
   position: relative;
-  cursor: grab;
+  cursor: grab !important;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
   touch-action: pan-y;
+}
+
+.provider-summary-row[data-reorder-enabled="true"] *,
+.provider-summary-row:not(.is-all-row) *,
+.provider-account-card[data-reorder-enabled="true"] * {
+  cursor: inherit !important;
+}
+
+html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card button,
+html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card a,
+html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .account-card-action,
+html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .account-name-edit,
+html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .account-name-confirm,
+html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .account-name-cancel,
+html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .account-card-provider-icon,
+html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .mobile-dropdown-toggle,
+html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .mobile-dropdown-item {
+  cursor: pointer !important;
 }
 
 .provider-summary-row[data-reorder-enabled="true"] {
@@ -60,6 +84,10 @@
   }
 }
 
+html.dashboard-holding,
+html.dashboard-holding *,
+html.dashboard-holding *::before,
+html.dashboard-holding *::after,
 html.dashboard-reordering,
 html.dashboard-reordering *,
 html.dashboard-reordering *::before,
@@ -68,10 +96,39 @@ html.dashboard-reordering *::after {
   user-select: none !important;
   -webkit-user-select: none !important;
   -webkit-touch-callout: none !important;
+}
+
+html.dashboard-reordering {
   touch-action: none !important;
 }
 
-/* Override more-specific cursor !important rules on controls during drag. */
+/* Override more-specific cursor !important rules on controls during press/drag. */
+html.dashboard-holding a,
+html.dashboard-holding button,
+html.dashboard-holding button:disabled,
+html.dashboard-holding input,
+html.dashboard-holding label,
+html.dashboard-holding select,
+html.dashboard-holding svg,
+html.dashboard-holding textarea,
+html.dashboard-holding [role="button"],
+html.dashboard-holding .account-card-action,
+html.dashboard-holding .account-card-action:disabled,
+html.dashboard-holding .account-card-action svg,
+html.dashboard-holding .account-card-provider-icon,
+html.dashboard-holding .account-card-provider-icon svg,
+html.dashboard-holding .account-name-edit,
+html.dashboard-holding .account-name-edit svg,
+html.dashboard-holding .account-name-confirm,
+html.dashboard-holding .account-name-confirm svg,
+html.dashboard-holding .account-name-cancel,
+html.dashboard-holding .account-name-cancel svg,
+html.dashboard-holding .provider-account-card button,
+html.dashboard-holding .provider-account-card button:disabled,
+html.dashboard-holding .provider-account-card .account-card-action,
+html.dashboard-holding .provider-account-card .account-card-action:disabled,
+html.dashboard-holding .provider-account-card .account-card-action svg,
+html.dashboard-holding .provider-account-card input.account-card-name-input,
 html.dashboard-reordering a,
 html.dashboard-reordering button,
 html.dashboard-reordering button:disabled,

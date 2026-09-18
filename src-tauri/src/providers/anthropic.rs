@@ -1,7 +1,8 @@
 use super::{ProviderError, ProviderUsage};
 use crate::{
-    model::{Account, OAuthSecret, UsageWindow},
+    model::{Account, OAuthSecret, ProviderSecret, UsageWindow},
     state::AppState,
+    store::save_provider_secret,
 };
 use chrono::Utc;
 use reqwest::{header::RETRY_AFTER, StatusCode};
@@ -55,11 +56,17 @@ pub async fn refresh(
 ) -> Result<(ProviderUsage, OAuthSecret), ProviderError> {
     if secret.expires_within(300) {
         secret = refresh_secret(app, secret).await?;
+        save_provider_secret(&account.id, &ProviderSecret::Anthropic(secret.clone()))
+            .map_err(|_| ProviderError::Transient("Unable to save refreshed credentials.".into()))?;
     }
 
     let raw = match call_usage(app, &secret).await {
         Err(ProviderError::Auth) => {
             secret = refresh_secret(app, secret).await?;
+            save_provider_secret(&account.id, &ProviderSecret::Anthropic(secret.clone()))
+                .map_err(|_| {
+                    ProviderError::Transient("Unable to save refreshed credentials.".into())
+                })?;
             call_usage(app, &secret).await?
         }
         result => result?,
@@ -213,8 +220,8 @@ async fn call_usage(app: &AppState, secret: &OAuthSecret) -> Result<RawUsage, Pr
             "Anthropic usage request returned {status}."
         )));
     }
-    serde_json::from_str(&body).map_err(|error| {
-        ProviderError::Transient(format!("Anthropic returned incompatible usage data: {error}"))
+    serde_json::from_str(&body).map_err(|_| {
+        ProviderError::Transient("Anthropic returned incompatible usage data.".into())
     })
 }
 
@@ -232,7 +239,7 @@ async fn refresh_secret(
         }))
         .send()
         .await
-        .map_err(|error| ProviderError::Transient(format!("Anthropic token refresh failed: {error}")))?;
+        .map_err(|_| ProviderError::Transient("Anthropic token refresh failed.".into()))?;
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     if !status.is_success() {
@@ -246,8 +253,8 @@ async fn refresh_secret(
             "Anthropic token refresh returned {status}."
         )));
     }
-    let tokens: RefreshResponse = serde_json::from_str(&body).map_err(|error| {
-        ProviderError::Transient(format!("Invalid Anthropic token refresh response: {error}"))
+    let tokens: RefreshResponse = serde_json::from_str(&body).map_err(|_| {
+        ProviderError::Transient("Invalid Anthropic token refresh response.".into())
     })?;
     Ok(OAuthSecret {
         access_token: tokens.access_token,
@@ -266,7 +273,7 @@ async fn fetch_profile(app: &AppState, access_token: &str) -> Result<Value, Prov
         .header("anthropic-beta", OAUTH_BETA)
         .send()
         .await
-        .map_err(|error| ProviderError::Transient(format!("Anthropic profile request failed: {error}")))?;
+        .map_err(|_| ProviderError::Transient("Anthropic profile request failed.".into()))?;
     if !response.status().is_success() {
         return Err(ProviderError::Transient(format!(
             "Anthropic profile request returned {}.",
@@ -276,7 +283,7 @@ async fn fetch_profile(app: &AppState, access_token: &str) -> Result<Value, Prov
     response
         .json()
         .await
-        .map_err(|error| ProviderError::Transient(format!("Invalid Anthropic profile response: {error}")))
+        .map_err(|_| ProviderError::Transient("Invalid Anthropic profile response.".into()))
 }
 
 fn push_window(

@@ -4,7 +4,7 @@ use super::{
         encrypt_payload, verify_confirmation_tag, EphemeralKeyPair, CONFIRM_RECEIVER_INFO,
         CONFIRM_SENDER_INFO,
     },
-    payload::{create_export_payload, import_sync_payload},
+    payload::{create_export_payload, import_sync_payload, import_sync_payload_with_replace},
     protocol::{
         generate_qr_uri, parse_qr_uri, read_frame, write_frame, MSG_ABORT, MSG_HANDSHAKE_INIT,
         MSG_HANDSHAKE_RESP,
@@ -230,6 +230,22 @@ fn test_qr_uri_parsing_and_formatting() {
     }
 }
 
+#[test]
+fn ipv6_pairing_uri_roundtrips_with_brackets() {
+    let public_key = [0x11u8; 32];
+    let nonce = [0x22u8; 16];
+    let session_id = Uuid::nil();
+    let uri = generate_qr_uri("::1", 9000, &public_key, session_id, &nonce);
+    assert!(
+        uri.starts_with("aiusage-pair://[::1]:9000?"),
+        "IPv6 pairing URI must bracket the host: {uri}"
+    );
+    let parsed = parse_qr_uri(&uri).expect("bracketed IPv6 pairing URI should parse");
+    assert_eq!(parsed.host, "::1");
+    assert_eq!(parsed.port, 9000);
+    assert_eq!(parsed.to_uri(), uri);
+}
+
 #[tokio::test]
 async fn test_framing_read_write() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -324,13 +340,21 @@ async fn test_export_and_import_payload() {
     assert_eq!(buckets.len(), 1);
     assert_eq!(buckets[0].name, "Work Accounts");
 
-    // Importing again should update/skip duplicates
-    let summary2 = import_sync_payload(&state_receiver, &export_bytes)
+    // Importing again with explicit replace opt-in should update duplicates
+    let summary2 = import_sync_payload_with_replace(&state_receiver, &export_bytes, true)
         .await
         .unwrap();
     assert_eq!(summary2.added, 0);
     assert_eq!(summary2.updated, 1);
     assert_eq!(buckets[0].account_ids, vec!["acc-1".to_string()]);
+
+    // Without the opt-in, existing credentials are preserved (skipped).
+    let summary3 = import_sync_payload(&state_receiver, &export_bytes)
+        .await
+        .unwrap();
+    assert_eq!(summary3.added, 0);
+    assert_eq!(summary3.updated, 0);
+    assert_eq!(summary3.skipped, 1);
 }
 
 fn antigravity_account(id: &str, label: &str, email: &str, project_id: Option<&str>) -> Account {
@@ -411,13 +435,21 @@ async fn test_import_keeps_accounts_sharing_project_id() {
     assert_eq!(buckets.len(), 1);
     assert_eq!(buckets[0].account_ids.len(), 2);
 
-    // A second import of the same payload updates all three accounts in place.
-    let summary2 = import_sync_payload(&state_receiver, &export_bytes)
+    // A second import of the same payload updates all three accounts in place
+    // when the user explicitly opts into credential replacement.
+    let summary2 = import_sync_payload_with_replace(&state_receiver, &export_bytes, true)
         .await
         .unwrap();
     assert_eq!(summary2.added, 0);
     assert_eq!(summary2.updated, 3);
     assert_eq!(state_receiver.store.list().len(), 3);
+
+    // Default import preserves existing credentials.
+    let summary3 = import_sync_payload(&state_receiver, &export_bytes)
+        .await
+        .unwrap();
+    assert_eq!(summary3.updated, 0);
+    assert_eq!(summary3.skipped, 3);
 }
 
 // Control: distinct identity fields import independently.
@@ -479,7 +511,7 @@ async fn test_import_collapses_accounts_with_duplicate_email() {
         Arc::new(AppState::new(dir_receiver.path().to_path_buf(), "tok-cr".into()).unwrap());
 
     let export_bytes = create_export_payload(&state_sender).unwrap();
-    let summary = import_sync_payload(&state_receiver, &export_bytes)
+    let summary = import_sync_payload_with_replace(&state_receiver, &export_bytes, true)
         .await
         .unwrap();
     assert_eq!(summary.added, 1);
@@ -795,7 +827,7 @@ async fn test_bucket_account_remapping_on_import() {
         .unwrap();
 
     let export_bytes = create_export_payload(&state_sender).unwrap();
-    let summary = import_sync_payload(&state_receiver, &export_bytes)
+    let summary = import_sync_payload_with_replace(&state_receiver, &export_bytes, true)
         .await
         .unwrap();
     assert_eq!(summary.added, 0);
@@ -809,6 +841,43 @@ async fn test_bucket_account_remapping_on_import() {
         receiver_buckets[0].account_ids,
         vec!["receiver-acc-99".to_string()]
     );
+
+    // Default (preserve) path still remaps buckets while skipping credentials.
+    let dir_receiver2 = tempfile::tempdir().unwrap();
+    let state_receiver2 =
+        Arc::new(AppState::new(dir_receiver2.path().to_path_buf(), "tok-r2".into()).unwrap());
+    state_receiver2
+        .persist_connected_account(
+            Account {
+                id: "receiver-acc-99".into(),
+                label: "Claude Local".into(),
+                provider: Provider::Anthropic,
+                email: Some("claude@example.com".into()),
+                provider_account_id: None,
+                chatgpt_account_id: None,
+                plan: None,
+                created_at: Utc::now().to_rfc3339(),
+                updated_at: Utc::now().to_rfc3339(),
+                last_usage: None,
+                last_error: None,
+                auth_required: false,
+            },
+            &ProviderSecret::Anthropic(crate::model::OAuthSecret {
+                access_token: "sk-ant-local".into(),
+                refresh_token: "sk-ant-refresh-local".into(),
+                id_token: None,
+                expires_at: 0,
+            }),
+        )
+        .await
+        .unwrap();
+    let preserve = import_sync_payload(&state_receiver2, &export_bytes)
+        .await
+        .unwrap();
+    assert_eq!(preserve.added, 0);
+    assert_eq!(preserve.updated, 0);
+    assert_eq!(preserve.skipped, 1);
+    assert_eq!(state_receiver2.buckets.list().len(), 1);
 }
 
 #[tokio::test]
@@ -984,7 +1053,6 @@ async fn test_end_to_end_role_selection_client_sends() {
     };
     let secret = ProviderSecret::Grok(crate::model::GrokSecret {
         cookie_header: Some("sso-cookie-secret".into()),
-        auth_file: None,
     });
     state_client.persist_connected_account(account, &secret).await.unwrap();
 

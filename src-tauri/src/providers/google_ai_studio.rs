@@ -5,6 +5,7 @@ use crate::{
     },
     providers::{ProviderError, ProviderUsage},
     state::AppState,
+    store::save_provider_secret,
 };
 use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Utc, Weekday};
 use reqwest::{RequestBuilder, StatusCode};
@@ -357,6 +358,8 @@ pub async fn refresh(
     if oauth.expires_within(300) {
         oauth = refresh_cloud_secret(app, oauth).await?;
         secret.cloud_oauth = Some(oauth.clone());
+        save_provider_secret(&account.id, &ProviderSecret::GoogleAiStudio(secret.clone()))
+            .map_err(|_| ProviderError::Transient("Unable to save refreshed credentials.".into()))?;
     }
 
     let windows = fetch_cloud_usage(app, &project_id, &oauth.access_token, &selected).await?;
@@ -567,15 +570,10 @@ async fn query_time_series(
     Ok(result)
 }
 
-fn format_reqwest_error(prefix: &str, error: &reqwest::Error) -> String {
-    use std::error::Error;
-    let mut message = format!("{prefix}: {error}");
-    let mut current: Option<&(dyn Error + 'static)> = error.source();
-    while let Some(source) = current {
-        message.push_str(&format!(" -> {source}"));
-        current = source.source();
-    }
-    message
+fn network_error(context: &str) -> ProviderError {
+    ProviderError::Transient(format!(
+        "{context} could not be reached. Check your network and try again."
+    ))
 }
 
 async fn google_json<T: DeserializeOwned>(
@@ -585,7 +583,7 @@ async fn google_json<T: DeserializeOwned>(
     let response = request
         .send()
         .await
-        .map_err(|error| ProviderError::Transient(format_reqwest_error(&format!("{context} request failed"), &error)))?;
+        .map_err(|_| network_error(context))?;
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     if status == StatusCode::UNAUTHORIZED {
@@ -602,8 +600,8 @@ async fn google_json<T: DeserializeOwned>(
             status.as_u16()
         )));
     }
-    serde_json::from_str(&body).map_err(|error| {
-        ProviderError::Transient(format!("{context} returned unreadable data: {error}"))
+    serde_json::from_str(&body).map_err(|_| {
+        ProviderError::Transient(format!("{context} returned unreadable data."))
     })
 }
 
@@ -611,7 +609,9 @@ async fn refresh_cloud_secret(
     app: &AppState,
     secret: OAuthSecret,
 ) -> Result<OAuthSecret, ProviderError> {
-    let client_secret = String::from_utf8_lossy(GOOGLE_CLIENT_SECRET_BYTES).to_string();
+    let client_secret = zeroize::Zeroizing::new(
+        String::from_utf8_lossy(GOOGLE_CLIENT_SECRET_BYTES).to_string(),
+    );
     let response = app
         .client
         .post("https://oauth2.googleapis.com/token")
@@ -623,9 +623,7 @@ async fn refresh_cloud_secret(
         ])
         .send()
         .await
-        .map_err(|error| {
-            ProviderError::Transient(format!("Google token refresh failed: {error}"))
-        })?;
+        .map_err(|_| network_error("Google token refresh"))?;
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     if status == StatusCode::UNAUTHORIZED
@@ -640,8 +638,8 @@ async fn refresh_cloud_secret(
             status.as_u16()
         )));
     }
-    let tokens: OAuthRefreshResponse = serde_json::from_str(&body).map_err(|error| {
-        ProviderError::Transient(format!("Google returned an invalid token refresh: {error}"))
+    let tokens: OAuthRefreshResponse = serde_json::from_str(&body).map_err(|_| {
+        ProviderError::Transient("Google returned an invalid token refresh.".into())
     })?;
     Ok(OAuthSecret {
         access_token: tokens.access_token,

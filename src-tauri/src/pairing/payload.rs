@@ -202,6 +202,19 @@ pub async fn import_sync_payload(
     state: &Arc<AppState>,
     payload_bytes: &[u8],
 ) -> Result<SyncSummary, String> {
+    let allow_replace = *state.pairing_allow_credential_replace.read();
+    let summary = import_sync_payload_with_replace(state, payload_bytes, allow_replace).await?;
+    // Single-use opt-in: replacing credentials always requires explicit user
+    // action for the transfer being imported.
+    *state.pairing_allow_credential_replace.write() = false;
+    Ok(summary)
+}
+
+pub async fn import_sync_payload_with_replace(
+    state: &Arc<AppState>,
+    payload_bytes: &[u8],
+    allow_replace: bool,
+) -> Result<SyncSummary, String> {
     let payload: SyncPayload = serde_json::from_slice(payload_bytes)
         .map_err(|e| format!("Invalid sync payload JSON: {e}"))?;
 
@@ -251,7 +264,17 @@ pub async fn import_sync_payload(
             let receiver_id = existing_acc.id.clone();
             id_map.insert(sender_id, receiver_id.clone());
 
-            // Merge into existing account
+            if !allow_replace {
+                // Default: preserve existing local credentials. Importing must
+                // never silently overwrite a local secret — replacing requires
+                // explicit per-transfer opt-in from the user. Still map ids so
+                // buckets/orders remap, and count as skipped.
+                let _ = state.store.clear_tombstone(&receiver_id);
+                summary.skipped += 1;
+                continue;
+            }
+
+            // Explicit replace path: merge into existing account
             let lock = state.account_lock(&receiver_id);
             let _guard = lock.lock().await;
 

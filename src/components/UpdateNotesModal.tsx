@@ -1,5 +1,5 @@
 import { useRef, type ReactNode } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { isAllowedExternalUrl, openSafeUrl } from "../utils/safeUrl";
 import { ExternalLinkIcon } from "../icons";
 import { useModalA11y } from "./useModalA11y";
 import type { UpdateBusy } from "../types";
@@ -114,6 +114,9 @@ function renderTokens(tokens: InlineToken[], parentKey = "root"): ReactNode[] {
       );
     }
     if (token.type === "link" && token.url) {
+      if (!isAllowedExternalUrl(token.url)) {
+        return token.label ?? token.url;
+      }
       return (
         <a
           key={key}
@@ -121,7 +124,7 @@ function renderTokens(tokens: InlineToken[], parentKey = "root"): ReactNode[] {
           className="update-notes-link"
           onClick={(e) => {
             e.preventDefault();
-            void openUrl(token.url!).catch(() => {});
+            void openSafeUrl(token.url!).catch(() => {});
           }}
         >
           {token.label}
@@ -256,7 +259,7 @@ export function UpdateNotesModal({
             type="button"
             className="button ghost update-notes-changelog-btn"
             onClick={() => {
-              void openUrl(CHANGELOG_URL).catch(() => {});
+              void openSafeUrl(CHANGELOG_URL).catch(() => {});
             }}
           >
             <span>Full Change Log</span>

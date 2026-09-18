@@ -185,9 +185,11 @@ impl PairingSessionManager {
 
     pub async fn start_host(&self, state: Arc<AppState>) -> Result<PairingHostInit, String> {
         self.cancel().await;
-        // Reset per-transfer settings inclusion for the new session
+        // Reset per-transfer flags for the new session. Credential replacement
+        // in particular requires fresh explicit opt-in each session.
         *state.pairing_include_settings.write() = false;
         *state.pairing_pending_ui_state.write() = None;
+        *state.pairing_allow_credential_replace.write() = false;
         let epoch = self.epoch.fetch_add(1, Ordering::SeqCst) + 1;
 
         let keypair = EphemeralKeyPair::generate();
@@ -395,6 +397,7 @@ impl PairingSessionManager {
         self.cancel().await;
         *state.pairing_include_settings.write() = false;
         *state.pairing_pending_ui_state.write() = None;
+        *state.pairing_allow_credential_replace.write() = false;
         self.epoch.fetch_add(1, Ordering::SeqCst);
 
         let parsed = parse_qr_uri(&qr_uri)?;

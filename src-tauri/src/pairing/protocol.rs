@@ -5,9 +5,29 @@ use url::Url;
 use uuid::Uuid;
 
 pub const PROTOCOL_VERSION: u32 = 1;
+
+/// Bracket IPv6 literals so `host:port` is unambiguous in pairing URIs.
+pub fn format_uri_host(host: &str) -> String {
+    let host = host
+        .strip_prefix('[')
+        .and_then(|h| h.strip_suffix(']'))
+        .unwrap_or(host);
+    if host.parse::<std::net::Ipv6Addr>().is_ok() {
+        format!("[{host}]")
+    } else {
+        host.to_string()
+    }
+}
 pub const PAIRING_SCHEME: &str = "aiusage-pair";
 pub const SECONDARY_PAIRING_SCHEME: &str = "aiusage";
-pub const MAX_FRAME_SIZE: usize = 16 * 1024 * 1024; // 16 MB
+pub const MAX_FRAME_SIZE: usize = 16 * 1024 * 1024; // 16 MB (encrypted payload only, post-SAS)
+/// Maximum frame size permitted before SAS mutual confirmation succeeds.
+/// Handshake init is 49 bytes, role select <= 4 bytes, SAS confirm 34 bytes,
+/// abort 2 bytes, handshake resp 2 bytes. 1 KiB leaves ample room while
+/// preventing unauthenticated 16 MB allocations (memory-DoS).
+pub const MAX_PREAUTH_FRAME_SIZE: usize = 1024;
+/// Maximum frame size for small authenticated control frames (ACK, role resp).
+pub const MAX_CONTROL_FRAME_SIZE: usize = 1024;
 
 pub const MSG_HANDSHAKE_INIT: u8 = 0x01;
 pub const MSG_HANDSHAKE_RESP: u8 = 0x02;
@@ -21,9 +41,9 @@ pub const MSG_ABORT: u8 = 0xFF;
 /// Pairing must stay on the local network. The host must be an IP literal
 /// (no DNS names, to avoid DNS-rebinding style redirects) in a private,
 /// loopback, link-local, or CGNAT (Tailscale) range.
-fn is_allowed_pairing_host(host: &str) -> bool {
+pub(crate) fn is_allowed_pairing_host(host: &str) -> bool {
     use std::net::IpAddr;
-    // url::Url::host_str() keeps square brackets around IPv6 literals
+    // url::Url::host_str() keeps square brackets around IPv6 literals.
     let host = host
         .strip_prefix('[')
         .and_then(|h| h.strip_suffix(']'))
@@ -83,7 +103,7 @@ impl ParsedQrPayload {
         format!(
             "{}://{}:{}?session_id={}&pk={}&nonce={}&fp={}&v={}",
             PAIRING_SCHEME,
-            self.host,
+            format_uri_host(&self.host),
             self.port,
             self.session_id,
             pk_b64,
@@ -104,9 +124,14 @@ impl ParsedQrPayload {
             ));
         }
 
-        let host = url
+        let host_raw = url
             .host_str()
-            .ok_or_else(|| "Pairing URI missing host".to_string())?
+            .ok_or_else(|| "Pairing URI missing host".to_string())?;
+        // url::Url::host_str() keeps square brackets around IPv6 literals.
+        let host = host_raw
+            .strip_prefix('[')
+            .and_then(|h| h.strip_suffix(']'))
+            .unwrap_or(host_raw)
             .to_string();
 
         if host.is_empty()
@@ -198,7 +223,18 @@ impl ParsedQrPayload {
         }
 
         let calculated_fp = compute_display_fingerprint(&session_id, &public_key, &session_nonce);
-        let fp = fingerprint.unwrap_or(calculated_fp);
+        // Never trust a peer-supplied fingerprint for display: recompute locally
+        // and reject mismatches so a crafted QR/deep-link cannot spoof the
+        // verification string shown next to the SAS code.
+        if let Some(provided) = fingerprint {
+            if provided.to_ascii_uppercase() != calculated_fp {
+                return Err(
+                    "Pairing fingerprint mismatch: the code in the QR does not match its key. Refusing to connect."
+                        .to_string(),
+                );
+            }
+        }
+        let fp = calculated_fp;
 
         Ok(Self {
             host,
@@ -213,7 +249,21 @@ impl ParsedQrPayload {
 }
 
 /// Reads a length-prefixed frame: `[4 bytes length][1 byte type][payload]`
+/// using the maximum (post-authentication) frame budget. Prefer
+/// [`read_frame_limited`] with [`MAX_PREAUTH_FRAME_SIZE`] for any frame
+/// received before SAS confirmation succeeds.
+#[allow(dead_code)]
 pub async fn read_frame<R: AsyncRead + Unpin>(reader: &mut R) -> Result<(u8, Vec<u8>), String> {
+    read_frame_limited(reader, MAX_FRAME_SIZE).await
+}
+
+/// Reads a length-prefixed frame with an explicit budget. Unauthenticated
+/// callers must pass [`MAX_PREAUTH_FRAME_SIZE`] so a LAN peer cannot force a
+/// 16 MB allocation before authentication.
+pub async fn read_frame_limited<R: AsyncRead + Unpin>(
+    reader: &mut R,
+    max_frame_size: usize,
+) -> Result<(u8, Vec<u8>), String> {
     let mut len_buf = [0u8; 4];
     reader
         .read_exact(&mut len_buf)
@@ -224,10 +274,10 @@ pub async fn read_frame<R: AsyncRead + Unpin>(reader: &mut R) -> Result<(u8, Vec
     if frame_len < 1 {
         return Err("Malformed frame: length is zero".into());
     }
-    if frame_len > MAX_FRAME_SIZE {
+    if frame_len > max_frame_size {
         return Err(format!(
             "Frame length {} exceeds maximum allowed size {}",
-            frame_len, MAX_FRAME_SIZE
+            frame_len, max_frame_size
         ));
     }
 
@@ -310,4 +360,22 @@ pub fn generate_qr_uri(
 
 pub fn parse_qr_uri(raw_uri: &str) -> Result<ParsedQrPayload, String> {
     ParsedQrPayload::parse(raw_uri)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn format_uri_host_brackets_ipv6_literals() {
+        assert_eq!(format_uri_host("::1"), "[::1]");
+        assert_eq!(format_uri_host("[::1]"), "[::1]");
+        assert_eq!(
+            format_uri_host("fd12:3456:789a::1"),
+            "[fd12:3456:789a::1]"
+        );
+        assert_eq!(format_uri_host("127.0.0.1"), "127.0.0.1");
+        assert_eq!(format_uri_host("192.168.1.5"), "192.168.1.5");
+        assert_eq!(format_uri_host("localhost"), "localhost");
+    }
 }

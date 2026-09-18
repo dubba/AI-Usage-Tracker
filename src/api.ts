@@ -66,6 +66,7 @@ export const bridgeApi = {
     invoke<Account>("rename_account", { accountId, label }),
   removeAccount: (accountId: string) => invoke<void>("remove_account", { accountId }),
   regenerateToken: () => invoke<BridgeInfo>("regenerate_bridge_token"),
+  revealBridgeToken: () => invoke<string>("reveal_bridge_token"),
   checkForUpdate: () => invoke<AppUpdateStatus>("check_for_app_update"),
   installUpdate: () => invoke<void>("install_app_update"),
 };
@@ -85,6 +86,8 @@ export const pairingApi = {
   getPendingPairingUri: () => invoke<string | null>("get_pending_pairing_uri"),
   setIncludeSettings: (include: boolean) =>
     invoke<void>("pairing_set_include_settings", { include }),
+  setAllowCredentialReplace: (allow: boolean) =>
+    invoke<void>("pairing_set_allow_credential_replace", { allow }),
   setPendingUiState: (uiState: Record<string, unknown>) =>
     invoke<void>("pairing_set_pending_ui_state", { uiState }),
   clearPendingUiState: () => invoke<void>("pairing_clear_pending_ui_state"),
@@ -95,6 +98,8 @@ export const pairingApi = {
     }),
   verifyAirgapFrames: (chunks: string[]) =>
     invoke<AirgapVerifyResult>("pairing_verify_airgap", { chunks }),
-  importAirgapFrames: (chunks: string[]) =>
-    invoke<SyncSummary>("pairing_import_airgap", { chunks }),
+  confirmAirgap: (sessionId: string, typedCode: string) =>
+    invoke<string>("pairing_confirm_airgap", { sessionId, typedCode }),
+  importAirgapFrames: (importToken: string, chunks: string[]) =>
+    invoke<SyncSummary>("pairing_import_airgap", { importToken, chunks }),
 };

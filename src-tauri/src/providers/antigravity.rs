@@ -1,7 +1,8 @@
 use super::{ProviderError, ProviderUsage};
 use crate::{
-    model::{Account, OAuthSecret, UsageWindow},
+    model::{Account, OAuthSecret, ProviderSecret, UsageWindow},
     state::AppState,
+    store::save_provider_secret,
 };
 use chrono::Utc;
 use reqwest::StatusCode;
@@ -34,11 +35,17 @@ pub async fn refresh(
 ) -> Result<(ProviderUsage, OAuthSecret), ProviderError> {
     if secret.expires_within(300) {
         secret = refresh_secret(app, secret).await?;
+        save_provider_secret(&account.id, &ProviderSecret::Antigravity(secret.clone()))
+            .map_err(|_| ProviderError::Transient("Unable to save refreshed credentials.".into()))?;
     }
 
     let result = match fetch_usage(app, account, &secret).await {
         Err(ProviderError::Auth) => {
             secret = refresh_secret(app, secret).await?;
+            save_provider_secret(&account.id, &ProviderSecret::Antigravity(secret.clone()))
+                .map_err(|_| {
+                    ProviderError::Transient("Unable to save refreshed credentials.".into())
+                })?;
             fetch_usage(app, account, &secret).await?
         }
         result => result?,
@@ -147,10 +154,10 @@ async fn cloud_code_post(
         .json(payload)
         .send()
         .await
-        .map_err(|error| ProviderError::Transient(format!("Antigravity quota request failed: {error}")))?;
+        .map_err(|_| ProviderError::Transient("Antigravity quota request failed.".into()))?;
     let status = response.status();
-    let body = response.text().await.map_err(|error| {
-        ProviderError::Transient(format!("Unable to read the Antigravity response: {error}"))
+    let body = response.text().await.map_err(|_| {
+        ProviderError::Transient("Unable to read the Antigravity response.".into())
     })?;
     if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
         return Err(ProviderError::Auth);
@@ -160,8 +167,8 @@ async fn cloud_code_post(
             "Antigravity endpoint {path} returned {status}."
         )));
     }
-    serde_json::from_str(&body).map_err(|error| {
-        ProviderError::Transient(format!("Antigravity returned incompatible quota data: {error}"))
+    serde_json::from_str(&body).map_err(|_| {
+        ProviderError::Transient("Antigravity returned incompatible quota data.".into())
     })
 }
 
@@ -169,7 +176,7 @@ async fn refresh_secret(
     app: &AppState,
     secret: OAuthSecret,
 ) -> Result<OAuthSecret, ProviderError> {
-    let client_secret = String::from_utf8_lossy(CLIENT_SECRET_BYTES).to_string();
+    let client_secret = zeroize::Zeroizing::new(String::from_utf8_lossy(CLIENT_SECRET_BYTES).to_string());
     let response = app
         .client
         .post(TOKEN_URL)
@@ -181,7 +188,7 @@ async fn refresh_secret(
         ])
         .send()
         .await
-        .map_err(|error| ProviderError::Transient(format!("Google token refresh failed: {error}")))?;
+        .map_err(|_| ProviderError::Transient("Google token refresh failed.".into()))?;
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     if !status.is_success() {
@@ -195,8 +202,8 @@ async fn refresh_secret(
             "Google token refresh returned {status}."
         )));
     }
-    let tokens: RefreshResponse = serde_json::from_str(&body).map_err(|error| {
-        ProviderError::Transient(format!("Invalid Google token refresh response: {error}"))
+    let tokens: RefreshResponse = serde_json::from_str(&body).map_err(|_| {
+        ProviderError::Transient("Invalid Google token refresh response.".into())
     })?;
     Ok(OAuthSecret {
         access_token: tokens.access_token,
@@ -213,7 +220,7 @@ async fn fetch_email(app: &AppState, access_token: &str) -> Result<String, Provi
         .bearer_auth(access_token)
         .send()
         .await
-        .map_err(|error| ProviderError::Transient(format!("Google user-info request failed: {error}")))?;
+        .map_err(|_| ProviderError::Transient("Google user-info request failed.".into()))?;
     if response.status() == StatusCode::UNAUTHORIZED || response.status() == StatusCode::FORBIDDEN {
         return Err(ProviderError::Auth);
     }
@@ -226,7 +233,7 @@ async fn fetch_email(app: &AppState, access_token: &str) -> Result<String, Provi
     let value: Value = response
         .json()
         .await
-        .map_err(|error| ProviderError::Transient(format!("Invalid Google user-info response: {error}")))?;
+        .map_err(|_| ProviderError::Transient("Invalid Google user-info response.".into()))?;
     value
         .get("email")
         .and_then(Value::as_str)

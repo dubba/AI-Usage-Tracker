@@ -1,7 +1,8 @@
 use super::{ProviderError, ProviderUsage};
 use crate::{
-    model::{Account, OAuthSecret, UsageWindow},
+    model::{Account, OAuthSecret, ProviderSecret, UsageWindow},
     state::AppState,
+    store::save_provider_secret,
 };
 use chrono::{TimeZone, Utc};
 use reqwest::{header::RETRY_AFTER, StatusCode};
@@ -61,11 +62,17 @@ pub async fn refresh(
 ) -> Result<(ProviderUsage, OAuthSecret), ProviderError> {
     if secret.expires_within(300) {
         secret = refresh_secret(app, secret).await?;
+        save_provider_secret(&account.id, &ProviderSecret::Openai(secret.clone()))
+            .map_err(|_| ProviderError::Transient("Unable to save refreshed credentials.".into()))?;
     }
 
     let raw = match call_usage(app, account, &secret).await {
         Err(ProviderError::Auth) => {
             secret = refresh_secret(app, secret).await?;
+            save_provider_secret(&account.id, &ProviderSecret::Openai(secret.clone()))
+                .map_err(|_| {
+                    ProviderError::Transient("Unable to save refreshed credentials.".into())
+                })?;
             call_usage(app, account, &secret).await?
         }
         result => result?,
@@ -206,8 +213,8 @@ async fn call_usage(
             "OpenAI returned HTML instead of usage JSON.".into(),
         ));
     }
-    serde_json::from_str(&body).map_err(|error| {
-        ProviderError::Transient(format!("OpenAI returned incompatible usage data: {error}"))
+    serde_json::from_str(&body).map_err(|_| {
+        ProviderError::Transient("OpenAI returned incompatible usage data.".into())
     })
 }
 
@@ -225,7 +232,7 @@ async fn refresh_secret(
         ])
         .send()
         .await
-        .map_err(|error| ProviderError::Transient(format!("Token refresh failed: {error}")))?;
+        .map_err(|_| ProviderError::Transient("OpenAI token refresh failed.".into()))?;
     let status = response.status();
     if !status.is_success() {
         let body = response.text().await.unwrap_or_default();
@@ -240,8 +247,8 @@ async fn refresh_secret(
             "OpenAI token refresh returned {status}."
         )));
     }
-    let tokens: RefreshResponse = response.json().await.map_err(|error| {
-        ProviderError::Transient(format!("Invalid OpenAI token refresh response: {error}"))
+    let tokens: RefreshResponse = response.json().await.map_err(|_| {
+        ProviderError::Transient("Invalid OpenAI token refresh response.".into())
     })?;
     let expires_at = Utc::now().timestamp_millis() + tokens.expires_in * 1000;
     Ok(OAuthSecret {

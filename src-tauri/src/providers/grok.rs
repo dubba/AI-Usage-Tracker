@@ -17,14 +17,8 @@ use base64::{
 use chrono::{DateTime, TimeZone, Utc};
 use reqwest::{header, StatusCode};
 use serde_json::Value;
-use std::{
-    collections::{BTreeMap, HashMap},
-    fs,
-    path::{Path, PathBuf},
-};
+use std::collections::{BTreeMap, HashMap};
 
-const OIDC_SCOPE_PREFIX: &str = "https://auth.x.ai::";
-const LEGACY_SCOPE: &str = "https://accounts.x.ai/sign-in";
 const WEB_BILLING_ENDPOINT: &str =
     "https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig";
 const MAX_COOKIE_HEADER_BYTES: usize = 32 * 1024;
@@ -254,7 +248,7 @@ pub async fn refresh(
     account: &Account,
     secret: &GrokSecret,
 ) -> Result<(ProviderUsage, GrokSecret), ProviderError> {
-    let credentials = load_optional_credentials(secret);
+    let credentials: Option<GrokCredentials> = None;
     let secret = recapture_stored_cookies(&account.id, secret)?;
 
     let Some(cookie_header) = secret
@@ -356,95 +350,6 @@ fn usage_from_snapshot(
     }
 }
 
-fn load_optional_credentials(secret: &GrokSecret) -> Option<GrokCredentials> {
-    let path = secret
-        .auth_file
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(PathBuf::from)?;
-    path.is_file()
-        .then(|| load_credentials(&path).ok())
-        .flatten()
-}
-
-pub(crate) fn load_credentials(path: &Path) -> Result<GrokCredentials, String> {
-    let payload = fs::read_to_string(path)
-        .map_err(|error| format!("Unable to read {}: {error}", path.display()))?;
-    parse_credentials(&payload)
-}
-
-fn parse_credentials(payload: &str) -> Result<GrokCredentials, String> {
-    let root: Value = serde_json::from_str(payload)
-        .map_err(|error| format!("Invalid Grok auth.json: {error}"))?;
-    let root = root
-        .as_object()
-        .ok_or_else(|| "Invalid Grok auth.json root.".to_string())?;
-
-    let mut oidc = None;
-    let mut legacy = None;
-    for (scope, value) in root {
-        let Some(entry) = value.as_object() else {
-            continue;
-        };
-        let Some(token) = entry.get("key").and_then(Value::as_str) else {
-            continue;
-        };
-        if token.trim().is_empty() {
-            continue;
-        }
-        if scope.starts_with(OIDC_SCOPE_PREFIX) {
-            oidc = Some(entry);
-        } else if scope == LEGACY_SCOPE || scope.contains("/sign-in") {
-            legacy = Some(entry);
-        }
-    }
-    let entry = oidc
-        .or(legacy)
-        .ok_or_else(|| "Grok auth.json contains no usable access token.".to_string())?;
-
-    Ok(GrokCredentials {
-        access_token: string_field(entry, "key")
-            .ok_or_else(|| "Grok auth.json is missing its access token.".to_string())?,
-        email: string_field(entry, "email"),
-        user_id: string_field(entry, "user_id"),
-        team_id: string_field(entry, "team_id"),
-        principal_type: string_field(entry, "principal_type"),
-        auth_mode: string_field(entry, "auth_mode"),
-        expires_at: entry.get("expires_at").and_then(parse_date_value),
-    })
-}
-
-fn string_field(entry: &serde_json::Map<String, Value>, key: &str) -> Option<String> {
-    entry
-        .get(key)
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(str::to_string)
-}
-
-fn parse_date_value(value: &Value) -> Option<DateTime<Utc>> {
-    if let Some(raw) = value.as_str() {
-        if let Ok(parsed) = DateTime::parse_from_rfc3339(raw) {
-            return Some(parsed.with_timezone(&Utc));
-        }
-        if let Ok(timestamp) = raw.parse::<i64>() {
-            return timestamp_to_datetime(timestamp);
-        }
-    }
-    value.as_i64().and_then(timestamp_to_datetime)
-}
-
-fn timestamp_to_datetime(timestamp: i64) -> Option<DateTime<Utc>> {
-    let seconds = if timestamp > 10_000_000_000 {
-        timestamp / 1000
-    } else {
-        timestamp
-    };
-    Utc.timestamp_opt(seconds, 0).single()
-}
-
 pub(crate) fn is_allowed_cookie_host(host: &str) -> bool {
     let host = host.trim().trim_end_matches('.').to_ascii_lowercase();
     host == "grok.com" || host.ends_with(".grok.com") || host == "accounts.x.ai"
@@ -470,11 +375,9 @@ fn recapture_stored_cookies(account_id: &str, secret: &GrokSecret) -> Result<Gro
     let next = match normalize_cookie_header(raw) {
         Ok(cookie_header) => GrokSecret {
             cookie_header: Some(cookie_header),
-            auth_file: secret.auth_file.clone(),
         },
         Err(_) => GrokSecret {
             cookie_header: None,
-            auth_file: secret.auth_file.clone(),
         },
     };
 
@@ -981,20 +884,6 @@ mod tests {
         framed[1..5].copy_from_slice(&length);
         framed.extend_from_slice(&root);
         framed
-    }
-
-    #[test]
-    fn prefers_supergrok_oidc_credentials() {
-        let parsed = parse_credentials(
-            r#"{
-              "https://accounts.x.ai/sign-in":{"key":"legacy","email":"old@example.com"},
-              "https://auth.x.ai::client":{"key":"oidc","auth_mode":"oidc","email":"new@example.com","user_id":"u1","expires_at":"2099-01-01T00:00:00Z"}
-            }"#,
-        )
-        .unwrap();
-        assert_eq!(parsed.access_token, "oidc");
-        assert_eq!(parsed.email.as_deref(), Some("new@example.com"));
-        assert_eq!(parsed.plan(), "SuperGrok");
     }
 
     #[test]

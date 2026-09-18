@@ -1,5 +1,5 @@
 use crate::{
-    fs_util::{atomic_write_private, ensure_private_file},
+    fs_util::{atomic_write_private, ensure_private_dir, ensure_private_file},
     model::{Account, OAuthSecret, Provider, ProviderSecret, UsageSnapshot},
 };
 #[cfg(not(target_os = "android"))]
@@ -13,9 +13,24 @@ use std::{
     fs,
     path::{Path, PathBuf},
     sync::LazyLock,
+    time::{Duration, Instant},
 };
+use zeroize::Zeroize;
 
-static SECRET_CACHE: LazyLock<Mutex<HashMap<String, ProviderSecret>>> =
+pub const SECRET_CACHE_TTL: Duration = Duration::from_secs(300);
+
+struct CachedSecret {
+    secret: ProviderSecret,
+    cached_at: Instant,
+}
+
+impl Drop for CachedSecret {
+    fn drop(&mut self) {
+        self.secret.zeroize();
+    }
+}
+
+static SECRET_CACHE: LazyLock<Mutex<HashMap<String, CachedSecret>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 static DATA_DIRS: LazyLock<RwLock<Vec<PathBuf>>> =
     LazyLock::new(|| RwLock::new(Vec::new()));
@@ -39,8 +54,7 @@ fn current_credentials_dir() -> Result<PathBuf, StoreError> {
         .ok_or_else(|| StoreError::Credential("Storage directory has not been initialized".into()))?;
     drop(dirs);
     let dir = base.join("credentials");
-    fs::create_dir_all(&dir).map_err(|e| StoreError::Io(e.to_string()))?;
-    ensure_private_file(&dir).map_err(StoreError::Io)?;
+    ensure_private_dir(&dir).map_err(StoreError::Io)?;
     Ok(dir)
 }
 
@@ -116,7 +130,9 @@ pub struct AccountStore {
 impl AccountStore {
     pub fn load(data_dir: PathBuf) -> Result<Self, StoreError> {
         set_data_dir(data_dir.clone());
-        fs::create_dir_all(&data_dir).map_err(|error| StoreError::Io(error.to_string()))?;
+        // Protect the application directory itself (listing/traversal), not
+        // just the files inside it.
+        ensure_private_dir(&data_dir).map_err(StoreError::Io)?;
         let accounts = read_account_file(&data_dir)?;
         ensure_private_file(&account_path(&data_dir)).map_err(StoreError::Io)?;
         ensure_private_file(&data_dir.join("accounts.json.bak")).map_err(StoreError::Io)?;
@@ -265,13 +281,21 @@ impl AccountStore {
     ) -> Result<Account, StoreError> {
         set_data_dir(self.data_dir.clone());
         let id = account.id.clone();
-        let existed = self.get(&id).is_some();
+        // Snapshot the previous secret so a metadata-write failure restores
+        // the prior generation instead of leaving the new secret orphaned
+        // (new accounts) or silently rotated (existing accounts).
+        let previous_secret = load_provider_secret(&id).ok();
         save_provider_secret(&id, secret)?;
         match self.upsert(account) {
             Ok(saved) => Ok(saved),
             Err(error) => {
-                if !existed {
-                    let _ = delete_secret(&id);
+                match previous_secret {
+                    Some(previous) => {
+                        let _ = save_provider_secret(&id, &previous);
+                    }
+                    None => {
+                        let _ = delete_secret(&id);
+                    }
                 }
                 Err(error)
             }
@@ -369,7 +393,7 @@ fn persist_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result<
             Ok(d) => d,
             Err(_) => continue,
         };
-        let _ = fs::create_dir_all(&dir);
+        let _ = ensure_private_dir(&dir);
         let path = dir.join(format!("{account_id}.json"));
         match atomic_write_private(&path, &payload) {
             Ok(()) => return Ok(()),
@@ -672,15 +696,28 @@ pub fn rotate_bridge_token() -> Result<String, StoreError> {
 }
 
 fn cached_secret(account_id: &str) -> Option<ProviderSecret> {
-    SECRET_CACHE.lock().get(account_id).cloned()
+    let mut cache = SECRET_CACHE.lock();
+    cache.retain(|_, entry| entry.cached_at.elapsed() < SECRET_CACHE_TTL);
+    cache.get(account_id).map(|entry| entry.secret.clone())
 }
 
 fn remember_secret(account_id: &str, secret: ProviderSecret) {
-    SECRET_CACHE.lock().insert(account_id.to_string(), secret);
+    let mut cache = SECRET_CACHE.lock();
+    cache.retain(|_, entry| entry.cached_at.elapsed() < SECRET_CACHE_TTL);
+    cache.insert(
+        account_id.to_string(),
+        CachedSecret {
+            secret,
+            cached_at: Instant::now(),
+        },
+    );
 }
 
 fn forget_secret(account_id: &str) {
-    SECRET_CACHE.lock().remove(account_id);
+    let mut cache = SECRET_CACHE.lock();
+    if let Some(mut entry) = cache.remove(account_id) {
+        entry.secret.zeroize();
+    }
 }
 
 #[cfg(not(target_os = "android"))]

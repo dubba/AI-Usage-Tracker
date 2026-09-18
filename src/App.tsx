@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { listen } from "@tauri-apps/api/event";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openSafeUrl } from "./utils/safeUrl";
 import { bridgeApi, pairingApi } from "./api";
 import { resumeLoginAttemptWatch, subscribeLoginStatus } from "./login-status";
 import { AccountAlertModal } from "./components/AccountAlertModal";
@@ -39,7 +39,6 @@ import {
   EditIcon,
   ExternalLinkIcon,
   GaugeIcon,
-  LinkIcon,
   MenuIcon,
   PlusIcon,
   RefreshIcon,
@@ -59,7 +58,7 @@ import type {
   UsageWindow,
 } from "./types";
 
-type Section = "accounts" | "integration" | "settings";
+type Section = "accounts" | "settings";
 type SidebarWindow = "five_hour" | "weekly";
 
 export type SidebarGroup = {
@@ -1224,18 +1223,6 @@ export default function App() {
   };
 
   const renderContent = () => {
-    if (section === "integration") {
-      return (
-        <IntegrationView
-          bridge={snapshot?.bridge ?? null}
-          busy={busy === "toggle-api-integration" || busy === "open-api-integration"}
-          onToggle={(enabled) => void setApiIntegrationEnabled(enabled)}
-          onView={() => void openApiIntegrationWindow()}
-          onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
-          error={error}
-        />
-      );
-    }
     if (section === "settings") {
       return (
         <SettingsView
@@ -1255,6 +1242,10 @@ export default function App() {
           onInstallUpdate={() => void installUpdate()}
           onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
           onOpenPairing={() => setPairingOpen(true)}
+          bridge={snapshot?.bridge ?? null}
+          bridgeBusy={busy === "toggle-api-integration" || busy === "open-api-integration"}
+          onToggleBridge={(enabled) => void setApiIntegrationEnabled(enabled)}
+          onViewBridgeWindow={() => void openApiIntegrationWindow()}
         />
       );
     }
@@ -1307,11 +1298,6 @@ export default function App() {
           <span className="brand-mark"><GaugeIcon /></span>
           <strong>AI Usage Tracker</strong>
         </div>
-
-        <nav className="primary-nav">
-          <button className={section === "accounts" ? "active" : ""} onClick={() => { setSection("accounts"); setSidebarOpen(false); }}><UsersIcon />Dashboard</button>
-          <button className={section === "integration" ? "active" : ""} onClick={() => { setSection("integration"); setSidebarOpen(false); }}><LinkIcon />Integrations</button>
-        </nav>
 
         <div className="provider-sidebar-heading">
           <span>Accounts</span>
@@ -1661,22 +1647,7 @@ function AccountsView(props: {
 
       <div className="dashboard-scroll">
         <section className="summary-grid mockup-summary-grid">
-          <div
-            className={`mockup-summary-card total-card ${showAttentionOnly ? "is-clickable" : ""}`}
-            role={showAttentionOnly ? "button" : undefined}
-            tabIndex={showAttentionOnly ? 0 : undefined}
-            aria-label={showAttentionOnly ? "Show all accounts" : undefined}
-            data-tooltip={showAttentionOnly ? "Show all accounts" : undefined}
-            onClick={() => {
-              if (showAttentionOnly) setShowAttentionOnly(false);
-            }}
-            onKeyDown={(event) => {
-              if (showAttentionOnly && (event.key === "Enter" || event.key === " ")) {
-                event.preventDefault();
-                setShowAttentionOnly(false);
-              }
-            }}
-          >
+          <div className="mockup-summary-card total-card">
             <div><span className="summary-label">Accounts</span><strong className="summary-helper">Active</strong></div>
             <div className="summary-value-cluster"><strong>{props.accounts.length}</strong><UsersIcon /></div>
           </div>
@@ -2163,81 +2134,6 @@ function AccountUsageMetric({
   );
 }
 
-function IntegrationView({
-  bridge,
-  busy,
-  onToggle,
-  onView,
-  onToggleSidebar,
-  error,
-}: {
-  bridge: BridgeStatus | null;
-  busy: boolean;
-  onToggle: (enabled: boolean) => void;
-  onView: () => void;
-  onToggleSidebar?: () => void;
-  error?: string | null;
-}) {
-  return (
-    <div className="content-scroll narrow-content settings-style-content">
-      <header className="page-header">
-        <div>
-          <div className="dashboard-title-row">
-            {onToggleSidebar ? (
-              <button
-                type="button"
-                className="mobile-sidebar-toggle-btn"
-                onClick={onToggleSidebar}
-                aria-label="Toggle navigation menu"
-                data-tooltip="Toggle navigation menu"
-              >
-                <MenuIcon />
-              </button>
-            ) : null}
-            <span className="eyebrow">API Integration</span>
-          </div>
-          <p>Expose localhost API for Paseo & other status tools.</p>
-        </div>
-      </header>
-      <section className="settings-card">
-        <div className="settings-row">
-          <div>
-            <strong>Enable Paseo bridge</strong>
-            <small>Allows local HTTP tools to access quota usage & notification status.</small>
-          </div>
-          <button
-            type="button"
-            className={`toggle ${bridge?.enabled ? "on" : ""}`}
-            disabled={busy}
-            aria-label={bridge?.enabled ? "Disable Paseo bridge" : "Enable Paseo bridge"}
-            aria-pressed={Boolean(bridge?.enabled)}
-            onClick={() => onToggle(!bridge?.enabled)}
-          >
-            <span />
-          </button>
-        </div>
-        <div className="settings-row">
-          <div>
-            <strong>Integration window</strong>
-            <small>View the local bridge status, auth tokens, and connection URL.</small>
-          </div>
-          <button
-            type="button"
-            className="button ghost settings-changelog-button"
-            disabled={busy}
-            onClick={onView}
-          >
-            <span>View</span>
-            <ExternalLinkIcon />
-          </button>
-        </div>
-      </section>
-      {bridge?.error ? <div className="error-panel api-integration-error">{bridge.error}</div> : null}
-      {error ? <div className="error-panel settings-update-error">{error}</div> : null}
-    </div>
-  );
-}
-
 function SettingsView({
   autostart,
   onToggleAutostart,
@@ -2255,6 +2151,10 @@ function SettingsView({
   onInstallUpdate,
   onToggleSidebar,
   onOpenPairing,
+  bridge,
+  bridgeBusy,
+  onToggleBridge,
+  onViewBridgeWindow,
 }: {
   autostart: boolean;
   onToggleAutostart: () => void;
@@ -2272,6 +2172,10 @@ function SettingsView({
   onInstallUpdate: () => void;
   onToggleSidebar?: () => void;
   onOpenPairing?: () => void;
+  bridge: BridgeStatus | null;
+  bridgeBusy: boolean;
+  onToggleBridge: (enabled: boolean) => void;
+  onViewBridgeWindow: () => void;
 }) {
   const [updateNotesOpen, setUpdateNotesOpen] = useState(false);
   const automaticUpdates = appSettings?.automaticUpdatesEnabled ?? true;
@@ -2423,7 +2327,7 @@ function SettingsView({
             onClick={(event) => {
               const button = event.currentTarget;
               button.setAttribute("data-tooltip", "Opens in a new window");
-              void openUrl(CHANGELOG_URL).catch((cause) => {
+              void openSafeUrl(CHANGELOG_URL).catch((cause) => {
                 button.setAttribute("data-tooltip", `Could not open changelog: ${String(cause)}`);
               });
             }}
@@ -2433,6 +2337,42 @@ function SettingsView({
           </button>
         </div>
       </section>
+      <section className="settings-card">
+        <div className="settings-row">
+          <div>
+            <strong>Enable Paseo bridge</strong>
+            <small>Allows local HTTP tools to access quota usage & notification status.</small>
+          </div>
+          <button
+            type="button"
+            className={`toggle ${bridge?.enabled ? "on" : ""}`}
+            disabled={bridgeBusy}
+            aria-label={bridge?.enabled ? "Disable Paseo bridge" : "Enable Paseo bridge"}
+            aria-pressed={Boolean(bridge?.enabled)}
+            onClick={() => onToggleBridge(!bridge?.enabled)}
+          >
+            <span />
+          </button>
+        </div>
+        <div className="settings-row">
+          <div>
+            <strong>Integration window</strong>
+            <small>View the local bridge status, auth tokens, and connection URL.</small>
+          </div>
+          <button
+            type="button"
+            className="button ghost settings-changelog-button"
+            aria-label="View integration window (opens in a new window)"
+            data-tooltip="Opens in a new window"
+            disabled={bridgeBusy}
+            onClick={onViewBridgeWindow}
+          >
+            <span>View</span>
+            <ExternalLinkIcon />
+          </button>
+        </div>
+      </section>
+      {bridge?.error ? <div className="error-panel api-integration-error">{bridge.error}</div> : null}
       <UpdateNotesModal
         open={updateNotesOpen}
         version={update?.availableVersion ?? null}

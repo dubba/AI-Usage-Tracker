@@ -294,6 +294,24 @@ select {
 
 .provider-summary-row.is-all-row {
   border-color: rgba(208, 188, 255, 0.28);
+  cursor: pointer !important;
+}
+
+.provider-summary-row.is-all-row * {
+  cursor: inherit !important;
+}
+
+.provider-summary-row:not(.is-all-row) {
+  cursor: grab !important;
+}
+
+.provider-summary-row:not(.is-all-row) * {
+  cursor: inherit !important;
+}
+
+.provider-summary-row:not(.is-all-row):active,
+.provider-summary-row:not(.is-all-row):active * {
+  cursor: grabbing !important;
 }
 
 .provider-summary-icon.provider-all {
@@ -778,10 +796,6 @@ select {
 
 .mockup-summary-card.attention-card.is-clickable:hover {
   border-color: var(--obsidian-amber, #ffb869);
-}
-
-.mockup-summary-card.total-card.is-clickable:hover {
-  border-color: var(--obsidian-purple-strong, #a078ff);
 }
 
 .mockup-summary-card.attention-card.is-filtering {
@@ -2709,8 +2723,9 @@ select.account-update-select option,
     display: flex !important;
     align-items: center !important;
     gap: 10px !important;
-    margin-bottom: 10px !important;
-    padding: 0 !important;
+    margin-bottom: 12px !important;
+    padding: 0 0 12px !important;
+    border-bottom: 1px solid var(--border, #2e2e2e) !important;
     position: relative !important;
     z-index: 300 !important;
   }

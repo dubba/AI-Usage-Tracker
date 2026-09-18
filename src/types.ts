@@ -51,7 +51,9 @@ export interface BridgeStatus {
 }
 
 export interface BridgeInfo extends BridgeStatus {
+  /** Masked token (first4••••last4). Full value only via revealBridgeToken(). */
   token: string;
+  tokenLast4: string;
 }
 
 export interface AccountBucket {
@@ -204,6 +206,7 @@ export interface AirgapExport {
 }
 
 export interface AirgapVerifyResult {
+  sessionId: string;
   verifyCode: string;
   totalChunks: number;
 }

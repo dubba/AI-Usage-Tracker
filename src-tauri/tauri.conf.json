@@ -29,7 +29,7 @@
     "security": {
       "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://tauri.localhost https://tauri.localhost; img-src 'self' asset: http://asset.localhost data: blob:; media-src 'self' blob: mediastream:; style-src 'self' 'unsafe-inline'; script-src 'self'",
       "headers": {
-        "Permissions-Policy": "camera=*"
+        "Permissions-Policy": "camera=(self)"
       }
     }
   },

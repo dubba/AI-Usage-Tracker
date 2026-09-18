@@ -27,6 +27,9 @@ use sha2::{Digest, Sha256};
 use std::{collections::HashMap, sync::Arc};
 use url::Url;
 use uuid::Uuid;
+use zeroize::Zeroize;
+
+pub const MAX_AIRGAP_DECOMPRESSED_SIZE: usize = 16 * 1024 * 1024; // 16 MB max
 
 pub const AIRGAP_URI_SCHEME: &str = "aiut-airgap";
 pub const CHUNK_BINARY_SIZE: usize = 350; // 350 bytes binary -> ~467 bytes base64
@@ -54,6 +57,7 @@ pub struct AirgapExport {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AirgapVerifyResult {
+    pub session_id: String,
     pub verify_code: String,
     pub total_chunks: usize,
 }
@@ -78,9 +82,20 @@ pub fn compute_verify_code(session_id: &str, container: &[u8]) -> String {
     let digest = hasher.finalize();
 
     format!(
-        "{:02X}{:02X}-{:02X}{:02X}",
-        digest[0], digest[1], digest[2], digest[3]
+        "{:02X}{:02X}-{:02X}{:02X}-{:02X}{:02X}-{:02X}{:02X}",
+        digest[0], digest[1], digest[2], digest[3], digest[4], digest[5], digest[6], digest[7]
     )
+}
+
+pub fn normalize_verify_code(code: &str) -> String {
+    code.chars()
+        .filter(|ch| ch.is_ascii_hexdigit())
+        .collect::<String>()
+        .to_ascii_uppercase()
+}
+
+fn container_hash(container: &[u8]) -> [u8; 32] {
+    Sha256::digest(container).into()
 }
 
 /// Computes an 8-character hex checksum of base64 chunk data.
@@ -271,25 +286,83 @@ fn reassemble_container(raw_chunks: Vec<String>) -> Result<(String, usize, Vec<u
 
 /// Verifies scanned frames and returns the verification code to display for
 /// human comparison with the sender's screen. No data is imported.
-pub fn verify_airgap_frames(raw_chunks: Vec<String>) -> Result<AirgapVerifyResult, String> {
+pub fn verify_airgap_frames(
+    state: &AppState,
+    raw_chunks: Vec<String>,
+) -> Result<AirgapVerifyResult, String> {
     let (session_id, total_chunks, container) = reassemble_container(raw_chunks)?;
     if container.len() < 32 + 40 {
         return Err("Air-gap container is too short".into());
     }
+    let verify_code = compute_verify_code(&session_id, &container);
+    *state.pending_airgap.lock() = Some(crate::state::PendingAirgapImport {
+        session_id: session_id.clone(),
+        verify_code_normalized: normalize_verify_code(&verify_code),
+        container_hash: container_hash(&container),
+        import_token: None,
+    });
     Ok(AirgapVerifyResult {
-        verify_code: compute_verify_code(&session_id, &container),
+        session_id,
+        verify_code,
         total_chunks,
     })
 }
 
+pub fn confirm_airgap_session(
+    state: &AppState,
+    session_id: &str,
+    typed_code: &str,
+) -> Result<String, String> {
+    let typed = normalize_verify_code(typed_code);
+    if typed.len() != 16 {
+        return Err("Enter the full verification code shown on the other device.".into());
+    }
+    let mut pending = state.pending_airgap.lock();
+    let Some(session) = pending.as_mut() else {
+        return Err("Scan the animated codes again, then confirm the matching code.".into());
+    };
+    if session.session_id != session_id {
+        return Err("This confirmation does not match the scanned transfer.".into());
+    }
+    if typed.len() != session.verify_code_normalized.len()
+        || !bool::from(subtle::ConstantTimeEq::ct_eq(
+            typed.as_bytes(),
+            session.verify_code_normalized.as_bytes(),
+        ))
+    {
+        return Err("The codes do not match. Check both screens and try again.".into());
+    }
+    if let Some(token) = session.import_token.as_ref() {
+        return Ok(token.clone());
+    }
+    let mut bytes = [0u8; 32];
+    rand::rngs::OsRng.fill_bytes(&mut bytes);
+    let token = bytes.iter().map(|b| format!("{b:02x}")).collect::<String>();
+    session.import_token = Some(token.clone());
+    Ok(token)
+}
+
 /// Reassembles captured airgap chunks, decrypts with the embedded transfer
-/// key, decompresses, and imports. Call only after the user confirms the
-/// verification code matches the sender's screen.
+/// key, decompresses, and imports. Requires a single-use token from a
+/// successful code confirmation for this same capture.
 pub async fn import_airgap_payload(
     state: &Arc<AppState>,
+    import_token: &str,
     raw_chunks: Vec<String>,
 ) -> Result<SyncSummary, String> {
-    let (_session_id, _total_chunks, container) = reassemble_container(raw_chunks)?;
+    let (session_id, _total_chunks, container) = reassemble_container(raw_chunks)?;
+    {
+        let pending = state.pending_airgap.lock();
+        let Some(session) = pending.as_ref() else {
+            return Err("Confirm the matching code before importing.".into());
+        };
+        if session.session_id != session_id
+            || session.import_token.as_deref() != Some(import_token)
+            || session.container_hash != container_hash(&container)
+        {
+            return Err("This transfer is no longer valid. Scan the codes again.".into());
+        }
+    }
 
     if container.len() < 32 + 40 {
         return Err("Air-gap container is too short".into());
@@ -299,15 +372,24 @@ pub async fn import_airgap_payload(
     let mut key = [0u8; 32];
     key.copy_from_slice(key_bytes);
 
-    let decompressed_bytes = match decrypt_payload(&key, AIRGAP_INFO, ciphertext_with_nonce) {
-        Ok(compressed) => miniz_oxide::inflate::decompress_to_vec(&compressed)
-            .map_err(|e| format!("Decompression failed: {e:?}"))?,
+    let mut decompressed_bytes = match decrypt_payload(&key, AIRGAP_INFO, ciphertext_with_nonce) {
+        Ok(compressed) => miniz_oxide::inflate::decompress_to_vec_with_limit(
+            &compressed,
+            MAX_AIRGAP_DECOMPRESSED_SIZE,
+        )
+        .map_err(|e| format!("Decompression failed: {e:?}"))?,
         Err(_) => {
+            key.zeroize();
             return Err("Corrupted transfer. Please rescan the animated codes.".into());
         }
     };
+    key.zeroize();
 
-    import_sync_payload(state, &decompressed_bytes).await
+    let summary = import_sync_payload(state, &decompressed_bytes).await;
+    decompressed_bytes.zeroize();
+    let summary = summary?;
+    *state.pending_airgap.lock() = None;
+    Ok(summary)
 }
 
 #[cfg(test)]
@@ -326,49 +408,57 @@ mod tests {
         let export = prepare_airgap_export(&state).expect("Airgap export failed");
         assert!(!export.frames.is_empty());
         assert_eq!(export.frames.len(), export.total_chunks);
-        assert_eq!(export.verify_code.len(), 9);
+        assert_eq!(export.verify_code.len(), 19);
 
         // Collect frame URIs, shuffling them to simulate out-of-order camera reads
         let mut uris: Vec<String> = export.frames.into_iter().map(|f| f.uri).collect();
         uris.reverse();
 
         // Verify step returns the same code the sender displays
-        let verify = verify_airgap_frames(uris.clone()).expect("Airgap verify failed");
+        let verify = verify_airgap_frames(&state, uris.clone()).expect("Airgap verify failed");
         assert_eq!(verify.verify_code, export.verify_code);
         assert_eq!(verify.total_chunks, export.total_chunks);
 
-        // Import after confirmation
         let dir2 = TempDir::new().unwrap();
         let state2 = Arc::new(AppState::new(dir2.path().to_path_buf(), "token2".into()).unwrap());
-        let summary = import_airgap_payload(&state2, uris.clone())
+        let verify2 = verify_airgap_frames(&state2, uris.clone()).expect("Airgap verify failed");
+        let token = confirm_airgap_session(&state2, &verify2.session_id, &verify2.verify_code)
+            .expect("Airgap confirm failed");
+        let summary = import_airgap_payload(&state2, &token, uris.clone())
             .await
             .expect("Airgap import failed");
         assert_eq!(summary.skipped, 0);
+        assert!(
+            import_airgap_payload(&state2, &token, uris.clone())
+                .await
+                .is_err(),
+            "import token must be single-use"
+        );
 
         // Test tampered frames fail verification (checksum mismatch surfaces first)
         let mut tampered_uris = uris.clone();
         tampered_uris[0] = tampered_uris[0].replace("d=", "d=corrupted");
-        let err = verify_airgap_frames(tampered_uris)
+        let err = verify_airgap_frames(&state, tampered_uris)
             .unwrap_err();
         assert!(err.contains("checksum mismatch"));
 
         // Test corrupted URI fails checksum
         let mut corrupted_uris = uris.clone();
         corrupted_uris[0] = corrupted_uris[0].replace("d=", "d=corrupted");
-        let err = import_airgap_payload(&state2, corrupted_uris)
+        let err = import_airgap_payload(&state2, "deadbeef", corrupted_uris)
             .await
             .unwrap_err();
         assert!(err.contains("checksum mismatch"));
 
         // Test empty frames list
-        let err_empty = import_airgap_payload(&state2, vec![])
+        let err_empty = import_airgap_payload(&state2, "deadbeef", vec![])
             .await
             .unwrap_err();
         assert!(err_empty.contains("No air-gap frames provided"));
 
         // Test missing frame (frame specifies total_chunks=2 but only 1 is provided)
         let incomplete_uri = uris[0].replace(&format!("/1/{}/", export.total_chunks), &format!("/1/{}/", export.total_chunks + 1));
-        let err_missing = import_airgap_payload(&state2, vec![incomplete_uri])
+        let err_missing = import_airgap_payload(&state2, "deadbeef", vec![incomplete_uri])
             .await
             .unwrap_err();
         assert!(err_missing.contains("Missing frames"));
@@ -377,5 +467,16 @@ mod tests {
         let export2 = prepare_airgap_export(&state).expect("Airgap export failed");
         assert_ne!(export2.session_id, export.session_id);
         assert_ne!(export2.verify_code, export.verify_code);
+    }
+
+    #[test]
+    fn test_airgap_decompression_limit() {
+        let oversized = vec![b'A'; 1024 * 1024];
+        let compressed = miniz_oxide::deflate::compress_to_vec(&oversized, 6);
+        let res = miniz_oxide::inflate::decompress_to_vec_with_limit(&compressed, 512 * 1024);
+        assert!(res.is_err(), "Decompression exceeding limit must be rejected");
+
+        let res_ok = miniz_oxide::inflate::decompress_to_vec_with_limit(&compressed, 2 * 1024 * 1024);
+        assert!(res_ok.is_ok(), "Decompression within limit must succeed");
     }
 }

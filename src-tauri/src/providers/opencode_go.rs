@@ -43,11 +43,11 @@ pub async fn refresh(
         .header(COOKIE, format!("auth={auth_cookie}"))
         .send()
         .await
-        .map_err(|error| ProviderError::Transient(format!("OpenCode Go dashboard request failed: {error}")))?;
+        .map_err(|_| ProviderError::Transient("OpenCode Go dashboard request failed.".into()))?;
     let status = response.status();
     let final_path = response.url().path().to_string();
-    let body = response.text().await.map_err(|error| {
-        ProviderError::Transient(format!("Unable to read the OpenCode Go dashboard: {error}"))
+    let body = response.text().await.map_err(|_| {
+        ProviderError::Transient("Unable to read the OpenCode Go dashboard.".into())
     })?;
 
     if status == StatusCode::UNAUTHORIZED

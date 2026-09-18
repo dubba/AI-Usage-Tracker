@@ -12,9 +12,9 @@
     min-height: 0 !important;
     /* 18px sidebar padding-top + 6px = 24px, matching .dashboard-content
        padding-top so the baselines sit on the same horizontal line. Gap
-       to "Dashboard" below = 6px padding + 12px nav margin = 18px. */
+       to "Accounts" below = 6px padding + 12px margin = 18px. */
     padding: 6px 14px 6px;
-    margin: 0;
+    margin: 0 0 12px;
   }
   .obsidian-shell .sidebar .brand .brand-mark {
     display: none;

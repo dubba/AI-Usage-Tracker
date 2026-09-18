@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openSafeUrl } from "../utils/safeUrl";
 import { bridgeApi } from "../api";
 import { abandonLoginAttempt, recoverFromStaleLogin, retryLoginAttempt, subscribeLoginStatus, watchLoginAttempt } from "../login-status";
 import type { Account, LoginStatus, Provider } from "../types";
@@ -376,7 +376,7 @@ export function AddAccountModal({
       });
       watchLoginAttempt(start.attemptId);
       if (provider !== "opencode_go" && provider !== "grok" && start.authorizationUrl.trim()) {
-        await openUrl(start.authorizationUrl);
+        await openSafeUrl(start.authorizationUrl);
       }
     } catch (cause) {
       if (!closeRequestedRef.current) {

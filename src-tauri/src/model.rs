@@ -1,6 +1,7 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::{fmt, str::FromStr};
+use zeroize::Zeroize;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -126,7 +127,7 @@ impl Account {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Zeroize)]
 #[serde(rename_all = "camelCase")]
 pub struct OAuthSecret {
     pub access_token: String,
@@ -141,14 +142,14 @@ impl OAuthSecret {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Zeroize)]
 #[serde(rename_all = "camelCase")]
 pub struct OpenCodeGoSecret {
     pub workspace_id: String,
     pub auth_cookie: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Zeroize)]
 #[serde(rename_all = "camelCase")]
 pub struct GoogleAiStudioSecret {
     pub api_key: String,
@@ -159,16 +160,14 @@ pub struct GoogleAiStudioSecret {
     pub cloud_oauth: Option<OAuthSecret>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Zeroize)]
 #[serde(rename_all = "camelCase")]
 pub struct GrokSecret {
     #[serde(default)]
     pub cookie_header: Option<String>,
-    #[serde(default)]
-    pub auth_file: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Zeroize)]
 #[serde(tag = "provider", content = "credentials", rename_all = "snake_case")]
 pub enum ProviderSecret {
     Openai(OAuthSecret),
@@ -234,10 +233,25 @@ pub struct BridgeStatus {
 #[serde(rename_all = "camelCase")]
 pub struct BridgeInfo {
     pub endpoint: String,
+    /// Masked bearer token (e.g. `abcd••••••wxyz`). The full token is never
+    /// sent over IPC by default; use the explicit `reveal_bridge_token`
+    /// command after user confirmation to obtain it once.
     pub token: String,
+    pub token_last4: String,
     pub enabled: bool,
     pub running: bool,
     pub error: Option<String>,
+}
+
+/// Masks a bridge token for IPC responses: first 4 + bullets + last 4.
+/// Short tokens are fully masked to avoid leaking length oracles beyond size.
+pub fn mask_bridge_token(token: &str) -> String {
+    if token.len() <= 8 {
+        return "•".repeat(token.len().max(4));
+    }
+    let first = &token[..4];
+    let last4 = &token[token.len() - 4..];
+    format!("{first}{}{last4}", "•".repeat(12))
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

@@ -1,5 +1,5 @@
 use crate::{
-    fs_util::{atomic_write_private, ensure_private_file},
+    fs_util::{atomic_write_private, ensure_private_dir, ensure_private_file},
     model::Account,
 };
 use parking_lot::RwLock;
@@ -26,7 +26,7 @@ pub struct AccountOrderStore {
 
 impl AccountOrderStore {
     pub fn load(data_dir: &Path) -> Result<Self, String> {
-        fs::create_dir_all(data_dir).map_err(|error| error.to_string())?;
+        ensure_private_dir(data_dir)?;
         let path = data_dir.join(ORDER_FILE_NAME);
         let account_ids = if path.exists() {
             let payload = fs::read_to_string(&path).map_err(|error| error.to_string())?;

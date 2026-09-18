@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openSafeUrl } from "../utils/safeUrl";
 import { bridgeApi, readLoginAttempt } from "../api";
 import { abandonLoginAttempt, getLastLoginStatus, retryLoginAttempt, subscribeLoginStatus, watchLoginAttempt } from "../login-status";
 import type { Account, CloudProjectOption, LoginStatus } from "../types";
@@ -118,7 +118,7 @@ export function GoogleAiStudioUsageModal({
       });
       watchLoginAttempt(next.attemptId);
       if (next.authorizationUrl) {
-        await openUrl(next.authorizationUrl);
+        await openSafeUrl(next.authorizationUrl);
       }
     } catch (cause) {
       if (!closeRequestedRef.current) {

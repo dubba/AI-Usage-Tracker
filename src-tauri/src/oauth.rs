@@ -18,7 +18,10 @@ use rand::RngCore;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use std::sync::Arc;
+use std::{
+    net::{IpAddr, SocketAddr},
+    sync::Arc,
+};
 use tokio::{net::TcpListener, sync::oneshot};
 use url::Url;
 use uuid::Uuid;
@@ -117,7 +120,7 @@ pub async fn start_login(
         });
     }
 
-    let (listener, port) = match bind_callback_port(&provider).await {
+    let (listener, addr) = match bind_callback_port(&provider).await {
         Ok(bound) => bound,
         Err(error) => {
             let mut pending = app.pending_login.write();
@@ -130,7 +133,7 @@ pub async fn start_login(
     let verifier = random_base64(32);
     let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
     let expected_state = random_base64(24);
-    let redirect_uri = redirect_uri(&provider, port);
+    let redirect_uri = redirect_uri(&provider, addr);
     let authorization_url =
         match build_authorization_url(&provider, &redirect_uri, &challenge, &expected_state) {
             Ok(url) => url,
@@ -174,7 +177,7 @@ pub async fn start_login(
                 &server_context.attempt_id,
                 format!("Callback server failed: {error}"),
             );
-            server_context.app.stop_login_shutdown(&server_context.attempt_id);
+            server_context.app.abort_login_resources(&server_context.attempt_id);
         }
     });
 
@@ -201,7 +204,9 @@ pub async fn start_login(
                     timeout_context.provider.display_name()
                 ),
             );
-            stop_callback(&timeout_context).await;
+            timeout_context
+                .app
+                .abort_login_resources(&timeout_context.attempt_id);
         }
     });
 
@@ -241,6 +246,14 @@ fn open_mobile_oauth(
         .clone()
         .ok_or_else(|| "The app is not ready for in-app sign-in.".to_string())?;
     let target = Url::parse(authorization_url).map_err(|error| error.to_string())?;
+    if target.scheme() != "https" {
+        return Err("Authorization URL must use HTTPS".to_string());
+    }
+    let host = target.host_str().unwrap_or("");
+    let allowed = ["auth.openai.com", "claude.ai", "accounts.google.com"];
+    if !allowed.iter().any(|&h| host == h || host.ends_with(&format!(".{h}"))) {
+        return Err("Disallowed authorization URL host".to_string());
+    }
     let intercept_started = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     crate::mobile_auth::open_in_main_webview(
         handle,
@@ -274,6 +287,7 @@ fn is_transient_network_error(err: &str) -> bool {
 }
 
 pub async fn login_status(app: &Arc<AppState>, attempt_id: &str) -> Result<LoginStatus, String> {
+    let _poll_guard = app.login_status_lock.lock().await;
     let pending_exchange = {
         let mut guard = app.pending_auth_exchange.lock();
         if guard.as_ref().is_some_and(|p| p.attempt_id == attempt_id) {
@@ -306,20 +320,18 @@ pub async fn login_status(app: &Arc<AppState>, attempt_id: &str) -> Result<Login
                     });
                 }
                 Err(error) => {
-                    if is_transient_network_error(&error) {
-                        // Keep exchange queued for when foreground connectivity is restored
-                        *app.pending_auth_exchange.lock() = Some(exchange);
-                    } else {
-                        fail_login(&app.pending_login, attempt_id, error.clone());
-                        return Ok(LoginStatus {
-                            attempt_id: attempt_id.into(),
-                            status: "failed".into(),
-                            message: Some(error),
-                            account: None,
-                            projects: None,
-                            selected_project_id: None,
-                        });
-                    }
+                    // Authorization codes are single-use. Never restore or
+                    // retry the same code on a later poll.
+                    fail_login(&app.pending_login, attempt_id, error.clone());
+                    app.abort_login_resources(attempt_id);
+                    return Ok(LoginStatus {
+                        attempt_id: attempt_id.into(),
+                        status: "failed".into(),
+                        message: Some(error),
+                        account: None,
+                        projects: None,
+                        selected_project_id: None,
+                    });
                 }
             }
         }
@@ -344,7 +356,18 @@ fn is_waiting(app: &AppState, attempt_id: &str) -> bool {
 
 #[cfg_attr(not(any(test, mobile)), allow(dead_code))]
 pub(crate) fn looks_like_oauth_callback(url: &Url) -> bool {
-    matches!(url.host_str(), Some("127.0.0.1") | Some("localhost"))
+    let is_loopback = url
+        .host_str()
+        .map(|host| {
+            let host = host
+                .strip_prefix('[')
+                .and_then(|h| h.strip_suffix(']'))
+                .unwrap_or(host);
+            matches!(host, "127.0.0.1" | "localhost" | "::1")
+                || host.parse::<IpAddr>().is_ok_and(|ip| ip.is_loopback())
+        })
+        .unwrap_or(false);
+    is_loopback
         && url
             .query_pairs()
             .any(|(key, _)| key == "code" || key == "error")
@@ -439,24 +462,39 @@ async fn handle_callback(context: Arc<LoginContext>, query: CallbackQuery) -> ax
                 escape_html(account.email.as_deref().unwrap_or(&account.label))
             ))
         }
-        Err(_) => {
+        Err(error) => {
+            if is_transient_network_error(&error)
+                && is_waiting(context.app.as_ref(), &context.attempt_id)
             {
-                let mut pending = context.app.pending_auth_exchange.lock();
-                *pending = Some(crate::state::PendingAuthExchange {
-                    attempt_id: context.attempt_id.clone(),
-                    provider: context.provider.clone(),
-                    label: context.label.clone(),
-                    code,
-                    verifier: context.verifier.clone(),
-                    expected_state: context.expected_state.clone(),
-                    redirect_uri: context.redirect_uri.clone(),
-                });
+                {
+                    let mut pending = context.app.pending_auth_exchange.lock();
+                    *pending = Some(crate::state::PendingAuthExchange {
+                        attempt_id: context.attempt_id.clone(),
+                        provider: context.provider.clone(),
+                        label: context.label.clone(),
+                        code,
+                        verifier: context.verifier.clone(),
+                        expected_state: context.expected_state.clone(),
+                        redirect_uri: context.redirect_uri.clone(),
+                    });
+                }
+                stop_callback(&context).await;
+                callback_html(
+                    r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px 20px;text-align:center"><h1 style="color:#4ade80">Authorization received</h1><p style="color:#d1d5db;font-size:16px;margin:16px 0">Return to AI Usage Tracker to complete connection.</p></body></html>"#
+                        .into(),
+                )
+            } else {
+                fail_login(
+                    &context.app.pending_login,
+                    &context.attempt_id,
+                    error.clone(),
+                );
+                stop_callback(&context).await;
+                callback_html(format!(
+                    r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Authentication failed</h1><p style="color:#ff9d9d">{}</p><p style="color:#8e9791">Return to the app and try again.</p></body></html>"#,
+                    escape_html(&error)
+                ))
             }
-            stop_callback(&context).await;
-            callback_html(
-                r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px 20px;text-align:center"><h1 style="color:#4ade80">Authorization received</h1><p style="color:#d1d5db;font-size:16px;margin:16px 0">Return to AI Usage Tracker to complete connection.</p></body></html>"#
-                    .into(),
-            )
         }
     }
 }
@@ -478,8 +516,10 @@ async fn complete_exchange(
             }
             Err(err) => {
                 last_error = err;
-                if attempt < 4 {
+                if attempt < 4 && is_transient_network_error(&last_error) {
                     tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+                } else {
+                    break;
                 }
             }
         }
@@ -712,7 +752,9 @@ async fn exchange_antigravity(
     context: &LoginContext,
     code: &str,
 ) -> Result<(ProviderSecret, ProviderIdentity), String> {
-    let client_secret = String::from_utf8_lossy(ANTIGRAVITY_CLIENT_SECRET_BYTES).to_string();
+    let client_secret = zeroize::Zeroizing::new(
+        String::from_utf8_lossy(ANTIGRAVITY_CLIENT_SECRET_BYTES).to_string(),
+    );
     let response = context
         .app
         .client
@@ -745,34 +787,9 @@ async fn exchange_antigravity(
     )
     .await
     .unwrap_or(Value::Null);
-    // Fallback when userinfo fails: decode the OpenID id_token for the stable
-    // Google user id (`sub`) and email so the account still has an identity.
-    let id_token_claims = tokens.id_token.as_deref().and_then(decode_jwt_payload);
-    let identity = ProviderIdentity {
-        email: profile
-            .get("email")
-            .and_then(Value::as_str)
-            .map(str::to_string)
-            .or_else(|| {
-                id_token_claims
-                    .as_ref()
-                    .and_then(|claims| claims.get("email"))
-                    .and_then(Value::as_str)
-                    .map(str::to_string)
-            }),
-        account_id: profile
-            .get("id")
-            .and_then(Value::as_str)
-            .map(str::to_string)
-            .or_else(|| {
-                id_token_claims
-                    .as_ref()
-                    .and_then(|claims| claims.get("sub"))
-                    .and_then(Value::as_str)
-                    .map(str::to_string)
-            }),
-        plan: Some("Antigravity".into()),
-    };
+    // Identity comes from Google's userinfo API (TLS + bearer token), never
+    // from decoded-but-unverified ID-token claims.
+    let identity = identity_from_google_userinfo(&profile);
     Ok((
         ProviderSecret::Antigravity(OAuthSecret {
             access_token: tokens.access_token,
@@ -844,30 +861,52 @@ fn build_authorization_url(
     }
 }
 
-fn redirect_uri(provider: &Provider, port: u16) -> String {
+/// HTTP origin for a bound loopback socket, with IPv6 literals bracketed.
+pub(crate) fn loopback_http_origin(addr: SocketAddr) -> String {
+    match addr.ip() {
+        IpAddr::V4(ip) => format!("http://{ip}:{}", addr.port()),
+        IpAddr::V6(ip) => format!("http://[{ip}]:{}", addr.port()),
+    }
+}
+
+fn redirect_uri(provider: &Provider, addr: SocketAddr) -> String {
     match provider {
         // OpenAI's Codex client allow-list is `http://localhost:<port>/auth/callback`
         // on 1455/1457. `127.0.0.1` is not an exact match and OpenAI returns a generic
         // Authentication Error page before the callback.
-        Provider::Openai => format!("http://localhost:{port}/auth/callback"),
+        Provider::Openai => format!("http://localhost:{}/auth/callback", addr.port()),
         // Claude Code advertises `http://localhost:<port>/callback`. Anthropic
         // matches that string; `127.0.0.1` is not an exact match.
-        Provider::Anthropic => format!("http://localhost:{port}/callback"),
-        Provider::Antigravity => format!("http://127.0.0.1:{port}"),
+        Provider::Anthropic => format!("http://localhost:{}/callback", addr.port()),
+        Provider::Antigravity => loopback_http_origin(addr),
         Provider::GoogleAiStudio | Provider::Grok | Provider::OpencodeGo => String::new(),
     }
 }
 
-async fn bind_callback_port(provider: &Provider) -> Result<(TcpListener, u16), String> {
+pub(crate) async fn bind_loopback_listener(port: u16) -> std::io::Result<TcpListener> {
+    match TcpListener::bind(("127.0.0.1", port)).await {
+        Ok(listener) => Ok(listener),
+        Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => Err(error),
+        Err(ipv4_error) => match TcpListener::bind(("::1", port)).await {
+            Ok(listener) => Ok(listener),
+            Err(_) => Err(ipv4_error),
+        },
+    }
+}
+
+pub(crate) async fn bind_ephemeral_loopback() -> Result<(TcpListener, SocketAddr), String> {
+    let listener = bind_loopback_listener(0)
+        .await
+        .map_err(|error| format!("Unable to start OAuth callback server: {error}"))?;
+    let addr = listener
+        .local_addr()
+        .map_err(|error| format!("Unable to read OAuth callback address: {error}"))?;
+    Ok((listener, addr))
+}
+
+async fn bind_callback_port(provider: &Provider) -> Result<(TcpListener, SocketAddr), String> {
     if matches!(provider, Provider::Antigravity) {
-        let listener = TcpListener::bind(("127.0.0.1", 0))
-            .await
-            .map_err(|error| format!("Unable to start OAuth callback server: {error}"))?;
-        let port = listener
-            .local_addr()
-            .map_err(|error| format!("Unable to read OAuth callback port: {error}"))?
-            .port();
-        return Ok((listener, port));
+        return bind_ephemeral_loopback().await;
     }
     let ports: Vec<u16> = match provider {
         Provider::Openai => OPENAI_CALLBACK_PORTS.to_vec(),
@@ -876,8 +915,13 @@ async fn bind_callback_port(provider: &Provider) -> Result<(TcpListener, u16), S
         Provider::GoogleAiStudio | Provider::Grok | Provider::OpencodeGo => Vec::new(),
     };
     for port in ports {
-        match TcpListener::bind(("127.0.0.1", port)).await {
-            Ok(listener) => return Ok((listener, port)),
+        match bind_loopback_listener(port).await {
+            Ok(listener) => {
+                let addr = listener
+                    .local_addr()
+                    .map_err(|error| format!("Unable to read OAuth callback address: {error}"))?;
+                return Ok((listener, addr));
+            }
             Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => continue,
             Err(error) => return Err(format!("Unable to start OAuth callback server: {error}")),
         }
@@ -922,12 +966,30 @@ fn random_base64(bytes: usize) -> String {
     URL_SAFE_NO_PAD.encode(value)
 }
 
-/// Decodes the payload segment of a JWT (no signature verification; the token
-/// came straight from the provider's token endpoint over TLS).
+/// Decodes the payload segment of a JWT without verifying the signature.
+/// Claims from this helper are informational only and must not be used as
+/// authentication identity.
+#[cfg(test)]
 fn decode_jwt_payload(token: &str) -> Option<Value> {
     let segment = token.split('.').nth(1)?;
     let decoded = URL_SAFE_NO_PAD.decode(segment).ok()?;
     serde_json::from_slice(&decoded).ok()
+}
+
+fn identity_from_google_userinfo(profile: &Value) -> ProviderIdentity {
+    ProviderIdentity {
+        email: profile
+            .get("email")
+            .and_then(Value::as_str)
+            .filter(|value| !value.trim().is_empty())
+            .map(str::to_string),
+        account_id: profile
+            .get("id")
+            .and_then(Value::as_str)
+            .filter(|value| !value.trim().is_empty())
+            .map(str::to_string),
+        plan: Some("Antigravity".into()),
+    }
 }
 
 fn identity_from_userinfo(value: &Value) -> ProviderIdentity {
@@ -1085,21 +1147,60 @@ mod tests {
 
     #[test]
     fn oauth_redirects_use_loopback_ipv4() {
+        let openai: SocketAddr = "127.0.0.1:1455".parse().unwrap();
+        let openai_fallback: SocketAddr = "127.0.0.1:1457".parse().unwrap();
+        let anthropic: SocketAddr = "127.0.0.1:53692".parse().unwrap();
+        let antigravity: SocketAddr = "127.0.0.1:11451".parse().unwrap();
         assert_eq!(
-            redirect_uri(&Provider::Openai, 1455),
+            redirect_uri(&Provider::Openai, openai),
             "http://localhost:1455/auth/callback"
         );
         assert_eq!(
-            redirect_uri(&Provider::Openai, 1457),
+            redirect_uri(&Provider::Openai, openai_fallback),
             "http://localhost:1457/auth/callback"
         );
         assert_eq!(
-            redirect_uri(&Provider::Anthropic, 53692),
+            redirect_uri(&Provider::Anthropic, anthropic),
             "http://localhost:53692/callback"
         );
         assert_eq!(
-            redirect_uri(&Provider::Antigravity, 11451),
+            redirect_uri(&Provider::Antigravity, antigravity),
             "http://127.0.0.1:11451"
+        );
+        assert_eq!(loopback_http_origin(antigravity), "http://127.0.0.1:11451");
+    }
+
+    #[tokio::test]
+    async fn ephemeral_loopback_advertises_the_bound_address() {
+        let (listener, addr) = bind_ephemeral_loopback().await.unwrap();
+        assert!(addr.ip().is_loopback());
+        let origin = loopback_http_origin(addr);
+        if addr.is_ipv6() {
+            assert!(
+                origin.starts_with("http://[") && origin.contains("]:"),
+                "IPv6 loopback origin must bracket the host: {origin}"
+            );
+        } else {
+            assert!(
+                origin.starts_with("http://127.0.0.1:"),
+                "IPv4 loopback origin should use 127.0.0.1: {origin}"
+            );
+        }
+        drop(listener);
+    }
+
+    #[test]
+    fn oauth_redirects_bracket_loopback_ipv6() {
+        let antigravity: SocketAddr = "[::1]:11451".parse().unwrap();
+        let openai: SocketAddr = "[::1]:1455".parse().unwrap();
+        assert_eq!(
+            redirect_uri(&Provider::Antigravity, antigravity),
+            "http://[::1]:11451"
+        );
+        assert_eq!(loopback_http_origin(antigravity), "http://[::1]:11451");
+        assert_eq!(
+            redirect_uri(&Provider::Openai, openai),
+            "http://localhost:1455/auth/callback"
         );
     }
 
@@ -1198,6 +1299,12 @@ mod tests {
         assert!(looks_like_oauth_callback(
             &Url::parse("http://localhost:53692/callback?code=abc&state=xyz").unwrap()
         ));
+        assert!(looks_like_oauth_callback(
+            &Url::parse("http://[::1]:11451/?code=abc&state=xyz").unwrap()
+        ));
+        assert!(looks_like_oauth_callback(
+            &Url::parse("http://[::1]:1455/auth/callback?error=access_denied").unwrap()
+        ));
         assert!(!looks_like_oauth_callback(
             &Url::parse("https://accounts.google.com/o/oauth2/auth?code=abc").unwrap()
         ));
@@ -1249,6 +1356,81 @@ mod tests {
         assert!(pairs.iter().any(|(key, value)| key == "codex_cli_simplified_flow" && value == "true"));
         assert!(pairs.iter().any(|(key, value)| key == "originator" && value == OPENAI_ORIGINATOR));
         assert!(!pairs.iter().any(|(key, _)| key == "audience"));
+    }
+
+    #[test]
+    fn unverified_id_token_claims_are_informational_only() {
+        let payload = serde_json::json!({
+            "email": "injected@example.com",
+            "sub": "attacker-sub"
+        });
+        let token = format!("x.{}.y", URL_SAFE_NO_PAD.encode(payload.to_string()));
+        let claims = decode_jwt_payload(&token).unwrap();
+        assert_eq!(
+            claims.get("email").and_then(Value::as_str),
+            Some("injected@example.com")
+        );
+        assert_eq!(
+            claims.get("sub").and_then(Value::as_str),
+            Some("attacker-sub")
+        );
+        let empty = identity_from_google_userinfo(&Value::Null);
+        assert!(empty.email.is_none());
+        assert!(empty.account_id.is_none());
+        let identity = identity_from_google_userinfo(&serde_json::json!({
+            "email": "real@example.com",
+            "id": "google-user-id"
+        }));
+        assert_eq!(identity.email.as_deref(), Some("real@example.com"));
+        assert_eq!(identity.account_id.as_deref(), Some("google-user-id"));
+    }
+
+    #[tokio::test]
+    async fn login_status_does_not_restore_authorization_code_after_poll() {
+        let temp = tempfile::tempdir().unwrap();
+        let app = Arc::new(AppState::new(temp.path().to_path_buf(), "test-token".into()).unwrap());
+        *app.pending_login.write() = Some(LoginStatus {
+            attempt_id: "attempt".into(),
+            status: "waiting".into(),
+            message: None,
+            account: None,
+            projects: None,
+            selected_project_id: None,
+        });
+        *app.pending_auth_exchange.lock() = Some(crate::state::PendingAuthExchange {
+            attempt_id: "attempt".into(),
+            provider: Provider::GoogleAiStudio,
+            label: "Test".into(),
+            code: "single-use-code".into(),
+            verifier: "verifier".into(),
+            expected_state: "state".into(),
+            redirect_uri: "http://127.0.0.1:1".into(),
+        });
+
+        let status = login_status(&app, "attempt").await.unwrap();
+        assert_eq!(status.status, "failed");
+        assert!(app.pending_auth_exchange.lock().is_none());
+    }
+
+    #[tokio::test]
+    async fn abort_login_resources_stops_server_and_drops_queued_code() {
+        let temp = tempfile::tempdir().unwrap();
+        let app = Arc::new(AppState::new(temp.path().to_path_buf(), "test-token".into()).unwrap());
+        let (tx, rx) = oneshot::channel();
+        app.register_login_shutdown("attempt".into(), tx);
+        *app.pending_auth_exchange.lock() = Some(crate::state::PendingAuthExchange {
+            attempt_id: "attempt".into(),
+            provider: Provider::Openai,
+            label: "Test".into(),
+            code: "single-use-code".into(),
+            verifier: "verifier".into(),
+            expected_state: "state".into(),
+            redirect_uri: "http://localhost:1455/auth/callback".into(),
+        });
+
+        app.abort_login_resources("attempt");
+        assert!(app.pending_auth_exchange.lock().is_none());
+        assert!(rx.await.is_ok());
     }
 
     #[tokio::test]

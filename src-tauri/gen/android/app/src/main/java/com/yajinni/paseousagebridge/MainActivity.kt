@@ -72,17 +72,25 @@ class MainActivity : TauriActivity() {
     }
   }
 
+  private fun isPairingUri(uri: String): Boolean {
+    // Length-bounded allowlist check shared by intake and forwarding. Pairing
+    // URIs carry an ephemeral public key, session id and nonce: validate the
+    // value before storing or forwarding it, and never log its contents
+    // (logcat is readable by other apps on some devices).
+    if (uri.length > 2048) return false
+    return uri.startsWith("aiusage-pair:") || uri.startsWith("aiusage:")
+  }
+
   private fun handlePairingIntent(intent: Intent?) {
     val uri = intent?.dataString ?: return
-    android.util.Log.i(TAG, "Received pairing intent data: $uri")
-    if (uri.startsWith("aiusage-pair:") || uri.startsWith("aiusage:")) {
-      pendingUriMemory = uri
-      try {
-        setPendingPairingUri(uri)
-        android.util.Log.i(TAG, "Successfully forwarded pairing URI to Rust: $uri")
-      } catch (e: Throwable) {
-        android.util.Log.w(TAG, "setPendingPairingUri deferred until runtime init: ${e.message}")
-      }
+    if (!isPairingUri(uri)) return
+    android.util.Log.i(TAG, "Received pairing intent (len=${uri.length})")
+    pendingUriMemory = uri
+    try {
+      setPendingPairingUri(uri)
+      android.util.Log.i(TAG, "Forwarded pairing URI to Rust")
+    } catch (e: Throwable) {
+      android.util.Log.w(TAG, "setPendingPairingUri deferred until runtime init: ${e.message}")
     }
   }
 
@@ -251,6 +259,60 @@ class MainActivity : TauriActivity() {
     } catch (e: Throwable) {
       android.util.Log.w(TAG, "postExpandableNotification failed: ${e.message}")
     }
+  }
+
+  fun verifyDownloadedApk(path: String): String {
+    val file = File(path)
+    if (!file.exists() || file.length() < 1024L) {
+      return "The downloaded update is missing or incomplete."
+    }
+    val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+      PackageManager.GET_SIGNING_CERTIFICATES
+    } else {
+      @Suppress("DEPRECATION")
+      PackageManager.GET_SIGNATURES
+    }
+    val archive = packageManager.getPackageArchiveInfo(path, flags)
+      ?: return "The update package could not be read."
+    archive.applicationInfo?.apply {
+      sourceDir = path
+      publicSourceDir = path
+    }
+    if (archive.packageName != packageName) {
+      return "The update is for a different app."
+    }
+    val current = try {
+      packageManager.getPackageInfo(packageName, flags)
+    } catch (_: PackageManager.NameNotFoundException) {
+      return "Unable to verify this app's signing certificate."
+    }
+    val currentDigests = signingCertDigests(current)
+    val apkDigests = signingCertDigests(archive)
+    if (currentDigests.isEmpty() || apkDigests.intersect(currentDigests).isEmpty()) {
+      return "The update is not signed with this app's certificate."
+    }
+    return "ok"
+  }
+
+  private fun signingCertDigests(info: android.content.pm.PackageInfo): Set<String> {
+    val digest = java.security.MessageDigest.getInstance("SHA-256")
+    val signatures: Array<android.content.pm.Signature> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+      val signingInfo = info.signingInfo ?: return emptySet()
+      if (signingInfo.hasMultipleSigners()) {
+        signingInfo.apkContentsSigners
+      } else {
+        signingInfo.signingCertificateHistory
+      }
+    } else {
+      @Suppress("DEPRECATION")
+      info.signatures ?: return emptySet()
+    }
+    return signatures.map { signature ->
+      digest.reset()
+      digest.digest(signature.toByteArray()).joinToString("") { byte ->
+        "%02x".format(byte)
+      }
+    }.toSet()
   }
 
   fun installDownloadedApk(path: String) {

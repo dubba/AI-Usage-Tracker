@@ -1,8 +1,41 @@
 # Changelog
 
-## Unreleased (0 items)
+## Unreleased (26 items)
 
-_No unreleased user-facing changes yet._
+### Security (17)
+
+- Android backups are disabled so account credentials are not copied to cloud or device-to-device backup.
+- Camera transfers now use a longer comparison code. The receiving device must type the code from the sending screen before import, and that confirmation is a one-time token.
+- Android in-app updates now verify the APK’s signing certificate against this app, and the published SHA-256 checksum when GitHub includes one, before prompting to install.
+- Account token refresh now loads, refreshes, and saves credentials under a per-account lock, and a timeout cannot discard a token the provider already rotated.
+- Google AI Studio no longer puts API keys in request URLs, and network failures show a generic message instead of raw request errors.
+- Android cleartext HTTP is limited to loopback (`localhost` / `127.0.0.1`); other HTTP is blocked.
+- In-memory credential caches now enforce bounded lifetimes with automatic expiration, securely zeroizing secrets from memory when forgotten or evicted.
+- Link Devices QR code SVGs are structurally validated and strictly sanitized with tag and attribute allowlists prior to DOM injection, preventing script injection.
+- External links, OAuth authorization flows, and update release note links now strictly enforce HTTPS and trusted host allowlists, preventing opening untrusted URLs.
+- Offline camera transfer decompression enforces a strict 16 MB output limit before memory allocation to prevent decompression bomb denial-of-service attacks.
+- Provider response and parsing errors are sanitized to fixed status messages, preventing raw error fragments or sensitive response data from leaking into account error state.
+- Removed unused auth file path configuration from Grok credentials to eliminate potential arbitrary file read primitives.
+- Development certificate trust is strictly scoped to code signing on macOS and confined to debug overrides on Android, preventing development certificate exceptions from affecting production builds or acting as root authorities.
+- Sign-in now shuts down the local callback server as soon as you cancel, time out, or finish, and does not reuse a one-time authorization code if a later status poll retries the connection.
+- Loopback sign-in advertises the address the app actually bound, including IPv6 (`http://[::1]:port`), so the provider callback matches the listening socket.
+- Google Antigravity account identity comes from Google’s signed-in userinfo response, not from unverified ID-token contents.
+- Camera access is limited to this app (`camera=(self)`) instead of allowing any origin.
+
+### Improved (3)
+
+- Moved the Paseo Bridge integration controls to a dedicated section on the Settings page beneath Change Log, making bridge status and settings accessible alongside app preferences.
+- Removed the redundant Dashboard navigation item from the sidebar since the All accounts view provides the same dashboard overview.
+- The Active Accounts summary card is now display-only, removing redundant click-to-reset behavior now that clicking the Action Needed card directly toggles between filtered accounts and all accounts.
+
+### Fixed (6)
+
+- Removed the debug readout box that followed the mouse pointer and listed the element under the cursor.
+- Clicking and holding an account card on the dashboard now keeps the grabbing cursor instead of snapping back to the default arrow. Trash, notification, refresh, and other card buttons still show the pointing hand.
+- Restored the required client secret on Google OAuth token refresh and authorization code exchange, fixing the "google token refresh returned 400 bad request" error when refreshing Antigravity and Google AI Studio accounts.
+- Fixed the sidebar hover cursor so hovering over the "All" accounts card shows the standard click pointer and every reorderable group card (including the card directly below "All") consistently shows the grab hand.
+- Check for updates now supports full SemVer 2.0 prerelease precedence (including numeric token ordering like `-unrel.10` vs `-unrel.2`) and correctly treats prerelease installs like `0.3.6-unrel` as older than the matching release (`0.3.6`), so Android can offer the release APK instead of reporting that you are already on the latest version.
+- Fixed the missing "Opens in a new window" hover tooltip and accessible description on the Integration window View button in Settings, matching the Change Log button.
 
 ## 0.3.6 - 2026-09-18 (133 items)
 

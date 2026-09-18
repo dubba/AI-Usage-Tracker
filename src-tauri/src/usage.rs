@@ -12,30 +12,9 @@ const GOOGLE_AI_STUDIO_MODELS_ONLY_SOURCE: &str = "google_ai_studio_model_access
 const ACCOUNT_REFRESH_TIMEOUT: Duration = Duration::from_secs(45);
 
 pub async fn refresh_account(app: Arc<AppState>, account_id: &str) -> Result<Account, String> {
-    match tokio::time::timeout(
-        ACCOUNT_REFRESH_TIMEOUT,
-        refresh_account_inner(app.clone(), account_id.to_string()),
-    )
-    .await
-    {
-        Ok(result) => result,
-        Err(_) => {
-            if app.store.get(account_id).is_some() {
-                let _ = save_failure(
-                    &app,
-                    account_id,
-                    ProviderError::Transient("Account refresh timed out.".into()),
-                );
-            }
-            Err("Account refresh timed out.".into())
-        }
-    }
-}
-
-async fn refresh_account_inner(app: Arc<AppState>, account_id: String) -> Result<Account, String> {
-    let account_id = account_id.as_str();
     let lock = app.account_lock(account_id);
     let _guard = lock.lock().await;
+
     let mut account = app
         .store
         .get(account_id)
@@ -60,27 +39,37 @@ async fn refresh_account_inner(app: Arc<AppState>, account_id: String) -> Result
             secret
         }
         Ok(_) => return save_failure(&app, account_id, ProviderError::Auth),
-        Err(error) => {
+        Err(_) => {
             return save_credential_failure(
                 &app,
                 account_id,
-                format!("Unable to load provider credentials: {error}"),
+                "Unable to load provider credentials.".into(),
             )
         }
     };
 
-    let refresh_result = providers::refresh(app.clone(), &account, secret).await;
+    let refresh_result = tokio::time::timeout(
+        ACCOUNT_REFRESH_TIMEOUT,
+        providers::refresh(app.clone(), &account, secret),
+    )
+    .await;
+
     if app.store.get(account_id).is_none() {
         return Err("Account removed during refresh.".into());
     }
 
     match refresh_result {
-        Ok((usage, refreshed_secret)) => {
+        Ok(Ok((usage, refreshed_secret))) => {
             save_provider_secret(account_id, &refreshed_secret)
-                .map_err(|error| format!("Unable to save refreshed credentials: {error}"))?;
+                .map_err(|_| "Unable to save refreshed credentials.".to_string())?;
             save_success(&app, account_id, usage)
         }
-        Err(error) => save_failure(&app, account_id, error),
+        Ok(Err(error)) => save_failure(&app, account_id, error),
+        Err(_) => save_failure(
+            &app,
+            account_id,
+            ProviderError::Transient("Account refresh timed out.".into()),
+        ),
     }
 }
 
@@ -264,9 +253,31 @@ pub fn emit_alerts_for_account(app: &AppState, account: &Account) {
     }
 }
 
+fn sanitize_error_message(message: &str) -> String {
+    let trimmed = message.trim();
+    if trimmed.is_empty() {
+        return "An unknown provider error occurred.".to_string();
+    }
+    let lower = trimmed.to_ascii_lowercase();
+    if lower.contains("bearer ")
+        || lower.contains("refresh_token")
+        || lower.contains("access_token")
+        || lower.contains("client_secret")
+        || lower.contains("eyjh")
+        || lower.contains("{\"")
+        || (trimmed.starts_with('{') && trimmed.ends_with('}'))
+    {
+        return "A provider error occurred while processing the request.".to_string();
+    }
+    if trimmed.len() > 200 {
+        return format!("{}...", &trimmed[..197]);
+    }
+    trimmed.to_string()
+}
+
 fn save_failure(app: &AppState, account_id: &str, error: ProviderError) -> Result<Account, String> {
     let is_auth = matches!(&error, ProviderError::Auth);
-    let message = error.to_string();
+    let message = sanitize_error_message(&error.to_string());
     app.store
         .mutate(account_id, |account| {
             if let Some(usage) = account.last_usage.as_mut() {
@@ -366,8 +377,32 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let app = Arc::new(AppState::new(temp.path().to_path_buf(), "test-token".into()).unwrap());
 
-        let result = refresh_account_inner(app.clone(), "nonexistent".to_string()).await;
+        let result = refresh_account(app.clone(), "nonexistent").await;
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "Account not found.");
+    }
+
+    #[test]
+    fn test_sanitize_error_message() {
+        assert_eq!(
+            sanitize_error_message("OpenAI rate-limited the usage request."),
+            "OpenAI rate-limited the usage request."
+        );
+        assert_eq!(
+            sanitize_error_message("Invalid authorization header: Bearer abcdef123456"),
+            "A provider error occurred while processing the request."
+        );
+        assert_eq!(
+            sanitize_error_message("Failed with response: {\"error\": \"invalid_client\"}"),
+            "A provider error occurred while processing the request."
+        );
+        assert_eq!(
+            sanitize_error_message("   "),
+            "An unknown provider error occurred."
+        );
+        let long_message = "x".repeat(300);
+        let sanitized = sanitize_error_message(&long_message);
+        assert_eq!(sanitized.len(), 200);
+        assert!(sanitized.ends_with("..."));
     }
 }

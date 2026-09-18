@@ -3,14 +3,18 @@ use crate::{
     state::AppState,
 };
 use axum::{
-    extract::State,
-    http::{header::AUTHORIZATION, HeaderMap, StatusCode},
+    extract::{ConnectInfo, State},
+    http::{
+        header::{AUTHORIZATION, HOST, ORIGIN, REFERER},
+        HeaderMap, StatusCode,
+    },
     response::IntoResponse,
     routing::get,
     Json, Router,
 };
 use serde_json::json;
 use std::{
+    net::{IpAddr, SocketAddr},
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -20,6 +24,8 @@ use tokio::net::TcpListener;
 const API_ADDR: &str = "127.0.0.1:47831";
 const RETRY_DELAY_SECONDS: u64 = 3;
 const MIN_REQUEST_INTERVAL: Duration = Duration::from_secs(1);
+/// Prune per-client rate-limit entries older than this to bound memory.
+const RATE_LIMIT_ENTRY_TTL: Duration = Duration::from_secs(60);
 
 pub async fn run_controller(app: Arc<AppState>) {
     loop {
@@ -37,7 +43,11 @@ pub async fn run_controller(app: Arc<AppState>) {
                     .route("/v1/paseo-usage", get(usage))
                     .with_state(app.clone());
                 let shutdown_state = app.clone();
-                let server = axum::serve(listener, router).with_graceful_shutdown(async move {
+                let server = axum::serve(
+                    listener,
+                    router.into_make_service_with_connect_info::<SocketAddr>(),
+                )
+                .with_graceful_shutdown(async move {
                     loop {
                         shutdown_state.settings.wait_for_bridge_state_change().await;
                         if !shutdown_state.settings.paseo_bridge_enabled() {
@@ -77,21 +87,101 @@ fn set_runtime(app: &AppState, running: bool, error: Option<String>) {
     runtime.error = error;
 }
 
-async fn health(State(app): State<Arc<AppState>>, headers: HeaderMap) -> impl IntoResponse {
-    if !authorized(&app, &headers) {
-        return unauthorized();
-    }
-    if rate_limited(&app) {
-        return too_many_requests();
-    }
-    Json(json!({ "ok": true, "schemaVersion": 1 })).into_response()
+fn with_security_headers(mut response: axum::response::Response) -> axum::response::Response {
+    let headers = response.headers_mut();
+    let _ = headers.try_insert("cache-control", "no-store".parse().unwrap());
+    let _ = headers.try_insert("x-content-type-options", "nosniff".parse().unwrap());
+    let _ = headers.try_insert("referrer-policy", "no-referrer".parse().unwrap());
+    let _ = headers.try_insert("x-frame-options", "DENY".parse().unwrap());
+    let _ = headers.try_insert(
+        "content-security-policy",
+        "default-src 'none'; frame-ancestors 'none'".parse().unwrap(),
+    );
+    let _ = headers.try_insert(
+        "cross-origin-resource-policy",
+        "same-origin".parse().unwrap(),
+    );
+    response
 }
 
-async fn usage(State(app): State<Arc<AppState>>, headers: HeaderMap) -> impl IntoResponse {
+/// Rejects DNS-rebinding style requests where the Host header is not the
+/// loopback address. Browsers send the attacked hostname (e.g. evil.com) in
+/// Host even when it resolves to 127.0.0.1, so this gates browser access.
+fn host_valid(headers: &HeaderMap) -> bool {
+    let Some(host) = headers.get(HOST).and_then(|v| v.to_str().ok()) else {
+        return false;
+    };
+    matches!(
+        host.to_ascii_lowercase().as_str(),
+        "127.0.0.1:47831" | "localhost:47831" | "127.0.0.1" | "localhost"
+    )
+}
+
+/// Allows requests with no Origin/Referer (native non-browser clients) and
+/// same-origin loopback browser requests. Rejects cross-origin browser reads.
+fn origin_allowed(headers: &HeaderMap) -> bool {
+    if let Some(origin) = headers.get(ORIGIN).and_then(|v| v.to_str().ok()) {
+        return is_loopback_origin(origin);
+    }
+    if let Some(referer) = headers.get(REFERER).and_then(|v| v.to_str().ok()) {
+        // Derive the origin from the referer URL (scheme://host[:port]).
+        if let Some(origin) = referer_origin(referer) {
+            return is_loopback_origin(&origin);
+        }
+        return false;
+    }
+    true
+}
+
+fn is_loopback_origin(origin: &str) -> bool {
+    let lower = origin.to_ascii_lowercase();
+    matches!(
+        lower.as_str(),
+        "http://127.0.0.1:47831" | "http://localhost:47831" | "http://127.0.0.1" | "http://localhost"
+    )
+}
+
+fn referer_origin(referer: &str) -> Option<String> {
+    let parsed = url::Url::parse(referer).ok()?;
+    if parsed.scheme() != "http" {
+        return None;
+    }
+    let host = parsed.host_str()?;
+    match parsed.port() {
+        Some(port) => Some(format!("http://{host}:{port}")),
+        None => Some(format!("http://{host}")),
+    }
+}
+
+async fn health(
+    State(app): State<Arc<AppState>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> impl IntoResponse {
+    if !host_valid(&headers) || !origin_allowed(&headers) {
+        return forbidden();
+    }
     if !authorized(&app, &headers) {
         return unauthorized();
     }
-    if rate_limited(&app) {
+    if rate_limited(&app, addr.ip()) {
+        return too_many_requests();
+    }
+    with_security_headers(Json(json!({ "ok": true, "schemaVersion": 1 })).into_response())
+}
+
+async fn usage(
+    State(app): State<Arc<AppState>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> impl IntoResponse {
+    if !host_valid(&headers) || !origin_allowed(&headers) {
+        return forbidden();
+    }
+    if !authorized(&app, &headers) {
+        return unauthorized();
+    }
+    if rate_limited(&app, addr.ip()) {
         return too_many_requests();
     }
     let accounts = app
@@ -131,44 +221,62 @@ async fn usage(State(app): State<Arc<AppState>>, headers: HeaderMap) -> impl Int
             }
         })
         .collect();
-    (
-        StatusCode::OK,
-        Json(PublicUsageResponse {
-            schema_version: 1,
-            generated_at: now_rfc3339(),
-            accounts,
-        }),
+    with_security_headers(
+        (
+            StatusCode::OK,
+            Json(PublicUsageResponse {
+                schema_version: 1,
+                generated_at: now_rfc3339(),
+                accounts,
+            }),
+        )
+            .into_response(),
     )
-        .into_response()
+}
+
+fn forbidden() -> axum::response::Response {
+    with_security_headers(
+        (
+            StatusCode::FORBIDDEN,
+            Json(json!({ "error": "forbidden" })),
+        )
+            .into_response(),
+    )
 }
 
 fn too_many_requests() -> axum::response::Response {
-    (
-        StatusCode::TOO_MANY_REQUESTS,
-        [(axum::http::header::RETRY_AFTER, "1")],
-        Json(json!({ "error": "rate_limited" })),
+    with_security_headers(
+        (
+            StatusCode::TOO_MANY_REQUESTS,
+            [(axum::http::header::RETRY_AFTER, "1")],
+            Json(json!({ "error": "rate_limited" })),
+        )
+            .into_response(),
     )
-        .into_response()
 }
 
-fn rate_limited(app: &AppState) -> bool {
+fn rate_limited(app: &AppState, client: IpAddr) -> bool {
     let now = Instant::now();
-    let mut last = app.bridge_rate_limit.lock();
-    if let Some(previous) = *last {
-        if now.duration_since(previous) < MIN_REQUEST_INTERVAL {
+    let mut map = app.bridge_rate_limit.lock();
+    // Bound memory: drop entries idle longer than the TTL.
+    map.retain(|_, seen| now.duration_since(*seen) < RATE_LIMIT_ENTRY_TTL);
+    if let Some(previous) = map.get(&client) {
+        if now.duration_since(*previous) < MIN_REQUEST_INTERVAL {
             return true;
         }
     }
-    *last = Some(now);
+    map.insert(client, now);
     false
 }
 
 fn unauthorized() -> axum::response::Response {
-    (
-        StatusCode::UNAUTHORIZED,
-        Json(json!({ "error": "unauthorized" })),
+    with_security_headers(
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(json!({ "error": "unauthorized" })),
+        )
+            .into_response(),
     )
-        .into_response()
 }
 
 fn authorized(app: &AppState, headers: &HeaderMap) -> bool {
@@ -192,6 +300,7 @@ mod tests {
     use super::*;
     use crate::state::AppState;
     use axum::http::HeaderValue;
+    use std::net::{IpAddr, Ipv4Addr};
 
     fn test_app() -> Arc<AppState> {
         let directory = tempfile::tempdir().unwrap();
@@ -202,6 +311,20 @@ mod tests {
             )
             .unwrap(),
         )
+    }
+
+    fn loopback_headers() -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        headers.insert(HOST, HeaderValue::from_static("127.0.0.1:47831"));
+        headers.insert(
+            AUTHORIZATION,
+            HeaderValue::from_static("Bearer test-bridge-token-32-chars-minimum-xx"),
+        );
+        headers
+    }
+
+    fn loopback_ip() -> IpAddr {
+        IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1))
     }
 
     #[test]
@@ -230,12 +353,59 @@ mod tests {
     }
 
     #[test]
-    fn local_api_rate_limits_authenticated_requests() {
+    fn host_validation_rejects_rebinding_hosts() {
+        let mut headers = HeaderMap::new();
+        assert!(!host_valid(&headers));
+
+        headers.insert(HOST, HeaderValue::from_static("evil.com"));
+        assert!(!host_valid(&headers));
+
+        headers.insert(HOST, HeaderValue::from_static("127.0.0.1.evil.com"));
+        assert!(!host_valid(&headers));
+
+        headers.insert(HOST, HeaderValue::from_static("127.0.0.1:47831"));
+        assert!(host_valid(&headers));
+
+        headers.insert(HOST, HeaderValue::from_static("localhost:47831"));
+        assert!(host_valid(&headers));
+    }
+
+    #[test]
+    fn origin_validation_allows_native_and_same_origin() {
+        let headers = HeaderMap::new();
+        assert!(origin_allowed(&headers));
+
+        let mut same = HeaderMap::new();
+        same.insert(ORIGIN, HeaderValue::from_static("http://127.0.0.1:47831"));
+        assert!(origin_allowed(&same));
+
+        let mut cross = HeaderMap::new();
+        cross.insert(ORIGIN, HeaderValue::from_static("http://evil.com"));
+        assert!(!origin_allowed(&cross));
+
+        let mut referer = HeaderMap::new();
+        referer.insert(
+            REFERER,
+            HeaderValue::from_static("http://evil.com/page"),
+        );
+        assert!(!origin_allowed(&referer));
+    }
+
+    #[test]
+    fn local_api_rate_limits_per_client_ip() {
         let app = test_app();
-        assert!(!rate_limited(&app));
-        assert!(rate_limited(&app));
-        *app.bridge_rate_limit.lock() = Some(Instant::now() - MIN_REQUEST_INTERVAL);
-        assert!(!rate_limited(&app));
+        let client_a: IpAddr = "127.0.0.1".parse().unwrap();
+        let client_b: IpAddr = "127.0.0.2".parse().unwrap();
+        assert!(!rate_limited(&app, client_a));
+        assert!(rate_limited(&app, client_a));
+        // A different loopback client has its own budget.
+        assert!(!rate_limited(&app, client_b));
+        assert!(rate_limited(&app, client_b));
+        {
+            let mut map = app.bridge_rate_limit.lock();
+            map.insert(client_a, Instant::now() - MIN_REQUEST_INTERVAL);
+        }
+        assert!(!rate_limited(&app, client_a));
     }
 
     #[test]
@@ -249,5 +419,23 @@ mod tests {
                 .and_then(|value| value.to_str().ok()),
             Some("1")
         );
+    }
+
+    #[test]
+    fn responses_carry_defensive_headers() {
+        for response in [unauthorized(), forbidden(), too_many_requests()] {
+            assert_eq!(
+                response.headers().get("cache-control").and_then(|v| v.to_str().ok()),
+                Some("no-store")
+            );
+            assert_eq!(
+                response
+                    .headers()
+                    .get("x-content-type-options")
+                    .and_then(|v| v.to_str().ok()),
+                Some("nosniff")
+            );
+        }
+        let _ = (loopback_headers(), loopback_ip());
     }
 }

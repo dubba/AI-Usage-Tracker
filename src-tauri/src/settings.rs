@@ -1,4 +1,4 @@
-use crate::fs_util::{atomic_write_private, ensure_private_file};
+use crate::fs_util::{atomic_write_private, ensure_private_dir, ensure_private_file};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -72,7 +72,7 @@ pub struct SettingsStore {
 
 impl SettingsStore {
     pub fn load(data_dir: &Path) -> Result<Self, String> {
-        fs::create_dir_all(data_dir).map_err(|error| error.to_string())?;
+        ensure_private_dir(data_dir)?;
         let path = data_dir.join(SETTINGS_FILE_NAME);
         let mut settings = if path.exists() {
             let payload = fs::read_to_string(&path).map_err(|error| error.to_string())?;

@@ -14,7 +14,9 @@ use mdns_sd::{Receiver, ServiceDaemon, ServiceEvent, ServiceInfo};
 use rand::Rng;
 use uuid::Uuid;
 
-use super::protocol::{compute_display_fingerprint, ParsedQrPayload, PROTOCOL_VERSION};
+use super::protocol::{
+    compute_display_fingerprint, is_allowed_pairing_host, ParsedQrPayload, PROTOCOL_VERSION,
+};
 
 pub const SERVICE_TYPE: &str = "_aiut-pair._tcp.local.";
 const CODE_DIGITS: usize = 6;
@@ -88,9 +90,26 @@ pub fn advertise(
     if !is_valid_join_code(code) {
         return Err("Pairing code must be 6 digits".into());
     }
+    if port == 0 {
+        return Err("Invalid pairing port".into());
+    }
+    if nonce.len() < 16 || nonce.len() > 64 {
+        return Err("Invalid nonce length".into());
+    }
+    // Validate the advertised IP with the same allowlist enforced for QR
+    // pairing so a misconfigured host never advertises a non-local address.
+    if !is_allowed_pairing_host(host_ip) {
+        return Err("Pairing host must be a local network address".into());
+    }
 
     let daemon = ServiceDaemon::new().map_err(|e| format!("mDNS unavailable: {e}"))?;
-    let host_name = format!("aiut-{}.local.", session_id.simple());
+    // Use a random local hostname: embedding the full session id in the
+    // hostname would expose it to passive LAN observers even before TXT
+    // validation.
+    let mut host_rand = [0u8; 4];
+    rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut host_rand);
+    let host_rand_hex: String = host_rand.iter().map(|b| format!("{b:02x}")).collect();
+    let host_name = format!("aiut-{host_rand_hex}.local.");
     let properties = [
         ("sid", session_id.to_string()),
         ("pk", URL_SAFE_NO_PAD.encode(public_key)),
@@ -207,12 +226,27 @@ pub fn parsed_from_resolved(
         .filter(|h| !h.is_empty())
         .ok_or_else(|| "Resolved pairing service has no IP addresses".to_string())?
         .to_string();
+    // Apply the same LAN allowlist enforced for QR pairing: a rogue mDNS
+    // responder must not steer the TCP connection at a non-local address.
+    // Strip IPv6 brackets the same way the QR parser does.
+    if !is_allowed_pairing_host(&host) {
+        return Err(
+            "Resolved pairing host is not a local network address. Refusing to connect."
+                .to_string(),
+        );
+    }
 
     let sid = sid.ok_or_else(|| "Pairing service is missing its session id".to_string())?;
+    if sid.len() > 64 {
+        return Err("Invalid session id from mDNS".into());
+    }
     let session_id =
         Uuid::parse_str(sid).map_err(|e| format!("Invalid session id from mDNS: {e}"))?;
 
     let pk_b64 = pk_b64.ok_or_else(|| "Pairing service is missing its public key".to_string())?;
+    if pk_b64.len() > 64 {
+        return Err("Invalid public key from mDNS".into());
+    }
     let pk_bytes = URL_SAFE_NO_PAD
         .decode(pk_b64.as_bytes())
         .map_err(|e| format!("Invalid public key from mDNS: {e}"))?;
@@ -221,16 +255,31 @@ pub fn parsed_from_resolved(
     }
     let mut peer_public_key = [0u8; 32];
     peer_public_key.copy_from_slice(&pk_bytes);
+    // Reject low-order peer keys at discovery time (defense in depth; the
+    // transport layer re-checks during DH).
+    if peer_public_key == [0u8; 32] {
+        return Err("Invalid public key from mDNS".into());
+    }
 
     let nonce_b64 =
         nonce_b64.ok_or_else(|| "Pairing service is missing its nonce".to_string())?;
+    if nonce_b64.len() > 128 {
+        return Err("Invalid nonce from mDNS".into());
+    }
     let session_nonce = URL_SAFE_NO_PAD
         .decode(nonce_b64.as_bytes())
         .map_err(|e| format!("Invalid nonce from mDNS: {e}"))?;
+    if session_nonce.len() < 16 || session_nonce.len() > 64 {
+        return Err("Invalid nonce length from mDNS".into());
+    }
 
-    let version = version
-        .and_then(|v| v.parse::<u32>().ok())
-        .unwrap_or(PROTOCOL_VERSION);
+    let version_str = version.unwrap_or("1");
+    if version_str.len() > 8 {
+        return Err("Invalid protocol version from mDNS".into());
+    }
+    let version = version_str
+        .parse::<u32>()
+        .map_err(|_| "Invalid protocol version from mDNS".to_string())?;
     if version != PROTOCOL_VERSION {
         return Err(format!("Incompatible pairing protocol version: {version}"));
     }

@@ -45,9 +45,14 @@ pub struct AppState {
     pub client: Client,
     pub pending_login: RwLock<Option<LoginStatus>>,
     pub pending_auth_exchange: Mutex<Option<PendingAuthExchange>>,
+    /// Serializes OAuth callback completion so overlapping status polls cannot
+    /// replay a single-use authorization code.
+    pub login_status_lock: AsyncMutex<()>,
     login_shutdowns: Mutex<HashMap<String, oneshot::Sender<()>>>,
     pub bridge_token: RwLock<String>,
-    pub bridge_rate_limit: Mutex<Option<Instant>>,
+    /// Per-client last-request timestamps for bridge rate limiting, keyed by
+    /// client IP. Bound to loopback only; entries are pruned on each check.
+    pub bridge_rate_limit: Mutex<std::collections::HashMap<std::net::IpAddr, Instant>>,
     pub api_runtime: RwLock<ApiRuntime>,
     pub app_handle: RwLock<Option<AppHandle>>,
     pub pairing: Arc<crate::pairing::PairingSessionManager>,
@@ -57,6 +62,19 @@ pub struct AppState {
     pub data_dir: PathBuf,
     pub pairing_include_settings: RwLock<bool>,
     pub pairing_pending_ui_state: RwLock<Option<serde_json::Value>>,
+    pub pending_airgap: Mutex<Option<PendingAirgapImport>>,
+    /// Explicit per-transfer opt-in to replace credentials of existing local
+    /// accounts during a pairing import. Defaults to false (preserve local
+    /// credentials); the frontend must set it for the transfer that should
+    /// overwrite, and it is cleared after each import.
+    pub pairing_allow_credential_replace: RwLock<bool>,
+}
+
+pub struct PendingAirgapImport {
+    pub session_id: String,
+    pub verify_code_normalized: String,
+    pub container_hash: [u8; 32],
+    pub import_token: Option<String>,
 }
 
 impl AppState {
@@ -91,9 +109,10 @@ impl AppState {
             client,
             pending_login: RwLock::new(None),
             pending_auth_exchange: Mutex::new(None),
+            login_status_lock: AsyncMutex::new(()),
             login_shutdowns: Mutex::new(HashMap::new()),
             bridge_token: RwLock::new(bridge_token),
-            bridge_rate_limit: Mutex::new(None),
+            bridge_rate_limit: Mutex::new(std::collections::HashMap::new()),
             api_runtime: RwLock::new(ApiRuntime {
                 endpoint: "http://127.0.0.1:47831/v1/paseo-usage".into(),
                 running: false,
@@ -106,6 +125,8 @@ impl AppState {
             data_dir,
             pairing_include_settings: RwLock::new(false),
             pairing_pending_ui_state: RwLock::new(None),
+            pending_airgap: Mutex::new(None),
+            pairing_allow_credential_replace: RwLock::new(false),
         })
     }
 
@@ -133,6 +154,19 @@ impl AppState {
         }
     }
 
+    /// Stops the loopback callback server and drops any queued authorization
+    /// code for this attempt so it cannot be retried on a later poll.
+    pub fn abort_login_resources(&self, attempt_id: &str) {
+        self.stop_login_shutdown(attempt_id);
+        let mut exchange = self.pending_auth_exchange.lock();
+        if exchange
+            .as_ref()
+            .is_some_and(|pending| pending.attempt_id == attempt_id)
+        {
+            *exchange = None;
+        }
+    }
+
     /// Drops a waiting in-app login so backing out of the provider page does not
     /// block the next Add Account attempt. Returns whether an attempt was cleared.
     #[cfg_attr(not(any(test, mobile)), allow(dead_code))]
@@ -152,14 +186,7 @@ impl AppState {
             matches
         };
         if abandoned {
-            self.stop_login_shutdown(attempt_id);
-            let mut exchange = self.pending_auth_exchange.lock();
-            if exchange
-                .as_ref()
-                .is_some_and(|pending| pending.attempt_id == attempt_id)
-            {
-                *exchange = None;
-            }
+            self.abort_login_resources(attempt_id);
         }
         abandoned
     }

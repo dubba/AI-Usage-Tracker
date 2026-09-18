@@ -20,7 +20,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
-use tokio::{net::TcpListener, sync::oneshot};
+use tokio::sync::oneshot;
 use url::Url;
 use uuid::Uuid;
 
@@ -172,7 +172,7 @@ async fn start_oauth(
         });
     }
 
-    let (listener, port) = match bind_callback_port().await {
+    let (listener, addr) = match crate::oauth::bind_ephemeral_loopback().await {
         Ok(bound) => bound,
         Err(error) => {
             let mut pending = app.pending_login.write();
@@ -183,7 +183,7 @@ async fn start_oauth(
         }
     };
     let expected_state = random_base64(24);
-    let redirect_uri = format!("http://127.0.0.1:{port}");
+    let redirect_uri = crate::oauth::loopback_http_origin(addr);
     let verifier = random_base64(48);
     let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
     let scopes = match &mode {
@@ -231,7 +231,7 @@ async fn start_oauth(
                 &server_context,
                 format!("Google Cloud callback server failed: {error}"),
             );
-            server_context.app.stop_login_shutdown(&server_context.attempt_id);
+            server_context.app.abort_login_resources(&server_context.attempt_id);
         }
     });
 
@@ -254,7 +254,9 @@ async fn start_oauth(
                 &timeout_context,
                 "Google Cloud authorization timed out. Start it again.".into(),
             );
-            stop_callback(&timeout_context).await;
+            timeout_context
+                .app
+                .abort_login_resources(&timeout_context.attempt_id);
         }
     });
 
@@ -601,12 +603,15 @@ async fn lookup_key_project(
 ) -> Result<Option<CloudProjectOption>, String> {
     let response = app
         .client
-        .get("https://apikeys.googleapis.com/v2/keys:lookupKey")
+        .post("https://apikeys.googleapis.com/v2/keys:lookupKey")
         .bearer_auth(access_token)
-        .query(&[("keyString", api_key)])
+        .json(&serde_json::json!({ "keyString": api_key }))
         .send()
         .await
-        .map_err(|error| format!("Google API-key project lookup failed: {error}"))?;
+        .map_err(|_| {
+            "Google API-key project lookup could not be reached. Check your network and try again."
+                .to_string()
+        })?;
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     if status == StatusCode::UNAUTHORIZED {
@@ -877,19 +882,14 @@ fn load_google_ai_studio_secret(
     }
 }
 
-fn format_reqwest_error(prefix: &str, error: &reqwest::Error) -> String {
-    use std::error::Error;
-    let mut message = format!("{prefix}: {error}");
-    let mut current: Option<&(dyn Error + 'static)> = error.source();
-    while let Some(source) = current {
-        message.push_str(&format!(" -> {source}"));
-        current = source.source();
-    }
-    message
+fn network_unavailable(action: &str) -> String {
+    format!("{action} could not be reached. Check your network and try again.")
 }
 
 async fn exchange_tokens(context: &LoginContext, code: &str) -> Result<TokenResponse, String> {
-    let client_secret = String::from_utf8_lossy(GOOGLE_CLIENT_SECRET_BYTES).to_string();
+    let client_secret = zeroize::Zeroizing::new(
+        String::from_utf8_lossy(GOOGLE_CLIENT_SECRET_BYTES).to_string(),
+    );
     let response = context
         .app
         .client
@@ -904,7 +904,7 @@ async fn exchange_tokens(context: &LoginContext, code: &str) -> Result<TokenResp
         ])
         .send()
         .await
-        .map_err(|error| format_reqwest_error("Google token exchange failed", &error))?;
+        .map_err(|_| network_unavailable("Google token exchange"))?;
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     if !status.is_success() {
@@ -917,7 +917,9 @@ async fn ensure_fresh_oauth(app: &AppState, oauth: OAuthSecret) -> Result<OAuthS
     if !oauth.expires_within(300) {
         return Ok(oauth);
     }
-    let client_secret = String::from_utf8_lossy(GOOGLE_CLIENT_SECRET_BYTES).to_string();
+    let client_secret = zeroize::Zeroizing::new(
+        String::from_utf8_lossy(GOOGLE_CLIENT_SECRET_BYTES).to_string(),
+    );
     let response = app
         .client
         .post("https://oauth2.googleapis.com/token")
@@ -929,7 +931,7 @@ async fn ensure_fresh_oauth(app: &AppState, oauth: OAuthSecret) -> Result<OAuthS
         ])
         .send()
         .await
-        .map_err(|error| format_reqwest_error("Google token refresh failed", &error))?;
+        .map_err(|_| network_unavailable("Google token refresh"))?;
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     if !status.is_success() {
@@ -990,17 +992,6 @@ fn build_authorization_url(
         .append_pair("access_type", "offline")
         .append_pair("prompt", "consent");
     Ok(url.to_string())
-}
-
-async fn bind_callback_port() -> Result<(TcpListener, u16), String> {
-    let listener = TcpListener::bind(("127.0.0.1", 0))
-        .await
-        .map_err(|error| format!("Unable to start OAuth callback server: {error}"))?;
-    let port = listener
-        .local_addr()
-        .map_err(|error| format!("Unable to read OAuth callback port: {error}"))?
-        .port();
-    Ok((listener, port))
 }
 
 fn validate_project_id(value: &str) -> Result<String, String> {
@@ -1105,6 +1096,26 @@ mod tests {
         );
         assert!(validate_project_id("Example Project").is_err());
         assert!(validate_project_id("123-project").is_err());
+    }
+
+    #[test]
+    fn authorize_url_accepts_bracketed_ipv6_loopback() {
+        let url = build_authorization_url(
+            "http://[::1]:11461",
+            "state",
+            "openid email",
+            "challenge",
+        )
+        .unwrap();
+        let parsed = Url::parse(&url).unwrap();
+        assert_eq!(
+            parsed
+                .query_pairs()
+                .find(|(key, _)| key == "redirect_uri")
+                .map(|(_, value)| value.into_owned())
+                .as_deref(),
+            Some("http://[::1]:11461")
+        );
     }
 
     #[test]
