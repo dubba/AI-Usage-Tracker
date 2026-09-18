@@ -4,7 +4,7 @@
 
 _No unreleased user-facing changes yet._
 
-## 0.3.7 - 2026-09-18 (31 items)
+## 0.3.7 - 2026-09-18 (32 items)
 
 ### Security (17)
 
@@ -34,8 +34,9 @@ _No unreleased user-facing changes yet._
 - Removed the redundant Dashboard navigation item from the sidebar since the All accounts view provides the same dashboard overview.
 - The Active Accounts summary card is now display-only, removing redundant click-to-reset behavior now that clicking the Action Needed card directly toggles between filtered accounts and all accounts.
 
-### Fixed (9)
+### Fixed (10)
 
+- The sidebar menu header now uses the same space under the menu button as the All Accounts header.
 - The Settings header now keeps the same space under the menu button as All Accounts, so the title is no longer tight against the header’s bottom edge.
 - Settings no longer leaves an empty footer bar on mobile. That bar is only for All Accounts actions such as Refresh All and Add Account.
 - Tapping Update on Android no longer jumps straight to a stuck “Installing…” state. The app downloads first, reports errors if the installer cannot open, and asks you to allow unknown-app installs before downloading when that permission is missing.

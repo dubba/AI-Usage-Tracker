@@ -2764,7 +2764,7 @@ select.account-update-select option,
     align-items: center !important;
     gap: 10px !important;
     margin-bottom: 12px !important;
-    padding: 0 0 12px !important;
+    padding: 0 0 8px !important;
     border-bottom: 1px solid var(--border, #2e2e2e) !important;
     position: relative !important;
     z-index: 300 !important;
