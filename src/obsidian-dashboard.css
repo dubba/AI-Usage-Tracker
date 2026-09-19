@@ -2096,7 +2096,7 @@ select.account-update-select option,
 
 .modal-backdrop::-webkit-scrollbar-thumb {
   background: var(--obsidian-purple-strong, #a078ff);
-  border-radius: 3px;
+  border-radius: 999px;
 }
 
 .modal-card {
@@ -2170,7 +2170,7 @@ select.account-update-select option,
 
 .update-notes-content::-webkit-scrollbar-thumb {
   background: #3a373f;
-  border-radius: 3px;
+  border-radius: 999px;
 }
 
 .update-notes-content::-webkit-scrollbar-thumb:hover {
@@ -2994,8 +2994,8 @@ select.account-update-select option,
   .provider-account-cards {
     grid-template-columns: minmax(0, 1fr) !important;
     gap: 10px !important;
-    padding: 0 6px 0 0 !important;
-    scrollbar-gutter: stable !important;
+    padding: 0 !important;
+    scrollbar-gutter: auto !important;
   }
 
   .provider-account-card {

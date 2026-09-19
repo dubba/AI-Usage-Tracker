@@ -4,7 +4,7 @@
 
 _No unreleased user-facing changes yet._
 
-## 0.3.7 - 2026-09-18 (36 items)
+## 0.3.7 - 2026-09-18 (37 items)
 
 ### Security (17)
 
@@ -38,8 +38,9 @@ _No unreleased user-facing changes yet._
 - Removed the redundant Dashboard navigation item from the sidebar since the All accounts view provides the same dashboard overview.
 - The Active Accounts summary card is now display-only, removing redundant click-to-reset behavior now that clicking the Action Needed card directly toggles between filtered accounts and all accounts.
 
-### Fixed (10)
+### Fixed (11)
 
+- Fixed the mobile All Accounts layout shifting horizontally when the scrollbar appeared by resetting asymmetrical inner card padding and gutter reservations.
 - The sidebar menu header now uses the same space under the menu button as the All Accounts header.
 - The Settings header now keeps the same space under the menu button as All Accounts, so the title is no longer tight against the header’s bottom edge.
 - Settings no longer leaves an empty footer bar on mobile. That bar is only for All Accounts actions such as Refresh All and Add Account.
