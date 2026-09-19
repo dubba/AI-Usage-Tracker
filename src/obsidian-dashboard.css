@@ -3342,16 +3342,30 @@ select.account-update-select option,
     margin: 0 !important;
     min-height: 40px !important;
     height: 40px !important;
-    border: 1px solid #494454 !important;
+    border: 1px solid var(--obsidian-border) !important;
     border-radius: 4px !important;
-    background: transparent !important;
-    color: #ded8df !important;
+    background: #171616 !important;
+    color: #a9a3ae !important;
     font-size: 14px !important;
     font-weight: 600 !important;
     gap: 6px !important;
     padding: 0 14px !important;
     box-sizing: border-box !important;
     justify-content: center !important;
+  }
+
+  .obsidian-shell .sidebar-footer:hover,
+  .obsidian-shell .sidebar-footer:focus-visible {
+    border-color: var(--obsidian-purple-strong) !important;
+    background: #1f1e1e !important;
+    color: #ddd7e1 !important;
+  }
+
+  .obsidian-shell .sidebar-footer.active {
+    border-color: rgba(208, 188, 255, 0.75) !important;
+    background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), #201f1f 48%) !important;
+    box-shadow: inset 2px 0 0 var(--obsidian-purple-strong) !important;
+    color: var(--obsidian-text) !important;
   }
 
   .obsidian-shell .sidebar-footer svg {

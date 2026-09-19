@@ -4,7 +4,7 @@
 
 _No unreleased user-facing changes yet._
 
-## 0.3.7 - 2026-09-18 (40 items)
+## 0.3.7 - 2026-09-18 (41 items)
 
 ### Security (16)
 
@@ -25,8 +25,9 @@ _No unreleased user-facing changes yet._
 - Google Antigravity account identity comes from Google’s signed-in userinfo response, not from unverified ID-token contents.
 - Camera access is limited to this app (`camera=(self)`) instead of allowing any origin.
 
-### Improved (11)
+### Improved (12)
 
+- Styled the active Settings button in the sidebar to match the All Accounts card and group cards with a purple highlight border, inset left accent bar, and gradient background.
 - Account name editing now cancels and preserves the original name when clicking outside the input or pressing Escape, saving changes only when confirming with the checkmark button or Enter key.
 - Renamed the header title badge when viewing a custom bucket from "Custom Group" to "Group".
 - The What’s Changed update sheet no longer includes a Full Change Log button, and its Update button matches the red Update control in Settings.
