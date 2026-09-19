@@ -557,7 +557,7 @@ select {
   box-sizing: border-box;
   height: 100%;
   overflow: hidden;
-  padding: 24px 24px 36px;
+  padding: 24px 24px 24px;
   display: flex;
   flex-direction: column;
 }
@@ -1432,12 +1432,16 @@ button.account-card-provider-icon:active {
 .settings-style-content {
   box-sizing: border-box;
   height: 100%;
-  padding: 24px 24px 36px;
+  padding: 24px 24px 24px;
   background: #0e0e0e;
   display: flex;
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
+}
+
+.settings-style-content .dashboard-header .dashboard-title-row {
+  margin-bottom: 0;
 }
 
 .settings-style-content .dashboard-scroll > .settings-card:first-child {
@@ -1446,6 +1450,7 @@ button.account-card-provider-icon:active {
 
 .settings-style-content .settings-card,
 .settings-card {
+  margin-top: 16px !important;
   border: 1px solid var(--obsidian-border);
   border-radius: 8px;
   background: #1c1b1b;
@@ -1655,13 +1660,13 @@ button.account-card-provider-icon:active {
   box-shadow: 0 0 6px rgba(255, 84, 73, 0.5);
 }
 
-.settings-updates-subcard .settings-update-action.settings-update-action-danger {
+.settings-update-action.settings-update-action-danger {
   background: #c93b3b !important;
   border: 1px solid #e04848 !important;
   color: #ffffff !important;
 }
 
-.settings-updates-subcard .settings-update-action.settings-update-action-danger:hover:not(:disabled) {
+.settings-update-action.settings-update-action-danger:hover:not(:disabled) {
   background: #db4444 !important;
   border-color: #f05252 !important;
 }
@@ -1740,7 +1745,7 @@ button.account-card-provider-icon:active {
     border-right: 0 !important;
     border-bottom: 0 !important;
     border-radius: 0 !important;
-    padding: 8px max(16px, calc(var(--safe-area-left, env(safe-area-inset-left, 0px)) + 14px)) max(12px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 12px)) max(16px, calc(var(--safe-area-right, env(safe-area-inset-right, 0px)) + 14px)) !important;
+    padding: 12px max(16px, calc(var(--safe-area-left, env(safe-area-inset-left, 0px)) + 14px)) max(8px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 8px)) max(16px, calc(var(--safe-area-right, env(safe-area-inset-right, 0px)) + 14px)) !important;
     position: fixed !important;
     bottom: 0 !important;
     left: 0 !important;
@@ -2256,34 +2261,10 @@ select.account-update-select option,
 
 .update-notes-actions {
   display: flex !important;
-  justify-content: space-between !important;
+  justify-content: flex-end !important;
   align-items: center !important;
   margin-top: 0 !important;
-  gap: 12px !important;
-}
-
-.update-notes-primary-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.update-notes-changelog-btn {
-  font-size: 12px !important;
-  color: #a8a2b5 !important;
-  padding: 6px 10px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 6px !important;
-}
-
-.update-notes-changelog-btn:hover {
-  color: #f3f0ef !important;
-}
-
-.update-notes-changelog-btn svg {
-  width: 14px;
-  height: 14px;
+  gap: 10px !important;
 }
 
 @media (max-width: 640px) {
@@ -2291,21 +2272,6 @@ select.account-update-select option,
     width: calc(100vw - 24px) !important;
     max-height: 86vh !important;
     padding: 18px 16px !important;
-  }
-
-  .update-notes-actions {
-    flex-direction: column-reverse !important;
-    align-items: stretch !important;
-  }
-
-  .update-notes-primary-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-
-  .update-notes-changelog-btn {
-    justify-content: center;
-    width: 100%;
   }
 }
 
@@ -2764,7 +2730,7 @@ select.account-update-select option,
     align-items: center !important;
     gap: 10px !important;
     margin-bottom: 12px !important;
-    padding: 0 0 8px !important;
+    padding: 0 0 12px !important;
     border-bottom: 1px solid var(--border, #2e2e2e) !important;
     position: relative !important;
     z-index: 300 !important;
@@ -2871,7 +2837,7 @@ select.account-update-select option,
 
   .dashboard-header {
     gap: 8px !important;
-    padding: max(6px, calc(var(--safe-area-top, env(safe-area-inset-top, 0px)) - 2px)) max(16px, calc(var(--safe-area-right, env(safe-area-inset-right, 0px)) + 14px)) 10px max(16px, calc(var(--safe-area-left, env(safe-area-inset-left, 0px)) + 14px)) !important;
+    padding: max(12px, calc(var(--safe-area-top, env(safe-area-inset-top, 0px)) + 12px)) max(16px, calc(var(--safe-area-right, env(safe-area-inset-right, 0px)) + 14px)) 12px max(16px, calc(var(--safe-area-left, env(safe-area-inset-left, 0px)) + 14px)) !important;
     margin: 0 !important;
     flex: 0 0 auto !important;
     position: relative !important;
@@ -2897,7 +2863,7 @@ select.account-update-select option,
 
   .settings-style-content .dashboard-scroll {
     margin-bottom: 0 !important;
-    padding-bottom: max(16px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 16px)) !important;
+    padding-bottom: max(10px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 10px)) !important;
   }
 
   .dashboard-title-row {
@@ -2960,8 +2926,13 @@ select.account-update-select option,
     margin: 0 !important;
   }
 
+  .settings-style-content .settings-card,
+  .settings-card {
+    margin-top: 10px !important;
+  }
+
   .settings-style-content .dashboard-scroll > .settings-card:first-child {
-    margin-top: 0;
+    margin-top: 0 !important;
   }
 
   .dashboard-header,
@@ -2973,7 +2944,7 @@ select.account-update-select option,
   }
 
   .dashboard-header {
-    padding-bottom: 8px !important;
+    padding-bottom: 12px !important;
   }
 
   .dashboard-header .header-actions {

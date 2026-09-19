@@ -2273,7 +2273,7 @@ function SettingsView({
         <div className="settings-row">
           <div>
             <strong>Device Transfer</strong>
-            <small>Sync accounts & credentials across devices securely over local Wi-Fi.</small>
+            <small>Sync accounts & credentials across devices securely.</small>
           </div>
           <button
             type="button"
@@ -2429,7 +2429,7 @@ function SettingsView({
         <div className="settings-row">
           <div>
             <strong>Integration window</strong>
-            <small>View the local bridge status, auth tokens, and connection URL.</small>
+            <small>View local bridge status, auth tokens and connection URL.</small>
           </div>
           <button
             type="button"

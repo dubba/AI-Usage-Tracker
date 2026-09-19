@@ -4,7 +4,7 @@
 
 _No unreleased user-facing changes yet._
 
-## 0.3.7 - 2026-09-18 (32 items)
+## 0.3.7 - 2026-09-18 (36 items)
 
 ### Security (17)
 
@@ -26,8 +26,12 @@ _No unreleased user-facing changes yet._
 - Google Antigravity account identity comes from Google’s signed-in userinfo response, not from unverified ID-token contents.
 - Camera access is limited to this app (`camera=(self)`) instead of allowing any origin.
 
-### Improved (5)
+### Improved (9)
 
+- The What’s Changed update sheet no longer includes a Full Change Log button, and its Update button matches the red Update control in Settings.
+- The Device Transfer setting now describes syncing accounts and credentials securely across devices, without implying it only works over local Wi-Fi.
+- Refined the Integration window setting description to "View local bridge status, auth tokens and connection URL."
+- Aligned dashboard and settings spacing across mobile and desktop: standardized desktop bottom padding to 24px, fixed the desktop settings header title gap to exactly 18px, set desktop settings card gaps to 16px, balanced mobile header top and bottom padding to 12px (matching the sidebar close button header), set mobile footer action bar padding to 12px above and 8px below buttons, and unified mobile settings card gaps and bottom padding to 10px.
 - The Settings header now matches All Accounts: no subtitle, the same gray bar and bottom border, and the same gap down to the first card.
 - Android in-app updates now show download progress from 0–100% in Settings and a system notification, then switch to installing when the package is ready.
 - Moved the Paseo Bridge integration controls to a dedicated section on the Settings page beneath Change Log, making bridge status and settings accessible alongside app preferences.

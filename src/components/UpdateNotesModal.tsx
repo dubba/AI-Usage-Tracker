@@ -1,10 +1,7 @@
 import { useRef, type ReactNode } from "react";
 import { isAllowedExternalUrl, openSafeUrl } from "../utils/safeUrl";
-import { ExternalLinkIcon } from "../icons";
 import { useModalA11y } from "./useModalA11y";
 import type { UpdateBusy } from "../types";
-
-export const CHANGELOG_URL = "https://github.com/dubba/AI-Usage-Tracker/blob/main/CHANGELOG.md";
 
 interface Block {
   type: "h2" | "h3" | "h4" | "list" | "paragraph";
@@ -283,41 +280,29 @@ export function UpdateNotesModal({
         ) : null}
 
         <div className="modal-actions update-notes-actions">
-          <button
-            type="button"
-            className="button ghost update-notes-changelog-btn"
-            onClick={() => {
-              void openSafeUrl(CHANGELOG_URL).catch(() => {});
-            }}
-          >
-            <span>Full Change Log</span>
-            <ExternalLinkIcon />
+          <button type="button" className="button ghost" onClick={onClose}>
+            Close
           </button>
-          <div className="update-notes-primary-actions">
-            <button type="button" className="button ghost" onClick={onClose}>
-              Close
+          {onInstallUpdate ? (
+            <button
+              type="button"
+              className="button danger settings-update-action settings-update-action-danger"
+              disabled={updateBusy != null}
+              onClick={() => {
+                onInstallUpdate();
+              }}
+            >
+              {updateBusy === "downloading"
+                ? updatePercent != null
+                  ? `Downloading ${updatePercent}%`
+                  : "Downloading…"
+                : updateBusy === "verifying"
+                  ? "Verifying…"
+                  : updateBusy === "installing"
+                    ? "Installing…"
+                    : "Update"}
             </button>
-            {onInstallUpdate ? (
-              <button
-                type="button"
-                className="button danger settings-update-action-danger"
-                disabled={updateBusy != null}
-                onClick={() => {
-                  onInstallUpdate();
-                }}
-              >
-                {updateBusy === "downloading"
-                  ? updatePercent != null
-                    ? `Downloading ${updatePercent}%`
-                    : "Downloading…"
-                  : updateBusy === "verifying"
-                    ? "Verifying…"
-                    : updateBusy === "installing"
-                      ? "Installing…"
-                      : "Update"}
-              </button>
-            ) : null}
-          </div>
+          ) : null}
         </div>
       </section>
     </div>
