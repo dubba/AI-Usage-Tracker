@@ -1953,7 +1953,7 @@ function AccountDashboardCard({
                     setLabel(event.target.value);
                     setRenameError(null);
                   }}
-                  onBlur={() => void commitRename()}
+                  onBlur={cancelRename}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       event.preventDefault();
