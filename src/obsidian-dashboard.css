@@ -2709,7 +2709,7 @@ select.account-update-select option,
     max-width: calc(100vw - 48px);
     height: auto;
     max-height: none;
-    padding-top: max(34px, calc(var(--safe-area-top, env(safe-area-inset-top, 0px)) - 2px)) !important;
+    padding-top: max(12px, calc(var(--safe-area-top, env(safe-area-inset-top, 0px)) + 12px)) !important;
     padding-bottom: max(36px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 24px)) !important;
     padding-left: max(16px, calc(var(--safe-area-left, env(safe-area-inset-left, 0px)) + 14px)) !important;
     padding-right: max(16px, calc(var(--safe-area-right, env(safe-area-inset-right, 0px)) + 14px)) !important;
@@ -3327,7 +3327,7 @@ select.account-update-select option,
 @media (max-width: 860px) {
   .obsidian-shell .sidebar-footer {
     position: absolute !important;
-    bottom: max(12px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 12px)) !important;
+    bottom: max(8px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 8px)) !important;
     left: max(16px, calc(var(--safe-area-left, env(safe-area-inset-left, 0px)) + 14px)) !important;
     right: max(16px, calc(var(--safe-area-right, env(safe-area-inset-right, 0px)) + 14px)) !important;
     width: auto !important;
