@@ -166,6 +166,7 @@
   /* Purple Mobile Scrollbar on Cards - scroll is now dashboard-scroll */
   .obsidian-shell .dashboard-scroll,
   .dashboard-scroll {
+    overflow-y: overlay !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
     scrollbar-gutter: auto !important;
