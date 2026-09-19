@@ -4,7 +4,7 @@
 
 _No unreleased user-facing changes yet._
 
-## 0.3.7 - 2026-09-18 (38 items)
+## 0.3.7 - 2026-09-18 (39 items)
 
 ### Security (16)
 
@@ -25,8 +25,9 @@ _No unreleased user-facing changes yet._
 - Google Antigravity account identity comes from Google’s signed-in userinfo response, not from unverified ID-token contents.
 - Camera access is limited to this app (`camera=(self)`) instead of allowing any origin.
 
-### Improved (9)
+### Improved (10)
 
+- Renamed the header title badge when viewing a custom bucket from "Custom Group" to "Group".
 - The What’s Changed update sheet no longer includes a Full Change Log button, and its Update button matches the red Update control in Settings.
 - The Device Transfer setting now describes syncing accounts and credentials securely across devices, without implying it only works over local Wi-Fi.
 - Refined the Integration window setting description to "View local bridge status, auth tokens and connection URL."

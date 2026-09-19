@@ -1626,7 +1626,7 @@ function AccountsView(props: {
                 : `${props.selectedGroup.title} Accounts`}
             </h1>
             {props.selectedGroup.type === "bucket" ? (
-              <span className="dashboard-bucket-pill">Custom Group</span>
+              <span className="dashboard-bucket-pill">Group</span>
             ) : null}
             {props.selectedGroup.type === "bucket" && props.selectedGroup.bucket ? (
               <button
