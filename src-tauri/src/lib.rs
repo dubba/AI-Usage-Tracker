@@ -672,28 +672,17 @@ fn pairing_prepare_airgap_export(
 
 #[tauri::command]
 fn pairing_verify_airgap(
-    state: State<'_, Arc<AppState>>,
     chunks: Vec<String>,
 ) -> Result<pairing::airgap::AirgapVerifyResult, String> {
-    pairing::airgap::verify_airgap_frames(state.inner().as_ref(), chunks)
-}
-
-#[tauri::command]
-fn pairing_confirm_airgap(
-    state: State<'_, Arc<AppState>>,
-    session_id: String,
-    typed_code: String,
-) -> Result<String, String> {
-    pairing::airgap::confirm_airgap_session(state.inner().as_ref(), &session_id, &typed_code)
+    pairing::airgap::verify_airgap_frames(chunks)
 }
 
 #[tauri::command]
 async fn pairing_import_airgap(
     state: State<'_, Arc<AppState>>,
-    import_token: String,
     chunks: Vec<String>,
 ) -> Result<pairing::payload::SyncSummary, String> {
-    pairing::airgap::import_airgap_payload(state.inner(), &import_token, chunks).await
+    pairing::airgap::import_airgap_payload(state.inner(), chunks).await
 }
 
 static PENDING_PAIRING_URI: parking_lot::Mutex<Option<String>> = parking_lot::Mutex::new(None);
@@ -1548,7 +1537,6 @@ pub fn run() {
             pairing_clear_pending_ui_state,
             pairing_prepare_airgap_export,
             pairing_verify_airgap,
-            pairing_confirm_airgap,
             pairing_import_airgap,
             get_pending_pairing_uri,
         ])

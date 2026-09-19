@@ -2967,19 +2967,26 @@ select.account-update-select option,
 
   .mockup-summary-card {
     min-height: 66px !important;
-    padding: 12px 14px !important;
-    gap: 10px !important;
+    padding: 12px 10px !important;
+    gap: 6px !important;
   }
 
   .mockup-summary-card .summary-label {
-    font-size: 10.5px !important;
+    font-size: 10px !important;
     line-height: 1.25 !important;
-    letter-spacing: 0.08em !important;
+    letter-spacing: 0.06em !important;
+    white-space: nowrap !important;
   }
 
   .mockup-summary-card .summary-helper {
-    font-size: 12.5px !important;
+    font-size: 12px !important;
     line-height: 1.3 !important;
+    white-space: nowrap !important;
+  }
+
+  .mockup-summary-card .summary-value-cluster {
+    gap: 6px !important;
+    flex-shrink: 0 !important;
   }
 
   .mockup-summary-card .summary-value-cluster strong {
@@ -2988,8 +2995,8 @@ select.account-update-select option,
   }
 
   .mockup-summary-card .summary-value-cluster svg {
-    width: 18px !important;
-    height: 18px !important;
+    width: 16px !important;
+    height: 16px !important;
   }
 
   .provider-account-cards {

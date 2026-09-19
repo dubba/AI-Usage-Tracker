@@ -6,10 +6,9 @@ _No unreleased user-facing changes yet._
 
 ## 0.3.7 - 2026-09-18 (37 items)
 
-### Security (17)
+### Security (16)
 
 - Android backups are disabled so account credentials are not copied to cloud or device-to-device backup.
-- Camera transfers now use a longer comparison code. The receiving device must type the code from the sending screen before import, and that confirmation is a one-time token.
 - Android in-app updates now verify the APK’s signing certificate against this app, and the published SHA-256 checksum when GitHub includes one, before prompting to install.
 - Account token refresh now loads, refreshes, and saves credentials under a per-account lock, and a timeout cannot discard a token the provider already rotated.
 - Google AI Studio no longer puts API keys in request URLs, and network failures show a generic message instead of raw request errors.
@@ -38,8 +37,9 @@ _No unreleased user-facing changes yet._
 - Removed the redundant Dashboard navigation item from the sidebar since the All accounts view provides the same dashboard overview.
 - The Active Accounts summary card is now display-only, removing redundant click-to-reset behavior now that clicking the Action Needed card directly toggles between filtered accounts and all accounts.
 
-### Fixed (11)
+### Fixed (12)
 
+- Fixed the mobile summary cards text wrapping unexpectedly onto multiple lines when the vertical scrollbar is visible.
 - Fixed the mobile All Accounts layout shifting horizontally when the scrollbar appeared by resetting asymmetrical inner card padding and gutter reservations.
 - The sidebar menu header now uses the same space under the menu button as the All Accounts header.
 - The Settings header now keeps the same space under the menu button as All Accounts, so the title is no longer tight against the header’s bottom edge.

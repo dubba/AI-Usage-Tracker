@@ -62,19 +62,11 @@ pub struct AppState {
     pub data_dir: PathBuf,
     pub pairing_include_settings: RwLock<bool>,
     pub pairing_pending_ui_state: RwLock<Option<serde_json::Value>>,
-    pub pending_airgap: Mutex<Option<PendingAirgapImport>>,
     /// Explicit per-transfer opt-in to replace credentials of existing local
     /// accounts during a pairing import. Defaults to false (preserve local
     /// credentials); the frontend must set it for the transfer that should
     /// overwrite, and it is cleared after each import.
     pub pairing_allow_credential_replace: RwLock<bool>,
-}
-
-pub struct PendingAirgapImport {
-    pub session_id: String,
-    pub verify_code_normalized: String,
-    pub container_hash: [u8; 32],
-    pub import_token: Option<String>,
 }
 
 impl AppState {
@@ -125,7 +117,6 @@ impl AppState {
             data_dir,
             pairing_include_settings: RwLock::new(false),
             pairing_pending_ui_state: RwLock::new(None),
-            pending_airgap: Mutex::new(None),
             pairing_allow_credential_replace: RwLock::new(false),
         })
     }

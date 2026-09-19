@@ -98,8 +98,6 @@ export const pairingApi = {
     }),
   verifyAirgapFrames: (chunks: string[]) =>
     invoke<AirgapVerifyResult>("pairing_verify_airgap", { chunks }),
-  confirmAirgap: (sessionId: string, typedCode: string) =>
-    invoke<string>("pairing_confirm_airgap", { sessionId, typedCode }),
-  importAirgapFrames: (importToken: string, chunks: string[]) =>
-    invoke<SyncSummary>("pairing_import_airgap", { importToken, chunks }),
+  importAirgapFrames: (chunks: string[]) =>
+    invoke<SyncSummary>("pairing_import_airgap", { chunks }),
 };

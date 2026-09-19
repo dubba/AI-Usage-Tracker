@@ -622,8 +622,6 @@ export function PairingModal({
   const [airgapTotalChunks, setAirgapTotalChunks] = useState<number>(0);
   const [airgapVerifyPrompt, setAirgapPinPrompt] = useState(false);
   const [airgapVerifyCode, setAirgapVerifyCode] = useState<string | null>(null);
-  const [airgapVerifySessionId, setAirgapVerifySessionId] = useState<string | null>(null);
-  const [airgapTypedCode, setAirgapTypedCode] = useState("");
   const [airgapVerifying, setAirgapVerifying] = useState(false);
   const [airgapImporting, setAirgapImporting] = useState(false);
   const [scannerRestartKey, setScannerRestartKey] = useState(0);
@@ -939,8 +937,6 @@ export function PairingModal({
       setAirgapPinPrompt(false);
       airgapVerifyPromptRef.current = false;
       setAirgapVerifyCode(null);
-      setAirgapVerifySessionId(null);
-      setAirgapTypedCode("");
       setAirgapVerifying(false);
       setAirgapImporting(false);
       airgapVerifyStartedRef.current = false;
@@ -1315,9 +1311,7 @@ export function PairingModal({
     void pairingApi
       .verifyAirgapFrames(chunks)
       .then((res) => {
-        setAirgapVerifySessionId(res.sessionId);
         setAirgapVerifyCode(res.verifyCode);
-        setAirgapTypedCode("");
       })
       .catch((err) => {
         setErrorMessage(err instanceof Error ? err.message : String(err));
@@ -1492,13 +1486,12 @@ export function PairingModal({
   };
 
   const handleAirgapImport = async () => {
-    if (airgapImporting || !airgapVerifyCode || !airgapVerifySessionId) return;
+    if (airgapImporting || !airgapVerifyCode) return;
     setAirgapImporting(true);
     setErrorMessage(null);
     try {
       const chunks = Array.from(airgapCapturedChunks.values());
-      const token = await pairingApi.confirmAirgap(airgapVerifySessionId, airgapTypedCode);
-      const summary = await pairingApi.importAirgapFrames(token, chunks);
+      const summary = await pairingApi.importAirgapFrames(chunks);
       hasCompletedRef.current = true;
       airgapVerifyPromptRef.current = false;
       setAirgapPinPrompt(false);
@@ -1896,7 +1889,7 @@ export function PairingModal({
                   <div className="pairing-sas-icon"><ShieldIcon /></div>
                   <h3>Do both devices show this code?</h3>
                   <p className="pairing-instruction">
-                    Captured all {airgapTotalChunks} frames{airgapCaptureSecs !== null ? ` in ${airgapCaptureSecs} seconds` : ""}. Type the code shown on the sending device. Import only if both screens match.
+                    Captured all {airgapTotalChunks} frames{airgapCaptureSecs !== null ? ` in ${airgapCaptureSecs} seconds` : ""}! Compare this code with the sending device. If they match, the transfer is intact.
                   </p>
 
                   {airgapVerifying || !airgapVerifyCode ? (
@@ -1905,24 +1898,12 @@ export function PairingModal({
                       <p>Assembling scanned frames…</p>
                     </div>
                   ) : (
-                    <input
-                      className="pairing-code-input pairing-sas-input"
-                      inputMode="text"
-                      autoCapitalize="characters"
-                      autoCorrect="off"
-                      spellCheck={false}
-                      maxLength={19}
-                      placeholder="XXXX-XXXX-XXXX-XXXX"
-                      value={airgapTypedCode}
-                      aria-label="Verification code from the other device"
-                      onChange={(event) => setAirgapTypedCode(event.target.value.toUpperCase())}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          void handleAirgapImport();
-                        }
-                      }}
-                    />
+                    <div
+                      className="pairing-sas-badge"
+                      aria-label={`Verification code ${airgapVerifyCode}`}
+                    >
+                      {airgapVerifyCode}
+                    </div>
                   )}
 
                   <div className="airgap-prompt-actions">
@@ -1938,8 +1919,6 @@ export function PairingModal({
                         setAirgapCaptureSecs(null);
                         setAirgapCapturedChunks(new Map());
                         setAirgapVerifyCode(null);
-                        setAirgapVerifySessionId(null);
-                        setAirgapTypedCode("");
                         setViewMode("scanner");
                         setScannerRestartKey((k) => k + 1);
                       }}
@@ -1950,12 +1929,7 @@ export function PairingModal({
                     <button
                       type="button"
                       className="button primary"
-                      disabled={
-                        !airgapVerifyCode ||
-                        airgapImporting ||
-                        airgapVerifying ||
-                        airgapTypedCode.replace(/[^0-9A-Fa-f]/g, "").length < 16
-                      }
+                      disabled={!airgapVerifyCode || airgapImporting || airgapVerifying}
                       onClick={() => void handleAirgapImport()}
                     >
                       {airgapImporting ? (
@@ -1964,7 +1938,7 @@ export function PairingModal({
                           <span>Decrypting &amp; Importing…</span>
                         </>
                       ) : (
-                        "Yes, codes match"
+                        <span>Yes, they match</span>
                       )}
                     </button>
                   </div>
@@ -2051,8 +2025,6 @@ export function PairingModal({
                         setAirgapCapturedChunks(new Map());
                         setAirgapTotalChunks(0);
                         setAirgapVerifyCode(null);
-                        setAirgapVerifySessionId(null);
-                        setAirgapTypedCode("");
                         airgapVerifyStartedRef.current = false;
                         airgapSessionIdRef.current = null;
                         airgapCaptureStartRef.current = null;
@@ -2209,8 +2181,6 @@ export function PairingModal({
                         setAirgapCapturedChunks(new Map());
                         setAirgapTotalChunks(0);
                         setAirgapVerifyCode(null);
-                        setAirgapVerifySessionId(null);
-                        setAirgapTypedCode("");
                         airgapVerifyStartedRef.current = false;
                         airgapSessionIdRef.current = null;
                         airgapCaptureStartRef.current = null;
