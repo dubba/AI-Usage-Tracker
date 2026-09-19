@@ -502,7 +502,7 @@ select {
   border: 1px solid var(--obsidian-border);
   border-radius: 4px;
   background: #171616;
-  color: #a9a3ae;
+  color: #eeeaea;
   cursor: pointer;
   transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
 }
@@ -520,7 +520,7 @@ select {
 .obsidian-shell .sidebar-footer:hover,
 .obsidian-shell .sidebar-footer:focus-visible {
   border-color: var(--obsidian-purple-strong);
-  color: #ddd7e1;
+  color: #fff;
   background: #1f1e1e;
 }
 
@@ -534,7 +534,7 @@ select {
   border-color: rgba(208, 188, 255, 0.75);
   background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), #201f1f 48%);
   box-shadow: inset 2px 0 0 var(--obsidian-purple-strong);
-  color: var(--obsidian-text);
+  color: #fff;
 }
 
 .obsidian-shell .sidebar-changelog-link {
@@ -3345,7 +3345,7 @@ select.account-update-select option,
     border: 1px solid var(--obsidian-border) !important;
     border-radius: 4px !important;
     background: #171616 !important;
-    color: #a9a3ae !important;
+    color: #eeeaea !important;
     font-size: 14px !important;
     font-weight: 600 !important;
     gap: 6px !important;
@@ -3358,14 +3358,14 @@ select.account-update-select option,
   .obsidian-shell .sidebar-footer:focus-visible {
     border-color: var(--obsidian-purple-strong) !important;
     background: #1f1e1e !important;
-    color: #ddd7e1 !important;
+    color: #fff !important;
   }
 
   .obsidian-shell .sidebar-footer.active {
     border-color: rgba(208, 188, 255, 0.75) !important;
     background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), #201f1f 48%) !important;
     box-shadow: inset 2px 0 0 var(--obsidian-purple-strong) !important;
-    color: var(--obsidian-text) !important;
+    color: #fff !important;
   }
 
   .obsidian-shell .sidebar-footer svg {

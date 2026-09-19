@@ -27,7 +27,7 @@ _No unreleased user-facing changes yet._
 
 ### Improved (12)
 
-- Styled the active Settings button in the sidebar to match the All Accounts card and group cards with a purple highlight border, inset left accent bar, and gradient background.
+- Styled the Settings button in the sidebar to match the All Accounts and group cards with consistent white font coloring, a purple highlight border, inset left accent bar, and gradient background when active.
 - Account name editing now cancels and preserves the original name when clicking outside the input or pressing Escape, saving changes only when confirming with the checkmark button or Enter key.
 - Renamed the header title badge when viewing a custom bucket from "Custom Group" to "Group".
 - The What’s Changed update sheet no longer includes a Full Change Log button, and its Update button matches the red Update control in Settings.
