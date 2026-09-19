@@ -4,7 +4,7 @@
 
 _No unreleased user-facing changes yet._
 
-## 0.3.7 - 2026-09-18 (37 items)
+## 0.3.7 - 2026-09-18 (38 items)
 
 ### Security (16)
 
@@ -37,8 +37,9 @@ _No unreleased user-facing changes yet._
 - Removed the redundant Dashboard navigation item from the sidebar since the All accounts view provides the same dashboard overview.
 - The Active Accounts summary card is now display-only, removing redundant click-to-reset behavior now that clicking the Action Needed card directly toggles between filtered accounts and all accounts.
 
-### Fixed (12)
+### Fixed (13)
 
+- Fixed mobile header jumping and changing height after opening modals on Android by removing hardcoded status bar fallback insets and relying on real system window insets.
 - Fixed the mobile summary cards text wrapping unexpectedly onto multiple lines when the vertical scrollbar is visible.
 - Fixed the mobile All Accounts layout shifting horizontally when the scrollbar appeared by resetting asymmetrical inner card padding and gutter reservations.
 - The sidebar menu header now uses the same space under the menu button as the All Accounts header.

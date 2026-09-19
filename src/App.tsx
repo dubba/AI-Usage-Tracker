@@ -675,15 +675,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent)) {
-      const root = document.documentElement;
-      if (!root.style.getPropertyValue("--android-safe-top")) {
-        root.style.setProperty("--android-safe-top", "48px");
-      }
-    }
-  }, []);
-
-  useEffect(() => {
     if (!error) return;
     const timer = window.setTimeout(() => {
       setError(null);

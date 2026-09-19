@@ -46,7 +46,7 @@ class MainActivity : TauriActivity() {
 
   private var activeWebView: WebView? = null
   @Volatile private var lastUpdateNotifyAt: Long = 0L
-  private var safeTopDp: Int = 48
+  private var safeTopDp: Int = 0
   private var safeBottomDp: Int = 0
   private var safeImeDp: Int = 0
   private var multicastLock: android.net.wifi.WifiManager.MulticastLock? = null
