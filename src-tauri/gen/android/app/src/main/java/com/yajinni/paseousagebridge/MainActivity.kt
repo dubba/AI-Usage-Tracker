@@ -64,7 +64,6 @@ class MainActivity : TauriActivity() {
     if (ua.contains("; wv")) {
       webView.settings.userAgentString = ua.replace("; wv", "")
     }
-    webView.webChromeClient = OAuthWebChromeClient(this)
     applyInsetsToWebView()
   }
 

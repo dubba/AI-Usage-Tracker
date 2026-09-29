@@ -131,6 +131,12 @@ fn main() {
     println!("cargo:rerun-if-changed=icons/app-icon.b64");
     println!("cargo:rerun-if-changed=tauri.conf.json");
     println!("cargo:rerun-if-changed=../dist");
+    // The Tauri CLI rewrites these templates during `tauri android build`;
+    // re-running the build script when they change guarantees the WebView
+    // patches below are re-applied before kotlinc compiles them.
+    println!("cargo:rerun-if-changed=gen/android/app/src/main/java/com/yajinni/paseousagebridge/generated/RustWebView.kt");
+    println!("cargo:rerun-if-changed=gen/android/app/src/main/java/com/yajinni/paseousagebridge/generated/RustWebChromeClient.kt");
+    println!("cargo:rerun-if-changed=gen/android/app/src/main/java/com/yajinni/paseousagebridge/generated/RustWebViewClient.kt");
 
     let icon_bytes = STANDARD
         .decode(include_str!("icons/app-icon.b64").trim())
