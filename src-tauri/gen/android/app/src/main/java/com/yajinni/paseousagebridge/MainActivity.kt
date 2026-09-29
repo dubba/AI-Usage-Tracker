@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.os.SystemClock
+import android.webkit.CookieManager
 import android.webkit.WebView
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
@@ -55,6 +56,15 @@ class MainActivity : TauriActivity() {
   override fun onWebViewCreate(webView: WebView) {
     super.onWebViewCreate(webView)
     activeWebView = webView
+    webView.settings.javaScriptCanOpenWindowsAutomatically = true
+    webView.settings.setSupportMultipleWindows(true)
+    CookieManager.getInstance().setAcceptCookie(true)
+    CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
+    val ua = webView.settings.userAgentString.orEmpty()
+    if (ua.contains("; wv")) {
+      webView.settings.userAgentString = ua.replace("; wv", "")
+    }
+    webView.webChromeClient = OAuthWebChromeClient(this)
     applyInsetsToWebView()
   }
 

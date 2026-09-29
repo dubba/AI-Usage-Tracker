@@ -96,6 +96,7 @@ pub fn open_in_main_webview(
         if !attempt_matches(&state, &attempt_id) {
             return;
         }
+        let oauth_start = target.clone();
         if let Err(error) = window.navigate(target) {
             fail_waiting(
                 &state,
@@ -136,6 +137,12 @@ pub fn open_in_main_webview(
             }
             let _ = window.eval(POPUP_SHIM_SCRIPT);
             if let Ok(current) = window.url() {
+                // Google SSO often finishes by navigating the WebView to about:blank.
+                // Reload the provider OAuth page so it can pick up the new session.
+                if current.scheme() == "about" {
+                    let _ = window.navigate(oauth_start.clone());
+                    continue;
+                }
                 on_url(current.clone());
                 if urls_share_origin(&current, &restore_url) {
                     if left_app_shell {
@@ -206,6 +213,12 @@ mod tests {
         assert!(POPUP_SHIM_SCRIPT.contains("FedCM unavailable"));
         assert!(POPUP_SHIM_SCRIPT.contains("opts.identity"));
         assert!(!POPUP_SHIM_SCRIPT.contains("window.open ="));
+    }
+
+    #[test]
+    fn about_blank_is_not_an_https_oauth_host() {
+        let blank = Url::parse("about:blank").unwrap();
+        assert_eq!(blank.scheme(), "about");
     }
 
     #[test]

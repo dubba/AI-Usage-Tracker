@@ -1,8 +1,12 @@
 # Changelog
 
-## Unreleased (0 items)
+## Unreleased
 
-_No unreleased user-facing changes yet._
+### Fixed
+
+- Claude Google sign-in on Android no longer stops on a black screen after “You’re signing back in to Claude.” The Google popup now returns to the Claude login page so the account can finish connecting.
+
+## 0.3.7 - 2026-09-18 (41 items)
 
 ## 0.3.7 - 2026-09-18 (41 items)
 
