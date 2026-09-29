@@ -51,6 +51,7 @@ type ActiveDrag = {
   container: HTMLElement;
   scrollContainer: HTMLElement;
   source: HTMLElement;
+  float: HTMLElement;
   placeholder: HTMLElement;
   originalNextSibling: ChildNode | null;
   originalStyle: string | null;
@@ -60,6 +61,11 @@ type ActiveDrag = {
 
 let pointerCandidate: PointerCandidate | null = null;
 let dragState: ActiveDrag | null = null;
+let lastDragMoveAt = 0;
+let dragStartedAt = 0;
+let abandonDragTimer: number | null = null;
+let abandonDragGeneration = 0;
+let dragTouchActive = false;
 
 function isInteractivePointerTarget(target: Element): boolean {
   return Boolean(
@@ -376,7 +382,7 @@ function capturePositions(elements: HTMLElement[]): Map<HTMLElement, { left: num
 }
 
 function animateReorder(elements: HTMLElement[], before: Map<HTMLElement, { left: number; top: number }>): void {
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce), (pointer: coarse)").matches) return;
   window.requestAnimationFrame(() => {
     for (const element of elements) {
       const previous = before.get(element);
@@ -461,19 +467,62 @@ function runAutoScroll(): void {
   drag.autoScrollFrame = window.requestAnimationFrame(runAutoScroll);
 }
 
+function accountScrollContainer(source: HTMLElement): HTMLElement {
+  return source.closest<HTMLElement>(".dashboard-scroll")
+    ?? source.closest<HTMLElement>(".dashboard-content")
+    ?? source.parentElement
+    ?? document.documentElement;
+}
+
+function applyFloatingStyles(element: HTMLElement, bounds: DOMRect): void {
+  Object.assign(element.style, {
+    position: "fixed",
+    left: `${bounds.left}px`,
+    top: `${bounds.top}px`,
+    margin: "0",
+    zIndex: "10000",
+    pointerEvents: "none",
+    boxSizing: "border-box",
+    transform: "translate3d(0, 0, 0)",
+    transformOrigin: "top left",
+    willChange: "transform",
+  });
+  element.style.setProperty("width", `${bounds.width}px`, "important");
+  element.style.setProperty("max-width", `${bounds.width}px`, "important");
+  element.style.setProperty("height", `${bounds.height}px`, "important");
+}
+
+function createFloatClone(source: HTMLElement, bounds: DOMRect): HTMLElement {
+  const float = source.cloneNode(true) as HTMLElement;
+  float.classList.add("is-dragging", "dashboard-reorder-float");
+  float.removeAttribute("data-reorder-enabled");
+  float.setAttribute("aria-hidden", "true");
+  for (const node of float.querySelectorAll("[id]")) {
+    node.removeAttribute("id");
+  }
+  for (const menu of float.querySelectorAll(".mobile-dropdown-menu")) {
+    menu.remove();
+  }
+  applyFloatingStyles(float, bounds);
+  document.body.appendChild(float);
+  return float;
+}
+
 function beginVisualDrag(clientX: number, clientY: number, candidate: PointerCandidate): ActiveDrag | null {
   const descriptor = candidate.drag;
   const container = descriptor.source.parentElement;
   if (!container) return null;
   const scrollContainer = descriptor.kind === "group"
     ? container
-    : descriptor.source.closest<HTMLElement>(".dashboard-content") ?? container;
+    : accountScrollContainer(descriptor.source);
   const bounds = descriptor.source.getBoundingClientRect();
   const placeholder = document.createElement("div");
   const placeholderClass = descriptor.kind === "group" ? "provider-reorder-placeholder" : "account-reorder-placeholder";
   placeholder.className = `dashboard-reorder-placeholder ${placeholderClass}`;
   placeholder.setAttribute("aria-hidden", "true");
   placeholder.style.height = `${bounds.height}px`;
+
+  const float = createFloatClone(descriptor.source, bounds);
 
   const active: ActiveDrag = {
     pointerId: candidate.pointerId,
@@ -487,6 +536,7 @@ function beginVisualDrag(clientX: number, clientY: number, candidate: PointerCan
     container,
     scrollContainer,
     source: descriptor.source,
+    float,
     placeholder,
     originalNextSibling: descriptor.source.nextSibling,
     originalStyle: descriptor.source.getAttribute("style"),
@@ -495,6 +545,8 @@ function beginVisualDrag(clientX: number, clientY: number, candidate: PointerCan
   };
 
   dragState = active;
+  lastDragMoveAt = Date.now();
+  dragStartedAt = Date.now();
   mutationGuard = true;
   try {
     descriptor.source.after(placeholder);
@@ -503,39 +555,55 @@ function beginVisualDrag(clientX: number, clientY: number, candidate: PointerCan
   }
 
   container.classList.add("reorder-previewing");
-  descriptor.source.classList.add("is-dragging");
-  Object.assign(descriptor.source.style, {
-    position: "fixed",
-    left: `${bounds.left}px`,
-    top: `${bounds.top}px`,
-    margin: "0",
-    zIndex: "10000",
-    pointerEvents: "none",
-    boxSizing: "border-box",
-    transform: "translate3d(0, 0, 0)",
-    transformOrigin: "top left",
-    willChange: "transform",
-  });
-  descriptor.source.style.setProperty("width", `${bounds.width}px`, "important");
-  descriptor.source.style.setProperty("max-width", `${bounds.width}px`, "important");
-  descriptor.source.style.setProperty("height", `${bounds.height}px`, "important");
+  descriptor.source.classList.add("is-reorder-origin");
+  descriptor.source.style.setProperty("display", "none", "important");
   document.documentElement.classList.add("dashboard-reordering");
   document.documentElement.style.setProperty("cursor", "grabbing", "important");
   document.body.style.setProperty("cursor", "grabbing", "important");
-  try {
-    descriptor.source.setPointerCapture(candidate.pointerId);
-  } catch {
-    // Document-level pointer handlers continue the drag when capture is unavailable.
+  if (candidate.pointerType !== "touch" && candidate.pointerType !== "pen") {
+    try {
+      descriptor.source.setPointerCapture(candidate.pointerId);
+    } catch {
+      // Document-level pointer handlers continue the drag when capture is unavailable.
+    }
   }
   updatePlaceholderFromPointer(active);
   active.autoScrollFrame = window.requestAnimationFrame(runAutoScroll);
   return active;
 }
 
+function clearAbandonedDragTimer(): void {
+  if (abandonDragTimer != null) {
+    window.clearTimeout(abandonDragTimer);
+    abandonDragTimer = null;
+  }
+}
+
+function noteDragMove(): void {
+  lastDragMoveAt = Date.now();
+  abandonDragGeneration += 1;
+  clearAbandonedDragTimer();
+}
+
+function scheduleAbandonedDragFinish(): void {
+  const generation = ++abandonDragGeneration;
+  clearAbandonedDragTimer();
+  abandonDragTimer = window.setTimeout(() => {
+    abandonDragTimer = null;
+    if (generation !== abandonDragGeneration || !dragState) return;
+    if (Date.now() - lastDragMoveAt < 180) {
+      scheduleAbandonedDragFinish();
+      return;
+    }
+    finishDrag(true);
+  }, 180);
+}
+
 function updateFloatingSource(drag: ActiveDrag): void {
+  noteDragMove();
   const deltaX = drag.lastClientX - drag.startX;
   const deltaY = drag.lastClientY - drag.startY;
-  drag.source.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`;
+  drag.float.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`;
 }
 
 function restoreSourceStyle(drag: ActiveDrag): void {
@@ -547,6 +615,9 @@ function settleVisualDrag(drag: ActiveDrag, commit: boolean): void {
   if (drag.autoScrollFrame != null) window.cancelAnimationFrame(drag.autoScrollFrame);
   for (const element of reorderElements(drag)) {
     for (const animation of element.getAnimations()) animation.cancel();
+  }
+  if (drag.float !== drag.source) {
+    drag.float.remove();
   }
 
   mutationGuard = true;
@@ -563,7 +634,7 @@ function settleVisualDrag(drag: ActiveDrag, commit: boolean): void {
     mutationGuard = false;
   }
 
-  drag.source.classList.remove("is-dragging");
+  drag.source.classList.remove("is-dragging", "is-reorder-origin");
   drag.container.classList.remove("reorder-previewing");
   restoreSourceStyle(drag);
   try {
@@ -594,6 +665,8 @@ export function isReordering(): boolean {
 }
 
 function finishDrag(commit: boolean): void {
+  clearAbandonedDragTimer();
+  dragTouchActive = false;
   const drag = dragState;
   pointerCandidate = null;
   if (!drag) return;
@@ -628,6 +701,7 @@ function beginPointerCandidate(event: PointerEvent): void {
   }
 
   const isTouch = event.pointerType === "touch" || event.pointerType === "pen";
+  if (isTouch) dragTouchActive = true;
   const isInteractive = isInteractivePointerTarget(target);
   const candidate: PointerCandidate = {
     pointerId: event.pointerId,
@@ -741,8 +815,8 @@ function cancelPointerCandidate(event?: PointerEvent): void {
     clearPressCursor();
     return;
   }
-  // On Android, WebView may dispatch synthetic pointercancel when a touch moves.
-  // If dragState is already active on touch, let onTouchMove and onTouchEnd drive the drag.
+  // Android WebView often fires pointercancel at the top overscroll edge
+  // without ending the gesture. Keep the drag alive if touchmove continues.
   if (dragState && (event?.pointerType === "touch" || event?.pointerType === "pen")) {
     return;
   }
@@ -753,6 +827,7 @@ function onTouchMove(event: TouchEvent): void {
   if (!pointerCandidate && !dragState) return;
   const touch = event.touches[0];
   if (!touch) return;
+  dragTouchActive = true;
 
   if (dragState) {
     if (event.cancelable) {
@@ -787,6 +862,7 @@ function onTouchEnd(event: TouchEvent): void {
     window.clearTimeout(pointerCandidate.longPressTimer);
     pointerCandidate.longPressTimer = null;
   }
+  if (event.touches.length === 0) dragTouchActive = false;
   if (dragState) {
     if (event.cancelable) {
       event.preventDefault();
@@ -804,10 +880,15 @@ function onTouchCancel(event: TouchEvent): void {
     pointerCandidate.longPressTimer = null;
   }
   if (dragState) {
-    finishDrag(true);
-  } else {
-    pointerCandidate = null;
+    if (event.touches.length > 0) return;
+    dragTouchActive = false;
+    // Adding touch-action:none when the drag starts can emit a synthetic
+    // cancel; ignore that so a long-press does not immediately drop the card.
+    if (Date.now() - dragStartedAt < 250) return;
+    scheduleAbandonedDragFinish();
+    return;
   }
+  pointerCandidate = null;
 }
 
 async function persistGroupOrder(orderedGroupIds: string[]): Promise<void> {

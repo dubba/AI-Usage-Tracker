@@ -165,6 +165,23 @@ html.dashboard-reordering {
   overscroll-behavior: none;
 }
 
+html.dashboard-reordering .dashboard-scroll,
+html.dashboard-reordering .provider-list {
+  overscroll-behavior: none !important;
+  touch-action: none !important;
+}
+
+.dashboard-reorder-float {
+  margin: 0 !important;
+  z-index: 10000 !important;
+  pointer-events: none !important;
+}
+
+.provider-account-card.is-reorder-origin,
+.provider-summary-row.is-reorder-origin {
+  display: none !important;
+}
+
 .reorder-previewing {
   position: relative;
 }
@@ -172,6 +189,7 @@ html.dashboard-reordering {
 .dashboard-reorder-placeholder {
   box-sizing: border-box;
   width: 100%;
+  grid-column: 1 / -1;
   border: 0;
   background: transparent;
   box-shadow: none;

@@ -2,11 +2,12 @@
 
 ## Unreleased (0 items)
 
-## 0.3.8 - 2026-09-29 (5 items)
+## 0.3.8 - 2026-09-29 (6 items)
 
-### Fixed (3)
+### Fixed (4)
 
 - Claude Google sign-in on Android no longer stops on a black screen after “You’re signing back in to Claude.” The Google popup now returns to the Claude login page so the account can finish connecting.
+- Rearranging account cards on Android no longer leaves a card stuck overlapping the Next Reset summary, especially when dragging a card to the top of the list.
 - Clicking Update in Settings no longer gets stuck on “Downloading…” when the update check or download stalls: the update fetch now times out and falls back to the releases download page, and a stalled download reports an error instead of spinning forever.
 - After an Android in-app update downloads, the system installer now opens. The APK is saved in a folder Android is allowed to share with the package installer.
 

@@ -717,6 +717,7 @@ export default function App() {
   }, []);
 
   const load = useCallback(async () => {
+    if (isReordering()) return;
     try {
       const next = await Promise.race([
         bridgeApi.snapshot(),
@@ -994,7 +995,10 @@ export default function App() {
   }, [appSettings?.automaticUpdatesEnabled, checkForUpdate]);
 
   useEffect(() => {
-    const tick = window.setInterval(() => setNowMs(Date.now()), RELATIVE_TIME_TICK_MS);
+    const tick = window.setInterval(() => {
+      if (isReordering()) return;
+      setNowMs(Date.now());
+    }, RELATIVE_TIME_TICK_MS);
     return () => window.clearInterval(tick);
   }, []);
 
