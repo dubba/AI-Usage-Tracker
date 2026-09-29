@@ -2,11 +2,18 @@
 
 ## Unreleased (0 items)
 
-## 0.3.8 - 2026-09-29 (1 item)
+## 0.3.8 - 2026-09-29 (5 items)
 
-### Fixed (1)
+### Fixed (3)
 
 - Claude Google sign-in on Android no longer stops on a black screen after “You’re signing back in to Claude.” The Google popup now returns to the Claude login page so the account can finish connecting.
+- Clicking Update in Settings no longer gets stuck on “Downloading…” when the update check or download stalls: the update fetch now times out and falls back to the releases download page, and a stalled download reports an error instead of spinning forever.
+- After an Android in-app update downloads, the system installer now opens. The APK is saved in a folder Android is allowed to share with the package installer.
+
+### Improved (2)
+
+- Desktop releases now publish signed automatic-update artifacts, so clicking Update in Settings downloads and installs the new version in the app instead of opening the releases page. Note: installs from before this change still carry the old update key, so they need one manual download to pick up automatic updates.
+- When a newer GitHub release is available, Android shows a system notification that an update is ready to download. Tapping it opens the app.
 
 ## 0.3.7 - 2026-09-18 (41 items)
 

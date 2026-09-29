@@ -16,6 +16,16 @@ pub fn prompt_apk_install(path: &Path) -> Result<(), String> {
     call_path(path, "installDownloadedApk", "(Ljava/lang/String;)V", false).map(|_| ())
 }
 
+pub fn show_update_available(version: &str) -> Result<(), String> {
+    call_string(
+        "showUpdateAvailable",
+        "(Ljava/lang/String;)V",
+        version,
+        false,
+    )
+    .map(|_| ())
+}
+
 pub fn verify_apk_signature(path: &Path) -> Result<(), String> {
     let result = call_path(
         path,
@@ -52,6 +62,15 @@ fn call_path(
     sig: &str,
     expect_string: bool,
 ) -> Result<String, String> {
+    call_string(name, sig, path.to_string_lossy().as_ref(), expect_string)
+}
+
+fn call_string(
+    name: &str,
+    sig: &str,
+    value: &str,
+    expect_string: bool,
+) -> Result<String, String> {
     let ctx = ndk_context::android_context();
     let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }
         .map_err(|error| format!("Unable to start the Android installer: {error}"))?;
@@ -59,16 +78,16 @@ fn call_path(
         .attach_current_thread()
         .map_err(|error| format!("Unable to start the Android installer: {error}"))?;
     let activity = unsafe { JObject::from_raw(ctx.context() as jni::sys::jobject) };
-    let path = env
-        .new_string(path.to_string_lossy().as_ref())
+    let value = env
+        .new_string(value)
         .map_err(|error| format!("Unable to start the Android installer: {error}"))?;
-    let path_obj = JObject::from(path);
+    let value_obj = JObject::from(value);
     invoke(
         &mut env,
         &activity,
         name,
         sig,
-        &[JValue::Object(&path_obj)],
+        &[JValue::Object(&value_obj)],
         expect_string,
     )
 }

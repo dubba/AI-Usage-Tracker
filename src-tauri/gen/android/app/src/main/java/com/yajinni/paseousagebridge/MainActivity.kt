@@ -1,6 +1,7 @@
 package com.yajinni.paseousagebridge
 
 import android.Manifest
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -43,6 +44,7 @@ class MainActivity : TauriActivity() {
 
     private const val UPDATE_CHANNEL = "updates"
     private const val UPDATE_NOTIFICATION_ID = 47001
+    private const val UPDATE_AVAILABLE_NOTIFICATION_ID = 47002
   }
 
   private var activeWebView: WebView? = null
@@ -279,6 +281,7 @@ class MainActivity : TauriActivity() {
         .setStyle(androidx.core.app.NotificationCompat.BigTextStyle().bigText(body))
         .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
         .setAutoCancel(true)
+        .setContentIntent(appLaunchPendingIntent())
         .build()
       val manager = getSystemService(Context.NOTIFICATION_SERVICE)
         as android.app.NotificationManager
@@ -286,6 +289,41 @@ class MainActivity : TauriActivity() {
     } catch (e: Throwable) {
       android.util.Log.w(TAG, "postExpandableNotification failed: ${e.message}")
     }
+  }
+
+  fun showUpdateAvailable(version: String) {
+    val text = "Version $version is ready to download."
+    try {
+      val notification = NotificationCompat.Builder(this, "default")
+        .setSmallIcon(applicationInfo.icon)
+        .setContentTitle("AI Usage Tracker update available")
+        .setContentText(text)
+        .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+        .setPriority(NotificationCompat.PRIORITY_HIGH)
+        .setAutoCancel(true)
+        .setContentIntent(appLaunchPendingIntent())
+        .build()
+      val manager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+      manager.notify(UPDATE_AVAILABLE_NOTIFICATION_ID, notification)
+    } catch (e: Throwable) {
+      android.util.Log.w(TAG, "showUpdateAvailable failed: ${e.message}")
+      throw e
+    }
+  }
+
+  private fun appLaunchPendingIntent(): PendingIntent {
+    val launch = packageManager.getLaunchIntentForPackage(packageName)
+      ?: Intent(this, MainActivity::class.java).apply {
+        action = Intent.ACTION_MAIN
+        addCategory(Intent.CATEGORY_LAUNCHER)
+      }
+    launch.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+    return PendingIntent.getActivity(
+      this,
+      UPDATE_AVAILABLE_NOTIFICATION_ID,
+      launch,
+      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
   }
 
   fun ensureCanInstallUpdates(): String {
@@ -439,7 +477,8 @@ class MainActivity : TauriActivity() {
       }
       throw IllegalStateException("Allow AI Usage Tracker to install updates, then tap Update again.")
     }
-    val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+    val shareable = fileForInstaller(file)
+    val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", shareable)
     val intent = Intent(Intent.ACTION_VIEW).apply {
       setDataAndType(uri, "application/vnd.android.package-archive")
       addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -468,6 +507,29 @@ class MainActivity : TauriActivity() {
       throw IllegalStateException("Timed out waiting for the Android installer to open.")
     }
     launchError?.let { throw it }
+  }
+
+  /**
+   * FileProvider can only share cacheDir and filesDir. Tauri's app_data_dir is
+   * Context.dataDir, so copy there into cache/updates when needed.
+   */
+  private fun fileForInstaller(file: File): File {
+    val cacheUpdates = File(cacheDir, "updates")
+    val cacheRoot = cacheDir.canonicalFile
+    val filesRoot = filesDir.canonicalFile
+    val alreadyShareable = generateSequence(file.canonicalFile.parentFile) { it.parentFile }
+      .any { parent -> parent == cacheRoot || parent == filesRoot }
+    if (alreadyShareable) {
+      return file
+    }
+    if (!cacheUpdates.exists() && !cacheUpdates.mkdirs() && !cacheUpdates.isDirectory) {
+      throw IllegalStateException("Unable to prepare the update for install.")
+    }
+    val dest = File(cacheUpdates, file.name)
+    if (file.canonicalPath != dest.canonicalPath) {
+      file.copyTo(dest, overwrite = true)
+    }
+    return dest
   }
 }
 

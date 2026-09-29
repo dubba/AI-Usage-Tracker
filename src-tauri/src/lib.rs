@@ -980,6 +980,16 @@ fn sha256_hex(bytes: &[u8]) -> String {
 
 const MAX_APK_BYTES: u64 = 250 * 1024 * 1024;
 
+/// Upper bound for the updater manifest fetch in `check_for_app_update` and
+/// `install_app_update`. The updater plugin's HTTP client has no timeout of
+/// its own, so without this a stalled connection would leave the Settings
+/// update button spinning on "Downloading…" forever.
+const UPDATER_CHECK_TIMEOUT: Duration = Duration::from_secs(30);
+/// Upper bound for the whole download-and-install step. Aborting here is safe:
+/// the updater only touches the running app after the full package is
+/// downloaded and signature-verified.
+const UPDATER_INSTALL_TIMEOUT: Duration = Duration::from_secs(15 * 60);
+
 #[derive(Clone, Serialize)]
 struct AppUpdateProgress {
     phase: &'static str,
@@ -1128,6 +1138,26 @@ async fn download_android_apk(
     }
 }
 
+fn show_update_available_notification(app: &AppHandle, version: &str) -> Result<(), String> {
+    let title = "AI Usage Tracker update available";
+    let body = format!("Version {version} is ready to download.");
+    #[cfg(target_os = "android")]
+    {
+        let _ = app;
+        apk_install::show_update_available(version)
+            .or_else(|_| crate::lan_binding::post_expandable_notification(title, &body))
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        app.notification()
+            .builder()
+            .title(title)
+            .body(body)
+            .show()
+            .map_err(|error| error.to_string())
+    }
+}
+
 fn status_from_github_latest(
     current_version: String,
     latest: GitHubLatestRelease,
@@ -1141,12 +1171,7 @@ fn status_from_github_latest(
     if state.settings.automatic_updates_enabled()
         && state.settings.update_notification_needed(&latest.version)
     {
-        let shown = app
-            .notification()
-            .builder()
-            .title("AI Usage Tracker update available")
-            .body(format!("Version {} is ready to download.", latest.version))
-            .show();
+        let shown = show_update_available_notification(app, &latest.version);
         if shown.is_ok() {
             let _ = state.settings.mark_update_notified(&latest.version);
         }
@@ -1169,9 +1194,12 @@ async fn check_for_app_update(
 
     #[cfg(desktop)]
     {
+        // The updater client has no request timeout of its own; bound the
+        // manifest fetch so a stalled connection falls through to the GitHub
+        // Releases fallback below instead of hanging "Checking…" forever.
         match app.updater() {
-            Ok(updater) => match updater.check().await {
-                Ok(Some(update)) => {
+            Ok(updater) => match tokio::time::timeout(UPDATER_CHECK_TIMEOUT, updater.check()).await {
+                Ok(Ok(Some(update))) => {
                     let available_version = update.version.to_string();
                     if state.settings.automatic_updates_enabled()
                         && state
@@ -1196,13 +1224,16 @@ async fn check_for_app_update(
                         update.body,
                     ));
                 }
-                Ok(None) => {}
-                Err(error) if updater_error_is_no_release(&error) => {}
-                Err(error) => {
+                Ok(Ok(None)) => {}
+                Ok(Err(error)) if updater_error_is_no_release(&error) => {}
+                Ok(Err(error)) => {
                     return Ok(AppUpdateStatus::failed(
                         current_version,
                         format!("Unable to check for updates: {error}"),
                     ));
+                }
+                Err(_) => {
+                    eprintln!("App update manifest fetch timed out; using GitHub Releases fallback.");
                 }
             },
             Err(error) => {
@@ -1232,11 +1263,20 @@ async fn install_app_update(app: AppHandle) -> Result<(), String> {
     #[cfg(desktop)]
     {
         if let Ok(updater) = app.updater() {
-            if let Ok(Some(update)) = updater.check().await {
+            // Bound the manifest fetch: the updater client has no timeout, and
+            // a stall here used to leave Settings stuck on "Downloading…".
+            // On timeout (or when no updater artifact is published) fall
+            // through to the releases-page fallback below.
+            let checked =
+                tokio::time::timeout(UPDATER_CHECK_TIMEOUT, updater.check()).await;
+            if let Ok(Ok(Some(update))) = checked {
                 emit_update_progress(&app, "downloading", 0, None);
                 let downloaded = std::sync::atomic::AtomicU64::new(0);
-                let result = update
-                    .download_and_install(
+                // Bound the whole download+install as well so a mid-download
+                // stall surfaces as an error instead of an eternal spinner.
+                let result = tokio::time::timeout(
+                    UPDATER_INSTALL_TIMEOUT,
+                    update.download_and_install(
                         |chunk, total| {
                             let so_far = downloaded
                                 .fetch_add(chunk as u64, std::sync::atomic::Ordering::Relaxed)
@@ -1246,12 +1286,24 @@ async fn install_app_update(app: AppHandle) -> Result<(), String> {
                         || {
                             emit_update_progress(&app, "installing", 0, None);
                         },
-                    )
-                    .await;
-                result.map_err(|error| format!("Unable to install the update: {error}"))?;
-                app.restart();
-                #[allow(unreachable_code)]
-                return Ok(());
+                    ),
+                )
+                .await;
+                match result {
+                    Ok(Ok(())) => {
+                        app.restart();
+                        #[allow(unreachable_code)]
+                        return Ok(());
+                    }
+                    Ok(Err(error)) => {
+                        return Err(format!("Unable to install the update: {error}"));
+                    }
+                    Err(_) => {
+                        return Err(
+                            "The update download timed out. Check your connection and try again, or download the installer from the releases page.".into(),
+                        );
+                    }
+                }
             }
         }
     }
@@ -1263,10 +1315,13 @@ async fn install_app_update(app: AppHandle) -> Result<(), String> {
         let apk_url = latest.apk_url.ok_or_else(|| {
             "The latest GitHub release does not include an Android APK.".to_string()
         })?;
+        // Tauri's app_data_dir on Android is Context.dataDir
+        // (/data/user/0/<pkg>), which FileProvider cannot share with the
+        // system installer. Cache and files dirs are listed in file_paths.xml.
         let dest_dir = app
             .path()
-            .app_data_dir()
-            .or_else(|_| app.path().app_cache_dir())
+            .app_cache_dir()
+            .or_else(|_| app.path().app_data_dir().map(|p| p.join("files")))
             .map_err(|error| format!("Unable to save the update: {error}"))?;
         let dest = dest_dir.join("updates").join("ai-usage-tracker-update.apk");
         let digest = download_android_apk(&app, &apk_url, &dest).await?;
@@ -1710,6 +1765,7 @@ mod tests {
     fn expected_apk_asset_names_match_this_app() {
         assert!(is_expected_apk_name("AI Usage Tracker_0.3.6.apk"));
         assert!(is_expected_apk_name("ai-usage-tracker-0.3.6.apk"));
+        assert!(is_expected_apk_name("AI.Usage.Tracker_0.3.8.apk"));
         assert!(!is_expected_apk_name("other-app.apk"));
         assert!(!is_expected_apk_name("AI Usage Tracker_0.3.6-unsigned.apk"));
         assert!(!is_expected_apk_name("AI Usage Tracker_0.3.6.apk.sha256"));
@@ -1804,6 +1860,31 @@ mod tests {
         assert_eq!(
             super::apk_assets_from_github(&json).0.as_deref(),
             Some("https://example.com/app.apk")
+        );
+    }
+
+    #[test]
+    fn apk_assets_match_github_dotted_release_names_and_checksum() {
+        let json = serde_json::json!({
+            "assets": [
+                {
+                    "name": "AI.Usage.Tracker_0.3.8.apk",
+                    "browser_download_url": "https://github.com/dubba/AI-Usage-Tracker/releases/download/v0.3.8/AI.Usage.Tracker_0.3.8.apk"
+                },
+                {
+                    "name": "AI.Usage.Tracker_0.3.8.apk.sha256",
+                    "browser_download_url": "https://github.com/dubba/AI-Usage-Tracker/releases/download/v0.3.8/AI.Usage.Tracker_0.3.8.apk.sha256"
+                }
+            ]
+        });
+        let (apk, sha) = super::apk_assets_from_github(&json);
+        assert_eq!(
+            apk.as_deref(),
+            Some("https://github.com/dubba/AI-Usage-Tracker/releases/download/v0.3.8/AI.Usage.Tracker_0.3.8.apk")
+        );
+        assert_eq!(
+            sha.as_deref(),
+            Some("https://github.com/dubba/AI-Usage-Tracker/releases/download/v0.3.8/AI.Usage.Tracker_0.3.8.apk.sha256")
         );
     }
 
