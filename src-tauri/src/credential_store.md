@@ -8,4 +8,4 @@ New credentials are stored under the `ai-usage-tracker` Keychain service name. O
 
 After a credential is unlocked, it is kept in memory for the rest of the process so usage refreshes do not prompt again. The Keychain item is rewritten only when the saved secret actually changes.
 
-A stable Apple Developer ID signature is still required to preserve Keychain trust seamlessly across application updates. Unsigned debug builds get a new identity on each rebuild, so macOS may prompt again after `tauri:dev` restarts.
+Desktop debug builds (`tauri dev`, `cargo test`) store credentials in private application files and never access the Keychain. A stable Apple Developer ID signature is still required for production desktop builds so Keychain trust is preserved across application updates.

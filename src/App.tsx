@@ -400,11 +400,11 @@ function windowLength(window: UsageWindow): string | null {
   const label = window.label.toLowerCase();
   if (window.windowSeconds) {
     const hours = Math.round(window.windowSeconds / 3600);
-    if (hours >= 24 && hours % 24 === 0) return `${hours / 24}d window`;
-    return `${hours}h window`;
+    if (hours >= 24 && hours % 24 === 0) return `${hours / 24}d limit`;
+    return `${hours}h limit`;
   }
   if (id.includes("monthly") || label.includes("monthly") || id.includes("30d") || label.includes("30d")) {
-    return "30d window";
+    return "30d limit";
   }
   return null;
 }

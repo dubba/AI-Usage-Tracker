@@ -67,7 +67,7 @@ export function UsageBar({ window }: { window: UsageWindow }) {
           <span className="usage-label">{displayLabel}</span>
           <strong>{remaining == null ? "Unavailable" : `${Math.round(remaining)}% remaining`}</strong>
         </div>
-        {window.windowSeconds ? <span className={`window-pill ${pillClass}`}>{Math.round(window.windowSeconds / 3600)}h window</span> : null}
+        {window.windowSeconds ? <span className={`window-pill ${pillClass}`}>{Math.round(window.windowSeconds / 3600)}h limit</span> : null}
       </div>
       <div className="progress-track" aria-label={`${window.label} remaining`}>
         <span className={`progress-fill ${tone}`} style={{ width: `${width}%` }} />

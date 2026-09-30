@@ -109,7 +109,7 @@ pub fn create_export_payload(state: &AppState) -> Result<Vec<u8>, String> {
                 entries.push(SyncAccountEntry { account, secret });
             }
             Err(e) => {
-                // If an individual account has no secret in keychain, skip it cleanly
+                // If an individual account has no stored secret, skip it cleanly
                 eprintln!("Warning: skipping account without secret during pairing: {e}");
             }
         }

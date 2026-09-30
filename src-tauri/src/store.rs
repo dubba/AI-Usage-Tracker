@@ -469,10 +469,9 @@ fn persist_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result<
     Ok(())
 }
 
-#[cfg(not(target_os = "android"))]
+#[cfg(all(not(target_os = "android"), not(debug_assertions)))]
 fn load_keychain_secret(account_id: &str) -> Result<ProviderSecret, StoreError> {
     let user = account_credential_user(account_id);
-    #[allow(unused_variables)]
     let (stored, from_legacy) = match credential_entry(&user)?.get_password() {
         Ok(value) => (value, false),
         Err(keyring::Error::NoEntry) => (
@@ -492,12 +491,11 @@ fn load_keychain_secret(account_id: &str) -> Result<ProviderSecret, StoreError> 
         decode_provider_secret(&stored)?
     };
 
-    #[cfg(all(target_os = "macos", not(debug_assertions)))]
+    #[cfg(target_os = "macos")]
     let should_migrate = from_legacy || manifest.is_some();
-    #[cfg(all(not(any(target_os = "macos", target_os = "android")), not(debug_assertions)))]
+    #[cfg(not(target_os = "macos"))]
     let should_migrate = from_legacy;
 
-    #[cfg(not(debug_assertions))]
     if should_migrate && persist_provider_secret(account_id, &secret).is_ok() {
         let _ = delete_legacy_credential(&user);
         if let Some(manifest) = manifest.as_ref() {
@@ -535,16 +533,6 @@ pub fn load_provider_secret(account_id: &str) -> Result<ProviderSecret, StoreErr
         return Ok(secret);
     }
 
-    #[cfg(not(target_os = "android"))]
-    {
-        // In dev mode on desktop, fall back to native keychain if file is not yet created
-        if let Ok(secret) = load_keychain_secret(account_id) {
-            let _ = persist_provider_secret(account_id, &secret);
-            remember_secret(account_id, secret.clone());
-            return Ok(secret);
-        }
-    }
-
     Err(StoreError::Credential("No matching entry found in secure storage".into()))
 }
 
@@ -558,7 +546,7 @@ pub fn load_provider_secret(account_id: &str) -> Result<ProviderSecret, StoreErr
     Ok(secret)
 }
 
-#[cfg(not(target_os = "android"))]
+#[cfg(all(not(target_os = "android"), not(debug_assertions)))]
 fn delete_keychain_secret(account_id: &str) -> Result<(), StoreError> {
     let user = account_credential_user(account_id);
     let mut first_error = None;
@@ -616,10 +604,6 @@ pub fn delete_secret(account_id: &str) -> Result<(), StoreError> {
         if path.exists() {
             fs::remove_file(&path).map_err(|error| StoreError::Io(error.to_string()))?;
         }
-    }
-    #[cfg(not(target_os = "android"))]
-    {
-        delete_keychain_secret(account_id)?;
     }
     forget_secret(account_id);
     Ok(())
@@ -809,6 +793,7 @@ fn read_credential_manifest(account_id: &str) -> Result<Option<CredentialManifes
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(dead_code)]
 fn parse_credential_manifest(value: &str) -> Result<Option<CredentialManifest>, StoreError> {
     let Ok(manifest) = serde_json::from_str::<CredentialManifest>(value) else {
         return Ok(None);
@@ -824,6 +809,7 @@ fn parse_credential_manifest(value: &str) -> Result<Option<CredentialManifest>, 
 }
 
 #[cfg(not(target_os = "android"))]
+#[allow(dead_code)]
 fn validate_credential_generation(generation: &CredentialGeneration) -> Result<(), StoreError> {
     if generation.chunks == 0 || generation.chunks > MAX_CREDENTIAL_CHUNKS {
         return Err(StoreError::Invalid(format!(
