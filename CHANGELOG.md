@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (7 items)
+## Unreleased (11 items)
 
 ### Improved (4)
 
@@ -9,11 +9,18 @@
 - Dragging, reordering, and other layout changes no longer trigger extra background account lookups.
 - Account card 5h/7d pills now include the model name for every provider, for example `7d limit · GPT`, `7d limit · Claude`, and `7d limit · Grok`.
 
-### Fixed (3)
+### Fixed (6)
 
 - If a link cannot be opened (the change log or a link in the release notes), an error now appears instead of failing silently or only showing in a tooltip.
 - If your settings cannot be reloaded after linking devices, an error now appears instead of showing stale settings.
 - If the first refresh after adding an account fails, you are now told, rather than seeing the account with no data and no explanation.
+- Claude accounts no longer stop updating after a temporary "access denied" response from Anthropic; the last known usage is kept and the account keeps refreshing.
+- A locked or briefly unavailable system credential store, or a slow refresh, no longer leaves an account needing to sign in again after its sign-in was renewed.
+- Changing how often accounts update no longer refreshes every account immediately; the new interval simply applies to the next refresh.
+
+### Security (1)
+
+- Linking devices now ignores unsafe account identifiers sent by the other device and assigns a local one, so a modified transfer cannot write outside the app's credential storage.
 
 
 ## 0.3.9 - 2026-09-30 (19 items)
