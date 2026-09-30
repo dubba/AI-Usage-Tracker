@@ -1,11 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import { copyDiagnostics } from "../diagnostics";
 import { errorMessage } from "../errors";
+import { CheckIcon, CopyIcon } from "../icons";
 
 type CopyState = "idle" | "copying" | "copied" | "failed";
 
-/** Copies the redacted diagnostics report; shows the outcome next to the button. */
-export function CopyDiagnosticsButton({ className = "button ghost" }: { className?: string }) {
+/**
+ * Copies the redacted diagnostics report; shows the outcome next to the button.
+ * `compact` shows a copy icon with "Copy" (for places that already say "Diagnostics" beside it).
+ */
+export function CopyDiagnosticsButton({
+  className = "button ghost",
+  compact = false,
+}: {
+  className?: string;
+  compact?: boolean;
+}) {
   const [state, setState] = useState<CopyState>("idle");
   const [failure, setFailure] = useState<string | null>(null);
   const resetTimer = useRef<number | null>(null);
@@ -32,8 +42,15 @@ export function CopyDiagnosticsButton({ className = "button ghost" }: { classNam
 
   return (
     <>
-      <button type="button" className={className} disabled={state === "copying"} onClick={() => void copy()}>
-        {state === "copying" ? "Copying…" : state === "copied" ? "Copied!" : "Copy diagnostics"}
+      <button
+        type="button"
+        className={className}
+        disabled={state === "copying"}
+        aria-label={compact && state === "idle" ? "Copy diagnostics" : undefined}
+        onClick={() => void copy()}
+      >
+        {compact ? (state === "copied" ? <CheckIcon /> : <CopyIcon />) : null}
+        {state === "copying" ? "Copying…" : state === "copied" ? "Copied!" : compact ? "Copy" : "Copy diagnostics"}
       </button>
       <span className="sr-only" role="status" aria-live="polite">
         {state === "copied" ? "Diagnostics copied to the clipboard." : ""}

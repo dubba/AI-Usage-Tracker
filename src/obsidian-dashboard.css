@@ -1344,6 +1344,10 @@ button.account-card-provider-icon:active {
   padding-left: 0.4px !important;
 }
 
+.settings-updates-group-header.settings-updates-beta-row {
+  margin-top: 16px !important;
+}
+
 .settings-updates-subcard {
   display: flex;
   justify-content: space-between;

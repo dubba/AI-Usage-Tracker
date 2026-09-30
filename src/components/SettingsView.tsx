@@ -131,7 +131,7 @@ export function SettingsView({
             </button>
           </div>
 
-          <div className="settings-updates-group-header">
+          <div className="settings-updates-group-header settings-updates-beta-row">
             <div>
               <strong>Include beta releases</strong>
               <small>Also offer GitHub pre-releases. Betas may be unstable.</small>
@@ -285,7 +285,7 @@ export function SettingsView({
             <strong>Diagnostics</strong>
             <small>Copy a report for bug reports. Tokens, cookies, and email addresses are removed.</small>
           </div>
-          <CopyDiagnosticsButton />
+          <CopyDiagnosticsButton compact />
         </div>
       </section>
       </div>

@@ -872,7 +872,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  margin: 10px 0 0;
+  margin: 10px 0 14px;
   color: var(--obsidian-muted);
   font-size: 12px;
   line-height: 1.4;
@@ -914,12 +914,12 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 /* On small screens Settings is pinned to the bottom of the drawer, so pin the status just above it. */
 @media (max-width: 860px) {
   .obsidian-shell aside.sidebar {
-    padding-bottom: max(104px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 92px)) !important;
+    padding-bottom: max(112px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 100px)) !important;
   }
 
   .obsidian-shell .sidebar-sync-status {
     position: absolute;
-    bottom: max(56px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 56px));
+    bottom: max(64px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 64px));
     left: max(16px, calc(var(--safe-area-left, env(safe-area-inset-left, 0px)) + 14px));
     right: max(16px, calc(var(--safe-area-right, env(safe-area-inset-right, 0px)) + 14px));
     margin: 0;
