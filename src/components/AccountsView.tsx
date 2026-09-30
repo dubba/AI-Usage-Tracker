@@ -26,7 +26,6 @@ import { moveAnnouncement, moveById } from "../reorder-utils";
 import { AccountDashboardCard, REORDER_HINT_ID } from "./AccountDashboardCard";
 import { formatCount } from "../format";
 import { useClock } from "../hooks/useClock";
-import { computeSyncStatus } from "../sync-status";
 
 const ACCOUNT_FORMS = { one: "account", other: "accounts" };
 const ATTENTION_HINT_ID = "attention-filter-hint";
@@ -46,17 +45,6 @@ function NextResetCard({ accounts }: { accounts: Account[] }) {
         <ClockIcon />
       </div>
     </div>
-  );
-}
-
-/** When the numbers on screen were last refreshed, flagging accounts that have been left behind. */
-function SyncStatusLine({ accounts, refreshMinutes, syncing }: { accounts: Account[]; refreshMinutes: number; syncing: boolean }) {
-  const tone = useClock((now) => computeSyncStatus(accounts, now, refreshMinutes).tone);
-  const label = useClock((now) => computeSyncStatus(accounts, now, refreshMinutes).label);
-  return (
-    <p className={`dashboard-sync-status is-${syncing ? "syncing" : tone}`}>
-      {syncing ? "Syncing…" : label}
-    </p>
   );
 }
 
@@ -106,8 +94,6 @@ export function AccountsView(props: {
     setAnnouncement(moveAnnouncement(displayAccountLabel(account), move.to, move.ids.length));
   };
 
-  const syncing = [...props.busy].some((key) => key === "refresh-all" || key.startsWith("refresh:"));
-
   return (
     <div className="content-scroll dashboard-content">
       <header className="dashboard-header">
@@ -145,7 +131,6 @@ export function AccountsView(props: {
             ) : null}
           </div>
           <p className="dashboard-description">This is a dashboard of all your AI subscriptions by usage.</p>
-          <SyncStatusLine accounts={props.accounts} refreshMinutes={props.refreshMinutes} syncing={syncing} />
         </div>
         <div className="header-actions">
           {props.selectedGroup.type === "bucket" && props.selectedGroup.bucket ? (

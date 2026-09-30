@@ -3,7 +3,11 @@
 ## Unreleased (0 items)
 
 
-## 0.3.10-beta.3 - 2026-09-30 (8 items)
+## 0.3.10-beta.3 - 2026-09-30 (9 items)
+
+### Improved (1)
+
+- The “Last synced all accounts” status now sits at the bottom of the sidebar, just above Settings, instead of under the dashboard title.
 
 ### Fixed (3)
 

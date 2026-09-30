@@ -6,6 +6,7 @@ import { useAppErrors } from "./errors";
 import { resumeLoginAttemptWatch, subscribeLoginStatus } from "./login-status";
 import { AccountAlertModal } from "./components/AccountAlertModal";
 import { AccountsView } from "./components/AccountsView";
+import { SyncStatusLine } from "./components/SyncStatusLine";
 import { RemoveAccountModal } from "./components/RemoveAccountModal";
 import { AddAccountModal } from "./components/AddAccountModal";
 import { BucketModal } from "./components/BucketModal";
@@ -389,6 +390,11 @@ export default function App() {
           ) : null}
         </div>
 
+        <SyncStatusLine
+          accounts={accounts}
+          refreshMinutes={appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES}
+          busy={busy}
+        />
         <button
           type="button"
           className={`sidebar-footer${section === "settings" ? " active" : ""}`}

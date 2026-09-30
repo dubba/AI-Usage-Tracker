@@ -14,23 +14,24 @@ function account(id: string, fetchedMinutesAgo: number | null, overrides: Partia
 
 describe("computeSyncStatus", () => {
   it("says nothing has synced when no account has data", () => {
-    expect(computeSyncStatus([], NOW, 15)).toEqual({ tone: "none", label: "Not synced yet" });
-    expect(computeSyncStatus([account("a", null)], NOW, 15)).toEqual({ tone: "none", label: "Not synced yet" });
+    expect(computeSyncStatus([], NOW, 15)).toEqual({ tone: "none", label: "Not synced yet", detail: null });
+    expect(computeSyncStatus([account("a", null)], NOW, 15)).toEqual({ tone: "none", label: "Not synced yet", detail: null });
   });
 
   it("reports the newest refresh when everything is current", () => {
     const status = computeSyncStatus([account("a", 5), account("b", 2)], NOW, 15);
-    expect(status).toEqual({ tone: "fresh", label: "Last synced 2m ago" });
+    expect(status).toEqual({ tone: "fresh", label: "Last synced all accounts 2m ago", detail: null });
   });
 
   it("uses 'just now' inside the first minute", () => {
-    expect(computeSyncStatus([account("a", 0)], NOW, 15).label).toBe("Last synced just now");
+    expect(computeSyncStatus([account("a", 0)], NOW, 15).label).toBe("Last synced all accounts just now");
   });
 
   it("flags accounts older than twice the refresh interval", () => {
     const status = computeSyncStatus([account("a", 1), account("b", 31)], NOW, 15);
     expect(status.tone).toBe("stale");
-    expect(status.label).toBe("Last synced 1m ago · 1 account out of date");
+    expect(status.label).toBe("Last synced all accounts 1m ago");
+    expect(status.detail).toBe("1 account out of date");
   });
 
   it("does not flag an account just under the threshold", () => {
@@ -45,7 +46,8 @@ describe("computeSyncStatus", () => {
 
   it("pluralises the out-of-date count", () => {
     const status = computeSyncStatus([account("a", 60), account("b", 90)], NOW, 15);
-    expect(status.label).toBe("Last synced 1h ago · 2 accounts out of date");
+    expect(status.label).toBe("Last synced all accounts 1h ago");
+    expect(status.detail).toBe("2 accounts out of date");
   });
 
   it("ignores accounts that are not refreshed automatically", () => {
