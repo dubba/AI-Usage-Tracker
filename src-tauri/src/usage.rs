@@ -48,11 +48,22 @@ pub async fn refresh_account(app: Arc<AppState>, account_id: &str) -> Result<Acc
         }
     };
 
-    let refresh_result = tokio::time::timeout(
-        ACCOUNT_REFRESH_TIMEOUT,
-        providers::refresh(app.clone(), &account, secret),
-    )
-    .await;
+    // Run the provider refresh on its own task. The timeout below only stops
+    // *waiting*: dropping the future mid-flight could discard a rotated
+    // refresh token after the provider already revoked the old one. The
+    // task is still bounded by the HTTP client's per-request timeouts.
+    let refresh_app = app.clone();
+    let refresh_account_snapshot = account.clone();
+    let refresh_task = tokio::spawn(async move {
+        providers::refresh(refresh_app, &refresh_account_snapshot, secret).await
+    });
+    let refresh_result = match tokio::time::timeout(ACCOUNT_REFRESH_TIMEOUT, refresh_task).await {
+        Ok(Ok(result)) => Ok(result),
+        Ok(Err(_join_error)) => Ok(Err(ProviderError::Transient(
+            "Account refresh stopped unexpectedly.".into(),
+        ))),
+        Err(elapsed) => Err(elapsed),
+    };
 
     if app.store.get(account_id).is_none() {
         return Err("Account removed during refresh.".into());

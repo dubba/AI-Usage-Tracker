@@ -1,5 +1,5 @@
 import { useRef, type ReactNode } from "react";
-import { isAllowedExternalUrl, openSafeUrl } from "../utils/safeUrl";
+import { isAllowedExternalUrl } from "../utils/safeUrl";
 import { useModalA11y } from "./useModalA11y";
 import type { UpdateBusy } from "../types";
 
@@ -97,11 +97,13 @@ function parseInlineTokens(text: string): InlineToken[] {
   return tokens;
 }
 
-function renderTokens(tokens: InlineToken[], parentKey = "root"): ReactNode[] {
+type OpenLink = (url: string) => void;
+
+function renderTokens(tokens: InlineToken[], onOpenLink: OpenLink, parentKey = "root"): ReactNode[] {
   return tokens.map((token, index) => {
     const key = `${parentKey}-${index}`;
     if (token.type === "bold") {
-      return <strong key={key}>{renderTokens(token.children ?? [], key)}</strong>;
+      return <strong key={key}>{renderTokens(token.children ?? [], onOpenLink, key)}</strong>;
     }
     if (token.type === "code") {
       return (
@@ -121,7 +123,7 @@ function renderTokens(tokens: InlineToken[], parentKey = "root"): ReactNode[] {
           className="update-notes-link"
           onClick={(e) => {
             e.preventDefault();
-            void openSafeUrl(token.url!).catch(() => {});
+            onOpenLink(token.url!);
           }}
         >
           {token.label}
@@ -132,8 +134,8 @@ function renderTokens(tokens: InlineToken[], parentKey = "root"): ReactNode[] {
   });
 }
 
-function renderInline(text: string): ReactNode {
-  return renderTokens(parseInlineTokens(text));
+function renderInline(text: string, onOpenLink: OpenLink): ReactNode {
+  return renderTokens(parseInlineTokens(text), onOpenLink);
 }
 
 function formatReleaseDate(value: string | null | undefined): string | null {
@@ -156,6 +158,7 @@ export function UpdateNotesModal({
   onInstallUpdate,
   updateBusy,
   updatePercent,
+  onOpenLink,
 }: {
   open: boolean;
   version: string | null;
@@ -165,6 +168,7 @@ export function UpdateNotesModal({
   onInstallUpdate?: () => void;
   updateBusy?: UpdateBusy;
   updatePercent?: number | null;
+  onOpenLink: OpenLink;
 }) {
   const dialogRef = useRef<HTMLElement>(null);
   useModalA11y(dialogRef, open, onClose);
@@ -213,21 +217,21 @@ export function UpdateNotesModal({
               if (block.type === "h2") {
                 return (
                   <h3 key={idx} className="update-notes-heading-2">
-                    {renderInline(block.text || "")}
+                    {renderInline(block.text || "", onOpenLink)}
                   </h3>
                 );
               }
               if (block.type === "h3") {
                 return (
                   <h4 key={idx} className="update-notes-heading-3">
-                    {renderInline(block.text || "")}
+                    {renderInline(block.text || "", onOpenLink)}
                   </h4>
                 );
               }
               if (block.type === "h4") {
                 return (
                   <h5 key={idx} className="update-notes-heading-4">
-                    {renderInline(block.text || "")}
+                    {renderInline(block.text || "", onOpenLink)}
                   </h5>
                 );
               }
@@ -235,14 +239,14 @@ export function UpdateNotesModal({
                 return (
                   <ul key={idx} className="update-notes-list">
                     {block.items.map((item, itemIdx) => (
-                      <li key={itemIdx}>{renderInline(item)}</li>
+                      <li key={itemIdx}>{renderInline(item, onOpenLink)}</li>
                     ))}
                   </ul>
                 );
               }
               return (
                 <p key={idx} className="update-notes-paragraph">
-                  {renderInline(block.text || "")}
+                  {renderInline(block.text || "", onOpenLink)}
                 </p>
               );
             })

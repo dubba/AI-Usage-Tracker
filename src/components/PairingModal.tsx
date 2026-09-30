@@ -16,7 +16,8 @@ import {
   UploadIcon,
 } from "../icons";
 import type { AirgapExport, PairingStatus } from "../types";
-import { applyPageUiState, collectPageUiState } from "../dashboard-page-state";
+import { logIgnored } from "../log";
+import { collectUiState } from "../ui-state";
 import { useModalA11y } from "./useModalA11y";
 import jsQR from "jsqr";
 
@@ -524,67 +525,6 @@ async function applyAutofocusAndZoom(track: MediaStreamTrack | undefined) {
   }
 }
 
-function collectUiStateForSync(): Record<string, unknown> {
-  const ui: Record<string, unknown> = {};
-  try {
-    const groupRaw = window.localStorage.getItem("ai-subscription-tracker:sidebar-group-order");
-    if (groupRaw) {
-      const parsed = JSON.parse(groupRaw);
-      if (Array.isArray(parsed) && parsed.length) ui.sidebar_group_order = parsed;
-    }
-  } catch {}
-  try {
-    const provRaw = window.localStorage.getItem("ai-subscription-tracker:provider-order");
-    if (provRaw) {
-      const parsed = JSON.parse(provRaw);
-      if (Array.isArray(parsed) && parsed.length) ui.provider_order = parsed;
-    }
-  } catch {}
-  Object.assign(ui, collectPageUiState());
-  try {
-    const w = window.localStorage.getItem("paseo-usage-bridge:sidebar-width");
-    if (w) {
-      const n = parseInt(w, 10);
-      if (!Number.isNaN(n) && n > 0) ui.sidebar_width = n;
-    }
-  } catch {}
-  return ui;
-}
-
-function applyUiStateFromSync(payload: Record<string, unknown>) {
-  try {
-    if (Array.isArray(payload.sidebar_group_order)) {
-      window.localStorage.setItem(
-        "ai-subscription-tracker:sidebar-group-order",
-        JSON.stringify(payload.sidebar_group_order),
-      );
-      window.dispatchEvent(
-        new CustomEvent("ai-subscription-tracker:group-order-changed", {
-          detail: payload.sidebar_group_order,
-        }),
-      );
-    }
-    if (Array.isArray(payload.provider_order)) {
-      window.localStorage.setItem(
-        "ai-subscription-tracker:provider-order",
-        JSON.stringify(payload.provider_order),
-      );
-      window.dispatchEvent(
-        new CustomEvent("ai-subscription-tracker:provider-order-changed", {
-          detail: payload.provider_order,
-        }),
-      );
-    }
-    applyPageUiState(payload);
-    if (typeof payload.sidebar_width === "number" && payload.sidebar_width > 0) {
-      window.localStorage.setItem("paseo-usage-bridge:sidebar-width", String(payload.sidebar_width));
-      document.documentElement.style.setProperty("--sidebar-width", `${payload.sidebar_width}px`);
-    }
-  } catch {}
-  // Force a snapshot refresh so reordering and settings take effect
-  window.dispatchEvent(new Event("focus"));
-}
-
 export function PairingModal({
   open,
   initialJoinUri,
@@ -731,7 +671,6 @@ export function PairingModal({
     if (!open) return;
 
     let unlisten: (() => void) | undefined;
-    let unlistenUi: (() => void) | undefined;
     let pollInterval: ReturnType<typeof setInterval> | undefined;
 
     const setupListener = async () => {
@@ -743,16 +682,9 @@ export function PairingModal({
           });
         });
         unlisten = unsubscribe;
-      } catch {
+      } catch (cause) {
         // Event listener unavailable, polling will handle it
-      }
-      try {
-        const unsubscribeUi = await listen<Record<string, unknown>>("pairing-ui-state", (event) => {
-          applyUiStateFromSync(event.payload);
-        });
-        unlistenUi = unsubscribeUi;
-      } catch {
-        // UI state sync not available on this platform
+        logIgnored("pairing-status listener", cause);
       }
     };
 
@@ -770,7 +702,6 @@ export function PairingModal({
 
     return () => {
       if (unlisten) unlisten();
-      if (unlistenUi) unlistenUi();
       if (pollInterval) clearInterval(pollInterval);
     };
   }, [open]);
@@ -956,10 +887,15 @@ export function PairingModal({
       if (!pendingUri) {
         try {
           pendingUri = await Promise.race([
-            pairingApi.getPendingPairingUri().catch(() => null),
+            pairingApi.getPendingPairingUri().catch((cause) => {
+              logIgnored("pending pairing uri", cause);
+              return null;
+            }),
             new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
           ]);
-        } catch {}
+        } catch (cause) {
+          logIgnored("pending pairing uri", cause);
+        }
       }
 
       if (
@@ -1473,7 +1409,7 @@ export function PairingModal({
     setViewMode("airgap-sender");
     try {
       const shouldInclude = includeSettingsOpt ?? includeSettings;
-      const ui = shouldInclude ? collectUiStateForSync() : undefined;
+      const ui = shouldInclude ? collectUiState() : undefined;
       const exp = await pairingApi.prepareAirgapExport(shouldInclude, ui);
       setAirgapExport(exp);
       setAirgapFrameIndex(0);
@@ -1521,16 +1457,14 @@ export function PairingModal({
         const shouldInclude = role === "sender" && includeSettings;
         try {
           await pairingApi.setIncludeSettings(shouldInclude);
-        } catch {}
-        if (shouldInclude) {
-          try {
-            const ui = collectUiStateForSync();
-            await pairingApi.setPendingUiState(ui);
-          } catch {}
-        } else {
-          try {
+          if (shouldInclude) {
+            await pairingApi.setPendingUiState(collectUiState());
+          } else {
             await pairingApi.clearPendingUiState();
-          } catch {}
+          }
+        } catch (cause) {
+          // Pairing can still complete; the other device just won't receive settings or layout.
+          logIgnored("pairing settings transfer", cause);
         }
       }
       await pairingApi.confirmSas(sessionId, confirmed);

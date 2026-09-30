@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { pairingApi } from "../api";
-import { applyPageUiState } from "../dashboard-page-state";
+import { logIgnored } from "../log";
+import { applyUiState } from "../ui-state";
 import { useTauriEvent } from "./useTauriEvent";
 
 function isPairingUri(uri: string | null | undefined): uri is string {
@@ -23,7 +24,9 @@ export function usePairingEvents() {
       try {
         const uri = await pairingApi.getPendingPairingUri();
         if (!cancelled && isPairingUri(uri)) openWithUri(uri);
-      } catch {}
+      } catch (cause) {
+        logIgnored("pending pairing uri", cause);
+      }
     })();
     return () => {
       cancelled = true;
@@ -37,35 +40,10 @@ export function usePairingEvents() {
   // Apply UI state transferred via pairing (sidebar order, collapsed cards, etc.)
   useTauriEvent<Record<string, unknown>>("pairing-ui-state", (payload) => {
     try {
-      if (Array.isArray(payload.sidebar_group_order)) {
-        window.localStorage.setItem(
-          "ai-subscription-tracker:sidebar-group-order",
-          JSON.stringify(payload.sidebar_group_order),
-        );
-        window.dispatchEvent(
-          new CustomEvent("ai-subscription-tracker:group-order-changed", {
-            detail: payload.sidebar_group_order,
-          }),
-        );
-      }
-      if (Array.isArray(payload.provider_order)) {
-        window.localStorage.setItem(
-          "ai-subscription-tracker:provider-order",
-          JSON.stringify(payload.provider_order),
-        );
-        window.dispatchEvent(
-          new CustomEvent("ai-subscription-tracker:provider-order-changed", {
-            detail: payload.provider_order,
-          }),
-        );
-      }
-      applyPageUiState(payload);
-      if (typeof payload.sidebar_width === "number" && payload.sidebar_width > 0) {
-        window.localStorage.setItem("paseo-usage-bridge:sidebar-width", String(payload.sidebar_width));
-        document.documentElement.style.setProperty("--sidebar-width", `${payload.sidebar_width}px`);
-      }
-    } catch {}
-    window.dispatchEvent(new Event("focus"));
+      applyUiState(payload);
+    } catch (cause) {
+      logIgnored("apply pairing ui state", cause);
+    }
   });
 
   const closePairing = useCallback(() => {

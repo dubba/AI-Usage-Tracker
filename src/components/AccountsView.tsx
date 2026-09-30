@@ -27,6 +27,7 @@ import { AccountDashboardCard, REORDER_HINT_ID } from "./AccountDashboardCard";
 import { formatCount } from "../format";
 
 const ACCOUNT_FORMS = { one: "account", other: "accounts" };
+const ATTENTION_HINT_ID = "attention-filter-hint";
 
 export function AccountsView(props: {
   allAccounts: Account[];
@@ -143,18 +144,12 @@ export function AccountsView(props: {
             role={props.needsAttention ? "button" : undefined}
             tabIndex={props.needsAttention ? 0 : undefined}
             aria-pressed={props.needsAttention ? showAttentionOnly : undefined}
-            aria-label={
-              props.needsAttention > 0
-                ? showAttentionOnly
-                  ? "Showing accounts needing attention. Click to show all."
-                  : "Show only accounts needing attention"
-                : undefined
-            }
+            aria-describedby={props.needsAttention > 0 ? ATTENTION_HINT_ID : undefined}
             data-tooltip={
               props.needsAttention > 0
                 ? showAttentionOnly
-                  ? "Click to show all accounts"
-                  : "Click to filter accounts needing attention"
+                  ? "Show all accounts"
+                  : "Show only accounts needing attention"
                 : undefined
             }
             onClick={() => {
@@ -174,6 +169,13 @@ export function AccountsView(props: {
               <strong className="summary-helper"><CheckCircleIcon />{props.needsAttention ? formatCount(props.needsAttention, ACCOUNT_FORMS) : "All good"}</strong>
             </div>
             <div className="summary-value-cluster"><strong>{props.needsAttention}</strong><span className="summary-info">!</span></div>
+            {props.needsAttention > 0 ? (
+              <span id={ATTENTION_HINT_ID} className="sr-only">
+                {showAttentionOnly
+                  ? "Currently showing only accounts needing attention. Activate to show all accounts."
+                  : "Activate to show only accounts needing attention."}
+              </span>
+            ) : null}
           </div>
           <div className="mockup-summary-card next-reset-card">
             <div>

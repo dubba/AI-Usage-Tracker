@@ -1,7 +1,9 @@
 import { bridgeApi, clearLoginAttempt, readLoginAttempt, rememberLoginAttempt } from "./api";
+import { UI_EVENTS } from "./events";
+import { logIgnored } from "./log";
 import type { LoginStatus } from "./types";
 
-export const LOGIN_STATUS_EVENT = "ai-usage-tracker:login-status";
+export const LOGIN_STATUS_EVENT = UI_EVENTS.loginStatus;
 
 const POLL_MS = 900;
 
@@ -122,12 +124,15 @@ export function abandonLoginAttempt(attemptId: string): void {
 
 export async function recoverFromStaleLogin(): Promise<void> {
   const stored = readLoginAttempt();
-  const current = await bridgeApi.currentLoginStatus().catch(() => null);
+  const current = await bridgeApi.currentLoginStatus().catch((cause) => {
+    logIgnored("current login status", cause);
+    return null;
+  });
   const attemptId = current?.attemptId ?? stored;
   if (!attemptId) return;
   stopWatchingLoginAttempt();
   clearLoginAttempt();
-  await bridgeApi.cancelLogin(attemptId).catch(() => undefined);
+  await bridgeApi.cancelLogin(attemptId).catch((cause) => logIgnored("cancel login", cause));
 }
 
 export async function resumeLoginAttemptWatch(): Promise<void> {

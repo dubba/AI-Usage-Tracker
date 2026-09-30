@@ -1,30 +1,17 @@
 import { invoke } from "@tauri-apps/api/core";
+import { storageGet, storageRemove, storageSet, STORAGE_KEYS } from "./storage";
 import type { Account, AccountBucket, AirgapExport, AirgapVerifyResult, AppSettings, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, PairingHostInit, PairingReceiverInit, PairingStatus, Provider, SyncSummary, UsageAlertSetting } from "./types";
 
-const LOGIN_ATTEMPT_KEY = "ai-usage-tracker:login-attempt";
-
 export function rememberLoginAttempt(attemptId: string) {
-  try {
-    sessionStorage.setItem(LOGIN_ATTEMPT_KEY, attemptId);
-  } catch {
-    /* sessionStorage can be unavailable in private webviews */
-  }
+  storageSet(STORAGE_KEYS.loginAttempt, attemptId, "session");
 }
 
 export function clearLoginAttempt() {
-  try {
-    sessionStorage.removeItem(LOGIN_ATTEMPT_KEY);
-  } catch {
-    /* ignore */
-  }
+  storageRemove(STORAGE_KEYS.loginAttempt, "session");
 }
 
 export function readLoginAttempt(): string | null {
-  try {
-    return sessionStorage.getItem(LOGIN_ATTEMPT_KEY);
-  } catch {
-    return null;
-  }
+  return storageGet(STORAGE_KEYS.loginAttempt, "session");
 }
 
 export const bridgeApi = {

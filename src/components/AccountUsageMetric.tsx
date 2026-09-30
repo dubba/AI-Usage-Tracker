@@ -5,7 +5,7 @@ import {
   resetCountdownLabel,
 } from "../usage-logic";
 import {
-  antigravityGroupLabel,
+  metricGroupLabel,
   windowPillClass,
 } from "../display";
 import type {
@@ -44,7 +44,7 @@ export function AccountUsageMetric({
   const width = remaining == null ? 0 : Math.min(100, Math.max(0, remaining));
   const tone = usageTone(remaining);
   const length = windowLength(window);
-  const group = provider === "antigravity" ? antigravityGroupLabel(window) : null;
+  const group = metricGroupLabel(window, provider);
   const pillText = length && group ? `${length} · ${group}` : length;
   return (
     <div className="account-usage-metric">

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { bridgeApi } from "../api";
 import { FALLBACK_APP_VERSION } from "../constants";
+import { logIgnored } from "../log";
 import type { AppUpdateProgress, AppUpdateStatus, UpdateBusy } from "../types";
 import { useTauriEvent } from "./useTauriEvent";
 
@@ -39,7 +40,10 @@ export function useAppUpdate({ automaticUpdatesEnabled }: { automaticUpdatesEnab
   useEffect(() => {
     getVersion()
       .then((ver) => setInstalledVersion(ver || FALLBACK_APP_VERSION))
-      .catch(() => setInstalledVersion(FALLBACK_APP_VERSION));
+      .catch((cause) => {
+        logIgnored("app version", cause);
+        setInstalledVersion(FALLBACK_APP_VERSION);
+      });
   }, []);
 
   const checkForUpdate = useCallback(async (showFeedback = false) => {

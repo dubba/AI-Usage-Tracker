@@ -1,9 +1,11 @@
 import { bridgeApi } from "./api";
 import { storePageAccountOrder } from "./dashboard-page-state";
+import { requestDashboardResync, UI_EVENTS } from "./events";
+import { logIgnored } from "./log";
+import { getLatestSnapshot, onSnapshot } from "./snapshot-store";
+import { readJson, storageGet, STORAGE_KEYS, writeJson } from "./storage";
 import type { Account, AccountBucket, Provider } from "./types";
 
-const SIDEBAR_GROUP_ORDER_KEY = "ai-subscription-tracker:sidebar-group-order";
-const PROVIDER_ORDER_KEY = "ai-subscription-tracker:provider-order";
 const EDGE_SCROLL_ZONE_PX = 52;
 const EDGE_SCROLL_MAX_STEP_PX = 18;
 const DRAG_THRESHOLD_PX = 5;
@@ -11,8 +13,8 @@ const TOUCH_CANCEL_MOVE_PX = 8;
 const LONG_PRESS_DELAY_MS = 350;
 const REORDER_ANIMATION_MS = 150;
 
-export const DASHBOARD_PROVIDER_ORDER_EVENT = "ai-subscription-tracker:provider-order-changed";
-export const DASHBOARD_GROUP_ORDER_EVENT = "ai-subscription-tracker:group-order-changed";
+export const DASHBOARD_PROVIDER_ORDER_EVENT = UI_EVENTS.providerOrderChanged;
+export const DASHBOARD_GROUP_ORDER_EVENT = UI_EVENTS.groupOrderChanged;
 
 const KNOWN_PROVIDERS: Provider[] = [
   "openai",
@@ -91,7 +93,6 @@ function clearPressCursor(): void {
 let lastDropAt = 0;
 let latestAccounts: Account[] = [];
 let latestBuckets: AccountBucket[] = [];
-let snapshotSyncInFlight = false;
 let snapshotSyncTimer: number | null = null;
 let mutationGuard = false;
 
@@ -154,25 +155,13 @@ function groupIdFromRow(row: HTMLElement): string | null {
 }
 
 export function readSidebarGroupOrder(): string[] {
-  try {
-    const raw = window.localStorage.getItem(SIDEBAR_GROUP_ORDER_KEY);
-    const parsed = JSON.parse(raw ?? "[]");
-    if (Array.isArray(parsed)) {
-      return uniqueStrings(parsed.filter((item): item is string => typeof item === "string" && item.length > 0));
-    }
-  } catch {
-    // ignore
-  }
-  return [];
+  const saved = readJson<unknown[]>(STORAGE_KEYS.sidebarGroupOrder, [], Array.isArray);
+  return uniqueStrings(saved.filter((item): item is string => typeof item === "string" && item.length > 0));
 }
 
 export function storeSidebarGroupOrder(order: string[]): void {
   const deduped = uniqueStrings(order.filter((id) => id !== "all"));
-  try {
-    window.localStorage.setItem(SIDEBAR_GROUP_ORDER_KEY, JSON.stringify(deduped));
-  } catch {
-    // ignore
-  }
+  writeJson(STORAGE_KEYS.sidebarGroupOrder, deduped);
 
   // Also derive Provider[] order for backwards compatibility
   const derivedProviders: Provider[] = [];
@@ -189,61 +178,32 @@ export function storeSidebarGroupOrder(order: string[]): void {
       derivedProviders.push(p);
     }
   }
-  try {
-    window.localStorage.setItem(PROVIDER_ORDER_KEY, JSON.stringify(derivedProviders));
-  } catch {
-    // ignore
-  }
+  writeJson(STORAGE_KEYS.providerOrder, derivedProviders);
 
   window.dispatchEvent(new CustomEvent<string[]>(DASHBOARD_GROUP_ORDER_EVENT, { detail: deduped }));
   window.dispatchEvent(new CustomEvent<Provider[]>(DASHBOARD_PROVIDER_ORDER_EVENT, { detail: derivedProviders }));
 }
 
 export function readDashboardProviderOrder(): Provider[] {
+  const raw = storageGet(STORAGE_KEYS.providerOrder);
+  let parsed: unknown;
   try {
-    const raw = window.localStorage.getItem(PROVIDER_ORDER_KEY);
-    const parsed = JSON.parse(raw ?? "[]");
-    const saved = Array.isArray(parsed)
-      ? uniqueProviders(parsed.filter((value): value is Provider => KNOWN_PROVIDERS.includes(value as Provider)))
-      : [];
-    const canonical = [
-      ...saved,
-      ...KNOWN_PROVIDERS.filter((provider) => !saved.includes(provider)),
-    ];
-    if (raw != null) {
-      try {
-        if (raw !== JSON.stringify(saved) && raw !== JSON.stringify(canonical)) {
-          window.localStorage.setItem(PROVIDER_ORDER_KEY, JSON.stringify(uniqueProviders(canonical)));
-        } else if (raw !== JSON.stringify(uniqueProviders(JSON.parse(raw)))) {
-          window.localStorage.setItem(PROVIDER_ORDER_KEY, JSON.stringify(uniqueProviders(JSON.parse(raw) as Provider[]).filter((p): p is Provider => KNOWN_PROVIDERS.includes(p))));
-        }
-      } catch {
-        // Ignore storage write failures
-      }
-    }
-    return canonical;
+    parsed = JSON.parse(raw ?? "[]");
   } catch {
     return [...KNOWN_PROVIDERS];
   }
-}
-
-function storeProviderOrder(order: Provider[]): void {
-  const deduped = uniqueProviders(order.filter((p): p is Provider => KNOWN_PROVIDERS.includes(p)));
-  try {
-    window.localStorage.setItem(PROVIDER_ORDER_KEY, JSON.stringify(deduped));
-  } catch {
-    // Ordering remains usable for this session when WebView storage is unavailable.
-  }
-  window.dispatchEvent(new CustomEvent<Provider[]>(DASHBOARD_PROVIDER_ORDER_EVENT, { detail: deduped }));
-}
-
-function normalizeProviderOrder(available: Provider[]): Provider[] {
-  const saved = readDashboardProviderOrder();
-  const dedupedAvailable = uniqueProviders(available);
-  return [
-    ...saved.filter((provider) => dedupedAvailable.includes(provider)),
-    ...dedupedAvailable.filter((provider) => !saved.includes(provider)),
+  const saved = Array.isArray(parsed)
+    ? uniqueProviders(parsed.filter((value): value is Provider => KNOWN_PROVIDERS.includes(value as Provider)))
+    : [];
+  const canonical = [
+    ...saved,
+    ...KNOWN_PROVIDERS.filter((provider) => !saved.includes(provider)),
   ];
+  // Heal a stored list that has unknown, duplicated, or missing providers.
+  if (raw != null && raw !== JSON.stringify(saved) && raw !== JSON.stringify(canonical)) {
+    writeJson(STORAGE_KEYS.providerOrder, canonical);
+  }
+  return canonical;
 }
 
 function arraysEqual<T>(left: T[], right: T[]): boolean {
@@ -938,8 +898,9 @@ export async function persistGroupOrder(orderedGroupIds: string[]): Promise<void
     if (orderedAccountIds.length === accounts.length) {
       latestAccounts = await bridgeApi.reorderAccounts(orderedAccountIds);
     }
-    window.dispatchEvent(new Event("focus"));
-  } catch {
+    requestDashboardResync();
+  } catch (cause) {
+    logIgnored("dashboard-reorder persist", cause);
     scheduleSnapshotSync(0);
   }
 }
@@ -951,7 +912,7 @@ export async function persistVisibleAccountOrder(orderedVisibleIds: string[], gr
   try {
     if (pageId === "all") {
       latestAccounts = await bridgeApi.reorderAccounts(orderedVisibleIds);
-      window.dispatchEvent(new Event("focus"));
+      requestDashboardResync();
       return;
     }
 
@@ -971,33 +932,29 @@ export async function persistVisibleAccountOrder(orderedVisibleIds: string[], gr
       }
     }
 
-    window.dispatchEvent(new Event("focus"));
-  } catch {
+    requestDashboardResync();
+  } catch (cause) {
+    logIgnored("dashboard-reorder persist", cause);
     scheduleSnapshotSync(0);
   }
 }
 
-async function syncSnapshotAndMappings(): Promise<void> {
-  if (snapshotSyncInFlight || dragState) return;
-  snapshotSyncInFlight = true;
-  try {
-    const snapshot = await bridgeApi.snapshot();
-    latestAccounts = snapshot.accounts;
-    latestBuckets = snapshot.buckets ?? [];
-    enhanceProviderList();
-    enhanceAccountList();
-  } catch {
-    // Existing ordering remains usable while the local snapshot is temporarily unavailable.
-  } finally {
-    snapshotSyncInFlight = false;
-  }
+/** Re-reads the app's latest published snapshot (see snapshot-store) and re-applies ordering to the DOM. */
+function syncSnapshotAndMappings(): void {
+  if (dragState) return;
+  const snapshot = getLatestSnapshot();
+  if (!snapshot) return;
+  latestAccounts = snapshot.accounts;
+  latestBuckets = snapshot.buckets ?? [];
+  enhanceProviderList();
+  enhanceAccountList();
 }
 
 function scheduleSnapshotSync(delay = 100): void {
   if (snapshotSyncTimer != null) window.clearTimeout(snapshotSyncTimer);
   snapshotSyncTimer = window.setTimeout(() => {
     snapshotSyncTimer = null;
-    void syncSnapshotAndMappings();
+    syncSnapshotAndMappings();
   }, delay);
 }
 
@@ -1043,8 +1000,6 @@ export function installDashboardReorder(): void {
     }
   }, true);
 
-  window.addEventListener("focus", () => scheduleSnapshotSync(0));
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") scheduleSnapshotSync(0);
-  });
+  // The app publishes a snapshot after every load (including on focus and after a resync request).
+  onSnapshot(() => scheduleSnapshotSync(0));
 }

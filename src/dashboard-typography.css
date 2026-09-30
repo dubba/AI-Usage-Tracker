@@ -4,8 +4,6 @@
 
 /* Keep dashboard helper text at least as large as the page description. */
 .main-stage .button,
-.main-stage .summary-card small,
-.main-stage .summary-card span:not(.summary-icon),
 .main-stage .usage-label,
 .main-stage .window-pill,
 .main-stage .reset-label {

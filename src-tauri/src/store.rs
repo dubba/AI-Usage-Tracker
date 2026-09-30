@@ -22,6 +22,11 @@ pub const SECRET_CACHE_TTL: Duration = Duration::from_secs(300);
 struct CachedSecret {
     secret: ProviderSecret,
     cached_at: Instant,
+    /// True while this secret has not been durably written to the native
+    /// store. Refresh tokens rotate, so the previous stored value may already
+    /// be revoked: a dirty entry must outlive the cache TTL and be retried,
+    /// otherwise a failed write would strand the account.
+    dirty: bool,
 }
 
 impl Drop for CachedSecret {
@@ -34,6 +39,27 @@ static SECRET_CACHE: LazyLock<Mutex<HashMap<String, CachedSecret>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 static DATA_DIRS: LazyLock<RwLock<Vec<PathBuf>>> =
     LazyLock::new(|| RwLock::new(Vec::new()));
+
+const MAX_ACCOUNT_ID_LEN: usize = 64;
+
+/// Account ids become credential file names and keychain entry names, and
+/// arrive from pairing peers, so they must stay a plain token: no path
+/// separators, dots, or other characters. Locally generated ids are UUIDs.
+pub fn is_valid_account_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= MAX_ACCOUNT_ID_LEN
+        && id
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
+}
+
+fn check_account_id(id: &str) -> Result<(), StoreError> {
+    if is_valid_account_id(id) {
+        Ok(())
+    } else {
+        Err(StoreError::Invalid("invalid account id".into()))
+    }
+}
 
 pub fn set_data_dir(path: PathBuf) {
     let mut dirs = DATA_DIRS.write();
@@ -280,6 +306,7 @@ impl AccountStore {
         secret: &ProviderSecret,
     ) -> Result<Account, StoreError> {
         set_data_dir(self.data_dir.clone());
+        check_account_id(&account.id)?;
         let id = account.id.clone();
         // Snapshot the previous secret so a metadata-write failure restores
         // the prior generation instead of leaving the new secret orphaned
@@ -376,11 +403,16 @@ fn newer_usage(
 }
 
 pub fn save_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result<(), StoreError> {
-    if cached_secret(account_id).as_ref() == Some(secret) {
+    check_account_id(account_id)?;
+    if cached_secret_is_clean(account_id, secret) {
         return Ok(());
     }
+    // Cache the new secret before touching the native store. If the write
+    // fails, later loads still return this secret (not the stale, possibly
+    // revoked one) and the next save retries the write.
+    remember_secret_with_state(account_id, secret.clone(), true);
     persist_provider_secret(account_id, secret)?;
-    remember_secret(account_id, secret.clone());
+    mark_secret_clean(account_id, secret);
     Ok(())
 }
 
@@ -518,6 +550,7 @@ fn load_keychain_secret(account_id: &str) -> Result<ProviderSecret, StoreError> 
 
 #[cfg(any(target_os = "android", debug_assertions))]
 pub fn load_provider_secret(account_id: &str) -> Result<ProviderSecret, StoreError> {
+    check_account_id(account_id)?;
     if let Some(secret) = cached_secret(account_id) {
         return Ok(secret);
     }
@@ -538,6 +571,7 @@ pub fn load_provider_secret(account_id: &str) -> Result<ProviderSecret, StoreErr
 
 #[cfg(all(not(target_os = "android"), not(debug_assertions)))]
 pub fn load_provider_secret(account_id: &str) -> Result<ProviderSecret, StoreError> {
+    check_account_id(account_id)?;
     if let Some(secret) = cached_secret(account_id) {
         return Ok(secret);
     }
@@ -597,6 +631,12 @@ fn delete_keychain_secret(account_id: &str) -> Result<(), StoreError> {
 
 #[cfg(any(target_os = "android", debug_assertions))]
 pub fn delete_secret(account_id: &str) -> Result<(), StoreError> {
+    if !is_valid_account_id(account_id) {
+        // Nothing can have been stored under an id we refuse to write, and
+        // refusing here would make such an account impossible to remove.
+        forget_secret(account_id);
+        return Ok(());
+    }
     let filename = format!("{account_id}.json");
     let dirs = DATA_DIRS.read().clone();
     for base in dirs {
@@ -611,6 +651,10 @@ pub fn delete_secret(account_id: &str) -> Result<(), StoreError> {
 
 #[cfg(all(not(target_os = "android"), not(debug_assertions)))]
 pub fn delete_secret(account_id: &str) -> Result<(), StoreError> {
+    if !is_valid_account_id(account_id) {
+        forget_secret(account_id);
+        return Ok(());
+    }
     let res = delete_keychain_secret(account_id);
     forget_secret(account_id);
     res
@@ -679,22 +723,61 @@ pub fn rotate_bridge_token() -> Result<String, StoreError> {
     Ok(token)
 }
 
+fn prune_secret_cache(cache: &mut HashMap<String, CachedSecret>) {
+    cache.retain(|_, entry| entry.dirty || entry.cached_at.elapsed() < SECRET_CACHE_TTL);
+}
+
 fn cached_secret(account_id: &str) -> Option<ProviderSecret> {
     let mut cache = SECRET_CACHE.lock();
-    cache.retain(|_, entry| entry.cached_at.elapsed() < SECRET_CACHE_TTL);
+    prune_secret_cache(&mut cache);
     cache.get(account_id).map(|entry| entry.secret.clone())
 }
 
-fn remember_secret(account_id: &str, secret: ProviderSecret) {
+/// True only when `secret` is cached and already persisted, so a save can be
+/// skipped. A dirty entry always needs another write attempt.
+fn cached_secret_is_clean(account_id: &str, secret: &ProviderSecret) -> bool {
     let mut cache = SECRET_CACHE.lock();
-    cache.retain(|_, entry| entry.cached_at.elapsed() < SECRET_CACHE_TTL);
+    prune_secret_cache(&mut cache);
+    cache
+        .get(account_id)
+        .is_some_and(|entry| !entry.dirty && &entry.secret == secret)
+}
+
+fn remember_secret(account_id: &str, secret: ProviderSecret) {
+    // A clean read from the native store must never overwrite a newer secret
+    // that is still waiting to be written.
+    if SECRET_CACHE
+        .lock()
+        .get(account_id)
+        .is_some_and(|entry| entry.dirty)
+    {
+        return;
+    }
+    remember_secret_with_state(account_id, secret, false);
+}
+
+fn remember_secret_with_state(account_id: &str, secret: ProviderSecret, dirty: bool) {
+    let mut cache = SECRET_CACHE.lock();
+    prune_secret_cache(&mut cache);
     cache.insert(
         account_id.to_string(),
         CachedSecret {
             secret,
             cached_at: Instant::now(),
+            dirty,
         },
     );
+}
+
+fn mark_secret_clean(account_id: &str, secret: &ProviderSecret) {
+    let mut cache = SECRET_CACHE.lock();
+    if let Some(entry) = cache.get_mut(account_id) {
+        // Only clear the flag if no newer secret replaced ours meanwhile.
+        if &entry.secret == secret {
+            entry.dirty = false;
+            entry.cached_at = Instant::now();
+        }
+    }
 }
 
 fn forget_secret(account_id: &str) {
@@ -1269,6 +1352,97 @@ mod tests {
         assert!(store.list().is_empty());
         let reopened = AccountStore::load(dir.path().to_path_buf()).unwrap();
         assert!(reopened.list().is_empty());
+    }
+
+    fn sample_openai_secret(token: &str) -> ProviderSecret {
+        ProviderSecret::Openai(OAuthSecret {
+            access_token: format!("access-{token}"),
+            refresh_token: format!("refresh-{token}"),
+            id_token: None,
+            expires_at: 1,
+        })
+    }
+
+    #[test]
+    fn failed_write_keeps_rotated_secret_and_retries() {
+        let dir = tempdir().unwrap();
+        set_data_dir(dir.path().to_path_buf());
+        let id = "test-dirty-secret-retry";
+        forget_secret(id);
+        let original = sample_openai_secret("old");
+        save_provider_secret(id, &original).unwrap();
+
+        // Block the credentials directory with a file so the next write fails.
+        let credentials = dir.path().join("credentials");
+        let backup = dir.path().join("credentials-backup");
+        fs::rename(&credentials, &backup).unwrap();
+        fs::write(&credentials, b"blocked").unwrap();
+
+        let rotated = sample_openai_secret("new");
+        assert!(save_provider_secret(id, &rotated).is_err());
+        // Loads must return the rotated secret, not the stale stored one.
+        assert_eq!(load_provider_secret(id).unwrap(), rotated);
+        // A dirty entry never expires with the cache TTL.
+        SECRET_CACHE.lock().get_mut(id).unwrap().cached_at =
+            Instant::now() - SECRET_CACHE_TTL - Duration::from_secs(1);
+        assert_eq!(load_provider_secret(id).unwrap(), rotated);
+
+        // Restore storage: saving the same secret again must actually write.
+        fs::remove_file(&credentials).unwrap();
+        fs::rename(&backup, &credentials).unwrap();
+        save_provider_secret(id, &rotated).unwrap();
+        assert!(!SECRET_CACHE.lock().get(id).unwrap().dirty);
+        forget_secret(id);
+        assert_eq!(load_provider_secret(id).unwrap(), rotated);
+        delete_secret(id).unwrap();
+    }
+
+    #[test]
+    fn clean_read_does_not_overwrite_pending_secret() {
+        let id = "test-dirty-not-clobbered";
+        forget_secret(id);
+        let pending = sample_openai_secret("pending");
+        remember_secret_with_state(id, pending.clone(), true);
+        remember_secret(id, sample_openai_secret("stale"));
+        assert_eq!(cached_secret(id), Some(pending));
+        forget_secret(id);
+    }
+
+    #[test]
+    fn account_ids_must_be_plain_tokens() {
+        assert!(is_valid_account_id("4f0e8a3c-2b7d-4c1e-9a55-0d3f6b1e7c22"));
+        assert!(is_valid_account_id("account_1"));
+        for bad in [
+            "",
+            "../accounts",
+            "..",
+            "a/b",
+            "a\\b",
+            "name.json",
+            "with space",
+            "nul\0byte",
+            &"x".repeat(65),
+        ] {
+            assert!(!is_valid_account_id(bad), "{bad:?} should be rejected");
+        }
+    }
+
+    #[test]
+    fn invalid_account_ids_never_reach_credential_storage() {
+        let dir = tempdir().unwrap();
+        set_data_dir(dir.path().to_path_buf());
+        let secret = sample_openai_secret("traversal");
+        assert!(save_provider_secret("../accounts", &secret).is_err());
+        assert!(load_provider_secret("../accounts").is_err());
+        // Removal of an account with a bad id must not be blocked.
+        assert!(delete_secret("../accounts").is_ok());
+        assert!(!dir.path().join("accounts.json").exists());
+
+        let store = AccountStore::load(dir.path().to_path_buf()).unwrap();
+        assert!(store
+            .persist_account(sample_account("../accounts", "Evil"), &secret)
+            .is_err());
+        assert!(store.list().is_empty());
     }
 
     #[test]

@@ -188,7 +188,7 @@ export function AccountDashboardCard({
           }}
           aria-keyshortcuts={onMove ? "Alt+ArrowUp Alt+ArrowDown" : undefined}
           aria-describedby={onMove ? REORDER_HINT_ID : undefined}
-          data-tooltip={isCollapsed ? "Click to expand card" : "Click to shrink card"}
+          data-tooltip={isCollapsed ? "Expand card" : "Shrink card"}
           aria-label={isCollapsed ? `Expand ${displayAccountLabel(account)}` : `Shrink ${displayAccountLabel(account)} to divider`}
           aria-expanded={!isCollapsed}
         >

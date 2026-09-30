@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { logIgnored } from "../log";
 
 // Unsubscribing can fail if the listener is already gone (e.g. during teardown); that is never actionable.
 function safeUnlisten(unlisten: (() => void) | undefined): void {
@@ -30,7 +31,7 @@ export function useTauriEvent<T>(event: string, handler: (payload: T) => void): 
         if (cancelled) safeUnlisten(fn);
         else unlisten = fn;
       })
-      .catch(() => {});
+      .catch((cause) => logIgnored(`listen ${event}`, cause));
     return () => {
       cancelled = true;
       safeUnlisten(unlisten);

@@ -1,6 +1,8 @@
-const DESKTOP_STORAGE_KEY = "paseo-usage-bridge:sidebar-width";
-const MOBILE_STORAGE_KEY = "paseo-usage-bridge:sidebar-width-mobile";
-const MOBILE_OVERLAY_QUERY = "(max-width: 860px)";
+import { storageGet, storageSet, STORAGE_KEYS } from "./storage";
+
+const DESKTOP_STORAGE_KEY = STORAGE_KEYS.sidebarWidthDesktop;
+const MOBILE_STORAGE_KEY = STORAGE_KEYS.sidebarWidthMobile;
+export const MOBILE_OVERLAY_QUERY = "(max-width: 860px)";
 
 const FALLBACK_MIN_SIDEBAR_WIDTH = 240;
 const MAX_SIDEBAR_WIDTH = 720;
@@ -67,20 +69,13 @@ function maximumSidebarWidth(shell: HTMLElement, min: number): number {
 }
 
 function readSavedWidth(key: string): number | null {
-  try {
-    const value = Number.parseFloat(window.localStorage.getItem(key) ?? "");
-    return Number.isFinite(value) ? value : null;
-  } catch {
-    return null;
-  }
+  const value = Number.parseFloat(storageGet(key) ?? "");
+  return Number.isFinite(value) ? value : null;
 }
 
+// Resizing stays available even when WebView storage is unavailable; the width just isn't remembered.
 function saveWidth(key: string, width: number): void {
-  try {
-    window.localStorage.setItem(key, String(Math.round(width)));
-  } catch {
-    // Resizing remains available even when WebView storage is unavailable.
-  }
+  storageSet(key, String(Math.round(width)));
 }
 
 function storageKey(): string {

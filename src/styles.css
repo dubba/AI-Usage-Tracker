@@ -73,11 +73,6 @@ svg { width: 18px; height: 18px; }
 .button.full { width: 100%; }
 
 .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 11px; margin-bottom: 24px; }
-.summary-card { background: var(--panel); border: 1px solid var(--border); border-radius: 13px; display: flex; align-items: flex-start; }
-.summary-card div { display: grid; min-width: 0; }
-.summary-card small { color: var(--muted); }
-.summary-card strong { letter-spacing: -.03em; }
-.summary-card span:not(.summary-icon) { color: var(--muted-2); }
 .usage-block { display: grid; }
 .usage-heading { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
 .usage-heading > div { display: grid; }

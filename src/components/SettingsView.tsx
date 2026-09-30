@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { openSafeUrl } from "../utils/safeUrl";
 import {
   ExternalLinkIcon,
   MenuIcon,
@@ -36,6 +35,7 @@ export function SettingsView({
   onInstallUpdate,
   onToggleSidebar,
   onOpenPairing,
+  onOpenLink,
   bridge,
   bridgeBusy,
   onToggleBridge,
@@ -57,6 +57,7 @@ export function SettingsView({
   onInstallUpdate: () => void;
   onToggleSidebar?: () => void;
   onOpenPairing?: () => void;
+  onOpenLink: (url: string) => void;
   bridge: BridgeStatus | null;
   bridgeBusy: boolean;
   onToggleBridge: (enabled: boolean) => void;
@@ -214,13 +215,7 @@ export function SettingsView({
             className="button ghost settings-changelog-button"
             aria-label="View change log (opens in a new window)"
             data-tooltip="Opens in a new window"
-            onClick={(event) => {
-              const button = event.currentTarget;
-              button.setAttribute("data-tooltip", "Opens in a new window");
-              void openSafeUrl(CHANGELOG_URL).catch((cause) => {
-                button.setAttribute("data-tooltip", `Could not open changelog: ${String(cause)}`);
-              });
-            }}
+            onClick={() => onOpenLink(CHANGELOG_URL)}
           >
             <span>View</span>
             <ExternalLinkIcon />
@@ -271,6 +266,7 @@ export function SettingsView({
         releaseNotes={update?.body}
         onClose={() => setUpdateNotesOpen(false)}
         onInstallUpdate={onInstallUpdate}
+        onOpenLink={onOpenLink}
         updateBusy={updateBusy}
         updatePercent={updateProgress?.percent ?? null}
       />

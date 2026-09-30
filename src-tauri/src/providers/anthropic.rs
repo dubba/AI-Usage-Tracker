@@ -130,22 +130,32 @@ async fn call_usage(app: &AppState, secret: &OAuthSecret) -> Result<RawUsage, Pr
         ProviderError::Transient(format!("Unable to read the Anthropic usage response: {error}"))
     })?;
 
-    if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
-        return Err(ProviderError::Auth);
-    }
-    if status == StatusCode::TOO_MANY_REQUESTS {
-        return Err(ProviderError::Transient(match retry_after {
-            Some(value) => format!("Anthropic rate-limited the usage request. Retry after {value}."),
-            None => "Anthropic rate-limited the usage request.".into(),
-        }));
-    }
-    if !status.is_success() {
-        return Err(ProviderError::Transient(format!(
-            "Anthropic usage request returned {status}."
-        )));
+    if let Some(error) = usage_status_error(status, retry_after) {
+        return Err(error);
     }
     serde_json::from_str(&body).map_err(|_| {
         ProviderError::Transient("Anthropic returned incompatible usage data.".into())
+    })
+}
+
+/// Maps a non-success usage response to a provider error. Only 401 means the
+/// credentials are rejected. 403 is also what Anthropic's edge returns for
+/// bot challenges and regional blocks, so it must stay transient: treating it
+/// as an auth failure suspends the account until the user signs in again.
+fn usage_status_error(status: StatusCode, retry_after: Option<String>) -> Option<ProviderError> {
+    if status.is_success() {
+        return None;
+    }
+    Some(match status {
+        StatusCode::UNAUTHORIZED => ProviderError::Auth,
+        StatusCode::FORBIDDEN => ProviderError::Transient(
+            "Anthropic denied the usage request. Cached usage is being kept.".into(),
+        ),
+        StatusCode::TOO_MANY_REQUESTS => ProviderError::Transient(match retry_after {
+            Some(value) => format!("Anthropic rate-limited the usage request. Retry after {value}."),
+            None => "Anthropic rate-limited the usage request.".into(),
+        }),
+        _ => ProviderError::Transient(format!("Anthropic usage request returned {status}.")),
     })
 }
 
@@ -383,6 +393,29 @@ fn find_bool(value: &Value, key: &str) -> Option<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_401_marks_anthropic_credentials_as_rejected() {
+        assert!(matches!(
+            usage_status_error(StatusCode::UNAUTHORIZED, None),
+            Some(ProviderError::Auth)
+        ));
+        // Edge challenges and regional blocks must keep cached usage and keep
+        // the account refreshing instead of suspending it.
+        assert!(matches!(
+            usage_status_error(StatusCode::FORBIDDEN, None),
+            Some(ProviderError::Transient(_))
+        ));
+        assert!(matches!(
+            usage_status_error(StatusCode::TOO_MANY_REQUESTS, Some("30".into())),
+            Some(ProviderError::Transient(message)) if message.contains("Retry after 30")
+        ));
+        assert!(matches!(
+            usage_status_error(StatusCode::BAD_GATEWAY, None),
+            Some(ProviderError::Transient(_))
+        ));
+        assert!(usage_status_error(StatusCode::OK, None).is_none());
+    }
 
     #[test]
     fn normalizes_anthropic_windows() {

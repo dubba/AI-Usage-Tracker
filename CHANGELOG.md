@@ -1,6 +1,20 @@
 # Changelog
 
-## Unreleased (0 items)
+## Unreleased (7 items)
+
+### Improved (4)
+
+- On narrow screens the navigation menu now behaves like a proper dialog: Escape closes it, Tab stays inside it while it is open, focus returns to the menu button when it closes, and its buttons can no longer be reached while it is hidden.
+- The Action Needed card is now announced with its count and a short instruction for screen readers, and its hint no longer says "Click", which did not fit touch screens.
+- Dragging, reordering, and other layout changes no longer trigger extra background account lookups.
+- Account card 5h/7d pills now include the model name for every provider, for example `7d limit · GPT`, `7d limit · Claude`, and `7d limit · Grok`.
+
+### Fixed (3)
+
+- If a link cannot be opened (the change log or a link in the release notes), an error now appears instead of failing silently or only showing in a tooltip.
+- If your settings cannot be reloaded after linking devices, an error now appears instead of showing stale settings.
+- If the first refresh after adding an account fails, you are now told, rather than seeing the account with no data and no explanation.
+
 
 ## 0.3.9 - 2026-09-30 (19 items)
 

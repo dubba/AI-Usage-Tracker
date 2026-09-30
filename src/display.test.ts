@@ -5,6 +5,7 @@ import {
   displayAccountSubtitle,
   displayMetricLabel,
   displayPlan,
+  metricGroupLabel,
   windowPillClass,
 } from "./display";
 import type { Account, Provider, UsageWindow } from "./types";
@@ -58,6 +59,29 @@ describe("antigravityGroupLabel", () => {
     for (const label of ["Weekly", "5 hour", "Monthly", "Usage"]) {
       expect(antigravityGroupLabel(win({ label }))).toBeNull();
     }
+  });
+});
+
+describe("metricGroupLabel", () => {
+  it("keeps Antigravity model groups, collapsing Claude/GPT to Other", () => {
+    expect(metricGroupLabel(win({ label: "Gemini · 5h limit" }), "antigravity")).toBe("Gemini");
+    expect(metricGroupLabel(win({ label: "Claude and GPT models · Weekly" }), "antigravity")).toBe("Other");
+    expect(metricGroupLabel(win({ label: "Weekly" }), "antigravity")).toBeNull();
+  });
+
+  it("uses the model prefix when the window label has one", () => {
+    expect(metricGroupLabel(win({ label: "GPT · Weekly Limit" }), "openai")).toBe("GPT");
+    expect(metricGroupLabel(win({ label: "Code Review · Limit" }), "openai")).toBe("Code Review");
+    expect(metricGroupLabel(win({ label: "Gemini 3.1 Flash Lite · Daily" }), "google_ai_studio")).toBe(
+      "Gemini 3.1 Flash Lite",
+    );
+  });
+
+  it("falls back to the provider model name for plain 5h/7d labels", () => {
+    expect(metricGroupLabel(win({ label: "Weekly" }), "openai")).toBe("GPT");
+    expect(metricGroupLabel(win({ label: "Weekly" }), "grok")).toBe("Grok");
+    expect(metricGroupLabel(win({ label: "5 hour" }), "anthropic")).toBe("Claude");
+    expect(metricGroupLabel(win({ label: "Weekly" }), "opencode_go")).toBe("OpenCode");
   });
 });
 

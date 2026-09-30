@@ -34,7 +34,19 @@ export function cleanModelPrefix(prefix: string): string {
     .trim();
 }
 
-export function antigravityGroupLabel(window: UsageWindow): string | null {
+const GENERIC_WINDOW_LABELS = new Set([
+  "weekly",
+  "5 hour",
+  "5-hour",
+  "five hour",
+  "five_hour",
+  "monthly",
+  "rolling",
+  "session",
+  "usage",
+]);
+
+export function windowGroupPrefix(window: UsageWindow): string | null {
   const label = window.label.trim();
   const lower = label.toLowerCase();
   let prefix = "";
@@ -48,18 +60,50 @@ export function antigravityGroupLabel(window: UsageWindow): string | null {
     prefix = cleanModelPrefix(label.slice(0, -10).trim());
   } else {
     const cleaned = cleanModelPrefix(label);
-    if (
-      ["weekly", "5 hour", "5-hour", "five hour", "monthly", "rolling", "usage"].includes(cleaned.toLowerCase())
-    ) {
+    if (GENERIC_WINDOW_LABELS.has(cleaned.toLowerCase())) {
       return null;
     }
     prefix = cleaned;
   }
+  return prefix || null;
+}
+
+export function antigravityGroupLabel(window: UsageWindow): string | null {
+  const prefix = windowGroupPrefix(window);
   if (!prefix) return null;
   if (/claude|gpt/i.test(prefix)) {
     return "Other";
   }
   return prefix;
+}
+
+function providerDefaultGroup(window: UsageWindow, provider?: Provider | string): string | null {
+  switch (provider) {
+    case "openai":
+      if (window.id.toLowerCase().includes("code_review") || window.label.toLowerCase().includes("code review")) {
+        return "Code Review";
+      }
+      return "GPT";
+    case "anthropic":
+      return "Claude";
+    case "grok":
+      return "Grok";
+    case "google_ai_studio":
+      return "Gemini";
+    case "opencode_go":
+      return "OpenCode";
+    case "cursor":
+      return "Cursor";
+    default:
+      return null;
+  }
+}
+
+export function metricGroupLabel(window: UsageWindow, provider?: Provider | string): string | null {
+  if (provider === "antigravity") {
+    return antigravityGroupLabel(window);
+  }
+  return windowGroupPrefix(window) ?? providerDefaultGroup(window, provider);
 }
 
 export function displayMetricLabel(window: UsageWindow, provider?: Provider | string): string {

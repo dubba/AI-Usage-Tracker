@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { bridgeApi } from "../api";
+import { logIgnored } from "../log";
 import type { AppSettings } from "../types";
 
 type ReportError = (source: string, cause: unknown, context?: string) => void;
@@ -13,18 +14,27 @@ export function useAppSettings({ reportError, clearError }: { reportError: Repor
 
   useEffect(() => {
     bridgeApi.getAppSettings().then(setAppSettings).catch((cause) => reportError("settings", cause, "Couldn't load app settings"));
-    bridgeApi.getAutostart().then(setAutostart).catch(() => setAutostart(false));
+    bridgeApi.getAutostart().then(setAutostart).catch((cause) => {
+      // Unknown state; show it as off rather than blocking the settings screen.
+      logIgnored("autostart status", cause);
+      setAutostart(false);
+    });
   }, [reportError]);
 
   /** Re-reads settings that may have been imported via device pairing. */
   const reloadFromBackend = useCallback(async () => {
     try {
       setAppSettings(await bridgeApi.getAppSettings());
-    } catch {}
+      clearError("settings");
+    } catch (cause) {
+      reportError("settings", cause, "Couldn't reload settings after linking devices");
+    }
     try {
       setAutostart(await bridgeApi.getAutostart());
-    } catch {}
-  }, []);
+    } catch (cause) {
+      logIgnored("autostart status", cause);
+    }
+  }, [clearError, reportError]);
 
   const saveAccountRefreshMinutes = useCallback(async (minutes: number) => {
     setSettingsBusy(true);

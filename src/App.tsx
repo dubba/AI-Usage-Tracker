@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { bridgeApi } from "./api";
+import { openSafeUrl } from "./utils/safeUrl";
 import { useBusyKeys } from "./busy";
 import { useAppErrors } from "./errors";
 import { resumeLoginAttemptWatch, subscribeLoginStatus } from "./login-status";
@@ -33,6 +34,7 @@ import { useAppSettings } from "./hooks/useAppSettings";
 import { useAppUpdate } from "./hooks/useAppUpdate";
 import { useDashboardData } from "./hooks/useDashboardData";
 import { usePairingEvents } from "./hooks/usePairingEvents";
+import { useSidebarOverlay } from "./hooks/useSidebarOverlay";
 import { useUsageAlerts } from "./hooks/useUsageAlerts";
 import {
   CloseIcon,
@@ -47,7 +49,8 @@ import {
   type SidebarGroup,
 } from "./sidebar-groups";
 import { moveAnnouncement, moveById } from "./reorder-utils";
-import { accountNeedsAttention, googleAiStudioHasQuotaWindows, nextResetSummary } from "./usage-logic";
+import { requestDashboardResync } from "./events";
+import { accountNeedsAttention, displayAccountLabel, googleAiStudioHasQuotaWindows, nextResetSummary } from "./usage-logic";
 import type { Account, AccountBucket, Provider } from "./types";
 
 export type { SidebarGroup };
@@ -76,6 +79,11 @@ export default function App() {
   const [loginProvider, setLoginProvider] = useState<Provider | undefined>(undefined);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [groupAnnouncement, setGroupAnnouncement] = useState("");
+  const sidebarRef = useRef<HTMLElement>(null);
+  const { overlay: sidebarIsOverlay } = useSidebarOverlay(sidebarRef, sidebarOpen, () => setSidebarOpen(false));
+  // As an off-canvas overlay the sidebar is a modal dialog while open and unreachable while closed.
+  const sidebarModal = sidebarIsOverlay && sidebarOpen;
+  const sidebarHidden = sidebarIsOverlay && !sidebarOpen;
 
   const busyKeys = useBusyKeys();
   const { busy } = busyKeys;
@@ -144,11 +152,17 @@ export default function App() {
     setBucketModalOpen(true);
   }, []);
 
+  const openLink = useCallback((url: string) => {
+    void openSafeUrl(url)
+      .then(() => clearError("open-link"))
+      .catch((cause) => reportError("open-link", cause, "Couldn't open the link"));
+  }, [clearError, reportError]);
+
   const handlePairingCompleted = useCallback(async () => {
     await load();
     await reloadFromBackend();
-    // Force dashboard reorder to re-apply any transferred UI state
-    window.dispatchEvent(new Event("focus"));
+    // Have the dashboard re-apply any transferred UI state
+    requestDashboardResync();
   }, [load, reloadFromBackend]);
 
   useEffect(() => {
@@ -254,6 +268,7 @@ export default function App() {
           onInstallUpdate={() => void installUpdate()}
           onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
           onOpenPairing={() => setPairingOpen(true)}
+          onOpenLink={openLink}
           bridge={snapshot?.bridge ?? null}
           bridgeBusy={busy.has("toggle-api-integration") || busy.has("open-api-integration")}
           onToggleBridge={(enabled) => void setApiIntegrationEnabled(enabled)}
@@ -292,7 +307,14 @@ export default function App() {
         onClick={() => setSidebarOpen(false)}
         aria-hidden="true"
       />
-      <aside className={`sidebar ${sidebarOpen ? "mobile-open" : ""}`}>
+      <aside
+        ref={sidebarRef}
+        className={`sidebar ${sidebarOpen ? "mobile-open" : ""}`}
+        inert={sidebarHidden}
+        role={sidebarModal ? "dialog" : undefined}
+        aria-modal={sidebarModal ? true : undefined}
+        aria-label={sidebarModal ? "Navigation menu" : undefined}
+      >
         <div className="sidebar-mobile-header">
           <button
             type="button"
@@ -375,7 +397,7 @@ export default function App() {
         </button>
       </aside>
 
-      <main className="main-stage">
+      <main className="main-stage" inert={sidebarModal}>
         {snapshot ? renderContent() : (
           <div className="loading-screen" aria-busy="true" aria-live="polite">
             {loadError ? (
@@ -409,8 +431,9 @@ export default function App() {
           let nextAccount = account;
           try {
             nextAccount = await bridgeApi.refreshAccount(account.id);
-          } catch {
-            /* The account remains available with cached state. */
+          } catch (cause) {
+            // The account is saved and stays available with cached state; say that the first refresh failed.
+            reportError(`refresh:${account.id}`, cause, `Added ${displayAccountLabel(account)}, but couldn't refresh it yet`);
           }
           await load();
           if (nextAccount.provider === "google_ai_studio" && !googleAiStudioHasQuotaWindows(nextAccount)) {

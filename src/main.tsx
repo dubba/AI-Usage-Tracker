@@ -5,6 +5,7 @@ import App from "./App";
 import { ApiIntegrationWindow } from "./ApiIntegrationWindow";
 import { installDashboardReorder } from "./dashboard-reorder";
 import { installSidebarResize } from "./sidebar-resize";
+import { LEGACY_STORAGE, storageKeys, storageRemove } from "./storage";
 import { installUiRefinements } from "./ui-refinements";
 import "./styles.css";
 import "./updater.css";
@@ -38,14 +39,8 @@ try {
 document.documentElement.classList.toggle("api-integration-window-root", isApiIntegrationWindow);
 
 // One-time removal of legacy localStorage account emails, now stored in the backend.
-try {
-  window.localStorage.removeItem("ai-subscription-tracker:opencode-account-emails");
-  for (const key of Object.keys(window.localStorage)) {
-    if (key.startsWith("paseo-usage-bridge:account-email:")) window.localStorage.removeItem(key);
-  }
-} catch {
-  // WebView storage may be unavailable; nothing critical depends on the cleanup.
-}
+storageRemove(LEGACY_STORAGE.opencodeAccountEmails);
+for (const key of storageKeys(LEGACY_STORAGE.accountEmailPrefix)) storageRemove(key);
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

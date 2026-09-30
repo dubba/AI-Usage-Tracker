@@ -240,8 +240,15 @@ pub async fn import_sync_payload_with_replace(
     // the sender are not applied here, so existing accounts on this device
     // stay until the user removes them.
 
-    for entry in payload.accounts {
+    for mut entry in payload.accounts {
         let sender_id = entry.account.id.clone();
+        // The sender's id becomes a credential file/keychain name here, so an
+        // id that is not a plain token (e.g. `../accounts`) is never used
+        // as-is. Mint a local id; `id_map` still maps the sender's id for
+        // buckets and ordering.
+        if !crate::store::is_valid_account_id(&entry.account.id) {
+            entry.account.id = uuid::Uuid::new_v4().to_string();
+        }
 
         // Enforce per-secret serialized size limit
         let secret_bytes = serde_json::to_vec(&entry.secret)

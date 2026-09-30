@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { bridgeApi } from "../api";
+import { withTimeout } from "../async-utils";
 import { isReordering } from "../dashboard-reorder";
+import { onDashboardResync } from "../events";
+import { publishSnapshot } from "../snapshot-store";
 import { accountsNeedScheduledRefresh } from "../usage-logic";
 import type { DashboardSnapshot } from "../types";
 
@@ -29,25 +32,22 @@ export function useDashboardData({
   const refreshDueInFlightRef = useRef(false);
   const wasHiddenRef = useRef(false);
 
-  const load = useCallback(async () => {
-    if (isReordering()) return;
-    let timeout: number | undefined;
+  /** The only place the snapshot is fetched. Resolves to the snapshot, or null if it could not be loaded. */
+  const load = useCallback(async (): Promise<DashboardSnapshot | null> => {
+    if (isReordering()) return null;
     try {
-      const next = await Promise.race([
+      const next = await withTimeout(
         bridgeApi.snapshot(),
-        new Promise<DashboardSnapshot>((_, reject) => {
-          timeout = window.setTimeout(
-            () => reject(new Error("Timed out loading accounts from the app backend.")),
-            LOAD_TIMEOUT_MS,
-          );
-        }),
-      ]);
+        LOAD_TIMEOUT_MS,
+        "Timed out loading accounts from the app backend.",
+      );
       setSnapshot(next);
+      publishSnapshot(next);
       clearError("load");
+      return next;
     } catch (cause) {
       reportError("load", cause);
-    } finally {
-      window.clearTimeout(timeout);
+      return null;
     }
   }, [clearError, reportError]);
 
@@ -67,8 +67,8 @@ export function useDashboardData({
     if (refreshDueInFlightRef.current) return;
     refreshDueInFlightRef.current = true;
     try {
-      const latest = await bridgeApi.snapshot();
-      setSnapshot(latest);
+      const latest = await load();
+      if (!latest) return;
       const minutes = refreshMinutesRef.current ?? DEFAULT_ACCOUNT_REFRESH_MINUTES;
       if (!accountsNeedScheduledRefresh(latest.accounts, minutes)) return;
       await bridgeApi.refreshAll();
@@ -95,6 +95,9 @@ export function useDashboardData({
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [refreshAccountsIfDue]);
+
+  // Something behind the scenes changed (reorder applied, paired-device layout arrived) or the window regained focus.
+  useEffect(() => onDashboardResync(() => void load()), [load]);
 
   useEffect(() => {
     const tick = window.setInterval(() => {

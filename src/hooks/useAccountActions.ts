@@ -14,7 +14,7 @@ export function useAccountActions({
   reportError,
   clearError,
 }: {
-  load: () => Promise<void>;
+  load: () => Promise<unknown>;
   setSnapshot: (update: (current: DashboardSnapshot | null) => DashboardSnapshot | null) => void;
   busy: BusyTracker;
   reportError: ReportError;
