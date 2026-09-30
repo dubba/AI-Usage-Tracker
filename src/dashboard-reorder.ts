@@ -12,6 +12,17 @@ const DRAG_THRESHOLD_PX = 5;
 const TOUCH_CANCEL_MOVE_PX = 8;
 const LONG_PRESS_DELAY_MS = 350;
 const REORDER_ANIMATION_MS = 150;
+// A card taller than this is dragged as a compact preview of its top. A card with many model rows
+// can be taller than the screen; dragging a copy that size hides the list and makes the drop
+// position depend on where the middle of that copy is, not where the finger is.
+const MAX_FLOAT_HEIGHT_PX = 200;
+const CAPPED_FLOAT_GRAB_OFFSET_PX = 48;
+// After a touch is cancelled, a drag with no further movement for this long is finished. A cancel
+// right after the drag starts can be a synthetic one (the touch carries on and the next move
+// cancels this), but a real cancel is never followed by touchend, so the drag must not wait forever.
+const EARLY_CANCEL_GRACE_MS = 1200;
+// A new gesture starting this long after a drag began means that drag ended without us seeing it.
+const STALE_DRAG_MS = 300;
 
 type DragDescriptor =
   | { kind: "group"; groupId: string; provider: Provider; source: HTMLElement }
@@ -35,8 +46,9 @@ type ActiveDrag = {
   startY: number;
   lastClientX: number;
   lastClientY: number;
-  grabOffsetY: number;
-  sourceHeight: number;
+  /** Where the pointer sits inside the floating copy, measured from its top edge. */
+  floatGrabY: number;
+  floatHeight: number;
   descriptor: DragDescriptor;
   container: HTMLElement;
   scrollContainer: HTMLElement;
@@ -192,7 +204,7 @@ function placeholderIndex(drag: ActiveDrag, elements: HTMLElement[]): number {
 }
 
 function floatingCenterY(drag: ActiveDrag): number {
-  return drag.lastClientY - drag.grabOffsetY + drag.sourceHeight / 2;
+  return drag.lastClientY - drag.floatGrabY + drag.floatHeight / 2;
 }
 
 function updatePlaceholderFromPointer(drag: ActiveDrag): void {
@@ -250,7 +262,7 @@ function accountScrollContainer(source: HTMLElement): HTMLElement {
     ?? document.documentElement;
 }
 
-function applyFloatingStyles(element: HTMLElement, bounds: DOMRect): void {
+function applyFloatingStyles(element: HTMLElement, bounds: DOMRect, clip: boolean): void {
   Object.assign(element.style, {
     position: "fixed",
     left: `${bounds.left}px`,
@@ -266,9 +278,15 @@ function applyFloatingStyles(element: HTMLElement, bounds: DOMRect): void {
   element.style.setProperty("width", `${bounds.width}px`, "important");
   element.style.setProperty("max-width", `${bounds.width}px`, "important");
   element.style.setProperty("height", `${bounds.height}px`, "important");
+  if (clip) {
+    // Cards carry min-height: max-content, which would otherwise win over the shorter height.
+    element.style.setProperty("min-height", "0", "important");
+    element.style.setProperty("max-height", `${bounds.height}px`, "important");
+    element.style.setProperty("overflow", "hidden", "important");
+  }
 }
 
-function createFloatClone(source: HTMLElement, bounds: DOMRect): HTMLElement {
+function createFloatClone(source: HTMLElement, bounds: DOMRect, clip: boolean): HTMLElement {
   const float = source.cloneNode(true) as HTMLElement;
   float.classList.add("is-dragging", "dashboard-reorder-float");
   float.removeAttribute("data-reorder-enabled");
@@ -279,7 +297,7 @@ function createFloatClone(source: HTMLElement, bounds: DOMRect): HTMLElement {
   for (const menu of float.querySelectorAll(".mobile-dropdown-menu")) {
     menu.remove();
   }
-  applyFloatingStyles(float, bounds);
+  applyFloatingStyles(float, bounds, clip);
   document.body.appendChild(float);
   return float;
 }
@@ -296,9 +314,16 @@ function beginVisualDrag(clientX: number, clientY: number, candidate: PointerCan
   const placeholderClass = descriptor.kind === "group" ? "provider-reorder-placeholder" : "account-reorder-placeholder";
   placeholder.className = `dashboard-reorder-placeholder ${placeholderClass}`;
   placeholder.setAttribute("aria-hidden", "true");
-  placeholder.style.height = `${bounds.height}px`;
 
-  const float = createFloatClone(descriptor.source, bounds);
+  // Only cards are shortened; sidebar rows are always small. The gap left in the list is
+  // shortened too, so the other cards stay on screen while a tall card is dragged.
+  const capped = descriptor.kind === "account" && bounds.height > MAX_FLOAT_HEIGHT_PX;
+  const floatHeight = capped ? MAX_FLOAT_HEIGHT_PX : bounds.height;
+  placeholder.style.height = `${floatHeight}px`;
+  const grabOffsetY = candidate.startY - bounds.top;
+  const floatGrabY = capped ? Math.min(grabOffsetY, CAPPED_FLOAT_GRAB_OFFSET_PX) : grabOffsetY;
+  const floatBounds = new DOMRect(bounds.left, candidate.startY - floatGrabY, bounds.width, floatHeight);
+  const float = createFloatClone(descriptor.source, floatBounds, capped);
 
   const active: ActiveDrag = {
     pointerId: candidate.pointerId,
@@ -306,8 +331,8 @@ function beginVisualDrag(clientX: number, clientY: number, candidate: PointerCan
     startY: candidate.startY,
     lastClientX: clientX,
     lastClientY: clientY,
-    grabOffsetY: candidate.startY - bounds.top,
-    sourceHeight: bounds.height,
+    floatGrabY,
+    floatHeight,
     descriptor,
     container,
     scrollContainer,
@@ -356,7 +381,7 @@ function noteDragMove(): void {
   clearAbandonedDragTimer();
 }
 
-function scheduleAbandonedDragFinish(): void {
+function scheduleAbandonedDragFinish(delayMs = 180): void {
   const generation = ++abandonDragGeneration;
   clearAbandonedDragTimer();
   abandonDragTimer = window.setTimeout(() => {
@@ -367,7 +392,7 @@ function scheduleAbandonedDragFinish(): void {
       return;
     }
     finishDrag(true);
-  }, 180);
+  }, delayMs);
 }
 
 function updateFloatingSource(drag: ActiveDrag): void {
@@ -391,10 +416,11 @@ function settleVisualDrag(drag: ActiveDrag, commit: boolean): void {
     drag.float.remove();
   }
 
-  if (commit) {
-    drag.container.insertBefore(drag.source, drag.placeholder);
-  } else if (drag.originalNextSibling && drag.originalNextSibling.parentNode === drag.container) {
-    drag.container.insertBefore(drag.source, drag.originalNextSibling);
+  // Put the card back. The anchor can be gone if the list re-rendered mid-drag, in which case the
+  // card goes to the end rather than throwing and leaving it hidden.
+  const anchor = commit ? drag.placeholder : drag.originalNextSibling;
+  if (anchor && anchor.parentNode === drag.container) {
+    drag.container.insertBefore(drag.source, anchor);
   } else {
     drag.container.appendChild(drag.source);
   }
@@ -426,6 +452,30 @@ function committedOrder(drag: ActiveDrag): string[] {
   return visibleAccountIds(drag.container);
 }
 
+/**
+ * Removes anything a drag leaves behind: the hidden-origin state on a card, the
+ * floating copy and the placeholder. A card must never stay hidden once no drag
+ * is running, whatever ended the gesture (React can also overwrite the class
+ * that hides it mid-drag, which leaves only the inline style).
+ */
+function clearDragArtifacts(): void {
+  if (dragState) return;
+  for (const element of document.querySelectorAll<HTMLElement>(
+    ".is-reorder-origin, .provider-account-card[style*='display'], .provider-summary-row[style*='display']",
+  )) {
+    element.classList.remove("is-reorder-origin", "is-dragging");
+    if (element.style.getPropertyValue("display") === "none") element.style.removeProperty("display");
+    if (!element.getAttribute("style")) element.removeAttribute("style");
+  }
+  for (const node of document.querySelectorAll(".dashboard-reorder-float, .dashboard-reorder-placeholder")) {
+    node.remove();
+  }
+  for (const container of document.querySelectorAll(".reorder-previewing")) {
+    container.classList.remove("reorder-previewing");
+  }
+  document.documentElement.classList.remove("dashboard-reordering");
+}
+
 export function isReordering(): boolean {
   return dragState != null || Date.now() - lastDropAt < 600;
 }
@@ -437,10 +487,16 @@ function finishDrag(commit: boolean): void {
   pointerCandidate = null;
   if (!drag) return;
 
-  settleVisualDrag(drag, commit);
-  const nextOrder = commit ? committedOrder(drag) : drag.originalOrder;
+  // Clear the drag state first so a failure while putting the card back can never leave
+  // the gesture half-finished (source hidden, drag still "active").
   dragState = null;
   lastDropAt = Date.now();
+  try {
+    settleVisualDrag(drag, commit);
+  } finally {
+    clearDragArtifacts();
+  }
+  const nextOrder = commit ? committedOrder(drag) : drag.originalOrder;
 
   if (!commit || arraysEqual(drag.originalOrder, nextOrder)) return;
 
@@ -453,7 +509,13 @@ function finishDrag(commit: boolean): void {
 }
 
 function beginPointerCandidate(event: PointerEvent): void {
-  if (event.button !== 0 || event.isPrimary === false || dragState) return;
+  if (event.button !== 0 || event.isPrimary === false) return;
+  // Only one primary pointer can be down at a time, so a new one means the previous drag already
+  // ended and its end was never delivered (touch cancelled, release outside the window). Finish
+  // it first, otherwise it blocks every later gesture and leaves its card hidden.
+  if (dragState && Date.now() - dragStartedAt > STALE_DRAG_MS) finishDrag(true);
+  if (dragState) return;
+  clearDragArtifacts();
   const target = event.target instanceof Element ? event.target : null;
   if (!target) return;
   const drag = dragFromPointerTarget(target);
@@ -500,6 +562,19 @@ function beginPointerCandidate(event: PointerEvent): void {
 
 function movePointerCandidate(event: PointerEvent): void {
   if (!pointerCandidate || pointerCandidate.pointerId !== event.pointerId) return;
+
+  // A mouse move with no button held means the button was released where the page never saw
+  // pointerup (outside the window, over a native region). Drop the card where it is.
+  if (event.pointerType === "mouse" && event.buttons === 0) {
+    if (dragState) {
+      finishDrag(true);
+    } else {
+      if (pointerCandidate.longPressTimer != null) window.clearTimeout(pointerCandidate.longPressTimer);
+      pointerCandidate = null;
+      clearPressCursor();
+    }
+    return;
+  }
 
   pointerCandidate.currentX = event.clientX;
   pointerCandidate.currentY = event.clientY;
@@ -645,10 +720,10 @@ function onTouchCancel(event: TouchEvent): void {
   if (dragState) {
     if (event.touches.length > 0) return;
     dragTouchActive = false;
-    // Adding touch-action:none when the drag starts can emit a synthetic
-    // cancel; ignore that so a long-press does not immediately drop the card.
-    if (Date.now() - dragStartedAt < 250) return;
-    scheduleAbandonedDragFinish();
+    // Adding touch-action:none when the drag starts can emit a synthetic cancel, so a cancel this
+    // early gets a longer grace period (any further movement cancels the timer). Ignoring it
+    // outright left the drag stuck with the card hidden whenever the cancel was real.
+    scheduleAbandonedDragFinish(Date.now() - dragStartedAt < 250 ? EARLY_CANCEL_GRACE_MS : 180);
     return;
   }
   pointerCandidate = null;
