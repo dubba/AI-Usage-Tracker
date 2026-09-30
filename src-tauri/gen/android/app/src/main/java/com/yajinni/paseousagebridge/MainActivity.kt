@@ -1,14 +1,19 @@
 package com.yajinni.paseousagebridge
 
 import android.Manifest
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Looper
 import android.provider.Settings
 import android.os.SystemClock
 import android.webkit.CookieManager
@@ -23,6 +28,8 @@ import androidx.core.view.WindowInsetsCompat
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 class MainActivity : TauriActivity() {
   companion object {
@@ -43,12 +50,63 @@ class MainActivity : TauriActivity() {
     external fun setPendingPairingUri(uri: String)
 
     private const val UPDATE_CHANNEL = "updates"
+    private const val UPDATE_AVAILABLE_CHANNEL = "update-available"
     private const val UPDATE_NOTIFICATION_ID = 47001
     private const val UPDATE_AVAILABLE_NOTIFICATION_ID = 47002
+    private const val NOTIFICATION_PERMISSION_REQUEST = 1002
+
+    private val installLock = Any()
+    @Volatile
+    private var installCallback: ((Int, String?) -> Unit)? = null
+    private const val UPDATE_PREFS = "app_update"
+    private const val PENDING_APK_KEY = "pending_apk"
+
+    /** Called from [ApkInstallReceiver] on the main thread with the session result. */
+    fun onInstallSessionStatus(context: Context, status: Int, confirm: Intent?, message: String?) {
+      var effectiveStatus = status
+      var effectiveMessage = message
+      if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+        try {
+          if (confirm == null) {
+            throw IllegalStateException("Android did not provide an install prompt.")
+          }
+          confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+          context.startActivity(confirm)
+        } catch (error: Exception) {
+          android.util.Log.e(TAG, "Installer prompt failed: ${error.message}")
+          effectiveStatus = PackageInstaller.STATUS_FAILURE
+          effectiveMessage = error.message
+        }
+      }
+      val callback = synchronized(installLock) {
+        installCallback.also { installCallback = null }
+      }
+      if (callback != null) {
+        callback(effectiveStatus, effectiveMessage)
+      } else if (
+        effectiveStatus != PackageInstaller.STATUS_SUCCESS &&
+        effectiveStatus != PackageInstaller.STATUS_PENDING_USER_ACTION &&
+        effectiveStatus != PackageInstaller.STATUS_FAILURE_ABORTED
+      ) {
+        android.util.Log.e(TAG, "Install failed with no waiter: $effectiveStatus $effectiveMessage")
+        notifyInstallFailure?.invoke(installFailureText(effectiveMessage))
+      }
+    }
+
+    @Volatile
+    private var notifyInstallFailure: ((String) -> Unit)? = null
+
+    private fun installFailureText(message: String?): String =
+      message?.takeIf { it.isNotBlank() } ?: "Android could not install the update."
   }
+
+  /** Failure reported by Android for an install session (as opposed to a session setup error). */
+  private class InstallStatusException(message: String) : IllegalStateException(message)
 
   private var activeWebView: WebView? = null
   @Volatile private var lastUpdateNotifyAt: Long = 0L
+  @Volatile private var pendingUpdateNotice: String? = null
+  private var notificationPromptedFor: String? = null
   private var safeTopDp: Int = 0
   private var safeBottomDp: Int = 0
   private var safeImeDp: Int = 0
@@ -118,6 +176,28 @@ class MainActivity : TauriActivity() {
     handlePairingIntent(intent)
   }
 
+  override fun onResume() {
+    super.onResume()
+    notifyInstallFailure = { text -> showUpdateFailure(text) }
+    resumePendingInstall()
+  }
+
+  override fun onDestroy() {
+    notifyInstallFailure = null
+    super.onDestroy()
+  }
+
+  override fun onRequestPermissionsResult(
+    requestCode: Int,
+    permissions: Array<out String>,
+    grantResults: IntArray
+  ) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    if (requestCode == NOTIFICATION_PERMISSION_REQUEST && notificationsAllowed()) {
+      pendingUpdateNotice?.let { postUpdateAvailableNotification(it) }
+    }
+  }
+
   override fun onCreate(savedInstanceState: Bundle?) {
     window.decorView.setBackgroundColor(Color.BLACK)
     window.setBackgroundDrawableResource(android.R.color.black)
@@ -181,21 +261,32 @@ class MainActivity : TauriActivity() {
         lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
       }
       notificationManager?.createNotificationChannel(defaultChannel)
-      val updateChannel = android.app.NotificationChannel(
+      val updateChannel = NotificationChannel(
         UPDATE_CHANNEL,
         "App updates",
-        android.app.NotificationManager.IMPORTANCE_LOW
+        NotificationManager.IMPORTANCE_LOW
       ).apply {
         description = "Download and install progress for app updates"
         enableVibration(false)
         setShowBadge(false)
       }
       notificationManager?.createNotificationChannel(updateChannel)
+      val availableChannel = NotificationChannel(
+        UPDATE_AVAILABLE_CHANNEL,
+        "Update available",
+        NotificationManager.IMPORTANCE_HIGH
+      ).apply {
+        description = "Alerts when a new version is ready to download"
+        enableVibration(true)
+        setShowBadge(true)
+        lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+      }
+      notificationManager?.createNotificationChannel(availableChannel)
     }
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
       if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-        requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1002)
+        requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), NOTIFICATION_PERMISSION_REQUEST)
       }
     }
 
@@ -291,23 +382,95 @@ class MainActivity : TauriActivity() {
     }
   }
 
-  fun showUpdateAvailable(version: String) {
-    val text = "Version $version is ready to download."
-    try {
-      val notification = NotificationCompat.Builder(this, "default")
-        .setSmallIcon(applicationInfo.icon)
-        .setContentTitle("AI Usage Tracker update available")
-        .setContentText(text)
-        .setStyle(NotificationCompat.BigTextStyle().bigText(text))
-        .setPriority(NotificationCompat.PRIORITY_HIGH)
-        .setAutoCancel(true)
-        .setContentIntent(appLaunchPendingIntent())
-        .build()
-      val manager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
-      manager.notify(UPDATE_AVAILABLE_NOTIFICATION_ID, notification)
+  fun showUpdateAvailable(version: String): String {
+    pendingUpdateNotice = version
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+      checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+    ) {
+      if (notificationPromptedFor != version) {
+        notificationPromptedFor = version
+        runOnUiThread {
+          requestPermissions(
+            arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+            NOTIFICATION_PERMISSION_REQUEST
+          )
+        }
+      }
+      return "permission"
+    }
+    if (!notificationsAllowed()) {
+      return "disabled"
+    }
+    return try {
+      postUpdateAvailableNotification(version)
+      "shown"
     } catch (e: Throwable) {
       android.util.Log.w(TAG, "showUpdateAvailable failed: ${e.message}")
-      throw e
+      "failed"
+    }
+  }
+
+  private fun notificationsAllowed(): Boolean {
+    val manager = getSystemService(NotificationManager::class.java) ?: return false
+    if (!manager.areNotificationsEnabled()) {
+      return false
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      return checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+    }
+    return true
+  }
+
+  private fun postUpdateAvailableNotification(version: String) {
+    ensureUpdateChannels()
+    val text = "Version $version is ready to download."
+    val notification = NotificationCompat.Builder(this, UPDATE_AVAILABLE_CHANNEL)
+      .setSmallIcon(R.drawable.ic_stat_notify)
+      .setContentTitle("AI Usage Tracker update available")
+      .setContentText(text)
+      .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+      .setPriority(NotificationCompat.PRIORITY_HIGH)
+      .setCategory(NotificationCompat.CATEGORY_STATUS)
+      .setOnlyAlertOnce(true)
+      .setAutoCancel(true)
+      .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+      .setContentIntent(appLaunchPendingIntent())
+      .build()
+    val manager = getSystemService(NotificationManager::class.java)
+    manager.notify(UPDATE_AVAILABLE_NOTIFICATION_ID, notification)
+  }
+
+  private fun ensureUpdateChannels() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+      return
+    }
+    val manager = getSystemService(NotificationManager::class.java) ?: return
+    if (manager.getNotificationChannel(UPDATE_AVAILABLE_CHANNEL) == null) {
+      manager.createNotificationChannel(
+        NotificationChannel(
+          UPDATE_AVAILABLE_CHANNEL,
+          "Update available",
+          NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+          description = "Alerts when a new version is ready to download"
+          enableVibration(true)
+          setShowBadge(true)
+          lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+        }
+      )
+    }
+    if (manager.getNotificationChannel(UPDATE_CHANNEL) == null) {
+      manager.createNotificationChannel(
+        NotificationChannel(
+          UPDATE_CHANNEL,
+          "App updates",
+          NotificationManager.IMPORTANCE_LOW
+        ).apply {
+          description = "Download and install progress for app updates"
+          enableVibration(false)
+          setShowBadge(false)
+        }
+      )
     }
   }
 
@@ -326,17 +489,12 @@ class MainActivity : TauriActivity() {
     )
   }
 
-  fun ensureCanInstallUpdates(): String {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {
-      runOnUiThread {
-        startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-          data = Uri.parse("package:$packageName")
-          addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        })
-      }
-      return "Allow AI Usage Tracker to install updates, then tap Update again."
+  fun updateDownloadPath(): String {
+    val dir = File(cacheDir, "updates")
+    if (!dir.exists() && !dir.mkdirs() && !dir.isDirectory) {
+      throw IllegalStateException("Unable to save the update.")
     }
-    return "ok"
+    return File(dir, "ai-usage-tracker-update.apk").absolutePath
   }
 
   fun showUpdateDownloadProgress(percent: Int, indeterminate: Boolean) {
@@ -388,8 +546,9 @@ class MainActivity : TauriActivity() {
     autoCancel: Boolean
   ) {
     try {
+      ensureUpdateChannels()
       val builder = NotificationCompat.Builder(this, UPDATE_CHANNEL)
-        .setSmallIcon(applicationInfo.icon)
+        .setSmallIcon(R.drawable.ic_stat_notify)
         .setContentTitle(title)
         .setContentText(text)
         .setOnlyAlertOnce(true)
@@ -468,17 +627,182 @@ class MainActivity : TauriActivity() {
     if (!file.exists() || file.length() < 1024L) {
       throw IllegalArgumentException("The downloaded update is missing or incomplete.")
     }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {
-      runOnUiThread {
-        startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-          data = Uri.parse("package:$packageName")
-          addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        })
-      }
-      throw IllegalStateException("Allow AI Usage Tracker to install updates, then tap Update again.")
-    }
     val shareable = fileForInstaller(file)
-    val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", shareable)
+    if (!canInstallPackages()) {
+      setPendingInstall(shareable)
+      if (!openInstallPermissionSettings()) {
+        throw IllegalStateException("Allow AI Usage Tracker to install unknown apps in Android settings, then tap Update again.")
+      }
+      throw IllegalStateException("Allow AI Usage Tracker to install updates. The installer opens when you come back.")
+    }
+    setPendingInstall(null)
+    openApkInstaller(shareable, waitForPrompt = true)
+  }
+
+  private fun canInstallPackages(): Boolean {
+    return Build.VERSION.SDK_INT < Build.VERSION_CODES.O || packageManager.canRequestPackageInstalls()
+  }
+
+  private fun openInstallPermissionSettings(): Boolean {
+    val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+      data = Uri.parse("package:$packageName")
+    }
+    val ok = AtomicBoolean(false)
+    val launch = {
+      startActivity(intent)
+      ok.set(true)
+    }
+    if (Looper.myLooper() == Looper.getMainLooper()) {
+      return try {
+        launch()
+        true
+      } catch (error: Exception) {
+        android.util.Log.e(TAG, "Unknown-app install settings failed: ${error.message}")
+        false
+      }
+    }
+    val latch = CountDownLatch(1)
+    runOnUiThread {
+      try {
+        launch()
+      } catch (error: Exception) {
+        android.util.Log.e(TAG, "Unknown-app install settings failed: ${error.message}")
+      } finally {
+        latch.countDown()
+      }
+    }
+    return latch.await(5, TimeUnit.SECONDS) && ok.get()
+  }
+
+  private fun setPendingInstall(file: File?) {
+    getSharedPreferences(UPDATE_PREFS, Context.MODE_PRIVATE).edit().apply {
+      if (file == null) remove(PENDING_APK_KEY) else putString(PENDING_APK_KEY, file.absolutePath)
+    }.apply()
+  }
+
+  /**
+   * After the user grants "install unknown apps" in system settings, continue the install
+   * that was waiting on it. The path is persisted so a process restart does not lose it.
+   */
+  private fun resumePendingInstall() {
+    val prefs = getSharedPreferences(UPDATE_PREFS, Context.MODE_PRIVATE)
+    val path = prefs.getString(PENDING_APK_KEY, null) ?: return
+    val file = File(path)
+    if (!file.exists()) {
+      setPendingInstall(null)
+      return
+    }
+    if (!canInstallPackages()) {
+      return
+    }
+    setPendingInstall(null)
+    // The session result arrives on the main thread, so wait for it off the main thread.
+    Thread {
+      try {
+        openApkInstaller(file, waitForPrompt = true)
+      } catch (error: Exception) {
+        android.util.Log.e(TAG, "Could not open the installer: ${error.message}")
+        showUpdateFailure(installFailureText(error.message))
+      }
+    }.start()
+  }
+
+  private fun showUpdateFailure(text: String) {
+    notifyUpdate(
+      title = "Update failed",
+      text = text,
+      ongoing = false,
+      progressMax = 0,
+      progress = 0,
+      indeterminate = false,
+      autoCancel = true
+    )
+  }
+
+  private fun openApkInstaller(file: File, waitForPrompt: Boolean) {
+    try {
+      commitApkSession(file, waitForPrompt)
+    } catch (error: InstallStatusException) {
+      // Android itself rejected the install (bad signature, downgrade, ...); the viewer would
+      // only hit the same error, so surface it.
+      throw error
+    } catch (error: Exception) {
+      android.util.Log.w(TAG, "PackageInstaller session failed, using viewer: ${error.message}")
+      openApkViewer(file)
+    }
+  }
+
+  private fun commitApkSession(file: File, waitForPrompt: Boolean) {
+    val installer = packageManager.packageInstaller
+    val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+      setSize(file.length())
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_REQUIRED)
+      }
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        setAppPackageName(packageName)
+      }
+    }
+    val sessionId = installer.createSession(params)
+    val session = installer.openSession(sessionId)
+    val latch = CountDownLatch(1)
+    val failure = AtomicReference<String?>(null)
+    try {
+      file.inputStream().use { input ->
+        session.openWrite("base.apk", 0, file.length()).use { output ->
+          input.copyTo(output)
+          session.fsync(output)
+        }
+      }
+      if (waitForPrompt) {
+        synchronized(installLock) {
+          installCallback = { status, message ->
+            if (
+              status != PackageInstaller.STATUS_PENDING_USER_ACTION &&
+              status != PackageInstaller.STATUS_SUCCESS
+            ) {
+              failure.set(installFailureText(message))
+            }
+            latch.countDown()
+          }
+        }
+      }
+      val callbackIntent = Intent(this, ApkInstallReceiver::class.java).apply {
+        action = ApkInstallReceiver.ACTION
+      }
+      val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+      } else {
+        PendingIntent.FLAG_UPDATE_CURRENT
+      }
+      val pending = PendingIntent.getBroadcast(this, sessionId, callbackIntent, flags)
+      session.commit(pending.intentSender)
+    } catch (error: Exception) {
+      try {
+        session.abandon()
+      } catch (_: Exception) {
+      }
+      throw error
+    } finally {
+      try {
+        session.close()
+      } catch (_: Exception) {
+      }
+    }
+    if (!waitForPrompt) {
+      return
+    }
+    if (!latch.await(20, TimeUnit.SECONDS)) {
+      synchronized(installLock) {
+        installCallback = null
+      }
+      throw InstallStatusException("Timed out waiting for the Android installer to open.")
+    }
+    failure.get()?.let { throw InstallStatusException(it) }
+  }
+
+  private fun openApkViewer(file: File) {
+    val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
     val intent = Intent(Intent.ACTION_VIEW).apply {
       setDataAndType(uri, "application/vnd.android.package-archive")
       addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -492,11 +816,16 @@ class MainActivity : TauriActivity() {
         Intent.FLAG_GRANT_READ_URI_PERMISSION
       )
     }
+    val launch = { startActivity(intent) }
+    if (Looper.myLooper() == Looper.getMainLooper()) {
+      launch()
+      return
+    }
     val latch = CountDownLatch(1)
     var launchError: Exception? = null
     runOnUiThread {
       try {
-        startActivity(intent)
+        launch()
       } catch (error: Exception) {
         launchError = error
       } finally {

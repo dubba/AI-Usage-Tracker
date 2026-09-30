@@ -65,6 +65,9 @@
             android:resource="@xml/file_paths" />
         </provider>
         <receiver
+            android:name=".ApkInstallReceiver"
+            android:exported="false" />
+        <receiver
             android:name=".BootReceiver"
             android:enabled="true"
             android:exported="true">

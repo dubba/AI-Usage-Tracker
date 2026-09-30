@@ -509,12 +509,13 @@
   gap: 12px;
   width: 100%;
   min-width: 0;
+  margin: 0 0 8px;
 }
 
 .account-usage-metric .metric-reset-lead {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex: 0 1 auto;
   min-width: 0;
 }
@@ -524,16 +525,7 @@
   font-size: 11px;
   line-height: 14px;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   white-space: nowrap;
-}
-
-.account-usage-metric .metric-group-dot {
-  color: #8d8794;
-  font-size: 11px;
-  line-height: 14px;
-  font-weight: 700;
 }
 
 .account-usage-metric .metric-reset {

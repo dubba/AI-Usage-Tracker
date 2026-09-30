@@ -3,12 +3,12 @@ use std::path::Path;
 use jni::objects::{JObject, JValue};
 use jni::JNIEnv;
 
-pub fn ensure_can_install() -> Result<(), String> {
-    let result = call("ensureCanInstallUpdates", "()Ljava/lang/String;", &[], true)?;
-    if result == "ok" {
-        Ok(())
+pub fn update_download_path() -> Result<std::path::PathBuf, String> {
+    let path = call("updateDownloadPath", "()Ljava/lang/String;", &[], true)?;
+    if path.is_empty() {
+        Err("Unable to save the update.".into())
     } else {
-        Err(result)
+        Ok(std::path::PathBuf::from(path))
     }
 }
 
@@ -17,13 +17,17 @@ pub fn prompt_apk_install(path: &Path) -> Result<(), String> {
 }
 
 pub fn show_update_available(version: &str) -> Result<(), String> {
-    call_string(
+    let result = call_string(
         "showUpdateAvailable",
-        "(Ljava/lang/String;)V",
+        "(Ljava/lang/String;)Ljava/lang/String;",
         version,
-        false,
-    )
-    .map(|_| ())
+        true,
+    )?;
+    if result == "shown" {
+        Ok(())
+    } else {
+        Err(result)
+    }
 }
 
 pub fn verify_apk_signature(path: &Path) -> Result<(), String> {

@@ -1359,7 +1359,7 @@ button.account-card-provider-icon:active {
   gap: 10px;
   width: 100%;
   min-width: 0;
-  margin: 0 0 8px;
+  margin: 0;
 }
 
 .metric-full-value {
@@ -1395,6 +1395,7 @@ button.account-card-provider-icon:active {
   gap: 12px;
   width: 100%;
   min-width: 0;
+  margin: 0 0 8px;
 }
 
 .metric-reset {

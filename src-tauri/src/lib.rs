@@ -1139,16 +1139,15 @@ async fn download_android_apk(
 }
 
 fn show_update_available_notification(app: &AppHandle, version: &str) -> Result<(), String> {
-    let title = "AI Usage Tracker update available";
-    let body = format!("Version {version} is ready to download.");
     #[cfg(target_os = "android")]
     {
         let _ = app;
         apk_install::show_update_available(version)
-            .or_else(|_| crate::lan_binding::post_expandable_notification(title, &body))
     }
     #[cfg(not(target_os = "android"))]
     {
+        let title = "AI Usage Tracker update available";
+        let body = format!("Version {version} is ready to download.");
         app.notification()
             .builder()
             .title(title)
@@ -1310,20 +1309,12 @@ async fn install_app_update(app: AppHandle) -> Result<(), String> {
 
     #[cfg(target_os = "android")]
     {
-        apk_install::ensure_can_install()?;
         let latest = fetch_github_latest_release().await?;
         let apk_url = latest.apk_url.ok_or_else(|| {
             "The latest GitHub release does not include an Android APK.".to_string()
         })?;
-        // Tauri's app_data_dir on Android is Context.dataDir
-        // (/data/user/0/<pkg>), which FileProvider cannot share with the
-        // system installer. Cache and files dirs are listed in file_paths.xml.
-        let dest_dir = app
-            .path()
-            .app_cache_dir()
-            .or_else(|_| app.path().app_data_dir().map(|p| p.join("files")))
-            .map_err(|error| format!("Unable to save the update: {error}"))?;
-        let dest = dest_dir.join("updates").join("ai-usage-tracker-update.apk");
+        // cacheDir/updates is a FileProvider root; JNI avoids the path-plugin round trip.
+        let dest = apk_install::update_download_path()?;
         let digest = download_android_apk(&app, &apk_url, &dest).await?;
         emit_update_progress(&app, "verifying", 0, None);
         if let Some(sha_url) = latest.apk_sha256_url.as_deref() {

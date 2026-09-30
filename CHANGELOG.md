@@ -2,17 +2,20 @@
 
 ## Unreleased (0 items)
 
-## 0.3.9 - 2026-09-30 (4 items)
+## 0.3.9 - 2026-09-30 (8 items)
 
-### Improved (2)
+### Improved (3)
 
 - Account cards no longer show a Remaining Limit heading. The 5h/7d window pill sits on the left of the reset line, with the countdown and date together, for example `Resets in: 6d 6h (Oct 6 @ 2:34 AM)`.
 - Antigravity reset rows now include the model group after the window pill, for example `7d window · Gemini` or `5h window · Claude/GPT`, then the countdown and date.
+- Account cards now show the window and reset line above the percent bar, using `Reset:` and a compact time such as `2:34a`.
 
-### Fixed (2)
+### Fixed (5)
 
 - Claude account cards now show only the 5-hour and 7-day limits, and no longer add extra rows named after Anthropic’s internal quota codes such as Nimbus Quill.
 - Claude account cards now show the signed-in email address instead of “Connected account.”
+- Android now shows a status-bar notification when a newer GitHub release is available, and keeps trying until notifications are actually allowed instead of treating a silent drop as success.
+- Tapping Update on Android downloads the GitHub APK first, then opens the system installer. If Android still needs permission to install apps, that screen opens and the installer continues when you return.
 
 
 ## 0.3.8 - 2026-09-29 (6 items)

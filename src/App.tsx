@@ -151,8 +151,11 @@ function formatResetAtShort(value: string | null | undefined): string | null {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   const day = date.toLocaleString([], { month: "short", day: "numeric" });
-  const time = date.toLocaleString([], { hour: "numeric", minute: "2-digit" });
-  return `${day} @ ${time}`;
+  const hour = date.getHours();
+  const hour12 = hour % 12 || 12;
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const meridiem = hour < 12 ? "a" : "p";
+  return `${day} @ ${hour12}:${minutes}${meridiem}`;
 }
 
 function formatAlertTime(timestamp: number): string {
@@ -420,7 +423,7 @@ function resetCountdownLabel(
     remainingMs = windowSeconds * 1000 - 1;
   }
   const remaining = formatRemainingDuration(remainingMs);
-  return remaining ? `Resets in: ${remaining}` : null;
+  return remaining ? `Reset: ${remaining}` : null;
 }
 
 function cleanModelPrefix(prefix: string): string {
@@ -871,7 +874,6 @@ export default function App() {
     } catch (cause) {
       const message = String(cause);
       setUpdateError(message);
-      setError(message);
       setUpdateBusy(null);
       setUpdateProgress(null);
     }
@@ -2126,12 +2128,14 @@ function AccountDashboardCard({
             )) : (
               <div className="account-usage-metric unavailable-metric">
                 <span className="metric-label">Usage</span>
+                <div className="metric-reset-row">
+                  <span className="metric-reset">Refresh this account to retrieve its limits.</span>
+                </div>
                 <div className="metric-value-row">
                   <strong className="metric-full-value">Unavailable</strong>
                   <span className="account-metric-track"><span className="tone-neutral" style={{ width: "0%" }} /></span>
                   {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
                 </div>
-                <span className="metric-reset">Refresh this account to retrieve its limits.</span>
               </div>
             )}
           </div>
@@ -2150,7 +2154,7 @@ function resetSummaryLine(
   const when = formatResetAtShort(window.resetsAt);
   if (countdown && when) return `${countdown} (${when})`;
   if (countdown) return countdown;
-  if (when) return `Resets ${when}`;
+  if (when) return `Reset: ${when}`;
   if (remaining == null) return "This provider has not reported a quota value yet";
   return "Rolling window";
 }
@@ -2175,11 +2179,6 @@ function AccountUsageMetric({
   const group = provider === "antigravity" ? antigravityGroupLabel(window) : null;
   return (
     <div className="account-usage-metric">
-      <div className="metric-value-row">
-        <strong className="metric-full-value">{remaining == null ? unavailableLabel : `${Math.round(remaining)}%`}</strong>
-        <span className="account-metric-track"><span className={`tone-${tone}`} style={{ width: `${width}%` }} /></span>
-        {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
-      </div>
       <div className="metric-reset-row">
         {group || length ? (
           <span className="metric-reset-lead">
@@ -2188,13 +2187,17 @@ function AccountUsageMetric({
                 {length}
               </span>
             ) : null}
-            {group && length ? <span className="metric-group-dot" aria-hidden="true">·</span> : null}
             {group ? <span className="metric-group-label">{group}</span> : null}
           </span>
         ) : <span className="metric-window-pill-spacer" />}
         <span className="metric-reset">
           {resetSummaryLine(window, remaining, nowMs)}
         </span>
+      </div>
+      <div className="metric-value-row">
+        <strong className="metric-full-value">{remaining == null ? unavailableLabel : `${Math.round(remaining)}%`}</strong>
+        <span className="account-metric-track"><span className={`tone-${tone}`} style={{ width: `${width}%` }} /></span>
+        {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
       </div>
     </div>
   );
@@ -2403,6 +2406,8 @@ function SettingsView({
               </button>
             )}
             <UpdateProgressBar busy={updateBusy} percent={updateProgress?.percent ?? null} />
+            {updateMessage ? <div className="info-panel settings-update-info">{updateMessage}</div> : null}
+            {updateError ? <div className="error-panel settings-update-error">{updateError}</div> : null}
           </div>
         </div>
         <div className="settings-row">
@@ -2486,8 +2491,6 @@ function SettingsView({
         </div>
       </section>
       {bridge?.error ? <div className="error-panel api-integration-error">{bridge.error}</div> : null}
-      {updateMessage ? <div className="info-panel settings-update-info">{updateMessage}</div> : null}
-      {updateError ? <div className="error-panel settings-update-error">{updateError}</div> : null}
       {error ? <div className="error-panel settings-update-error">{error}</div> : null}
       </div>
       <UpdateNotesModal
