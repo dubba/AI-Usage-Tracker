@@ -7,7 +7,7 @@
 ### Improved (3)
 
 - Account cards no longer show a Remaining Limit heading. The 5h/7d window pill sits on the left of the reset line, with the countdown and date together, for example `Resets in: 6d 6h (Oct 6 @ 2:34 AM)`.
-- Antigravity reset rows now include the model group after the window pill, for example `7d window · Gemini` or `5h window · Claude/GPT`, then the countdown and date.
+- Antigravity reset rows now place the model group inside the window pill, for example `7d window · Gemini` or `5h window · Other`.
 - Account cards now show the window and reset line above the percent bar, using `Reset:` and a compact time such as `2:34a`.
 
 ### Fixed (5)

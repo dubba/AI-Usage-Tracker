@@ -515,17 +515,8 @@
 .account-usage-metric .metric-reset-lead {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
   flex: 0 1 auto;
   min-width: 0;
-}
-
-.account-usage-metric .metric-group-label {
-  color: #cbc3d7;
-  font-size: 11px;
-  line-height: 14px;
-  font-weight: 700;
-  white-space: nowrap;
 }
 
 .account-usage-metric .metric-reset {

@@ -456,9 +456,10 @@ function antigravityGroupLabel(window: UsageWindow): string | null {
     prefix = cleaned;
   }
   if (!prefix) return null;
-  return prefix
-    .replace(/\bclaude\s*&\s*gpt\b/i, "Claude/GPT")
-    .replace(/\bclaude\s+and\s+gpt\b/i, "Claude/GPT");
+  if (/claude|gpt/i.test(prefix)) {
+    return "Other";
+  }
+  return prefix;
 }
 
 function displayMetricLabel(window: UsageWindow, provider?: Provider | string): string {
@@ -2177,17 +2178,15 @@ function AccountUsageMetric({
   const tone = usageTone(remaining);
   const length = windowLength(window);
   const group = provider === "antigravity" ? antigravityGroupLabel(window) : null;
+  const pillText = length && group ? `${length} · ${group}` : length;
   return (
     <div className="account-usage-metric">
       <div className="metric-reset-row">
-        {group || length ? (
+        {pillText ? (
           <span className="metric-reset-lead">
-            {length ? (
-              <span className={`metric-window-pill ${windowPillClass(window)}`}>
-                {length}
-              </span>
-            ) : null}
-            {group ? <span className="metric-group-label">{group}</span> : null}
+            <span className={`metric-window-pill ${windowPillClass(window)}`}>
+              {pillText}
+            </span>
           </span>
         ) : <span className="metric-window-pill-spacer" />}
         <span className="metric-reset">
