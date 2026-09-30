@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased (11 items)
+## Unreleased (0 items)
+
+
+## 0.3.10-beta.1 - 2026-09-30 (11 items)
 
 ### Improved (4)
 
