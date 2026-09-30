@@ -5,6 +5,7 @@ import { ProviderIcon } from "./ProviderIcon";
 import type { Account, AccountBucket, Provider } from "../types";
 import { CustomDropdown } from "./CustomDropdown";
 import { useModalA11y } from "./useModalA11y";
+import { ModalCloseButton } from "./ModalCloseButton";
 
 const ALL_PROVIDERS: { id: Provider; label: string }[] = [
   { id: "antigravity", label: "Antigravity" },
@@ -243,6 +244,7 @@ export function BucketModal({
         aria-labelledby="bucket-modal-title"
         tabIndex={-1}
       >
+        <ModalCloseButton onClose={handleClose} disabled={busy} />
         <div className="modal-kicker">Account Grouping</div>
         <h2 id="bucket-modal-title">{bucket ? "Edit Group" : "Create Group"}</h2>
         <p>Group accounts together in the sidebar to track their combined usage and limits. Groups can be empty.</p>

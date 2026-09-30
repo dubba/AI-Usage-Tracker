@@ -27,6 +27,7 @@ import {
 import type {
   Account,
 } from "../types";
+import { useClock } from "../hooks/useClock";
 import { reorderKeyDelta } from "../reorder-utils";
 import { AccountUsageMetric } from "./AccountUsageMetric";
 
@@ -37,7 +38,6 @@ export function AccountDashboardCard({
   pageId,
   account,
   busy,
-  nowMs,
   onRefresh,
   onReconnect,
   onConnectGoogleUsage,
@@ -51,7 +51,6 @@ export function AccountDashboardCard({
   pageId: string;
   account: Account;
   busy: BusyKeys;
-  nowMs: number;
   onRefresh: () => void;
   onReconnect: () => void;
   onConnectGoogleUsage: () => void;
@@ -91,7 +90,7 @@ export function AccountDashboardCard({
   const modelsOnly = account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_model_access";
   const waitingForMetrics = account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_monitoring_waiting";
   const googleUnavailableLabel = modelsOnly ? "Key only" : waitingForMetrics ? "Setup in progress" : "Unavailable";
-  const updatedAtLabel = formatUpdatedAt(account.lastUsage?.fetchedAt, nowMs) ?? "Not updated yet";
+  const updatedAtLabel = useClock((now) => formatUpdatedAt(account.lastUsage?.fetchedAt, now) ?? "Not updated yet");
   const creditLabel = account.provider !== "openai"
     ? null
     : account.lastUsage?.unlimitedCredits
@@ -170,6 +169,7 @@ export function AccountDashboardCard({
       data-account-id={account.id}
       data-reorder-provider={account.provider}
       data-reorder-enabled="true"
+      draggable={false}
     >
       <header className="provider-account-card-header">
         <button
@@ -372,7 +372,6 @@ export function AccountDashboardCard({
                 key={window.id}
                 window={window}
                 provider={account.provider}
-                nowMs={nowMs}
                 unavailableLabel={googleUnavailableLabel}
                 creditLabel={index === 0 ? creditLabel : null}
               />

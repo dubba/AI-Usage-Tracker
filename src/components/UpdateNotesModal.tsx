@@ -2,6 +2,7 @@ import { useRef, type ReactNode } from "react";
 import { isAllowedExternalUrl } from "../utils/safeUrl";
 import { useModalA11y } from "./useModalA11y";
 import type { UpdateBusy } from "../types";
+import { ModalCloseButton } from "./ModalCloseButton";
 
 interface Block {
   type: "h2" | "h3" | "h4" | "list" | "paragraph";
@@ -193,16 +194,7 @@ export function UpdateNotesModal({
         aria-labelledby="update-notes-title"
         tabIndex={-1}
       >
-        <button
-          type="button"
-          className="ui-modal-close"
-          data-react-close="true"
-          onClick={onClose}
-          aria-label="Close dialog"
-          data-tooltip="Close"
-        >
-          ×
-        </button>
+        <ModalCloseButton onClose={onClose} />
         <div className="modal-kicker">App Update</div>
         <h2 id="update-notes-title">
           {cleanVersion ? `What changed in v${cleanVersion}` : "Release Changes"}

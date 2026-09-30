@@ -14,27 +14,31 @@ import { GoogleAiStudioUsageModal } from "./components/GoogleAiStudioUsageModal"
 import { PairingModal } from "./components/PairingModal";
 import { SettingsView } from "./components/SettingsView";
 import { GROUP_REORDER_HINT_ID, SidebarGroupRow } from "./components/SidebarGroupRow";
+import { SidebarResizeHandle } from "./components/SidebarResizeHandle";
 import { UsageAlertToasts } from "./components/UsageAlertToasts";
 import "./pairing.css";
+import { persistGroupOrder } from "./dashboard-reorder";
 import {
   DASHBOARD_GROUP_ORDER_EVENT,
   DASHBOARD_PROVIDER_ORDER_EVENT,
-  persistGroupOrder,
   readDashboardProviderOrder,
   readSidebarGroupOrder,
   storeSidebarGroupOrder,
-} from "./dashboard-reorder";
+} from "./sidebar-order";
 import {
   applyPageAccountOrder,
   DASHBOARD_PAGE_ORDER_EVENT,
   migrateLegacyCollapsedCards,
 } from "./dashboard-page-state";
+import { DEFAULT_ACCOUNT_REFRESH_MINUTES } from "./constants";
 import { useAccountActions } from "./hooks/useAccountActions";
 import { useAppSettings } from "./hooks/useAppSettings";
 import { useAppUpdate } from "./hooks/useAppUpdate";
 import { useDashboardData } from "./hooks/useDashboardData";
+import { useDragReorder } from "./hooks/useDragReorder";
 import { usePairingEvents } from "./hooks/usePairingEvents";
 import { useSidebarOverlay } from "./hooks/useSidebarOverlay";
+import { useTouchTooltips } from "./hooks/useTouchTooltips";
 import { useUsageAlerts } from "./hooks/useUsageAlerts";
 import {
   CloseIcon,
@@ -50,7 +54,7 @@ import {
 } from "./sidebar-groups";
 import { moveAnnouncement, moveById } from "./reorder-utils";
 import { requestDashboardResync } from "./events";
-import { accountNeedsAttention, displayAccountLabel, googleAiStudioHasQuotaWindows, nextResetSummary } from "./usage-logic";
+import { accountNeedsAttention, displayAccountLabel, googleAiStudioHasQuotaWindows } from "./usage-logic";
 import type { Account, AccountBucket, Provider } from "./types";
 
 export type { SidebarGroup };
@@ -71,14 +75,13 @@ export default function App() {
   const [alertAccount, setAlertAccount] = useState<Account | null>(null);
   const [accountToRemove, setAccountToRemove] = useState<Account | null>(null);
   const [googleUsageAccount, setGoogleUsageAccount] = useState<Account | null>(null);
-  const addOpenRef = useRef(addOpen);
-  const googleUsageAccountRef = useRef(googleUsageAccount);
-  addOpenRef.current = addOpen;
-  googleUsageAccountRef.current = googleUsageAccount;
   const [loginLabel, setLoginLabel] = useState("");
   const [loginProvider, setLoginProvider] = useState<Provider | undefined>(undefined);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [groupAnnouncement, setGroupAnnouncement] = useState("");
+  useTouchTooltips();
+  useDragReorder();
+  const shellRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
   const { overlay: sidebarIsOverlay } = useSidebarOverlay(sidebarRef, sidebarOpen, () => setSidebarOpen(false));
   // As an off-canvas overlay the sidebar is a modal dialog while open and unreachable while closed.
@@ -90,7 +93,6 @@ export default function App() {
   const { errors, report: reportError, clear: clearError } = useAppErrors();
   const {
     appSettings,
-    appSettingsRef,
     autostart,
     settingsBusy,
     reloadFromBackend,
@@ -99,7 +101,7 @@ export default function App() {
     saveIncludeBetaUpdates,
     toggleAutostart,
   } = useAppSettings({ reportError, clearError });
-  const { snapshot, setSnapshot, nowMs, load } = useDashboardData({
+  const { snapshot, setSnapshot, load } = useDashboardData({
     reportError,
     clearError,
     accountRefreshMinutes: appSettings?.accountRefreshMinutes,
@@ -124,7 +126,6 @@ export default function App() {
     setApiIntegrationEnabled,
     openApiIntegrationWindow,
   } = useAccountActions({ load, setSnapshot, busy: busyKeys, reportError, clearError });
-  void appSettingsRef;
 
   const openAdd = useCallback((account?: Account, provider?: Provider) => {
     setLoginLabel(account?.label ?? "");
@@ -173,8 +174,10 @@ export default function App() {
     return () => window.removeEventListener(DASHBOARD_PAGE_ORDER_EVENT, onPageOrder);
   }, []);
 
+  // A sign-in failure is reported here only when no dialog that shows it inline is open,
+  // so the subscription is renewed whenever one of those dialogs opens or closes.
+  const googleUsageOpen = googleUsageAccount != null;
   useEffect(() => {
-    void resumeLoginAttemptWatch();
     return subscribeLoginStatus((status) => {
       if (status.status === "complete") {
         clearError("login");
@@ -182,7 +185,7 @@ export default function App() {
         return;
       }
       if (status.status === "failed") {
-        if (status.message && !addOpenRef.current && googleUsageAccountRef.current == null) {
+        if (status.message && !addOpen && !googleUsageOpen) {
           reportError("login", status.message, "Sign-in failed");
         }
         return;
@@ -191,7 +194,11 @@ export default function App() {
         setGoogleUsageAccount(status.account);
       }
     });
-  }, [load, clearError, reportError]);
+  }, [load, clearError, reportError, addOpen, googleUsageOpen]);
+
+  useEffect(() => {
+    void resumeLoginAttemptWatch();
+  }, []);
 
   useEffect(() => {
     const handleOrderChange = () => {
@@ -233,7 +240,6 @@ export default function App() {
     [selectedGroup, pageOrderTick],
   );
   const needsAttention = visibleAccounts.filter(accountNeedsAttention).length;
-  const nextReset = nextResetSummary(visibleAccounts, nowMs);
 
   const loadError = errors.find((entry) => entry.source === "load");
 
@@ -284,13 +290,12 @@ export default function App() {
         accounts={visibleAccounts}
         selectedGroup={selectedGroup}
         needsAttention={needsAttention}
-        nextReset={nextReset}
+        refreshMinutes={appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES}
         onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
         onAdd={() => openAdd(undefined, selectedGroup.provider ?? undefined)}
         onRefreshAll={refreshAll}
         onEditBucket={openEditBucket}
         onDeleteBucket={openDeleteBucket}
-        nowMs={nowMs}
         onRefresh={(account) => void refreshOne(account.id)}
         onReconnect={(account) => account.provider === "google_ai_studio" ? setGoogleUsageAccount(account) : openAdd(account)}
         onConnectGoogleUsage={setGoogleUsageAccount}
@@ -303,7 +308,7 @@ export default function App() {
   };
 
   return (
-    <div className="app-shell obsidian-shell">
+    <div ref={shellRef} className="app-shell obsidian-shell">
       <div
         className={`sidebar-backdrop ${sidebarOpen ? "active" : ""}`}
         onClick={() => setSidebarOpen(false)}
@@ -397,6 +402,7 @@ export default function App() {
           <SettingsIcon />
           <span>Settings</span>
         </button>
+        <SidebarResizeHandle shellRef={shellRef} sidebarRef={sidebarRef} />
       </aside>
 
       <main className="main-stage" inert={sidebarModal}>

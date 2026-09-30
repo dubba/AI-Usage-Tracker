@@ -104,6 +104,9 @@ pub async fn add_account(
     label: String,
     cookie_header: String,
 ) -> Result<Account, String> {
+    if cookie_header.len() > crate::limits::MAX_RAW_COOKIE_INPUT_BYTES {
+        return Err("The pasted cookie text is too long to be a Grok session.".into());
+    }
     let probe = providers::grok::probe_cookie(state.as_ref(), &cookie_header)
         .await
         .map_err(|error| match error {

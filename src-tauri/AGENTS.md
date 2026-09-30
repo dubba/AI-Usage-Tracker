@@ -3,12 +3,14 @@
 This directory owns all sensitive and platform-specific behavior.
 
 - Keep OAuth authorization codes, access tokens, refresh tokens, and ID tokens out of Tauri command responses and logs.
-- Store secrets only through the native operating-system credential store.
+- Store secrets only through the native operating-system credential store. On Android that is credential files sealed with a non-exportable Android Keystore key (`credential_file.rs`, `android_keystore.rs`, `CredentialVault.kt`); plaintext credential files are only for desktop development builds.
 - Store only non-secret account metadata and cached usage in the application data directory.
 - Use only `https://chatgpt.com/backend-api/wham/usage` for quota retrieval unless the product decision is explicitly changed.
 - Serialize token refreshes per account so rotating refresh tokens cannot race.
 - Preserve last-known-good usage and clearly mark it stale after transient failures.
 - Bind integration APIs to loopback and require the bridge bearer token.
+- Log through `diagnostics::info/warn/error`, never `eprintln!`: it redacts tokens, cookies, emails, and home-folder names and writes the rotating log that the diagnostics report includes. Still never pass raw provider responses or credentials to it.
+- Every Tauri command is listed in `APP_COMMANDS` in `build.rs` and granted per window in `capabilities/`. Adding a command means updating `generate_handler!`, `APP_COMMANDS`, and `capabilities/default.json` (a test fails otherwise).
 - Keep the `/v1/paseo-usage` response backward-compatible within schema version 1.
 - OAuth on mobile opens the system browser; desktop OAuth uses loopback callbacks. Desktop Grok/OpenCode login windows are incognito and restricted with `on_navigation` host allowlists. Android Grok in-app sign-in still navigates the main webview because that platform only has one WebView and cookie capture requires it.
 - Validate any URL loaded into a WebView (`view.loadUrl`, popup hijacks): HTTPS (or the exact loopback callback) only — never `javascript:`, `intent:`, `file:`, or `content:` schemes.

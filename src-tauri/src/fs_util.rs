@@ -1,4 +1,11 @@
-use std::{fs, io::Write, path::Path};
+use parking_lot::Mutex;
+use std::{
+    collections::HashSet,
+    fs,
+    io::Write,
+    path::{Path, PathBuf},
+    sync::LazyLock,
+};
 
 #[cfg(unix)]
 pub const PRIVATE_FILE_MODE: u32 = 0o600;
@@ -71,9 +78,52 @@ pub fn restrict_private_permissions(_path: &Path) -> Result<(), String> {
     Err("Private file permissions are not supported on this platform".into())
 }
 
+/// Paths already hardened by this process. On Windows every hardening spawns
+/// `icacls`, and an account update used to spawn it about six times, so paths
+/// are hardened once and later writes rely on the ACL they already have.
+static HARDENED: LazyLock<Mutex<HashSet<PathBuf>>> = LazyLock::new(|| Mutex::new(HashSet::new()));
+
+/// Runs `harden` for `path` unless this process already did so successfully.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn harden_once(
+    path: &Path,
+    harden: impl FnOnce(&Path) -> Result<(), String>,
+) -> Result<(), String> {
+    if HARDENED.lock().contains(path) {
+        return Ok(());
+    }
+    harden(path)?;
+    HARDENED.lock().insert(path.to_path_buf());
+    Ok(())
+}
+
+/// Forgets a path so it is hardened again (it was deleted and recreated).
+#[cfg_attr(not(windows), allow(dead_code))]
+fn forget_hardened(path: &Path) {
+    HARDENED.lock().remove(path);
+}
+
+#[cfg_attr(not(windows), allow(dead_code))]
+fn is_hardened(path: &Path) -> bool {
+    HARDENED.lock().contains(path)
+}
+
+/// Owner-only permissions, applied once per process on Windows (where it is
+/// expensive) and every time elsewhere (where it is a single `chmod`).
+fn harden_cached(path: &Path) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        harden_once(path, restrict_private_permissions)
+    }
+    #[cfg(not(windows))]
+    {
+        restrict_private_permissions(path)
+    }
+}
+
 pub fn ensure_private_file(path: &Path) -> Result<(), String> {
     if path.exists() {
-        restrict_private_permissions(path)?;
+        harden_cached(path)?;
     }
     Ok(())
 }
@@ -82,9 +132,14 @@ pub fn ensure_private_file(path: &Path) -> Result<(), String> {
 /// Every application directory that holds metadata or debug-fallback secrets
 /// must go through this instead of a bare `create_dir_all`.
 pub fn ensure_private_dir(dir: &Path) -> Result<(), String> {
+    let existed = dir.is_dir();
     fs::create_dir_all(dir)
         .map_err(|error| format!("Unable to create {}: {error}", dir.display()))?;
-    restrict_private_permissions(dir)
+    if !existed {
+        // A directory we just (re)created is not the one we hardened earlier.
+        forget_hardened(dir);
+    }
+    harden_cached(dir)
 }
 
 /// Atomic, owner-only file write with no remove-then-rename window.
@@ -103,6 +158,9 @@ pub fn atomic_write_private(path: &Path, payload: &[u8]) -> Result<(), String> {
         )
     })?;
     ensure_private_dir(parent)?;
+    if !path.exists() {
+        forget_hardened(path);
+    }
 
     let mut tmp = tempfile::NamedTempFile::new_in(parent)
         .map_err(|error| format!("Unable to create temp file for {}: {error}", path.display()))?;
@@ -113,16 +171,22 @@ pub fn atomic_write_private(path: &Path, payload: &[u8]) -> Result<(), String> {
         .map_err(|error| format!("Unable to sync {}: {error}", path.display()))?;
     // Harden the temp inode before it becomes visible at the destination.
     // tempfile creates 0600 on Unix already; this also covers umask gaps and
-    // applies the Windows owner-only ACL.
-    if let Err(error) = restrict_private_permissions(tmp.path()) {
-        let _ = tmp.close();
-        return Err(error);
+    // applies the Windows owner-only ACL. On Windows a file created inside an
+    // already-hardened directory inherits its owner-only ACL, so the extra
+    // `icacls` is skipped there.
+    let inherits_owner_only_acl = cfg!(windows) && is_hardened(parent);
+    if !inherits_owner_only_acl {
+        if let Err(error) = restrict_private_permissions(tmp.path()) {
+            let _ = tmp.close();
+            return Err(error);
+        }
     }
     tmp.persist(path)
         .map_err(|error| format!("Unable to replace {}: {error}", path.display()))?;
-    // Re-apply on the destination: on Windows a replace may retain the old
-    // destination ACL, on Unix the mode comes from the temp inode.
-    restrict_private_permissions(path)?;
+    // Re-apply on the destination (first write of each path per process on
+    // Windows): a replace may retain the old destination ACL, and on Unix the
+    // mode comes from the temp inode.
+    harden_cached(path)?;
     // Best-effort durability of the directory entry itself.
     if let Ok(dir_file) = fs::File::open(parent) {
         let _ = dir_file.sync_all();
@@ -177,6 +241,66 @@ mod tests {
             atomic_write_private(&path, payload.as_bytes()).unwrap();
             assert!(path.exists());
             assert_eq!(fs::read(&path).unwrap(), payload.as_bytes());
+        }
+    }
+
+    #[test]
+    fn harden_once_runs_the_hardening_only_once_per_path() {
+        let directory = tempdir().unwrap();
+        let path = directory.path().join("secret.json");
+        let mut runs = 0;
+        harden_once(&path, |_| {
+            runs += 1;
+            Ok(())
+        })
+        .unwrap();
+        harden_once(&path, |_| {
+            runs += 1;
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(runs, 1);
+
+        // Forgetting (the path was deleted and recreated) hardens it again.
+        forget_hardened(&path);
+        harden_once(&path, |_| {
+            runs += 1;
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(runs, 2);
+    }
+
+    #[test]
+    fn failed_hardening_is_not_remembered() {
+        let directory = tempdir().unwrap();
+        let path = directory.path().join("secret.json");
+        assert!(harden_once(&path, |_| Err("denied".into())).is_err());
+        assert!(!is_hardened(&path));
+        let mut runs = 0;
+        harden_once(&path, |_| {
+            runs += 1;
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(runs, 1);
+    }
+
+    #[test]
+    fn recreated_directory_is_hardened_again() {
+        let directory = tempdir().unwrap();
+        let nested = directory.path().join("data");
+        ensure_private_dir(&nested).unwrap();
+        HARDENED.lock().insert(nested.clone());
+        fs::remove_dir_all(&nested).unwrap();
+        ensure_private_dir(&nested).unwrap();
+        #[cfg(windows)]
+        assert!(is_hardened(&nested));
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = fs::metadata(&nested).unwrap().permissions().mode() & 0o777;
+            assert_eq!(mode, PRIVATE_DIR_MODE);
         }
     }
 

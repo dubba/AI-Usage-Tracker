@@ -1,10 +1,10 @@
 import { bridgeApi } from "./api";
 import { storePageAccountOrder } from "./dashboard-page-state";
-import { requestDashboardResync, UI_EVENTS } from "./events";
+import { requestDashboardResync } from "./events";
 import { logIgnored } from "./log";
-import { getLatestSnapshot, onSnapshot } from "./snapshot-store";
-import { readJson, storageGet, STORAGE_KEYS, writeJson } from "./storage";
-import type { Account, AccountBucket, Provider } from "./types";
+import { KNOWN_PROVIDERS, storeSidebarGroupOrder, uniqueStrings } from "./sidebar-order";
+import { getLatestSnapshot } from "./snapshot-store";
+import type { Provider } from "./types";
 
 const EDGE_SCROLL_ZONE_PX = 52;
 const EDGE_SCROLL_MAX_STEP_PX = 18;
@@ -12,18 +12,6 @@ const DRAG_THRESHOLD_PX = 5;
 const TOUCH_CANCEL_MOVE_PX = 8;
 const LONG_PRESS_DELAY_MS = 350;
 const REORDER_ANIMATION_MS = 150;
-
-export const DASHBOARD_PROVIDER_ORDER_EVENT = UI_EVENTS.providerOrderChanged;
-export const DASHBOARD_GROUP_ORDER_EVENT = UI_EVENTS.groupOrderChanged;
-
-const KNOWN_PROVIDERS: Provider[] = [
-  "openai",
-  "anthropic",
-  "grok",
-  "antigravity",
-  "google_ai_studio",
-  "opencode_go",
-];
 
 type DragDescriptor =
   | { kind: "group"; groupId: string; provider: Provider; source: HTMLElement }
@@ -91,139 +79,30 @@ function clearPressCursor(): void {
 }
 
 let lastDropAt = 0;
-let latestAccounts: Account[] = [];
-let latestBuckets: AccountBucket[] = [];
-let snapshotSyncTimer: number | null = null;
-let mutationGuard = false;
 
-function providerFromClassList(classList: DOMTokenList): Provider | null {
-  if (classList.contains("provider-openai")) return "openai";
-  if (classList.contains("provider-anthropic")) return "anthropic";
-  if (classList.contains("provider-antigravity")) return "antigravity";
-  if (classList.contains("provider-google_ai_studio")) return "google_ai_studio";
-  if (classList.contains("provider-grok")) return "grok";
-  if (classList.contains("provider-opencode_go")) return "opencode_go";
-  return null;
-}
 
-function providerFromRow(row: HTMLElement): Provider | null {
-  const provider = row.dataset.reorderProvider as Provider | undefined;
-  if (provider && KNOWN_PROVIDERS.includes(provider)) return provider;
-  const icon = row.querySelector<HTMLElement>(".provider-summary-icon");
-  return icon ? providerFromClassList(icon.classList) : null;
-}
 
-function providerFromCard(card: HTMLElement): Provider | null {
-  const provider = card.dataset.reorderProvider as Provider | undefined;
-  if (provider && KNOWN_PROVIDERS.includes(provider)) return provider;
-  const icon = card.querySelector<HTMLElement>(".account-card-provider-icon");
-  return icon ? providerFromClassList(icon.classList) : null;
-}
 
-function uniqueStrings(list: string[]): string[] {
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const item of list) {
-    if (item && !seen.has(item)) {
-      seen.add(item);
-      result.push(item);
-    }
-  }
-  return result;
-}
 
-function uniqueProviders(list: Provider[]): Provider[] {
-  const seen = new Set<Provider>();
-  const result: Provider[] = [];
-  for (const item of list) {
-    if (!seen.has(item)) {
-      seen.add(item);
-      result.push(item);
-    }
-  }
-  return result;
-}
 
 function groupIdFromRow(row: HTMLElement): string | null {
-  const groupId = row.dataset.groupId;
-  if (groupId && groupId.trim().length > 0) return groupId.trim();
-  const provider = row.dataset.reorderProvider as Provider | undefined;
-  if (provider && KNOWN_PROVIDERS.includes(provider)) return `provider:${provider}`;
-  const icon = row.querySelector<HTMLElement>(".provider-summary-icon");
-  const p = icon ? providerFromClassList(icon.classList) : null;
-  return p ? `provider:${p}` : null;
+  const groupId = row.dataset.groupId?.trim();
+  return groupId ? groupId : null;
 }
 
-export function readSidebarGroupOrder(): string[] {
-  const saved = readJson<unknown[]>(STORAGE_KEYS.sidebarGroupOrder, [], Array.isArray);
-  return uniqueStrings(saved.filter((item): item is string => typeof item === "string" && item.length > 0));
+function providerOf(element: HTMLElement): Provider | null {
+  const provider = element.dataset.reorderProvider as Provider | undefined;
+  return provider && KNOWN_PROVIDERS.includes(provider) ? provider : null;
 }
 
-export function storeSidebarGroupOrder(order: string[]): void {
-  const deduped = uniqueStrings(order.filter((id) => id !== "all"));
-  writeJson(STORAGE_KEYS.sidebarGroupOrder, deduped);
 
-  // Also derive Provider[] order for backwards compatibility
-  const derivedProviders: Provider[] = [];
-  for (const id of deduped) {
-    if (id.startsWith("provider:")) {
-      const p = id.slice(9) as Provider;
-      if (KNOWN_PROVIDERS.includes(p) && !derivedProviders.includes(p)) {
-        derivedProviders.push(p);
-      }
-    }
-  }
-  for (const p of KNOWN_PROVIDERS) {
-    if (!derivedProviders.includes(p)) {
-      derivedProviders.push(p);
-    }
-  }
-  writeJson(STORAGE_KEYS.providerOrder, derivedProviders);
 
-  window.dispatchEvent(new CustomEvent<string[]>(DASHBOARD_GROUP_ORDER_EVENT, { detail: deduped }));
-  window.dispatchEvent(new CustomEvent<Provider[]>(DASHBOARD_PROVIDER_ORDER_EVENT, { detail: derivedProviders }));
-}
-
-export function readDashboardProviderOrder(): Provider[] {
-  const raw = storageGet(STORAGE_KEYS.providerOrder);
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw ?? "[]");
-  } catch {
-    return [...KNOWN_PROVIDERS];
-  }
-  const saved = Array.isArray(parsed)
-    ? uniqueProviders(parsed.filter((value): value is Provider => KNOWN_PROVIDERS.includes(value as Provider)))
-    : [];
-  const canonical = [
-    ...saved,
-    ...KNOWN_PROVIDERS.filter((provider) => !saved.includes(provider)),
-  ];
-  // Heal a stored list that has unknown, duplicated, or missing providers.
-  if (raw != null && raw !== JSON.stringify(saved) && raw !== JSON.stringify(canonical)) {
-    writeJson(STORAGE_KEYS.providerOrder, canonical);
-  }
-  return canonical;
-}
 
 function arraysEqual<T>(left: T[], right: T[]): boolean {
   return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function groupRows(container: HTMLElement): HTMLElement[] {
-  const all = Array.from(container.querySelectorAll<HTMLElement>(":scope > .provider-summary-row"));
-  const seen = new Set<string>();
-  for (const row of [...all]) {
-    const key = groupIdFromRow(row) ?? row.outerHTML;
-    if (row.dataset.groupId === "all" || row.classList.contains("is-all-row")) {
-      continue;
-    }
-    if (seen.has(key)) {
-      row.remove();
-    } else {
-      seen.add(key);
-    }
-  }
   return Array.from(container.querySelectorAll<HTMLElement>(":scope > .provider-summary-row"))
     .filter((row) => row.dataset.groupId !== "all" && !row.classList.contains("is-all-row"));
 }
@@ -232,50 +111,8 @@ function accountCards(container: HTMLElement): HTMLElement[] {
   return Array.from(container.querySelectorAll<HTMLElement>(":scope > .provider-account-card"));
 }
 
-function normalizeGroupOrder(available: string[]): string[] {
-  const saved = readSidebarGroupOrder();
-  const dedupedAvailable = uniqueStrings(available);
-  return [
-    ...saved.filter((id) => dedupedAvailable.includes(id)),
-    ...dedupedAvailable.filter((id) => !saved.includes(id)),
-  ];
-}
 
-function applyGroupOrder(container: HTMLElement): void {
-  const rows = groupRows(container);
-  const available = rows.flatMap((row) => {
-    const id = groupIdFromRow(row);
-    return id ? [id] : [];
-  });
-  const order = normalizeGroupOrder(available);
-  const current = rows.map(groupIdFromRow).filter((id): id is string => Boolean(id));
-  if (order.length !== current.length || order.every((id, index) => current[index] === id)) return;
 
-  mutationGuard = true;
-  try {
-    for (const id of order) {
-      const row = rows.find((candidate) => groupIdFromRow(candidate) === id);
-      if (row) container.appendChild(row);
-    }
-  } finally {
-    mutationGuard = false;
-  }
-}
-
-function enhanceProviderList(): void {
-  const container = document.querySelector<HTMLElement>(".provider-list");
-  if (!container) return;
-  applyGroupOrder(container);
-  for (const row of groupRows(container)) {
-    const id = groupIdFromRow(row);
-    if (!id) continue;
-    row.draggable = false;
-    row.dataset.reorderEnabled = "true";
-    row.dataset.groupId = id;
-    const provider = providerFromRow(row);
-    if (provider) row.dataset.reorderProvider = provider;
-  }
-}
 
 function visibleAccountIds(container: HTMLElement): string[] {
   return uniqueStrings(
@@ -285,28 +122,12 @@ function visibleAccountIds(container: HTMLElement): string[] {
   );
 }
 
-function enhanceAccountList(): void {
-  const container = document.querySelector<HTMLElement>(".provider-account-cards");
-  if (!container) return;
-  for (const card of accountCards(container)) {
-    const accountId = card.dataset.accountId?.trim();
-    const provider = providerFromCard(card);
-    card.draggable = false;
-    if (!accountId || !provider) {
-      delete card.dataset.reorderEnabled;
-      continue;
-    }
-    card.dataset.accountId = accountId;
-    card.dataset.reorderProvider = provider;
-    card.dataset.reorderEnabled = "true";
-  }
-}
 
 function dragFromPointerTarget(target: Element): DragDescriptor | null {
   const groupRow = target.closest<HTMLElement>(".provider-summary-row[data-reorder-enabled='true']");
   if (groupRow) {
     const groupId = groupIdFromRow(groupRow);
-    const provider = providerFromRow(groupRow) ?? "openai";
+    const provider = providerOf(groupRow) ?? "openai";
     return groupId ? { kind: "group", groupId, provider, source: groupRow } : null;
   }
 
@@ -314,7 +135,7 @@ function dragFromPointerTarget(target: Element): DragDescriptor | null {
   const card = target.closest<HTMLElement>(".provider-account-card[data-reorder-enabled='true']");
   if (!card) return null;
   const accountId = card.dataset.accountId;
-  const provider = providerFromCard(card);
+  const provider = providerOf(card);
   return accountId && provider ? { kind: "account", accountId, provider, source: card } : null;
 }
 
@@ -390,13 +211,8 @@ function updatePlaceholderFromPointer(drag: ActiveDrag): void {
   if (placeholderIndex(drag, elements) === desiredIndex) return;
 
   const before = capturePositions(elements);
-  mutationGuard = true;
-  try {
-    if (reference) drag.container.insertBefore(drag.placeholder, reference);
-    else drag.container.appendChild(drag.placeholder);
-  } finally {
-    mutationGuard = false;
-  }
+  if (reference) drag.container.insertBefore(drag.placeholder, reference);
+  else drag.container.appendChild(drag.placeholder);
   animateReorder(elements, before);
 }
 
@@ -507,12 +323,7 @@ function beginVisualDrag(clientX: number, clientY: number, candidate: PointerCan
   dragState = active;
   lastDragMoveAt = Date.now();
   dragStartedAt = Date.now();
-  mutationGuard = true;
-  try {
-    descriptor.source.after(placeholder);
-  } finally {
-    mutationGuard = false;
-  }
+  descriptor.source.after(placeholder);
 
   container.classList.add("reorder-previewing");
   descriptor.source.classList.add("is-reorder-origin");
@@ -580,19 +391,14 @@ function settleVisualDrag(drag: ActiveDrag, commit: boolean): void {
     drag.float.remove();
   }
 
-  mutationGuard = true;
-  try {
-    if (commit) {
-      drag.container.insertBefore(drag.source, drag.placeholder);
-    } else if (drag.originalNextSibling && drag.originalNextSibling.parentNode === drag.container) {
-      drag.container.insertBefore(drag.source, drag.originalNextSibling);
-    } else {
-      drag.container.appendChild(drag.source);
-    }
-    drag.placeholder.remove();
-  } finally {
-    mutationGuard = false;
+  if (commit) {
+    drag.container.insertBefore(drag.source, drag.placeholder);
+  } else if (drag.originalNextSibling && drag.originalNextSibling.parentNode === drag.container) {
+    drag.container.insertBefore(drag.source, drag.originalNextSibling);
+  } else {
+    drag.container.appendChild(drag.source);
   }
+  drag.placeholder.remove();
 
   drag.source.classList.remove("is-dragging", "is-reorder-origin");
   drag.container.classList.remove("reorder-previewing");
@@ -636,10 +442,7 @@ function finishDrag(commit: boolean): void {
   dragState = null;
   lastDropAt = Date.now();
 
-  if (!commit || arraysEqual(drag.originalOrder, nextOrder)) {
-    scheduleSnapshotSync(0);
-    return;
-  }
+  if (!commit || arraysEqual(drag.originalOrder, nextOrder)) return;
 
   if (drag.descriptor.kind === "group") {
     storeSidebarGroupOrder(nextOrder);
@@ -854,9 +657,8 @@ function onTouchCancel(event: TouchEvent): void {
 export async function persistGroupOrder(orderedGroupIds: string[]): Promise<void> {
   try {
     const snapshot = await bridgeApi.snapshot();
-    const accounts = latestAccounts.length ? latestAccounts : snapshot.accounts;
-    const buckets = snapshot.buckets ?? latestBuckets;
-    if (snapshot.buckets) latestBuckets = snapshot.buckets;
+    const accounts = snapshot.accounts;
+    const buckets = snapshot.buckets ?? [];
 
     const orderedAccountIds: string[] = [];
     const assignedAccountIds = new Set<string>();
@@ -896,13 +698,13 @@ export async function persistGroupOrder(orderedGroupIds: string[]): Promise<void
     }
 
     if (orderedAccountIds.length === accounts.length) {
-      latestAccounts = await bridgeApi.reorderAccounts(orderedAccountIds);
+      await bridgeApi.reorderAccounts(orderedAccountIds);
     }
-    requestDashboardResync();
   } catch (cause) {
     logIgnored("dashboard-reorder persist", cause);
-    scheduleSnapshotSync(0);
   }
+  // Either way, have the app re-read the saved state so the screen matches it.
+  requestDashboardResync();
 }
 
 export async function persistVisibleAccountOrder(orderedVisibleIds: string[], groupId: string | null): Promise<void> {
@@ -911,65 +713,46 @@ export async function persistVisibleAccountOrder(orderedVisibleIds: string[], gr
 
   try {
     if (pageId === "all") {
-      latestAccounts = await bridgeApi.reorderAccounts(orderedVisibleIds);
-      requestDashboardResync();
-      return;
-    }
-
-    if (pageId.startsWith("bucket:")) {
-      const snapshot = latestAccounts.length
-        ? { accounts: latestAccounts, buckets: latestBuckets }
-        : await bridgeApi.snapshot();
-      const buckets = snapshot.buckets ?? latestBuckets;
-      const bucket = buckets.find((candidate) => candidate.id === pageId.slice(7));
+      await bridgeApi.reorderAccounts(orderedVisibleIds);
+    } else if (pageId.startsWith("bucket:")) {
+      const snapshot = getLatestSnapshot() ?? await bridgeApi.snapshot();
+      const bucket = (snapshot.buckets ?? []).find((candidate) => candidate.id === pageId.slice(7));
       if (bucket) {
         const visible = new Set(orderedVisibleIds);
         const nextAccountIds = [...orderedVisibleIds, ...bucket.accountIds.filter((id) => !visible.has(id))];
         await bridgeApi.saveBucket(bucket.name, bucket.provider, nextAccountIds, bucket.id);
-        latestBuckets = buckets.map((candidate) => (
-          candidate.id === bucket.id ? { ...candidate, accountIds: nextAccountIds } : candidate
-        ));
       }
     }
-
-    requestDashboardResync();
   } catch (cause) {
     logIgnored("dashboard-reorder persist", cause);
-    scheduleSnapshotSync(0);
   }
+  requestDashboardResync();
 }
 
-/** Re-reads the app's latest published snapshot (see snapshot-store) and re-applies ordering to the DOM. */
-function syncSnapshotAndMappings(): void {
-  if (dragState) return;
-  const snapshot = getLatestSnapshot();
-  if (!snapshot) return;
-  latestAccounts = snapshot.accounts;
-  latestBuckets = snapshot.buckets ?? [];
-  enhanceProviderList();
-  enhanceAccountList();
-}
-
-function scheduleSnapshotSync(delay = 100): void {
-  if (snapshotSyncTimer != null) window.clearTimeout(snapshotSyncTimer);
-  snapshotSyncTimer = window.setTimeout(() => {
-    snapshotSyncTimer = null;
-    syncSnapshotAndMappings();
-  }, delay);
-}
-
-export function installDashboardReorder(): void {
-  enhanceProviderList();
-  enhanceAccountList();
-  scheduleSnapshotSync(0);
-
-  const observer = new MutationObserver(() => {
-    if (mutationGuard || dragState) return;
-    enhanceProviderList();
-    enhanceAccountList();
-    scheduleSnapshotSync();
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
+/**
+ * Installs the pointer/touch gesture handlers for drag-to-reorder on account
+ * cards and sidebar groups. Ordering itself is owned by React; this only runs
+ * the gesture and reports the resulting order. Returns an uninstall function.
+ */
+export function installDashboardReorder(): () => void {
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Escape" && dragState) {
+      event.preventDefault();
+      cancelPointerCandidate();
+    }
+  };
+  const onClickCapture = (event: MouseEvent) => {
+    // Swallow the click that a drop would otherwise register on the dropped item.
+    if (Date.now() - lastDropAt > 600) return;
+    const target = event.target as HTMLElement | null;
+    if (!target?.closest(".provider-summary-row, .provider-account-card")) return;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+  const onContextMenu = (event: Event) => {
+    if (dragState || Date.now() - lastDropAt < 500) event.preventDefault();
+  };
+  const onBlur = () => cancelPointerCandidate();
 
   document.addEventListener("pointerdown", beginPointerCandidate, true);
   document.addEventListener("pointermove", movePointerCandidate, { capture: true, passive: false });
@@ -978,28 +761,22 @@ export function installDashboardReorder(): void {
   document.addEventListener("touchmove", onTouchMove, { capture: true, passive: false });
   document.addEventListener("touchend", onTouchEnd, { capture: true, passive: false });
   document.addEventListener("touchcancel", onTouchCancel, { capture: true, passive: false });
-  window.addEventListener("blur", () => cancelPointerCandidate());
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && dragState) {
-      event.preventDefault();
-      cancelPointerCandidate();
-    }
-  }, true);
+  window.addEventListener("blur", onBlur);
+  document.addEventListener("keydown", onKeyDown, true);
+  document.addEventListener("click", onClickCapture, true);
+  document.addEventListener("contextmenu", onContextMenu, true);
 
-  document.addEventListener("click", (event) => {
-    if (Date.now() - lastDropAt > 600) return;
-    const target = event.target as HTMLElement | null;
-    if (!target?.closest(".provider-summary-row, .provider-account-card")) return;
-    event.preventDefault();
-    event.stopPropagation();
-  }, true);
-
-  document.addEventListener("contextmenu", (event) => {
-    if (dragState || Date.now() - lastDropAt < 500) {
-      event.preventDefault();
-    }
-  }, true);
-
-  // The app publishes a snapshot after every load (including on focus and after a resync request).
-  onSnapshot(() => scheduleSnapshotSync(0));
+  return () => {
+    document.removeEventListener("pointerdown", beginPointerCandidate, true);
+    document.removeEventListener("pointermove", movePointerCandidate, true);
+    document.removeEventListener("pointerup", endPointerCandidate, true);
+    document.removeEventListener("pointercancel", cancelPointerCandidate, true);
+    document.removeEventListener("touchmove", onTouchMove, true);
+    document.removeEventListener("touchend", onTouchEnd, true);
+    document.removeEventListener("touchcancel", onTouchCancel, true);
+    window.removeEventListener("blur", onBlur);
+    document.removeEventListener("keydown", onKeyDown, true);
+    document.removeEventListener("click", onClickCapture, true);
+    document.removeEventListener("contextmenu", onContextMenu, true);
+  };
 }

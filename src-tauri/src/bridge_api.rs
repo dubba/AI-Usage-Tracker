@@ -23,7 +23,11 @@ use tokio::net::TcpListener;
 
 const API_ADDR: &str = "127.0.0.1:47831";
 const RETRY_DELAY_SECONDS: u64 = 3;
-const MIN_REQUEST_INTERVAL: Duration = Duration::from_secs(1);
+/// A client may make this many requests back to back...
+const RATE_LIMIT_BURST: f64 = 10.0;
+/// ...and then one more per second. Local tools that poll together (Paseo and a
+/// script, say) no longer throttle each other, while a runaway loop still is.
+const RATE_LIMIT_REFILL_PER_SECOND: f64 = 1.0;
 /// Prune per-client rate-limit entries older than this to bound memory.
 const RATE_LIMIT_ENTRY_TTL: Duration = Duration::from_secs(60);
 
@@ -31,6 +35,11 @@ pub async fn run_controller(app: Arc<AppState>) {
     loop {
         if !app.settings.paseo_bridge_enabled() {
             set_runtime(&app, false, None);
+            app.settings.wait_for_bridge_state_change().await;
+            continue;
+        }
+        if let Some(reason) = app.bridge_unavailable() {
+            set_runtime(&app, false, Some(reason));
             app.settings.wait_for_bridge_state_change().await;
             continue;
         }
@@ -255,18 +264,36 @@ fn too_many_requests() -> axum::response::Response {
     )
 }
 
+/// Token bucket for one client.
+#[derive(Clone, Copy, Debug)]
+pub struct RateBucket {
+    tokens: f64,
+    updated: Instant,
+}
+
 fn rate_limited(app: &AppState, client: IpAddr) -> bool {
-    let now = Instant::now();
+    rate_limited_at(app, client, Instant::now())
+}
+
+fn rate_limited_at(app: &AppState, client: IpAddr, now: Instant) -> bool {
     let mut map = app.bridge_rate_limit.lock();
-    // Bound memory: drop entries idle longer than the TTL.
-    map.retain(|_, seen| now.duration_since(*seen) < RATE_LIMIT_ENTRY_TTL);
-    if let Some(previous) = map.get(&client) {
-        if now.duration_since(*previous) < MIN_REQUEST_INTERVAL {
-            return true;
-        }
+    // Bound memory: drop entries idle longer than the TTL (their bucket would
+    // be full again anyway).
+    map.retain(|_, bucket| now.saturating_duration_since(bucket.updated) < RATE_LIMIT_ENTRY_TTL);
+    let bucket = map.entry(client).or_insert(RateBucket {
+        tokens: RATE_LIMIT_BURST,
+        updated: now,
+    });
+    let refill =
+        now.saturating_duration_since(bucket.updated).as_secs_f64() * RATE_LIMIT_REFILL_PER_SECOND;
+    bucket.tokens = (bucket.tokens + refill).min(RATE_LIMIT_BURST);
+    bucket.updated = now;
+    if bucket.tokens >= 1.0 {
+        bucket.tokens -= 1.0;
+        false
+    } else {
+        true
     }
-    map.insert(client, now);
-    false
 }
 
 fn unauthorized() -> axum::response::Response {
@@ -325,6 +352,28 @@ mod tests {
 
     fn loopback_ip() -> IpAddr {
         IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1))
+    }
+
+    #[tokio::test]
+    async fn controller_stays_off_and_reports_why_when_the_token_is_unavailable() {
+        let app = test_app();
+        app.settings.set_paseo_bridge_enabled(true).unwrap();
+        app.set_bridge_unavailable(Some("token unavailable".into()));
+
+        let controller = tokio::spawn(run_controller(app.clone()));
+        let reported = tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                if app.api_runtime.read().error.as_deref() == Some("token unavailable") {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await;
+        controller.abort();
+
+        assert!(reported.is_ok(), "the reason must reach the bridge status");
+        assert!(!app.api_runtime.read().running);
     }
 
     #[test]
@@ -396,16 +445,42 @@ mod tests {
         let app = test_app();
         let client_a: IpAddr = "127.0.0.1".parse().unwrap();
         let client_b: IpAddr = "127.0.0.2".parse().unwrap();
-        assert!(!rate_limited(&app, client_a));
-        assert!(rate_limited(&app, client_a));
-        // A different loopback client has its own budget.
-        assert!(!rate_limited(&app, client_b));
-        assert!(rate_limited(&app, client_b));
-        {
-            let mut map = app.bridge_rate_limit.lock();
-            map.insert(client_a, Instant::now() - MIN_REQUEST_INTERVAL);
+        let start = Instant::now();
+
+        // A burst is allowed, then the client is limited.
+        for _ in 0..RATE_LIMIT_BURST as usize {
+            assert!(!rate_limited_at(&app, client_a, start));
         }
-        assert!(!rate_limited(&app, client_a));
+        assert!(rate_limited_at(&app, client_a, start));
+
+        // A different loopback client has its own budget.
+        assert!(!rate_limited_at(&app, client_b, start));
+
+        // One request per second comes back, but not a full burst at once.
+        let later = start + Duration::from_millis(1100);
+        assert!(!rate_limited_at(&app, client_a, later));
+        assert!(rate_limited_at(&app, client_a, later));
+
+        // After a long idle time the whole burst is available again, no more.
+        let much_later = start + Duration::from_secs(30);
+        for _ in 0..RATE_LIMIT_BURST as usize {
+            assert!(!rate_limited_at(&app, client_a, much_later));
+        }
+        assert!(rate_limited_at(&app, client_a, much_later));
+    }
+
+    #[test]
+    fn idle_rate_limit_entries_are_pruned() {
+        let app = test_app();
+        let start = Instant::now();
+        for last in 1..=50u8 {
+            let client: IpAddr = format!("127.0.0.{last}").parse().unwrap();
+            assert!(!rate_limited_at(&app, client, start));
+        }
+        assert_eq!(app.bridge_rate_limit.lock().len(), 50);
+        let client: IpAddr = "127.0.1.1".parse().unwrap();
+        rate_limited_at(&app, client, start + RATE_LIMIT_ENTRY_TTL * 2);
+        assert_eq!(app.bridge_rate_limit.lock().len(), 1);
     }
 
     #[test]

@@ -14,8 +14,8 @@ import {
 import {
   accountNeedsAttention,
   displayAccountLabel,
+  nextResetSummary,
 } from "../usage-logic";
-import type { NextResetSummary } from "../usage-logic";
 import type { SidebarGroup } from "../sidebar-groups";
 import type {
   Account,
@@ -25,22 +25,52 @@ import { persistVisibleAccountOrder } from "../dashboard-reorder";
 import { moveAnnouncement, moveById } from "../reorder-utils";
 import { AccountDashboardCard, REORDER_HINT_ID } from "./AccountDashboardCard";
 import { formatCount } from "../format";
+import { useClock } from "../hooks/useClock";
+import { computeSyncStatus } from "../sync-status";
 
 const ACCOUNT_FORMS = { one: "account", other: "accounts" };
 const ATTENTION_HINT_ID = "attention-filter-hint";
+
+/** Time until the soonest reset. Updates itself with the shared clock, so the dashboard does not re-render for it. */
+function NextResetCard({ accounts }: { accounts: Account[] }) {
+  const account = useClock((now) => nextResetSummary(accounts, now).account ?? "No upcoming reset");
+  const value = useClock((now) => nextResetSummary(accounts, now).value);
+  return (
+    <div className="mockup-summary-card next-reset-card">
+      <div>
+        <span className="summary-label">Next reset</span>
+        <strong className="next-reset-account">{account}</strong>
+      </div>
+      <div className="next-reset-actions">
+        <span className="next-reset-pill">{value}</span>
+        <ClockIcon />
+      </div>
+    </div>
+  );
+}
+
+/** When the numbers on screen were last refreshed, flagging accounts that have been left behind. */
+function SyncStatusLine({ accounts, refreshMinutes, syncing }: { accounts: Account[]; refreshMinutes: number; syncing: boolean }) {
+  const tone = useClock((now) => computeSyncStatus(accounts, now, refreshMinutes).tone);
+  const label = useClock((now) => computeSyncStatus(accounts, now, refreshMinutes).label);
+  return (
+    <p className={`dashboard-sync-status is-${syncing ? "syncing" : tone}`}>
+      {syncing ? "Syncing…" : label}
+    </p>
+  );
+}
 
 export function AccountsView(props: {
   allAccounts: Account[];
   accounts: Account[];
   selectedGroup: SidebarGroup;
   needsAttention: number;
-  nextReset: NextResetSummary;
+  refreshMinutes: number;
   onToggleSidebar?: () => void;
   onAdd: () => void;
   onRefreshAll: () => void;
   onEditBucket?: (bucket: AccountBucket) => void;
   onDeleteBucket?: (bucket: AccountBucket) => void;
-  nowMs: number;
   onRefresh: (account: Account) => void;
   onReconnect: (account: Account) => void;
   onConnectGoogleUsage: (account: Account) => void;
@@ -75,6 +105,8 @@ export function AccountsView(props: {
     void persistVisibleAccountOrder(move.ids, props.selectedGroup.id);
     setAnnouncement(moveAnnouncement(displayAccountLabel(account), move.to, move.ids.length));
   };
+
+  const syncing = [...props.busy].some((key) => key === "refresh-all" || key.startsWith("refresh:"));
 
   return (
     <div className="content-scroll dashboard-content">
@@ -113,6 +145,7 @@ export function AccountsView(props: {
             ) : null}
           </div>
           <p className="dashboard-description">This is a dashboard of all your AI subscriptions by usage.</p>
+          <SyncStatusLine accounts={props.accounts} refreshMinutes={props.refreshMinutes} syncing={syncing} />
         </div>
         <div className="header-actions">
           {props.selectedGroup.type === "bucket" && props.selectedGroup.bucket ? (
@@ -177,16 +210,7 @@ export function AccountsView(props: {
               </span>
             ) : null}
           </div>
-          <div className="mockup-summary-card next-reset-card">
-            <div>
-              <span className="summary-label">Next reset</span>
-              <strong className="next-reset-account">{props.nextReset.account ?? "No upcoming reset"}</strong>
-            </div>
-            <div className="next-reset-actions">
-              <span className="next-reset-pill">{props.nextReset.value}</span>
-              <ClockIcon />
-            </div>
-          </div>
+          <NextResetCard accounts={props.accounts} />
         </section>
 
         {showAttentionOnly ? (
@@ -210,7 +234,6 @@ export function AccountsView(props: {
             pageId={props.selectedGroup.id}
             account={account}
             busy={props.busy}
-            nowMs={props.nowMs}
             onRefresh={() => props.onRefresh(account)}
             onReconnect={() => props.onReconnect(account)}
             onConnectGoogleUsage={() => props.onConnectGoogleUsage(account)}

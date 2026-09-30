@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import type { Account } from "../types";
 import { useModalA11y } from "./useModalA11y";
+import { ModalCloseButton } from "./ModalCloseButton";
 
 export function RemoveAccountModal({
   account,
@@ -22,6 +23,7 @@ export function RemoveAccountModal({
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !busy && onClose()}>
       <section ref={dialogRef} className="modal-card remove-account-modal" role="dialog" aria-modal="true" aria-labelledby="remove-account-title" tabIndex={-1}>
+        <ModalCloseButton onClose={onClose} disabled={busy} />
         <div className="modal-kicker">Remove account</div>
         <h2 id="remove-account-title">Remove {account.label}?</h2>
         <p>Deletes stored credentials for this account from device. The provider account itself will not be canceled.</p>

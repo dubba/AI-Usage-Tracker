@@ -5,6 +5,7 @@ import { abandonLoginAttempt, recoverFromStaleLogin, retryLoginAttempt, subscrib
 import type { Account, LoginStatus, Provider } from "../types";
 import { CustomDropdown, type DropdownOption } from "./CustomDropdown";
 import { useModalA11y } from "./useModalA11y";
+import { ModalCloseButton } from "./ModalCloseButton";
 
 type ConnectionProvider = Provider;
 
@@ -439,6 +440,7 @@ export function AddAccountModal({
         aria-labelledby="add-account-title"
         tabIndex={-1}
       >
+        <ModalCloseButton onClose={closeModal} />
         <div className="modal-kicker">Provider connection</div>
         <h2 id="add-account-title">{providerLocked ? `Reconnect ${providerName(provider)}` : "Which account do you want to add?"}</h2>
         <p>{providerLocked ? providerCopy : "Choose a provider, name the account, and enter its secure connection details."}</p>

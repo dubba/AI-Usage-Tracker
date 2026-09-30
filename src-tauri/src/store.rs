@@ -1,3 +1,5 @@
+#[cfg(any(target_os = "android", debug_assertions))]
+use crate::credential_file::{platform_cipher, read_credential_file, write_credential_file};
 use crate::{
     fs_util::{atomic_write_private, ensure_private_dir, ensure_private_file},
     model::{Account, OAuthSecret, Provider, ProviderSecret, UsageSnapshot},
@@ -12,7 +14,10 @@ use std::{
     collections::HashMap,
     fs,
     path::{Path, PathBuf},
-    sync::LazyLock,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        LazyLock,
+    },
     time::{Duration, Instant},
 };
 use zeroize::Zeroize;
@@ -40,6 +45,8 @@ static SECRET_CACHE: LazyLock<Mutex<HashMap<String, CachedSecret>>> =
 static DATA_DIRS: LazyLock<RwLock<Vec<PathBuf>>> = LazyLock::new(|| RwLock::new(Vec::new()));
 
 const MAX_ACCOUNT_ID_LEN: usize = 64;
+/// Oldest deleted-account ids are dropped past this many.
+const MAX_TOMBSTONES: usize = 500;
 
 /// Account ids become credential file names and keychain entry names, and
 /// arrive from pairing peers, so they must stay a plain token: no path
@@ -80,6 +87,17 @@ fn current_credentials_dir() -> Result<PathBuf, StoreError> {
     let dir = base.join("credentials");
     ensure_private_dir(&dir).map_err(StoreError::Io)?;
     Ok(dir)
+}
+
+/// Seals any plaintext credential files left by earlier versions (Android).
+/// A no-op where there is no platform cipher.
+#[cfg(any(target_os = "android", debug_assertions))]
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+pub fn upgrade_plaintext_credentials() -> usize {
+    match current_credentials_dir() {
+        Ok(dir) => crate::credential_file::upgrade_directory(platform_cipher(), &dir),
+        Err(_) => 0,
+    }
 }
 
 #[cfg(any(target_os = "android", debug_assertions))]
@@ -149,6 +167,14 @@ struct CredentialManifest {
 pub struct AccountStore {
     data_dir: PathBuf,
     accounts: RwLock<Vec<Account>>,
+    /// Bumped on every in-memory change, under the `accounts` lock. Lets the
+    /// (slow) file write happen outside that lock without an older snapshot
+    /// ever overwriting a newer one.
+    version: AtomicU64,
+    /// Highest version already written to disk; also serializes writers.
+    written_version: Mutex<u64>,
+    /// Serializes read-modify-write of the deleted-accounts file.
+    tombstone_lock: Mutex<()>,
 }
 
 impl AccountStore {
@@ -176,7 +202,28 @@ impl AccountStore {
         Ok(Self {
             data_dir,
             accounts: RwLock::new(accounts),
+            version: AtomicU64::new(0),
+            written_version: Mutex::new(0),
+            tombstone_lock: Mutex::new(()),
         })
+    }
+
+    /// Writes `snapshot` unless a newer one already reached the disk. Callers
+    /// must not hold the `accounts` lock: the write does file I/O (and on
+    /// Windows spawns processes), and readers such as the UI and the local API
+    /// should not wait for it.
+    fn commit_snapshot(&self, snapshot: &[Account], version: u64) -> Result<(), StoreError> {
+        let mut written = self.written_version.lock();
+        if version <= *written {
+            return Ok(());
+        }
+        write_account_file(&self.data_dir, snapshot)?;
+        *written = version;
+        Ok(())
+    }
+
+    fn next_version(&self) -> u64 {
+        self.version.fetch_add(1, Ordering::SeqCst) + 1
     }
 
     pub fn list(&self) -> Vec<Account> {
@@ -194,19 +241,22 @@ impl AccountStore {
     }
 
     pub fn upsert(&self, account: Account) -> Result<Account, StoreError> {
-        let mut accounts = self.accounts.write();
-        let saved = if let Some(existing) = accounts
-            .iter_mut()
-            .find(|candidate| candidate.id == account.id)
-        {
-            merge_account(existing, account);
-            existing.touch();
-            existing.clone()
-        } else {
-            accounts.push(account.clone());
-            account
+        let (saved, snapshot, version) = {
+            let mut accounts = self.accounts.write();
+            let saved = if let Some(existing) = accounts
+                .iter_mut()
+                .find(|candidate| candidate.id == account.id)
+            {
+                merge_account(existing, account);
+                existing.touch();
+                existing.clone()
+            } else {
+                accounts.push(account.clone());
+                account
+            };
+            (saved, accounts.clone(), self.next_version())
         };
-        write_account_file(&self.data_dir, &accounts)?;
+        self.commit_snapshot(&snapshot, version)?;
         Ok(saved)
     }
 
@@ -214,15 +264,18 @@ impl AccountStore {
     where
         F: FnOnce(&mut Account),
     {
-        let mut accounts = self.accounts.write();
-        let account = accounts
-            .iter_mut()
-            .find(|account| account.id == id)
-            .ok_or_else(|| StoreError::Invalid("account not found".into()))?;
-        update(account);
-        account.touch();
-        let result = account.clone();
-        write_account_file(&self.data_dir, &accounts)?;
+        let (result, snapshot, version) = {
+            let mut accounts = self.accounts.write();
+            let account = accounts
+                .iter_mut()
+                .find(|account| account.id == id)
+                .ok_or_else(|| StoreError::Invalid("account not found".into()))?;
+            update(account);
+            account.touch();
+            let result = account.clone();
+            (result, accounts.clone(), self.next_version())
+        };
+        self.commit_snapshot(&snapshot, version)?;
         Ok(result)
     }
 
@@ -237,34 +290,47 @@ impl AccountStore {
         read_tombstone_file(&self.data_dir).deleted_account_ids
     }
 
+    /// Applies `change` to the tombstone list and saves it if `change` reports
+    /// that something changed. Serialized, so two callers (a removal and a
+    /// pairing import, say) cannot each read the same list and overwrite the
+    /// other's update. Tombstones only stop a peer from resurrecting a removed
+    /// account, so a failed save is logged rather than failing the caller.
+    fn update_tombstones(&self, change: impl FnOnce(&mut Vec<String>) -> bool) {
+        let _guard = self.tombstone_lock.lock();
+        let mut tombstones = read_tombstone_file(&self.data_dir);
+        if !change(&mut tombstones.deleted_account_ids) {
+            return;
+        }
+        if let Err(error) = write_tombstone_file(&self.data_dir, &tombstones) {
+            crate::diagnostics::warn(&format!("Unable to save the deleted-account list: {error}"));
+        }
+    }
+
     pub fn merge_tombstones(&self, deleted_ids: &[String]) {
         if deleted_ids.is_empty() {
             return;
         }
-        let mut tombstones = read_tombstone_file(&self.data_dir);
-        let before = tombstones.deleted_account_ids.len();
-        for id in deleted_ids {
-            if !tombstones.deleted_account_ids.iter().any(|t| t == id) {
-                tombstones.deleted_account_ids.push(id.clone());
+        self.update_tombstones(|ids| {
+            let before = ids.len();
+            for id in deleted_ids {
+                if !ids.iter().any(|existing| existing == id) {
+                    ids.push(id.clone());
+                }
             }
-        }
-        if tombstones.deleted_account_ids.len() != before {
-            const MAX_TOMBSTONES: usize = 500;
-            if tombstones.deleted_account_ids.len() > MAX_TOMBSTONES {
-                let excess = tombstones.deleted_account_ids.len() - MAX_TOMBSTONES;
-                tombstones.deleted_account_ids.drain(..excess);
+            if ids.len() > MAX_TOMBSTONES {
+                let excess = ids.len() - MAX_TOMBSTONES;
+                ids.drain(..excess);
             }
-            let _ = write_tombstone_file(&self.data_dir, &tombstones);
-        }
+            ids.len() != before
+        });
     }
 
     pub fn clear_tombstone(&self, id: &str) {
-        let mut tombstones = read_tombstone_file(&self.data_dir);
-        let before = tombstones.deleted_account_ids.len();
-        tombstones.deleted_account_ids.retain(|t| t != id);
-        if tombstones.deleted_account_ids.len() != before {
-            let _ = write_tombstone_file(&self.data_dir, &tombstones);
-        }
+        self.update_tombstones(|ids| {
+            let before = ids.len();
+            ids.retain(|existing| existing != id);
+            ids.len() != before
+        });
     }
 
     fn record_deletion(&self, id: &str) {
@@ -294,7 +360,10 @@ impl AccountStore {
             .filter(|account| account.id != id)
             .cloned()
             .collect();
-        write_account_file(&self.data_dir, &remaining)?;
+        // Removal writes first and only then changes memory, so a failed write
+        // leaves the account in place. It is rare, so it keeps the lock.
+        let version = self.next_version();
+        self.commit_snapshot(&remaining, version)?;
         *accounts = remaining;
         Ok(())
     }
@@ -434,7 +503,7 @@ fn persist_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result<
         };
         let _ = ensure_private_dir(&dir);
         let path = dir.join(format!("{account_id}.json"));
-        match atomic_write_private(&path, &payload) {
+        match write_credential_file(platform_cipher(), &path, &payload) {
             Ok(()) => return Ok(()),
             Err(_) => {
                 let mut dirs = DATA_DIRS.write();
@@ -444,7 +513,7 @@ fn persist_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result<
     }
     let dir = current_credentials_dir()?;
     let path = dir.join(format!("{account_id}.json"));
-    atomic_write_private(&path, &payload).map_err(StoreError::Credential)?;
+    write_credential_file(platform_cipher(), &path, &payload).map_err(StoreError::Credential)?;
     Ok(())
 }
 
@@ -566,7 +635,7 @@ pub fn load_provider_secret(account_id: &str) -> Result<ProviderSecret, StoreErr
         .or_else(|| current_credentials_dir().ok().map(|d| d.join(&filename)));
 
     if let Some(path) = path.as_ref().filter(|p| p.exists()) {
-        let data = fs::read(path).map_err(|error| StoreError::Credential(error.to_string()))?;
+        let data = read_credential_file(platform_cipher(), path).map_err(StoreError::Credential)?;
         let secret: ProviderSecret = serde_json::from_slice(&data)
             .map_err(|error| StoreError::Invalid(error.to_string()))?;
         remember_secret(account_id, secret.clone());
@@ -672,8 +741,10 @@ pub fn delete_secret(account_id: &str) -> Result<(), StoreError> {
 #[cfg(any(target_os = "android", debug_assertions))]
 pub fn load_or_create_bridge_token() -> Result<String, StoreError> {
     if let Some(path) = find_credential_file("bridge-token.txt") {
-        if let Ok(value) = fs::read_to_string(&path) {
-            let trimmed = value.trim().to_string();
+        // An unreadable token (for example a sealed file whose key is gone)
+        // falls through to a fresh one.
+        if let Ok(bytes) = read_credential_file(platform_cipher(), &path) {
+            let trimmed = String::from_utf8_lossy(&bytes).trim().to_string();
             if trimmed.len() >= 32 {
                 return Ok(trimmed);
             }
@@ -682,7 +753,8 @@ pub fn load_or_create_bridge_token() -> Result<String, StoreError> {
     let dir = current_credentials_dir()?;
     let path = dir.join("bridge-token.txt");
     let token = generate_bridge_token();
-    atomic_write_private(&path, token.as_bytes()).map_err(StoreError::Credential)?;
+    write_credential_file(platform_cipher(), &path, token.as_bytes())
+        .map_err(StoreError::Credential)?;
     Ok(token)
 }
 
@@ -718,7 +790,8 @@ pub fn rotate_bridge_token() -> Result<String, StoreError> {
     let dir = current_credentials_dir()?;
     let path = dir.join("bridge-token.txt");
     let token = generate_bridge_token();
-    atomic_write_private(&path, token.as_bytes()).map_err(StoreError::Credential)?;
+    write_credential_file(platform_cipher(), &path, token.as_bytes())
+        .map_err(StoreError::Credential)?;
     Ok(token)
 }
 
@@ -1050,7 +1123,7 @@ fn generate_credential_generation() -> String {
         .collect()
 }
 
-fn generate_bridge_token() -> String {
+pub(crate) fn generate_bridge_token() -> String {
     rand::thread_rng()
         .sample_iter(&Alphanumeric)
         .take(64)
@@ -1068,10 +1141,24 @@ fn tombstone_path(data_dir: &Path) -> PathBuf {
 
 fn read_tombstone_file(data_dir: &Path) -> TombstoneFile {
     let path = tombstone_path(data_dir);
-    fs::read_to_string(path)
-        .ok()
-        .and_then(|raw| serde_json::from_str(&raw).ok())
-        .unwrap_or_default()
+    let raw = match fs::read_to_string(&path) {
+        Ok(raw) => raw,
+        // No file yet is the normal case.
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return TombstoneFile::default()
+        }
+        Err(error) => {
+            crate::diagnostics::warn(&format!("Unable to read the deleted-account list: {error}"));
+            return TombstoneFile::default();
+        }
+    };
+    serde_json::from_str(&raw).unwrap_or_else(|error| {
+        // Start over rather than fail: the list is only a resurrection guard.
+        crate::diagnostics::warn(&format!(
+            "The deleted-account list is unreadable and will be rebuilt: {error}"
+        ));
+        TombstoneFile::default()
+    })
 }
 
 fn write_tombstone_file(data_dir: &Path, tombstones: &TombstoneFile) -> Result<(), StoreError> {
@@ -1108,11 +1195,33 @@ fn write_account_file(data_dir: &Path, accounts: &[Account]) -> Result<(), Store
         serde_json::to_vec_pretty(&file).map_err(|error| StoreError::Invalid(error.to_string()))?;
     let path = account_path(data_dir);
     if path.exists() {
-        let backup = data_dir.join("accounts.json.bak");
         let existing = fs::read(&path).map_err(|error| StoreError::Io(error.to_string()))?;
-        atomic_write_private(&backup, &existing).map_err(StoreError::Io)?;
+        if existing == payload {
+            // Nothing changed: skip the write and keep the backup as the
+            // genuinely previous version.
+            return Ok(());
+        }
+        refresh_account_backup(&path, &data_dir.join("accounts.json.bak"), &existing)?;
     }
     atomic_write_private(&path, &payload).map_err(StoreError::Io)
+}
+
+/// Makes `backup` a copy of the current accounts file before it is replaced.
+///
+/// The file is never modified in place (writes replace it atomically), so a
+/// hard link keeps the old version alive without copying or syncing any data,
+/// and it inherits the owner-only permissions the file already has. Falls back
+/// to a real copy where hard links are unavailable.
+fn refresh_account_backup(path: &Path, backup: &Path, existing: &[u8]) -> Result<(), StoreError> {
+    let staging = backup.with_extension("bak.tmp");
+    let _ = fs::remove_file(&staging);
+    if fs::hard_link(path, &staging).is_ok() {
+        if fs::rename(&staging, backup).is_ok() {
+            return Ok(());
+        }
+        let _ = fs::remove_file(&staging);
+    }
+    atomic_write_private(backup, existing).map_err(StoreError::Io)
 }
 
 #[cfg(test)]
@@ -1165,6 +1274,173 @@ mod tests {
             let mode = fs::metadata(&path).unwrap().permissions().mode() & 0o777;
             assert_eq!(mode, 0o600, "{name} should be owner-only");
         }
+    }
+
+    #[test]
+    fn backup_holds_the_previous_version_and_identical_writes_are_skipped() {
+        let dir = tempdir().unwrap();
+        let store = AccountStore::load(dir.path().to_path_buf()).unwrap();
+        store.upsert(sample_account("one", "First")).unwrap();
+        let after_first = fs::read(dir.path().join("accounts.json")).unwrap();
+
+        store
+            .mutate("one", |account| account.label = "Second".into())
+            .unwrap();
+        let after_second = fs::read(dir.path().join("accounts.json")).unwrap();
+        assert_ne!(after_first, after_second);
+        // The backup is the version before the latest write.
+        assert_eq!(
+            fs::read(dir.path().join("accounts.json.bak")).unwrap(),
+            after_first
+        );
+
+        // Re-writing identical contents must not touch the backup.
+        let accounts = store.list();
+        write_account_file(dir.path(), &accounts).unwrap();
+        assert_eq!(
+            fs::read(dir.path().join("accounts.json")).unwrap(),
+            after_second
+        );
+        assert_eq!(
+            fs::read(dir.path().join("accounts.json.bak")).unwrap(),
+            after_first
+        );
+        assert!(!dir.path().join("accounts.json.bak.tmp").exists());
+    }
+
+    #[test]
+    fn concurrent_updates_leave_the_latest_state_on_disk() {
+        let dir = tempdir().unwrap();
+        let store = std::sync::Arc::new(AccountStore::load(dir.path().to_path_buf()).unwrap());
+        for index in 0..4 {
+            store
+                .upsert(sample_account(&format!("acc-{index}"), "Start"))
+                .unwrap();
+        }
+        let handles: Vec<_> = (0..8)
+            .map(|worker| {
+                let store = store.clone();
+                std::thread::spawn(move || {
+                    for round in 0..20 {
+                        let id = format!("acc-{}", (worker + round) % 4);
+                        store
+                            .mutate(&id, |account| {
+                                account.label = format!("w{worker}-r{round}");
+                            })
+                            .unwrap();
+                    }
+                })
+            })
+            .collect();
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        // Whatever interleaving happened, disk must match memory.
+        let mut in_memory: Vec<_> = store
+            .list()
+            .into_iter()
+            .map(|account| (account.id, account.label))
+            .collect();
+        let reopened = AccountStore::load(dir.path().to_path_buf()).unwrap();
+        let mut on_disk: Vec<_> = reopened
+            .list()
+            .into_iter()
+            .map(|account| (account.id, account.label))
+            .collect();
+        in_memory.sort();
+        on_disk.sort();
+        assert_eq!(in_memory, on_disk);
+    }
+
+    #[test]
+    fn a_failed_write_is_retried_by_the_next_change() {
+        let dir = tempdir().unwrap();
+        let store = AccountStore::load(dir.path().to_path_buf()).unwrap();
+        store.upsert(sample_account("one", "Start")).unwrap();
+
+        // A directory where the file goes makes the replace fail.
+        let path = dir.path().join("accounts.json");
+        let saved = fs::read(&path).unwrap();
+        fs::remove_file(&path).unwrap();
+        fs::create_dir(&path).unwrap();
+        assert!(store
+            .mutate("one", |account| account.label = "Lost".into())
+            .is_err());
+        fs::remove_dir(&path).unwrap();
+        fs::write(&path, saved).unwrap();
+
+        // The next change writes everything, including the failed one.
+        store
+            .mutate("one", |account| {
+                account.updated_at = "2026-01-01T00:00:00Z".into()
+            })
+            .unwrap();
+        let reopened = AccountStore::load(dir.path().to_path_buf()).unwrap();
+        assert_eq!(reopened.list()[0].label, "Lost");
+    }
+
+    #[test]
+    fn concurrent_tombstone_updates_are_not_lost() {
+        let dir = tempdir().unwrap();
+        let store = std::sync::Arc::new(AccountStore::load(dir.path().to_path_buf()).unwrap());
+        let handles: Vec<_> = (0..16)
+            .map(|worker| {
+                let store = store.clone();
+                std::thread::spawn(move || {
+                    for round in 0..10 {
+                        store.merge_tombstones(&[format!("gone-{worker}-{round}")]);
+                    }
+                })
+            })
+            .collect();
+        for handle in handles {
+            handle.join().unwrap();
+        }
+        assert_eq!(store.tombstones().len(), 160);
+
+        // Clearing while others add must not resurrect or drop the rest.
+        let clearer = {
+            let store = store.clone();
+            std::thread::spawn(move || {
+                for worker in 0..16 {
+                    store.clear_tombstone(&format!("gone-{worker}-0"));
+                }
+            })
+        };
+        let adder = {
+            let store = store.clone();
+            std::thread::spawn(move || {
+                for round in 0..20 {
+                    store.merge_tombstones(&[format!("late-{round}")]);
+                }
+            })
+        };
+        clearer.join().unwrap();
+        adder.join().unwrap();
+        let ids = store.tombstones();
+        assert_eq!(ids.len(), 160 - 16 + 20);
+        assert!(ids
+            .iter()
+            .all(|id| !id.ends_with("-0") || id.starts_with("late")));
+    }
+
+    #[test]
+    fn tombstone_list_is_capped_and_a_corrupt_file_is_rebuilt() {
+        let dir = tempdir().unwrap();
+        let store = AccountStore::load(dir.path().to_path_buf()).unwrap();
+        let many: Vec<String> = (0..MAX_TOMBSTONES + 25)
+            .map(|i| format!("id-{i}"))
+            .collect();
+        store.merge_tombstones(&many);
+        let ids = store.tombstones();
+        assert_eq!(ids.len(), MAX_TOMBSTONES);
+        assert_eq!(ids[0], "id-25", "the oldest entries are dropped");
+
+        fs::write(dir.path().join("deleted-accounts.json"), b"{not json").unwrap();
+        assert!(store.tombstones().is_empty());
+        store.merge_tombstones(&["fresh".to_string()]);
+        assert_eq!(store.tombstones(), vec!["fresh".to_string()]);
     }
 
     #[test]

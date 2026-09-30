@@ -516,17 +516,6 @@
   font-weight: 600;
 }
 
-.ui-hidden-metric {
-  display: block !important;
-}
-
-.ui-hidden-metric-label,
-.ui-hidden-credit,
-.ui-hidden-credit-helper {
-  display: none !important;
-}
-
-
 .opencode-email-note {
   margin-top: 8px;
 }
@@ -874,4 +863,40 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .app-error-dismiss:hover {
   color: #fff;
   background: rgba(255, 255, 255, 0.1);
+}
+
+/* Last-synced line under the dashboard title */
+.dashboard-sync-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 0;
+  color: var(--obsidian-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.dashboard-sync-status::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--obsidian-muted);
+}
+
+.dashboard-sync-status.is-fresh::before {
+  background: var(--obsidian-green);
+}
+
+.dashboard-sync-status.is-stale {
+  color: var(--obsidian-amber);
+}
+
+.dashboard-sync-status.is-stale::before {
+  background: var(--obsidian-amber);
+}
+
+.dashboard-sync-status.is-syncing::before {
+  background: var(--obsidian-purple);
 }

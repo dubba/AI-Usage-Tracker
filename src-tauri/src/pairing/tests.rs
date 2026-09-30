@@ -73,7 +73,47 @@ fn test_ephemeral_diffie_hellman_and_hkdf() {
     let alice_sas = compute_sas_code(&alice_key, &alice_transcript);
     let bob_sas = compute_sas_code(&bob_key, &bob_transcript);
     assert_eq!(alice_sas, bob_sas);
-    assert_eq!(alice_sas.len(), 9);
+    // 48 bits shown as three groups, e.g. "4F2A-8B91-C3D2".
+    assert_eq!(alice_sas.len(), 14);
+    let groups: Vec<&str> = alice_sas.split('-').collect();
+    assert_eq!(groups.len(), 3);
+    assert!(groups
+        .iter()
+        .all(|group| group.len() == 4 && group.bytes().all(|b| b.is_ascii_hexdigit())));
+}
+
+#[test]
+fn test_sas_keeps_the_legacy_code_as_its_prefix_for_mixed_versions() {
+    use sha2::{Digest, Sha256};
+    let key = [7u8; 32];
+    let transcript = b"transcript-bytes";
+    let displayed = compute_sas_code(&key, transcript);
+
+    // What builds before the longer code computed and showed.
+    let mut hasher = Sha256::new();
+    hasher.update(super::crypto::SAS_INFO);
+    hasher.update(key);
+    hasher.update(transcript);
+    let digest = hasher.finalize();
+    let legacy = format!(
+        "{:02X}{:02X}-{:02X}{:02X}",
+        digest[0], digest[1], digest[2], digest[3]
+    );
+
+    assert!(displayed.starts_with(&legacy));
+    // Confirmation tags are bound to the legacy code so old and new builds
+    // still complete the confirmation exchange.
+    assert_eq!(super::crypto::tag_sas_code(&displayed), legacy);
+    assert_eq!(super::crypto::tag_sas_code(&legacy), legacy);
+    assert_eq!(super::crypto::tag_sas_code("short"), "short");
+    assert_eq!(
+        compute_confirmation_tag(
+            &key,
+            super::crypto::tag_sas_code(&displayed),
+            CONFIRM_SENDER_INFO
+        ),
+        compute_confirmation_tag(&key, &legacy, CONFIRM_SENDER_INFO)
+    );
 }
 
 #[test]
@@ -418,6 +458,136 @@ async fn import_replaces_unsafe_peer_account_ids_with_local_ids() {
     let buckets = state_receiver.buckets.list();
     assert_eq!(buckets.len(), 1);
     assert_eq!(buckets[0].account_ids, vec![local_id]);
+}
+
+#[tokio::test]
+async fn import_bounds_peer_supplied_fields() {
+    use crate::limits::{MAX_BUCKETS, MAX_EMAIL_CHARS, MAX_LABEL_CHARS};
+
+    let dir_sender = tempfile::tempdir().unwrap();
+    let state_sender =
+        Arc::new(AppState::new(dir_sender.path().to_path_buf(), "tok1".into()).unwrap());
+    let account = Account {
+        id: "acc-big".into(),
+        label: "Peer".into(),
+        provider: Provider::Anthropic,
+        email: Some("peer@example.com".into()),
+        provider_account_id: None,
+        chatgpt_account_id: None,
+        plan: None,
+        created_at: Utc::now().to_rfc3339(),
+        updated_at: Utc::now().to_rfc3339(),
+        last_usage: None,
+        last_error: None,
+        auth_required: false,
+    };
+    let secret = ProviderSecret::Anthropic(crate::model::OAuthSecret {
+        access_token: "a".into(),
+        refresh_token: "r".into(),
+        id_token: None,
+        expires_at: 0,
+    });
+    state_sender
+        .persist_connected_account(account, &secret)
+        .await
+        .unwrap();
+
+    let mut payload: serde_json::Value =
+        serde_json::from_slice(&create_export_payload(&state_sender).unwrap()).unwrap();
+    payload["accounts"][0]["account"]["label"] = "L".repeat(10_000).into();
+    payload["accounts"][0]["account"]["email"] = "e".repeat(10_000).into();
+    payload["accounts"][0]["account"]["lastError"] = "!".repeat(10_000).into();
+    let now = Utc::now().to_rfc3339();
+    payload["buckets"] = (0..200)
+        .map(|index| {
+            serde_json::json!({
+                "id": if index == 0 { "../weird id".to_string() } else { format!("bucket_{index}") },
+                "name": format!("Group {index}"),
+                "provider": null,
+                "accountIds": vec!["acc-big"; 500],
+                "createdAt": now,
+                "updatedAt": now,
+            })
+        })
+        .collect::<Vec<_>>()
+        .into();
+    payload["ui_state"] = serde_json::json!({
+        "collapsedAccountIds": vec!["x".repeat(1000); 5000],
+        "sidebarWidth": 4_000_000,
+    });
+
+    let dir_receiver = tempfile::tempdir().unwrap();
+    let state_receiver =
+        Arc::new(AppState::new(dir_receiver.path().to_path_buf(), "tok2".into()).unwrap());
+    let summary = import_sync_payload(&state_receiver, &serde_json::to_vec(&payload).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(summary.added, 1);
+
+    let accounts = state_receiver.store.list();
+    assert_eq!(accounts[0].label.chars().count(), MAX_LABEL_CHARS);
+    assert_eq!(
+        accounts[0].email.as_ref().unwrap().chars().count(),
+        MAX_EMAIL_CHARS
+    );
+    assert!(accounts[0].last_error.as_ref().unwrap().chars().count() <= 500);
+
+    let buckets = state_receiver.buckets.list();
+    assert_eq!(buckets.len(), MAX_BUCKETS);
+    assert!(buckets
+        .iter()
+        .all(|bucket| crate::store::is_valid_account_id(&bucket.id)));
+    // 500 repeated references collapse to the one real account.
+    assert!(buckets
+        .iter()
+        .all(|bucket| bucket.account_ids == vec![accounts[0].id.clone()]));
+}
+
+#[test]
+fn ui_state_clamp_bounds_lists_pages_and_text() {
+    use super::payload::UiStateSyncPayload;
+    use crate::limits::{MAX_SIDEBAR_WIDTH, MAX_UI_LIST_ENTRIES, MAX_UI_PAGES, MAX_UI_TEXT_CHARS};
+
+    let mut ui = UiStateSyncPayload {
+        sidebar_group_order: Some(vec!["g".repeat(1000); 1000]),
+        provider_order: Some(vec!["openai".into()]),
+        sidebar_window: Some("w".repeat(1000)),
+        collapsed_account_ids: Some(vec!["a".into(); 1000]),
+        collapsed_cards: Some(
+            (0..1000)
+                .map(|index| (format!("page-{index}"), vec!["c".repeat(1000); 1000]))
+                .collect(),
+        ),
+        page_account_order: None,
+        sidebar_width: Some(u32::MAX),
+    };
+    ui.clamp();
+
+    let order = ui.sidebar_group_order.unwrap();
+    assert_eq!(order.len(), MAX_UI_LIST_ENTRIES);
+    assert!(order
+        .iter()
+        .all(|entry| entry.chars().count() == MAX_UI_TEXT_CHARS));
+    assert_eq!(ui.provider_order.unwrap(), vec!["openai".to_string()]);
+    assert_eq!(
+        ui.sidebar_window.unwrap().chars().count(),
+        MAX_UI_TEXT_CHARS
+    );
+    assert_eq!(ui.collapsed_account_ids.unwrap().len(), MAX_UI_LIST_ENTRIES);
+    let cards = ui.collapsed_cards.unwrap();
+    assert_eq!(cards.len(), MAX_UI_PAGES);
+    assert!(cards.values().all(|ids| ids.len() == MAX_UI_LIST_ENTRIES));
+    assert_eq!(ui.sidebar_width, Some(MAX_SIDEBAR_WIDTH));
+
+    // Ordinary state passes through unchanged.
+    let mut small = UiStateSyncPayload {
+        sidebar_width: Some(320),
+        provider_order: Some(vec!["openai".into(), "anthropic".into()]),
+        ..Default::default()
+    };
+    small.clamp();
+    assert_eq!(small.sidebar_width, Some(320));
+    assert_eq!(small.provider_order.unwrap().len(), 2);
 }
 
 fn antigravity_account(id: &str, label: &str, email: &str, project_id: Option<&str>) -> Account {

@@ -70,7 +70,7 @@ pub struct ParsedAirgapChunk {
     pub data: String,
 }
 
-/// Computes the short verification code (e.g. "4F2A-8B91") shown on both
+/// Computes the short verification code (e.g. "4F2A-8B91-C3D2") shown on both
 /// devices, mirroring the Wi-Fi flow's SAS format. Sender and receiver each
 /// compute it independently over identical container bytes; the user confirms
 /// the two screens match before importing.
@@ -81,10 +81,9 @@ pub fn compute_verify_code(session_id: &str, container: &[u8]) -> String {
     hasher.update(container);
     let digest = hasher.finalize();
 
-    format!(
-        "{:02X}{:02X}-{:02X}{:02X}",
-        digest[0], digest[1], digest[2], digest[3]
-    )
+    // 48 bits, the same format as the Wi-Fi flow. The first two groups equal
+    // the older 32-bit code, so mixed builds still show a matching prefix.
+    super::crypto::format_verification_code(&digest, 6)
 }
 
 /// Computes an 8-character hex checksum of base64 chunk data.
@@ -220,6 +219,15 @@ fn reassemble_container(raw_chunks: Vec<String>) -> Result<(String, usize, Vec<u
     if raw_chunks.is_empty() {
         return Err("No air-gap frames provided".into());
     }
+    // Bound the work before parsing anything: a real transfer is at most a
+    // hundred distinct frames, each about 500 characters.
+    if raw_chunks.len() > crate::limits::MAX_AIRGAP_FRAMES_SUBMITTED
+        || raw_chunks
+            .iter()
+            .any(|chunk| chunk.len() > crate::limits::MAX_AIRGAP_FRAME_URI_CHARS)
+    {
+        return Err("The scanned air-gap frames are not valid. Please rescan.".into());
+    }
 
     let mut parsed_chunks = Vec::with_capacity(raw_chunks.len());
     for raw in &raw_chunks {
@@ -327,6 +335,19 @@ mod tests {
     use std::sync::Arc;
     use tempfile::TempDir;
 
+    #[test]
+    fn oversized_frame_submissions_are_rejected_before_parsing() {
+        let many = vec!["aiut-airgap://1/x/1/1/00000000?d=AA".to_string(); 1001];
+        assert!(verify_airgap_frames(many).is_err());
+
+        let long_frame = format!(
+            "aiut-airgap://1/x/1/1/00000000?d={}",
+            "A".repeat(crate::limits::MAX_AIRGAP_FRAME_URI_CHARS)
+        );
+        let error = verify_airgap_frames(vec![long_frame]).unwrap_err();
+        assert!(error.contains("rescan"), "{error}");
+    }
+
     #[tokio::test]
     async fn test_airgap_roundtrip() {
         let dir = TempDir::new().unwrap();
@@ -336,7 +357,7 @@ mod tests {
         let export = prepare_airgap_export(&state).expect("Airgap export failed");
         assert!(!export.frames.is_empty());
         assert_eq!(export.frames.len(), export.total_chunks);
-        assert_eq!(export.verify_code.len(), 9);
+        assert_eq!(export.verify_code.len(), 14);
 
         // Collect frame URIs, shuffling them to simulate out-of-order camera reads
         let mut uris: Vec<String> = export.frames.into_iter().map(|f| f.uri).collect();

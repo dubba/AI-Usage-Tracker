@@ -121,7 +121,7 @@ fn invoke(
     }
 }
 
-fn jni_exception_message(env: &mut JNIEnv) -> String {
+pub(crate) fn jni_exception_message(env: &mut JNIEnv) -> String {
     let fallback = "Unable to start the Android installer.".to_string();
     let Ok(true) = env.exception_check() else {
         return fallback;

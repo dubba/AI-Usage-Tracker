@@ -115,6 +115,9 @@ impl ParsedQrPayload {
 
     pub fn parse(raw_uri: &str) -> Result<Self, String> {
         let trimmed = raw_uri.trim();
+        if trimmed.len() > crate::limits::MAX_PAIRING_URI_CHARS {
+            return Err("Pairing URI is too long".into());
+        }
         let url = Url::parse(trimmed).map_err(|e| format!("Invalid pairing URI: {e}"))?;
 
         let scheme = url.scheme();
@@ -361,6 +364,16 @@ pub fn parse_qr_uri(raw_uri: &str) -> Result<ParsedQrPayload, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn oversized_pairing_uris_are_rejected_before_parsing() {
+        let long = format!(
+            "aiusage-pair://192.168.1.5:4000?x={}",
+            "a".repeat(crate::limits::MAX_PAIRING_URI_CHARS)
+        );
+        let error = ParsedQrPayload::parse(&long).unwrap_err();
+        assert!(error.contains("too long"), "{error}");
+    }
 
     #[test]
     fn format_uri_host_brackets_ipv6_literals() {

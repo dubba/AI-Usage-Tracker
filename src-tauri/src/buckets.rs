@@ -1,6 +1,9 @@
 use crate::{
     fs_util::{atomic_write_private, ensure_private_dir, ensure_private_file},
+    limits::{clamp_chars, MAX_BUCKETS, MAX_BUCKET_NAME_CHARS},
     model::{now_rfc3339, AccountBucket, Provider},
+    pairing::payload::MAX_ACCOUNTS,
+    store::is_valid_account_id,
 };
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
@@ -17,6 +20,21 @@ const BUCKETS_FILE_NAME: &str = "account-buckets.json";
 struct BucketsFile {
     version: u32,
     buckets: Vec<AccountBucket>,
+}
+
+/// Removes duplicates and ids that cannot belong to an account, keeping order,
+/// and stops at the account limit.
+fn normalize_account_ids(ids: Vec<String>) -> Vec<String> {
+    let mut result: Vec<String> = Vec::new();
+    for id in ids {
+        if result.len() >= MAX_ACCOUNTS {
+            break;
+        }
+        if is_valid_account_id(&id) && !result.contains(&id) {
+            result.push(id);
+        }
+    }
+    result
 }
 
 pub struct BucketStore {
@@ -64,6 +82,17 @@ impl BucketStore {
         if name.is_empty() {
             return Err("Bucket group name cannot be empty.".into());
         }
+        if name.chars().count() > MAX_BUCKET_NAME_CHARS {
+            return Err(format!(
+                "Bucket group name must be {MAX_BUCKET_NAME_CHARS} characters or fewer."
+            ));
+        }
+        if account_ids.len() > MAX_ACCOUNTS {
+            return Err(format!(
+                "A bucket group can hold at most {MAX_ACCOUNTS} accounts."
+            ));
+        }
+        let account_ids = normalize_account_ids(account_ids);
 
         let mut buckets = self.buckets.write();
         let now = now_rfc3339();
@@ -85,6 +114,9 @@ impl BucketStore {
             buckets[index] = updated.clone();
             updated
         } else {
+            if buckets.len() >= MAX_BUCKETS {
+                return Err(format!("You can have at most {MAX_BUCKETS} bucket groups."));
+            }
             let new_bucket = AccountBucket {
                 id: format!("bucket_{}", Uuid::new_v4().simple()),
                 name,
@@ -102,7 +134,17 @@ impl BucketStore {
         Ok(bucket)
     }
 
-    pub fn upsert_imported(&self, incoming: AccountBucket) -> Result<(), String> {
+    pub fn upsert_imported(&self, mut incoming: AccountBucket) -> Result<(), String> {
+        // Buckets from a pairing peer get the same bounds as ones made here.
+        incoming.name = incoming.name.trim().to_string();
+        clamp_chars(&mut incoming.name, MAX_BUCKET_NAME_CHARS);
+        if incoming.name.is_empty() {
+            return Err("Bucket group name cannot be empty.".into());
+        }
+        incoming.account_ids = normalize_account_ids(incoming.account_ids);
+        clamp_chars(&mut incoming.created_at, 64);
+        clamp_chars(&mut incoming.updated_at, 64);
+
         let mut buckets = self.buckets.write();
         let now = now_rfc3339();
 
@@ -115,12 +157,18 @@ impl BucketStore {
         if let Some(index) = existing_index {
             let existing = &mut buckets[index];
             for id in incoming.account_ids {
+                if existing.account_ids.len() >= MAX_ACCOUNTS {
+                    break;
+                }
                 if !existing.account_ids.contains(&id) {
                     existing.account_ids.push(id);
                 }
             }
             existing.updated_at = now;
         } else {
+            if buckets.len() >= MAX_BUCKETS {
+                return Err(format!("You can have at most {MAX_BUCKETS} bucket groups."));
+            }
             buckets.push(incoming);
         }
         drop(buckets);
@@ -281,5 +329,101 @@ mod tests {
         assert_eq!(store.list().len(), 1);
         store.delete(&bucket.id).expect("delete");
         assert_eq!(store.list().len(), 0);
+    }
+
+    #[test]
+    fn rejects_oversized_names_and_account_lists() {
+        let dir = tempdir().expect("tempdir");
+        let store = BucketStore::load(dir.path()).expect("load");
+
+        let long_name = "n".repeat(MAX_BUCKET_NAME_CHARS + 1);
+        assert!(store.save(None, long_name, None, vec![]).is_err());
+
+        let too_many: Vec<String> = (0..=MAX_ACCOUNTS).map(|i| format!("acc-{i}")).collect();
+        assert!(store.save(None, "Big".into(), None, too_many).is_err());
+
+        // Exactly at the limits is fine.
+        let at_limit: Vec<String> = (0..MAX_ACCOUNTS).map(|i| format!("acc-{i}")).collect();
+        let saved = store
+            .save(None, "n".repeat(MAX_BUCKET_NAME_CHARS), None, at_limit)
+            .expect("limits are inclusive");
+        assert_eq!(saved.account_ids.len(), MAX_ACCOUNTS);
+    }
+
+    #[test]
+    fn saved_account_ids_are_deduplicated_and_plain() {
+        let dir = tempdir().expect("tempdir");
+        let store = BucketStore::load(dir.path()).expect("load");
+        let saved = store
+            .save(
+                None,
+                "Mixed".into(),
+                None,
+                vec![
+                    "a".into(),
+                    "b".into(),
+                    "a".into(),
+                    "../evil".into(),
+                    "c".into(),
+                ],
+            )
+            .expect("save");
+        assert_eq!(saved.account_ids, vec!["a", "b", "c"]);
+    }
+
+    #[test]
+    fn group_count_is_capped() {
+        let dir = tempdir().expect("tempdir");
+        let store = BucketStore::load(dir.path()).expect("load");
+        for index in 0..MAX_BUCKETS {
+            store
+                .save(None, format!("Group {index}"), None, vec![])
+                .expect("under the cap");
+        }
+        assert!(store
+            .save(None, "One too many".into(), None, vec![])
+            .is_err());
+
+        // Editing an existing group still works at the cap.
+        let first = store.list()[0].clone();
+        assert!(store
+            .save(Some(first.id), "Renamed".into(), None, vec![])
+            .is_ok());
+
+        // Imports respect the same cap.
+        let imported = AccountBucket {
+            id: "bucket_imported".into(),
+            name: "Imported".into(),
+            provider: None,
+            account_ids: vec![],
+            created_at: now_rfc3339(),
+            updated_at: now_rfc3339(),
+        };
+        assert!(store.upsert_imported(imported).is_err());
+        assert_eq!(store.list().len(), MAX_BUCKETS);
+    }
+
+    #[test]
+    fn imported_buckets_are_bounded() {
+        let dir = tempdir().expect("tempdir");
+        let store = BucketStore::load(dir.path()).expect("load");
+        let incoming = AccountBucket {
+            id: "bucket_imported".into(),
+            name: format!("  {}  ", "n".repeat(500)),
+            provider: None,
+            account_ids: (0..500).map(|i| format!("acc-{i}")).collect(),
+            created_at: now_rfc3339(),
+            updated_at: now_rfc3339(),
+        };
+        store.upsert_imported(incoming).expect("import");
+        let stored = &store.list()[0];
+        assert_eq!(stored.name.chars().count(), MAX_BUCKET_NAME_CHARS);
+        assert_eq!(stored.account_ids.len(), MAX_ACCOUNTS);
+
+        let blank = AccountBucket {
+            name: "   ".into(),
+            ..stored.clone()
+        };
+        assert!(store.upsert_imported(blank).is_err());
     }
 }

@@ -3,6 +3,34 @@
 ## Unreleased (0 items)
 
 
+## 0.3.10-beta.2 - 2026-09-30 (13 items)
+
+### Added (1)
+
+- Settings now has a Copy diagnostics button (also on the start-up error screen) that copies a report for bug reports: versions, settings, each account's status, and recent activity. Tokens, cookies, email addresses, and your user name are removed, and the app now keeps a small activity log to make problems easier to trace.
+
+### Improved (5)
+
+- Saving account updates is now lighter, especially on Windows, so the app stays responsive while many accounts refresh.
+- Bucket group names are now limited to 80 characters, a group can hold at most 64 accounts, and you can have at most 64 groups, with a clear message when a limit is reached.
+- The dashboard now shows when your data was last refreshed ("Last synced 5m ago"), says "Syncing…" while a refresh is running, and warns when some accounts have been left out of date.
+- Countdowns and "Updated … ago" labels now update without redrawing the whole dashboard every second, so the app uses less CPU while it sits open.
+- Tools that read the local API together (for example Paseo and a script) can now each make a short burst of requests without slowing each other down.
+
+### Fixed (3)
+
+- If the app cannot load its saved data when it starts, it now opens with an explanation and a Try again button instead of closing without any message.
+- If the system credential store is locked or unavailable at startup, the app now still starts; only the local API stays off, and Settings shows why.
+- An account you removed can no longer come back after linking devices when the removal and the transfer happen at the same time.
+
+### Security (4)
+
+- The verification code shown when linking devices is now longer (three groups of four characters), which makes it much harder for someone on the same network to get both devices to show a matching code. When linking with an older version, the first two groups still match.
+- Linking devices now limits the size of names, groups, and layout data received from the other device, so an oversized or malformed transfer cannot bloat your saved data.
+- On Android, saved sign-ins are now encrypted with a key held in the Android Keystore instead of being stored as readable files. Existing sign-ins are upgraded automatically the first time the app starts.
+- The Paseo bridge window can now only view bridge details and manage its token; it can no longer use the app's other actions.
+
+
 ## 0.3.10-beta.1 - 2026-09-30 (15 items)
 
 ### Improved (7)

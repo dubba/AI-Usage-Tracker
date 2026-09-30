@@ -20,6 +20,7 @@ import { logIgnored } from "../log";
 import { collectUiState } from "../ui-state";
 import { useModalA11y } from "./useModalA11y";
 import jsQR from "jsqr";
+import { ModalCloseButton } from "./ModalCloseButton";
 
 type ViewMode = "select-role" | "select-mode" | "host" | "scanner" | "code" | "airgap-sender" | "airgap-confirm";
 type IntendedRole = "send" | "receive";
@@ -1589,17 +1590,7 @@ export function PairingModal({
         aria-labelledby="pairing-modal-title"
         tabIndex={-1}
       >
-        <button
-          type="button"
-          className="ui-modal-close"
-          data-react-close="true"
-          onClick={handleClose}
-          disabled={status.status === "transferring"}
-          aria-label="Close dialog"
-          data-tooltip="Close"
-        >
-          ×
-        </button>
+        <ModalCloseButton onClose={handleClose} disabled={status.status === "transferring"} />
         <div className="modal-kicker">Local Device Sync</div>
         <h2 id="pairing-modal-title">{modalTitle}</h2>
         {stepDotsVisible ? (

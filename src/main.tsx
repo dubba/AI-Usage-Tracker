@@ -3,10 +3,8 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import { ApiIntegrationWindow } from "./ApiIntegrationWindow";
-import { installDashboardReorder } from "./dashboard-reorder";
-import { installSidebarResize } from "./sidebar-resize";
+import { StartupGate } from "./components/StartupGate";
 import { LEGACY_STORAGE, storageKeys, storageRemove } from "./storage";
-import { installUiRefinements } from "./ui-refinements";
 import "./styles.css";
 import "./updater.css";
 import "./provider.css";
@@ -44,12 +42,13 @@ for (const key of storageKeys(LEGACY_STORAGE.accountEmailPrefix)) storageRemove(
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    {isApiIntegrationWindow ? <ApiIntegrationWindow /> : <App />}
+    {isApiIntegrationWindow ? (
+      <ApiIntegrationWindow />
+    ) : (
+      <StartupGate>
+        <App />
+      </StartupGate>
+    )}
   </StrictMode>,
 );
 
-if (!isApiIntegrationWindow) {
-  installSidebarResize();
-  installUiRefinements();
-  installDashboardReorder();
-}

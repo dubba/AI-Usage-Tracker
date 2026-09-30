@@ -2,8 +2,8 @@ use crate::{
     pairing::{
         crypto::{
             build_transcript, compute_confirmation_tag, compute_sas_code, decrypt_payload,
-            encrypt_payload, verify_confirmation_tag, EphemeralKeyPair, CONFIRM_RECEIVER_INFO,
-            CONFIRM_SENDER_INFO,
+            encrypt_payload, tag_sas_code, verify_confirmation_tag, EphemeralKeyPair,
+            CONFIRM_RECEIVER_INFO, CONFIRM_SENDER_INFO,
         },
         payload::{create_export_payload, import_sync_payload, SyncSummary},
         protocol::{
@@ -751,7 +751,8 @@ async fn run_authenticated_transfer<E>(
         CONFIRM_SENDER_INFO
     };
 
-    let my_tag = compute_confirmation_tag(&encryption_key, &sas_code, my_tag_info);
+    let tag_code = tag_sas_code(&sas_code).to_string();
+    let my_tag = compute_confirmation_tag(&encryption_key, &tag_code, my_tag_info);
 
     // Split stream for concurrent mutual confirmation exchange
     let (mut read_half, mut write_half) = stream.into_split();
@@ -794,7 +795,7 @@ async fn run_authenticated_transfer<E>(
         let mut peer_tag = [0u8; 32];
         peer_tag.copy_from_slice(&payload[1..33]);
 
-        if !verify_confirmation_tag(&encryption_key, &sas_code, peer_tag_info, &peer_tag) {
+        if !verify_confirmation_tag(&encryption_key, &tag_code, peer_tag_info, &peer_tag) {
             return Err("Peer verification tag mismatch".to_string());
         }
         Ok(())

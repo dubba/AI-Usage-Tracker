@@ -14,7 +14,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
     sync::Arc,
-    time::{Duration, Instant},
+    time::Duration,
 };
 use tauri::AppHandle;
 use tokio::sync::{oneshot, Mutex as AsyncMutex, Notify, Semaphore};
@@ -54,10 +54,15 @@ pub struct AppState {
     pub login_status_lock: AsyncMutex<()>,
     login_shutdowns: Mutex<HashMap<String, oneshot::Sender<()>>>,
     pub bridge_token: RwLock<String>,
-    /// Per-client last-request timestamps for bridge rate limiting, keyed by
-    /// client IP. Bound to loopback only; entries are pruned on each check.
-    pub bridge_rate_limit: Mutex<std::collections::HashMap<std::net::IpAddr, Instant>>,
+    /// Per-client token buckets for bridge rate limiting, keyed by client IP.
+    /// Bound to loopback only; idle entries are pruned on each check.
+    pub bridge_rate_limit:
+        Mutex<std::collections::HashMap<std::net::IpAddr, crate::bridge_api::RateBucket>>,
     pub api_runtime: RwLock<ApiRuntime>,
+    /// Why the local API cannot run at all (its token could not be loaded from
+    /// secure storage). Reported through the bridge status instead of failing
+    /// startup.
+    bridge_unavailable: RwLock<Option<String>>,
     pub app_handle: RwLock<Option<AppHandle>>,
     pub pairing: Arc<crate::pairing::PairingSessionManager>,
     account_locks: Mutex<HashMap<String, Arc<AsyncMutex<()>>>>,
@@ -120,6 +125,7 @@ impl AppState {
                 running: false,
                 error: None,
             }),
+            bridge_unavailable: RwLock::new(None),
             app_handle: RwLock::new(None),
             pairing: Arc::new(crate::pairing::PairingSessionManager::new()),
             account_locks: Mutex::new(HashMap::new()),
@@ -132,6 +138,14 @@ impl AppState {
             pairing_pending_ui_state: RwLock::new(None),
             pairing_allow_credential_replace: RwLock::new(false),
         })
+    }
+
+    pub fn set_bridge_unavailable(&self, reason: Option<String>) {
+        *self.bridge_unavailable.write() = reason;
+    }
+
+    pub fn bridge_unavailable(&self) -> Option<String> {
+        self.bridge_unavailable.read().clone()
     }
 
     pub fn wakeup_refresh(&self) {

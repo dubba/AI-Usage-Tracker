@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { bridgeApi } from "../api";
 import { withTimeout } from "../async-utils";
+import { DEFAULT_ACCOUNT_REFRESH_MINUTES } from "../constants";
 import { isReordering } from "../dashboard-reorder";
 import { onDashboardResync } from "../events";
 import { publishSnapshot } from "../snapshot-store";
@@ -9,13 +10,11 @@ import type { DashboardSnapshot } from "../types";
 
 const DASHBOARD_SYNC_INTERVAL_MS = 30 * 1000;
 const STARTUP_REFRESH_DELAY_MS = 3 * 1000;
-const DEFAULT_ACCOUNT_REFRESH_MINUTES = 15;
-const RELATIVE_TIME_TICK_MS = 1000;
 const LOAD_TIMEOUT_MS = 10_000;
 
 type ReportError = (source: string, cause: unknown, context?: string) => void;
 
-/** Owns the dashboard snapshot: polling, startup refresh, refresh-when-due on return, and the countdown clock. */
+/** Owns the dashboard snapshot: polling, startup refresh, and refresh-when-due on return. */
 export function useDashboardData({
   reportError,
   clearError,
@@ -26,9 +25,6 @@ export function useDashboardData({
   accountRefreshMinutes: number | undefined;
 }) {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
-  const [nowMs, setNowMs] = useState(() => Date.now());
-  const refreshMinutesRef = useRef(accountRefreshMinutes);
-  refreshMinutesRef.current = accountRefreshMinutes;
   const refreshDueInFlightRef = useRef(false);
   const wasHiddenRef = useRef(false);
 
@@ -69,7 +65,7 @@ export function useDashboardData({
     try {
       const latest = await load();
       if (!latest) return;
-      const minutes = refreshMinutesRef.current ?? DEFAULT_ACCOUNT_REFRESH_MINUTES;
+      const minutes = accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES;
       if (!accountsNeedScheduledRefresh(latest.accounts, minutes)) return;
       await bridgeApi.refreshAll();
       await load();
@@ -79,7 +75,7 @@ export function useDashboardData({
     } finally {
       refreshDueInFlightRef.current = false;
     }
-  }, [load, clearError, reportError]);
+  }, [load, accountRefreshMinutes, clearError, reportError]);
 
   useEffect(() => {
     const onVisibility = () => {
@@ -99,13 +95,5 @@ export function useDashboardData({
   // Something behind the scenes changed (reorder applied, paired-device layout arrived) or the window regained focus.
   useEffect(() => onDashboardResync(() => void load()), [load]);
 
-  useEffect(() => {
-    const tick = window.setInterval(() => {
-      if (isReordering()) return;
-      setNowMs(Date.now());
-    }, RELATIVE_TIME_TICK_MS);
-    return () => window.clearInterval(tick);
-  }, []);
-
-  return { snapshot, setSnapshot, nowMs, load };
+  return { snapshot, setSnapshot, load };
 }

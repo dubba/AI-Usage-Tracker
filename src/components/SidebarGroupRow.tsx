@@ -55,6 +55,7 @@ export function SidebarGroupRow({
       data-reorder-provider={group.provider ?? undefined}
       data-group-id={group.id}
       data-reorder-enabled={reorderable ? "true" : undefined}
+      draggable={false}
       aria-keyshortcuts={onMove ? "Alt+ArrowUp Alt+ArrowDown" : undefined}
       aria-describedby={onMove ? GROUP_REORDER_HINT_ID : undefined}
       onKeyDown={(event) => {

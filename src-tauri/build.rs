@@ -134,9 +134,70 @@ fn write_android_icons(manifest_dir: &Path, image: &image::DynamicImage) {
     );
 }
 
+/// Every command the frontend can invoke. Tauri generates an `allow-<command>`
+/// permission for each, and the capability files decide which window gets which.
+/// Keep in sync with `generate_handler!` in `src/lib.rs` (a test enforces it).
+const APP_COMMANDS: &[&str] = &[
+    "get_startup_issue",
+    "get_diagnostics",
+    "retry_startup",
+    "get_dashboard_snapshot",
+    "get_bridge_info",
+    "start_login",
+    "probe_google_ai_studio_key",
+    "add_google_ai_studio_account",
+    "start_google_ai_studio_usage_login",
+    "add_opencode_go_account",
+    "add_grok_account",
+    "get_login_status",
+    "current_login_status",
+    "cancel_login",
+    "refresh_account",
+    "refresh_all",
+    "get_app_settings",
+    "set_account_refresh_minutes",
+    "set_automatic_updates_enabled",
+    "set_include_beta_updates",
+    "get_autostart",
+    "set_autostart",
+    "set_api_integration_enabled",
+    "open_api_integration_window",
+    "reorder_accounts",
+    "get_account_alerts",
+    "save_account_alerts",
+    "rename_account",
+    "remove_account",
+    "get_account_buckets",
+    "save_account_bucket",
+    "delete_account_bucket",
+    "regenerate_bridge_token",
+    "reveal_bridge_token",
+    "check_for_app_update",
+    "install_app_update",
+    "ensure_camera_permission",
+    "pairing_start_host",
+    "pairing_start_receiver",
+    "pairing_start_client",
+    "pairing_start_client_by_code",
+    "pairing_start_sender",
+    "pairing_select_role",
+    "pairing_confirm_sas",
+    "pairing_cancel",
+    "pairing_status",
+    "pairing_set_include_settings",
+    "pairing_set_allow_credential_replace",
+    "pairing_set_pending_ui_state",
+    "pairing_clear_pending_ui_state",
+    "pairing_prepare_airgap_export",
+    "pairing_verify_airgap",
+    "pairing_import_airgap",
+    "get_pending_pairing_uri",
+];
+
 fn main() {
     println!("cargo:rerun-if-changed=icons/app-icon.b64");
     println!("cargo:rerun-if-changed=tauri.conf.json");
+    println!("cargo:rerun-if-changed=capabilities");
     println!("cargo:rerun-if-changed=../dist");
     // The Tauri CLI rewrites these templates during `tauri android build`;
     // re-running the build script when they change guarantees the WebView
@@ -165,7 +226,12 @@ fn main() {
     write_macos_icon(&icon_dir, &image);
     write_android_icons(&manifest_dir, &image);
 
-    tauri_build::build();
+    let attributes = tauri_build::Attributes::new()
+        .app_manifest(tauri_build::AppManifest::new().commands(APP_COMMANDS));
+    if let Err(error) = tauri_build::try_build(attributes) {
+        println!("{error:#}");
+        std::process::exit(1);
+    }
     patch_android_webview_templates(&manifest_dir);
 }
 

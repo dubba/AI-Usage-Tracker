@@ -158,7 +158,9 @@ async fn refresh_accounts(app: Arc<AppState>, respect_backoff: bool) -> Vec<Acco
             Ok((_id, _result)) => {}
             Err(error) => {
                 if error.is_panic() {
-                    eprintln!("Automatic refresh task stopped unexpectedly: {error}");
+                    crate::diagnostics::warn(&format!(
+                        "Automatic refresh task stopped unexpectedly: {error}"
+                    ));
                 }
             }
         }
@@ -303,7 +305,7 @@ pub fn emit_alerts_for_account(app: &AppState, account: &Account) {
             .body(&body)
             .show();
         if let Err(err) = notify_result {
-            eprintln!("[Notification] System notification error: {err}");
+            crate::diagnostics::warn(&format!("[Notification] System notification error: {err}"));
         }
 
         let payload = UsageAlertPayload {
@@ -336,8 +338,11 @@ fn sanitize_error_message(message: &str) -> String {
     {
         return "A provider error occurred while processing the request.".to_string();
     }
-    if trimmed.len() > 200 {
-        return format!("{}...", &trimmed[..197]);
+    // Count characters, not bytes: slicing at byte 197 panics when it lands
+    // inside a multi-byte character (for example a localized provider message).
+    if trimmed.chars().count() > 200 {
+        let shortened: String = trimmed.chars().take(197).collect();
+        return format!("{shortened}...");
     }
     trimmed.to_string()
 }
@@ -660,5 +665,18 @@ mod tests {
         let sanitized = sanitize_error_message(&long_message);
         assert_eq!(sanitized.len(), 200);
         assert!(sanitized.ends_with("..."));
+    }
+
+    #[test]
+    fn sanitize_error_message_never_splits_a_multibyte_character() {
+        // 3-byte characters: byte 197 is inside one, which used to panic.
+        let long_message = "é界".repeat(150);
+        let sanitized = sanitize_error_message(&long_message);
+        assert_eq!(sanitized.chars().count(), 200);
+        assert!(sanitized.ends_with("..."));
+
+        // Exactly at the limit is returned untouched, multi-byte or not.
+        let at_limit = "界".repeat(200);
+        assert_eq!(sanitize_error_message(&at_limit), at_limit);
     }
 }

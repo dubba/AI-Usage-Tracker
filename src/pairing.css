@@ -724,10 +724,15 @@
 
 .pairing-sas-badge {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 1.85rem;
+  /* The code is three 4-character groups (14 characters): keep it on one
+     line and inside narrow phone screens. */
+  font-size: clamp(1.2rem, 6.2vw, 1.6rem);
   font-weight: 700;
-  letter-spacing: 0.2em;
-  padding: 10px 22px;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 10px 18px;
   background: rgba(160, 120, 255, 0.1);
   border: 2px solid var(--obsidian-purple-strong, #a078ff);
   border-radius: 10px;

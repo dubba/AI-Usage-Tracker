@@ -1,4 +1,8 @@
 use crate::{
+    limits::{
+        clamp_chars, sanitize_imported_account, MAX_BUCKETS, MAX_SIDEBAR_WIDTH,
+        MAX_UI_LIST_ENTRIES, MAX_UI_PAGES, MAX_UI_TEXT_CHARS,
+    },
     model::{Account, AccountBucket, ProviderSecret},
     state::AppState,
     store::load_provider_secret,
@@ -52,6 +56,52 @@ pub struct UiStateSyncPayload {
     pub page_account_order: Option<std::collections::BTreeMap<String, Vec<String>>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sidebar_width: Option<u32>,
+}
+
+impl UiStateSyncPayload {
+    /// Bounds what a peer (or the local frontend) can hand over: list lengths,
+    /// text lengths, and the number of pages. Ordinary UI state is far below
+    /// these limits, so nothing legitimate is cut.
+    pub fn clamp(&mut self) {
+        fn clamp_list(list: &mut Vec<String>) {
+            list.truncate(MAX_UI_LIST_ENTRIES);
+            list.iter_mut()
+                .for_each(|entry| clamp_chars(entry, MAX_UI_TEXT_CHARS));
+        }
+        fn clamp_pages(pages: &mut std::collections::BTreeMap<String, Vec<String>>) {
+            let mut clamped = std::collections::BTreeMap::new();
+            for (mut page, mut ids) in std::mem::take(pages) {
+                if clamped.len() >= MAX_UI_PAGES {
+                    break;
+                }
+                clamp_chars(&mut page, MAX_UI_TEXT_CHARS);
+                clamp_list(&mut ids);
+                clamped.insert(page, ids);
+            }
+            *pages = clamped;
+        }
+        if let Some(list) = self.sidebar_group_order.as_mut() {
+            clamp_list(list);
+        }
+        if let Some(list) = self.provider_order.as_mut() {
+            clamp_list(list);
+        }
+        if let Some(list) = self.collapsed_account_ids.as_mut() {
+            clamp_list(list);
+        }
+        if let Some(window) = self.sidebar_window.as_mut() {
+            clamp_chars(window, MAX_UI_TEXT_CHARS);
+        }
+        if let Some(pages) = self.collapsed_cards.as_mut() {
+            clamp_pages(pages);
+        }
+        if let Some(pages) = self.page_account_order.as_mut() {
+            clamp_pages(pages);
+        }
+        if let Some(width) = self.sidebar_width.as_mut() {
+            *width = (*width).min(MAX_SIDEBAR_WIDTH);
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -113,7 +163,9 @@ pub fn create_export_payload(state: &AppState) -> Result<Vec<u8>, String> {
             }
             Err(e) => {
                 // If an individual account has no stored secret, skip it cleanly
-                eprintln!("Warning: skipping account without secret during pairing: {e}");
+                crate::diagnostics::warn(&format!(
+                    "Warning: skipping account without secret during pairing: {e}"
+                ));
             }
         }
     }
@@ -252,6 +304,7 @@ pub async fn import_sync_payload_with_replace(
         if !crate::store::is_valid_account_id(&entry.account.id) {
             entry.account.id = uuid::Uuid::new_v4().to_string();
         }
+        sanitize_imported_account(&mut entry.account);
 
         // Enforce per-secret serialized size limit
         let secret_bytes = serde_json::to_vec(&entry.secret)
@@ -290,7 +343,9 @@ pub async fn import_sync_payload_with_replace(
 
             // Update secret in native store
             if let Err(e) = crate::store::save_provider_secret(&receiver_id, &entry.secret) {
-                eprintln!("Failed to save updated secret for account: {e}");
+                crate::diagnostics::warn(&format!(
+                    "Failed to save updated secret for account: {e}"
+                ));
                 summary.skipped += 1;
                 continue;
             }
@@ -303,7 +358,7 @@ pub async fn import_sync_payload_with_replace(
             existing_acc.touch();
 
             if let Err(e) = state.store.upsert(existing_acc) {
-                eprintln!("Failed to update account metadata: {e}");
+                crate::diagnostics::warn(&format!("Failed to update account metadata: {e}"));
                 summary.skipped += 1;
                 continue;
             }
@@ -324,7 +379,7 @@ pub async fn import_sync_payload_with_replace(
                     summary.added += 1;
                 }
                 Err(e) => {
-                    eprintln!("Failed to persist new account: {e}");
+                    crate::diagnostics::warn(&format!("Failed to persist new account: {e}"));
                     summary.skipped += 1;
                 }
             }
@@ -334,10 +389,19 @@ pub async fn import_sync_payload_with_replace(
     // Import buckets if present with remapped account IDs and build bucket id map
     let mut bucket_id_map: std::collections::HashMap<String, String> =
         std::collections::HashMap::new();
-    for mut incoming_bucket in payload.buckets {
+    for mut incoming_bucket in payload.buckets.into_iter().take(MAX_BUCKETS) {
         let sender_bucket_id = incoming_bucket.id.clone();
+        // Bucket ids end up in stored data and UI page keys; keep them plain.
+        if !crate::store::is_valid_account_id(&incoming_bucket.id) {
+            incoming_bucket.id = format!("bucket_{}", uuid::Uuid::new_v4().simple());
+        }
         let mut mapped_ids: Vec<String> = Vec::new();
-        for sid in incoming_bucket.account_ids.clone() {
+        for sid in incoming_bucket
+            .account_ids
+            .iter()
+            .take(MAX_ACCOUNTS)
+            .cloned()
+        {
             let target_id = id_map.get(&sid).cloned().unwrap_or(sid);
             if state.store.get(&target_id).is_some() && !mapped_ids.contains(&target_id) {
                 mapped_ids.push(target_id);
@@ -401,7 +465,7 @@ pub async fn import_sync_payload_with_replace(
     if let Some(order) = payload.account_order {
         // Remap sender ids -> receiver ids
         let mut remapped: Vec<String> = Vec::new();
-        for sid in order.account_ids {
+        for sid in order.account_ids.into_iter().take(MAX_ACCOUNTS) {
             let rid = id_map.get(&sid).cloned().unwrap_or(sid);
             if state.store.get(&rid).is_some() && !remapped.contains(&rid) {
                 remapped.push(rid);
@@ -429,7 +493,7 @@ pub async fn import_sync_payload_with_replace(
 
     // Apply optional alerts if present
     if let Some(alert_entries) = payload.alerts {
-        for entry in alert_entries {
+        for entry in alert_entries.into_iter().take(MAX_ACCOUNTS) {
             let target_id = id_map
                 .get(&entry.account_id)
                 .cloned()
@@ -444,6 +508,7 @@ pub async fn import_sync_payload_with_replace(
     if let Some(ui_state) = payload.ui_state {
         // Remap collapsed ids and bucket refs in group order
         let mut remapped_ui = ui_state;
+        remapped_ui.clamp();
         if let Some(ids) = remapped_ui.collapsed_account_ids.take() {
             let mapped: Vec<String> = ids
                 .into_iter()

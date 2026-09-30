@@ -1,6 +1,6 @@
 import { useEffect, useRef, type RefObject } from "react";
 import { focusableElements } from "../components/useModalA11y";
-import { MOBILE_OVERLAY_QUERY } from "../sidebar-resize";
+import { MOBILE_OVERLAY_QUERY } from "../sidebar-width";
 import { useMediaQuery } from "./useMediaQuery";
 
 /**

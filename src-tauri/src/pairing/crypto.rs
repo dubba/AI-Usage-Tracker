@@ -89,18 +89,44 @@ pub fn build_transcript(
     transcript
 }
 
-/// Computes the 8-character hex SAS fingerprint (e.g. "4F2A-8B91").
+/// Length of the legacy 32-bit code (`4F2A-8B91`) that older builds show and
+/// that the confirmation tags are bound to.
+const LEGACY_SAS_LEN: usize = 9;
+
+/// Formats the first `bytes` bytes of `digest` as dash-separated hex pairs of
+/// bytes, e.g. `4F2A-8B91-C3D2`.
+pub(crate) fn format_verification_code(digest: &[u8], bytes: usize) -> String {
+    digest[..bytes]
+        .chunks(2)
+        .map(|pair| pair.iter().map(|b| format!("{b:02X}")).collect::<String>())
+        .collect::<Vec<_>>()
+        .join("-")
+}
+
+/// Computes the short authentication string both users compare (e.g.
+/// "4F2A-8B91-C3D2", 48 bits).
+///
+/// In the join-code flow the host key arrives over unauthenticated mDNS, so
+/// this comparison is the only thing that stops a LAN attacker relaying both
+/// sides. 32 bits could be ground offline in minutes on a GPU; 48 bits cannot
+/// be ground inside the pairing window. The first two groups are exactly the
+/// legacy 32-bit code, so a mixed pair of old and new builds still shows a
+/// visibly matching prefix.
 pub fn compute_sas_code(encryption_key: &[u8; 32], transcript: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(SAS_INFO);
     hasher.update(encryption_key);
     hasher.update(transcript);
     let digest = hasher.finalize();
+    format_verification_code(&digest, 6)
+}
 
-    format!(
-        "{:02X}{:02X}-{:02X}{:02X}",
-        digest[0], digest[1], digest[2], digest[3]
-    )
+/// The part of a displayed SAS that confirmation tags are computed over. It is
+/// the legacy 32-bit code, which keeps the wire protocol unchanged: the tags
+/// only prove both sides confirmed, the human comparison is what authenticates
+/// the peer, and that covers the full code.
+pub fn tag_sas_code(displayed: &str) -> &str {
+    displayed.get(..LEGACY_SAS_LEN).unwrap_or(displayed)
 }
 
 /// Computes a constant-time verification authentication tag for SAS confirmation.

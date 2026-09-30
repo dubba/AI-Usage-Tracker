@@ -1,0 +1,12 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "api-integration",
+  "description": "The Paseo Bridge window: it can only read bridge info and manage the bridge token",
+  "windows": ["api-integration"],
+  "permissions": [
+    "core:default",
+    "allow-get-bridge-info",
+    "allow-reveal-bridge-token",
+    "allow-regenerate-bridge-token"
+  ]
+}

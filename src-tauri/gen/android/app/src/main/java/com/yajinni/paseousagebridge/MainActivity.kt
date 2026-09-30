@@ -568,6 +568,13 @@ class MainActivity : TauriActivity() {
     }
   }
 
+  // Called from Rust over JNI (see android_keystore.rs). They throw on failure.
+  fun encryptCredential(data: ByteArray, context: ByteArray): ByteArray =
+    CredentialVault.seal(data, context)
+
+  fun decryptCredential(data: ByteArray, context: ByteArray): ByteArray =
+    CredentialVault.open(data, context)
+
   fun verifyDownloadedApk(path: String): String {
     val file = File(path)
     if (!file.exists() || file.length() < 1024L) {

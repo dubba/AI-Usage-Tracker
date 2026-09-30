@@ -1,3 +1,4 @@
+import { useClock } from "../hooks/useClock";
 import {
   formatResetAtShort,
   usageTone,
@@ -30,17 +31,16 @@ function resetSummaryLine(
 export function AccountUsageMetric({
   window,
   provider,
-  nowMs,
   unavailableLabel = "Unavailable",
   creditLabel = null,
 }: {
   window: UsageWindow;
   provider?: Provider | string;
-  nowMs?: number;
   unavailableLabel?: string;
   creditLabel?: string | null;
 }) {
   const remaining = window.remainingPercent;
+  const resetLine = useClock((now) => resetSummaryLine(window, remaining, now));
   const width = remaining == null ? 0 : Math.min(100, Math.max(0, remaining));
   const tone = usageTone(remaining);
   const length = windowLength(window);
@@ -57,7 +57,7 @@ export function AccountUsageMetric({
           </span>
         ) : <span className="metric-window-pill-spacer" />}
         <span className="metric-reset">
-          {resetSummaryLine(window, remaining, nowMs)}
+          {resetLine}
         </span>
       </div>
       <div className="metric-value-row">

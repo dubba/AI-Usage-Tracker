@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { bridgeApi } from "../api";
 import { logIgnored } from "../log";
 import type { AppSettings } from "../types";
@@ -9,8 +9,6 @@ export function useAppSettings({ reportError, clearError }: { reportError: Repor
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
   const [autostart, setAutostart] = useState(false);
   const [settingsBusy, setSettingsBusy] = useState(false);
-  const appSettingsRef = useRef(appSettings);
-  appSettingsRef.current = appSettings;
 
   useEffect(() => {
     bridgeApi.getAppSettings().then(setAppSettings).catch((cause) => reportError("settings", cause, "Couldn't load app settings"));
@@ -83,7 +81,6 @@ export function useAppSettings({ reportError, clearError }: { reportError: Repor
 
   return {
     appSettings,
-    appSettingsRef,
     autostart,
     settingsBusy,
     reloadFromBackend,

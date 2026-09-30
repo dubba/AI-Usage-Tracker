@@ -4,6 +4,7 @@ import { BellIcon } from "../icons";
 import type { Account, UsageAlertSetting, UsageWindow } from "../types";
 import { CustomDropdown } from "./CustomDropdown";
 import { useModalA11y } from "./useModalA11y";
+import { ModalCloseButton } from "./ModalCloseButton";
 
 const THRESHOLDS = [10, 20, 30, 40, 50];
 const WINDOW_ORDER = ["five_hour", "weekly", "monthly"] as const;
@@ -137,6 +138,7 @@ export function AccountAlertModal({
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section ref={dialogRef} className="modal-card alert-settings-modal notification-only-modal" role="dialog" aria-modal="true" aria-labelledby="alert-settings-title" tabIndex={-1}>
+        <ModalCloseButton onClose={onClose} />
         <div className="modal-kicker">Account alerts</div>
         <h2 id="alert-settings-title">Usage notifications</h2>
         <p>Choose when to notify you about the 5-hour, weekly, and 30-day limits for <strong>{account.label}</strong>.</p>

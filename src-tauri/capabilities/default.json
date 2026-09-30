@@ -1,27 +1,97 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default permissions for the AI Usage Tracker desktop windows",
-  "windows": ["main", "api-integration"],
+  "description": "Permissions for the AI Usage Tracker main window (every app command)",
+  "windows": ["main"],
   "permissions": [
     "core:default",
     {
       "identifier": "opener:allow-open-url",
       "allow": [
-        { "url": "https://auth.openai.com/*" },
-        { "url": "https://claude.ai/*" },
-        { "url": "https://accounts.google.com/*" },
-        { "url": "https://accounts.x.ai/*" },
-        { "url": "https://grok.com/*" },
-        { "url": "https://x.ai/*" },
-        { "url": "https://opencode.ai/*" },
-        { "url": "https://github.com/dubba/AI-Usage-Tracker/*" }
+        {
+          "url": "https://auth.openai.com/*"
+        },
+        {
+          "url": "https://claude.ai/*"
+        },
+        {
+          "url": "https://accounts.google.com/*"
+        },
+        {
+          "url": "https://accounts.x.ai/*"
+        },
+        {
+          "url": "https://grok.com/*"
+        },
+        {
+          "url": "https://x.ai/*"
+        },
+        {
+          "url": "https://opencode.ai/*"
+        },
+        {
+          "url": "https://github.com/dubba/AI-Usage-Tracker/*"
+        }
       ]
     },
     "autostart:allow-enable",
     "autostart:allow-disable",
     "autostart:allow-is-enabled",
     "notification:default",
-    "window-state:default"
+    "window-state:default",
+    "allow-get-startup-issue",
+    "allow-get-diagnostics",
+    "allow-retry-startup",
+    "allow-get-dashboard-snapshot",
+    "allow-get-bridge-info",
+    "allow-start-login",
+    "allow-probe-google-ai-studio-key",
+    "allow-add-google-ai-studio-account",
+    "allow-start-google-ai-studio-usage-login",
+    "allow-add-opencode-go-account",
+    "allow-add-grok-account",
+    "allow-get-login-status",
+    "allow-current-login-status",
+    "allow-cancel-login",
+    "allow-refresh-account",
+    "allow-refresh-all",
+    "allow-get-app-settings",
+    "allow-set-account-refresh-minutes",
+    "allow-set-automatic-updates-enabled",
+    "allow-set-include-beta-updates",
+    "allow-get-autostart",
+    "allow-set-autostart",
+    "allow-set-api-integration-enabled",
+    "allow-open-api-integration-window",
+    "allow-reorder-accounts",
+    "allow-get-account-alerts",
+    "allow-save-account-alerts",
+    "allow-rename-account",
+    "allow-remove-account",
+    "allow-get-account-buckets",
+    "allow-save-account-bucket",
+    "allow-delete-account-bucket",
+    "allow-regenerate-bridge-token",
+    "allow-reveal-bridge-token",
+    "allow-check-for-app-update",
+    "allow-install-app-update",
+    "allow-ensure-camera-permission",
+    "allow-pairing-start-host",
+    "allow-pairing-start-receiver",
+    "allow-pairing-start-client",
+    "allow-pairing-start-client-by-code",
+    "allow-pairing-start-sender",
+    "allow-pairing-select-role",
+    "allow-pairing-confirm-sas",
+    "allow-pairing-cancel",
+    "allow-pairing-status",
+    "allow-pairing-set-include-settings",
+    "allow-pairing-set-allow-credential-replace",
+    "allow-pairing-set-pending-ui-state",
+    "allow-pairing-clear-pending-ui-state",
+    "allow-pairing-prepare-airgap-export",
+    "allow-pairing-verify-airgap",
+    "allow-pairing-import-airgap",
+    "allow-get-pending-pairing-uri"
   ]
 }

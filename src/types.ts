@@ -199,6 +199,13 @@ export type PairingStatus =
       };
     };
 
+/** Why the backend could not start, reported instead of the app failing to open. */
+export interface StartupIssue {
+  message: string;
+  /** Where the app keeps its saved data. */
+  dataDir: string | null;
+}
+
 export interface AirgapExportFrame {
   chunkIndex: number;
   totalChunks: number;

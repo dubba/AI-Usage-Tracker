@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { storageGet, storageRemove, storageSet, STORAGE_KEYS } from "./storage";
-import type { Account, AccountBucket, AirgapExport, AirgapVerifyResult, AppSettings, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, PairingHostInit, PairingReceiverInit, PairingStatus, Provider, SyncSummary, UsageAlertSetting } from "./types";
+import type { Account, AccountBucket, AirgapExport, AirgapVerifyResult, AppSettings, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, PairingHostInit, PairingReceiverInit, PairingStatus, Provider, StartupIssue, SyncSummary, UsageAlertSetting } from "./types";
 
 export function rememberLoginAttempt(attemptId: string) {
   storageSet(STORAGE_KEYS.loginAttempt, attemptId, "session");
@@ -15,6 +15,9 @@ export function readLoginAttempt(): string | null {
 }
 
 export const bridgeApi = {
+  getDiagnostics: () => invoke<string>("get_diagnostics"),
+  getStartupIssue: () => invoke<StartupIssue | null>("get_startup_issue"),
+  retryStartup: () => invoke<StartupIssue | null>("retry_startup"),
   snapshot: () => invoke<DashboardSnapshot>("get_dashboard_snapshot"),
   bridgeInfo: () => invoke<BridgeInfo>("get_bridge_info"),
   startLogin: (label: string, provider: Provider, email?: string) =>

@@ -407,3 +407,22 @@ describe("orderedWindows", () => {
     expect(input.map((w) => w.id)).toEqual(["weekly", "five_hour"]);
   });
 });
+
+describe("formatElapsed", () => {
+  it("picks the largest sensible unit", async () => {
+    const { formatElapsed } = await import("./usage-logic");
+    expect(formatElapsed(0)).toBe("just now");
+    expect(formatElapsed(59_999)).toBe("just now");
+    expect(formatElapsed(60_000)).toBe("1m ago");
+    expect(formatElapsed(59 * 60_000)).toBe("59m ago");
+    expect(formatElapsed(60 * 60_000)).toBe("1h ago");
+    expect(formatElapsed(23 * 3_600_000)).toBe("23h ago");
+    expect(formatElapsed(47 * 3_600_000)).toBe("1d ago");
+    expect(formatElapsed(48 * 3_600_000)).toBe("2d ago");
+  });
+
+  it("treats a negative duration as just now", async () => {
+    const { formatElapsed } = await import("./usage-logic");
+    expect(formatElapsed(-5_000)).toBe("just now");
+  });
+});

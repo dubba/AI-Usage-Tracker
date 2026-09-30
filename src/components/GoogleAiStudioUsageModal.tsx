@@ -5,6 +5,7 @@ import { abandonLoginAttempt, getLastLoginStatus, retryLoginAttempt, subscribeLo
 import type { Account, CloudProjectOption, LoginStatus } from "../types";
 import { CustomDropdown } from "./CustomDropdown";
 import { useModalA11y } from "./useModalA11y";
+import { ModalCloseButton } from "./ModalCloseButton";
 
 type SetupStage = "signin" | "choose_project" | "monitoring_disabled";
 
@@ -159,6 +160,7 @@ export function GoogleAiStudioUsageModal({
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && closeModal()}>
       <section ref={dialogRef} className="modal-card google-cloud-usage-modal" role="dialog" aria-modal="true" aria-labelledby="google-cloud-usage-title" tabIndex={-1}>
+        <ModalCloseButton onClose={closeModal} />
         <div className="modal-kicker">Google AI Studio quota usage</div>
         <h2 id="google-cloud-usage-title">
           {stage === "choose_project" ? "Choose the API key project" : stage === "monitoring_disabled" ? "Enable Cloud Monitoring" : "Connect Google Usage"}

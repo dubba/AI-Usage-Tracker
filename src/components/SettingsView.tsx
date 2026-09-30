@@ -3,6 +3,7 @@ import {
   ExternalLinkIcon,
   MenuIcon,
 } from "../icons";
+import { CopyDiagnosticsButton } from "./CopyDiagnosticsButton";
 import { CustomDropdown } from "./CustomDropdown";
 import { UpdateNotesModal } from "./UpdateNotesModal";
 import type {
@@ -278,6 +279,15 @@ export function SettingsView({
         </div>
       </section>
       {bridge?.error ? <div className="error-panel api-integration-error">{bridge.error}</div> : null}
+      <section className="settings-card">
+        <div className="settings-row">
+          <div>
+            <strong>Diagnostics</strong>
+            <small>Copy a report for bug reports. Tokens, cookies, and email addresses are removed.</small>
+          </div>
+          <CopyDiagnosticsButton />
+        </div>
+      </section>
       </div>
       <UpdateNotesModal
         open={updateNotesOpen}

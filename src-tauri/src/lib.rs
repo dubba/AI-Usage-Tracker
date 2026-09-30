@@ -1,14 +1,20 @@
 mod account_order;
 mod alerts;
 #[cfg(target_os = "android")]
+mod android_keystore;
+#[cfg(target_os = "android")]
 mod apk_install;
 mod bridge_api;
 mod buckets;
 mod camera_permission;
+#[cfg(any(target_os = "android", debug_assertions))]
+mod credential_file;
+mod diagnostics;
 mod fs_util;
 mod google_ai_studio_oauth;
 mod grok_login;
 mod lan_binding;
+mod limits;
 mod mobile_auth;
 mod model;
 mod oauth;
@@ -17,6 +23,7 @@ mod pairing;
 mod providers;
 mod refresh_backoff;
 mod settings;
+mod startup;
 mod state;
 mod store;
 mod usage;
@@ -97,6 +104,7 @@ async fn start_login(
     email: Option<String>,
 ) -> Result<LoginStart, String> {
     let provider = Provider::from_str(&provider)?;
+    let email = limits::normalize_optional_email(email)?;
     let label = if provider == Provider::OpencodeGo && label.trim().is_empty() {
         "OpenCode-Go".to_string()
     } else if provider == Provider::Grok && label.trim().is_empty() {
@@ -197,6 +205,7 @@ async fn add_opencode_go_account(
     } else {
         validate_label(&label)?
     };
+    let email = limits::normalize_optional_email(email)?;
     opencode_login::add_account(
         state.inner().clone(),
         label,
@@ -669,6 +678,7 @@ fn pairing_set_pending_ui_state(
     if !ui_state.is_object() && !ui_state.is_null() {
         return Err("UI state must be an object".into());
     }
+    limits::check_ui_state_size(&ui_state)?;
     *state.pairing_pending_ui_state.write() = Some(ui_state);
     Ok(())
 }
@@ -686,6 +696,9 @@ fn pairing_prepare_airgap_export(
     include_settings: bool,
     ui_state: Option<serde_json::Value>,
 ) -> Result<pairing::airgap::AirgapExport, String> {
+    if let Some(ui) = ui_state.as_ref() {
+        limits::check_ui_state_size(ui)?;
+    }
     *state.pairing_include_settings.write() = include_settings;
     if let Some(ui) = ui_state {
         *state.pairing_pending_ui_state.write() = Some(ui);
@@ -740,7 +753,7 @@ pub extern "C" fn Java_com_yajinni_paseousagebridge_MainActivity_setPendingPairi
 /// `pairing::protocol::ParsedQrPayload::parse` before any connection.
 #[cfg(target_os = "android")]
 fn is_valid_incoming_pairing_uri(uri: &str) -> bool {
-    if uri.len() > 2048 {
+    if uri.len() > limits::MAX_PAIRING_URI_CHARS {
         return false;
     }
     uri.starts_with("aiusage-pair:") || uri.starts_with("aiusage:")
@@ -1359,8 +1372,8 @@ async fn check_for_app_update(
                     ));
                 }
                 Err(_) => {
-                    eprintln!(
-                        "App update manifest fetch timed out; using GitHub Releases fallback."
+                    crate::diagnostics::info(
+                        "App update manifest fetch timed out; using GitHub Releases fallback.",
                     );
                 }
             },
@@ -1531,8 +1544,11 @@ fn validate_label(label: &str) -> Result<String, String> {
     if label.is_empty() {
         return Err("Account label is required.".into());
     }
-    if label.chars().count() > 80 {
-        return Err("Account label must be 80 characters or fewer.".into());
+    if label.chars().count() > limits::MAX_LABEL_CHARS {
+        return Err(format!(
+            "Account label must be {} characters or fewer.",
+            limits::MAX_LABEL_CHARS
+        ));
     }
     Ok(label.to_string())
 }
@@ -1572,6 +1588,94 @@ fn show_main_window(app: &AppHandle) {
         let _ = window.show();
         let _ = window.set_focus();
     }
+}
+
+/// Serializes startup and retries so the backend is never built twice.
+static BACKEND_INIT: parking_lot::Mutex<()> = parking_lot::Mutex::new(());
+
+/// Loads saved data, manages the shared state, and starts the background
+/// tasks. Safe to call again after a failure, and a no-op once it succeeded.
+fn initialize_backend(app: &AppHandle) -> Result<(), startup::StartupIssue> {
+    let _guard = BACKEND_INIT.lock();
+    if app.try_state::<Arc<AppState>>().is_some() {
+        return Ok(());
+    }
+
+    let data_dir = app.path().app_data_dir().map_err(|error| {
+        startup::StartupIssue::new("Couldn't find the app data folder", error, None)
+    })?;
+    let issue = |what: &str, detail: String| {
+        startup::StartupIssue::new(what, detail, Some(data_dir.as_path()))
+    };
+    crate::store::set_data_dir(data_dir.clone());
+    diagnostics::init(&data_dir);
+    // Crash-safe cleanup: remove stale private Grok login profiles left
+    // by a previous crash/kill before any new login window opens.
+    #[cfg(desktop)]
+    crate::grok_login::sweep_stale_grok_profiles();
+
+    // Seal plaintext credential files from earlier versions (Android only:
+    // there is no platform cipher elsewhere, so this does nothing).
+    #[cfg(target_os = "android")]
+    crate::store::upgrade_plaintext_credentials();
+
+    // A token that cannot be read (locked keychain, denied prompt) only turns
+    // the local API off; everything else keeps working.
+    let (token, bridge_unavailable) = startup::bridge_token_or_fallback(
+        load_or_create_bridge_token(),
+        crate::store::generate_bridge_token,
+    );
+    let state = Arc::new(AppState::new(data_dir.clone(), token).map_err(|error| {
+        issue(
+            "AI Usage Tracker couldn't load its saved data. Nothing was deleted",
+            error,
+        )
+    })?);
+    state.set_bridge_unavailable(bridge_unavailable);
+    migrate_google_ai_studio_accounts(state.as_ref());
+    state.set_app_handle(app.clone());
+    *GLOBAL_APP_HANDLE.lock() = Some(app.clone());
+    app.manage(state.clone());
+    tauri::async_runtime::spawn(bridge_api::run_controller(state.clone()));
+    tauri::async_runtime::spawn(run_account_refresh_loop(state.clone()));
+    Ok(())
+}
+
+/// A redacted report for bug reports: versions, settings, per-account status,
+/// and the recent log. Works even when startup failed.
+#[tauri::command]
+fn get_diagnostics(app: AppHandle) -> String {
+    let state = app.try_state::<Arc<AppState>>();
+    let issue = app
+        .try_state::<startup::StartupStatus>()
+        .and_then(|status| status.get())
+        .map(|issue| issue.message);
+    diagnostics::build_report(
+        &app.package_info().version.to_string(),
+        state.as_deref().map(|state| state.as_ref()),
+        issue.as_deref(),
+    )
+}
+
+#[tauri::command]
+fn get_startup_issue(status: State<'_, startup::StartupStatus>) -> Option<startup::StartupIssue> {
+    status.get()
+}
+
+/// Runs backend initialization again after a startup failure. Returns the
+/// remaining problem, or `None` once the app is running.
+#[tauri::command]
+async fn retry_startup(app: AppHandle) -> Result<Option<startup::StartupIssue>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let status = app.state::<startup::StartupStatus>();
+        match initialize_backend(&app) {
+            Ok(()) => status.clear(),
+            Err(issue) => status.set(issue),
+        }
+        status.get()
+    })
+    .await
+    .map_err(|error| format!("Startup retry failed: {error}"))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -1631,21 +1735,13 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             setup_macos_notification_delegate();
 
-            let data_dir = app.path().app_data_dir()?;
-            crate::store::set_data_dir(data_dir.clone());
-            // Crash-safe cleanup: remove stale private Grok login profiles left
-            // by a previous crash/kill before any new login window opens.
-            #[cfg(desktop)]
-            crate::grok_login::sweep_stale_grok_profiles();
-            let token = load_or_create_bridge_token()
-                .map_err(|error| std::io::Error::other(error.to_string()))?;
-            let state = Arc::new(AppState::new(data_dir, token).map_err(std::io::Error::other)?);
-            migrate_google_ai_studio_accounts(state.as_ref());
-            state.set_app_handle(app.handle().clone());
-            *GLOBAL_APP_HANDLE.lock() = Some(app.handle().clone());
-            app.manage(state.clone());
-            tauri::async_runtime::spawn(bridge_api::run_controller(state.clone()));
-            tauri::async_runtime::spawn(run_account_refresh_loop(state.clone()));
+            // A failure here must not abort setup: the window still opens and
+            // the frontend shows the problem with a Retry button.
+            app.manage(startup::StartupStatus::default());
+            if let Err(issue) = initialize_backend(app.handle()) {
+                crate::diagnostics::error(&format!("Backend startup failed: {}", issue.message));
+                app.state::<startup::StartupStatus>().set(issue);
+            }
 
             #[cfg(desktop)]
             {
@@ -1684,6 +1780,9 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            get_startup_issue,
+            get_diagnostics,
+            retry_startup,
             get_dashboard_snapshot,
             get_bridge_info,
             start_login,
@@ -1935,6 +2034,154 @@ mod tests {
             "v0.3.10-beta.1"
         );
         assert!(newest_release_in_listing(&listing, Some("missing.json")).is_none());
+    }
+
+    /// The command list in `build.rs`, the capability files, and the commands
+    /// the frontend really calls must agree, or a window silently loses (or
+    /// gains) access to a command.
+    #[test]
+    fn app_commands_capabilities_and_frontend_stay_in_sync() {
+        use std::collections::BTreeSet;
+
+        fn quoted(text: &str) -> BTreeSet<String> {
+            text.split('"')
+                .skip(1)
+                .step_by(2)
+                .map(str::to_string)
+                .collect()
+        }
+
+        // Commands registered with Tauri (the needle is split so this test's
+        // own source does not match it).
+        let lib_source = include_str!("lib.rs");
+        let needle = concat!("generate_", "handler![");
+        let start = lib_source.find(needle).expect("handler list") + needle.len();
+        let handler_block = &lib_source[start..];
+        let handlers: BTreeSet<String> = handler_block[..handler_block.find("])").unwrap()]
+            .split(',')
+            .map(|name| name.trim().to_string())
+            .filter(|name| !name.is_empty())
+            .collect();
+
+        // Commands declared in build.rs.
+        let build_source = include_str!("../build.rs");
+        let start = build_source
+            .find("const APP_COMMANDS")
+            .expect("manifest list");
+        let list = &build_source[start..];
+        let declared = quoted(&list[list.find('[').unwrap()..list.find("];").unwrap()]);
+        assert_eq!(
+            handlers, declared,
+            "build.rs APP_COMMANDS must match generate_handler!"
+        );
+
+        // Main window: every command. API window: only bridge token handling.
+        let permissions = |json: &str| -> BTreeSet<String> {
+            let value: serde_json::Value = serde_json::from_str(json).unwrap();
+            value["permissions"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter_map(|entry| entry.as_str().map(str::to_string))
+                .collect()
+        };
+        let allow = |command: &str| format!("allow-{}", command.replace('_', "-"));
+        let main_permissions = permissions(include_str!("../capabilities/default.json"));
+        let main_app_permissions: BTreeSet<_> = main_permissions
+            .iter()
+            .filter(|permission| permission.starts_with("allow-"))
+            .cloned()
+            .collect();
+        assert_eq!(
+            main_app_permissions,
+            handlers.iter().map(|command| allow(command)).collect(),
+            "the main window must be allowed exactly the registered commands"
+        );
+        let api_permissions = permissions(include_str!("../capabilities/api-integration.json"));
+        let api_commands: BTreeSet<_> = api_permissions
+            .iter()
+            .filter(|permission| permission.starts_with("allow-"))
+            .cloned()
+            .collect();
+        assert_eq!(
+            api_commands,
+            [
+                "get_bridge_info",
+                "reveal_bridge_token",
+                "regenerate_bridge_token"
+            ]
+            .iter()
+            .map(|command| allow(command))
+            .collect::<BTreeSet<_>>()
+        );
+
+        // Every `invoke("command")` in the frontend is registered.
+        fn frontend_files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+            for entry in std::fs::read_dir(dir).unwrap().flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    frontend_files(&path, out);
+                } else if matches!(
+                    path.extension().and_then(|ext| ext.to_str()),
+                    Some("ts" | "tsx")
+                ) {
+                    out.push(path);
+                }
+            }
+        }
+        let mut files = Vec::new();
+        frontend_files(
+            &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../src"),
+            &mut files,
+        );
+        assert!(!files.is_empty());
+        for file in files {
+            let text = std::fs::read_to_string(&file).unwrap();
+            let mut rest = text.as_str();
+            while let Some(index) = rest.find("invoke") {
+                rest = &rest[index + "invoke".len()..];
+                let mut chars = rest.trim_start();
+                if chars.starts_with('<') {
+                    // Skip a generic argument such as `<Account | null>`.
+                    let mut depth = 0;
+                    let end = chars.find(|c| {
+                        match c {
+                            '<' => depth += 1,
+                            '>' => depth -= 1,
+                            _ => {}
+                        }
+                        depth == 0
+                    });
+                    chars = end.map_or("", |end| chars[end + 1..].trim_start());
+                }
+                if let Some(after) = chars.strip_prefix('(') {
+                    if let Some(name) = after.trim_start().strip_prefix('"') {
+                        let name = &name[..name.find('"').unwrap()];
+                        assert!(
+                            handlers.contains(name),
+                            "{} invokes unknown command {name}",
+                            file.display()
+                        );
+                    }
+                }
+            }
+        }
+
+        // The Paseo Bridge window may only call what its capability allows.
+        let bridge_window = include_str!("../../src/ApiIntegrationWindow.tsx");
+        let allowed_methods = ["bridgeInfo", "revealBridgeToken", "regenerateToken"];
+        let mut rest = bridge_window;
+        while let Some(index) = rest.find("bridgeApi.") {
+            rest = &rest[index + "bridgeApi.".len()..];
+            let method: String = rest
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric())
+                .collect();
+            assert!(
+                allowed_methods.contains(&method.as_str()),
+                "the Paseo Bridge window calls bridgeApi.{method}, which its capability does not allow"
+            );
+        }
     }
 
     #[test]
