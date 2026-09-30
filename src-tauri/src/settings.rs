@@ -19,6 +19,7 @@ pub struct AppSettings {
     pub account_refresh_minutes: u64,
     pub paseo_bridge_enabled: bool,
     pub automatic_updates_enabled: bool,
+    pub include_beta_updates: bool,
     pub autostart_enabled: bool,
 }
 
@@ -34,6 +35,8 @@ struct StoredAppSettings {
     #[serde(default = "default_automatic_updates_enabled")]
     automatic_updates_enabled: bool,
     #[serde(default)]
+    include_beta_updates: bool,
+    #[serde(default)]
     autostart_enabled: bool,
     #[serde(default)]
     last_notified_update_version: Option<String>,
@@ -46,6 +49,7 @@ impl Default for StoredAppSettings {
             account_refresh_minutes: DEFAULT_ACCOUNT_REFRESH_MINUTES,
             paseo_bridge_enabled: false,
             automatic_updates_enabled: true,
+            include_beta_updates: false,
             autostart_enabled: false,
             last_notified_update_version: None,
         }
@@ -58,6 +62,7 @@ impl StoredAppSettings {
             account_refresh_minutes: self.account_refresh_minutes,
             paseo_bridge_enabled: self.paseo_bridge_enabled,
             automatic_updates_enabled: self.automatic_updates_enabled,
+            include_beta_updates: self.include_beta_updates,
             autostart_enabled: self.autostart_enabled,
         }
     }
@@ -161,6 +166,24 @@ impl SettingsStore {
 
         let mut next = settings.clone();
         next.automatic_updates_enabled = enabled;
+        self.persist(&next)?;
+        *settings = next;
+
+        Ok(settings.public())
+    }
+
+    pub fn include_beta_updates(&self) -> bool {
+        self.settings.read().include_beta_updates
+    }
+
+    pub fn set_include_beta_updates(&self, enabled: bool) -> Result<AppSettings, String> {
+        let mut settings = self.settings.write();
+        if settings.include_beta_updates == enabled {
+            return Ok(settings.public());
+        }
+
+        let mut next = settings.clone();
+        next.include_beta_updates = enabled;
         self.persist(&next)?;
         *settings = next;
 
@@ -311,6 +334,25 @@ mod tests {
                 .unwrap()
                 .get()
                 .automatic_updates_enabled
+        );
+    }
+
+    #[test]
+    fn beta_updates_are_off_by_default_and_persist_when_enabled() {
+        let directory = tempfile::tempdir().unwrap();
+        let store = SettingsStore::load(directory.path()).unwrap();
+        assert!(!store.get().include_beta_updates);
+        assert!(
+            store
+                .set_include_beta_updates(true)
+                .unwrap()
+                .include_beta_updates
+        );
+        assert!(
+            SettingsStore::load(directory.path())
+                .unwrap()
+                .get()
+                .include_beta_updates
         );
     }
 

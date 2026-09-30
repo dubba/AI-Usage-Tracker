@@ -37,6 +37,7 @@ export const bridgeApi = {
   getAppSettings: () => invoke<AppSettings>("get_app_settings"),
   setAccountRefreshMinutes: (minutes: number) => invoke<AppSettings>("set_account_refresh_minutes", { minutes }),
   setAutomaticUpdatesEnabled: (enabled: boolean) => invoke<AppSettings>("set_automatic_updates_enabled", { enabled }),
+  setIncludeBetaUpdates: (enabled: boolean) => invoke<AppSettings>("set_include_beta_updates", { enabled }),
   getAutostart: () => invoke<boolean>("get_autostart"),
   setAutostart: (enabled: boolean) => invoke<boolean>("set_autostart", { enabled }),
   setApiIntegrationEnabled: (enabled: boolean) => invoke<BridgeStatus>("set_api_integration_enabled", { enabled }),

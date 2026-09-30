@@ -18,9 +18,14 @@ jobs:
         include:
           - os: windows-latest
             args: ""
+            # MSI cannot encode a non-numeric pre-release such as "-beta.1",
+            # so beta builds ship only the NSIS installer (the one in-app
+            # updates use anyway).
+            beta_args: "--bundles nsis"
             apple_signing_identity: ""
           - os: macos-15
             args: ""
+            beta_args: ""
             apple_signing_identity: "-"
     runs-on: ${{ matrix.os }}
     steps:
@@ -35,6 +40,22 @@ jobs:
         with:
           workspaces: src-tauri
       - run: npm install
+      - name: Detect beta version
+        id: release_kind
+        shell: python
+        run: |
+          import json
+          import os
+
+          with open("src-tauri/tauri.conf.json", encoding="utf-8") as config_file:
+              version = json.load(config_file)["version"]
+          # A SemVer pre-release suffix ("0.3.10-beta.1") marks a beta. It is
+          # published as a GitHub pre-release with its own latest.json, which
+          # /releases/latest ignores, so stable installs never see it.
+          is_beta = "-" in version
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"version={version}\n")
+              output.write(f"is_beta={'true' if is_beta else 'false'}\n")
       - name: Normalize and verify updater signing key
         shell: python
         env:
@@ -98,9 +119,9 @@ jobs:
 
             These builds are not yet backed by paid platform code-signing certificates. Windows and macOS may display an unverified-publisher warning. The macOS builds use an ad-hoc signature, so you may need to approve the app in **System Settings → Privacy & Security** after downloading it.
           releaseDraft: false
-          prerelease: false
+          prerelease: ${{ steps.release_kind.outputs.is_beta == 'true' }}
           uploadUpdaterJson: true
-          args: ${{ matrix.args }}
+          args: ${{ steps.release_kind.outputs.is_beta == 'true' && matrix.beta_args || matrix.args }}
 
   build-android:
     uses: ./.github/workflows/build-android.yml

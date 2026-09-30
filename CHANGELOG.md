@@ -3,16 +3,19 @@
 ## Unreleased (0 items)
 
 
-## 0.3.10-beta.1 - 2026-09-30 (11 items)
+## 0.3.10-beta.1 - 2026-09-30 (15 items)
 
-### Improved (4)
+### Improved (7)
 
 - On narrow screens the navigation menu now behaves like a proper dialog: Escape closes it, Tab stays inside it while it is open, focus returns to the menu button when it closes, and its buttons can no longer be reached while it is hidden.
 - The Action Needed card is now announced with its count and a short instruction for screen readers, and its hint no longer says "Click", which did not fit touch screens.
 - Dragging, reordering, and other layout changes no longer trigger extra background account lookups.
 - Account card 5h/7d pills now include the model name for every provider, for example `7d limit · GPT`, `7d limit · Claude`, and `7d limit · Grok`.
+- Settings now has an Include beta releases switch (off by default). When on, Check Now also offers beta pre-releases on Android, Mac, and Windows. On Mac and Windows a beta installs in the app like any other update.
+- Refreshing a long list of accounts now happens a few at a time instead of all at once, which is gentler on your network and on the providers.
+- Accounts that keep failing, or that a provider asks to slow down, are now retried less often (honoring the provider's requested wait) instead of on every update. Refresh and Refresh all still try immediately.
 
-### Fixed (6)
+### Fixed (7)
 
 - If a link cannot be opened (the change log or a link in the release notes), an error now appears instead of failing silently or only showing in a tooltip.
 - If your settings cannot be reloaded after linking devices, an error now appears instead of showing stale settings.
@@ -20,6 +23,7 @@
 - Claude accounts no longer stop updating after a temporary "access denied" response from Anthropic; the last known usage is kept and the account keeps refreshing.
 - A locked or briefly unavailable system credential store, or a slow refresh, no longer leaves an account needing to sign in again after its sign-in was renewed.
 - Changing how often accounts update no longer refreshes every account immediately; the new interval simply applies to the next refresh.
+- Removing an account while it is being refreshed no longer leaves its saved sign-in behind in the system credential store.
 
 ### Security (1)
 

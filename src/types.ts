@@ -75,6 +75,7 @@ export interface AppSettings {
   accountRefreshMinutes: number;
   paseoBridgeEnabled: boolean;
   automaticUpdatesEnabled: boolean;
+  includeBetaUpdates: boolean;
 }
 
 export interface LoginStart {

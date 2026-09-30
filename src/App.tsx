@@ -96,6 +96,7 @@ export default function App() {
     reloadFromBackend,
     saveAccountRefreshMinutes,
     saveAutomaticUpdatesEnabled,
+    saveIncludeBetaUpdates,
     toggleAutostart,
   } = useAppSettings({ reportError, clearError });
   const { snapshot, setSnapshot, nowMs, load } = useDashboardData({
@@ -258,6 +259,7 @@ export default function App() {
           settingsBusy={settingsBusy}
           onAccountRefreshMinutesChange={(minutes) => void saveAccountRefreshMinutes(minutes)}
           onAutomaticUpdatesChange={(enabled) => void saveAutomaticUpdatesEnabled(enabled)}
+          onIncludeBetaUpdatesChange={(enabled) => void saveIncludeBetaUpdates(enabled)}
           installedVersion={installedVersion}
           update={appUpdate}
           updateBusy={updateBusy}

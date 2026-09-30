@@ -25,6 +25,7 @@ export function SettingsView({
   settingsBusy,
   onAccountRefreshMinutesChange,
   onAutomaticUpdatesChange,
+  onIncludeBetaUpdatesChange,
   installedVersion,
   update,
   updateBusy,
@@ -47,6 +48,7 @@ export function SettingsView({
   settingsBusy: boolean;
   onAccountRefreshMinutesChange: (minutes: number) => void;
   onAutomaticUpdatesChange: (enabled: boolean) => void;
+  onIncludeBetaUpdatesChange: (enabled: boolean) => void;
   installedVersion: string;
   update: AppUpdateStatus | null;
   updateBusy: UpdateBusy;
@@ -65,6 +67,7 @@ export function SettingsView({
 }) {
   const [updateNotesOpen, setUpdateNotesOpen] = useState(false);
   const automaticUpdates = appSettings?.automaticUpdatesEnabled ?? true;
+  const includeBetaUpdates = appSettings?.includeBetaUpdates ?? false;
   return (
     <div className="content-scroll dashboard-content settings-style-content">
       <header className="dashboard-header">
@@ -122,6 +125,23 @@ export function SettingsView({
               aria-label={automaticUpdates ? "Disable automatic updates" : "Enable automatic updates"}
               aria-pressed={automaticUpdates}
               onClick={() => onAutomaticUpdatesChange(!automaticUpdates)}
+            >
+              <span />
+            </button>
+          </div>
+
+          <div className="settings-updates-group-header">
+            <div>
+              <strong>Include beta releases</strong>
+              <small>Also offer GitHub pre-releases. Betas may be unstable.</small>
+            </div>
+            <button
+              type="button"
+              className={`toggle ${includeBetaUpdates ? "on" : ""}`}
+              disabled={!appSettings || settingsBusy}
+              aria-label={includeBetaUpdates ? "Exclude beta releases from update checks" : "Include beta releases in update checks"}
+              aria-pressed={includeBetaUpdates}
+              onClick={() => onIncludeBetaUpdatesChange(!includeBetaUpdates)}
             >
               <span />
             </button>

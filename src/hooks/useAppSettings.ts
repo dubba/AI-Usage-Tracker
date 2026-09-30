@@ -60,6 +60,18 @@ export function useAppSettings({ reportError, clearError }: { reportError: Repor
     }
   }, [clearError, reportError]);
 
+  const saveIncludeBetaUpdates = useCallback(async (enabled: boolean) => {
+    setSettingsBusy(true);
+    try {
+      setAppSettings(await bridgeApi.setIncludeBetaUpdates(enabled));
+      clearError("settings");
+    } catch (cause) {
+      reportError("settings", cause, "Couldn't save the beta updates setting");
+    } finally {
+      setSettingsBusy(false);
+    }
+  }, [clearError, reportError]);
+
   const toggleAutostart = useCallback(async () => {
     try {
       setAutostart(await bridgeApi.setAutostart(!autostart));
@@ -77,6 +89,7 @@ export function useAppSettings({ reportError, clearError }: { reportError: Repor
     reloadFromBackend,
     saveAccountRefreshMinutes,
     saveAutomaticUpdatesEnabled,
+    saveIncludeBetaUpdates,
     toggleAutostart,
   };
 }
