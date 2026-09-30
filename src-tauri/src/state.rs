@@ -58,6 +58,7 @@ pub struct AppState {
     pub pairing: Arc<crate::pairing::PairingSessionManager>,
     account_locks: Mutex<HashMap<String, Arc<AsyncMutex<()>>>>,
     refresh_wakeup: Notify,
+    refresh_check: Notify,
     #[allow(dead_code)]
     pub data_dir: PathBuf,
     pub pairing_include_settings: RwLock<bool>,
@@ -114,6 +115,7 @@ impl AppState {
             pairing: Arc::new(crate::pairing::PairingSessionManager::new()),
             account_locks: Mutex::new(HashMap::new()),
             refresh_wakeup: Notify::new(),
+            refresh_check: Notify::new(),
             data_dir,
             pairing_include_settings: RwLock::new(false),
             pairing_pending_ui_state: RwLock::new(None),
@@ -127,6 +129,17 @@ impl AppState {
 
     pub async fn wait_for_refresh_wakeup(&self) {
         self.refresh_wakeup.notified().await;
+    }
+
+    /// Asks the refresh loop to re-check whether a refresh is due (app resumed
+    /// or regained focus). Unlike `wakeup_refresh` this does not force a
+    /// refresh, and the request is remembered if the loop is mid-refresh.
+    pub fn request_refresh_check(&self) {
+        self.refresh_check.notify_one();
+    }
+
+    pub async fn wait_for_refresh_check(&self) {
+        self.refresh_check.notified().await;
     }
 
     pub fn set_app_handle(&self, app_handle: AppHandle) {

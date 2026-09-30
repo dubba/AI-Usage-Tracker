@@ -1589,9 +1589,25 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building AI Usage Tracker")
         .run(|app_handle, event| {
-            if let tauri::RunEvent::Resumed = event {
+            // Tauri only emits `RunEvent::Resumed` for a polling event loop, so
+            // Android delivers activity resume as `WindowEvent::Resumed`. Window
+            // focus covers desktop wake-from-sleep and returning to the app.
+            let should_check_refresh = match &event {
+                tauri::RunEvent::Resumed => true,
+                #[cfg(mobile)]
+                tauri::RunEvent::WindowEvent {
+                    event: tauri::WindowEvent::Resumed,
+                    ..
+                } => true,
+                tauri::RunEvent::WindowEvent {
+                    event: tauri::WindowEvent::Focused(true),
+                    ..
+                } => true,
+                _ => false,
+            };
+            if should_check_refresh {
                 if let Some(state) = app_handle.try_state::<Arc<AppState>>() {
-                    state.wakeup_refresh();
+                    state.request_refresh_check();
                 }
             }
         });
@@ -1601,26 +1617,29 @@ fn account_refresh_is_due(last_refresh: SystemTime, now: SystemTime, interval: D
     now.duration_since(last_refresh).unwrap_or(Duration::MAX) >= interval
 }
 
+/// How often the refresh loop re-checks the wall clock. `tokio::time::sleep`
+/// runs on a monotonic clock that stops while the device is suspended, so a
+/// single long sleep can overshoot the configured interval by however long the
+/// machine slept. Short ticks bound that lateness.
+const REFRESH_POLL_TICK: Duration = Duration::from_secs(30);
+
 async fn run_account_refresh_loop(state: Arc<AppState>) {
     tokio::time::sleep(Duration::from_secs(2)).await;
+    let mut last_refresh: Option<SystemTime> = None;
     loop {
-        let _ = usage::refresh_all(state.clone()).await;
-        let last_refresh = SystemTime::now();
-        loop {
-            let interval = Duration::from_secs(state.settings.account_refresh_minutes() * 60);
-            if account_refresh_is_due(last_refresh, SystemTime::now(), interval) {
-                break;
-            }
-            let remaining = interval.saturating_sub(
-                SystemTime::now()
-                    .duration_since(last_refresh)
-                    .unwrap_or(Duration::ZERO),
-            );
-            tokio::select! {
-                _ = tokio::time::sleep(remaining) => break,
-                _ = state.settings.wait_for_refresh_schedule_change() => break,
-                _ = state.wait_for_refresh_wakeup() => break,
-            }
+        let interval = Duration::from_secs(state.settings.account_refresh_minutes() * 60);
+        let due = last_refresh
+            .map_or(true, |last| account_refresh_is_due(last, SystemTime::now(), interval));
+        if due {
+            let _ = usage::refresh_all(state.clone()).await;
+            last_refresh = Some(SystemTime::now());
+            continue;
+        }
+        tokio::select! {
+            _ = tokio::time::sleep(REFRESH_POLL_TICK) => {}
+            _ = state.wait_for_refresh_check() => {}
+            _ = state.settings.wait_for_refresh_schedule_change() => last_refresh = None,
+            _ = state.wait_for_refresh_wakeup() => last_refresh = None,
         }
     }
 }

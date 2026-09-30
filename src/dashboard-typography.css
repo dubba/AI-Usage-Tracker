@@ -6,14 +6,9 @@
 .main-stage .button,
 .main-stage .summary-card small,
 .main-stage .summary-card span:not(.summary-icon),
-.main-stage .selected-account-meta,
-.main-stage .status-pill,
-.main-stage .plan-pill,
 .main-stage .usage-label,
 .main-stage .window-pill,
-.main-stage .reset-label,
-.main-stage .usage-card.compact small,
-.main-stage .empty-metric small {
+.main-stage .reset-label {
   font-size: var(--dashboard-body-text-size);
   line-height: 1.45;
 }

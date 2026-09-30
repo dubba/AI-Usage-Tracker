@@ -1,3 +1,4 @@
+import { formatClockTime, formatMonthDay } from "./format";
 import type { Account, Provider, UsageWindow } from "./types";
 
 export type SidebarWindow = "five_hour" | "weekly";
@@ -45,16 +46,11 @@ export function displayAccountLabel(account: Account): string {
   }
   return account.label;
 }
-export function formatResetAtShort(value: string | null | undefined): string | null {
+export function formatResetAtShort(value: string | null | undefined, locale?: string): string | null {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  const day = date.toLocaleString([], { month: "short", day: "numeric" });
-  const hour = date.getHours();
-  const hour12 = hour % 12 || 12;
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const meridiem = hour < 12 ? "a" : "p";
-  return `${day} @ ${hour12}:${minutes}${meridiem}`;
+  return `${formatMonthDay(date, locale)} @ ${formatClockTime(date, locale)}`;
 }
 export function googleAiStudioHasQuotaWindows(account: Account): boolean {
   return account.provider === "google_ai_studio"

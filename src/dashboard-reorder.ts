@@ -891,7 +891,7 @@ function onTouchCancel(event: TouchEvent): void {
   pointerCandidate = null;
 }
 
-async function persistGroupOrder(orderedGroupIds: string[]): Promise<void> {
+export async function persistGroupOrder(orderedGroupIds: string[]): Promise<void> {
   try {
     const snapshot = await bridgeApi.snapshot();
     const accounts = latestAccounts.length ? latestAccounts : snapshot.accounts;
@@ -944,7 +944,7 @@ async function persistGroupOrder(orderedGroupIds: string[]): Promise<void> {
   }
 }
 
-async function persistVisibleAccountOrder(orderedVisibleIds: string[], groupId: string | null): Promise<void> {
+export async function persistVisibleAccountOrder(orderedVisibleIds: string[], groupId: string | null): Promise<void> {
   const pageId = groupId && groupId.length > 0 ? groupId : "all";
   storePageAccountOrder(pageId, orderedVisibleIds);
 

@@ -992,16 +992,7 @@ fn anthropic_identity(profile: &Value, token: &Value) -> ProviderIdentity {
             .or_else(|| crate::providers::anthropic::email_from_profile(token)),
         account_id: crate::providers::anthropic::account_id_from_profile(profile)
             .or_else(|| crate::providers::anthropic::account_id_from_profile(token)),
-        plan: find_string(
-            profile,
-            &[
-                "subscription_type",
-                "subscription_tier",
-                "rate_limit_tier",
-                "plan",
-            ],
-        )
-        .or_else(|| Some("Claude subscription".into())),
+        plan: crate::providers::anthropic::plan_from_profile(profile),
     }
 }
 

@@ -1,0 +1,72 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { bridgeApi } from "../api";
+import type { AppSettings } from "../types";
+
+type ReportError = (source: string, cause: unknown, context?: string) => void;
+
+export function useAppSettings({ reportError, clearError }: { reportError: ReportError; clearError: (source: string) => void }) {
+  const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
+  const [autostart, setAutostart] = useState(false);
+  const [settingsBusy, setSettingsBusy] = useState(false);
+  const appSettingsRef = useRef(appSettings);
+  appSettingsRef.current = appSettings;
+
+  useEffect(() => {
+    bridgeApi.getAppSettings().then(setAppSettings).catch((cause) => reportError("settings", cause, "Couldn't load app settings"));
+    bridgeApi.getAutostart().then(setAutostart).catch(() => setAutostart(false));
+  }, [reportError]);
+
+  /** Re-reads settings that may have been imported via device pairing. */
+  const reloadFromBackend = useCallback(async () => {
+    try {
+      setAppSettings(await bridgeApi.getAppSettings());
+    } catch {}
+    try {
+      setAutostart(await bridgeApi.getAutostart());
+    } catch {}
+  }, []);
+
+  const saveAccountRefreshMinutes = useCallback(async (minutes: number) => {
+    setSettingsBusy(true);
+    try {
+      setAppSettings(await bridgeApi.setAccountRefreshMinutes(minutes));
+      clearError("settings");
+    } catch (cause) {
+      reportError("settings", cause, "Couldn't save the refresh interval");
+    } finally {
+      setSettingsBusy(false);
+    }
+  }, [clearError, reportError]);
+
+  const saveAutomaticUpdatesEnabled = useCallback(async (enabled: boolean) => {
+    setSettingsBusy(true);
+    try {
+      setAppSettings(await bridgeApi.setAutomaticUpdatesEnabled(enabled));
+      clearError("settings");
+    } catch (cause) {
+      reportError("settings", cause, "Couldn't save the automatic updates setting");
+    } finally {
+      setSettingsBusy(false);
+    }
+  }, [clearError, reportError]);
+
+  const toggleAutostart = useCallback(async () => {
+    try {
+      setAutostart(await bridgeApi.setAutostart(!autostart));
+      clearError("autostart");
+    } catch (cause) {
+      reportError("autostart", cause, "Couldn't change the start-at-login setting");
+    }
+  }, [autostart, clearError, reportError]);
+
+  return {
+    appSettings,
+    appSettingsRef,
+    autostart,
+    settingsBusy,
+    reloadFromBackend,
+    saveAccountRefreshMinutes,
+    saveAutomaticUpdatesEnabled,
+    toggleAutostart,
+  };
+}

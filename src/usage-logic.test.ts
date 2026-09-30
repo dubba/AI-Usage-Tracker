@@ -351,10 +351,14 @@ describe("formatResetAtShort", () => {
     expect(formatResetAtShort("nope")).toBeNull();
   });
 
-  it("uses a compact 12-hour time with a single-letter meridiem in local time", () => {
-    expect(formatResetAtShort(new Date(2026, 8, 30, 14, 5).toISOString())).toMatch(/ @ 2:05p$/);
-    expect(formatResetAtShort(new Date(2026, 8, 30, 0, 7).toISOString())).toMatch(/ @ 12:07a$/);
-    expect(formatResetAtShort(new Date(2026, 8, 30, 12, 0).toISOString())).toMatch(/ @ 12:00p$/);
+  it("uses a compact 12-hour time with a single-letter meridiem for English locales", () => {
+    expect(formatResetAtShort(new Date(2026, 8, 30, 14, 5).toISOString(), "en-US")).toMatch(/ @ 2:05p$/);
+    expect(formatResetAtShort(new Date(2026, 8, 30, 0, 7).toISOString(), "en-US")).toMatch(/ @ 12:07a$/);
+    expect(formatResetAtShort(new Date(2026, 8, 30, 12, 0).toISOString(), "en-US")).toMatch(/ @ 12:00p$/);
+  });
+
+  it("uses the locale's own date and 24-hour time elsewhere", () => {
+    expect(formatResetAtShort(new Date(2026, 9, 6, 14, 5).toISOString(), "en-GB")).toBe("6 Oct @ 14:05");
   });
 });
 

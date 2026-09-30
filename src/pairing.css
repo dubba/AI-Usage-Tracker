@@ -18,10 +18,6 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.pairing-nowrap {
-  white-space: nowrap;
-}
-
 .pairing-subtitle,
 .modal-card.pairing-modal .pairing-subtitle,
 .modal-card.pairing-modal p.pairing-subtitle {
@@ -164,30 +160,6 @@
 }
 
 /* Action Switcher (Scan QR / Enter Code) */
-.pairing-switch-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  width: 100%;
-  max-width: 320px;
-  margin: 4px 0 6px;
-}
-
-.pairing-switch-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  padding: 7px 12px;
-  border-radius: 8px;
-}
-
-.pairing-switch-btn svg {
-  width: 16px;
-  height: 16px;
-}
 
 .pairing-waiting-indicator {
   display: flex;
@@ -290,7 +262,7 @@
 
 .pairing-switch-camera-fab:active:not(:disabled) {
   background: rgba(160, 120, 255, 0.42);
-  border-color: #d0bcff;
+  border-color: var(--obsidian-purple);
   transform: scale(0.94);
 }
 
@@ -438,11 +410,6 @@
   justify-self: start;
 }
 
-.pairing-scan-actions .pairing-enter-code-btn {
-  grid-column: 3;
-  justify-self: end;
-}
-
 .pairing-code-actions {
   display: flex;
   justify-content: space-between;
@@ -550,12 +517,6 @@
   box-shadow: 0 0 0 3px rgba(160, 120, 255, 0.2);
 }
 
-.pairing-code-input.pairing-sas-input {
-  max-width: 100%;
-  font-size: 1.05rem;
-  letter-spacing: 0.08em;
-}
-
 .pairing-code-help,
 .modal-card.pairing-modal .pairing-code-help {
   font-size: 0.75rem !important;
@@ -616,24 +577,6 @@
   color: var(--obsidian-muted, #958ea0);
 }
 
-.pairing-fingerprint-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(160, 120, 255, 0.08);
-  border: 1px solid rgba(160, 120, 255, 0.25);
-  border-radius: 20px;
-  padding: 4px 14px;
-  font-size: 0.8rem;
-  color: var(--obsidian-purple, #d0bcff);
-}
-
-.pairing-fingerprint-badge strong {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  letter-spacing: 0.08em;
-  color: #ffffff;
-}
-
 .pairing-role-cards {
   display: flex;
   flex-direction: column;
@@ -663,11 +606,6 @@
     border-color: var(--obsidian-purple-strong, #a078ff);
     transform: translateY(-1px);
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
-  }
-
-  .pairing-role-card:hover .pairing-role-card-arrow {
-    transform: translateX(3px);
-    color: var(--obsidian-purple, #d0bcff);
   }
 }
 
@@ -727,20 +665,6 @@
   line-height: 1.3;
 }
 
-.pairing-role-card-arrow {
-  display: flex;
-  align-items: center;
-  align-self: center;
-  color: var(--obsidian-muted, #958ea0);
-  transition: all 0.15s ease;
-  flex-shrink: 0;
-}
-
-.pairing-role-card-arrow svg {
-  width: 16px;
-  height: 16px;
-}
-
 /* Status Panels */
 .pairing-panel-status {
   display: flex;
@@ -796,12 +720,6 @@
   margin: 0;
   font-size: 1.1rem;
   color: var(--obsidian-text, #e5e2e1);
-}
-
-.pairing-sas-instruction {
-  margin: 0;
-  font-size: 0.825rem;
-  color: var(--obsidian-muted, #958ea0);
 }
 
 .pairing-sas-badge {
@@ -1269,37 +1187,6 @@
    Air-gap Animated QR Transfer (Offline Mode)
    ========================================================================== */
 
-.airgap-switch-row {
-  display: flex;
-  justify-content: center;
-  margin-top: 4px;
-  width: 100%;
-}
-
-.airgap-entry-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.8rem;
-  color: var(--obsidian-purple, #d0bcff);
-  padding: 6px 14px;
-  border-radius: 8px;
-  border: 1px dashed rgba(160, 120, 255, 0.35);
-  background: rgba(160, 120, 255, 0.04);
-  transition: all 0.18s ease;
-}
-
-.airgap-entry-btn:hover {
-  background: rgba(160, 120, 255, 0.12);
-  border-color: var(--obsidian-purple-strong, #a078ff);
-  color: #ffffff;
-}
-
-.airgap-entry-btn svg {
-  width: 15px;
-  height: 15px;
-}
-
 .airgap-sender-view,
 .airgap-sender-content {
   display: flex;
@@ -1353,38 +1240,6 @@
 
 .airgap-control-btn:hover {
   border-color: var(--obsidian-purple-strong, #a078ff);
-  color: #ffffff;
-}
-
-.airgap-pin-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  width: 100%;
-  max-width: 320px;
-  padding: 8px 14px;
-  border: 1px solid rgba(160, 120, 255, 0.28);
-  border-radius: 12px;
-  background: rgba(160, 120, 255, 0.08);
-  color: inherit;
-  user-select: text;
-}
-
-.airgap-pin-tag {
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--obsidian-amber, #ffb869);
-  text-transform: uppercase;
-}
-
-.airgap-pin-val {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 1.95rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  line-height: 1.15;
   color: #ffffff;
 }
 
@@ -1448,7 +1303,7 @@
 
 .airgap-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #a078ff, #4edea3);
+  background: linear-gradient(90deg, var(--obsidian-purple-strong), var(--obsidian-green));
   border-radius: 3px;
   transition: width 0.12s ease;
 }
@@ -1481,14 +1336,6 @@
   margin: 0 auto;
 }
 
-.airgap-pin-input {
-  max-width: 240px;
-  text-align: center;
-  font-size: 1.8rem;
-  letter-spacing: 0.12em;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-}
-
 .airgap-prompt-actions {
   display: flex;
   align-items: center;
@@ -1506,13 +1353,6 @@
   text-align: center;
   gap: 16px;
   width: 100%;
-}
-
-.pairing-mode-question {
-  margin: -10px 0 -8px;
-  font-size: 1.12rem;
-  font-weight: 700;
-  color: var(--obsidian-text, #e5e2e1);
 }
 
 .pairing-mode-select-view .pairing-instruction {
@@ -1588,12 +1428,12 @@
 
 .pairing-mode-card-icon.scan {
   background: rgba(78, 222, 163, 0.14);
-  color: #4edea3;
+  color: var(--obsidian-green);
 }
 
 .pairing-mode-card-icon.airgap {
   background: rgba(78, 222, 163, 0.14);
-  color: #4edea3;
+  color: var(--obsidian-green);
 }
 
 .pairing-mode-card-icon.qr {
@@ -1645,13 +1485,13 @@
 
 .pairing-mode-badge.scan {
   background: rgba(78, 222, 163, 0.18);
-  color: #4edea3;
+  color: var(--obsidian-green);
   border: 1px solid rgba(78, 222, 163, 0.3);
 }
 
 .pairing-mode-badge.airgap {
   background: rgba(78, 222, 163, 0.18);
-  color: #4edea3;
+  color: var(--obsidian-green);
   border: 1px solid rgba(78, 222, 163, 0.3);
 }
 
@@ -1678,56 +1518,6 @@
 .pairing-offline-link:hover,
 .pairing-offline-link:focus-visible {
   color: #f5efff;
-}
-
-.pairing-wifi-prompt-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px 16px;
-  border-radius: inherit;
-  background: rgba(12, 11, 14, 0.72);
-  backdrop-filter: blur(6px);
-}
-
-.pairing-wifi-prompt-card {
-  position: relative;
-  width: 100%;
-  max-width: 340px;
-  padding: 20px 18px 16px;
-  border: 1px solid var(--obsidian-border, #2e2e2e);
-  border-radius: 12px;
-  background: #1c1b1b;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
-}
-
-.pairing-wifi-prompt-card h3 {
-  margin: 4px 0 8px;
-  padding-right: 36px;
-  font-size: 1.08rem;
-  font-weight: 700;
-  color: var(--obsidian-text, #e5e2e1);
-}
-
-.pairing-wifi-prompt-card p {
-  margin: 0 0 16px !important;
-  font-size: 0.82rem !important;
-  line-height: 1.4 !important;
-  color: var(--obsidian-muted, #958ea0) !important;
-}
-
-.pairing-wifi-prompt-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.pairing-wifi-prompt-actions .button {
-  width: 100%;
-  justify-content: center;
 }
 
 .pairing-step-dots {
@@ -1809,31 +1599,6 @@
   justify-content: space-between;
   width: 100%;
   margin: -12px 0 2px;
-}
-
-.airgap-scan-switch-row {
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  max-width: 320px;
-  margin: 4px 0 2px;
-}
-
-.airgap-scan-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-  font-size: 0.82rem;
-  font-weight: 500;
-  padding: 8px 14px;
-  border-radius: 8px;
-}
-
-.airgap-scan-btn svg {
-  width: 16px;
-  height: 16px;
 }
 
 .pairing-error-actions {

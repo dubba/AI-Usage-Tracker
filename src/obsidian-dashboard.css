@@ -1,9 +1,7 @@
 :root {
   --obsidian-canvas: #0e0e0e;
-  --obsidian-surface: #131313;
   --obsidian-surface-low: #1c1b1b;
   --obsidian-surface-container: #201f1f;
-  --obsidian-surface-high: #2a2a2a;
   --obsidian-border: #2e2e2e;
   --obsidian-border-strong: #494454;
   --obsidian-text: #e5e2e1;
@@ -11,13 +9,9 @@
   --obsidian-muted-bright: #cbc3d7;
   --obsidian-purple: #d0bcff;
   --obsidian-purple-strong: #a078ff;
-  --obsidian-purple-dark: #3c0091;
   --obsidian-green: #4edea3;
-  --obsidian-green-dark: #003824;
   --obsidian-amber: #ffb869;
-  --obsidian-amber-dark: #482900;
   --obsidian-red: #ff8585;
-  --obsidian-red-soft: rgba(147, 0, 10, 0.2);
   --sidebar-width: 300px;
   --safe-area-top: max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px));
   --safe-area-bottom: max(var(--android-safe-bottom, 0px), env(safe-area-inset-bottom, 0px));
@@ -123,69 +117,13 @@ select {
   height: 32px;
   border-radius: 4px;
   color: #f5efff;
-  background: linear-gradient(145deg, #6d3bd7, #a078ff);
+  background: linear-gradient(145deg, #6d3bd7, var(--obsidian-purple-strong));
   border: 1px solid rgba(208, 188, 255, 0.28);
 }
 
 .obsidian-shell .brand-mark svg {
   width: 20px;
   height: 20px;
-}
-
-.obsidian-shell .primary-nav {
-  display: grid;
-  gap: 4px;
-  margin: 12px 0 18px;
-}
-
-.obsidian-shell .primary-nav button {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 42px;
-  width: 100%;
-  padding: 0 14px;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  background: transparent;
-  color: #cbc3d7;
-  font-size: 14px;
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
-}
-
-.obsidian-shell .primary-nav button::before {
-  content: none;
-}
-
-.obsidian-shell .primary-nav button:hover {
-  border-color: var(--obsidian-purple-strong);
-  background: rgba(255, 255, 255, 0.035);
-  color: #f0edef;
-}
-
-.obsidian-shell .primary-nav button.active {
-  color: var(--obsidian-text);
-  border-color: rgba(208, 188, 255, 0.75);
-  background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), #201f1f 48%);
-  box-shadow: inset 2px 0 0 var(--obsidian-purple-strong);
-}
-
-.obsidian-shell .primary-nav button.active:hover {
-  border-color: var(--obsidian-purple-strong);
-}
-
-.obsidian-shell .primary-nav button.active::before {
-  content: none;
-}
-
-.obsidian-shell .primary-nav svg {
-  width: 20px;
-  height: 20px;
-  flex: 0 0 auto;
 }
 
 .provider-sidebar-heading {
@@ -195,7 +133,7 @@ select {
   flex-wrap: nowrap;
   gap: 8px;
   padding: 0 12px 10px;
-  color: #958ea0;
+  color: var(--obsidian-muted);
   flex: 0 0 auto;
   min-width: 0;
 }
@@ -328,7 +266,7 @@ select {
   padding: 10px 10px;
   border: 1px solid var(--obsidian-border);
   border-radius: 5px;
-  background: #1c1b1b;
+  background: var(--obsidian-surface-low);
   color: var(--obsidian-text);
   cursor: pointer;
   text-align: left;
@@ -342,7 +280,7 @@ select {
 
 .provider-summary-row.selected {
   border-color: rgba(208, 188, 255, 0.75);
-  background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), #201f1f 48%);
+  background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), var(--obsidian-surface-container) 48%);
   box-shadow: inset 2px 0 0 var(--obsidian-purple-strong);
 }
 
@@ -370,7 +308,7 @@ select {
 }
 
 .provider-summary-icon.provider-opencode_go {
-  color: #d0bcff;
+  color: var(--obsidian-purple);
 }
 
 .provider-summary-content {
@@ -486,7 +424,7 @@ select {
 .provider-empty {
   margin: 0 8px;
   border-color: var(--obsidian-border) !important;
-  background: #1c1b1b !important;
+  background: var(--obsidian-surface-low) !important;
 }
 
 .obsidian-shell .sidebar-footer {
@@ -532,17 +470,9 @@ select {
 
 .obsidian-shell .sidebar-footer.active {
   border-color: rgba(208, 188, 255, 0.75);
-  background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), #201f1f 48%);
+  background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), var(--obsidian-surface-container) 48%);
   box-shadow: inset 2px 0 0 var(--obsidian-purple-strong);
   color: #fff;
-}
-
-.obsidian-shell .sidebar-changelog-link {
-  margin: 8px 0 0;
-  color: var(--obsidian-purple);
-  font-size: 12px;
-  font-weight: 600;
-  text-align: center;
 }
 
 .obsidian-shell .main-stage {
@@ -611,8 +541,7 @@ select {
 }
 
 .dashboard-header h1.eyebrow,
-.dashboard-title-row h1.eyebrow,
-.page-header .dashboard-title-row .eyebrow {
+.dashboard-title-row h1.eyebrow {
   color: var(--purple);
   font-size: 15px;
   line-height: 1.15;
@@ -629,47 +558,16 @@ select {
   margin-bottom: 8px;
 }
 
-.dashboard-title-heading {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  align-items: flex-start;
-  gap: 8px;
-  min-width: 0;
-}
-
-.dashboard-title-top {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 18px;
-  min-width: 0;
-}
-
-.dashboard-account-count,
-.dashboard-title-heading p,
-.page-header .dashboard-title-heading p,
 .dashboard-header p {
   margin: 0;
-  color: #958ea0;
+  color: var(--obsidian-muted);
   font-size: 13px;
   line-height: 1.2;
 }
 
-.dashboard-account-count-inline {
-  color: #958ea0;
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: normal;
-  text-transform: none;
-  line-height: 1.2;
-  margin-left: 2px;
-}
-
-.dashboard-header .dashboard-description,
-.dashboard-title-heading .dashboard-description {
+.dashboard-header .dashboard-description {
   margin: 0;
-  color: #958ea0;
+  color: var(--obsidian-muted);
   font-size: 14px;
   line-height: 1.6;
   font-weight: 400;
@@ -689,20 +587,10 @@ select {
   justify-content: center;
 }
 
-.account-card-action-stack {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: flex-end;
-  gap: 8px;
-  flex-shrink: 0;
-  margin: 0;
-}
-
 .account-card-updated {
   margin: 0;
   padding-right: 3px;
-  color: #958ea0;
+  color: var(--obsidian-muted);
   font-size: 11px;
   line-height: 14px;
   font-weight: 600;
@@ -744,7 +632,7 @@ select {
 .button.ghost {
   color: #ded8df !important;
   background: transparent !important;
-  border: 1px solid #494454 !important;
+  border: 1px solid var(--obsidian-border-strong) !important;
 }
 
 .button.ghost:hover:not(:disabled),
@@ -769,7 +657,7 @@ select {
   padding: 16px;
   border: 1px solid var(--obsidian-border);
   border-radius: 8px;
-  background: #201f1f;
+  background: var(--obsidian-surface-container);
   transition: border-color 120ms ease, background 120ms ease;
 }
 
@@ -778,7 +666,7 @@ select {
 }
 
 .mockup-summary-card.total-card {
-  background: linear-gradient(110deg, #201f1f, #28252b);
+  background: linear-gradient(110deg, var(--obsidian-surface-container), #28252b);
 }
 
 .mockup-summary-card.attention-card {
@@ -854,7 +742,7 @@ select {
 
 .summary-label,
 .metric-label {
-  color: #cbc3d7;
+  color: var(--obsidian-muted-bright);
   font-size: 11px;
   line-height: 14px;
   font-weight: 700;
@@ -957,10 +845,9 @@ select {
 }
 
 .provider-account-card {
-  overflow: visible;
   border: 1px solid var(--obsidian-border);
   border-radius: 8px;
-  background: #1c1b1b;
+  background: var(--obsidian-surface-low);
   transform: translateZ(0);
   backface-visibility: hidden;
   transition: border-color 120ms ease, background 120ms ease;
@@ -968,7 +855,7 @@ select {
 
 .provider-account-card.needs-attention {
   border-color: rgba(255, 133, 133, 0.42);
-  background: linear-gradient(90deg, rgba(147, 0, 10, 0.12), #1c1b1b 18%);
+  background: linear-gradient(90deg, rgba(147, 0, 10, 0.12), var(--obsidian-surface-low) 18%);
 }
 
 .provider-account-card:hover {
@@ -1085,16 +972,8 @@ button.account-card-provider-icon:active {
   flex: 0 0 auto;
   border: 0;
   background: transparent;
-  color: #958ea0;
+  color: var(--obsidian-muted);
   cursor: pointer;
-}
-
-.account-name-edit,
-.account-name-confirm,
-.account-name-cancel {
-  width: 24px;
-  height: 24px;
-  padding: 3px;
 }
 
 .account-name-edit:hover,
@@ -1108,23 +987,6 @@ button.account-card-provider-icon:active {
 .account-card-action svg {
   width: 18px;
   height: 18px;
-}
-
-.account-status-badge,
-.account-plan-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 20px;
-  min-height: 20px;
-  box-sizing: border-box;
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-size: 10px;
-  line-height: 1;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
 }
 
 .account-status-badge.success {
@@ -1152,41 +1014,14 @@ button.account-card-provider-icon:active {
   background: #3a3939;
 }
 
-.account-card-header-actions {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-end;
-  justify-content: flex-end;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.account-card-header-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
 .account-card-action {
-  width: 34px;
-  height: 34px;
   border: 1px solid #353335;
-  border-radius: 4px;
   background: #1b1a1a;
 }
 
 .account-card-action:hover:not(:disabled) {
   border-color: #5c5663;
   background: #242323;
-}
-
-.account-card-action.remove-action:hover:not(:disabled) {
-  color: #ffb4ab;
-  border-color: rgba(255, 133, 133, 0.45);
-  background: rgba(147, 0, 10, 0.14);
 }
 
 .account-card-action:disabled,
@@ -1282,12 +1117,6 @@ button.account-card-provider-icon:active {
   font-size: 12px;
 }
 
-.compact-button {
-  min-height: 30px !important;
-  padding: 0 10px !important;
-  font-size: 12px !important;
-}
-
 .account-card-metrics {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -1309,14 +1138,6 @@ button.account-card-provider-icon:active {
   padding: 14px 0;
 }
 
-.metric-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 0;
-}
-
 .metric-window-pill,
 .metric-inline-credit,
 .window-pill {
@@ -1334,7 +1155,7 @@ button.account-card-provider-icon:active {
 
 .metric-window-pill.window-pill-5h,
 .window-pill.window-pill-5h {
-  color: #ff8585;
+  color: var(--obsidian-red);
   border-color: rgba(255, 133, 133, 0.45);
   background: rgba(85, 15, 15, 0.42);
 }
@@ -1401,7 +1222,7 @@ button.account-card-provider-icon:active {
 .metric-reset {
   display: block;
   margin-top: 0;
-  color: #cbc3d7;
+  color: var(--obsidian-muted-bright);
   font-size: 12px;
   line-height: 16px;
   font-weight: 600;
@@ -1415,7 +1236,7 @@ button.account-card-provider-icon:active {
 .mockup-empty-panel {
   min-height: 260px;
   border: 1px solid var(--obsidian-border);
-  background: #1c1b1b;
+  background: var(--obsidian-surface-low);
 }
 
 .info-panel,
@@ -1432,7 +1253,7 @@ button.account-card-provider-icon:active {
 .info-panel {
   background: rgba(160, 120, 255, 0.08);
   border: 1px solid rgba(160, 120, 255, 0.25);
-  color: #d0bcff;
+  color: var(--obsidian-purple);
 }
 
 .error-panel {
@@ -1465,7 +1286,7 @@ button.account-card-provider-icon:active {
   margin-top: 16px !important;
   border: 1px solid var(--obsidian-border);
   border-radius: 8px;
-  background: #1c1b1b;
+  background: var(--obsidian-surface-low);
   box-shadow: none;
   overflow: visible !important;
   transition: border-color 120ms ease;
@@ -1553,7 +1374,7 @@ button.account-card-provider-icon:active {
 .settings-update-progress-label {
   font-size: 12px;
   font-weight: 600;
-  color: #d0bcff;
+  color: var(--obsidian-purple);
 }
 
 .settings-update-progress-track {
@@ -1599,16 +1420,11 @@ button.account-card-provider-icon:active {
 }
 
 .settings-installed-version,
-.setting-value.settings-installed-version,
 .settings-updates-subcard .settings-installed-version {
   color: var(--purple, #9f67ff) !important;
   font-size: 15px !important;
   font-weight: 750 !important;
   letter-spacing: 0.02em;
-}
-
-.settings-updates-subcard-dot {
-  display: none;
 }
 
 .settings-updates-subcard-status {
@@ -1751,7 +1567,7 @@ button.account-card-provider-icon:active {
     gap: 6px;
     width: 100% !important;
     box-sizing: border-box !important;
-    background: #1c1b1b !important;
+    background: var(--obsidian-surface-low) !important;
     border-top: 1px solid var(--obsidian-border) !important;
     border-left: 0 !important;
     border-right: 0 !important;
@@ -1791,10 +1607,9 @@ button.account-card-provider-icon:active {
   }
 }
 
-.account-update-select,
 .alert-threshold select,
 .text-input {
-  border: 1px solid #494454 !important;
+  border: 1px solid var(--obsidian-border-strong) !important;
   border-radius: 6px !important;
   background: #0f0f0f !important;
   color: var(--obsidian-text) !important;
@@ -1802,7 +1617,6 @@ button.account-card-provider-icon:active {
 }
 
 select.text-input,
-select.account-update-select,
 .alert-threshold select {
   appearance: none !important;
   -webkit-appearance: none !important;
@@ -1817,7 +1631,6 @@ select.account-update-select,
 }
 
 select.text-input:hover,
-select.account-update-select:hover,
 .alert-threshold select:hover {
   background-color: #1a1820 !important;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23d0bcff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
@@ -1825,17 +1638,14 @@ select.account-update-select:hover,
 }
 
 select.text-input option,
-select.account-update-select option,
 .alert-threshold select option {
   background: #1c1b1f !important;
   color: #f7f4ff !important;
   padding: 8px 12px !important;
 }
 
-.account-update-select:hover,
 .alert-threshold select:hover,
 .text-input:hover,
-.account-update-select:focus,
 .alert-threshold select:focus,
 .text-input:focus {
   border-color: var(--obsidian-purple-strong) !important;
@@ -1856,7 +1666,7 @@ select.account-update-select option,
   min-height: 44px;
   padding: 8px 14px;
   background: #141316 !important;
-  border: 1px solid #494454 !important;
+  border: 1px solid var(--obsidian-border-strong) !important;
   border-radius: 6px !important;
   color: var(--obsidian-text) !important;
   font-family: inherit;
@@ -1941,7 +1751,7 @@ select.account-update-select option,
   padding: 6px;
   list-style: none;
   background: linear-gradient(180deg, #1b1922 0%, #141318 100%);
-  border: 1px solid #494454;
+  border: 1px solid var(--obsidian-border-strong);
   border-radius: 8px;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(160, 120, 255, 0.12);
   overflow-y: auto;
@@ -2067,7 +1877,7 @@ select.account-update-select option,
   flex-shrink: 0 !important;
   box-sizing: border-box !important;
   margin: 0 !important;
-  border-color: #494454 !important;
+  border-color: var(--obsidian-border-strong) !important;
   background: #292829 !important;
 }
 
@@ -2112,9 +1922,9 @@ select.account-update-select option,
 }
 
 .modal-card {
-  border: 1px solid #494454 !important;
+  border: 1px solid var(--obsidian-border-strong) !important;
   border-radius: 8px !important;
-  background: #1c1b1b !important;
+  background: var(--obsidian-surface-low) !important;
   box-shadow: 0 22px 80px rgba(0, 0, 0, 0.52) !important;
   overflow: visible !important;
   margin: auto !important;
@@ -2139,7 +1949,7 @@ select.account-update-select option,
 
 .notification-only-modal .alert-window-row {
   border-color: #353335;
-  background: #201f1f;
+  background: var(--obsidian-surface-container);
   overflow: visible !important;
 }
 
@@ -2160,7 +1970,7 @@ select.account-update-select option,
 
 .update-notes-subtitle {
   margin: 4px 0 16px 0 !important;
-  color: #958ea0 !important;
+  color: var(--obsidian-muted) !important;
   font-size: 12px !important;
 }
 
@@ -2266,7 +2076,7 @@ select.account-update-select option,
 
 .update-notes-empty {
   font-size: 13px;
-  color: #958ea0;
+  color: var(--obsidian-muted);
   text-align: center;
   padding: 32px 0;
 }
@@ -2309,17 +2119,6 @@ select.account-update-select option,
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-.dashboard-title-top {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.dashboard-title-top h1 {
-  min-width: 0;
 }
 
 .dashboard-bucket-pill {
@@ -2412,23 +2211,6 @@ select.account-update-select option,
   font-size: 13px !important;
 }
 
-.bucket-provider-select {
-  height: 28px;
-  padding: 0 8px;
-  border: 1px solid #494454;
-  border-radius: 4px;
-  background: #0f0f0f;
-  color: var(--obsidian-text);
-  font-size: 12px;
-  outline: none;
-  transition: border-color 120ms ease;
-}
-
-.bucket-provider-select:hover,
-.bucket-provider-select:focus {
-  border-color: var(--obsidian-purple-strong);
-}
-
 .compact-button {
   min-height: 28px !important;
   padding: 0 10px !important;
@@ -2456,7 +2238,7 @@ select.account-update-select option,
   padding: 8px 10px;
   border: 1px solid transparent;
   border-radius: 4px;
-  background: #1c1b1b;
+  background: var(--obsidian-surface-low);
   cursor: pointer;
   user-select: none;
   transition: background 120ms ease, border-color 120ms ease;
@@ -2464,7 +2246,7 @@ select.account-update-select option,
 
 .bucket-account-item:hover {
   background: #232222;
-  border-color: #494454;
+  border-color: var(--obsidian-border-strong);
 }
 
 .bucket-account-item.selected {
@@ -2517,7 +2299,7 @@ select.account-update-select option,
 
 .bucket-account-email {
   font-size: 11px;
-  color: #958ea0;
+  color: var(--obsidian-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2533,7 +2315,7 @@ select.account-update-select option,
   padding: 24px;
   text-align: center;
   font-size: 12px;
-  color: #958ea0;
+  color: var(--obsidian-muted);
 }
 
 .bucket-modal-actions {
@@ -2572,19 +2354,6 @@ select.account-update-select option,
   max-width: 420px;
 }
 
-.bucket-delete-confirm {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.bucket-delete-confirm > span {
-  font-size: 13px;
-  color: #ffb4b4;
-  margin-right: 4px;
-}
-
 .sidebar-backdrop {
   display: none;
 }
@@ -2598,7 +2367,7 @@ select.account-update-select option,
   padding: 0;
   border: 1px solid var(--obsidian-border);
   border-radius: 6px;
-  background: #201f1f;
+  background: var(--obsidian-surface-container);
   color: #d7d0dc;
   cursor: pointer;
   flex-shrink: 0;
@@ -2627,35 +2396,6 @@ select.account-update-select option,
 
 .sidebar-mobile-header {
   display: none;
-}
-
-.sidebar-mobile-close-btn {
-  display: none;
-  position: relative;
-  z-index: 40;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  margin-left: auto;
-  padding: 0;
-  border: 1px solid var(--obsidian-border);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--obsidian-muted);
-  cursor: pointer;
-  transition: border-color 120ms ease, color 120ms ease;
-}
-
-.sidebar-mobile-close-btn:hover,
-.sidebar-mobile-close-btn:focus-visible {
-  border-color: var(--obsidian-purple-strong);
-  color: #f0edef;
-}
-
-.sidebar-mobile-close-btn svg {
-  width: 18px;
-  height: 18px;
 }
 
 @media (max-width: 1180px) {
@@ -2748,12 +2488,6 @@ select.account-update-select option,
     z-index: 300 !important;
   }
 
-  .obsidian-shell .primary-nav {
-    margin: 0 0 10px !important;
-    padding-bottom: 10px !important;
-    border-bottom: 1px solid var(--border, #2e2e2e) !important;
-  }
-
   .sidebar-mobile-header .mobile-sidebar-close-btn {
     display: inline-flex !important;
     align-items: center !important;
@@ -2767,10 +2501,6 @@ select.account-update-select option,
     pointer-events: auto !important;
     position: relative !important;
     z-index: 301 !important;
-  }
-
-  .sidebar-mobile-close-btn {
-    display: none;
   }
 
   .mobile-sidebar-toggle-btn {
@@ -2792,7 +2522,7 @@ select.account-update-select option,
   .mobile-sidebar-close-btn:active,
   .mobile-sidebar-close-btn:focus-visible {
     border-color: var(--obsidian-border) !important;
-    background: #201f1f !important;
+    background: var(--obsidian-surface-container) !important;
     color: #d7d0dc !important;
     outline: none !important;
     box-shadow: none !important;
@@ -2818,13 +2548,6 @@ select.account-update-select option,
     height: 100dvh !important;
   }
 
-  .narrow-content {
-    padding-top: max(6px, calc(var(--safe-area-top, env(safe-area-inset-top, 0px)) - 2px)) !important;
-    padding-bottom: max(28px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 20px)) !important;
-    padding-left: max(16px, calc(var(--safe-area-left, env(safe-area-inset-left, 0px)) + 14px)) !important;
-    padding-right: max(16px, calc(var(--safe-area-right, env(safe-area-inset-right, 0px)) + 14px)) !important;
-  }
-
   .modal-backdrop {
     padding: max(28px, calc(var(--safe-area-top, env(safe-area-inset-top, 0px)) + 16px)) 16px max(24px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 16px)) 16px !important;
     overflow-y: auto !important;
@@ -2839,12 +2562,9 @@ select.account-update-select option,
     overflow: visible !important;
   }
 
-  .dashboard-header,
-  .page-header {
+  .dashboard-header {
     flex-direction: column;
     align-items: stretch;
-    gap: 14px;
-    padding-bottom: 14px !important;
   }
 
   .dashboard-header {
@@ -2856,8 +2576,7 @@ select.account-update-select option,
     width: 100% !important;
     box-sizing: border-box !important;
     z-index: 10 !important;
-    background: #1c1b1b !important;
-    border-bottom: 1px solid var(--obsidian-border, #2e2e2e) !important;
+    background: var(--obsidian-surface-low) !important;
   }
 
   .dashboard-scroll {
@@ -2887,14 +2606,12 @@ select.account-update-select option,
     width: 100%;
   }
 
-  .dashboard-header > div:first-child,
-  .page-header > div:first-child {
+  .dashboard-header > div:first-child {
     display: block !important;
     width: 100%;
   }
 
-  .dashboard-header > div:first-child .mobile-sidebar-toggle-btn,
-  .page-header > div:first-child .mobile-sidebar-toggle-btn {
+  .dashboard-header > div:first-child .mobile-sidebar-toggle-btn {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -2905,22 +2622,9 @@ select.account-update-select option,
     margin: 0 !important;
   }
 
-  .dashboard-header > div:first-child .dashboard-title-heading,
-  .dashboard-title-heading {
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: flex-start !important;
-    align-items: flex-start !important;
-    text-align: left !important;
-    gap: 2px !important;
-    min-width: 0 !important;
-    flex: 1 1 auto !important;
-  }
-
   .dashboard-header h1.eyebrow,
-  .dashboard-title-row h1.eyebrow,
-  .page-header .dashboard-title-row .eyebrow,
-  .sidebar-mobile-header .eyebrow {
+.dashboard-title-row h1.eyebrow,
+.sidebar-mobile-header .eyebrow {
     font-size: 15px !important;
     line-height: 1.15 !important;
     font-weight: 800 !important;
@@ -2930,12 +2634,10 @@ select.account-update-select option,
     color: var(--purple) !important;
   }
 
-  .dashboard-account-count,
-  .dashboard-title-heading p,
   .dashboard-header p {
     font-size: 13px !important;
     line-height: 1.2 !important;
-    color: #958ea0 !important;
+    color: var(--obsidian-muted) !important;
     margin: 0 !important;
   }
 
@@ -2948,8 +2650,7 @@ select.account-update-select option,
     margin-top: 0 !important;
   }
 
-  .dashboard-header,
-  .page-header {
+  .dashboard-header {
     border-top: 0 !important;
     border-left: 0 !important;
     border-right: 0 !important;
@@ -3098,20 +2799,12 @@ select.account-update-select option,
   }
 
   .account-card-header-actions {
-    display: flex !important;
     flex-direction: row !important;
-    align-items: flex-end !important;
-    gap: 6px !important;
     flex-shrink: 0;
     height: auto !important;
   }
 
   .account-card-header-meta {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: flex-end !important;
-    gap: 4px !important;
     flex-shrink: 0;
   }
 
@@ -3129,7 +2822,6 @@ select.account-update-select option,
   }
 
   .account-card-action-stack {
-    display: flex !important;
     flex-direction: column !important;
     align-items: flex-end !important;
     justify-content: flex-end !important;
@@ -3156,10 +2848,7 @@ select.account-update-select option,
     align-items: center !important;
     height: 26px !important;
     min-height: 26px !important;
-    gap: 6px !important;
     flex-shrink: 0;
-    margin: 0 !important;
-    padding: 0 !important;
   }
 
   .account-card-action {
@@ -3261,7 +2950,7 @@ select.account-update-select option,
     height: 92px;
     border: 1px solid var(--obsidian-border);
     border-radius: 8px;
-    background: linear-gradient(90deg, #1c1b1b 25%, #232222 37%, #1c1b1b 63%);
+    background: linear-gradient(90deg, var(--obsidian-surface-low) 25%, #232222 37%, var(--obsidian-surface-low) 63%);
     background-size: 400% 100%;
     animation: skeletonShimmer 1.4s ease infinite;
     display: grid;
@@ -3332,11 +3021,9 @@ select.account-update-select option,
 
 @media (max-width: 860px) {
   .mobile-sidebar-toggle-btn[data-tooltip]::after,
-  .mobile-sidebar-toggle-btn[data-tooltip-active]::after,
-  .sidebar-mobile-close-btn[data-tooltip]::after,
-  .sidebar-mobile-close-btn[data-tooltip-active]::after,
-  .mobile-sidebar-close-btn[data-tooltip]::after,
-  .mobile-sidebar-close-btn[data-tooltip-active]::after {
+.mobile-sidebar-toggle-btn[data-tooltip-active]::after,
+.mobile-sidebar-close-btn[data-tooltip]::after,
+.mobile-sidebar-close-btn[data-tooltip-active]::after {
     display: none !important;
     opacity: 0 !important;
     visibility: hidden !important;
@@ -3375,7 +3062,7 @@ select.account-update-select option,
 
   .obsidian-shell .sidebar-footer.active {
     border-color: rgba(208, 188, 255, 0.75) !important;
-    background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), #201f1f 48%) !important;
+    background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), var(--obsidian-surface-container) 48%) !important;
     box-shadow: inset 2px 0 0 var(--obsidian-purple-strong) !important;
     color: #fff !important;
   }

@@ -2,16 +2,18 @@
 
 ## Unreleased (0 items)
 
-## 0.3.9 - 2026-09-30 (12 items)
+## 0.3.9 - 2026-09-30 (19 items)
 
-### Improved (4)
+### Improved (6)
 
 - Account cards no longer show a Remaining Limit heading. The 5h/7d window pill sits on the left of the reset line, with the countdown and date together, for example `Resets in: 6d 6h (Oct 6 @ 2:34 AM)`.
 - Antigravity reset rows now place the model group inside the window pill, for example `7d limit · Gemini` or `5h limit · Other`.
 - Account cards now show the window and reset line above the percent bar, using `Reset:` and a compact time such as `2:34a`.
 - Account card 5h/7d pills now say `5h limit` and `7d limit` instead of `window`.
+- Accounts and sidebar groups can now be reordered without dragging: each account card has Move up and Move down buttons (in the More actions menu on small screens), and Alt+Up / Alt+Down moves the focused account card or sidebar group. Screen readers announce the new position.
+- Reset times now follow your system's 12- or 24-hour setting, and dates follow your region's order. English 12-hour times keep the compact style, for example `2:34a`.
 
-### Fixed (8)
+### Fixed (13)
 
 - Claude account cards now show only the 5-hour and 7-day limits, and no longer add extra rows named after Anthropic’s internal quota codes such as Nimbus Quill.
 - Claude account cards now show the signed-in email address instead of “Connected account.”
@@ -20,6 +22,11 @@
 - Desktop development and tests no longer ask for the macOS Keychain password. Production desktop builds still store credentials in Keychain.
 - Error messages now stay on screen until you dismiss them (or the failing action succeeds), appear at the top of the window, and say what failed, instead of vanishing after five seconds at the bottom of the page.
 - Refreshing, renaming, or removing several accounts at once no longer clears another account's spinner or lets the same action start twice.
+- Usage-limit alerts now show at most five at a time and are announced politely by screen readers instead of each one interrupting.
+- The hidden "Loading accounts…" text no longer shows on desktop while the dashboard loads.
+- If the first account refresh at start-up fails, an error now appears instead of nothing happening.
+- Claude accounts on a paid plan (Pro, Max, Team) no longer show as Free. The plan is now re-read from Claude on every refresh, so upgrades and changes appear without reconnecting.
+- Accounts now refresh on schedule again after the device sleeps or the app is in the background. On Android, returning to the app triggers a refresh if one is due. On Mac and Windows, a refresh that came due during sleep now runs within about 30 seconds of waking instead of waiting out a full interval.
 
 
 ## 0.3.8 - 2026-09-29 (6 items)

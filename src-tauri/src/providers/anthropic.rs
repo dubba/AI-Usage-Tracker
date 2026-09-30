@@ -75,11 +75,9 @@ pub async fn refresh(
         ));
     }
 
-    let profile = if account.email.is_none() || account.plan.is_none() {
-        fetch_profile(app, &secret.access_token).await.ok()
-    } else {
-        None
-    };
+    // Fetched every refresh so plan changes (upgrade, downgrade, lapse) are
+    // picked up; failures fall back to the stored values below.
+    let profile = fetch_profile(app, &secret.access_token).await.ok();
     let email = profile
         .as_ref()
         .and_then(email_from_profile)
@@ -91,8 +89,7 @@ pub async fn refresh(
     let plan = profile
         .as_ref()
         .and_then(plan_from_profile)
-        .or_else(|| account.plan.clone())
-        .or_else(|| Some("Claude subscription".into()));
+        .or_else(|| account.plan.clone());
 
     let credits_usd = raw.extra_usage.as_ref().and_then(|extra| match (extra.limit_usd, extra.spent_usd) {
         (Some(limit), Some(spent)) => Some((limit - spent).max(0.0)),
@@ -293,31 +290,92 @@ pub(crate) fn account_id_from_profile(value: &Value) -> Option<String> {
         .or_else(|| non_empty_str(value.get("account_uuid")))
 }
 
-fn plan_from_profile(value: &Value) -> Option<String> {
-    find_string(
-        value,
-        &[
-            "subscription_type",
-            "subscription_tier",
-            "rate_limit_tier",
-            "plan",
-        ],
-    )
+/// Normalizes an Anthropic profile into a plan id (`claude_pro`,
+/// `claude_max_5x`, `claude_max_20x`, `claude_team`, `claude_enterprise`,
+/// `free`). Returns `None` when the profile carries no recognizable plan
+/// signal, so callers keep the last known plan instead of guessing.
+///
+/// `rate_limit_tier` alone is not a plan: Pro and Free accounts both report
+/// `default_claude_ai`, so it is only used to tell Max 5x from Max 20x.
+pub(crate) fn plan_from_profile(value: &Value) -> Option<String> {
+    let plan = ["organization_type", "subscription_type", "subscription_tier", "plan"]
+        .iter()
+        .flat_map(|key| collect_strings(value, key))
+        .find_map(|text| classify_plan(&text))
+        .or_else(|| {
+            if find_bool(value, "has_claude_max") == Some(true) {
+                Some("claude_max")
+            } else if find_bool(value, "has_claude_pro") == Some(true) {
+                Some("claude_pro")
+            } else {
+                None
+            }
+        })
+        .or_else(|| {
+            let has_max = find_bool(value, "has_claude_max")?;
+            let has_pro = find_bool(value, "has_claude_pro")?;
+            (!has_max && !has_pro).then_some("free")
+        })?;
+    if plan == "claude_max" {
+        let tier = collect_strings(value, "rate_limit_tier")
+            .iter()
+            .find_map(|text| classify_plan(text).filter(|plan| plan.starts_with("claude_max_")));
+        return Some(tier.unwrap_or(plan).to_string());
+    }
+    Some(plan.to_string())
 }
 
-fn find_string(value: &Value, keys: &[&str]) -> Option<String> {
+fn classify_plan(text: &str) -> Option<&'static str> {
+    let lower = text.to_ascii_lowercase();
+    if lower.contains("max") {
+        if lower.contains("20x") || lower.contains("200") {
+            Some("claude_max_20x")
+        } else if lower.contains("5x") || lower.contains("100") {
+            Some("claude_max_5x")
+        } else {
+            Some("claude_max")
+        }
+    } else if lower.contains("enterprise") {
+        Some("claude_enterprise")
+    } else if lower.contains("team") {
+        Some("claude_team")
+    } else if lower.contains("pro") {
+        Some("claude_pro")
+    } else if lower.contains("free") {
+        Some("free")
+    } else {
+        None
+    }
+}
+
+fn collect_strings(value: &Value, key: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    collect_strings_into(value, key, &mut found);
+    found
+}
+
+fn collect_strings_into(value: &Value, key: &str, found: &mut Vec<String>) {
     match value {
         Value::Object(object) => {
-            for key in keys {
-                if let Some(value) = object.get(*key).and_then(Value::as_str) {
-                    if !value.trim().is_empty() {
-                        return Some(value.to_string());
-                    }
+            if let Some(text) = object.get(key).and_then(Value::as_str) {
+                if !text.trim().is_empty() {
+                    found.push(text.to_string());
                 }
             }
-            object.values().find_map(|value| find_string(value, keys))
+            object.values().for_each(|value| collect_strings_into(value, key, found));
         }
-        Value::Array(values) => values.iter().find_map(|value| find_string(value, keys)),
+        Value::Array(values) => values.iter().for_each(|value| collect_strings_into(value, key, found)),
+        _ => {}
+    }
+}
+
+fn find_bool(value: &Value, key: &str) -> Option<bool> {
+    match value {
+        Value::Object(object) => object
+            .get(key)
+            .and_then(Value::as_bool)
+            .or_else(|| object.values().find_map(|value| find_bool(value, key))),
+        Value::Array(values) => values.iter().find_map(|value| find_bool(value, key)),
         _ => None,
     }
 }
@@ -374,5 +432,51 @@ mod tests {
             Some("claude.user@example.com")
         );
         assert_eq!(account_id_from_profile(&profile).as_deref(), Some("acct-1"));
+    }
+
+    #[test]
+    fn detects_pro_plan_despite_generic_rate_limit_tier() {
+        let profile = serde_json::json!({
+            "account": { "email": "a@example.com", "has_claude_max": false, "has_claude_pro": true },
+            "organization": {
+                "organization_type": "claude_pro",
+                "rate_limit_tier": "default_claude_ai",
+                "billing_type": "stripe_subscription"
+            }
+        });
+        assert_eq!(plan_from_profile(&profile).as_deref(), Some("claude_pro"));
+    }
+
+    #[test]
+    fn detects_pro_plan_from_account_flags_alone() {
+        let profile = serde_json::json!({
+            "account": { "has_claude_max": false, "has_claude_pro": true },
+            "organization": { "rate_limit_tier": "default_claude_ai" }
+        });
+        assert_eq!(plan_from_profile(&profile).as_deref(), Some("claude_pro"));
+    }
+
+    #[test]
+    fn detects_max_tiers_from_rate_limit_tier() {
+        let five = serde_json::json!({
+            "organization": { "organization_type": "claude_max", "rate_limit_tier": "default_claude_max_5x" }
+        });
+        let twenty = serde_json::json!({
+            "account": { "has_claude_max": true },
+            "organization": { "rate_limit_tier": "default_claude_max_20x" }
+        });
+        assert_eq!(plan_from_profile(&five).as_deref(), Some("claude_max_5x"));
+        assert_eq!(plan_from_profile(&twenty).as_deref(), Some("claude_max_20x"));
+    }
+
+    #[test]
+    fn detects_free_plan_only_from_explicit_signals() {
+        let free = serde_json::json!({
+            "account": { "has_claude_max": false, "has_claude_pro": false },
+            "organization": { "rate_limit_tier": "default_claude_ai" }
+        });
+        assert_eq!(plan_from_profile(&free).as_deref(), Some("free"));
+        let unknown = serde_json::json!({ "organization": { "rate_limit_tier": "default_claude_ai" } });
+        assert_eq!(plan_from_profile(&unknown), None);
     }
 }
