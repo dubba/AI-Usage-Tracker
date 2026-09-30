@@ -1,6 +1,8 @@
 mod account_order;
 mod alerts;
 #[cfg(target_os = "android")]
+mod android_context;
+#[cfg(target_os = "android")]
 mod android_keystore;
 #[cfg(target_os = "android")]
 mod apk_install;
@@ -87,7 +89,24 @@ async fn get_dashboard_snapshot(
         accounts,
         buckets,
         bridge: bridge_status(state.inner().as_ref()),
+        unprotected_credentials: retry_credential_sealing(state.inner()).await,
     })
+}
+
+/// How many saved sign-ins are still stored unencrypted. While any are, each
+/// dashboard refresh tries to seal them again, so a keystore that was briefly
+/// unavailable at startup fixes itself and the UI warning clears.
+async fn retry_credential_sealing(state: &Arc<AppState>) -> usize {
+    let remaining = state.unprotected_credentials();
+    if remaining == 0 {
+        return 0;
+    }
+    let report = tauri::async_runtime::spawn_blocking(crate::store::upgrade_plaintext_credentials)
+        .await
+        .ok()
+        .map_or(remaining, |report| report.failed);
+    state.set_unprotected_credentials(report);
+    report
 }
 
 #[tauri::command]
@@ -1404,6 +1423,38 @@ async fn check_for_app_update(
     }
 }
 
+#[cfg(target_os = "android")]
+async fn install_android_apk(app: AppHandle, include_beta: bool) -> Result<(), String> {
+    let latest = fetch_github_latest_release(include_beta, required_update_asset()).await?;
+    let apk_url = latest
+        .apk_url
+        .ok_or_else(|| "The latest GitHub release does not include an Android APK.".to_string())?;
+    // cacheDir/updates is a FileProvider root; JNI avoids the path-plugin round trip.
+    let dest = apk_install::update_download_path()?;
+    let digest = download_android_apk(&app, &apk_url, &dest).await?;
+    emit_update_progress(&app, "verifying", 0, None);
+    if let Some(sha_url) = latest.apk_sha256_url.as_deref() {
+        let expected = fetch_apk_sha256(sha_url).await?;
+        if expected != digest {
+            let _ = tokio::fs::remove_file(&dest).await;
+            apk_install::clear_update_notification();
+            return Err("The downloaded update did not match the published checksum.".into());
+        }
+    }
+    apk_install::verify_apk_signature(&dest).map_err(|error| {
+        apk_install::clear_update_notification();
+        error
+    })?;
+    emit_update_progress(&app, "installing", 0, None);
+    apk_install::show_installing();
+    apk_install::prompt_apk_install(&dest).map_err(|error| {
+        apk_install::clear_update_notification();
+        error
+    })?;
+    apk_install::clear_update_notification();
+    Ok(())
+}
+
 #[tauri::command]
 async fn install_app_update(app: AppHandle, state: State<'_, Arc<AppState>>) -> Result<(), String> {
     #[cfg(desktop)]
@@ -1455,38 +1506,16 @@ async fn install_app_update(app: AppHandle, state: State<'_, Arc<AppState>>) -> 
 
     #[cfg(target_os = "android")]
     {
-        let latest = fetch_github_latest_release(
-            beta_updates_wanted(state.inner().as_ref()),
-            required_update_asset(),
-        )
-        .await?;
-        let apk_url = latest.apk_url.ok_or_else(|| {
-            "The latest GitHub release does not include an Android APK.".to_string()
-        })?;
-        // cacheDir/updates is a FileProvider root; JNI avoids the path-plugin round trip.
-        let dest = apk_install::update_download_path()?;
-        let digest = download_android_apk(&app, &apk_url, &dest).await?;
-        emit_update_progress(&app, "verifying", 0, None);
-        if let Some(sha_url) = latest.apk_sha256_url.as_deref() {
-            let expected = fetch_apk_sha256(sha_url).await?;
-            if expected != digest {
-                let _ = tokio::fs::remove_file(&dest).await;
+        // Run in its own task so a panic comes back as an error. A panicking
+        // command never answers the invoke, which leaves Settings stuck on
+        // "Downloading…" with no way out but restarting the app.
+        let include_beta = beta_updates_wanted(state.inner().as_ref());
+        return tauri::async_runtime::spawn(install_android_apk(app, include_beta))
+            .await
+            .unwrap_or_else(|_| {
                 apk_install::clear_update_notification();
-                return Err("The downloaded update did not match the published checksum.".into());
-            }
-        }
-        apk_install::verify_apk_signature(&dest).map_err(|error| {
-            apk_install::clear_update_notification();
-            error
-        })?;
-        emit_update_progress(&app, "installing", 0, None);
-        apk_install::show_installing();
-        apk_install::prompt_apk_install(&dest).map_err(|error| {
-            apk_install::clear_update_notification();
-            error
-        })?;
-        apk_install::clear_update_notification();
-        return Ok(());
+                Err("The update failed unexpectedly. Please try again.".into())
+            });
     }
 
     #[cfg(not(target_os = "android"))]
@@ -1617,7 +1646,7 @@ fn initialize_backend(app: &AppHandle) -> Result<(), startup::StartupIssue> {
     // Seal plaintext credential files from earlier versions (Android only:
     // there is no platform cipher elsewhere, so this does nothing).
     #[cfg(target_os = "android")]
-    crate::store::upgrade_plaintext_credentials();
+    let unprotected_credentials = crate::store::upgrade_plaintext_credentials().failed;
 
     // A token that cannot be read (locked keychain, denied prompt) only turns
     // the local API off; everything else keeps working.
@@ -1632,6 +1661,8 @@ fn initialize_backend(app: &AppHandle) -> Result<(), startup::StartupIssue> {
         )
     })?);
     state.set_bridge_unavailable(bridge_unavailable);
+    #[cfg(target_os = "android")]
+    state.set_unprotected_credentials(unprotected_credentials);
     migrate_google_ai_studio_accounts(state.as_ref());
     state.set_app_handle(app.clone());
     *GLOBAL_APP_HANDLE.lock() = Some(app.clone());

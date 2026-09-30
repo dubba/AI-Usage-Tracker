@@ -61,37 +61,29 @@ fn call_path(path: &Path, name: &str, sig: &str, expect_string: bool) -> Result<
     call_string(name, sig, path.to_string_lossy().as_ref(), expect_string)
 }
 
+const UNAVAILABLE: &str = "Unable to start the Android installer.";
+
 fn call_string(name: &str, sig: &str, value: &str, expect_string: bool) -> Result<String, String> {
-    let ctx = ndk_context::android_context();
-    let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }
-        .map_err(|error| format!("Unable to start the Android installer: {error}"))?;
-    let mut env = vm
-        .attach_current_thread()
-        .map_err(|error| format!("Unable to start the Android installer: {error}"))?;
-    let activity = unsafe { JObject::from_raw(ctx.context() as jni::sys::jobject) };
-    let value = env
-        .new_string(value)
-        .map_err(|error| format!("Unable to start the Android installer: {error}"))?;
-    let value_obj = JObject::from(value);
-    invoke(
-        &mut env,
-        &activity,
-        name,
-        sig,
-        &[JValue::Object(&value_obj)],
-        expect_string,
-    )
+    crate::android_context::with_activity(UNAVAILABLE, |env, activity| {
+        let value = env
+            .new_string(value)
+            .map_err(|error| format!("Unable to start the Android installer: {error}"))?;
+        let value_obj = JObject::from(value);
+        invoke(
+            env,
+            activity,
+            name,
+            sig,
+            &[JValue::Object(&value_obj)],
+            expect_string,
+        )
+    })
 }
 
 fn call(name: &str, sig: &str, args: &[JValue], expect_string: bool) -> Result<String, String> {
-    let ctx = ndk_context::android_context();
-    let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }
-        .map_err(|error| format!("Unable to start the Android installer: {error}"))?;
-    let mut env = vm
-        .attach_current_thread()
-        .map_err(|error| format!("Unable to start the Android installer: {error}"))?;
-    let activity = unsafe { JObject::from_raw(ctx.context() as jni::sys::jobject) };
-    invoke(&mut env, &activity, name, sig, args, expect_string)
+    crate::android_context::with_activity(UNAVAILABLE, |env, activity| {
+        invoke(env, activity, name, sig, args, expect_string)
+    })
 }
 
 fn invoke(

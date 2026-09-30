@@ -13,7 +13,10 @@ use std::{
     collections::HashMap,
     fs,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
     time::Duration,
 };
 use tauri::AppHandle;
@@ -63,6 +66,9 @@ pub struct AppState {
     /// secure storage). Reported through the bridge status instead of failing
     /// startup.
     bridge_unavailable: RwLock<Option<String>>,
+    /// Saved sign-ins still stored unencrypted because sealing them failed
+    /// (Android). Zero everywhere else.
+    unprotected_credentials: AtomicUsize,
     pub app_handle: RwLock<Option<AppHandle>>,
     pub pairing: Arc<crate::pairing::PairingSessionManager>,
     account_locks: Mutex<HashMap<String, Arc<AsyncMutex<()>>>>,
@@ -126,6 +132,7 @@ impl AppState {
                 error: None,
             }),
             bridge_unavailable: RwLock::new(None),
+            unprotected_credentials: AtomicUsize::new(0),
             app_handle: RwLock::new(None),
             pairing: Arc::new(crate::pairing::PairingSessionManager::new()),
             account_locks: Mutex::new(HashMap::new()),
@@ -146,6 +153,14 @@ impl AppState {
 
     pub fn bridge_unavailable(&self) -> Option<String> {
         self.bridge_unavailable.read().clone()
+    }
+
+    pub fn set_unprotected_credentials(&self, count: usize) {
+        self.unprotected_credentials.store(count, Ordering::Relaxed);
+    }
+
+    pub fn unprotected_credentials(&self) -> usize {
+        self.unprotected_credentials.load(Ordering::Relaxed)
     }
 
     pub fn wakeup_refresh(&self) {

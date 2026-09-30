@@ -36,6 +36,12 @@ pub fn restrict_private_permissions(path: &Path) -> Result<(), String> {
 /// the file/dir as unprotected and abort the write rather than leaving a
 /// world-readable secret behind.
 ///
+/// The grant names the user by SID (`*S-1-…`), not by the `USERNAME`
+/// environment variable, which is unreliable on domain accounts and can be
+/// changed by anything that starts this process. Both helper tools run from
+/// `System32` by absolute path so nothing on `PATH` or in the working
+/// directory can stand in for them.
+///
 /// Secrets themselves live in Windows Credential Manager (DPAPI-backed) via
 /// the `keyring` crate in release builds; this function protects the metadata
 /// and debug-fallback files that remain on disk.
@@ -43,17 +49,13 @@ pub fn restrict_private_permissions(path: &Path) -> Result<(), String> {
 pub fn restrict_private_permissions(path: &Path) -> Result<(), String> {
     use std::process::Command;
 
-    let username = std::env::var("USERNAME")
-        .map_err(|_| "Unable to determine the current user for file ACL hardening".to_string())?;
-    if username.trim().is_empty() || username.contains(['/', '\\', '"']) {
-        return Err("Invalid username for file ACL hardening".into());
-    }
+    let sid = current_user_sid()?;
     let grant = if path.is_dir() {
-        format!("{username}:(OI)(CI)F")
+        format!("*{sid}:(OI)(CI)F")
     } else {
-        format!("{username}:F")
+        format!("*{sid}:F")
     };
-    let output = Command::new("icacls")
+    let output = Command::new(system32_tool("icacls.exe"))
         .arg(path)
         .arg("/inheritance:r")
         .arg("/grant:r")
@@ -69,6 +71,54 @@ pub fn restrict_private_permissions(path: &Path) -> Result<(), String> {
         ));
     }
     Ok(())
+}
+
+/// A tool from the Windows `System32` folder, by absolute path.
+#[cfg(windows)]
+fn system32_tool(name: &str) -> PathBuf {
+    let root = std::env::var_os("SystemRoot")
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "C:\\Windows".into());
+    Path::new(&root).join("System32").join(name)
+}
+
+/// The current user's SID, looked up once per process.
+#[cfg(windows)]
+fn current_user_sid() -> Result<String, String> {
+    use std::{process::Command, sync::OnceLock};
+
+    static SID: OnceLock<String> = OnceLock::new();
+    if let Some(sid) = SID.get() {
+        return Ok(sid.clone());
+    }
+    let output = Command::new(system32_tool("whoami.exe"))
+        .args(["/user", "/fo", "csv", "/nh"])
+        .output()
+        .map_err(|error| {
+            format!("Unable to determine the current user for file ACL hardening: {error}")
+        })?;
+    let sid = output
+        .status
+        .success()
+        .then(|| parse_whoami_sid(&String::from_utf8_lossy(&output.stdout)))
+        .flatten()
+        .ok_or_else(|| "Unable to determine the current user for file ACL hardening".to_string())?;
+    Ok(SID.get_or_init(|| sid).clone())
+}
+
+/// Extracts the SID from `whoami /user /fo csv /nh` output, which looks like
+/// `"DOMAIN\user","S-1-5-21-1-2-3-1001"`. Anything that is not a well-formed
+/// SID is rejected, because the value ends up in an `icacls` argument.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn parse_whoami_sid(output: &str) -> Option<String> {
+    let sid = output.trim().rsplit(',').next()?.trim().trim_matches('"');
+    let parts: Vec<&str> = sid.split('-').collect();
+    let well_formed = parts.len() >= 4
+        && parts[0] == "S"
+        && parts[1..]
+            .iter()
+            .all(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit()));
+    well_formed.then(|| sid.to_string())
 }
 
 #[cfg(not(any(unix, windows)))]
@@ -198,6 +248,18 @@ pub fn atomic_write_private(path: &Path, payload: &[u8]) -> Result<(), String> {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn whoami_output_yields_only_a_well_formed_sid() {
+        assert_eq!(
+            parse_whoami_sid("\"desktop\\momo\",\"S-1-5-21-111-222-333-1001\"\r\n").as_deref(),
+            Some("S-1-5-21-111-222-333-1001")
+        );
+        assert_eq!(parse_whoami_sid(""), None);
+        assert_eq!(parse_whoami_sid("\"user\",\"not-a-sid\""), None);
+        assert_eq!(parse_whoami_sid("\"user\",\"S-1-5-21-1;calc\""), None);
+        assert_eq!(parse_whoami_sid("\"user\",\"S-1-\""), None);
+    }
 
     #[test]
     fn atomic_write_private_creates_owner_only_files() {

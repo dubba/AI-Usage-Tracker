@@ -1,6 +1,6 @@
 [package]
 name = "ai-usage-tracker"
-version = "0.3.10-beta.2"
+version = "0.3.10-beta.3"
 description = "Standalone multi-provider AI usage monitor and optional Paseo integration"
 authors = ["AI Usage Tracker contributors"]
 edition = "2021"
@@ -55,7 +55,6 @@ objc2 = "0.6"
 
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21"
-ndk-context = "0.1"
 
 [dev-dependencies]
 tempfile = "3"

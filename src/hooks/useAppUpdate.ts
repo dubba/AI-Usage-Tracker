@@ -16,6 +16,9 @@ export function useAppUpdate({ automaticUpdatesEnabled }: { automaticUpdatesEnab
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateMessage, setUpdateMessage] = useState<string | null>(null);
   const updateMessageTimerRef = useRef<number | null>(null);
+  // Progress events can arrive after install_app_update has already returned;
+  // without this guard a late one would leave the button stuck on "Downloading…".
+  const installInFlightRef = useRef(false);
 
   const showTransientUpdateMessage = useCallback((msg: string | null) => {
     if (updateMessageTimerRef.current) {
@@ -47,6 +50,8 @@ export function useAppUpdate({ automaticUpdatesEnabled }: { automaticUpdatesEnab
   }, []);
 
   const checkForUpdate = useCallback(async (showFeedback = false) => {
+    // A check would overwrite the busy state of a download in progress.
+    if (installInFlightRef.current) return;
     setUpdateBusy("checking");
     const minDelayPromise = new Promise((resolve) => setTimeout(resolve, 500));
     if (showFeedback) {
@@ -84,6 +89,8 @@ export function useAppUpdate({ automaticUpdatesEnabled }: { automaticUpdatesEnab
   }, [installedVersion, showTransientUpdateMessage]);
 
   const installUpdate = useCallback(async () => {
+    if (installInFlightRef.current) return;
+    installInFlightRef.current = true;
     setUpdateBusy("downloading");
     setUpdateProgress({ phase: "downloading", downloaded: 0, total: null, percent: null });
     setUpdateError(null);
@@ -97,6 +104,8 @@ export function useAppUpdate({ automaticUpdatesEnabled }: { automaticUpdatesEnab
       setUpdateError(message);
       setUpdateBusy(null);
       setUpdateProgress(null);
+    } finally {
+      installInFlightRef.current = false;
     }
   }, [showTransientUpdateMessage]);
 
@@ -110,7 +119,7 @@ export function useAppUpdate({ automaticUpdatesEnabled }: { automaticUpdatesEnab
   }, [automaticUpdatesEnabled, checkForUpdate]);
 
   useTauriEvent<AppUpdateProgress>("app-update-progress", (payload) => {
-    if (!payload?.phase) return;
+    if (!payload?.phase || !installInFlightRef.current) return;
     setUpdateBusy(payload.phase);
     setUpdateProgress(payload);
   });

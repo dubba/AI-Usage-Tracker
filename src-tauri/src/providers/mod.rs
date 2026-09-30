@@ -39,6 +39,38 @@ pub fn parse_retry_after(value: &str) -> Option<Duration> {
     Some(delay.to_std().unwrap_or(Duration::ZERO))
 }
 
+/// A fixed description of why a request failed, for messages the user sees.
+/// `reqwest::Error`'s own text names the request URL and can quote what the
+/// server sent, so it must never be interpolated into a stored message.
+pub fn transport_failure(error: &reqwest::Error) -> &'static str {
+    if error.is_timeout() {
+        "the request timed out"
+    } else if error.is_connect() {
+        "the connection could not be made"
+    } else if error.is_decode() || error.is_body() {
+        "the response could not be read"
+    } else {
+        "the connection failed"
+    }
+}
+
+/// The error for an HTTP 429. The user-visible text is built from the parsed
+/// delay, never from the raw `Retry-After` header, which the provider controls.
+pub fn rate_limited(provider: &str, retry_after_header: Option<&str>) -> ProviderError {
+    let retry_after = retry_after_header.and_then(parse_retry_after);
+    let message = match retry_after {
+        Some(delay) => format!(
+            "{provider} rate-limited the usage request. Retry after {} seconds.",
+            delay.as_secs()
+        ),
+        None => format!("{provider} rate-limited the usage request."),
+    };
+    ProviderError::RateLimited {
+        message,
+        retry_after,
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct ProviderUsage {
     pub plan: Option<String>,
@@ -102,6 +134,30 @@ mod tests {
             parse_retry_after("Wed, 21 Oct 2015 07:28:00 GMT"),
             Some(Duration::ZERO)
         );
+    }
+
+    #[test]
+    fn rate_limit_message_never_echoes_the_raw_header() {
+        let ProviderError::RateLimited {
+            message,
+            retry_after,
+        } = rate_limited("Acme", Some("120"))
+        else {
+            unreachable!()
+        };
+        assert_eq!(
+            message,
+            "Acme rate-limited the usage request. Retry after 120 seconds."
+        );
+        assert_eq!(retry_after, Some(Duration::from_secs(120)));
+
+        let ProviderError::RateLimited { message, .. } =
+            rate_limited("Acme", Some("Bearer sk-secret-value {\"a\":1}"))
+        else {
+            unreachable!()
+        };
+        assert_eq!(message, "Acme rate-limited the usage request.");
+        assert!(!message.contains("sk-secret"));
     }
 
     #[test]

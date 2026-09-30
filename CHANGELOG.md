@@ -3,6 +3,23 @@
 ## Unreleased (0 items)
 
 
+## 0.3.10-beta.3 - 2026-09-30 (8 items)
+
+### Fixed (3)
+
+- On Android, tapping Update no longer leaves the button greyed out on "Downloading…" forever; the update now downloads and opens the Android installer, or shows what went wrong.
+- On Android, encrypting saved sign-ins with the Android Keystore, update and usage alert notifications, and keeping device linking on Wi-Fi now work instead of failing because the app could not reach Android.
+- The update button no longer gets stuck or re-enables itself mid-download when an automatic update check runs during a download.
+
+### Security (5)
+
+- On Android, the app now shares only the downloaded update and camera photos with other apps, instead of its whole storage folders.
+- On Windows, the app's private files are now locked to your account by its security identifier, using system tools from fixed locations, so a look-alike program or a changed user name can no longer weaken that protection.
+- The app's page security rules are stricter, and the macOS app no longer requests USB or microphone access it never used.
+- Account error messages no longer include raw connection details or text copied from a provider's reply; only short, plain messages are kept and shown.
+- On Android, if a saved sign-in cannot be encrypted, the app now keeps retrying automatically and shows a warning until it succeeds.
+
+
 ## 0.3.10-beta.2 - 2026-09-30 (13 items)
 
 ### Added (1)

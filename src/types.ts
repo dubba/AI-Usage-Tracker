@@ -69,6 +69,8 @@ export interface DashboardSnapshot {
   accounts: Account[];
   buckets: AccountBucket[];
   bridge: BridgeStatus;
+  /** Saved sign-ins still stored unencrypted (Android); 0 when all are protected. */
+  unprotectedCredentials: number;
 }
 
 export interface AppSettings {

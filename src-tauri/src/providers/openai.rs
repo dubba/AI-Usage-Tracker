@@ -177,10 +177,12 @@ async fn call_usage(
         request = request.header("ChatGPT-Account-Id", account_id);
     }
 
-    let response = request
-        .send()
-        .await
-        .map_err(|error| ProviderError::Transient(format!("Usage request failed: {error}")))?;
+    let response = request.send().await.map_err(|error| {
+        ProviderError::Transient(format!(
+            "Usage request failed: {}.",
+            super::transport_failure(&error)
+        ))
+    })?;
     let status = response.status();
     let retry_after = response
         .headers()
@@ -188,7 +190,10 @@ async fn call_usage(
         .and_then(|value| value.to_str().ok())
         .map(str::to_string);
     let body = response.text().await.map_err(|error| {
-        ProviderError::Transient(format!("Unable to read the usage response: {error}"))
+        ProviderError::Transient(format!(
+            "Unable to read the usage response: {}.",
+            super::transport_failure(&error)
+        ))
     })?;
 
     if status == StatusCode::UNAUTHORIZED {
@@ -204,15 +209,7 @@ async fn call_usage(
         ));
     }
     if status == StatusCode::TOO_MANY_REQUESTS {
-        return Err(ProviderError::RateLimited {
-            message: match retry_after.as_deref() {
-                Some(value) => {
-                    format!("OpenAI rate-limited the usage request. Retry after {value}.")
-                }
-                None => "OpenAI rate-limited the usage request.".into(),
-            },
-            retry_after: retry_after.as_deref().and_then(super::parse_retry_after),
-        });
+        return Err(super::rate_limited("OpenAI", retry_after.as_deref()));
     }
     if !status.is_success() {
         return Err(ProviderError::Transient(format!(

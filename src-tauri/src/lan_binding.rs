@@ -3,37 +3,39 @@
 //! the LAN traffic pairing relies on.
 
 #[cfg(target_os = "android")]
-use jni::{
-    objects::{JObject, JValue},
-    JNIEnv,
-};
+use jni::{objects::JValue, JNIEnv};
 
 #[cfg(target_os = "android")]
 pub fn set_pairing_lan_binding(enabled: bool) -> Result<(), String> {
-    let ctx = ndk_context::android_context();
-    let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }
-        .map_err(|error| format!("Unable to configure pairing network: {error}"))?;
-    let mut env = vm
-        .attach_current_thread()
-        .map_err(|error| format!("Unable to configure pairing network: {error}"))?;
-    let activity = unsafe { JObject::from_raw(ctx.context() as jni::sys::jobject) };
+    const PREFIX: &str = "Unable to configure pairing network";
+    crate::android_context::with_activity(PREFIX, |env, activity| {
+        let result = env.call_method(
+            activity,
+            "setPairingLanBinding",
+            "(Z)V",
+            &[JValue::Bool(enabled as u8)],
+        );
+        check_call(env, result, PREFIX)
+    })
+}
 
-    let result = env.call_method(
-        &activity,
-        "setPairingLanBinding",
-        "(Z)V",
-        &[JValue::Bool(enabled as u8)],
-    );
-    if let Err(error) = result {
-        return Err(format!("Unable to configure pairing network: {error}"));
-    }
+/// Maps a void JNI call result to `Err("{prefix}: {reason}")`, clearing any
+/// pending Java exception so the attached thread is left usable.
+#[cfg(target_os = "android")]
+fn check_call(
+    env: &mut JNIEnv,
+    result: jni::errors::Result<jni::objects::JValueOwned>,
+    prefix: &str,
+) -> Result<(), String> {
     if env.exception_check().unwrap_or(false) {
         let throwable = env.exception_occurred().map_err(|e| e.to_string())?;
         let _ = env.exception_clear();
-        let message = jni_exception_message(&mut env, &throwable);
-        return Err(format!("Unable to configure pairing network: {message}"));
+        let message = jni_exception_message(env, &throwable);
+        return Err(format!("{prefix}: {message}"));
     }
-    Ok(())
+    result
+        .map(|_| ())
+        .map_err(|error| format!("{prefix}: {error}"))
 }
 
 #[cfg(target_os = "android")]
@@ -57,40 +59,25 @@ fn jni_exception_message(env: &mut JNIEnv, throwable: &jni::objects::JThrowable)
 /// sets the collapsed content text).
 #[cfg(target_os = "android")]
 pub fn post_expandable_notification(title: &str, body: &str) -> Result<(), String> {
-    let ctx = ndk_context::android_context();
-    let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }
-        .map_err(|error| format!("Unable to post notification: {error}"))?;
-    let mut env = vm
-        .attach_current_thread()
-        .map_err(|error| format!("Unable to post notification: {error}"))?;
-    let activity = unsafe { JObject::from_raw(ctx.context() as jni::sys::jobject) };
-
-    let title_j = env
-        .new_string(title)
-        .map_err(|error| format!("Unable to post notification: {error}"))?;
-    let body_j = env
-        .new_string(body)
-        .map_err(|error| format!("Unable to post notification: {error}"))?;
-
-    let result = env.call_method(
-        &activity,
-        "postExpandableNotification",
-        "(Ljava/lang/String;Ljava/lang/String;)V",
-        &[
-            JValue::Object(&title_j.into()),
-            JValue::Object(&body_j.into()),
-        ],
-    );
-    if let Err(error) = result {
-        return Err(format!("Unable to post notification: {error}"));
-    }
-    if env.exception_check().unwrap_or(false) {
-        let throwable = env.exception_occurred().map_err(|e| e.to_string())?;
-        let _ = env.exception_clear();
-        let message = jni_exception_message(&mut env, &throwable);
-        return Err(format!("Unable to post notification: {message}"));
-    }
-    Ok(())
+    const PREFIX: &str = "Unable to post notification";
+    crate::android_context::with_activity(PREFIX, |env, activity| {
+        let title_j = env
+            .new_string(title)
+            .map_err(|error| format!("{PREFIX}: {error}"))?;
+        let body_j = env
+            .new_string(body)
+            .map_err(|error| format!("{PREFIX}: {error}"))?;
+        let result = env.call_method(
+            activity,
+            "postExpandableNotification",
+            "(Ljava/lang/String;Ljava/lang/String;)V",
+            &[
+                JValue::Object(&title_j.into()),
+                JValue::Object(&body_j.into()),
+            ],
+        );
+        check_call(env, result, PREFIX)
+    })
 }
 
 #[cfg(not(target_os = "android"))]

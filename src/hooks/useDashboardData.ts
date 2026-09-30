@@ -2,6 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { bridgeApi } from "../api";
 import { withTimeout } from "../async-utils";
 import { DEFAULT_ACCOUNT_REFRESH_MINUTES } from "../constants";
+import {
+  CREDENTIAL_PROTECTION_ERROR_SOURCE,
+  credentialProtectionAction,
+  credentialProtectionMessage,
+} from "../credential-protection";
 import { isReordering } from "../dashboard-reorder";
 import { onDashboardResync } from "../events";
 import { publishSnapshot } from "../snapshot-store";
@@ -27,6 +32,7 @@ export function useDashboardData({
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
   const refreshDueInFlightRef = useRef(false);
   const wasHiddenRef = useRef(false);
+  const unprotectedCredentialsRef = useRef(0);
 
   /** The only place the snapshot is fetched. Resolves to the snapshot, or null if it could not be loaded. */
   const load = useCallback(async (): Promise<DashboardSnapshot | null> => {
@@ -40,6 +46,13 @@ export function useDashboardData({
       setSnapshot(next);
       publishSnapshot(next);
       clearError("load");
+      const unprotected = next.unprotectedCredentials ?? 0;
+      const action = credentialProtectionAction(unprotectedCredentialsRef.current, unprotected);
+      if (action !== "none") {
+        unprotectedCredentialsRef.current = Math.max(0, Math.floor(unprotected));
+        if (action === "clear") clearError(CREDENTIAL_PROTECTION_ERROR_SOURCE);
+        else reportError(CREDENTIAL_PROTECTION_ERROR_SOURCE, credentialProtectionMessage(unprotected));
+      }
       return next;
     } catch (cause) {
       reportError("load", cause);

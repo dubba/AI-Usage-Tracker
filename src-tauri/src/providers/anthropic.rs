@@ -123,7 +123,10 @@ async fn call_usage(app: &AppState, secret: &OAuthSecret) -> Result<RawUsage, Pr
         .send()
         .await
         .map_err(|error| {
-            ProviderError::Transient(format!("Anthropic usage request failed: {error}"))
+            ProviderError::Transient(format!(
+                "Anthropic usage request failed: {}.",
+                super::transport_failure(&error)
+            ))
         })?;
     let status = response.status();
     let retry_after = response
@@ -133,7 +136,8 @@ async fn call_usage(app: &AppState, secret: &OAuthSecret) -> Result<RawUsage, Pr
         .map(str::to_string);
     let body = response.text().await.map_err(|error| {
         ProviderError::Transient(format!(
-            "Unable to read the Anthropic usage response: {error}"
+            "Unable to read the Anthropic usage response: {}.",
+            super::transport_failure(&error)
         ))
     })?;
 
@@ -157,15 +161,7 @@ fn usage_status_error(status: StatusCode, retry_after: Option<String>) -> Option
         StatusCode::FORBIDDEN => ProviderError::Transient(
             "Anthropic denied the usage request. Cached usage is being kept.".into(),
         ),
-        StatusCode::TOO_MANY_REQUESTS => ProviderError::RateLimited {
-            message: match retry_after.as_deref() {
-                Some(value) => {
-                    format!("Anthropic rate-limited the usage request. Retry after {value}.")
-                }
-                None => "Anthropic rate-limited the usage request.".into(),
-            },
-            retry_after: retry_after.as_deref().and_then(super::parse_retry_after),
-        },
+        StatusCode::TOO_MANY_REQUESTS => super::rate_limited("Anthropic", retry_after.as_deref()),
         _ => ProviderError::Transient(format!("Anthropic usage request returned {status}.")),
     })
 }

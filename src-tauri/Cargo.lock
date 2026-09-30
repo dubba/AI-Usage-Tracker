@@ -29,7 +29,7 @@ dependencies = [
 
 [[package]]
 name = "ai-usage-tracker"
-version = "0.3.10-beta.2"
+version = "0.3.10-beta.3"
 dependencies = [
  "axum",
  "base64 0.22.1",
@@ -43,7 +43,6 @@ dependencies = [
  "keyring",
  "mdns-sd",
  "miniz_oxide 0.8.9",
- "ndk-context",
  "objc2",
  "parking_lot",
  "qrcode",
@@ -2576,12 +2575,6 @@ dependencies = [
  "raw-window-handle",
  "thiserror 1.0.69",
 ]
-
-[[package]]
-name = "ndk-context"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "27b02d87554356db9e9a873add8782d4ea6e3e58ea071a9adb9a2e8ddb884a8b"
 
 [[package]]
 name = "ndk-sys"

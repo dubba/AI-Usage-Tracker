@@ -97,47 +97,69 @@ pub fn write_credential_file(
 
 /// Reads a credential file. A plaintext file from an earlier version is
 /// returned as is and rewritten sealed (best effort: a failed upgrade must not
-/// lock the user out of a credential that still reads fine).
+/// lock the user out of a credential that still reads fine, but it is logged
+/// and counted, and the next startup or dashboard refresh tries again).
 pub fn read_credential_file(
     cipher: Option<&dyn SecretCipher>,
     path: &Path,
 ) -> Result<Vec<u8>, String> {
     let stored = fs::read(path).map_err(|error| error.to_string())?;
     let opened = open_stored(cipher, &stored, &context_for(path))?;
-    if opened.needs_upgrade {
-        let _ = write_credential_file(cipher, path, &opened.plaintext);
+    if opened.needs_upgrade && write_credential_file(cipher, path, &opened.plaintext).is_err() {
+        crate::diagnostics::warn(
+            "A saved sign-in could not be encrypted with secure storage; it will be retried.",
+        );
     }
     Ok(opened.plaintext)
 }
 
-/// Seals every plaintext credential file in `dir`. Returns how many were
-/// upgraded. Run at startup so nothing stays readable just because its account
-/// has not been refreshed yet.
+/// What a pass over the credential folder did.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct UpgradeReport {
+    /// Plaintext files rewritten sealed.
+    pub upgraded: usize,
+    /// Files that are still plaintext because they could not be sealed (or
+    /// could not even be read). These stay usable but unprotected.
+    pub failed: usize,
+}
+
+/// Seals every plaintext credential file in `dir`. Run at startup so nothing
+/// stays readable just because its account has not been refreshed yet, and
+/// again while any file is still plaintext.
 #[cfg_attr(not(target_os = "android"), allow(dead_code))]
-pub fn upgrade_directory(cipher: Option<&dyn SecretCipher>, dir: &Path) -> usize {
+pub fn upgrade_directory(cipher: Option<&dyn SecretCipher>, dir: &Path) -> UpgradeReport {
+    let mut report = UpgradeReport::default();
     if cipher.is_none() {
-        return 0;
+        return report;
     }
     let Ok(entries) = fs::read_dir(dir) else {
-        return 0;
+        return report;
     };
-    let mut upgraded = 0;
     for entry in entries.flatten() {
         let path = entry.path();
         if !path.is_file() || path.extension().is_some_and(|ext| ext == "tmp") {
             continue;
         }
         let Ok(stored) = fs::read(&path) else {
+            report.failed += 1;
             continue;
         };
         if stored.starts_with(SEALED_MAGIC) {
             continue;
         }
         if write_credential_file(cipher, &path, &stored).is_ok() {
-            upgraded += 1;
+            report.upgraded += 1;
+        } else {
+            report.failed += 1;
         }
     }
-    upgraded
+    if report.failed > 0 {
+        crate::diagnostics::warn(&format!(
+            "{} saved sign-in(s) could not be encrypted with secure storage; they will be retried.",
+            report.failed
+        ));
+    }
+    report
 }
 
 #[cfg(test)]
@@ -258,8 +280,17 @@ mod tests {
         fs::write(dir.path().join("bridge-token.txt"), b"t".repeat(64)).unwrap();
         write_credential_file(Some(&FakeCipher), &dir.path().join("b.json"), SECRET).unwrap();
 
-        assert_eq!(upgrade_directory(Some(&FakeCipher), dir.path()), 2);
-        assert_eq!(upgrade_directory(Some(&FakeCipher), dir.path()), 0);
+        assert_eq!(
+            upgrade_directory(Some(&FakeCipher), dir.path()),
+            UpgradeReport {
+                upgraded: 2,
+                failed: 0
+            }
+        );
+        assert_eq!(
+            upgrade_directory(Some(&FakeCipher), dir.path()),
+            UpgradeReport::default()
+        );
         for name in ["a.json", "b.json", "bridge-token.txt"] {
             assert!(fs::read(dir.path().join(name))
                 .unwrap()
@@ -270,6 +301,53 @@ mod tests {
             b"t".repeat(64)
         );
         // Nothing to do without a cipher (desktop development builds).
-        assert_eq!(upgrade_directory(None, dir.path()), 0);
+        assert_eq!(
+            upgrade_directory(None, dir.path()),
+            UpgradeReport::default()
+        );
+    }
+
+    #[test]
+    fn directory_upgrade_counts_files_it_could_not_seal_and_retries_them() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        struct Flaky(AtomicBool);
+        impl SecretCipher for Flaky {
+            fn seal(&self, plaintext: &[u8], context: &[u8]) -> Result<Vec<u8>, String> {
+                if self.0.load(Ordering::SeqCst) {
+                    return Err("keystore unavailable".into());
+                }
+                FakeCipher.seal(plaintext, context)
+            }
+            fn open(&self, sealed: &[u8], context: &[u8]) -> Result<Vec<u8>, String> {
+                FakeCipher.open(sealed, context)
+            }
+        }
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("a.json"), SECRET).unwrap();
+        fs::write(dir.path().join("b.json"), SECRET).unwrap();
+        let cipher = Flaky(AtomicBool::new(true));
+
+        // Nothing is damaged or lost while sealing keeps failing.
+        assert_eq!(
+            upgrade_directory(Some(&cipher), dir.path()),
+            UpgradeReport {
+                upgraded: 0,
+                failed: 2
+            }
+        );
+        assert_eq!(fs::read(dir.path().join("a.json")).unwrap(), SECRET);
+
+        // Once the keystore recovers, the next pass seals them.
+        cipher.0.store(false, Ordering::SeqCst);
+        assert_eq!(
+            upgrade_directory(Some(&cipher), dir.path()),
+            UpgradeReport {
+                upgraded: 2,
+                failed: 0
+            }
+        );
+        assert!(fs::read(dir.path().join("b.json"))
+            .unwrap()
+            .starts_with(SEALED_MAGIC));
     }
 }

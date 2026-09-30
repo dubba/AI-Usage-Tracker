@@ -90,14 +90,21 @@ fn current_credentials_dir() -> Result<PathBuf, StoreError> {
 }
 
 /// Seals any plaintext credential files left by earlier versions (Android).
-/// A no-op where there is no platform cipher.
+/// A no-op where there is no platform cipher. `failed` in the result is how
+/// many credentials are still stored unencrypted.
 #[cfg(any(target_os = "android", debug_assertions))]
 #[cfg_attr(not(target_os = "android"), allow(dead_code))]
-pub fn upgrade_plaintext_credentials() -> usize {
+pub fn upgrade_plaintext_credentials() -> crate::credential_file::UpgradeReport {
     match current_credentials_dir() {
         Ok(dir) => crate::credential_file::upgrade_directory(platform_cipher(), &dir),
-        Err(_) => 0,
+        Err(_) => Default::default(),
     }
+}
+
+/// Desktop release builds keep credentials in the OS keychain, not in files.
+#[cfg(all(not(target_os = "android"), not(debug_assertions)))]
+pub fn upgrade_plaintext_credentials() -> crate::credential_file::UpgradeReport {
+    Default::default()
 }
 
 #[cfg(any(target_os = "android", debug_assertions))]

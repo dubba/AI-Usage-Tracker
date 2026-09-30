@@ -10,7 +10,5 @@
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>AI Usage Tracker requires camera access to scan device linking QR codes.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>AI Usage Tracker requires microphone access if requested by media devices.</string>
 </dict>
 </plist>

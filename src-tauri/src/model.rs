@@ -273,6 +273,9 @@ pub struct DashboardSnapshot {
     pub accounts: Vec<Account>,
     pub buckets: Vec<AccountBucket>,
     pub bridge: BridgeStatus,
+    /// Saved sign-ins that are still stored unencrypted (Android). The app
+    /// keeps retrying; the UI warns when this stays above zero.
+    pub unprotected_credentials: usize,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -380,6 +383,7 @@ mod tests {
                 running: true,
                 error: None,
             },
+            unprotected_credentials: 0,
         };
         let json = serde_json::to_value(&snapshot).unwrap();
         assert!(json["bridge"].get("token").is_none());

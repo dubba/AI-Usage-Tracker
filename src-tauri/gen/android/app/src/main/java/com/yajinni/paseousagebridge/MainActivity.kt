@@ -49,6 +49,10 @@ class MainActivity : TauriActivity() {
     @JvmStatic
     external fun setPendingPairingUri(uri: String)
 
+    /** Hands this activity to Rust for its JNI calls (see android_context.rs). */
+    @JvmStatic
+    private external fun registerActivity(activity: MainActivity)
+
     private const val UPDATE_CHANNEL = "updates"
     private const val UPDATE_AVAILABLE_CHANNEL = "update-available"
     private const val UPDATE_NOTIFICATION_ID = 47001
@@ -199,6 +203,11 @@ class MainActivity : TauriActivity() {
   }
 
   override fun onCreate(savedInstanceState: Bundle?) {
+    try {
+      registerActivity(this)
+    } catch (e: Throwable) {
+      android.util.Log.e(TAG, "registerActivity failed: ${e.message}")
+    }
     window.decorView.setBackgroundColor(Color.BLACK)
     window.setBackgroundDrawableResource(android.R.color.black)
     super.onCreate(savedInstanceState)
@@ -846,15 +855,15 @@ class MainActivity : TauriActivity() {
   }
 
   /**
-   * FileProvider can only share cacheDir and filesDir. Tauri's app_data_dir is
-   * Context.dataDir, so copy there into cache/updates when needed.
+   * FileProvider only shares the `updates/` folders under cacheDir and filesDir
+   * (see file_paths.xml). Tauri's app_data_dir is Context.dataDir, so copy
+   * there into cache/updates when needed.
    */
   private fun fileForInstaller(file: File): File {
     val cacheUpdates = File(cacheDir, "updates")
-    val cacheRoot = cacheDir.canonicalFile
-    val filesRoot = filesDir.canonicalFile
+    val shareableRoots = listOf(cacheUpdates.canonicalFile, File(filesDir, "updates").canonicalFile)
     val alreadyShareable = generateSequence(file.canonicalFile.parentFile) { it.parentFile }
-      .any { parent -> parent == cacheRoot || parent == filesRoot }
+      .any { parent -> parent in shareableRoots }
     if (alreadyShareable) {
       return file
     }

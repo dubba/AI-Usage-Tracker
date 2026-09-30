@@ -23,13 +23,9 @@ impl SecretCipher for AndroidKeystore {
 const FAILURE: &str = "Secure storage is unavailable.";
 
 fn call(method: &str, data: &[u8], context: &[u8]) -> Result<Vec<u8>, String> {
-    let ctx = ndk_context::android_context();
-    let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }.map_err(|_| FAILURE.to_string())?;
-    let mut env = vm
-        .attach_current_thread()
-        .map_err(|_| FAILURE.to_string())?;
-    let activity = unsafe { JObject::from_raw(ctx.context() as jni::sys::jobject) };
-    invoke(&mut env, &activity, method, data, context)
+    crate::android_context::with_activity(FAILURE, |env, activity| {
+        invoke(env, activity, method, data, context)
+    })
 }
 
 fn invoke(

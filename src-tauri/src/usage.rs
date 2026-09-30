@@ -322,19 +322,49 @@ pub fn emit_alerts_for_account(app: &AppState, account: &Account) {
     }
 }
 
+/// Longest unbroken run of letters and digits a stored message may contain.
+/// Tokens, keys, ids, and encoded blobs are all longer; ordinary words and
+/// endpoint names are not.
+const MAX_PLAIN_WORD_CHARS: usize = 32;
+
+/// Longest run without whitespace. Words joined by dots or slashes (a JWT, a
+/// dotted key) stay under the per-word limit, so the whole token is measured too.
+const MAX_PLAIN_TOKEN_CHARS: usize = 48;
+
+/// True only for plain prose: letters, digits, spaces, and basic sentence
+/// punctuation, with no long token-like run. Everything the app writes on
+/// purpose passes; JSON, headers, URLs with queries, and encoded secrets do
+/// not. This is an allowlist, so an unexpected shape is dropped rather than
+/// stored.
+fn is_plain_status_text(text: &str) -> bool {
+    text.chars().all(|ch| {
+        ch.is_alphanumeric() || ch.is_whitespace() || ".,:;()'\u{2019}\"/-!?%".contains(ch)
+    }) && !text
+        .split(|ch: char| !ch.is_alphanumeric())
+        .any(|run| run.chars().count() > MAX_PLAIN_WORD_CHARS)
+        && !text
+            .split_whitespace()
+            .any(|token| token.chars().count() > MAX_PLAIN_TOKEN_CHARS)
+}
+
+/// The text stored in `last_error` and shown in the app and the local API.
+///
+/// Provider errors are built from fixed sentences (see `providers`), never from
+/// raw response text. This is the last line of defense: it keeps only plain
+/// prose, and the keyword check stays as a second guard for credentials that
+/// happen to be short.
 fn sanitize_error_message(message: &str) -> String {
     let trimmed = message.trim();
     if trimmed.is_empty() {
         return "An unknown provider error occurred.".to_string();
     }
     let lower = trimmed.to_ascii_lowercase();
-    if lower.contains("bearer ")
+    if !is_plain_status_text(trimmed)
+        || lower.contains("bearer ")
         || lower.contains("refresh_token")
         || lower.contains("access_token")
         || lower.contains("client_secret")
         || lower.contains("eyjh")
-        || lower.contains("{\"")
-        || (trimmed.starts_with('{') && trimmed.ends_with('}'))
     {
         return "A provider error occurred while processing the request.".to_string();
     }
@@ -661,22 +691,51 @@ mod tests {
             sanitize_error_message("   "),
             "An unknown provider error occurred."
         );
-        let long_message = "x".repeat(300);
+        let long_message = "word ".repeat(60);
         let sanitized = sanitize_error_message(&long_message);
         assert_eq!(sanitized.len(), 200);
         assert!(sanitized.ends_with("..."));
     }
 
     #[test]
+    fn sanitize_error_message_keeps_only_plain_prose() {
+        // Every message the providers build passes unchanged.
+        for message in [
+            "OpenAI rate-limited the usage request. Retry after 30 seconds.",
+            "Antigravity endpoint /v1internal:retrieveUserQuota returned 503 Service Unavailable.",
+            "Anthropic usage request failed: the request timed out.",
+            "Google Cloud denied Monitoring access. Confirm the project ID, enable the Cloud Monitoring API.",
+            "Select no more than 8 Google models.",
+        ] {
+            assert_eq!(sanitize_error_message(message), message);
+        }
+        // Shapes that could carry secrets or raw responses are dropped.
+        for message in [
+            "request failed for https://api.example.com/usage?key=abc123",
+            "Bad key sk-proj-AbCdEfGhIjKlMnOpQrStUvWxYz0123456789",
+            "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r",
+            "cookie: session=abc; other=def",
+            "<html>challenge</html>",
+            "user someone@example.com denied",
+        ] {
+            assert_eq!(
+                sanitize_error_message(message),
+                "A provider error occurred while processing the request.",
+                "{message}"
+            );
+        }
+    }
+
+    #[test]
     fn sanitize_error_message_never_splits_a_multibyte_character() {
         // 3-byte characters: byte 197 is inside one, which used to panic.
-        let long_message = "é界".repeat(150);
+        let long_message = "界 ".repeat(150);
         let sanitized = sanitize_error_message(&long_message);
         assert_eq!(sanitized.chars().count(), 200);
         assert!(sanitized.ends_with("..."));
 
         // Exactly at the limit is returned untouched, multi-byte or not.
-        let at_limit = "界".repeat(200);
+        let at_limit = "界 ".repeat(100).trim().to_string();
         assert_eq!(sanitize_error_message(&at_limit), at_limit);
     }
 }
