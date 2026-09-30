@@ -55,7 +55,9 @@ impl FromStr for Provider {
             "antigravity" | "google_antigravity" => Ok(Self::Antigravity),
             "google_ai_studio" | "ai_studio" | "gemini_api" => Ok(Self::GoogleAiStudio),
             "google" => Ok(Self::Antigravity),
-            "grok" | "xai" | "supergrok" | "super_grok" | "grok/cursor" | "cursor" => Ok(Self::Grok),
+            "grok" | "xai" | "supergrok" | "super_grok" | "grok/cursor" | "cursor" => {
+                Ok(Self::Grok)
+            }
             "opencode_go" | "opencode" | "go" => Ok(Self::OpencodeGo),
             _ => Err("Unsupported provider.".into()),
         }
@@ -389,7 +391,8 @@ mod tests {
 
     #[test]
     fn app_update_status_serializes_structured_error() {
-        let failed = AppUpdateStatus::failed("0.3.3".into(), "Unable to check for updates: network down");
+        let failed =
+            AppUpdateStatus::failed("0.3.3".into(), "Unable to check for updates: network down");
         let json = serde_json::to_value(&failed).unwrap();
         assert_eq!(json["currentVersion"], "0.3.3");
         assert_eq!(json["available"], false);

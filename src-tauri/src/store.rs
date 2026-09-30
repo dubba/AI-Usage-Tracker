@@ -37,8 +37,7 @@ impl Drop for CachedSecret {
 
 static SECRET_CACHE: LazyLock<Mutex<HashMap<String, CachedSecret>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
-static DATA_DIRS: LazyLock<RwLock<Vec<PathBuf>>> =
-    LazyLock::new(|| RwLock::new(Vec::new()));
+static DATA_DIRS: LazyLock<RwLock<Vec<PathBuf>>> = LazyLock::new(|| RwLock::new(Vec::new()));
 
 const MAX_ACCOUNT_ID_LEN: usize = 64;
 
@@ -74,10 +73,9 @@ pub fn set_data_dir(path: PathBuf) {
 fn current_credentials_dir() -> Result<PathBuf, StoreError> {
     let mut dirs = DATA_DIRS.write();
     dirs.retain(|p| p.exists());
-    let base = dirs
-        .first()
-        .cloned()
-        .ok_or_else(|| StoreError::Credential("Storage directory has not been initialized".into()))?;
+    let base = dirs.first().cloned().ok_or_else(|| {
+        StoreError::Credential("Storage directory has not been initialized".into())
+    })?;
     drop(dirs);
     let dir = base.join("credentials");
     ensure_private_dir(&dir).map_err(StoreError::Io)?;
@@ -183,7 +181,7 @@ impl AccountStore {
 
     pub fn list(&self) -> Vec<Account> {
         let mut accounts = self.accounts.read().clone();
-        accounts.sort_by(|left, right| left.label.to_lowercase().cmp(&right.label.to_lowercase()));
+        accounts.sort_by_key(|left| left.label.to_lowercase());
         accounts
     }
 
@@ -234,6 +232,7 @@ impl AccountStore {
         Ok(())
     }
 
+    #[cfg(test)]
     pub fn tombstones(&self) -> Vec<String> {
         read_tombstone_file(&self.data_dir).deleted_account_ids
     }
@@ -403,6 +402,14 @@ fn newer_usage(
 }
 
 pub fn save_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result<(), StoreError> {
+    save_provider_secret_with(account_id, secret, persist_provider_secret)
+}
+
+fn save_provider_secret_with(
+    account_id: &str,
+    secret: &ProviderSecret,
+    persist: impl FnOnce(&str, &ProviderSecret) -> Result<(), StoreError>,
+) -> Result<(), StoreError> {
     check_account_id(account_id)?;
     if cached_secret_is_clean(account_id, secret) {
         return Ok(());
@@ -411,7 +418,7 @@ pub fn save_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result
     // fails, later loads still return this secret (not the stale, possibly
     // revoked one) and the next save retries the write.
     remember_secret_with_state(account_id, secret.clone(), true);
-    persist_provider_secret(account_id, secret)?;
+    persist(account_id, secret)?;
     mark_secret_clean(account_id, secret);
     Ok(())
 }
@@ -450,7 +457,10 @@ fn persist_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result<
         .map_err(|error| StoreError::Credential(error.to_string()))
 }
 
-#[cfg(all(not(any(target_os = "macos", target_os = "android")), not(debug_assertions)))]
+#[cfg(all(
+    not(any(target_os = "macos", target_os = "android")),
+    not(debug_assertions)
+))]
 fn persist_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result<(), StoreError> {
     let payload =
         serde_json::to_string(secret).map_err(|error| StoreError::Invalid(error.to_string()))?;
@@ -533,11 +543,8 @@ fn load_keychain_secret(account_id: &str) -> Result<ProviderSecret, StoreError> 
         if let Some(manifest) = manifest.as_ref() {
             for generation in std::iter::once(&manifest.active).chain(manifest.previous.as_ref()) {
                 for index in 0..generation.chunks {
-                    let chunk_user = credential_chunk_user(
-                        account_id,
-                        &generation.generation,
-                        index,
-                    );
+                    let chunk_user =
+                        credential_chunk_user(account_id, &generation.generation, index);
                     let _ = delete_legacy_credential(&chunk_user);
                     let _ = delete_credential(&chunk_user);
                 }
@@ -560,13 +567,15 @@ pub fn load_provider_secret(account_id: &str) -> Result<ProviderSecret, StoreErr
 
     if let Some(path) = path.as_ref().filter(|p| p.exists()) {
         let data = fs::read(path).map_err(|error| StoreError::Credential(error.to_string()))?;
-        let secret: ProviderSecret =
-            serde_json::from_slice(&data).map_err(|error| StoreError::Invalid(error.to_string()))?;
+        let secret: ProviderSecret = serde_json::from_slice(&data)
+            .map_err(|error| StoreError::Invalid(error.to_string()))?;
         remember_secret(account_id, secret.clone());
         return Ok(secret);
     }
 
-    Err(StoreError::Credential("No matching entry found in secure storage".into()))
+    Err(StoreError::Credential(
+        "No matching entry found in secure storage".into(),
+    ))
 }
 
 #[cfg(all(not(target_os = "android"), not(debug_assertions)))]
@@ -683,8 +692,8 @@ pub fn load_or_create_bridge_token() -> Result<String, StoreError> {
     match entry.get_password() {
         Ok(value) if value.len() >= 32 => Ok(value),
         Ok(_) | Err(keyring::Error::NoEntry) => {
-            if let Ok(value) = credential_entry_for(LEGACY_CREDENTIAL_SERVICE, BRIDGE_TOKEN_USER)?
-                .get_password()
+            if let Ok(value) =
+                credential_entry_for(LEGACY_CREDENTIAL_SERVICE, BRIDGE_TOKEN_USER)?.get_password()
             {
                 if value.len() >= 32 {
                     entry
@@ -828,13 +837,13 @@ fn read_password(user: &str) -> Result<String, StoreError> {
 fn read_optional_password(user: &str) -> Result<Option<String>, StoreError> {
     match credential_entry_for(CREDENTIAL_SERVICE, user)?.get_password() {
         Ok(value) => Ok(Some(value)),
-        Err(keyring::Error::NoEntry) => match credential_entry_for(LEGACY_CREDENTIAL_SERVICE, user)?
-            .get_password()
-        {
-            Ok(value) => Ok(Some(value)),
-            Err(keyring::Error::NoEntry) => Ok(None),
-            Err(error) => Err(StoreError::Credential(error.to_string())),
-        },
+        Err(keyring::Error::NoEntry) => {
+            match credential_entry_for(LEGACY_CREDENTIAL_SERVICE, user)?.get_password() {
+                Ok(value) => Ok(Some(value)),
+                Err(keyring::Error::NoEntry) => Ok(None),
+                Err(error) => Err(StoreError::Credential(error.to_string())),
+            }
+        }
         Err(error) => Err(StoreError::Credential(error.to_string())),
     }
 }
@@ -1246,9 +1255,11 @@ mod tests {
 
     #[test]
     fn ignores_regular_provider_secret_json() {
-        assert!(parse_credential_manifest(r#"{"openai":{"accessToken":"token"}}"#)
-            .unwrap()
-            .is_none());
+        assert!(
+            parse_credential_manifest(r#"{"openai":{"accessToken":"token"}}"#)
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[test]
@@ -1286,7 +1297,10 @@ mod tests {
         assert_eq!(saved.label, "Renamed");
         assert_eq!(saved.email.as_deref(), Some("new@example.com"));
         assert_eq!(
-            saved.last_usage.as_ref().map(|usage| usage.fetched_at.as_str()),
+            saved
+                .last_usage
+                .as_ref()
+                .map(|usage| usage.fetched_at.as_str()),
             Some("2026-08-30T12:00:00Z")
         );
     }
@@ -1346,9 +1360,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let store = AccountStore::load(dir.path().to_path_buf()).unwrap();
         store.upsert(sample_account("one", "Main")).unwrap();
-        store
-            .remove_after_secret_result("one", Ok(()))
-            .unwrap();
+        store.remove_after_secret_result("one", Ok(())).unwrap();
         assert!(store.list().is_empty());
         let reopened = AccountStore::load(dir.path().to_path_buf()).unwrap();
         assert!(reopened.list().is_empty());
@@ -1365,36 +1377,39 @@ mod tests {
 
     #[test]
     fn failed_write_keeps_rotated_secret_and_retries() {
-        let dir = tempdir().unwrap();
-        set_data_dir(dir.path().to_path_buf());
         let id = "test-dirty-secret-retry";
         forget_secret(id);
         let original = sample_openai_secret("old");
-        save_provider_secret(id, &original).unwrap();
-
-        // Block the credentials directory with a file so the next write fails.
-        let credentials = dir.path().join("credentials");
-        let backup = dir.path().join("credentials-backup");
-        fs::rename(&credentials, &backup).unwrap();
-        fs::write(&credentials, b"blocked").unwrap();
+        save_provider_secret_with(id, &original, |_, _| Ok(())).unwrap();
 
         let rotated = sample_openai_secret("new");
-        assert!(save_provider_secret(id, &rotated).is_err());
+        let failed = save_provider_secret_with(id, &rotated, |_, _| {
+            Err(StoreError::Credential("keychain locked".into()))
+        });
+        assert!(failed.is_err());
         // Loads must return the rotated secret, not the stale stored one.
-        assert_eq!(load_provider_secret(id).unwrap(), rotated);
+        assert_eq!(cached_secret(id), Some(rotated.clone()));
         // A dirty entry never expires with the cache TTL.
         SECRET_CACHE.lock().get_mut(id).unwrap().cached_at =
             Instant::now() - SECRET_CACHE_TTL - Duration::from_secs(1);
-        assert_eq!(load_provider_secret(id).unwrap(), rotated);
+        assert_eq!(cached_secret(id), Some(rotated.clone()));
 
-        // Restore storage: saving the same secret again must actually write.
-        fs::remove_file(&credentials).unwrap();
-        fs::rename(&backup, &credentials).unwrap();
-        save_provider_secret(id, &rotated).unwrap();
+        // Saving the same secret again must attempt the write, not skip it.
+        let mut attempts = 0;
+        save_provider_secret_with(id, &rotated, |_, _| {
+            attempts += 1;
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(attempts, 1);
         assert!(!SECRET_CACHE.lock().get(id).unwrap().dirty);
+
+        // Once clean, an identical save is skipped again.
+        save_provider_secret_with(id, &rotated, |_, _| {
+            panic!("clean cached secret must not be rewritten")
+        })
+        .unwrap();
         forget_secret(id);
-        assert_eq!(load_provider_secret(id).unwrap(), rotated);
-        delete_secret(id).unwrap();
     }
 
     #[test]

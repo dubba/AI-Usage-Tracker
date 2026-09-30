@@ -1,6 +1,10 @@
 use base64::{engine::general_purpose::STANDARD, Engine};
 use image::{imageops::FilterType, ImageFormat};
-use std::{env, fs, io::Cursor, path::PathBuf};
+use std::{
+    env, fs,
+    io::Cursor,
+    path::{Path, PathBuf},
+};
 
 const WINDOWS_ICON_SIZES: [u32; 9] = [16, 20, 24, 32, 40, 48, 64, 128, 256];
 
@@ -25,7 +29,7 @@ fn encode_png(source: &image::DynamicImage, size: u32) -> Vec<u8> {
     png_cursor.into_inner()
 }
 
-fn write_windows_icon(icon_dir: &PathBuf, image: &image::DynamicImage) {
+fn write_windows_icon(icon_dir: &Path, image: &image::DynamicImage) {
     let images: Vec<(u32, Vec<u8>)> = WINDOWS_ICON_SIZES
         .into_iter()
         .map(|size| (size, encode_png(image, size)))
@@ -59,7 +63,7 @@ fn write_windows_icon(icon_dir: &PathBuf, image: &image::DynamicImage) {
     write_file_if_changed(icon_dir.join("icon.ico"), &ico);
 }
 
-fn write_macos_icon(icon_dir: &PathBuf, image: &image::DynamicImage) {
+fn write_macos_icon(icon_dir: &Path, image: &image::DynamicImage) {
     let entries: [(&[u8], u32); 6] = [
         (b"icp4", 16),
         (b"icp5", 32),
@@ -95,7 +99,7 @@ const ANDROID_MIPMAP_SIZES: [(&str, u32, u32); 5] = [
     ("mipmap-xxxhdpi", 192, 432),
 ];
 
-fn write_android_icons(manifest_dir: &PathBuf, image: &image::DynamicImage) {
+fn write_android_icons(manifest_dir: &Path, image: &image::DynamicImage) {
     let res_dir = manifest_dir.join("gen/android/app/src/main/res");
     if !res_dir.exists() {
         return;
@@ -124,7 +128,10 @@ fn write_android_icons(manifest_dir: &PathBuf, image: &image::DynamicImage) {
 "#;
 
     write_file_if_changed(anydpi_dir.join("ic_launcher.xml"), adaptive_xml.as_bytes());
-    write_file_if_changed(anydpi_dir.join("ic_launcher_round.xml"), adaptive_xml.as_bytes());
+    write_file_if_changed(
+        anydpi_dir.join("ic_launcher_round.xml"),
+        adaptive_xml.as_bytes(),
+    );
 }
 
 fn main() {
@@ -162,11 +169,18 @@ fn main() {
     patch_android_webview_templates(&manifest_dir);
 }
 
-fn patch_android_webview_templates(manifest_dir: &PathBuf) {
-    let generated = manifest_dir.join("gen/android/app/src/main/java/com/yajinni/paseousagebridge/generated");
+fn patch_android_webview_templates(manifest_dir: &Path) {
+    let generated =
+        manifest_dir.join("gen/android/app/src/main/java/com/yajinni/paseousagebridge/generated");
     patch_file(&generated.join("RustWebView.kt"), patch_rust_webview);
-    patch_file(&generated.join("RustWebChromeClient.kt"), patch_chrome_client);
-    patch_file(&generated.join("RustWebViewClient.kt"), patch_webview_client);
+    patch_file(
+        &generated.join("RustWebChromeClient.kt"),
+        patch_chrome_client,
+    );
+    patch_file(
+        &generated.join("RustWebViewClient.kt"),
+        patch_webview_client,
+    );
 }
 
 fn patch_file(path: &PathBuf, patch: fn(&str) -> String) {

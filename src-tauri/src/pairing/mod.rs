@@ -153,7 +153,9 @@ impl PairingSessionManager {
 
     pub async fn select_role(&self, role: &str) -> Result<(), String> {
         if role != "send" && role != "receive" {
-            return Err(format!("Invalid role '{role}'. Expected 'send' or 'receive'."));
+            return Err(format!(
+                "Invalid role '{role}'. Expected 'send' or 'receive'."
+            ));
         }
         let mut active = self.active.write().await;
         let Some(session) = active.as_mut() else {
@@ -206,14 +208,16 @@ impl PairingSessionManager {
             .map_err(|e| format!("Failed to get local port: {e}"))?
             .port();
 
-        let fingerprint = compute_display_fingerprint(
-            &session_id,
+        let fingerprint =
+            compute_display_fingerprint(&session_id, &keypair.public_bytes(), &session_nonce);
+
+        let qr_uri = generate_qr_uri(
+            &ip,
+            port,
             &keypair.public_bytes(),
+            session_id,
             &session_nonce,
         );
-
-        let qr_uri =
-            generate_qr_uri(&ip, port, &keypair.public_bytes(), session_id, &session_nonce);
         let qr_svg = generate_qr_svg(&qr_uri)?;
 
         // Join code is generated immediately so the UI can render. mDNS

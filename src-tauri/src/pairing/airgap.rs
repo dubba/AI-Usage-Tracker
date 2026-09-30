@@ -159,10 +159,7 @@ pub fn parse_airgap_uri(raw_uri: &str) -> Result<ParsedAirgapChunk, String> {
         return Err(format!("Unsupported scheme '{}'", url.scheme()));
     }
 
-    let path_segments: Vec<&str> = url
-        .path_segments()
-        .map(|s| s.collect())
-        .unwrap_or_default();
+    let path_segments: Vec<&str> = url.path_segments().map(|s| s.collect()).unwrap_or_default();
 
     let (session_id, chunk_index, total_chunks, expected_crc) = if url.host_str() == Some("1") {
         if path_segments.len() < 4 {
@@ -360,8 +357,7 @@ mod tests {
         // Test tampered frames fail verification (checksum mismatch surfaces first)
         let mut tampered_uris = uris.clone();
         tampered_uris[0] = tampered_uris[0].replace("d=", "d=corrupted");
-        let err = verify_airgap_frames(tampered_uris)
-            .unwrap_err();
+        let err = verify_airgap_frames(tampered_uris).unwrap_err();
         assert!(err.contains("checksum mismatch"));
 
         // Test corrupted URI fails checksum
@@ -373,13 +369,14 @@ mod tests {
         assert!(err.contains("checksum mismatch"));
 
         // Test empty frames list
-        let err_empty = import_airgap_payload(&state2, vec![])
-            .await
-            .unwrap_err();
+        let err_empty = import_airgap_payload(&state2, vec![]).await.unwrap_err();
         assert!(err_empty.contains("No air-gap frames provided"));
 
         // Test missing frame (frame specifies total_chunks=2 but only 1 is provided)
-        let incomplete_uri = uris[0].replace(&format!("/1/{}/", export.total_chunks), &format!("/1/{}/", export.total_chunks + 1));
+        let incomplete_uri = uris[0].replace(
+            &format!("/1/{}/", export.total_chunks),
+            &format!("/1/{}/", export.total_chunks + 1),
+        );
         let err_missing = import_airgap_payload(&state2, vec![incomplete_uri])
             .await
             .unwrap_err();
@@ -396,9 +393,13 @@ mod tests {
         let oversized = vec![b'A'; 1024 * 1024];
         let compressed = miniz_oxide::deflate::compress_to_vec(&oversized, 6);
         let res = miniz_oxide::inflate::decompress_to_vec_with_limit(&compressed, 512 * 1024);
-        assert!(res.is_err(), "Decompression exceeding limit must be rejected");
+        assert!(
+            res.is_err(),
+            "Decompression exceeding limit must be rejected"
+        );
 
-        let res_ok = miniz_oxide::inflate::decompress_to_vec_with_limit(&compressed, 2 * 1024 * 1024);
+        let res_ok =
+            miniz_oxide::inflate::decompress_to_vec_with_limit(&compressed, 2 * 1024 * 1024);
         assert!(res_ok.is_ok(), "Decompression within limit must succeed");
     }
 }

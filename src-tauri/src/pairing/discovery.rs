@@ -183,8 +183,7 @@ async fn wait_for_resolution(
             .iter()
             .find(|ip| {
                 let octets = ip.octets();
-                let is_cgnat_tailscale =
-                    octets[0] == 100 && (octets[1] >= 64 && octets[1] <= 127);
+                let is_cgnat_tailscale = octets[0] == 100 && (octets[1] >= 64 && octets[1] <= 127);
                 !is_cgnat_tailscale
                     && ((octets[0] == 192 && octets[1] == 168)
                         || octets[0] == 10
@@ -261,8 +260,7 @@ pub fn parsed_from_resolved(
         return Err("Invalid public key from mDNS".into());
     }
 
-    let nonce_b64 =
-        nonce_b64.ok_or_else(|| "Pairing service is missing its nonce".to_string())?;
+    let nonce_b64 = nonce_b64.ok_or_else(|| "Pairing service is missing its nonce".to_string())?;
     if nonce_b64.len() > 128 {
         return Err("Invalid nonce from mDNS".into());
     }
@@ -330,10 +328,7 @@ mod tests {
     #[test]
     fn rejects_invalid_codes() {
         for code in ["", "12345", "1234567", "abcdef", "12345x"] {
-            assert!(matches!(
-                advertise(code, "127.0.0.1", 1, Uuid::nil(), &[0u8; 32], &[0u8; 16]),
-                Err(_)
-            ));
+            assert!(advertise(code, "127.0.0.1", 1, Uuid::nil(), &[0u8; 32], &[0u8; 16]).is_err());
         }
     }
 

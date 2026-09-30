@@ -9,7 +9,7 @@ use crate::{
     model::{Account, ProviderSecret, UsageWindow},
     state::AppState,
 };
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -18,6 +18,25 @@ pub enum ProviderError {
     Auth,
     #[error("{0}")]
     Transient(String),
+    /// The provider asked us to slow down. `retry_after` is the provider's own
+    /// hint (from `Retry-After`) when it sent a usable one.
+    #[error("{message}")]
+    RateLimited {
+        message: String,
+        retry_after: Option<Duration>,
+    },
+}
+
+/// Parses an HTTP `Retry-After` value: either delay-seconds or an HTTP-date.
+/// Returns `None` for anything unusable, and never a negative delay.
+pub fn parse_retry_after(value: &str) -> Option<Duration> {
+    let value = value.trim();
+    if let Ok(seconds) = value.parse::<u64>() {
+        return Some(Duration::from_secs(seconds));
+    }
+    let when = chrono::DateTime::parse_from_rfc2822(value).ok()?;
+    let delay = when.signed_duration_since(chrono::Utc::now());
+    Some(delay.to_std().unwrap_or(Duration::ZERO))
 }
 
 #[derive(Clone, Debug)]
@@ -61,5 +80,34 @@ pub async fn refresh(
             let (usage, secret) = grok::refresh(app.as_ref(), account, &secret).await?;
             Ok((usage, ProviderSecret::Grok(secret)))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn retry_after_accepts_seconds_and_http_dates() {
+        assert_eq!(parse_retry_after("120"), Some(Duration::from_secs(120)));
+        assert_eq!(parse_retry_after(" 7 "), Some(Duration::from_secs(7)));
+        assert_eq!(parse_retry_after("0"), Some(Duration::ZERO));
+
+        let future = (chrono::Utc::now() + chrono::Duration::seconds(90)).to_rfc2822();
+        let parsed = parse_retry_after(&future).unwrap();
+        assert!(parsed <= Duration::from_secs(90) && parsed >= Duration::from_secs(80));
+
+        // A date in the past means "retry now", never a negative delay.
+        assert_eq!(
+            parse_retry_after("Wed, 21 Oct 2015 07:28:00 GMT"),
+            Some(Duration::ZERO)
+        );
+    }
+
+    #[test]
+    fn retry_after_rejects_garbage() {
+        assert_eq!(parse_retry_after(""), None);
+        assert_eq!(parse_retry_after("soon"), None);
+        assert_eq!(parse_retry_after("-5"), None);
     }
 }

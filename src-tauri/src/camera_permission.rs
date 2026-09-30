@@ -15,8 +15,8 @@ mod macos {
     use std::time::Duration;
 
     use block2::RcBlock;
-    use objc2::runtime::{AnyClass, AnyObject, Bool};
     use objc2::msg_send;
+    use objc2::runtime::{AnyClass, AnyObject, Bool};
 
     #[link(name = "AVFoundation", kind = "framework")]
     extern "C" {

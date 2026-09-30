@@ -45,10 +45,7 @@ pub fn verify_apk_signature(path: &Path) -> Result<(), String> {
 }
 
 pub fn show_download_progress(percent: i32, indeterminate: bool) {
-    let args = [
-        JValue::Int(percent),
-        JValue::Bool(u8::from(indeterminate)),
-    ];
+    let args = [JValue::Int(percent), JValue::Bool(u8::from(indeterminate))];
     let _ = call("showUpdateDownloadProgress", "(IZ)V", &args, false);
 }
 
@@ -60,21 +57,11 @@ pub fn clear_update_notification() {
     let _ = call("clearUpdateNotification", "()V", &[], false);
 }
 
-fn call_path(
-    path: &Path,
-    name: &str,
-    sig: &str,
-    expect_string: bool,
-) -> Result<String, String> {
+fn call_path(path: &Path, name: &str, sig: &str, expect_string: bool) -> Result<String, String> {
     call_string(name, sig, path.to_string_lossy().as_ref(), expect_string)
 }
 
-fn call_string(
-    name: &str,
-    sig: &str,
-    value: &str,
-    expect_string: bool,
-) -> Result<String, String> {
+fn call_string(name: &str, sig: &str, value: &str, expect_string: bool) -> Result<String, String> {
     let ctx = ndk_context::android_context();
     let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }
         .map_err(|error| format!("Unable to start the Android installer: {error}"))?;

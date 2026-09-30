@@ -23,8 +23,8 @@ pub struct EphemeralKeyPair {
 
 impl EphemeralKeyPair {
     pub fn generate() -> Self {
-        let mut rng = rand::rngs::OsRng;
-        let secret = StaticSecret::random_from_rng(&mut rng);
+        let rng = rand::rngs::OsRng;
+        let secret = StaticSecret::random_from_rng(rng);
         let public = PublicKey::from(&secret);
         Self { secret, public }
     }
@@ -43,7 +43,7 @@ impl EphemeralKeyPair {
         // Reject low-order (non-contributory) peer public keys: they force a
         // predictable all-zero shared secret, which would make the derived
         // encryption key and SAS code attacker-known.
-        if !bool::from(shared.was_contributory()) {
+        if !shared.was_contributory() {
             return Err(
                 "Peer public key is invalid (non-contributory). Aborting pairing.".to_string(),
             );

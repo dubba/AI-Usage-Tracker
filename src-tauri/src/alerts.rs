@@ -120,10 +120,16 @@ impl AlertStore {
         let mut seen = HashSet::new();
         for setting in &settings {
             if !ALERT_WINDOW_IDS.contains(&setting.window_id.as_str()) {
-                return Err(format!("Unsupported usage alert window: {}", setting.window_id));
+                return Err(format!(
+                    "Unsupported usage alert window: {}",
+                    setting.window_id
+                ));
             }
             if !seen.insert(setting.window_id.as_str()) {
-                return Err(format!("Duplicate usage alert window: {}", setting.window_id));
+                return Err(format!(
+                    "Duplicate usage alert window: {}",
+                    setting.window_id
+                ));
             }
             if !(1..=100).contains(&setting.threshold_percent) {
                 return Err("Alert thresholds must be between 1% and 100%.".into());
@@ -148,7 +154,8 @@ impl AlertStore {
                     window_id: setting.window_id.clone(),
                     enabled: setting.enabled,
                     threshold_percent: setting.threshold_percent,
-                    last_notified_key: previous.and_then(|candidate| candidate.last_notified_key.clone()),
+                    last_notified_key: previous
+                        .and_then(|candidate| candidate.last_notified_key.clone()),
                 }
             })
             .collect::<Vec<_>>();
@@ -185,7 +192,10 @@ impl AlertStore {
                     }
                     if account.provider == crate::model::Provider::Openai
                         && setting.window_id == "monthly"
-                        && account.plan.as_deref().map_or(true, |p| p.eq_ignore_ascii_case("free"))
+                        && account
+                            .plan
+                            .as_deref()
+                            .is_none_or(|p| p.eq_ignore_ascii_case("free"))
                         && (window.id == "session" || window.id == "monthly")
                     {
                         return true;
@@ -208,21 +218,26 @@ impl AlertStore {
                 .collect();
 
             for window in matching_windows {
-                let Some(remaining) = window.remaining_percent.filter(|value| value.is_finite()) else {
+                let Some(remaining) = window.remaining_percent.filter(|value| value.is_finite())
+                else {
                     continue;
                 };
                 let remaining = remaining.clamp(0.0, 100.0).round() as u8;
                 let period = window.resets_at.as_deref().unwrap_or(&usage.fetched_at);
-                let notification_key = format!("{}:{}:{}", window.id, period, setting.threshold_percent);
+                let notification_key =
+                    format!("{}:{}:{}", window.id, period, setting.threshold_percent);
                 let legacy_key = format!("{period}:{}", setting.threshold_percent);
 
                 if remaining <= setting.threshold_percent {
-                    if !notified_keys.contains(&notification_key) && !notified_keys.contains(&legacy_key) {
+                    if !notified_keys.contains(&notification_key)
+                        && !notified_keys.contains(&legacy_key)
+                    {
                         notified_keys.insert(notification_key);
                         changed = true;
 
                         let base_label = display_window_label(&setting.window_id);
-                        let window_label = if let Some((group, _)) = window.label.split_once(" · ") {
+                        let window_label = if let Some((group, _)) = window.label.split_once(" · ")
+                        {
                             let clean_group = group.trim();
                             if !clean_group.is_empty() {
                                 format!("{base_label} ({clean_group})")
@@ -239,7 +254,9 @@ impl AlertStore {
                             threshold_percent: setting.threshold_percent,
                         });
                     }
-                } else if notified_keys.remove(&notification_key) || notified_keys.remove(&legacy_key) {
+                } else if notified_keys.remove(&notification_key)
+                    || notified_keys.remove(&legacy_key)
+                {
                     changed = true;
                 }
             }
@@ -317,7 +334,7 @@ pub fn canonical_window_id(window: &UsageWindow) -> Option<&'static str> {
         || id.contains("30_day")
         || window
             .window_seconds
-            .map_or(false, |s| s >= 2_000_000 && s <= 2_700_000)
+            .is_some_and(|s| (2_000_000..=2_700_000).contains(&s))
         || label.contains("monthly")
         || label.contains("30 day")
         || label.contains("thirty day")
@@ -549,8 +566,12 @@ mod tests {
         // First evaluation: Gemini 5h and Gemini weekly are below 20%
         let alerts = store.evaluate(&account).unwrap();
         assert_eq!(alerts.len(), 2);
-        assert!(alerts.iter().any(|a| a.window_label == "5 hour (Gemini models)" && a.remaining_percent == 15));
-        assert!(alerts.iter().any(|a| a.window_label == "Weekly (Gemini models)" && a.remaining_percent == 8));
+        assert!(alerts
+            .iter()
+            .any(|a| a.window_label == "5 hour (Gemini models)" && a.remaining_percent == 15));
+        assert!(alerts
+            .iter()
+            .any(|a| a.window_label == "Weekly (Gemini models)" && a.remaining_percent == 8));
 
         // Second evaluation with identical usage: no duplicate alerts
         let alerts_second = store.evaluate(&account).unwrap();

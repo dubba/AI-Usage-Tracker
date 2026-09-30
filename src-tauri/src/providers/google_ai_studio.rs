@@ -286,7 +286,7 @@ pub async fn add_account(
         provider_account_id: duplicate
             .as_ref()
             .and_then(|account| account.provider_account_id.clone())
-            .or_else(|| Some(provider_account_id)),
+            .or(Some(provider_account_id)),
         chatgpt_account_id: None,
         plan: Some(ACCOUNT_PLAN.into()),
         created_at: duplicate
@@ -359,7 +359,9 @@ pub async fn refresh(
         oauth = refresh_cloud_secret(app, oauth).await?;
         secret.cloud_oauth = Some(oauth.clone());
         save_provider_secret(&account.id, &ProviderSecret::GoogleAiStudio(secret.clone()))
-            .map_err(|_| ProviderError::Transient("Unable to save refreshed credentials.".into()))?;
+            .map_err(|_| {
+                ProviderError::Transient("Unable to save refreshed credentials.".into())
+            })?;
     }
 
     let windows = fetch_cloud_usage(app, &project_id, &oauth.access_token, &selected).await?;
@@ -580,10 +582,7 @@ async fn google_json<T: DeserializeOwned>(
     request: RequestBuilder,
     context: &str,
 ) -> Result<T, ProviderError> {
-    let response = request
-        .send()
-        .await
-        .map_err(|_| network_error(context))?;
+    let response = request.send().await.map_err(|_| network_error(context))?;
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     if status == StatusCode::UNAUTHORIZED {
@@ -600,18 +599,16 @@ async fn google_json<T: DeserializeOwned>(
             status.as_u16()
         )));
     }
-    serde_json::from_str(&body).map_err(|_| {
-        ProviderError::Transient(format!("{context} returned unreadable data."))
-    })
+    serde_json::from_str(&body)
+        .map_err(|_| ProviderError::Transient(format!("{context} returned unreadable data.")))
 }
 
 async fn refresh_cloud_secret(
     app: &AppState,
     secret: OAuthSecret,
 ) -> Result<OAuthSecret, ProviderError> {
-    let client_secret = zeroize::Zeroizing::new(
-        String::from_utf8_lossy(GOOGLE_CLIENT_SECRET_BYTES).to_string(),
-    );
+    let client_secret =
+        zeroize::Zeroizing::new(String::from_utf8_lossy(GOOGLE_CLIENT_SECRET_BYTES).to_string());
     let response = app
         .client
         .post("https://oauth2.googleapis.com/token")

@@ -62,17 +62,17 @@ pub async fn refresh(
 ) -> Result<(ProviderUsage, OAuthSecret), ProviderError> {
     if secret.expires_within(300) {
         secret = refresh_secret(app, secret).await?;
-        save_provider_secret(&account.id, &ProviderSecret::Openai(secret.clone()))
-            .map_err(|_| ProviderError::Transient("Unable to save refreshed credentials.".into()))?;
+        save_provider_secret(&account.id, &ProviderSecret::Openai(secret.clone())).map_err(
+            |_| ProviderError::Transient("Unable to save refreshed credentials.".into()),
+        )?;
     }
 
     let raw = match call_usage(app, account, &secret).await {
         Err(ProviderError::Auth) => {
             secret = refresh_secret(app, secret).await?;
-            save_provider_secret(&account.id, &ProviderSecret::Openai(secret.clone()))
-                .map_err(|_| {
-                    ProviderError::Transient("Unable to save refreshed credentials.".into())
-                })?;
+            save_provider_secret(&account.id, &ProviderSecret::Openai(secret.clone())).map_err(
+                |_| ProviderError::Transient("Unable to save refreshed credentials.".into()),
+            )?;
             call_usage(app, account, &secret).await?
         }
         result => result?,
@@ -81,8 +81,8 @@ pub async fn refresh(
     let is_free_plan = raw
         .plan_type
         .as_deref()
-        .or_else(|| account.plan.as_deref())
-        .map_or(false, |p| p.eq_ignore_ascii_case("free"));
+        .or(account.plan.as_deref())
+        .is_some_and(|p| p.eq_ignore_ascii_case("free"));
 
     let mut windows = Vec::new();
     if let Some(window) = raw
@@ -95,9 +95,9 @@ pub async fn refresh(
             .as_ref()
             .and_then(value_as_u64)
             .or_else(|| window.reset_after_seconds.as_ref().and_then(value_as_u64));
-        let (id, label) = if window_seconds.map_or(false, |s| s >= 2_000_000) || is_free_plan {
+        let (id, label) = if window_seconds.is_some_and(|s| s >= 2_000_000) || is_free_plan {
             ("monthly", "GPT · 30-Day Limit")
-        } else if window_seconds.map_or(false, |s| s >= 500_000) {
+        } else if window_seconds.is_some_and(|s| s >= 500_000) {
             ("weekly", "GPT · Weekly Limit")
         } else {
             ("session", "GPT · Session Limit")
@@ -114,7 +114,7 @@ pub async fn refresh(
             .as_ref()
             .and_then(value_as_u64)
             .or_else(|| window.reset_after_seconds.as_ref().and_then(value_as_u64));
-        let (id, label) = if window_seconds.map_or(false, |s| s >= 2_000_000) {
+        let (id, label) = if window_seconds.is_some_and(|s| s >= 2_000_000) {
             ("monthly", "GPT · 30-Day Limit")
         } else {
             ("weekly", "GPT · Weekly Limit")
@@ -126,7 +126,11 @@ pub async fn refresh(
         .as_ref()
         .and_then(|rate| rate.primary_window.as_ref())
     {
-        windows.push(normalize_window("code_review", "Code Review · Limit", window));
+        windows.push(normalize_window(
+            "code_review",
+            "Code Review · Limit",
+            window,
+        ));
     }
     if windows.is_empty() {
         return Err(ProviderError::Transient(
@@ -191,17 +195,24 @@ async fn call_usage(
         return Err(ProviderError::Auth);
     }
     if status == StatusCode::FORBIDDEN {
-        return Err(ProviderError::Transient(if body.trim_start().starts_with('<') {
-            "OpenAI returned an HTML access challenge. Cached usage is being kept.".into()
-        } else {
-            "OpenAI denied the usage request. Cached usage is being kept.".into()
-        }));
+        return Err(ProviderError::Transient(
+            if body.trim_start().starts_with('<') {
+                "OpenAI returned an HTML access challenge. Cached usage is being kept.".into()
+            } else {
+                "OpenAI denied the usage request. Cached usage is being kept.".into()
+            },
+        ));
     }
     if status == StatusCode::TOO_MANY_REQUESTS {
-        return Err(ProviderError::Transient(match retry_after {
-            Some(value) => format!("OpenAI rate-limited the usage request. Retry after {value}."),
-            None => "OpenAI rate-limited the usage request.".into(),
-        }));
+        return Err(ProviderError::RateLimited {
+            message: match retry_after.as_deref() {
+                Some(value) => {
+                    format!("OpenAI rate-limited the usage request. Retry after {value}.")
+                }
+                None => "OpenAI rate-limited the usage request.".into(),
+            },
+            retry_after: retry_after.as_deref().and_then(super::parse_retry_after),
+        });
     }
     if !status.is_success() {
         return Err(ProviderError::Transient(format!(
@@ -213,15 +224,11 @@ async fn call_usage(
             "OpenAI returned HTML instead of usage JSON.".into(),
         ));
     }
-    serde_json::from_str(&body).map_err(|_| {
-        ProviderError::Transient("OpenAI returned incompatible usage data.".into())
-    })
+    serde_json::from_str(&body)
+        .map_err(|_| ProviderError::Transient("OpenAI returned incompatible usage data.".into()))
 }
 
-async fn refresh_secret(
-    app: &AppState,
-    secret: OAuthSecret,
-) -> Result<OAuthSecret, ProviderError> {
+async fn refresh_secret(app: &AppState, secret: OAuthSecret) -> Result<OAuthSecret, ProviderError> {
     let response = app
         .client
         .post(TOKEN_URL)
@@ -247,9 +254,10 @@ async fn refresh_secret(
             "OpenAI token refresh returned {status}."
         )));
     }
-    let tokens: RefreshResponse = response.json().await.map_err(|_| {
-        ProviderError::Transient("Invalid OpenAI token refresh response.".into())
-    })?;
+    let tokens: RefreshResponse = response
+        .json()
+        .await
+        .map_err(|_| ProviderError::Transient("Invalid OpenAI token refresh response.".into()))?;
     let expires_at = Utc::now().timestamp_millis() + tokens.expires_in * 1000;
     Ok(OAuthSecret {
         access_token: tokens.access_token,
@@ -367,4 +375,3 @@ mod tests {
         assert!(window.resets_at.is_some());
     }
 }
-

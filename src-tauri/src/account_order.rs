@@ -78,15 +78,29 @@ impl AccountOrderStore {
         Ok(ordered)
     }
 
-    pub fn save(&self, requested_ids: Vec<String>, accounts: Vec<Account>) -> Result<Vec<Account>, String> {
+    pub fn save(
+        &self,
+        requested_ids: Vec<String>,
+        accounts: Vec<Account>,
+    ) -> Result<Vec<Account>, String> {
         if requested_ids.len() != accounts.len() {
-            return Err("The account order must include every connected account exactly once.".into());
+            return Err(
+                "The account order must include every connected account exactly once.".into(),
+            );
         }
 
-        let expected = accounts.iter().map(|account| account.id.as_str()).collect::<HashSet<_>>();
-        let requested = requested_ids.iter().map(String::as_str).collect::<HashSet<_>>();
+        let expected = accounts
+            .iter()
+            .map(|account| account.id.as_str())
+            .collect::<HashSet<_>>();
+        let requested = requested_ids
+            .iter()
+            .map(String::as_str)
+            .collect::<HashSet<_>>();
         if requested.len() != requested_ids.len() || requested != expected {
-            return Err("The account order contains a duplicate, missing, or unknown account.".into());
+            return Err(
+                "The account order contains a duplicate, missing, or unknown account.".into(),
+            );
         }
 
         *self.account_ids.write() = requested_ids;
@@ -151,7 +165,13 @@ mod tests {
         let store = AccountOrderStore::load(directory.path()).unwrap();
         let accounts = vec![account("a", "Alpha"), account("b", "Beta")];
         let ordered = store.save(vec!["b".into(), "a".into()], accounts).unwrap();
-        assert_eq!(ordered.iter().map(|account| account.id.as_str()).collect::<Vec<_>>(), vec!["b", "a"]);
+        assert_eq!(
+            ordered
+                .iter()
+                .map(|account| account.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["b", "a"]
+        );
     }
 
     #[test]

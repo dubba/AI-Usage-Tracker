@@ -61,7 +61,8 @@ pub async fn run_controller(app: Arc<AppState>) {
                     Err(error) => {
                         set_runtime(&app, false, Some(format!("Local API stopped: {error}")));
                         if app.settings.paseo_bridge_enabled() {
-                            tokio::time::sleep(std::time::Duration::from_secs(RETRY_DELAY_SECONDS)).await;
+                            tokio::time::sleep(std::time::Duration::from_secs(RETRY_DELAY_SECONDS))
+                                .await;
                         }
                     }
                 }
@@ -95,7 +96,9 @@ fn with_security_headers(mut response: axum::response::Response) -> axum::respon
     let _ = headers.try_insert("x-frame-options", "DENY".parse().unwrap());
     let _ = headers.try_insert(
         "content-security-policy",
-        "default-src 'none'; frame-ancestors 'none'".parse().unwrap(),
+        "default-src 'none'; frame-ancestors 'none'"
+            .parse()
+            .unwrap(),
     );
     let _ = headers.try_insert(
         "cross-origin-resource-policy",
@@ -137,7 +140,10 @@ fn is_loopback_origin(origin: &str) -> bool {
     let lower = origin.to_ascii_lowercase();
     matches!(
         lower.as_str(),
-        "http://127.0.0.1:47831" | "http://localhost:47831" | "http://127.0.0.1" | "http://localhost"
+        "http://127.0.0.1:47831"
+            | "http://localhost:47831"
+            | "http://127.0.0.1"
+            | "http://localhost"
     )
 }
 
@@ -205,9 +211,7 @@ async fn usage(
                 label: account.label,
                 provider: account.provider,
                 email: account.email,
-                provider_account_id: account
-                    .provider_account_id
-                    .or(account.chatgpt_account_id),
+                provider_account_id: account.provider_account_id.or(account.chatgpt_account_id),
                 plan: account.plan,
                 status: status.into(),
                 source: usage.as_ref().map(|usage| usage.source.clone()),
@@ -236,11 +240,7 @@ async fn usage(
 
 fn forbidden() -> axum::response::Response {
     with_security_headers(
-        (
-            StatusCode::FORBIDDEN,
-            Json(json!({ "error": "forbidden" })),
-        )
-            .into_response(),
+        (StatusCode::FORBIDDEN, Json(json!({ "error": "forbidden" }))).into_response(),
     )
 }
 
@@ -342,7 +342,10 @@ mod tests {
         assert!(!authorized(&app, &HeaderMap::new()));
 
         let mut headers = HeaderMap::new();
-        headers.insert(AUTHORIZATION, HeaderValue::from_static("Bearer wrong-token"));
+        headers.insert(
+            AUTHORIZATION,
+            HeaderValue::from_static("Bearer wrong-token"),
+        );
         assert!(!authorized(&app, &headers));
 
         headers.insert(
@@ -384,10 +387,7 @@ mod tests {
         assert!(!origin_allowed(&cross));
 
         let mut referer = HeaderMap::new();
-        referer.insert(
-            REFERER,
-            HeaderValue::from_static("http://evil.com/page"),
-        );
+        referer.insert(REFERER, HeaderValue::from_static("http://evil.com/page"));
         assert!(!origin_allowed(&referer));
     }
 
@@ -425,7 +425,10 @@ mod tests {
     fn responses_carry_defensive_headers() {
         for response in [unauthorized(), forbidden(), too_many_requests()] {
             assert_eq!(
-                response.headers().get("cache-control").and_then(|v| v.to_str().ok()),
+                response
+                    .headers()
+                    .get("cache-control")
+                    .and_then(|v| v.to_str().ok()),
                 Some("no-store")
             );
             assert_eq!(

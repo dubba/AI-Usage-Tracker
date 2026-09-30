@@ -3,6 +3,7 @@ use crate::{
     alerts::AlertStore,
     buckets::BucketStore,
     model::{Account, LoginStatus, ProviderSecret},
+    refresh_backoff::RefreshBackoff,
     settings::SettingsStore,
     store::{AccountStore, StoreError},
 };
@@ -16,7 +17,10 @@ use std::{
     time::{Duration, Instant},
 };
 use tauri::AppHandle;
-use tokio::sync::{oneshot, Mutex as AsyncMutex, Notify};
+use tokio::sync::{oneshot, Mutex as AsyncMutex, Notify, Semaphore};
+
+/// Most accounts refreshed at the same time.
+pub const MAX_CONCURRENT_REFRESHES: usize = 4;
 
 #[derive(Clone, Debug)]
 pub struct ApiRuntime {
@@ -57,6 +61,11 @@ pub struct AppState {
     pub app_handle: RwLock<Option<AppHandle>>,
     pub pairing: Arc<crate::pairing::PairingSessionManager>,
     account_locks: Mutex<HashMap<String, Arc<AsyncMutex<()>>>>,
+    /// Caps how many accounts are refreshed at once so a large account list
+    /// does not open dozens of simultaneous provider connections.
+    pub refresh_permits: Arc<Semaphore>,
+    /// Failure backoff for automatic refreshes (in memory only).
+    pub refresh_backoff: Mutex<RefreshBackoff>,
     refresh_wakeup: Notify,
     refresh_check: Notify,
     #[allow(dead_code)]
@@ -114,6 +123,8 @@ impl AppState {
             app_handle: RwLock::new(None),
             pairing: Arc::new(crate::pairing::PairingSessionManager::new()),
             account_locks: Mutex::new(HashMap::new()),
+            refresh_permits: Arc::new(Semaphore::new(MAX_CONCURRENT_REFRESHES)),
+            refresh_backoff: Mutex::new(RefreshBackoff::default()),
             refresh_wakeup: Notify::new(),
             refresh_check: Notify::new(),
             data_dir,
@@ -203,6 +214,43 @@ impl AppState {
             .clone()
     }
 
+    /// Drops the lock entry for a removed account once nobody else holds or
+    /// awaits it, so the map does not grow with every account ever added.
+    fn forget_account_lock(&self, account_id: &str) {
+        let mut locks = self.account_locks.lock();
+        if locks
+            .get(account_id)
+            .is_some_and(|lock| Arc::strong_count(lock) == 1)
+        {
+            locks.remove(account_id);
+        }
+    }
+
+    /// Removes an account and everything keyed by it. Holds the account's lock
+    /// for the whole removal so it cannot interleave with an in-flight refresh:
+    /// a refresh that saved rotated credentials after the delete would leave an
+    /// orphaned secret behind for an account the user removed.
+    pub async fn remove_account(&self, account_id: &str) -> Result<(), String> {
+        let lock = self.account_lock(account_id);
+        let guard = lock.clone().lock_owned().await;
+        let result = self.remove_account_locked(account_id);
+        drop(guard);
+        drop(lock);
+        self.forget_account_lock(account_id);
+        result
+    }
+
+    fn remove_account_locked(&self, account_id: &str) -> Result<(), String> {
+        self.store
+            .remove(account_id)
+            .map_err(|error| error.to_string())?;
+        self.refresh_backoff.lock().forget(account_id);
+        self.account_order.remove(account_id)?;
+        self.alerts.remove(account_id)?;
+        self.buckets.cleanup_account(account_id)?;
+        Ok(())
+    }
+
     pub async fn persist_connected_account(
         &self,
         account: Account,
@@ -214,11 +262,7 @@ impl AppState {
     }
 }
 
-fn load_with_metadata_recovery<T, F>(
-    data_dir: &Path,
-    file_name: &str,
-    load: F,
-) -> Result<T, String>
+fn load_with_metadata_recovery<T, F>(data_dir: &Path, file_name: &str, load: F) -> Result<T, String>
 where
     F: Fn() -> Result<T, String>,
 {
@@ -292,10 +336,61 @@ mod tests {
         assert!(!state.abandon_waiting_login("attempt-1"));
     }
 
+    #[tokio::test]
+    async fn remove_account_waits_for_an_in_flight_refresh() {
+        let directory = tempfile::tempdir().unwrap();
+        let state =
+            Arc::new(AppState::new(directory.path().to_path_buf(), "test-token".into()).unwrap());
+        let id = "state-remove-waits";
+        let now = crate::model::now_rfc3339();
+        let account = Account {
+            id: id.into(),
+            label: "Removal".into(),
+            provider: crate::model::Provider::Openai,
+            email: None,
+            provider_account_id: None,
+            chatgpt_account_id: None,
+            plan: None,
+            created_at: now.clone(),
+            updated_at: now,
+            last_usage: None,
+            last_error: None,
+            auth_required: false,
+        };
+        let secret = ProviderSecret::Openai(crate::model::OAuthSecret {
+            access_token: "a".into(),
+            refresh_token: "r".into(),
+            id_token: None,
+            expires_at: 1,
+        });
+        state.store.persist_account(account, &secret).unwrap();
+
+        // An in-flight refresh holds the account lock.
+        let refresh_guard = state.account_lock(id).lock_owned().await;
+        let remover = {
+            let state = state.clone();
+            tokio::spawn(async move { state.remove_account(id).await })
+        };
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        assert!(!remover.is_finished(), "removal must wait for the refresh");
+        assert!(state.store.get(id).is_some());
+
+        drop(refresh_guard);
+        remover.await.unwrap().unwrap();
+        assert!(state.store.get(id).is_none());
+        assert!(crate::store::load_provider_secret(id).is_err());
+        // The lock entry is dropped once nothing holds it.
+        assert!(state.account_locks.lock().get(id).is_none());
+    }
+
     #[test]
     fn invalid_primary_accounts_fall_back_to_backup() {
         let directory = tempfile::tempdir().unwrap();
-        fs::write(directory.path().join("accounts.json"), r#"{"version":2,"accounts":[{"provider":"unsupported"}]}"#).unwrap();
+        fs::write(
+            directory.path().join("accounts.json"),
+            r#"{"version":2,"accounts":[{"provider":"unsupported"}]}"#,
+        )
+        .unwrap();
         fs::write(
             directory.path().join("accounts.json.bak"),
             r#"{

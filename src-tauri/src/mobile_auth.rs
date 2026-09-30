@@ -4,9 +4,9 @@ use crate::{model::LoginStatus, state::AppState};
 use std::sync::Arc;
 #[cfg(mobile)]
 use std::time::Duration;
+use tauri::WebviewWindow;
 #[cfg(mobile)]
 use tauri::{AppHandle, Manager};
-use tauri::WebviewWindow;
 use url::Url;
 
 const MAIN_WINDOW: &str = "main";
@@ -82,7 +82,10 @@ pub fn open_in_main_webview(
         "x.ai",
         "opencode.ai",
     ];
-    if !allowed_hosts.iter().any(|&h| host == h || host.ends_with(&format!(".{h}"))) {
+    if !allowed_hosts
+        .iter()
+        .any(|&h| host == h || host.ends_with(&format!(".{h}")))
+    {
         return Err(format!("Disallowed host for in-app sign-in: {host}"));
     }
 
@@ -117,9 +120,10 @@ pub fn open_in_main_webview(
             if !attempt_matches(&state, &attempt_id) {
                 break;
             }
-            let waiting = state.pending_login.read().as_ref().is_some_and(|login| {
-                login.attempt_id == attempt_id && login.status == "waiting"
-            });
+            let waiting =
+                state.pending_login.read().as_ref().is_some_and(|login| {
+                    login.attempt_id == attempt_id && login.status == "waiting"
+                });
             let exchange_queued = state
                 .pending_auth_exchange
                 .lock()
@@ -203,7 +207,12 @@ mod tests {
 
     #[test]
     fn restore_logic_treats_only_waiting_as_in_progress() {
-        for status in ["complete", "failed", "choose_project", "monitoring_disabled"] {
+        for status in [
+            "complete",
+            "failed",
+            "choose_project",
+            "monitoring_disabled",
+        ] {
             assert_ne!(status, "waiting");
         }
     }

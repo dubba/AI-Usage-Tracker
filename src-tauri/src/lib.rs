@@ -15,6 +15,7 @@ mod oauth;
 mod opencode_login;
 mod pairing;
 mod providers;
+mod refresh_backoff;
 mod settings;
 mod state;
 mod store;
@@ -30,6 +31,7 @@ use crate::{
     state::AppState,
     store::{load_or_create_bridge_token, rotate_bridge_token},
 };
+use serde::Serialize;
 use std::{
     str::FromStr,
     sync::Arc,
@@ -41,17 +43,16 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     WindowEvent,
 };
-use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
-use tokio::io::AsyncWriteExt;
-use tauri_plugin_notification::NotificationExt;
-use tauri_plugin_opener::OpenerExt;
 #[cfg(desktop)]
 use tauri_plugin_autostart::MacosLauncher;
+use tauri_plugin_notification::NotificationExt;
+use tauri_plugin_opener::OpenerExt;
 #[cfg(desktop)]
 use tauri_plugin_updater::UpdaterExt;
 #[cfg(desktop)]
 use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
+use tokio::io::AsyncWriteExt;
 
 #[cfg(desktop)]
 const SAVED_WINDOW_STATE: StateFlags = StateFlags::from_bits_truncate(
@@ -224,21 +225,21 @@ fn cancel_login(
     let cancelled = {
         let mut pending = state.pending_login.write();
         let cancellable = pending.as_ref().is_some_and(|login| {
-  login.attempt_id == attempt_id
-      && matches!(
-          login.status.as_str(),
-          "waiting" | "choose_project" | "monitoring_disabled"
-      )
+            login.attempt_id == attempt_id
+                && matches!(
+                    login.status.as_str(),
+                    "waiting" | "choose_project" | "monitoring_disabled"
+                )
         });
         if cancellable {
-  *pending = Some(LoginStatus {
-      attempt_id: attempt_id.clone(),
-      status: "failed".into(),
-      message: Some("Authentication was cancelled.".into()),
-      account: None,
-      projects: None,
-      selected_project_id: None,
-  });
+            *pending = Some(LoginStatus {
+                attempt_id: attempt_id.clone(),
+                status: "failed".into(),
+                message: Some("Authentication was cancelled.".into()),
+                account: None,
+                projects: None,
+                selected_project_id: None,
+            });
         }
         cancellable
     };
@@ -296,7 +297,10 @@ fn get_autostart(app: AppHandle, state: State<'_, Arc<AppState>>) -> Result<bool
     #[cfg(desktop)]
     {
         use tauri_plugin_autostart::ManagerExt;
-        let enabled = app.autolaunch().is_enabled().map_err(|error| error.to_string())?;
+        let enabled = app
+            .autolaunch()
+            .is_enabled()
+            .map_err(|error| error.to_string())?;
         let _ = state.settings.set_autostart_enabled(enabled);
         Ok(enabled)
     }
@@ -317,9 +321,13 @@ fn set_autostart(
     {
         use tauri_plugin_autostart::ManagerExt;
         if enabled {
-            app.autolaunch().enable().map_err(|error| error.to_string())?;
+            app.autolaunch()
+                .enable()
+                .map_err(|error| error.to_string())?;
         } else {
-            app.autolaunch().disable().map_err(|error| error.to_string())?;
+            app.autolaunch()
+                .disable()
+                .map_err(|error| error.to_string())?;
         }
     }
     #[cfg(not(desktop))]
@@ -338,7 +346,8 @@ async fn set_api_integration_enabled(
 
     for _ in 0..20 {
         let status = bridge_status(state.inner().as_ref());
-        if (!enabled && !status.running) || (enabled && (status.running || status.error.is_some())) {
+        if (!enabled && !status.running) || (enabled && (status.running || status.error.is_some()))
+        {
             return Ok(status);
         }
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
@@ -365,11 +374,14 @@ async fn open_api_integration_window(
     }
 
     #[allow(unused_mut)]
-    let mut builder =
-        WebviewWindowBuilder::new(&app, API_INTEGRATION_WINDOW_LABEL, WebviewUrl::App("index.html".into()))
-            .title("Paseo Bridge")
-            .inner_size(780.0, 760.0)
-            .min_inner_size(640.0, 560.0);
+    let mut builder = WebviewWindowBuilder::new(
+        &app,
+        API_INTEGRATION_WINDOW_LABEL,
+        WebviewUrl::App("index.html".into()),
+    )
+    .title("Paseo Bridge")
+    .inner_size(780.0, 760.0)
+    .min_inner_size(640.0, 560.0);
 
     #[cfg(desktop)]
     {
@@ -406,9 +418,11 @@ fn get_account_alerts(
 
 fn is_alert_window_available(account: &Account, window_id: &str) -> bool {
     if let Some(usage) = account.last_usage.as_ref() {
-        if usage.windows.iter().any(|window| {
-            alerts::canonical_window_id(window) == Some(window_id)
-        }) {
+        if usage
+            .windows
+            .iter()
+            .any(|window| alerts::canonical_window_id(window) == Some(window_id))
+        {
             return true;
         }
     }
@@ -417,14 +431,20 @@ fn is_alert_window_available(account: &Account, window_id: &str) -> bool {
     // or cached with legacy session labels.
     if account.provider == Provider::Openai
         && window_id == "monthly"
-        && account.plan.as_deref().map_or(true, |p| p.eq_ignore_ascii_case("free"))
+        && account
+            .plan
+            .as_deref()
+            .is_none_or(|p| p.eq_ignore_ascii_case("free"))
     {
         return true;
     }
     // Paid OpenAI accounts support 5-hour and weekly limits.
     if account.provider == Provider::Openai
         && (window_id == "five_hour" || window_id == "weekly")
-        && account.plan.as_deref().map_or(false, |p| !p.eq_ignore_ascii_case("free"))
+        && account
+            .plan
+            .as_deref()
+            .is_some_and(|p| !p.eq_ignore_ascii_case("free"))
     {
         return true;
     }
@@ -493,26 +513,13 @@ fn save_account_bucket(
 }
 
 #[tauri::command]
-fn delete_account_bucket(
-    state: State<'_, Arc<AppState>>,
-    id: String,
-) -> Result<(), String> {
+fn delete_account_bucket(state: State<'_, Arc<AppState>>, id: String) -> Result<(), String> {
     state.buckets.delete(&id)
 }
 
 #[tauri::command]
-async fn remove_account(
-    state: State<'_, Arc<AppState>>,
-    account_id: String,
-) -> Result<(), String> {
-    state
-        .store
-        .remove(&account_id)
-        .map_err(|error| error.to_string())?;
-    state.account_order.remove(&account_id)?;
-    state.alerts.remove(&account_id)?;
-    state.buckets.cleanup_account(&account_id)?;
-    Ok(())
+async fn remove_account(state: State<'_, Arc<AppState>>, account_id: String) -> Result<(), String> {
+    state.remove_account(&account_id).await
 }
 
 #[tauri::command]
@@ -561,7 +568,10 @@ async fn pairing_start_client(
     qr_uri: String,
 ) -> Result<(), String> {
     crate::lan_binding::configure_pairing_network(true);
-    state.pairing.start_client(state.inner().clone(), qr_uri).await
+    state
+        .pairing
+        .start_client(state.inner().clone(), qr_uri)
+        .await
 }
 
 #[tauri::command]
@@ -569,7 +579,10 @@ async fn pairing_start_sender(
     state: State<'_, Arc<AppState>>,
     qr_uri: String,
 ) -> Result<(), String> {
-    state.pairing.start_sender(state.inner().clone(), qr_uri).await
+    state
+        .pairing
+        .start_sender(state.inner().clone(), qr_uri)
+        .await
 }
 
 #[tauri::command]
@@ -585,10 +598,7 @@ async fn pairing_start_client_by_code(
 }
 
 #[tauri::command]
-async fn pairing_select_role(
-    state: State<'_, Arc<AppState>>,
-    role: String,
-) -> Result<(), String> {
+async fn pairing_select_role(state: State<'_, Arc<AppState>>, role: String) -> Result<(), String> {
     state.pairing.select_role(&role).await
 }
 
@@ -619,7 +629,10 @@ async fn pairing_status(
 }
 
 #[tauri::command]
-fn pairing_set_include_settings(state: State<'_, Arc<AppState>>, include: bool) -> Result<(), String> {
+fn pairing_set_include_settings(
+    state: State<'_, Arc<AppState>>,
+    include: bool,
+) -> Result<(), String> {
     *state.pairing_include_settings.write() = include;
     Ok(())
 }
@@ -750,8 +763,14 @@ fn split_version(v: &str) -> (Vec<u64>, Option<String>) {
 }
 
 fn compare_prerelease(cand: &str, curr: &str) -> bool {
-    let cand_tokens: Vec<&str> = cand.split(['.', '-', '_']).filter(|s| !s.is_empty()).collect();
-    let curr_tokens: Vec<&str> = curr.split(['.', '-', '_']).filter(|s| !s.is_empty()).collect();
+    let cand_tokens: Vec<&str> = cand
+        .split(['.', '-', '_'])
+        .filter(|s| !s.is_empty())
+        .collect();
+    let curr_tokens: Vec<&str> = curr
+        .split(['.', '-', '_'])
+        .filter(|s| !s.is_empty())
+        .collect();
     let min_len = cand_tokens.len().min(curr_tokens.len());
     for i in 0..min_len {
         let c = cand_tokens[i];
@@ -824,7 +843,9 @@ fn is_expected_apk_name(name: &str) -> bool {
     let name = name.to_ascii_lowercase();
     name.ends_with(".apk")
         && !name.contains("unsigned")
-        && name.replace(['.', '_', ' '], "-").contains("ai-usage-tracker")
+        && name
+            .replace(['.', '_', ' '], "-")
+            .contains("ai-usage-tracker")
 }
 
 #[cfg_attr(not(target_os = "android"), allow(dead_code))]
@@ -859,7 +880,8 @@ fn apk_assets_from_github(json: &serde_json::Value) -> (Option<String>, Option<S
         if !is_expected_apk_name(name) {
             continue;
         }
-        let has_arch = lower.contains("arm") || lower.contains("x86") || lower.contains("universal");
+        let has_arch =
+            lower.contains("arm") || lower.contains("x86") || lower.contains("universal");
         if !has_arch && apk_url.is_none() {
             apk_url = Some(url);
             apk_name = Some(lower);
@@ -908,7 +930,10 @@ async fn fetch_github_latest_release() -> Result<GitHubLatestRelease, String> {
         .json::<serde_json::Value>()
         .await
         .map_err(|error| format!("Unable to check for updates: {error}"))?;
-    let tag = json.get("tag_name").and_then(|value| value.as_str()).unwrap_or("");
+    let tag = json
+        .get("tag_name")
+        .and_then(|value| value.as_str())
+        .unwrap_or("");
     let version = tag.trim().trim_start_matches(['v', 'V']);
     if version.is_empty() {
         return Err(
@@ -932,7 +957,6 @@ async fn fetch_github_latest_release() -> Result<GitHubLatestRelease, String> {
     })
 }
 
-#[cfg_attr(not(target_os = "android"), allow(dead_code))]
 #[cfg_attr(not(target_os = "android"), allow(dead_code))]
 async fn fetch_apk_sha256(url: &str) -> Result<String, String> {
     let client = reqwest::Client::builder()
@@ -1003,12 +1027,7 @@ fn update_download_percent(downloaded: u64, total: Option<u64>) -> Option<u8> {
     Some(((downloaded.min(total).saturating_mul(100)) / total) as u8)
 }
 
-fn emit_update_progress(
-    app: &AppHandle,
-    phase: &'static str,
-    downloaded: u64,
-    total: Option<u64>,
-) {
+fn emit_update_progress(app: &AppHandle, phase: &'static str, downloaded: u64, total: Option<u64>) {
     let payload = AppUpdateProgress {
         phase,
         downloaded,
@@ -1197,7 +1216,8 @@ async fn check_for_app_update(
         // manifest fetch so a stalled connection falls through to the GitHub
         // Releases fallback below instead of hanging "Checking…" forever.
         match app.updater() {
-            Ok(updater) => match tokio::time::timeout(UPDATER_CHECK_TIMEOUT, updater.check()).await {
+            Ok(updater) => match tokio::time::timeout(UPDATER_CHECK_TIMEOUT, updater.check()).await
+            {
                 Ok(Ok(Some(update))) => {
                     let available_version = update.version.to_string();
                     if state.settings.automatic_updates_enabled()
@@ -1232,7 +1252,9 @@ async fn check_for_app_update(
                     ));
                 }
                 Err(_) => {
-                    eprintln!("App update manifest fetch timed out; using GitHub Releases fallback.");
+                    eprintln!(
+                        "App update manifest fetch timed out; using GitHub Releases fallback."
+                    );
                 }
             },
             Err(error) => {
@@ -1266,8 +1288,7 @@ async fn install_app_update(app: AppHandle) -> Result<(), String> {
             // a stall here used to leave Settings stuck on "Downloading…".
             // On timeout (or when no updater artifact is published) fall
             // through to the releases-page fallback below.
-            let checked =
-                tokio::time::timeout(UPDATER_CHECK_TIMEOUT, updater.check()).await;
+            let checked = tokio::time::timeout(UPDATER_CHECK_TIMEOUT, updater.check()).await;
             if let Ok(Ok(Some(update))) = checked {
                 emit_update_progress(&app, "downloading", 0, None);
                 let downloaded = std::sync::atomic::AtomicU64::new(0);
@@ -1473,7 +1494,9 @@ pub fn run() {
                 window.on_window_event(move |event| {
                     if let WindowEvent::CloseRequested { api, .. } = event {
                         api.prevent_close();
-                        let _ = window_for_event.app_handle().save_window_state(SAVED_WINDOW_STATE);
+                        let _ = window_for_event
+                            .app_handle()
+                            .save_window_state(SAVED_WINDOW_STATE);
                         let _ = window_for_event.hide();
                     }
                 });
@@ -1629,16 +1652,18 @@ async fn run_account_refresh_loop(state: Arc<AppState>) {
     loop {
         let interval = Duration::from_secs(state.settings.account_refresh_minutes() * 60);
         let due = last_refresh
-            .map_or(true, |last| account_refresh_is_due(last, SystemTime::now(), interval));
+            .is_none_or(|last| account_refresh_is_due(last, SystemTime::now(), interval));
         if due {
-            let _ = usage::refresh_all(state.clone()).await;
+            let _ = usage::refresh_all_auto(state.clone()).await;
             last_refresh = Some(SystemTime::now());
             continue;
         }
         tokio::select! {
             _ = tokio::time::sleep(REFRESH_POLL_TICK) => {}
             _ = state.wait_for_refresh_check() => {}
-            _ = state.settings.wait_for_refresh_schedule_change() => last_refresh = None,
+            // A new interval only changes when the next refresh is due (the
+            // loop re-reads it above); it must not refresh everything now.
+            _ = state.settings.wait_for_refresh_schedule_change() => {}
             _ = state.wait_for_refresh_wakeup() => last_refresh = None,
         }
     }
@@ -1821,7 +1846,9 @@ mod tests {
             "404 not found".into()
         )));
         assert!(!updater_error_is_no_release(&Error::TempDirNotFound));
-        assert!(!updater_error_is_no_release(&Error::BinaryNotFoundInArchive));
+        assert!(!updater_error_is_no_release(
+            &Error::BinaryNotFoundInArchive
+        ));
     }
 
     #[test]
@@ -1919,6 +1946,9 @@ mod tests {
         };
 
         assert!(super::is_alert_window_available(&free_account, "monthly"));
-        assert!(!super::is_alert_window_available(&free_account, "five_hour"));
+        assert!(!super::is_alert_window_available(
+            &free_account,
+            "five_hour"
+        ));
     }
 }

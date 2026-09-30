@@ -52,17 +52,17 @@ pub async fn refresh(
 ) -> Result<(ProviderUsage, OAuthSecret), ProviderError> {
     if secret.expires_within(300) {
         secret = refresh_secret(app, secret).await?;
-        save_provider_secret(&account.id, &ProviderSecret::Anthropic(secret.clone()))
-            .map_err(|_| ProviderError::Transient("Unable to save refreshed credentials.".into()))?;
+        save_provider_secret(&account.id, &ProviderSecret::Anthropic(secret.clone())).map_err(
+            |_| ProviderError::Transient("Unable to save refreshed credentials.".into()),
+        )?;
     }
 
     let raw = match call_usage(app, &secret).await {
         Err(ProviderError::Auth) => {
             secret = refresh_secret(app, secret).await?;
-            save_provider_secret(&account.id, &ProviderSecret::Anthropic(secret.clone()))
-                .map_err(|_| {
-                    ProviderError::Transient("Unable to save refreshed credentials.".into())
-                })?;
+            save_provider_secret(&account.id, &ProviderSecret::Anthropic(secret.clone())).map_err(
+                |_| ProviderError::Transient("Unable to save refreshed credentials.".into()),
+            )?;
             call_usage(app, &secret).await?
         }
         result => result?,
@@ -91,10 +91,13 @@ pub async fn refresh(
         .and_then(plan_from_profile)
         .or_else(|| account.plan.clone());
 
-    let credits_usd = raw.extra_usage.as_ref().and_then(|extra| match (extra.limit_usd, extra.spent_usd) {
-        (Some(limit), Some(spent)) => Some((limit - spent).max(0.0)),
-        _ => None,
-    });
+    let credits_usd =
+        raw.extra_usage
+            .as_ref()
+            .and_then(|extra| match (extra.limit_usd, extra.spent_usd) {
+                (Some(limit), Some(spent)) => Some((limit - spent).max(0.0)),
+                _ => None,
+            });
 
     Ok((
         ProviderUsage {
@@ -119,7 +122,9 @@ async fn call_usage(app: &AppState, secret: &OAuthSecret) -> Result<RawUsage, Pr
         .header("anthropic-beta", OAUTH_BETA)
         .send()
         .await
-        .map_err(|error| ProviderError::Transient(format!("Anthropic usage request failed: {error}")))?;
+        .map_err(|error| {
+            ProviderError::Transient(format!("Anthropic usage request failed: {error}"))
+        })?;
     let status = response.status();
     let retry_after = response
         .headers()
@@ -127,15 +132,16 @@ async fn call_usage(app: &AppState, secret: &OAuthSecret) -> Result<RawUsage, Pr
         .and_then(|value| value.to_str().ok())
         .map(str::to_string);
     let body = response.text().await.map_err(|error| {
-        ProviderError::Transient(format!("Unable to read the Anthropic usage response: {error}"))
+        ProviderError::Transient(format!(
+            "Unable to read the Anthropic usage response: {error}"
+        ))
     })?;
 
     if let Some(error) = usage_status_error(status, retry_after) {
         return Err(error);
     }
-    serde_json::from_str(&body).map_err(|_| {
-        ProviderError::Transient("Anthropic returned incompatible usage data.".into())
-    })
+    serde_json::from_str(&body)
+        .map_err(|_| ProviderError::Transient("Anthropic returned incompatible usage data.".into()))
 }
 
 /// Maps a non-success usage response to a provider error. Only 401 means the
@@ -151,18 +157,20 @@ fn usage_status_error(status: StatusCode, retry_after: Option<String>) -> Option
         StatusCode::FORBIDDEN => ProviderError::Transient(
             "Anthropic denied the usage request. Cached usage is being kept.".into(),
         ),
-        StatusCode::TOO_MANY_REQUESTS => ProviderError::Transient(match retry_after {
-            Some(value) => format!("Anthropic rate-limited the usage request. Retry after {value}."),
-            None => "Anthropic rate-limited the usage request.".into(),
-        }),
+        StatusCode::TOO_MANY_REQUESTS => ProviderError::RateLimited {
+            message: match retry_after.as_deref() {
+                Some(value) => {
+                    format!("Anthropic rate-limited the usage request. Retry after {value}.")
+                }
+                None => "Anthropic rate-limited the usage request.".into(),
+            },
+            retry_after: retry_after.as_deref().and_then(super::parse_retry_after),
+        },
         _ => ProviderError::Transient(format!("Anthropic usage request returned {status}.")),
     })
 }
 
-async fn refresh_secret(
-    app: &AppState,
-    secret: OAuthSecret,
-) -> Result<OAuthSecret, ProviderError> {
+async fn refresh_secret(app: &AppState, secret: OAuthSecret) -> Result<OAuthSecret, ProviderError> {
     let response = app
         .client
         .post(TOKEN_URL)
@@ -233,8 +241,20 @@ async fn fetch_profile_url(
 
 fn windows_from_raw(raw: &RawUsage) -> Vec<UsageWindow> {
     let mut windows = Vec::new();
-    push_window(&mut windows, "five_hour", "5 hour", raw.five_hour.as_ref(), Some(18_000));
-    push_window(&mut windows, "weekly", "Weekly", raw.seven_day.as_ref(), Some(604_800));
+    push_window(
+        &mut windows,
+        "five_hour",
+        "5 hour",
+        raw.five_hour.as_ref(),
+        Some(18_000),
+    );
+    push_window(
+        &mut windows,
+        "weekly",
+        "Weekly",
+        raw.seven_day.as_ref(),
+        Some(604_800),
+    );
     if let Some(extra) = raw.extra_usage.as_ref() {
         if extra.is_enabled.unwrap_or(true) && extra.utilization.is_some() {
             let utilization = extra.utilization.unwrap_or_default().clamp(0.0, 100.0);
@@ -308,24 +328,29 @@ pub(crate) fn account_id_from_profile(value: &Value) -> Option<String> {
 /// `rate_limit_tier` alone is not a plan: Pro and Free accounts both report
 /// `default_claude_ai`, so it is only used to tell Max 5x from Max 20x.
 pub(crate) fn plan_from_profile(value: &Value) -> Option<String> {
-    let plan = ["organization_type", "subscription_type", "subscription_tier", "plan"]
-        .iter()
-        .flat_map(|key| collect_strings(value, key))
-        .find_map(|text| classify_plan(&text))
-        .or_else(|| {
-            if find_bool(value, "has_claude_max") == Some(true) {
-                Some("claude_max")
-            } else if find_bool(value, "has_claude_pro") == Some(true) {
-                Some("claude_pro")
-            } else {
-                None
-            }
-        })
-        .or_else(|| {
-            let has_max = find_bool(value, "has_claude_max")?;
-            let has_pro = find_bool(value, "has_claude_pro")?;
-            (!has_max && !has_pro).then_some("free")
-        })?;
+    let plan = [
+        "organization_type",
+        "subscription_type",
+        "subscription_tier",
+        "plan",
+    ]
+    .iter()
+    .flat_map(|key| collect_strings(value, key))
+    .find_map(|text| classify_plan(&text))
+    .or_else(|| {
+        if find_bool(value, "has_claude_max") == Some(true) {
+            Some("claude_max")
+        } else if find_bool(value, "has_claude_pro") == Some(true) {
+            Some("claude_pro")
+        } else {
+            None
+        }
+    })
+    .or_else(|| {
+        let has_max = find_bool(value, "has_claude_max")?;
+        let has_pro = find_bool(value, "has_claude_pro")?;
+        (!has_max && !has_pro).then_some("free")
+    })?;
     if plan == "claude_max" {
         let tier = collect_strings(value, "rate_limit_tier")
             .iter()
@@ -372,9 +397,13 @@ fn collect_strings_into(value: &Value, key: &str, found: &mut Vec<String>) {
                     found.push(text.to_string());
                 }
             }
-            object.values().for_each(|value| collect_strings_into(value, key, found));
+            object
+                .values()
+                .for_each(|value| collect_strings_into(value, key, found));
         }
-        Value::Array(values) => values.iter().for_each(|value| collect_strings_into(value, key, found)),
+        Value::Array(values) => values
+            .iter()
+            .for_each(|value| collect_strings_into(value, key, found)),
         _ => {}
     }
 }
@@ -408,7 +437,9 @@ mod tests {
         ));
         assert!(matches!(
             usage_status_error(StatusCode::TOO_MANY_REQUESTS, Some("30".into())),
-            Some(ProviderError::Transient(message)) if message.contains("Retry after 30")
+            Some(ProviderError::RateLimited { message, retry_after })
+                if message.contains("Retry after 30")
+                    && retry_after == Some(std::time::Duration::from_secs(30))
         ));
         assert!(matches!(
             usage_status_error(StatusCode::BAD_GATEWAY, None),
@@ -443,7 +474,10 @@ mod tests {
         .unwrap();
         let windows = windows_from_raw(&raw);
         assert_eq!(
-            windows.iter().map(|window| window.id.as_str()).collect::<Vec<_>>(),
+            windows
+                .iter()
+                .map(|window| window.id.as_str())
+                .collect::<Vec<_>>(),
             ["five_hour", "weekly"]
         );
     }
@@ -499,7 +533,10 @@ mod tests {
             "organization": { "rate_limit_tier": "default_claude_max_20x" }
         });
         assert_eq!(plan_from_profile(&five).as_deref(), Some("claude_max_5x"));
-        assert_eq!(plan_from_profile(&twenty).as_deref(), Some("claude_max_20x"));
+        assert_eq!(
+            plan_from_profile(&twenty).as_deref(),
+            Some("claude_max_20x")
+        );
     }
 
     #[test]
@@ -509,7 +546,8 @@ mod tests {
             "organization": { "rate_limit_tier": "default_claude_ai" }
         });
         assert_eq!(plan_from_profile(&free).as_deref(), Some("free"));
-        let unknown = serde_json::json!({ "organization": { "rate_limit_tier": "default_claude_ai" } });
+        let unknown =
+            serde_json::json!({ "organization": { "rate_limit_tier": "default_claude_ai" } });
         assert_eq!(plan_from_profile(&unknown), None);
     }
 }

@@ -1,7 +1,5 @@
 use crate::{
-    model::{
-        now_rfc3339, Account, LoginStart, LoginStatus, OAuthSecret, Provider, ProviderSecret,
-    },
+    model::{now_rfc3339, Account, LoginStart, LoginStatus, OAuthSecret, Provider, ProviderSecret},
     state::AppState,
 };
 use axum::{
@@ -124,7 +122,10 @@ pub async fn start_login(
         Ok(bound) => bound,
         Err(error) => {
             let mut pending = app.pending_login.write();
-            if pending.as_ref().is_some_and(|login| login.attempt_id == attempt_id) {
+            if pending
+                .as_ref()
+                .is_some_and(|login| login.attempt_id == attempt_id)
+            {
                 *pending = None;
             }
             return Err(error);
@@ -139,7 +140,10 @@ pub async fn start_login(
             Ok(url) => url,
             Err(error) => {
                 let mut pending = app.pending_login.write();
-                if pending.as_ref().is_some_and(|login| login.attempt_id == attempt_id) {
+                if pending
+                    .as_ref()
+                    .is_some_and(|login| login.attempt_id == attempt_id)
+                {
                     *pending = None;
                 }
                 return Err(error);
@@ -177,7 +181,9 @@ pub async fn start_login(
                 &server_context.attempt_id,
                 format!("Callback server failed: {error}"),
             );
-            server_context.app.abort_login_resources(&server_context.attempt_id);
+            server_context
+                .app
+                .abort_login_resources(&server_context.attempt_id);
         }
     });
 
@@ -251,7 +257,10 @@ fn open_mobile_oauth(
     }
     let host = target.host_str().unwrap_or("");
     let allowed = ["auth.openai.com", "claude.ai", "accounts.google.com"];
-    if !allowed.iter().any(|&h| host == h || host.ends_with(&format!(".{h}"))) {
+    if !allowed
+        .iter()
+        .any(|&h| host == h || host.ends_with(&format!(".{h}")))
+    {
         return Err("Disallowed authorization URL host".to_string());
     }
     let intercept_started = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -400,7 +409,10 @@ async fn callback(
     handle_callback(context, query).await.into_response()
 }
 
-async fn handle_callback(context: Arc<LoginContext>, query: CallbackQuery) -> axum::response::Response {
+async fn handle_callback(
+    context: Arc<LoginContext>,
+    query: CallbackQuery,
+) -> axum::response::Response {
     if let Some(error) = query.error {
         let message = query.error_description.unwrap_or(error);
         fail_login(
@@ -499,10 +511,7 @@ async fn handle_callback(context: Arc<LoginContext>, query: CallbackQuery) -> ax
     }
 }
 
-async fn complete_exchange(
-    context: &LoginContext,
-    code: &str,
-) -> Result<Account, String> {
+async fn complete_exchange(context: &LoginContext, code: &str) -> Result<Account, String> {
     let mut last_error = String::new();
     let mut exchanged = None;
     for attempt in 0..5 {
@@ -913,7 +922,10 @@ async fn bind_callback_port(provider: &Provider) -> Result<(TcpListener, SocketA
     Err(if matches!(provider, Provider::Openai) {
         "ChatGPT login needs localhost port 1455 (or 1457). Close another ChatGPT login and try again.".into()
     } else {
-        format!("No callback port is available for {}.", provider.display_name())
+        format!(
+            "No callback port is available for {}.",
+            provider.display_name()
+        )
     })
 }
 
@@ -1062,12 +1074,12 @@ fn fail_login(store: &RwLock<Option<LoginStatus>>, attempt_id: &str, message: St
         .is_some_and(|login| login.attempt_id == attempt_id && login.status == "waiting")
     {
         *pending = Some(LoginStatus {
-  attempt_id: attempt_id.into(),
-  status: "failed".into(),
-  message: Some(message),
-  account: None,
-  projects: None,
-  selected_project_id: None,
+            attempt_id: attempt_id.into(),
+            status: "failed".into(),
+            message: Some(message),
+            account: None,
+            projects: None,
+            selected_project_id: None,
         });
     }
 }
@@ -1223,20 +1235,34 @@ mod tests {
             .map(|(key, value)| (key.into_owned(), value.into_owned()))
             .collect();
         assert_eq!(
-            pairs.iter().find(|(key, _)| key == "client_id").map(|(_, value)| value.as_str()),
+            pairs
+                .iter()
+                .find(|(key, _)| key == "client_id")
+                .map(|(_, value)| value.as_str()),
             Some(ANTHROPIC_CLIENT_ID)
         );
         assert_eq!(
-            pairs.iter().find(|(key, _)| key == "redirect_uri").map(|(_, value)| value.as_str()),
+            pairs
+                .iter()
+                .find(|(key, _)| key == "redirect_uri")
+                .map(|(_, value)| value.as_str()),
             Some("http://localhost:53692/callback")
         );
-        assert!(pairs.iter().any(|(key, value)| key == "code" && value == "true"));
+        assert!(pairs
+            .iter()
+            .any(|(key, value)| key == "code" && value == "true"));
         assert_eq!(
-            pairs.iter().find(|(key, _)| key == "response_type").map(|(_, value)| value.as_str()),
+            pairs
+                .iter()
+                .find(|(key, _)| key == "response_type")
+                .map(|(_, value)| value.as_str()),
             Some("code")
         );
         assert_eq!(
-            pairs.iter().find(|(key, _)| key == "code_challenge_method").map(|(_, value)| value.as_str()),
+            pairs
+                .iter()
+                .find(|(key, _)| key == "code_challenge_method")
+                .map(|(_, value)| value.as_str()),
             Some("S256")
         );
         let scopes = pairs
@@ -1275,9 +1301,7 @@ mod tests {
             .map(|(_, value)| value.as_str())
             .unwrap();
         assert_eq!(scopes, ANTIGRAVITY_SCOPES);
-        assert!(!pairs
-            .iter()
-            .any(|(key, _)| key == "include_granted_scopes"));
+        assert!(!pairs.iter().any(|(key, _)| key == "include_granted_scopes"));
         for unused in [
             "https://www.googleapis.com/auth/cclog",
             "https://www.googleapis.com/auth/experimentsandconfigs",
@@ -1337,28 +1361,49 @@ mod tests {
             .map(|(key, value)| (key.into_owned(), value.into_owned()))
             .collect();
         assert_eq!(
-            pairs.iter().find(|(key, _)| key == "response_type").map(|(_, value)| value.as_str()),
+            pairs
+                .iter()
+                .find(|(key, _)| key == "response_type")
+                .map(|(_, value)| value.as_str()),
             Some("code")
         );
         assert_eq!(
-            pairs.iter().find(|(key, _)| key == "client_id").map(|(_, value)| value.as_str()),
+            pairs
+                .iter()
+                .find(|(key, _)| key == "client_id")
+                .map(|(_, value)| value.as_str()),
             Some(OPENAI_CLIENT_ID)
         );
         assert_eq!(
-            pairs.iter().find(|(key, _)| key == "redirect_uri").map(|(_, value)| value.as_str()),
+            pairs
+                .iter()
+                .find(|(key, _)| key == "redirect_uri")
+                .map(|(_, value)| value.as_str()),
             Some("http://localhost:1455/auth/callback")
         );
         assert_eq!(
-            pairs.iter().find(|(key, _)| key == "scope").map(|(_, value)| value.as_str()),
+            pairs
+                .iter()
+                .find(|(key, _)| key == "scope")
+                .map(|(_, value)| value.as_str()),
             Some("openid profile email offline_access")
         );
         assert_eq!(
-            pairs.iter().find(|(key, _)| key == "code_challenge_method").map(|(_, value)| value.as_str()),
+            pairs
+                .iter()
+                .find(|(key, _)| key == "code_challenge_method")
+                .map(|(_, value)| value.as_str()),
             Some("S256")
         );
-        assert!(pairs.iter().any(|(key, value)| key == "id_token_add_organizations" && value == "true"));
-        assert!(pairs.iter().any(|(key, value)| key == "codex_cli_simplified_flow" && value == "true"));
-        assert!(pairs.iter().any(|(key, value)| key == "originator" && value == OPENAI_ORIGINATOR));
+        assert!(pairs
+            .iter()
+            .any(|(key, value)| key == "id_token_add_organizations" && value == "true"));
+        assert!(pairs
+            .iter()
+            .any(|(key, value)| key == "codex_cli_simplified_flow" && value == "true"));
+        assert!(pairs
+            .iter()
+            .any(|(key, value)| key == "originator" && value == OPENAI_ORIGINATOR));
         assert!(!pairs.iter().any(|(key, _)| key == "audience"));
     }
 

@@ -92,12 +92,18 @@ pub(crate) fn find_identity_in_json(value: &Value) -> Option<String> {
                 if s.contains('@') {
                     return Some(s.to_string());
                 }
-                return Some(if s.starts_with('@') { s.to_string() } else { format!("@{s}") });
+                return Some(if s.starts_with('@') {
+                    s.to_string()
+                } else {
+                    format!("@{s}")
+                });
             }
         }
     }
     // 3. Search nested objects
-    for obj_key in &["user", "data", "profile", "account", "session", "claims", "identity"] {
+    for obj_key in &[
+        "user", "data", "profile", "account", "session", "claims", "identity",
+    ] {
         if let Some(obj) = value.get(*obj_key) {
             if let Some(identity) = find_identity_in_json(obj) {
                 return Some(identity);
@@ -127,7 +133,9 @@ pub(crate) fn extract_identity_from_cookies(cookie_header: &str) -> Option<Strin
         }
 
         if val.contains('.') || decoded.contains('.') {
-            if let Some(identity) = extract_identity_from_jwt(val).or_else(|| extract_identity_from_jwt(&decoded)) {
+            if let Some(identity) =
+                extract_identity_from_jwt(val).or_else(|| extract_identity_from_jwt(&decoded))
+            {
                 return Some(identity);
             }
         }
@@ -136,7 +144,11 @@ pub(crate) fn extract_identity_from_cookies(cookie_header: &str) -> Option<Strin
             && !decoded.is_empty()
             && !decoded.eq_ignore_ascii_case("grok")
         {
-            return Some(if decoded.starts_with('@') { decoded } else { format!("@{decoded}") });
+            return Some(if decoded.starts_with('@') {
+                decoded
+            } else {
+                format!("@{decoded}")
+            });
         }
     }
     None
@@ -362,7 +374,10 @@ pub(crate) fn has_grok_session_cookie(header: &str) -> bool {
     })
 }
 
-fn recapture_stored_cookies(account_id: &str, secret: &GrokSecret) -> Result<GrokSecret, ProviderError> {
+fn recapture_stored_cookies(
+    account_id: &str,
+    secret: &GrokSecret,
+) -> Result<GrokSecret, ProviderError> {
     let Some(raw) = secret
         .cookie_header
         .as_deref()
@@ -449,8 +464,8 @@ async fn fetch_web_billing(
     app: &AppState,
     cookie_header: &str,
 ) -> Result<BillingSnapshot, GrokFetchError> {
-    let cookie_header = normalize_cookie_header(cookie_header)
-        .map_err(|_| GrokFetchError::Unavailable)?;
+    let cookie_header =
+        normalize_cookie_header(cookie_header).map_err(|_| GrokFetchError::Unavailable)?;
     let response = app
         .client
         .post(WEB_BILLING_ENDPOINT)
@@ -548,10 +563,7 @@ fn grpc_trailer_fields(data: &[u8]) -> HashMap<String, String> {
             if let Ok(text) = std::str::from_utf8(&data[start..end]) {
                 for line in text.lines() {
                     if let Some((key, value)) = line.split_once(':') {
-                        fields.insert(
-                            key.trim().to_ascii_lowercase(),
-                            value.trim().to_string(),
-                        );
+                        fields.insert(key.trim().to_ascii_lowercase(), value.trim().to_string());
                     }
                 }
             }
@@ -585,9 +597,10 @@ impl ProtobufScan {
     }
 }
 
-fn parse_web_billing_response(
-    data: &[u8],
-) -> Result<(f64, Option<DateTime<Utc>>, Option<DateTime<Utc>>), GrokFetchError> {
+/// Weekly percent used plus the optional window start and reset time.
+type WebBilling = (f64, Option<DateTime<Utc>>, Option<DateTime<Utc>>);
+
+fn parse_web_billing_response(data: &[u8]) -> Result<WebBilling, GrokFetchError> {
     let mut payloads = grpc_data_frames(data);
     if payloads.is_empty() && looks_like_protobuf(data) {
         payloads.push(data.to_vec());
@@ -657,9 +670,7 @@ fn parse_web_billing_response(
 
     let used_percent = percent
         .or_else(|| resets_at.is_some().then_some(0.0))
-        .ok_or_else(|| {
-            GrokFetchError::Unavailable
-        })?;
+        .ok_or(GrokFetchError::Unavailable)?;
     Ok((used_percent, period_start, resets_at))
 }
 
@@ -700,12 +711,7 @@ fn looks_like_protobuf(data: &[u8]) -> bool {
     })
 }
 
-fn scan_protobuf(
-    data: &[u8],
-    depth: usize,
-    path: Vec<u64>,
-    order: usize,
-) -> (ProtobufScan, usize) {
+fn scan_protobuf(data: &[u8], depth: usize, path: Vec<u64>, order: usize) -> (ProtobufScan, usize) {
     let mut scan = ProtobufScan::default();
     let mut index = 0usize;
     let mut next_order = order;
@@ -754,12 +760,8 @@ fn scan_protobuf(
                     continue;
                 }
                 if depth < 6 {
-                    let (nested, nested_order) = scan_protobuf(
-                        &data[index..end],
-                        depth + 1,
-                        field_path,
-                        next_order,
-                    );
+                    let (nested, nested_order) =
+                        scan_protobuf(&data[index..end], depth + 1, field_path, next_order);
                     scan.merge(nested);
                     next_order = nested_order;
                 }
@@ -903,7 +905,9 @@ mod tests {
             normalize_cookie_header(mega).unwrap(),
             "auth_token=maybe-grok; sso=grok-session"
         );
-        assert!(has_grok_session_cookie(&normalize_cookie_header(mega).unwrap()));
+        assert!(has_grok_session_cookie(
+            &normalize_cookie_header(mega).unwrap()
+        ));
     }
 
     #[test]
@@ -917,7 +921,11 @@ mod tests {
         assert!(!is_allowed_cookie_host("api.x.ai"));
         assert!(!is_allowed_cookie_host("notgrok.com"));
         for target in GROK_COOKIE_URLS {
-            let host = url::Url::parse(target).unwrap().host_str().unwrap().to_string();
+            let host = url::Url::parse(target)
+                .unwrap()
+                .host_str()
+                .unwrap()
+                .to_string();
             assert!(is_allowed_cookie_host(&host), "{target}");
         }
     }
@@ -953,13 +961,20 @@ mod tests {
         let team = validate_grpc_status(Some("9"), Some("no personal team"));
         assert!(matches!(team, Err(GrokFetchError::TeamUnavailable)));
         assert_eq!(
-            GrokFetchError::TeamUnavailable.into_provider_error().to_string(),
+            GrokFetchError::TeamUnavailable
+                .into_provider_error()
+                .to_string(),
             "Grok team usage is unavailable from the current billing surface."
         );
 
-        let leaked = validate_grpc_status(Some("13"), Some("internal: cookie=abc; Authorization: Bearer leaked"));
+        let leaked = validate_grpc_status(
+            Some("13"),
+            Some("internal: cookie=abc; Authorization: Bearer leaked"),
+        );
         assert!(matches!(leaked, Err(GrokFetchError::Unavailable)));
-        let message = GrokFetchError::Unavailable.into_provider_error().to_string();
+        let message = GrokFetchError::Unavailable
+            .into_provider_error()
+            .to_string();
         assert_eq!(message, "Grok did not provide current billing usage.");
         assert!(!message.contains("cookie"));
         assert!(!message.contains("Bearer"));

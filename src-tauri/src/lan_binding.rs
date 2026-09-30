@@ -3,7 +3,10 @@
 //! the LAN traffic pairing relies on.
 
 #[cfg(target_os = "android")]
-use jni::{objects::{JObject, JValue}, JNIEnv};
+use jni::{
+    objects::{JObject, JValue},
+    JNIEnv,
+};
 
 #[cfg(target_os = "android")]
 pub fn set_pairing_lan_binding(enabled: bool) -> Result<(), String> {
@@ -34,10 +37,7 @@ pub fn set_pairing_lan_binding(enabled: bool) -> Result<(), String> {
 }
 
 #[cfg(target_os = "android")]
-fn jni_exception_message(
-    env: &mut JNIEnv,
-    throwable: &jni::objects::JThrowable,
-) -> String {
+fn jni_exception_message(env: &mut JNIEnv, throwable: &jni::objects::JThrowable) -> String {
     let fallback = "network configuration failed".to_string();
     env.call_method(throwable, "getMessage", "()Ljava/lang/String;", &[])
         .ok()
@@ -76,7 +76,10 @@ pub fn post_expandable_notification(title: &str, body: &str) -> Result<(), Strin
         &activity,
         "postExpandableNotification",
         "(Ljava/lang/String;Ljava/lang/String;)V",
-        &[JValue::Object(&title_j.into()), JValue::Object(&body_j.into())],
+        &[
+            JValue::Object(&title_j.into()),
+            JValue::Object(&body_j.into()),
+        ],
     );
     if let Err(error) = result {
         return Err(format!("Unable to post notification: {error}"));

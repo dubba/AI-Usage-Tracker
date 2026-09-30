@@ -1,5 +1,7 @@
 use crate::{
-    model::{Account, CloudProjectOption, LoginStart, LoginStatus, OAuthSecret, Provider, ProviderSecret},
+    model::{
+        Account, CloudProjectOption, LoginStart, LoginStatus, OAuthSecret, Provider, ProviderSecret,
+    },
     providers::google_ai_studio,
     state::AppState,
     store::{load_provider_secret, save_provider_secret},
@@ -102,6 +104,9 @@ struct OperationResponse {
     error: Option<Value>,
 }
 
+// Short-lived value moved straight into a `LoginStatus`; boxing would only
+// add indirection.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone)]
 enum CallbackOutcome {
     Complete(Account),
@@ -176,7 +181,10 @@ async fn start_oauth(
         Ok(bound) => bound,
         Err(error) => {
             let mut pending = app.pending_login.write();
-            if pending.as_ref().is_some_and(|login| login.attempt_id == attempt_id) {
+            if pending
+                .as_ref()
+                .is_some_and(|login| login.attempt_id == attempt_id)
+            {
                 *pending = None;
             }
             return Err(error);
@@ -195,7 +203,10 @@ async fn start_oauth(
             Ok(url) => url,
             Err(error) => {
                 let mut pending = app.pending_login.write();
-                if pending.as_ref().is_some_and(|login| login.attempt_id == attempt_id) {
+                if pending
+                    .as_ref()
+                    .is_some_and(|login| login.attempt_id == attempt_id)
+                {
                     *pending = None;
                 }
                 return Err(error);
@@ -231,7 +242,9 @@ async fn start_oauth(
                 &server_context,
                 format!("Google Cloud callback server failed: {error}"),
             );
-            server_context.app.abort_login_resources(&server_context.attempt_id);
+            server_context
+                .app
+                .abort_login_resources(&server_context.attempt_id);
         }
     });
 
@@ -281,7 +294,10 @@ async fn select_project(
     let expires_at = (Utc::now() + Duration::minutes(LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
     {
         let mut pending = app.pending_login.write();
-        if pending.as_ref().is_some_and(|login| login.status == "waiting") {
+        if pending
+            .as_ref()
+            .is_some_and(|login| login.status == "waiting")
+        {
             return Err("Another provider login is already in progress.".into());
         }
         *pending = Some(LoginStatus {
@@ -401,12 +417,9 @@ async fn complete_callback(
 
     let outcome = match &context.mode {
         LoginMode::Connect => {
-            if let Some(project) = lookup_key_project(
-                context.app.as_ref(),
-                &stored.api_key,
-                &oauth.access_token,
-            )
-            .await?
+            if let Some(project) =
+                lookup_key_project(context.app.as_ref(), &stored.api_key, &oauth.access_token)
+                    .await?
             {
                 finish_project_setup(
                     context.app.clone(),
@@ -437,7 +450,8 @@ async fn complete_callback(
         }
         LoginMode::EnableMonitoring { project_id } => {
             let project =
-                resolve_project_by_id(context.app.as_ref(), project_id, &oauth.access_token).await?;
+                resolve_project_by_id(context.app.as_ref(), project_id, &oauth.access_token)
+                    .await?;
             enable_monitoring(context.app.as_ref(), &project, &oauth.access_token).await?;
             finish_connected_project(
                 context.app.clone(),
@@ -476,12 +490,8 @@ async fn finish_connected_project(
     oauth: OAuthSecret,
     email: Option<String>,
 ) -> Result<CallbackOutcome, String> {
-    validate_monitoring_access_with_retry(
-        app.as_ref(),
-        &project.project_id,
-        &oauth.access_token,
-    )
-    .await?;
+    validate_monitoring_access_with_retry(app.as_ref(), &project.project_id, &oauth.access_token)
+        .await?;
     save_project_selection(app.as_ref(), account_id, &project, oauth, email)?;
     let account = usage::refresh_account(app, account_id).await?;
     Ok(CallbackOutcome::Complete(account))
@@ -524,10 +534,8 @@ fn save_project_selection(
     app.store
         .mutate(account_id, |account| {
             account.provider = Provider::GoogleAiStudio;
-            account.provider_account_id = Some(format!(
-                "google-ai-studio-project:{}",
-                project.project_id
-            ));
+            account.provider_account_id =
+                Some(format!("google-ai-studio-project:{}", project.project_id));
             account.plan = Some("Google AI Studio".into());
             if email.is_some() {
                 account.email = email.clone();
@@ -615,7 +623,9 @@ async fn lookup_key_project(
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     if status == StatusCode::UNAUTHORIZED {
-        return Err("Google authorization expired before the API-key project could be found.".into());
+        return Err(
+            "Google authorization expired before the API-key project could be found.".into(),
+        );
     }
     if status == StatusCode::FORBIDDEN
         || status == StatusCode::NOT_FOUND
@@ -887,9 +897,8 @@ fn network_unavailable(action: &str) -> String {
 }
 
 async fn exchange_tokens(context: &LoginContext, code: &str) -> Result<TokenResponse, String> {
-    let client_secret = zeroize::Zeroizing::new(
-        String::from_utf8_lossy(GOOGLE_CLIENT_SECRET_BYTES).to_string(),
-    );
+    let client_secret =
+        zeroize::Zeroizing::new(String::from_utf8_lossy(GOOGLE_CLIENT_SECRET_BYTES).to_string());
     let response = context
         .app
         .client
@@ -917,9 +926,8 @@ async fn ensure_fresh_oauth(app: &AppState, oauth: OAuthSecret) -> Result<OAuthS
     if !oauth.expires_within(300) {
         return Ok(oauth);
     }
-    let client_secret = zeroize::Zeroizing::new(
-        String::from_utf8_lossy(GOOGLE_CLIENT_SECRET_BYTES).to_string(),
-    );
+    let client_secret =
+        zeroize::Zeroizing::new(String::from_utf8_lossy(GOOGLE_CLIENT_SECRET_BYTES).to_string());
     let response = app
         .client
         .post("https://oauth2.googleapis.com/token")
@@ -1031,15 +1039,15 @@ fn is_waiting(app: &AppState, attempt_id: &str) -> bool {
 fn fail_login(context: &LoginContext, message: String) {
     if is_waiting(context.app.as_ref(), &context.attempt_id) {
         set_login_status(
-  context.app.as_ref(),
-  LoginStatus {
-      attempt_id: context.attempt_id.clone(),
-      status: "failed".into(),
-      message: Some(message),
-      account: None,
-      projects: None,
-      selected_project_id: None,
-  },
+            context.app.as_ref(),
+            LoginStatus {
+                attempt_id: context.attempt_id.clone(),
+                status: "failed".into(),
+                message: Some(message),
+                account: None,
+                projects: None,
+                selected_project_id: None,
+            },
         );
     }
 }
@@ -1100,13 +1108,9 @@ mod tests {
 
     #[test]
     fn authorize_url_accepts_bracketed_ipv6_loopback() {
-        let url = build_authorization_url(
-            "http://[::1]:11461",
-            "state",
-            "openid email",
-            "challenge",
-        )
-        .unwrap();
+        let url =
+            build_authorization_url("http://[::1]:11461", "state", "openid email", "challenge")
+                .unwrap();
         let parsed = Url::parse(&url).unwrap();
         assert_eq!(
             parsed

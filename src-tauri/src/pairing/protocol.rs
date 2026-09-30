@@ -163,16 +163,14 @@ impl ParsedQrPayload {
         for (k, v) in url.query_pairs() {
             match k.as_ref() {
                 "session_id" => {
-                    let uuid = Uuid::parse_str(&v)
-                        .map_err(|e| format!("Invalid session_id UUID: {e}"))?;
+                    let uuid =
+                        Uuid::parse_str(&v).map_err(|e| format!("Invalid session_id UUID: {e}"))?;
                     session_id = Some(uuid);
                 }
                 "pk" => {
                     let decoded = URL_SAFE_NO_PAD
                         .decode(v.as_bytes())
-                        .or_else(|_| {
-                            base64::engine::general_purpose::STANDARD.decode(v.as_bytes())
-                        })
+                        .or_else(|_| base64::engine::general_purpose::STANDARD.decode(v.as_bytes()))
                         .map_err(|e| format!("Invalid base64 in public key: {e}"))?;
 
                     if decoded.len() != 32 {
@@ -188,9 +186,7 @@ impl ParsedQrPayload {
                 "nonce" => {
                     let decoded = URL_SAFE_NO_PAD
                         .decode(v.as_bytes())
-                        .or_else(|_| {
-                            base64::engine::general_purpose::STANDARD.decode(v.as_bytes())
-                        })
+                        .or_else(|_| base64::engine::general_purpose::STANDARD.decode(v.as_bytes()))
                         .map_err(|e| format!("Invalid base64 in nonce: {e}"))?;
 
                     if decoded.len() < 16 || decoded.len() > 64 {
@@ -370,10 +366,7 @@ mod tests {
     fn format_uri_host_brackets_ipv6_literals() {
         assert_eq!(format_uri_host("::1"), "[::1]");
         assert_eq!(format_uri_host("[::1]"), "[::1]");
-        assert_eq!(
-            format_uri_host("fd12:3456:789a::1"),
-            "[fd12:3456:789a::1]"
-        );
+        assert_eq!(format_uri_host("fd12:3456:789a::1"), "[fd12:3456:789a::1]");
         assert_eq!(format_uri_host("127.0.0.1"), "127.0.0.1");
         assert_eq!(format_uri_host("192.168.1.5"), "192.168.1.5");
         assert_eq!(format_uri_host("localhost"), "localhost");

@@ -83,7 +83,10 @@ pub struct SyncSummary {
     pub skipped: u16,
 }
 
-fn remap_ui_page_id(page: &str, bucket_id_map: &std::collections::HashMap<String, String>) -> String {
+fn remap_ui_page_id(
+    page: &str,
+    bucket_id_map: &std::collections::HashMap<String, String>,
+) -> String {
     if let Some(bucket_id) = page.strip_prefix("bucket:") {
         if let Some(mapped) = bucket_id_map.get(bucket_id) {
             return format!("bucket:{mapped}");
@@ -276,7 +279,7 @@ pub async fn import_sync_payload_with_replace(
                 // never silently overwrite a local secret — replacing requires
                 // explicit per-transfer opt-in from the user. Still map ids so
                 // buckets/orders remap, and count as skipped.
-                let _ = state.store.clear_tombstone(&receiver_id);
+                state.store.clear_tombstone(&receiver_id);
                 summary.skipped += 1;
                 continue;
             }
@@ -305,7 +308,7 @@ pub async fn import_sync_payload_with_replace(
                 continue;
             }
 
-            let _ = state.store.clear_tombstone(&receiver_id);
+            state.store.clear_tombstone(&receiver_id);
             summary.updated += 1;
         } else {
             // New account
@@ -314,9 +317,9 @@ pub async fn import_sync_payload_with_replace(
                 .await
             {
                 Ok(saved) => {
-                    let _ = state.store.clear_tombstone(&saved.id);
+                    state.store.clear_tombstone(&saved.id);
                     // Also clear sender id in case it differs (id remapped)
-                    let _ = state.store.clear_tombstone(&sender_id);
+                    state.store.clear_tombstone(&sender_id);
                     id_map.insert(sender_id, saved.id);
                     summary.added += 1;
                 }
@@ -345,7 +348,10 @@ pub async fn import_sync_payload_with_replace(
         let before = state.buckets.list();
         let existing_match = before.iter().find(|b| {
             b.id == incoming_bucket.id
-                || (b.name.trim().eq_ignore_ascii_case(incoming_bucket.name.trim())
+                || (b
+                    .name
+                    .trim()
+                    .eq_ignore_ascii_case(incoming_bucket.name.trim())
                     && b.provider == incoming_bucket.provider)
         });
         let expected_receiver_id = existing_match
@@ -367,7 +373,9 @@ pub async fn import_sync_payload_with_replace(
         let _ = state
             .settings
             .set_automatic_updates_enabled(settings.automatic_updates_enabled);
-        let _ = state.settings.set_autostart_enabled(settings.autostart_enabled);
+        let _ = state
+            .settings
+            .set_autostart_enabled(settings.autostart_enabled);
         let _ = state
             .settings
             .set_paseo_bridge_enabled(settings.paseo_bridge_enabled);
@@ -402,7 +410,10 @@ pub async fn import_sync_payload_with_replace(
         if !remapped.is_empty() {
             // Merge with receiver-only accounts that sender didn't have
             let all_accounts = state.store.list();
-            let ordered_accounts = state.account_order.apply(all_accounts.clone()).unwrap_or(all_accounts);
+            let ordered_accounts = state
+                .account_order
+                .apply(all_accounts.clone())
+                .unwrap_or(all_accounts);
             let ordered_ids: Vec<String> = ordered_accounts.iter().map(|a| a.id.clone()).collect();
             for rid in ordered_ids {
                 if !remapped.contains(&rid) {

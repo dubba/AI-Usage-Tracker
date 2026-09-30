@@ -49,35 +49,23 @@ fn test_ephemeral_diffie_hellman_and_hkdf() {
     let session_nonce = [1u8; 16];
 
     // Alice is receiver, Bob is sender
-    let alice_transcript = build_transcript(
-        session_id.as_bytes(),
-        &session_nonce,
-        &alice_pub,
-        &bob_pub,
-    );
-    let bob_transcript = build_transcript(
-        session_id.as_bytes(),
-        &session_nonce,
-        &alice_pub,
-        &bob_pub,
-    );
+    let alice_transcript =
+        build_transcript(session_id.as_bytes(), &session_nonce, &alice_pub, &bob_pub);
+    let bob_transcript =
+        build_transcript(session_id.as_bytes(), &session_nonce, &alice_pub, &bob_pub);
     assert_eq!(alice_transcript, bob_transcript);
 
     let bob_point = x25519_dalek::PublicKey::from(bob_pub);
     let alice_derived = alice
         .diffie_hellman(&bob_point)
         .expect("DH should succeed for a valid peer key");
-    let alice_key = alice_derived
-        .derive_encryption_key(&session_nonce)
-        .unwrap();
+    let alice_key = alice_derived.derive_encryption_key(&session_nonce).unwrap();
 
     let alice_point = x25519_dalek::PublicKey::from(alice_pub);
     let bob_derived = bob
         .diffie_hellman(&alice_point)
         .expect("DH should succeed for a valid peer key");
-    let bob_key = bob_derived
-        .derive_encryption_key(&session_nonce)
-        .unwrap();
+    let bob_key = bob_derived.derive_encryption_key(&session_nonce).unwrap();
 
     assert_eq!(alice_key, bob_key);
 
@@ -115,9 +103,7 @@ fn test_confirmation_tags() {
     let alice_derived = alice
         .diffie_hellman(&bob_point)
         .expect("DH should succeed for a valid peer key");
-    let key = alice_derived
-        .derive_encryption_key(&session_nonce)
-        .unwrap();
+    let key = alice_derived.derive_encryption_key(&session_nonce).unwrap();
 
     let sas_code = compute_sas_code(&key, &transcript);
     let tag_receiver = compute_confirmation_tag(&key, &sas_code, CONFIRM_RECEIVER_INFO);
@@ -193,7 +179,7 @@ fn test_qr_uri_parsing_and_formatting() {
     assert_eq!(parsed.session_nonce, nonce);
     assert!(!parsed.fingerprint.is_empty());
     assert_eq!(parsed.fingerprint.len(), 9); // e.g. "XXXX-XXXX"
-    // Bad scheme
+                                             // Bad scheme
     assert!(parse_qr_uri("http://example.com").is_err());
 
     // Missing host
@@ -201,12 +187,24 @@ fn test_qr_uri_parsing_and_formatting() {
     // Missing pk
     assert!(parse_qr_uri(&format!("aiusage-pair://{ip}:{port}?sid={session_id}&n=aa")).is_err());
     // Corrupt hex in pk
-    assert!(parse_qr_uri(&format!("aiusage-pair://{ip}:{port}?pk=nothex&sid={session_id}&n=aa")).is_err());
+    assert!(parse_qr_uri(&format!(
+        "aiusage-pair://{ip}:{port}?pk=nothex&sid={session_id}&n=aa"
+    ))
+    .is_err());
 
     // Non-local hosts are refused (credential exfiltration prevention)
-    assert!(parse_qr_uri(&format!("aiusage-pair://8.8.8.8:{port}?sid={session_id}&n=aa")).is_err());
-    assert!(parse_qr_uri(&format!("aiusage-pair://203.0.113.5:{port}?sid={session_id}&n=aa")).is_err());
-    assert!(parse_qr_uri(&format!("aiusage-pair://example.com:{port}?sid={session_id}&n=aa")).is_err());
+    assert!(parse_qr_uri(&format!(
+        "aiusage-pair://8.8.8.8:{port}?sid={session_id}&n=aa"
+    ))
+    .is_err());
+    assert!(parse_qr_uri(&format!(
+        "aiusage-pair://203.0.113.5:{port}?sid={session_id}&n=aa"
+    ))
+    .is_err());
+    assert!(parse_qr_uri(&format!(
+        "aiusage-pair://example.com:{port}?sid={session_id}&n=aa"
+    ))
+    .is_err());
 
     // Loopback, link-local, CGNAT (Tailscale) and other private ranges are allowed
     let pk_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(pubkey);
@@ -277,7 +275,8 @@ async fn test_framing_read_write() {
 #[tokio::test]
 async fn test_export_and_import_payload() {
     let dir_sender = tempfile::tempdir().unwrap();
-    let state_sender = Arc::new(AppState::new(dir_sender.path().to_path_buf(), "tok1".into()).unwrap());
+    let state_sender =
+        Arc::new(AppState::new(dir_sender.path().to_path_buf(), "tok1".into()).unwrap());
 
     // Populate sender state with an account and bucket
     let account = Account {
@@ -355,6 +354,70 @@ async fn test_export_and_import_payload() {
     assert_eq!(summary3.added, 0);
     assert_eq!(summary3.updated, 0);
     assert_eq!(summary3.skipped, 1);
+}
+
+#[tokio::test]
+async fn import_replaces_unsafe_peer_account_ids_with_local_ids() {
+    let dir_sender = tempfile::tempdir().unwrap();
+    let state_sender =
+        Arc::new(AppState::new(dir_sender.path().to_path_buf(), "tok1".into()).unwrap());
+    let account = Account {
+        id: "acc-evil".into(),
+        label: "Peer Account".into(),
+        provider: Provider::Anthropic,
+        email: Some("peer@example.com".into()),
+        provider_account_id: None,
+        chatgpt_account_id: None,
+        plan: None,
+        created_at: Utc::now().to_rfc3339(),
+        updated_at: Utc::now().to_rfc3339(),
+        last_usage: None,
+        last_error: None,
+        auth_required: false,
+    };
+    let secret = ProviderSecret::Anthropic(crate::model::OAuthSecret {
+        access_token: "sk-ant-access-evil".into(),
+        refresh_token: "sk-ant-refresh-evil".into(),
+        id_token: None,
+        expires_at: 0,
+    });
+    state_sender
+        .persist_connected_account(account, &secret)
+        .await
+        .unwrap();
+    state_sender
+        .buckets
+        .save(None, "Peer".into(), None, vec!["acc-evil".into()])
+        .unwrap();
+
+    // A hostile peer rewrites the account id (and the bucket reference) to a
+    // path traversal string before the payload is encrypted and sent.
+    let mut payload: serde_json::Value =
+        serde_json::from_slice(&create_export_payload(&state_sender).unwrap()).unwrap();
+    payload["accounts"][0]["account"]["id"] = "../accounts".into();
+    payload["buckets"][0]["accountIds"] = serde_json::json!(["../accounts"]);
+    let tampered = serde_json::to_vec(&payload).unwrap();
+
+    let dir_receiver = tempfile::tempdir().unwrap();
+    let state_receiver =
+        Arc::new(AppState::new(dir_receiver.path().to_path_buf(), "tok2".into()).unwrap());
+    let summary = import_sync_payload(&state_receiver, &tampered)
+        .await
+        .unwrap();
+    assert_eq!(summary.added, 1);
+    assert_eq!(summary.skipped, 0);
+
+    let accounts = state_receiver.store.list();
+    assert_eq!(accounts.len(), 1);
+    let local_id = accounts[0].id.clone();
+    assert_ne!(local_id, "../accounts");
+    assert!(Uuid::parse_str(&local_id).is_ok());
+    assert!(crate::store::load_provider_secret(&local_id).is_ok());
+
+    // Buckets follow the remapped id instead of the hostile one.
+    let buckets = state_receiver.buckets.list();
+    assert_eq!(buckets.len(), 1);
+    assert_eq!(buckets[0].account_ids, vec![local_id]);
 }
 
 fn antigravity_account(id: &str, label: &str, email: &str, project_id: Option<&str>) -> Account {
@@ -549,7 +612,10 @@ async fn test_live_retransfer_restores_locally_deleted_account() {
 
     let export_ab2 = create_export_payload(&state_a).unwrap();
     let summary = import_sync_payload(&state_b, &export_ab2).await.unwrap();
-    assert_eq!(summary.added, 1, "live re-transfer must restore a locally deleted account");
+    assert_eq!(
+        summary.added, 1,
+        "live re-transfer must restore a locally deleted account"
+    );
     assert_eq!(summary.skipped, 0);
     assert!(state_b.store.get("ghost-1").is_some());
     assert!(state_b.store.tombstones().is_empty());
@@ -600,7 +666,8 @@ async fn test_host_survives_garbage_and_squatter_before_real_peer() {
     // the session with garbage handshakes nor wedge it by squatting: the host
     // must keep accepting until the legitimate peer shows up.
     let dir_host = tempfile::tempdir().unwrap();
-    let state_host = Arc::new(AppState::new(dir_host.path().to_path_buf(), "tok-h4".into()).unwrap());
+    let state_host =
+        Arc::new(AppState::new(dir_host.path().to_path_buf(), "tok-h4".into()).unwrap());
 
     let dir_client = tempfile::tempdir().unwrap();
     let state_client =
@@ -714,7 +781,11 @@ async fn test_host_survives_garbage_and_squatter_before_real_peer() {
         .unwrap()
     {
         match ev {
-            HostEvent::SasVerification { role, account_count, .. } => {
+            HostEvent::SasVerification {
+                role,
+                account_count,
+                ..
+            } => {
                 assert_eq!(role, "receiver");
                 assert_eq!(account_count, 1);
                 host_sas_seen = true;
@@ -1035,7 +1106,8 @@ async fn test_end_to_end_pairing_flow() {
 async fn test_end_to_end_role_selection_client_sends() {
     // Client has account, Host is empty. Client connects and chooses "send".
     let dir_client = tempfile::tempdir().unwrap();
-    let state_client = Arc::new(AppState::new(dir_client.path().to_path_buf(), "tok-c".into()).unwrap());
+    let state_client =
+        Arc::new(AppState::new(dir_client.path().to_path_buf(), "tok-c".into()).unwrap());
 
     let account = Account {
         id: "client-acc-1".into(),
@@ -1054,10 +1126,14 @@ async fn test_end_to_end_role_selection_client_sends() {
     let secret = ProviderSecret::Grok(crate::model::GrokSecret {
         cookie_header: Some("sso-cookie-secret".into()),
     });
-    state_client.persist_connected_account(account, &secret).await.unwrap();
+    state_client
+        .persist_connected_account(account, &secret)
+        .await
+        .unwrap();
 
     let dir_host = tempfile::tempdir().unwrap();
-    let state_host = Arc::new(AppState::new(dir_host.path().to_path_buf(), "tok-h".into()).unwrap());
+    let state_host =
+        Arc::new(AppState::new(dir_host.path().to_path_buf(), "tok-h".into()).unwrap());
 
     let host_keypair = EphemeralKeyPair::generate();
     let session_id = Uuid::new_v4();
@@ -1111,7 +1187,13 @@ async fn test_end_to_end_role_selection_client_sends() {
     // Verify host role resolves to receiver
     let mut host_sas = String::new();
     while let Some(ev) = host_status_rx.recv().await {
-        if let HostEvent::SasVerification { sas_code, role, account_count, .. } = ev {
+        if let HostEvent::SasVerification {
+            sas_code,
+            role,
+            account_count,
+            ..
+        } = ev
+        {
             assert_eq!(role, "receiver");
             assert_eq!(account_count, 1);
             host_sas = sas_code;
@@ -1122,7 +1204,13 @@ async fn test_end_to_end_role_selection_client_sends() {
     // Verify client role resolves to sender
     let mut client_sas = String::new();
     while let Some(ev) = client_status_rx.recv().await {
-        if let ClientEvent::SasVerification { sas_code, role, account_count, .. } = ev {
+        if let ClientEvent::SasVerification {
+            sas_code,
+            role,
+            account_count,
+            ..
+        } = ev
+        {
             assert_eq!(role, "sender");
             assert_eq!(account_count, 1);
             client_sas = sas_code;
@@ -1153,7 +1241,8 @@ async fn test_end_to_end_role_selection_client_sends() {
 async fn test_end_to_end_role_selection_client_receives() {
     // Host has account, Client is empty. Client connects and chooses "receive".
     let dir_host = tempfile::tempdir().unwrap();
-    let state_host = Arc::new(AppState::new(dir_host.path().to_path_buf(), "tok-h2".into()).unwrap());
+    let state_host =
+        Arc::new(AppState::new(dir_host.path().to_path_buf(), "tok-h2".into()).unwrap());
 
     let account = Account {
         id: "host-acc-1".into(),
@@ -1175,10 +1264,14 @@ async fn test_end_to_end_role_selection_client_receives() {
         id_token: None,
         expires_at: 0,
     });
-    state_host.persist_connected_account(account, &secret).await.unwrap();
+    state_host
+        .persist_connected_account(account, &secret)
+        .await
+        .unwrap();
 
     let dir_client = tempfile::tempdir().unwrap();
-    let state_client = Arc::new(AppState::new(dir_client.path().to_path_buf(), "tok-c2".into()).unwrap());
+    let state_client =
+        Arc::new(AppState::new(dir_client.path().to_path_buf(), "tok-c2".into()).unwrap());
 
     let host_keypair = EphemeralKeyPair::generate();
     let session_id = Uuid::new_v4();
@@ -1232,7 +1325,13 @@ async fn test_end_to_end_role_selection_client_receives() {
     // Verify host role resolves to sender
     let mut host_sas = String::new();
     while let Some(ev) = host_status_rx.recv().await {
-        if let HostEvent::SasVerification { sas_code, role, account_count, .. } = ev {
+        if let HostEvent::SasVerification {
+            sas_code,
+            role,
+            account_count,
+            ..
+        } = ev
+        {
             assert_eq!(role, "sender");
             assert_eq!(account_count, 1);
             host_sas = sas_code;
@@ -1243,7 +1342,13 @@ async fn test_end_to_end_role_selection_client_receives() {
     // Verify client role resolves to receiver
     let mut client_sas = String::new();
     while let Some(ev) = client_status_rx.recv().await {
-        if let ClientEvent::SasVerification { sas_code, role, account_count, .. } = ev {
+        if let ClientEvent::SasVerification {
+            sas_code,
+            role,
+            account_count,
+            ..
+        } = ev
+        {
             assert_eq!(role, "receiver");
             assert_eq!(account_count, 1);
             client_sas = sas_code;
@@ -1273,9 +1378,11 @@ async fn test_end_to_end_role_selection_client_receives() {
 #[tokio::test]
 async fn test_end_to_end_sas_rejection_aborts() {
     let dir_host = tempfile::tempdir().unwrap();
-    let state_host = Arc::new(AppState::new(dir_host.path().to_path_buf(), "tok-h3".into()).unwrap());
+    let state_host =
+        Arc::new(AppState::new(dir_host.path().to_path_buf(), "tok-h3".into()).unwrap());
     let dir_client = tempfile::tempdir().unwrap();
-    let state_client = Arc::new(AppState::new(dir_client.path().to_path_buf(), "tok-c3".into()).unwrap());
+    let state_client =
+        Arc::new(AppState::new(dir_client.path().to_path_buf(), "tok-c3".into()).unwrap());
 
     let host_keypair = EphemeralKeyPair::generate();
     let session_id = Uuid::new_v4();

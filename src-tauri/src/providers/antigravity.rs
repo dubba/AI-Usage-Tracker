@@ -35,8 +35,9 @@ pub async fn refresh(
 ) -> Result<(ProviderUsage, OAuthSecret), ProviderError> {
     if secret.expires_within(300) {
         secret = refresh_secret(app, secret).await?;
-        save_provider_secret(&account.id, &ProviderSecret::Antigravity(secret.clone()))
-            .map_err(|_| ProviderError::Transient("Unable to save refreshed credentials.".into()))?;
+        save_provider_secret(&account.id, &ProviderSecret::Antigravity(secret.clone())).map_err(
+            |_| ProviderError::Transient("Unable to save refreshed credentials.".into()),
+        )?;
     }
 
     let result = match fetch_usage(app, account, &secret).await {
@@ -156,9 +157,10 @@ async fn cloud_code_post(
         .await
         .map_err(|_| ProviderError::Transient("Antigravity quota request failed.".into()))?;
     let status = response.status();
-    let body = response.text().await.map_err(|_| {
-        ProviderError::Transient("Unable to read the Antigravity response.".into())
-    })?;
+    let body = response
+        .text()
+        .await
+        .map_err(|_| ProviderError::Transient("Unable to read the Antigravity response.".into()))?;
     if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
         return Err(ProviderError::Auth);
     }
@@ -172,11 +174,9 @@ async fn cloud_code_post(
     })
 }
 
-async fn refresh_secret(
-    app: &AppState,
-    secret: OAuthSecret,
-) -> Result<OAuthSecret, ProviderError> {
-    let client_secret = zeroize::Zeroizing::new(String::from_utf8_lossy(CLIENT_SECRET_BYTES).to_string());
+async fn refresh_secret(app: &AppState, secret: OAuthSecret) -> Result<OAuthSecret, ProviderError> {
+    let client_secret =
+        zeroize::Zeroizing::new(String::from_utf8_lossy(CLIENT_SECRET_BYTES).to_string());
     let response = app
         .client
         .post(TOKEN_URL)
@@ -202,9 +202,8 @@ async fn refresh_secret(
             "Google token refresh returned {status}."
         )));
     }
-    let tokens: RefreshResponse = serde_json::from_str(&body).map_err(|_| {
-        ProviderError::Transient("Invalid Google token refresh response.".into())
-    })?;
+    let tokens: RefreshResponse = serde_json::from_str(&body)
+        .map_err(|_| ProviderError::Transient("Invalid Google token refresh response.".into()))?;
     Ok(OAuthSecret {
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token.unwrap_or(secret.refresh_token),
@@ -239,7 +238,9 @@ async fn fetch_email(app: &AppState, access_token: &str) -> Result<String, Provi
         .and_then(Value::as_str)
         .filter(|value| !value.trim().is_empty())
         .map(str::to_string)
-        .ok_or_else(|| ProviderError::Transient("Google user info did not contain an email address.".into()))
+        .ok_or_else(|| {
+            ProviderError::Transient("Google user info did not contain an email address.".into())
+        })
 }
 
 fn metadata(duet_project: Option<&str>) -> Value {
@@ -317,7 +318,12 @@ fn parse_quota_value(value: &Value) -> Vec<UsageWindow> {
 fn sort_quota_windows(windows: &mut [UsageWindow]) {
     let mut group_order = Vec::new();
     for window in windows.iter() {
-        let group = window.label.split(" · ").next().unwrap_or(&window.label).to_string();
+        let group = window
+            .label
+            .split(" · ")
+            .next()
+            .unwrap_or(&window.label)
+            .to_string();
         if !group_order.contains(&group) {
             group_order.push(group);
         }
@@ -325,8 +331,14 @@ fn sort_quota_windows(windows: &mut [UsageWindow]) {
     windows.sort_by(|a, b| {
         let group_a = a.label.split(" · ").next().unwrap_or(&a.label);
         let group_b = b.label.split(" · ").next().unwrap_or(&b.label);
-        let idx_a = group_order.iter().position(|g| g == group_a).unwrap_or(usize::MAX);
-        let idx_b = group_order.iter().position(|g| g == group_b).unwrap_or(usize::MAX);
+        let idx_a = group_order
+            .iter()
+            .position(|g| g == group_a)
+            .unwrap_or(usize::MAX);
+        let idx_b = group_order
+            .iter()
+            .position(|g| g == group_b)
+            .unwrap_or(usize::MAX);
         let group_cmp = idx_a.cmp(&idx_b);
         if group_cmp != std::cmp::Ordering::Equal {
             return group_cmp;
@@ -399,7 +411,9 @@ fn parse_available_models(value: &Value) -> Vec<UsageWindow> {
         return windows;
     };
     for (model_id, model) in models {
-        let Some(quota) = model.get("quotaInfo") else { continue };
+        let Some(quota) = model.get("quotaInfo") else {
+            continue;
+        };
         let Some(remaining) = quota.get("remainingFraction").and_then(value_as_f64) else {
             continue;
         };
@@ -437,7 +451,11 @@ fn value_as_f64(value: &Value) -> Option<f64> {
 
 fn classify_id(label: &str) -> String {
     let lower = label.to_ascii_lowercase();
-    if lower.contains("5h") || lower.contains("5 hour") || lower.contains("five hour") || lower.contains("rolling") {
+    if lower.contains("5h")
+        || lower.contains("5 hour")
+        || lower.contains("five hour")
+        || lower.contains("rolling")
+    {
         "five_hour".into()
     } else if lower.contains("week") || lower.contains("7 day") || lower.contains("seven day") {
         "weekly".into()
@@ -472,13 +490,23 @@ fn unique_id(base: &str, ids: &mut HashSet<String>) -> String {
 fn slug(value: &str) -> String {
     let result = value
         .chars()
-        .map(|character| if character.is_ascii_alphanumeric() { character.to_ascii_lowercase() } else { '_' })
+        .map(|character| {
+            if character.is_ascii_alphanumeric() {
+                character.to_ascii_lowercase()
+            } else {
+                '_'
+            }
+        })
         .collect::<String>()
         .split('_')
         .filter(|part| !part.is_empty())
         .collect::<Vec<_>>()
         .join("_");
-    if result.is_empty() { "quota".into() } else { result }
+    if result.is_empty() {
+        "quota".into()
+    } else {
+        result
+    }
 }
 
 #[cfg(test)]

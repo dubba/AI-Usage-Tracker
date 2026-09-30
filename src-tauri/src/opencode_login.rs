@@ -1,7 +1,6 @@
 use crate::{
     model::{
-        now_rfc3339, Account, LoginStart, LoginStatus, OpenCodeGoSecret, Provider,
-        ProviderSecret,
+        now_rfc3339, Account, LoginStart, LoginStatus, OpenCodeGoSecret, Provider, ProviderSecret,
     },
     providers,
     state::AppState,
@@ -15,9 +14,9 @@ use std::{
     },
     time::Duration as StdDuration,
 };
-use tauri::{AppHandle, WebviewWindow};
 #[cfg(desktop)]
 use tauri::{webview::PageLoadEvent, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri::{AppHandle, WebviewWindow};
 use url::Url;
 use uuid::Uuid;
 
@@ -135,51 +134,54 @@ pub async fn start_login(
 
     #[cfg(desktop)]
     {
-    if let Some(window) = app.get_webview_window(LOGIN_WINDOW_LABEL) {
-        close_login_window(&window);
-    }
-
-    let expires_at = (Utc::now() + Duration::minutes(LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
-    let (width, height) = login_window_size(&app);
-    let login_url = match Url::parse(LOGIN_URL) {
-        Ok(url) => url,
-        Err(error) => {
-            let mut pending = state.pending_login.write();
-            if pending.as_ref().is_some_and(|login| login.attempt_id == attempt_id) {
-                *pending = None;
-            }
-            return Err(error.to_string());
+        if let Some(window) = app.get_webview_window(LOGIN_WINDOW_LABEL) {
+            close_login_window(&window);
         }
-    };
-    let capture_started = Arc::new(AtomicBool::new(false));
 
-    let page_state = state.clone();
-    let page_attempt = attempt_id.clone();
-    let page_label = label.clone();
-    let page_email = email.clone();
-    let page_capture_started = capture_started.clone();
+        let expires_at = (Utc::now() + Duration::minutes(LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
+        let (width, height) = login_window_size(&app);
+        let login_url = match Url::parse(LOGIN_URL) {
+            Ok(url) => url,
+            Err(error) => {
+                let mut pending = state.pending_login.write();
+                if pending
+                    .as_ref()
+                    .is_some_and(|login| login.attempt_id == attempt_id)
+                {
+                    *pending = None;
+                }
+                return Err(error.to_string());
+            }
+        };
+        let capture_started = Arc::new(AtomicBool::new(false));
 
-    #[allow(unused_mut)]
-    let mut builder = WebviewWindowBuilder::new(
-        &app,
-        LOGIN_WINDOW_LABEL,
-        WebviewUrl::External(login_url.clone()),
-    )
-    .title("Connect OpenCode Go — sign in, then select Go")
-    .inner_size(width, height)
-    .min_inner_size(820.0, 620.0)
-    .resizable(true)
-    .incognito(true)
-    .devtools(false)
-    .initialization_script(CONNECT_BANNER_SCRIPT)
-    .on_navigation(is_allowed_login_navigation);
+        let page_state = state.clone();
+        let page_attempt = attempt_id.clone();
+        let page_label = label.clone();
+        let page_email = email.clone();
+        let page_capture_started = capture_started.clone();
 
-    #[cfg(desktop)]
-    {
-        builder = builder.center();
-    }
+        #[allow(unused_mut)]
+        let mut builder = WebviewWindowBuilder::new(
+            &app,
+            LOGIN_WINDOW_LABEL,
+            WebviewUrl::External(login_url.clone()),
+        )
+        .title("Connect OpenCode Go — sign in, then select Go")
+        .inner_size(width, height)
+        .min_inner_size(820.0, 620.0)
+        .resizable(true)
+        .incognito(true)
+        .devtools(false)
+        .initialization_script(CONNECT_BANNER_SCRIPT)
+        .on_navigation(is_allowed_login_navigation);
 
-    let login_window = match builder
+        #[cfg(desktop)]
+        {
+            builder = builder.center();
+        }
+
+        let login_window = match builder
         .on_page_load(move |window, payload| {
         if !matches!(payload.event(), PageLoadEvent::Finished) {
             return;
@@ -242,43 +244,40 @@ pub async fn start_login(
         }
     };
 
-    let close_state = state.clone();
-    let close_attempt = attempt_id.clone();
-    login_window.on_window_event(move |event| {
-        if matches!(event, WindowEvent::CloseRequested { .. }) {
-            fail_if_waiting(
-                &close_state,
-                &close_attempt,
-                "OpenCode login was cancelled.".into(),
-            );
-        }
-    });
-
-    let timeout_state = state.clone();
-    let timeout_attempt = attempt_id.clone();
-    let timeout_app = app.clone();
-    tauri::async_runtime::spawn(async move {
-        tokio::time::sleep(StdDuration::from_secs(
-            (LOGIN_TIMEOUT_MINUTES * 60) as u64,
-        ))
-        .await;
-        if is_waiting(&timeout_state, &timeout_attempt) {
-            fail_if_waiting(
-                &timeout_state,
-                &timeout_attempt,
-                "OpenCode login timed out. Start the connection again.".into(),
-            );
-            if let Some(window) = timeout_app.get_webview_window(LOGIN_WINDOW_LABEL) {
-                close_login_window(&window);
+        let close_state = state.clone();
+        let close_attempt = attempt_id.clone();
+        login_window.on_window_event(move |event| {
+            if matches!(event, WindowEvent::CloseRequested { .. }) {
+                fail_if_waiting(
+                    &close_state,
+                    &close_attempt,
+                    "OpenCode login was cancelled.".into(),
+                );
             }
-        }
-    });
+        });
 
-    Ok(LoginStart {
-        attempt_id,
-        authorization_url: String::new(),
-        expires_at,
-    })
+        let timeout_state = state.clone();
+        let timeout_attempt = attempt_id.clone();
+        let timeout_app = app.clone();
+        tauri::async_runtime::spawn(async move {
+            tokio::time::sleep(StdDuration::from_secs((LOGIN_TIMEOUT_MINUTES * 60) as u64)).await;
+            if is_waiting(&timeout_state, &timeout_attempt) {
+                fail_if_waiting(
+                    &timeout_state,
+                    &timeout_attempt,
+                    "OpenCode login timed out. Start the connection again.".into(),
+                );
+                if let Some(window) = timeout_app.get_webview_window(LOGIN_WINDOW_LABEL) {
+                    close_login_window(&window);
+                }
+            }
+        });
+
+        Ok(LoginStart {
+            attempt_id,
+            authorization_url: String::new(),
+            expires_at,
+        })
     }
 }
 
@@ -501,10 +500,7 @@ async fn start_mobile_login(
     let timeout_state = state.clone();
     let timeout_attempt = attempt_id.clone();
     tauri::async_runtime::spawn(async move {
-        tokio::time::sleep(StdDuration::from_secs(
-            (LOGIN_TIMEOUT_MINUTES * 60) as u64,
-        ))
-        .await;
+        tokio::time::sleep(StdDuration::from_secs((LOGIN_TIMEOUT_MINUTES * 60) as u64)).await;
         if is_waiting(&timeout_state, &timeout_attempt) {
             fail_if_waiting(
                 &timeout_state,
@@ -550,9 +546,7 @@ fn read_auth_cookie_with_retry(window: &WebviewWindow) -> Result<String, String>
         }
 
         if attempt + 1 < COOKIE_CAPTURE_ATTEMPTS {
-            std::thread::sleep(StdDuration::from_millis(
-                COOKIE_CAPTURE_RETRY_DELAY_MS,
-            ));
+            std::thread::sleep(StdDuration::from_millis(COOKIE_CAPTURE_RETRY_DELAY_MS));
         }
     }
 
@@ -610,7 +604,9 @@ fn workspace_id_from_url(url: &Url) -> Option<String> {
         return None;
     }
     let segments = url.path_segments()?.collect::<Vec<_>>();
-    let workspace_index = segments.iter().position(|segment| *segment == "workspace")?;
+    let workspace_index = segments
+        .iter()
+        .position(|segment| *segment == "workspace")?;
     if segments.get(workspace_index + 2).copied() != Some("go") {
         return None;
     }
@@ -670,10 +666,8 @@ mod tests {
         );
         assert_eq!(
             workspace_id_from_url(
-                &Url::parse(
-                    "https://opencode.ai/workspace/mystic-patrol-3ls3t/go/?source=sidebar"
-                )
-                .unwrap()
+                &Url::parse("https://opencode.ai/workspace/mystic-patrol-3ls3t/go/?source=sidebar")
+                    .unwrap()
             ),
             Some("mystic-patrol-3ls3t".into())
         );
@@ -691,8 +685,8 @@ mod tests {
         );
         assert_eq!(
             workspace_id_from_url(
-            &Url::parse("https://opencode.ai/workspace/../admin/go").unwrap()
-        ),
+                &Url::parse("https://opencode.ai/workspace/../admin/go").unwrap()
+            ),
             None
         );
     }

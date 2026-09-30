@@ -110,9 +110,9 @@ pub async fn add_account(
             ProviderError::Auth => {
                 "The cookie does not contain a valid Grok session. Sign in to grok.com in your browser and try again.".to_string()
             }
-            ProviderError::Transient(message) => format!(
-                "Grok's Usage service did not return readable billing data: {message}"
-            ),
+            ProviderError::Transient(message) | ProviderError::RateLimited { message, .. } => {
+                format!("Grok's Usage service did not return readable billing data: {message}")
+            }
         })?;
 
     let duplicate = state
@@ -142,7 +142,11 @@ pub async fn add_account(
         .provider_account_id
         .clone()
         .or_else(|| probe.email.clone())
-        .or_else(|| duplicate.as_ref().and_then(|account| account.provider_account_id.clone()))
+        .or_else(|| {
+            duplicate
+                .as_ref()
+                .and_then(|account| account.provider_account_id.clone())
+        })
         .or_else(|| Some(Uuid::new_v4().to_string()));
     let account = Account {
         id: account_id.clone(),
@@ -161,10 +165,7 @@ pub async fn add_account(
             .or_else(|| duplicate.as_ref().and_then(|account| account.email.clone())),
         provider_account_id,
         chatgpt_account_id: None,
-        plan: probe
-            .plan
-            .clone()
-            .or_else(|| Some("Grok".into())),
+        plan: probe.plan.clone().or_else(|| Some("Grok".into())),
         created_at: duplicate
             .as_ref()
             .map(|account| account.created_at.clone())
@@ -284,7 +285,10 @@ pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginSta
         Some(app) => app,
         None => {
             let mut pending = state.pending_login.write();
-            if pending.as_ref().is_some_and(|login| login.attempt_id == attempt_id) {
+            if pending
+                .as_ref()
+                .is_some_and(|login| login.attempt_id == attempt_id)
+            {
                 *pending = None;
             }
             return Err("The application is not ready to open Grok login.".to_string());
@@ -296,7 +300,10 @@ pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginSta
         Ok(url) => url,
         Err(error) => {
             let mut pending = state.pending_login.write();
-            if pending.as_ref().is_some_and(|login| login.attempt_id == attempt_id) {
+            if pending
+                .as_ref()
+                .is_some_and(|login| login.attempt_id == attempt_id)
+            {
                 *pending = None;
             }
             return Err(error.to_string());
@@ -310,26 +317,29 @@ pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginSta
 
     #[cfg(desktop)]
     {
-    if let Some(window) = app.get_webview_window(LOGIN_WINDOW_LABEL) {
-        close_login_window(&window);
-    }
-
-    // Sweep profiles left behind by a previous crash/kill before creating a
-    // new one, then create the new profile as owner-only.
-    sweep_stale_grok_profiles();
-    let temp_data_dir = match create_private_grok_profile_dir(&attempt_id) {
-        Ok(dir) => dir,
-        Err(error) => {
-            let mut pending = state.pending_login.write();
-            if pending.as_ref().is_some_and(|login| login.attempt_id == attempt_id) {
-                *pending = None;
-            }
-            return Err(error);
+        if let Some(window) = app.get_webview_window(LOGIN_WINDOW_LABEL) {
+            close_login_window(&window);
         }
-    };
 
-    let (width, height) = login_window_size(&app);
-    #[allow(unused_mut)]
+        // Sweep profiles left behind by a previous crash/kill before creating a
+        // new one, then create the new profile as owner-only.
+        sweep_stale_grok_profiles();
+        let temp_data_dir = match create_private_grok_profile_dir(&attempt_id) {
+            Ok(dir) => dir,
+            Err(error) => {
+                let mut pending = state.pending_login.write();
+                if pending
+                    .as_ref()
+                    .is_some_and(|login| login.attempt_id == attempt_id)
+                {
+                    *pending = None;
+                }
+                return Err(error);
+            }
+        };
+
+        let (width, height) = login_window_size(&app);
+        #[allow(unused_mut)]
     let mut builder = WebviewWindowBuilder::new(
         &app,
         LOGIN_WINDOW_LABEL,
@@ -346,71 +356,70 @@ pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginSta
     .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15")
     .on_navigation(is_allowed_login_navigation);
 
-    builder = builder.center();
+        builder = builder.center();
 
-    let login_window = match builder.build()
-    {
-        Ok(window) => window,
-        Err(error) => {
-            let _ = std::fs::remove_dir_all(&temp_data_dir);
-            let mut pending = state.pending_login.write();
-            if pending.as_ref().is_some_and(|login| login.attempt_id == attempt_id) {
-                *pending = None;
+        let login_window = match builder.build() {
+            Ok(window) => window,
+            Err(error) => {
+                let _ = std::fs::remove_dir_all(&temp_data_dir);
+                let mut pending = state.pending_login.write();
+                if pending
+                    .as_ref()
+                    .is_some_and(|login| login.attempt_id == attempt_id)
+                {
+                    *pending = None;
+                }
+                return Err(format!("Unable to open the Grok login window: {error}"));
             }
-            return Err(format!("Unable to open the Grok login window: {error}"));
-        }
-    };
+        };
 
-    let cleanup_dir = temp_data_dir.clone();
-    start_cookie_poll(
-        login_window.clone(),
-        state.clone(),
-        attempt_id.clone(),
-        label,
-        Some(cleanup_dir),
-    );
+        let cleanup_dir = temp_data_dir.clone();
+        start_cookie_poll(
+            login_window.clone(),
+            state.clone(),
+            attempt_id.clone(),
+            label,
+            Some(cleanup_dir),
+        );
 
-    let close_state = state.clone();
-    let close_attempt = attempt_id.clone();
-    let close_dir = temp_data_dir.clone();
-    login_window.on_window_event(move |event| {
-        if matches!(event, WindowEvent::CloseRequested { .. }) {
-            let _ = std::fs::remove_dir_all(&close_dir);
-            fail_if_waiting(
-                &close_state,
-                &close_attempt,
-                "Grok login was cancelled.".into(),
-            );
-        }
-    });
-
-    let timeout_state = state.clone();
-    let timeout_attempt = attempt_id.clone();
-    let timeout_app = app.clone();
-    let timeout_dir = temp_data_dir.clone();
-    tauri::async_runtime::spawn(async move {
-        tokio::time::sleep(Duration::from_secs(
-            (LOGIN_TIMEOUT_MINUTES * 60) as u64,
-        ))
-        .await;
-        if is_waiting(&timeout_state, &timeout_attempt) {
-            let _ = std::fs::remove_dir_all(&timeout_dir);
-            fail_if_waiting(
-                &timeout_state,
-                &timeout_attempt,
-                "Grok login timed out. Start the connection again.".into(),
-            );
-            if let Some(window) = timeout_app.get_webview_window(LOGIN_WINDOW_LABEL) {
-                close_login_window(&window);
+        let close_state = state.clone();
+        let close_attempt = attempt_id.clone();
+        let close_dir = temp_data_dir.clone();
+        login_window.on_window_event(move |event| {
+            if matches!(event, WindowEvent::CloseRequested { .. }) {
+                let _ = std::fs::remove_dir_all(&close_dir);
+                fail_if_waiting(
+                    &close_state,
+                    &close_attempt,
+                    "Grok login was cancelled.".into(),
+                );
             }
-        }
-    });
+        });
 
-    Ok(LoginStart {
-        attempt_id,
-        authorization_url: String::new(),
-        expires_at,
-    })
+        let timeout_state = state.clone();
+        let timeout_attempt = attempt_id.clone();
+        let timeout_app = app.clone();
+        let timeout_dir = temp_data_dir.clone();
+        tauri::async_runtime::spawn(async move {
+            tokio::time::sleep(Duration::from_secs((LOGIN_TIMEOUT_MINUTES * 60) as u64)).await;
+            if is_waiting(&timeout_state, &timeout_attempt) {
+                let _ = std::fs::remove_dir_all(&timeout_dir);
+                fail_if_waiting(
+                    &timeout_state,
+                    &timeout_attempt,
+                    "Grok login timed out. Start the connection again.".into(),
+                );
+                if let Some(window) = timeout_app.get_webview_window(LOGIN_WINDOW_LABEL) {
+                    close_login_window(&window);
+                }
+            }
+        });
+
+        Ok(LoginStart {
+            attempt_id,
+            authorization_url: String::new(),
+            expires_at,
+        })
     }
 }
 
@@ -442,13 +451,7 @@ async fn start_mobile_login(
             return Err(error);
         }
     };
-    start_cookie_poll(
-        window,
-        state.clone(),
-        attempt_id.clone(),
-        label,
-        None,
-    );
+    start_cookie_poll(window, state.clone(), attempt_id.clone(), label, None);
     if let Err(error) = crate::mobile_auth::open_in_main_webview(
         app,
         state.clone(),
@@ -463,10 +466,7 @@ async fn start_mobile_login(
     let timeout_state = state.clone();
     let timeout_attempt = attempt_id.clone();
     tauri::async_runtime::spawn(async move {
-        tokio::time::sleep(Duration::from_secs(
-            (LOGIN_TIMEOUT_MINUTES * 60) as u64,
-        ))
-        .await;
+        tokio::time::sleep(Duration::from_secs((LOGIN_TIMEOUT_MINUTES * 60) as u64)).await;
         if is_waiting(&timeout_state, &timeout_attempt) {
             fail_if_waiting(
                 &timeout_state,
@@ -571,11 +571,11 @@ async fn complete_cookie_login(
             // If the user signed in on accounts.x.ai, navigate to grok.com to establish the session
             if let Ok(current_url) = window.url() {
                 let current_str = current_url.as_str();
-                if current_str.contains("accounts.x.ai") || current_str.contains("x.ai") {
-                    if has_grok_session_cookie(&cookie_header) {
-                        if let Ok(grok_target) = Url::parse("https://grok.com/?_s=usage") {
-                            let _ = window.navigate(grok_target);
-                        }
+                if (current_str.contains("accounts.x.ai") || current_str.contains("x.ai"))
+                    && has_grok_session_cookie(&cookie_header)
+                {
+                    if let Ok(grok_target) = Url::parse("https://grok.com/?_s=usage") {
+                        let _ = window.navigate(grok_target);
                     }
                 }
             }
@@ -586,7 +586,9 @@ async fn complete_cookie_login(
             );
             return;
         }
-        Err(ProviderError::Transient(error)) => {
+        Err(
+            ProviderError::Transient(error) | ProviderError::RateLimited { message: error, .. },
+        ) => {
             capture_in_flight.store(false, Ordering::SeqCst);
             update_waiting_message(
                 &state,
@@ -634,7 +636,11 @@ async fn complete_cookie_login(
         .provider_account_id
         .clone()
         .or_else(|| usage.email.clone())
-        .or_else(|| duplicate.as_ref().and_then(|account| account.provider_account_id.clone()))
+        .or_else(|| {
+            duplicate
+                .as_ref()
+                .and_then(|account| account.provider_account_id.clone())
+        })
         .or_else(|| Some(Uuid::new_v4().to_string()));
     let account = Account {
         id: account_id.clone(),
@@ -653,10 +659,7 @@ async fn complete_cookie_login(
             .or_else(|| duplicate.as_ref().and_then(|account| account.email.clone())),
         provider_account_id,
         chatgpt_account_id: None,
-        plan: usage
-            .plan
-            .clone()
-            .or_else(|| Some("Grok".into())),
+        plan: usage.plan.clone().or_else(|| Some("Grok".into())),
         created_at: duplicate
             .as_ref()
             .map(|account| account.created_at.clone())
@@ -921,7 +924,10 @@ mod tests {
     fn default_grok_label_handles_empty_and_numbered_accounts() {
         let temp = tempfile::tempdir().unwrap();
         let state = AppState::new(temp.path().to_path_buf(), "test-token".into()).unwrap();
-        assert_eq!(default_grok_label(&state, Some("user@example.com")), "user@example.com");
+        assert_eq!(
+            default_grok_label(&state, Some("user@example.com")),
+            "user@example.com"
+        );
         assert_eq!(default_grok_label(&state, None), "Grok");
     }
 }

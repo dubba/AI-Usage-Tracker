@@ -36,9 +36,8 @@ pub fn restrict_private_permissions(path: &Path) -> Result<(), String> {
 pub fn restrict_private_permissions(path: &Path) -> Result<(), String> {
     use std::process::Command;
 
-    let username = std::env::var("USERNAME").map_err(|_| {
-        "Unable to determine the current user for file ACL hardening".to_string()
-    })?;
+    let username = std::env::var("USERNAME")
+        .map_err(|_| "Unable to determine the current user for file ACL hardening".to_string())?;
     if username.trim().is_empty() || username.contains(['/', '\\', '"']) {
         return Err("Invalid username for file ACL hardening".into());
     }
