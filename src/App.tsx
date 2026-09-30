@@ -3,17 +3,39 @@ import { getVersion } from "@tauri-apps/api/app";
 import { listen } from "@tauri-apps/api/event";
 import { openSafeUrl } from "./utils/safeUrl";
 import { bridgeApi, pairingApi } from "./api";
+import { useBusyKeys, type BusyKeys } from "./busy";
+import { useAppErrors } from "./errors";
 import { resumeLoginAttemptWatch, subscribeLoginStatus } from "./login-status";
 import { AccountAlertModal } from "./components/AccountAlertModal";
 import { RemoveAccountModal } from "./components/RemoveAccountModal";
 import { AddAccountModal } from "./components/AddAccountModal";
 import { BucketModal } from "./components/BucketModal";
 import { CustomDropdown } from "./components/CustomDropdown";
+import { ErrorBanner } from "./components/ErrorBanner";
 import { GoogleAiStudioUsageModal } from "./components/GoogleAiStudioUsageModal";
 import { PairingModal } from "./components/PairingModal";
 import { ProviderIcon } from "./components/ProviderIcon";
 import { UpdateNotesModal } from "./components/UpdateNotesModal";
 import "./pairing.css";
+import {
+  providerName,
+  displayAccountLabel,
+  formatResetAtShort,
+  googleAiStudioHasQuotaWindows,
+  accountNeedsAttention,
+  accountStatus,
+  canonicalWindow,
+  isMonthlyWindow,
+  groupAverage,
+  nextResetSummary,
+  accountsNeedScheduledRefresh,
+  formatUpdatedAt,
+  usageTone,
+  orderedWindows,
+  windowLength,
+  resetCountdownLabel,
+  type NextResetSummary,
+} from "./usage-logic";
 import {
   DASHBOARD_GROUP_ORDER_EVENT,
   DASHBOARD_PROVIDER_ORDER_EVENT,
@@ -60,7 +82,6 @@ import type {
 } from "./types";
 
 type Section = "accounts" | "settings";
-type SidebarWindow = "five_hour" | "weekly";
 
 export type SidebarGroup = {
   id: string;
@@ -71,60 +92,20 @@ export type SidebarGroup = {
   bucket?: AccountBucket;
 };
 
-type NextResetSummary = {
-  account: string | null;
-  value: string;
-  resetsAt: string | null;
-};
 
 const UPDATE_CHECK_INTERVAL_MS = 8 * 60 * 60 * 1000; // 8 hours
 // Shown only until getVersion() resolves; getVersion() is the single source of truth.
 const FALLBACK_APP_VERSION = "0.3.5";
 const DASHBOARD_SYNC_INTERVAL_MS = 30 * 1000;
 const STARTUP_REFRESH_DELAY_MS = 3 * 1000;
-const GOOGLE_AI_STUDIO_MODELS_ONLY_SOURCE = "google_ai_studio_model_access";
 const DEFAULT_ACCOUNT_REFRESH_MINUTES = 15;
 const ACCOUNT_REFRESH_OPTIONS = [5, 10, 15, 30, 45, 60] as const;
 const ALL_ACCOUNTS_GROUP_ID = "all";
 const RELATIVE_TIME_TICK_MS = 1000;
 const CHANGELOG_URL = "https://github.com/dubba/AI-Usage-Tracker/blob/main/CHANGELOG.md";
 
-function providerName(provider: Provider): string {
-  switch (provider) {
-    case "openai": return "ChatGPT";
-    case "anthropic": return "Claude";
-    case "antigravity": return "Antigravity";
-    case "google_ai_studio": return "AI Studio";
-    case "grok": return "Grok";
-    case "opencode_go": return "OpenCode Go";
-    case "cursor": return "Cursor";
-  }
-}
 
-// Legacy accounts were auto-labelled with an older provider display name
-// (e.g. "Google Antigravity"). Collapse only those obsolete branded defaults
-// for the matching provider, including numbered copies ("Grok/Cursor 2").
-const LEGACY_DEFAULT_LABELS: Partial<Record<Provider, string[]>> = {
-  antigravity: ["Google Antigravity"],
-  grok: ["Grok / SuperGrok", "Grok/Cursor"],
-  openai: ["OpenAI Codex", "Codex/GPT", "GPT/Codex"],
-  anthropic: ["Anthropic Claude"],
-  google_ai_studio: ["Google AI Studio"],
-};
 
-function displayAccountLabel(account: Account): string {
-  const current = providerName(account.provider);
-  const legacy = LEGACY_DEFAULT_LABELS[account.provider] ?? [];
-  if (legacy.includes(account.label)) return current;
-  for (const old of legacy) {
-    const prefix = `${old} `;
-    if (account.label.startsWith(prefix)) {
-      const rest = account.label.slice(prefix.length);
-      if (/^\d+$/.test(rest)) return `${current} ${rest}`;
-    }
-  }
-  return account.label;
-}
 
 function displayProviderGroupTitle(provider: Provider, accounts: Account[]): string {
   const labels = accounts.map(displayAccountLabel).filter((label) => label.trim());
@@ -146,285 +127,26 @@ function displayAccountSubtitle(account: Account): string {
   return pName;
 }
 
-function formatResetAtShort(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  const day = date.toLocaleString([], { month: "short", day: "numeric" });
-  const hour = date.getHours();
-  const hour12 = hour % 12 || 12;
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const meridiem = hour < 12 ? "a" : "p";
-  return `${day} @ ${hour12}:${minutes}${meridiem}`;
-}
 
 function formatAlertTime(timestamp: number): string {
   const date = new Date(timestamp);
   return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-function googleAiStudioHasQuotaWindows(account: Account): boolean {
-  return account.provider === "google_ai_studio"
-    && account.lastUsage?.source === "google_ai_studio_cloud_monitoring"
-    && (account.lastUsage.windows ?? []).some((window) => window.remainingPercent != null);
-}
 
-function accountNeedsAttention(account: Account): boolean {
-  if (account.provider === "google_ai_studio" && !googleAiStudioHasQuotaWindows(account)) {
-    return true;
-  }
-  return Boolean(
-    account.authRequired
-    || account.lastError
-    || !account.lastUsage
-    || account.lastUsage.freshness !== "live",
-  );
-}
 
-function accountStatus(account: Account): { label: string; className: string } {
-  if (account.authRequired || account.lastUsage?.freshness === "auth_required") {
-    return { label: "AUTH NEEDED", className: "danger" };
-  }
-  if (account.lastError || account.lastUsage?.freshness === "stale") {
-    return { label: "ACTION NEEDED", className: "warning" };
-  }
-  if (account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_model_access") {
-    return { label: "KEY ONLY", className: "warning" };
-  }
-  if (account.provider === "google_ai_studio" && !googleAiStudioHasQuotaWindows(account)) {
-    return { label: "SETUP", className: "warning" };
-  }
-  if (!account.lastUsage || account.lastUsage.freshness === "unavailable") {
-    return { label: "INACTIVE", className: "neutral" };
-  }
-  return { label: "LIVE", className: "success" };
-}
 
-function canonicalWindow(window: UsageWindow, target: SidebarWindow): boolean {
-  const id = window.id.toLowerCase().replaceAll("-", "_");
-  const label = window.label.toLowerCase();
-  if (target === "five_hour") {
-    return id === "five_hour"
-      || id.startsWith("five_hour")
-      || id === "rolling"
-      || window.windowSeconds === 18_000
-      || label.includes("5 hour")
-      || label.includes("five hour")
-      || label.includes("5h")
-      || label.includes("5-hour");
-  }
-  return id === "weekly"
-    || id.startsWith("weekly")
-    || window.windowSeconds === 604_800
-    || label.includes("weekly")
-    || label.includes("7 day")
-    || label.includes("seven day")
-    || label.includes("7d")
-    || label.includes("7-day");
-}
-function isMonthlyWindow(window: UsageWindow): boolean {
-  const id = window.id.toLowerCase().replaceAll("-", "_");
-  const label = window.label.toLowerCase();
-  return (
-    id.includes("monthly") ||
-    id.includes("30d") ||
-    id.includes("30_day") ||
-    id.includes("thirty_day") ||
-    (window.windowSeconds != null && window.windowSeconds >= 2_000_000 && window.windowSeconds <= 2_700_000) ||
-    label.includes("monthly") ||
-    label.includes("30d") ||
-    label.includes("30-day") ||
-    label.includes("30 day") ||
-    label.includes("thirty day")
-  );
-}
 
-function accountWindowRemaining(account: Account, target: SidebarWindow): number | null {
-  const windows = account.lastUsage?.windows ?? [];
-  if (!windows.length) return null;
 
-  // 1. If H (hourly / 5-hour) is selected, only return usage for providers that actually have an hourly rate.
-  // Accounts without an hourly window (such as Grok with a 7d limit, or free GPT with a 30d limit) return null (dash "—").
-  if (target === "five_hour") {
-    const hourly = windows.find((candidate) => canonicalWindow(candidate, "five_hour"));
-    return hourly?.remainingPercent ?? null;
-  }
 
-  // 2. If W (weekly) is selected:
-  // First look for a 7-day / weekly window.
-  const weekly = windows.find((candidate) => canonicalWindow(candidate, "weekly"));
-  if (weekly?.remainingPercent != null) return weekly.remainingPercent;
 
-  // For GPT or accounts with a monthly / 30-day limit, show the 30-day limit under W.
-  const monthly = windows.find(isMonthlyWindow);
-  if (monthly?.remainingPercent != null) return monthly.remainingPercent;
 
-  return null;
-}
 
-function groupAverage(accounts: Account[], target: SidebarWindow): number | null {
-  const values = accounts
-    .map((account) => accountWindowRemaining(account, target))
-    .filter((value): value is number => value != null && Number.isFinite(value));
-  if (!values.length) return null;
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
-}
 
-function nextResetSummary(accounts: Account[], now: number = Date.now()): NextResetSummary {
-  const currentNow = Math.max(now, Date.now());
-  const candidates = accounts.flatMap((account) =>
-    (account.lastUsage?.windows ?? []).flatMap((window) => {
-      if (!window.resetsAt) return [];
-      const resetAt = new Date(window.resetsAt).getTime();
-      if (!Number.isFinite(resetAt) || resetAt <= currentNow) return [];
-      return [{
-        resetAt,
-        account: displayAccountLabel(account),
-        resetsAt: window.resetsAt,
-        windowSeconds: window.windowSeconds,
-      }];
-    }),
-  );
 
-  if (!candidates.length) {
-    return { account: null, value: "—", resetsAt: null };
-  }
 
-  candidates.sort((left, right) => left.resetAt - right.resetAt);
-  const next = candidates[0];
-  let remainingMs = next.resetAt - currentNow;
-  if (next.windowSeconds && remainingMs >= next.windowSeconds * 1000) {
-    remainingMs = next.windowSeconds * 1000 - 1;
-  }
-  return {
-    account: next.account,
-    value: formatRemainingDuration(remainingMs) ?? "—",
-    resetsAt: next.resetsAt,
-  };
-}
 
-function formatRemainingDuration(remainingMs: number): string | null {
-  if (!Number.isFinite(remainingMs) || remainingMs <= 0) return null;
-  const totalMinutes = Math.floor(remainingMs / 60_000);
-  if (totalMinutes === 0) {
-    const totalSeconds = Math.max(1, Math.floor(remainingMs / 1000));
-    if (totalSeconds >= 45) return "45s";
-    if (totalSeconds >= 30) return "30s";
-    if (totalSeconds >= 15) return "15s";
-    return "5s";
-  }
-  const days = Math.floor(totalMinutes / (24 * 60));
-  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
-  const minutes = totalMinutes % 60;
 
-  if (days > 0) {
-    return hours === 0 ? `${days}d` : `${days}d ${hours}h`;
-  }
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  }
-  return `${minutes}m`;
-}
-
-function accountAutoRefreshEligible(account: Account): boolean {
-  if (account.authRequired) return false;
-  if (account.provider === "google_ai_studio" && account.lastUsage?.source === GOOGLE_AI_STUDIO_MODELS_ONLY_SOURCE) {
-    return false;
-  }
-  return true;
-}
-
-function accountsNeedScheduledRefresh(accounts: Account[], minutes: number, now = Date.now()): boolean {
-  const maxAgeMs = minutes * 60_000;
-  return accounts.some((account) => {
-    if (!accountAutoRefreshEligible(account)) return false;
-    const fetchedAt = account.lastUsage?.fetchedAt;
-    if (!fetchedAt) return true;
-    const then = Date.parse(fetchedAt);
-    if (!Number.isFinite(then)) return true;
-    return now - then >= maxAgeMs;
-  });
-}
-
-function formatUpdatedAt(value: string | null | undefined, now = Date.now()): string | null {
-  if (!value) return null;
-  const then = new Date(value).getTime();
-  if (!Number.isFinite(then)) return null;
-  const elapsed = Math.max(0, now - then);
-  const minutes = Math.floor(elapsed / 60_000);
-  if (minutes < 1) return "Updated just now";
-  if (minutes < 60) return `Updated ${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `Updated ${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `Updated ${days}d ago`;
-}
-
-function usageTone(remaining: number | null): string {
-  if (remaining == null) return "neutral";
-  if (remaining <= 10) return "critical";
-  if (remaining <= 30) return "warning";
-  return "healthy";
-}
-
-function orderedWindows(windows: UsageWindow[]): UsageWindow[] {
-  const groupOrder: string[] = [];
-  for (const w of windows) {
-    const group = w.label.includes(" · ") ? w.label.split(" · ")[0] : "";
-    if (!groupOrder.includes(group)) {
-      groupOrder.push(group);
-    }
-  }
-
-  const windowWeight = (window: UsageWindow) => {
-    if (canonicalWindow(window, "five_hour")) return 0;
-    if (canonicalWindow(window, "weekly")) return 1;
-    if (window.id.toLowerCase().includes("monthly") || window.label.toLowerCase().includes("monthly")) return 2;
-    return 3;
-  };
-
-  return [...windows].sort((left, right) => {
-    const groupLeft = left.label.includes(" · ") ? left.label.split(" · ")[0] : "";
-    const groupRight = right.label.includes(" · ") ? right.label.split(" · ")[0] : "";
-    const idxLeft = groupOrder.indexOf(groupLeft);
-    const idxRight = groupOrder.indexOf(groupRight);
-    if (idxLeft !== idxRight) {
-      return idxLeft - idxRight;
-    }
-    return windowWeight(left) - windowWeight(right);
-  });
-}
-
-function windowLength(window: UsageWindow): string | null {
-  const id = window.id.toLowerCase().replaceAll("-", "_");
-  const label = window.label.toLowerCase();
-  if (window.windowSeconds) {
-    const hours = Math.round(window.windowSeconds / 3600);
-    if (hours >= 24 && hours % 24 === 0) return `${hours / 24}d limit`;
-    return `${hours}h limit`;
-  }
-  if (id.includes("monthly") || label.includes("monthly") || id.includes("30d") || label.includes("30d")) {
-    return "30d limit";
-  }
-  return null;
-}
-
-function resetCountdownLabel(
-  value: string | null | undefined,
-  now: number = Date.now(),
-  windowSeconds?: number | null,
-): string | null {
-  if (!value) return null;
-  const resetAt = new Date(value).getTime();
-  if (!Number.isFinite(resetAt)) return null;
-  const currentNow = Math.max(now, Date.now());
-  let remainingMs = resetAt - currentNow;
-  if (windowSeconds && remainingMs >= windowSeconds * 1000) {
-    remainingMs = windowSeconds * 1000 - 1;
-  }
-  const remaining = formatRemainingDuration(remainingMs);
-  return remaining ? `Reset: ${remaining}` : null;
-}
 
 function cleanModelPrefix(prefix: string): string {
   return prefix
@@ -659,8 +381,8 @@ export default function App() {
   googleUsageAccountRef.current = googleUsageAccount;
   const [loginLabel, setLoginLabel] = useState("");
   const [loginProvider, setLoginProvider] = useState<Provider | undefined>(undefined);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, begin: beginBusy, end: endBusy, has: isBusy } = useBusyKeys();
+  const { errors, report: reportError, clear: clearError } = useAppErrors();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [autostart, setAutostart] = useState(false);
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
@@ -673,7 +395,6 @@ export default function App() {
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateMessage, setUpdateMessage] = useState<string | null>(null);
   const updateMessageTimerRef = useRef<number | null>(null);
-  const updateErrorTimerRef = useRef<number | null>(null);
   const appSettingsRef = useRef(appSettings);
   const refreshDueInFlightRef = useRef(false);
   const wasHiddenRef = useRef(false);
@@ -693,32 +414,9 @@ export default function App() {
     }
   }, []);
 
-  const showTransientUpdateError = useCallback((err: string | null) => {
-    if (updateErrorTimerRef.current) {
-      window.clearTimeout(updateErrorTimerRef.current);
-      updateErrorTimerRef.current = null;
-    }
-    setUpdateError(err);
-    if (err) {
-      updateErrorTimerRef.current = window.setTimeout(() => {
-        setUpdateError(null);
-        updateErrorTimerRef.current = null;
-      }, 5_000);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!error) return;
-    const timer = window.setTimeout(() => {
-      setError(null);
-    }, 5_000);
-    return () => window.clearTimeout(timer);
-  }, [error]);
-
   useEffect(() => {
     return () => {
       if (updateMessageTimerRef.current) window.clearTimeout(updateMessageTimerRef.current);
-      if (updateErrorTimerRef.current) window.clearTimeout(updateErrorTimerRef.current);
     };
   }, []);
 
@@ -762,11 +460,11 @@ export default function App() {
         }),
       ]);
       setSnapshot(next);
-      setError(null);
+      clearError("load");
     } catch (cause) {
-      setError(String(cause));
+      reportError("load", cause);
     }
-  }, []);
+  }, [clearError, reportError]);
 
   const handlePairingCompleted = useCallback(async () => {
     await load();
@@ -831,7 +529,7 @@ export default function App() {
     const minDelayPromise = new Promise((resolve) => setTimeout(resolve, 500));
     if (showFeedback) {
       showTransientUpdateMessage(null);
-      showTransientUpdateError(null);
+      setUpdateError(null);
     }
     try {
       const [status] = await Promise.all([
@@ -840,7 +538,7 @@ export default function App() {
       ]);
       if (status.error) {
         if (showFeedback) {
-          showTransientUpdateError(status.error);
+          setUpdateError(status.error);
         }
         setAppUpdate((current) => (current?.available && !showFeedback ? current : status));
         return;
@@ -856,12 +554,12 @@ export default function App() {
     } catch (cause) {
       await minDelayPromise;
       if (showFeedback) {
-        showTransientUpdateError(String(cause));
+        setUpdateError(String(cause));
       }
     } finally {
       setUpdateBusy(null);
     }
-  }, [installedVersion, showTransientUpdateMessage, showTransientUpdateError]);
+  }, [installedVersion, showTransientUpdateMessage]);
 
   const installUpdate = useCallback(async () => {
     setUpdateBusy("downloading");
@@ -885,51 +583,51 @@ export default function App() {
     try {
       const saved = await bridgeApi.setAccountRefreshMinutes(minutes);
       setAppSettings(saved);
-      setError(null);
+      clearError("settings");
     } catch (cause) {
-      setError(String(cause));
+      reportError("settings", cause, "Couldn't save the refresh interval");
     } finally {
       setSettingsBusy(false);
     }
-  }, []);
+  }, [clearError, reportError]);
 
   const saveAutomaticUpdatesEnabled = useCallback(async (enabled: boolean) => {
     setSettingsBusy(true);
     try {
       const saved = await bridgeApi.setAutomaticUpdatesEnabled(enabled);
       setAppSettings(saved);
-      setError(null);
+      clearError("settings");
     } catch (cause) {
-      setError(String(cause));
+      reportError("settings", cause, "Couldn't save the automatic updates setting");
     } finally {
       setSettingsBusy(false);
     }
-  }, []);
+  }, [clearError, reportError]);
 
   const setApiIntegrationEnabled = useCallback(async (enabled: boolean) => {
-    setBusy("toggle-api-integration");
+    if (!beginBusy("toggle-api-integration")) return;
     try {
       const status = await bridgeApi.setApiIntegrationEnabled(enabled);
       setSnapshot((current) => current ? { ...current, bridge: status } : null);
-      setError(null);
+      clearError("bridge");
     } catch (cause) {
-      setError(String(cause));
+      reportError("bridge", cause, "Couldn't change the API integration");
     } finally {
-      setBusy(null);
+      endBusy("toggle-api-integration");
     }
-  }, []);
+  }, [beginBusy, endBusy, clearError, reportError]);
 
   const openApiIntegrationWindow = useCallback(async () => {
-    setBusy("open-api-integration");
+    if (!beginBusy("open-api-integration")) return;
     try {
       await bridgeApi.openApiIntegrationWindow();
-      setError(null);
+      clearError("bridge");
     } catch (cause) {
-      setError(String(cause));
+      reportError("bridge", cause, "Couldn't open the API integration window");
     } finally {
-      setBusy(null);
+      endBusy("open-api-integration");
     }
-  }, []);
+  }, [beginBusy, endBusy, clearError, reportError]);
 
   useEffect(() => {
     migrateLegacyCollapsedCards();
@@ -943,15 +641,17 @@ export default function App() {
     getVersion()
       .then((ver) => setInstalledVersion(ver || FALLBACK_APP_VERSION))
       .catch(() => setInstalledVersion(FALLBACK_APP_VERSION));
-    bridgeApi.getAppSettings().then(setAppSettings).catch((cause) => setError(String(cause)));
+    bridgeApi.getAppSettings().then(setAppSettings).catch((cause) => reportError("settings", cause, "Couldn't load app settings"));
     bridgeApi.getAutostart().then(setAutostart).catch(() => setAutostart(false));
     const syncInterval = window.setInterval(() => void load(), DASHBOARD_SYNC_INTERVAL_MS);
-    const initialRefreshTimeout = window.setTimeout(() => void bridgeApi.refreshAll().then(() => load()), STARTUP_REFRESH_DELAY_MS);
+    const initialRefreshTimeout = window.setTimeout(() => {
+      void bridgeApi.refreshAll().then(() => load()).catch((cause) => reportError("refresh-all", cause, "Couldn't refresh accounts"));
+    }, STARTUP_REFRESH_DELAY_MS);
     return () => {
       window.clearInterval(syncInterval);
       window.clearTimeout(initialRefreshTimeout);
     };
-  }, [load]);
+  }, [load, reportError]);
 
   const refreshAccountsIfDue = useCallback(async () => {
     if (refreshDueInFlightRef.current) return;
@@ -963,12 +663,13 @@ export default function App() {
       if (!accountsNeedScheduledRefresh(latest.accounts, minutes)) return;
       await bridgeApi.refreshAll();
       await load();
+      clearError("refresh-due");
     } catch (cause) {
-      setError(String(cause));
+      reportError("refresh-due", cause, "Couldn't refresh accounts");
     } finally {
       refreshDueInFlightRef.current = false;
     }
-  }, [load]);
+  }, [load, clearError, reportError]);
 
   useEffect(() => {
     const onVisibility = () => {
@@ -989,12 +690,13 @@ export default function App() {
     void resumeLoginAttemptWatch();
     return subscribeLoginStatus((status) => {
       if (status.status === "complete") {
+        clearError("login");
         void load();
         return;
       }
       if (status.status === "failed") {
         if (status.message && !addOpenRef.current && googleUsageAccountRef.current == null) {
-          setError(status.message);
+          reportError("login", status.message, "Sign-in failed");
         }
         return;
       }
@@ -1002,7 +704,7 @@ export default function App() {
         setGoogleUsageAccount(status.account);
       }
     });
-  }, [load]);
+  }, [load, clearError, reportError]);
 
   useEffect(() => {
     const handleOrderChange = () => {
@@ -1209,57 +911,61 @@ export default function App() {
   const nextReset = nextResetSummary(visibleAccounts, nowMs);
 
   const refreshOne = async (id: string) => {
-    if (busy === `refresh:${id}` || busy === "refresh-all") return;
-    setBusy(`refresh:${id}`);
+    if (isBusy("refresh-all")) return;
+    const key = `refresh:${id}`;
+    if (!beginBusy(key)) return;
     try {
       await bridgeApi.refreshAccount(id);
       await load();
+      clearError(key);
     } catch (cause) {
-      setError(String(cause));
+      reportError(key, cause, "Couldn't refresh account");
     } finally {
-      setBusy(null);
+      endBusy(key);
     }
   };
 
   const refreshAll = async () => {
-    setBusy("refresh-all");
+    if (!beginBusy("refresh-all")) return;
     try {
       await bridgeApi.refreshAll();
       await load();
+      clearError("refresh-all");
     } catch (cause) {
-      setError(String(cause));
+      reportError("refresh-all", cause, "Couldn't refresh accounts");
     } finally {
-      setBusy(null);
+      endBusy("refresh-all");
     }
   };
 
+  // Rename failures are shown inline on the card (the card catches the rethrow).
   const rename = async (account: Account, label: string) => {
     const trimmed = label.trim();
     if (!trimmed || trimmed === account.label) return;
-    setBusy(`rename:${account.id}`);
+    const key = `rename:${account.id}`;
+    if (!beginBusy(key)) return;
     try {
       await bridgeApi.renameAccount(account.id, trimmed);
       await load();
-    } catch (cause) {
-      setError(String(cause));
-      throw cause;
     } finally {
-      setBusy(null);
+      endBusy(key);
     }
   };
 
   const remove = async (account: Account) => {
-    if (busy === `remove:${account.id}`) return;
+    const key = `remove:${account.id}`;
+    if (isBusy(key)) return;
     setAccountToRemove(null);
     if (alertAccount?.id === account.id) setAlertAccount(null);
-    setBusy(`remove:${account.id}`);
+    if (!beginBusy(key)) return;
     try {
       await bridgeApi.removeAccount(account.id);
       await load();
+      clearError(key);
     } catch (cause) {
-      setError(String(cause));
+      reportError(key, cause, `Couldn't remove ${displayAccountLabel(account)}`);
     } finally {
-      setBusy(null);
+      endBusy(key);
     }
   };
 
@@ -1268,10 +974,13 @@ export default function App() {
       const next = !autostart;
       const updated = await bridgeApi.setAutostart(next);
       setAutostart(updated);
+      clearError("autostart");
     } catch (cause) {
-      setError(String(cause));
+      reportError("autostart", cause, "Couldn't change the start-at-login setting");
     }
   };
+
+  const loadError = errors.find((entry) => entry.source === "load");
 
   const renderContent = () => {
     if (section === "settings") {
@@ -1289,13 +998,12 @@ export default function App() {
           updateProgress={updateProgress}
           updateError={updateError}
           updateMessage={updateMessage}
-          error={error}
           onCheckForUpdate={() => void checkForUpdate(true)}
           onInstallUpdate={() => void installUpdate()}
           onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
           onOpenPairing={() => setPairingOpen(true)}
           bridge={snapshot?.bridge ?? null}
-          bridgeBusy={busy === "toggle-api-integration" || busy === "open-api-integration"}
+          bridgeBusy={busy.has("toggle-api-integration") || busy.has("open-api-integration")}
           onToggleBridge={(enabled) => void setApiIntegrationEnabled(enabled)}
           onViewBridgeWindow={() => void openApiIntegrationWindow()}
         />
@@ -1321,7 +1029,6 @@ export default function App() {
         onRemove={setAccountToRemove}
         onNotifications={setAlertAccount}
         busy={busy}
-        error={error}
       />
     );
   };
@@ -1413,10 +1120,10 @@ export default function App() {
       <main className="main-stage">
         {snapshot ? renderContent() : (
           <div className="loading-screen" aria-busy="true" aria-live="polite">
-            {error ? (
+            {loadError ? (
               <div className="loading-error" role="alert">
-                <div className="error-panel">{error}</div>
-                <button className="button" type="button" autoFocus onClick={() => { setError(null); void load(); }}>
+                <div className="error-panel">{loadError.message}</div>
+                <button className="button" type="button" autoFocus onClick={() => { clearError("load"); void load(); }}>
                   Retry
                 </button>
               </div>
@@ -1496,7 +1203,7 @@ export default function App() {
       />
       <RemoveAccountModal
         account={accountToRemove}
-        busy={Boolean(accountToRemove && busy === `remove:${accountToRemove.id}`)}
+        busy={Boolean(accountToRemove && busy.has(`remove:${accountToRemove.id}`))}
         onClose={() => setAccountToRemove(null)}
         onConfirm={() => {
           if (accountToRemove) void remove(accountToRemove);
@@ -1510,6 +1217,10 @@ export default function App() {
           setPairingInitialUri(null);
         }}
         onCompleted={handlePairingCompleted}
+      />
+      <ErrorBanner
+        errors={snapshot ? errors : errors.filter((entry) => entry.source !== "load")}
+        onDismiss={clearError}
       />
       {inAppAlerts.length > 0 && (
         <div className="usage-alert-toast-container" role="region" aria-label="Usage limit alerts">
@@ -1620,8 +1331,7 @@ function AccountsView(props: {
   onRename: (account: Account, label: string) => Promise<void>;
   onRemove: (account: Account) => void;
   onNotifications: (account: Account) => void;
-  busy: string | null;
-  error?: string | null;
+  busy: BusyKeys;
 }) {
   const [showAttentionOnly, setShowAttentionOnly] = useState(false);
 
@@ -1690,8 +1400,8 @@ function AccountsView(props: {
               <EditIcon /><span className="edit-bucket-label">Edit Group</span>
             </button>
           ) : null}
-          <button className="button ghost dashboard-header-refresh" onClick={props.onRefreshAll} disabled={props.busy === "refresh-all"}>
-            <RefreshIcon />{props.busy === "refresh-all" ? "Refreshing…" : "Refresh All"}
+          <button className="button ghost dashboard-header-refresh" onClick={props.onRefreshAll} disabled={props.busy.has("refresh-all")}>
+            <RefreshIcon />{props.busy.has("refresh-all") ? "Refreshing…" : "Refresh All"}
           </button>
           <button className="button primary dashboard-header-add" onClick={props.onAdd}><PlusIcon />Add Account</button>
         </div>
@@ -1826,12 +1536,11 @@ function AccountsView(props: {
       </section>
       </div>
       <div className="dashboard-mobile-actions">
-        <button className="button ghost" onClick={props.onRefreshAll} disabled={props.busy === "refresh-all"}>
-          <RefreshIcon />{props.busy === "refresh-all" ? "Refreshing…" : "Refresh All"}
+        <button className="button ghost" onClick={props.onRefreshAll} disabled={props.busy.has("refresh-all")}>
+          <RefreshIcon />{props.busy.has("refresh-all") ? "Refreshing…" : "Refresh All"}
         </button>
         <button className="button primary" onClick={props.onAdd}><PlusIcon />Add Account</button>
       </div>
-      {props.error ? <div className="error-panel settings-update-error">{props.error}</div> : null}
     </div>
   );
 }
@@ -1850,7 +1559,7 @@ function AccountDashboardCard({
 }: {
   pageId: string;
   account: Account;
-  busy: string | null;
+  busy: BusyKeys;
   nowMs: number;
   onRefresh: () => void;
   onReconnect: () => void;
@@ -1874,14 +1583,14 @@ function AccountDashboardCard({
       return next;
     });
   };
-  const isRefreshing = busy === `refresh:${account.id}`;
-  const isRenaming = busy === `rename:${account.id}`;
-  const isRemoving = busy === `remove:${account.id}`;
+  const isRefreshing = busy.has(`refresh:${account.id}`);
+  const isRenaming = busy.has(`rename:${account.id}`);
+  const isRemoving = busy.has(`remove:${account.id}`);
   // Gate actions per account: refreshing or renaming one card must not freeze
   // the controls of every other card. A global "Refresh All" still locks
   // per-account refresh to avoid redundant provider calls, but leaves
   // remove/notify usable.
-  const isGlobalRefresh = busy === "refresh-all";
+  const isGlobalRefresh = busy.has("refresh-all");
   const cardBusy = isRefreshing || isRenaming || isRemoving;
   const windows = orderedWindows(account.lastUsage?.windows ?? []);
   const modelsOnly = account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_model_access";
@@ -2257,7 +1966,6 @@ function SettingsView({
   updateProgress,
   updateError,
   updateMessage,
-  error,
   onCheckForUpdate,
   onInstallUpdate,
   onToggleSidebar,
@@ -2279,7 +1987,6 @@ function SettingsView({
   updateProgress: AppUpdateProgress | null;
   updateError: string | null;
   updateMessage?: string | null;
-  error?: string | null;
   onCheckForUpdate: () => void;
   onInstallUpdate: () => void;
   onToggleSidebar?: () => void;
@@ -2490,7 +2197,6 @@ function SettingsView({
         </div>
       </section>
       {bridge?.error ? <div className="error-panel api-integration-error">{bridge.error}</div> : null}
-      {error ? <div className="error-panel settings-update-error">{error}</div> : null}
       </div>
       <UpdateNotesModal
         open={updateNotesOpen}

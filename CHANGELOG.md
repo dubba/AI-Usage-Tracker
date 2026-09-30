@@ -2,7 +2,7 @@
 
 ## Unreleased (0 items)
 
-## 0.3.9 - 2026-09-30 (10 items)
+## 0.3.9 - 2026-09-30 (12 items)
 
 ### Improved (4)
 
@@ -11,13 +11,15 @@
 - Account cards now show the window and reset line above the percent bar, using `Reset:` and a compact time such as `2:34a`.
 - Account card 5h/7d pills now say `5h limit` and `7d limit` instead of `window`.
 
-### Fixed (6)
+### Fixed (8)
 
 - Claude account cards now show only the 5-hour and 7-day limits, and no longer add extra rows named after Anthropic’s internal quota codes such as Nimbus Quill.
 - Claude account cards now show the signed-in email address instead of “Connected account.”
 - Android now shows a status-bar notification when a newer GitHub release is available, and keeps trying until notifications are actually allowed instead of treating a silent drop as success.
 - Tapping Update on Android downloads the GitHub APK first, then opens the system installer. If Android still needs permission to install apps, that screen opens and the installer continues when you return.
 - Desktop development and tests no longer ask for the macOS Keychain password. Production desktop builds still store credentials in Keychain.
+- Error messages now stay on screen until you dismiss them (or the failing action succeeds), appear at the top of the window, and say what failed, instead of vanishing after five seconds at the bottom of the page.
+- Refreshing, renaming, or removing several accounts at once no longer clears another account's spinner or lets the same action start twice.
 
 
 ## 0.3.8 - 2026-09-29 (6 items)
