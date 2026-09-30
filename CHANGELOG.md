@@ -3,11 +3,12 @@
 ## Unreleased (0 items)
 
 
-## 0.3.10-beta.3 - 2026-09-30 (9 items)
+## 0.3.10-beta.3 - 2026-09-30 (10 items)
 
-### Improved (1)
+### Improved (2)
 
 - The “Last synced all accounts” status now sits at the bottom of the sidebar, just above Settings, instead of under the dashboard title.
+- Simplified the update toggles in Settings by renaming "App Updates" to "Automatically Update App" and removing the subtitle text under both update toggles.
 
 ### Fixed (3)
 

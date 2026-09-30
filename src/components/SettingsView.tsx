@@ -116,8 +116,7 @@ export function SettingsView({
         <div className="settings-row settings-updates-group-row">
           <div className="settings-updates-group-header">
             <div>
-              <strong>App Updates</strong>
-              <small>Automatically check for updates.</small>
+              <strong>Automatically Update App</strong>
             </div>
             <button
               type="button"
@@ -134,7 +133,6 @@ export function SettingsView({
           <div className="settings-updates-group-header settings-updates-beta-row">
             <div>
               <strong>Include beta releases</strong>
-              <small>Also offer GitHub pre-releases. Betas may be unstable.</small>
             </div>
             <button
               type="button"

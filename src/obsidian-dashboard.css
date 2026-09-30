@@ -1330,7 +1330,7 @@ button.account-card-provider-icon:active {
   display: flex !important;
   flex-direction: row !important;
   justify-content: space-between !important;
-  align-items: flex-start !important;
+  align-items: center !important;
   gap: 16px !important;
   width: 100% !important;
   box-sizing: border-box !important;
