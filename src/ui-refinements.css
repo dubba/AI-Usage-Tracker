@@ -502,24 +502,47 @@
   width: auto;
 }
 
-.account-usage-metric .metric-reset {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) auto;
+.account-usage-metric .metric-reset-row {
+  display: flex;
   align-items: center;
-  column-gap: 14px;
+  justify-content: space-between;
+  gap: 12px;
   width: 100%;
+  min-width: 0;
 }
 
-.account-usage-metric .metric-reset::after {
-  content: attr(data-reset-countdown);
-  justify-self: end;
+.account-usage-metric .metric-reset-lead {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.account-usage-metric .metric-group-label {
   color: #cbc3d7;
-  font-weight: 600;
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
-.account-usage-metric .metric-reset:not([data-reset-countdown])::after {
-  display: none;
+.account-usage-metric .metric-group-dot {
+  color: #8d8794;
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 700;
+}
+
+.account-usage-metric .metric-reset {
+  display: block !important;
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: right;
+  color: #cbc3d7;
+  font-weight: 600;
 }
 
 .ui-hidden-metric {

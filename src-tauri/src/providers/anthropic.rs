@@ -8,10 +8,10 @@ use chrono::Utc;
 use reqwest::{header::RETRY_AFTER, StatusCode};
 use serde::Deserialize;
 use serde_json::Value;
-use std::collections::HashSet;
 
 const USAGE_URL: &str = "https://api.anthropic.com/api/oauth/usage";
-const PROFILE_URL: &str = "https://api.anthropic.com/api/auth/oauth/profile";
+const PROFILE_URL: &str = "https://api.anthropic.com/api/oauth/profile";
+const LEGACY_PROFILE_URL: &str = "https://api.anthropic.com/api/auth/oauth/profile";
 const TOKEN_URL: &str = "https://platform.claude.com/v1/oauth/token";
 const CLIENT_ID: &str = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
 const OAUTH_BETA: &str = "oauth-2025-04-20";
@@ -42,11 +42,7 @@ struct RawExtraUsage {
 struct RawUsage {
     five_hour: Option<RawWindow>,
     seven_day: Option<RawWindow>,
-    seven_day_sonnet: Option<RawWindow>,
-    seven_day_opus: Option<RawWindow>,
     extra_usage: Option<RawExtraUsage>,
-    #[serde(flatten)]
-    other: serde_json::Map<String, Value>,
 }
 
 pub async fn refresh(
@@ -72,66 +68,7 @@ pub async fn refresh(
         result => result?,
     };
 
-    let mut windows = Vec::new();
-    push_window(&mut windows, "five_hour", "5 hour", raw.five_hour.as_ref(), Some(18_000));
-    push_window(&mut windows, "weekly", "Weekly", raw.seven_day.as_ref(), Some(604_800));
-    push_window(
-        &mut windows,
-        "sonnet_weekly",
-        "Sonnet weekly",
-        raw.seven_day_sonnet.as_ref(),
-        Some(604_800),
-    );
-    push_window(
-        &mut windows,
-        "opus_weekly",
-        "Opus weekly",
-        raw.seven_day_opus.as_ref(),
-        Some(604_800),
-    );
-
-    let known: HashSet<&str> = [
-        "five_hour",
-        "seven_day",
-        "seven_day_sonnet",
-        "seven_day_opus",
-        "extra_usage",
-    ]
-    .into_iter()
-    .collect();
-    for (key, value) in raw.other.iter().filter(|(key, _)| !known.contains(key.as_str())) {
-        let Some(object) = value.as_object() else { continue };
-        let Some(utilization) = object.get("utilization").and_then(value_as_f64) else {
-            continue;
-        };
-        let resets_at = object
-            .get("resets_at")
-            .and_then(Value::as_str)
-            .map(str::to_string);
-        windows.push(UsageWindow {
-            id: slug(key),
-            label: title_case(key),
-            used_percent: Some(utilization.clamp(0.0, 100.0)),
-            remaining_percent: Some((100.0 - utilization).clamp(0.0, 100.0)),
-            resets_at,
-            window_seconds: infer_window_seconds(key),
-        });
-    }
-
-    if let Some(extra) = raw.extra_usage.as_ref() {
-        if extra.is_enabled.unwrap_or(true) && extra.utilization.is_some() {
-            let utilization = extra.utilization.unwrap_or_default().clamp(0.0, 100.0);
-            windows.push(UsageWindow {
-                id: "extra_usage".into(),
-                label: "Extra usage".into(),
-                used_percent: Some(utilization),
-                remaining_percent: Some((100.0 - utilization).max(0.0)),
-                resets_at: extra.resets_at.clone(),
-                window_seconds: None,
-            });
-        }
-    }
-
+    let windows = windows_from_raw(&raw);
     if windows.is_empty() {
         return Err(ProviderError::Transient(
             "Anthropic returned no usable usage windows.".into(),
@@ -145,25 +82,15 @@ pub async fn refresh(
     };
     let email = profile
         .as_ref()
-        .and_then(|value| find_string(value, &["email", "email_address"]))
+        .and_then(email_from_profile)
         .or_else(|| account.email.clone());
     let provider_account_id = profile
         .as_ref()
-        .and_then(|value| find_string(value, &["account_id", "uuid", "id"]))
+        .and_then(account_id_from_profile)
         .or_else(|| account.provider_account_id.clone());
     let plan = profile
         .as_ref()
-        .and_then(|value| {
-            find_string(
-                value,
-                &[
-                    "subscription_type",
-                    "subscription_tier",
-                    "rate_limit_tier",
-                    "plan",
-                ],
-            )
-        })
+        .and_then(plan_from_profile)
         .or_else(|| account.plan.clone())
         .or_else(|| Some("Claude subscription".into()));
 
@@ -265,9 +192,20 @@ async fn refresh_secret(
 }
 
 async fn fetch_profile(app: &AppState, access_token: &str) -> Result<Value, ProviderError> {
+    match fetch_profile_url(app, access_token, PROFILE_URL).await {
+        Ok(profile) => Ok(profile),
+        Err(_) => fetch_profile_url(app, access_token, LEGACY_PROFILE_URL).await,
+    }
+}
+
+async fn fetch_profile_url(
+    app: &AppState,
+    access_token: &str,
+    url: &str,
+) -> Result<Value, ProviderError> {
     let response = app
         .client
-        .get(PROFILE_URL)
+        .get(url)
         .bearer_auth(access_token)
         .header("Accept", "application/json")
         .header("anthropic-beta", OAUTH_BETA)
@@ -284,6 +222,26 @@ async fn fetch_profile(app: &AppState, access_token: &str) -> Result<Value, Prov
         .json()
         .await
         .map_err(|_| ProviderError::Transient("Invalid Anthropic profile response.".into()))
+}
+
+fn windows_from_raw(raw: &RawUsage) -> Vec<UsageWindow> {
+    let mut windows = Vec::new();
+    push_window(&mut windows, "five_hour", "5 hour", raw.five_hour.as_ref(), Some(18_000));
+    push_window(&mut windows, "weekly", "Weekly", raw.seven_day.as_ref(), Some(604_800));
+    if let Some(extra) = raw.extra_usage.as_ref() {
+        if extra.is_enabled.unwrap_or(true) && extra.utilization.is_some() {
+            let utilization = extra.utilization.unwrap_or_default().clamp(0.0, 100.0);
+            windows.push(UsageWindow {
+                id: "extra_usage".into(),
+                label: "Extra usage".into(),
+                used_percent: Some(utilization),
+                remaining_percent: Some((100.0 - utilization).max(0.0)),
+                resets_at: extra.resets_at.clone(),
+                window_seconds: None,
+            });
+        }
+    }
+    windows
 }
 
 fn push_window(
@@ -305,6 +263,48 @@ fn push_window(
     });
 }
 
+fn non_empty_str(value: Option<&Value>) -> Option<String> {
+    value
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+}
+
+fn account_object(value: &Value) -> Option<&Value> {
+    value.get("account")
+}
+
+pub(crate) fn email_from_profile(value: &Value) -> Option<String> {
+    let account = account_object(value);
+    non_empty_str(account.and_then(|account| account.get("email")))
+        .or_else(|| non_empty_str(account.and_then(|account| account.get("email_address"))))
+        .or_else(|| non_empty_str(value.get("email")))
+        .or_else(|| non_empty_str(value.get("email_address")))
+        .or_else(|| non_empty_str(value.get("account_email")))
+}
+
+pub(crate) fn account_id_from_profile(value: &Value) -> Option<String> {
+    let account = account_object(value);
+    non_empty_str(account.and_then(|account| account.get("uuid")))
+        .or_else(|| non_empty_str(account.and_then(|account| account.get("account_id"))))
+        .or_else(|| non_empty_str(account.and_then(|account| account.get("id"))))
+        .or_else(|| non_empty_str(value.get("account_id")))
+        .or_else(|| non_empty_str(value.get("account_uuid")))
+}
+
+fn plan_from_profile(value: &Value) -> Option<String> {
+    find_string(
+        value,
+        &[
+            "subscription_type",
+            "subscription_tier",
+            "rate_limit_tier",
+            "plan",
+        ],
+    )
+}
+
 fn find_string(value: &Value, keys: &[&str]) -> Option<String> {
     match value {
         Value::Object(object) => {
@@ -322,47 +322,6 @@ fn find_string(value: &Value, keys: &[&str]) -> Option<String> {
     }
 }
 
-fn value_as_f64(value: &Value) -> Option<f64> {
-    value.as_f64().or_else(|| value.as_str()?.parse().ok())
-}
-
-fn infer_window_seconds(key: &str) -> Option<u64> {
-    let lower = key.to_ascii_lowercase();
-    if lower.contains("five") || lower.contains("5h") {
-        Some(18_000)
-    } else if lower.contains("seven") || lower.contains("week") {
-        Some(604_800)
-    } else {
-        None
-    }
-}
-
-fn slug(value: &str) -> String {
-    value
-        .chars()
-        .map(|character| if character.is_ascii_alphanumeric() { character.to_ascii_lowercase() } else { '_' })
-        .collect::<String>()
-        .split('_')
-        .filter(|part| !part.is_empty())
-        .collect::<Vec<_>>()
-        .join("_")
-}
-
-fn title_case(value: &str) -> String {
-    value
-        .split(['_', '-'])
-        .filter(|part| !part.is_empty())
-        .map(|part| {
-            let mut characters = part.chars();
-            match characters.next() {
-                Some(first) => format!("{}{}", first.to_ascii_uppercase(), characters.as_str()),
-                None => String::new(),
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -374,8 +333,46 @@ mod tests {
             "seven_day": { "utilization": 50, "resets_at": "2026-07-19T00:00:00Z" }
         }))
         .unwrap();
-        let mut windows = Vec::new();
-        push_window(&mut windows, "five_hour", "5 hour", raw.five_hour.as_ref(), Some(18_000));
+        let windows = windows_from_raw(&raw);
+        assert_eq!(windows.len(), 2);
         assert_eq!(windows[0].remaining_percent, Some(75.0));
+        assert_eq!(windows[1].id, "weekly");
+    }
+
+    #[test]
+    fn ignores_unnamed_anthropic_quota_buckets() {
+        let raw: RawUsage = serde_json::from_value(serde_json::json!({
+            "five_hour": { "utilization": 0, "resets_at": "2026-09-29T12:00:00Z" },
+            "seven_day": { "utilization": 0, "resets_at": "2026-10-04T12:00:00Z" },
+            "nimbus_quill": { "utilization": 0 },
+            "iguana_necktie": { "utilization": 12 },
+            "seven_day_omelette": { "utilization": 7, "resets_at": "2026-10-04T12:00:00Z" },
+            "seven_day_sonnet": { "utilization": 3 }
+        }))
+        .unwrap();
+        let windows = windows_from_raw(&raw);
+        assert_eq!(
+            windows.iter().map(|window| window.id.as_str()).collect::<Vec<_>>(),
+            ["five_hour", "weekly"]
+        );
+    }
+
+    #[test]
+    fn reads_nested_anthropic_profile_email() {
+        let profile = serde_json::json!({
+            "account": {
+                "uuid": "acct-1",
+                "email": "claude.user@example.com"
+            },
+            "organization": {
+                "uuid": "org-9",
+                "name": "Personal"
+            }
+        });
+        assert_eq!(
+            email_from_profile(&profile).as_deref(),
+            Some("claude.user@example.com")
+        );
+        assert_eq!(account_id_from_profile(&profile).as_deref(), Some("acct-1"));
     }
 }

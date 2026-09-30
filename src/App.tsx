@@ -146,11 +146,13 @@ function displayAccountSubtitle(account: Account): string {
   return pName;
 }
 
-function formatTime(value: string | null | undefined): string {
-  if (!value) return "Reset time unavailable";
+function formatResetAtShort(value: string | null | undefined): string | null {
+  if (!value) return null;
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Reset time unavailable";
-  return date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+  if (Number.isNaN(date.getTime())) return null;
+  const day = date.toLocaleString([], { month: "short", day: "numeric" });
+  const time = date.toLocaleString([], { hour: "numeric", minute: "2-digit" });
+  return `${day} @ ${time}`;
 }
 
 function formatAlertTime(timestamp: number): string {
@@ -427,6 +429,33 @@ function cleanModelPrefix(prefix: string): string {
     .replace(/\s+models$/i, "")
     .replace(/\s+model$/i, "")
     .trim();
+}
+
+function antigravityGroupLabel(window: UsageWindow): string | null {
+  const label = window.label.trim();
+  const lower = label.toLowerCase();
+  let prefix = "";
+  if (label.includes(" · ")) {
+    prefix = cleanModelPrefix(label.split(" · ")[0] ?? "");
+  } else if (lower.endsWith(" weekly") && lower !== "weekly") {
+    prefix = cleanModelPrefix(label.slice(0, -7).trim());
+  } else if ((lower.endsWith(" 5 hour") || lower.endsWith(" 5-hour")) && lower !== "5 hour" && lower !== "5-hour") {
+    prefix = cleanModelPrefix(label.slice(0, -7).trim());
+  } else if (lower.endsWith(" five hour") && lower !== "five hour") {
+    prefix = cleanModelPrefix(label.slice(0, -10).trim());
+  } else {
+    const cleaned = cleanModelPrefix(label);
+    if (
+      ["weekly", "5 hour", "5-hour", "five hour", "monthly", "rolling", "usage"].includes(cleaned.toLowerCase())
+    ) {
+      return null;
+    }
+    prefix = cleaned;
+  }
+  if (!prefix) return null;
+  return prefix
+    .replace(/\bclaude\s*&\s*gpt\b/i, "Claude/GPT")
+    .replace(/\bclaude\s+and\s+gpt\b/i, "Claude/GPT");
 }
 
 function displayMetricLabel(window: UsageWindow, provider?: Provider | string): string {
@@ -2112,6 +2141,20 @@ function AccountDashboardCard({
   );
 }
 
+function resetSummaryLine(
+  window: UsageWindow,
+  remaining: number | null | undefined,
+  nowMs?: number,
+): string {
+  const countdown = resetCountdownLabel(window.resetsAt, nowMs, window.windowSeconds);
+  const when = formatResetAtShort(window.resetsAt);
+  if (countdown && when) return `${countdown} (${when})`;
+  if (countdown) return countdown;
+  if (when) return `Resets ${when}`;
+  if (remaining == null) return "This provider has not reported a quota value yet";
+  return "Rolling window";
+}
+
 function AccountUsageMetric({
   window,
   provider,
@@ -2128,28 +2171,31 @@ function AccountUsageMetric({
   const remaining = window.remainingPercent;
   const width = remaining == null ? 0 : Math.min(100, Math.max(0, remaining));
   const tone = usageTone(remaining);
-  const countdown = resetCountdownLabel(window.resetsAt, nowMs, window.windowSeconds);
+  const length = windowLength(window);
+  const group = provider === "antigravity" ? antigravityGroupLabel(window) : null;
   return (
     <div className="account-usage-metric">
-      <div className="metric-heading">
-        <span className="metric-label">{displayMetricLabel(window, provider)}</span>
-        {windowLength(window) ? (
-          <span className={`metric-window-pill ${windowPillClass(window)}`}>
-            {windowLength(window)}
-          </span>
-        ) : null}
-      </div>
       <div className="metric-value-row">
         <strong className="metric-full-value">{remaining == null ? unavailableLabel : `${Math.round(remaining)}%`}</strong>
         <span className="account-metric-track"><span className={`tone-${tone}`} style={{ width: `${width}%` }} /></span>
         {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
       </div>
-      <span
-        className="metric-reset"
-        data-reset-countdown={countdown ?? undefined}
-      >
-        {window.resetsAt ? `Resets ${formatTime(window.resetsAt)}` : remaining == null ? "This provider has not reported a quota value yet" : "Rolling window"}
-      </span>
+      <div className="metric-reset-row">
+        {group || length ? (
+          <span className="metric-reset-lead">
+            {length ? (
+              <span className={`metric-window-pill ${windowPillClass(window)}`}>
+                {length}
+              </span>
+            ) : null}
+            {group && length ? <span className="metric-group-dot" aria-hidden="true">·</span> : null}
+            {group ? <span className="metric-group-label">{group}</span> : null}
+          </span>
+        ) : <span className="metric-window-pill-spacer" />}
+        <span className="metric-reset">
+          {resetSummaryLine(window, remaining, nowMs)}
+        </span>
+      </div>
     </div>
   );
 }

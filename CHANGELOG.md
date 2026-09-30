@@ -2,6 +2,19 @@
 
 ## Unreleased (0 items)
 
+## 0.3.9 - 2026-09-30 (4 items)
+
+### Improved (2)
+
+- Account cards no longer show a Remaining Limit heading. The 5h/7d window pill sits on the left of the reset line, with the countdown and date together, for example `Resets in: 6d 6h (Oct 6 @ 2:34 AM)`.
+- Antigravity reset rows now include the model group after the window pill, for example `7d window · Gemini` or `5h window · Claude/GPT`, then the countdown and date.
+
+### Fixed (2)
+
+- Claude account cards now show only the 5-hour and 7-day limits, and no longer add extra rows named after Anthropic’s internal quota codes such as Nimbus Quill.
+- Claude account cards now show the signed-in email address instead of “Connected account.”
+
+
 ## 0.3.8 - 2026-09-29 (6 items)
 
 ### Fixed (4)

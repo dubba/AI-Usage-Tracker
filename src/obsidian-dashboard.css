@@ -1359,7 +1359,7 @@ button.account-card-provider-icon:active {
   gap: 10px;
   width: 100%;
   min-width: 0;
-  margin: 10px 0 8px;
+  margin: 0 0 8px;
 }
 
 .metric-full-value {
@@ -1388,12 +1388,23 @@ button.account-card-provider-icon:active {
   height: 6px;
 }
 
+.metric-reset-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
 .metric-reset {
   display: block;
   margin-top: 0;
-  color: #a8a1ac;
+  color: #cbc3d7;
   font-size: 12px;
   line-height: 16px;
+  font-weight: 600;
+  text-align: right;
 }
 
 .unavailable-metric {

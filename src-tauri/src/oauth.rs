@@ -709,34 +709,18 @@ async fn exchange_anthropic(
     if !status.is_success() {
         return Err(format!("Anthropic token exchange failed ({status})."));
     }
-    let tokens: OAuthTokenResponse = serde_json::from_str(&body)
+    let token_json: Value = serde_json::from_str(&body)
+        .map_err(|error| format!("Invalid Anthropic token response: {error}"))?;
+    let tokens: OAuthTokenResponse = serde_json::from_value(token_json.clone())
         .map_err(|error| format!("Invalid Anthropic token response: {error}"))?;
     let refresh_token = tokens
         .refresh_token
         .clone()
         .ok_or_else(|| "Anthropic did not return a refresh token.".to_string())?;
-    let profile = fetch_json_with_headers(
-        &context.app,
-        "https://api.anthropic.com/api/auth/oauth/profile",
-        &tokens.access_token,
-        &[("anthropic-beta", "oauth-2025-04-20")],
-    )
-    .await
-    .unwrap_or(Value::Null);
-    let identity = ProviderIdentity {
-        email: find_string(&profile, &["email", "email_address"]),
-        account_id: find_string(&profile, &["account_id", "uuid"]),
-        plan: find_string(
-            &profile,
-            &[
-                "subscription_type",
-                "subscription_tier",
-                "rate_limit_tier",
-                "plan",
-            ],
-        )
-        .or_else(|| Some("Claude subscription".into())),
-    };
+    let profile = fetch_anthropic_profile(&context.app, &tokens.access_token)
+        .await
+        .unwrap_or(Value::Null);
+    let identity = anthropic_identity(&profile, &token_json);
     Ok((
         ProviderSecret::Anthropic(OAuthSecret {
             access_token: tokens.access_token,
@@ -989,6 +973,35 @@ fn identity_from_google_userinfo(profile: &Value) -> ProviderIdentity {
             .filter(|value| !value.trim().is_empty())
             .map(str::to_string),
         plan: Some("Antigravity".into()),
+    }
+}
+
+async fn fetch_anthropic_profile(app: &AppState, access_token: &str) -> Result<Value, String> {
+    const PROFILE_URL: &str = "https://api.anthropic.com/api/oauth/profile";
+    const LEGACY_PROFILE_URL: &str = "https://api.anthropic.com/api/auth/oauth/profile";
+    const HEADERS: &[(&str, &str)] = &[("anthropic-beta", "oauth-2025-04-20")];
+    match fetch_json_with_headers(app, PROFILE_URL, access_token, HEADERS).await {
+        Ok(profile) => Ok(profile),
+        Err(_) => fetch_json_with_headers(app, LEGACY_PROFILE_URL, access_token, HEADERS).await,
+    }
+}
+
+fn anthropic_identity(profile: &Value, token: &Value) -> ProviderIdentity {
+    ProviderIdentity {
+        email: crate::providers::anthropic::email_from_profile(profile)
+            .or_else(|| crate::providers::anthropic::email_from_profile(token)),
+        account_id: crate::providers::anthropic::account_id_from_profile(profile)
+            .or_else(|| crate::providers::anthropic::account_id_from_profile(token)),
+        plan: find_string(
+            profile,
+            &[
+                "subscription_type",
+                "subscription_tier",
+                "rate_limit_tier",
+                "plan",
+            ],
+        )
+        .or_else(|| Some("Claude subscription".into())),
     }
 }
 
@@ -1356,6 +1369,23 @@ mod tests {
         assert!(pairs.iter().any(|(key, value)| key == "codex_cli_simplified_flow" && value == "true"));
         assert!(pairs.iter().any(|(key, value)| key == "originator" && value == OPENAI_ORIGINATOR));
         assert!(!pairs.iter().any(|(key, _)| key == "audience"));
+    }
+
+    #[test]
+    fn anthropic_identity_prefers_nested_account_email() {
+        let profile = serde_json::json!({
+            "account": { "uuid": "acct-22", "email": "claude.user@example.com" },
+            "organization": { "uuid": "org-1", "name": "Personal" }
+        });
+        let token = serde_json::json!({
+            "access_token": "tok",
+            "account": { "email_address": "from-token@example.com" }
+        });
+        let identity = anthropic_identity(&profile, &token);
+        assert_eq!(identity.email.as_deref(), Some("claude.user@example.com"));
+        assert_eq!(identity.account_id.as_deref(), Some("acct-22"));
+        let from_token = anthropic_identity(&Value::Null, &token);
+        assert_eq!(from_token.email.as_deref(), Some("from-token@example.com"));
     }
 
     #[test]
