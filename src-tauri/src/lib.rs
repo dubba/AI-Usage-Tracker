@@ -1433,13 +1433,20 @@ async fn install_android_apk(app: AppHandle, include_beta: bool) -> Result<(), S
     let dest = apk_install::update_download_path()?;
     let digest = download_android_apk(&app, &apk_url, &dest).await?;
     emit_update_progress(&app, "verifying", 0, None);
-    if let Some(sha_url) = latest.apk_sha256_url.as_deref() {
-        let expected = fetch_apk_sha256(sha_url).await?;
-        if expected != digest {
-            let _ = tokio::fs::remove_file(&dest).await;
-            apk_install::clear_update_notification();
-            return Err("The downloaded update did not match the published checksum.".into());
-        }
+    let Some(sha_url) = latest.apk_sha256_url.as_deref() else {
+        // Fail closed: without a published digest we cannot confirm the
+        // download is the release we pointed the user at.
+        let _ = tokio::fs::remove_file(&dest).await;
+        apk_install::clear_update_notification();
+        return Err(
+            "The latest release does not include a checksum for the update package.".into(),
+        );
+    };
+    let expected = fetch_apk_sha256(sha_url).await?;
+    if expected != digest {
+        let _ = tokio::fs::remove_file(&dest).await;
+        apk_install::clear_update_notification();
+        return Err("The downloaded update did not match the published checksum.".into());
     }
     apk_install::verify_apk_signature(&dest).map_err(|error| {
         apk_install::clear_update_notification();

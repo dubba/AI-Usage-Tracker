@@ -99,13 +99,22 @@ jobs:
             exit 1
           fi
 
+          # Generate SHA-256 checksums alongside the APKs so the in-app
+          # updater can verify downloads. No manual checksum commits needed.
+          for apk_file in release-apks/*.apk; do
+            [ -f "$apk_file" ] || continue
+            (cd release-apks && sha256sum "$(basename "$apk_file")" > "$(basename "$apk_file").sha256")
+          done
+
           echo "Signed Android packages:"
           ls -la release-apks/
       - name: Upload APK artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: android-apk
-          path: release-apks/*.apk
+          path: |
+            release-apks/*.apk
+            release-apks/*.sha256
           if-no-files-found: error
           retention-days: 30
       - name: Attach APK to GitHub Release
@@ -118,12 +127,12 @@ jobs:
           TAG="v$(node -p "require('./package.json').version")"
           for i in $(seq 1 20); do
             if gh release view "$TAG" >/dev/null 2>&1; then
-              for apk_file in release-apks/*.apk; do
+              for apk_file in release-apks/*.apk release-apks/*.sha256; do
                 [ -f "$apk_file" ] || continue
                 file_name=$(basename "$apk_file")
                 gh release upload "$TAG" "${apk_file}#${file_name}" --clobber
               done
-              echo "Attached APK to $TAG"
+              echo "Attached APK and checksums to $TAG"
               exit 0
             fi
             echo "Waiting for release $TAG ($i/20)..."

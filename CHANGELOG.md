@@ -3,6 +3,20 @@
 ## Unreleased (0 items)
 
 
+## 0.3.10-beta.4 - 2026-10-01 (5 items)
+
+### Removed (1)
+
+- Copy diagnostics no longer appends a drag gesture trace to the report.
+
+### Security (4)
+
+- The local API now also slows down requests that present a wrong token, so a tool on your computer cannot keep guessing at the access token without being throttled.
+- On Android, an update is no longer installed unless its published checksum is available and matches the download; a release without a checksum is rejected with a clear message instead of being installed unverified.
+- An OpenCode sign-in cookie that contains line breaks or other invalid characters is now rejected instead of being sent to the provider.
+- The Grok sign-in window now recognizes x.ai sign-in pages by their exact address, so a look-alike page cannot impersonate the sign-in step.
+
+
 ## 0.3.10-beta.3 - 2026-09-30 (16 items)
 
 ### Added (1)

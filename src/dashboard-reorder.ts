@@ -1,6 +1,5 @@
 import { bridgeApi } from "./api";
 import { storePageAccountOrder } from "./dashboard-page-state";
-import { coord, describeTarget, trace, traceForCurrentGesture, traceGestureStart } from "./drag-trace";
 import { requestDashboardResync } from "./events";
 import { hideInline, isHiddenInline, readInlineDisplay, restoreInlineDisplay, type InlineDisplay } from "./reorder-source";
 import { logIgnored } from "./log";
@@ -93,103 +92,6 @@ function clearPressCursor(): void {
 }
 
 let lastDropAt = 0;
-/** How long after a drop the diagnostics trace keeps recording, to catch what happens next. */
-const TRACE_AFTER_DROP_MS = 4000;
-let traceObserver: MutationObserver | null = null;
-let traceObserverStop: number | null = null;
-
-function traceActive(): boolean {
-  return pointerCandidate != null || dragState != null || Date.now() - lastDropAt < TRACE_AFTER_DROP_MS;
-}
-
-/** Records an app-level event (snapshot load, resync) in the drag trace while a drag is recent. */
-export function traceDashboardEvent(message: string): void {
-  if (traceActive()) trace(`app ${message}`);
-}
-
-function liveAccountList(): HTMLElement | null {
-  return document.querySelector<HTMLElement>(".provider-account-cards");
-}
-
-/** Where the cards are, by count and position only. Never includes account names or ids. */
-function describeList(source: HTMLElement | null, dragList: HTMLElement | null): string {
-  const live = liveAccountList();
-  const cards = live ? Array.from(live.querySelectorAll<HTMLElement>(":scope > .provider-account-card")) : [];
-  const hidden = cards.filter((card) => getComputedStyle(card).display === "none").length;
-  const parts = [`list:cards=${cards.length} hidden=${hidden}`];
-  if (source) {
-    parts.push(
-      `source:connected=${source.isConnected} inLiveList=${live != null && source.parentElement === live}`
-        + ` idx=${cards.indexOf(source)} display=${source.isConnected ? getComputedStyle(source).display : "-"}`
-        + ` originClass=${source.classList.contains("is-reorder-origin")} inlineDisplay=${source.style.getPropertyValue("display") || "-"}`,
-    );
-  }
-  if (dragList) parts.push(`dragList:connected=${dragList.isConnected} isLive=${dragList === live}`);
-  parts.push(
-    `floats=${document.querySelectorAll(".dashboard-reorder-float").length}`
-      + ` placeholders=${document.querySelectorAll(".dashboard-reorder-placeholder").length}`,
-  );
-  return parts.join(" ");
-}
-
-function describeNode(node: Node): string | null {
-  if (!(node instanceof Element)) return null;
-  if (node.classList.contains("dashboard-reorder-placeholder")) return "placeholder";
-  if (node.classList.contains("dashboard-reorder-float")) return "float";
-  if (node.classList.contains("provider-account-card")) return "card";
-  if (node.classList.contains("provider-account-cards")) return "LIST";
-  if (node.querySelector?.(".provider-account-cards")) return "LIST-PARENT";
-  return null;
-}
-
-/** Watches the list (and the dragged card) from drag start until a few seconds after the drop. */
-function startTraceObserver(source: HTMLElement, scrollContainer: HTMLElement): void {
-  stopTraceObserver();
-  if (typeof MutationObserver === "undefined") return;
-  traceObserver = new MutationObserver((records) => {
-    for (const record of records) {
-      if (record.type === "attributes" && record.target === source) {
-        trace(`mut source ${record.attributeName}: display=${source.style.getPropertyValue("display") || "-"} originClass=${source.classList.contains("is-reorder-origin")}`);
-        continue;
-      }
-      if (record.type !== "childList") continue;
-      const added = Array.from(record.addedNodes).map(describeNode).filter(Boolean);
-      const removed = Array.from(record.removedNodes).map(describeNode).filter(Boolean);
-      if (!added.length && !removed.length) continue;
-      const sourceMoved = Array.from(record.removedNodes).includes(source) || Array.from(record.addedNodes).includes(source);
-      const changes = [...added.map((node) => `+${node}`), ...removed.map((node) => `-${node}`)].join(",");
-      const parent = describeNode(record.target as Node) ?? (record.target as Element).className?.toString().split(" ")[0] ?? "?";
-      trace(`mut list ${changes}${sourceMoved ? " (source)" : ""} in=${parent}`);
-    }
-  });
-  const root = scrollContainer.closest(".main-stage") ?? scrollContainer;
-  traceObserver.observe(root, { childList: true, subtree: true });
-  traceObserver.observe(source, { attributes: true, attributeFilter: ["style", "class"] });
-}
-
-function stopTraceObserver(): void {
-  if (traceObserverStop != null) window.clearTimeout(traceObserverStop);
-  traceObserverStop = null;
-  traceObserver?.disconnect();
-  traceObserver = null;
-}
-
-function describeRawEvent(event: Event): string {
-  const target = describeTarget(event.target, dragState?.source);
-  if (typeof TouchEvent !== "undefined" && event instanceof TouchEvent) {
-    const touch = event.changedTouches[0];
-    return `ev ${event.type} touches=${event.touches.length} y=${coord(touch?.clientY)} x=${coord(touch?.clientX)} cancelable=${event.cancelable} target=${target}`;
-  }
-  if (typeof PointerEvent !== "undefined" && event instanceof PointerEvent) {
-    return `ev ${event.type} ${event.pointerType} id=${event.pointerId}${event.isPrimary ? "" : " non-primary"} btns=${event.buttons} y=${coord(event.clientY)} x=${coord(event.clientX)} target=${target}`;
-  }
-  return `ev ${event.type} target=${target}`;
-}
-
-
-
-
-
 
 function groupIdFromRow(row: HTMLElement): string | null {
   const groupId = row.dataset.groupId?.trim();
@@ -316,7 +218,6 @@ function updatePlaceholderFromPointer(drag: ActiveDrag): void {
   const desiredIndex = reference ? elements.indexOf(reference) : elements.length;
   if (placeholderIndex(drag, elements) === desiredIndex) return;
 
-  trace(`placeholder -> slot ${desiredIndex} of ${elements.length} (fingerY=${coord(drag.lastClientY)} centerY=${coord(clientY)})`);
   const before = capturePositions(elements);
   if (reference) drag.container.insertBefore(drag.placeholder, reference);
   else drag.container.appendChild(drag.placeholder);
@@ -443,11 +344,6 @@ function beginVisualDrag(clientX: number, clientY: number, candidate: PointerCan
   dragState = active;
   lastDragMoveAt = Date.now();
   dragStartedAt = Date.now();
-  trace(
-    `drag begin ${descriptor.kind} ${candidate.pointerType} at y=${coord(clientY)} sourceH=${coord(bounds.height)}`
-      + ` capped=${capped} floatH=${coord(floatHeight)} grabY=${coord(floatGrabY)} ${describeList(descriptor.source, container)}`,
-  );
-  startTraceObserver(descriptor.source, scrollContainer);
   descriptor.source.after(placeholder);
 
   container.classList.add("reorder-previewing");
@@ -488,11 +384,10 @@ function scheduleAbandonedDragFinish(delayMs = 180): void {
     abandonDragTimer = null;
     if (generation !== abandonDragGeneration || !dragState) return;
     if (Date.now() - lastDragMoveAt < 180) {
-      trace("abandon timer: moved recently, waiting again");
       scheduleAbandonedDragFinish();
       return;
     }
-    finishDrag(true, `abandon timer (${delayMs}ms without movement)`);
+    finishDrag(true);
   }, delayMs);
 }
 
@@ -516,10 +411,8 @@ function settleVisualDrag(drag: ActiveDrag, commit: boolean): void {
   // card goes to the end rather than throwing and leaving it hidden.
   const anchor = commit ? drag.placeholder : drag.originalNextSibling;
   if (anchor && anchor.parentNode === drag.container) {
-    trace(`settle: insert before ${commit ? "placeholder" : "original next card"}`);
     drag.container.insertBefore(drag.source, anchor);
   } else {
-    trace(`settle: anchor missing (${anchor ? "not in list" : "none"}), APPENDING to end of list`);
     drag.container.appendChild(drag.source);
   }
   drag.placeholder.remove();
@@ -564,9 +457,6 @@ function clearDragArtifacts(): void {
     document.querySelectorAll<HTMLElement>(".is-reorder-origin, .provider-account-card, .provider-summary-row"),
   ).filter((element) => element.classList.contains("is-reorder-origin") || isHiddenInline(element));
   const strays = document.querySelectorAll(".dashboard-reorder-float, .dashboard-reorder-placeholder");
-  if (hidden.length + strays.length > 0 && traceActive()) {
-    trace(`clear artifacts: un-hid ${hidden.length} card(s), removed ${strays.length} leftover element(s)`);
-  }
   for (const element of hidden) {
     element.classList.remove("is-reorder-origin", "is-dragging");
     if (isHiddenInline(element)) element.style.removeProperty("display");
@@ -584,13 +474,12 @@ export function isReordering(): boolean {
   return dragState != null || Date.now() - lastDropAt < 600;
 }
 
-function finishDrag(commit: boolean, reason: string): void {
+function finishDrag(commit: boolean): void {
   clearAbandonedDragTimer();
   dragTouchActive = false;
   const drag = dragState;
   pointerCandidate = null;
   if (!drag) return;
-  trace(`finish commit=${commit} via ${reason}; before: ${describeList(drag.source, drag.container)}`);
 
   // Clear the drag state first so a failure while putting the card back can never leave
   // the gesture half-finished (source hidden, drag still "active").
@@ -602,18 +491,8 @@ function finishDrag(commit: boolean, reason: string): void {
     clearDragArtifacts();
   }
   const nextOrder = commit ? committedOrder(drag) : drag.originalOrder;
-  const movedFrom = drag.descriptor.kind === "account" ? drag.originalOrder.indexOf(drag.descriptor.accountId) : -1;
-  const movedTo = drag.descriptor.kind === "account" ? nextOrder.indexOf(drag.descriptor.accountId) : -1;
-  trace(`after settle: slot ${movedFrom} -> ${movedTo} of ${nextOrder.length}; ${describeList(drag.source, drag.container)}`);
-  const traceLater = traceForCurrentGesture();
-  for (const delay of [50, 1000, 3000]) {
-    window.setTimeout(() => traceLater(`+${delay}ms after drop: ${describeList(drag.source, drag.container)}`), delay);
-  }
-  if (traceObserverStop != null) window.clearTimeout(traceObserverStop);
-  traceObserverStop = window.setTimeout(stopTraceObserver, TRACE_AFTER_DROP_MS);
 
   if (!commit || arraysEqual(drag.originalOrder, nextOrder)) {
-    trace("order unchanged, nothing saved");
     return;
   }
 
@@ -630,23 +509,13 @@ function beginPointerCandidate(event: PointerEvent): void {
   // Only one primary pointer can be down at a time, so a new one means the previous drag already
   // ended and its end was never delivered (touch cancelled, release outside the window). Finish
   // it first, otherwise it blocks every later gesture and leaves its card hidden.
-  if (dragState) trace(`${describeRawEvent(event)} WHILE DRAG ACTIVE (${Math.round(Date.now() - dragStartedAt)}ms after drag began)`);
-  if (dragState && Date.now() - dragStartedAt > STALE_DRAG_MS) finishDrag(true, "new pointerdown (stale drag)");
-  if (dragState) {
-    trace("pointerdown ignored: drag still active");
-    return;
-  }
+  if (dragState && Date.now() - dragStartedAt > STALE_DRAG_MS) finishDrag(true);
+  if (dragState) return;
   clearDragArtifacts();
   const target = event.target instanceof Element ? event.target : null;
   if (!target) return;
   const drag = dragFromPointerTarget(target);
   if (!drag) return;
-  {
-    const live = liveAccountList();
-    const cards = live ? Array.from(live.querySelectorAll(":scope > .provider-account-card")) : [];
-    const position = drag.kind === "account" ? ` card ${cards.indexOf(drag.source)} of ${cards.length}` : " sidebar row";
-    traceGestureStart(`down ${event.pointerType} id=${event.pointerId} y=${coord(event.clientY)} x=${coord(event.clientX)} on ${describeTarget(target)}${position} interactive=${isInteractivePointerTarget(target)}`);
-  }
 
   if (pointerCandidate?.longPressTimer != null) {
     window.clearTimeout(pointerCandidate.longPressTimer);
@@ -669,11 +538,7 @@ function beginPointerCandidate(event: PointerEvent): void {
 
   if (isTouch || isInteractive) {
     candidate.longPressTimer = window.setTimeout(() => {
-      if (pointerCandidate !== candidate || dragState) {
-        trace(`long-press timer: skipped (${dragState ? "drag already active" : "press cancelled"})`);
-        return;
-      }
-      trace("long-press timer fired");
+      if (pointerCandidate !== candidate || dragState) return;
       try {
         navigator.vibrate?.(40);
       } catch {
@@ -698,7 +563,7 @@ function movePointerCandidate(event: PointerEvent): void {
   // pointerup (outside the window, over a native region). Drop the card where it is.
   if (event.pointerType === "mouse" && event.buttons === 0) {
     if (dragState) {
-      finishDrag(true, "mouse move with no button held");
+      finishDrag(true);
     } else {
       if (pointerCandidate.longPressTimer != null) window.clearTimeout(pointerCandidate.longPressTimer);
       pointerCandidate = null;
@@ -719,7 +584,6 @@ function movePointerCandidate(event: PointerEvent): void {
 
     if (isTouch) {
       if (distance > TOUCH_CANCEL_MOVE_PX) {
-        trace(`press cancelled: moved ${Math.round(distance)}px before long-press (pointermove)`);
         if (pointerCandidate.longPressTimer != null) {
           window.clearTimeout(pointerCandidate.longPressTimer);
           pointerCandidate.longPressTimer = null;
@@ -771,7 +635,7 @@ function endPointerCandidate(event: PointerEvent): void {
   }
   event.preventDefault();
   event.stopPropagation();
-  finishDrag(true, `pointerup on ${describeTarget(event.target, dragState.source)}`);
+  finishDrag(true);
 }
 
 function cancelPointerCandidate(event?: PointerEvent): void {
@@ -788,10 +652,9 @@ function cancelPointerCandidate(event?: PointerEvent): void {
   // Android WebView often fires pointercancel at the top overscroll edge
   // without ending the gesture. Keep the drag alive if touchmove continues.
   if (dragState && (event?.pointerType === "touch" || event?.pointerType === "pen")) {
-    trace("pointercancel (touch): drag kept alive");
     return;
   }
-  finishDrag(false, event ? `${event.type}` : "cancel (escape/blur)");
+  finishDrag(false);
 }
 
 function onTouchMove(event: TouchEvent): void {
@@ -819,7 +682,6 @@ function onTouchMove(event: TouchEvent): void {
       touch.clientY - pointerCandidate.startY,
     );
     if (distance > TOUCH_CANCEL_MOVE_PX) {
-      trace(`press cancelled: moved ${Math.round(distance)}px before long-press (touchmove)`);
       if (pointerCandidate.longPressTimer != null) {
         window.clearTimeout(pointerCandidate.longPressTimer);
         pointerCandidate.longPressTimer = null;
@@ -840,7 +702,7 @@ function onTouchEnd(event: TouchEvent): void {
       event.preventDefault();
     }
     event.stopPropagation();
-    finishDrag(true, `touchend on ${describeTarget(event.target, dragState.source)}`);
+    finishDrag(true);
   } else {
     pointerCandidate = null;
   }
@@ -852,12 +714,8 @@ function onTouchCancel(event: TouchEvent): void {
     pointerCandidate.longPressTimer = null;
   }
   if (dragState) {
-    if (event.touches.length > 0) {
-      trace(`touchcancel with ${event.touches.length} touch(es) still down: ignored`);
-      return;
-    }
+    if (event.touches.length > 0) return;
     dragTouchActive = false;
-    trace(`touchcancel ${Math.round(Date.now() - dragStartedAt)}ms after drag began: finishing after ${Date.now() - dragStartedAt < 250 ? EARLY_CANCEL_GRACE_MS : 180}ms without movement`);
     // Adding touch-action:none when the drag starts can emit a synthetic cancel, so a cancel this
     // early gets a longer grace period (any further movement cancels the timer). Ignoring it
     // outright left the drag stuck with the card hidden whenever the cancel was real.
@@ -923,13 +781,10 @@ export async function persistGroupOrder(orderedGroupIds: string[]): Promise<void
 export async function persistVisibleAccountOrder(orderedVisibleIds: string[], groupId: string | null): Promise<void> {
   const pageId = groupId && groupId.length > 0 ? groupId : "all";
   storePageAccountOrder(pageId, orderedVisibleIds);
-  const pageKind = pageId === "all" ? "all" : pageId.startsWith("bucket:") ? "group" : "provider";
-  trace(`saving order for ${pageKind} page (${orderedVisibleIds.length} cards)`);
 
   try {
     if (pageId === "all") {
       await bridgeApi.reorderAccounts(orderedVisibleIds);
-      trace("backend saved the order");
     } else if (pageId.startsWith("bucket:")) {
       const snapshot = getLatestSnapshot() ?? await bridgeApi.snapshot();
       const bucket = (snapshot.buckets ?? []).find((candidate) => candidate.id === pageId.slice(7));
@@ -940,10 +795,8 @@ export async function persistVisibleAccountOrder(orderedVisibleIds: string[], gr
       }
     }
   } catch (cause) {
-    trace(`saving the order failed: ${String(cause).slice(0, 160)}`);
     logIgnored("dashboard-reorder persist", cause);
   }
-  trace("requesting dashboard resync");
   requestDashboardResync();
 }
 
@@ -956,7 +809,6 @@ export function installDashboardReorder(): () => void {
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === "Escape" && dragState) {
       event.preventDefault();
-      trace("escape pressed");
       cancelPointerCandidate();
     }
   };
@@ -971,31 +823,7 @@ export function installDashboardReorder(): () => void {
   const onContextMenu = (event: Event) => {
     if (dragState || Date.now() - lastDropAt < 500) event.preventDefault();
   };
-  const onBlur = () => {
-    if (traceActive()) trace("window blur");
-    cancelPointerCandidate();
-  };
-  // Raw events, recorded before the handlers above run, while a drag is recent.
-  let lastTracedMove = 0;
-  const onTraceEvent = (event: Event) => {
-    if (!traceActive()) return;
-    // A pointerdown during a drag is traced by beginPointerCandidate itself.
-    if (event.type === "pointerdown") return;
-    if (event.type === "touchstart" && !dragState) return;
-    if (event.type === "pointermove" || event.type === "touchmove") {
-      const at = Date.now();
-      if (at - lastTracedMove < 120) return;
-      lastTracedMove = at;
-    }
-    trace(describeRawEvent(event));
-  };
-  const traceEvents = [
-    "pointermove", "pointerup", "pointercancel", "lostpointercapture", "gotpointercapture",
-    "touchstart", "touchmove", "touchend", "touchcancel", "contextmenu", "click", "dragstart", "selectstart",
-  ];
-  const onTraceVisibility = () => {
-    if (traceActive()) trace(`visibility ${document.visibilityState}`);
-  };
+  const onBlur = () => cancelPointerCandidate();
 
   document.addEventListener("pointerdown", beginPointerCandidate, true);
   document.addEventListener("pointermove", movePointerCandidate, { capture: true, passive: false });
@@ -1005,8 +833,6 @@ export function installDashboardReorder(): () => void {
   document.addEventListener("touchend", onTouchEnd, { capture: true, passive: false });
   document.addEventListener("touchcancel", onTouchCancel, { capture: true, passive: false });
   window.addEventListener("blur", onBlur);
-  for (const type of traceEvents) window.addEventListener(type, onTraceEvent, { capture: true, passive: true });
-  document.addEventListener("visibilitychange", onTraceVisibility);
   document.addEventListener("keydown", onKeyDown, true);
   document.addEventListener("click", onClickCapture, true);
   document.addEventListener("contextmenu", onContextMenu, true);
@@ -1020,8 +846,6 @@ export function installDashboardReorder(): () => void {
     document.removeEventListener("touchend", onTouchEnd, true);
     document.removeEventListener("touchcancel", onTouchCancel, true);
     window.removeEventListener("blur", onBlur);
-    for (const type of traceEvents) window.removeEventListener(type, onTraceEvent, true);
-    document.removeEventListener("visibilitychange", onTraceVisibility);
     document.removeEventListener("keydown", onKeyDown, true);
     document.removeEventListener("click", onClickCapture, true);
     document.removeEventListener("contextmenu", onContextMenu, true);

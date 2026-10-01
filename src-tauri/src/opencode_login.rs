@@ -296,7 +296,8 @@ pub async fn add_account(
         );
     }
 
-    let auth_cookie = providers::opencode_go::normalize_cookie(&auth_cookie);
+    let auth_cookie = providers::opencode_go::normalize_cookie(&auth_cookie)
+        .map_err(|_| "A valid OpenCode console auth cookie is required.".to_string())?;
     if auth_cookie.is_empty() || auth_cookie.chars().count() > 4096 {
         return Err("A valid OpenCode console auth cookie is required.".into());
     }

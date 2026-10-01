@@ -573,10 +573,7 @@ async fn complete_cookie_login(
             capture_in_flight.store(false, Ordering::SeqCst);
             // If the user signed in on accounts.x.ai, navigate to grok.com to establish the session
             if let Ok(current_url) = window.url() {
-                let current_str = current_url.as_str();
-                if (current_str.contains("accounts.x.ai") || current_str.contains("x.ai"))
-                    && has_grok_session_cookie(&cookie_header)
-                {
+                if is_xai_signin_host(&current_url) && has_grok_session_cookie(&cookie_header) {
                     if let Ok(grok_target) = Url::parse("https://grok.com/?_s=usage") {
                         let _ = window.navigate(grok_target);
                     }
@@ -808,6 +805,15 @@ fn is_allowed_login_navigation(url: &Url) -> bool {
         || host.ends_with(".okta.com")
 }
 
+/// True when the login window is still on an x.ai sign-in page. Checked by
+/// host so look-alike URLs (`https://evil.com/?ref=x.ai`) cannot satisfy it.
+fn is_xai_signin_host(url: &Url) -> bool {
+    let Some(host) = url.host_str().map(str::to_ascii_lowercase) else {
+        return false;
+    };
+    host == "x.ai" || host.ends_with(".x.ai")
+}
+
 fn read_cookie_header(window: &WebviewWindow) -> Result<String, String> {
     let mut pairs = BTreeMap::new();
     if let Ok(current_url) = window.url() {
@@ -920,6 +926,24 @@ mod tests {
         ] {
             let url = Url::parse(blocked).unwrap();
             assert!(!is_allowed_login_navigation(&url), "{blocked}");
+        }
+    }
+
+    #[test]
+    fn xai_signin_host_check_uses_host_not_substring() {
+        for allowed in ["https://accounts.x.ai/sign-in", "https://x.ai/"] {
+            let url = Url::parse(allowed).unwrap();
+            assert!(is_xai_signin_host(&url), "{allowed}");
+        }
+        for blocked in [
+            "https://evil.com/?ref=x.ai",
+            "https://grok.com.evil.com/x.ai",
+            "https://x.ai.evil.com/",
+            "https://evil.com/redirect?next=https://x.ai",
+            "https://grok.com/?_s=usage",
+        ] {
+            let url = Url::parse(blocked).unwrap();
+            assert!(!is_xai_signin_host(&url), "{blocked}");
         }
     }
 

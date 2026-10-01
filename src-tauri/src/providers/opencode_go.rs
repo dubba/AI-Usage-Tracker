@@ -30,7 +30,7 @@ pub async fn refresh(
     secret: &OpenCodeGoSecret,
 ) -> Result<ProviderUsage, ProviderError> {
     let workspace_id = secret.workspace_id.trim();
-    let auth_cookie = normalize_cookie(&secret.auth_cookie);
+    let auth_cookie = normalize_cookie(&secret.auth_cookie).map_err(ProviderError::Transient)?;
     if !is_valid_workspace_id(workspace_id) || auth_cookie.is_empty() {
         return Err(ProviderError::Auth);
     }
@@ -110,15 +110,17 @@ pub async fn refresh(
     })
 }
 
-pub fn normalize_cookie(value: &str) -> String {
+/// Normalize a captured or pasted OpenCode `auth` cookie. Rejects header
+/// control characters (CR/LF and friends) so a cookie can never split into
+/// additional HTTP headers.
+pub fn normalize_cookie(value: &str) -> Result<String, String> {
     let trimmed = value.trim();
     let trimmed = trimmed.strip_prefix("auth=").unwrap_or(trimmed);
-    trimmed
-        .split(';')
-        .next()
-        .unwrap_or_default()
-        .trim()
-        .to_string()
+    let cookie = trimmed.split(';').next().unwrap_or_default().trim();
+    if cookie.chars().any(|c| c.is_ascii_control()) {
+        return Err("The OpenCode console cookie contains invalid characters.".into());
+    }
+    Ok(cookie.to_string())
 }
 
 fn looks_like_login(body: &str) -> bool {
@@ -303,7 +305,15 @@ mod tests {
 
     #[test]
     fn normalizes_pasted_cookie_header() {
-        assert_eq!(normalize_cookie("auth=abc123; Path=/"), "abc123");
+        assert_eq!(normalize_cookie("auth=abc123; Path=/").unwrap(), "abc123");
+        assert_eq!(normalize_cookie("abc123").unwrap(), "abc123");
+        assert_eq!(normalize_cookie("  auth=abc123  ").unwrap(), "abc123");
+
+        // Header injection attempts must be rejected, not normalized.
+        assert!(normalize_cookie("abc123\r\nX-Injected: 1").is_err());
+        assert!(normalize_cookie("auth=abc123\nSet-Cookie: x=1").is_err());
+        assert!(normalize_cookie("abc\u{7f}123").is_err());
+        assert!(normalize_cookie("abc\u{0000}123").is_err());
     }
 
     #[test]

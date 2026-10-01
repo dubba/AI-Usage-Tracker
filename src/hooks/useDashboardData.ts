@@ -7,7 +7,7 @@ import {
   credentialProtectionAction,
   credentialProtectionMessage,
 } from "../credential-protection";
-import { isReordering, traceDashboardEvent } from "../dashboard-reorder";
+import { isReordering } from "../dashboard-reorder";
 import { onDashboardResync } from "../events";
 import { publishSnapshot } from "../snapshot-store";
 import { accountsNeedScheduledRefresh } from "../usage-logic";
@@ -36,17 +36,13 @@ export function useDashboardData({
 
   /** The only place the snapshot is fetched. Resolves to the snapshot, or null if it could not be loaded. */
   const load = useCallback(async (): Promise<DashboardSnapshot | null> => {
-    if (isReordering()) {
-      traceDashboardEvent("snapshot load skipped (drag in progress or just dropped)");
-      return null;
-    }
+    if (isReordering()) return null;
     try {
       const next = await withTimeout(
         bridgeApi.snapshot(),
         LOAD_TIMEOUT_MS,
         "Timed out loading accounts from the app backend.",
       );
-      traceDashboardEvent(`snapshot loaded (${next.accounts.length} accounts${isReordering() ? ", applied DURING a drag" : ""})`);
       setSnapshot(next);
       publishSnapshot(next);
       clearError("load");

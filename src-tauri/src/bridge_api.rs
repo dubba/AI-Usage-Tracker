@@ -176,11 +176,13 @@ async fn health(
     if !host_valid(&headers) || !origin_allowed(&headers) {
         return forbidden();
     }
-    if !authorized(&app, &headers) {
-        return unauthorized();
-    }
+    // Rate-limit before authentication so invalid-token probes are throttled
+    // too, not just successful requests.
     if rate_limited(&app, addr.ip()) {
         return too_many_requests();
+    }
+    if !authorized(&app, &headers) {
+        return unauthorized();
     }
     with_security_headers(Json(json!({ "ok": true, "schemaVersion": 1 })).into_response())
 }
@@ -193,11 +195,13 @@ async fn usage(
     if !host_valid(&headers) || !origin_allowed(&headers) {
         return forbidden();
     }
-    if !authorized(&app, &headers) {
-        return unauthorized();
-    }
+    // Rate-limit before authentication so invalid-token probes are throttled
+    // too, not just successful requests.
     if rate_limited(&app, addr.ip()) {
         return too_many_requests();
+    }
+    if !authorized(&app, &headers) {
+        return unauthorized();
     }
     let accounts = app
         .store
