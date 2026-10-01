@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { bridgeApi } from "./api";
 import type { BridgeInfo } from "./types";
 
 const DETAILS_REFRESH_MS = 2_000;
+const COPIED_FEEDBACK_MS = 2_000;
 
 function statusLabel(bridge: BridgeInfo): string {
   if (!bridge.enabled) return "Disabled";
@@ -18,6 +19,14 @@ export function ApiIntegrationWindow() {
   const [revealed, setRevealed] = useState(false);
   const [fullToken, setFullToken] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const copiedTimerRef = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (copiedTimerRef.current !== null) window.clearTimeout(copiedTimerRef.current);
+    },
+    []
+  );
 
   const load = useCallback(async () => {
     try {
@@ -69,7 +78,11 @@ export function ApiIntegrationWindow() {
       await navigator.clipboard.writeText(value);
       setError(null);
       setCopiedKey(key);
-      window.setTimeout(() => setCopiedKey((c) => (c === key ? null : c)), 2000);
+      if (copiedTimerRef.current !== null) window.clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = window.setTimeout(
+        () => setCopiedKey((c) => (c === key ? null : c)),
+        COPIED_FEEDBACK_MS
+      );
     } catch (cause) {
       setError(`Unable to copy: ${String(cause)}`);
     }

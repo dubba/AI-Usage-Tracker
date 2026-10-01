@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { bridgeApi } from "../api";
-import type { BusyTracker } from "../busy";
+import { busyKey, REFRESH_ALL_KEY, type BusyTracker } from "../busy";
 import { displayAccountLabel } from "../usage-logic";
 import type { Account, BridgeStatus, DashboardSnapshot } from "../types";
 
@@ -23,8 +23,8 @@ export function useAccountActions({
   const { begin, end, has } = busy;
 
   const refreshOne = useCallback(async (id: string) => {
-    if (has("refresh-all")) return;
-    const key = `refresh:${id}`;
+    if (has(REFRESH_ALL_KEY)) return;
+    const key = busyKey("refresh", id);
     if (!begin(key)) return;
     try {
       await bridgeApi.refreshAccount(id);
@@ -38,15 +38,15 @@ export function useAccountActions({
   }, [begin, end, has, load, clearError, reportError]);
 
   const refreshAll = useCallback(async () => {
-    if (!begin("refresh-all")) return;
+    if (!begin(REFRESH_ALL_KEY)) return;
     try {
       await bridgeApi.refreshAll();
       await load();
-      clearError("refresh-all");
+      clearError(REFRESH_ALL_KEY);
     } catch (cause) {
-      reportError("refresh-all", cause, "Couldn't refresh accounts");
+      reportError(REFRESH_ALL_KEY, cause, "Couldn't refresh accounts");
     } finally {
-      end("refresh-all");
+      end(REFRESH_ALL_KEY);
     }
   }, [begin, end, load, clearError, reportError]);
 
@@ -54,7 +54,7 @@ export function useAccountActions({
   const rename = useCallback(async (account: Account, label: string) => {
     const trimmed = label.trim();
     if (!trimmed || trimmed === account.label) return;
-    const key = `rename:${account.id}`;
+    const key = busyKey("rename", account.id);
     if (!begin(key)) return;
     try {
       await bridgeApi.renameAccount(account.id, trimmed);
@@ -66,7 +66,7 @@ export function useAccountActions({
 
   /** `onStarted` runs once the removal is accepted, e.g. to close dialogs about this account. */
   const remove = useCallback(async (account: Account, onStarted?: () => void) => {
-    const key = `remove:${account.id}`;
+    const key = busyKey("remove", account.id);
     if (has(key)) return;
     onStarted?.();
     if (!begin(key)) return;

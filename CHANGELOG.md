@@ -3,6 +3,13 @@
 ## Unreleased (0 items)
 
 
+## 0.3.10-beta.5 - 2026-10-01 (1 item)
+
+### Fixed (1)
+
+- On Android, updating from Settings now ends with Android's own "App updated" screen with Done and Open buttons, so you can reopen the app right away instead of finding it closed.
+
+
 ## 0.3.10-beta.4 - 2026-10-01 (5 items)
 
 ### Removed (1)

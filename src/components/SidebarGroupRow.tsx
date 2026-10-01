@@ -7,14 +7,13 @@ import {
   groupAverage,
   usageTone,
 } from "../usage-logic";
-import { formatCount } from "../format";
+import { ACCOUNT_FORMS, formatCount } from "../format";
 import { reorderKeyDelta } from "../reorder-utils";
 import type { SidebarGroup } from "../sidebar-groups";
 
 /** Id of the visually hidden hint that App renders once for every reorderable group row. */
 export const GROUP_REORDER_HINT_ID = "group-reorder-hint";
 
-const ACCOUNT_FORMS = { one: "account", other: "accounts" };
 
 export function SidebarGroupRow({
   group,

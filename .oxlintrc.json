@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "react", "unicorn", "oxc"],
+  "categories": { "correctness": "error" },
+  "env": { "browser": true, "es2022": true },
+  "rules": {
+    "no-empty": ["error", { "allowEmptyCatch": false }],
+    "no-unused-vars": "error",
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "warn",
+    "unicorn/no-useless-spread": "off",
+    "react/set-state-in-effect": "off",
+    "react/refs": "off"
+  },
+  "ignorePatterns": ["dist", "src-tauri", "release-apks", "node_modules"]
+}

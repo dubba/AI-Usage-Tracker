@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { BusyKeys } from "../busy";
+import { busyKey, REFRESH_ALL_KEY, type BusyKeys } from "../busy";
 import { isCardCollapsedOnPage, setCardCollapsedOnPage } from "../dashboard-page-state";
 import {
   ArrowDownIcon,
@@ -62,6 +62,7 @@ export function AccountDashboardCard({
   onMove?: (delta: -1 | 1) => void;
 }) {
   const status = accountStatus(account);
+  const plan = displayPlan(account);
   const needsAttention = accountNeedsAttention(account);
   const [isCollapsed, setIsCollapsed] = useState(() => isCardCollapsedOnPage(pageId, account.id));
   const [editing, setEditing] = useState(false);
@@ -71,20 +72,19 @@ export function AccountDashboardCard({
   const iconButtonRef = useRef<HTMLButtonElement>(null);
 
   const toggleCollapse = () => {
-    setIsCollapsed((prev) => {
-      const next = !prev;
-      setCardCollapsedOnPage(pageId, account.id, next);
-      return next;
-    });
+    // Persist outside the state updater: updaters must be pure (StrictMode runs them twice).
+    const next = !isCollapsed;
+    setIsCollapsed(next);
+    setCardCollapsedOnPage(pageId, account.id, next);
   };
-  const isRefreshing = busy.has(`refresh:${account.id}`);
-  const isRenaming = busy.has(`rename:${account.id}`);
-  const isRemoving = busy.has(`remove:${account.id}`);
+  const isRefreshing = busy.has(busyKey("refresh", account.id));
+  const isRenaming = busy.has(busyKey("rename", account.id));
+  const isRemoving = busy.has(busyKey("remove", account.id));
   // Gate actions per account: refreshing or renaming one card must not freeze
   // the controls of every other card. A global "Refresh All" still locks
   // per-account refresh to avoid redundant provider calls, but leaves
   // remove/notify usable.
-  const isGlobalRefresh = busy.has("refresh-all");
+  const isGlobalRefresh = busy.has(REFRESH_ALL_KEY);
   const cardBusy = isRefreshing || isRenaming || isRemoving;
   const windows = orderedWindows(account.lastUsage?.windows ?? []);
   const modelsOnly = account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_model_access";
@@ -263,7 +263,7 @@ export function AccountDashboardCard({
                 className={`live-dot ${needsAttention || status.label !== "LIVE" ? "attention" : ""}`}
                 aria-hidden="true"
               />
-              {displayPlan(account) ? <span className="account-plan-badge">{displayPlan(account)}</span> : null}
+              {plan ? <span className="account-plan-badge">{plan}</span> : null}
             </span>
             {account.provider === "google_ai_studio" ? (
               <button type="button" className="button ghost compact-button google-cloud-connect-action" disabled={cardBusy} onClick={onConnectGoogleUsage}>

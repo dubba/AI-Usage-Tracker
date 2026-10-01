@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { openSafeUrl } from "../utils/safeUrl";
 import { bridgeApi, readLoginAttempt } from "../api";
+import { logIgnored } from "../log";
 import { abandonLoginAttempt, getLastLoginStatus, retryLoginAttempt, subscribeLoginStatus, watchLoginAttempt } from "../login-status";
 import type { Account, CloudProjectOption, LoginStatus } from "../types";
 import { CustomDropdown } from "./CustomDropdown";
@@ -105,7 +106,7 @@ export function GoogleAiStudioUsageModal({
     try {
       const next = await bridgeApi.startGoogleAiStudioUsageLogin(account.id, projectId, enableMonitoring);
       if (closeRequestedRef.current) {
-        await bridgeApi.cancelLogin(next.attemptId).catch(() => undefined);
+        await bridgeApi.cancelLogin(next.attemptId).catch((cause) => logIgnored("login.cancel", cause));
         return;
       }
       attemptIdRef.current = next.attemptId;

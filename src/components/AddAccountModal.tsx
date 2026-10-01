@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { openSafeUrl } from "../utils/safeUrl";
 import { bridgeApi } from "../api";
+import { logIgnored } from "../log";
+import { isAndroid as detectAndroid } from "../platform";
+import { PROVIDER_META } from "../providers";
 import { abandonLoginAttempt, recoverFromStaleLogin, retryLoginAttempt, subscribeLoginStatus, watchLoginAttempt } from "../login-status";
 import type { Account, LoginStatus, Provider } from "../types";
 import { CustomDropdown, type DropdownOption } from "./CustomDropdown";
 import { useModalA11y } from "./useModalA11y";
 import { ModalCloseButton } from "./ModalCloseButton";
+import { useVirtualKeyboard } from "../hooks/useVirtualKeyboard";
 
 type ConnectionProvider = Provider;
 
@@ -14,14 +18,13 @@ type GoogleModelOption = {
   label: string;
 };
 
-const providerOptions: Array<{ id: ConnectionProvider; label: string; detail: string }> = [
-  { id: "openai", label: "OpenAI ChatGPT", detail: "ChatGPT Go, Plus or Pro plans using OpenAI Browser OAuth" },
-  { id: "anthropic", label: "Anthropic Claude", detail: "Claude Pro or Max plans using Anthropic Browser OAuth" },
-  { id: "antigravity", label: "Google Antigravity", detail: "Gemini Plus, Pro or Ultra using Google Browser OAuth" },
-  { id: "grok", label: "xAI Grok", detail: "SuperGrok, Plus or Heavy plans using Grok.com sign-in" },
-  { id: "google_ai_studio", label: "Google AI Studio", detail: "AI Studio Gemini models using API key validation" },
-  { id: "opencode_go", label: "OpenCode", detail: "Go plan using opencode.ai sign-in" },
-];
+const PICKER_ORDER: ConnectionProvider[] = ["openai", "anthropic", "antigravity", "grok", "google_ai_studio", "opencode_go"];
+
+const providerOptions: Array<{ id: ConnectionProvider; label: string; detail: string }> = PICKER_ORDER.map((id) => ({
+  id,
+  label: PROVIDER_META[id].connectLabel,
+  detail: PROVIDER_META[id].connectDetail,
+}));
 
 const providerDropdownOptions: DropdownOption<ConnectionProvider>[] = providerOptions.map((option) => ({
   value: option.id,
@@ -34,22 +37,7 @@ function providerName(provider: ConnectionProvider): string {
 }
 
 function defaultAccountName(provider: ConnectionProvider): string {
-  switch (provider) {
-    case "openai":
-      return "ChatGPT";
-    case "anthropic":
-      return "Claude";
-    case "antigravity":
-      return "Antigravity";
-    case "google_ai_studio":
-      return "AI Studio";
-    case "grok":
-      return "Grok";
-    case "opencode_go":
-      return "OpenCode Go";
-    case "cursor":
-      return "Grok";
-  }
+  return PROVIDER_META[provider].name;
 }
 
 function isAutoAccountName(value: string, provider: ConnectionProvider): boolean {
@@ -74,7 +62,7 @@ export function AddAccountModal({
   onClose: () => void;
   onAdded: (account: Account) => void;
 }) {
-  const isAndroid = /android/i.test(navigator.userAgent);
+  const isAndroid = detectAndroid();
   const [label, setLabel] = useState("ChatGPT");
   const [provider, setProvider] = useState<ConnectionProvider>("openai");
   const [email, setEmail] = useState("");
@@ -89,7 +77,7 @@ export function AddAccountModal({
   const [status, setStatus] = useState<LoginStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useVirtualKeyboard(open);
   const closeRequestedRef = useRef(false);
   const attemptIdRef = useRef<string | null>(null);
   const dialogRef = useRef<HTMLElement>(null);
@@ -98,7 +86,6 @@ export function AddAccountModal({
   useEffect(() => {
     if (!open) {
       closeRequestedRef.current = true;
-      setIsKeyboardOpen(false);
       setLabel(defaultAccountName("openai"));
       setProvider("openai");
       setEmail("");
@@ -127,88 +114,6 @@ export function AddAccountModal({
       setModelsBusy(false);
     }
   }, [open, initialLabel, initialProvider, providerLocked]);
-
-  // Monitor virtual keyboard appearance on mobile to float 20px above keyboard
-  useEffect(() => {
-    if (!open) {
-      setIsKeyboardOpen(false);
-      return;
-    }
-
-    const checkKeyboard = () => {
-      const isMobile =
-        typeof navigator !== "undefined" &&
-        (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-          (typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches));
-
-      if (!isMobile) {
-        setIsKeyboardOpen(false);
-        document.documentElement.style.removeProperty("--visual-keyboard-height");
-        return;
-      }
-
-      // 1. Check visualViewport height reduction (standard across modern mobile browsers/WebViews)
-      const vv = window.visualViewport;
-      if (vv && window.innerHeight > 0) {
-        const heightDiff = window.innerHeight - vv.height;
-        if (heightDiff > 100) {
-          document.documentElement.style.setProperty("--visual-keyboard-height", `${heightDiff}px`);
-          setIsKeyboardOpen(true);
-          return;
-        } else {
-          document.documentElement.style.removeProperty("--visual-keyboard-height");
-        }
-      }
-
-      // 2. Check native Android IME class set by MainActivity
-      if (document.documentElement.classList.contains("keyboard-active")) {
-        setIsKeyboardOpen(true);
-        return;
-      }
-
-      setIsKeyboardOpen(false);
-      document.documentElement.style.removeProperty("--visual-keyboard-height");
-    };
-
-    const vv = window.visualViewport;
-    if (vv) {
-      vv.addEventListener("resize", checkKeyboard);
-      vv.addEventListener("scroll", checkKeyboard);
-    }
-    window.addEventListener("resize", checkKeyboard);
-
-    const observer = new MutationObserver(() => {
-      checkKeyboard();
-    });
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class", "style"],
-    });
-
-    const handleFocusIn = () => {
-      setTimeout(checkKeyboard, 50);
-    };
-    const handleFocusOut = () => {
-      setTimeout(checkKeyboard, 100);
-    };
-    window.addEventListener("focusin", handleFocusIn);
-    window.addEventListener("focusout", handleFocusOut);
-
-    // Run initial check
-    checkKeyboard();
-
-    return () => {
-      if (vv) {
-        vv.removeEventListener("resize", checkKeyboard);
-        vv.removeEventListener("scroll", checkKeyboard);
-      }
-      window.removeEventListener("resize", checkKeyboard);
-      window.removeEventListener("focusin", handleFocusIn);
-      window.removeEventListener("focusout", handleFocusOut);
-      observer.disconnect();
-      document.documentElement.style.removeProperty("--visual-keyboard-height");
-    };
-  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -359,7 +264,7 @@ export function AddAccountModal({
         start = await startLogin();
       }
       if (closeRequestedRef.current) {
-        await bridgeApi.cancelLogin(start.attemptId).catch(() => undefined);
+        await bridgeApi.cancelLogin(start.attemptId).catch((cause) => logIgnored("login.cancel", cause));
         return;
       }
       attemptIdRef.current = start.attemptId;

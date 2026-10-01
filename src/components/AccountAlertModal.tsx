@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { bridgeApi } from "../api";
 import { BellIcon } from "../icons";
 import type { Account, UsageAlertSetting, UsageWindow } from "../types";
+import { canonicalWindow, isMonthlyWindow } from "../usage-logic";
 import { CustomDropdown } from "./CustomDropdown";
 import { useModalA11y } from "./useModalA11y";
 import { ModalCloseButton } from "./ModalCloseButton";
@@ -11,42 +12,9 @@ const WINDOW_ORDER = ["five_hour", "weekly", "monthly"] as const;
 type AlertWindowId = typeof WINDOW_ORDER[number];
 
 function canonicalWindowId(window: UsageWindow): AlertWindowId | null {
-  const id = window.id.toLowerCase().replaceAll("-", "_");
-  const label = window.label.toLowerCase();
-  if (
-    id === "five_hour" ||
-    id.startsWith("five_hour") ||
-    id === "rolling" ||
-    window.windowSeconds === 18_000 ||
-    label.includes("5 hour") ||
-    label.includes("five hour") ||
-    label.includes("5h") ||
-    label.includes("5-hour")
-  ) return "five_hour";
-  if (
-    id === "weekly" ||
-    id.startsWith("weekly") ||
-    window.windowSeconds === 604_800 ||
-    label.includes("weekly") ||
-    label.includes("7 day") ||
-    label.includes("seven day") ||
-    label.includes("7d") ||
-    label.includes("7-day")
-  ) return "weekly";
-  if (
-    id === "monthly" ||
-    id.startsWith("monthly") ||
-    id === "thirty_day" ||
-    id.startsWith("thirty_day") ||
-    id.includes("30d") ||
-    id.includes("30_day") ||
-    (window.windowSeconds != null && window.windowSeconds >= 2_000_000 && window.windowSeconds <= 2_700_000) ||
-    label.includes("monthly") ||
-    label.includes("30 day") ||
-    label.includes("thirty day") ||
-    label.includes("30d") ||
-    label.includes("30-day")
-  ) return "monthly";
+  if (canonicalWindow(window, "five_hour")) return "five_hour";
+  if (canonicalWindow(window, "weekly")) return "weekly";
+  if (isMonthlyWindow(window)) return "monthly";
   return null;
 }
 

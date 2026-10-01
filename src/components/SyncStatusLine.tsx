@@ -1,4 +1,4 @@
-import type { BusyKeys } from "../busy";
+import { isRefreshKey, type BusyKeys } from "../busy";
 import { useClock } from "../hooks/useClock";
 import { computeSyncStatus } from "../sync-status";
 import type { Account } from "../types";
@@ -13,7 +13,7 @@ export function SyncStatusLine({
   refreshMinutes: number;
   busy: BusyKeys;
 }) {
-  const syncing = [...busy].some((key) => key === "refresh-all" || key.startsWith("refresh:"));
+  const syncing = [...busy].some(isRefreshKey);
   const tone = useClock((now) => computeSyncStatus(accounts, now, refreshMinutes).tone);
   const label = useClock((now) => computeSyncStatus(accounts, now, refreshMinutes).label);
   const detail = useClock((now) => computeSyncStatus(accounts, now, refreshMinutes).detail);

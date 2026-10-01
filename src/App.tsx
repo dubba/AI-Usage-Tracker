@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { bridgeApi } from "./api";
 import { openSafeUrl } from "./utils/safeUrl";
-import { useBusyKeys } from "./busy";
+import { busyKey, useBusyKeys } from "./busy";
 import { useAppErrors } from "./errors";
 import { resumeLoginAttemptWatch, subscribeLoginStatus } from "./login-status";
 import { AccountAlertModal } from "./components/AccountAlertModal";
@@ -447,7 +447,7 @@ export default function App() {
             nextAccount = await bridgeApi.refreshAccount(account.id);
           } catch (cause) {
             // The account is saved and stays available with cached state; say that the first refresh failed.
-            reportError(`refresh:${account.id}`, cause, `Added ${displayAccountLabel(account)}, but couldn't refresh it yet`);
+            reportError(busyKey("refresh", account.id), cause, `Added ${displayAccountLabel(account)}, but couldn't refresh it yet`);
           }
           await load();
           if (nextAccount.provider === "google_ai_studio" && !googleAiStudioHasQuotaWindows(nextAccount)) {
@@ -498,7 +498,7 @@ export default function App() {
       />
       <RemoveAccountModal
         account={accountToRemove}
-        busy={Boolean(accountToRemove && busy.has(`remove:${accountToRemove.id}`))}
+        busy={Boolean(accountToRemove && busy.has(busyKey("remove", accountToRemove.id)))}
         onClose={() => setAccountToRemove(null)}
         onConfirm={() => {
           if (accountToRemove) void remove(accountToRemove);

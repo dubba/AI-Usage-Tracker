@@ -91,10 +91,11 @@ fn default_grok_label(state: &AppState, email: Option<&str>) -> String {
         .into_iter()
         .filter(|account| account.provider == Provider::Grok)
         .count();
+    let base = Provider::Grok.display_name();
     if existing_grok_count == 0 {
-        "Grok".into()
+        base.into()
     } else {
-        format!("Grok {}", existing_grok_count + 1)
+        format!("{base} {}", existing_grok_count + 1)
     }
 }
 
@@ -437,11 +438,11 @@ async fn start_mobile_login(
 ) -> Result<LoginStart, String> {
     {
         let mut pending = state.pending_login.write();
-        if pending
-            .as_ref()
-            .is_some_and(|login| login.attempt_id == attempt_id)
+        if let Some(login) = pending
+            .as_mut()
+            .filter(|login| login.attempt_id == attempt_id)
         {
-            pending.as_mut().unwrap().message = Some(
+            login.message = Some(
                 "Sign in to Grok. The app returns here after your weekly usage is detected.".into(),
             );
         }

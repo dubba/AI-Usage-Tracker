@@ -1,4 +1,4 @@
-import { formatCount } from "./format";
+import { ACCOUNT_FORMS, formatCount } from "./format";
 import { accountAutoRefreshEligible, formatElapsed } from "./usage-logic";
 import type { Account } from "./types";
 
@@ -12,7 +12,6 @@ export type SyncStatus = {
 };
 
 const MIN_STALE_MINUTES = 10;
-const ACCOUNT_FORMS = { one: "account", other: "accounts" };
 
 /**
  * When the data on screen was last refreshed, and whether any of it has been

@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { pairingApi } from "../api";
+import { cancelPairing, pairingApi } from "../api";
 import {
   CameraIcon,
   CheckCircleIcon,
   ChevronIcon,
   DownloadIcon,
-  FlipCameraIcon,
   KeypadIcon,
   PauseIcon,
   PlayIcon,
@@ -17,10 +16,12 @@ import {
 } from "../icons";
 import type { AirgapExport, PairingStatus } from "../types";
 import { logIgnored } from "../log";
+import { isMobileDevice } from "../platform";
 import { collectUiState } from "../ui-state";
 import { useModalA11y } from "./useModalA11y";
 import { ModalCloseButton } from "./ModalCloseButton";
 import { useQrScanner } from "../hooks/useQrScanner";
+import { useVirtualKeyboard } from "../hooks/useVirtualKeyboard";
 import { sanitizeQrSvg } from "../pairing/sanitizeSvg";
 import { ScannerView } from "./pairing/views";
 
@@ -91,8 +92,8 @@ export function PairingModal({
   const [isFrontCamera, setIsFrontCamera] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
-  const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);
-  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [, setSelectedCameraId] = useState<string | null>(null);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useVirtualKeyboard(open);
 
   // Air-gap visual transfer states
   const [airgapExport, setAirgapExport] = useState<AirgapExport | null>(null);
@@ -149,82 +150,11 @@ export function PairingModal({
       hasCompletedRef.current = true;
       onCompleted();
     }
-    void pairingApi.cancel().catch(() => {});
+    cancelPairing();
     onClose();
   };
 
   useModalA11y(dialogRef, open, handleClose);
-
-  // Monitor virtual keyboard appearance on mobile to keep action buttons visible
-  useEffect(() => {
-    if (!open) {
-      setIsKeyboardOpen(false);
-      return;
-    }
-
-    const checkKeyboard = () => {
-      const isMobile =
-        typeof navigator !== "undefined" &&
-        (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-          (typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches));
-
-      if (!isMobile) {
-        setIsKeyboardOpen(false);
-        document.documentElement.style.removeProperty("--visual-keyboard-height");
-        return;
-      }
-
-      // 1. Check visualViewport height reduction (standard across modern mobile browsers/WebViews)
-      const vv = window.visualViewport;
-      if (vv && window.innerHeight > 0) {
-        const heightDiff = window.innerHeight - vv.height;
-        if (heightDiff > 100) {
-          document.documentElement.style.setProperty("--visual-keyboard-height", `${heightDiff}px`);
-          setIsKeyboardOpen(true);
-          return;
-        } else {
-          document.documentElement.style.removeProperty("--visual-keyboard-height");
-        }
-      }
-
-      // 2. Check native Android IME class set by MainActivity
-      if (document.documentElement.classList.contains("keyboard-active")) {
-        setIsKeyboardOpen(true);
-        return;
-      }
-
-      setIsKeyboardOpen(false);
-      document.documentElement.style.removeProperty("--visual-keyboard-height");
-    };
-
-    const vv = window.visualViewport;
-    if (vv) {
-      vv.addEventListener("resize", checkKeyboard);
-      vv.addEventListener("scroll", checkKeyboard);
-    }
-    window.addEventListener("resize", checkKeyboard);
-
-    const observer = new MutationObserver(() => {
-      checkKeyboard();
-    });
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class", "style"],
-    });
-
-    // Run initial check
-    checkKeyboard();
-
-    return () => {
-      if (vv) {
-        vv.removeEventListener("resize", checkKeyboard);
-        vv.removeEventListener("scroll", checkKeyboard);
-      }
-      window.removeEventListener("resize", checkKeyboard);
-      observer.disconnect();
-      document.documentElement.style.removeProperty("--visual-keyboard-height");
-    };
-  }, [open]);
 
   // Listen for Tauri backend pairing events and poll fallback
   useEffect(() => {
@@ -257,7 +187,9 @@ export function PairingModal({
           if (hasCompletedRef.current && prev.status === "completed") return prev;
           return current;
         });
-      }).catch(() => {});
+      }).catch(() => {
+        // Polled every 800ms; a transient failure just retries on the next tick.
+      });
     }, 800);
 
     return () => {
@@ -418,7 +350,6 @@ export function PairingModal({
       setConfirmedSas(false);
       setIncludeSettings(false);
       setIsFrontCamera(false);
-      setIsKeyboardOpen(false);
       setSelectedCameraId(null);
       setAvailableCameras([]);
       setAirgapExport(null);
@@ -652,13 +583,10 @@ export function PairingModal({
       viewMode !== "select-mode" &&
       viewMode !== "select-role");
 
-  const isMobileDevice =
-    typeof navigator !== "undefined" &&
-    (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-      (typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches));
+  const onMobileDevice = isMobileDevice();
 
   const showSwitchCamera =
-    availableCameras.length > 1 || isMobileDevice || Boolean(import.meta.env?.DEV);
+    availableCameras.length > 1 || onMobileDevice || Boolean(import.meta.env?.DEV);
 
   const step = airgapVerifyPrompt || viewMode === "airgap-confirm" ? 3 : pairingStep(status.status, viewMode);
   const stepDotsVisible = status.status !== "failed";
@@ -892,7 +820,7 @@ export function PairingModal({
                     setActiveFlow("wifi");
                     setCameraError(null);
                     void pairingApi.ensureCameraPermission()
-                      .catch(() => {})
+                      .catch((cause) => logIgnored("pairing.cameraPermission", cause))
                       .finally(() => setViewMode("scanner"));
                   }}
                 >
@@ -989,7 +917,7 @@ export function PairingModal({
                   setViewMode("airgap-sender");
                   return;
                 }
-                void pairingApi.cancel().catch(() => {});
+                cancelPairing();
                 setStatus({ status: "idle" });
                 setAirgapCapturedChunks(new Map());
                 setAirgapTotalChunks(0);
@@ -1018,9 +946,7 @@ export function PairingModal({
                 disabled={busy}
                 onFocus={() => {
                   const isMobile =
-                    typeof navigator !== "undefined" &&
-                    (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-                      (typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches));
+                    isMobileDevice();
                   if (isMobile) setIsKeyboardOpen(true);
                 }}
                 onBlur={() => {
@@ -1384,7 +1310,7 @@ export function PairingModal({
                     } else if (viewMode === "host") {
                       void initHostSession();
                     } else {
-                      void pairingApi.cancel().catch(() => {});
+                      cancelPairing();
                       setStatus({ status: "idle" });
                       setActiveFlow(null);
                       setViewMode("select-mode");
@@ -1428,7 +1354,7 @@ export function PairingModal({
                 type="button"
                 className="button pairing-back-btn"
                 onClick={() => {
-                  void pairingApi.cancel().catch(() => {});
+                  cancelPairing();
                   setStatus({ status: "idle" });
                   setActiveFlow(null);
                   setViewMode("select-mode");
@@ -1443,7 +1369,7 @@ export function PairingModal({
                 type="button"
                 className="button pairing-back-btn"
                 onClick={() => {
-                  void pairingApi.cancel().catch(() => {});
+                  cancelPairing();
                   setErrorMessage(null);
                   setStatus({ status: "idle" });
                   setActiveFlow(null);

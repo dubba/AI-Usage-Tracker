@@ -1,5 +1,6 @@
 import type { Account, Provider, UsageWindow } from "./types";
-import { canonicalWindow, displayAccountLabel, isMonthlyWindow, providerName } from "./usage-logic";
+import { providerName } from "./providers";
+import { canonicalWindow, displayAccountLabel, isMonthlyWindow } from "./usage-logic";
 
 export function displayProviderGroupTitle(provider: Provider, accounts: Account[]): string {
   const labels = accounts.map(displayAccountLabel).filter((label) => label.trim());
@@ -46,18 +47,24 @@ const GENERIC_WINDOW_LABELS = new Set([
   "usage",
 ]);
 
+const WINDOW_SUFFIXES = [" weekly", " 5 hour", " 5-hour", " five hour"];
+
+/** "Sonnet weekly" -> "Sonnet"; null when the label has no window suffix (or nothing before it). */
+function stripWindowSuffix(label: string): string | null {
+  const lower = label.toLowerCase();
+  const suffix = WINDOW_SUFFIXES.find((candidate) => lower.endsWith(candidate));
+  if (!suffix) return null;
+  return label.slice(0, -suffix.length).trim();
+}
+
 export function windowGroupPrefix(window: UsageWindow): string | null {
   const label = window.label.trim();
-  const lower = label.toLowerCase();
+  const stripped = stripWindowSuffix(label);
   let prefix = "";
   if (label.includes(" · ")) {
     prefix = cleanModelPrefix(label.split(" · ")[0] ?? "");
-  } else if (lower.endsWith(" weekly") && lower !== "weekly") {
-    prefix = cleanModelPrefix(label.slice(0, -7).trim());
-  } else if ((lower.endsWith(" 5 hour") || lower.endsWith(" 5-hour")) && lower !== "5 hour" && lower !== "5-hour") {
-    prefix = cleanModelPrefix(label.slice(0, -7).trim());
-  } else if (lower.endsWith(" five hour") && lower !== "five hour") {
-    prefix = cleanModelPrefix(label.slice(0, -10).trim());
+  } else if (stripped !== null) {
+    prefix = cleanModelPrefix(stripped);
   } else {
     const cleaned = cleanModelPrefix(label);
     if (GENERIC_WINDOW_LABELS.has(cleaned.toLowerCase())) {
@@ -92,8 +99,6 @@ function providerDefaultGroup(window: UsageWindow, provider?: Provider | string)
       return "Gemini";
     case "opencode_go":
       return "OpenCode";
-    case "cursor":
-      return "Cursor";
     default:
       return null;
   }
@@ -130,18 +135,8 @@ export function displayMetricLabel(window: UsageWindow, provider?: Provider | st
   }
 
   // Model-specific suffixes like "Sonnet weekly" -> "Sonnet · Remaining Limit"
-  if (lower.endsWith(" weekly") && lower !== "weekly") {
-    const base = cleanModelPrefix(label.slice(0, -7).trim());
-    return `${base} · Remaining Limit`;
-  }
-  if ((lower.endsWith(" 5 hour") || lower.endsWith(" 5-hour")) && lower !== "5 hour" && lower !== "5-hour") {
-    const base = cleanModelPrefix(label.slice(0, -7).trim());
-    return `${base} · Remaining Limit`;
-  }
-  if (lower.endsWith(" five hour") && lower !== "five hour") {
-    const base = cleanModelPrefix(label.slice(0, -10).trim());
-    return `${base} · Remaining Limit`;
-  }
+  const stripped = stripWindowSuffix(label);
+  if (stripped !== null) return `${cleanModelPrefix(stripped)} · Remaining Limit`;
 
   // Pure standalone window labels or provider-specific defaults
   if (providerLower === "openai") {
@@ -259,15 +254,6 @@ export function displayPlan(account: Account): string | null {
       return "SuperGrok/$30";
     }
     return "SuperGrok/$30";
-  }
-
-  if ((provider as string) === "cursor") {
-    if (lower.includes("free")) return "Free";
-    if (lower.includes("start")) return "Start/$8";
-    if (lower.includes("pro+") || lower.includes("pro +") || lower.includes("60")) return "Pro+/$60";
-    if (lower.includes("ultra") || lower.includes("200")) return "Ultra/$200";
-    if (lower.includes("pro")) return "Pro/$20";
-    return withoutTier.toUpperCase() || "Free";
   }
 
   if (provider === "opencode_go") {

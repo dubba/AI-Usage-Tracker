@@ -313,7 +313,7 @@ pub async fn add_account(
             .map(|account| account.id.clone())
             .unwrap_or_else(|| Uuid::new_v4().to_string()),
         label: if label.trim().is_empty() {
-            "OpenCode Go".into()
+            provider.display_name().into()
         } else {
             label.trim().to_string()
         },

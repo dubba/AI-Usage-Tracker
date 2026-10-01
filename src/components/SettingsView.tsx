@@ -14,6 +14,7 @@ import type {
   UpdateBusy,
 } from "../types";
 import { FALLBACK_APP_VERSION } from "../constants";
+import { isMobileUserAgent } from "../platform";
 import { UpdateProgressBar, updateInstallLabel, updateProgressLabel } from "./UpdateProgressBar";
 
 const ACCOUNT_REFRESH_OPTIONS = [5, 10, 15, 30, 45, 60] as const;
@@ -108,8 +109,8 @@ export function SettingsView({
       <section className="settings-card">
         <div className="settings-row">
           <div>
-            <strong>{typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? "Start on device boot" : "Start at login"}</strong>
-            <small>{typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? "Start app automatically at device startup." : "Start app automatically at login."}</small>
+            <strong>{isMobileUserAgent() ? "Start on device boot" : "Start at login"}</strong>
+            <small>{isMobileUserAgent() ? "Start app automatically at device startup." : "Start app automatically at login."}</small>
           </div>
           <button className={`toggle ${autostart ? "on" : ""}`} onClick={onToggleAutostart} aria-pressed={autostart}><span /></button>
         </div>

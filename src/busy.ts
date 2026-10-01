@@ -2,6 +2,14 @@ import { useRef, useState } from "react";
 
 export type BusyKeys = ReadonlySet<string>;
 
+/** "refresh:acct-1" for a per-item operation, or just "refresh-all" for a global one. */
+export const busyKey = (op: string, id?: string): string => (id === undefined ? op : `${op}:${id}`);
+
+export const REFRESH_ALL_KEY = busyKey("refresh-all");
+
+/** True for the global refresh and for any single-account refresh. */
+export const isRefreshKey = (key: string): boolean => key === REFRESH_ALL_KEY || key.startsWith(busyKey("refresh", ""));
+
 export type BusyTracker = {
   /** Marks `key` busy. Returns false (and changes nothing) if it already is. */
   begin: (key: string) => boolean;

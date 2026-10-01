@@ -20,6 +20,7 @@ mod limits;
 mod mobile_auth;
 mod model;
 mod oauth;
+mod oauth_common;
 mod opencode_login;
 mod pairing;
 mod providers;
@@ -124,18 +125,8 @@ async fn start_login(
 ) -> Result<LoginStart, String> {
     let provider = Provider::from_str(&provider)?;
     let email = limits::normalize_optional_email(email)?;
-    let label = if provider == Provider::OpencodeGo && label.trim().is_empty() {
-        "OpenCode-Go".to_string()
-    } else if provider == Provider::Grok && label.trim().is_empty() {
-        "Grok".to_string()
-    } else if provider == Provider::Openai && label.trim().is_empty() {
-        "ChatGPT".to_string()
-    } else if provider == Provider::Anthropic && label.trim().is_empty() {
-        "Claude".to_string()
-    } else if provider == Provider::Antigravity && label.trim().is_empty() {
-        "Antigravity".to_string()
-    } else if provider == Provider::GoogleAiStudio && label.trim().is_empty() {
-        "AI-Studio".to_string()
+    let label = if label.trim().is_empty() {
+        provider.display_name().to_string()
     } else {
         validate_label(&label)?
     };
@@ -204,7 +195,7 @@ async fn add_grok_account(
     cookie_header: String,
 ) -> Result<Account, String> {
     let label = if label.trim().is_empty() {
-        "Grok".to_string()
+        Provider::Grok.display_name().to_string()
     } else {
         validate_label(&label)?
     };
@@ -220,7 +211,7 @@ async fn add_opencode_go_account(
     email: Option<String>,
 ) -> Result<Account, String> {
     let label = if label.trim().is_empty() {
-        "OpenCode Go".to_string()
+        Provider::OpencodeGo.display_name().to_string()
     } else {
         validate_label(&label)?
     };

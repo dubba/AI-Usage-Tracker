@@ -1,5 +1,8 @@
 /** Locale-aware formatting helpers. `locale` defaults to the user's locale; tests pass one explicitly. */
 
+/** Plural forms for `formatCount` when counting accounts. */
+export const ACCOUNT_FORMS = { one: "account", other: "accounts" };
+
 /** "1 account" / "2 accounts", choosing the form with the locale's plural rules. */
 export function formatCount(
   count: number,

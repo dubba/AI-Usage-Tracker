@@ -10,6 +10,7 @@ import {
 import { isReordering } from "../dashboard-reorder";
 import { onDashboardResync } from "../events";
 import { publishSnapshot } from "../snapshot-store";
+import { REFRESH_ALL_KEY } from "../busy";
 import { accountsNeedScheduledRefresh } from "../usage-logic";
 import type { DashboardSnapshot } from "../types";
 
@@ -34,7 +35,11 @@ export function useDashboardData({
   const wasHiddenRef = useRef(false);
   const unprotectedCredentialsRef = useRef(0);
 
-  /** The only place the snapshot is fetched. Resolves to the snapshot, or null if it could not be loaded. */
+  /**
+   * The only place the snapshot is fetched. Resolves to the snapshot, or null if it could not be
+   * loaded. Also null, without fetching, while an item is being dragged (the screen is kept still);
+   * the next scheduled poll picks up whatever changed.
+   */
   const load = useCallback(async (): Promise<DashboardSnapshot | null> => {
     if (isReordering()) return null;
     try {
@@ -64,7 +69,7 @@ export function useDashboardData({
     void load();
     const syncInterval = window.setInterval(() => void load(), DASHBOARD_SYNC_INTERVAL_MS);
     const initialRefreshTimeout = window.setTimeout(() => {
-      void bridgeApi.refreshAll().then(() => load()).catch((cause) => reportError("refresh-all", cause, "Couldn't refresh accounts"));
+      void bridgeApi.refreshAll().then(() => load()).catch((cause) => reportError(REFRESH_ALL_KEY, cause, "Couldn't refresh accounts"));
     }, STARTUP_REFRESH_DELAY_MS);
     return () => {
       window.clearInterval(syncInterval);

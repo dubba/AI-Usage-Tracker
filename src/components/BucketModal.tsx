@@ -1,20 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { bridgeApi } from "../api";
-import { CloseIcon, TrashIcon } from "../icons";
+import { TrashIcon } from "../icons";
+import { PROVIDER_META } from "../providers";
 import { ProviderIcon } from "./ProviderIcon";
 import type { Account, AccountBucket, Provider } from "../types";
 import { CustomDropdown } from "./CustomDropdown";
 import { useModalA11y } from "./useModalA11y";
 import { ModalCloseButton } from "./ModalCloseButton";
+import { useVirtualKeyboard } from "../hooks/useVirtualKeyboard";
 
-const ALL_PROVIDERS: { id: Provider; label: string }[] = [
-  { id: "antigravity", label: "Antigravity" },
-  { id: "grok", label: "Grok" },
-  { id: "openai", label: "ChatGPT" },
-  { id: "anthropic", label: "Claude" },
-  { id: "google_ai_studio", label: "AI Studio" },
-  { id: "opencode_go", label: "OpenCode Go" },
-];
+const BUCKET_PROVIDER_ORDER: Provider[] = ["antigravity", "grok", "openai", "anthropic", "google_ai_studio", "opencode_go"];
+
+const ALL_PROVIDERS: { id: Provider; label: string }[] = BUCKET_PROVIDER_ORDER.map((id) => ({
+  id,
+  label: PROVIDER_META[id].name,
+}));
 
 export function BucketModal({
   open,
@@ -41,7 +41,7 @@ export function BucketModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useVirtualKeyboard(open);
   const dialogRef = useRef<HTMLElement>(null);
   const confirmDeleteRef = useRef<HTMLElement>(null);
 
@@ -57,88 +57,6 @@ export function BucketModal({
   useModalA11y(confirmDeleteRef, open && confirmingDelete, () => {
     if (!busy) setConfirmingDelete(false);
   });
-
-  // Monitor virtual keyboard appearance on mobile to pin to top ceiling
-  useEffect(() => {
-    if (!open) {
-      setIsKeyboardOpen(false);
-      return;
-    }
-
-    const checkKeyboard = () => {
-      const isMobile =
-        typeof navigator !== "undefined" &&
-        (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-          (typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches));
-
-      if (!isMobile) {
-        setIsKeyboardOpen(false);
-        document.documentElement.style.removeProperty("--visual-keyboard-height");
-        return;
-      }
-
-      // 1. Check visualViewport height reduction
-      const vv = window.visualViewport;
-      if (vv && window.innerHeight > 0) {
-        const heightDiff = window.innerHeight - vv.height;
-        if (heightDiff > 100) {
-          document.documentElement.style.setProperty("--visual-keyboard-height", `${heightDiff}px`);
-          setIsKeyboardOpen(true);
-          return;
-        } else {
-          document.documentElement.style.removeProperty("--visual-keyboard-height");
-        }
-      }
-
-      // 2. Check native Android IME class set by MainActivity
-      if (document.documentElement.classList.contains("keyboard-active")) {
-        setIsKeyboardOpen(true);
-        return;
-      }
-
-      setIsKeyboardOpen(false);
-      document.documentElement.style.removeProperty("--visual-keyboard-height");
-    };
-
-    const vv = window.visualViewport;
-    if (vv) {
-      vv.addEventListener("resize", checkKeyboard);
-      vv.addEventListener("scroll", checkKeyboard);
-    }
-    window.addEventListener("resize", checkKeyboard);
-
-    const observer = new MutationObserver(() => {
-      checkKeyboard();
-    });
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class", "style"],
-    });
-
-    const handleFocusIn = () => {
-      setTimeout(checkKeyboard, 50);
-    };
-    const handleFocusOut = () => {
-      setTimeout(checkKeyboard, 100);
-    };
-    window.addEventListener("focusin", handleFocusIn);
-    window.addEventListener("focusout", handleFocusOut);
-
-    // Run initial check
-    checkKeyboard();
-
-    return () => {
-      if (vv) {
-        vv.removeEventListener("resize", checkKeyboard);
-        vv.removeEventListener("scroll", checkKeyboard);
-      }
-      window.removeEventListener("resize", checkKeyboard);
-      window.removeEventListener("focusin", handleFocusIn);
-      window.removeEventListener("focusout", handleFocusOut);
-      observer.disconnect();
-      document.documentElement.style.removeProperty("--visual-keyboard-height");
-    };
-  }, [open]);
 
   useEffect(() => {
     if (open) {

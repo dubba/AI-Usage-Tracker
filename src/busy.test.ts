@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createBusyTracker } from "./busy";
+import { busyKey, createBusyTracker, isRefreshKey, REFRESH_ALL_KEY } from "./busy";
 
 describe("createBusyTracker", () => {
   it("tracks operations independently", () => {
@@ -45,5 +45,20 @@ describe("createBusyTracker", () => {
     tracker.begin("remove:a");
     tracker.end("remove:a");
     expect(tracker.begin("remove:a")).toBe(true);
+  });
+});
+
+describe("busy keys", () => {
+  it("builds per-item and global keys", () => {
+    expect(busyKey("refresh", "a1")).toBe("refresh:a1");
+    expect(busyKey("refresh-all")).toBe("refresh-all");
+    expect(REFRESH_ALL_KEY).toBe("refresh-all");
+  });
+
+  it("recognises refresh keys but not other operations", () => {
+    expect(isRefreshKey("refresh-all")).toBe(true);
+    expect(isRefreshKey(busyKey("refresh", "a1"))).toBe(true);
+    expect(isRefreshKey(busyKey("rename", "a1"))).toBe(false);
+    expect(isRefreshKey(busyKey("remove", "a1"))).toBe(false);
   });
 });

@@ -6,7 +6,7 @@ use axum::{
     extract::{ConnectInfo, State},
     http::{
         header::{AUTHORIZATION, HOST, ORIGIN, REFERER},
-        HeaderMap, StatusCode,
+        HeaderMap, HeaderValue, StatusCode,
     },
     response::IntoResponse,
     routing::get,
@@ -99,20 +99,20 @@ fn set_runtime(app: &AppState, running: bool, error: Option<String>) {
 
 fn with_security_headers(mut response: axum::response::Response) -> axum::response::Response {
     let headers = response.headers_mut();
-    let _ = headers.try_insert("cache-control", "no-store".parse().unwrap());
-    let _ = headers.try_insert("x-content-type-options", "nosniff".parse().unwrap());
-    let _ = headers.try_insert("referrer-policy", "no-referrer".parse().unwrap());
-    let _ = headers.try_insert("x-frame-options", "DENY".parse().unwrap());
-    let _ = headers.try_insert(
-        "content-security-policy",
-        "default-src 'none'; frame-ancestors 'none'"
-            .parse()
-            .unwrap(),
-    );
-    let _ = headers.try_insert(
-        "cross-origin-resource-policy",
-        "same-origin".parse().unwrap(),
-    );
+    for (name, value) in [
+        ("cache-control", "no-store"),
+        ("x-content-type-options", "nosniff"),
+        ("referrer-policy", "no-referrer"),
+        ("x-frame-options", "DENY"),
+        (
+            "content-security-policy",
+            "default-src 'none'; frame-ancestors 'none'",
+        ),
+        ("cross-origin-resource-policy", "same-origin"),
+    ] {
+        // Replaces any value the handler set: these headers must always win.
+        let _ = headers.try_insert(name, HeaderValue::from_static(value));
+    }
     response
 }
 
@@ -330,7 +330,6 @@ fn constant_time_equal(left: &[u8], right: &[u8]) -> bool {
 mod tests {
     use super::*;
     use crate::state::AppState;
-    use axum::http::HeaderValue;
     use std::net::{IpAddr, Ipv4Addr};
 
     fn test_app() -> Arc<AppState> {
@@ -519,5 +518,24 @@ mod tests {
             );
         }
         let _ = (loopback_headers(), loopback_ip());
+    }
+
+    #[test]
+    fn security_headers_are_set_and_override_the_handler() {
+        let mut response = Json(json!({ "ok": true })).into_response();
+        response.headers_mut().insert(
+            "cache-control",
+            HeaderValue::from_static("private, max-age=5"),
+        );
+        let headers = with_security_headers(response).headers().clone();
+        assert_eq!(headers["cache-control"], "no-store");
+        assert_eq!(headers["x-content-type-options"], "nosniff");
+        assert_eq!(headers["referrer-policy"], "no-referrer");
+        assert_eq!(headers["x-frame-options"], "DENY");
+        assert_eq!(
+            headers["content-security-policy"],
+            "default-src 'none'; frame-ancestors 'none'"
+        );
+        assert_eq!(headers["cross-origin-resource-policy"], "same-origin");
     }
 }

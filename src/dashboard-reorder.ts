@@ -68,7 +68,6 @@ let lastDragMoveAt = 0;
 let dragStartedAt = 0;
 let abandonDragTimer: number | null = null;
 let abandonDragGeneration = 0;
-let dragTouchActive = false;
 
 function isInteractivePointerTarget(target: Element): boolean {
   return Boolean(
@@ -476,7 +475,6 @@ export function isReordering(): boolean {
 
 function finishDrag(commit: boolean): void {
   clearAbandonedDragTimer();
-  dragTouchActive = false;
   const drag = dragState;
   pointerCandidate = null;
   if (!drag) return;
@@ -522,7 +520,6 @@ function beginPointerCandidate(event: PointerEvent): void {
   }
 
   const isTouch = event.pointerType === "touch" || event.pointerType === "pen";
-  if (isTouch) dragTouchActive = true;
   const isInteractive = isInteractivePointerTarget(target);
   const candidate: PointerCandidate = {
     pointerId: event.pointerId,
@@ -661,7 +658,6 @@ function onTouchMove(event: TouchEvent): void {
   if (!pointerCandidate && !dragState) return;
   const touch = event.touches[0];
   if (!touch) return;
-  dragTouchActive = true;
 
   if (dragState) {
     if (event.cancelable) {
@@ -696,7 +692,6 @@ function onTouchEnd(event: TouchEvent): void {
     window.clearTimeout(pointerCandidate.longPressTimer);
     pointerCandidate.longPressTimer = null;
   }
-  if (event.touches.length === 0) dragTouchActive = false;
   if (dragState) {
     if (event.cancelable) {
       event.preventDefault();
@@ -715,7 +710,6 @@ function onTouchCancel(event: TouchEvent): void {
   }
   if (dragState) {
     if (event.touches.length > 0) return;
-    dragTouchActive = false;
     // Adding touch-action:none when the drag starts can emit a synthetic cancel, so a cancel this
     // early gets a longer grace period (any further movement cancels the timer). Ignoring it
     // outright left the drag stuck with the card hidden whenever the cancel was real.

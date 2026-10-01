@@ -1,6 +1,7 @@
 import { useEffect, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { pairingApi } from "../api";
 import jsQR from "jsqr";
+import { isMobileUserAgent } from "../platform";
 
 export type ScannerViewMode = "scanner" | (string & {});
 
@@ -513,8 +514,7 @@ export function useQrScanner<T extends string = string>(options: UseQrScannerOpt
         }
 
         const isMobile =
-          typeof navigator !== "undefined" &&
-          /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+          isMobileUserAgent();
 
         let stream: MediaStream | null = null;
         let chosenDeviceId = selectedCameraIdRef.current;
@@ -790,8 +790,7 @@ export function useQrScanner<T extends string = string>(options: UseQrScannerOpt
       if (!getUserMediaFn) return;
 
       const isMobile =
-        typeof navigator !== "undefined" &&
-        /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        isMobileUserAgent();
 
       let newStream: MediaStream | null = null;
       let nextIsFront = !isFrontCamera;

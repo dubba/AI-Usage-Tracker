@@ -1,4 +1,5 @@
 import { useEffect, useRef, type RefObject } from "react";
+import { watchVirtualKeyboard } from "../virtual-keyboard";
 
 const FOCUSABLE_SELECTOR = [
   "a[href]",
@@ -96,74 +97,16 @@ export function useModalA11y(
 
     const backdrop = container.closest<HTMLElement>(".modal-backdrop");
 
-    const checkKeyboard = () => {
-      const isMobile =
-        typeof navigator !== "undefined" &&
-        (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-          (typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches));
-
-      if (!isMobile) {
-        container.classList.remove("keyboard-open");
-        backdrop?.classList.remove("keyboard-open");
-        document.documentElement.style.removeProperty("--visual-keyboard-height");
-        return;
-      }
-
-      // 1. Check visualViewport height reduction
-      const vv = window.visualViewport;
-      let keyboardDetected = false;
-      if (vv && window.innerHeight > 0) {
-        const heightDiff = window.innerHeight - vv.height;
-        if (heightDiff > 100) {
-          document.documentElement.style.setProperty("--visual-keyboard-height", `${heightDiff}px`);
-          keyboardDetected = true;
-        } else {
-          document.documentElement.style.removeProperty("--visual-keyboard-height");
-        }
-      }
-
-      // 2. Check native Android IME class set by MainActivity
-      if (document.documentElement.classList.contains("keyboard-active")) {
-        keyboardDetected = true;
-      }
-
-      if (keyboardDetected) {
-        container.classList.add("keyboard-open");
-        backdrop?.classList.add("keyboard-open");
-      } else {
-        container.classList.remove("keyboard-open");
-        backdrop?.classList.remove("keyboard-open");
-        document.documentElement.style.removeProperty("--visual-keyboard-height");
-      }
-    };
-
-    const vv = window.visualViewport;
-    if (vv) {
-      vv.addEventListener("resize", checkKeyboard);
-      vv.addEventListener("scroll", checkKeyboard);
-    }
-    window.addEventListener("resize", checkKeyboard);
-
-    const observer = new MutationObserver(() => {
-      checkKeyboard();
+    const keyboard = watchVirtualKeyboard((keyboardOpen) => {
+      container.classList.toggle("keyboard-open", keyboardOpen);
+      backdrop?.classList.toggle("keyboard-open", keyboardOpen);
     });
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class", "style"],
-    });
-
-    const handleFocusOut = () => {
-      setTimeout(checkKeyboard, 100);
-    };
-    window.addEventListener("focusout", handleFocusOut);
-
-    checkKeyboard();
 
     const handleFocusIn = (event: FocusEvent) => {
       const target = event.target as HTMLElement | null;
       if (!target || !container.contains(target)) return;
       if (target.matches("input:not([type='checkbox']):not([type='radio']):not([type='button']):not([type='submit']):not([type='reset']), textarea, [contenteditable='true']")) {
-        checkKeyboard();
+        keyboard.check();
         window.setTimeout(() => {
           target.scrollIntoView({ block: "nearest", behavior: "smooth" });
         }, 120);
@@ -173,16 +116,9 @@ export function useModalA11y(
     container.addEventListener("focusin", handleFocusIn);
     document.addEventListener("keydown", handleKeyDown, true);
     return () => {
-      if (vv) {
-        vv.removeEventListener("resize", checkKeyboard);
-        vv.removeEventListener("scroll", checkKeyboard);
-      }
-      window.removeEventListener("resize", checkKeyboard);
-      window.removeEventListener("focusout", handleFocusOut);
-      observer.disconnect();
+      keyboard.dispose();
       container.classList.remove("keyboard-open");
       backdrop?.classList.remove("keyboard-open");
-      document.documentElement.style.removeProperty("--visual-keyboard-height");
       container.removeEventListener("focusin", handleFocusIn);
       document.removeEventListener("keydown", handleKeyDown, true);
       document.body.style.overflow = previousOverflow;

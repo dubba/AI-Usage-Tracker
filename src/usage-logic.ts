@@ -1,4 +1,5 @@
 import { formatClockTime, formatMonthDay } from "./format";
+import { providerName } from "./providers";
 import type { Account, Provider, UsageWindow } from "./types";
 
 export type SidebarWindow = "five_hour" | "weekly";
@@ -22,17 +23,6 @@ const LEGACY_DEFAULT_LABELS: Partial<Record<Provider, string[]>> = {
   google_ai_studio: ["Google AI Studio"],
 };
 
-export function providerName(provider: Provider): string {
-  switch (provider) {
-    case "openai": return "ChatGPT";
-    case "anthropic": return "Claude";
-    case "antigravity": return "Antigravity";
-    case "google_ai_studio": return "AI Studio";
-    case "grok": return "Grok";
-    case "opencode_go": return "OpenCode Go";
-    case "cursor": return "Cursor";
-  }
-}
 export function displayAccountLabel(account: Account): string {
   const current = providerName(account.provider);
   const legacy = LEGACY_DEFAULT_LABELS[account.provider] ?? [];

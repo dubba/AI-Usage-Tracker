@@ -1,18 +1,12 @@
 import { UI_EVENTS } from "./events";
+import { DEFAULT_PROVIDER_ORDER } from "./providers";
 import { readJson, storageGet, STORAGE_KEYS, writeJson } from "./storage";
 import type { Provider } from "./types";
 
 export const DASHBOARD_PROVIDER_ORDER_EVENT = UI_EVENTS.providerOrderChanged;
 export const DASHBOARD_GROUP_ORDER_EVENT = UI_EVENTS.groupOrderChanged;
 
-export const KNOWN_PROVIDERS: Provider[] = [
-  "openai",
-  "anthropic",
-  "grok",
-  "antigravity",
-  "google_ai_studio",
-  "opencode_go",
-];
+export const KNOWN_PROVIDERS: Provider[] = [...DEFAULT_PROVIDER_ORDER];
 
 export function uniqueStrings(list: string[]): string[] {
   const seen = new Set<string>();

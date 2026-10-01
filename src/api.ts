@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { logIgnored } from "./log";
 import { storageGet, storageRemove, storageSet, STORAGE_KEYS } from "./storage";
 import type { Account, AccountBucket, AirgapExport, AirgapVerifyResult, AppSettings, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, PairingHostInit, PairingReceiverInit, PairingStatus, Provider, StartupIssue, SyncSummary, UsageAlertSetting } from "./types";
 
@@ -92,3 +93,8 @@ export const pairingApi = {
   importAirgapFrames: (chunks: string[]) =>
     invoke<SyncSummary>("pairing_import_airgap", { chunks }),
 };
+
+/** Best-effort cancel: the user is already leaving the flow, so a failure is logged rather than shown. */
+export function cancelPairing(): void {
+  void pairingApi.cancel().catch((cause) => logIgnored("pairing.cancel", cause));
+}

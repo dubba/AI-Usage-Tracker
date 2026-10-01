@@ -736,16 +736,17 @@ class MainActivity : TauriActivity() {
   }
 
   private fun openApkInstaller(file: File, waitForPrompt: Boolean) {
+    // The system installer's own flow shows "Update this app?" and, once the update finishes,
+    // "App updated" with Done/Open. That second screen matters here: Android kills this app when
+    // its package is replaced and never restarts it, so Open is the user's way back in. A
+    // PackageInstaller session only reports the result to the (now dead) app and shows no such screen.
     try {
-      commitApkSession(file, waitForPrompt)
-    } catch (error: InstallStatusException) {
-      // Android itself rejected the install (bad signature, downgrade, ...); the viewer would
-      // only hit the same error, so surface it.
-      throw error
-    } catch (error: Exception) {
-      android.util.Log.w(TAG, "PackageInstaller session failed, using viewer: ${error.message}")
       openApkViewer(file)
+      return
+    } catch (error: Exception) {
+      android.util.Log.w(TAG, "System installer could not be opened, using a session: ${error.message}")
     }
+    commitApkSession(file, waitForPrompt)
   }
 
   private fun commitApkSession(file: File, waitForPrompt: Boolean) {

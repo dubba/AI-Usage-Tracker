@@ -2,6 +2,9 @@ use crate::{
     model::{
         Account, CloudProjectOption, LoginStart, LoginStatus, OAuthSecret, Provider, ProviderSecret,
     },
+    oauth_common::{
+        auth_failure_html, callback_html, escape_html, pkce_challenge, random_base64, CallbackQuery,
+    },
     providers::google_ai_studio,
     state::AppState,
     store::{load_provider_secret, save_provider_secret},
@@ -9,18 +12,13 @@ use crate::{
 };
 use axum::{
     extract::{Query, State},
-    http::{HeaderMap, HeaderValue},
-    response::{Html, IntoResponse},
     routing::get,
     Router,
 };
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use chrono::{Duration, Utc};
-use rand::RngCore;
 use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use tokio::sync::oneshot;
 use url::Url;
@@ -52,14 +50,6 @@ struct LoginContext {
     expected_state: String,
     redirect_uri: String,
     verifier: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct CallbackQuery {
-    code: Option<String>,
-    state: Option<String>,
-    error: Option<String>,
-    error_description: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -193,7 +183,7 @@ async fn start_oauth(
     let expected_state = random_base64(24);
     let redirect_uri = crate::oauth::loopback_http_origin(addr);
     let verifier = random_base64(48);
-    let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
+    let challenge = pkce_challenge(&verifier);
     let scopes = match &mode {
         LoginMode::Connect => READ_ONLY_SCOPES,
         LoginMode::EnableMonitoring { .. } => ENABLE_SCOPES,
@@ -353,10 +343,7 @@ async fn callback(
             r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Project found</h1><p>{}</p><p>Return to AI Usage Tracker to enable Cloud Monitoring.</p></body></html>"#,
             escape_html(&project.display_name)
         ),
-        Err(error) => format!(
-            r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Authorization failed</h1><p style="color:#ff9d9d">{}</p><p style="color:#8e9791">Return to the app and try again.</p></body></html>"#,
-            escape_html(&error)
-        ),
+        Err(error) => auth_failure_html("Authorization failed", &error),
     };
     callback_html(body)
 }
@@ -1019,12 +1006,6 @@ fn validate_project_id(value: &str) -> Result<String, String> {
     Ok(value.to_string())
 }
 
-fn random_base64(bytes: usize) -> String {
-    let mut value = vec![0_u8; bytes];
-    rand::thread_rng().fill_bytes(&mut value);
-    URL_SAFE_NO_PAD.encode(value)
-}
-
 fn set_login_status(app: &AppState, status: LoginStatus) {
     *app.pending_login.write() = Some(status);
 }
@@ -1054,42 +1035,6 @@ fn fail_login(context: &LoginContext, message: String) {
 
 async fn stop_callback(context: &LoginContext) {
     context.app.stop_login_shutdown(&context.attempt_id);
-}
-
-fn callback_html(body: String) -> axum::response::Response {
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        axum::http::header::CACHE_CONTROL,
-        HeaderValue::from_static("no-store, no-cache, must-revalidate"),
-    );
-    headers.insert(
-        axum::http::header::PRAGMA,
-        HeaderValue::from_static("no-cache"),
-    );
-    headers.insert(
-        axum::http::header::HeaderName::from_static("content-security-policy"),
-        HeaderValue::from_static(
-            "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'",
-        ),
-    );
-    headers.insert(
-        axum::http::header::X_CONTENT_TYPE_OPTIONS,
-        HeaderValue::from_static("nosniff"),
-    );
-    headers.insert(
-        axum::http::header::HeaderName::from_static("referrer-policy"),
-        HeaderValue::from_static("no-referrer"),
-    );
-    (headers, Html(body)).into_response()
-}
-
-fn escape_html(value: &str) -> String {
-    value
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&#39;")
 }
 
 #[cfg(test)]

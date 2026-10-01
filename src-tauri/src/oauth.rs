@@ -1,21 +1,22 @@
 use crate::{
     model::{now_rfc3339, Account, LoginStart, LoginStatus, OAuthSecret, Provider, ProviderSecret},
+    oauth_common::{
+        auth_failure_html, callback_html, escape_html, pkce_challenge, random_base64, CallbackQuery,
+    },
     state::AppState,
 };
 use axum::{
     extract::{Query, State},
-    http::{HeaderMap, HeaderValue},
-    response::{Html, IntoResponse},
+    response::IntoResponse,
     routing::get,
     Router,
 };
+#[cfg(test)]
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use chrono::{Duration, Utc};
 use parking_lot::RwLock;
-use rand::RngCore;
 use serde::Deserialize;
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 use std::{
     net::{IpAddr, SocketAddr},
     sync::Arc,
@@ -52,22 +53,6 @@ struct LoginContext {
     verifier: String,
     expected_state: String,
     redirect_uri: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct CallbackQuery {
-    pub code: Option<String>,
-    pub state: Option<String>,
-    pub error: Option<String>,
-    pub error_description: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenAiTokenResponse {
-    access_token: String,
-    refresh_token: Option<String>,
-    id_token: Option<String>,
-    expires_in: i64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -132,7 +117,7 @@ pub async fn start_login(
         }
     };
     let verifier = random_base64(32);
-    let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
+    let challenge = pkce_challenge(&verifier);
     let expected_state = random_base64(24);
     let redirect_uri = redirect_uri(&provider, addr);
     let authorization_url =
@@ -421,10 +406,7 @@ async fn handle_callback(
             message.clone(),
         );
         stop_callback(&context).await;
-        return callback_html(format!(
-            r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Authentication failed</h1><p style="color:#ff9d9d">{}</p><p style="color:#8e9791">Return to the app and try again.</p></body></html>"#,
-            escape_html(&message)
-        ));
+        return callback_html(auth_failure_html("Authentication failed", &message));
     }
     let code = match query.code {
         Some(code) => code,
@@ -439,10 +421,7 @@ async fn handle_callback(
                 message.clone(),
             );
             stop_callback(&context).await;
-            return callback_html(format!(
-                r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Authentication failed</h1><p style="color:#ff9d9d">{}</p><p style="color:#8e9791">Return to the app and try again.</p></body></html>"#,
-                escape_html(&message)
-            ));
+            return callback_html(auth_failure_html("Authentication failed", &message));
         }
     };
     if query.state.as_deref() != Some(context.expected_state.as_str()) {
@@ -453,10 +432,7 @@ async fn handle_callback(
             message.clone(),
         );
         stop_callback(&context).await;
-        return callback_html(format!(
-            r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Authentication failed</h1><p style="color:#ff9d9d">{}</p><p style="color:#8e9791">Return to the app and try again.</p></body></html>"#,
-            escape_html(&message)
-        ));
+        return callback_html(auth_failure_html("Authentication failed", &message));
     }
     if !is_waiting(context.app.as_ref(), &context.attempt_id) {
         stop_callback(&context).await;
@@ -502,10 +478,7 @@ async fn handle_callback(
                     error.clone(),
                 );
                 stop_callback(&context).await;
-                callback_html(format!(
-                    r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Authentication failed</h1><p style="color:#ff9d9d">{}</p><p style="color:#8e9791">Return to the app and try again.</p></body></html>"#,
-                    escape_html(&error)
-                ))
+                callback_html(auth_failure_html("Authentication failed", &error))
             }
         }
     }
@@ -669,8 +642,12 @@ async fn exchange_openai(
     if !status.is_success() {
         return Err(format!("OpenAI token exchange failed ({status})."));
     }
-    let tokens: OpenAiTokenResponse = serde_json::from_str(&body)
+    let tokens: OAuthTokenResponse = serde_json::from_str(&body)
         .map_err(|error| format!("Invalid OpenAI token response: {error}"))?;
+    // Unlike the other providers, OpenAI always reports a lifetime; a response without one is malformed.
+    let expires_in = tokens
+        .expires_in
+        .ok_or_else(|| "Invalid OpenAI token response: missing field `expires_in`".to_string())?;
     let refresh_token = tokens
         .refresh_token
         .clone()
@@ -688,7 +665,7 @@ async fn exchange_openai(
             access_token: tokens.access_token,
             refresh_token,
             id_token: tokens.id_token,
-            expires_at: Utc::now().timestamp_millis() + tokens.expires_in * 1000,
+            expires_at: Utc::now().timestamp_millis() + expires_in * 1000,
         }),
         identity,
     ))
@@ -956,12 +933,6 @@ async fn fetch_json_with_headers(
         .map_err(|error| format!("Invalid profile response: {error}"))
 }
 
-fn random_base64(bytes: usize) -> String {
-    let mut value = vec![0u8; bytes];
-    rand::thread_rng().fill_bytes(&mut value);
-    URL_SAFE_NO_PAD.encode(value)
-}
-
 /// Decodes the payload segment of a JWT without verifying the signature.
 /// Claims from this helper are informational only and must not be used as
 /// authentication identity.
@@ -1086,42 +1057,6 @@ fn fail_login(store: &RwLock<Option<LoginStatus>>, attempt_id: &str, message: St
 
 async fn stop_callback(context: &LoginContext) {
     context.app.stop_login_shutdown(&context.attempt_id);
-}
-
-fn callback_html(body: String) -> axum::response::Response {
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        axum::http::header::CACHE_CONTROL,
-        HeaderValue::from_static("no-store, no-cache, must-revalidate"),
-    );
-    headers.insert(
-        axum::http::header::PRAGMA,
-        HeaderValue::from_static("no-cache"),
-    );
-    headers.insert(
-        axum::http::header::HeaderName::from_static("content-security-policy"),
-        HeaderValue::from_static(
-            "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'",
-        ),
-    );
-    headers.insert(
-        axum::http::header::X_CONTENT_TYPE_OPTIONS,
-        HeaderValue::from_static("nosniff"),
-    );
-    headers.insert(
-        axum::http::header::HeaderName::from_static("referrer-policy"),
-        HeaderValue::from_static("no-referrer"),
-    );
-    (headers, Html(body)).into_response()
-}
-
-fn escape_html(input: &str) -> String {
-    input
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&#39;")
 }
 
 #[cfg(test)]
