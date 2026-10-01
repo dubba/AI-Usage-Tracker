@@ -10,9 +10,11 @@ vi.mock("./storage", () => ({
 }));
 
 import { copyDiagnostics } from "./diagnostics";
+import { resetDragTrace, traceGestureStart } from "./drag-trace";
 
 beforeEach(() => {
   invoke.mockReset();
+  resetDragTrace();
 });
 
 afterEach(() => {
@@ -28,7 +30,22 @@ describe("copyDiagnostics", () => {
     await copyDiagnostics();
 
     expect(invoke).toHaveBeenCalledWith("get_diagnostics");
-    expect(writeText).toHaveBeenCalledWith("AI Usage Tracker diagnostics\nVersion: 1.2.3");
+    expect(writeText).toHaveBeenCalledWith(
+      "AI Usage Tracker diagnostics\nVersion: 1.2.3\n\nDrag trace: no drag recorded since the app started.",
+    );
+  });
+
+  it("appends the trace of recent card drags", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    invoke.mockResolvedValue("report");
+    traceGestureStart("down touch on card-child card 2 of 5");
+
+    await copyDiagnostics();
+
+    const copied = writeText.mock.calls[0][0] as string;
+    expect(copied.startsWith("report\n\nDrag trace (oldest first")).toBe(true);
+    expect(copied).toContain("down touch on card-child card 2 of 5");
   });
 
   it("reports when the clipboard is unavailable", async () => {

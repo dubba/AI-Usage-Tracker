@@ -3,7 +3,11 @@
 ## Unreleased (0 items)
 
 
-## 0.3.10-beta.3 - 2026-09-30 (12 items)
+## 0.3.10-beta.3 - 2026-09-30 (13 items)
+
+### Added (1)
+
+- Copy diagnostics now also includes a short record of the last 10 card drags (touch timing and positions, and where the card ended up; no account names or details) to help track down the card that disappears after a drag on Android.
 
 ### Improved (2)
 
