@@ -1,0 +1,51 @@
+/* Design tokens: the app's colours and shared sizes, defined once.
+ *
+ * Layers: tokens < base < components < utilities. Everything already in the app is still
+ * unlayered, which always beats a layer; new styles should go in a layer and existing files
+ * can move into one when their specificity conflicts are resolved (an unlayered rule beats a
+ * layered one however specific, and for !important the order inverts, so moving a file in
+ * wholesale changes how it cascades).
+ */
+@layer tokens, base, components, utilities;
+
+@layer tokens {
+  :root {
+    /* from styles.css */
+    --bg: #0d100f;
+    --panel: #121614;
+    --panel-2: #171c19;
+    --border: #252b28;
+    --border-strong: #343c37;
+    --text: #f4f6f8;
+    --muted: #8e9791;
+    --muted-2: #69716c;
+    --green: #44d17a;
+    --green-soft: rgba(68, 209, 122, 0.13);
+    --purple: #9f67ff;
+    --purple-soft: rgba(159, 103, 255, 0.14);
+    --amber: #f5b642;
+    --red: #ff6f6f;
+    /* from sidebar-controls.css */
+    --sidebar-small-text-size: 12px;
+    /* from dashboard-typography.css */
+    --dashboard-body-text-size: 14px;
+    /* from obsidian-dashboard.css */
+    --obsidian-canvas: #0e0e0e;
+    --obsidian-surface-low: #1c1b1b;
+    --obsidian-surface-container: #201f1f;
+    --obsidian-border: #2e2e2e;
+    --obsidian-border-strong: #494454;
+    --obsidian-text: #e5e2e1;
+    --obsidian-muted: #958ea0;
+    --obsidian-muted-bright: #cbc3d7;
+    --obsidian-purple: #d0bcff;
+    --obsidian-purple-strong: #a078ff;
+    --obsidian-green: #4edea3;
+    --obsidian-amber: #ffb869;
+    --obsidian-red: #ff8585;
+    --safe-area-top: max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px));
+    --safe-area-bottom: max(var(--android-safe-bottom, 0px), env(safe-area-inset-bottom, 0px));
+    --safe-area-left: max(var(--android-safe-left, 0px), env(safe-area-inset-left, 0px));
+    --safe-area-right: max(var(--android-safe-right, 0px), env(safe-area-inset-right, 0px));
+  }
+}

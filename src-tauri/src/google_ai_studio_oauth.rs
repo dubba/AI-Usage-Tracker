@@ -1,11 +1,13 @@
 use crate::{
+    google_client::{client_secret, CLIENT_ID},
     model::{
         Account, CloudProjectOption, LoginStart, LoginStatus, OAuthSecret, Provider, ProviderSecret,
     },
     oauth_common::{
-        auth_failure_html, callback_html, escape_html, pkce_challenge, random_base64, CallbackQuery,
+        auth_failure_html, callback_html, escape_html, pkce_challenge, random_base64,
+        spawn_callback_server, spawn_login_timeout, CallbackQuery, LOGIN_TIMEOUT_MINUTES,
     },
-    providers::google_ai_studio,
+    providers::{google_ai_studio, oauth_refresh::IdToken, ProviderError},
     state::AppState,
     store::{load_provider_secret, save_provider_secret},
     usage,
@@ -24,13 +26,6 @@ use tokio::sync::oneshot;
 use url::Url;
 use uuid::Uuid;
 
-const GOOGLE_CLIENT_ID: &str =
-    "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com";
-const GOOGLE_CLIENT_SECRET_BYTES: &[u8] = &[
-    71, 79, 67, 83, 80, 88, 45, 75, 53, 56, 70, 87, 82, 52, 56, 54, 76, 100, 76, 74, 49, 109, 76,
-    66, 56, 115, 88, 67, 52, 122, 54, 113, 68, 65, 102,
-];
-const LOGIN_TIMEOUT_MINUTES: i64 = 5;
 const MONITORING_SERVICE: &str = "monitoring.googleapis.com";
 const READ_ONLY_SCOPES: &str = "openid email profile https://www.googleapis.com/auth/monitoring.read https://www.googleapis.com/auth/cloudplatformprojects.readonly https://www.googleapis.com/auth/cloud-platform.read-only";
 const ENABLE_SCOPES: &str = "openid email profile https://www.googleapis.com/auth/monitoring.read https://www.googleapis.com/auth/cloudplatformprojects.readonly https://www.googleapis.com/auth/service.management";
@@ -221,47 +216,24 @@ async fn start_oauth(
         .with_state(context.clone());
 
     let server_context = context.clone();
-    tokio::spawn(async move {
-        if let Err(error) = axum::serve(listener, router)
-            .with_graceful_shutdown(async {
-                let _ = shutdown_rx.await;
-            })
-            .await
-        {
-            fail_login(
-                &server_context,
-                format!("Google Cloud callback server failed: {error}"),
-            );
-            server_context
-                .app
-                .abort_login_resources(&server_context.attempt_id);
-        }
-    });
+    spawn_callback_server(
+        app.clone(),
+        attempt_id.clone(),
+        listener,
+        router,
+        shutdown_rx,
+        "Google Cloud callback server failed",
+        move |message| fail_login(&server_context, message),
+    );
 
     let timeout_context = context.clone();
-    tokio::spawn(async move {
-        tokio::time::sleep(std::time::Duration::from_secs(
-            (LOGIN_TIMEOUT_MINUTES * 60) as u64,
-        ))
-        .await;
-        let waiting = timeout_context
-            .app
-            .pending_login
-            .read()
-            .as_ref()
-            .is_some_and(|login| {
-                login.attempt_id == timeout_context.attempt_id && login.status == "waiting"
-            });
-        if waiting {
-            fail_login(
-                &timeout_context,
-                "Google Cloud authorization timed out. Start it again.".into(),
-            );
-            timeout_context
-                .app
-                .abort_login_resources(&timeout_context.attempt_id);
-        }
-    });
+    spawn_login_timeout(
+        app.clone(),
+        attempt_id.clone(),
+        std::time::Duration::from_secs((LOGIN_TIMEOUT_MINUTES * 60) as u64),
+        "Google Cloud authorization timed out. Start it again.".into(),
+        move |message| fail_login(&timeout_context, message),
+    );
 
     // The authorization URL is returned to the UI, which opens it in the user's
     // browser (on mobile, the system browser). Third-party sign-in pages must
@@ -884,14 +856,13 @@ fn network_unavailable(action: &str) -> String {
 }
 
 async fn exchange_tokens(context: &LoginContext, code: &str) -> Result<TokenResponse, String> {
-    let client_secret =
-        zeroize::Zeroizing::new(String::from_utf8_lossy(GOOGLE_CLIENT_SECRET_BYTES).to_string());
+    let client_secret = client_secret();
     let response = context
         .app
         .client
         .post("https://oauth2.googleapis.com/token")
         .form(&[
-            ("client_id", GOOGLE_CLIENT_ID),
+            ("client_id", CLIENT_ID),
             ("client_secret", client_secret.as_str()),
             ("code", code),
             ("redirect_uri", context.redirect_uri.as_str()),
@@ -913,33 +884,12 @@ async fn ensure_fresh_oauth(app: &AppState, oauth: OAuthSecret) -> Result<OAuthS
     if !oauth.expires_within(300) {
         return Ok(oauth);
     }
-    let client_secret =
-        zeroize::Zeroizing::new(String::from_utf8_lossy(GOOGLE_CLIENT_SECRET_BYTES).to_string());
-    let response = app
-        .client
-        .post("https://oauth2.googleapis.com/token")
-        .form(&[
-            ("client_id", GOOGLE_CLIENT_ID),
-            ("client_secret", client_secret.as_str()),
-            ("refresh_token", oauth.refresh_token.as_str()),
-            ("grant_type", "refresh_token"),
-        ])
-        .send()
+    google_ai_studio::refresh_cloud_secret(app, &oauth, IdToken::PreferNew)
         .await
-        .map_err(|_| network_unavailable("Google token refresh"))?;
-    let status = response.status();
-    let body = response.text().await.unwrap_or_default();
-    if !status.is_success() {
-        return Err("Google authorization expired. Sign in again.".into());
-    }
-    let tokens: TokenResponse = serde_json::from_str(&body)
-        .map_err(|error| format!("Invalid Google token refresh response: {error}"))?;
-    Ok(OAuthSecret {
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token.unwrap_or(oauth.refresh_token),
-        id_token: tokens.id_token.or(oauth.id_token),
-        expires_at: Utc::now().timestamp_millis() + tokens.expires_in.unwrap_or(3600) * 1000,
-    })
+        .map_err(|error| match error {
+            ProviderError::Auth => "Google authorization expired. Sign in again.".to_string(),
+            other => other.to_string(),
+        })
 }
 
 async fn fetch_email(app: &AppState, access_token: &str) -> Result<String, String> {
@@ -977,7 +927,7 @@ fn build_authorization_url(
     let mut url = Url::parse("https://accounts.google.com/o/oauth2/auth")
         .map_err(|error| error.to_string())?;
     url.query_pairs_mut()
-        .append_pair("client_id", GOOGLE_CLIENT_ID)
+        .append_pair("client_id", CLIENT_ID)
         .append_pair("redirect_uri", redirect_uri)
         .append_pair("response_type", "code")
         .append_pair("scope", scopes)

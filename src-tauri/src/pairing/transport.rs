@@ -116,7 +116,7 @@ pub fn generate_qr_svg(uri: &str) -> Result<String, String> {
 
 #[derive(Debug, Clone)]
 pub enum HostEvent {
-    #[allow(dead_code)]
+    #[cfg_attr(not(test), allow(dead_code))]
     Connected(String),
     PeerConnected {
         sas_code: String,
@@ -135,15 +135,14 @@ pub enum HostEvent {
     Failed(String),
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 pub type ReceiverEvent = HostEvent;
 
 #[derive(Debug, Clone)]
 pub enum ClientEvent {
-    #[allow(dead_code)]
+    #[cfg_attr(not(test), allow(dead_code))]
     Connected {
         sas_code: String,
-        fingerprint: String,
         account_count: usize,
     },
     RoleSelection {
@@ -162,7 +161,7 @@ pub enum ClientEvent {
     Failed(String),
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 pub type SenderEvent = ClientEvent;
 
 /// Runs the host listener loop (displays QR code, accepts incoming peer connection)
@@ -395,7 +394,7 @@ pub async fn run_host_listener(
     .await;
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 // Session plumbing: one channel/handle per concern, kept as separate
 // arguments so the host, receiver, and client paths stay symmetrical.
 #[allow(clippy::too_many_arguments)]
@@ -551,7 +550,6 @@ pub async fn run_client_connector(
     let _ = status_tx
         .send(ClientEvent::Connected {
             sas_code: sas_code.clone(),
-            fingerprint: verified_fingerprint.clone(),
             account_count: local_account_count,
         })
         .await;
@@ -710,7 +708,7 @@ pub async fn run_client_connector(
     .await;
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 pub async fn run_sender_client(
     state: Arc<AppState>,
     parsed: ParsedQrPayload,
@@ -974,8 +972,6 @@ pub enum TransferEvent {
     Transferring,
     Completed(SyncSummary),
     Failed(String),
-    #[allow(dead_code)]
-    Cancelled,
 }
 
 impl From<TransferEvent> for HostEvent {
@@ -984,7 +980,6 @@ impl From<TransferEvent> for HostEvent {
             TransferEvent::Transferring => HostEvent::Transferring,
             TransferEvent::Completed(s) => HostEvent::Completed(s),
             TransferEvent::Failed(e) => HostEvent::Failed(e),
-            TransferEvent::Cancelled => HostEvent::Cancelled,
         }
     }
 }
@@ -995,7 +990,6 @@ impl From<TransferEvent> for ClientEvent {
             TransferEvent::Transferring => ClientEvent::Transferring,
             TransferEvent::Completed(s) => ClientEvent::Completed(s),
             TransferEvent::Failed(e) => ClientEvent::Failed(e),
-            TransferEvent::Cancelled => ClientEvent::Cancelled,
         }
     }
 }

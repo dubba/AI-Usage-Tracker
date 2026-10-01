@@ -10,6 +10,7 @@
 //! written by earlier versions; they still load and are upgraded in place.
 
 use crate::fs_util::atomic_write_private;
+use crate::store::UpgradeReport;
 use std::{fs, path::Path};
 
 /// Marks a sealed credential file. Plaintext credentials are JSON or a bare
@@ -111,16 +112,6 @@ pub fn read_credential_file(
         );
     }
     Ok(opened.plaintext)
-}
-
-/// What a pass over the credential folder did.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct UpgradeReport {
-    /// Plaintext files rewritten sealed.
-    pub upgraded: usize,
-    /// Files that are still plaintext because they could not be sealed (or
-    /// could not even be read). These stay usable but unprotected.
-    pub failed: usize,
 }
 
 /// Seals every plaintext credential file in `dir`. Run at startup so nothing

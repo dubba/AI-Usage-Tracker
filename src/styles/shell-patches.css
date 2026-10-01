@@ -1,0 +1,782 @@
+/* Shell and component patches that load before the main Obsidian stylesheet.
+ *
+ * These were separate files; they are concatenated here in their original load order, which
+ * matters: later blocks override earlier ones, and obsidian-dashboard.css overrides all of them. */
+
+/* ==========================================================================
+   updater (was updater.css)
+   ========================================================================== */
+.settings-update-error {
+  margin-top: 14px;
+}
+
+.settings-updates-subcard .settings-update-info,
+.settings-updates-subcard .settings-update-error {
+  flex: 1 0 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+/* ==========================================================================
+   provider (was provider.css)
+   ========================================================================== */
+select,
+textarea {
+  font: inherit;
+}
+
+select.text-input {
+  appearance: none;
+  padding-right: 38px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 17px) 18px,
+    calc(100% - 12px) 18px;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+select.text-input option {
+  background: #171b19;
+  color: var(--text);
+}
+
+.field-spaced {
+  margin-top: 14px;
+}
+
+.guided-login-card {
+  margin-top: 16px;
+  padding: 16px 18px;
+  border: 1px solid rgba(139, 92, 246, .35);
+  border-radius: 12px;
+  background: rgba(98, 62, 164, .12);
+}
+
+.guided-login-card strong {
+  display: block;
+  font-size: 13px;
+}
+
+.guided-login-card ol {
+  margin: 10px 0 12px;
+  padding-left: 21px;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.guided-login-card li + li {
+  margin-top: 3px;
+}
+
+.guided-login-card li strong {
+  display: inline;
+  font-size: inherit;
+}
+
+.guided-login-card small {
+  display: block;
+  color: var(--muted-2);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.advanced-connection-toggle {
+  display: inline-flex;
+  margin-top: 11px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-2, #b99aff);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.advanced-connection-toggle:hover {
+  text-decoration: underline;
+}
+
+.manual-connection-fields {
+  margin-top: 4px;
+}
+
+.credential-note {
+  margin-top: 9px;
+  color: var(--muted-2);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.modal-error {
+  margin-top: 12px;
+}
+
+.google-key-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.google-load-models {
+  min-width: 112px;
+  white-space: nowrap;
+}
+
+.google-model-picker {
+  margin-top: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: #111512;
+}
+
+.google-model-picker-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 13px;
+  border-bottom: 1px solid var(--border);
+}
+
+.google-model-picker-header > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.google-model-picker-header strong {
+  font-size: 12px;
+}
+
+.google-model-picker-header small {
+  color: var(--muted-2);
+  font-size: 10px;
+}
+
+.google-model-picker-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.google-model-picker-actions button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #c8b4ff;
+  font-size: 10px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.google-model-picker-actions button:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.google-model-picker-actions button:disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+.google-model-list {
+  max-height: 250px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--obsidian-purple-strong) transparent;
+}
+
+.google-model-option {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 10px 13px;
+  border-top: 1px solid rgba(255, 255, 255, .045);
+  cursor: pointer;
+}
+
+.google-model-option:first-child {
+  border-top: 0;
+}
+
+.google-model-option:hover {
+  background: rgba(159, 103, 255, .07);
+}
+
+.google-model-option input {
+  margin: 2px 0 0;
+  accent-color: var(--purple);
+}
+
+.google-model-option span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.google-model-option strong {
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.google-model-option small {
+  overflow: hidden;
+  color: var(--muted-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.google-usage-note {
+  margin: 0;
+  padding: 11px 13px;
+  border-top: 1px solid var(--border);
+  background: rgba(159, 103, 255, .055);
+}
+
+.google-cloud-connect-action {
+  min-width: 126px;
+  white-space: nowrap;
+}
+
+.google-cloud-usage-modal {
+  max-width: 610px;
+}
+
+.google-cloud-scope-card {
+  margin-top: 16px;
+}
+
+.google-cloud-scope-card code {
+  color: #d7c7ff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ==========================================================================
+   readability (was readability.css)
+   ========================================================================== */
+/* Comfortable desktop typography.
+   The base dashboard intentionally uses a compact density; these overrides keep
+   the same layout while ensuring important text is readable at normal Windows
+   display scaling. */
+
+.brand strong { font-size: 15px; }
+.brand small { font-size: 13px; }
+.sidebar-footer strong { font-size: 13px; }
+.sidebar-footer small { font-size: 11px; line-height: 1.35; }
+.eyebrow { font-size: 11px; }
+.button { padding-inline: 15px; }
+.usage-label { font-size: 12px; line-height: 1.4; }
+.usage-heading strong { font-size: 24px; margin-top: 7px; }
+.window-pill { font-size: 11px; padding: 5px 8px; }
+.progress-track { height: 9px; margin-top: 20px; }
+.reset-label { font-size: 11px; line-height: 1.4; margin-top: 11px; }
+.error-panel { font-size: 12px; line-height: 1.5; }
+.settings-row { min-height: 82px; padding: 17px 19px; }
+.settings-row strong { font-size: 14px; }
+.settings-row small { font-size: 12px; line-height: 1.45; }
+
+.modal-kicker { font-size: 11px; }
+.modal-card h2 { font-size: 23px; }
+.modal-card p { font-size: 13px; }
+.field-label { font-size: 12px; }
+.waiting-panel { font-size: 12px; }
+
+/* ==========================================================================
+   dashboard-layout (was dashboard-layout.css)
+   ========================================================================== */
+/* Two-column account dashboard.
+   Account management lives in the expandable sidebar, leaving the main stage
+   focused on the selected account's usage. */
+
+.app-shell {
+  grid-template-columns: 340px minmax(0, 1fr);
+}
+
+.content-scroll {
+  max-width: 1500px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+@media (max-width: 1220px) {
+  .app-shell {
+    grid-template-columns: 310px minmax(0, 1fr);
+  }
+}
+
+/* ==========================================================================
+   sidebar-controls (was sidebar-controls.css)
+   ========================================================================== */
+.app-shell {
+  grid-template-columns: 442px minmax(0, 1fr);
+}
+
+.sidebar {
+  padding-inline: 16px;
+}
+
+.sidebar small {
+  font-size: var(--sidebar-small-text-size) !important;
+  line-height: 1.35;
+}
+
+@keyframes account-refresh-spin {
+  to { transform: rotate(360deg); }
+}
+
+.alert-settings-modal {
+  width: min(650px, calc(100vw - 48px));
+}
+
+.alert-window-list {
+  display: grid;
+  gap: 9px;
+}
+
+.alert-window-row {
+  min-height: 74px;
+  padding: 13px 15px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: #131816;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+}
+
+.alert-window-row.enabled {
+  border-color: rgba(159, 103, 255, .4);
+  background: rgba(159, 103, 255, .07);
+}
+
+.alert-window-toggle {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  cursor: pointer;
+}
+
+.alert-window-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.alert-checkbox {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: #0f1311;
+  position: relative;
+}
+
+.alert-window-toggle input:checked + .alert-checkbox {
+  background: #7654d5;
+  border-color: #8d69e4;
+}
+
+.alert-window-toggle input:checked + .alert-checkbox::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.alert-window-toggle > span:last-child {
+  display: grid;
+  gap: 3px;
+}
+
+.alert-window-toggle strong {
+  font-size: 14px;
+}
+
+.alert-window-toggle small,
+.alert-threshold span,
+.alert-notification-note,
+.alert-empty-state span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.alert-threshold {
+  display: grid;
+  gap: 5px;
+  min-width: 150px;
+}
+
+.alert-threshold select {
+  min-height: 36px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--text);
+  padding: 0 10px;
+}
+
+.alert-threshold select:disabled {
+  opacity: .45;
+}
+
+.alert-empty-state {
+  min-height: 150px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 12px;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 8px;
+  text-align: center;
+  padding: 24px;
+}
+
+.alert-empty-state svg {
+  color: var(--muted);
+}
+
+.alert-notification-note {
+  margin-top: 14px;
+}
+
+@media (max-width: 1220px) {
+  .app-shell {
+    grid-template-columns: 403px minmax(0, 1fr);
+  }
+}
+
+/* ==========================================================================
+   sidebar-width (was sidebar-width.css)
+   ========================================================================== */
+.app-shell {
+  grid-template-columns: 480px minmax(0, 1fr);
+}
+
+@media (max-width: 1220px) {
+  .app-shell {
+    grid-template-columns: 442px minmax(0, 1fr);
+  }
+}
+
+/* ==========================================================================
+   macos-account-actions (was macos-account-actions.css)
+   ========================================================================== */
+.alert-settings-modal {
+  width: min(680px, calc(100vw - 48px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+
+.account-settings-section {
+  margin-top: 14px;
+  padding: 15px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #131816;
+}
+
+.compact-alert-empty {
+  min-height: 112px !important;
+}
+
+.remove-account-confirmation {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  z-index: 2;
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
+}
+
+.remove-account-confirmation > div {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 760px) {
+
+  .remove-account-confirmation {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+/* ==========================================================================
+   provider-icon-fixes (was provider-icon-fixes.css)
+   ========================================================================== */
+.account-provider-icon:has(.provider-icon-image) {
+  background: #ffffff !important;
+  border-color: #d9dfdc !important;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .08) !important;
+}
+
+/* ==========================================================================
+   sidebar-resize (was sidebar-resize.css)
+   ========================================================================== */
+.app-shell {
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+}
+
+.sidebar {
+  position: relative;
+  grid-column: 1;
+}
+
+.sidebar-resize-handle {
+  position: absolute;
+  z-index: 30;
+  top: 0;
+  right: -10px;
+  width: 30px;
+  height: 100%;
+  cursor: ew-resize;
+  cursor: col-resize;
+  cursor: ew-resize;
+  touch-action: none;
+  outline: none;
+}
+
+.sidebar-resize-handle::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 10px;
+  width: 1px;
+  transform: translateX(50%);
+  background: var(--border);
+  transition: width .12s ease, background .12s ease, box-shadow .12s ease;
+}
+
+.sidebar-resize-handle:hover::before,
+.sidebar-resize-handle:focus-visible::before,
+.sidebar-resize-handle.dragging::before {
+  width: 6.5px;
+  background: var(--purple);
+  box-shadow: 0 0 12px rgba(159, 103, 255, .5);
+}
+
+.sidebar-resize-grip {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  right: 16px;
+  transform: translate(50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4.5px;
+  padding: 4px 2px;
+  overflow: visible;
+  pointer-events: auto;
+  user-select: none;
+  cursor: ew-resize;
+}
+
+.sidebar-resize-grip span {
+  width: 4.2px;
+  height: 4.2px;
+  border-radius: 50%;
+  background: #7e8a84;
+  cursor: ew-resize;
+  transition: background .12s ease, box-shadow .12s ease, transform .12s ease;
+}
+
+.sidebar-resize-handle:hover .sidebar-resize-grip span,
+.sidebar-resize-handle:focus-visible .sidebar-resize-grip span,
+.sidebar-resize-handle.dragging .sidebar-resize-grip span {
+  background: #d4c3ff;
+  box-shadow: 0 0 7px rgba(159, 103, 255, .75);
+  transform: scale(1.1);
+}
+
+.main-stage {
+  grid-column: 2;
+}
+
+body.sidebar-resizing,
+body.sidebar-resizing * {
+  cursor: ew-resize !important;
+  cursor: col-resize !important;
+  cursor: ew-resize !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+@media (max-width: 1220px) {
+  :root {
+    --sidebar-width: 442px;
+  }
+}
+
+@media (max-width: 860px) {
+
+  .sidebar-resize-handle {
+    top: 0;
+    right: -6px;
+    width: 24px;
+    height: 100%;
+    z-index: 30;
+    -webkit-touch-callout: none;
+  }
+
+  /* The sidebar already has a 1px border. Don't draw a second, thicker edge. */
+  .sidebar-resize-handle::before {
+    display: none;
+  }
+
+  .sidebar-resize-handle:hover::before,
+  .sidebar-resize-handle.dragging::before,
+  .sidebar-resize-handle:focus-visible::before {
+    display: block;
+    right: 6px;
+    width: 6.5px;
+    transform: translateX(50%);
+  }
+
+  .sidebar-resize-grip {
+    position: absolute;
+    top: 50%;
+    right: 14px;
+    transform: translate(50%, -50%);
+    left: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4.5px;
+    padding: 4px 0;
+    margin: 0;
+  }
+}
+
+/* ==========================================================================
+   dashboard-typography (was dashboard-typography.css)
+   ========================================================================== */
+/* Keep dashboard helper text at least as large as the page description. */
+.main-stage .button,
+.main-stage .usage-label,
+.main-stage .window-pill,
+.main-stage .reset-label {
+  font-size: var(--dashboard-body-text-size);
+  line-height: 1.45;
+}
+
+/* AI SUBSCRIPTIONS and SELECTED ACCOUNT were 11px; increase both by 4px. */
+.main-stage .eyebrow {
+  font-size: 15px;
+}
+
+/* ==========================================================================
+   app-shell-polish (was app-shell-polish.css)
+   ========================================================================== */
+/* Public-name and sidebar interaction polish loaded after the legacy layout layers. */
+.brand {
+  display: none !important;
+}
+
+/* Desktop: show the app title above the sidebar navigation with the same
+   style and vertical position as the "All Accounts" eyebrow heading. */
+@media (min-width: 861px) {
+  .obsidian-shell .sidebar .brand {
+    display: flex !important;
+    align-items: center;
+    min-height: 0;
+    /* 18px sidebar padding-top + 6px = 24px, matching .dashboard-content
+       padding-top so the baselines sit on the same horizontal line. Gap
+       to "Accounts" below = 6px padding + 12px margin = 18px. */
+    padding: 6px 14px 6px;
+    margin: 0 0 12px;
+  }
+  .obsidian-shell .sidebar .brand .brand-mark {
+    display: none;
+  }
+  .obsidian-shell .sidebar .brand strong {
+    /* Must stay in lockstep with .dashboard-header h1.eyebrow
+       (obsidian-dashboard.css:565 / dashboard-typography.css:22) */
+    font-size: 15px;
+    line-height: 1.15;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--purple, #a078ff);
+  }
+}
+
+.sidebar {
+  container-type: inline-size;
+  min-height: 0;
+  padding-top: 16px;
+  padding-bottom: 12px;
+}
+
+.sidebar-footer {
+  flex: 0 0 auto;
+  min-height: 46px;
+  margin-top: 10px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+  background: #151a17;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  outline: none;
+  user-select: none;
+}
+
+.sidebar-footer:hover,
+.sidebar-footer:focus-visible {
+  background: #202620;
+  border-color: var(--purple);
+}
+
+.sidebar-footer.update-available {
+  background: #7654d5;
+  border-color: #6e4fc1;
+  color: #fff;
+}
+
+.sidebar-footer.update-available:hover,
+.sidebar-footer.update-available:focus-visible {
+  background: #835fe8;
+  border-color: #8d69e4;
+}
+
+.sidebar-footer[aria-busy="true"] {
+  opacity: .72;
+  cursor: wait;
+}
+
+button.sidebar-footer {
+  width: 100%;
+  appearance: none;
+  font: inherit;
+  color: inherit;
+}

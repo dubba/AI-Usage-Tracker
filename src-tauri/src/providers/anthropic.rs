@@ -1,10 +1,14 @@
-use super::{ProviderError, ProviderUsage};
+use super::{
+    oauth_refresh::{
+        refresh_oauth_secret, IdToken, InvalidGrant, Lifetime, RefreshBody, RefreshRequest,
+    },
+    ProviderError, ProviderUsage,
+};
 use crate::{
     model::{Account, OAuthSecret, ProviderSecret, UsageWindow},
     state::AppState,
     store::save_provider_secret,
 };
-use chrono::Utc;
 use reqwest::{header::RETRY_AFTER, StatusCode};
 use serde::Deserialize;
 use serde_json::Value;
@@ -15,13 +19,6 @@ const LEGACY_PROFILE_URL: &str = "https://api.anthropic.com/api/auth/oauth/profi
 const TOKEN_URL: &str = "https://platform.claude.com/v1/oauth/token";
 const CLIENT_ID: &str = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
 const OAUTH_BETA: &str = "oauth-2025-04-20";
-
-#[derive(Debug, Deserialize)]
-struct RefreshResponse {
-    access_token: String,
-    refresh_token: Option<String>,
-    expires_in: Option<i64>,
-}
 
 #[derive(Debug, Deserialize)]
 struct RawWindow {
@@ -51,7 +48,7 @@ pub async fn refresh(
     mut secret: OAuthSecret,
 ) -> Result<(ProviderUsage, OAuthSecret), ProviderError> {
     if secret.expires_within(300) {
-        secret = refresh_secret(app, secret).await?;
+        secret = refresh_secret(app, &secret).await?;
         save_provider_secret(&account.id, &ProviderSecret::Anthropic(secret.clone())).map_err(
             |_| ProviderError::Transient("Unable to save refreshed credentials.".into()),
         )?;
@@ -59,7 +56,7 @@ pub async fn refresh(
 
     let raw = match call_usage(app, &secret).await {
         Err(ProviderError::Auth) => {
-            secret = refresh_secret(app, secret).await?;
+            secret = refresh_secret(app, &secret).await?;
             save_provider_secret(&account.id, &ProviderSecret::Anthropic(secret.clone())).map_err(
                 |_| ProviderError::Transient("Unable to save refreshed credentials.".into()),
             )?;
@@ -166,40 +163,27 @@ fn usage_status_error(status: StatusCode, retry_after: Option<String>) -> Option
     })
 }
 
-async fn refresh_secret(app: &AppState, secret: OAuthSecret) -> Result<OAuthSecret, ProviderError> {
-    let response = app
-        .client
-        .post(TOKEN_URL)
-        .json(&serde_json::json!({
-            "grant_type": "refresh_token",
-            "client_id": CLIENT_ID,
-            "refresh_token": secret.refresh_token,
-        }))
-        .send()
-        .await
-        .map_err(|_| ProviderError::Transient("Anthropic token refresh failed.".into()))?;
-    let status = response.status();
-    let body = response.text().await.unwrap_or_default();
-    if !status.is_success() {
-        if status == StatusCode::UNAUTHORIZED
-            || status == StatusCode::FORBIDDEN
-            || body.to_ascii_lowercase().contains("invalid_grant")
-        {
-            return Err(ProviderError::Auth);
-        }
-        return Err(ProviderError::Transient(format!(
-            "Anthropic token refresh returned {status}."
-        )));
-    }
-    let tokens: RefreshResponse = serde_json::from_str(&body).map_err(|_| {
-        ProviderError::Transient("Invalid Anthropic token refresh response.".into())
-    })?;
-    Ok(OAuthSecret {
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token.unwrap_or(secret.refresh_token),
-        id_token: secret.id_token,
-        expires_at: Utc::now().timestamp_millis() + tokens.expires_in.unwrap_or(3600) * 1000,
-    })
+async fn refresh_secret(
+    app: &AppState,
+    secret: &OAuthSecret,
+) -> Result<OAuthSecret, ProviderError> {
+    refresh_oauth_secret(
+        RefreshRequest {
+            client: &app.client,
+            provider: "Anthropic",
+            url: TOKEN_URL,
+            body: RefreshBody::Json(serde_json::json!({
+                "grant_type": "refresh_token",
+                "client_id": CLIENT_ID,
+                "refresh_token": secret.refresh_token,
+            })),
+            invalid_grant: InvalidGrant::AnyStatus,
+            lifetime: Lifetime::DefaultsToOneHour,
+            id_token: IdToken::KeepCurrent,
+        },
+        secret,
+    )
+    .await
 }
 
 async fn fetch_profile(app: &AppState, access_token: &str) -> Result<Value, ProviderError> {

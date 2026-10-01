@@ -1,4 +1,9 @@
-use super::{ProviderError, ProviderUsage};
+use super::{
+    oauth_refresh::{
+        refresh_oauth_secret, IdToken, InvalidGrant, Lifetime, RefreshBody, RefreshRequest,
+    },
+    ProviderError, ProviderUsage,
+};
 use crate::{
     model::{Account, OAuthSecret, ProviderSecret, UsageWindow},
     state::AppState,
@@ -12,14 +17,6 @@ use serde_json::Value;
 const USAGE_URL: &str = "https://chatgpt.com/backend-api/wham/usage";
 const TOKEN_URL: &str = "https://auth.openai.com/oauth/token";
 const CLIENT_ID: &str = "app_EMoamEEZ73f0CkXaXp7hrann";
-
-#[derive(Debug, Deserialize)]
-struct RefreshResponse {
-    access_token: String,
-    refresh_token: Option<String>,
-    id_token: Option<String>,
-    expires_in: i64,
-}
 
 #[derive(Debug, Deserialize)]
 struct RawUsage {
@@ -61,7 +58,7 @@ pub async fn refresh(
     mut secret: OAuthSecret,
 ) -> Result<(ProviderUsage, OAuthSecret), ProviderError> {
     if secret.expires_within(300) {
-        secret = refresh_secret(app, secret).await?;
+        secret = refresh_secret(app, &secret).await?;
         save_provider_secret(&account.id, &ProviderSecret::Openai(secret.clone())).map_err(
             |_| ProviderError::Transient("Unable to save refreshed credentials.".into()),
         )?;
@@ -69,7 +66,7 @@ pub async fn refresh(
 
     let raw = match call_usage(app, account, &secret).await {
         Err(ProviderError::Auth) => {
-            secret = refresh_secret(app, secret).await?;
+            secret = refresh_secret(app, &secret).await?;
             save_provider_secret(&account.id, &ProviderSecret::Openai(secret.clone())).map_err(
                 |_| ProviderError::Transient("Unable to save refreshed credentials.".into()),
             )?;
@@ -225,43 +222,27 @@ async fn call_usage(
         .map_err(|_| ProviderError::Transient("OpenAI returned incompatible usage data.".into()))
 }
 
-async fn refresh_secret(app: &AppState, secret: OAuthSecret) -> Result<OAuthSecret, ProviderError> {
-    let response = app
-        .client
-        .post(TOKEN_URL)
-        .form(&[
-            ("grant_type", "refresh_token"),
-            ("client_id", CLIENT_ID),
-            ("refresh_token", secret.refresh_token.as_str()),
-        ])
-        .send()
-        .await
-        .map_err(|_| ProviderError::Transient("OpenAI token refresh failed.".into()))?;
-    let status = response.status();
-    if !status.is_success() {
-        let body = response.text().await.unwrap_or_default();
-        if status == StatusCode::UNAUTHORIZED
-            || status == StatusCode::FORBIDDEN
-            || (status == StatusCode::BAD_REQUEST
-                && body.to_ascii_lowercase().contains("invalid_grant"))
-        {
-            return Err(ProviderError::Auth);
-        }
-        return Err(ProviderError::Transient(format!(
-            "OpenAI token refresh returned {status}."
-        )));
-    }
-    let tokens: RefreshResponse = response
-        .json()
-        .await
-        .map_err(|_| ProviderError::Transient("Invalid OpenAI token refresh response.".into()))?;
-    let expires_at = Utc::now().timestamp_millis() + tokens.expires_in * 1000;
-    Ok(OAuthSecret {
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token.unwrap_or(secret.refresh_token),
-        id_token: tokens.id_token.or(secret.id_token),
-        expires_at,
-    })
+async fn refresh_secret(
+    app: &AppState,
+    secret: &OAuthSecret,
+) -> Result<OAuthSecret, ProviderError> {
+    refresh_oauth_secret(
+        RefreshRequest {
+            client: &app.client,
+            provider: "OpenAI",
+            url: TOKEN_URL,
+            body: RefreshBody::Form(&[
+                ("grant_type", "refresh_token"),
+                ("client_id", CLIENT_ID),
+                ("refresh_token", secret.refresh_token.as_str()),
+            ]),
+            invalid_grant: InvalidGrant::BadRequestOnly,
+            lifetime: Lifetime::Required,
+            id_token: IdToken::PreferNew,
+        },
+        secret,
+    )
+    .await
 }
 
 fn normalize_window(id: &str, label: &str, raw: &RawWindow) -> UsageWindow {

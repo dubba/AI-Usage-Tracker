@@ -248,10 +248,9 @@ impl ParsedQrPayload {
 }
 
 /// Reads a length-prefixed frame: `[4 bytes length][1 byte type][payload]`
-/// using the maximum (post-authentication) frame budget. Prefer
-/// [`read_frame_limited`] with [`MAX_PREAUTH_FRAME_SIZE`] for any frame
-/// received before SAS confirmation succeeds.
-#[allow(dead_code)]
+/// using the maximum (post-authentication) frame budget. Production code
+/// reads with [`read_frame_limited`] and an explicit budget.
+#[cfg(test)]
 pub async fn read_frame<R: AsyncRead + Unpin>(reader: &mut R) -> Result<(u8, Vec<u8>), String> {
     read_frame_limited(reader, MAX_FRAME_SIZE).await
 }

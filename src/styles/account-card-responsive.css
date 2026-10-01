@@ -1,0 +1,497 @@
+/* Account cards keep one stable, unchanged structure at every width. */
+.provider-account-card {
+  min-height: max-content;
+}
+
+.provider-account-card .account-card-identity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  align-self: flex-end;
+  max-height: 42px;
+  min-width: 0;
+}
+
+.provider-account-card .account-card-name-row {
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: nowrap;
+  overflow: visible;
+}
+
+.provider-account-card .account-card-name-row > h2,
+.provider-account-card .account-card-name-row > .account-card-name-input,
+.provider-account-card .account-card-name-row > .account-card-name-edit-wrap {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.provider-account-card .account-card-email {
+  min-width: 0;
+  max-width: 100%;
+  margin: 3px 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.provider-account-card .account-card-name-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+  visibility: visible;
+  z-index: 2;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+}
+
+.provider-account-card .account-card-name-actions .account-card-action {
+  display: grid !important;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  max-width: 28px;
+}
+
+.provider-account-card .account-card-name-actions .account-card-action svg,
+.provider-account-card .account-card-name-actions .account-card-action .mini-spinner {
+  width: 15px;
+  height: 15px;
+}
+
+.provider-account-card .account-card-metrics {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.provider-account-card .account-card-metrics.two-column-metrics,
+.provider-account-card .account-card-metrics.multi-row-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.provider-account-card .account-card-metrics .account-usage-metric,
+.provider-account-card .account-card-metrics .account-usage-metric + .account-usage-metric {
+  min-width: 0;
+  height: auto;
+  border-left: 0;
+}
+
+.provider-account-card .metric-value-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.provider-account-card .metric-full-value {
+  flex: 0 0 auto;
+}
+
+.provider-account-card .account-metric-track {
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+}
+
+.provider-account-card .metric-inline-credit {
+  min-width: 0;
+  max-width: min(150px, 30%);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 860px) {
+  .provider-account-card .account-card-email,
+  .account-card-email,
+  .account-card-identity p {
+    font-size: 11px;
+    line-height: 14px;
+    letter-spacing: -0.01em;
+  }
+
+  .provider-account-card .account-card-name-row > h2 {
+    font-size: 14px !important;
+    line-height: 18px;
+  }
+
+  .provider-account-card .account-card-name-actions {
+    gap: 5px !important;
+  }
+
+  .provider-account-card .account-card-name-actions .account-card-action {
+    width: 26px !important;
+    height: 26px !important;
+    min-width: 26px !important;
+  }
+
+  .provider-account-card .account-card-name-actions .account-card-action svg,
+  .provider-account-card .account-card-name-actions .account-card-action::before,
+  .provider-account-card .account-card-name-actions .account-card-action .mini-spinner {
+    width: 14px !important;
+    height: 14px !important;
+  }
+
+  .provider-account-card .account-card-metrics,
+  .provider-account-card .account-card-metrics.two-column-metrics,
+  .provider-account-card .account-card-metrics.multi-row-metrics,
+  .account-card-metrics,
+  .account-card-metrics.two-column-metrics,
+  .account-card-metrics.multi-row-metrics {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .provider-account-card .account-card-metrics .account-usage-metric + .account-usage-metric,
+  .account-card-metrics .account-usage-metric + .account-usage-metric {
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 14px;
+  }
+
+  /* Dashboard container must NEVER scroll or create a secondary gutter */
+  .obsidian-shell .dashboard-content,
+  .dashboard-content {
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    box-sizing: border-box;
+  }
+
+  /* Purple Mobile Scrollbar on Cards - scroll is now dashboard-scroll */
+  .obsidian-shell .dashboard-scroll,
+  .dashboard-scroll {
+    overflow-y: overlay;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-gutter: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--obsidian-purple-strong) transparent;
+  }
+
+  .obsidian-shell .provider-account-cards,
+  .provider-account-cards {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    grid-auto-rows: max-content;
+    flex: 0 0 auto;
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: visible;
+    scrollbar-gutter: auto;
+    padding: 0;
+    margin: 0;
+    gap: 10px;
+  }
+
+  .provider-account-cards::-webkit-scrollbar {
+    width: 4px !important;
+    height: 4px !important;
+    display: block !important;
+  }
+
+  .provider-account-cards::-webkit-scrollbar-track {
+    background: rgba(25, 20, 36, 0.3) !important;
+    border-radius: 999px !important;
+  }
+
+  .provider-account-cards::-webkit-scrollbar-thumb {
+    background: var(--obsidian-purple-strong) !important;
+    border-radius: 999px !important;
+  }
+
+  .provider-account-card:not(.is-dragging) {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  /* Mobile Usage Notification Modal Styles */
+  .alert-window-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 14px;
+    min-height: auto;
+  }
+
+  .alert-window-toggle {
+    width: 100%;
+  }
+
+  .alert-threshold {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .alert-threshold span {
+    font-size: 11.5px;
+    color: var(--obsidian-muted);
+    font-weight: 500;
+  }
+
+  .alert-threshold .custom-dropdown-container {
+    width: 100%;
+  }
+}
+
+.plan-with-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--obsidian-green);
+  box-shadow: 0 0 8px rgba(78, 222, 163, 0.8), 0 0 16px rgba(78, 222, 163, 0.4);
+  flex-shrink: 0;
+  display: inline-block;
+  position: relative;
+  top: 1px;
+  animation: live-pulse 2s ease-in-out infinite;
+}
+
+.live-dot.attention,
+.live-dot.red {
+  background: #ff5449;
+  box-shadow: 0 0 8px rgba(255, 84, 73, 0.8), 0 0 16px rgba(255, 84, 73, 0.4);
+  animation: attention-pulse 2s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(78, 222, 163, 0.8), 0 0 16px rgba(78, 222, 163, 0.4); }
+  50% { opacity: 0.8; box-shadow: 0 0 12px rgba(78, 222, 163, 1), 0 0 24px rgba(78, 222, 163, 0.6); }
+}
+
+@keyframes attention-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(255, 84, 73, 0.8), 0 0 16px rgba(255, 84, 73, 0.4); }
+  50% { opacity: 0.8; box-shadow: 0 0 12px rgba(255, 84, 73, 1), 0 0 24px rgba(255, 84, 73, 0.6); }
+}
+
+.mobile-actions-dropdown {
+  position: relative;
+  display: none;
+}
+
+.mobile-dropdown-toggle {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #353335;
+  border-radius: 4px;
+  background: #1b1a1a;
+  color: var(--obsidian-muted);
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.mobile-dropdown-toggle:hover {
+  border-color: #5c5663;
+  background: #242323;
+  color: var(--obsidian-purple);
+}
+
+.mobile-dropdown-toggle svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 200ms ease;
+  transform: rotate(90deg);
+}
+
+.mobile-dropdown-toggle svg.open {
+  transform: rotate(-90deg);
+}
+
+.mobile-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  background: var(--obsidian-surface-low);
+  border: 1px solid #353335;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+/* Ensure dropdown appears above collapsed cards and sibling cards */
+.provider-account-card:has(.mobile-dropdown-menu) {
+  z-index: 100 !important;
+  overflow: visible;
+}
+
+.provider-account-card {
+  overflow: visible;
+}
+
+.mobile-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 16px 9px 14px;
+  border: 0;
+  background: transparent;
+  color: #ddd7e2;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.mobile-dropdown-item:hover:not(:disabled) {
+  background: #242323;
+}
+
+.mobile-dropdown-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mobile-dropdown-item svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.mobile-dropdown-item.remove-action { color: var(--obsidian-red); }
+.mobile-dropdown-item.notify-action { color: var(--obsidian-amber); }
+.mobile-dropdown-item.refresh-action { color: var(--obsidian-green); }
+
+@media (max-width: 860px) {
+  .provider-account-card .account-card-name-actions.desktop-only,
+  .account-card-header-actions .account-status-badge.desktop-only {
+    display: none !important;
+  }
+  .mobile-actions-dropdown {
+    display: block;
+  }
+}
+
+@media (min-width: 861px) {
+  .mobile-actions-dropdown {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .provider-account-card .account-card-email,
+  .account-card-email,
+  .account-card-identity p {
+    font-size: 10px !important;
+    line-height: 13px !important;
+  }
+}
+@media (max-width: 860px) {
+  .account-card-header-actions {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 4px 6px;
+    align-items: center;
+  }
+  .account-card-header-meta {
+    grid-column: 1;
+    grid-row: 2;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    justify-content: flex-end;
+    justify-self: end;
+  }
+  .account-card-action-stack {
+    display: contents;
+  }
+  .account-card-action-stack .account-card-updated,
+  .account-card-updated {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    justify-self: end;
+    text-align: right;
+    display: flex;
+    align-items: center;
+    height: 20px;
+    min-height: 20px !important;
+    font-size: 10px;
+    line-height: 14px;
+    margin: 0;
+    padding-right: 3px;
+    white-space: nowrap;
+  }
+  .account-card-action-stack .mobile-actions-dropdown {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+  }
+  .plan-with-dot {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    min-height: 20px;
+    gap: 6px;
+  }
+  .account-status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 20px;
+    min-height: 20px;
+    box-sizing: border-box;
+    padding: 1px 6px !important;
+    font-size: 9px !important;
+    line-height: 1;
+  }
+}
+
+@media (max-width: 860px) {
+  /* Match g1-pro pill height (20px) and purple pen styling */
+  .mobile-dropdown-toggle {
+    box-sizing: border-box;
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    min-height: 20px;
+    padding: 0;
+    border: 1px solid rgba(208, 188, 255, 0.45);
+    background: rgba(90, 40, 180, 0.35);
+    color: var(--obsidian-purple);
+    border-radius: 4px;
+  }
+
+  .mobile-dropdown-toggle:hover,
+  .mobile-dropdown-toggle:focus-visible {
+    color: #f5efff !important;
+    border-color: rgba(208, 188, 255, 0.9) !important;
+    background: rgba(90, 40, 180, 0.65) !important;
+  }
+
+  .mobile-dropdown-toggle svg {
+    width: 12px;
+    height: 12px;
+    margin: 0 auto;
+  }
+}

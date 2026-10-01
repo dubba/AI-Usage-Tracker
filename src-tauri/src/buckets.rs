@@ -66,7 +66,7 @@ impl BucketStore {
         self.buckets.read().clone()
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn get(&self, id: &str) -> Option<AccountBucket> {
         self.buckets.read().iter().find(|b| b.id == id).cloned()
     }
@@ -173,11 +173,6 @@ impl BucketStore {
         }
         drop(buckets);
         self.persist()
-    }
-
-    #[allow(dead_code)]
-    pub fn insert_imported(&self, bucket: AccountBucket) -> Result<(), String> {
-        self.upsert_imported(bucket)
     }
 
     pub fn delete(&self, id: &str) -> Result<(), String> {

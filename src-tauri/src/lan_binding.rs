@@ -81,12 +81,6 @@ pub fn post_expandable_notification(title: &str, body: &str) -> Result<(), Strin
 }
 
 #[cfg(not(target_os = "android"))]
-#[allow(dead_code)]
-pub fn post_expandable_notification(_title: &str, _body: &str) -> Result<(), String> {
-    Ok(())
-}
-
-#[cfg(not(target_os = "android"))]
 pub fn set_pairing_lan_binding(_enabled: bool) -> Result<(), String> {
     Ok(())
 }

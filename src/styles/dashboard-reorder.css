@@ -1,0 +1,214 @@
+.provider-summary-row.is-all-row,
+.provider-summary-row.is-all-row * {
+  cursor: pointer;
+}
+
+.provider-summary-row[data-reorder-enabled="true"],
+.provider-summary-row:not(.is-all-row),
+.provider-account-card[data-reorder-enabled="true"] {
+  position: relative;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: pan-y;
+}
+
+.provider-summary-row[data-reorder-enabled="true"] *,
+.provider-summary-row:not(.is-all-row) *,
+.provider-account-card[data-reorder-enabled="true"] * {
+  cursor: inherit;
+}
+
+html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card button,
+html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card a,
+html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .account-card-action,
+html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .account-name-edit,
+html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .account-name-confirm,
+html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .account-name-cancel,
+html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .account-card-provider-icon,
+html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .mobile-dropdown-toggle,
+html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .mobile-dropdown-item {
+  cursor: pointer !important;
+}
+
+.provider-summary-row[data-reorder-enabled="true"] {
+  padding-left: 22px;
+}
+
+.provider-account-card[data-reorder-enabled="true"] {
+  padding-left: 0;
+}
+
+.provider-account-card[data-reorder-enabled="true"] .provider-account-card-header {
+  position: relative;
+  padding-left: 28px;
+}
+
+.provider-summary-row[data-reorder-enabled="true"]::before,
+.provider-account-card[data-reorder-enabled="true"] .provider-account-card-header::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #7e8a84;
+  box-shadow: 0 -6px 0 #7e8a84, 0 6px 0 #7e8a84;
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.provider-account-card[data-reorder-enabled="true"] .provider-account-card-header::before {
+  left: 10px;
+}
+
+.provider-summary-row[data-reorder-enabled="true"]:hover::before,
+.provider-account-card[data-reorder-enabled="true"]:hover .provider-account-card-header::before {
+  background: #d4c3ff;
+  box-shadow: 0 -6px 0 #d4c3ff, 0 6px 0 #d4c3ff;
+}
+
+@media (max-width: 860px), (pointer: coarse) {
+  .provider-summary-row[data-reorder-enabled="true"] {
+    padding-left: 10px !important;
+  }
+  .provider-account-card[data-reorder-enabled="true"] .provider-account-card-header {
+    padding-left: var(--account-card-inline-padding, 16px) !important;
+  }
+  .provider-summary-row[data-reorder-enabled="true"]::before,
+  .provider-account-card[data-reorder-enabled="true"] .provider-account-card-header::before {
+    display: none;
+  }
+}
+
+html.dashboard-holding,
+html.dashboard-holding *,
+html.dashboard-holding *::before,
+html.dashboard-holding *::after,
+html.dashboard-reordering,
+html.dashboard-reordering *,
+html.dashboard-reordering *::before,
+html.dashboard-reordering *::after {
+  cursor: grabbing !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+html.dashboard-reordering {
+  touch-action: none !important;
+}
+
+/* Override more-specific cursor !important rules on controls during press/drag. */
+html.dashboard-holding a,
+html.dashboard-holding button,
+html.dashboard-holding button:disabled,
+html.dashboard-holding input,
+html.dashboard-holding label,
+html.dashboard-holding select,
+html.dashboard-holding svg,
+html.dashboard-holding textarea,
+html.dashboard-holding [role="button"],
+html.dashboard-holding .account-card-action,
+html.dashboard-holding .account-card-action:disabled,
+html.dashboard-holding .account-card-action svg,
+html.dashboard-holding .account-card-provider-icon,
+html.dashboard-holding .account-card-provider-icon svg,
+html.dashboard-holding .account-name-edit,
+html.dashboard-holding .account-name-edit svg,
+html.dashboard-holding .account-name-confirm,
+html.dashboard-holding .account-name-confirm svg,
+html.dashboard-holding .account-name-cancel,
+html.dashboard-holding .account-name-cancel svg,
+html.dashboard-holding .provider-account-card button,
+html.dashboard-holding .provider-account-card button:disabled,
+html.dashboard-holding .provider-account-card .account-card-action,
+html.dashboard-holding .provider-account-card .account-card-action:disabled,
+html.dashboard-holding .provider-account-card .account-card-action svg,
+html.dashboard-holding .provider-account-card input.account-card-name-input,
+html.dashboard-reordering a,
+html.dashboard-reordering button,
+html.dashboard-reordering button:disabled,
+html.dashboard-reordering input,
+html.dashboard-reordering label,
+html.dashboard-reordering select,
+html.dashboard-reordering svg,
+html.dashboard-reordering textarea,
+html.dashboard-reordering [role="button"],
+html.dashboard-reordering .account-card-action,
+html.dashboard-reordering .account-card-action:disabled,
+html.dashboard-reordering .account-card-action svg,
+html.dashboard-reordering .account-card-provider-icon,
+html.dashboard-reordering .account-card-provider-icon svg,
+html.dashboard-reordering .account-name-edit,
+html.dashboard-reordering .account-name-edit svg,
+html.dashboard-reordering .account-name-confirm,
+html.dashboard-reordering .account-name-confirm svg,
+html.dashboard-reordering .account-name-cancel,
+html.dashboard-reordering .account-name-cancel svg,
+html.dashboard-reordering .provider-account-card button,
+html.dashboard-reordering .provider-account-card button:disabled,
+html.dashboard-reordering .provider-account-card .account-card-action,
+html.dashboard-reordering .provider-account-card .account-card-action:disabled,
+html.dashboard-reordering .provider-account-card .account-card-action svg,
+html.dashboard-reordering .provider-account-card input.account-card-name-input,
+html.dashboard-reordering .sidebar-resize-grip span,
+html.dashboard-reordering .sidebar-resize-handle,
+html.dashboard-reordering .sidebar-resize-handle * {
+  cursor: grabbing !important;
+}
+
+html.dashboard-reordering {
+  overscroll-behavior: none;
+}
+
+html.dashboard-reordering .dashboard-scroll,
+html.dashboard-reordering .provider-list {
+  overscroll-behavior: none !important;
+  touch-action: none !important;
+}
+
+.dashboard-reorder-float {
+  margin: 0 !important;
+  z-index: 10000 !important;
+  pointer-events: none !important;
+}
+
+.provider-account-card.is-reorder-origin,
+.provider-summary-row.is-reorder-origin {
+  display: none !important;
+}
+
+.reorder-previewing {
+  position: relative;
+}
+
+.dashboard-reorder-placeholder {
+  box-sizing: border-box;
+  width: 100%;
+  grid-column: 1 / -1;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.provider-reorder-placeholder {
+  border-radius: 5px;
+}
+
+.account-reorder-placeholder {
+  border-radius: 8px;
+}
+
+html.dashboard-reordering .provider-summary-row.is-dragging,
+html.dashboard-reordering .provider-account-card.is-dragging {
+  opacity: 0.96;
+  border-color: rgba(208, 188, 255, 0.88) !important;
+  background-color: #242222;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.48);
+  max-width: none !important;
+}

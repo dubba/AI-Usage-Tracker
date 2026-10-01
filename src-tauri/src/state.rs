@@ -79,8 +79,6 @@ pub struct AppState {
     pub refresh_backoff: Mutex<RefreshBackoff>,
     refresh_wakeup: Notify,
     refresh_check: Notify,
-    #[allow(dead_code)]
-    pub data_dir: PathBuf,
     pub pairing_include_settings: RwLock<bool>,
     pub pairing_pending_ui_state: RwLock<Option<serde_json::Value>>,
     /// Explicit per-transfer opt-in to replace credentials of existing local
@@ -140,7 +138,6 @@ impl AppState {
             refresh_backoff: Mutex::new(RefreshBackoff::default()),
             refresh_wakeup: Notify::new(),
             refresh_check: Notify::new(),
-            data_dir,
             pairing_include_settings: RwLock::new(false),
             pairing_pending_ui_state: RwLock::new(None),
             pairing_allow_credential_replace: RwLock::new(false),

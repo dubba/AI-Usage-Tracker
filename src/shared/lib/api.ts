@@ -1,0 +1,100 @@
+import { invoke } from "@tauri-apps/api/core";
+import { logIgnored } from "./log";
+import { storageGet, storageRemove, storageSet, STORAGE_KEYS } from "./storage";
+import type { Account, AccountBucket, AirgapExport, AirgapVerifyResult, AppSettings, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, PairingHostInit, PairingReceiverInit, PairingStatus, Provider, StartupIssue, SyncSummary, UsageAlertSetting } from "../../types";
+
+export function rememberLoginAttempt(attemptId: string) {
+  storageSet(STORAGE_KEYS.loginAttempt, attemptId, "session");
+}
+
+export function clearLoginAttempt() {
+  storageRemove(STORAGE_KEYS.loginAttempt, "session");
+}
+
+export function readLoginAttempt(): string | null {
+  return storageGet(STORAGE_KEYS.loginAttempt, "session");
+}
+
+export const bridgeApi = {
+  getDiagnostics: () => invoke<string>("get_diagnostics"),
+  getStartupIssue: () => invoke<StartupIssue | null>("get_startup_issue"),
+  retryStartup: () => invoke<StartupIssue | null>("retry_startup"),
+  snapshot: () => invoke<DashboardSnapshot>("get_dashboard_snapshot"),
+  bridgeInfo: () => invoke<BridgeInfo>("get_bridge_info"),
+  startLogin: (label: string, provider: Provider, email?: string) =>
+    invoke<LoginStart>("start_login", { label, provider, email: email ?? null }),
+  addOpenCodeGoAccount: (label: string, workspaceId: string, authCookie: string, email?: string) =>
+    invoke<Account>("add_opencode_go_account", { label, workspaceId, authCookie, email }),
+  addGrokAccount: (label: string, cookieHeader: string) =>
+    invoke<Account>("add_grok_account", { label, cookieHeader }),
+  testGoogleAiStudioKey: (apiKey: string) =>
+    invoke<Account>("probe_google_ai_studio_key", { apiKey }),
+  addGoogleAiStudioAccount: (label: string, apiKey: string, selectedModels: string[]) =>
+    invoke<Account>("add_google_ai_studio_account", { label, apiKey, selectedModels }),
+  startGoogleAiStudioUsageLogin: (accountId: string, projectId: string, enableMonitoring: boolean) =>
+    invoke<LoginStart>("start_google_ai_studio_usage_login", { accountId, projectId, enableMonitoring }),
+  loginStatus: (attemptId: string) => invoke<LoginStatus>("get_login_status", { attemptId }),
+  currentLoginStatus: () => invoke<LoginStatus | null>("current_login_status"),
+  cancelLogin: (attemptId: string) => invoke<void>("cancel_login", { attemptId }),
+  refreshAccount: (accountId: string) => invoke<Account>("refresh_account", { accountId }),
+  refreshAll: () => invoke<Account[]>("refresh_all"),
+  getAppSettings: () => invoke<AppSettings>("get_app_settings"),
+  setAccountRefreshMinutes: (minutes: number) => invoke<AppSettings>("set_account_refresh_minutes", { minutes }),
+  setAutomaticUpdatesEnabled: (enabled: boolean) => invoke<AppSettings>("set_automatic_updates_enabled", { enabled }),
+  setIncludeBetaUpdates: (enabled: boolean) => invoke<AppSettings>("set_include_beta_updates", { enabled }),
+  getAutostart: () => invoke<boolean>("get_autostart"),
+  setAutostart: (enabled: boolean) => invoke<boolean>("set_autostart", { enabled }),
+  setApiIntegrationEnabled: (enabled: boolean) => invoke<BridgeStatus>("set_api_integration_enabled", { enabled }),
+  openApiIntegrationWindow: () => invoke<void>("open_api_integration_window"),
+  reorderAccounts: (accountIds: string[]) => invoke<Account[]>("reorder_accounts", { accountIds }),
+  getAccountAlerts: (accountId: string) => invoke<UsageAlertSetting[]>("get_account_alerts", { accountId }),
+  saveAccountAlerts: (accountId: string, settings: UsageAlertSetting[]) =>
+    invoke<UsageAlertSetting[]>("save_account_alerts", { accountId, settings }),
+  getBuckets: () => invoke<AccountBucket[]>("get_account_buckets"),
+  saveBucket: (name: string, provider: Provider | null, accountIds: string[], id?: string) =>
+    invoke<AccountBucket>("save_account_bucket", { id: id ?? null, name, provider, accountIds }),
+  deleteBucket: (id: string) => invoke<void>("delete_account_bucket", { id }),
+  renameAccount: (accountId: string, label: string) =>
+    invoke<Account>("rename_account", { accountId, label }),
+  removeAccount: (accountId: string) => invoke<void>("remove_account", { accountId }),
+  regenerateToken: () => invoke<BridgeInfo>("regenerate_bridge_token"),
+  revealBridgeToken: () => invoke<string>("reveal_bridge_token"),
+  checkForUpdate: () => invoke<AppUpdateStatus>("check_for_app_update"),
+  installUpdate: () => invoke<void>("install_app_update"),
+};
+
+export const pairingApi = {
+  ensureCameraPermission: () => invoke<void>("ensure_camera_permission"),
+  startHost: () => invoke<PairingHostInit>("pairing_start_host"),
+  startReceiver: () => invoke<PairingReceiverInit>("pairing_start_receiver"),
+  startClient: (qrUri: string) => invoke<void>("pairing_start_client", { qrUri }),
+  startClientByCode: (code: string) => invoke<void>("pairing_start_client_by_code", { code }),
+  startSender: (qrUri: string) => invoke<void>("pairing_start_sender", { qrUri }),
+  selectRole: (role: "send" | "receive") => invoke<void>("pairing_select_role", { role }),
+  confirmSas: (sessionId: string, confirmed: boolean) =>
+    invoke<void>("pairing_confirm_sas", { sessionId, confirmed }),
+  cancel: () => invoke<void>("pairing_cancel"),
+  status: () => invoke<PairingStatus>("pairing_status"),
+  getPendingPairingUri: () => invoke<string | null>("get_pending_pairing_uri"),
+  setIncludeSettings: (include: boolean) =>
+    invoke<void>("pairing_set_include_settings", { include }),
+  setAllowCredentialReplace: (allow: boolean) =>
+    invoke<void>("pairing_set_allow_credential_replace", { allow }),
+  setPendingUiState: (uiState: Record<string, unknown>) =>
+    invoke<void>("pairing_set_pending_ui_state", { uiState }),
+  clearPendingUiState: () => invoke<void>("pairing_clear_pending_ui_state"),
+  prepareAirgapExport: (includeSettings: boolean, uiState?: Record<string, unknown>) =>
+    invoke<AirgapExport>("pairing_prepare_airgap_export", {
+      includeSettings,
+      uiState: uiState ?? null,
+    }),
+  verifyAirgapFrames: (chunks: string[]) =>
+    invoke<AirgapVerifyResult>("pairing_verify_airgap", { chunks }),
+  importAirgapFrames: (chunks: string[]) =>
+    invoke<SyncSummary>("pairing_import_airgap", { chunks }),
+};
+
+/** Best-effort cancel: the user is already leaving the flow, so a failure is logged rather than shown. */
+export function cancelPairing(): void {
+  void pairingApi.cancel().catch((cause) => logIgnored("pairing.cancel", cause));
+}

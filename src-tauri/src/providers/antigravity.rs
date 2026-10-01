@@ -1,32 +1,24 @@
-use super::{ProviderError, ProviderUsage};
+use super::{
+    oauth_refresh::{
+        refresh_oauth_secret, IdToken, InvalidGrant, Lifetime, RefreshBody, RefreshRequest,
+    },
+    ProviderError, ProviderUsage,
+};
+use crate::google_client::{client_secret, CLIENT_ID};
 use crate::{
     model::{Account, OAuthSecret, ProviderSecret, UsageWindow},
     state::AppState,
     store::save_provider_secret,
 };
-use chrono::Utc;
 use reqwest::StatusCode;
-use serde::Deserialize;
 use serde_json::{json, Map, Value};
 use std::collections::HashSet;
 use uuid::Uuid;
 
-const CLIENT_ID: &str = "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com";
-const CLIENT_SECRET_BYTES: &[u8] = &[
-    71, 79, 67, 83, 80, 88, 45, 75, 53, 56, 70, 87, 82, 52, 56, 54, 76, 100, 76, 74, 49, 109, 76,
-    66, 56, 115, 88, 67, 52, 122, 54, 113, 68, 65, 102,
-];
 const TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 const USERINFO_URL: &str = "https://www.googleapis.com/oauth2/v2/userinfo";
 const CLOUD_CODE_BASE: &str = "https://daily-cloudcode-pa.googleapis.com";
 const IDE_VERSION: &str = "1.20.5";
-
-#[derive(Debug, Deserialize)]
-struct RefreshResponse {
-    access_token: String,
-    refresh_token: Option<String>,
-    expires_in: i64,
-}
 
 pub async fn refresh(
     app: &AppState,
@@ -34,7 +26,7 @@ pub async fn refresh(
     mut secret: OAuthSecret,
 ) -> Result<(ProviderUsage, OAuthSecret), ProviderError> {
     if secret.expires_within(300) {
-        secret = refresh_secret(app, secret).await?;
+        secret = refresh_secret(app, &secret).await?;
         save_provider_secret(&account.id, &ProviderSecret::Antigravity(secret.clone())).map_err(
             |_| ProviderError::Transient("Unable to save refreshed credentials.".into()),
         )?;
@@ -42,7 +34,7 @@ pub async fn refresh(
 
     let result = match fetch_usage(app, account, &secret).await {
         Err(ProviderError::Auth) => {
-            secret = refresh_secret(app, secret).await?;
+            secret = refresh_secret(app, &secret).await?;
             save_provider_secret(&account.id, &ProviderSecret::Antigravity(secret.clone()))
                 .map_err(|_| {
                     ProviderError::Transient("Unable to save refreshed credentials.".into())
@@ -174,42 +166,29 @@ async fn cloud_code_post(
     })
 }
 
-async fn refresh_secret(app: &AppState, secret: OAuthSecret) -> Result<OAuthSecret, ProviderError> {
-    let client_secret =
-        zeroize::Zeroizing::new(String::from_utf8_lossy(CLIENT_SECRET_BYTES).to_string());
-    let response = app
-        .client
-        .post(TOKEN_URL)
-        .form(&[
-            ("client_id", CLIENT_ID),
-            ("client_secret", client_secret.as_str()),
-            ("refresh_token", secret.refresh_token.as_str()),
-            ("grant_type", "refresh_token"),
-        ])
-        .send()
-        .await
-        .map_err(|_| ProviderError::Transient("Google token refresh failed.".into()))?;
-    let status = response.status();
-    let body = response.text().await.unwrap_or_default();
-    if !status.is_success() {
-        if status == StatusCode::UNAUTHORIZED
-            || status == StatusCode::FORBIDDEN
-            || body.to_ascii_lowercase().contains("invalid_grant")
-        {
-            return Err(ProviderError::Auth);
-        }
-        return Err(ProviderError::Transient(format!(
-            "Google token refresh returned {status}."
-        )));
-    }
-    let tokens: RefreshResponse = serde_json::from_str(&body)
-        .map_err(|_| ProviderError::Transient("Invalid Google token refresh response.".into()))?;
-    Ok(OAuthSecret {
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token.unwrap_or(secret.refresh_token),
-        id_token: secret.id_token,
-        expires_at: Utc::now().timestamp_millis() + tokens.expires_in * 1000,
-    })
+async fn refresh_secret(
+    app: &AppState,
+    secret: &OAuthSecret,
+) -> Result<OAuthSecret, ProviderError> {
+    let client_secret = client_secret();
+    refresh_oauth_secret(
+        RefreshRequest {
+            client: &app.client,
+            provider: "Google",
+            url: TOKEN_URL,
+            body: RefreshBody::Form(&[
+                ("client_id", CLIENT_ID),
+                ("client_secret", client_secret.as_str()),
+                ("refresh_token", secret.refresh_token.as_str()),
+                ("grant_type", "refresh_token"),
+            ]),
+            invalid_grant: InvalidGrant::AnyStatus,
+            lifetime: Lifetime::Required,
+            id_token: IdToken::KeepCurrent,
+        },
+        secret,
+    )
+    .await
 }
 
 async fn fetch_email(app: &AppState, access_token: &str) -> Result<String, ProviderError> {

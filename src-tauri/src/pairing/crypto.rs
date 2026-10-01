@@ -29,11 +29,6 @@ impl EphemeralKeyPair {
         Self { secret, public }
     }
 
-    #[allow(dead_code)]
-    pub fn public_key(&self) -> &PublicKey {
-        &self.public
-    }
-
     pub fn public_bytes(&self) -> [u8; 32] {
         *self.public.as_bytes()
     }

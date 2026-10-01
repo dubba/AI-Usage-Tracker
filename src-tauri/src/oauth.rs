@@ -1,7 +1,9 @@
 use crate::{
+    google_client::{client_secret, CLIENT_ID},
     model::{now_rfc3339, Account, LoginStart, LoginStatus, OAuthSecret, Provider, ProviderSecret},
     oauth_common::{
-        auth_failure_html, callback_html, escape_html, pkce_challenge, random_base64, CallbackQuery,
+        auth_failure_html, callback_html, escape_html, pkce_challenge, random_base64,
+        spawn_callback_server, spawn_login_timeout, CallbackQuery, LOGIN_TIMEOUT_MINUTES,
     },
     state::AppState,
 };
@@ -36,13 +38,6 @@ const ANTHROPIC_CLIENT_ID: &str = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
 const ANTHROPIC_SCOPES: &str = "user:profile user:inference";
 /// Identity plus Cloud access for quota APIs.
 const ANTIGRAVITY_SCOPES: &str = "openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/cloud-platform";
-const ANTIGRAVITY_CLIENT_ID: &str =
-    "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com";
-const ANTIGRAVITY_CLIENT_SECRET_BYTES: &[u8] = &[
-    71, 79, 67, 83, 80, 88, 45, 75, 53, 56, 70, 87, 82, 52, 56, 54, 76, 100, 76, 74, 49, 109, 76,
-    66, 56, 115, 88, 67, 52, 122, 54, 113, 68, 65, 102,
-];
-const LOGIN_TIMEOUT_MINUTES: i64 = 5;
 
 #[derive(Clone)]
 struct LoginContext {
@@ -154,52 +149,39 @@ pub async fn start_login(
         .with_state(context.clone());
 
     let server_context = context.clone();
-    tokio::spawn(async move {
-        if let Err(error) = axum::serve(listener, router)
-            .with_graceful_shutdown(async {
-                let _ = shutdown_rx.await;
-            })
-            .await
-        {
+    spawn_callback_server(
+        app.clone(),
+        attempt_id.clone(),
+        listener,
+        router,
+        shutdown_rx,
+        "Callback server failed",
+        move |message| {
             fail_login(
                 &server_context.app.pending_login,
                 &server_context.attempt_id,
-                format!("Callback server failed: {error}"),
-            );
-            server_context
-                .app
-                .abort_login_resources(&server_context.attempt_id);
-        }
-    });
+                message,
+            )
+        },
+    );
 
     let timeout_context = context.clone();
-    tokio::spawn(async move {
-        tokio::time::sleep(std::time::Duration::from_secs(
-            (LOGIN_TIMEOUT_MINUTES * 60) as u64,
-        ))
-        .await;
-        let waiting = timeout_context
-            .app
-            .pending_login
-            .read()
-            .as_ref()
-            .is_some_and(|login| {
-                login.attempt_id == timeout_context.attempt_id && login.status == "waiting"
-            });
-        if waiting {
+    spawn_login_timeout(
+        app.clone(),
+        attempt_id.clone(),
+        std::time::Duration::from_secs((LOGIN_TIMEOUT_MINUTES * 60) as u64),
+        format!(
+            "{} login timed out. Start the login again.",
+            context.provider.display_name()
+        ),
+        move |message| {
             fail_login(
                 &timeout_context.app.pending_login,
                 &timeout_context.attempt_id,
-                format!(
-                    "{} login timed out. Start the login again.",
-                    timeout_context.provider.display_name()
-                ),
-            );
-            timeout_context
-                .app
-                .abort_login_resources(&timeout_context.attempt_id);
-        }
-    });
+                message,
+            )
+        },
+    );
 
     #[cfg(mobile)]
     {
@@ -269,15 +251,89 @@ fn open_mobile_oauth(
     )
 }
 
-fn is_transient_network_error(err: &str) -> bool {
-    let lower = err.to_lowercase();
-    lower.contains("dns error")
-        || lower.contains("connect")
-        || lower.contains("no address associated")
-        || lower.contains("connection refused")
-        || lower.contains("network is unreachable")
-        || lower.contains("timed out")
-        || lower.contains("timeout")
+/// Why an authorization code could not be exchanged for tokens.
+#[derive(Debug, PartialEq, Eq)]
+enum ExchangeError {
+    /// The provider could not be reached, or did not answer in time. The same code is still good,
+    /// so the exchange is worth retrying.
+    Unreachable(String),
+    /// The provider refused or answered badly, or something local failed. Retrying cannot help.
+    Failed(String),
+}
+
+type ExchangeResult<T> = Result<T, ExchangeError>;
+
+impl From<String> for ExchangeError {
+    fn from(message: String) -> Self {
+        Self::Failed(message)
+    }
+}
+
+impl From<&str> for ExchangeError {
+    fn from(message: &str) -> Self {
+        Self::Failed(message.to_string())
+    }
+}
+
+impl ExchangeError {
+    fn message(&self) -> &str {
+        match self {
+            Self::Unreachable(message) | Self::Failed(message) => message,
+        }
+    }
+
+    fn into_message(self) -> String {
+        match self {
+            Self::Unreachable(message) | Self::Failed(message) => message,
+        }
+    }
+
+    fn is_retryable(&self) -> bool {
+        matches!(self, Self::Unreachable(_))
+    }
+
+    /// A request that never got an answer. The message names the whole cause chain, so a failure
+    /// can be told apart from the user's side (no network, DNS, a firewall).
+    fn from_send(prefix: &str, error: &reqwest::Error) -> Self {
+        use std::error::Error;
+        let mut message = format!("{prefix}: {error}");
+        let mut current: Option<&(dyn Error + 'static)> = error.source();
+        while let Some(source) = current {
+            message.push_str(&format!(" -> {source}"));
+            current = source.source();
+        }
+        if error.is_connect() || error.is_timeout() || looks_unreachable(&message) {
+            Self::Unreachable(message)
+        } else {
+            Self::Failed(message)
+        }
+    }
+
+    /// The provider answered with a non-success status. Only a gateway or request timeout (408,
+    /// 504) says the answer may simply be late.
+    fn from_status(message: String, status: reqwest::StatusCode) -> Self {
+        if matches!(status.as_u16(), 408 | 504) {
+            Self::Unreachable(message)
+        } else {
+            Self::Failed(message)
+        }
+    }
+}
+
+/// Wording the network stack uses for "could not get through" that reqwest does not flag itself
+/// (for example a connection reset partway through the request).
+fn looks_unreachable(message: &str) -> bool {
+    let lower = message.to_lowercase();
+    [
+        "dns error",
+        "connect",
+        "no address associated",
+        "network is unreachable",
+        "timed out",
+        "timeout",
+    ]
+    .iter()
+    .any(|needle| lower.contains(needle))
 }
 
 pub async fn login_status(app: &Arc<AppState>, attempt_id: &str) -> Result<LoginStatus, String> {
@@ -316,6 +372,7 @@ pub async fn login_status(app: &Arc<AppState>, attempt_id: &str) -> Result<Login
                 Err(error) => {
                     // Authorization codes are single-use. Never restore or
                     // retry the same code on a later poll.
+                    let error = error.into_message();
                     fail_login(&app.pending_login, attempt_id, error.clone());
                     app.abort_login_resources(attempt_id);
                     return Ok(LoginStatus {
@@ -451,9 +508,7 @@ async fn handle_callback(
             ))
         }
         Err(error) => {
-            if is_transient_network_error(&error)
-                && is_waiting(context.app.as_ref(), &context.attempt_id)
-            {
+            if error.is_retryable() && is_waiting(context.app.as_ref(), &context.attempt_id) {
                 {
                     let mut pending = context.app.pending_auth_exchange.lock();
                     *pending = Some(crate::state::PendingAuthExchange {
@@ -475,17 +530,17 @@ async fn handle_callback(
                 fail_login(
                     &context.app.pending_login,
                     &context.attempt_id,
-                    error.clone(),
+                    error.message().to_string(),
                 );
                 stop_callback(&context).await;
-                callback_html(auth_failure_html("Authentication failed", &error))
+                callback_html(auth_failure_html("Authentication failed", error.message()))
             }
         }
     }
 }
 
-async fn complete_exchange(context: &LoginContext, code: &str) -> Result<Account, String> {
-    let mut last_error = String::new();
+async fn complete_exchange(context: &LoginContext, code: &str) -> ExchangeResult<Account> {
+    let mut last_error: Option<ExchangeError> = None;
     let mut exchanged = None;
     for attempt in 0..5 {
         if !is_waiting(context.app.as_ref(), &context.attempt_id) {
@@ -497,8 +552,9 @@ async fn complete_exchange(context: &LoginContext, code: &str) -> Result<Account
                 break;
             }
             Err(err) => {
-                last_error = err;
-                if attempt < 4 && is_transient_network_error(&last_error) {
+                let retry = attempt < 4 && err.is_retryable();
+                last_error = Some(err);
+                if retry {
                     tokio::time::sleep(std::time::Duration::from_millis(600)).await;
                 } else {
                     break;
@@ -506,9 +562,10 @@ async fn complete_exchange(context: &LoginContext, code: &str) -> Result<Account
             }
         }
     }
-    let (secret, identity) = match exchanged {
-        Some(res) => res,
-        None => return Err(last_error),
+    let (secret, identity) = match (exchanged, last_error) {
+        (Some(res), _) => res,
+        (None, Some(error)) => return Err(error),
+        (None, None) => return Err("The token exchange did not run.".into()),
     };
     if !is_waiting(context.app.as_ref(), &context.attempt_id) {
         return Err("The login attempt was cancelled.".into());
@@ -595,7 +652,7 @@ async fn complete_exchange(context: &LoginContext, code: &str) -> Result<Account
 async fn exchange_tokens(
     context: &LoginContext,
     code: &str,
-) -> Result<(ProviderSecret, ProviderIdentity), String> {
+) -> ExchangeResult<(ProviderSecret, ProviderIdentity)> {
     match context.provider {
         Provider::Openai => exchange_openai(context, code).await,
         Provider::Anthropic => exchange_anthropic(context, code).await,
@@ -608,21 +665,10 @@ async fn exchange_tokens(
     }
 }
 
-fn format_reqwest_error(prefix: &str, error: &reqwest::Error) -> String {
-    use std::error::Error;
-    let mut message = format!("{prefix}: {error}");
-    let mut current: Option<&(dyn Error + 'static)> = error.source();
-    while let Some(source) = current {
-        message.push_str(&format!(" -> {source}"));
-        current = source.source();
-    }
-    message
-}
-
 async fn exchange_openai(
     context: &LoginContext,
     code: &str,
-) -> Result<(ProviderSecret, ProviderIdentity), String> {
+) -> ExchangeResult<(ProviderSecret, ProviderIdentity)> {
     let response = context
         .app
         .client
@@ -636,11 +682,14 @@ async fn exchange_openai(
         ])
         .send()
         .await
-        .map_err(|error| format_reqwest_error("OpenAI token exchange failed", &error))?;
+        .map_err(|error| ExchangeError::from_send("OpenAI token exchange failed", &error))?;
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     if !status.is_success() {
-        return Err(format!("OpenAI token exchange failed ({status})."));
+        return Err(ExchangeError::from_status(
+            format!("OpenAI token exchange failed ({status})."),
+            status,
+        ));
     }
     let tokens: OAuthTokenResponse = serde_json::from_str(&body)
         .map_err(|error| format!("Invalid OpenAI token response: {error}"))?;
@@ -674,7 +723,7 @@ async fn exchange_openai(
 async fn exchange_anthropic(
     context: &LoginContext,
     code: &str,
-) -> Result<(ProviderSecret, ProviderIdentity), String> {
+) -> ExchangeResult<(ProviderSecret, ProviderIdentity)> {
     let response = context
         .app
         .client
@@ -689,11 +738,14 @@ async fn exchange_anthropic(
         }))
         .send()
         .await
-        .map_err(|error| format_reqwest_error("Anthropic token exchange failed", &error))?;
+        .map_err(|error| ExchangeError::from_send("Anthropic token exchange failed", &error))?;
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     if !status.is_success() {
-        return Err(format!("Anthropic token exchange failed ({status})."));
+        return Err(ExchangeError::from_status(
+            format!("Anthropic token exchange failed ({status})."),
+            status,
+        ));
     }
     let token_json: Value = serde_json::from_str(&body)
         .map_err(|error| format!("Invalid Anthropic token response: {error}"))?;
@@ -721,16 +773,14 @@ async fn exchange_anthropic(
 async fn exchange_antigravity(
     context: &LoginContext,
     code: &str,
-) -> Result<(ProviderSecret, ProviderIdentity), String> {
-    let client_secret = zeroize::Zeroizing::new(
-        String::from_utf8_lossy(ANTIGRAVITY_CLIENT_SECRET_BYTES).to_string(),
-    );
+) -> ExchangeResult<(ProviderSecret, ProviderIdentity)> {
+    let client_secret = client_secret();
     let response = context
         .app
         .client
         .post("https://oauth2.googleapis.com/token")
         .form(&[
-            ("client_id", ANTIGRAVITY_CLIENT_ID),
+            ("client_id", CLIENT_ID),
             ("client_secret", client_secret.as_str()),
             ("code", code),
             ("redirect_uri", context.redirect_uri.as_str()),
@@ -739,11 +789,14 @@ async fn exchange_antigravity(
         ])
         .send()
         .await
-        .map_err(|error| format_reqwest_error("Google token exchange failed", &error))?;
+        .map_err(|error| ExchangeError::from_send("Google token exchange failed", &error))?;
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     if !status.is_success() {
-        return Err(format!("Google token exchange failed ({status})."));
+        return Err(ExchangeError::from_status(
+            format!("Google token exchange failed ({status})."),
+            status,
+        ));
     }
     let tokens: OAuthTokenResponse = serde_json::from_str(&body)
         .map_err(|error| format!("Invalid Google token response: {error}"))?;
@@ -812,7 +865,7 @@ fn build_authorization_url(
             let mut url = Url::parse("https://accounts.google.com/o/oauth2/auth")
                 .map_err(|error| error.to_string())?;
             url.query_pairs_mut()
-                .append_pair("client_id", ANTIGRAVITY_CLIENT_ID)
+                .append_pair("client_id", CLIENT_ID)
                 .append_pair("redirect_uri", redirect_uri)
                 .append_pair("response_type", "code")
                 .append_pair("scope", ANTIGRAVITY_SCOPES)
@@ -1456,5 +1509,90 @@ mod tests {
                 "Another provider login is already in progress."
             );
         }
+    }
+
+    #[test]
+    fn only_timeouts_among_http_statuses_are_worth_retrying() {
+        use reqwest::StatusCode;
+        for status in [StatusCode::REQUEST_TIMEOUT, StatusCode::GATEWAY_TIMEOUT] {
+            let error = ExchangeError::from_status("late".into(), status);
+            assert!(error.is_retryable(), "{status}");
+        }
+        for status in [
+            StatusCode::BAD_REQUEST,
+            StatusCode::UNAUTHORIZED,
+            StatusCode::TOO_MANY_REQUESTS,
+            StatusCode::INTERNAL_SERVER_ERROR,
+            StatusCode::BAD_GATEWAY,
+            StatusCode::SERVICE_UNAVAILABLE,
+        ] {
+            let error = ExchangeError::from_status("no".into(), status);
+            assert_eq!(error, ExchangeError::Failed("no".into()), "{status}");
+        }
+    }
+
+    #[test]
+    fn plain_messages_are_failures_that_are_not_retried() {
+        let error: ExchangeError = "Invalid OpenAI token response".into();
+        assert!(!error.is_retryable());
+        assert_eq!(error.message(), "Invalid OpenAI token response");
+        assert_eq!(ExchangeError::from("x".to_string()).into_message(), "x");
+    }
+
+    #[test]
+    fn wording_that_means_the_network_got_in_the_way_is_recognised() {
+        for text in [
+            "error sending request: dns error: failed to lookup address",
+            "No address associated with hostname",
+            "tcp connect error: Connection refused (os error 111)",
+            "connection reset by peer while connecting",
+            "Network is unreachable",
+            "operation timed out",
+            "request timeout",
+        ] {
+            assert!(looks_unreachable(text), "{text}");
+        }
+        for text in [
+            "invalid_grant",
+            "Invalid OpenAI token response: expected value",
+            "Account label is required.",
+        ] {
+            assert!(!looks_unreachable(text), "{text}");
+        }
+    }
+
+    #[tokio::test]
+    async fn a_refused_connection_is_unreachable_and_a_malformed_request_is_not() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}/token", listener.local_addr().unwrap());
+        drop(listener);
+        let refused = reqwest::Client::new().post(&url).send().await.unwrap_err();
+        let error = ExchangeError::from_send("Acme token exchange failed", &refused);
+        assert!(error.is_retryable());
+        assert!(error.message().starts_with("Acme token exchange failed: "));
+
+        let malformed = reqwest::Client::new()
+            .post("not a url")
+            .send()
+            .await
+            .unwrap_err();
+        assert!(!ExchangeError::from_send("Acme token exchange failed", &malformed).is_retryable());
+    }
+
+    #[tokio::test]
+    async fn a_request_that_times_out_is_unreachable() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}/token", listener.local_addr().unwrap());
+        // Accepts the connection but never answers.
+        let _hold = tokio::spawn(async move {
+            let _socket = listener.accept().await;
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+        });
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_millis(100))
+            .build()
+            .unwrap();
+        let timed_out = client.post(&url).send().await.unwrap_err();
+        assert!(ExchangeError::from_send("Acme token exchange failed", &timed_out).is_retryable());
     }
 }

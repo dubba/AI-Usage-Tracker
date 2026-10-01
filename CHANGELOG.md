@@ -3,6 +3,13 @@
 ## Unreleased (0 items)
 
 
+## 0.3.10-beta.7 - 2026-10-01 (1 item)
+
+### Fixed (1)
+
+- Connecting Google Cloud usage no longer tells you to sign in again when Google is only temporarily unavailable; it now says the refresh failed and why, and only asks you to sign in again when the authorization has really expired.
+
+
 ## 0.3.10-beta.6 - 2026-10-01 (2 items)
 
 ### Fixed (2)

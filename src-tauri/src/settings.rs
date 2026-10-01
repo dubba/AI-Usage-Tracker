@@ -190,11 +190,6 @@ impl SettingsStore {
         Ok(settings.public())
     }
 
-    #[allow(dead_code)]
-    pub fn autostart_enabled(&self) -> bool {
-        self.settings.read().autostart_enabled
-    }
-
     pub fn set_autostart_enabled(&self, enabled: bool) -> Result<AppSettings, String> {
         let mut settings = self.settings.write();
         if settings.autostart_enabled == enabled {

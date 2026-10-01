@@ -2,6 +2,7 @@ pub mod anthropic;
 pub mod antigravity;
 pub mod google_ai_studio;
 pub mod grok;
+pub mod oauth_refresh;
 pub mod openai;
 pub mod opencode_go;
 

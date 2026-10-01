@@ -1,9 +1,0 @@
-.app-shell {
-  grid-template-columns: 480px minmax(0, 1fr);
-}
-
-@media (max-width: 1220px) {
-  .app-shell {
-    grid-template-columns: 442px minmax(0, 1fr);
-  }
-}

@@ -1,9 +1,15 @@
 use crate::{
+    google_client::{client_secret, CLIENT_ID},
     model::{
         now_rfc3339, Account, GoogleAiStudioSecret, OAuthSecret, Provider, ProviderSecret,
         UsageFreshness, UsageSnapshot, UsageWindow,
     },
-    providers::{ProviderError, ProviderUsage},
+    providers::{
+        oauth_refresh::{
+            refresh_oauth_secret, IdToken, InvalidGrant, Lifetime, RefreshBody, RefreshRequest,
+        },
+        ProviderError, ProviderUsage,
+    },
     state::AppState,
     store::save_provider_secret,
 };
@@ -27,12 +33,6 @@ const SOURCE_MONITORING: &str = "google_ai_studio_cloud_monitoring";
 const ACCOUNT_EMAIL: &str = "Google AI Studio API key";
 const ACCOUNT_PLAN: &str = "Google AI Studio";
 const MAX_SELECTED_MODELS: usize = 200;
-const GOOGLE_CLIENT_ID: &str =
-    "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com";
-const GOOGLE_CLIENT_SECRET_BYTES: &[u8] = &[
-    71, 79, 67, 83, 80, 88, 45, 75, 53, 56, 70, 87, 82, 52, 56, 54, 76, 100, 76, 74, 49, 109, 76,
-    66, 56, 115, 88, 67, 52, 122, 54, 113, 68, 65, 102,
-];
 const KNOWN_QUOTA_FAMILIES: &[&str] = &[
     "generate_content_free_tier_requests",
     "generate_content_free_tier_input_token_count",
@@ -65,14 +65,6 @@ struct GoogleModel {
 struct TrackableModel {
     name: String,
     label: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct OAuthRefreshResponse {
-    access_token: String,
-    refresh_token: Option<String>,
-    expires_in: Option<i64>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -356,7 +348,7 @@ pub async fn refresh(
     };
 
     if oauth.expires_within(300) {
-        oauth = refresh_cloud_secret(app, oauth).await?;
+        oauth = refresh_cloud_secret(app, &oauth, IdToken::KeepCurrent).await?;
         secret.cloud_oauth = Some(oauth.clone());
         save_provider_secret(&account.id, &ProviderSecret::GoogleAiStudio(secret.clone()))
             .map_err(|_| {
@@ -603,47 +595,32 @@ async fn google_json<T: DeserializeOwned>(
         .map_err(|_| ProviderError::Transient(format!("{context} returned unreadable data.")))
 }
 
-async fn refresh_cloud_secret(
+/// Refreshes the Google Cloud authorization used for quota reads. Also called while connecting,
+/// where the new `id_token` is wanted; day-to-day refreshes keep the stored one.
+pub(crate) async fn refresh_cloud_secret(
     app: &AppState,
-    secret: OAuthSecret,
+    secret: &OAuthSecret,
+    id_token: IdToken,
 ) -> Result<OAuthSecret, ProviderError> {
-    let client_secret =
-        zeroize::Zeroizing::new(String::from_utf8_lossy(GOOGLE_CLIENT_SECRET_BYTES).to_string());
-    let response = app
-        .client
-        .post("https://oauth2.googleapis.com/token")
-        .form(&[
-            ("client_id", GOOGLE_CLIENT_ID),
-            ("client_secret", client_secret.as_str()),
-            ("refresh_token", secret.refresh_token.as_str()),
-            ("grant_type", "refresh_token"),
-        ])
-        .send()
-        .await
-        .map_err(|_| network_error("Google token refresh"))?;
-    let status = response.status();
-    let body = response.text().await.unwrap_or_default();
-    if status == StatusCode::UNAUTHORIZED
-        || status == StatusCode::FORBIDDEN
-        || body.to_ascii_lowercase().contains("invalid_grant")
-    {
-        return Err(ProviderError::Auth);
-    }
-    if !status.is_success() {
-        return Err(ProviderError::Transient(format!(
-            "Google token refresh returned HTTP {}.",
-            status.as_u16()
-        )));
-    }
-    let tokens: OAuthRefreshResponse = serde_json::from_str(&body).map_err(|_| {
-        ProviderError::Transient("Google returned an invalid token refresh.".into())
-    })?;
-    Ok(OAuthSecret {
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token.unwrap_or(secret.refresh_token),
-        id_token: secret.id_token,
-        expires_at: Utc::now().timestamp_millis() + tokens.expires_in.unwrap_or(3600) * 1000,
-    })
+    let client_secret = client_secret();
+    refresh_oauth_secret(
+        RefreshRequest {
+            client: &app.client,
+            provider: "Google",
+            url: "https://oauth2.googleapis.com/token",
+            body: RefreshBody::Form(&[
+                ("client_id", CLIENT_ID),
+                ("client_secret", client_secret.as_str()),
+                ("refresh_token", secret.refresh_token.as_str()),
+                ("grant_type", "refresh_token"),
+            ]),
+            invalid_grant: InvalidGrant::AnyStatus,
+            lifetime: Lifetime::DefaultsToOneHour,
+            id_token,
+        },
+        secret,
+    )
+    .await
 }
 
 fn normalize_quota_windows(
