@@ -1,7 +1,7 @@
 {
   "name": "ai-usage-tracker",
   "private": true,
-  "version": "0.3.10-beta.7",
+  "version": "0.3.10",
   "type": "module",
   "scripts": {
     "dev": "vite",

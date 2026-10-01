@@ -92,7 +92,7 @@ export function useAppUpdate({ automaticUpdatesEnabled }: { automaticUpdatesEnab
     if (installInFlightRef.current) return;
     installInFlightRef.current = true;
     setUpdateBusy("downloading");
-    setUpdateProgress({ phase: "downloading", downloaded: 0, total: null, percent: null });
+    setUpdateProgress({ phase: "downloading", downloaded: 0, total: null, percent: 0 });
     setUpdateError(null);
     try {
       await bridgeApi.installUpdate();

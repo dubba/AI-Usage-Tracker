@@ -190,6 +190,7 @@ impl SettingsStore {
         Ok(settings.public())
     }
 
+    #[allow(dead_code)]
     pub fn autostart_enabled(&self) -> bool {
         self.settings.read().autostart_enabled
     }

@@ -3,104 +3,14 @@
 ## Unreleased (0 items)
 
 
-## 0.3.10-beta.7 - 2026-10-01 (1 item)
+## 0.3.10 - 2026-10-01 (54 items)
 
-### Fixed (1)
-
-- Connecting Google Cloud usage no longer tells you to sign in again when Google is only temporarily unavailable; it now says the refresh failed and why, and only asks you to sign in again when the authorization has really expired.
-
-
-## 0.3.10-beta.6 - 2026-10-01 (2 items)
-
-### Fixed (2)
-
-- The All page now follows the order you set by dragging sidebar groups, instead of keeping an older order from an earlier card drag.
-- The dashboard now catches up right after you finish dragging a card, instead of waiting for the next automatic refresh.
-
-
-## 0.3.10-beta.5 - 2026-10-01 (1 item)
-
-### Fixed (1)
-
-- On Android, updating from Settings now ends with Android's own "App updated" screen with Done and Open buttons, so you can reopen the app right away instead of finding it closed.
-
-
-## 0.3.10-beta.4 - 2026-10-01 (5 items)
-
-### Removed (1)
-
-- Copy diagnostics no longer appends a drag gesture trace to the report.
-
-### Security (4)
-
-- The local API now also slows down requests that present a wrong token, so a tool on your computer cannot keep guessing at the access token without being throttled.
-- On Android, an update is no longer installed unless its published checksum is available and matches the download; a release without a checksum is rejected with a clear message instead of being installed unverified.
-- An OpenCode sign-in cookie that contains line breaks or other invalid characters is now rejected instead of being sent to the provider.
-- The Grok sign-in window now recognizes x.ai sign-in pages by their exact address, so a look-alike page cannot impersonate the sign-in step.
-
-
-## 0.3.10-beta.3 - 2026-09-30 (16 items)
-
-### Added (1)
+### Added (2)
 
 - Copy diagnostics now also includes a short record of the last 10 card drags (touch timing and positions, and where the card ended up; no account names or details) to help track down the card that disappears after a drag on Android.
-
-### Improved (4)
-
-- A Claude usage bar that is untouched and has no reset time yet now says "Starts on first use" instead of "Rolling window".
-- Copy diagnostics now lists each account's usage bars with their remaining percentage and whether a reset time was reported, to help explain cards without a countdown.
-- The “Last synced all accounts” status now sits at the bottom of the sidebar, just above Settings, instead of under the dashboard title.
-- Simplified the update toggles in Settings by renaming "App Updates" to "Automatically Update App" and removing the subtitle text under both update toggles.
-
-### Fixed (6)
-
-- Dragging the same account card a second time no longer makes it vanish. Before, the first drag of a card worked, but dropping that card again left it hidden until you switched to another view and back.
-- On Android, tapping Update no longer leaves the button greyed out on "Downloading…" forever; the update now downloads and opens the Android installer, or shows what went wrong.
-- On Android, encrypting saved sign-ins with the Android Keystore, update and usage alert notifications, and keeping device linking on Wi-Fi now work instead of failing because the app could not reach Android.
-- The update button no longer gets stuck or re-enables itself mid-download when an automatic update check runs during a download.
-- Dragging a tall account card (one with many model rows) no longer seems to make it vanish: the card is now dragged as a compact preview so the rest of the list stays in view, and dropping it between cards or in the gap above Next Reset puts it where your finger is instead of sending it back down the list.
-- On Android, a card drag that Android interrupts (for example right after a long-press) no longer leaves the card hidden until you switch views. The drag now finishes by itself, or when you touch the screen again.
-
-### Security (5)
-
-- On Android, the app now shares only the downloaded update and camera photos with other apps, instead of its whole storage folders.
-- On Windows, the app's private files are now locked to your account by its security identifier, using system tools from fixed locations, so a look-alike program or a changed user name can no longer weaken that protection.
-- The app's page security rules are stricter, and the macOS app no longer requests USB or microphone access it never used.
-- Account error messages no longer include raw connection details or text copied from a provider's reply; only short, plain messages are kept and shown.
-- On Android, if a saved sign-in cannot be encrypted, the app now keeps retrying automatically and shows a warning until it succeeds.
-
-
-## 0.3.10-beta.2 - 2026-09-30 (13 items)
-
-### Added (1)
-
 - Settings now has a Copy diagnostics button (also on the start-up error screen) that copies a report for bug reports: versions, settings, each account's status, and recent activity. Tokens, cookies, email addresses, and your user name are removed, and the app now keeps a small activity log to make problems easier to trace.
 
-### Improved (5)
-
-- Saving account updates is now lighter, especially on Windows, so the app stays responsive while many accounts refresh.
-- Bucket group names are now limited to 80 characters, a group can hold at most 64 accounts, and you can have at most 64 groups, with a clear message when a limit is reached.
-- The dashboard now shows when your data was last refreshed ("Last synced 5m ago"), says "Syncing…" while a refresh is running, and warns when some accounts have been left out of date.
-- Countdowns and "Updated … ago" labels now update without redrawing the whole dashboard every second, so the app uses less CPU while it sits open.
-- Tools that read the local API together (for example Paseo and a script) can now each make a short burst of requests without slowing each other down.
-
-### Fixed (3)
-
-- If the app cannot load its saved data when it starts, it now opens with an explanation and a Try again button instead of closing without any message.
-- If the system credential store is locked or unavailable at startup, the app now still starts; only the local API stays off, and Settings shows why.
-- An account you removed can no longer come back after linking devices when the removal and the transfer happen at the same time.
-
-### Security (4)
-
-- The verification code shown when linking devices is now longer (three groups of four characters), which makes it much harder for someone on the same network to get both devices to show a matching code. When linking with an older version, the first two groups still match.
-- Linking devices now limits the size of names, groups, and layout data received from the other device, so an oversized or malformed transfer cannot bloat your saved data.
-- On Android, saved sign-ins are now encrypted with a key held in the Android Keystore instead of being stored as readable files. Existing sign-ins are upgraded automatically the first time the app starts.
-- The Paseo bridge window can now only view bridge details and manage its token; it can no longer use the app's other actions.
-
-
-## 0.3.10-beta.1 - 2026-09-30 (15 items)
-
-### Improved (7)
+### Improved (16)
 
 - On narrow screens the navigation menu now behaves like a proper dialog: Escape closes it, Tab stays inside it while it is open, focus returns to the menu button when it closes, and its buttons can no longer be reached while it is hidden.
 - The Action Needed card is now announced with its count and a short instruction for screen readers, and its hint no longer says "Click", which did not fit touch screens.
@@ -109,8 +19,21 @@
 - Settings now has an Include beta releases switch (off by default). When on, Check Now also offers beta pre-releases on Android, Mac, and Windows. On Mac and Windows a beta installs in the app like any other update.
 - Refreshing a long list of accounts now happens a few at a time instead of all at once, which is gentler on your network and on the providers.
 - Accounts that keep failing, or that a provider asks to slow down, are now retried less often (honoring the provider's requested wait) instead of on every update. Refresh and Refresh all still try immediately.
+- Saving account updates is now lighter, especially on Windows, so the app stays responsive while many accounts refresh.
+- Bucket group names are now limited to 80 characters, a group can hold at most 64 accounts, and you can have at most 64 groups, with a clear message when a limit is reached.
+- The dashboard now shows when your data was last refreshed ("Last synced 5m ago"), says "Syncing…" while a refresh is running, and warns when some accounts have been left out of date.
+- Countdowns and "Updated … ago" labels now update without redrawing the whole dashboard every second, so the app uses less CPU while it sits open.
+- Tools that read the local API together (for example Paseo and a script) can now each make a short burst of requests without slowing each other down.
+- A Claude usage bar that is untouched and has no reset time yet now says "Starts on first use" instead of "Rolling window".
+- Copy diagnostics now lists each account's usage bars with their remaining percentage and whether a reset time was reported, to help explain cards without a countdown.
+- The “Last synced all accounts” status now sits at the bottom of the sidebar, just above Settings, instead of under the dashboard title.
+- Simplified the update toggles in Settings by renaming "App Updates" to "Automatically Update App" and removing the subtitle text under both update toggles.
 
-### Fixed (7)
+### Changed (1)
+
+- The update progress is now consistent: the release-notes dialog shows the download percentage like the settings page, the settings page no longer repeats "Downloading…" or "Verifying…" above the progress bar, and the red update button just says "Downloading…" while the percentage stays on the progress bar.
+
+### Fixed (20)
 
 - If a link cannot be opened (the change log or a link in the release notes), an error now appears instead of failing silently or only showing in a tooltip.
 - If your settings cannot be reloaded after linking devices, an error now appears instead of showing stale settings.
@@ -119,10 +42,40 @@
 - A locked or briefly unavailable system credential store, or a slow refresh, no longer leaves an account needing to sign in again after its sign-in was renewed.
 - Changing how often accounts update no longer refreshes every account immediately; the new interval simply applies to the next refresh.
 - Removing an account while it is being refreshed no longer leaves its saved sign-in behind in the system credential store.
+- If the app cannot load its saved data when it starts, it now opens with an explanation and a Try again button instead of closing without any message.
+- If the system credential store is locked or unavailable at startup, the app now still starts; only the local API stays off, and Settings shows why.
+- An account you removed can no longer come back after linking devices when the removal and the transfer happen at the same time.
+- Dragging the same account card a second time no longer makes it vanish. Before, the first drag of a card worked, but dropping that card again left it hidden until you switched to another view and back.
+- On Android, tapping Update no longer leaves the button greyed out on "Downloading…" forever; the update now downloads and opens the Android installer, or shows what went wrong.
+- On Android, encrypting saved sign-ins with the Android Keystore, update and usage alert notifications, and keeping device linking on Wi-Fi now work instead of failing because the app could not reach Android.
+- The update button no longer gets stuck or re-enables itself mid-download when an automatic update check runs during a download.
+- Dragging a tall account card (one with many model rows) no longer seems to make it vanish: the card is now dragged as a compact preview so the rest of the list stays in view, and dropping it between cards or in the gap above Next Reset puts it where your finger is instead of sending it back down the list.
+- On Android, a card drag that Android interrupts (for example right after a long-press) no longer leaves the card hidden until you switch views. The drag now finishes by itself, or when you touch the screen again.
+- On Android, updating from Settings now ends with Android's own "App updated" screen with Done and Open buttons, so you can reopen the app right away instead of finding it closed.
+- The All page now follows the order you set by dragging sidebar groups, instead of keeping an older order from an earlier card drag.
+- The dashboard now catches up right after you finish dragging a card, instead of waiting for the next automatic refresh.
+- Connecting Google Cloud usage no longer tells you to sign in again when Google is only temporarily unavailable; it now says the refresh failed and why, and only asks you to sign in again when the authorization has really expired.
 
-### Security (1)
+### Security (14)
 
 - Linking devices now ignores unsafe account identifiers sent by the other device and assigns a local one, so a modified transfer cannot write outside the app's credential storage.
+- The verification code shown when linking devices is now longer (three groups of four characters), which makes it much harder for someone on the same network to get both devices to show a matching code. When linking with an older version, the first two groups still match.
+- Linking devices now limits the size of names, groups, and layout data received from the other device, so an oversized or malformed transfer cannot bloat your saved data.
+- On Android, saved sign-ins are now encrypted with a key held in the Android Keystore instead of being stored as readable files. Existing sign-ins are upgraded automatically the first time the app starts.
+- The Paseo bridge window can now only view bridge details and manage its token; it can no longer use the app's other actions.
+- On Android, the app now shares only the downloaded update and camera photos with other apps, instead of its whole storage folders.
+- On Windows, the app's private files are now locked to your account by its security identifier, using system tools from fixed locations, so a look-alike program or a changed user name can no longer weaken that protection.
+- The app's page security rules are stricter, and the macOS app no longer requests USB or microphone access it never used.
+- Account error messages no longer include raw connection details or text copied from a provider's reply; only short, plain messages are kept and shown.
+- On Android, if a saved sign-in cannot be encrypted, the app now keeps retrying automatically and shows a warning until it succeeds.
+- The local API now also slows down requests that present a wrong token, so a tool on your computer cannot keep guessing at the access token without being throttled.
+- On Android, an update is no longer installed unless its published checksum is available and matches the download; a release without a checksum is rejected with a clear message instead of being installed unverified.
+- An OpenCode sign-in cookie that contains line breaks or other invalid characters is now rejected instead of being sent to the provider.
+- The Grok sign-in window now recognizes x.ai sign-in pages by their exact address, so a look-alike page cannot impersonate the sign-in step.
+
+### Removed (1)
+
+- Copy diagnostics no longer appends a drag gesture trace to the report.
 
 
 ## 0.3.9 - 2026-09-30 (19 items)

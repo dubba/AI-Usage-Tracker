@@ -15,7 +15,7 @@ import type {
 } from "../../types";
 import { FALLBACK_APP_VERSION } from "../../shared/lib/constants";
 import { isMobileUserAgent } from "../../shared/lib/platform";
-import { UpdateProgressBar, updateInstallLabel, updateProgressLabel } from "./UpdateProgressBar";
+import { UpdateProgressBar, updateInstallLabel } from "./UpdateProgressBar";
 
 const ACCOUNT_REFRESH_OPTIONS = [5, 10, 15, 30, 45, 60] as const;
 const CHANGELOG_URL = "https://github.com/dubba/AI-Usage-Tracker/blob/main/CHANGELOG.md";
@@ -152,11 +152,10 @@ export function SettingsView({
               <span className="settings-installed-version mono">
                 {`Current Version: ${String(update?.currentVersion || installedVersion || FALLBACK_APP_VERSION).replace(/^v/i, "")}`}
               </span>
+              {updateBusy === "downloading" || updateBusy === "verifying" || updateBusy === "installing" ? null : (
               <div className={`settings-updates-subcard-status ${!updateBusy && update?.available ? "update-available" : ""}`}>
                 {updateBusy === "checking" ? (
                   <span>Checking for updates…</span>
-                ) : updateBusy === "downloading" || updateBusy === "verifying" || updateBusy === "installing" ? (
-                  <span>{updateProgressLabel(updateBusy, updateProgress?.percent ?? null)}</span>
                 ) : update?.available && update.availableVersion ? (
                   <>
                     <span className="status-indicator-dot red" aria-hidden="true" />
@@ -169,6 +168,7 @@ export function SettingsView({
                   </>
                 )}
               </div>
+              )}
               {!updateBusy && update?.available && update.availableVersion ? (
                 <button
                   type="button"
@@ -186,7 +186,7 @@ export function SettingsView({
                 disabled={updateBusy !== null}
                 onClick={onInstallUpdate}
               >
-                {updateInstallLabel(updateBusy, updateProgress?.percent ?? null)}
+                {updateInstallLabel(updateBusy)}
               </button>
             ) : (
               <button

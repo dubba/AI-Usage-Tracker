@@ -2,6 +2,7 @@ import { useRef, type ReactNode } from "react";
 import { isAllowedExternalUrl } from "../../shared/lib/safeUrl";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import type { UpdateBusy } from "../../types";
+import { UpdateProgressBar, updateInstallLabel } from "./UpdateProgressBar";
 import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
 
 interface Block {
@@ -249,31 +250,7 @@ export function UpdateNotesModal({
           )}
         </div>
 
-        {updateBusy === "downloading" || updateBusy === "verifying" || updateBusy === "installing" ? (
-          <div className="settings-update-progress update-notes-progress" role="status" aria-live="polite">
-            <span className="settings-update-progress-label">
-              {updateBusy === "downloading"
-                ? updatePercent != null
-                  ? `Downloading… ${updatePercent}%`
-                  : "Downloading…"
-                : updateBusy === "verifying"
-                  ? "Verifying update…"
-                  : "Opening installer…"}
-            </span>
-            <div
-              className={`settings-update-progress-track${updateBusy === "downloading" && updatePercent != null ? "" : " is-indeterminate"}`}
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={updateBusy === "downloading" && updatePercent != null ? updatePercent : undefined}
-            >
-              <div
-                className="settings-update-progress-fill"
-                style={updateBusy === "downloading" && updatePercent != null ? { width: `${updatePercent}%` } : undefined}
-              />
-            </div>
-          </div>
-        ) : null}
+        <UpdateProgressBar busy={updateBusy ?? null} percent={updatePercent ?? null} className="update-notes-progress" />
 
         <div className="modal-actions update-notes-actions">
           <button type="button" className="button ghost" onClick={onClose}>
@@ -288,15 +265,7 @@ export function UpdateNotesModal({
                 onInstallUpdate();
               }}
             >
-              {updateBusy === "downloading"
-                ? updatePercent != null
-                  ? `Downloading ${updatePercent}%`
-                  : "Downloading…"
-                : updateBusy === "verifying"
-                  ? "Verifying…"
-                  : updateBusy === "installing"
-                    ? "Installing…"
-                    : "Update"}
+              {updateInstallLabel(updateBusy ?? null)}
             </button>
           ) : null}
         </div>

@@ -11,21 +11,29 @@ export function updateProgressLabel(busy: UpdateBusy, percent: number | null): s
   return "";
 }
 
-export function updateInstallLabel(busy: UpdateBusy, percent: number | null): string {
-  if (busy === "downloading") {
-    return percent != null ? `Downloading ${percent}%` : "Downloading…";
-  }
+export function updateInstallLabel(busy: UpdateBusy): string {
+  if (busy === "downloading") return "Downloading…";
   if (busy === "verifying") return "Verifying…";
   if (busy === "installing") return "Installing…";
   return "Update";
 }
 
-export function UpdateProgressBar({ busy, percent }: { busy: UpdateBusy; percent: number | null }) {
+export function UpdateProgressBar({
+  busy,
+  percent,
+  className,
+}: {
+  busy: UpdateBusy;
+  percent: number | null;
+  className?: string;
+}) {
   if (busy !== "downloading" && busy !== "verifying" && busy !== "installing") return null;
   const label = updateProgressLabel(busy, percent);
   const determinate = busy === "downloading" && percent != null;
   return (
-    <div className="settings-update-progress" role="status" aria-live="polite">
+    <div
+      className={className ? `settings-update-progress ${className}` : "settings-update-progress"}
+      role="status" aria-live="polite">
       <span className="settings-update-progress-label">{label}</span>
       <div
         className={`settings-update-progress-track${determinate ? "" : " is-indeterminate"}`}
