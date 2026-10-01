@@ -97,6 +97,33 @@ fn recent_lines(dir: &Path, count: usize) -> Vec<String> {
 
 /// A plain-text report for a bug report. Contains no tokens, emails, or
 /// account names: only versions, settings, and per-account status.
+/// One entry per usage bar: its id, the remaining percentage and whether the
+/// provider sent a reset time (never the time itself). Shows why a card reads
+/// "Starts on first use" or has no countdown.
+fn describe_windows(windows: &[crate::model::UsageWindow]) -> String {
+    if windows.is_empty() {
+        return "none".into();
+    }
+    windows
+        .iter()
+        .map(|window| {
+            format!(
+                "{} {} reset={}",
+                window.id,
+                window
+                    .remaining_percent
+                    .map_or("n/a".to_string(), |value| format!("{}%", value.round())),
+                if window.resets_at.is_some() {
+                    "yes"
+                } else {
+                    "no"
+                },
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 pub fn build_report(
     app_version: &str,
     state: Option<&AppState>,
@@ -165,6 +192,9 @@ pub fn build_report(
                     account.plan.as_deref().unwrap_or("unknown"),
                     account.last_error.as_deref().unwrap_or("none"),
                 ));
+                if let Some(usage) = usage {
+                    line(format!("  windows: {}", describe_windows(&usage.windows)));
+                }
             }
         }
     }
@@ -645,6 +675,27 @@ mod tests {
         ] {
             assert!(!report.contains(leaked), "report leaked {leaked}");
         }
+
+        let windows = describe_windows(&[
+            crate::model::UsageWindow {
+                id: "five_hour".into(),
+                label: "5 hour".into(),
+                used_percent: Some(0.0),
+                remaining_percent: Some(100.0),
+                resets_at: None,
+                window_seconds: Some(18_000),
+            },
+            crate::model::UsageWindow {
+                id: "weekly".into(),
+                label: "Weekly".into(),
+                used_percent: Some(40.0),
+                remaining_percent: Some(60.0),
+                resets_at: Some("2026-10-04T12:00:00Z".into()),
+                window_seconds: Some(604_800),
+            },
+        ]);
+        assert_eq!(windows, "five_hour 100% reset=no, weekly 60% reset=yes");
+        assert_eq!(describe_windows(&[]), "none");
 
         let failed = build_report("9.9.9", None, Some("Couldn't load saved data: disk full"));
         assert!(failed.contains("Startup: Couldn't load saved data: disk full"));

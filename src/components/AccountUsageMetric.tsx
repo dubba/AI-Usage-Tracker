@@ -17,6 +17,7 @@ import type {
 function resetSummaryLine(
   window: UsageWindow,
   remaining: number | null | undefined,
+  provider: Provider | string | undefined,
   nowMs?: number,
 ): string {
   const countdown = resetCountdownLabel(window.resetsAt, nowMs, window.windowSeconds);
@@ -25,6 +26,8 @@ function resetSummaryLine(
   if (countdown) return countdown;
   if (when) return `Reset: ${when}`;
   if (remaining == null) return "This provider has not reported a quota value yet";
+  // Anthropic reports no reset time until something is used in a window.
+  if (provider === "anthropic" && remaining >= 100) return "Starts on first use";
   return "Rolling window";
 }
 
@@ -40,7 +43,7 @@ export function AccountUsageMetric({
   creditLabel?: string | null;
 }) {
   const remaining = window.remainingPercent;
-  const resetLine = useClock((now) => resetSummaryLine(window, remaining, now));
+  const resetLine = useClock((now) => resetSummaryLine(window, remaining, provider, now));
   const width = remaining == null ? 0 : Math.min(100, Math.max(0, remaining));
   const tone = usageTone(remaining);
   const length = windowLength(window);
