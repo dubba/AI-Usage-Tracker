@@ -377,14 +377,18 @@ export function AccountDashboardCard({
               />
             )) : (
               <div className="account-usage-metric unavailable-metric">
-                <span className="metric-label">Usage</span>
-                <div className="metric-reset-row">
-                  <span className="metric-reset">Refresh this account to retrieve its limits.</span>
+                <div className="metric-divider-row">
+                  <span className="metric-divider-line" aria-hidden="true" />
                 </div>
                 <div className="metric-value-row">
-                  <strong className="metric-full-value">Unavailable</strong>
                   <span className="account-metric-track"><span className="tone-neutral" style={{ width: "0%" }} /></span>
                   {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
+                </div>
+                <div className="metric-detail-row">
+                  <span className="metric-percent-line">
+                    <strong className="metric-full-value">Unavailable</strong>
+                  </span>
+                  <span className="metric-reset">Refresh this account to retrieve its limits.</span>
                 </div>
               </div>
             )}

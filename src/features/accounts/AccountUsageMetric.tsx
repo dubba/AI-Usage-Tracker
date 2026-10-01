@@ -51,22 +51,24 @@ export function AccountUsageMetric({
   const pillText = length && group ? `${length} · ${group}` : length;
   return (
     <div className="account-usage-metric">
-      <div className="metric-reset-row">
+      <div className="metric-divider-row">
         {pillText ? (
-          <span className="metric-reset-lead">
-            <span className={`metric-window-pill ${windowPillClass(window)}`}>
-              {pillText}
-            </span>
+          <span className={`metric-window-pill ${windowPillClass(window)}`}>
+            {pillText}
           </span>
-        ) : <span className="metric-window-pill-spacer" />}
-        <span className="metric-reset">
-          {resetLine}
-        </span>
+        ) : null}
+        <span className="metric-divider-line" aria-hidden="true" />
       </div>
       <div className="metric-value-row">
-        <strong className="metric-full-value">{remaining == null ? unavailableLabel : `${Math.round(remaining)}%`}</strong>
         <span className="account-metric-track"><span className={`tone-${tone}`} style={{ width: `${width}%` }} /></span>
         {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
+      </div>
+      <div className="metric-detail-row">
+        <span className="metric-percent-line">
+          <strong className="metric-full-value">{remaining == null ? unavailableLabel : `${Math.round(remaining)}%`}</strong>
+          {remaining == null ? null : <span className="metric-percent-suffix">left</span>}
+        </span>
+        <span className="metric-reset">{resetLine}</span>
       </div>
     </div>
   );

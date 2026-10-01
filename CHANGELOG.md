@@ -3,6 +3,13 @@
 ## Unreleased (0 items)
 
 
+## 0.3.11 - 2026-10-01 (1 item)
+
+### Changed (1)
+
+- Account cards now show each usage window's label on its divider line, with the progress bar below it and the remaining percentage (for example "57% left") and reset time under the bar.
+
+
 ## 0.3.10 - 2026-10-01 (54 items)
 
 ### Added (2)

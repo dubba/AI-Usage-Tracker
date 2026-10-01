@@ -495,3 +495,72 @@
     margin: 0 auto;
   }
 }
+
+/*
+ * Usage metrics: the window pill sits on the divider line (centred on it), the
+ * line starts after the pill, and the percentage left and the reset time go
+ * below the progress bar. The header's own bottom border is hidden because the
+ * first metric draws the divider.
+ */
+.provider-account-card .provider-account-card-header {
+  border-bottom-color: transparent;
+}
+
+.provider-account-card .account-card-metrics .account-usage-metric,
+.provider-account-card .account-card-metrics .account-usage-metric + .account-usage-metric,
+.provider-account-card .account-card-metrics .account-usage-metric:first-child {
+  padding: 0 0 14px;
+  border-top: 0;
+  border-left: 0;
+}
+
+.account-usage-metric .metric-divider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  margin: 0 0 10px;
+}
+
+.account-usage-metric .metric-divider-line {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 0;
+  border-top: 1px solid #2d2c2c;
+}
+
+.account-usage-metric .metric-detail-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px 12px;
+  width: 100%;
+  min-width: 0;
+  margin: 8px 0 0;
+}
+
+.account-usage-metric .metric-percent-line {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  flex: 0 0 auto;
+}
+
+.account-usage-metric .metric-percent-suffix {
+  color: var(--obsidian-muted-bright);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+}
+
+.account-usage-metric .metric-detail-row .metric-reset {
+  flex: 0 1 auto;
+  margin-left: auto;
+}
+
+.account-usage-metric .metric-detail-row .metric-full-value {
+  font-size: 15px;
+  line-height: 20px;
+}
