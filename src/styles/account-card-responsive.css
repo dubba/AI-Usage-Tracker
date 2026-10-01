@@ -148,8 +148,8 @@
 
   .provider-account-card .account-card-metrics .account-usage-metric + .account-usage-metric,
   .account-card-metrics .account-usage-metric + .account-usage-metric {
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    padding-top: 14px;
+    border-top: 0;
+    padding-top: 0;
   }
 
   /* Dashboard container must NEVER scroll or create a secondary gutter */
@@ -503,15 +503,24 @@
  * first metric draws the divider.
  */
 .provider-account-card .provider-account-card-header {
+  border-bottom: 0;
   border-bottom-color: transparent;
 }
 
 .provider-account-card .account-card-metrics .account-usage-metric,
 .provider-account-card .account-card-metrics .account-usage-metric + .account-usage-metric,
 .provider-account-card .account-card-metrics .account-usage-metric:first-child {
-  padding: 0 0 14px;
+  padding: 0 0 16px;
   border-top: 0;
   border-left: 0;
+}
+
+@media (max-width: 860px) {
+  .provider-account-card .account-card-metrics .account-usage-metric,
+  .provider-account-card .account-card-metrics .account-usage-metric + .account-usage-metric,
+  .provider-account-card .account-card-metrics .account-usage-metric:first-child {
+    padding: 0 0 14px;
+  }
 }
 
 .account-usage-metric .metric-divider-row {
@@ -538,7 +547,7 @@
   gap: 2px 12px;
   width: 100%;
   min-width: 0;
-  margin: 8px 0 0;
+  margin: 10px 0 0;
 }
 
 .account-usage-metric .metric-percent-line {

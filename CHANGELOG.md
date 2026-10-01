@@ -3,18 +3,21 @@
 ## Unreleased (0 items)
 
 
-## 0.3.11 - 2026-10-01 (1 item)
+## 0.3.11 - 2026-10-01 (2 items)
+
+### Improved (1)
+
+- In account cards, balanced the vertical spacing around the progress bar and matched the gap above subsequent usage limit panes to the gap above the first limit pane.
 
 ### Changed (1)
 
 - Account cards now show each usage window's label on its divider line, with the progress bar below it and the remaining percentage (for example "57% left") and reset time under the bar.
 
 
-## 0.3.10 - 2026-10-01 (54 items)
+## 0.3.10 - 2026-10-01 (53 items)
 
-### Added (2)
+### Added (1)
 
-- Copy diagnostics now also includes a short record of the last 10 card drags (touch timing and positions, and where the card ended up; no account names or details) to help track down the card that disappears after a drag on Android.
 - Settings now has a Copy diagnostics button (also on the start-up error screen) that copies a report for bug reports: versions, settings, each account's status, and recent activity. Tokens, cookies, email addresses, and your user name are removed, and the app now keeps a small activity log to make problems easier to trace.
 
 ### Improved (16)
