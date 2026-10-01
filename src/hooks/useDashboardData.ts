@@ -7,10 +7,11 @@ import {
   credentialProtectionAction,
   credentialProtectionMessage,
 } from "../credential-protection";
-import { isReordering } from "../dashboard-reorder";
+import { isReordering, subscribeReordering } from "../reorder/active";
 import { onDashboardResync } from "../events";
 import { publishSnapshot } from "../snapshot-store";
 import { REFRESH_ALL_KEY } from "../busy";
+import { clearPendingAllOrder } from "../dashboard-page-state";
 import { accountsNeedScheduledRefresh } from "../usage-logic";
 import type { DashboardSnapshot } from "../types";
 
@@ -34,20 +35,26 @@ export function useDashboardData({
   const refreshDueInFlightRef = useRef(false);
   const wasHiddenRef = useRef(false);
   const unprotectedCredentialsRef = useRef(0);
+  const loadSkippedRef = useRef(false);
 
   /**
    * The only place the snapshot is fetched. Resolves to the snapshot, or null if it could not be
    * loaded. Also null, without fetching, while an item is being dragged (the screen is kept still);
-   * the next scheduled poll picks up whatever changed.
+   * the skipped load runs as soon as the drag has ended.
    */
   const load = useCallback(async (): Promise<DashboardSnapshot | null> => {
-    if (isReordering()) return null;
+    if (isReordering()) {
+      loadSkippedRef.current = true;
+      return null;
+    }
+    loadSkippedRef.current = false;
     try {
       const next = await withTimeout(
         bridgeApi.snapshot(),
         LOAD_TIMEOUT_MS,
         "Timed out loading accounts from the app backend.",
       );
+      clearPendingAllOrder();
       setSnapshot(next);
       publishSnapshot(next);
       clearError("load");
@@ -76,6 +83,15 @@ export function useDashboardData({
       window.clearTimeout(initialRefreshTimeout);
     };
   }, [load, reportError]);
+
+  // A load skipped during a drag would otherwise wait for the next poll.
+  useEffect(
+    () =>
+      subscribeReordering((active) => {
+        if (!active && loadSkippedRef.current) void load();
+      }),
+    [load],
+  );
 
   const refreshAccountsIfDue = useCallback(async () => {
     if (refreshDueInFlightRef.current) return;

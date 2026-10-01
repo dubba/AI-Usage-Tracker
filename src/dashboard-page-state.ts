@@ -7,6 +7,22 @@ export const DASHBOARD_PAGE_ORDER_EVENT = UI_EVENTS.pageOrderChanged;
 const COLLAPSED_PREFIX = STORAGE_PREFIXES.cardCollapsed;
 const PAGE_ORDER_PREFIX = STORAGE_PREFIXES.pageAccountOrder;
 
+/**
+ * The "all" page has no saved order of its own: it shows accounts in the order the backend
+ * keeps them, which dragging a card there and dragging a sidebar group both update. A separate
+ * copy here used to go stale and hide the other kind of reorder.
+ */
+const ALL_PAGE_ID = "all";
+
+// The order just dragged on the "all" page, shown until the next snapshot (which carries the
+// order the backend saved) replaces it. Never persisted.
+let pendingAllOrder: string[] | null = null;
+
+/** Called when a fresh snapshot arrives: its account order is the saved one. */
+export function clearPendingAllOrder(): void {
+  pendingAllOrder = null;
+}
+
 function isPageScopedCollapsedKey(rest: string): boolean {
   return rest.startsWith("all:") || rest.startsWith("provider:") || rest.startsWith("bucket:");
 }
@@ -60,15 +76,35 @@ export function readPageAccountOrder(pageId: string): string[] {
 }
 
 export function storePageAccountOrder(pageId: string, accountIds: string[]): void {
-  // If storage is unavailable the order still applies for this session via the event below.
-  writeJson(`${PAGE_ORDER_PREFIX}${pageId}`, accountIds);
+  if (pageId === ALL_PAGE_ID) {
+    pendingAllOrder = accountIds;
+  } else {
+    // If storage is unavailable the order still applies for this session via the event below.
+    writeJson(`${PAGE_ORDER_PREFIX}${pageId}`, accountIds);
+  }
   window.dispatchEvent(
     new CustomEvent(DASHBOARD_PAGE_ORDER_EVENT, { detail: { pageId, order: accountIds } }),
   );
 }
 
+/**
+ * One-time upgrade of an "all" page order saved by an older version. Removes it, and returns the
+ * account order to save to the backend so the page keeps looking the same, or null when the
+ * backend order already matches (or nothing was saved).
+ */
+export function migrateLegacyAllPageOrder(currentIds: string[]): string[] | null {
+  const key = `${PAGE_ORDER_PREFIX}${ALL_PAGE_ID}`;
+  const legacy = readPageAccountOrder(ALL_PAGE_ID);
+  storageRemove(key);
+  if (!legacy.length) return null;
+  const known = new Set(currentIds);
+  const wanted = legacy.filter((id, index) => known.has(id) && legacy.indexOf(id) === index);
+  const next = [...wanted, ...currentIds.filter((id) => !wanted.includes(id))];
+  return next.every((id, index) => id === currentIds[index]) ? null : next;
+}
+
 export function applyPageAccountOrder(accounts: Account[], pageId: string): Account[] {
-  const saved = readPageAccountOrder(pageId);
+  const saved = pageId === ALL_PAGE_ID ? (pendingAllOrder ?? []) : readPageAccountOrder(pageId);
   if (!saved.length) return accounts;
   const remaining = new Map(accounts.map((account) => [account.id, account]));
   const ordered: Account[] = [];
@@ -98,6 +134,7 @@ function collectPageOrders(): Record<string, string[]> {
   const orders: Record<string, string[]> = {};
   for (const key of storageKeys(PAGE_ORDER_PREFIX)) {
     const pageId = key.slice(PAGE_ORDER_PREFIX.length);
+    if (pageId === ALL_PAGE_ID) continue;
     const order = readPageAccountOrder(pageId);
     if (pageId && order.length) orders[pageId] = order;
   }
@@ -140,7 +177,7 @@ export function applyPageUiState(payload: Record<string, unknown>): void {
   if (payload.page_account_order && typeof payload.page_account_order === "object" && !Array.isArray(payload.page_account_order)) {
     const orders = payload.page_account_order as Record<string, unknown>;
     for (const [pageId, value] of Object.entries(orders)) {
-      if (!Array.isArray(value)) continue;
+      if (pageId === ALL_PAGE_ID || !Array.isArray(value)) continue;
       const ids = value.filter((id): id is string => typeof id === "string" && id.length > 0);
       storePageAccountOrder(pageId, ids);
     }

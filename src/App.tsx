@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { bridgeApi } from "./api";
+import { logIgnored } from "./log";
+import { modalReducer } from "./modal-state";
 import { openSafeUrl } from "./utils/safeUrl";
 import { busyKey, useBusyKeys } from "./busy";
 import { useAppErrors } from "./errors";
@@ -18,7 +20,7 @@ import { GROUP_REORDER_HINT_ID, SidebarGroupRow } from "./components/SidebarGrou
 import { SidebarResizeHandle } from "./components/SidebarResizeHandle";
 import { UsageAlertToasts } from "./components/UsageAlertToasts";
 import "./pairing.css";
-import { persistGroupOrder } from "./dashboard-reorder";
+import { persistGroupOrder } from "./reorder";
 import {
   DASHBOARD_GROUP_ORDER_EVENT,
   DASHBOARD_PROVIDER_ORDER_EVENT,
@@ -29,6 +31,7 @@ import {
 import {
   applyPageAccountOrder,
   DASHBOARD_PAGE_ORDER_EVENT,
+  migrateLegacyAllPageOrder,
   migrateLegacyCollapsedCards,
 } from "./dashboard-page-state";
 import { DEFAULT_ACCOUNT_REFRESH_MINUTES } from "./constants";
@@ -53,7 +56,7 @@ import {
   buildSidebarGroups,
   type SidebarGroup,
 } from "./sidebar-groups";
-import { moveAnnouncement, moveById } from "./reorder-utils";
+import { moveAnnouncement, moveById } from "./reorder/reorder-utils";
 import { requestDashboardResync } from "./events";
 import { accountNeedsAttention, displayAccountLabel, googleAiStudioHasQuotaWindows } from "./usage-logic";
 import type { Account, AccountBucket, Provider } from "./types";
@@ -68,16 +71,18 @@ export default function App() {
   const [sidebarGroupOrder, setSidebarGroupOrder] = useState<string[]>(readSidebarGroupOrder);
   const [pageOrderTick, setPageOrderTick] = useState(0);
   const [section, setSection] = useState<Section>("accounts");
-  const [addOpen, setAddOpen] = useState(false);
-  const [bucketModalOpen, setBucketModalOpen] = useState(false);
-  const [bucketToEdit, setBucketToEdit] = useState<AccountBucket | null>(null);
-  const [bucketInitialProvider, setBucketInitialProvider] = useState<Provider | null>(null);
-  const [bucketConfirmDelete, setBucketConfirmDelete] = useState(false);
-  const [alertAccount, setAlertAccount] = useState<Account | null>(null);
-  const [accountToRemove, setAccountToRemove] = useState<Account | null>(null);
-  const [googleUsageAccount, setGoogleUsageAccount] = useState<Account | null>(null);
-  const [loginLabel, setLoginLabel] = useState("");
-  const [loginProvider, setLoginProvider] = useState<Provider | undefined>(undefined);
+  const [modal, dispatchModal] = useReducer(modalReducer, null);
+  const addModal = modal?.kind === "add" ? modal : null;
+  const addOpen = addModal != null;
+  const bucketModal = modal?.kind === "bucket" ? modal : null;
+  const alertAccount = modal?.kind === "alert" ? modal.account : null;
+  const accountToRemove = modal?.kind === "remove" ? modal.account : null;
+  const googleUsageAccount = modal?.kind === "googleUsage" ? modal.account : null;
+  const setGoogleUsageAccount = useCallback(
+    (account: Account | null) =>
+      dispatchModal(account ? { type: "open", modal: { kind: "googleUsage", account } } : { type: "close", kind: "googleUsage" }),
+    [],
+  );
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [groupAnnouncement, setGroupAnnouncement] = useState("");
   useTouchTooltips();
@@ -129,30 +134,19 @@ export default function App() {
   } = useAccountActions({ load, setSnapshot, busy: busyKeys, reportError, clearError });
 
   const openAdd = useCallback((account?: Account, provider?: Provider) => {
-    setLoginLabel(account?.label ?? "");
-    setLoginProvider(account?.provider ?? provider);
-    setAddOpen(true);
+    dispatchModal({ type: "open", modal: { kind: "add", label: account?.label ?? "", provider: account?.provider ?? provider } });
   }, []);
 
   const openNewBucket = useCallback((provider?: Provider | null) => {
-    setBucketToEdit(null);
-    setBucketInitialProvider(provider ?? null);
-    setBucketConfirmDelete(false);
-    setBucketModalOpen(true);
+    dispatchModal({ type: "open", modal: { kind: "bucket", bucket: null, provider: provider ?? null, confirmDelete: false } });
   }, []);
 
   const openEditBucket = useCallback((bucket: AccountBucket) => {
-    setBucketToEdit(bucket);
-    setBucketInitialProvider(bucket.provider);
-    setBucketConfirmDelete(false);
-    setBucketModalOpen(true);
+    dispatchModal({ type: "open", modal: { kind: "bucket", bucket, provider: bucket.provider, confirmDelete: false } });
   }, []);
 
   const openDeleteBucket = useCallback((bucket: AccountBucket) => {
-    setBucketToEdit(bucket);
-    setBucketInitialProvider(bucket.provider);
-    setBucketConfirmDelete(true);
-    setBucketModalOpen(true);
+    dispatchModal({ type: "open", modal: { kind: "bucket", bucket, provider: bucket.provider, confirmDelete: true } });
   }, []);
 
   const openLink = useCallback((url: string) => {
@@ -175,6 +169,20 @@ export default function App() {
     return () => window.removeEventListener(DASHBOARD_PAGE_ORDER_EVENT, onPageOrder);
   }, []);
 
+  // Older versions kept a separate saved order for the "all" page. Once the accounts are known,
+  // fold it into the backend order (which that page now follows) so the page looks the same.
+  const legacyAllOrderHandledRef = useRef(false);
+  useEffect(() => {
+    if (!snapshot || legacyAllOrderHandledRef.current) return;
+    legacyAllOrderHandledRef.current = true;
+    const next = migrateLegacyAllPageOrder(snapshot.accounts.map((account) => account.id));
+    if (!next) return;
+    void bridgeApi
+      .reorderAccounts(next)
+      .catch((cause) => logIgnored("legacy all-page order", cause))
+      .finally(requestDashboardResync);
+  }, [snapshot]);
+
   // A sign-in failure is reported here only when no dialog that shows it inline is open,
   // so the subscription is renewed whenever one of those dialogs opens or closes.
   const googleUsageOpen = googleUsageAccount != null;
@@ -195,7 +203,7 @@ export default function App() {
         setGoogleUsageAccount(status.account);
       }
     });
-  }, [load, clearError, reportError, addOpen, googleUsageOpen]);
+  }, [load, clearError, reportError, addOpen, googleUsageOpen, setGoogleUsageAccount]);
 
   useEffect(() => {
     void resumeLoginAttemptWatch();
@@ -301,8 +309,8 @@ export default function App() {
         onReconnect={(account) => account.provider === "google_ai_studio" ? setGoogleUsageAccount(account) : openAdd(account)}
         onConnectGoogleUsage={setGoogleUsageAccount}
         onRename={(account, label) => rename(account, label)}
-        onRemove={setAccountToRemove}
-        onNotifications={setAlertAccount}
+        onRemove={(account) => dispatchModal({ type: "open", modal: { kind: "remove", account } })}
+        onNotifications={(account) => dispatchModal({ type: "open", modal: { kind: "alert", account } })}
         busy={busy}
       />
     );
@@ -435,11 +443,11 @@ export default function App() {
 
       <AddAccountModal
         open={addOpen}
-        initialLabel={loginLabel}
-        initialProvider={loginProvider}
-        onClose={() => setAddOpen(false)}
+        initialLabel={addModal?.label ?? ""}
+        initialProvider={addModal?.provider}
+        onClose={() => dispatchModal({ type: "close", kind: "add" })}
         onAdded={async (account) => {
-          setAddOpen(false);
+          dispatchModal({ type: "close", kind: "add" });
           setSelectedGroupId(`provider:${account.provider}`);
           setSection("accounts");
           let nextAccount = account;
@@ -456,24 +464,19 @@ export default function App() {
         }}
       />
       <BucketModal
-        open={bucketModalOpen}
-        bucket={bucketToEdit}
-        initialProvider={bucketInitialProvider}
+        open={bucketModal != null}
+        bucket={bucketModal?.bucket ?? null}
+        initialProvider={bucketModal?.provider ?? null}
         accounts={accounts}
-        initialConfirmDelete={bucketConfirmDelete}
-        onClose={() => {
-          setBucketModalOpen(false);
-          setBucketConfirmDelete(false);
-        }}
+        initialConfirmDelete={bucketModal?.confirmDelete ?? false}
+        onClose={() => dispatchModal({ type: "close", kind: "bucket" })}
         onSaved={async (saved) => {
-          setBucketModalOpen(false);
-          setBucketConfirmDelete(false);
+          dispatchModal({ type: "close", kind: "bucket" });
           setSelectedGroupId(`bucket:${saved.id}`);
           await load();
         }}
         onDeleted={async (deletedId) => {
-          setBucketModalOpen(false);
-          setBucketConfirmDelete(false);
+          dispatchModal({ type: "close", kind: "bucket" });
           if (selectedGroupId === `bucket:${deletedId}`) {
             setSelectedGroupId(ALL_ACCOUNTS_GROUP_ID);
           }
@@ -490,16 +493,16 @@ export default function App() {
       />
       <AccountAlertModal
         account={alertAccount}
-        onClose={() => setAlertAccount(null)}
+        onClose={() => dispatchModal({ type: "close", kind: "alert" })}
         onSaved={async () => {
-          setAlertAccount(null);
+          dispatchModal({ type: "close", kind: "alert" });
           await load();
         }}
       />
       <RemoveAccountModal
         account={accountToRemove}
         busy={Boolean(accountToRemove && busy.has(busyKey("remove", accountToRemove.id)))}
-        onClose={() => setAccountToRemove(null)}
+        onClose={() => dispatchModal({ type: "close", kind: "remove" })}
         onConfirm={() => {
           if (accountToRemove) void remove(accountToRemove);
         }}

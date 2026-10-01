@@ -1,4 +1,4 @@
-import { isReordering } from "../dashboard-reorder";
+import { isReordering } from "../reorder";
 import {
   UsersIcon,
 } from "../icons";
@@ -8,7 +8,7 @@ import {
   usageTone,
 } from "../usage-logic";
 import { ACCOUNT_FORMS, formatCount } from "../format";
-import { reorderKeyDelta } from "../reorder-utils";
+import { reorderKeyDelta } from "../reorder/reorder-utils";
 import type { SidebarGroup } from "../sidebar-groups";
 
 /** Id of the visually hidden hint that App renders once for every reorderable group row. */

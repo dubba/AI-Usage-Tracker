@@ -3,6 +3,14 @@
 ## Unreleased (0 items)
 
 
+## 0.3.10-beta.6 - 2026-10-01 (2 items)
+
+### Fixed (2)
+
+- The All page now follows the order you set by dragging sidebar groups, instead of keeping an older order from an earlier card drag.
+- The dashboard now catches up right after you finish dragging a card, instead of waiting for the next automatic refresh.
+
+
 ## 0.3.10-beta.5 - 2026-10-01 (1 item)
 
 ### Fixed (1)

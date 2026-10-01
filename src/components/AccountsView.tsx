@@ -21,8 +21,8 @@ import type {
   Account,
   AccountBucket,
 } from "../types";
-import { persistVisibleAccountOrder } from "../dashboard-reorder";
-import { moveAnnouncement, moveById } from "../reorder-utils";
+import { persistVisibleAccountOrder } from "../reorder";
+import { moveAnnouncement, moveById } from "../reorder/reorder-utils";
 import { AccountDashboardCard, REORDER_HINT_ID } from "./AccountDashboardCard";
 import { ACCOUNT_FORMS, formatCount } from "../format";
 import { useClock } from "../hooks/useClock";

@@ -54,13 +54,13 @@ describe("collectUiState", () => {
       sidebar_group_order: ["provider:grok"],
       provider_order: ["grok"],
       sidebar_width: 300,
-      page_account_order: { all: ["a", "b"] },
+      page_account_order: { "bucket:b1": ["a", "b"] },
     });
     expect(collectUiState()).toEqual({
       sidebar_group_order: ["provider:grok"],
       provider_order: ["grok"],
       sidebar_width: 300,
-      page_account_order: { all: ["a", "b"] },
+      page_account_order: { "bucket:b1": ["a", "b"] },
     });
   });
 });

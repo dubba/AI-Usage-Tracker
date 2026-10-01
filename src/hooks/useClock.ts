@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { isReordering } from "../dashboard-reorder";
+import { isReordering } from "../reorder/active";
 
 const TICK_MS = 1000;
 

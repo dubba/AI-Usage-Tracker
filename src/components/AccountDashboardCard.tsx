@@ -28,7 +28,7 @@ import type {
   Account,
 } from "../types";
 import { useClock } from "../hooks/useClock";
-import { reorderKeyDelta } from "../reorder-utils";
+import { reorderKeyDelta } from "../reorder/reorder-utils";
 import { AccountUsageMetric } from "./AccountUsageMetric";
 
 /** Id of the visually hidden hint that AccountsView renders once for every card. */
