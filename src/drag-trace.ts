@@ -28,7 +28,21 @@ export function traceGestureStart(summary: string): void {
 /** Adds one line to the current gesture, prefixed with milliseconds since it started. */
 export function trace(line: string): void {
   if (gestures.length === 0) gestures.push({ startedAt: now(), lines: [], dropped: 0 });
+  addLine(gestures[gestures.length - 1], line);
+}
+
+/**
+ * Returns a tracer tied to the gesture that is current right now, for lines
+ * written later from a timer. Without it a delayed line would land under
+ * whichever gesture happens to be newest by then.
+ */
+export function traceForCurrentGesture(): (line: string) => void {
+  if (gestures.length === 0) gestures.push({ startedAt: now(), lines: [], dropped: 0 });
   const gesture = gestures[gestures.length - 1];
+  return (line) => addLine(gesture, line);
+}
+
+function addLine(gesture: Gesture, line: string): void {
   if (gesture.lines.length >= MAX_LINES_PER_GESTURE) {
     // Keep the start and the end of a long gesture; the middle is the least useful part.
     gesture.lines.splice(MAX_LINES_PER_GESTURE / 2, 1);

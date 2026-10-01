@@ -1,7 +1,8 @@
 import { bridgeApi } from "./api";
 import { storePageAccountOrder } from "./dashboard-page-state";
-import { coord, describeTarget, trace, traceGestureStart } from "./drag-trace";
+import { coord, describeTarget, trace, traceForCurrentGesture, traceGestureStart } from "./drag-trace";
 import { requestDashboardResync } from "./events";
+import { hideInline, isHiddenInline, readInlineDisplay, restoreInlineDisplay, type InlineDisplay } from "./reorder-source";
 import { logIgnored } from "./log";
 import { KNOWN_PROVIDERS, storeSidebarGroupOrder, uniqueStrings } from "./sidebar-order";
 import { getLatestSnapshot } from "./snapshot-store";
@@ -57,7 +58,7 @@ type ActiveDrag = {
   float: HTMLElement;
   placeholder: HTMLElement;
   originalNextSibling: ChildNode | null;
-  originalStyle: string | null;
+  originalDisplay: InlineDisplay;
   originalOrder: string[];
   autoScrollFrame: number | null;
 };
@@ -434,7 +435,7 @@ function beginVisualDrag(clientX: number, clientY: number, candidate: PointerCan
     float,
     placeholder,
     originalNextSibling: descriptor.source.nextSibling,
-    originalStyle: descriptor.source.getAttribute("style"),
+    originalDisplay: readInlineDisplay(descriptor.source),
     originalOrder: originalOrder(descriptor, container),
     autoScrollFrame: null,
   };
@@ -451,7 +452,7 @@ function beginVisualDrag(clientX: number, clientY: number, candidate: PointerCan
 
   container.classList.add("reorder-previewing");
   descriptor.source.classList.add("is-reorder-origin");
-  descriptor.source.style.setProperty("display", "none", "important");
+  hideInline(descriptor.source);
   document.documentElement.classList.add("dashboard-reordering");
   document.documentElement.style.setProperty("cursor", "grabbing", "important");
   document.body.style.setProperty("cursor", "grabbing", "important");
@@ -502,11 +503,6 @@ function updateFloatingSource(drag: ActiveDrag): void {
   drag.float.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`;
 }
 
-function restoreSourceStyle(drag: ActiveDrag): void {
-  if (drag.originalStyle == null) drag.source.removeAttribute("style");
-  else drag.source.setAttribute("style", drag.originalStyle);
-}
-
 function settleVisualDrag(drag: ActiveDrag, commit: boolean): void {
   if (drag.autoScrollFrame != null) window.cancelAnimationFrame(drag.autoScrollFrame);
   for (const element of reorderElements(drag)) {
@@ -530,7 +526,7 @@ function settleVisualDrag(drag: ActiveDrag, commit: boolean): void {
 
   drag.source.classList.remove("is-dragging", "is-reorder-origin");
   drag.container.classList.remove("reorder-previewing");
-  restoreSourceStyle(drag);
+  restoreInlineDisplay(drag.source, drag.originalDisplay);
   try {
     if (drag.source.hasPointerCapture(drag.pointerId)) {
       drag.source.releasePointerCapture(drag.pointerId);
@@ -562,18 +558,20 @@ function committedOrder(drag: ActiveDrag): string[] {
  */
 function clearDragArtifacts(): void {
   if (dragState) return;
-  const leftovers = document.querySelectorAll(
-    ".is-reorder-origin, .provider-account-card[style*='display'], .provider-summary-row[style*='display'], .dashboard-reorder-float, .dashboard-reorder-placeholder",
-  ).length;
-  if (leftovers > 0 && traceActive()) trace(`clear artifacts: removed ${leftovers} leftover(s)`);
-  for (const element of document.querySelectorAll<HTMLElement>(
-    ".is-reorder-origin, .provider-account-card[style*='display'], .provider-summary-row[style*='display']",
-  )) {
-    element.classList.remove("is-reorder-origin", "is-dragging");
-    if (element.style.getPropertyValue("display") === "none") element.style.removeProperty("display");
-    if (!element.getAttribute("style")) element.removeAttribute("style");
+  // Hidden cards are found from the live inline style, not a [style*=...] selector: the style
+  // attribute can disagree with the element's real styles (see reorder-source.ts).
+  const hidden = Array.from(
+    document.querySelectorAll<HTMLElement>(".is-reorder-origin, .provider-account-card, .provider-summary-row"),
+  ).filter((element) => element.classList.contains("is-reorder-origin") || isHiddenInline(element));
+  const strays = document.querySelectorAll(".dashboard-reorder-float, .dashboard-reorder-placeholder");
+  if (hidden.length + strays.length > 0 && traceActive()) {
+    trace(`clear artifacts: un-hid ${hidden.length} card(s), removed ${strays.length} leftover element(s)`);
   }
-  for (const node of document.querySelectorAll(".dashboard-reorder-float, .dashboard-reorder-placeholder")) {
+  for (const element of hidden) {
+    element.classList.remove("is-reorder-origin", "is-dragging");
+    if (isHiddenInline(element)) element.style.removeProperty("display");
+  }
+  for (const node of strays) {
     node.remove();
   }
   for (const container of document.querySelectorAll(".reorder-previewing")) {
@@ -607,8 +605,9 @@ function finishDrag(commit: boolean, reason: string): void {
   const movedFrom = drag.descriptor.kind === "account" ? drag.originalOrder.indexOf(drag.descriptor.accountId) : -1;
   const movedTo = drag.descriptor.kind === "account" ? nextOrder.indexOf(drag.descriptor.accountId) : -1;
   trace(`after settle: slot ${movedFrom} -> ${movedTo} of ${nextOrder.length}; ${describeList(drag.source, drag.container)}`);
+  const traceLater = traceForCurrentGesture();
   for (const delay of [50, 1000, 3000]) {
-    window.setTimeout(() => trace(`+${delay}ms after drop: ${describeList(drag.source, drag.container)}`), delay);
+    window.setTimeout(() => traceLater(`+${delay}ms after drop: ${describeList(drag.source, drag.container)}`), delay);
   }
   if (traceObserverStop != null) window.clearTimeout(traceObserverStop);
   traceObserverStop = window.setTimeout(stopTraceObserver, TRACE_AFTER_DROP_MS);

@@ -1,5 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { coord, describeTarget, formatDragTrace, resetDragTrace, trace, traceGestureStart } from "./drag-trace";
+import {
+  coord,
+  describeTarget,
+  formatDragTrace,
+  resetDragTrace,
+  trace,
+  traceForCurrentGesture,
+  traceGestureStart,
+} from "./drag-trace";
 
 beforeEach(() => {
   resetDragTrace();
@@ -38,6 +46,15 @@ describe("drag trace", () => {
     expect(text).toContain("line 399");
     expect(text).toMatch(/middle lines dropped/);
     expect(text.split("\n").length).toBeLessThan(170);
+  });
+
+  it("keeps a delayed line under the gesture it belongs to", () => {
+    traceGestureStart("first drag");
+    const later = traceForCurrentGesture();
+    traceGestureStart("second drag");
+    later("after first drop");
+    const text = formatDragTrace();
+    expect(text.indexOf("after first drop")).toBeLessThan(text.indexOf("second drag"));
   });
 
   it("records lines even before a gesture starts", () => {

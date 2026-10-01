@@ -3,7 +3,7 @@
 ## Unreleased (0 items)
 
 
-## 0.3.10-beta.3 - 2026-09-30 (15 items)
+## 0.3.10-beta.3 - 2026-09-30 (16 items)
 
 ### Added (1)
 
@@ -16,8 +16,9 @@
 - The “Last synced all accounts” status now sits at the bottom of the sidebar, just above Settings, instead of under the dashboard title.
 - Simplified the update toggles in Settings by renaming "App Updates" to "Automatically Update App" and removing the subtitle text under both update toggles.
 
-### Fixed (5)
+### Fixed (6)
 
+- Dragging the same account card a second time no longer makes it vanish. Before, the first drag of a card worked, but dropping that card again left it hidden until you switched to another view and back.
 - On Android, tapping Update no longer leaves the button greyed out on "Downloading…" forever; the update now downloads and opens the Android installer, or shows what went wrong.
 - On Android, encrypting saved sign-ins with the Android Keystore, update and usage alert notifications, and keeping device linking on Wi-Fi now work instead of failing because the app could not reach Android.
 - The update button no longer gets stuck or re-enables itself mid-download when an automatic update check runs during a download.
