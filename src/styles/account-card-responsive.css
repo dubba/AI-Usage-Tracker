@@ -645,19 +645,38 @@
 
 /*
  * The usage bar is coloured by how much is left (see usageTone): purple while
- * healthy, amber at 30% or less, red at 15% or less. ui-refinements.css forces
- * every bar purple with !important, so these rules repeat it.
+ * healthy, amber at 30% or less, red at 15% or less. Both sidebar and dashboard
+ * progress bars follow these same rules.
  */
+.provider-summary-track > .tone-healthy,
 .account-usage-metric .account-metric-track > .tone-healthy {
   background: var(--obsidian-purple-strong) !important;
 }
 
+.provider-summary-track > .tone-warning,
 .account-usage-metric .account-metric-track > .tone-warning {
   background: var(--obsidian-amber) !important;
 }
 
+.provider-summary-track > .tone-critical,
 .account-usage-metric .account-metric-track > .tone-critical {
   background: #e5303a !important;
+}
+
+.provider-summary-track > .tone-neutral,
+.account-usage-metric .account-metric-track > .tone-neutral {
+  background: #69656d !important;
+}
+
+/* Match the red & amber colors from the progress bars to the percentages in the sidebar */
+.provider-average .tone-warning,
+.provider-summary-row.selected .provider-average .tone-warning {
+  color: var(--obsidian-amber) !important;
+}
+
+.provider-average .tone-critical,
+.provider-summary-row.selected .provider-average .tone-critical {
+  color: #e5303a !important;
 }
 
 /* On mobile the plan/status badges are as tall as the "More actions" button (22px). */
@@ -786,18 +805,34 @@
   color: #ffffff !important;
 }
 
-/* Inactive group rows: the same raised surface and purple outline as the Refresh All button. */
+/* Sidebar menu item cards (group rows): match the settings button look & feel. */
 .provider-summary-row:not(.selected) {
   background: var(--obsidian-surface-container-high, #211e29);
   border-color: rgba(160, 120, 255, 0.4);
 }
 
-.provider-summary-row:not(.selected):hover {
-  background: #28213a;
-  border-color: var(--obsidian-purple-strong);
+@media (hover: hover) {
+  .provider-summary-row:not(.selected):hover {
+    background: #28213a !important;
+    border-color: var(--obsidian-purple-strong) !important;
+  }
+}
+
+.provider-summary-row:not(.selected):focus-visible {
+  background: #28213a !important;
+  border-color: var(--obsidian-purple-strong) !important;
+  outline: none;
+}
+
+.provider-summary-row:not(.selected):active {
+  background: #32254e !important;
+  border-color: var(--obsidian-purple-strong) !important;
 }
 
 /* Selected: the purple tint fades from the left edge into the surface, with a bar on the left. */
+.provider-summary-row.selected,
+.provider-summary-row.selected:active,
+.provider-summary-row.selected:focus-visible,
 .obsidian-shell button.sidebar-footer.active,
 .obsidian-shell button.sidebar-footer.active:active:not(:disabled),
 .obsidian-shell button.sidebar-footer.active:focus-visible {
@@ -808,6 +843,7 @@
 }
 
 @media (hover: hover) {
+  .provider-summary-row.selected:hover,
   .obsidian-shell button.sidebar-footer.active:hover:not(:disabled) {
     background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), var(--obsidian-surface-container) 48%) !important;
     border-color: rgba(208, 188, 255, 0.75) !important;

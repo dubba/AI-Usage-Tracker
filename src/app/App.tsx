@@ -51,7 +51,6 @@ import {
   CloseIcon,
   GaugeIcon,
   PlusIcon,
-  SettingsIcon,
 } from "../shared/ui/icons";
 import {
   ALL_ACCOUNTS_GROUP_ID,
@@ -431,24 +430,16 @@ export default function App() {
           ) : null}
         </div>
 
-        <button
-          type="button"
-          className={`button primary sidebar-footer${section === "settings" ? " active" : ""}`}
-          aria-current={section === "settings" ? "page" : undefined}
-          onClick={() => {
-            setSection("settings");
-            setSidebarOpen(false);
-          }}
-          aria-label="Open settings"
-        >
-          <SettingsIcon />
-          <span>Settings</span>
-        </button>
         <SyncStatusLine
           accounts={accounts}
           refreshMinutes={appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES}
           busy={busy}
           onRefreshAll={refreshAll}
+          onOpenSettings={() => {
+            setSection("settings");
+            setSidebarOpen(false);
+          }}
+          settingsActive={section === "settings"}
         />
         <SidebarResizeHandle shellRef={shellRef} sidebarRef={sidebarRef} />
       </aside>

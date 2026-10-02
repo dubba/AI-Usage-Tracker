@@ -65,4 +65,53 @@ describe("SyncStatusLine", () => {
     expect(button?.classList.contains("spinning")).toBe(true);
     expect(document.body.textContent).toContain("Syncing…");
   });
+
+  it("renders the settings button to the right of refresh all and triggers onOpenSettings on click", () => {
+    const onRefreshAll = vi.fn();
+    const onOpenSettings = vi.fn();
+    app = mount(
+      <SyncStatusLine
+        accounts={[fakeAccount]}
+        refreshMinutes={15}
+        busy={new Set()}
+        onRefreshAll={onRefreshAll}
+        onOpenSettings={onOpenSettings}
+        settingsActive={false}
+      />
+    );
+
+    const actions = document.querySelector(".sidebar-sync-status-actions");
+    expect(actions).not.toBeNull();
+    const refreshBtn = actions?.querySelector(".sidebar-refresh-all-btn");
+    const settingsBtn = actions?.querySelector<HTMLButtonElement>(".sidebar-settings-btn");
+    expect(refreshBtn).not.toBeNull();
+    expect(settingsBtn).not.toBeNull();
+    // Settings button is to the right of refresh all (second child)
+    expect(refreshBtn?.nextElementSibling).toBe(settingsBtn);
+    expect(settingsBtn?.getAttribute("aria-label")).toBe("Open settings");
+    expect(settingsBtn?.getAttribute("data-tooltip")).toBe("Settings");
+    expect(settingsBtn?.getAttribute("aria-current")).toBeNull();
+    expect(settingsBtn?.classList.contains("active")).toBe(false);
+
+    click(settingsBtn!);
+    expect(onOpenSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("reflects active state when settingsActive is true", () => {
+    const onOpenSettings = vi.fn();
+    app = mount(
+      <SyncStatusLine
+        accounts={[fakeAccount]}
+        refreshMinutes={15}
+        busy={new Set()}
+        onOpenSettings={onOpenSettings}
+        settingsActive={true}
+      />
+    );
+
+    const settingsBtn = document.querySelector<HTMLButtonElement>(".sidebar-settings-btn");
+    expect(settingsBtn).not.toBeNull();
+    expect(settingsBtn?.getAttribute("aria-current")).toBe("page");
+    expect(settingsBtn?.classList.contains("active")).toBe(true);
+  });
 });

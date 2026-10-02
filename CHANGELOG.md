@@ -3,7 +3,7 @@
 ## Unreleased (0 items)
 
 
-## 0.3.12 - 2026-10-02 (10 items)
+## 0.3.12 - 2026-10-02 (11 items)
 
 ### Added (1)
 
@@ -18,11 +18,15 @@
 
 ### Changed (5)
 
-- In the sidebar, Settings is now styled as a navigation item instead of the solid purple button. When not selected, Settings and the group rows now match the Refresh All button (dark raised surface and purple outline, with a stronger outline on hover). While Settings is open it has a purple tint that fades in from the left with a bar on the left.
+- In the sidebar, Settings is now a circular button placed to the right of Refresh All in the sync status bar, and account group cards now feature the raised dark surface and purple gradient selection styling.
 - In Settings, the Diagnostics Copy button and the Device Transfer Link Devices button now look and behave like the Change Log and Integration Window View buttons (dark background and border) instead of the purple primary style.
 - On desktop, the account card buttons now run in the same order as the mobile menu (Move up, Move down, Refresh, Notifications, Delete), and the Delete button is drawn quieter with extra space before it, turning solid red only on hover or keyboard focus.
 - Usage bars and percentages now turn red at 15% remaining or less (previously 10%); the amber warning stage at 30% is unchanged.
 - On mobile, the plan badge on account cards (Pro/$20, Free, and so on) is now 22px tall, the same height as the dropdown button beside it.
+
+### Fixed (1)
+
+- Progress bars and percentage numbers in the sidebar now properly turn amber at 30% or less and red at 15% or less to match the dashboard, instead of remaining purple.
 
 
 ## 0.3.11 - 2026-10-01 (25 items)

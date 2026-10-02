@@ -4,11 +4,31 @@
 
 .provider-summary-track > span,
 .account-metric-track > span,
-.progress-fill,
-.progress-fill.warning,
-.progress-fill.danger,
-.progress-fill.neutral {
+.progress-fill {
+  background: var(--obsidian-purple-strong);
+}
+
+.provider-summary-track > .tone-healthy,
+.account-metric-track > .tone-healthy {
   background: var(--obsidian-purple-strong) !important;
+}
+
+.provider-summary-track > .tone-warning,
+.account-metric-track > .tone-warning,
+.progress-fill.warning {
+  background: var(--obsidian-amber) !important;
+}
+
+.provider-summary-track > .tone-critical,
+.account-metric-track > .tone-critical,
+.progress-fill.danger {
+  background: #e5303a !important;
+}
+
+.provider-summary-track > .tone-neutral,
+.account-metric-track > .tone-neutral,
+.progress-fill.neutral {
+  background: #69656d !important;
 }
 
 .account-status-badge,
@@ -903,7 +923,16 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   text-align: left;
 }
 
-.sidebar-refresh-all-btn {
+.sidebar-sync-status-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.sidebar-refresh-all-btn,
+.sidebar-settings-btn {
   width: 34px;
   height: 34px;
   min-width: 34px;
@@ -922,25 +951,29 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   transition: background 150ms ease, transform 100ms ease, border-color 150ms ease, color 150ms ease;
 }
 
-.sidebar-refresh-all-btn svg {
+.sidebar-refresh-all-btn svg,
+.sidebar-settings-btn svg {
   width: 17px;
   height: 17px;
   color: var(--obsidian-purple);
   transition: color 150ms ease;
 }
 
-.sidebar-refresh-all-btn:hover:not(:disabled) {
+.sidebar-refresh-all-btn:hover:not(:disabled),
+.sidebar-settings-btn:hover:not(:disabled) {
   background: #28213a;
   border-color: var(--obsidian-purple-strong);
   color: #ffffff;
   box-shadow: none;
 }
 
-.sidebar-refresh-all-btn:hover:not(:disabled) svg {
+.sidebar-refresh-all-btn:hover:not(:disabled) svg,
+.sidebar-settings-btn:hover:not(:disabled) svg {
   color: #ffffff;
 }
 
-.sidebar-refresh-all-btn:active:not(:disabled) {
+.sidebar-refresh-all-btn:active:not(:disabled),
+.sidebar-settings-btn:active:not(:disabled) {
   background: #32254e;
   border-color: var(--obsidian-purple-strong);
   color: #ffffff;
@@ -948,11 +981,35 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   transform: scale(0.95);
 }
 
-.sidebar-refresh-all-btn:active:not(:disabled) svg {
+.sidebar-refresh-all-btn:active:not(:disabled) svg,
+.sidebar-settings-btn:active:not(:disabled) svg {
   color: #ffffff;
 }
 
-.sidebar-refresh-all-btn:disabled {
+.sidebar-refresh-all-btn:focus-visible,
+.sidebar-settings-btn:focus-visible {
+  outline: none;
+  border-color: var(--obsidian-purple-strong);
+}
+
+.sidebar-settings-btn.active {
+  background: #32254e;
+  border-color: rgba(208, 188, 255, 0.75);
+  box-shadow: inset 0 0 0 1px var(--obsidian-purple-strong);
+  color: #ffffff;
+}
+
+.sidebar-settings-btn.active svg {
+  color: #ffffff;
+}
+
+.sidebar-settings-btn.active:hover {
+  background: #3a2b5a;
+  border-color: rgba(208, 188, 255, 0.9);
+}
+
+.sidebar-refresh-all-btn:disabled,
+.sidebar-settings-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -968,7 +1025,8 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   color: var(--obsidian-purple-strong);
 }
 
-.sidebar-refresh-all-btn[data-tooltip]::after {
+.sidebar-refresh-all-btn[data-tooltip]::after,
+.sidebar-settings-btn[data-tooltip]::after {
   top: auto;
   bottom: calc(100% + 8px);
   left: auto;
@@ -1030,10 +1088,10 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   max-width: 100%;
 }
 
-/* On small screens Settings is above the refresh all / sync status line at the bottom of the drawer. */
+/* On small screens the sync status line (with Refresh All and Settings) sits at the bottom of the drawer. */
 @media (max-width: 860px) {
   .obsidian-shell aside.sidebar {
-    padding-bottom: max(112px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 104px)) !important;
+    padding-bottom: max(60px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 54px)) !important;
   }
 
   .obsidian-shell .sidebar-sync-status {

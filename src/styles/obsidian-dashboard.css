@@ -216,7 +216,7 @@ select {
 }
 
 .provider-summary-row.is-all-row {
-  border-color: rgba(208, 188, 255, 0.28);
+  border-color: rgba(160, 120, 255, 0.4);
   cursor: pointer;
 }
 
@@ -249,13 +249,13 @@ select {
   width: 100%;
   min-height: 66px;
   padding: 10px 10px;
-  border: 1px solid var(--obsidian-border);
+  border: 1px solid rgba(160, 120, 255, 0.4);
   border-radius: 5px;
-  background: var(--obsidian-surface-low);
+  background: var(--obsidian-surface-container-high, #211e29);
   color: var(--obsidian-text);
   cursor: pointer;
   text-align: left;
-  transition: border-color 120ms ease, background 120ms ease;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
 }
 
 .provider-summary-row:hover {
@@ -263,14 +263,27 @@ select {
   background: #28213a;
 }
 
+.provider-summary-row:focus-visible {
+  border-color: var(--obsidian-purple-strong);
+  background: #28213a;
+  outline: none;
+}
+
+.provider-summary-row:active:not(.selected) {
+  border-color: var(--obsidian-purple-strong);
+  background: #32254e;
+}
+
 .provider-summary-row.selected {
   border-color: rgba(208, 188, 255, 0.75);
-  background: #32254e;
+  background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), var(--obsidian-surface-container) 48%);
   box-shadow: inset 2px 0 0 var(--obsidian-purple-strong);
 }
 
 .provider-summary-row.selected:hover {
-  background: #3a2b5a;
+  border-color: rgba(208, 188, 255, 0.75);
+  background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), var(--obsidian-surface-container) 48%);
+  box-shadow: inset 2px 0 0 var(--obsidian-purple-strong);
 }
 
 .provider-summary-icon {
@@ -380,10 +393,11 @@ select {
 
 .provider-summary-track > .tone-healthy,
 .account-metric-track > .tone-healthy {
-  background: var(--obsidian-green);
+  background: var(--obsidian-purple-strong);
 }
 
-.tone-warning {
+.tone-warning,
+.provider-average .tone-warning {
   color: var(--obsidian-amber);
 }
 
@@ -392,16 +406,18 @@ select {
   background: var(--obsidian-amber);
 }
 
-.tone-critical {
-  color: var(--obsidian-red);
+.tone-critical,
+.provider-average .tone-critical {
+  color: #e5303a;
 }
 
 .provider-summary-track > .tone-critical,
 .account-metric-track > .tone-critical {
-  background: var(--obsidian-red);
+  background: #e5303a;
 }
 
-.tone-neutral {
+.tone-neutral,
+.provider-average .tone-neutral {
   color: #77727c;
 }
 
