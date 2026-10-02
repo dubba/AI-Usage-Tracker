@@ -3,7 +3,7 @@
 ## Unreleased (0 items)
 
 
-## 0.3.11 - 2026-10-01 (19 items)
+## 0.3.11 - 2026-10-01 (21 items)
 
 ### Added (3)
 
@@ -11,18 +11,20 @@
 - In the sidebar, added a circular purple "Refresh All" button beside the sync status line to trigger a refresh of all accounts.
 - On mobile, added a Chrome-style pull-down-to-refresh gesture when the dashboard is at the top, displaying a floating circular refresh indicator that triggers "Refresh All" on a long pull.
 
-### Improved (10)
+### Improved (12)
 
 - In account cards, balanced the vertical spacing around the progress bar and matched the gap above subsequent usage limit panes to the distance above the first limit pane.
 - In Settings, capitalized all main words in section headings including "Start on Device Boot", "Include Beta Releases", "Enable Paseo Bridge", and "Integration Window".
 - In Settings, updated the Diagnostics Copy button to use the primary purple button style matching Link Devices and Check Now.
 - In the sidebar, repositioned the Settings button above the Refresh All and account sync status line.
-- In the sidebar, restored the Settings button inactive state to a dark surface with subtle borders and preserved the active purple highlight state matching group rows so it no longer appears active when viewing accounts.
+- In the sidebar, styled the Settings button to match the primary purple look and feel of the "+ Account" and "+ Group" buttons.
 - In the sidebar, updated the Refresh All button to match the dark elevated surface, purple border, and styling of the pull-to-refresh indicator.
 - In the sidebar, repositioned the Refresh All button to the right of the sync status text in a balanced space-between toolbar layout and adjusted its tooltip alignment.
 - In Settings, updated the Change Log and Integration Window "View" buttons to match the background, border color, and crisp white font color of the Account Updates dropdown menu.
 - In the expanded mobile sidebar, styled the close button with a red background, red border, and crisp white X matching modal close buttons, and increased the size of the X across all modal close buttons.
 - Matched the border color around the mobile header hamburger menu button to the exact color of its three icon lines.
+- In the sidebar and model cards, removed the glow from the Refresh All button and matched the hamburger, card dropdown, and card edit pen buttons to its look and feel.
+- In the dashboard summary cards, unified the stroke thickness, size, and styling of the Accounts, Action Needed, and Next Reset icons with an SVG alert icon and a brighter white color.
 
 ### Changed (5)
 

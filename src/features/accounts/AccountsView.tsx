@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type BusyKeys } from "../../shared/lib/busy";
 import {
+  AlertCircleIcon,
   CheckCircleIcon,
   ClockIcon,
   CloseIcon,
@@ -193,7 +194,7 @@ export function AccountsView(props: {
               <span className="summary-label">Action Needed</span>
               <strong className="summary-helper"><CheckCircleIcon />{props.needsAttention ? formatCount(props.needsAttention, ACCOUNT_FORMS) : "All good"}</strong>
             </div>
-            <div className="summary-value-cluster"><strong>{props.needsAttention}</strong><span className="summary-info">!</span></div>
+            <div className="summary-value-cluster"><strong>{props.needsAttention}</strong><AlertCircleIcon /></div>
             {props.needsAttention > 0 ? (
               <span id={ATTENTION_HINT_ID} className="sr-only">
                 {showAttentionOnly

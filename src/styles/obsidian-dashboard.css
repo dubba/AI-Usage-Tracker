@@ -260,13 +260,17 @@ select {
 
 .provider-summary-row:hover {
   border-color: var(--obsidian-purple-strong);
-  background: #211f20;
+  background: #28213a;
 }
 
 .provider-summary-row.selected {
   border-color: rgba(208, 188, 255, 0.75);
-  background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), var(--obsidian-surface-container) 48%);
+  background: #32254e;
   box-shadow: inset 2px 0 0 var(--obsidian-purple-strong);
+}
+
+.provider-summary-row.selected:hover {
+  background: #3a2b5a;
 }
 
 .provider-summary-icon {
@@ -422,61 +426,64 @@ select {
   min-height: 44px;
   margin: auto 0 0;
   padding: 0 14px;
-  border: 1px solid var(--obsidian-border);
+  border: 1px solid var(--obsidian-purple);
   border-radius: 4px;
-  background: #171616;
-  color: #eeeaea;
+  background: var(--obsidian-purple);
+  color: #2d145f;
+  box-shadow: none;
   cursor: pointer;
-  transition: border-color 120ms ease, background 120ms ease, color 120ms ease, box-shadow 120ms ease, transform 100ms ease;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease, transform 100ms ease;
 }
 
 .obsidian-shell .sidebar-footer svg {
   width: 18px;
   height: 18px;
-  color: inherit;
+  color: #2d145f;
 }
 
 .obsidian-shell .sidebar-footer > span {
   font-size: 13px;
-  font-weight: 600;
-  color: inherit;
+  font-weight: 700;
+  color: #2d145f;
 }
 
 @media (hover: hover) {
   .obsidian-shell .sidebar-footer:hover {
-    border-color: var(--obsidian-purple-strong);
-    color: #fff;
-    background: #1f1e1e;
+    border-color: var(--obsidian-purple-strong) !important;
+    background: #dfd0ff !important;
+    color: #2d145f !important;
   }
 }
 
 .obsidian-shell .sidebar-footer:focus-visible {
-  border-color: var(--obsidian-purple-strong);
-  color: #fff;
-  background: #1f1e1e;
+  border-color: var(--obsidian-purple-strong) !important;
+  background: #dfd0ff !important;
+  color: #2d145f !important;
 }
 
 .obsidian-shell .sidebar-footer:active {
-  background: #252323;
+  background: #c3abfc !important;
+  border-color: var(--obsidian-purple-strong) !important;
+  color: #2d145f !important;
   transform: scale(0.98);
 }
 
 .obsidian-shell .sidebar-footer.update-available {
-  color: #fff;
-  background: #7650d9;
-  border-color: #8d6bed;
+  color: #2d145f;
+  background: #dfd0ff;
+  border-color: var(--obsidian-purple-strong);
 }
 
 .obsidian-shell .sidebar-footer.active {
-  border-color: rgba(208, 188, 255, 0.75) !important;
-  background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), var(--obsidian-surface-container) 48%) !important;
-  box-shadow: inset 2px 0 0 var(--obsidian-purple-strong) !important;
-  color: #fff !important;
+  border-color: var(--obsidian-purple-strong) !important;
+  background: #dfd0ff !important;
+  color: #2d145f !important;
+  box-shadow: 0 0 0 1px var(--obsidian-purple-strong) !important;
 }
 
 .obsidian-shell .sidebar-footer.active svg,
 .obsidian-shell .sidebar-footer.active > span {
-  color: #fff !important;
+  color: #2d145f !important;
 }
 
 .obsidian-shell .main-stage {
@@ -790,21 +797,23 @@ select {
   font-variant-numeric: tabular-nums;
 }
 
-.summary-value-cluster svg {
+.summary-value-cluster svg,
+.next-reset-actions svg {
   width: 20px;
   height: 20px;
-  color: #777080;
+  color: #e8e4ee;
+  flex-shrink: 0;
 }
 
 .summary-info {
   display: grid;
   place-items: center;
-  width: 17px;
-  height: 17px;
-  border: 1px solid #625d68;
+  width: 20px;
+  height: 20px;
+  border: 1.8px solid #e8e4ee;
   border-radius: 999px;
-  color: #8f8994;
-  font-size: 11px;
+  color: #e8e4ee;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -835,12 +844,6 @@ select {
   font-size: 18px;
   font-weight: 700;
   white-space: nowrap;
-}
-
-.next-reset-actions svg {
-  width: 19px;
-  height: 19px;
-  color: #6c6670;
 }
 
 .provider-account-cards {
@@ -1541,26 +1544,46 @@ button.account-card-provider-icon:active {
     border-style: solid;
     border-radius: 4px;
     color: var(--obsidian-purple) !important;
-    border-color: rgba(208, 188, 255, 0.45) !important;
-    background: rgba(90, 40, 180, 0.35) !important;
+    border-color: rgba(160, 120, 255, 0.4) !important;
+    background: var(--obsidian-surface-container-high, #211e29) !important;
     gap: 0;
     box-shadow: none;
     flex-shrink: 0;
     cursor: pointer;
     vertical-align: middle;
+    transition: background 150ms ease, transform 100ms ease, border-color 150ms ease, color 150ms ease;
   }
 
   .button.ghost.edit-bucket-title-btn svg {
     width: 13px;
     height: 13px;
-    color: inherit;
+    color: var(--obsidian-purple) !important;
+    transition: color 150ms ease;
   }
 
   .button.ghost.edit-bucket-title-btn:hover:not(:disabled),
   .button.ghost.edit-bucket-title-btn:focus-visible {
-    color: #f5efff !important;
-    border-color: rgba(208, 188, 255, 0.9) !important;
-    background: rgba(90, 40, 180, 0.65) !important;
+    color: #ffffff !important;
+    border-color: var(--obsidian-purple-strong) !important;
+    background: #28213a !important;
+    box-shadow: none !important;
+  }
+
+  .button.ghost.edit-bucket-title-btn:hover:not(:disabled) svg,
+  .button.ghost.edit-bucket-title-btn:focus-visible svg {
+    color: #ffffff !important;
+  }
+
+  .button.ghost.edit-bucket-title-btn:active:not(:disabled) {
+    background: #32254e !important;
+    border-color: var(--obsidian-purple-strong) !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+    transform: scale(0.95);
+  }
+
+  .button.ghost.edit-bucket-title-btn:active:not(:disabled) svg {
+    color: #ffffff !important;
   }
 }
 
@@ -2328,13 +2351,14 @@ select.text-input option,
   width: 36px;
   height: 36px;
   padding: 0;
-  border: 1px solid currentColor;
+  border: 1px solid rgba(160, 120, 255, 0.4);
   border-radius: 6px;
-  background: var(--obsidian-surface-container);
-  color: #d7d0dc;
+  background: var(--obsidian-surface-container-high, #211e29);
+  color: var(--obsidian-purple);
   cursor: pointer;
   flex-shrink: 0;
-  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+  box-shadow: none;
+  transition: background 150ms ease, transform 100ms ease, border-color 150ms ease, color 150ms ease;
   -webkit-tap-highlight-color: transparent;
   outline: none;
 }
@@ -2480,9 +2504,9 @@ select.text-input option,
   .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):focus,
   .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):active,
   .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):focus-visible {
-    border-color: currentColor;
+    border-color: rgba(208, 188, 255, 0.75);
     background: var(--obsidian-surface-container);
-    color: #d7d0dc;
+    color: #f5efff;
     outline: none;
     box-shadow: none;
   }
@@ -2666,9 +2690,17 @@ select.text-input option,
     line-height: 1;
   }
 
-  .mockup-summary-card .summary-value-cluster svg {
+  .mockup-summary-card .summary-value-cluster svg,
+  .mockup-summary-card .next-reset-actions svg {
     width: 16px;
     height: 16px;
+  }
+
+  .mockup-summary-card .summary-info {
+    width: 16px;
+    height: 16px;
+    border-width: 1.5px;
+    font-size: 10px;
   }
 
   .provider-account-cards {
@@ -3000,12 +3032,13 @@ select.text-input option,
     margin: 0;
     min-height: 40px;
     height: 40px;
-    border: 1px solid var(--obsidian-border);
+    border: 1px solid var(--obsidian-purple);
     border-radius: 4px;
-    background: #171616;
-    color: #eeeaea;
+    background: var(--obsidian-purple);
+    color: #2d145f;
+    box-shadow: none;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 700;
     gap: 6px;
     padding: 0 14px;
     box-sizing: border-box;
@@ -3015,44 +3048,46 @@ select.text-input option,
   @media (hover: hover) {
     .obsidian-shell .sidebar-footer:hover {
       border-color: var(--obsidian-purple-strong) !important;
-      background: #1f1e1e !important;
-      color: #fff !important;
+      background: #dfd0ff !important;
+      color: #2d145f !important;
     }
   }
 
   .obsidian-shell .sidebar-footer:focus-visible {
     border-color: var(--obsidian-purple-strong) !important;
-    background: #1f1e1e !important;
-    color: #fff !important;
+    background: #dfd0ff !important;
+    color: #2d145f !important;
   }
 
   .obsidian-shell .sidebar-footer:active {
-    background: #252323 !important;
+    background: #c3abfc !important;
+    border-color: var(--obsidian-purple-strong) !important;
+    color: #2d145f !important;
     transform: scale(0.98);
   }
 
   .obsidian-shell .sidebar-footer.active {
-    border-color: rgba(208, 188, 255, 0.75) !important;
-    background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), var(--obsidian-surface-container) 48%) !important;
-    box-shadow: inset 2px 0 0 var(--obsidian-purple-strong) !important;
-    color: #fff !important;
+    border-color: var(--obsidian-purple-strong) !important;
+    background: #dfd0ff !important;
+    color: #2d145f !important;
+    box-shadow: 0 0 0 1px var(--obsidian-purple-strong) !important;
   }
 
   .obsidian-shell .sidebar-footer.active svg,
   .obsidian-shell .sidebar-footer.active > span {
-    color: #fff !important;
+    color: #2d145f !important;
   }
 
   .obsidian-shell .sidebar-footer svg {
     width: 18px;
     height: 18px;
-    color: inherit;
+    color: #2d145f;
   }
 
   .obsidian-shell .sidebar-footer > span {
     font-size: 14px;
-    font-weight: 600;
-    color: inherit;
+    font-weight: 700;
+    color: #2d145f;
   }
 }
 
