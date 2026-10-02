@@ -645,7 +645,7 @@
 
 /*
  * The usage bar is coloured by how much is left (see usageTone): purple while
- * healthy, amber at 30% or less, red at 10% or less. ui-refinements.css forces
+ * healthy, amber at 30% or less, red at 15% or less. ui-refinements.css forces
  * every bar purple with !important, so these rules repeat it.
  */
 .account-usage-metric .account-metric-track > .tone-healthy {
@@ -658,4 +658,171 @@
 
 .account-usage-metric .account-metric-track > .tone-critical {
   background: #e5303a !important;
+}
+
+/* On mobile the plan/status badges are as tall as the "More actions" button (22px). */
+@media (max-width: 860px) {
+  .account-card-header-meta .plan-with-dot,
+  .account-card-header-meta .account-plan-badge,
+  .account-card-header-meta .account-status-badge {
+    height: 22px;
+    min-height: 22px;
+    max-height: 22px;
+  }
+}
+
+/*
+ * Desktop delete button: quieter than Refresh and Notifications because it is
+ * the destructive action. Dim red outline at rest, full red on hover or focus,
+ * and extra space before it (it is the last button) so it is not clicked by accident next to its
+ * neighbours.
+ */
+.account-card-name-actions .account-card-action.remove-action {
+  color: rgba(255, 133, 133, 0.7);
+  border-color: rgba(255, 133, 133, 0.22);
+  background: transparent;
+  margin-left: 10px;
+}
+
+.account-card-name-actions .account-card-action.remove-action:focus-visible:not(:disabled) {
+  color: #fff !important;
+  border-color: #ff6464 !important;
+  background: #d93d3d !important;
+}
+
+/* Settings: keyboard shortcut list (desktop only). */
+.settings-shortcuts-row {
+  display: block;
+}
+
+.settings-shortcuts {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-shortcuts li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--obsidian-muted-bright);
+  font-size: 13px;
+}
+
+.settings-shortcuts kbd {
+  padding: 2px 8px;
+  border: 1px solid var(--obsidian-border-strong, #353335);
+  border-radius: 4px;
+  background: var(--obsidian-surface-low, #181717);
+  color: #f5f1ef;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/*
+ * Sidebar Settings entry: a navigation item, not a call-to-action. It looks like a group row in the
+ * list above it: quiet raised surface, purple outline on hover, and, while Settings is the open
+ * page, a tint that fades from the left edge with a bar on the left. It keeps its own size. The older purple-fill
+ * rules use !important for hover, active and selected, so these do too.
+ */
+.obsidian-shell button.sidebar-footer {
+  justify-content: flex-start;
+  gap: 10px;
+  background: var(--obsidian-surface-container-high, #211e29);
+  border: 1px solid rgba(160, 120, 255, 0.4);
+  border-radius: 5px;
+  color: var(--obsidian-purple);
+  box-shadow: none;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.obsidian-shell button.sidebar-footer svg,
+.obsidian-shell button.sidebar-footer > span {
+  color: var(--obsidian-purple);
+  transition: color 120ms ease;
+}
+
+@media (hover: hover) {
+  .obsidian-shell button.sidebar-footer:hover:not(:disabled) {
+    background: #28213a !important;
+    border-color: var(--obsidian-purple-strong) !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+  }
+
+  .obsidian-shell button.sidebar-footer:hover:not(:disabled):not(.active) svg,
+  .obsidian-shell button.sidebar-footer:hover:not(:disabled):not(.active) > span {
+    color: #ffffff !important;
+  }
+}
+
+.obsidian-shell button.sidebar-footer:focus-visible {
+  background: #28213a !important;
+  border-color: var(--obsidian-purple-strong) !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.obsidian-shell button.sidebar-footer:focus-visible:not(.active) svg,
+.obsidian-shell button.sidebar-footer:focus-visible:not(.active) > span {
+  color: #ffffff !important;
+}
+
+.obsidian-shell button.sidebar-footer:active:not(:disabled) {
+  background: #32254e !important;
+  border-color: var(--obsidian-purple-strong) !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+  transform: none;
+}
+
+.obsidian-shell button.sidebar-footer:active:not(:disabled):not(.active) svg,
+.obsidian-shell button.sidebar-footer:active:not(:disabled):not(.active) > span {
+  color: #ffffff !important;
+}
+
+/* Inactive group rows: the same raised surface and purple outline as the Refresh All button. */
+.provider-summary-row:not(.selected) {
+  background: var(--obsidian-surface-container-high, #211e29);
+  border-color: rgba(160, 120, 255, 0.4);
+}
+
+.provider-summary-row:not(.selected):hover {
+  background: #28213a;
+  border-color: var(--obsidian-purple-strong);
+}
+
+/* Selected: the purple tint fades from the left edge into the surface, with a bar on the left. */
+.obsidian-shell button.sidebar-footer.active,
+.obsidian-shell button.sidebar-footer.active:active:not(:disabled),
+.obsidian-shell button.sidebar-footer.active:focus-visible {
+  background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), var(--obsidian-surface-container) 48%) !important;
+  border-color: rgba(208, 188, 255, 0.75) !important;
+  color: var(--obsidian-text) !important;
+  box-shadow: inset 2px 0 0 var(--obsidian-purple-strong) !important;
+}
+
+@media (hover: hover) {
+  .obsidian-shell button.sidebar-footer.active:hover:not(:disabled) {
+    background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), var(--obsidian-surface-container) 48%) !important;
+    border-color: rgba(208, 188, 255, 0.75) !important;
+    box-shadow: inset 2px 0 0 var(--obsidian-purple-strong) !important;
+  }
+}
+
+.obsidian-shell button.sidebar-footer.active svg,
+.obsidian-shell button.sidebar-footer.active > span {
+  color: var(--obsidian-text) !important;
+}
+
+/* The shortcut list is for the desktop layout; hide it in the mobile layout (see docs/CSS_ARCHITECTURE.md). */
+@media (max-width: 860px) {
+  .settings-card.settings-shortcuts-card {
+    display: none;
+  }
 }

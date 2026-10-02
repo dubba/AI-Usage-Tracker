@@ -7,7 +7,8 @@ type CopyState = "idle" | "copying" | "copied" | "failed";
 
 /**
  * Copies the redacted diagnostics report; shows the outcome next to the button.
- * `compact` shows a copy icon with "Copy" (for places that already say "Diagnostics" beside it).
+ * `compact` shows "Copy" followed by a copy icon, laid out like the Settings View buttons (for places that
+ * already say "Diagnostics" beside it).
  */
 export function CopyDiagnosticsButton({
   className = "button primary",
@@ -49,8 +50,12 @@ export function CopyDiagnosticsButton({
         aria-label={compact && state === "idle" ? "Copy diagnostics" : undefined}
         onClick={() => void copy()}
       >
-        {compact ? (state === "copied" ? <CheckIcon /> : <CopyIcon />) : null}
-        {state === "copying" ? "Copying…" : state === "copied" ? "Copied!" : compact ? "Copy" : "Copy Diagnostics"}
+        {compact ? (
+          <>
+            <span>{state === "copying" ? "Copying…" : state === "copied" ? "Copied!" : "Copy"}</span>
+            {state === "copied" ? <CheckIcon /> : <CopyIcon />}
+          </>
+        ) : state === "copying" ? "Copying…" : state === "copied" ? "Copied!" : "Copy Diagnostics"}
       </button>
       <span className="sr-only" role="status" aria-live="polite">
         {state === "copied" ? "Diagnostics copied to the clipboard." : ""}

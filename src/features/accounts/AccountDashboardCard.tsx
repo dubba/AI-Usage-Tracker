@@ -296,12 +296,12 @@ export function AccountDashboardCard({
             ) : null}
             <button
               type="button"
-              className="account-card-action remove-action"
-              data-tooltip="Remove this account"
-              aria-label={`Remove ${account.label}`}
-              disabled={cardBusy}
-              onClick={onRemove}
-            >{isRemoving ? <span className="mini-spinner" /> : <TrashIcon />}</button>
+              className={`account-card-action refresh-action ${isRefreshing ? "spinning" : ""}`}
+              data-tooltip="Refresh this account"
+              aria-label={`Refresh ${account.label}`}
+              disabled={cardBusy || isGlobalRefresh}
+              onClick={onRefresh}
+            ><RefreshIcon /></button>
             <button
               type="button"
               className="account-card-action notify-action"
@@ -312,12 +312,12 @@ export function AccountDashboardCard({
             ><BellIcon /></button>
             <button
               type="button"
-              className={`account-card-action refresh-action ${isRefreshing ? "spinning" : ""}`}
-              data-tooltip="Refresh this account"
-              aria-label={`Refresh ${account.label}`}
-              disabled={cardBusy || isGlobalRefresh}
-              onClick={onRefresh}
-            ><RefreshIcon /></button>
+              className="account-card-action remove-action"
+              data-tooltip="Remove this account"
+              aria-label={`Remove ${account.label}`}
+              disabled={cardBusy}
+              onClick={onRemove}
+            >{isRemoving ? <span className="mini-spinner" /> : <TrashIcon />}</button>
            </div>
             <div className="mobile-actions-dropdown" ref={mobileMenuRef}>
               <button
@@ -362,7 +362,7 @@ export function AccountDashboardCard({
           {account.lastError ? (
             <div className="account-card-error">
               <span>{account.lastError}</span>
-              {account.authRequired ? <button className="button ghost compact-button" onClick={onReconnect}>{account.provider === "google_ai_studio" ? "Reconnect Cloud Usage" : "Reconnect"}</button> : null}
+              {account.authRequired ? <button type="button" className="button ghost compact-button" onClick={onReconnect}>{account.provider === "google_ai_studio" ? "Reconnect Cloud Usage" : "Reconnect"}</button> : null}
             </div>
           ) : null}
 

@@ -220,8 +220,8 @@ describe("usageTone", () => {
   it("maps remaining percent to a tone at the boundaries", () => {
     expect(usageTone(null)).toBe("neutral");
     expect(usageTone(0)).toBe("critical");
-    expect(usageTone(10)).toBe("critical");
-    expect(usageTone(10.1)).toBe("warning");
+    expect(usageTone(15)).toBe("critical");
+    expect(usageTone(15.1)).toBe("warning");
     expect(usageTone(30)).toBe("warning");
     expect(usageTone(30.1)).toBe("healthy");
     expect(usageTone(100)).toBe("healthy");

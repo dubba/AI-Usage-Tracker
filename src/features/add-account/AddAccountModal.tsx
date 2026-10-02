@@ -295,13 +295,13 @@ export function AddAccountModal({
         ) : null}
         {error ? <div className="error-panel modal-error">{error}</div> : null}
         <div className="modal-actions">
-          <button className="button ghost" onClick={closeModal}>Cancel</button>
+          <button type="button" className="button ghost" onClick={closeModal}>Cancel</button>
           {status?.status === "failed" ? (
-            <button className="button primary" onClick={retry} disabled={busy || modelsBusy}>
+            <button type="button" className="button primary" onClick={retry} disabled={busy || modelsBusy}>
               Retry
             </button>
           ) : (
-            <button
+            <button type="button"
               className="button primary"
               onClick={begin}
               disabled={busy || modelsBusy || !strategy.isReady(draft)}

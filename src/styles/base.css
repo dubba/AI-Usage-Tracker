@@ -5,6 +5,9 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body, #root { margin: 0; height: 100%; overflow: hidden; background-color: #000000; }
+/* Equal-width digits everywhere, so percentages, countdowns and counters do not shift as they change.
+   Form controls get their own font from the browser, so they are listed too. */
+html, body, button, input, select, textarea { font-variant-numeric: tabular-nums; }
 button, input { font: inherit; }
 button { color: inherit; }
 
@@ -101,7 +104,6 @@ svg { width: 18px; height: 18px; }
 .loading-error { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 420px; padding: 20px; text-align: center; }
 
 @media (max-width: 1220px) {
-  .app-shell { grid-template-columns: 260px minmax(620px, 1fr); }
   .summary-grid { grid-template-columns: repeat(2, 1fr); }
 }
 

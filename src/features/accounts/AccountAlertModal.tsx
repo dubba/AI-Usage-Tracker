@@ -162,8 +162,8 @@ export function AccountAlertModal({
         </div>
         {error ? <div className="error-panel modal-error">{error}</div> : null}
         <div className="modal-actions">
-          <button className="button ghost" onClick={onClose}>Cancel</button>
-          <button className="button primary" onClick={() => void save()} disabled={loading || saving || !availableWindows.length}>{saving ? "Saving…" : "Save Notifications"}</button>
+          <button type="button" className="button ghost" onClick={onClose}>Cancel</button>
+          <button type="button" className="button primary" onClick={() => void save()} disabled={loading || saving || !availableWindows.length}>{saving ? "Saving…" : "Save Notifications"}</button>
         </div>
       </section>
     </div>

@@ -154,26 +154,26 @@ export function ApiIntegrationWindow() {
       <section className="bridge-detail-card">
         <div className="bridge-detail-row">
           <div><strong>Usage endpoint</strong><small>Authenticated usage data for Paseo.</small></div>
-          <div className="bridge-detail-value"><code>{bridge.endpoint}</code><button className="button ghost" aria-live="polite" onClick={() => void copy(bridge.endpoint, "endpoint")}>{copiedKey === "endpoint" ? "Copied!" : "Copy"}</button></div>
+          <div className="bridge-detail-value"><code>{bridge.endpoint}</code><button type="button" className="button ghost" aria-live="polite" onClick={() => void copy(bridge.endpoint, "endpoint")}>{copiedKey === "endpoint" ? "Copied!" : "Copy"}</button></div>
         </div>
         <div className="bridge-detail-row">
           <div><strong>Health endpoint</strong><small>Confirms that the local bridge listener is available.</small></div>
-          <div className="bridge-detail-value"><code>{healthEndpoint}</code><button className="button ghost" aria-live="polite" onClick={() => void copy(healthEndpoint, "health")}>{copiedKey === "health" ? "Copied!" : "Copy"}</button></div>
+          <div className="bridge-detail-value"><code>{healthEndpoint}</code><button type="button" className="button ghost" aria-live="polite" onClick={() => void copy(healthEndpoint, "health")}>{copiedKey === "health" ? "Copied!" : "Copy"}</button></div>
         </div>
         <div className="bridge-detail-row">
           <div><strong>Bearer token</strong><small>Required in the Authorization header for usage requests. Hidden by default.</small></div>
-          <div className="bridge-detail-value bridge-token-value"><code>{displayToken}</code>{revealed ? (<button className="button ghost" onClick={() => setRevealed(false)}>Hide</button>) : (<button className="button ghost" onClick={() => void reveal()}>Reveal</button>)}<button className="button ghost" aria-live="polite" onClick={() => void copyToken()}>{copiedKey === "token" ? "Copied!" : "Copy"}</button></div>
+          <div className="bridge-detail-value bridge-token-value"><code>{displayToken}</code>{revealed ? (<button type="button" className="button ghost" onClick={() => setRevealed(false)}>Hide</button>) : (<button type="button" className="button ghost" onClick={() => void reveal()}>Reveal</button>)}<button type="button" className="button ghost" aria-live="polite" onClick={() => void copyToken()}>{copiedKey === "token" ? "Copied!" : "Copy"}</button></div>
         </div>
         <div className="bridge-detail-row">
           <div><strong>Rotate token</strong><small>Existing Paseo configuration stops working until its token is replaced.</small></div>
-          <button className="button ghost" disabled={busy || !bridge.enabled} onClick={() => void rotateToken()}>{busy ? "Rotating…" : "Regenerate"}</button>
+          <button type="button" className="button ghost" disabled={busy || !bridge.enabled} onClick={() => void rotateToken()}>{busy ? "Rotating…" : "Regenerate"}</button>
         </div>
       </section>
 
       <section className="bridge-config-card">
         <div className="bridge-config-heading">
           <div><strong>Environment configuration</strong><small>Add these values to Paseo's external provider-usage adapter.</small></div>
-          <button className="button ghost" aria-live="polite" onClick={() => void copyEnv()}>{copiedKey === "env" ? "Copied!" : "Copy All"}</button>
+          <button type="button" className="button ghost" aria-live="polite" onClick={() => void copyEnv()}>{copiedKey === "env" ? "Copied!" : "Copy All"}</button>
         </div>
         <pre>{environment}</pre>
       </section>

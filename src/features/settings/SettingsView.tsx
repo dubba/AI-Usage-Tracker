@@ -14,7 +14,8 @@ import type {
   UpdateBusy,
 } from "../../types";
 import { FALLBACK_APP_VERSION } from "../../shared/lib/constants";
-import { isMobileUserAgent } from "../../shared/lib/platform";
+import { isMobileDevice, isMobileUserAgent } from "../../shared/lib/platform";
+import { SHORTCUTS, isMacPlatform, shortcutLabel } from "../shortcuts/shortcuts";
 import { UpdateProgressBar, updateInstallLabel } from "./UpdateProgressBar";
 
 const ACCOUNT_REFRESH_OPTIONS = [5, 10, 15, 30, 45, 60] as const;
@@ -99,7 +100,7 @@ export function SettingsView({
           </div>
           <button
             type="button"
-            className="button primary"
+            className="button ghost settings-changelog-button"
             onClick={onOpenPairing}
           >
             Link Devices
@@ -109,22 +110,23 @@ export function SettingsView({
       <section className="settings-card">
         <div className="settings-row">
           <div>
-            <strong>{isMobileUserAgent() ? "Auto-Start on Device Boot" : "Auto-Start at Login"}</strong>
+            <strong id="setting-autostart-label">{isMobileUserAgent() ? "Auto-Start on Device Boot" : "Auto-Start at Login"}</strong>
             <small>{isMobileUserAgent() ? "Start app automatically at device startup." : "Start app automatically at login."}</small>
           </div>
-          <button className={`toggle ${autostart ? "on" : ""}`} onClick={onToggleAutostart} aria-pressed={autostart}><span /></button>
+          <button type="button" role="switch" aria-checked={autostart} aria-labelledby="setting-autostart-label" className={`toggle ${autostart ? "on" : ""}`} onClick={onToggleAutostart}><span /></button>
         </div>
         <div className="settings-row settings-updates-group-row">
           <div className="settings-updates-group-header">
             <div>
-              <strong>Automatic Updates</strong>
+              <strong id="setting-auto-update-label">Automatic Updates</strong>
             </div>
             <button
               type="button"
               className={`toggle ${automaticUpdates ? "on" : ""}`}
               disabled={!appSettings || settingsBusy}
-              aria-label={automaticUpdates ? "Disable automatic updates" : "Enable automatic updates"}
-              aria-pressed={automaticUpdates}
+              role="switch"
+              aria-checked={automaticUpdates}
+              aria-labelledby="setting-auto-update-label"
               onClick={() => onAutomaticUpdatesChange(!automaticUpdates)}
             >
               <span />
@@ -133,14 +135,15 @@ export function SettingsView({
 
           <div className="settings-updates-group-header settings-updates-beta-row">
             <div>
-              <strong>Beta Releases</strong>
+              <strong id="setting-beta-label">Beta Releases</strong>
             </div>
             <button
               type="button"
               className={`toggle ${includeBetaUpdates ? "on" : ""}`}
               disabled={!appSettings || settingsBusy}
-              aria-label={includeBetaUpdates ? "Exclude beta releases from update checks" : "Include beta releases in update checks"}
-              aria-pressed={includeBetaUpdates}
+              role="switch"
+              aria-checked={includeBetaUpdates}
+              aria-labelledby="setting-beta-label"
               onClick={() => onIncludeBetaUpdatesChange(!includeBetaUpdates)}
             >
               <span />
@@ -245,15 +248,16 @@ export function SettingsView({
       <section className="settings-card">
         <div className="settings-row">
           <div>
-            <strong>Paseo Bridge</strong>
+            <strong id="setting-bridge-label">Paseo Bridge</strong>
             <small>Allows local HTTP tools to access quota usage & notification status.</small>
           </div>
           <button
             type="button"
             className={`toggle ${bridge?.enabled ? "on" : ""}`}
             disabled={bridgeBusy}
-            aria-label={bridge?.enabled ? "Disable Paseo bridge" : "Enable Paseo bridge"}
-            aria-pressed={Boolean(bridge?.enabled)}
+            role="switch"
+            aria-checked={Boolean(bridge?.enabled)}
+            aria-labelledby="setting-bridge-label"
             onClick={() => onToggleBridge(!bridge?.enabled)}
           >
             <span />
@@ -278,13 +282,30 @@ export function SettingsView({
         </div>
       </section>
       {bridge?.error ? <div className="error-panel api-integration-error">{bridge.error}</div> : null}
+      {!isMobileDevice() ? (
+        <section className="settings-card settings-shortcuts-card" aria-labelledby="settings-shortcuts-heading">
+          <div className="settings-row settings-shortcuts-row">
+            <div>
+              <strong id="settings-shortcuts-heading">Keyboard Shortcuts</strong>
+              <ul className="settings-shortcuts">
+                {SHORTCUTS.map((shortcut) => (
+                  <li key={shortcut.action}>
+                    <span>{shortcut.label}</span>
+                    <kbd>{shortcutLabel(shortcut.key, isMacPlatform())}</kbd>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
+      ) : null}
       <section className="settings-card">
         <div className="settings-row">
           <div>
             <strong>Diagnostics</strong>
             <small>Copy bug report with tokens, cookies and emails removed.</small>
           </div>
-          <CopyDiagnosticsButton compact className="button primary" />
+          <CopyDiagnosticsButton compact className="button ghost settings-changelog-button" />
         </div>
       </section>
       </div>

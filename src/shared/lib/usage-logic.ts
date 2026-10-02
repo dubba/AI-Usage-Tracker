@@ -233,7 +233,7 @@ export function formatUpdatedAt(value: string | null | undefined, now = Date.now
 }
 export function usageTone(remaining: number | null): string {
   if (remaining == null) return "neutral";
-  if (remaining <= 10) return "critical";
+  if (remaining <= 15) return "critical";
   if (remaining <= 30) return "warning";
   return "healthy";
 }

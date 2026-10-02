@@ -217,24 +217,24 @@ export function GoogleAiStudioUsageModal({
         {error ? <div className="error-panel modal-error">{error}</div> : null}
 
         <div className="modal-actions">
-          <button className="button ghost" onClick={closeModal}>Cancel</button>
+          <button type="button" className="button ghost" onClick={closeModal}>Cancel</button>
           {status?.status === "failed" ? (
-            <button className="button primary" onClick={retry} disabled={busy}>
+            <button type="button" className="button primary" onClick={retry} disabled={busy}>
               Retry
             </button>
           ) : null}
           {status?.status !== "failed" && stage === "signin" ? (
-            <button className="button primary" onClick={() => void start()} disabled={busy}>
+            <button type="button" className="button primary" onClick={() => void start()} disabled={busy}>
               {busy ? "Waiting for Google…" : "Sign In with Google"}
             </button>
           ) : null}
           {status?.status !== "failed" && stage === "choose_project" ? (
-            <button className="button primary" onClick={() => void start(selectedProjectId)} disabled={busy || !selectedProjectId}>
+            <button type="button" className="button primary" onClick={() => void start(selectedProjectId)} disabled={busy || !selectedProjectId}>
               {busy ? "Checking Project…" : "Connect This Project"}
             </button>
           ) : null}
           {status?.status !== "failed" && stage === "monitoring_disabled" ? (
-            <button className="button primary" onClick={() => void start(selectedProjectId, true)} disabled={busy || !selectedProjectId}>
+            <button type="button" className="button primary" onClick={() => void start(selectedProjectId, true)} disabled={busy || !selectedProjectId}>
               {busy ? "Waiting for Google…" : "Enable Cloud Monitoring"}
             </button>
           ) : null}

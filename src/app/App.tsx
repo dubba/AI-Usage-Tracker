@@ -38,6 +38,8 @@ import { DEFAULT_ACCOUNT_REFRESH_MINUTES } from "../shared/lib/constants";
 import { useAccountActions } from "../features/accounts/useAccountActions";
 import { useAppSettings } from "../features/settings/useAppSettings";
 import { useAppUpdate } from "../features/settings/useAppUpdate";
+import { useKeyboardShortcuts } from "../features/shortcuts/useKeyboardShortcuts";
+import { isMobileDevice } from "../shared/lib/platform";
 import { useDashboardData } from "../features/dashboard/useDashboardData";
 import { useDragReorder } from "../features/reorder/useDragReorder";
 import { usePairingEvents } from "../features/pairing/hooks/usePairingEvents";
@@ -252,6 +254,22 @@ export default function App() {
 
   const loadError = errors.find((entry) => entry.source === "load");
 
+  useKeyboardShortcuts(!isMobileDevice(), {
+    refreshAll: () => void refreshAll(),
+    openSettings: () => {
+      setSection("settings");
+      setSidebarOpen(false);
+    },
+    addAccount: () => {
+      setSection("accounts");
+      openAdd(undefined, selectedGroup.provider ?? undefined);
+    },
+    addGroup: () => {
+      setSection("accounts");
+      openNewBucket(selectedGroup.provider);
+    },
+  });
+
   const moveGroup = (group: SidebarGroup, delta: -1 | 1) => {
     const move = moveById(sidebarGroups.map((candidate) => candidate.id), group.id, delta);
     if (!move) return;
@@ -321,6 +339,7 @@ export default function App() {
       <div
         className={`sidebar-backdrop ${sidebarOpen ? "active" : ""}`}
         onClick={() => setSidebarOpen(false)}
+        role="presentation"
         aria-hidden="true"
       />
       <aside
@@ -401,7 +420,7 @@ export default function App() {
             />
           ))}
           {accounts.length === 0 && buckets.length === 0 ? (
-            <button className="empty-account provider-empty" onClick={() => { openAdd(); setSidebarOpen(false); }}>
+            <button type="button" className="empty-account provider-empty" onClick={() => { openAdd(); setSidebarOpen(false); }}>
               <PlusIcon /><span>Add Your First Account</span>
             </button>
           ) : null}

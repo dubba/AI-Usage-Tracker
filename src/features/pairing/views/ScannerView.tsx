@@ -99,7 +99,15 @@ export function ScannerView({
             <span className="pairing-scanner-gutter" aria-hidden="true" />
             <div
               className="pairing-scanner-box"
+              role="button"
+              tabIndex={0}
               onClick={onScannerTap}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onScannerTap();
+                }
+              }}
               aria-label="Tap to focus camera"
             >
               <video

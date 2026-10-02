@@ -273,7 +273,7 @@ export function AccountsView(props: {
                       </button>
                     </>
                   ) : null}
-                  <button className="button primary" onClick={props.onAdd}><PlusIcon />Add Account</button>
+                  <button type="button" className="button primary" onClick={props.onAdd}><PlusIcon />Add Account</button>
                 </>
               )}
             </div>

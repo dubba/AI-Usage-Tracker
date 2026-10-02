@@ -3,6 +3,27 @@
 ## Unreleased (0 items)
 
 
+## 0.3.12 - 2026-10-02 (9 items)
+
+### Added (1)
+
+- Desktop keyboard shortcuts: Cmd/Ctrl+R refreshes all accounts, Cmd/Ctrl+N opens Add Account, Cmd/Ctrl+G opens Add Group, and Cmd/Ctrl+, opens Settings. They are listed under "Keyboard Shortcuts" in Settings (desktop layout only), and do nothing while a dialog is open.
+
+### Improved (3)
+
+- Error banners now say what went wrong in plain words and what to do next (for example "Check your internet connection and try again") instead of showing technical text. The technical detail is added to the report from Copy Diagnostics, with email addresses and token-like text removed.
+- Numbers now use equal-width digits throughout the app, so percentages, countdowns and counters no longer shift sideways as they change.
+- Better screen reader and keyboard support: the Settings toggles are now announced as switches with their setting name (including Auto-Start, which had no name), every button has an explicit type, and the camera scanner area can be activated from the keyboard.
+
+### Changed (5)
+
+- In the sidebar, Settings is now styled as a navigation item instead of the solid purple button. When not selected, Settings and the group rows now match the Refresh All button (dark raised surface and purple outline, with a stronger outline on hover). While Settings is open it has a purple tint that fades in from the left with a bar on the left.
+- In Settings, the Diagnostics Copy button and the Device Transfer Link Devices button now look and behave like the Change Log and Integration Window View buttons (dark background and border) instead of the purple primary style.
+- On desktop, the account card buttons now run in the same order as the mobile menu (Move up, Move down, Refresh, Notifications, Delete), and the Delete button is drawn quieter with extra space before it, turning solid red only on hover or keyboard focus.
+- Usage bars and percentages now turn red at 15% remaining or less (previously 10%); the amber warning stage at 30% is unchanged.
+- On mobile, the plan badge on account cards (Pro/$20, Free, and so on) is now 22px tall, the same height as the dropdown button beside it.
+
+
 ## 0.3.11 - 2026-10-01 (25 items)
 
 ### Added (3)

@@ -22,6 +22,21 @@ The order below **is the cascade**. Later files override earlier ones, so do not
 
 `app/App.tsx` pulls in `pairing.css` while `app/main.tsx` is still resolving its imports, which is why it sits before `base.css`. Check the real order in the browser (`document.querySelectorAll('style[data-vite-dev-id]')` in `npm run dev`) after changing any import.
 
+## Breakpoints
+
+Width breakpoints belong to individual components, so they are not collapsed into a few shared ones: moving one changes the layout at the widths in between. `src/styles/breakpoints.test.ts` fails when a width is added or removed, so update this table and that list together.
+
+| Width | Used for |
+|-------|----------|
+| 860 / 861 | The main mobile/desktop split (sidebar overlay, card actions, mobile menu). The JS constant `MOBILE_OVERLAY_QUERY` must stay `(max-width: 860px)` |
+| 1220, 1180 | Summary cards: 4 columns, then 2 columns, then the Next Reset card spans a full row |
+| 768 | The Link Devices dialog becomes a full-screen sheet |
+| 760, 720 | Stacked rows in the remove-account confirmation and the API window |
+| 640, 600 | Release-notes dialog and alert toasts fill the width; summary grid spacing |
+| 480, 400, 360 | Small-phone tweaks (card text, camera button and tooltip, security note) |
+
+Keep one `@media` block per width and file where you can, and check that a later unconditional rule on the same selector does not override it: an earlier media rule loses to a later plain rule of the same specificity.
+
 ## Tokens
 
 Add new colours and shared sizes to `styles/tokens.css` and use `var(--name)`; do not repeat a hex value that already has a token. A fallback such as `var(--token, #hex)` is not needed, because the token is always defined.
