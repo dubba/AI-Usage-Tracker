@@ -42,7 +42,7 @@ describe("SyncStatusLine", () => {
     const button = document.querySelector<HTMLButtonElement>(".sidebar-refresh-all-btn");
     expect(button).not.toBeNull();
     expect(button?.getAttribute("aria-label")).toBe("Refresh all accounts");
-    expect(document.body.textContent).toContain("Last synced all accounts");
+    expect(document.body.textContent).toContain("Synced all accounts");
 
     click(button!);
     expect(onRefreshAll).toHaveBeenCalledTimes(1);

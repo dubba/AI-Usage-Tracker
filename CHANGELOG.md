@@ -3,7 +3,7 @@
 ## Unreleased (0 items)
 
 
-## 0.3.12 - 2026-10-02 (11 items)
+## 0.3.12 - 2026-10-02 (12 items)
 
 ### Added (1)
 
@@ -16,8 +16,9 @@
 - Numbers now use equal-width digits throughout the app, so percentages, countdowns and counters no longer shift sideways as they change.
 - Better screen reader and keyboard support: the Settings toggles are now announced as switches with their setting name (including Auto-Start, which had no name), every button has an explicit type, and the camera scanner area can be activated from the keyboard.
 
-### Changed (5)
+### Changed (6)
 
+- In the sidebar, shortened the sync status label from "Last synced all accounts" to "Synced all accounts".
 - In the sidebar, Settings is now a circular button placed to the right of Refresh All in the sync status bar, and account group cards now feature the raised dark surface and purple gradient selection styling.
 - In Settings, the Diagnostics Copy button and the Device Transfer Link Devices button now look and behave like the Change Log and Integration Window View buttons (dark background and border) instead of the purple primary style.
 - On desktop, the account card buttons now run in the same order as the mobile menu (Move up, Move down, Refresh, Notifications, Delete), and the Delete button is drawn quieter with extra space before it, turning solid red only on hover or keyboard focus.

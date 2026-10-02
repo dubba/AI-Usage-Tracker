@@ -31,7 +31,7 @@ export function computeSyncStatus(accounts: Account[], now: number, refreshMinut
   const stale = fetchedTimes.filter(
     (entry) => accountAutoRefreshEligible(entry.account) && now - entry.time >= staleAfterMs,
   ).length;
-  const label = `Last synced all accounts ${formatElapsed(now - newest)}`;
+  const label = `Synced all accounts ${formatElapsed(now - newest)}`;
   if (stale === 0) return { tone: "fresh", label, detail: null };
   return { tone: "stale", label, detail: `${formatCount(stale, ACCOUNT_FORMS)} out of date` };
 }
