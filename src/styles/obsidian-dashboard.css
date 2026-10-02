@@ -251,7 +251,7 @@ select {
   padding: 10px 10px;
   border: 1px solid rgba(160, 120, 255, 0.4);
   border-radius: 5px;
-  background: var(--obsidian-surface-container-high, #211e29);
+  background: var(--obsidian-surface-low, #1c1b1b);
   color: var(--obsidian-text);
   cursor: pointer;
   text-align: left;

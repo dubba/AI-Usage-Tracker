@@ -932,12 +932,12 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .sidebar-settings-btn {
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
   border-radius: 50%;
-  background: var(--obsidian-surface-container-high, #211e29);
+  background: var(--obsidian-surface-low, #1c1b1b);
   border: 1px solid rgba(160, 120, 255, 0.4);
   color: var(--obsidian-purple);
   display: inline-flex;
@@ -951,8 +951,8 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .sidebar-settings-btn svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   color: var(--obsidian-purple);
   transition: color 150ms ease;
 }
@@ -1145,32 +1145,32 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   }
 }
 
-/* Settings: View buttons (Change Log and Integration Window) styled to match Account Updates dropdown */
+/* Settings: buttons (Link Devices, View, Copy) and Account Updates dropdown styled to match refresh all button look & feel */
 .settings-style-content .settings-changelog-button,
 .settings-changelog-button {
-  background: #141316 !important;
-  border: 1px solid var(--obsidian-border-strong) !important;
+  background: var(--obsidian-surface-low, #1c1b1b) !important;
+  border: 1px solid rgba(160, 120, 255, 0.4) !important;
   border-radius: 6px !important;
-  color: #f7f4ff !important;
+  color: var(--obsidian-purple) !important;
   transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
 }
 
 .settings-style-content .settings-changelog-button span,
 .settings-changelog-button span {
-  color: #f7f4ff !important;
+  color: var(--obsidian-purple) !important;
+  transition: color 140ms ease;
 }
 
 .settings-style-content .settings-changelog-button svg,
 .settings-changelog-button svg {
-  color: #f7f4ff !important;
+  color: var(--obsidian-purple) !important;
   transition: color 140ms ease;
 }
 
 .settings-style-content .settings-changelog-button:hover:not(:disabled),
 .settings-changelog-button:hover:not(:disabled) {
-  background-color: #1a1820 !important;
+  background-color: #28213a !important;
   border-color: var(--obsidian-purple-strong) !important;
-  box-shadow: 0 0 0 3px rgba(160, 120, 255, 0.15) !important;
   color: #ffffff !important;
 }
 
@@ -1183,15 +1183,96 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 
 .settings-style-content .settings-changelog-button:active:not(:disabled),
 .settings-changelog-button:active:not(:disabled) {
-  background-color: #24202e !important;
+  background-color: #32254e !important;
   border-color: var(--obsidian-purple-strong) !important;
+  color: #ffffff !important;
   transform: scale(0.98);
+}
+
+.settings-style-content .settings-changelog-button:active:not(:disabled) span,
+.settings-changelog-button:active:not(:disabled) span,
+.settings-style-content .settings-changelog-button:active:not(:disabled) svg,
+.settings-changelog-button:active:not(:disabled) svg {
+  color: #ffffff !important;
 }
 
 .settings-style-content .settings-changelog-button:disabled,
 .settings-changelog-button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+/* Settings: Account Updates dropdown trigger & menu matching refresh all button look & feel */
+.settings-account-refresh .custom-dropdown-trigger {
+  background: var(--obsidian-surface-low, #1c1b1b) !important;
+  border: 1px solid rgba(160, 120, 255, 0.4) !important;
+  border-radius: 6px !important;
+  color: var(--obsidian-purple) !important;
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
+}
+
+.settings-account-refresh .custom-dropdown-label {
+  color: var(--obsidian-purple) !important;
+  transition: color 140ms ease;
+}
+
+.settings-account-refresh .custom-dropdown-chevron {
+  color: var(--obsidian-purple) !important;
+  transition: color 140ms ease;
+}
+
+.settings-account-refresh .custom-dropdown-trigger:hover:not(:disabled),
+.settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger {
+  background-color: #28213a !important;
+  border-color: var(--obsidian-purple-strong) !important;
+  color: #ffffff !important;
+}
+
+.settings-account-refresh .custom-dropdown-trigger:hover:not(:disabled) .custom-dropdown-label,
+.settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger .custom-dropdown-label,
+.settings-account-refresh .custom-dropdown-trigger:hover:not(:disabled) .custom-dropdown-chevron,
+.settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger .custom-dropdown-chevron {
+  color: #ffffff !important;
+}
+
+.settings-account-refresh .custom-dropdown-trigger:active:not(:disabled) {
+  background-color: #32254e !important;
+  border-color: var(--obsidian-purple-strong) !important;
+  color: #ffffff !important;
+}
+
+.settings-account-refresh .custom-dropdown-menu {
+  background: var(--obsidian-surface-low, #1c1b1b) !important;
+  border: 1px solid rgba(160, 120, 255, 0.4) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(160, 120, 255, 0.15) !important;
+}
+
+.settings-account-refresh .custom-dropdown-item {
+  color: var(--obsidian-purple) !important;
+}
+
+.settings-account-refresh .custom-dropdown-item-label {
+  color: var(--obsidian-purple) !important;
+}
+
+.settings-account-refresh .custom-dropdown-item.highlighted,
+.settings-account-refresh .custom-dropdown-item:hover {
+  background-color: #28213a !important;
+  color: #ffffff !important;
+}
+
+.settings-account-refresh .custom-dropdown-item.highlighted .custom-dropdown-item-label,
+.settings-account-refresh .custom-dropdown-item:hover .custom-dropdown-item-label {
+  color: #ffffff !important;
+}
+
+.settings-account-refresh .custom-dropdown-item.selected {
+  background-color: #32254e !important;
+  color: #ffffff !important;
+}
+
+.settings-account-refresh .custom-dropdown-item.selected .custom-dropdown-item-label {
+  color: #ffffff !important;
 }
 
 /* Sidebar expanded mobile close button: matches red modal close button */

@@ -752,7 +752,7 @@
 .obsidian-shell button.sidebar-footer {
   justify-content: flex-start;
   gap: 10px;
-  background: var(--obsidian-surface-container-high, #211e29);
+  background: var(--obsidian-surface-low, #1c1b1b);
   border: 1px solid rgba(160, 120, 255, 0.4);
   border-radius: 5px;
   color: var(--obsidian-purple);
@@ -805,9 +805,9 @@
   color: #ffffff !important;
 }
 
-/* Sidebar menu item cards (group rows): match the settings button look & feel. */
+/* Sidebar menu item cards (group rows): black background when inactive. */
 .provider-summary-row:not(.selected) {
-  background: var(--obsidian-surface-container-high, #211e29);
+  background: var(--obsidian-surface-low, #1c1b1b) !important;
   border-color: rgba(160, 120, 255, 0.4);
 }
 

@@ -20,9 +20,9 @@
 ### Changed (7)
 
 - In the sidebar, shortened the sync status label from "Last synced all accounts" to "Synced all accounts".
-- In the sidebar, increased the circular Settings button size to 44×44px for an improved touch target.
-- In the sidebar, Settings is now a circular button placed on the right of the sync status bar, and account group cards now feature the raised dark surface and purple gradient selection styling.
-- In Settings, the Diagnostics Copy button and the Device Transfer Link Devices button now look and behave like the Change Log and Integration Window View buttons (dark background and border) instead of the purple primary style.
+- In the sidebar, resized the circular Settings button to 40×40px to match the pull-to-refresh circle size.
+- In the sidebar, Settings is now a circular button placed on the right of the sync status bar, and inactive group cards and the settings button share a clean neutral black surface with purple selection styling.
+- In Settings, updated the buttons (Link Devices, View, Copy) and the Account Updates dropdown to match the dark surface, purple border, and purple highlight styling.
 - On desktop, the account card buttons now run in the same order as the mobile menu (Move up, Move down, Refresh, Notifications, Delete), and the Delete button is drawn quieter with extra space before it, turning solid red only on hover or keyboard focus.
 - Usage bars and percentages now turn red at 15% remaining or less (previously 10%); the amber warning stage at 30% is unchanged.
 - On mobile, the plan badge on account cards (Pro/$20, Free, and so on) is now 22px tall, the same height as the dropdown button beside it.
