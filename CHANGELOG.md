@@ -3,7 +3,7 @@
 ## Unreleased (0 items)
 
 
-## 0.3.11 - 2026-10-01 (21 items)
+## 0.3.11 - 2026-10-01 (23 items)
 
 ### Added (3)
 
@@ -26,8 +26,10 @@
 - In the sidebar and model cards, removed the glow from the Refresh All button and matched the hamburger, card dropdown, and card edit pen buttons to its look and feel.
 - In the dashboard summary cards, unified the stroke thickness, size, and styling of the Accounts, Action Needed, and Next Reset icons with an SVG alert icon and a brighter white color.
 
-### Changed (5)
+### Changed (7)
 
+- The usage bar on account cards now changes colour with how much is left: purple normally, amber at 30% or less, and red at 10% or less.
+- On mobile, the account card's "More actions" button is now the same size as the rename button, and the Settings toggles are slightly larger (48×24).
 - Account cards now show each usage window's label on its divider line, with the progress bar below it and the remaining percentage (for example "57% left") and reset time under the bar.
 - On mobile screens, reduced the bottom padding of account cards from 14px to 12px to match the card's horizontal padding.
 - In the device pairing modal, the option to transfer settings and layout configuration is now checked by default.

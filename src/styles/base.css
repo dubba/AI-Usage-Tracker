@@ -84,8 +84,8 @@ svg { width: 18px; height: 18px; }
 .settings-row > div:first-child { display: grid; }
 .settings-row small { color: var(--muted); margin-top: 5px; }
 .toggle { border: 0; border-radius: 99px; padding: 3px; cursor: pointer; }
-.toggle span { display: block; width: 17px; height: 17px; border-radius: 99px; background: #dce1de; transition: transform .18s; }
-.toggle.on span { transform: translateX(19px); }
+.toggle span { display: block; width: 18px; height: 18px; border-radius: 99px; background: #dce1de; transition: transform .18s; }
+.toggle.on span { transform: translateX(24px); }
 .modal-card { width: min(480px, 100%); padding: 24px; }
 .modal-kicker { color: var(--purple); text-transform: uppercase; letter-spacing: .12em; font-weight: 800; }
 .modal-card h2 { margin: 6px 0 7px; }

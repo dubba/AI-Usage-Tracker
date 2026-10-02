@@ -1855,11 +1855,11 @@ select.text-input option,
 }
 
 .toggle {
-  width: 42px;
-  min-width: 42px;
-  max-width: 42px;
-  height: 23px;
-  flex: 0 0 42px !important;
+  width: 48px;
+  min-width: 48px;
+  max-width: 48px;
+  height: 24px;
+  flex: 0 0 48px !important;
   flex-shrink: 0;
   box-sizing: border-box;
   margin: 0;

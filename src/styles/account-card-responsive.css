@@ -489,13 +489,13 @@
 }
 
 @media (max-width: 860px) {
-  /* Match g1-pro pill height (20px) and pen/refresh button styling */
+  /* Match the rename (pen) button: 22px box, 13px icon */
   .mobile-dropdown-toggle {
     box-sizing: border-box;
-    width: 20px;
-    height: 20px;
-    min-width: 20px;
-    min-height: 20px;
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    min-height: 22px;
     padding: 0;
     border: 1px solid rgba(160, 120, 255, 0.4);
     background: var(--obsidian-surface-container-high, #211e29);
@@ -544,8 +544,8 @@
   }
 
   .mobile-dropdown-toggle svg {
-    width: 12px;
-    height: 12px;
+    width: 13px;
+    height: 13px;
     margin: 0 auto;
     color: var(--obsidian-purple);
     transition: color 150ms ease, transform 200ms ease;
@@ -641,4 +641,21 @@
 .account-usage-metric .metric-detail-row .metric-full-value {
   font-size: 15px;
   line-height: 20px;
+}
+
+/*
+ * The usage bar is coloured by how much is left (see usageTone): purple while
+ * healthy, amber at 30% or less, red at 10% or less. ui-refinements.css forces
+ * every bar purple with !important, so these rules repeat it.
+ */
+.account-usage-metric .account-metric-track > .tone-healthy {
+  background: var(--obsidian-purple-strong) !important;
+}
+
+.account-usage-metric .account-metric-track > .tone-warning {
+  background: var(--obsidian-amber) !important;
+}
+
+.account-usage-metric .account-metric-track > .tone-critical {
+  background: #e5303a !important;
 }
