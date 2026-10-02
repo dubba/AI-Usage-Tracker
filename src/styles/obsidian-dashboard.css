@@ -422,11 +422,10 @@ select {
   min-height: 44px;
   margin: auto 0 0;
   padding: 0 14px;
-  border: 1px solid var(--obsidian-purple);
+  border: 1px solid var(--obsidian-border);
   border-radius: 4px;
-  background: var(--obsidian-purple);
-  color: #2d145f;
-  box-shadow: 0 2px 8px rgba(160, 120, 255, 0.35);
+  background: #171616;
+  color: #eeeaea;
   cursor: pointer;
   transition: border-color 120ms ease, background 120ms ease, color 120ms ease, box-shadow 120ms ease, transform 100ms ease;
 }
@@ -434,41 +433,50 @@ select {
 .obsidian-shell .sidebar-footer svg {
   width: 18px;
   height: 18px;
-  color: #2d145f;
+  color: inherit;
 }
 
 .obsidian-shell .sidebar-footer > span {
   font-size: 13px;
-  font-weight: 700;
-  color: #2d145f;
+  font-weight: 600;
+  color: inherit;
 }
 
-.obsidian-shell .sidebar-footer:hover,
+@media (hover: hover) {
+  .obsidian-shell .sidebar-footer:hover {
+    border-color: var(--obsidian-purple-strong);
+    color: #fff;
+    background: #1f1e1e;
+  }
+}
+
 .obsidian-shell .sidebar-footer:focus-visible {
-  border-color: var(--obsidian-purple-strong) !important;
-  color: #2d145f !important;
-  background: #dfd0ff !important;
-  box-shadow: 0 4px 12px rgba(160, 120, 255, 0.45);
+  border-color: var(--obsidian-purple-strong);
+  color: #fff;
+  background: #1f1e1e;
 }
 
 .obsidian-shell .sidebar-footer:active {
-  background: #c3abfc !important;
-  border-color: var(--obsidian-purple-strong) !important;
-  color: #2d145f !important;
+  background: #252323;
   transform: scale(0.98);
 }
 
 .obsidian-shell .sidebar-footer.update-available {
-  color: #2d145f;
-  background: #dfd0ff;
-  border-color: var(--obsidian-purple-strong);
+  color: #fff;
+  background: #7650d9;
+  border-color: #8d6bed;
 }
 
 .obsidian-shell .sidebar-footer.active {
-  border-color: var(--obsidian-purple-strong) !important;
-  background: #dfd0ff !important;
-  color: #2d145f !important;
-  box-shadow: 0 0 0 1px var(--obsidian-purple-strong), 0 2px 8px rgba(160, 120, 255, 0.4) !important;
+  border-color: rgba(208, 188, 255, 0.75) !important;
+  background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), var(--obsidian-surface-container) 48%) !important;
+  box-shadow: inset 2px 0 0 var(--obsidian-purple-strong) !important;
+  color: #fff !important;
+}
+
+.obsidian-shell .sidebar-footer.active svg,
+.obsidian-shell .sidebar-footer.active > span {
+  color: #fff !important;
 }
 
 .obsidian-shell .main-stage {
@@ -2320,7 +2328,7 @@ select.text-input option,
   width: 36px;
   height: 36px;
   padding: 0;
-  border: 1px solid var(--obsidian-border);
+  border: 1px solid currentColor;
   border-radius: 6px;
   background: var(--obsidian-surface-container);
   color: #d7d0dc;
@@ -2468,15 +2476,11 @@ select.text-input option,
     transition: none;
   }
 
-  .mobile-sidebar-toggle-btn:hover,
-  .mobile-sidebar-toggle-btn:focus,
-  .mobile-sidebar-toggle-btn:active,
-  .mobile-sidebar-toggle-btn:focus-visible,
-  .mobile-sidebar-close-btn:hover,
-  .mobile-sidebar-close-btn:focus,
-  .mobile-sidebar-close-btn:active,
-  .mobile-sidebar-close-btn:focus-visible {
-    border-color: var(--obsidian-border);
+  .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):hover,
+  .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):focus,
+  .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):active,
+  .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):focus-visible {
+    border-color: currentColor;
     background: var(--obsidian-surface-container);
     color: #d7d0dc;
     outline: none;
@@ -2996,51 +3000,59 @@ select.text-input option,
     margin: 0;
     min-height: 40px;
     height: 40px;
-    border: 1px solid var(--obsidian-purple);
+    border: 1px solid var(--obsidian-border);
     border-radius: 4px;
-    background: var(--obsidian-purple);
-    color: #2d145f;
-    box-shadow: 0 2px 8px rgba(160, 120, 255, 0.35);
+    background: #171616;
+    color: #eeeaea;
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 600;
     gap: 6px;
     padding: 0 14px;
     box-sizing: border-box;
     justify-content: center;
   }
 
-  .obsidian-shell .sidebar-footer:hover,
+  @media (hover: hover) {
+    .obsidian-shell .sidebar-footer:hover {
+      border-color: var(--obsidian-purple-strong) !important;
+      background: #1f1e1e !important;
+      color: #fff !important;
+    }
+  }
+
   .obsidian-shell .sidebar-footer:focus-visible {
     border-color: var(--obsidian-purple-strong) !important;
-    background: #dfd0ff !important;
-    color: #2d145f !important;
-    box-shadow: 0 4px 12px rgba(160, 120, 255, 0.45);
+    background: #1f1e1e !important;
+    color: #fff !important;
   }
 
   .obsidian-shell .sidebar-footer:active {
-    background: #c3abfc !important;
-    border-color: var(--obsidian-purple-strong) !important;
-    color: #2d145f !important;
+    background: #252323 !important;
     transform: scale(0.98);
   }
 
   .obsidian-shell .sidebar-footer.active {
-    border-color: var(--obsidian-purple-strong) !important;
-    background: #dfd0ff !important;
-    color: #2d145f !important;
-    box-shadow: 0 0 0 1px var(--obsidian-purple-strong), 0 2px 8px rgba(160, 120, 255, 0.4) !important;
+    border-color: rgba(208, 188, 255, 0.75) !important;
+    background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), var(--obsidian-surface-container) 48%) !important;
+    box-shadow: inset 2px 0 0 var(--obsidian-purple-strong) !important;
+    color: #fff !important;
+  }
+
+  .obsidian-shell .sidebar-footer.active svg,
+  .obsidian-shell .sidebar-footer.active > span {
+    color: #fff !important;
   }
 
   .obsidian-shell .sidebar-footer svg {
     width: 18px;
     height: 18px;
-    color: #2d145f;
+    color: inherit;
   }
 
   .obsidian-shell .sidebar-footer > span {
     font-size: 14px;
-    font-weight: 700;
-    color: #2d145f;
+    font-weight: 600;
+    color: inherit;
   }
 }
 

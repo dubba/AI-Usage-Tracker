@@ -1143,17 +1143,41 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   align-items: center;
   justify-content: center;
   padding: 0;
+  line-height: 0;
   cursor: pointer;
   transition: border-color 120ms ease, background 120ms ease, color 120ms ease, transform 100ms ease;
 }
 
 .sidebar-mobile-header .mobile-sidebar-close-btn svg,
 .mobile-sidebar-close-btn svg {
+  display: block;
   width: 22px;
   height: 22px;
   color: #fff !important;
   stroke: #fff !important;
   stroke-width: 2.2;
+}
+
+.mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn) {
+  border: 1px solid currentColor !important;
+  color: #d7d0dc !important;
+  line-height: 0;
+}
+
+.mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn) svg {
+  display: block;
+}
+
+.mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):hover:not(:disabled),
+.mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):focus-visible {
+  border-color: currentColor !important;
+  color: #d7d0dc !important;
+}
+
+.mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):active:not(:disabled) {
+  border-color: currentColor !important;
+  color: #d7d0dc !important;
+  transform: scale(0.96);
 }
 
 .sidebar-mobile-header .mobile-sidebar-close-btn:hover:not(:disabled),

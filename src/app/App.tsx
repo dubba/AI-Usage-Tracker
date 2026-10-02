@@ -409,7 +409,7 @@ export default function App() {
 
         <button
           type="button"
-          className={`button primary sidebar-footer${section === "settings" ? " active" : ""}`}
+          className={`sidebar-footer${section === "settings" ? " active" : ""}`}
           aria-current={section === "settings" ? "page" : undefined}
           onClick={() => {
             setSection("settings");
