@@ -868,10 +868,10 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 10px;
   margin: 10px 0 10px;
-  padding: 0 12px;
+  padding: 0 4px;
   color: var(--obsidian-muted);
   font-size: 12px;
   line-height: 1.4;
@@ -945,12 +945,14 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .sidebar-refresh-all-btn[data-tooltip]::after {
   top: auto;
   bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
+  left: auto;
+  right: 0;
+  transform: none;
   z-index: 1000;
 }
 
 .sidebar-sync-status-text {
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -964,6 +966,9 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   justify-content: flex-start;
   gap: 6px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .sidebar-sync-status-label::before {
@@ -994,6 +999,9 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .sidebar-sync-status-detail {
   font-size: 11px;
   line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 /* On small screens Settings is above the refresh all / sync status line at the bottom of the drawer. */
@@ -1008,6 +1016,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
     left: max(16px, calc(var(--safe-area-left, env(safe-area-inset-left, 0px)) + 14px));
     right: max(16px, calc(var(--safe-area-right, env(safe-area-inset-right, 0px)) + 14px));
     margin: 0;
+    padding: 0 4px;
   }
 }
 

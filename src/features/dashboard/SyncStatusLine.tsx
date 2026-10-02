@@ -23,6 +23,10 @@ export function SyncStatusLine({
   const detail = useClock((now) => computeSyncStatus(accounts, now, refreshMinutes).detail);
   return (
     <div className={`sidebar-sync-status is-${syncing ? "syncing" : tone}`}>
+      <div className="sidebar-sync-status-text" role="status">
+        <span className="sidebar-sync-status-label">{syncing ? "Syncing…" : label}</span>
+        {!syncing && detail ? <span className="sidebar-sync-status-detail">{detail}</span> : null}
+      </div>
       {onRefreshAll ? (
         <button
           type="button"
@@ -35,10 +39,6 @@ export function SyncStatusLine({
           <RefreshIcon />
         </button>
       ) : null}
-      <div className="sidebar-sync-status-text" role="status">
-        <span className="sidebar-sync-status-label">{syncing ? "Syncing…" : label}</span>
-        {!syncing && detail ? <span className="sidebar-sync-status-detail">{detail}</span> : null}
-      </div>
     </div>
   );
 }
