@@ -918,7 +918,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   margin: 10px 0 10px;
   padding: 0 4px;
   color: var(--obsidian-muted);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.4;
   text-align: left;
 }
