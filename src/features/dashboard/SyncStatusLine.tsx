@@ -1,7 +1,7 @@
-import { isRefreshKey, REFRESH_ALL_KEY, type BusyKeys } from "../../shared/lib/busy";
+import { isRefreshKey, type BusyKeys } from "../../shared/lib/busy";
 import { useClock } from "../../shared/hooks/useClock";
 import { computeSyncStatus } from "./sync-status";
-import { RefreshIcon, SettingsIcon } from "../../shared/ui/icons";
+import { SettingsIcon } from "../../shared/ui/icons";
 import type { Account } from "../../types";
 
 /** When the numbers on screen were last refreshed, flagging accounts that have been left behind. */
@@ -9,18 +9,15 @@ export function SyncStatusLine({
   accounts,
   refreshMinutes,
   busy,
-  onRefreshAll,
   onOpenSettings,
   settingsActive,
 }: {
   accounts: Account[];
   refreshMinutes: number;
   busy: BusyKeys;
-  onRefreshAll?: () => void;
   onOpenSettings?: () => void;
   settingsActive?: boolean;
 }) {
-  const isGlobalRefreshing = busy.has(REFRESH_ALL_KEY);
   const syncing = [...busy].some(isRefreshKey);
   const tone = useClock((now) => computeSyncStatus(accounts, now, refreshMinutes).tone);
   const label = useClock((now) => computeSyncStatus(accounts, now, refreshMinutes).label);
@@ -32,18 +29,6 @@ export function SyncStatusLine({
         {!syncing && detail ? <span className="sidebar-sync-status-detail">{detail}</span> : null}
       </div>
       <div className="sidebar-sync-status-actions">
-        {onRefreshAll ? (
-          <button
-            type="button"
-            className={`sidebar-refresh-all-btn ${syncing ? "spinning" : ""}`}
-            onClick={onRefreshAll}
-            disabled={isGlobalRefreshing}
-            aria-label={isGlobalRefreshing ? "Refreshing accounts…" : "Refresh all accounts"}
-            data-tooltip={isGlobalRefreshing ? "Refreshing…" : "Refresh All"}
-          >
-            <RefreshIcon />
-          </button>
-        ) : null}
         {onOpenSettings ? (
           <button
             type="button"

@@ -434,7 +434,6 @@ export default function App() {
           accounts={accounts}
           refreshMinutes={appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES}
           busy={busy}
-          onRefreshAll={refreshAll}
           onOpenSettings={() => {
             setSection("settings");
             setSidebarOpen(false);
