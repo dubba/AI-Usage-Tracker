@@ -515,11 +515,20 @@
   border-left: 0;
 }
 
+.provider-account-card .account-card-metrics.multi-row-metrics .account-usage-metric:nth-child(-n+2) {
+  padding-bottom: 12px;
+}
+
 @media (max-width: 860px) {
   .provider-account-card .account-card-metrics .account-usage-metric,
   .provider-account-card .account-card-metrics .account-usage-metric + .account-usage-metric,
   .provider-account-card .account-card-metrics .account-usage-metric:first-child {
     padding: 0 0 14px;
+  }
+
+  .provider-account-card .account-card-metrics .account-usage-metric:not(:last-child),
+  .provider-account-card .account-card-metrics.multi-row-metrics .account-usage-metric:not(:last-child) {
+    padding-bottom: 10px;
   }
 }
 
@@ -547,7 +556,7 @@
   gap: 2px 12px;
   width: 100%;
   min-width: 0;
-  margin: 10px 0 0;
+  margin: 4px 0 0;
 }
 
 .account-usage-metric .metric-percent-line {

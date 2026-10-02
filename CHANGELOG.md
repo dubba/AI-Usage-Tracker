@@ -7,7 +7,7 @@
 
 ### Improved (1)
 
-- In account cards, balanced the vertical spacing around the progress bar and matched the gap above subsequent usage limit panes to the gap above the first limit pane.
+- In account cards, balanced the vertical spacing around the progress bar and matched the gap above subsequent usage limit panes to the distance above the first limit pane.
 
 ### Changed (1)
 
