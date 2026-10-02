@@ -1313,7 +1313,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn) {
   border: 1px solid rgba(160, 120, 255, 0.4) !important;
   background: var(--obsidian-surface-container-high, #211e29) !important;
-  color: var(--obsidian-purple) !important;
+  color: #ffffff !important;
   box-shadow: none !important;
   line-height: 0;
   transition: background 150ms ease, transform 100ms ease, border-color 150ms ease, color 150ms ease;
@@ -1321,7 +1321,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 
 .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn) svg {
   display: block;
-  color: var(--obsidian-purple) !important;
+  color: #ffffff !important;
   transition: color 150ms ease;
 }
 
