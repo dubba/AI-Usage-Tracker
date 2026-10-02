@@ -129,7 +129,8 @@ select {
   flex-shrink: 0;
 }
 
-.add-bucket-header-button {
+.add-bucket-header-button,
+.add-account-header-button {
   min-height: 26px;
   padding: 0 8px;
   font-size: 11px;
@@ -138,7 +139,8 @@ select {
   gap: 4px;
 }
 
-.add-bucket-header-button svg {
+.add-bucket-header-button svg,
+.add-account-header-button svg {
   width: 13px !important;
   height: 13px !important;
 }
@@ -1502,13 +1504,6 @@ button.account-card-provider-icon:active {
     white-space: nowrap;
   }
 
-  /* Mobile: the dashboard header keeps only Edit Group; Refresh All and Add
-     Account move to a bar after the account list at the bottom of the page. */
-  .header-actions .dashboard-header-refresh,
-  .header-actions .dashboard-header-add {
-    display: none;
-  }
-
   /* Mobile: Edit Group moves next to Custom Group pill instead of next line */
   .edit-bucket-header-btn {
     display: none;
@@ -1548,47 +1543,9 @@ button.account-card-provider-icon:active {
     border-color: rgba(208, 188, 255, 0.9) !important;
     background: rgba(90, 40, 180, 0.65) !important;
   }
-
-  .dashboard-mobile-actions {
-    display: flex;
-    gap: 6px;
-    width: 100%;
-    box-sizing: border-box;
-    background: var(--obsidian-surface-low);
-    border-top: 1px solid var(--obsidian-border);
-    border-left: 0;
-    border-right: 0;
-    border-bottom: 0;
-    border-radius: 0;
-    padding: 12px max(16px, calc(var(--safe-area-left, env(safe-area-inset-left, 0px)) + 14px)) max(8px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 8px)) max(16px, calc(var(--safe-area-right, env(safe-area-inset-right, 0px)) + 14px));
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 80;
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.5);
-  }
-
-  .dashboard-content {
-    padding-bottom: calc(76px + var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)));
-  }
-
-  .settings-style-content.dashboard-content {
-    padding-bottom: 0;
-  }
-
-  .dashboard-mobile-actions .button {
-    flex: 1;
-    justify-content: center;
-    min-height: 40px;
-  }
 }
 
 @media (min-width: 861px) {
-  .dashboard-mobile-actions {
-    display: none;
-  }
-
   .edit-bucket-title-btn {
     display: none;
   }
@@ -2572,8 +2529,8 @@ select.text-input option,
     overflow-y: overlay;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 10px max(16px, calc(var(--safe-area-right, env(safe-area-inset-right, 0px)) + 14px)) 10px max(16px, calc(var(--safe-area-left, env(safe-area-inset-left, 0px)) + 14px)) !important;
-    margin-bottom: max(60px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 60px));
+    padding: 10px max(16px, calc(var(--safe-area-right, env(safe-area-inset-right, 0px)) + 14px)) max(16px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 16px)) max(16px, calc(var(--safe-area-left, env(safe-area-inset-left, 0px)) + 14px)) !important;
+    margin-bottom: 0;
     box-sizing: border-box;
     scrollbar-gutter: auto;
     scrollbar-width: thin;
@@ -2582,7 +2539,7 @@ select.text-input option,
 
   .settings-style-content .dashboard-scroll {
     margin-bottom: 0 !important;
-    padding-bottom: max(10px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 10px));
+    padding-bottom: max(16px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 16px));
   }
 
   .dashboard-title-row {

@@ -109,7 +109,7 @@ export function SettingsView({
       <section className="settings-card">
         <div className="settings-row">
           <div>
-            <strong>{isMobileUserAgent() ? "Start on device boot" : "Start at login"}</strong>
+            <strong>{isMobileUserAgent() ? "Start on Device Boot" : "Start at Login"}</strong>
             <small>{isMobileUserAgent() ? "Start app automatically at device startup." : "Start app automatically at login."}</small>
           </div>
           <button className={`toggle ${autostart ? "on" : ""}`} onClick={onToggleAutostart} aria-pressed={autostart}><span /></button>
@@ -133,7 +133,7 @@ export function SettingsView({
 
           <div className="settings-updates-group-header settings-updates-beta-row">
             <div>
-              <strong>Include beta releases</strong>
+              <strong>Include Beta Releases</strong>
             </div>
             <button
               type="button"
@@ -245,7 +245,7 @@ export function SettingsView({
       <section className="settings-card">
         <div className="settings-row">
           <div>
-            <strong>Enable Paseo bridge</strong>
+            <strong>Enable Paseo Bridge</strong>
             <small>Allows local HTTP tools to access quota usage & notification status.</small>
           </div>
           <button
@@ -261,7 +261,7 @@ export function SettingsView({
         </div>
         <div className="settings-row">
           <div>
-            <strong>Integration window</strong>
+            <strong>Integration Window</strong>
             <small>View local bridge status, auth tokens and connection URL.</small>
           </div>
           <button

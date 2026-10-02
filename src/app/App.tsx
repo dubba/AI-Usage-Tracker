@@ -353,6 +353,15 @@ export default function App() {
           <div className="provider-sidebar-heading-actions">
             <button
               type="button"
+              className="button primary compact-button add-account-header-button"
+              data-tooltip="Add account"
+              aria-label="Add account"
+              onClick={() => { openAdd(undefined, selectedGroup.provider ?? undefined); setSidebarOpen(false); }}
+            >
+              <PlusIcon />Account
+            </button>
+            <button
+              type="button"
               className="button primary compact-button add-bucket-header-button"
               data-tooltip="Create a custom group"
               aria-label="Create a custom group"
@@ -402,6 +411,7 @@ export default function App() {
           accounts={accounts}
           refreshMinutes={appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES}
           busy={busy}
+          onRefreshAll={refreshAll}
         />
         <button
           type="button"

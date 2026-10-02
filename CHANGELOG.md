@@ -3,11 +3,17 @@
 ## Unreleased (0 items)
 
 
-## 0.3.11 - 2026-10-01 (6 items)
+## 0.3.11 - 2026-10-01 (10 items)
 
-### Improved (1)
+### Added (2)
+
+- In the sidebar, added an "+ Account" button beside the "+ Group" button to open the Add Account dialog directly from the sidebar.
+- In the sidebar, added a circular purple "Refresh All" button beside the sync status line to trigger a refresh of all accounts.
+
+### Improved (2)
 
 - In account cards, balanced the vertical spacing around the progress bar and matched the gap above subsequent usage limit panes to the distance above the first limit pane.
+- In Settings, capitalized all main words in section headings including "Start on Device Boot", "Include Beta Releases", "Enable Paseo Bridge", and "Integration Window".
 
 ### Changed (5)
 
@@ -16,6 +22,10 @@
 - In the device pairing modal, the option to transfer settings and layout configuration is now checked by default.
 - In Settings, simplified the Diagnostics description to note that bug reports have tokens, cookies, and emails removed.
 - In the device pairing modal, shortened the settings toggle label to "Transfer settings & layout config:".
+
+### Removed (1)
+
+- Removed the redundant "Add Account" and "Refresh All" buttons from the main dashboard header and the mobile bottom actions footer.
 
 
 ## 0.3.10 - 2026-10-01 (53 items)

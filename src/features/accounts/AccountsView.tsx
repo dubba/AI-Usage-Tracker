@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { REFRESH_ALL_KEY, type BusyKeys } from "../../shared/lib/busy";
+import { type BusyKeys } from "../../shared/lib/busy";
 import {
   CheckCircleIcon,
   ClockIcon,
@@ -7,7 +7,6 @@ import {
   EditIcon,
   MenuIcon,
   PlusIcon,
-  RefreshIcon,
   TrashIcon,
   UsersIcon,
 } from "../../shared/ui/icons";
@@ -55,7 +54,7 @@ export function AccountsView(props: {
   refreshMinutes: number;
   onToggleSidebar?: () => void;
   onAdd: () => void;
-  onRefreshAll: () => void;
+  onRefreshAll?: () => void;
   onEditBucket?: (bucket: AccountBucket) => void;
   onDeleteBucket?: (bucket: AccountBucket) => void;
   onRefresh: (account: Account) => void;
@@ -131,8 +130,8 @@ export function AccountsView(props: {
           </div>
           <p className="dashboard-description">This is a dashboard of all your AI subscriptions by usage.</p>
         </div>
-        <div className="header-actions">
-          {props.selectedGroup.type === "bucket" && props.selectedGroup.bucket ? (
+        {props.selectedGroup.type === "bucket" && props.selectedGroup.bucket ? (
+          <div className="header-actions">
             <button
               type="button"
               className="button ghost edit-bucket-header-btn"
@@ -142,12 +141,8 @@ export function AccountsView(props: {
             >
               <EditIcon /><span className="edit-bucket-label">Edit Group</span>
             </button>
-          ) : null}
-          <button className="button ghost dashboard-header-refresh" onClick={props.onRefreshAll} disabled={props.busy.has(REFRESH_ALL_KEY)}>
-            <RefreshIcon />{props.busy.has(REFRESH_ALL_KEY) ? "Refreshing…" : "Refresh All"}
-          </button>
-          <button className="button primary dashboard-header-add" onClick={props.onAdd}><PlusIcon />Add Account</button>
-        </div>
+          </div>
+        ) : null}
       </header>
 
       <div className="dashboard-scroll">
@@ -271,12 +266,6 @@ export function AccountsView(props: {
           </section>
         )}
       </section>
-      </div>
-      <div className="dashboard-mobile-actions">
-        <button className="button ghost" onClick={props.onRefreshAll} disabled={props.busy.has(REFRESH_ALL_KEY)}>
-          <RefreshIcon />{props.busy.has(REFRESH_ALL_KEY) ? "Refreshing…" : "Refresh All"}
-        </button>
-        <button className="button primary" onClick={props.onAdd}><PlusIcon />Add Account</button>
       </div>
       <p id={REORDER_HINT_ID} className="sr-only">Press Alt with the up or down arrow key to move this account.</p>
       <div className="sr-only" role="status" aria-live="polite">{announcement}</div>
