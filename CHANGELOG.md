@@ -1,20 +1,17 @@
 # Changelog
 
-## Unreleased (1 item)
-
-### Improved (1)
-
-- Tapping an Android update notification now opens the app directly to the "App Update" dialog showing release notes and the update action instead of the dashboard.
+## Unreleased (0 items)
 
 
-## 0.3.12 - 2026-10-02 (9 items)
+## 0.3.12 - 2026-10-02 (10 items)
 
 ### Added (1)
 
 - Desktop keyboard shortcuts: Cmd/Ctrl+R refreshes all accounts, Cmd/Ctrl+N opens Add Account, Cmd/Ctrl+G opens Add Group, and Cmd/Ctrl+, opens Settings. They are listed under "Keyboard Shortcuts" in Settings (desktop layout only), and do nothing while a dialog is open.
 
-### Improved (3)
+### Improved (4)
 
+- Tapping an Android update notification now opens the app directly to the "App Update" dialog showing release notes and the update action instead of the dashboard.
 - Error banners now say what went wrong in plain words and what to do next (for example "Check your internet connection and try again") instead of showing technical text. The technical detail is added to the report from Copy Diagnostics, with email addresses and token-like text removed.
 - Numbers now use equal-width digits throughout the app, so percentages, countdowns and counters no longer shift sideways as they change.
 - Better screen reader and keyboard support: the Settings toggles are now announced as switches with their setting name (including Auto-Start, which had no name), every button has an explicit type, and the camera scanner area can be activated from the keyboard.
