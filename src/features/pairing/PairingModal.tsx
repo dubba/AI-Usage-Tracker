@@ -62,7 +62,7 @@ export function PairingModal({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [confirmedSas, setConfirmedSas] = useState(false);
-  const [includeSettings, setIncludeSettings] = useState(false);
+  const [includeSettings, setIncludeSettings] = useState(true);
   const [isFrontCamera, setIsFrontCamera] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
@@ -235,7 +235,7 @@ export function PairingModal({
       roleAutoSelectedRef.current = false;
       setBusy(false);
       setConfirmedSas(false);
-      setIncludeSettings(false);
+      setIncludeSettings(true);
       setIsFrontCamera(false);
       setSelectedCameraId(null);
       setAvailableCameras([]);

@@ -137,6 +137,7 @@ describe("choosing a role and a way to connect", () => {
     expect(document.querySelector('[aria-label="Step 1 of 3"]')).not.toBeNull();
     expect(text()).toContain("Send accounts from this device");
     expect(text()).toContain("Receive accounts on this device");
+    expect(document.querySelector<HTMLInputElement>(".pairing-settings-toggle input")?.checked).toBe(true);
   });
 
   it("offers every way to connect when sending", async () => {
@@ -368,15 +369,25 @@ describe("confirming the code", () => {
     expect(text()).toContain("Confirmed on this device. Waiting for the other device to confirm…");
   });
 
-  it("sends the settings and layout when a sender chose to include them", async () => {
+  it("sends the settings and layout by default when a sender confirms", async () => {
+    render();
+    await settle();
+    await emit(SAS("sender"));
+    await press("Yes, codes match");
+    expect(api.setIncludeSettings).toHaveBeenCalledWith(true);
+    expect(api.setPendingUiState).toHaveBeenCalledWith({ marker: true });
+    expect(api.confirmSas).toHaveBeenCalledWith("s1", true);
+  });
+
+  it("excludes settings and layout when a sender unchecks the option", async () => {
     render();
     const toggle = document.querySelector<HTMLInputElement>(".pairing-settings-toggle input")!;
     click(toggle);
     await settle();
     await emit(SAS("sender"));
     await press("Yes, codes match");
-    expect(api.setIncludeSettings).toHaveBeenCalledWith(true);
-    expect(api.setPendingUiState).toHaveBeenCalledWith({ marker: true });
+    expect(api.setIncludeSettings).toHaveBeenCalledWith(false);
+    expect(api.clearPendingUiState).toHaveBeenCalled();
     expect(api.confirmSas).toHaveBeenCalledWith("s1", true);
   });
 
@@ -492,20 +503,20 @@ describe("air-gap transfer: sending", () => {
     await press("Show QR code");
   }
 
-  it("prepares the export and shows the first frame", async () => {
+  it("prepares the export and shows the first frame with settings by default", async () => {
     await openSender();
-    expect(api.prepareAirgapExport).toHaveBeenCalledWith(false, undefined);
+    expect(api.prepareAirgapExport).toHaveBeenCalledWith(true, { marker: true });
     expect(title()).toBe("Show QR code");
     expect(text()).toContain("Frame 1/3");
     expect(document.querySelector(".airgap-qr-card svg")).not.toBeNull();
   });
 
-  it("includes the settings and layout when asked in step 1", async () => {
+  it("excludes settings and layout when unchecking the option in step 1", async () => {
     render();
     click(document.querySelector<HTMLInputElement>(".pairing-settings-toggle input")!);
     await press("Send accounts from this device");
     await press("Show QR code");
-    expect(api.prepareAirgapExport).toHaveBeenCalledWith(true, { marker: true });
+    expect(api.prepareAirgapExport).toHaveBeenCalledWith(false, undefined);
   });
 
   it("pauses, resumes, and changes speed", async () => {
