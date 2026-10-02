@@ -33,7 +33,7 @@ export function GoogleAiStudioFields({
           onClick={onLoadModels}
           disabled={busy || modelsBusy || !draft.apiKey.trim()}
         >
-          {modelsBusy ? "Loading…" : availableModels.length ? "Reload models" : "Load models"}
+          {modelsBusy ? "Loading…" : availableModels.length ? "Reload Models" : "Load Models"}
         </button>
       </div>
       <div className="credential-note">The key is sent only to the Rust backend and saved in Credential Manager or Keychain after you add the account.</div>
@@ -46,7 +46,7 @@ export function GoogleAiStudioFields({
               <small>{selectedModels.length} of {availableModels.length} selected</small>
             </div>
             <div className="google-model-picker-actions">
-              <button type="button" onClick={() => update({ selectedModels: availableModels.map((model) => model.name) })} disabled={busy}>Select all</button>
+              <button type="button" onClick={() => update({ selectedModels: availableModels.map((model) => model.name) })} disabled={busy}>Select All</button>
               <button type="button" onClick={() => update({ selectedModels: [] })} disabled={busy || !selectedModels.length}>Clear</button>
             </div>
           </div>

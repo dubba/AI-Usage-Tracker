@@ -41,24 +41,24 @@ export function pairingHeader(input: {
   let title = "Link Devices";
   let subtitle = "Transfer accounts & credentials between devices.";
   if (activeFlow === "airgap" || viewMode === "airgap-sender") {
-    subtitle = "On the other device, open Link Devices, select Scan QR code, then scan this QR code below.";
+    subtitle = "On the other device, open Link Devices, select Scan QR Code, then scan this QR code below.";
   }
   if (status === "clientConnecting" || status === "senderConnecting") {
     title = "Connecting";
     subtitle = "Finding the other device on your Wi-Fi.";
   } else if (waiting && viewMode === "airgap-sender") {
-    title = "Show QR code";
+    title = "Show QR Code";
   } else if (waiting && viewMode === "host") {
-    title = "Show Link code";
-    subtitle = "On the other device, open Link Devices, select Enter Link code, then enter the code below.";
+    title = "Show Link Code";
+    subtitle = "On the other device, open Link Devices, select Enter Link Code, then enter the code below.";
   } else if (waiting && viewMode === "scanner") {
-    title = "Scan QR code";
+    title = "Scan QR Code";
     subtitle =
       activeFlow === "airgap"
         ? "Point the camera at the animated QR code on the other device."
         : "Point the camera at the QR code on the other device.";
   } else if (waiting && viewMode === "code") {
-    title = "Enter Link code";
+    title = "Enter Link Code";
     subtitle = "Type the 6-digit link code shown on the other device.";
   } else if (status === "roleSelection") {
     title = intendedRole ? "Connecting" : "Send or receive accounts";

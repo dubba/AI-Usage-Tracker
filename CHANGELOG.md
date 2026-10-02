@@ -3,7 +3,7 @@
 ## Unreleased (0 items)
 
 
-## 0.3.11 - 2026-10-01 (23 items)
+## 0.3.11 - 2026-10-01 (25 items)
 
 ### Added (3)
 
@@ -26,8 +26,10 @@
 - In the sidebar and model cards, removed the glow from the Refresh All button and matched the hamburger, card dropdown, and card edit pen buttons to its look and feel.
 - In the dashboard summary cards, unified the stroke thickness, size, and styling of the Accounts, Action Needed, and Next Reset icons with an SVG alert icon and a brighter white color.
 
-### Changed (7)
+### Changed (9)
 
+- Button labels now consistently use Title Case (for example "Open ChatGPT Login", "Select All", "Try Again", "Copy Diagnostics").
+- Settings toggle labels now name the setting instead of giving an instruction: "Paseo Bridge", "Automatic Updates", "Beta Releases", and "Auto-Start on Device Boot" / "Auto-Start at Login".
 - The usage bar on account cards now changes colour with how much is left: purple normally, amber at 30% or less, and red at 10% or less.
 - On mobile, the account card's "More actions" button is now the same size as the rename button, and the Settings toggles are slightly larger (48×24).
 - Account cards now show each usage window's label on its divider line, with the progress bar below it and the remaining percentage (for example "57% left") and reset time under the bar.

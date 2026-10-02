@@ -225,12 +225,12 @@ export function GoogleAiStudioUsageModal({
           ) : null}
           {status?.status !== "failed" && stage === "signin" ? (
             <button className="button primary" onClick={() => void start()} disabled={busy}>
-              {busy ? "Waiting for Google…" : "Sign in with Google"}
+              {busy ? "Waiting for Google…" : "Sign In with Google"}
             </button>
           ) : null}
           {status?.status !== "failed" && stage === "choose_project" ? (
             <button className="button primary" onClick={() => void start(selectedProjectId)} disabled={busy || !selectedProjectId}>
-              {busy ? "Checking project…" : "Connect This Project"}
+              {busy ? "Checking Project…" : "Connect This Project"}
             </button>
           ) : null}
           {status?.status !== "failed" && stage === "monitoring_disabled" ? (

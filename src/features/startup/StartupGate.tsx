@@ -47,7 +47,7 @@ export function StartupGate({ children }: { children: ReactNode }) {
         ) : null}
         <div className="startup-gate-actions">
           <button type="button" className="startup-gate-retry" onClick={() => void retry()} disabled={state.retrying}>
-            {state.retrying ? "Retrying…" : "Try again"}
+            {state.retrying ? "Retrying…" : "Try Again"}
           </button>
           <CopyDiagnosticsButton className="startup-gate-secondary" />
         </div>

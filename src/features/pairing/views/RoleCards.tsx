@@ -10,7 +10,7 @@ export function RoleCards({ disabled, onChoose }: { disabled?: boolean; onChoose
           <UploadIcon />
         </div>
         <div className="pairing-role-card-content">
-          <h4>Send accounts from this device</h4>
+          <h4>Send Accounts from This Device</h4>
           <p>Export accounts, tokens, and groups to another device.</p>
         </div>
       </button>
@@ -20,7 +20,7 @@ export function RoleCards({ disabled, onChoose }: { disabled?: boolean; onChoose
           <DownloadIcon />
         </div>
         <div className="pairing-role-card-content">
-          <h4 className="pairing-role-title-receive">Receive accounts on this device</h4>
+          <h4 className="pairing-role-title-receive">Receive Accounts on This Device</h4>
           <p>Import accounts, tokens, and groups from another device.</p>
         </div>
       </button>

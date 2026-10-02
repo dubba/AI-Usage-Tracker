@@ -100,10 +100,10 @@ export function SasCard({
           {confirmed ? (
             <>
               <span className="spinner button-spinner" />
-              <span>Waiting for other device…</span>
+              <span>Waiting for Other Device…</span>
             </>
           ) : (
-            "Yes, codes match"
+            "Yes, Codes Match"
           )}
         </button>
         <button type="button" className="button ghost" disabled={busy || confirmed} onClick={onDecline}>

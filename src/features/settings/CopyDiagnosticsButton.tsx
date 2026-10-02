@@ -50,7 +50,7 @@ export function CopyDiagnosticsButton({
         onClick={() => void copy()}
       >
         {compact ? (state === "copied" ? <CheckIcon /> : <CopyIcon />) : null}
-        {state === "copying" ? "Copying…" : state === "copied" ? "Copied!" : compact ? "Copy" : "Copy diagnostics"}
+        {state === "copying" ? "Copying…" : state === "copied" ? "Copied!" : compact ? "Copy" : "Copy Diagnostics"}
       </button>
       <span className="sr-only" role="status" aria-live="polite">
         {state === "copied" ? "Diagnostics copied to the clipboard." : ""}

@@ -215,7 +215,7 @@ export function AccountsView(props: {
               onClick={() => setShowAttentionOnly(false)}
               aria-label="Show all accounts"
             >
-              Show all <CloseIcon />
+              Show All <CloseIcon />
             </button>
           </div>
         ) : null}

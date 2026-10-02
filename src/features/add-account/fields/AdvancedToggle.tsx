@@ -2,7 +2,7 @@
 export function AdvancedToggle({ manual, onToggle }: { manual: boolean; onToggle: () => void }) {
   return (
     <button type="button" className="advanced-connection-toggle" onClick={onToggle}>
-      {manual ? "Use automatic sign-in instead" : "Advanced manual connection"}
+      {manual ? "Use Automatic Sign-In Instead" : "Advanced Manual Connection"}
     </button>
   );
 }

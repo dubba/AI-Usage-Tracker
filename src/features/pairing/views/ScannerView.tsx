@@ -88,7 +88,7 @@ export function ScannerView({
                   <span>Decrypting &amp; Importing…</span>
                 </>
               ) : (
-                <span>Yes, they match</span>
+                <span>Yes, They Match</span>
               )}
             </button>
           </div>

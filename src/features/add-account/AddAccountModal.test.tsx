@@ -83,7 +83,7 @@ describe("browser sign-in providers", () => {
   it("starts an OpenAI sign-in, opens the browser, and waits for the callback", async () => {
     render();
     expect(heading()).toBe("Which account do you want to add?");
-    expect(primary().textContent).toBe("Open ChatGPT login");
+    expect(primary().textContent).toBe("Open ChatGPT Login");
     click(primary());
     await settle();
 
@@ -98,10 +98,10 @@ describe("browser sign-in providers", () => {
   it("uses the generated button label for Claude and Antigravity", () => {
     render();
     chooseProvider("Anthropic Claude");
-    expect(primary().textContent).toBe("Open Claude login");
+    expect(primary().textContent).toBe("Open Claude Login");
     expect((document.getElementById("account-label") as HTMLInputElement).value).toBe("Claude");
     chooseProvider("Google Antigravity");
-    expect(primary().textContent).toBe("Open Antigravity login");
+    expect(primary().textContent).toBe("Open Antigravity Login");
     expect((document.getElementById("account-label") as HTMLInputElement).value).toBe("Antigravity");
   });
 
@@ -210,7 +210,7 @@ describe("Grok", () => {
   it("signs in through the private window without opening the browser", async () => {
     render();
     chooseProvider("xAI Grok");
-    expect(primary().textContent).toBe("Open Grok login");
+    expect(primary().textContent).toBe("Open Grok Login");
     click(primary());
     await settle();
     expect(api.startLogin).toHaveBeenCalledWith("Grok", "grok", undefined);
@@ -224,7 +224,7 @@ describe("Grok", () => {
     render();
     chooseProvider("xAI Grok");
     click($(".advanced-connection-toggle"));
-    expect(primary().textContent).toBe("Connect manually");
+    expect(primary().textContent).toBe("Connect Manually");
     expect(primary().disabled).toBe(true);
     typeInto($("#grok-cookie"), "  sso=abc  ");
     expect(primary().disabled).toBe(false);
@@ -242,7 +242,7 @@ describe("Grok", () => {
     expect(document.getElementById("grok-cookie")).not.toBeNull();
     click($(".advanced-connection-toggle"));
     expect(document.getElementById("grok-cookie")).toBeNull();
-    expect(primary().textContent).toBe("Open Grok login");
+    expect(primary().textContent).toBe("Open Grok Login");
   });
 });
 
@@ -277,7 +277,7 @@ describe("OpenCode Go", () => {
     chooseProvider("OpenCode");
     typeInto($("#opencode-email"), "me@example.com");
     click($(".advanced-connection-toggle"));
-    expect(primary().textContent).toBe("Connect manually");
+    expect(primary().textContent).toBe("Connect Manually");
     typeInto($("#workspace-id"), " ws-1 ");
     typeInto($("#auth-cookie"), " cookie ");
     click(primary());
@@ -306,7 +306,7 @@ describe("Google AI Studio", () => {
     api.addGoogleAiStudioAccount.mockResolvedValue(ACCOUNT);
     render();
     chooseProvider("Google AI Studio");
-    expect(primary().textContent).toBe("Add selected models");
+    expect(primary().textContent).toBe("Add Selected Models");
     expect(primary().disabled).toBe(true);
 
     typeInto($("#google-ai-studio-key"), " key-123 ");
@@ -386,7 +386,7 @@ describe("Google AI Studio", () => {
     await settle();
     expect($(".modal-error").textContent).toContain("duplicate key");
     expect(primary().disabled).toBe(false);
-    expect(primary().textContent).toBe("Add selected models");
+    expect(primary().textContent).toBe("Add Selected Models");
   });
 });
 

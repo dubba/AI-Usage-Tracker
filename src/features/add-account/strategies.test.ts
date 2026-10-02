@@ -66,7 +66,7 @@ describe("browser sign-in providers", () => {
     expect(strategy.signInStartMessage).toBeNull();
     expect(strategy.signInEmail(draft(provider, { email: "x@y.z" }))).toBeUndefined();
     expect(strategy.waitingText("anything")).toBe("Waiting for the browser callback…");
-    expect(strategy.actionLabel(draft(provider), false)).toBe(`Open ${defaultAccountName(provider)} login`);
+    expect(strategy.actionLabel(draft(provider), false)).toBe(`Open ${defaultAccountName(provider)} Login`);
     expect(strategy.actionLabel(draft(provider), true)).toBe("Connecting…");
   });
 
@@ -103,10 +103,10 @@ describe("Grok", () => {
   });
 
   it("labels the button for each phase", () => {
-    expect(strategy.actionLabel(draft("grok"), false)).toBe("Open Grok login");
+    expect(strategy.actionLabel(draft("grok"), false)).toBe("Open Grok Login");
     expect(strategy.actionLabel(draft("grok"), true)).toBe("Waiting for Grok…");
-    expect(strategy.actionLabel(draft("grok", { advancedManual: true }), false)).toBe("Connect manually");
-    expect(strategy.actionLabel(draft("grok", { advancedManual: true }), true)).toBe("Adding account…");
+    expect(strategy.actionLabel(draft("grok", { advancedManual: true }), false)).toBe("Connect Manually");
+    expect(strategy.actionLabel(draft("grok", { advancedManual: true }), true)).toBe("Adding Account…");
   });
 
   it("sends the trimmed cookie when connecting manually", async () => {
@@ -153,8 +153,8 @@ describe("OpenCode Go", () => {
   });
 
   it("labels the button for each phase", () => {
-    expect(strategy.actionLabel(draft("opencode_go"), false)).toBe("Open OpenCode login");
-    expect(strategy.actionLabel(draft("opencode_go", { advancedManual: true }), false)).toBe("Connect manually");
+    expect(strategy.actionLabel(draft("opencode_go"), false)).toBe("Open OpenCode Login");
+    expect(strategy.actionLabel(draft("opencode_go", { advancedManual: true }), false)).toBe("Connect Manually");
     expect(strategy.actionLabel(draft("opencode_go"), true)).toBe("Waiting for OpenCode…");
     expect(strategy.actionLabel(draft("opencode_go", { advancedManual: true }), true)).toBe("Waiting for OpenCode…");
   });
@@ -195,7 +195,7 @@ describe("Google AI Studio", () => {
   });
 
   it("labels the button", () => {
-    expect(strategy.actionLabel(draft("google_ai_studio"), false)).toBe("Add selected models");
-    expect(strategy.actionLabel(draft("google_ai_studio"), true)).toBe("Adding account…");
+    expect(strategy.actionLabel(draft("google_ai_studio"), false)).toBe("Add Selected Models");
+    expect(strategy.actionLabel(draft("google_ai_studio"), true)).toBe("Adding Account…");
   });
 });

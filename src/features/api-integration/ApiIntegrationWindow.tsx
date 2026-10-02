@@ -173,7 +173,7 @@ export function ApiIntegrationWindow() {
       <section className="bridge-config-card">
         <div className="bridge-config-heading">
           <div><strong>Environment configuration</strong><small>Add these values to Paseo's external provider-usage adapter.</small></div>
-          <button className="button ghost" aria-live="polite" onClick={() => void copyEnv()}>{copiedKey === "env" ? "Copied!" : "Copy all"}</button>
+          <button className="button ghost" aria-live="polite" onClick={() => void copyEnv()}>{copiedKey === "env" ? "Copied!" : "Copy All"}</button>
         </div>
         <pre>{environment}</pre>
       </section>

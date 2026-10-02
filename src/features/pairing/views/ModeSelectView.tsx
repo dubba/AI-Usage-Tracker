@@ -24,7 +24,7 @@ export function ModeSelectView({
           </div>
           <div className="pairing-mode-card-body">
             <div className="pairing-mode-card-header">
-              <span className="pairing-mode-card-title">Show Link code</span>
+              <span className="pairing-mode-card-title">Show Link Code</span>
               <span className="pairing-mode-badge wifi">On same Wi-Fi</span>
             </div>
             <p className="pairing-mode-card-desc">
@@ -39,7 +39,7 @@ export function ModeSelectView({
           </div>
           <div className="pairing-mode-card-body">
             <div className="pairing-mode-card-header">
-              <span className="pairing-mode-card-title">Enter Link code</span>
+              <span className="pairing-mode-card-title">Enter Link Code</span>
               <span className="pairing-mode-badge enter">On same Wi-Fi</span>
             </div>
             <p className="pairing-mode-card-desc">
@@ -55,7 +55,7 @@ export function ModeSelectView({
             </div>
             <div className="pairing-mode-card-body">
               <div className="pairing-mode-card-header">
-                <span className="pairing-mode-card-title">Show QR code</span>
+                <span className="pairing-mode-card-title">Show QR Code</span>
                 <span className="pairing-mode-badge qr">No Wi-Fi needed</span>
               </div>
               <p className="pairing-mode-card-desc">
@@ -71,7 +71,7 @@ export function ModeSelectView({
           </div>
           <div className="pairing-mode-card-body">
             <div className="pairing-mode-card-header">
-              <span className="pairing-mode-card-title">Scan QR code</span>
+              <span className="pairing-mode-card-title">Scan QR Code</span>
               <span className="pairing-mode-badge scan">Uses camera</span>
             </div>
             <p className="pairing-mode-card-desc">

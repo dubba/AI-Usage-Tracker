@@ -402,7 +402,7 @@ export default function App() {
           ))}
           {accounts.length === 0 && buckets.length === 0 ? (
             <button className="empty-account provider-empty" onClick={() => { openAdd(); setSidebarOpen(false); }}>
-              <PlusIcon /><span>Add your first account</span>
+              <PlusIcon /><span>Add Your First Account</span>
             </button>
           ) : null}
         </div>

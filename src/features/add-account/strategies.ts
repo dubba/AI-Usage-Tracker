@@ -95,7 +95,7 @@ const browserSignIn = (provider: Provider): ProviderStrategy => ({
   waitingText: () => "Waiting for the browser callback…",
   opensBrowser: true,
   signInEmail: () => undefined,
-  actionLabel: (_draft, busy) => (busy ? "Connecting…" : `Open ${defaultAccountName(provider)} login`),
+  actionLabel: (_draft, busy) => (busy ? "Connecting…" : `Open ${defaultAccountName(provider)} Login`),
 });
 
 const opencodeGo: ProviderStrategy = {
@@ -114,7 +114,7 @@ const opencodeGo: ProviderStrategy = {
   connectDirect: (draft, name) =>
     bridgeApi.addOpenCodeGoAccount(name, draft.workspaceId.trim(), draft.authCookie.trim(), draft.email.trim() || undefined),
   actionLabel: (draft, busy) =>
-    busy ? "Waiting for OpenCode…" : draft.advancedManual ? "Connect manually" : "Open OpenCode login",
+    busy ? "Waiting for OpenCode…" : draft.advancedManual ? "Connect Manually" : "Open OpenCode Login",
 };
 
 const grok: ProviderStrategy = {
@@ -133,8 +133,8 @@ const grok: ProviderStrategy = {
   connectDirect: (draft, name) => bridgeApi.addGrokAccount(name, draft.grokCookie.trim()),
   actionLabel: (draft, busy) =>
     busy
-      ? draft.advancedManual ? "Adding account…" : "Waiting for Grok…"
-      : draft.advancedManual ? "Connect manually" : "Open Grok login",
+      ? draft.advancedManual ? "Adding Account…" : "Waiting for Grok…"
+      : draft.advancedManual ? "Connect Manually" : "Open Grok Login",
 };
 
 const googleAiStudio: ProviderStrategy = {
@@ -150,7 +150,7 @@ const googleAiStudio: ProviderStrategy = {
   description: () =>
     "Enter an AI Studio API key, load the model list directly from Google, and choose which models to track. After the account is added, connect its Google Cloud project to retrieve provider-reported quota usage.",
   connectDirect: (draft, name) => bridgeApi.addGoogleAiStudioAccount(name, draft.apiKey.trim(), draft.selectedModels),
-  actionLabel: (_draft, busy) => (busy ? "Adding account…" : "Add selected models"),
+  actionLabel: (_draft, busy) => (busy ? "Adding Account…" : "Add Selected Models"),
 };
 
 const STRATEGIES: Record<Provider, ProviderStrategy> = {
