@@ -3,15 +3,16 @@
 ## Unreleased (0 items)
 
 
-## 0.3.11 - 2026-10-01 (2 items)
+## 0.3.11 - 2026-10-01 (3 items)
 
 ### Improved (1)
 
 - In account cards, balanced the vertical spacing around the progress bar and matched the gap above subsequent usage limit panes to the distance above the first limit pane.
 
-### Changed (1)
+### Changed (2)
 
 - Account cards now show each usage window's label on its divider line, with the progress bar below it and the remaining percentage (for example "57% left") and reset time under the bar.
+- On mobile screens, reduced the bottom padding of account cards from 14px to 12px to match the card's horizontal padding.
 
 
 ## 0.3.10 - 2026-10-01 (53 items)
