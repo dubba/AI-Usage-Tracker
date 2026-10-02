@@ -3,7 +3,7 @@
 ## Unreleased (0 items)
 
 
-## 0.3.11 - 2026-10-01 (16 items)
+## 0.3.11 - 2026-10-01 (18 items)
 
 ### Added (3)
 
@@ -11,7 +11,7 @@
 - In the sidebar, added a circular purple "Refresh All" button beside the sync status line to trigger a refresh of all accounts.
 - On mobile, added a Chrome-style pull-down-to-refresh gesture when the dashboard is at the top, displaying a floating circular refresh indicator that triggers "Refresh All" on a long pull.
 
-### Improved (7)
+### Improved (9)
 
 - In account cards, balanced the vertical spacing around the progress bar and matched the gap above subsequent usage limit panes to the distance above the first limit pane.
 - In Settings, capitalized all main words in section headings including "Start on Device Boot", "Include Beta Releases", "Enable Paseo Bridge", and "Integration Window".
@@ -20,6 +20,8 @@
 - In the sidebar, updated the Settings button to use the purple primary button style matching "+ Account", "+ Group", and "Refresh All".
 - In the sidebar, updated the Refresh All button to match the dark elevated surface, purple border, and styling of the pull-to-refresh indicator.
 - In the sidebar, repositioned the Refresh All button to the right of the sync status text in a balanced space-between toolbar layout and adjusted its tooltip alignment.
+- In Settings, updated the Change Log and Integration Window "View" buttons to match the background, border color, and crisp white font color of the Account Updates dropdown menu.
+- In the expanded mobile sidebar, styled the close button with a red background, red border, and crisp white X matching modal close buttons, and increased the size of the X across all modal close buttons.
 
 ### Changed (5)
 

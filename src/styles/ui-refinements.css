@@ -1081,3 +1081,102 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   }
 }
 
+/* Settings: View buttons (Change Log and Integration Window) styled to match Account Updates dropdown */
+.settings-style-content .settings-changelog-button,
+.settings-changelog-button {
+  background: #141316 !important;
+  border: 1px solid var(--obsidian-border-strong) !important;
+  border-radius: 6px !important;
+  color: #f7f4ff !important;
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
+}
+
+.settings-style-content .settings-changelog-button span,
+.settings-changelog-button span {
+  color: #f7f4ff !important;
+}
+
+.settings-style-content .settings-changelog-button svg,
+.settings-changelog-button svg {
+  color: #f7f4ff !important;
+  transition: color 140ms ease;
+}
+
+.settings-style-content .settings-changelog-button:hover:not(:disabled),
+.settings-changelog-button:hover:not(:disabled) {
+  background-color: #1a1820 !important;
+  border-color: var(--obsidian-purple-strong) !important;
+  box-shadow: 0 0 0 3px rgba(160, 120, 255, 0.15) !important;
+  color: #ffffff !important;
+}
+
+.settings-style-content .settings-changelog-button:hover:not(:disabled) span,
+.settings-changelog-button:hover:not(:disabled) span,
+.settings-style-content .settings-changelog-button:hover:not(:disabled) svg,
+.settings-changelog-button:hover:not(:disabled) svg {
+  color: #ffffff !important;
+}
+
+.settings-style-content .settings-changelog-button:active:not(:disabled),
+.settings-changelog-button:active:not(:disabled) {
+  background-color: #24202e !important;
+  border-color: var(--obsidian-purple-strong) !important;
+  transform: scale(0.98);
+}
+
+.settings-style-content .settings-changelog-button:disabled,
+.settings-changelog-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Sidebar expanded mobile close button: matches red modal close button */
+.sidebar-mobile-header .mobile-sidebar-close-btn,
+.mobile-sidebar-close-btn {
+  background: #c53131 !important;
+  border: 1px solid #d94a4a !important;
+  border-radius: 8px !important;
+  color: #fff !important;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease, transform 100ms ease;
+}
+
+.sidebar-mobile-header .mobile-sidebar-close-btn svg,
+.mobile-sidebar-close-btn svg {
+  width: 22px;
+  height: 22px;
+  color: #fff !important;
+  stroke: #fff !important;
+  stroke-width: 2.2;
+}
+
+.sidebar-mobile-header .mobile-sidebar-close-btn:hover:not(:disabled),
+.mobile-sidebar-close-btn:hover:not(:disabled) {
+  background: #d93d3d !important;
+  border-color: #ff6464 !important;
+  color: #fff !important;
+}
+
+.sidebar-mobile-header .mobile-sidebar-close-btn:focus-visible,
+.mobile-sidebar-close-btn:focus-visible {
+  background: #d93d3d !important;
+  border-color: #ff6464 !important;
+  color: #fff !important;
+  outline: none !important;
+}
+
+.sidebar-mobile-header .mobile-sidebar-close-btn:active:not(:disabled),
+.mobile-sidebar-close-btn:active:not(:disabled) {
+  background: #b52828 !important;
+  border-color: #a82020 !important;
+  color: #fff !important;
+  transform: scale(0.96);
+}
+
+

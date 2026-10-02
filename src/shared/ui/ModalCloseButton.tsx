@@ -1,3 +1,5 @@
+import { CloseIcon } from "./icons";
+
 /** The × in a dialog's top corner. `onClose` should be the same handler as the dialog's Cancel button. */
 export function ModalCloseButton({ onClose, disabled }: { onClose: () => void; disabled?: boolean }) {
   return (
@@ -10,7 +12,7 @@ export function ModalCloseButton({ onClose, disabled }: { onClose: () => void; d
       aria-label="Close dialog"
       data-tooltip="Close"
     >
-      ×
+      <CloseIcon />
     </button>
   );
 }
