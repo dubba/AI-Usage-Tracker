@@ -1,11 +1,9 @@
-import { useState } from "react";
 import {
   ExternalLinkIcon,
   MenuIcon,
 } from "../../shared/ui/icons";
 import { CopyDiagnosticsButton } from "./CopyDiagnosticsButton";
 import { CustomDropdown } from "../../shared/ui/CustomDropdown";
-import { UpdateNotesModal } from "./UpdateNotesModal";
 import type {
   AppSettings,
   AppUpdateProgress,
@@ -44,6 +42,7 @@ export function SettingsView({
   bridgeBusy,
   onToggleBridge,
   onViewBridgeWindow,
+  onOpenUpdateNotes,
 }: {
   autostart: boolean;
   onToggleAutostart: () => void;
@@ -67,8 +66,8 @@ export function SettingsView({
   bridgeBusy: boolean;
   onToggleBridge: (enabled: boolean) => void;
   onViewBridgeWindow: () => void;
+  onOpenUpdateNotes?: () => void;
 }) {
-  const [updateNotesOpen, setUpdateNotesOpen] = useState(false);
   const automaticUpdates = appSettings?.automaticUpdatesEnabled ?? true;
   const includeBetaUpdates = appSettings?.includeBetaUpdates ?? false;
   return (
@@ -172,11 +171,11 @@ export function SettingsView({
                 )}
               </div>
               )}
-              {!updateBusy && update?.available && update.availableVersion ? (
+              {!updateBusy && update?.available && update.availableVersion && onOpenUpdateNotes ? (
                 <button
                   type="button"
                   className="settings-view-changelog-link"
-                  onClick={() => setUpdateNotesOpen(true)}
+                  onClick={onOpenUpdateNotes}
                 >
                   {`View what changed in v${update.availableVersion.replace(/^v/i, "")}`}
                 </button>
@@ -309,17 +308,6 @@ export function SettingsView({
         </div>
       </section>
       </div>
-      <UpdateNotesModal
-        open={updateNotesOpen}
-        version={update?.availableVersion ?? null}
-        releaseDate={update?.date}
-        releaseNotes={update?.body}
-        onClose={() => setUpdateNotesOpen(false)}
-        onInstallUpdate={onInstallUpdate}
-        onOpenLink={onOpenLink}
-        updateBusy={updateBusy}
-        updatePercent={updateProgress?.percent ?? null}
-      />
     </div>
   );
 }

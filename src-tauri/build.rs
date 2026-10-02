@@ -174,6 +174,7 @@ const APP_COMMANDS: &[&str] = &[
     "reveal_bridge_token",
     "check_for_app_update",
     "install_app_update",
+    "get_pending_update_notice",
     "ensure_camera_permission",
     "pairing_start_host",
     "pairing_start_receiver",

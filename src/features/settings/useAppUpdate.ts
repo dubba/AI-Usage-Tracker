@@ -124,6 +124,56 @@ export function useAppUpdate({ automaticUpdatesEnabled }: { automaticUpdatesEnab
     setUpdateProgress(payload);
   });
 
+  const [updateNotesOpen, setUpdateNotesOpen] = useState(false);
+  const [pendingUpdateVersion, setPendingUpdateVersion] = useState<string | null>(null);
+
+  const handleUpdateNotice = useCallback(
+    (version: string | null) => {
+      if (!version) return;
+      setPendingUpdateVersion(version);
+      setUpdateNotesOpen(true);
+      void checkForUpdate(false);
+    },
+    [checkForUpdate],
+  );
+
+  useEffect(() => {
+    bridgeApi
+      .getPendingUpdateNotice()
+      .then((ver) => {
+        if (ver) handleUpdateNotice(ver);
+      })
+      .catch((cause) => {
+        logIgnored("pending update notice", cause);
+      });
+  }, [handleUpdateNotice]);
+
+  useTauriEvent<string>("open-update-notes", (version) => {
+    if (version) handleUpdateNotice(version);
+  });
+
+  useEffect(() => {
+    const checkPending = () => {
+      bridgeApi
+        .getPendingUpdateNotice()
+        .then((ver) => {
+          if (ver) handleUpdateNotice(ver);
+        })
+        .catch((cause) => {
+          logIgnored("pending update notice on focus", cause);
+        });
+    };
+    window.addEventListener("focus", checkPending);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") checkPending();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("focus", checkPending);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [handleUpdateNotice]);
+
   return {
     installedVersion,
     appUpdate,
@@ -131,6 +181,9 @@ export function useAppUpdate({ automaticUpdatesEnabled }: { automaticUpdatesEnab
     updateProgress,
     updateError,
     updateMessage,
+    updateNotesOpen,
+    setUpdateNotesOpen,
+    pendingUpdateVersion,
     checkForUpdate,
     installUpdate,
   };

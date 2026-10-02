@@ -571,6 +571,30 @@ fn status_from_github_latest(
     )
 }
 
+pub static PENDING_UPDATE_NOTICE: parking_lot::Mutex<Option<String>> =
+    parking_lot::Mutex::new(None);
+
+#[cfg(target_os = "android")]
+#[no_mangle]
+pub extern "C" fn Java_com_yajinni_paseousagebridge_MainActivity_setPendingUpdateNotice(
+    mut env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+    version: jni::objects::JString,
+) {
+    if let Ok(ver_str) = env.get_string(&version) {
+        let ver_val = ver_str.to_string_lossy().into_owned();
+        *PENDING_UPDATE_NOTICE.lock() = Some(ver_val.clone());
+        if let Some(app) = crate::commands::pairing::GLOBAL_APP_HANDLE.lock().as_ref() {
+            let _ = app.emit("open-update-notes", ver_val);
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn get_pending_update_notice() -> Result<Option<String>, String> {
+    Ok(PENDING_UPDATE_NOTICE.lock().take())
+}
+
 #[tauri::command]
 pub async fn check_for_app_update(
     app: AppHandle,

@@ -75,6 +75,7 @@
     "allow-reveal-bridge-token",
     "allow-check-for-app-update",
     "allow-install-app-update",
+    "allow-get-pending-update-notice",
     "allow-ensure-camera-permission",
     "allow-pairing-start-host",
     "allow-pairing-start-receiver",

@@ -243,6 +243,8 @@ export function UpdateNotesModal({
                 </p>
               );
             })
+          ) : updateBusy === "checking" ? (
+            <p className="update-notes-empty">Loading release notes…</p>
           ) : (
             <p className="update-notes-empty">
               No detailed release notes were provided for this release.

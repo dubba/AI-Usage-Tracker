@@ -16,6 +16,7 @@ import { ErrorBanner } from "../shared/ui/ErrorBanner";
 import { GoogleAiStudioUsageModal } from "../features/accounts/GoogleAiStudioUsageModal";
 import { PairingModal } from "../features/pairing/PairingModal";
 import { SettingsView } from "../features/settings/SettingsView";
+import { UpdateNotesModal } from "../features/settings/UpdateNotesModal";
 import { GROUP_REORDER_HINT_ID, SidebarGroupRow } from "../features/dashboard/SidebarGroupRow";
 import { SidebarResizeHandle } from "../features/dashboard/SidebarResizeHandle";
 import { UsageAlertToasts } from "../features/alerts/UsageAlertToasts";
@@ -121,6 +122,9 @@ export default function App() {
     updateProgress,
     updateError,
     updateMessage,
+    updateNotesOpen,
+    setUpdateNotesOpen,
+    pendingUpdateVersion,
     checkForUpdate,
     installUpdate,
   } = useAppUpdate({ automaticUpdatesEnabled: appSettings?.automaticUpdatesEnabled });
@@ -308,6 +312,7 @@ export default function App() {
           bridgeBusy={busy.has("toggle-api-integration") || busy.has("open-api-integration")}
           onToggleBridge={(enabled) => void setApiIntegrationEnabled(enabled)}
           onViewBridgeWindow={() => void openApiIntegrationWindow()}
+          onOpenUpdateNotes={() => setUpdateNotesOpen(true)}
         />
       );
     }
@@ -541,6 +546,17 @@ export default function App() {
         initialJoinUri={pairingInitialUri}
         onClose={closePairing}
         onCompleted={handlePairingCompleted}
+      />
+      <UpdateNotesModal
+        open={updateNotesOpen}
+        version={appUpdate?.availableVersion ?? pendingUpdateVersion ?? null}
+        releaseDate={appUpdate?.date}
+        releaseNotes={appUpdate?.body}
+        onClose={() => setUpdateNotesOpen(false)}
+        onInstallUpdate={() => void installUpdate()}
+        onOpenLink={openLink}
+        updateBusy={updateBusy}
+        updatePercent={updateProgress?.percent ?? null}
       />
       <ErrorBanner
         errors={snapshot ? errors : errors.filter((entry) => entry.source !== "load")}

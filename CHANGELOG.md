@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased (0 items)
+## Unreleased (1 item)
+
+### Improved (1)
+
+- Tapping an Android update notification now opens the app directly to the "App Update" dialog showing release notes and the update action instead of the dashboard.
 
 
 ## 0.3.12 - 2026-10-02 (9 items)

@@ -46,8 +46,14 @@ class MainActivity : TauriActivity() {
     @Volatile
     private var pendingUriMemory: String? = null
 
+    @Volatile
+    private var pendingUpdateNoticeMemory: String? = null
+
     @JvmStatic
     external fun setPendingPairingUri(uri: String)
+
+    @JvmStatic
+    external fun setPendingUpdateNotice(version: String)
 
     /** Hands this activity to Rust for its JNI calls (see android_context.rs). */
     @JvmStatic
@@ -175,9 +181,24 @@ class MainActivity : TauriActivity() {
     }
   }
 
+  private fun handleUpdateIntent(intent: Intent?) {
+    val version = intent?.getStringExtra("open_update_notes") ?: return
+    intent.removeExtra("open_update_notes")
+    android.util.Log.i(TAG, "Received update notice intent (version=$version)")
+    pendingUpdateNoticeMemory = version
+    try {
+      setPendingUpdateNotice(version)
+      android.util.Log.i(TAG, "Forwarded update notice to Rust")
+    } catch (e: Throwable) {
+      android.util.Log.w(TAG, "setPendingUpdateNotice deferred until runtime init: ${e.message}")
+    }
+  }
+
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
+    setIntent(intent)
     handlePairingIntent(intent)
+    handleUpdateIntent(intent)
   }
 
   override fun onResume() {
@@ -249,11 +270,19 @@ class MainActivity : TauriActivity() {
     }
 
     handlePairingIntent(intent)
+    handleUpdateIntent(intent)
     pendingUriMemory?.let { uri ->
       try {
         setPendingPairingUri(uri)
       } catch (e: Throwable) {
         android.util.Log.e(TAG, "Retry setPendingPairingUri failed: ${e.message}")
+      }
+    }
+    pendingUpdateNoticeMemory?.let { ver ->
+      try {
+        setPendingUpdateNotice(ver)
+      } catch (e: Throwable) {
+        android.util.Log.e(TAG, "Retry setPendingUpdateNotice failed: ${e.message}")
       }
     }
 
@@ -443,7 +472,7 @@ class MainActivity : TauriActivity() {
       .setOnlyAlertOnce(true)
       .setAutoCancel(true)
       .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-      .setContentIntent(appLaunchPendingIntent())
+      .setContentIntent(updateNotificationPendingIntent(version))
       .build()
     val manager = getSystemService(NotificationManager::class.java)
     manager.notify(UPDATE_AVAILABLE_NOTIFICATION_ID, notification)
@@ -483,6 +512,22 @@ class MainActivity : TauriActivity() {
     }
   }
 
+  private fun updateNotificationPendingIntent(version: String): PendingIntent {
+    val launch = packageManager.getLaunchIntentForPackage(packageName)
+      ?: Intent(this, MainActivity::class.java).apply {
+        action = Intent.ACTION_MAIN
+        addCategory(Intent.CATEGORY_LAUNCHER)
+      }
+    launch.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+    launch.putExtra("open_update_notes", version)
+    return PendingIntent.getActivity(
+      this,
+      UPDATE_AVAILABLE_NOTIFICATION_ID,
+      launch,
+      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
+  }
+
   private fun appLaunchPendingIntent(): PendingIntent {
     val launch = packageManager.getLaunchIntentForPackage(packageName)
       ?: Intent(this, MainActivity::class.java).apply {
@@ -492,7 +537,7 @@ class MainActivity : TauriActivity() {
     launch.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
     return PendingIntent.getActivity(
       this,
-      UPDATE_AVAILABLE_NOTIFICATION_ID,
+      UPDATE_NOTIFICATION_ID,
       launch,
       PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )

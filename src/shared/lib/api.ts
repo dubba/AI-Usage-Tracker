@@ -61,6 +61,7 @@ export const bridgeApi = {
   revealBridgeToken: () => invoke<string>("reveal_bridge_token"),
   checkForUpdate: () => invoke<AppUpdateStatus>("check_for_app_update"),
   installUpdate: () => invoke<void>("install_app_update"),
+  getPendingUpdateNotice: () => invoke<string | null>("get_pending_update_notice"),
 };
 
 export const pairingApi = {

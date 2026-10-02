@@ -130,6 +130,7 @@ pub fn run() {
             commands::bridge::reveal_bridge_token,
             updater::check_for_app_update,
             updater::install_app_update,
+            updater::get_pending_update_notice,
             commands::pairing::ensure_camera_permission,
             commands::pairing::pairing_start_host,
             commands::pairing::pairing_start_receiver,
