@@ -870,7 +870,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   align-items: center;
   justify-content: center;
   gap: 10px;
-  margin: 10px 0 14px;
+  margin: 10px 0 10px;
   padding: 0 12px;
   color: var(--obsidian-muted);
   font-size: 12px;
@@ -978,17 +978,79 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   line-height: 1.2;
 }
 
-/* On small screens Settings is pinned to the bottom of the drawer, so pin the status just above it. */
+/* On small screens Settings is above the refresh all / sync status line at the bottom of the drawer. */
 @media (max-width: 860px) {
   .obsidian-shell aside.sidebar {
-    padding-bottom: max(112px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 100px)) !important;
+    padding-bottom: max(112px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 104px)) !important;
   }
 
   .obsidian-shell .sidebar-sync-status {
     position: absolute;
-    bottom: max(64px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 64px));
+    bottom: max(10px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 10px));
     left: max(16px, calc(var(--safe-area-left, env(safe-area-inset-left, 0px)) + 14px));
     right: max(16px, calc(var(--safe-area-right, env(safe-area-inset-right, 0px)) + 14px));
     margin: 0;
   }
 }
+
+/* Pull-to-refresh (Chrome-style mobile gesture) */
+.pull-to-refresh-indicator {
+  position: absolute;
+  top: max(8px, calc(var(--safe-area-top, env(safe-area-inset-top, 0px)) + 8px));
+  left: 50%;
+  transform: translate(-50%, -60px) scale(0.6);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--obsidian-surface-container-high, #211e29);
+  border: 1px solid rgba(160, 120, 255, 0.4);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(160, 120, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  pointer-events: none;
+  opacity: 0;
+  transition: transform 220ms cubic-bezier(0.18, 0.89, 0.32, 1.28), opacity 180ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.pull-to-refresh-indicator .pull-to-refresh-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--obsidian-purple);
+  transition: color 150ms ease;
+}
+
+.pull-to-refresh-indicator .pull-to-refresh-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.pull-to-refresh-indicator.is-primed {
+  border-color: var(--obsidian-purple-strong);
+  background: #28213a;
+  box-shadow: 0 4px 20px rgba(160, 120, 255, 0.5), 0 0 12px rgba(160, 120, 255, 0.4);
+}
+
+.pull-to-refresh-indicator.is-primed .pull-to-refresh-icon {
+  color: #ffffff;
+}
+
+.pull-to-refresh-indicator.is-refreshing .pull-to-refresh-icon {
+  animation: obsidian-spin 800ms linear infinite;
+  color: var(--obsidian-purple-strong);
+}
+
+.pull-to-refresh-indicator.is-settling {
+  transition: transform 250ms ease, opacity 200ms ease;
+}
+
+@media (min-width: 861px) {
+  .pull-to-refresh-indicator {
+    display: none !important;
+  }
+}
+

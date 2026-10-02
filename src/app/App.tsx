@@ -407,15 +407,9 @@ export default function App() {
           ) : null}
         </div>
 
-        <SyncStatusLine
-          accounts={accounts}
-          refreshMinutes={appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES}
-          busy={busy}
-          onRefreshAll={refreshAll}
-        />
         <button
           type="button"
-          className={`sidebar-footer${section === "settings" ? " active" : ""}`}
+          className={`button primary sidebar-footer${section === "settings" ? " active" : ""}`}
           aria-current={section === "settings" ? "page" : undefined}
           onClick={() => {
             setSection("settings");
@@ -426,6 +420,12 @@ export default function App() {
           <SettingsIcon />
           <span>Settings</span>
         </button>
+        <SyncStatusLine
+          accounts={accounts}
+          refreshMinutes={appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES}
+          busy={busy}
+          onRefreshAll={refreshAll}
+        />
         <SidebarResizeHandle shellRef={shellRef} sidebarRef={sidebarRef} />
       </aside>
 

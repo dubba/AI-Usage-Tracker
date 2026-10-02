@@ -419,45 +419,56 @@ select {
   justify-content: center;
   gap: 9px;
   flex: 0 0 auto;
-  min-height: 48px;
+  min-height: 44px;
   margin: auto 0 0;
   padding: 0 14px;
-  border: 1px solid var(--obsidian-border);
+  border: 1px solid var(--obsidian-purple);
   border-radius: 4px;
-  background: #171616;
-  color: #eeeaea;
+  background: var(--obsidian-purple);
+  color: #2d145f;
+  box-shadow: 0 2px 8px rgba(160, 120, 255, 0.35);
   cursor: pointer;
-  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease, box-shadow 120ms ease, transform 100ms ease;
 }
 
 .obsidian-shell .sidebar-footer svg {
   width: 18px;
   height: 18px;
+  color: #2d145f;
 }
 
 .obsidian-shell .sidebar-footer > span {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 700;
+  color: #2d145f;
 }
 
 .obsidian-shell .sidebar-footer:hover,
 .obsidian-shell .sidebar-footer:focus-visible {
-  border-color: var(--obsidian-purple-strong);
-  color: #fff;
-  background: #1f1e1e;
+  border-color: var(--obsidian-purple-strong) !important;
+  color: #2d145f !important;
+  background: #dfd0ff !important;
+  box-shadow: 0 4px 12px rgba(160, 120, 255, 0.45);
+}
+
+.obsidian-shell .sidebar-footer:active {
+  background: #c3abfc !important;
+  border-color: var(--obsidian-purple-strong) !important;
+  color: #2d145f !important;
+  transform: scale(0.98);
 }
 
 .obsidian-shell .sidebar-footer.update-available {
-  color: #fff;
-  background: #7650d9;
-  border-color: #8d6bed;
+  color: #2d145f;
+  background: #dfd0ff;
+  border-color: var(--obsidian-purple-strong);
 }
 
 .obsidian-shell .sidebar-footer.active {
-  border-color: rgba(208, 188, 255, 0.75);
-  background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), var(--obsidian-surface-container) 48%);
-  box-shadow: inset 2px 0 0 var(--obsidian-purple-strong);
-  color: #fff;
+  border-color: var(--obsidian-purple-strong) !important;
+  background: #dfd0ff !important;
+  color: #2d145f !important;
+  box-shadow: 0 0 0 1px var(--obsidian-purple-strong), 0 2px 8px rgba(160, 120, 255, 0.4) !important;
 }
 
 .obsidian-shell .main-stage {
@@ -2978,19 +2989,20 @@ select.text-input option,
 @media (max-width: 860px) {
   .obsidian-shell .sidebar-footer {
     position: absolute;
-    bottom: max(8px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 8px));
+    bottom: max(56px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 56px));
     left: max(16px, calc(var(--safe-area-left, env(safe-area-inset-left, 0px)) + 14px));
     right: max(16px, calc(var(--safe-area-right, env(safe-area-inset-right, 0px)) + 14px));
     width: auto;
     margin: 0;
     min-height: 40px;
     height: 40px;
-    border: 1px solid var(--obsidian-border);
+    border: 1px solid var(--obsidian-purple);
     border-radius: 4px;
-    background: #171616;
-    color: #eeeaea;
+    background: var(--obsidian-purple);
+    color: #2d145f;
+    box-shadow: 0 2px 8px rgba(160, 120, 255, 0.35);
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 700;
     gap: 6px;
     padding: 0 14px;
     box-sizing: border-box;
@@ -3000,24 +3012,35 @@ select.text-input option,
   .obsidian-shell .sidebar-footer:hover,
   .obsidian-shell .sidebar-footer:focus-visible {
     border-color: var(--obsidian-purple-strong) !important;
-    background: #1f1e1e !important;
-    color: #fff !important;
+    background: #dfd0ff !important;
+    color: #2d145f !important;
+    box-shadow: 0 4px 12px rgba(160, 120, 255, 0.45);
+  }
+
+  .obsidian-shell .sidebar-footer:active {
+    background: #c3abfc !important;
+    border-color: var(--obsidian-purple-strong) !important;
+    color: #2d145f !important;
+    transform: scale(0.98);
   }
 
   .obsidian-shell .sidebar-footer.active {
-    border-color: rgba(208, 188, 255, 0.75) !important;
-    background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), var(--obsidian-surface-container) 48%) !important;
-    box-shadow: inset 2px 0 0 var(--obsidian-purple-strong);
-    color: #fff !important;
+    border-color: var(--obsidian-purple-strong) !important;
+    background: #dfd0ff !important;
+    color: #2d145f !important;
+    box-shadow: 0 0 0 1px var(--obsidian-purple-strong), 0 2px 8px rgba(160, 120, 255, 0.4) !important;
   }
 
   .obsidian-shell .sidebar-footer svg {
     width: 18px;
     height: 18px;
+    color: #2d145f;
   }
 
   .obsidian-shell .sidebar-footer > span {
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 700;
+    color: #2d145f;
   }
 }
+

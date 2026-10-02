@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { type BusyKeys } from "../../shared/lib/busy";
 import {
   CheckCircleIcon,
@@ -25,6 +25,8 @@ import { moveAnnouncement, moveById } from "../reorder/reorder-utils";
 import { AccountDashboardCard, REORDER_HINT_ID } from "./AccountDashboardCard";
 import { ACCOUNT_FORMS, formatCount } from "../../shared/lib/format";
 import { useClock } from "../../shared/hooks/useClock";
+import { usePullToRefresh } from "../dashboard/usePullToRefresh";
+import { PullToRefreshIndicator } from "../dashboard/PullToRefreshIndicator";
 
 const ATTENTION_HINT_ID = "attention-filter-hint";
 
@@ -92,8 +94,19 @@ export function AccountsView(props: {
     setAnnouncement(moveAnnouncement(displayAccountLabel(account), move.to, move.ids.length));
   };
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const pullData = usePullToRefresh({
+    containerRef,
+    scrollRef,
+    onRefresh: props.onRefreshAll,
+    disabled: !props.onRefreshAll,
+  });
+
   return (
-    <div className="content-scroll dashboard-content">
+    <div ref={containerRef} className="content-scroll dashboard-content">
+      <PullToRefreshIndicator data={pullData} />
       <header className="dashboard-header">
         <div>
           <div className="dashboard-title-row">
@@ -145,7 +158,7 @@ export function AccountsView(props: {
         ) : null}
       </header>
 
-      <div className="dashboard-scroll">
+      <div ref={scrollRef} className="dashboard-scroll">
         <section className="summary-grid mockup-summary-grid">
           <div className="mockup-summary-card total-card">
             <div><span className="summary-label">Accounts</span><strong className="summary-helper">Active</strong></div>

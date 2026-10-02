@@ -284,7 +284,7 @@ export function SettingsView({
             <strong>Diagnostics</strong>
             <small>Copy bug report with tokens, cookies and emails removed.</small>
           </div>
-          <CopyDiagnosticsButton compact />
+          <CopyDiagnosticsButton compact className="button primary" />
         </div>
       </section>
       </div>

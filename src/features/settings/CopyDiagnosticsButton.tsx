@@ -10,7 +10,7 @@ type CopyState = "idle" | "copying" | "copied" | "failed";
  * `compact` shows a copy icon with "Copy" (for places that already say "Diagnostics" beside it).
  */
 export function CopyDiagnosticsButton({
-  className = "button ghost",
+  className = "button primary",
   compact = false,
 }: {
   className?: string;
