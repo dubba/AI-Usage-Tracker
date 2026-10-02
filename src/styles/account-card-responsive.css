@@ -755,14 +755,14 @@
   background: var(--obsidian-surface-low, #1c1b1b);
   border: 1px solid rgba(160, 120, 255, 0.4);
   border-radius: 5px;
-  color: var(--obsidian-purple);
+  color: #d7d0dc;
   box-shadow: none;
   transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
 }
 
 .obsidian-shell button.sidebar-footer svg,
 .obsidian-shell button.sidebar-footer > span {
-  color: var(--obsidian-purple);
+  color: #d7d0dc;
   transition: color 120ms ease;
 }
 

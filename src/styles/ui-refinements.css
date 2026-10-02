@@ -939,7 +939,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   border-radius: 50%;
   background: var(--obsidian-surface-low, #1c1b1b);
   border: 1px solid rgba(160, 120, 255, 0.4);
-  color: var(--obsidian-purple);
+  color: #d7d0dc;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -953,7 +953,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .sidebar-settings-btn svg {
   width: 18px;
   height: 18px;
-  color: var(--obsidian-purple);
+  color: #d7d0dc;
   transition: color 150ms ease;
 }
 
@@ -983,6 +983,11 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .sidebar-settings-btn:focus-visible {
   outline: none;
   border-color: var(--obsidian-purple-strong);
+  color: #ffffff;
+}
+
+.sidebar-settings-btn:focus-visible svg {
+  color: #ffffff;
 }
 
 .sidebar-settings-btn.active {
@@ -1061,6 +1066,8 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .sidebar-sync-status-detail {
+  padding-left: 12px;
+  box-sizing: border-box;
   font-size: 11px;
   line-height: 1.2;
   overflow: hidden;
@@ -1151,19 +1158,19 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   background: var(--obsidian-surface-low, #1c1b1b) !important;
   border: 1px solid rgba(160, 120, 255, 0.4) !important;
   border-radius: 6px !important;
-  color: var(--obsidian-purple) !important;
+  color: #d7d0dc !important;
   transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
 }
 
 .settings-style-content .settings-changelog-button span,
 .settings-changelog-button span {
-  color: var(--obsidian-purple) !important;
+  color: #d7d0dc !important;
   transition: color 140ms ease;
 }
 
 .settings-style-content .settings-changelog-button svg,
 .settings-changelog-button svg {
-  color: var(--obsidian-purple) !important;
+  color: #d7d0dc !important;
   transition: color 140ms ease;
 }
 
@@ -1207,17 +1214,17 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   background: var(--obsidian-surface-low, #1c1b1b) !important;
   border: 1px solid rgba(160, 120, 255, 0.4) !important;
   border-radius: 6px !important;
-  color: var(--obsidian-purple) !important;
+  color: #d7d0dc !important;
   transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
 }
 
 .settings-account-refresh .custom-dropdown-label {
-  color: var(--obsidian-purple) !important;
+  color: #d7d0dc !important;
   transition: color 140ms ease;
 }
 
 .settings-account-refresh .custom-dropdown-chevron {
-  color: var(--obsidian-purple) !important;
+  color: #d7d0dc !important;
   transition: color 140ms ease;
 }
 
@@ -1248,11 +1255,11 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .settings-account-refresh .custom-dropdown-item {
-  color: var(--obsidian-purple) !important;
+  color: #d7d0dc !important;
 }
 
 .settings-account-refresh .custom-dropdown-item-label {
-  color: var(--obsidian-purple) !important;
+  color: #d7d0dc !important;
 }
 
 .settings-account-refresh .custom-dropdown-item.highlighted,
