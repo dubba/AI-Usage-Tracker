@@ -884,35 +884,46 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   min-width: 34px;
   min-height: 34px;
   border-radius: 50%;
-  background: var(--obsidian-purple);
-  border: 1px solid var(--obsidian-purple);
-  color: #2d145f;
+  background: var(--obsidian-surface-container-high, #211e29);
+  border: 1px solid rgba(160, 120, 255, 0.4);
+  color: var(--obsidian-purple);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   padding: 0;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(160, 120, 255, 0.35);
-  transition: background 150ms ease, transform 100ms ease, box-shadow 150ms ease, border-color 150ms ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(160, 120, 255, 0.25);
+  transition: background 150ms ease, transform 100ms ease, box-shadow 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
 .sidebar-refresh-all-btn svg {
   width: 17px;
   height: 17px;
-  color: #2d145f;
+  color: var(--obsidian-purple);
+  transition: color 150ms ease;
 }
 
 .sidebar-refresh-all-btn:hover:not(:disabled) {
-  background: #dfd0ff;
+  background: #28213a;
   border-color: var(--obsidian-purple-strong);
-  box-shadow: 0 4px 12px rgba(160, 120, 255, 0.45);
+  color: #ffffff;
+  box-shadow: 0 4px 20px rgba(160, 120, 255, 0.5), 0 0 12px rgba(160, 120, 255, 0.4);
+}
+
+.sidebar-refresh-all-btn:hover:not(:disabled) svg {
+  color: #ffffff;
 }
 
 .sidebar-refresh-all-btn:active:not(:disabled) {
-  background: #c3abfc;
+  background: #32254e;
   border-color: var(--obsidian-purple-strong);
+  color: #ffffff;
   transform: scale(0.95);
+}
+
+.sidebar-refresh-all-btn:active:not(:disabled) svg {
+  color: #ffffff;
 }
 
 .sidebar-refresh-all-btn:disabled {
@@ -920,8 +931,15 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   cursor: not-allowed;
 }
 
+.sidebar-refresh-all-btn.spinning {
+  border-color: var(--obsidian-purple-strong);
+  background: #28213a;
+  box-shadow: 0 0 12px rgba(160, 120, 255, 0.35);
+}
+
 .sidebar-refresh-all-btn.spinning svg {
-  animation: obsidian-spin 900ms linear infinite;
+  animation: obsidian-spin 800ms linear infinite;
+  color: var(--obsidian-purple-strong);
 }
 
 .sidebar-refresh-all-btn[data-tooltip]::after {

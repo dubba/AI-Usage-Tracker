@@ -3,7 +3,7 @@
 ## Unreleased (0 items)
 
 
-## 0.3.11 - 2026-10-01 (14 items)
+## 0.3.11 - 2026-10-01 (15 items)
 
 ### Added (3)
 
@@ -11,13 +11,14 @@
 - In the sidebar, added a circular purple "Refresh All" button beside the sync status line to trigger a refresh of all accounts.
 - On mobile, added a Chrome-style pull-down-to-refresh gesture when the dashboard is at the top, displaying a floating circular refresh indicator that triggers "Refresh All" on a long pull.
 
-### Improved (5)
+### Improved (6)
 
 - In account cards, balanced the vertical spacing around the progress bar and matched the gap above subsequent usage limit panes to the distance above the first limit pane.
 - In Settings, capitalized all main words in section headings including "Start on Device Boot", "Include Beta Releases", "Enable Paseo Bridge", and "Integration Window".
 - In Settings, updated the Diagnostics Copy button to use the primary purple button style matching Link Devices and Check Now.
 - In the sidebar, repositioned the Settings button above the Refresh All and account sync status line.
 - In the sidebar, updated the Settings button to use the purple primary button style matching "+ Account", "+ Group", and "Refresh All".
+- In the sidebar, updated the Refresh All button to match the dark elevated surface, purple border, and styling of the pull-to-refresh indicator.
 
 ### Changed (5)
 
