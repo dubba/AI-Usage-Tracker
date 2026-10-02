@@ -282,7 +282,7 @@ export function SettingsView({
         <div className="settings-row">
           <div>
             <strong>Diagnostics</strong>
-            <small>Copy a report for bug reports. Tokens, cookies, and email addresses are removed.</small>
+            <small>Copy bug report with tokens, cookies and emails removed.</small>
           </div>
           <CopyDiagnosticsButton compact />
         </div>
