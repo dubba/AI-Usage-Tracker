@@ -3,14 +3,15 @@
 ## Unreleased (0 items)
 
 
-## 0.3.12 - 2026-10-02 (23 items)
+## 0.3.12 - 2026-10-02 (24 items)
 
 ### Added (1)
 
 - Desktop keyboard shortcuts: Cmd/Ctrl+R refreshes all accounts, Cmd/Ctrl+N opens Add Account, Cmd/Ctrl+G opens Add Group, and Cmd/Ctrl+, opens Settings. They are listed under "Keyboard Shortcuts" in Settings (desktop layout only), and do nothing while a dialog is open.
 
-### Improved (11)
+### Improved (12)
 
+- On mobile and touch devices, tapping the Settings button in the sidebar no longer shows a tooltip.
 - Scroll bars are now a slightly more visible purple (#A078FF at 65% opacity, up from 45%), and the plan badge on account cards uses the same purple at 65% opacity.
 - On account cards, the remaining percentage text now turns amber at 30% or less and red at 15% or less to match the progress bar.
 - Unified the red accent color across the app: the Delete action in the account dropdown menu, and critical progress bars and percentages (<= 15%) now all use the signature red (`#c53131`).

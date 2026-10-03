@@ -47,8 +47,14 @@ export function useTouchTooltips(): void {
       if (!isTouchLike(event)) return;
       const target = event.target instanceof Element ? event.target : null;
       const withTooltip = target?.closest<HTMLElement>("[data-tooltip]");
-      if (withTooltip) show(withTooltip);
-      else dismiss();
+      if (
+        withTooltip &&
+        !withTooltip.matches(".sidebar-settings-btn, .mobile-sidebar-toggle-btn, .mobile-sidebar-close-btn")
+      ) {
+        show(withTooltip);
+      } else {
+        dismiss();
+      }
     };
 
     window.addEventListener("pointerdown", onTouch, { capture: true, passive: true });

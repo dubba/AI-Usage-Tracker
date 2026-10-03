@@ -1031,6 +1031,16 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   z-index: 1000;
 }
 
+@media (max-width: 860px), (hover: none), (pointer: coarse) {
+  .sidebar-settings-btn[data-tooltip]::after,
+  .sidebar-settings-btn[data-tooltip-active]::after {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+}
+
 .sidebar-sync-status-text {
   flex: 1 1 auto;
   display: flex;

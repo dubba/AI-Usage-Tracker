@@ -3026,11 +3026,13 @@ select.text-input option,
   }
 }
 
-@media (max-width: 860px) {
+@media (max-width: 860px), (hover: none), (pointer: coarse) {
   .mobile-sidebar-toggle-btn[data-tooltip]::after,
-.mobile-sidebar-toggle-btn[data-tooltip-active]::after,
-.mobile-sidebar-close-btn[data-tooltip]::after,
-.mobile-sidebar-close-btn[data-tooltip-active]::after {
+  .mobile-sidebar-toggle-btn[data-tooltip-active]::after,
+  .mobile-sidebar-close-btn[data-tooltip]::after,
+  .mobile-sidebar-close-btn[data-tooltip-active]::after,
+  .sidebar-settings-btn[data-tooltip]::after,
+  .sidebar-settings-btn[data-tooltip-active]::after {
     display: none !important;
     opacity: 0 !important;
     visibility: hidden !important;
