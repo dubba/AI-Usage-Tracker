@@ -22,7 +22,7 @@
 .provider-summary-track > .tone-critical,
 .account-metric-track > .tone-critical,
 .progress-fill.danger {
-  background: #e5303a !important;
+  background: #c53131 !important;
 }
 
 .provider-summary-track > .tone-neutral,
@@ -490,32 +490,37 @@
   flex: 0 0 auto;
   width: fit-content;
   margin: 0;
-  padding: 2px 7px;
+  padding: 0;
   color: var(--obsidian-muted-bright);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 4px;
-  background: var(--obsidian-surface-low);
+  border: none !important;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
   font-size: 11px;
-  font-weight: 550;
+  font-weight: 600;
   letter-spacing: 0.03em;
+  line-height: 1;
 }
 
 .account-usage-metric .metric-window-pill.window-pill-5h {
-  color: var(--obsidian-red);
-  border-color: rgba(255, 133, 133, 0.45);
-  background: rgba(85, 15, 15, 0.42);
+  color: #c53131;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .account-usage-metric .metric-window-pill.window-pill-7d {
   color: var(--obsidian-amber);
-  border-color: rgba(255, 184, 105, 0.5);
-  background: rgba(72, 41, 0, 0.42);
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .account-usage-metric .metric-window-pill.window-pill-monthly {
   color: var(--obsidian-purple);
-  border-color: rgba(208, 188, 255, 0.32);
-  background: rgba(160, 120, 255, 0.09);
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .account-usage-metric .metric-value-row {
@@ -939,7 +944,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   border-radius: 50%;
   background: var(--obsidian-surface-low, #1c1b1b);
   border: 1px solid rgba(160, 120, 255, 0.4);
-  color: #d7d0dc;
+  color: #ffffff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -953,7 +958,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .sidebar-settings-btn svg {
   width: 18px;
   height: 18px;
-  color: #d7d0dc;
+  color: #ffffff;
   transition: color 150ms ease;
 }
 
@@ -1158,19 +1163,19 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   background: var(--obsidian-surface-low, #1c1b1b) !important;
   border: 1px solid rgba(160, 120, 255, 0.4) !important;
   border-radius: 6px !important;
-  color: #d7d0dc !important;
+  color: #ffffff !important;
   transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
 }
 
 .settings-style-content .settings-changelog-button span,
 .settings-changelog-button span {
-  color: #d7d0dc !important;
+  color: #ffffff !important;
   transition: color 140ms ease;
 }
 
 .settings-style-content .settings-changelog-button svg,
 .settings-changelog-button svg {
-  color: #d7d0dc !important;
+  color: #ffffff !important;
   transition: color 140ms ease;
 }
 
@@ -1214,17 +1219,17 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   background: var(--obsidian-surface-low, #1c1b1b) !important;
   border: 1px solid rgba(160, 120, 255, 0.4) !important;
   border-radius: 6px !important;
-  color: #d7d0dc !important;
+  color: #ffffff !important;
   transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
 }
 
 .settings-account-refresh .custom-dropdown-label {
-  color: #d7d0dc !important;
+  color: #ffffff !important;
   transition: color 140ms ease;
 }
 
 .settings-account-refresh .custom-dropdown-chevron {
-  color: #d7d0dc !important;
+  color: #ffffff !important;
   transition: color 140ms ease;
 }
 
@@ -1255,11 +1260,11 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .settings-account-refresh .custom-dropdown-item {
-  color: #d7d0dc !important;
+  color: #ffffff !important;
 }
 
 .settings-account-refresh .custom-dropdown-item-label {
-  color: #d7d0dc !important;
+  color: #ffffff !important;
 }
 
 .settings-account-refresh .custom-dropdown-item.highlighted,

@@ -3,17 +3,19 @@
 ## Unreleased (0 items)
 
 
-## 0.3.12 - 2026-10-02 (18 items)
+## 0.3.12 - 2026-10-02 (20 items)
 
 ### Added (1)
 
 - Desktop keyboard shortcuts: Cmd/Ctrl+R refreshes all accounts, Cmd/Ctrl+N opens Add Account, Cmd/Ctrl+G opens Add Group, and Cmd/Ctrl+, opens Settings. They are listed under "Keyboard Shortcuts" in Settings (desktop layout only), and do nothing while a dialog is open.
 
-### Improved (8)
+### Improved (10)
 
+- Unified the red accent color across the app: the 5h limit pill label, the Delete action in the account dropdown menu, and critical progress bars and percentages (<= 15%) now all use the signature red (`#c53131`).
+- On account cards, removed the box border and background container around the window limit labels (such as 5h and 7d), rendering them cleanly as colored text.
 - Updated the mobile hamburger menu button icon color to bright white to match the active state of the sidebar Settings button.
 - In the sidebar, left-aligned the out-of-date accounts detail text with the sync status label above it instead of aligning to the status dot.
-- Updated the sidebar Settings button, Settings action buttons (Link Devices, View, Copy), and Account Updates dropdown to use a lighter white font and icon color when inactive and a brighter white when active.
+- Updated the sidebar Settings button, Settings action buttons (Link Devices, View, Copy), and the Account Updates dropdown to use crisp white for their inactive and active states.
 - In the sidebar, increased the sync status text font size to 14px for better legibility.
 - Tapping an Android update notification now opens the app directly to the "App Update" dialog showing release notes and the update action instead of the dashboard.
 - Error banners now say what went wrong in plain words and what to do next (for example "Check your internet connection and try again") instead of showing technical text. The technical detail is added to the report from Copy Diagnostics, with email addresses and token-like text removed.

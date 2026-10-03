@@ -408,12 +408,12 @@ select {
 
 .tone-critical,
 .provider-average .tone-critical {
-  color: #e5303a;
+  color: #c53131;
 }
 
 .provider-summary-track > .tone-critical,
 .account-metric-track > .tone-critical {
-  background: #e5303a;
+  background: #c53131;
 }
 
 .tone-neutral,
@@ -1178,7 +1178,7 @@ button.account-card-provider-icon:active {
 
 .metric-window-pill.window-pill-5h,
 .window-pill.window-pill-5h {
-  color: var(--obsidian-red);
+  color: #c53131;
   border-color: rgba(255, 133, 133, 0.45);
   background: rgba(85, 15, 15, 0.42);
 }
