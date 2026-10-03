@@ -9,7 +9,7 @@
 /* Custom Purple Scrollbars */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--obsidian-purple-strong) transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 ::-webkit-scrollbar {
@@ -22,12 +22,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(160, 120, 255, 0.45);
+  background: var(--scrollbar-thumb);
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--obsidian-purple-strong);
+  background: var(--scrollbar-thumb);
 }
 
 html,
@@ -212,7 +212,7 @@ select {
   overflow-y: auto;
   padding: 0 2px 16px;
   scrollbar-width: thin;
-  scrollbar-color: var(--obsidian-purple-strong) transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 .provider-summary-row.is-all-row {
@@ -527,7 +527,7 @@ select {
   padding: 0;
   scrollbar-gutter: auto;
   scrollbar-width: thin;
-  scrollbar-color: var(--obsidian-purple-strong) transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
   width: 100%;
   box-sizing: border-box;
 }
@@ -1759,7 +1759,7 @@ select.text-input option,
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
-  scrollbar-color: var(--obsidian-purple-strong) transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
   clip-path: inset(0 round 8px);
   animation: customDropdownFadeIn 120ms ease-out;
 }
@@ -1907,7 +1907,7 @@ select.text-input option,
   padding: 20px;
   scrollbar-gutter: stable both-edges;
   scrollbar-width: thin;
-  scrollbar-color: var(--obsidian-purple-strong) transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 .modal-backdrop::-webkit-scrollbar {
@@ -1919,7 +1919,7 @@ select.text-input option,
 }
 
 .modal-backdrop::-webkit-scrollbar-thumb {
-  background: var(--obsidian-purple-strong);
+  background: var(--scrollbar-thumb);
   border-radius: 999px;
 }
 
@@ -2229,7 +2229,7 @@ select.text-input option,
   border-radius: 6px;
   background: #141313;
   scrollbar-width: thin;
-  scrollbar-color: var(--obsidian-purple-strong) transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
   clip-path: inset(0 round 6px);
 }
 
@@ -2589,7 +2589,7 @@ select.text-input option,
     box-sizing: border-box;
     scrollbar-gutter: auto;
     scrollbar-width: thin;
-    scrollbar-color: var(--obsidian-purple-strong) transparent;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
   }
 
   .settings-style-content .dashboard-scroll {

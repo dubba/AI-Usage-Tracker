@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased (0 items)
+## Unreleased (2 items)
+
+### Improved (2)
+
+- Scroll bars are now a slightly more visible purple (#A078FF at 65% opacity, up from 45%), and the plan badge on account cards uses the same purple at 65% opacity.
+- On account cards, the remaining percentage text now turns amber at 30% or less and red at 15% or less to match the progress bar.
 
 
 ## 0.3.12 - 2026-10-02 (21 items)

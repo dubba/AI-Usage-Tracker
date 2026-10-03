@@ -40,6 +40,8 @@
     --obsidian-muted-bright: #cbc3d7;
     --obsidian-purple: #d0bcff;
     --obsidian-purple-strong: #a078ff;
+    /* Scroll bar thumbs: --obsidian-purple-strong at 65% opacity. */
+    --scrollbar-thumb: rgba(160, 120, 255, 0.65);
     --obsidian-green: #4edea3;
     --obsidian-amber: #ffb869;
     --obsidian-red: #ff8585;

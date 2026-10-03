@@ -65,7 +65,7 @@ export function AccountUsageMetric({
       </div>
       <div className="metric-detail-row">
         <span className="metric-percent-line">
-          <strong className="metric-full-value">{remaining == null ? unavailableLabel : `${Math.round(remaining)}%`}</strong>
+          <strong className={`metric-full-value tone-${tone}`}>{remaining == null ? unavailableLabel : `${Math.round(remaining)}%`}</strong>
           {remaining == null ? null : <span className="metric-percent-suffix">left</span>}
         </span>
         <span className="metric-reset">{resetLine}</span>

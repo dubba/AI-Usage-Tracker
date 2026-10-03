@@ -618,7 +618,7 @@
   overflow-x: hidden;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
-  scrollbar-color: var(--obsidian-purple-strong) transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
   padding: 0 6px 0 0;
 }
 

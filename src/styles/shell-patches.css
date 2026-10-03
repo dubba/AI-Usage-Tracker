@@ -187,7 +187,7 @@ select.text-input option {
   max-height: 250px;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: var(--obsidian-purple-strong) transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 .google-model-option {
