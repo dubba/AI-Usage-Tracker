@@ -395,7 +395,7 @@ pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginSta
                 fail_if_waiting(
                     &close_state,
                     &close_attempt,
-                    "Grok login was cancelled.".into(),
+                    "Grok login was canceled.".into(),
                 );
             }
         });

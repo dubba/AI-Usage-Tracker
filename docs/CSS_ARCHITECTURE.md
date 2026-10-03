@@ -8,7 +8,7 @@ The order below **is the cascade**. Later files override earlier ones, so do not
 
 | # | File | Loaded from | What it holds |
 |---|------|-------------|---------------|
-| 1 | `styles/tokens.css` | `app/main.tsx` (first import) | Custom properties (colours, text sizes, safe-area insets) and the `@layer` order |
+| 1 | `styles/tokens.css` | `app/main.tsx` (first import) | Custom properties (colors, text sizes, safe-area insets) and the `@layer` order |
 | 2 | `features/pairing/pairing.css` | `app/App.tsx` | Link Devices dialog. It loads early on purpose and wins by specificity, not order |
 | 3 | `features/startup/startup-gate.css` | `features/startup/StartupGate.tsx` | Startup/retry screen |
 | 4 | `styles/base.css` | `app/main.tsx` | Reset, app shell grid, base buttons |
@@ -39,7 +39,7 @@ Keep one `@media` block per width and file where you can, and check that a later
 
 ## Tokens
 
-Add new colours and shared sizes to `styles/tokens.css` and use `var(--name)`; do not repeat a hex value that already has a token. A fallback such as `var(--token, #hex)` is not needed, because the token is always defined.
+Add new colors and shared sizes to `styles/tokens.css` and use `var(--name)`; do not repeat a hex value that already has a token. A fallback such as `var(--token, #hex)` is not needed, because the token is always defined.
 
 `--sidebar-width` is deliberately **not** in `tokens.css`: its value depends on source order and media queries (and the app also sets it from JavaScript).
 

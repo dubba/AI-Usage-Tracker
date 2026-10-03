@@ -573,7 +573,7 @@ pub async fn run_client_connector(
                 Ok(r) => r,
                 Err(_) => {
                     let _ = write_frame(&mut stream, MSG_ABORT, &[0x07]).await;
-                    let _ = status_tx.send(ClientEvent::Failed("Role selection cancelled".into())).await;
+                    let _ = status_tx.send(ClientEvent::Failed("Role selection canceled".into())).await;
                     encryption_key.zeroize();
                     return;
                 }
@@ -759,7 +759,7 @@ async fn run_authenticated_transfer<E>(
         tokio::select! {
             _ = &mut cancel_rx => {
                 let _ = write_frame(&mut write_half, MSG_ABORT, &[0x08]).await;
-                Err("Cancelled by user".to_string())
+                Err("Canceled by user".to_string())
             }
             confirmed = &mut sas_confirm_rx => {
                 match confirmed {

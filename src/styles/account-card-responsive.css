@@ -553,7 +553,7 @@
 }
 
 /*
- * Usage metrics: the window pill sits on the divider line (centred on it), the
+ * Usage metrics: the window pill sits on the divider line (centered on it), the
  * line starts after the pill, and the percentage left and the reset time go
  * below the progress bar. The header's own bottom border is hidden because the
  * first metric draws the divider.
@@ -644,7 +644,7 @@
 }
 
 /*
- * The usage bar is coloured by how much is left (see usageTone): purple while
+ * The usage bar is colored by how much is left (see usageTone): purple while
  * healthy, amber at 30% or less, red at 15% or less. Both sidebar and dashboard
  * progress bars follow these same rules.
  */
@@ -694,7 +694,7 @@
  * Desktop delete button: quieter than Refresh and Notifications because it is
  * the destructive action. Dim red outline at rest, full red on hover or focus,
  * and extra space before it (it is the last button) so it is not clicked by accident next to its
- * neighbours.
+ * neighbors.
  */
 .account-card-name-actions .account-card-action.remove-action {
   color: rgba(255, 133, 133, 0.7);
@@ -861,4 +861,10 @@
   .settings-card.settings-shortcuts-card {
     display: none;
   }
+}
+
+/* The plan badge (Pro/$200, Free, ...): violet background with the same white text as the percentage. */
+.account-card-header-meta .account-plan-badge {
+  background: #7c3aed;
+  color: #f5f1ef;
 }

@@ -12,7 +12,7 @@ export type NextResetSummary = {
 
 const GOOGLE_AI_STUDIO_MODELS_ONLY_SOURCE = "google_ai_studio_model_access";
 
-// Legacy accounts were auto-labelled with an older provider display name
+// Legacy accounts were auto-labeled with an older provider display name
 // (e.g. "Google Antigravity"). Collapse only those obsolete branded defaults
 // for the matching provider, including numbered copies ("Grok/Cursor 2").
 const LEGACY_DEFAULT_LABELS: Partial<Record<Provider, string[]>> = {

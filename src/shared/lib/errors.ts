@@ -31,7 +31,7 @@ export function clearError(errors: AppError[], source: string): AppError[] {
 
 /**
  * What kind of failure a raw message describes. "plain" messages are already written for people (the
- * backend sanitises its errors to plain sentences) and are shown as they are.
+ * backend sanitizes its errors to plain sentences) and are shown as they are.
  */
 export type ErrorKind = "backend" | "network" | "technical" | "plain";
 

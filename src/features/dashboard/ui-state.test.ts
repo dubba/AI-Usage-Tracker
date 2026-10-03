@@ -45,7 +45,7 @@ describe("applyUiState", () => {
 });
 
 describe("collectUiState", () => {
-  it("is empty when nothing has been customised", () => {
+  it("is empty when nothing has been customized", () => {
     expect(collectUiState()).toEqual({});
   });
 

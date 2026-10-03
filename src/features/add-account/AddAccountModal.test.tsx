@@ -168,7 +168,7 @@ describe("browser sign-in providers", () => {
     expect(onAdded).not.toHaveBeenCalled();
   });
 
-  it("abandons the attempt and closes when cancelled", async () => {
+  it("abandons the attempt and closes when canceled", async () => {
     render();
     click(primary());
     await settle();

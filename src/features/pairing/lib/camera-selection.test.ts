@@ -68,7 +68,7 @@ describe("scoreCamera", () => {
     expect(scoreCamera(cam("camera2 0, facing back"))).toBeGreaterThan(0);
   });
 
-  it("prefers a camera labelled main or 1x over a plain rear one", () => {
+  it("prefers a camera labeled main or 1x over a plain rear one", () => {
     expect(scoreCamera(cam("Back Main Camera"))).toBeGreaterThan(scoreCamera(cam("Back Camera")));
     expect(scoreCamera(cam("Back 1x"))).toBeGreaterThan(scoreCamera(cam("Back Camera")));
   });

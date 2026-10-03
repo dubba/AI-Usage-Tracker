@@ -55,7 +55,7 @@ describe("busy keys", () => {
     expect(REFRESH_ALL_KEY).toBe("refresh-all");
   });
 
-  it("recognises refresh keys but not other operations", () => {
+  it("recognizes refresh keys but not other operations", () => {
     expect(isRefreshKey("refresh-all")).toBe(true);
     expect(isRefreshKey(busyKey("refresh", "a1"))).toBe(true);
     expect(isRefreshKey(busyKey("rename", "a1"))).toBe(false);

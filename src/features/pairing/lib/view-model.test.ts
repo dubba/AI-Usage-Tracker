@@ -143,7 +143,7 @@ describe("waiting-state fields", () => {
     expect(waitingExpiresAt({ status: "idle" })).toBeNull();
   });
 
-  it("recognises the states that count as waiting", () => {
+  it("recognizes the states that count as waiting", () => {
     expect(["idle", "hostWaiting", "receiverWaiting"].every((s) => isWaitingStatus(s as PairingStatus["status"]))).toBe(true);
     expect(isWaitingStatus("completed")).toBe(false);
   });

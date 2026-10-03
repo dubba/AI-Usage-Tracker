@@ -195,7 +195,7 @@ describe("touch drag", () => {
     expect(isReordering()).toBe(false);
   });
 
-  it("finishes a drag whose touch was cancelled and never moved again", () => {
+  it("finishes a drag whose touch was canceled and never moved again", () => {
     const { cards, list } = mountAccounts();
     pointer("pointerdown", cards[0], { x: 10, y: 10, pointerType: "touch" });
     vi.advanceTimersByTime(400);

@@ -44,7 +44,7 @@ describe("computeSyncStatus", () => {
     expect(computeSyncStatus([account("a", 10)], NOW, 1).tone).toBe("stale");
   });
 
-  it("pluralises the out-of-date count", () => {
+  it("pluralizes the out-of-date count", () => {
     const status = computeSyncStatus([account("a", 60), account("b", 90)], NOW, 15);
     expect(status.label).toBe("Synced all accounts 1h ago");
     expect(status.detail).toBe("2 accounts out of date");

@@ -33,7 +33,7 @@ function account(overrides: Partial<Account> = {}): Account {
 }
 
 describe("cleanModelPrefix", () => {
-  it("normalises Claude and GPT and strips 'models'", () => {
+  it("normalizes Claude and GPT and strips 'models'", () => {
     expect(cleanModelPrefix("Claude and GPT models")).toBe("Claude & GPT");
     expect(cleanModelPrefix("Gemini models")).toBe("Gemini");
     expect(cleanModelPrefix("Sonnet model")).toBe("Sonnet");
@@ -98,7 +98,7 @@ describe("displayMetricLabel", () => {
     expect(displayMetricLabel(win({ label: "Weekly" }), "anthropic")).toBe("Remaining Limit");
   });
 
-  it("recognises OpenAI code review windows", () => {
+  it("recognizes OpenAI code review windows", () => {
     expect(displayMetricLabel(win({ id: "code_review", label: "Code review" }), "openai")).toBe(
       "Code Review · Remaining Limit",
     );

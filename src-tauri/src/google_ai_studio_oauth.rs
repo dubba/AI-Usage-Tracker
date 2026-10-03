@@ -334,13 +334,13 @@ async fn complete_callback(
         return Err("OAuth state validation failed.".into());
     }
     if !is_waiting(context.app.as_ref(), &context.attempt_id) {
-        return Err("The Google authorization was cancelled.".into());
+        return Err("The Google authorization was canceled.".into());
     }
 
     let mut stored = load_google_ai_studio_secret(&context.account_id)?;
     let tokens = exchange_tokens(&context, &code).await?;
     if !is_waiting(context.app.as_ref(), &context.attempt_id) {
-        return Err("The Google authorization was cancelled.".into());
+        return Err("The Google authorization was canceled.".into());
     }
     let refresh_token = tokens
         .refresh_token
@@ -364,7 +364,7 @@ async fn complete_callback(
         .await
         .ok();
     if !is_waiting(context.app.as_ref(), &context.attempt_id) {
-        return Err("The Google authorization was cancelled.".into());
+        return Err("The Google authorization was canceled.".into());
     }
     stored.cloud_oauth = Some(oauth.clone());
     save_provider_secret(
@@ -557,7 +557,7 @@ fn apply_outcome(app: &AppState, attempt_id: &str, outcome: CallbackOutcome) -> 
         .as_ref()
         .is_some_and(|login| login.attempt_id == attempt_id && login.status == "waiting")
     {
-        return Err("The Google authorization was cancelled.".into());
+        return Err("The Google authorization was canceled.".into());
     }
     *pending = Some(status);
     Ok(())

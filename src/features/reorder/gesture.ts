@@ -8,7 +8,7 @@ import type { ActiveDrag, PointerCandidate } from "./types";
 const DRAG_THRESHOLD_PX = 5;
 const TOUCH_CANCEL_MOVE_PX = 8;
 const LONG_PRESS_DELAY_MS = 350;
-// After a touch is cancelled, a drag with no further movement for this long is finished. A cancel
+// After a touch is canceled, a drag with no further movement for this long is finished. A cancel
 // right after the drag starts can be a synthetic one (the touch carries on and the next move
 // cancels this), but a real cancel is never followed by touchend, so the drag must not wait forever.
 const EARLY_CANCEL_GRACE_MS = 1200;
@@ -111,7 +111,7 @@ function finishDrag(commit: boolean): void {
 function beginPointerCandidate(event: PointerEvent): void {
   if (event.button !== 0 || event.isPrimary === false) return;
   // Only one primary pointer can be down at a time, so a new one means the previous drag already
-  // ended and its end was never delivered (touch cancelled, release outside the window). Finish
+  // ended and its end was never delivered (touch canceled, release outside the window). Finish
   // it first, otherwise it blocks every later gesture and leaves its card hidden.
   if (dragState && Date.now() - dragStartedAt > STALE_DRAG_MS) finishDrag(true);
   if (dragState) return;

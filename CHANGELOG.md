@@ -3,16 +3,15 @@
 ## Unreleased (0 items)
 
 
-## 0.3.12 - 2026-10-02 (20 items)
+## 0.3.12 - 2026-10-02 (21 items)
 
 ### Added (1)
 
 - Desktop keyboard shortcuts: Cmd/Ctrl+R refreshes all accounts, Cmd/Ctrl+N opens Add Account, Cmd/Ctrl+G opens Add Group, and Cmd/Ctrl+, opens Settings. They are listed under "Keyboard Shortcuts" in Settings (desktop layout only), and do nothing while a dialog is open.
 
-### Improved (10)
+### Improved (9)
 
-- Unified the red accent color across the app: the 5h limit pill label, the Delete action in the account dropdown menu, and critical progress bars and percentages (<= 15%) now all use the signature red (`#c53131`).
-- On account cards, removed the box border and background container around the window limit labels (such as 5h and 7d), rendering them cleanly as colored text.
+- Unified the red accent color across the app: the Delete action in the account dropdown menu, and critical progress bars and percentages (<= 15%) now all use the signature red (`#c53131`).
 - Updated the mobile hamburger menu button icon color to bright white to match the active state of the sidebar Settings button.
 - In the sidebar, left-aligned the out-of-date accounts detail text with the sync status label above it instead of aligning to the status dot.
 - Updated the sidebar Settings button, Settings action buttons (Link Devices, View, Copy), and the Account Updates dropdown to use crisp white for their inactive and active states.
@@ -22,8 +21,10 @@
 - Numbers now use equal-width digits throughout the app, so percentages, countdowns and counters no longer shift sideways as they change.
 - Better screen reader and keyboard support: the Settings toggles are now announced as switches with their setting name (including Auto-Start, which had no name), every button has an explicit type, and the camera scanner area can be activated from the keyboard.
 
-### Changed (7)
+### Changed (9)
 
+- The window limit labels on account cards (5h, 7d, 30d) now sit in a rounded pill with an orange, sky blue, or violet outline and tint, and the text inside is the same white as the percentage.
+- The plan badge on account cards (Pro/$200, Free, and so on) now has a violet background with the same white text as the percentage.
 - In the sidebar, shortened the sync status label from "Last synced all accounts" to "Synced all accounts".
 - In the sidebar, resized the circular Settings button to 40×40px to match the pull-to-refresh circle size.
 - In the sidebar, Settings is now a circular button placed on the right of the sync status bar, and inactive group cards and the settings button share a clean neutral black surface with purple selection styling.
@@ -68,7 +69,7 @@
 
 - Button labels now consistently use Title Case (for example "Open ChatGPT Login", "Select All", "Try Again", "Copy Diagnostics").
 - Settings toggle labels now name the setting instead of giving an instruction: "Paseo Bridge", "Automatic Updates", "Beta Releases", and "Auto-Start on Device Boot" / "Auto-Start at Login".
-- The usage bar on account cards now changes colour with how much is left: purple normally, amber at 30% or less, and red at 10% or less.
+- The usage bar on account cards now changes color with how much is left: purple normally, amber at 30% or less, and red at 10% or less.
 - On mobile, the account card's "More actions" button is now the same size as the rename button, and the Settings toggles are slightly larger (48×24).
 - Account cards now show each usage window's label on its divider line, with the progress bar below it and the remaining percentage (for example "57% left") and reset time under the bar.
 - On mobile screens, reduced the bottom padding of account cards from 14px to 12px to match the card's horizontal padding.
@@ -123,7 +124,7 @@
 - If the system credential store is locked or unavailable at startup, the app now still starts; only the local API stays off, and Settings shows why.
 - An account you removed can no longer come back after linking devices when the removal and the transfer happen at the same time.
 - Dragging the same account card a second time no longer makes it vanish. Before, the first drag of a card worked, but dropping that card again left it hidden until you switched to another view and back.
-- On Android, tapping Update no longer leaves the button greyed out on "Downloading…" forever; the update now downloads and opens the Android installer, or shows what went wrong.
+- On Android, tapping Update no longer leaves the button grayed out on "Downloading…" forever; the update now downloads and opens the Android installer, or shows what went wrong.
 - On Android, encrypting saved sign-ins with the Android Keystore, update and usage alert notifications, and keeping device linking on Wi-Fi now work instead of failing because the app could not reach Android.
 - The update button no longer gets stuck or re-enables itself mid-download when an automatic update check runs during a download.
 - Dragging a tall account card (one with many model rows) no longer seems to make it vanish: the card is now dragged as a compact preview so the rest of the list stays in view, and dropping it between cards or in the gap above Next Reset puts it where your finger is instead of sending it back down the list.
@@ -294,7 +295,7 @@
 - Fixed the modal close ("×") button automatically displaying its tooltip immediately upon opening a modal by excluding close buttons from initial programmatic auto-focus and restricting touch/focus tooltip triggers to visible user interaction.
 - Fixed a pairing failure where a joining device silently ignored the host's rejection message and continued against a peer that had already aborted, producing confusing follow-up errors instead of a clear "host rejected the connection" message.
 - Fixed the transfer-direction (send/receive) choice silently defaulting to "receive" when an unexpected value was sent; invalid choices are now rejected with an error on both devices.
-- Fixed a race where rapidly starting or cancelling Link Devices sessions could leave the sharing device showing a QR code for a session with no listener behind it; the interrupted start now reports an error asking you to retry.
+- Fixed a race where rapidly starting or canceling Link Devices sessions could leave the sharing device showing a QR code for a session with no listener behind it; the interrupted start now reports an error asking you to retry.
 - Fixed the modal "×" close button automatically displaying its tooltip upon opening a dialog by directing initial dialog focus to interactive content rather than the close control, restricting tooltip displays to genuine user interactions or keyboard navigation, and ignoring programmatic focus events on touch devices.
 - Fixed regression where modal "×" close buttons and the Link Devices switch-camera button lost their absolute positioning due to universal tooltip styling rules, restoring the close button to the top-right corner of all modals and keeping the switch-camera button docked directly to the right of the QR viewfinder.
 - Fixed sidebar window toggle evaluation: selecting 'H' (hourly / 5-hour) now strictly includes providers that actually have an hourly rate, correctly displaying a dash ('—') for Grok (7-day limit) and free ChatGPT (30-day limit), while selecting 'W' (weekly) displays the 30-day limit for free ChatGPT alongside 7-day and weekly provider limits.

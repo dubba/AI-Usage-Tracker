@@ -70,21 +70,21 @@ describe("reportError / clearError", () => {
 });
 
 describe("classifyError", () => {
-  it("recognises a failed call to the backend", () => {
+  it("recognizes a failed call to the backend", () => {
     expect(classifyError("Cannot read properties of undefined (reading 'invoke')")).toBe("backend");
     expect(classifyError("window.__TAURI_INTERNALS__ is undefined")).toBe("backend");
     expect(classifyError("get_dashboard_snapshot not allowed. Command not found")).toBe("backend");
     expect(classifyError("plugin:window|x not allowed by ACL for this command")).toBe("backend");
   });
 
-  it("recognises connection problems", () => {
+  it("recognizes connection problems", () => {
     expect(classifyError("error sending request for url (https://example.test)")).toBe("network");
     expect(classifyError("Failed to fetch")).toBe("network");
     expect(classifyError("operation timed out")).toBe("network");
     expect(classifyError("error trying to connect: dns error: failed to lookup address")).toBe("network");
   });
 
-  it("recognises technical text", () => {
+  it("recognizes technical text", () => {
     expect(classifyError("TypeError: x is not iterable")).toBe("technical");
     expect(classifyError('{"error":"invalid_request"}')).toBe("technical");
     expect(classifyError("HTTP 502 from upstream")).toBe("technical");

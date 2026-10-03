@@ -229,21 +229,21 @@ describe("usageTone", () => {
 });
 
 describe("window classification", () => {
-  it("recognises five-hour windows by id, seconds, or label", () => {
+  it("recognizes five-hour windows by id, seconds, or label", () => {
     expect(canonicalWindow(win({ id: "five-hour" }), "five_hour")).toBe(true);
     expect(canonicalWindow(win({ id: "x", label: "misc", windowSeconds: 18_000 }), "five_hour")).toBe(true);
     expect(canonicalWindow(win({ id: "x", label: "Claude · 5h limit" }), "five_hour")).toBe(true);
     expect(canonicalWindow(win({ id: "weekly", label: "Weekly" }), "five_hour")).toBe(false);
   });
 
-  it("recognises weekly windows by id, seconds, or label", () => {
+  it("recognizes weekly windows by id, seconds, or label", () => {
     expect(canonicalWindow(win({ id: "weekly", label: "x" }), "weekly")).toBe(true);
     expect(canonicalWindow(win({ id: "x", label: "x", windowSeconds: 604_800 }), "weekly")).toBe(true);
     expect(canonicalWindow(win({ id: "x", label: "7 day limit" }), "weekly")).toBe(true);
     expect(canonicalWindow(win({ id: "five_hour" }), "weekly")).toBe(false);
   });
 
-  it("recognises monthly windows", () => {
+  it("recognizes monthly windows", () => {
     expect(isMonthlyWindow(win({ id: "monthly", label: "x" }))).toBe(true);
     expect(isMonthlyWindow(win({ id: "x", label: "30-day" }))).toBe(true);
     expect(isMonthlyWindow(win({ id: "x", label: "x", windowSeconds: 2_592_000 }))).toBe(true);

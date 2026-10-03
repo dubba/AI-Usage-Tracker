@@ -20,7 +20,7 @@ export function formatMonthDay(date: Date, locale?: string): string {
 /**
  * Clock time in the user's own convention. English 12-hour locales keep the
  * app's compact style ("2:34a", "12:07p"); everything else uses the locale's
- * standard time format, which also honours 24-hour locales ("14:34").
+ * standard time format, which also honors 24-hour locales ("14:34").
  */
 export function formatClockTime(date: Date, locale?: string): string {
   const resolved = new Intl.DateTimeFormat(locale, { hour: "numeric" }).resolvedOptions();

@@ -153,7 +153,7 @@ pub fn cancel_login(
             *pending = Some(LoginStatus {
                 attempt_id: attempt_id.clone(),
                 status: "failed".into(),
-                message: Some("Authentication was cancelled.".into()),
+                message: Some("Authentication was canceled.".into()),
                 account: None,
                 projects: None,
                 selected_project_id: None,

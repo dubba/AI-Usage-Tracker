@@ -1,4 +1,4 @@
-/* Design tokens: the app's colours and shared sizes, defined once.
+/* Design tokens: the app's colors and shared sizes, defined once.
  *
  * Layers: tokens < base < components < utilities. Everything already in the app is still
  * unlayered, which always beats a layer; new styles should go in a layer and existing files

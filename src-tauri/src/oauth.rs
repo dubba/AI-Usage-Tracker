@@ -494,7 +494,7 @@ async fn handle_callback(
     if !is_waiting(context.app.as_ref(), &context.attempt_id) {
         stop_callback(&context).await;
         return callback_html(
-            r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Login cancelled</h1></body></html>"#
+            r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Login canceled</h1></body></html>"#
                 .into(),
         );
     }
@@ -544,7 +544,7 @@ async fn complete_exchange(context: &LoginContext, code: &str) -> ExchangeResult
     let mut exchanged = None;
     for attempt in 0..5 {
         if !is_waiting(context.app.as_ref(), &context.attempt_id) {
-            return Err("The login attempt was cancelled.".into());
+            return Err("The login attempt was canceled.".into());
         }
         match exchange_tokens(context, code).await {
             Ok(res) => {
@@ -568,7 +568,7 @@ async fn complete_exchange(context: &LoginContext, code: &str) -> ExchangeResult
         (None, None) => return Err("The token exchange did not run.".into()),
     };
     if !is_waiting(context.app.as_ref(), &context.attempt_id) {
-        return Err("The login attempt was cancelled.".into());
+        return Err("The login attempt was canceled.".into());
     }
     let duplicate = context.app.store.find_duplicate(
         &context.provider,
@@ -625,7 +625,7 @@ async fn complete_exchange(context: &LoginContext, code: &str) -> ExchangeResult
         auth_required: false,
     };
     if !is_waiting(context.app.as_ref(), &context.attempt_id) {
-        return Err("The login attempt was cancelled.".into());
+        return Err("The login attempt was canceled.".into());
     }
     let account = context
         .app
@@ -1540,7 +1540,7 @@ mod tests {
     }
 
     #[test]
-    fn wording_that_means_the_network_got_in_the_way_is_recognised() {
+    fn wording_that_means_the_network_got_in_the_way_is_recognized() {
         for text in [
             "error sending request: dns error: failed to lookup address",
             "No address associated with hostname",

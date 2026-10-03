@@ -251,7 +251,7 @@ pub async fn start_login(
                 fail_if_waiting(
                     &close_state,
                     &close_attempt,
-                    "OpenCode login was cancelled.".into(),
+                    "OpenCode login was canceled.".into(),
                 );
             }
         });
