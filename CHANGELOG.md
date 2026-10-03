@@ -1,21 +1,18 @@
 # Changelog
 
-## Unreleased (2 items)
-
-### Improved (2)
-
-- Scroll bars are now a slightly more visible purple (#A078FF at 65% opacity, up from 45%), and the plan badge on account cards uses the same purple at 65% opacity.
-- On account cards, the remaining percentage text now turns amber at 30% or less and red at 15% or less to match the progress bar.
+## Unreleased (0 items)
 
 
-## 0.3.12 - 2026-10-02 (21 items)
+## 0.3.12 - 2026-10-02 (23 items)
 
 ### Added (1)
 
 - Desktop keyboard shortcuts: Cmd/Ctrl+R refreshes all accounts, Cmd/Ctrl+N opens Add Account, Cmd/Ctrl+G opens Add Group, and Cmd/Ctrl+, opens Settings. They are listed under "Keyboard Shortcuts" in Settings (desktop layout only), and do nothing while a dialog is open.
 
-### Improved (9)
+### Improved (11)
 
+- Scroll bars are now a slightly more visible purple (#A078FF at 65% opacity, up from 45%), and the plan badge on account cards uses the same purple at 65% opacity.
+- On account cards, the remaining percentage text now turns amber at 30% or less and red at 15% or less to match the progress bar.
 - Unified the red accent color across the app: the Delete action in the account dropdown menu, and critical progress bars and percentages (<= 15%) now all use the signature red (`#c53131`).
 - Updated the mobile hamburger menu button icon color to bright white to match the active state of the sidebar Settings button.
 - In the sidebar, left-aligned the out-of-date accounts detail text with the sync status label above it instead of aligning to the status dot.
