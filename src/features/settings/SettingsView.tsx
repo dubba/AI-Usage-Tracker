@@ -12,7 +12,7 @@ import type {
   UpdateBusy,
 } from "../../types";
 import { FALLBACK_APP_VERSION } from "../../shared/lib/constants";
-import { isMobileDevice, isMobileUserAgent } from "../../shared/lib/platform";
+import { isMobileDevice } from "../../shared/lib/platform";
 import { SHORTCUTS, isMacPlatform, shortcutLabel } from "../shortcuts/shortcuts";
 import { UpdateProgressBar, updateInstallLabel } from "./UpdateProgressBar";
 import { useThemePreference } from "../../shared/hooks/useThemePreference";
@@ -133,8 +133,8 @@ export function SettingsView({
       <section className="settings-card">
         <div className="settings-row">
           <div>
-            <strong id="setting-autostart-label">{isMobileUserAgent() ? "Auto-Start on Device Boot" : "Auto-Start at Login"}</strong>
-            <small>{isMobileUserAgent() ? "Start app automatically at device startup." : "Start app automatically at login."}</small>
+            <strong id="setting-autostart-label">Launch at Startup</strong>
+            <small>Automatically start the app when your device starts.</small>
           </div>
           <button type="button" role="switch" aria-checked={autostart} aria-labelledby="setting-autostart-label" className={`toggle ${autostart ? "on" : ""}`} onClick={onToggleAutostart}><span /></button>
         </div>
@@ -142,6 +142,7 @@ export function SettingsView({
           <div className="settings-updates-group-header">
             <div>
               <strong id="setting-auto-update-label">Automatic Updates</strong>
+              <small>Automatically check for new versions.</small>
             </div>
             <button
               type="button"
@@ -158,7 +159,7 @@ export function SettingsView({
 
           <div className="settings-updates-group-header settings-updates-beta-row">
             <div>
-              <strong id="setting-beta-label">Beta Releases</strong>
+              <strong id="setting-beta-label">Include Beta Releases</strong>
             </div>
             <button
               type="button"
