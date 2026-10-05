@@ -4,7 +4,7 @@
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body, #root { margin: 0; height: 100%; overflow: hidden; background-color: #000000; }
+html, body, #root { margin: 0; height: 100%; overflow: hidden; background-color: var(--c-000000); }
 /* Equal-width digits everywhere, so percentages, countdowns and counters do not shift as they change.
    Form controls get their own font from the browser, so they are listed too. */
 html, body, button, input, select, textarea { font-variant-numeric: tabular-nums; }
@@ -37,7 +37,7 @@ input:disabled {
 svg { width: 18px; height: 18px; }
 
 .app-shell { display: grid; grid-template-columns: 292px minmax(620px, 1fr) 310px; height: 100vh; background: var(--bg); }
-.sidebar { background: #101412; border-color: var(--border); min-width: 0; }
+.sidebar { background: var(--c-101412); border-color: var(--border); min-width: 0; }
 .sidebar { border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 16px 12px 12px; }
 .main-stage { min-width: 0; position: relative; overflow: hidden; }
 .content-scroll { height: 100%; overflow-y: auto; padding: 38px 38px 70px; scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent; }
@@ -56,9 +56,9 @@ svg { width: 18px; height: 18px; }
 .eyebrow { color: var(--purple); text-transform: uppercase; letter-spacing: .13em; font-weight: 800; }
 .header-actions { flex: 0 0 auto; }
 .button { border: 1px solid var(--border-strong); padding: 0 13px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; background: var(--panel-2); }
-.button:hover:not(:disabled) { border-color: var(--purple); background: #202620; }
+.button:hover:not(:disabled) { border-color: var(--purple); background: var(--c-202620); }
 .button:disabled { opacity: .55; cursor: default; }
-.button.primary { border-color: #6e4fc1; }
+.button.primary { border-color: var(--c-6e4fc1); }
 .button.full { width: 100%; }
 
 .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 11px; margin-bottom: 24px; }
@@ -68,7 +68,7 @@ svg { width: 18px; height: 18px; }
 .usage-label { color: var(--muted); }
 .usage-heading strong { letter-spacing: -.03em; }
 .window-pill { color: var(--muted-2); border: 1px solid var(--border); border-radius: 99px; }
-.progress-track { width: 100%; overflow: hidden; border-radius: 99px; background: #2a302c; }
+.progress-track { width: 100%; overflow: hidden; border-radius: 99px; background: var(--c-2a302c); }
 .progress-fill { display: block; height: 100%; border-radius: inherit; background: var(--green); transition: width .25s ease; }
 .progress-fill.warning { background: var(--amber); }
 .progress-fill.danger { background: var(--red); }
@@ -87,18 +87,18 @@ svg { width: 18px; height: 18px; }
 .settings-row > div:first-child { display: grid; }
 .settings-row small { color: var(--muted); margin-top: 5px; }
 .toggle { border: 0; border-radius: 99px; padding: 3px; cursor: pointer; }
-.toggle span { display: block; width: 18px; height: 18px; border-radius: 99px; background: #dce1de; transition: transform .18s; }
+.toggle span { display: block; width: 18px; height: 18px; border-radius: 99px; background: var(--c-dce1de); transition: transform .18s; }
 .toggle.on span { transform: translateX(24px); }
 .modal-card { width: min(480px, 100%); padding: 24px; }
 .modal-kicker { color: var(--purple); text-transform: uppercase; letter-spacing: .12em; font-weight: 800; }
 .modal-card h2 { margin: 6px 0 7px; }
 .modal-card p { color: var(--muted); line-height: 1.55; margin: 0 0 18px; }
 .field-label { display: block; color: var(--muted); margin-bottom: 7px; }
-.text-input { width: 100%; border: 1px solid var(--border-strong); background: #0f1311; color: var(--text); border-radius: 9px; min-height: 42px; padding: 0 12px; outline: none; }
+.text-input { width: 100%; border: 1px solid var(--border-strong); background: var(--c-0f1311); color: var(--text); border-radius: 9px; min-height: 42px; padding: 0 12px; outline: none; }
 .text-input:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(159,103,255,.1); }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 19px; }
-.waiting-panel { margin-top: 12px; display: flex; align-items: center; gap: 9px; color: #c7b2ff; border-radius: 9px; padding: 11px; background: var(--purple-soft); border: 1px solid rgba(159,103,255,.24); }
-.spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.22); border-top-color: currentColor; border-radius: 99px; animation: spin .75s linear infinite; }
+.waiting-panel { margin-top: 12px; display: flex; align-items: center; gap: 9px; color: var(--c-c7b2ff); border-radius: 9px; padding: 11px; background: var(--purple-soft); border: 1px solid rgba(159,103,255,.24); }
+.spinner { width: 14px; height: 14px; border: 2px solid var(--c-255-255-255-a220); border-top-color: currentColor; border-radius: 99px; animation: spin .75s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading-screen { height: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--muted); }
 .loading-error { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 420px; padding: 20px; text-align: center; }

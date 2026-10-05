@@ -21,6 +21,8 @@ Android APK builds:
 
 - Do not build a new APK automatically; only build an APK when explicitly instructed by the user.
 - When asked to build an APK containing code for an unreleased version, increment the latest release version by `0.0.1` and append `-unrel` to the version number (e.g. if the latest release on GitHub is `0.3.5`, name the APK `AI Usage Tracker_0.3.6-unrel.apk`).
+- This machine is disk-constrained. Android builds must target aarch64 only: use `npm run android:build` (APK) or `npm run android:dev` (emulator). Never run `cargo tauri android build` without `--target aarch64`, and do not suggest `cargo clean` casually (~8G build cache; full recompile is very slow).
+- Gradle needs the Homebrew JDK. `npm run android:dev` / `android:build` already set `JAVA_HOME` to `/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home`. If you invoke Gradle or `tauri android` directly, export that same `JAVA_HOME` first.
 
 Validation:
 

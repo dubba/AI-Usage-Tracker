@@ -440,6 +440,8 @@ pub async fn import_sync_payload_with_replace(
         let _ = state
             .settings
             .set_autostart_enabled(settings.autostart_enabled);
+        // The local API only exists on desktop; a phone must not carry the flag.
+        #[cfg(desktop)]
         let _ = state
             .settings
             .set_paseo_bridge_enabled(settings.paseo_bridge_enabled);

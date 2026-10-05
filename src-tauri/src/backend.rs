@@ -1,10 +1,8 @@
 use crate::{
-    bridge_api, diagnostics, startup, state::AppState, store::load_or_create_bridge_token,
-};
-use crate::{
     commands::pairing::GLOBAL_APP_HANDLE, migrations::migrate_google_ai_studio_accounts,
     refresh_loop::run_account_refresh_loop,
 };
+use crate::{diagnostics, startup, state::AppState, store::load_or_create_bridge_token};
 use std::sync::Arc;
 use tauri::AppHandle;
 use tauri::Manager;
@@ -57,7 +55,9 @@ pub(crate) fn initialize_backend(app: &AppHandle) -> Result<(), startup::Startup
     state.set_app_handle(app.clone());
     *GLOBAL_APP_HANDLE.lock() = Some(app.clone());
     app.manage(state.clone());
-    tauri::async_runtime::spawn(bridge_api::run_controller(state.clone()));
+    // Paseo runs on the desktop, so a phone has nobody to serve on loopback.
+    #[cfg(desktop)]
+    tauri::async_runtime::spawn(crate::bridge_api::run_controller(state.clone()));
     tauri::async_runtime::spawn(run_account_refresh_loop(state.clone()));
     Ok(())
 }

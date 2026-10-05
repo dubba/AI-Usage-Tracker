@@ -201,7 +201,7 @@
   }
 
   .provider-account-cards::-webkit-scrollbar-track {
-    background: rgba(25, 20, 36, 0.3) !important;
+    background: var(--c-25-20-36-a300) !important;
     border-radius: 999px !important;
   }
 
@@ -237,7 +237,7 @@
     width: 100%;
     min-width: 0;
     padding-top: 10px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid var(--c-255-255-255-a80);
   }
 
   .alert-threshold span {
@@ -299,7 +299,7 @@
   place-items: center;
   border: 1px solid rgba(160, 120, 255, 0.4);
   border-radius: 4px;
-  background: var(--obsidian-surface-container-high, #211e29);
+  background: var(--obsidian-surface-container-high, var(--c-211e29));
   color: var(--obsidian-purple);
   box-shadow: none;
   cursor: pointer;
@@ -308,27 +308,27 @@
 
 .mobile-dropdown-toggle:hover {
   border-color: var(--obsidian-purple-strong);
-  background: #28213a;
-  color: #ffffff;
+  background: var(--c-28213a);
+  color: var(--c-ffffff);
   box-shadow: none;
 }
 
 .mobile-dropdown-toggle:hover svg {
-  color: #ffffff;
+  color: var(--c-ffffff);
 }
 
 .mobile-dropdown-toggle:active,
 .mobile-dropdown-toggle[aria-expanded="true"] {
-  background: #32254e;
+  background: var(--c-32254e);
   border-color: var(--obsidian-purple-strong);
-  color: #ffffff;
+  color: var(--c-ffffff);
   box-shadow: none;
   transform: scale(0.95);
 }
 
 .mobile-dropdown-toggle:active svg,
 .mobile-dropdown-toggle[aria-expanded="true"] svg {
-  color: #ffffff;
+  color: var(--c-ffffff);
 }
 
 .mobile-dropdown-toggle svg {
@@ -350,7 +350,7 @@
   width: max-content;
   max-width: calc(100vw - 32px);
   background: var(--obsidian-surface-low);
-  border: 1px solid #353335;
+  border: 1px solid var(--c-353335);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   z-index: 1000;
@@ -375,7 +375,7 @@
   padding: 9px 16px 9px 14px;
   border: 0;
   background: transparent;
-  color: #ddd7e2;
+  color: var(--c-ddd7e2);
   font-size: 13px;
   font-weight: 500;
   text-align: left;
@@ -384,7 +384,7 @@
 }
 
 .mobile-dropdown-item:hover:not(:disabled) {
-  background: #242323;
+  background: var(--c-242323);
 }
 
 .mobile-dropdown-item:disabled {
@@ -498,7 +498,7 @@
     min-height: 22px;
     padding: 0;
     border: 1px solid rgba(160, 120, 255, 0.4);
-    background: var(--obsidian-surface-container-high, #211e29);
+    background: var(--obsidian-surface-container-high, var(--c-211e29));
     color: var(--obsidian-purple);
     border-radius: 4px;
     box-shadow: none;
@@ -507,40 +507,40 @@
 
   @media (hover: hover) {
     .mobile-dropdown-toggle:hover {
-      color: #ffffff !important;
+      color: var(--c-ffffff) !important;
       border-color: var(--obsidian-purple-strong) !important;
-      background: #28213a !important;
+      background: var(--c-28213a) !important;
       box-shadow: none !important;
     }
 
     .mobile-dropdown-toggle:hover svg {
-      color: #ffffff !important;
+      color: var(--c-ffffff) !important;
     }
   }
 
   .mobile-dropdown-toggle:focus-visible {
-    color: #ffffff !important;
+    color: var(--c-ffffff) !important;
     border-color: var(--obsidian-purple-strong) !important;
-    background: #28213a !important;
+    background: var(--c-28213a) !important;
     box-shadow: none !important;
   }
 
   .mobile-dropdown-toggle:focus-visible svg {
-    color: #ffffff !important;
+    color: var(--c-ffffff) !important;
   }
 
   .mobile-dropdown-toggle:active,
   .mobile-dropdown-toggle[aria-expanded="true"] {
-    background: #32254e !important;
+    background: var(--c-32254e) !important;
     border-color: var(--obsidian-purple-strong) !important;
-    color: #ffffff !important;
+    color: var(--c-ffffff) !important;
     box-shadow: none !important;
     transform: scale(0.95);
   }
 
   .mobile-dropdown-toggle:active svg,
   .mobile-dropdown-toggle[aria-expanded="true"] svg {
-    color: #ffffff !important;
+    color: var(--c-ffffff) !important;
   }
 
   .mobile-dropdown-toggle svg {
@@ -605,7 +605,7 @@
   flex: 1 1 auto;
   min-width: 0;
   height: 0;
-  border-top: 1px solid #2d2c2c;
+  border-top: 1px solid var(--c-2d2c2c);
 }
 
 .account-usage-metric .metric-detail-row {
@@ -665,7 +665,7 @@
 
 .provider-summary-track > .tone-neutral,
 .account-usage-metric .account-metric-track > .tone-neutral {
-  background: #69656d !important;
+  background: var(--c-69656d) !important;
 }
 
 /* Match the red & amber colors from the progress bars to the percentages in the sidebar and account cards */
@@ -682,7 +682,7 @@
 }
 
 .account-usage-metric .metric-full-value.tone-healthy {
-  color: #f5f1ef !important;
+  color: var(--c-f5f1ef) !important;
 }
 
 /* On mobile the plan/status badges are as tall as the "More actions" button (22px). */
@@ -739,10 +739,10 @@
 
 .settings-shortcuts kbd {
   padding: 2px 8px;
-  border: 1px solid var(--obsidian-border-strong, #353335);
+  border: 1px solid var(--obsidian-border-strong, var(--c-353335));
   border-radius: 4px;
-  background: var(--obsidian-surface-low, #181717);
-  color: #f5f1ef;
+  background: var(--obsidian-surface-low, var(--c-181717));
+  color: var(--c-f5f1ef);
   font-family: inherit;
   font-size: 12px;
   font-weight: 600;
@@ -758,80 +758,80 @@
 .obsidian-shell button.sidebar-footer {
   justify-content: flex-start;
   gap: 10px;
-  background: var(--obsidian-surface-low, #1c1b1b);
+  background: var(--obsidian-surface-low, var(--c-1c1b1b));
   border: 1px solid rgba(160, 120, 255, 0.4);
   border-radius: 5px;
-  color: #ffffff;
+  color: var(--c-ffffff);
   box-shadow: none;
   transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
 }
 
 .obsidian-shell button.sidebar-footer svg,
 .obsidian-shell button.sidebar-footer > span {
-  color: #ffffff;
+  color: var(--c-ffffff);
   transition: color 120ms ease;
 }
 
 @media (hover: hover) {
   .obsidian-shell button.sidebar-footer:hover:not(:disabled) {
-    background: #28213a !important;
+    background: var(--c-28213a) !important;
     border-color: var(--obsidian-purple-strong) !important;
-    color: #ffffff !important;
+    color: var(--c-ffffff) !important;
     box-shadow: none !important;
   }
 
   .obsidian-shell button.sidebar-footer:hover:not(:disabled):not(.active) svg,
   .obsidian-shell button.sidebar-footer:hover:not(:disabled):not(.active) > span {
-    color: #ffffff !important;
+    color: var(--c-ffffff) !important;
   }
 }
 
 .obsidian-shell button.sidebar-footer:focus-visible {
-  background: #28213a !important;
+  background: var(--c-28213a) !important;
   border-color: var(--obsidian-purple-strong) !important;
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
   box-shadow: none !important;
 }
 
 .obsidian-shell button.sidebar-footer:focus-visible:not(.active) svg,
 .obsidian-shell button.sidebar-footer:focus-visible:not(.active) > span {
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
 }
 
 .obsidian-shell button.sidebar-footer:active:not(:disabled) {
-  background: #32254e !important;
+  background: var(--c-32254e) !important;
   border-color: var(--obsidian-purple-strong) !important;
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
   box-shadow: none !important;
   transform: none;
 }
 
 .obsidian-shell button.sidebar-footer:active:not(:disabled):not(.active) svg,
 .obsidian-shell button.sidebar-footer:active:not(:disabled):not(.active) > span {
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
 }
 
 /* Sidebar menu item cards (group rows): black background when inactive. */
 .provider-summary-row:not(.selected) {
-  background: var(--obsidian-surface-low, #1c1b1b) !important;
+  background: var(--obsidian-surface-low, var(--c-1c1b1b)) !important;
   border-color: rgba(160, 120, 255, 0.4);
 }
 
 @media (hover: hover) {
   .provider-summary-row:not(.selected):hover {
-    background: #28213a !important;
+    background: var(--c-28213a) !important;
     border-color: var(--obsidian-purple-strong) !important;
   }
 }
 
 .provider-summary-row:not(.selected):focus-visible {
-  background: #28213a !important;
+  background: var(--c-28213a) !important;
   border-color: var(--obsidian-purple-strong) !important;
   outline: none;
 }
 
 .provider-summary-row:not(.selected):active {
-  background: #32254e !important;
+  background: var(--c-32254e) !important;
   border-color: var(--obsidian-purple-strong) !important;
 }
 
@@ -843,7 +843,7 @@
 .obsidian-shell button.sidebar-footer.active:active:not(:disabled),
 .obsidian-shell button.sidebar-footer.active:focus-visible {
   background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), var(--obsidian-surface-container) 48%) !important;
-  border-color: rgba(208, 188, 255, 0.75) !important;
+  border-color: var(--c-208-188-255-a750) !important;
   color: var(--obsidian-text) !important;
   box-shadow: inset 2px 0 0 var(--obsidian-purple-strong) !important;
 }
@@ -852,7 +852,7 @@
   .provider-summary-row.selected:hover,
   .obsidian-shell button.sidebar-footer.active:hover:not(:disabled) {
     background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), var(--obsidian-surface-container) 48%) !important;
-    border-color: rgba(208, 188, 255, 0.75) !important;
+    border-color: var(--c-208-188-255-a750) !important;
     box-shadow: inset 2px 0 0 var(--obsidian-purple-strong) !important;
   }
 }
@@ -872,5 +872,5 @@
 /* The plan badge (Pro/$200, Free, ...): the progress bar purple at 65% opacity, white text like the percentage. */
 .account-card-header-meta .account-plan-badge {
   background: rgba(160, 120, 255, 0.65);
-  color: #f5f1ef;
+  color: var(--c-f5f1ef);
 }

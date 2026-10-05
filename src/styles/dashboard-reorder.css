@@ -55,7 +55,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: #7e8a84;
+  background: var(--c-7e8a84);
   box-shadow: 0 -6px 0 #7e8a84, 0 6px 0 #7e8a84;
   opacity: 0.9;
   pointer-events: none;
@@ -67,7 +67,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .
 
 .provider-summary-row[data-reorder-enabled="true"]:hover::before,
 .provider-account-card[data-reorder-enabled="true"]:hover .provider-account-card-header::before {
-  background: #d4c3ff;
+  background: var(--c-d4c3ff);
   box-shadow: 0 -6px 0 #d4c3ff, 0 6px 0 #d4c3ff;
 }
 
@@ -207,8 +207,8 @@ html.dashboard-reordering .provider-list {
 html.dashboard-reordering .provider-summary-row.is-dragging,
 html.dashboard-reordering .provider-account-card.is-dragging {
   opacity: 0.96;
-  border-color: rgba(208, 188, 255, 0.88) !important;
-  background-color: #242222;
+  border-color: var(--c-208-188-255-a880) !important;
+  background-color: var(--c-242222);
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.48);
   max-width: none !important;
 }

@@ -1,21 +1,26 @@
 <!doctype html>
-<html lang="en" style="background-color: #000000;">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="color-scheme" content="dark light" />
     <title>AI Usage Tracker</title>
+    <script src="/theme-init.js"></script>
     <style>
-      html, body {
-        background-color: #000000 !important;
+      html, body, #root {
+        background-color: #000000;
         color: #f4f6f8;
         margin: 0;
         padding: 0;
       }
+      html[data-theme="light"], html[data-theme="light"] body, html[data-theme="light"] #root {
+        background-color: #f6f5f8;
+        color: #1c1b1f;
+      }
     </style>
   </head>
-  <body style="background-color: #000000;">
-    <div id="root" style="background-color: #000000;"></div>
+  <body>
+    <div id="root"></div>
     <script type="module" src="/src/app/main.tsx"></script>
   </body>
 </html>

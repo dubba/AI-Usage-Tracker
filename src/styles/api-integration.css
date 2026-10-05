@@ -60,13 +60,13 @@
 }
 
 .bridge-window-status.running {
-  color: #82e9a9;
+  color: var(--c-82e9a9);
   border-color: rgba(68, 209, 122, .35);
   background: var(--green-soft);
 }
 
 .bridge-window-status.error {
-  color: #ff9d9d;
+  color: var(--c-ff9d9d);
   border-color: rgba(255, 111, 111, .35);
   background: rgba(255, 111, 111, .1);
 }
@@ -76,7 +76,7 @@
   padding: 13px 15px;
   border: 1px solid rgba(245, 182, 66, .32);
   border-radius: 12px;
-  color: #ffd073;
+  color: var(--c-ffd073);
   background: rgba(245, 182, 66, .1);
   font-size: 12px;
   line-height: 1.45;
@@ -141,7 +141,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #d9d1e8;
+  color: var(--c-d9d1e8);
   font-size: 10px;
 }
 
@@ -173,8 +173,8 @@
   overflow-x: auto;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: #0b0e0c;
-  color: #d9d1e8;
+  background: var(--c-0b0e0c);
+  color: var(--c-d9d1e8);
   font-size: 10px;
   line-height: 1.55;
   white-space: pre-wrap;
@@ -191,7 +191,7 @@
 }
 
 .bridge-security-card code {
-  color: #d9d1e8;
+  color: var(--c-d9d1e8);
 }
 
 @media (max-width: 720px) {

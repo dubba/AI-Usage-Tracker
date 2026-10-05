@@ -1,7 +1,3 @@
-.provider-openai .provider-icon-image {
-  filter: brightness(0) invert(1);
-}
-
 .provider-summary-track > span,
 .account-metric-track > span,
 .progress-fill {
@@ -28,7 +24,7 @@
 .provider-summary-track > .tone-neutral,
 .account-metric-track > .tone-neutral,
 .progress-fill.neutral {
-  background: #69656d !important;
+  background: var(--c-69656d) !important;
 }
 
 .account-status-badge,
@@ -133,7 +129,7 @@
 .account-name-edit {
   color: var(--obsidian-purple);
   border: 1px solid rgba(160, 120, 255, 0.4);
-  background: var(--obsidian-surface-container-high, #211e29);
+  background: var(--obsidian-surface-container-high, var(--c-211e29));
   box-shadow: none;
   transition: background 150ms ease, transform 100ms ease, border-color 150ms ease, color 150ms ease;
 }
@@ -141,13 +137,13 @@
 .account-name-confirm {
   color: var(--obsidian-green);
   border-color: rgba(78, 222, 163, 0.45);
-  background: rgba(0, 56, 36, 0.42);
+  background: var(--c-0-56-36-a420);
 }
 
 .account-name-cancel {
   color: var(--obsidian-red);
   border-color: rgba(255, 133, 133, 0.45);
-  background: rgba(85, 15, 15, 0.42);
+  background: var(--c-85-15-15-a420);
 }
 
 .account-name-edit svg,
@@ -165,34 +161,34 @@
 
 .account-name-edit:hover:not(:disabled),
 .account-name-edit:focus-visible {
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
   border-color: var(--obsidian-purple-strong) !important;
-  background: #28213a !important;
+  background: var(--c-28213a) !important;
   box-shadow: none !important;
 }
 
 .account-name-edit:hover:not(:disabled) svg,
 .account-name-edit:focus-visible svg {
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
 }
 
 .account-name-edit:active:not(:disabled) {
-  background: #32254e !important;
+  background: var(--c-32254e) !important;
   border-color: var(--obsidian-purple-strong) !important;
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
   box-shadow: none !important;
   transform: scale(0.95);
 }
 
 .account-name-edit:active:not(:disabled) svg {
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
 }
 
 .account-name-confirm:hover:not(:disabled),
 .account-name-confirm:focus-visible {
-  color: #8af0c2 !important;
+  color: var(--c-8af0c2) !important;
   border-color: rgba(78, 222, 163, 0.9) !important;
-  background: rgba(0, 56, 36, 0.72) !important;
+  background: var(--c-0-56-36-a720) !important;
 }
 
 .account-name-cancel:hover:not(:disabled),
@@ -205,19 +201,19 @@
 .account-card-action.notify-action {
   color: var(--obsidian-amber);
   border-color: rgba(255, 184, 105, 0.5);
-  background: rgba(72, 41, 0, 0.42);
+  background: var(--c-72-41-0-a420);
 }
 
 .account-card-action.notify-action:hover:not(:disabled) {
-  color: #ffd19a;
+  color: var(--c-ffd19a);
   border-color: rgba(255, 184, 105, 0.9) !important;
-  background: rgba(72, 41, 0, 0.72) !important;
+  background: var(--c-72-41-0-a720) !important;
 }
 
 .account-card-action.remove-action {
   color: var(--obsidian-red);
   border-color: rgba(255, 133, 133, 0.45);
-  background: rgba(85, 15, 15, 0.42);
+  background: var(--c-85-15-15-a420);
 }
 
 .account-card-action.remove-action:hover:not(:disabled) {
@@ -229,13 +225,13 @@
 .account-card-action.refresh-action {
   color: var(--obsidian-green);
   border-color: rgba(78, 222, 163, 0.45);
-  background: rgba(0, 56, 36, 0.42);
+  background: var(--c-0-56-36-a420);
 }
 
 .account-card-action.refresh-action:hover:not(:disabled) {
-  color: #8af0c2;
+  color: var(--c-8af0c2);
   border-color: rgba(78, 222, 163, 0.9) !important;
-  background: rgba(0, 56, 36, 0.72) !important;
+  background: var(--c-0-56-36-a720) !important;
 }
 
 .account-card-action,
@@ -308,10 +304,10 @@
   z-index: 1000;
   transform: translateX(-50%);
   padding: 6px 9px;
-  border: 1px solid #3d3b3d;
+  border: 1px solid var(--c-3d3b3d);
   border-radius: 6px;
-  background: #121111;
-  color: #f5f1f0;
+  background: var(--c-121111);
+  color: var(--c-f5f1f0);
   font-size: 11px;
   font-weight: 600;
   line-height: 1.2;
@@ -503,7 +499,7 @@
 }
 
 .account-usage-metric .metric-window-pill.window-pill-5h {
-  color: #f5f1ef;
+  color: var(--c-f5f1ef);
   padding: 3px 10px;
   border: 1px solid rgba(251, 146, 60, 0.5) !important;
   border-radius: 999px;
@@ -512,7 +508,7 @@
 }
 
 .account-usage-metric .metric-window-pill.window-pill-7d {
-  color: #f5f1ef;
+  color: var(--c-f5f1ef);
   padding: 3px 10px;
   border: 1px solid rgba(56, 189, 248, 0.5) !important;
   border-radius: 999px;
@@ -521,7 +517,7 @@
 }
 
 .account-usage-metric .metric-window-pill.window-pill-monthly {
-  color: #f5f1ef;
+  color: var(--c-f5f1ef);
   padding: 3px 10px;
   border: 1px solid rgba(168, 85, 247, 0.5) !important;
   border-radius: 999px;
@@ -760,7 +756,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  color: #f3f4f6;
+  color: var(--c-f3f4f6);
   animation: toastSlideIn 0.25s ease-out;
 }
 
@@ -776,7 +772,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .usage-alert-toast-icon {
-  color: #c084fc;
+  color: var(--c-c084fc);
   flex-shrink: 0;
   width: 20px;
   height: 20px;
@@ -807,14 +803,14 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .usage-alert-toast-title {
   font-weight: 600;
   font-size: 13px;
-  color: #f5f3ff;
+  color: var(--c-f5f3ff);
   line-height: 1.3;
   min-width: 0;
 }
 
 .usage-alert-toast-time {
   font-size: 11px;
-  color: #c084fc;
+  color: var(--c-c084fc);
   font-weight: 500;
   white-space: nowrap;
   flex-shrink: 0;
@@ -822,7 +818,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 
 .usage-alert-toast-body {
   font-size: 12px;
-  color: #d1d5db;
+  color: var(--c-d1d5db);
   line-height: 1.45;
   word-break: break-word;
 }
@@ -830,7 +826,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .usage-alert-toast-close {
   background: transparent;
   border: none;
-  color: #9ca3af;
+  color: var(--c-9ca3af);
   cursor: pointer;
   padding: 4px;
   border-radius: 6px;
@@ -847,8 +843,8 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .usage-alert-toast-close:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.1);
+  color: var(--c-ffffff);
+  background: var(--c-255-255-255-a100);
 }
 
 @media (max-width: 600px) {
@@ -884,7 +880,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   background: rgba(38, 18, 20, 0.96);
   border: 1px solid rgba(255, 111, 111, 0.4);
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
-  color: #ffbcbc;
+  color: var(--c-ffbcbc);
   font-size: 13px;
   line-height: 1.45;
 }
@@ -904,7 +900,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: #ffaaaa;
+  color: var(--c-ffaaaa);
   cursor: pointer;
 }
 
@@ -914,8 +910,8 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .app-error-dismiss:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.1);
+  color: var(--c-ffffff);
+  background: var(--c-255-255-255-a100);
 }
 
 /* Last-synced line at the bottom of the sidebar, just above Settings */
@@ -948,9 +944,9 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   min-width: 40px;
   min-height: 40px;
   border-radius: 50%;
-  background: var(--obsidian-surface-low, #1c1b1b);
+  background: var(--obsidian-surface-low, var(--c-1c1b1b));
   border: 1px solid rgba(160, 120, 255, 0.4);
-  color: #ffffff;
+  color: var(--c-ffffff);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -964,57 +960,57 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .sidebar-settings-btn svg {
   width: 18px;
   height: 18px;
-  color: #ffffff;
+  color: var(--c-ffffff);
   transition: color 150ms ease;
 }
 
 .sidebar-settings-btn:hover:not(:disabled) {
-  background: #28213a;
+  background: var(--c-28213a);
   border-color: var(--obsidian-purple-strong);
-  color: #ffffff;
+  color: var(--c-ffffff);
   box-shadow: none;
 }
 
 .sidebar-settings-btn:hover:not(:disabled) svg {
-  color: #ffffff;
+  color: var(--c-ffffff);
 }
 
 .sidebar-settings-btn:active:not(:disabled) {
-  background: #32254e;
+  background: var(--c-32254e);
   border-color: var(--obsidian-purple-strong);
-  color: #ffffff;
+  color: var(--c-ffffff);
   box-shadow: none;
   transform: scale(0.95);
 }
 
 .sidebar-settings-btn:active:not(:disabled) svg {
-  color: #ffffff;
+  color: var(--c-ffffff);
 }
 
 .sidebar-settings-btn:focus-visible {
   outline: none;
   border-color: var(--obsidian-purple-strong);
-  color: #ffffff;
+  color: var(--c-ffffff);
 }
 
 .sidebar-settings-btn:focus-visible svg {
-  color: #ffffff;
+  color: var(--c-ffffff);
 }
 
 .sidebar-settings-btn.active {
-  background: #32254e;
-  border-color: rgba(208, 188, 255, 0.75);
+  background: var(--c-32254e);
+  border-color: var(--c-208-188-255-a750);
   box-shadow: inset 0 0 0 1px var(--obsidian-purple-strong);
-  color: #ffffff;
+  color: var(--c-ffffff);
 }
 
 .sidebar-settings-btn.active svg {
-  color: #ffffff;
+  color: var(--c-ffffff);
 }
 
 .sidebar-settings-btn.active:hover {
-  background: #3a2b5a;
-  border-color: rgba(208, 188, 255, 0.9);
+  background: var(--c-3a2b5a);
+  border-color: var(--c-208-188-255-a900);
 }
 
 .sidebar-settings-btn:disabled {
@@ -1121,7 +1117,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: var(--obsidian-surface-container-high, #211e29);
+  background: var(--obsidian-surface-container-high, var(--c-211e29));
   border: 1px solid rgba(160, 120, 255, 0.4);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(160, 120, 255, 0.25);
   display: flex;
@@ -1150,12 +1146,12 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 
 .pull-to-refresh-indicator.is-primed {
   border-color: var(--obsidian-purple-strong);
-  background: #28213a;
+  background: var(--c-28213a);
   box-shadow: 0 4px 20px rgba(160, 120, 255, 0.5), 0 0 12px rgba(160, 120, 255, 0.4);
 }
 
 .pull-to-refresh-indicator.is-primed .pull-to-refresh-icon {
-  color: #ffffff;
+  color: var(--c-ffffff);
 }
 
 .pull-to-refresh-indicator.is-refreshing .pull-to-refresh-icon {
@@ -1176,44 +1172,44 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 /* Settings: buttons (Link Devices, View, Copy) and Account Updates dropdown styled to match refresh all button look & feel */
 .settings-style-content .settings-changelog-button,
 .settings-changelog-button {
-  background: var(--obsidian-surface-low, #1c1b1b) !important;
+  background: var(--obsidian-surface-low, var(--c-1c1b1b)) !important;
   border: 1px solid rgba(160, 120, 255, 0.4) !important;
   border-radius: 6px !important;
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
   transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
 }
 
 .settings-style-content .settings-changelog-button span,
 .settings-changelog-button span {
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
   transition: color 140ms ease;
 }
 
 .settings-style-content .settings-changelog-button svg,
 .settings-changelog-button svg {
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
   transition: color 140ms ease;
 }
 
 .settings-style-content .settings-changelog-button:hover:not(:disabled),
 .settings-changelog-button:hover:not(:disabled) {
-  background-color: #28213a !important;
+  background-color: var(--c-28213a) !important;
   border-color: var(--obsidian-purple-strong) !important;
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
 }
 
 .settings-style-content .settings-changelog-button:hover:not(:disabled) span,
 .settings-changelog-button:hover:not(:disabled) span,
 .settings-style-content .settings-changelog-button:hover:not(:disabled) svg,
 .settings-changelog-button:hover:not(:disabled) svg {
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
 }
 
 .settings-style-content .settings-changelog-button:active:not(:disabled),
 .settings-changelog-button:active:not(:disabled) {
-  background-color: #32254e !important;
+  background-color: var(--c-32254e) !important;
   border-color: var(--obsidian-purple-strong) !important;
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
   transform: scale(0.98);
 }
 
@@ -1221,7 +1217,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .settings-changelog-button:active:not(:disabled) span,
 .settings-style-content .settings-changelog-button:active:not(:disabled) svg,
 .settings-changelog-button:active:not(:disabled) svg {
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
 }
 
 .settings-style-content .settings-changelog-button:disabled,
@@ -1232,75 +1228,75 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 
 /* Settings: Account Updates dropdown trigger & menu matching refresh all button look & feel */
 .settings-account-refresh .custom-dropdown-trigger {
-  background: var(--obsidian-surface-low, #1c1b1b) !important;
+  background: var(--obsidian-surface-low, var(--c-1c1b1b)) !important;
   border: 1px solid rgba(160, 120, 255, 0.4) !important;
   border-radius: 6px !important;
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
   transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
 }
 
 .settings-account-refresh .custom-dropdown-label {
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
   transition: color 140ms ease;
 }
 
 .settings-account-refresh .custom-dropdown-chevron {
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
   transition: color 140ms ease;
 }
 
 .settings-account-refresh .custom-dropdown-trigger:hover:not(:disabled),
 .settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger {
-  background-color: #28213a !important;
+  background-color: var(--c-28213a) !important;
   border-color: var(--obsidian-purple-strong) !important;
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
 }
 
 .settings-account-refresh .custom-dropdown-trigger:hover:not(:disabled) .custom-dropdown-label,
 .settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger .custom-dropdown-label,
 .settings-account-refresh .custom-dropdown-trigger:hover:not(:disabled) .custom-dropdown-chevron,
 .settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger .custom-dropdown-chevron {
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
 }
 
 .settings-account-refresh .custom-dropdown-trigger:active:not(:disabled) {
-  background-color: #32254e !important;
+  background-color: var(--c-32254e) !important;
   border-color: var(--obsidian-purple-strong) !important;
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
 }
 
 .settings-account-refresh .custom-dropdown-menu {
-  background: var(--obsidian-surface-low, #1c1b1b) !important;
+  background: var(--obsidian-surface-low, var(--c-1c1b1b)) !important;
   border: 1px solid rgba(160, 120, 255, 0.4) !important;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(160, 120, 255, 0.15) !important;
 }
 
 .settings-account-refresh .custom-dropdown-item {
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
 }
 
 .settings-account-refresh .custom-dropdown-item-label {
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
 }
 
 .settings-account-refresh .custom-dropdown-item.highlighted,
 .settings-account-refresh .custom-dropdown-item:hover {
-  background-color: #28213a !important;
-  color: #ffffff !important;
+  background-color: var(--c-28213a) !important;
+  color: var(--c-ffffff) !important;
 }
 
 .settings-account-refresh .custom-dropdown-item.highlighted .custom-dropdown-item-label,
 .settings-account-refresh .custom-dropdown-item:hover .custom-dropdown-item-label {
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
 }
 
 .settings-account-refresh .custom-dropdown-item.selected {
-  background-color: #32254e !important;
-  color: #ffffff !important;
+  background-color: var(--c-32254e) !important;
+  color: var(--c-ffffff) !important;
 }
 
 .settings-account-refresh .custom-dropdown-item.selected .custom-dropdown-item-label {
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
 }
 
 /* Sidebar expanded mobile close button: matches red modal close button */
@@ -1333,8 +1329,8 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 
 .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn) {
   border: 1px solid rgba(160, 120, 255, 0.4) !important;
-  background: var(--obsidian-surface-container-high, #211e29) !important;
-  color: #ffffff !important;
+  background: var(--obsidian-surface-container-high, var(--c-211e29)) !important;
+  color: var(--c-ffffff) !important;
   box-shadow: none !important;
   line-height: 0;
   transition: background 150ms ease, transform 100ms ease, border-color 150ms ease, color 150ms ease;
@@ -1342,44 +1338,44 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 
 .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn) svg {
   display: block;
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
   transition: color 150ms ease;
 }
 
 @media (hover: hover) {
   .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):hover:not(:disabled) {
-    background: #28213a !important;
+    background: var(--c-28213a) !important;
     border-color: var(--obsidian-purple-strong) !important;
-    color: #ffffff !important;
+    color: var(--c-ffffff) !important;
     box-shadow: none !important;
   }
 
   .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):hover:not(:disabled) svg {
-    color: #ffffff !important;
+    color: var(--c-ffffff) !important;
   }
 }
 
 .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):focus-visible {
-  background: #28213a !important;
+  background: var(--c-28213a) !important;
   border-color: var(--obsidian-purple-strong) !important;
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
   box-shadow: none !important;
 }
 
 .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):focus-visible svg {
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
 }
 
 .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):active:not(:disabled) {
-  background: #32254e !important;
+  background: var(--c-32254e) !important;
   border-color: var(--obsidian-purple-strong) !important;
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
   box-shadow: none !important;
   transform: scale(0.95);
 }
 
 .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):active:not(:disabled) svg {
-  color: #ffffff !important;
+  color: var(--c-ffffff) !important;
 }
 
 .sidebar-mobile-header .mobile-sidebar-close-btn:hover:not(:disabled),
@@ -1403,6 +1399,19 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   border-color: #a82020 !important;
   color: #fff !important;
   transform: scale(0.96);
+}
+
+/* Light theme: purple-filled actions keep white labels. Dark keeps the original
+   indigo on the light purple fill (`--c-2d145f`). --c-ffffff inverts in Light,
+   so this stays a literal. */
+:root[data-theme="light"] .button.primary,
+:root[data-theme="light"] .button.primary:hover:not(:disabled),
+:root[data-theme="light"] .button.primary:focus-visible,
+:root[data-theme="light"] .button.primary:active:not(:disabled),
+:root[data-theme="light"] .button.primary svg,
+:root[data-theme="light"] .button.primary span,
+:root[data-theme="light"] .provider-window-toggle button.active {
+  color: #ffffff !important;
 }
 
 

@@ -1,4 +1,5 @@
 import "../styles/tokens.css";
+import "../styles/theme-palette.css";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
@@ -6,6 +7,7 @@ import App from "./App";
 import { ApiIntegrationWindow } from "../features/api-integration/ApiIntegrationWindow";
 import { StartupGate } from "../features/startup/StartupGate";
 import { LEGACY_STORAGE, storageKeys, storageRemove } from "../shared/lib/storage";
+import { initTheme } from "../shared/lib/theme";
 import "../styles/base.css";
 import "../styles/shell-patches.css";
 import "../styles/api-integration.css";
@@ -26,6 +28,7 @@ try {
   // mobile / test environment — no API integration window possible
 }
 document.documentElement.classList.toggle("api-integration-window-root", isApiIntegrationWindow);
+initTheme();
 
 // One-time removal of legacy localStorage account emails, now stored in the backend.
 storageRemove(LEGACY_STORAGE.opencodeAccountEmails);

@@ -102,7 +102,7 @@
   font-weight: 700;
   letter-spacing: 0.18em;
   line-height: 1.15;
-  color: #ffffff;
+  color: var(--c-ffffff);
 }
 
 .pairing-qr-card {
@@ -150,7 +150,7 @@
 .pairing-meta-tag.session strong {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   letter-spacing: 0.06em;
-  color: #ffffff;
+  color: var(--c-ffffff);
 }
 
 .pairing-meta-tag.timer {
@@ -425,7 +425,8 @@
 .pairing-back-btn,
 .pairing-scanner-controls .button.pairing-back-btn,
 .pairing-modal .modal-actions .pairing-back-btn,
-.pairing-nav-row .pairing-back-btn {
+.pairing-nav-row .pairing-back-btn,
+.airgap-prompt-actions .button.pairing-back-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -446,7 +447,8 @@
   .pairing-back-btn:hover:not(:disabled),
   .pairing-scanner-controls .button.pairing-back-btn:hover:not(:disabled),
   .pairing-modal .modal-actions .pairing-back-btn:hover:not(:disabled),
-  .pairing-nav-row .button.pairing-back-btn:hover:not(:disabled) {
+  .pairing-nav-row .button.pairing-back-btn:hover:not(:disabled),
+  .airgap-prompt-actions .button.pairing-back-btn:hover:not(:disabled) {
     background: #dc2626 !important;
     border-color: #b91c1c !important;
     color: #ffffff;
@@ -456,7 +458,8 @@
 .pairing-back-btn:active:not(:disabled),
 .pairing-scanner-controls .button.pairing-back-btn:active:not(:disabled),
 .pairing-modal .modal-actions .pairing-back-btn:active:not(:disabled),
-.pairing-nav-row .button.pairing-back-btn:active:not(:disabled) {
+.pairing-nav-row .button.pairing-back-btn:active:not(:disabled),
+.airgap-prompt-actions .button.pairing-back-btn:active:not(:disabled) {
   background: #991b1b !important;
   border-color: #7f1d1d !important;
 }
@@ -500,7 +503,7 @@
   max-width: 280px;
   background: var(--obsidian-surface-low);
   border: 1px solid rgba(160, 120, 255, 0.35);
-  color: #ffffff;
+  color: var(--c-ffffff);
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   font-size: 1.85rem;
   font-weight: 700;
@@ -510,6 +513,11 @@
   border-radius: 10px;
   outline: none;
   transition: all 0.18s ease;
+}
+
+.pairing-code-input::placeholder {
+  color: var(--obsidian-muted);
+  opacity: 0.7;
 }
 
 .pairing-code-input:focus {
@@ -736,7 +744,7 @@
   background: rgba(160, 120, 255, 0.1);
   border: 2px solid var(--obsidian-purple-strong);
   border-radius: 10px;
-  color: #ffffff;
+  color: var(--c-ffffff);
   text-shadow: 0 0 14px rgba(160, 120, 255, 0.5);
   margin: 2px 0;
 }
@@ -747,7 +755,7 @@
 .airgap-pin-prompt-card .pairing-sas-badge {
   background: rgba(255, 184, 105, 0.08);
   border-color: var(--obsidian-amber);
-  color: #ffffff;
+  color: var(--c-ffffff);
   text-shadow: 0 0 14px rgba(255, 184, 105, 0.4);
 }
 
@@ -1333,7 +1341,7 @@
 .airgap-pin-prompt-card h3 {
   margin: 0;
   font-size: 1.25rem;
-  color: #ffffff;
+  color: var(--c-ffffff);
 }
 
 .airgap-pin-prompt-card .pairing-instruction {

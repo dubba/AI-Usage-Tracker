@@ -3,6 +3,23 @@
 ## Unreleased (0 items)
 
 
+## 0.3.13 - 2026-10-05 (5 items)
+
+### Added (1)
+
+- Light and dark themes. Choose Dark, Light, or System under "Appearance" in Settings; the choice applies immediately, is remembered, and also themes the window title bar and the Paseo Bridge window. Dark stays the default.
+
+### Changed (2)
+
+- In Light theme, purple-filled action buttons (Check Now, + Account, + Group, Connect to Device, Open ChatGPT Login, Open Claude Login, and the other primary buttons) now use white text. Dark theme keeps the original dark indigo on the light purple fill.
+- The empty dashboard CTA is now "+ Account", matching the sidebar button.
+
+### Fixed (2)
+
+- In Light theme, the Local Device Sync link code, code-entry field, and confirmation code are readable instead of white-on-white, and the Confirm step's Back button is the same red as the other pairing Back buttons.
+- In Light theme, the mobile hamburger menu icon is readable instead of white-on-white.
+
+
 ## 0.3.12 - 2026-10-02 (24 items)
 
 ### Added (1)

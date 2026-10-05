@@ -10,6 +10,8 @@ export const STORAGE_KEYS = {
   providerOrder: "ai-subscription-tracker:provider-order",
   sidebarWidthDesktop: "paseo-usage-bridge:sidebar-width",
   sidebarWidthMobile: "paseo-usage-bridge:sidebar-width-mobile",
+  /** "dark" | "light" | "system"; also read by public/theme-init.js before the app loads. */
+  theme: "ai-usage-tracker:theme",
   /** sessionStorage: survives a reload during sign-in, not an app restart. */
   loginAttempt: "ai-usage-tracker:login-attempt",
 } as const;

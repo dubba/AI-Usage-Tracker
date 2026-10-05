@@ -39,7 +39,7 @@ select.text-input {
 }
 
 select.text-input option {
-  background: #171b19;
+  background: var(--c-171b19);
   color: var(--text);
 }
 
@@ -90,7 +90,7 @@ select.text-input option {
   padding: 4px 0;
   border: 0;
   background: transparent;
-  color: var(--accent-2, #b99aff);
+  color: var(--accent-2, var(--c-b99aff));
   font: inherit;
   font-size: 11px;
   font-weight: 650;
@@ -133,7 +133,7 @@ select.text-input option {
   overflow: hidden;
   border: 1px solid var(--border-strong);
   border-radius: 12px;
-  background: #111512;
+  background: var(--c-111512);
 }
 
 .google-model-picker-header {
@@ -168,7 +168,7 @@ select.text-input option {
   padding: 0;
   border: 0;
   background: transparent;
-  color: #c8b4ff;
+  color: var(--c-c8b4ff);
   font-size: 10px;
   font-weight: 650;
   cursor: pointer;
@@ -196,7 +196,7 @@ select.text-input option {
   gap: 10px;
   align-items: start;
   padding: 10px 13px;
-  border-top: 1px solid rgba(255, 255, 255, .045);
+  border-top: 1px solid var(--c-255-255-255-a45);
   cursor: pointer;
 }
 
@@ -254,7 +254,7 @@ select.text-input option {
 }
 
 .google-cloud-scope-card code {
-  color: #d7c7ff;
+  color: var(--c-d7c7ff);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
@@ -340,7 +340,7 @@ select.text-input option {
   padding: 13px 15px;
   border: 1px solid var(--border);
   border-radius: 11px;
-  background: #131816;
+  background: var(--c-131816);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -370,13 +370,13 @@ select.text-input option {
   height: 20px;
   border-radius: 6px;
   border: 1px solid var(--border-strong);
-  background: #0f1311;
+  background: var(--c-0f1311);
   position: relative;
 }
 
 .alert-window-toggle input:checked + .alert-checkbox {
   background: #7654d5;
-  border-color: #8d69e4;
+  border-color: var(--c-8d69e4);
 }
 
 .alert-window-toggle input:checked + .alert-checkbox::after {
@@ -470,7 +470,7 @@ select.text-input option {
   padding: 15px;
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: #131816;
+  background: var(--c-131816);
 }
 
 .compact-alert-empty {
@@ -502,15 +502,6 @@ select.text-input option {
     align-items: stretch;
     flex-direction: column;
   }
-}
-
-/* ==========================================================================
-   provider-icon-fixes (was provider-icon-fixes.css)
-   ========================================================================== */
-.account-provider-icon:has(.provider-icon-image) {
-  background: #ffffff !important;
-  border-color: #d9dfdc !important;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .08) !important;
 }
 
 /* ==========================================================================
@@ -581,7 +572,7 @@ select.text-input option {
   width: 4.2px;
   height: 4.2px;
   border-radius: 50%;
-  background: #7e8a84;
+  background: var(--c-7e8a84);
   cursor: ew-resize;
   transition: background .12s ease, box-shadow .12s ease, transform .12s ease;
 }
@@ -589,7 +580,7 @@ select.text-input option {
 .sidebar-resize-handle:hover .sidebar-resize-grip span,
 .sidebar-resize-handle:focus-visible .sidebar-resize-grip span,
 .sidebar-resize-handle.dragging .sidebar-resize-grip span {
-  background: #d4c3ff;
+  background: var(--c-d4c3ff);
   box-shadow: 0 0 7px rgba(159, 103, 255, .75);
   transform: scale(1.1);
 }
@@ -698,7 +689,7 @@ body.sidebar-resizing * {
     font-weight: 800;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--purple, #a078ff);
+    color: var(--purple, var(--c-a078ff));
   }
 }
 
@@ -716,7 +707,7 @@ body.sidebar-resizing * {
   padding: 0 10px;
   border: 1px solid var(--border-strong);
   border-radius: 9px;
-  background: #151a17;
+  background: var(--c-151a17);
   color: var(--text);
   display: flex;
   align-items: center;
@@ -733,20 +724,20 @@ body.sidebar-resizing * {
 
 .sidebar-footer:hover,
 .sidebar-footer:focus-visible {
-  background: #202620;
+  background: var(--c-202620);
   border-color: var(--purple);
 }
 
 .sidebar-footer.update-available {
   background: #7654d5;
-  border-color: #6e4fc1;
+  border-color: var(--c-6e4fc1);
   color: #fff;
 }
 
 .sidebar-footer.update-available:hover,
 .sidebar-footer.update-available:focus-visible {
   background: #835fe8;
-  border-color: #8d69e4;
+  border-color: var(--c-8d69e4);
 }
 
 .sidebar-footer[aria-busy="true"] {

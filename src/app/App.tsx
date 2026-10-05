@@ -528,7 +528,7 @@ export default function App() {
         busy={Boolean(accountToRemove && busy.has(busyKey("remove", accountToRemove.id)))}
         onClose={() => dispatchModal({ type: "close", kind: "remove" })}
         onConfirm={() => {
-          if (accountToRemove) void remove(accountToRemove);
+          if (accountToRemove) void remove(accountToRemove, () => dispatchModal({ type: "close", kind: "remove" }));
         }}
       />
       <PairingModal

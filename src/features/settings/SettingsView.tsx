@@ -15,8 +15,15 @@ import { FALLBACK_APP_VERSION } from "../../shared/lib/constants";
 import { isMobileDevice, isMobileUserAgent } from "../../shared/lib/platform";
 import { SHORTCUTS, isMacPlatform, shortcutLabel } from "../shortcuts/shortcuts";
 import { UpdateProgressBar, updateInstallLabel } from "./UpdateProgressBar";
+import { useThemePreference } from "../../shared/hooks/useThemePreference";
+import type { ThemePreference } from "../../shared/lib/theme";
 
 const ACCOUNT_REFRESH_OPTIONS = [5, 10, 15, 30, 45, 60] as const;
+const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
+  { value: "dark", label: "Dark" },
+  { value: "light", label: "Light" },
+  { value: "system", label: "System" },
+];
 const CHANGELOG_URL = "https://github.com/dubba/AI-Usage-Tracker/blob/main/CHANGELOG.md";
 
 export function SettingsView({
@@ -70,6 +77,7 @@ export function SettingsView({
 }) {
   const automaticUpdates = appSettings?.automaticUpdatesEnabled ?? true;
   const includeBetaUpdates = appSettings?.includeBetaUpdates ?? false;
+  const [themePreference, setThemePreference] = useThemePreference();
   return (
     <div className="content-scroll dashboard-content settings-style-content">
       <header className="dashboard-header">
@@ -104,6 +112,22 @@ export function SettingsView({
           >
             Link Devices
           </button>
+        </div>
+      </section>
+      <section className="settings-card">
+        <div className="settings-row">
+          <div>
+            <strong>Appearance</strong>
+            <small>Choose a dark or light theme, or match your device.</small>
+          </div>
+          <div className="settings-account-refresh">
+            <CustomDropdown<ThemePreference>
+              id="setting-theme"
+              value={themePreference}
+              options={THEME_OPTIONS}
+              onChange={setThemePreference}
+            />
+          </div>
         </div>
       </section>
       <section className="settings-card">
@@ -244,6 +268,7 @@ export function SettingsView({
           </button>
         </div>
       </section>
+      {!isMobileDevice() ? (
       <section className="settings-card">
         <div className="settings-row">
           <div>
@@ -280,7 +305,8 @@ export function SettingsView({
           </button>
         </div>
       </section>
-      {bridge?.error ? <div className="error-panel api-integration-error">{bridge.error}</div> : null}
+      ) : null}
+      {!isMobileDevice() && bridge?.error ? <div className="error-panel api-integration-error">{bridge.error}</div> : null}
       {!isMobileDevice() ? (
         <section className="settings-card settings-shortcuts-card" aria-labelledby="settings-shortcuts-heading">
           <div className="settings-row settings-shortcuts-row">

@@ -1,7 +1,7 @@
 {
   "name": "ai-usage-tracker",
   "private": true,
-  "version": "0.3.12",
+  "version": "0.3.13",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,6 +13,8 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
+    "android:dev": "JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home tauri android dev",
+    "android:build": "JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home tauri android build --target aarch64",
     "test": "vitest run"
   },
   "dependencies": {

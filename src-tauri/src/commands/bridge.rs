@@ -19,6 +19,10 @@ pub(crate) async fn set_api_integration_enabled(
     state: State<'_, Arc<AppState>>,
     enabled: bool,
 ) -> Result<BridgeStatus, String> {
+    if cfg!(mobile) {
+        return Err("The Paseo Bridge is only available on desktop.".into());
+    }
+
     state.settings.set_paseo_bridge_enabled(enabled)?;
 
     for _ in 0..20 {
