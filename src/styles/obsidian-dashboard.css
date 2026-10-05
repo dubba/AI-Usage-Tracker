@@ -1356,7 +1356,7 @@ button.account-card-provider-icon:active {
   display: flex;
   flex-direction: row;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 16px;
   width: 100%;
   box-sizing: border-box;
@@ -1372,6 +1372,7 @@ button.account-card-provider-icon:active {
 
 .settings-updates-group-header.settings-updates-beta-row {
   margin-top: 16px !important;
+  align-items: center;
 }
 
 .settings-updates-subcard {

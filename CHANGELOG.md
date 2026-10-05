@@ -3,22 +3,25 @@
 ## Unreleased (0 items)
 
 
-## 0.3.13 - 2026-10-05 (12 items)
+## 0.3.13 - 2026-10-05 (15 items)
 
 ### Added (1)
 
 - Light and dark themes. Choose Dark, Light, or System under "Appearance" in Settings; the choice applies immediately, is remembered, and also themes the window title bar and the Paseo Bridge window. Dark stays the default.
 
-### Changed (5)
+### Changed (6)
 
+- Settings rows have less space above the titles and below the descriptions.
 - In Settings, Auto-Start is now "Launch at Startup" with the description "Automatically start the app when your device starts.", Automatic Updates now has the description "Automatically check for new versions.", and Beta Releases is now "Include Beta Releases".
 - Tapping Check Now in Settings no longer shows a separate "update available" notification, because the Settings page already shows the new version next to the button.
 - In Light theme, the hamburger, account-name pen, account-card menu, Settings sidebar button, and account-card provider icon square use a white fill (icons and text black where they were already restyled). Those chrome buttons, plus Link Devices, Appearance, Account Updates, View, and Copy, use a darker purple outline so it reads on white. Opening the account-card menu or Account Updates dropdown uses a purple fill; closing them (second tap or choosing an item) returns the trigger to white. Selected Settings uses the same left-edge purple gradient as the other sidebar cards. The pull-to-refresh chip is white in Light.
 - In Light theme, purple-filled action buttons (Check Now, + Account, + Group, Connect to Device, Open ChatGPT Login, Open Claude Login, and the other primary buttons) now use white text. Dark theme keeps the original dark indigo on the light purple fill.
 - The empty dashboard CTA is now "+ Account", matching the sidebar button.
 
-### Fixed (6)
+### Fixed (8)
 
+- In Light theme on mobile, the status bar is now actually painted the same purple as Check Now. The earlier background strip sat behind the page, so the clock and battery were still hard to see.
+- In Settings, the Automatic Updates toggle lines up with the title, matching Launch at Startup and Include Beta Releases, instead of sitting lower against the description.
 - In Light theme on mobile, the Android status bar uses the same purple as Check Now so the clock, battery, and other system icons stay visible.
 - Account-card error messages are vertically centered between the provider icon and the first usage-limit pill, with equal spacing above and below.
 - The selected Settings button in the sidebar now uses the same lighter left-edge purple gradient, border, and accent bar as the other sidebar cards.

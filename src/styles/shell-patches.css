@@ -278,7 +278,7 @@ select.text-input option {
 .progress-track { height: 9px; margin-top: 20px; }
 .reset-label { font-size: 11px; line-height: 1.4; margin-top: 11px; }
 .error-panel { font-size: 12px; line-height: 1.5; }
-.settings-row { min-height: 82px; padding: 17px 19px; }
+.settings-row { min-height: 0; padding: 12px 19px; }
 .settings-row strong { font-size: 14px; }
 .settings-row small { font-size: 12px; line-height: 1.45; }
 
