@@ -22,6 +22,7 @@
 
 - On mobile, the hamburger, page title, and the sidebar's close button now sit vertically centered in their header, with an equal 7px of space above and below, without making the header taller.
 - The mobile status bar is now the same purple in Dark theme as in Light theme, so the clock and battery stay readable.
+- Scroll bars now use the same purple as the mobile status bar in both themes.
 - In Light theme on mobile, the status bar is now actually painted the same purple as Check Now. The earlier background strip sat behind the page, so the clock and battery were still hard to see.
 - In Settings, the Automatic Updates toggle lines up with the title, matching Launch at Startup and Include Beta Releases, instead of sitting lower against the description.
 - In Light theme on mobile, the Android status bar uses the same purple as Check Now so the clock, battery, and other system icons stay visible.
