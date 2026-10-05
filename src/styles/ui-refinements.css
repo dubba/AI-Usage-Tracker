@@ -1524,17 +1524,17 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   background: #ffffff !important;
 }
 
-/* Light: the Android status bar is transparent with light (white) icons.
-   The page canvas and dashboard header paint over a background-color on html/body,
-   so use a fixed overlay in the inset — Check Now purple — so clock/battery stay readable. */
-html[data-theme="light"]::after {
+/* The Android status bar is transparent with light (white) icons. Paint the inset
+   with a fixed overlay in the Light-theme Check Now purple, in both themes, so
+   clock/battery stay readable. */
+html::after {
   content: "";
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   height: var(--safe-area-top, env(safe-area-inset-top, 0px));
-  background: var(--obsidian-purple);
+  background: #6d3bd7;
   pointer-events: none;
   z-index: 2147483647;
 }

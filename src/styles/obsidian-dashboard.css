@@ -2472,7 +2472,7 @@ select.text-input option,
     max-width: calc(100vw - 48px);
     height: auto;
     max-height: none;
-    padding-top: max(12px, calc(var(--safe-area-top, env(safe-area-inset-top, 0px)) + 2px)) !important;
+    padding-top: calc(var(--safe-area-top, env(safe-area-inset-top, 0px)) + 7px) !important;
     padding-bottom: max(36px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 24px));
     padding-left: max(16px, calc(var(--safe-area-left, env(safe-area-inset-left, 0px)) + 14px)) !important;
     padding-right: max(16px, calc(var(--safe-area-right, env(safe-area-inset-right, 0px)) + 14px)) !important;
@@ -2493,7 +2493,7 @@ select.text-input option,
     align-items: center;
     gap: 10px;
     margin-bottom: 12px;
-    padding: 0 0 12px;
+    padding: 0 0 7px;
     border-bottom: 1px solid var(--border, var(--c-2e2e2e));
     position: relative;
     z-index: 300;
@@ -2576,7 +2576,7 @@ select.text-input option,
 
   .dashboard-header {
     gap: 8px;
-    padding: max(12px, calc(var(--safe-area-top, env(safe-area-inset-top, 0px)) + 2px)) max(16px, calc(var(--safe-area-right, env(safe-area-inset-right, 0px)) + 14px)) 12px max(16px, calc(var(--safe-area-left, env(safe-area-inset-left, 0px)) + 14px));
+    padding: calc(var(--safe-area-top, env(safe-area-inset-top, 0px)) + 7px) max(16px, calc(var(--safe-area-right, env(safe-area-inset-right, 0px)) + 14px)) 7px max(16px, calc(var(--safe-area-left, env(safe-area-inset-left, 0px)) + 14px));
     margin: 0;
     flex: 0 0 auto;
     position: relative;
@@ -2665,7 +2665,7 @@ select.text-input option,
   }
 
   .dashboard-header {
-    padding-bottom: 12px;
+    padding-bottom: 7px;
   }
 
   .dashboard-header .header-actions {

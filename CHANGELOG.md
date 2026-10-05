@@ -3,7 +3,7 @@
 ## Unreleased (0 items)
 
 
-## 0.3.13 - 2026-10-05 (15 items)
+## 0.3.13 - 2026-10-05 (17 items)
 
 ### Added (1)
 
@@ -18,8 +18,10 @@
 - In Light theme, purple-filled action buttons (Check Now, + Account, + Group, Connect to Device, Open ChatGPT Login, Open Claude Login, and the other primary buttons) now use white text. Dark theme keeps the original dark indigo on the light purple fill.
 - The empty dashboard CTA is now "+ Account", matching the sidebar button.
 
-### Fixed (8)
+### Fixed (10)
 
+- On mobile, the hamburger, page title, and the sidebar's close button now sit vertically centered in their header, with an equal 7px of space above and below, without making the header taller.
+- The mobile status bar is now the same purple in Dark theme as in Light theme, so the clock and battery stay readable.
 - In Light theme on mobile, the status bar is now actually painted the same purple as Check Now. The earlier background strip sat behind the page, so the clock and battery were still hard to see.
 - In Settings, the Automatic Updates toggle lines up with the title, matching Launch at Startup and Include Beta Releases, instead of sitting lower against the description.
 - In Light theme on mobile, the Android status bar uses the same purple as Check Now so the clock, battery, and other system icons stay visible.
