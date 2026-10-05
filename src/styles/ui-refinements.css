@@ -1524,4 +1524,21 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   background: #ffffff !important;
 }
 
+/* Mobile Light: the Android status bar is transparent with light (white) icons.
+   Paint the inset strip the same purple as Check Now so clock/battery stay readable. */
+@media (max-width: 860px) {
+  :root[data-theme="light"] html,
+  :root[data-theme="light"] body,
+  :root[data-theme="light"] #root,
+  :root[data-theme="light"] .obsidian-shell {
+    background-color: var(--obsidian-purple);
+    background-image: linear-gradient(
+      to bottom,
+      var(--obsidian-purple) 0,
+      var(--obsidian-purple) var(--safe-area-top, env(safe-area-inset-top, 0px)),
+      var(--obsidian-canvas) var(--safe-area-top, env(safe-area-inset-top, 0px))
+    );
+  }
+}
+
 

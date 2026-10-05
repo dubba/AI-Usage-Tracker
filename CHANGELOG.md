@@ -3,7 +3,7 @@
 ## Unreleased (0 items)
 
 
-## 0.3.13 - 2026-10-05 (10 items)
+## 0.3.13 - 2026-10-05 (11 items)
 
 ### Added (1)
 
@@ -16,8 +16,9 @@
 - In Light theme, purple-filled action buttons (Check Now, + Account, + Group, Connect to Device, Open ChatGPT Login, Open Claude Login, and the other primary buttons) now use white text. Dark theme keeps the original dark indigo on the light purple fill.
 - The empty dashboard CTA is now "+ Account", matching the sidebar button.
 
-### Fixed (5)
+### Fixed (6)
 
+- In Light theme on mobile, the Android status bar uses the same purple as Check Now so the clock, battery, and other system icons stay visible.
 - Account-card error messages are vertically centered between the provider icon and the first usage-limit pill, with equal spacing above and below.
 - The selected Settings button in the sidebar now uses the same lighter left-edge purple gradient, border, and accent bar as the other sidebar cards.
 - If an in-app update fails (for example because the APK is not signed with this app's certificate), the error now shows inside the App Update modal as well as on the Settings page.
