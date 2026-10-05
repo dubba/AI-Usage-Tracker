@@ -1433,6 +1433,10 @@ button.account-card-provider-icon:active {
   margin: 12px 0 4px;
 }
 
+.update-notes-error {
+  margin: 8px 0 12px;
+}
+
 .settings-updates-subcard:hover {
   border-color: var(--c-3d3b3b);
 }

@@ -160,6 +160,7 @@ export function UpdateNotesModal({
   onInstallUpdate,
   updateBusy,
   updatePercent,
+  updateError,
   onOpenLink,
 }: {
   open: boolean;
@@ -170,6 +171,7 @@ export function UpdateNotesModal({
   onInstallUpdate?: () => void;
   updateBusy?: UpdateBusy;
   updatePercent?: number | null;
+  updateError?: string | null;
   onOpenLink: OpenLink;
 }) {
   const dialogRef = useRef<HTMLElement>(null);
@@ -253,6 +255,12 @@ export function UpdateNotesModal({
         </div>
 
         <UpdateProgressBar busy={updateBusy ?? null} percent={updatePercent ?? null} className="update-notes-progress" />
+
+        {updateError ? (
+          <div className="error-panel settings-update-error update-notes-error" role="alert">
+            {updateError}
+          </div>
+        ) : null}
 
         <div className="modal-actions update-notes-actions">
           <button type="button" className="button ghost" onClick={onClose}>

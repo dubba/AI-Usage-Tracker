@@ -547,6 +547,7 @@ export default function App() {
         onOpenLink={openLink}
         updateBusy={updateBusy}
         updatePercent={updateProgress?.percent ?? null}
+        updateError={updateError}
       />
       <ErrorBanner
         errors={snapshot ? errors : errors.filter((entry) => entry.source !== "load")}
