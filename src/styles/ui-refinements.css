@@ -997,20 +997,21 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   color: var(--c-ffffff);
 }
 
-.sidebar-settings-btn.active {
-  background: var(--c-32254e);
+.sidebar-settings-btn.active,
+.sidebar-settings-btn.active:hover,
+.sidebar-settings-btn.active:active:not(:disabled),
+.sidebar-settings-btn.active:focus-visible {
+  background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), var(--obsidian-surface-container) 48%);
   border-color: var(--c-208-188-255-a750);
-  box-shadow: inset 0 0 0 1px var(--obsidian-purple-strong);
-  color: var(--c-ffffff);
+  box-shadow: inset 2px 0 0 var(--obsidian-purple-strong);
+  color: var(--obsidian-text);
 }
 
-.sidebar-settings-btn.active svg {
-  color: var(--c-ffffff);
-}
-
-.sidebar-settings-btn.active:hover {
-  background: var(--c-3a2b5a);
-  border-color: var(--c-208-188-255-a900);
+.sidebar-settings-btn.active svg,
+.sidebar-settings-btn.active:hover svg,
+.sidebar-settings-btn.active:active:not(:disabled) svg,
+.sidebar-settings-btn.active:focus-visible svg {
+  color: var(--obsidian-text);
 }
 
 .sidebar-settings-btn:disabled {

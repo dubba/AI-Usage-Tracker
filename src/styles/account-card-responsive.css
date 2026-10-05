@@ -841,7 +841,10 @@
 .provider-summary-row.selected:focus-visible,
 .obsidian-shell button.sidebar-footer.active,
 .obsidian-shell button.sidebar-footer.active:active:not(:disabled),
-.obsidian-shell button.sidebar-footer.active:focus-visible {
+.obsidian-shell button.sidebar-footer.active:focus-visible,
+.sidebar-settings-btn.active,
+.sidebar-settings-btn.active:active:not(:disabled),
+.sidebar-settings-btn.active:focus-visible {
   background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), var(--obsidian-surface-container) 48%) !important;
   border-color: var(--c-208-188-255-a750) !important;
   color: var(--obsidian-text) !important;
@@ -850,7 +853,8 @@
 
 @media (hover: hover) {
   .provider-summary-row.selected:hover,
-  .obsidian-shell button.sidebar-footer.active:hover:not(:disabled) {
+  .obsidian-shell button.sidebar-footer.active:hover:not(:disabled),
+  .sidebar-settings-btn.active:hover:not(:disabled) {
     background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), var(--obsidian-surface-container) 48%) !important;
     border-color: var(--c-208-188-255-a750) !important;
     box-shadow: inset 2px 0 0 var(--obsidian-purple-strong) !important;
@@ -858,7 +862,8 @@
 }
 
 .obsidian-shell button.sidebar-footer.active svg,
-.obsidian-shell button.sidebar-footer.active > span {
+.obsidian-shell button.sidebar-footer.active > span,
+.sidebar-settings-btn.active svg {
   color: var(--obsidian-text) !important;
 }
 

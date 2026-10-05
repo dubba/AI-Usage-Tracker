@@ -1132,11 +1132,15 @@ button.account-card-provider-icon:active {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 9px 16px;
+  padding: 16px;
   color: var(--c-ffb4ab);
   background: var(--c-147-0-10-a120);
   border-bottom: 1px solid rgba(255, 133, 133, 0.18);
   font-size: 12px;
+}
+
+.provider-account-card:has(.account-card-error) .provider-account-card-header {
+  padding-bottom: 0;
 }
 
 .account-card-metrics {
@@ -2882,8 +2886,7 @@ select.text-input option,
   }
 
   .account-card-error {
-    padding-left: var(--account-card-inline-padding);
-    padding-right: var(--account-card-inline-padding);
+    padding: 14px var(--account-card-inline-padding);
   }
 
   .account-usage-metric,
