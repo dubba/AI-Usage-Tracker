@@ -3,7 +3,7 @@
 ## Unreleased (0 items)
 
 
-## 0.3.13 - 2026-10-05 (17 items)
+## 0.3.13 - 2026-10-05 (18 items)
 
 ### Added (1)
 
@@ -18,14 +18,15 @@
 - In Light theme, purple-filled action buttons (Check Now, + Account, + Group, Connect to Device, Open ChatGPT Login, Open Claude Login, and the other primary buttons) now use white text. Dark theme keeps the original dark indigo on the light purple fill.
 - The empty dashboard CTA is now "+ Account", matching the sidebar button.
 
-### Fixed (10)
+### Fixed (11)
 
-- On mobile, the hamburger, page title, and the sidebar's close button now sit vertically centered in their header, with an equal 7px of space above and below, without making the header taller.
+- On mobile, the hamburger, page title, and the sidebar's close button now sit vertically centered in their header, with an equal 10px of space above and below.
 - The mobile status bar is now the same purple in Dark theme as in Light theme, so the clock and battery stay readable.
 - Scroll bars now use the same purple as the mobile status bar in both themes.
 - In Light theme on mobile, the status bar is now actually painted the same purple as Check Now. The earlier background strip sat behind the page, so the clock and battery were still hard to see.
 - In Settings, the Automatic Updates toggle lines up with the title, matching Launch at Startup and Include Beta Releases, instead of sitting lower against the description.
 - In Light theme on mobile, the Android status bar uses the same purple as Check Now so the clock, battery, and other system icons stay visible.
+- Account-card error messages no longer touch the provider icon row above or the first usage-limit pill below; they have 10px of space on both sides.
 - Account-card error messages are vertically centered between the provider icon and the first usage-limit pill, with equal spacing above and below.
 - The selected Settings button in the sidebar now uses the same lighter left-edge purple gradient, border, and accent bar as the other sidebar cards.
 - If an in-app update fails (for example because the APK is not signed with this app's certificate), the error now shows inside the App Update modal as well as on the Settings page.
