@@ -874,5 +874,5 @@
 /* The plan badge (Pro/$200, Free, ...): the status bar purple, white text like the percentage. */
 .account-card-header-meta .account-plan-badge {
   background: #6d3bd7;
-  color: var(--c-f5f1ef);
+  color: #f5f1ef;
 }
