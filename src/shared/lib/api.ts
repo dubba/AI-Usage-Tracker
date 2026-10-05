@@ -59,7 +59,7 @@ export const bridgeApi = {
   removeAccount: (accountId: string) => invoke<void>("remove_account", { accountId }),
   regenerateToken: () => invoke<BridgeInfo>("regenerate_bridge_token"),
   revealBridgeToken: () => invoke<string>("reveal_bridge_token"),
-  checkForUpdate: () => invoke<AppUpdateStatus>("check_for_app_update"),
+  checkForUpdate: (notify = true) => invoke<AppUpdateStatus>("check_for_app_update", { notify }),
   installUpdate: () => invoke<void>("install_app_update"),
   getPendingUpdateNotice: () => invoke<string | null>("get_pending_update_notice"),
 };

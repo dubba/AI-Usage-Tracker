@@ -549,12 +549,14 @@ fn status_from_github_latest(
     latest: GitHubLatestRelease,
     app: &AppHandle,
     state: &AppState,
+    notify: bool,
 ) -> AppUpdateStatus {
     if !is_newer_version(&latest.version, &current_version) {
         return AppUpdateStatus::up_to_date(current_version);
     }
 
-    if state.settings.automatic_updates_enabled()
+    if notify
+        && state.settings.automatic_updates_enabled()
         && state.settings.update_notification_needed(&latest.version)
     {
         let shown = show_update_available_notification(app, &latest.version);
@@ -599,7 +601,9 @@ pub async fn get_pending_update_notice() -> Result<Option<String>, String> {
 pub async fn check_for_app_update(
     app: AppHandle,
     state: State<'_, Arc<AppState>>,
+    notify: Option<bool>,
 ) -> Result<AppUpdateStatus, String> {
+    let notify = notify.unwrap_or(true);
     let current_version = app.package_info().version.to_string();
 
     #[cfg(desktop)]
@@ -612,7 +616,8 @@ pub async fn check_for_app_update(
             {
                 Ok(Ok(Some(update))) => {
                     let available_version = update.version.to_string();
-                    if state.settings.automatic_updates_enabled()
+                    if notify
+                        && state.settings.automatic_updates_enabled()
                         && state
                             .settings
                             .update_notification_needed(&available_version)
@@ -671,6 +676,7 @@ pub async fn check_for_app_update(
             latest,
             &app,
             state.inner().as_ref(),
+            notify,
         )),
         Err(error) => Ok(AppUpdateStatus::failed(current_version, error)),
     }

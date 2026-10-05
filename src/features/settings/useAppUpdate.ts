@@ -60,7 +60,9 @@ export function useAppUpdate({ automaticUpdatesEnabled }: { automaticUpdatesEnab
     }
     try {
       const [status] = await Promise.all([
-        bridgeApi.checkForUpdate(),
+        // Manual Check Now already shows the result next to the button, so skip
+        // the OS / in-app "update available" notification on that path.
+        bridgeApi.checkForUpdate(!showFeedback),
         minDelayPromise,
       ]);
       if (status.error) {
@@ -71,12 +73,8 @@ export function useAppUpdate({ automaticUpdatesEnabled }: { automaticUpdatesEnab
         return;
       }
       setAppUpdate(status);
-      if (showFeedback) {
-        if (status.available && status.availableVersion) {
-          showTransientUpdateMessage(`Version ${status.availableVersion} is ready to install.`);
-        } else {
-          showTransientUpdateMessage(`You are on the latest version (v${status.currentVersion || installedVersion}).`);
-        }
+      if (showFeedback && !(status.available && status.availableVersion)) {
+        showTransientUpdateMessage(`You are on the latest version (v${status.currentVersion || installedVersion}).`);
       }
     } catch (cause) {
       await minDelayPromise;
