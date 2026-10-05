@@ -3,7 +3,7 @@
 ## Unreleased (0 items)
 
 
-## 0.3.13 - 2026-10-05 (18 items)
+## 0.3.13 - 2026-10-05 (20 items)
 
 ### Added (1)
 
@@ -14,21 +14,22 @@
 - Settings rows have less space above the titles and below the descriptions.
 - In Settings, Auto-Start is now "Launch at Startup" with the description "Automatically start the app when your device starts.", Automatic Updates now has the description "Automatically check for new versions.", and Beta Releases is now "Include Beta Releases".
 - Tapping Check Now in Settings no longer shows a separate "update available" notification, because the Settings page already shows the new version next to the button.
-- In Light theme, the hamburger, account-name pen, account-card menu, Settings sidebar button, and account-card provider icon square use a white fill (icons and text black where they were already restyled). Those chrome buttons, plus Link Devices, Appearance, Account Updates, View, and Copy, use a darker purple outline so it reads on white. Opening the account-card menu or Account Updates dropdown uses a purple fill; closing them (second tap or choosing an item) returns the trigger to white. Selected Settings uses the same left-edge purple gradient as the other sidebar cards. The pull-to-refresh chip is white in Light.
+- In Light theme, the hamburger, account-name pen, account-card menu, Settings sidebar button, and account-card provider icon square use a white fill (icons and text black where they were already restyled). Those chrome buttons, plus Link Devices, Appearance, Account Updates, View, and Copy, use a darker purple outline so it reads on white. Opening the account-card menu or Account Updates dropdown uses a purple fill; closing them (second tap or choosing an item) returns the trigger to white. The pull-to-refresh chip is white in Light.
 - In Light theme, purple-filled action buttons (Check Now, + Account, + Group, Connect to Device, Open ChatGPT Login, Open Claude Login, and the other primary buttons) now use white text. Dark theme keeps the original dark indigo on the light purple fill.
 - The empty dashboard CTA is now "+ Account", matching the sidebar button.
 
-### Fixed (11)
+### Fixed (13)
 
 - On mobile, the hamburger, page title, and the sidebar's close button now sit vertically centered in their header, with an equal 10px of space above and below.
 - The mobile status bar is now the same purple in Dark theme as in Light theme, so the clock and battery stay readable.
 - Scroll bars now use the same purple as the mobile status bar in both themes.
+- Sidebar and account-card usage bars, and the plan badge (Pro/$20, Free, ...), now use the same purple as the status bar and scroll bars. Amber and red low-usage bars are unchanged.
+- The selected Settings button in the sidebar no longer has a thick left-edge bar; it uses the same uniform 1px purple outline and fill as the buttons on the Settings page.
 - In Light theme on mobile, the status bar is now actually painted the same purple as Check Now. The earlier background strip sat behind the page, so the clock and battery were still hard to see.
 - In Settings, the Automatic Updates toggle lines up with the title, matching Launch at Startup and Include Beta Releases, instead of sitting lower against the description.
 - In Light theme on mobile, the Android status bar uses the same purple as Check Now so the clock, battery, and other system icons stay visible.
 - Account-card error messages no longer touch the provider icon row above or the first usage-limit pill below; they have 10px of space on both sides.
 - Account-card error messages are vertically centered between the provider icon and the first usage-limit pill, with equal spacing above and below.
-- The selected Settings button in the sidebar now uses the same lighter left-edge purple gradient, border, and accent bar as the other sidebar cards.
 - If an in-app update fails (for example because the APK is not signed with this app's certificate), the error now shows inside the App Update modal as well as on the Settings page.
 - In Light theme, the Local Device Sync link code, code-entry field, and confirmation code are readable instead of white-on-white, and the Confirm step's Back button is the same red as the other pairing Back buttons.
 - In Light theme, the mobile hamburger menu icon is readable instead of white-on-white.

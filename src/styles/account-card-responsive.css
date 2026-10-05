@@ -648,9 +648,10 @@
  * healthy, amber at 30% or less, red at 15% or less. Both sidebar and dashboard
  * progress bars follow these same rules.
  */
+/* Sidebar and account-card bars, and the plan badge, use the same purple as the mobile status bar and scroll bars. */
 .provider-summary-track > .tone-healthy,
 .account-usage-metric .account-metric-track > .tone-healthy {
-  background: var(--obsidian-purple-strong) !important;
+  background: #6d3bd7 !important;
 }
 
 .provider-summary-track > .tone-warning,
@@ -835,16 +836,14 @@
   border-color: var(--obsidian-purple-strong) !important;
 }
 
-/* Selected: the purple tint fades from the left edge into the surface, with a bar on the left. */
+/* Selected group rows: the purple tint fades from the left edge into the surface, with a bar on the left.
+   The Settings button is not one of these; it uses the Settings-page button look (see ui-refinements.css). */
 .provider-summary-row.selected,
 .provider-summary-row.selected:active,
 .provider-summary-row.selected:focus-visible,
 .obsidian-shell button.sidebar-footer.active,
 .obsidian-shell button.sidebar-footer.active:active:not(:disabled),
-.obsidian-shell button.sidebar-footer.active:focus-visible,
-.sidebar-settings-btn.active,
-.sidebar-settings-btn.active:active:not(:disabled),
-.sidebar-settings-btn.active:focus-visible {
+.obsidian-shell button.sidebar-footer.active:focus-visible {
   background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), var(--obsidian-surface-container) 48%) !important;
   border-color: var(--c-208-188-255-a750) !important;
   color: var(--obsidian-text) !important;
@@ -853,8 +852,7 @@
 
 @media (hover: hover) {
   .provider-summary-row.selected:hover,
-  .obsidian-shell button.sidebar-footer.active:hover:not(:disabled),
-  .sidebar-settings-btn.active:hover:not(:disabled) {
+  .obsidian-shell button.sidebar-footer.active:hover:not(:disabled) {
     background: linear-gradient(90deg, rgba(109, 59, 215, 0.15), var(--obsidian-surface-container) 48%) !important;
     border-color: var(--c-208-188-255-a750) !important;
     box-shadow: inset 2px 0 0 var(--obsidian-purple-strong) !important;
@@ -862,8 +860,7 @@
 }
 
 .obsidian-shell button.sidebar-footer.active svg,
-.obsidian-shell button.sidebar-footer.active > span,
-.sidebar-settings-btn.active svg {
+.obsidian-shell button.sidebar-footer.active > span {
   color: var(--obsidian-text) !important;
 }
 
@@ -874,8 +871,8 @@
   }
 }
 
-/* The plan badge (Pro/$200, Free, ...): the progress bar purple at 65% opacity, white text like the percentage. */
+/* The plan badge (Pro/$200, Free, ...): the status bar purple, white text like the percentage. */
 .account-card-header-meta .account-plan-badge {
-  background: rgba(160, 120, 255, 0.65);
+  background: #6d3bd7;
   color: var(--c-f5f1ef);
 }
