@@ -128,7 +128,7 @@
 
 .account-name-edit {
   color: var(--obsidian-purple);
-  border: 1px solid rgba(160, 120, 255, 0.4);
+  border: 1px solid var(--chrome-border);
   background: var(--obsidian-surface-container-high, var(--c-211e29));
   box-shadow: none;
   transition: background 150ms ease, transform 100ms ease, border-color 150ms ease, color 150ms ease;
@@ -945,7 +945,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   min-height: 40px;
   border-radius: 50%;
   background: var(--obsidian-surface-low, var(--c-1c1b1b));
-  border: 1px solid rgba(160, 120, 255, 0.4);
+  border: 1px solid var(--chrome-border);
   color: var(--c-ffffff);
   display: inline-flex;
   align-items: center;
@@ -1118,7 +1118,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   height: 40px;
   border-radius: 50%;
   background: var(--obsidian-surface-container-high, var(--c-211e29));
-  border: 1px solid rgba(160, 120, 255, 0.4);
+  border: 1px solid var(--chrome-border);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(160, 120, 255, 0.25);
   display: flex;
   align-items: center;
@@ -1173,7 +1173,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .settings-style-content .settings-changelog-button,
 .settings-changelog-button {
   background: var(--obsidian-surface-low, var(--c-1c1b1b)) !important;
-  border: 1px solid rgba(160, 120, 255, 0.4) !important;
+  border: 1px solid var(--chrome-border) !important;
   border-radius: 6px !important;
   color: var(--c-ffffff) !important;
   transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
@@ -1229,7 +1229,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 /* Settings: Account Updates dropdown trigger & menu matching refresh all button look & feel */
 .settings-account-refresh .custom-dropdown-trigger {
   background: var(--obsidian-surface-low, var(--c-1c1b1b)) !important;
-  border: 1px solid rgba(160, 120, 255, 0.4) !important;
+  border: 1px solid var(--chrome-border) !important;
   border-radius: 6px !important;
   color: var(--c-ffffff) !important;
   transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
@@ -1267,7 +1267,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 
 .settings-account-refresh .custom-dropdown-menu {
   background: var(--obsidian-surface-low, var(--c-1c1b1b)) !important;
-  border: 1px solid rgba(160, 120, 255, 0.4) !important;
+  border: 1px solid var(--chrome-border) !important;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(160, 120, 255, 0.15) !important;
 }
 
@@ -1328,7 +1328,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn) {
-  border: 1px solid rgba(160, 120, 255, 0.4) !important;
+  border: 1px solid var(--chrome-border) !important;
   background: var(--obsidian-surface-container-high, var(--c-211e29)) !important;
   color: var(--c-ffffff) !important;
   box-shadow: none !important;
@@ -1412,6 +1412,115 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 :root[data-theme="light"] .button.primary span,
 :root[data-theme="light"] .provider-window-toggle button.active {
   color: #ffffff !important;
+}
+
+/* Light theme: hamburger, rename pen, account-card dropdown, and Settings use a
+   white fill with black ink. Dark keeps the existing purple-on-surface chrome.
+   Literals: --c-ffffff inverts in Light. Close-X and update-available stay as-is. */
+:root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn),
+:root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):hover:not(:disabled),
+:root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):focus-visible,
+:root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):active:not(:disabled),
+:root[data-theme="light"] .account-name-edit,
+:root[data-theme="light"] .account-name-edit:hover:not(:disabled),
+:root[data-theme="light"] .account-name-edit:focus-visible,
+:root[data-theme="light"] .account-name-edit:active:not(:disabled),
+:root[data-theme="light"] .mobile-dropdown-toggle,
+:root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active),
+:root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):hover:not(:disabled),
+:root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):focus-visible,
+:root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):active:not(:disabled) {
+  background: #ffffff !important;
+  color: #000000 !important;
+}
+
+:root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn) svg,
+:root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):hover:not(:disabled) svg,
+:root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):focus-visible svg,
+:root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):active:not(:disabled) svg,
+:root[data-theme="light"] .account-name-edit svg,
+:root[data-theme="light"] .account-name-edit:hover:not(:disabled) svg,
+:root[data-theme="light"] .account-name-edit:focus-visible svg,
+:root[data-theme="light"] .account-name-edit:active:not(:disabled) svg,
+:root[data-theme="light"] .mobile-dropdown-toggle svg,
+:root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active) svg,
+:root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active) > span,
+:root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):hover:not(:disabled) svg,
+:root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):hover:not(:disabled) > span,
+:root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):focus-visible svg,
+:root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):focus-visible > span,
+:root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):active:not(:disabled) svg,
+:root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):active:not(:disabled) > span {
+  color: #000000 !important;
+}
+
+/* Purple fill only while the menu is open. Closed leftover :hover/:active/:focus
+   from a second tap (or selecting an item) must snap back to white, matching
+   Account Updates after it closes. */
+:root[data-theme="light"] .mobile-dropdown-toggle:hover,
+:root[data-theme="light"] .mobile-dropdown-toggle:focus-visible,
+:root[data-theme="light"] .mobile-dropdown-toggle:active,
+:root[data-theme="light"] .mobile-dropdown-toggle[aria-expanded="false"] {
+  background: #ffffff !important;
+  border-color: var(--chrome-border) !important;
+  color: #000000 !important;
+}
+
+:root[data-theme="light"] .mobile-dropdown-toggle[aria-expanded="true"],
+:root[data-theme="light"] .mobile-dropdown-toggle[aria-expanded="true"]:hover,
+:root[data-theme="light"] .mobile-dropdown-toggle[aria-expanded="true"]:focus-visible,
+:root[data-theme="light"] .mobile-dropdown-toggle[aria-expanded="true"]:active {
+  background: var(--c-32254e) !important;
+  border-color: var(--obsidian-purple-strong) !important;
+  color: #000000 !important;
+}
+
+:root[data-theme="light"] .mobile-dropdown-toggle:hover svg,
+:root[data-theme="light"] .mobile-dropdown-toggle:focus-visible svg,
+:root[data-theme="light"] .mobile-dropdown-toggle:active svg,
+:root[data-theme="light"] .mobile-dropdown-toggle[aria-expanded="true"] svg {
+  color: #000000 !important;
+}
+
+:root[data-theme="light"] .settings-account-refresh .custom-dropdown-trigger:hover:not(:disabled),
+:root[data-theme="light"] .settings-account-refresh .custom-dropdown-trigger:focus-visible,
+:root[data-theme="light"] .settings-account-refresh .custom-dropdown-trigger:active:not(:disabled),
+:root[data-theme="light"] .settings-account-refresh .custom-dropdown-container:not(.open) .custom-dropdown-trigger {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border-color: var(--chrome-border) !important;
+  color: #000000 !important;
+}
+
+:root[data-theme="light"] .settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger,
+:root[data-theme="light"] .settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger:hover:not(:disabled),
+:root[data-theme="light"] .settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger:focus-visible,
+:root[data-theme="light"] .settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger:active:not(:disabled) {
+  background: var(--c-32254e) !important;
+  background-color: var(--c-32254e) !important;
+  border-color: var(--obsidian-purple-strong) !important;
+  color: #000000 !important;
+}
+
+:root[data-theme="light"] .settings-account-refresh .custom-dropdown-trigger:hover:not(:disabled) .custom-dropdown-label,
+:root[data-theme="light"] .settings-account-refresh .custom-dropdown-trigger:hover:not(:disabled) .custom-dropdown-chevron,
+:root[data-theme="light"] .settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger .custom-dropdown-label,
+:root[data-theme="light"] .settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger .custom-dropdown-chevron,
+:root[data-theme="light"] .settings-account-refresh .custom-dropdown-trigger:active:not(:disabled) .custom-dropdown-label,
+:root[data-theme="light"] .settings-account-refresh .custom-dropdown-trigger:active:not(:disabled) .custom-dropdown-chevron {
+  color: #000000 !important;
+}
+
+:root[data-theme="light"] .account-card-provider-icon,
+:root[data-theme="light"] button.account-card-provider-icon {
+  background: #ffffff !important;
+  border-color: var(--chrome-border) !important;
+}
+
+:root[data-theme="light"] .pull-to-refresh-indicator,
+:root[data-theme="light"] .pull-to-refresh-indicator.is-primed,
+:root[data-theme="light"] .pull-to-refresh-indicator.is-refreshing {
+  background: #ffffff !important;
 }
 
 

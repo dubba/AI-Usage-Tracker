@@ -41,6 +41,8 @@
     --obsidian-muted-bright: #cbc3d7;
     --obsidian-purple: #d0bcff;
     --obsidian-purple-strong: #a078ff;
+    /* Idle outline on hamburger, pen, Settings, Link Devices, etc. */
+    --chrome-border: rgba(160, 120, 255, 0.4);
     /* Scroll bar thumbs: --obsidian-purple-strong at 65% opacity. */
     --scrollbar-thumb: rgba(160, 120, 255, 0.65);
     --obsidian-green: #4edea3;
@@ -81,6 +83,7 @@
     --obsidian-muted-bright: #4a4458;
     --obsidian-purple: #6d3bd7;
     --obsidian-purple-strong: #7650d9;
+    --chrome-border: rgba(109, 59, 215, 0.65);
     --scrollbar-thumb: rgba(118, 80, 217, 0.5);
     --obsidian-green: #0a8f5f;
     --obsidian-amber: #b25e00;

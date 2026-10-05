@@ -215,7 +215,7 @@ select {
 }
 
 .provider-summary-row.is-all-row {
-  border-color: rgba(160, 120, 255, 0.4);
+  border-color: var(--chrome-border);
   cursor: pointer;
 }
 
@@ -248,7 +248,7 @@ select {
   width: 100%;
   min-height: 66px;
   padding: 10px 10px;
-  border: 1px solid rgba(160, 120, 255, 0.4);
+  border: 1px solid var(--chrome-border);
   border-radius: 5px;
   background: var(--obsidian-surface-low, var(--c-1c1b1b));
   color: var(--obsidian-text);
@@ -1559,7 +1559,7 @@ button.account-card-provider-icon:active {
     border-style: solid;
     border-radius: 4px;
     color: var(--obsidian-purple) !important;
-    border-color: rgba(160, 120, 255, 0.4) !important;
+    border-color: var(--chrome-border) !important;
     background: var(--obsidian-surface-container-high, var(--c-211e29)) !important;
     gap: 0;
     box-shadow: none;
@@ -2137,7 +2137,7 @@ select.text-input option,
   white-space: nowrap;
   color: var(--c-f3f0ef);
   background: rgba(160, 120, 255, 0.22);
-  border: 1px solid rgba(160, 120, 255, 0.4);
+  border: 1px solid var(--chrome-border);
   flex-shrink: 0;
 }
 
@@ -2366,7 +2366,7 @@ select.text-input option,
   width: 36px;
   height: 36px;
   padding: 0;
-  border: 1px solid rgba(160, 120, 255, 0.4);
+  border: 1px solid var(--chrome-border);
   border-radius: 6px;
   background: var(--obsidian-surface-container-high, var(--c-211e29));
   color: var(--c-ffffff);

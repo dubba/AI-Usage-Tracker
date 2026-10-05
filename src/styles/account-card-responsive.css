@@ -297,7 +297,7 @@
   height: 32px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(160, 120, 255, 0.4);
+  border: 1px solid var(--chrome-border);
   border-radius: 4px;
   background: var(--obsidian-surface-container-high, var(--c-211e29));
   color: var(--obsidian-purple);
@@ -497,7 +497,7 @@
     min-width: 22px;
     min-height: 22px;
     padding: 0;
-    border: 1px solid rgba(160, 120, 255, 0.4);
+    border: 1px solid var(--chrome-border);
     background: var(--obsidian-surface-container-high, var(--c-211e29));
     color: var(--obsidian-purple);
     border-radius: 4px;
@@ -759,7 +759,7 @@
   justify-content: flex-start;
   gap: 10px;
   background: var(--obsidian-surface-low, var(--c-1c1b1b));
-  border: 1px solid rgba(160, 120, 255, 0.4);
+  border: 1px solid var(--chrome-border);
   border-radius: 5px;
   color: var(--c-ffffff);
   box-shadow: none;
@@ -814,7 +814,7 @@
 /* Sidebar menu item cards (group rows): black background when inactive. */
 .provider-summary-row:not(.selected) {
   background: var(--obsidian-surface-low, var(--c-1c1b1b)) !important;
-  border-color: rgba(160, 120, 255, 0.4);
+  border-color: var(--chrome-border);
 }
 
 @media (hover: hover) {

@@ -3,14 +3,15 @@
 ## Unreleased (0 items)
 
 
-## 0.3.13 - 2026-10-05 (5 items)
+## 0.3.13 - 2026-10-05 (6 items)
 
 ### Added (1)
 
 - Light and dark themes. Choose Dark, Light, or System under "Appearance" in Settings; the choice applies immediately, is remembered, and also themes the window title bar and the Paseo Bridge window. Dark stays the default.
 
-### Changed (2)
+### Changed (3)
 
+- In Light theme, the hamburger, account-name pen, account-card menu, Settings sidebar button, and account-card provider icon square use a white fill (icons and text black where they were already restyled). Those chrome buttons, plus Link Devices, Appearance, Account Updates, View, and Copy, use a darker purple outline so it reads on white. Opening the account-card menu or Account Updates dropdown uses a purple fill; closing them (second tap or choosing an item) returns the trigger to white. Selected Settings uses the same left-edge purple gradient as the other sidebar cards. The pull-to-refresh chip is white in Light.
 - In Light theme, purple-filled action buttons (Check Now, + Account, + Group, Connect to Device, Open ChatGPT Login, Open Claude Login, and the other primary buttons) now use white text. Dark theme keeps the original dark indigo on the light purple fill.
 - The empty dashboard CTA is now "+ Account", matching the sidebar button.
 
