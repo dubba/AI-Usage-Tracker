@@ -84,10 +84,6 @@ pub fn build_transcript(
     transcript
 }
 
-/// Length of the legacy 32-bit code (`4F2A-8B91`) that older builds show and
-/// that the confirmation tags are bound to.
-const LEGACY_SAS_LEN: usize = 9;
-
 /// Formats the first `bytes` bytes of `digest` as dash-separated hex pairs of
 /// bytes, e.g. `4F2A-8B91-C3D2`.
 pub(crate) fn format_verification_code(digest: &[u8], bytes: usize) -> String {
@@ -103,10 +99,9 @@ pub(crate) fn format_verification_code(digest: &[u8], bytes: usize) -> String {
 ///
 /// In the join-code flow the host key arrives over unauthenticated mDNS, so
 /// this comparison is the only thing that stops a LAN attacker relaying both
-/// sides. 32 bits could be ground offline in minutes on a GPU; 48 bits cannot
-/// be ground inside the pairing window. The first two groups are exactly the
-/// legacy 32-bit code, so a mixed pair of old and new builds still shows a
-/// visibly matching prefix.
+/// sides. The confirmation tag is bound to this entire 48-bit code. A peer
+/// that confirms only the first two groups, which is what older builds do,
+/// produces a different tag and is rejected.
 pub fn compute_sas_code(encryption_key: &[u8; 32], transcript: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(SAS_INFO);
@@ -114,14 +109,6 @@ pub fn compute_sas_code(encryption_key: &[u8; 32], transcript: &[u8]) -> String 
     hasher.update(transcript);
     let digest = hasher.finalize();
     format_verification_code(&digest, 6)
-}
-
-/// The part of a displayed SAS that confirmation tags are computed over. It is
-/// the legacy 32-bit code, which keeps the wire protocol unchanged: the tags
-/// only prove both sides confirmed, the human comparison is what authenticates
-/// the peer, and that covers the full code.
-pub fn tag_sas_code(displayed: &str) -> &str {
-    displayed.get(..LEGACY_SAS_LEN).unwrap_or(displayed)
 }
 
 /// Computes a constant-time verification authentication tag for SAS confirmation.

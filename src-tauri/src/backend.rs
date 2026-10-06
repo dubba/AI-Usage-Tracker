@@ -34,7 +34,7 @@ pub(crate) fn initialize_backend(app: &AppHandle) -> Result<(), startup::Startup
     // Seal plaintext credential files from earlier versions (Android only:
     // there is no platform cipher elsewhere, so this does nothing).
     #[cfg(target_os = "android")]
-    let unprotected_credentials = crate::store::upgrade_plaintext_credentials().failed;
+    let credential_upgrade = crate::store::upgrade_plaintext_credentials();
 
     // A token that cannot be read (locked keychain, denied prompt) only turns
     // the local API off; everything else keeps working.
@@ -50,7 +50,10 @@ pub(crate) fn initialize_backend(app: &AppHandle) -> Result<(), startup::Startup
     })?);
     state.set_bridge_unavailable(bridge_unavailable);
     #[cfg(target_os = "android")]
-    state.set_unprotected_credentials(unprotected_credentials);
+    state.set_unprotected_credentials(
+        credential_upgrade.failed,
+        credential_upgrade.failed_accounts,
+    );
     migrate_google_ai_studio_accounts(state.as_ref());
     state.set_app_handle(app.clone());
     *GLOBAL_APP_HANDLE.lock() = Some(app.clone());

@@ -335,6 +335,7 @@ describe("confirming the code", () => {
     expect(title()).toBe("Confirm the connection");
     expect(document.querySelector('[aria-label="Step 3 of 3"]')).not.toBeNull();
     expect(document.querySelector('[aria-label="Verification code 905 112"]')).not.toBeNull();
+    expect(text()).toContain("Compare all three groups. Confirm only when every group matches.");
     expect(text()).toContain("receive 3 account(s)");
   });
 
@@ -507,6 +508,7 @@ describe("air-gap transfer: sending", () => {
     await openSender();
     expect(api.prepareAirgapExport).toHaveBeenCalledWith(true, { marker: true });
     expect(title()).toBe("Show QR Code");
+    expect(text()).toContain("A photo or screen recording of these frames can decrypt the accounts in this transfer.");
     expect(text()).toContain("Frame 1/3");
     expect(document.querySelector(".airgap-qr-card svg")).not.toBeNull();
   });

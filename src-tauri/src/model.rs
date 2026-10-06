@@ -276,6 +276,9 @@ pub struct DashboardSnapshot {
     /// Saved sign-ins that are still stored unencrypted (Android). The app
     /// keeps retrying; the UI warns when this stays above zero.
     pub unprotected_credentials: usize,
+    /// Accounts whose saved sign-in is still a plain file because locking it
+    /// failed. Empty when every sign-in is locked, and on desktop.
+    pub unprotected_account_ids: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -384,6 +387,7 @@ mod tests {
                 error: None,
             },
             unprotected_credentials: 0,
+            unprotected_account_ids: Vec::new(),
         };
         let json = serde_json::to_value(&snapshot).unwrap();
         assert!(json["bridge"].get("token").is_none());

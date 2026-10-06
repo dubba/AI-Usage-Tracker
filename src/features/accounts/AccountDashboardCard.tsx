@@ -32,6 +32,7 @@ import { errorMessage, friendlyMessage } from "../../shared/lib/errors";
 import { useClock } from "../../shared/hooks/useClock";
 import { reorderKeyDelta } from "../reorder/reorder-utils";
 import { AccountUsageMetric } from "./AccountUsageMetric";
+import { CREDENTIAL_PROTECTION_ACCOUNT_NOTE } from "../dashboard/credential-protection";
 
 /** Id of the visually hidden hint that AccountsView renders once for every card. */
 export const REORDER_HINT_ID = "account-reorder-hint";
@@ -49,6 +50,7 @@ export function AccountDashboardCard({
   canMoveUp = false,
   canMoveDown = false,
   onMove,
+  signInUnprotected = false,
 }: {
   pageId: string;
   account: Account;
@@ -62,6 +64,8 @@ export function AccountDashboardCard({
   canMoveUp?: boolean;
   canMoveDown?: boolean;
   onMove?: (delta: -1 | 1) => void;
+  /** This account's saved sign-in is still a plain file because locking it failed. */
+  signInUnprotected?: boolean;
 }) {
   const status = accountStatus(account);
   const plan = displayPlan(account);
@@ -379,6 +383,12 @@ export function AccountDashboardCard({
           </div>
         </div>
       </header>
+
+      {signInUnprotected ? (
+        <p className="account-card-protection-note" role="status">
+          {CREDENTIAL_PROTECTION_ACCOUNT_NOTE}
+        </p>
+      ) : null}
 
       {!isCollapsed ? (
         <>

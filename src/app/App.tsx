@@ -340,6 +340,7 @@ export default function App() {
         onRemove={(account) => dispatchModal({ type: "open", modal: { kind: "remove", account } })}
         onNotifications={(account) => dispatchModal({ type: "open", modal: { kind: "alert", account } })}
         busy={busy}
+        unprotectedAccountIds={snapshot?.unprotectedAccountIds}
       />
     );
   };
@@ -383,7 +384,7 @@ export default function App() {
           <div className="provider-sidebar-heading-actions">
             <button
               type="button"
-              className="button primary compact-button add-account-header-button"
+              className="button primary add-account-header-button"
               data-tooltip="Add account"
               aria-label="Add account"
               onClick={() => { openAdd(undefined, selectedGroup.provider ?? undefined); setSidebarOpen(false); }}
@@ -392,7 +393,7 @@ export default function App() {
             </button>
             <button
               type="button"
-              className="button primary compact-button add-bucket-header-button"
+              className="button primary add-bucket-header-button"
               data-tooltip="Create a custom group"
               aria-label="Create a custom group"
               onClick={() => { openNewBucket(selectedGroup.provider); setSidebarOpen(false); }}

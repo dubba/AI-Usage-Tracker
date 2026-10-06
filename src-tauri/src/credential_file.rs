@@ -37,6 +37,20 @@ pub fn platform_cipher() -> Option<&'static dyn SecretCipher> {
     }
 }
 
+/// Counts a file the seal pass could not protect, and records the account id
+/// when the file is that account's credential (`{id}.json`).
+fn note_unprotected(report: &mut UpgradeReport, path: &Path) {
+    report.failed += 1;
+    let Some(id) = path.file_stem().and_then(|stem| stem.to_str()) else {
+        return;
+    };
+    if path.extension().and_then(|ext| ext.to_str()) == Some("json")
+        && crate::store::is_valid_account_id(id)
+    {
+        report.failed_accounts.push(id.to_string());
+    }
+}
+
 fn context_for(path: &Path) -> Vec<u8> {
     path.file_name()
         .map(|name| name.to_string_lossy().into_owned().into_bytes())
@@ -132,7 +146,7 @@ pub fn upgrade_directory(cipher: Option<&dyn SecretCipher>, dir: &Path) -> Upgra
             continue;
         }
         let Ok(stored) = fs::read(&path) else {
-            report.failed += 1;
+            note_unprotected(&mut report, &path);
             continue;
         };
         if stored.starts_with(SEALED_MAGIC) {
@@ -141,9 +155,12 @@ pub fn upgrade_directory(cipher: Option<&dyn SecretCipher>, dir: &Path) -> Upgra
         if write_credential_file(cipher, &path, &stored).is_ok() {
             report.upgraded += 1;
         } else {
-            report.failed += 1;
+            // Leave the plaintext file in place. A failed seal must not lock
+            // the user out of a sign-in that still reads.
+            note_unprotected(&mut report, &path);
         }
     }
+    report.failed_accounts.sort();
     if report.failed > 0 {
         crate::diagnostics::warn(&format!(
             "{} saved sign-in(s) could not be encrypted with secure storage; they will be retried.",
@@ -275,7 +292,8 @@ mod tests {
             upgrade_directory(Some(&FakeCipher), dir.path()),
             UpgradeReport {
                 upgraded: 2,
-                failed: 0
+                failed: 0,
+                failed_accounts: Vec::new(),
             }
         );
         assert_eq!(
@@ -316,6 +334,9 @@ mod tests {
         let dir = tempdir().unwrap();
         fs::write(dir.path().join("a.json"), SECRET).unwrap();
         fs::write(dir.path().join("b.json"), SECRET).unwrap();
+        // Not an account: counted, but not named on an account card.
+        fs::write(dir.path().join("bridge-token.txt"), b"token").unwrap();
+        fs::write(dir.path().join("has.dot.json"), SECRET).unwrap();
         let cipher = Flaky(AtomicBool::new(true));
 
         // Nothing is damaged or lost while sealing keeps failing.
@@ -323,7 +344,8 @@ mod tests {
             upgrade_directory(Some(&cipher), dir.path()),
             UpgradeReport {
                 upgraded: 0,
-                failed: 2
+                failed: 4,
+                failed_accounts: vec!["a".into(), "b".into()],
             }
         );
         assert_eq!(fs::read(dir.path().join("a.json")).unwrap(), SECRET);
@@ -333,8 +355,9 @@ mod tests {
         assert_eq!(
             upgrade_directory(Some(&cipher), dir.path()),
             UpgradeReport {
-                upgraded: 2,
-                failed: 0
+                upgraded: 4,
+                failed: 0,
+                failed_accounts: Vec::new(),
             }
         );
         assert!(fs::read(dir.path().join("b.json"))

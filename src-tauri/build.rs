@@ -297,7 +297,23 @@ fn patch_rust_webview(content: &str) -> String {
     patched
 }
 
-fn oauth_popup_window_methods() -> &'static str {
+/// Accepts a sign-in reply only when the host is exactly localhost or
+/// 127.0.0.1. A prefix check treated http://localhost.evil.com as local and
+/// loaded it in the main view. The `http://` prefix keeps the same plain-http
+/// addresses that already counted as local, including ports and paths, and
+/// rejects a userinfo trick such as http://localhost@evil.com.
+const LOOPBACK_FN: &str = r#"      private fun isLoopback(url: String): Boolean {
+        val uri = android.net.Uri.parse(url)
+        val host = uri.host ?: return false
+        if (host != "localhost" && host != "127.0.0.1") return false
+        return url.startsWith("http://$host")
+      }"#;
+
+const OLD_LOOPBACK_FN: &str = r#"      private fun isLoopback(url: String): Boolean {
+        return url.startsWith("http://localhost") || url.startsWith("http://127.0.0.1")
+      }"#;
+
+fn oauth_popup_window_methods() -> String {
     r#"  // Visible popup WebView so provider Google/Apple SSO can finish without
   // destroying the host sign-in page that is waiting for the popup result.
   override fun onCreateWindow(
@@ -321,9 +337,7 @@ fn oauth_popup_window_methods() -> &'static str {
 
     val dialog = android.app.Dialog(view.context, android.R.style.Theme_DeviceDefault_NoActionBar)
     popup.webViewClient = object : WebViewClient() {
-      private fun isLoopback(url: String): Boolean {
-        return url.startsWith("http://localhost") || url.startsWith("http://127.0.0.1")
-      }
+@@LOOPBACK@@
       override fun shouldOverrideUrlLoading(v: WebView, request: WebResourceRequest): Boolean {
         val url = request.url.toString()
         val scheme = request.url.scheme ?: ""
@@ -382,11 +396,16 @@ fn oauth_popup_window_methods() -> &'static str {
     window.destroy()
   }
 }"#
+    .replace("@@LOOPBACK@@", LOOPBACK_FN)
 }
 
 fn patch_chrome_client(content: &str) -> String {
-    if content.contains("Visible popup WebView so provider Google/Apple") {
-        return content.to_string();
+    // A file patched by an older build still has the prefix check. Replace it
+    // even when the popup methods are already present, or the early return
+    // below would leave the lookalike host in place.
+    let patched = content.replace(OLD_LOOPBACK_FN, LOOPBACK_FN);
+    if patched.contains("Visible popup WebView so provider Google/Apple") {
+        return patched;
     }
     let methods = oauth_popup_window_methods();
     let title_hook = r#"  override fun onReceivedTitle(
@@ -396,20 +415,20 @@ fn patch_chrome_client(content: &str) -> String {
     Rust.handleReceivedTitle((view as RustWebView).id, title)
   }
 }"#;
-    if content.contains("override fun onCreateWindow") {
-        if let Some(start) = content.find("  override fun onCreateWindow") {
-            return format!("{}{}", &content[..start], methods);
+    if patched.contains("override fun onCreateWindow") {
+        if let Some(start) = patched.find("  override fun onCreateWindow") {
+            return format!("{}{}", &patched[..start], methods);
         }
     }
-    if content.contains(title_hook) {
-        content.replace(
+    if patched.contains(title_hook) {
+        patched.replace(
             title_hook,
             &format!(
                 "  override fun onReceivedTitle(\n      view: WebView,\n      title: String\n  ) {{\n    Rust.handleReceivedTitle((view as RustWebView).id, title)\n  }}\n\n{methods}"
             ),
         )
     } else {
-        content.to_string()
+        patched
     }
 }
 

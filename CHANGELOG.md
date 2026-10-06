@@ -3,6 +3,23 @@
 ## Unreleased (0 items)
 
 
+## 0.3.16 - 2026-10-06 (8 items)
+
+### Improved (4)
+
+- Usage bars above 30% on the sidebar and account cards are purple again.
+- The sidebar + Account and + Group buttons are 32px tall.
+- In the sidebar, + Group lines up with the right edge of the cards. Shrinking the sidebar stops at that row, with a little padding, and it can still be widened.
+- Settings descriptions are shorter for appearance, launch at startup, account updates, the change log, and diagnostics.
+
+### Security (4)
+
+- Show QR Code now warns that a photo or screen recording of the animated frames can decrypt the accounts in that transfer.
+- Wi-Fi pairing now asks you to compare all three groups of the verification code, and the connection is refused unless both devices confirm that full code. An older version of the app can no longer finish pairing.
+- On a phone, an account whose saved sign-in could not be locked says so on that account. The app keeps trying to lock it, and the sign-in still works.
+- Android sign-in only treats a reply as local when its host is exactly localhost or 127.0.0.1.
+
+
 ## 0.3.15 - 2026-10-06 (10 items)
 
 ### Added (2)

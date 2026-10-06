@@ -114,7 +114,8 @@ select {
   justify-content: space-between;
   flex-wrap: nowrap;
   gap: 8px;
-  padding: 0 12px 10px;
+  /* Same side inset as the cards, so + Group shares their right edge. */
+  padding: 0 2px 10px;
   color: var(--obsidian-muted);
   flex: 0 0 auto;
   min-width: 0;
@@ -394,7 +395,7 @@ select {
 
 .provider-summary-track > .tone-healthy,
 .account-metric-track > .tone-healthy {
-  background: var(--obsidian-green);
+  background: var(--obsidian-purple-strong);
 }
 
 .tone-warning,
@@ -1258,6 +1259,16 @@ button.account-card-provider-icon:active {
   background: var(--c-147-0-10-a120);
   border-bottom: 1px solid rgba(255, 133, 133, 0.18);
   font-size: 12px;
+}
+
+.account-card-protection-note {
+  margin: 0;
+  padding: 12px 16px;
+  color: var(--c-ffb4ab);
+  background: var(--c-147-0-10-a120);
+  border-bottom: 1px solid rgba(255, 133, 133, 0.18);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .provider-account-card:has(.account-card-error) .provider-account-card-header {
@@ -2758,10 +2769,6 @@ select.text-input option,
     box-shadow: none;
   }
 
-  .provider-sidebar-heading {
-    padding: 0 8px 10px;
-  }
-
   .obsidian-shell .main-stage {
     width: 100%;
     min-width: 0;
@@ -3111,6 +3118,10 @@ select.text-input option,
 
   .account-card-error {
     padding: 14px var(--account-card-inline-padding);
+  }
+
+  .account-card-protection-note {
+    padding: 12px var(--account-card-inline-padding);
   }
 
   .account-usage-metric,

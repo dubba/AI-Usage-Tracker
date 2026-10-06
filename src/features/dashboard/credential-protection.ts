@@ -6,6 +6,13 @@ export const CREDENTIAL_PROTECTION_ERROR_SOURCE = "credential-protection";
  * when there is nothing to warn about. The backend keeps retrying on its own;
  * the message says so and what to do if it does not clear.
  */
+/**
+ * Shown on the account whose saved sign-in is still a plain file. The sign-in
+ * keeps working, and the app retries the lock on its own.
+ */
+export const CREDENTIAL_PROTECTION_ACCOUNT_NOTE =
+  "This sign-in isn't encrypted yet. It still works, and the app keeps trying to lock it. If this stays, restart the app or your device.";
+
 export function credentialProtectionMessage(unprotected: number): string | null {
   if (!Number.isFinite(unprotected) || unprotected <= 0) return null;
   const subject =

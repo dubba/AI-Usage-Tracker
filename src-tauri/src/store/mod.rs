@@ -14,13 +14,11 @@ mod tests;
 
 pub use accounts::AccountStore;
 pub(crate) use credentials::generate_bridge_token;
+pub use credentials::UpgradeReport;
 pub use credentials::{
     load_or_create_bridge_token, load_provider_secret, rotate_bridge_token, save_provider_secret,
     upgrade_plaintext_credentials,
 };
-// Named by `credential_file`, which only exists in debug and Android builds.
-#[cfg(any(target_os = "android", debug_assertions))]
-pub use credentials::UpgradeReport;
 
 use parking_lot::RwLock;
 use std::{path::PathBuf, sync::LazyLock};

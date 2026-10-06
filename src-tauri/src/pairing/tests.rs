@@ -83,13 +83,13 @@ fn test_ephemeral_diffie_hellman_and_hkdf() {
 }
 
 #[test]
-fn test_sas_keeps_the_legacy_code_as_its_prefix_for_mixed_versions() {
+fn test_confirmation_tag_covers_the_full_code_and_rejects_the_legacy_prefix() {
     use sha2::{Digest, Sha256};
     let key = [7u8; 32];
     let transcript = b"transcript-bytes";
     let displayed = compute_sas_code(&key, transcript);
 
-    // What builds before the longer code computed and showed.
+    // What builds before the third group computed and confirmed.
     let mut hasher = Sha256::new();
     hasher.update(super::crypto::SAS_INFO);
     hasher.update(key);
@@ -101,19 +101,16 @@ fn test_sas_keeps_the_legacy_code_as_its_prefix_for_mixed_versions() {
     );
 
     assert!(displayed.starts_with(&legacy));
-    // Confirmation tags are bound to the legacy code so old and new builds
-    // still complete the confirmation exchange.
-    assert_eq!(super::crypto::tag_sas_code(&displayed), legacy);
-    assert_eq!(super::crypto::tag_sas_code(&legacy), legacy);
-    assert_eq!(super::crypto::tag_sas_code("short"), "short");
-    assert_eq!(
-        compute_confirmation_tag(
-            &key,
-            super::crypto::tag_sas_code(&displayed),
-            CONFIRM_SENDER_INFO
-        ),
-        compute_confirmation_tag(&key, &legacy, CONFIRM_SENDER_INFO)
-    );
+    assert_ne!(displayed, legacy);
+    let full = compute_confirmation_tag(&key, &displayed, CONFIRM_SENDER_INFO);
+    let prefix_only = compute_confirmation_tag(&key, &legacy, CONFIRM_SENDER_INFO);
+    assert_ne!(full, prefix_only);
+    assert!(!verify_confirmation_tag(
+        &key,
+        &displayed,
+        CONFIRM_SENDER_INFO,
+        &prefix_only
+    ));
 }
 
 #[test]

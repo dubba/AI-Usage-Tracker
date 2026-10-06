@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { credentialProtectionAction, credentialProtectionMessage } from "./credential-protection";
+import {
+  CREDENTIAL_PROTECTION_ACCOUNT_NOTE,
+  credentialProtectionAction,
+  credentialProtectionMessage,
+} from "./credential-protection";
+
+describe("credential protection on an account", () => {
+  it("says the sign-in still works and that the app keeps trying to lock it", () => {
+    expect(CREDENTIAL_PROTECTION_ACCOUNT_NOTE).toContain("isn't encrypted yet");
+    expect(CREDENTIAL_PROTECTION_ACCOUNT_NOTE).toContain("still works");
+    expect(CREDENTIAL_PROTECTION_ACCOUNT_NOTE).toContain("keeps trying to lock it");
+  });
+});
 
 describe("credentialProtectionMessage", () => {
   it("is silent when nothing is unprotected or the value is unusable", () => {

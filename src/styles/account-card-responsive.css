@@ -669,14 +669,14 @@
 }
 
 /*
- * The usage bar is colored by how much is left (see usageTone): green while
+ * The usage bar is colored by how much is left (see usageTone): purple while
  * healthy, amber at 30% or less, red at 15% or less. Both sidebar and dashboard
- * progress bars follow these same rules. Purple stays on chrome (plan badge,
- * buttons, scroll bars), not on the bar.
+ * progress bars follow these same rules.
  */
+/* Sidebar and account-card bars use the same purple as the mobile status bar and scroll bars. */
 .provider-summary-track > .tone-healthy,
 .account-usage-metric .account-metric-track > .tone-healthy {
-  background: var(--obsidian-green) !important;
+  background: #6d3bd7 !important;
 }
 
 .provider-summary-track > .tone-warning,

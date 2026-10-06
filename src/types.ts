@@ -71,6 +71,8 @@ export interface DashboardSnapshot {
   bridge: BridgeStatus;
   /** Saved sign-ins still stored unencrypted (Android); 0 when all are protected. */
   unprotectedCredentials: number;
+  /** Accounts whose saved sign-in is still a plain file because locking it failed. */
+  unprotectedAccountIds?: string[];
 }
 
 export interface AppSettings {

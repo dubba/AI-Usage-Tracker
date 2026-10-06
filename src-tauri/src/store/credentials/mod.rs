@@ -42,13 +42,16 @@ use rand::{distributions::Alphanumeric, Rng};
 use std::{fs, path::PathBuf};
 
 /// What a pass over the credential folder did.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct UpgradeReport {
     /// Plaintext files rewritten sealed.
     pub upgraded: usize,
     /// Files that are still plaintext because they could not be sealed (or
     /// could not even be read). These stay usable but unprotected.
     pub failed: usize,
+    /// Account ids whose `{id}.json` file is still plaintext. Other files,
+    /// such as the local API token, are counted in `failed` but are not accounts.
+    pub failed_accounts: Vec<String>,
 }
 
 pub fn save_provider_secret(account_id: &str, secret: &ProviderSecret) -> Result<(), StoreError> {

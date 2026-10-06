@@ -13,28 +13,51 @@ pub async fn get_dashboard_snapshot(
 ) -> Result<DashboardSnapshot, String> {
     let accounts = state.account_order.apply(state.store.list())?;
     let buckets = state.buckets.list();
+    let protection = retry_credential_sealing(state.inner()).await;
+    let unprotected_account_ids = accounts
+        .iter()
+        .filter(|account| protection.account_ids.iter().any(|id| id == &account.id))
+        .map(|account| account.id.clone())
+        .collect();
     Ok(DashboardSnapshot {
         accounts,
         buckets,
         bridge: bridge_status(state.inner().as_ref()),
-        unprotected_credentials: retry_credential_sealing(state.inner()).await,
+        unprotected_credentials: protection.failed,
+        unprotected_account_ids,
     })
 }
 
-/// How many saved sign-ins are still stored unencrypted. While any are, each
-/// dashboard refresh tries to seal them again, so a keystore that was briefly
-/// unavailable at startup fixes itself and the UI warning clears.
-pub async fn retry_credential_sealing(state: &Arc<AppState>) -> usize {
+/// Sign-ins still stored unencrypted, and which accounts they belong to.
+struct CredentialProtection {
+    failed: usize,
+    account_ids: Vec<String>,
+}
+
+/// While any saved sign-in is still unencrypted, each dashboard refresh tries
+/// to seal it again. A keystore that was briefly unavailable at startup then
+/// fixes itself, and the account note clears. A failed seal leaves the plain
+/// file in place so the sign-in keeps working.
+async fn retry_credential_sealing(state: &Arc<AppState>) -> CredentialProtection {
     let remaining = state.unprotected_credentials();
     if remaining == 0 {
-        return 0;
+        return CredentialProtection {
+            failed: 0,
+            account_ids: Vec::new(),
+        };
     }
     let report = tauri::async_runtime::spawn_blocking(crate::store::upgrade_plaintext_credentials)
         .await
-        .ok()
-        .map_or(remaining, |report| report.failed);
-    state.set_unprotected_credentials(report);
-    report
+        .ok();
+    let (failed, account_ids) = match report {
+        Some(report) => (report.failed, report.failed_accounts),
+        None => (remaining, state.unprotected_account_ids()),
+    };
+    state.set_unprotected_credentials(failed, account_ids.clone());
+    CredentialProtection {
+        failed,
+        account_ids,
+    }
 }
 
 #[tauri::command]

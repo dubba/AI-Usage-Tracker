@@ -1,12 +1,12 @@
 .provider-summary-track > span,
 .account-metric-track > span,
 .progress-fill {
-  background: var(--obsidian-green);
+  background: var(--obsidian-purple-strong);
 }
 
 .provider-summary-track > .tone-healthy,
 .account-metric-track > .tone-healthy {
-  background: var(--obsidian-green) !important;
+  background: var(--obsidian-purple-strong) !important;
 }
 
 .provider-summary-track > .tone-warning,

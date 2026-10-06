@@ -86,6 +86,7 @@ export function SasCard({
       <div className="pairing-sas-badge" aria-label={`Verification code ${sasCode}`}>
         {sasCode}
       </div>
+      <p className="pairing-instruction">Compare all three groups. Confirm only when every group matches.</p>
 
       <div className={`pairing-transfer-info ${isSender ? "sender" : "receiver"}`}>
         {isSender ? (

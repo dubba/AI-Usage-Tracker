@@ -111,7 +111,7 @@ export function SettingsView({
           <div className="settings-row">
             <div>
               <strong>Appearance</strong>
-              <small>Dark or light theme, or match your device.</small>
+              <small>Dark, light, or match your device.</small>
             </div>
             <div className="settings-account-refresh">
               <CustomDropdown<ThemePreference>
@@ -125,14 +125,14 @@ export function SettingsView({
           <div className="settings-row">
             <div>
               <strong id="setting-autostart-label">Launch at Startup</strong>
-              <small>Automatically start the app when your device starts.</small>
+              <small>Start the app when your device starts.</small>
             </div>
             <button type="button" role="switch" aria-checked={autostart} aria-labelledby="setting-autostart-label" className={`toggle ${autostart ? "on" : ""}`} onClick={onToggleAutostart}><span /></button>
           </div>
           <div className="settings-row">
             <div>
               <strong>Account Updates</strong>
-              <small>Set how often the app updates your AI usage.</small>
+              <small>How often usage is refreshed.</small>
             </div>
             <div className="settings-account-refresh">
               <CustomDropdown<number>
@@ -250,7 +250,7 @@ export function SettingsView({
           <div className="settings-row">
             <div>
               <strong>Change Log</strong>
-              <small>View full history of app changes.</small>
+              <small>Full history of app changes.</small>
             </div>
             <button
               type="button"
@@ -301,7 +301,7 @@ export function SettingsView({
               <div className="settings-row">
                 <div>
                   <strong>Diagnostics</strong>
-                  <small>Copy bug report with tokens, cookies and emails removed.</small>
+                  <small>Bug report with tokens, cookies, and emails removed.</small>
                 </div>
                 <CopyDiagnosticsButton compact className="button ghost settings-changelog-button" />
               </div>

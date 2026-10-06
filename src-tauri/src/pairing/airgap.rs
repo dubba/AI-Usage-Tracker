@@ -81,8 +81,7 @@ pub fn compute_verify_code(session_id: &str, container: &[u8]) -> String {
     hasher.update(container);
     let digest = hasher.finalize();
 
-    // 48 bits, the same format as the Wi-Fi flow. The first two groups equal
-    // the older 32-bit code, so mixed builds still show a matching prefix.
+    // 48 bits, shown as three groups, the same format as the Wi-Fi code.
     super::crypto::format_verification_code(&digest, 6)
 }
 

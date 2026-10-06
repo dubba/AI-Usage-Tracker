@@ -69,6 +69,8 @@ pub struct AppState {
     /// Saved sign-ins still stored unencrypted because sealing them failed
     /// (Android). Zero everywhere else.
     unprotected_credentials: AtomicUsize,
+    /// Account ids for those sign-ins. Empty when the count is zero.
+    unprotected_account_ids: RwLock<Vec<String>>,
     pub app_handle: RwLock<Option<AppHandle>>,
     pub pairing: Arc<crate::pairing::PairingSessionManager>,
     account_locks: Mutex<HashMap<String, Arc<AsyncMutex<()>>>>,
@@ -131,6 +133,7 @@ impl AppState {
             }),
             bridge_unavailable: RwLock::new(None),
             unprotected_credentials: AtomicUsize::new(0),
+            unprotected_account_ids: RwLock::new(Vec::new()),
             app_handle: RwLock::new(None),
             pairing: Arc::new(crate::pairing::PairingSessionManager::new()),
             account_locks: Mutex::new(HashMap::new()),
@@ -152,12 +155,17 @@ impl AppState {
         self.bridge_unavailable.read().clone()
     }
 
-    pub fn set_unprotected_credentials(&self, count: usize) {
+    pub fn set_unprotected_credentials(&self, count: usize, account_ids: Vec<String>) {
         self.unprotected_credentials.store(count, Ordering::Relaxed);
+        *self.unprotected_account_ids.write() = if count == 0 { Vec::new() } else { account_ids };
     }
 
     pub fn unprotected_credentials(&self) -> usize {
         self.unprotected_credentials.load(Ordering::Relaxed)
+    }
+
+    pub fn unprotected_account_ids(&self) -> Vec<String> {
+        self.unprotected_account_ids.read().clone()
     }
 
     pub fn wakeup_refresh(&self) {

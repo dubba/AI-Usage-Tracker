@@ -3,6 +3,9 @@ import type { AirgapSpeed } from "../hooks/useAirgapPlayer";
 import { sanitizeQrSvg } from "../lib/sanitizeSvg";
 import type { AirgapExport } from "../../../types";
 
+const RECORDING_WARNING =
+  "A photo or screen recording of these frames can decrypt the accounts in this transfer.";
+
 /** The animated QR code an air-gap sender shows for the other device to scan. */
 export function AirgapSenderView({
   exportData,
@@ -34,7 +37,7 @@ export function AirgapSenderView({
         <div className="pairing-panel-status">
           <span className="spinner" />
           <h3>Preparing animated transfer…</h3>
-          <p>Compressing and encrypting accounts with air-gap PIN.</p>
+          <p className="pairing-instruction">{RECORDING_WARNING}</p>
         </div>
       ) : (
         <div className="airgap-sender-content">
@@ -72,6 +75,7 @@ export function AirgapSenderView({
           </div>
 
           <div className="airgap-verify-block">
+            <p className="pairing-instruction">{RECORDING_WARNING}</p>
             <p className="airgap-pin-hint">
               <button type="button" className="pairing-offline-link" onClick={onContinue}>
                 After all frames are scanned, click here to continue.

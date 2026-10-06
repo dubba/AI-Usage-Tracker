@@ -86,6 +86,8 @@ export function AccountsView(props: {
   onRemove: (account: Account) => void;
   onNotifications: (account: Account) => void;
   busy: BusyKeys;
+  /** Accounts whose saved sign-in could not be locked on this phone. */
+  unprotectedAccountIds?: string[];
 }) {
   const [showAttentionOnly, setShowAttentionOnly] = useState(false);
   const [announcement, setAnnouncement] = useState("");
@@ -257,6 +259,7 @@ export function AccountsView(props: {
             canMoveUp={canReorder && index > 0}
             canMoveDown={canReorder && index < displayedAccounts.length - 1}
             onMove={canReorder ? (delta) => moveAccount(account, delta) : undefined}
+            signInUnprotected={props.unprotectedAccountIds?.includes(account.id) ?? false}
           />
         )) : (
           <section className="welcome-panel mockup-empty-panel">
