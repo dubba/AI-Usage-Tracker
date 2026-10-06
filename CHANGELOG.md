@@ -3,6 +3,25 @@
 ## Unreleased (0 items)
 
 
+## 0.3.14 - 2026-10-05 (10 items)
+
+### Improved (7)
+
+- Wording is now consistent: the account menu says "Remove" (as on desktop), the collapse control says "Collapse", and "Show all" buttons use sentence case.
+- The menu button now tells screen readers whether the navigation menu is open and which panel it controls.
+- Account cards now show a small chevron on the provider icon so it is clear the icon expands and collapses the card. A collapsed card shows its lowest remaining percentage (colored by how low it is) beside the plan badge.
+- The two percentages beside each sidebar group now have a tooltip ("Average left: 5-hour | 7-day"), and a missing 5-hour value shows "—" like the 7-day one instead of "NA".
+- Secondary gray text (such as small labels in the sidebar footer and window pills) is a little brighter in Dark theme and darker in Light theme, so it is easier to read.
+- On desktop, the account card header is less crowded: Move up and Move down are now in a "More actions" menu next to Refresh, Notifications and Remove, instead of two extra icons. Dragging and Alt+Arrow still reorder. The menu button now names the account for screen readers.
+- The dashboard subtitle now describes the page you are on (all accounts, a provider, or a group) with its account count, instead of the same sentence everywhere.
+
+### Fixed (3)
+
+- Group save/delete and rename failures now show a readable message with the reason, instead of raw text such as "Error: …" or a generic "Unable to rename".
+- Account Updates in Settings no longer shows "15 minutes" when the real interval is something else (for example after a device transfer from another version). Unusual intervals are now rounded to the closest option (such as 35 minutes to 30).
+- The "Accounts / Active" card on the dashboard now counts only accounts that are live, instead of every account. Accounts that need attention are counted in the Action Needed card.
+
+
 ## 0.3.13 - 2026-10-05 (21 items)
 
 ### Added (1)

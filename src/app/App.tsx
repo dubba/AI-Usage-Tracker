@@ -35,7 +35,7 @@ import {
   migrateLegacyAllPageOrder,
   migrateLegacyCollapsedCards,
 } from "../features/dashboard/dashboard-page-state";
-import { DEFAULT_ACCOUNT_REFRESH_MINUTES } from "../shared/lib/constants";
+import { DEFAULT_ACCOUNT_REFRESH_MINUTES, SIDEBAR_ID } from "../shared/lib/constants";
 import { useAccountActions } from "../features/accounts/useAccountActions";
 import { useAppSettings } from "../features/settings/useAppSettings";
 import { useAppUpdate } from "../features/settings/useAppUpdate";
@@ -62,6 +62,10 @@ import { moveAnnouncement, moveById } from "../features/reorder/reorder-utils";
 import { requestDashboardResync } from "../shared/lib/events";
 import { accountNeedsAttention, displayAccountLabel, googleAiStudioHasQuotaWindows } from "../shared/lib/usage-logic";
 import type { Account, AccountBucket, Provider } from "../types";
+
+// One shared empty list, so the "not loaded yet" value is the same object on every render.
+const NO_ACCOUNTS: Account[] = [];
+const NO_BUCKETS: AccountBucket[] = [];
 
 export type { SidebarGroup };
 
@@ -227,8 +231,8 @@ export default function App() {
     };
   }, []);
 
-  const accounts = snapshot?.accounts ?? [];
-  const buckets = snapshot?.buckets ?? [];
+  const accounts = snapshot?.accounts ?? NO_ACCOUNTS;
+  const buckets = snapshot?.buckets ?? NO_BUCKETS;
 
   const sidebarGroups = useMemo<SidebarGroup[]>(
     () => buildSidebarGroups(accounts, buckets, providerOrder, sidebarGroupOrder),
@@ -305,6 +309,7 @@ export default function App() {
           onCheckForUpdate={() => void checkForUpdate(true)}
           onInstallUpdate={() => void installUpdate()}
           onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+          sidebarOpen={sidebarOpen}
           onOpenPairing={() => setPairingOpen(true)}
           onOpenLink={openLink}
           bridge={snapshot?.bridge ?? null}
@@ -323,6 +328,7 @@ export default function App() {
         needsAttention={needsAttention}
         refreshMinutes={appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES}
         onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+        sidebarOpen={sidebarOpen}
         onAdd={() => openAdd(undefined, selectedGroup.provider ?? undefined)}
         onRefreshAll={refreshAll}
         onEditBucket={openEditBucket}
@@ -348,6 +354,7 @@ export default function App() {
       />
       <aside
         ref={sidebarRef}
+        id={SIDEBAR_ID}
         className={`sidebar ${sidebarOpen ? "mobile-open" : ""}`}
         inert={sidebarHidden}
         role={sidebarModal ? "dialog" : undefined}
@@ -559,12 +566,3 @@ export default function App() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-

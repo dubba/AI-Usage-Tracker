@@ -11,7 +11,7 @@ import type {
   BridgeStatus,
   UpdateBusy,
 } from "../../types";
-import { FALLBACK_APP_VERSION } from "../../shared/lib/constants";
+import { FALLBACK_APP_VERSION, SIDEBAR_ID } from "../../shared/lib/constants";
 import { isMobileDevice } from "../../shared/lib/platform";
 import { SHORTCUTS, isMacPlatform, shortcutLabel } from "../shortcuts/shortcuts";
 import { UpdateProgressBar, updateInstallLabel } from "./UpdateProgressBar";
@@ -43,6 +43,7 @@ export function SettingsView({
   onCheckForUpdate,
   onInstallUpdate,
   onToggleSidebar,
+  sidebarOpen,
   onOpenPairing,
   onOpenLink,
   bridge,
@@ -67,6 +68,7 @@ export function SettingsView({
   onCheckForUpdate: () => void;
   onInstallUpdate: () => void;
   onToggleSidebar?: () => void;
+  sidebarOpen?: boolean;
   onOpenPairing?: () => void;
   onOpenLink: (url: string) => void;
   bridge: BridgeStatus | null;
@@ -88,6 +90,8 @@ export function SettingsView({
                 type="button"
                 className="mobile-sidebar-toggle-btn"
                 onClick={onToggleSidebar}
+                aria-expanded={sidebarOpen ?? false}
+                aria-controls={SIDEBAR_ID}
                 aria-label="Toggle navigation menu"
                 data-tooltip="Toggle navigation menu"
               >

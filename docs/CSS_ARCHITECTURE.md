@@ -1,6 +1,6 @@
 # CSS architecture
 
-The app is dark-only and styled with plain CSS files. There is no CSS-in-JS and no build-time CSS tooling beyond Vite.
+The app has dark and light themes (plus a "system" option that follows the device) and is styled with plain CSS files. Theme colors are defined in `src/styles/tokens.css`. There is no CSS-in-JS and no build-time CSS tooling beyond Vite.
 
 ## Files and load order
 

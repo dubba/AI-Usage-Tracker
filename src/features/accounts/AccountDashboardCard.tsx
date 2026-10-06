@@ -17,6 +17,7 @@ import {
   displayAccountLabel,
   accountNeedsAttention,
   accountStatus,
+  usageTone,
   formatUpdatedAt,
   orderedWindows,
 } from "../../shared/lib/usage-logic";
@@ -27,6 +28,7 @@ import {
 import type {
   Account,
 } from "../../types";
+import { errorMessage, friendlyMessage } from "../../shared/lib/errors";
 import { useClock } from "../../shared/hooks/useClock";
 import { reorderKeyDelta } from "../reorder/reorder-utils";
 import { AccountUsageMetric } from "./AccountUsageMetric";
@@ -87,6 +89,8 @@ export function AccountDashboardCard({
   const isGlobalRefresh = busy.has(REFRESH_ALL_KEY);
   const cardBusy = isRefreshing || isRenaming || isRemoving;
   const windows = orderedWindows(account.lastUsage?.windows ?? []);
+  const remainingValues = windows.flatMap((window) => (window.remainingPercent == null ? [] : [window.remainingPercent]));
+  const lowestRemaining = remainingValues.length ? Math.min(...remainingValues) : null;
   const modelsOnly = account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_model_access";
   const waitingForMetrics = account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_monitoring_waiting";
   const googleUnavailableLabel = modelsOnly ? "Key only" : waitingForMetrics ? "Setup in progress" : "Unavailable";
@@ -150,8 +154,8 @@ export function AccountDashboardCard({
       await onRename(next);
       setEditing(false);
       setRenameError(null);
-    } catch {
-      setRenameError("Unable to rename this account.");
+    } catch (cause) {
+      setRenameError(friendlyMessage("Couldn't rename this account", errorMessage(cause)));
     } finally {
       committingRenameRef.current = false;
     }
@@ -188,11 +192,12 @@ export function AccountDashboardCard({
           }}
           aria-keyshortcuts={onMove ? "Alt+ArrowUp Alt+ArrowDown" : undefined}
           aria-describedby={onMove ? REORDER_HINT_ID : undefined}
-          data-tooltip={isCollapsed ? "Expand card" : "Shrink card"}
-          aria-label={isCollapsed ? `Expand ${displayAccountLabel(account)}` : `Shrink ${displayAccountLabel(account)} to divider`}
+          data-tooltip={isCollapsed ? "Expand card" : "Collapse card"}
+          aria-label={isCollapsed ? `Expand ${displayAccountLabel(account)}` : `Collapse ${displayAccountLabel(account)}`}
           aria-expanded={!isCollapsed}
         >
           <ProviderIcon provider={account.provider} />
+          <span className="collapse-chevron" aria-hidden="true"><ChevronIcon /></span>
         </button>
         <div className="account-card-identity">
           <div className="account-card-name-row">
@@ -259,6 +264,9 @@ export function AccountDashboardCard({
           <div className="account-card-header-meta">
             {status.label !== "LIVE" ? <span className={`account-status-badge ${status.className}`}>{status.label}</span> : null}
             <span className="plan-with-dot">
+              {isCollapsed && lowestRemaining != null ? (
+                <span className={`collapsed-summary tone-${usageTone(lowestRemaining)}`}>{Math.round(lowestRemaining)}% left</span>
+              ) : null}
               <span
                 className={`live-dot ${needsAttention || status.label !== "LIVE" ? "attention" : ""}`}
                 aria-hidden="true"
@@ -273,27 +281,8 @@ export function AccountDashboardCard({
           </div>
           <div className="account-card-action-stack">
             <p className="account-card-updated">{updatedAtLabel}</p>
+            <div className="account-card-action-row">
             <div className="account-card-name-actions desktop-only">
-            {onMove ? (
-              <>
-                <button
-                  type="button"
-                  className="account-card-action move-action"
-                  data-tooltip="Move up"
-                  aria-label={`Move ${account.label} up`}
-                  disabled={cardBusy || !canMoveUp}
-                  onClick={() => requestMove(-1)}
-                ><ArrowUpIcon /></button>
-                <button
-                  type="button"
-                  className="account-card-action move-action"
-                  data-tooltip="Move down"
-                  aria-label={`Move ${account.label} down`}
-                  disabled={cardBusy || !canMoveDown}
-                  onClick={() => requestMove(1)}
-                ><ArrowDownIcon /></button>
-              </>
-            ) : null}
             <button
               type="button"
               className={`account-card-action refresh-action ${isRefreshing ? "spinning" : ""}`}
@@ -319,13 +308,14 @@ export function AccountDashboardCard({
               onClick={onRemove}
             >{isRemoving ? <span className="mini-spinner" /> : <TrashIcon />}</button>
            </div>
-            <div className="mobile-actions-dropdown" ref={mobileMenuRef}>
+            <div className={`mobile-actions-dropdown${onMove ? " has-move-menu" : ""}`} ref={mobileMenuRef}>
               <button
                 type="button"
                 className="mobile-dropdown-toggle"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 aria-expanded={mobileMenuOpen}
-                aria-label="More actions"
+                aria-haspopup="menu"
+                aria-label={`More actions for ${displayAccountLabel(account)}`}
               >
                 <ChevronIcon className={mobileMenuOpen ? "open" : ""} />
               </button>
@@ -341,17 +331,18 @@ export function AccountDashboardCard({
                       </button>
                     </>
                   ) : null}
-                  <button type="button" className="mobile-dropdown-item refresh-action" disabled={cardBusy || isGlobalRefresh} onClick={() => { setMobileMenuOpen(false); onRefresh(); }}>
+                  <button type="button" className="mobile-dropdown-item mobile-only-item refresh-action" disabled={cardBusy || isGlobalRefresh} onClick={() => { setMobileMenuOpen(false); onRefresh(); }}>
                     <RefreshIcon /> Refresh
                   </button>
-                  <button type="button" className="mobile-dropdown-item notify-action" disabled={cardBusy} onClick={() => { setMobileMenuOpen(false); onNotifications(); }}>
+                  <button type="button" className="mobile-dropdown-item mobile-only-item notify-action" disabled={cardBusy} onClick={() => { setMobileMenuOpen(false); onNotifications(); }}>
                     <BellIcon /> Notifications
                   </button>
-                  <button type="button" className="mobile-dropdown-item remove-action" disabled={cardBusy} onClick={() => { setMobileMenuOpen(false); onRemove(); }}>
-                    <TrashIcon /> Delete
+                  <button type="button" className="mobile-dropdown-item mobile-only-item remove-action" disabled={cardBusy} onClick={() => { setMobileMenuOpen(false); onRemove(); }}>
+                    <TrashIcon /> Remove
                   </button>
                 </div>
               ) : null}
+            </div>
             </div>
           </div>
         </div>

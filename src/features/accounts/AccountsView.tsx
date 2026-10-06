@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type BusyKeys } from "../../shared/lib/busy";
+import { SIDEBAR_ID } from "../../shared/lib/constants";
 import {
   AlertCircleIcon,
   CheckCircleIcon,
@@ -31,6 +32,13 @@ import { PullToRefreshIndicator } from "../dashboard/PullToRefreshIndicator";
 
 const ATTENTION_HINT_ID = "attention-filter-hint";
 
+function dashboardDescription(group: SidebarGroup, accountCount: number): string {
+  const count = formatCount(accountCount, ACCOUNT_FORMS);
+  if (group.type === "bucket") return `Usage across ${count} in this group.`;
+  if (group.type === "provider") return `${group.title} usage across ${count}.`;
+  return accountCount === 0 ? "Add an account to start tracking your AI usage." : `Usage across all your AI subscriptions (${count}).`;
+}
+
 /** Time until the soonest reset. Updates itself with the shared clock, so the dashboard does not re-render for it. */
 function NextResetCard({ accounts }: { accounts: Account[] }) {
   const account = useClock((now) => nextResetSummary(accounts, now).account ?? "No upcoming reset");
@@ -56,6 +64,7 @@ export function AccountsView(props: {
   needsAttention: number;
   refreshMinutes: number;
   onToggleSidebar?: () => void;
+  sidebarOpen?: boolean;
   onAdd: () => void;
   onRefreshAll?: () => void;
   onEditBucket?: (bucket: AccountBucket) => void;
@@ -116,6 +125,8 @@ export function AccountsView(props: {
                 type="button"
                 className="mobile-sidebar-toggle-btn"
                 onClick={props.onToggleSidebar}
+                aria-expanded={props.sidebarOpen ?? false}
+                aria-controls={SIDEBAR_ID}
                 aria-label="Toggle navigation menu"
                 data-tooltip="Toggle navigation menu"
               >
@@ -142,7 +153,7 @@ export function AccountsView(props: {
               </button>
             ) : null}
           </div>
-          <p className="dashboard-description">This is a dashboard of all your AI subscriptions by usage.</p>
+          <p className="dashboard-description">{dashboardDescription(props.selectedGroup, props.accounts.length)}</p>
         </div>
         {props.selectedGroup.type === "bucket" && props.selectedGroup.bucket ? (
           <div className="header-actions">
@@ -163,7 +174,7 @@ export function AccountsView(props: {
         <section className="summary-grid mockup-summary-grid">
           <div className="mockup-summary-card total-card">
             <div><span className="summary-label">Accounts</span><strong className="summary-helper">Active</strong></div>
-            <div className="summary-value-cluster"><strong>{props.accounts.length}</strong><UsersIcon /></div>
+            <div className="summary-value-cluster"><strong>{props.accounts.length - props.needsAttention}</strong><UsersIcon /></div>
           </div>
           <div
             className={`mockup-summary-card attention-card ${props.needsAttention ? "has-attention is-clickable" : ""} ${showAttentionOnly ? "is-filtering" : ""}`}
@@ -215,7 +226,7 @@ export function AccountsView(props: {
               onClick={() => setShowAttentionOnly(false)}
               aria-label="Show all accounts"
             >
-              Show All <CloseIcon />
+              Show all <CloseIcon />
             </button>
           </div>
         ) : null}
@@ -259,7 +270,7 @@ export function AccountsView(props: {
             <div className="empty-group-actions">
               {showAttentionOnly ? (
                 <button type="button" className="button primary" onClick={() => setShowAttentionOnly(false)}>
-                  Show All Accounts
+                  Show all accounts
                 </button>
               ) : (
                 <>

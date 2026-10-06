@@ -12,6 +12,8 @@ pub const DEFAULT_ACCOUNT_REFRESH_MINUTES: u64 = 15;
 pub const MIN_ACCOUNT_REFRESH_MINUTES: u64 = 5;
 pub const MAX_ACCOUNT_REFRESH_MINUTES: u64 = 60;
 pub const ACCOUNT_REFRESH_STEP_MINUTES: u64 = 5;
+/// The intervals the Settings dropdown offers; stored values are snapped to the closest one.
+const OFFERED_REFRESH_MINUTES: [u64; 6] = [5, 10, 15, 30, 45, 60];
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -89,9 +91,8 @@ impl SettingsStore {
             StoredAppSettings::default()
         };
 
-        if !valid_refresh_minutes(settings.account_refresh_minutes) {
-            settings.account_refresh_minutes = DEFAULT_ACCOUNT_REFRESH_MINUTES;
-        }
+        settings.account_refresh_minutes = snap_refresh_minutes(settings.account_refresh_minutes)
+            .unwrap_or(DEFAULT_ACCOUNT_REFRESH_MINUTES);
         settings.version = settings_version();
 
         Ok(Self {
@@ -111,10 +112,8 @@ impl SettingsStore {
     }
 
     pub fn set_account_refresh_minutes(&self, minutes: u64) -> Result<AppSettings, String> {
-        if !valid_refresh_minutes(minutes) {
-            return Err(
-                "Account updates must be between 5 and 60 minutes in 5-minute increments.".into(),
-            );
+        if !OFFERED_REFRESH_MINUTES.contains(&minutes) {
+            return Err("Account updates must be 5, 10, 15, 30, 45 or 60 minutes.".into());
         }
 
         let mut settings = self.settings.write();
@@ -253,6 +252,16 @@ fn valid_refresh_minutes(minutes: u64) -> bool {
         && minutes.is_multiple_of(ACCOUNT_REFRESH_STEP_MINUTES)
 }
 
+/// Closest offered interval for a valid stored value, or `None` if the value is not valid.
+pub fn snap_refresh_minutes(minutes: u64) -> Option<u64> {
+    if !valid_refresh_minutes(minutes) {
+        return None;
+    }
+    OFFERED_REFRESH_MINUTES
+        .into_iter()
+        .min_by_key(|offered| offered.abs_diff(minutes))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -264,18 +273,53 @@ mod tests {
         assert_eq!(store.get().account_refresh_minutes, 15);
         assert_eq!(
             store
-                .set_account_refresh_minutes(35)
+                .set_account_refresh_minutes(45)
                 .unwrap()
                 .account_refresh_minutes,
-            35
+            45
         );
         assert_eq!(
             SettingsStore::load(directory.path())
                 .unwrap()
                 .get()
                 .account_refresh_minutes,
-            35
+            45
         );
+    }
+
+    #[test]
+    fn snaps_refresh_intervals_to_the_closest_offered_value() {
+        for (stored, snapped) in [
+            (5, 5),
+            (10, 10),
+            (15, 15),
+            (20, 15),
+            (25, 30),
+            (30, 30),
+            (35, 30),
+            (40, 45),
+            (45, 45),
+            (50, 45),
+            (55, 60),
+            (60, 60),
+        ] {
+            assert_eq!(snap_refresh_minutes(stored), Some(snapped), "{stored}");
+        }
+        for invalid in [0, 7, 65] {
+            assert_eq!(snap_refresh_minutes(invalid), None, "{invalid}");
+        }
+    }
+
+    #[test]
+    fn load_snaps_stored_refresh_interval() {
+        let directory = tempfile::tempdir().unwrap();
+        fs::write(
+            directory.path().join(SETTINGS_FILE_NAME),
+            r#"{"accountRefreshMinutes":35}"#,
+        )
+        .unwrap();
+        let store = SettingsStore::load(directory.path()).unwrap();
+        assert_eq!(store.get().account_refresh_minutes, 30);
     }
 
     #[test]
@@ -285,6 +329,7 @@ mod tests {
         assert!(store.set_account_refresh_minutes(0).is_err());
         assert!(store.set_account_refresh_minutes(7).is_err());
         assert!(store.set_account_refresh_minutes(65).is_err());
+        assert!(store.set_account_refresh_minutes(35).is_err());
     }
 
     #[test]

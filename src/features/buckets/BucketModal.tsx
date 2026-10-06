@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { bridgeApi } from "../../shared/lib/api";
+import { errorMessage, friendlyMessage } from "../../shared/lib/errors";
 import { TrashIcon } from "../../shared/ui/icons";
 import { PROVIDER_META } from "../../shared/lib/providers";
 import { ProviderIcon } from "../../shared/ui/ProviderIcon";
@@ -128,7 +129,7 @@ export function BucketModal({
       );
       onSaved(saved);
     } catch (cause) {
-      setError(String(cause));
+      setError(friendlyMessage("Couldn't save this group", errorMessage(cause)));
     } finally {
       setBusy(false);
     }
@@ -142,7 +143,7 @@ export function BucketModal({
       await bridgeApi.deleteBucket(bucket.id);
       onDeleted(bucket.id);
     } catch (cause) {
-      setError(String(cause));
+      setError(friendlyMessage("Couldn't delete this group", errorMessage(cause)));
     } finally {
       setBusy(false);
     }

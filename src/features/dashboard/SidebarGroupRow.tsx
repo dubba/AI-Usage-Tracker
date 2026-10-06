@@ -35,7 +35,7 @@ export function SidebarGroupRow({
   const tone = usageTone(toneValue);
   const toneFive = five == null ? null : usageTone(five);
   const toneWeekly = weekly == null ? null : usageTone(weekly);
-  const labelFive = five == null ? "NA" : `${Math.round(five)}%`;
+  const labelFive = five == null ? "—" : `${Math.round(five)}%`;
   const labelWeekly = weekly == null ? "—" : `${Math.round(weekly)}%`;
   const reorderable = group.type !== "all";
   return (
@@ -75,7 +75,7 @@ export function SidebarGroupRow({
             <span className="sidebar-group-count">({group.accounts.length})</span>
             {group.type === "bucket" ? <span className="bucket-mini-badge">Group</span> : null}
           </strong>
-          <span className="provider-average">
+          <span className="provider-average" data-tooltip="Average left: 5-hour | 7-day">
             <span className={five == null ? "tone-na" : `tone-${toneFive}`}>{labelFive}</span>
             <span className="tone-pipe"> | </span>
             <span className={weekly == null ? "tone-na" : `tone-${toneWeekly}`}>{labelWeekly}</span>

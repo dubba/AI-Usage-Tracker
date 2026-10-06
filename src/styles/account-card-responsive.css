@@ -416,6 +416,29 @@
   .mobile-actions-dropdown {
     display: none;
   }
+  .account-card-action-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  /* On desktop the menu only holds Move up / Move down; the other actions stay as icons. */
+  .mobile-actions-dropdown.has-move-menu {
+    display: block;
+  }
+  .mobile-dropdown-item.mobile-only-item {
+    display: none;
+  }
+  .mobile-dropdown-toggle {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+  }
+}
+
+@media (max-width: 860px) {
+  .account-card-action-row {
+    display: contents;
+  }
 }
 
 @media (max-width: 480px) {
@@ -875,4 +898,74 @@
 .account-card-header-meta .account-plan-badge {
   background: #6d3bd7;
   color: #f5f1ef;
+}
+
+/* Collapse affordance: a chevron badge on the provider icon, and the lowest remaining % shown while collapsed. */
+.account-card-provider-icon {
+  position: relative;
+}
+
+.collapse-chevron {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--obsidian-surface-low);
+  border-radius: 50%;
+  background: var(--obsidian-purple-strong);
+  color: #fff;
+  transform: rotate(90deg);
+  transition: transform 160ms ease;
+}
+
+.account-card-provider-icon.is-collapsed .collapse-chevron {
+  transform: rotate(0deg);
+}
+
+.account-card-provider-icon .collapse-chevron svg {
+  width: 10px;
+  height: 10px;
+  stroke-width: 3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collapse-chevron {
+    transition: none;
+  }
+}
+
+.collapsed-summary {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 4px;
+  padding: 2px 8px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.collapsed-summary.tone-healthy {
+  color: var(--obsidian-green);
+}
+
+.collapsed-summary.tone-warning {
+  color: var(--obsidian-amber);
+}
+
+.collapsed-summary.tone-critical {
+  color: var(--obsidian-red);
+}
+
+@media (max-width: 860px) {
+  .collapsed-summary {
+    padding: 0 7px;
+    height: 22px;
+    box-sizing: border-box;
+  }
 }

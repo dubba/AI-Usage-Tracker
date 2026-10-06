@@ -318,6 +318,13 @@
   transition: opacity 0.15s ease-out;
 }
 
+/* Keep the sidebar average tooltip inside the sidebar: it sits at the row's right edge. */
+.provider-average[data-tooltip]::after {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
 /* Suppress empty or invalid tooltips */
 [data-tooltip=""]::after,
 [data-tooltip="false"]::after,

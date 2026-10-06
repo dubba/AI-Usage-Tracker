@@ -431,9 +431,11 @@ pub async fn import_sync_payload_with_replace(
 
     // Apply optional settings if present (opt-in per transfer)
     if let Some(settings) = payload.settings {
-        let _ = state
-            .settings
-            .set_account_refresh_minutes(settings.account_refresh_minutes);
+        if let Some(minutes) =
+            crate::settings::snap_refresh_minutes(settings.account_refresh_minutes)
+        {
+            let _ = state.settings.set_account_refresh_minutes(minutes);
+        }
         let _ = state
             .settings
             .set_automatic_updates_enabled(settings.automatic_updates_enabled);
