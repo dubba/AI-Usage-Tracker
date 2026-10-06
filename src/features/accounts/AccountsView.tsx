@@ -12,6 +12,7 @@ import {
   TrashIcon,
   UsersIcon,
 } from "../../shared/ui/icons";
+import { ProviderIcon } from "../../shared/ui/ProviderIcon";
 import {
   accountNeedsAttention,
   displayAccountLabel,
@@ -21,6 +22,7 @@ import type { SidebarGroup } from "../dashboard/sidebar-groups";
 import type {
   Account,
   AccountBucket,
+  Provider,
 } from "../../types";
 import { persistVisibleAccountOrder } from "../reorder";
 import { moveAnnouncement, moveById } from "../reorder/reorder-utils";
@@ -31,6 +33,14 @@ import { usePullToRefresh } from "../dashboard/usePullToRefresh";
 import { PullToRefreshIndicator } from "../dashboard/PullToRefreshIndicator";
 
 const ATTENTION_HINT_ID = "attention-filter-hint";
+
+/** First-run cards. Brand on top, product underneath — Google's product is Antigravity, not AI Studio. */
+const EMPTY_STATE_PROVIDERS: { provider: Provider; brand: string; product: string }[] = [
+  { provider: "anthropic", brand: "Anthropic", product: "Claude" },
+  { provider: "antigravity", brand: "Google", product: "Antigravity" },
+  { provider: "openai", brand: "OpenAI", product: "ChatGPT" },
+  { provider: "grok", brand: "xAI", product: "Grok" },
+];
 
 function dashboardDescription(group: SidebarGroup, accountCount: number): string {
   const count = formatCount(accountCount, ACCOUNT_FORMS);
@@ -44,7 +54,7 @@ function NextResetCard({ accounts }: { accounts: Account[] }) {
   const account = useClock((now) => nextResetSummary(accounts, now).account ?? "No upcoming reset");
   const value = useClock((now) => nextResetSummary(accounts, now).value);
   return (
-    <div className="mockup-summary-card next-reset-card">
+    <div className="summary-card next-reset-card">
       <div>
         <span className="summary-label">Next reset</span>
         <strong className="next-reset-account">{account}</strong>
@@ -65,7 +75,7 @@ export function AccountsView(props: {
   refreshMinutes: number;
   onToggleSidebar?: () => void;
   sidebarOpen?: boolean;
-  onAdd: () => void;
+  onAdd: (provider?: Provider) => void;
   onRefreshAll?: () => void;
   onEditBucket?: (bucket: AccountBucket) => void;
   onDeleteBucket?: (bucket: AccountBucket) => void;
@@ -171,13 +181,13 @@ export function AccountsView(props: {
       </header>
 
       <div ref={scrollRef} className="dashboard-scroll">
-        <section className="summary-grid mockup-summary-grid">
-          <div className="mockup-summary-card total-card">
-            <div><span className="summary-label">Accounts</span><strong className="summary-helper">Active</strong></div>
+        <section className="summary-strip">
+          <div className="summary-card total-card">
+            <div><span className="summary-label">Accounts</span><strong className="summary-helper">Healthy</strong></div>
             <div className="summary-value-cluster"><strong>{props.accounts.length - props.needsAttention}</strong><UsersIcon /></div>
           </div>
           <div
-            className={`mockup-summary-card attention-card ${props.needsAttention ? "has-attention is-clickable" : ""} ${showAttentionOnly ? "is-filtering" : ""}`}
+            className={`summary-card attention-card ${props.needsAttention ? "has-attention is-clickable" : ""} ${showAttentionOnly ? "is-filtering" : ""}`}
             role={props.needsAttention ? "button" : undefined}
             tabIndex={props.needsAttention ? 0 : undefined}
             aria-pressed={props.needsAttention ? showAttentionOnly : undefined}
@@ -203,7 +213,7 @@ export function AccountsView(props: {
           >
             <div>
               <span className="summary-label">Action Needed</span>
-              <strong className="summary-helper"><CheckCircleIcon />{props.needsAttention ? formatCount(props.needsAttention, ACCOUNT_FORMS) : "All good"}</strong>
+              <strong className="summary-helper">{props.needsAttention ? <AlertCircleIcon /> : <CheckCircleIcon />}{props.needsAttention ? formatCount(props.needsAttention, ACCOUNT_FORMS) : "All good"}</strong>
             </div>
             <div className="summary-value-cluster"><strong>{props.needsAttention}</strong><AlertCircleIcon /></div>
             {props.needsAttention > 0 ? (
@@ -284,7 +294,32 @@ export function AccountsView(props: {
                       </button>
                     </>
                   ) : null}
-                  <button type="button" className="button primary" onClick={props.onAdd}><PlusIcon />Account</button>
+                  {props.selectedGroup.type === "all" ? (
+                    <>
+                      <div className="empty-provider-grid">
+                        {EMPTY_STATE_PROVIDERS.map(({ provider, brand, product }) => (
+                          <button
+                            key={provider}
+                            type="button"
+                            className="empty-provider-card"
+                            aria-label={`Add ${brand} ${product}`}
+                            onClick={() => props.onAdd(provider)}
+                          >
+                            <span className={`empty-provider-mark provider-${provider}`}>
+                              <ProviderIcon provider={provider} />
+                            </span>
+                            <span className="empty-provider-brand">{brand}</span>
+                            <span className="empty-provider-product">{product}</span>
+                          </button>
+                        ))}
+                      </div>
+                      <button type="button" className="button ghost empty-provider-other" onClick={() => props.onAdd()}>
+                        <PlusIcon />Add Custom / Other
+                      </button>
+                    </>
+                  ) : (
+                    <button type="button" className="button primary" onClick={() => props.onAdd()}><PlusIcon />Account</button>
+                  )}
                 </>
               )}
             </div>

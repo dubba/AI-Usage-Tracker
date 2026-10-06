@@ -3,6 +3,31 @@
 ## Unreleased (0 items)
 
 
+## 0.3.15 - 2026-10-06 (10 items)
+
+### Added (2)
+
+- The empty dashboard now features one-click setup cards for popular providers (Anthropic Claude, Google Antigravity, OpenAI ChatGPT, and xAI Grok) with a quick fallback for custom or other providers.
+- Settings is now organized into dedicated sections (Display, Updates, Devices) with Diagnostics, Paseo Bridge, and Keyboard Shortcuts tucked into a collapsible Advanced section.
+
+### Changed (4)
+
+- Add Account now lists Anthropic Claude first in the provider dropdown and defaults to Claude when opened without a preselected provider.
+- Header "+ Account" and "+ Group" buttons are taller with larger icons and bolder text for easier clicking and tapping.
+- Healthy usage bars and progress tracks now display green instead of purple, keeping purple focused on interactive chrome and badges.
+- Dashboard summary cards now form a continuous strip, and the accounts metric is labeled "Healthy" instead of "Active".
+
+### Improved (3)
+
+- Screen readers now announce quota progress bars with their remaining percentage and label via accessible progressbar roles.
+- The mobile account card action menu now supports full keyboard navigation (Escape to close with focus returned to the trigger, Arrow keys to navigate, Home/End).
+- Transitions and animations are now disabled when your system prefers reduced motion.
+
+### Fixed (1)
+
+- The Action Needed summary card now displays a warning icon instead of a checkmark when accounts require attention.
+
+
 ## 0.3.14 - 2026-10-05 (10 items)
 
 ### Improved (7)

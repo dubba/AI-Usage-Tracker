@@ -1,12 +1,12 @@
 .provider-summary-track > span,
 .account-metric-track > span,
 .progress-fill {
-  background: var(--obsidian-purple-strong);
+  background: var(--obsidian-green);
 }
 
 .provider-summary-track > .tone-healthy,
 .account-metric-track > .tone-healthy {
-  background: var(--obsidian-purple-strong) !important;
+  background: var(--obsidian-green) !important;
 }
 
 .provider-summary-track > .tone-warning,
@@ -610,7 +610,7 @@
 }
 
 .obsidian-shell .dashboard-header,
-.obsidian-shell .mockup-summary-grid {
+.obsidian-shell .summary-strip {
   flex: 0 0 auto;
 }
 

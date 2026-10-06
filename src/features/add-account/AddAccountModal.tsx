@@ -22,7 +22,7 @@ import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
 import { useVirtualKeyboard } from "../../shared/hooks/useVirtualKeyboard";
 
-const PICKER_ORDER: Provider[] = ["openai", "anthropic", "antigravity", "grok", "google_ai_studio", "opencode_go"];
+const PICKER_ORDER: Provider[] = ["anthropic", "antigravity", "openai", "grok", "google_ai_studio", "opencode_go"];
 
 const providerDropdownOptions: DropdownOption<Provider>[] = PICKER_ORDER.map((id) => ({
   value: id,
@@ -46,7 +46,7 @@ export function AddAccountModal({
   onAdded: (account: Account) => void;
 }) {
   const isAndroid = detectAndroid();
-  const [draft, setDraft] = useState<AddAccountDraft>(() => emptyDraft("openai"));
+  const [draft, setDraft] = useState<AddAccountDraft>(() => emptyDraft("anthropic"));
   const [modelsBusy, setModelsBusy] = useState(false);
   const [status, setStatus] = useState<LoginStatus | null>(null);
   const [busy, setBusy] = useState(false);
@@ -64,7 +64,7 @@ export function AddAccountModal({
   useEffect(() => {
     if (!open) {
       closeRequestedRef.current = true;
-      setDraft(emptyDraft("openai"));
+      setDraft(emptyDraft("anthropic"));
       setModelsBusy(false);
       setStatus(null);
       setBusy(false);
@@ -72,7 +72,7 @@ export function AddAccountModal({
       attemptIdRef.current = null;
     } else {
       closeRequestedRef.current = false;
-      const nextProvider = providerLocked && initialProvider ? initialProvider : "openai";
+      const nextProvider = initialProvider ?? "anthropic";
       setDraft(emptyDraft(nextProvider, initialLabel?.trim() || defaultAccountName(nextProvider)));
       setModelsBusy(false);
     }

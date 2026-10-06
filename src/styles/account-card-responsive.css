@@ -383,8 +383,10 @@
   transition: background 120ms ease;
 }
 
-.mobile-dropdown-item:hover:not(:disabled) {
+.mobile-dropdown-item:hover:not(:disabled),
+.mobile-dropdown-item:focus-visible {
   background: var(--c-242323);
+  outline: none;
 }
 
 .mobile-dropdown-item:disabled {
@@ -667,14 +669,14 @@
 }
 
 /*
- * The usage bar is colored by how much is left (see usageTone): purple while
+ * The usage bar is colored by how much is left (see usageTone): green while
  * healthy, amber at 30% or less, red at 15% or less. Both sidebar and dashboard
- * progress bars follow these same rules.
+ * progress bars follow these same rules. Purple stays on chrome (plan badge,
+ * buttons, scroll bars), not on the bar.
  */
-/* Sidebar and account-card bars, and the plan badge, use the same purple as the mobile status bar and scroll bars. */
 .provider-summary-track > .tone-healthy,
 .account-usage-metric .account-metric-track > .tone-healthy {
-  background: #6d3bd7 !important;
+  background: var(--obsidian-green) !important;
 }
 
 .provider-summary-track > .tone-warning,
@@ -915,7 +917,7 @@
   height: 16px;
   border: 2px solid var(--obsidian-surface-low);
   border-radius: 50%;
-  background: var(--obsidian-purple-strong);
+  background: var(--scrollbar-thumb);
   color: #fff;
   transform: rotate(90deg);
   transition: transform 160ms ease;

@@ -329,7 +329,7 @@ export default function App() {
         refreshMinutes={appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES}
         onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
         sidebarOpen={sidebarOpen}
-        onAdd={() => openAdd(undefined, selectedGroup.provider ?? undefined)}
+        onAdd={(provider) => openAdd(undefined, provider ?? selectedGroup.provider ?? undefined)}
         onRefreshAll={refreshAll}
         onEditBucket={openEditBucket}
         onDeleteBucket={openDeleteBucket}
@@ -430,11 +430,6 @@ export default function App() {
               }}
             />
           ))}
-          {accounts.length === 0 && buckets.length === 0 ? (
-            <button type="button" className="empty-account provider-empty" onClick={() => { openAdd(); setSidebarOpen(false); }}>
-              <PlusIcon /><span>Add Your First Account</span>
-            </button>
-          ) : null}
         </div>
 
         <SyncStatusLine

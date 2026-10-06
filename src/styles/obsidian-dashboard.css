@@ -123,6 +123,7 @@ select {
 .provider-sidebar-heading-actions {
   display: flex;
   align-items: center;
+  align-self: center;
   gap: 8px;
   flex: 0 0 auto;
   flex-shrink: 0;
@@ -130,22 +131,23 @@ select {
 
 .add-bucket-header-button,
 .add-account-header-button {
-  min-height: 26px;
-  padding: 0 8px;
-  font-size: 11px;
+  min-height: 32px !important;
+  padding: 0 12px;
+  font-size: 12px;
   font-weight: 700 !important;
   border-radius: 4px;
-  gap: 4px;
+  gap: 5px;
 }
 
 .add-bucket-header-button svg,
 .add-account-header-button svg {
-  width: 13px !important;
-  height: 13px !important;
+  width: 15px !important;
+  height: 15px !important;
 }
 
 .provider-sidebar-heading > span {
   flex-shrink: 0;
+  align-self: center;
   font-size: 11px;
   font-weight: 700;
   line-height: 16px;
@@ -392,7 +394,7 @@ select {
 
 .provider-summary-track > .tone-healthy,
 .account-metric-track > .tone-healthy {
-  background: var(--obsidian-purple-strong);
+  background: var(--obsidian-green);
 }
 
 .tone-warning,
@@ -531,7 +533,7 @@ select {
   box-sizing: border-box;
 }
 
-.mockup-summary-grid,
+.summary-strip,
 .provider-account-cards {
   width: 100%;
   max-width: 100%;
@@ -613,6 +615,99 @@ select {
   justify-content: center;
 }
 
+.empty-provider-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 148px));
+  gap: 10px;
+  width: 100%;
+  max-width: 640px;
+  margin: 6px auto 4px;
+  justify-content: center;
+}
+
+.empty-provider-card {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 2px;
+  min-height: 118px;
+  padding: 14px 8px 12px;
+  border: 1px solid var(--obsidian-border);
+  border-radius: 8px;
+  background: var(--obsidian-surface-container);
+  color: var(--obsidian-text);
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+.empty-provider-card:hover {
+  border-color: var(--obsidian-purple-strong);
+  background: var(--obsidian-surface-container-high);
+}
+
+.empty-provider-card:focus-visible {
+  outline: 2px solid var(--obsidian-purple-strong);
+  outline-offset: 2px;
+  border-color: var(--obsidian-purple-strong);
+}
+
+.empty-provider-card:active {
+  transform: scale(0.98);
+}
+
+.empty-provider-mark {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-bottom: 6px;
+  color: var(--c-d7d1da);
+}
+
+.empty-provider-mark svg {
+  width: 26px;
+  height: 26px;
+}
+
+.empty-provider-mark.provider-openai {
+  color: var(--c-f4f1f1);
+}
+
+.empty-provider-mark.provider-anthropic {
+  color: var(--c-e5bb86);
+}
+
+.empty-provider-brand {
+  color: var(--c-f5f1f0);
+  font-size: 14px;
+  line-height: 18px;
+  font-weight: 650;
+}
+
+.empty-provider-product {
+  color: var(--obsidian-muted);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+}
+
+.empty-provider-other {
+  margin-top: 6px;
+}
+
+@media (max-width: 640px) {
+  .empty-provider-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: 340px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .empty-provider-card {
+    transition: none;
+  }
+}
+
 .account-card-updated {
   margin: 0;
   padding-right: 3px;
@@ -667,14 +762,32 @@ select {
   border-color: var(--obsidian-purple-strong) !important;
 }
 
-.mockup-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+.summary-strip {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
   margin: 18px 0;
+  border: 1px solid var(--obsidian-border);
+  border-radius: 8px;
+  background: var(--obsidian-surface-container);
+  overflow: hidden;
 }
 
-.mockup-summary-card {
+.summary-strip > .summary-card {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 64px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.summary-strip > .summary-card + .summary-card {
+  border-left: 1px solid var(--obsidian-border);
+}
+
+.summary-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -687,32 +800,32 @@ select {
   transition: border-color 120ms ease, background 120ms ease;
 }
 
-.mockup-summary-card:hover {
+.summary-card:hover {
   border-color: var(--obsidian-purple-strong);
 }
 
-.mockup-summary-card.total-card {
+.summary-card.total-card {
   background: linear-gradient(110deg, var(--obsidian-surface-container), var(--c-28252b));
 }
 
-.mockup-summary-card.attention-card {
+.summary-card.attention-card {
   background: linear-gradient(110deg, var(--c-1c201e), var(--c-202622));
 }
 
-.mockup-summary-card.attention-card.has-attention {
+.summary-card.attention-card.has-attention {
   background: linear-gradient(110deg, var(--c-241e19), var(--c-2c231a));
 }
 
-.mockup-summary-card.is-clickable {
+.summary-card.is-clickable {
   cursor: pointer;
   user-select: none;
 }
 
-.mockup-summary-card.attention-card.is-clickable:hover {
+.summary-card.attention-card.is-clickable:hover {
   border-color: var(--obsidian-amber);
 }
 
-.mockup-summary-card.attention-card.is-filtering {
+.summary-card.attention-card.is-filtering {
   border-color: var(--obsidian-amber);
   background: linear-gradient(110deg, var(--c-2a1c12), var(--c-392617));
   box-shadow: 0 0 16px rgba(255, 184, 105, 0.25);
@@ -756,11 +869,11 @@ select {
   height: 12px;
 }
 
-.mockup-summary-card.next-reset-card {
+.summary-card.next-reset-card {
   background: linear-gradient(110deg, var(--c-211f1f), var(--c-29241f));
 }
 
-.mockup-summary-card > div:first-child {
+.summary-card > div:first-child {
   display: grid;
   gap: 2px;
   min-width: 0;
@@ -1305,12 +1418,72 @@ button.account-card-provider-icon:active {
 }
 
 .settings-style-content .dashboard-scroll > .settings-card:first-child {
-  margin-top: 18px;
+  margin-top: 8px;
+}
+
+.settings-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--obsidian-muted);
+  margin: 22px 0 8px 2px;
+  line-height: 1.2;
+}
+
+.settings-style-content .dashboard-scroll > .settings-section-title:first-child,
+.settings-style-content .dashboard-scroll > .settings-section-title:first-of-type {
+  margin-top: 14px;
+}
+
+.settings-advanced-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.settings-advanced-toggle:hover {
+  color: var(--obsidian-text);
+}
+
+.settings-advanced-toggle:focus-visible {
+  outline: 2px solid var(--obsidian-purple-strong);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+.settings-advanced-chevron {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.5;
+  color: currentColor;
+  transform: rotate(0deg);
+  transition: transform 180ms ease;
+}
+
+.settings-advanced-chevron.open {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-advanced-chevron {
+    transition: none;
+  }
 }
 
 .settings-style-content .settings-card,
 .settings-card {
-  margin-top: 16px !important;
+  margin-top: 0 !important;
+  margin-bottom: 8px;
   border: 1px solid var(--obsidian-border);
   border-radius: 8px;
   background: var(--obsidian-surface-low);
@@ -1372,7 +1545,11 @@ button.account-card-provider-icon:active {
 }
 
 .settings-updates-group-header.settings-updates-beta-row {
-  margin-top: 16px !important;
+  /* The toggle is 24px in a row whose text line is ~20px, so it overhangs
+     about 2px. The divider sits 12px below the row, so 10px above the toggle
+     lands it the same distance from the version card. */
+  margin-top: 0 !important;
+  padding-top: 10px;
   align-items: center;
 }
 
@@ -2411,21 +2588,59 @@ select.text-input option,
 }
 
 @media (max-width: 1180px) {
-  .mockup-summary-grid {
+  .summary-strip {
+    display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    overflow: visible;
   }
 
-  .mockup-summary-card.next-reset-card {
+  .summary-strip > .summary-card {
+    min-height: 70px;
+    padding: 16px;
+    border: 1px solid var(--obsidian-border);
+    border-radius: 8px;
+    background: var(--obsidian-surface-container);
+  }
+
+  .summary-strip > .summary-card + .summary-card {
+    border-left: 1px solid var(--obsidian-border);
+  }
+
+  .summary-strip > .summary-card.total-card {
+    background: linear-gradient(110deg, var(--obsidian-surface-container), var(--c-28252b));
+  }
+
+  .summary-strip > .summary-card.attention-card {
+    background: linear-gradient(110deg, var(--c-1c201e), var(--c-202622));
+  }
+
+  .summary-strip > .summary-card.attention-card.has-attention {
+    background: linear-gradient(110deg, var(--c-241e19), var(--c-2c231a));
+  }
+
+  .summary-strip > .summary-card.attention-card.is-filtering {
+    background: linear-gradient(110deg, var(--c-2a1c12), var(--c-392617));
+  }
+
+  .summary-strip > .summary-card.next-reset-card {
+    background: linear-gradient(110deg, var(--c-211f1f), var(--c-29241f));
+  }
+
+  .summary-card.next-reset-card {
     grid-column: 1 / -1;
   }
 
-  .mockup-summary-card {
+  .summary-card {
     min-height: 70px;
   }
 }
 
 @media (max-width: 600px) {
-  .mockup-summary-grid {
+  .summary-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
   }
@@ -2673,7 +2888,7 @@ select.text-input option,
     display: none;
   }
 
-  .mockup-summary-grid {
+  .summary-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px !important;
     margin: 0 0 10px 0;
@@ -2682,46 +2897,46 @@ select.text-input option,
     box-sizing: border-box;
   }
 
-  .mockup-summary-card.next-reset-card {
+  .summary-card.next-reset-card {
     grid-column: 1 / -1;
   }
 
-  .mockup-summary-card {
+  .summary-card {
     min-height: 66px;
     padding: 12px 10px;
     gap: 6px;
   }
 
-  .mockup-summary-card .summary-label {
+  .summary-card .summary-label {
     font-size: 10px;
     line-height: 1.25;
     letter-spacing: 0.06em;
     white-space: nowrap;
   }
 
-  .mockup-summary-card .summary-helper {
+  .summary-card .summary-helper {
     font-size: 12px;
     line-height: 1.3;
     white-space: nowrap;
   }
 
-  .mockup-summary-card .summary-value-cluster {
+  .summary-card .summary-value-cluster {
     gap: 6px;
     flex-shrink: 0;
   }
 
-  .mockup-summary-card .summary-value-cluster strong {
+  .summary-card .summary-value-cluster strong {
     font-size: 24px;
     line-height: 1;
   }
 
-  .mockup-summary-card .summary-value-cluster svg,
-  .mockup-summary-card .next-reset-actions svg {
+  .summary-card .summary-value-cluster svg,
+  .summary-card .next-reset-actions svg {
     width: 16px;
     height: 16px;
   }
 
-  .mockup-summary-card .summary-info {
+  .summary-card .summary-info {
     width: 16px;
     height: 16px;
     border-width: 1.5px;

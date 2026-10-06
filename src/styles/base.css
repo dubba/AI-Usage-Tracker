@@ -4,6 +4,17 @@
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 html, body, #root { margin: 0; height: 100%; overflow: hidden; background-color: var(--c-000000); }
 /* Equal-width digits everywhere, so percentages, countdowns and counters do not shift as they change.
    Form controls get their own font from the browser, so they are listed too. */

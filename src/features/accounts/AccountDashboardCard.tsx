@@ -72,6 +72,7 @@ export function AccountDashboardCard({
   const [renameError, setRenameError] = useState<string | null>(null);
   const committingRenameRef = useRef(false);
   const iconButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileMenuId = `account-actions-${account.id}`;
 
   const toggleCollapse = () => {
     // Persist outside the state updater: updaters must be pure (StrictMode runs them twice).
@@ -109,23 +110,53 @@ export function AccountDashboardCard({
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuToggleRef = useRef<HTMLButtonElement>(null);
+
+  const closeMobileMenu = (restoreFocus = false) => {
+    setMobileMenuOpen(false);
+    if (restoreFocus) {
+      // The menu unmounts when it closes, so wait until the toggle is all that's left.
+      window.setTimeout(() => mobileMenuToggleRef.current?.focus(), 0);
+    }
+  };
 
   useEffect(() => {
     if (!mobileMenuOpen) return;
-    const handleClickOutside = (event: MouseEvent) => {
+    const menu = mobileMenuRef.current?.querySelector<HTMLElement>(".mobile-dropdown-menu");
+    const items = () => Array.from(menu?.querySelectorAll<HTMLButtonElement>(".mobile-dropdown-item") ?? []);
+    items().find((item) => !item.disabled)?.focus();
+
+    const handlePointerOutside = (event: Event) => {
       if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
         setMobileMenuOpen(false);
       }
     };
     const handleKeyDown = (event: KeyboardEvent) => {
+      const enabled = items().filter((item) => !item.disabled);
+      const current = enabled.indexOf(document.activeElement as HTMLButtonElement);
       if (event.key === "Escape") {
-        setMobileMenuOpen(false);
+        event.preventDefault();
+        closeMobileMenu(true);
+        return;
+      }
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        if (!enabled.length) return;
+        const next = event.key === "ArrowDown" ? current + 1 : current - 1;
+        enabled[(next + enabled.length) % enabled.length]?.focus();
+        return;
+      }
+      if (event.key === "Home" || event.key === "End") {
+        event.preventDefault();
+        enabled[event.key === "Home" ? 0 : enabled.length - 1]?.focus();
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", handlePointerOutside);
+    document.addEventListener("touchstart", handlePointerOutside);
     document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("mousedown", handlePointerOutside);
+      document.removeEventListener("touchstart", handlePointerOutside);
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [mobileMenuOpen]);
@@ -214,7 +245,6 @@ export function AccountDashboardCard({
                     setLabel(event.target.value);
                     setRenameError(null);
                   }}
-                  onBlur={cancelRename}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       event.preventDefault();
@@ -310,34 +340,36 @@ export function AccountDashboardCard({
            </div>
             <div className={`mobile-actions-dropdown${onMove ? " has-move-menu" : ""}`} ref={mobileMenuRef}>
               <button
+                ref={mobileMenuToggleRef}
                 type="button"
                 className="mobile-dropdown-toggle"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                onClick={() => mobileMenuOpen ? closeMobileMenu(false) : setMobileMenuOpen(true)}
                 aria-expanded={mobileMenuOpen}
                 aria-haspopup="menu"
+                aria-controls={mobileMenuOpen ? mobileMenuId : undefined}
                 aria-label={`More actions for ${displayAccountLabel(account)}`}
               >
                 <ChevronIcon className={mobileMenuOpen ? "open" : ""} />
               </button>
               {mobileMenuOpen ? (
-                <div className="mobile-dropdown-menu">
+                <div className="mobile-dropdown-menu" id={mobileMenuId} role="menu" aria-label={`Actions for ${displayAccountLabel(account)}`}>
                   {onMove ? (
                     <>
-                      <button type="button" className="mobile-dropdown-item move-action" disabled={cardBusy || !canMoveUp} onClick={() => { setMobileMenuOpen(false); requestMove(-1); }}>
+                      <button type="button" role="menuitem" className="mobile-dropdown-item move-action" disabled={cardBusy || !canMoveUp} onClick={() => { closeMobileMenu(false); requestMove(-1); }}>
                         <ArrowUpIcon /> Move up
                       </button>
-                      <button type="button" className="mobile-dropdown-item move-action" disabled={cardBusy || !canMoveDown} onClick={() => { setMobileMenuOpen(false); requestMove(1); }}>
+                      <button type="button" role="menuitem" className="mobile-dropdown-item move-action" disabled={cardBusy || !canMoveDown} onClick={() => { closeMobileMenu(false); requestMove(1); }}>
                         <ArrowDownIcon /> Move down
                       </button>
                     </>
                   ) : null}
-                  <button type="button" className="mobile-dropdown-item mobile-only-item refresh-action" disabled={cardBusy || isGlobalRefresh} onClick={() => { setMobileMenuOpen(false); onRefresh(); }}>
+                  <button type="button" role="menuitem" className="mobile-dropdown-item mobile-only-item refresh-action" disabled={cardBusy || isGlobalRefresh} onClick={() => { closeMobileMenu(false); onRefresh(); }}>
                     <RefreshIcon /> Refresh
                   </button>
-                  <button type="button" className="mobile-dropdown-item mobile-only-item notify-action" disabled={cardBusy} onClick={() => { setMobileMenuOpen(false); onNotifications(); }}>
+                  <button type="button" role="menuitem" className="mobile-dropdown-item mobile-only-item notify-action" disabled={cardBusy} onClick={() => { closeMobileMenu(false); onNotifications(); }}>
                     <BellIcon /> Notifications
                   </button>
-                  <button type="button" className="mobile-dropdown-item mobile-only-item remove-action" disabled={cardBusy} onClick={() => { setMobileMenuOpen(false); onRemove(); }}>
+                  <button type="button" role="menuitem" className="mobile-dropdown-item mobile-only-item remove-action" disabled={cardBusy} onClick={() => { closeMobileMenu(false); onRemove(); }}>
                     <TrashIcon /> Remove
                   </button>
                 </div>
@@ -372,7 +404,14 @@ export function AccountDashboardCard({
                   <span className="metric-divider-line" aria-hidden="true" />
                 </div>
                 <div className="metric-value-row">
-                  <span className="account-metric-track"><span className="tone-neutral" style={{ width: "0%" }} /></span>
+                  <span
+                    className="account-metric-track"
+                    role="progressbar"
+                    aria-label="Quota remaining"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuetext="Unavailable"
+                  ><span className="tone-neutral" style={{ width: "0%" }} /></span>
                   {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
                 </div>
                 <div className="metric-detail-row">

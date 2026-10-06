@@ -60,7 +60,15 @@ export function AccountUsageMetric({
         <span className="metric-divider-line" aria-hidden="true" />
       </div>
       <div className="metric-value-row">
-        <span className="account-metric-track"><span className={`tone-${tone}`} style={{ width: `${width}%` }} /></span>
+        <span
+          className="account-metric-track"
+          role="progressbar"
+          aria-label={`${length ?? window.label} remaining`}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={remaining == null ? undefined : Math.round(remaining)}
+          aria-valuetext={remaining == null ? unavailableLabel : `${Math.round(remaining)}% left`}
+        ><span className={`tone-${tone}`} style={{ width: `${width}%` }} /></span>
         {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
       </div>
       <div className="metric-detail-row">

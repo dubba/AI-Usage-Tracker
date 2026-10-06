@@ -80,14 +80,14 @@ afterEach(() => {
 });
 
 describe("browser sign-in providers", () => {
-  it("starts an OpenAI sign-in, opens the browser, and waits for the callback", async () => {
+  it("starts an Anthropic sign-in, opens the browser, and waits for the callback", async () => {
     render();
     expect(heading()).toBe("Which account do you want to add?");
-    expect(primary().textContent).toBe("Open ChatGPT Login");
+    expect(primary().textContent).toBe("Open Claude Login");
     click(primary());
     await settle();
 
-    expect(api.startLogin).toHaveBeenCalledWith("ChatGPT", "openai", undefined);
+    expect(api.startLogin).toHaveBeenCalledWith("Claude", "anthropic", undefined);
     expect(login.watchLoginAttempt).toHaveBeenCalledWith("att-1");
     expect(openSafeUrl).toHaveBeenCalledWith("https://auth.example/start");
     expect(document.body.textContent).toContain("Waiting for the browser callback…");
@@ -108,7 +108,7 @@ describe("browser sign-in providers", () => {
   it("keeps a name the user typed when switching provider", () => {
     render();
     typeInto(document.getElementById("account-label") as HTMLInputElement, "My work account");
-    chooseProvider("Anthropic Claude");
+    chooseProvider("OpenAI ChatGPT");
     expect((document.getElementById("account-label") as HTMLInputElement).value).toBe("My work account");
   });
 
@@ -157,7 +157,7 @@ describe("browser sign-in providers", () => {
     await settle();
     emit({ attemptId: "att-1", status: "failed" });
     await settle();
-    expect($(".modal-error").textContent).toBe("OpenAI ChatGPT authentication failed.");
+    expect($(".modal-error").textContent).toBe("Anthropic Claude authentication failed.");
   });
 
   it("ignores status updates for a different attempt", async () => {
@@ -398,7 +398,7 @@ describe("resetting", () => {
     mounted.rerender(<AddAccountModal open={false} onClose={onClose} onAdded={onAdded} />);
     expect(document.querySelector(".modal-card")).toBeNull();
     mounted.rerender(<AddAccountModal open onClose={onClose} onAdded={onAdded} />);
-    expect((document.getElementById("account-label") as HTMLInputElement).value).toBe("ChatGPT");
+    expect((document.getElementById("account-label") as HTMLInputElement).value).toBe("Claude");
     expect(document.getElementById("opencode-email")).toBeNull();
   });
 });

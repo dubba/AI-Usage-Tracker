@@ -81,7 +81,7 @@ export function SidebarGroupRow({
             <span className={weekly == null ? "tone-na" : `tone-${toneWeekly}`}>{labelWeekly}</span>
           </span>
         </span>
-        <span className="provider-summary-track"><span className={`tone-${tone}`} style={{ width: `${width}%` }} /></span>
+        <span className="provider-summary-track" aria-hidden="true"><span className={`tone-${tone}`} style={{ width: `${width}%` }} /></span>
       </span>
     </button>
   );
