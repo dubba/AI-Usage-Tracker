@@ -632,9 +632,9 @@ select {
   gap: 2px;
   min-height: 118px;
   padding: 14px 8px 12px;
-  border: 1px solid var(--obsidian-border);
-  border-radius: 8px;
-  background: var(--obsidian-surface-container);
+  border: 1px solid var(--chrome-border);
+  border-radius: 6px;
+  background: var(--obsidian-surface-low, var(--c-1c1b1b));
   color: var(--obsidian-text);
   cursor: pointer;
   transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
@@ -642,7 +642,7 @@ select {
 
 .empty-provider-card:hover {
   border-color: var(--obsidian-purple-strong);
-  background: var(--obsidian-surface-container-high);
+  background: var(--c-28213a);
 }
 
 .empty-provider-card:focus-visible {
@@ -652,7 +652,14 @@ select {
 }
 
 .empty-provider-card:active {
+  background: var(--c-32254e);
+  border-color: var(--obsidian-purple-strong);
   transform: scale(0.98);
+}
+
+.empty-provider-other {
+  border-color: var(--chrome-border) !important;
+  border-radius: 6px !important;
 }
 
 .empty-provider-mark {
