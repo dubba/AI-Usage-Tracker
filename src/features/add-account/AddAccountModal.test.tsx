@@ -87,7 +87,7 @@ describe("browser sign-in providers", () => {
     click(primary());
     await settle();
 
-    expect(api.startLogin).toHaveBeenCalledWith("Claude", "anthropic", undefined);
+    expect(api.startLogin).toHaveBeenCalledWith("Claude", "anthropic", undefined, undefined);
     expect(login.watchLoginAttempt).toHaveBeenCalledWith("att-1");
     expect(openSafeUrl).toHaveBeenCalledWith("https://auth.example/start");
     expect(document.body.textContent).toContain("Waiting for the browser callback…");
@@ -196,7 +196,7 @@ describe("browser sign-in providers", () => {
     expect((document.getElementById("account-label") as HTMLInputElement).value).toBe("Claude 2");
     click(primary());
     await settle();
-    expect(api.startLogin).toHaveBeenCalledWith("Claude 2", "anthropic", undefined);
+    expect(api.startLogin).toHaveBeenCalledWith("Claude 2", "anthropic", undefined, undefined);
   });
 
   it("describes the sign-in differently on Android", () => {
@@ -213,7 +213,7 @@ describe("Grok", () => {
     expect(primary().textContent).toBe("Open Grok Login");
     click(primary());
     await settle();
-    expect(api.startLogin).toHaveBeenCalledWith("Grok", "grok", undefined);
+    expect(api.startLogin).toHaveBeenCalledWith("Grok", "grok", undefined, undefined);
     expect(openSafeUrl).not.toHaveBeenCalled();
     expect(document.body.textContent).toContain("Sign in to Grok in the private window.");
     expect(primary().textContent).toBe("Waiting for Grok…");
@@ -230,7 +230,7 @@ describe("Grok", () => {
     expect(primary().disabled).toBe(false);
     click(primary());
     await settle();
-    expect(api.addGrokAccount).toHaveBeenCalledWith("Grok", "sso=abc");
+    expect(api.addGrokAccount).toHaveBeenCalledWith("Grok", "sso=abc", undefined);
     expect(onAdded).toHaveBeenCalledWith(ACCOUNT);
     expect(api.startLogin).not.toHaveBeenCalled();
   });
@@ -265,7 +265,7 @@ describe("OpenCode Go", () => {
     typeInto($("#opencode-email"), " me@example.com ");
     click(primary());
     await settle();
-    expect(api.startLogin).toHaveBeenCalledWith("OpenCode Go", "opencode_go", "me@example.com");
+    expect(api.startLogin).toHaveBeenCalledWith("OpenCode Go", "opencode_go", "me@example.com", undefined);
     expect(openSafeUrl).not.toHaveBeenCalled();
     expect(document.body.textContent).toContain("Sign in to OpenCode and select Go from the sidebar.");
     expect(primary().textContent).toBe("Waiting for OpenCode…");
@@ -282,7 +282,7 @@ describe("OpenCode Go", () => {
     typeInto($("#auth-cookie"), " cookie ");
     click(primary());
     await settle();
-    expect(api.addOpenCodeGoAccount).toHaveBeenCalledWith("OpenCode Go", "ws-1", "cookie", "me@example.com");
+    expect(api.addOpenCodeGoAccount).toHaveBeenCalledWith("OpenCode Go", "ws-1", "cookie", "me@example.com", undefined);
     expect(onAdded).toHaveBeenCalledWith(ACCOUNT);
   });
 

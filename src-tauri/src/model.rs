@@ -358,13 +358,11 @@ pub struct PublicUsageResponse {
     pub accounts: Vec<PublicUsageAccount>,
 }
 
-#[cfg(test)]
 #[derive(Clone, Debug)]
 pub struct TokenClaims {
     pub email: Option<String>,
     pub account_id: Option<String>,
     pub plan: Option<String>,
-    pub expires_at: Option<i64>,
 }
 
 pub fn now_rfc3339() -> String {

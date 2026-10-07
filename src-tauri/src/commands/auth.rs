@@ -17,6 +17,7 @@ pub async fn start_login(
     label: String,
     provider: String,
     email: Option<String>,
+    reconnect_account_id: Option<String>,
 ) -> Result<LoginStart, String> {
     let provider = Provider::from_str(&provider)?;
     let email = limits::normalize_optional_email(email)?;
@@ -30,11 +31,18 @@ pub async fn start_login(
         return Err("Google AI Studio setup begins with an API key in Add Account.".into());
     }
     if provider == Provider::OpencodeGo {
-        opencode_login::start_login(app, state.inner().clone(), label, email).await
+        opencode_login::start_login(
+            app,
+            state.inner().clone(),
+            label,
+            email,
+            reconnect_account_id,
+        )
+        .await
     } else if provider == Provider::Grok {
-        grok_login::start_login(state.inner().clone(), label).await
+        grok_login::start_login(state.inner().clone(), label, reconnect_account_id).await
     } else {
-        oauth::start_login(state.inner().clone(), label, provider).await
+        oauth::start_login(state.inner().clone(), label, provider, reconnect_account_id).await
     }
 }
 
@@ -88,13 +96,20 @@ pub async fn add_grok_account(
     state: State<'_, Arc<AppState>>,
     label: String,
     cookie_header: String,
+    reconnect_account_id: Option<String>,
 ) -> Result<Account, String> {
     let label = if label.trim().is_empty() {
         Provider::Grok.display_name().to_string()
     } else {
         validate_label(&label)?
     };
-    grok_login::add_account(state.inner().clone(), label, cookie_header).await
+    grok_login::add_account(
+        state.inner().clone(),
+        label,
+        cookie_header,
+        reconnect_account_id,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -104,6 +119,7 @@ pub async fn add_opencode_go_account(
     workspace_id: String,
     auth_cookie: String,
     email: Option<String>,
+    reconnect_account_id: Option<String>,
 ) -> Result<Account, String> {
     let label = if label.trim().is_empty() {
         Provider::OpencodeGo.display_name().to_string()
@@ -117,6 +133,7 @@ pub async fn add_opencode_go_account(
         workspace_id,
         auth_cookie,
         email,
+        reconnect_account_id,
     )
     .await
 }

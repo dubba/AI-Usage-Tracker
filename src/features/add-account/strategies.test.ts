@@ -112,7 +112,7 @@ describe("Grok", () => {
   it("sends the trimmed cookie when connecting manually", async () => {
     api.addGrokAccount.mockResolvedValue({ id: "g" });
     await strategy.connectDirect!(draft("grok", { grokCookie: " sso=1 " }), "My Grok");
-    expect(api.addGrokAccount).toHaveBeenCalledWith("My Grok", "sso=1");
+    expect(api.addGrokAccount).toHaveBeenCalledWith("My Grok", "sso=1", undefined);
   });
 });
 
@@ -149,7 +149,7 @@ describe("OpenCode Go", () => {
       draft("opencode_go", { workspaceId: " ws ", authCookie: " c ", email: " me@example.com " }),
       "Go",
     );
-    expect(api.addOpenCodeGoAccount).toHaveBeenCalledWith("Go", "ws", "c", "me@example.com");
+    expect(api.addOpenCodeGoAccount).toHaveBeenCalledWith("Go", "ws", "c", "me@example.com", undefined);
   });
 
   it("labels the button for each phase", () => {

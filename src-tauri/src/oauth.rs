@@ -13,7 +13,6 @@ use axum::{
     routing::get,
     Router,
 };
-#[cfg(test)]
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use chrono::{Duration, Utc};
 use parking_lot::RwLock;
@@ -44,6 +43,7 @@ struct LoginContext {
     app: Arc<AppState>,
     attempt_id: String,
     label: String,
+    reconnect_account_id: Option<String>,
     provider: Provider,
     verifier: String,
     expected_state: String,
@@ -69,6 +69,7 @@ pub async fn start_login(
     app: Arc<AppState>,
     label: String,
     provider: Provider,
+    reconnect_account_id: Option<String>,
 ) -> Result<LoginStart, String> {
     if matches!(provider, Provider::OpencodeGo | Provider::Grok) {
         return Err(format!(
@@ -137,6 +138,7 @@ pub async fn start_login(
         app: app.clone(),
         attempt_id: attempt_id.clone(),
         label,
+        reconnect_account_id,
         provider,
         verifier,
         expected_state,
@@ -353,6 +355,7 @@ pub async fn login_status(app: &Arc<AppState>, attempt_id: &str) -> Result<Login
                 app: app.clone(),
                 attempt_id: exchange.attempt_id.clone(),
                 label: exchange.label.clone(),
+                reconnect_account_id: exchange.reconnect_account_id.clone(),
                 provider: exchange.provider.clone(),
                 verifier: exchange.verifier.clone(),
                 expected_state: exchange.expected_state.clone(),
@@ -515,6 +518,7 @@ async fn handle_callback(
                         attempt_id: context.attempt_id.clone(),
                         provider: context.provider.clone(),
                         label: context.label.clone(),
+                        reconnect_account_id: context.reconnect_account_id.clone(),
                         code,
                         verifier: context.verifier.clone(),
                         expected_state: context.expected_state.clone(),
@@ -537,6 +541,16 @@ async fn handle_callback(
             }
         }
     }
+}
+
+/// Picks the stored account a finished sign-in should update.
+fn find_account_to_update(context: &LoginContext, identity: &ProviderIdentity) -> Option<Account> {
+    context.app.store.account_to_update(
+        &context.provider,
+        context.reconnect_account_id.as_deref(),
+        identity.account_id.as_deref(),
+        identity.email.as_deref(),
+    )
 }
 
 async fn complete_exchange(context: &LoginContext, code: &str) -> ExchangeResult<Account> {
@@ -570,11 +584,7 @@ async fn complete_exchange(context: &LoginContext, code: &str) -> ExchangeResult
     if !is_waiting(context.app.as_ref(), &context.attempt_id) {
         return Err("The login attempt was canceled.".into());
     }
-    let duplicate = context.app.store.find_duplicate(
-        &context.provider,
-        identity.account_id.as_deref(),
-        identity.email.as_deref(),
-    );
+    let duplicate = find_account_to_update(context, &identity);
     let now = now_rfc3339();
     let label = if context.label.trim().is_empty() {
         identity
@@ -708,7 +718,12 @@ async fn exchange_openai(
     )
     .await
     .unwrap_or(Value::Null);
-    let identity = identity_from_userinfo(&userinfo);
+    let mut identity = identity_from_userinfo(&userinfo);
+    if let Some(claims) = tokens.id_token.as_deref().and_then(decode_claims) {
+        identity.email = identity.email.or(claims.email);
+        identity.account_id = identity.account_id.or(claims.account_id);
+        identity.plan = identity.plan.or(claims.plan);
+    }
     Ok((
         ProviderSecret::Openai(OAuthSecret {
             access_token: tokens.access_token,
@@ -1040,11 +1055,9 @@ fn identity_from_userinfo(value: &Value) -> ProviderIdentity {
     }
 }
 
-#[cfg(test)]
 use crate::model::TokenClaims;
 
-#[cfg(test)]
-pub fn decode_claims(token: &str) -> Option<TokenClaims> {
+fn decode_claims(token: &str) -> Option<TokenClaims> {
     let segment = token.split('.').nth(1)?;
     let decoded = URL_SAFE_NO_PAD.decode(segment).ok()?;
     let value: Value = serde_json::from_slice(&decoded).ok()?;
@@ -1057,15 +1070,10 @@ pub fn decode_claims(token: &str) -> Option<TokenClaims> {
     let plan = auth
         .and_then(|value| string_at(value, "chatgpt_plan_type"))
         .or_else(|| string_at(&value, "chatgpt_plan_type"));
-    let expires_at = value
-        .get("exp")
-        .and_then(Value::as_i64)
-        .map(|seconds| seconds * 1000);
     Some(TokenClaims {
         email,
         account_id,
         plan,
-        expires_at,
     })
 }
 
@@ -1086,7 +1094,6 @@ fn find_string(value: &Value, keys: &[&str]) -> Option<String> {
     }
 }
 
-#[cfg(test)]
 fn string_at(value: &Value, key: &str) -> Option<String> {
     value.get(key).and_then(Value::as_str).map(str::to_string)
 }
@@ -1131,7 +1138,107 @@ mod tests {
         assert_eq!(claims.email.as_deref(), Some("person@example.com"));
         assert_eq!(claims.account_id.as_deref(), Some("acct_123"));
         assert_eq!(claims.plan.as_deref(), Some("plus"));
-        assert_eq!(claims.expires_at, Some(2_000_000_000_000));
+    }
+
+    fn reconnect_context(app: Arc<AppState>, target: Option<&str>) -> LoginContext {
+        LoginContext {
+            app,
+            attempt_id: "attempt".into(),
+            label: "Work".into(),
+            reconnect_account_id: target.map(str::to_string),
+            provider: Provider::Openai,
+            verifier: "v".into(),
+            expected_state: "s".into(),
+            redirect_uri: "http://localhost:1455/auth/callback".into(),
+        }
+    }
+
+    fn stored_openai(app: &AppState, email: Option<&str>, account_id: Option<&str>) -> Account {
+        let now = now_rfc3339();
+        app.store
+            .upsert(Account {
+                id: "existing".into(),
+                label: "Work".into(),
+                provider: Provider::Openai,
+                email: email.map(str::to_string),
+                provider_account_id: account_id.map(str::to_string),
+                chatgpt_account_id: account_id.map(str::to_string),
+                plan: None,
+                created_at: now.clone(),
+                updated_at: now,
+                last_usage: None,
+                last_error: Some("expired".into()),
+                auth_required: true,
+            })
+            .unwrap()
+    }
+
+    #[test]
+    fn reconnect_updates_the_account_even_when_sign_in_reports_a_different_id() {
+        let temp = tempfile::tempdir().unwrap();
+        let app = Arc::new(AppState::new(temp.path().to_path_buf(), "t".into()).unwrap());
+        stored_openai(&app, Some("me@example.com"), Some("acct_old"));
+        let context = reconnect_context(app, Some("existing"));
+        let identity = ProviderIdentity {
+            email: Some("ME@example.com".into()),
+            account_id: Some("user-sub".into()),
+            plan: None,
+        };
+        assert_eq!(
+            find_account_to_update(&context, &identity).map(|a| a.id),
+            Some("existing".into())
+        );
+    }
+
+    #[test]
+    fn reconnect_updates_the_account_when_sign_in_reports_no_identity() {
+        let temp = tempfile::tempdir().unwrap();
+        let app = Arc::new(AppState::new(temp.path().to_path_buf(), "t".into()).unwrap());
+        stored_openai(&app, Some("me@example.com"), Some("acct_old"));
+        let context = reconnect_context(app, Some("existing"));
+        assert_eq!(
+            find_account_to_update(&context, &ProviderIdentity::default()).map(|a| a.id),
+            Some("existing".into())
+        );
+    }
+
+    #[test]
+    fn reconnect_does_not_overwrite_an_account_when_a_different_person_signs_in() {
+        let temp = tempfile::tempdir().unwrap();
+        let app = Arc::new(AppState::new(temp.path().to_path_buf(), "t".into()).unwrap());
+        stored_openai(&app, Some("me@example.com"), Some("acct_old"));
+        let context = reconnect_context(app, Some("existing"));
+        let identity = ProviderIdentity {
+            email: Some("other@example.com".into()),
+            account_id: Some("acct_other".into()),
+            plan: None,
+        };
+        assert!(find_account_to_update(&context, &identity).is_none());
+    }
+
+    #[test]
+    fn reconnect_without_a_stored_email_rejects_a_conflicting_account_id() {
+        let temp = tempfile::tempdir().unwrap();
+        let app = Arc::new(AppState::new(temp.path().to_path_buf(), "t".into()).unwrap());
+        stored_openai(&app, None, Some("acct_old"));
+        let context = reconnect_context(app, Some("existing"));
+        let identity = ProviderIdentity {
+            email: Some("other@example.com".into()),
+            account_id: Some("acct_other".into()),
+            plan: None,
+        };
+        assert!(find_account_to_update(&context, &identity).is_none());
+    }
+
+    #[test]
+    fn id_token_claims_fill_identity_gaps() {
+        let payload = serde_json::json!({
+            "email": "person@example.com",
+            "https://api.openai.com/auth": { "chatgpt_account_id": "acct_123" }
+        });
+        let token = format!("x.{}.y", URL_SAFE_NO_PAD.encode(payload.to_string()));
+        let claims = decode_claims(&token).unwrap();
+        assert_eq!(claims.account_id.as_deref(), Some("acct_123"));
     }
 
     #[test]
@@ -1455,6 +1562,7 @@ mod tests {
             attempt_id: "attempt".into(),
             provider: Provider::GoogleAiStudio,
             label: "Test".into(),
+            reconnect_account_id: None,
             code: "single-use-code".into(),
             verifier: "verifier".into(),
             expected_state: "state".into(),
@@ -1476,6 +1584,7 @@ mod tests {
             attempt_id: "attempt".into(),
             provider: Provider::Openai,
             label: "Test".into(),
+            reconnect_account_id: None,
             code: "single-use-code".into(),
             verifier: "verifier".into(),
             expected_state: "state".into(),
@@ -1502,7 +1611,7 @@ mod tests {
                 selected_project_id: None,
             });
 
-            let result = start_login(app.clone(), "Test".into(), Provider::Openai).await;
+            let result = start_login(app.clone(), "Test".into(), Provider::Openai, None).await;
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),

@@ -37,6 +37,7 @@ pub struct PendingAuthExchange {
     pub attempt_id: String,
     pub provider: crate::model::Provider,
     pub label: String,
+    pub reconnect_account_id: Option<String>,
     pub code: String,
     pub verifier: String,
     pub expected_state: String,

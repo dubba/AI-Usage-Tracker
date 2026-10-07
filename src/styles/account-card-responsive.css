@@ -64,6 +64,12 @@
   height: 15px;
 }
 
+/* The bell and trash glyphs are drawn off-center in the shared 24px viewBox
+   (the bell's body sits high, the bin sits left), so grid centering alone leaves
+   them looking off. The refresh icon is left alone because it spins. */
+.provider-account-card .account-card-name-actions .notify-action svg { transform: translateY(1px); }
+.provider-account-card .account-card-name-actions .remove-action svg { transform: translateX(0.5px); }
+
 .provider-account-card .account-card-metrics {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -266,7 +272,6 @@
   flex-shrink: 0;
   display: inline-block;
   position: relative;
-  top: 1px;
   animation: live-pulse 2s ease-in-out infinite;
 }
 
@@ -336,11 +341,13 @@
   height: 16px;
   color: var(--obsidian-purple);
   transition: color 150ms ease, transform 200ms ease;
-  transform: rotate(90deg);
+  /* The chevron points right and is rotated to face down, which puts its visual
+     weight right of center. The sideways shift brings it back to the middle. */
+  transform: translateX(-1px) rotate(90deg);
 }
 
 .mobile-dropdown-toggle svg.open {
-  transform: rotate(-90deg);
+  transform: translateX(-1px) rotate(-90deg);
 }
 
 .mobile-dropdown-menu {
@@ -423,10 +430,7 @@
     align-items: center;
     gap: 8px;
   }
-  /* On desktop the menu only holds Move up / Move down; the other actions stay as icons. */
-  .mobile-actions-dropdown.has-move-menu {
-    display: block;
-  }
+  /* On desktop, Move up / Move down are icon buttons, so the menu is never needed. */
   .mobile-dropdown-item.mobile-only-item {
     display: none;
   }
@@ -723,15 +727,11 @@
 }
 
 /*
- * Desktop delete button: quieter than Refresh and Notifications because it is
- * the destructive action. Dim red outline at rest, full red on hover or focus,
- * and extra space before it (it is the last button) so it is not clicked by accident next to its
- * neighbors.
+ * Extra space before the delete button (it is the last one) so it is not clicked
+ * by accident next to its neighbors. Its color matches the Remove item in the
+ * mobile dropdown menu.
  */
 .account-card-name-actions .account-card-action.remove-action {
-  color: rgba(255, 133, 133, 0.7);
-  border-color: rgba(255, 133, 133, 0.22);
-  background: transparent;
   margin-left: 10px;
 }
 

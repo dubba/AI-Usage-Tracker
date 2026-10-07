@@ -295,6 +295,41 @@ impl AccountStore {
             })
             .cloned()
     }
+
+    /// The stored account a finished reconnect should update. The account the user asked to
+    /// reconnect wins, unless the sign-in proves it belongs to someone else; otherwise the
+    /// provider identity decides, the same way a fresh connection does.
+    pub fn account_to_update(
+        &self,
+        provider: &Provider,
+        reconnect_account_id: Option<&str>,
+        account_id: Option<&str>,
+        email: Option<&str>,
+    ) -> Option<Account> {
+        let target = reconnect_account_id
+            .and_then(|id| self.get(id))
+            .filter(|account| &account.provider == provider)
+            .filter(|account| {
+                let known = account.effective_account_id();
+                let signed_in = account_id.filter(|value| !value.is_empty());
+                let ids_conflict = matches!((known, signed_in), (Some(a), Some(b)) if a != b);
+                let emails_conflict = matches!(
+                    (account.email.as_deref(), email),
+                    (Some(a), Some(b))
+                        if !a.is_empty() && !b.is_empty() && !a.eq_ignore_ascii_case(b)
+                );
+                // A different email is definitive. An id on its own can be a different
+                // identifier scheme from the one stored earlier, so it only counts when
+                // neither side has an email to compare.
+                let email_known = account
+                    .email
+                    .as_deref()
+                    .is_some_and(|value| !value.is_empty())
+                    && email.is_some_and(|value| !value.is_empty());
+                !emails_conflict && (email_known || !ids_conflict)
+            });
+        target.or_else(|| self.find_duplicate(provider, account_id, email))
+    }
 }
 
 pub(crate) fn merge_account(existing: &mut Account, incoming: Account) {

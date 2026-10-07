@@ -104,6 +104,7 @@ pub async fn start_login(
     state: Arc<AppState>,
     label: String,
     email: Option<String>,
+    reconnect_account_id: Option<String>,
 ) -> Result<LoginStart, String> {
     let attempt_id = Uuid::new_v4().to_string();
     {
@@ -129,7 +130,16 @@ pub async fn start_login(
     #[cfg(mobile)]
     {
         let expires_at = (Utc::now() + Duration::minutes(LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
-        return start_mobile_login(app, state, attempt_id, label, email, expires_at).await;
+        return start_mobile_login(
+            app,
+            state,
+            attempt_id,
+            label,
+            email,
+            reconnect_account_id,
+            expires_at,
+        )
+        .await;
     }
 
     #[cfg(desktop)]
@@ -159,6 +169,7 @@ pub async fn start_login(
         let page_attempt = attempt_id.clone();
         let page_label = label.clone();
         let page_email = email.clone();
+        let page_reconnect = reconnect_account_id.clone();
         let page_capture_started = capture_started.clone();
 
         #[allow(unused_mut)]
@@ -202,6 +213,7 @@ pub async fn start_login(
         let completion_attempt = page_attempt.clone();
         let completion_label = page_label.clone();
         let completion_email = page_email.clone();
+        let completion_reconnect = page_reconnect.clone();
         let completion_capture_started = page_capture_started.clone();
 
         std::thread::spawn(move || {
@@ -217,6 +229,7 @@ pub async fn start_login(
                             workspace_id,
                             auth_cookie,
                             completion_email,
+                            completion_reconnect,
                             completion_window,
                         )
                         .await;
@@ -287,6 +300,7 @@ pub async fn add_account(
     workspace_id: String,
     auth_cookie: String,
     email: Option<String>,
+    reconnect_account_id: Option<String>,
 ) -> Result<Account, String> {
     let workspace_id = workspace_id.trim();
     if !providers::opencode_go::is_valid_workspace_id(workspace_id) {
@@ -303,9 +317,12 @@ pub async fn add_account(
     }
 
     let provider = Provider::OpencodeGo;
-    let duplicate = state
-        .store
-        .find_duplicate(&provider, Some(workspace_id), None);
+    let duplicate = state.store.account_to_update(
+        &provider,
+        reconnect_account_id.as_deref(),
+        Some(workspace_id),
+        email.as_deref(),
+    );
     let now = now_rfc3339();
     let account = Account {
         id: duplicate
@@ -350,6 +367,7 @@ pub async fn add_account(
     usage::refresh_account(state, &account.id).await
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn complete_login(
     state: Arc<AppState>,
     attempt_id: String,
@@ -357,13 +375,23 @@ async fn complete_login(
     workspace_id: String,
     auth_cookie: String,
     email: Option<String>,
+    reconnect_account_id: Option<String>,
     window: WebviewWindow,
 ) {
     if !is_waiting(&state, &attempt_id) {
         return;
     }
 
-    match add_account(state.clone(), label, workspace_id, auth_cookie, email).await {
+    match add_account(
+        state.clone(),
+        label,
+        workspace_id,
+        auth_cookie,
+        email,
+        reconnect_account_id,
+    )
+    .await
+    {
         Ok(account) => {
             let completed = {
                 let mut pending = state.pending_login.write();
@@ -401,6 +429,7 @@ async fn start_mobile_login(
     attempt_id: String,
     label: String,
     email: Option<String>,
+    reconnect_account_id: Option<String>,
     expires_at: String,
 ) -> Result<LoginStart, String> {
     let login_url = match Url::parse(LOGIN_URL) {
@@ -434,6 +463,7 @@ async fn start_mobile_login(
     let page_attempt = attempt_id.clone();
     let page_label = label;
     let page_email = email;
+    let page_reconnect = reconnect_account_id;
     let page_window = window;
     if let Err(error) = crate::mobile_auth::open_in_main_webview(
         app.clone(),
@@ -456,6 +486,7 @@ async fn start_mobile_login(
             let completion_attempt = page_attempt.clone();
             let completion_label = page_label.clone();
             let completion_email = page_email.clone();
+            let completion_reconnect = page_reconnect.clone();
             let completion_capture_started = capture_started.clone();
             std::thread::spawn(move || {
                 let cookie_result = read_auth_cookie_with_retry(&cookie_window);
@@ -469,6 +500,7 @@ async fn start_mobile_login(
                                 workspace_id,
                                 auth_cookie,
                                 completion_email,
+                                completion_reconnect,
                                 completion_window,
                             )
                             .await;

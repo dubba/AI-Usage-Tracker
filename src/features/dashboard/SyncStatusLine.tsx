@@ -1,7 +1,7 @@
 import { isRefreshKey, type BusyKeys } from "../../shared/lib/busy";
 import { useClock } from "../../shared/hooks/useClock";
 import { computeSyncStatus } from "./sync-status";
-import { SettingsIcon } from "../../shared/ui/icons";
+import { RefreshIcon, SettingsIcon } from "../../shared/ui/icons";
 import type { Account } from "../../types";
 
 /** When the numbers on screen were last refreshed, flagging accounts that have been left behind. */
@@ -9,12 +9,14 @@ export function SyncStatusLine({
   accounts,
   refreshMinutes,
   busy,
+  onRefreshAll,
   onOpenSettings,
   settingsActive,
 }: {
   accounts: Account[];
   refreshMinutes: number;
   busy: BusyKeys;
+  onRefreshAll?: () => void;
   onOpenSettings?: () => void;
   settingsActive?: boolean;
 }) {
@@ -29,6 +31,18 @@ export function SyncStatusLine({
         {!syncing && detail ? <span className="sidebar-sync-status-detail">{detail}</span> : null}
       </div>
       <div className="sidebar-sync-status-actions">
+        {onRefreshAll ? (
+          <button
+            type="button"
+            className={`sidebar-settings-btn sidebar-refresh-btn ${syncing ? "spinning" : ""}`}
+            onClick={onRefreshAll}
+            disabled={syncing}
+            aria-label="Refresh all accounts"
+            data-tooltip="Refresh all accounts"
+          >
+            <RefreshIcon />
+          </button>
+        ) : null}
         {onOpenSettings ? (
           <button
             type="button"

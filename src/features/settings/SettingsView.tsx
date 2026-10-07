@@ -14,7 +14,7 @@ import type {
   UpdateBusy,
 } from "../../types";
 import { FALLBACK_APP_VERSION, SIDEBAR_ID } from "../../shared/lib/constants";
-import { isMobileDevice } from "../../shared/lib/platform";
+import { isIOS, isMobileDevice } from "../../shared/lib/platform";
 import { SHORTCUTS, isMacPlatform, shortcutLabel } from "../shortcuts/shortcuts";
 import { UpdateProgressBar, updateInstallLabel } from "./UpdateProgressBar";
 import { useThemePreference } from "../../shared/hooks/useThemePreference";
@@ -213,7 +213,7 @@ export function SettingsView({
                   disabled={updateBusy !== null}
                   onClick={onInstallUpdate}
                 >
-                  {updateInstallLabel(updateBusy)}
+                  {updateInstallLabel(updateBusy, isIOS())}
                 </button>
               ) : (
                 <button

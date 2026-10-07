@@ -143,7 +143,7 @@ export default function App() {
   } = useAccountActions({ load, setSnapshot, busy: busyKeys, reportError, clearError });
 
   const openAdd = useCallback((account?: Account, provider?: Provider) => {
-    dispatchModal({ type: "open", modal: { kind: "add", label: account?.label ?? "", provider: account?.provider ?? provider } });
+    dispatchModal({ type: "open", modal: { kind: "add", label: account?.label ?? "", provider: account?.provider ?? provider, reconnectAccountId: account?.id } });
   }, []);
 
   const openNewBucket = useCallback((provider?: Provider | null) => {
@@ -380,7 +380,6 @@ export default function App() {
         </div>
 
         <div className="provider-sidebar-heading">
-          <span>Accounts</span>
           <div className="provider-sidebar-heading-actions">
             <button
               type="button"
@@ -437,6 +436,7 @@ export default function App() {
           accounts={accounts}
           refreshMinutes={appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES}
           busy={busy}
+          onRefreshAll={() => void refreshAll()}
           onOpenSettings={() => {
             setSection("settings");
             setSidebarOpen(false);
@@ -472,6 +472,7 @@ export default function App() {
         open={addOpen}
         initialLabel={addModal?.label ?? ""}
         initialProvider={addModal?.provider}
+        reconnectAccountId={addModal?.reconnectAccountId}
         onClose={() => dispatchModal({ type: "close", kind: "add" })}
         onAdded={async (account) => {
           dispatchModal({ type: "close", kind: "add" });

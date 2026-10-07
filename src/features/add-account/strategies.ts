@@ -76,7 +76,7 @@ export interface ProviderStrategy {
   /** Email passed to the sign-in start, for providers that need one. */
   signInEmail(draft: AddAccountDraft): string | undefined;
   /** Sends the form to the backend for the `manual` and `api-key` modes. */
-  connectDirect?(draft: AddAccountDraft, name: string): Promise<Account>;
+  connectDirect?(draft: AddAccountDraft, name: string, reconnectAccountId?: string): Promise<Account>;
   /** Label for the primary button. */
   actionLabel(draft: AddAccountDraft, busy: boolean): string;
 }
@@ -111,8 +111,14 @@ const opencodeGo: ProviderStrategy = {
   waitingText: (backendMessage) => backendMessage ?? "Waiting for the OpenCode Go page…",
   opensBrowser: false,
   signInEmail: (draft) => draft.email.trim() || undefined,
-  connectDirect: (draft, name) =>
-    bridgeApi.addOpenCodeGoAccount(name, draft.workspaceId.trim(), draft.authCookie.trim(), draft.email.trim() || undefined),
+  connectDirect: (draft, name, reconnectAccountId) =>
+    bridgeApi.addOpenCodeGoAccount(
+      name,
+      draft.workspaceId.trim(),
+      draft.authCookie.trim(),
+      draft.email.trim() || undefined,
+      reconnectAccountId,
+    ),
   actionLabel: (draft, busy) =>
     busy ? "Waiting for OpenCode…" : draft.advancedManual ? "Connect Manually" : "Open OpenCode Login",
 };
@@ -130,7 +136,8 @@ const grok: ProviderStrategy = {
   signInStartMessage: "Sign in to Grok in the private window.",
   waitingText: (backendMessage) => backendMessage ?? "Waiting for the Grok login…",
   opensBrowser: false,
-  connectDirect: (draft, name) => bridgeApi.addGrokAccount(name, draft.grokCookie.trim()),
+  connectDirect: (draft, name, reconnectAccountId) =>
+    bridgeApi.addGrokAccount(name, draft.grokCookie.trim(), reconnectAccountId),
   actionLabel: (draft, busy) =>
     busy
       ? draft.advancedManual ? "Adding Account…" : "Waiting for Grok…"

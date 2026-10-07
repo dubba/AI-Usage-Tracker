@@ -21,12 +21,33 @@ export const bridgeApi = {
   retryStartup: () => invoke<StartupIssue | null>("retry_startup"),
   snapshot: () => invoke<DashboardSnapshot>("get_dashboard_snapshot"),
   bridgeInfo: () => invoke<BridgeInfo>("get_bridge_info"),
-  startLogin: (label: string, provider: Provider, email?: string) =>
-    invoke<LoginStart>("start_login", { label, provider, email: email ?? null }),
-  addOpenCodeGoAccount: (label: string, workspaceId: string, authCookie: string, email?: string) =>
-    invoke<Account>("add_opencode_go_account", { label, workspaceId, authCookie, email }),
-  addGrokAccount: (label: string, cookieHeader: string) =>
-    invoke<Account>("add_grok_account", { label, cookieHeader }),
+  startLogin: (label: string, provider: Provider, email?: string, reconnectAccountId?: string) =>
+    invoke<LoginStart>("start_login", {
+      label,
+      provider,
+      email: email ?? null,
+      reconnectAccountId: reconnectAccountId ?? null,
+    }),
+  addOpenCodeGoAccount: (
+    label: string,
+    workspaceId: string,
+    authCookie: string,
+    email?: string,
+    reconnectAccountId?: string,
+  ) =>
+    invoke<Account>("add_opencode_go_account", {
+      label,
+      workspaceId,
+      authCookie,
+      email,
+      reconnectAccountId: reconnectAccountId ?? null,
+    }),
+  addGrokAccount: (label: string, cookieHeader: string, reconnectAccountId?: string) =>
+    invoke<Account>("add_grok_account", {
+      label,
+      cookieHeader,
+      reconnectAccountId: reconnectAccountId ?? null,
+    }),
   testGoogleAiStudioKey: (apiKey: string) =>
     invoke<Account>("probe_google_ai_studio_key", { apiKey }),
   addGoogleAiStudioAccount: (label: string, apiKey: string, selectedModels: string[]) =>

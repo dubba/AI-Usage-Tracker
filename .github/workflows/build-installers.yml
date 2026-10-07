@@ -1,7 +1,24 @@
-name: Publish desktop release
+name: Publish all platform releases
 
 on:
   workflow_dispatch:
+    inputs:
+      force:
+        description: "Force build even if no new commits exist"
+        type: boolean
+        required: false
+        default: false
+      include_apple:
+        description: "Include macOS and iOS builds (10x runner minutes)"
+        type: boolean
+        required: false
+        default: true
+  # Thursdays & Sundays @ 11:59 PM EST
+  # Thursday 11:59 PM EST -> Friday 04:59 UTC (Windows & Android only)
+  # Sunday 11:59 PM EST -> Monday 04:59 UTC (All platforms including macOS & iOS)
+  schedule:
+    - cron: '59 4 * * 5' # Thursdays @ 11:59 PM EST (Friday 04:59 UTC)
+    - cron: '59 4 * * 1' # Sundays @ 11:59 PM EST (Monday 04:59 UTC)
   push:
     branches: [main]
     paths:
@@ -11,26 +28,108 @@ permissions:
   contents: write
 
 jobs:
-  publish:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            args: ""
-            # MSI cannot encode a non-numeric pre-release such as "-beta.1",
-            # so beta builds ship only the NSIS installer (the one in-app
-            # updates use anyway).
-            beta_args: "--bundles nsis"
-            apple_signing_identity: ""
-          - os: macos-15
-            args: ""
-            beta_args: ""
-            apple_signing_identity: "-"
-    runs-on: ${{ matrix.os }}
+  check-changes:
+    name: Check commits and determine target platforms
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+      build_apple: ${{ steps.check.outputs.build_apple }}
+      version: ${{ steps.version.outputs.version }}
+      is_beta: ${{ steps.version.outputs.is_beta }}
     steps:
-      # Third-party actions are pinned to immutable commit SHAs (moving tag in
-      # comment) so a compromised tag cannot inject release-signing CI code.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0 # fetch all tags and history to compare
+      - name: Inspect commits and schedule day
+        id: check
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FORCE_BUILD: ${{ inputs.force }}
+          INPUT_APPLE: ${{ inputs.include_apple }}
+        run: |
+          set -euo pipefail
+
+          # Determine whether this run includes expensive Apple runners (10x minutes).
+          # In UTC:
+          # Thursday 11:59 PM EST is Friday 04:59 UTC (Day 5).
+          # Sunday 11:59 PM EST is Monday 04:59 UTC (Day 1).
+          DOW_UTC=$(date -u +%u)
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            BUILD_APPLE="${INPUT_APPLE:-true}"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            BUILD_APPLE="true"
+          else
+            # On schedule: only build Apple platforms on Sunday nights (Monday UTC)
+            if [ "$DOW_UTC" = "1" ]; then
+              BUILD_APPLE="true"
+            else
+              BUILD_APPLE="false"
+            fi
+          fi
+
+          echo "build_apple=$BUILD_APPLE" >> "$GITHUB_OUTPUT"
+          echo "Target platforms will include macOS/iOS: $BUILD_APPLE"
+
+          if [ "${FORCE_BUILD:-false}" = "true" ]; then
+            echo "Build manually forced via workflow_dispatch input."
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "Build triggered by explicit push to .github/release-trigger."
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          LATEST_TAG=$(gh release view --json tagName -q .tagName 2>/dev/null || true)
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No previous release found in repository; proceeding with build."
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          RELEASE_COMMIT=$(git rev-list -n 1 "$LATEST_TAG" 2>/dev/null || true)
+          HEAD_COMMIT=$(git rev-parse HEAD)
+
+          echo "Latest release tag: $LATEST_TAG ($RELEASE_COMMIT)"
+          echo "Current HEAD commit: $HEAD_COMMIT"
+
+          if [ -n "$RELEASE_COMMIT" ] && [ "$RELEASE_COMMIT" = "$HEAD_COMMIT" ]; then
+            echo "No new commits since $LATEST_TAG. Skipping build to save credits."
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          COMMITS_COUNT=$(git rev-list --count "${LATEST_TAG}..HEAD" 2>/dev/null || echo "1")
+          if [ "$COMMITS_COUNT" -eq 0 ]; then
+            echo "Zero commits between $LATEST_TAG and HEAD. Skipping build to save credits."
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Found $COMMITS_COUNT new commit(s) since $LATEST_TAG. Proceeding with release build."
+          echo "should_build=true" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: steps.check.outputs.should_build == 'true'
+        with:
+          node-version: 22
+      - name: Resolve release version and beta fallback
+        id: version
+        if: steps.check.outputs.should_build == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/resolve-release-version.mjs --github-output
+
+  publish-windows:
+    name: Build Windows installer
+    needs: check-changes
+    if: needs.check-changes.outputs.should_build == 'true'
+    runs-on: windows-latest
+    steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -40,6 +139,9 @@ jobs:
         with:
           workspaces: src-tauri
       - run: npm install
+      - name: Apply release version
+        run: |
+          node scripts/resolve-release-version.mjs --version "${{ needs.check-changes.outputs.version }}" --apply
       - name: Detect beta version
         id: release_kind
         shell: python
@@ -49,9 +151,6 @@ jobs:
 
           with open("src-tauri/tauri.conf.json", encoding="utf-8") as config_file:
               version = json.load(config_file)["version"]
-          # A SemVer pre-release suffix ("0.3.10-beta.1") marks a beta. It is
-          # published as a GitHub pre-release with its own latest.json, which
-          # /releases/latest ignores, so stable installs never see it.
           is_beta = "-" in version
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
               output.write(f"version={version}\n")
@@ -66,7 +165,7 @@ jobs:
           import sys
 
           raw_key = os.environ.get("RAW_TAURI_SIGNING_PRIVATE_KEY", "")
-          normalized_key = "".join(raw_key.lstrip("\ufeff").split())
+          normalized_key = "".join(raw_key.lstrip("﻿").split())
 
           if normalized_key:
               try:
@@ -84,7 +183,6 @@ jobs:
       - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_SIGNING_IDENTITY: ${{ matrix.apple_signing_identity }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ env.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         with:
@@ -100,9 +198,7 @@ jobs:
             - **`-setup.exe` — recommended:** the normal Windows installer. It installs for your Windows account, usually does not require administrator access, and is the installer used by automatic in-app updates.
             - **`.msi` — administrators and managed computers:** intended for enterprise deployment, system administrators, Group Policy, Intune, or machine-wide installation. It commonly requires administrator access.
 
-            Use one Windows installer type consistently. Installing both the `.exe` and `.msi` can create separate installation contexts.
-
-            ### macOS
+            ### macOS (Published Sundays)
 
             - **Apple Silicon:** choose the macOS download marked `aarch64` or `arm64` for M1, M2, M3, M4, and newer Apple chips.
             - **Intel Mac:** choose the macOS download marked `x64` or `x86_64`.
@@ -111,22 +207,108 @@ jobs:
 
             - **`.apk` — sideload for Android:** download the `.apk` file directly to your phone (or transfer via USB) and tap to install. Enable "Install unknown apps" for your browser or file manager when prompted.
 
+            ### iOS (SideStore, Published Sundays)
+
+            - **`.ipa` — sideload for iPhone/iPad:** add the `sidestore-source.json` URL to SideStore sources or download the `.ipa` to install and re-sign via SideStore.
+
             ### Files you normally should not download manually
 
             Files ending in `.sig`, `.tar.gz`, and `latest.json` support automatic updates. They are not the normal installers.
-
-            ## Security warning
-
-            These builds are not yet backed by paid platform code-signing certificates. Windows and macOS may display an unverified-publisher warning. The macOS builds use an ad-hoc signature, so you may need to approve the app in **System Settings → Privacy & Security** after downloading it.
           releaseDraft: false
           prerelease: ${{ steps.release_kind.outputs.is_beta == 'true' }}
           uploadUpdaterJson: true
-          args: ${{ steps.release_kind.outputs.is_beta == 'true' && matrix.beta_args || matrix.args }}
+          args: ${{ steps.release_kind.outputs.is_beta == 'true' && '--bundles nsis' || '' }}
 
   build-android:
+    name: Build Android APK
+    needs: [check-changes, publish-windows]
+    if: needs.check-changes.outputs.should_build == 'true'
     uses: ./.github/workflows/build-android.yml
     secrets: inherit
     permissions:
       contents: write
     with:
       attach_to_versioned_release: true
+      release_version: ${{ needs.check-changes.outputs.version }}
+
+  publish-macos:
+    name: Build macOS desktop (Sunday only)
+    needs: [check-changes, publish-windows]
+    if: needs.check-changes.outputs.should_build == 'true' && needs.check-changes.outputs.build_apple == 'true'
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: src-tauri
+      - run: npm install
+      - name: Apply release version
+        run: |
+          node scripts/resolve-release-version.mjs --version "${{ needs.check-changes.outputs.version }}" --apply
+      - name: Detect beta version
+        id: release_kind
+        shell: python
+        run: |
+          import json
+          import os
+
+          with open("src-tauri/tauri.conf.json", encoding="utf-8") as config_file:
+              version = json.load(config_file)["version"]
+          is_beta = "-" in version
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"version={version}\n")
+              output.write(f"is_beta={'true' if is_beta else 'false'}\n")
+      - name: Normalize and verify updater signing key
+        shell: python
+        env:
+          RAW_TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          import base64
+          import os
+          import sys
+
+          raw_key = os.environ.get("RAW_TAURI_SIGNING_PRIVATE_KEY", "")
+          normalized_key = "".join(raw_key.lstrip("﻿").split())
+
+          if normalized_key:
+              try:
+                  decoded = base64.b64decode(normalized_key, validate=True).decode("utf-8")
+                  if "secret key" in decoded.lower():
+                      print(f"::add-mask::{normalized_key}")
+                      with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env_file:
+                          env_file.write(f"TAURI_SIGNING_PRIVATE_KEY={normalized_key}\n")
+                  else:
+                      print("Warning: TAURI_SIGNING_PRIVATE_KEY does not contain a Tauri updater private key.")
+              except Exception as error:
+                  print(f"Warning: TAURI_SIGNING_PRIVATE_KEY is not valid Base64: {error}")
+          else:
+              print("Notice: TAURI_SIGNING_PRIVATE_KEY not set; building unsigned release artifacts.")
+      - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_SIGNING_IDENTITY: "-"
+          TAURI_SIGNING_PRIVATE_KEY: ${{ env.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        with:
+          tagName: v__VERSION__
+          releaseName: AI Usage Tracker v__VERSION__
+          releaseDraft: false
+          prerelease: ${{ steps.release_kind.outputs.is_beta == 'true' }}
+          uploadUpdaterJson: true
+          args: ""
+
+  build-ios:
+    name: Build iOS IPA (Sunday only)
+    needs: [check-changes, publish-windows]
+    if: needs.check-changes.outputs.should_build == 'true' && needs.check-changes.outputs.build_apple == 'true'
+    uses: ./.github/workflows/build-ios.yml
+    secrets: inherit
+    permissions:
+      contents: write
+    with:
+      attach_to_versioned_release: true
+      release_version: ${{ needs.check-changes.outputs.version }}

@@ -787,7 +787,29 @@ pub async fn install_app_update(
             });
     }
 
-    #[cfg(not(target_os = "android"))]
+    #[cfg(target_os = "ios")]
+    {
+        // On iOS / SideStore, in-place app replacement is not allowed from within
+        // the app sandbox. Try launching SideStore so the user can refresh/update,
+        // or open the GitHub releases page as a fallback.
+        let sidestore_url = "sidestore://";
+        if app.opener().open_url(sidestore_url, None::<&str>).is_err() {
+            let page = if beta_updates_wanted(state.inner().as_ref()) {
+                fetch_github_latest_release(true, required_update_asset())
+                    .await
+                    .map(|release| format!("{GITHUB_RELEASES_TAG_PAGE_URL}{}", release.tag))
+                    .unwrap_or_else(|_| GITHUB_RELEASES_PAGE_URL.to_string())
+            } else {
+                GITHUB_RELEASES_PAGE_URL.to_string()
+            };
+            app.opener()
+                .open_url(page, None::<&str>)
+                .map_err(|error| format!("Unable to open download page: {error}"))?;
+        }
+        return Ok(());
+    }
+
+    #[cfg(all(not(target_os = "android"), not(target_os = "ios")))]
     {
         // With betas enabled, open the page of the release being offered rather
         // than /releases/latest, which only ever shows the newest stable one.

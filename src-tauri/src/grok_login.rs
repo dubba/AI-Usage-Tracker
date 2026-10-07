@@ -78,6 +78,18 @@ const CONNECT_BANNER_SCRIPT: &str = r#"
 })();
 "#;
 
+/// Last resort when neither the reconnect target nor the signed-in identity matches a
+/// stored Grok account: reuse one that already carries the label the user typed.
+fn grok_account_with_label(state: &AppState, label: &str) -> Option<Account> {
+    let requested = label.trim();
+    if requested.is_empty() {
+        return None;
+    }
+    state.store.list().into_iter().find(|account| {
+        account.provider == Provider::Grok && account.label.eq_ignore_ascii_case(requested)
+    })
+}
+
 fn default_grok_label(state: &AppState, email: Option<&str>) -> String {
     if let Some(email) = email {
         let trimmed = email.trim();
@@ -104,6 +116,7 @@ pub async fn add_account(
     state: Arc<AppState>,
     label: String,
     cookie_header: String,
+    reconnect_account_id: Option<String>,
 ) -> Result<Account, String> {
     if cookie_header.len() > crate::limits::MAX_RAW_COOKIE_INPUT_BYTES {
         return Err("The pasted cookie text is too long to be a Grok session.".into());
@@ -121,22 +134,13 @@ pub async fn add_account(
 
     let duplicate = state
         .store
-        .find_duplicate(
+        .account_to_update(
             &Provider::Grok,
+            reconnect_account_id.as_deref(),
             probe.provider_account_id.as_deref(),
             probe.email.as_deref(),
         )
-        .or_else(|| {
-            let requested_label = label.trim();
-            if requested_label.is_empty() {
-                None
-            } else {
-                state.store.list().into_iter().find(|account| {
-                    account.provider == Provider::Grok
-                        && account.label.eq_ignore_ascii_case(requested_label)
-                })
-            }
-        });
+        .or_else(|| grok_account_with_label(state.as_ref(), &label));
     let now = now_rfc3339();
     let account_id = duplicate
         .as_ref()
@@ -260,7 +264,11 @@ pub fn sweep_stale_grok_profiles() {
     }
 }
 
-pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginStart, String> {
+pub async fn start_login(
+    state: Arc<AppState>,
+    label: String,
+    reconnect_account_id: Option<String>,
+) -> Result<LoginStart, String> {
     let attempt_id = Uuid::new_v4().to_string();
     {
         let mut pending = state.pending_login.write();
@@ -316,7 +324,16 @@ pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginSta
 
     #[cfg(mobile)]
     {
-        return start_mobile_login(app, state, attempt_id, label, login_url, expires_at).await;
+        return start_mobile_login(
+            app,
+            state,
+            attempt_id,
+            label,
+            reconnect_account_id,
+            login_url,
+            expires_at,
+        )
+        .await;
     }
 
     #[cfg(desktop)]
@@ -383,6 +400,7 @@ pub async fn start_login(state: Arc<AppState>, label: String) -> Result<LoginSta
             state.clone(),
             attempt_id.clone(),
             label,
+            reconnect_account_id,
             Some(cleanup_dir),
         );
 
@@ -433,6 +451,7 @@ async fn start_mobile_login(
     state: Arc<AppState>,
     attempt_id: String,
     label: String,
+    reconnect_account_id: Option<String>,
     login_url: Url,
     expires_at: String,
 ) -> Result<LoginStart, String> {
@@ -455,7 +474,14 @@ async fn start_mobile_login(
             return Err(error);
         }
     };
-    start_cookie_poll(window, state.clone(), attempt_id.clone(), label, None);
+    start_cookie_poll(
+        window,
+        state.clone(),
+        attempt_id.clone(),
+        label,
+        reconnect_account_id,
+        None,
+    );
     if let Err(error) = crate::mobile_auth::open_in_main_webview(
         app,
         state.clone(),
@@ -503,6 +529,7 @@ fn start_cookie_poll(
     state: Arc<AppState>,
     attempt_id: String,
     label: String,
+    reconnect_account_id: Option<String>,
     temp_data_dir: Option<std::path::PathBuf>,
 ) {
     let capture_in_flight = Arc::new(AtomicBool::new(false));
@@ -524,6 +551,7 @@ fn start_cookie_poll(
                         let completion_state = state.clone();
                         let completion_attempt = attempt_id.clone();
                         let completion_label = label.clone();
+                        let completion_reconnect = reconnect_account_id.clone();
                         let completion_window = window.clone();
                         let completion_flag = capture_in_flight.clone();
                         let completion_dir = temp_data_dir.clone();
@@ -532,6 +560,7 @@ fn start_cookie_poll(
                                 completion_state,
                                 completion_attempt,
                                 completion_label,
+                                completion_reconnect,
                                 cookie_header,
                                 completion_window,
                                 completion_flag,
@@ -551,10 +580,12 @@ fn start_cookie_poll(
     });
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn complete_cookie_login(
     state: Arc<AppState>,
     attempt_id: String,
     label: String,
+    reconnect_account_id: Option<String>,
     cookie_header: String,
     window: WebviewWindow,
     capture_in_flight: Arc<AtomicBool>,
@@ -612,22 +643,13 @@ async fn complete_cookie_login(
 
     let duplicate = state
         .store
-        .find_duplicate(
+        .account_to_update(
             &Provider::Grok,
+            reconnect_account_id.as_deref(),
             usage.provider_account_id.as_deref(),
             usage.email.as_deref(),
         )
-        .or_else(|| {
-            let requested_label = label.trim();
-            if requested_label.is_empty() {
-                None
-            } else {
-                state.store.list().into_iter().find(|account| {
-                    account.provider == Provider::Grok
-                        && account.label.eq_ignore_ascii_case(requested_label)
-                })
-            }
-        });
+        .or_else(|| grok_account_with_label(state.as_ref(), &label));
     let now = now_rfc3339();
     let account_id = duplicate
         .as_ref()

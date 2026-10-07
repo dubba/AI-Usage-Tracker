@@ -37,7 +37,7 @@ describe("SyncStatusLine", () => {
       />
     );
 
-    expect(document.body.textContent).toContain("Synced all accounts");
+    expect(document.body.textContent).toContain("Accounts synced");
   });
 
   it("shows syncing state when a refresh is in progress", () => {

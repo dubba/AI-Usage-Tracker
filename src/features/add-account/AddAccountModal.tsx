@@ -9,7 +9,7 @@ import {
   type AddAccountDraft,
 } from "./strategies";
 import { logIgnored } from "../../shared/lib/log";
-import { isAndroid as detectAndroid } from "../../shared/lib/platform";
+import { isAndroid as detectAndroid, isIOS } from "../../shared/lib/platform";
 import { PROVIDER_META } from "../../shared/lib/providers";
 import { abandonLoginAttempt, recoverFromStaleLogin, retryLoginAttempt, subscribeLoginStatus, watchLoginAttempt } from "../../shared/lib/login-status";
 import type { Account, LoginStatus, Provider } from "../../types";
@@ -36,16 +36,18 @@ export function AddAccountModal({
   open,
   initialLabel,
   initialProvider,
+  reconnectAccountId,
   onClose,
   onAdded,
 }: {
   open: boolean;
   initialLabel?: string;
   initialProvider?: Provider;
+  reconnectAccountId?: string;
   onClose: () => void;
   onAdded: (account: Account) => void;
 }) {
-  const isAndroid = detectAndroid();
+  const isAndroid = detectAndroid() || isIOS();
   const [draft, setDraft] = useState<AddAccountDraft>(() => emptyDraft("anthropic"));
   const [modelsBusy, setModelsBusy] = useState(false);
   const [status, setStatus] = useState<LoginStatus | null>(null);
@@ -159,7 +161,7 @@ export function AddAccountModal({
 
   /** Starts a browser or private-window sign-in and waits for the backend to report its result. */
   const startSignIn = async (name: string) => {
-    const startLogin = () => bridgeApi.startLogin(name, provider, strategy.signInEmail(draft));
+    const startLogin = () => bridgeApi.startLogin(name, provider, strategy.signInEmail(draft), reconnectAccountId);
     let start;
     try {
       start = await startLogin();
@@ -203,7 +205,7 @@ export function AddAccountModal({
       if (strategy.connectMode(draft) === "sign-in") {
         await startSignIn(name);
       } else {
-        onAdded(await strategy.connectDirect!(draft, name));
+        onAdded(await strategy.connectDirect!(draft, name, reconnectAccountId));
       }
     } catch (cause) {
       if (!closeRequestedRef.current) {

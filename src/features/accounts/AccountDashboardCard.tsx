@@ -317,6 +317,26 @@ export function AccountDashboardCard({
             <p className="account-card-updated">{updatedAtLabel}</p>
             <div className="account-card-action-row">
             <div className="account-card-name-actions desktop-only">
+            {onMove ? (
+              <>
+                <button
+                  type="button"
+                  className="account-card-action move-action"
+                  data-tooltip="Move up"
+                  aria-label={`Move ${account.label} up`}
+                  disabled={cardBusy || !canMoveUp}
+                  onClick={() => requestMove(-1)}
+                ><ArrowUpIcon /></button>
+                <button
+                  type="button"
+                  className="account-card-action move-action"
+                  data-tooltip="Move down"
+                  aria-label={`Move ${account.label} down`}
+                  disabled={cardBusy || !canMoveDown}
+                  onClick={() => requestMove(1)}
+                ><ArrowDownIcon /></button>
+              </>
+            ) : null}
             <button
               type="button"
               className={`account-card-action refresh-action ${isRefreshing ? "spinning" : ""}`}

@@ -12,9 +12,9 @@ use self::chunking::{
     decode_provider_secret, delete_credential_generation, parse_credential_manifest,
     read_credential_generation,
 };
-// Only the chunked format (Windows and other non-macOS desktops) writes credentials in pieces.
+// Only the chunked format (Windows and other non-Apple desktops) writes credentials in pieces.
 #[cfg(all(
-    not(any(target_os = "macos", target_os = "android")),
+    not(any(target_os = "macos", target_os = "ios", target_os = "android")),
     not(debug_assertions)
 ))]
 use self::chunking::{
@@ -104,7 +104,7 @@ pub(crate) fn persist_provider_secret(
     Ok(())
 }
 
-#[cfg(all(target_os = "macos", not(debug_assertions)))]
+#[cfg(all(any(target_os = "macos", target_os = "ios"), not(debug_assertions)))]
 pub(crate) fn persist_provider_secret(
     account_id: &str,
     secret: &ProviderSecret,
@@ -117,7 +117,7 @@ pub(crate) fn persist_provider_secret(
 }
 
 #[cfg(all(
-    not(any(target_os = "macos", target_os = "android")),
+    not(any(target_os = "macos", target_os = "ios", target_os = "android")),
     not(debug_assertions)
 ))]
 pub(crate) fn persist_provider_secret(
@@ -195,9 +195,9 @@ pub(crate) fn load_keychain_secret(account_id: &str) -> Result<ProviderSecret, S
         decode_provider_secret(&stored)?
     };
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     let should_migrate = from_legacy || manifest.is_some();
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(any(target_os = "macos", target_os = "ios")))]
     let should_migrate = from_legacy;
 
     if should_migrate && persist_provider_secret(account_id, &secret).is_ok() {

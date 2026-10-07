@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { bridgeApi } from "../../shared/lib/api";
 import { FALLBACK_APP_VERSION } from "../../shared/lib/constants";
+import { isIOS } from "../../shared/lib/platform";
 import { logIgnored } from "../../shared/lib/log";
 import type { AppUpdateProgress, AppUpdateStatus, UpdateBusy } from "../../types";
 import { useTauriEvent } from "../../shared/hooks/useTauriEvent";
@@ -96,7 +97,11 @@ export function useAppUpdate({ automaticUpdatesEnabled }: { automaticUpdatesEnab
       await bridgeApi.installUpdate();
       setUpdateBusy(null);
       setUpdateProgress(null);
-      showTransientUpdateMessage("The installer should be open. Confirm the update on the next screen.");
+      if (isIOS()) {
+        showTransientUpdateMessage("Open SideStore to install the latest update.");
+      } else {
+        showTransientUpdateMessage("The installer should be open. Confirm the update on the next screen.");
+      }
     } catch (cause) {
       const message = String(cause);
       setUpdateError(message);

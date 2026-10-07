@@ -3,6 +3,33 @@
 ## Unreleased (0 items)
 
 
+## 0.3.17 - 2026-10-07 (15 items)
+
+### Changed (9)
+
+- On desktop, the Accounts, Action Needed and Next reset summary tiles are three separate cards again, instead of one joined strip.
+- The sidebar no longer shows an "Accounts" title above the account list. Its narrowest width now comes from the sync line at the bottom, so "Accounts synced" is never cut off by the refresh or settings buttons.
+- On desktop account cards, the plan badge and its status dot line up with the middle of the action buttons, and the bell and remove icons sit centered in their buttons.
+- On desktop, Move up and Move down are arrow buttons beside the refresh button instead of items in the card's dropdown menu. The dropdown remains on mobile.
+- On desktop account cards, the refresh, notification, and remove buttons use the same green, amber, and red as those actions in the mobile dropdown menu.
+- On desktop, the Move up and Move down arrow buttons use the same neutral color as the Move up and Move down items in the mobile dropdown menu, and their border matches that text color.
+- The sidebar's sync line now reads "Accounts synced 9m ago" instead of "Synced all accounts 9m ago", and the time is when every account was last synced rather than when the most recent one was.
+- On mobile, the sidebar's refresh and settings buttons stay pinned to the drawer's right edge, and the sidebar can shrink until the sync text meets them. Its minimum was measuring the text twice, so it stopped short and left a gap.
+- On mobile, the settings button lines up with the right edge of the account cards, and the refresh and settings buttons stay on the drawer's right edge as it resizes. The gap between them is 8px.
+
+### Added (4)
+
+- A Refresh all button in the sidebar, next to Settings, refreshes every account without needing the keyboard shortcut. It spins while a refresh is running, and the sidebar will not shrink narrow enough to cut off the sync text beside it.
+- iOS support via SideStore: added SideStore community source manifest, release workflow for unsigned IPAs, and in-app update prompts tailored for iOS sideloading.
+- Automated scheduled releases with GitHub credit protection: Windows and Android publish on Thursdays and Sundays @ 11:59 PM EST, while macOS and iOS (SideStore) publish once a week on Sundays @ 11:59 PM EST. A pre-flight commit check skips execution entirely when no new code has landed.
+- Automatic beta version fallback in release workflow: scheduled builds with unbumped versions automatically calculate and publish the next patch beta pre-release (e.g. `v0.3.17-beta.1`) across Windows, Android, macOS, and iOS.
+
+### Fixed (2)
+
+- Reconnecting an account that needs attention now updates that account instead of adding a second one beside it. This was most visible with ChatGPT, whose sign-in sometimes reports an identity that differs from the one saved earlier.
+- On mobile, the sidebar's minimum width counted its side padding twice, so it stopped resizing while there was still a wide gap between the sync text and the refresh button. It now resizes until the gap left of the refresh button matches the gap between the refresh and settings buttons.
+
+
 ## 0.3.16 - 2026-10-06 (8 items)
 
 ### Improved (4)

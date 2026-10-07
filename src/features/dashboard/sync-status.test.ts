@@ -18,19 +18,19 @@ describe("computeSyncStatus", () => {
     expect(computeSyncStatus([account("a", null)], NOW, 15)).toEqual({ tone: "none", label: "Not synced yet", detail: null });
   });
 
-  it("reports the newest refresh when everything is current", () => {
+  it("reports the oldest refresh, the moment every account had been synced", () => {
     const status = computeSyncStatus([account("a", 5), account("b", 2)], NOW, 15);
-    expect(status).toEqual({ tone: "fresh", label: "Synced all accounts 2m ago", detail: null });
+    expect(status).toEqual({ tone: "fresh", label: "Accounts synced 5m ago", detail: null });
   });
 
   it("uses 'just now' inside the first minute", () => {
-    expect(computeSyncStatus([account("a", 0)], NOW, 15).label).toBe("Synced all accounts just now");
+    expect(computeSyncStatus([account("a", 0)], NOW, 15).label).toBe("Accounts synced just now");
   });
 
   it("flags accounts older than twice the refresh interval", () => {
     const status = computeSyncStatus([account("a", 1), account("b", 31)], NOW, 15);
     expect(status.tone).toBe("stale");
-    expect(status.label).toBe("Synced all accounts 1m ago");
+    expect(status.label).toBe("Accounts synced 31m ago");
     expect(status.detail).toBe("1 account out of date");
   });
 
@@ -46,7 +46,7 @@ describe("computeSyncStatus", () => {
 
   it("pluralizes the out-of-date count", () => {
     const status = computeSyncStatus([account("a", 60), account("b", 90)], NOW, 15);
-    expect(status.label).toBe("Synced all accounts 1h ago");
+    expect(status.label).toBe("Accounts synced 1h ago");
     expect(status.detail).toBe("2 accounts out of date");
   });
 

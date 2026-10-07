@@ -11,11 +11,11 @@ export function updateProgressLabel(busy: UpdateBusy, percent: number | null): s
   return "";
 }
 
-export function updateInstallLabel(busy: UpdateBusy): string {
+export function updateInstallLabel(busy: UpdateBusy, isIOS?: boolean): string {
   if (busy === "downloading") return "Downloading…";
   if (busy === "verifying") return "Verifying…";
-  if (busy === "installing") return "Installing…";
-  return "Update";
+  if (busy === "installing") return isIOS ? "Opening SideStore…" : "Installing…";
+  return isIOS ? "Update in SideStore" : "Update";
 }
 
 export function UpdateProgressBar({

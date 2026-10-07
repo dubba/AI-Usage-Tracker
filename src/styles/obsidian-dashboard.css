@@ -111,7 +111,7 @@ select {
 .provider-sidebar-heading {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   flex-wrap: nowrap;
   gap: 8px;
   /* Same side inset as the cards, so + Group shares their right edge. */
@@ -144,17 +144,6 @@ select {
 .add-account-header-button svg {
   width: 15px !important;
   height: 15px !important;
-}
-
-.provider-sidebar-heading > span {
-  flex-shrink: 0;
-  align-self: center;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 16px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  white-space: nowrap;
 }
 
 .provider-window-toggle {
@@ -771,28 +760,17 @@ select {
 }
 
 .summary-strip {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: stretch;
-  gap: 0;
+  gap: 16px;
   margin: 18px 0;
-  border: 1px solid var(--obsidian-border);
-  border-radius: 8px;
-  background: var(--obsidian-surface-container);
-  overflow: hidden;
 }
 
 .summary-strip > .summary-card {
-  flex: 1 1 0;
   min-width: 0;
-  min-height: 64px;
-  padding: 12px 16px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
-.summary-strip > .summary-card + .summary-card {
-  border-left: 1px solid var(--obsidian-border);
+  min-height: 70px;
+  padding: 16px;
 }
 
 .summary-card {

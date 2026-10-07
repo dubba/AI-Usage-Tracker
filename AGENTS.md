@@ -17,11 +17,14 @@ Changelog:
 - Always keep item counts up to date in parentheses next to each category header (e.g. `### Security (4)`) and total items next to the release header (e.g. `## Unreleased (111 items)`).
 - When there is no user-facing change, leave `CHANGELOG.md` unchanged and state `No user-facing change` in the pull request description.
 
-Android APK builds:
+Android APK & iOS SideStore builds:
 
-- Do not build a new APK automatically; only build an APK when explicitly instructed by the user.
+- Do not build a new APK or iOS build automatically; only build when explicitly instructed by the user.
 - When asked to build an APK containing code for an unreleased version, increment the latest release version by `0.0.1` and append `-unrel` to the version number (e.g. if the latest release on GitHub is `0.3.5`, name the APK `AI Usage Tracker_0.3.6-unrel.apk`).
 - This machine is disk-constrained. Android builds must target aarch64 only: use `npm run android:build` (APK) or `npm run android:dev` (emulator). Never run `cargo tauri android build` without `--target aarch64`, and do not suggest `cargo clean` casually (~8G build cache; full recompile is very slow).
+- iOS builds require Xcode which is not installed locally to save disk (~21G available). Build unsigned IPAs via GitHub Actions (`.github/workflows/build-ios.yml`).
+- Automated multi-platform releases run via `.github/workflows/build-installers.yml`: Windows and Android build on both Thursdays and Sundays @ 11:59 PM EST (04:59 UTC), while expensive Apple builds (macOS desktop and iOS SideStore IPA) build only once a week on Sundays @ 11:59 PM EST. A pre-flight `check-changes` job checks whether new commits exist since the last release tag and skips execution if no changes were committed, preserving GitHub runner quota.
+- SideStore source manifest is at `sidestore-source.json`. Use `npm run update:sidestore` (`node scripts/update-sidestore-source.mjs`) to refresh release asset sizes and URLs.
 - Gradle needs the Homebrew JDK. `npm run android:dev` / `android:build` already set `JAVA_HOME` to `/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home`. If you invoke Gradle or `tauri android` directly, export that same `JAVA_HOME` first.
 
 Validation:

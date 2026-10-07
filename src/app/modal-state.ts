@@ -7,7 +7,7 @@ import type { Account, AccountBucket, Provider } from "../types";
  */
 export type ModalState =
   | null
-  | { kind: "add"; label: string; provider: Provider | undefined }
+  | { kind: "add"; label: string; provider: Provider | undefined; reconnectAccountId?: string }
   | { kind: "bucket"; bucket: AccountBucket | null; provider: Provider | null; confirmDelete: boolean }
   | { kind: "alert"; account: Account }
   | { kind: "remove"; account: Account }

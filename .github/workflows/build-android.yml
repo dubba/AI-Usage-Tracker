@@ -9,11 +9,11 @@ on:
         type: boolean
         required: false
         default: false
-  push:
-    branches: [main]
-    paths-ignore:
-      - ".github/release-trigger"
-      - "docs/**"
+      release_version:
+        description: Target release version override (e.g. 0.3.17-beta.1)
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -27,6 +27,11 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
+      - name: Apply release version
+        if: ${{ inputs.release_version != '' }}
+        shell: bash
+        run: |
+          node scripts/resolve-release-version.mjs --version "${{ inputs.release_version }}" --apply
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           targets: aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android

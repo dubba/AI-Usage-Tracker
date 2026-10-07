@@ -1,7 +1,7 @@
 {
   "name": "ai-usage-tracker",
   "private": true,
-  "version": "0.3.16",
+  "version": "0.3.17",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,6 +15,9 @@
     "tauri:build": "tauri build",
     "android:dev": "JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home tauri android dev",
     "android:build": "JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home tauri android build --target aarch64",
+    "update:sidestore": "node scripts/update-sidestore-source.mjs",
+    "resolve:version": "node scripts/resolve-release-version.mjs",
+    "test:resolve-version": "node --test scripts/resolve-release-version.test.mjs",
     "test": "vitest run"
   },
   "dependencies": {

@@ -83,12 +83,20 @@ export function SidebarResizeHandle({
     const overlayQuery = window.matchMedia(MOBILE_OVERLAY_QUERY);
     window.addEventListener("resize", syncToViewport);
     overlayQuery.addEventListener("change", syncToViewport);
+    // The label's width changes as the elapsed time does. Skip while syncing:
+    // "Syncing…" is shorter, and following it would shrink the minimum for a moment.
+    const status = sidebarRef.current?.querySelector(".sidebar-sync-status");
+    const observer = new MutationObserver(() => {
+      if (!status?.classList.contains("is-syncing")) syncToViewport();
+    });
+    if (status) observer.observe(status, { childList: true, characterData: true, subtree: true });
     return () => {
+      observer.disconnect();
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", syncToViewport);
       overlayQuery.removeEventListener("change", syncToViewport);
     };
-  }, [syncToViewport]);
+  }, [syncToViewport, sidebarRef]);
 
   const stopFollowing = useRef<(() => void) | null>(null);
 

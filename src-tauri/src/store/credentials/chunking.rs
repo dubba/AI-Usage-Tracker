@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 pub(crate) const CHUNKED_CREDENTIAL_FORMAT: &str = "chunked-v1";
 
-#[cfg_attr(target_os = "macos", allow(dead_code))]
+#[cfg_attr(any(target_os = "macos", target_os = "ios"), allow(dead_code))]
 pub(crate) const CREDENTIAL_CHUNK_UTF16_UNITS: usize = 1200;
 
 pub(crate) const MAX_CREDENTIAL_CHUNKS: usize = 32;
@@ -36,7 +36,7 @@ pub(crate) struct CredentialManifest {
 }
 
 #[cfg(not(target_os = "android"))]
-#[cfg_attr(target_os = "macos", allow(dead_code))]
+#[cfg_attr(any(target_os = "macos", target_os = "ios"), allow(dead_code))]
 pub(crate) fn read_credential_manifest(
     account_id: &str,
 ) -> Result<Option<CredentialManifest>, StoreError> {
@@ -87,7 +87,7 @@ pub(crate) fn validate_credential_generation(
 }
 
 #[cfg(not(target_os = "android"))]
-#[cfg_attr(target_os = "macos", allow(dead_code))]
+#[cfg_attr(any(target_os = "macos", target_os = "ios"), allow(dead_code))]
 pub(crate) fn write_credential_manifest(
     account_id: &str,
     manifest: &CredentialManifest,
@@ -100,7 +100,7 @@ pub(crate) fn write_credential_manifest(
 }
 
 #[cfg(not(target_os = "android"))]
-#[cfg_attr(target_os = "macos", allow(dead_code))]
+#[cfg_attr(any(target_os = "macos", target_os = "ios"), allow(dead_code))]
 pub(crate) fn write_credential_generation(
     account_id: &str,
     generation: &CredentialGeneration,
@@ -180,7 +180,7 @@ pub(crate) fn decode_provider_secret(payload: &str) -> Result<ProviderSecret, St
     }
 }
 
-#[cfg_attr(target_os = "macos", allow(dead_code))]
+#[cfg_attr(any(target_os = "macos", target_os = "ios"), allow(dead_code))]
 pub(crate) fn split_utf16_chunks(value: &str, max_utf16_units: usize) -> Vec<String> {
     if value.is_empty() || max_utf16_units == 0 {
         return Vec::new();
@@ -202,7 +202,7 @@ pub(crate) fn split_utf16_chunks(value: &str, max_utf16_units: usize) -> Vec<Str
     chunks
 }
 
-#[cfg_attr(target_os = "macos", allow(dead_code))]
+#[cfg_attr(any(target_os = "macos", target_os = "ios"), allow(dead_code))]
 pub(crate) fn generate_credential_generation() -> String {
     rand::thread_rng()
         .sample_iter(&Alphanumeric)

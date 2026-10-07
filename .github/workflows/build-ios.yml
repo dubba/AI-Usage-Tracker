@@ -1,0 +1,127 @@
+name: Build iOS IPA for SideStore
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      attach_to_versioned_release:
+        description: Attach the IPA to the GitHub Release for this package version
+        type: boolean
+        required: false
+        default: false
+      release_version:
+        description: Target release version override (e.g. 0.3.17-beta.1)
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  build-ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Apply release version
+        if: ${{ inputs.release_version != '' }}
+        shell: bash
+        run: |
+          node scripts/resolve-release-version.mjs --version "${{ inputs.release_version }}" --apply
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          targets: aarch64-apple-ios
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: src-tauri
+      - run: npm install
+      - name: Build iOS IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Initialize iOS project if gen/apple does not exist yet
+          if [ ! -d "src-tauri/gen/apple" ]; then
+            echo "Initializing iOS project..."
+            npx tauri ios init
+          fi
+
+          echo "Building iOS binary for aarch64-apple-ios..."
+          npx tauri ios build --ci --export-method enterprise || {
+            echo "Fallback: building via xcodebuild if standard packaging requires developer signing..."
+            cd src-tauri/gen/apple
+            xcodebuild build \
+              -scheme "ai-usage-tracker_iOS" \
+              -destination "generic/platform=iOS" \
+              -configuration Release \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              CODE_SIGN_IDENTITY="" \
+              -derivedDataPath "$RUNNER_TEMP/DerivedData"
+            cd ../../..
+          }
+
+          mkdir -p release-ipa/Payload
+          APP_DIR=$(find "$RUNNER_TEMP" src-tauri/gen/apple -name "*.app" -type d | head -n 1 || true)
+          if [ -n "$APP_DIR" ] && [ -d "$APP_DIR" ]; then
+            echo "Packaging unsigned IPA from $APP_DIR..."
+            cp -R "$APP_DIR" release-ipa/Payload/
+            (cd release-ipa && zip -q -r -y "AI-Usage-Tracker.ipa" Payload)
+            rm -rf release-ipa/Payload
+          else
+            echo "Searching for produced IPA..."
+            find src-tauri/gen/apple -name "*.ipa" -exec cp {} release-ipa/AI-Usage-Tracker.ipa \;
+          fi
+
+          if [ ! -f "release-ipa/AI-Usage-Tracker.ipa" ]; then
+            echo "Error: No IPA was produced."
+            exit 1
+          fi
+
+          # Update SideStore source JSON with accurate IPA byte size and download URL
+          node scripts/update-sidestore-source.mjs --ipa release-ipa/AI-Usage-Tracker.ipa
+
+          # Compute SHA-256 digest
+          (cd release-ipa && shasum -a 256 "AI-Usage-Tracker.ipa" > "AI-Usage-Tracker.ipa.sha256")
+          cp sidestore-source.json release-ipa/sidestore-source.json
+
+          echo "Generated iOS IPA and SideStore source:"
+          ls -la release-ipa/
+
+      - name: Upload iOS IPA artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ios-ipa
+          path: |
+            release-ipa/AI-Usage-Tracker.ipa
+            release-ipa/AI-Usage-Tracker.ipa.sha256
+            release-ipa/sidestore-source.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Attach IPA to GitHub Release
+        if: ${{ inputs.attach_to_versioned_release }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="v$(node -p "require('./package.json').version")"
+          for i in $(seq 1 20); do
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              for file in release-ipa/AI-Usage-Tracker.ipa release-ipa/AI-Usage-Tracker.ipa.sha256 release-ipa/sidestore-source.json; do
+                [ -f "$file" ] || continue
+                file_name=$(basename "$file")
+                gh release upload "$TAG" "${file}#${file_name}" --clobber
+              done
+              echo "Attached IPA and SideStore source to $TAG"
+              exit 0
+            fi
+            echo "Waiting for release $TAG ($i/20)..."
+            sleep 30
+          done
+          echo "Release $TAG was not created in time; the IPA is available as an Actions artifact."
+          exit 1
