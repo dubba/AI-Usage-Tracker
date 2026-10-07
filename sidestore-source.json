@@ -19,7 +19,9 @@
       "versionDate": "2026-10-07T08:20:36.337Z",
       "versionDescription": "Release v0.3.17",
       "downloadURL": "https://github.com/dubba/AI-Usage-Tracker/releases/download/v0.3.17/AI-Usage-Tracker.ipa",
-      "size": 0
+      "size": 0,
+      "minOSVersion": "18.0"
     }
-  ]
+  ],
+  "sourceURL": "https://raw.githubusercontent.com/dubba/AI-Usage-Tracker/main/sidestore-source.json"
 }

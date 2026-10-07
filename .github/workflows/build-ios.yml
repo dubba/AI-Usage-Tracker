@@ -43,52 +43,54 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Initialize iOS project if gen/apple does not exist yet
           if [ ! -d "src-tauri/gen/apple" ]; then
-            echo "Initializing iOS project..."
             npx tauri ios init
           fi
 
-          echo "Building iOS binary for aarch64-apple-ios..."
-          npx tauri ios build --ci --export-method enterprise || {
-            echo "Fallback: building via xcodebuild if standard packaging requires developer signing..."
-            cd src-tauri/gen/apple
-            xcodebuild build \
-              -scheme "ai-usage-tracker_iOS" \
-              -destination "generic/platform=iOS" \
-              -configuration Release \
-              CODE_SIGNING_ALLOWED=NO \
-              CODE_SIGNING_REQUIRED=NO \
-              CODE_SIGN_IDENTITY="" \
-              -derivedDataPath "$RUNNER_TEMP/DerivedData"
-            cd ../../..
+          # The archive step produces an unsigned .app even when the export step
+          # fails for lack of a signing identity, so a non-zero exit is tolerated
+          # here and the archive is checked below.
+          npx tauri ios build --ci --target aarch64 --export-method debugging \
+            || echo "::warning::tauri ios build exited non-zero (expected without signing); looking for the archive"
+
+          find_app() {
+            find src-tauri/gen/apple "$RUNNER_TEMP" -maxdepth 8 -type d -path "*.xcarchive/Products/Applications/*.app" 2>/dev/null | head -n 1
           }
 
-          mkdir -p release-ipa/Payload
-          APP_DIR=$(find "$RUNNER_TEMP" src-tauri/gen/apple -name "*.app" -type d | head -n 1 || true)
-          if [ -n "$APP_DIR" ] && [ -d "$APP_DIR" ]; then
-            echo "Packaging unsigned IPA from $APP_DIR..."
-            cp -R "$APP_DIR" release-ipa/Payload/
-            (cd release-ipa && zip -q -r -y "AI-Usage-Tracker.ipa" Payload)
-            rm -rf release-ipa/Payload
-          else
-            echo "Searching for produced IPA..."
-            find src-tauri/gen/apple -name "*.ipa" -exec cp {} release-ipa/AI-Usage-Tracker.ipa \;
+          APP_DIR=$(find_app || true)
+
+          if [ -z "$APP_DIR" ]; then
+            echo "::warning::No archive found; archiving with xcodebuild and code signing disabled"
+            cd src-tauri/gen/apple
+            PROJECT=$(ls -d *.xcodeproj | head -n 1)
+            SCHEME=$(xcodebuild -list -json -project "$PROJECT" | jq -r '.project.schemes[] | select(endswith("_iOS"))' | head -n 1)
+            echo "Using scheme: $SCHEME"
+            xcodebuild archive \
+              -project "$PROJECT" \
+              -scheme "$SCHEME" \
+              -destination "generic/platform=iOS" \
+              -configuration Release \
+              -archivePath "$RUNNER_TEMP/app.xcarchive" \
+              CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+            cd ../../..
+            APP_DIR=$(find_app || true)
           fi
 
-          if [ ! -f "release-ipa/AI-Usage-Tracker.ipa" ]; then
-            echo "Error: No IPA was produced."
+          if [ -z "$APP_DIR" ]; then
+            echo "Error: no iOS .app was produced."
             exit 1
           fi
 
-          # Update SideStore source JSON with accurate IPA byte size and download URL
+          echo "Packaging unsigned IPA from $APP_DIR"
+          mkdir -p release-ipa/Payload
+          cp -R "$APP_DIR" release-ipa/Payload/
+          (cd release-ipa && zip -q -r -y AI-Usage-Tracker.ipa Payload && rm -rf Payload)
+
+          # Records the exact IPA byte size; skipped for pre-release versions.
           node scripts/update-sidestore-source.mjs --ipa release-ipa/AI-Usage-Tracker.ipa
 
-          # Compute SHA-256 digest
-          (cd release-ipa && shasum -a 256 "AI-Usage-Tracker.ipa" > "AI-Usage-Tracker.ipa.sha256")
+          (cd release-ipa && shasum -a 256 AI-Usage-Tracker.ipa > AI-Usage-Tracker.ipa.sha256)
           cp sidestore-source.json release-ipa/sidestore-source.json
-
-          echo "Generated iOS IPA and SideStore source:"
           ls -la release-ipa/
 
       - name: Upload iOS IPA artifact
@@ -125,3 +127,23 @@ jobs:
           done
           echo "Release $TAG was not created in time; the IPA is available as an Actions artifact."
           exit 1
+
+      - name: Publish SideStore source to main
+        if: ${{ inputs.attach_to_versioned_release }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./package.json').version")
+          case "$VERSION" in
+            *-*) echo "Pre-release $VERSION: leaving the main SideStore source unchanged."; exit 0 ;;
+          esac
+          if git diff --quiet -- sidestore-source.json; then
+            echo "sidestore-source.json unchanged."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add sidestore-source.json
+          git commit -m "chore: update SideStore source for v$VERSION"
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

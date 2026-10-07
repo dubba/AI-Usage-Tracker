@@ -20,7 +20,7 @@
 ### Added (4)
 
 - A Refresh all button in the sidebar, next to Settings, refreshes every account without needing the keyboard shortcut. It spins while a refresh is running, and the sidebar will not shrink narrow enough to cut off the sync text beside it.
-- iOS support via SideStore: added SideStore community source manifest, release workflow for unsigned IPAs, and in-app update prompts tailored for iOS sideloading.
+- iOS support via SideStore: added SideStore community source manifest, release workflow for unsigned IPAs, and in-app update prompts tailored for iOS sideloading. The release workflow records the IPA's exact size in the stable source on `main` and leaves pre-releases out of it.
 - Automated scheduled releases with GitHub credit protection: Windows and Android publish on Thursdays and Sundays @ 11:59 PM EST, while macOS and iOS (SideStore) publish once a week on Sundays @ 11:59 PM EST. A pre-flight commit check skips execution entirely when no new code has landed.
 - Automatic beta version fallback in release workflow: scheduled builds with unbumped versions automatically calculate and publish the next patch beta pre-release (e.g. `v0.3.17-beta.1`) across Windows, Android, macOS, and iOS.
 

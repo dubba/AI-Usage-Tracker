@@ -18,6 +18,7 @@
     "update:sidestore": "node scripts/update-sidestore-source.mjs",
     "resolve:version": "node scripts/resolve-release-version.mjs",
     "test:resolve-version": "node --test scripts/resolve-release-version.test.mjs",
+    "test:sidestore-source": "node --test scripts/update-sidestore-source.test.mjs",
     "test": "vitest run"
   },
   "dependencies": {
