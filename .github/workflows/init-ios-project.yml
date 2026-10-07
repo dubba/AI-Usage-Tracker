@@ -39,5 +39,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "chore: generate iOS project (src-tauri/gen/apple)"
+          # `tauri ios init` leaves other files dirty (Podfile.lock and similar),
+          # which makes `git pull --rebase` refuse to run.
+          git stash push --include-untracked --quiet
           git pull --rebase origin "${GITHUB_REF_NAME}"
           git push origin "HEAD:${GITHUB_REF_NAME}"
