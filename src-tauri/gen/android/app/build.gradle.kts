@@ -18,7 +18,7 @@ android {
     namespace = "com.yajinni.paseousagebridge"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
-        applicationId = "com.yajinni.paseousagebridge"
+        applicationId = "com.dubba.ai.usage.tracker"
         minSdk = 24
         targetSdk = 36
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()

@@ -1,12 +1,14 @@
 # Changelog
 
-## Unreleased (10 items)
+## Unreleased (11 items)
 
 ### Added (1)
 
 - On iOS, turning on a usage alert asks for notification permission the first time, so alerts can be shown.
 
-### Changed (7)
+### Changed (8)
+
+- The app now installs as com.dubba.ai.usage.tracker. An existing Android, Mac, or Windows install stays as it is, and the new copy starts without those accounts or settings.
 
 - The "Account connected" page shown in the browser after signing in now shows the provider's icon and name side by side, with the signed-in email on the next line. It was a bare email or just "ChatGPT", and it now looks the same for ChatGPT, Claude, Antigravity and AI Studio.
 - In Settings, the space above the General, Updates, Devices and Advanced headings is a uniform 18px, including above General on mobile.

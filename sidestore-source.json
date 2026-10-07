@@ -1,6 +1,6 @@
 {
   "name": "AI Usage Tracker",
-  "identifier": "com.yajinni.paseousagebridge.source",
+  "identifier": "com.dubba.ai.usage.tracker.source",
   "subtitle": "Track AI usage across multiple providers",
   "description": "Standalone multi-provider AI usage tracker for iOS distributed via SideStore.",
   "iconURL": "https://raw.githubusercontent.com/dubba/AI-Usage-Tracker/main/src-tauri/icons/icon.png",
@@ -8,7 +8,7 @@
   "apps": [
     {
       "name": "AI Usage Tracker",
-      "bundleIdentifier": "com.yajinni.paseousagebridge",
+      "bundleIdentifier": "com.dubba.ai.usage.tracker",
       "developerName": "AI Usage Tracker contributors",
       "subtitle": "Track AI usage across multiple providers",
       "localizedDescription": "Standalone multi-provider AI usage monitor for Claude, ChatGPT, Antigravity, Grok, Google AI Studio, and OpenCode Go with secure local credential storage and device pairing.",

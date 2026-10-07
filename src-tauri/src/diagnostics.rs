@@ -550,7 +550,7 @@ mod tests {
         );
         assert_eq!(redact(&text), text);
         // Long file paths are not secrets.
-        let path = "/data/user/0/com.yajinni.paseousagebridge/files/credentials/accounts.json";
+        let path = "/data/user/0/com.dubba.ai.usage.tracker/files/credentials/accounts.json";
         assert_eq!(redact(path), path);
         assert_eq!(
             redact("OpenAI rate-limited the usage request."),
