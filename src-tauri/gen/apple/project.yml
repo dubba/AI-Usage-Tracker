@@ -1,6 +1,6 @@
 name: ai-usage-tracker
 options:
-  bundleIdPrefix: com.yajinni.paseousagebridge
+  bundleIdPrefix: com.dubba.ai.usage.tracker
   deploymentTarget:
     iOS: 14.0
 fileGroups: [../../src]
@@ -11,7 +11,7 @@ settingGroups:
   app:
     base:
       PRODUCT_NAME: AI Usage Tracker
-      PRODUCT_BUNDLE_IDENTIFIER: com.yajinni.paseousagebridge
+      PRODUCT_BUNDLE_IDENTIFIER: com.dubba.ai.usage.tracker
 targetTemplates:
   app:
     type: application
