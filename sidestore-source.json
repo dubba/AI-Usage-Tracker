@@ -15,10 +15,10 @@
       "iconURL": "https://raw.githubusercontent.com/dubba/AI-Usage-Tracker/main/src-tauri/icons/icon.png",
       "tintColor": "6366f1",
       "category": "utilities",
-      "version": "0.3.17",
-      "versionDate": "2026-10-07T08:20:36.337Z",
-      "versionDescription": "Release v0.3.17",
-      "downloadURL": "https://github.com/dubba/AI-Usage-Tracker/releases/download/v0.3.17/AI-Usage-Tracker.ipa",
+      "version": "0.3.18",
+      "versionDate": "2026-10-07T20:00:00.000Z",
+      "versionDescription": "On iOS, turning on a usage alert asks for notification permission the first time, so alerts can be shown. The app now installs as com.dubba.ai.usage.tracker.",
+      "downloadURL": "https://github.com/dubba/AI-Usage-Tracker/releases/download/v0.3.18/AI-Usage-Tracker.ipa",
       "size": 0,
       "minOSVersion": "18.0"
     }
