@@ -647,7 +647,7 @@ class MainActivity : TauriActivity() {
       publicSourceDir = path
     }
     if (archive.packageName != packageName) {
-      return "The update is for a different app."
+      return "This update isn't compatible with your app. Download and manually install the latest version:\n\nhttps://github.com/dubba/AI-Usage-Tracker/releases"
     }
     val current = try {
       packageManager.getPackageInfo(packageName, flags)

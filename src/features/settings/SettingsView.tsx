@@ -16,6 +16,7 @@ import type {
 import { FALLBACK_APP_VERSION, SIDEBAR_ID } from "../../shared/lib/constants";
 import { isIOS, isMobileDevice } from "../../shared/lib/platform";
 import { SHORTCUTS, isMacPlatform, shortcutLabel } from "../shortcuts/shortcuts";
+import { UpdateErrorMessage } from "./UpdateErrorMessage";
 import { UpdateProgressBar, updateInstallLabel } from "./UpdateProgressBar";
 import { useThemePreference } from "../../shared/hooks/useThemePreference";
 import type { ThemePreference } from "../../shared/lib/theme";
@@ -227,7 +228,7 @@ export function SettingsView({
               )}
               <UpdateProgressBar busy={updateBusy} percent={updateProgress?.percent ?? null} />
               {updateMessage ? <div className="info-panel settings-update-info">{updateMessage}</div> : null}
-              {updateError ? <div className="error-panel settings-update-error">{updateError}</div> : null}
+              {updateError ? <UpdateErrorMessage error={updateError} onOpenLink={onOpenLink} /> : null}
             </div>
 
             <div className="settings-updates-group-header settings-updates-beta-row">

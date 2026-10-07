@@ -2,6 +2,7 @@ import { useRef, type ReactNode } from "react";
 import { isAllowedExternalUrl } from "../../shared/lib/safeUrl";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import type { UpdateBusy } from "../../types";
+import { UpdateErrorMessage } from "./UpdateErrorMessage";
 import { UpdateProgressBar, updateInstallLabel } from "./UpdateProgressBar";
 import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
 
@@ -257,9 +258,7 @@ export function UpdateNotesModal({
         <UpdateProgressBar busy={updateBusy ?? null} percent={updatePercent ?? null} className="update-notes-progress" />
 
         {updateError ? (
-          <div className="error-panel settings-update-error update-notes-error" role="alert">
-            {updateError}
-          </div>
+          <UpdateErrorMessage error={updateError} onOpenLink={onOpenLink} className="update-notes-error" />
         ) : null}
 
         <div className="modal-actions update-notes-actions">

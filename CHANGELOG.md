@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (8 items)
+## Unreleased (9 items)
 
 ### Changed (6)
 
@@ -11,8 +11,9 @@
 - The bell button on an account card says "Update account alerts" when hovered.
 - Hovering the drag handle on a sidebar row or an account card says "Drag to reorder".
 
-### Fixed (2)
+### Fixed (3)
 
+- When an Android update is for a different app, Settings now explains that and links to the GitHub releases page instead of saying "The update is for a different app."
 - The drag handle (three dots) on a desktop account card lines up with the middle of the provider icon again, instead of sitting off to the side of it.
 - Connecting Grok no longer gets stuck on "Completing sign-in" after you sign in. The sign-in window was blocking a device-verification page, which is now allowed. Blocked pages are also noted in the diagnostics log.
 
