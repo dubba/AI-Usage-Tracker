@@ -47,11 +47,9 @@ jobs:
             npx tauri ios init
           fi
 
-          # The archive step produces an unsigned .app even when the export step
-          # fails for lack of a signing identity, so a non-zero exit is tolerated
-          # here and the archive is checked below.
-          npx tauri ios build --ci --target aarch64 --export-method debugging \
-            || echo "::warning::tauri ios build exited non-zero (expected without signing); looking for the archive"
+          # --archive-only stops before the IPA export (which needs a signing
+          # identity) and --no-sign skips code signing; SideStore re-signs later.
+          npx tauri ios build --ci --target aarch64 --archive-only --no-sign
 
           find_app() {
             find src-tauri/gen/apple "$RUNNER_TEMP" -maxdepth 8 -type d -path "*.xcarchive/Products/Applications/*.app" 2>/dev/null | head -n 1

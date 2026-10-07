@@ -1,7 +1,25 @@
 # Changelog
 
-## Unreleased (0 items)
+## Unreleased (10 items)
 
+### Added (1)
+
+- On iOS, turning on a usage alert asks for notification permission the first time, so alerts can be shown.
+
+### Changed (7)
+
+- The "Account connected" page shown in the browser after signing in now shows the provider's icon and name side by side, with the signed-in email on the next line. It was a bare email or just "ChatGPT", and it now looks the same for ChatGPT, Claude, Antigravity and AI Studio.
+- In Settings, the space above the General, Updates, Devices and Advanced headings is a uniform 18px, including above General on mobile.
+- The iOS project (`src-tauri/gen/apple`) is now committed instead of being regenerated on every build. A one-off "Generate iOS project" workflow creates it, and the iOS build uses it as is.
+- An empty group keeps its own page, with Edit Group and Delete Group and no "Account" button. Any other empty page shows the same provider cards as the empty All page instead of an "Account" button.
+- The sidebar + Account button's tooltip says "Add new account" and the + Group button's says "Combine accounts into a group to easily track usage", wrapping onto more than one line.
+- The bell button on an account card says "Update account alerts" when hovered.
+- Hovering the drag handle on a sidebar row or an account card says "Drag to reorder".
+
+### Fixed (2)
+
+- The drag handle (three dots) on a desktop account card lines up with the middle of the provider icon again, instead of sitting off to the side of it.
+- Connecting Grok no longer gets stuck on "Completing sign-in" after you sign in. The sign-in window was blocking a device-verification page, which is now allowed. Blocked pages are also noted in the diagnostics log.
 
 ## 0.3.17 - 2026-10-07 (15 items)
 

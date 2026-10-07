@@ -1,0 +1,43 @@
+name: Generate iOS project
+
+# One-off: runs `tauri ios init` on a macOS runner and commits src-tauri/gen/apple
+# so the project is reviewable and pinned (like gen/android). Re-run it after a
+# Tauri CLI upgrade or a bundle ID / Info.ios.plist change, then review the diff.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  init-ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          targets: aarch64-apple-ios
+      - run: npm install
+      - name: Generate the Xcode project
+        run: |
+          rm -rf src-tauri/gen/apple
+          npx tauri ios init --ci
+          find src-tauri/gen/apple -maxdepth 2 | sort
+      - name: Commit src-tauri/gen/apple
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -f src-tauri/gen/apple
+          if git diff --cached --quiet; then
+            echo "gen/apple is already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: generate iOS project (src-tauri/gen/apple)"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
