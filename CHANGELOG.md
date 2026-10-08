@@ -1,24 +1,16 @@
 # Changelog
 
-## Unreleased (2 items)
+## Unreleased (0 items)
 
-### Changed (1)
+
+## 0.4.0 - 2026-10-07 (26 items)
+
+### Changed (14)
 
 - On an empty dashboard, the description reads "Add an account to begin monitoring its usage limits."
-
-### Fixed (1)
-
-- The dropdown menu button on account cards now centers its arrow inside the square on mobile and desktop.
-
-
-## 0.4.0 - 2026-10-07 (24 items)
-
-### Changed (13)
-
 - In Create Group and Edit Group, the provider filter lists providers in alphabetical order. All Providers stays at the top.
 - On an empty dashboard, the space below Other Provider is half as tall, so the panel ends closer to that button.
 - On a computer, the add-account window is narrower, and the create-group window is narrower still. The provider lines in those menus still stay on one line.
-
 - The "Account connected" page shown in the browser after signing in now shows the provider's icon and name side by side, with the signed-in email on the next line. It was a bare email or just "ChatGPT", and it now looks the same for ChatGPT, Claude, Antigravity and AI Studio.
 - In Settings, the space above the General, Updates, Devices and Advanced headings is a uniform 18px, including above General on mobile.
 - An empty group keeps its own page, with Edit Group and Delete Group and no "Account" button. Any other empty page shows the same provider cards as the empty All page instead of an "Account" button.
@@ -30,8 +22,9 @@
 - On an empty dashboard, the button under the provider cards says "Other Provider".
 - On an empty dashboard, the space above the provider icon is half as tall, so the heading and provider cards sit higher.
 
-### Fixed (11)
+### Fixed (12)
 
+- The dropdown menu button on account cards now centers its arrow inside the square on mobile and desktop.
 - The Create Group provider menu stays the same width when it opens, and the selected checkmark sits apart from the provider name.
 - Opening a dropdown menu no longer jumps the window it sits in.
 
