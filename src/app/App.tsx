@@ -106,7 +106,9 @@ export default function App() {
   const {
     appSettings,
     autostart,
-    settingsBusy,
+    refreshIntervalBusy,
+    automaticUpdatesBusy,
+    includeBetaUpdatesBusy,
     reloadFromBackend,
     saveAccountRefreshMinutes,
     saveAutomaticUpdatesEnabled,
@@ -296,7 +298,9 @@ export default function App() {
           autostart={autostart}
           onToggleAutostart={toggleAutostart}
           appSettings={appSettings}
-          settingsBusy={settingsBusy}
+          refreshIntervalBusy={refreshIntervalBusy}
+          automaticUpdatesBusy={automaticUpdatesBusy}
+          includeBetaUpdatesBusy={includeBetaUpdatesBusy}
           onAccountRefreshMinutesChange={(minutes) => void saveAccountRefreshMinutes(minutes)}
           onAutomaticUpdatesChange={(enabled) => void saveAutomaticUpdatesEnabled(enabled)}
           onIncludeBetaUpdatesChange={(enabled) => void saveIncludeBetaUpdates(enabled)}
@@ -313,7 +317,8 @@ export default function App() {
           onOpenPairing={() => setPairingOpen(true)}
           onOpenLink={openLink}
           bridge={snapshot?.bridge ?? null}
-          bridgeBusy={busy.has("toggle-api-integration") || busy.has("open-api-integration")}
+          bridgeBusy={busy.has("toggle-api-integration")}
+          integrationWindowBusy={busy.has("open-api-integration")}
           onToggleBridge={(enabled) => void setApiIntegrationEnabled(enabled)}
           onViewBridgeWindow={() => void openApiIntegrationWindow()}
           onOpenUpdateNotes={() => setUpdateNotesOpen(true)}
@@ -384,8 +389,8 @@ export default function App() {
             <button
               type="button"
               className="button primary add-account-header-button"
-              data-tooltip="Add account"
-              aria-label="Add account"
+              data-tooltip="Add new account"
+              aria-label="Add new account"
               onClick={() => { openAdd(undefined, selectedGroup.provider ?? undefined); setSidebarOpen(false); }}
             >
               <PlusIcon />Account
@@ -393,8 +398,8 @@ export default function App() {
             <button
               type="button"
               className="button primary add-bucket-header-button"
-              data-tooltip="Create a custom group"
-              aria-label="Create a custom group"
+              data-tooltip="Combine accounts into a group to easily track usage"
+              aria-label="Combine accounts into a group to easily track usage"
               onClick={() => { openNewBucket(selectedGroup.provider); setSidebarOpen(false); }}
             >
               <PlusIcon />Group

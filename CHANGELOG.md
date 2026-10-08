@@ -1,8 +1,11 @@
 # Changelog
 
-## Unreleased (10 items)
+## Unreleased (0 items)
 
-### Changed (7)
+
+## 0.4.0 - 2026-10-07 (19 items)
+
+### Changed (10)
 
 - The "Account connected" page shown in the browser after signing in now shows the provider's icon and name side by side, with the signed-in email on the next line. It was a bare email or just "ChatGPT", and it now looks the same for ChatGPT, Claude, Antigravity and AI Studio.
 - In Settings, the space above the General, Updates, Devices and Advanced headings is a uniform 18px, including above General on mobile.
@@ -11,12 +14,21 @@
 - The bell button on an account card says "Update account alerts" when hovered.
 - Hovering the drag handle on a sidebar row or an account card says "Drag to reorder".
 - SideStore can install the app on iOS 16 and later.
+- On desktop, when the window is narrow enough that the Next reset card drops to its own row, the empty dashboard's OpenAI and xAI cards drop to the next row with it.
+- On an empty dashboard, the button under the provider cards says "Other Provider".
+- On an empty dashboard, the space above the provider icon is half as tall, so the heading and provider cards sit higher.
 
-### Fixed (3)
+### Fixed (9)
 
+- On iPhone, every sign-in page now has a "Back to AI Usage Tracker" button in the top-left corner, so you can leave without finishing the sign-in.
+- On iPhone, "Continue with Google" on the Claude, Antigravity and OpenAI sign-in pages opens in the same screen instead of doing nothing, and the sign-in pages now see an iPhone browser.
+- Signing in to ChatGPT on iPhone no longer ends with "OpenAI token exchange failed (400 Bad Request)". The sign-in result was being used twice, and a code only works once.
+- Connecting Grok on iPhone no longer crashes the app on the second and later attempts. The app now reads the sign-in cookies once per check instead of four times.
+- Antigravity sign-in on iPhone no longer fails the first time for the same reason as the ChatGPT error.
 - When an Android update is for a different app, Settings now explains that and links to the GitHub releases page instead of saying "The update is for a different app."
 - The drag handle (three dots) on a desktop account card lines up with the middle of the provider icon again, instead of sitting off to the side of it.
 - Connecting Grok no longer gets stuck on "Completing sign-in" after you sign in. The sign-in window was blocking a device-verification page, which is now allowed. Blocked pages are also noted in the diagnostics log.
+- Hovering Other Provider on the empty dashboard uses the same light purple as the Claude, Google, OpenAI and xAI cards, instead of a dark grey.
 
 ## 0.3.18 - 2026-10-07 (2 items)
 

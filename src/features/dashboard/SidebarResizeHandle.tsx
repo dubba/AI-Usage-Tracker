@@ -182,7 +182,7 @@ export function SidebarResizeHandle({
       onDoubleClick={() => applyWidth(defaultSidebarWidth(isOverlay()), true)}
       onKeyDown={onKeyDown}
     >
-      <div className="sidebar-resize-grip" aria-hidden="true" data-tooltip="Drag to resize. Double-click to reset.">
+      <div className="sidebar-resize-grip" aria-hidden="true" data-tooltip="Drag to resize, double-click to reset">
         <span />
         <span />
         <span />

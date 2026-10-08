@@ -211,6 +211,7 @@ export function AccountDashboardCard({
       draggable={false}
     >
       <header className="provider-account-card-header">
+        <span className="reorder-grip" data-tooltip="Drag to reorder" aria-hidden="true" />
         <button
           ref={iconButtonRef}
           type="button"
@@ -348,7 +349,7 @@ export function AccountDashboardCard({
             <button
               type="button"
               className="account-card-action notify-action"
-              data-tooltip="Usage notifications"
+              data-tooltip="Update account alerts"
               aria-label={`Configure usage notifications for ${account.label}`}
               disabled={cardBusy}
               onClick={onNotifications}

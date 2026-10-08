@@ -8,7 +8,8 @@ type ReportError = (source: string, cause: unknown, context?: string) => void;
 export function useAppSettings({ reportError, clearError }: { reportError: ReportError; clearError: (source: string) => void }) {
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
   const [autostart, setAutostart] = useState(false);
-  const [settingsBusy, setSettingsBusy] = useState(false);
+  /** Which setting is mid-save, so only that control disables while the request is in flight. */
+  const [settingsBusyKey, setSettingsBusyKey] = useState<string | null>(null);
 
   useEffect(() => {
     bridgeApi.getAppSettings().then(setAppSettings).catch((cause) => reportError("settings", cause, "Couldn't load app settings"));
@@ -35,38 +36,38 @@ export function useAppSettings({ reportError, clearError }: { reportError: Repor
   }, [clearError, reportError]);
 
   const saveAccountRefreshMinutes = useCallback(async (minutes: number) => {
-    setSettingsBusy(true);
+    setSettingsBusyKey("refresh");
     try {
       setAppSettings(await bridgeApi.setAccountRefreshMinutes(minutes));
       clearError("settings");
     } catch (cause) {
       reportError("settings", cause, "Couldn't save the refresh interval");
     } finally {
-      setSettingsBusy(false);
+      setSettingsBusyKey(null);
     }
   }, [clearError, reportError]);
 
   const saveAutomaticUpdatesEnabled = useCallback(async (enabled: boolean) => {
-    setSettingsBusy(true);
+    setSettingsBusyKey("automatic");
     try {
       setAppSettings(await bridgeApi.setAutomaticUpdatesEnabled(enabled));
       clearError("settings");
     } catch (cause) {
       reportError("settings", cause, "Couldn't save the automatic updates setting");
     } finally {
-      setSettingsBusy(false);
+      setSettingsBusyKey(null);
     }
   }, [clearError, reportError]);
 
   const saveIncludeBetaUpdates = useCallback(async (enabled: boolean) => {
-    setSettingsBusy(true);
+    setSettingsBusyKey("beta");
     try {
       setAppSettings(await bridgeApi.setIncludeBetaUpdates(enabled));
       clearError("settings");
     } catch (cause) {
       reportError("settings", cause, "Couldn't save the beta updates setting");
     } finally {
-      setSettingsBusy(false);
+      setSettingsBusyKey(null);
     }
   }, [clearError, reportError]);
 
@@ -82,7 +83,10 @@ export function useAppSettings({ reportError, clearError }: { reportError: Repor
   return {
     appSettings,
     autostart,
-    settingsBusy,
+    settingsBusy: settingsBusyKey !== null,
+    refreshIntervalBusy: settingsBusyKey === "refresh",
+    automaticUpdatesBusy: settingsBusyKey === "automatic",
+    includeBetaUpdatesBusy: settingsBusyKey === "beta",
     reloadFromBackend,
     saveAccountRefreshMinutes,
     saveAutomaticUpdatesEnabled,

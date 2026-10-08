@@ -2,7 +2,7 @@ use crate::{
     google_client::{client_secret, CLIENT_ID},
     model::{now_rfc3339, Account, LoginStart, LoginStatus, OAuthSecret, Provider, ProviderSecret},
     oauth_common::{
-        auth_failure_html, callback_html, escape_html, pkce_challenge, random_base64,
+        account_connected_html, auth_failure_html, callback_html, pkce_challenge, random_base64,
         spawn_callback_server, spawn_login_timeout, CallbackQuery, LOGIN_TIMEOUT_MINUTES,
     },
     state::AppState,
@@ -48,6 +48,9 @@ struct LoginContext {
     verifier: String,
     expected_state: String,
     redirect_uri: String,
+    /// The callback can arrive twice (the loopback server and the mobile WebView URL poll both
+    /// see it), and an authorization code works once.
+    callback_claimed: Arc<std::sync::atomic::AtomicBool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -143,6 +146,7 @@ pub async fn start_login(
         verifier,
         expected_state,
         redirect_uri,
+        callback_claimed: Arc::new(std::sync::atomic::AtomicBool::new(false)),
     });
     let router = Router::new()
         .route("/", get(callback))
@@ -360,6 +364,7 @@ pub async fn login_status(app: &Arc<AppState>, attempt_id: &str) -> Result<Login
                 verifier: exchange.verifier.clone(),
                 expected_state: exchange.expected_state.clone(),
                 redirect_uri: exchange.redirect_uri.clone(),
+                callback_claimed: Arc::new(std::sync::atomic::AtomicBool::new(true)),
             };
             match complete_exchange(&context, &exchange.code).await {
                 Ok(account) => {
@@ -458,6 +463,15 @@ async fn handle_callback(
     context: Arc<LoginContext>,
     query: CallbackQuery,
 ) -> axum::response::Response {
+    if context
+        .callback_claimed
+        .swap(true, std::sync::atomic::Ordering::SeqCst)
+    {
+        return callback_html(
+            r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px 20px;text-align:center"><h1>Finishing sign-in</h1><p style="color:#d1d5db">Return to AI Usage Tracker.</p></body></html>"#
+                .into(),
+        );
+    }
     if let Some(error) = query.error {
         let message = query.error_description.unwrap_or(error);
         fail_login(
@@ -505,10 +519,7 @@ async fn handle_callback(
     match complete_exchange(&context, &code).await {
         Ok(account) => {
             stop_callback(&context).await;
-            callback_html(format!(
-                r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Account connected</h1><p>{}</p><p style="color:#8e9791">You can close this tab and return to AI Usage Tracker.</p></body></html>"#,
-                escape_html(account.email.as_deref().unwrap_or(&account.label))
-            ))
+            callback_html(account_connected_html("Account connected", &account))
         }
         Err(error) => {
             if error.is_retryable() && is_waiting(context.app.as_ref(), &context.attempt_id) {
@@ -1150,6 +1161,7 @@ mod tests {
             verifier: "v".into(),
             expected_state: "s".into(),
             redirect_uri: "http://localhost:1455/auth/callback".into(),
+            callback_claimed: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
     }
 

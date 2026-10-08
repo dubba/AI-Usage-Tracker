@@ -51,8 +51,8 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        CFBundleShortVersionString: 0.3.18
-        CFBundleVersion: "0.3.18"
+        CFBundleShortVersionString: 0.4.0
+        CFBundleVersion: "0.4.0"
     entitlements:
       path: ai-usage-tracker_iOS/ai-usage-tracker_iOS.entitlements
     scheme:

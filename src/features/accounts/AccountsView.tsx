@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type BusyKeys } from "../../shared/lib/busy";
 import { SIDEBAR_ID } from "../../shared/lib/constants";
 import {
@@ -24,7 +24,9 @@ import type {
   AccountBucket,
   Provider,
 } from "../../types";
-import { persistVisibleAccountOrder } from "../reorder";
+import { persistVisibleAccountOrder, subscribeReordering } from "../reorder";
+import { isMobileDevice } from "../../shared/lib/platform";
+import { STORAGE_KEYS, storageGet, storageSet } from "../../shared/lib/storage";
 import { moveAnnouncement, moveById } from "../reorder/reorder-utils";
 import { AccountDashboardCard, REORDER_HINT_ID } from "./AccountDashboardCard";
 import { ACCOUNT_FORMS, formatCount } from "../../shared/lib/format";
@@ -109,9 +111,27 @@ export function AccountsView(props: {
 
   // Moving within a filtered subset would reorder against a partial list, so it is only offered on the full page.
   const canReorder = !showAttentionOnly && displayedAccounts.length > 1;
+  const [reorderHintSeen, setReorderHintSeen] = useState(() => storageGet(STORAGE_KEYS.reorderHintSeen) === "1");
+  const markReorderHintSeen = useCallback(() => {
+    storageSet(STORAGE_KEYS.reorderHintSeen, "1");
+    setReorderHintSeen(true);
+  }, []);
+  const showReorderHint = canReorder && !reorderHintSeen && isMobileDevice();
+
+  // Someone who has already reordered doesn't need the hint.
+  useEffect(() => {
+    if (!showReorderHint) return;
+    let dragged = false;
+    return subscribeReordering((active) => {
+      if (active) dragged = true;
+      else if (dragged) markReorderHintSeen();
+    });
+  }, [showReorderHint, markReorderHintSeen]);
+
   const moveAccount = (account: Account, delta: -1 | 1) => {
     const move = moveById(displayedAccounts.map((candidate) => candidate.id), account.id, delta);
     if (!move) return;
+    if (showReorderHint) markReorderHintSeen();
     void persistVisibleAccountOrder(move.ids, props.selectedGroup.id);
     setAnnouncement(moveAnnouncement(displayAccountLabel(account), move.to, move.ids.length));
   };
@@ -243,6 +263,20 @@ export function AccountsView(props: {
           </div>
         ) : null}
 
+        {showReorderHint ? (
+          <div className="reorder-hint-banner" role="note">
+            <span>Hold and drag a card to reorder</span>
+            <button
+              type="button"
+              className="reorder-hint-dismiss"
+              onClick={markReorderHintSeen}
+              aria-label="Dismiss reorder hint"
+            >
+              <CloseIcon />
+            </button>
+          </div>
+        ) : null}
+
         <section className="provider-account-cards" data-group-id={props.selectedGroup?.id || undefined}>
         {displayedAccounts.length ? displayedAccounts.map((account, index) => (
           <AccountDashboardCard
@@ -269,9 +303,7 @@ export function AccountsView(props: {
                 ? "No accounts need attention"
                 : props.selectedGroup.type === "bucket"
                   ? `No accounts in ${props.selectedGroup.title}`
-                  : props.selectedGroup.type === "all"
-                    ? "Connect a provider account"
-                    : `No accounts in ${props.selectedGroup.title}`}
+                  : "Connect a provider account"}
             </h2>
             <p>
               {showAttentionOnly
@@ -297,7 +329,7 @@ export function AccountsView(props: {
                       </button>
                     </>
                   ) : null}
-                  {props.selectedGroup.type === "all" ? (
+                  {props.selectedGroup.type !== "bucket" ? (
                     <>
                       <div className="empty-provider-grid">
                         {EMPTY_STATE_PROVIDERS.map(({ provider, brand, product }) => (
@@ -317,12 +349,10 @@ export function AccountsView(props: {
                         ))}
                       </div>
                       <button type="button" className="button ghost empty-provider-other" onClick={() => props.onAdd()}>
-                        <PlusIcon />Add Custom / Other
+                        <PlusIcon />Other Provider
                       </button>
                     </>
-                  ) : (
-                    <button type="button" className="button primary" onClick={() => props.onAdd()}><PlusIcon />Account</button>
-                  )}
+                  ) : null}
                 </>
               )}
             </div>

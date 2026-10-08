@@ -375,7 +375,16 @@ pub async fn start_login(
     .devtools(false)
     .initialization_script(CONNECT_BANNER_SCRIPT)
     .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15")
-    .on_navigation(is_allowed_login_navigation);
+    .on_navigation(|url| {
+        let allowed = is_allowed_login_navigation(url);
+        if !allowed {
+            crate::diagnostics::warn(&format!(
+                "Grok login blocked navigation to host {}",
+                url.host_str().unwrap_or("(none)")
+            ));
+        }
+        allowed
+    });
 
         builder = builder.center();
 
@@ -804,6 +813,8 @@ fn is_allowed_login_navigation(url: &Url) -> bool {
         || host.ends_with(".twitter.com")
         || host == "t.co"
         || host.ends_with(".t.co")
+        || host == "grokusercontent.com"
+        || host.ends_with(".grokusercontent.com")
         || host == "twimg.com"
         || host.ends_with(".twimg.com")
         || host == "cloudflare.com"
@@ -838,21 +849,45 @@ fn is_xai_signin_host(url: &Url) -> bool {
 }
 
 fn read_cookie_header(window: &WebviewWindow) -> Result<String, String> {
+    #[allow(unused_mut)]
     let mut pairs = BTreeMap::new();
-    if let Ok(current_url) = window.url() {
-        collect_cookies_for_url(window, &current_url, &mut pairs);
-    }
-    for target in GROK_COOKIE_URLS {
-        if let Ok(url) = Url::parse(target) {
-            collect_cookies_for_url(window, &url, &mut pairs);
+    // Every cookie lookup blocks while the main thread runs a nested run loop. On iOS four of
+    // them per poll crashed the app, so read the store once and filter here.
+    #[cfg(target_os = "ios")]
+    {
+        let cookies = window.cookies().map_err(|error| error.to_string())?;
+        for cookie in cookies {
+            let domain = cookie.domain().unwrap_or("").trim_start_matches('.');
+            let value = cookie.value().trim();
+            if value.is_empty() || !is_allowed_cookie_host(domain) {
+                continue;
+            }
+            pairs.insert(cookie.name().to_string(), value.to_string());
         }
+        let header = pairs
+            .into_iter()
+            .map(|(name, value)| format!("{name}={value}"))
+            .collect::<Vec<_>>()
+            .join("; ");
+        return normalize_cookie_header(&header);
     }
-    let header = pairs
-        .into_iter()
-        .map(|(name, value)| format!("{name}={value}"))
-        .collect::<Vec<_>>()
-        .join("; ");
-    normalize_cookie_header(&header)
+    #[cfg(not(target_os = "ios"))]
+    {
+        if let Ok(current_url) = window.url() {
+            collect_cookies_for_url(window, &current_url, &mut pairs);
+        }
+        for target in GROK_COOKIE_URLS {
+            if let Ok(url) = Url::parse(target) {
+                collect_cookies_for_url(window, &url, &mut pairs);
+            }
+        }
+        let header = pairs
+            .into_iter()
+            .map(|(name, value)| format!("{name}={value}"))
+            .collect::<Vec<_>>()
+            .join("; ");
+        normalize_cookie_header(&header)
+    }
 }
 
 fn collect_cookies_for_url(
@@ -935,6 +970,7 @@ mod tests {
         for allowed in [
             "https://accounts.x.ai/sign-in",
             "https://grok.com/?_s=usage",
+            "https://auth.grokusercontent.com/verify",
             "https://accounts.google.com/o/oauth2/auth?client_id=x",
             "https://appleid.apple.com/auth/authorize",
         ] {
@@ -944,6 +980,7 @@ mod tests {
         for blocked in [
             "https://evil.com/phish",
             "https://grok.com.evil.com/",
+            "https://grokusercontent.com.evil.com/",
             "http://accounts.x.ai/sign-in",
             "javascript:alert(1)",
         ] {

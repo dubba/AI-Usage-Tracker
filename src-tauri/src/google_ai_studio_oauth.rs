@@ -4,8 +4,9 @@ use crate::{
         Account, CloudProjectOption, LoginStart, LoginStatus, OAuthSecret, Provider, ProviderSecret,
     },
     oauth_common::{
-        auth_failure_html, callback_html, escape_html, pkce_challenge, random_base64,
-        spawn_callback_server, spawn_login_timeout, CallbackQuery, LOGIN_TIMEOUT_MINUTES,
+        account_connected_html, auth_failure_html, callback_html, escape_html, pkce_challenge,
+        random_base64, spawn_callback_server, spawn_login_timeout, CallbackQuery,
+        LOGIN_TIMEOUT_MINUTES,
     },
     providers::{google_ai_studio, oauth_refresh::IdToken, ProviderError},
     state::AppState,
@@ -304,10 +305,9 @@ async fn callback(
     stop_callback(&context).await;
 
     let body = match result {
-        Ok(CallbackOutcome::Complete(account)) => format!(
-            r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Google usage connected</h1><p>{}</p><p style="color:#8e9791">You can close this tab and return to AI Usage Tracker.</p></body></html>"#,
-            escape_html(account.email.as_deref().unwrap_or(&account.label))
-        ),
+        Ok(CallbackOutcome::Complete(account)) => {
+            account_connected_html("Account connected", &account)
+        }
         Ok(CallbackOutcome::ChooseProject(_)) => {
             r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Google sign-in complete</h1><p>Return to AI Usage Tracker and choose the project that owns this API key.</p></body></html>"#.into()
         }

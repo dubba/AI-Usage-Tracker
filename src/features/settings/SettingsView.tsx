@@ -33,7 +33,9 @@ export function SettingsView({
   autostart,
   onToggleAutostart,
   appSettings,
-  settingsBusy,
+  refreshIntervalBusy,
+  automaticUpdatesBusy,
+  includeBetaUpdatesBusy,
   onAccountRefreshMinutesChange,
   onAutomaticUpdatesChange,
   onIncludeBetaUpdatesChange,
@@ -51,6 +53,7 @@ export function SettingsView({
   onOpenLink,
   bridge,
   bridgeBusy,
+  integrationWindowBusy,
   onToggleBridge,
   onViewBridgeWindow,
   onOpenUpdateNotes,
@@ -58,7 +61,9 @@ export function SettingsView({
   autostart: boolean;
   onToggleAutostart: () => void;
   appSettings: AppSettings | null;
-  settingsBusy: boolean;
+  refreshIntervalBusy: boolean;
+  automaticUpdatesBusy: boolean;
+  includeBetaUpdatesBusy: boolean;
   onAccountRefreshMinutesChange: (minutes: number) => void;
   onAutomaticUpdatesChange: (enabled: boolean) => void;
   onIncludeBetaUpdatesChange: (enabled: boolean) => void;
@@ -76,6 +81,7 @@ export function SettingsView({
   onOpenLink: (url: string) => void;
   bridge: BridgeStatus | null;
   bridgeBusy: boolean;
+  integrationWindowBusy: boolean;
   onToggleBridge: (enabled: boolean) => void;
   onViewBridgeWindow: () => void;
   onOpenUpdateNotes?: () => void;
@@ -143,7 +149,7 @@ export function SettingsView({
                     ? appSettings.accountRefreshMinutes
                     : 15
                 }
-                disabled={!appSettings || settingsBusy}
+                disabled={!appSettings || refreshIntervalBusy}
                 options={ACCOUNT_REFRESH_OPTIONS.map((minutes) => ({
                   value: minutes,
                   label: `${minutes} minutes`,
@@ -165,7 +171,7 @@ export function SettingsView({
               <button
                 type="button"
                 className={`toggle ${automaticUpdates ? "on" : ""}`}
-                disabled={!appSettings || settingsBusy}
+                disabled={!appSettings || automaticUpdatesBusy}
                 role="switch"
                 aria-checked={automaticUpdates}
                 aria-labelledby="setting-auto-update-label"
@@ -238,7 +244,7 @@ export function SettingsView({
               <button
                 type="button"
                 className={`toggle ${includeBetaUpdates ? "on" : ""}`}
-                disabled={!appSettings || settingsBusy}
+                disabled={!appSettings || includeBetaUpdatesBusy}
                 role="switch"
                 aria-checked={includeBetaUpdates}
                 aria-labelledby="setting-beta-label"
@@ -336,7 +342,7 @@ export function SettingsView({
                     className="button ghost settings-changelog-button"
                     aria-label="View integration window (opens in a new window)"
                     data-tooltip="Opens in a new window"
-                    disabled={bridgeBusy}
+                    disabled={integrationWindowBusy}
                     onClick={onViewBridgeWindow}
                   >
                     <span>View</span>

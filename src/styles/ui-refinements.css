@@ -304,7 +304,7 @@
    Matches the Obsidian dark theme, timing, and mobile touch behavior.
    ========================================================================== */
 
-[data-tooltip]:not(.sidebar-resize-grip):not(.ui-modal-close):not(.pairing-switch-camera-fab) {
+[data-tooltip]:not(.sidebar-resize-grip):not(.reorder-grip):not(.ui-modal-close):not(.pairing-switch-camera-fab) {
   position: relative;
 }
 
@@ -325,10 +325,10 @@
   z-index: 1000;
   transform: translateX(-50%);
   padding: 6px 9px;
-  border: 1px solid var(--c-3d3b3d);
+  border: 1px solid #6d3bd7;
   border-radius: 6px;
-  background: var(--c-121111);
-  color: var(--c-f5f1f0);
+  background: #6d3bd7;
+  color: #fff;
   font-size: 11px;
   font-weight: 600;
   line-height: 1.2;
@@ -449,6 +449,12 @@
   right: 0;
   transform: none;
   z-index: 1000;
+}
+
+/* The group tooltip is a sentence, so let it wrap instead of running in one line. */
+.add-bucket-header-button[data-tooltip]::after {
+  width: 220px;
+  white-space: normal;
 }
 
 .provider-window-toggle button[data-tooltip]::after {
@@ -1257,6 +1263,24 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .settings-changelog-button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+/* Settings: toggles match the purple hover of the View / Link Devices buttons.
+   The outline is drawn outside the track so it never shrinks it or shifts the knob. */
+.settings-style-content .toggle {
+  outline: 1px solid transparent;
+  outline-offset: 0;
+  transition: outline-color 140ms ease, background-color 140ms ease;
+}
+
+.settings-style-content .toggle:hover:not(:disabled) {
+  background-color: var(--c-28213a) !important;
+  outline-color: var(--obsidian-purple-strong);
+}
+
+.settings-style-content .toggle.on:hover:not(:disabled) {
+  background-color: #5c2fc0 !important;
+  outline-color: var(--obsidian-purple-strong);
 }
 
 /* Settings: Account Updates dropdown trigger & menu matching refresh all button look & feel */

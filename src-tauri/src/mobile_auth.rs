@@ -36,6 +36,60 @@ const POPUP_SHIM_SCRIPT: &str = r#"
 })();
 "#;
 
+/// URL fragment the injected "Back" button sets. The login page is a remote origin with no IPC,
+/// so the poll loop reads this from the WebView URL instead.
+#[cfg_attr(not(any(test, target_os = "ios")), allow(dead_code))]
+const BACK_FRAGMENT: &str = "ai-usage-tracker-back";
+
+/// iOS has no back gesture or button in the single-WebView login, so this adds a fixed
+/// "Back to AI Usage Tracker" button to the top-left of every provider page.
+#[cfg_attr(not(any(test, target_os = "ios")), allow(dead_code))]
+const BACK_BUTTON_SCRIPT: &str = r#"
+(() => {
+  try {
+    const id = '__ai_tracker_back';
+    if (document.getElementById(id)) return;
+    const button = document.createElement('button');
+    button.id = id;
+    button.type = 'button';
+    button.textContent = '‹ Back to AI Usage Tracker';
+    button.style.cssText = [
+      'position:fixed', 'top:max(env(safe-area-inset-top),8px)', 'left:8px', 'z-index:2147483647',
+      'padding:8px 14px', 'border:0', 'border-radius:999px', 'background:#6d3bd7', 'color:#fff',
+      'font:600 14px -apple-system,system-ui,sans-serif', 'box-shadow:0 2px 10px rgba(0,0,0,.4)',
+    ].join(';');
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      location.hash = 'ai-usage-tracker-back';
+    }, true);
+    (document.body || document.documentElement).appendChild(button);
+  } catch (e) {}
+})();
+"#;
+
+/// wry only implements `window.open` popups on macOS, so on iOS the call silently returns null and
+/// "Continue with Google" never opens. Opening the target in the same WebView lets the redirect
+/// flow finish.
+#[cfg_attr(not(any(test, target_os = "ios")), allow(dead_code))]
+const IOS_POPUP_SCRIPT: &str = r#"
+(() => {
+  try {
+    if (window.__aiTrackerPopup) return;
+    window.__aiTrackerPopup = true;
+    window.open = function (url) {
+      if (url) location.href = String(url);
+      return null;
+    };
+  } catch (e) {}
+})();
+"#;
+
+#[cfg_attr(not(any(test, target_os = "ios")), allow(dead_code))]
+fn is_back_request(url: &Url) -> bool {
+    url.fragment() == Some(BACK_FRAGMENT)
+}
+
 #[cfg(mobile)]
 pub fn main_window(app: &AppHandle) -> Result<WebviewWindow, String> {
     app.get_webview_window(MAIN_WINDOW)
@@ -147,6 +201,20 @@ pub fn open_in_main_webview(
                     let _ = window.navigate(oauth_start.clone());
                     continue;
                 }
+                #[cfg(target_os = "ios")]
+                {
+                    if is_back_request(&current) {
+                        let _ = state.abandon_waiting_login(&attempt_id);
+                        let _ = window.navigate(restore_url);
+                        break;
+                    }
+                    if !urls_share_origin(&current, &restore_url)
+                        && matches!(current.scheme(), "http" | "https")
+                    {
+                        let _ = window.eval(BACK_BUTTON_SCRIPT);
+                        let _ = window.eval(IOS_POPUP_SCRIPT);
+                    }
+                }
                 on_url(current.clone());
                 if urls_share_origin(&current, &restore_url) {
                     if left_app_shell {
@@ -222,6 +290,18 @@ mod tests {
         assert!(POPUP_SHIM_SCRIPT.contains("FedCM unavailable"));
         assert!(POPUP_SHIM_SCRIPT.contains("opts.identity"));
         assert!(!POPUP_SHIM_SCRIPT.contains("window.open ="));
+    }
+
+    #[test]
+    fn back_button_requests_are_detected_from_the_url_fragment() {
+        let back = Url::parse("https://claude.ai/login#ai-usage-tracker-back").unwrap();
+        let other = Url::parse("https://claude.ai/login#other").unwrap();
+        let none = Url::parse("https://claude.ai/login").unwrap();
+        assert!(is_back_request(&back));
+        assert!(!is_back_request(&other));
+        assert!(!is_back_request(&none));
+        assert!(BACK_BUTTON_SCRIPT.contains(BACK_FRAGMENT));
+        assert!(IOS_POPUP_SCRIPT.contains("window.open"));
     }
 
     #[test]

@@ -26,7 +26,7 @@ function capturePositions(elements: HTMLElement[]): Map<HTMLElement, { left: num
 }
 
 function animateReorder(elements: HTMLElement[], before: Map<HTMLElement, { left: number; top: number }>): void {
-  if (window.matchMedia("(prefers-reduced-motion: reduce), (pointer: coarse)").matches) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   window.requestAnimationFrame(() => {
     for (const element of elements) {
       const previous = before.get(element);

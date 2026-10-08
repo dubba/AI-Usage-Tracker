@@ -650,6 +650,19 @@ select {
 .empty-provider-other {
   border-color: var(--chrome-border) !important;
   border-radius: 6px !important;
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+button.button.ghost.empty-provider-other:hover:not(:disabled),
+button.button.ghost.empty-provider-other:focus-visible:not(:disabled) {
+  background: var(--c-28213a) !important;
+  border-color: var(--obsidian-purple-strong) !important;
+}
+
+button.button.ghost.empty-provider-other:active:not(:disabled) {
+  background: var(--c-32254e) !important;
+  border-color: var(--obsidian-purple-strong) !important;
+  transform: scale(0.98);
 }
 
 .empty-provider-mark {
@@ -853,6 +866,39 @@ select {
 .filter-active-banner .compact-button svg {
   width: 12px;
   height: 12px;
+}
+
+.reorder-hint-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 8px 8px 14px;
+  margin: 0 0 12px;
+  background: rgba(109, 59, 215, 0.14);
+  border: 1px solid rgba(109, 59, 215, 0.45);
+  border-radius: 8px;
+  color: var(--obsidian-purple);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.reorder-hint-dismiss {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.reorder-hint-dismiss svg {
+  width: 14px;
+  height: 14px;
 }
 
 .summary-card.next-reset-card {
@@ -1369,10 +1415,11 @@ button.account-card-provider-icon:active {
   color: var(--c-88828d);
 }
 
-.mockup-empty-panel {
+.welcome-panel.mockup-empty-panel {
   min-height: 260px;
   border: 1px solid var(--obsidian-border);
   background: var(--obsidian-surface-low);
+  padding-top: 27px;
 }
 
 .info-panel,
@@ -1423,13 +1470,13 @@ button.account-card-provider-icon:active {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--obsidian-muted);
-  margin: 22px 0 8px 2px;
+  margin: 18px 0 8px 2px;
   line-height: 1.2;
 }
 
 .settings-style-content .dashboard-scroll > .settings-section-title:first-child,
 .settings-style-content .dashboard-scroll > .settings-section-title:first-of-type {
-  margin-top: 14px;
+  margin-top: 18px;
 }
 
 .settings-advanced-toggle {
@@ -2066,7 +2113,7 @@ select.text-input option,
 }
 
 .toggle.on {
-  background: var(--c-7650d9) !important;
+  background: #6d3bd7 !important;
 }
 
 .modal-backdrop {
@@ -2594,6 +2641,12 @@ select.text-input option,
     overflow: visible;
   }
 
+  /* Same wrap as the Next reset card: OpenAI and xAI drop to the next row
+     instead of squeezing all four provider cards onto one. */
+  .empty-provider-grid {
+    grid-template-columns: repeat(2, minmax(0, 148px));
+  }
+
   .summary-strip > .summary-card {
     min-height: 70px;
     padding: 16px;
@@ -2863,6 +2916,12 @@ select.text-input option,
 
   .settings-style-content .dashboard-scroll > .settings-card:first-child {
     margin-top: 0 !important;
+  }
+
+  /* The scroll area already adds 10px of top padding, so General needs 8px to total 18px. */
+  .settings-style-content .dashboard-scroll > .settings-section-title:first-child,
+  .settings-style-content .dashboard-scroll > .settings-section-title:first-of-type {
+    margin-top: 8px;
   }
 
   .dashboard-header {

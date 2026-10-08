@@ -65,6 +65,7 @@ export function SidebarGroupRow({
       }}
       aria-label={`${group.title}, ${formatCount(group.accounts.length, ACCOUNT_FORMS)}, 5h ${labelFive}, 7d ${labelWeekly}`}
     >
+      {reorderable ? <span className="reorder-grip" data-tooltip="Drag to reorder" aria-hidden="true" /> : null}
       <span className={`provider-summary-icon ${group.provider ? `provider-${group.provider}` : "provider-all"}`}>
         {group.provider ? <ProviderIcon provider={group.provider} /> : <UsersIcon />}
       </span>

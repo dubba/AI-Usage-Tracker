@@ -45,9 +45,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .
   padding-left: 28px;
 }
 
-.provider-summary-row[data-reorder-enabled="true"]::before,
-.provider-account-card[data-reorder-enabled="true"] .provider-account-card-header::before {
-  content: "";
+.reorder-grip {
   position: absolute;
   left: 7px;
   top: 50%;
@@ -57,16 +55,44 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .
   border-radius: 50%;
   background: var(--c-7e8a84);
   box-shadow: 0 -6px 0 #7e8a84, 0 6px 0 #7e8a84;
-  opacity: 0.9;
-  pointer-events: none;
 }
 
-.provider-account-card[data-reorder-enabled="true"] .provider-account-card-header::before {
-  left: 10px;
+/* The mark is 4px, too thin to aim at, so the hover area is wider than the mark. */
+.reorder-grip::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  right: -6px;
+  top: -10px;
+  bottom: -10px;
 }
 
-.provider-summary-row[data-reorder-enabled="true"]:hover::before,
-.provider-account-card[data-reorder-enabled="true"]:hover .provider-account-card-header::before {
+/* Beside the grip rather than below the card, where the shared tooltip would land. */
+.reorder-grip[data-tooltip] {
+  z-index: 3;
+}
+
+.reorder-grip[data-tooltip]::after {
+  left: calc(100% + 10px);
+  right: auto;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* The icon sits at the header's bottom edge (above its 16px padding), so the grip is centered on the icon, not on the taller header. */
+.provider-account-card[data-reorder-enabled="true"] .provider-account-card-header .reorder-grip {
+  left: 12px;
+  top: auto;
+  bottom: calc(16px + 21px - 2px);
+  transform: none;
+}
+
+.provider-account-card[data-reorder-enabled="true"]:has(.account-card-error) .provider-account-card-header .reorder-grip {
+  bottom: calc(21px - 2px);
+}
+
+.provider-summary-row[data-reorder-enabled="true"]:hover .reorder-grip,
+.provider-account-card[data-reorder-enabled="true"]:hover .reorder-grip {
   background: var(--c-d4c3ff);
   box-shadow: 0 -6px 0 #d4c3ff, 0 6px 0 #d4c3ff;
 }
@@ -78,8 +104,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .
   .provider-account-card[data-reorder-enabled="true"] .provider-account-card-header {
     padding-left: var(--account-card-inline-padding, 16px) !important;
   }
-  .provider-summary-row[data-reorder-enabled="true"]::before,
-  .provider-account-card[data-reorder-enabled="true"] .provider-account-card-header::before {
+  .reorder-grip {
     display: none;
   }
 }
@@ -175,6 +200,20 @@ html.dashboard-reordering .provider-list {
   margin: 0 !important;
   z-index: 10000 !important;
   pointer-events: none !important;
+  transform-origin: center center !important;
+  scale: 1.02;
+  animation: reorder-lift 140ms cubic-bezier(.2, .8, .2, 1);
+}
+
+@keyframes reorder-lift {
+  from { scale: 1; }
+  to { scale: 1.02; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-reorder-float {
+    animation: none;
+  }
 }
 
 .provider-account-card.is-reorder-origin,
