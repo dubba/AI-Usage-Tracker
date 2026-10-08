@@ -10,12 +10,9 @@ import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
 import { useVirtualKeyboard } from "../../shared/hooks/useVirtualKeyboard";
 
-const BUCKET_PROVIDER_ORDER: Provider[] = ["antigravity", "grok", "openai", "anthropic", "google_ai_studio", "opencode_go"];
-
-const ALL_PROVIDERS: { id: Provider; label: string }[] = BUCKET_PROVIDER_ORDER.map((id) => ({
-  id,
-  label: PROVIDER_META[id].name,
-}));
+const ALL_PROVIDERS: { id: Provider; label: string }[] = (Object.keys(PROVIDER_META) as Provider[])
+  .map((id) => ({ id, label: PROVIDER_META[id].name }))
+  .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
 
 export function BucketModal({
   open,

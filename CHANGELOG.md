@@ -3,9 +3,13 @@
 ## Unreleased (0 items)
 
 
-## 0.4.0 - 2026-10-07 (19 items)
+## 0.4.0 - 2026-10-07 (24 items)
 
-### Changed (10)
+### Changed (13)
+
+- In Create Group and Edit Group, the provider filter lists providers in alphabetical order. All Providers stays at the top.
+- On an empty dashboard, the space below Other Provider is half as tall, so the panel ends closer to that button.
+- On a computer, the add-account window is narrower, and the create-group window is narrower still. The provider lines in those menus still stay on one line.
 
 - The "Account connected" page shown in the browser after signing in now shows the provider's icon and name side by side, with the signed-in email on the next line. It was a bare email or just "ChatGPT", and it now looks the same for ChatGPT, Claude, Antigravity and AI Studio.
 - In Settings, the space above the General, Updates, Devices and Advanced headings is a uniform 18px, including above General on mobile.
@@ -18,7 +22,10 @@
 - On an empty dashboard, the button under the provider cards says "Other Provider".
 - On an empty dashboard, the space above the provider icon is half as tall, so the heading and provider cards sit higher.
 
-### Fixed (9)
+### Fixed (11)
+
+- The Create Group provider menu stays the same width when it opens, and the selected checkmark sits apart from the provider name.
+- Opening a dropdown menu no longer jumps the window it sits in.
 
 - On iPhone, every sign-in page now has a "Back to AI Usage Tracker" button in the top-left corner, so you can leave without finishing the sign-in.
 - On iPhone, "Continue with Google" on the Claude, Antigravity and OpenAI sign-in pages opens in the same screen instead of doing nothing, and the sign-in pages now see an iPhone browser.

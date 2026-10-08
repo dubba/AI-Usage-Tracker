@@ -1420,6 +1420,7 @@ button.account-card-provider-icon:active {
   border: 1px solid var(--obsidian-border);
   background: var(--obsidian-surface-low);
   padding-top: 27px;
+  padding-bottom: 27px;
 }
 
 .info-panel,
@@ -1887,6 +1888,7 @@ select.text-input option,
   position: relative;
   width: 100%;
   user-select: none;
+  overflow: visible;
 }
 
 .custom-dropdown-trigger {
@@ -1972,10 +1974,7 @@ select.text-input option,
 }
 
 .custom-dropdown-menu {
-  position: absolute;
-  top: calc(100% + 5px);
-  left: 0;
-  right: 0;
+  position: fixed;
   z-index: 10000;
   max-height: 280px;
   margin: 0;
@@ -1998,8 +1997,6 @@ select.text-input option,
 }
 
 .custom-dropdown-menu.upward {
-  top: auto !important;
-  bottom: calc(100% + 5px) !important;
   box-shadow: 0 -16px 40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(160, 120, 255, 0.12) !important;
   animation: customDropdownFadeInUp 120ms ease-out !important;
 }
@@ -2150,6 +2147,10 @@ select.text-input option,
 .modal-backdrop::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
   border-radius: 999px;
+}
+
+.modal-card.provider-connection-modal {
+  width: min(440px, calc(100vw - 40px));
 }
 
 .modal-card {
@@ -2372,7 +2373,7 @@ select.text-input option,
 }
 
 .bucket-modal-card {
-  width: min(580px, calc(100vw - 40px));
+  width: min(480px, calc(100vw - 40px));
 }
 
 .bucket-modal-form {
@@ -2385,12 +2386,14 @@ select.text-input option,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   margin-bottom: 8px;
 }
 
 .bucket-account-heading .field-label {
   margin: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .bucket-filter-actions {
@@ -2400,7 +2403,8 @@ select.text-input option,
 }
 
 .bucket-filter-actions .custom-dropdown-container {
-  width: 140px;
+  width: 150px;
+  min-width: 150px;
   flex-shrink: 0;
 }
 
@@ -2414,15 +2418,26 @@ select.text-input option,
 }
 
 .bucket-filter-actions .custom-dropdown-menu {
-  max-height: 200px;
+  max-height: 240px;
+  overflow-x: hidden;
 }
 
 .bucket-filter-actions .custom-dropdown-item {
-  padding: 6px 8px !important;
+  padding: 6px 10px !important;
+  gap: 12px;
+}
+
+.bucket-filter-actions .custom-dropdown-item-content {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .bucket-filter-actions .custom-dropdown-item-label {
   font-size: 12px !important;
+}
+
+.bucket-filter-actions .custom-dropdown-check {
+  margin-left: 12px;
 }
 
 .alert-threshold .custom-dropdown-trigger {
@@ -3221,8 +3236,6 @@ select.text-input option,
 
   .settings-account-refresh .custom-dropdown-menu {
     right: auto;
-    min-width: 100%;
-    width: max-content;
   }
 
   .skeleton-grid {
@@ -3281,9 +3294,9 @@ select.text-input option,
   }
 
   .bucket-filter-actions .custom-dropdown-container {
-    flex: 1 1 auto;
+    flex: 1 1 150px;
     width: auto;
-    min-width: 0;
+    min-width: 150px;
   }
 
   .bucket-filter-actions .button {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useId } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useId, type CSSProperties } from "react";
 
 export type DropdownOption<T extends string | number> = {
   value: T;
@@ -6,6 +6,52 @@ export type DropdownOption<T extends string | number> = {
   detail?: string;
   icon?: React.ReactNode;
 };
+
+const MENU_GAP = 5;
+const MENU_MAX_HEIGHT = 280;
+const MENU_FLIP_HEIGHT = 240;
+
+type MenuPlacement = {
+  openUpward: boolean;
+  style: CSSProperties;
+};
+
+function computeMenuPlacement(anchor: HTMLElement | null): MenuPlacement {
+  if (!anchor) {
+    return { openUpward: false, style: {} };
+  }
+
+  const rect = anchor.getBoundingClientRect();
+  const viewportHeight = window.innerHeight;
+  const spaceBelow = viewportHeight - rect.bottom - MENU_GAP;
+  const spaceAbove = rect.top - MENU_GAP;
+  const openUpward = spaceBelow < MENU_FLIP_HEIGHT && spaceAbove > spaceBelow;
+  const available = openUpward ? spaceAbove : spaceBelow;
+  const maxHeight = Math.min(MENU_MAX_HEIGHT, Math.max(0, available));
+
+  return {
+    openUpward,
+    style: {
+      position: "fixed",
+      left: rect.left,
+      width: rect.width,
+      minWidth: rect.width,
+      maxHeight,
+      top: openUpward ? "auto" : rect.bottom + MENU_GAP,
+      bottom: openUpward ? viewportHeight - rect.top + MENU_GAP : "auto",
+    },
+  };
+}
+
+function scrollItemIntoList(list: HTMLUListElement, item: HTMLElement) {
+  const itemTop = item.offsetTop;
+  const itemBottom = itemTop + item.offsetHeight;
+  if (itemTop < list.scrollTop) {
+    list.scrollTop = itemTop;
+  } else if (itemBottom > list.scrollTop + list.clientHeight) {
+    list.scrollTop = itemBottom - list.clientHeight;
+  }
+}
 
 export function CustomDropdown<T extends string | number>({
   id,
@@ -28,7 +74,7 @@ export function CustomDropdown<T extends string | number>({
   const dropdownId = id ?? generatedId;
   const listboxId = `${dropdownId}-listbox`;
   const [isOpen, setIsOpen] = useState(false);
-  const [openUpward, setOpenUpward] = useState(false);
+  const [placement, setPlacement] = useState<MenuPlacement>({ openUpward: false, style: {} });
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -36,31 +82,49 @@ export function CustomDropdown<T extends string | number>({
   const selectedOption = options.find((opt) => opt.value === value);
   const selectedIndex = options.findIndex((opt) => opt.value === value);
 
-  useEffect(() => {
-    if (!isOpen) {
-      setHighlightedIndex(-1);
-      return;
-    }
-
-    if (containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-      const spaceBelow = viewportHeight - rect.bottom;
-      const spaceAbove = rect.top;
-      setOpenUpward(spaceBelow < 240 && spaceAbove > spaceBelow);
-    }
-
+  const openMenu = () => {
+    setPlacement(computeMenuPlacement(containerRef.current));
     setHighlightedIndex(selectedIndex >= 0 ? selectedIndex : 0);
+    setIsOpen(true);
+  };
+
+  const closeMenu = () => {
+    setIsOpen(false);
+    setHighlightedIndex(-1);
+  };
+
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+
+    const updatePlacement = () => {
+      setPlacement(computeMenuPlacement(containerRef.current));
+    };
+
+    updatePlacement();
+    window.addEventListener("resize", updatePlacement);
+    window.addEventListener("scroll", updatePlacement, true);
+    window.visualViewport?.addEventListener("resize", updatePlacement);
+    window.visualViewport?.addEventListener("scroll", updatePlacement);
+    return () => {
+      window.removeEventListener("resize", updatePlacement);
+      window.removeEventListener("scroll", updatePlacement, true);
+      window.visualViewport?.removeEventListener("resize", updatePlacement);
+      window.visualViewport?.removeEventListener("scroll", updatePlacement);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
 
     const handlePointerDown = (event: PointerEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+        closeMenu();
       }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setIsOpen(false);
+        closeMenu();
       }
     };
 
@@ -70,15 +134,13 @@ export function CustomDropdown<T extends string | number>({
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen, selectedIndex]);
+  }, [isOpen]);
 
-  useEffect(() => {
-    if (isOpen && highlightedIndex >= 0 && listRef.current) {
-      const items = listRef.current.querySelectorAll<HTMLLIElement>(".custom-dropdown-item");
-      const item = items[highlightedIndex];
-      if (item) {
-        item.scrollIntoView({ block: "nearest" });
-      }
+  useLayoutEffect(() => {
+    if (!isOpen || highlightedIndex < 0 || !listRef.current) return;
+    const item = listRef.current.querySelectorAll<HTMLLIElement>(".custom-dropdown-item")[highlightedIndex];
+    if (item) {
+      scrollItemIntoList(listRef.current, item);
     }
   }, [isOpen, highlightedIndex]);
 
@@ -90,27 +152,27 @@ export function CustomDropdown<T extends string | number>({
       if (isOpen) {
         if (highlightedIndex >= 0 && highlightedIndex < options.length) {
           onChange(options[highlightedIndex].value);
-          setIsOpen(false);
+          closeMenu();
         }
       } else {
-        setIsOpen(true);
+        openMenu();
       }
     } else if (event.key === "ArrowDown") {
       event.preventDefault();
       if (!isOpen) {
-        setIsOpen(true);
+        openMenu();
       } else {
         setHighlightedIndex((prev) => (prev + 1 < options.length ? prev + 1 : 0));
       }
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
       if (!isOpen) {
-        setIsOpen(true);
+        openMenu();
       } else {
         setHighlightedIndex((prev) => (prev - 1 >= 0 ? prev - 1 : options.length - 1));
       }
     } else if (event.key === "Tab" && isOpen) {
-      setIsOpen(false);
+      closeMenu();
     }
   };
 
@@ -130,7 +192,11 @@ export function CustomDropdown<T extends string | number>({
           isOpen && highlightedIndex >= 0 ? `${dropdownId}-opt-${highlightedIndex}` : undefined
         }
         disabled={disabled}
-        onClick={() => !disabled && setIsOpen((prev) => !prev)}
+        onClick={() => {
+          if (disabled) return;
+          if (isOpen) closeMenu();
+          else openMenu();
+        }}
         onKeyDown={handleKeyDown}
       >
         <div className="custom-dropdown-trigger-content">
@@ -166,9 +232,10 @@ export function CustomDropdown<T extends string | number>({
         <ul
           ref={listRef}
           id={listboxId}
-          className={`custom-dropdown-menu ${openUpward ? "upward" : ""}`}
+          className={`custom-dropdown-menu ${placement.openUpward ? "upward" : ""}`}
           role="listbox"
           aria-labelledby={dropdownId}
+          style={placement.style}
         >
           {options.map((option, index) => {
             const isSelected = option.value === value;
@@ -184,7 +251,7 @@ export function CustomDropdown<T extends string | number>({
                 }`}
                 onClick={() => {
                   onChange(option.value);
-                  setIsOpen(false);
+                  closeMenu();
                 }}
                 onMouseEnter={() => setHighlightedIndex(index)}
               >
