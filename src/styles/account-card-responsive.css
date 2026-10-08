@@ -341,13 +341,11 @@
   height: 16px;
   color: var(--obsidian-purple);
   transition: color 150ms ease, transform 200ms ease;
-  /* The chevron points right and is rotated to face down, which puts its visual
-     weight right of center. The sideways shift brings it back to the middle. */
-  transform: translateX(-1px) rotate(90deg);
+  transform: rotate(90deg);
 }
 
 .mobile-dropdown-toggle svg.open {
-  transform: translateX(-1px) rotate(-90deg);
+  transform: rotate(-90deg);
 }
 
 .mobile-dropdown-menu {
@@ -521,6 +519,8 @@
   /* Match the rename (pen) button: 22px box, 13px icon */
   .mobile-dropdown-toggle {
     box-sizing: border-box;
+    display: grid;
+    place-items: center;
     width: 22px;
     height: 22px;
     min-width: 22px;
@@ -575,7 +575,7 @@
   .mobile-dropdown-toggle svg {
     width: 13px;
     height: 13px;
-    margin: 0 auto;
+    margin: 0;
     color: var(--obsidian-purple);
     transition: color 150ms ease, transform 200ms ease;
   }

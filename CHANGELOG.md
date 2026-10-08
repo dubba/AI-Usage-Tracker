@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased (0 items)
+## Unreleased (2 items)
+
+### Changed (1)
+
+- On an empty dashboard, the description reads "Add an account to begin monitoring its usage limits."
+
+### Fixed (1)
+
+- The dropdown menu button on account cards now centers its arrow inside the square on mobile and desktop.
 
 
 ## 0.4.0 - 2026-10-07 (24 items)

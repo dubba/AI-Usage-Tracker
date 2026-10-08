@@ -310,7 +310,7 @@ export function AccountsView(props: {
                 ? "All accounts in this view are healthy and reporting live quota."
                 : props.selectedGroup.type === "bucket"
                   ? "This group is still saved. Add accounts to it, or delete the group."
-                  : "Add an account to begin monitoring its limits."}
+                  : "Add an account to begin monitoring its usage limits."}
             </p>
             <div className="empty-group-actions">
               {showAttentionOnly ? (
