@@ -3,10 +3,11 @@
 ## Unreleased (0 items)
 
 
-## 0.4.0 - 2026-10-07 (26 items)
+## 0.4.0 - 2026-10-07 (27 items)
 
-### Changed (14)
+### Changed (15)
 
+- In the device sync air-gap confirmation view, the captured frame count sits above the verification heading with balanced spacing.
 - On an empty dashboard, the description reads "Add an account to begin monitoring its usage limits."
 - In Create Group and Edit Group, the provider filter lists providers in alphabetical order. All Providers stays at the top.
 - On an empty dashboard, the space below Other Provider is half as tall, so the panel ends closer to that button.

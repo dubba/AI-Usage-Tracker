@@ -47,9 +47,12 @@ export function ScannerView({
       {airgapVerifyPrompt ? (
         <div className="airgap-pin-prompt-card">
           <div className="pairing-sas-icon"><ShieldIcon /></div>
+          <p className="pairing-instruction airgap-capture-summary">
+            Captured all {airgapTotalChunks} frames{airgapCaptureSecs !== null ? ` in ${airgapCaptureSecs} seconds` : ""}!
+          </p>
           <h3>Do both devices show this code?</h3>
           <p className="pairing-instruction">
-            Captured all {airgapTotalChunks} frames{airgapCaptureSecs !== null ? ` in ${airgapCaptureSecs} seconds` : ""}! Compare this code with the sending device. If they match, the transfer is intact.
+            Compare this code with the sending device. If they match, the transfer is intact.
           </p>
 
           {airgapVerifying || !airgapVerifyCode ? (
