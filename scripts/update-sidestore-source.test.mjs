@@ -39,7 +39,7 @@ test("applyRelease sets version, exact size, minOSVersion and sourceURL", () => 
   assert.equal(source.sourceURL, SOURCE_URL);
   assert.equal(app.version, "0.3.17");
   assert.equal(app.size, 12345);
-  assert.equal(app.minOSVersion, "18.0");
+  assert.equal(app.minOSVersion, "16.0");
   assert.equal(app.versionDescription, "Release v0.3.17");
   assert.match(app.downloadURL, /\/releases\/download\/v0\.3\.17\/AI-Usage-Tracker\.ipa$/);
   assert.deepEqual(validateSource(source), []);

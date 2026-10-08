@@ -20,7 +20,7 @@
       "versionDescription": "On iOS, turning on a usage alert asks for notification permission the first time, so alerts can be shown.\nThe app now installs as com.dubba.ai.usage.tracker. An existing Android, Mac, or Windows install stays as it is, and the new copy starts without those accounts or settings.",
       "downloadURL": "https://github.com/dubba/AI-Usage-Tracker/releases/download/v0.3.18/AI-Usage-Tracker.ipa",
       "size": 4519722,
-      "minOSVersion": "18.0"
+      "minOSVersion": "16.0"
     }
   ],
   "sourceURL": "https://raw.githubusercontent.com/dubba/AI-Usage-Tracker/main/sidestore-source.json"

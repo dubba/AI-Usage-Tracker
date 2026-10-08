@@ -11,7 +11,7 @@ const changelogPath = resolve(rootDir, "CHANGELOG.md");
 
 const REPO = "dubba/AI-Usage-Tracker";
 export const SOURCE_URL = `https://raw.githubusercontent.com/${REPO}/main/sidestore-source.json`;
-export const MIN_OS_VERSION = "18.0";
+export const MIN_OS_VERSION = "16.0";
 
 export function normalizeVersion(version) {
   return String(version).trim().replace(/^v/i, "");

@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased (9 items)
+## Unreleased (10 items)
 
-### Changed (6)
+### Changed (7)
 
 - The "Account connected" page shown in the browser after signing in now shows the provider's icon and name side by side, with the signed-in email on the next line. It was a bare email or just "ChatGPT", and it now looks the same for ChatGPT, Claude, Antigravity and AI Studio.
 - In Settings, the space above the General, Updates, Devices and Advanced headings is a uniform 18px, including above General on mobile.
@@ -10,6 +10,7 @@
 - The sidebar + Account button's tooltip says "Add new account" and the + Group button's says "Combine accounts into a group to easily track usage", wrapping onto more than one line.
 - The bell button on an account card says "Update account alerts" when hovered.
 - Hovering the drag handle on a sidebar row or an account card says "Drag to reorder".
+- SideStore can install the app on iOS 16 and later.
 
 ### Fixed (3)
 
