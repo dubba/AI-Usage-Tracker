@@ -120,7 +120,7 @@ export function SettingsView({
               <strong>Appearance</strong>
               <small>Dark, light, or match your device.</small>
             </div>
-            <div className="settings-account-refresh">
+            <div className="settings-account-refresh settings-theme-dropdown">
               <CustomDropdown<ThemePreference>
                 id="setting-theme"
                 value={themePreference}

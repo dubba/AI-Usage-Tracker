@@ -28,6 +28,12 @@ Android APK & iOS SideStore builds:
 - SideStore source manifest is at `sidestore-source.json`. Use `npm run update:sidestore` (`node scripts/update-sidestore-source.mjs`) to refresh release asset sizes and URLs.
 - Gradle needs the Homebrew JDK. `npm run android:dev` / `android:build` already set `JAVA_HOME` to `/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home`. If you invoke Gradle or `tauri android` directly, export that same `JAVA_HOME` first.
 
+Security audits:
+
+- Follow `docs/AUDIT_PROTOCOL.md` when asked to audit or review the app. Audits are read-only, every claim needs `file:line` evidence, and reports go in the gitignored `.audits/` directory, never into the repository.
+- `docs/THREAT_MODEL.md` is the Pass 0 inventory of assets, entry points, and the code that guards them. Update it whenever you add an entry point (a new command, listener, WebView, deep link, provider endpoint, or file the app writes).
+- For every change, identify which trust boundary it touches (see Pass 0 of the protocol), validate arguments on the Rust side, and add a negative test for each security check you add.
+
 Validation:
 
 ```bash
@@ -38,3 +44,5 @@ cargo check --manifest-path src-tauri/Cargo.toml
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 ```
+
+The full test inventory and the security-invariant → test map live in `TESTING.md`. CI does not run the JavaScript test suites — run `npm test` and the `npm run test:*` scripts locally before pushing.

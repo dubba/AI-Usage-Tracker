@@ -1,7 +1,14 @@
 # Changelog
 
-## Unreleased (0 items)
+## Unreleased (2 items)
 
+### Improved (1)
+
+- In Settings, the Appearance dropdown keeps a consistent width across Dark, Light, and System themes, and the dropdown menu aligns flush with the button.
+
+### Fixed (1)
+
+- In Settings, the space between the Automatic Updates title and its description matches Change Log and the other settings rows.
 
 ## 0.4.0 - 2026-10-07 (27 items)
 

@@ -27,3 +27,5 @@ gemini-quota-probe-*.json
 *.apk.sha256
 binaries/
 .secrets/
+# Local audit reports; may contain unfixed vulnerabilities (see docs/AUDIT_PROTOCOL.md).
+.audits/

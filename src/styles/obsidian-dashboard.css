@@ -1584,7 +1584,6 @@ button.account-card-provider-icon:active {
 
 .settings-updates-group-header > div:first-child {
   display: grid;
-  gap: 4px;
   padding-left: 0.4px !important;
 }
 
@@ -2457,6 +2456,52 @@ select.text-input option,
   font-size: 13px !important;
 }
 
+.settings-account-refresh.settings-theme-dropdown,
+.settings-theme-dropdown {
+  width: 6.125rem;
+  max-width: 6.125rem;
+  flex: 0 0 auto;
+}
+
+.settings-theme-dropdown .custom-dropdown-container {
+  width: 6.125rem;
+  min-width: 6.125rem;
+  max-width: 6.125rem;
+  padding: 0;
+  margin: 0;
+}
+
+.settings-theme-dropdown .custom-dropdown-trigger {
+  width: 100%;
+  min-width: 6.125rem;
+  max-width: 6.125rem;
+  padding-inline: 10px;
+}
+
+.settings-theme-dropdown .custom-dropdown-menu {
+  width: 6.125rem !important;
+  min-width: 6.125rem !important;
+  max-width: 6.125rem !important;
+  padding: 4px !important;
+  box-sizing: border-box !important;
+  right: auto;
+}
+
+.settings-theme-dropdown .custom-dropdown-item {
+  padding: 6px 8px !important;
+  gap: 6px !important;
+}
+
+.settings-theme-dropdown .custom-dropdown-item-label {
+  font-size: 13px !important;
+}
+
+.settings-theme-dropdown .custom-dropdown-check {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+
 .compact-button {
   min-height: 28px !important;
   padding: 0 10px !important;
@@ -3232,6 +3277,34 @@ select.text-input option,
   .settings-account-refresh .custom-dropdown-trigger {
     width: auto;
     min-width: 6.75rem;
+  }
+
+  .settings-account-refresh.settings-theme-dropdown,
+  .settings-theme-dropdown {
+    width: 5.5rem;
+    max-width: 5.5rem;
+    flex: 0 0 auto;
+  }
+
+  .settings-account-refresh.settings-theme-dropdown .custom-dropdown-container,
+  .settings-account-refresh.settings-theme-dropdown .custom-dropdown-trigger,
+  .settings-theme-dropdown .custom-dropdown-container,
+  .settings-theme-dropdown .custom-dropdown-trigger {
+    width: 5.5rem;
+    min-width: 5.5rem;
+    max-width: 5.5rem;
+    padding-inline: 10px;
+  }
+
+  .settings-account-refresh.settings-theme-dropdown .custom-dropdown-container,
+  .settings-theme-dropdown .custom-dropdown-container {
+    padding: 0;
+  }
+
+  .settings-theme-dropdown .custom-dropdown-menu {
+    width: 5.5rem !important;
+    min-width: 5.5rem !important;
+    max-width: 5.5rem !important;
   }
 
   .settings-account-refresh .custom-dropdown-menu {
