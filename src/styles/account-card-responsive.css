@@ -359,11 +359,36 @@
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   z-index: 1000;
-  overflow: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+  animation: customDropdownFadeIn 120ms ease-out;
+}
+
+.mobile-dropdown-menu.upward {
+  top: auto;
+  bottom: calc(100% + 8px);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4);
+  animation: customDropdownFadeInUp 120ms ease-out;
+}
+
+.mobile-dropdown-menu::-webkit-scrollbar {
+  width: 4px;
+}
+
+.mobile-dropdown-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mobile-dropdown-menu::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
 }
 
 /* Ensure dropdown appears above collapsed cards and sibling cards */
-.provider-account-card:has(.mobile-dropdown-menu) {
+.provider-account-card:has(.mobile-dropdown-menu),
+.provider-account-card.has-open-menu {
   z-index: 100 !important;
   overflow: visible;
 }

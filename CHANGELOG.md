@@ -1,14 +1,15 @@
 # Changelog
 
-## Unreleased (2 items)
+## Unreleased (3 items)
 
 ### Improved (1)
 
 - In Settings, the Appearance dropdown keeps a consistent width across Dark, Light, and System themes, and the dropdown menu aligns flush with the button.
 
-### Fixed (1)
+### Fixed (2)
 
 - In Settings, the space between the Automatic Updates title and its description matches Change Log and the other settings rows.
+- On the dashboard, account card dropdown menus near the bottom of the screen open upward instead of downward, preventing them from being cut off.
 
 ## 0.4.0 - 2026-10-07 (27 items)
 

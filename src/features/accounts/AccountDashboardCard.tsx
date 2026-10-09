@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { busyKey, REFRESH_ALL_KEY, type BusyKeys } from "../../shared/lib/busy";
 import { isCardCollapsedOnPage, setCardCollapsedOnPage } from "../dashboard/dashboard-page-state";
 import {
@@ -36,6 +36,47 @@ import { CREDENTIAL_PROTECTION_ACCOUNT_NOTE } from "../dashboard/credential-prot
 
 /** Id of the visually hidden hint that AccountsView renders once for every card. */
 export const REORDER_HINT_ID = "account-reorder-hint";
+
+const MENU_GAP = 8;
+const MENU_FLIP_HEIGHT_MOVE = 195;
+const MENU_FLIP_HEIGHT_BASIC = 135;
+
+export type MobileMenuPlacement = {
+  openUpward: boolean;
+  maxHeight?: number;
+};
+
+export function computeAccountCardMenuPlacement(
+  toggle: HTMLElement | null,
+  hasMoveMenu: boolean,
+): MobileMenuPlacement {
+  if (!toggle) {
+    return { openUpward: false };
+  }
+
+  const rect = toggle.getBoundingClientRect();
+  const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+
+  const scrollContainer = toggle.closest(".dashboard-scroll, .content-scroll");
+  const containerRect = scrollContainer ? scrollContainer.getBoundingClientRect() : null;
+
+  const bottomBoundary = containerRect
+    ? Math.min(viewportHeight, containerRect.bottom)
+    : viewportHeight;
+  const topBoundary = containerRect
+    ? Math.max(0, containerRect.top)
+    : 0;
+
+  const spaceBelow = bottomBoundary - rect.bottom - MENU_GAP;
+  const spaceAbove = rect.top - topBoundary - MENU_GAP;
+  const threshold = hasMoveMenu ? MENU_FLIP_HEIGHT_MOVE : MENU_FLIP_HEIGHT_BASIC;
+
+  const openUpward = spaceBelow < threshold && spaceAbove > spaceBelow;
+  const available = openUpward ? spaceAbove : spaceBelow;
+  const maxHeight = Math.max(80, Math.floor(available));
+
+  return { openUpward, maxHeight };
+}
 
 export function AccountDashboardCard({
   pageId,
@@ -113,8 +154,14 @@ export function AccountDashboardCard({
   }, [account.label, editing]);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileMenuPlacement, setMobileMenuPlacement] = useState<MobileMenuPlacement>({ openUpward: false });
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const mobileMenuToggleRef = useRef<HTMLButtonElement>(null);
+
+  const openMobileMenu = () => {
+    setMobileMenuPlacement(computeAccountCardMenuPlacement(mobileMenuToggleRef.current, Boolean(onMove)));
+    setMobileMenuOpen(true);
+  };
 
   const closeMobileMenu = (restoreFocus = false) => {
     setMobileMenuOpen(false);
@@ -123,6 +170,34 @@ export function AccountDashboardCard({
       window.setTimeout(() => mobileMenuToggleRef.current?.focus(), 0);
     }
   };
+
+  const toggleMobileMenu = () => {
+    if (mobileMenuOpen) {
+      closeMobileMenu(false);
+    } else {
+      openMobileMenu();
+    }
+  };
+
+  useLayoutEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    const updatePlacement = () => {
+      setMobileMenuPlacement(computeAccountCardMenuPlacement(mobileMenuToggleRef.current, Boolean(onMove)));
+    };
+
+    updatePlacement();
+    window.addEventListener("resize", updatePlacement);
+    window.addEventListener("scroll", updatePlacement, true);
+    window.visualViewport?.addEventListener("resize", updatePlacement);
+    window.visualViewport?.addEventListener("scroll", updatePlacement);
+    return () => {
+      window.removeEventListener("resize", updatePlacement);
+      window.removeEventListener("scroll", updatePlacement, true);
+      window.visualViewport?.removeEventListener("resize", updatePlacement);
+      window.visualViewport?.removeEventListener("scroll", updatePlacement);
+    };
+  }, [mobileMenuOpen, onMove]);
 
   useEffect(() => {
     if (!mobileMenuOpen) return;
@@ -204,7 +279,7 @@ export function AccountDashboardCard({
 
   return (
     <article
-      className={`provider-account-card ${needsAttention ? "needs-attention" : ""} ${isCollapsed ? "is-collapsed" : ""}`}
+      className={`provider-account-card ${needsAttention ? "needs-attention" : ""} ${isCollapsed ? "is-collapsed" : ""} ${mobileMenuOpen ? "has-open-menu" : ""}`}
       data-account-id={account.id}
       data-reorder-provider={account.provider}
       data-reorder-enabled="true"
@@ -368,7 +443,7 @@ export function AccountDashboardCard({
                 ref={mobileMenuToggleRef}
                 type="button"
                 className="mobile-dropdown-toggle"
-                onClick={() => mobileMenuOpen ? closeMobileMenu(false) : setMobileMenuOpen(true)}
+                onClick={toggleMobileMenu}
                 aria-expanded={mobileMenuOpen}
                 aria-haspopup="menu"
                 aria-controls={mobileMenuOpen ? mobileMenuId : undefined}
@@ -377,7 +452,13 @@ export function AccountDashboardCard({
                 <ChevronIcon className={mobileMenuOpen ? "open" : ""} />
               </button>
               {mobileMenuOpen ? (
-                <div className="mobile-dropdown-menu" id={mobileMenuId} role="menu" aria-label={`Actions for ${displayAccountLabel(account)}`}>
+                <div
+                  className={`mobile-dropdown-menu ${mobileMenuPlacement.openUpward ? "upward" : ""}`}
+                  id={mobileMenuId}
+                  role="menu"
+                  aria-label={`Actions for ${displayAccountLabel(account)}`}
+                  style={mobileMenuPlacement.maxHeight != null ? { maxHeight: `${mobileMenuPlacement.maxHeight}px` } : undefined}
+                >
                   {onMove ? (
                     <>
                       <button type="button" role="menuitem" className="mobile-dropdown-item move-action" disabled={cardBusy || !canMoveUp} onClick={() => { closeMobileMenu(false); requestMove(-1); }}>

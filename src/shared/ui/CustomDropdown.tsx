@@ -22,18 +22,20 @@ function computeMenuPlacement(anchor: HTMLElement | null): MenuPlacement {
   }
 
   const rect = anchor.getBoundingClientRect();
-  const viewportHeight = window.innerHeight;
+  const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+  const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
   const spaceBelow = viewportHeight - rect.bottom - MENU_GAP;
   const spaceAbove = rect.top - MENU_GAP;
   const openUpward = spaceBelow < MENU_FLIP_HEIGHT && spaceAbove > spaceBelow;
   const available = openUpward ? spaceAbove : spaceBelow;
   const maxHeight = Math.min(MENU_MAX_HEIGHT, Math.max(0, available));
+  const left = Math.max(8, Math.min(rect.left, viewportWidth - rect.width - 8));
 
   return {
     openUpward,
     style: {
       position: "fixed",
-      left: rect.left,
+      left,
       width: rect.width,
       minWidth: rect.width,
       maxHeight,
