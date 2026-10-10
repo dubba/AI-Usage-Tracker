@@ -9,13 +9,13 @@ on:
         required: false
         default: false
       include_apple:
-        description: "Include macOS and iOS builds (10x runner minutes)"
+        description: "Include macOS and iOS builds"
         type: boolean
         required: false
         default: true
-  # Thursdays & Sundays @ 11:59 PM EST
-  # Thursday 11:59 PM EST -> Friday 04:59 UTC (Windows & Android only)
-  # Sunday 11:59 PM EST -> Monday 04:59 UTC (All platforms including macOS & iOS)
+  # Thursdays & Sundays @ 11:59 PM EST, all platforms on both runs.
+  # Thursday 11:59 PM EST -> Friday 04:59 UTC
+  # Sunday 11:59 PM EST -> Monday 04:59 UTC
   schedule:
     - cron: '59 4 * * 5' # Thursdays @ 11:59 PM EST (Friday 04:59 UTC)
     - cron: '59 4 * * 1' # Sundays @ 11:59 PM EST (Monday 04:59 UTC)
@@ -50,23 +50,14 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Determine whether this run includes expensive Apple runners (10x minutes).
-          # In UTC:
-          # Thursday 11:59 PM EST is Friday 04:59 UTC (Day 5).
-          # Sunday 11:59 PM EST is Monday 04:59 UTC (Day 1).
-          DOW_UTC=$(date -u +%u)
-
+          # Every release builds every platform. A release is tagged at HEAD, so
+          # a run that skipped the Apple platforms would leave that version
+          # without macOS and iOS builds (and without their updater entries)
+          # until a later commit arrives. Only a manual run may opt out.
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             BUILD_APPLE="${INPUT_APPLE:-true}"
-          elif [ "${{ github.event_name }}" = "push" ]; then
-            BUILD_APPLE="true"
           else
-            # On schedule: only build Apple platforms on Sunday nights (Monday UTC)
-            if [ "$DOW_UTC" = "1" ]; then
-              BUILD_APPLE="true"
-            else
-              BUILD_APPLE="false"
-            fi
+            BUILD_APPLE="true"
           fi
 
           echo "build_apple=$BUILD_APPLE" >> "$GITHUB_OUTPUT"
@@ -204,7 +195,7 @@ jobs:
             - **`-setup.exe` — recommended:** the normal Windows installer. It installs for your Windows account, usually does not require administrator access, and is the installer used by automatic in-app updates.
             - **`.msi` — administrators and managed computers:** intended for enterprise deployment, system administrators, Group Policy, Intune, or machine-wide installation. It commonly requires administrator access.
 
-            ### macOS (Published Sundays)
+            ### macOS
 
             - **Apple Silicon:** choose the macOS download marked `aarch64` or `arm64` for M1, M2, M3, M4, and newer Apple chips.
             - **Intel Mac:** choose the macOS download marked `x64` or `x86_64`.
@@ -213,7 +204,7 @@ jobs:
 
             - **`.apk` — sideload for Android:** download the `.apk` file directly to your phone (or transfer via USB) and tap to install. Enable "Install unknown apps" for your browser or file manager when prompted.
 
-            ### iOS (SideStore, Published Sundays)
+            ### iOS (SideStore)
 
             - **`.ipa` — sideload for iPhone/iPad:** add the `sidestore-source.json` URL to SideStore sources or download the `.ipa` to install and re-sign via SideStore.
 
@@ -282,7 +273,7 @@ jobs:
       release_version: ${{ needs.check-changes.outputs.version }}
 
   publish-macos:
-    name: Build macOS desktop (Sunday only)
+    name: Build macOS desktop
     needs: [check-changes, publish-windows]
     if: needs.check-changes.outputs.should_build == 'true' && needs.check-changes.outputs.build_apple == 'true'
     runs-on: macos-15
@@ -352,7 +343,7 @@ jobs:
           args: ""
 
   build-ios:
-    name: Build iOS IPA (Sunday only)
+    name: Build iOS IPA
     needs: [check-changes, publish-windows]
     if: needs.check-changes.outputs.should_build == 'true' && needs.check-changes.outputs.build_apple == 'true'
     uses: ./.github/workflows/build-ios.yml
