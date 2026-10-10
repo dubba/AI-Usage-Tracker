@@ -219,8 +219,8 @@ jobs:
   # Releases are numbered from the tags, not from package.json, so a released
   # version is bumped automatically (0.4.1 -> 0.4.2). Write the number that
   # shipped back to the version files so package.json on main matches the
-  # latest release, and stamp "## Unreleased" in CHANGELOG.md with the version
-  # and release date. Failing to push does not fail the release: the next run
+  # latest release, stamp "## Unreleased" in CHANGELOG.md with the version
+  # and release date, and open a fresh empty Unreleased section above it. Failing to push does not fail the release: the next run
   # derives its version from the tags either way.
   commit-version-bump:
     name: Commit released version to main

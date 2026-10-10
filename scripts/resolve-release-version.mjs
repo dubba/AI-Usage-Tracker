@@ -136,11 +136,13 @@ export function releaseDateEastern(now = new Date()) {
 }
 
 /**
- * Turns the "## Unreleased (N items)" heading into "## <version> - <date> (N items)".
- * The count is recomputed from the section's top-level bullets. Nothing changes
- * when there is no Unreleased section, when it has no items, when the version
- * already has a section, or for a pre-release version (its notes stay under
- * Unreleased until the stable release that follows it).
+ * Turns the "## Unreleased (N items)" heading into "## <version> - <date> (N items)"
+ * and inserts a new empty "## Unreleased (0 items)" section above it, as
+ * docs/CHANGELOG_WORKFLOW.md describes for a release. The count is recomputed
+ * from the section's top-level bullets. Nothing changes when there is no
+ * Unreleased section, when it has no items, when the version already has a
+ * section, or for a pre-release version (its notes stay under Unreleased until
+ * the stable release that follows it).
  */
 export function stampChangelog(changelog, version, date) {
   const clean = version.trim().replace(/^v/i, "");
@@ -165,9 +167,15 @@ export function stampChangelog(changelog, version, date) {
   if (items === 0) return unchanged("Unreleased section has no items");
 
   const stamped = `## ${clean} - ${date} (${items} ${items === 1 ? "item" : "items"})`;
+  const newline = changelog.includes("\r\n") ? "\r\n" : "\n";
+  const freshUnreleased = `## Unreleased (0 items)${newline}${newline}`;
   return {
     changed: true,
-    text: changelog.slice(0, heading.index) + stamped + changelog.slice(bodyStart),
+    text:
+      changelog.slice(0, heading.index) +
+      freshUnreleased +
+      stamped +
+      changelog.slice(bodyStart),
     reason: "stamped",
     items,
   };

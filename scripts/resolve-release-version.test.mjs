@@ -196,16 +196,23 @@ const SAMPLE_CHANGELOG = `# Changelog
 - Second thing.
 `;
 
-test("stampChangelog renames Unreleased and recomputes the item count", () => {
+test("stampChangelog renames Unreleased, recomputes the count, and opens a fresh empty Unreleased", () => {
   const result = stampChangelog(SAMPLE_CHANGELOG, "0.4.1", "2026-10-11");
 
   assert.equal(result.changed, true);
   assert.equal(result.items, 3);
   assert.match(result.text, /^## 0\.4\.1 - 2026-10-11 \(3 items\)$/m);
-  assert.doesNotMatch(result.text, /Unreleased/);
-  // Everything except the heading line is untouched.
+  // A new empty section sits directly above the stamped release.
+  assert.match(
+    result.text,
+    /^## Unreleased \(0 items\)\n\n## 0\.4\.1 - 2026-10-11 \(3 items\)\n/m
+  );
+  assert.equal((result.text.match(/^## Unreleased/gm) || []).length, 1);
+  // Everything else is untouched: undoing the two inserted pieces restores the input.
   assert.equal(
-    result.text.replace("## 0.4.1 - 2026-10-11 (3 items)", "## Unreleased (9 items)"),
+    result.text
+      .replace("## Unreleased (0 items)\n\n", "")
+      .replace("## 0.4.1 - 2026-10-11 (3 items)", "## Unreleased (9 items)"),
     SAMPLE_CHANGELOG
   );
 });
@@ -238,6 +245,26 @@ test("stampChangelog does not stamp twice or create a duplicate version section"
   const dup = stampChangelog(manual, "0.4.1", "2026-10-11");
   assert.equal(dup.changed, false);
   assert.equal(dup.reason, "version section already exists");
+});
+
+test("stampChangelog handles consecutive releases and leaves an empty Unreleased alone", () => {
+  const first = stampChangelog(SAMPLE_CHANGELOG, "0.4.1", "2026-10-11");
+
+  // Nothing new since the release: the empty Unreleased section must not be stamped.
+  const idle = stampChangelog(first.text, "0.4.2", "2026-10-15");
+  assert.equal(idle.changed, false);
+  assert.equal(idle.reason, "Unreleased section has no items");
+
+  // New work lands under the fresh Unreleased section, then the next release stamps it.
+  const withWork = first.text.replace(
+    "## Unreleased (0 items)\n",
+    "## Unreleased (1 item)\n\n### Fixed (1)\n\n- Another fix.\n"
+  );
+  const second = stampChangelog(withWork, "0.4.2", "2026-10-15");
+  assert.equal(second.changed, true);
+  assert.match(second.text, /^## Unreleased \(0 items\)\n\n## 0\.4\.2 - 2026-10-15 \(1 item\)\n/m);
+  assert.match(second.text, /^## 0\.4\.1 - 2026-10-11 \(3 items\)$/m);
+  assert.equal((second.text.match(/^## Unreleased/gm) || []).length, 1);
 });
 
 test("stampChangelog keeps pre-release notes under Unreleased", () => {
