@@ -32,32 +32,19 @@ export function computeBasePatch(versionStr) {
   return `${semver.major}.${semver.minor}.${semver.patch + 1}`;
 }
 
-export function findNextBetaNumber(basePatch, existingTags) {
-  const escaped = basePatch.replace(/\./g, "\\.");
-  const pattern = new RegExp(`^v?${escaped}-beta\\.(\\d+)$`);
-  let maxBeta = 0;
-
-  for (const tag of existingTags) {
-    const match = tag.trim().match(pattern);
-    if (match) {
-      const num = parseInt(match[1], 10);
-      if (!isNaN(num) && num > maxBeta) {
-        maxBeta = num;
-      }
-    }
-  }
-
-  return `${basePatch}-beta.${maxBeta + 1}`;
-}
-
+/**
+ * Picks the version to release.
+ *
+ * A version that has no tag yet ships as written, so a manual beta such as
+ * "0.5.0-beta.1" still releases as a pre-release. A version that already has a
+ * tag is bumped to the next unreleased stable patch (0.4.1 -> 0.4.2), skipping
+ * any patch numbers that are already tagged.
+ */
 export function resolveReleaseVersion({ currentVersion, existingTags = [] }) {
   const cleanVersion = currentVersion.trim().replace(/^v/i, "");
-  const tagCandidates = new Set([`v${cleanVersion}`, cleanVersion]);
-  const tagSet = new Set(existingTags.map((t) => t.trim()));
+  const releasedVersions = new Set(existingTags.map((tag) => tag.trim().replace(/^v/i, "")));
 
-  const isAlreadyReleased = Array.from(tagCandidates).some((tag) => tagSet.has(tag));
-
-  if (!isAlreadyReleased) {
+  if (!releasedVersions.has(cleanVersion)) {
     return {
       version: cleanVersion,
       isBeta: cleanVersion.includes("-"),
@@ -66,24 +53,35 @@ export function resolveReleaseVersion({ currentVersion, existingTags = [] }) {
     };
   }
 
-  const basePatch = computeBasePatch(cleanVersion);
-  const nextBetaVersion = findNextBetaNumber(basePatch, existingTags);
+  const { major, minor, patch } = parseSemver(computeBasePatch(cleanVersion));
+  let nextPatch = patch;
+  while (releasedVersions.has(`${major}.${minor}.${nextPatch}`)) {
+    nextPatch += 1;
+  }
+  const version = `${major}.${minor}.${nextPatch}`;
 
   return {
-    version: nextBetaVersion,
-    isBeta: true,
+    version,
+    isBeta: false,
     autoBumped: true,
-    basePatch,
+    basePatch: version,
   };
 }
 
 export function applyVersionToFiles(
   baseDir = rootDir,
   targetVersion,
-  { updatePackage = true, updateTauri = true, updateCargo = true, updateLock = true } = {}
+  {
+    updatePackage = true,
+    updateTauri = true,
+    updateCargo = true,
+    updateLock = true,
+    updateNpmLock = true,
+  } = {}
 ) {
   const clean = targetVersion.trim().replace(/^v/i, "");
   const pkgPath = resolve(baseDir, "package.json");
+  const npmLockPath = resolve(baseDir, "package-lock.json");
   const tauriPath = resolve(baseDir, "src-tauri/tauri.conf.json");
   const cargoPath = resolve(baseDir, "src-tauri/Cargo.toml");
   const lockPath = resolve(baseDir, "src-tauri/Cargo.lock");
@@ -92,6 +90,15 @@ export function applyVersionToFiles(
     const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
     pkg.version = clean;
     writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n", "utf-8");
+  }
+
+  if (updateNpmLock && existsSync(npmLockPath)) {
+    const npmLock = JSON.parse(readFileSync(npmLockPath, "utf-8"));
+    npmLock.version = clean;
+    if (npmLock.packages && npmLock.packages[""]) {
+      npmLock.packages[""].version = clean;
+    }
+    writeFileSync(npmLockPath, JSON.stringify(npmLock, null, 2) + "\n", "utf-8");
   }
 
   if (updateTauri && existsSync(tauriPath)) {
@@ -204,7 +211,9 @@ function main() {
 
   if (options.apply) {
     applyVersionToFiles(rootDir, targetVersion);
-    console.log(`Applied version ${targetVersion} to package.json, tauri.conf.json, and Cargo.toml`);
+    console.log(
+      `Applied version ${targetVersion} to package.json, package-lock.json, tauri.conf.json, Cargo.toml, and Cargo.lock`
+    );
   }
 
   if (options.githubOutput || process.env.GITHUB_OUTPUT) {
