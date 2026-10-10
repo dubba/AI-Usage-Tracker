@@ -219,7 +219,8 @@ jobs:
   # Releases are numbered from the tags, not from package.json, so a released
   # version is bumped automatically (0.4.1 -> 0.4.2). Write the number that
   # shipped back to the version files so package.json on main matches the
-  # latest release. Failing to push does not fail the release: the next run
+  # latest release, and stamp "## Unreleased" in CHANGELOG.md with the version
+  # and release date. Failing to push does not fail the release: the next run
   # derives its version from the tags either way.
   commit-version-bump:
     name: Commit released version to main
@@ -241,14 +242,14 @@ jobs:
           VERSION: ${{ needs.check-changes.outputs.version }}
         run: |
           set -euo pipefail
-          node scripts/resolve-release-version.mjs --version "$VERSION" --apply
+          node scripts/resolve-release-version.mjs --version "$VERSION" --apply --stamp-changelog
           if git diff --quiet; then
-            echo "Version files already at $VERSION."
+            echo "Version files and changelog already at $VERSION."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock
+          git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock CHANGELOG.md
           git commit -m "chore(release): bump version to $VERSION"
           for attempt in 1 2 3; do
             if git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}"; then

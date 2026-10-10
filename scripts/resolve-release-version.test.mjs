@@ -8,6 +8,9 @@ import {
   computeBasePatch,
   resolveReleaseVersion,
   applyVersionToFiles,
+  stampChangelog,
+  applyChangelogStamp,
+  releaseDateEastern,
 } from "./resolve-release-version.mjs";
 
 test("parseSemver parses standard and prerelease semver versions", () => {
@@ -166,6 +169,116 @@ test("applyVersionToFiles correctly updates package.json, package-lock.json, tau
     assert.equal(updatedNpmLock.packages[""].version, "0.3.17-beta.1");
     assert.match(updatedCargo, /^version = "0\.3\.17-beta\.1"$/m);
     assert.match(updatedLock, /name = "ai-usage-tracker"\r?\nversion = "0\.3\.17-beta\.1"/m);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+const SAMPLE_CHANGELOG = `# Changelog
+
+## Unreleased (9 items)
+
+### Improved (1)
+
+- Dropdown width is consistent.
+  - Nested detail that must not be counted.
+
+### Fixed (2)
+
+- Menu opens upward near the bottom.
+- Spacing matches other rows.
+
+## 0.4.0 - 2026-10-07 (2 items)
+
+### Added (2)
+
+- First thing.
+- Second thing.
+`;
+
+test("stampChangelog renames Unreleased and recomputes the item count", () => {
+  const result = stampChangelog(SAMPLE_CHANGELOG, "0.4.1", "2026-10-11");
+
+  assert.equal(result.changed, true);
+  assert.equal(result.items, 3);
+  assert.match(result.text, /^## 0\.4\.1 - 2026-10-11 \(3 items\)$/m);
+  assert.doesNotMatch(result.text, /Unreleased/);
+  // Everything except the heading line is untouched.
+  assert.equal(
+    result.text.replace("## 0.4.1 - 2026-10-11 (3 items)", "## Unreleased (9 items)"),
+    SAMPLE_CHANGELOG
+  );
+});
+
+test("stampChangelog uses the singular for one item", () => {
+  const changelog = "# Changelog\n\n## Unreleased (4 items)\n\n- Only one.\n\n## 0.4.0 - 2026-10-07 (1 item)\n\n- Old.\n";
+  const result = stampChangelog(changelog, "v0.4.1", "2026-10-11");
+
+  assert.equal(result.changed, true);
+  assert.match(result.text, /^## 0\.4\.1 - 2026-10-11 \(1 item\)$/m);
+});
+
+test("stampChangelog leaves the file alone when there is nothing to stamp", () => {
+  const noUnreleased = "# Changelog\n\n## 0.4.0 - 2026-10-07 (1 item)\n\n- Old.\n";
+  const emptyUnreleased = "# Changelog\n\n## Unreleased (0 items)\n\n## 0.4.0 - 2026-10-07 (1 item)\n\n- Old.\n";
+
+  for (const changelog of [noUnreleased, emptyUnreleased]) {
+    const result = stampChangelog(changelog, "0.4.1", "2026-10-11");
+    assert.equal(result.changed, false);
+    assert.equal(result.text, changelog);
+  }
+});
+
+test("stampChangelog does not stamp twice or create a duplicate version section", () => {
+  const first = stampChangelog(SAMPLE_CHANGELOG, "0.4.1", "2026-10-11");
+  const again = stampChangelog(first.text, "0.4.1", "2026-10-12");
+  assert.equal(again.changed, false);
+
+  const manual = "# Changelog\n\n## Unreleased (1 item)\n\n- New.\n\n## 0.4.1 - 2026-10-10 (1 item)\n\n- Done.\n";
+  const dup = stampChangelog(manual, "0.4.1", "2026-10-11");
+  assert.equal(dup.changed, false);
+  assert.equal(dup.reason, "version section already exists");
+});
+
+test("stampChangelog keeps pre-release notes under Unreleased", () => {
+  const result = stampChangelog(SAMPLE_CHANGELOG, "0.5.0-beta.1", "2026-10-11");
+
+  assert.equal(result.changed, false);
+  assert.equal(result.text, SAMPLE_CHANGELOG);
+});
+
+test("stampChangelog rejects a malformed date", () => {
+  assert.throws(() => stampChangelog(SAMPLE_CHANGELOG, "0.4.1", "10/11/2026"));
+});
+
+test("releaseDateEastern uses UTC-5 so a 04:59 UTC run keeps the previous night's date", () => {
+  assert.equal(releaseDateEastern(new Date("2026-10-12T04:59:00Z")), "2026-10-11");
+  assert.equal(releaseDateEastern(new Date("2026-10-16T04:59:00Z")), "2026-10-15");
+  assert.equal(releaseDateEastern(new Date("2026-10-11T05:00:00Z")), "2026-10-11");
+});
+
+test("applyChangelogStamp writes the file and is a no-op the second time", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "changelog-test-"));
+  try {
+    const path = join(tempDir, "CHANGELOG.md");
+    writeFileSync(path, SAMPLE_CHANGELOG, "utf-8");
+
+    const first = applyChangelogStamp(tempDir, "0.4.1", "2026-10-11");
+    assert.equal(first.changed, true);
+    assert.match(readFileSync(path, "utf-8"), /^## 0\.4\.1 - 2026-10-11 \(3 items\)$/m);
+
+    const second = applyChangelogStamp(tempDir, "0.4.1", "2026-10-11");
+    assert.equal(second.changed, false);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("applyChangelogStamp tolerates a missing CHANGELOG.md", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "changelog-test-"));
+  try {
+    const result = applyChangelogStamp(tempDir, "0.4.1", "2026-10-11");
+    assert.equal(result.changed, false);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }

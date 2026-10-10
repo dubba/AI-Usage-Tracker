@@ -126,6 +126,65 @@ export function applyVersionToFiles(
   }
 }
 
+/**
+ * Release dates in the changelog and in the schedule comments are US Eastern
+ * standard time (UTC-5): the Thursday and Sunday "11:59 PM EST" runs fire at
+ * 04:59 UTC the next day, and should still be dated the night they are named for.
+ */
+export function releaseDateEastern(now = new Date()) {
+  return new Date(now.getTime() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+/**
+ * Turns the "## Unreleased (N items)" heading into "## <version> - <date> (N items)".
+ * The count is recomputed from the section's top-level bullets. Nothing changes
+ * when there is no Unreleased section, when it has no items, when the version
+ * already has a section, or for a pre-release version (its notes stay under
+ * Unreleased until the stable release that follows it).
+ */
+export function stampChangelog(changelog, version, date) {
+  const clean = version.trim().replace(/^v/i, "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw new Error(`Invalid changelog date: "${date}" (expected YYYY-MM-DD)`);
+  }
+  const unchanged = (reason) => ({ changed: false, text: changelog, reason });
+
+  if (clean.includes("-")) return unchanged("pre-release version");
+
+  const heading = /^## Unreleased[^\r\n]*$/m.exec(changelog);
+  if (!heading) return unchanged("no Unreleased section");
+
+  const versionHeading = new RegExp(`^## ${clean.replace(/\./g, "\\.")}(\\s|$)`, "m");
+  if (versionHeading.test(changelog)) return unchanged("version section already exists");
+
+  const bodyStart = heading.index + heading[0].length;
+  const rest = changelog.slice(bodyStart);
+  const nextSection = /^## /m.exec(rest);
+  const body = nextSection ? rest.slice(0, nextSection.index) : rest;
+  const items = (body.match(/^- /gm) || []).length;
+  if (items === 0) return unchanged("Unreleased section has no items");
+
+  const stamped = `## ${clean} - ${date} (${items} ${items === 1 ? "item" : "items"})`;
+  return {
+    changed: true,
+    text: changelog.slice(0, heading.index) + stamped + changelog.slice(bodyStart),
+    reason: "stamped",
+    items,
+  };
+}
+
+export function applyChangelogStamp(baseDir = rootDir, version, date) {
+  const changelogPath = resolve(baseDir, "CHANGELOG.md");
+  if (!existsSync(changelogPath)) {
+    return { changed: false, reason: "no CHANGELOG.md" };
+  }
+  const result = stampChangelog(readFileSync(changelogPath, "utf-8"), version, date);
+  if (result.changed) {
+    writeFileSync(changelogPath, result.text, "utf-8");
+  }
+  return { changed: result.changed, reason: result.reason, items: result.items };
+}
+
 export function fetchExistingTags(customTags = null) {
   if (customTags && customTags.length > 0) {
     return customTags;
@@ -166,6 +225,8 @@ function parseArgs() {
     explicitVersion: null,
     tags: null,
     githubOutput: false,
+    stampChangelog: false,
+    date: null,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -178,6 +239,10 @@ function parseArgs() {
       options.tags = args[++i].split(",").map((s) => s.trim()).filter(Boolean);
     } else if (arg === "--github-output") {
       options.githubOutput = true;
+    } else if (arg === "--stamp-changelog") {
+      options.stampChangelog = true;
+    } else if (arg === "--date" && i + 1 < args.length) {
+      options.date = args[++i];
     }
   }
 
@@ -213,6 +278,16 @@ function main() {
     applyVersionToFiles(rootDir, targetVersion);
     console.log(
       `Applied version ${targetVersion} to package.json, package-lock.json, tauri.conf.json, Cargo.toml, and Cargo.lock`
+    );
+  }
+
+  if (options.stampChangelog) {
+    const date = options.date || releaseDateEastern();
+    const result = applyChangelogStamp(rootDir, targetVersion, date);
+    console.log(
+      result.changed
+        ? `Stamped CHANGELOG.md: ${targetVersion} - ${date} (${result.items} items)`
+        : `CHANGELOG.md left unchanged (${result.reason})`
     );
   }
 
