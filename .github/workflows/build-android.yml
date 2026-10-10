@@ -34,7 +34,7 @@ jobs:
           node scripts/resolve-release-version.mjs --version "${{ inputs.release_version }}" --apply
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
-          targets: aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android
+          targets: aarch64-linux-android
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: "zulu"
@@ -51,7 +51,7 @@ jobs:
         env:
           NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.2.12479018
         run: |
-          npx tauri android build --apk --ci
+          npx tauri android build --apk --target aarch64 --ci
       - name: Sign and align Android APK
         shell: bash
         env:
