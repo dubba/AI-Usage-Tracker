@@ -1,5 +1,5 @@
 import { bridgeApi } from "../../shared/lib/api";
-import { storePageAccountOrder } from "../dashboard/dashboard-page-state";
+import { storePageAccountOrder, whileSavingAllOrder } from "../dashboard/dashboard-page-state";
 import { buildSidebarGroups, groupOrderForAccounts } from "../dashboard/sidebar-groups";
 import { readDashboardProviderOrder, readSidebarGroupOrder, storeSidebarGroupOrder } from "../dashboard/sidebar-order";
 import { requestDashboardResync } from "../../shared/lib/events";
@@ -42,15 +42,29 @@ export function accountOrderForGroups(
   return ordered;
 }
 
+/** The account order for `orderedGroupIds`, or null when it would not be complete and exact. */
+function completeAccountOrder(
+  orderedGroupIds: string[],
+  snapshot: Pick<DashboardSnapshot, "accounts" | "buckets">,
+): string[] | null {
+  const ordered = accountOrderForGroups(orderedGroupIds, snapshot.accounts, snapshot.buckets ?? []);
+  // A bucket can name an account that no longer exists.
+  return ordered.length === snapshot.accounts.length ? ordered : null;
+}
+
 export async function persistGroupOrder(orderedGroupIds: string[]): Promise<void> {
+  // Rearrange the All page right away from the snapshot on screen, the way a card drag moves the
+  // sidebar, instead of waiting for the save and a reload.
+  const shown = getLatestSnapshot();
+  const shownOrder = shown ? completeAccountOrder(orderedGroupIds, shown) : null;
+  if (shownOrder) storePageAccountOrder("all", shownOrder);
+
   try {
-    const snapshot = await bridgeApi.snapshot();
-    const accounts = snapshot.accounts;
-    const orderedAccountIds = accountOrderForGroups(orderedGroupIds, accounts, snapshot.buckets ?? []);
-    // A bucket can name an account that no longer exists; only save a complete, exact order.
-    if (orderedAccountIds.length === accounts.length) {
-      await bridgeApi.reorderAccounts(orderedAccountIds);
-    }
+    await whileSavingAllOrder(async () => {
+      // Save from a fresh snapshot so an account added since the last load is not left out.
+      const orderedAccountIds = completeAccountOrder(orderedGroupIds, await bridgeApi.snapshot());
+      if (orderedAccountIds) await bridgeApi.reorderAccounts(orderedAccountIds);
+    });
   } catch (cause) {
     logIgnored("dashboard-reorder persist", cause);
   }
@@ -86,7 +100,7 @@ export async function persistVisibleAccountOrder(orderedVisibleIds: string[], gr
       // Update the sidebar right away from the snapshot on screen, like the cards themselves.
       const snapshot = getLatestSnapshot();
       if (snapshot) syncSidebarGroupOrder(orderedVisibleIds, snapshot);
-      await bridgeApi.reorderAccounts(orderedVisibleIds);
+      await whileSavingAllOrder(() => bridgeApi.reorderAccounts(orderedVisibleIds));
     } else if (pageId.startsWith("bucket:")) {
       const snapshot = getLatestSnapshot() ?? await bridgeApi.snapshot();
       const bucket = (snapshot.buckets ?? []).find((candidate) => candidate.id === pageId.slice(7));

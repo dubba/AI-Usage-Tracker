@@ -18,7 +18,10 @@ vi.mock("../dashboard/sidebar-order", () => ({
   storeSidebarGroupOrder: sidebar.store,
 }));
 const pageOrder = vi.hoisted(() => vi.fn());
-vi.mock("../dashboard/dashboard-page-state", () => ({ storePageAccountOrder: pageOrder }));
+vi.mock("../dashboard/dashboard-page-state", () => ({
+  storePageAccountOrder: pageOrder,
+  whileSavingAllOrder: (save: () => Promise<unknown>) => save(),
+}));
 
 import { buildSidebarGroups, groupOrderForAccounts } from "../dashboard/sidebar-groups";
 import { accountOrderForGroups, persistGroupOrder, persistVisibleAccountOrder } from "./persist";
@@ -88,6 +91,28 @@ describe("persistGroupOrder", () => {
     await persistGroupOrder(["bucket:b1"]);
     expect(api.reorderAccounts).not.toHaveBeenCalled();
     expect(resync).toHaveBeenCalledTimes(1);
+  });
+
+  it("rearranges the all page before the backend has answered", () => {
+    latest.snapshot = { accounts, buckets: [] };
+    api.snapshot.mockReturnValue(new Promise(() => {}));
+    void persistGroupOrder(["provider:grok", "provider:openai", "provider:anthropic"]);
+    expect(pageOrder).toHaveBeenCalledWith("all", ["g1", "o1", "o2", "a1"]);
+    expect(api.reorderAccounts).not.toHaveBeenCalled();
+  });
+
+  it("does not show an order that names accounts that no longer exist", () => {
+    latest.snapshot = { accounts, buckets: [{ id: "b1", accountIds: ["ghost"] }] };
+    api.snapshot.mockReturnValue(new Promise(() => {}));
+    void persistGroupOrder(["bucket:b1"]);
+    expect(pageOrder).not.toHaveBeenCalled();
+  });
+
+  it("saves from a fresh snapshot, not the one on screen", async () => {
+    latest.snapshot = { accounts: accounts.slice(0, 3), buckets: [] };
+    api.snapshot.mockResolvedValue({ accounts, buckets: [] });
+    await persistGroupOrder(["provider:grok", "provider:openai", "provider:anthropic"]);
+    expect(api.reorderAccounts).toHaveBeenCalledWith(["g1", "o1", "o2", "a1"]);
   });
 
   it("still resyncs when the backend fails", async () => {

@@ -1,12 +1,13 @@
 # Changelog
 
-## Unreleased (11 items)
+## Unreleased (12 items)
 
-### Improved (3)
+### Improved (4)
 
 - In Settings, the Appearance dropdown keeps a consistent width across Dark, Light, and System themes, and the dropdown menu aligns flush with the button.
 - When the current version has already been released, the next scheduled release is now published as the next full version (for example 0.4.2) instead of a beta pre-release.
 - Every scheduled release now includes the Windows, Android, macOS, and iOS builds, so a Thursday release is no longer missing the macOS and iOS downloads.
+- Dragging a sidebar group now rearranges the account cards on the All page immediately, instead of after a short pause while the new order is saved.
 
 ### Fixed (6)
 
