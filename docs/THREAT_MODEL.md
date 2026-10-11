@@ -1,7 +1,8 @@
 # Threat model
 
-> **Draft: derived from code reading, not yet verified by a full audit run.**
-> Every guard below was confirmed against the current source unless marked **Unverified**.
+> **Draft: last verified by Pass 0 on 2026-10-11 against commit `535cab8`.**
+> Every guard below was confirmed against that source unless marked **Unverified**; the
+> Unverified entries are why this is still a draft.
 > This file records assets, attackers, trust boundaries, entry points, and the code that
 > guards each one. It deliberately contains no findings or suspected weaknesses — audit
 > findings belong in the gitignored `.audits/` directory (see `docs/AUDIT_PROTOCOL.md`).
@@ -13,15 +14,15 @@
 | --- | --- |
 | OAuth access + refresh tokens (OpenAI, Anthropic, Google/Antigravity, Google AI Studio Cloud) | OS credential store only (see [Credential storage](#credential-storage)); rotated refresh tokens also in the in-memory cache (`store/credentials/cache.rs`) |
 | Google AI Studio API keys | OS credential store only |
-| Grok session cookies (`sso*`, `auth_token`, `jwt`, `session`) | OS credential store; captured from the login WebView (`grok_login.rs:536-590`) |
-| OpenCode Go `auth` cookie + workspace id | OS credential store (`opencode_login.rs:557-595`) |
-| Paseo Bridge bearer token (64 alphanumeric chars) | OS credential store (`store/credentials/mod.rs:401-407`, `keyring_store.rs:12`) |
+| Grok session cookies (`sso*`, `auth_token`, `jwt`, `session`) | OS credential store; captured from the login WebView (`grok_login.rs:532-588,834-898`) |
+| OpenCode Go `auth` cookie + workspace id | OS credential store (`opencode_login.rs:365-410,541-580`) |
+| Paseo Bridge bearer token (64 alphanumeric chars, `store/credentials/mod.rs:401-407`) | Desktop release: OS credential store, user `bridge-api-token` (`store/credentials/mod.rs:355-379,392-399`, `keyring_store.rs:12`). Android: `credentials/bridge-token.txt` sealed like other credential files; debug builds: same file, plaintext (`store/credentials/mod.rs:334-352,381-389`) |
 | Pairing session keys (X25519 ephemeral, HKDF-derived), airgap transfer key | Memory only, zeroized on drop (`pairing/crypto.rs:17,50`) |
 | Account metadata: emails, labels, plan names, usage numbers | `accounts.json` and sibling JSON files in the app data dir; sanitized projections in the dashboard snapshot and the local API |
 | Updater minisign private key, Android signing keystore | GitHub Actions secrets — never in the repository |
 | Integrity of the update channel (`latest.json`, APK + `.apk.sha256` assets) | GitHub Releases of this repository |
 
-ID tokens are decoded without signature verification for informational claims only; they are never used as authentication identity (`oauth.rs:1015-1023`).
+ID tokens are decoded without signature verification for informational claims only; they are never used as authentication identity (`oauth.rs:996-1000,1052-1056`).
 
 ## Attackers
 
@@ -71,7 +72,7 @@ React 19 with no state library: a single `DashboardSnapshot` fetched only by
 focus/visibility refresh. All backend calls go through `bridgeApi` (37) and `pairingApi`
 (18) wrappers in `src/shared/lib/api.ts:18-117` — exactly the 55 registered commands.
 Backend events (`usage-alert`, `pairing-status`, `pairing-uri-received`,
-`app-update-progress`) are consumed via `useTauriEvent`. The `api-integration` window
+`pairing-ui-state`, `open-update-notes`, `app-update-progress`) are consumed via `useTauriEvent`. The `api-integration` window
 renders `ApiIntegrationWindow.tsx` and can call only three bridge methods
 (enforced by the sync test, `lib.rs:322-333`).
 
@@ -91,11 +92,11 @@ renders `ApiIntegrationWindow.tsx` and can call only three bridge methods
 
 ### Key data flows
 
-- **Usage refresh**: timer/resume/manual (`lib.rs:155-177`) → `refresh_all` (semaphore of 4, `state.rs:26,141`) → per-account async lock (`state.rs:244-262`) → provider call on a spawned task that owns the lock with a 45 s wait timeout (`usage.rs:31-119`) → normalize → persist to `accounts.json` keeping last-known-good marked `Stale` on failure (`usage.rs:380-414`); auth failure sets `auth_required` and suspends auto-refresh (`usage.rs:172-204`).
+- **Usage refresh**: timer/resume/manual (`lib.rs:155-177`) → `refresh_all` (semaphore of 4, `state.rs:26,141`) → per-account async lock (`state.rs:280-286`) → provider call on a spawned task that owns the lock with a 45 s wait timeout (`usage.rs:16,31-135`) → normalize → persist to `accounts.json` keeping last-known-good marked `Stale` on failure (`usage.rs:394-430`); auth failure sets `auth_required` and suspends auto-refresh (`usage.rs:186-218`).
 - **Credentials**: provider secret → `ProviderSecret` (Zeroize) → platform store dispatch (`store/credentials/mod.rs:107-174`) → in-memory cache with 300 s TTL and a dirty flag that survives until the native write succeeds (`cache.rs:10-93`). Secrets never appear in command responses or metadata files.
-- **Local API**: dashboard snapshot → sanitized `PublicUsageResponse` (no tokens/cookies) → `GET /v1/paseo-usage`, schema v1 (`model.rs:336-359`, `bridge_api.rs:190-252`).
-- **Pairing**: QR URI or 6-digit code → host TCP listener (`0.0.0.0:0`, `pairing/mod.rs:203` — all interfaces, by design, for LAN transfer) → X25519 + HKDF + SAS confirmation → XChaCha20-Poly1305-encrypted payload import with per-field clamping (`payload.rs`, `limits.rs:103-121`).
-- **Updater**: GitHub releases manifest (desktop minisign-verified by the updater plugin; Android SHA-256 + APK signing certificate) → user-initiated install.
+- **Local API**: account store → `PublicUsageResponse` (no tokens or cookies; carries labels, emails, provider account ids, plans, usage windows, and the sanitized last error) → `GET /v1/paseo-usage`, schema v1 (`model.rs:377-401`, `bridge_api.rs:191-253`).
+- **Pairing**: QR URI or 6-digit code → host TCP listener bound to the advertised LAN address on an ephemeral port, falling back to `0.0.0.0:0` only if that address cannot be bound (`pairing/mod.rs:203-206,544-555`; address choice `pairing/transport.rs:43-85`) → X25519 + HKDF + SAS confirmation → XChaCha20-Poly1305-encrypted payload import with per-field clamping (`payload.rs`, `limits.rs:103-121`).
+- **Updater**: GitHub releases manifest (desktop minisign-verified by the updater plugin; Android SHA-256 + package name + APK signing certificate) → user-initiated install.
 
 ### On-disk data
 
@@ -103,9 +104,11 @@ All in the Tauri app data dir, written via `atomic_write_private` (temp + fsync 
 owner-only, `fs_util.rs:203-245`): `accounts.json` (v2) + hard-link backup `accounts.json.bak`
 (`accounts.rs:456-470`), `deleted-accounts.json` (tombstones ≤500), `account-order.json`,
 `usage-alerts.json`, `account-buckets.json`, `app-settings.json` (v3), `logs/app.log(.1)`
-(rotating, 256 KiB), `*.invalid` quarantine (`state.rs:300-349`), and on Android + debug
-builds `credentials/{id}.json` sealed files. Corrupt JSON is quarantined and reloaded, not
-crashed on (`state.rs:300-318`).
+(rotating, 256 KiB, `diagnostics.rs:22,73`), `*.invalid` quarantine (`state.rs:336-385`), and on
+Android + debug builds `credentials/{id}.json` and `credentials/bridge-token.txt` (sealed on
+Android, plaintext in debug builds). Corrupt JSON is quarantined and reloaded, not crashed on
+(`state.rs:336-354`). On Android, `BootReceiver` reads `app-settings.json` directly
+(`BootReceiver.kt:16-19`).
 
 ## Entry points and guards
 
@@ -115,42 +118,45 @@ crashed on (`state.rs:300-318`).
 | --- | --- |
 | Per-window capability allowlists: main window = exactly the 55 commands; `api-integration` window = only `get-bridge-info`, `reveal-bridge-token`, `regenerate-bridge-token` | `capabilities/default.json`, `capabilities/api-integration.json`; five-way sync test `lib.rs:186-335` (handler list vs `build.rs APP_COMMANDS` vs capabilities vs every frontend `invoke()` vs the API window's three methods) |
 | `build.rs APP_COMMANDS` mirrors the handler list into generated permissions | `build.rs:140-196,230-231` |
-| Rust-side validation on every string input: labels trimmed ≤80 (`commands/mod.rs:16-28`), provider strings matched against a fixed whitelist (`model.rs:48-65`), emails trimmed ≤254 (`limits.rs:84-98`), refresh minutes restricted to {5,10,15,30,45,60} (`settings.rs:114-117`), reorder must be an exact permutation (`account_order.rs:81-109`), pending UI state object/null ≤64 KiB (`commands/pairing.rs:117-128`), pairing role `send`/`receive` only (`pairing/mod.rs:154-171`), join codes 6 digits with 5-attempt lockout (`pairing/mod.rs:509-540`) | as cited |
-| `reveal_bridge_token` returns the full token; doc-comment restricts it to an explicit user click (`commands/bridge.rs:92-98`); `get_bridge_info` returns only a masked token (`commands/bridge.rs:111-127`, `model.rs:248-257`) | as cited |
+| Plugin permissions on the main window: `core:default`, `core:window:allow-set-theme`, `opener:allow-open-url` (URL allowlist, see §12), `autostart:allow-enable`/`allow-disable`/`allow-is-enabled`, `notification:default`, `window-state:default`. The `api-integration` window gets only `core:default` and `allow-set-theme` beyond its three commands | `capabilities/default.json`, `capabilities/api-integration.json` |
+| Windows without a capability: the desktop `grok-login` and `opencode-go-login` windows match no capability file, so they are granted no commands. Neither capability file declares a `remote` URL scope | `capabilities/*.json` (`windows` keys), `grok_login.rs:33`, `opencode_login.rs:25` |
+| Rust-side validation on every string input: labels trimmed ≤80 (`commands/mod.rs:16-28`), provider strings matched against a fixed whitelist (`model.rs:49-65`), emails trimmed ≤254 (`limits.rs:84-98`), refresh minutes restricted to {5,10,15,30,45,60} (`settings.rs:114-117`), reorder must be an exact permutation (`account_order.rs:80-109`), pending UI state object/null ≤64 KiB (`commands/pairing.rs:116-128`), pairing role `send`/`receive` only (`pairing/mod.rs:155-172`), join codes 6 digits with 5-attempt lockout (`pairing/mod.rs:510-541`) | as cited |
+| `reveal_bridge_token` returns the full token; doc-comment restricts it to an explicit user click (`commands/bridge.rs:92-99`); `get_bridge_info` and `regenerate_bridge_token` return only a masked token (`commands/bridge.rs:81-90,111-127`, `model.rs:288-297`) | as cited |
 | CSP: `script-src 'self'`, `object-src 'none'`, `frame-ancestors 'none'`, no remote script/style origins | `src-tauri/tauri.conf.json:30` |
 
 ### 2. Loopback HTTP bridge (`127.0.0.1:47831`) — reachable by any local process, and indirectly by browsers
 
 | Guard | Code |
 | --- | --- |
-| Loopback-only bind, hardcoded | `bridge_api.rs:24` |
-| Controller off unless enabled in settings (default false) and token readable; rebind retry every 3 s; desktop-only | `bridge_api.rs:34-92`, `settings.rs:52`, `backend.rs:62-63`, `commands/bridge.rs:22-24` |
-| Host header must be loopback (DNS-rebinding defense), Origin/Referer must be absent or loopback | `bridge_api.rs:122-157` |
-| Per-IP rate limit (burst 10, 1/s refill, 60 s entry TTL) applied before auth | `bridge_api.rs:27-32,176-184` |
-| Bearer token compared with `subtle::ConstantTimeEq` | `bridge_api.rs:313-327` |
-| Forced response headers (no-store, nosniff, no-referrer, X-Frame-Options DENY, CSP, CORP same-origin) | `bridge_api.rs:100-117` |
-| Responses contain only sanitized usage fields; `schemaVersion: 1`; the only routes are `GET /v1/health` and `GET /v1/paseo-usage` | `bridge_api.rs:50-52,171-252`, `model.rs:336-359` |
-| Token: 64 alphanumeric chars, persisted in secure storage, masked in UI | `store/credentials/mod.rs:401-407`, `model.rs:248-257` |
+| Loopback-only bind, hardcoded | `bridge_api.rs:25,48` |
+| Controller off unless enabled in settings (default false) and token readable; rebind retry every 3 s; desktop-only | `bridge_api.rs:35-93`, `settings.rs:52`, `backend.rs:62-63`, `commands/bridge.rs:22-24` |
+| Host header must be loopback (DNS-rebinding defense), Origin/Referer must be absent or loopback; checked before anything else on both routes | `bridge_api.rs:123-170,177-179,196-198` |
+| Per-client-IP rate limit (burst 10, 1/s refill, 60 s entry TTL) applied before auth | `bridge_api.rs:28-33,182-184,201-203,279-304` |
+| Bearer token: both sides hashed with SHA-256, then the digests compared with `subtle::ConstantTimeEq`, so length differences take the same path | `bridge_api.rs:314-330` |
+| Forced response headers (no-store, nosniff, no-referrer, X-Frame-Options DENY, CSP, CORP same-origin), on success and error responses | `bridge_api.rs:101-118` |
+| Responses carry no tokens or cookies (fields: id, label, provider, email, provider account id, plan, status, source, windows, credits, fetched-at, sanitized last error); `schemaVersion: 1`; the only routes are `GET /v1/health` and `GET /v1/paseo-usage` | `bridge_api.rs:51-54,172-253`, `model.rs:377-401` |
+| Token: 64 alphanumeric chars, persisted in secure storage, masked in UI (first 4 + last 4 shown) | `store/credentials/mod.rs:401-407`, `model.rs:288-297` |
 
 ### 3. OAuth loopback callbacks — reachable by local processes and browser pages
 
 | Guard | Code |
 | --- | --- |
-| Callback listener binds loopback only; fixed port allowlists (OpenAI 1455/1457, Anthropic 53692-53696, Antigravity ephemeral) | `oauth.rs:33,935-986` |
-| PKCE (32-byte verifier, S256) and random state generated and validated | `oauth.rs:118-120,501`, `oauth_common.rs:28-37` |
-| One-shot callback: `callback_claimed` AtomicBool prevents code replay; status polls serialized by `login_status_lock` | `oauth.rs:53,346,466-468` |
-| Single-use codes: never retried after a definitive failure | `oauth.rs:297-299,380-382,567-595` |
-| 5-minute login timeout | `oauth_common.rs:77` |
-| Mobile: authorization URL must be HTTPS on `auth.openai.com`/`claude.ai`/`accounts.google.com` before WebView navigation; URL-poll recognizes only loopback callbacks | `oauth.rs:227-238,417-433`, `mobile_auth.rs:171-228` |
+| Callback listener binds `127.0.0.1` only, or `::1` if the IPv4 bind fails for a reason other than the port being in use; fixed port allowlists (OpenAI 1455/1457, Anthropic 53692-53696, Antigravity ephemeral) | `oauth.rs:34-35,916-972` |
+| PKCE (32-byte verifier, S256) and random state generated and validated | `oauth.rs:118-119,486-492,849-881`, `oauth_common.rs:28-37` |
+| One-shot callback: `callback_claimed` AtomicBool ensures a code is processed at most once; status polls serialized by `login_status_lock` | `oauth.rs:55,342,451-458` |
+| Single-use codes: retried (up to 5 tries) only when the token endpoint never answered; never retried or restored after a definitive failure | `oauth.rs:293-295,377-378,548-570` |
+| 5-minute login timeout | `oauth_common.rs:77,106-120` |
+| Google AI Studio Cloud connection: separate ephemeral loopback callback, 24-byte state, 48-byte PKCE verifier (S256), state checked before the code is used, read-only scopes unless the user asks to enable Cloud Monitoring | `google_ai_studio_oauth.rs:32-33,165-180,304-314,336-347,926-940` |
+| Mobile: authorization URL must be HTTPS on `auth.openai.com`/`claude.ai`/`accounts.google.com` (or a subdomain) before WebView navigation; URL-poll recognizes only loopback callbacks carrying `code` or `error` | `oauth.rs:223-234,405-421`, `mobile_auth.rs:146-226` |
 
 ### 4. Login WebViews — reachable by any page loaded inside them
 
 | Guard | Code |
 | --- | --- |
-| Grok login: incognito WebviewWindow, fresh owner-only (0700/ACL) temp profile swept at startup and removed on close/timeout; navigation blocked unless HTTPS on an allowlisted host; only session-cookie names retained; cookie normalization rejects CR/LF | `grok_login.rs:121,213-265,374-440,798-840`, `providers/grok.rs:365-461` |
-| OpenCode login: HTTPS-only navigation allowlist (`opencode.ai`, `accounts.google.com`, `github.com`, `appleid.apple.com`); workspace id validated `[A-Za-z0-9_-]{1,160}`; cookie rejects control characters | `opencode_login.rs:618-651`, `providers/opencode_go.rs:17-25,116-124` |
-| Mobile sign-in WebView: HTTPS-only + host allowlist (auth hosts of all six providers); FedCM-disabling shim | `mobile_auth.rs:21-37,122-144` |
-| Android WebView patches (generated Kotlin): popup windows accept only loopback `localhost`/`127.0.0.1` hosts; `javascript:`/`file:`/`content:` blocked; `intent:`/`android-app:` downgraded only to `https:` fallbacks | `build.rs:300-314,343-346,458-475` |
+| Grok login (desktop): incognito WebviewWindow with devtools off, fresh owner-only (0700/ACL) temp profile swept at startup and removed on close/10-minute timeout; navigation blocked unless HTTPS on an allowlisted host (about 20 Grok/X, CDN, captcha, and SSO hosts) or `about:blank`/`blob:`; cookies read only from `grok.com`/`accounts.x.ai`, only session-cookie names retained; cookie normalization rejects CR/LF | `grok_login.rs:37,216-266,365-444,777-823`, `providers/grok.rs:365-445` |
+| OpenCode login (desktop): incognito window with devtools off; navigation allowlist: HTTPS on `opencode.ai` (and subdomains), `accounts.google.com`, `github.com`, `appleid.apple.com`, or `about:blank`; workspace id taken only from `opencode.ai/workspace/<id>/go` and validated `[A-Za-z0-9_-]{1,160}`; cookie rejects control characters | `opencode_login.rs:184-187,602-635`, `providers/opencode_go.rs:17-25,113-123` |
+| Mobile sign-in (Android/iOS, including Grok and OpenCode): the main app WebView is navigated to the provider and restored to the app URL when the attempt ends; the starting URL must be HTTPS on an allowlisted host (auth hosts of all six providers, or a subdomain); FedCM-disabling shim injected | `mobile_auth.rs:18-37,115-226`, `grok_login.rs:454-527`, `opencode_login.rs:411-460` |
+| Android WebView patches (generated Kotlin): popup windows hand back to the main view only exact `localhost`/`127.0.0.1` URLs; `javascript:`/`file:`/`content:` blocked in popups; `intent:`/`android-app:` in the main view follow only `https:` fallbacks | `build.rs:317-327,358-369,476-491` |
 
 ### 5. Pairing (LAN) — reachable by same-LAN devices
 
@@ -158,35 +164,37 @@ crashed on (`state.rs:300-318`).
 | --- | --- |
 | QR pairing URIs accept only IP-literal hosts in loopback/private/link-local/CGNAT ranges; schemes `aiusage-pair:`/`aiusage:`; cryptographic parse before connecting | `pairing/protocol.rs:21-22,44-70,116` |
 | Crypto: X25519 with non-contributory-key rejection, HKDF-SHA256, XChaCha20-Poly1305, 48-bit SAS code, constant-time confirmation tags, keys zeroized on drop | `pairing/crypto.rs:17,41-44,63,98-111,136-137,147` |
-| SAS confirmation gates the payload transfer on both sides; rejection aborts both | `pairing/transport.rs:752-802,911-925`, `pairing/mod.rs:154-186` |
+| SAS confirmation gates the payload transfer on both sides; rejection aborts both | `pairing/transport.rs:752-802,911-925`, `pairing/mod.rs:155-187` |
+| Host listener binds the LAN address it advertises in the QR code and mDNS record (chosen by `get_local_lan_ip`), falling back to `0.0.0.0:0` only if that bind fails | `pairing/mod.rs:203-206,544-555`, `pairing/transport.rs:43-85` |
 | mDNS `_aiut-pair._tcp.local` TXT records carry only sid/pk/nonce/v; join codes 6-digit, weak codes rejected, 5-attempt lockout | `pairing/discovery.rs:21-26,38-61,113-118` |
 | Framing: 1 KiB pre-auth / 16 MB post-auth frame caps; session/socket/confirm timeouts 300/30/60 s | `pairing/protocol.rs:23-30`, `pairing/transport.rs:33-38` |
 | Import clamping: 64 accounts / 256 KiB secrets, per-field clamps, hostile account ids re-minted, buckets remapped | `pairing/payload.rs:14-16,307-312`, `limits.rs:103-121` |
-| Credential replacement requires an explicit single-use per-transfer opt-in, default false, reset per session; sender-side deletions are never applied to the receiver | `commands/pairing.rs:105-114`, `pairing/payload.rs:260-265,294-296`, `pairing/mod.rs:194,404` |
+| Credential replacement requires an explicit single-use per-transfer opt-in, default false, reset per session; sender-side deletions are never applied to the receiver | `commands/pairing.rs:105-114`, `pairing/payload.rs:260-265,294-296`, `pairing/mod.rs:195,404` |
 | Airgap QR: deflate + 16 MB decompression cap, 32-byte key in frames, 48-bit verify code, frame count/length bounds | `pairing/airgap.rs:22-37,85,100-150,217-278,313-316` |
 | Frontend QR decoder sandbox: 960 px dimension cap with downscale, 2048-char payload cap, scheme allowlist, exception isolation; QR SVGs sanitized (no scripts/handlers/`javascript:`) | `src/features/pairing/lib/qr-decoder.ts:14-71`, `src/features/pairing/lib/sanitizeSvg.ts:19-67` |
 
-### 6. Deep links (Android `aiusage-pair:`/`aiusage:`) — reachable by any Android app
+### 6. Deep links and intent extras (Android) — reachable by any Android app
 
-| Guard | Code |
-| --- | --- |
-| VIEW intent → JNI `setPendingPairingUri` length-bounds (≤2048) and prefix-checks the URI before storing; consumed once via `get_pending_pairing_uri`; full cryptographic validation before connecting | `commands/pairing.rs:176-209`, `pairing/protocol.rs:116` |
+| Entry | Guard | Code |
+| --- | --- | --- |
+| `aiusage-pair:`/`aiusage:` VIEW intent | Kotlin and the JNI `setPendingPairingUri` both length-bound (≤2048) and prefix-check the URI before storing; contents never logged; consumed once via `get_pending_pairing_uri`; full cryptographic validation before connecting | `MainActivity.kt:162-182`, `commands/pairing.rs:174-211`, `pairing/protocol.rs:116` |
+| `open_update_notes` string extra (set by the app's own update notification) | Extra removed from the intent after reading; consumed once via `get_pending_update_notice`; the frontend uses the value only as display text in the update-notes dialog and runs the normal update check | `MainActivity.kt:184-195`, `updater.rs:575-598`, `src/features/settings/useAppUpdate.ts:133-156`, `src/features/settings/UpdateNotesModal.tsx:183,204` |
 
 ### 7. Updater — reachable by a compromised release channel or MITM
 
 | Guard | Code |
 | --- | --- |
 | Desktop: endpoint pinned to this repo's `latest.json`; minisign public key pinned in config; the updater plugin verifies signatures before install (plugin-internal behavior — **Unverified** in this repo beyond the config and `updater.rs:380-383`); check 30 s / install 15 min bounds; Windows install mode `passive` | `src-tauri/tauri.conf.json:54-62`, `updater.rs:378-383` |
-| Android: asset name must match this app, `.apk`, not "unsigned", ≤250 MB, `PK` zip magic, ≤10 redirects; SHA-256 against the published `.apk.sha256`, failing closed if absent or mismatched; APK signing certificate verified via JNI before the user install prompt | `updater.rs:124-131,372,417-526,694-722`, `apk_install.rs:33-45` |
+| Android: APK and `.apk.sha256` URLs taken from the release's `browser_download_url` fields; asset name must match this app, `.apk`, not "unsigned", ≤250 MB, `PK` zip magic, ≤10 redirects; SHA-256 against the published `.apk.sha256`, failing closed if absent or mismatched; before the user install prompt, the APK's package name must equal this app's and its signing-certificate SHA-256 set must intersect the installed app's | `updater.rs:124-176,372,417-526,686-722`, `apk_install.rs:33-45`, `MainActivity.kt:632-684` |
 | Beta channel: GitHub API listing, newest non-draft release with a manifest | `updater.rs:318-334` |
-| Outbound hosts limited to `github.com/dubba/AI-Usage-Tracker` and `api.github.com/repos/dubba/...` | `updater.rs:13-22` |
+| Fixed manifest and API URLs: `github.com/dubba/AI-Usage-Tracker` and `api.github.com/repos/dubba/AI-Usage-Tracker` (asset downloads follow the URLs those responses name) | `updater.rs:13-22`, `tauri.conf.json:56-58` |
 | iOS (SideStore): no in-place update; opens `sidestore://` or the releases page | `updater.rs:790-810` |
 
 ### 8. Provider APIs — reachable by a malicious or compromised provider
 
 | Guard | Code |
 | --- | --- |
-| Outbound HTTPS only (rustls); fixed endpoint constants per provider (e.g. `providers/openai.rs:17`, `providers/anthropic.rs:16-19`, `providers/antigravity.rs:20`, `providers/google_ai_studio.rs:27-28`, `providers/grok.rs:22-28`, `providers/opencode_go.rs:9`); shared reqwest client with 10 s connect / 15 s total timeouts | `state.rs:111-116` |
+| Fixed `https://` endpoint constants per provider (e.g. `providers/openai.rs:17`, `providers/anthropic.rs:16-19`, `providers/antigravity.rs:20`, `providers/google_ai_studio.rs:27-28`, `providers/grok.rs:22-28`, `providers/opencode_go.rs:9`); TLS via rustls (`Cargo.toml:31-32`); shared reqwest client with 10 s connect / 15 s total timeouts and reqwest's default redirect policy | `state.rs:111-116` |
 | Responses treated as untrusted: window normalization with caps (≤32 windows), 401-only auth classification, unknown fields dropped, no plan guessing | `limits.rs:8-32`, `providers/anthropic.rs:407`, `providers/mod.rs:86-117` |
 | Error messages sanitized: transport failures use fixed sentences, refresh errors pass an allowlist that drops tokens/keys/JWTs/URLs | `providers/mod.rs:43-56`, `usage.rs:356-378` |
 | Token refresh: rotated refresh tokens replace old, `invalid_grant` → sign-in-again, unreadable replies never echoed | `providers/oauth_refresh.rs:84-128,232-407` |
@@ -198,13 +206,13 @@ crashed on (`state.rs:300-318`).
 | --- | --- | --- |
 | macOS/iOS release | Keychain item per account, service `ai-usage-tracker`, user `account:{id}`; legacy `paseo-usage-bridge` entries migrated on read | `store/credentials/mod.rs:107-117,198-215`, `keyring_store.rs:8-12` |
 | Windows/other desktop release | Chunked `chunked-v1` entries in Credential Manager (DPAPI-backed): ≤32 chunks × 1200 UTF-16 units, generation ids so a crash never strands mixed secrets | `store/credentials/mod.rs:119-174`, `chunking.rs:13-20` |
-| Android | `credentials/{id}.json` sealed with AES-256-GCM under a non-exportable Android Keystore key; magic `AIUT-SEALED-1`; the account id is bound into the ciphertext (AAD) so files cannot be swapped between accounts; legacy plaintext upgraded at startup and retried on dashboard reads | `credential_file.rs:18-171`, `android_keystore.rs:13-21`, `CredentialVault.kt` |
-| Debug builds | Plaintext files, by design, `debug_assertions`-gated | `credential_file.rs:1-10,29-38` |
+| Android | `credentials/{id}.json` and `credentials/bridge-token.txt` sealed with AES-256-GCM under a non-exportable Android Keystore key; magic `AIUT-SEALED-1`; the file name is bound into the ciphertext (AAD) so files cannot be swapped between accounts; files without the magic are read as legacy plaintext and re-sealed, at startup and on dashboard reads | `credential_file.rs:18-171`, `android_keystore.rs:13-21`, `CredentialVault.kt:24-67` |
+| Debug builds | Plaintext files, by design; the file backend is compiled only for Android or `debug_assertions` | `lib.rs:14-15`, `store/credentials/mod.rs:79-105,220,334`, `credential_file.rs:1-10,29-38` |
 
 Additional guards: all secret structs derive `Zeroize` (`model.rs:132-181`); the in-memory
 cache zeroizes on drop and keeps dirty entries until the native write succeeds
 (`cache.rs:10-93`); account ids are restricted to `[A-Za-z0-9_-]{1,64}` precisely because
-they become credential filenames (`store/mod.rs:30-41`); if secure storage is unreadable the
+they become credential filenames (`store/mod.rs:32-43`); if secure storage is unreadable the
 bridge degrades to a session-only token instead of persisting (`startup.rs:56-73`).
 
 ### 10. Filesystem — reachable by local processes and other OS users
@@ -220,9 +228,9 @@ bridge degrades to a session-only token instead of persisting (`startup.rs:56-73
 
 | Component | Manifest state | Guard |
 | --- | --- | --- |
-| `MainActivity` | exported (launcher; `aiusage-pair:`/`aiusage:` BROWSABLE deep links) | Deep-link URIs only land in `setPendingPairingUri` after length + prefix checks (`commands/pairing.rs:176-209`); full validation before any connection |
-| `BootReceiver` | exported, `BOOT_COMPLETED` | Receives only boot intents; its post-boot behavior is **Unverified** in this draft |
-| `ApkInstallReceiver` | not exported | Install prompts only from the updater flow (`apk_install.rs`) |
+| `MainActivity` | exported (launcher; `aiusage-pair:`/`aiusage:` BROWSABLE deep links) | See §6 for both intent inputs (pairing URI, `open_update_notes` extra) |
+| `BootReceiver` | exported; filter actions `BOOT_COMPLETED`, `android.intent.action.QUICKBOOT_POWERON`, `com.htc.intent.action.QUICKBOOT_POWERON` (`AndroidManifest.xml:71-80`) | Reads no intent extras. If `autostartEnabled` is true in `app-settings.json`, starts the app's own launcher activity (`BootReceiver.kt:10-31`) |
+| `ApkInstallReceiver` | not exported | Reached only through the `PendingIntent` the app creates for its own install session (`MainActivity.kt:832-840`, `ApkInstallReceiver.kt:9-20`) |
 | `FileProvider` | not exported; scoped to `updates/` and `Pictures/` paths only | `file_paths.xml` (comment: never widen to `.`) |
 | Backups | `allowBackup=false`; backup and data-extraction rules exclude all domains | `AndroidManifest.xml:32`, `backup_rules.xml`, `data_extraction_rules.xml` |
 | Network | Cleartext forbidden except loopback hosts | `network_security_config.xml:8-11` |
@@ -232,9 +240,9 @@ bridge degrades to a session-only token instead of persisting (`startup.rs:56-73
 
 | Guard | Code |
 | --- | --- |
-| `opener` plugin restricted to 8 HTTPS URL prefixes (auth hosts + this repo) | `capabilities/default.json:13-34` |
+| `opener` plugin restricted to 8 HTTPS URL prefixes (auth hosts + this repo) | `capabilities/default.json:9-36` |
 | Frontend `openSafeUrl` enforces HTTPS + host allowlist before any `openUrl` | `src/shared/lib/safeUrl.ts:3-38` |
-| Diagnostics export: every log line and the report pass `redact()` (sensitive keys, bearer tokens, JWTs, opaque strings, masked emails, masked home folders); the report omits account labels and emails | `diagnostics.rs:232-260,357-470,186-216` |
+| Diagnostics export: every log line and the report pass `redact()` (sensitive keys, bearer tokens, JWTs, opaque strings, masked emails, masked home folders); the report lists accounts by provider and id, not label or email | `diagnostics.rs:127-215,232-260,357-470` |
 
 ### 13. Platform permission surfaces
 
@@ -245,7 +253,7 @@ bridge degrades to a session-only token instead of persisting (`startup.rs:56-73
 ## Not yet verified in this draft
 
 - The updater plugin's internal minisign enforcement (upstream plugin behavior; only the pinned config is verified here).
-- `BootReceiver`'s post-boot behavior (manifest flags verified; handler logic not read).
+- Tauri's enforcement that capabilities without a `remote` scope deny IPC to remote origins loaded in a window (upstream behavior; only the capability files are verified here).
 - macOS notarization/hardened-runtime state, Windows code-signing/SmartScreen state, Keychain behavior across app updates, and SideStore re-signing effects on the iOS keychain.
 - CI workflow security (covered by Pass 12 of the audit protocol, not Pass 0).
 
