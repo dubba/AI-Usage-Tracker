@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (5 items)
+## Unreleased (8 items)
 
 ### Improved (3)
 
@@ -8,10 +8,16 @@
 - When the current version has already been released, the next scheduled release is now published as the next full version (for example 0.4.2) instead of a beta pre-release.
 - Every scheduled release now includes the Windows, Android, macOS, and iOS builds, so a Thursday release is no longer missing the macOS and iOS downloads.
 
-### Fixed (2)
+### Fixed (3)
 
 - In Settings, the space between the Automatic Updates title and its description matches Change Log and the other settings rows.
 - On the dashboard, account card dropdown menus near the bottom of the screen open upward instead of downward, preventing them from being cut off.
+- A usage refresh that times out while the provider is renewing an account's sign-in no longer loses the renewed sign-in, so the account no longer asks you to sign in again afterwards.
+
+### Security (2)
+
+- The local usage API's access token check takes the same time no matter how long the presented token is, so timing cannot reveal the token's length.
+- While device sync is waiting for another device, it accepts connections only on the network address shown in its QR code and join code, not on every network the computer is connected to, such as a VPN.
 
 ## 0.4.0 - 2026-10-07 (27 items)
 

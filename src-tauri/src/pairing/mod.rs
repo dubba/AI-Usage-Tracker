@@ -24,6 +24,7 @@ use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
+    net::IpAddr,
     sync::{
         atomic::{AtomicU64, Ordering},
         Arc,
@@ -200,7 +201,7 @@ impl PairingSessionManager {
         rand::thread_rng().fill_bytes(&mut session_nonce);
 
         let ip = get_local_lan_ip();
-        let listener = TcpListener::bind("0.0.0.0:0")
+        let listener = bind_pairing_listener(&ip)
             .await
             .map_err(|e| format!("Failed to bind TCP listener: {e}"))?;
         let port = listener
@@ -538,4 +539,17 @@ impl PairingSessionManager {
             }
         }
     }
+}
+
+/// Binds the host listener to the address the QR code and mDNS record
+/// advertise, so it is not also reachable on every other interface (a VPN, a
+/// public address) for the life of the session. Falls back to all interfaces
+/// only if that address cannot be bound, e.g. it vanished since we read it.
+pub(crate) async fn bind_pairing_listener(ip: &str) -> std::io::Result<TcpListener> {
+    if let Ok(addr) = ip.parse::<IpAddr>() {
+        if let Ok(listener) = TcpListener::bind((addr, 0)).await {
+            return Ok(listener);
+        }
+    }
+    TcpListener::bind("0.0.0.0:0").await
 }

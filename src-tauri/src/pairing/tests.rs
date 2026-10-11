@@ -1628,3 +1628,16 @@ async fn test_end_to_end_sas_rejection_aborts() {
     }
     assert!(client_failed);
 }
+
+#[tokio::test]
+async fn host_listener_binds_only_the_advertised_address() {
+    let listener = super::bind_pairing_listener("127.0.0.1").await.unwrap();
+    assert_eq!(
+        listener.local_addr().unwrap().ip(),
+        std::net::IpAddr::from([127, 0, 0, 1])
+    );
+
+    // An address that cannot be bound still yields a working listener.
+    let listener = super::bind_pairing_listener("not-an-ip").await.unwrap();
+    assert!(listener.local_addr().unwrap().ip().is_unspecified());
+}
