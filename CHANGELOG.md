@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (9 items)
+## Unreleased (11 items)
 
 ### Improved (3)
 
@@ -8,12 +8,14 @@
 - When the current version has already been released, the next scheduled release is now published as the next full version (for example 0.4.2) instead of a beta pre-release.
 - Every scheduled release now includes the Windows, Android, macOS, and iOS builds, so a Thursday release is no longer missing the macOS and iOS downloads.
 
-### Fixed (4)
+### Fixed (6)
 
 - In Settings, the space between the Automatic Updates title and its description matches Change Log and the other settings rows.
 - On the dashboard, account card dropdown menus near the bottom of the screen open upward instead of downward, preventing them from being cut off.
 - A usage refresh that times out while the provider is renewing an account's sign-in no longer loses the renewed sign-in, so the account no longer asks you to sign in again afterwards.
 - A sign-in that finishes at the same moment it times out, is canceled, or hits an error is no longer reported as failed even though the account was added.
+- Moving an account card on the All page now moves its sidebar group to match, the same way dragging a sidebar group already rearranged the All page.
+- Dragging a sidebar group no longer pulls accounts that belong to a custom group out of it on the All page; they stay with their custom group.
 
 ### Security (2)
 

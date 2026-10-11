@@ -89,3 +89,23 @@ export function buildSidebarGroups(
     return 0;
   });
 }
+
+/**
+ * The sidebar group order implied by a new account order on the All page: groups sorted by where
+ * their first account now sits. The inverse of `accountOrderForGroups`, so dragging a card and
+ * dragging a sidebar group both leave the two views matching. A group with no accounts (an empty
+ * custom group) keeps its slot.
+ */
+export function groupOrderForAccounts(
+  orderedAccountIds: string[],
+  groups: Pick<SidebarGroup, "id" | "accounts">[],
+): string[] {
+  const position = new Map(orderedAccountIds.map((id, index) => [id, index]));
+  const ranked = groups.map((group) => ({
+    id: group.id,
+    at: Math.min(...group.accounts.map((account) => position.get(account.id) ?? Infinity)),
+  }));
+  const placed = ranked.filter((group) => Number.isFinite(group.at)).sort((a, b) => a.at - b.at);
+  let next = 0;
+  return ranked.map((group) => (Number.isFinite(group.at) ? placed[next++].id : group.id));
+}
