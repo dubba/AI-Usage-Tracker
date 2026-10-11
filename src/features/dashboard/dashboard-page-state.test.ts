@@ -12,6 +12,7 @@ import {
   readPageAccountOrder,
   setCardCollapsedOnPage,
   storePageAccountOrder,
+  whileSavingAllOrder,
 } from "./dashboard-page-state";
 import { STORAGE_PREFIXES } from "../../shared/lib/storage";
 import { captureEvents, installFakeWindow } from "../../test-utils/fakeWindow";
@@ -107,6 +108,29 @@ describe("the all page follows the backend order", () => {
     storePageAccountOrder("all", ["c", "a", "b"]);
     clearPendingAllOrder();
     const accounts = [account("b"), account("a"), account("c")];
+    expect(applyPageAccountOrder(accounts, "all")).toBe(accounts);
+  });
+
+  it("keeps the dragged order over a snapshot that arrives while the save is still running", async () => {
+    let finishSave = () => {};
+    storePageAccountOrder("all", ["c", "a", "b"]);
+    const saving = whileSavingAllOrder(() => new Promise<void>((resolve) => (finishSave = resolve)));
+    const stale = [account("a"), account("b"), account("c")];
+
+    clearPendingAllOrder();
+    expect(applyPageAccountOrder(stale, "all").map((a) => a.id)).toEqual(["c", "a", "b"]);
+
+    finishSave();
+    await saving;
+    clearPendingAllOrder();
+    expect(applyPageAccountOrder(stale, "all")).toBe(stale);
+  });
+
+  it("stops holding the order when the save fails", async () => {
+    storePageAccountOrder("all", ["c", "a", "b"]);
+    await expect(whileSavingAllOrder(() => Promise.reject(new Error("offline")))).rejects.toThrow("offline");
+    clearPendingAllOrder();
+    const accounts = [account("a"), account("b"), account("c")];
     expect(applyPageAccountOrder(accounts, "all")).toBe(accounts);
   });
 

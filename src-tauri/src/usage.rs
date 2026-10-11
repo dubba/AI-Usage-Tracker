@@ -83,17 +83,34 @@ where
     // If we stop waiting, the lock stays held until the task really finishes,
     // so a removal, re-login, or second refresh cannot interleave with it and
     // leave an orphaned or stale credential behind.
+    //
+    // A rotated secret is saved inside the task for the same reason: if it
+    // were left for the caller, a timeout would drop it on the floor and the
+    // next refresh would present a refresh token the provider already revoked.
     let refresh_app = app.clone();
+    let task_account_id = account_id.to_string();
     let refresh_task = tokio::spawn(async move {
-        let outcome = run(refresh_app, account, secret).await;
+        let outcome = match run(refresh_app.clone(), account, secret).await {
+            Ok((usage, refreshed_secret)) => {
+                // A removed account must not get its credential written back.
+                if refresh_app.store.get(&task_account_id).is_some() {
+                    save_provider_secret(&task_account_id, &refreshed_secret)
+                        .map(|()| Ok(usage))
+                        .map_err(|_| "Unable to save refreshed credentials.".to_string())
+                } else {
+                    Ok(Ok(usage))
+                }
+            }
+            Err(error) => Ok(Err(error)),
+        };
         (outcome, guard)
     });
     let (refresh_result, _guard) = match tokio::time::timeout(timeout, refresh_task).await {
         Ok(Ok((outcome, guard))) => (Ok(outcome), Some(guard)),
         Ok(Err(_join_error)) => (
-            Ok(Err(ProviderError::Transient(
+            Ok(Ok(Err(ProviderError::Transient(
                 "Account refresh stopped unexpectedly.".into(),
-            ))),
+            )))),
             None,
         ),
         Err(elapsed) => (Err(elapsed), None),
@@ -104,12 +121,9 @@ where
     }
 
     match refresh_result {
-        Ok(Ok((usage, refreshed_secret))) => {
-            save_provider_secret(account_id, &refreshed_secret)
-                .map_err(|_| "Unable to save refreshed credentials.".to_string())?;
-            save_success(&app, account_id, usage)
-        }
-        Ok(Err(error)) => save_failure(&app, account_id, error),
+        Ok(Ok(Ok(usage))) => save_success(&app, account_id, usage),
+        Ok(Ok(Err(error))) => save_failure(&app, account_id, error),
+        Ok(Err(save_error)) => Err(save_error),
         Err(_) => save_failure(
             &app,
             account_id,
@@ -515,6 +529,34 @@ mod tests {
         })
     }
 
+    fn rotated_openai_secret() -> ProviderSecret {
+        ProviderSecret::Openai(crate::model::OAuthSecret {
+            access_token: "access-2".into(),
+            refresh_token: "refresh-2".into(),
+            id_token: None,
+            expires_at: i64::MAX,
+        })
+    }
+
+    fn usage_with_one_window() -> ProviderUsage {
+        ProviderUsage {
+            plan: None,
+            email: None,
+            provider_account_id: None,
+            windows: vec![crate::model::UsageWindow {
+                id: "session".into(),
+                label: "Session".into(),
+                used_percent: Some(10.0),
+                remaining_percent: Some(90.0),
+                resets_at: None,
+                window_seconds: None,
+            }],
+            credits_usd: None,
+            unlimited_credits: false,
+            source: "test".into(),
+        }
+    }
+
     fn test_app_with_account(id: &str) -> Arc<AppState> {
         let temp = tempfile::tempdir().unwrap();
         let app = Arc::new(AppState::new(temp.path().to_path_buf(), "test-token".into()).unwrap());
@@ -557,6 +599,60 @@ mod tests {
         let _guard = tokio::time::timeout(Duration::from_secs(2), lock.lock())
             .await
             .expect("lock is released once the task finishes");
+    }
+
+    #[tokio::test]
+    async fn timed_out_refresh_still_saves_the_rotated_secret() {
+        let id = "usage-timeout-rotation";
+        let app = test_app_with_account(id);
+        let (release, wait) = tokio::sync::oneshot::channel::<()>();
+
+        let result = refresh_account_with(
+            app.clone(),
+            id,
+            Duration::from_millis(50),
+            move |_, _, _| async move {
+                let _ = wait.await;
+                Ok((usage_with_one_window(), rotated_openai_secret()))
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            result.last_error.as_deref(),
+            Some("Account refresh timed out.")
+        );
+
+        // The provider answers after we stopped waiting, having already
+        // revoked the old refresh token. Its replacement must still be kept.
+        release.send(()).unwrap();
+        let lock = app.account_lock(id);
+        let _guard = tokio::time::timeout(Duration::from_secs(2), lock.lock())
+            .await
+            .expect("lock is released once the task finishes");
+        match load_provider_secret(id).unwrap() {
+            ProviderSecret::Openai(secret) => assert_eq!(secret.refresh_token, "refresh-2"),
+            _ => panic!("unexpected provider secret"),
+        }
+    }
+
+    #[tokio::test]
+    async fn refresh_does_not_resurrect_credentials_of_a_removed_account() {
+        let id = "usage-removed-during-refresh";
+        let app = test_app_with_account(id);
+        let remover = app.clone();
+        let result = refresh_account_with(
+            app.clone(),
+            id,
+            Duration::from_secs(5),
+            move |_, _, _| async move {
+                remover.store.remove(id).unwrap();
+                Ok((usage_with_one_window(), rotated_openai_secret()))
+            },
+        )
+        .await;
+        assert_eq!(result.unwrap_err(), "Account removed during refresh.");
+        assert!(load_provider_secret(id).is_err());
     }
 
     #[tokio::test]
@@ -621,22 +717,7 @@ mod tests {
             Instant::now(),
             0.0,
         );
-        let usage = ProviderUsage {
-            plan: None,
-            email: None,
-            provider_account_id: None,
-            windows: vec![crate::model::UsageWindow {
-                id: "session".into(),
-                label: "Session".into(),
-                used_percent: Some(10.0),
-                remaining_percent: Some(90.0),
-                resets_at: None,
-                window_seconds: None,
-            }],
-            credits_usd: None,
-            unlimited_credits: false,
-            source: "test".into(),
-        };
+        let usage = usage_with_one_window();
         refresh_account_with(
             app.clone(),
             id,

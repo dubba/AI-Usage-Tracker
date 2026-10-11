@@ -227,13 +227,30 @@ fn main() {
     write_macos_icon(&icon_dir, &image);
     write_android_icons(&manifest_dir, &image);
 
-    let attributes = tauri_build::Attributes::new()
+    let mut attributes = tauri_build::Attributes::new()
         .app_manifest(tauri_build::AppManifest::new().commands(APP_COMMANDS));
+    if env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc") {
+        attributes = attributes
+            .windows_attributes(tauri_build::WindowsAttributes::new_without_app_manifest());
+        embed_windows_app_manifest(&manifest_dir);
+    }
     if let Err(error) = tauri_build::try_build(attributes) {
         println!("{error:#}");
         std::process::exit(1);
     }
     patch_android_webview_templates(&manifest_dir);
+}
+
+/// tauri-build links its Windows application manifest into the app binary only, so the
+/// `cargo test` binary started without the Common Controls v6 dependency that tauri's code needs
+/// and Windows refused to run it (STATUS_ENTRYPOINT_NOT_FOUND, 0xc0000139). Embedding the same
+/// manifest through the linker covers every binary. tauri-build's own copy is turned off in
+/// `main`, because two manifests in one binary fail to link.
+fn embed_windows_app_manifest(manifest_dir: &Path) {
+    let manifest = manifest_dir.join("windows-app-manifest.xml");
+    println!("cargo:rerun-if-changed={}", manifest.display());
+    println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
+    println!("cargo:rustc-link-arg=/MANIFESTINPUT:{}", manifest.display());
 }
 
 fn patch_android_webview_templates(manifest_dir: &Path) {

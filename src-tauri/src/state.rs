@@ -217,6 +217,46 @@ impl AppState {
         }
     }
 
+    /// True while attempt `attempt_id` is the pending login and still waiting on
+    /// the provider. Only a hint: use `update_login_if_waiting` to act on it.
+    pub fn login_is_waiting(&self, attempt_id: &str) -> bool {
+        self.pending_login
+            .read()
+            .as_ref()
+            .is_some_and(|login| login.is_waiting_for(attempt_id))
+    }
+
+    /// Runs `update` on the pending login only while attempt `attempt_id` is
+    /// still waiting. The check and the write share one lock, so an attempt that
+    /// completes or is cancelled at the same moment is never overwritten.
+    /// Returns whether `update` ran.
+    pub fn update_login_if_waiting(
+        &self,
+        attempt_id: &str,
+        update: impl FnOnce(&mut LoginStatus),
+    ) -> bool {
+        let mut pending = self.pending_login.write();
+        match pending.as_mut() {
+            Some(login) if login.is_waiting_for(attempt_id) => {
+                update(login);
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// Marks attempt `attempt_id` failed with `message` if it is still waiting.
+    pub fn fail_login_if_waiting(&self, attempt_id: &str, message: String) {
+        self.update_login_if_waiting(attempt_id, |login| {
+            *login = LoginStatus::failed(attempt_id, message);
+        });
+    }
+
+    /// Shows `message` on attempt `attempt_id` if it is still waiting.
+    pub fn set_waiting_message(&self, attempt_id: &str, message: String) {
+        self.update_login_if_waiting(attempt_id, |login| login.message = Some(message));
+    }
+
     /// Drops a waiting in-app login so backing out of the provider page does not
     /// block the next Add Account attempt. Returns whether an attempt was cleared.
     #[cfg_attr(not(any(test, mobile)), allow(dead_code))]
@@ -224,11 +264,7 @@ impl AppState {
         let abandoned = {
             let mut pending = self.pending_login.write();
             let matches = pending.as_ref().is_some_and(|login| {
-                login.attempt_id == attempt_id
-                    && matches!(
-                        login.status.as_str(),
-                        "waiting" | "choose_project" | "monitoring_disabled"
-                    )
+                login.attempt_id == attempt_id && login.status.is_in_progress()
             });
             if matches {
                 *pending = None;
@@ -351,24 +387,132 @@ fn quarantine_metadata_file(data_dir: &Path, file_name: &str) -> Result<Option<P
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::LoginStatus;
+    use crate::model::{LoginState, LoginStatus};
+
+    fn login(attempt_id: &str, status: LoginState) -> LoginStatus {
+        LoginStatus {
+            attempt_id: attempt_id.into(),
+            status,
+            message: None,
+            account: None,
+            projects: None,
+            selected_project_id: None,
+        }
+    }
+
+    fn pending_state(state: &AppState) -> Option<(String, LoginState, Option<String>)> {
+        state.pending_login.read().as_ref().map(|login| {
+            (
+                login.attempt_id.clone(),
+                login.status,
+                login.message.clone(),
+            )
+        })
+    }
 
     #[test]
     fn abandon_waiting_login_clears_in_progress_attempt() {
         let directory = tempfile::tempdir().unwrap();
         let state = AppState::new(directory.path().to_path_buf(), "test-token".into()).unwrap();
-        *state.pending_login.write() = Some(LoginStatus {
-            attempt_id: "attempt-1".into(),
-            status: "waiting".into(),
-            message: None,
-            account: None,
-            projects: None,
-            selected_project_id: None,
-        });
+        *state.pending_login.write() = Some(login("attempt-1", LoginState::Waiting));
 
         assert!(state.abandon_waiting_login("attempt-1"));
         assert!(state.pending_login.read().is_none());
         assert!(!state.abandon_waiting_login("attempt-1"));
+    }
+
+    #[test]
+    fn fail_login_if_waiting_fails_only_the_waiting_attempt() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = AppState::new(directory.path().to_path_buf(), "test-token".into()).unwrap();
+        *state.pending_login.write() = Some(login("attempt-1", LoginState::Waiting));
+
+        state.fail_login_if_waiting("attempt-1", "timed out".into());
+        assert_eq!(
+            pending_state(&state),
+            Some((
+                "attempt-1".into(),
+                LoginState::Failed,
+                Some("timed out".into())
+            ))
+        );
+    }
+
+    #[test]
+    fn fail_login_if_waiting_never_overwrites_a_finished_or_other_attempt() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = AppState::new(directory.path().to_path_buf(), "test-token".into()).unwrap();
+        for (attempt, status) in [
+            ("attempt-1", LoginState::Complete),
+            ("attempt-1", LoginState::ChooseProject),
+            ("attempt-1", LoginState::MonitoringDisabled),
+            ("attempt-1", LoginState::Failed),
+            ("someone-else", LoginState::Waiting),
+        ] {
+            *state.pending_login.write() = Some(login(attempt, status));
+            state.fail_login_if_waiting("attempt-1", "timed out".into());
+            state.set_waiting_message("attempt-1", "still going".into());
+            assert_eq!(
+                pending_state(&state),
+                Some((attempt.into(), status, None)),
+                "{attempt} {status:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_racing_finish_and_failure_never_both_win() {
+        // Checking "still waiting?" and writing under separate locks let a
+        // timeout overwrite a sign-in that had just completed. Exactly one side
+        // may win, and the stored status must be the winner's.
+        let directory = tempfile::tempdir().unwrap();
+        let state =
+            Arc::new(AppState::new(directory.path().to_path_buf(), "test-token".into()).unwrap());
+        for _ in 0..500 {
+            *state.pending_login.write() = Some(login("attempt-1", LoginState::Waiting));
+            let barrier = Arc::new(std::sync::Barrier::new(2));
+            let race = |status: LoginState| {
+                let state = state.clone();
+                let barrier = barrier.clone();
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    state.update_login_if_waiting("attempt-1", |login| login.status = status)
+                })
+            };
+            let completed = race(LoginState::Complete);
+            let failed = race(LoginState::Failed);
+            let (completed, failed) = (completed.join().unwrap(), failed.join().unwrap());
+            assert_ne!(completed, failed, "exactly one side must win");
+            let winner = if completed {
+                LoginState::Complete
+            } else {
+                LoginState::Failed
+            };
+            assert_eq!(pending_state(&state).unwrap().1, winner);
+        }
+    }
+
+    #[test]
+    fn login_state_matches_the_frontend_union() {
+        // src/types.ts: "waiting" | "complete" | "failed" | "choose_project" | "monitoring_disabled"
+        for (state, wire) in [
+            (LoginState::Waiting, "waiting"),
+            (LoginState::Complete, "complete"),
+            (LoginState::Failed, "failed"),
+            (LoginState::ChooseProject, "choose_project"),
+            (LoginState::MonitoringDisabled, "monitoring_disabled"),
+        ] {
+            assert_eq!(serde_json::to_value(state).unwrap(), wire);
+            assert_eq!(
+                serde_json::from_value::<LoginState>(wire.into()).unwrap(),
+                state
+            );
+        }
+        assert!(LoginState::Waiting.is_in_progress());
+        assert!(LoginState::ChooseProject.is_in_progress());
+        assert!(LoginState::MonitoringDisabled.is_in_progress());
+        assert!(!LoginState::Complete.is_in_progress());
+        assert!(!LoginState::Failed.is_in_progress());
     }
 
     #[tokio::test]

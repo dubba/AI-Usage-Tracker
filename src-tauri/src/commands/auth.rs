@@ -1,7 +1,7 @@
 use super::validate_label;
 use crate::{
     google_ai_studio_oauth, grok_login, limits,
-    model::{Account, LoginStart, LoginStatus, Provider},
+    model::{Account, LoginStart, LoginState, LoginStatus, Provider},
     oauth, opencode_login, providers,
     state::AppState,
 };
@@ -159,17 +159,13 @@ pub fn cancel_login(
 ) -> Result<(), String> {
     let cancelled = {
         let mut pending = state.pending_login.write();
-        let cancellable = pending.as_ref().is_some_and(|login| {
-            login.attempt_id == attempt_id
-                && matches!(
-                    login.status.as_str(),
-                    "waiting" | "choose_project" | "monitoring_disabled"
-                )
-        });
+        let cancellable = pending
+            .as_ref()
+            .is_some_and(|login| login.attempt_id == attempt_id && login.status.is_in_progress());
         if cancellable {
             *pending = Some(LoginStatus {
                 attempt_id: attempt_id.clone(),
-                status: "failed".into(),
+                status: LoginState::Failed,
                 message: Some("Authentication was canceled.".into()),
                 account: None,
                 projects: None,

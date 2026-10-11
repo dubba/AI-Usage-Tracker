@@ -22,6 +22,12 @@ jobs:
       - run: npm install
       - run: npm audit --audit-level=high
       - run: npm run check
+      - run: npm test
+      # Release scripts sit outside tsc/oxlint (both target src/ only), so
+      # these suites are their only guard.
+      - run: npm run test:resolve-version
+      - run: npm run test:sidestore-source
+      - run: npm run test:gemini-quota-probe
       - run: npm run build
       - name: Publish frontend validation status
         if: always()
@@ -35,16 +41,20 @@ jobs:
           gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
             -f state="$state" \
             -f context="validate/frontend" \
-            -f description="Frontend type-check and production build"
+            -f description="Frontend type-check, tests, and production build"
 
   dependency-audit:
     runs-on: ubuntu-latest
+    # audit-check reports its findings as a check run.
+    permissions:
+      contents: read
+      checks: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          path: src-tauri
+          working-directory: src-tauri
 
   rust-lint:
     runs-on: macos-15

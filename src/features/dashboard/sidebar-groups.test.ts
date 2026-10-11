@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ALL_ACCOUNTS_GROUP_ID, buildAllAccountsGroup, buildSidebarGroups } from "./sidebar-groups";
+import { ALL_ACCOUNTS_GROUP_ID, buildAllAccountsGroup, buildSidebarGroups, groupOrderForAccounts } from "./sidebar-groups";
 import type { Account, AccountBucket, Provider } from "../../types";
 
 function account(id: string, provider: Provider, label = id): Account {
@@ -95,5 +95,39 @@ describe("buildAllAccountsGroup", () => {
       provider: null,
       accounts,
     });
+  });
+});
+
+describe("groupOrderForAccounts", () => {
+  const groups = [
+    { id: "bucket:work", accounts: [account("w", "openai")] },
+    { id: "provider:openai", accounts: [account("o1", "openai"), account("o2", "openai")] },
+    { id: "provider:grok", accounts: [account("g", "grok")] },
+  ];
+
+  it("orders groups by where their first account now sits", () => {
+    expect(groupOrderForAccounts(["g", "o2", "w", "o1"], groups)).toEqual([
+      "provider:grok",
+      "provider:openai",
+      "bucket:work",
+    ]);
+  });
+
+  it("keeps the order when no group's first account moved past another group", () => {
+    expect(groupOrderForAccounts(["w", "o2", "o1", "g"], groups)).toEqual([
+      "bucket:work",
+      "provider:openai",
+      "provider:grok",
+    ]);
+  });
+
+  it("leaves an empty custom group in its slot", () => {
+    const withEmpty = [groups[0], { id: "bucket:empty", accounts: [] }, groups[1], groups[2]];
+    expect(groupOrderForAccounts(["g", "o1", "o2", "w"], withEmpty)).toEqual([
+      "provider:grok",
+      "bucket:empty",
+      "provider:openai",
+      "bucket:work",
+    ]);
   });
 });

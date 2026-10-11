@@ -1,6 +1,7 @@
 use crate::{
     model::{
-        now_rfc3339, Account, LoginStart, LoginStatus, OpenCodeGoSecret, Provider, ProviderSecret,
+        now_rfc3339, Account, LoginStart, LoginState, LoginStatus, OpenCodeGoSecret, Provider,
+        ProviderSecret,
     },
     providers,
     state::AppState,
@@ -109,17 +110,15 @@ pub async fn start_login(
     let attempt_id = Uuid::new_v4().to_string();
     {
         let mut pending = state.pending_login.write();
-        if pending.as_ref().is_some_and(|login| {
-            matches!(
-                login.status.as_str(),
-                "waiting" | "choose_project" | "monitoring_disabled"
-            )
-        }) {
+        if pending
+            .as_ref()
+            .is_some_and(|login| login.status.is_in_progress())
+        {
             return Err("Another provider login is already in progress.".into());
         }
         *pending = Some(LoginStatus {
             attempt_id: attempt_id.clone(),
-            status: "waiting".into(),
+            status: LoginState::Waiting,
             message: Some("Sign in to OpenCode and open your Go subscription.".into()),
             account: None,
             projects: None,
@@ -200,7 +199,7 @@ pub async fn start_login(
         let Some(workspace_id) = workspace_id_from_url(payload.url()) else {
             return;
         };
-        if !is_waiting(&page_state, &page_attempt) {
+        if !page_state.login_is_waiting(&page_attempt) {
             return;
         }
         if page_capture_started.swap(true, Ordering::SeqCst) {
@@ -236,8 +235,7 @@ pub async fn start_login(
                     }
                     Err(error) => {
                         completion_capture_started.store(false, Ordering::SeqCst);
-                        update_waiting_message(
-                            &completion_state,
+                        completion_state.set_waiting_message(
                             &completion_attempt,
                             format!("{error} Navigate away from Go, then select Go again to retry."),
                         );
@@ -261,11 +259,8 @@ pub async fn start_login(
         let close_attempt = attempt_id.clone();
         login_window.on_window_event(move |event| {
             if matches!(event, WindowEvent::CloseRequested { .. }) {
-                fail_if_waiting(
-                    &close_state,
-                    &close_attempt,
-                    "OpenCode login was canceled.".into(),
-                );
+                close_state
+                    .fail_login_if_waiting(&close_attempt, "OpenCode login was canceled.".into());
             }
         });
 
@@ -274,9 +269,8 @@ pub async fn start_login(
         let timeout_app = app.clone();
         tauri::async_runtime::spawn(async move {
             tokio::time::sleep(StdDuration::from_secs((LOGIN_TIMEOUT_MINUTES * 60) as u64)).await;
-            if is_waiting(&timeout_state, &timeout_attempt) {
-                fail_if_waiting(
-                    &timeout_state,
+            if timeout_state.login_is_waiting(&timeout_attempt) {
+                timeout_state.fail_login_if_waiting(
                     &timeout_attempt,
                     "OpenCode login timed out. Start the connection again.".into(),
                 );
@@ -378,7 +372,7 @@ async fn complete_login(
     reconnect_account_id: Option<String>,
     window: WebviewWindow,
 ) {
-    if !is_waiting(&state, &attempt_id) {
+    if !state.login_is_waiting(&attempt_id) {
         return;
     }
 
@@ -393,30 +387,22 @@ async fn complete_login(
     .await
     {
         Ok(account) => {
-            let completed = {
-                let mut pending = state.pending_login.write();
-                if pending.as_ref().is_some_and(|login| {
-                    login.attempt_id == attempt_id && login.status == "waiting"
-                }) {
-                    *pending = Some(LoginStatus {
-                        attempt_id,
-                        status: "complete".into(),
-                        message: None,
-                        account: Some(account),
-                        projects: None,
-                        selected_project_id: None,
-                    });
-                    true
-                } else {
-                    false
-                }
-            };
+            let completed = state.update_login_if_waiting(&attempt_id, |login| {
+                *login = LoginStatus {
+                    attempt_id: attempt_id.clone(),
+                    status: LoginState::Complete,
+                    message: None,
+                    account: Some(account),
+                    projects: None,
+                    selected_project_id: None,
+                };
+            });
             if completed {
                 close_login_window(&window);
             }
         }
         Err(error) => {
-            fail_if_waiting(&state, &attempt_id, error);
+            state.fail_login_if_waiting(&attempt_id, error);
             close_login_window(&window);
         }
     }
@@ -474,7 +460,7 @@ async fn start_mobile_login(
             let Some(workspace_id) = workspace_id_from_url(&url) else {
                 return;
             };
-            if !is_waiting(&page_state, &page_attempt) {
+            if !page_state.login_is_waiting(&page_attempt) {
                 return;
             }
             if capture_started.swap(true, Ordering::SeqCst) {
@@ -507,8 +493,7 @@ async fn start_mobile_login(
                         }
                         Err(error) => {
                             completion_capture_started.store(false, Ordering::SeqCst);
-                            update_waiting_message(
-                                &completion_state,
+                            completion_state.set_waiting_message(
                                 &completion_attempt,
                                 format!(
                                     "{error} Navigate away from Go, then select Go again to retry."
@@ -534,9 +519,8 @@ async fn start_mobile_login(
     let timeout_attempt = attempt_id.clone();
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(StdDuration::from_secs((LOGIN_TIMEOUT_MINUTES * 60) as u64)).await;
-        if is_waiting(&timeout_state, &timeout_attempt) {
-            fail_if_waiting(
-                &timeout_state,
+        if timeout_state.login_is_waiting(&timeout_attempt) {
+            timeout_state.fail_login_if_waiting(
                 &timeout_attempt,
                 "OpenCode login timed out. Start the connection again.".into(),
             );
@@ -648,36 +632,6 @@ fn workspace_id_from_url(url: &Url) -> Option<String> {
         return None;
     }
     Some(workspace_id.to_string())
-}
-
-fn is_waiting(state: &AppState, attempt_id: &str) -> bool {
-    state
-        .pending_login
-        .read()
-        .as_ref()
-        .is_some_and(|login| login.attempt_id == attempt_id && login.status == "waiting")
-}
-
-fn update_waiting_message(state: &AppState, attempt_id: &str, message: String) {
-    let mut pending = state.pending_login.write();
-    if let Some(login) = pending.as_mut() {
-        if login.attempt_id == attempt_id && login.status == "waiting" {
-            login.message = Some(message);
-        }
-    }
-}
-
-fn fail_if_waiting(state: &AppState, attempt_id: &str, message: String) {
-    if is_waiting(state, attempt_id) {
-        *state.pending_login.write() = Some(LoginStatus {
-            attempt_id: attempt_id.to_string(),
-            status: "failed".into(),
-            message: Some(message),
-            account: None,
-            projects: None,
-            selected_project_id: None,
-        });
-    }
 }
 
 #[cfg(test)]

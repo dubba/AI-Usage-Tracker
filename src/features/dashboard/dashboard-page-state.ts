@@ -18,9 +18,23 @@ const ALL_PAGE_ID = "all";
 // order the backend saved) replaces it. Never persisted.
 let pendingAllOrder: string[] | null = null;
 
-/** Called when a fresh snapshot arrives: its account order is the saved one. */
+// Saves of an "all" order still on their way to the backend. A snapshot loaded meanwhile can
+// predate the save, so it must not replace the order on screen.
+let allOrderSavesInFlight = 0;
+
+/** Called when a fresh snapshot arrives: its account order is the saved one, unless a save is still running. */
 export function clearPendingAllOrder(): void {
-  pendingAllOrder = null;
+  if (allOrderSavesInFlight === 0) pendingAllOrder = null;
+}
+
+/** Runs `save` while keeping the order just shown on the "all" page in place of any snapshot loaded meanwhile. */
+export async function whileSavingAllOrder<T>(save: () => Promise<T>): Promise<T> {
+  allOrderSavesInFlight += 1;
+  try {
+    return await save();
+  } finally {
+    allOrderSavesInFlight -= 1;
+  }
 }
 
 function isPageScopedCollapsedKey(rest: string): boolean {

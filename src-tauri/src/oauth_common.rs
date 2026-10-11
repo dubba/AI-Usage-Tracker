@@ -112,12 +112,7 @@ pub(crate) fn spawn_login_timeout(
 ) {
     tokio::spawn(async move {
         tokio::time::sleep(after).await;
-        let waiting = app
-            .pending_login
-            .read()
-            .as_ref()
-            .is_some_and(|login| login.attempt_id == attempt_id && login.status == "waiting");
-        if waiting {
+        if app.login_is_waiting(&attempt_id) {
             fail(message);
             app.abort_login_resources(&attempt_id);
         }
@@ -182,6 +177,7 @@ pub(crate) fn auth_failure_html(title: &str, message: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::model::LoginState;
 
     fn account(provider: Provider, email: Option<&str>, label: &str) -> Account {
         Account {
@@ -264,10 +260,10 @@ mod tests {
         (app, dir)
     }
 
-    fn waiting(attempt_id: &str, status: &str) -> crate::model::LoginStatus {
+    fn waiting(attempt_id: &str, status: LoginState) -> crate::model::LoginStatus {
         crate::model::LoginStatus {
             attempt_id: attempt_id.into(),
-            status: status.into(),
+            status,
             message: None,
             account: None,
             projects: None,
@@ -308,7 +304,7 @@ mod tests {
     #[tokio::test]
     async fn the_timeout_fails_a_still_waiting_attempt_once() {
         let (app, _dir) = test_app();
-        *app.pending_login.write() = Some(waiting("a1", "waiting"));
+        *app.pending_login.write() = Some(waiting("a1", LoginState::Waiting));
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
         spawn_login_timeout(
             app.clone(),
@@ -326,7 +322,10 @@ mod tests {
     async fn the_timeout_leaves_a_finished_or_different_attempt_alone() {
         let (app, _dir) = test_app();
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<String>();
-        for (attempt, status) in [("a1", "complete"), ("someone-else", "waiting")] {
+        for (attempt, status) in [
+            ("a1", LoginState::Complete),
+            ("someone-else", LoginState::Waiting),
+        ] {
             *app.pending_login.write() = Some(waiting(attempt, status));
             let tx = tx.clone();
             spawn_login_timeout(

@@ -1,7 +1,8 @@
 use crate::{
     google_client::{client_secret, CLIENT_ID},
     model::{
-        Account, CloudProjectOption, LoginStart, LoginStatus, OAuthSecret, Provider, ProviderSecret,
+        Account, CloudProjectOption, LoginStart, LoginState, LoginStatus, OAuthSecret, Provider,
+        ProviderSecret,
     },
     oauth_common::{
         account_connected_html, auth_failure_html, callback_html, escape_html, pkce_challenge,
@@ -145,17 +146,15 @@ async fn start_oauth(
 
     {
         let mut pending = app.pending_login.write();
-        if pending.as_ref().is_some_and(|login| {
-            matches!(
-                login.status.as_str(),
-                "waiting" | "choose_project" | "monitoring_disabled"
-            )
-        }) {
+        if pending
+            .as_ref()
+            .is_some_and(|login| login.status.is_in_progress())
+        {
             return Err("Another provider login is already in progress.".into());
         }
         *pending = Some(LoginStatus {
             attempt_id: attempt_id.clone(),
-            status: "waiting".into(),
+            status: LoginState::Waiting,
             message,
             account: None,
             projects: None,
@@ -224,7 +223,11 @@ async fn start_oauth(
         router,
         shutdown_rx,
         "Google Cloud callback server failed",
-        move |message| fail_login(&server_context, message),
+        move |message| {
+            server_context
+                .app
+                .fail_login_if_waiting(&server_context.attempt_id, message)
+        },
     );
 
     let timeout_context = context.clone();
@@ -233,7 +236,11 @@ async fn start_oauth(
         attempt_id.clone(),
         std::time::Duration::from_secs((LOGIN_TIMEOUT_MINUTES * 60) as u64),
         "Google Cloud authorization timed out. Start it again.".into(),
-        move |message| fail_login(&timeout_context, message),
+        move |message| {
+            timeout_context
+                .app
+                .fail_login_if_waiting(&timeout_context.attempt_id, message)
+        },
     );
 
     // The authorization URL is returned to the UI, which opens it in the user's
@@ -259,13 +266,13 @@ async fn select_project(
         let mut pending = app.pending_login.write();
         if pending
             .as_ref()
-            .is_some_and(|login| login.status == "waiting")
+            .is_some_and(|login| login.status == LoginState::Waiting)
         {
             return Err("Another provider login is already in progress.".into());
         }
         *pending = Some(LoginStatus {
             attempt_id: attempt_id.clone(),
-            status: "waiting".into(),
+            status: LoginState::Waiting,
             message: Some("Checking the selected Google Cloud project.".into()),
             account: None,
             projects: None,
@@ -300,7 +307,9 @@ async fn callback(
 ) -> axum::response::Response {
     let result = complete_callback(context.clone(), query).await;
     if let Err(error) = &result {
-        fail_login(&context, error.clone());
+        context
+            .app
+            .fail_login_if_waiting(&context.attempt_id, error.clone());
     }
     stop_callback(&context).await;
 
@@ -333,13 +342,13 @@ async fn complete_callback(
     if query.state.as_deref() != Some(context.expected_state.as_str()) {
         return Err("OAuth state validation failed.".into());
     }
-    if !is_waiting(context.app.as_ref(), &context.attempt_id) {
+    if !context.app.login_is_waiting(&context.attempt_id) {
         return Err("The Google authorization was canceled.".into());
     }
 
     let mut stored = load_google_ai_studio_secret(&context.account_id)?;
     let tokens = exchange_tokens(&context, &code).await?;
-    if !is_waiting(context.app.as_ref(), &context.attempt_id) {
+    if !context.app.login_is_waiting(&context.attempt_id) {
         return Err("The Google authorization was canceled.".into());
     }
     let refresh_token = tokens
@@ -363,7 +372,7 @@ async fn complete_callback(
     let email = fetch_email(context.app.as_ref(), &oauth.access_token)
         .await
         .ok();
-    if !is_waiting(context.app.as_ref(), &context.attempt_id) {
+    if !context.app.login_is_waiting(&context.attempt_id) {
         return Err("The Google authorization was canceled.".into());
     }
     stored.cloud_oauth = Some(oauth.clone());
@@ -529,7 +538,7 @@ fn apply_outcome(app: &AppState, attempt_id: &str, outcome: CallbackOutcome) -> 
     let status = match outcome {
         CallbackOutcome::Complete(account) => LoginStatus {
             attempt_id: attempt_id.into(),
-            status: "complete".into(),
+            status: LoginState::Complete,
             message: None,
             account: Some(account),
             projects: None,
@@ -537,7 +546,7 @@ fn apply_outcome(app: &AppState, attempt_id: &str, outcome: CallbackOutcome) -> 
         },
         CallbackOutcome::ChooseProject(projects) => LoginStatus {
             attempt_id: attempt_id.into(),
-            status: "choose_project".into(),
+            status: LoginState::ChooseProject,
             message: None,
             account: None,
             projects: Some(projects),
@@ -545,21 +554,16 @@ fn apply_outcome(app: &AppState, attempt_id: &str, outcome: CallbackOutcome) -> 
         },
         CallbackOutcome::MonitoringDisabled(project) => LoginStatus {
             attempt_id: attempt_id.into(),
-            status: "monitoring_disabled".into(),
+            status: LoginState::MonitoringDisabled,
             message: None,
             account: None,
             selected_project_id: Some(project.project_id.clone()),
             projects: Some(vec![project]),
         },
     };
-    let mut pending = app.pending_login.write();
-    if !pending
-        .as_ref()
-        .is_some_and(|login| login.attempt_id == attempt_id && login.status == "waiting")
-    {
+    if !app.update_login_if_waiting(attempt_id, |login| *login = status) {
         return Err("The Google authorization was canceled.".into());
     }
-    *pending = Some(status);
     Ok(())
 }
 
@@ -956,33 +960,6 @@ fn validate_project_id(value: &str) -> Result<String, String> {
     Ok(value.to_string())
 }
 
-fn set_login_status(app: &AppState, status: LoginStatus) {
-    *app.pending_login.write() = Some(status);
-}
-
-fn is_waiting(app: &AppState, attempt_id: &str) -> bool {
-    app.pending_login
-        .read()
-        .as_ref()
-        .is_some_and(|login| login.attempt_id == attempt_id && login.status == "waiting")
-}
-
-fn fail_login(context: &LoginContext, message: String) {
-    if is_waiting(context.app.as_ref(), &context.attempt_id) {
-        set_login_status(
-            context.app.as_ref(),
-            LoginStatus {
-                attempt_id: context.attempt_id.clone(),
-                status: "failed".into(),
-                message: Some(message),
-                account: None,
-                projects: None,
-                selected_project_id: None,
-            },
-        );
-    }
-}
-
 async fn stop_callback(context: &LoginContext) {
     context.app.stop_login_shutdown(&context.attempt_id);
 }
@@ -1039,7 +1016,7 @@ mod tests {
     fn login_status_serializes_project_choices_for_the_frontend() {
         let status = LoginStatus {
             attempt_id: "attempt".into(),
-            status: "monitoring_disabled".into(),
+            status: LoginState::MonitoringDisabled,
             message: None,
             account: None,
             selected_project_id: Some("example-project-123".into()),

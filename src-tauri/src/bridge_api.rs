@@ -13,6 +13,7 @@ use axum::{
     Json, Router,
 };
 use serde_json::json;
+use sha2::{Digest, Sha256};
 use std::{
     net::{IpAddr, SocketAddr},
     sync::Arc,
@@ -319,11 +320,13 @@ fn authorized(app: &AppState, headers: &HeaderMap) -> bool {
         .is_some_and(|provided| constant_time_equal(provided.as_bytes(), expected.as_bytes()))
 }
 
+/// Compares two secrets without leaking their contents or lengths through
+/// timing. Both sides are hashed to fixed-size digests first, so a mismatched
+/// length takes the same path as a mismatched byte instead of returning early.
 fn constant_time_equal(left: &[u8], right: &[u8]) -> bool {
-    if left.len() != right.len() {
-        return false;
-    }
-    left.ct_eq(right).unwrap_u8() == 1
+    let left = Sha256::digest(left);
+    let right = Sha256::digest(right);
+    left.as_slice().ct_eq(right.as_slice()).unwrap_u8() == 1
 }
 
 #[cfg(test)]
