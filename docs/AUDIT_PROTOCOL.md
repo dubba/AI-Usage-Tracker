@@ -60,7 +60,7 @@ Findings that are a missing state, missing test, or maintainability issue may om
 ## Process around the passes
 
 1. **Run** the pass in a fresh session. Use the runner prompt at the bottom.
-2. **Keep the report out of the public repo.** Save it as `.audits/<date>-pass-<N>.md` and add `.audits/` to `.gitignore`. Committing unfixed Critical or High findings to a public repository publishes the exploit.
+2. **Keep the report out of the public repo.** Save it as `.audits/<date>-pass-<N>.md` (the directory is gitignored). Committing unfixed Critical or High findings to a public repository publishes the exploit.
 3. **Verify before fixing.** For each Critical and High finding, start a second session whose only job is to *refute* it: read the code, try to show the finding is wrong or already mitigated. Drop what it refutes. Downgrade what it cannot confirm.
 4. **Fix one finding per pull request**, each with its regression test. Follow `docs/CHANGELOG_WORKFLOW.md`: Security fixes with user-visible effect go under `### Security`.
 5. **Re-run the same pass** after fixes. A pass is done when it returns no new Critical or High findings and every earlier finding is Fixed, Accepted (with a written reason), or Refuted.
@@ -246,16 +246,67 @@ Assume every previous pass missed something and that every "Checked and sound" i
 
 ## Runner prompt
 
-Paste this at the start of each session, changing the pass number.
+Paste this into a fresh session for each pass, replacing `<N>` with the pass number.
 
 ```
-Run Pass <N> from docs/AUDIT_PROTOCOL.md against this repository.
+You are auditing the AI Usage Tracker repository (a Tauri app: Rust backend in src-tauri/, React frontend in src/, Android Kotlin in src-tauri/gen/android/). Run Pass <N> of docs/AUDIT_PROTOCOL.md.
 
-Read AGENTS.md, src-tauri/AGENTS.md, and the "Ground rules", "Severity rubric", and "Finding format" sections of docs/AUDIT_PROTOCOL.md first. Then read the Pass <N> section and follow it.
+## Read first, in this order
+1. AGENTS.md and src-tauri/AGENTS.md: the project's rules and security invariants.
+2. docs/AUDIT_PROTOCOL.md: the "Ground rules for every pass", "Severity rubric", "Finding format", and "Process around the passes" sections, then the "Pass <N>" section.
+3. docs/THREAT_MODEL.md: assets, attackers, trust boundaries, system map, and entry points with their guards.
+4. TESTING.md: the existing test inventory and the map from each security invariant to its test.
 
-Do not modify any file. Do not open .secrets/ or release-apks/. Redact any secret you see.
-Every claim needs file:line evidence and a Read / Ran / Unverified status. Do not write "looks good"; list what you verified under "Checked and sound" and what you skipped under "Not examined".
-Return findings in the specified format, most severe first. Save the report to .audits/<today>-pass-<N>.md.
+Treat THREAT_MODEL.md and TESTING.md as starting points, not evidence. If either disagrees with the code, the code wins: report the mismatch as a finding.
+
+## Rules
+- Read-only. Do not edit, create, or delete any file except the report below. Do not commit, push, or open PRs.
+- Never open .secrets/, release-apks/, or any credential file. If you see a secret anywhere (code, git history, logs), report only its location and type, redacted.
+- Allowed commands: reading and searching files, git log/show/blame, and the validation block in AGENTS.md (npm run check, npm run build, cargo test/check/fmt --check/clippy). Do not build an APK or iOS app, do not run cargo clean, and do not make network requests to provider APIs.
+- Stay inside the product decisions in AGENTS.md: no second usage endpoint, no dependency on external coding CLIs, and no breaking the /v1/paseo-usage schema v1.
+
+## Evidence standard
+- Never say "looks good", "secure", or "handled" without evidence. Every claim cites file:line and quotes the relevant lines.
+- Mark every claim Read (static inspection), Ran (include the exact command and result), or Unverified (inference, plus what would confirm it).
+- Give no credit to a test you have not read. A test counts only if its assertions would fail if the guarded code were removed.
+- If the pass is too large to cover properly, cover the highest-risk items thoroughly and list the rest under "Not examined". Don't skim everything.
+
+## Output
+Write the report to .audits/<YYYY-MM-DD>-pass-<N>.md (create .audits/ if missing; it is gitignored). Structure:
+
+1. Scope: what you covered, with the commit SHA (git rev-parse HEAD).
+2. Findings, most severe first, each in the protocol's format:
+   ### P<N>-<NN>  [Critical|High|Medium|Low|Info]  <Area>  <Title>
+   Status: Read | Ran | Unverified
+   Confidence: High | Medium | Low
+   Evidence: file:line plus quoted code
+   Impact:
+   Scenario: attacker, preconditions, steps (security findings)
+   Remediation: the smallest change that fixes it
+   Test: the regression test that would catch it (file and what it asserts)
+3. Checked and sound: each item with file:line evidence and what exactly you verified.
+4. Not examined: what you skipped and why. An empty list is not credible.
+5. Doc drift: corrections needed in THREAT_MODEL.md or TESTING.md.
+
+Then reply with a short summary: counts by severity, the top three findings in one line each, and the report path.
+```
+
+For **Pass 0**, add:
+
+```
+Exception for Pass 0: you may edit docs/THREAT_MODEL.md to correct or add entry points and guards. Never write findings, suspected weaknesses, or unfixed issues into it; those go only in the .audits/ report. Keep the "Draft" banner unless every entry is verified.
+```
+
+For **Pass 13**, add:
+
+```
+Read every report in .audits/ first. Try to refute at least five "Checked and sound" claims from them, and don't repeat findings already reported unless their status is wrong.
+```
+
+To verify a Critical or High finding, send this to another fresh session:
+
+```
+Read .audits/<date>-pass-<N>.md, finding <ID>. Your only job is to try to refute it: read the cited code and anything that guards it, and show the finding is wrong, already mitigated, or overstated. Do not modify any file. Reply Confirmed, Downgraded (new severity and why), or Refuted, with file:line evidence.
 ```
 
 ## Standing instruction for day-to-day coding
