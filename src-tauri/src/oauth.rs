@@ -1,6 +1,9 @@
 use crate::{
     google_client::{client_secret, CLIENT_ID},
-    model::{now_rfc3339, Account, LoginStart, LoginStatus, OAuthSecret, Provider, ProviderSecret},
+    model::{
+        now_rfc3339, Account, LoginStart, LoginState, LoginStatus, OAuthSecret, Provider,
+        ProviderSecret,
+    },
     oauth_common::{
         account_connected_html, auth_failure_html, callback_html, pkce_challenge, random_base64,
         spawn_callback_server, spawn_login_timeout, CallbackQuery, LOGIN_TIMEOUT_MINUTES,
@@ -15,7 +18,6 @@ use axum::{
 };
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use chrono::{Duration, Utc};
-use parking_lot::RwLock;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::{
@@ -84,17 +86,15 @@ pub async fn start_login(
     let attempt_id = Uuid::new_v4().to_string();
     {
         let mut pending = app.pending_login.write();
-        if pending.as_ref().is_some_and(|login| {
-            matches!(
-                login.status.as_str(),
-                "waiting" | "choose_project" | "monitoring_disabled"
-            )
-        }) {
+        if pending
+            .as_ref()
+            .is_some_and(|login| login.status.is_in_progress())
+        {
             return Err("Another provider login is already in progress.".into());
         }
         *pending = Some(LoginStatus {
             attempt_id: attempt_id.clone(),
-            status: "waiting".into(),
+            status: LoginState::Waiting,
             message: None,
             account: None,
             projects: None,
@@ -163,11 +163,9 @@ pub async fn start_login(
         shutdown_rx,
         "Callback server failed",
         move |message| {
-            fail_login(
-                &server_context.app.pending_login,
-                &server_context.attempt_id,
-                message,
-            )
+            server_context
+                .app
+                .fail_login_if_waiting(&server_context.attempt_id, message)
         },
     );
 
@@ -181,18 +179,16 @@ pub async fn start_login(
             context.provider.display_name()
         ),
         move |message| {
-            fail_login(
-                &timeout_context.app.pending_login,
-                &timeout_context.attempt_id,
-                message,
-            )
+            timeout_context
+                .app
+                .fail_login_if_waiting(&timeout_context.attempt_id, message)
         },
     );
 
     #[cfg(mobile)]
     {
         if let Err(error) = open_mobile_oauth(&app, context.clone(), &authorization_url) {
-            fail_login(&app.pending_login, &attempt_id, error.clone());
+            app.fail_login_if_waiting(&attempt_id, error.clone());
             stop_callback(&context).await;
             return Err(error);
         }
@@ -354,7 +350,7 @@ pub async fn login_status(app: &Arc<AppState>, attempt_id: &str) -> Result<Login
     };
 
     if let Some(exchange) = pending_exchange {
-        if is_waiting(app.as_ref(), attempt_id) {
+        if app.login_is_waiting(attempt_id) {
             let context = LoginContext {
                 app: app.clone(),
                 attempt_id: exchange.attempt_id.clone(),
@@ -370,7 +366,7 @@ pub async fn login_status(app: &Arc<AppState>, attempt_id: &str) -> Result<Login
                 Ok(account) => {
                     return Ok(LoginStatus {
                         attempt_id: attempt_id.into(),
-                        status: "complete".into(),
+                        status: LoginState::Complete,
                         message: None,
                         account: Some(account),
                         projects: None,
@@ -381,11 +377,11 @@ pub async fn login_status(app: &Arc<AppState>, attempt_id: &str) -> Result<Login
                     // Authorization codes are single-use. Never restore or
                     // retry the same code on a later poll.
                     let error = error.into_message();
-                    fail_login(&app.pending_login, attempt_id, error.clone());
+                    app.fail_login_if_waiting(attempt_id, error.clone());
                     app.abort_login_resources(attempt_id);
                     return Ok(LoginStatus {
                         attempt_id: attempt_id.into(),
-                        status: "failed".into(),
+                        status: LoginState::Failed,
                         message: Some(error),
                         account: None,
                         projects: None,
@@ -404,13 +400,6 @@ pub async fn login_status(app: &Arc<AppState>, attempt_id: &str) -> Result<Login
         return Err("The login attempt is no longer active.".into());
     }
     Ok(status.clone())
-}
-
-fn is_waiting(app: &AppState, attempt_id: &str) -> bool {
-    app.pending_login
-        .read()
-        .as_ref()
-        .is_some_and(|login| login.attempt_id == attempt_id && login.status == "waiting")
 }
 
 #[cfg_attr(not(any(test, mobile)), allow(dead_code))]
@@ -474,11 +463,9 @@ async fn handle_callback(
     }
     if let Some(error) = query.error {
         let message = query.error_description.unwrap_or(error);
-        fail_login(
-            &context.app.pending_login,
-            &context.attempt_id,
-            message.clone(),
-        );
+        context
+            .app
+            .fail_login_if_waiting(&context.attempt_id, message.clone());
         stop_callback(&context).await;
         return callback_html(auth_failure_html("Authentication failed", &message));
     }
@@ -489,26 +476,22 @@ async fn handle_callback(
                 "{} did not return an authorization code.",
                 context.provider.display_name()
             );
-            fail_login(
-                &context.app.pending_login,
-                &context.attempt_id,
-                message.clone(),
-            );
+            context
+                .app
+                .fail_login_if_waiting(&context.attempt_id, message.clone());
             stop_callback(&context).await;
             return callback_html(auth_failure_html("Authentication failed", &message));
         }
     };
     if query.state.as_deref() != Some(context.expected_state.as_str()) {
         let message = "OAuth state validation failed.".to_string();
-        fail_login(
-            &context.app.pending_login,
-            &context.attempt_id,
-            message.clone(),
-        );
+        context
+            .app
+            .fail_login_if_waiting(&context.attempt_id, message.clone());
         stop_callback(&context).await;
         return callback_html(auth_failure_html("Authentication failed", &message));
     }
-    if !is_waiting(context.app.as_ref(), &context.attempt_id) {
+    if !context.app.login_is_waiting(&context.attempt_id) {
         stop_callback(&context).await;
         return callback_html(
             r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Login canceled</h1></body></html>"#
@@ -522,7 +505,7 @@ async fn handle_callback(
             callback_html(account_connected_html("Account connected", &account))
         }
         Err(error) => {
-            if error.is_retryable() && is_waiting(context.app.as_ref(), &context.attempt_id) {
+            if error.is_retryable() && context.app.login_is_waiting(&context.attempt_id) {
                 {
                     let mut pending = context.app.pending_auth_exchange.lock();
                     *pending = Some(crate::state::PendingAuthExchange {
@@ -542,11 +525,9 @@ async fn handle_callback(
                         .into(),
                 )
             } else {
-                fail_login(
-                    &context.app.pending_login,
-                    &context.attempt_id,
-                    error.message().to_string(),
-                );
+                context
+                    .app
+                    .fail_login_if_waiting(&context.attempt_id, error.message().to_string());
                 stop_callback(&context).await;
                 callback_html(auth_failure_html("Authentication failed", error.message()))
             }
@@ -568,7 +549,7 @@ async fn complete_exchange(context: &LoginContext, code: &str) -> ExchangeResult
     let mut last_error: Option<ExchangeError> = None;
     let mut exchanged = None;
     for attempt in 0..5 {
-        if !is_waiting(context.app.as_ref(), &context.attempt_id) {
+        if !context.app.login_is_waiting(&context.attempt_id) {
             return Err("The login attempt was canceled.".into());
         }
         match exchange_tokens(context, code).await {
@@ -592,7 +573,7 @@ async fn complete_exchange(context: &LoginContext, code: &str) -> ExchangeResult
         (None, Some(error)) => return Err(error),
         (None, None) => return Err("The token exchange did not run.".into()),
     };
-    if !is_waiting(context.app.as_ref(), &context.attempt_id) {
+    if !context.app.login_is_waiting(&context.attempt_id) {
         return Err("The login attempt was canceled.".into());
     }
     let duplicate = find_account_to_update(context, &identity);
@@ -645,7 +626,7 @@ async fn complete_exchange(context: &LoginContext, code: &str) -> ExchangeResult
         last_error: None,
         auth_required: false,
     };
-    if !is_waiting(context.app.as_ref(), &context.attempt_id) {
+    if !context.app.login_is_waiting(&context.attempt_id) {
         return Err("The login attempt was canceled.".into());
     }
     let account = context
@@ -660,7 +641,7 @@ async fn complete_exchange(context: &LoginContext, code: &str) -> ExchangeResult
     {
         *pending = Some(LoginStatus {
             attempt_id: context.attempt_id.clone(),
-            status: "complete".into(),
+            status: LoginState::Complete,
             message: None,
             account: Some(account.clone()),
             projects: None,
@@ -1109,23 +1090,6 @@ fn string_at(value: &Value, key: &str) -> Option<String> {
     value.get(key).and_then(Value::as_str).map(str::to_string)
 }
 
-fn fail_login(store: &RwLock<Option<LoginStatus>>, attempt_id: &str, message: String) {
-    let mut pending = store.write();
-    if pending
-        .as_ref()
-        .is_some_and(|login| login.attempt_id == attempt_id && login.status == "waiting")
-    {
-        *pending = Some(LoginStatus {
-            attempt_id: attempt_id.into(),
-            status: "failed".into(),
-            message: Some(message),
-            account: None,
-            projects: None,
-            selected_project_id: None,
-        });
-    }
-}
-
 async fn stop_callback(context: &LoginContext) {
     context.app.stop_login_shutdown(&context.attempt_id);
 }
@@ -1564,7 +1528,7 @@ mod tests {
         let app = Arc::new(AppState::new(temp.path().to_path_buf(), "test-token".into()).unwrap());
         *app.pending_login.write() = Some(LoginStatus {
             attempt_id: "attempt".into(),
-            status: "waiting".into(),
+            status: LoginState::Waiting,
             message: None,
             account: None,
             projects: None,
@@ -1582,7 +1546,7 @@ mod tests {
         });
 
         let status = login_status(&app, "attempt").await.unwrap();
-        assert_eq!(status.status, "failed");
+        assert_eq!(status.status, LoginState::Failed);
         assert!(app.pending_auth_exchange.lock().is_none());
     }
 
@@ -1613,10 +1577,14 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let app = Arc::new(AppState::new(temp.path().to_path_buf(), "test-token".into()).unwrap());
 
-        for status in ["waiting", "choose_project", "monitoring_disabled"] {
+        for status in [
+            LoginState::Waiting,
+            LoginState::ChooseProject,
+            LoginState::MonitoringDisabled,
+        ] {
             *app.pending_login.write() = Some(LoginStatus {
                 attempt_id: "active-attempt".into(),
-                status: status.into(),
+                status,
                 message: None,
                 account: None,
                 projects: None,

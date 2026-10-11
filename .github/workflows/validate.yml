@@ -22,6 +22,12 @@ jobs:
       - run: npm install
       - run: npm audit --audit-level=high
       - run: npm run check
+      - run: npm test
+      # Release scripts sit outside tsc/oxlint (both target src/ only), so
+      # these suites are their only guard.
+      - run: npm run test:resolve-version
+      - run: npm run test:sidestore-source
+      - run: npm run test:gemini-quota-probe
       - run: npm run build
       - name: Publish frontend validation status
         if: always()
@@ -35,7 +41,7 @@ jobs:
           gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
             -f state="$state" \
             -f context="validate/frontend" \
-            -f description="Frontend type-check and production build"
+            -f description="Frontend type-check, tests, and production build"
 
   dependency-audit:
     runs-on: ubuntu-latest

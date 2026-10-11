@@ -1,5 +1,8 @@
 use crate::{
-    model::{now_rfc3339, Account, GrokSecret, LoginStart, LoginStatus, Provider, ProviderSecret},
+    model::{
+        now_rfc3339, Account, GrokSecret, LoginStart, LoginState, LoginStatus, Provider,
+        ProviderSecret,
+    },
     providers::{
         self,
         grok::{
@@ -272,17 +275,15 @@ pub async fn start_login(
     let attempt_id = Uuid::new_v4().to_string();
     {
         let mut pending = state.pending_login.write();
-        if pending.as_ref().is_some_and(|login| {
-            matches!(
-                login.status.as_str(),
-                "waiting" | "choose_project" | "monitoring_disabled"
-            )
-        }) {
+        if pending
+            .as_ref()
+            .is_some_and(|login| login.status.is_in_progress())
+        {
             return Err("Another provider login is already in progress.".into());
         }
         *pending = Some(LoginStatus {
             attempt_id: attempt_id.clone(),
-            status: "waiting".into(),
+            status: LoginState::Waiting,
             message: Some(
                 "Sign in to Grok in the private window. The tracker will close it after the Usage service recognizes your session."
                     .into(),
@@ -419,11 +420,8 @@ pub async fn start_login(
         login_window.on_window_event(move |event| {
             if matches!(event, WindowEvent::CloseRequested { .. }) {
                 let _ = std::fs::remove_dir_all(&close_dir);
-                fail_if_waiting(
-                    &close_state,
-                    &close_attempt,
-                    "Grok login was canceled.".into(),
-                );
+                close_state
+                    .fail_login_if_waiting(&close_attempt, "Grok login was canceled.".into());
             }
         });
 
@@ -433,10 +431,9 @@ pub async fn start_login(
         let timeout_dir = temp_data_dir.clone();
         tauri::async_runtime::spawn(async move {
             tokio::time::sleep(Duration::from_secs((LOGIN_TIMEOUT_MINUTES * 60) as u64)).await;
-            if is_waiting(&timeout_state, &timeout_attempt) {
+            if timeout_state.login_is_waiting(&timeout_attempt) {
                 let _ = std::fs::remove_dir_all(&timeout_dir);
-                fail_if_waiting(
-                    &timeout_state,
+                timeout_state.fail_login_if_waiting(
                     &timeout_attempt,
                     "Grok login timed out. Start the connection again.".into(),
                 );
@@ -506,9 +503,8 @@ async fn start_mobile_login(
     let timeout_attempt = attempt_id.clone();
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(Duration::from_secs((LOGIN_TIMEOUT_MINUTES * 60) as u64)).await;
-        if is_waiting(&timeout_state, &timeout_attempt) {
-            fail_if_waiting(
-                &timeout_state,
+        if timeout_state.login_is_waiting(&timeout_attempt) {
+            timeout_state.fail_login_if_waiting(
                 &timeout_attempt,
                 "Grok login timed out. Start the connection again.".into(),
             );
@@ -545,7 +541,7 @@ fn start_cookie_poll(
     std::thread::spawn(move || {
         let mut last_attempted_header: Option<String> = None;
         for _ in 0..COOKIE_POLL_ATTEMPTS {
-            if !is_waiting(&state, &attempt_id) {
+            if !state.login_is_waiting(&attempt_id) {
                 if let Some(dir) = &temp_data_dir {
                     let _ = std::fs::remove_dir_all(dir);
                 }
@@ -600,7 +596,7 @@ async fn complete_cookie_login(
     capture_in_flight: Arc<AtomicBool>,
     temp_data_dir: Option<std::path::PathBuf>,
 ) {
-    if !is_waiting(&state, &attempt_id) {
+    if !state.login_is_waiting(&attempt_id) {
         if let Some(dir) = &temp_data_dir {
             let _ = std::fs::remove_dir_all(dir);
         }
@@ -620,8 +616,7 @@ async fn complete_cookie_login(
                     }
                 }
             }
-            update_waiting_message(
-                &state,
+            state.set_waiting_message(
                 &attempt_id,
                 "Finish signing in to Grok. Waiting for an authenticated browser session…".into(),
             );
@@ -631,8 +626,7 @@ async fn complete_cookie_login(
             ProviderError::Transient(error) | ProviderError::RateLimited { message: error, .. },
         ) => {
             capture_in_flight.store(false, Ordering::SeqCst);
-            update_waiting_message(
-                &state,
+            state.set_waiting_message(
                 &attempt_id,
                 format!(
                     "Grok is signed in, but its Usage service did not return readable billing data: {error} Reload the Grok page to retry."
@@ -642,7 +636,7 @@ async fn complete_cookie_login(
         }
     };
 
-    if !is_waiting(&state, &attempt_id) {
+    if !state.login_is_waiting(&attempt_id) {
         if let Some(dir) = &temp_data_dir {
             let _ = std::fs::remove_dir_all(dir);
         }
@@ -710,7 +704,7 @@ async fn complete_cookie_login(
             if let Some(dir) = &temp_data_dir {
                 let _ = std::fs::remove_dir_all(dir);
             }
-            fail_if_waiting(&state, &attempt_id, error);
+            state.fail_login_if_waiting(&attempt_id, error);
             close_login_window(&window);
             return;
         }
@@ -727,8 +721,7 @@ async fn complete_cookie_login(
         if let Some(dir) = &temp_data_dir {
             let _ = std::fs::remove_dir_all(dir);
         }
-        fail_if_waiting(
-            &state,
+        state.fail_login_if_waiting(
             &attempt_id,
             format!("Unable to save the Grok connection: {error}"),
         );
@@ -744,8 +737,7 @@ async fn complete_cookie_login(
                 if let Some(dir) = &temp_data_dir {
                     let _ = std::fs::remove_dir_all(dir);
                 }
-                fail_if_waiting(
-                    &state,
+                state.fail_login_if_waiting(
                     &attempt_id,
                     "The Grok account disappeared after login.".into(),
                 );
@@ -755,25 +747,16 @@ async fn complete_cookie_login(
         },
     };
 
-    let completed = {
-        let mut pending = state.pending_login.write();
-        if pending
-            .as_ref()
-            .is_some_and(|login| login.attempt_id == attempt_id && login.status == "waiting")
-        {
-            *pending = Some(LoginStatus {
-                attempt_id,
-                status: "complete".into(),
-                message: None,
-                account: Some(account),
-                projects: None,
-                selected_project_id: None,
-            });
-            true
-        } else {
-            false
-        }
-    };
+    let completed = state.update_login_if_waiting(&attempt_id, |login| {
+        *login = LoginStatus {
+            attempt_id: attempt_id.clone(),
+            status: LoginState::Complete,
+            message: None,
+            account: Some(account),
+            projects: None,
+            selected_project_id: None,
+        };
+    });
     if completed {
         if let Some(dir) = &temp_data_dir {
             let _ = std::fs::remove_dir_all(dir);
@@ -911,42 +894,6 @@ fn collect_cookies_for_url(
         }
         pairs.insert(cookie.name().to_string(), value.to_string());
     }
-}
-
-fn is_waiting(state: &AppState, attempt_id: &str) -> bool {
-    state
-        .pending_login
-        .read()
-        .as_ref()
-        .is_some_and(|login| login.attempt_id == attempt_id && login.status == "waiting")
-}
-
-fn update_waiting_message(state: &AppState, attempt_id: &str, message: String) {
-    if !is_waiting(state, attempt_id) {
-        return;
-    }
-    *state.pending_login.write() = Some(LoginStatus {
-        attempt_id: attempt_id.into(),
-        status: "waiting".into(),
-        message: Some(message),
-        account: None,
-        projects: None,
-        selected_project_id: None,
-    });
-}
-
-fn fail_if_waiting(state: &AppState, attempt_id: &str, message: String) {
-    if !is_waiting(state, attempt_id) {
-        return;
-    }
-    *state.pending_login.write() = Some(LoginStatus {
-        attempt_id: attempt_id.into(),
-        status: "failed".into(),
-        message: Some(message),
-        account: None,
-        projects: None,
-        selected_project_id: None,
-    });
 }
 
 #[cfg(desktop)]

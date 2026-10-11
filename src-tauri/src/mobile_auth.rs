@@ -1,5 +1,5 @@
 #[cfg(mobile)]
-use crate::{model::LoginStatus, state::AppState};
+use crate::state::AppState;
 #[cfg(mobile)]
 use std::sync::Arc;
 #[cfg(mobile)]
@@ -155,8 +155,7 @@ pub fn open_in_main_webview(
         }
         let oauth_start = target.clone();
         if let Err(error) = window.navigate(target) {
-            fail_waiting(
-                &state,
+            state.fail_login_if_waiting(
                 &attempt_id,
                 format!("Unable to open the sign-in page: {error}"),
             );
@@ -174,10 +173,7 @@ pub fn open_in_main_webview(
             if !attempt_matches(&state, &attempt_id) {
                 break;
             }
-            let waiting =
-                state.pending_login.read().as_ref().is_some_and(|login| {
-                    login.attempt_id == attempt_id && login.status == "waiting"
-                });
+            let waiting = state.login_is_waiting(&attempt_id);
             let exchange_queued = state
                 .pending_auth_exchange
                 .lock()
@@ -246,24 +242,6 @@ pub(crate) fn urls_share_origin(left: &Url, right: &Url) -> bool {
         && left.port_or_known_default() == right.port_or_known_default()
 }
 
-#[cfg(mobile)]
-fn fail_waiting(state: &AppState, attempt_id: &str, message: String) {
-    let mut pending = state.pending_login.write();
-    if pending
-        .as_ref()
-        .is_some_and(|login| login.attempt_id == attempt_id && login.status == "waiting")
-    {
-        *pending = Some(LoginStatus {
-            attempt_id: attempt_id.into(),
-            status: "failed".into(),
-            message: Some(message),
-            account: None,
-            projects: None,
-            selected_project_id: None,
-        });
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -271,18 +249,6 @@ mod tests {
     #[test]
     fn app_shell_uses_main_label() {
         assert_eq!(MAIN_WINDOW, "main");
-    }
-
-    #[test]
-    fn restore_logic_treats_only_waiting_as_in_progress() {
-        for status in [
-            "complete",
-            "failed",
-            "choose_project",
-            "monitoring_disabled",
-        ] {
-            assert_ne!(status, "waiting");
-        }
     }
 
     #[test]

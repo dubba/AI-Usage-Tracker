@@ -45,4 +45,4 @@ cargo fmt --manifest-path src-tauri/Cargo.toml --check
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 ```
 
-The full test inventory and the security-invariant → test map live in `TESTING.md`. CI does not run the JavaScript test suites — run `npm test` and the `npm run test:*` scripts locally before pushing.
+The full test inventory and the security-invariant → test map live in `TESTING.md`. CI runs `npm test` and the `npm run test:*` scripts in the `validate/frontend` job; run them locally before pushing anyway.

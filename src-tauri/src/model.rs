@@ -209,17 +209,58 @@ pub struct CloudProjectOption {
     pub display_name: String,
 }
 
+/// Where a sign-in attempt stands. Serialized in snake_case to match the
+/// `LoginStatus["status"]` union in `src/types.ts`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LoginState {
+    Waiting,
+    Complete,
+    Failed,
+    ChooseProject,
+    MonitoringDisabled,
+}
+
+impl LoginState {
+    /// The attempt still holds the login slot: no other sign-in may start, and
+    /// it can still be cancelled or abandoned.
+    pub fn is_in_progress(self) -> bool {
+        matches!(
+            self,
+            Self::Waiting | Self::ChooseProject | Self::MonitoringDisabled
+        )
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LoginStatus {
     pub attempt_id: String,
-    pub status: String,
+    pub status: LoginState,
     pub message: Option<String>,
     pub account: Option<Account>,
     #[serde(default)]
     pub projects: Option<Vec<CloudProjectOption>>,
     #[serde(default)]
     pub selected_project_id: Option<String>,
+}
+
+impl LoginStatus {
+    pub fn failed(attempt_id: impl Into<String>, message: String) -> Self {
+        Self {
+            attempt_id: attempt_id.into(),
+            status: LoginState::Failed,
+            message: Some(message),
+            account: None,
+            projects: None,
+            selected_project_id: None,
+        }
+    }
+
+    /// True when this is attempt `attempt_id` and it is still waiting on the provider.
+    pub fn is_waiting_for(&self, attempt_id: &str) -> bool {
+        self.attempt_id == attempt_id && self.status == LoginState::Waiting
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
