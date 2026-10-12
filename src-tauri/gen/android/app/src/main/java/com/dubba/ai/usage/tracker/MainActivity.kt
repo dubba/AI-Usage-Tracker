@@ -866,14 +866,9 @@ class MainActivity : TauriActivity() {
       addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
       addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
-    val resolvers = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
-    for (resolve in resolvers) {
-      grantUriPermission(
-        resolve.activityInfo.packageName,
-        uri,
-        Intent.FLAG_GRANT_READ_URI_PERMISSION
-      )
-    }
+    // FLAG_GRANT_READ_URI_PERMISSION above grants read access to the installer the
+    // user actually opens. Granting it to every app that handles APKs would let any
+    // of them read the update without being chosen.
     val launch = { startActivity(intent) }
     if (Looper.myLooper() == Looper.getMainLooper()) {
       launch()
