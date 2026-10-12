@@ -100,6 +100,10 @@ mod tests {
 
     /// Both secret-returning commands must go through the native confirmation
     /// before doing their work; a refactor that drops it should fail here.
+    ///
+    /// The sources are read as embedded text, which carries CRLF line endings
+    /// when Windows checks the repository out with `core.autocrlf`, so they
+    /// are normalized before looking for the end of the function.
     #[test]
     fn both_secret_commands_ask_before_returning_secrets() {
         for (file, source, command, action, work) in [
@@ -118,6 +122,7 @@ mod tests {
                 "airgap::prepare_airgap_export(",
             ),
         ] {
+            let source = source.replace("\r\n", "\n");
             let start = source
                 .find(command)
                 .unwrap_or_else(|| panic!("{file}: {command}"));
