@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased (34 items)
+## Unreleased (35 items)
 
-### Improved (8)
+### Improved (9)
 
 - The Back button on in-app sign-in sits closer to the status bar, and its chevron is as bold as the label.
 - The "Account connected" page now shows the account email in purple and includes a prominent 5-second countdown number before closing automatically, and mobile in-app sign-in views remain on the connected screen for 5 seconds before returning to the dashboard.
@@ -13,6 +13,7 @@
 - Every scheduled release now includes the Windows, Android, macOS, and iOS builds, so a Thursday release is no longer missing the macOS and iOS downloads.
 - Dragging a sidebar group now rearranges the account cards on the All page immediately, instead of after a short pause while the new order is saved.
 - On Android, Wi-Fi only stays in its battery-hungry multicast mode while device sync is running, instead of the whole time the app is open.
+- Each release's download notes now explain the security warning Windows and macOS show the first time you open the app, and how to continue.
 
 ### Fixed (10)
 

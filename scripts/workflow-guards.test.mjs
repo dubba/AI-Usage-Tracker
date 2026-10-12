@@ -221,3 +221,15 @@ test("the Android signing step signs release APKs only and refuses debug ones", 
   assert.equal(noRelease.status, 1, "no release APK means nothing to publish");
   assert.deepEqual(noRelease.signed, []);
 });
+
+test("the release notes tell users what to do about the first-launch security warnings", () => {
+  const installers = workflows.find((w) => w.name === "build-installers.yml").text;
+  const start = installers.indexOf("releaseBody: |");
+  assert.notEqual(start, -1, "release notes template found");
+  const body = installers.slice(start, installers.indexOf("releaseDraft:", start));
+  // Desktop builds are not signed with a paid developer certificate (accepted in the
+  // audit ledger as L-21), so users have to be told how to get past the warnings.
+  assert.match(body, /Run anyway/, "Windows SmartScreen step");
+  assert.match(body, /Open Anyway/, "macOS Gatekeeper step");
+});
+

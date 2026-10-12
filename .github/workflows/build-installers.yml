@@ -213,6 +213,13 @@ jobs:
             - **Apple Silicon:** choose the macOS download marked `aarch64` or `arm64` for M1, M2, M3, M4, and newer Apple chips.
             - **Intel Mac:** choose the macOS download marked `x64` or `x86_64`.
 
+            ### First launch: expect a security warning
+
+            These downloads are not signed with a paid Apple or Microsoft developer certificate, so both systems warn the first time you open the app. The warning is expected. Updates you install from inside the app are verified by the app's own signature and do not repeat it.
+
+            - **Windows:** if "Windows protected your PC" appears, choose **More info**, then **Run anyway**.
+            - **macOS:** if macOS says the app cannot be opened because it is from an unidentified developer, open **System Settings → Privacy & Security**, scroll to the message about the app, and choose **Open Anyway**. On macOS 14 and earlier you can instead right-click the app and choose **Open**.
+
             ### Android
 
             - **`.apk` — sideload for Android:** download the `.apk` file directly to your phone (or transfer via USB) and tap to install. Enable "Install unknown apps" for your browser or file manager when prompted.
