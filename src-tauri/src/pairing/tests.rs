@@ -825,6 +825,13 @@ async fn test_select_role_rejects_invalid_role_string() {
     let manager = crate::pairing::PairingSessionManager::new();
     let err = manager.select_role("nonsense").await.unwrap_err();
     assert!(err.contains("Invalid role"), "unexpected error: {err}");
+    assert!(
+        !err.contains("nonsense"),
+        "the rejected value must not be echoed: {err}"
+    );
+    let long = "x".repeat(10_000);
+    let err = manager.select_role(&long).await.unwrap_err();
+    assert!(err.len() < 100, "error must not grow with the input");
 }
 
 #[tokio::test]

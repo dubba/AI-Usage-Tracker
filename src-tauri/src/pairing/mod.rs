@@ -154,9 +154,8 @@ impl PairingSessionManager {
 
     pub async fn select_role(&self, role: &str) -> Result<(), String> {
         if role != "send" && role != "receive" {
-            return Err(format!(
-                "Invalid role '{role}'. Expected 'send' or 'receive'."
-            ));
+            // A fixed sentence: the value comes from the page and is unbounded.
+            return Err("Invalid role. Expected 'send' or 'receive'.".to_string());
         }
         let mut active = self.active.write().await;
         let Some(session) = active.as_mut() else {
