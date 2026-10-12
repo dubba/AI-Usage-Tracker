@@ -94,8 +94,17 @@ pub(crate) fn regenerate_bridge_token(
 /// on a timer — so the full token crosses IPC once per user action instead of
 /// on every `get_bridge_info` poll.
 #[tauri::command]
-pub(crate) fn reveal_bridge_token(state: State<'_, Arc<AppState>>) -> Result<String, String> {
-    Ok(state.bridge_token.read().clone())
+pub(crate) async fn reveal_bridge_token(
+    app: AppHandle,
+    state: State<'_, Arc<AppState>>,
+) -> Result<String, String> {
+    // A native dialog, outside the page, decides: page code cannot answer it.
+    crate::confirm::after_confirmation(
+        &crate::confirm::REVEAL_BRIDGE_TOKEN,
+        crate::confirm::ask(&app, &crate::confirm::REVEAL_BRIDGE_TOKEN),
+        || Ok(state.bridge_token.read().clone()),
+    )
+    .await
 }
 
 pub(crate) fn bridge_status(state: &AppState) -> BridgeStatus {

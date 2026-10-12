@@ -140,7 +140,8 @@ pub fn pairing_clear_pending_ui_state(state: State<'_, Arc<AppState>>) -> Result
 }
 
 #[tauri::command]
-pub fn pairing_prepare_airgap_export(
+pub async fn pairing_prepare_airgap_export(
+    app: AppHandle,
     state: State<'_, Arc<AppState>>,
     include_settings: bool,
     ui_state: Option<serde_json::Value>,
@@ -148,13 +149,22 @@ pub fn pairing_prepare_airgap_export(
     if let Some(ui) = ui_state.as_ref() {
         limits::check_ui_state_size(ui)?;
     }
-    *state.pairing_include_settings.write() = include_settings;
-    if let Some(ui) = ui_state {
-        *state.pairing_pending_ui_state.write() = Some(ui);
-    } else if !include_settings {
-        *state.pairing_pending_ui_state.write() = None;
-    }
-    pairing::airgap::prepare_airgap_export(state.inner().as_ref())
+    // The frames decrypt to every stored sign-in, so a native dialog, outside
+    // the page, decides whether to build them: page code cannot answer it.
+    crate::confirm::after_confirmation(
+        &crate::confirm::AIRGAP_EXPORT,
+        crate::confirm::ask(&app, &crate::confirm::AIRGAP_EXPORT),
+        || {
+            *state.pairing_include_settings.write() = include_settings;
+            if let Some(ui) = ui_state {
+                *state.pairing_pending_ui_state.write() = Some(ui);
+            } else if !include_settings {
+                *state.pairing_pending_ui_state.write() = None;
+            }
+            pairing::airgap::prepare_airgap_export(state.inner().as_ref())
+        },
+    )
+    .await
 }
 
 #[tauri::command]

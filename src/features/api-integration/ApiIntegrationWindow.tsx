@@ -89,10 +89,18 @@ export function ApiIntegrationWindow() {
   };
 
   // Copying the bearer token or the env block counts as an explicit reveal:
-  // fetch the full token once for the copy without leaving it displayed.
+  // fetch the full token once for the copy without leaving it displayed. The
+  // backend asks for confirmation in a native dialog, so keep the token after
+  // the first confirmed fetch instead of asking again on every copy.
+  const confirmedToken = async () => {
+    if (fullToken) return fullToken;
+    const token = await bridgeApi.revealBridgeToken();
+    setFullToken(token);
+    return token;
+  };
   const copyToken = async () => {
     try {
-      const token = fullToken ?? (await bridgeApi.revealBridgeToken());
+      const token = await confirmedToken();
       await copy(token, "token");
     } catch (cause) {
       setError(String(cause));
@@ -102,7 +110,7 @@ export function ApiIntegrationWindow() {
   const copyEnv = async () => {
     if (!bridge) return;
     try {
-      const token = fullToken ?? (await bridgeApi.revealBridgeToken());
+      const token = await confirmedToken();
       await copy(
         `PASEO_EXTERNAL_PROVIDER_USAGE_URL=${bridge.endpoint}\nPASEO_EXTERNAL_PROVIDER_USAGE_TOKEN=${token}`,
         "env",

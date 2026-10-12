@@ -12,6 +12,7 @@ mod bridge_api;
 mod buckets;
 mod camera_permission;
 mod commands;
+mod confirm;
 #[cfg(any(target_os = "android", debug_assertions))]
 mod credential_file;
 mod diagnostics;
@@ -73,6 +74,8 @@ pub fn run() {
     }
 
     builder
+        // Used from Rust only (see confirm.rs); the webview has no dialog permission.
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .setup(|app| {
