@@ -542,14 +542,22 @@ impl PairingSessionManager {
 }
 
 /// Binds the host listener to the address the QR code and mDNS record
-/// advertise, so it is not also reachable on every other interface (a VPN, a
-/// public address) for the life of the session. Falls back to all interfaces
-/// only if that address cannot be bound, e.g. it vanished since we read it.
+/// advertise, and only if that is a local-network address: private,
+/// link-local, CGNAT, or loopback, the same rule receivers apply to QR codes.
+/// There is no fallback to all interfaces. A public address, or one that
+/// cannot be bound (it vanished since we read it), fails host mode with an
+/// explanation instead of exposing the listener beyond the local network for
+/// the life of the session.
 pub(crate) async fn bind_pairing_listener(ip: &str) -> std::io::Result<TcpListener> {
-    if let Ok(addr) = ip.parse::<IpAddr>() {
-        if let Ok(listener) = TcpListener::bind((addr, 0)).await {
-            return Ok(listener);
-        }
-    }
-    TcpListener::bind("0.0.0.0:0").await
+    let addr = ip
+        .parse::<IpAddr>()
+        .ok()
+        .filter(|_| protocol::is_allowed_pairing_host(ip))
+        .ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::AddrNotAvailable,
+                "this device has no local network address to pair on; connect to Wi-Fi and try again",
+            )
+        })?;
+    TcpListener::bind((addr, 0)).await
 }

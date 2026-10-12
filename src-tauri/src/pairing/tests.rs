@@ -1637,7 +1637,18 @@ async fn host_listener_binds_only_the_advertised_address() {
         std::net::IpAddr::from([127, 0, 0, 1])
     );
 
-    // An address that cannot be bound still yields a working listener.
-    let listener = super::bind_pairing_listener("not-an-ip").await.unwrap();
-    assert!(listener.local_addr().unwrap().ip().is_unspecified());
+    // No fallback to all interfaces: anything that is not a local-network
+    // address this machine can bind refuses host mode instead.
+    for address in [
+        "not-an-ip",
+        "0.0.0.0",
+        "8.8.8.8",        // public
+        "192.0.2.10",     // public (documentation range)
+        "10.254.254.253", // private, but not an address of this machine
+    ] {
+        assert!(
+            super::bind_pairing_listener(address).await.is_err(),
+            "{address} must not produce a listener"
+        );
+    }
 }
