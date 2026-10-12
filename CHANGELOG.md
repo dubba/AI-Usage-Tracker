@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (24 items)
+## Unreleased (25 items)
 
 ### Improved (5)
 
@@ -20,7 +20,7 @@
 - Dragging a sidebar group no longer pulls accounts that belong to a custom group out of it on the All page; they stay with their custom group.
 - Links in update notes and update error messages that the app cannot open are now shown as plain text instead of links that do nothing.
 
-### Security (12)
+### Security (13)
 
 - The local usage API's access token check takes the same time no matter how long the presented token is, so timing cannot reveal the token's length.
 - While device sync is waiting for another device, it accepts connections only on the network address shown in its QR code and join code, not on every network the computer is connected to, such as a VPN.
@@ -34,6 +34,7 @@
 - Error messages no longer show file paths that include your user name.
 - Sign-in error messages no longer include parts of the provider's reply.
 - On Windows, start at login now runs the app by its full quoted path, so a program placed at a shorter path cannot be started in its place.
+- Showing or copying the Paseo Bridge token, and starting an air-gapped transfer, now ask for confirmation in a system dialog that web content inside the app cannot answer.
 
 ## 0.4.0 - 2026-10-07 (27 items)
 
