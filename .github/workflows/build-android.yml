@@ -30,8 +30,12 @@ jobs:
       - name: Apply release version
         if: ${{ inputs.release_version != '' }}
         shell: bash
+        # Passed through the environment, never pasted into the script, so the
+        # value cannot become shell syntax.
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
         run: |
-          node scripts/resolve-release-version.mjs --version "${{ inputs.release_version }}" --apply
+          node scripts/resolve-release-version.mjs --version "$RELEASE_VERSION" --apply
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           targets: aarch64-linux-android

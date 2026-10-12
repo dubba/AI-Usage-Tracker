@@ -57,7 +57,7 @@ jobs:
           # a run that skipped the Apple platforms would leave that version
           # without macOS and iOS builds (and without their updater entries)
           # until a later commit arrives. Only a manual run may opt out.
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
             BUILD_APPLE="${INPUT_APPLE:-true}"
           else
             BUILD_APPLE="true"
@@ -72,7 +72,7 @@ jobs:
             exit 0
           fi
 
-          if [ "${{ github.event_name }}" = "push" ]; then
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
             echo "Build triggered by explicit push to .github/release-trigger."
             echo "should_build=true" >> "$GITHUB_OUTPUT"
             exit 0
@@ -140,8 +140,11 @@ jobs:
           workspaces: src-tauri
       - run: npm install
       - name: Apply release version
+        # Passed through the environment, never pasted into the script.
+        env:
+          RELEASE_VERSION: ${{ needs.check-changes.outputs.version }}
         run: |
-          node scripts/resolve-release-version.mjs --version "${{ needs.check-changes.outputs.version }}" --apply
+          node scripts/resolve-release-version.mjs --version "$RELEASE_VERSION" --apply
       - name: Detect beta version
         id: release_kind
         shell: python
@@ -292,8 +295,11 @@ jobs:
           workspaces: src-tauri
       - run: npm install
       - name: Apply release version
+        # Passed through the environment, never pasted into the script.
+        env:
+          RELEASE_VERSION: ${{ needs.check-changes.outputs.version }}
         run: |
-          node scripts/resolve-release-version.mjs --version "${{ needs.check-changes.outputs.version }}" --apply
+          node scripts/resolve-release-version.mjs --version "$RELEASE_VERSION" --apply
       - name: Detect beta version
         id: release_kind
         shell: python

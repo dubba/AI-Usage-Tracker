@@ -28,6 +28,7 @@ jobs:
       - run: npm run test:resolve-version
       - run: npm run test:sidestore-source
       - run: npm run test:gemini-quota-probe
+      - run: npm run test:workflows
       - run: npm run build
       - name: Publish frontend validation status
         if: always()
@@ -112,7 +113,7 @@ jobs:
         shell: bash
         run: |
           cargo test --manifest-path src-tauri/Cargo.toml --lib --no-run
-          if [ "${{ runner.os }}" = "Windows" ]; then
+          if [ "$RUNNER_OS" = "Windows" ]; then
             find src-tauri/target/debug -name "*.dll" -exec cp -f {} src-tauri/target/debug/deps/ \; 2>/dev/null || true
           fi
           cargo test --manifest-path src-tauri/Cargo.toml --lib
