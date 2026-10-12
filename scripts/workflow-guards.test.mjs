@@ -152,3 +152,72 @@ test("a release without a valid updater signing key fails instead of publishing"
     assert.equal(ok.env, `TAURI_SIGNING_PRIVATE_KEY=${keyShaped}\n`);
   }
 });
+
+test("the Android signing step signs release APKs only and refuses debug ones", async () => {
+  const { spawnSync } = await import("node:child_process");
+  const fs = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const android = workflows.find((w) => w.name === "build-android.yml").text;
+  const [script] = runScriptsOfStep(android, "Sign and align Android APK");
+  assert.ok(script, "signing step found");
+
+  const sandbox = (apks) => {
+    const root = fs.mkdtempSync(resolve(tmpdir(), "apk-sign-"));
+    const tools = resolve(root, "sdk/build-tools/34.0.0");
+    fs.mkdirSync(tools, { recursive: true });
+    // Stand-ins that copy files and log what was signed, so no Android SDK is needed.
+    fs.writeFileSync(resolve(tools, "zipalign"), '#!/bin/sh\ncp "$4" "$5"\n', { mode: 0o755 });
+    fs.writeFileSync(
+      resolve(tools, "apksigner"),
+      '#!/bin/sh\n[ "$1" = sign ] || exit 0\nout=""; prev=""; for a in "$@"; do [ "$prev" = "--out" ] && out="$a"; prev="$a"; last="$a"; done\ncp "$last" "$out"\necho "$out" >> "$SIGNED_LOG"\n',
+      { mode: 0o755 },
+    );
+    fs.writeFileSync(resolve(root, "package.json"), '{"version":"9.9.9"}');
+    for (const apk of apks) {
+      const path = resolve(root, "src-tauri/gen/android/app/build/outputs/apk", apk);
+      fs.mkdirSync(dirname(path), { recursive: true });
+      fs.writeFileSync(path, "apk bytes");
+    }
+    const temp = resolve(root, "runner-temp");
+    fs.mkdirSync(temp);
+    const signedLog = resolve(root, "signed.log");
+    fs.writeFileSync(signedLog, "");
+    const result = spawnSync("bash", ["-c", script], {
+      cwd: root,
+      encoding: "utf-8",
+      env: {
+        ...process.env,
+        ANDROID_HOME: resolve(root, "sdk"),
+        RUNNER_TEMP: temp,
+        SIGNED_LOG: signedLog,
+        ANDROID_KEYSTORE_BASE64: Buffer.from("not a real keystore").toString("base64"),
+        ANDROID_KEYSTORE_PASSWORD: "test",
+        ANDROID_KEY_ALIAS: "test",
+        ANDROID_KEY_PASSWORD: "test",
+      },
+    });
+    return {
+      status: result.status,
+      output: result.stdout + result.stderr,
+      signed: fs.readFileSync(signedLog, "utf-8").trim().split("\n").filter(Boolean),
+      keystoreLeft: fs.existsSync(resolve(temp, "android-sideload.p12")),
+    };
+  };
+
+  const releaseOnly = sandbox(["universal/release/app-universal-release-unsigned.apk"]);
+  assert.equal(releaseOnly.status, 0, releaseOnly.output);
+  assert.deepEqual(releaseOnly.signed, ["release-apks/AI Usage Tracker_9.9.9.apk"]);
+  assert.equal(releaseOnly.keystoreLeft, false);
+
+  const withDebug = sandbox([
+    "universal/release/app-universal-release-unsigned.apk",
+    "universal/debug/app-universal-debug.apk",
+  ]);
+  assert.equal(withDebug.status, 1, "a debug APK in the output must stop the job");
+  assert.ok(withDebug.signed.every((path) => !/debug/i.test(path)), withDebug.signed.join(", "));
+  assert.equal(withDebug.keystoreLeft, false, "keystore removed on the error exit too");
+
+  const noRelease = sandbox(["universal/app-universal-unsigned.apk"]);
+  assert.equal(noRelease.status, 1, "no release APK means nothing to publish");
+  assert.deepEqual(noRelease.signed, []);
+});

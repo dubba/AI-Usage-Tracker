@@ -72,6 +72,8 @@ jobs:
 
           mkdir -p release-apks
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/android-sideload.p12"
+          # Remove the decoded keystore on every exit, including the error exits below.
+          trap 'rm -f "$RUNNER_TEMP/android-sideload.p12"' EXIT
 
           ZIPALIGN="$ANDROID_HOME/build-tools/34.0.0/zipalign"
           APKSIGNER="$ANDROID_HOME/build-tools/34.0.0/apksigner"
@@ -79,6 +81,19 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           found=0
           while IFS= read -r apk; do
+            # Only the release build is signed with the release key. A debug APK signed
+            # with it could be installed over the app and debugged, so stop outright.
+            case "$apk" in
+              *debug*)
+                echo "::error::Refusing to sign a debug APK with the release key: $apk"
+                exit 1
+                ;;
+              *release*) ;;
+              *)
+                echo "Skipping $apk: not a release build."
+                continue
+                ;;
+            esac
             found=1
             echo "Processing and signing $apk..."
             base_name=$(basename "$apk" .apk)
@@ -101,10 +116,8 @@ jobs:
             rm -f "$RUNNER_TEMP/aligned.apk"
           done < <(find src-tauri/gen/android/app/build/outputs/apk -name "*.apk" | sort)
 
-          rm -f "$RUNNER_TEMP/android-sideload.p12"
-
           if [ "$found" -eq 0 ]; then
-            echo "No APK files were produced."
+            echo "No release APK was produced."
             exit 1
           fi
 
