@@ -328,20 +328,6 @@ class MainActivity : TauriActivity() {
       }
     }
 
-    // Pairing (Link Devices) uses mDNS over multicast. On Android, inbound
-    // multicast packets are filtered unless the app holds a MulticastLock —
-    // without this, code joins time out on the phone.
-    try {
-      val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE)
-        as android.net.wifi.WifiManager
-      multicastLock = wifiManager.createMulticastLock("aiut-pairing").apply {
-        setReferenceCounted(false)
-        acquire()
-      }
-    } catch (e: Throwable) {
-      android.util.Log.w(TAG, "Failed to acquire multicast lock: ${e.message}")
-    }
-
     // Invalidate stale WebView cache when APK is updated to a new version
     val prefs = getSharedPreferences("app_version_prefs", Context.MODE_PRIVATE)
     val lastVersionCode = prefs.getLong("last_version_code", -1L)
@@ -366,6 +352,31 @@ class MainActivity : TauriActivity() {
   }
 
   /**
+   * Pairing (Link Devices) finds peers with mDNS over multicast, and Android filters
+   * inbound multicast unless the app holds a MulticastLock; without it, code joins
+   * time out on the phone. The lock keeps the Wi-Fi radio processing multicast, which
+   * costs battery, so it is held only while a pairing session runs.
+   */
+  private fun setPairingMulticastLock(enabled: Boolean) {
+    try {
+      if (enabled) {
+        if (multicastLock?.isHeld == true) return
+        val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE)
+          as android.net.wifi.WifiManager
+        multicastLock = wifiManager.createMulticastLock("aiut-pairing").apply {
+          setReferenceCounted(false)
+          acquire()
+        }
+      } else {
+        multicastLock?.takeIf { it.isHeld }?.release()
+        multicastLock = null
+      }
+    } catch (e: Throwable) {
+      android.util.Log.w(TAG, "Updating the pairing multicast lock failed: ${e.message}")
+    }
+  }
+
+  /**
    * Called from Rust when a Link Devices session starts/stops. While a VPN or
    * DNS-based ad blocker is running, Android routes ALL app traffic through the
    * VPN tunnel — including LAN packets — which silently breaks pairing. Binding
@@ -374,6 +385,7 @@ class MainActivity : TauriActivity() {
    */
   fun setPairingLanBinding(enabled: Boolean) {
     runOnUiThread {
+      setPairingMulticastLock(enabled)
       try {
         val cm = applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE)
           as android.net.ConnectivityManager
