@@ -578,7 +578,7 @@ pub static PENDING_UPDATE_NOTICE: parking_lot::Mutex<Option<String>> =
 
 #[cfg(target_os = "android")]
 #[no_mangle]
-pub extern "C" fn Java_com_yajinni_paseousagebridge_MainActivity_setPendingUpdateNotice(
+pub extern "C" fn Java_com_dubba_ai_usage_tracker_MainActivity_setPendingUpdateNotice(
     mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     version: jni::objects::JString,

@@ -15,7 +15,7 @@ val tauriProperties = Properties().apply {
 
 android {
     compileSdk = 36
-    namespace = "com.yajinni.paseousagebridge"
+    namespace = "com.dubba.ai.usage.tracker"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
         applicationId = "com.dubba.ai.usage.tracker"

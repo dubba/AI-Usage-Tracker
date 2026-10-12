@@ -1,4 +1,4 @@
-package com.yajinni.paseousagebridge
+package com.dubba.ai.usage.tracker
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -20,6 +20,6 @@ class ApkInstallReceiver : BroadcastReceiver() {
   }
 
   companion object {
-    const val ACTION = "com.yajinni.paseousagebridge.INSTALL_STATUS"
+    const val ACTION = "com.dubba.ai.usage.tracker.INSTALL_STATUS"
   }
 }

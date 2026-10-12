@@ -173,7 +173,7 @@ pub static GLOBAL_APP_HANDLE: parking_lot::Mutex<Option<AppHandle>> = parking_lo
 
 #[cfg(target_os = "android")]
 #[no_mangle]
-pub extern "C" fn Java_com_yajinni_paseousagebridge_MainActivity_setPendingPairingUri(
+pub extern "C" fn Java_com_dubba_ai_usage_tracker_MainActivity_setPendingPairingUri(
     mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
     uri: jni::objects::JString,

@@ -167,7 +167,7 @@ mod tests {
     fn webview_ipc_patch_applies_to_generated_kotlin() {
         let dir = concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/gen/android/app/src/main/java/com/yajinni/paseousagebridge/generated/"
+            "/gen/android/app/src/main/java/com/dubba/ai/usage/tracker/generated/"
         );
         let (Ok(ipc), Ok(webview)) = (
             std::fs::read_to_string(format!("{dir}Ipc.kt")),

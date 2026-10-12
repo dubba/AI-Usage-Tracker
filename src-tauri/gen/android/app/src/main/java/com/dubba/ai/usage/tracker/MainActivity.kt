@@ -1,4 +1,4 @@
-package com.yajinni.paseousagebridge
+package com.dubba.ai.usage.tracker
 
 import android.Manifest
 import android.app.Notification

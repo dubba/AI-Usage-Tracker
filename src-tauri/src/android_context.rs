@@ -23,7 +23,7 @@ static REGISTERED: Condvar = Condvar::new();
 const REGISTRATION_WAIT: Duration = Duration::from_secs(10);
 
 #[no_mangle]
-pub extern "C" fn Java_com_yajinni_paseousagebridge_MainActivity_registerActivity(
+pub extern "C" fn Java_com_dubba_ai_usage_tracker_MainActivity_registerActivity(
     env: JNIEnv,
     _class: JClass,
     activity: JObject,

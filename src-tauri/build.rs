@@ -208,10 +208,10 @@ fn main() {
     // The Tauri CLI rewrites these templates during `tauri android build`;
     // re-running the build script when they change guarantees the WebView
     // patches below are re-applied before kotlinc compiles them.
-    println!("cargo:rerun-if-changed=gen/android/app/src/main/java/com/yajinni/paseousagebridge/generated/RustWebView.kt");
-    println!("cargo:rerun-if-changed=gen/android/app/src/main/java/com/yajinni/paseousagebridge/generated/RustWebChromeClient.kt");
-    println!("cargo:rerun-if-changed=gen/android/app/src/main/java/com/yajinni/paseousagebridge/generated/RustWebViewClient.kt");
-    println!("cargo:rerun-if-changed=gen/android/app/src/main/java/com/yajinni/paseousagebridge/generated/Ipc.kt");
+    println!("cargo:rerun-if-changed=gen/android/app/src/main/java/com/dubba/ai/usage/tracker/generated/RustWebView.kt");
+    println!("cargo:rerun-if-changed=gen/android/app/src/main/java/com/dubba/ai/usage/tracker/generated/RustWebChromeClient.kt");
+    println!("cargo:rerun-if-changed=gen/android/app/src/main/java/com/dubba/ai/usage/tracker/generated/RustWebViewClient.kt");
+    println!("cargo:rerun-if-changed=gen/android/app/src/main/java/com/dubba/ai/usage/tracker/generated/Ipc.kt");
     println!("cargo:rerun-if-changed=webview_ipc_patch.rs");
 
     let icon_bytes = STANDARD
@@ -262,7 +262,7 @@ fn embed_windows_app_manifest(manifest_dir: &Path) {
 
 fn patch_android_webview_templates(manifest_dir: &Path) {
     let generated =
-        manifest_dir.join("gen/android/app/src/main/java/com/yajinni/paseousagebridge/generated");
+        manifest_dir.join("gen/android/app/src/main/java/com/dubba/ai/usage/tracker/generated");
     patch_file(&generated.join("RustWebView.kt"), |content| {
         webview_ipc_patch::patch_rust_webview_ipc(&patch_rust_webview(content))
     });

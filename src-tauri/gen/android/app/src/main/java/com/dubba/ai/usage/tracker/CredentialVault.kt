@@ -1,4 +1,4 @@
-package com.yajinni.paseousagebridge
+package com.dubba.ai.usage.tracker
 
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
