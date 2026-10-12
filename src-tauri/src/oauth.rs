@@ -693,8 +693,8 @@ async fn exchange_openai(
             status,
         ));
     }
-    let tokens: OAuthTokenResponse = serde_json::from_str(&body)
-        .map_err(|error| format!("Invalid OpenAI token response: {error}"))?;
+    let tokens: OAuthTokenResponse =
+        serde_json::from_str(&body).map_err(|_| String::from("Invalid OpenAI token response."))?;
     // Unlike the other providers, OpenAI always reports a lifetime; a response without one is malformed.
     let expires_in = tokens
         .expires_in
@@ -755,9 +755,9 @@ async fn exchange_anthropic(
         ));
     }
     let token_json: Value = serde_json::from_str(&body)
-        .map_err(|error| format!("Invalid Anthropic token response: {error}"))?;
+        .map_err(|_| String::from("Invalid Anthropic token response."))?;
     let tokens: OAuthTokenResponse = serde_json::from_value(token_json.clone())
-        .map_err(|error| format!("Invalid Anthropic token response: {error}"))?;
+        .map_err(|_| String::from("Invalid Anthropic token response."))?;
     let refresh_token = tokens
         .refresh_token
         .clone()
@@ -805,8 +805,8 @@ async fn exchange_antigravity(
             status,
         ));
     }
-    let tokens: OAuthTokenResponse = serde_json::from_str(&body)
-        .map_err(|error| format!("Invalid Google token response: {error}"))?;
+    let tokens: OAuthTokenResponse =
+        serde_json::from_str(&body).map_err(|_| String::from("Invalid Google token response."))?;
     let refresh_token = tokens.refresh_token.clone().ok_or_else(|| {
         "Google did not return a refresh token. Revoke access and try again.".to_string()
     })?;
@@ -990,7 +990,7 @@ async fn fetch_json_with_headers(
     response
         .json()
         .await
-        .map_err(|error| format!("Invalid profile response: {error}"))
+        .map_err(|_| String::from("Invalid profile response."))
 }
 
 /// Decodes the payload segment of a JWT without verifying the signature.
@@ -1683,5 +1683,31 @@ mod tests {
             .unwrap();
         let timed_out = client.post(&url).send().await.unwrap_err();
         assert!(ExchangeError::from_send("Acme token exchange failed", &timed_out).is_retryable());
+    }
+
+    /// Sign-in failure messages are shown to the user, so a provider reply that
+    /// fails to parse must not be echoed into them: serde's error text can quote
+    /// the reply. The refresh path already uses fixed sentences; this keeps the
+    /// login paths the same.
+    #[test]
+    fn login_response_parse_errors_do_not_echo_the_reply() {
+        for (file, source) in [
+            ("oauth.rs", include_str!("oauth.rs")),
+            (
+                "google_ai_studio_oauth.rs",
+                include_str!("google_ai_studio_oauth.rs"),
+            ),
+        ] {
+            for (number, line) in source.lines().enumerate() {
+                let parse_message = line.contains("format!(\"Invalid ")
+                    || line.contains("format!(\"Google returned");
+                assert!(
+                    !(parse_message && line.contains("{error}")),
+                    "{file}:{}: {}",
+                    number + 1,
+                    line.trim()
+                );
+            }
+        }
     }
 }

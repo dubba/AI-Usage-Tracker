@@ -603,7 +603,7 @@ async fn lookup_key_project(
         ));
     }
     let lookup: LookupKeyResponse = serde_json::from_str(&body)
-        .map_err(|error| format!("Google returned an invalid API-key lookup response: {error}"))?;
+        .map_err(|_| String::from("Google returned an invalid API-key lookup response."))?;
     let Some(parent) = lookup.parent.filter(|value| !value.trim().is_empty()) else {
         return Ok(None);
     };
@@ -643,7 +643,7 @@ async fn list_projects(
             ));
         }
         let page: ProjectSearchResponse = serde_json::from_str(&body)
-            .map_err(|error| format!("Google returned an invalid project list: {error}"))?;
+            .map_err(|_| String::from("Google returned an invalid project list."))?;
         projects.extend(page.projects.into_iter().filter_map(project_option));
         page_token = page
             .next_page_token
@@ -699,7 +699,7 @@ async fn resolve_project_resource(
         ));
     }
     let project: ProjectResponse = serde_json::from_str(&body)
-        .map_err(|error| format!("Google returned invalid project information: {error}"))?;
+        .map_err(|_| String::from("Google returned invalid project information."))?;
     project_option(project).ok_or_else(|| "The selected Google Cloud project is not active.".into())
 }
 
@@ -759,7 +759,7 @@ async fn monitoring_enabled(
         ));
     }
     let service: ServiceResponse = serde_json::from_str(&body)
-        .map_err(|error| format!("Google returned an invalid service status: {error}"))?;
+        .map_err(|_| String::from("Google returned an invalid service status."))?;
     Ok(service.state.as_deref() == Some("ENABLED"))
 }
 
@@ -791,7 +791,7 @@ async fn enable_monitoring(
         ));
     }
     let operation: OperationResponse = serde_json::from_str(&body)
-        .map_err(|error| format!("Google returned an invalid enable operation: {error}"))?;
+        .map_err(|_| String::from("Google returned an invalid enable operation."))?;
     if operation.done == Some(true) {
         if operation.error.is_some() {
             return Err("Google could not enable Cloud Monitoring for this project.".into());
@@ -823,7 +823,7 @@ async fn poll_operation(app: &AppState, name: &str, access_token: &str) -> Resul
             ));
         }
         let operation: OperationResponse = serde_json::from_str(&body)
-            .map_err(|error| format!("Google returned an invalid operation status: {error}"))?;
+            .map_err(|_| String::from("Google returned an invalid operation status."))?;
         if operation.done == Some(true) {
             return if operation.error.is_some() {
                 Err("Google could not enable Cloud Monitoring for this project.".into())
@@ -881,7 +881,7 @@ async fn exchange_tokens(context: &LoginContext, code: &str) -> Result<TokenResp
     if !status.is_success() {
         return Err(format!("Google token exchange failed ({status})."));
     }
-    serde_json::from_str(&body).map_err(|error| format!("Invalid Google token response: {error}"))
+    serde_json::from_str(&body).map_err(|_| String::from("Invalid Google token response."))
 }
 
 async fn ensure_fresh_oauth(app: &AppState, oauth: OAuthSecret) -> Result<OAuthSecret, String> {
@@ -913,7 +913,7 @@ async fn fetch_email(app: &AppState, access_token: &str) -> Result<String, Strin
     let value: Value = response
         .json()
         .await
-        .map_err(|error| format!("Invalid Google user-info response: {error}"))?;
+        .map_err(|_| String::from("Invalid Google user-info response."))?;
     value
         .get("email")
         .and_then(Value::as_str)
