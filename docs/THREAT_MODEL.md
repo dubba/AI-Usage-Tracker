@@ -179,17 +179,17 @@ Android, plaintext in debug builds). Corrupt JSON is quarantined and reloaded, n
 | Entry | Guard | Code |
 | --- | --- | --- |
 | `aiusage-pair:`/`aiusage:` VIEW intent | Kotlin and the JNI `setPendingPairingUri` both length-bound (≤2048) and prefix-check the URI before storing; contents never logged; consumed once via `get_pending_pairing_uri`; full cryptographic validation before connecting | `MainActivity.kt:162-182`, `commands/pairing.rs:174-211`, `pairing/protocol.rs:116` |
-| `open_update_notes` string extra (set by the app's own update notification) | Extra removed from the intent after reading; consumed once via `get_pending_update_notice`; the frontend uses the value only as display text in the update-notes dialog and runs the normal update check | `MainActivity.kt:184-195`, `updater.rs:575-598`, `src/features/settings/useAppUpdate.ts:133-156`, `src/features/settings/UpdateNotesModal.tsx:183,204` |
+| `open_update_notes` string extra (set by the app's own update notification) | Extra removed from the intent after reading; consumed once via `get_pending_update_notice`; the frontend uses the value only as display text in the update-notes dialog and runs the normal update check | `MainActivity.kt:184-195`, `updater.rs:655-677`, `src/features/settings/useAppUpdate.ts:133-156`, `src/features/settings/UpdateNotesModal.tsx:183,204` |
 
 ### 7. Updater — reachable by a compromised release channel or MITM
 
 | Guard | Code |
 | --- | --- |
-| Desktop: endpoint pinned to this repo's `latest.json`; minisign public key pinned in config; the updater plugin verifies signatures before install (plugin-internal behavior — **Unverified** in this repo beyond the config and `updater.rs:380-383`); check 30 s / install 15 min bounds; Windows install mode `passive` | `src-tauri/tauri.conf.json:54-62`, `updater.rs:378-383` |
-| Android: APK and `.apk.sha256` URLs taken from the release's `browser_download_url` fields; asset name must match this app, `.apk`, not "unsigned", ≤250 MB, `PK` zip magic, ≤10 redirects; SHA-256 against the published `.apk.sha256`, failing closed if absent or mismatched; before the user install prompt, the APK's package name must equal this app's and its signing-certificate SHA-256 set must intersect the installed app's | `updater.rs:124-176,372,417-526,686-722`, `apk_install.rs:33-45`, `MainActivity.kt:632-684` |
-| Beta channel: GitHub API listing, newest non-draft release with a manifest | `updater.rs:318-334` |
-| Fixed manifest and API URLs: `github.com/dubba/AI-Usage-Tracker` and `api.github.com/repos/dubba/AI-Usage-Tracker` (asset downloads follow the URLs those responses name) | `updater.rs:13-22`, `tauri.conf.json:56-58` |
-| iOS (SideStore): no in-place update; opens `sidestore://` or the releases page | `updater.rs:790-810` |
+| Desktop: endpoint pinned to this repo's `latest.json`; minisign public key pinned in config; the updater plugin verifies signatures before install (plugin-internal behavior — **Unverified** in this repo beyond the config and `updater.rs:454-459`); check 30 s / install 15 min bounds; Windows install mode `passive` | `src-tauri/tauri.conf.json:54-62`, `updater.rs:454-459` |
+| Android: APK and `.apk.sha256` URLs are accepted only under `https://github.com/dubba/AI-Usage-Tracker/releases/download/` (checked on the parsed URL), and downloads follow at most 10 redirects, each HTTPS to `github.com`, `objects.githubusercontent.com`, or `release-assets.githubusercontent.com`; asset name must match this app, `.apk`, not "unsigned", ≤250 MB, `PK` zip magic; SHA-256 against the published `.apk.sha256`, failing closed if absent or mismatched; before the user install prompt, the APK's package name must equal this app's and the certificates that sign it now must equal those of the installed app (not its rotation history); the fallback installer intent grants read access only to the installer that is started | `updater.rs:26-87,198-248,409-432,493-605,765-801`, `apk_install.rs:33-45`, `MainActivity.kt:632-680,862-872`, `UpdateSigners.kt` |
+| Beta channel: GitHub API listing, newest non-draft release with a manifest | `updater.rs:257-293,384-406` |
+| Fixed manifest and API URLs: `github.com/dubba/AI-Usage-Tracker` and `api.github.com/repos/dubba/AI-Usage-Tracker`; a release tag must be letters, digits, `.`, `-`, `_` (no `..`, ≤64 chars) before it is used in the beta manifest or release-page URL | `updater.rs:13-22,79-87,295-356`, `tauri.conf.json:56-58` |
+| iOS (SideStore): no in-place update; opens `sidestore://` or the releases page | `updater.rs:869-890` |
 
 ### 8. Provider APIs — reachable by a malicious or compromised provider
 
@@ -231,7 +231,7 @@ bridge degrades to a session-only token instead of persisting (`startup.rs:56-73
 | --- | --- | --- |
 | `MainActivity` | exported (launcher; `aiusage-pair:`/`aiusage:` BROWSABLE deep links) | See §6 for both intent inputs (pairing URI, `open_update_notes` extra) |
 | `BootReceiver` | exported; filter actions `BOOT_COMPLETED`, `android.intent.action.QUICKBOOT_POWERON`, `com.htc.intent.action.QUICKBOOT_POWERON` (`AndroidManifest.xml:71-80`) | Reads no intent extras. If `autostartEnabled` is true in `app-settings.json`, starts the app's own launcher activity (`BootReceiver.kt:10-31`) |
-| `ApkInstallReceiver` | not exported | Reached only through the `PendingIntent` the app creates for its own install session (`MainActivity.kt:832-840`, `ApkInstallReceiver.kt:9-20`) |
+| `ApkInstallReceiver` | not exported | Reached only through the `PendingIntent` the app creates for its own install session (`MainActivity.kt:828-836`, `ApkInstallReceiver.kt:9-20`) |
 | `FileProvider` | not exported; scoped to `updates/` and `Pictures/` paths only | `file_paths.xml` (comment: never widen to `.`) |
 | Backups | `allowBackup=false`; backup and data-extraction rules exclude all domains | `AndroidManifest.xml:32`, `backup_rules.xml`, `data_extraction_rules.xml` |
 | Network | Cleartext forbidden except loopback hosts | `network_security_config.xml:8-11` |
