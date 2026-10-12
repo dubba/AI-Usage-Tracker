@@ -654,23 +654,19 @@ class MainActivity : TauriActivity() {
     } catch (_: PackageManager.NameNotFoundException) {
       return "Unable to verify this app's signing certificate."
     }
-    val currentDigests = signingCertDigests(current)
-    val apkDigests = signingCertDigests(archive)
-    if (currentDigests.isEmpty() || apkDigests.intersect(currentDigests).isEmpty()) {
+    if (!UpdateSigners.match(currentSignerDigests(current), currentSignerDigests(archive))) {
       return "The update is not signed with this app's certificate."
     }
     return "ok"
   }
 
-  private fun signingCertDigests(info: android.content.pm.PackageInfo): Set<String> {
+  // SHA-256 of the certificates that sign this package now. Deliberately not
+  // signingCertificateHistory, which also lists certificates rotated away from.
+  private fun currentSignerDigests(info: android.content.pm.PackageInfo): Set<String> {
     val digest = java.security.MessageDigest.getInstance("SHA-256")
     val signatures: Array<android.content.pm.Signature> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
       val signingInfo = info.signingInfo ?: return emptySet()
-      if (signingInfo.hasMultipleSigners()) {
-        signingInfo.apkContentsSigners
-      } else {
-        signingInfo.signingCertificateHistory
-      }
+      signingInfo.apkContentsSigners
     } else {
       @Suppress("DEPRECATION")
       info.signatures ?: return emptySet()
