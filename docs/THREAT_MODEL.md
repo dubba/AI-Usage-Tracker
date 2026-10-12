@@ -143,10 +143,10 @@ Android, plaintext in debug builds). Corrupt JSON is quarantined and reloaded, n
 | --- | --- |
 | Callback listener binds `127.0.0.1` only, or `::1` if the IPv4 bind fails for a reason other than the port being in use; fixed port allowlists (OpenAI 1455/1457, Anthropic 53692-53696, Antigravity ephemeral) | `oauth.rs:34-35,916-972` |
 | PKCE (32-byte verifier, S256) and random state generated and validated | `oauth.rs:118-119,486-492,849-881`, `oauth_common.rs:28-37` |
-| One-shot callback: `callback_claimed` AtomicBool ensures a code is processed at most once; status polls serialized by `login_status_lock` | `oauth.rs:55,342,451-458` |
+| Callback requests are checked for this attempt's `state` first; a request without it gets a neutral page and does not claim the callback, end the attempt, or set its message. One-shot after that: `callback_claimed` AtomicBool ensures a code is processed at most once; status polls serialized by `login_status_lock` | `oauth.rs` (`handle_callback`), `oauth_common.rs` (`unrecognized_callback_response`) |
 | Single-use codes: retried (up to 5 tries) only when the token endpoint never answered; never retried or restored after a definitive failure | `oauth.rs:293-295,377-378,548-570` |
 | 5-minute login timeout | `oauth_common.rs:77,106-120` |
-| Google AI Studio Cloud connection: separate ephemeral loopback callback, 24-byte state, 48-byte PKCE verifier (S256), state checked before the code is used, read-only scopes unless the user asks to enable Cloud Monitoring | `google_ai_studio_oauth.rs:32-33,165-180,304-314,336-347,926-940` |
+| Google AI Studio Cloud connection: separate ephemeral loopback callback, 24-byte state, 48-byte PKCE verifier (S256), state checked before anything else (a request without it leaves the attempt and the callback server running), read-only scopes unless the user asks to enable Cloud Monitoring | `google_ai_studio_oauth.rs:32-33,165-180,304-314,336-347,926-940` |
 | Mobile: authorization URL must be HTTPS on `auth.openai.com`/`claude.ai`/`accounts.google.com` (or a subdomain) before WebView navigation; URL-poll recognizes only loopback callbacks carrying `code` or `error` | `oauth.rs:223-234,405-421`, `mobile_auth.rs:146-226` |
 
 ### 4. Login WebViews — reachable by any page loaded inside them
