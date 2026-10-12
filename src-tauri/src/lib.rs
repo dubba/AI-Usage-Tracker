@@ -35,6 +35,7 @@ mod providers;
 mod refresh_backoff;
 mod refresh_loop;
 mod settings;
+mod signin_navigation;
 mod startup;
 mod state;
 mod store;
@@ -71,6 +72,12 @@ pub fn run() {
                     .build(),
             )
             .plugin(tauri_plugin_updater::Builder::new().build());
+    }
+
+    // In-app sign-in uses the main window on mobile; keep it on sign-in pages.
+    #[cfg(mobile)]
+    {
+        builder = builder.plugin(signin_navigation::plugin());
     }
 
     builder
