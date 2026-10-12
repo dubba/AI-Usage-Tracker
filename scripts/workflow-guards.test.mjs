@@ -70,3 +70,23 @@ test("no workflow pastes a ${{ }} expression into a run script", () => {
     assert.deepEqual(interpolationsInRunScripts(text), [], `${name}: use env: and "$VAR" instead`);
   }
 });
+
+test("installs use the committed lockfiles", () => {
+  for (const { name, text } of workflows) {
+    assert.doesNotMatch(text, /\bnpm install\b/, `${name}: use npm ci so package-lock.json is the source of truth`);
+    for (const line of text.split("\n")) {
+      if (/\bcargo (test|check|clippy|build)\b/.test(line)) {
+        assert.match(line, /--locked/, `${name}: ${line.trim()}`);
+      }
+    }
+  }
+});
+
+test("release builds pass --locked through to cargo", () => {
+  const android = workflows.find((w) => w.name === "build-android.yml").text;
+  assert.match(android, /npx tauri android build [^\n]*-- --locked/);
+  const installers = workflows.find((w) => w.name === "build-installers.yml").text;
+  const args = installers.split("\n").filter((line) => /^\s*args:/.test(line));
+  assert.equal(args.length, 2, "one tauri-action per desktop platform");
+  for (const line of args) assert.match(line, /-- --locked/, line.trim());
+});

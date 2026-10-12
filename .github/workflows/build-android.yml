@@ -50,12 +50,12 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: src-tauri
-      - run: npm install
+      - run: npm ci
       - name: Build Android APK
         env:
           NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.2.12479018
         run: |
-          npx tauri android build --apk --target aarch64 --ci
+          npx tauri android build --apk --target aarch64 --ci -- --locked
       - name: Sign and align Android APK
         shell: bash
         env:

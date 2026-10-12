@@ -41,7 +41,7 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: src-tauri
-      - run: npm install
+      - run: npm ci
       - name: Build iOS IPA
         shell: bash
         run: |
@@ -53,6 +53,9 @@ jobs:
 
           # --archive-only stops before the IPA export (which needs a signing
           # identity) and --no-sign skips code signing; SideStore re-signs later.
+          # No `-- --locked` here: on iOS the runner arguments are handed to the Xcode build,
+          # which cannot be tested locally. `npm ci` above and the `--locked` cargo runs in
+          # validate.yml already fail on a Cargo.lock that does not match Cargo.toml.
           npx tauri ios build --ci --target aarch64 --archive-only --no-sign
 
           find_app() {

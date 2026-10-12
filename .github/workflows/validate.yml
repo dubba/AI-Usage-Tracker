@@ -19,7 +19,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
-      - run: npm install
+      - run: npm ci
       - run: npm audit --audit-level=high
       - run: npm run check
       - run: npm test
@@ -71,13 +71,13 @@ jobs:
         with:
           workspaces: src-tauri
       # tauri::generate_context! needs the built frontend at compile time.
-      - run: npm install
+      - run: npm ci
       - run: npm run build
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
       # Debug and release compile different credential-storage code (release
       # uses the OS keychain), so lint both.
-      - run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
-      - run: cargo clippy --manifest-path src-tauri/Cargo.toml --release --all-targets -- -D warnings
+      - run: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+      - run: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --release --all-targets -- -D warnings
       - name: Publish Rust lint status
         if: always()
         shell: bash
@@ -107,17 +107,17 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: src-tauri
-      - run: npm install
+      - run: npm ci
       - run: npm run build
       - name: Run Rust unit tests
         shell: bash
         run: |
-          cargo test --manifest-path src-tauri/Cargo.toml --lib --no-run
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib --no-run
           if [ "$RUNNER_OS" = "Windows" ]; then
             find src-tauri/target/debug -name "*.dll" -exec cp -f {} src-tauri/target/debug/deps/ \; 2>/dev/null || true
           fi
-          cargo test --manifest-path src-tauri/Cargo.toml --lib
-      - run: cargo check --manifest-path src-tauri/Cargo.toml
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib
+      - run: cargo check --locked --manifest-path src-tauri/Cargo.toml
       - name: Verify generated native icons
         shell: bash
         run: |
