@@ -655,6 +655,30 @@ fn status_from_github_latest(
 pub static PENDING_UPDATE_NOTICE: parking_lot::Mutex<Option<String>> =
     parking_lot::Mutex::new(None);
 
+/// The version an update notification refers to, in the form our own
+/// notification sends (`0.4.1`, `0.4.2-beta.1`, optionally with a leading `v`).
+/// The value arrives as an intent extra that any installed app can set, so
+/// anything else is ignored rather than shown in the update dialog.
+#[cfg_attr(not(any(target_os = "android", test)), allow(dead_code))]
+fn is_update_notice_version(value: &str) -> bool {
+    let core = value.strip_prefix(['v', 'V']).unwrap_or(value);
+    let (numbers, prerelease) = match core.split_once('-') {
+        Some((numbers, prerelease)) => (numbers, Some(prerelease)),
+        None => (core, None),
+    };
+    value.len() <= 32
+        && numbers.split('.').count() == 3
+        && numbers
+            .split('.')
+            .all(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit()))
+        && prerelease.is_none_or(|tag| {
+            !tag.is_empty()
+                && tag
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'.')
+        })
+}
+
 #[cfg(target_os = "android")]
 #[no_mangle]
 pub extern "C" fn Java_com_dubba_ai_usage_tracker_MainActivity_setPendingUpdateNotice(
@@ -664,6 +688,9 @@ pub extern "C" fn Java_com_dubba_ai_usage_tracker_MainActivity_setPendingUpdateN
 ) {
     if let Ok(ver_str) = env.get_string(&version) {
         let ver_val = ver_str.to_string_lossy().into_owned();
+        if !is_update_notice_version(&ver_val) {
+            return;
+        }
         *PENDING_UPDATE_NOTICE.lock() = Some(ver_val.clone());
         if let Some(app) = crate::commands::pairing::GLOBAL_APP_HANDLE.lock().as_ref() {
             let _ = app.emit("open-update-notes", ver_val);
@@ -1195,6 +1222,28 @@ mod tests {
             &"v".repeat(65),
         ] {
             assert!(!super::is_safe_release_tag(bad), "{bad}");
+        }
+    }
+
+    #[test]
+    fn update_notice_accepts_only_version_shaped_values() {
+        for ok in ["0.4.1", "v0.4.1", "0.4.2-beta.1", "10.20.30-rc1"] {
+            assert!(super::is_update_notice_version(ok), "{ok}");
+        }
+        for bad in [
+            "",
+            "0.4",
+            "0.4.1.2",
+            "0.4.x",
+            "v",
+            "0.4.1-",
+            "0.4.1-beta 1",
+            "0.4.1\nWhat changed",
+            "Click here to log in again",
+            "0.4.1-<b>beta</b>",
+            &format!("0.4.1-{}", "a".repeat(40)),
+        ] {
+            assert!(!super::is_update_notice_version(bad), "{bad:?}");
         }
     }
 }
