@@ -13,12 +13,15 @@ on:
         type: boolean
         required: false
         default: true
-  # Thursdays & Sundays @ 11:59 PM EST, all platforms on both runs.
-  # Thursday 11:59 PM EST -> Friday 04:59 UTC
-  # Sunday 11:59 PM EST -> Monday 04:59 UTC
+  # Thursdays & Sundays at 04:59 UTC the next morning, all platforms on both runs.
+  # GitHub cron is UTC-only and ignores daylight saving time, so in US Eastern time
+  # the runs land at 11:59 PM EST (November-March) or 12:59 AM EDT the next day
+  # (March-November).
+  # Thursday night -> Friday 04:59 UTC
+  # Sunday night   -> Monday 04:59 UTC
   schedule:
-    - cron: '59 4 * * 5' # Thursdays @ 11:59 PM EST (Friday 04:59 UTC)
-    - cron: '59 4 * * 1' # Sundays @ 11:59 PM EST (Monday 04:59 UTC)
+    - cron: '59 4 * * 5' # Friday 04:59 UTC (Thursday 11:59 PM EST / Friday 12:59 AM EDT)
+    - cron: '59 4 * * 1' # Monday 04:59 UTC (Sunday 11:59 PM EST / Monday 12:59 AM EDT)
   push:
     branches: [main]
     paths:
