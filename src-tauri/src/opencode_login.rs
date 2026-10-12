@@ -50,14 +50,21 @@ const BACK_BUTTON_SCRIPT: &str = r#"
     const button = document.createElement('button');
     button.id = id;
     button.type = 'button';
-    button.textContent = '‹ Back';
     button.setAttribute('aria-label', 'Back to AI Usage Tracker');
     button.style.cssText = [
       'position:fixed', 'top:max(env(safe-area-inset-top),8px)', 'left:8px', 'z-index:2147483647',
-      'padding:8px 14px', 'border:0', 'border-radius:999px', 'background:#6d3bd7', 'color:#fff',
+      'display:inline-flex', 'align-items:center', 'gap:6px',
+      'padding:7px 14px 7px 9px', 'border:0', 'border-radius:999px', 'background:#6d3bd7', 'color:#fff',
       'font:600 14px -apple-system,system-ui,sans-serif', 'box-shadow:0 2px 10px rgba(0,0,0,.4)',
       'cursor:pointer',
     ].join(';');
+    // SVG chevron (mirror of the app's ChevronIcon) instead of the ‹ glyph,
+    // whose line box rides high in most fonts and never centers on the label.
+    button.innerHTML =
+      '<svg viewBox="0 0 24 24" width="9" height="15" fill="none" stroke="currentColor" ' +
+      'stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ' +
+      'style="display:block;flex:none"><path d="m15 18-6-6 6-6"/></svg>' +
+      '<span>Back</span>';
     button.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();

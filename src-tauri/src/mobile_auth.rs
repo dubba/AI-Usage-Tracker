@@ -47,35 +47,60 @@ const BACK_FRAGMENT: &str = "ai-usage-tracker-back";
 /// "Back to AI Usage Tracker" button to the top-left of every provider page.
 /// Tapping it sets the fragment below, which the poll loop treats as a
 /// cancel: the attempt is abandoned and the app page is restored.
+///
+/// Antigravity's page is `accounts.google.com`, which requires Trusted Types
+/// and rejects `innerHTML`. The button is built with DOM APIs and attached to
+/// `<html>`, then put back if that page removes it.
 #[cfg_attr(not(any(test, mobile)), allow(dead_code))]
 const BACK_BUTTON_SCRIPT: &str = r#"
 (() => {
   try {
+    const root = document.documentElement;
+    if (!root) return;
     const id = '__ai_tracker_back';
-    if (document.getElementById(id)) return;
-    const button = document.createElement('button');
-    button.id = id;
-    button.type = 'button';
-    button.setAttribute('aria-label', 'Back to AI Usage Tracker');
-    button.style.cssText = [
-      'position:fixed', 'top:max(env(safe-area-inset-top, 0px), 28px)', 'left:8px', 'z-index:2147483647',
-      'display:inline-flex', 'align-items:center', 'gap:1px',
-      'padding:6px 14px 6px 8px', 'border:0', 'border-radius:999px', 'background:#6d3bd7', 'color:#fff',
-      'font:700 15px -apple-system,system-ui,sans-serif', 'line-height:1', 'box-shadow:0 2px 10px rgba(0,0,0,.4)',
-    ].join(';');
-    const chevron = document.createElement('span');
-    chevron.setAttribute('aria-hidden', 'true');
-    chevron.textContent = '‹';
-    chevron.style.cssText = 'font-size:26px;font-weight:800;line-height:0.7;letter-spacing:0;-webkit-text-stroke:0.6px currentColor;transform:translateY(-1px)';
-    const label = document.createElement('span');
-    label.textContent = 'Back to AI Usage Tracker';
-    button.append(chevron, label);
-    button.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      location.hash = 'ai-usage-tracker-back';
-    }, true);
-    (document.body || document.documentElement).appendChild(button);
+    const install = () => {
+      if (!document.documentElement || document.getElementById(id)) return;
+      const button = document.createElement('button');
+      button.id = id;
+      button.type = 'button';
+      button.setAttribute('aria-label', 'Back to AI Usage Tracker');
+      button.style.cssText = [
+        'position:fixed', 'top:max(env(safe-area-inset-top, 0px), 28px)', 'left:8px', 'z-index:2147483647',
+        'display:inline-flex', 'align-items:center', 'gap:7px',
+        'padding:8px 16px 8px 11px', 'border:0', 'border-radius:999px', 'background:#6d3bd7', 'color:#fff',
+        'font:700 15px -apple-system,system-ui,sans-serif', 'line-height:1', 'box-shadow:0 2px 10px rgba(0,0,0,.4)',
+      ].join(';');
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('width', '10');
+      svg.setAttribute('height', '16');
+      svg.setAttribute('fill', 'none');
+      svg.setAttribute('stroke', 'currentColor');
+      svg.setAttribute('stroke-width', '2.6');
+      svg.setAttribute('stroke-linecap', 'round');
+      svg.setAttribute('stroke-linejoin', 'round');
+      svg.setAttribute('aria-hidden', 'true');
+      svg.style.display = 'block';
+      svg.style.flex = 'none';
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', 'm15 18-6-6 6-6');
+      svg.appendChild(path);
+      const label = document.createElement('span');
+      label.textContent = 'Back to AI Usage Tracker';
+      button.appendChild(svg);
+      button.appendChild(label);
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        location.hash = 'ai-usage-tracker-back';
+      }, true);
+      document.documentElement.appendChild(button);
+    };
+    install();
+    if (window.__aiTrackerBackRoot !== document.documentElement) {
+      window.__aiTrackerBackRoot = document.documentElement;
+      new MutationObserver(install).observe(document.documentElement, { childList: true });
+    }
   } catch (e) {}
 })();
 "#;
@@ -341,7 +366,13 @@ mod tests {
         assert!(!is_back_request(&none));
         assert!(BACK_BUTTON_SCRIPT.contains(BACK_FRAGMENT));
         assert!(BACK_BUTTON_SCRIPT.contains("max(env(safe-area-inset-top, 0px), 28px)"));
-        assert!(BACK_BUTTON_SCRIPT.contains("font-weight:800"));
+        assert!(BACK_BUTTON_SCRIPT.contains("aria-label"));
+        // Centered icon+text row with a real left chevron, not the ‹ glyph hack.
+        assert!(BACK_BUTTON_SCRIPT.contains("display:inline-flex"));
+        assert!(BACK_BUTTON_SCRIPT.contains("align-items:center"));
+        assert!(BACK_BUTTON_SCRIPT.contains("m15 18-6-6 6-6"));
+        assert!(BACK_BUTTON_SCRIPT.contains("createElementNS"));
+        assert!(!BACK_BUTTON_SCRIPT.contains("innerHTML"));
         assert!(IOS_POPUP_SCRIPT.contains("window.open"));
     }
 

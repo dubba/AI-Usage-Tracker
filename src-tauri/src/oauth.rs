@@ -249,33 +249,43 @@ const PROVIDER_LOGIN_PROFILE_PREFIX: &str = "ai-usage-oauth-";
 const BACK_QUERY_FLAG: &str = "ai-usage-tracker-back";
 
 /// Top-left Back button for a provider page that has no browser chrome.
+/// Built without `innerHTML` and reattached if removed: Antigravity loads
+/// `accounts.google.com`, which rejects HTML assignment and drops nodes it
+/// did not create. Claude and ChatGPT leave the button in place.
 const LOGIN_BACK_BUTTON_SCRIPT: &str = r#"
 (() => {
   try {
-    if (window.top !== window) return;
+    if (window.top !== window || !document.documentElement) return;
     const id = '__ai_tracker_back';
-    if (document.getElementById(id)) return;
-    const button = document.createElement('button');
-    button.id = id;
-    button.type = 'button';
-    button.textContent = '‹ Back';
-    button.setAttribute('aria-label', 'Back to AI Usage Tracker');
-    button.style.cssText = [
-      'position:fixed', 'top:12px', 'left:12px', 'z-index:2147483647',
-      'padding:8px 14px', 'border:0', 'border-radius:999px', 'background:#6d3bd7', 'color:#fff',
-      'font:600 14px -apple-system,system-ui,sans-serif', 'box-shadow:0 2px 10px rgba(0,0,0,.4)',
-      'cursor:pointer',
-    ].join(';');
-    button.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      try {
-        const url = new URL(window.location.href);
-        url.searchParams.set('ai-usage-tracker-back', '1');
-        window.location.href = url.toString();
-      } catch (e) {}
-    }, true);
-    (document.body || document.documentElement).appendChild(button);
+    const install = () => {
+      if (!document.documentElement || document.getElementById(id)) return;
+      const button = document.createElement('button');
+      button.id = id;
+      button.type = 'button';
+      button.textContent = '‹ Back';
+      button.setAttribute('aria-label', 'Back to AI Usage Tracker');
+      button.style.cssText = [
+        'position:fixed', 'top:12px', 'left:12px', 'z-index:2147483647',
+        'padding:8px 14px', 'border:0', 'border-radius:999px', 'background:#6d3bd7', 'color:#fff',
+        'font:600 14px -apple-system,system-ui,sans-serif', 'box-shadow:0 2px 10px rgba(0,0,0,.4)',
+        'cursor:pointer',
+      ].join(';');
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.set('ai-usage-tracker-back', '1');
+          window.location.href = url.toString();
+        } catch (e) {}
+      }, true);
+      document.documentElement.appendChild(button);
+    };
+    install();
+    if (window.__aiTrackerBackRoot !== document.documentElement) {
+      window.__aiTrackerBackRoot = document.documentElement;
+      new MutationObserver(install).observe(document.documentElement, { childList: true });
+    }
   } catch (e) {}
 })();
 "#;

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (35 items)
+## Unreleased (36 items)
 
 ### Improved (9)
 
@@ -15,8 +15,9 @@
 - On Android, Wi-Fi only stays in its battery-hungry multicast mode while device sync is running, instead of the whole time the app is open.
 - Each release's download notes now explain the security warning Windows and macOS show the first time you open the app, and how to continue.
 
-### Fixed (10)
+### Fixed (11)
 
+- The Back button now stays on the Antigravity sign-in page.
 - In Settings, the space between the Automatic Updates title and its description matches Change Log and the other settings rows.
 - Dropdown menus anywhere in the app, including the actions menu on account cards, open upward instead of downward near the bottom of the window, so no item is ever cut off.
 - A usage refresh that times out while the provider is renewing an account's sign-in no longer loses the renewed sign-in, so the account no longer asks you to sign in again afterwards.
