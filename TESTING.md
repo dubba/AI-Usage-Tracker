@@ -23,7 +23,9 @@ CI (`validate.yml`, on every push/PR) runs: `npm audit --audit-level=high`, `npm
 check`, `npm test`, the 3 `npm run test:*` script suites, `npm run build`, rustsec
 `audit-check` for `src-tauri`, `cargo fmt --check`, `cargo clippy -D warnings` in **both
 debug and release**, `cargo test --lib` (which covers all 271 tests), and `cargo check` on
-Windows + macOS.
+Windows + macOS. Two further jobs only **compile** the library for the mobile targets
+(`validate/ios-compile` on macOS, `validate/android-compile` on Linux with the release
+build's NDK); no tests run there, since no device or emulator is available.
 
 The JavaScript suites run on Linux only (`validate/frontend`). Release scripts escape
 `tsc`/`oxlint` (both target `src/` only), so their `node --test` suites are their only

@@ -138,3 +138,81 @@ jobs:
             -f state="$state" \
             -f context="validate/desktop-${TARGET_OS}" \
             -f description="Rust tests, checks, and native icon generation on ${TARGET_OS}"
+
+  # The iOS and Android code (WebView sign-in, cookie reset, JNI bridge) is
+  # compiled nowhere else until a release build, so a mobile-only break would
+  # land on main unnoticed. These jobs only compile the library for each
+  # target; nothing runs, because there is no device or emulator here.
+  ios-compile:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          targets: aarch64-apple-ios
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: src-tauri
+      # tauri::generate_context! needs the built frontend at compile time.
+      - run: npm ci
+      - run: npm run build
+      - run: cargo check --locked --manifest-path src-tauri/Cargo.toml --target aarch64-apple-ios --lib
+      - name: Publish iOS compile status
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          state="$JOB_STATUS"
+          if [ "$state" = "cancelled" ]; then state="error"; fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+            -f state="$state" \
+            -f context="validate/ios-compile" \
+            -f description="Rust library compiles for aarch64-apple-ios"
+
+  android-compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          targets: aarch64-linux-android
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+      # The same NDK the release build uses (build-android.yml).
+      - name: Install Android NDK
+        run: sdkmanager --install "ndk;27.2.12479018"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: src-tauri
+      # tauri::generate_context! needs the built frontend at compile time.
+      - run: npm ci
+      - run: npm run build
+      - name: Check the library compiles for Android
+        shell: bash
+        run: |
+          set -euo pipefail
+          ndk_bin="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          # Build scripts of C dependencies compile with the NDK's clang.
+          export CC_aarch64_linux_android="$ndk_bin/aarch64-linux-android24-clang"
+          export AR_aarch64_linux_android="$ndk_bin/llvm-ar"
+          cargo check --locked --manifest-path src-tauri/Cargo.toml --target aarch64-linux-android --lib
+      - name: Publish Android compile status
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          state="$JOB_STATUS"
+          if [ "$state" = "cancelled" ]; then state="error"; fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+            -f state="$state" \
+            -f context="validate/android-compile" \
+            -f description="Rust library compiles for aarch64-linux-android"
