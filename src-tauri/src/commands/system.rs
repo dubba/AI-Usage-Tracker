@@ -40,5 +40,10 @@ pub async fn retry_startup(app: AppHandle) -> Result<Option<startup::StartupIssu
         status.get()
     })
     .await
-    .map_err(|error| format!("Startup retry failed: {error}"))
+    .map_err(|error| {
+        format!(
+            "Startup retry failed: {}",
+            crate::diagnostics::command_error(error)
+        )
+    })
 }

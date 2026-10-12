@@ -70,11 +70,11 @@ pub(crate) async fn open_api_integration_window(
         if let Some(icon) = app.default_window_icon() {
             builder = builder
                 .icon(icon.clone())
-                .map_err(|error| error.to_string())?;
+                .map_err(crate::diagnostics::command_error)?;
         }
     }
 
-    builder.build().map_err(|error| error.to_string())?;
+    builder.build().map_err(crate::diagnostics::command_error)?;
     Ok(())
 }
 
@@ -82,7 +82,7 @@ pub(crate) async fn open_api_integration_window(
 pub(crate) fn regenerate_bridge_token(
     state: State<'_, Arc<AppState>>,
 ) -> Result<BridgeInfo, String> {
-    let token = rotate_bridge_token().map_err(|error| error.to_string())?;
+    let token = rotate_bridge_token().map_err(crate::diagnostics::command_error)?;
     *state.bridge_token.write() = token;
     // Return masked info only; the UI must call reveal_bridge_token after
     // explicit user confirmation to display or copy the new value once.

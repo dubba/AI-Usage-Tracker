@@ -264,6 +264,19 @@ pub fn redact(text: &str) -> String {
     redact_tokens(&text)
 }
 
+/// Error text for a command's `Err`, which the page shows to the user. Tauri and
+/// IO errors routinely include absolute paths (with the user's home folder name)
+/// and other detail the page does not need, so the text goes through [`redact`]
+/// and is capped in length.
+pub fn command_error(error: impl std::fmt::Display) -> String {
+    const MAX_CHARS: usize = 300;
+    let text = redact(&error.to_string());
+    match text.char_indices().nth(MAX_CHARS) {
+        Some((cut, _)) => format!("{}…", &text[..cut]),
+        None => text,
+    }
+}
+
 fn is_word_byte(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'_'
 }
@@ -530,6 +543,24 @@ mod tests {
         let out = redact("password=hunter2 next=ok");
         assert!(!out.contains("hunter2"), "{out}");
         assert!(out.contains("next=ok"));
+    }
+
+    #[test]
+    fn command_errors_hide_home_folders_and_are_capped() {
+        let out = command_error(
+            "failed to write /Users/alice/Library/Application Support/x/app-settings.json: Permission denied (os error 13)",
+        );
+        assert!(!out.contains("alice"), "{out}");
+        assert!(out.contains("Permission denied"), "{out}");
+        let out = command_error(r"C:\Users\bob\AppData\Roaming\x: access is denied");
+        assert!(!out.contains("bob"), "{out}");
+        let out = command_error("token rejected: access_token=at_SECRET");
+        assert!(!out.contains("at_SECRET"), "{out}");
+
+        let long = command_error("é".repeat(1000));
+        assert_eq!(long.chars().count(), 301, "300 characters and an ellipsis");
+        assert!(long.ends_with('…'));
+        assert_eq!(command_error("Account not found."), "Account not found.");
     }
 
     #[test]

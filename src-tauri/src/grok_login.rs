@@ -319,7 +319,7 @@ pub async fn start_login(
             {
                 *pending = None;
             }
-            return Err(error.to_string());
+            return Err(crate::diagnostics::command_error(error));
         }
     };
 

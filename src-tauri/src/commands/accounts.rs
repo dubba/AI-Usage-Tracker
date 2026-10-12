@@ -91,7 +91,7 @@ pub fn rename_account(
     state
         .store
         .mutate(&account_id, |account| account.label = label)
-        .map_err(|error| error.to_string())
+        .map_err(crate::diagnostics::command_error)
 }
 
 #[tauri::command]

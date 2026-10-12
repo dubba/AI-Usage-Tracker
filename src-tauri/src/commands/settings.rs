@@ -39,7 +39,7 @@ pub fn get_autostart(app: AppHandle, state: State<'_, Arc<AppState>>) -> Result<
         let enabled = app
             .autolaunch()
             .is_enabled()
-            .map_err(|error| error.to_string())?;
+            .map_err(crate::diagnostics::command_error)?;
         let _ = state.settings.set_autostart_enabled(enabled);
         Ok(enabled)
     }
@@ -62,11 +62,11 @@ pub fn set_autostart(
         if enabled {
             app.autolaunch()
                 .enable()
-                .map_err(|error| error.to_string())?;
+                .map_err(crate::diagnostics::command_error)?;
         } else {
             app.autolaunch()
                 .disable()
-                .map_err(|error| error.to_string())?;
+                .map_err(crate::diagnostics::command_error)?;
         }
     }
     #[cfg(not(desktop))]

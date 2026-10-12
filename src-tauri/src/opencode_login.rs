@@ -251,7 +251,10 @@ pub async fn start_login(
             if pending.as_ref().is_some_and(|login| login.attempt_id == attempt_id) {
                 *pending = None;
             }
-            return Err(format!("Unable to open the OpenCode login window: {error}"));
+            return Err(format!(
+                "Unable to open the OpenCode login window: {}",
+                crate::diagnostics::command_error(error)
+            ));
         }
     };
 

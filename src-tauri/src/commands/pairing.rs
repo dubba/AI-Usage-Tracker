@@ -21,7 +21,12 @@ pub async fn pairing_start_receiver(
 pub async fn ensure_camera_permission() -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(crate::camera_permission::ensure)
         .await
-        .map_err(|e| format!("Camera permission check failed: {e}"))?
+        .map_err(|e| {
+            format!(
+                "Camera permission check failed: {}",
+                crate::diagnostics::command_error(e)
+            )
+        })?
 }
 
 #[tauri::command]
