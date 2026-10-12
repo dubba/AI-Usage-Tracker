@@ -129,7 +129,16 @@ impl Account {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Zeroize)]
+/// What `{:?}` prints in place of a credential. The secret structs below
+/// implement `Debug` by hand so that formatting one (a stray `{:?}`, a panic
+/// message, an `assert_eq!` failure) cannot write a token or cookie anywhere.
+pub(crate) const REDACTED_DEBUG: &str = "<redacted>";
+
+fn redacted_option<T>(value: &Option<T>) -> Option<&'static str> {
+    value.as_ref().map(|_| REDACTED_DEBUG)
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Zeroize)]
 #[serde(rename_all = "camelCase")]
 pub struct OAuthSecret {
     pub access_token: String,
@@ -138,20 +147,42 @@ pub struct OAuthSecret {
     pub expires_at: i64,
 }
 
+impl fmt::Debug for OAuthSecret {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("OAuthSecret")
+            .field("access_token", &REDACTED_DEBUG)
+            .field("refresh_token", &REDACTED_DEBUG)
+            .field("id_token", &redacted_option(&self.id_token))
+            .field("expires_at", &self.expires_at)
+            .finish()
+    }
+}
+
 impl OAuthSecret {
     pub fn expires_within(&self, seconds: i64) -> bool {
         self.expires_at <= Utc::now().timestamp_millis() + seconds * 1000
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Zeroize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Zeroize)]
 #[serde(rename_all = "camelCase")]
 pub struct OpenCodeGoSecret {
     pub workspace_id: String,
     pub auth_cookie: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Zeroize)]
+impl fmt::Debug for OpenCodeGoSecret {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("OpenCodeGoSecret")
+            .field("workspace_id", &self.workspace_id)
+            .field("auth_cookie", &REDACTED_DEBUG)
+            .finish()
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Zeroize)]
 #[serde(rename_all = "camelCase")]
 pub struct GoogleAiStudioSecret {
     pub api_key: String,
@@ -162,11 +193,32 @@ pub struct GoogleAiStudioSecret {
     pub cloud_oauth: Option<OAuthSecret>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Zeroize)]
+impl fmt::Debug for GoogleAiStudioSecret {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("GoogleAiStudioSecret")
+            .field("api_key", &REDACTED_DEBUG)
+            .field("selected_models", &self.selected_models)
+            .field("cloud_project_id", &self.cloud_project_id)
+            .field("cloud_oauth", &self.cloud_oauth)
+            .finish()
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Zeroize)]
 #[serde(rename_all = "camelCase")]
 pub struct GrokSecret {
     #[serde(default)]
     pub cookie_header: Option<String>,
+}
+
+impl fmt::Debug for GrokSecret {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("GrokSecret")
+            .field("cookie_header", &redacted_option(&self.cookie_header))
+            .finish()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Zeroize)]
@@ -461,5 +513,47 @@ mod tests {
         assert_eq!(json["available"], true);
         assert_eq!(json["availableVersion"], "0.3.4");
         assert_eq!(json["error"], serde_json::Value::Null);
+    }
+
+    #[test]
+    fn debug_output_of_secrets_never_contains_the_credential() {
+        let oauth = OAuthSecret {
+            access_token: "at_SECRET_ACCESS".into(),
+            refresh_token: "rt_SECRET_REFRESH".into(),
+            id_token: Some("id_SECRET_ID".into()),
+            expires_at: 1_700_000_000_000,
+        };
+        let studio = GoogleAiStudioSecret {
+            api_key: "AIza_SECRET_KEY".into(),
+            selected_models: vec!["gemini-pro".into()],
+            cloud_project_id: Some("project-1".into()),
+            cloud_oauth: Some(oauth.clone()),
+        };
+        let all = [
+            format!("{oauth:?}"),
+            format!("{:?}", ProviderSecret::Openai(oauth.clone())),
+            format!("{:?}", ProviderSecret::Anthropic(oauth)),
+            format!(
+                "{:?}",
+                ProviderSecret::OpencodeGo(OpenCodeGoSecret {
+                    workspace_id: "wrk_123".into(),
+                    auth_cookie: "auth_SECRET_COOKIE".into(),
+                })
+            ),
+            format!("{:?}", ProviderSecret::GoogleAiStudio(studio)),
+            format!(
+                "{:?}",
+                ProviderSecret::Grok(GrokSecret {
+                    cookie_header: Some("sso=SECRET_SSO; jwt=SECRET_JWT".into()),
+                })
+            ),
+        ];
+        for text in &all {
+            assert!(!text.contains("SECRET"), "{text}");
+        }
+        // Non-secret fields stay readable for debugging.
+        assert!(all[0].contains("expires_at: 1700000000000"), "{}", all[0]);
+        assert!(all[3].contains("wrk_123"), "{}", all[3]);
+        assert!(all[4].contains("gemini-pro") && all[4].contains("project-1"));
     }
 }

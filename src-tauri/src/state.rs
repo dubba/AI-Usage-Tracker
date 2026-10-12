@@ -32,7 +32,7 @@ pub struct ApiRuntime {
     pub error: Option<String>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct PendingAuthExchange {
     pub attempt_id: String,
     pub provider: crate::model::Provider,
@@ -42,6 +42,22 @@ pub struct PendingAuthExchange {
     pub verifier: String,
     pub expected_state: String,
     pub redirect_uri: String,
+}
+
+impl std::fmt::Debug for PendingAuthExchange {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PendingAuthExchange")
+            .field("attempt_id", &self.attempt_id)
+            .field("provider", &self.provider)
+            .field("label", &self.label)
+            .field("reconnect_account_id", &self.reconnect_account_id)
+            .field("code", &crate::model::REDACTED_DEBUG)
+            .field("verifier", &crate::model::REDACTED_DEBUG)
+            .field("expected_state", &crate::model::REDACTED_DEBUG)
+            .field("redirect_uri", &self.redirect_uri)
+            .finish()
+    }
 }
 
 pub struct AppState {
@@ -622,5 +638,25 @@ mod tests {
 
         assert_eq!(settings.get().account_refresh_minutes, 15);
         assert!(directory.path().join("app-settings.json.invalid").exists());
+    }
+
+    #[test]
+    fn a_pending_exchange_does_not_print_its_code_or_verifier() {
+        let pending = PendingAuthExchange {
+            attempt_id: "attempt".into(),
+            provider: crate::model::Provider::Openai,
+            label: "Work".into(),
+            reconnect_account_id: None,
+            code: "SECRET_CODE".into(),
+            verifier: "SECRET_VERIFIER".into(),
+            expected_state: "SECRET_STATE".into(),
+            redirect_uri: "http://localhost:1455/auth/callback".into(),
+        };
+        let text = format!("{pending:?}");
+        assert!(!text.contains("SECRET"), "{text}");
+        assert!(
+            text.contains("attempt") && text.contains("localhost:1455"),
+            "{text}"
+        );
     }
 }

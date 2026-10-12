@@ -36,13 +36,27 @@ pub const CHUNK_BINARY_SIZE: usize = 350; // 350 bytes binary -> ~467 bytes base
 const AIRGAP_INFO: &[u8] = b"aiut-airgap-v1";
 const AIRGAP_VERIFY_INFO: &[u8] = b"aiut-airgap-verify-v1";
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AirgapExportFrame {
     pub chunk_index: usize,
     pub total_chunks: usize,
     pub uri: String,
     pub svg: String,
+}
+
+impl std::fmt::Debug for AirgapExportFrame {
+    // The frames carry the transfer key and the encrypted accounts, so only
+    // their sizes are printed.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("AirgapExportFrame")
+            .field("chunk_index", &self.chunk_index)
+            .field("total_chunks", &self.total_chunks)
+            .field("uri_len", &self.uri.len())
+            .field("svg_len", &self.svg.len())
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -62,12 +76,24 @@ pub struct AirgapVerifyResult {
     pub total_chunks: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct ParsedAirgapChunk {
     pub session_id: String,
     pub chunk_index: usize,
     pub total_chunks: usize,
     pub data: String,
+}
+
+impl std::fmt::Debug for ParsedAirgapChunk {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ParsedAirgapChunk")
+            .field("session_id", &self.session_id)
+            .field("chunk_index", &self.chunk_index)
+            .field("total_chunks", &self.total_chunks)
+            .field("data_len", &self.data.len())
+            .finish()
+    }
 }
 
 /// Computes the short verification code (e.g. "4F2A-8B91-C3D2") shown on both
@@ -421,5 +447,35 @@ mod tests {
         let res_ok =
             miniz_oxide::inflate::decompress_to_vec_with_limit(&compressed, 2 * 1024 * 1024);
         assert!(res_ok.is_ok(), "Decompression within limit must succeed");
+    }
+
+    #[test]
+    fn debug_output_of_frames_shows_sizes_not_contents() {
+        let frame = AirgapExportFrame {
+            chunk_index: 0,
+            total_chunks: 2,
+            uri: "aiusage://airgap?d=SECRET_KEY_AND_CIPHERTEXT".into(),
+            svg: "<svg>SECRET_QR</svg>".into(),
+        };
+        let export = AirgapExport {
+            session_id: "abcd1234".into(),
+            verify_code: "4F2A-8B91-C3D2".into(),
+            total_chunks: 2,
+            frames: vec![frame.clone()],
+        };
+        let chunk = ParsedAirgapChunk {
+            session_id: "abcd1234".into(),
+            chunk_index: 0,
+            total_chunks: 2,
+            data: "SECRET_PAYLOAD".into(),
+        };
+        for text in [
+            format!("{frame:?}"),
+            format!("{export:?}"),
+            format!("{chunk:?}"),
+        ] {
+            assert!(!text.contains("SECRET"), "{text}");
+        }
+        assert!(format!("{export:?}").contains("uri_len"));
     }
 }

@@ -59,12 +59,21 @@ struct LoginContext {
     callback_claimed: Arc<std::sync::atomic::AtomicBool>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 struct OAuthTokenResponse {
     access_token: String,
     refresh_token: Option<String>,
     id_token: Option<String>,
     expires_in: Option<i64>,
+}
+
+impl std::fmt::Debug for OAuthTokenResponse {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("OAuthTokenResponse")
+            .field("expires_in", &self.expires_in)
+            .finish_non_exhaustive()
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -2198,5 +2207,16 @@ mod tests {
             Some("Your session expired, sign in at evil.example"),
             "only the provider's own redirect may set the message"
         );
+    }
+
+    #[test]
+    fn a_token_response_does_not_print_its_tokens() {
+        let response: OAuthTokenResponse = serde_json::from_str(
+            r#"{"access_token":"SECRET_ACCESS","refresh_token":"SECRET_REFRESH","id_token":"SECRET_ID","expires_in":3600}"#,
+        )
+        .unwrap();
+        let text = format!("{response:?}");
+        assert!(!text.contains("SECRET"), "{text}");
+        assert!(text.contains("3600"), "{text}");
     }
 }
