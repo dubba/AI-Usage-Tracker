@@ -241,6 +241,39 @@ mod tests {
         };
         let allow = |command: &str| format!("allow-{}", command.replace('_', "-"));
         let main_permissions = permissions(include_str!("../capabilities/default.json"));
+
+        // The opener's URL allowlist (what can actually be opened) and the
+        // frontend's safeUrl prefixes (which links are shown as clickable) must
+        // be the same list.
+        let main_json: serde_json::Value =
+            serde_json::from_str(include_str!("../capabilities/default.json")).unwrap();
+        let opener_patterns: BTreeSet<String> = main_json["permissions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|entry| entry["identifier"] == "opener:allow-open-url")
+            .flat_map(|entry| entry["allow"].as_array().unwrap().iter())
+            .map(|rule| rule["url"].as_str().unwrap().to_string())
+            .collect();
+        assert!(
+            opener_patterns
+                .iter()
+                .all(|pattern| pattern.starts_with("https://") && pattern.ends_with("/*")),
+            "opener patterns must be https:// prefixes ending in /*: {opener_patterns:?}"
+        );
+        let safe_url = include_str!("../../src/shared/lib/safeUrl.ts");
+        let start = safe_url
+            .find("ALLOWED_EXTERNAL_URL_PREFIXES = [")
+            .expect("safeUrl prefix list");
+        let list = &safe_url[start..];
+        let safe_url_patterns: BTreeSet<String> = quoted(&list[..list.find("] as const").unwrap()])
+            .into_iter()
+            .map(|prefix| format!("{prefix}*"))
+            .collect();
+        assert_eq!(
+            opener_patterns, safe_url_patterns,
+            "capabilities/default.json opener allowlist and src/shared/lib/safeUrl.ts must match"
+        );
         let main_app_permissions: BTreeSet<_> = main_permissions
             .iter()
             .filter(|permission| permission.starts_with("allow-"))
@@ -309,14 +342,23 @@ mod tests {
                     chars = end.map_or("", |end| chars[end + 1..].trim_start());
                 }
                 if let Some(after) = chars.strip_prefix('(') {
-                    if let Some(name) = after.trim_start().strip_prefix('"') {
-                        let name = &name[..name.find('"').unwrap()];
-                        assert!(
-                            handlers.contains(name),
-                            "{} invokes unknown command {name}",
-                            file.display()
+                    let after = after.trim_start();
+                    // Only a double-quoted literal can be checked here, so single
+                    // quotes, a template literal, or a variable fail instead of
+                    // slipping past.
+                    let Some(name) = after.strip_prefix('"') else {
+                        panic!(
+                            "{} calls invoke() with something other than a double-quoted command name: {}",
+                            file.display(),
+                            after.lines().next().unwrap_or_default()
                         );
-                    }
+                    };
+                    let name = &name[..name.find('"').unwrap()];
+                    assert!(
+                        handlers.contains(name),
+                        "{} invokes unknown command {name}",
+                        file.display()
+                    );
                 }
             }
         }
@@ -324,6 +366,11 @@ mod tests {
         // The Paseo Bridge window may only call what its capability allows.
         let bridge_window =
             include_str!("../../src/features/api-integration/ApiIntegrationWindow.tsx");
+        // Raw invoke() calls would bypass the method check below.
+        assert!(
+            !bridge_window.contains("invoke"),
+            "the Paseo Bridge window must call commands through bridgeApi so this test can check them"
+        );
         let allowed_methods = ["bridgeInfo", "revealBridgeToken", "regenerateToken"];
         let mut rest = bridge_window;
         while let Some(index) = rest.find("bridgeApi.") {
