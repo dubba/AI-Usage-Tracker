@@ -246,6 +246,11 @@ const SENSITIVE_KEYS: &[&str] = &[
     "token",
 ];
 
+/// Query parameters that carry an OAuth authorization code or state. Redacted
+/// only in query-string form (`?code=…`, `&state=…`), so prose such as "status
+/// code: 404" or "state: waiting" is left alone.
+const QUERY_SENSITIVE_KEYS: &[&str] = &["code", "state"];
+
 /// Keys whose value is the rest of the line (headers with spaces and `;`).
 const LINE_VALUED_KEYS: &[&str] = &["authorization", "set-cookie", "cookie"];
 
@@ -324,7 +329,11 @@ fn redact_secret_fields(text: &str) -> String {
     'scan: while index < text.len() {
         let at_word_start = index == 0 || !is_word_byte(lower.as_bytes()[index - 1]);
         if at_word_start {
-            for key in SENSITIVE_KEYS {
+            let in_query = index > 0 && matches!(lower.as_bytes()[index - 1], b'?' | b'&');
+            let query_keys = QUERY_SENSITIVE_KEYS
+                .iter()
+                .filter(|key| in_query && lower.as_bytes().get(index + key.len()) == Some(&b'='));
+            for key in SENSITIVE_KEYS.iter().chain(query_keys) {
                 if lower[index..].starts_with(key) {
                     let to_end_of_line = LINE_VALUED_KEYS.contains(key);
                     if let Some((start, end)) =
@@ -521,6 +530,31 @@ mod tests {
         let out = redact("password=hunter2 next=ok");
         assert!(!out.contains("hunter2"), "{out}");
         assert!(out.contains("next=ok"));
+    }
+
+    #[test]
+    fn oauth_callback_code_and_state_are_removed_from_urls() {
+        let out = redact(
+            "GET http://localhost:1455/auth/callback?code=ac_SECRET123&state=st_ABC456&scope=openid",
+        );
+        assert!(
+            !out.contains("ac_SECRET123") && !out.contains("st_ABC456"),
+            "{out}"
+        );
+        assert!(out.contains("scope=openid"), "{out}");
+        let out = redact("callback?state=s1x&code=c2y done");
+        assert!(!out.contains("s1x") && !out.contains("c2y"), "{out}");
+        assert!(out.contains("done"), "{out}");
+
+        // Outside a query string these words are ordinary text.
+        for kept in [
+            "Profile request returned status code: 404",
+            "login state: waiting",
+            "error_code=E1 zipcode=12345",
+            "settings?mode=dark&codename=x",
+        ] {
+            assert_eq!(redact(kept), kept);
+        }
     }
 
     #[test]
