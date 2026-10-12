@@ -7,12 +7,22 @@
 #   PREFLIGHT_CACHE_DIR=/some/dir npm run preflight    # separate cache root (cold-run timing)
 #
 # Everything it writes (worktree, Cargo target, npm cache, advisory database) lives under
-# PREFLIGHT_CACHE_DIR, which defaults to the external drive.
+# PREFLIGHT_CACHE_DIR. It defaults to /Volumes/External/_caches when that drive is mounted,
+# otherwise ~/.cache (about 5 GB of Cargo output). PREFLIGHT_ADVISORY_DB overrides the
+# advisory database location the same way.
 set -uo pipefail
 
 repo=$(git rev-parse --show-toplevel)
-cache_root=${PREFLIGHT_CACHE_DIR:-/Volumes/External/_caches/ai-usage-tracker-preflight}
-advisory_db=${PREFLIGHT_ADVISORY_DB:-/Volumes/External/_caches/cargo/advisory-db}
+if [ -d /Volumes/External ]; then
+  default_cache=/Volumes/External/_caches/ai-usage-tracker-preflight
+  default_db=/Volumes/External/_caches/cargo/advisory-db
+else
+  default_cache=$HOME/.cache/ai-usage-tracker-preflight
+  default_db=$HOME/.cache/advisory-db
+fi
+cache_root=${PREFLIGHT_CACHE_DIR:-$default_cache}
+advisory_db=${PREFLIGHT_ADVISORY_DB:-$default_db}
+echo "cache: $cache_root"
 ndk_version=27.2.12479018
 sdk=${ANDROID_HOME:-$HOME/Library/Android/sdk}
 manifest=src-tauri/Cargo.toml
