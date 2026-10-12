@@ -761,7 +761,10 @@ async fn complete_cookie_login(
         if let Some(dir) = &temp_data_dir {
             let _ = std::fs::remove_dir_all(dir);
         }
-        close_login_window(&window);
+        tauri::async_runtime::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            close_login_window(&window);
+        });
     }
 }
 

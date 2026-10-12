@@ -560,7 +560,7 @@ select {
 
 .dashboard-header h1.eyebrow,
 .dashboard-title-row h1.eyebrow {
-  color: var(--purple);
+  color: #6d3bd7;
   font-size: 15px;
   line-height: 1.15;
   font-weight: 800;
@@ -1677,7 +1677,7 @@ button.account-card-provider-icon:active {
 
 .settings-installed-version,
 .settings-updates-subcard .settings-installed-version {
-  color: var(--purple);
+  color: #6d3bd7;
   font-size: 15px;
   font-weight: 750;
   letter-spacing: 0.02em;
@@ -2959,6 +2959,14 @@ select.text-input option,
     letter-spacing: 0.12em;
     text-transform: uppercase;
     margin: 0;
+  }
+
+  .dashboard-header h1.eyebrow,
+  .dashboard-title-row h1.eyebrow {
+    color: #6d3bd7;
+  }
+
+  .sidebar-mobile-header .eyebrow {
     color: var(--purple);
   }
 

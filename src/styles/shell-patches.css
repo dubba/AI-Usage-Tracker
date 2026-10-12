@@ -557,8 +557,8 @@ select.text-input option {
 .sidebar-resize-handle:focus-visible::before,
 .sidebar-resize-handle.dragging::before {
   width: 6.5px;
-  background: var(--purple);
-  box-shadow: 0 0 12px rgba(159, 103, 255, .5);
+  background: #6d3bd7;
+  box-shadow: 0 0 12px rgba(109, 59, 215, .5);
 }
 
 .sidebar-resize-grip {

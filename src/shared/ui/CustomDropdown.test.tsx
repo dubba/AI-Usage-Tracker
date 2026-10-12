@@ -76,6 +76,27 @@ describe("CustomDropdown", () => {
     expect(menu.style.bottom).toBe("185px");
   });
 
+  it("flips upward when measured menu height exceeds space below", () => {
+    app = mount(
+      <CustomDropdown value="claude" options={OPTIONS} onChange={onChange} id="provider" />,
+    );
+    // Anchor leaves 200px below (800 - (551 + 44) - 5 = 200px)
+    mockAnchorRect(app.container, { top: 551, left: 40, width: 360, height: 44 });
+
+    click(document.getElementById("provider")!);
+
+    // If menu height is measured as 220px (e.g. customized items), it must flip upward!
+    const menu = document.querySelector<HTMLElement>(".custom-dropdown-menu")!;
+    Object.defineProperty(menu, "scrollHeight", { value: 220, configurable: true });
+
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+
+    const updatedMenu = document.querySelector<HTMLElement>(".custom-dropdown-menu")!;
+    expect(updatedMenu.classList.contains("upward")).toBe(true);
+  });
+
   it("selects an option and closes", () => {
     app = mount(
       <CustomDropdown value="claude" options={OPTIONS} onChange={onChange} id="provider" />,

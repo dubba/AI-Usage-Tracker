@@ -14,6 +14,8 @@ const MAIN_WINDOW: &str = "main";
 const NAVIGATE_DELAY: Duration = Duration::from_millis(250);
 #[cfg(mobile)]
 const POLL_INTERVAL: Duration = Duration::from_millis(400);
+#[cfg(mobile)]
+const SUCCESS_DISPLAY_DELAY: Duration = Duration::from_secs(5);
 
 /// Force Google Identity Services off FedCM. FedCM hangs in Android WebView
 /// (infinite spinner on "Continue with Google"). Real popups are handled natively.
@@ -180,6 +182,15 @@ pub fn open_in_main_webview(
                 .as_ref()
                 .is_some_and(|pending| pending.attempt_id == attempt_id);
             if !waiting || exchange_queued {
+                // If login completed successfully, keep the connected confirmation page visible
+                // for 3 seconds so the user can see their linked account details.
+                let is_completed = state.pending_login.read().as_ref().is_some_and(|login| {
+                    login.attempt_id == attempt_id
+                        && login.status == crate::model::LoginState::Complete
+                });
+                if is_completed {
+                    tokio::time::sleep(SUCCESS_DISPLAY_DELAY).await;
+                }
                 if let Ok(current) = window.url() {
                     if !urls_share_origin(&current, &restore_url) {
                         let _ = window.navigate(restore_url);

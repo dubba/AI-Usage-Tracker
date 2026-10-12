@@ -109,3 +109,23 @@ export function groupOrderForAccounts(
   let next = 0;
   return ranked.map((group) => (Number.isFinite(group.at) ? placed[next++].id : group.id));
 }
+
+/**
+ * The saved sidebar order to keep after the membership changed (accounts added, removed, or
+ * re-added, buckets changed), or null when the current order already matches the backend
+ * account order. Removing and re-adding an account appends it last on the backend while the
+ * saved sidebar order still slots its group in the old place, so without this the sidebar and
+ * the All page disagree. Saved entries for groups that no longer exist are dropped.
+ */
+export function reconciledSidebarGroupOrder(
+  orderedAccountIds: string[],
+  groups: Pick<SidebarGroup, "id" | "accounts">[],
+  savedOrder: string[],
+): string[] | null {
+  const next = groupOrderForAccounts(orderedAccountIds, groups);
+  const current = groups.map((group) => group.id);
+  const known = new Set(current);
+  const hasGhosts = savedOrder.some((id) => !known.has(id));
+  const sameOrder = next.length === current.length && next.every((id, index) => id === current[index]);
+  return sameOrder && !hasGhosts ? null : next;
+}

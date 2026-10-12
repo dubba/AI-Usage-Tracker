@@ -7,16 +7,21 @@ export type DropdownOption<T extends string | number> = {
   icon?: React.ReactNode;
 };
 
-const MENU_GAP = 5;
-const MENU_MAX_HEIGHT = 280;
-const MENU_FLIP_HEIGHT = 240;
+import { computeDropdownPlacement } from "./dropdown-placement";
+
+export const MENU_GAP = 5;
+export const MENU_MAX_HEIGHT = 280;
 
 type MenuPlacement = {
   openUpward: boolean;
   style: CSSProperties;
 };
 
-function computeMenuPlacement(anchor: HTMLElement | null): MenuPlacement {
+export function computeCustomDropdownPlacement(
+  anchor: HTMLElement | null,
+  menu: HTMLElement | null,
+  optionCount = 0,
+): MenuPlacement {
   if (!anchor) {
     return { openUpward: false, style: {} };
   }
@@ -24,23 +29,28 @@ function computeMenuPlacement(anchor: HTMLElement | null): MenuPlacement {
   const rect = anchor.getBoundingClientRect();
   const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
   const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
-  const spaceBelow = viewportHeight - rect.bottom - MENU_GAP;
-  const spaceAbove = rect.top - MENU_GAP;
-  const openUpward = spaceBelow < MENU_FLIP_HEIGHT && spaceAbove > spaceBelow;
-  const available = openUpward ? spaceAbove : spaceBelow;
-  const maxHeight = Math.min(MENU_MAX_HEIGHT, Math.max(0, available));
+
+  const estimatedHeight = Math.min(MENU_MAX_HEIGHT, Math.max(44, optionCount * 40 + 12));
+  const result = computeDropdownPlacement(anchor, menu, {
+    gap: MENU_GAP,
+    minHeight: 0,
+    maxHeightCap: MENU_MAX_HEIGHT,
+    estimatedHeight,
+    isFixed: true,
+  });
+
   const left = Math.max(8, Math.min(rect.left, viewportWidth - rect.width - 8));
 
   return {
-    openUpward,
+    openUpward: result.openUpward,
     style: {
       position: "fixed",
       left,
       width: rect.width,
       minWidth: rect.width,
-      maxHeight,
-      top: openUpward ? "auto" : rect.bottom + MENU_GAP,
-      bottom: openUpward ? viewportHeight - rect.top + MENU_GAP : "auto",
+      maxHeight: result.maxHeight,
+      top: result.openUpward ? "auto" : rect.bottom + MENU_GAP,
+      bottom: result.openUpward ? viewportHeight - rect.top + MENU_GAP : "auto",
     },
   };
 }
@@ -85,7 +95,7 @@ export function CustomDropdown<T extends string | number>({
   const selectedIndex = options.findIndex((opt) => opt.value === value);
 
   const openMenu = () => {
-    setPlacement(computeMenuPlacement(containerRef.current));
+    setPlacement(computeCustomDropdownPlacement(containerRef.current, listRef.current, options.length));
     setHighlightedIndex(selectedIndex >= 0 ? selectedIndex : 0);
     setIsOpen(true);
   };
@@ -99,7 +109,20 @@ export function CustomDropdown<T extends string | number>({
     if (!isOpen) return;
 
     const updatePlacement = () => {
-      setPlacement(computeMenuPlacement(containerRef.current));
+      setPlacement((prev) => {
+        const next = computeCustomDropdownPlacement(containerRef.current, listRef.current, options.length);
+        if (
+          prev.openUpward === next.openUpward &&
+          prev.style.top === next.style.top &&
+          prev.style.bottom === next.style.bottom &&
+          prev.style.left === next.style.left &&
+          prev.style.width === next.style.width &&
+          prev.style.maxHeight === next.style.maxHeight
+        ) {
+          return prev;
+        }
+        return next;
+      });
     };
 
     updatePlacement();
@@ -113,7 +136,7 @@ export function CustomDropdown<T extends string | number>({
       window.visualViewport?.removeEventListener("resize", updatePlacement);
       window.visualViewport?.removeEventListener("scroll", updatePlacement);
     };
-  }, [isOpen]);
+  }, [isOpen, options.length]);
 
   useEffect(() => {
     if (!isOpen) return;

@@ -180,5 +180,49 @@ describe("AccountDashboardCard actions dropdown placement", () => {
       document.body.removeChild(scrollContainer);
     }
   });
+
+  it("flips a 5-item move menu upward when space below is 200px (exceeding old 195px threshold)", () => {
+    const fakeToggle = document.createElement("button");
+    // Viewport height 800. Toggle bottom at 592 -> spaceBelow = 800 - 592 - 8 = 200px.
+    fakeToggle.getBoundingClientRect = () => ({
+      top: 560,
+      bottom: 592,
+      left: 300,
+      right: 332,
+      width: 32,
+      height: 32,
+      x: 300,
+      y: 560,
+      toJSON: () => ({}),
+    });
+
+    // With hasMoveMenu = true, estimated height is 220px.
+    // 200px space below cannot fit 220px, so it must flip upward!
+    const placement = computeAccountCardMenuPlacement(fakeToggle, true);
+    expect(placement.openUpward).toBe(true);
+    expect(placement.maxHeight).toBe(560 - 0 - 8); // 552
+  });
+
+  it("uses measured menu element height to flip upward when rendered height exceeds space below", () => {
+    const fakeToggle = document.createElement("button");
+    // Space below is 800 - 592 - 8 = 200px
+    fakeToggle.getBoundingClientRect = () => ({
+      top: 560,
+      bottom: 592,
+      left: 300,
+      right: 332,
+      width: 32,
+      height: 32,
+      x: 300,
+      y: 560,
+      toJSON: () => ({}),
+    });
+
+    const menu = document.createElement("div");
+    Object.defineProperty(menu, "scrollHeight", { value: 215, configurable: true });
+
+    const placement = computeAccountCardMenuPlacement(fakeToggle, false, menu);
+    expect(placement.openUpward).toBe(true);
+  });
 });
 

@@ -56,6 +56,7 @@ import {
   ALL_ACCOUNTS_GROUP_ID,
   buildAllAccountsGroup,
   buildSidebarGroups,
+  reconciledSidebarGroupOrder,
   type SidebarGroup,
 } from "../features/dashboard/sidebar-groups";
 import { moveAnnouncement, moveById } from "../features/reorder/reorder-utils";
@@ -254,6 +255,32 @@ export default function App() {
     if (selectedGroupId === ALL_ACCOUNTS_GROUP_ID) return allAccountsGroup;
     return sidebarGroups.find((group) => group.id === selectedGroupId) ?? allAccountsGroup;
   }, [selectedGroupId, sidebarGroups, allAccountsGroup]);
+
+  // Removing and re-adding an account appends it last in the backend order while the saved
+  // sidebar order still slots its group in the old place, so the sidebar and the All page
+  // disagree. Re-derive the group order from the backend order whenever the membership
+  // changes; a no-op otherwise, so card and group drags (which keep both sides in step
+  // themselves) are never disturbed.
+  const membershipKey = useMemo(
+    () =>
+      [
+        accounts.map((account) => account.id).join(" "),
+        buckets.map((bucket) => bucket.id).join(" "),
+      ].join("\n"),
+    [accounts, buckets],
+  );
+  const reconciledMembershipRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!snapshot || reconciledMembershipRef.current === membershipKey) return;
+    reconciledMembershipRef.current = membershipKey;
+    const saved = readSidebarGroupOrder();
+    const next = reconciledSidebarGroupOrder(
+      accounts.map((account) => account.id),
+      buildSidebarGroups(accounts, buckets, readDashboardProviderOrder(), saved),
+      saved,
+    );
+    if (next) storeSidebarGroupOrder(next);
+  }, [snapshot, membershipKey, accounts, buckets]);
 
   const visibleAccounts = useMemo(
     () => applyPageAccountOrder(selectedGroup.accounts, selectedGroup.id),

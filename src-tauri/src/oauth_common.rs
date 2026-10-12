@@ -36,7 +36,7 @@ pub(crate) fn pkce_challenge(verifier: &str) -> String {
     URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()))
 }
 
-/// Serves a callback page with headers that keep it uncached, script-free, and unframed.
+/// Serves a callback page with headers that keep it uncached, script-restricted, and unframed.
 pub(crate) fn callback_html(body: String) -> axum::response::Response {
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -50,7 +50,7 @@ pub(crate) fn callback_html(body: String) -> axum::response::Response {
     headers.insert(
         axum::http::header::HeaderName::from_static("content-security-policy"),
         HeaderValue::from_static(
-            "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'",
+            "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'",
         ),
     );
     headers.insert(
@@ -137,7 +137,8 @@ fn provider_icon_svg(provider: &Provider) -> &'static str {
 }
 
 /// The page shown after a provider connects: the provider's icon and name side by side, then
-/// the signed-in email (or the account label when no email is known and it adds something).
+/// the signed-in email (or the account label when no email is known and it adds something),
+/// with a 5-second visual countdown before automatic close.
 pub(crate) fn account_connected_html(title: &str, account: &Account) -> String {
     let provider_name = account.provider.display_name();
     let identity = account
@@ -158,7 +159,7 @@ pub(crate) fn account_connected_html(title: &str, account: &Account) -> String {
         })
         .unwrap_or_default();
     format!(
-        r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px 20px;text-align:center"><h1>{}</h1><div style="display:flex;justify-content:center;align-items:center;gap:10px;margin:8px 0 18px;font-size:20px;font-weight:600">{}<span>{}</span></div>{}<p style="color:#8e9791;margin:0">You can close this tab and return to AI Usage Tracker.</p></body></html>"#,
+        r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px 20px;text-align:center"><h1>{}</h1><div style="display:flex;justify-content:center;align-items:center;gap:10px;margin:8px 0 18px;font-size:20px;font-weight:600">{}<span>{}</span></div>{}<p style="color:#8e9791;margin:0 0 6px">Returning to AI Usage Tracker in</p><div style="font-size:48px;font-weight:700;line-height:1.1;margin:0 0 16px;color:#a78bfa"><span id="sec">5</span></div><p style="color:#626b65;font-size:13px;margin:0">You can also close this tab manually.</p><script>let s=5;const el=document.getElementById('sec');const t=setInterval(()=>{{s--;if(el)el.textContent=String(Math.max(0,s));if(s<=0){{clearInterval(t);window.close();}}}},1000);</script></body></html>"#,
         escape_html(title),
         provider_icon_svg(&account.provider),
         escape_html(provider_name),
@@ -234,6 +235,18 @@ mod tests {
             &account(Provider::Openai, None, "ChatGPT"),
         );
         assert_eq!(html.matches("ChatGPT").count(), 1);
+    }
+
+    #[test]
+    fn connected_page_includes_countdown_and_auto_close_script() {
+        let html = account_connected_html(
+            "Account connected",
+            &account(Provider::Anthropic, Some("test@example.com"), "Claude"),
+        );
+        assert!(html.contains(r#"Returning to AI Usage Tracker in"#));
+        assert!(html.contains(r#"<span id="sec">5</span>"#));
+        assert!(html.contains("font-size:48px"));
+        assert!(html.contains("window.close()"));
     }
 
     #[test]

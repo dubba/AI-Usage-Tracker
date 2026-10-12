@@ -401,7 +401,10 @@ async fn complete_login(
                 };
             });
             if completed {
-                close_login_window(&window);
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                    close_login_window(&window);
+                });
             }
         }
         Err(error) => {

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { ALL_ACCOUNTS_GROUP_ID, buildAllAccountsGroup, buildSidebarGroups, groupOrderForAccounts } from "./sidebar-groups";
+import {
+  ALL_ACCOUNTS_GROUP_ID,
+  buildAllAccountsGroup,
+  buildSidebarGroups,
+  groupOrderForAccounts,
+  reconciledSidebarGroupOrder,
+} from "./sidebar-groups";
 import type { Account, AccountBucket, Provider } from "../../types";
 
 function account(id: string, provider: Provider, label = id): Account {
@@ -129,5 +135,52 @@ describe("groupOrderForAccounts", () => {
       "provider:openai",
       "bucket:work",
     ]);
+  });
+});
+
+describe("reconciledSidebarGroupOrder", () => {
+  // Backend order after removing the Grok account and re-adding it: the
+  // re-added account is newest, so the backend sorts it last.
+  const backendAccounts = [account("a1", "openai"), account("o2", "openai"), account("g2", "grok")];
+  const backendIds = ["a1", "o2", "g2"];
+  const flatten = (groups: { accounts: { id: string }[] }[]) =>
+    groups.flatMap((group) => group.accounts.map((a) => a.id));
+
+  it("re-derives the group order when a stale saved order disagrees after remove and re-add", () => {
+    // The saved order still has Grok first from before the removal.
+    const saved = ["provider:grok", "provider:openai"];
+    const groups = buildSidebarGroups(backendAccounts, [], PROVIDERS, saved);
+    expect(groups.map((group) => group.id)).toEqual(["provider:grok", "provider:openai"]);
+    expect(flatten(groups)).not.toEqual(backendIds);
+
+    const next = reconciledSidebarGroupOrder(backendIds, groups, saved);
+    expect(next).toEqual(["provider:openai", "provider:grok"]);
+
+    // The corrected sidebar lists accounts in All-page order.
+    const fixed = buildSidebarGroups(backendAccounts, [], PROVIDERS, next!);
+    expect(flatten(fixed)).toEqual(backendIds);
+  });
+
+  it("returns null when the sidebar already matches the backend order", () => {
+    const saved = ["provider:openai", "provider:grok"];
+    const groups = buildSidebarGroups(backendAccounts, [], PROVIDERS, saved);
+    expect(flatten(groups)).toEqual(backendIds);
+    expect(reconciledSidebarGroupOrder(backendIds, groups, saved)).toBeNull();
+  });
+
+  it("drops a saved group whose accounts are all gone", () => {
+    const remaining = [account("a1", "openai"), account("o2", "openai")];
+    const saved = ["provider:grok", "provider:openai"];
+    const groups = buildSidebarGroups(remaining, [], PROVIDERS, saved);
+    expect(groups.map((group) => group.id)).toEqual(["provider:openai"]);
+    expect(reconciledSidebarGroupOrder(["a1", "o2"], groups, saved)).toEqual(["provider:openai"]);
+  });
+
+  it("places a brand-new group where its first account sits", () => {
+    const saved = ["provider:openai"];
+    const groups = buildSidebarGroups(backendAccounts, [], PROVIDERS, saved);
+    expect(groups.map((group) => group.id)).toEqual(["provider:openai", "provider:grok"]);
+    // Unsaved groups already trail saved ones; the backend order agrees here.
+    expect(reconciledSidebarGroupOrder(backendIds, groups, saved)).toBeNull();
   });
 });

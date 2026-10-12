@@ -37,9 +37,11 @@ import { CREDENTIAL_PROTECTION_ACCOUNT_NOTE } from "../dashboard/credential-prot
 /** Id of the visually hidden hint that AccountsView renders once for every card. */
 export const REORDER_HINT_ID = "account-reorder-hint";
 
-const MENU_GAP = 8;
-const MENU_FLIP_HEIGHT_MOVE = 195;
-const MENU_FLIP_HEIGHT_BASIC = 135;
+import { computeDropdownPlacement } from "../../shared/ui/dropdown-placement";
+
+export const MENU_GAP = 8;
+export const MENU_ESTIMATED_HEIGHT_MOVE = 220;
+export const MENU_ESTIMATED_HEIGHT_BASIC = 135;
 
 export type MobileMenuPlacement = {
   openUpward: boolean;
@@ -49,33 +51,24 @@ export type MobileMenuPlacement = {
 export function computeAccountCardMenuPlacement(
   toggle: HTMLElement | null,
   hasMoveMenu: boolean,
+  menu?: HTMLElement | null,
 ): MobileMenuPlacement {
   if (!toggle) {
     return { openUpward: false };
   }
 
-  const rect = toggle.getBoundingClientRect();
-  const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+  const estimatedHeight = hasMoveMenu ? MENU_ESTIMATED_HEIGHT_MOVE : MENU_ESTIMATED_HEIGHT_BASIC;
+  const result = computeDropdownPlacement(toggle, menu ?? null, {
+    gap: MENU_GAP,
+    minHeight: 80,
+    estimatedHeight,
+    isFixed: false,
+  });
 
-  const scrollContainer = toggle.closest(".dashboard-scroll, .content-scroll");
-  const containerRect = scrollContainer ? scrollContainer.getBoundingClientRect() : null;
-
-  const bottomBoundary = containerRect
-    ? Math.min(viewportHeight, containerRect.bottom)
-    : viewportHeight;
-  const topBoundary = containerRect
-    ? Math.max(0, containerRect.top)
-    : 0;
-
-  const spaceBelow = bottomBoundary - rect.bottom - MENU_GAP;
-  const spaceAbove = rect.top - topBoundary - MENU_GAP;
-  const threshold = hasMoveMenu ? MENU_FLIP_HEIGHT_MOVE : MENU_FLIP_HEIGHT_BASIC;
-
-  const openUpward = spaceBelow < threshold && spaceAbove > spaceBelow;
-  const available = openUpward ? spaceAbove : spaceBelow;
-  const maxHeight = Math.max(80, Math.floor(available));
-
-  return { openUpward, maxHeight };
+  return {
+    openUpward: result.openUpward,
+    maxHeight: result.maxHeight,
+  };
 }
 
 export function AccountDashboardCard({
@@ -157,9 +150,10 @@ export function AccountDashboardCard({
   const [mobileMenuPlacement, setMobileMenuPlacement] = useState<MobileMenuPlacement>({ openUpward: false });
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const mobileMenuToggleRef = useRef<HTMLButtonElement>(null);
+  const menuElementRef = useRef<HTMLDivElement>(null);
 
   const openMobileMenu = () => {
-    setMobileMenuPlacement(computeAccountCardMenuPlacement(mobileMenuToggleRef.current, Boolean(onMove)));
+    setMobileMenuPlacement(computeAccountCardMenuPlacement(mobileMenuToggleRef.current, Boolean(onMove), menuElementRef.current));
     setMobileMenuOpen(true);
   };
 
@@ -183,7 +177,17 @@ export function AccountDashboardCard({
     if (!mobileMenuOpen) return;
 
     const updatePlacement = () => {
-      setMobileMenuPlacement(computeAccountCardMenuPlacement(mobileMenuToggleRef.current, Boolean(onMove)));
+      setMobileMenuPlacement((prev) => {
+        const next = computeAccountCardMenuPlacement(
+          mobileMenuToggleRef.current,
+          Boolean(onMove),
+          menuElementRef.current,
+        );
+        if (prev.openUpward === next.openUpward && prev.maxHeight === next.maxHeight) {
+          return prev;
+        }
+        return next;
+      });
     };
 
     updatePlacement();
@@ -453,6 +457,7 @@ export function AccountDashboardCard({
               </button>
               {mobileMenuOpen ? (
                 <div
+                  ref={menuElementRef}
                   className={`mobile-dropdown-menu ${mobileMenuPlacement.openUpward ? "upward" : ""}`}
                   id={mobileMenuId}
                   role="menu"

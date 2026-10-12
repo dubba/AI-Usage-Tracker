@@ -1,8 +1,11 @@
 # Changelog
 
-## Unreleased (28 items)
+## Unreleased (31 items)
 
-### Improved (5)
+### Improved (7)
+
+- The "Account connected" page now includes a prominent 5-second visual countdown before closing the tab automatically, and mobile in-app sign-in views remain on the connected screen for 5 seconds before returning to the dashboard.
+- The All Accounts and App Settings titles, the installed version in Settings, and the sidebar edge while you resize it now use the same purple as the usage bars.
 
 - In Settings, the Appearance dropdown keeps a consistent width across Dark, Light, and System themes, and the dropdown menu aligns flush with the button.
 - When the current version has already been released, the next scheduled release is now published as the next full version (for example 0.4.2) instead of a beta pre-release.
@@ -10,15 +13,16 @@
 - Dragging a sidebar group now rearranges the account cards on the All page immediately, instead of after a short pause while the new order is saved.
 - On Android, Wi-Fi only stays in its battery-hungry multicast mode while device sync is running, instead of the whole time the app is open.
 
-### Fixed (7)
+### Fixed (8)
 
 - In Settings, the space between the Automatic Updates title and its description matches Change Log and the other settings rows.
-- On the dashboard, account card dropdown menus near the bottom of the screen open upward instead of downward, preventing them from being cut off.
+- Dropdown menus anywhere in the app, including the actions menu on account cards, open upward instead of downward near the bottom of the window, so no item is ever cut off.
 - A usage refresh that times out while the provider is renewing an account's sign-in no longer loses the renewed sign-in, so the account no longer asks you to sign in again afterwards.
 - A sign-in that finishes at the same moment it times out, is canceled, or hits an error is no longer reported as failed even though the account was added.
 - Moving an account card on the All page now moves its sidebar group to match, the same way dragging a sidebar group already rearranged the All page.
 - Dragging a sidebar group no longer pulls accounts that belong to a custom group out of it on the All page; they stay with their custom group.
 - Links in update notes and update error messages that the app cannot open are now shown as plain text instead of links that do nothing.
+- Removing an account and adding it back no longer leaves the sidebar and the All Accounts page in different orders; both now follow the same account order.
 
 ### Security (16)
 
