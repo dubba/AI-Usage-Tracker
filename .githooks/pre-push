@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Runs the CI-equivalent checks on a clean checkout of HEAD before every push.
+# Bypass for an urgent push: git push --no-verify
+set -u
+repo=$(git rev-parse --show-toplevel)
+exec bash "$repo/scripts/preflight.sh"

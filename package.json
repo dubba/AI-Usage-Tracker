@@ -21,7 +21,9 @@
     "test:resolve-version": "node --test scripts/resolve-release-version.test.mjs",
     "test:sidestore-source": "node --test scripts/update-sidestore-source.test.mjs",
     "test:workflows": "node --test scripts/workflow-guards.test.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "preflight": "bash scripts/preflight.sh",
+    "hooks:install": "git config core.hooksPath .githooks"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",

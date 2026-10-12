@@ -45,4 +45,6 @@ cargo fmt --manifest-path src-tauri/Cargo.toml --check
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 ```
 
+`npm run preflight` runs the CI-equivalent checks (npm steps, fmt, clippy debug and release, `cargo test --lib`, Android compile, `npm audit`, `cargo audit`) in a throwaway worktree of `HEAD`, so gitignored generated files cannot hide a failure that CI would catch. It takes about 2 minutes warm and about 9 cold, and keeps its caches (about 5 GB) under `/Volumes/External/_caches` when that drive is mounted, otherwise `~/.cache`; override with `PREFLIGHT_CACHE_DIR`. It skips the iOS compile without full Xcode, and cannot cover the Windows job. `npm run hooks:install` points `core.hooksPath` at `.githooks` so it also runs before every `git push`; use `git push --no-verify` to bypass.
+
 The full test inventory and the security-invariant → test map live in `TESTING.md`. CI runs `npm test` and the `npm run test:*` scripts in the `validate/frontend` job; run them locally before pushing anyway.

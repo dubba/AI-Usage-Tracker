@@ -88,7 +88,6 @@ step "cargo fmt --check" fail cargo fmt --manifest-path $manifest --check
 step "cargo clippy (debug)" fail cargo clippy --locked --manifest-path $manifest --all-targets -- -D warnings
 step "cargo clippy (release)" fail cargo clippy --locked --manifest-path $manifest --release --all-targets -- -D warnings
 step "cargo test --lib" fail cargo test --locked --manifest-path $manifest --lib
-step "cargo check (desktop)" fail cargo check --locked --manifest-path $manifest
 if xcrun --sdk iphoneos --show-sdk-path >/dev/null 2>&1; then
   step "iOS compile" fail cargo check --locked --manifest-path $manifest --target aarch64-apple-ios --lib
 else
