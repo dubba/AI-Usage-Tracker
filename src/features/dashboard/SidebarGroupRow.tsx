@@ -14,6 +14,33 @@ import type { SidebarGroup } from "./sidebar-groups";
 /** Id of the visually hidden hint that App renders once for every reorderable group row. */
 export const GROUP_REORDER_HINT_ID = "group-reorder-hint";
 
+/**
+ * Icon chip for a custom group: up to four member provider icons in the
+ * group's configured account order, split across the chip (two accounts share
+ * it left/right, three stack two beside one, four or more fill quadrants).
+ * A group whose visible accounts all share one provider keeps the single
+ * provider icon; an empty group keeps the generic people icon.
+ */
+export function BucketGroupIcon({ group }: { group: SidebarGroup }) {
+  const providers = group.accounts.slice(0, 4).map((account) => account.provider);
+  if (providers.length > 1 && new Set(providers).size > 1) {
+    return (
+      <span className={`provider-summary-icon provider-composite composite-${providers.length}`}>
+        {providers.map((provider, index) => (
+          <span key={`${provider}-${index}`} className="composite-cell">
+            <ProviderIcon provider={provider} />
+          </span>
+        ))}
+      </span>
+    );
+  }
+  return (
+    <span className={`provider-summary-icon ${group.provider ? `provider-${group.provider}` : "provider-all"}`}>
+      {group.provider ? <ProviderIcon provider={group.provider} /> : <UsersIcon />}
+    </span>
+  );
+}
+
 
 export function SidebarGroupRow({
   group,
@@ -66,9 +93,13 @@ export function SidebarGroupRow({
       aria-label={`${group.title}, ${formatCount(group.accounts.length, ACCOUNT_FORMS)}, 5h ${labelFive}, 7d ${labelWeekly}`}
     >
       {reorderable ? <span className="reorder-grip" data-tooltip="Drag to reorder" aria-hidden="true" /> : null}
-      <span className={`provider-summary-icon ${group.provider ? `provider-${group.provider}` : "provider-all"}`}>
-        {group.provider ? <ProviderIcon provider={group.provider} /> : <UsersIcon />}
-      </span>
+      {group.type === "bucket" ? (
+        <BucketGroupIcon group={group} />
+      ) : (
+        <span className={`provider-summary-icon ${group.provider ? `provider-${group.provider}` : "provider-all"}`}>
+          {group.provider ? <ProviderIcon provider={group.provider} /> : <UsersIcon />}
+        </span>
+      )}
       <span className="provider-summary-content">
         <span className="provider-summary-topline">
           <strong className="sidebar-group-title">

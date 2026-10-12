@@ -60,7 +60,10 @@ export function BucketModal({
     if (open) {
       if (bucket) {
         setName(bucket.name);
-        setSelectedProvider(bucket.provider ?? "all");
+        // Edit always starts unfiltered: a group whose accounts belong to one
+        // provider must not hide every other provider from the picker. The
+        // dropdown is a search aid, not a property of the group.
+        setSelectedProvider("all");
         setSelectedAccountIds(bucket.accountIds);
       } else {
         setName("");
@@ -109,11 +112,10 @@ export function BucketModal({
       return;
     }
 
-    // Determine bucket provider: if all selected accounts share the same provider, use it.
-    const selectedAccounts = accounts.filter((a) => selectedAccountIds.includes(a.id));
-    const firstProvider = selectedAccounts[0]?.provider;
-    const isSingleProvider = selectedAccounts.every((a) => a.provider === firstProvider);
-    const bucketProvider = isSingleProvider ? firstProvider : (selectedProvider === "all" ? null : selectedProvider);
+    // The saved provider comes only from the dropdown the user actually
+    // touched ("all" stores null); it is no longer derived from membership,
+    // so a single-account group does not pollute its own filter forever.
+    const bucketProvider = selectedProvider === "all" ? null : selectedProvider;
 
     setBusy(true);
     setError(null);
