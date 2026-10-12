@@ -21,6 +21,70 @@ const GITHUB_RELEASES_LIST_URL: &str =
 const GITHUB_LATEST_RELEASE_URL: &str =
     "https://api.github.com/repos/dubba/AI-Usage-Tracker/releases/latest";
 
+/// Where this repository's release assets are downloaded from. The API's
+/// `browser_download_url` is always under this prefix.
+const RELEASE_ASSET_URL_PREFIX: &str =
+    "https://github.com/dubba/AI-Usage-Tracker/releases/download/";
+
+/// Hosts a release download may be redirected through: GitHub itself, then the
+/// storage hosts it hands asset downloads to.
+const RELEASE_DOWNLOAD_HOSTS: &[&str] = &[
+    "github.com",
+    "objects.githubusercontent.com",
+    "release-assets.githubusercontent.com",
+];
+
+/// A release asset of this repository, as listed by the GitHub API. Anything
+/// else in a release listing is ignored, so a tampered or misdirected API
+/// response cannot point the updater at another host.
+fn is_repo_release_asset_url(url: &str) -> bool {
+    // Checked on the parsed URL, so `..` segments, a `user@` prefix, or a port
+    // cannot make a different URL look like it starts with the prefix.
+    reqwest::Url::parse(url).is_ok_and(|url| {
+        url.scheme() == "https"
+            && url.port().is_none()
+            && url.username().is_empty()
+            && url.host_str() == Some("github.com")
+            && url.as_str().starts_with(RELEASE_ASSET_URL_PREFIX)
+    })
+}
+
+/// A hop an update download may follow: HTTPS on one of GitHub's download hosts.
+fn is_release_download_host(url: &reqwest::Url) -> bool {
+    url.scheme() == "https"
+        && url.port().is_none()
+        && url
+            .host_str()
+            .is_some_and(|host| RELEASE_DOWNLOAD_HOSTS.contains(&host))
+}
+
+/// Redirect policy for update downloads: at most 10 hops, each to a GitHub
+/// download host. A redirect anywhere else fails the download.
+#[cfg_attr(not(any(target_os = "android", test)), allow(dead_code))]
+fn release_download_redirects() -> reqwest::redirect::Policy {
+    reqwest::redirect::Policy::custom(|attempt| {
+        if attempt.previous().len() >= 10 {
+            attempt.error("too many redirects")
+        } else if is_release_download_host(attempt.url()) {
+            attempt.follow()
+        } else {
+            attempt.error("the update download was redirected away from GitHub")
+        }
+    })
+}
+
+/// A release tag safe to place in a URL path: letters, digits, `.`, `-`, `_`,
+/// such as `v0.4.1` or `v0.4.2-beta.1`. Rejects `/`, `?`, `#`, `%`, and `..`,
+/// which would change which page or file a URL built from it points at.
+fn is_safe_release_tag(tag: &str) -> bool {
+    !tag.is_empty()
+        && tag.len() <= 64
+        && !tag.contains("..")
+        && tag
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-' | b'_'))
+}
+
 fn split_version(v: &str) -> (Vec<u64>, Option<String>) {
     let v = v.trim().trim_start_matches(['v', 'V']);
     let numeric_end = v
@@ -146,6 +210,7 @@ fn apk_assets_from_github(json: &serde_json::Value) -> (Option<String>, Option<S
         let Some(url) = asset
             .get("browser_download_url")
             .and_then(|value| value.as_str())
+            .filter(|url| is_repo_release_asset_url(url))
             .map(str::to_string)
         else {
             continue;
@@ -280,6 +345,13 @@ async fn fetch_github_latest_release(
             "Unable to check for updates: latest GitHub release has no version tag.".into(),
         );
     }
+    // The tag is placed in URLs (beta manifest, release page), so it must not be
+    // able to change their path or add a query.
+    if !is_safe_release_tag(tag.trim()) {
+        return Err(
+            "Unable to check for updates: the latest GitHub release has an unexpected tag.".into(),
+        );
+    }
 
     let (apk_url, apk_sha256_url) = apk_assets_from_github(json);
     Ok(GitHubLatestRelease {
@@ -335,8 +407,12 @@ async fn desktop_updater(
 
 #[cfg_attr(not(target_os = "android"), allow(dead_code))]
 async fn fetch_apk_sha256(url: &str) -> Result<String, String> {
+    if !is_repo_release_asset_url(url) {
+        return Err("The update checksum is not hosted on this app's GitHub releases.".into());
+    }
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(15))
+        .redirect(release_download_redirects())
         .build()
         .map_err(|error| format!("Unable to verify the update checksum: {error}"))?;
     let response = client
@@ -421,10 +497,13 @@ async fn download_android_apk(
 ) -> Result<String, String> {
     use sha2::{Digest, Sha256};
 
+    if !is_repo_release_asset_url(url) {
+        return Err("The update is not hosted on this app's GitHub releases.".into());
+    }
     let client = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(20))
         .timeout(Duration::from_secs(15 * 60))
-        .redirect(reqwest::redirect::Policy::limited(10))
+        .redirect(release_download_redirects())
         .build()
         .map_err(|error| format!("Unable to download the update: {error}"))?;
     let mut response = client
@@ -975,17 +1054,17 @@ mod tests {
             "assets": [
                 {
                     "name": "AI.Usage.Tracker_0.3.5_aarch64.app.tar.gz",
-                    "browser_download_url": "https://example.com/app.tar.gz"
+                    "browser_download_url": "https://github.com/dubba/AI-Usage-Tracker/releases/download/v0.3.5/app.tar.gz"
                 },
                 {
                     "name": "AI.Usage.Tracker_0.3.5.apk",
-                    "browser_download_url": "https://example.com/app.apk"
+                    "browser_download_url": "https://github.com/dubba/AI-Usage-Tracker/releases/download/v0.3.5/app.apk"
                 }
             ]
         });
         assert_eq!(
             super::apk_assets_from_github(&json).0.as_deref(),
-            Some("https://example.com/app.apk")
+            Some("https://github.com/dubba/AI-Usage-Tracker/releases/download/v0.3.5/app.apk")
         );
     }
 
@@ -1012,5 +1091,110 @@ mod tests {
             sha.as_deref(),
             Some("https://github.com/dubba/AI-Usage-Tracker/releases/download/v0.3.8/AI.Usage.Tracker_0.3.8.apk.sha256")
         );
+    }
+
+    #[test]
+    fn release_asset_urls_must_be_this_repos_github_releases() {
+        let ok = "https://github.com/dubba/AI-Usage-Tracker/releases/download/v0.4.1/AI.Usage.Tracker_0.4.1.apk";
+        assert!(super::is_repo_release_asset_url(ok));
+        for bad in [
+            "http://github.com/dubba/AI-Usage-Tracker/releases/download/v0.4.1/app.apk",
+            "https://evil.example/dubba/AI-Usage-Tracker/releases/download/v0.4.1/app.apk",
+            "https://github.com.evil.example/dubba/AI-Usage-Tracker/releases/download/v0.4.1/app.apk",
+            "https://evil@github.com/dubba/AI-Usage-Tracker/releases/download/v0.4.1/app.apk",
+            "https://github.com:8443/dubba/AI-Usage-Tracker/releases/download/v0.4.1/app.apk",
+            "https://github.com/someone/else/releases/download/v0.4.1/app.apk",
+            "https://github.com/dubba/AI-Usage-Tracker/releases/download/../../../someone/else/app.apk",
+            "https://objects.githubusercontent.com/app.apk",
+            "not a url",
+        ] {
+            assert!(!super::is_repo_release_asset_url(bad), "{bad}");
+        }
+    }
+
+    #[test]
+    fn apk_assets_hosted_elsewhere_are_ignored() {
+        let json = serde_json::json!({
+            "assets": [
+                {
+                    "name": "AI.Usage.Tracker_0.4.1.apk",
+                    "browser_download_url": "https://evil.example/AI.Usage.Tracker_0.4.1.apk"
+                },
+                {
+                    "name": "AI.Usage.Tracker_0.4.1.apk.sha256",
+                    "browser_download_url": "https://evil.example/AI.Usage.Tracker_0.4.1.apk.sha256"
+                }
+            ]
+        });
+        assert_eq!(super::apk_assets_from_github(&json), (None, None));
+    }
+
+    #[test]
+    fn update_redirects_stay_on_github_download_hosts() {
+        for ok in [
+            "https://github.com/dubba/AI-Usage-Tracker/releases/download/v1/a.apk",
+            "https://objects.githubusercontent.com/github-production-release-asset/1",
+            "https://release-assets.githubusercontent.com/github-production-release-asset/1",
+        ] {
+            assert!(
+                super::is_release_download_host(&ok.parse().unwrap()),
+                "{ok}"
+            );
+        }
+        for bad in [
+            "http://objects.githubusercontent.com/a.apk",
+            "https://evil.example/a.apk",
+            "https://objects.githubusercontent.com.evil.example/a.apk",
+            "https://release-assets.githubusercontent.com:8443/a.apk",
+        ] {
+            assert!(
+                !super::is_release_download_host(&bad.parse().unwrap()),
+                "{bad}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn update_download_client_refuses_a_redirect_off_github() {
+        use axum::{response::Redirect, routing::get, Router};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let router = Router::new().route(
+            "/",
+            get(|| async { Redirect::temporary("https://evil.example/app.apk") }),
+        );
+        tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+
+        let client = reqwest::Client::builder()
+            .redirect(super::release_download_redirects())
+            .build()
+            .unwrap();
+        let error = client
+            .get(format!("http://{address}/"))
+            .send()
+            .await
+            .expect_err("a redirect to another host must fail the download");
+        assert!(error.is_redirect(), "{error}");
+    }
+
+    #[test]
+    fn release_tags_are_checked_before_they_go_into_urls() {
+        for ok in ["v0.4.1", "v0.4.2-beta.1", "0.4.0", "v1_2"] {
+            assert!(super::is_safe_release_tag(ok), "{ok}");
+        }
+        for bad in [
+            "",
+            "v1/../../other",
+            "v1/latest.json",
+            "v1?x=1",
+            "v1#x",
+            "v1%2Fx",
+            "..",
+            "v1 2",
+            "v1\\x",
+            &"v".repeat(65),
+        ] {
+            assert!(!super::is_safe_release_tag(bad), "{bad}");
+        }
     }
 }
