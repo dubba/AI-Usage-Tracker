@@ -4,20 +4,26 @@
 # Windows tests are the only part of Validate this cannot reproduce.
 #
 #   npm run preflight
-#   PREFLIGHT_TARGET_DIR=/some/dir npm run preflight   # separate Cargo cache (cold-run timing)
+#   PREFLIGHT_CACHE_DIR=/some/dir npm run preflight    # separate cache root (cold-run timing)
+#
+# Everything it writes (worktree, Cargo target, npm cache, advisory database) lives under
+# PREFLIGHT_CACHE_DIR, which defaults to the external drive.
 set -uo pipefail
 
 repo=$(git rev-parse --show-toplevel)
-target_dir=${PREFLIGHT_TARGET_DIR:-$HOME/.cache/ai-usage-tracker-preflight/target}
+cache_root=${PREFLIGHT_CACHE_DIR:-/Volumes/External/_caches/ai-usage-tracker-preflight}
+advisory_db=${PREFLIGHT_ADVISORY_DB:-/Volumes/External/_caches/cargo/advisory-db}
 ndk_version=27.2.12479018
 sdk=${ANDROID_HOME:-$HOME/Library/Android/sdk}
 manifest=src-tauri/Cargo.toml
 
-work=$(mktemp -d)
+mkdir -p "$cache_root/work" "$cache_root/target" "$cache_root/npm" || exit 1
+work=$(mktemp -d "$cache_root/work/run.XXXXXX")
 wt=$work/checkout
 logs=$work/logs
 mkdir -p "$logs"
-export CARGO_TARGET_DIR=$target_dir
+export CARGO_TARGET_DIR=$cache_root/target
+export npm_config_cache=$cache_root/npm
 
 cleanup() {
   git -C "$repo" worktree remove --force "$wt" >/dev/null 2>&1 || true
@@ -85,7 +91,7 @@ else
 fi
 step "npm audit" warn npm audit --audit-level=high
 if command -v cargo-audit >/dev/null 2>&1; then
-  step "cargo audit" warn bash -c 'cd src-tauri && cargo audit'
+  step "cargo audit" warn bash -c 'cd src-tauri && cargo audit --db "$0"' "$advisory_db"
 else
   skip "cargo audit" "cargo-audit is not installed"
 fi
