@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (27 items)
+## Unreleased (28 items)
 
 ### Improved (5)
 
@@ -20,7 +20,7 @@
 - Dragging a sidebar group no longer pulls accounts that belong to a custom group out of it on the All page; they stay with their custom group.
 - Links in update notes and update error messages that the app cannot open are now shown as plain text instead of links that do nothing.
 
-### Security (15)
+### Security (16)
 
 - The local usage API's access token check takes the same time no matter how long the presented token is, so timing cannot reveal the token's length.
 - While device sync is waiting for another device, it accepts connections only on the network address shown in its QR code and join code, not on every network the computer is connected to, such as a VPN.
@@ -37,6 +37,7 @@
 - Showing or copying the Paseo Bridge token, and starting an air-gapped transfer, now ask for confirmation in a system dialog that web content inside the app cannot answer.
 - On Android and iOS, while you sign in inside the app, the app window only opens the provider's sign-in pages, so a link on those pages cannot load another site inside the app.
 - Another program on your computer, or a web page, can no longer cancel a sign-in in progress or change its error message by sending a request to the app's sign-in callback.
+- Device sync only waits for another device on a local network address; on a device with no local network address it now says to connect to Wi-Fi, instead of listening on a public or every available address.
 
 ## 0.4.0 - 2026-10-07 (27 items)
 
