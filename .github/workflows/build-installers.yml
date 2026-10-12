@@ -141,7 +141,10 @@ jobs:
           workspaces: src-tauri
       - run: npm ci
       - name: Apply release version
-        # Passed through the environment, never pasted into the script.
+        # Passed through the environment, never pasted into the script. bash,
+        # because the Windows default (PowerShell) would not expand "$RELEASE_VERSION",
+        # and an empty version makes the script number the build from package.json.
+        shell: bash
         env:
           RELEASE_VERSION: ${{ needs.check-changes.outputs.version }}
         run: |
@@ -198,39 +201,6 @@ jobs:
         with:
           tagName: v__VERSION__
           releaseName: AI Usage Tracker v__VERSION__
-          releaseBody: |
-            ## Which download should I use?
-
-            ### Windows
-
-            **Recommended for most people: download the file ending in `-setup.exe`.**
-
-            - **`-setup.exe` — recommended:** the normal Windows installer. It installs for your Windows account, usually does not require administrator access, and is the installer used by automatic in-app updates.
-            - **`.msi` — administrators and managed computers:** intended for enterprise deployment, system administrators, Group Policy, Intune, or machine-wide installation. It commonly requires administrator access.
-
-            ### macOS
-
-            - **Apple Silicon:** choose the macOS download marked `aarch64` or `arm64` for M1, M2, M3, M4, and newer Apple chips.
-            - **Intel Mac:** choose the macOS download marked `x64` or `x86_64`.
-
-            ### First launch: expect a security warning
-
-            These downloads are not signed with a paid Apple or Microsoft developer certificate, so both systems warn the first time you open the app. The warning is expected. Updates you install from inside the app are verified by the app's own signature and do not repeat it.
-
-            - **Windows:** if "Windows protected your PC" appears, choose **More info**, then **Run anyway**.
-            - **macOS:** if macOS says the app cannot be opened because it is from an unidentified developer, open **System Settings → Privacy & Security**, scroll to the message about the app, and choose **Open Anyway**. On macOS 14 and earlier you can instead right-click the app and choose **Open**.
-
-            ### Android
-
-            - **`.apk` — sideload for Android:** download the `.apk` file directly to your phone (or transfer via USB) and tap to install. Enable "Install unknown apps" for your browser or file manager when prompted.
-
-            ### iOS (SideStore)
-
-            - **`.ipa` — sideload for iPhone/iPad:** add the `sidestore-source.json` URL to SideStore sources or download the `.ipa` to install and re-sign via SideStore.
-
-            ### Files you normally should not download manually
-
-            Files ending in `.sig`, `.tar.gz`, and `latest.json` support automatic updates. They are not the normal installers.
           releaseDraft: false
           prerelease: ${{ steps.release_kind.outputs.is_beta == 'true' }}
           uploadUpdaterJson: true
@@ -385,3 +355,30 @@ jobs:
     with:
       attach_to_versioned_release: true
       release_version: ${{ needs.check-changes.outputs.version }}
+
+  # The release page is the version's changelog followed by the download guide,
+  # generated from CHANGELOG.md and .github/release-notes/download-guide.md. It runs
+  # last and replaces the body whatever the platform jobs did, so a release that
+  # lost one platform still gets its notes.
+  release-notes:
+    name: Write release notes
+    needs: [check-changes, publish-windows, publish-macos, build-android, build-ios]
+    if: ${{ always() && needs.check-changes.outputs.should_build == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Build the notes and set them on the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.check-changes.outputs.version }}
+        run: |
+          set -euo pipefail
+          node scripts/release-notes.mjs --version "$VERSION" --output "$RUNNER_TEMP/release-notes.md"
+          gh release edit "v$VERSION" --notes-file "$RUNNER_TEMP/release-notes.md"

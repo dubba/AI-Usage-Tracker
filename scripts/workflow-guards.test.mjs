@@ -223,13 +223,29 @@ test("the Android signing step signs release APKs only and refuses debug ones", 
 });
 
 test("the release notes tell users what to do about the first-launch security warnings", () => {
-  const installers = workflows.find((w) => w.name === "build-installers.yml").text;
-  const start = installers.indexOf("releaseBody: |");
-  assert.notEqual(start, -1, "release notes template found");
-  const body = installers.slice(start, installers.indexOf("releaseDraft:", start));
   // Desktop builds are not signed with a paid developer certificate (accepted in the
   // audit ledger as L-21), so users have to be told how to get past the warnings.
-  assert.match(body, /Run anyway/, "Windows SmartScreen step");
-  assert.match(body, /Open Anyway/, "macOS Gatekeeper step");
+  const guide = readFileSync(resolve(workflowsDir, "../release-notes/download-guide.md"), "utf-8");
+  assert.match(guide, /Run anyway/, "Windows SmartScreen step");
+  assert.match(guide, /Open Anyway/, "macOS Gatekeeper step");
+
+  // The guide reaches the release page through the notes job, not a per-platform body.
+  const installers = workflows.find((w) => w.name === "build-installers.yml").text;
+  assert.doesNotMatch(installers, /releaseBody:/, "no platform job sets its own body");
+  assert.match(installers, /scripts\/release-notes\.mjs/, "the notes job runs the generator");
+  assert.match(installers, /gh release edit "v\$VERSION" --notes-file/, "the notes job sets the body");
+});
+
+test("the Windows release job runs its version step under bash", () => {
+  // On windows-latest a step with no `shell:` runs PowerShell, which leaves
+  // "$RELEASE_VERSION" empty; the script then numbers the build from package.json
+  // and the installers land on the previous release (v0.4.1 shipped that way).
+  const installers = workflows.find((w) => w.name === "build-installers.yml").text;
+  const job = /^  publish-windows:\n([\s\S]*?)(?=^  \S+:\n)/m.exec(installers);
+  assert.ok(job, "publish-windows job found");
+  assert.match(job[1], /runs-on: windows-/);
+  const step = /- name: Apply release version\n([\s\S]*?)(?=\n      - )/.exec(job[1]);
+  assert.ok(step, "version step found");
+  assert.match(step[1], /shell: bash/, "version step must not use the Windows default shell");
 });
 

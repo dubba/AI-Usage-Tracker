@@ -26,6 +26,7 @@ jobs:
       # Release scripts sit outside tsc/oxlint (both target src/ only), so
       # these suites are their only guard.
       - run: npm run test:resolve-version
+      - run: npm run test:release-notes
       - run: npm run test:sidestore-source
       - run: npm run test:gemini-quota-probe
       - run: npm run test:workflows

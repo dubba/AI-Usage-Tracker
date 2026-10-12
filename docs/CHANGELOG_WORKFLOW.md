@@ -73,7 +73,7 @@ A release task may:
 
 1. Rename the completed `## Unreleased (X items)` section to `## <version> - <YYYY-MM-DD> (X items)`.
 2. Insert a new empty `## Unreleased (0 items)` section above it.
-3. Reuse the completed section as the GitHub Release description.
+3. Reuse the completed section as the GitHub Release description. The release workflow does this itself: `scripts/release-notes.mjs` puts the version's changelog section (or `## Unreleased` before it is stamped) above the download guide in `.github/release-notes/download-guide.md`, with everything past the first 8 items folded behind "Show more" (the download guide is folded too), and sets the result as the release body.
 
 Released entries should remain unchanged except for correcting a clear typo or factual error.
 
