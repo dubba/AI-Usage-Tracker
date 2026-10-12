@@ -177,13 +177,8 @@ async fn health(
     if !host_valid(&headers) || !origin_allowed(&headers) {
         return forbidden();
     }
-    // Rate-limit before authentication so invalid-token probes are throttled
-    // too, not just successful requests.
-    if rate_limited(&app, addr.ip()) {
-        return too_many_requests();
-    }
-    if !authorized(&app, &headers) {
-        return unauthorized();
+    if let Err(response) = admit(&app, addr.ip(), &headers) {
+        return response;
     }
     with_security_headers(Json(json!({ "ok": true, "schemaVersion": 1 })).into_response())
 }
@@ -196,13 +191,8 @@ async fn usage(
     if !host_valid(&headers) || !origin_allowed(&headers) {
         return forbidden();
     }
-    // Rate-limit before authentication so invalid-token probes are throttled
-    // too, not just successful requests.
-    if rate_limited(&app, addr.ip()) {
-        return too_many_requests();
-    }
-    if !authorized(&app, &headers) {
-        return unauthorized();
+    if let Err(response) = admit(&app, addr.ip(), &headers) {
+        return response;
     }
     let accounts = app
         .store
@@ -276,16 +266,49 @@ pub struct RateBucket {
     updated: Instant,
 }
 
-fn rate_limited(app: &AppState, client: IpAddr) -> bool {
-    rate_limited_at(app, client, Instant::now())
+/// Which budget a request is charged to. Requests that present the right token
+/// and requests that do not are counted separately: every local process shares
+/// the 127.0.0.1 address, so with one budget any of them could keep it empty
+/// with bad requests and lock out the client that holds the token.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum RateLane {
+    Authorized,
+    Rejected,
 }
 
-fn rate_limited_at(app: &AppState, client: IpAddr, now: Instant) -> bool {
+/// Authenticates a request and charges it to its rate-limit lane. Rejected
+/// requests are still throttled (429 once their own budget runs out), so token
+/// guessing stays rate-limited; they just cannot spend the authorized budget.
+#[allow(clippy::result_large_err)]
+fn admit(
+    app: &AppState,
+    client: IpAddr,
+    headers: &HeaderMap,
+) -> Result<(), axum::response::Response> {
+    let lane = if authorized(app, headers) {
+        RateLane::Authorized
+    } else {
+        RateLane::Rejected
+    };
+    if rate_limited(app, client, lane) {
+        return Err(too_many_requests());
+    }
+    if lane == RateLane::Rejected {
+        return Err(unauthorized());
+    }
+    Ok(())
+}
+
+fn rate_limited(app: &AppState, client: IpAddr, lane: RateLane) -> bool {
+    rate_limited_at(app, client, lane, Instant::now())
+}
+
+fn rate_limited_at(app: &AppState, client: IpAddr, lane: RateLane, now: Instant) -> bool {
     let mut map = app.bridge_rate_limit.lock();
     // Bound memory: drop entries idle longer than the TTL (their bucket would
     // be full again anyway).
     map.retain(|_, bucket| now.saturating_duration_since(bucket.updated) < RATE_LIMIT_ENTRY_TTL);
-    let bucket = map.entry(client).or_insert(RateBucket {
+    let bucket = map.entry((client, lane)).or_insert(RateBucket {
         tokens: RATE_LIMIT_BURST,
         updated: now,
     });
@@ -455,24 +478,84 @@ mod tests {
 
         // A burst is allowed, then the client is limited.
         for _ in 0..RATE_LIMIT_BURST as usize {
-            assert!(!rate_limited_at(&app, client_a, start));
+            assert!(!rate_limited_at(
+                &app,
+                client_a,
+                RateLane::Authorized,
+                start
+            ));
         }
-        assert!(rate_limited_at(&app, client_a, start));
+        assert!(rate_limited_at(&app, client_a, RateLane::Authorized, start));
 
         // A different loopback client has its own budget.
-        assert!(!rate_limited_at(&app, client_b, start));
+        assert!(!rate_limited_at(
+            &app,
+            client_b,
+            RateLane::Authorized,
+            start
+        ));
 
         // One request per second comes back, but not a full burst at once.
         let later = start + Duration::from_millis(1100);
-        assert!(!rate_limited_at(&app, client_a, later));
-        assert!(rate_limited_at(&app, client_a, later));
+        assert!(!rate_limited_at(
+            &app,
+            client_a,
+            RateLane::Authorized,
+            later
+        ));
+        assert!(rate_limited_at(&app, client_a, RateLane::Authorized, later));
 
         // After a long idle time the whole burst is available again, no more.
         let much_later = start + Duration::from_secs(30);
         for _ in 0..RATE_LIMIT_BURST as usize {
-            assert!(!rate_limited_at(&app, client_a, much_later));
+            assert!(!rate_limited_at(
+                &app,
+                client_a,
+                RateLane::Authorized,
+                much_later
+            ));
         }
-        assert!(rate_limited_at(&app, client_a, much_later));
+        assert!(rate_limited_at(
+            &app,
+            client_a,
+            RateLane::Authorized,
+            much_later
+        ));
+    }
+
+    #[test]
+    fn bad_requests_cannot_use_up_the_token_holders_budget() {
+        let app = test_app();
+        let client: IpAddr = "127.0.0.1".parse().unwrap();
+        let mut bad = HeaderMap::new();
+        bad.insert(
+            AUTHORIZATION,
+            HeaderValue::from_static("Bearer wrong-token"),
+        );
+        let mut good = HeaderMap::new();
+        good.insert(
+            AUTHORIZATION,
+            HeaderValue::from_static("Bearer test-bridge-token-32-chars-minimum-xx"),
+        );
+        let status = |result: Result<(), axum::response::Response>| match result {
+            Ok(()) => StatusCode::OK,
+            Err(response) => response.status(),
+        };
+
+        // Another local process sends bad requests until it is throttled...
+        for _ in 0..RATE_LIMIT_BURST as usize {
+            assert_eq!(status(admit(&app, client, &bad)), StatusCode::UNAUTHORIZED);
+        }
+        assert_eq!(
+            status(admit(&app, client, &bad)),
+            StatusCode::TOO_MANY_REQUESTS
+        );
+        // ...and the client with the token, on the same address, is still served.
+        assert_eq!(status(admit(&app, client, &good)), StatusCode::OK);
+        assert_eq!(
+            status(admit(&app, client, &HeaderMap::new())),
+            StatusCode::TOO_MANY_REQUESTS
+        );
     }
 
     #[test]
@@ -481,11 +564,16 @@ mod tests {
         let start = Instant::now();
         for last in 1..=50u8 {
             let client: IpAddr = format!("127.0.0.{last}").parse().unwrap();
-            assert!(!rate_limited_at(&app, client, start));
+            assert!(!rate_limited_at(&app, client, RateLane::Authorized, start));
         }
         assert_eq!(app.bridge_rate_limit.lock().len(), 50);
         let client: IpAddr = "127.0.1.1".parse().unwrap();
-        rate_limited_at(&app, client, start + RATE_LIMIT_ENTRY_TTL * 2);
+        rate_limited_at(
+            &app,
+            client,
+            RateLane::Authorized,
+            start + RATE_LIMIT_ENTRY_TTL * 2,
+        );
         assert_eq!(app.bridge_rate_limit.lock().len(), 1);
     }
 

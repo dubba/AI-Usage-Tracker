@@ -60,8 +60,12 @@ pub struct AppState {
     pub bridge_token: RwLock<String>,
     /// Per-client token buckets for bridge rate limiting, keyed by client IP.
     /// Bound to loopback only; idle entries are pruned on each check.
-    pub bridge_rate_limit:
-        Mutex<std::collections::HashMap<std::net::IpAddr, crate::bridge_api::RateBucket>>,
+    pub bridge_rate_limit: Mutex<
+        std::collections::HashMap<
+            (std::net::IpAddr, crate::bridge_api::RateLane),
+            crate::bridge_api::RateBucket,
+        >,
+    >,
     pub api_runtime: RwLock<ApiRuntime>,
     /// Why the local API cannot run at all (its token could not be loaded from
     /// secure storage). Reported through the bridge status instead of failing
