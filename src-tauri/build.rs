@@ -277,17 +277,20 @@ fn patch_android_webview_templates(manifest_dir: &Path) {
     );
 
     // The patches above do nothing when the Tauri CLI regenerates templates in a shape they do not
-    // recognize. A silent miss here would ship the origin-blind IPC interface, so say so loudly;
-    // `webview_ipc_patch_applies_to_generated_kotlin` fails the test run in the same case.
+    // recognize. A silent miss would ship the origin-blind IPC interface, so an Android build (the
+    // one that compiles this Kotlin) stops here; other targets only warn, because their copy of the
+    // generated folder may be stale or absent.
     let still_legacy = fs::read_to_string(generated.join("Ipc.kt"))
         .is_ok_and(|content| content.contains("webViewClient.currentUrl"));
     let listener_missing = fs::read_to_string(generated.join("RustWebView.kt"))
         .is_ok_and(|content| !content.contains("installIpcListener()"));
     if still_legacy || listener_missing {
-        println!(
-            "cargo:warning=The Android IPC origin patch did not apply to the generated Kotlin; \
-             IPC would trust the last navigation URL. Update src-tauri/webview_ipc_patch.rs."
-        );
+        let message = "The Android IPC origin patch did not apply to the generated Kotlin; IPC \
+                       would trust the last navigation URL. Update src-tauri/webview_ipc_patch.rs.";
+        if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("android") {
+            panic!("{message}");
+        }
+        println!("cargo:warning={message}");
     }
 }
 

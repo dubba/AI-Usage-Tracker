@@ -158,17 +158,23 @@ mod tests {
         assert_eq!(patch_rust_webview_ipc("class Other {}"), "class Other {}");
     }
 
-    /// The generated Kotlin in the repository must be patchable. If the Tauri CLI regenerates the
-    /// templates with a different shape, the patch would silently do nothing and the legacy
-    /// interface would ship; this test fails instead.
+    /// The generated Kotlin on this machine must be patchable. If the Tauri CLI regenerates the
+    /// templates with a different shape, the patch would silently do nothing; this test fails
+    /// instead. The generated folder is gitignored and only exists once a `tauri android` command
+    /// has run here, so a plain checkout (CI's desktop jobs) skips the check. Android builds are
+    /// still covered: `build.rs` refuses to build for Android when the patch is missing.
     #[test]
     fn webview_ipc_patch_applies_to_generated_kotlin() {
         let dir = concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/gen/android/app/src/main/java/com/yajinni/paseousagebridge/generated/"
         );
-        let ipc = std::fs::read_to_string(format!("{dir}Ipc.kt")).unwrap();
-        let webview = std::fs::read_to_string(format!("{dir}RustWebView.kt")).unwrap();
+        let (Ok(ipc), Ok(webview)) = (
+            std::fs::read_to_string(format!("{dir}Ipc.kt")),
+            std::fs::read_to_string(format!("{dir}RustWebView.kt")),
+        ) else {
+            return;
+        };
         assert!(
             !patch_ipc(&ipc).contains("currentUrl"),
             "Ipc.kt still attributes messages to currentUrl after patching"
