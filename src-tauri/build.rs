@@ -6,6 +6,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
+// Kotlin patches for origin-safe Android IPC. A separate file so `cargo test` can cover them
+// (see the matching `#[path]` module in `src/lib.rs`).
+#[path = "webview_ipc_patch.rs"]
+mod webview_ipc_patch;
+
 const WINDOWS_ICON_SIZES: [u32; 9] = [16, 20, 24, 32, 40, 48, 64, 128, 256];
 
 fn write_file_if_changed<P: AsRef<std::path::Path>>(path: P, data: &[u8]) {
@@ -206,6 +211,8 @@ fn main() {
     println!("cargo:rerun-if-changed=gen/android/app/src/main/java/com/yajinni/paseousagebridge/generated/RustWebView.kt");
     println!("cargo:rerun-if-changed=gen/android/app/src/main/java/com/yajinni/paseousagebridge/generated/RustWebChromeClient.kt");
     println!("cargo:rerun-if-changed=gen/android/app/src/main/java/com/yajinni/paseousagebridge/generated/RustWebViewClient.kt");
+    println!("cargo:rerun-if-changed=gen/android/app/src/main/java/com/yajinni/paseousagebridge/generated/Ipc.kt");
+    println!("cargo:rerun-if-changed=webview_ipc_patch.rs");
 
     let icon_bytes = STANDARD
         .decode(include_str!("icons/app-icon.b64").trim())
@@ -256,7 +263,10 @@ fn embed_windows_app_manifest(manifest_dir: &Path) {
 fn patch_android_webview_templates(manifest_dir: &Path) {
     let generated =
         manifest_dir.join("gen/android/app/src/main/java/com/yajinni/paseousagebridge/generated");
-    patch_file(&generated.join("RustWebView.kt"), patch_rust_webview);
+    patch_file(&generated.join("RustWebView.kt"), |content| {
+        webview_ipc_patch::patch_rust_webview_ipc(&patch_rust_webview(content))
+    });
+    patch_file(&generated.join("Ipc.kt"), webview_ipc_patch::patch_ipc);
     patch_file(
         &generated.join("RustWebChromeClient.kt"),
         patch_chrome_client,
@@ -265,9 +275,23 @@ fn patch_android_webview_templates(manifest_dir: &Path) {
         &generated.join("RustWebViewClient.kt"),
         patch_webview_client,
     );
+
+    // The patches above do nothing when the Tauri CLI regenerates templates in a shape they do not
+    // recognize. A silent miss here would ship the origin-blind IPC interface, so say so loudly;
+    // `webview_ipc_patch_applies_to_generated_kotlin` fails the test run in the same case.
+    let still_legacy = fs::read_to_string(generated.join("Ipc.kt"))
+        .is_ok_and(|content| content.contains("webViewClient.currentUrl"));
+    let listener_missing = fs::read_to_string(generated.join("RustWebView.kt"))
+        .is_ok_and(|content| !content.contains("installIpcListener()"));
+    if still_legacy || listener_missing {
+        println!(
+            "cargo:warning=The Android IPC origin patch did not apply to the generated Kotlin; \
+             IPC would trust the last navigation URL. Update src-tauri/webview_ipc_patch.rs."
+        );
+    }
 }
 
-fn patch_file(path: &PathBuf, patch: fn(&str) -> String) {
+fn patch_file(path: &PathBuf, patch: impl Fn(&str) -> String) {
     let Ok(content) = fs::read_to_string(path) else {
         return;
     };

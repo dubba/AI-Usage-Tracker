@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (12 items)
+## Unreleased (13 items)
 
 ### Improved (4)
 
@@ -18,10 +18,11 @@
 - Moving an account card on the All page now moves its sidebar group to match, the same way dragging a sidebar group already rearranged the All page.
 - Dragging a sidebar group no longer pulls accounts that belong to a custom group out of it on the All page; they stay with their custom group.
 
-### Security (2)
+### Security (3)
 
 - The local usage API's access token check takes the same time no matter how long the presented token is, so timing cannot reveal the token's length.
 - While device sync is waiting for another device, it accepts connections only on the network address shown in its QR code and join code, not on every network the computer is connected to, such as a VPN.
+- On Android, a web page opened inside the app during sign-in can no longer be mistaken for the app itself when it sends requests to the app's backend.
 
 ## 0.4.0 - 2026-10-07 (27 items)
 

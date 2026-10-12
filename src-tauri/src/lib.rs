@@ -177,6 +177,11 @@ pub fn run() {
         });
 }
 
+// Kotlin patches that `build.rs` applies; compiled here only so they can be tested.
+#[cfg(test)]
+#[path = "../webview_ipc_patch.rs"]
+mod webview_ipc_patch;
+
 #[cfg(test)]
 mod tests {
     /// The command list in `build.rs`, the capability files, and the commands
