@@ -378,16 +378,20 @@ mod tests {
 
     #[test]
     fn android_sso_popup_installs_the_same_back_button() {
-        let chrome = include_str!(
-            "../gen/android/app/src/main/java/com/dubba/ai/usage/tracker/generated/RustWebChromeClient.kt"
-        );
-        assert!(chrome.contains("createElementNS"));
-        assert!(chrome.contains("ai-usage-tracker-back"));
-        assert!(chrome.contains("uri.fragment == \"ai-usage-tracker-back\""));
-        assert!(chrome.contains("scheme == \"javascript\""));
-        assert!(chrome.contains("scheme == \"file\""));
-        assert!(chrome.contains("scheme == \"content\""));
-        assert!(!chrome.contains("button.innerHTML"));
+        // The generated Kotlin is gitignored and only exists after a `tauri android` command, so
+        // plain checkouts (CI's desktop test job) skip these assertions.
+        if let Ok(chrome) = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/gen/android/app/src/main/java/com/dubba/ai/usage/tracker/generated/RustWebChromeClient.kt"
+        )) {
+            assert!(chrome.contains("createElementNS"));
+            assert!(chrome.contains("ai-usage-tracker-back"));
+            assert!(chrome.contains("uri.fragment == \"ai-usage-tracker-back\""));
+            assert!(chrome.contains("scheme == \"javascript\""));
+            assert!(chrome.contains("scheme == \"file\""));
+            assert!(chrome.contains("scheme == \"content\""));
+            assert!(!chrome.contains("button.innerHTML"));
+        }
         let lookalike = "https://accounts.google.com/#ai-usage-tracker-back-extra";
         assert_ne!(
             Url::parse(lookalike).unwrap().fragment(),
