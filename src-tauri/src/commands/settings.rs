@@ -63,6 +63,7 @@ pub fn set_autostart(
             app.autolaunch()
                 .enable()
                 .map_err(crate::diagnostics::command_error)?;
+            crate::autostart::quote_windows_run_value(&app.package_info().name);
         } else {
             app.autolaunch()
                 .disable()

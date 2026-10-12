@@ -6,6 +6,7 @@ mod android_context;
 mod android_keystore;
 #[cfg(target_os = "android")]
 mod apk_install;
+mod autostart;
 mod backend;
 mod bridge_api;
 mod buckets;
@@ -61,7 +62,7 @@ pub fn run() {
             }))
             .plugin(tauri_plugin_autostart::init(
                 MacosLauncher::LaunchAgent,
-                Some(vec!["--hidden"]),
+                Some(autostart::AUTOSTART_ARGS.to_vec()),
             ))
             .plugin(
                 tauri_plugin_window_state::Builder::default()
@@ -77,6 +78,10 @@ pub fn run() {
         .setup(|app| {
             #[cfg(desktop)]
             tray::setup_main_window(app);
+
+            // Entries written by earlier versions have an unquoted path.
+            #[cfg(windows)]
+            autostart::quote_windows_run_value(&app.package_info().name);
 
             #[cfg(target_os = "macos")]
             macos_notifications::setup_macos_notification_delegate();

@@ -56,6 +56,11 @@ objc2 = "0.6"
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21"
 
+[target.'cfg(windows)'.dependencies]
+# Quotes the start-at-login command (src/autostart.rs). The same version
+# tauri-plugin-autostart already pulls in through auto-launch.
+winreg = "0.10"
+
 [dev-dependencies]
 tempfile = "3"
 
