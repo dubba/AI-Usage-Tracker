@@ -64,16 +64,32 @@ describe("browser sign-in providers", () => {
     expect(strategy.isReady(draft(provider))).toBe(true);
     expect(strategy.opensBrowser).toBe(true);
     expect(strategy.signInStartMessage).toBeNull();
-    expect(strategy.signInEmail(draft(provider, { email: "x@y.z" }))).toBeUndefined();
-    expect(strategy.waitingText("anything")).toBe("Waiting for the browser callback…");
+    expect(strategy.waitingText("anything")).toBe("Waiting for sign-in…");
     expect(strategy.actionLabel(draft(provider), false)).toBe(`Open ${defaultAccountName(provider)} Login`);
     expect(strategy.actionLabel(draft(provider), true)).toBe("Connecting…");
   });
 
+  it.each(["openai", "anthropic", "antigravity"] as const)("%s collects an optional email hint for the chooser", (provider) => {
+    const strategy = strategyFor(provider);
+    expect(strategy.wantsEmailHint).toBe(true);
+    // Sent as `login_hint` so the provider selects the intended account
+    // instead of silently reusing the signed-in session.
+    expect(strategy.signInEmail(draft(provider, { email: " second@example.com " }))).toBe("second@example.com");
+    expect(strategy.signInEmail(draft(provider, { email: "   " }))).toBeUndefined();
+  });
+
+  it("other providers do not show the email hint field", () => {
+    expect(strategyFor("grok").wantsEmailHint).toBe(false);
+    expect(strategyFor("opencode_go").wantsEmailHint).toBe(false);
+    expect(strategyFor("google_ai_studio").wantsEmailHint).toBe(false);
+  });
+
   it("names the provider in the reconnect copy, differently on Android", () => {
     const strategy = strategyFor("anthropic");
-    expect(strategy.description({ isAndroid: false })).toContain("Finish the Anthropic Claude login in your browser.");
-    expect(strategy.description({ isAndroid: true })).toContain("Your browser opens the Anthropic Claude sign-in page.");
+    expect(strategy.description({ isAndroid: false })).toContain("A sign-in window opens on top of the app.");
+    expect(strategy.description({ isAndroid: false })).toContain("Back at the top left");
+    expect(strategy.description({ isAndroid: true })).toContain("The Anthropic Claude sign-in page opens in the app.");
+    expect(strategy.description({ isAndroid: true })).toContain("Back at the top left");
   });
 });
 

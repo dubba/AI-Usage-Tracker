@@ -30,6 +30,9 @@ pub(crate) fn initialize_backend(app: &AppHandle) -> Result<(), startup::Startup
     // by a previous crash/kill before any new login window opens.
     #[cfg(desktop)]
     crate::grok_login::sweep_stale_grok_profiles();
+    // Same for the private OpenCode login profiles.
+    #[cfg(desktop)]
+    crate::opencode_login::sweep_stale_opencode_profiles();
 
     // Seal plaintext credential files from earlier versions (Android only:
     // there is no platform cipher elsewhere, so this does nothing).

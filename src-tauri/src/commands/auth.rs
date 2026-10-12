@@ -42,7 +42,14 @@ pub async fn start_login(
     } else if provider == Provider::Grok {
         grok_login::start_login(state.inner().clone(), label, reconnect_account_id).await
     } else {
-        oauth::start_login(state.inner().clone(), label, provider, reconnect_account_id).await
+        oauth::start_login(
+            state.inner().clone(),
+            label,
+            provider,
+            email,
+            reconnect_account_id,
+        )
+        .await
     }
 }
 
@@ -180,7 +187,7 @@ pub fn cancel_login(
         return Ok(());
     }
 
-    for label in ["opencode-go-login", "grok-login"] {
+    for label in ["opencode-go-login", "grok-login", "provider-login"] {
         if let Some(window) = app.get_webview_window(label) {
             let _ = window.close();
             let _ = window.destroy();

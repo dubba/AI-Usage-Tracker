@@ -23,10 +23,115 @@ use uuid::Uuid;
 
 #[cfg(desktop)]
 const LOGIN_WINDOW_LABEL: &str = "opencode-go-login";
+#[cfg(desktop)]
+const OPENCODE_PROFILE_PREFIX: &str = "ai-usage-opencode-";
 const LOGIN_URL: &str = "https://opencode.ai/auth";
 const LOGIN_TIMEOUT_MINUTES: i64 = 10;
 const COOKIE_CAPTURE_ATTEMPTS: usize = 30;
 const COOKIE_CAPTURE_RETRY_DELAY_MS: u64 = 500;
+
+/// Query flag the injected top-left "Back" button appends to the current
+/// page. `on_navigation` intercepts it (and blocks the reload): the login
+/// attempt is canceled and the window closes, so users can always exit the
+/// authorization flow.
+#[cfg(desktop)]
+const BACK_QUERY_FLAG: &str = "ai-usage-tracker-back";
+
+/// Top-left "Back" button for the login window, which has no browser chrome.
+/// Installed on every page (including the SSO hand-off hosts), because a
+/// user can get stuck on any of them.
+#[cfg(desktop)]
+const BACK_BUTTON_SCRIPT: &str = r#"
+(() => {
+  try {
+    if (window.top !== window) return;
+    const id = '__ai_tracker_back';
+    if (document.getElementById(id)) return;
+    const button = document.createElement('button');
+    button.id = id;
+    button.type = 'button';
+    button.textContent = '‹ Back';
+    button.setAttribute('aria-label', 'Back to AI Usage Tracker');
+    button.style.cssText = [
+      'position:fixed', 'top:max(env(safe-area-inset-top),8px)', 'left:8px', 'z-index:2147483647',
+      'padding:8px 14px', 'border:0', 'border-radius:999px', 'background:#6d3bd7', 'color:#fff',
+      'font:600 14px -apple-system,system-ui,sans-serif', 'box-shadow:0 2px 10px rgba(0,0,0,.4)',
+      'cursor:pointer',
+    ].join(';');
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('ai-usage-tracker-back', '1');
+        window.location.href = url.toString();
+      } catch (e) {}
+    }, true);
+    (document.body || document.documentElement).appendChild(button);
+  } catch (e) {}
+})();
+"#;
+
+#[cfg(desktop)]
+fn is_back_request(url: &Url) -> bool {
+    url.query_pairs()
+        .any(|(key, value)| key == BACK_QUERY_FLAG && value == "1")
+}
+
+#[cfg(desktop)]
+fn create_private_opencode_profile_dir(attempt_id: &str) -> Result<std::path::PathBuf, String> {
+    // Validate the attempt id so the joined path cannot escape the temp dir.
+    if attempt_id.is_empty()
+        || attempt_id.len() > 64
+        || !attempt_id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-')
+    {
+        return Err("Invalid login attempt.".into());
+    }
+    let dir = std::env::temp_dir().join(format!("{OPENCODE_PROFILE_PREFIX}{attempt_id}"));
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| format!("Unable to prepare the private login profile: {e}"))?;
+    // Owner-only (0700 / Windows ACL). Fail closed: remove the dir rather
+    // than leaving a world-readable session profile behind.
+    if let Err(error) = crate::fs_util::restrict_private_permissions(&dir) {
+        let _ = std::fs::remove_dir_all(&dir);
+        return Err(error);
+    }
+    Ok(dir)
+}
+
+/// Best-effort removal of stale `ai-usage-opencode-*` profiles (crash-safe
+/// cleanup). Only removes directories with our exact prefix in the system
+/// temp dir; never follows symlinks beyond the profile root.
+#[cfg(desktop)]
+pub fn sweep_stale_opencode_profiles() {
+    let tmp = std::env::temp_dir();
+    let Ok(entries) = std::fs::read_dir(&tmp) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else {
+            continue;
+        };
+        if !name.starts_with(OPENCODE_PROFILE_PREFIX) {
+            continue;
+        };
+        // Guard against path traversal tricks in exotic temp-dir listings.
+        if name.contains('/') || name.contains('\\') || name.contains("..") {
+            continue;
+        }
+        let path = tmp.join(name);
+        // Only remove directories (profiles), never files/symlinks.
+        if let Ok(ft) = entry.file_type() {
+            if !ft.is_dir() {
+                continue;
+            }
+        }
+        let _ = std::fs::remove_dir_all(&path);
+    }
+}
 
 #[cfg(desktop)]
 const CONNECT_BANNER_SCRIPT: &str = r#"
@@ -148,6 +253,23 @@ pub async fn start_login(
         }
 
         let expires_at = (Utc::now() + Duration::minutes(LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
+        // A private profile per attempt (like the Grok window) so a previous
+        // OpenCode or Google session can never silently sign in a second
+        // account: every login starts without stored cookies.
+        sweep_stale_opencode_profiles();
+        let temp_data_dir = match create_private_opencode_profile_dir(&attempt_id) {
+            Ok(dir) => dir,
+            Err(error) => {
+                let mut pending = state.pending_login.write();
+                if pending
+                    .as_ref()
+                    .is_some_and(|login| login.attempt_id == attempt_id)
+                {
+                    *pending = None;
+                }
+                return Err(error);
+            }
+        };
         let (width, height) = login_window_size(&app);
         let login_url = match Url::parse(LOGIN_URL) {
             Ok(url) => url,
@@ -181,10 +303,28 @@ pub async fn start_login(
         .inner_size(width, height)
         .min_inner_size(820.0, 620.0)
         .resizable(true)
+        .data_directory(temp_data_dir.clone())
         .incognito(true)
         .devtools(false)
-        .initialization_script(CONNECT_BANNER_SCRIPT)
-        .on_navigation(is_allowed_login_navigation);
+        .initialization_script(format!("{CONNECT_BANNER_SCRIPT}\n{BACK_BUTTON_SCRIPT}"))
+        .on_navigation({
+            let back_app = app.clone();
+            let back_state = state.clone();
+            let back_attempt = attempt_id.clone();
+            move |url| {
+                if is_back_request(url) {
+                    if let Some(window) = back_app.get_webview_window(LOGIN_WINDOW_LABEL) {
+                        close_login_window(&window);
+                    }
+                    back_state.fail_login_if_waiting(
+                        &back_attempt,
+                        "OpenCode login was canceled.".into(),
+                    );
+                    return false;
+                }
+                is_allowed_login_navigation(url)
+            }
+        });
 
         #[cfg(desktop)]
         {
@@ -247,6 +387,7 @@ pub async fn start_login(
     .build() {
         Ok(window) => window,
         Err(error) => {
+            let _ = std::fs::remove_dir_all(&temp_data_dir);
             let mut pending = state.pending_login.write();
             if pending.as_ref().is_some_and(|login| login.attempt_id == attempt_id) {
                 *pending = None;
@@ -260,8 +401,10 @@ pub async fn start_login(
 
         let close_state = state.clone();
         let close_attempt = attempt_id.clone();
+        let close_dir = temp_data_dir.clone();
         login_window.on_window_event(move |event| {
             if matches!(event, WindowEvent::CloseRequested { .. }) {
+                let _ = std::fs::remove_dir_all(&close_dir);
                 close_state
                     .fail_login_if_waiting(&close_attempt, "OpenCode login was canceled.".into());
             }
@@ -270,9 +413,11 @@ pub async fn start_login(
         let timeout_state = state.clone();
         let timeout_attempt = attempt_id.clone();
         let timeout_app = app.clone();
+        let timeout_dir = temp_data_dir.clone();
         tauri::async_runtime::spawn(async move {
             tokio::time::sleep(StdDuration::from_secs((LOGIN_TIMEOUT_MINUTES * 60) as u64)).await;
             if timeout_state.login_is_waiting(&timeout_attempt) {
+                let _ = std::fs::remove_dir_all(&timeout_dir);
                 timeout_state.fail_login_if_waiting(
                     &timeout_attempt,
                     "OpenCode login timed out. Start the connection again.".into(),
@@ -704,5 +849,42 @@ mod tests {
             let url = Url::parse(blocked).unwrap();
             assert!(!is_allowed_login_navigation(&url), "{blocked}");
         }
+    }
+
+    #[test]
+    fn back_button_requests_cancel_the_login() {
+        // The injected button appends the flag to whatever page is showing.
+        for back in [
+            "https://opencode.ai/auth?ai-usage-tracker-back=1",
+            "https://opencode.ai/workspace/w/go?ai-usage-tracker-back=1",
+            "https://accounts.google.com/o/oauth2/auth?client_id=x&ai-usage-tracker-back=1",
+        ] {
+            let url = Url::parse(back).unwrap();
+            assert!(is_back_request(&url), "{back}");
+        }
+        for not_back in [
+            "https://opencode.ai/auth",
+            "https://opencode.ai/workspace/w/go",
+            "https://opencode.ai/auth?ai-usage-tracker-back=0",
+        ] {
+            let url = Url::parse(not_back).unwrap();
+            assert!(!is_back_request(&url), "{not_back}");
+        }
+        assert!(BACK_BUTTON_SCRIPT.contains("ai-usage-tracker-back"));
+        assert!(BACK_BUTTON_SCRIPT.contains("aria-label"));
+    }
+
+    #[cfg(desktop)]
+    #[test]
+    fn private_profile_dir_rejects_unsafe_attempt_ids() {
+        assert!(create_private_opencode_profile_dir("").is_err());
+        assert!(create_private_opencode_profile_dir("../escape").is_err());
+        assert!(create_private_opencode_profile_dir("a/b").is_err());
+        assert!(create_private_opencode_profile_dir(&"a".repeat(65)).is_err());
+        assert!(create_private_opencode_profile_dir("ok-attempt-123").is_ok());
+        // Created with our prefix; clean up so the temp dir is left as found.
+        let _ = std::fs::remove_dir_all(
+            std::env::temp_dir().join(format!("{OPENCODE_PROFILE_PREFIX}ok-attempt-123")),
+        );
     }
 }

@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased (31 items)
+## Unreleased (34 items)
 
-### Improved (7)
+### Improved (8)
 
-- The "Account connected" page now includes a prominent 5-second visual countdown before closing the tab automatically, and mobile in-app sign-in views remain on the connected screen for 5 seconds before returning to the dashboard.
+- The Back button on in-app sign-in sits closer to the status bar, and its chevron is as bold as the label.
+- The "Account connected" page now shows the account email in purple and includes a prominent 5-second countdown number before closing automatically, and mobile in-app sign-in views remain on the connected screen for 5 seconds before returning to the dashboard.
 - The All Accounts and App Settings titles, the installed version in Settings, and the sidebar edge while you resize it now use the same purple as the usage bars.
 
 - In Settings, the Appearance dropdown keeps a consistent width across Dark, Light, and System themes, and the dropdown menu aligns flush with the button.
@@ -13,7 +14,7 @@
 - Dragging a sidebar group now rearranges the account cards on the All page immediately, instead of after a short pause while the new order is saved.
 - On Android, Wi-Fi only stays in its battery-hungry multicast mode while device sync is running, instead of the whole time the app is open.
 
-### Fixed (8)
+### Fixed (10)
 
 - In Settings, the space between the Automatic Updates title and its description matches Change Log and the other settings rows.
 - Dropdown menus anywhere in the app, including the actions menu on account cards, open upward instead of downward near the bottom of the window, so no item is ever cut off.
@@ -23,6 +24,8 @@
 - Dragging a sidebar group no longer pulls accounts that belong to a custom group out of it on the All page; they stay with their custom group.
 - Links in update notes and update error messages that the app cannot open are now shown as plain text instead of links that do nothing.
 - Removing an account and adding it back no longer leaves the sidebar and the All Accounts page in different orders; both now follow the same account order.
+- Signing in now offers the account chooser even when you are already signed in elsewhere, so adding a second or third account signs in the intended one instead of reusing the first session. Entering the account's email address in Add Account selects it directly.
+- Provider sign-in pages, including the Google account chooser, now have a Back button at the top left that returns you to the app.
 
 ### Security (16)
 

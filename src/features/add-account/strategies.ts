@@ -73,6 +73,8 @@ export interface ProviderStrategy {
   waitingText(backendMessage: string | null): string;
   /** Whether the authorization URL is opened in the system browser. */
   opensBrowser: boolean;
+  /** Show the optional account-email hint field (browser sign-ins use it as `login_hint`). */
+  wantsEmailHint: boolean;
   /** Email passed to the sign-in start, for providers that need one. */
   signInEmail(draft: AddAccountDraft): string | undefined;
   /** Sends the form to the backend for the `manual` and `api-key` modes. */
@@ -89,18 +91,24 @@ const browserSignIn = (provider: Provider): ProviderStrategy => ({
   isReady: () => true,
   description: ({ isAndroid }) =>
     isAndroid
-      ? `Your browser opens the ${connectLabel(provider)} sign-in page. After you finish, return to the app; it links the account automatically. Passwords never pass through this app.`
-      : `Finish the ${connectLabel(provider)} login in your browser. Passwords never pass through this app.`,
+      ? `The ${connectLabel(provider)} sign-in page opens in the app. Choose or enter the account. Back at the top left returns you here. Passwords never pass through this app.`
+      : `A sign-in window opens on top of the app. Choose or enter the account there. Back at the top left returns you here. Passwords never pass through this app.`,
   signInStartMessage: null,
-  waitingText: () => "Waiting for the browser callback…",
+  waitingText: () => "Waiting for sign-in…",
   opensBrowser: true,
-  signInEmail: () => undefined,
+  // The address is sent as `login_hint` so the provider selects the intended
+  // account instead of silently reusing the signed-in session. Optional: an
+  // empty field leaves the chooser unfiltered.
+  wantsEmailHint: true,
+  signInEmail: (draft) => draft.email.trim() || undefined,
   actionLabel: (_draft, busy) => (busy ? "Connecting…" : `Open ${defaultAccountName(provider)} Login`),
 });
 
 const opencodeGo: ProviderStrategy = {
   ...browserSignIn("opencode_go"),
   connectMode: (draft) => (draft.advancedManual ? "manual" : "sign-in"),
+  // OpenCode renders its own (required) email field instead of the hint.
+  wantsEmailHint: false,
   validate: (draft) => (validEmail(draft.email) ? null : "A valid email address is required for OpenCode Go accounts."),
   isReady: (draft) => Boolean(draft.email.trim()),
   description: ({ isAndroid }) =>
@@ -126,6 +134,8 @@ const opencodeGo: ProviderStrategy = {
 const grok: ProviderStrategy = {
   ...browserSignIn("grok"),
   connectMode: (draft) => (draft.advancedManual ? "manual" : "sign-in"),
+  // Grok signs in inside a private window that starts without a session.
+  wantsEmailHint: false,
   validate: (draft) =>
     draft.advancedManual && !draft.grokCookie.trim() ? "Grok session cookies are required for manual connection." : null,
   isReady: (draft) => !draft.advancedManual || Boolean(draft.grokCookie.trim()),
@@ -147,6 +157,7 @@ const grok: ProviderStrategy = {
 const googleAiStudio: ProviderStrategy = {
   ...browserSignIn("google_ai_studio"),
   connectMode: () => "api-key",
+  wantsEmailHint: false,
   validate: (draft) => {
     if (!draft.apiKey.trim()) return "A Google AI Studio API key is required.";
     if (!draft.availableModels.length) return "Load the models from Google before adding this account.";

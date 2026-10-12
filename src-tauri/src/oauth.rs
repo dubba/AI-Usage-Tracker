@@ -20,10 +20,14 @@ use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use chrono::{Duration, Utc};
 use serde::Deserialize;
 use serde_json::{json, Value};
+#[cfg(desktop)]
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
     net::{IpAddr, SocketAddr},
     sync::Arc,
 };
+#[cfg(desktop)]
+use tauri::{webview::PageLoadEvent, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use tokio::{net::TcpListener, sync::oneshot};
 use url::Url;
 use uuid::Uuid;
@@ -74,6 +78,7 @@ pub async fn start_login(
     app: Arc<AppState>,
     label: String,
     provider: Provider,
+    email: Option<String>,
     reconnect_account_id: Option<String>,
 ) -> Result<LoginStart, String> {
     if matches!(provider, Provider::OpencodeGo | Provider::Grok) {
@@ -119,20 +124,25 @@ pub async fn start_login(
     let challenge = pkce_challenge(&verifier);
     let expected_state = random_base64(24);
     let redirect_uri = redirect_uri(&provider, addr);
-    let authorization_url =
-        match build_authorization_url(&provider, &redirect_uri, &challenge, &expected_state) {
-            Ok(url) => url,
-            Err(error) => {
-                let mut pending = app.pending_login.write();
-                if pending
-                    .as_ref()
-                    .is_some_and(|login| login.attempt_id == attempt_id)
-                {
-                    *pending = None;
-                }
-                return Err(error);
+    let authorization_url = match build_authorization_url(
+        &provider,
+        &redirect_uri,
+        &challenge,
+        &expected_state,
+        email.as_deref(),
+    ) {
+        Ok(url) => url,
+        Err(error) => {
+            let mut pending = app.pending_login.write();
+            if pending
+                .as_ref()
+                .is_some_and(|login| login.attempt_id == attempt_id)
+            {
+                *pending = None;
             }
-        };
+            return Err(error);
+        }
+    };
     let expires_at = (Utc::now() + Duration::minutes(LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
 
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
@@ -201,12 +211,260 @@ pub async fn start_login(
 
     #[cfg(desktop)]
     {
+        // The sign-in page opens in this app's window, not the system browser,
+        // so the top-left Back button can sit on the provider page (the Google
+        // account chooser included) and a fresh profile can ask for the account.
+        if let Err(error) = open_provider_login_window(
+            &app,
+            &attempt_id,
+            &authorization_url,
+            &format!("Sign in to {}", context.provider.display_name()),
+        ) {
+            app.fail_login_if_waiting(&attempt_id, error.clone());
+            app.abort_login_resources(&attempt_id);
+            return Err(error);
+        }
         Ok(LoginStart {
             attempt_id,
-            authorization_url,
+            authorization_url: String::new(),
             expires_at,
         })
     }
+}
+
+const PROVIDER_LOGIN_WINDOW: &str = "provider-login";
+const PROVIDER_LOGIN_PROFILE_PREFIX: &str = "ai-usage-oauth-";
+
+/// Query flag the injected top-left Back button appends. `on_navigation`
+/// blocks that load, cancels the attempt, and closes the window.
+const BACK_QUERY_FLAG: &str = "ai-usage-tracker-back";
+
+/// Top-left Back button for a provider page that has no browser chrome.
+const LOGIN_BACK_BUTTON_SCRIPT: &str = r#"
+(() => {
+  try {
+    if (window.top !== window) return;
+    const id = '__ai_tracker_back';
+    if (document.getElementById(id)) return;
+    const button = document.createElement('button');
+    button.id = id;
+    button.type = 'button';
+    button.textContent = '‹ Back';
+    button.setAttribute('aria-label', 'Back to AI Usage Tracker');
+    button.style.cssText = [
+      'position:fixed', 'top:12px', 'left:12px', 'z-index:2147483647',
+      'padding:8px 14px', 'border:0', 'border-radius:999px', 'background:#6d3bd7', 'color:#fff',
+      'font:600 14px -apple-system,system-ui,sans-serif', 'box-shadow:0 2px 10px rgba(0,0,0,.4)',
+      'cursor:pointer',
+    ].join(';');
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('ai-usage-tracker-back', '1');
+        window.location.href = url.toString();
+      } catch (e) {}
+    }, true);
+    (document.body || document.documentElement).appendChild(button);
+  } catch (e) {}
+})();
+"#;
+
+pub(crate) fn is_provider_login_back_request(url: &Url) -> bool {
+    url.query_pairs()
+        .any(|(key, value)| key == BACK_QUERY_FLAG && value == "1")
+}
+
+/// The first page of a desktop sign-in window. Narrower than the pages a
+/// sign-in may pass through afterwards.
+pub(crate) fn is_allowed_provider_login_start(url: &Url) -> bool {
+    if is_provider_login_back_request(url) {
+        return false;
+    }
+    if url.scheme() != "https" || url.port().is_some() || !url.username().is_empty() {
+        return false;
+    }
+    let Some(host) = url.host_str() else {
+        return false;
+    };
+    let host = host.to_ascii_lowercase();
+    ["openai.com", "claude.ai", "anthropic.com", "google.com"]
+        .iter()
+        .any(|allowed| host == *allowed || host.ends_with(&format!(".{allowed}")))
+}
+
+/// Pages the desktop sign-in window may load after it opens: provider and
+/// single-sign-on hosts, plus the loopback callback that finishes the login.
+/// A Back request is never loaded.
+pub(crate) fn is_allowed_provider_login_navigation(url: &Url) -> bool {
+    if is_provider_login_back_request(url) {
+        return false;
+    }
+    if url.as_str() == "about:blank" {
+        return true;
+    }
+    if looks_like_oauth_callback(url) && url.scheme() == "http" && url.username().is_empty() {
+        return true;
+    }
+    if url.scheme() != "https" || url.port().is_some() || !url.username().is_empty() {
+        return false;
+    }
+    url.host_str()
+        .is_some_and(crate::signin_navigation::host_is_sign_in)
+}
+
+#[cfg(desktop)]
+fn create_private_oauth_profile_dir(attempt_id: &str) -> Result<std::path::PathBuf, String> {
+    if attempt_id.is_empty()
+        || attempt_id.len() > 64
+        || !attempt_id
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+    {
+        return Err("Invalid login attempt.".into());
+    }
+    let dir = std::env::temp_dir().join(format!("{PROVIDER_LOGIN_PROFILE_PREFIX}{attempt_id}"));
+    std::fs::create_dir_all(&dir)
+        .map_err(|error| format!("Unable to prepare the private login profile: {error}"))?;
+    if let Err(error) = crate::fs_util::restrict_private_permissions(&dir) {
+        let _ = std::fs::remove_dir_all(&dir);
+        return Err(error);
+    }
+    Ok(dir)
+}
+
+#[cfg(desktop)]
+fn sweep_stale_oauth_profiles() {
+    let tmp = std::env::temp_dir();
+    let Ok(entries) = std::fs::read_dir(&tmp) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else {
+            continue;
+        };
+        if !name.starts_with(PROVIDER_LOGIN_PROFILE_PREFIX)
+            || name.contains('/')
+            || name.contains('\\')
+            || name.contains("..")
+        {
+            continue;
+        }
+        if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+            let _ = std::fs::remove_dir_all(tmp.join(name));
+        }
+    }
+}
+
+/// Opens `authorization_url` in a private window with a top-left Back button.
+/// The loopback callback server is already listening; this window does not
+/// receive the app's privileged IPC.
+#[cfg(desktop)]
+pub(crate) fn open_provider_login_window(
+    app: &Arc<AppState>,
+    attempt_id: &str,
+    authorization_url: &str,
+    title: &str,
+) -> Result<(), String> {
+    let target = Url::parse(authorization_url).map_err(|error| error.to_string())?;
+    if !is_allowed_provider_login_start(&target) {
+        return Err("Disallowed authorization URL host".into());
+    }
+    let handle = app
+        .app_handle
+        .read()
+        .clone()
+        .ok_or_else(|| "The app is not ready to open sign-in.".to_string())?;
+    if let Some(window) = handle.get_webview_window(PROVIDER_LOGIN_WINDOW) {
+        crate::mobile_auth::dismiss_login_window(&window);
+    }
+    sweep_stale_oauth_profiles();
+    let profile_dir = create_private_oauth_profile_dir(attempt_id)?;
+    let callback_seen = Arc::new(AtomicBool::new(false));
+    let back_handle = handle.clone();
+    let back_state = app.clone();
+    let back_attempt = attempt_id.to_string();
+    let nav_callback_seen = callback_seen.clone();
+    let nav_handle = handle.clone();
+    let nav_dir = profile_dir.clone();
+    let builder = WebviewWindowBuilder::new(
+        &handle,
+        PROVIDER_LOGIN_WINDOW,
+        WebviewUrl::External(target),
+    )
+    .title(title)
+    .inner_size(1080.0, 760.0)
+    .min_inner_size(820.0, 620.0)
+    .resizable(true)
+    .center()
+    .data_directory(profile_dir.clone())
+    .incognito(true)
+    .devtools(false)
+    .initialization_script(LOGIN_BACK_BUTTON_SCRIPT)
+    .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15")
+    .on_page_load(|window, payload| {
+        if matches!(payload.event(), PageLoadEvent::Finished) {
+            let _ = window.eval(LOGIN_BACK_BUTTON_SCRIPT);
+        }
+    })
+    .on_navigation(move |url| {
+        if is_provider_login_back_request(url) {
+            back_state.fail_login_if_waiting(&back_attempt, "Sign-in was canceled.".into());
+            back_state.abort_login_resources(&back_attempt);
+            if let Some(window) = back_handle.get_webview_window(PROVIDER_LOGIN_WINDOW) {
+                crate::mobile_auth::dismiss_login_window(&window);
+            }
+            return false;
+        }
+        if looks_like_oauth_callback(url) && url.scheme() == "http" && url.username().is_empty() {
+            if !nav_callback_seen.swap(true, Ordering::SeqCst) {
+                let close_handle = nav_handle.clone();
+                let close_dir = nav_dir.clone();
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                    let _ = std::fs::remove_dir_all(&close_dir);
+                    if let Some(window) = close_handle.get_webview_window(PROVIDER_LOGIN_WINDOW) {
+                        crate::mobile_auth::dismiss_login_window(&window);
+                    }
+                });
+            }
+            return true;
+        }
+        let allowed = is_allowed_provider_login_navigation(url);
+        if !allowed {
+            crate::diagnostics::warn(&format!(
+                "Sign-in blocked navigation to host {}",
+                url.host_str().unwrap_or("(none)")
+            ));
+        }
+        allowed
+    });
+    let window = match builder.build() {
+        Ok(window) => window,
+        Err(error) => {
+            let _ = std::fs::remove_dir_all(&profile_dir);
+            return Err(format!(
+                "Unable to open the sign-in window: {}",
+                crate::diagnostics::command_error(error)
+            ));
+        }
+    };
+    let close_state = app.clone();
+    let close_attempt = attempt_id.to_string();
+    let close_dir = profile_dir;
+    let close_seen = callback_seen;
+    window.on_window_event(move |event| {
+        if matches!(event, WindowEvent::CloseRequested { .. }) {
+            let _ = std::fs::remove_dir_all(&close_dir);
+            if !close_seen.load(Ordering::SeqCst) {
+                close_state.fail_login_if_waiting(&close_attempt, "Sign-in was canceled.".into());
+                close_state.abort_login_resources(&close_attempt);
+            }
+        }
+    });
+    Ok(())
 }
 
 #[cfg(mobile)]
@@ -835,51 +1093,88 @@ fn build_authorization_url(
     redirect_uri: &str,
     challenge: &str,
     state: &str,
+    email: Option<&str>,
 ) -> Result<String, String> {
+    // A second (or third) account must be addable while another session is
+    // active, so every URL below nudges the provider toward its account
+    // chooser instead of silently reusing the signed-in session. `login_hint`
+    // is honored by all three endpoints and only pre-selects an address.
+    let login_hint = email.map(str::trim).filter(|hint| !hint.is_empty());
     match provider {
         Provider::Openai => {
             let mut url = Url::parse(&format!("{OPENAI_ISSUER}/oauth/authorize"))
                 .map_err(|error| error.to_string())?;
-            url.query_pairs_mut()
-                .append_pair("response_type", "code")
-                .append_pair("client_id", OPENAI_CLIENT_ID)
-                .append_pair("redirect_uri", redirect_uri)
-                .append_pair("scope", "openid profile email offline_access")
-                .append_pair("code_challenge", challenge)
-                .append_pair("code_challenge_method", "S256")
-                .append_pair("id_token_add_organizations", "true")
-                .append_pair("codex_cli_simplified_flow", "true")
-                .append_pair("state", state)
-                .append_pair("originator", OPENAI_ORIGINATOR);
+            {
+                let mut pairs = url.query_pairs_mut();
+                pairs
+                    .append_pair("response_type", "code")
+                    .append_pair("client_id", OPENAI_CLIENT_ID)
+                    .append_pair("redirect_uri", redirect_uri)
+                    .append_pair("scope", "openid profile email offline_access")
+                    .append_pair("code_challenge", challenge)
+                    .append_pair("code_challenge_method", "S256")
+                    .append_pair("id_token_add_organizations", "true")
+                    .append_pair("codex_cli_simplified_flow", "true")
+                    .append_pair("state", state)
+                    .append_pair("originator", OPENAI_ORIGINATOR)
+                    // Auth0 shows the login page even when an SSO session
+                    // exists, so a different address can be entered.
+                    .append_pair("prompt", "login");
+                if let Some(hint) = login_hint {
+                    pairs.append_pair("login_hint", hint);
+                }
+            }
             Ok(url.to_string())
         }
         Provider::Anthropic => {
             let mut url = Url::parse("https://claude.ai/oauth/authorize")
                 .map_err(|error| error.to_string())?;
-            url.query_pairs_mut()
-                .append_pair("code", "true")
-                .append_pair("client_id", ANTHROPIC_CLIENT_ID)
-                .append_pair("response_type", "code")
-                .append_pair("redirect_uri", redirect_uri)
-                .append_pair("scope", ANTHROPIC_SCOPES)
-                .append_pair("code_challenge", challenge)
-                .append_pair("code_challenge_method", "S256")
-                .append_pair("state", state);
+            {
+                let mut pairs = url.query_pairs_mut();
+                pairs
+                    .append_pair("code", "true")
+                    .append_pair("client_id", ANTHROPIC_CLIENT_ID)
+                    .append_pair("response_type", "code")
+                    .append_pair("redirect_uri", redirect_uri)
+                    .append_pair("scope", ANTHROPIC_SCOPES)
+                    .append_pair("code_challenge", challenge)
+                    .append_pair("code_challenge_method", "S256")
+                    // Always show the sign-in page instead of jumping straight
+                    // to consent with the active session, so a second account
+                    // starts at the login screen. Safe per RFC 6749 section
+                    // 3.1: an authorization server must ignore parameters it
+                    // does not know, so this degrades to the old behavior if
+                    // claude.ai does not honor it.
+                    .append_pair("prompt", "login")
+                    .append_pair("state", state);
+                if let Some(hint) = login_hint {
+                    pairs.append_pair("login_hint", hint);
+                }
+            }
             Ok(url.to_string())
         }
         Provider::Antigravity => {
             let mut url = Url::parse("https://accounts.google.com/o/oauth2/auth")
                 .map_err(|error| error.to_string())?;
-            url.query_pairs_mut()
-                .append_pair("client_id", CLIENT_ID)
-                .append_pair("redirect_uri", redirect_uri)
-                .append_pair("response_type", "code")
-                .append_pair("scope", ANTIGRAVITY_SCOPES)
-                .append_pair("state", state)
-                .append_pair("code_challenge", challenge)
-                .append_pair("code_challenge_method", "S256")
-                .append_pair("access_type", "offline")
-                .append_pair("prompt", "consent");
+            {
+                let mut pairs = url.query_pairs_mut();
+                pairs
+                    .append_pair("client_id", CLIENT_ID)
+                    .append_pair("redirect_uri", redirect_uri)
+                    .append_pair("response_type", "code")
+                    .append_pair("scope", ANTIGRAVITY_SCOPES)
+                    .append_pair("state", state)
+                    .append_pair("code_challenge", challenge)
+                    .append_pair("code_challenge_method", "S256")
+                    .append_pair("access_type", "offline")
+                    // `select_account` always shows Google's account chooser
+                    // (combinable with `consent`, which keeps returning a
+                    // refresh token for a second account).
+                    .append_pair("prompt", "select_account consent");
+                if let Some(hint) = login_hint {
+                    pairs.append_pair("login_hint", hint);
+                }
+            }
             Ok(url.to_string())
         }
         Provider::GoogleAiStudio => {
@@ -1297,6 +1592,7 @@ mod tests {
             "http://localhost:53692/callback",
             "challenge",
             "state",
+            None,
         )
         .unwrap();
         let parsed = Url::parse(&url).unwrap();
@@ -1318,6 +1614,12 @@ mod tests {
                 .map(|(_, value)| value.as_str()),
             Some("http://localhost:53692/callback")
         );
+        // `prompt=login` asks claude.ai to show its sign-in page even when a
+        // session exists, so connecting a second account does not skip
+        // straight to the consent screen for the first one.
+        assert!(pairs
+            .iter()
+            .any(|(key, value)| key == "prompt" && value == "login"));
         assert!(pairs
             .iter()
             .any(|(key, value)| key == "code" && value == "true"));
@@ -1358,6 +1660,7 @@ mod tests {
             "http://127.0.0.1:11451",
             "challenge",
             "state",
+            None,
         )
         .unwrap();
         let parsed = Url::parse(&url).unwrap();
@@ -1365,6 +1668,23 @@ mod tests {
             .query_pairs()
             .map(|(key, value)| (key.into_owned(), value.into_owned()))
             .collect();
+        // `select_account` forces Google's account chooser so a second account
+        // can be added while one session is active; `consent` keeps the
+        // refresh token coming for that second account.
+        assert_eq!(
+            pairs
+                .iter()
+                .find(|(key, _)| key == "prompt")
+                .map(|(_, value)| value.as_str()),
+            Some("select_account consent")
+        );
+        assert_eq!(
+            pairs
+                .iter()
+                .find(|(key, _)| key == "access_type")
+                .map(|(_, value)| value.as_str()),
+            Some("offline")
+        );
         let scopes = pairs
             .iter()
             .find(|(key, _)| key == "scope")
@@ -1423,6 +1743,7 @@ mod tests {
             "http://localhost:1455/auth/callback",
             "challenge",
             "state",
+            None,
         )
         .unwrap();
         let parsed = Url::parse(&url).unwrap();
@@ -1475,6 +1796,131 @@ mod tests {
             .iter()
             .any(|(key, value)| key == "originator" && value == OPENAI_ORIGINATOR));
         assert!(!pairs.iter().any(|(key, _)| key == "audience"));
+        // `prompt=login` makes Auth0 show the login page even when an SSO
+        // session exists, so a different address can be entered for a second
+        // account instead of silently reusing the first.
+        assert!(pairs
+            .iter()
+            .any(|(key, value)| key == "prompt" && value == "login"));
+    }
+
+    #[test]
+    fn authorize_urls_carry_login_hint_for_the_intended_account() {
+        for provider in [Provider::Openai, Provider::Anthropic, Provider::Antigravity] {
+            let without = build_authorization_url(
+                &provider,
+                "http://localhost:1455/auth/callback",
+                "challenge",
+                "state",
+                None,
+            )
+            .unwrap();
+            assert!(
+                !Url::parse(&without)
+                    .unwrap()
+                    .query_pairs()
+                    .any(|(key, _)| key == "login_hint"),
+                "{provider:?} must omit login_hint without an email"
+            );
+            // Blank or whitespace-only hints are dropped, never sent empty.
+            let blank = build_authorization_url(
+                &provider,
+                "http://localhost:1455/auth/callback",
+                "challenge",
+                "state",
+                Some("   "),
+            )
+            .unwrap();
+            assert!(
+                !Url::parse(&blank)
+                    .unwrap()
+                    .query_pairs()
+                    .any(|(key, _)| key == "login_hint"),
+                "{provider:?} must drop a blank login_hint"
+            );
+            let with = build_authorization_url(
+                &provider,
+                "http://localhost:1455/auth/callback",
+                "challenge",
+                "state",
+                Some("  second@example.com  "),
+            )
+            .unwrap();
+            assert_eq!(
+                Url::parse(&with)
+                    .unwrap()
+                    .query_pairs()
+                    .find(|(key, _)| key == "login_hint")
+                    .map(|(_, value)| value.into_owned())
+                    .as_deref(),
+                Some("second@example.com"),
+                "{provider:?} must hint the intended account, trimmed"
+            );
+        }
+    }
+
+    #[test]
+    fn provider_login_window_stays_on_sign_in_pages() {
+        for url in [
+            "https://accounts.google.com/o/oauth2/auth",
+            "https://claude.ai/oauth/authorize",
+            "https://auth.openai.com/oauth/authorize",
+            "https://appleid.apple.com/auth/authorize",
+            "https://login.microsoftonline.com/common/oauth2",
+            "about:blank",
+            "http://127.0.0.1:1455/auth/callback?code=abc&state=xyz",
+            "http://localhost:53692/callback?code=abc",
+            "http://[::1]:11451/?code=abc",
+        ] {
+            assert!(
+                is_allowed_provider_login_navigation(&Url::parse(url).unwrap()),
+                "{url}"
+            );
+        }
+        for url in [
+            "https://evil.example/login",
+            "https://claude.ai.evil.example/",
+            "https://notgoogle.com/",
+            "http://claude.ai/oauth/authorize",
+            "https://accounts.google.com:8443/",
+            "https://user@accounts.google.com/",
+            "javascript:alert(1)",
+            "file:///tmp/secret",
+            "http://127.0.0.1:1455/",
+            "https://accounts.google.com/o/oauth2/auth?ai-usage-tracker-back=1",
+        ] {
+            assert!(
+                !is_allowed_provider_login_navigation(&Url::parse(url).unwrap()),
+                "{url}"
+            );
+        }
+    }
+
+    #[test]
+    fn provider_login_window_only_starts_on_provider_authorize_hosts() {
+        for url in [
+            "https://accounts.google.com/o/oauth2/auth",
+            "https://claude.ai/oauth/authorize",
+            "https://auth.openai.com/oauth/authorize",
+        ] {
+            assert!(
+                is_allowed_provider_login_start(&Url::parse(url).unwrap()),
+                "{url}"
+            );
+        }
+        // SSO hosts may appear later in the flow. They are not a start URL,
+        // and neither is an arbitrary site or a Back request.
+        for url in [
+            "https://appleid.apple.com/auth/authorize",
+            "https://evil.example/",
+            "http://accounts.google.com/o/oauth2/auth",
+            "https://accounts.google.com/o/oauth2/auth?ai-usage-tracker-back=1",
+        ] {
+            assert!(
+                !is_allowed_provider_login_start(&Url::parse(url).unwrap()),
+                "{url}"
+            );
+        }
     }
 
     #[test]
@@ -1590,7 +2036,8 @@ mod tests {
                 selected_project_id: None,
             });
 
-            let result = start_login(app.clone(), "Test".into(), Provider::Openai, None).await;
+            let result =
+                start_login(app.clone(), "Test".into(), Provider::Openai, None, None).await;
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),

@@ -153,7 +153,7 @@ pub(crate) fn account_connected_html(title: &str, account: &Account) -> String {
     let identity_html = identity
         .map(|value| {
             format!(
-                r#"<p style="margin:0 0 18px;font-size:16px">{}</p>"#,
+                r#"<p style="margin:0 0 18px;font-size:16px;color:#a78bfa;font-weight:600">{}</p>"#,
                 escape_html(value)
             )
         })

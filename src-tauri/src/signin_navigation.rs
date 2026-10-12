@@ -52,6 +52,38 @@ const SIGN_IN_HOSTS: &[&str] = &[
     "grokusercontent.com",
 ];
 
+/// True when `host` is one of [`SIGN_IN_HOSTS`] or a subdomain of one.
+/// Look-alikes (`google.com.evil.test`, `notgoogle.com`) do not match.
+pub(crate) fn host_is_sign_in(host: &str) -> bool {
+    let host = host.trim().trim_end_matches('.').to_ascii_lowercase();
+    if host.is_empty() {
+        return false;
+    }
+    SIGN_IN_HOSTS
+        .iter()
+        .any(|allowed| host == *allowed || host.ends_with(&format!(".{allowed}")))
+}
+
+/// True when a WebView cookie domain belongs to a sign-in host.
+/// A leading dot (`.google.com`) covers subdomains. The app origin and
+/// loopback addresses are never sign-in cookies.
+#[cfg_attr(not(any(test, mobile)), allow(dead_code))]
+pub(crate) fn cookie_domain_is_sign_in(domain: &str) -> bool {
+    let host = domain
+        .trim()
+        .trim_start_matches('.')
+        .trim_end_matches('.')
+        .to_ascii_lowercase();
+    if host.is_empty()
+        || host == "localhost"
+        || host == "tauri.localhost"
+        || host.parse::<std::net::IpAddr>().is_ok()
+    {
+        return false;
+    }
+    host_is_sign_in(&host)
+}
+
 /// Whether the main window may navigate to `url`. `dev_url` is the dev server
 /// (`build.devUrl`), whose pages are the app's own in development builds.
 pub(crate) fn is_allowed_main_navigation(
@@ -86,9 +118,7 @@ pub(crate) fn is_allowed_main_navigation(
     url.scheme() == "https"
         && url.port().is_none()
         && url.username().is_empty()
-        && SIGN_IN_HOSTS
-            .iter()
-            .any(|allowed| host == *allowed || host.ends_with(&format!(".{allowed}")))
+        && host_is_sign_in(&host)
 }
 
 /// The navigation guard for the main window. Registered on mobile only, where
@@ -189,6 +219,37 @@ mod tests {
             "data:text/html,<p>sign in</p>",
         ] {
             assert!(!allowed(url, true), "{url}");
+        }
+    }
+
+    #[test]
+    fn sign_in_cookie_domains_exclude_the_app_and_lookalikes() {
+        for domain in [
+            ".google.com",
+            "accounts.google.com",
+            "claude.ai",
+            ".claude.ai",
+            "www.grok.com",
+            "accounts.x.ai",
+            "auth.openai.com",
+            "login.microsoftonline.com",
+            "opencode.ai",
+        ] {
+            assert!(cookie_domain_is_sign_in(domain), "{domain}");
+        }
+        for domain in [
+            "",
+            ".",
+            "localhost",
+            "tauri.localhost",
+            "127.0.0.1",
+            "::1",
+            "evil.example",
+            "notgoogle.com",
+            "google.com.evil.test",
+            "claude.ai.evil.example",
+        ] {
+            assert!(!cookie_domain_is_sign_in(domain), "{domain}");
         }
     }
 }

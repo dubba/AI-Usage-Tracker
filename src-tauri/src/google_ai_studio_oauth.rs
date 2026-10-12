@@ -243,16 +243,35 @@ async fn start_oauth(
         },
     );
 
-    // The authorization URL is returned to the UI, which opens it in the user's
-    // browser (on mobile, the system browser). Third-party sign-in pages must
-    // never load in the main webview, which carries privileged Tauri IPC
-    // capabilities; the loopback callback server completes the exchange either
-    // way.
-    Ok(LoginStart {
-        attempt_id,
-        authorization_url,
-        expires_at,
-    })
+    // Desktop opens a private sign-in window (Back button on the Google page).
+    // Mobile keeps the system browser: third-party sign-in pages must never
+    // load in the main webview, which carries privileged Tauri IPC.
+    #[cfg(desktop)]
+    {
+        if let Err(error) = crate::oauth::open_provider_login_window(
+            &app,
+            &attempt_id,
+            &authorization_url,
+            "Sign in to Google AI Studio",
+        ) {
+            app.fail_login_if_waiting(&attempt_id, error.clone());
+            app.abort_login_resources(&attempt_id);
+            return Err(error);
+        }
+        Ok(LoginStart {
+            attempt_id,
+            authorization_url: String::new(),
+            expires_at,
+        })
+    }
+    #[cfg(not(desktop))]
+    {
+        Ok(LoginStart {
+            attempt_id,
+            authorization_url,
+            expires_at,
+        })
+    }
 }
 
 async fn select_project(
@@ -944,7 +963,10 @@ fn build_authorization_url(
         .append_pair("code_challenge", challenge)
         .append_pair("code_challenge_method", "S256")
         .append_pair("access_type", "offline")
-        .append_pair("prompt", "consent");
+        // `select_account` always shows Google's account chooser so a second
+        // account can be connected while one session is active; `consent`
+        // keeps the refresh token coming for that second account.
+        .append_pair("prompt", "select_account consent");
     Ok(url.to_string())
 }
 
@@ -1015,6 +1037,15 @@ mod tests {
         assert!(parsed
             .query_pairs()
             .any(|(key, value)| key == "code_challenge" && value == "challenge"));
+        // The chooser must appear even with an active Google session, and
+        // offline access must stay so a second account still gets a refresh
+        // token.
+        assert!(parsed
+            .query_pairs()
+            .any(|(key, value)| key == "prompt" && value == "select_account consent"));
+        assert!(parsed
+            .query_pairs()
+            .any(|(key, value)| key == "access_type" && value == "offline"));
     }
 
     #[test]

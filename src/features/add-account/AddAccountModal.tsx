@@ -287,6 +287,24 @@ export function AddAccountModal({
           disabled={busy || modelsBusy}
         />
 
+        {strategy.wantsEmailHint ? (
+          <>
+            <label className="field-label field-spaced" htmlFor="account-email">Account email (optional)</label>
+            <input
+              id="account-email"
+              className="text-input"
+              type="email"
+              value={draft.email}
+              onChange={(event) => update({ email: event.target.value })}
+              placeholder="you@example.com"
+              autoComplete="email"
+              spellCheck={false}
+              disabled={busy || modelsBusy}
+            />
+            <div className="credential-note">When you already sign in to this provider elsewhere, entering the address selects the intended account instead of reusing the signed-in session.</div>
+          </>
+        ) : null}
+
         {providerFields}
 
         {status?.status === "waiting" ? (

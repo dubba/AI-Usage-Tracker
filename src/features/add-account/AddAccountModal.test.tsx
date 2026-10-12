@@ -90,7 +90,7 @@ describe("browser sign-in providers", () => {
     expect(api.startLogin).toHaveBeenCalledWith("Claude", "anthropic", undefined, undefined);
     expect(login.watchLoginAttempt).toHaveBeenCalledWith("att-1");
     expect(openSafeUrl).toHaveBeenCalledWith("https://auth.example/start");
-    expect(document.body.textContent).toContain("Waiting for the browser callback…");
+    expect(document.body.textContent).toContain("Waiting for sign-in…");
     expect(primary().textContent).toBe("Connecting…");
     expect(primary().disabled).toBe(true);
   });
@@ -177,6 +177,23 @@ describe("browser sign-in providers", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("sends the optional email hint so the provider selects the intended account", async () => {
+    render();
+    const email = document.getElementById("account-email") as HTMLInputElement;
+    expect(email).toBeTruthy();
+    typeInto(email, "second@example.com");
+    click(primary());
+    await settle();
+    expect(api.startLogin).toHaveBeenCalledWith("Claude", "anthropic", "second@example.com", undefined);
+  });
+
+  it("omits the email hint when left empty", async () => {
+    render();
+    click(primary());
+    await settle();
+    expect(api.startLogin).toHaveBeenCalledWith("Claude", "anthropic", undefined, undefined);
+  });
+
   it("cancels an attempt that finished starting after the dialog was closed", async () => {
     let resolveStart: (value: unknown) => void = () => {};
     api.startLogin.mockReturnValue(new Promise((resolve) => (resolveStart = resolve)));
@@ -202,7 +219,7 @@ describe("browser sign-in providers", () => {
   it("describes the sign-in differently on Android", () => {
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Linux; Android 14)", configurable: true });
     render({ initialProvider: "openai", initialLabel: "ChatGPT" });
-    expect(document.body.textContent).toContain("Your browser opens the OpenAI ChatGPT sign-in page.");
+    expect(document.body.textContent).toContain("The OpenAI ChatGPT sign-in page opens in the app.");
   });
 });
 

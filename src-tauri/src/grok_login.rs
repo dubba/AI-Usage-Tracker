@@ -81,6 +81,54 @@ const CONNECT_BANNER_SCRIPT: &str = r#"
 })();
 "#;
 
+/// Query flag the injected top-left "Back" button appends to the current
+/// page. `on_navigation` intercepts it (and blocks the reload): the login
+/// attempt is canceled and the window closes, so users can always exit the
+/// authorization flow.
+#[cfg(desktop)]
+const BACK_QUERY_FLAG: &str = "ai-usage-tracker-back";
+
+/// Top-left "Back" button for the login window, which has no browser chrome.
+/// Unlike the banner it is installed on every page (including the SSO
+/// hand-off hosts), because a user can get stuck on any of them.
+#[cfg(desktop)]
+const BACK_BUTTON_SCRIPT: &str = r#"
+(() => {
+  try {
+    if (window.top !== window) return;
+    const id = '__ai_tracker_back';
+    if (document.getElementById(id)) return;
+    const button = document.createElement('button');
+    button.id = id;
+    button.type = 'button';
+    button.textContent = '‹ Back';
+    button.setAttribute('aria-label', 'Back to AI Usage Tracker');
+    button.style.cssText = [
+      'position:fixed', 'top:max(env(safe-area-inset-top),8px)', 'left:8px', 'z-index:2147483647',
+      'padding:8px 14px', 'border:0', 'border-radius:999px', 'background:#6d3bd7', 'color:#fff',
+      'font:600 14px -apple-system,system-ui,sans-serif', 'box-shadow:0 2px 10px rgba(0,0,0,.4)',
+      'cursor:pointer',
+    ].join(';');
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('ai-usage-tracker-back', '1');
+        window.location.href = url.toString();
+      } catch (e) {}
+    }, true);
+    (document.body || document.documentElement).appendChild(button);
+  } catch (e) {}
+})();
+"#;
+
+#[cfg(desktop)]
+fn is_back_request(url: &Url) -> bool {
+    url.query_pairs()
+        .any(|(key, value)| key == BACK_QUERY_FLAG && value == "1")
+}
+
 /// Last resort when neither the reconnect target nor the signed-in identity matches a
 /// stored Grok account: reuse one that already carries the label the user typed.
 fn grok_account_with_label(state: &AppState, label: &str) -> Option<Account> {
@@ -361,6 +409,9 @@ pub async fn start_login(
         };
 
         let (width, height) = login_window_size(&app);
+        let back_app = app.clone();
+        let back_state = state.clone();
+        let back_attempt = attempt_id.clone();
         #[allow(unused_mut)]
     let mut builder = WebviewWindowBuilder::new(
         &app,
@@ -374,9 +425,17 @@ pub async fn start_login(
     .data_directory(temp_data_dir.clone())
     .incognito(true)
     .devtools(false)
-    .initialization_script(CONNECT_BANNER_SCRIPT)
+    .initialization_script(format!("{CONNECT_BANNER_SCRIPT}\n{BACK_BUTTON_SCRIPT}"))
     .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15")
-    .on_navigation(|url| {
+    .on_navigation(move |url| {
+        if is_back_request(url) {
+            if let Some(window) = back_app.get_webview_window(LOGIN_WINDOW_LABEL) {
+                close_login_window(&window);
+            }
+            back_state
+                .fail_login_if_waiting(&back_attempt, "Grok login was canceled.".into());
+            return false;
+        }
         let allowed = is_allowed_login_navigation(url);
         if !allowed {
             crate::diagnostics::warn(&format!(
@@ -480,6 +539,9 @@ async fn start_mobile_login(
             return Err(error);
         }
     };
+    // The poll reads cookies on its first iteration, so the previous session
+    // has to be gone before that thread starts. An empty jar keeps waiting.
+    crate::mobile_auth::forget_provider_sign_in(&window);
     start_cookie_poll(
         window,
         state.clone(),
@@ -937,6 +999,29 @@ mod tests {
             let url = Url::parse(blocked).unwrap();
             assert!(!is_allowed_login_navigation(&url), "{blocked}");
         }
+    }
+    #[test]
+    fn back_button_requests_cancel_the_login() {
+        // The injected button appends the flag to whatever page is showing.
+        for back in [
+            "https://accounts.x.ai/sign-in?ai-usage-tracker-back=1",
+            "https://grok.com/?_s=usage&ai-usage-tracker-back=1",
+            "https://accounts.google.com/o/oauth2/auth?client_id=x&ai-usage-tracker-back=1",
+        ] {
+            let url = Url::parse(back).unwrap();
+            assert!(is_back_request(&url), "{back}");
+        }
+        for not_back in [
+            "https://accounts.x.ai/sign-in",
+            "https://grok.com/?_s=usage",
+            "https://grok.com/?ai-usage-tracker-back=0",
+            "https://grok.com/?other=ai-usage-tracker-back",
+        ] {
+            let url = Url::parse(not_back).unwrap();
+            assert!(!is_back_request(&url), "{not_back}");
+        }
+        assert!(BACK_BUTTON_SCRIPT.contains("ai-usage-tracker-back"));
+        assert!(BACK_BUTTON_SCRIPT.contains("aria-label"));
     }
 
     #[test]

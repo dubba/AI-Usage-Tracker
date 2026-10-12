@@ -40,12 +40,14 @@ const POPUP_SHIM_SCRIPT: &str = r#"
 
 /// URL fragment the injected "Back" button sets. The login page is a remote origin with no IPC,
 /// so the poll loop reads this from the WebView URL instead.
-#[cfg_attr(not(any(test, target_os = "ios")), allow(dead_code))]
+#[cfg_attr(not(any(test, mobile)), allow(dead_code))]
 const BACK_FRAGMENT: &str = "ai-usage-tracker-back";
 
-/// iOS has no back gesture or button in the single-WebView login, so this adds a fixed
+/// The single-WebView login has no browser chrome, so this adds a fixed
 /// "Back to AI Usage Tracker" button to the top-left of every provider page.
-#[cfg_attr(not(any(test, target_os = "ios")), allow(dead_code))]
+/// Tapping it sets the fragment below, which the poll loop treats as a
+/// cancel: the attempt is abandoned and the app page is restored.
+#[cfg_attr(not(any(test, mobile)), allow(dead_code))]
 const BACK_BUTTON_SCRIPT: &str = r#"
 (() => {
   try {
@@ -54,12 +56,20 @@ const BACK_BUTTON_SCRIPT: &str = r#"
     const button = document.createElement('button');
     button.id = id;
     button.type = 'button';
-    button.textContent = '‹ Back to AI Usage Tracker';
+    button.setAttribute('aria-label', 'Back to AI Usage Tracker');
     button.style.cssText = [
-      'position:fixed', 'top:max(env(safe-area-inset-top),8px)', 'left:8px', 'z-index:2147483647',
-      'padding:8px 14px', 'border:0', 'border-radius:999px', 'background:#6d3bd7', 'color:#fff',
-      'font:600 14px -apple-system,system-ui,sans-serif', 'box-shadow:0 2px 10px rgba(0,0,0,.4)',
+      'position:fixed', 'top:max(env(safe-area-inset-top, 0px), 28px)', 'left:8px', 'z-index:2147483647',
+      'display:inline-flex', 'align-items:center', 'gap:1px',
+      'padding:6px 14px 6px 8px', 'border:0', 'border-radius:999px', 'background:#6d3bd7', 'color:#fff',
+      'font:700 15px -apple-system,system-ui,sans-serif', 'line-height:1', 'box-shadow:0 2px 10px rgba(0,0,0,.4)',
     ].join(';');
+    const chevron = document.createElement('span');
+    chevron.setAttribute('aria-hidden', 'true');
+    chevron.textContent = '‹';
+    chevron.style.cssText = 'font-size:26px;font-weight:800;line-height:0.7;letter-spacing:0;-webkit-text-stroke:0.6px currentColor;transform:translateY(-1px)';
+    const label = document.createElement('span');
+    label.textContent = 'Back to AI Usage Tracker';
+    button.append(chevron, label);
     button.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -87,7 +97,7 @@ const IOS_POPUP_SCRIPT: &str = r#"
 })();
 "#;
 
-#[cfg_attr(not(any(test, target_os = "ios")), allow(dead_code))]
+#[cfg_attr(not(any(test, mobile)), allow(dead_code))]
 fn is_back_request(url: &Url) -> bool {
     url.fragment() == Some(BACK_FRAGMENT)
 }
@@ -100,6 +110,53 @@ pub fn main_window(app: &AppHandle) -> Result<WebviewWindow, String> {
 
 pub fn is_app_shell(window: &WebviewWindow) -> bool {
     window.label() == MAIN_WINDOW
+}
+
+/// Drops provider cookies in the in-app WebView so the next sign-in asks for
+/// an account instead of reusing the last one. Stored account secrets in the
+/// app are not touched. Failure is logged without cookie values and does not
+/// block the login.
+#[cfg(mobile)]
+pub(crate) fn forget_provider_sign_in(window: &WebviewWindow) {
+    #[cfg(target_os = "android")]
+    {
+        let _ = window;
+        if let Err(error) = clear_android_sign_in_cookies() {
+            crate::diagnostics::warn(&format!("Sign-in session reset failed: {error}"));
+        }
+    }
+    #[cfg(target_os = "ios")]
+    {
+        let Ok(cookies) = window.cookies() else {
+            crate::diagnostics::warn("Sign-in session reset could not read the page session.");
+            return;
+        };
+        for cookie in cookies {
+            let Some(domain) = cookie.domain() else {
+                continue;
+            };
+            if !crate::signin_navigation::cookie_domain_is_sign_in(domain) {
+                continue;
+            }
+            let _ = window.delete_cookie(cookie);
+        }
+    }
+}
+
+#[cfg(target_os = "android")]
+fn clear_android_sign_in_cookies() -> Result<(), String> {
+    const PREFIX: &str = "Unable to reset the sign-in session";
+    crate::android_context::with_activity(PREFIX, |env, activity| {
+        let result = env.call_method(activity, "clearWebViewCookies", "()Z", &[]);
+        if env.exception_check().unwrap_or(false) {
+            let _ = env.exception_clear();
+            return Err(PREFIX.to_string());
+        }
+        match result.and_then(|value| value.z()) {
+            Ok(true) => Ok(()),
+            _ => Err(PREFIX.to_string()),
+        }
+    })
 }
 
 /// Android wry only supports one WebView. Closing the app shell would kill the UI.
@@ -149,6 +206,9 @@ pub fn open_in_main_webview(
     let restore_url = window
         .url()
         .map_err(|error| format!("Unable to read the app URL: {error}"))?;
+    // Clear the previous provider session before the page loads, and before a
+    // cookie poll can read it. The app URL above is already saved for restore.
+    forget_provider_sign_in(&window);
 
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(NAVIGATE_DELAY).await;
@@ -208,10 +268,11 @@ pub fn open_in_main_webview(
                     let _ = window.navigate(oauth_start.clone());
                     continue;
                 }
-                #[cfg(target_os = "ios")]
+                #[cfg(mobile)]
                 {
                     if is_back_request(&current) {
-                        let _ = state.abandon_waiting_login(&attempt_id);
+                        state.fail_login_if_waiting(&attempt_id, "Sign-in was canceled.".into());
+                        state.abort_login_resources(&attempt_id);
                         let _ = window.navigate(restore_url);
                         break;
                     }
@@ -219,6 +280,7 @@ pub fn open_in_main_webview(
                         && matches!(current.scheme(), "http" | "https")
                     {
                         let _ = window.eval(BACK_BUTTON_SCRIPT);
+                        #[cfg(target_os = "ios")]
                         let _ = window.eval(IOS_POPUP_SCRIPT);
                     }
                 }
@@ -278,6 +340,8 @@ mod tests {
         assert!(!is_back_request(&other));
         assert!(!is_back_request(&none));
         assert!(BACK_BUTTON_SCRIPT.contains(BACK_FRAGMENT));
+        assert!(BACK_BUTTON_SCRIPT.contains("max(env(safe-area-inset-top, 0px), 28px)"));
+        assert!(BACK_BUTTON_SCRIPT.contains("font-weight:800"));
         assert!(IOS_POPUP_SCRIPT.contains("window.open"));
     }
 
