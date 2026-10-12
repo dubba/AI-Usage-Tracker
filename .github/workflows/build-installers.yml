@@ -13,15 +13,16 @@ on:
         type: boolean
         required: false
         default: true
-  # Thursdays & Sundays at 04:59 UTC the next morning, all platforms on both runs.
-  # GitHub cron is UTC-only and ignores daylight saving time, so in US Eastern time
-  # the runs land at 11:59 PM EST (November-March) or 12:59 AM EDT the next day
-  # (March-November).
-  # Thursday night -> Friday 04:59 UTC
-  # Sunday night   -> Monday 04:59 UTC
+  # Thursdays & Sundays at 11:45 PM US Eastern, all platforms on both runs. The
+  # schedule is evaluated in America/New_York, so the time holds through daylight
+  # saving changes (03:45 UTC the next day in EDT, 04:45 UTC in EST). The start is
+  # kept off the top of the hour because GitHub delays scheduled runs then, and a
+  # run can still start late.
   schedule:
-    - cron: '59 4 * * 5' # Friday 04:59 UTC (Thursday 11:59 PM EST / Friday 12:59 AM EDT)
-    - cron: '59 4 * * 1' # Monday 04:59 UTC (Sunday 11:59 PM EST / Monday 12:59 AM EDT)
+    - cron: '45 23 * * 4' # Thursday 11:45 PM Eastern
+      timezone: America/New_York
+    - cron: '45 23 * * 0' # Sunday 11:45 PM Eastern
+      timezone: America/New_York
   push:
     branches: [main]
     paths:

@@ -128,8 +128,9 @@ export function applyVersionToFiles(
 
 /**
  * Release dates in the changelog and in the schedule comments are US Eastern
- * standard time (UTC-5): the Thursday and Sunday "11:59 PM EST" runs fire at
- * 04:59 UTC the next day, and should still be dated the night they are named for.
+ * standard time (UTC-5): the Thursday and Sunday 11:45 PM Eastern runs fire at
+ * 03:45 UTC (EDT) or 04:45 UTC (EST) the next day, and should still be dated the
+ * night they are named for.
  */
 export function releaseDateEastern(now = new Date()) {
   return new Date(now.getTime() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
