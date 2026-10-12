@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased (36 items)
+## Unreleased (38 items)
 
-### Improved (9)
+### Improved (10)
 
+- OpenCode Go account setup no longer requires entering an email address; the field is optional and the address is automatically extracted from your session when available.
 - The Back button on in-app sign-in sits closer to the status bar, and its chevron is as bold as the label.
 - The "Account connected" page now shows the account email in purple and includes a prominent 5-second countdown number before closing automatically, and mobile in-app sign-in views remain on the connected screen for 5 seconds before returning to the dashboard.
 - The All Accounts and App Settings titles, the installed version in Settings, and the sidebar edge while you resize it now use the same purple as the usage bars.
@@ -15,8 +16,9 @@
 - On Android, Wi-Fi only stays in its battery-hungry multicast mode while device sync is running, instead of the whole time the app is open.
 - Each release's download notes now explain the security warning Windows and macOS show the first time you open the app, and how to continue.
 
-### Fixed (11)
+### Fixed (12)
 
+- The Back button now stays on Grok and OpenCode when those sign-ins continue with Google, including on the Android Google account page.
 - The Back button now stays on the Antigravity sign-in page.
 - In Settings, the space between the Automatic Updates title and its description matches Change Log and the other settings rows.
 - Dropdown menus anywhere in the app, including the actions menu on account cards, open upward instead of downward near the bottom of the window, so no item is ever cut off.

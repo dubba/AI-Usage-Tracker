@@ -91,41 +91,63 @@ const BACK_QUERY_FLAG: &str = "ai-usage-tracker-back";
 /// Top-left "Back" button for the login window, which has no browser chrome.
 /// Unlike the banner it is installed on every page (including the SSO
 /// hand-off hosts), because a user can get stuck on any of them.
+/// Built without `innerHTML` and reattached if removed: "Continue with Google"
+/// loads `accounts.google.com`, which rejects HTML assignment and drops nodes
+/// it did not create.
 #[cfg(desktop)]
 const BACK_BUTTON_SCRIPT: &str = r#"
 (() => {
   try {
-    if (window.top !== window) return;
+    if (window.top !== window || !document.documentElement) return;
     const id = '__ai_tracker_back';
-    if (document.getElementById(id)) return;
-    const button = document.createElement('button');
-    button.id = id;
-    button.type = 'button';
-    button.setAttribute('aria-label', 'Back to AI Usage Tracker');
-    button.style.cssText = [
-      'position:fixed', 'top:max(env(safe-area-inset-top),8px)', 'left:8px', 'z-index:2147483647',
-      'display:inline-flex', 'align-items:center', 'gap:6px',
-      'padding:7px 14px 7px 9px', 'border:0', 'border-radius:999px', 'background:#6d3bd7', 'color:#fff',
-      'font:600 14px -apple-system,system-ui,sans-serif', 'box-shadow:0 2px 10px rgba(0,0,0,.4)',
-      'cursor:pointer',
-    ].join(';');
-    // SVG chevron (mirror of the app's ChevronIcon) instead of the ‹ glyph,
-    // whose line box rides high in most fonts and never centers on the label.
-    button.innerHTML =
-      '<svg viewBox="0 0 24 24" width="9" height="15" fill="none" stroke="currentColor" ' +
-      'stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ' +
-      'style="display:block;flex:none"><path d="m15 18-6-6 6-6"/></svg>' +
-      '<span>Back</span>';
-    button.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      try {
-        const url = new URL(window.location.href);
-        url.searchParams.set('ai-usage-tracker-back', '1');
-        window.location.href = url.toString();
-      } catch (e) {}
-    }, true);
-    (document.body || document.documentElement).appendChild(button);
+    const install = () => {
+      if (!document.documentElement || document.getElementById(id)) return;
+      const button = document.createElement('button');
+      button.id = id;
+      button.type = 'button';
+      button.setAttribute('aria-label', 'Back to AI Usage Tracker');
+      button.style.cssText = [
+        'position:fixed', 'top:max(env(safe-area-inset-top),8px)', 'left:8px', 'z-index:2147483647',
+        'display:inline-flex', 'align-items:center', 'gap:6px',
+        'padding:7px 14px 7px 9px', 'border:0', 'border-radius:999px', 'background:#6d3bd7', 'color:#fff',
+        'font:600 14px -apple-system,system-ui,sans-serif', 'box-shadow:0 2px 10px rgba(0,0,0,.4)',
+        'cursor:pointer',
+      ].join(';');
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('width', '9');
+      svg.setAttribute('height', '15');
+      svg.setAttribute('fill', 'none');
+      svg.setAttribute('stroke', 'currentColor');
+      svg.setAttribute('stroke-width', '2.5');
+      svg.setAttribute('stroke-linecap', 'round');
+      svg.setAttribute('stroke-linejoin', 'round');
+      svg.setAttribute('aria-hidden', 'true');
+      svg.style.display = 'block';
+      svg.style.flex = 'none';
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', 'm15 18-6-6 6-6');
+      svg.appendChild(path);
+      const label = document.createElement('span');
+      label.textContent = 'Back';
+      button.appendChild(svg);
+      button.appendChild(label);
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.set('ai-usage-tracker-back', '1');
+          window.location.href = url.toString();
+        } catch (e) {}
+      }, true);
+      document.documentElement.appendChild(button);
+    };
+    install();
+    if (window.__aiTrackerBackRoot !== document.documentElement) {
+      window.__aiTrackerBackRoot = document.documentElement;
+      new MutationObserver(install).observe(document.documentElement, { childList: true });
+    }
   } catch (e) {}
 })();
 "#;
@@ -1029,6 +1051,9 @@ mod tests {
         }
         assert!(BACK_BUTTON_SCRIPT.contains("ai-usage-tracker-back"));
         assert!(BACK_BUTTON_SCRIPT.contains("aria-label"));
+        assert!(BACK_BUTTON_SCRIPT.contains("createElementNS"));
+        assert!(BACK_BUTTON_SCRIPT.contains("MutationObserver"));
+        assert!(!BACK_BUTTON_SCRIPT.contains("innerHTML"));
     }
 
     #[test]

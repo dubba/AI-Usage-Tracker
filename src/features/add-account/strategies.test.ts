@@ -135,17 +135,35 @@ describe("Grok", () => {
 describe("OpenCode Go", () => {
   const strategy = strategyFor("opencode_go");
 
-  it("always needs a valid email, even for manual connection", () => {
+  it("allows omitting email, but rejects a malformed one when provided", () => {
     const message = "A valid email address is required for OpenCode Go accounts.";
-    expect(strategy.validate(draft("opencode_go"))).toBe(message);
+    expect(strategy.validate(draft("opencode_go"))).toBeNull();
     expect(strategy.validate(draft("opencode_go", { email: "nope" }))).toBe(message);
     expect(strategy.validate(draft("opencode_go", { email: "me@example.com" }))).toBeNull();
-    expect(strategy.validate(draft("opencode_go", { email: "nope", advancedManual: true }))).toBe(message);
+    expect(
+      strategy.validate(
+        draft("opencode_go", { email: "nope", advancedManual: true, workspaceId: "ws", authCookie: "c" }),
+      ),
+    ).toBe(message);
+    expect(
+      strategy.validate(
+        draft("opencode_go", { advancedManual: true, workspaceId: "", authCookie: "c" }),
+      ),
+    ).toBe("A workspace ID is required for manual connection.");
+    expect(
+      strategy.validate(
+        draft("opencode_go", { advancedManual: true, workspaceId: "ws", authCookie: "" }),
+      ),
+    ).toBe("An OpenCode console auth cookie is required for manual connection.");
   });
 
-  it("is ready as soon as an email is typed, valid or not", () => {
-    expect(strategy.isReady(draft("opencode_go"))).toBe(false);
-    expect(strategy.isReady(draft("opencode_go", { email: "x" }))).toBe(true);
+  it("is ready immediately for sign-in, and requires workspace and cookie for manual", () => {
+    expect(strategy.isReady(draft("opencode_go"))).toBe(true);
+    expect(strategy.isReady(draft("opencode_go", { advancedManual: true }))).toBe(false);
+    expect(strategy.isReady(draft("opencode_go", { advancedManual: true, workspaceId: "ws" }))).toBe(false);
+    expect(
+      strategy.isReady(draft("opencode_go", { advancedManual: true, workspaceId: "ws", authCookie: "c" })),
+    ).toBe(true);
   });
 
   it("passes the trimmed email to sign-in and nothing for a blank one", () => {

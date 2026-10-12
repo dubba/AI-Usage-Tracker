@@ -264,10 +264,10 @@ describe("Grok", () => {
 });
 
 describe("OpenCode Go", () => {
-  it("needs an email before it can start, and rejects a malformed one", async () => {
+  it("allows signing in without entering an email, and rejects a malformed one", async () => {
     render();
     chooseProvider("OpenCode");
-    expect(primary().disabled).toBe(true);
+    expect(primary().disabled).toBe(false);
     typeInto($("#opencode-email"), "not-an-email");
     expect(primary().disabled).toBe(false);
     click(primary());
@@ -276,7 +276,18 @@ describe("OpenCode Go", () => {
     expect(api.startLogin).not.toHaveBeenCalled();
   });
 
-  it("signs in with the email and shows its own waiting message", async () => {
+  it("signs in without an email and shows its own waiting message", async () => {
+    render();
+    chooseProvider("OpenCode");
+    click(primary());
+    await settle();
+    expect(api.startLogin).toHaveBeenCalledWith("OpenCode Go", "opencode_go", undefined, undefined);
+    expect(openSafeUrl).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain("Sign in to OpenCode and select Go from the sidebar.");
+    expect(primary().textContent).toBe("Waiting for OpenCode…");
+  });
+
+  it("signs in with the optional email when provided", async () => {
     render();
     chooseProvider("OpenCode");
     typeInto($("#opencode-email"), " me@example.com ");
@@ -284,8 +295,6 @@ describe("OpenCode Go", () => {
     await settle();
     expect(api.startLogin).toHaveBeenCalledWith("OpenCode Go", "opencode_go", "me@example.com", undefined);
     expect(openSafeUrl).not.toHaveBeenCalled();
-    expect(document.body.textContent).toContain("Sign in to OpenCode and select Go from the sidebar.");
-    expect(primary().textContent).toBe("Waiting for OpenCode…");
   });
 
   it("connects manually with a workspace and cookie", async () => {

@@ -377,6 +377,26 @@ mod tests {
     }
 
     #[test]
+    fn android_sso_popup_installs_the_same_back_button() {
+        let chrome = include_str!(
+            "../gen/android/app/src/main/java/com/dubba/ai/usage/tracker/generated/RustWebChromeClient.kt"
+        );
+        assert!(chrome.contains("createElementNS"));
+        assert!(chrome.contains("ai-usage-tracker-back"));
+        assert!(chrome.contains("uri.fragment == \"ai-usage-tracker-back\""));
+        assert!(chrome.contains("scheme == \"javascript\""));
+        assert!(chrome.contains("scheme == \"file\""));
+        assert!(chrome.contains("scheme == \"content\""));
+        assert!(!chrome.contains("button.innerHTML"));
+        let lookalike = "https://accounts.google.com/#ai-usage-tracker-back-extra";
+        assert_ne!(
+            Url::parse(lookalike).unwrap().fragment(),
+            Some("ai-usage-tracker-back")
+        );
+        assert!(!is_back_request(&Url::parse(lookalike).unwrap()));
+    }
+
+    #[test]
     fn about_blank_is_not_an_https_oauth_host() {
         let blank = Url::parse("about:blank").unwrap();
         assert_eq!(blank.scheme(), "about");

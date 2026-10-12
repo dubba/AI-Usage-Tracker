@@ -107,10 +107,26 @@ const browserSignIn = (provider: Provider): ProviderStrategy => ({
 const opencodeGo: ProviderStrategy = {
   ...browserSignIn("opencode_go"),
   connectMode: (draft) => (draft.advancedManual ? "manual" : "sign-in"),
-  // OpenCode renders its own (required) email field instead of the hint.
+  // OpenCode renders its own (optional) email field instead of the hint.
   wantsEmailHint: false,
-  validate: (draft) => (validEmail(draft.email) ? null : "A valid email address is required for OpenCode Go accounts."),
-  isReady: (draft) => Boolean(draft.email.trim()),
+  validate: (draft) => {
+    if (draft.email.trim() && !validEmail(draft.email)) {
+      return "A valid email address is required for OpenCode Go accounts.";
+    }
+    if (draft.advancedManual) {
+      if (!draft.workspaceId.trim()) {
+        return "A workspace ID is required for manual connection.";
+      }
+      if (!draft.authCookie.trim()) {
+        return "An OpenCode console auth cookie is required for manual connection.";
+      }
+    }
+    return null;
+  },
+  isReady: (draft) =>
+    draft.advancedManual
+      ? Boolean(draft.workspaceId.trim() && draft.authCookie.trim())
+      : true,
   description: ({ isAndroid }) =>
     isAndroid
       ? "The app opens OpenCode sign-in in this window. Sign in, then select Go from the OpenCode sidebar. After your limits are found, the app returns to the dashboard."

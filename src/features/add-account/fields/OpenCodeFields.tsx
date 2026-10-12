@@ -4,7 +4,7 @@ import type { FieldsProps } from "./types";
 export function OpenCodeFields({ draft, update, setError, busy, isAndroid }: FieldsProps) {
   return (
     <>
-      <label className="field-label field-spaced" htmlFor="opencode-email">Email address</label>
+      <label className="field-label field-spaced" htmlFor="opencode-email">Email address (optional)</label>
       <input
         id="opencode-email"
         className="text-input"
@@ -16,10 +16,9 @@ export function OpenCodeFields({ draft, update, setError, busy, isAndroid }: Fie
         }}
         placeholder="you@example.com"
         autoComplete="email"
-        required
         disabled={busy}
       />
-      <div className="credential-note opencode-email-note">Required so the account card can identify which OpenCode account is connected.</div>
+      <div className="credential-note opencode-email-note">Optional. When provided or discovered from your session, your email is shown under the account name on the card.</div>
 
       {!draft.advancedManual ? (
         <div className="guided-login-card">

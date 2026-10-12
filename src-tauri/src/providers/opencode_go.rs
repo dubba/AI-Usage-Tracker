@@ -97,6 +97,7 @@ pub async fn refresh(
     let email = account.email.clone().or_else(|| {
         crate::providers::grok::extract_identity_from_jwt(&auth_cookie)
             .or_else(|| crate::providers::grok::extract_identity_from_cookies(&auth_cookie))
+            .or_else(|| parse_email_from_dashboard(&body))
     });
 
     Ok(ProviderUsage {
@@ -291,9 +292,139 @@ fn normalize_window(
     }
 }
 
+fn is_generic_service_email(email: &str) -> bool {
+    let lower = email.to_ascii_lowercase();
+    let generic_prefixes = [
+        "support@",
+        "help@",
+        "contact@",
+        "info@",
+        "team@",
+        "press@",
+        "privacy@",
+        "security@",
+        "legal@",
+        "billing@",
+        "sales@",
+        "noreply@",
+        "no-reply@",
+    ];
+    generic_prefixes
+        .iter()
+        .any(|prefix| lower.starts_with(prefix))
+}
+
+fn is_plausible_email(value: &str) -> bool {
+    let trimmed = value.trim();
+    if trimmed.len() < 5 || trimmed.len() > 254 {
+        return false;
+    }
+    if trimmed.contains(' ')
+        || trimmed.contains('\\')
+        || trimmed.contains('"')
+        || trimmed.contains('\'')
+    {
+        return false;
+    }
+    let Some((local, domain)) = trimmed.split_once('@') else {
+        return false;
+    };
+    if local.is_empty() || domain.is_empty() {
+        return false;
+    }
+    if !domain.contains('.') || domain.starts_with('.') || domain.ends_with('.') {
+        return false;
+    }
+    !is_generic_service_email(trimmed)
+}
+
+pub fn parse_email_from_dashboard(body: &str) -> Option<String> {
+    let markers = [
+        "email",
+        "user_email",
+        "useremail",
+        "emailaddress",
+        "email_address",
+        "mail",
+    ];
+
+    let lower = body.to_ascii_lowercase();
+    for marker in markers {
+        let mut search_from = 0;
+        while let Some(pos) = lower[search_from..].find(marker) {
+            let match_idx = search_from + pos;
+            if match_idx > 0 {
+                let prev = lower.as_bytes()[match_idx - 1];
+                if prev.is_ascii_alphanumeric() || prev == b'_' {
+                    search_from = match_idx + marker.len();
+                    continue;
+                }
+            }
+            let start = match_idx + marker.len();
+            let tail = &body[start..body.len().min(start + 250)];
+            if let Some(colon_pos) = tail.find(':') {
+                if colon_pos <= 10 {
+                    let after_colon = tail[colon_pos + 1..].trim_start();
+                    let trimmed = after_colon.trim_start_matches(['"', '\'', '\\']);
+                    let candidate = trimmed
+                        .chars()
+                        .take_while(|&c| {
+                            c != '"'
+                                && c != '\''
+                                && c != '\\'
+                                && c != ','
+                                && c != '}'
+                                && c != ']'
+                                && c != '<'
+                                && c != '>'
+                                && !c.is_whitespace()
+                        })
+                        .collect::<String>();
+                    if is_plausible_email(&candidate) {
+                        return Some(candidate);
+                    }
+                }
+            }
+            search_from = start;
+        }
+    }
+
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_email_from_dashboard_json_script() {
+        let html = r#"<script id="__NEXT_DATA__">{"props":{"pageProps":{"user":{"email":"dev@opencode.ai"}}}}</script>"#;
+        assert_eq!(
+            parse_email_from_dashboard(html),
+            Some("dev@opencode.ai".into())
+        );
+    }
+
+    #[test]
+    fn parses_email_from_escaped_next_f_stream() {
+        let html = r#"self.__next_f.push([1,"7:[\"$\",\"div\",null,{\"user\":{\"email\":\"user.name@company.org\"}}]"])"#;
+        assert_eq!(
+            parse_email_from_dashboard(html),
+            Some("user.name@company.org".into())
+        );
+    }
+
+    #[test]
+    fn ignores_generic_service_emails() {
+        let html = r#"<footer><script>{"email":"support@opencode.ai"}</script></footer>"#;
+        assert_eq!(parse_email_from_dashboard(html), None);
+    }
+
+    #[test]
+    fn returns_none_when_no_email_present() {
+        let html = r#"<div><h1>Welcome to OpenCode Go</h1></div>"#;
+        assert_eq!(parse_email_from_dashboard(html), None);
+    }
 
     #[test]
     fn parses_ssr_usage_in_either_field_order() {

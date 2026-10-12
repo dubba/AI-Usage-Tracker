@@ -379,13 +379,107 @@ fn oauth_popup_window_methods() -> String {
     CookieManager.getInstance().setAcceptCookie(true)
     CookieManager.getInstance().setAcceptThirdPartyCookies(popup, true)
 
+    // Same DOM-API button as mobile_auth.rs. Google's account page rejects
+    // innerHTML under Trusted Types and drops nodes it did not create.
+    val signInBackButtonJs = """
+      (() => {
+        try {
+          const root = document.documentElement;
+          if (!root) return;
+          const id = '__ai_tracker_back';
+          const install = () => {
+            if (!document.documentElement || document.getElementById(id)) return;
+            const button = document.createElement('button');
+            button.id = id;
+            button.type = 'button';
+            button.setAttribute('aria-label', 'Back to AI Usage Tracker');
+            button.style.cssText = [
+              'position:fixed', 'top:max(env(safe-area-inset-top, 0px), 28px)', 'left:8px', 'z-index:2147483647',
+              'display:inline-flex', 'align-items:center', 'gap:7px',
+              'padding:8px 16px 8px 11px', 'border:0', 'border-radius:999px', 'background:#6d3bd7', 'color:#fff',
+              'font:700 15px -apple-system,system-ui,sans-serif', 'line-height:1', 'box-shadow:0 2px 10px rgba(0,0,0,.4)',
+            ].join(';');
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('viewBox', '0 0 24 24');
+            svg.setAttribute('width', '10');
+            svg.setAttribute('height', '16');
+            svg.setAttribute('fill', 'none');
+            svg.setAttribute('stroke', 'currentColor');
+            svg.setAttribute('stroke-width', '2.6');
+            svg.setAttribute('stroke-linecap', 'round');
+            svg.setAttribute('stroke-linejoin', 'round');
+            svg.setAttribute('aria-hidden', 'true');
+            svg.style.display = 'block';
+            svg.style.flex = 'none';
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', 'm15 18-6-6 6-6');
+            svg.appendChild(path);
+            const label = document.createElement('span');
+            label.textContent = 'Back to AI Usage Tracker';
+            button.appendChild(svg);
+            button.appendChild(label);
+            button.addEventListener('click', (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              location.hash = 'ai-usage-tracker-back';
+            }, true);
+            document.documentElement.appendChild(button);
+          };
+          install();
+          if (window.__aiTrackerBackRoot !== document.documentElement) {
+            window.__aiTrackerBackRoot = document.documentElement;
+            new MutationObserver(install).observe(document.documentElement, { childList: true });
+          }
+        } catch (e) {}
+      })();
+    """.trimIndent()
+    if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)) {
+      androidx.webkit.WebViewCompat.addDocumentStartJavaScript(popup, signInBackButtonJs, setOf("*"))
+    }
+
     val dialog = android.app.Dialog(view.context, android.R.style.Theme_DeviceDefault_NoActionBar)
     popup.webViewClient = object : WebViewClient() {
 @@LOOPBACK@@
+      private var leavingToApp = false
+      private fun isSignInBack(url: String): Boolean {
+        val uri = android.net.Uri.parse(url)
+        return uri.fragment == "ai-usage-tracker-back"
+      }
+      private fun leaveSignInToApp() {
+        if (leavingToApp) return
+        leavingToApp = true
+        dialog.dismiss()
+        view.post {
+          val hostUrl = view.url ?: return@post
+          val scheme = android.net.Uri.parse(hostUrl).scheme ?: return@post
+          if (scheme == "javascript" || scheme == "file" || scheme == "content") return@post
+          if (isSignInBack(hostUrl)) return@post
+          view.evaluateJavascript(
+            "(function(){try{location.hash='ai-usage-tracker-back';}catch(e){}})();",
+            null
+          )
+        }
+      }
+      override fun onPageFinished(v: WebView, url: String) {
+        if (isSignInBack(url)) {
+          leaveSignInToApp()
+          return
+        }
+        v.evaluateJavascript(signInBackButtonJs, null)
+      }
+      override fun doUpdateVisitedHistory(v: WebView, url: String, isReload: Boolean) {
+        if (isSignInBack(url)) {
+          leaveSignInToApp()
+        }
+      }
       override fun shouldOverrideUrlLoading(v: WebView, request: WebResourceRequest): Boolean {
         val url = request.url.toString()
         val scheme = request.url.scheme ?: ""
         if (scheme == "javascript" || scheme == "file" || scheme == "content") {
+          return true
+        }
+        if (isSignInBack(url)) {
+          leaveSignInToApp()
           return true
         }
         if (isLoopback(url)) {
@@ -448,10 +542,12 @@ fn patch_chrome_client(content: &str) -> String {
     // even when the popup methods are already present, or the early return
     // below would leave the lookalike host in place.
     let patched = content.replace(OLD_LOOPBACK_FN, LOOPBACK_FN);
-    if patched.contains("Visible popup WebView so provider Google/Apple") {
-        return patched;
-    }
+    const POPUP_MARKER: &str =
+        "  // Visible popup WebView so provider Google/Apple SSO can finish without";
     let methods = oauth_popup_window_methods();
+    if let Some(start) = patched.find(POPUP_MARKER) {
+        return format!("{}{}", &patched[..start], methods);
+    }
     let title_hook = r#"  override fun onReceivedTitle(
       view: WebView,
       title: String
