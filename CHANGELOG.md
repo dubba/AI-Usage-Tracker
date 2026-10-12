@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased (38 items)
+## Unreleased (0 items)
+
+## 0.4.1 - 2026-10-12 (38 items)
 
 ### Improved (10)
 
