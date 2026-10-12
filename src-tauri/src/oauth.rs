@@ -452,6 +452,13 @@ async fn handle_callback(
     context: Arc<LoginContext>,
     query: CallbackQuery,
 ) -> axum::response::Response {
+    // Only the provider's redirect carries this attempt's state. Any other
+    // request to the callback (a local process, or a web page that knows the
+    // port) is answered without claiming the callback, failing the sign-in, or
+    // showing its text in the app.
+    if query.state.as_deref() != Some(context.expected_state.as_str()) {
+        return crate::oauth_common::unrecognized_callback_response();
+    }
     if context
         .callback_claimed
         .swap(true, std::sync::atomic::Ordering::SeqCst)
@@ -483,14 +490,6 @@ async fn handle_callback(
             return callback_html(auth_failure_html("Authentication failed", &message));
         }
     };
-    if query.state.as_deref() != Some(context.expected_state.as_str()) {
-        let message = "OAuth state validation failed.".to_string();
-        context
-            .app
-            .fail_login_if_waiting(&context.attempt_id, message.clone());
-        stop_callback(&context).await;
-        return callback_html(auth_failure_html("Authentication failed", &message));
-    }
     if !context.app.login_is_waiting(&context.attempt_id) {
         stop_callback(&context).await;
         return callback_html(
@@ -1709,5 +1708,48 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[tokio::test]
+    async fn a_callback_without_this_attempts_state_changes_nothing() {
+        let temp = tempfile::tempdir().unwrap();
+        let app = Arc::new(AppState::new(temp.path().to_path_buf(), "test-token".into()).unwrap());
+        *app.pending_login.write() = Some(LoginStatus {
+            attempt_id: "attempt".into(),
+            status: LoginState::Waiting,
+            message: None,
+            account: None,
+            projects: None,
+            selected_project_id: None,
+        });
+        let context = Arc::new(reconnect_context(app.clone(), None)); // state "s"
+        let query = |state: Option<&str>| CallbackQuery {
+            code: None,
+            state: state.map(str::to_string),
+            error: Some("access_denied".into()),
+            error_description: Some("Your session expired, sign in at evil.example".into()),
+        };
+
+        // Requests without the attempt's state: no claim, no failure, no text.
+        for state in [None, Some("wrong")] {
+            let _ = handle_callback(context.clone(), query(state)).await;
+            assert!(!context
+                .callback_claimed
+                .load(std::sync::atomic::Ordering::SeqCst));
+            assert!(app.login_is_waiting("attempt"));
+        }
+
+        // The provider's own error redirect still ends the attempt.
+        let _ = handle_callback(context.clone(), query(Some("s"))).await;
+        assert!(context
+            .callback_claimed
+            .load(std::sync::atomic::Ordering::SeqCst));
+        let status = app.pending_login.read().clone().unwrap();
+        assert_eq!(status.status, LoginState::Failed);
+        assert_eq!(
+            status.message.as_deref(),
+            Some("Your session expired, sign in at evil.example"),
+            "only the provider's own redirect may set the message"
+        );
     }
 }

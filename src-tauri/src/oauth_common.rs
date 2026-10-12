@@ -166,6 +166,15 @@ pub(crate) fn account_connected_html(title: &str, account: &Account) -> String {
     )
 }
 
+/// The page for a request to the callback that does not carry the attempt's
+/// `state`: not the provider's redirect, so it changes nothing.
+pub(crate) fn unrecognized_callback_response() -> axum::response::Response {
+    callback_html(auth_failure_html(
+        "Sign-in not recognized",
+        "This page did not come from the sign-in you started in AI Usage Tracker.",
+    ))
+}
+
 pub(crate) fn auth_failure_html(title: &str, message: &str) -> String {
     format!(
         r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>{}</h1><p style="color:#ff9d9d">{}</p><p style="color:#8e9791">Return to the app and try again.</p></body></html>"#,

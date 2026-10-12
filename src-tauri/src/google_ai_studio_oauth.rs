@@ -305,6 +305,11 @@ async fn callback(
     State(context): State<Arc<LoginContext>>,
     Query(query): Query<CallbackQuery>,
 ) -> axum::response::Response {
+    // Only Google's redirect carries this attempt's state; anything else leaves
+    // the sign-in and the callback server as they are (see oauth.rs).
+    if query.state.as_deref() != Some(context.expected_state.as_str()) {
+        return crate::oauth_common::unrecognized_callback_response();
+    }
     let result = complete_callback(context.clone(), query).await;
     if let Err(error) = &result {
         context
@@ -1029,5 +1034,42 @@ mod tests {
         let message = serde_json::to_string(&status).unwrap();
         assert!(message.contains("projectId"));
         assert!(message.contains("example-project-123"));
+    }
+
+    #[tokio::test]
+    async fn a_callback_without_this_attempts_state_leaves_the_sign_in_running() {
+        use axum::extract::{Query, State};
+        let temp = tempfile::tempdir().unwrap();
+        let app = Arc::new(AppState::new(temp.path().to_path_buf(), "test-token".into()).unwrap());
+        *app.pending_login.write() = Some(crate::model::LoginStatus {
+            attempt_id: "attempt".into(),
+            status: crate::model::LoginState::Waiting,
+            message: None,
+            account: None,
+            projects: None,
+            selected_project_id: None,
+        });
+        let context = Arc::new(LoginContext {
+            app: app.clone(),
+            attempt_id: "attempt".into(),
+            account_id: "account".into(),
+            mode: LoginMode::Connect,
+            expected_state: "s".into(),
+            redirect_uri: "http://127.0.0.1:1".into(),
+            verifier: "v".into(),
+        });
+        for state in [None, Some("wrong".to_string())] {
+            let _ = callback(
+                State(context.clone()),
+                Query(CallbackQuery {
+                    code: None,
+                    state,
+                    error: Some("access_denied".into()),
+                    error_description: None,
+                }),
+            )
+            .await;
+            assert!(app.login_is_waiting("attempt"));
+        }
     }
 }
