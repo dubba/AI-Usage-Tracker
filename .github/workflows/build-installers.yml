@@ -167,22 +167,28 @@ jobs:
           import os
           import sys
 
+          # Without a valid key the release would still upload latest.json, which every
+          # installed copy refuses, so updates stop until a signed manifest replaces it.
+          # Fail before building instead.
+          def fail(message):
+              print(f"::error::{message}")
+              sys.exit(1)
+
           raw_key = os.environ.get("RAW_TAURI_SIGNING_PRIVATE_KEY", "")
           normalized_key = "".join(raw_key.lstrip("﻿").split())
 
-          if normalized_key:
-              try:
-                  decoded = base64.b64decode(normalized_key, validate=True).decode("utf-8")
-                  if "secret key" in decoded.lower():
-                      print(f"::add-mask::{normalized_key}")
-                      with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env_file:
-                          env_file.write(f"TAURI_SIGNING_PRIVATE_KEY={normalized_key}\n")
-                  else:
-                      print("Warning: TAURI_SIGNING_PRIVATE_KEY does not contain a Tauri updater private key.")
-              except Exception as error:
-                  print(f"Warning: TAURI_SIGNING_PRIVATE_KEY is not valid Base64: {error}")
-          else:
-              print("Notice: TAURI_SIGNING_PRIVATE_KEY not set; building unsigned release artifacts.")
+          if not normalized_key:
+              fail("TAURI_SIGNING_PRIVATE_KEY is not set; refusing to publish an unsigned release.")
+          try:
+              decoded = base64.b64decode(normalized_key, validate=True).decode("utf-8")
+          except Exception:
+              fail("TAURI_SIGNING_PRIVATE_KEY is not valid Base64.")
+          if "secret key" not in decoded.lower():
+              fail("TAURI_SIGNING_PRIVATE_KEY does not contain a Tauri updater private key.")
+
+          print(f"::add-mask::{normalized_key}")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env_file:
+              env_file.write(f"TAURI_SIGNING_PRIVATE_KEY={normalized_key}\n")
       - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -323,22 +329,28 @@ jobs:
           import os
           import sys
 
+          # Without a valid key the release would still upload latest.json, which every
+          # installed copy refuses, so updates stop until a signed manifest replaces it.
+          # Fail before building instead.
+          def fail(message):
+              print(f"::error::{message}")
+              sys.exit(1)
+
           raw_key = os.environ.get("RAW_TAURI_SIGNING_PRIVATE_KEY", "")
           normalized_key = "".join(raw_key.lstrip("﻿").split())
 
-          if normalized_key:
-              try:
-                  decoded = base64.b64decode(normalized_key, validate=True).decode("utf-8")
-                  if "secret key" in decoded.lower():
-                      print(f"::add-mask::{normalized_key}")
-                      with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env_file:
-                          env_file.write(f"TAURI_SIGNING_PRIVATE_KEY={normalized_key}\n")
-                  else:
-                      print("Warning: TAURI_SIGNING_PRIVATE_KEY does not contain a Tauri updater private key.")
-              except Exception as error:
-                  print(f"Warning: TAURI_SIGNING_PRIVATE_KEY is not valid Base64: {error}")
-          else:
-              print("Notice: TAURI_SIGNING_PRIVATE_KEY not set; building unsigned release artifacts.")
+          if not normalized_key:
+              fail("TAURI_SIGNING_PRIVATE_KEY is not set; refusing to publish an unsigned release.")
+          try:
+              decoded = base64.b64decode(normalized_key, validate=True).decode("utf-8")
+          except Exception:
+              fail("TAURI_SIGNING_PRIVATE_KEY is not valid Base64.")
+          if "secret key" not in decoded.lower():
+              fail("TAURI_SIGNING_PRIVATE_KEY does not contain a Tauri updater private key.")
+
+          print(f"::add-mask::{normalized_key}")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env_file:
+              env_file.write(f"TAURI_SIGNING_PRIVATE_KEY={normalized_key}\n")
       - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

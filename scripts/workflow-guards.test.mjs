@@ -90,3 +90,65 @@ test("release builds pass --locked through to cargo", () => {
   assert.equal(args.length, 2, "one tauri-action per desktop platform");
   for (const line of args) assert.match(line, /-- --locked/, line.trim());
 });
+
+/** The block-scalar `run:` script of every step with this name, dedented. */
+export function runScriptsOfStep(text, stepName) {
+  const lines = text.split("\n");
+  const scripts = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim() !== `- name: ${stepName}`) continue;
+    const stepIndent = lines[i].indexOf("-");
+    for (let j = i + 1; j < lines.length; j++) {
+      const indent = lines[j].length - lines[j].trimStart().length;
+      if (lines[j].trim() !== "" && indent <= stepIndent) break;
+      const match = lines[j].match(/^(\s*)run:\s*\|\s*$/);
+      if (!match) continue;
+      const body = [];
+      for (let k = j + 1; k < lines.length; k++) {
+        const bodyIndent = lines[k].length - lines[k].trimStart().length;
+        if (lines[k].trim() !== "" && bodyIndent <= match[1].length) break;
+        body.push(lines[k]);
+      }
+      const width = Math.min(
+        ...body.filter((line) => line.trim()).map((line) => line.length - line.trimStart().length),
+      );
+      scripts.push(body.map((line) => line.slice(width)).join("\n"));
+      break;
+    }
+  }
+  return scripts;
+}
+
+test("a release without a valid updater signing key fails instead of publishing", async () => {
+  const { spawnSync } = await import("node:child_process");
+  const { mkdtempSync, writeFileSync: write, readFileSync: read } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const installers = workflows.find((w) => w.name === "build-installers.yml").text;
+  const scripts = runScriptsOfStep(installers, "Normalize and verify updater signing key");
+  assert.equal(scripts.length, 2, "one key check per desktop job");
+
+  const dir = mkdtempSync(resolve(tmpdir(), "signing-key-"));
+  const run = (script, key) => {
+    const envFile = resolve(dir, "github_env");
+    write(envFile, "");
+    const result = spawnSync("python3", ["-c", script], {
+      env: { ...process.env, RAW_TAURI_SIGNING_PRIVATE_KEY: key, GITHUB_ENV: envFile },
+      encoding: "utf-8",
+    });
+    return { status: result.status, env: read(envFile, "utf-8"), out: result.stdout };
+  };
+  // A key-shaped value: base64 of a minisign secret-key header. Not a real key.
+  const keyShaped = Buffer.from("untrusted comment: rsign encrypted secret key\nRWRTY0Iy\n").toString("base64");
+
+  for (const script of scripts) {
+    for (const bad of ["", "   ", "not base64 !!!", Buffer.from("just some text").toString("base64")]) {
+      const result = run(script, bad);
+      assert.equal(result.status, 1, `key ${JSON.stringify(bad)} should fail the job`);
+      assert.equal(result.env, "", "nothing may be exported on failure");
+      assert.match(result.out, /::error::/);
+    }
+    const ok = run(script, keyShaped);
+    assert.equal(ok.status, 0, ok.out);
+    assert.equal(ok.env, `TAURI_SIGNING_PRIVATE_KEY=${keyShaped}\n`);
+  }
+});
