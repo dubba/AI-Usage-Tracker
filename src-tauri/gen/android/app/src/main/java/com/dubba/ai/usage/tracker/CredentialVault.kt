@@ -18,8 +18,10 @@ import javax.crypto.spec.GCMParameterSpec
  * `context` (the credential file name) is authenticated with it, so a sealed
  * file copied over another account's file fails to open.
  *
- * Every failure throws. The Rust caller treats that as "credential unavailable"
- * and never falls back to plaintext.
+ * Every failure throws, and the Rust caller treats that as "credential unavailable":
+ * a sealed blob that fails to open is never read as plaintext. (Files that were never
+ * sealed, written by earlier versions, are recognized by the caller before it gets
+ * here, loaded as they are, and re-sealed.)
  */
 object CredentialVault {
   private const val KEYSTORE = "AndroidKeyStore"
