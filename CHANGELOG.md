@@ -1,15 +1,16 @@
 # Changelog
 
-## Unreleased (15 items)
+## Unreleased (24 items)
 
-### Improved (4)
+### Improved (5)
 
 - In Settings, the Appearance dropdown keeps a consistent width across Dark, Light, and System themes, and the dropdown menu aligns flush with the button.
 - When the current version has already been released, the next scheduled release is now published as the next full version (for example 0.4.2) instead of a beta pre-release.
 - Every scheduled release now includes the Windows, Android, macOS, and iOS builds, so a Thursday release is no longer missing the macOS and iOS downloads.
 - Dragging a sidebar group now rearranges the account cards on the All page immediately, instead of after a short pause while the new order is saved.
+- On Android, Wi-Fi only stays in its battery-hungry multicast mode while device sync is running, instead of the whole time the app is open.
 
-### Fixed (6)
+### Fixed (7)
 
 - In Settings, the space between the Automatic Updates title and its description matches Change Log and the other settings rows.
 - On the dashboard, account card dropdown menus near the bottom of the screen open upward instead of downward, preventing them from being cut off.
@@ -17,14 +18,22 @@
 - A sign-in that finishes at the same moment it times out, is canceled, or hits an error is no longer reported as failed even though the account was added.
 - Moving an account card on the All page now moves its sidebar group to match, the same way dragging a sidebar group already rearranged the All page.
 - Dragging a sidebar group no longer pulls accounts that belong to a custom group out of it on the All page; they stay with their custom group.
+- Links in update notes and update error messages that the app cannot open are now shown as plain text instead of links that do nothing.
 
-### Security (5)
+### Security (12)
 
 - The local usage API's access token check takes the same time no matter how long the presented token is, so timing cannot reveal the token's length.
 - While device sync is waiting for another device, it accepts connections only on the network address shown in its QR code and join code, not on every network the computer is connected to, such as a VPN.
 - On Android, a web page opened inside the app during sign-in can no longer be mistaken for the app itself when it sends requests to the app's backend.
 - Android in-app updates now download only from this app's GitHub releases and install only when the update is signed by the same certificate as the installed app.
 - During an Android in-app update, the downloaded installer file is no longer readable by other apps that can open APK files.
+- On Android, other apps can no longer open the update dialog with text of their choosing.
+- Other programs on your computer can no longer lock Paseo out of the local usage API by flooding it with requests that lack the access token.
+- On Android, other apps can no longer start AI Usage Tracker by pretending the phone has just started up; on phones that used the vendor "quick boot" signal, start at boot now only follows a normal boot.
+- The Android app no longer declares the "nearby Wi-Fi devices" permission, which it never used.
+- Error messages no longer show file paths that include your user name.
+- Sign-in error messages no longer include parts of the provider's reply.
+- On Windows, start at login now runs the app by its full quoted path, so a program placed at a shorter path cannot be started in its place.
 
 ## 0.4.0 - 2026-10-07 (27 items)
 

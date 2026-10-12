@@ -130,11 +130,11 @@ Android, plaintext in debug builds). Corrupt JSON is quarantined and reloaded, n
 | --- | --- |
 | Loopback-only bind, hardcoded | `bridge_api.rs:25,48` |
 | Controller off unless enabled in settings (default false) and token readable; rebind retry every 3 s; desktop-only | `bridge_api.rs:35-93`, `settings.rs:52`, `backend.rs:62-63`, `commands/bridge.rs:22-24` |
-| Host header must be loopback (DNS-rebinding defense), Origin/Referer must be absent or loopback; checked before anything else on both routes | `bridge_api.rs:123-170,177-179,196-198` |
-| Per-client-IP rate limit (burst 10, 1/s refill, 60 s entry TTL) applied before auth | `bridge_api.rs:28-33,182-184,201-203,279-304` |
-| Bearer token: both sides hashed with SHA-256, then the digests compared with `subtle::ConstantTimeEq`, so length differences take the same path | `bridge_api.rs:314-330` |
+| Host header must be loopback (DNS-rebinding defense), Origin/Referer must be absent or loopback; checked before anything else on both routes | `bridge_api.rs:123-170,172-200` |
+| Rate limit per client IP in two lanes, requests with the token and requests without it (burst 10, 1/s refill, 60 s entry TTL each); rejected requests get 401 and then 429 | `bridge_api.rs:28-33,262-325` |
+| Bearer token: both sides hashed with SHA-256, then the digests compared with `subtle::ConstantTimeEq`, so length differences take the same path | `bridge_api.rs:337-353` |
 | Forced response headers (no-store, nosniff, no-referrer, X-Frame-Options DENY, CSP, CORP same-origin), on success and error responses | `bridge_api.rs:101-118` |
-| Responses carry no tokens or cookies (fields: id, label, provider, email, provider account id, plan, status, source, windows, credits, fetched-at, sanitized last error); `schemaVersion: 1`; the only routes are `GET /v1/health` and `GET /v1/paseo-usage` | `bridge_api.rs:51-54,172-253`, `model.rs:377-401` |
+| Responses carry no tokens or cookies (fields: id, label, provider, email, provider account id, plan, status, source, windows, credits, fetched-at, sanitized last error); `schemaVersion: 1`; the only routes are `GET /v1/health` and `GET /v1/paseo-usage` | `bridge_api.rs:51-54,172-243`, `model.rs:377-401` |
 | Token: 64 alphanumeric chars, persisted in secure storage, masked in UI (first 4 + last 4 shown) | `store/credentials/mod.rs:401-407`, `model.rs:288-297` |
 
 ### 3. OAuth loopback callbacks — reachable by local processes and browser pages
@@ -179,7 +179,7 @@ Android, plaintext in debug builds). Corrupt JSON is quarantined and reloaded, n
 | Entry | Guard | Code |
 | --- | --- | --- |
 | `aiusage-pair:`/`aiusage:` VIEW intent | Kotlin and the JNI `setPendingPairingUri` both length-bound (≤2048) and prefix-check the URI before storing; contents never logged; consumed once via `get_pending_pairing_uri`; full cryptographic validation before connecting | `MainActivity.kt:162-182`, `commands/pairing.rs:174-211`, `pairing/protocol.rs:116` |
-| `open_update_notes` string extra (set by the app's own update notification) | Extra removed from the intent after reading; consumed once via `get_pending_update_notice`; the frontend uses the value only as display text in the update-notes dialog and runs the normal update check | `MainActivity.kt:184-195`, `updater.rs:655-677`, `src/features/settings/useAppUpdate.ts:133-156`, `src/features/settings/UpdateNotesModal.tsx:183,204` |
+| `open_update_notes` string extra (set by the app's own update notification) | Extra removed from the intent after reading; the JNI handler keeps it only if it is a version (three numeric parts, optional `v` and `-prerelease`, ≤32 chars); consumed once via `get_pending_update_notice`; the frontend uses the value only as display text in the update-notes dialog and runs the normal update check | `MainActivity.kt:184-195`, `updater.rs:655-704`, `src/features/settings/useAppUpdate.ts:133-156`, `src/features/settings/UpdateNotesModal.tsx:183,204` |
 
 ### 7. Updater — reachable by a compromised release channel or MITM
 
@@ -230,7 +230,7 @@ bridge degrades to a session-only token instead of persisting (`startup.rs:56-73
 | Component | Manifest state | Guard |
 | --- | --- | --- |
 | `MainActivity` | exported (launcher; `aiusage-pair:`/`aiusage:` BROWSABLE deep links) | See §6 for both intent inputs (pairing URI, `open_update_notes` extra) |
-| `BootReceiver` | exported; filter actions `BOOT_COMPLETED`, `android.intent.action.QUICKBOOT_POWERON`, `com.htc.intent.action.QUICKBOOT_POWERON` (`AndroidManifest.xml:71-80`) | Reads no intent extras. If `autostartEnabled` is true in `app-settings.json`, starts the app's own launcher activity (`BootReceiver.kt:10-31`) |
+| `BootReceiver` | exported; filter action `BOOT_COMPLETED` only, a protected broadcast only the system can send (`AndroidManifest.xml:70-77`) | Acts only on `BOOT_COMPLETED`; reads no intent extras. If `autostartEnabled` is true in `app-settings.json`, starts the app's own launcher activity (`BootReceiver.kt:10-30`) |
 | `ApkInstallReceiver` | not exported | Reached only through the `PendingIntent` the app creates for its own install session (`MainActivity.kt:828-836`, `ApkInstallReceiver.kt:9-20`) |
 | `FileProvider` | not exported; scoped to `updates/` and `Pictures/` paths only | `file_paths.xml` (comment: never widen to `.`) |
 | Backups | `allowBackup=false`; backup and data-extraction rules exclude all domains | `AndroidManifest.xml:32`, `backup_rules.xml`, `data_extraction_rules.xml` |
@@ -242,13 +242,15 @@ bridge degrades to a session-only token instead of persisting (`startup.rs:56-73
 | Guard | Code |
 | --- | --- |
 | `opener` plugin restricted to 8 HTTPS URL prefixes (auth hosts + this repo) | `capabilities/default.json:9-36` |
-| Frontend `openSafeUrl` enforces HTTPS + host allowlist before any `openUrl` | `src/shared/lib/safeUrl.ts:3-38` |
-| Diagnostics export: every log line and the report pass `redact()` (sensitive keys, bearer tokens, JWTs, opaque strings, masked emails, masked home folders); the report lists accounts by provider and id, not label or email | `diagnostics.rs:127-215,232-260,357-470` |
+| Frontend `openSafeUrl`/`isAllowedExternalUrl` allow exactly the opener's URL prefixes, compared on the parsed URL (no userinfo or port); the sync test fails if the two lists differ | `src/shared/lib/safeUrl.ts:3-42`, `lib.rs:250-282` |
+| Diagnostics export: every log line and the report pass `redact()` (sensitive keys, `code`/`state` query parameters, bearer tokens, JWTs, opaque strings, masked emails, masked home folders); the report lists accounts by provider and id, not label or email | `diagnostics.rs:127-215,232-270,370-490` |
+| Command error text returned to the page goes through `redact()` and is capped at 300 characters (paths with home-folder names, IO and plugin errors) | `diagnostics.rs:271-282`, used in `commands/{accounts,bridge,settings,pairing,system}.rs`, `grok_login.rs`, `opencode_login.rs` |
 
 ### 13. Platform permission surfaces
 
 - macOS: camera TCC permission requested before QR scanning, 120 s timeout, failures non-fatal (`camera_permission.rs:85-91`); local-network + Bonjour usage strings and camera usage string declared (`src-tauri/Info.ios.plist:5-12`, merged into the generated iOS Info.plist at build time; identical keys in `src-tauri/Info.plist`); macOS entitlements: camera, network client, network server (`src-tauri/Entitlements.plist:5-10`).
-- Android: Wi-Fi binding during pairing so VPN/DNS blockers cannot swallow LAN traffic, plus expandable notifications via JNI (`lan_binding.rs:9-99`).
+- Android: Wi-Fi binding during pairing so VPN/DNS blockers cannot swallow LAN traffic, and the Wi-Fi multicast lock mDNS needs, both held only while a pairing session runs; expandable notifications via JNI (`lan_binding.rs:9-99`, `MainActivity.kt:354-413`).
+- Windows: the start-at-login `Run` value is rewritten with the executable path quoted, only when the entry exists (`autostart.rs:1-55`).
 - Outbound-only LAN IP discovery uses a UDP `connect` to `8.8.8.8:80` that sends no packets (`pairing/transport.rs:74-83`).
 
 ## Not yet verified in this draft
