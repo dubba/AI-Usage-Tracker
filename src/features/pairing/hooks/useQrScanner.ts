@@ -11,6 +11,10 @@ import { decodeQrSandboxed, sanitizeDecodedQrText } from "../lib/qr-decoder";
 
 export type ScannerViewMode = "scanner" | (string & {});
 
+/**
+ * The setters and refs below must keep their identity between renders (state setters, refs, or
+ * callbacks memoised without dependencies): a new one restarts the camera.
+ */
 export interface UseQrScannerOptions<T extends string = string> {
   active: boolean;
   restartKey: number;
@@ -69,7 +73,8 @@ export function useQrScanner<T extends string = string>(options: UseQrScannerOpt
   const selectedCameraIdRef = useRef<string | null>(null);
   const switchingCameraRef = useRef(false);
 
-  // In-app camera scanning loop
+  // In-app camera scanning loop. It restarts only for `active` / `restartKey`; the other
+  // dependencies are setters and refs that never change identity.
   useEffect(() => {
     if (!active) {
       if (streamRef.current) {
@@ -371,7 +376,26 @@ export function useQrScanner<T extends string = string>(options: UseQrScannerOpt
         streamRef.current = null;
       }
     };
-  }, [active, restartKey]);
+  }, [
+    active,
+    restartKey,
+    hostStartIdRef,
+    airgapSessionIdRef,
+    airgapVerifyPromptRef,
+    airgapCaptureStartRef,
+    setViewMode,
+    setBusy,
+    setErrorMessage,
+    setCameraError,
+    setVideoReady,
+    setAvailableCameras,
+    setSelectedCameraId,
+    setIsFrontCamera,
+    setAirgapCapturedChunks,
+    setAirgapTotalChunks,
+    setAirgapCaptureSecs,
+    setAirgapPinPrompt,
+  ]);
 
   const handleScannerTap = async () => {
     const track = streamRef.current?.getVideoTracks()[0];

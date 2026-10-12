@@ -282,10 +282,11 @@ export default function App() {
     if (next) storeSidebarGroupOrder(next);
   }, [snapshot, membershipKey, accounts, buckets]);
 
-  const visibleAccounts = useMemo(
-    () => applyPageAccountOrder(selectedGroup.accounts, selectedGroup.id),
-    [selectedGroup, pageOrderTick],
-  );
+  // The page order lives in storage, not in state; the tick says it changed and must be re-read.
+  const visibleAccounts = useMemo(() => {
+    void pageOrderTick;
+    return applyPageAccountOrder(selectedGroup.accounts, selectedGroup.id);
+  }, [selectedGroup, pageOrderTick]);
   const needsAttention = visibleAccounts.filter(accountNeedsAttention).length;
 
   const loadError = errors.find((entry) => entry.source === "load");

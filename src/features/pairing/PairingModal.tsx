@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useReducer, useRef, useState } from "react";
 import { cancelPairing, pairingApi } from "../../shared/lib/api";
 import { ChevronIcon } from "../../shared/ui/icons";
 import { useAirgapCapture } from "./hooks/useAirgapCapture";
@@ -112,6 +112,16 @@ export function PairingModal({
       streamRef.current = null;
     }
   };
+
+  // Drops the camera and the state of any pairing in progress. `stopCamera` and `capture` are new
+  // every render, so the open/close effect below calls this effect event instead of listing them
+  // and re-running on every render.
+  const discardSession = useEffectEvent(() => {
+    hasCompletedRef.current = false;
+    setStatus({ status: "idle" });
+    capture.resetAll();
+    stopCamera();
+  });
 
   const handleClose = () => {
     stopCamera();
@@ -227,8 +237,7 @@ export function PairingModal({
   // On open: join straight away if a pairing link is waiting; on close: forget everything.
   useEffect(() => {
     if (!open) {
-      hasCompletedRef.current = false;
-      setStatus({ status: "idle" });
+      discardSession();
       setErrorMessage(null);
       setJoinCodeInput("");
       dispatchFlow({ type: "reset" });
@@ -240,9 +249,7 @@ export function PairingModal({
       setSelectedCameraId(null);
       setAvailableCameras([]);
       setAirgapExport(null);
-      capture.resetAll();
       hostStartIdRef.current += 1;
-      stopCamera();
       return;
     }
 
@@ -288,7 +295,7 @@ export function PairingModal({
     };
 
     void checkPendingAndStart();
-  }, [open, initialJoinUri]);
+  }, [open, initialJoinUri, setStatus]);
 
   if (!open) return null;
 
