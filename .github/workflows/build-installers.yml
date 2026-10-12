@@ -13,6 +13,11 @@ on:
         type: boolean
         required: false
         default: true
+      skip_validate:
+        description: "Ship without running the Validate gate (hotfix override)"
+        type: boolean
+        required: false
+        default: false
   # Thursdays & Sundays at 11:45 PM US Eastern, all platforms on both runs. The
   # schedule is evaluated in America/New_York, so the time holds through daylight
   # saving changes (03:45 UTC the next day in EDT, 04:45 UTC in EST). The start is
@@ -125,10 +130,24 @@ jobs:
         run: |
           node scripts/resolve-release-version.mjs --github-output
 
+  # Runs the whole Validate workflow on the commit being released. Every build
+  # waits for it, so a commit that fails Validate cannot be published. A manual
+  # run can bypass it with skip_validate; the job is then skipped, and the build
+  # jobs accept a skipped gate but not a failed or cancelled one.
+  validate:
+    name: Validate the commit being released
+    needs: check-changes
+    if: needs.check-changes.outputs.should_build == 'true' && inputs.skip_validate != true
+    uses: ./.github/workflows/validate.yml
+    permissions:
+      contents: read
+      statuses: write
+      checks: write
+
   publish-windows:
     name: Build Windows installer
-    needs: check-changes
-    if: needs.check-changes.outputs.should_build == 'true'
+    needs: [check-changes, validate]
+    if: ${{ !cancelled() && needs.check-changes.outputs.should_build == 'true' && (needs.validate.result == 'success' || needs.validate.result == 'skipped') }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -362,8 +381,8 @@ jobs:
   # lost one platform still gets its notes.
   release-notes:
     name: Write release notes
-    needs: [check-changes, publish-windows, publish-macos, build-android, build-ios]
-    if: ${{ always() && needs.check-changes.outputs.should_build == 'true' }}
+    needs: [check-changes, validate, publish-windows, publish-macos, build-android, build-ios]
+    if: ${{ always() && needs.check-changes.outputs.should_build == 'true' && (needs.validate.result == 'success' || needs.validate.result == 'skipped') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

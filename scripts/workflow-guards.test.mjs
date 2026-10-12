@@ -249,3 +249,33 @@ test("the Windows release job runs its version step under bash", () => {
   assert.match(step[1], /shell: bash/, "version step must not use the Windows default shell");
 });
 
+
+test("no release job can run unless the Validate gate passed or was skipped on purpose", () => {
+  const validate = workflows.find((w) => w.name === "validate.yml").text;
+  assert.match(validate, /^  workflow_call:/m, "validate.yml must be callable by the release");
+
+  const installers = workflows.find((w) => w.name === "build-installers.yml").text;
+  assert.match(installers, /^      skip_validate:/m, "manual override input");
+
+  const gate = /^  validate:\n([\s\S]*?)(?=^  \S+:\n)/m.exec(installers);
+  assert.ok(gate, "validate gate job found");
+  assert.match(gate[1], /uses: \.\/\.github\/workflows\/validate\.yml/);
+  assert.match(gate[1], /inputs\.skip_validate != true/, "only the override may skip the gate");
+
+  // publish-windows is the root of every build job (they all need it), so gating
+  // it gates the macOS, iOS, Android and version-bump jobs too.
+  const root = /^  publish-windows:\n([\s\S]*?)(?=^  \S+:\n)/m.exec(installers);
+  assert.match(root[1], /needs: \[check-changes, validate\]/);
+  assert.match(root[1], /needs\.validate\.result == 'success' \|\| needs\.validate\.result == 'skipped'/);
+  for (const job of ["commit-version-bump", "build-android", "publish-macos", "build-ios"]) {
+    const m = new RegExp(`^  ${job}:\\n([\\s\\S]*?)(?=^  \\S+:\\n)`, "m").exec(installers);
+    assert.ok(m, `${job} found`);
+    assert.match(m[1], /needs: \[[^\]]*publish-windows[^\]]*\]/, `${job} must wait for the gated root job`);
+    assert.doesNotMatch(m[1], /always\(\)/, `${job} must not bypass the gate with always()`);
+  }
+
+  // release-notes runs after failures on purpose, so it needs its own check.
+  const notes = /^  release-notes:\n([\s\S]*?)(?=^  \S+:\n|$(?![\s\S]))/m.exec(installers);
+  assert.ok(notes, "release-notes found");
+  assert.match(notes[1], /needs\.validate\.result == 'success' \|\| needs\.validate\.result == 'skipped'/);
+});

@@ -1,9 +1,10 @@
 name: Validate
 
 on:
-  push:
-    branches: [main]
+  # Not run on push: scripts/preflight.sh covers that locally, and the release
+  # workflow calls this as its gate on the exact commit it is about to ship.
   pull_request:
+  workflow_call:
 
 permissions:
   contents: read
