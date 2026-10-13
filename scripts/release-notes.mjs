@@ -98,7 +98,7 @@ export function renderReleaseNotes({ changelog, version, guide, date = releaseDa
   if (section) {
     const total = section.sections.reduce((sum, s) => sum + s.items.length, 0);
     const when = section.date || date;
-    const lines = [`## What's new in v${clean} - ${when} (${total} ${total === 1 ? "change" : "changes"})`, ""];
+    const lines = [`## v${clean} - ${when} (${total} ${total === 1 ? "change" : "changes"})`, ""];
 
     let shown = 0;
     let folded = false;

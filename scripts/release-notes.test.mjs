@@ -68,10 +68,10 @@ test("returns null when there is nothing to show", () => {
 
 test("the title carries the version, date, and change count", () => {
   const notes = renderReleaseNotes({ changelog, version: "0.4.1", guide: "## Which download should I use?\n" });
-  assert.match(notes, /^## What's new in v0\.4\.1 - 2026-10-12 \(4 changes\)\n\n### Improved \(1\)/);
+  assert.match(notes, /^## v0\.4\.1 - 2026-10-12 \(4 changes\)\n\n### Improved \(1\)/);
   assert.doesNotMatch(notes, /·/, "no separate date line under the title");
   assert.doesNotMatch(notes, /Older change|Not shipped yet/);
-  assert.ok(notes.indexOf("What's new") < notes.indexOf("Which download should I use?"));
+  assert.ok(notes.indexOf("## v0.4.1") < notes.indexOf("Which download should I use?"));
 });
 
 test("the download guide is folded, titled by its own heading, and comes last", () => {
@@ -124,7 +124,7 @@ test("a release with no changelog items still gets the download guide", () => {
 
 test("the Unreleased fallback is dated by the release date it is given", () => {
   const notes = renderReleaseNotes({ changelog, version: "0.4.2", guide: "g", date: "2026-10-15" });
-  assert.match(notes, /^## What's new in v0\.4\.2 - 2026-10-15 \(1 change\)\n/);
+  assert.match(notes, /^## v0\.4\.2 - 2026-10-15 \(1 change\)\n/);
 });
 
 test("the real download guide covers every platform and the first-launch steps", () => {
