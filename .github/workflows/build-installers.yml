@@ -348,10 +348,43 @@ jobs:
           print(f"::add-mask::{normalized_key}")
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env_file:
               env_file.write(f"TAURI_SIGNING_PRIVATE_KEY={normalized_key}\n")
+      - name: Configure macOS code signing
+        shell: python
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          import os
+          import sys
+
+          # Signing without notarization is still blocked by Gatekeeper, so it is
+          # all six secrets or none. A partial set fails rather than quietly
+          # shipping an ad-hoc build. The values reach tauri-action through
+          # GITHUB_ENV, so its step must not set APPLE_SIGNING_IDENTITY itself.
+          names = ["APPLE_CERTIFICATE", "APPLE_CERTIFICATE_PASSWORD", "APPLE_SIGNING_IDENTITY",
+                   "APPLE_ID", "APPLE_PASSWORD", "APPLE_TEAM_ID"]
+          values = {name: os.environ.get(name, "").strip() for name in names}
+          values["APPLE_CERTIFICATE"] = "".join(values["APPLE_CERTIFICATE"].split())
+          missing = [name for name in names if not values[name]]
+
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env_file:
+              if len(missing) == len(names):
+                  print("::warning::No Apple signing secrets; building ad-hoc signed. Gatekeeper will block first launch.")
+                  env_file.write("APPLE_SIGNING_IDENTITY=-\n")
+              elif missing:
+                  print(f"::error::Apple signing is partly configured; missing {', '.join(missing)}.")
+                  sys.exit(1)
+              else:
+                  for name in names:
+                      print(f"::add-mask::{values[name]}")
+                      env_file.write(f"{name}={values[name]}\n")
       - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_SIGNING_IDENTITY: "-"
           TAURI_SIGNING_PRIVATE_KEY: ${{ env.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         with:

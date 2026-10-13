@@ -153,6 +153,59 @@ test("a release without a valid updater signing key fails instead of publishing"
   }
 });
 
+test("macOS builds sign and notarize with a full Apple secret set, ad-hoc with none, and fail on a partial set", async () => {
+  const { spawnSync } = await import("node:child_process");
+  const { mkdtempSync, writeFileSync: write, readFileSync: read } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const installers = workflows.find((w) => w.name === "build-installers.yml").text;
+  const [script, ...extra] = runScriptsOfStep(installers, "Configure macOS code signing");
+  assert.ok(script, "signing step found");
+  assert.equal(extra.length, 0, "one signing step");
+
+  // A step-level env value would override what the signing step exports.
+  const tauriAction = installers.slice(installers.indexOf("- name: Configure macOS code signing"));
+  const actionEnv = tauriAction.slice(tauriAction.indexOf("tauri-apps/tauri-action"), tauriAction.indexOf("with:"));
+  assert.doesNotMatch(actionEnv, /APPLE_/, "tauri-action must take Apple settings from GITHUB_ENV");
+
+  const names = ["APPLE_CERTIFICATE", "APPLE_CERTIFICATE_PASSWORD", "APPLE_SIGNING_IDENTITY",
+    "APPLE_ID", "APPLE_PASSWORD", "APPLE_TEAM_ID"];
+  const dir = mkdtempSync(resolve(tmpdir(), "apple-signing-"));
+  const run = (secrets) => {
+    const envFile = resolve(dir, "github_env");
+    write(envFile, "");
+    const env = { ...process.env, GITHUB_ENV: envFile };
+    for (const name of names) delete env[name];
+    const result = spawnSync("python3", ["-c", script], { env: { ...env, ...secrets }, encoding: "utf-8" });
+    return { status: result.status, env: read(envFile, "utf-8"), out: result.stdout };
+  };
+  // Placeholder values, not real credentials.
+  const full = {
+    APPLE_CERTIFICATE: "TUlJQ2Zh\nZWtlUDEy\n",
+    APPLE_CERTIFICATE_PASSWORD: "p12-pass",
+    APPLE_SIGNING_IDENTITY: "Developer ID Application: Example (TEAM123456)",
+    APPLE_ID: "dev@example.com",
+    APPLE_PASSWORD: "abcd-efgh-ijkl-mnop",
+    APPLE_TEAM_ID: "TEAM123456",
+  };
+
+  const none = run({ APPLE_ID: "  " });
+  assert.equal(none.status, 0, none.out);
+  assert.equal(none.env, "APPLE_SIGNING_IDENTITY=-\n");
+  assert.match(none.out, /::warning::/);
+
+  for (const name of names) {
+    const partial = run({ ...full, [name]: "" });
+    assert.equal(partial.status, 1, `missing ${name} should fail the job`);
+    assert.equal(partial.env, "", "nothing may be exported on failure");
+    assert.match(partial.out, new RegExp(`::error::.*${name}`));
+  }
+
+  const signed = run(full);
+  assert.equal(signed.status, 0, signed.out);
+  const exported = Object.fromEntries(signed.env.trim().split("\n").map((line) => line.split(/=(.*)/s).slice(0, 2)));
+  assert.deepEqual(exported, { ...full, APPLE_CERTIFICATE: "TUlJQ2ZhZWtlUDEy" });
+});
+
 test("the Android signing step signs release APKs only and refuses debug ones", async () => {
   const { spawnSync } = await import("node:child_process");
   const fs = await import("node:fs");
