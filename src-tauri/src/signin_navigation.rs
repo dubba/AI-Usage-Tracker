@@ -100,9 +100,14 @@ pub(crate) fn is_allowed_main_navigation(
     else {
         return false;
     };
-    let web = matches!(url.scheme(), "http" | "https");
-    // The app's own pages (Tauri serves them from tauri.localhost on mobile).
-    if web && host == "tauri.localhost" && url.port().is_none() {
+    // The app's own pages: Tauri serves them from http(s)://tauri.localhost on
+    // Android and from tauri://localhost on iOS.
+    let app_page = match url.scheme() {
+        "http" | "https" => host == "tauri.localhost",
+        "tauri" => host == "localhost",
+        _ => false,
+    };
+    if app_page && url.port().is_none() {
         return true;
     }
     if dev_url.is_some_and(|dev| dev.origin() == url.origin()) {
@@ -169,6 +174,8 @@ mod tests {
         for signing_in in [false, true] {
             assert!(allowed("http://tauri.localhost/", signing_in));
             assert!(allowed("https://tauri.localhost/index.html", signing_in));
+            assert!(allowed("tauri://localhost", signing_in), "iOS");
+            assert!(allowed("tauri://localhost/index.html", signing_in), "iOS");
             assert!(
                 allowed("http://192.168.1.20:1420/", signing_in),
                 "dev server"
@@ -184,6 +191,10 @@ mod tests {
             "https://accounts.google.com/",
             "http://localhost:1455/auth/callback?code=x",
             "https://evil.example/",
+            "tauri://evil.example/",
+            "tauri://localhost:8080/",
+            "http://localhost/",
+            "tauri://tauri.localhost/",
         ] {
             assert!(!allowed(url, false), "{url}");
         }

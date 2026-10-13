@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (2 changes)
+## Unreleased (3 changes)
 
 ### Added (1)
 
@@ -9,6 +9,10 @@
 ### Improved (1)
 
 - The sidebar AI Usage Tracker title uses the same purple as the All Accounts title.
+
+### Fixed (1)
+
+- The iPhone app opens again instead of showing only a black screen. Since v0.4.1, the app was blocking its own start page from loading on iOS.
 
 ## v0.4.2 - 2026-10-12 (3 changes)
 
