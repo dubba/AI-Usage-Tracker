@@ -20,6 +20,8 @@ mod fs_util;
 mod google_ai_studio_oauth;
 mod google_client;
 mod grok_login;
+#[cfg(target_os = "ios")]
+mod ios_cookies;
 mod lan_binding;
 mod limits;
 #[cfg(target_os = "macos")]

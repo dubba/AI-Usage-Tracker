@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (9 changes)
+## Unreleased (10 changes)
 
 ### Added (1)
 
@@ -14,10 +14,11 @@
 - On macOS, the app icon has the same margin as other Mac app icons, so it is no longer larger than its neighbors in the Dock, and it stays sharp on Retina displays.
 - On a computer, the window title bar uses the same purple as the Android status bar, and the window title is white so it stands out.
 
-### Fixed (3)
+### Fixed (4)
 
 - The iPhone app opens again instead of showing only a black screen. Since v0.4.1, the app was blocking its own start page from loading on iOS.
 - The iPhone app's home screen icon is the AI Usage Tracker gauge instead of the Tauri logo.
+- On iPhone, signing in to Claude, ChatGPT, Antigravity, Grok, or OpenCode no longer closes the app when the sign-in page opens or when the app reads the finished sign-in.
 - On a computer, the dashboard scrollbar is purple again, matching Android. A recent WebKit change had been drawing it in native gray.
 
 ## v0.4.2 - 2026-10-12 (3 changes)

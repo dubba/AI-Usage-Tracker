@@ -724,6 +724,34 @@ fn close_login_window(window: &WebviewWindow) {
     crate::mobile_auth::dismiss_login_window(window);
 }
 
+/// The cookies the WebView holds for `url`'s host. Tauri's lookup blocks the main thread in a
+/// nested run loop, which can crash the app on iOS, so there the store is read without blocking
+/// (see ios_cookies.rs) and filtered to the host here.
+fn read_opencode_cookies(
+    window: &WebviewWindow,
+    url: &Url,
+) -> Result<Vec<tauri::webview::Cookie<'static>>, String> {
+    #[cfg(target_os = "ios")]
+    {
+        let host = url.host_str().unwrap_or_default();
+        let cookies = crate::ios_cookies::all_cookies(window)?;
+        Ok(cookies
+            .into_iter()
+            .filter(|cookie| {
+                cookie
+                    .domain()
+                    .is_some_and(|domain| domain.trim_start_matches('.').eq_ignore_ascii_case(host))
+            })
+            .collect())
+    }
+    #[cfg(not(target_os = "ios"))]
+    {
+        window
+            .cookies_for_url(url.clone())
+            .map_err(|error| error.to_string())
+    }
+}
+
 fn read_auth_cookie_with_retry(window: &WebviewWindow) -> Result<(String, Option<String>), String> {
     let cookie_url = Url::parse("https://opencode.ai/")
         .map_err(|error| format!("Unable to prepare the OpenCode cookie request: {error}"))?;
@@ -732,7 +760,7 @@ fn read_auth_cookie_with_retry(window: &WebviewWindow) -> Result<(String, Option
 
     let mut last_read_error = None;
     for attempt in 0..COOKIE_CAPTURE_ATTEMPTS {
-        match window.cookies_for_url(cookie_url.clone()) {
+        match read_opencode_cookies(window, &cookie_url) {
             Ok(cookies) => {
                 let auth_cookie = cookies
                     .iter()

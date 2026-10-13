@@ -152,18 +152,11 @@ pub(crate) fn forget_provider_sign_in(window: &WebviewWindow) {
     }
     #[cfg(target_os = "ios")]
     {
-        let Ok(cookies) = window.cookies() else {
-            crate::diagnostics::warn("Sign-in session reset could not read the page session.");
-            return;
-        };
-        for cookie in cookies {
-            let Some(domain) = cookie.domain() else {
-                continue;
-            };
-            if !crate::signin_navigation::cookie_domain_is_sign_in(domain) {
-                continue;
-            }
-            let _ = window.delete_cookie(cookie);
+        if let Err(error) = crate::ios_cookies::delete_cookies(
+            window,
+            crate::signin_navigation::cookie_domain_is_sign_in,
+        ) {
+            crate::diagnostics::warn(&format!("Sign-in session reset failed: {error}"));
         }
     }
 }

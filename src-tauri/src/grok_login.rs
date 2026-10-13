@@ -928,11 +928,11 @@ fn is_xai_signin_host(url: &Url) -> bool {
 fn read_cookie_header(window: &WebviewWindow) -> Result<String, String> {
     #[allow(unused_mut)]
     let mut pairs = BTreeMap::new();
-    // Every cookie lookup blocks while the main thread runs a nested run loop. On iOS four of
-    // them per poll crashed the app, so read the store once and filter here.
+    // Tauri's cookie lookups block the main thread in a nested run loop, which can crash the
+    // app on iOS, so read the store once without blocking (see ios_cookies.rs) and filter here.
     #[cfg(target_os = "ios")]
     {
-        let cookies = window.cookies().map_err(|error| error.to_string())?;
+        let cookies = crate::ios_cookies::all_cookies(window)?;
         for cookie in cookies {
             let domain = cookie.domain().unwrap_or("").trim_start_matches('.');
             let value = cookie.value().trim();

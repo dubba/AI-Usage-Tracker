@@ -44,6 +44,8 @@ dependencies = [
  "mdns-sd",
  "miniz_oxide 0.8.9",
  "objc2",
+ "objc2-foundation",
+ "objc2-web-kit",
  "parking_lot",
  "qrcode",
  "rand 0.8.8",
