@@ -1,13 +1,14 @@
 # Changelog
 
-## Unreleased (2 changes)
+## Unreleased (3 changes)
 
 ### Improved (1)
 
 - Custom groups in the sidebar now show a combined icon made from the providers of the group's first four accounts, in its order — side by side for two accounts, two stacked beside one for three, and a two-by-two grid for four or more — instead of only the first account's provider icon.
 
-### Fixed (1)
+### Fixed (2)
 
+- The update window's "What changed" list now shows the full list of changes as plain text, without the "Show more" fold markup or the "Which download should I use?" section.
 - Editing a group always opens with the account filter on All Providers; a group whose accounts belong to one provider no longer hides the other providers from the picker.
 
 ## v0.4.1 - 2026-10-12 (38 changes)

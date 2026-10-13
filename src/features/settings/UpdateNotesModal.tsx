@@ -2,6 +2,7 @@ import { useRef, type ReactNode } from "react";
 import { isAllowedExternalUrl } from "../../shared/lib/safeUrl";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import type { UpdateBusy } from "../../types";
+import { cleanReleaseNotes } from "./releaseNotesText";
 import { UpdateErrorMessage } from "./UpdateErrorMessage";
 import { UpdateProgressBar, updateInstallLabel } from "./UpdateProgressBar";
 import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
@@ -181,7 +182,7 @@ export function UpdateNotesModal({
   if (!open) return null;
 
   const cleanVersion = (version || "").replace(/^v/i, "");
-  const blocks = releaseNotes ? parseMarkdownBlocks(releaseNotes) : [];
+  const blocks = releaseNotes ? parseMarkdownBlocks(cleanReleaseNotes(releaseNotes)) : [];
   const formattedDate = formatReleaseDate(releaseDate);
 
   return (
