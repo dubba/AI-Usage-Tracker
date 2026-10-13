@@ -57,12 +57,13 @@ zeroize = { version = "1", features = ["derive"] }
 block2 = "0.6"
 objc2 = "0.6"
 
-# WebKit's cookie store, used without blocking the main thread (src/ios_cookies.rs).
+# WebKit's cookie store without blocking the main thread (src/ios_cookies.rs) and
+# sign-in popups (src/ios_popups.rs).
 # The same versions wry already pulls in.
 [target.'cfg(target_os = "ios")'.dependencies]
 block2 = "0.6"
 objc2 = "0.6"
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSHTTPCookie", "NSString"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSArray", "NSGeometry", "NSHTTPCookie", "NSObject", "NSString"] }
 objc2-web-kit = { version = "0.3", default-features = false, features = ["std", "block2", "WKHTTPCookieStore", "WKWebViewConfiguration", "WKWebsiteDataStore"] }
 
 [target.'cfg(target_os = "android")'.dependencies]

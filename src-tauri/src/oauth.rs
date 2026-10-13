@@ -27,7 +27,10 @@ use std::{
     sync::Arc,
 };
 #[cfg(desktop)]
-use tauri::{webview::PageLoadEvent, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri::{
+    webview::{NewWindowResponse, PageLoadEvent},
+    Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent,
+};
 use tokio::{net::TcpListener, sync::oneshot};
 use url::Url;
 use uuid::Uuid;
@@ -242,6 +245,9 @@ pub async fn start_login(
 }
 
 const PROVIDER_LOGIN_WINDOW: &str = "provider-login";
+/// Label prefix of the popups a sign-in page opens (see `open_provider_login_popup`).
+const PROVIDER_LOGIN_POPUP_PREFIX: &str = "provider-login-popup-";
+const PROVIDER_LOGIN_USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15";
 const PROVIDER_LOGIN_PROFILE_PREFIX: &str = "ai-usage-oauth-";
 
 /// Query flag the injected top-left Back button appends. `on_navigation`
@@ -256,6 +262,9 @@ const LOGIN_BACK_BUTTON_SCRIPT: &str = r#"
 (() => {
   try {
     if (window.top !== window || !document.documentElement) return;
+    // A sign-in popup (Google's, opened by Claude) shares this window's WebView
+    // configuration and so this script; it is closed by the app, not Back.
+    if (window.opener) return;
     const id = '__ai_tracker_back';
     const install = () => {
       if (!document.documentElement || document.getElementById(id)) return;
@@ -402,64 +411,92 @@ pub(crate) fn open_provider_login_window(
     sweep_stale_oauth_profiles();
     let profile_dir = create_private_oauth_profile_dir(attempt_id)?;
     let callback_seen = Arc::new(AtomicBool::new(false));
+    let close_scheduled = Arc::new(AtomicBool::new(false));
     let back_handle = handle.clone();
     let back_state = app.clone();
     let back_attempt = attempt_id.to_string();
     let nav_callback_seen = callback_seen.clone();
-    let nav_handle = handle.clone();
-    let nav_dir = profile_dir.clone();
-    let builder = WebviewWindowBuilder::new(
-        &handle,
-        PROVIDER_LOGIN_WINDOW,
-        WebviewUrl::External(target),
-    )
-    .title(title)
-    .inner_size(1080.0, 760.0)
-    .min_inner_size(820.0, 620.0)
-    .resizable(true)
-    .center()
-    .data_directory(profile_dir.clone())
-    .incognito(true)
-    .devtools(false)
-    .initialization_script(LOGIN_BACK_BUTTON_SCRIPT)
-    .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15")
-    .on_page_load(|window, payload| {
-        if matches!(payload.event(), PageLoadEvent::Finished) {
-            let _ = window.eval(LOGIN_BACK_BUTTON_SCRIPT);
-        }
-    })
-    .on_navigation(move |url| {
-        if is_provider_login_back_request(url) {
-            back_state.fail_login_if_waiting(&back_attempt, "Sign-in was canceled.".into());
-            back_state.abort_login_resources(&back_attempt);
-            if let Some(window) = back_handle.get_webview_window(PROVIDER_LOGIN_WINDOW) {
-                crate::mobile_auth::dismiss_login_window(&window);
-            }
-            return false;
-        }
-        if looks_like_oauth_callback(url) && url.scheme() == "http" && url.username().is_empty() {
-            if !nav_callback_seen.swap(true, Ordering::SeqCst) {
-                let close_handle = nav_handle.clone();
-                let close_dir = nav_dir.clone();
-                tauri::async_runtime::spawn(async move {
-                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-                    let _ = std::fs::remove_dir_all(&close_dir);
-                    if let Some(window) = close_handle.get_webview_window(PROVIDER_LOGIN_WINDOW) {
+    let load_dir = profile_dir.clone();
+    let popup_handle = handle.clone();
+    let builder =
+        WebviewWindowBuilder::new(&handle, PROVIDER_LOGIN_WINDOW, WebviewUrl::External(target))
+            .title(title)
+            .inner_size(1080.0, 760.0)
+            .min_inner_size(820.0, 620.0)
+            .resizable(true)
+            .center()
+            .data_directory(profile_dir.clone())
+            .incognito(true)
+            .devtools(false)
+            .initialization_script(LOGIN_BACK_BUTTON_SCRIPT)
+            .user_agent(PROVIDER_LOGIN_USER_AGENT)
+            .on_page_load(move |window, payload| {
+                if matches!(payload.event(), PageLoadEvent::Finished) {
+                    let _ = window.eval(LOGIN_BACK_BUTTON_SCRIPT);
+                    // A new page here means the popup's job is done: Claude moves on once
+                    // Google's popup has handed it the sign-in result.
+                    close_provider_login_popups(window.app_handle());
+                    // Time the close from when the result page is shown, not from when
+                    // the callback was requested: the callback server answers only after
+                    // the token exchange (and, for Antigravity, the project lookup),
+                    // which can take seconds and would cut the page's countdown short.
+                    if is_loopback_callback(payload.url())
+                        && !close_scheduled.swap(true, Ordering::SeqCst)
+                    {
+                        let close_dir = load_dir.clone();
+                        tauri::async_runtime::spawn(async move {
+                            tokio::time::sleep(crate::oauth_common::CONNECTED_PAGE_DISPLAY).await;
+                            let _ = std::fs::remove_dir_all(&close_dir);
+                            crate::mobile_auth::dismiss_login_window(&window);
+                        });
+                    }
+                }
+            })
+            .on_new_window(move |url, features| {
+                // Claude's "Continue with Google" is a Google Identity Services popup
+                // that hands the result back through `window.opener`, so it needs a
+                // real window; without one Claude reports an error.
+                if url.scheme() != "https" || !is_allowed_provider_login_navigation(&url) {
+                    crate::diagnostics::warn(&format!(
+                        "Sign-in blocked a popup to host {}",
+                        url.host_str().unwrap_or("(none)")
+                    ));
+                    return NewWindowResponse::Deny;
+                }
+                match open_provider_login_popup(&popup_handle, features) {
+                    Ok(window) => NewWindowResponse::Create { window },
+                    Err(error) => {
+                        crate::diagnostics::warn(&format!(
+                            "Unable to open the sign-in popup: {}",
+                            crate::diagnostics::command_error(error)
+                        ));
+                        NewWindowResponse::Deny
+                    }
+                }
+            })
+            .on_navigation(move |url| {
+                if is_provider_login_back_request(url) {
+                    back_state.fail_login_if_waiting(&back_attempt, "Sign-in was canceled.".into());
+                    back_state.abort_login_resources(&back_attempt);
+                    if let Some(window) = back_handle.get_webview_window(PROVIDER_LOGIN_WINDOW) {
                         crate::mobile_auth::dismiss_login_window(&window);
                     }
-                });
-            }
-            return true;
-        }
-        let allowed = is_allowed_provider_login_navigation(url);
-        if !allowed {
-            crate::diagnostics::warn(&format!(
-                "Sign-in blocked navigation to host {}",
-                url.host_str().unwrap_or("(none)")
-            ));
-        }
-        allowed
-    });
+                    return false;
+                }
+                if is_loopback_callback(url) {
+                    // The window closes once the result page has been shown (on_page_load).
+                    nav_callback_seen.store(true, Ordering::SeqCst);
+                    return true;
+                }
+                let allowed = is_allowed_provider_login_navigation(url);
+                if !allowed {
+                    crate::diagnostics::warn(&format!(
+                        "Sign-in blocked navigation to host {}",
+                        url.host_str().unwrap_or("(none)")
+                    ));
+                }
+                allowed
+            });
     let window = match builder.build() {
         Ok(window) => window,
         Err(error) => {
@@ -474,7 +511,14 @@ pub(crate) fn open_provider_login_window(
     let close_attempt = attempt_id.to_string();
     let close_dir = profile_dir;
     let close_seen = callback_seen;
+    let close_handle = handle.clone();
     window.on_window_event(move |event| {
+        if matches!(
+            event,
+            WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed
+        ) {
+            close_provider_login_popups(&close_handle);
+        }
         if matches!(event, WindowEvent::CloseRequested { .. }) {
             let _ = std::fs::remove_dir_all(&close_dir);
             if !close_seen.load(Ordering::SeqCst) {
@@ -484,6 +528,55 @@ pub(crate) fn open_provider_login_window(
         }
     });
     Ok(())
+}
+
+/// A popup opened by the sign-in page. Built from the opener's WebView
+/// configuration (`window_features`) so WebKit links it to its opener and it
+/// shares the sign-in session, and held to the same hosts as the sign-in window.
+#[cfg(desktop)]
+fn open_provider_login_popup(
+    handle: &tauri::AppHandle,
+    features: tauri::webview::NewWindowFeatures,
+) -> tauri::Result<tauri::WebviewWindow> {
+    static NEXT_POPUP: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let label = format!(
+        "{PROVIDER_LOGIN_POPUP_PREFIX}{}",
+        NEXT_POPUP.fetch_add(1, Ordering::Relaxed)
+    );
+    WebviewWindowBuilder::new(
+        handle,
+        label,
+        WebviewUrl::External(Url::parse("about:blank").expect("about:blank is a valid URL")),
+    )
+    .title("Sign in with Google")
+    .inner_size(520.0, 680.0)
+    .center()
+    .window_features(features)
+    .devtools(false)
+    .user_agent(PROVIDER_LOGIN_USER_AGENT)
+    .on_navigation(|url| {
+        let allowed = url.as_str() == "about:blank"
+            || (url.scheme() == "https" && is_allowed_provider_login_navigation(url));
+        if !allowed {
+            crate::diagnostics::warn(&format!(
+                "Sign-in popup blocked navigation to host {}",
+                url.host_str().unwrap_or("(none)")
+            ));
+        }
+        allowed
+    })
+    .build()
+}
+
+/// Closes any sign-in popups. Google's popup calls `window.close()` when it is
+/// done, which Tauri does not act on, so the app closes it instead.
+#[cfg(desktop)]
+fn close_provider_login_popups(handle: &tauri::AppHandle) {
+    for (label, popup) in handle.webview_windows() {
+        if label.starts_with(PROVIDER_LOGIN_POPUP_PREFIX) {
+            crate::mobile_auth::dismiss_login_window(&popup);
+        }
+    }
 }
 
 #[cfg(mobile)]
@@ -680,6 +773,12 @@ pub async fn login_status(app: &Arc<AppState>, attempt_id: &str) -> Result<Login
 }
 
 #[cfg_attr(not(any(test, mobile)), allow(dead_code))]
+/// The app's own loopback callback page, as a sign-in window (desktop) or the
+/// main window (mobile) loads it.
+pub(crate) fn is_loopback_callback(url: &Url) -> bool {
+    looks_like_oauth_callback(url) && url.scheme() == "http" && url.username().is_empty()
+}
+
 pub(crate) fn looks_like_oauth_callback(url: &Url) -> bool {
     let is_loopback = url
         .host_str()
@@ -1876,6 +1975,14 @@ mod tests {
                 "{provider:?} must hint the intended account, trimmed"
             );
         }
+    }
+
+    #[test]
+    fn back_button_stays_out_of_sign_in_popups() {
+        // Popups share the sign-in window's scripts; only the window itself gets Back.
+        assert!(LOGIN_BACK_BUTTON_SCRIPT.contains("if (window.opener) return;"));
+        assert!(PROVIDER_LOGIN_POPUP_PREFIX.starts_with(PROVIDER_LOGIN_WINDOW));
+        assert_ne!(PROVIDER_LOGIN_POPUP_PREFIX, PROVIDER_LOGIN_WINDOW);
     }
 
     #[test]

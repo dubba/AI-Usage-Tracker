@@ -16,6 +16,7 @@
 use std::sync::Arc;
 use tauri::{
     plugin::{Builder, TauriPlugin},
+    webview::PageLoadEvent,
     Manager, Runtime, Url,
 };
 
@@ -42,6 +43,10 @@ const SIGN_IN_HOSTS: &[&str] = &[
     "t.co",
     "auth0.com",
     "okta.com",
+    // Google signs the account in to YouTube on its way back from a sign-in;
+    // blocking this hop makes the provider report a failed login. Only the
+    // accounts host, not the rest of YouTube.
+    "accounts.youtube.com",
     // Bot checks and assets those pages load.
     "cloudflare.com",
     "hcaptcha.com",
@@ -91,7 +96,9 @@ pub(crate) fn is_allowed_main_navigation(
     dev_url: Option<&Url>,
     signing_in: bool,
 ) -> bool {
-    if url.as_str() == "about:blank" {
+    // The "Account connected" page the app shows when a sign-in has finished
+    // (mobile_auth.rs): only the exact page it made, never `data:` in general.
+    if url.as_str() == "about:blank" || crate::oauth_common::is_connected_page(url) {
         return true;
     }
     let Some(host) = url
@@ -149,13 +156,20 @@ pub(crate) fn plugin<R: Runtime>() -> TauriPlugin<R> {
                 webview.config().build.dev_url.as_ref(),
                 signing_in,
             );
-            if !allowed {
+            if allowed {
+                crate::mobile_auth::note_main_navigation(url);
+            } else {
                 crate::diagnostics::warn(&format!(
                     "Blocked the app window from navigating to {}",
                     url.host_str().unwrap_or("(no host)")
                 ));
             }
             allowed
+        })
+        .on_page_load(|webview, payload| {
+            if webview.label() == "main" && matches!(payload.event(), PageLoadEvent::Finished) {
+                crate::mobile_auth::note_main_page_loaded(payload.url());
+            }
         })
         .build()
 }
@@ -212,6 +226,7 @@ mod tests {
             "https://opencode.ai/auth",
             "https://github.com/login/oauth/authorize",
             "https://challenges.cloudflare.com/x",
+            "https://accounts.youtube.com/accounts/SetSID?ssdc=1",
             "http://localhost:1455/auth/callback?code=x&state=y",
             "http://127.0.0.1:53692/callback?code=x",
         ] {
@@ -219,6 +234,9 @@ mod tests {
         }
         for url in [
             "https://evil.example/login",
+            "https://www.youtube.com/watch?v=x",
+            "https://youtube.com/",
+            "https://accounts.youtube.com.evil.example/",
             "https://claude.ai.evil.example/",
             "https://evilclaude.ai/",
             "http://claude.ai/login",
@@ -228,6 +246,8 @@ mod tests {
             "file:///data/data/app/files/credentials",
             "javascript:alert(1)",
             "data:text/html,<p>sign in</p>",
+            // Only the exact "Account connected" page the app made is allowed.
+            "data:text/html;charset=utf-8;base64,PHNjcmlwdD4xPC9zY3JpcHQ+",
         ] {
             assert!(!allowed(url, true), "{url}");
         }

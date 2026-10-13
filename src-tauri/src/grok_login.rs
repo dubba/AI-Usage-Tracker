@@ -98,7 +98,8 @@ const BACK_QUERY_FLAG: &str = "ai-usage-tracker-back";
 const BACK_BUTTON_SCRIPT: &str = r#"
 (() => {
   try {
-    if (window.top !== window || !document.documentElement) return;
+    // Not on the app's own "Account connected" page, which closes by itself.
+    if (window.top !== window || !document.documentElement || location.protocol === 'data:') return;
     const id = '__ai_tracker_back';
     const install = () => {
       if (!document.documentElement || document.getElementById(id)) return;
@@ -838,6 +839,8 @@ async fn complete_cookie_login(
         },
     };
 
+    #[cfg(desktop)]
+    let connected = account.clone();
     let completed = state.update_login_if_waiting(&attempt_id, |login| {
         *login = LoginStatus {
             attempt_id: attempt_id.clone(),
@@ -852,10 +855,9 @@ async fn complete_cookie_login(
         if let Some(dir) = &temp_data_dir {
             let _ = std::fs::remove_dir_all(dir);
         }
-        tauri::async_runtime::spawn(async move {
-            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-            close_login_window(&window);
-        });
+        // On mobile the sign-in poll loop (mobile_auth.rs) shows the page instead.
+        #[cfg(desktop)]
+        crate::oauth_common::close_after_connected_page(window, &connected);
     }
 }
 
@@ -869,7 +871,10 @@ fn close_login_window(window: &WebviewWindow) {
 /// that could run scripts able to observe credentials.
 #[cfg(desktop)]
 fn is_allowed_login_navigation(url: &Url) -> bool {
-    if url.as_str() == "about:blank" || url.scheme() == "blob" {
+    if url.as_str() == "about:blank"
+        || url.scheme() == "blob"
+        || crate::oauth_common::is_connected_page(url)
+    {
         return true;
     }
     if url.scheme() != "https" {
@@ -907,6 +912,8 @@ fn is_allowed_login_navigation(url: &Url) -> bool {
         || host.ends_with(".google.com")
         || host == "gstatic.com"
         || host.ends_with(".gstatic.com")
+        // Google's sign-in passes through here to sign the account in to YouTube.
+        || host == "accounts.youtube.com"
         || host == "apple.com"
         || host.ends_with(".apple.com")
         || host == "appleid.apple.com"
@@ -1014,6 +1021,7 @@ mod tests {
             "https://auth.grokusercontent.com/verify",
             "https://accounts.google.com/o/oauth2/auth?client_id=x",
             "https://appleid.apple.com/auth/authorize",
+            "https://accounts.youtube.com/accounts/SetSID?ssdc=1",
         ] {
             let url = Url::parse(allowed).unwrap();
             assert!(is_allowed_login_navigation(&url), "{allowed}");
@@ -1023,11 +1031,21 @@ mod tests {
             "https://grok.com.evil.com/",
             "https://grokusercontent.com.evil.com/",
             "http://accounts.x.ai/sign-in",
+            "https://www.youtube.com/watch?v=x",
+            "https://evil.accounts.youtube.com/",
             "javascript:alert(1)",
+            // Only the exact "Account connected" page the app made, never data: in general.
+            "data:text/html,<script>1</script>",
+            "data:text/html;charset=utf-8;base64,PHNjcmlwdD4xPC9zY3JpcHQ+",
         ] {
             let url = Url::parse(blocked).unwrap();
             assert!(!is_allowed_login_navigation(&url), "{blocked}");
         }
+    }
+
+    #[test]
+    fn back_button_stays_off_the_connected_page() {
+        assert!(BACK_BUTTON_SCRIPT.contains("location.protocol === 'data:'"));
     }
     #[test]
     fn back_button_requests_cancel_the_login() {

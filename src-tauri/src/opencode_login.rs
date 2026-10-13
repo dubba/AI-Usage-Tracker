@@ -47,7 +47,8 @@ const BACK_QUERY_FLAG: &str = "ai-usage-tracker-back";
 const BACK_BUTTON_SCRIPT: &str = r#"
 (() => {
   try {
-    if (window.top !== window || !document.documentElement) return;
+    // Not on the app's own "Account connected" page, which closes by itself.
+    if (window.top !== window || !document.documentElement || location.protocol === 'data:') return;
     const id = '__ai_tracker_back';
     const install = () => {
       if (!document.documentElement || document.getElementById(id)) return;
@@ -569,6 +570,8 @@ async fn complete_login(
     .await
     {
         Ok(account) => {
+            #[cfg(desktop)]
+            let connected = account.clone();
             let completed = state.update_login_if_waiting(&attempt_id, |login| {
                 *login = LoginStatus {
                     attempt_id: attempt_id.clone(),
@@ -580,10 +583,9 @@ async fn complete_login(
                 };
             });
             if completed {
-                tauri::async_runtime::spawn(async move {
-                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-                    close_login_window(&window);
-                });
+                // On mobile the sign-in poll loop (mobile_auth.rs) shows the page instead.
+                #[cfg(desktop)]
+                crate::oauth_common::close_after_connected_page(window, &connected);
             }
         }
         Err(error) => {
@@ -836,7 +838,7 @@ fn login_window_size(app: &AppHandle) -> (f64, f64) {
 /// cookie-capture window to an attacker-controlled page.
 #[cfg(desktop)]
 fn is_allowed_login_navigation(url: &Url) -> bool {
-    if url.as_str() == "about:blank" {
+    if url.as_str() == "about:blank" || crate::oauth_common::is_connected_page(url) {
         return true;
     }
     if url.scheme() != "https" {
@@ -930,10 +932,17 @@ mod tests {
             "https://opencode.ai.evil.com/",
             "http://opencode.ai/auth",
             "data:text/html,<script>1</script>",
+            // Only the exact "Account connected" page the app made, never data: in general.
+            "data:text/html;charset=utf-8;base64,PHNjcmlwdD4xPC9zY3JpcHQ+",
         ] {
             let url = Url::parse(blocked).unwrap();
             assert!(!is_allowed_login_navigation(&url), "{blocked}");
         }
+    }
+
+    #[test]
+    fn back_button_stays_off_the_connected_page() {
+        assert!(BACK_BUTTON_SCRIPT.contains("location.protocol === 'data:'"));
     }
 
     #[test]

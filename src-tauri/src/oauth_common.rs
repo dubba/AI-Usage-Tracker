@@ -10,12 +10,87 @@ use axum::{
     response::{Html, IntoResponse},
     Router,
 };
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+use base64::{
+    engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD},
+    Engine,
+};
+use parking_lot::Mutex;
 use rand::RngCore;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::{sync::Arc, time::Duration};
 use tokio::{net::TcpListener, sync::oneshot};
+use url::Url;
+
+/// How long a sign-in keeps the "Account connected" page up once it is shown,
+/// matching the page's own countdown (`account_connected_html`).
+pub(crate) const CONNECTED_PAGE_DISPLAY: Duration = Duration::from_secs(5);
+
+/// The `data:` URL of the last "Account connected" page the app put in a window
+/// itself, for sign-ins without a loopback callback page (Grok, OpenCode). The
+/// navigation guards allow exactly this URL, never `data:` in general.
+static CONNECTED_PAGE_URL: Mutex<Option<String>> = Mutex::new(None);
+
+/// The "Account connected" page as a self-contained `data:` URL, which the
+/// navigation guards then allow (see `is_connected_page`).
+pub(crate) fn connected_page_url(account: &Account) -> Option<Url> {
+    let html = connected_html("Account connected", account, "");
+    let url = Url::parse(&format!(
+        "data:text/html;charset=utf-8;base64,{}",
+        STANDARD.encode(html)
+    ))
+    .ok()?;
+    *CONNECTED_PAGE_URL.lock() = Some(url.as_str().to_string());
+    Some(url)
+}
+
+/// Whether `url` is the page `connected_page_url` last made.
+pub(crate) fn is_connected_page(url: &Url) -> bool {
+    url.scheme() == "data" && CONNECTED_PAGE_URL.lock().as_deref() == Some(url.as_str())
+}
+
+/// The "Account connected" (or other result) page of a sign-in: the loopback
+/// callback page, or the page `connected_page_url` made.
+pub(crate) fn is_result_page(url: &Url) -> bool {
+    crate::oauth::is_loopback_callback(url) || is_connected_page(url)
+}
+
+/// Counts the `connected_page_url` page down from 5 to 0 over
+/// `CONNECTED_PAGE_DISPLAY`. Script the app evaluates is not held to the page's
+/// Content Security Policy, unlike the page's own inline script, and the number
+/// and the close then run on one clock.
+pub(crate) async fn run_connected_countdown(window: &tauri::WebviewWindow) {
+    let seconds = CONNECTED_PAGE_DISPLAY.as_secs();
+    for remaining in (0..seconds).rev() {
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        let _ = window.eval(format!(
+            "(() => {{ const el = document.getElementById('sec'); if (el) el.textContent = '{remaining}'; }})();"
+        ));
+    }
+}
+
+/// Shows the "Account connected" page in a provider's own sign-in window (Grok,
+/// OpenCode), then closes the window once its countdown has run. The countdown
+/// starts when the page is shown, so the window is timed from then.
+#[cfg(desktop)]
+pub(crate) fn close_after_connected_page(window: tauri::WebviewWindow, account: &Account) {
+    const SHOW_WAIT_LIMIT: Duration = Duration::from_secs(2);
+    let page = connected_page_url(account);
+    tauri::async_runtime::spawn(async move {
+        if let Some(page) = page {
+            if window.navigate(page.clone()).is_ok() {
+                let deadline = tokio::time::Instant::now() + SHOW_WAIT_LIMIT;
+                while window.url().ok().as_ref() != Some(&page)
+                    && tokio::time::Instant::now() < deadline
+                {
+                    tokio::time::sleep(Duration::from_millis(50)).await;
+                }
+            }
+        }
+        run_connected_countdown(&window).await;
+        crate::mobile_auth::dismiss_login_window(&window);
+    });
+}
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct CallbackQuery {
@@ -140,6 +215,16 @@ fn provider_icon_svg(provider: &Provider) -> &'static str {
 /// the signed-in email (or the account label when no email is known and it adds something),
 /// with a 5-second visual countdown before automatic close.
 pub(crate) fn account_connected_html(title: &str, account: &Account) -> String {
+    connected_html(title, account, COUNTDOWN_SCRIPT)
+}
+
+/// The page's own countdown, for the loopback callback page. The `data:` copy
+/// (`connected_page_url`) leaves it out: that page inherits the Content Security
+/// Policy of the provider page it replaces (grok.com allows only nonce scripts),
+/// so the app runs its countdown instead (`run_connected_countdown`).
+const COUNTDOWN_SCRIPT: &str = "<script>let s=5;const el=document.getElementById('sec');const t=setInterval(()=>{s--;if(el)el.textContent=String(Math.max(0,s));if(s<=0){clearInterval(t);window.close();}},1000);</script>";
+
+fn connected_html(title: &str, account: &Account, countdown_script: &str) -> String {
     let provider_name = account.provider.display_name();
     let identity = account
         .email
@@ -159,11 +244,12 @@ pub(crate) fn account_connected_html(title: &str, account: &Account) -> String {
         })
         .unwrap_or_default();
     format!(
-        r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px 20px;text-align:center"><h1>{}</h1><div style="display:flex;justify-content:center;align-items:center;gap:10px;margin:8px 0 18px;font-size:20px;font-weight:600">{}<span>{}</span></div>{}<p style="color:#8e9791;margin:0 0 6px">Returning to AI Usage Tracker in</p><div style="font-size:48px;font-weight:700;line-height:1.1;margin:0 0 16px;color:#a78bfa"><span id="sec">5</span></div><p style="color:#626b65;font-size:13px;margin:0">You can also close this tab manually.</p><script>let s=5;const el=document.getElementById('sec');const t=setInterval(()=>{{s--;if(el)el.textContent=String(Math.max(0,s));if(s<=0){{clearInterval(t);window.close();}}}},1000);</script></body></html>"#,
+        r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px 20px;text-align:center"><h1>{}</h1><div style="display:flex;justify-content:center;align-items:center;gap:10px;margin:8px 0 18px;font-size:20px;font-weight:600">{}<span>{}</span></div>{}<p style="color:#8e9791;margin:0 0 6px">Returning to AI Usage Tracker in</p><div style="font-size:48px;font-weight:700;line-height:1.1;margin:0 0 16px;color:#a78bfa"><span id="sec">5</span></div><p style="color:#626b65;font-size:13px;margin:0">You can also close this tab manually.</p>{}</body></html>"#,
         escape_html(title),
         provider_icon_svg(&account.provider),
         escape_html(provider_name),
-        identity_html
+        identity_html,
+        countdown_script
     )
 }
 
@@ -247,6 +333,35 @@ mod tests {
         assert!(html.contains(r#"<span id="sec">5</span>"#));
         assert!(html.contains("font-size:48px"));
         assert!(html.contains("window.close()"));
+        assert_eq!(CONNECTED_PAGE_DISPLAY, Duration::from_secs(5));
+    }
+
+    #[test]
+    fn only_the_connected_page_the_app_made_is_allowed_as_data() {
+        let page = connected_page_url(&account(Provider::Grok, Some("test@example.com"), "Grok"))
+            .expect("the connected page is a valid data URL");
+        assert!(page
+            .as_str()
+            .starts_with("data:text/html;charset=utf-8;base64,"));
+        // The page inherits the provider page's Content Security Policy, so its
+        // countdown is run by the app (run_connected_countdown), not inline script.
+        let encoded = page.as_str().rsplit(',').next().unwrap();
+        let html = String::from_utf8(STANDARD.decode(encoded).unwrap()).unwrap();
+        assert!(html.contains(r#"<span id="sec">5</span>"#));
+        assert!(!html.contains("<script"));
+        assert!(is_connected_page(&page));
+        assert!(is_result_page(&page));
+        for other in [
+            "data:text/html,<script>1</script>",
+            "data:text/html;charset=utf-8;base64,PHNjcmlwdD4xPC9zY3JpcHQ+",
+            "https://grok.com/",
+        ] {
+            let url = Url::parse(other).unwrap();
+            assert!(!is_connected_page(&url), "{other}");
+        }
+        assert!(is_result_page(
+            &Url::parse("http://127.0.0.1:1455/auth/callback?code=x&state=y").unwrap()
+        ));
     }
 
     #[test]

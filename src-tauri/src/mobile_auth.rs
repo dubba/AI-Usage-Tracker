@@ -1,5 +1,6 @@
 #[cfg(mobile)]
 use crate::state::AppState;
+use std::sync::atomic::{AtomicU8, Ordering};
 #[cfg(mobile)]
 use std::sync::Arc;
 #[cfg(mobile)]
@@ -15,7 +16,35 @@ const NAVIGATE_DELAY: Duration = Duration::from_millis(250);
 #[cfg(mobile)]
 const POLL_INTERVAL: Duration = Duration::from_millis(400);
 #[cfg(mobile)]
-const SUCCESS_DISPLAY_DELAY: Duration = Duration::from_secs(5);
+const SUCCESS_DISPLAY_DELAY: Duration = crate::oauth_common::CONNECTED_PAGE_DISPLAY;
+/// How long a finished sign-in waits for its result page to be shown before
+/// starting `SUCCESS_DISPLAY_DELAY` anyway.
+#[cfg(mobile)]
+const RESULT_PAGE_WAIT_LIMIT: Duration = Duration::from_secs(3);
+
+/// Where the main window is with the sign-in's result page ("Account
+/// connected"), reported by the signin-navigation plugin's hooks. The page's
+/// countdown starts when it is shown, so the app times its return from then.
+static RESULT_PAGE: AtomicU8 = AtomicU8::new(RESULT_PAGE_NONE);
+const RESULT_PAGE_NONE: u8 = 0;
+const RESULT_PAGE_REQUESTED: u8 = 1;
+const RESULT_PAGE_SHOWN: u8 = 2;
+
+/// The main window started loading a page (the navigation guard allowed it).
+#[cfg_attr(not(any(test, mobile)), allow(dead_code))]
+pub(crate) fn note_main_navigation(url: &Url) {
+    if crate::oauth_common::is_result_page(url) {
+        RESULT_PAGE.fetch_max(RESULT_PAGE_REQUESTED, Ordering::SeqCst);
+    }
+}
+
+/// The main window finished loading a page.
+#[cfg_attr(not(any(test, mobile)), allow(dead_code))]
+pub(crate) fn note_main_page_loaded(url: &Url) {
+    if crate::oauth_common::is_result_page(url) {
+        RESULT_PAGE.store(RESULT_PAGE_SHOWN, Ordering::SeqCst);
+    }
+}
 
 /// Force Google Identity Services off FedCM. FedCM hangs in Android WebView
 /// (infinite spinner on "Continue with Google"). Real popups are handled natively.
@@ -107,15 +136,29 @@ const BACK_BUTTON_SCRIPT: &str = r#"
 
 /// wry only implements `window.open` popups on macOS, so on iOS the call silently returns null and
 /// "Continue with Google" never opens. Opening the target in the same WebView lets the redirect
-/// flow finish.
+/// flows (ChatGPT, Antigravity, Grok) finish. A Google Identity Services popup (Claude) is the
+/// exception: it hands the result back through `window.opener`, so it gets a real popup from
+/// ios_popups.rs, and in the same window it would end on a blank page.
 #[cfg_attr(not(any(test, target_os = "ios")), allow(dead_code))]
 const IOS_POPUP_SCRIPT: &str = r#"
 (() => {
   try {
     if (window.__aiTrackerPopup) return;
     window.__aiTrackerPopup = true;
+    const nativeOpen = window.open;
+    const needsOpener = (target) => {
+      try {
+        const url = new URL(target, location.href);
+        return url.protocol === 'https:' && url.hostname === 'accounts.google.com'
+          && (url.searchParams.get('display') === 'popup' || url.searchParams.has('gsiwebsdk'));
+      } catch (e) {
+        return false;
+      }
+    };
     window.open = function (url) {
-      if (url) location.href = String(url);
+      const target = url ? String(url) : '';
+      if (needsOpener(target)) return nativeOpen.apply(window, arguments);
+      if (target) location.href = target;
       return null;
     };
   } catch (e) {}
@@ -227,6 +270,10 @@ pub fn open_in_main_webview(
     // Clear the previous provider session before the page loads, and before a
     // cookie poll can read it. The app URL above is already saved for restore.
     forget_provider_sign_in(&window);
+    RESULT_PAGE.store(RESULT_PAGE_NONE, Ordering::SeqCst);
+    // Claude's "Continue with Google" needs a real popup (see IOS_POPUP_SCRIPT).
+    #[cfg(target_os = "ios")]
+    crate::ios_popups::install(&window);
 
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(NAVIGATE_DELAY).await;
@@ -267,7 +314,11 @@ pub fn open_in_main_webview(
                         && login.status == crate::model::LoginState::Complete
                 });
                 if is_completed {
-                    tokio::time::sleep(SUCCESS_DISPLAY_DELAY).await;
+                    if show_result_page(&window, &state, &attempt_id).await {
+                        crate::oauth_common::run_connected_countdown(&window).await;
+                    } else {
+                        tokio::time::sleep(SUCCESS_DISPLAY_DELAY).await;
+                    }
                 }
                 if let Ok(current) = window.url() {
                     if !urls_share_origin(&current, &restore_url) {
@@ -300,6 +351,8 @@ pub fn open_in_main_webview(
                         let _ = window.eval(BACK_BUTTON_SCRIPT);
                         #[cfg(target_os = "ios")]
                         let _ = window.eval(IOS_POPUP_SCRIPT);
+                        #[cfg(target_os = "ios")]
+                        close_stale_popups(&window, &current);
                     }
                 }
                 on_url(current.clone());
@@ -313,8 +366,75 @@ pub fn open_in_main_webview(
                 }
             }
         }
+        // A sign-in popup must not outlive the sign-in that opened it.
+        #[cfg(target_os = "ios")]
+        crate::ios_popups::close_all(&window);
     });
     Ok(())
+}
+
+/// A sign-in popup (Claude's Google Identity Services one) hands its result to
+/// the main window through `window.opener` and then calls `window.close()`, but
+/// on iOS that close is not always delivered and the popup covers the page the
+/// sign-in moved on to. Once the main window navigates past the page the popup
+/// opened from, the popup's job is done, so close it. The popup records that
+/// page itself when it is created, so a quick hand-over between two polls
+/// cannot make the poll loop adopt the new page as the one to compare with.
+#[cfg(target_os = "ios")]
+fn close_stale_popups(window: &WebviewWindow, current: &Url) {
+    if !crate::ios_popups::any_open() {
+        return;
+    }
+    let Some(opened_from) = crate::ios_popups::opened_from() else {
+        return;
+    };
+    if !same_page(&opened_from, current) {
+        crate::diagnostics::info("The sign-in moved on behind the popup; closing it.");
+        crate::ios_popups::close_all(window);
+    }
+}
+
+/// Whether two URLs are the same page, ignoring the fragment.
+#[cfg_attr(not(any(test, target_os = "ios")), allow(dead_code))]
+fn same_page(left: &Url, right: &Url) -> bool {
+    urls_share_origin(left, right) && left.path() == right.path() && left.query() == right.query()
+}
+
+/// Puts the finished sign-in's "Account connected" page on screen and waits
+/// until it is shown, so its countdown and `SUCCESS_DISPLAY_DELAY` run together.
+/// OAuth sign-ins get the page from their loopback callback server, which can
+/// still be answering when the sign-in is marked complete; the others (Grok,
+/// OpenCode) have no such page, so it is shown here. Returns whether the app
+/// showed the page, in which case the app also runs its countdown: that page
+/// inherits the provider page's Content Security Policy, which can block the
+/// page's own script.
+#[cfg(mobile)]
+async fn show_result_page(window: &WebviewWindow, state: &AppState, attempt_id: &str) -> bool {
+    let shown_by_app = RESULT_PAGE.load(Ordering::SeqCst) == RESULT_PAGE_NONE;
+    if shown_by_app {
+        let account = state
+            .pending_login
+            .read()
+            .as_ref()
+            .filter(|login| login.attempt_id == attempt_id)
+            .and_then(|login| login.account.clone());
+        let Some(page) = account
+            .as_ref()
+            .and_then(crate::oauth_common::connected_page_url)
+        else {
+            return false;
+        };
+        if window.navigate(page).is_err() {
+            return false;
+        }
+    }
+    let deadline = tokio::time::Instant::now() + RESULT_PAGE_WAIT_LIMIT;
+    while RESULT_PAGE.load(Ordering::SeqCst) != RESULT_PAGE_SHOWN
+        && tokio::time::Instant::now() < deadline
+    {
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    shown_by_app
 }
 
 #[cfg(mobile)]
@@ -367,6 +487,10 @@ mod tests {
         assert!(BACK_BUTTON_SCRIPT.contains("createElementNS"));
         assert!(!BACK_BUTTON_SCRIPT.contains("innerHTML"));
         assert!(IOS_POPUP_SCRIPT.contains("window.open"));
+        // Google Identity Services popups keep the native window.open so window.opener works.
+        assert!(IOS_POPUP_SCRIPT.contains("nativeOpen.apply"));
+        assert!(IOS_POPUP_SCRIPT.contains("accounts.google.com"));
+        assert!(IOS_POPUP_SCRIPT.contains("gsiwebsdk"));
     }
 
     #[test]
@@ -408,5 +532,37 @@ mod tests {
         assert!(urls_share_origin(&dashboard, &dashboard_path));
         assert!(!urls_share_origin(&dashboard, &openai));
         assert!(!urls_share_origin(&dashboard, &callback));
+    }
+
+    #[test]
+    fn result_page_is_noted_when_requested_and_when_shown() {
+        RESULT_PAGE.store(RESULT_PAGE_NONE, Ordering::SeqCst);
+        let login = Url::parse("https://claude.ai/login").unwrap();
+        note_main_navigation(&login);
+        note_main_page_loaded(&login);
+        assert_eq!(RESULT_PAGE.load(Ordering::SeqCst), RESULT_PAGE_NONE);
+
+        let callback = Url::parse("http://localhost:1455/auth/callback?code=x&state=y").unwrap();
+        note_main_navigation(&callback);
+        assert_eq!(RESULT_PAGE.load(Ordering::SeqCst), RESULT_PAGE_REQUESTED);
+        note_main_page_loaded(&callback);
+        assert_eq!(RESULT_PAGE.load(Ordering::SeqCst), RESULT_PAGE_SHOWN);
+        // A late navigation report does not undo "shown".
+        note_main_navigation(&callback);
+        assert_eq!(RESULT_PAGE.load(Ordering::SeqCst), RESULT_PAGE_SHOWN);
+    }
+
+    #[test]
+    fn same_page_ignores_only_the_fragment() {
+        let login = Url::parse("https://claude.ai/login?returnTo=%2Foauth").unwrap();
+        let with_fragment = Url::parse("https://claude.ai/login?returnTo=%2Foauth#x").unwrap();
+        let authorize = Url::parse("https://claude.ai/oauth/authorize?client_id=a").unwrap();
+        let other_query = Url::parse("https://claude.ai/login?returnTo=%2Fother").unwrap();
+        let other_host = Url::parse("https://accounts.google.com/login?returnTo=%2Foauth").unwrap();
+        assert!(same_page(&login, &login));
+        assert!(same_page(&login, &with_fragment));
+        assert!(!same_page(&login, &authorize));
+        assert!(!same_page(&login, &other_query));
+        assert!(!same_page(&login, &other_host));
     }
 }

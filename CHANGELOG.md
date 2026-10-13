@@ -1,25 +1,29 @@
 # Changelog
 
-## Unreleased (10 changes)
+## Unreleased (14 changes)
 
 ### Added (1)
 
 - The empty dashboard now includes a Link Devices option next to Other Provider, aligned with the provider cards, so you can sync accounts from another device without signing in again.
 
-### Improved (5)
+### Improved (6)
 
+- Connecting a Grok or OpenCode account now ends on the same "Account connected" page as the other providers, with the account's email and a five-second countdown back to the app.
 - Clicking Other Provider on the empty dashboard now defaults to OpenCode Go in the Add Account modal dropdown.
 - The sidebar AI Usage Tracker title uses the same purple as the All Accounts title.
 - On Android, the app icon fits the launcher's icon shape, whether circle or rounded square, with the whole gauge visible instead of its outer ring being cut off at the edges.
 - On macOS, the app icon has the same margin as other Mac app icons, so it is no longer larger than its neighbors in the Dock, and it stays sharp on Retina displays.
 - On a computer, the window title bar uses the same purple as the Android status bar, and the window title is white so it stands out.
 
-### Fixed (4)
+### Fixed (7)
 
+- The "Account connected" page now stays up for its full five-second countdown, on a computer and on a phone. It had sometimes closed with one or two seconds left, most often for Antigravity, because the app started timing before the page had appeared.
 - The iPhone app opens again instead of showing only a black screen. Since v0.4.1, the app was blocking its own start page from loading on iOS.
 - The iPhone app's home screen icon is the AI Usage Tracker gauge instead of the Tauri logo.
 - On iPhone, signing in to Claude, ChatGPT, Antigravity, Grok, or OpenCode no longer closes the app when the sign-in page opens or when the app reads the finished sign-in.
 - On a computer, the dashboard scrollbar is purple again, matching Android. A recent WebKit change had been drawing it in native gray.
+- Signing in with a Google account for Claude, ChatGPT, Antigravity, or Grok no longer fails at the last step (Claude showed "There was an error logging you in"). The sign-in window was blocking the step where Google also signs the account in to YouTube.
+- "Continue with Google" on the Claude sign-in page works again. On a computer, Google's sign-in opens in its own small window that closes when Claude has the result; on iPhone it opens over the app with a Close button, instead of ending on a black screen. On iPhone it also closes on its own once Claude moves to the Authorize page, instead of staying on a black screen that hides it.
 
 ## v0.4.2 - 2026-10-12 (3 changes)
 
