@@ -5,10 +5,15 @@
   text-rendering: geometricPrecision;
 }
 
-/* Custom Purple Scrollbars */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb) transparent;
+/* Custom purple scrollbars.
+   WebKit (macOS WKWebView) ignores ::-webkit-scrollbar once scrollbar-width is
+   set, and its scrollbar-color support is incomplete, so the bar paints native
+   gray. Keep the standard properties for Firefox only. */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
 }
 
 ::-webkit-scrollbar {
@@ -202,8 +207,6 @@ select {
   min-height: 0;
   overflow-y: auto;
   padding: 0 2px 16px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 .provider-summary-row.is-all-row {
@@ -564,10 +567,23 @@ select {
   overflow-x: hidden;
   padding: 0;
   scrollbar-gutter: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb) transparent;
   width: 100%;
   box-sizing: border-box;
+}
+
+.dashboard-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+  display: block;
+}
+
+.dashboard-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dashboard-scroll::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
 }
 
 .summary-strip,
@@ -2043,8 +2059,6 @@ select.text-input option,
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(160, 120, 255, 0.12);
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb) transparent;
   clip-path: inset(0 round 8px);
   animation: customDropdownFadeIn 120ms ease-out;
 }
@@ -2189,8 +2203,6 @@ select.text-input option,
   box-sizing: border-box;
   padding: 20px;
   scrollbar-gutter: stable both-edges;
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 .modal-backdrop::-webkit-scrollbar {
@@ -2575,8 +2587,6 @@ select.text-input option,
   border: 1px solid var(--c-353335);
   border-radius: 6px;
   background: var(--c-141313);
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb) transparent;
   clip-path: inset(0 round 6px);
 }
 
@@ -2975,8 +2985,6 @@ select.text-input option,
     margin-bottom: 0;
     box-sizing: border-box;
     scrollbar-gutter: auto;
-    scrollbar-width: thin;
-    scrollbar-color: var(--scrollbar-thumb) transparent;
   }
 
   .settings-style-content .dashboard-scroll {

@@ -93,13 +93,13 @@ describe("AccountsView empty dashboard", () => {
     expect(onAdd).not.toHaveBeenCalled();
   });
 
-  it("still opens Add Account from Other Provider", () => {
+  it("still opens Add Account from Other Provider defaulting to opencode_go", () => {
     const onOpenPairing = vi.fn();
     const onAdd = vi.fn();
     app = renderView({ onOpenPairing, onAdd });
     const other = [...document.querySelectorAll("button")].find((button) => button.textContent?.includes("Other Provider"));
     click(other!);
-    expect(onAdd).toHaveBeenCalledWith();
+    expect(onAdd).toHaveBeenCalledWith("opencode_go");
     expect(onOpenPairing).not.toHaveBeenCalled();
   });
 

@@ -23,6 +23,7 @@
         "resizable": true,
         "fullscreen": false,
         "theme": "Dark",
+        "titleBarStyle": "Transparent",
         "backgroundColor": "#000000"
       }
     ],

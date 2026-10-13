@@ -349,7 +349,7 @@ export function AccountsView(props: {
                         </button>
                       ))}
                       <div className="empty-provider-actions">
-                        <button type="button" className="button ghost empty-provider-other" onClick={() => props.onAdd()}>
+                        <button type="button" className="button ghost empty-provider-other" onClick={() => props.onAdd("opencode_go")}>
                           <PlusIcon />Other Provider
                         </button>
                         {props.onOpenPairing ? (

@@ -176,8 +176,21 @@
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-gutter: auto;
-    scrollbar-width: thin;
-    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+
+  .dashboard-scroll::-webkit-scrollbar {
+    width: 4px !important;
+    height: 4px !important;
+    display: block !important;
+  }
+
+  .dashboard-scroll::-webkit-scrollbar-track {
+    background: transparent !important;
+  }
+
+  .dashboard-scroll::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb) !important;
+    border-radius: 999px !important;
   }
 
   .obsidian-shell .provider-account-cards,
@@ -198,22 +211,6 @@
     padding: 0;
     margin: 0;
     gap: 10px;
-  }
-
-  .provider-account-cards::-webkit-scrollbar {
-    width: 4px !important;
-    height: 4px !important;
-    display: block !important;
-  }
-
-  .provider-account-cards::-webkit-scrollbar-track {
-    background: var(--c-25-20-36-a300) !important;
-    border-radius: 999px !important;
-  }
-
-  .provider-account-cards::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb) !important;
-    border-radius: 999px !important;
   }
 
   .provider-account-card:not(.is-dragging) {
@@ -361,8 +358,6 @@
   z-index: 1000;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb) transparent;
   animation: customDropdownFadeIn 120ms ease-out;
 }
 
