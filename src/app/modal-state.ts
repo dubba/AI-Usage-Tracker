@@ -11,7 +11,9 @@ export type ModalState =
   | { kind: "bucket"; bucket: AccountBucket | null; provider: Provider | null; confirmDelete: boolean }
   | { kind: "alert"; account: Account }
   | { kind: "remove"; account: Account }
-  | { kind: "googleUsage"; account: Account };
+  | { kind: "googleUsage"; account: Account }
+  /** Saved sign-ins that could not be encrypted (Android): retry, or remove them and sign in again. */
+  | { kind: "unprotected" };
 
 export type ModalKind = NonNullable<ModalState>["kind"];
 

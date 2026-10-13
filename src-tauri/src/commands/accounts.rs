@@ -36,8 +36,8 @@ struct CredentialProtection {
 
 /// While any saved sign-in is still unencrypted, each dashboard refresh tries
 /// to seal it again. A keystore that was briefly unavailable at startup then
-/// fixes itself, and the account note clears. A failed seal leaves the plain
-/// file in place so the sign-in keeps working.
+/// fixes itself, and the account resumes. A failed seal leaves the plain file
+/// in place but unused (see `credential_file::read_credential_file`).
 async fn retry_credential_sealing(state: &Arc<AppState>) -> CredentialProtection {
     let remaining = state.unprotected_credentials();
     if remaining == 0 {
@@ -92,6 +92,23 @@ pub fn rename_account(
         .store
         .mutate(&account_id, |account| account.label = label)
         .map_err(crate::diagnostics::command_error)
+}
+
+/// Removes the accounts whose saved sign-in is still unencrypted, after the
+/// user chose to sign in to them again rather than keep retrying. Only the
+/// accounts the last seal pass reported are removed, never any other.
+#[tauri::command]
+pub async fn remove_unprotected_accounts(
+    state: State<'_, Arc<AppState>>,
+) -> Result<Vec<String>, String> {
+    let ids = state.unprotected_account_ids();
+    let mut removed = Vec::new();
+    for id in ids {
+        state.remove_account(&id).await?;
+        removed.push(id);
+    }
+    retry_credential_sealing(state.inner()).await;
+    Ok(removed)
 }
 
 #[tauri::command]

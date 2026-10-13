@@ -357,6 +357,7 @@ const APP_COMMANDS: &[&str] = &[
     "save_account_alerts",
     "rename_account",
     "remove_account",
+    "remove_unprotected_accounts",
     "get_account_buckets",
     "save_account_bucket",
     "delete_account_bucket",

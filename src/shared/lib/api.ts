@@ -78,6 +78,8 @@ export const bridgeApi = {
   renameAccount: (accountId: string, label: string) =>
     invoke<Account>("rename_account", { accountId, label }),
   removeAccount: (accountId: string) => invoke<void>("remove_account", { accountId }),
+  /** Removes the accounts whose saved sign-in could not be encrypted; resolves to their ids. */
+  removeUnprotectedAccounts: () => invoke<string[]>("remove_unprotected_accounts"),
   regenerateToken: () => invoke<BridgeInfo>("regenerate_bridge_token"),
   revealBridgeToken: () => invoke<string>("reveal_bridge_token"),
   checkForUpdate: (notify = true) => invoke<AppUpdateStatus>("check_for_app_update", { notify }),

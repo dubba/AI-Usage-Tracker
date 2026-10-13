@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (14 changes)
+## Unreleased (15 changes)
 
 ### Added (1)
 
@@ -24,6 +24,10 @@
 - On a computer, the dashboard scrollbar is purple again, matching Android. A recent WebKit change had been drawing it in native gray.
 - Signing in with a Google account for Claude, ChatGPT, Antigravity, or Grok no longer fails at the last step (Claude showed "There was an error logging you in"). The sign-in window was blocking the step where Google also signs the account in to YouTube.
 - "Continue with Google" on the Claude sign-in page works again. On a computer, Google's sign-in opens in its own small window that closes when Claude has the result; on iPhone it opens over the app with a Close button, instead of ending on a black screen. On iPhone it also closes on its own once Claude moves to the Authorize page, instead of staying on a black screen that hides it.
+
+### Security (1)
+
+- On Android, a saved sign-in that the phone's secure storage couldn't encrypt is no longer used. Its account is paused, and the app asks you to retry or to remove the account and sign in again, so the new sign-in is stored encrypted. Before, such a sign-in kept working unencrypted.
 
 ## v0.4.2 - 2026-10-12 (3 changes)
 

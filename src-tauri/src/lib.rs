@@ -142,6 +142,7 @@ pub fn run() {
             commands::alerts::save_account_alerts,
             commands::accounts::rename_account,
             commands::accounts::remove_account,
+            commands::accounts::remove_unprotected_accounts,
             commands::buckets::get_account_buckets,
             commands::buckets::save_account_bucket,
             commands::buckets::delete_account_bucket,

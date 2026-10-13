@@ -7,7 +7,8 @@
 //! or the local API token. Development builds keep plain files on purpose.
 //!
 //! Sealed files start with [`SEALED_MAGIC`]. Files without it are plaintext
-//! written by earlier versions; they still load and are upgraded in place.
+//! written by earlier versions; they are upgraded in place, and one that cannot
+//! be sealed is refused rather than used (`read_credential_file`).
 
 use crate::fs_util::atomic_write_private;
 use crate::store::UpgradeReport;
@@ -110,10 +111,15 @@ pub fn write_credential_file(
     atomic_write_private(path, &stored)
 }
 
+/// Why a plaintext credential is refused where secure storage exists.
+pub const UNPROTECTED_CREDENTIAL: &str =
+    "This saved sign-in isn't encrypted, so the app won't use it.";
+
 /// Reads a credential file. A plaintext file from an earlier version is
-/// returned as is and rewritten sealed (best effort: a failed upgrade must not
-/// lock the user out of a credential that still reads fine, but it is logged
-/// and counted, and the next startup or dashboard refresh tries again).
+/// rewritten sealed and then returned. If it cannot be sealed it is refused,
+/// not used: the file stays as it was, the startup or dashboard-refresh seal
+/// pass counts it and tries again, and the user can remove the account and
+/// sign in again instead.
 pub fn read_credential_file(
     cipher: Option<&dyn SecretCipher>,
     path: &Path,
@@ -122,8 +128,9 @@ pub fn read_credential_file(
     let opened = open_stored(cipher, &stored, &context_for(path))?;
     if opened.needs_upgrade && write_credential_file(cipher, path, &opened.plaintext).is_err() {
         crate::diagnostics::warn(
-            "A saved sign-in could not be encrypted with secure storage; it will be retried.",
+            "A saved sign-in could not be encrypted with secure storage, so it was not used.",
         );
+        return Err(UNPROTECTED_CREDENTIAL.into());
     }
     Ok(opened.plaintext)
 }
@@ -155,8 +162,8 @@ pub fn upgrade_directory(cipher: Option<&dyn SecretCipher>, dir: &Path) -> Upgra
         if write_credential_file(cipher, &path, &stored).is_ok() {
             report.upgraded += 1;
         } else {
-            // Leave the plaintext file in place. A failed seal must not lock
-            // the user out of a sign-in that still reads.
+            // Leave the plaintext file in place, unused (read_credential_file
+            // refuses it), so a later pass can still seal it.
             note_unprotected(&mut report, &path);
         }
     }
@@ -260,7 +267,7 @@ mod tests {
     }
 
     #[test]
-    fn a_failed_upgrade_still_returns_the_credential() {
+    fn a_plaintext_credential_that_cannot_be_sealed_is_refused() {
         struct BrokenSeal;
         impl SecretCipher for BrokenSeal {
             fn seal(&self, _: &[u8], _: &[u8]) -> Result<Vec<u8>, String> {
@@ -274,11 +281,13 @@ mod tests {
         let path = dir.path().join("acct.json");
         fs::write(&path, SECRET).unwrap();
         assert_eq!(
-            read_credential_file(Some(&BrokenSeal), &path).unwrap(),
-            SECRET
+            read_credential_file(Some(&BrokenSeal), &path).unwrap_err(),
+            UNPROTECTED_CREDENTIAL
         );
-        // Left as it was rather than damaged.
+        // Left as it was rather than damaged, so a later pass can still seal it.
         assert_eq!(fs::read(&path).unwrap(), SECRET);
+        // Without secure storage (development builds) plain files are the design.
+        assert_eq!(read_credential_file(None, &path).unwrap(), SECRET);
     }
 
     #[test]

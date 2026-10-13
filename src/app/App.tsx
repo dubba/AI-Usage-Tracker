@@ -10,6 +10,8 @@ import { AccountAlertModal } from "../features/accounts/AccountAlertModal";
 import { AccountsView } from "../features/accounts/AccountsView";
 import { SyncStatusLine } from "../features/dashboard/SyncStatusLine";
 import { RemoveAccountModal } from "../features/accounts/RemoveAccountModal";
+import { UnprotectedSignInsModal } from "../features/accounts/UnprotectedSignInsModal";
+import { useUnprotectedSignIns } from "../features/accounts/useUnprotectedSignIns";
 import { AddAccountModal } from "../features/add-account/AddAccountModal";
 import { BucketModal } from "../features/buckets/BucketModal";
 import { ErrorBanner } from "../shared/ui/ErrorBanner";
@@ -144,6 +146,7 @@ export default function App() {
     setApiIntegrationEnabled,
     openApiIntegrationWindow,
   } = useAccountActions({ load, setSnapshot, busy: busyKeys, reportError, clearError });
+  const unprotectedSignIns = useUnprotectedSignIns({ snapshot, load, modal, dispatchModal, reportError, clearError });
 
   const openAdd = useCallback((account?: Account, provider?: Provider) => {
     dispatchModal({ type: "open", modal: { kind: "add", label: account?.label ?? "", provider: account?.provider ?? provider, reconnectAccountId: account?.id } });
@@ -568,6 +571,14 @@ export default function App() {
         onConfirm={() => {
           if (accountToRemove) void remove(accountToRemove, () => dispatchModal({ type: "close", kind: "remove" }));
         }}
+      />
+      <UnprotectedSignInsModal
+        accounts={unprotectedSignIns.accounts}
+        busy={unprotectedSignIns.busy}
+        retryFailed={unprotectedSignIns.retryFailed}
+        onRetry={() => void unprotectedSignIns.retry()}
+        onRemove={() => void unprotectedSignIns.remove()}
+        onClose={unprotectedSignIns.dismiss}
       />
       <PairingModal
         open={pairingOpen}

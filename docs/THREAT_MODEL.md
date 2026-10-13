@@ -42,7 +42,7 @@ The app is a client with no server and no multi-user database, so the classic
 
 ## Trust boundaries
 
-1. **Webview → Rust backend** — 55 Tauri commands, gated by per-window capability files.
+1. **Webview → Rust backend** — 56 Tauri commands, gated by per-window capability files.
 2. **Rust → OS credential stores** — Keychain / Credential Manager / Android Keystore.
 3. **Rust → provider APIs** — outbound HTTPS; responses treated as untrusted input.
 4. **Rust → LAN peers** — pairing TCP listener, mDNS, QR codes.
@@ -70,7 +70,7 @@ refresh loop spawn. Failure is reported on the startup screen, not swallowed
 React 19 with no state library: a single `DashboardSnapshot` fetched only by
 `useDashboardData` (`src/features/dashboard/useDashboardData.ts:34-73`), 30 s poll +
 focus/visibility refresh. All backend calls go through `bridgeApi` (37) and `pairingApi`
-(18) wrappers in `src/shared/lib/api.ts:18-117` — exactly the 55 registered commands.
+(18) wrappers in `src/shared/lib/api.ts:18-117` — exactly the 56 registered commands.
 Backend events (`usage-alert`, `pairing-status`, `pairing-uri-received`,
 `pairing-ui-state`, `open-update-notes`, `app-update-progress`) are consumed via `useTauriEvent`. The `api-integration` window
 renders `ApiIntegrationWindow.tsx` and can call only three bridge methods
@@ -80,7 +80,7 @@ renders `ApiIntegrationWindow.tsx` and can call only three bridge methods
 
 | Area | Modules |
 | --- | --- |
-| App shell / IPC | `lib.rs` (55 commands, `lib.rs:96-152`), `commands/*` (per-domain commands), `state.rs` (shared `AppState`: locks, rate-limit map, refresh semaphore), `backend.rs`, `startup.rs` |
+| App shell / IPC | `lib.rs` (56 commands, `lib.rs:96-152`), `commands/*` (per-domain commands), `state.rs` (shared `AppState`: locks, rate-limit map, refresh semaphore), `backend.rs`, `startup.rs` |
 | Usage engine | `usage.rs` (refresh orchestration, per-account locks), `refresh_loop.rs` (wall-clock ticker), `refresh_backoff.rs`, `limits.rs`, `buckets.rs`, `account_order.rs`, `alerts.rs`, `settings.rs` |
 | Providers | `providers/{mod,openai,anthropic,antigravity,google_ai_studio,grok,opencode_go,oauth_refresh}.rs` — each normalizes a provider's quota response into `UsageWindow`s |
 | Login flows | `oauth.rs`, `oauth_common.rs` (loopback OAuth), `google_ai_studio_oauth.rs` (Cloud connection), `grok_login.rs`, `opencode_login.rs` (WebView cookie capture), `mobile_auth.rs` (mobile in-app sign-in) |
@@ -112,11 +112,11 @@ Android, plaintext in debug builds). Corrupt JSON is quarantined and reloaded, n
 
 ## Entry points and guards
 
-### 1. Tauri IPC commands (55) — reachable by injected frontend code
+### 1. Tauri IPC commands (56) — reachable by injected frontend code
 
 | Guard | Code |
 | --- | --- |
-| Per-window capability allowlists: main window = exactly the 55 commands; `api-integration` window = only `get-bridge-info`, `reveal-bridge-token`, `regenerate-bridge-token` | `capabilities/default.json`, `capabilities/api-integration.json`; five-way sync test `lib.rs:186-335` (handler list vs `build.rs APP_COMMANDS` vs capabilities vs every frontend `invoke()` vs the API window's three methods) |
+| Per-window capability allowlists: main window = exactly the 56 commands; `api-integration` window = only `get-bridge-info`, `reveal-bridge-token`, `regenerate-bridge-token` | `capabilities/default.json`, `capabilities/api-integration.json`; five-way sync test `lib.rs:186-335` (handler list vs `build.rs APP_COMMANDS` vs capabilities vs every frontend `invoke()` vs the API window's three methods) |
 | `build.rs APP_COMMANDS` mirrors the handler list into generated permissions | `build.rs:140-196,230-231` |
 | Plugin permissions on the main window: `core:default`, `core:window:allow-set-theme`, `opener:allow-open-url` (URL allowlist, see §12), `autostart:allow-enable`/`allow-disable`/`allow-is-enabled`, `notification:default`, `window-state:default`. The `api-integration` window gets only `core:default` and `allow-set-theme` beyond its three commands | `capabilities/default.json`, `capabilities/api-integration.json` |
 | Windows without a capability: the desktop `grok-login` and `opencode-go-login` windows match no capability file, so they are granted no commands. Neither capability file declares a `remote` URL scope | `capabilities/*.json` (`windows` keys), `grok_login.rs:33`, `opencode_login.rs:25` |
@@ -208,7 +208,7 @@ Android, plaintext in debug builds). Corrupt JSON is quarantined and reloaded, n
 | --- | --- | --- |
 | macOS/iOS release | Keychain item per account, service `ai-usage-tracker`, user `account:{id}`; legacy `paseo-usage-bridge` entries migrated on read | `store/credentials/mod.rs:107-117,198-215`, `keyring_store.rs:8-12` |
 | Windows/other desktop release | Chunked `chunked-v1` entries in Credential Manager (DPAPI-backed): ≤32 chunks × 1200 UTF-16 units, generation ids so a crash never strands mixed secrets | `store/credentials/mod.rs:119-174`, `chunking.rs:13-20` |
-| Android | `credentials/{id}.json` and `credentials/bridge-token.txt` sealed with AES-256-GCM under a non-exportable Android Keystore key; magic `AIUT-SEALED-1`; the file name is bound into the ciphertext (AAD) so files cannot be swapped between accounts; files without the magic are read as legacy plaintext and re-sealed, at startup and on dashboard reads | `credential_file.rs:18-171`, `android_keystore.rs:13-21`, `CredentialVault.kt:24-67` |
+| Android | `credentials/{id}.json` and `credentials/bridge-token.txt` sealed with AES-256-GCM under a non-exportable Android Keystore key; magic `AIUT-SEALED-1`; the file name is bound into the ciphertext (AAD) so files cannot be swapped between accounts; files without the magic are legacy plaintext and are re-sealed at startup and on dashboard reads; one that cannot be sealed is refused, never used, and the dashboard asks the user to retry or remove those accounts (`remove_unprotected_accounts` removes only the accounts the last seal pass reported) | `credential_file.rs:18-171`, `android_keystore.rs:13-21`, `CredentialVault.kt:24-67` |
 | Debug builds | Plaintext files, by design; the file backend is compiled only for Android or `debug_assertions` | `lib.rs:14-15`, `store/credentials/mod.rs:79-105,220,334`, `credential_file.rs:1-10,29-38` |
 
 Additional guards: all secret structs derive `Zeroize` (`model.rs:132-181`); the in-memory

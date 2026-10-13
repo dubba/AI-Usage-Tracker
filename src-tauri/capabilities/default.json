@@ -69,6 +69,7 @@
     "allow-save-account-alerts",
     "allow-rename-account",
     "allow-remove-account",
+    "allow-remove-unprotected-accounts",
     "allow-get-account-buckets",
     "allow-save-account-bucket",
     "allow-delete-account-bucket",
