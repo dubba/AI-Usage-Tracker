@@ -7,12 +7,6 @@
       <stop offset="100%" stop-color="#07080f" />
     </linearGradient>
     
-    <!-- Border Gradient -->
-    <linearGradient id="opt1-border" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#4a4d75" stop-opacity="0.9" />
-      <stop offset="100%" stop-color="#1a1b2e" stop-opacity="0.3" />
-    </linearGradient>
-
     <!-- Outer Ring Gradient -->
     <linearGradient id="opt1-outer" x1="0%" y1="100%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="#4f46e5" />
@@ -46,9 +40,9 @@
     </radialGradient>
   </defs>
 
-  <!-- Full Bleed Squircle Base (fills canvas, transparent rounded corners) -->
-  <rect x="0" y="0" width="512" height="512" rx="115" fill="url(#opt1-bg)" />
-  <rect x="1.5" y="1.5" width="509" height="509" rx="113.5" fill="none" stroke="url(#opt1-border)" stroke-width="3" />
+  <!-- Full Bleed Square Base. iOS and Android cut their own shape from it; build.rs
+       adds the rounded corners and border for Windows and macOS. -->
+  <rect x="0" y="0" width="512" height="512" fill="url(#opt1-bg)" />
 
   <!-- Ambient Center Glow -->
   <circle cx="256" cy="256" r="190" fill="url(#opt1-radial)" />

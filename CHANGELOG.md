@@ -1,18 +1,21 @@
 # Changelog
 
-## Unreleased (3 changes)
+## Unreleased (6 changes)
 
 ### Added (1)
 
 - The empty dashboard now includes a Link Devices option next to Other Provider, aligned with the provider cards, so you can sync accounts from another device without signing in again.
 
-### Improved (1)
+### Improved (3)
 
 - The sidebar AI Usage Tracker title uses the same purple as the All Accounts title.
+- On Android, the app icon fits the launcher's icon shape, whether circle or rounded square, with the whole gauge visible instead of its outer ring being cut off at the edges.
+- On macOS, the app icon has the same margin as other Mac app icons, so it is no longer larger than its neighbors in the Dock, and it stays sharp on Retina displays.
 
-### Fixed (1)
+### Fixed (2)
 
 - The iPhone app opens again instead of showing only a black screen. Since v0.4.1, the app was blocking its own start page from loading on iOS.
+- The iPhone app's home screen icon is the AI Usage Tracker gauge instead of the Tauri logo.
 
 ## v0.4.2 - 2026-10-12 (3 changes)
 
