@@ -693,14 +693,13 @@ body.sidebar-resizing * {
     display: none;
   }
   .obsidian-shell .sidebar .brand strong {
-    /* Must stay in lockstep with .dashboard-header h1.eyebrow
-       (obsidian-dashboard.css:565 / dashboard-typography.css:22) */
+    /* Must stay in lockstep with .dashboard-header h1.eyebrow */
     font-size: 15px;
     line-height: 1.15;
     font-weight: 800;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--purple, var(--c-a078ff));
+    color: #6d3bd7;
   }
 }
 

@@ -1,10 +1,14 @@
 # Changelog
 
-## Unreleased (1 change)
+## Unreleased (2 changes)
 
 ### Added (1)
 
 - The empty dashboard now includes a Link Devices option next to Other Provider, aligned with the provider cards, so you can sync accounts from another device without signing in again.
+
+### Improved (1)
+
+- The sidebar AI Usage Tracker title uses the same purple as the All Accounts title.
 
 ## v0.4.2 - 2026-10-12 (3 changes)
 
