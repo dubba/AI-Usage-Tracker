@@ -694,7 +694,18 @@ select {
   transform: scale(0.98);
 }
 
+.empty-provider-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: inherit;
+}
+
 .empty-provider-other {
+  width: 100%;
+  min-width: 0;
+  margin-top: 0;
+  white-space: nowrap;
   border-color: var(--chrome-border) !important;
   border-radius: 6px !important;
   transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
@@ -748,8 +759,8 @@ button.button.ghost.empty-provider-other:active:not(:disabled) {
   font-weight: 500;
 }
 
-.empty-provider-other {
-  margin-top: 6px;
+.welcome-panel .empty-provider-grid .button {
+  margin-top: 0;
 }
 
 @media (max-width: 640px) {

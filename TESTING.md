@@ -119,9 +119,10 @@ rediscover it.
    - PairingModal's credential-replace opt-in UI (`setAllowCredentialReplace`) — no frontend test (backend is covered).
    - Airgap decompression limit — the library's `decompress_to_vec_with_limit` is tested directly, but the production wiring (airgap.rs:313-316) is not.
 2. **`commands/` has exactly one test** (commands/alerts.rs:117) across 55 command functions.
-3. **Frontend screens with no dedicated tests**: `AccountsView`, `SettingsView`,
+3. **Frontend screens with no dedicated tests**: `SettingsView`,
    `ApiIntegrationWindow`, `GoogleAiStudioUsageModal`, `BucketModal`, `AccountAlertModal`,
    plus `useDashboardData`/`useAppSettings` hooks (only indirectly exercised).
+   `AccountsView` covers the empty-dashboard Link Devices / Other Provider actions.
 4. **No integration or E2E harness** (no `src-tauri/tests/`, no browser/device tests) and
    **no coverage tooling** on either side.
 5. Modules with zero in-file tests (behavior partly covered from outside): `tray.rs`,

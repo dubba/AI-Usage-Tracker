@@ -363,6 +363,7 @@ export default function App() {
         onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
         sidebarOpen={sidebarOpen}
         onAdd={(provider) => openAdd(undefined, provider ?? selectedGroup.provider ?? undefined)}
+        onOpenPairing={() => setPairingOpen(true)}
         onRefreshAll={refreshAll}
         onEditBucket={openEditBucket}
         onDeleteBucket={openDeleteBucket}

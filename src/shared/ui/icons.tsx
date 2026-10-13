@@ -83,6 +83,13 @@ export const QrIcon = (props: IconProps) => (
   </Base>
 );
 
+export const DevicesIcon = (props: IconProps) => (
+  <Base {...props}>
+    <rect x="3" y="8" width="10" height="13" rx="2" />
+    <rect x="11" y="3" width="10" height="13" rx="2" />
+  </Base>
+);
+
 export const FlipCameraIcon = (props: IconProps) => (
   <Base {...props}>
     <path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5" />

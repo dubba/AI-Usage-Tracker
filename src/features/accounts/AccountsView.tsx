@@ -6,6 +6,7 @@ import {
   CheckCircleIcon,
   ClockIcon,
   CloseIcon,
+  DevicesIcon,
   EditIcon,
   MenuIcon,
   PlusIcon,
@@ -78,6 +79,7 @@ export function AccountsView(props: {
   onToggleSidebar?: () => void;
   sidebarOpen?: boolean;
   onAdd: (provider?: Provider) => void;
+  onOpenPairing?: () => void;
   onRefreshAll?: () => void;
   onEditBucket?: (bucket: AccountBucket) => void;
   onDeleteBucket?: (bucket: AccountBucket) => void;
@@ -330,28 +332,37 @@ export function AccountsView(props: {
                     </>
                   ) : null}
                   {props.selectedGroup.type !== "bucket" ? (
-                    <>
-                      <div className="empty-provider-grid">
-                        {EMPTY_STATE_PROVIDERS.map(({ provider, brand, product }) => (
+                    <div className="empty-provider-grid">
+                      {EMPTY_STATE_PROVIDERS.map(({ provider, brand, product }) => (
+                        <button
+                          key={provider}
+                          type="button"
+                          className="empty-provider-card"
+                          aria-label={`Add ${brand} ${product}`}
+                          onClick={() => props.onAdd(provider)}
+                        >
+                          <span className={`empty-provider-mark provider-${provider}`}>
+                            <ProviderIcon provider={provider} />
+                          </span>
+                          <span className="empty-provider-brand">{brand}</span>
+                          <span className="empty-provider-product">{product}</span>
+                        </button>
+                      ))}
+                      <div className="empty-provider-actions">
+                        <button type="button" className="button ghost empty-provider-other" onClick={() => props.onAdd()}>
+                          <PlusIcon />Other Provider
+                        </button>
+                        {props.onOpenPairing ? (
                           <button
-                            key={provider}
                             type="button"
-                            className="empty-provider-card"
-                            aria-label={`Add ${brand} ${product}`}
-                            onClick={() => props.onAdd(provider)}
+                            className="button ghost empty-provider-other"
+                            onClick={props.onOpenPairing}
                           >
-                            <span className={`empty-provider-mark provider-${provider}`}>
-                              <ProviderIcon provider={provider} />
-                            </span>
-                            <span className="empty-provider-brand">{brand}</span>
-                            <span className="empty-provider-product">{product}</span>
+                            <DevicesIcon />Link Devices
                           </button>
-                        ))}
+                        ) : null}
                       </div>
-                      <button type="button" className="button ghost empty-provider-other" onClick={() => props.onAdd()}>
-                        <PlusIcon />Other Provider
-                      </button>
-                    </>
+                    </div>
                   ) : null}
                 </>
               )}
