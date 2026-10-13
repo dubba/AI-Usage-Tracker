@@ -10,5 +10,14 @@
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>AI Usage Tracker requires camera access to scan device linking QR codes.</string>
+	<!-- Apps built with the iOS 27 SDK must use the scene life cycle; this key opts tao
+	     into it. One window, so a single scene. tao installs its own scene delegate. -->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict/>
+	</dict>
 </dict>
 </plist>
