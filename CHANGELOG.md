@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (2 items)
+## Unreleased (2 changes)
 
 ### Improved (1)
 
@@ -10,7 +10,7 @@
 
 - Editing a group always opens with the account filter on All Providers; a group whose accounts belong to one provider no longer hides the other providers from the picker.
 
-## 0.4.1 - 2026-10-12 (38 items)
+## v0.4.1 - 2026-10-12 (38 changes)
 
 ### Improved (10)
 
@@ -60,7 +60,7 @@
 - Another program on your computer, or a web page, can no longer cancel a sign-in in progress or change its error message by sending a request to the app's sign-in callback.
 - Device sync only waits for another device on a local network address; on a device with no local network address it now says to connect to Wi-Fi, instead of listening on a public or every available address.
 
-## 0.4.0 - 2026-10-07 (27 items)
+## v0.4.0 - 2026-10-07 (27 changes)
 
 ### Changed (15)
 
@@ -96,7 +96,7 @@
 - Connecting Grok no longer gets stuck on "Completing sign-in" after you sign in. The sign-in window was blocking a device-verification page, which is now allowed. Blocked pages are also noted in the diagnostics log.
 - Hovering Other Provider on the empty dashboard uses the same light purple as the Claude, Google, OpenAI and xAI cards, instead of a dark grey.
 
-## 0.3.18 - 2026-10-07 (2 items)
+## v0.3.18 - 2026-10-07 (2 changes)
 
 ### Added (1)
 
@@ -106,7 +106,7 @@
 
 - The app now installs as com.dubba.ai.usage.tracker. An existing Android, Mac, or Windows install stays as it is, and the new copy starts without those accounts or settings.
 
-## 0.3.17 - 2026-10-07 (15 items)
+## v0.3.17 - 2026-10-07 (15 changes)
 
 ### Changed (9)
 
@@ -133,7 +133,7 @@
 - On mobile, the sidebar's minimum width counted its side padding twice, so it stopped resizing while there was still a wide gap between the sync text and the refresh button. It now resizes until the gap left of the refresh button matches the gap between the refresh and settings buttons.
 
 
-## 0.3.16 - 2026-10-06 (8 items)
+## v0.3.16 - 2026-10-06 (8 changes)
 
 ### Improved (4)
 
@@ -150,7 +150,7 @@
 - Android sign-in only treats a reply as local when its host is exactly localhost or 127.0.0.1.
 
 
-## 0.3.15 - 2026-10-06 (10 items)
+## v0.3.15 - 2026-10-06 (10 changes)
 
 ### Added (2)
 
@@ -175,7 +175,7 @@
 - The Action Needed summary card now displays a warning icon instead of a checkmark when accounts require attention.
 
 
-## 0.3.14 - 2026-10-05 (10 items)
+## v0.3.14 - 2026-10-05 (10 changes)
 
 ### Improved (7)
 
@@ -194,7 +194,7 @@
 - The "Accounts / Active" card on the dashboard now counts only accounts that are live, instead of every account. Accounts that need attention are counted in the Action Needed card.
 
 
-## 0.3.13 - 2026-10-05 (21 items)
+## v0.3.13 - 2026-10-05 (21 changes)
 
 ### Added (1)
 
@@ -227,7 +227,7 @@
 - In Light theme, the mobile hamburger menu icon is readable instead of white-on-white.
 
 
-## 0.3.12 - 2026-10-02 (24 items)
+## v0.3.12 - 2026-10-02 (24 changes)
 
 ### Added (1)
 
@@ -269,7 +269,7 @@
 - Progress bars and percentage numbers in the sidebar now properly turn amber at 30% or less and red at 15% or less to match the dashboard, instead of remaining purple.
 
 
-## 0.3.11 - 2026-10-01 (25 items)
+## v0.3.11 - 2026-10-01 (25 changes)
 
 ### Added (3)
 
@@ -309,7 +309,7 @@
 - Removed the redundant "Add Account" and "Refresh All" buttons from the main dashboard header and the mobile bottom actions footer.
 
 
-## 0.3.10 - 2026-10-01 (53 items)
+## v0.3.10 - 2026-10-01 (53 changes)
 
 ### Added (1)
 
@@ -383,7 +383,7 @@
 - Copy diagnostics no longer appends a drag gesture trace to the report.
 
 
-## 0.3.9 - 2026-09-30 (19 items)
+## v0.3.9 - 2026-09-30 (19 changes)
 
 ### Improved (6)
 
@@ -410,7 +410,7 @@
 - Accounts now refresh on schedule again after the device sleeps or the app is in the background. On Android, returning to the app triggers a refresh if one is due. On Mac and Windows, a refresh that came due during sleep now runs within about 30 seconds of waking instead of waiting out a full interval.
 
 
-## 0.3.8 - 2026-09-29 (6 items)
+## v0.3.8 - 2026-09-29 (6 changes)
 
 ### Fixed (4)
 
@@ -424,9 +424,9 @@
 - Desktop releases now publish signed automatic-update artifacts, so clicking Update in Settings downloads and installs the new version in the app instead of opening the releases page. Note: installs from before this change still carry the old update key, so they need one manual download to pick up automatic updates.
 - When a newer GitHub release is available, Android shows a system notification that an update is ready to download. Tapping it opens the app.
 
-## 0.3.7 - 2026-09-18 (41 items)
+## v0.3.7 - 2026-09-18 (41 changes)
 
-## 0.3.7 - 2026-09-18 (41 items)
+## v0.3.7 - 2026-09-18 (41 changes)
 
 ### Security (16)
 
@@ -478,7 +478,7 @@
 - Check for updates now supports full SemVer 2.0 prerelease precedence (including numeric token ordering like `-unrel.10` vs `-unrel.2`) and correctly treats prerelease installs like `0.3.6-unrel` as older than the matching release (`0.3.6`), so Android can offer the release APK instead of reporting that you are already on the latest version.
 - Fixed the missing "Opens in a new window" hover tooltip and accessible description on the Integration window View button in Settings, matching the Change Log button.
 
-## 0.3.6 - 2026-09-18 (133 items)
+## v0.3.6 - 2026-09-18 (133 changes)
 
 ### Security (4)
 
@@ -637,7 +637,7 @@
 - In the Link Devices “Show or scan a code” screen, the Enter Link code card now appears above Show QR code.
 - Renamed the Link Devices step 2 screen from “Show or scan a code” to “How to connect devices”.
 
-## 0.3.5 - 2026-09-03 (49 items)
+## v0.3.5 - 2026-09-03 (49 changes)
 
 ### Improved (28)
 
@@ -694,7 +694,7 @@
 - Red error toasts now render in the page flow directly beneath the settings card in the exact same position as the update toast, and automatically dismiss after 5 seconds.
 - Fixed horizontal card width jumping and size discrepancies on mobile between providers by dedicating `.provider-account-cards` as the sole scroll container and preserving invariant gutter room whether scrollbars are displayed or not.
 
-## 0.3.4 - 2026-09-02 (40 items)
+## v0.3.4 - 2026-09-02 (40 changes)
 
 ### Improved (4)
 
@@ -749,7 +749,7 @@
 - Integrations now uses a single purple API Integration heading instead of Local API plus Paseo Integration.
 - Renamed the sidebar section from Usage accounts to Accounts, and kept the Group / H / W header visible on Android instead of clipping it off the narrow drawer.
 
-## 0.3.3 - 2026-09-01 (15 items)
+## v0.3.3 - 2026-09-01 (15 changes)
 
 ### Improved (9)
 
@@ -772,7 +772,7 @@
 - Replaced the Android launcher icon with the full-bleed purple design matching macOS and Windows, resolving the white background border and shrunken icon issue on Android devices.
 - The mobile sidebar’s Check for Updates button now sits above the home indicator, with the same 12px gap below it as above Accounts.
 
-## 0.3.2 - 2026-09-01 (20 items)
+## v0.3.2 - 2026-09-01 (20 changes)
 
 ### Security (8)
 
@@ -803,7 +803,7 @@
 - Expanded account usage progress bar tracks to span the full available width of the card, aligning flush with window badges and reset countdown timestamps.
 - Styled the account rename pen button with a compact 22px badge and obsidian violet font, border, and background colors matching the visual style of the header action buttons.
 
-## 0.3.1 - 2026-08-31 (20 items)
+## v0.3.1 - 2026-08-31 (20 changes)
 
 ### Improved (7)
 
@@ -831,7 +831,7 @@
 - Fixed an Android crash when opening the Grok login window caused by a null pointer exception when reading empty webview cookie sessions.
 - Added safe-area padding and a responsive slide-out mobile drawer navigation for Android and small touch screens.
 
-## 0.3.0 - 2026-08-31 (54 items)
+## v0.3.0 - 2026-08-31 (54 changes)
 
 ### Added (4)
 
@@ -900,7 +900,7 @@
 - Escape now closes add-account, notification, Google Cloud, and remove-account dialogs.
 - Hovering account rename, remove, notification, and refresh controls now shows a tooltip.
 
-## 0.2.47 - 2026-07-31 (4 items)
+## v0.2.47 - 2026-07-31 (4 changes)
 
 ### Fixed (2)
 
@@ -912,7 +912,7 @@
 - Usage percentages now omit the redundant word **remaining**.
 - Narrower account cards retain the exact same content, element positions, icon sizes, and typography; only flexible widths such as account names and usage bars contract.
 
-## 0.2.46 - 2026-07-31 (3 items)
+## v0.2.46 - 2026-07-31 (3 changes)
 
 ### Fixed (1)
 
@@ -923,7 +923,7 @@
 - Provider-reported credits now appear inline with the percentage and usage bar instead of occupying a separate quota tile.
 - Narrow account cards preserve the same information and visual structure while progressively tightening spacing, icons, and typography instead of switching to a different compact design.
 
-## 0.2.45 - 2026-07-31 (3 items)
+## v0.2.45 - 2026-07-31 (3 changes)
 
 ### Improved (3)
 
@@ -931,13 +931,13 @@
 - Account-card notification, remove, and refresh controls move beside the email only when the title row would otherwise become crowded.
 - Detailed account usage remains visible while the card can still contain its real text; compact percentages activate only after measured content overflow instead of at a fixed card width.
 
-## 0.2.44 - 2026-07-30 (1 item)
+## v0.2.44 - 2026-07-30 (1 change)
 
 ### Improved (1)
 
 - Detailed two-column account usage stays visible until an account card is genuinely narrow; compact mode now begins at 760px and the one-column fallback begins at 520px.
 
-## 0.2.43 - 2026-07-30 (3 items)
+## v0.2.43 - 2026-07-30 (3 changes)
 
 ### Improved (2)
 
@@ -948,19 +948,19 @@
 
 - Accounts with multiple rows of usage limits no longer indent later rows with a misplaced vertical separator.
 
-## 0.2.42 - 2026-07-30 (1 item)
+## v0.2.42 - 2026-07-30 (1 change)
 
 ### Fixed (1)
 
 - Cancel and close controls now remain available while account authentication is waiting, immediately stop the active login attempt, and close private provider windows without waiting for a timeout.
 
-## 0.2.41 - 2026-07-28 (1 item)
+## v0.2.41 - 2026-07-28 (1 change)
 
 ### Improved (1)
 
 - Provider groups and account cards now move through the list while dragging, with a full-size destination preview showing the exact order before release.
 
-## 0.2.40 - 2026-07-28 (3 items)
+## v0.2.40 - 2026-07-28 (3 changes)
 
 ### Added (1)
 
@@ -971,7 +971,7 @@
 - Provider groups and account cards now use pointer-based reordering that works reliably in the desktop WebView and persists the resulting order.
 - React now renders provider groups from the saved provider order instead of restoring the old fixed order after a drag.
 
-## 0.2.39 - 2026-07-27 (7 items)
+## v0.2.39 - 2026-07-27 (7 changes)
 
 ### Fixed (7)
 
@@ -983,7 +983,7 @@
 - Popup close buttons now update their disabled state without recursively retriggering the shared dialog observer.
 - Invalid startup metadata is preserved in a quarantine file while the app recovers from `accounts.json.bak` or safe defaults instead of closing immediately after launch.
 
-## 0.2.38 - 2026-07-27 (3 items)
+## v0.2.38 - 2026-07-27 (3 changes)
 
 ### Fixed (2)
 
@@ -994,7 +994,7 @@
 
 - Google AI Studio setup now accurately explains that Google grants Cloud access while the app limits its own actions to project discovery, Cloud Monitoring usage, and an explicitly approved Monitoring enable action.
 
-## 0.2.37 - 2026-07-27 (4 items)
+## v0.2.37 - 2026-07-27 (4 changes)
 
 ### Added (2)
 
@@ -1006,7 +1006,7 @@
 - Google AI Studio setup no longer asks users to find and paste a Cloud project ID.
 - The initial Google authorization remains read-only; broader Cloud permission is requested only for the explicit one-time action of enabling Cloud Monitoring.
 
-## 0.2.36 - 2026-07-27 (4 items)
+## v0.2.36 - 2026-07-27 (4 changes)
 
 ### Added (2)
 
@@ -1018,7 +1018,7 @@
 - API-key-only Google AI Studio accounts now show **Connected** instead of **Live**, and project connections waiting for delayed Google metrics show **Waiting** instead of an unexplained unavailable value.
 - Existing Google AI Studio testing accounts are migrated automatically without requiring the API key to be added again.
 
-## 0.2.35 - 2026-07-27 (2 items)
+## v0.2.35 - 2026-07-27 (2 changes)
 
 ### Added (1)
 
@@ -1028,14 +1028,14 @@
 
 - Google AI Studio testing accounts leave usage values unavailable when Google does not report them instead of estimating or calculating quota usage.
 
-## 0.2.34 - 2026-07-26 (2 items)
+## v0.2.34 - 2026-07-26 (2 changes)
 
 ### Fixed (2)
 
 - The global **Add Account** button now opens an unlocked provider-selection window so you can choose which account type to add.
 - Reconnect actions still remain locked to the existing account’s provider.
 
-## 0.2.33 - 2026-07-26 (4 items)
+## v0.2.33 - 2026-07-26 (4 changes)
 
 ### Added (2)
 
@@ -1047,7 +1047,7 @@
 - The notification, trash, and refresh icons in account cards are now 50% larger while keeping transparent action buttons.
 - Long provider and account lists now scroll independently within the available sidebar and dashboard space.
 
-## 0.2.32 - 2026-07-26 (2 items)
+## v0.2.32 - 2026-07-26 (2 changes)
 
 ### Fixed (1)
 
@@ -1057,7 +1057,7 @@
 
 - Account usage metrics now show the reset date on the left and a right-aligned **Resets in: _Xh_** countdown calculated from the provider’s reset timestamp.
 
-## 0.2.31 - 2026-07-26 (2 items)
+## v0.2.31 - 2026-07-26 (2 changes)
 
 ### Fixed (1)
 
@@ -1067,14 +1067,14 @@
 
 - Usage-window badges such as **7d window** now share the percentage row and are right-aligned within each account metric.
 
-## 0.2.30 - 2026-07-26 (2 items)
+## v0.2.30 - 2026-07-26 (2 changes)
 
 ### Fixed (2)
 
 - Restored the OpenAI quota details that were accidentally hidden in v0.2.29. OpenAI cards again show the remaining percentage, usage-window badge, purple usage bar, and reset time while omitting only the redundant **Session** heading.
 - The sidebar update control now uses one real text label instead of displaying both its label and a generated duplicate.
 
-## 0.2.29 - 2026-07-26 (11 items)
+## v0.2.29 - 2026-07-26 (11 changes)
 
 ### Added (1)
 
@@ -1093,7 +1093,7 @@
 - The sidebar update control now displays its label only once.
 - The Account alerts label now has clearer spacing above the notification heading.
 
-## 0.2.28 - 2026-07-26 (6 items)
+## v0.2.28 - 2026-07-26 (6 changes)
 
 ### Added (3)
 
@@ -1107,7 +1107,7 @@
 - Selecting a provider in the sidebar now displays all accounts connected to that provider in the main dashboard.
 - Account notification settings now focus on the 5-hour and weekly limits.
 
-## 0.2.27 - 2026-07-26 (4 items)
+## v0.2.27 - 2026-07-26 (4 changes)
 
 ### Added (2)
 
@@ -1119,14 +1119,14 @@
 - The Paseo Bridge is now disabled by default and no longer opens its localhost listener until explicitly enabled.
 - Disabling the bridge now shuts down its local listener while preserving its configuration for later use.
 
-## 0.2.26 - 2026-07-26 (2 items)
+## v0.2.26 - 2026-07-26 (2 changes)
 
 ### Improved (2)
 
 - The sidebar update button now says **Update to v…** when a new version is available.
 - The duplicate update banner and restart button in the main dashboard have been removed.
 
-## 0.2.25 - 2026-07-26 (3 items)
+## v0.2.25 - 2026-07-26 (3 changes)
 
 ### Improved (3)
 
@@ -1134,13 +1134,13 @@
 - The **Next Reset** card now shows only the countdown and account name.
 - Accounts that need attention are now highlighted with a transparent red warning outline in the sidebar.
 
-## 0.2.24 - 2026-07-26 (1 item)
+## v0.2.24 - 2026-07-26 (1 change)
 
 ### Added (1)
 
 - Settings now includes a **View Change Log** button that opens the repository changelog.
 
-## 0.2.23 - 2026-07-26 (4 items)
+## v0.2.23 - 2026-07-26 (4 changes)
 
 ### Added (2)
 
@@ -1152,7 +1152,7 @@
 - The app now checks for updates every hour instead of every six hours.
 - Settings now describes account refresh timing as **Account Updates** and focuses on the controls users need.
 
-## 0.2.22 - 2026-07-26 (2 items)
+## v0.2.22 - 2026-07-26 (2 changes)
 
 ### Improved (2)
 

@@ -35,7 +35,7 @@ const TITLE_SPACER = "<h6></h6>";
 const LIST_SPACER = "<p></p>";
 
 /**
- * Finds a release's section in CHANGELOG.md: "## <version> - <date> (N items)",
+ * Finds a release's section in CHANGELOG.md: "## v<version> - <date> (N changes)",
  * or "## Unreleased" when the version has not been stamped yet (a release is
  * built before the stamp commit lands, and pre-releases are never stamped).
  * Returns the date, the section titles, and each section's bullet text, or null
@@ -47,7 +47,7 @@ export function extractChangelogSection(changelog, version) {
   const escaped = clean.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const stable = !clean.includes("-");
 
-  let heading = stable ? new RegExp(`^## ${escaped}(?=\\s|$)(?: - (\\d{4}-\\d{2}-\\d{2}))?[^\\n]*$`, "m").exec(text) : null;
+  let heading = stable ? new RegExp(`^## v?${escaped}(?=\\s|$)(?: - (\\d{4}-\\d{2}-\\d{2}))?[^\\n]*$`, "m").exec(text) : null;
   let stamped = heading !== null;
   if (!heading) heading = /^## Unreleased[^\n]*$/m.exec(text);
   if (!heading) return null;

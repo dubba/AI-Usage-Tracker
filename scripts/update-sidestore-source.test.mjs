@@ -28,7 +28,7 @@ test("isPrerelease detects beta suffixes", () => {
 });
 
 test("extractChangelogNotes reads the matching version section", () => {
-  const changelog = "# Changelog\n\n## Unreleased (1 items)\n\n- next thing\n\n## 0.3.16 - 2026-10-06 (2 items)\n\n### Added\n\n- one\n- two\n\n## 0.3.15 - x\n\n- old\n";
+  const changelog = "# Changelog\n\n## Unreleased (1 items)\n\n- next thing\n\n## v0.3.16 - 2026-10-06 (2 items)\n\n### Added\n\n- one\n- two\n\n## v0.3.15 - x\n\n- old\n";
   assert.equal(extractChangelogNotes(changelog, "0.3.16"), "one\ntwo");
   assert.equal(extractChangelogNotes(changelog, "9.9.9"), "next thing");
 });

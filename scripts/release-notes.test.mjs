@@ -9,13 +9,13 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const changelog = `# Changelog
 
-## Unreleased (1 items)
+## Unreleased (1 change)
 
 ### Added (1)
 
 - Not shipped yet.
 
-## 0.4.1 - 2026-10-12 (4 items)
+## v0.4.1 - 2026-10-12 (4 changes)
 
 ### Improved (1)
 
@@ -32,7 +32,7 @@ const changelog = `# Changelog
 
 - Tighter token check.
 
-## 0.4.0 - 2026-10-07 (1 item)
+## v0.4.0 - 2026-10-07 (1 change)
 
 ### Changed (1)
 
@@ -57,12 +57,12 @@ test("falls back to Unreleased until the version is stamped, and for pre-release
 });
 
 test("a version is not matched by a longer version that starts with it", () => {
-  const text = "## 0.4.10 - 2026-11-01 (1 item)\n\n### Fixed (1)\n\n- Ten.\n\n## 0.4.1 - 2026-10-12 (1 item)\n\n### Fixed (1)\n\n- One.\n";
+  const text = "## v0.4.10 - 2026-11-01 (1 change)\n\n### Fixed (1)\n\n- Ten.\n\n## v0.4.1 - 2026-10-12 (1 change)\n\n### Fixed (1)\n\n- One.\n";
   assert.equal(extractChangelogSection(text, "0.4.1").sections[0].items[0], "- One.");
 });
 
 test("returns null when there is nothing to show", () => {
-  assert.equal(extractChangelogSection("# Changelog\n\n## Unreleased (0 items)\n\n", "0.4.2"), null);
+  assert.equal(extractChangelogSection("# Changelog\n\n## Unreleased (0 changes)\n\n", "0.4.2"), null);
   assert.equal(extractChangelogSection("", "0.4.2"), null);
 });
 

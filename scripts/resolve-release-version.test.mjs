@@ -176,7 +176,7 @@ test("applyVersionToFiles correctly updates package.json, package-lock.json, tau
 
 const SAMPLE_CHANGELOG = `# Changelog
 
-## Unreleased (9 items)
+## Unreleased (9 changes)
 
 ### Improved (1)
 
@@ -188,7 +188,7 @@ const SAMPLE_CHANGELOG = `# Changelog
 - Menu opens upward near the bottom.
 - Spacing matches other rows.
 
-## 0.4.0 - 2026-10-07 (2 items)
+## v0.4.0 - 2026-10-07 (2 changes)
 
 ### Added (2)
 
@@ -201,33 +201,33 @@ test("stampChangelog renames Unreleased, recomputes the count, and opens a fresh
 
   assert.equal(result.changed, true);
   assert.equal(result.items, 3);
-  assert.match(result.text, /^## 0\.4\.1 - 2026-10-11 \(3 items\)$/m);
+  assert.match(result.text, /^## v0\.4\.1 - 2026-10-11 \(3 changes\)$/m);
   // A new empty section sits directly above the stamped release.
   assert.match(
     result.text,
-    /^## Unreleased \(0 items\)\n\n## 0\.4\.1 - 2026-10-11 \(3 items\)\n/m
+    /^## Unreleased \(0 changes\)\n\n## v0\.4\.1 - 2026-10-11 \(3 changes\)\n/m
   );
   assert.equal((result.text.match(/^## Unreleased/gm) || []).length, 1);
   // Everything else is untouched: undoing the two inserted pieces restores the input.
   assert.equal(
     result.text
-      .replace("## Unreleased (0 items)\n\n", "")
-      .replace("## 0.4.1 - 2026-10-11 (3 items)", "## Unreleased (9 items)"),
+      .replace("## Unreleased (0 changes)\n\n", "")
+      .replace("## v0.4.1 - 2026-10-11 (3 changes)", "## Unreleased (9 changes)"),
     SAMPLE_CHANGELOG
   );
 });
 
 test("stampChangelog uses the singular for one item", () => {
-  const changelog = "# Changelog\n\n## Unreleased (4 items)\n\n- Only one.\n\n## 0.4.0 - 2026-10-07 (1 item)\n\n- Old.\n";
+  const changelog = "# Changelog\n\n## Unreleased (4 changes)\n\n- Only one.\n\n## v0.4.0 - 2026-10-07 (1 change)\n\n- Old.\n";
   const result = stampChangelog(changelog, "v0.4.1", "2026-10-11");
 
   assert.equal(result.changed, true);
-  assert.match(result.text, /^## 0\.4\.1 - 2026-10-11 \(1 item\)$/m);
+  assert.match(result.text, /^## v0\.4\.1 - 2026-10-11 \(1 change\)$/m);
 });
 
 test("stampChangelog leaves the file alone when there is nothing to stamp", () => {
-  const noUnreleased = "# Changelog\n\n## 0.4.0 - 2026-10-07 (1 item)\n\n- Old.\n";
-  const emptyUnreleased = "# Changelog\n\n## Unreleased (0 items)\n\n## 0.4.0 - 2026-10-07 (1 item)\n\n- Old.\n";
+  const noUnreleased = "# Changelog\n\n## v0.4.0 - 2026-10-07 (1 change)\n\n- Old.\n";
+  const emptyUnreleased = "# Changelog\n\n## Unreleased (0 changes)\n\n## v0.4.0 - 2026-10-07 (1 change)\n\n- Old.\n";
 
   for (const changelog of [noUnreleased, emptyUnreleased]) {
     const result = stampChangelog(changelog, "0.4.1", "2026-10-11");
@@ -241,7 +241,7 @@ test("stampChangelog does not stamp twice or create a duplicate version section"
   const again = stampChangelog(first.text, "0.4.1", "2026-10-12");
   assert.equal(again.changed, false);
 
-  const manual = "# Changelog\n\n## Unreleased (1 item)\n\n- New.\n\n## 0.4.1 - 2026-10-10 (1 item)\n\n- Done.\n";
+  const manual = "# Changelog\n\n## Unreleased (1 change)\n\n- New.\n\n## v0.4.1 - 2026-10-10 (1 change)\n\n- Done.\n";
   const dup = stampChangelog(manual, "0.4.1", "2026-10-11");
   assert.equal(dup.changed, false);
   assert.equal(dup.reason, "version section already exists");
@@ -257,13 +257,13 @@ test("stampChangelog handles consecutive releases and leaves an empty Unreleased
 
   // New work lands under the fresh Unreleased section, then the next release stamps it.
   const withWork = first.text.replace(
-    "## Unreleased (0 items)\n",
-    "## Unreleased (1 item)\n\n### Fixed (1)\n\n- Another fix.\n"
+    "## Unreleased (0 changes)\n",
+    "## Unreleased (1 change)\n\n### Fixed (1)\n\n- Another fix.\n"
   );
   const second = stampChangelog(withWork, "0.4.2", "2026-10-15");
   assert.equal(second.changed, true);
-  assert.match(second.text, /^## Unreleased \(0 items\)\n\n## 0\.4\.2 - 2026-10-15 \(1 item\)\n/m);
-  assert.match(second.text, /^## 0\.4\.1 - 2026-10-11 \(3 items\)$/m);
+  assert.match(second.text, /^## Unreleased \(0 changes\)\n\n## v0\.4\.2 - 2026-10-15 \(1 change\)\n/m);
+  assert.match(second.text, /^## v0\.4\.1 - 2026-10-11 \(3 changes\)$/m);
   assert.equal((second.text.match(/^## Unreleased/gm) || []).length, 1);
 });
 
@@ -295,7 +295,7 @@ test("applyChangelogStamp writes the file and is a no-op the second time", () =>
 
     const first = applyChangelogStamp(tempDir, "0.4.1", "2026-10-11");
     assert.equal(first.changed, true);
-    assert.match(readFileSync(path, "utf-8"), /^## 0\.4\.1 - 2026-10-11 \(3 items\)$/m);
+    assert.match(readFileSync(path, "utf-8"), /^## v0\.4\.1 - 2026-10-11 \(3 changes\)$/m);
 
     const second = applyChangelogStamp(tempDir, "0.4.1", "2026-10-11");
     assert.equal(second.changed, false);

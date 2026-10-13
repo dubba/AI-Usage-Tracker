@@ -137,8 +137,8 @@ export function releaseDateEastern(now = new Date()) {
 }
 
 /**
- * Turns the "## Unreleased (N items)" heading into "## <version> - <date> (N items)"
- * and inserts a new empty "## Unreleased (0 items)" section above it, as
+ * Turns the "## Unreleased (N changes)" heading into "## v<version> - <date> (N changes)"
+ * and inserts a new empty "## Unreleased (0 changes)" section above it, as
  * docs/CHANGELOG_WORKFLOW.md describes for a release. The count is recomputed
  * from the section's top-level bullets. Nothing changes when there is no
  * Unreleased section, when it has no items, when the version already has a
@@ -157,7 +157,7 @@ export function stampChangelog(changelog, version, date) {
   const heading = /^## Unreleased[^\r\n]*$/m.exec(changelog);
   if (!heading) return unchanged("no Unreleased section");
 
-  const versionHeading = new RegExp(`^## ${clean.replace(/\./g, "\\.")}(\\s|$)`, "m");
+  const versionHeading = new RegExp(`^## v?${clean.replace(/\./g, "\\.")}(\\s|$)`, "m");
   if (versionHeading.test(changelog)) return unchanged("version section already exists");
 
   const bodyStart = heading.index + heading[0].length;
@@ -167,9 +167,9 @@ export function stampChangelog(changelog, version, date) {
   const items = (body.match(/^- /gm) || []).length;
   if (items === 0) return unchanged("Unreleased section has no items");
 
-  const stamped = `## ${clean} - ${date} (${items} ${items === 1 ? "item" : "items"})`;
+  const stamped = `## v${clean} - ${date} (${items} ${items === 1 ? "change" : "changes"})`;
   const newline = changelog.includes("\r\n") ? "\r\n" : "\n";
-  const freshUnreleased = `## Unreleased (0 items)${newline}${newline}`;
+  const freshUnreleased = `## Unreleased (0 changes)${newline}${newline}`;
   return {
     changed: true,
     text:
@@ -295,7 +295,7 @@ function main() {
     const result = applyChangelogStamp(rootDir, targetVersion, date);
     console.log(
       result.changed
-        ? `Stamped CHANGELOG.md: ${targetVersion} - ${date} (${result.items} items)`
+        ? `Stamped CHANGELOG.md: v${targetVersion} - ${date} (${result.items} changes)`
         : `CHANGELOG.md left unchanged (${result.reason})`
     );
   }

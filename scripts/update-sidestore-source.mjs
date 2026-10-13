@@ -26,7 +26,8 @@ export function extractChangelogNotes(changelog, version) {
   const lines = changelog.split(/\r?\n/);
   const heading = (line) => /^## /.test(line);
   const find = (prefix) => lines.findIndex((line) => heading(line) && line.startsWith(prefix));
-  let start = find(`## ${normalizeVersion(version)} `);
+  let start = find(`## v${normalizeVersion(version)} `);
+  if (start === -1) start = find(`## ${normalizeVersion(version)} `);
   if (start === -1) start = find("## Unreleased");
   if (start === -1) return "";
   const notes = [];

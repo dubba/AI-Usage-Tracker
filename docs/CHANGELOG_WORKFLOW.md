@@ -14,7 +14,7 @@ For every pull request that changes something a user can see or experience:
    - `Fixed` — incorrect or broken behavior was corrected.
    - `Security` — a user-relevant security improvement.
    - `Removed` — a user-facing capability was removed.
-4. Update item counts in parentheses next to each affected category heading (e.g. `### Fixed (46)`) and update the total item count on the release header (e.g. `## Unreleased (111 items)`).
+4. Update change counts in parentheses next to each affected category heading (e.g. `### Fixed (46)`) and update the total change count on the release header (e.g. `## Unreleased (111 changes)`).
 5. Write one bullet for each distinct user-visible result.
 6. If the pull request has no user-facing change, do not add a changelog entry and state `No user-facing change` in the pull request description.
 
@@ -45,10 +45,10 @@ Also avoid:
 
 ## `Unreleased` format
 
-Keep unreleased changes at the top of `CHANGELOG.md` with total item counts next to the release and category headings:
+Keep unreleased changes at the top of `CHANGELOG.md` with total change counts next to the release and category headings:
 
 ```markdown
-## Unreleased (3 items)
+## Unreleased (3 changes)
 
 ### Added (1)
 
@@ -71,8 +71,8 @@ Normal coding tasks must only update `## Unreleased`.
 
 A release task may:
 
-1. Rename the completed `## Unreleased (X items)` section to `## <version> - <YYYY-MM-DD> (X items)`.
-2. Insert a new empty `## Unreleased (0 items)` section above it.
+1. Rename the completed `## Unreleased (X changes)` section to `## v<version> - <YYYY-MM-DD> (X changes)`.
+2. Insert a new empty `## Unreleased (0 changes)` section above it.
 3. Reuse the completed section as the GitHub Release description. The release workflow does this itself: `scripts/release-notes.mjs` puts the version's changelog section (or `## Unreleased` before it is stamped) above the download guide in `.github/release-notes/download-guide.md`, with everything past the first 8 items folded behind "Show more" (the download guide is folded too), and sets the result as the release body.
 
 Released entries should remain unchanged except for correcting a clear typo or factual error.
