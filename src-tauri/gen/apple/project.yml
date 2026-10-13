@@ -2,7 +2,7 @@ name: ai-usage-tracker
 options:
   bundleIdPrefix: com.dubba.ai.usage.tracker
   deploymentTarget:
-    iOS: 14.0
+    iOS: 16.0
 fileGroups: [../../src]
 configs:
   debug: debug

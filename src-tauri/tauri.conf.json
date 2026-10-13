@@ -48,6 +48,9 @@
     "macOS": {
       "infoPlist": "Info.plist",
       "entitlements": "Entitlements.plist"
+    },
+    "iOS": {
+      "minimumSystemVersion": "16.0"
     }
   },
   "plugins": {
