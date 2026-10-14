@@ -7,7 +7,7 @@
   padding: 24px 16px;
   box-sizing: border-box;
   overflow-y: auto;
-  background: #000000;
+  background: var(--obsidian-canvas);
   color: var(--obsidian-text);
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
@@ -30,7 +30,7 @@
 .startup-gate-message {
   margin: 0 0 12px;
   line-height: 1.5;
-  color: #ffb4b4;
+  color: var(--obsidian-red);
   overflow-wrap: anywhere;
 }
 
@@ -63,7 +63,7 @@
 }
 
 .startup-gate-retry:focus-visible {
-  outline: 2px solid #ffffff;
+  outline: 2px solid var(--obsidian-purple);
   outline-offset: 2px;
 }
 
@@ -86,7 +86,7 @@
 }
 
 .startup-gate-secondary:focus-visible {
-  outline: 2px solid #ffffff;
+  outline: 2px solid var(--obsidian-purple);
   outline-offset: 2px;
 }
 
@@ -94,6 +94,6 @@
 .copy-diagnostics-error {
   flex-basis: 100%;
   font-size: 0.85rem;
-  color: #ffb4b4;
+  color: var(--obsidian-red);
   overflow-wrap: anywhere;
 }

@@ -5,6 +5,7 @@ import type { Account, UsageAlertSetting, UsageWindow } from "../../types";
 import { canonicalWindow, isMonthlyWindow } from "../../shared/lib/usage-logic";
 import { CustomDropdown } from "../../shared/ui/CustomDropdown";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
+import { backdropMouseDown, useModalClosePolicy } from "../../shared/hooks/useModalClosePolicy";
 import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
 
 const THRESHOLDS = [10, 20, 30, 40, 50];
@@ -47,7 +48,8 @@ export function AccountAlertModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLElement>(null);
-  useModalA11y(dialogRef, account != null, onClose);
+  const requestClose = useModalClosePolicy(!saving, onClose);
+  useModalA11y(dialogRef, account != null, requestClose);
 
   const availableWindows = useMemo(() => {
     const available = new Set<AlertWindowId>();
@@ -104,9 +106,9 @@ export function AccountAlertModal({
   };
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <div className="modal-backdrop" role="presentation" onMouseDown={backdropMouseDown(requestClose)}>
       <section ref={dialogRef} className="modal-card alert-settings-modal notification-only-modal" role="dialog" aria-modal="true" aria-labelledby="alert-settings-title" tabIndex={-1}>
-        <ModalCloseButton onClose={onClose} />
+        <ModalCloseButton onClose={requestClose} disabled={saving} />
         <div className="modal-kicker">Account alerts</div>
         <h2 id="alert-settings-title">Usage notifications</h2>
         <p>Choose when to notify you about the 5-hour, weekly, and 30-day limits for <strong>{account.label}</strong>.</p>
@@ -133,6 +135,7 @@ export function AccountAlertModal({
                     <div className="alert-threshold">
                       <span>At or below</span>
                       <CustomDropdown<number>
+                        aria-label="Alert threshold"
                         value={setting.thresholdPercent}
                         disabled={!setting.enabled || saving}
                         options={THRESHOLDS.map((threshold) => ({
@@ -162,7 +165,7 @@ export function AccountAlertModal({
         </div>
         {error ? <div className="error-panel modal-error">{error}</div> : null}
         <div className="modal-actions">
-          <button type="button" className="button ghost" onClick={onClose}>Cancel</button>
+          <button type="button" className="button ghost" onClick={requestClose} disabled={saving}>Cancel</button>
           <button type="button" className="button primary" onClick={() => void save()} disabled={loading || saving || !availableWindows.length}>{saving ? "Saving…" : "Save Notifications"}</button>
         </div>
       </section>

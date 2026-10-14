@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import type { Account } from "../../types";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
+import { backdropMouseDown, useModalClosePolicy } from "../../shared/hooks/useModalClosePolicy";
 import { providerName } from "../../shared/lib/providers";
 import { displayAccountLabel } from "../../shared/lib/usage-logic";
 import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
@@ -32,16 +33,15 @@ export function UnprotectedSignInsModal({
 }) {
   const dialogRef = useRef<HTMLElement>(null);
   const open = accounts != null && accounts.length > 0;
-  useModalA11y(dialogRef, open, () => {
-    if (!busy) onClose();
-  });
+  const requestClose = useModalClosePolicy(!busy, onClose);
+  useModalA11y(dialogRef, open, requestClose);
   if (!open) return null;
   const one = accounts.length === 1;
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !busy && onClose()}>
+    <div className="modal-backdrop" role="presentation" onMouseDown={backdropMouseDown(requestClose)}>
       <section ref={dialogRef} className="modal-card remove-account-modal" role="dialog" aria-modal="true" aria-labelledby="unprotected-sign-ins-title" tabIndex={-1}>
-        <ModalCloseButton onClose={onClose} disabled={busy != null} />
+        <ModalCloseButton onClose={requestClose} disabled={busy != null} />
         <div className="modal-kicker">Secure storage</div>
         <h2 id="unprotected-sign-ins-title">{one ? "A sign-in isn't encrypted" : "Some sign-ins aren't encrypted"}</h2>
         <p>
@@ -63,7 +63,7 @@ export function UnprotectedSignInsModal({
           <p role="status">Still couldn't encrypt {one ? "it" : "them"}.</p>
         ) : null}
         <div className="modal-actions">
-          <button type="button" className="button ghost" disabled={busy != null} onClick={onClose}>Not now</button>
+          <button type="button" className="button ghost" disabled={busy != null} onClick={requestClose}>Not now</button>
           <button type="button" className="button ghost" disabled={busy != null} onClick={onRetry}>{busy === "retry" ? "Retrying…" : "Retry"}</button>
           <button type="button" className="button remove-confirm-button" disabled={busy != null} onClick={onRemove}>
             {busy === "remove" ? "Removing…" : "Remove and sign in again"}

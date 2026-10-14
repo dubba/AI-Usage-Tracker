@@ -1,6 +1,7 @@
 import { useRef, type ReactNode } from "react";
 import { isAllowedExternalUrl } from "../../shared/lib/safeUrl";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
+import { backdropMouseDown } from "../../shared/hooks/useModalClosePolicy";
 import type { UpdateBusy } from "../../types";
 import { cleanReleaseNotes } from "./releaseNotesText";
 import { UpdateErrorMessage } from "./UpdateErrorMessage";
@@ -189,7 +190,7 @@ export function UpdateNotesModal({
     <div
       className="modal-backdrop"
       role="presentation"
-      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+      onMouseDown={backdropMouseDown(onClose)}
     >
       <section
         ref={dialogRef}

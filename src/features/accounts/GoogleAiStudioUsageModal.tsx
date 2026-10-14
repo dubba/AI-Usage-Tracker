@@ -6,6 +6,7 @@ import { abandonLoginAttempt, getLastLoginStatus, retryLoginAttempt, subscribeLo
 import type { Account, CloudProjectOption, LoginStatus } from "../../types";
 import { CustomDropdown } from "../../shared/ui/CustomDropdown";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
+import { backdropMouseDown } from "../../shared/hooks/useModalClosePolicy";
 import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
 
 type SetupStage = "signin" | "choose_project" | "monitoring_disabled";
@@ -96,6 +97,8 @@ export function GoogleAiStudioUsageModal({
     onClose();
   };
 
+  // This dialog can always be closed: closing abandons any login attempt in flight
+  // (closeModal handles the cleanup), so no busy guard is needed.
   useModalA11y(dialogRef, account != null, closeModal);
 
   if (!account) return null;
@@ -159,7 +162,7 @@ export function GoogleAiStudioUsageModal({
   const selectedProject = projects.find((project) => project.projectId === selectedProjectId) ?? null;
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && closeModal()}>
+    <div className="modal-backdrop" role="presentation" onMouseDown={backdropMouseDown(closeModal)}>
       <section ref={dialogRef} className="modal-card google-cloud-usage-modal" role="dialog" aria-modal="true" aria-labelledby="google-cloud-usage-title" tabIndex={-1}>
         <ModalCloseButton onClose={closeModal} />
         <div className="modal-kicker">Google AI Studio quota usage</div>
@@ -183,6 +186,7 @@ export function GoogleAiStudioUsageModal({
             <label className="field-label" htmlFor="google-cloud-project-choice">Google Cloud project</label>
             <CustomDropdown<string>
               id="google-cloud-project-choice"
+              aria-label="Google Cloud project"
               value={selectedProjectId}
               options={projects.map((project) => ({
                 value: project.projectId,
