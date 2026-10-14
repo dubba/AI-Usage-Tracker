@@ -1,13 +1,16 @@
 # Changelog
 
-## Unreleased (16 changes)
+## Unreleased (20 changes)
 
 ### Added (1)
 
 - The empty dashboard now includes a Link Devices option next to Other Provider, aligned with the provider cards, so you can sync accounts from another device without signing in again.
 
-### Improved (7)
+### Improved (10)
 
+- On a computer, sign-in windows for Claude, ChatGPT, Grok, Antigravity, and OpenCode now open centered directly on the main AI Usage Tracker window and cover 96% of its area, and the Google sign-in popup opens centered directly on its opener instead of jumping to arbitrary positions.
+- On desktop, the "Sign in with Google" window is now larger (640×800) and resizable, so all account details, terms, and action buttons fit comfortably without vertical scrolling or an overlapping scroll prompt.
+- When an account is connected, usage data is now pre-fetched in the background during the five-second countdown, so account percentages and gauges appear immediately on the dashboard when returning instead of waiting for a separate refresh.
 - Connecting a Grok or OpenCode account now ends on the same "Account connected" page as the other providers, with the account's email and a five-second countdown back to the app.
 - In the Add Account modal, OpenCode now appears above Google AI Studio and below xAI Grok in the provider dropdown.
 - Clicking Other Provider on the empty dashboard now defaults to OpenCode Go in the Add Account modal dropdown.
@@ -16,8 +19,9 @@
 - On macOS, the app icon has the same margin as other Mac app icons, so it is no longer larger than its neighbors in the Dock, and it stays sharp on Retina displays.
 - On a computer, the window title bar uses the same purple as the Android status bar, and the window title is white so it stands out.
 
-### Fixed (7)
+### Fixed (8)
 
+- On desktop, the "Sign in with Google" popup window now closes automatically when sign-in finishes, revealing the Claude authorization prompt instead of remaining open on top of it.
 - The "Account connected" page now stays up for its full five-second countdown, on a computer and on a phone. It had sometimes closed with one or two seconds left, most often for Antigravity, because the app started timing before the page had appeared.
 - The iPhone app opens again instead of showing only a black screen. Since v0.4.1, the app was blocking its own start page from loading on iOS.
 - The iPhone app's home screen icon is the AI Usage Tracker gauge instead of the Tauri logo.
