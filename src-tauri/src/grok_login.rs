@@ -23,9 +23,9 @@ use std::{
     },
     time::Duration,
 };
-use tauri::WebviewWindow;
 #[cfg(mobile)]
 use tauri::AppHandle;
+use tauri::WebviewWindow;
 #[cfg(desktop)]
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use url::Url;
@@ -441,12 +441,7 @@ pub async fn start_login(
         };
 
         let (width, height, position) = crate::oauth_common::window_geometry_centered_on(
-            &app,
-            "main",
-            0.96,
-            0.96,
-            820.0,
-            620.0,
+            &app, "main", 0.96, 0.96, 820.0, 620.0,
         );
         let back_app = app.clone();
         let back_state = state.clone();

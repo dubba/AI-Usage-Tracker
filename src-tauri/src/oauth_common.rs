@@ -583,15 +583,8 @@ mod tests {
     fn centers_window_over_target_window() {
         let target_pos = (100.0, 100.0);
         let target_size = (1440.0, 850.0);
-        let (width, height, (x, y)) = calculate_centered_geometry(
-            target_pos,
-            target_size,
-            None,
-            0.96,
-            0.96,
-            820.0,
-            620.0,
-        );
+        let (width, height, (x, y)) =
+            calculate_centered_geometry(target_pos, target_size, None, 0.96, 0.96, 820.0, 620.0);
         assert!((width - 1382.4).abs() < 1e-4);
         assert!((height - 816.0).abs() < 1e-4);
         let target_center_x = target_pos.0 + target_size.0 / 2.0;
@@ -607,15 +600,8 @@ mod tests {
     fn fixed_size_window_centers_over_target() {
         let target_pos = (200.0, 150.0);
         let target_size = (1000.0, 700.0);
-        let (width, height, (x, y)) = calculate_centered_geometry(
-            target_pos,
-            target_size,
-            None,
-            0.0,
-            0.0,
-            640.0,
-            800.0,
-        );
+        let (width, height, (x, y)) =
+            calculate_centered_geometry(target_pos, target_size, None, 0.0, 0.0, 640.0, 800.0);
         assert_eq!(width, 640.0);
         assert_eq!(height, 800.0);
         let target_center_x = target_pos.0 + target_size.0 / 2.0;
@@ -630,15 +616,8 @@ mod tests {
         let target_pos = (1800.0, 900.0);
         let target_size = (500.0, 400.0);
         let monitor = Some(((0.0, 0.0), (1920.0, 1080.0)));
-        let (width, height, (x, y)) = calculate_centered_geometry(
-            target_pos,
-            target_size,
-            monitor,
-            0.0,
-            0.0,
-            640.0,
-            800.0,
-        );
+        let (width, height, (x, y)) =
+            calculate_centered_geometry(target_pos, target_size, monitor, 0.0, 0.0, 640.0, 800.0);
         assert_eq!(width, 640.0);
         assert_eq!(height, 800.0);
         assert!(x + width <= 1920.0);
@@ -653,15 +632,8 @@ mod tests {
         let main_pos = (350.0, 80.0);
         let main_size = (1440.0, 900.0);
         // Provider login window centered on main window at 96% coverage
-        let (provider_w, provider_h, (provider_x, provider_y)) = calculate_centered_geometry(
-            main_pos,
-            main_size,
-            None,
-            0.96,
-            0.96,
-            820.0,
-            620.0,
-        );
+        let (provider_w, provider_h, (provider_x, provider_y)) =
+            calculate_centered_geometry(main_pos, main_size, None, 0.96, 0.96, 820.0, 620.0);
         // Sign-in popup (e.g. Google) centered on provider login window
         let (popup_w, popup_h, (popup_x, popup_y)) = calculate_centered_geometry(
             (provider_x, provider_y),
@@ -673,7 +645,10 @@ mod tests {
             800.0,
         );
 
-        let main_center = (main_pos.0 + main_size.0 / 2.0, main_pos.1 + main_size.1 / 2.0);
+        let main_center = (
+            main_pos.0 + main_size.0 / 2.0,
+            main_pos.1 + main_size.1 / 2.0,
+        );
         let provider_center = (provider_x + provider_w / 2.0, provider_y + provider_h / 2.0);
         let popup_center = (popup_x + popup_w / 2.0, popup_y + popup_h / 2.0);
 

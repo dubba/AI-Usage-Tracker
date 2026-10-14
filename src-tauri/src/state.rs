@@ -281,7 +281,8 @@ impl AppState {
     pub fn update_login_account(&self, attempt_id: &str, refreshed_account: Account) {
         let mut pending = self.pending_login.write();
         if let Some(login) = pending.as_mut() {
-            if login.attempt_id == attempt_id && login.status == crate::model::LoginState::Complete {
+            if login.attempt_id == attempt_id && login.status == crate::model::LoginState::Complete
+            {
                 login.account = Some(refreshed_account);
             }
         }
@@ -715,16 +716,31 @@ mod tests {
         // Mismatched attempt_id does not update
         state.update_login_account("attempt-2", refreshed.clone());
         assert_eq!(
-            state.pending_login.read().as_ref().unwrap().account.as_ref().unwrap().plan,
+            state
+                .pending_login
+                .read()
+                .as_ref()
+                .unwrap()
+                .account
+                .as_ref()
+                .unwrap()
+                .plan,
             None
         );
 
         // Matching attempt_id updates the account
         state.update_login_account("attempt-1", refreshed);
         assert_eq!(
-            state.pending_login.read().as_ref().unwrap().account.as_ref().unwrap().plan,
+            state
+                .pending_login
+                .read()
+                .as_ref()
+                .unwrap()
+                .account
+                .as_ref()
+                .unwrap()
+                .plan,
             Some("ChatGPT Plus".into())
         );
     }
 }
-

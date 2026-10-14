@@ -465,14 +465,8 @@ pub(crate) fn open_provider_login_window(
     let nav_popups_handle = handle.clone();
     let load_dir = profile_dir.clone();
     let popup_handle = handle.clone();
-    let (width, height, position) = crate::oauth_common::window_geometry_centered_on(
-        &handle,
-        "main",
-        0.96,
-        0.96,
-        820.0,
-        620.0,
-    );
+    let (width, height, position) =
+        crate::oauth_common::window_geometry_centered_on(&handle, "main", 0.96, 0.96, 820.0, 620.0);
     let mut builder =
         WebviewWindowBuilder::new(&handle, PROVIDER_LOGIN_WINDOW, WebviewUrl::External(target))
             .title(title)
@@ -639,17 +633,17 @@ fn open_provider_login_popup(
                 close_provider_login_popups(&close_handle);
                 return false;
             }
-        let allowed = url.as_str() == "about:blank"
-            || (url.scheme() == "https" && is_allowed_provider_login_navigation(url));
-        if !allowed {
-            crate::diagnostics::warn(&format!(
-                "Sign-in popup blocked navigation to host {}",
-                url.host_str().unwrap_or("(none)")
-            ));
-        }
-        allowed
-    })
-    .build()?;
+            let allowed = url.as_str() == "about:blank"
+                || (url.scheme() == "https" && is_allowed_provider_login_navigation(url));
+            if !allowed {
+                crate::diagnostics::warn(&format!(
+                    "Sign-in popup blocked navigation to host {}",
+                    url.host_str().unwrap_or("(none)")
+                ));
+            }
+            allowed
+        })
+        .build()?;
     if let Some((x, y)) = position {
         let _ = window.set_position(tauri::LogicalPosition::new(x, y));
     }

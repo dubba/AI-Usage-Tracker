@@ -301,12 +301,7 @@ pub async fn start_login(
             }
         };
         let (width, height, position) = crate::oauth_common::window_geometry_centered_on(
-            &app,
-            "main",
-            0.96,
-            0.96,
-            820.0,
-            620.0,
+            &app, "main", 0.96, 0.96, 820.0, 620.0,
         );
         let login_url = match Url::parse(LOGIN_URL) {
             Ok(url) => url,
@@ -441,10 +436,10 @@ pub async fn start_login(
         }
     };
 
-    #[cfg(desktop)]
-    if let Some((x, y)) = position {
-        let _ = login_window.set_position(tauri::LogicalPosition::new(x, y));
-    }
+        #[cfg(desktop)]
+        if let Some((x, y)) = position {
+            let _ = login_window.set_position(tauri::LogicalPosition::new(x, y));
+        }
 
         let close_state = state.clone();
         let close_attempt = attempt_id.clone();
