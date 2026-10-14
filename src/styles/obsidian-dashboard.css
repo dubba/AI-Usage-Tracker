@@ -873,6 +873,18 @@ button.button.ghost.empty-provider-other:active:not(:disabled) {
   transition: border-color 120ms ease, background 120ms ease;
 }
 
+button.summary-card {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  width: 100%;
+}
+
+button.summary-card:focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: 2px;
+}
+
 .summary-card:hover {
   border-color: var(--obsidian-purple-strong);
 }
@@ -1545,7 +1557,10 @@ button.account-card-provider-icon:active {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--obsidian-muted);
-  margin: 18px 0 8px 2px;
+  /* 6px clears the Advanced focus ring (2px outline + 3px offset). The scroll
+     area clips overflow, and the old 2px inset cut off the left of that ring.
+     Every section title uses the same inset so the labels stay aligned. */
+  margin: 18px 0 8px 6px;
   line-height: 1.2;
 }
 
@@ -1558,8 +1573,13 @@ button.account-card-provider-icon:active {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin: 0;
-  padding: 0;
+  /* Pull 1px left so the focus ring (2px outline + 3px offset = 5px) starts
+     flush with the settings-card edge instead of 1px inside it. The 1px left
+     padding puts the label text back at the shared 6px inset so the "A" stays
+     aligned with the other section titles; the 1px right padding balances the
+     cropped chevron on the other side. */
+  margin: 0 0 0 -1px;
+  padding: 0 1px;
   border: 0;
   background: transparent;
   color: inherit;
@@ -1584,11 +1604,18 @@ button.account-card-provider-icon:active {
   height: 12px;
   stroke-width: 2.5;
   color: currentColor;
+  /* The chevron glyph ends at x=15 of a 24-unit viewBox, leaving ~4px of empty
+     trailing space in its 12px box. Crop it so the ink sits as close to the
+     focus ring on the right as the "A" does on the left. */
+  margin-right: -4px;
   transform: rotate(0deg);
-  transition: transform 180ms ease;
+  transition: transform 180ms ease, margin-right 180ms ease;
 }
 
 .settings-advanced-chevron.open {
+  /* Rotated 90° the glyph's taller vertical extent (y=6..18) lies horizontal,
+     leaving only ~2.5px of trailing space, so crop less to keep the same gap. */
+  margin-right: -2.5px;
   transform: rotate(90deg);
 }
 
@@ -1854,10 +1881,11 @@ button.account-card-provider-icon:active {
     display: inline-grid !important;
     place-items: center;
     box-sizing: border-box;
-    width: 22px;
-    height: 22px;
-    min-width: 22px;
-    min-height: 22px;
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
+    position: relative;
     padding: 0;
     border-width: 1px;
     border-style: solid;
@@ -1871,6 +1899,16 @@ button.account-card-provider-icon:active {
     cursor: pointer;
     vertical-align: middle;
     transition: background 150ms ease, transform 100ms ease, border-color 150ms ease, color 150ms ease;
+  }
+
+  .button.ghost.edit-bucket-title-btn::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .button.ghost.edit-bucket-title-btn svg {
@@ -1991,6 +2029,11 @@ select.text-input option,
   background-color: var(--c-1a1820) !important;
 }
 
+.custom-dropdown-trigger:focus-visible {
+  outline: 2px solid var(--purple) !important;
+  outline-offset: 2px !important;
+}
+
 .custom-dropdown-container.open .custom-dropdown-trigger {
   box-shadow: 0 0 0 3px rgba(160, 120, 255, 0.15);
 }
@@ -2048,7 +2091,7 @@ select.text-input option,
 
 .custom-dropdown-menu {
   position: fixed;
-  z-index: 10000;
+  z-index: var(--z-dropdown, 1000);
   max-height: 280px;
   margin: 0;
   padding: 6px;
@@ -2064,7 +2107,7 @@ select.text-input option,
 }
 
 .custom-dropdown-container.open {
-  z-index: 1000;
+  z-index: var(--z-dropdown, 1000);
 }
 
 .custom-dropdown-menu.upward {
@@ -2704,12 +2747,14 @@ select.text-input option,
   color: #fff !important;
 }
 
-.bucket-delete-confirm-backdrop {
+/* The shared confirmation dialog. When it stacks over another dialog (e.g. the
+ * group form), it must sit above it and dim it. */
+.confirm-dialog-backdrop {
   z-index: 1100;
   background: rgba(0, 0, 0, 0.55) !important;
 }
 
-.bucket-delete-confirm-modal {
+.confirm-dialog-backdrop .modal-card {
   max-width: 420px;
 }
 

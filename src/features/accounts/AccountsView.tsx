@@ -167,7 +167,7 @@ export function AccountsView(props: {
                 <MenuIcon />
               </button>
             ) : null}
-            <h1 className="eyebrow">
+            <h1 className="eyebrow" tabIndex={-1} style={{ outline: "none" }}>
               {props.selectedGroup.type === "all"
                 ? props.allAccounts.length === 0 ? "Dashboard" : "All accounts"
                 : `${props.selectedGroup.title} Accounts`}
@@ -205,49 +205,66 @@ export function AccountsView(props: {
       </header>
 
       <div ref={scrollRef} className="dashboard-scroll">
-        <section className="summary-strip">
+        <section className="summary-strip" aria-label="Account status overview">
           <div className="summary-card total-card">
-            <div><span className="summary-label">Accounts</span><strong className="summary-helper">Healthy</strong></div>
-            <div className="summary-value-cluster"><strong>{props.accounts.length - props.needsAttention}</strong><UsersIcon /></div>
+            <div>
+              <span className="summary-label">Accounts</span>
+              <strong className="summary-helper">
+                {props.needsAttention > 0
+                  ? `${props.accounts.length - props.needsAttention} healthy`
+                  : "Total"}
+              </strong>
+            </div>
+            <div className="summary-value-cluster">
+              <strong>{props.accounts.length}</strong>
+              <UsersIcon />
+            </div>
           </div>
-          <div
-            className={`summary-card attention-card ${props.needsAttention ? "has-attention is-clickable" : ""} ${showAttentionOnly ? "is-filtering" : ""}`}
-            role={props.needsAttention ? "button" : undefined}
-            tabIndex={props.needsAttention ? 0 : undefined}
-            aria-pressed={props.needsAttention ? showAttentionOnly : undefined}
-            aria-describedby={props.needsAttention > 0 ? ATTENTION_HINT_ID : undefined}
-            data-tooltip={
-              props.needsAttention > 0
-                ? showAttentionOnly
+          {props.needsAttention > 0 ? (
+            <button
+              type="button"
+              className={`summary-card attention-card has-attention is-clickable ${showAttentionOnly ? "is-filtering" : ""}`}
+              aria-pressed={showAttentionOnly}
+              aria-describedby={ATTENTION_HINT_ID}
+              data-tooltip={
+                showAttentionOnly
                   ? "Show all accounts"
                   : "Show only accounts needing attention"
-                : undefined
-            }
-            onClick={() => {
-              if (props.needsAttention > 0) {
-                setShowAttentionOnly((prev) => !prev);
               }
-            }}
-            onKeyDown={(event) => {
-              if (props.needsAttention > 0 && (event.key === "Enter" || event.key === " ")) {
-                event.preventDefault();
+              onClick={() => {
                 setShowAttentionOnly((prev) => !prev);
-              }
-            }}
-          >
-            <div>
-              <span className="summary-label">Action Needed</span>
-              <strong className="summary-helper">{props.needsAttention ? <AlertCircleIcon /> : <CheckCircleIcon />}{props.needsAttention ? formatCount(props.needsAttention, ACCOUNT_FORMS) : "All good"}</strong>
-            </div>
-            <div className="summary-value-cluster"><strong>{props.needsAttention}</strong><AlertCircleIcon /></div>
-            {props.needsAttention > 0 ? (
+              }}
+            >
+              <div>
+                <span className="summary-label">Action Needed</span>
+                <strong className="summary-helper">
+                  <AlertCircleIcon /> Requires attention
+                </strong>
+              </div>
+              <div className="summary-value-cluster">
+                <strong>{props.needsAttention}</strong>
+                <AlertCircleIcon />
+              </div>
               <span id={ATTENTION_HINT_ID} className="sr-only">
                 {showAttentionOnly
                   ? "Currently showing only accounts needing attention. Activate to show all accounts."
                   : "Activate to show only accounts needing attention."}
               </span>
-            ) : null}
-          </div>
+            </button>
+          ) : (
+            <div className="summary-card attention-card">
+              <div>
+                <span className="summary-label">Action Needed</span>
+                <strong className="summary-helper">
+                  <CheckCircleIcon /> All good
+                </strong>
+              </div>
+              <div className="summary-value-cluster">
+                <strong>0</strong>
+                <AlertCircleIcon />
+              </div>
+            </div>
+          )}
           <NextResetCard accounts={props.accounts} />
         </section>
 

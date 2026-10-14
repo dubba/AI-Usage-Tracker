@@ -34,6 +34,16 @@
   user-select: none;
 }
 
+.ui-modal-close::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px;
+  min-height: 44px;
+}
+
 .ui-modal-close svg {
   width: 20px;
   height: 20px;

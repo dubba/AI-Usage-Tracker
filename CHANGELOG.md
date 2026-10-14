@@ -1,6 +1,40 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (29 changes)
+
+### Improved (6)
+
+- In Link Devices, technical failure details are replaced by plain-language messages that say what the app was doing and what to try next, and screen readers now announce each step (connecting, confirming, transferring, success) and speak failures as alerts, moving focus to the Try Again button. The send/receive choice cards no longer pretend to be page headings to assistive technology.
+- Deleting an account group and discarding unsaved edits now use the same confirmation dialog as removing an account: it says exactly what is lost and what stays, and cancelling it returns to the form with your edits untouched. Focus now reliably returns to the button that opened a dialog when the dialog closes.
+- Keyboard focus is now clearly visible across both themes on custom dropdowns, account cards, alert checkboxes, and summary cards.
+- Custom dropdowns now announce their purpose to screen readers (such as "Theme", "Refresh interval", "Alert threshold", or "Provider") rather than only their current value, support Home and End keys to jump to the first and last options, and reliably return focus to the trigger button when closed.
+- Navigating between views or selecting a different group in the sidebar now moves focus to the view's primary heading so screen readers announce the new page title and keyboard navigation begins at the main content.
+- On mobile devices, compact buttons including the account card actions menu, rename buttons, group edit button, and toast and error dismiss buttons now provide comfortable touch hit areas meeting accessibility guidelines.
+
+### Fixed (23)
+
+- The Sign in with Google window is now taller, so the 2-step verification page fits without scrolling.
+- The Paseo Bridge window now opens tall enough to show its connection details without scrolling.
+- In Link Devices, a failure notice now has space above and below it, so it no longer sits on the buttons underneath.
+- In Link Devices, Back is on the left when a transfer could not be prepared. Try Again is on the right.
+- In Link Devices, Show Link Code, Enter Link Code, Show QR Code, and Scan QR Code now leave the same space under their description as Send, Receive, and the transfer-settings choice.
+- The Advanced heading in Settings now shows its full keyboard focus ring. The left side was cut off.
+- In Link Devices, the Send and Receive choices now leave the same space between their description and the bottom of the card as the transfer-settings choice.
+- Settings switches, such as Launch at Startup, now show a purple focus ring when you reach them with the keyboard, matching the dropdowns and buttons on that page.
+- In the light theme, usage reminder toasts, the error banner at the top, and the startup screen now use theme-aware colors, so their text is readable instead of dark-on-dark, and hovering the air-gap playback buttons no longer turns the text white on a light background.
+- Clicking outside the Link Devices dialog no longer closes it while a transfer is running; previously the backdrop bypassed the busy guard that the close button and Cancel already used.
+- Notification settings and the other dialogs now block every dismissal path (Escape, backdrop, close button, Cancel) while a save is in progress, instead of only some of them.
+- When preparing an animated air-gap transfer fails, the dialog no longer spins "Preparing animated transfer…" forever; it now shows what went wrong with Try Again and Back options.
+- On iPhone, usage reminder toasts no longer sit under the home indicator; they now respect the screen's bottom safe area like on Android.
+- The camera error screen in Link Devices no longer sweeps the scan beam as if it were still scanning, and it now offers a Retry Camera button that restarts the camera.
+- After a failed pairing link and other failed joins, Try Again now repeats the connection that failed instead of just returning to the connection choices.
+- When the shown link code's countdown reaches zero, Link Devices now says the code expired and offers Generate New Code instead of leaving a dead code on screen.
+- The Add Account dialog's backdrop now behaves like its close button: clicking outside during sign-in closes the dialog and cancels the sign-in, instead of doing nothing.
+- Closing the group editor or the Add Account dialog with Escape, the backdrop, the close button, or Cancel no longer silently throws away unsaved changes; the dialog first asks whether to discard them.
+- The account summary strip now shows the total account count on the Accounts card, and the Action Needed card is now a native interactive button that avoids repeating the account count in its helper text.
+- The link code entry input in Link Devices is now properly named for screen readers.
+- In Link Devices, the Retry Camera button in the camera permission error now leaves the same space above it as below it.
+- In Settings, the Advanced keyboard focus ring now lines up with the edge of the settings cards, its label stays aligned with the other section titles, and the chevron sits as close to the ring on the right as the label does on the left, whether it points right or down.
 
 ## v0.4.3 - 2026-10-14 (20 changes)
 

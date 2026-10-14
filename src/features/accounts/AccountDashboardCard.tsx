@@ -167,7 +167,7 @@ export function AccountDashboardCard({
 
   const toggleMobileMenu = () => {
     if (mobileMenuOpen) {
-      closeMobileMenu(false);
+      closeMobileMenu(true);
     } else {
       openMobileMenu();
     }
@@ -466,21 +466,21 @@ export function AccountDashboardCard({
                 >
                   {onMove ? (
                     <>
-                      <button type="button" role="menuitem" className="mobile-dropdown-item move-action" disabled={cardBusy || !canMoveUp} onClick={() => { closeMobileMenu(false); requestMove(-1); }}>
+                      <button type="button" role="menuitem" className="mobile-dropdown-item move-action" disabled={cardBusy || !canMoveUp} onClick={() => { closeMobileMenu(true); requestMove(-1); }}>
                         <ArrowUpIcon /> Move up
                       </button>
-                      <button type="button" role="menuitem" className="mobile-dropdown-item move-action" disabled={cardBusy || !canMoveDown} onClick={() => { closeMobileMenu(false); requestMove(1); }}>
+                      <button type="button" role="menuitem" className="mobile-dropdown-item move-action" disabled={cardBusy || !canMoveDown} onClick={() => { closeMobileMenu(true); requestMove(1); }}>
                         <ArrowDownIcon /> Move down
                       </button>
                     </>
                   ) : null}
-                  <button type="button" role="menuitem" className="mobile-dropdown-item mobile-only-item refresh-action" disabled={cardBusy || isGlobalRefresh} onClick={() => { closeMobileMenu(false); onRefresh(); }}>
+                  <button type="button" role="menuitem" className="mobile-dropdown-item mobile-only-item refresh-action" disabled={cardBusy || isGlobalRefresh} onClick={() => { closeMobileMenu(true); onRefresh(); }}>
                     <RefreshIcon /> Refresh
                   </button>
-                  <button type="button" role="menuitem" className="mobile-dropdown-item mobile-only-item notify-action" disabled={cardBusy} onClick={() => { closeMobileMenu(false); onNotifications(); }}>
+                  <button type="button" role="menuitem" className="mobile-dropdown-item mobile-only-item notify-action" disabled={cardBusy} onClick={() => { closeMobileMenu(true); onNotifications(); }}>
                     <BellIcon /> Notifications
                   </button>
-                  <button type="button" role="menuitem" className="mobile-dropdown-item mobile-only-item remove-action" disabled={cardBusy} onClick={() => { closeMobileMenu(false); onRemove(); }}>
+                  <button type="button" role="menuitem" className="mobile-dropdown-item mobile-only-item remove-action" disabled={cardBusy} onClick={() => { closeMobileMenu(true); onRemove(); }}>
                     <TrashIcon /> Remove
                   </button>
                 </div>

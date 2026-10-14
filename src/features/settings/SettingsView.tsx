@@ -108,7 +108,7 @@ export function SettingsView({
                 <MenuIcon />
               </button>
             ) : null}
-            <h1 className="eyebrow">App Settings</h1>
+            <h1 className="eyebrow" tabIndex={-1} style={{ outline: "none" }}>App Settings</h1>
           </div>
         </div>
       </header>
@@ -123,6 +123,7 @@ export function SettingsView({
             <div className="settings-account-refresh settings-theme-dropdown">
               <CustomDropdown<ThemePreference>
                 id="setting-theme"
+                aria-label="Theme"
                 value={themePreference}
                 options={THEME_OPTIONS}
                 onChange={setThemePreference}
@@ -143,6 +144,7 @@ export function SettingsView({
             </div>
             <div className="settings-account-refresh">
               <CustomDropdown<number>
+                aria-label="Refresh interval"
                 value={
                   appSettings?.accountRefreshMinutes != null &&
                   (ACCOUNT_REFRESH_OPTIONS as readonly number[]).includes(appSettings.accountRefreshMinutes)

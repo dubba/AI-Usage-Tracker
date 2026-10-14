@@ -73,6 +73,9 @@ export function CustomDropdown<T extends string | number>({
   disabled = false,
   placeholder = "Select an option",
   className = "",
+  ariaLabel,
+  "aria-label": ariaLabelProp,
+  "aria-labelledby": ariaLabelledBy,
 }: {
   id?: string;
   value: T;
@@ -81,6 +84,9 @@ export function CustomDropdown<T extends string | number>({
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  ariaLabel?: string;
+  "aria-label"?: string;
+  "aria-labelledby"?: string;
 }) {
   const generatedId = useId();
   const dropdownId = id ?? generatedId;
@@ -89,6 +95,7 @@ export function CustomDropdown<T extends string | number>({
   const [placement, setPlacement] = useState<MenuPlacement>({ openUpward: false, style: {} });
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
   const selectedOption = options.find((opt) => opt.value === value);
@@ -100,9 +107,12 @@ export function CustomDropdown<T extends string | number>({
     setIsOpen(true);
   };
 
-  const closeMenu = () => {
+  const closeMenu = (restoreFocus = false) => {
     setIsOpen(false);
     setHighlightedIndex(-1);
+    if (restoreFocus) {
+      triggerRef.current?.focus();
+    }
   };
 
   useLayoutEffect(() => {
@@ -149,7 +159,8 @@ export function CustomDropdown<T extends string | number>({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        closeMenu();
+        event.preventDefault();
+        closeMenu(true);
       }
     };
 
@@ -177,7 +188,7 @@ export function CustomDropdown<T extends string | number>({
       if (isOpen) {
         if (highlightedIndex >= 0 && highlightedIndex < options.length) {
           onChange(options[highlightedIndex].value);
-          closeMenu();
+          closeMenu(true);
         }
       } else {
         openMenu();
@@ -196,6 +207,21 @@ export function CustomDropdown<T extends string | number>({
       } else {
         setHighlightedIndex((prev) => (prev - 1 >= 0 ? prev - 1 : options.length - 1));
       }
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      if (!isOpen) {
+        openMenu();
+      }
+      setHighlightedIndex(0);
+    } else if (event.key === "End") {
+      event.preventDefault();
+      if (!isOpen) {
+        openMenu();
+      }
+      setHighlightedIndex(options.length - 1);
+    } else if (event.key === "Escape" && isOpen) {
+      event.preventDefault();
+      closeMenu(true);
     } else if (event.key === "Tab" && isOpen) {
       closeMenu();
     }
@@ -207,12 +233,15 @@ export function CustomDropdown<T extends string | number>({
       className={`custom-dropdown-container ${className} ${disabled ? "disabled" : ""} ${isOpen ? "open" : ""}`}
     >
       <button
+        ref={triggerRef}
         type="button"
         id={dropdownId}
         className="custom-dropdown-trigger"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-controls={listboxId}
+        aria-label={ariaLabelProp ?? ariaLabel}
+        aria-labelledby={ariaLabelledBy}
         aria-activedescendant={
           isOpen && highlightedIndex >= 0 ? `${dropdownId}-opt-${highlightedIndex}` : undefined
         }
@@ -276,7 +305,7 @@ export function CustomDropdown<T extends string | number>({
                 }`}
                 onClick={() => {
                   onChange(option.value);
-                  closeMenu();
+                  closeMenu(true);
                 }}
                 onMouseEnter={() => setHighlightedIndex(index)}
               >

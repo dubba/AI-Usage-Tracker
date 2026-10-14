@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it } from "vitest";
-import { click, mount, type Mounted } from "../../test-utils/react";
+import { act } from "react";
+import { click, mount, settle, type Mounted } from "../../test-utils/react";
 import type { Account } from "../../types";
 import { CREDENTIAL_PROTECTION_ACCOUNT_NOTE } from "../dashboard/credential-protection";
 import { AccountDashboardCard, computeAccountCardMenuPlacement } from "./AccountDashboardCard";
@@ -223,6 +224,35 @@ describe("AccountDashboardCard actions dropdown placement", () => {
 
     const placement = computeAccountCardMenuPlacement(fakeToggle, false, menu);
     expect(placement.openUpward).toBe(true);
+  });
+
+  it("restores focus to toggle button when mobile menu closes on Escape", async () => {
+    app = mount(
+      <AccountDashboardCard
+        pageId="all"
+        account={account}
+        busy={new Set()}
+        onRefresh={() => undefined}
+        onReconnect={() => undefined}
+        onConnectGoogleUsage={() => undefined}
+        onRename={async () => undefined}
+        onRemove={() => undefined}
+        onNotifications={() => undefined}
+      />,
+    );
+    const toggle = app.container.querySelector<HTMLButtonElement>(".mobile-dropdown-toggle")!;
+    toggle.focus();
+    click(toggle);
+    expect(document.querySelector(".mobile-dropdown-menu")).not.toBeNull();
+
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    await settle();
+    expect(document.querySelector(".mobile-dropdown-menu")).toBeNull();
+    // closeMobileMenu uses setTimeout to restore focus after unmount
+    await new Promise((r) => setTimeout(r, 20));
+    expect(document.activeElement).toBe(toggle);
   });
 });
 

@@ -383,6 +383,11 @@ select.text-input option {
   position: relative;
 }
 
+.alert-window-toggle input:focus-visible + .alert-checkbox {
+  outline: 2px solid var(--purple);
+  outline-offset: 2px;
+}
+
 .alert-window-toggle input:checked + .alert-checkbox {
   background: #7654d5;
   border-color: var(--c-8d69e4);

@@ -127,4 +127,66 @@ describe("CustomDropdown", () => {
     });
     expect(document.querySelector(".custom-dropdown-menu")).toBeNull();
   });
+
+  it("applies aria-label to the trigger button", () => {
+    app = mount(
+      <CustomDropdown value="claude" options={OPTIONS} onChange={onChange} id="provider" aria-label="Provider" />,
+    );
+    const trigger = document.getElementById("provider")!;
+    expect(trigger.getAttribute("aria-label")).toBe("Provider");
+  });
+
+  it("navigates to first and last options with Home and End keys", () => {
+    app = mount(
+      <CustomDropdown value="claude" options={OPTIONS} onChange={onChange} id="provider" />,
+    );
+    const trigger = document.getElementById("provider")!;
+    click(trigger);
+
+    // Press End -> last option highlighted
+    act(() => {
+      trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
+    });
+    const items = document.querySelectorAll<HTMLElement>(".custom-dropdown-item");
+    expect(items[2].classList.contains("highlighted")).toBe(true);
+
+    // Press Home -> first option highlighted
+    act(() => {
+      trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
+    });
+    expect(items[0].classList.contains("highlighted")).toBe(true);
+  });
+
+  it("restores focus to trigger when closed with Escape", () => {
+    app = mount(
+      <CustomDropdown value="claude" options={OPTIONS} onChange={onChange} id="provider" />,
+    );
+    const trigger = document.getElementById("provider")!;
+    trigger.focus();
+    click(trigger);
+    expect(document.querySelector(".custom-dropdown-menu")).not.toBeNull();
+
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    expect(document.querySelector(".custom-dropdown-menu")).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("restores focus to trigger when an option is selected", () => {
+    app = mount(
+      <CustomDropdown value="claude" options={OPTIONS} onChange={onChange} id="provider" />,
+    );
+    const trigger = document.getElementById("provider")!;
+    trigger.focus();
+    click(trigger);
+
+    const option = Array.from(document.querySelectorAll<HTMLElement>(".custom-dropdown-item")).find((item) =>
+      item.textContent?.includes("OpenAI ChatGPT"),
+    )!;
+    click(option);
+    expect(onChange).toHaveBeenCalledWith("openai");
+    expect(document.querySelector(".custom-dropdown-menu")).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
 });

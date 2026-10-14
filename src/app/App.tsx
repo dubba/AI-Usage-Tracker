@@ -310,6 +310,20 @@ export default function App() {
     },
   });
 
+  const isInitialMount = useRef(true);
+  const activeViewKey = `${section}:${selectedGroupId}`;
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    // After view changes, move focus to the new view's primary heading so screen readers announce it
+    window.setTimeout(() => {
+      const heading = document.querySelector<HTMLElement>(".main-stage h1.eyebrow");
+      heading?.focus();
+    }, 0);
+  }, [activeViewKey]);
+
   const moveGroup = (group: SidebarGroup, delta: -1 | 1) => {
     const move = moveById(sidebarGroups.map((candidate) => candidate.id), group.id, delta);
     if (!move) return;

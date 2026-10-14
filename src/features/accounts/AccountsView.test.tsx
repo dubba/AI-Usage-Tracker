@@ -126,3 +126,62 @@ describe("AccountsView empty dashboard", () => {
     expect(document.body.textContent).not.toContain("Link Devices");
   });
 });
+
+describe("AccountsView summary cards", () => {
+  let app: Mounted | null = null;
+
+  afterEach(() => {
+    app?.unmount();
+    app = null;
+  });
+
+  it("displays total accounts count and healthy count in Accounts card", () => {
+    app = renderView({
+      allAccounts: [account, { ...account, id: "acct-2" }],
+      accounts: [account, { ...account, id: "acct-2" }],
+      selectedGroup: { ...allGroup, accounts: [account, { ...account, id: "acct-2" }] },
+      needsAttention: 1,
+    });
+    const totalCard = document.querySelector(".summary-card.total-card")!;
+    expect(totalCard).not.toBeNull();
+    expect(totalCard.querySelector(".summary-value-cluster strong")?.textContent).toBe("2");
+    expect(totalCard.querySelector(".summary-helper")?.textContent).toContain("1 healthy");
+  });
+
+  it("renders Action Needed as a native button when attention is required, without duplicate counts", () => {
+    app = renderView({
+      allAccounts: [account, { ...account, id: "acct-2" }],
+      accounts: [account, { ...account, id: "acct-2" }],
+      selectedGroup: { ...allGroup, accounts: [account, { ...account, id: "acct-2" }] },
+      needsAttention: 2,
+    });
+    const attentionBtn = document.querySelector<HTMLButtonElement>("button.summary-card.attention-card");
+    expect(attentionBtn).not.toBeNull();
+    expect(attentionBtn?.tagName).toBe("BUTTON");
+    expect(attentionBtn?.getAttribute("type")).toBe("button");
+    expect(attentionBtn?.getAttribute("aria-pressed")).toBe("false");
+    expect(attentionBtn?.querySelector(".summary-helper")?.textContent).toContain("Requires attention");
+    expect(attentionBtn?.querySelector(".summary-value-cluster strong")?.textContent).toBe("2");
+
+    // Click toggles filtering
+    click(attentionBtn!);
+    expect(attentionBtn?.getAttribute("aria-pressed")).toBe("true");
+    expect(document.querySelector(".filter-active-banner")).not.toBeNull();
+  });
+
+  it("renders Action Needed as a non-interactive div when all accounts are good", () => {
+    app = renderView({
+      allAccounts: [account],
+      accounts: [account],
+      selectedGroup: { ...allGroup, accounts: [account] },
+      needsAttention: 0,
+    });
+    expect(document.querySelector("button.summary-card.attention-card")).toBeNull();
+    const attentionDiv = document.querySelector<HTMLDivElement>("div.summary-card.attention-card")!;
+    expect(attentionDiv).not.toBeNull();
+    expect(attentionDiv.tagName).toBe("DIV");
+    expect(attentionDiv.querySelector(".summary-helper")?.textContent).toContain("All good");
+    expect(attentionDiv.querySelector(".summary-value-cluster strong")?.textContent).toBe("0");
+  });
+});
+

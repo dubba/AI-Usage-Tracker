@@ -50,7 +50,20 @@
     --obsidian-red: #ff8585;
     --opencode-mark-back: #4b4646;
     --opencode-mark-front: #f1ecec;
+    /* In-app usage-alert toasts and dismissible error banners. Text colors come from
+     * the inverting --c-* palette, so the surfaces and borders must invert too. */
+    --toast-surface: rgba(22, 19, 32, 0.95);
+    --toast-border: rgba(192, 132, 252, 0.35);
+    --toast-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 0 0 16px rgba(168, 85, 247, 0.22);
+    --danger-banner-surface: rgba(38, 18, 20, 0.96);
+    --danger-banner-border: rgba(255, 111, 111, 0.4);
     color-scheme: dark;
+    /* Documented z-index scale by role */
+    --z-dropdown: 1000;
+    --z-tooltip: 1100;
+    --z-modal: 10000;
+    --z-toast: 10100;
+    --z-error-banner: 10200;
     --safe-area-top: max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px));
     --safe-area-bottom: max(var(--android-safe-bottom, 0px), env(safe-area-inset-bottom, 0px));
     --safe-area-left: max(var(--android-safe-left, 0px), env(safe-area-inset-left, 0px));
@@ -90,5 +103,10 @@
     --obsidian-red: #c93b3b;
     --opencode-mark-back: #b9b3b3;
     --opencode-mark-front: #4b4646;
+    --toast-surface: rgba(255, 255, 255, 0.97);
+    --toast-border: rgba(118, 80, 217, 0.4);
+    --toast-shadow: 0 12px 32px rgba(28, 27, 31, 0.2), 0 0 14px rgba(118, 80, 217, 0.14);
+    --danger-banner-surface: rgba(253, 242, 242, 0.97);
+    --danger-banner-border: rgba(208, 58, 58, 0.45);
   }
 }

@@ -124,15 +124,29 @@
   display: inline-grid;
   place-items: center;
   box-sizing: border-box;
-  width: 22px;
-  height: 22px !important;
-  min-width: 22px !important;
+  width: 24px;
+  height: 24px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
   padding: 0;
   border-width: 1px;
   border-style: solid;
   border-radius: 4px;
   cursor: pointer;
   vertical-align: middle;
+  position: relative;
+}
+
+.account-name-edit::before,
+.account-name-confirm::before,
+.account-name-cancel::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 36px;
+  min-height: 44px;
 }
 
 .account-name-edit {
@@ -322,7 +336,7 @@
   position: absolute;
   left: 50%;
   top: calc(100% + 8px);
-  z-index: 1000;
+  z-index: var(--z-tooltip, 1100);
   transform: translateX(-50%);
   padding: 6px 9px;
   border: 1px solid #6d3bd7;
@@ -765,9 +779,9 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 /* In-App Usage Alert Toasts */
 .usage-alert-toast-container {
   position: fixed;
-  bottom: calc(24px + var(--android-safe-bottom, 0px));
+  bottom: calc(24px + var(--safe-area-bottom, 0px));
   right: 24px;
-  z-index: 10000;
+  z-index: var(--z-toast, 10100);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -778,13 +792,13 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 
 .usage-alert-toast {
   pointer-events: auto;
-  background: rgba(22, 19, 32, 0.95);
+  background: var(--toast-surface);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(192, 132, 252, 0.35);
+  border: 1px solid var(--toast-border);
   border-radius: 12px;
   padding: 14px 16px;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 0 0 16px rgba(168, 85, 247, 0.22);
+  box-shadow: var(--toast-shadow);
   display: flex;
   align-items: flex-start;
   gap: 12px;
@@ -860,7 +874,9 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   border: none;
   color: var(--c-9ca3af);
   cursor: pointer;
-  padding: 4px;
+  padding: 10px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 6px;
   flex-shrink: 0;
   display: flex;
@@ -884,7 +900,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
     left: 16px;
     right: 16px;
     width: auto;
-    bottom: calc(16px + var(--android-safe-bottom, 0px));
+    bottom: calc(16px + var(--safe-area-bottom, 0px));
   }
 }
 
@@ -894,7 +910,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   top: calc(12px + var(--safe-area-top, 0px));
   left: 50%;
   transform: translateX(-50%);
-  z-index: 10001;
+  z-index: var(--z-error-banner, 10200);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -909,8 +925,8 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   gap: 10px;
   padding: 11px 12px 11px 14px;
   border-radius: 10px;
-  background: rgba(38, 18, 20, 0.96);
-  border: 1px solid rgba(255, 111, 111, 0.4);
+  background: var(--danger-banner-surface);
+  border: 1px solid var(--danger-banner-border);
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
   color: var(--c-ffbcbc);
   font-size: 13px;
@@ -928,7 +944,9 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
+  padding: 10px;
+  min-width: 44px;
+  min-height: 44px;
   border: none;
   border-radius: 6px;
   background: transparent;
@@ -1279,6 +1297,16 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .settings-style-content .toggle.on:hover:not(:disabled) {
   background-color: #5c2fc0 !important;
   outline-color: var(--obsidian-purple-strong);
+}
+
+/* The resting outline above beats the global :focus-visible ring. Restore the
+   same ring the settings dropdowns use, outside the track so the knob stays put.
+   Drop the outline-color fade while focused so the ring is purple immediately
+   instead of fading in from the transparent resting outline. */
+.settings-style-content .toggle:focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: 2px;
+  transition: background-color 140ms ease;
 }
 
 /* Settings: Account Updates dropdown trigger & menu matching refresh all button look & feel */
