@@ -10,17 +10,21 @@ const RECORDING_WARNING =
 export function AirgapSenderView({
   exportData,
   busy,
+  error,
   frameIndex,
   playing,
   speed,
   onTogglePlaying,
   onToggleSpeed,
   onContinue,
+  onRetry,
   onBack,
   onCancel,
 }: {
   exportData: AirgapExport | null;
   busy: boolean;
+  /** Preparing the export failed; the raw detail of the error. */
+  error: string | null;
   frameIndex: number;
   playing: boolean;
   speed: AirgapSpeed;
@@ -28,12 +32,29 @@ export function AirgapSenderView({
   onToggleSpeed: () => void;
   /** All frames were scanned; move on to comparing codes. */
   onContinue: () => void;
+  /** Preparing failed; run the export again. */
+  onRetry: () => void;
   onBack: () => void;
   onCancel: () => void;
 }) {
+  const failed = !busy && !exportData && error != null;
   return (
     <div className="airgap-sender-view">
-      {busy || !exportData ? (
+      {failed ? (
+        <div className="pairing-panel-status" role="alert">
+          <h3>Couldn't prepare the transfer</h3>
+          <div className="error-panel modal-error">{error}</div>
+          <div className="pairing-nav-row">
+            <button type="button" className="button pairing-back-btn" onClick={onBack}>
+              <ChevronIcon style={{ transform: "rotate(180deg)" }} />
+              <span>Back</span>
+            </button>
+            <button type="button" className="button primary" onClick={onRetry}>
+              Try Again
+            </button>
+          </div>
+        </div>
+      ) : busy || !exportData ? (
         <div className="pairing-panel-status">
           <span className="spinner" />
           <h3>Preparing animated transfer…</h3>

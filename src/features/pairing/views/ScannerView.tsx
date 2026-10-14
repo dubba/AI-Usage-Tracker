@@ -17,6 +17,8 @@ export interface ScannerViewProps {
   setVideoReady: (ready: boolean) => void;
   onScannerTap: () => void;
   onSwitchCamera: () => void;
+  /** The camera could not start; try opening it again. */
+  onRetryCamera: () => void;
   onAirgapBack: () => void;
   onAirgapImport: () => void;
   onBack: () => void;
@@ -38,6 +40,7 @@ export function ScannerView({
   setVideoReady,
   onScannerTap,
   onSwitchCamera,
+  onRetryCamera,
   onAirgapBack,
   onAirgapImport,
   onBack,
@@ -130,7 +133,8 @@ export function ScannerView({
                   <span className="corner top-right" />
                   <span className="corner bottom-left" />
                   <span className="corner bottom-right" />
-                  <div className="pairing-scan-beam" />
+                  {/* The beam means "the camera is reading codes now" — show it only while that is true. */}
+                  {videoReady && !cameraError ? <div className="pairing-scan-beam" /> : null}
                 </div>
               </div>
             </div>
@@ -184,7 +188,12 @@ export function ScannerView({
           </div>
 
           {cameraError && (
-            <div className="error-panel modal-error">{cameraError}</div>
+            <div className="error-panel modal-error pairing-camera-error" role="alert">
+              <span>{cameraError}</span>
+              <button type="button" className="button ghost compact-button" onClick={onRetryCamera}>
+                Retry Camera
+              </button>
+            </div>
           )}
         </>
       )}

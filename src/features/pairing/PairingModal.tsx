@@ -20,6 +20,12 @@ import {
 } from "./lib/view-model";
 import { collectUiState } from "../dashboard/ui-state";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
+import { backdropMouseDown, useModalClosePolicy } from "../../shared/hooks/useModalClosePolicy";
+import {
+  errorMessage as rawErrorMessage,
+  friendlyMessage,
+  recordErrorDetail,
+} from "../../shared/lib/errors";
 import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
 import { AirgapConfirmView } from "./views/AirgapConfirmView";
 import { AirgapSenderView } from "./views/AirgapSenderView";
@@ -74,12 +80,26 @@ export function PairingModal({
   const dialogRef = useRef<HTMLElement>(null);
   const hostStartIdRef = useRef(0);
   const roleAutoSelectedRef = useRef(false);
+  // The pairing link (deep link or link opened in-app) this session joined through, so
+  // "Try Again" after a failed link join can repeat the join instead of jumping to the mode picker.
+  const joinUriRef = useRef<string | null>(null);
+
+  // Every pairing failure goes through the friendly-message utility: what was being done,
+  // a plain explanation, and the raw detail kept for Copy Diagnostics.
+  const showError = (context: string, cause: unknown) => {
+    const raw = rawErrorMessage(cause);
+    recordErrorDetail("pairing", context, raw);
+    setErrorMessage(friendlyMessage(context, raw));
+  };
 
   const player = useAirgapPlayer(airgapExport, viewMode === "airgap-sender");
   const capture = useAirgapCapture({
     active: open && viewMode === "scanner",
     onVerifyStart: () => setErrorMessage(null),
-    onVerifyError: setErrorMessage,
+    onVerifyError: (raw) => {
+      recordErrorDetail("pairing", "Couldn't verify the scanned frames", raw);
+      setErrorMessage(friendlyMessage("Couldn't verify the scanned frames", raw));
+    },
     onRescan: () => setScannerRestartKey((key) => key + 1),
   });
 
@@ -133,7 +153,11 @@ export function PairingModal({
     onClose();
   };
 
-  useModalA11y(dialogRef, open, handleClose);
+  // Shared close policy: while a transfer runs, no dismissal path (X, Escape,
+  // backdrop, Cancel) may close the modal.
+  const requestClose = useModalClosePolicy(status.status !== "transferring", handleClose);
+
+  useModalA11y(dialogRef, open, requestClose);
 
   useEffect(() => {
     if (
@@ -169,7 +193,7 @@ export function PairingModal({
     setBusy(true);
     setErrorMessage(null);
     void pairingApi.selectRole(intendedRole).catch((err) => {
-      setErrorMessage(String(err));
+      showError("Couldn't apply the send or receive role", err);
       roleAutoSelectedRef.current = false;
       setBusy(false);
     });
@@ -228,11 +252,36 @@ export function PairingModal({
       });
     } catch (err) {
       if (startId !== hostStartIdRef.current) return;
-      setErrorMessage(String(err));
+      showError("Couldn't start the pairing session", err);
     } finally {
       if (startId === hostStartIdRef.current) setBusy(false);
     }
   };
+
+  /** Join a session from a pairing link: a deep link, or one handed to the modal on open. */
+  const startFromUri = useCallback(
+    async (pendingUri: string) => {
+      joinUriRef.current = pendingUri;
+      hostStartIdRef.current += 1;
+      dispatchFlow({ type: "set-flow", flow: "wifi" });
+      setBusy(true);
+      setStatus({ status: "clientConnecting", data: { sessionId: "" } });
+      try {
+        await pairingApi.startClient(pendingUri);
+      } catch (err) {
+        setBusy(false);
+        const raw = rawErrorMessage(err);
+        recordErrorDetail("pairing", "Couldn't connect with the link", raw);
+        const msg = friendlyMessage("Couldn't connect with the link", raw);
+        setErrorMessage(msg);
+        setStatus({
+          status: "failed",
+          data: { error: msg },
+        });
+      }
+    },
+    [setStatus],
+  );
 
   // On open: join straight away if a pairing link is waiting; on close: forget everything.
   useEffect(() => {
@@ -250,6 +299,7 @@ export function PairingModal({
       setAvailableCameras([]);
       setAirgapExport(null);
       hostStartIdRef.current += 1;
+      joinUriRef.current = null;
       return;
     }
 
@@ -273,21 +323,7 @@ export function PairingModal({
         pendingUri &&
         (pendingUri.startsWith("aiusage-pair:") || pendingUri.startsWith("aiusage:"))
       ) {
-        hostStartIdRef.current += 1;
-        dispatchFlow({ type: "set-flow", flow: "wifi" });
-        setBusy(true);
-        setStatus({ status: "clientConnecting", data: { sessionId: "" } });
-        try {
-          await pairingApi.startClient(pendingUri);
-        } catch (err) {
-          setBusy(false);
-          const msg = err instanceof Error ? err.message : String(err);
-          setErrorMessage(msg);
-          setStatus({
-            status: "failed",
-            data: { error: msg },
-          });
-        }
+        void startFromUri(pendingUri);
         return;
       }
 
@@ -295,7 +331,7 @@ export function PairingModal({
     };
 
     void checkPendingAndStart();
-  }, [open, initialJoinUri, setStatus]);
+  }, [open, initialJoinUri, setStatus, startFromUri]);
 
   if (!open) return null;
 
@@ -308,7 +344,7 @@ export function PairingModal({
     try {
       await pairingApi.startClientByCode(digits);
     } catch (err) {
-      setErrorMessage(String(err));
+      showError("Couldn't connect with that code", err);
     } finally {
       setBusy(false);
     }
@@ -320,7 +356,7 @@ export function PairingModal({
     try {
       await pairingApi.selectRole(role);
     } catch (err) {
-      setErrorMessage(String(err));
+      showError("Couldn't apply the send or receive role", err);
       roleAutoSelectedRef.current = false;
       setBusy(false);
     }
@@ -338,7 +374,7 @@ export function PairingModal({
       setAirgapExport(exp);
       player.restart();
     } catch (err) {
-      setErrorMessage(String(err));
+      showError("Couldn't prepare the transfer", err);
     } finally {
       setBusy(false);
     }
@@ -360,7 +396,7 @@ export function PairingModal({
       });
       onCompleted();
     } catch (err) {
-      setErrorMessage(String(err));
+      showError("Couldn't import the accounts", err);
     } finally {
       capture.setImporting(false);
     }
@@ -388,7 +424,7 @@ export function PairingModal({
       }
       await pairingApi.confirmSas(sessionId, confirmed);
     } catch (err) {
-      setErrorMessage(String(err));
+      showError("Couldn't confirm the codes", err);
       setConfirmedSas(false);
     } finally {
       setBusy(false);
@@ -413,6 +449,10 @@ export function PairingModal({
 
   const isWaitingState = isWaitingStatus(status.status);
   const hasOwnActionButtons = viewHasOwnActionButtons(status.status, viewMode);
+  // Preparing the air-gap export failed after the sender view was already
+  // shown: the view gets an explicit failed state instead of an endless spinner.
+  const airgapPrepareError =
+    viewMode === "airgap-sender" && !busy && !airgapExport ? errorMessage : null;
   const showSwitchCamera = availableCameras.length > 1 || isMobileDevice() || Boolean(import.meta.env?.DEV);
   const { title: modalTitle, subtitle: modalSubtitle, step, showStepDots } = pairingHeader({
     status: status.status,
@@ -427,7 +467,7 @@ export function PairingModal({
     <div
       className={`modal-backdrop ${isKeyboardOpen ? "keyboard-open" : ""}`}
       role="presentation"
-      onMouseDown={(e) => e.target === e.currentTarget && handleClose()}
+      onMouseDown={backdropMouseDown(requestClose)}
     >
       <section
         ref={dialogRef}
@@ -439,7 +479,11 @@ export function PairingModal({
         aria-labelledby="pairing-modal-title"
         tabIndex={-1}
       >
-        <ModalCloseButton onClose={handleClose} disabled={status.status === "transferring"} />
+        <ModalCloseButton onClose={requestClose} disabled={status.status === "transferring"} />
+        {/* Status changes are visual; announce them for screen reader users. */}
+        <div className="sr-only" role="status" aria-live="polite">
+          {modalTitle}. {modalSubtitle}
+        </div>
         <div className="modal-kicker">Local Device Sync</div>
         <h2 id="pairing-modal-title">{modalTitle}</h2>
         {showStepDots ? (
@@ -485,7 +529,13 @@ export function PairingModal({
             />
           )}
 
-          {isWaitingState && viewMode === "host" && <HostCodeView status={status} remainingSecs={remainingSecs} />}
+          {isWaitingState && viewMode === "host" && (
+            <HostCodeView
+              status={status}
+              remainingSecs={remainingSecs}
+              onRegenerate={() => void initHostSession()}
+            />
+          )}
 
           {isWaitingState && viewMode === "scanner" && (
             <ScannerView
@@ -504,6 +554,10 @@ export function PairingModal({
               setVideoReady={setVideoReady}
               onScannerTap={() => void handleScannerTap()}
               onSwitchCamera={() => void handleSwitchCamera()}
+              onRetryCamera={() => {
+                setCameraError(null);
+                setScannerRestartKey((key) => key + 1);
+              }}
               onAirgapBack={() => {
                 capture.rescan();
                 showView("scanner");
@@ -536,18 +590,20 @@ export function PairingModal({
             <AirgapSenderView
               exportData={airgapExport}
               busy={busy}
+              error={airgapPrepareError}
               frameIndex={player.frameIndex}
               playing={player.playing}
               speed={player.speed}
               onTogglePlaying={player.togglePlaying}
               onToggleSpeed={player.toggleSpeed}
               onContinue={() => showView("airgap-confirm")}
+              onRetry={() => void startAirgapSender()}
               onBack={() => {
                 setAirgapExport(null);
                 capture.clearCapture();
                 showView("select-mode", null);
               }}
-              onCancel={handleClose}
+              onCancel={requestClose}
             />
           )}
 
@@ -555,7 +611,7 @@ export function PairingModal({
             <AirgapConfirmView
               verifyCode={airgapExport.verifyCode}
               onBack={() => showView("airgap-sender")}
-              onCancel={handleClose}
+              onCancel={requestClose}
             />
           )}
 
@@ -595,6 +651,9 @@ export function PairingModal({
                   void startAirgapSender();
                 } else if (viewMode === "host") {
                   void initHostSession();
+                } else if (joinUriRef.current) {
+                  // The join through a link failed; retry that join.
+                  void startFromUri(joinUriRef.current);
                 } else {
                   dispatchFlow({ type: "set-flow", flow: null });
                   backToModes();
@@ -603,8 +662,8 @@ export function PairingModal({
             />
           )}
 
-          {errorMessage && (
-            <div className="error-panel modal-error">{errorMessage}</div>
+          {errorMessage && !airgapPrepareError && (
+            <div className="error-panel modal-error" role="alert">{errorMessage}</div>
           )}
         </div>
 
@@ -626,7 +685,7 @@ export function PairingModal({
             <button
               type="button"
               className="button ghost"
-              onClick={handleClose}
+              onClick={requestClose}
               disabled={status.status === "transferring"}
             >
               {status.status === "failed" ? "Close" : "Cancel"}

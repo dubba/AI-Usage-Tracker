@@ -109,6 +109,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  /* QR codes are black-on-white by design; keep a white card behind them in both themes. */
   background: #ffffff;
   padding: 10px;
   border-radius: 12px;
@@ -410,6 +411,13 @@
   justify-self: start;
 }
 
+.pairing-camera-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 11px;
+}
+
 .pairing-code-actions {
   display: flex;
   justify-content: space-between;
@@ -596,7 +604,9 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 12px 10px 0;
+  /* Bottom inset matches .pairing-settings-toggle so the description
+     does not sit on the card border. */
+  padding: 12px 10px 10px;
   background: var(--obsidian-surface-low);
   border: 1px solid var(--obsidian-border);
   border-radius: 10px;
@@ -652,7 +662,8 @@
   min-width: 0;
 }
 
-.pairing-role-card-content h4 {
+.pairing-role-card-title {
+  display: block;
   margin: 0 0 2px 0;
   font-size: 0.9rem;
   font-weight: 600;
@@ -666,7 +677,8 @@
   overflow-wrap: break-word;
 }
 
-.pairing-role-card-content p {
+.pairing-role-card-desc {
+  display: block;
   margin: 0;
   font-size: 0.775rem;
   color: var(--obsidian-muted);
@@ -681,6 +693,16 @@
   text-align: center;
   padding: 0 12px 20px;
   gap: 10px;
+}
+
+/* The shared button row uses a negative top margin. Here that pulls the
+   buttons up over the failure notice, so keep the flex gap instead. */
+.pairing-panel-status .pairing-nav-row {
+  margin: 0;
+}
+
+.pairing-panel-status .error-panel {
+  margin: 4px 0;
 }
 
 .pairing-panel-status h3 {
@@ -1253,7 +1275,7 @@
 
 .airgap-control-btn:hover {
   border-color: var(--obsidian-purple-strong);
-  color: #ffffff;
+  color: var(--c-ffffff);
 }
 
 .airgap-pin-hint {
@@ -1309,7 +1331,7 @@
 .airgap-progress-bar {
   width: 100%;
   height: 6px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--c-255-255-255-a80);
   border-radius: 3px;
   overflow: hidden;
 }
@@ -1385,7 +1407,8 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 12px 10px 0;
+  /* Same bottom inset as .pairing-role-card and .pairing-settings-toggle. */
+  padding: 12px 10px 10px;
   text-align: left;
   border-radius: 12px;
   border: 1px solid var(--obsidian-border);
@@ -1598,7 +1621,9 @@
   background: var(--obsidian-purple);
 }
 
-.pairing-mode-card-desc {
+/* Beat .modal-card p (margin-bottom 18px, line-height 1.55) so the
+   description inset matches the send, receive, and transfer cards. */
+.modal-card p.pairing-mode-card-desc {
   margin: 0;
   font-size: 0.775rem;
   line-height: 1.3;

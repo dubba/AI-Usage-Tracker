@@ -23,6 +23,7 @@ export function CodeEntryView({
     <div className="pairing-code-entry-view">
       <input
         id="pairing-join-code-input"
+        aria-label="Link code"
         className="pairing-code-input"
         inputMode="numeric"
         autoComplete="one-time-code"

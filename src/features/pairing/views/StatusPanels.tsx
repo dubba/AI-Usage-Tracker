@@ -150,7 +150,7 @@ export function CompletedCard({ summary, onDone }: { summary: SyncSummary; onDon
 
 export function FailedCard({ error, onRetry }: { error: string; onRetry: () => void }) {
   return (
-    <div className="pairing-error-card">
+    <div className="pairing-error-card" role="alert">
       <h3>Pairing Failed</h3>
       <div className="error-panel modal-error">{error}</div>
       <div className="pairing-error-actions">

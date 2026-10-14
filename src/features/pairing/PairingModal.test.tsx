@@ -198,6 +198,19 @@ describe("showing a link code", () => {
     expect(cancelPairing).toHaveBeenCalled();
     expect(title()).toBe("How to connect devices");
   });
+
+  it("offers a new code when the countdown expires", async () => {
+    await openHost();
+    await emit({
+      status: "hostWaiting",
+      data: { ...HOST_INIT, expiresAt: Math.floor(Date.now() / 1000) - 5 },
+    });
+    await settle();
+    expect(text()).toContain("This link code expired");
+    await press("Generate New Code");
+    expect(api.startHost).toHaveBeenCalledTimes(2);
+    expect(text()).not.toContain("This link code expired");
+  });
 });
 
 describe("entering a link code", () => {
@@ -218,6 +231,11 @@ describe("entering a link code", () => {
     typeInto(input(), "1234567890");
     expect(input().value).toBe("123456");
     expect(button("Connect to Device").disabled).toBe(false);
+  });
+
+  it("provides an accessible name for the code input", async () => {
+    await openCodeEntry();
+    expect(input().getAttribute("aria-label")).toBe("Link code");
   });
 
   it("connects with the code", async () => {
@@ -283,6 +301,17 @@ describe("opening from a pairing link", () => {
     expect(text()).toContain("Pairing Failed");
     expect(text()).toContain("expired link");
   });
+
+  it("repeats the link join on Try Again instead of dropping to the mode picker", async () => {
+    api.startClient.mockRejectedValueOnce(new Error("expired link"));
+    render({ initialJoinUri: "aiusage-pair:xyz" });
+    await settle();
+    expect(text()).toContain("Pairing Failed");
+    await press("Try Again");
+    expect(api.startClient).toHaveBeenCalledTimes(2);
+    expect(api.startClient).toHaveBeenLastCalledWith("aiusage-pair:xyz");
+    expect(title()).toBe("Connecting");
+  });
 });
 
 describe("progress reported by the backend", () => {
@@ -324,6 +353,22 @@ describe("progress reported by the backend", () => {
     expect(title()).toBe("Transferring");
     expect(document.querySelector<HTMLButtonElement>(".ui-modal-close")!.disabled).toBe(true);
     expect(button("Cancel").disabled).toBe(true);
+  });
+
+  it("ignores a backdrop press while transferring, and honors it once idle", async () => {
+    const pressBackdrop = async () => {
+      await act(async () => {
+        document.querySelector(".modal-backdrop")!.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+      });
+    };
+    render();
+    await settle();
+    await emit({ status: "transferring", data: { sessionId: "s1" } });
+    await pressBackdrop();
+    expect(onClose).not.toHaveBeenCalled();
+    await emit({ status: "idle" });
+    await pressBackdrop();
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -548,10 +593,26 @@ describe("air-gap transfer: sending", () => {
     expect(title()).toBe("Show QR Code");
   });
 
-  it("shows why the export failed", async () => {
-    api.prepareAirgapExport.mockRejectedValue(new Error("too many accounts"));
+  it("shows why the export failed, with a retry instead of an endless spinner", async () => {
+    api.prepareAirgapExport.mockRejectedValueOnce(new Error("too many accounts"));
     await openSender();
+    expect(text()).toContain("Couldn't prepare the transfer");
+    expect(document.querySelector(".pairing-panel-status .pairing-nav-row button")?.textContent).toContain("Back");
+    expect(document.querySelectorAll(".error-panel.modal-error")).toHaveLength(1);
     expect(text()).toContain("too many accounts");
+    expect(text()).not.toContain("Preparing animated transfer…");
+    expect(document.querySelector(".spinner")).toBeNull();
+    await press("Try Again");
+    expect(api.prepareAirgapExport).toHaveBeenCalledTimes(2);
+    expect(text()).toContain("Frame 1/3");
+  });
+
+  it("goes back to the connection choices when the export failed", async () => {
+    api.prepareAirgapExport.mockRejectedValueOnce(new Error("too many accounts"));
+    await openSender();
+    await press("Back");
+    expect(title()).toBe("How to connect devices");
+    expect(document.querySelector(".airgap-sender-view")).toBeNull();
   });
 
   it("returns to the connection choices from Back", async () => {
@@ -584,10 +645,50 @@ describe("scanning", () => {
     expect(document.querySelector(".pairing-scanner-view")).not.toBeNull();
   });
 
-  it("shows a camera error reported by the scanner", async () => {
+  it("shows a camera error, hides the scan beam, and retries the camera", async () => {
     await openScanner();
+    const video = document.querySelector<HTMLVideoElement>(".pairing-scanner-video")!;
+    await act(async () => {
+      video.dispatchEvent(new Event("playing"));
+    });
+    expect(document.querySelector(".pairing-scan-beam")).not.toBeNull();
     await act(async () => scanner.options!.setCameraError("No camera found"));
     expect(text()).toContain("No camera found");
+    expect(document.querySelector(".pairing-scan-beam")).toBeNull();
+    const restartKey = scanner.options!.restartKey;
+    await press("Retry Camera");
+    expect(scanner.options!.restartKey).toBe(restartKey + 1);
+    expect(text()).not.toContain("No camera found");
+    expect(document.querySelector(".pairing-scan-beam")).not.toBeNull();
+  });
+
+  it("announces status changes through a live region", async () => {
+    render();
+    await settle();
+    const live = document.querySelector("[role=status]");
+    expect(live?.classList.contains("sr-only")).toBe(true);
+    expect(live?.getAttribute("aria-live")).toBe("polite");
+    expect(live?.textContent).toContain("Send or receive accounts");
+    await press("Send Accounts from This Device");
+    expect(live?.textContent).toContain("How to connect devices");
+  });
+
+  it("marks failures as alerts and moves focus to Try Again", async () => {
+    api.startClient.mockRejectedValue(new Error("expired link"));
+    render({ initialJoinUri: "aiusage-pair:xyz" });
+    await settle();
+    expect(document.querySelector(".pairing-error-card")?.getAttribute("role")).toBe("alert");
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    });
+    expect(document.activeElement).toBe(button("Try Again"));
+  });
+
+  it("uses spans, not headings, inside the send/receive buttons", () => {
+    render();
+    expect(document.querySelector(".pairing-role-card h4")).toBeNull();
+    expect(document.querySelector(".pairing-role-card p")).toBeNull();
+    expect(document.querySelector(".pairing-role-card .pairing-role-card-title")?.textContent).toContain("Send Accounts");
   });
 
   it("forwards taps and camera switches to the scanner", async () => {
