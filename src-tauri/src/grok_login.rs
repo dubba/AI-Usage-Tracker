@@ -23,7 +23,9 @@ use std::{
     },
     time::Duration,
 };
-use tauri::{AppHandle, WebviewWindow};
+#[cfg(mobile)]
+use tauri::AppHandle;
+use tauri::WebviewWindow;
 #[cfg(desktop)]
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use url::Url;
@@ -438,45 +440,51 @@ pub async fn start_login(
             }
         };
 
-        let (width, height) = login_window_size(&app);
+        let (width, height, position) = crate::oauth_common::window_geometry_centered_on(
+            &app, "main", 0.96, 0.96, 820.0, 620.0,
+        );
         let back_app = app.clone();
         let back_state = state.clone();
         let back_attempt = attempt_id.clone();
         #[allow(unused_mut)]
-    let mut builder = WebviewWindowBuilder::new(
-        &app,
-        LOGIN_WINDOW_LABEL,
-        WebviewUrl::External(login_url),
-    )
-    .title("Connect Grok")
-    .inner_size(width, height)
-    .min_inner_size(820.0, 620.0)
-    .resizable(true)
-    .data_directory(temp_data_dir.clone())
-    .incognito(true)
-    .devtools(false)
-    .initialization_script(format!("{CONNECT_BANNER_SCRIPT}\n{BACK_BUTTON_SCRIPT}"))
-    .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15")
-    .on_navigation(move |url| {
-        if is_back_request(url) {
-            if let Some(window) = back_app.get_webview_window(LOGIN_WINDOW_LABEL) {
-                close_login_window(&window);
+        let mut builder = WebviewWindowBuilder::new(
+            &app,
+            LOGIN_WINDOW_LABEL,
+            WebviewUrl::External(login_url),
+        )
+        .title("Connect Grok")
+        .inner_size(width, height)
+        .min_inner_size(820.0, 620.0)
+        .resizable(true)
+        .data_directory(temp_data_dir.clone())
+        .incognito(true)
+        .devtools(false)
+        .initialization_script(format!("{CONNECT_BANNER_SCRIPT}\n{BACK_BUTTON_SCRIPT}"))
+        .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15")
+        .on_navigation(move |url| {
+            if is_back_request(url) {
+                if let Some(window) = back_app.get_webview_window(LOGIN_WINDOW_LABEL) {
+                    close_login_window(&window);
+                }
+                back_state
+                    .fail_login_if_waiting(&back_attempt, "Grok login was canceled.".into());
+                return false;
             }
-            back_state
-                .fail_login_if_waiting(&back_attempt, "Grok login was canceled.".into());
-            return false;
-        }
-        let allowed = is_allowed_login_navigation(url);
-        if !allowed {
-            crate::diagnostics::warn(&format!(
-                "Grok login blocked navigation to host {}",
-                url.host_str().unwrap_or("(none)")
-            ));
-        }
-        allowed
-    });
+            let allowed = is_allowed_login_navigation(url);
+            if !allowed {
+                crate::diagnostics::warn(&format!(
+                    "Grok login blocked navigation to host {}",
+                    url.host_str().unwrap_or("(none)")
+                ));
+            }
+            allowed
+        });
 
-        builder = builder.center();
+        if let Some((x, y)) = position {
+            builder = builder.position(x, y);
+        } else {
+            builder = builder.center();
+        }
 
         let login_window = match builder.build() {
             Ok(window) => window,
@@ -492,6 +500,10 @@ pub async fn start_login(
                 return Err(format!("Unable to open the Grok login window: {error}"));
             }
         };
+
+        if let Some((x, y)) = position {
+            let _ = login_window.set_position(tauri::LogicalPosition::new(x, y));
+        }
 
         let cleanup_dir = temp_data_dir.clone();
         start_cookie_poll(
@@ -995,18 +1007,6 @@ fn collect_cookies_for_url(
         }
         pairs.insert(cookie.name().to_string(), value.to_string());
     }
-}
-
-#[cfg(desktop)]
-fn login_window_size(app: &AppHandle) -> (f64, f64) {
-    let Some(monitor) = app.primary_monitor().ok().flatten() else {
-        return (1080.0, 760.0);
-    };
-    let scale = monitor.scale_factor();
-    let size = monitor.size();
-    let width = (f64::from(size.width) / scale * 0.82).clamp(900.0, 1280.0);
-    let height = (f64::from(size.height) / scale * 0.82).clamp(680.0, 900.0);
-    (width, height)
 }
 
 #[cfg(test)]

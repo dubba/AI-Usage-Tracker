@@ -300,7 +300,9 @@ pub async fn start_login(
                 return Err(error);
             }
         };
-        let (width, height) = login_window_size(&app);
+        let (width, height, position) = crate::oauth_common::window_geometry_centered_on(
+            &app, "main", 0.96, 0.96, 820.0, 620.0,
+        );
         let login_url = match Url::parse(LOGIN_URL) {
             Ok(url) => url,
             Err(error) => {
@@ -358,7 +360,11 @@ pub async fn start_login(
 
         #[cfg(desktop)]
         {
-            builder = builder.center();
+            if let Some((x, y)) = position {
+                builder = builder.position(x, y);
+            } else {
+                builder = builder.center();
+            }
         }
 
         let login_window = match builder
@@ -429,6 +435,11 @@ pub async fn start_login(
             ));
         }
     };
+
+        #[cfg(desktop)]
+        if let Some((x, y)) = position {
+            let _ = login_window.set_position(tauri::LogicalPosition::new(x, y));
+        }
 
         let close_state = state.clone();
         let close_attempt = attempt_id.clone();
@@ -814,23 +825,6 @@ fn read_auth_cookie_with_retry(window: &WebviewWindow) -> Result<(String, Option
                 .into(),
         ),
     }
-}
-
-#[cfg(desktop)]
-fn login_window_size(app: &AppHandle) -> (f64, f64) {
-    let Some(main) = app.get_webview_window("main") else {
-        return (1150.0, 760.0);
-    };
-    let Ok(size) = main.inner_size() else {
-        return (1150.0, 760.0);
-    };
-    let scale = main.scale_factor().unwrap_or(1.0).max(0.1);
-    let logical_width = size.width as f64 / scale;
-    let logical_height = size.height as f64 / scale;
-    (
-        (logical_width * 0.8).clamp(820.0, 1500.0),
-        (logical_height * 0.8).clamp(620.0, 1000.0),
-    )
 }
 
 /// Restrict the private login window to OpenCode hosts (plus the SSO providers

@@ -277,6 +277,17 @@ impl AppState {
         self.update_login_if_waiting(attempt_id, |login| login.message = Some(message));
     }
 
+    /// Updates the account in `pending_login` if attempt `attempt_id` has completed.
+    pub fn update_login_account(&self, attempt_id: &str, refreshed_account: Account) {
+        let mut pending = self.pending_login.write();
+        if let Some(login) = pending.as_mut() {
+            if login.attempt_id == attempt_id && login.status == crate::model::LoginState::Complete
+            {
+                login.account = Some(refreshed_account);
+            }
+        }
+    }
+
     /// Drops a waiting in-app login so backing out of the provider page does not
     /// block the next Add Account attempt. Returns whether an attempt was cleared.
     #[cfg_attr(not(any(test, mobile)), allow(dead_code))]
@@ -657,6 +668,79 @@ mod tests {
         assert!(
             text.contains("attempt") && text.contains("localhost:1455"),
             "{text}"
+        );
+    }
+
+    #[test]
+    fn update_login_account_updates_completed_login() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = AppState::new(directory.path().to_path_buf(), "test-token".into()).unwrap();
+        let initial_account = Account {
+            id: "acc-1".into(),
+            label: "Test".into(),
+            provider: crate::model::Provider::Openai,
+            email: None,
+            provider_account_id: None,
+            chatgpt_account_id: None,
+            plan: None,
+            created_at: "2026-01-01T00:00:00Z".into(),
+            updated_at: "2026-01-01T00:00:00Z".into(),
+            last_usage: None,
+            last_error: None,
+            auth_required: false,
+        };
+        *state.pending_login.write() = Some(LoginStatus {
+            attempt_id: "attempt-1".into(),
+            status: LoginState::Complete,
+            message: None,
+            account: Some(initial_account),
+            projects: None,
+            selected_project_id: None,
+        });
+
+        let refreshed = Account {
+            id: "acc-1".into(),
+            label: "Test".into(),
+            provider: crate::model::Provider::Openai,
+            email: None,
+            provider_account_id: None,
+            chatgpt_account_id: None,
+            plan: Some("ChatGPT Plus".into()),
+            created_at: "2026-01-01T00:00:00Z".into(),
+            updated_at: "2026-01-01T00:00:00Z".into(),
+            last_usage: None,
+            last_error: None,
+            auth_required: false,
+        };
+
+        // Mismatched attempt_id does not update
+        state.update_login_account("attempt-2", refreshed.clone());
+        assert_eq!(
+            state
+                .pending_login
+                .read()
+                .as_ref()
+                .unwrap()
+                .account
+                .as_ref()
+                .unwrap()
+                .plan,
+            None
+        );
+
+        // Matching attempt_id updates the account
+        state.update_login_account("attempt-1", refreshed);
+        assert_eq!(
+            state
+                .pending_login
+                .read()
+                .as_ref()
+                .unwrap()
+                .account
+                .as_ref()
+                .unwrap()
+                .plan,
+            Some("ChatGPT Plus".into())
         );
     }
 }

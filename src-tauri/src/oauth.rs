@@ -304,10 +304,56 @@ pub(crate) fn is_provider_login_back_request(url: &Url) -> bool {
         .any(|(key, value)| key == BACK_QUERY_FLAG && value == "1")
 }
 
+/// Query flag injected into popups when `window.close()` is called or when
+/// credentials have been handed to the opener.
+const POPUP_CLOSE_QUERY_FLAG: &str = "ai-usage-tracker-popup-close";
+
+pub(crate) fn is_provider_login_popup_close_request(url: &Url) -> bool {
+    url.query_pairs()
+        .any(|(key, value)| key == POPUP_CLOSE_QUERY_FLAG && value == "1")
+}
+
+/// Script injected into sign-in popups. Google Identity Services calls
+/// `window.close()` when the user finishes or cancels, but Tauri/wry does not
+/// act on `window.close()`, so this intercepts it and navigates with a flag that
+/// `on_navigation` uses to dismiss the popup window.
+const POPUP_AUTO_CLOSE_SCRIPT: &str = r#"
+(() => {
+  try {
+    const origClose = window.close;
+    const triggerClose = () => {
+      try {
+        const u = new URL(window.location.href);
+        u.searchParams.set('ai-usage-tracker-popup-close', '1');
+        window.location.replace(u.toString());
+      } catch (e) {
+        try {
+          window.location.replace('about:blank?ai-usage-tracker-popup-close=1');
+        } catch (e2) {}
+      }
+    };
+    const closeHandler = function () {
+      try {
+        if (origClose) origClose.call(window);
+      } catch (e) {}
+      setTimeout(triggerClose, 50);
+    };
+    try { window.close = closeHandler; } catch (e) {}
+    try {
+      Object.defineProperty(window, 'close', {
+        value: closeHandler,
+        writable: true,
+        configurable: true,
+      });
+    } catch (e) {}
+  } catch (e) {}
+})();
+"#;
+
 /// The first page of a desktop sign-in window. Narrower than the pages a
 /// sign-in may pass through afterwards.
 pub(crate) fn is_allowed_provider_login_start(url: &Url) -> bool {
-    if is_provider_login_back_request(url) {
+    if is_provider_login_back_request(url) || is_provider_login_popup_close_request(url) {
         return false;
     }
     if url.scheme() != "https" || url.port().is_some() || !url.username().is_empty() {
@@ -326,7 +372,7 @@ pub(crate) fn is_allowed_provider_login_start(url: &Url) -> bool {
 /// single-sign-on hosts, plus the loopback callback that finishes the login.
 /// A Back request is never loaded.
 pub(crate) fn is_allowed_provider_login_navigation(url: &Url) -> bool {
-    if is_provider_login_back_request(url) {
+    if is_provider_login_back_request(url) || is_provider_login_popup_close_request(url) {
         return false;
     }
     if url.as_str() == "about:blank" {
@@ -416,15 +462,17 @@ pub(crate) fn open_provider_login_window(
     let back_state = app.clone();
     let back_attempt = attempt_id.to_string();
     let nav_callback_seen = callback_seen.clone();
+    let nav_popups_handle = handle.clone();
     let load_dir = profile_dir.clone();
     let popup_handle = handle.clone();
-    let builder =
+    let (width, height, position) =
+        crate::oauth_common::window_geometry_centered_on(&handle, "main", 0.96, 0.96, 820.0, 620.0);
+    let mut builder =
         WebviewWindowBuilder::new(&handle, PROVIDER_LOGIN_WINDOW, WebviewUrl::External(target))
             .title(title)
-            .inner_size(1080.0, 760.0)
+            .inner_size(width, height)
             .min_inner_size(820.0, 620.0)
             .resizable(true)
-            .center()
             .data_directory(profile_dir.clone())
             .incognito(true)
             .devtools(false)
@@ -484,6 +532,7 @@ pub(crate) fn open_provider_login_window(
                     return false;
                 }
                 if is_loopback_callback(url) {
+                    close_provider_login_popups(&nav_popups_handle);
                     // The window closes once the result page has been shown (on_page_load).
                     nav_callback_seen.store(true, Ordering::SeqCst);
                     return true;
@@ -497,6 +546,11 @@ pub(crate) fn open_provider_login_window(
                 }
                 allowed
             });
+    if let Some((x, y)) = position {
+        builder = builder.position(x, y);
+    } else {
+        builder = builder.center();
+    }
     let window = match builder.build() {
         Ok(window) => window,
         Err(error) => {
@@ -507,6 +561,9 @@ pub(crate) fn open_provider_login_window(
             ));
         }
     };
+    if let Some((x, y)) = position {
+        let _ = window.set_position(tauri::LogicalPosition::new(x, y));
+    }
     let close_state = app.clone();
     let close_attempt = attempt_id.to_string();
     let close_dir = profile_dir;
@@ -543,29 +600,76 @@ fn open_provider_login_popup(
         "{PROVIDER_LOGIN_POPUP_PREFIX}{}",
         NEXT_POPUP.fetch_add(1, Ordering::Relaxed)
     );
-    WebviewWindowBuilder::new(
+    let close_handle = handle.clone();
+    let (width, height, position) = crate::oauth_common::window_geometry_centered_on(
+        handle,
+        PROVIDER_LOGIN_WINDOW,
+        0.0,
+        0.0,
+        640.0,
+        800.0,
+    );
+    let mut window_builder = WebviewWindowBuilder::new(
         handle,
         label,
         WebviewUrl::External(Url::parse("about:blank").expect("about:blank is a valid URL")),
     )
     .title("Sign in with Google")
-    .inner_size(520.0, 680.0)
-    .center()
     .window_features(features)
+    .inner_size(width, height)
+    .min_inner_size(520.0, 680.0)
+    .resizable(true)
     .devtools(false)
-    .user_agent(PROVIDER_LOGIN_USER_AGENT)
-    .on_navigation(|url| {
-        let allowed = url.as_str() == "about:blank"
-            || (url.scheme() == "https" && is_allowed_provider_login_navigation(url));
-        if !allowed {
-            crate::diagnostics::warn(&format!(
-                "Sign-in popup blocked navigation to host {}",
-                url.host_str().unwrap_or("(none)")
-            ));
+    .initialization_script(POPUP_AUTO_CLOSE_SCRIPT)
+    .user_agent(PROVIDER_LOGIN_USER_AGENT);
+    if let Some((x, y)) = position {
+        window_builder = window_builder.position(x, y);
+    } else {
+        window_builder = window_builder.center();
+    }
+    let window = window_builder
+        .on_navigation(move |url| {
+            if is_provider_login_popup_close_request(url) {
+                close_provider_login_popups(&close_handle);
+                return false;
+            }
+            let allowed = url.as_str() == "about:blank"
+                || (url.scheme() == "https" && is_allowed_provider_login_navigation(url));
+            if !allowed {
+                crate::diagnostics::warn(&format!(
+                    "Sign-in popup blocked navigation to host {}",
+                    url.host_str().unwrap_or("(none)")
+                ));
+            }
+            allowed
+        })
+        .build()?;
+    if let Some((x, y)) = position {
+        let _ = window.set_position(tauri::LogicalPosition::new(x, y));
+    }
+
+    let watch_handle = handle.clone();
+    let watch_label = window.label().to_string();
+    tauri::async_runtime::spawn(async move {
+        loop {
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+            let Some(popup) = watch_handle.get_webview_window(&watch_label) else {
+                break;
+            };
+            let Some(opener) = watch_handle.get_webview_window(PROVIDER_LOGIN_WINDOW) else {
+                crate::mobile_auth::dismiss_login_window(&popup);
+                break;
+            };
+            if let Ok(current) = opener.url() {
+                if is_loopback_callback(&current) {
+                    crate::mobile_auth::dismiss_login_window(&popup);
+                    break;
+                }
+            }
         }
-        allowed
-    })
-    .build()
+    });
+
+    Ok(window)
 }
 
 /// Closes any sign-in popups. Google's popup calls `window.close()` when it is
@@ -1023,6 +1127,16 @@ async fn complete_exchange(context: &LoginContext, code: &str) -> ExchangeResult
             selected_project_id: None,
         });
     }
+    let refresh_app = context.app.clone();
+    let refresh_account_id = account.id.clone();
+    let refresh_attempt_id = context.attempt_id.clone();
+    tauri::async_runtime::spawn(async move {
+        if let Ok(refreshed) =
+            crate::usage::refresh_account(refresh_app.clone(), &refresh_account_id).await
+        {
+            refresh_app.update_login_account(&refresh_attempt_id, refreshed);
+        }
+    });
     Ok(account)
 }
 
@@ -2014,12 +2128,27 @@ mod tests {
             "file:///tmp/secret",
             "http://127.0.0.1:1455/",
             "https://accounts.google.com/o/oauth2/auth?ai-usage-tracker-back=1",
+            "https://accounts.google.com/o/oauth2/auth?ai-usage-tracker-popup-close=1",
         ] {
             assert!(
                 !is_allowed_provider_login_navigation(&Url::parse(url).unwrap()),
                 "{url}"
             );
         }
+    }
+
+    #[test]
+    fn popup_close_request_is_detected_and_blocks_navigation() {
+        let close_url =
+            Url::parse("https://accounts.google.com/o/oauth2/auth?ai-usage-tracker-popup-close=1")
+                .unwrap();
+        let other_url = Url::parse("https://accounts.google.com/o/oauth2/auth").unwrap();
+        assert!(is_provider_login_popup_close_request(&close_url));
+        assert!(!is_provider_login_popup_close_request(&other_url));
+        assert!(!is_allowed_provider_login_navigation(&close_url));
+        assert!(POPUP_AUTO_CLOSE_SCRIPT.contains("window.close = closeHandler"));
+        assert!(POPUP_AUTO_CLOSE_SCRIPT.contains(POPUP_CLOSE_QUERY_FLAG));
+        assert!(!POPUP_AUTO_CLOSE_SCRIPT.contains("postMessage"));
     }
 
     #[test]

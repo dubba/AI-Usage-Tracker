@@ -516,13 +516,19 @@ export default function App() {
           setSelectedGroupId(`provider:${account.provider}`);
           setSection("accounts");
           let nextAccount = account;
-          try {
-            nextAccount = await bridgeApi.refreshAccount(account.id);
-          } catch (cause) {
-            // The account is saved and stays available with cached state; say that the first refresh failed.
-            reportError(busyKey("refresh", account.id), cause, `Added ${displayAccountLabel(account)}, but couldn't refresh it yet`);
+          const currentSnapshot = await load();
+          const stored = currentSnapshot?.accounts.find((item) => item.id === account.id);
+          if (stored?.lastUsage) {
+            nextAccount = stored;
+          } else if (!nextAccount.lastUsage) {
+            try {
+              nextAccount = await bridgeApi.refreshAccount(account.id);
+              await load();
+            } catch (cause) {
+              // The account is saved and stays available with cached state; say that the first refresh failed.
+              reportError(busyKey("refresh", account.id), cause, `Added ${displayAccountLabel(account)}, but couldn't refresh it yet`);
+            }
           }
-          await load();
           if (nextAccount.provider === "google_ai_studio" && !googleAiStudioHasQuotaWindows(nextAccount)) {
             setGoogleUsageAccount(nextAccount);
           }
