@@ -144,10 +144,40 @@ jobs:
       statuses: write
       checks: write
 
-  publish-windows:
-    name: Build Windows installer
+  # Creates the release and its tag at the commit being built, so the platform
+  # jobs can start together and each upload as soon as it finishes (tauri-action
+  # and the Android and iOS upload steps add to an existing release). This is the
+  # job the Validate gate guards; every build job needs it. release-notes replaces
+  # the placeholder body at the end.
+  create-release:
+    name: Create the GitHub release
     needs: [check-changes, validate]
     if: ${{ !cancelled() && needs.check-changes.outputs.should_build == 'true' && (needs.validate.result == 'success' || needs.validate.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create the release unless it already exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.check-changes.outputs.version }}
+          IS_BETA: ${{ needs.check-changes.outputs.is_beta }}
+        run: |
+          set -euo pipefail
+          tag="v$VERSION"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $tag already exists; the platform jobs add to it."
+            exit 0
+          fi
+          kind=()
+          if [ "$IS_BETA" = true ]; then kind=(--prerelease); fi
+          gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "AI Usage Tracker $tag" --notes "Builds are being uploaded." "${kind[@]}"
+
+  publish-windows:
+    name: Build Windows installer
+    needs: [check-changes, create-release]
+    if: needs.check-changes.outputs.should_build == 'true'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -222,7 +252,8 @@ jobs:
           releaseName: AI Usage Tracker v__VERSION__
           releaseDraft: false
           prerelease: ${{ steps.release_kind.outputs.is_beta == 'true' }}
-          uploadUpdaterJson: true
+          # latest.json is written once by updater-manifest, after both desktop jobs.
+          uploadUpdaterJson: false
           # `-- --locked` reaches cargo: build exactly what Cargo.lock records.
           args: ${{ steps.release_kind.outputs.is_beta == 'true' && '--bundles nsis -- --locked' || '-- --locked' }}
 
@@ -234,7 +265,7 @@ jobs:
   # derives its version from the tags either way.
   commit-version-bump:
     name: Commit released version to main
-    needs: [check-changes, publish-windows]
+    needs: [check-changes, create-release]
     if: needs.check-changes.outputs.should_build == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -273,7 +304,7 @@ jobs:
 
   build-android:
     name: Build Android APK
-    needs: [check-changes, publish-windows]
+    needs: [check-changes, create-release]
     if: needs.check-changes.outputs.should_build == 'true'
     uses: ./.github/workflows/build-android.yml
     secrets: inherit
@@ -285,7 +316,7 @@ jobs:
 
   publish-macos:
     name: Build macOS desktop
-    needs: [check-changes, publish-windows]
+    needs: [check-changes, create-release]
     if: needs.check-changes.outputs.should_build == 'true' && needs.check-changes.outputs.build_apple == 'true'
     runs-on: macos-15
     steps:
@@ -392,13 +423,14 @@ jobs:
           releaseName: AI Usage Tracker v__VERSION__
           releaseDraft: false
           prerelease: ${{ steps.release_kind.outputs.is_beta == 'true' }}
-          uploadUpdaterJson: true
+          # latest.json is written once by updater-manifest, after both desktop jobs.
+          uploadUpdaterJson: false
           # `-- --locked` reaches cargo: build exactly what Cargo.lock records.
           args: "-- --locked"
 
   build-ios:
     name: Build iOS IPA
-    needs: [check-changes, publish-windows]
+    needs: [check-changes, create-release]
     if: needs.check-changes.outputs.should_build == 'true' && needs.check-changes.outputs.build_apple == 'true'
     uses: ./.github/workflows/build-ios.yml
     secrets: inherit
@@ -408,14 +440,46 @@ jobs:
       attach_to_versioned_release: true
       release_version: ${{ needs.check-changes.outputs.version }}
 
+  # Writes the desktop updater manifest (latest.json) once, after both desktop
+  # jobs, from their bundles and .sig files on the release. Each tauri-action run
+  # would otherwise download latest.json, add its platform, and upload it again,
+  # and two runs side by side could drop a platform. The app ignores a release
+  # until latest.json exists, so desktop users only see the finished release. A
+  # platform whose job failed is left out; the other still ships.
+  updater-manifest:
+    name: Write the desktop updater manifest
+    needs: [check-changes, create-release, publish-windows, publish-macos]
+    if: ${{ !cancelled() && needs.check-changes.outputs.should_build == 'true' && needs.create-release.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Build latest.json from the release and upload it
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.check-changes.outputs.version }}
+        run: |
+          set -euo pipefail
+          tag="v$VERSION"
+          work=$(mktemp -d)
+          gh release view "$tag" --json assets > "$work/assets.json"
+          gh release download "$tag" --pattern '*.sig' --dir "$work/sigs"
+          node scripts/updater-manifest.mjs --version "$VERSION" --assets "$work/assets.json" \
+            --sigs "$work/sigs" --out "$work/latest.json"
+          gh release upload "$tag" "$work/latest.json" --clobber
+
   # The release page is the version's changelog followed by the download guide,
   # generated from CHANGELOG.md and .github/release-notes/download-guide.md. It runs
   # last and replaces the body whatever the platform jobs did, so a release that
   # lost one platform still gets its notes.
   release-notes:
     name: Write release notes
-    needs: [check-changes, validate, publish-windows, publish-macos, build-android, build-ios]
-    if: ${{ always() && needs.check-changes.outputs.should_build == 'true' && (needs.validate.result == 'success' || needs.validate.result == 'skipped') }}
+    needs: [check-changes, validate, create-release, publish-windows, publish-macos, build-android, build-ios, updater-manifest]
+    if: ${{ always() && needs.check-changes.outputs.should_build == 'true' && (needs.validate.result == 'success' || needs.validate.result == 'skipped') && needs.create-release.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

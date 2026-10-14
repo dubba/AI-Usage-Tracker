@@ -29,6 +29,7 @@ jobs:
       - run: npm run test:resolve-version
       - run: npm run test:release-notes
       - run: npm run test:sidestore-source
+      - run: npm run test:updater-manifest
       - run: npm run test:gemini-quota-probe
       - run: npm run test:workflows
       - run: npm run build

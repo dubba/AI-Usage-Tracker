@@ -315,20 +315,41 @@ test("no release job can run unless the Validate gate passed or was skipped on p
   assert.match(gate[1], /uses: \.\/\.github\/workflows\/validate\.yml/);
   assert.match(gate[1], /inputs\.skip_validate != true/, "only the override may skip the gate");
 
-  // publish-windows is the root of every build job (they all need it), so gating
-  // it gates the macOS, iOS, Android and version-bump jobs too.
-  const root = /^  publish-windows:\n([\s\S]*?)(?=^  \S+:\n)/m.exec(installers);
+  // create-release is the root of every build job (they all need it), so gating
+  // it gates the Windows, macOS, iOS, Android and version-bump jobs too.
+  const root = /^  create-release:\n([\s\S]*?)(?=^  \S+:\n)/m.exec(installers);
+  assert.ok(root, "create-release found");
   assert.match(root[1], /needs: \[check-changes, validate\]/);
   assert.match(root[1], /needs\.validate\.result == 'success' \|\| needs\.validate\.result == 'skipped'/);
-  for (const job of ["commit-version-bump", "build-android", "publish-macos", "build-ios"]) {
+  for (const job of ["commit-version-bump", "build-android", "publish-macos", "build-ios", "publish-windows", "updater-manifest"]) {
     const m = new RegExp(`^  ${job}:\\n([\\s\\S]*?)(?=^  \\S+:\\n)`, "m").exec(installers);
     assert.ok(m, `${job} found`);
-    assert.match(m[1], /needs: \[[^\]]*publish-windows[^\]]*\]/, `${job} must wait for the gated root job`);
+    assert.match(m[1], /needs: \[[^\]]*create-release[^\]]*\]/, `${job} must wait for the gated root job`);
     assert.doesNotMatch(m[1], /always\(\)/, `${job} must not bypass the gate with always()`);
   }
+  // updater-manifest runs after a failed desktop job (!cancelled()), so it must
+  // check the gated root itself.
+  const manifest = /^  updater-manifest:\n([\s\S]*?)(?=^  \S+:\n)/m.exec(installers);
+  assert.match(manifest[1], /needs\.create-release\.result == 'success'/);
 
   // release-notes runs after failures on purpose, so it needs its own check.
   const notes = /^  release-notes:\n([\s\S]*?)(?=^  \S+:\n|$(?![\s\S]))/m.exec(installers);
   assert.ok(notes, "release-notes found");
   assert.match(notes[1], /needs\.validate\.result == 'success' \|\| needs\.validate\.result == 'skipped'/);
+  assert.match(notes[1], /needs\.create-release\.result == 'success'/);
+});
+
+test("latest.json is written once, after both desktop jobs", () => {
+  // Each tauri-action run that uploads latest.json downloads it, adds its own
+  // platform, and uploads it again. Run side by side, the later upload can drop
+  // the other platform, and that platform's users would get no update. So the
+  // desktop jobs leave it to updater-manifest, which runs after both.
+  const installers = workflows.find((w) => w.name === "build-installers.yml").text;
+  assert.doesNotMatch(installers, /uploadUpdaterJson: true/, "tauri-action must not write latest.json");
+  assert.equal((installers.match(/uploadUpdaterJson: false/g) ?? []).length, 2);
+  const job = /^  updater-manifest:\n([\s\S]*?)(?=^  \S+:\n)/m.exec(installers);
+  assert.ok(job, "updater-manifest found");
+  assert.match(job[1], /needs: \[[^\]]*publish-windows[^\]]*\]/);
+  assert.match(job[1], /needs: \[[^\]]*publish-macos[^\]]*\]/);
+  assert.match(job[1], /node scripts\/updater-manifest\.mjs/);
 });
