@@ -444,3 +444,36 @@ describe("resetting", () => {
     expect(document.getElementById("opencode-email")).toBeNull();
   });
 });
+
+describe("unsaved sign-in details", () => {
+  it("closes without asking when nothing was entered", () => {
+    render();
+    click($(".ui-modal-close"));
+    expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks before discarding typed details, and keeps them when cancelled", async () => {
+    render({ initialProvider: "google_ai_studio" });
+    typeInto($<HTMLInputElement>("#account-label"), "Studio Work");
+    click($(".ui-modal-close"));
+    expect(onClose).not.toHaveBeenCalled();
+    const dialog = document.querySelector(".confirm-dialog-backdrop")!;
+    expect(dialog.textContent).toContain("Discard what you entered?");
+    click(Array.from(dialog.querySelectorAll("button")).find((b) => b.textContent === "Cancel")!);
+    await settle();
+    expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
+    expect($<HTMLInputElement>("#account-label").value).toBe("Studio Work");
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("closes and abandons the entry after the confirmation", async () => {
+    render({ initialProvider: "google_ai_studio" });
+    typeInto($<HTMLInputElement>("#account-label"), "Studio Work");
+    click($(".ui-modal-close"));
+    const dialog = document.querySelector(".confirm-dialog-backdrop")!;
+    click(Array.from(dialog.querySelectorAll("button")).find((b) => b.textContent === "Discard Changes")!);
+    await settle();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});

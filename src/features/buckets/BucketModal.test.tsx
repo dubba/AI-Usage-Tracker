@@ -8,7 +8,8 @@ const api = vi.hoisted(() => ({
 }));
 vi.mock("../../shared/lib/api", () => ({ bridgeApi: api }));
 
-import { click, mount, settle, type Mounted } from "../../test-utils/react";
+import { act } from "react";
+import { click, mount, settle, typeInto, type Mounted } from "../../test-utils/react";
 import { BucketModal } from "./BucketModal";
 
 let mounted: Mounted | null = null;
@@ -106,5 +107,82 @@ describe("BucketModal edit provider filter", () => {
     click(document.querySelector<HTMLButtonElement>(".bucket-modal-save-group .button.primary")!);
     await settle();
     expect(api.saveBucket).toHaveBeenCalledWith("My Group", "grok", ["a1"], "b1");
+  });
+});
+
+describe("BucketModal unsaved changes and deletion clarity", () => {
+  const pressBackdrop = async () => {
+    await act(async () => {
+      document.querySelector(".modal-backdrop")!.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    });
+  };
+  const confirmDialog = () => document.querySelector(".confirm-dialog-backdrop");
+  const bucketDialog = () => document.querySelector(".bucket-modal-card");
+
+  function renderWithClose(props: Partial<Parameters<typeof BucketModal>[0]> = {}) {
+    const onClose = vi.fn();
+    mounted = mount(
+      <BucketModal
+        open
+        bucket={makeBucket(["a1"], "anthropic")}
+        accounts={[makeAccount("a1", "anthropic")]}
+        onClose={onClose}
+        onSaved={vi.fn()}
+        {...props}
+      />,
+    );
+    return onClose;
+  }
+
+  it("closes a clean form without asking", () => {
+    const onClose = renderWithClose();
+    pressBackdrop();
+    expect(confirmDialog()).toBeNull();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks before discarding edits, and keeps them when cancelled", async () => {
+    const onClose = renderWithClose();
+    typeInto(document.querySelector<HTMLInputElement>(".bucket-modal-form .text-input")!, "Renamed Group");
+    await pressBackdrop();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(confirmDialog()?.textContent).toContain("Discard changes?");
+    expect(confirmDialog()?.textContent).toContain("haven't been saved");
+    click(Array.from(document.querySelectorAll(".confirm-dialog-backdrop button")).find((b) => b.textContent === "Cancel")!);
+    await settle();
+    expect(confirmDialog()).toBeNull();
+    expect(bucketDialog()).not.toBeNull();
+    expect(document.querySelector<HTMLInputElement>(".bucket-modal-form .text-input")!.value).toBe("Renamed Group");
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("discards the edits after the confirmation", async () => {
+    const onClose = renderWithClose();
+    typeInto(document.querySelector<HTMLInputElement>(".bucket-modal-form .text-input")!, "Renamed Group");
+    await pressBackdrop();
+    click(Array.from(document.querySelectorAll(".confirm-dialog-backdrop button")).find((b) => b.textContent === "Discard Changes")!);
+    await settle();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks before discarding when Escape is pressed on a dirty form", async () => {
+    const onClose = renderWithClose();
+    typeInto(document.querySelector<HTMLInputElement>(".bucket-modal-form .text-input")!, "Renamed");
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(confirmDialog()?.textContent).toContain("Discard changes?");
+  });
+
+  it("says exactly what deleting a group removes", () => {
+    renderWithClose({ onDeleted: vi.fn() });
+    click(Array.from(document.querySelectorAll("button")).find((b) => b.textContent?.includes("Delete Group"))!);
+    const dialog = confirmDialog()!;
+    expect(dialog.getAttribute("role") === null).toBe(false);
+    expect(dialog.textContent).toContain("Delete “My Group”?");
+    expect(dialog.textContent).toContain("Only the grouping is removed");
+    expect(dialog.textContent).toContain("accounts stay connected");
+    expect(dialog.querySelector("[role=alertdialog]")).not.toBeNull();
   });
 });

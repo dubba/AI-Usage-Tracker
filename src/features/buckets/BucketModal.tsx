@@ -7,7 +7,9 @@ import { ProviderIcon } from "../../shared/ui/ProviderIcon";
 import type { Account, AccountBucket, Provider } from "../../types";
 import { CustomDropdown } from "../../shared/ui/CustomDropdown";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
+import { backdropMouseDown, useModalClosePolicy } from "../../shared/hooks/useModalClosePolicy";
 import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
+import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
 import { useVirtualKeyboard } from "../../shared/hooks/useVirtualKeyboard";
 
 const ALL_PROVIDERS: { id: Provider; label: string }[] = (Object.keys(PROVIDER_META) as Provider[])
@@ -39,9 +41,11 @@ export function BucketModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  // The values shown when the dialog opened, for the unsaved-changes check.
+  const [baseline, setBaseline] = useState({ name: "", provider: "all" as Provider | "all", accountIds: [] as string[] });
   const [isKeyboardOpen, setIsKeyboardOpen] = useVirtualKeyboard(open);
   const dialogRef = useRef<HTMLElement>(null);
-  const confirmDeleteRef = useRef<HTMLElement>(null);
 
   const handleClose = () => {
     setIsKeyboardOpen(false);
@@ -49,34 +53,47 @@ export function BucketModal({
     onClose();
   };
 
-  useModalA11y(dialogRef, open && !confirmingDelete, () => {
-    if (!busy) handleClose();
+  const sameIds = (a: string[], b: string[]) =>
+    a.length === b.length && [...a].sort().join("") === [...b].sort().join("");
+  const dirty =
+    name !== baseline.name || selectedProvider !== baseline.provider || !sameIds(selectedAccountIds, baseline.accountIds);
+  const nestedOpen = confirmingDelete || confirmingDiscard;
+
+  // While busy nothing closes. Otherwise a clean form closes straight away; a
+  // dirty form first asks whether to discard the unsaved changes.
+  const requestClose = useModalClosePolicy(!busy, () => {
+    if (dirty) {
+      setConfirmingDiscard(true);
+    } else {
+      handleClose();
+    }
   });
-  useModalA11y(confirmDeleteRef, open && confirmingDelete, () => {
-    if (!busy) setConfirmingDelete(false);
-  });
+  useModalA11y(dialogRef, open && !nestedOpen, requestClose);
 
   useEffect(() => {
     if (open) {
+      let initialName = "";
+      let initialProviderChoice: Provider | "all";
+      let initialIds: string[];
       if (bucket) {
-        setName(bucket.name);
+        initialName = bucket.name;
         // Edit always starts unfiltered: a group whose accounts belong to one
         // provider must not hide every other provider from the picker. The
         // dropdown is a search aid, not a property of the group.
-        setSelectedProvider("all");
-        setSelectedAccountIds(bucket.accountIds);
+        initialProviderChoice = "all";
+        initialIds = bucket.accountIds;
       } else {
-        setName("");
         const provider = initialProvider ?? "all";
-        setSelectedProvider(provider);
-        if (provider !== "all") {
-          setSelectedAccountIds(accounts.filter((a) => a.provider === provider).map((a) => a.id));
-        } else {
-          setSelectedAccountIds([]);
-        }
+        initialProviderChoice = provider;
+        initialIds = provider !== "all" ? accounts.filter((a) => a.provider === provider).map((a) => a.id) : [];
       }
+      setName(initialName);
+      setSelectedProvider(initialProviderChoice);
+      setSelectedAccountIds(initialIds);
+      setBaseline({ name: initialName, provider: initialProviderChoice, accountIds: initialIds });
       setError(null);
       setBusy(false);
+      setConfirmingDiscard(false);
       setConfirmingDelete(Boolean(initialConfirmDelete && bucket));
     }
   }, [open, bucket, initialProvider, initialConfirmDelete, accounts]);
@@ -152,7 +169,7 @@ export function BucketModal({
     <div
       className={`modal-backdrop ${isKeyboardOpen ? "keyboard-open" : ""}`}
       role="presentation"
-      onMouseDown={(event) => event.target === event.currentTarget && !busy && handleClose()}
+      onMouseDown={backdropMouseDown(requestClose)}
     >
       <section
         ref={dialogRef}
@@ -162,7 +179,7 @@ export function BucketModal({
         aria-labelledby="bucket-modal-title"
         tabIndex={-1}
       >
-        <ModalCloseButton onClose={handleClose} disabled={busy} />
+        <ModalCloseButton onClose={requestClose} disabled={busy} />
         <div className="modal-kicker">Account Grouping</div>
         <h2 id="bucket-modal-title">{bucket ? "Edit Group" : "Create Group"}</h2>
         <p>Group accounts together in the sidebar to track their combined usage and limits. Groups can be empty.</p>
@@ -186,6 +203,7 @@ export function BucketModal({
               <span className="field-label">Select Accounts ({selectedAccountIds.length} selected)</span>
               <div className="bucket-filter-actions">
                 <CustomDropdown<Provider | "all">
+                  aria-label="Filter by provider"
                   value={selectedProvider}
                   disabled={busy}
                   options={[
@@ -249,7 +267,7 @@ export function BucketModal({
               </button>
             ) : null}
             <div className="bucket-modal-save-group">
-              <button type="button" className="button ghost" disabled={busy} onClick={handleClose}>
+              <button type="button" className="button ghost" disabled={busy} onClick={requestClose}>
                 Cancel
               </button>
               <button type="submit" className="button primary" disabled={busy}>
@@ -259,37 +277,31 @@ export function BucketModal({
           </footer>
         </form>
       </section>
-      {bucket && confirmingDelete ? (
-        <div
-          className="modal-backdrop bucket-delete-confirm-backdrop"
-          role="presentation"
-          onMouseDown={(event) => event.target === event.currentTarget && !busy && setConfirmingDelete(false)}
-        >
-          <section
-            ref={confirmDeleteRef}
-            className="modal-card remove-account-modal bucket-delete-confirm-modal"
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="bucket-delete-confirm-title"
-            aria-describedby="bucket-delete-confirm-body"
-            tabIndex={-1}
-          >
-            <div className="modal-kicker">Delete group</div>
-            <h2 id="bucket-delete-confirm-title">Delete “{bucket.name}”?</h2>
-            <p id="bucket-delete-confirm-body">
-              Are you sure you want to delete this group? The accounts will stay connected and keep their settings. Only the grouping will be removed.
-            </p>
-            <div className="modal-actions">
-              <button type="button" className="button ghost" disabled={busy} onClick={() => setConfirmingDelete(false)} autoFocus>
-                Cancel
-              </button>
-              <button type="button" className="button remove-confirm-button" disabled={busy} onClick={handleDelete}>
-                {busy ? "Removing…" : "Delete Group"}
-              </button>
-            </div>
-          </section>
-        </div>
+      {bucket && onDeleted ? (
+        <ConfirmDialog
+          open={confirmingDelete}
+          kicker="Delete group"
+          title={<>Delete “{bucket.name}”?</>}
+          body="Only the grouping is removed. The accounts stay connected and keep their own settings and alerts."
+          confirmLabel="Delete Group"
+          busyLabel="Deleting…"
+          busy={busy}
+          onConfirm={() => void handleDelete()}
+          onCancel={() => setConfirmingDelete(false)}
+        />
       ) : null}
+      <ConfirmDialog
+        open={confirmingDiscard}
+        kicker="Unsaved changes"
+        title="Discard changes?"
+        body="Your changes to this group haven't been saved and will be lost."
+        confirmLabel="Discard Changes"
+        onConfirm={() => {
+          setConfirmingDiscard(false);
+          handleClose();
+        }}
+        onCancel={() => setConfirmingDiscard(false)}
+      />
     </div>
   );
 }

@@ -19,7 +19,9 @@ import { OpenCodeFields } from "./fields/OpenCodeFields";
 import type { FieldsProps } from "./fields/types";
 import { CustomDropdown, type DropdownOption } from "../../shared/ui/CustomDropdown";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
+import { backdropMouseDown } from "../../shared/hooks/useModalClosePolicy";
 import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
+import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
 import { useVirtualKeyboard } from "../../shared/hooks/useVirtualKeyboard";
 
 const PICKER_ORDER: Provider[] = ["anthropic", "antigravity", "openai", "grok", "opencode_go", "google_ai_studio"];
@@ -53,6 +55,8 @@ export function AddAccountModal({
   const [status, setStatus] = useState<LoginStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  const [baselineLabel, setBaselineLabel] = useState("");
   const [isKeyboardOpen, setIsKeyboardOpen] = useVirtualKeyboard(open);
   const closeRequestedRef = useRef(false);
   const attemptIdRef = useRef<string | null>(null);
@@ -71,11 +75,13 @@ export function AddAccountModal({
       setStatus(null);
       setBusy(false);
       setError(null);
+      setConfirmingDiscard(false);
       attemptIdRef.current = null;
     } else {
       closeRequestedRef.current = false;
       const nextProvider = initialProvider ?? "anthropic";
       setDraft(emptyDraft(nextProvider, initialLabel?.trim() || defaultAccountName(nextProvider)));
+      setBaselineLabel(initialLabel?.trim() || defaultAccountName(nextProvider));
       setModelsBusy(false);
     }
   }, [open, initialLabel, initialProvider, providerLocked]);
@@ -111,7 +117,23 @@ export function AddAccountModal({
     onClose();
   };
 
-  useModalA11y(dialogRef, open, closeModal);
+  // This dialog can always be closed: closing abandons any login attempt in flight
+  // (closeModal handles the cleanup), so no busy guard is needed. Typed-in but
+  // unsaved credentials first ask whether to discard them.
+  const draftDirty =
+    [draft.email, draft.workspaceId, draft.authCookie, draft.grokCookie, draft.apiKey].some(
+      (value) => value.trim() !== "",
+    ) ||
+    draft.selectedModels.length > 0 ||
+    draft.label !== baselineLabel;
+  const requestClose = () => {
+    if (attemptIdRef.current || !draftDirty) {
+      closeModal();
+    } else {
+      setConfirmingDiscard(true);
+    }
+  };
+  useModalA11y(dialogRef, open && !confirmingDiscard, requestClose);
 
   if (!open) return null;
 
@@ -253,7 +275,7 @@ export function AddAccountModal({
     <div
       className={`modal-backdrop ${isKeyboardOpen ? "keyboard-open" : ""}`}
       role="presentation"
-      onMouseDown={(event) => event.target === event.currentTarget && !busy && closeModal()}
+      onMouseDown={backdropMouseDown(requestClose)}
     >
       <section
         ref={dialogRef}
@@ -263,7 +285,7 @@ export function AddAccountModal({
         aria-labelledby="add-account-title"
         tabIndex={-1}
       >
-        <ModalCloseButton onClose={closeModal} />
+        <ModalCloseButton onClose={requestClose} />
         <div className="modal-kicker">Provider connection</div>
         <h2 id="add-account-title">{providerLocked ? `Reconnect ${connectLabel(provider)}` : "Which account do you want to add?"}</h2>
         <p>{providerLocked ? providerCopy : "Choose a provider, name the account, and enter its secure connection details."}</p>
@@ -271,6 +293,7 @@ export function AddAccountModal({
         <label className="field-label" htmlFor="account-provider">Provider</label>
         <CustomDropdown<Provider>
           id="account-provider"
+          aria-label="Provider"
           value={provider}
           options={providerDropdownOptions}
           onChange={changeProvider}
@@ -315,7 +338,7 @@ export function AddAccountModal({
         ) : null}
         {error ? <div className="error-panel modal-error">{error}</div> : null}
         <div className="modal-actions">
-          <button type="button" className="button ghost" onClick={closeModal}>Cancel</button>
+          <button type="button" className="button ghost" onClick={requestClose}>Cancel</button>
           {status?.status === "failed" ? (
             <button type="button" className="button primary" onClick={retry} disabled={busy || modelsBusy}>
               Retry
@@ -331,6 +354,18 @@ export function AddAccountModal({
           )}
         </div>
       </section>
+      <ConfirmDialog
+        open={confirmingDiscard}
+        kicker="Unsaved changes"
+        title="Discard what you entered?"
+        body="The sign-in details you typed haven't been saved and will be lost."
+        confirmLabel="Discard Changes"
+        onConfirm={() => {
+          setConfirmingDiscard(false);
+          closeModal();
+        }}
+        onCancel={() => setConfirmingDiscard(false)}
+      />
     </div>
   );
 }
