@@ -9,6 +9,33 @@ use tauri::{AppHandle, State, WebviewUrl, WebviewWindowBuilder};
 
 pub(crate) const API_INTEGRATION_WINDOW_LABEL: &str = "api-integration";
 
+/// Inner size that shows the Paseo Bridge page without scrolling.
+/// The page is about 833px tall at this width, so the previous 760px height
+/// cut off the connection details. An already-open window smaller than this
+/// is grown to it; a larger size the user chose is left alone.
+const API_INTEGRATION_WINDOW_WIDTH: f64 = 780.0;
+const API_INTEGRATION_WINDOW_HEIGHT: f64 = 900.0;
+
+/// Logical size to apply, or `None` when `current` is already large enough.
+fn api_integration_window_size(current: Option<(f64, f64)>) -> Option<(f64, f64)> {
+    let (width, height) = current.unwrap_or((0.0, 0.0));
+    let next = (
+        width.max(API_INTEGRATION_WINDOW_WIDTH),
+        height.max(API_INTEGRATION_WINDOW_HEIGHT),
+    );
+    match current {
+        Some((width, height)) if next.0 - width < 1.0 && next.1 - height < 1.0 => None,
+        _ => Some(next),
+    }
+}
+
+#[cfg(desktop)]
+fn logical_inner_size(window: &tauri::WebviewWindow) -> Option<(f64, f64)> {
+    let size = window.inner_size().ok()?;
+    let scale = window.scale_factor().unwrap_or(1.0).max(0.1);
+    Some((size.width as f64 / scale, size.height as f64 / scale))
+}
+
 #[tauri::command]
 pub(crate) fn get_bridge_info(state: State<'_, Arc<AppState>>) -> Result<BridgeInfo, String> {
     Ok(bridge_info(state.inner().as_ref()))
@@ -48,7 +75,18 @@ pub(crate) async fn open_api_integration_window(
 
     if let Some(window) = app.get_webview_window(API_INTEGRATION_WINDOW_LABEL) {
         #[cfg(desktop)]
-        let _ = window.unminimize();
+        {
+            let _ = window.unminimize();
+            // A maximized window already fills the screen. Growing it would
+            // pull it back down to the default size.
+            if !window.is_maximized().unwrap_or(false) {
+                if let Some((width, height)) =
+                    api_integration_window_size(logical_inner_size(&window))
+                {
+                    let _ = window.set_size(tauri::LogicalSize::new(width, height));
+                }
+            }
+        }
         let _ = window.show();
         let _ = window.set_focus();
         return Ok(());
@@ -61,7 +99,7 @@ pub(crate) async fn open_api_integration_window(
         WebviewUrl::App("index.html".into()),
     )
     .title("Paseo Bridge")
-    .inner_size(780.0, 760.0)
+    .inner_size(API_INTEGRATION_WINDOW_WIDTH, API_INTEGRATION_WINDOW_HEIGHT)
     .min_inner_size(640.0, 560.0);
 
     #[cfg(desktop)]
@@ -132,5 +170,38 @@ pub(crate) fn bridge_info(state: &AppState) -> BridgeInfo {
         enabled: status.enabled,
         running: status.running,
         error: status.error,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::api_integration_window_size;
+
+    #[test]
+    fn new_window_is_tall_enough_for_the_bridge_page() {
+        assert_eq!(api_integration_window_size(None), Some((780.0, 900.0)));
+    }
+
+    #[test]
+    fn a_short_open_window_grows_without_shrinking_a_wider_one() {
+        assert_eq!(
+            api_integration_window_size(Some((780.0, 760.0))),
+            Some((780.0, 900.0))
+        );
+        assert_eq!(
+            api_integration_window_size(Some((900.0, 760.0))),
+            Some((900.0, 900.0))
+        );
+        assert_eq!(
+            api_integration_window_size(Some((640.0, 800.0))),
+            Some((780.0, 900.0))
+        );
+    }
+
+    #[test]
+    fn a_window_the_user_already_made_larger_is_left_alone() {
+        assert_eq!(api_integration_window_size(Some((900.0, 1000.0))), None);
+        assert_eq!(api_integration_window_size(Some((780.0, 900.0))), None);
+        assert_eq!(api_integration_window_size(Some((779.2, 899.4))), None);
     }
 }

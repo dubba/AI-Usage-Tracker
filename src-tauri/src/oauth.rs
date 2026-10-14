@@ -601,13 +601,16 @@ fn open_provider_login_popup(
         NEXT_POPUP.fetch_add(1, Ordering::Relaxed)
     );
     let close_handle = handle.clone();
+    // The page's own window.open size is about 640×800 and clips 2-step
+    // verification. Open taller than that, then apply it again after build so
+    // the requested size does not stick.
     let (width, height, position) = crate::oauth_common::window_geometry_centered_on(
         handle,
         PROVIDER_LOGIN_WINDOW,
         0.0,
         0.0,
         640.0,
-        800.0,
+        1040.0,
     );
     let mut window_builder = WebviewWindowBuilder::new(
         handle,
@@ -644,6 +647,7 @@ fn open_provider_login_popup(
             allowed
         })
         .build()?;
+    let _ = window.set_size(tauri::LogicalSize::new(width, height));
     if let Some((x, y)) = position {
         let _ = window.set_position(tauri::LogicalPosition::new(x, y));
     }
