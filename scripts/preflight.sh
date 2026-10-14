@@ -11,7 +11,8 @@
 # With --pre-push it reads git's pre-push lines from stdin, checks out the commit being
 # pushed, and runs only the groups the push touches (Rust, frontend, scripts). It narrows
 # only for a fast-forward of a single branch; anything else, or PREFLIGHT_FULL=1, runs
-# everything. Paths that no check reads (Markdown, docs/, release-apks/,
+# everything. Branch deletes send no commits and are ignored, so a push of only deletes
+# runs nothing. Paths that no check reads (Markdown, docs/, release-apks/,
 # sidestore-source.json) select nothing, and any path not listed below selects everything.
 #
 # After `npm run build`, the npm tests and two Cargo tracks run at the same time. Cargo
@@ -26,7 +27,6 @@
 set -uo pipefail
 
 repo=$(git rev-parse --show-toplevel)
-zero=0000000000000000000000000000000000000000
 is_sha() { [[ $1 =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]]; }
 
 # Decide what to check: the commit (target) and the groups (rust, frontend, scripts).
@@ -37,24 +37,30 @@ changed=""
 if [ "${1:-}" = --pre-push ]; then
   why="push touches every group"
   count=0
+  deletes=0
   while read -r _lref lsha _rref rsha; do
     [ -n "${lsha:-}" ] || continue
+    # A delete sends no commits, so it needs no check and does not count as an update.
+    if [[ $lsha =~ ^0+$ ]]; then
+      deletes=$((deletes + 1))
+      continue
+    fi
     count=$((count + 1))
     push_local=$lsha
     push_remote=${rsha:-}
   done
-  if [ "$count" -eq 0 ]; then
+  if [ "$count" -eq 0 ] && [ "$deletes" -gt 0 ]; then
+    echo "preflight: only deletes ($deletes), nothing to check"
+    exit 0
+  elif [ "$count" -eq 0 ]; then
     why="no refs on stdin"
   elif [ "$count" -gt 1 ]; then
     why="push updates $count refs; checking HEAD only"
   elif ! is_sha "$push_local"; then
     why="unreadable push line"
-  elif [ "$push_local" = "$zero" ]; then
-    echo "preflight: branch delete, nothing to check"
-    exit 0
   else
     target=$push_local
-    if ! is_sha "$push_remote" || [ "$push_remote" = "$zero" ]; then
+    if ! is_sha "$push_remote" || [[ $push_remote =~ ^0+$ ]]; then
       why="new branch"
     elif ! git merge-base --is-ancestor "$push_remote" "$push_local" 2>/dev/null; then
       why="not a fast-forward"
