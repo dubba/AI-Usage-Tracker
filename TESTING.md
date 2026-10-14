@@ -22,8 +22,8 @@ its assertions would plausibly fail if the guard were removed.
 CI (`validate.yml`, on every PR and as the gate at the start of each release; not on push, where `npm run preflight` is the local equivalent) runs: `npm audit --audit-level=high`, `npm run
 check`, `npm test`, the 5 `npm run test:*` script suites, `npm run build`, rustsec
 `audit-check` for `src-tauri`, `cargo fmt --check`, `cargo clippy -D warnings` in **both
-debug and release**, `cargo test --lib` (which covers all 271 tests), and `cargo check` on
-Windows + macOS. Two further jobs only **compile** the library for the mobile targets
+debug and release**, `cargo test --lib` (which covers all 271 tests) on Windows + macOS, and `cargo check` on
+Windows (macOS's non-test build is already compiled by the clippy job). Two further jobs only **compile** the library for the mobile targets
 (`validate/ios-compile` on macOS, `validate/android-compile` on Linux with the release
 build's NDK); no tests run there, since no device or emulator is available.
 
