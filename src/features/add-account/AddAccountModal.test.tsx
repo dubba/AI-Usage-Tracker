@@ -95,6 +95,22 @@ describe("browser sign-in providers", () => {
     expect(primary().disabled).toBe(true);
   });
 
+  it("renders providers in order with OpenCode below Grok and above Google AI Studio", () => {
+    render();
+    click($("#account-provider"));
+    const labels = Array.from(document.querySelectorAll<HTMLElement>(".custom-dropdown-item-label")).map(
+      (el) => el.textContent,
+    );
+    expect(labels).toEqual([
+      "Anthropic Claude",
+      "Google Antigravity",
+      "OpenAI ChatGPT",
+      "xAI Grok",
+      "OpenCode",
+      "Google AI Studio",
+    ]);
+  });
+
   it("uses the generated button label for Claude and Antigravity", () => {
     render();
     chooseProvider("Anthropic Claude");

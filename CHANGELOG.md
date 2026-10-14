@@ -1,14 +1,15 @@
 # Changelog
 
-## Unreleased (15 changes)
+## Unreleased (16 changes)
 
 ### Added (1)
 
 - The empty dashboard now includes a Link Devices option next to Other Provider, aligned with the provider cards, so you can sync accounts from another device without signing in again.
 
-### Improved (6)
+### Improved (7)
 
 - Connecting a Grok or OpenCode account now ends on the same "Account connected" page as the other providers, with the account's email and a five-second countdown back to the app.
+- In the Add Account modal, OpenCode now appears above Google AI Studio and below xAI Grok in the provider dropdown.
 - Clicking Other Provider on the empty dashboard now defaults to OpenCode Go in the Add Account modal dropdown.
 - The sidebar AI Usage Tracker title uses the same purple as the All Accounts title.
 - On Android, the app icon fits the launcher's icon shape, whether circle or rounded square, with the whole gauge visible instead of its outer ring being cut off at the edges.

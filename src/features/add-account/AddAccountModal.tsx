@@ -22,7 +22,7 @@ import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
 import { useVirtualKeyboard } from "../../shared/hooks/useVirtualKeyboard";
 
-const PICKER_ORDER: Provider[] = ["anthropic", "antigravity", "openai", "grok", "google_ai_studio", "opencode_go"];
+const PICKER_ORDER: Provider[] = ["anthropic", "antigravity", "openai", "grok", "opencode_go", "google_ai_studio"];
 
 const providerDropdownOptions: DropdownOption<Provider>[] = PICKER_ORDER.map((id) => ({
   value: id,
