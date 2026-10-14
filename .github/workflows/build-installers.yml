@@ -146,9 +146,9 @@ jobs:
 
   # Creates the release and its tag at the commit being built, so the platform
   # jobs can start together and each upload as soon as it finishes (tauri-action
-  # and the Android and iOS upload steps add to an existing release). This is the
-  # job the Validate gate guards; every build job needs it. release-notes replaces
-  # the placeholder body at the end.
+  # and the Android and iOS upload steps add to an existing release). The notes go
+  # on at creation, so the changelog and download guide show while the builds
+  # upload. This is the job the Validate gate guards; every build job needs it.
   create-release:
     name: Create the GitHub release
     needs: [check-changes, validate]
@@ -157,7 +157,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Create the release unless it already exists
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Create the release with its notes unless it already exists
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ needs.check-changes.outputs.version }}
@@ -165,14 +169,17 @@ jobs:
         run: |
           set -euo pipefail
           tag="v$VERSION"
+          notes="$RUNNER_TEMP/release-notes.md"
+          node scripts/release-notes.mjs --version "$VERSION" --output "$notes"
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release $tag already exists; the platform jobs add to it."
+            gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --notes-file "$notes"
             exit 0
           fi
           kind=()
           if [ "$IS_BETA" = true ]; then kind=(--prerelease); fi
           gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title "AI Usage Tracker $tag" --notes "Builds are being uploaded." "${kind[@]}"
+            --title "AI Usage Tracker $tag" --notes-file "$notes" "${kind[@]}"
 
   publish-windows:
     name: Build Windows installer
@@ -473,9 +480,10 @@ jobs:
           gh release upload "$tag" "$work/latest.json" --clobber
 
   # The release page is the version's changelog followed by the download guide,
-  # generated from CHANGELOG.md and .github/release-notes/download-guide.md. It runs
-  # last and replaces the body whatever the platform jobs did, so a release that
-  # lost one platform still gets its notes.
+  # generated from CHANGELOG.md and .github/release-notes/download-guide.md.
+  # create-release already sets them; this writes them again at the end in case
+  # a platform job's tauri-action changed the body, and runs even when a platform
+  # failed, so every release ends with its notes.
   release-notes:
     name: Write release notes
     needs: [check-changes, validate, create-release, publish-windows, publish-macos, build-android, build-ios, updater-manifest]
