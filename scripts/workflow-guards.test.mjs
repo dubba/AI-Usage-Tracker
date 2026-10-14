@@ -353,3 +353,14 @@ test("latest.json is written once, after both desktop jobs", () => {
   assert.match(job[1], /needs: \[[^\]]*publish-macos[^\]]*\]/);
   assert.match(job[1], /node scripts\/updater-manifest\.mjs/);
 });
+
+test("only runs on main save Rust caches", () => {
+  // The repo has 10 GB of Actions cache. PR runs saving their own Rust caches
+  // pushed out main's, and the v0.4.3 release rebuilt from cold (37 minutes).
+  for (const { name, text } of workflows) {
+    const steps = text.split(/\n(?=\s*- )/).filter((step) => /uses: Swatinem\/rust-cache@/.test(step));
+    for (const step of steps) {
+      assert.match(step, /save-if: \$\{\{ github\.ref == 'refs\/heads\/main' \}\}/, `${name}: rust-cache must only save on main`);
+    }
+  }
+});

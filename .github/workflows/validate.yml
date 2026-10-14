@@ -73,6 +73,9 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: src-tauri
+          # Only main saves: PR caches count toward the repo's 10 GB and push out
+          # the caches release builds restore. PR runs still restore main's.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       # tauri::generate_context! needs the built frontend at compile time.
       - run: npm ci
       - run: npm run build
@@ -110,6 +113,9 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: src-tauri
+          # Only main saves: PR caches count toward the repo's 10 GB and push out
+          # the caches release builds restore. PR runs still restore main's.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: npm ci
       - run: npm run build
       - name: Run Rust unit tests
@@ -159,6 +165,9 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: src-tauri
+          # Only main saves: PR caches count toward the repo's 10 GB and push out
+          # the caches release builds restore. PR runs still restore main's.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       # tauri::generate_context! needs the built frontend at compile time.
       - run: npm ci
       - run: npm run build
@@ -194,6 +203,9 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: src-tauri
+          # Only main saves: PR caches count toward the repo's 10 GB and push out
+          # the caches release builds restore. PR runs still restore main's.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       # tauri::generate_context! needs the built frontend at compile time.
       - run: npm ci
       - run: npm run build
