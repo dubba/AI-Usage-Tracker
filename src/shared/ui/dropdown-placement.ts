@@ -35,6 +35,77 @@ export type DropdownPlacementResult = {
   menuHeight: number;
 };
 
+export type FixedContainingBlockBox = {
+  /**
+   * Viewport x of the containing block's padding-box origin, adjusted for its
+   * own scroll offset. Subtract from viewport-space coordinates to get
+   * coordinates in the containing block's space.
+   */
+  left: number;
+  /** Viewport y of the containing block's padding-box origin, adjusted for scroll. */
+  top: number;
+  /** Height of the containing block's padding box (used for `bottom` offsets). */
+  height: number;
+};
+
+/**
+ * Whether an element becomes the containing block for fixed-position
+ * descendants. Covers transform, filter, backdrop-filter, perspective,
+ * will-change, and layout/paint containment. Each value is guarded so
+ * partial CSSOM implementations (which return "" or undefined for
+ * unsupported properties) never report a false positive.
+ */
+export function createsFixedContainingBlock(style: CSSStyleDeclaration): boolean {
+  const transform = style.transform;
+  if (transform && transform !== "none") return true;
+  const filter = style.filter;
+  if (filter && filter !== "none") return true;
+  const backdropFilter = (style as CSSStyleDeclaration & { backdropFilter?: string }).backdropFilter;
+  if (backdropFilter && backdropFilter !== "none") return true;
+  const perspective = style.perspective;
+  if (perspective && perspective !== "none") return true;
+  const willChange = style.willChange;
+  if (willChange && /\b(transform|filter|perspective)\b/.test(willChange)) return true;
+  const contain = style.contain;
+  if (contain && contain !== "none" && contain !== "" && /(paint|layout|strict|content)/.test(contain)) return true;
+  return false;
+}
+
+/**
+ * Finds the nearest ancestor that is the containing block for fixed-position
+ * descendants of `element`, and returns its padding-box origin (in the same
+ * coordinate space as getBoundingClientRect) adjusted for its scroll offset.
+ * Returns a zero box when the viewport itself is the containing block, in
+ * which case viewport-space coordinates need no translation.
+ *
+ * A fixed menu positioned with viewport-space coordinates lands offset from
+ * its anchor whenever such an ancestor exists: `.modal-backdrop` always sets
+ * `backdrop-filter: blur(3px)`, and the modal cards set
+ * `transform: translateY(0)` in mobile keyboard mode, so menus opened inside
+ * modals must translate their coordinates into that ancestor's space.
+ */
+export function getFixedContainingBlockBox(element: HTMLElement | null): FixedContainingBlockBox {
+  const viewport = { left: 0, top: 0, height: 0 };
+  if (!element || typeof window === "undefined" || !window.getComputedStyle) return viewport;
+  let current = element.parentElement;
+  while (current && current !== document.body && current !== document.documentElement) {
+    if (createsFixedContainingBlock(window.getComputedStyle(current))) {
+      const style = window.getComputedStyle(current);
+      const rect = current.getBoundingClientRect();
+      const borderLeft = parseFloat(style.borderLeftWidth) || 0;
+      const borderTop = parseFloat(style.borderTopWidth) || 0;
+      const borderBottom = parseFloat(style.borderBottomWidth) || 0;
+      return {
+        left: rect.left + borderLeft - current.scrollLeft,
+        top: rect.top + borderTop - current.scrollTop,
+        height: Math.max(0, rect.height - borderTop - borderBottom),
+      };
+    }
+    current = current.parentElement;
+  }
+  return viewport;
+}
+
 /**
  * Calculates the visible top and bottom clipping boundaries for an element,
  * considering the viewport and any clipping or scrolling ancestors.
@@ -52,22 +123,7 @@ export function getClippingBounds(
     let current: HTMLElement | null = element.parentElement;
     while (current && current !== document.body && current !== document.documentElement) {
       if (typeof window !== "undefined" && window.getComputedStyle) {
-        const style = window.getComputedStyle(current);
-        const transform = style.transform;
-        const filter = style.filter;
-        const perspective = style.perspective;
-        const contain = style.contain;
-        const createsFixedContext =
-          (transform && transform !== "none") ||
-          (filter && filter !== "none") ||
-          (perspective && perspective !== "none") ||
-          (contain &&
-            (contain.includes("paint") ||
-              contain.includes("layout") ||
-              contain.includes("strict") ||
-              contain.includes("content")));
-
-        if (createsFixedContext) {
+        if (createsFixedContainingBlock(window.getComputedStyle(current))) {
           const rect = current.getBoundingClientRect();
           top = Math.max(top, rect.top);
           bottom = Math.min(bottom, rect.bottom);

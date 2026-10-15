@@ -2116,6 +2116,7 @@ select.text-input option,
   border-radius: 8px;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(160, 120, 255, 0.12);
   overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
   clip-path: inset(0 round 8px);
   animation: customDropdownFadeIn 120ms ease-out;

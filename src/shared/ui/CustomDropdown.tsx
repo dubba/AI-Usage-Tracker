@@ -7,7 +7,7 @@ export type DropdownOption<T extends string | number> = {
   icon?: React.ReactNode;
 };
 
-import { computeDropdownPlacement } from "./dropdown-placement";
+import { computeDropdownPlacement, getFixedContainingBlockBox } from "./dropdown-placement";
 
 export const MENU_GAP = 5;
 export const MENU_MAX_HEIGHT = 280;
@@ -39,7 +39,16 @@ export function computeCustomDropdownPlacement(
     isFixed: true,
   });
 
-  const left = Math.max(8, Math.min(rect.left, viewportWidth - rect.width - 8));
+  // The menu is position:fixed, but its containing block is not always the
+  // viewport: a transformed/filtered ancestor (the modal backdrop's
+  // backdrop-filter, the modal card's keyboard-mode translateY(0)) becomes the
+  // containing block instead. Translate viewport-space coordinates into that
+  // ancestor's space so the menu stays glued to the trigger. When the
+  // viewport itself is the containing block the offset is zero and these are
+  // exactly the previous values.
+  const containingBlock = getFixedContainingBlockBox(anchor);
+  const blockHeight = containingBlock.height > 0 ? containingBlock.height : viewportHeight;
+  const left = Math.max(8, Math.min(rect.left, viewportWidth - rect.width - 8)) - containingBlock.left;
 
   return {
     openUpward: result.openUpward,
@@ -49,8 +58,8 @@ export function computeCustomDropdownPlacement(
       width: rect.width,
       minWidth: rect.width,
       maxHeight: result.maxHeight,
-      top: result.openUpward ? "auto" : rect.bottom + MENU_GAP,
-      bottom: result.openUpward ? viewportHeight - rect.top + MENU_GAP : "auto",
+      top: result.openUpward ? "auto" : rect.bottom - containingBlock.top + MENU_GAP,
+      bottom: result.openUpward ? blockHeight - (rect.top - containingBlock.top) + MENU_GAP : "auto",
     },
   };
 }

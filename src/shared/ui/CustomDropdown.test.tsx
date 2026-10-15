@@ -173,6 +173,55 @@ describe("CustomDropdown", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
+  it("positions the menu relative to a backdrop-filter containing block", () => {
+    app = mount(
+      <div id="backdrop">
+        <CustomDropdown value="claude" options={OPTIONS} onChange={onChange} id="provider" />
+      </div>,
+    );
+    const backdrop = document.getElementById("backdrop")!;
+    backdrop.getBoundingClientRect = () =>
+      ({
+        x: 20,
+        y: 50,
+        top: 50,
+        left: 20,
+        right: 420,
+        bottom: 750,
+        width: 400,
+        height: 700,
+        toJSON() {
+          return {};
+        },
+      }) as DOMRect;
+    mockAnchorRect(app.container, { top: 200, left: 100, width: 300, height: 60 });
+
+    const real = window.getComputedStyle;
+    vi.spyOn(window, "getComputedStyle").mockImplementation(((el: Element) => {
+      if (el === backdrop) {
+        return {
+          transform: "none",
+          filter: "none",
+          backdropFilter: "blur(3px)",
+          perspective: "none",
+          willChange: "auto",
+          contain: "none",
+          borderLeftWidth: "0px",
+          borderTopWidth: "0px",
+          borderBottomWidth: "0px",
+        } as unknown as CSSStyleDeclaration;
+      }
+      return real.call(window, el);
+    }) as typeof window.getComputedStyle);
+
+    click(document.getElementById("provider")!);
+
+    const menu = document.querySelector<HTMLElement>(".custom-dropdown-menu")!;
+    // Viewport-space coordinates translated into the backdrop's space.
+    expect(menu.style.left).toBe("80px");
+    expect(menu.style.top).toBe("215px");
+  });
+
   it("restores focus to trigger when an option is selected", () => {
     app = mount(
       <CustomDropdown value="claude" options={OPTIONS} onChange={onChange} id="provider" />,
