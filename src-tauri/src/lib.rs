@@ -73,6 +73,7 @@ pub fn run() {
             .plugin(
                 tauri_plugin_window_state::Builder::default()
                     .with_state_flags(tray::SAVED_WINDOW_STATE)
+                    .with_filter(|label| label == "main")
                     .build(),
             )
             .plugin(tauri_plugin_updater::Builder::new().build());
