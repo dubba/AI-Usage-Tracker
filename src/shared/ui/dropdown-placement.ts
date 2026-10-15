@@ -90,15 +90,17 @@ export function getFixedContainingBlockBox(element: HTMLElement | null): FixedCo
   let current = element.parentElement;
   while (current && current !== document.body && current !== document.documentElement) {
     if (createsFixedContainingBlock(window.getComputedStyle(current))) {
-      const style = window.getComputedStyle(current);
+      // clientLeft/clientTop/clientHeight describe the padding box exactly:
+      // past the border and past any scrollbar or reserved scrollbar gutter.
+      // `.modal-backdrop` sets `scrollbar-gutter: stable both-edges` with a
+      // 6px `::-webkit-scrollbar`, so in Chromium (Android WebView, WebView2)
+      // its padding box starts 6px right of its border edge; measuring only
+      // the border shifted every modal dropdown right of its trigger.
       const rect = current.getBoundingClientRect();
-      const borderLeft = parseFloat(style.borderLeftWidth) || 0;
-      const borderTop = parseFloat(style.borderTopWidth) || 0;
-      const borderBottom = parseFloat(style.borderBottomWidth) || 0;
       return {
-        left: rect.left + borderLeft - current.scrollLeft,
-        top: rect.top + borderTop - current.scrollTop,
-        height: Math.max(0, rect.height - borderTop - borderBottom),
+        left: rect.left + current.clientLeft - current.scrollLeft,
+        top: rect.top + current.clientTop - current.scrollTop,
+        height: current.clientHeight,
       };
     }
     current = current.parentElement;

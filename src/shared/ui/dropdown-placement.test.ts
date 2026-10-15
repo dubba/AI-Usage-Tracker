@@ -140,6 +140,9 @@ describe("dropdown-placement", () => {
     it("measures the padding-box origin of a transformed ancestor, adjusted for scroll", () => {
       const backdrop = document.createElement("div");
       backdrop.getBoundingClientRect = () => rectOf({ top: 100, left: 60, width: 400, height: 600 });
+      Object.defineProperty(backdrop, "clientLeft", { value: 2, configurable: true });
+      Object.defineProperty(backdrop, "clientTop", { value: 3, configurable: true });
+      Object.defineProperty(backdrop, "clientHeight", { value: 593, configurable: true });
       Object.defineProperty(backdrop, "scrollLeft", { value: 0, configurable: true });
       Object.defineProperty(backdrop, "scrollTop", { value: 40, configurable: true });
       const child = document.createElement("div");
@@ -156,16 +159,33 @@ describe("dropdown-placement", () => {
             perspective: "none",
             willChange: "auto",
             contain: "none",
-            borderLeftWidth: "2px",
-            borderTopWidth: "3px",
-            borderBottomWidth: "4px",
           });
         }
         return real.call(window, el);
       }) as typeof window.getComputedStyle);
 
-      // left = 60 + 2 - 0, top = 100 + 3 - 40, height = 600 - 3 - 4
+      // left = 60 + 2 - 0, top = 100 + 3 - 40, height = clientHeight
       expect(getFixedContainingBlockBox(child)).toEqual({ left: 62, top: 63, height: 593 });
+    });
+
+    it("starts past a reserved scrollbar gutter, not at the border edge", () => {
+      // `.modal-backdrop` is full-viewport with `scrollbar-gutter: stable
+      // both-edges` and a 6px scrollbar: Chromium reports clientLeft = 6 and
+      // places fixed descendants from x = 6, not from its border edge at x = 0.
+      const backdrop = document.createElement("div");
+      backdrop.getBoundingClientRect = () => rectOf({ top: 0, left: 0, width: 375, height: 812 });
+      Object.defineProperty(backdrop, "clientLeft", { value: 6, configurable: true });
+      Object.defineProperty(backdrop, "clientTop", { value: 0, configurable: true });
+      Object.defineProperty(backdrop, "clientHeight", { value: 812, configurable: true });
+      const child = document.createElement("div");
+      backdrop.appendChild(child);
+      document.body.appendChild(backdrop);
+
+      const real = window.getComputedStyle;
+      vi.spyOn(window, "getComputedStyle").mockImplementation(((el: Element) =>
+        el === backdrop ? styleWith({ backdropFilter: "blur(3px)" }) : real.call(window, el)) as typeof window.getComputedStyle);
+
+      expect(getFixedContainingBlockBox(child)).toEqual({ left: 6, top: 0, height: 812 });
     });
   });
 

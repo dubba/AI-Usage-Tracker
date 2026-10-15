@@ -195,6 +195,9 @@ describe("CustomDropdown", () => {
         },
       }) as DOMRect;
     mockAnchorRect(app.container, { top: 200, left: 100, width: 300, height: 60 });
+    // A reserved 6px scrollbar gutter on the left: the padding box, which
+    // fixed descendants are placed from, starts at x = 20 + 6.
+    Object.defineProperty(backdrop, "clientLeft", { value: 6, configurable: true });
 
     const real = window.getComputedStyle;
     vi.spyOn(window, "getComputedStyle").mockImplementation(((el: Element) => {
@@ -206,9 +209,6 @@ describe("CustomDropdown", () => {
           perspective: "none",
           willChange: "auto",
           contain: "none",
-          borderLeftWidth: "0px",
-          borderTopWidth: "0px",
-          borderBottomWidth: "0px",
         } as unknown as CSSStyleDeclaration;
       }
       return real.call(window, el);
@@ -217,8 +217,10 @@ describe("CustomDropdown", () => {
     click(document.getElementById("provider")!);
 
     const menu = document.querySelector<HTMLElement>(".custom-dropdown-menu")!;
-    // Viewport-space coordinates translated into the backdrop's space.
-    expect(menu.style.left).toBe("80px");
+    // Viewport-space coordinates translated into the backdrop's padding box,
+    // so the menu's left edge lands exactly on the trigger's (100 - 26).
+    expect(menu.style.left).toBe("74px");
+    expect(menu.style.width).toBe("300px");
     expect(menu.style.top).toBe("215px");
   });
 
