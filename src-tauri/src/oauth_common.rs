@@ -244,7 +244,7 @@ fn connected_html(title: &str, account: &Account, countdown_script: &str) -> Str
         })
         .unwrap_or_default();
     format!(
-        r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px 20px;text-align:center"><h1>{}</h1><div style="display:flex;justify-content:center;align-items:center;gap:10px;margin:8px 0 18px;font-size:20px;font-weight:600">{}<span>{}</span></div>{}<p style="color:#8e9791;margin:0 0 6px">Returning to AI Usage Tracker in</p><div style="font-size:48px;font-weight:700;line-height:1.1;margin:0 0 16px;color:#a78bfa"><span id="sec">5</span></div><p style="color:#626b65;font-size:13px;margin:0">You can also close this tab manually.</p>{}</body></html>"#,
+        r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;min-height:100vh;min-height:100dvh;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#101412;color:#f4f6f8;font-family:system-ui;padding:24px 20px;text-align:center"><div style="max-width:480px;width:100%"><h1 style="margin:0 0 12px;font-size:28px">{}</h1><div style="display:flex;justify-content:center;align-items:center;gap:10px;margin:8px 0 18px;font-size:20px;font-weight:600">{}<span>{}</span></div>{}<p style="color:#8e9791;margin:0 0 6px">Returning to AI Usage Tracker in</p><div style="font-size:48px;font-weight:700;line-height:1.1;margin:0 0 16px;color:#a78bfa"><span id="sec">5</span></div><p style="color:#626b65;font-size:13px;margin:0">You can also close this tab manually.</p></div>{}</body></html>"#,
         escape_html(title),
         provider_icon_svg(&account.provider),
         escape_html(provider_name),
@@ -264,7 +264,7 @@ pub(crate) fn unrecognized_callback_response() -> axum::response::Response {
 
 pub(crate) fn auth_failure_html(title: &str, message: &str) -> String {
     format!(
-        r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>{}</h1><p style="color:#ff9d9d">{}</p><p style="color:#8e9791">Return to the app and try again.</p></body></html>"#,
+        r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;min-height:100vh;min-height:100dvh;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#101412;color:#f4f6f8;font-family:system-ui;padding:24px 20px;text-align:center"><div style="max-width:480px;width:100%"><h1 style="margin:0 0 12px;font-size:28px">{}</h1><p style="color:#ff9d9d;margin:0 0 12px">{}</p><p style="color:#8e9791;margin:0">Return to the app and try again.</p></div></body></html>"#,
         escape_html(title),
         escape_html(message)
     )
@@ -432,6 +432,22 @@ mod tests {
         assert!(html.contains("font-size:48px"));
         assert!(html.contains("window.close()"));
         assert_eq!(CONNECTED_PAGE_DISPLAY, Duration::from_secs(5));
+    }
+
+    #[test]
+    fn connected_and_failure_pages_center_content_on_screen() {
+        let connected = account_connected_html(
+            "Account connected",
+            &account(Provider::Grok, Some("test@example.com"), "Grok"),
+        );
+        assert!(connected.contains("justify-content:center"));
+        assert!(connected.contains("align-items:center"));
+        assert!(connected.contains("min-height:100dvh"));
+
+        let failure = auth_failure_html("Authentication failed", "Invalid state");
+        assert!(failure.contains("justify-content:center"));
+        assert!(failure.contains("align-items:center"));
+        assert!(failure.contains("min-height:100dvh"));
     }
 
     #[test]

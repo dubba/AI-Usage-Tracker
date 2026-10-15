@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (1 change)
+
+### Improved (1)
+
+- The "Account connected" page and sign-in status screens now center their content vertically in the middle of the screen instead of sticking to the top of the window.
 
 ## v0.4.4 - 2026-10-14 (28 changes)
 

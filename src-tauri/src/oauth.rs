@@ -948,7 +948,7 @@ async fn handle_callback(
         .swap(true, std::sync::atomic::Ordering::SeqCst)
     {
         return callback_html(
-            r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px 20px;text-align:center"><h1>Finishing sign-in</h1><p style="color:#d1d5db">Return to AI Usage Tracker.</p></body></html>"#
+            r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;min-height:100vh;min-height:100dvh;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#101412;color:#f4f6f8;font-family:system-ui;padding:24px 20px;text-align:center"><div style="max-width:480px;width:100%"><h1 style="margin:0 0 12px;font-size:28px">Finishing sign-in</h1><p style="color:#d1d5db;margin:0">Return to AI Usage Tracker.</p></div></body></html>"#
                 .into(),
         );
     }
@@ -977,7 +977,7 @@ async fn handle_callback(
     if !context.app.login_is_waiting(&context.attempt_id) {
         stop_callback(&context).await;
         return callback_html(
-            r#"<!doctype html><html><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px;text-align:center"><h1>Login canceled</h1></body></html>"#
+            r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;min-height:100vh;min-height:100dvh;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#101412;color:#f4f6f8;font-family:system-ui;padding:24px 20px;text-align:center"><div style="max-width:480px;width:100%"><h1 style="margin:0;font-size:28px">Login canceled</h1></div></body></html>"#
                 .into(),
         );
     }
@@ -1004,7 +1004,7 @@ async fn handle_callback(
                 }
                 stop_callback(&context).await;
                 callback_html(
-                    r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="background:#101412;color:#f4f6f8;font-family:system-ui;padding:50px 20px;text-align:center"><h1 style="color:#4ade80">Authorization received</h1><p style="color:#d1d5db;font-size:16px;margin:16px 0">Return to AI Usage Tracker to complete connection.</p></body></html>"#
+                    r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;min-height:100vh;min-height:100dvh;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#101412;color:#f4f6f8;font-family:system-ui;padding:24px 20px;text-align:center"><div style="max-width:480px;width:100%"><h1 style="color:#4ade80;margin:0 0 12px;font-size:28px">Authorization received</h1><p style="color:#d1d5db;font-size:16px;margin:16px 0 0">Return to AI Usage Tracker to complete connection.</p></div></body></html>"#
                         .into(),
                 )
             } else {
