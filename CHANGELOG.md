@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (22 changes)
+## Unreleased (23 changes)
 
 ### Improved (5)
 
@@ -15,7 +15,7 @@
 - The Add Account dialog no longer shows the "What happens next" walkthrough panels for OpenCode and Grok sign-ins, so the dialog is shorter.
 - The Add Account dialog no longer shows the explanatory note under the OpenCode email field.
 
-### Fixed (15)
+### Fixed (16)
 
 - Link Devices with a link code now works between an iPhone and an Android phone in both directions. The iPhone now finds and announces link codes through the system's Bonjour service, which iOS permits, instead of a network method iOS blocks for sideloaded apps.
 - On a phone with mobile data on, showing a link code or QR code now offers the Wi-Fi connection instead of sometimes the mobile data connection, which the other device on the Wi-Fi could not reach.
@@ -32,6 +32,7 @@
 - The empty dashboard's Other and Link Devices buttons now use slightly smaller text than the provider names so the buttons sit visually below the provider cards.
 - The provider dropdown in the Add Account dialog no longer opens misaligned from its button inside the modal.
 - On Android, dropdown menus inside dialogs (such as the provider filter in Create Group, the provider list in Add Account, and the alert threshold in Usage Notifications) now open exactly under their button instead of shifted slightly to the right.
+- The chevron on the Settings dropdowns (Appearance, Account Updates) now rotates smoothly when opening, matching the dropdowns in dialogs, instead of snapping between up and down.
 
 ## v0.4.4 - 2026-10-14 (28 changes)
 
