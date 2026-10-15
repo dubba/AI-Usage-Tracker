@@ -80,7 +80,7 @@ describe("AccountsView empty dashboard", () => {
     const onAdd = vi.fn();
     app = renderView({ onOpenPairing, onAdd });
     expect(document.body.textContent).toContain("Connect a provider account");
-    expect(document.body.textContent).toContain("Other Provider");
+    expect(document.querySelector('button[aria-label="Other Provider"]')).not.toBeNull();
     expect(document.body.textContent).toContain("Link Devices");
     const grid = document.querySelector(".empty-provider-grid");
     expect(grid?.querySelectorAll(".empty-provider-card")).toHaveLength(4);
@@ -97,7 +97,7 @@ describe("AccountsView empty dashboard", () => {
     const onOpenPairing = vi.fn();
     const onAdd = vi.fn();
     app = renderView({ onOpenPairing, onAdd });
-    const other = [...document.querySelectorAll("button")].find((button) => button.textContent?.includes("Other Provider"));
+    const other = document.querySelector('button[aria-label="Other Provider"]');
     click(other!);
     expect(onAdd).toHaveBeenCalledWith("opencode_go");
     expect(onOpenPairing).not.toHaveBeenCalled();
@@ -112,7 +112,7 @@ describe("AccountsView empty dashboard", () => {
     });
     expect(document.body.textContent).toContain("No accounts in Work");
     expect(document.body.textContent).not.toContain("Link Devices");
-    expect(document.body.textContent).not.toContain("Other Provider");
+    expect(document.querySelector('button[aria-label="Other Provider"]')).toBeNull();
   });
 
   it("hides Link Devices when accounts are already listed", () => {

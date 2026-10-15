@@ -721,10 +721,24 @@ select {
   width: 100%;
   min-width: 0;
   margin-top: 0;
+  overflow: hidden;
   white-space: nowrap;
   border-color: var(--chrome-border) !important;
   border-radius: 6px !important;
   transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+/* Same bright text as the provider names above (overrides .button.ghost),
+   one step smaller so the buttons sit visually below the provider names. */
+button.button.ghost.empty-provider-other {
+  color: var(--c-f5f1f0);
+  font-size: 13px;
+}
+
+.empty-provider-other span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 button.button.ghost.empty-provider-other:hover:not(:disabled),
@@ -821,6 +835,7 @@ button.button.ghost.empty-provider-other:active:not(:disabled) {
 .button svg {
   width: 18px;
   height: 18px;
+  flex-shrink: 0;
 }
 
 .button.primary {

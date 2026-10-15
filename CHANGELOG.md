@@ -1,12 +1,19 @@
 # Changelog
 
-## Unreleased (10 changes)
+## Unreleased (18 changes)
 
-### Improved (1)
+### Improved (3)
 
 - The "Account connected" page and sign-in status screens now use a pure black background and center their content vertically in the middle of the screen instead of sticking to the top of the window.
+- The Link Devices button in Settings now shows the same devices icon as the empty dashboard, so both entry points look the same.
+- The OpenCode email field in the Add Account dialog is now labeled "Account email (optional)" to match the other providers.
 
-### Fixed (9)
+### Removed (2)
+
+- The Add Account dialog no longer shows the "What happens next" walkthrough panels for OpenCode and Grok sign-ins, so the dialog is shorter.
+- The Add Account dialog no longer shows the explanatory note under the OpenCode email field.
+
+### Fixed (13)
 
 - Link Devices with a link code now works between an iPhone and an Android phone in both directions. The iPhone now finds and announces link codes through the system's Bonjour service, which iOS permits, instead of a network method iOS blocks for sideloaded apps.
 - On a phone with mobile data on, showing a link code or QR code now offers the Wi-Fi connection instead of sometimes the mobile data connection, which the other device on the Wi-Fi could not reach.
@@ -17,6 +24,10 @@
 - On desktop, provider sign-in windows now open at the full width of the main window so they cover it.
 - On Android, starting a Grok sign-in when already logged into an account now clears the existing browser session so the standard sign-in screen appears instead of immediately reconnecting the previous account.
 - On desktop, remembered window positions and sizes now track only the main window, preventing temporary sign-in popups from altering saved window state.
+- The plus icon on the empty dashboard's Other button no longer shrinks to a dot when the button is short on space; the icon keeps its size and the label truncates instead.
+- The empty dashboard's Other Provider button is now labeled Other so it fits next to Link Devices on narrow screens.
+- The empty dashboard's Other and Link Devices buttons now use the same bright text color as the provider names above them instead of a dimmer gray.
+- The empty dashboard's Other and Link Devices buttons now use slightly smaller text than the provider names so the buttons sit visually below the provider cards.
 
 ## v0.4.4 - 2026-10-14 (28 changes)
 

@@ -1,10 +1,10 @@
 import { AdvancedToggle } from "./AdvancedToggle";
 import type { FieldsProps } from "./types";
 
-export function OpenCodeFields({ draft, update, setError, busy, isAndroid }: FieldsProps) {
+export function OpenCodeFields({ draft, update, setError, busy }: FieldsProps) {
   return (
     <>
-      <label className="field-label field-spaced" htmlFor="opencode-email">Email address (optional)</label>
+      <label className="field-label field-spaced" htmlFor="opencode-email">Account email (optional)</label>
       <input
         id="opencode-email"
         className="text-input"
@@ -18,19 +18,8 @@ export function OpenCodeFields({ draft, update, setError, busy, isAndroid }: Fie
         autoComplete="email"
         disabled={busy}
       />
-      <div className="credential-note opencode-email-note">Optional. When provided or discovered from your session, your email is shown under the account name on the card.</div>
 
-      {!draft.advancedManual ? (
-        <div className="guided-login-card">
-          <strong>What happens next</strong>
-          <ol>
-            <li>The app opens {isAndroid ? "OpenCode sign-in in this window" : "an OpenCode sign-in window"}.</li>
-            <li>Sign in normally, then click <strong>Go</strong> in OpenCode’s sidebar.</li>
-            <li>{isAndroid ? "The app returns to the dashboard" : "The window closes"} automatically after your limits are found.</li>
-          </ol>
-          <small>{isAndroid ? "The session needed for read-only usage checks is stored securely on your device." : "Your OpenCode session is kept in a temporary private webview. Only the Go session value needed for read-only usage checks is saved in Credential Manager or Keychain."}</small>
-        </div>
-      ) : (
+      {draft.advancedManual && (
         <div className="manual-connection-fields">
           <label className="field-label field-spaced" htmlFor="workspace-id">Workspace ID</label>
           <input

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   ChevronIcon,
+  DevicesIcon,
   ExternalLinkIcon,
   MenuIcon,
 } from "../../shared/ui/icons";
@@ -286,7 +287,8 @@ export function SettingsView({
               className="button ghost settings-changelog-button"
               onClick={onOpenPairing}
             >
-              Link Devices
+              <DevicesIcon />
+              <span>Link Devices</span>
             </button>
           </div>
         </section>

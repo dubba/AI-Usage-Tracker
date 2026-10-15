@@ -1,20 +1,10 @@
 import { AdvancedToggle } from "./AdvancedToggle";
 import type { FieldsProps } from "./types";
 
-export function GrokFields({ draft, update, setError, busy, isAndroid }: FieldsProps) {
+export function GrokFields({ draft, update, setError, busy }: FieldsProps) {
   return (
     <>
-      {!draft.advancedManual ? (
-        <div className="guided-login-card grok-login-card">
-          <strong>What happens next</strong>
-          <ol>
-            <li>The tracker opens {isAndroid ? "Grok sign-in in this window" : "a temporary private accounts.x.ai sign-in window"}.</li>
-            <li>Sign in normally to your Grok or SuperGrok account.</li>
-            <li>{isAndroid ? "The app returns to the dashboard" : "The window closes"} after Grok reports your weekly usage percentage and reset time.</li>
-          </ol>
-          <small>The session needed for read-only usage checks is stored securely on your device. The tracker does not estimate tokens or message counts and never receives your xAI password.</small>
-        </div>
-      ) : (
+      {draft.advancedManual && (
         <div className="manual-connection-fields">
           <label className="field-label field-spaced" htmlFor="grok-cookie">Grok session cookie or cookie header</label>
           <input

@@ -366,8 +366,14 @@ export function AccountsView(props: {
                         </button>
                       ))}
                       <div className="empty-provider-actions">
-                        <button type="button" className="button ghost empty-provider-other" onClick={() => props.onAdd("opencode_go")}>
-                          <PlusIcon />Other Provider
+                        <button
+                          type="button"
+                          className="button ghost empty-provider-other"
+                          aria-label="Other Provider"
+                          onClick={() => props.onAdd("opencode_go")}
+                        >
+                          <PlusIcon />
+                          <span>Other</span>
                         </button>
                         {props.onOpenPairing ? (
                           <button
@@ -375,7 +381,8 @@ export function AccountsView(props: {
                             className="button ghost empty-provider-other"
                             onClick={props.onOpenPairing}
                           >
-                            <DevicesIcon />Link Devices
+                            <DevicesIcon />
+                            <span>Link Devices</span>
                           </button>
                         ) : null}
                       </div>
