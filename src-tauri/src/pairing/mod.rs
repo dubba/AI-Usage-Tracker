@@ -1,6 +1,10 @@
 pub mod airgap;
 pub mod crypto;
 pub mod discovery;
+// Bonjour discovery for iOS; also built into macOS tests to check it
+// interoperates with mdns-sd.
+#[cfg(any(target_os = "ios", all(test, target_os = "macos")))]
+pub mod dnssd;
 pub mod payload;
 pub mod protocol;
 pub mod transport;

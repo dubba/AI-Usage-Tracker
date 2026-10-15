@@ -1,13 +1,15 @@
 # Changelog
 
-## Unreleased (8 changes)
+## Unreleased (10 changes)
 
 ### Improved (1)
 
 - The "Account connected" page and sign-in status screens now use a pure black background and center their content vertically in the middle of the screen instead of sticking to the top of the window.
 
-### Fixed (7)
+### Fixed (9)
 
+- Link Devices with a link code now works between an iPhone and an Android phone in both directions. The iPhone now finds and announces link codes through the system's Bonjour service, which iOS permits, instead of a network method iOS blocks for sideloaded apps.
+- On a phone with mobile data on, showing a link code or QR code now offers the Wi-Fi connection instead of sometimes the mobile data connection, which the other device on the Wi-Fi could not reach.
 - Error messages across all dialogs now appear at the bottom of the modal below the back button and other action buttons, automatically dismiss after a few seconds, disappear immediately when pressing Back or Escape, and never follow into other views when connection attempts fail. In Scan QR Code, the switch camera button is centered in the controls row aligned with the viewfinder.
 - On Android, using the system back gesture in the app no longer navigates back into the "Account connected" page or completed OAuth sign-in screens after the confirmation has closed.
 - Transferring settings to another device with Link Devices now also carries over the Include Beta Releases update setting and the Appearance theme, so the new device matches the old one.

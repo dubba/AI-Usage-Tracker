@@ -8,24 +8,35 @@
 //!
 //! The code is a *discovery handle*, not a secret: security comes from the
 //! ECDH exchange and SAS comparison performed after the TCP connection.
+//!
+//! iOS goes through the system's Bonjour service ([`super::dnssd`]) because
+//! it blocks the raw multicast sockets `mdns-sd` uses; every other platform
+//! uses `mdns-sd`. Both speak standard mDNS, so either side can host.
 
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+#[cfg(not(target_os = "ios"))]
 use mdns_sd::{Receiver, ServiceDaemon, ServiceEvent, ServiceInfo};
 use rand::Rng;
+use std::net::IpAddr;
 use uuid::Uuid;
 
 use super::protocol::{
     compute_display_fingerprint, is_allowed_pairing_host, ParsedQrPayload, PROTOCOL_VERSION,
 };
 
+#[cfg_attr(target_os = "ios", allow(dead_code))]
 pub const SERVICE_TYPE: &str = "_aiut-pair._tcp.local.";
+/// The service type without its domain, as DNS-SD registers and resolves it.
+#[cfg_attr(not(any(target_os = "ios", test)), allow(dead_code))]
+pub(crate) const DNSSD_REGTYPE: &str = "_aiut-pair._tcp";
+const NOT_FOUND: &str = "No device found with that pairing code. Check the code and that both devices are on the same Wi-Fi network.";
 const CODE_DIGITS: usize = 6;
 const RESOLVE_TIMEOUT_MS: u64 = 15_000;
 /// Failed join-by-code lookups per code before the joiner is locked out.
 /// The code is a discovery handle, not authentication — SAS still authenticates.
 pub const MAX_JOIN_ATTEMPTS: u8 = 5;
 
-fn instance_name(code: &str) -> String {
+pub(crate) fn instance_name(code: &str) -> String {
     format!("AIUT-{code}")
 }
 
@@ -61,8 +72,12 @@ pub fn generate_join_code() -> String {
 }
 
 pub struct MdnsAdvertisement {
+    #[cfg(not(target_os = "ios"))]
     daemon: ServiceDaemon,
+    #[cfg(not(target_os = "ios"))]
     fullname: String,
+    #[cfg(target_os = "ios")]
+    _registration: super::dnssd::Registration,
 }
 
 impl MdnsAdvertisement {
@@ -71,6 +86,7 @@ impl MdnsAdvertisement {
     }
 }
 
+#[cfg(not(target_os = "ios"))]
 impl Drop for MdnsAdvertisement {
     fn drop(&mut self) {
         let _ = self.daemon.unregister(&self.fullname);
@@ -102,6 +118,41 @@ pub fn advertise(
         return Err("Pairing host must be a local network address".into());
     }
 
+    let properties = [
+        ("sid", session_id.to_string()),
+        ("pk", URL_SAFE_NO_PAD.encode(public_key)),
+        ("nonce", URL_SAFE_NO_PAD.encode(nonce)),
+        ("v", PROTOCOL_VERSION.to_string()),
+    ];
+
+    #[cfg(target_os = "ios")]
+    {
+        // Announce only on the interface the listener is bound to, so the
+        // address the joiner resolves is the one that accepts it.
+        let interface_index = super::transport::interface_index_for_ip(host_ip).unwrap_or(0);
+        let registration = super::dnssd::register(
+            &instance_name(code),
+            DNSSD_REGTYPE,
+            port,
+            interface_index,
+            &properties,
+        )?;
+        Ok(MdnsAdvertisement {
+            _registration: registration,
+        })
+    }
+
+    #[cfg(not(target_os = "ios"))]
+    advertise_mdns_sd(code, host_ip, port, &properties)
+}
+
+#[cfg(not(target_os = "ios"))]
+fn advertise_mdns_sd(
+    code: &str,
+    host_ip: &str,
+    port: u16,
+    properties: &[(&str, String)],
+) -> Result<MdnsAdvertisement, String> {
     let daemon = ServiceDaemon::new().map_err(|e| format!("mDNS unavailable: {e}"))?;
     // Use a random local hostname: embedding the full session id in the
     // hostname would expose it to passive LAN observers even before TXT
@@ -110,19 +161,13 @@ pub fn advertise(
     rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut host_rand);
     let host_rand_hex: String = host_rand.iter().map(|b| format!("{b:02x}")).collect();
     let host_name = format!("aiut-{host_rand_hex}.local.");
-    let properties = [
-        ("sid", session_id.to_string()),
-        ("pk", URL_SAFE_NO_PAD.encode(public_key)),
-        ("nonce", URL_SAFE_NO_PAD.encode(nonce)),
-        ("v", PROTOCOL_VERSION.to_string()),
-    ];
     let info = ServiceInfo::new(
         SERVICE_TYPE,
         &instance_name(code),
         &host_name,
         host_ip,
         port,
-        &properties[..],
+        properties,
     )
     .map_err(|e| format!("Invalid mDNS service info: {e}"))?;
     // Host side doesn't need to announce hostnames separately.
@@ -140,6 +185,41 @@ pub async fn resolve(code: &str) -> Result<ParsedQrPayload, String> {
         return Err("Pairing code must be 6 digits".into());
     }
 
+    #[cfg(target_os = "ios")]
+    {
+        resolve_dnssd(code).await
+    }
+
+    #[cfg(not(target_os = "ios"))]
+    resolve_mdns_sd(code).await
+}
+
+#[cfg(any(target_os = "ios", all(test, target_os = "macos")))]
+pub(crate) async fn resolve_dnssd(code: &str) -> Result<ParsedQrPayload, String> {
+    let instance = instance_name(code);
+    let resolved = tokio::task::spawn_blocking(move || {
+        super::dnssd::resolve(
+            &instance,
+            DNSSD_REGTYPE,
+            std::time::Duration::from_millis(RESOLVE_TIMEOUT_MS),
+        )
+    })
+    .await
+    .map_err(|_| NOT_FOUND.to_string())??;
+    let host = pick_resolved_host(&resolved.addresses);
+    let property = |key: &str| resolved.properties.get(key).map(String::as_str);
+    parsed_from_resolved(
+        host.as_deref(),
+        resolved.port,
+        property("sid"),
+        property("pk"),
+        property("nonce"),
+        property("v"),
+    )
+}
+
+#[cfg(not(target_os = "ios"))]
+pub(crate) async fn resolve_mdns_sd(code: &str) -> Result<ParsedQrPayload, String> {
     let target_fullname = format!("{}.{}", instance_name(code), SERVICE_TYPE);
     let daemon = ServiceDaemon::new().map_err(|e| format!("mDNS unavailable: {e}"))?;
     let receiver = daemon
@@ -155,12 +235,42 @@ pub async fn resolve(code: &str) -> Result<ParsedQrPayload, String> {
     let _ = daemon.stop_browse(SERVICE_TYPE);
     let _ = daemon.shutdown();
 
-    result
-        .map_err(|_| {
-            "No device found with that pairing code. Check the code and that both devices are on the same Wi-Fi network.".to_string()
-        })?
+    result.map_err(|_| NOT_FOUND.to_string())?
 }
 
+/// Chooses which resolved address of the host to connect to: a private LAN
+/// IPv4 first, then any other routable IPv4 that is not a Tailscale/CGNAT
+/// address, then any IPv4, then anything else.
+fn pick_resolved_host(addresses: &[IpAddr]) -> Option<String> {
+    let v4: Vec<std::net::Ipv4Addr> = addresses
+        .iter()
+        .filter_map(|ip| match ip {
+            IpAddr::V4(v4) => Some(*v4),
+            IpAddr::V6(_) => None,
+        })
+        .collect();
+    let is_cgnat = |ip: &std::net::Ipv4Addr| {
+        let octets = ip.octets();
+        octets[0] == 100 && (64..=127).contains(&octets[1])
+    };
+    v4.iter()
+        .find(|ip| {
+            let octets = ip.octets();
+            !is_cgnat(ip)
+                && ((octets[0] == 192 && octets[1] == 168)
+                    || octets[0] == 10
+                    || (octets[0] == 172 && (16..=31).contains(&octets[1])))
+        })
+        .or_else(|| {
+            v4.iter()
+                .find(|ip| !ip.is_loopback() && !ip.is_link_local() && !is_cgnat(ip))
+        })
+        .or_else(|| v4.first())
+        .map(|a| a.to_string())
+        .or_else(|| addresses.first().map(|a| a.to_string()))
+}
+
+#[cfg(not(target_os = "ios"))]
 async fn wait_for_resolution(
     receiver: &Receiver<ServiceEvent>,
     target_fullname: &str,
@@ -178,28 +288,13 @@ async fn wait_for_resolution(
         }
 
         let port = info.get_port();
-        let addrs_v4 = info.get_addresses_v4();
-        let host = addrs_v4
-            .iter()
-            .find(|ip| {
-                let octets = ip.octets();
-                let is_cgnat_tailscale = octets[0] == 100 && (octets[1] >= 64 && octets[1] <= 127);
-                !is_cgnat_tailscale
-                    && ((octets[0] == 192 && octets[1] == 168)
-                        || octets[0] == 10
-                        || (octets[0] == 172 && (16..=31).contains(&octets[1])))
-            })
-            .or_else(|| {
-                addrs_v4.iter().find(|ip| {
-                    let octets = ip.octets();
-                    let is_cgnat_tailscale =
-                        octets[0] == 100 && (octets[1] >= 64 && octets[1] <= 127);
-                    !ip.is_loopback() && !ip.is_link_local() && !is_cgnat_tailscale
-                })
-            })
-            .or_else(|| addrs_v4.iter().next())
-            .map(|a| a.to_string())
-            .or_else(|| info.get_addresses().iter().next().map(|a| a.to_string()));
+        let mut addresses: Vec<IpAddr> = info
+            .get_addresses_v4()
+            .into_iter()
+            .map(|ip| IpAddr::V4(*ip))
+            .collect();
+        addresses.extend(info.get_addresses().iter().filter(|ip| ip.is_ipv6()));
+        let host = pick_resolved_host(&addresses);
         let sid = info.get_property_val_str("sid");
         let pk = info.get_property_val_str("pk");
         let nonce = info.get_property_val_str("nonce");

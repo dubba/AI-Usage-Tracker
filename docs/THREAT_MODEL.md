@@ -85,7 +85,7 @@ renders `ApiIntegrationWindow.tsx` and can call only three bridge methods
 | Providers | `providers/{mod,openai,anthropic,antigravity,google_ai_studio,grok,opencode_go,oauth_refresh}.rs` — each normalizes a provider's quota response into `UsageWindow`s |
 | Login flows | `oauth.rs`, `oauth_common.rs` (loopback OAuth), `google_ai_studio_oauth.rs` (Cloud connection), `grok_login.rs`, `opencode_login.rs` (WebView cookie capture), `mobile_auth.rs` (mobile in-app sign-in) |
 | Local API | `bridge_api.rs` (loopback HTTP), `commands/bridge.rs` |
-| Device transfer | `pairing/{mod,crypto,protocol,transport,discovery,payload,airgap}.rs`, `commands/pairing.rs` |
+| Device transfer | `pairing/{mod,crypto,protocol,transport,discovery,dnssd,payload,airgap}.rs`, `commands/pairing.rs` |
 | Storage | `store/*` (accounts, credentials), `fs_util.rs` (atomic owner-only writes), `migrations.rs` |
 | Updater | `updater.rs`, `apk_install.rs` |
 | Platform glue | `tray.rs`, `diagnostics.rs`, `macos_notifications.rs`, `camera_permission.rs`, `android_context.rs`, `android_keystore.rs`, `lan_binding.rs` |
@@ -167,8 +167,8 @@ Android, plaintext in debug builds). Corrupt JSON is quarantined and reloaded, n
 | QR pairing URIs accept only IP-literal hosts in loopback/private/link-local/CGNAT ranges; schemes `aiusage-pair:`/`aiusage:`; cryptographic parse before connecting | `pairing/protocol.rs:21-22,44-70,116` |
 | Crypto: X25519 with non-contributory-key rejection, HKDF-SHA256, XChaCha20-Poly1305, 48-bit SAS code, constant-time confirmation tags, keys zeroized on drop | `pairing/crypto.rs:17,41-44,63,98-111,136-137,147` |
 | SAS confirmation gates the payload transfer on both sides; rejection aborts both | `pairing/transport.rs:752-802,911-925`, `pairing/mod.rs:155-187` |
-| Host listener binds only the LAN address it advertises in the QR code and mDNS record (chosen by `get_local_lan_ip`), and only if that address passes the same local-network rule receivers apply to QR codes (private, link-local, CGNAT, loopback); otherwise host mode fails with an explanation, with no fallback to all interfaces | `pairing/mod.rs:203-206,544-555`, `pairing/transport.rs:43-85` |
-| mDNS `_aiut-pair._tcp.local` TXT records carry only sid/pk/nonce/v; join codes 6-digit, weak codes rejected, 5-attempt lockout | `pairing/discovery.rs:21-26,38-61,113-118` |
+| Host listener binds only the LAN address it advertises in the QR code and mDNS record (chosen by `get_local_lan_ip`, which prefers a private address on a Wi-Fi/Ethernet interface over cellular, VPN, and virtual interfaces), and only if that address passes the same local-network rule receivers apply to QR codes (private, link-local, CGNAT, loopback); otherwise host mode fails with an explanation, with no fallback to all interfaces | `pairing/mod.rs:206-209,554-566`, `pairing/transport.rs:43-145` |
+| mDNS `_aiut-pair._tcp.local` TXT records carry only sid/pk/nonce/v; join codes 6-digit, weak codes rejected, 5-attempt lockout. iOS advertises and resolves through the system's DNS-SD (mDNSResponder) instead of `mdns-sd`, on the listener's interface only, with no auto-rename; resolved records from either backend pass the same `parsed_from_resolved` validation (LAN allowlist, length and version checks); TXT parsing bounds-checks every length byte | `pairing/discovery.rs:28-72`, `pairing/dnssd.rs:168-275,431` |
 | Framing: 1 KiB pre-auth / 16 MB post-auth frame caps; session/socket/confirm timeouts 300/30/60 s | `pairing/protocol.rs:23-30`, `pairing/transport.rs:33-38` |
 | Import clamping: 64 accounts / 256 KiB secrets, per-field clamps, hostile account ids re-minted, buckets remapped | `pairing/payload.rs:14-16,307-312`, `limits.rs:103-121` |
 | Credential replacement requires an explicit single-use per-transfer opt-in, default false, reset per session; sender-side deletions are never applied to the receiver | `commands/pairing.rs:105-114`, `pairing/payload.rs:260-265,294-296`, `pairing/mod.rs:195,404` |
@@ -252,7 +252,8 @@ bridge degrades to a session-only token instead of persisting (`startup.rs:56-73
 - macOS: camera TCC permission requested before QR scanning, 120 s timeout, failures non-fatal (`camera_permission.rs:85-91`); local-network + Bonjour usage strings and camera usage string declared (`src-tauri/Info.ios.plist:5-12`, merged into the generated iOS Info.plist at build time; identical keys in `src-tauri/Info.plist`); macOS entitlements: camera, network client, network server (`src-tauri/Entitlements.plist:5-10`).
 - Android: Wi-Fi binding during pairing so VPN/DNS blockers cannot swallow LAN traffic, and the Wi-Fi multicast lock mDNS needs, both held only while a pairing session runs; expandable notifications via JNI (`lan_binding.rs:9-99`, `MainActivity.kt:354-413`).
 - Windows: the start-at-login `Run` value is rewritten with the executable path quoted, only when the entry exists (`autostart.rs:1-55`).
-- Outbound-only LAN IP discovery uses a UDP `connect` to `8.8.8.8:80` that sends no packets (`pairing/transport.rs:74-83`).
+- iOS: link-code discovery uses Bonjour through mDNSResponder, covered by the `NSBonjourServices` / `NSLocalNetworkUsageDescription` keys; no multicast entitlement is needed or requested (`pairing/dnssd.rs`).
+- Outbound-only LAN IP discovery uses a UDP `connect` to `8.8.8.8:80` that sends no packets (`pairing/transport.rs:134-143`).
 
 ## Not yet verified in this draft
 

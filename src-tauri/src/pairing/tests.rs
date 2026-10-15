@@ -1722,3 +1722,162 @@ async fn host_listener_binds_only_the_advertised_address() {
         );
     }
 }
+
+#[test]
+fn host_address_prefers_wifi_over_cellular_and_vpn() {
+    use super::transport::select_lan_ipv4;
+    use std::net::Ipv4Addr;
+    let candidates = |list: &[(&str, [u8; 4])]| -> Vec<(String, Ipv4Addr)> {
+        list.iter()
+            .map(|(name, ip)| (name.to_string(), Ipv4Addr::from(*ip)))
+            .collect()
+    };
+
+    // iPhone: cellular pdp_ip0 (carrier 10.x) is listed before Wi-Fi en0.
+    let iphone = candidates(&[
+        ("lo0", [127, 0, 0, 1]),
+        ("pdp_ip0", [10, 47, 3, 9]),
+        ("en0", [192, 168, 1, 23]),
+    ]);
+    assert_eq!(
+        select_lan_ipv4(&iphone),
+        Some(Ipv4Addr::new(192, 168, 1, 23))
+    );
+
+    // Android with "mobile data always active" and a VPN-based ad blocker.
+    let android = candidates(&[
+        ("rmnet_data0", [10, 120, 4, 2]),
+        ("tun0", [10, 111, 222, 1]),
+        ("wlan0", [192, 168, 1, 40]),
+    ]);
+    assert_eq!(
+        select_lan_ipv4(&android),
+        Some(Ipv4Addr::new(192, 168, 1, 40))
+    );
+
+    // Desktop names that match no list keep their system order.
+    let windows = candidates(&[("Ethernet", [10, 0, 0, 5]), ("Wi-Fi", [192, 168, 0, 9])]);
+    assert_eq!(select_lan_ipv4(&windows), Some(Ipv4Addr::new(10, 0, 0, 5)));
+
+    // With only a cellular private address it is still used rather than none.
+    let cellular_only = candidates(&[("pdp_ip0", [10, 47, 3, 9])]);
+    assert_eq!(
+        select_lan_ipv4(&cellular_only),
+        Some(Ipv4Addr::new(10, 47, 3, 9))
+    );
+
+    // Loopback, link-local, and CGNAT alone are not hosting addresses.
+    let none = candidates(&[
+        ("lo0", [127, 0, 0, 1]),
+        ("en0", [169, 254, 3, 4]),
+        ("utun3", [100, 101, 1, 2]),
+    ]);
+    assert_eq!(select_lan_ipv4(&none), None);
+}
+
+/// Link-code discovery across the two mDNS implementations the apps ship:
+/// Apple's DNS-SD (iOS) and mdns-sd (Android, desktop). Each case advertises
+/// with one, resolves the code with the other, and connects to the listener
+/// bound the way `start_host` binds it. Needs a Wi-Fi or Ethernet address and
+/// macOS's mDNSResponder, so it only runs on request:
+/// `cargo test --lib pairing::tests::link_code -- --ignored --test-threads=1`
+#[cfg(target_os = "macos")]
+mod link_code_interop {
+    use super::super::{discovery, dnssd, transport};
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    use base64::Engine as _;
+    use std::time::Duration;
+    use tokio::net::TcpStream;
+    use uuid::Uuid;
+
+    #[derive(Clone, Copy, Debug)]
+    enum Side {
+        DnsSd,
+        MdnsSd,
+    }
+
+    async fn check(advertiser: Side, resolver: Side) {
+        let ip = transport::get_local_lan_ip();
+        let listener = super::super::bind_pairing_listener(&ip)
+            .await
+            .expect("this test needs a Wi-Fi or Ethernet address");
+        let port = listener.local_addr().unwrap().port();
+        let code = discovery::generate_join_code();
+        let session_id = Uuid::new_v4();
+        let public_key = [7u8; 32];
+        let nonce = [9u8; 16];
+
+        let properties = [
+            ("sid", session_id.to_string()),
+            ("pk", URL_SAFE_NO_PAD.encode(public_key)),
+            ("nonce", URL_SAFE_NO_PAD.encode(nonce)),
+            ("v", super::super::protocol::PROTOCOL_VERSION.to_string()),
+        ];
+        let _dnssd_ad;
+        let _mdns_ad;
+        match advertiser {
+            Side::DnsSd => {
+                _dnssd_ad = Some(
+                    dnssd::register(
+                        &discovery::instance_name(&code),
+                        discovery::DNSSD_REGTYPE,
+                        port,
+                        transport::interface_index_for_ip(&ip).unwrap_or(0),
+                        &properties,
+                    )
+                    .unwrap(),
+                );
+            }
+            Side::MdnsSd => {
+                _mdns_ad = Some(
+                    discovery::advertise(&code, &ip, port, session_id, &public_key, &nonce)
+                        .unwrap(),
+                );
+            }
+        }
+
+        let parsed = match resolver {
+            Side::DnsSd => discovery::resolve_dnssd(&code).await,
+            Side::MdnsSd => discovery::resolve_mdns_sd(&code).await,
+        }
+        .unwrap_or_else(|e| panic!("{advertiser:?} -> {resolver:?}: {e}"));
+
+        assert_eq!(parsed.host, ip, "{advertiser:?} -> {resolver:?}");
+        assert_eq!(parsed.port, port);
+        assert_eq!(parsed.session_id, session_id);
+        assert_eq!(parsed.peer_public_key, public_key);
+        assert_eq!(parsed.session_nonce, nonce);
+
+        // The address the joiner resolved reaches the bound listener.
+        let (accepted, connected) = tokio::join!(
+            tokio::time::timeout(Duration::from_secs(5), listener.accept()),
+            TcpStream::connect((parsed.host.as_str(), parsed.port)),
+        );
+        connected.expect("joiner connects to the resolved address");
+        accepted.expect("host accepts in time").unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "needs a LAN address and mDNSResponder"]
+    async fn link_code_ios_host_android_joiner() {
+        check(Side::DnsSd, Side::MdnsSd).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "needs a LAN address and mDNSResponder"]
+    async fn link_code_android_host_ios_joiner() {
+        check(Side::MdnsSd, Side::DnsSd).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "needs a LAN address and mDNSResponder"]
+    async fn link_code_android_host_android_joiner() {
+        check(Side::MdnsSd, Side::MdnsSd).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "needs a LAN address and mDNSResponder"]
+    async fn link_code_ios_host_ios_joiner() {
+        check(Side::DnsSd, Side::DnsSd).await;
+    }
+}
