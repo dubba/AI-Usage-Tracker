@@ -72,6 +72,35 @@ const pickerAccountLabels = () =>
     (el) => el.textContent,
   );
 
+describe("BucketModal create provider filter", () => {
+  function renderCreate(accounts: Account[], initialProvider?: Provider | null) {
+    mounted = mount(
+      <BucketModal
+        open
+        bucket={null}
+        initialProvider={initialProvider ?? null}
+        accounts={accounts}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+    return mounted.container;
+  }
+
+  it("starts on All Providers even when opened from a provider sidebar row", () => {
+    renderCreate([makeAccount("a1", "anthropic"), makeAccount("a2", "openai")], "anthropic");
+    expect(filterLabel()).toBe("All Providers");
+  });
+
+  it("does not pre-select the current provider's accounts", () => {
+    renderCreate([makeAccount("a1", "anthropic"), makeAccount("a2", "openai")], "anthropic");
+    expect(document.querySelector(".bucket-account-heading .field-label")?.textContent).toBe(
+      "Select Accounts (0 selected)",
+    );
+    expect(document.querySelectorAll(".bucket-account-item.selected")).toHaveLength(0);
+  });
+});
+
 describe("BucketModal edit provider filter", () => {
   it("starts on All Providers even when the group was saved under one provider", () => {
     renderEdit(makeBucket(["a1"], "anthropic"), [makeAccount("a1", "anthropic")]);

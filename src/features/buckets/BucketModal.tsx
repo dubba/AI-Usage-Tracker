@@ -19,7 +19,6 @@ const ALL_PROVIDERS: { id: Provider; label: string }[] = (Object.keys(PROVIDER_M
 export function BucketModal({
   open,
   bucket,
-  initialProvider,
   initialConfirmDelete = false,
   accounts,
   onClose,
@@ -98,9 +97,9 @@ export function BucketModal({
         initialProviderChoice = "all";
         initialIds = bucket.accountIds;
       } else {
-        const provider = initialProvider ?? "all";
-        initialProviderChoice = provider;
-        initialIds = provider !== "all" ? accounts.filter((a) => a.provider === provider).map((a) => a.id) : [];
+        // Create always starts unfiltered, even if opened from a provider row.
+        initialProviderChoice = "all";
+        initialIds = [];
       }
       setName(initialName);
       setSelectedProvider(initialProviderChoice);
@@ -111,7 +110,7 @@ export function BucketModal({
       setConfirmingDiscard(false);
       setConfirmingDelete(Boolean(initialConfirmDelete && bucket));
     }
-  }, [open, bucket, initialProvider, initialConfirmDelete, accounts]);
+  }, [open, bucket, initialConfirmDelete, accounts]);
 
   const filteredAccounts = useMemo(() => {
     if (selectedProvider === "all") return accounts;
