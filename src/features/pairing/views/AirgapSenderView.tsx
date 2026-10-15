@@ -43,7 +43,6 @@ export function AirgapSenderView({
       {failed ? (
         <div className="pairing-panel-status" role="alert">
           <h3>Couldn't prepare the transfer</h3>
-          <div className="error-panel modal-error">{error}</div>
           <div className="pairing-nav-row">
             <button type="button" className="button pairing-back-btn" onClick={onBack}>
               <ChevronIcon style={{ transform: "rotate(180deg)" }} />
@@ -53,6 +52,7 @@ export function AirgapSenderView({
               Try Again
             </button>
           </div>
+          <div className="error-panel modal-error">{error}</div>
         </div>
       ) : busy || !exportData ? (
         <div className="pairing-panel-status">

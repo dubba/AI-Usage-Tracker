@@ -259,10 +259,6 @@ export function UpdateNotesModal({
 
         <UpdateProgressBar busy={updateBusy ?? null} percent={updatePercent ?? null} className="update-notes-progress" />
 
-        {updateError ? (
-          <UpdateErrorMessage error={updateError} onOpenLink={onOpenLink} className="update-notes-error" />
-        ) : null}
-
         <div className="modal-actions update-notes-actions">
           <button type="button" className="button ghost" onClick={onClose}>
             Close
@@ -280,6 +276,10 @@ export function UpdateNotesModal({
             </button>
           ) : null}
         </div>
+
+        {updateError ? (
+          <UpdateErrorMessage error={updateError} onOpenLink={onOpenLink} className="update-notes-error" />
+        ) : null}
       </section>
     </div>
   );

@@ -49,7 +49,22 @@ export function AccountAlertModal({
   const [error, setError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLElement>(null);
   const requestClose = useModalClosePolicy(!saving, onClose);
-  useModalA11y(dialogRef, account != null, requestClose);
+  const handleEscape = () => {
+    if (error) {
+      setError(null);
+      return;
+    }
+    requestClose();
+  };
+  useModalA11y(dialogRef, account != null, handleEscape);
+
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(() => {
+      setError(null);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [error]);
 
   const availableWindows = useMemo(() => {
     const available = new Set<AlertWindowId>();
@@ -163,11 +178,11 @@ export function AccountAlertModal({
         <div className="credential-note alert-notification-note">
           Alerts use your OS notifications and are sent only once per quota period.
         </div>
-        {error ? <div className="error-panel modal-error">{error}</div> : null}
         <div className="modal-actions">
           <button type="button" className="button ghost" onClick={requestClose} disabled={saving}>Cancel</button>
           <button type="button" className="button primary" onClick={() => void save()} disabled={loading || saving || !availableWindows.length}>{saving ? "Saving…" : "Save Notifications"}</button>
         </div>
+        {error ? <div className="error-panel modal-error">{error}</div> : null}
       </section>
     </div>
   );

@@ -18,6 +18,7 @@ import android.provider.Settings
 import android.os.SystemClock
 import android.webkit.CookieManager
 import android.webkit.WebView
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.core.app.NotificationCompat
@@ -114,6 +115,7 @@ class MainActivity : TauriActivity() {
   private class InstallStatusException(message: String) : IllegalStateException(message)
 
   private var activeWebView: WebView? = null
+  private var appShellUrl: String = "http://tauri.localhost/"
   @Volatile private var lastUpdateNotifyAt: Long = 0L
   @Volatile private var pendingUpdateNotice: String? = null
   private var notificationPromptedFor: String? = null
@@ -123,9 +125,54 @@ class MainActivity : TauriActivity() {
   private var multicastLock: android.net.wifi.WifiManager.MulticastLock? = null
   private var boundLanNetwork: Boolean = false
 
+  private fun isAppShellUrl(url: String?): Boolean {
+    if (url.isNullOrBlank() || url == "about:blank") return false
+    val uri = try {
+      Uri.parse(url)
+    } catch (_: Exception) {
+      return false
+    }
+    val host = uri.host?.lowercase().orEmpty()
+    val scheme = uri.scheme?.lowercase().orEmpty()
+    val isApp = (host == "tauri.localhost") ||
+      (scheme == "tauri" && host == "localhost") ||
+      (uri.port == 1420 && (host == "localhost" || host == "127.0.0.1" || host.startsWith("192.168.") || host.startsWith("10.")))
+    if (isApp) {
+      appShellUrl = url
+    }
+    return isApp
+  }
+
+  private fun isResultPageUrl(url: String?): Boolean {
+    if (url.isNullOrBlank()) return false
+    if (url.startsWith("data:text/html")) return true
+    val uri = try {
+      Uri.parse(url)
+    } catch (_: Exception) {
+      return false
+    }
+    val host = uri.host?.lowercase().orEmpty()
+    val isLoopback = host == "localhost" || host == "127.0.0.1" || host == "::1"
+    return isLoopback && (uri.path?.contains("callback") == true)
+  }
+
+  /**
+   * Clears the back-forward navigation history so that back gestures in the
+   * app shell do not navigate back into stale OAuth or "Account connected" pages.
+   */
+  fun clearWebViewHistory() {
+    runOnUiThread {
+      activeWebView?.clearHistory()
+    }
+  }
+
   override fun onWebViewCreate(webView: WebView) {
     super.onWebViewCreate(webView)
     activeWebView = webView
+    val current = webView.url
+    if (!current.isNullOrBlank() && isAppShellUrl(current)) {
+      appShellUrl = current
+    }
     webView.settings.javaScriptCanOpenWindowsAutomatically = true
     webView.settings.setSupportMultipleWindows(true)
     CookieManager.getInstance().setAcceptCookie(true)
@@ -209,6 +256,7 @@ class MainActivity : TauriActivity() {
 
   override fun onDestroy() {
     notifyInstallFailure = null
+    activeWebView = null
     super.onDestroy()
   }
 
@@ -238,6 +286,47 @@ class MainActivity : TauriActivity() {
       isAppearanceLightStatusBars = false
       isAppearanceLightNavigationBars = false
     }
+
+    onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+      override fun handleOnBackPressed() {
+        val wv = activeWebView
+        if (wv != null) {
+          val url = wv.url.orEmpty()
+          if (isAppShellUrl(url)) {
+            // Once returned to the app shell, the user must never be navigated back
+            // into completed OAuth or "Account connected" pages.
+            wv.clearHistory()
+            wv.evaluateJavascript(
+              "(function(){ var ev = new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true, cancelable: true }); return (document.activeElement || document).dispatchEvent(ev); })()"
+            ) { result ->
+              if (result == "false") {
+                return@evaluateJavascript
+              }
+              runOnUiThread {
+                if (!moveTaskToBack(true)) {
+                  finish()
+                }
+              }
+            }
+            return
+          }
+          if (isResultPageUrl(url)) {
+            // If the user presses back while viewing the 5-second "Account connected" page,
+            // dismiss it immediately and restore the app shell rather than going back to OAuth.
+            wv.clearHistory()
+            wv.loadUrl(appShellUrl)
+            return
+          }
+          if (wv.canGoBack()) {
+            wv.goBack()
+            return
+          }
+        }
+        if (!moveTaskToBack(true)) {
+          finish()
+        }
+      }
+    })
 
     enableEdgeToEdge(
       statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),

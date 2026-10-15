@@ -184,24 +184,10 @@
 
 .pairing-scanner-stage {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  width: calc(100% + (2 * var(--pairing-pad-x)));
-  margin-left: calc(-1 * var(--pairing-pad-x));
-  margin-right: calc(-1 * var(--pairing-pad-x));
-}
-
-.pairing-scanner-gutter,
-.pairing-scanner-side {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 0;
-}
-
-.pairing-scanner-side {
-  padding: 0 8px;
+  width: 100%;
 }
 
 .pairing-scanner-box {
@@ -404,6 +390,7 @@
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 8px;
+  width: 100%;
 }
 
 .pairing-scan-actions .pairing-back-btn {
@@ -411,11 +398,32 @@
   justify-self: start;
 }
 
+.pairing-scan-actions .pairing-switch-camera-fab {
+  grid-column: 2;
+  justify-self: center;
+}
+
 .pairing-camera-error {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 11px;
+}
+
+.pairing-scanner-view .pairing-camera-error {
+  margin-top: 0;
+  /* Last child: pull up into the modal-card's bottom padding to tighten the gap below. */
+  margin-bottom: -8px;
+}
+
+.pairing-modal > .error-panel.modal-error {
+  margin-top: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.pairing-panel-status .pairing-nav-row + .error-panel {
+  margin-top: 10px;
 }
 
 .pairing-code-actions {
@@ -703,6 +711,23 @@
 
 .pairing-panel-status .error-panel {
   margin: 4px 0;
+}
+
+/* Failed-transfer panel (the only `.pairing-panel-status` with `role="alert"`):
+   one equal 16px rhythm above the buttons, below the buttons, and below the
+   error box. The modal's own bottom padding supplies 24px, so the error pulls
+   8px up into it (4px on mobile, where the modal padding is 20px). */
+.pairing-panel-status[role="alert"] {
+  gap: 16px;
+  padding-bottom: 0;
+}
+.pairing-panel-status[role="alert"] .pairing-nav-row + .error-panel {
+  margin: 0 0 -8px;
+}
+@media (max-width: 860px) {
+  .pairing-panel-status[role="alert"] .pairing-nav-row + .error-panel {
+    margin-bottom: -4px;
+  }
 }
 
 .pairing-panel-status h3 {

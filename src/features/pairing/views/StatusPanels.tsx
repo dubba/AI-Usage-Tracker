@@ -148,11 +148,12 @@ export function CompletedCard({ summary, onDone }: { summary: SyncSummary; onDon
   );
 }
 
-export function FailedCard({ error, onRetry }: { error: string; onRetry: () => void }) {
+export function FailedCard({ onRetry }: { onRetry: () => void }) {
+  // The failure detail renders below the modal footer (see PairingModal), so the
+  // card holds only the heading and the retry action.
   return (
     <div className="pairing-error-card" role="alert">
       <h3>Pairing Failed</h3>
-      <div className="error-panel modal-error">{error}</div>
       <div className="pairing-error-actions">
         <button type="button" className="button primary" onClick={onRetry}>
           <RefreshIcon />

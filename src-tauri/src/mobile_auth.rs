@@ -40,9 +40,12 @@ pub(crate) fn note_main_navigation(url: &Url) {
 
 /// The main window finished loading a page.
 #[cfg_attr(not(any(test, mobile)), allow(dead_code))]
-pub(crate) fn note_main_page_loaded(url: &Url) {
+pub(crate) fn note_main_page_loaded(url: &Url, dev_url: Option<&Url>) {
     if crate::oauth_common::is_result_page(url) {
         RESULT_PAGE.store(RESULT_PAGE_SHOWN, Ordering::SeqCst);
+    } else if crate::signin_navigation::is_app_page(url, dev_url) {
+        #[cfg(target_os = "android")]
+        clear_android_web_view_history();
     }
 }
 
@@ -220,6 +223,17 @@ fn clear_android_sign_in_cookies() -> Result<(), String> {
     })
 }
 
+#[cfg(target_os = "android")]
+pub(crate) fn clear_android_web_view_history() {
+    let _ = crate::android_context::with_activity("clearWebViewHistory", |env, activity| {
+        let _ = env.call_method(activity, "clearWebViewHistory", "()V", &[]);
+        if env.exception_check().unwrap_or(false) {
+            let _ = env.exception_clear();
+        }
+        Ok(())
+    });
+}
+
 /// Android wry only supports one WebView. Closing the app shell would kill the UI.
 pub fn dismiss_login_window(window: &WebviewWindow) {
     if is_app_shell(window) {
@@ -327,6 +341,8 @@ pub fn open_in_main_webview(
                 } else {
                     let _ = window.navigate(restore_url);
                 }
+                #[cfg(target_os = "android")]
+                clear_android_web_view_history();
                 break;
             }
             let _ = window.eval(POPUP_SHIM_SCRIPT);
@@ -343,6 +359,8 @@ pub fn open_in_main_webview(
                         state.fail_login_if_waiting(&attempt_id, "Sign-in was canceled.".into());
                         state.abort_login_resources(&attempt_id);
                         let _ = window.navigate(restore_url);
+                        #[cfg(target_os = "android")]
+                        clear_android_web_view_history();
                         break;
                     }
                     if !urls_share_origin(&current, &restore_url)
@@ -359,6 +377,8 @@ pub fn open_in_main_webview(
                 if urls_share_origin(&current, &restore_url) {
                     if left_app_shell {
                         let _ = state.abandon_waiting_login(&attempt_id);
+                        #[cfg(target_os = "android")]
+                        clear_android_web_view_history();
                         break;
                     }
                 } else {
@@ -539,13 +559,13 @@ mod tests {
         RESULT_PAGE.store(RESULT_PAGE_NONE, Ordering::SeqCst);
         let login = Url::parse("https://claude.ai/login").unwrap();
         note_main_navigation(&login);
-        note_main_page_loaded(&login);
+        note_main_page_loaded(&login, None);
         assert_eq!(RESULT_PAGE.load(Ordering::SeqCst), RESULT_PAGE_NONE);
 
         let callback = Url::parse("http://localhost:1455/auth/callback?code=x&state=y").unwrap();
         note_main_navigation(&callback);
         assert_eq!(RESULT_PAGE.load(Ordering::SeqCst), RESULT_PAGE_REQUESTED);
-        note_main_page_loaded(&callback);
+        note_main_page_loaded(&callback, None);
         assert_eq!(RESULT_PAGE.load(Ordering::SeqCst), RESULT_PAGE_SHOWN);
         // A late navigation report does not undo "shown".
         note_main_navigation(&callback);

@@ -264,6 +264,79 @@ describe("entering a link code", () => {
     expect(button("Connect to Device").disabled).toBe(false);
   });
 
+  it("clears connection error when going back to the connection choices", async () => {
+    api.startClientByCode.mockRejectedValue(new Error("code not found"));
+    await openCodeEntry();
+    typeInto(input(), "123456");
+    await press("Connect to Device");
+    expect(text()).toContain("code not found");
+    expect(document.querySelector(".modal-error")).not.toBeNull();
+    await press("Back");
+    expect(title()).toBe("How to connect devices");
+    expect(document.querySelector(".modal-error")).toBeNull();
+    expect(text()).not.toContain("code not found");
+  });
+
+  it("does not leak error to previous view if connect fails after user clicks Back", async () => {
+    let rejectConnect!: (err: Error) => void;
+    api.startClientByCode.mockImplementation(
+      () => new Promise((_, reject) => { rejectConnect = reject; })
+    );
+    await openCodeEntry();
+    typeInto(input(), "123456");
+    await press("Connect to Device");
+    // Connect is still in-flight. User hits Back now.
+    await press("Back");
+    expect(title()).toBe("How to connect devices");
+    expect(document.querySelector(".modal-error")).toBeNull();
+
+    // Now the in-flight connect fails with mDNS resolution error
+    await act(async () => {
+      rejectConnect(new Error("No matching service found for link code 016142"));
+    });
+
+    // The error MUST NOT appear on "How to connect devices"!
+    expect(document.querySelector(".modal-error")).toBeNull();
+    expect(text()).not.toContain("No matching service found");
+  });
+
+  it("dismisses active error message when Escape is pressed", async () => {
+    api.startClientByCode.mockRejectedValue(new Error("code not found"));
+    await openCodeEntry();
+    typeInto(input(), "123456");
+    await press("Connect to Device");
+    expect(document.querySelector(".modal-error")).not.toBeNull();
+
+    // Hit Escape / back key
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    });
+    await settle();
+
+    // The error disappears while staying on the screen
+    expect(document.querySelector(".modal-error")).toBeNull();
+    expect(title()).toBe("Enter Link Code");
+  });
+
+  it("auto-dismisses the connection error after 6 seconds", async () => {
+    vi.useFakeTimers();
+    try {
+      api.startClientByCode.mockRejectedValue(new Error("code not found"));
+      await openCodeEntry();
+      typeInto(input(), "123456");
+      await press("Connect to Device");
+      expect(text()).toContain("code not found");
+      expect(document.querySelector(".modal-error")).not.toBeNull();
+      await act(async () => {
+        vi.advanceTimersByTime(6000);
+      });
+      expect(document.querySelector(".modal-error")).toBeNull();
+      expect(text()).not.toContain("code not found");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("goes back to the connection choices", async () => {
     await openCodeEntry();
     await press("Back");
@@ -607,12 +680,22 @@ describe("air-gap transfer: sending", () => {
     expect(text()).toContain("Frame 1/3");
   });
 
-  it("goes back to the connection choices when the export failed", async () => {
-    api.prepareAirgapExport.mockRejectedValueOnce(new Error("too many accounts"));
+  it("goes back to the connection choices when the export failed without carrying the error", async () => {
+    api.prepareAirgapExport.mockRejectedValueOnce(new Error("The transfer was cancelled."));
     await openSender();
+    expect(text()).toContain("The transfer was cancelled.");
+    expect(document.querySelector(".airgap-sender-view")).not.toBeNull();
     await press("Back");
     expect(title()).toBe("How to connect devices");
     expect(document.querySelector(".airgap-sender-view")).toBeNull();
+    expect(document.querySelector(".modal-error")).toBeNull();
+    expect(text()).not.toContain("The transfer was cancelled.");
+
+    // Navigating forward to "Enter Link Code" also has no leftover error banner
+    await press("Enter Link Code");
+    expect(title()).toBe("Enter Link Code");
+    expect(document.querySelector(".modal-error")).toBeNull();
+    expect(text()).not.toContain("The transfer was cancelled.");
   });
 
   it("returns to the connection choices from Back", async () => {
@@ -662,6 +745,16 @@ describe("scanning", () => {
     expect(document.querySelector(".pairing-scan-beam")).not.toBeNull();
   });
 
+  it("places the camera error message below the Back button and controls", async () => {
+    await openScanner();
+    await act(async () => scanner.options!.setCameraError("Camera permission was denied."));
+    const errorEl = document.querySelector(".pairing-camera-error")!;
+    const backBtn = document.querySelector(".pairing-scan-actions .pairing-back-btn")!;
+    expect(errorEl).not.toBeNull();
+    expect(backBtn).not.toBeNull();
+    expect(Boolean(backBtn.compareDocumentPosition(errorEl) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+  });
+
   it("announces status changes through a live region", async () => {
     render();
     await settle();
@@ -696,6 +789,16 @@ describe("scanning", () => {
     click(document.querySelector(".pairing-scanner-box")!);
     expect(scanner.handleScannerTap).toHaveBeenCalled();
     click(document.querySelector('[aria-label="Switch camera"]') ?? document.createElement("i"));
+  });
+
+  it("places the switch camera button in the same controls row as the Back button", async () => {
+    await openScanner();
+    const controls = document.querySelector(".pairing-scan-actions")!;
+    const switchBtn = controls.querySelector(".pairing-switch-camera-fab");
+    const backBtn = controls.querySelector(".pairing-back-btn");
+    expect(controls).not.toBeNull();
+    expect(switchBtn).not.toBeNull();
+    expect(backBtn).not.toBeNull();
   });
 
   it("cancels the pairing and goes back from Back", async () => {

@@ -133,7 +133,23 @@ export function AddAccountModal({
       setConfirmingDiscard(true);
     }
   };
-  useModalA11y(dialogRef, open && !confirmingDiscard, requestClose);
+
+  const handleEscape = () => {
+    if (error) {
+      setError(null);
+      return;
+    }
+    requestClose();
+  };
+  useModalA11y(dialogRef, open && !confirmingDiscard, handleEscape);
+
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(() => {
+      setError(null);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [error]);
 
   if (!open) return null;
 
@@ -336,7 +352,6 @@ export function AddAccountModal({
             {strategy.waitingText(status.message)}
           </div>
         ) : null}
-        {error ? <div className="error-panel modal-error">{error}</div> : null}
         <div className="modal-actions">
           <button type="button" className="button ghost" onClick={requestClose}>Cancel</button>
           {status?.status === "failed" ? (
@@ -353,6 +368,7 @@ export function AddAccountModal({
             </button>
           )}
         </div>
+        {error ? <div className="error-panel modal-error">{error}</div> : null}
       </section>
       <ConfirmDialog
         open={confirmingDiscard}

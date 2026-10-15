@@ -506,19 +506,20 @@
   transform: none;
 }
 
-/* Pairing switch camera FAB button: centered below the purple circle, shifts inward on tiny screens */
+/* Pairing switch camera FAB button: centered above the button on the controls row */
 .pairing-switch-camera-fab[data-tooltip]::after {
-  top: calc(100% + 8px);
+  bottom: calc(100% + 8px);
+  top: auto;
   left: 50%;
+  right: auto;
   transform: translateX(-50%);
   z-index: 100;
 }
 
 @media (max-width: 400px) {
   .pairing-switch-camera-fab[data-tooltip]::after {
-    left: auto;
-    right: 0;
-    transform: none;
+    font-size: 10px;
+    padding: 5px 8px;
   }
 }
 

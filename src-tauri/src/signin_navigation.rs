@@ -89,18 +89,8 @@ pub(crate) fn cookie_domain_is_sign_in(domain: &str) -> bool {
     host_is_sign_in(&host)
 }
 
-/// Whether the main window may navigate to `url`. `dev_url` is the dev server
-/// (`build.devUrl`), whose pages are the app's own in development builds.
-pub(crate) fn is_allowed_main_navigation(
-    url: &Url,
-    dev_url: Option<&Url>,
-    signing_in: bool,
-) -> bool {
-    // The "Account connected" page the app shows when a sign-in has finished
-    // (mobile_auth.rs): only the exact page it made, never `data:` in general.
-    if url.as_str() == "about:blank" || crate::oauth_common::is_connected_page(url) {
-        return true;
-    }
+/// True when `url` is one of the app's own pages (not a sign-in or external host).
+pub(crate) fn is_app_page(url: &Url, dev_url: Option<&Url>) -> bool {
     let Some(host) = url
         .host_str()
         .map(|host| host.trim_end_matches('.').to_ascii_lowercase())
@@ -120,9 +110,33 @@ pub(crate) fn is_allowed_main_navigation(
     if dev_url.is_some_and(|dev| dev.origin() == url.origin()) {
         return true;
     }
+    false
+}
+
+/// Whether the main window may navigate to `url`. `dev_url` is the dev server
+/// (`build.devUrl`), whose pages are the app's own in development builds.
+pub(crate) fn is_allowed_main_navigation(
+    url: &Url,
+    dev_url: Option<&Url>,
+    signing_in: bool,
+) -> bool {
+    // The "Account connected" page the app shows when a sign-in has finished
+    // (mobile_auth.rs): only the exact page it made, never `data:` in general.
+    if url.as_str() == "about:blank" || crate::oauth_common::is_connected_page(url) {
+        return true;
+    }
+    if is_app_page(url, dev_url) {
+        return true;
+    }
     if !signing_in {
         return false;
     }
+    let Some(host) = url
+        .host_str()
+        .map(|host| host.trim_end_matches('.').to_ascii_lowercase())
+    else {
+        return false;
+    };
     // The loopback OAuth callback, which mobile_auth.rs intercepts.
     if url.scheme() == "http" && matches!(host.as_str(), "localhost" | "127.0.0.1") {
         return true;
@@ -168,7 +182,10 @@ pub(crate) fn plugin<R: Runtime>() -> TauriPlugin<R> {
         })
         .on_page_load(|webview, payload| {
             if webview.label() == "main" && matches!(payload.event(), PageLoadEvent::Finished) {
-                crate::mobile_auth::note_main_page_loaded(payload.url());
+                crate::mobile_auth::note_main_page_loaded(
+                    payload.url(),
+                    webview.config().build.dev_url.as_ref(),
+                );
             }
         })
         .build()
@@ -281,6 +298,39 @@ mod tests {
             "claude.ai.evil.example",
         ] {
             assert!(!cookie_domain_is_sign_in(domain), "{domain}");
+        }
+    }
+
+    #[test]
+    fn is_app_page_recognizes_app_origins_and_rejects_lookalikes() {
+        let dev: Url = "http://localhost:1420".parse().unwrap();
+        for url in [
+            "http://tauri.localhost/",
+            "http://tauri.localhost/index.html",
+            "https://tauri.localhost/",
+            "tauri://localhost",
+            "tauri://localhost/index.html",
+            "http://localhost:1420/",
+        ] {
+            assert!(
+                is_app_page(&url.parse().unwrap(), Some(&dev)),
+                "expected app page: {url}"
+            );
+        }
+        for url in [
+            "https://evil.tauri.localhost/",
+            "https://tauri.localhost.evil.com/",
+            "https://accounts.google.com/",
+            "https://chatgpt.com/",
+            "http://localhost:8080/",
+            "http://localhost:1455/auth/callback?code=x",
+            "about:blank",
+            "data:text/html,test",
+        ] {
+            assert!(
+                !is_app_page(&url.parse().unwrap(), Some(&dev)),
+                "expected non-app page: {url}"
+            );
         }
     }
 }

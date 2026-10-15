@@ -118,6 +118,18 @@ svg { width: 18px; height: 18px; }
 .text-input { width: 100%; border: 1px solid var(--border-strong); background: var(--c-0f1311); color: var(--text); border-radius: 9px; min-height: 42px; padding: 0 12px; outline: none; }
 .text-input:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(159,103,255,.1); }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 19px; }
+/* In-modal errors always render below the buttons as the last element. Pull them
+   up into the modal's bottom padding so the gap below is a uniform 16px everywhere
+   (24px padding minus 8px; 20px minus 4px on narrow screens). */
+.modal-card .error-panel:last-child,
+.modal-card .modal-error:last-child { margin-bottom: -8px; }
+/* Red error boxes in modals always center their text. */
+.modal-card .error-panel,
+.modal-card .modal-error { text-align: center; }
+@media (max-width: 860px) {
+  .modal-card .error-panel:last-child,
+  .modal-card .modal-error:last-child { margin-bottom: -4px; }
+}
 .waiting-panel { margin-top: 12px; display: flex; align-items: center; gap: 9px; color: var(--c-c7b2ff); border-radius: 9px; padding: 11px; background: var(--purple-soft); border: 1px solid rgba(159,103,255,.24); }
 .spinner { width: 14px; height: 14px; border: 2px solid var(--c-255-255-255-a220); border-top-color: currentColor; border-radius: 99px; animation: spin .75s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

@@ -102,7 +102,6 @@ export function ScannerView({
       ) : (
         <>
           <div className="pairing-scanner-stage">
-            <span className="pairing-scanner-gutter" aria-hidden="true" />
             <div
               className="pairing-scanner-box"
               role="button"
@@ -138,20 +137,6 @@ export function ScannerView({
                 </div>
               </div>
             </div>
-
-            <div className="pairing-scanner-side">
-              {showSwitchCamera && (
-                <button
-                  type="button"
-                  className="pairing-switch-camera-fab"
-                  onClick={onSwitchCamera}
-                  data-tooltip="Switch camera"
-                  aria-label="Switch camera"
-                >
-                  <FlipCameraIcon />
-                </button>
-              )}
-            </div>
           </div>
 
           {airgapCapturedChunks.size > 0 && (
@@ -185,6 +170,18 @@ export function ScannerView({
               <ChevronIcon style={{ transform: "rotate(180deg)" }} />
               <span>Back</span>
             </button>
+
+            {showSwitchCamera && (
+              <button
+                type="button"
+                className="pairing-switch-camera-fab"
+                onClick={onSwitchCamera}
+                data-tooltip="Switch camera"
+                aria-label="Switch camera"
+              >
+                <FlipCameraIcon />
+              </button>
+            )}
           </div>
 
           {cameraError && (

@@ -68,7 +68,22 @@ export function BucketModal({
       handleClose();
     }
   });
-  useModalA11y(dialogRef, open && !nestedOpen, requestClose);
+  const handleEscape = () => {
+    if (error) {
+      setError(null);
+      return;
+    }
+    requestClose();
+  };
+  useModalA11y(dialogRef, open && !nestedOpen, handleEscape);
+
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(() => {
+      setError(null);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [error]);
 
   useEffect(() => {
     if (open) {
@@ -253,8 +268,6 @@ export function BucketModal({
             </div>
           </div>
 
-          {error ? <div className="modal-error-message">{error}</div> : null}
-
           <footer className="modal-actions bucket-modal-actions">
             {bucket && onDeleted ? (
               <button
@@ -275,6 +288,8 @@ export function BucketModal({
               </button>
             </div>
           </footer>
+
+          {error ? <div className="error-panel modal-error modal-error-message" role="alert">{error}</div> : null}
         </form>
       </section>
       {bucket && onDeleted ? (

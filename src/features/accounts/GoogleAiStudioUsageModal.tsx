@@ -97,9 +97,22 @@ export function GoogleAiStudioUsageModal({
     onClose();
   };
 
-  // This dialog can always be closed: closing abandons any login attempt in flight
-  // (closeModal handles the cleanup), so no busy guard is needed.
-  useModalA11y(dialogRef, account != null, closeModal);
+  const handleEscape = () => {
+    if (error) {
+      setError(null);
+      return;
+    }
+    closeModal();
+  };
+  useModalA11y(dialogRef, account != null, handleEscape);
+
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(() => {
+      setError(null);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [error]);
 
   if (!account) return null;
 
@@ -218,8 +231,6 @@ export function GoogleAiStudioUsageModal({
         {status?.status === "waiting" ? (
           <div className="login-status"><span className="spinner" />Waiting for Google…</div>
         ) : null}
-        {error ? <div className="error-panel modal-error">{error}</div> : null}
-
         <div className="modal-actions">
           <button type="button" className="button ghost" onClick={closeModal}>Cancel</button>
           {status?.status === "failed" ? (
@@ -243,6 +254,7 @@ export function GoogleAiStudioUsageModal({
             </button>
           ) : null}
         </div>
+        {error ? <div className="error-panel modal-error">{error}</div> : null}
       </section>
     </div>
   );

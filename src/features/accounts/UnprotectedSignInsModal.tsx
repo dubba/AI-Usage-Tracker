@@ -59,9 +59,6 @@ export function UnprotectedSignInsModal({
           If your phone just restarted, try again. Otherwise remove {one ? "the account" : "these accounts"} and sign in again,
           so the new sign-in is stored encrypted. The provider account itself is not affected.
         </p>
-        {retryFailed ? (
-          <p role="status">Still couldn't encrypt {one ? "it" : "them"}.</p>
-        ) : null}
         <div className="modal-actions">
           <button type="button" className="button ghost" disabled={busy != null} onClick={requestClose}>Not now</button>
           <button type="button" className="button ghost" disabled={busy != null} onClick={onRetry}>{busy === "retry" ? "Retrying…" : "Retry"}</button>
@@ -69,6 +66,9 @@ export function UnprotectedSignInsModal({
             {busy === "remove" ? "Removing…" : "Remove and sign in again"}
           </button>
         </div>
+        {retryFailed ? (
+          <p role="status" className="modal-error">Still couldn't encrypt {one ? "it" : "them"}.</p>
+        ) : null}
       </section>
     </div>
   );

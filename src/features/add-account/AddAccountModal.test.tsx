@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LoginStatus, Provider } from "../../types";
 
@@ -145,8 +146,18 @@ describe("browser sign-in providers", () => {
     render();
     click(primary());
     await settle();
-    expect($(".modal-error").textContent).toContain("network down");
+    const errorEl = $(".modal-error");
+    const actionsEl = $(".modal-actions");
+    expect(errorEl.textContent).toContain("network down");
+    expect(Boolean(actionsEl.compareDocumentPosition(errorEl) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
     expect(primary().disabled).toBe(false);
+
+    // Escape clears the error without closing the modal
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    });
+    expect(document.querySelector(".modal-error")).toBeNull();
+    expect(document.querySelector(".modal-card")).not.toBeNull();
   });
 
   it("adds the account when the sign-in completes", async () => {
