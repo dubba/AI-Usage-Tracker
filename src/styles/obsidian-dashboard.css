@@ -857,7 +857,7 @@ button.button.ghost.empty-provider-other:active:not(:disabled) {
 }
 
 .button.ghost:hover:not(:disabled),
-.button:hover:not(:disabled):not(.primary) {
+.button:hover:not(:disabled):not(.primary):not(.settings-update-action-danger) {
   background: var(--c-222121) !important;
   border-color: var(--obsidian-purple-strong) !important;
 }
@@ -1861,15 +1861,23 @@ button.account-card-provider-icon:active {
   box-shadow: 0 0 6px rgba(255, 84, 73, 0.5);
 }
 
-.settings-update-action.settings-update-action-danger {
-  background: #c93b3b !important;
-  border: 1px solid #e04848 !important;
+/* Shared by Settings and the What's Changed modal. */
+.settings-update-action.settings-update-action-danger,
+.update-notes-actions .settings-update-action {
+  background: #1a9d56 !important;
+  border: 1px solid #22b463 !important;
   color: #ffffff !important;
 }
 
-.settings-update-action.settings-update-action-danger:hover:not(:disabled) {
-  background: #db4444 !important;
-  border-color: #f05252 !important;
+.settings-update-action.settings-update-action-danger:hover:not(:disabled),
+.settings-update-action.settings-update-action-danger:focus-visible,
+.settings-update-action.settings-update-action-danger:active:not(:disabled),
+.update-notes-actions .settings-update-action:hover:not(:disabled),
+.update-notes-actions .settings-update-action:focus-visible,
+.update-notes-actions .settings-update-action:active:not(:disabled) {
+  background: #20b062 !important;
+  border-color: #2bc572 !important;
+  color: #ffffff !important;
 }
 
 .edit-bucket-title-btn {
