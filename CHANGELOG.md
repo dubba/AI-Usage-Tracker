@@ -1,14 +1,15 @@
 # Changelog
 
-## Unreleased (23 changes)
+## Unreleased (24 changes)
 
-### Improved (5)
+### Improved (6)
 
 - The "Account connected" page and sign-in status screens now use a pure black background and center their content vertically in the middle of the screen instead of sticking to the top of the window.
 - The Link Devices button in Settings now shows the same devices icon as the empty dashboard, so both entry points look the same.
 - The OpenCode email field in the Add Account dialog is now labeled "Account email (optional)" to match the other providers.
 - The empty All Accounts heading now says "Connect an AI Provider Account", and the Add Account, Link Devices, and usage-alert dialogs now use title-case headings: "Add AI Provider Account", "Send or Receive Accounts", "How to Connect Devices", and "Usage Notifications".
 - The sidebar + Account and + Group buttons now have the same space above and below, so they sit centered between the app title and the account list.
+- The sidebar + Group button tooltip now says "Group accounts to track usage in one place".
 
 ### Removed (2)
 

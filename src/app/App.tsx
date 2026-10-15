@@ -444,8 +444,8 @@ export default function App() {
             <button
               type="button"
               className="button primary add-bucket-header-button"
-              data-tooltip="Combine accounts into a group to easily track usage"
-              aria-label="Combine accounts into a group to easily track usage"
+              data-tooltip="Group accounts to track usage in one place"
+              aria-label="Group accounts to track usage in one place"
               onClick={() => { openNewBucket(selectedGroup.provider); setSidebarOpen(false); }}
             >
               <PlusIcon />Group
