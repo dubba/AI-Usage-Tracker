@@ -467,7 +467,7 @@
 
 /* The group tooltip is a sentence, so let it wrap instead of running in one line. */
 .add-bucket-header-button[data-tooltip]::after {
-  width: 220px;
+  width: 260px;
   white-space: normal;
 }
 

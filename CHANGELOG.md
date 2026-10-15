@@ -9,7 +9,7 @@
 - The OpenCode email field in the Add Account dialog is now labeled "Account email (optional)" to match the other providers.
 - The empty All Accounts heading now says "Connect an AI Provider Account", and the Add Account, Link Devices, and usage-alert dialogs now use title-case headings: "Add AI Provider Account", "Send or Receive Accounts", "How to Connect Devices", and "Usage Notifications".
 - The sidebar + Account and + Group buttons now have the same space above and below, so they sit centered between the app title and the account list.
-- The sidebar + Group button tooltip now says "Group accounts to track usage in one place".
+- The sidebar + Group button tooltip now says "Group accounts to track usage in one place, like “Work” or “Personal”".
 - The Update button in Settings and in the What's Changed dialog, shown when a new version is available, now uses a green background with white text.
 - The Create Group dialog now always opens with the provider filter on All Providers, even if you were viewing a single provider in the sidebar.
 
