@@ -322,7 +322,7 @@ export function AccountsView(props: {
                 ? "No accounts need attention"
                 : props.selectedGroup.type === "bucket"
                   ? `No accounts in ${props.selectedGroup.title}`
-                  : "Connect a provider account"}
+                  : "Connect an AI Provider Account"}
             </h2>
             <p>
               {showAttentionOnly

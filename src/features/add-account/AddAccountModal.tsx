@@ -303,7 +303,7 @@ export function AddAccountModal({
       >
         <ModalCloseButton onClose={requestClose} />
         <div className="modal-kicker">Provider connection</div>
-        <h2 id="add-account-title">{providerLocked ? `Reconnect ${connectLabel(provider)}` : "Which account do you want to add?"}</h2>
+        <h2 id="add-account-title">{providerLocked ? `Reconnect ${connectLabel(provider)}` : "Add AI Provider Account"}</h2>
         <p>{providerLocked ? providerCopy : "Choose a provider, name the account, and enter its secure connection details."}</p>
 
         <label className="field-label" htmlFor="account-provider">Provider</label>

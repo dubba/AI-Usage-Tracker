@@ -83,7 +83,7 @@ afterEach(() => {
 describe("browser sign-in providers", () => {
   it("starts an Anthropic sign-in, opens the browser, and waits for the callback", async () => {
     render();
-    expect(heading()).toBe("Which account do you want to add?");
+    expect(heading()).toBe("Add AI Provider Account");
     expect(primary().textContent).toBe("Open Claude Login");
     click(primary());
     await settle();

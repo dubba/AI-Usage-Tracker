@@ -125,7 +125,7 @@ export function AccountAlertModal({
       <section ref={dialogRef} className="modal-card alert-settings-modal notification-only-modal" role="dialog" aria-modal="true" aria-labelledby="alert-settings-title" tabIndex={-1}>
         <ModalCloseButton onClose={requestClose} disabled={saving} />
         <div className="modal-kicker">Account alerts</div>
-        <h2 id="alert-settings-title">Usage notifications</h2>
+        <h2 id="alert-settings-title">Usage Notifications</h2>
         <p>Choose when to notify you about the 5-hour, weekly, and 30-day limits for <strong>{account.label}</strong>.</p>
 
         <section className="account-settings-section">

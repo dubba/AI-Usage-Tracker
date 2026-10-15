@@ -61,7 +61,7 @@ export function pairingHeader(input: {
     title = "Enter Link Code";
     subtitle = "Type the 6-digit link code shown on the other device.";
   } else if (status === "roleSelection") {
-    title = intendedRole ? "Connecting" : "Send or receive accounts";
+    title = intendedRole ? "Connecting" : "Send or Receive Accounts";
     subtitle = intendedRole ? "Applying send or receive on this device." : "Choose what this device should do.";
   } else if (status === "peerConnected") {
     title = "Connected";
@@ -76,10 +76,10 @@ export function pairingHeader(input: {
     title = "Devices linked";
     subtitle = "Accounts and credentials are synchronized.";
   } else if (waiting && viewMode === "select-mode") {
-    title = "How to connect devices";
+    title = "How to Connect Devices";
     subtitle = "Step 2: Show a pairing code here, or scan or enter the code from your other device.";
   } else if (waiting && viewMode === "select-role") {
-    title = "Send or receive accounts";
+    title = "Send or Receive Accounts";
     subtitle = "Step 1: Choose a role for this device.";
   }
 

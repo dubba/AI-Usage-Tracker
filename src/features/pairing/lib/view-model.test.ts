@@ -41,8 +41,8 @@ describe("pairingStep", () => {
 
 describe("pairingHeader titles", () => {
   const cases: Array<[string, Partial<Parameters<typeof pairingHeader>[0]>, string]> = [
-    ["role choice", {}, "Send or receive accounts"],
-    ["connection choice", { viewMode: "select-mode" }, "How to connect devices"],
+    ["role choice", {}, "Send or Receive Accounts"],
+    ["connection choice", { viewMode: "select-mode" }, "How to Connect Devices"],
     ["showing a link code", { viewMode: "host" }, "Show Link Code"],
     ["scanning", { viewMode: "scanner" }, "Scan QR Code"],
     ["entering a code", { viewMode: "code" }, "Enter Link Code"],
@@ -50,7 +50,7 @@ describe("pairingHeader titles", () => {
     ["connecting as client", { status: "clientConnecting" }, "Connecting"],
     ["connecting as sender", { status: "senderConnecting" }, "Connecting"],
     ["peer connected", { status: "peerConnected" }, "Connected"],
-    ["asking for a role", { status: "roleSelection" }, "Send or receive accounts"],
+    ["asking for a role", { status: "roleSelection" }, "Send or Receive Accounts"],
     ["applying a chosen role", { status: "roleSelection", intendedRole: "send" }, "Connecting"],
     ["confirming", { status: "sasVerification" }, "Confirm the connection"],
     ["transferring", { status: "transferring" }, "Transferring"],

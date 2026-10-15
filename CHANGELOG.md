@@ -1,12 +1,14 @@
 # Changelog
 
-## Unreleased (20 changes)
+## Unreleased (22 changes)
 
-### Improved (3)
+### Improved (5)
 
 - The "Account connected" page and sign-in status screens now use a pure black background and center their content vertically in the middle of the screen instead of sticking to the top of the window.
 - The Link Devices button in Settings now shows the same devices icon as the empty dashboard, so both entry points look the same.
 - The OpenCode email field in the Add Account dialog is now labeled "Account email (optional)" to match the other providers.
+- The empty All Accounts heading now says "Connect an AI Provider Account", and the Add Account, Link Devices, and usage-alert dialogs now use title-case headings: "Add AI Provider Account", "Send or Receive Accounts", "How to Connect Devices", and "Usage Notifications".
+- The sidebar + Account and + Group buttons now have the same space above and below, so they sit centered between the app title and the account list.
 
 ### Removed (2)
 
@@ -29,7 +31,7 @@
 - The empty dashboard's Other and Link Devices buttons now use the same bright text color as the provider names above them instead of a dimmer gray.
 - The empty dashboard's Other and Link Devices buttons now use slightly smaller text than the provider names so the buttons sit visually below the provider cards.
 - The provider dropdown in the Add Account dialog no longer opens misaligned from its button inside the modal.
-- On Android, dropdown menus inside dialogs (such as the provider filter in Create Group, the provider list in Add Account, and the alert threshold in Usage notifications) now open exactly under their button instead of shifted slightly to the right.
+- On Android, dropdown menus inside dialogs (such as the provider filter in Create Group, the provider list in Add Account, and the alert threshold in Usage Notifications) now open exactly under their button instead of shifted slightly to the right.
 
 ## v0.4.4 - 2026-10-14 (28 changes)
 

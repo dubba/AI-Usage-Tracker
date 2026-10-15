@@ -119,8 +119,9 @@ select {
   justify-content: flex-end;
   flex-wrap: nowrap;
   gap: 8px;
-  /* Same side inset as the cards, so + Group shares their right edge. */
-  padding: 0 2px 10px;
+  /* Same side inset as the cards, so + Group shares their right edge.
+     Equal top/bottom padding centers the buttons between the title and the list. */
+  padding: 12px 2px;
   color: var(--obsidian-muted);
   flex: 0 0 auto;
   min-width: 0;
@@ -2946,7 +2947,7 @@ select.text-input option,
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 12px;
+    margin-bottom: 0;
     padding: 0 0 10px;
     border-bottom: 1px solid var(--border, var(--c-2e2e2e));
     position: relative;

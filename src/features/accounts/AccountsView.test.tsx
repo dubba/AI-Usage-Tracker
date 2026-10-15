@@ -79,7 +79,7 @@ describe("AccountsView empty dashboard", () => {
     const onOpenPairing = vi.fn();
     const onAdd = vi.fn();
     app = renderView({ onOpenPairing, onAdd });
-    expect(document.body.textContent).toContain("Connect a provider account");
+    expect(document.body.textContent).toContain("Connect an AI Provider Account");
     expect(document.querySelector('button[aria-label="Other Provider"]')).not.toBeNull();
     expect(document.body.textContent).toContain("Link Devices");
     const grid = document.querySelector(".empty-provider-grid");
@@ -122,7 +122,7 @@ describe("AccountsView empty dashboard", () => {
       selectedGroup: { ...allGroup, accounts: [account] },
       onOpenPairing: vi.fn(),
     });
-    expect(document.body.textContent).not.toContain("Connect a provider account");
+    expect(document.body.textContent).not.toContain("Connect an AI Provider Account");
     expect(document.body.textContent).not.toContain("Link Devices");
   });
 });

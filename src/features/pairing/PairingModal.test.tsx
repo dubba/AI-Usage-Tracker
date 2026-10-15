@@ -133,7 +133,7 @@ describe("choosing a role and a way to connect", () => {
   it("starts on step 1 with the send and receive choices", async () => {
     render();
     await settle();
-    expect(title()).toBe("Send or receive accounts");
+    expect(title()).toBe("Send or Receive Accounts");
     expect(document.querySelector('[aria-label="Step 1 of 3"]')).not.toBeNull();
     expect(text()).toContain("Send Accounts from This Device");
     expect(text()).toContain("Receive Accounts on This Device");
@@ -143,7 +143,7 @@ describe("choosing a role and a way to connect", () => {
   it("offers every way to connect when sending", async () => {
     render();
     await press("Send Accounts from This Device");
-    expect(title()).toBe("How to connect devices");
+    expect(title()).toBe("How to Connect Devices");
     for (const label of ["Show Link Code", "Enter Link Code", "Show QR Code", "Scan QR Code"]) expect(text()).toContain(label);
   });
 
@@ -158,7 +158,7 @@ describe("choosing a role and a way to connect", () => {
     render();
     await press("Send Accounts from This Device");
     await press("Back");
-    expect(title()).toBe("Send or receive accounts");
+    expect(title()).toBe("Send or Receive Accounts");
   });
 });
 
@@ -196,7 +196,7 @@ describe("showing a link code", () => {
     await openHost();
     await press("Back");
     expect(cancelPairing).toHaveBeenCalled();
-    expect(title()).toBe("How to connect devices");
+    expect(title()).toBe("How to Connect Devices");
   });
 
   it("offers a new code when the countdown expires", async () => {
@@ -272,7 +272,7 @@ describe("entering a link code", () => {
     expect(text()).toContain("code not found");
     expect(document.querySelector(".modal-error")).not.toBeNull();
     await press("Back");
-    expect(title()).toBe("How to connect devices");
+    expect(title()).toBe("How to Connect Devices");
     expect(document.querySelector(".modal-error")).toBeNull();
     expect(text()).not.toContain("code not found");
   });
@@ -287,7 +287,7 @@ describe("entering a link code", () => {
     await press("Connect to Device");
     // Connect is still in-flight. User hits Back now.
     await press("Back");
-    expect(title()).toBe("How to connect devices");
+    expect(title()).toBe("How to Connect Devices");
     expect(document.querySelector(".modal-error")).toBeNull();
 
     // Now the in-flight connect fails with mDNS resolution error
@@ -295,7 +295,7 @@ describe("entering a link code", () => {
       rejectConnect(new Error("No matching service found for link code 016142"));
     });
 
-    // The error MUST NOT appear on "How to connect devices"!
+    // The error MUST NOT appear on "How to Connect Devices"!
     expect(document.querySelector(".modal-error")).toBeNull();
     expect(text()).not.toContain("No matching service found");
   });
@@ -340,7 +340,7 @@ describe("entering a link code", () => {
   it("goes back to the connection choices", async () => {
     await openCodeEntry();
     await press("Back");
-    expect(title()).toBe("How to connect devices");
+    expect(title()).toBe("How to Connect Devices");
   });
 });
 
@@ -364,7 +364,7 @@ describe("opening from a pairing link", () => {
     render();
     await settle();
     expect(api.startClient).not.toHaveBeenCalled();
-    expect(title()).toBe("Send or receive accounts");
+    expect(title()).toBe("Send or Receive Accounts");
   });
 
   it("shows the failure when the link cannot be used", async () => {
@@ -413,7 +413,7 @@ describe("progress reported by the backend", () => {
     render({ initialJoinUri: "aiusage-pair:xyz" });
     await settle();
     await emit({ status: "roleSelection", data: { sessionId: "s1", fingerprint: "ff", sasCode: "1" } });
-    expect(title()).toBe("Send or receive accounts");
+    expect(title()).toBe("Send or Receive Accounts");
     expect(text()).toContain("Devices are connected. Choose what this device should do:");
     await press("Receive Accounts on This Device");
     expect(api.selectRole).toHaveBeenCalledWith("receive");
@@ -575,7 +575,7 @@ describe("finishing", () => {
     expect(document.querySelector(".pairing-step-dots")).toBeNull();
     await press("Try Again");
     expect(cancelPairing).toHaveBeenCalled();
-    expect(title()).toBe("How to connect devices");
+    expect(title()).toBe("How to Connect Devices");
   });
 
   it("restarts the host session from Try Again when showing a code", async () => {
@@ -606,12 +606,12 @@ describe("finishing", () => {
   it("starts over each time it is reopened", async () => {
     render();
     await press("Send Accounts from This Device");
-    expect(title()).toBe("How to connect devices");
+    expect(title()).toBe("How to Connect Devices");
     mounted.rerender(<PairingModal open={false} onClose={onClose} onCompleted={onCompleted} />);
     expect(document.querySelector(".pairing-modal")).toBeNull();
     mounted.rerender(<PairingModal open onClose={onClose} onCompleted={onCompleted} />);
     await settle();
-    expect(title()).toBe("Send or receive accounts");
+    expect(title()).toBe("Send or Receive Accounts");
   });
 });
 
@@ -686,7 +686,7 @@ describe("air-gap transfer: sending", () => {
     expect(text()).toContain("The transfer was cancelled.");
     expect(document.querySelector(".airgap-sender-view")).not.toBeNull();
     await press("Back");
-    expect(title()).toBe("How to connect devices");
+    expect(title()).toBe("How to Connect Devices");
     expect(document.querySelector(".airgap-sender-view")).toBeNull();
     expect(document.querySelector(".modal-error")).toBeNull();
     expect(text()).not.toContain("The transfer was cancelled.");
@@ -701,7 +701,7 @@ describe("air-gap transfer: sending", () => {
   it("returns to the connection choices from Back", async () => {
     await openSender();
     await press("Back");
-    expect(title()).toBe("How to connect devices");
+    expect(title()).toBe("How to Connect Devices");
     expect(document.querySelector(".airgap-sender-view")).toBeNull();
   });
 });
@@ -761,9 +761,9 @@ describe("scanning", () => {
     const live = document.querySelector("[role=status]");
     expect(live?.classList.contains("sr-only")).toBe(true);
     expect(live?.getAttribute("aria-live")).toBe("polite");
-    expect(live?.textContent).toContain("Send or receive accounts");
+    expect(live?.textContent).toContain("Send or Receive Accounts");
     await press("Send Accounts from This Device");
-    expect(live?.textContent).toContain("How to connect devices");
+    expect(live?.textContent).toContain("How to Connect Devices");
   });
 
   it("marks failures as alerts and moves focus to Try Again", async () => {
@@ -805,7 +805,7 @@ describe("scanning", () => {
     await openScanner();
     await press("Back");
     expect(cancelPairing).toHaveBeenCalled();
-    expect(title()).toBe("How to connect devices");
+    expect(title()).toBe("How to Connect Devices");
     expect(scanner.options?.active).toBe(false);
   });
 
