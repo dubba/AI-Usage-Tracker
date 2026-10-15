@@ -300,9 +300,8 @@ pub async fn start_login(
                 return Err(error);
             }
         };
-        let (width, height, position) = crate::oauth_common::window_geometry_centered_on(
-            &app, "main", 0.96, 0.96, 820.0, 620.0,
-        );
+        let (width, height, position) =
+            crate::oauth_common::window_geometry_centered_on(&app, "main", 1.0, 0.96, 820.0, 620.0);
         let login_url = match Url::parse(LOGIN_URL) {
             Ok(url) => url,
             Err(error) => {

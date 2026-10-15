@@ -244,7 +244,7 @@ fn connected_html(title: &str, account: &Account, countdown_script: &str) -> Str
         })
         .unwrap_or_default();
     format!(
-        r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;min-height:100vh;min-height:100dvh;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#101412;color:#f4f6f8;font-family:system-ui;padding:24px 20px;text-align:center"><div style="max-width:480px;width:100%"><h1 style="margin:0 0 12px;font-size:28px">{}</h1><div style="display:flex;justify-content:center;align-items:center;gap:10px;margin:8px 0 18px;font-size:20px;font-weight:600">{}<span>{}</span></div>{}<p style="color:#8e9791;margin:0 0 6px">Returning to AI Usage Tracker in</p><div style="font-size:48px;font-weight:700;line-height:1.1;margin:0 0 16px;color:#a78bfa"><span id="sec">5</span></div><p style="color:#626b65;font-size:13px;margin:0">You can also close this tab manually.</p></div>{}</body></html>"#,
+        r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;min-height:100vh;min-height:100dvh;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000000;color:#f4f6f8;font-family:system-ui;padding:24px 20px;text-align:center"><div style="max-width:480px;width:100%"><h1 style="margin:0 0 12px;font-size:28px">{}</h1><div style="display:flex;justify-content:center;align-items:center;gap:10px;margin:8px 0 18px;font-size:20px;font-weight:600">{}<span>{}</span></div>{}<p style="color:#8e9791;margin:0 0 6px">Returning to AI Usage Tracker in</p><div style="font-size:48px;font-weight:700;line-height:1.1;margin:0 0 16px;color:#a78bfa"><span id="sec">5</span></div><p style="color:#626b65;font-size:13px;margin:0">You can also close this tab manually.</p></div>{}</body></html>"#,
         escape_html(title),
         provider_icon_svg(&account.provider),
         escape_html(provider_name),
@@ -264,7 +264,7 @@ pub(crate) fn unrecognized_callback_response() -> axum::response::Response {
 
 pub(crate) fn auth_failure_html(title: &str, message: &str) -> String {
     format!(
-        r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;min-height:100vh;min-height:100dvh;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#101412;color:#f4f6f8;font-family:system-ui;padding:24px 20px;text-align:center"><div style="max-width:480px;width:100%"><h1 style="margin:0 0 12px;font-size:28px">{}</h1><p style="color:#ff9d9d;margin:0 0 12px">{}</p><p style="color:#8e9791;margin:0">Return to the app and try again.</p></div></body></html>"#,
+        r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;min-height:100vh;min-height:100dvh;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000000;color:#f4f6f8;font-family:system-ui;padding:24px 20px;text-align:center"><div style="max-width:480px;width:100%"><h1 style="margin:0 0 12px;font-size:28px">{}</h1><p style="color:#ff9d9d;margin:0 0 12px">{}</p><p style="color:#8e9791;margin:0">Return to the app and try again.</p></div></body></html>"#,
         escape_html(title),
         escape_html(message)
     )
@@ -443,11 +443,13 @@ mod tests {
         assert!(connected.contains("justify-content:center"));
         assert!(connected.contains("align-items:center"));
         assert!(connected.contains("min-height:100dvh"));
+        assert!(connected.contains("background:#000000"));
 
         let failure = auth_failure_html("Authentication failed", "Invalid state");
         assert!(failure.contains("justify-content:center"));
         assert!(failure.contains("align-items:center"));
         assert!(failure.contains("min-height:100dvh"));
+        assert!(failure.contains("background:#000000"));
     }
 
     #[test]
@@ -647,9 +649,9 @@ mod tests {
     fn nested_popups_share_the_exact_same_center_point() {
         let main_pos = (350.0, 80.0);
         let main_size = (1440.0, 900.0);
-        // Provider login window centered on main window at 96% coverage
+        // Provider login window covers the full main-window width
         let (provider_w, provider_h, (provider_x, provider_y)) =
-            calculate_centered_geometry(main_pos, main_size, None, 0.96, 0.96, 820.0, 620.0);
+            calculate_centered_geometry(main_pos, main_size, None, 1.0, 0.96, 820.0, 620.0);
         // Sign-in popup (e.g. Google) centered on provider login window
         let (popup_w, popup_h, (popup_x, popup_y)) = calculate_centered_geometry(
             (provider_x, provider_y),
@@ -670,6 +672,9 @@ mod tests {
 
         assert!((main_center.0 - provider_center.0).abs() < 1e-4);
         assert!((main_center.1 - provider_center.1).abs() < 1e-4);
+        // Full-width coverage: same left edge and width as the main window.
+        assert!((provider_x - main_pos.0).abs() < 1e-4);
+        assert!((provider_w - main_size.0).abs() < 1e-4);
         assert!((provider_center.0 - popup_center.0).abs() < 1e-4);
         assert!((provider_center.1 - popup_center.1).abs() < 1e-4);
     }

@@ -1,17 +1,19 @@
 # Changelog
 
-## Unreleased (5 changes)
+## Unreleased (7 changes)
 
 ### Improved (1)
 
-- The "Account connected" page and sign-in status screens now center their content vertically in the middle of the screen instead of sticking to the top of the window.
+- The "Account connected" page and sign-in status screens now use a pure black background and center their content vertically in the middle of the screen instead of sticking to the top of the window.
 
-### Fixed (4)
+### Fixed (6)
 
 - Error messages across all dialogs now appear at the bottom of the modal below the back button and other action buttons, automatically dismiss after a few seconds, disappear immediately when pressing Back or Escape, and never follow into other views when connection attempts fail. In Scan QR Code, the switch camera button is centered in the controls row aligned with the viewfinder.
 - On Android, using the system back gesture in the app no longer navigates back into the "Account connected" page or completed OAuth sign-in screens after the confirmation has closed.
 - Transferring settings to another device with Link Devices now also carries over the Include Beta Releases update setting and the Appearance theme, so the new device matches the old one.
 - In Link Devices, failure messages now explain in plain language what went wrong and what to try next instead of showing internal error text, and error messages in all dialogs have centered text with the same spacing to the bottom of the dialog.
+- On desktop, provider sign-in windows now open at the full width of the main window so they cover it.
+- On Android, starting a Grok sign-in when already logged into an account now clears the existing browser session so the standard sign-in screen appears instead of immediately reconnecting the previous account.
 
 ## v0.4.4 - 2026-10-14 (28 changes)
 

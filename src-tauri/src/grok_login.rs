@@ -440,9 +440,8 @@ pub async fn start_login(
             }
         };
 
-        let (width, height, position) = crate::oauth_common::window_geometry_centered_on(
-            &app, "main", 0.96, 0.96, 820.0, 620.0,
-        );
+        let (width, height, position) =
+            crate::oauth_common::window_geometry_centered_on(&app, "main", 1.0, 0.96, 820.0, 620.0);
         let back_app = app.clone();
         let back_state = state.clone();
         let back_attempt = attempt_id.clone();

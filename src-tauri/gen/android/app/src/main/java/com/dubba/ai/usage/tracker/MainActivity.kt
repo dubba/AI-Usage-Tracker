@@ -504,30 +504,40 @@ class MainActivity : TauriActivity() {
   /**
    * Removes every cookie in this app's WebView before another provider sign-in.
    * The system browser is left alone, and the app's own storage is not a cookie
-   * jar. The callback must not be awaited on the UI thread: it can run there
-   * and deadlock. A caller already on that thread starts the clear and returns.
+   * jar. CookieManager.removeAllCookies with a callback requires a Looper, so
+   * non-UI threads dispatch to the main thread via runOnUiThread and await
+   * completion with a CountDownLatch. A caller already on the UI thread starts
+   * the clear without blocking to avoid deadlock.
    */
   fun clearWebViewCookies(): Boolean {
     val manager = CookieManager.getInstance()
     if (Looper.myLooper() == Looper.getMainLooper()) {
+      manager.removeSessionCookies(null)
       manager.removeAllCookies(null)
       manager.flush()
       return true
     }
     val latch = CountDownLatch(1)
-    try {
-      manager.removeAllCookies { latch.countDown() }
-    } catch (e: Throwable) {
-      android.util.Log.w(TAG, "clearWebViewCookies failed")
-      return false
+    val success = AtomicBoolean(false)
+    runOnUiThread {
+      try {
+        manager.removeSessionCookies(null)
+        manager.removeAllCookies {
+          success.set(true)
+          manager.flush()
+          latch.countDown()
+        }
+      } catch (e: Throwable) {
+        android.util.Log.w(TAG, "clearWebViewCookies failed: ${e.message}")
+        latch.countDown()
+      }
     }
     val finished = try {
       latch.await(5, TimeUnit.SECONDS)
     } catch (_: InterruptedException) {
       false
     }
-    manager.flush()
-    return finished
+    return finished && success.get()
   }
 
   /** Posts an alert notification whose body stays fully readable when expanded. */
