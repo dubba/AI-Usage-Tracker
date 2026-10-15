@@ -31,10 +31,17 @@ describe("applyUiState", () => {
     expect(env.cssVars.get("--sidebar-width")).toBe("320px");
   });
 
+  it("applies the appearance theme to storage and the page", () => {
+    applyUiState({ theme: "light" });
+    expect(storageGet(STORAGE_KEYS.theme)).toBe("light");
+    expect(env.attrs.get("data-theme")).toBe("light");
+  });
+
   it("ignores invalid values", () => {
-    applyUiState({ sidebar_width: -5, sidebar_group_order: "nope" });
+    applyUiState({ sidebar_width: -5, sidebar_group_order: "nope", theme: "sepia" });
     expect(storageGet(STORAGE_KEYS.sidebarWidthDesktop)).toBeNull();
     expect(storageGet(STORAGE_KEYS.sidebarGroupOrder)).toBeNull();
+    expect(storageGet(STORAGE_KEYS.theme)).toBeNull();
   });
 
   it("asks the dashboard to resync afterwards", () => {
@@ -45,8 +52,8 @@ describe("applyUiState", () => {
 });
 
 describe("collectUiState", () => {
-  it("is empty when nothing has been customized", () => {
-    expect(collectUiState()).toEqual({});
+  it("reports the default theme when nothing has been customized", () => {
+    expect(collectUiState()).toEqual({ theme: "dark" });
   });
 
   it("round-trips through applyUiState", () => {
@@ -55,12 +62,14 @@ describe("collectUiState", () => {
       provider_order: ["grok"],
       sidebar_width: 300,
       page_account_order: { "bucket:b1": ["a", "b"] },
+      theme: "light",
     });
     expect(collectUiState()).toEqual({
       sidebar_group_order: ["provider:grok"],
       provider_order: ["grok"],
       sidebar_width: 300,
       page_account_order: { "bucket:b1": ["a", "b"] },
+      theme: "light",
     });
   });
 });

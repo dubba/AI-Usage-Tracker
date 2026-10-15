@@ -28,11 +28,16 @@ export function installFakeWindow() {
   const sessionStorage = new MemoryStorage();
   const win = Object.assign(new EventTarget(), { localStorage, sessionStorage });
   const cssVars = new Map<string, string>();
+  const attrs = new Map<string, string>();
   vi.stubGlobal("window", win);
   vi.stubGlobal("document", {
-    documentElement: { style: { setProperty: (name: string, value: string) => cssVars.set(name, value) } },
+    documentElement: {
+      style: { setProperty: (name: string, value: string) => cssVars.set(name, value) },
+      setAttribute: (name: string, value: string) => attrs.set(name, value),
+      getAttribute: (name: string) => attrs.get(name) ?? null,
+    },
   });
-  return { window: win, localStorage, sessionStorage, cssVars };
+  return { window: win, localStorage, sessionStorage, cssVars, attrs };
 }
 
 /** Records the detail of every dispatched event with the given name. */

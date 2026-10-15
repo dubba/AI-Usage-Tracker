@@ -8,7 +8,7 @@ function isPairingUri(uri: string | null | undefined): uri is string {
   return Boolean(uri && (uri.startsWith("aiusage-pair:") || uri.startsWith("aiusage:")));
 }
 
-/** Pairing modal state, deep-link URIs, and UI state (order, collapsed cards, sidebar width) sent by a paired device. */
+/** Pairing modal state, deep-link URIs, and UI state (order, collapsed cards, sidebar width, theme) sent by a paired device. */
 export function usePairingEvents() {
   const [pairingOpen, setPairingOpen] = useState(false);
   const [pairingInitialUri, setPairingInitialUri] = useState<string | null>(null);
@@ -37,7 +37,7 @@ export function usePairingEvents() {
     if (isPairingUri(uri)) openWithUri(uri);
   });
 
-  // Apply UI state transferred via pairing (sidebar order, collapsed cards, etc.)
+  // Apply UI state transferred via pairing (sidebar order, collapsed cards, theme, etc.)
   useTauriEvent<Record<string, unknown>>("pairing-ui-state", (payload) => {
     try {
       applyUiState(payload);

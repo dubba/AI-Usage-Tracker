@@ -1,10 +1,14 @@
 # Changelog
 
-## Unreleased (1 change)
+## Unreleased (2 changes)
 
 ### Improved (1)
 
 - The "Account connected" page and sign-in status screens now center their content vertically in the middle of the screen instead of sticking to the top of the window.
+
+### Fixed (1)
+
+- Transferring settings to another device with Link Devices now also carries over the Include Beta Releases update setting and the Appearance theme, so the new device matches the old one.
 
 ## v0.4.4 - 2026-10-14 (28 changes)
 

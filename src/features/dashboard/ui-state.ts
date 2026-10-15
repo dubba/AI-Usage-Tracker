@@ -1,10 +1,11 @@
 import { collectPageUiState, applyPageUiState } from "./dashboard-page-state";
 import { requestDashboardResync, UI_EVENTS } from "../../shared/lib/events";
 import { isStringArray, readJson, storageGet, storageSet, STORAGE_KEYS, writeJson } from "../../shared/lib/storage";
+import { isThemePreference, readThemePreference, setThemePreference } from "../../shared/lib/theme";
 
 type UiState = Record<string, unknown>;
 
-/** Layout state (group/provider order, collapsed cards, page order, sidebar width) to send to a paired device. */
+/** Layout state (group/provider order, collapsed cards, page order, sidebar width, theme) to send to a paired device. */
 export function collectUiState(): UiState {
   const ui: UiState = {};
   const groupOrder = readJson<string[]>(STORAGE_KEYS.sidebarGroupOrder, [], isStringArray);
@@ -14,6 +15,7 @@ export function collectUiState(): UiState {
   Object.assign(ui, collectPageUiState());
   const width = Number.parseInt(storageGet(STORAGE_KEYS.sidebarWidthDesktop) ?? "", 10);
   if (Number.isFinite(width) && width > 0) ui.sidebar_width = width;
+  ui.theme = readThemePreference();
   return ui;
 }
 
@@ -31,6 +33,9 @@ export function applyUiState(payload: UiState): void {
   if (typeof payload.sidebar_width === "number" && payload.sidebar_width > 0) {
     storageSet(STORAGE_KEYS.sidebarWidthDesktop, String(payload.sidebar_width));
     document.documentElement.style.setProperty("--sidebar-width", `${payload.sidebar_width}px`);
+  }
+  if (isThemePreference(payload.theme)) {
+    setThemePreference(payload.theme);
   }
   requestDashboardResync();
 }

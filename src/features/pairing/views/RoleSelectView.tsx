@@ -21,7 +21,8 @@ export function RoleSelectView({
         <span>
           Transfer settings &amp; layout config:
           <small>
-            Including launch-at-login, auto app updates, accounts refresh intervals, alerts & card order.
+            Including launch-at-login, auto app updates (including beta releases), accounts refresh intervals,
+            appearance, alerts &amp; card order.
           </small>
         </span>
       </label>

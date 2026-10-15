@@ -557,6 +557,7 @@ fn ui_state_clamp_bounds_lists_pages_and_text() {
         ),
         page_account_order: None,
         sidebar_width: Some(u32::MAX),
+        theme: Some("light".into()),
     };
     ui.clamp();
 
@@ -575,6 +576,15 @@ fn ui_state_clamp_bounds_lists_pages_and_text() {
     assert_eq!(cards.len(), MAX_UI_PAGES);
     assert!(cards.values().all(|ids| ids.len() == MAX_UI_LIST_ENTRIES));
     assert_eq!(ui.sidebar_width, Some(MAX_SIDEBAR_WIDTH));
+    assert_eq!(ui.theme, Some("light".to_string()));
+
+    // Theme is an allowlist: anything else is dropped.
+    let mut evil = UiStateSyncPayload {
+        theme: Some("sepia'; DROP TABLE".into()),
+        ..Default::default()
+    };
+    evil.clamp();
+    assert_eq!(evil.theme, None);
 
     // Ordinary state passes through unchanged.
     let mut small = UiStateSyncPayload {
@@ -585,6 +595,59 @@ fn ui_state_clamp_bounds_lists_pages_and_text() {
     small.clamp();
     assert_eq!(small.sidebar_width, Some(320));
     assert_eq!(small.provider_order.unwrap().len(), 2);
+}
+
+#[tokio::test]
+async fn test_settings_transfer_includes_beta_flag() {
+    let dir_sender = tempfile::tempdir().unwrap();
+    let state_sender =
+        Arc::new(AppState::new(dir_sender.path().to_path_buf(), "tok-beta-s".into()).unwrap());
+    state_sender
+        .settings
+        .set_account_refresh_minutes(30)
+        .unwrap();
+    state_sender
+        .settings
+        .set_automatic_updates_enabled(false)
+        .unwrap();
+    state_sender
+        .settings
+        .set_include_beta_updates(true)
+        .unwrap();
+    *state_sender.pairing_include_settings.write() = true;
+
+    let export_bytes = create_export_payload(&state_sender).unwrap();
+    let payload: super::payload::SyncPayload = serde_json::from_slice(&export_bytes).unwrap();
+    let settings = payload
+        .settings
+        .expect("settings must be included when opted in");
+    assert!(settings.include_beta_updates);
+    assert!(!settings.automatic_updates_enabled);
+    assert_eq!(settings.account_refresh_minutes, 30);
+
+    let dir_receiver = tempfile::tempdir().unwrap();
+    let state_receiver =
+        Arc::new(AppState::new(dir_receiver.path().to_path_buf(), "tok-beta-r".into()).unwrap());
+    assert!(!state_receiver.settings.get().include_beta_updates);
+    import_sync_payload(&state_receiver, &export_bytes)
+        .await
+        .unwrap();
+    assert!(state_receiver.settings.get().include_beta_updates);
+    assert!(!state_receiver.settings.get().automatic_updates_enabled);
+    assert_eq!(state_receiver.settings.get().account_refresh_minutes, 30);
+}
+
+#[test]
+fn old_settings_payload_without_beta_flag_still_parses() {
+    // Payloads from older peers lack `include_beta_updates`; the default (off) applies.
+    let raw = serde_json::json!({
+        "account_refresh_minutes": 15,
+        "automatic_updates_enabled": true,
+        "autostart_enabled": false,
+        "paseo_bridge_enabled": false
+    });
+    let parsed: super::payload::AppSettingsSyncPayload = serde_json::from_value(raw).unwrap();
+    assert!(!parsed.include_beta_updates);
 }
 
 fn antigravity_account(id: &str, label: &str, email: &str, project_id: Option<&str>) -> Account {

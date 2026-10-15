@@ -25,6 +25,8 @@ pub struct SyncAccountEntry {
 pub struct AppSettingsSyncPayload {
     pub account_refresh_minutes: u64,
     pub automatic_updates_enabled: bool,
+    #[serde(default)]
+    pub include_beta_updates: bool,
     pub autostart_enabled: bool,
     pub paseo_bridge_enabled: bool,
 }
@@ -56,6 +58,9 @@ pub struct UiStateSyncPayload {
     pub page_account_order: Option<std::collections::BTreeMap<String, Vec<String>>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sidebar_width: Option<u32>,
+    /// Appearance theme ("dark" | "light" | "system"). Older peers ignore it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub theme: Option<String>,
 }
 
 impl UiStateSyncPayload {
@@ -100,6 +105,14 @@ impl UiStateSyncPayload {
         }
         if let Some(width) = self.sidebar_width.as_mut() {
             *width = (*width).min(MAX_SIDEBAR_WIDTH);
+        }
+        // Theme is an allowlist, not free text: anything else is dropped.
+        if self
+            .theme
+            .as_deref()
+            .is_some_and(|theme| !matches!(theme, "dark" | "light" | "system"))
+        {
+            self.theme = None;
         }
     }
 }
@@ -179,6 +192,7 @@ pub fn create_export_payload(state: &AppState) -> Result<Vec<u8>, String> {
         let settings_payload = AppSettingsSyncPayload {
             account_refresh_minutes: app.account_refresh_minutes,
             automatic_updates_enabled: app.automatic_updates_enabled,
+            include_beta_updates: app.include_beta_updates,
             autostart_enabled: app.autostart_enabled,
             paseo_bridge_enabled: app.paseo_bridge_enabled,
         };
@@ -223,6 +237,7 @@ pub fn create_export_payload(state: &AppState) -> Result<Vec<u8>, String> {
                     || ui.collapsed_cards.is_some()
                     || ui.page_account_order.is_some()
                     || ui.sidebar_width.is_some()
+                    || ui.theme.is_some()
             });
 
         (
@@ -439,6 +454,9 @@ pub async fn import_sync_payload_with_replace(
         let _ = state
             .settings
             .set_automatic_updates_enabled(settings.automatic_updates_enabled);
+        let _ = state
+            .settings
+            .set_include_beta_updates(settings.include_beta_updates);
         let _ = state
             .settings
             .set_autostart_enabled(settings.autostart_enabled);
