@@ -196,11 +196,11 @@ Android, plaintext in debug builds). Corrupt JSON is quarantined and reloaded, n
 
 | Guard | Code |
 | --- | --- |
-| Fixed `https://` endpoint constants per provider (e.g. `providers/openai.rs:17`, `providers/anthropic.rs:16-19`, `providers/antigravity.rs:20`, `providers/google_ai_studio.rs:27-28`, `providers/grok.rs:22-28`, `providers/opencode_go.rs:9`); TLS via rustls (`Cargo.toml:31-32`); shared reqwest client with 10 s connect / 15 s total timeouts and reqwest's default redirect policy | `state.rs:111-116` |
+| Fixed `https://` / `wss://` endpoint constants per provider (e.g. `providers/openai.rs:17`, `providers/anthropic.rs:16-19`, `providers/antigravity.rs:20`, `providers/google_ai_studio.rs:27-28`, `providers/grok.rs:30-35`, `providers/opencode_go.rs:9`); TLS via rustls (`Cargo.toml:31-32,52`); shared reqwest client with 10 s connect / 15 s total timeouts and reqwest's default redirect policy; Grok Bot relay WebSocket (`wss://grok.com/ws/bot/`) bounded to 8 s total timeout, 256 KB frame/message size, and 64 inbound frames, with handshake/transport errors dropped silently so request headers are never echoed | `state.rs:111-116`, `providers/grok.rs:35-39,515-573` |
 | Responses treated as untrusted: window normalization with caps (≤32 windows), 401-only auth classification, unknown fields dropped, no plan guessing | `limits.rs:8-32`, `providers/anthropic.rs:407`, `providers/mod.rs:86-117` |
 | Error messages sanitized: transport failures use fixed sentences, refresh errors pass an allowlist that drops tokens/keys/JWTs/URLs | `providers/mod.rs:43-56`, `usage.rs:356-378` |
 | Token refresh: rotated refresh tokens replace old, `invalid_grant` → sign-in-again, unreadable replies never echoed | `providers/oauth_refresh.rs:84-128,232-407` |
-| Grok cookies: host allowlist (`grok.com`, `accounts.x.ai`) and CR/LF injection rejection before header use | `providers/grok.rs:365-461` |
+| Grok cookies: host allowlist (`grok.com`, `accounts.x.ai`) and CR/LF injection rejection before header use on both the billing RPC and the Bot relay WebSocket | `providers/grok.rs:575-671` |
 
 ### 9. Credential storage — reachable by local processes and other OS users
 

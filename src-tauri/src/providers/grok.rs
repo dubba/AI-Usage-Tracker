@@ -15,12 +15,28 @@ use base64::{
     Engine,
 };
 use chrono::{DateTime, TimeZone, Utc};
+use futures_util::{SinkExt, StreamExt};
 use reqwest::{header, StatusCode};
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashMap};
+use std::time::Duration;
+use tokio_tungstenite::tungstenite::{
+    client::IntoClientRequest,
+    http::{header as ws_header, HeaderValue},
+    protocol::WebSocketConfig,
+    Message,
+};
 
 const WEB_BILLING_ENDPOINT: &str =
     "https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig";
+// The "Weekly Grok Bot Limit" on grok.com Settings → Usage is not part of the
+// billing RPC above. The page reads it with the `bot.usage` JSON-RPC method on
+// this relay socket, authenticated by the same grok.com session cookies.
+const BOT_RELAY_URL: &str = "wss://grok.com/ws/bot/";
+const BOT_USAGE_REQUEST_ID: &str = "1";
+const BOT_USAGE_TIMEOUT: Duration = Duration::from_secs(8);
+const BOT_MAX_FRAMES: usize = 64;
+const BOT_MAX_MESSAGE_BYTES: usize = 256 * 1024;
 const MAX_COOKIE_HEADER_BYTES: usize = 32 * 1024;
 pub(crate) const GROK_COOKIE_URLS: &[&str] = &[
     "https://grok.com/",
@@ -277,9 +293,15 @@ pub async fn refresh(
         None
     };
 
-    match fetch_web_billing(app, cookie_header).await {
+    // Grok Bot usage is optional: it runs beside the billing request so it adds
+    // no latency, and any failure leaves the SuperGrok window untouched.
+    let (billing, bot) = tokio::join!(
+        fetch_web_billing(app, cookie_header),
+        fetch_bot_usage(cookie_header)
+    );
+    match billing {
         Ok(snapshot) => {
-            let mut usage = usage_from_snapshot(account, credentials.as_ref(), snapshot);
+            let mut usage = usage_from_snapshot(account, credentials.as_ref(), snapshot, bot);
             if usage.email.is_none() {
                 usage.email = discovered_email.or_else(|| account.email.clone());
             }
@@ -294,7 +316,11 @@ pub async fn probe_cookie(
     cookie_header: &str,
 ) -> Result<ProviderUsage, ProviderError> {
     let cookie_header = normalize_cookie_header(cookie_header).map_err(ProviderError::Transient)?;
-    let snapshot = match fetch_web_billing(app, &cookie_header).await {
+    let (billing, bot) = tokio::join!(
+        fetch_web_billing(app, &cookie_header),
+        fetch_bot_usage(&cookie_header)
+    );
+    let snapshot = match billing {
         Ok(snapshot) => snapshot,
         Err(error) => return Err(error.into_provider_error()),
     };
@@ -316,6 +342,7 @@ pub async fn probe_cookie(
         },
         None,
         snapshot,
+        bot,
     );
     if usage.email.is_none() {
         usage.email = discovered_email;
@@ -327,6 +354,7 @@ fn usage_from_snapshot(
     account: &Account,
     credentials: Option<&GrokCredentials>,
     snapshot: BillingSnapshot,
+    bot: Option<BotUsage>,
 ) -> ProviderUsage {
     let used = snapshot.used_percent.clamp(0.0, 100.0);
     let (id, label, window_seconds) = classify_period(
@@ -334,6 +362,19 @@ fn usage_from_snapshot(
         snapshot.resets_at,
         snapshot.source == "grok_web_billing",
     );
+    // The SuperGrok window stays first: the sidebar and alerts take the first
+    // weekly window as the account's headline limit.
+    let mut windows = vec![UsageWindow {
+        id: id.into(),
+        label: label.into(),
+        used_percent: Some(used),
+        remaining_percent: Some((100.0 - used).max(0.0)),
+        resets_at: snapshot.resets_at.map(|value| value.to_rfc3339()),
+        window_seconds,
+    }];
+    if let Some(bot) = bot {
+        windows.push(bot_usage_window(&bot));
+    }
     ProviderUsage {
         plan: Some(
             credentials
@@ -348,18 +389,206 @@ fn usage_from_snapshot(
             .and_then(GrokCredentials::account_id)
             .or_else(|| account.provider_account_id.clone())
             .or_else(|| Some("grok-browser-session".into())),
-        windows: vec![UsageWindow {
-            id: id.into(),
-            label: label.into(),
-            used_percent: Some(used),
-            remaining_percent: Some((100.0 - used).max(0.0)),
-            resets_at: snapshot.resets_at.map(|value| value.to_rfc3339()),
-            window_seconds,
-        }],
+        windows,
         credits_usd: None,
         unlimited_credits: false,
         source: snapshot.source.into(),
     }
+}
+
+fn bot_usage_window(bot: &BotUsage) -> UsageWindow {
+    let window_seconds = match (bot.period_start, bot.resets_at) {
+        (Some(start), Some(end))
+            if (5 * 86_400..=9 * 86_400).contains(&(end - start).num_seconds()) =>
+        {
+            (end - start).num_seconds() as u64
+        }
+        _ => 604_800,
+    };
+    UsageWindow {
+        id: "grok_bot".into(),
+        // "<name> weekly" renders as its own "Grok Bot" group in the dashboard.
+        label: "Grok Bot weekly".into(),
+        used_percent: Some(bot.used_percent),
+        remaining_percent: Some((100.0 - bot.used_percent).max(0.0)),
+        resets_at: bot.resets_at.map(|value| value.to_rfc3339()),
+        window_seconds: Some(window_seconds),
+    }
+}
+
+/// Grok Bot weekly limit, read from the `bot.usage` relay method.
+#[derive(Clone, Debug, PartialEq)]
+struct BotUsage {
+    used_percent: f64,
+    period_start: Option<DateTime<Utc>>,
+    resets_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, PartialEq)]
+enum BotFrame {
+    /// The relay accepted the hello; requests may be sent now.
+    HelloAck,
+    /// Server keep-alive; the relay drops clients that do not answer.
+    Ping(Option<i64>),
+    /// The reply to our `bot.usage` request. `None` means an error reply or a
+    /// result showing the account has no Grok Bot limit.
+    Usage(Option<BotUsage>),
+    Ignored,
+}
+
+fn bot_hello_frame() -> String {
+    json!({ "protocol_version": "1.0.0", "kind": "bot_client" }).to_string()
+}
+
+fn bot_usage_request_frame() -> String {
+    json!({
+        "jsonrpc": "2.0",
+        "id": BOT_USAGE_REQUEST_ID,
+        "method": "bot.usage",
+        "params": {}
+    })
+    .to_string()
+}
+
+fn bot_pong_frame(ts_ms: Option<i64>) -> String {
+    json!({ "method": "pong", "ts_ms": ts_ms.unwrap_or_else(|| Utc::now().timestamp_millis()) })
+        .to_string()
+}
+
+fn classify_bot_frame(text: &str) -> BotFrame {
+    let Ok(Value::Object(frame)) = serde_json::from_str::<Value>(text) else {
+        return BotFrame::Ignored;
+    };
+    if frame.contains_key("connection_id") {
+        return BotFrame::HelloAck;
+    }
+    if let Some(method) = frame.get("method") {
+        return if method.as_str() == Some("ping") {
+            BotFrame::Ping(frame.get("ts_ms").and_then(Value::as_i64))
+        } else {
+            BotFrame::Ignored
+        };
+    }
+    let is_our_reply = match frame.get("id") {
+        Some(Value::String(id)) => id == BOT_USAGE_REQUEST_ID,
+        Some(Value::Number(id)) => id.to_string() == BOT_USAGE_REQUEST_ID,
+        _ => false,
+    };
+    if !is_our_reply {
+        return BotFrame::Ignored;
+    }
+    if frame.contains_key("error") {
+        return BotFrame::Usage(None);
+    }
+    BotFrame::Usage(frame.get("result").and_then(parse_bot_usage))
+}
+
+/// Mirrors how grok.com decides whether to show the Grok Bot card: no card when
+/// the plan has no included Grok Bot limit and nothing has been used.
+fn parse_bot_usage(result: &Value) -> Option<BotUsage> {
+    let period_start_ms = result.get("currentPeriodStartMs")?.as_f64()?;
+    let percent = result
+        .get("usagePercent")
+        .and_then(Value::as_f64)
+        .filter(|value| value.is_finite());
+    let has_limit = result
+        .get("hasNonZeroIncludedLimit")
+        .and_then(Value::as_bool);
+    let excluded = result.get("includedLimitZero").and_then(Value::as_bool) == Some(true)
+        || has_limit == Some(false);
+    if excluded && percent.is_none_or(|value| value <= 0.0) {
+        return None;
+    }
+    if percent.is_none() && has_limit != Some(true) {
+        return None;
+    }
+    Some(BotUsage {
+        used_percent: percent.unwrap_or(0.0).clamp(0.0, 100.0),
+        period_start: datetime_from_epoch_ms(period_start_ms),
+        resets_at: result
+            .get("nextResetAtMs")
+            .and_then(Value::as_f64)
+            .and_then(datetime_from_epoch_ms),
+    })
+}
+
+fn datetime_from_epoch_ms(value: f64) -> Option<DateTime<Utc>> {
+    if !value.is_finite() || value <= 0.0 {
+        return None;
+    }
+    // Tolerate a seconds value, the same way the timestamps in the billing RPC are sent.
+    let millis = if value < 1e12 { value * 1000.0 } else { value } as i64;
+    if !(1_700_000_000_000..=4_102_444_800_000).contains(&millis) {
+        return None;
+    }
+    Utc.timestamp_millis_opt(millis).single()
+}
+
+/// Best effort: returns `None` on any failure, including a timeout, so the
+/// caller can still show the SuperGrok window. Errors are dropped rather than
+/// logged because handshake failures can echo request headers.
+async fn fetch_bot_usage(cookie_header: &str) -> Option<BotUsage> {
+    let cookie_header = normalize_cookie_header(cookie_header).ok()?;
+    tokio::time::timeout(BOT_USAGE_TIMEOUT, read_bot_usage(&cookie_header))
+        .await
+        .ok()
+        .flatten()
+}
+
+async fn read_bot_usage(cookie_header: &str) -> Option<BotUsage> {
+    let mut request = BOT_RELAY_URL.into_client_request().ok()?;
+    let headers = request.headers_mut();
+    headers.insert(
+        ws_header::COOKIE,
+        HeaderValue::from_str(cookie_header).ok()?,
+    );
+    headers.insert(
+        ws_header::ORIGIN,
+        HeaderValue::from_static("https://grok.com"),
+    );
+    headers.insert(
+        ws_header::USER_AGENT,
+        HeaderValue::from_static(concat!("AI-Usage-Tracker/", env!("CARGO_PKG_VERSION"))),
+    );
+    let config = WebSocketConfig::default()
+        .max_message_size(Some(BOT_MAX_MESSAGE_BYTES))
+        .max_frame_size(Some(BOT_MAX_MESSAGE_BYTES));
+    let (mut socket, _) =
+        tokio_tungstenite::connect_async_with_config(request, Some(config), false)
+            .await
+            .ok()?;
+    socket.send(Message::text(bot_hello_frame())).await.ok()?;
+
+    let mut usage = None;
+    for _ in 0..BOT_MAX_FRAMES {
+        let Some(Ok(message)) = socket.next().await else {
+            break;
+        };
+        let Message::Text(text) = message else {
+            continue;
+        };
+        match classify_bot_frame(text.as_str()) {
+            BotFrame::HelloAck => {
+                if socket
+                    .send(Message::text(bot_usage_request_frame()))
+                    .await
+                    .is_err()
+                {
+                    break;
+                }
+            }
+            BotFrame::Ping(ts_ms) => {
+                let _ = socket.send(Message::text(bot_pong_frame(ts_ms))).await;
+            }
+            BotFrame::Usage(result) => {
+                usage = result;
+                break;
+            }
+            BotFrame::Ignored => {}
+        }
+    }
+    let _ = socket.close(None).await;
+    usage
 }
 
 pub(crate) fn is_allowed_cookie_host(host: &str) -> bool {
@@ -1001,5 +1230,148 @@ mod tests {
             extract_identity_from_cookies(plain_cookie).as_deref(),
             Some("user@example.com")
         );
+    }
+
+    #[test]
+    fn parses_bot_usage_frames_and_reset_timestamp() {
+        assert_eq!(
+            classify_bot_frame(r#"{"connection_id":"conn-1","capabilities":["bot.usage"]}"#),
+            BotFrame::HelloAck
+        );
+        assert_eq!(
+            classify_bot_frame(r#"{"method":"ping","ts_ms":1792136773000}"#),
+            BotFrame::Ping(Some(1_792_136_773_000))
+        );
+
+        let reply = r#"{
+            "jsonrpc": "2.0",
+            "id": "1",
+            "result": {
+                "usagePercent": 1.0,
+                "currentPeriodStartMs": 1792093380000,
+                "nextResetAtMs": 1792698180000,
+                "hasAvailableUsage": true,
+                "hasNonZeroIncludedLimit": true,
+                "includedLimitZero": false,
+                "trial": false,
+                "isTeamSeat": false,
+                "fundingPlan": "supergrok_heavy",
+                "planLabel": "SuperGrok Heavy",
+                "manageUrl": "https://grok.com/?_s=billing",
+                "onDemandEligible": true,
+                "onDemandEnabled": false
+            }
+        }"#;
+        let BotFrame::Usage(Some(bot)) = classify_bot_frame(reply) else {
+            panic!("expected parsed bot usage");
+        };
+        assert!((bot.used_percent - 1.0).abs() < f64::EPSILON);
+        assert_eq!(
+            bot.period_start.unwrap().timestamp_millis(),
+            1_792_093_380_000
+        );
+        assert_eq!(bot.resets_at.unwrap().timestamp_millis(), 1_792_698_180_000);
+    }
+
+    #[test]
+    fn omits_bot_usage_when_plan_has_no_included_bot_limit() {
+        let excluded = r#"{
+            "jsonrpc": "2.0",
+            "id": "1",
+            "result": {
+                "usagePercent": 0.0,
+                "currentPeriodStartMs": 1792093380000,
+                "hasAvailableUsage": false,
+                "hasNonZeroIncludedLimit": false,
+                "includedLimitZero": true
+            }
+        }"#;
+        assert_eq!(classify_bot_frame(excluded), BotFrame::Usage(None));
+
+        let rpc_error = r#"{
+            "jsonrpc": "2.0",
+            "id": "1",
+            "error": {"code": -32000, "message": "no_plan", "data": {"cookie": "sso=secret"}}
+        }"#;
+        assert_eq!(classify_bot_frame(rpc_error), BotFrame::Usage(None));
+
+        let other_id = r#"{"jsonrpc":"2.0","id":"99","result":{"currentPeriodStartMs":1792093380000,"usagePercent":5.0,"hasNonZeroIncludedLimit":true}}"#;
+        assert_eq!(classify_bot_frame(other_id), BotFrame::Ignored);
+        assert_eq!(classify_bot_frame("not-json"), BotFrame::Ignored);
+    }
+
+    #[test]
+    fn appends_grok_bot_window_after_supergrok_weekly_window() {
+        let account = Account {
+            id: "acc-1".into(),
+            label: "Grok".into(),
+            provider: crate::model::Provider::Grok,
+            email: Some("user@example.com".into()),
+            provider_account_id: Some("grok-browser-session".into()),
+            chatgpt_account_id: None,
+            plan: Some("SuperGrok Heavy".into()),
+            created_at: String::new(),
+            updated_at: String::new(),
+            last_usage: None,
+            last_error: None,
+            auth_required: false,
+        };
+        let supergrok_reset = Utc.timestamp_opt(1_792_477_920, 0).single().unwrap();
+        let bot_start = Utc.timestamp_opt(1_792_093_380, 0).single().unwrap();
+        let bot_reset = Utc.timestamp_opt(1_792_698_180, 0).single().unwrap();
+        let snapshot = BillingSnapshot {
+            used_percent: 62.0,
+            resets_at: Some(supergrok_reset),
+            period_start: Some(supergrok_reset - chrono::Duration::days(7)),
+            source: "grok_web_billing",
+        };
+        let bot = BotUsage {
+            used_percent: 1.0,
+            period_start: Some(bot_start),
+            resets_at: Some(bot_reset),
+        };
+
+        let usage = usage_from_snapshot(&account, None, snapshot, Some(bot));
+        assert_eq!(usage.windows.len(), 2);
+        assert_eq!(usage.windows[0].id, "weekly");
+        assert_eq!(usage.windows[0].label, "Weekly");
+        assert_eq!(usage.windows[0].used_percent, Some(62.0));
+        assert_eq!(usage.windows[0].remaining_percent, Some(38.0));
+        assert_eq!(
+            usage.windows[0].resets_at.as_deref(),
+            Some(supergrok_reset.to_rfc3339().as_str())
+        );
+
+        assert_eq!(usage.windows[1].id, "grok_bot");
+        assert_eq!(usage.windows[1].label, "Grok Bot weekly");
+        assert_eq!(usage.windows[1].used_percent, Some(1.0));
+        assert_eq!(usage.windows[1].remaining_percent, Some(99.0));
+        assert_eq!(
+            usage.windows[1].resets_at.as_deref(),
+            Some(bot_reset.to_rfc3339().as_str())
+        );
+        assert_eq!(usage.windows[1].window_seconds, Some(604_800));
+    }
+
+    #[tokio::test]
+    async fn bot_usage_validates_relay_host_cookies_and_bounds() {
+        let relay = url::Url::parse(BOT_RELAY_URL).unwrap();
+        assert_eq!(relay.scheme(), "wss");
+        assert!(is_allowed_cookie_host(relay.host_str().unwrap()));
+
+        // Header injection or missing session cookies must fail closed before dialing.
+        assert!(fetch_bot_usage("sso=abc\r\nX-Injected: 1").await.is_none());
+        assert!(fetch_bot_usage("theme=dark").await.is_none());
+
+        // Out-of-bounds percentages are clamped and out-of-range timestamps are dropped.
+        let clamped = parse_bot_usage(&json!({
+            "usagePercent": 145.0,
+            "currentPeriodStartMs": 1_792_093_380_000_i64,
+            "nextResetAtMs": 9_999_999_999_999_i64,
+            "hasNonZeroIncludedLimit": true
+        }))
+        .unwrap();
+        assert_eq!(clamped.used_percent, 100.0);
+        assert!(clamped.resets_at.is_none());
     }
 }

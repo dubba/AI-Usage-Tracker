@@ -240,4 +240,26 @@ describe("CustomDropdown", () => {
     expect(document.querySelector(".custom-dropdown-menu")).toBeNull();
     expect(document.activeElement).toBe(trigger);
   });
+
+  it("does not reserve scrollbar space on a short menu", () => {
+    app = mount(
+      <CustomDropdown value="claude" options={OPTIONS} onChange={onChange} id="provider" />,
+    );
+    mockAnchorRect(app.container, { top: 120, left: 40, width: 360, height: 44 });
+    click(document.getElementById("provider")!);
+    const menu = document.querySelector<HTMLElement>(".custom-dropdown-menu")!;
+    expect(menu.classList.contains("has-overflow")).toBe(false);
+  });
+
+  it("reserves scrollbar space when the menu content overflows", () => {
+    vi.spyOn(HTMLUListElement.prototype, "scrollHeight", "get").mockReturnValue(400);
+    vi.spyOn(HTMLUListElement.prototype, "clientHeight", "get").mockReturnValue(200);
+    app = mount(
+      <CustomDropdown value="claude" options={OPTIONS} onChange={onChange} id="provider" />,
+    );
+    mockAnchorRect(app.container, { top: 120, left: 40, width: 360, height: 44 });
+    click(document.getElementById("provider")!);
+    const menu = document.querySelector<HTMLElement>(".custom-dropdown-menu")!;
+    expect(menu.classList.contains("has-overflow")).toBe(true);
+  });
 });

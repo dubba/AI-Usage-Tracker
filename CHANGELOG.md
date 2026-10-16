@@ -1,13 +1,15 @@
 # Changelog
 
-## Unreleased (35 changes)
+## Unreleased (37 changes)
 
-### Added (1)
+### Added (2)
 
+- Grok accounts that include Grok Bot now show a separate Grok Bot 7-day limit and reset time alongside the SuperGrok weekly limit.
 - On a phone, choosing Show Link Code or Enter Link Code while Wi-Fi is off now opens a prompt with a Turn On Wi-Fi button that takes you to the system Wi-Fi settings.
 
-### Improved (11)
+### Improved (12)
 
+- The email and countdown on the Account connected page now use the same purple as the status bar and scrollbar.
 - The "Account connected" page and sign-in status screens now use a pure black background and center their content vertically in the middle of the screen instead of sticking to the top of the window.
 - The Link Devices button in Settings now shows the same devices icon as the empty dashboard, so both entry points look the same.
 - The OpenCode email field in the Add Account dialog is now labeled "Account email (optional)" to match the other providers.
@@ -29,7 +31,7 @@
 
 - Antigravity accounts now show their Gemini models' weekly and 5-hour limits again. Google had stopped sending them to this app, so only the Claude & GPT limits appeared. A separate Gemini 4 Argon limit will show as its own row when Google reports one.
 - On desktop, the window now opens on a black background instead of a full-window purple flash before the UI appears. The title bar stays purple.
-- Scrollable lists keep a small gap from the purple scrollbar so cards and rows do not sit under it, including Settings, All Accounts, the group account picker, and dropdown menus.
+- Scrollable lists keep a small gap from the purple scrollbar so cards and rows do not sit under it, including Settings, All Accounts, the group account picker, and dropdown menus that scroll. Short dropdowns keep the checkmark spaced from the label instead of reserving room for a scrollbar.
 - Link Devices with a link code now works between an iPhone and an Android phone in both directions. The iPhone now finds and announces link codes through the system's Bonjour service, which iOS permits, instead of a network method iOS blocks for sideloaded apps.
 - On a phone with mobile data on, showing a link code or QR code now offers the Wi-Fi connection instead of sometimes the mobile data connection, which the other device on the Wi-Fi could not reach.
 - Error messages across all dialogs now appear at the bottom of the modal below the back button and other action buttons, disappear immediately when pressing Back or Escape, and never follow into other views when connection attempts fail. In Scan QR Code, the switch camera button is centered in the controls row aligned with the viewfinder.

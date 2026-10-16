@@ -2620,9 +2620,13 @@ select.text-input option,
   width: 6.125rem !important;
   min-width: 6.125rem !important;
   max-width: 6.125rem !important;
-  padding: 4px calc(4px + var(--scrollbar-size)) 4px 4px !important;
+  padding: 4px !important;
   box-sizing: border-box !important;
   right: auto;
+}
+
+.settings-theme-dropdown .custom-dropdown-menu.has-overflow {
+  padding: 4px calc(4px + var(--scrollbar-size)) 4px 4px !important;
 }
 
 .settings-theme-dropdown .custom-dropdown-item {

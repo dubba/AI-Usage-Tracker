@@ -672,7 +672,7 @@
 /* Overlay thumbs and clip-path rounded lists paint the bar inside the padding
    box. Right inset = that list's left inset + the thumb, so the gap beside
    the bar matches the gap on the other side. */
-.custom-dropdown-menu,
+.custom-dropdown-menu.has-overflow,
 .bucket-account-picker-list,
 .mobile-dropdown-menu,
 .google-model-list {

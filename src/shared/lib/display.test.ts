@@ -87,6 +87,7 @@ describe("metricGroupLabel", () => {
   it("falls back to the provider model name for plain 5h/7d labels", () => {
     expect(metricGroupLabel(win({ label: "Weekly" }), "openai")).toBe("GPT");
     expect(metricGroupLabel(win({ label: "Weekly" }), "grok")).toBe("Grok");
+    expect(metricGroupLabel(win({ label: "Grok Bot weekly" }), "grok")).toBe("Grok Bot");
     expect(metricGroupLabel(win({ label: "5 hour" }), "anthropic")).toBe("Claude");
     expect(metricGroupLabel(win({ label: "Weekly" }), "opencode_go")).toBe("OpenCode");
   });
@@ -97,6 +98,7 @@ describe("displayMetricLabel", () => {
     expect(displayMetricLabel(win({ label: "Gemini · 5 hour" }))).toBe("Gemini · Remaining Limit");
     expect(displayMetricLabel(win({ label: "Gemini · Other thing" }))).toBe("Gemini · Other thing");
     expect(displayMetricLabel(win({ label: "Sonnet weekly" }))).toBe("Sonnet · Remaining Limit");
+    expect(displayMetricLabel(win({ label: "Grok Bot weekly" }), "grok")).toBe("Grok Bot · Remaining Limit");
   });
 
   it("uses provider-specific defaults for plain labels", () => {

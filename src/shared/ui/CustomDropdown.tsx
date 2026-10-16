@@ -69,6 +69,10 @@ export function computeCustomDropdownPlacement(
   };
 }
 
+function menuOverflows(list: HTMLElement): boolean {
+  return list.scrollHeight > list.clientHeight + 1;
+}
+
 function scrollItemIntoList(list: HTMLUListElement, item: HTMLElement) {
   const itemTop = item.offsetTop;
   const itemBottom = itemTop + item.offsetHeight;
@@ -108,6 +112,7 @@ export function CustomDropdown<T extends string | number>({
   const [isOpen, setIsOpen] = useState(false);
   const [placement, setPlacement] = useState<MenuPlacement>({ openUpward: false, style: {} });
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
+  const [menuHasOverflow, setMenuHasOverflow] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -124,6 +129,7 @@ export function CustomDropdown<T extends string | number>({
   const closeMenu = (restoreFocus = false) => {
     setIsOpen(false);
     setHighlightedIndex(-1);
+    setMenuHasOverflow(false);
     if (restoreFocus) {
       triggerRef.current?.focus();
     }
@@ -147,6 +153,10 @@ export function CustomDropdown<T extends string | number>({
         }
         return next;
       });
+      const list = listRef.current;
+      if (list) {
+        setMenuHasOverflow(menuOverflows(list));
+      }
     };
 
     updatePlacement();
@@ -300,7 +310,7 @@ export function CustomDropdown<T extends string | number>({
         <ul
           ref={listRef}
           id={listboxId}
-          className={`custom-dropdown-menu ${placement.openUpward ? "upward" : ""}`}
+          className={`custom-dropdown-menu ${placement.openUpward ? "upward" : ""} ${menuHasOverflow ? "has-overflow" : ""}`}
           role="listbox"
           aria-labelledby={dropdownId}
           style={placement.style}
