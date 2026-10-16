@@ -1,30 +1,33 @@
 # Changelog
 
-## Unreleased (29 changes)
+## Unreleased (32 changes)
 
 ### Added (1)
 
 - On a phone, choosing Show Link Code or Enter Link Code while Wi-Fi is off now opens a prompt with a Turn On Wi-Fi button that takes you to the system Wi-Fi settings.
 
-### Improved (9)
+### Improved (11)
 
 - The "Account connected" page and sign-in status screens now use a pure black background and center their content vertically in the middle of the screen instead of sticking to the top of the window.
 - The Link Devices button in Settings now shows the same devices icon as the empty dashboard, so both entry points look the same.
 - The OpenCode email field in the Add Account dialog is now labeled "Account email (optional)" to match the other providers.
 - The empty All Accounts heading now says "Connect an AI Provider Account", and the Add Account, Link Devices, and usage-alert dialogs now use title-case headings: "Add AI Provider Account", "Send or Receive Accounts", "How to Connect Devices", and "Usage Notifications".
+- The Action Needed card now says "Requires action" instead of "Requires attention".
 - The sidebar + Account and + Group buttons now have the same space above and below, so they sit centered between the app title and the account list.
 - The sidebar + Group button tooltip now says "Group accounts to track usage in one place, like “Work” or “Personal”".
 - The Update button in Settings and in the What's Changed dialog, shown when a new version is available, now uses a green background with white text.
 - The Create Group dialog now always opens with the provider filter on All Providers, even if you were viewing a single provider in the sidebar.
 - The sidebar All row now says "All Accounts".
+- In Link Devices, the Back button now matches the Cancel button instead of using a red fill.
 
 ### Removed (2)
 
 - The Add Account dialog no longer shows the "What happens next" walkthrough panels for OpenCode and Grok sign-ins, so the dialog is shorter.
 - The Add Account dialog no longer shows the explanatory note under the OpenCode email field.
 
-### Fixed (17)
+### Fixed (18)
 
+- Settings cards and All Accounts provider cards no longer shift sideways when the scrollbar appears or disappears.
 - Link Devices with a link code now works between an iPhone and an Android phone in both directions. The iPhone now finds and announces link codes through the system's Bonjour service, which iOS permits, instead of a network method iOS blocks for sideloaded apps.
 - On a phone with mobile data on, showing a link code or QR code now offers the Wi-Fi connection instead of sometimes the mobile data connection, which the other device on the Wi-Fi could not reach.
 - Error messages across all dialogs now appear at the bottom of the modal below the back button and other action buttons, disappear immediately when pressing Back or Escape, and never follow into other views when connection attempts fail. In Scan QR Code, the switch camera button is centered in the controls row aligned with the viewfinder.

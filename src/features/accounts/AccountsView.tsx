@@ -238,7 +238,7 @@ export function AccountsView(props: {
               <div>
                 <span className="summary-label">Action Needed</span>
                 <strong className="summary-helper">
-                  <AlertCircleIcon /> Requires attention
+                  <AlertCircleIcon /> Requires action
                 </strong>
               </div>
               <div className="summary-value-cluster">

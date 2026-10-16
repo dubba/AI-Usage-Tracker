@@ -160,7 +160,7 @@ describe("AccountsView summary cards", () => {
     expect(attentionBtn?.tagName).toBe("BUTTON");
     expect(attentionBtn?.getAttribute("type")).toBe("button");
     expect(attentionBtn?.getAttribute("aria-pressed")).toBe("false");
-    expect(attentionBtn?.querySelector(".summary-helper")?.textContent).toContain("Requires attention");
+    expect(attentionBtn?.querySelector(".summary-helper")?.textContent).toContain("Requires action");
     expect(attentionBtn?.querySelector(".summary-value-cluster strong")?.textContent).toBe("2");
 
     // Click toggles filtering
