@@ -128,8 +128,8 @@ export function applyVersionToFiles(
 
 /**
  * Release dates in the changelog and in the schedule comments are US Eastern
- * standard time (UTC-5): the Thursday and Sunday 11:45 PM Eastern runs fire at
- * 03:45 UTC (EDT) or 04:45 UTC (EST) the next day, and should still be dated the
+ * standard time (UTC-5): the Thursday and Sunday 11:30 PM Eastern runs fire at
+ * 03:30 UTC (EDT) or 04:30 UTC (EST) the next day, and should still be dated the
  * night they are named for.
  */
 export function releaseDateEastern(now = new Date()) {

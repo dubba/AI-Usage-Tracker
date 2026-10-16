@@ -278,10 +278,10 @@ test("stampChangelog rejects a malformed date", () => {
   assert.throws(() => stampChangelog(SAMPLE_CHANGELOG, "0.4.1", "10/11/2026"));
 });
 
-test("releaseDateEastern keeps the previous night's date for the 11:45 PM Eastern runs", () => {
-  // 11:45 PM EDT (summer) is 03:45 UTC and 11:45 PM EST (winter) is 04:45 UTC.
-  assert.equal(releaseDateEastern(new Date("2026-10-12T03:45:00Z")), "2026-10-11");
-  assert.equal(releaseDateEastern(new Date("2026-12-14T04:45:00Z")), "2026-12-13");
+test("releaseDateEastern keeps the previous night's date for the 11:30 PM Eastern runs", () => {
+  // 11:30 PM EDT (summer) is 03:30 UTC and 11:30 PM EST (winter) is 04:30 UTC.
+  assert.equal(releaseDateEastern(new Date("2026-10-12T03:30:00Z")), "2026-10-11");
+  assert.equal(releaseDateEastern(new Date("2026-12-14T04:30:00Z")), "2026-12-13");
   assert.equal(releaseDateEastern(new Date("2026-10-12T04:59:00Z")), "2026-10-11");
   assert.equal(releaseDateEastern(new Date("2026-10-16T04:59:00Z")), "2026-10-15");
   assert.equal(releaseDateEastern(new Date("2026-10-11T05:00:00Z")), "2026-10-11");
