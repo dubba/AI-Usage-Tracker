@@ -365,7 +365,7 @@ test("only runs on main save Rust caches", () => {
   }
 });
 
-test("the release is scheduled for Thursday and Sunday at 11:30 PM Eastern, with a fallback that cannot double-publish", () => {
+test("the release is scheduled for Thursday and Sunday at 10:30 PM Eastern, with a fallback that cannot double-publish", () => {
   // No scheduled run was created for the Thursday 2026-10-15 slot (or the UTC
   // slots before it), so each night has a second, fallback entry. The pair is
   // only safe because a scheduled run skips itself after a recent release and
@@ -380,11 +380,10 @@ test("the release is scheduled for Thursday and Sunday at 11:30 PM Eastern, with
       timezone: /timezone: (\S+)/.exec(entry)?.[1] ?? null,
     }));
   assert.deepEqual(entries, [
-    { cron: "30 23 * * 4", timezone: "America/New_York" },
-    { cron: "30 23 * * 0", timezone: "America/New_York" },
-    // Before 6 AM Eastern, so releaseDateEastern still dates it the night before.
-    { cron: "45 0 * * 5", timezone: "America/New_York" },
-    { cron: "45 0 * * 1", timezone: "America/New_York" },
+    { cron: "30 22 * * 4", timezone: "America/New_York" },
+    { cron: "30 22 * * 0", timezone: "America/New_York" },
+    { cron: "45 23 * * 4", timezone: "America/New_York" },
+    { cron: "45 23 * * 0", timezone: "America/New_York" },
   ]);
 
   assert.match(installers, /^concurrency:\n {2}group: publish-release\n {2}cancel-in-progress: false\n/m);
@@ -395,5 +394,21 @@ test("the release is scheduled for Thursday and Sunday at 11:30 PM Eastern, with
   assert.ok(
     check[1].indexOf("RECENT_RELEASE_MINUTES\" ]") < check[1].indexOf("LATEST_TAG=$(gh release view"),
     "the recent-release check must run before the new-commits check",
+  );
+});
+
+test("every job that writes the release date uses the one taken when the run started", () => {
+  // Each job used to read the clock itself, so the release page (written at the
+  // start and again at the end) and the CHANGELOG heading could disagree.
+  const installers = workflows.find((w) => w.name === "build-installers.yml").text;
+  assert.match(installers, /^      release_date: \$\{\{ steps\.version\.outputs\.release_date \}\}$/m);
+  const calls = installers
+    .split("\n")
+    .filter((line) => /node scripts\/release-notes\.mjs|--stamp-changelog/.test(line));
+  assert.equal(calls.length, 3, "create-release, commit-version-bump and release-notes");
+  for (const line of calls) assert.match(line, /--date "\$RELEASE_DATE"/, line.trim());
+  assert.equal(
+    (installers.match(/RELEASE_DATE: \$\{\{ needs\.check-changes\.outputs\.release_date \}\}/g) ?? []).length,
+    3,
   );
 });

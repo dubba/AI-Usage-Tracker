@@ -129,9 +129,11 @@ export function applyVersionToFiles(
 /**
  * Release dates in the changelog and on the release page are US Eastern dates,
  * and anything before 6 AM Eastern counts as the night before. The Thursday and
- * Sunday runs start at 11:30 PM Eastern, the fallback at 12:45 AM, and the jobs
- * that write the date finish later still, so a release is dated the night it is
- * named for in both EDT and EST.
+ * Sunday runs start at 10:30 PM Eastern and the fallback at 11:45 PM, and GitHub
+ * can start either one late, so a run that begins after midnight is still dated
+ * the night it is named for, in both EDT and EST. The release workflow takes
+ * this date once, at the start of a run (the release_date output), and passes it
+ * to the jobs that write it.
  */
 export function releaseDateEastern(now = new Date()) {
   const nightStart = new Date(now.getTime() - 6 * 60 * 60 * 1000);
@@ -320,6 +322,7 @@ function main() {
         `tag_name=v${targetVersion}`,
         `is_beta=${isBeta ? "true" : "false"}`,
         `auto_bumped=${autoBumped ? "true" : "false"}`,
+        `release_date=${options.date || releaseDateEastern()}`,
         "",
       ].join("\n");
       writeFileSync(outputPath, content, { flag: "a", encoding: "utf-8" });

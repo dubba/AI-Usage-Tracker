@@ -278,15 +278,15 @@ test("stampChangelog rejects a malformed date", () => {
   assert.throws(() => stampChangelog(SAMPLE_CHANGELOG, "0.4.1", "10/11/2026"));
 });
 
-test("releaseDateEastern keeps the previous night's date for the 11:30 PM and 12:45 AM Eastern runs", () => {
-  // 11:30 PM EDT (summer) is 03:30 UTC and 11:30 PM EST (winter) is 04:30 UTC.
-  assert.equal(releaseDateEastern(new Date("2026-10-12T03:30:00Z")), "2026-10-11");
-  assert.equal(releaseDateEastern(new Date("2026-12-14T04:30:00Z")), "2026-12-13");
-  // The 12:45 AM fallback: 04:45 UTC in EDT, 05:45 UTC in EST.
-  assert.equal(releaseDateEastern(new Date("2026-10-16T04:45:00Z")), "2026-10-15");
-  assert.equal(releaseDateEastern(new Date("2026-12-14T05:45:00Z")), "2026-12-13");
-  // The release notes are written at the end of a run, well after it starts.
-  assert.equal(releaseDateEastern(new Date("2026-12-14T07:30:00Z")), "2026-12-13");
+test("releaseDateEastern keeps the night's date for the 10:30 PM and 11:45 PM Eastern runs", () => {
+  // 10:30 PM EDT (summer) is 02:30 UTC and 10:30 PM EST (winter) is 03:30 UTC.
+  assert.equal(releaseDateEastern(new Date("2026-10-12T02:30:00Z")), "2026-10-11");
+  assert.equal(releaseDateEastern(new Date("2026-12-14T03:30:00Z")), "2026-12-13");
+  // The 11:45 PM fallback: 03:45 UTC in EDT, 04:45 UTC in EST.
+  assert.equal(releaseDateEastern(new Date("2026-10-16T03:45:00Z")), "2026-10-15");
+  assert.equal(releaseDateEastern(new Date("2026-12-14T04:45:00Z")), "2026-12-13");
+  // GitHub can start a scheduled run late, past midnight.
+  assert.equal(releaseDateEastern(new Date("2026-12-14T05:30:00Z")), "2026-12-13");
   // From 6 AM Eastern on, it is the new day.
   assert.equal(releaseDateEastern(new Date("2026-10-12T09:59:00Z")), "2026-10-11");
   assert.equal(releaseDateEastern(new Date("2026-10-12T10:00:00Z")), "2026-10-12");
@@ -315,6 +315,27 @@ test("applyChangelogStamp tolerates a missing CHANGELOG.md", () => {
   try {
     const result = applyChangelogStamp(tempDir, "0.4.1", "2026-10-11");
     assert.equal(result.changed, false);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("--github-output writes the release date the workflow passes to every job", async () => {
+  const { execFileSync } = await import("node:child_process");
+  const script = new URL("./resolve-release-version.mjs", import.meta.url).pathname;
+  const tempDir = mkdtempSync(join(tmpdir(), "release-output-test-"));
+  try {
+    const output = join(tempDir, "github-output");
+    writeFileSync(output, "");
+    const run = (...args) => {
+      writeFileSync(output, "");
+      execFileSync("node", [script, "--version", "9.9.9", "--github-output", ...args], {
+        env: { ...process.env, GITHUB_OUTPUT: output },
+      });
+      return readFileSync(output, "utf-8");
+    };
+    assert.match(run("--date", "2026-10-18"), /^release_date=2026-10-18$/m);
+    assert.match(run(), new RegExp(`^release_date=${releaseDateEastern()}$`, "m"));
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
