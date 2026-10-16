@@ -857,7 +857,7 @@ button.button.ghost.empty-provider-other:active:not(:disabled) {
 }
 
 .button.ghost:hover:not(:disabled),
-.button:hover:not(:disabled):not(.primary):not(.settings-update-action-danger) {
+.button:hover:not(:disabled):not(.primary):not(.settings-update-action-danger):not(.remove-confirm-button) {
   background: var(--c-222121) !important;
   border-color: var(--obsidian-purple-strong) !important;
 }
