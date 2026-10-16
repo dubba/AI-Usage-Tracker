@@ -384,6 +384,8 @@ test("the release is scheduled for Thursday and Sunday at 10:15 PM Eastern, with
     { cron: "15 22 * * 0", timezone: "America/New_York" },
     { cron: "30 23 * * 4", timezone: "America/New_York" },
     { cron: "30 23 * * 0", timezone: "America/New_York" },
+    // TEMPORARY one-off scheduler test; remove with the workflow entry.
+    { cron: "15 1 16 10 *", timezone: "America/New_York" },
   ]);
 
   assert.match(installers, /^concurrency:\n {2}group: publish-release\n {2}cancel-in-progress: false\n/m);
