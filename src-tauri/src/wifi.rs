@@ -69,12 +69,14 @@ fn android_open_settings() -> Result<(), String> {
 }
 
 /// Wi-Fi-like interface names used on iOS (`en0`) and Android (`wlan0`).
+#[cfg(any(test, target_os = "ios"))]
 pub(crate) fn is_wifi_interface_name(name: &str) -> bool {
     let name = name.to_ascii_lowercase();
     name == "en0" || name.starts_with("wlan")
 }
 
 /// `true` when any listed interface looks like Wi-Fi and is not loopback.
+#[cfg(any(test, target_os = "ios"))]
 pub(crate) fn wifi_from_interfaces(candidates: impl IntoIterator<Item = impl AsRef<str>>) -> bool {
     candidates
         .into_iter()

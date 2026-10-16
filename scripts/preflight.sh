@@ -171,7 +171,10 @@ skip() {
 
 passed() { [ "$(cat "$logs/$1.state" 2>/dev/null)" = pass ]; }
 
-ndk_bin=$(ls -d "$sdk"/ndk/$ndk_version/toolchains/llvm/prebuilt/*/bin 2>/dev/null | head -n 1)
+ndk_bin=
+for d in "$sdk"/ndk/"$ndk_version"/toolchains/llvm/prebuilt/*/bin; do
+  [ -d "$d" ] && ndk_bin=$d && break
+done
 
 android_check() {
   CC_aarch64_linux_android="$ndk_bin/aarch64-linux-android24-clang" \
