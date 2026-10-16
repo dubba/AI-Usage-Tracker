@@ -52,6 +52,11 @@
     /* Hover and pressed surface of the sidebar footer and primary button (dark text on it). */
     --purple-chip: #dfd0ff;
     --purple-chip-active: #c3abfc;
+    /* Hover and selected backgrounds of rows, cards and buttons (default text on them). */
+    --purple-surface: #28213a;
+    --purple-surface-active: #32254e;
+    --obsidian-blue: #6ecbff;
+    --obsidian-blue-rgb: 110 203 255;
     /* from sidebar-controls.css */
     --sidebar-small-text-size: 12px;
     /* from dashboard-typography.css */
@@ -118,6 +123,10 @@
     --purple-ink: #381f7a;
     --purple-chip: #3c1f7a;
     --purple-chip-active: #3a1f7a;
+    --purple-surface: #ebe6f8;
+    --purple-surface-active: #ddd4f4;
+    --obsidian-blue: #0b6fa4;
+    --obsidian-blue-rgb: 11 111 164;
     --purple-soft: rgb(var(--purple-accent-rgb) / 0.12);
     --amber: #b8790a;
     --red: #d03a3a;

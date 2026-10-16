@@ -255,18 +255,18 @@ select {
 
 .provider-summary-row:hover {
   border-color: var(--obsidian-purple-strong);
-  background: var(--c-28213a);
+  background: var(--purple-surface);
 }
 
 .provider-summary-row:focus-visible {
   border-color: var(--obsidian-purple-strong);
-  background: var(--c-28213a);
+  background: var(--purple-surface);
   outline: none;
 }
 
 .provider-summary-row:active:not(.selected) {
   border-color: var(--obsidian-purple-strong);
-  background: var(--c-32254e);
+  background: var(--purple-surface-active);
 }
 
 .provider-summary-row.selected {
@@ -696,7 +696,7 @@ select {
 
 .empty-provider-card:hover {
   border-color: var(--obsidian-purple-strong);
-  background: var(--c-28213a);
+  background: var(--purple-surface);
 }
 
 .empty-provider-card:focus-visible {
@@ -706,7 +706,7 @@ select {
 }
 
 .empty-provider-card:active {
-  background: var(--c-32254e);
+  background: var(--purple-surface-active);
   border-color: var(--obsidian-purple-strong);
   transform: scale(0.98);
 }
@@ -744,12 +744,12 @@ button.button.ghost.empty-provider-other {
 
 button.button.ghost.empty-provider-other:hover:not(:disabled),
 button.button.ghost.empty-provider-other:focus-visible:not(:disabled) {
-  background: var(--c-28213a) !important;
+  background: var(--purple-surface) !important;
   border-color: var(--obsidian-purple-strong) !important;
 }
 
 button.button.ghost.empty-provider-other:active:not(:disabled) {
-  background: var(--c-32254e) !important;
+  background: var(--purple-surface-active) !important;
   border-color: var(--obsidian-purple-strong) !important;
   transform: scale(0.98);
 }
@@ -1946,7 +1946,7 @@ button.account-card-provider-icon:active {
   .button.ghost.edit-bucket-title-btn:focus-visible {
     color: var(--c-ffffff) !important;
     border-color: var(--obsidian-purple-strong) !important;
-    background: var(--c-28213a) !important;
+    background: var(--purple-surface) !important;
     box-shadow: none !important;
   }
 
@@ -1956,7 +1956,7 @@ button.account-card-provider-icon:active {
   }
 
   .button.ghost.edit-bucket-title-btn:active:not(:disabled) {
-    background: var(--c-32254e) !important;
+    background: var(--purple-surface-active) !important;
     border-color: var(--obsidian-purple-strong) !important;
     color: var(--c-ffffff) !important;
     box-shadow: none !important;

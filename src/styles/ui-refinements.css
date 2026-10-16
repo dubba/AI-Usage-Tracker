@@ -186,7 +186,7 @@
 .account-name-edit:focus-visible {
   color: var(--c-ffffff) !important;
   border-color: var(--obsidian-purple-strong) !important;
-  background: var(--c-28213a) !important;
+  background: var(--purple-surface) !important;
   box-shadow: none !important;
 }
 
@@ -196,7 +196,7 @@
 }
 
 .account-name-edit:active:not(:disabled) {
-  background: var(--c-32254e) !important;
+  background: var(--purple-surface-active) !important;
   border-color: var(--obsidian-purple-strong) !important;
   color: var(--c-ffffff) !important;
   box-shadow: none !important;
@@ -1078,7 +1078,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .sidebar-settings-btn:hover:not(:disabled) {
-  background: var(--c-28213a);
+  background: var(--purple-surface);
   border-color: var(--obsidian-purple-strong);
   color: var(--c-ffffff);
   box-shadow: none;
@@ -1089,7 +1089,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .sidebar-settings-btn:active:not(:disabled) {
-  background: var(--c-32254e);
+  background: var(--purple-surface-active);
   border-color: var(--obsidian-purple-strong);
   color: var(--c-ffffff);
   box-shadow: none;
@@ -1114,7 +1114,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .sidebar-settings-btn.active:hover,
 .sidebar-settings-btn.active:active:not(:disabled),
 .sidebar-settings-btn.active:focus-visible {
-  background: var(--c-28213a);
+  background: var(--purple-surface);
   border-color: var(--obsidian-purple-strong);
   box-shadow: none;
   color: var(--c-ffffff);
@@ -1264,7 +1264,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 
 .pull-to-refresh-indicator.is-primed {
   border-color: var(--obsidian-purple-strong);
-  background: var(--c-28213a);
+  background: var(--purple-surface);
   box-shadow: 0 4px 20px rgb(var(--purple-accent-rgb) / 0.5), 0 0 12px rgb(var(--purple-accent-rgb) / 0.4);
 }
 
@@ -1311,7 +1311,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 
 .settings-style-content .settings-changelog-button:hover:not(:disabled),
 .settings-changelog-button:hover:not(:disabled) {
-  background-color: var(--c-28213a) !important;
+  background-color: var(--purple-surface) !important;
   border-color: var(--obsidian-purple-strong) !important;
   color: var(--c-ffffff) !important;
 }
@@ -1325,7 +1325,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 
 .settings-style-content .settings-changelog-button:active:not(:disabled),
 .settings-changelog-button:active:not(:disabled) {
-  background-color: var(--c-32254e) !important;
+  background-color: var(--purple-surface-active) !important;
   border-color: var(--obsidian-purple-strong) !important;
   color: var(--c-ffffff) !important;
   transform: scale(0.98);
@@ -1353,7 +1353,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .settings-style-content .toggle:hover:not(:disabled) {
-  background-color: var(--c-28213a) !important;
+  background-color: var(--purple-surface) !important;
   outline-color: var(--obsidian-purple-strong);
 }
 
@@ -1393,7 +1393,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 
 .settings-account-refresh .custom-dropdown-trigger:hover:not(:disabled),
 .settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger {
-  background-color: var(--c-28213a) !important;
+  background-color: var(--purple-surface) !important;
   border-color: var(--obsidian-purple-strong) !important;
   color: var(--c-ffffff) !important;
 }
@@ -1406,7 +1406,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .settings-account-refresh .custom-dropdown-trigger:active:not(:disabled) {
-  background-color: var(--c-32254e) !important;
+  background-color: var(--purple-surface-active) !important;
   border-color: var(--obsidian-purple-strong) !important;
   color: var(--c-ffffff) !important;
 }
@@ -1427,7 +1427,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 
 .settings-account-refresh .custom-dropdown-item.highlighted,
 .settings-account-refresh .custom-dropdown-item:hover {
-  background-color: var(--c-28213a) !important;
+  background-color: var(--purple-surface) !important;
   color: var(--c-ffffff) !important;
 }
 
@@ -1437,7 +1437,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .settings-account-refresh .custom-dropdown-item.selected {
-  background-color: var(--c-32254e) !important;
+  background-color: var(--purple-surface-active) !important;
   color: var(--c-ffffff) !important;
 }
 
@@ -1490,7 +1490,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 
 @media (hover: hover) {
   .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):hover:not(:disabled) {
-    background: var(--c-28213a) !important;
+    background: var(--purple-surface) !important;
     border-color: var(--obsidian-purple-strong) !important;
     color: var(--c-ffffff) !important;
     box-shadow: none !important;
@@ -1502,7 +1502,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):focus-visible {
-  background: var(--c-28213a) !important;
+  background: var(--purple-surface) !important;
   border-color: var(--obsidian-purple-strong) !important;
   color: var(--c-ffffff) !important;
   box-shadow: none !important;
@@ -1513,7 +1513,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):active:not(:disabled) {
-  background: var(--c-32254e) !important;
+  background: var(--purple-surface-active) !important;
   border-color: var(--obsidian-purple-strong) !important;
   color: var(--c-ffffff) !important;
   box-shadow: none !important;
@@ -1616,7 +1616,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 :root[data-theme="light"] .mobile-dropdown-toggle[aria-expanded="true"]:hover,
 :root[data-theme="light"] .mobile-dropdown-toggle[aria-expanded="true"]:focus-visible,
 :root[data-theme="light"] .mobile-dropdown-toggle[aria-expanded="true"]:active {
-  background: var(--c-32254e) !important;
+  background: var(--purple-surface-active) !important;
   border-color: var(--obsidian-purple-strong) !important;
   color: #000000 !important;
 }
@@ -1642,8 +1642,8 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 :root[data-theme="light"] .settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger:hover:not(:disabled),
 :root[data-theme="light"] .settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger:focus-visible,
 :root[data-theme="light"] .settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger:active:not(:disabled) {
-  background: var(--c-32254e) !important;
-  background-color: var(--c-32254e) !important;
+  background: var(--purple-surface-active) !important;
+  background-color: var(--purple-surface-active) !important;
   border-color: var(--obsidian-purple-strong) !important;
   color: #000000 !important;
 }

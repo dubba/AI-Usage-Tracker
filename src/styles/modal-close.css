@@ -87,3 +87,35 @@
   border-color: #ff6464 !important;
   color: #fff;
 }
+
+/* Light theme: a quiet outlined close button that turns red on hover, instead of a solid red
+   block that outshouts the modal's own actions. */
+:root[data-theme="light"] .ui-modal-close {
+  border-color: var(--border-strong);
+  background: var(--panel);
+  color: var(--muted);
+}
+
+:root[data-theme="light"] .ui-modal-close svg {
+  stroke: currentColor;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-theme="light"] .ui-modal-close:hover:not(:disabled) {
+    color: #fff;
+    border-color: #d94a4a;
+    background: #c53131;
+  }
+}
+
+:root[data-theme="light"] .ui-modal-close:focus-visible {
+  color: #fff;
+  border-color: #d94a4a;
+  background: #c53131;
+}
+
+:root[data-theme="light"] .ui-modal-close:active:not(:disabled) {
+  color: #fff;
+  border-color: #a82020;
+  background: #b52828;
+}

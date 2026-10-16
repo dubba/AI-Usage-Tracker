@@ -1456,8 +1456,8 @@
 }
 
 .pairing-mode-card-icon.enter {
-  background: rgba(110, 203, 255, 0.14);
-  color: #6ecbff;
+  background: rgb(var(--obsidian-blue-rgb) / 0.14);
+  color: var(--obsidian-blue);
 }
 
 .pairing-mode-card-icon.scan {
@@ -1512,9 +1512,9 @@
 }
 
 .pairing-mode-badge.enter {
-  background: rgba(110, 203, 255, 0.18);
-  color: #6ecbff;
-  border: 1px solid rgba(110, 203, 255, 0.3);
+  background: rgb(var(--obsidian-blue-rgb) / 0.18);
+  color: var(--obsidian-blue);
+  border: 1px solid rgb(var(--obsidian-blue-rgb) / 0.3);
 }
 
 .pairing-mode-badge.scan {
@@ -1551,7 +1551,7 @@
 
 .pairing-offline-link:hover,
 .pairing-offline-link:focus-visible {
-  color: #f5efff;
+  color: var(--purple-ink);
 }
 
 .pairing-step-dots {

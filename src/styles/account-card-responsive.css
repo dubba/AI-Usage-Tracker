@@ -310,7 +310,7 @@
 
 .mobile-dropdown-toggle:hover {
   border-color: var(--obsidian-purple-strong);
-  background: var(--c-28213a);
+  background: var(--purple-surface);
   color: var(--c-ffffff);
   box-shadow: none;
 }
@@ -321,7 +321,7 @@
 
 .mobile-dropdown-toggle:active,
 .mobile-dropdown-toggle[aria-expanded="true"] {
-  background: var(--c-32254e);
+  background: var(--purple-surface-active);
   border-color: var(--obsidian-purple-strong);
   color: var(--c-ffffff);
   box-shadow: none;
@@ -569,7 +569,7 @@
     .mobile-dropdown-toggle:hover {
       color: var(--c-ffffff) !important;
       border-color: var(--obsidian-purple-strong) !important;
-      background: var(--c-28213a) !important;
+      background: var(--purple-surface) !important;
       box-shadow: none !important;
     }
 
@@ -581,7 +581,7 @@
   .mobile-dropdown-toggle:focus-visible {
     color: var(--c-ffffff) !important;
     border-color: var(--obsidian-purple-strong) !important;
-    background: var(--c-28213a) !important;
+    background: var(--purple-surface) !important;
     box-shadow: none !important;
   }
 
@@ -591,7 +591,7 @@
 
   .mobile-dropdown-toggle:active,
   .mobile-dropdown-toggle[aria-expanded="true"] {
-    background: var(--c-32254e) !important;
+    background: var(--purple-surface-active) !important;
     border-color: var(--obsidian-purple-strong) !important;
     color: var(--c-ffffff) !important;
     box-shadow: none !important;
@@ -831,7 +831,7 @@
 
 @media (hover: hover) {
   .obsidian-shell button.sidebar-footer:hover:not(:disabled) {
-    background: var(--c-28213a) !important;
+    background: var(--purple-surface) !important;
     border-color: var(--obsidian-purple-strong) !important;
     color: var(--c-ffffff) !important;
     box-shadow: none !important;
@@ -844,7 +844,7 @@
 }
 
 .obsidian-shell button.sidebar-footer:focus-visible {
-  background: var(--c-28213a) !important;
+  background: var(--purple-surface) !important;
   border-color: var(--obsidian-purple-strong) !important;
   color: var(--c-ffffff) !important;
   box-shadow: none !important;
@@ -856,7 +856,7 @@
 }
 
 .obsidian-shell button.sidebar-footer:active:not(:disabled) {
-  background: var(--c-32254e) !important;
+  background: var(--purple-surface-active) !important;
   border-color: var(--obsidian-purple-strong) !important;
   color: var(--c-ffffff) !important;
   box-shadow: none !important;
@@ -876,19 +876,19 @@
 
 @media (hover: hover) {
   .provider-summary-row:not(.selected):hover {
-    background: var(--c-28213a) !important;
+    background: var(--purple-surface) !important;
     border-color: var(--obsidian-purple-strong) !important;
   }
 }
 
 .provider-summary-row:not(.selected):focus-visible {
-  background: var(--c-28213a) !important;
+  background: var(--purple-surface) !important;
   border-color: var(--obsidian-purple-strong) !important;
   outline: none;
 }
 
 .provider-summary-row:not(.selected):active {
-  background: var(--c-32254e) !important;
+  background: var(--purple-surface-active) !important;
   border-color: var(--obsidian-purple-strong) !important;
 }
 
