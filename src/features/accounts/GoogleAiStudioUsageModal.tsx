@@ -5,6 +5,7 @@ import { logIgnored } from "../../shared/lib/log";
 import { abandonLoginAttempt, getLastLoginStatus, retryLoginAttempt, subscribeLoginStatus, watchLoginAttempt } from "../../shared/lib/login-status";
 import type { Account, CloudProjectOption, LoginStatus } from "../../types";
 import { CustomDropdown } from "../../shared/ui/CustomDropdown";
+import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { backdropMouseDown } from "../../shared/hooks/useModalClosePolicy";
 import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
@@ -25,7 +26,7 @@ export function GoogleAiStudioUsageModal({
   const [projects, setProjects] = useState<CloudProjectOption[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { error, setError } = useAutoDismissedError(account?.id);
   const closeRequestedRef = useRef(false);
   const attemptIdRef = useRef<string | null>(null);
   const dialogRef = useRef<HTMLElement>(null);
@@ -53,7 +54,7 @@ export function GoogleAiStudioUsageModal({
       attemptIdRef.current = attemptId;
       watchLoginAttempt(attemptId);
     }
-  }, [account]);
+  }, [account, setError]);
 
   useEffect(() => {
     if (!account) return;
@@ -83,7 +84,7 @@ export function GoogleAiStudioUsageModal({
         setStage(next.status);
       }
     });
-  }, [account, onConnected]);
+  }, [account, onConnected, setError]);
 
   const closeModal = () => {
     closeRequestedRef.current = true;
@@ -105,14 +106,6 @@ export function GoogleAiStudioUsageModal({
     closeModal();
   };
   useModalA11y(dialogRef, account != null, handleEscape);
-
-  useEffect(() => {
-    if (!error) return;
-    const timer = setTimeout(() => {
-      setError(null);
-    }, 6000);
-    return () => clearTimeout(timer);
-  }, [error]);
 
   if (!account) return null;
 

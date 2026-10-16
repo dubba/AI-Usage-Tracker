@@ -4,6 +4,7 @@ import { BellIcon } from "../../shared/ui/icons";
 import type { Account, UsageAlertSetting, UsageWindow } from "../../types";
 import { canonicalWindow, isMonthlyWindow } from "../../shared/lib/usage-logic";
 import { CustomDropdown } from "../../shared/ui/CustomDropdown";
+import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { backdropMouseDown, useModalClosePolicy } from "../../shared/hooks/useModalClosePolicy";
 import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
@@ -46,7 +47,7 @@ export function AccountAlertModal({
   const [settings, setSettings] = useState<UsageAlertSetting[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { error, setError } = useAutoDismissedError(account?.id);
   const dialogRef = useRef<HTMLElement>(null);
   const requestClose = useModalClosePolicy(!saving, onClose);
   const handleEscape = () => {
@@ -57,14 +58,6 @@ export function AccountAlertModal({
     requestClose();
   };
   useModalA11y(dialogRef, account != null, handleEscape);
-
-  useEffect(() => {
-    if (!error) return;
-    const timer = setTimeout(() => {
-      setError(null);
-    }, 6000);
-    return () => clearTimeout(timer);
-  }, [error]);
 
   const availableWindows = useMemo(() => {
     const available = new Set<AlertWindowId>();
@@ -99,7 +92,7 @@ export function AccountAlertModal({
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [account, availableWindows]);
+  }, [account, availableWindows, setError]);
 
   if (!account) return null;
 

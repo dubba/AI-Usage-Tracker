@@ -66,6 +66,7 @@ vi.mock("./hooks/useQrScanner", () => ({
 vi.mock("../dashboard/ui-state", () => ({ collectUiState: () => ({ marker: true }) }));
 
 import { click, mount, settle, typeInto, type Mounted } from "../../test-utils/react";
+import { ERROR_AUTO_DISMISS_MS } from "../../shared/hooks/useAutoDismissedError";
 import { PairingModal } from "./PairingModal";
 
 const onClose = vi.fn();
@@ -398,7 +399,7 @@ describe("entering a link code", () => {
       expect(text()).toContain("code not found");
       expect(document.querySelector(".modal-error")).not.toBeNull();
       await act(async () => {
-        vi.advanceTimersByTime(6000);
+        vi.advanceTimersByTime(ERROR_AUTO_DISMISS_MS);
       });
       expect(document.querySelector(".modal-error")).toBeNull();
       expect(text()).not.toContain("code not found");
@@ -648,6 +649,35 @@ describe("finishing", () => {
     expect(title()).toBe("How to Connect Devices");
   });
 
+  it("auto-dismisses the pairing-failed detail after 6 seconds even if the poll repeats it", async () => {
+    vi.useFakeTimers();
+    try {
+      render();
+      await press("Send Accounts from This Device");
+      await press("Scan QR Code");
+      const failed = { status: "failed" as const, data: { error: "peer vanished" } };
+      api.status.mockResolvedValue(failed);
+      await emit(failed);
+      expect(document.querySelector(".modal-error")?.textContent).toContain("peer vanished");
+      expect(text()).toContain("Pairing Failed");
+      await act(async () => {
+        vi.advanceTimersByTime(ERROR_AUTO_DISMISS_MS - 1);
+        await Promise.resolve();
+      });
+      await emit(failed);
+      expect(document.querySelector(".modal-error")?.textContent).toContain("peer vanished");
+      await act(async () => {
+        vi.advanceTimersByTime(1);
+        await Promise.resolve();
+      });
+      expect(document.querySelector(".modal-error")).toBeNull();
+      expect(text()).toContain("Pairing Failed");
+      expect(button("Try Again")).toBeDefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("restarts the host session from Try Again when showing a code", async () => {
     render();
     await press("Send Accounts from This Device");
@@ -750,6 +780,25 @@ describe("air-gap transfer: sending", () => {
     expect(text()).toContain("Frame 1/3");
   });
 
+  it("auto-dismisses the export error after 6 seconds and keeps Try Again", async () => {
+    vi.useFakeTimers();
+    try {
+      api.prepareAirgapExport.mockRejectedValueOnce(new Error("too many accounts"));
+      await openSender();
+      expect(text()).toContain("Couldn't prepare the transfer");
+      expect(document.querySelector(".error-panel.modal-error")).not.toBeNull();
+      await act(async () => {
+        vi.advanceTimersByTime(ERROR_AUTO_DISMISS_MS);
+      });
+      expect(document.querySelector(".error-panel.modal-error")).toBeNull();
+      expect(text()).toContain("Couldn't prepare the transfer");
+      expect(text()).not.toContain("Preparing animated transfer…");
+      expect(button("Try Again")).toBeDefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("goes back to the connection choices when the export failed without carrying the error", async () => {
     api.prepareAirgapExport.mockRejectedValueOnce(new Error("The transfer was cancelled."));
     await openSender();
@@ -813,6 +862,23 @@ describe("scanning", () => {
     expect(scanner.options!.restartKey).toBe(restartKey + 1);
     expect(text()).not.toContain("No camera found");
     expect(document.querySelector(".pairing-scan-beam")).not.toBeNull();
+  });
+
+  it("auto-dismisses the camera error after 6 seconds and keeps Retry Camera", async () => {
+    await openScanner();
+    vi.useFakeTimers();
+    try {
+      await act(async () => scanner.options!.setCameraError("No camera found"));
+      expect(text()).toContain("No camera found");
+      await act(async () => {
+        vi.advanceTimersByTime(ERROR_AUTO_DISMISS_MS);
+      });
+      expect(text()).not.toContain("No camera found");
+      expect(button("Retry Camera")).toBeDefined();
+      expect(document.querySelector(".pairing-scan-beam")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("places the camera error message below the Back button and controls", async () => {

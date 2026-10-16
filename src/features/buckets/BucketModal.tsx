@@ -6,6 +6,7 @@ import { PROVIDER_META } from "../../shared/lib/providers";
 import { ProviderIcon } from "../../shared/ui/ProviderIcon";
 import type { Account, AccountBucket, Provider } from "../../types";
 import { CustomDropdown } from "../../shared/ui/CustomDropdown";
+import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { backdropMouseDown, useModalClosePolicy } from "../../shared/hooks/useModalClosePolicy";
 import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
@@ -38,7 +39,7 @@ export function BucketModal({
   const [selectedProvider, setSelectedProvider] = useState<Provider | "all">("all");
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { error, setError } = useAutoDismissedError(open);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   // The values shown when the dialog opened, for the unsaved-changes check.
@@ -77,14 +78,6 @@ export function BucketModal({
   useModalA11y(dialogRef, open && !nestedOpen, handleEscape);
 
   useEffect(() => {
-    if (!error) return;
-    const timer = setTimeout(() => {
-      setError(null);
-    }, 6000);
-    return () => clearTimeout(timer);
-  }, [error]);
-
-  useEffect(() => {
     if (open) {
       let initialName = "";
       let initialProviderChoice: Provider | "all";
@@ -110,7 +103,7 @@ export function BucketModal({
       setConfirmingDiscard(false);
       setConfirmingDelete(Boolean(initialConfirmDelete && bucket));
     }
-  }, [open, bucket, initialConfirmDelete, accounts]);
+  }, [open, bucket, initialConfirmDelete, accounts, setError]);
 
   const filteredAccounts = useMemo(() => {
     if (selectedProvider === "all") return accounts;

@@ -20,6 +20,7 @@ import {
   type ViewMode,
 } from "./lib/view-model";
 import { collectUiState } from "../dashboard/ui-state";
+import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { backdropMouseDown, useModalClosePolicy } from "../../shared/hooks/useModalClosePolicy";
 import {
@@ -48,8 +49,6 @@ import {
 } from "./views/StatusPanels";
 import type { AirgapExport } from "../../types";
 
-const ERROR_AUTO_DISMISS_MS = 6000;
-
 export function PairingModal({
   open,
   initialJoinUri,
@@ -65,9 +64,10 @@ export function PairingModal({
   const { status, setStatus, remainingSecs, hasCompletedRef } = usePairingStatus(open);
   const [joinCodeInput, setJoinCodeInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [airgapPrepareError, setAirgapPrepareError] = useState<string | null>(null);
-  const [cameraError, setCameraError] = useState<string | null>(null);
+  const { error: errorMessage, setError: setErrorMessage } = useAutoDismissedError(viewMode);
+  const { error: airgapPrepareError, setError: setAirgapPrepareError } = useAutoDismissedError(viewMode);
+  const { error: cameraError, setError: setCameraError } = useAutoDismissedError(viewMode);
+  const [cameraFailed, setCameraFailed] = useState(false);
   const [confirmedSas, setConfirmedSas] = useState(false);
   const [includeSettings, setIncludeSettings] = useState(true);
   const [isFrontCamera, setIsFrontCamera] = useState(false);
@@ -86,9 +86,10 @@ export function PairingModal({
       setErrorMessage(null);
       setAirgapPrepareError(null);
       setCameraError(null);
+      setCameraFailed(false);
       dispatchFlow({ type: "show", view, flow });
     },
-    [],
+    [setErrorMessage, setAirgapPrepareError, setCameraError],
   );
 
   const dialogRef = useRef<HTMLElement>(null);
@@ -178,11 +179,12 @@ export function PairingModal({
       setErrorMessage(null);
       setAirgapPrepareError(null);
       setCameraError(null);
+      setCameraFailed(false);
     }
     setBusy(false);
     setStatus({ status: "idle" });
     showView("select-mode", null);
-  }, [showView, setStatus]);
+  }, [showView, setStatus, setErrorMessage, setAirgapPrepareError, setCameraError]);
 
   const isWaitingState = isWaitingStatus(status.status);
 
@@ -234,6 +236,9 @@ export function PairingModal({
     showView,
     requestClose,
     capture,
+    setErrorMessage,
+    setAirgapPrepareError,
+    setCameraError,
   ]);
 
   useModalA11y(dialogRef, open, handleEscape);
@@ -260,13 +265,6 @@ export function PairingModal({
     }
   }, [status.status, onCompleted, hasCompletedRef]);
 
-  // Clear error messages on view transitions so errors never follow from view to view
-  useEffect(() => {
-    setErrorMessage(null);
-    setAirgapPrepareError(null);
-    setCameraError(null);
-  }, [viewMode]);
-
   // Backend-driven pairing failures arrive as raw protocol errors; keep the raw
   // detail for Copy Diagnostics while the box below the footer shows the translation.
   const backendFailedError = status.status === "failed" ? status.data.error : null;
@@ -274,14 +272,16 @@ export function PairingModal({
     if (backendFailedError) recordErrorDetail("pairing", "Pairing failed", backendFailedError);
   }, [backendFailedError]);
 
-  // General error messages auto-dismiss after a few seconds
+  // The failed status is polled every 800ms; copy it into the banner once so the
+  // timer is not restarted, and so Back to another step can hide it.
   useEffect(() => {
-    if (!errorMessage) return;
-    const timer = setTimeout(() => {
-      setErrorMessage(null);
-    }, ERROR_AUTO_DISMISS_MS);
-    return () => clearTimeout(timer);
-  }, [errorMessage]);
+    if (backendFailedError == null) return;
+    setErrorMessage(pairingFailedMessage(backendFailedError));
+  }, [backendFailedError, setErrorMessage]);
+
+  useEffect(() => {
+    if (cameraError) setCameraFailed(true);
+  }, [cameraError]);
 
   // Apply the role chosen in step 1 as soon as the devices have connected.
   useEffect(() => {
@@ -299,7 +299,7 @@ export function PairingModal({
       roleAutoSelectedRef.current = false;
       setBusy(false);
     });
-  }, [open, status.status, intendedRole]);
+  }, [open, status.status, intendedRole, setErrorMessage]);
 
   // Focus management when the view or status changes so focus doesn't get lost
   useEffect(() => {
@@ -421,6 +421,7 @@ export function PairingModal({
       setErrorMessage(null);
       setAirgapPrepareError(null);
       setCameraError(null);
+      setCameraFailed(false);
       setJoinCodeInput("");
       dispatchFlow({ type: "reset" });
       roleAutoSelectedRef.current = false;
@@ -465,7 +466,7 @@ export function PairingModal({
     };
 
     void checkPendingAndStart();
-  }, [open, initialJoinUri, setStatus, startFromUri]);
+  }, [open, initialJoinUri, setStatus, startFromUri, setErrorMessage, setAirgapPrepareError, setCameraError]);
 
   // While the Wi-Fi prompt is up, poll so returning from the system panel (or
   // flipping Wi-Fi in the Android overlay) continues the link-code step.
@@ -692,6 +693,7 @@ export function PairingModal({
               onScan={() => {
                 dispatchFlow({ type: "set-flow", flow: "wifi" });
                 setCameraError(null);
+                setCameraFailed(false);
                 void pairingApi.ensureCameraPermission()
                   .catch((cause) => logIgnored("pairing.cameraPermission", cause))
                   .finally(() => showView("scanner"));
@@ -717,6 +719,7 @@ export function PairingModal({
               airgapImporting={capture.importing}
               airgapCapturedChunks={capture.chunks}
               cameraError={cameraError}
+              cameraFailed={cameraFailed}
               isFrontCamera={isFrontCamera}
               videoReady={videoReady}
               showSwitchCamera={showSwitchCamera}
@@ -726,6 +729,7 @@ export function PairingModal({
               onSwitchCamera={() => void handleSwitchCamera()}
               onRetryCamera={() => {
                 setCameraError(null);
+                setCameraFailed(false);
                 setScannerRestartKey((key) => key + 1);
               }}
               onAirgapBack={() => {
@@ -861,13 +865,7 @@ export function PairingModal({
           </div>
         )}
 
-        {status.status === "failed" && (
-          <div className="error-panel modal-error" role="alert">
-            {pairingFailedMessage(status.data.error)}
-          </div>
-        )}
-
-        {errorMessage && !airgapPrepareError && status.status !== "failed" && (
+        {errorMessage && !airgapPrepareError && (
           <div className="error-panel modal-error" role="alert">{errorMessage}</div>
         )}
       </section>

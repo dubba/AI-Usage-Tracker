@@ -35,6 +35,7 @@ const openSafeUrl = vi.hoisted(() => vi.fn(async () => {}));
 vi.mock("../../shared/lib/safeUrl", () => ({ openSafeUrl }));
 
 import { click, mount, settle, typeInto, type Mounted } from "../../test-utils/react";
+import { ERROR_AUTO_DISMISS_MS } from "../../shared/hooks/useAutoDismissedError";
 import { AddAccountModal } from "./AddAccountModal";
 
 const ACCOUNT = { id: "acc-1", label: "Work", provider: "openai" } as never;
@@ -176,6 +177,25 @@ describe("browser sign-in providers", () => {
     await settle();
     expect($(".modal-error").textContent).toBe("Denied by provider");
     expect(primary().textContent).toBe("Retry");
+  });
+
+  it("auto-dismisses the sign-in error after 6 seconds and keeps Retry", async () => {
+    vi.useFakeTimers();
+    try {
+      render();
+      click(primary());
+      await settle();
+      emit({ attemptId: "att-1", status: "failed", message: "Denied by provider" });
+      await settle();
+      expect($(".modal-error").textContent).toBe("Denied by provider");
+      await act(async () => {
+        vi.advanceTimersByTime(ERROR_AUTO_DISMISS_MS);
+      });
+      expect(document.querySelector(".modal-error")).toBeNull();
+      expect(primary().textContent).toBe("Retry");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("falls back to a generic failure message", async () => {

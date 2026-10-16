@@ -37,7 +37,8 @@ export function AirgapSenderView({
   onBack: () => void;
   onCancel: () => void;
 }) {
-  const failed = !busy && !exportData && error != null;
+  // Heading + Try Again stay after the detail banner auto-dismisses.
+  const failed = !busy && !exportData;
   return (
     <div className="airgap-sender-view">
       {failed ? (
@@ -52,7 +53,7 @@ export function AirgapSenderView({
               Try Again
             </button>
           </div>
-          <div className="error-panel modal-error">{error}</div>
+          {error ? <div className="error-panel modal-error">{error}</div> : null}
         </div>
       ) : busy || !exportData ? (
         <div className="pairing-panel-status">

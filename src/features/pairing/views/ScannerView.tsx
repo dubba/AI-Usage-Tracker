@@ -10,6 +10,8 @@ export interface ScannerViewProps {
   airgapImporting: boolean;
   airgapCapturedChunks: Map<number, string>;
   cameraError: string | null;
+  /** Camera failed; Retry Camera stays after the error text auto-dismisses. */
+  cameraFailed: boolean;
   isFrontCamera: boolean;
   videoReady: boolean;
   showSwitchCamera: boolean;
@@ -33,6 +35,7 @@ export function ScannerView({
   airgapImporting,
   airgapCapturedChunks,
   cameraError,
+  cameraFailed,
   isFrontCamera,
   videoReady,
   showSwitchCamera,
@@ -133,7 +136,7 @@ export function ScannerView({
                   <span className="corner bottom-left" />
                   <span className="corner bottom-right" />
                   {/* The beam means "the camera is reading codes now" — show it only while that is true. */}
-                  {videoReady && !cameraError ? <div className="pairing-scan-beam" /> : null}
+                  {videoReady && !cameraError && !cameraFailed ? <div className="pairing-scan-beam" /> : null}
                 </div>
               </div>
             </div>
@@ -184,9 +187,9 @@ export function ScannerView({
             )}
           </div>
 
-          {cameraError && (
+          {(cameraError || cameraFailed) && (
             <div className="error-panel modal-error pairing-camera-error" role="alert">
-              <span>{cameraError}</span>
+              {cameraError ? <span>{cameraError}</span> : null}
               <button type="button" className="button ghost compact-button" onClick={onRetryCamera}>
                 Retry Camera
               </button>

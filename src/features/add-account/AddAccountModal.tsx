@@ -18,6 +18,7 @@ import { GrokFields } from "./fields/GrokFields";
 import { OpenCodeFields } from "./fields/OpenCodeFields";
 import type { FieldsProps } from "./fields/types";
 import { CustomDropdown, type DropdownOption } from "../../shared/ui/CustomDropdown";
+import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { backdropMouseDown } from "../../shared/hooks/useModalClosePolicy";
 import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
@@ -54,7 +55,7 @@ export function AddAccountModal({
   const [modelsBusy, setModelsBusy] = useState(false);
   const [status, setStatus] = useState<LoginStatus | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { error, setError } = useAutoDismissedError(open);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   const [baselineLabel, setBaselineLabel] = useState("");
   const [isKeyboardOpen, setIsKeyboardOpen] = useVirtualKeyboard(open);
@@ -84,7 +85,7 @@ export function AddAccountModal({
       setBaselineLabel(initialLabel?.trim() || defaultAccountName(nextProvider));
       setModelsBusy(false);
     }
-  }, [open, initialLabel, initialProvider, providerLocked]);
+  }, [open, initialLabel, initialProvider, providerLocked, setError]);
 
   useEffect(() => {
     if (!open) return;
@@ -101,7 +102,7 @@ export function AddAccountModal({
         setError(next.message ?? `${connectLabel(provider)} authentication failed.`);
       }
     });
-  }, [open, onAdded, provider]);
+  }, [open, onAdded, provider, setError]);
 
   const closeModal = () => {
     closeRequestedRef.current = true;
@@ -142,14 +143,6 @@ export function AddAccountModal({
     requestClose();
   };
   useModalA11y(dialogRef, open && !confirmingDiscard, handleEscape);
-
-  useEffect(() => {
-    if (!error) return;
-    const timer = setTimeout(() => {
-      setError(null);
-    }, 6000);
-    return () => clearTimeout(timer);
-  }, [error]);
 
   if (!open) return null;
 
