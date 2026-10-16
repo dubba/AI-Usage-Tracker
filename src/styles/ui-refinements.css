@@ -637,6 +637,14 @@
   overflow: hidden;
 }
 
+/* The resize handle and its tooltip stick out past the sidebar's right edge. With overflow:
+   hidden the sidebar is still scrollable, so focusing the handle with the keyboard scrolled the
+   whole sidebar sideways and the cards lost their left padding. clip cuts the same pixels but
+   cannot scroll. (Older engines ignore it and keep hidden.) */
+.obsidian-shell .sidebar {
+  overflow: clip;
+}
+
 .obsidian-shell .provider-list {
   flex: 1 1 auto;
   min-height: 0;
@@ -719,8 +727,8 @@
   padding-right: calc(6px + var(--scrollbar-size));
 }
 
-.provider-list {
-  padding-right: calc(2px + var(--scrollbar-size));
+.provider-list.has-overflow {
+  padding-right: calc(5px + var(--scrollbar-size));
 }
 
 .update-notes-content {
@@ -1101,7 +1109,8 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .sidebar-settings-btn:focus-visible {
-  outline: none;
+  outline: 2px solid var(--purple);
+  outline-offset: 2px;
   border-color: var(--obsidian-purple-strong);
   color: var(--c-ffffff);
 }

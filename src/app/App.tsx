@@ -47,6 +47,7 @@ import { useDashboardData } from "../features/dashboard/useDashboardData";
 import { useDragReorder } from "../features/reorder/useDragReorder";
 import { usePairingEvents } from "../features/pairing/hooks/usePairingEvents";
 import { useSidebarOverlay } from "../features/dashboard/useSidebarOverlay";
+import { useScrollThumb } from "../shared/hooks/useScrollThumb";
 import { useTouchTooltips } from "../shared/hooks/useTouchTooltips";
 import { useUsageAlerts } from "../features/alerts/useUsageAlerts";
 import {
@@ -246,6 +247,10 @@ export default function App() {
   );
 
   const allAccountsGroup = useMemo<SidebarGroup>(() => buildAllAccountsGroup(accounts), [accounts]);
+
+  // The list keeps room for its scroll bar only while it overflows, so the cards sit centered otherwise.
+  const providerListRef = useRef<HTMLDivElement>(null);
+  const providerListOverflows = useScrollThumb(providerListRef, true, sidebarGroups).overflows;
 
   useEffect(() => {
     if (selectedGroupId === ALL_ACCOUNTS_GROUP_ID) return;
@@ -453,7 +458,7 @@ export default function App() {
           </div>
         </div>
 
-        <div className="provider-list">
+        <div ref={providerListRef} className={`provider-list${providerListOverflows ? " has-overflow" : ""}`}>
           <SidebarGroupRow
             group={allAccountsGroup}
             selected={section === "accounts" && selectedGroup.id === ALL_ACCOUNTS_GROUP_ID}

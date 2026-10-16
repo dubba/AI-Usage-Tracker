@@ -884,7 +884,8 @@
 .provider-summary-row:not(.selected):focus-visible {
   background: var(--purple-surface) !important;
   border-color: var(--obsidian-purple-strong) !important;
-  outline: none;
+  outline: 2px solid var(--purple);
+  outline-offset: 2px;
 }
 
 .provider-summary-row:not(.selected):active {
