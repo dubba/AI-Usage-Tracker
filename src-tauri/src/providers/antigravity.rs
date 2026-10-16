@@ -18,7 +18,11 @@ use uuid::Uuid;
 const TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 const USERINFO_URL: &str = "https://www.googleapis.com/oauth2/v2/userinfo";
 const CLOUD_CODE_BASE: &str = "https://daily-cloudcode-pa.googleapis.com";
-const IDE_VERSION: &str = "1.20.5";
+/// Google decides which quota groups to return from the client version in the
+/// User-Agent: 1.x only receives the Claude and GPT group, while 2.23.1 and
+/// newer also receive the Gemini group. Keep this at the current Antigravity
+/// release.
+const IDE_VERSION: &str = "2.23.1";
 
 pub async fn refresh(
     app: &AppState,
@@ -345,10 +349,10 @@ fn walk_quota(
                 .filter(|value| !value.trim().is_empty());
             let label = match (parent_label, own_label) {
                 (Some(parent), Some(own)) if !own.eq_ignore_ascii_case(parent) => {
-                    Some(format!("{parent} · {own}"))
+                    Some(format!("{parent} · {}", without_group_prefix(own, parent)))
                 }
                 (Some(parent), _) => Some(parent.to_string()),
-                (None, Some(own)) => Some(own.to_string()),
+                (None, Some(own)) => Some(split_group_from_window(own)),
                 _ => None,
             };
 
@@ -381,6 +385,46 @@ fn walk_quota(
             }
         }
         _ => {}
+    }
+}
+
+/// Google sometimes repeats the group name inside the bucket name (group
+/// "Gemini 4 Argon", bucket "Gemini 4 Argon Weekly Limit"). Drop the repeat so
+/// the label reads "Gemini 4 Argon · Weekly Limit".
+fn without_group_prefix<'a>(own: &'a str, group: &str) -> &'a str {
+    let Some(head) = own.get(..group.len()) else {
+        return own;
+    };
+    if !head.eq_ignore_ascii_case(group) {
+        return own;
+    }
+    let rest = own[group.len()..].trim_start_matches([' ', '-', '–', '—', ':', '·']);
+    if rest.is_empty()
+        || own
+            .as_bytes()
+            .get(group.len())
+            .is_some_and(|b| b.is_ascii_alphanumeric())
+    {
+        own
+    } else {
+        rest
+    }
+}
+
+/// A bucket delivered outside any group can carry the model name in its own
+/// label ("Gemini 4 Argon Weekly Limit"). Turn that into "Gemini 4 Argon ·
+/// Weekly Limit" so it groups like the others.
+fn split_group_from_window(label: &str) -> String {
+    let lower = label.to_ascii_lowercase();
+    let cut = [" weekly", " five hour", " 5 hour", " 5-hour"]
+        .iter()
+        .filter_map(|marker| lower.find(marker))
+        .min();
+    match cut {
+        Some(index) if !label[..index].trim().is_empty() => {
+            format!("{} · {}", label[..index].trim(), label[index..].trim())
+        }
+        _ => label.to_string(),
     }
 }
 
@@ -508,5 +552,88 @@ mod tests {
         assert_eq!(windows.len(), 1);
         assert_eq!(windows[0].remaining_percent, Some(72.0));
         assert_eq!(windows[0].window_seconds, Some(18_000));
+    }
+
+    #[test]
+    fn parses_separate_argon_bucket_alongside_other_groups() {
+        let value = json!({
+            "groups": [
+                {
+                    "displayName": "Gemini Models",
+                    "buckets": [
+                        {"bucketId": "g-weekly", "displayName": "Weekly Limit Remaining",
+                         "remainingFraction": 1, "resetTime": "2026-10-23T07:01:37Z", "window": "weekly"},
+                        {"bucketId": "g-5h", "displayName": "Five Hour Limit Remaining",
+                         "remainingFraction": 1, "resetTime": "2026-10-16T12:01:37Z", "window": "5h"}
+                    ]
+                },
+                {
+                    "displayName": "Claude and GPT models",
+                    "buckets": [
+                        {"displayName": "Weekly Limit Remaining", "remainingFraction": 0.5, "window": "weekly"}
+                    ]
+                },
+                {
+                    "displayName": "Gemini 4 Argon",
+                    "buckets": [
+                        {"displayName": "Gemini 4 Argon Weekly Limit", "remainingFraction": 0.25,
+                         "resetTime": "2026-10-23T07:01:37Z", "window": "weekly"}
+                    ]
+                }
+            ]
+        });
+        let windows = parse_quota_value(&value);
+        let argon: Vec<_> = windows
+            .iter()
+            .filter(|window| window.label.starts_with("Gemini 4 Argon"))
+            .collect();
+        assert_eq!(windows.len(), 4);
+        assert_eq!(argon.len(), 1);
+        assert_eq!(argon[0].label, "Gemini 4 Argon · Weekly Limit");
+        assert_eq!(argon[0].remaining_percent, Some(25.0));
+        assert_eq!(argon[0].window_seconds, Some(604_800));
+        let ids: HashSet<_> = windows.iter().map(|window| window.id.as_str()).collect();
+        assert_eq!(ids.len(), 4, "window ids must stay unique");
+    }
+
+    #[test]
+    fn group_prefix_is_only_dropped_at_a_word_boundary() {
+        assert_eq!(
+            without_group_prefix("Gemini 4 Argon Weekly Limit", "Gemini 4 Argon"),
+            "Weekly Limit"
+        );
+        assert_eq!(
+            without_group_prefix("gemini 4 argon - Weekly", "Gemini 4 Argon"),
+            "Weekly"
+        );
+        assert_eq!(
+            without_group_prefix("Gemini 4 Argonaut Weekly", "Gemini 4 Argon"),
+            "Gemini 4 Argonaut Weekly"
+        );
+        assert_eq!(
+            without_group_prefix("Weekly Limit", "Gemini 4 Argon"),
+            "Weekly Limit"
+        );
+        assert_eq!(without_group_prefix("é", "Gemini"), "é");
+    }
+
+    #[test]
+    fn ungrouped_argon_bucket_gets_its_model_as_group() {
+        let value = json!({
+            "buckets": [{
+                "bucketId": "argon-weekly",
+                "displayName": "Gemini 4 Argon Weekly Limit",
+                "remainingFraction": 0.4,
+                "window": "weekly"
+            }]
+        });
+        let windows = parse_quota_value(&value);
+        assert_eq!(windows.len(), 1);
+        assert_eq!(windows[0].label, "Gemini 4 Argon · Weekly Limit");
+        assert_eq!(windows[0].window_seconds, Some(604_800));
+        assert_eq!(
+            split_group_from_window("Weekly Limit Remaining"),
+            "Weekly Limit Remaining"
+        );
     }
 }

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (34 changes)
+## Unreleased (35 changes)
 
 ### Added (1)
 
@@ -25,8 +25,9 @@
 - The Add Account dialog no longer shows the "What happens next" walkthrough panels for OpenCode and Grok sign-ins, so the dialog is shorter.
 - The Add Account dialog no longer shows the explanatory note under the OpenCode email field.
 
-### Fixed (20)
+### Fixed (21)
 
+- Antigravity accounts now show their Gemini models' weekly and 5-hour limits again. Google had stopped sending them to this app, so only the Claude & GPT limits appeared. A separate Gemini 4 Argon limit will show as its own row when Google reports one.
 - On desktop, the window now opens on a black background instead of a full-window purple flash before the UI appears. The title bar stays purple.
 - Scrollable lists keep a small gap from the purple scrollbar so cards and rows do not sit under it, including Settings, All Accounts, the group account picker, and dropdown menus.
 - Link Devices with a link code now works between an iPhone and an Android phone in both directions. The iPhone now finds and announces link codes through the system's Bonjour service, which iOS permits, instead of a network method iOS blocks for sideloaded apps.

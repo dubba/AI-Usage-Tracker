@@ -55,6 +55,13 @@ describe("antigravityGroupLabel", () => {
     expect(antigravityGroupLabel(win({ label: "Claude and GPT models · Weekly" }))).toBe("Other");
   });
 
+  it("keeps Gemini 4 Argon as its own group", () => {
+    expect(antigravityGroupLabel(win({ label: "Gemini 4 Argon · Weekly Limit" }))).toBe("Gemini 4 Argon");
+    expect(displayMetricLabel(win({ label: "Gemini 4 Argon · Weekly Limit" }), "antigravity")).toBe(
+      "Gemini 4 Argon · Remaining Limit",
+    );
+  });
+
   it("has no group for plain window labels", () => {
     for (const label of ["Weekly", "5 hour", "Monthly", "Usage"]) {
       expect(antigravityGroupLabel(win({ label }))).toBeNull();
