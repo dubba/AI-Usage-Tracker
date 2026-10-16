@@ -235,7 +235,7 @@ bridge degrades to a session-only token instead of persisting (`startup.rs:56-73
 | `ApkInstallReceiver` | not exported | Reached only through the `PendingIntent` the app creates for its own install session (`MainActivity.kt:828-836`, `ApkInstallReceiver.kt:9-20`) |
 | `FileProvider` | not exported; scoped to `updates/` and `Pictures/` paths only | `file_paths.xml` (comment: never widen to `.`) |
 | Backups | `allowBackup=false`; backup and data-extraction rules exclude all domains | `AndroidManifest.xml:32`, `backup_rules.xml`, `data_extraction_rules.xml` |
-| Network | Cleartext forbidden except loopback hosts | `network_security_config.xml:8-11` |
+| Network | Cleartext forbidden except loopback hosts (`127.0.0.1`, `localhost`). Debug overlay also allows `10.0.2.2` so the emulator can load Vite | `src/main/res/xml/network_security_config.xml:8-11`; debug: `src/debug/res/xml/network_security_config.xml` |
 | Keystore | AES-256-GCM, non-exportable key, no user-auth requirement (documented: background refresh while locked), AAD = credential file name | `CredentialVault.kt` |
 
 ### 12. External URLs / diagnostics egress
