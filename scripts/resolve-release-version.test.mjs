@@ -278,13 +278,19 @@ test("stampChangelog rejects a malformed date", () => {
   assert.throws(() => stampChangelog(SAMPLE_CHANGELOG, "0.4.1", "10/11/2026"));
 });
 
-test("releaseDateEastern keeps the previous night's date for the 11:30 PM Eastern runs", () => {
+test("releaseDateEastern keeps the previous night's date for the 11:30 PM and 12:45 AM Eastern runs", () => {
   // 11:30 PM EDT (summer) is 03:30 UTC and 11:30 PM EST (winter) is 04:30 UTC.
   assert.equal(releaseDateEastern(new Date("2026-10-12T03:30:00Z")), "2026-10-11");
   assert.equal(releaseDateEastern(new Date("2026-12-14T04:30:00Z")), "2026-12-13");
-  assert.equal(releaseDateEastern(new Date("2026-10-12T04:59:00Z")), "2026-10-11");
-  assert.equal(releaseDateEastern(new Date("2026-10-16T04:59:00Z")), "2026-10-15");
-  assert.equal(releaseDateEastern(new Date("2026-10-11T05:00:00Z")), "2026-10-11");
+  // The 12:45 AM fallback: 04:45 UTC in EDT, 05:45 UTC in EST.
+  assert.equal(releaseDateEastern(new Date("2026-10-16T04:45:00Z")), "2026-10-15");
+  assert.equal(releaseDateEastern(new Date("2026-12-14T05:45:00Z")), "2026-12-13");
+  // The release notes are written at the end of a run, well after it starts.
+  assert.equal(releaseDateEastern(new Date("2026-12-14T07:30:00Z")), "2026-12-13");
+  // From 6 AM Eastern on, it is the new day.
+  assert.equal(releaseDateEastern(new Date("2026-10-12T09:59:00Z")), "2026-10-11");
+  assert.equal(releaseDateEastern(new Date("2026-10-12T10:00:00Z")), "2026-10-12");
+  assert.equal(releaseDateEastern(new Date("2026-12-14T11:00:00Z")), "2026-12-14");
 });
 
 test("applyChangelogStamp writes the file and is a no-op the second time", () => {

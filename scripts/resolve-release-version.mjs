@@ -127,13 +127,25 @@ export function applyVersionToFiles(
 }
 
 /**
- * Release dates in the changelog and in the schedule comments are US Eastern
- * standard time (UTC-5): the Thursday and Sunday 11:30 PM Eastern runs fire at
- * 03:30 UTC (EDT) or 04:30 UTC (EST) the next day, and should still be dated the
- * night they are named for.
+ * Release dates in the changelog and on the release page are US Eastern dates,
+ * and anything before 6 AM Eastern counts as the night before. The Thursday and
+ * Sunday runs start at 11:30 PM Eastern, the fallback at 12:45 AM, and the jobs
+ * that write the date finish later still, so a release is dated the night it is
+ * named for in both EDT and EST.
  */
 export function releaseDateEastern(now = new Date()) {
-  return new Date(now.getTime() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const nightStart = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
+      .formatToParts(nightStart)
+      .map(({ type, value }) => [type, value])
+  );
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
 /**

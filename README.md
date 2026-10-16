@@ -138,7 +138,7 @@ Outputs the APK under `src-tauri/gen/android/app/build/outputs/apk/`.
 
 ## Releases and automatic updates
 
-- The **`Publish all platform releases`** workflow runs on Thursdays and Sundays at 11:30 PM US Eastern (with a fallback run at 04:55 UTC the next morning in case GitHub drops the scheduled one; it builds nothing if that night's release already exists), and can be started by hand. It first runs the `Validate` workflow on the commit being released and builds nothing if that fails (a manual run can skip it with the `skip_validate` option). It then builds Windows (`.exe` / `.msi`), macOS Apple Silicon (`aarch64`), Android (`.apk`) and iOS (`.ipa` for SideStore), uploading signed updater artifacts and a `latest.json` manifest to the GitHub Release.
+- The **`Publish all platform releases`** workflow runs on Thursdays and Sundays at 11:30 PM US Eastern (with a fallback run at 12:45 AM Eastern in case GitHub drops the scheduled one; it builds nothing if that night's release already exists), and can be started by hand. It first runs the `Validate` workflow on the commit being released and builds nothing if that fails (a manual run can skip it with the `skip_validate` option). It then builds Windows (`.exe` / `.msi`), macOS Apple Silicon (`aarch64`), Android (`.apk`) and iOS (`.ipa` for SideStore), uploading signed updater artifacts and a `latest.json` manifest to the GitHub Release.
 - The **`Build Android APK`** workflow compiles a sideloadable `AI Usage Tracker_<version>.apk`. It is called by the `Publish all platform releases` workflow, which attaches the APK to the versioned GitHub Release, and can also be run by hand.
 - Releases can be triggered by pushing a version request string to `.github/release-trigger`.
 

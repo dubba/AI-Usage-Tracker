@@ -19,21 +19,23 @@ on:
         required: false
         default: false
   # Thursdays & Sundays at 11:30 PM US Eastern, all platforms on both runs. The
-  # first two entries are evaluated in America/New_York, so the time holds through
-  # daylight saving changes (03:30 UTC the next day in EDT, 04:30 UTC in EST). The
-  # start is kept off the top of the hour because GitHub delays scheduled runs then.
-  # GitHub can also drop a scheduled run outright, so the plain UTC entries are a
-  # fallback at 04:55 UTC the next morning (12:55 AM EDT, 11:55 PM EST); a scheduled
-  # run skips itself when a release was created in the last few hours, so only one
-  # of the pair publishes. Keep the fallback before 05:00 UTC: releaseDateEastern
-  # dates a release by UTC-5, so a later start would carry the next day's date.
+  # entries are evaluated in America/New_York, so the times hold through daylight
+  # saving changes (11:30 PM is 03:30 UTC the next day in EDT, 04:30 UTC in EST).
+  # The starts are kept off the top of the hour because GitHub delays scheduled
+  # runs then. GitHub can also drop a scheduled run outright, so each night has a
+  # fallback at 12:45 AM Eastern; a scheduled run skips itself when a release was
+  # created in the last few hours, so only one of the pair publishes. Both are
+  # dated the night before: releaseDateEastern counts anything before 6 AM Eastern
+  # as the previous night.
   schedule:
     - cron: '30 23 * * 4' # Thursday 11:30 PM Eastern
       timezone: America/New_York
     - cron: '30 23 * * 0' # Sunday 11:30 PM Eastern
       timezone: America/New_York
-    - cron: '55 4 * * 5' # Fallback for Thursday: Friday 04:55 UTC
-    - cron: '55 4 * * 1' # Fallback for Sunday: Monday 04:55 UTC
+    - cron: '45 0 * * 5' # Fallback for Thursday: Friday 12:45 AM Eastern
+      timezone: America/New_York
+    - cron: '45 0 * * 1' # Fallback for Sunday: Monday 12:45 AM Eastern
+      timezone: America/New_York
   push:
     branches: [main]
     paths:
