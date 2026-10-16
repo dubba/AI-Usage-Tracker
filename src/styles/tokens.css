@@ -21,10 +21,31 @@
     --muted-2: #7e8782;
     --green: #44d17a;
     --green-soft: rgba(68, 209, 122, 0.13);
-    --purple: #9f67ff;
-    --purple-soft: rgba(159, 103, 255, 0.14);
+    --purple: var(--purple-accent);
+    --purple-soft: rgb(var(--purple-wash-rgb) / 0.14);
     --amber: #f5b642;
     --red: #ff6f6f;
+    /* Purple has three roles; use these instead of a new hex.
+     *  fill   solid shapes that carry white text or stand alone (title bar, tooltips, badges,
+     *         toggles, progress bars, scroll bars). Same in both themes, and the same value
+     *         as TITLE_BAR_PURPLE_RGB in src-tauri/src/tray.rs (src/styles/purple-tokens.test.ts
+     *         checks they match).
+     *  accent purple on a surface: labels, titles, icons, borders, focus rings, links.
+     *  text   high-emphasis purple text and active states.
+     * Tints and glows use the -rgb triplets with an alpha: rgb(var(--purple-wash-rgb) / 0.2).
+     * Fill hover/border shades and the chip pair are fixed values (no color-mix, which older
+     * Android WebViews lack). */
+    --purple-fill: #6d3bd7;
+    --purple-fill-hover: #8156dd;
+    --purple-fill-line: #9672e2;
+    --purple-fill-rgb: 109 59 215;
+    --purple-accent: #a078ff;
+    --purple-text: #d0bcff;
+    /* Tint for washes and glows: one value in both themes. */
+    --purple-wash-rgb: 160 120 255;
+    /* Hover and pressed surface of the sidebar footer and primary button (dark text on it). */
+    --purple-chip: #dfd0ff;
+    --purple-chip-active: #c3abfc;
     /* from sidebar-controls.css */
     --sidebar-small-text-size: 12px;
     /* from dashboard-typography.css */
@@ -39,12 +60,12 @@
     --obsidian-text: #e5e2e1;
     --obsidian-muted: #958ea0;
     --obsidian-muted-bright: #cbc3d7;
-    --obsidian-purple: #d0bcff;
-    --obsidian-purple-strong: #a078ff;
+    --obsidian-purple: var(--purple-text);
+    --obsidian-purple-strong: var(--purple-accent);
     /* Idle outline on hamburger, pen, Settings, Link Devices, etc. */
-    --chrome-border: rgba(160, 120, 255, 0.4);
+    --chrome-border: rgb(var(--purple-wash-rgb) / 0.4);
     /* Scroll bar thumbs: same purple as the mobile status bar overlay. */
-    --scrollbar-thumb: #6d3bd7;
+    --scrollbar-thumb: var(--purple-fill);
     --scrollbar-size: 6px;
     --scrollbar-gap: 10px;
     --obsidian-green: #4edea3;
@@ -55,8 +76,8 @@
     /* In-app usage-alert toasts and dismissible error banners. Text colors come from
      * the inverting --c-* palette, so the surfaces and borders must invert too. */
     --toast-surface: rgba(22, 19, 32, 0.95);
-    --toast-border: rgba(192, 132, 252, 0.35);
-    --toast-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 0 0 16px rgba(168, 85, 247, 0.22);
+    --toast-border: rgb(var(--purple-wash-rgb) / 0.35);
+    --toast-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 0 0 16px rgb(var(--purple-wash-rgb) / 0.22);
     --danger-banner-surface: rgba(38, 18, 20, 0.96);
     --danger-banner-border: rgba(255, 111, 111, 0.4);
     color-scheme: dark;
@@ -83,7 +104,10 @@
     --muted-2: #6e6879;
     --green: #1f9d55;
     --green-soft: rgba(31, 157, 85, 0.13);
-    --purple: #7650d9;
+    --purple-accent: #7650d9;
+    --purple-text: #6d3bd7;
+    --purple-chip: #3c1f7a;
+    --purple-chip-active: #3a1f7a;
     --purple-soft: rgba(118, 80, 217, 0.12);
     --amber: #b8790a;
     --red: #d03a3a;
@@ -96,10 +120,7 @@
     --obsidian-text: #1c1b1f;
     --obsidian-muted: #6b6478;
     --obsidian-muted-bright: #4a4458;
-    --obsidian-purple: #6d3bd7;
-    --obsidian-purple-strong: #7650d9;
-    --chrome-border: rgba(109, 59, 215, 0.65);
-    --scrollbar-thumb: #6d3bd7;
+    --chrome-border: rgb(var(--purple-fill-rgb) / 0.65);
     --obsidian-green: #0a8f5f;
     --obsidian-amber: #b25e00;
     --obsidian-red: #c93b3b;

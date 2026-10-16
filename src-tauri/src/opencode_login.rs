@@ -212,7 +212,7 @@ const CONNECT_BANNER_SCRIPT: &str = r#"
       padding: 'max(28px, calc(env(safe-area-inset-top, 0px) + 10px)) 18px 12px 18px',
       background: '#211936',
       color: '#f7f4ff',
-      borderBottom: '1px solid #7c52d9',
+      borderBottom: '1px solid #a078ff',
       fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
       fontSize: '14px',
       fontWeight: '650',

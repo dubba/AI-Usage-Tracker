@@ -339,9 +339,9 @@
   z-index: var(--z-tooltip, 1100);
   transform: translateX(-50%);
   padding: 6px 9px;
-  border: 1px solid #6d3bd7;
+  border: 1px solid var(--purple-fill);
   border-radius: 6px;
-  background: #6d3bd7;
+  background: var(--purple-fill);
   color: #fff;
   font-size: 11px;
   font-weight: 600;
@@ -573,9 +573,9 @@
 .account-usage-metric .metric-window-pill.window-pill-monthly {
   color: var(--c-f5f1ef);
   padding: 3px 10px;
-  border: 1px solid rgba(168, 85, 247, 0.5) !important;
+  border: 1px solid rgb(var(--purple-wash-rgb) / 0.5) !important;
   border-radius: 999px;
-  background: rgba(168, 85, 247, 0.12) !important;
+  background: rgb(var(--purple-wash-rgb) / 0.12) !important;
   box-shadow: none !important;
 }
 
@@ -881,7 +881,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .usage-alert-toast-icon {
-  color: var(--c-c084fc);
+  color: var(--purple-accent);
   flex-shrink: 0;
   width: 20px;
   height: 20px;
@@ -919,7 +919,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 
 .usage-alert-toast-time {
   font-size: 11px;
-  color: var(--c-c084fc);
+  color: var(--purple-accent);
   font-weight: 500;
   white-space: nowrap;
   flex-shrink: 0;
@@ -1237,7 +1237,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   border-radius: 50%;
   background: var(--obsidian-surface-container-high, var(--c-211e29));
   border: 1px solid var(--chrome-border);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(160, 120, 255, 0.25);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55), 0 2px 8px rgb(var(--purple-wash-rgb) / 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1265,7 +1265,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .pull-to-refresh-indicator.is-primed {
   border-color: var(--obsidian-purple-strong);
   background: var(--c-28213a);
-  box-shadow: 0 4px 20px rgba(160, 120, 255, 0.5), 0 0 12px rgba(160, 120, 255, 0.4);
+  box-shadow: 0 4px 20px rgb(var(--purple-wash-rgb) / 0.5), 0 0 12px rgb(var(--purple-wash-rgb) / 0.4);
 }
 
 .pull-to-refresh-indicator.is-primed .pull-to-refresh-icon {
@@ -1358,7 +1358,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .settings-style-content .toggle.on:hover:not(:disabled) {
-  background-color: #5c2fc0 !important;
+  background-color: var(--purple-fill-hover) !important;
   outline-color: var(--obsidian-purple-strong);
 }
 
@@ -1414,7 +1414,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .settings-account-refresh .custom-dropdown-menu {
   background: var(--obsidian-surface-low, var(--c-1c1b1b)) !important;
   border: 1px solid var(--chrome-border) !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(160, 120, 255, 0.15) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 2px 8px rgb(var(--purple-wash-rgb) / 0.15) !important;
 }
 
 .settings-account-refresh .custom-dropdown-item {
@@ -1679,7 +1679,7 @@ html::after {
   left: 0;
   right: 0;
   height: var(--safe-area-top, env(safe-area-inset-top, 0px));
-  background: #6d3bd7;
+  background: var(--purple-fill);
   pointer-events: none;
   z-index: 2147483647;
 }

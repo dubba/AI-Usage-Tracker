@@ -238,13 +238,13 @@ fn connected_html(title: &str, account: &Account, countdown_script: &str) -> Str
     let identity_html = identity
         .map(|value| {
             format!(
-                r#"<p style="margin:0 0 18px;font-size:16px;color:#6d3bd7;font-weight:600">{}</p>"#,
+                r#"<p style="margin:0 0 18px;font-size:16px;color:#a078ff;font-weight:600">{}</p>"#,
                 escape_html(value)
             )
         })
         .unwrap_or_default();
     format!(
-        r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;min-height:100vh;min-height:100dvh;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000000;color:#f4f6f8;font-family:system-ui;padding:24px 20px;text-align:center"><div style="max-width:480px;width:100%"><h1 style="margin:0 0 12px;font-size:28px">{}</h1><div style="display:flex;justify-content:center;align-items:center;gap:10px;margin:8px 0 18px;font-size:20px;font-weight:600">{}<span>{}</span></div>{}<p style="color:#8e9791;margin:0 0 6px">Returning to AI Usage Tracker in</p><div style="font-size:48px;font-weight:700;line-height:1.1;margin:0 0 16px;color:#6d3bd7"><span id="sec">5</span></div><p style="color:#626b65;font-size:13px;margin:0">You can also close this tab manually.</p></div>{}</body></html>"#,
+        r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;min-height:100vh;min-height:100dvh;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000000;color:#f4f6f8;font-family:system-ui;padding:24px 20px;text-align:center"><div style="max-width:480px;width:100%"><h1 style="margin:0 0 12px;font-size:28px">{}</h1><div style="display:flex;justify-content:center;align-items:center;gap:10px;margin:8px 0 18px;font-size:20px;font-weight:600">{}<span>{}</span></div>{}<p style="color:#8e9791;margin:0 0 6px">Returning to AI Usage Tracker in</p><div style="font-size:48px;font-weight:700;line-height:1.1;margin:0 0 16px;color:#a078ff"><span id="sec">5</span></div><p style="color:#626b65;font-size:13px;margin:0">You can also close this tab manually.</p></div>{}</body></html>"#,
         escape_html(title),
         provider_icon_svg(&account.provider),
         escape_html(provider_name),
@@ -430,8 +430,9 @@ mod tests {
         assert!(html.contains(r#"Returning to AI Usage Tracker in"#));
         assert!(html.contains(r#"<span id="sec">5</span>"#));
         assert!(html.contains("font-size:48px"));
-        assert!(html.contains("color:#6d3bd7"));
-        assert!(!html.contains("color:#a78bfa"));
+        assert!(html.contains("color:#a078ff"));
+        // The brand fill is too dark to read as text on the black page.
+        assert!(!html.contains("color:#6d3bd7"));
         assert!(html.contains("window.close()"));
         assert_eq!(CONNECTED_PAGE_DISPLAY, Duration::from_secs(5));
     }

@@ -99,7 +99,7 @@ pub(crate) fn build_tray(app: &tauri::App) -> tauri::Result<()> {
     Ok(())
 }
 
-/// Same purple as the Android status bar overlay (`#6d3bd7`).
+/// Same purple as the Android status bar overlay (`--purple-fill` in `src/styles/tokens.css`; `src/styles/purple-tokens.test.ts` checks they match).
 const TITLE_BAR_PURPLE_RGB: (u8, u8, u8) = (0x6d, 0x3b, 0xd7);
 
 #[cfg(windows)]

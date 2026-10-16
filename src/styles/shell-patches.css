@@ -61,9 +61,9 @@ select.text-input option {
 .guided-login-card {
   margin-top: 16px;
   padding: 16px 18px;
-  border: 1px solid rgba(139, 92, 246, .35);
+  border: 1px solid rgb(var(--purple-wash-rgb) / .35);
   border-radius: 12px;
-  background: rgba(98, 62, 164, .12);
+  background: rgb(var(--purple-fill-rgb) / .12);
 }
 
 .guided-login-card strong {
@@ -101,7 +101,7 @@ select.text-input option {
   padding: 4px 0;
   border: 0;
   background: transparent;
-  color: var(--accent-2, var(--c-b99aff));
+  color: var(--accent-2, var(--purple-text));
   font: inherit;
   font-size: 11px;
   font-weight: 650;
@@ -179,7 +179,7 @@ select.text-input option {
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--c-c8b4ff);
+  color: var(--purple-text);
   font-size: 10px;
   font-weight: 650;
   cursor: pointer;
@@ -214,7 +214,7 @@ select.text-input option {
 }
 
 .google-model-option:hover {
-  background: rgba(159, 103, 255, .07);
+  background: rgb(var(--purple-wash-rgb) / .07);
 }
 
 .google-model-option input {
@@ -246,7 +246,7 @@ select.text-input option {
   margin: 0;
   padding: 11px 13px;
   border-top: 1px solid var(--border);
-  background: rgba(159, 103, 255, .055);
+  background: rgb(var(--purple-wash-rgb) / .055);
 }
 
 .google-cloud-connect-action {
@@ -263,7 +263,7 @@ select.text-input option {
 }
 
 .google-cloud-scope-card code {
-  color: var(--c-d7c7ff);
+  color: var(--purple-text);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
@@ -357,8 +357,8 @@ select.text-input option {
 }
 
 .alert-window-row.enabled {
-  border-color: rgba(159, 103, 255, .4);
-  background: rgba(159, 103, 255, .07);
+  border-color: rgb(var(--purple-wash-rgb) / .4);
+  background: rgb(var(--purple-wash-rgb) / .07);
 }
 
 .alert-window-toggle {
@@ -389,8 +389,8 @@ select.text-input option {
 }
 
 .alert-window-toggle input:checked + .alert-checkbox {
-  background: #7654d5;
-  border-color: var(--c-8d69e4);
+  background: var(--purple-fill);
+  border-color: var(--purple-fill-line);
 }
 
 .alert-window-toggle input:checked + .alert-checkbox::after {
@@ -560,8 +560,8 @@ select.text-input option {
 .sidebar-resize-handle:focus-visible::before,
 .sidebar-resize-handle.dragging::before {
   width: 6.5px;
-  background: #6d3bd7;
-  box-shadow: 0 0 12px rgba(109, 59, 215, .5);
+  background: var(--purple-fill);
+  box-shadow: 0 0 12px rgb(var(--purple-fill-rgb) / .5);
 }
 
 .sidebar-resize-grip {
@@ -594,8 +594,8 @@ select.text-input option {
 .sidebar-resize-handle:hover .sidebar-resize-grip span,
 .sidebar-resize-handle:focus-visible .sidebar-resize-grip span,
 .sidebar-resize-handle.dragging .sidebar-resize-grip span {
-  background: var(--c-d4c3ff);
-  box-shadow: 0 0 7px rgba(159, 103, 255, .75);
+  background: var(--purple-text);
+  box-shadow: 0 0 7px rgb(var(--purple-wash-rgb) / .75);
   transform: scale(1.1);
 }
 
@@ -703,7 +703,7 @@ body.sidebar-resizing * {
     font-weight: 800;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: #6d3bd7;
+    color: var(--purple-accent);
   }
 }
 
@@ -743,15 +743,15 @@ body.sidebar-resizing * {
 }
 
 .sidebar-footer.update-available {
-  background: #7654d5;
-  border-color: var(--c-6e4fc1);
+  background: var(--purple-fill);
+  border-color: var(--purple-fill-line);
   color: #fff;
 }
 
 .sidebar-footer.update-available:hover,
 .sidebar-footer.update-available:focus-visible {
-  background: #835fe8;
-  border-color: var(--c-8d69e4);
+  background: var(--purple-fill-hover);
+  border-color: var(--purple-fill-line);
 }
 
 .sidebar-footer[aria-busy="true"] {
