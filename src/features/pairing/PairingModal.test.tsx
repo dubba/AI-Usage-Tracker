@@ -927,10 +927,11 @@ describe("scanning", () => {
     click(document.querySelector('[aria-label="Switch camera"]') ?? document.createElement("i"));
   });
 
-  it("styles the Back button the same way as Cancel", async () => {
+  it("styles the Back button as the default (primary) button", async () => {
     await openScanner();
     const backBtn = document.querySelector(".pairing-scan-actions .pairing-back-btn");
-    expect(backBtn?.classList.contains("ghost")).toBe(true);
+    expect(backBtn?.classList.contains("primary")).toBe(true);
+    expect(backBtn?.classList.contains("ghost")).toBe(false);
     expect(backBtn?.classList.contains("button")).toBe(true);
   });
 

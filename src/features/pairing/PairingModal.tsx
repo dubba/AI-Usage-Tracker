@@ -888,7 +888,7 @@ export function PairingModal({
 
 function BackButton({ onClick }: { onClick: () => void }) {
   return (
-    <button type="button" className="button ghost pairing-back-btn" onClick={onClick}>
+    <button type="button" className="button primary pairing-back-btn" onClick={onClick}>
       <ChevronIcon style={{ transform: "rotate(180deg)" }} />
       <span>Back</span>
     </button>

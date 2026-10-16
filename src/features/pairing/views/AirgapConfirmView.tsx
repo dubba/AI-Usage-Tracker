@@ -22,7 +22,7 @@ export function AirgapConfirmView({
       </div>
 
       <div className="airgap-prompt-actions">
-        <button type="button" className="button ghost pairing-back-btn" onClick={onBack}>
+        <button type="button" className="button primary pairing-back-btn" onClick={onBack}>
           <ChevronIcon style={{ transform: "rotate(180deg)" }} />
           <span>Back</span>
         </button>

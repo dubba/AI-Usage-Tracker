@@ -167,7 +167,7 @@ export function ScannerView({
           <div className="pairing-scanner-controls pairing-scan-actions">
             <button
               type="button"
-              className="button ghost pairing-back-btn"
+              className="button primary pairing-back-btn"
               onClick={onBack}
             >
               <ChevronIcon style={{ transform: "rotate(180deg)" }} />
