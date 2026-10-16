@@ -112,7 +112,7 @@ export function BucketModal({
     return accounts.filter((a) => a.provider === selectedProvider);
   }, [accounts, selectedProvider]);
 
-  const accountThumb = useScrollThumb(accountScrollRef, open, [filteredAccounts]);
+  const accountThumb = useScrollThumb(accountScrollRef, open, filteredAccounts);
 
   if (!open) return null;
 

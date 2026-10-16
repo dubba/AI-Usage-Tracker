@@ -105,7 +105,7 @@ describe("BucketModal create provider filter", () => {
       makeAccount("a1", "anthropic"),
       makeAccount("a2", "openai"),
       makeAccount("a3", "grok"),
-      makeAccount("a4", "google"),
+      makeAccount("a4", "google_ai_studio"),
       makeAccount("a5", "antigravity"),
     ]);
     const list = document.querySelector(".bucket-account-picker-list");

@@ -113,7 +113,7 @@ export function CustomDropdown<T extends string | number>({
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
-  const thumb = useScrollThumb(listRef, isOpen, [options.length]);
+  const thumb = useScrollThumb(listRef, isOpen, options.length);
 
   const selectedOption = options.find((opt) => opt.value === value);
   const selectedIndex = options.findIndex((opt) => opt.value === value);

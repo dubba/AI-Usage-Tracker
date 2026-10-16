@@ -10,9 +10,9 @@ const MIN_THUMB = 24;
  * layout is the same on every platform: the list only widens that padding
  * while it overflows.
  *
- * `deps` should change whenever the list content changes.
+ * `contentKey` should change whenever the list content changes.
  */
-export function useScrollThumb<T extends HTMLElement>(scrollRef: RefObject<T | null>, active: boolean, deps: unknown[]) {
+export function useScrollThumb<T extends HTMLElement>(scrollRef: RefObject<T | null>, active: boolean, contentKey: unknown) {
   const thumbRef = useRef<HTMLElement | null>(null);
   const [overflows, setOverflows] = useState(false);
 
@@ -47,7 +47,7 @@ export function useScrollThumb<T extends HTMLElement>(scrollRef: RefObject<T | n
       el.removeEventListener("scroll", update);
       observer?.disconnect();
     };
-  }, [active, update, ...deps]);
+  }, [active, update, scrollRef, contentKey]);
 
   // Thumb visibility toggles with `overflows`, so position it once rendered.
   useLayoutEffect(() => {
