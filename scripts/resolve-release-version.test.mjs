@@ -278,19 +278,28 @@ test("stampChangelog rejects a malformed date", () => {
   assert.throws(() => stampChangelog(SAMPLE_CHANGELOG, "0.4.1", "10/11/2026"));
 });
 
-test("releaseDateEastern keeps the night's date for the 10:30 PM and 11:45 PM Eastern runs", () => {
-  // 10:30 PM EDT (summer) is 02:30 UTC and 10:30 PM EST (winter) is 03:30 UTC.
-  assert.equal(releaseDateEastern(new Date("2026-10-12T02:30:00Z")), "2026-10-11");
-  assert.equal(releaseDateEastern(new Date("2026-12-14T03:30:00Z")), "2026-12-13");
-  // The 11:45 PM fallback: 03:45 UTC in EDT, 04:45 UTC in EST.
-  assert.equal(releaseDateEastern(new Date("2026-10-16T03:45:00Z")), "2026-10-15");
-  assert.equal(releaseDateEastern(new Date("2026-12-14T04:45:00Z")), "2026-12-13");
+test("releaseDateEastern dates a scheduled run by the night it is for", () => {
+  const scheduled = (iso) => releaseDateEastern(new Date(iso), { scheduled: true });
+  // 10:15 PM EDT (summer) is 02:15 UTC and 10:15 PM EST (winter) is 03:15 UTC.
+  assert.equal(scheduled("2026-10-12T02:15:00Z"), "2026-10-11");
+  assert.equal(scheduled("2026-12-14T03:15:00Z"), "2026-12-13");
+  // The 11:30 PM fallback: 03:30 UTC in EDT, 04:30 UTC in EST.
+  assert.equal(scheduled("2026-10-16T03:30:00Z"), "2026-10-15");
+  assert.equal(scheduled("2026-12-14T04:30:00Z"), "2026-12-13");
   // GitHub can start a scheduled run late, past midnight.
-  assert.equal(releaseDateEastern(new Date("2026-12-14T05:30:00Z")), "2026-12-13");
+  assert.equal(scheduled("2026-12-14T05:30:00Z"), "2026-12-13");
   // From 6 AM Eastern on, it is the new day.
-  assert.equal(releaseDateEastern(new Date("2026-10-12T09:59:00Z")), "2026-10-11");
-  assert.equal(releaseDateEastern(new Date("2026-10-12T10:00:00Z")), "2026-10-12");
-  assert.equal(releaseDateEastern(new Date("2026-12-14T11:00:00Z")), "2026-12-14");
+  assert.equal(scheduled("2026-10-12T09:59:00Z"), "2026-10-11");
+  assert.equal(scheduled("2026-10-12T10:00:00Z"), "2026-10-12");
+});
+
+test("releaseDateEastern gives a manual run the Eastern date it runs on", () => {
+  // 10:15 PM EDT on Oct 11, then 1:45 AM EDT on Oct 14 (a real after-midnight release).
+  assert.equal(releaseDateEastern(new Date("2026-10-12T02:15:00Z")), "2026-10-11");
+  assert.equal(releaseDateEastern(new Date("2026-10-14T05:45:00Z")), "2026-10-14");
+  // 12:30 AM EST on Dec 14, and the last minute of Dec 13.
+  assert.equal(releaseDateEastern(new Date("2026-12-14T05:30:00Z")), "2026-12-14");
+  assert.equal(releaseDateEastern(new Date("2026-12-14T04:59:00Z")), "2026-12-13");
 });
 
 test("applyChangelogStamp writes the file and is a no-op the second time", () => {
@@ -327,15 +336,26 @@ test("--github-output writes the release date the workflow passes to every job",
   try {
     const output = join(tempDir, "github-output");
     writeFileSync(output, "");
-    const run = (...args) => {
+    const run = (event, ...args) => {
       writeFileSync(output, "");
       execFileSync("node", [script, "--version", "9.9.9", "--github-output", ...args], {
-        env: { ...process.env, GITHUB_OUTPUT: output },
+        env: { ...process.env, GITHUB_OUTPUT: output, GITHUB_EVENT_NAME: event },
       });
       return readFileSync(output, "utf-8");
     };
-    assert.match(run("--date", "2026-10-18"), /^release_date=2026-10-18$/m);
-    assert.match(run(), new RegExp(`^release_date=${releaseDateEastern()}$`, "m"));
+    assert.match(run("schedule", "--date", "2026-10-18"), /^release_date=2026-10-18$/m);
+    // Read the clock around each run so a run that crosses midnight cannot flake.
+    const dated = (event, scheduled) => {
+      const before = releaseDateEastern(new Date(), { scheduled });
+      const text = run(event);
+      const after = releaseDateEastern(new Date(), { scheduled });
+      return [text, before, after];
+    };
+    for (const [event, scheduled] of [["schedule", true], ["workflow_dispatch", false]]) {
+      const [text, before, after] = dated(event, scheduled);
+      const date = /^release_date=(\S+)$/m.exec(text)?.[1];
+      assert.ok(date === before || date === after, `${event}: ${date}`);
+    }
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }

@@ -127,16 +127,16 @@ export function applyVersionToFiles(
 }
 
 /**
- * Release dates in the changelog and on the release page are US Eastern dates,
- * and anything before 6 AM Eastern counts as the night before. The Thursday and
- * Sunday runs start at 10:30 PM Eastern and the fallback at 11:45 PM, and GitHub
- * can start either one late, so a run that begins after midnight is still dated
- * the night it is named for, in both EDT and EST. The release workflow takes
- * this date once, at the start of a run (the release_date output), and passes it
- * to the jobs that write it.
+ * Release dates in the changelog and on the release page are US Eastern dates.
+ * A manual run gets the date it runs on. A scheduled run is dated by the night
+ * it is for: the Thursday and Sunday runs start at 10:15 PM Eastern and the
+ * fallback at 11:30 PM, and GitHub can start either one late, so for a
+ * scheduled run anything before 6 AM Eastern counts as the night before. The
+ * release workflow takes this date once, at the start of a run (the
+ * release_date output), and passes it to the jobs that write it.
  */
-export function releaseDateEastern(now = new Date()) {
-  const nightStart = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+export function releaseDateEastern(now = new Date(), { scheduled = false } = {}) {
+  const nightStart = scheduled ? new Date(now.getTime() - 6 * 60 * 60 * 1000) : now;
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat("en-US", {
       timeZone: "America/New_York",
@@ -272,6 +272,10 @@ function parseArgs() {
   return options;
 }
 
+function isScheduledRun() {
+  return process.env.GITHUB_EVENT_NAME === "schedule";
+}
+
 function main() {
   const options = parseArgs();
 
@@ -305,7 +309,7 @@ function main() {
   }
 
   if (options.stampChangelog) {
-    const date = options.date || releaseDateEastern();
+    const date = options.date || releaseDateEastern(new Date(), { scheduled: isScheduledRun() });
     const result = applyChangelogStamp(rootDir, targetVersion, date);
     console.log(
       result.changed
@@ -322,7 +326,7 @@ function main() {
         `tag_name=v${targetVersion}`,
         `is_beta=${isBeta ? "true" : "false"}`,
         `auto_bumped=${autoBumped ? "true" : "false"}`,
-        `release_date=${options.date || releaseDateEastern()}`,
+        `release_date=${options.date || releaseDateEastern(new Date(), { scheduled: isScheduledRun() })}`,
         "",
       ].join("\n");
       writeFileSync(outputPath, content, { flag: "a", encoding: "utf-8" });
