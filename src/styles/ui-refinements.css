@@ -1699,6 +1699,21 @@ html::after {
   cursor: default;
 }
 
+/* Busy: the same look as the pull-to-refresh indicator while it refreshes (full opacity, accent
+   purple spinning icon on the raised surface). */
+.sidebar-refresh-btn.spinning,
+.sidebar-refresh-btn.spinning:disabled {
+  opacity: 1;
+  background: var(--obsidian-surface-container-high, var(--c-211e29));
+  border-color: var(--chrome-border);
+}
+
+:root[data-theme="light"] .sidebar-refresh-btn.spinning,
+:root[data-theme="light"] .sidebar-refresh-btn.spinning:disabled {
+  background: #ffffff;
+}
+
 .sidebar-refresh-btn.spinning svg {
-  animation: obsidian-spin 900ms linear infinite;
+  animation: obsidian-spin 800ms linear infinite;
+  color: var(--obsidian-purple-strong);
 }
