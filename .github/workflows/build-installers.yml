@@ -19,15 +19,21 @@ on:
         required: false
         default: false
   # Thursdays & Sundays at 11:45 PM US Eastern, all platforms on both runs. The
-  # schedule is evaluated in America/New_York, so the time holds through daylight
-  # saving changes (03:45 UTC the next day in EDT, 04:45 UTC in EST). The start is
-  # kept off the top of the hour because GitHub delays scheduled runs then, and a
-  # run can still start late.
+  # first two entries are evaluated in America/New_York, so the time holds through
+  # daylight saving changes (03:45 UTC the next day in EDT, 04:45 UTC in EST). The
+  # start is kept off the top of the hour because GitHub delays scheduled runs then.
+  # GitHub can also drop a scheduled run outright, so the plain UTC entries are a
+  # fallback at 04:55 UTC the next morning (12:55 AM EDT, 11:55 PM EST); a scheduled
+  # run skips itself when a release was created in the last few hours, so only one
+  # of the pair publishes. Keep the fallback before 05:00 UTC: releaseDateEastern
+  # dates a release by UTC-5, so a later start would carry the next day's date.
   schedule:
     - cron: '45 23 * * 4' # Thursday 11:45 PM Eastern
       timezone: America/New_York
     - cron: '45 23 * * 0' # Sunday 11:45 PM Eastern
       timezone: America/New_York
+    - cron: '55 4 * * 5' # Fallback for Thursday: Friday 04:55 UTC
+    - cron: '55 4 * * 1' # Fallback for Sunday: Monday 04:55 UTC
   push:
     branches: [main]
     paths:
@@ -35,6 +41,12 @@ on:
 
 permissions:
   contents: write
+
+# One release at a time: a scheduled run that starts while another release is
+# still building waits for it, then sees that release and skips.
+concurrency:
+  group: publish-release
+  cancel-in-progress: false
 
 jobs:
   check-changes:
@@ -56,6 +68,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FORCE_BUILD: ${{ inputs.force }}
           INPUT_APPLE: ${{ inputs.include_apple }}
+          RECENT_RELEASE_MINUTES: "240"
         run: |
           set -euo pipefail
 
@@ -82,6 +95,20 @@ jobs:
             echo "Build triggered by explicit push to .github/release-trigger."
             echo "should_build=true" >> "$GITHUB_OUTPUT"
             exit 0
+          fi
+
+          # The schedule has a primary and a fallback entry per night. Whichever
+          # starts second finds the release the first one created and stops.
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            LAST_CREATED=$(gh release list --limit 1 --json createdAt -q '.[0].createdAt // ""' 2>/dev/null || true)
+            if [ -n "$LAST_CREATED" ]; then
+              AGE_MINUTES=$(( ($(date -u +%s) - $(date -u -d "$LAST_CREATED" +%s)) / 60 ))
+              if [ "$AGE_MINUTES" -lt "$RECENT_RELEASE_MINUTES" ]; then
+                echo "A release was created $AGE_MINUTES minute(s) ago ($LAST_CREATED). Skipping this scheduled run."
+                echo "should_build=false" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            fi
           fi
 
           LATEST_TAG=$(gh release view --json tagName -q .tagName 2>/dev/null || true)

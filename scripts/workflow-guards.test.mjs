@@ -364,3 +364,36 @@ test("only runs on main save Rust caches", () => {
     }
   }
 });
+
+test("the release is scheduled for Thursday and Sunday at 11:45 PM Eastern, with a fallback that cannot double-publish", () => {
+  // No scheduled run was created for the Thursday 2026-10-15 slot (or the UTC
+  // slots before it), so each night has a second, plain-UTC entry. The pair is
+  // only safe because a scheduled run skips itself after a recent release and
+  // runs wait for each other instead of building side by side.
+  const installers = workflows.find((w) => w.name === "build-installers.yml").text;
+  const block = /^  schedule:\n((?: {4}.*\n)+)/m.exec(installers);
+  assert.ok(block, "schedule block found");
+  const entries = block[1]
+    .split(/\n(?= {4}- )/)
+    .map((entry) => ({
+      cron: /cron: '([^']+)'/.exec(entry)?.[1],
+      timezone: /timezone: (\S+)/.exec(entry)?.[1] ?? null,
+    }));
+  assert.deepEqual(entries, [
+    { cron: "45 23 * * 4", timezone: "America/New_York" },
+    { cron: "45 23 * * 0", timezone: "America/New_York" },
+    // Before 05:00 UTC, so releaseDateEastern (UTC-5) still dates it the night before.
+    { cron: "55 4 * * 5", timezone: null },
+    { cron: "55 4 * * 1", timezone: null },
+  ]);
+
+  assert.match(installers, /^concurrency:\n {2}group: publish-release\n {2}cancel-in-progress: false\n/m);
+  const check = /- name: Inspect commits and schedule day\n([\s\S]*?)(?=\n      - )/.exec(installers);
+  assert.ok(check, "check step found");
+  assert.match(check[1], /RECENT_RELEASE_MINUTES: "\d+"/);
+  assert.match(check[1], /if \[ "\$GITHUB_EVENT_NAME" = "schedule" \]; then\n\s+LAST_CREATED=\$\(gh release list/);
+  assert.ok(
+    check[1].indexOf("RECENT_RELEASE_MINUTES\" ]") < check[1].indexOf("LATEST_TAG=$(gh release view"),
+    "the recent-release check must run before the new-commits check",
+  );
+});
