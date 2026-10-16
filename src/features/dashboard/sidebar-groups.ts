@@ -16,7 +16,7 @@ export function buildAllAccountsGroup(accounts: Account[]): SidebarGroup {
   return {
     id: ALL_ACCOUNTS_GROUP_ID,
     type: "all",
-    title: "All",
+    title: "All Accounts",
     provider: null,
     accounts,
   };

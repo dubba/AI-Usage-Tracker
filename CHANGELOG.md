@@ -1,12 +1,12 @@
 # Changelog
 
-## Unreleased (27 changes)
+## Unreleased (28 changes)
 
 ### Added (1)
 
 - On a phone, choosing Show Link Code or Enter Link Code while Wi-Fi is off now opens a prompt with a Turn On Wi-Fi button that takes you to the system Wi-Fi settings.
 
-### Improved (8)
+### Improved (9)
 
 - The "Account connected" page and sign-in status screens now use a pure black background and center their content vertically in the middle of the screen instead of sticking to the top of the window.
 - The Link Devices button in Settings now shows the same devices icon as the empty dashboard, so both entry points look the same.
@@ -16,6 +16,7 @@
 - The sidebar + Group button tooltip now says "Group accounts to track usage in one place, like “Work” or “Personal”".
 - The Update button in Settings and in the What's Changed dialog, shown when a new version is available, now uses a green background with white text.
 - The Create Group dialog now always opens with the provider filter on All Providers, even if you were viewing a single provider in the sidebar.
+- The sidebar All row now says "All Accounts".
 
 ### Removed (2)
 

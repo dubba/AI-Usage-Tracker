@@ -97,7 +97,7 @@ describe("buildAllAccountsGroup", () => {
     expect(buildAllAccountsGroup(accounts)).toEqual({
       id: ALL_ACCOUNTS_GROUP_ID,
       type: "all",
-      title: "All",
+      title: "All Accounts",
       provider: null,
       accounts,
     });
