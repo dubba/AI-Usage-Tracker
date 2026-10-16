@@ -30,6 +30,30 @@ pub async fn ensure_camera_permission() -> Result<(), String> {
 }
 
 #[tauri::command]
+pub async fn pairing_wifi_enabled() -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(crate::wifi::is_enabled)
+        .await
+        .map_err(|e| {
+            format!(
+                "Wi-Fi check failed: {}",
+                crate::diagnostics::command_error(e)
+            )
+        })?
+}
+
+#[tauri::command]
+pub async fn pairing_open_wifi_settings() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(crate::wifi::open_settings)
+        .await
+        .map_err(|e| {
+            format!(
+                "Couldn't open Wi-Fi settings: {}",
+                crate::diagnostics::command_error(e)
+            )
+        })?
+}
+
+#[tauri::command]
 pub async fn pairing_start_client(
     state: State<'_, Arc<AppState>>,
     qr_uri: String,

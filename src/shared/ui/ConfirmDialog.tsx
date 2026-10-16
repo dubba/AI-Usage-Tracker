@@ -16,6 +16,7 @@ export function ConfirmDialog({
   title,
   body,
   confirmLabel,
+  confirmDanger = true,
   busyLabel,
   busy = false,
   onConfirm,
@@ -28,6 +29,8 @@ export function ConfirmDialog({
   /** Say exactly what is removed or lost, and what is unaffected. */
   body: ReactNode;
   confirmLabel: string;
+  /** Danger-red for deletions; primary for other actions such as Turn On Wi-Fi. */
+  confirmDanger?: boolean;
   /** Shown on the confirm button while busy; defaults to the confirm label. */
   busyLabel?: string;
   busy?: boolean;
@@ -64,7 +67,12 @@ export function ConfirmDialog({
           <button type="button" className="button ghost" disabled={busy} onClick={requestCancel}>
             Cancel
           </button>
-          <button type="button" className="button remove-confirm-button" disabled={busy} onClick={onConfirm}>
+          <button
+            type="button"
+            className={confirmDanger ? "button remove-confirm-button" : "button primary"}
+            disabled={busy}
+            onClick={onConfirm}
+          >
             {busy ? (busyLabel ?? confirmLabel) : confirmLabel}
           </button>
         </div>

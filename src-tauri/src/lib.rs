@@ -46,6 +46,7 @@ mod store;
 mod tray;
 mod updater;
 mod usage;
+mod wifi;
 
 use crate::state::AppState;
 use std::sync::Arc;
@@ -153,6 +154,8 @@ pub fn run() {
             updater::install_app_update,
             updater::get_pending_update_notice,
             commands::pairing::ensure_camera_permission,
+            commands::pairing::pairing_wifi_enabled,
+            commands::pairing::pairing_open_wifi_settings,
             commands::pairing::pairing_start_host,
             commands::pairing::pairing_start_receiver,
             commands::pairing::pairing_start_client,

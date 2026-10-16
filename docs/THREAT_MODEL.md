@@ -48,7 +48,7 @@ The app is a client with no server and no multi-user database, so the classic
 4. **Rust → LAN peers** — pairing TCP listener, mDNS, QR codes.
 5. **Local processes → loopback bridge** — `127.0.0.1:47831`, HTTP.
 6. **Browser pages → loopback bridge + OAuth callbacks** — DNS rebinding and cross-origin requests.
-7. **Rust ↔ Kotlin (JNI)** — Android Keystore, APK install, LAN binding, notifications.
+7. **Rust ↔ Kotlin (JNI)** — Android Keystore, APK install, LAN binding, Wi-Fi radio/settings, notifications.
 8. **Updater → GitHub release assets** — downloaded and verified before install.
 9. **OS users → on-disk app data** — JSON files and (Android/debug) credential files.
 
@@ -70,7 +70,7 @@ refresh loop spawn. Failure is reported on the startup screen, not swallowed
 React 19 with no state library: a single `DashboardSnapshot` fetched only by
 `useDashboardData` (`src/features/dashboard/useDashboardData.ts:34-73`), 30 s poll +
 focus/visibility refresh. All backend calls go through `bridgeApi` (37) and `pairingApi`
-(18) wrappers in `src/shared/lib/api.ts:18-117` — exactly the 56 registered commands.
+(20) wrappers in `src/shared/lib/api.ts:18-117` — exactly the 58 registered commands.
 Backend events (`usage-alert`, `pairing-status`, `pairing-uri-received`,
 `pairing-ui-state`, `open-update-notes`, `app-update-progress`) are consumed via `useTauriEvent`. The `api-integration` window
 renders `ApiIntegrationWindow.tsx` and can call only three bridge methods
@@ -80,12 +80,12 @@ renders `ApiIntegrationWindow.tsx` and can call only three bridge methods
 
 | Area | Modules |
 | --- | --- |
-| App shell / IPC | `lib.rs` (56 commands, `lib.rs:96-152`), `commands/*` (per-domain commands), `state.rs` (shared `AppState`: locks, rate-limit map, refresh semaphore), `backend.rs`, `startup.rs` |
+| App shell / IPC | `lib.rs` (58 commands, `lib.rs:96-175`), `commands/*` (per-domain commands), `state.rs` (shared `AppState`: locks, rate-limit map, refresh semaphore), `backend.rs`, `startup.rs` |
 | Usage engine | `usage.rs` (refresh orchestration, per-account locks), `refresh_loop.rs` (wall-clock ticker), `refresh_backoff.rs`, `limits.rs`, `buckets.rs`, `account_order.rs`, `alerts.rs`, `settings.rs` |
 | Providers | `providers/{mod,openai,anthropic,antigravity,google_ai_studio,grok,opencode_go,oauth_refresh}.rs` — each normalizes a provider's quota response into `UsageWindow`s |
 | Login flows | `oauth.rs`, `oauth_common.rs` (loopback OAuth), `google_ai_studio_oauth.rs` (Cloud connection), `grok_login.rs`, `opencode_login.rs` (WebView cookie capture), `mobile_auth.rs` (mobile in-app sign-in) |
 | Local API | `bridge_api.rs` (loopback HTTP), `commands/bridge.rs` |
-| Device transfer | `pairing/{mod,crypto,protocol,transport,discovery,dnssd,payload,airgap}.rs`, `commands/pairing.rs` |
+| Device transfer | `pairing/{mod,crypto,protocol,transport,discovery,dnssd,payload,airgap}.rs`, `commands/pairing.rs`, `wifi.rs` |
 | Storage | `store/*` (accounts, credentials), `fs_util.rs` (atomic owner-only writes), `migrations.rs` |
 | Updater | `updater.rs`, `apk_install.rs` |
 | Platform glue | `tray.rs`, `diagnostics.rs`, `macos_notifications.rs`, `camera_permission.rs`, `android_context.rs`, `android_keystore.rs`, `lan_binding.rs` |
@@ -112,12 +112,12 @@ Android, plaintext in debug builds). Corrupt JSON is quarantined and reloaded, n
 
 ## Entry points and guards
 
-### 1. Tauri IPC commands (56) — reachable by injected frontend code
+### 1. Tauri IPC commands (58) — reachable by injected frontend code
 
 | Guard | Code |
 | --- | --- |
-| Per-window capability allowlists: main window = exactly the 56 commands; `api-integration` window = only `get-bridge-info`, `reveal-bridge-token`, `regenerate-bridge-token` | `capabilities/default.json`, `capabilities/api-integration.json`; five-way sync test `lib.rs:186-335` (handler list vs `build.rs APP_COMMANDS` vs capabilities vs every frontend `invoke()` vs the API window's three methods) |
-| `build.rs APP_COMMANDS` mirrors the handler list into generated permissions | `build.rs:140-196,230-231` |
+| Per-window capability allowlists: main window = exactly the 58 commands; `api-integration` window = only `get-bridge-info`, `reveal-bridge-token`, `regenerate-bridge-token` | `capabilities/default.json`, `capabilities/api-integration.json`; five-way sync test `lib.rs:215-392` (handler list vs `build.rs APP_COMMANDS` vs capabilities vs every frontend `invoke()` vs the API window's three methods) |
+| `build.rs APP_COMMANDS` mirrors the handler list into generated permissions | `build.rs:330-390` |
 | Plugin permissions on the main window: `core:default`, `core:window:allow-set-theme`, `opener:allow-open-url` (URL allowlist, see §12), `autostart:allow-enable`/`allow-disable`/`allow-is-enabled`, `notification:default`, `window-state:default`. The `api-integration` window gets only `core:default` and `allow-set-theme` beyond its three commands | `capabilities/default.json`, `capabilities/api-integration.json` |
 | Windows without a capability: the desktop `grok-login` and `opencode-go-login` windows match no capability file, so they are granted no commands. Neither capability file declares a `remote` URL scope | `capabilities/*.json` (`windows` keys), `grok_login.rs:33`, `opencode_login.rs:25` |
 | Rust-side validation on every string input: labels trimmed ≤80 (`commands/mod.rs:16-28`), provider strings matched against a fixed whitelist (`model.rs:49-65`), emails trimmed ≤254 (`limits.rs:84-98`), refresh minutes restricted to {5,10,15,30,45,60} (`settings.rs:114-117`), reorder must be an exact permutation (`account_order.rs:80-109`), pending UI state object/null ≤64 KiB (`commands/pairing.rs:116-128`), pairing role `send`/`receive` only (`pairing/mod.rs:155-172`), join codes 6 digits with 5-attempt lockout (`pairing/mod.rs:510-541`) | as cited |
@@ -250,9 +250,9 @@ bridge degrades to a session-only token instead of persisting (`startup.rs:56-73
 ### 13. Platform permission surfaces
 
 - macOS: camera TCC permission requested before QR scanning, 120 s timeout, failures non-fatal (`camera_permission.rs:85-91`); local-network + Bonjour usage strings and camera usage string declared (`src-tauri/Info.ios.plist:5-12`, merged into the generated iOS Info.plist at build time; identical keys in `src-tauri/Info.plist`); macOS entitlements: camera, network client, network server (`src-tauri/Entitlements.plist:5-10`).
-- Android: Wi-Fi binding during pairing so VPN/DNS blockers cannot swallow LAN traffic, and the Wi-Fi multicast lock mDNS needs, both held only while a pairing session runs; expandable notifications via JNI (`lan_binding.rs:9-99`, `MainActivity.kt:354-413`).
+- Android: Wi-Fi binding during pairing so VPN/DNS blockers cannot swallow LAN traffic, and the Wi-Fi multicast lock mDNS needs, both held only while a pairing session runs; expandable notifications via JNI (`lan_binding.rs:9-99`, `MainActivity.kt:354-413`). Link-code pairing can query `WifiManager.isWifiEnabled` and open the system Wi-Fi panel (`Settings.Panel.ACTION_WIFI` / `ACTION_WIFI_SETTINGS`); the frontend cannot pass a URL (`wifi.rs`, `MainActivity.kt` `isWifiEnabled` / `openWifiSettings`).
 - Windows: the start-at-login `Run` value is rewritten with the executable path quoted, only when the entry exists (`autostart.rs:1-55`).
-- iOS: link-code discovery uses Bonjour through mDNSResponder, covered by the `NSBonjourServices` / `NSLocalNetworkUsageDescription` keys; no multicast entitlement is needed or requested (`pairing/dnssd.rs`).
+- iOS: link-code discovery uses Bonjour through mDNSResponder, covered by the `NSBonjourServices` / `NSLocalNetworkUsageDescription` keys; no multicast entitlement is needed or requested (`pairing/dnssd.rs`). Link-code pairing treats a non-loopback `en0`/`wlan*` address as Wi-Fi on and opens a hardcoded `App-Prefs:root=WIFI` (then `prefs:root=WIFI`, then `app-settings:`) URL (`wifi.rs`).
 - Outbound-only LAN IP discovery uses a UDP `connect` to `8.8.8.8:80` that sends no packets (`pairing/transport.rs:134-143`).
 
 ## Not yet verified in this draft

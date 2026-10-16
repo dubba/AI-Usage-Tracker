@@ -27,6 +27,7 @@ import {
   friendlyMessage,
   recordErrorDetail,
 } from "../../shared/lib/errors";
+import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
 import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
 import { AirgapConfirmView } from "./views/AirgapConfirmView";
 import { AirgapSenderView } from "./views/AirgapSenderView";
@@ -76,6 +77,7 @@ export function PairingModal({
   const [isKeyboardOpen, setIsKeyboardOpen] = useVirtualKeyboard(open);
   const [airgapExport, setAirgapExport] = useState<AirgapExport | null>(null);
   const [scannerRestartKey, setScannerRestartKey] = useState(0);
+  const [wifiPrompt, setWifiPrompt] = useState<"host" | "code" | null>(null);
 
   const hostStartIdRef = useRef(0);
   const showView = useCallback(
@@ -332,6 +334,34 @@ export function PairingModal({
   }, [viewMode, status.status, open]);
 
   // Start showing a link code. A newer start (or leaving the view) makes an older one's result moot.
+  const startLinkCode = (action: "host" | "code") => {
+    if (action === "host") {
+      showView("host", "wifi");
+      void initHostSession();
+      return;
+    }
+    showView("code", "wifi");
+    setJoinCodeInput("");
+  };
+
+  const requireWifiThen = async (action: "host" | "code") => {
+    if (!isMobileDevice()) {
+      startLinkCode(action);
+      return;
+    }
+    let enabled = true;
+    try {
+      enabled = await pairingApi.wifiEnabled();
+    } catch (cause) {
+      logIgnored("pairing.wifiEnabled", cause);
+    }
+    if (enabled) {
+      startLinkCode(action);
+      return;
+    }
+    setWifiPrompt(action);
+  };
+
   const initHostSession = async () => {
     const startId = ++hostStartIdRef.current;
     setBusy(true);
@@ -401,6 +431,7 @@ export function PairingModal({
       setSelectedCameraId(null);
       setAvailableCameras([]);
       setAirgapExport(null);
+      setWifiPrompt(null);
       hostStartIdRef.current += 1;
       joinUriRef.current = null;
       return;
@@ -435,6 +466,38 @@ export function PairingModal({
 
     void checkPendingAndStart();
   }, [open, initialJoinUri, setStatus, startFromUri]);
+
+  // While the Wi-Fi prompt is up, poll so returning from the system panel (or
+  // flipping Wi-Fi in the Android overlay) continues the link-code step.
+  useEffect(() => {
+    if (!open || !wifiPrompt) return;
+    let cancelled = false;
+    let continued = false;
+    const action = wifiPrompt;
+    const tick = async () => {
+      try {
+        const enabled = await pairingApi.wifiEnabled();
+        if (cancelled || continued || !enabled) return;
+        continued = true;
+        setWifiPrompt(null);
+        startLinkCode(action);
+      } catch (cause) {
+        logIgnored("pairing.wifiEnabled", cause);
+      }
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void tick();
+    };
+    const id = window.setInterval(() => void tick(), 800);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [open, wifiPrompt]);
 
   if (!open) return null;
 
@@ -576,6 +639,7 @@ export function PairingModal({
   const sas = sasFields(status);
 
   return (
+    <>
     <div
       className={`modal-backdrop ${isKeyboardOpen ? "keyboard-open" : ""}`}
       role="presentation"
@@ -619,14 +683,8 @@ export function PairingModal({
           {isWaitingState && viewMode === "select-mode" && (
             <ModeSelectView
               intendedRole={intendedRole}
-              onShowCode={() => {
-                showView("host", "wifi");
-                void initHostSession();
-              }}
-              onEnterCode={() => {
-                showView("code", "wifi");
-                setJoinCodeInput("");
-              }}
+              onShowCode={() => void requireWifiThen("host")}
+              onEnterCode={() => void requireWifiThen("code")}
               onShowQr={() => {
                 dispatchFlow({ type: "set-flow", flow: "airgap" });
                 void startAirgapSender();
@@ -814,6 +872,19 @@ export function PairingModal({
         )}
       </section>
     </div>
+    <ConfirmDialog
+      open={wifiPrompt != null}
+      kicker="Link code"
+      title="Turn on Wi-Fi"
+      body="Link codes work over the same Wi-Fi network. Turn Wi-Fi on, then come back to continue."
+      confirmLabel="Turn On Wi-Fi"
+      confirmDanger={false}
+      onConfirm={() => {
+        void pairingApi.openWifiSettings().catch((cause) => logIgnored("pairing.openWifiSettings", cause));
+      }}
+      onCancel={() => setWifiPrompt(null)}
+    />
+    </>
   );
 }
 

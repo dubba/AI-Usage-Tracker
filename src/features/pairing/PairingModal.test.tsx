@@ -19,6 +19,8 @@ const api = vi.hoisted(() => ({
   verifyAirgapFrames: vi.fn(),
   importAirgapFrames: vi.fn(),
   ensureCameraPermission: vi.fn(),
+  wifiEnabled: vi.fn(),
+  openWifiSettings: vi.fn(),
 }));
 const cancelPairing = vi.hoisted(() => vi.fn());
 vi.mock("../../shared/lib/api", () => ({ pairingApi: api, cancelPairing }));
@@ -120,6 +122,8 @@ beforeEach(() => {
   api.clearPendingUiState.mockResolvedValue(undefined);
   api.prepareAirgapExport.mockResolvedValue(AIRGAP);
   api.ensureCameraPermission.mockResolvedValue(undefined);
+  api.wifiEnabled.mockResolvedValue(true);
+  api.openWifiSettings.mockResolvedValue(undefined);
   Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Macintosh)", configurable: true });
   window.matchMedia = (() => ({ matches: false })) as unknown as typeof window.matchMedia;
 });
@@ -159,6 +163,72 @@ describe("choosing a role and a way to connect", () => {
     await press("Send Accounts from This Device");
     await press("Back");
     expect(title()).toBe("Send or Receive Accounts");
+  });
+});
+
+describe("mobile Wi-Fi prompt for link codes", () => {
+  beforeEach(() => {
+    Object.defineProperty(navigator, "userAgent", {
+      value: "Mozilla/5.0 (Linux; Android 14)",
+      configurable: true,
+    });
+  });
+
+  async function openModes() {
+    render();
+    await press("Send Accounts from This Device");
+  }
+
+  it("starts the host session when Wi-Fi is already on", async () => {
+    await openModes();
+    await press("Show Link Code");
+    expect(api.wifiEnabled).toHaveBeenCalled();
+    expect(api.startHost).toHaveBeenCalledTimes(1);
+    expect(text()).not.toContain("Turn on Wi-Fi");
+  });
+
+  it("asks to turn Wi-Fi on instead of starting a session when it is off", async () => {
+    api.wifiEnabled.mockResolvedValue(false);
+    await openModes();
+    await press("Show Link Code");
+    expect(api.startHost).not.toHaveBeenCalled();
+    expect(document.querySelector(".confirm-dialog-backdrop")?.textContent).toContain("Turn on Wi-Fi");
+    expect(title()).toBe("How to Connect Devices");
+  });
+
+  it("opens system Wi-Fi settings from the prompt", async () => {
+    api.wifiEnabled.mockResolvedValue(false);
+    await openModes();
+    await press("Show Link Code");
+    await press("Turn On Wi-Fi");
+    expect(api.openWifiSettings).toHaveBeenCalledTimes(1);
+    expect(api.startHost).not.toHaveBeenCalled();
+  });
+
+  it("cancels the prompt and stays on the connection choices", async () => {
+    api.wifiEnabled.mockResolvedValue(false);
+    await openModes();
+    await press("Show Link Code");
+    click(document.querySelector<HTMLButtonElement>(".confirm-dialog-backdrop .button.ghost")!);
+    await settle();
+    expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
+    expect(api.startHost).not.toHaveBeenCalled();
+    expect(title()).toBe("How to Connect Devices");
+  });
+
+  it("continues into Enter Link Code after Wi-Fi is turned on", async () => {
+    api.wifiEnabled.mockResolvedValue(false);
+    await openModes();
+    await press("Enter Link Code");
+    expect(title()).toBe("How to Connect Devices");
+    expect(document.querySelector(".confirm-dialog-backdrop")).not.toBeNull();
+    api.wifiEnabled.mockResolvedValue(true);
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+    });
+    await settle();
+    expect(document.querySelector(".confirm-dialog-backdrop")).toBeNull();
+    expect(title()).toBe("Enter Link Code");
   });
 });
 

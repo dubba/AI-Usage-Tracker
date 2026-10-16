@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased (26 changes)
+## Unreleased (27 changes)
+
+### Added (1)
+
+- On a phone, choosing Show Link Code or Enter Link Code while Wi-Fi is off now opens a prompt with a Turn On Wi-Fi button that takes you to the system Wi-Fi settings.
 
 ### Improved (8)
 

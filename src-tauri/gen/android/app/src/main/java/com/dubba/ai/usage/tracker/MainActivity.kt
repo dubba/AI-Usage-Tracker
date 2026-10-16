@@ -466,6 +466,40 @@ class MainActivity : TauriActivity() {
   }
 
   /**
+   * Whether the Wi-Fi radio is on. Link-code pairing asks this first so the
+   * app can send the user to the system Wi-Fi panel. Fail-open (true) if the
+   * check itself throws, so a broken probe cannot block pairing.
+   */
+  @Suppress("DEPRECATION")
+  fun isWifiEnabled(): Boolean {
+    return try {
+      val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE)
+        as android.net.wifi.WifiManager
+      wifiManager.isWifiEnabled
+    } catch (e: Throwable) {
+      android.util.Log.w(TAG, "isWifiEnabled failed: ${e.message}")
+      true
+    }
+  }
+
+  fun openWifiSettings() {
+    runOnUiThread {
+      try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+          try {
+            startActivity(Intent(Settings.Panel.ACTION_WIFI))
+            return@runOnUiThread
+          } catch (_: Exception) {
+          }
+        }
+        startActivity(Intent(Settings.ACTION_WIFI_SETTINGS))
+      } catch (e: Throwable) {
+        android.util.Log.w(TAG, "openWifiSettings failed: ${e.message}")
+      }
+    }
+  }
+
+  /**
    * Called from Rust when a Link Devices session starts/stops. While a VPN or
    * DNS-based ad blocker is running, Android routes ALL app traffic through the
    * VPN tunnel — including LAN packets — which silently breaks pairing. Binding

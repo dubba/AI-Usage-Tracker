@@ -79,6 +79,8 @@
     "allow-install-app-update",
     "allow-get-pending-update-notice",
     "allow-ensure-camera-permission",
+    "allow-pairing-wifi-enabled",
+    "allow-pairing-open-wifi-settings",
     "allow-pairing-start-host",
     "allow-pairing-start-receiver",
     "allow-pairing-start-client",

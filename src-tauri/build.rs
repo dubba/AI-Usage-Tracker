@@ -367,6 +367,8 @@ const APP_COMMANDS: &[&str] = &[
     "install_app_update",
     "get_pending_update_notice",
     "ensure_camera_permission",
+    "pairing_wifi_enabled",
+    "pairing_open_wifi_settings",
     "pairing_start_host",
     "pairing_start_receiver",
     "pairing_start_client",

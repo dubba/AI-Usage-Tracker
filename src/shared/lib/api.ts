@@ -89,6 +89,8 @@ export const bridgeApi = {
 
 export const pairingApi = {
   ensureCameraPermission: () => invoke<void>("ensure_camera_permission"),
+  wifiEnabled: () => invoke<boolean>("pairing_wifi_enabled"),
+  openWifiSettings: () => invoke<void>("pairing_open_wifi_settings"),
   startHost: () => invoke<PairingHostInit>("pairing_start_host"),
   startReceiver: () => invoke<PairingReceiverInit>("pairing_start_receiver"),
   startClient: (qrUri: string) => invoke<void>("pairing_start_client", { qrUri }),
