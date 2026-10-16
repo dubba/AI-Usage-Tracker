@@ -1569,17 +1569,13 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   color: #ffffff !important;
 }
 
-/* Light theme: hamburger, rename pen, account-card dropdown, and Settings use a
+/* Light theme: hamburger, account-card dropdown, and Settings use a
    white fill with black ink. Dark keeps the existing purple-on-surface chrome.
    Literals: --c-ffffff inverts in Light. Close-X and update-available stay as-is. */
 :root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn),
 :root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):hover:not(:disabled),
 :root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):focus-visible,
 :root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):active:not(:disabled),
-:root[data-theme="light"] .account-name-edit,
-:root[data-theme="light"] .account-name-edit:hover:not(:disabled),
-:root[data-theme="light"] .account-name-edit:focus-visible,
-:root[data-theme="light"] .account-name-edit:active:not(:disabled),
 :root[data-theme="light"] .mobile-dropdown-toggle,
 :root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active),
 :root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):hover:not(:disabled),
@@ -1593,10 +1589,6 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 :root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):hover:not(:disabled) svg,
 :root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):focus-visible svg,
 :root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):active:not(:disabled) svg,
-:root[data-theme="light"] .account-name-edit svg,
-:root[data-theme="light"] .account-name-edit:hover:not(:disabled) svg,
-:root[data-theme="light"] .account-name-edit:focus-visible svg,
-:root[data-theme="light"] .account-name-edit:active:not(:disabled) svg,
 :root[data-theme="light"] .mobile-dropdown-toggle svg,
 :root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active) svg,
 :root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active) > span,
@@ -1758,4 +1750,65 @@ html::after {
   color: var(--obsidian-amber);
   border-color: var(--obsidian-amber) !important;
   background: rgb(178 94 0 / 0.1) !important;
+}
+
+/* The rename pen and the sidebar Settings button use the same solid purple fill and white icon
+   as the primary buttons, in both themes. The refresh button next to Settings keeps the
+   outlined style. */
+:root .account-name-edit,
+:root .sidebar-settings-btn:not(.sidebar-refresh-btn) {
+  color: #ffffff;
+  border-color: var(--purple-fill);
+  background: var(--purple-fill);
+}
+
+:root .account-name-edit svg,
+:root .sidebar-settings-btn:not(.sidebar-refresh-btn) svg {
+  color: #ffffff;
+}
+
+:root .account-name-edit:hover:not(:disabled),
+:root .account-name-edit:focus-visible,
+:root .account-name-edit:active:not(:disabled),
+:root .sidebar-settings-btn:not(.sidebar-refresh-btn):hover:not(:disabled),
+:root .sidebar-settings-btn:not(.sidebar-refresh-btn):focus-visible,
+:root .sidebar-settings-btn:not(.sidebar-refresh-btn):active:not(:disabled) {
+  color: #ffffff !important;
+  border-color: var(--purple-fill-line) !important;
+  background: var(--purple-fill-hover) !important;
+}
+
+:root .account-name-edit:hover:not(:disabled) svg,
+:root .account-name-edit:focus-visible svg,
+:root .account-name-edit:active:not(:disabled) svg,
+:root .sidebar-settings-btn:not(.sidebar-refresh-btn):hover:not(:disabled) svg,
+:root .sidebar-settings-btn:not(.sidebar-refresh-btn):focus-visible svg,
+:root .sidebar-settings-btn:not(.sidebar-refresh-btn):active:not(:disabled) svg {
+  color: #ffffff !important;
+}
+
+/* Settings is open: keep the fill and add a ring so it still reads as selected. The ring is 85%
+   opaque so it is at least 3:1 against the sidebar in both themes (40% was about 1.7:1). */
+:root .sidebar-settings-btn.active:not(.sidebar-refresh-btn),
+:root .sidebar-settings-btn.active:not(.sidebar-refresh-btn):hover,
+:root .sidebar-settings-btn.active:not(.sidebar-refresh-btn):active:not(:disabled),
+:root .sidebar-settings-btn.active:not(.sidebar-refresh-btn):focus-visible {
+  color: #ffffff;
+  border-color: var(--obsidian-purple-strong) !important;
+  background: var(--purple-fill) !important;
+  box-shadow: 0 0 0 2px rgb(var(--purple-accent-rgb) / 0.85);
+}
+
+/* Keyboard focus on the selected Settings button sits outside its selected ring. */
+:root .sidebar-settings-btn.active:not(.sidebar-refresh-btn):focus-visible {
+  outline-offset: 6px;
+}
+
+/* Light theme: the selected ring is the same purple as the button, so it only reads as a bigger
+   button. A gap in the sidebar color between the button and a full-strength ring separates them. */
+:root[data-theme="light"] .sidebar-settings-btn.active:not(.sidebar-refresh-btn),
+:root[data-theme="light"] .sidebar-settings-btn.active:not(.sidebar-refresh-btn):hover,
+:root[data-theme="light"] .sidebar-settings-btn.active:not(.sidebar-refresh-btn):active:not(:disabled),
+:root[data-theme="light"] .sidebar-settings-btn.active:not(.sidebar-refresh-btn):focus-visible {
+  box-shadow: 0 0 0 2px var(--c-171616), 0 0 0 4px var(--purple-accent);
 }

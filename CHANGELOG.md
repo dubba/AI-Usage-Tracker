@@ -1,19 +1,31 @@
 # Changelog
 
-## Unreleased (10 changes)
+## Unreleased (19 changes)
 
-### Improved (10)
+### Improved (15)
 
 - The DASHBOARD title, the sidebar title, the Current Version label, and the email and countdown on the Account connected page now use a lighter purple, so they read clearly on the dark background.
 - In the light theme, selected and hovered rows, cards, and buttons use a clean pale lavender instead of a muddy gray-purple.
 - In the light theme, the Enter Link Code badge and icon use a darker blue so they are readable on the pale background.
 - In the light theme, the close button on dialogs is a quiet outlined button that turns red on hover instead of a solid red block.
 - In the light theme, the Action Needed card uses a clean warm tint instead of a tan gradient.
+- In the light theme, the account card buttons share one quiet white style with a soft gray outline and a colored icon, instead of a mix of black, green, amber, and red outlines.
+- In the dark theme, the main action buttons (Check Now, Account, Group, Create Group, Connect to Device, and the other purple buttons) use the same solid purple with a white label as the light theme.
+- The account rename pen and the sidebar Settings button use the same solid purple with a white icon as the other purple buttons, in both themes.
+- While it refreshes, the sidebar Refresh All button now looks like the pull-down refresh indicator: a purple icon spinning at the same speed on the raised surface, at full strength instead of dimmed.
+- In the Link Devices dialogs, Back is now the solid purple default button wherever it sits next to Cancel or the camera switch, so it looks like the other main buttons.
 - Buttons, toggles, borders, glows, and links now draw from three shared purples instead of about a dozen, in both the dark and light themes, so they match each other across the app.
 - On a phone, the amber Requires action line on the Action Needed card is 11px. All good on that card stays 12px.
 - In the Add Account provider menu and the Create Group account list, the gap beside the scrollbar now matches the left inset on macOS too. These lists draw their own scrollbar, because the macOS app laid rows out under the system bar. Both sides still match when there is no scrollbar.
 - The Create Group account list shows four accounts without a scrollbar. A fifth account brings in the scrollbar.
 - The + Group tooltip in the sidebar breaks onto two lines and shrinks to the longer one, so the gap on the right matches the gap on the left.
+
+### Fixed (4)
+
+- Tabbing from the Settings button to the sidebar resize handle no longer slides the sidebar's account cards to the left.
+- On desktop, the sidebar account cards are centered between the window edge and the sidebar divider. The extra gap on the right now appears only while the list is long enough to scroll.
+- Keyboard focus now shows a clear purple ring on the sidebar account rows, Refresh All, and Settings buttons, and the selected Settings button is easy to tell apart in the light theme.
+- The red Remove button in confirmation dialogs now stays red when you hover it instead of turning gray.
 
 ## v0.4.5 - 2026-10-16 (37 changes)
 
