@@ -22,7 +22,7 @@
     --green: #44d17a;
     --green-soft: rgba(68, 209, 122, 0.13);
     --purple: var(--purple-accent);
-    --purple-soft: rgb(var(--purple-wash-rgb) / 0.14);
+    --purple-soft: rgb(var(--purple-accent-rgb) / 0.14);
     --amber: #f5b642;
     --red: #ff6f6f;
     /* Purple has three roles; use these instead of a new hex.
@@ -32,7 +32,7 @@
      *         checks they match).
      *  accent purple on a surface: labels, titles, icons, borders, focus rings, links.
      *  text   high-emphasis purple text and active states.
-     * Tints and glows use the -rgb triplets with an alpha: rgb(var(--purple-wash-rgb) / 0.2).
+     * Tints and glows use the -rgb triplets with an alpha: rgb(var(--purple-accent-rgb) / 0.2).
      * Fill hover/border shades and the chip pair are fixed values (no color-mix, which older
      * Android WebViews lack). */
     --purple-fill: #6d3bd7;
@@ -41,8 +41,14 @@
     --purple-fill-rgb: 109 59 215;
     --purple-accent: #a078ff;
     --purple-text: #d0bcff;
-    /* Tint for washes and glows: one value in both themes. */
-    --purple-wash-rgb: 160 120 255;
+    /* Tints and glows of the accent and text purples; they follow the theme. */
+    --purple-accent-rgb: 160 120 255;
+    --purple-text-rgb: 208 188 255;
+    /* Label color on the fill (same in both themes), on a --purple-text surface, and
+     * purple-tinted body text on the page. */
+    --purple-on-fill: #f7f4ff;
+    --purple-on-text: #2d145f;
+    --purple-ink: #f7f4ff;
     /* Hover and pressed surface of the sidebar footer and primary button (dark text on it). */
     --purple-chip: #dfd0ff;
     --purple-chip-active: #c3abfc;
@@ -63,7 +69,7 @@
     --obsidian-purple: var(--purple-text);
     --obsidian-purple-strong: var(--purple-accent);
     /* Idle outline on hamburger, pen, Settings, Link Devices, etc. */
-    --chrome-border: rgb(var(--purple-wash-rgb) / 0.4);
+    --chrome-border: rgb(var(--purple-accent-rgb) / 0.4);
     /* Scroll bar thumbs: same purple as the mobile status bar overlay. */
     --scrollbar-thumb: var(--purple-fill);
     --scrollbar-size: 6px;
@@ -76,8 +82,8 @@
     /* In-app usage-alert toasts and dismissible error banners. Text colors come from
      * the inverting --c-* palette, so the surfaces and borders must invert too. */
     --toast-surface: rgba(22, 19, 32, 0.95);
-    --toast-border: rgb(var(--purple-wash-rgb) / 0.35);
-    --toast-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 0 0 16px rgb(var(--purple-wash-rgb) / 0.22);
+    --toast-border: rgb(var(--purple-accent-rgb) / 0.35);
+    --toast-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 0 0 16px rgb(var(--purple-accent-rgb) / 0.22);
     --danger-banner-surface: rgba(38, 18, 20, 0.96);
     --danger-banner-border: rgba(255, 111, 111, 0.4);
     color-scheme: dark;
@@ -105,10 +111,14 @@
     --green: #1f9d55;
     --green-soft: rgba(31, 157, 85, 0.13);
     --purple-accent: #7650d9;
+    --purple-accent-rgb: 118 80 217;
     --purple-text: #6d3bd7;
+    --purple-text-rgb: 109 59 215;
+    --purple-on-text: #f7f4ff;
+    --purple-ink: #381f7a;
     --purple-chip: #3c1f7a;
     --purple-chip-active: #3a1f7a;
-    --purple-soft: rgba(118, 80, 217, 0.12);
+    --purple-soft: rgb(var(--purple-accent-rgb) / 0.12);
     --amber: #b8790a;
     --red: #d03a3a;
     --obsidian-canvas: #f6f5f8;
@@ -127,8 +137,8 @@
     --opencode-mark-back: #b9b3b3;
     --opencode-mark-front: #4b4646;
     --toast-surface: rgba(255, 255, 255, 0.97);
-    --toast-border: rgba(118, 80, 217, 0.4);
-    --toast-shadow: 0 12px 32px rgba(28, 27, 31, 0.2), 0 0 14px rgba(118, 80, 217, 0.14);
+    --toast-border: rgb(var(--purple-accent-rgb) / 0.4);
+    --toast-shadow: 0 12px 32px rgba(28, 27, 31, 0.2), 0 0 14px rgb(var(--purple-accent-rgb) / 0.14);
     --danger-banner-surface: rgba(253, 242, 242, 0.97);
     --danger-banner-border: rgba(208, 58, 58, 0.45);
   }

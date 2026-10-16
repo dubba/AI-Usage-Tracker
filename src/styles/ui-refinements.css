@@ -573,9 +573,9 @@
 .account-usage-metric .metric-window-pill.window-pill-monthly {
   color: var(--c-f5f1ef);
   padding: 3px 10px;
-  border: 1px solid rgb(var(--purple-wash-rgb) / 0.5) !important;
+  border: 1px solid rgb(var(--purple-accent-rgb) / 0.5) !important;
   border-radius: 999px;
-  background: rgb(var(--purple-wash-rgb) / 0.12) !important;
+  background: rgb(var(--purple-accent-rgb) / 0.12) !important;
   box-shadow: none !important;
 }
 
@@ -912,7 +912,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .usage-alert-toast-title {
   font-weight: 600;
   font-size: 13px;
-  color: var(--c-f5f3ff);
+  color: var(--purple-ink);
   line-height: 1.3;
   min-width: 0;
 }
@@ -1237,7 +1237,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   border-radius: 50%;
   background: var(--obsidian-surface-container-high, var(--c-211e29));
   border: 1px solid var(--chrome-border);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55), 0 2px 8px rgb(var(--purple-wash-rgb) / 0.25);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55), 0 2px 8px rgb(var(--purple-accent-rgb) / 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1265,7 +1265,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .pull-to-refresh-indicator.is-primed {
   border-color: var(--obsidian-purple-strong);
   background: var(--c-28213a);
-  box-shadow: 0 4px 20px rgb(var(--purple-wash-rgb) / 0.5), 0 0 12px rgb(var(--purple-wash-rgb) / 0.4);
+  box-shadow: 0 4px 20px rgb(var(--purple-accent-rgb) / 0.5), 0 0 12px rgb(var(--purple-accent-rgb) / 0.4);
 }
 
 .pull-to-refresh-indicator.is-primed .pull-to-refresh-icon {
@@ -1414,7 +1414,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .settings-account-refresh .custom-dropdown-menu {
   background: var(--obsidian-surface-low, var(--c-1c1b1b)) !important;
   border: 1px solid var(--chrome-border) !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 2px 8px rgb(var(--purple-wash-rgb) / 0.15) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 2px 8px rgb(var(--purple-accent-rgb) / 0.15) !important;
 }
 
 .settings-account-refresh .custom-dropdown-item {
@@ -1548,7 +1548,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 /* Light theme: purple-filled actions keep white labels. Dark keeps the original
-   indigo on the light purple fill (`--c-2d145f`). --c-ffffff inverts in Light,
+   indigo on the light purple fill (`--purple-on-text`). --c-ffffff inverts in Light,
    so this stays a literal. */
 :root[data-theme="light"] .button.primary,
 :root[data-theme="light"] .button.primary:hover:not(:disabled),

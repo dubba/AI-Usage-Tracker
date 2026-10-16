@@ -901,7 +901,7 @@
 .obsidian-shell button.sidebar-footer.active:active:not(:disabled),
 .obsidian-shell button.sidebar-footer.active:focus-visible {
   background: linear-gradient(90deg, rgb(var(--purple-fill-rgb) / 0.15), var(--obsidian-surface-container) 48%) !important;
-  border-color: var(--c-208-188-255-a750) !important;
+  border-color: rgb(var(--purple-text-rgb) / 0.75) !important;
   color: var(--obsidian-text) !important;
   box-shadow: inset 2px 0 0 var(--obsidian-purple-strong) !important;
 }
@@ -910,7 +910,7 @@
   .provider-summary-row.selected:hover,
   .obsidian-shell button.sidebar-footer.active:hover:not(:disabled) {
     background: linear-gradient(90deg, rgb(var(--purple-fill-rgb) / 0.15), var(--obsidian-surface-container) 48%) !important;
-    border-color: var(--c-208-188-255-a750) !important;
+    border-color: rgb(var(--purple-text-rgb) / 0.75) !important;
     box-shadow: inset 2px 0 0 var(--obsidian-purple-strong) !important;
   }
 }

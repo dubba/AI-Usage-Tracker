@@ -70,7 +70,7 @@ describe("purple tokens", () => {
       return [Number(match[1]), Number(match[2]), Number(match[3])];
     };
     expect(triplet("--purple-fill-rgb")).toEqual(rgbOf(token("--purple-fill")));
-    expect(triplet("--purple-wash-rgb")).toEqual(rgbOf(token("--purple-accent")));
+    expect(triplet("--purple-accent-rgb")).toEqual(rgbOf(token("--purple-accent")));
   });
 
   it("paints the native title bar with --purple-fill", () => {

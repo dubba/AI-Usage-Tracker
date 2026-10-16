@@ -61,7 +61,7 @@ select.text-input option {
 .guided-login-card {
   margin-top: 16px;
   padding: 16px 18px;
-  border: 1px solid rgb(var(--purple-wash-rgb) / .35);
+  border: 1px solid rgb(var(--purple-accent-rgb) / .35);
   border-radius: 12px;
   background: rgb(var(--purple-fill-rgb) / .12);
 }
@@ -214,7 +214,7 @@ select.text-input option {
 }
 
 .google-model-option:hover {
-  background: rgb(var(--purple-wash-rgb) / .07);
+  background: rgb(var(--purple-accent-rgb) / .07);
 }
 
 .google-model-option input {
@@ -246,7 +246,7 @@ select.text-input option {
   margin: 0;
   padding: 11px 13px;
   border-top: 1px solid var(--border);
-  background: rgb(var(--purple-wash-rgb) / .055);
+  background: rgb(var(--purple-accent-rgb) / .055);
 }
 
 .google-cloud-connect-action {
@@ -357,8 +357,8 @@ select.text-input option {
 }
 
 .alert-window-row.enabled {
-  border-color: rgb(var(--purple-wash-rgb) / .4);
-  background: rgb(var(--purple-wash-rgb) / .07);
+  border-color: rgb(var(--purple-accent-rgb) / .4);
+  background: rgb(var(--purple-accent-rgb) / .07);
 }
 
 .alert-window-toggle {
@@ -595,7 +595,7 @@ select.text-input option {
 .sidebar-resize-handle:focus-visible .sidebar-resize-grip span,
 .sidebar-resize-handle.dragging .sidebar-resize-grip span {
   background: var(--purple-text);
-  box-shadow: 0 0 7px rgb(var(--purple-wash-rgb) / .75);
+  box-shadow: 0 0 7px rgb(var(--purple-accent-rgb) / .75);
   transform: scale(1.1);
 }
 

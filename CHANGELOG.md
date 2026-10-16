@@ -5,7 +5,7 @@
 ### Improved (6)
 
 - The DASHBOARD title, the sidebar title, the Current Version label, and the email and countdown on the Account connected page now use a lighter purple, so they read clearly on the dark background.
-- Buttons, toggles, borders, glows, and links now draw from three shared purples instead of about a dozen, so they match each other across the app.
+- Buttons, toggles, borders, glows, and links now draw from three shared purples instead of about a dozen, in both the dark and light themes, so they match each other across the app.
 - On a phone, the amber Requires action line on the Action Needed card is 11px. All good on that card stays 12px.
 - In the Add Account provider menu and the Create Group account list, the gap beside the scrollbar now matches the left inset on macOS too. These lists draw their own scrollbar, because the macOS app laid rows out under the system bar. Both sides still match when there is no scrollbar.
 - The Create Group account list shows four accounts without a scrollbar. A fifth account brings in the scrollbar.
