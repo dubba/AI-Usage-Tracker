@@ -1717,3 +1717,45 @@ html::after {
   animation: obsidian-spin 800ms linear infinite;
   color: var(--obsidian-purple-strong);
 }
+
+/* Light theme: the account card's action buttons share one quiet white button with a neutral
+   outline and carry their color in the icon alone. Remove keeps its solid red hover so the
+   destructive action still announces itself. Dark keeps the tinted, outlined buttons. */
+:root[data-theme="light"] .account-card-action {
+  border-color: var(--border-strong);
+  background: var(--panel);
+}
+
+:root[data-theme="light"] .account-card-action.move-action {
+  color: var(--obsidian-muted-bright);
+}
+
+:root[data-theme="light"] .account-card-action.refresh-action {
+  color: var(--obsidian-green);
+}
+
+:root[data-theme="light"] .account-card-action.notify-action {
+  color: var(--obsidian-amber);
+}
+
+:root[data-theme="light"] .account-card-action.remove-action {
+  color: var(--obsidian-red);
+}
+
+:root[data-theme="light"] .account-card-action.move-action:hover:not(:disabled) {
+  color: var(--obsidian-text);
+  border-color: var(--obsidian-purple-strong) !important;
+  background: var(--purple-surface) !important;
+}
+
+:root[data-theme="light"] .account-card-action.refresh-action:hover:not(:disabled) {
+  color: var(--obsidian-green);
+  border-color: var(--obsidian-green) !important;
+  background: rgb(10 143 95 / 0.1) !important;
+}
+
+:root[data-theme="light"] .account-card-action.notify-action:hover:not(:disabled) {
+  color: var(--obsidian-amber);
+  border-color: var(--obsidian-amber) !important;
+  background: rgb(178 94 0 / 0.1) !important;
+}
