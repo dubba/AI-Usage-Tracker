@@ -17,4 +17,5 @@ jobs:
       - name: Report the scheduled start
         env:
           EVENT_SCHEDULE: ${{ github.event.schedule }}
-        run: echo "Scheduler works: '$EVENT_SCHEDULE' started at $(date -u +%FT%TZ)."
+        run: |
+          echo "Scheduler works: '$EVENT_SCHEDULE' started at $(date -u +%FT%TZ)."
