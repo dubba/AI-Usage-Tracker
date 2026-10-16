@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased (19 changes)
+## Unreleased (20 changes)
 
-### Improved (15)
+### Improved (16)
 
 - The DASHBOARD title, the sidebar title, the Current Version label, and the email and countdown on the Account connected page now use a lighter purple, so they read clearly on the dark background.
 - In the light theme, selected and hovered rows, cards, and buttons use a clean pale lavender instead of a muddy gray-purple.
@@ -14,6 +14,7 @@
 - The account rename pen and the sidebar Settings button use the same solid purple with a white icon as the other purple buttons, in both themes.
 - While it refreshes, the sidebar Refresh All button now looks like the pull-down refresh indicator: a purple icon spinning at the same speed on the raised surface, at full strength instead of dimmed.
 - In the Link Devices dialogs, Back is now the solid purple default button wherever it sits next to Cancel or the camera switch, so it looks like the other main buttons.
+- The Link Devices button in Settings uses the same solid purple with a white label as Check Now and the Account and Group buttons.
 - Buttons, toggles, borders, glows, and links now draw from three shared purples instead of about a dozen, in both the dark and light themes, so they match each other across the app.
 - On a phone, the amber Requires action line on the Action Needed card is 11px. All good on that card stays 12px.
 - In the Add Account provider menu and the Create Group account list, the gap beside the scrollbar now matches the left inset on macOS too. These lists draw their own scrollbar, because the macOS app laid rows out under the system bar. Both sides still match when there is no scrollbar.

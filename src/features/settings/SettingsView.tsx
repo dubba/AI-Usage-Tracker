@@ -284,7 +284,7 @@ export function SettingsView({
             </div>
             <button
               type="button"
-              className="button ghost settings-changelog-button"
+              className="button primary settings-update-action"
               onClick={onOpenPairing}
             >
               <DevicesIcon />
