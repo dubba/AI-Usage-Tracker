@@ -267,8 +267,8 @@ else
   if [ "${PREFLIGHT_CARGO_TRACKS:-2}" = 1 ]; then
     clippy_debug; cargo_test; clippy_release; ios; android
   else
-    { clippy_debug; cargo_test; android; } &
-    { clippy_release; ios; } &
+    { clippy_debug; cargo_test; } &
+    { clippy_release; ios; android; } &
   fi
 fi
 wait
