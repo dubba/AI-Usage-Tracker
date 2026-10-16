@@ -1,0 +1,20 @@
+name: Scheduler canary
+
+# TEMPORARY: checks whether GitHub starts scheduled runs in this repo at all.
+# It only prints a line; it builds and publishes nothing. Plain UTC cron with
+# no timezone, kept off the top of the hour. Delete after the test.
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Report the scheduled start
+        env:
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+        run: echo "Scheduler works: '$EVENT_SCHEDULE' started at $(date -u +%FT%TZ)."

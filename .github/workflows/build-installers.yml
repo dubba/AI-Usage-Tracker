@@ -37,10 +37,6 @@ on:
       timezone: America/New_York
     - cron: '30 23 * * 0' # Fallback for Sunday: 11:30 PM Eastern
       timezone: America/New_York
-    # TEMPORARY scheduler test, 1:15 AM Eastern on 2026-10-16 only. It builds
-    # nothing (see "Scheduler test" in check-changes). Remove after the test.
-    - cron: '15 1 16 10 *'
-      timezone: America/New_York
   push:
     branches: [main]
     paths:
@@ -79,7 +75,6 @@ jobs:
           FORCE_BUILD: ${{ inputs.force }}
           INPUT_APPLE: ${{ inputs.include_apple }}
           RECENT_RELEASE_MINUTES: "240"
-          EVENT_SCHEDULE: ${{ github.event.schedule }}
         run: |
           set -euo pipefail
 
@@ -99,15 +94,6 @@ jobs:
           if [ "${FORCE_BUILD:-false}" = "true" ]; then
             echo "Build manually forced via workflow_dispatch input."
             echo "should_build=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # TEMPORARY: the one-off scheduler test only proves GitHub starts the
-          # run; it must not publish. Remove with its schedule entry.
-          if [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "$(TZ=America/New_York date +%F)" = "2026-10-16" ] \
-            && [ "$(TZ=America/New_York date +%-H)" -lt 6 ]; then
-            echo "Scheduler test run for '$EVENT_SCHEDULE' started at $(TZ=America/New_York date). Skipping the build."
-            echo "should_build=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
