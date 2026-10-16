@@ -249,6 +249,7 @@ describe("CustomDropdown", () => {
     click(document.getElementById("provider")!);
     const menu = document.querySelector<HTMLElement>(".custom-dropdown-menu")!;
     expect(menu.classList.contains("has-overflow")).toBe(false);
+    expect(menu.querySelector(".scroll-thumb")).toBeNull();
   });
 
   it("reserves scrollbar space when the menu content overflows", () => {
@@ -261,5 +262,8 @@ describe("CustomDropdown", () => {
     click(document.getElementById("provider")!);
     const menu = document.querySelector<HTMLElement>(".custom-dropdown-menu")!;
     expect(menu.classList.contains("has-overflow")).toBe(true);
+    const thumb = menu.querySelector(".scroll-thumb");
+    expect(thumb?.getAttribute("aria-hidden")).toBe("true");
+    expect(menu.querySelectorAll('[role="option"]')).toHaveLength(OPTIONS.length);
   });
 });

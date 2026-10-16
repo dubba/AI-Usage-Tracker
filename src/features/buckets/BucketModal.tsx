@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { bridgeApi } from "../../shared/lib/api";
 import { errorMessage, friendlyMessage } from "../../shared/lib/errors";
 import { TrashIcon } from "../../shared/ui/icons";
@@ -6,6 +6,7 @@ import { PROVIDER_META } from "../../shared/lib/providers";
 import { ProviderIcon } from "../../shared/ui/ProviderIcon";
 import type { Account, AccountBucket, Provider } from "../../types";
 import { CustomDropdown } from "../../shared/ui/CustomDropdown";
+import { useScrollThumb } from "../../shared/hooks/useScrollThumb";
 import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { backdropMouseDown, useModalClosePolicy } from "../../shared/hooks/useModalClosePolicy";
@@ -38,6 +39,7 @@ export function BucketModal({
   const [name, setName] = useState("");
   const [selectedProvider, setSelectedProvider] = useState<Provider | "all">("all");
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
+  const accountScrollRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
   const { error, setError } = useAutoDismissedError(open);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -109,6 +111,8 @@ export function BucketModal({
     if (selectedProvider === "all") return accounts;
     return accounts.filter((a) => a.provider === selectedProvider);
   }, [accounts, selectedProvider]);
+
+  const accountThumb = useScrollThumb(accountScrollRef, open, [filteredAccounts]);
 
   if (!open) return null;
 
@@ -229,34 +233,44 @@ export function BucketModal({
             </div>
 
             <div className="bucket-account-picker-list">
-              {filteredAccounts.length ? filteredAccounts.map((account) => {
-                const isSelected = selectedAccountIds.includes(account.id);
-                const sessionWindow = account.lastUsage?.windows[0];
-                return (
-                  <label key={account.id} className={`bucket-account-item ${isSelected ? "selected" : ""}`}>
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      disabled={busy}
-                      onChange={() => toggleAccount(account.id)}
-                    />
-                    <span className={`bucket-account-provider-icon provider-${account.provider}`}>
-                      <ProviderIcon provider={account.provider} />
-                    </span>
-                    <div className="bucket-account-info">
-                      <strong className="bucket-account-label">{account.label}</strong>
-                      <span className="bucket-account-email">{account.email ?? account.plan ?? account.provider}</span>
-                    </div>
-                    {sessionWindow?.remainingPercent != null ? (
-                      <span className="bucket-account-percent">
-                        {Math.round(sessionWindow.remainingPercent)}%
+              <div ref={accountScrollRef} className={`bucket-account-picker-scroll${accountThumb.overflows ? " has-overflow" : ""}`}>
+                {accountThumb.overflows && (
+                  <div
+                    ref={accountThumb.thumbRef as RefObject<HTMLDivElement>}
+                    aria-hidden="true"
+                    className="scroll-thumb"
+                    onPointerDown={accountThumb.onThumbPointerDown}
+                  />
+                )}
+                {filteredAccounts.length ? filteredAccounts.map((account) => {
+                  const isSelected = selectedAccountIds.includes(account.id);
+                  const sessionWindow = account.lastUsage?.windows[0];
+                  return (
+                    <label key={account.id} className={`bucket-account-item ${isSelected ? "selected" : ""}`}>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        disabled={busy}
+                        onChange={() => toggleAccount(account.id)}
+                      />
+                      <span className={`bucket-account-provider-icon provider-${account.provider}`}>
+                        <ProviderIcon provider={account.provider} />
                       </span>
-                    ) : null}
-                  </label>
-                );
-              }) : (
-                <div className="bucket-picker-empty">No accounts match the selected filter.</div>
-              )}
+                      <div className="bucket-account-info">
+                        <strong className="bucket-account-label">{account.label}</strong>
+                        <span className="bucket-account-email">{account.email ?? account.plan ?? account.provider}</span>
+                      </div>
+                      {sessionWindow?.remainingPercent != null ? (
+                        <span className="bucket-account-percent">
+                          {Math.round(sessionWindow.remainingPercent)}%
+                        </span>
+                      ) : null}
+                    </label>
+                  );
+                }) : (
+                  <div className="bucket-picker-empty">No accounts match the selected filter.</div>
+                )}
+              </div>
             </div>
           </div>
 

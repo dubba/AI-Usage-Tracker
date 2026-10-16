@@ -1148,8 +1148,17 @@
   .modal-card.bucket-modal-card.keyboard-open .bucket-account-picker-list,
   html.keyboard-active .modal-card.bucket-modal-card .bucket-account-picker-list {
     max-height: 140px !important;
-    padding: 4px calc(4px + var(--scrollbar-size)) 4px 4px !important;
+  }
+
+  .modal-card.bucket-modal-card.keyboard-open .bucket-account-picker-scroll,
+  html.keyboard-active .modal-card.bucket-modal-card .bucket-account-picker-scroll {
+    padding: 4px !important;
     gap: 4px !important;
+  }
+
+  .modal-card.bucket-modal-card.keyboard-open .bucket-account-picker-scroll.has-overflow,
+  html.keyboard-active .modal-card.bucket-modal-card .bucket-account-picker-scroll.has-overflow {
+    padding-right: calc(4px + var(--scrollbar-size)) !important;
   }
 
   .modal-card.bucket-modal-card.keyboard-open .bucket-account-item,

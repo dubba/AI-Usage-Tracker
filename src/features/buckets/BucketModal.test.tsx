@@ -99,6 +99,22 @@ describe("BucketModal create provider filter", () => {
     );
     expect(document.querySelectorAll(".bucket-account-item.selected")).toHaveLength(0);
   });
+
+  it("scrolls account rows inside the picker, not the rounded frame", () => {
+    renderCreate([
+      makeAccount("a1", "anthropic"),
+      makeAccount("a2", "openai"),
+      makeAccount("a3", "grok"),
+      makeAccount("a4", "google"),
+      makeAccount("a5", "antigravity"),
+    ]);
+    const list = document.querySelector(".bucket-account-picker-list");
+    const scroll = document.querySelector(".bucket-account-picker-scroll");
+    expect(list).not.toBeNull();
+    expect(scroll).not.toBeNull();
+    expect(list?.contains(scroll)).toBe(true);
+    expect(scroll?.querySelectorAll(".bucket-account-item")).toHaveLength(5);
+  });
 });
 
 describe("BucketModal edit provider filter", () => {

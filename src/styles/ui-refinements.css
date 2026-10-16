@@ -465,10 +465,15 @@
   z-index: 1000;
 }
 
-/* The group tooltip is a sentence, so let it wrap instead of running in one line. */
+/* The group tooltip is two lines with a fixed break in its copy. A box that
+   wraps and balances its text cannot shrink to the text, which left dead space
+   on the right; breaking explicitly lets max-content hug the longer line, so
+   the right inset equals the left padding. */
 .add-bucket-header-button[data-tooltip]::after {
-  width: 260px;
-  white-space: normal;
+  width: max-content;
+  max-width: 260px;
+  white-space: pre-line;
+  text-align: left;
 }
 
 .provider-window-toggle button[data-tooltip]::after {
@@ -669,11 +674,46 @@
   }
 }
 
+/* Lists with a drawn thumb (useScrollThumb). The macOS app's WebView lays
+   rows out as if its 6px custom bar took no width and then paints the bar over
+   them, so these lists hide the native bar and draw the thumb themselves at
+   the right edge of the padding box. While a list overflows its right inset is
+   the left inset plus the thumb, so the gap beside the thumb matches the gap
+   on the other side on every platform. */
+.custom-dropdown-menu,
+.bucket-account-picker-scroll {
+  scrollbar-width: none;
+}
+
+.custom-dropdown-menu::-webkit-scrollbar,
+.bucket-account-picker-scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.scroll-thumb {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  width: var(--scrollbar-size);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: 999px;
+  background: var(--scrollbar-thumb);
+  touch-action: none;
+  will-change: transform;
+}
+
+.custom-dropdown-menu.has-overflow {
+  padding-right: calc(6px + var(--scrollbar-size));
+}
+
 /* Overlay thumbs and clip-path rounded lists paint the bar inside the padding
    box. Right inset = that list's left inset + the thumb, so the gap beside
    the bar matches the gap on the other side. */
-.custom-dropdown-menu.has-overflow,
-.bucket-account-picker-list,
 .mobile-dropdown-menu,
 .google-model-list {
   padding-right: calc(6px + var(--scrollbar-size));

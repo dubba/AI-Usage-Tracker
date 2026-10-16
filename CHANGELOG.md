@@ -1,6 +1,13 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (4 changes)
+
+### Improved (4)
+
+- On a phone, the amber Requires action line on the Action Needed card is 11px. All good on that card stays 12px.
+- In the Add Account provider menu and the Create Group account list, the gap beside the scrollbar now matches the left inset on macOS too. These lists draw their own scrollbar, because the macOS app laid rows out under the system bar. Both sides still match when there is no scrollbar.
+- The Create Group account list shows four accounts without a scrollbar. A fifth account brings in the scrollbar.
+- The + Group tooltip in the sidebar breaks onto two lines and shrinks to the longer one, so the gap on the right matches the gap on the left.
 
 ## v0.4.5 - 2026-10-16 (37 changes)
 

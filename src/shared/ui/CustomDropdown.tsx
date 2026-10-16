@@ -1,4 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState, useId, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useId, type CSSProperties, type RefObject } from "react";
+import { useScrollThumb } from "../hooks/useScrollThumb";
 
 export type DropdownOption<T extends string | number> = {
   value: T;
@@ -69,9 +70,6 @@ export function computeCustomDropdownPlacement(
   };
 }
 
-function menuOverflows(list: HTMLElement): boolean {
-  return list.scrollHeight > list.clientHeight + 1;
-}
 
 function scrollItemIntoList(list: HTMLUListElement, item: HTMLElement) {
   const itemTop = item.offsetTop;
@@ -112,10 +110,10 @@ export function CustomDropdown<T extends string | number>({
   const [isOpen, setIsOpen] = useState(false);
   const [placement, setPlacement] = useState<MenuPlacement>({ openUpward: false, style: {} });
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
-  const [menuHasOverflow, setMenuHasOverflow] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  const thumb = useScrollThumb(listRef, isOpen, [options.length]);
 
   const selectedOption = options.find((opt) => opt.value === value);
   const selectedIndex = options.findIndex((opt) => opt.value === value);
@@ -129,7 +127,6 @@ export function CustomDropdown<T extends string | number>({
   const closeMenu = (restoreFocus = false) => {
     setIsOpen(false);
     setHighlightedIndex(-1);
-    setMenuHasOverflow(false);
     if (restoreFocus) {
       triggerRef.current?.focus();
     }
@@ -153,10 +150,6 @@ export function CustomDropdown<T extends string | number>({
         }
         return next;
       });
-      const list = listRef.current;
-      if (list) {
-        setMenuHasOverflow(menuOverflows(list));
-      }
     };
 
     updatePlacement();
@@ -310,11 +303,20 @@ export function CustomDropdown<T extends string | number>({
         <ul
           ref={listRef}
           id={listboxId}
-          className={`custom-dropdown-menu ${placement.openUpward ? "upward" : ""} ${menuHasOverflow ? "has-overflow" : ""}`}
+          className={`custom-dropdown-menu ${placement.openUpward ? "upward" : ""} ${thumb.overflows ? "has-overflow" : ""}`}
           role="listbox"
           aria-labelledby={dropdownId}
           style={placement.style}
         >
+          {thumb.overflows && (
+            <li
+              ref={thumb.thumbRef as RefObject<HTMLLIElement>}
+              role="presentation"
+              aria-hidden="true"
+              className="scroll-thumb"
+              onPointerDown={thumb.onThumbPointerDown}
+            />
+          )}
           {options.map((option, index) => {
             const isSelected = option.value === value;
             const isHighlighted = index === highlightedIndex;
