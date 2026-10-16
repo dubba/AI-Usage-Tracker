@@ -1884,6 +1884,22 @@ button.account-card-provider-icon:active {
   color: #ffffff !important;
 }
 
+/* Primary buttons: the solid purple fill with a white label that light uses, in dark too
+   (the shared dark primary above is a pale lavender with dark text). */
+:root:not([data-theme="light"]) .button.primary {
+  color: #ffffff;
+  background: var(--purple-fill);
+  border-color: var(--purple-fill);
+}
+
+:root:not([data-theme="light"]) .button.primary:hover:not(:disabled),
+:root:not([data-theme="light"]) .button.primary:focus-visible,
+:root:not([data-theme="light"]) .button.primary:active:not(:disabled) {
+  color: #ffffff;
+  background: var(--purple-fill-hover) !important;
+  border-color: var(--purple-fill-line) !important;
+}
+
 .edit-bucket-title-btn {
   display: none;
 }
