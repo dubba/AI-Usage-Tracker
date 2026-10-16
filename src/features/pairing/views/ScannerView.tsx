@@ -78,7 +78,7 @@ export function ScannerView({
           <div className="airgap-prompt-actions">
             <button
               type="button"
-              className="button pairing-back-btn"
+              className="button ghost pairing-back-btn"
               disabled={airgapImporting || airgapVerifying}
               onClick={onAirgapBack}
             >
@@ -167,7 +167,7 @@ export function ScannerView({
           <div className="pairing-scanner-controls pairing-scan-actions">
             <button
               type="button"
-              className="button pairing-back-btn"
+              className="button ghost pairing-back-btn"
               onClick={onBack}
             >
               <ChevronIcon style={{ transform: "rotate(180deg)" }} />

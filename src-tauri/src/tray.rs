@@ -141,19 +141,82 @@ fn paint_macos_title_bar(window: &tauri::WebviewWindow) {
             return;
         };
         let (r, g, b) = TITLE_BAR_PURPLE_RGB;
-        let color: *mut AnyObject = msg_send![
+        let purple: *mut AnyObject = msg_send![
             cls,
             colorWithRed: f64::from(r) / 255.0,
             green: f64::from(g) / 255.0,
             blue: f64::from(b) / 255.0,
             alpha: 1.0
         ];
-        if color.is_null() {
+        if purple.is_null() {
+            return;
+        }
+        let black: *mut AnyObject = msg_send![cls, blackColor];
+        if black.is_null() {
             return;
         }
         let ns_window = ptr as *mut AnyObject;
-        let _: () = msg_send![ns_window, setBackgroundColor: color];
+        // Transparent title bars show this color in the whole window until the
+        // webview paints. Keep it black; purple lives on the titlebar views.
+        let _: () = msg_send![ns_window, setBackgroundColor: black];
+        paint_macos_titlebar_fill(ns_window, purple);
         paint_macos_title_white(ns_window);
+    }
+}
+
+/// `NSThemeFrame` is the whole window, so only views whose class name contains
+/// "titlebar" get the purple fill.
+#[cfg(any(target_os = "macos", test))]
+fn is_titlebar_chrome_class(name: &str) -> bool {
+    name.to_ascii_lowercase().contains("titlebar")
+}
+
+#[cfg(target_os = "macos")]
+unsafe fn nsobject_class_name(obj: *mut AnyObject) -> Option<String> {
+    use objc2::msg_send;
+
+    let name: *mut AnyObject = msg_send![obj, className];
+    if name.is_null() {
+        return None;
+    }
+    let utf8: *const i8 = msg_send![name, UTF8String];
+    if utf8.is_null() {
+        return None;
+    }
+    Some(
+        std::ffi::CStr::from_ptr(utf8)
+            .to_string_lossy()
+            .into_owned(),
+    )
+}
+
+#[cfg(target_os = "macos")]
+unsafe fn paint_macos_titlebar_fill(ns_window: *mut AnyObject, purple: *mut AnyObject) {
+    use objc2::msg_send;
+    use objc2::runtime::Bool;
+
+    let close_btn: *mut AnyObject = msg_send![ns_window, standardWindowButton: 0isize];
+    if close_btn.is_null() {
+        return;
+    }
+    let cg_color: *const AnyObject = msg_send![purple, CGColor];
+    if cg_color.is_null() {
+        return;
+    }
+    let mut view: *mut AnyObject = msg_send![close_btn, superview];
+    while !view.is_null() {
+        let Some(name) = nsobject_class_name(view) else {
+            break;
+        };
+        if !is_titlebar_chrome_class(&name) {
+            break;
+        }
+        let _: () = msg_send![view, setWantsLayer: Bool::YES];
+        let layer: *mut AnyObject = msg_send![view, layer];
+        if !layer.is_null() {
+            let _: () = msg_send![layer, setBackgroundColor: cg_color];
+        }
+        view = msg_send![view, superview];
     }
 }
 
@@ -261,7 +324,17 @@ fn paint_windows_title_bar(window: &tauri::WebviewWindow) {
 
 #[cfg(test)]
 mod tests {
-    use super::windows_caption_colorref;
+    use super::{is_titlebar_chrome_class, windows_caption_colorref};
+
+    #[test]
+    fn titlebar_chrome_class_matches_appkit_titlebar_views() {
+        assert!(is_titlebar_chrome_class("NSTitlebarView"));
+        assert!(is_titlebar_chrome_class("NSTitlebarContainerView"));
+        assert!(is_titlebar_chrome_class("_NSTitlebarDecorationView"));
+        assert!(!is_titlebar_chrome_class("NSThemeFrame"));
+        assert!(!is_titlebar_chrome_class("WKWebView"));
+        assert!(!is_titlebar_chrome_class("NSView"));
+    }
 
     #[test]
     fn windows_caption_color_is_status_bar_purple() {

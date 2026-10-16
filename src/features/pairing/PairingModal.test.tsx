@@ -927,6 +927,13 @@ describe("scanning", () => {
     click(document.querySelector('[aria-label="Switch camera"]') ?? document.createElement("i"));
   });
 
+  it("styles the Back button the same way as Cancel", async () => {
+    await openScanner();
+    const backBtn = document.querySelector(".pairing-scan-actions .pairing-back-btn");
+    expect(backBtn?.classList.contains("ghost")).toBe(true);
+    expect(backBtn?.classList.contains("button")).toBe(true);
+  });
+
   it("places the switch camera button in the same controls row as the Back button", async () => {
     await openScanner();
     const controls = document.querySelector(".pairing-scan-actions")!;

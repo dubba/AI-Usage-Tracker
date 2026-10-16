@@ -45,6 +45,8 @@
     --chrome-border: rgba(160, 120, 255, 0.4);
     /* Scroll bar thumbs: same purple as the mobile status bar overlay. */
     --scrollbar-thumb: #6d3bd7;
+    --scrollbar-size: 6px;
+    --scrollbar-gap: 10px;
     --obsidian-green: #4edea3;
     --obsidian-amber: #ffb869;
     --obsidian-red: #ff8585;

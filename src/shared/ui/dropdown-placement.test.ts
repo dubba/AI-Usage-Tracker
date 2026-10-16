@@ -6,6 +6,7 @@ import {
   getClippingBounds,
   getFixedContainingBlockBox,
   getMenuContentHeight,
+  snapMaxHeightToWholeRows,
 } from "./dropdown-placement";
 
 function rectOf(rect: { top: number; left: number; width: number; height: number }) {
@@ -186,6 +187,70 @@ describe("dropdown-placement", () => {
         el === backdrop ? styleWith({ backdropFilter: "blur(3px)" }) : real.call(window, el)) as typeof window.getComputedStyle);
 
       expect(getFixedContainingBlockBox(child)).toEqual({ left: 6, top: 0, height: 812 });
+    });
+  });
+
+  describe("snapMaxHeightToWholeRows", () => {
+    const MENU_STYLE = {
+      borderTopWidth: "1px",
+      borderBottomWidth: "1px",
+      paddingTop: "6px",
+      paddingBottom: "6px",
+    };
+
+    function menuWithRows(rowHeights: number[], rowMarginBottom: number, scrollHeight: number) {
+      const menu = document.createElement("ul");
+      for (const height of rowHeights) {
+        const item = document.createElement("li");
+        item.className = "custom-dropdown-item";
+        item.getBoundingClientRect = () => rectOf({ top: 0, left: 0, width: 300, height });
+        menu.appendChild(item);
+      }
+      Object.defineProperty(menu, "scrollHeight", { value: scrollHeight, configurable: true });
+      const real = window.getComputedStyle;
+      vi.spyOn(window, "getComputedStyle").mockImplementation(((el: Element) => {
+        if (el === menu) return styleWith(MENU_STYLE);
+        if (el instanceof HTMLElement && el.classList.contains("custom-dropdown-item")) {
+          return styleWith({ marginBottom: `${rowMarginBottom}px` });
+        }
+        return real.call(window, el);
+      }) as typeof window.getComputedStyle);
+      document.body.appendChild(menu);
+      return menu;
+    }
+
+    it("returns maxHeight for a null menu", () => {
+      expect(snapMaxHeightToWholeRows(null, 280)).toBe(280);
+    });
+
+    it("leaves maxHeight alone when the content already fits", () => {
+      const menu = menuWithRows([48, 48, 48], 2, 150);
+      expect(snapMaxHeightToWholeRows(menu, 280)).toBe(280);
+    });
+
+    it("ends the menu flush after the last fully visible row", () => {
+      // 6 rows of 48px + 2px margins + 6px padding + 1px borders:
+      // content is 310px, capped at 280. Five rows end at
+      // 7 + 4 * 50 + 48 + 7 = 262, so the 6th row's sliver is trimmed.
+      const menu = menuWithRows([48, 48, 48, 48, 48, 48], 2, 310 - 2);
+      expect(snapMaxHeightToWholeRows(menu, 280)).toBe(262);
+    });
+
+    it("handles rows of uneven height by measuring each row", () => {
+      // 60 + 2 + 44 fits in 120 (7 + 60 + 2 + 44 + 7), the 3rd row does not.
+      const menu = menuWithRows([60, 44, 44], 2, 200);
+      expect(snapMaxHeightToWholeRows(menu, 120)).toBe(120);
+    });
+
+    it("leaves maxHeight alone when rows cannot be measured", () => {
+      const menu = document.createElement("ul");
+      const item = document.createElement("li");
+      item.className = "custom-dropdown-item";
+      menu.appendChild(item);
+      document.body.appendChild(menu);
+      Object.defineProperty(menu, "scrollHeight", { value: 500, configurable: true });
+      // happy-dom reports zero rects, so no row boundary can be computed.
+      expect(snapMaxHeightToWholeRows(menu, 280)).toBe(280);
     });
   });
 

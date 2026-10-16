@@ -184,6 +184,41 @@ export function getMenuContentHeight(menu: HTMLElement | null): number {
 }
 
 /**
+ * Snaps a capped menu max-height down so the menu ends flush after the last
+ * fully visible row: the space below the last visible option then equals the
+ * menu's top padding instead of showing a cut-off sliver of the next row.
+ * Returns maxHeight unchanged when the menu is not rendered yet, has no
+ * measurable rows, or already fits its content.
+ */
+export function snapMaxHeightToWholeRows(menu: HTMLElement | null, maxHeight: number): number {
+  if (!menu || typeof window === "undefined" || !window.getComputedStyle) return maxHeight;
+  const menuStyle = window.getComputedStyle(menu);
+  const num = (value: string | undefined) => parseFloat(value ?? "") || 0;
+  const chromeTop = num(menuStyle.borderTopWidth) + num(menuStyle.paddingTop);
+  const chromeBottom = num(menuStyle.paddingBottom) + num(menuStyle.borderBottomWidth);
+  if (menu.scrollHeight + num(menuStyle.borderTopWidth) + num(menuStyle.borderBottomWidth) <= maxHeight + 1) {
+    return maxHeight;
+  }
+  const items = menu.querySelectorAll<HTMLElement>(".custom-dropdown-item");
+  if (!items.length) return maxHeight;
+  // Walk whole rows in border-box coordinates; end the menu flush at a row
+  // boundary so no partial row peeks out at the bottom.
+  let used = chromeTop;
+  let snapped = maxHeight;
+  for (let index = 0; index < items.length; index++) {
+    const rowHeight = items[index].getBoundingClientRect().height;
+    if (!(rowHeight > 0)) return maxHeight;
+    const flush = used + rowHeight + chromeBottom;
+    if (flush > maxHeight + 1) {
+      return snapped;
+    }
+    snapped = flush;
+    used += rowHeight + num(window.getComputedStyle(items[index]).marginBottom);
+  }
+  return snapped;
+}
+
+/**
  * Computes placement for a dropdown/popover menu, flipping upward when there is
  * insufficient space below the anchor to fit the full menu.
  */

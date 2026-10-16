@@ -63,7 +63,7 @@ export function CodeEntryView({
       </div>
 
       <div className="pairing-scanner-controls pairing-code-actions">
-        <button type="button" className="button pairing-back-btn" onClick={onBack}>
+        <button type="button" className="button ghost pairing-back-btn" onClick={onBack}>
           <ChevronIcon style={{ transform: "rotate(180deg)" }} />
           <span>Back</span>
         </button>

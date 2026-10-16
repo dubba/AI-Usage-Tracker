@@ -657,8 +657,34 @@
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  scrollbar-gutter: stable;
-  padding: 0 6px 0 0;
+}
+
+@media (min-width: 861px) {
+  .obsidian-shell .dashboard-scroll {
+    /* Always keep the 6px classic track, plus --scrollbar-gap so cards do not
+       sit on the bar. Both are reserved even when content fits, so Settings
+       and All Accounts cards do not jump when overflow starts. */
+    overflow-y: scroll;
+    padding: 0 var(--scrollbar-gap) 0 0;
+  }
+}
+
+/* Overlay thumbs and clip-path rounded lists paint the bar inside the padding
+   box. Right inset = that list's left inset + the thumb, so the gap beside
+   the bar matches the gap on the other side. */
+.custom-dropdown-menu,
+.bucket-account-picker-list,
+.mobile-dropdown-menu,
+.google-model-list {
+  padding-right: calc(6px + var(--scrollbar-size));
+}
+
+.provider-list {
+  padding-right: calc(2px + var(--scrollbar-size));
+}
+
+.update-notes-content {
+  padding-right: calc(8px + var(--scrollbar-size));
 }
 
 .obsidian-shell .provider-account-cards {

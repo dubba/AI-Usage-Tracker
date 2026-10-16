@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (32 changes)
+## Unreleased (34 changes)
 
 ### Added (1)
 
@@ -25,9 +25,10 @@
 - The Add Account dialog no longer shows the "What happens next" walkthrough panels for OpenCode and Grok sign-ins, so the dialog is shorter.
 - The Add Account dialog no longer shows the explanatory note under the OpenCode email field.
 
-### Fixed (18)
+### Fixed (20)
 
-- Settings cards and All Accounts provider cards no longer shift sideways when the scrollbar appears or disappears.
+- On desktop, the window now opens on a black background instead of a full-window purple flash before the UI appears. The title bar stays purple.
+- Scrollable lists keep a small gap from the purple scrollbar so cards and rows do not sit under it, including Settings, All Accounts, the group account picker, and dropdown menus.
 - Link Devices with a link code now works between an iPhone and an Android phone in both directions. The iPhone now finds and announces link codes through the system's Bonjour service, which iOS permits, instead of a network method iOS blocks for sideloaded apps.
 - On a phone with mobile data on, showing a link code or QR code now offers the Wi-Fi connection instead of sometimes the mobile data connection, which the other device on the Wi-Fi could not reach.
 - Error messages across all dialogs now appear at the bottom of the modal below the back button and other action buttons, disappear immediately when pressing Back or Escape, and never follow into other views when connection attempts fail. In Scan QR Code, the switch camera button is centered in the controls row aligned with the viewfinder.
@@ -44,6 +45,7 @@
 - The empty dashboard's Other and Link Devices buttons now use slightly smaller text than the provider names so the buttons sit visually below the provider cards.
 - The provider dropdown in the Add Account dialog no longer opens misaligned from its button inside the modal.
 - On Android, dropdown menus inside dialogs (such as the provider filter in Create Group, the provider list in Add Account, and the alert threshold in Usage Notifications) now open exactly under their button instead of shifted slightly to the right.
+- Dropdown lists now end flush after the last fully visible option instead of cutting off the next one, so the space below the last option matches the space above the first.
 - The chevron on the Settings dropdowns (Appearance, Account Updates) now rotates smoothly when opening, matching the dropdowns in dialogs, instead of snapping between up and down.
 
 ## v0.4.4 - 2026-10-14 (28 changes)

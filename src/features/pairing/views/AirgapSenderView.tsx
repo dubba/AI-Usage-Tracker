@@ -45,7 +45,7 @@ export function AirgapSenderView({
         <div className="pairing-panel-status" role="alert">
           <h3>Couldn't prepare the transfer</h3>
           <div className="pairing-nav-row">
-            <button type="button" className="button pairing-back-btn" onClick={onBack}>
+            <button type="button" className="button ghost pairing-back-btn" onClick={onBack}>
               <ChevronIcon style={{ transform: "rotate(180deg)" }} />
               <span>Back</span>
             </button>
@@ -104,7 +104,7 @@ export function AirgapSenderView({
               </button>
             </p>
             <div className="pairing-nav-row">
-              <button type="button" className="button pairing-back-btn" onClick={onBack}>
+              <button type="button" className="button ghost pairing-back-btn" onClick={onBack}>
                 <ChevronIcon style={{ transform: "rotate(180deg)" }} />
                 <span>Back</span>
               </button>

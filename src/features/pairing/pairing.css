@@ -438,46 +438,10 @@
   align-items: center;
 }
 
-.pairing-back-btn,
-.pairing-scanner-controls .button.pairing-back-btn,
-.pairing-modal .modal-actions .pairing-back-btn,
-.pairing-nav-row .pairing-back-btn,
-.airgap-prompt-actions .button.pairing-back-btn {
+.pairing-back-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #c53030;
-  border: 1px solid #a82828;
-  color: #ffffff;
-  font-weight: 500;
-  font-size: 0.875rem;
-  line-height: 1.2;
-  padding: 8px 14px;
-  border-radius: 8px;
-  box-shadow: none;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .pairing-back-btn:hover:not(:disabled),
-  .pairing-scanner-controls .button.pairing-back-btn:hover:not(:disabled),
-  .pairing-modal .modal-actions .pairing-back-btn:hover:not(:disabled),
-  .pairing-nav-row .button.pairing-back-btn:hover:not(:disabled),
-  .airgap-prompt-actions .button.pairing-back-btn:hover:not(:disabled) {
-    background: #dc2626 !important;
-    border-color: #b91c1c !important;
-    color: #ffffff;
-  }
-}
-
-.pairing-back-btn:active:not(:disabled),
-.pairing-scanner-controls .button.pairing-back-btn:active:not(:disabled),
-.pairing-modal .modal-actions .pairing-back-btn:active:not(:disabled),
-.pairing-nav-row .button.pairing-back-btn:active:not(:disabled),
-.airgap-prompt-actions .button.pairing-back-btn:active:not(:disabled) {
-  background: #991b1b !important;
-  border-color: #7f1d1d !important;
 }
 
 .pairing-scanner-controls .button svg {
@@ -1184,7 +1148,7 @@
   .modal-card.bucket-modal-card.keyboard-open .bucket-account-picker-list,
   html.keyboard-active .modal-card.bucket-modal-card .bucket-account-picker-list {
     max-height: 140px !important;
-    padding: 4px !important;
+    padding: 4px calc(4px + var(--scrollbar-size)) 4px 4px !important;
     gap: 4px !important;
   }
 

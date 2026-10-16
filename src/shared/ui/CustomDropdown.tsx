@@ -7,7 +7,7 @@ export type DropdownOption<T extends string | number> = {
   icon?: React.ReactNode;
 };
 
-import { computeDropdownPlacement, getFixedContainingBlockBox } from "./dropdown-placement";
+import { computeDropdownPlacement, getFixedContainingBlockBox, snapMaxHeightToWholeRows } from "./dropdown-placement";
 
 export const MENU_GAP = 5;
 export const MENU_MAX_HEIGHT = 280;
@@ -49,6 +49,11 @@ export function computeCustomDropdownPlacement(
   const containingBlock = getFixedContainingBlockBox(anchor);
   const blockHeight = containingBlock.height > 0 ? containingBlock.height : viewportHeight;
   const left = Math.max(8, Math.min(rect.left, viewportWidth - rect.width - 8)) - containingBlock.left;
+  // End the menu flush after the last fully visible row so the space below it
+  // matches the top padding instead of showing a cut-off sliver. On the
+  // first pass the menu is not rendered yet (menu is null) and on later
+  // passes this recomputes pre-paint, so there is no flicker.
+  const maxHeight = snapMaxHeightToWholeRows(menu, result.maxHeight);
 
   return {
     openUpward: result.openUpward,
@@ -57,7 +62,7 @@ export function computeCustomDropdownPlacement(
       left,
       width: rect.width,
       minWidth: rect.width,
-      maxHeight: result.maxHeight,
+      maxHeight,
       top: result.openUpward ? "auto" : rect.bottom - containingBlock.top + MENU_GAP,
       bottom: result.openUpward ? blockHeight - (rect.top - containingBlock.top) + MENU_GAP : "auto",
     },
