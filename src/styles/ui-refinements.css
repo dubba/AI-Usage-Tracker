@@ -120,7 +120,8 @@
 
 .account-name-edit,
 .account-name-confirm,
-.account-name-cancel {
+.account-name-cancel,
+.edit-bucket-title-btn {
   display: inline-grid;
   place-items: center;
   box-sizing: border-box;
@@ -139,7 +140,8 @@
 
 .account-name-edit::before,
 .account-name-confirm::before,
-.account-name-cancel::before {
+.account-name-cancel::before,
+.edit-bucket-title-btn::before {
   content: "";
   position: absolute;
   top: 50%;
@@ -149,7 +151,8 @@
   min-height: 44px;
 }
 
-.account-name-edit {
+.account-name-edit,
+.edit-bucket-title-btn {
   color: var(--obsidian-purple);
   border: 1px solid var(--chrome-border);
   background: var(--obsidian-surface-container-high, var(--c-211e29));
@@ -172,18 +175,22 @@
 .account-name-edit svg,
 .account-name-confirm svg,
 .account-name-confirm .mini-spinner,
-.account-name-cancel svg {
+.account-name-cancel svg,
+.edit-bucket-title-btn svg {
   width: 13px !important;
   height: 13px !important;
 }
 
-.account-name-edit svg {
+.account-name-edit svg,
+.edit-bucket-title-btn svg {
   color: var(--obsidian-purple);
   transition: color 150ms ease;
 }
 
 .account-name-edit:hover:not(:disabled),
-.account-name-edit:focus-visible {
+.account-name-edit:focus-visible,
+.edit-bucket-title-btn:hover:not(:disabled),
+.edit-bucket-title-btn:focus-visible {
   color: var(--c-ffffff) !important;
   border-color: var(--obsidian-purple-strong) !important;
   background: var(--purple-surface) !important;
@@ -191,11 +198,14 @@
 }
 
 .account-name-edit:hover:not(:disabled) svg,
-.account-name-edit:focus-visible svg {
+.account-name-edit:focus-visible svg,
+.edit-bucket-title-btn:hover:not(:disabled) svg,
+.edit-bucket-title-btn:focus-visible svg {
   color: var(--c-ffffff) !important;
 }
 
-.account-name-edit:active:not(:disabled) {
+.account-name-edit:active:not(:disabled),
+.edit-bucket-title-btn:active:not(:disabled) {
   background: var(--purple-surface-active) !important;
   border-color: var(--obsidian-purple-strong) !important;
   color: var(--c-ffffff) !important;
@@ -203,7 +213,8 @@
   transform: scale(0.95);
 }
 
-.account-name-edit:active:not(:disabled) svg {
+.account-name-edit:active:not(:disabled) svg,
+.edit-bucket-title-btn:active:not(:disabled) svg {
   color: var(--c-ffffff) !important;
 }
 
@@ -434,7 +445,8 @@
 
 .account-name-edit[data-tooltip]::after,
 .account-name-confirm[data-tooltip]::after,
-.account-name-cancel[data-tooltip]::after {
+.account-name-cancel[data-tooltip]::after,
+.edit-bucket-title-btn[data-tooltip]::after {
   top: calc(100% + 26px);
   left: 0;
   right: auto;
@@ -1776,35 +1788,44 @@ html::after {
   background: rgb(178 94 0 / 0.1) !important;
 }
 
-/* The rename pen and the sidebar Settings button use the same solid purple fill and white icon
+/* The rename pen, group edit pen, and sidebar Settings button use the same solid purple fill and white icon
    as the primary buttons, in both themes. The refresh button next to Settings keeps the
    outlined style. */
 :root .account-name-edit,
+:root .edit-bucket-title-btn,
 :root .sidebar-settings-btn:not(.sidebar-refresh-btn) {
-  color: #ffffff;
-  border-color: var(--purple-fill);
-  background: var(--purple-fill);
+  color: #ffffff !important;
+  border-color: var(--purple-fill) !important;
+  background: var(--purple-fill) !important;
 }
 
 :root .account-name-edit svg,
+:root .edit-bucket-title-btn svg,
 :root .sidebar-settings-btn:not(.sidebar-refresh-btn) svg {
-  color: #ffffff;
+  color: #ffffff !important;
 }
 
 :root .account-name-edit:hover:not(:disabled),
 :root .account-name-edit:focus-visible,
 :root .account-name-edit:active:not(:disabled),
+:root .edit-bucket-title-btn:hover:not(:disabled),
+:root .edit-bucket-title-btn:focus-visible,
+:root .edit-bucket-title-btn:active:not(:disabled),
 :root .sidebar-settings-btn:not(.sidebar-refresh-btn):hover:not(:disabled),
 :root .sidebar-settings-btn:not(.sidebar-refresh-btn):focus-visible,
 :root .sidebar-settings-btn:not(.sidebar-refresh-btn):active:not(:disabled) {
   color: #ffffff !important;
   border-color: var(--purple-fill-line) !important;
   background: var(--purple-fill-hover) !important;
+  box-shadow: none !important;
 }
 
 :root .account-name-edit:hover:not(:disabled) svg,
 :root .account-name-edit:focus-visible svg,
 :root .account-name-edit:active:not(:disabled) svg,
+:root .edit-bucket-title-btn:hover:not(:disabled) svg,
+:root .edit-bucket-title-btn:focus-visible svg,
+:root .edit-bucket-title-btn:active:not(:disabled) svg,
 :root .sidebar-settings-btn:not(.sidebar-refresh-btn):hover:not(:disabled) svg,
 :root .sidebar-settings-btn:not(.sidebar-refresh-btn):focus-visible svg,
 :root .sidebar-settings-btn:not(.sidebar-refresh-btn):active:not(:disabled) svg {

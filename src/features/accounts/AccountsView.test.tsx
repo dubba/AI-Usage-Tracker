@@ -126,6 +126,20 @@ describe("AccountsView empty dashboard", () => {
     expect(document.body.textContent).not.toContain("Connect an AI Provider Account");
     expect(document.body.textContent).not.toContain("Link Devices");
   });
+
+  it("renders the edit-bucket-title-btn pen button for a custom group and triggers onEditBucket", () => {
+    const onEditBucket = vi.fn();
+    app = renderView({
+      selectedGroup: bucketGroup,
+      onEditBucket,
+    });
+    const editBtn = document.querySelector<HTMLButtonElement>(".edit-bucket-title-btn");
+    expect(editBtn).not.toBeNull();
+    expect(editBtn?.getAttribute("aria-label")).toBe("Edit Group");
+    expect(editBtn?.getAttribute("data-tooltip")).toBe("Edit Group");
+    click(editBtn!);
+    expect(onEditBucket).toHaveBeenCalledWith(workBucket);
+  });
 });
 
 describe("AccountsView summary cards", () => {

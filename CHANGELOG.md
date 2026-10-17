@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (2 changes)
+
+### Improved (2)
+
+- The pen button next to the group name and pill now shares the same solid purple fill, white icon, and responsive touch styling as the rename button on account cards across desktop and mobile.
+- In Settings and the What changed window, the Check Now and Update button icons are swapped: Check Now has a circled up-arrow icon to the left of its label, and Update has a cloud-download icon.
 
 ## v0.4.7 - 2026-10-17 (17 changes)
 

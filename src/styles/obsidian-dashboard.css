@@ -1927,8 +1927,8 @@ button.account-card-provider-icon:active {
   border-color: var(--purple-fill-line) !important;
 }
 
-.edit-bucket-title-btn {
-  display: none;
+.edit-bucket-header-btn {
+  display: none !important;
 }
 
 /* Mobile: keep the version label on one line even with prerelease
@@ -1941,83 +1941,6 @@ button.account-card-provider-icon:active {
 
   .settings-updates-subcard .settings-update-action {
     white-space: nowrap;
-  }
-
-  /* Mobile: Edit Group moves next to Custom Group pill instead of next line */
-  .edit-bucket-header-btn {
-    display: none;
-  }
-
-  .button.ghost.edit-bucket-title-btn {
-    display: inline-grid !important;
-    place-items: center;
-    box-sizing: border-box;
-    width: 24px;
-    height: 24px;
-    min-width: 24px;
-    min-height: 24px;
-    position: relative;
-    padding: 0;
-    border-width: 1px;
-    border-style: solid;
-    border-radius: 4px;
-    color: var(--obsidian-purple) !important;
-    border-color: var(--chrome-border) !important;
-    background: var(--obsidian-surface-container-high, var(--c-211e29)) !important;
-    gap: 0;
-    box-shadow: none;
-    flex-shrink: 0;
-    cursor: pointer;
-    vertical-align: middle;
-    transition: background 150ms ease, transform 100ms ease, border-color 150ms ease, color 150ms ease;
-  }
-
-  .button.ghost.edit-bucket-title-btn::before {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    min-width: 44px;
-    min-height: 44px;
-  }
-
-  .button.ghost.edit-bucket-title-btn svg {
-    width: 13px;
-    height: 13px;
-    color: var(--obsidian-purple) !important;
-    transition: color 150ms ease;
-  }
-
-  .button.ghost.edit-bucket-title-btn:hover:not(:disabled),
-  .button.ghost.edit-bucket-title-btn:focus-visible {
-    color: var(--c-ffffff) !important;
-    border-color: var(--obsidian-purple-strong) !important;
-    background: var(--purple-surface) !important;
-    box-shadow: none !important;
-  }
-
-  .button.ghost.edit-bucket-title-btn:hover:not(:disabled) svg,
-  .button.ghost.edit-bucket-title-btn:focus-visible svg {
-    color: var(--c-ffffff) !important;
-  }
-
-  .button.ghost.edit-bucket-title-btn:active:not(:disabled) {
-    background: var(--purple-surface-active) !important;
-    border-color: var(--obsidian-purple-strong) !important;
-    color: var(--c-ffffff) !important;
-    box-shadow: none !important;
-    transform: scale(0.95);
-  }
-
-  .button.ghost.edit-bucket-title-btn:active:not(:disabled) svg {
-    color: var(--c-ffffff) !important;
-  }
-}
-
-@media (min-width: 861px) {
-  .edit-bucket-title-btn {
-    display: none;
   }
 }
 

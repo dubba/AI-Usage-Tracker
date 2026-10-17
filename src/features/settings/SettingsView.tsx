@@ -216,7 +216,7 @@ export function SettingsView({
                   disabled={updateBusy !== null}
                   onClick={onInstallUpdate}
                 >
-                  <ArrowUpCircleIcon className="settings-update-action-icon" />
+                  <DownloadCloudIcon className="settings-update-action-icon" />
                   <span>{updateInstallLabel(updateBusy, isIOS())}</span>
                 </button>
               ) : (
@@ -226,7 +226,7 @@ export function SettingsView({
                   disabled={updateBusy !== null}
                   onClick={onCheckForUpdate}
                 >
-                  <DownloadCloudIcon className="settings-update-action-icon" />
+                  <ArrowUpCircleIcon className="settings-update-action-icon" />
                   <span>{updateBusy === "checking" ? "Checking…" : "Check Now"}</span>
                 </button>
               )}

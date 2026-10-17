@@ -218,7 +218,7 @@ export function AccountsView(props: {
             {props.selectedGroup.type === "bucket" && props.selectedGroup.bucket ? (
               <button
                 type="button"
-                className="button ghost edit-bucket-title-btn"
+                className="edit-bucket-title-btn"
                 onClick={() => props.onEditBucket?.(props.selectedGroup.bucket!)}
                 aria-label="Edit Group"
                 data-tooltip="Edit Group"
@@ -229,19 +229,6 @@ export function AccountsView(props: {
           </div>
           <p className="dashboard-description">{dashboardDescription(props.selectedGroup, props.accounts.length)}</p>
         </div>
-        {props.selectedGroup.type === "bucket" && props.selectedGroup.bucket ? (
-          <div className="header-actions">
-            <button
-              type="button"
-              className="button ghost edit-bucket-header-btn"
-              onClick={() => props.onEditBucket?.(props.selectedGroup.bucket!)}
-              aria-label="Edit Group"
-              data-tooltip="Edit Group"
-            >
-              <EditIcon /><span className="edit-bucket-label">Edit Group</span>
-            </button>
-          </div>
-        ) : null}
       </header>
 
       <div ref={scrollRef} className="dashboard-scroll">
