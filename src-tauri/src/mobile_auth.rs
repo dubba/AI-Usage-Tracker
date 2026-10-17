@@ -76,24 +76,61 @@ const POPUP_SHIM_SCRIPT: &str = r#"
 const BACK_FRAGMENT: &str = "ai-usage-tracker-back";
 
 /// The single-WebView login has no browser chrome, so this adds a fixed
-/// "Back to AI Usage Tracker" button to the top-left of every provider page.
+/// "Back to AI Usage Tracker" button and an opaque matching header bar to the
+/// top of every provider page, and pads the document so provider page content
+/// begins below the button and status bar without overlap.
 /// Tapping it sets the fragment below, which the poll loop treats as a
 /// cancel: the attempt is abandoned and the app page is restored.
 ///
 /// Antigravity's page is `accounts.google.com`, which requires Trusted Types
-/// and rejects `innerHTML`. The button is built with DOM APIs and attached to
-/// `<html>`, then put back if that page removes it.
+/// and rejects `innerHTML`. The elements are built with DOM APIs and attached to
+/// `<html>`, then put back if that page removes them.
 #[cfg_attr(not(any(test, mobile)), allow(dead_code))]
 const BACK_BUTTON_SCRIPT: &str = r#"
 (() => {
   try {
+    if (window.top !== window.self) return;
     const root = document.documentElement;
     if (!root) return;
-    const id = '__ai_tracker_back';
+    const offset = 'calc(max(env(safe-area-inset-top, 0px), 28px) + 44px)';
+    const headerId = '__ai_tracker_header';
+    const buttonId = '__ai_tracker_back';
+    const getBg = () => {
+      try {
+        const parse = (c) => (c && c !== 'transparent' && c !== 'rgba(0, 0, 0, 0)') ? c : null;
+        const bodyBg = document.body && parse(window.getComputedStyle(document.body).backgroundColor);
+        if (bodyBg) return bodyBg;
+        const rootBg = parse(window.getComputedStyle(root).backgroundColor);
+        if (rootBg) return rootBg;
+      } catch (e) {}
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? '#131314' : '#ffffff';
+    };
     const install = () => {
-      if (!document.documentElement || document.getElementById(id)) return;
+      const docEl = document.documentElement;
+      if (!docEl) return;
+      if (docEl.style.getPropertyValue('padding-top') !== offset) {
+        docEl.style.setProperty('box-sizing', 'border-box', 'important');
+        docEl.style.setProperty('padding-top', offset, 'important');
+      }
+      if (document.body && document.body.style.boxSizing !== 'border-box') {
+        document.body.style.setProperty('box-sizing', 'border-box', 'important');
+      }
+      let header = document.getElementById(headerId);
+      if (!header) {
+        header = document.createElement('div');
+        header.id = headerId;
+        header.setAttribute('aria-hidden', 'true');
+        docEl.appendChild(header);
+      }
+      header.style.cssText = [
+        'position:fixed', 'top:0', 'left:0', 'right:0', 'width:100%',
+        'height:' + offset, 'z-index:2147483646', 'background:' + getBg(),
+        'pointer-events:none',
+      ].join(';');
+
+      if (document.getElementById(buttonId)) return;
       const button = document.createElement('button');
-      button.id = id;
+      button.id = buttonId;
       button.type = 'button';
       button.setAttribute('aria-label', 'Back to AI Usage Tracker');
       button.style.cssText = [
@@ -126,12 +163,12 @@ const BACK_BUTTON_SCRIPT: &str = r#"
         event.stopPropagation();
         location.hash = 'ai-usage-tracker-back';
       }, true);
-      document.documentElement.appendChild(button);
+      docEl.appendChild(button);
     };
     install();
-    if (window.__aiTrackerBackRoot !== document.documentElement) {
-      window.__aiTrackerBackRoot = document.documentElement;
-      new MutationObserver(install).observe(document.documentElement, { childList: true });
+    if (window.__aiTrackerBackRoot !== root) {
+      window.__aiTrackerBackRoot = root;
+      new MutationObserver(install).observe(root, { childList: true });
     }
   } catch (e) {}
 })();
@@ -506,6 +543,9 @@ mod tests {
         assert!(BACK_BUTTON_SCRIPT.contains("m15 18-6-6 6-6"));
         assert!(BACK_BUTTON_SCRIPT.contains("createElementNS"));
         assert!(!BACK_BUTTON_SCRIPT.contains("innerHTML"));
+        assert!(BACK_BUTTON_SCRIPT.contains("__ai_tracker_header"));
+        assert!(BACK_BUTTON_SCRIPT.contains("padding-top"));
+        assert!(BACK_BUTTON_SCRIPT.contains("box-sizing"));
         assert!(IOS_POPUP_SCRIPT.contains("window.open"));
         // Google Identity Services popups keep the native window.open so window.opener works.
         assert!(IOS_POPUP_SCRIPT.contains("nativeOpen.apply"));
@@ -528,6 +568,9 @@ mod tests {
             assert!(chrome.contains("scheme == \"file\""));
             assert!(chrome.contains("scheme == \"content\""));
             assert!(!chrome.contains("button.innerHTML"));
+            assert!(chrome.contains("__ai_tracker_header"));
+            assert!(chrome.contains("padding-top"));
+            assert!(chrome.contains("box-sizing"));
         }
         let lookalike = "https://accounts.google.com/#ai-usage-tracker-back-extra";
         assert_ne!(

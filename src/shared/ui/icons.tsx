@@ -121,14 +121,14 @@ export const FlipCameraIcon = (props: IconProps) => (
 
 export const PlayIcon = (props: IconProps) => (
   <Base {...props}>
-    <polygon points="6 3 20 12 6 21 6 3" />
+    <polygon points="6 3 20 12 6 21 6 3" fill="currentColor" />
   </Base>
 );
 
 export const PauseIcon = (props: IconProps) => (
   <Base {...props}>
-    <rect x="5" y="4" width="4" height="16" rx="1" />
-    <rect x="15" y="4" width="4" height="16" rx="1" />
+    <rect x="5" y="4" width="4" height="16" rx="1" fill="currentColor" />
+    <rect x="15" y="4" width="4" height="16" rx="1" fill="currentColor" />
   </Base>
 );
 

@@ -14,7 +14,7 @@ export const STORAGE_KEYS = {
   theme: "ai-usage-tracker:theme",
   /** sessionStorage: survives a reload during sign-in, not an app restart. */
   loginAttempt: "ai-usage-tracker:login-attempt",
-  /** "1" once the touch-only "hold and drag to reorder" hint was dismissed or the user reordered. */
+  /** "1" once the touch-only "press and drag to reorder" hint was dismissed or the user reordered. */
   reorderHintSeen: "ai-usage-tracker:reorder-hint-seen",
 } as const;
 

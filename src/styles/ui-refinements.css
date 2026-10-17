@@ -1362,6 +1362,21 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   cursor: not-allowed;
 }
 
+/* Settings: buttons match the 44px height and 6px radius of the dropdown triggers for visual parity and touch targets */
+.settings-style-content .settings-card .button,
+.settings-style-content .settings-update-action,
+.settings-style-content .settings-changelog-button {
+  min-height: 44px;
+  border-radius: 6px !important;
+}
+
+/* Modals: action buttons (Cancel, Save, Back, Create Group, Connect, etc.) use 44px height and 6px radius */
+.modal-card .button:not(.compact-button):not(.ui-modal-close),
+.modal-actions .button:not(.compact-button) {
+  min-height: 44px;
+  border-radius: 6px !important;
+}
+
 /* Settings: toggles match the purple hover of the View / Link Devices buttons.
    The outline is drawn outside the track so it never shrinks it or shifts the knob. */
 .settings-style-content .toggle {
@@ -1796,16 +1811,15 @@ html::after {
   color: #ffffff !important;
 }
 
-/* Settings is open: keep the fill and add a ring so it still reads as selected. The ring is 85%
-   opaque so it is at least 3:1 against the sidebar in both themes (40% was about 1.7:1). */
+/* Settings is open: keep the fill and add a light purple ring so it still reads as selected. */
 :root .sidebar-settings-btn.active:not(.sidebar-refresh-btn),
 :root .sidebar-settings-btn.active:not(.sidebar-refresh-btn):hover,
 :root .sidebar-settings-btn.active:not(.sidebar-refresh-btn):active:not(:disabled),
 :root .sidebar-settings-btn.active:not(.sidebar-refresh-btn):focus-visible {
   color: #ffffff;
-  border-color: var(--obsidian-purple-strong) !important;
+  border-color: var(--sidebar-settings-ring) !important;
   background: var(--purple-fill) !important;
-  box-shadow: 0 0 0 2px rgb(var(--purple-accent-rgb) / 0.85);
+  box-shadow: 0 0 0 2px var(--sidebar-settings-ring);
 }
 
 /* Keyboard focus on the selected Settings button sits outside its selected ring. */
@@ -1813,11 +1827,11 @@ html::after {
   outline-offset: 6px;
 }
 
-/* Light theme: the selected ring is the same purple as the button, so it only reads as a bigger
-   button. A gap in the sidebar color between the button and a full-strength ring separates them. */
+/* Light theme: matches dark mode with a light purple circle directly around the active Settings button. */
 :root[data-theme="light"] .sidebar-settings-btn.active:not(.sidebar-refresh-btn),
 :root[data-theme="light"] .sidebar-settings-btn.active:not(.sidebar-refresh-btn):hover,
 :root[data-theme="light"] .sidebar-settings-btn.active:not(.sidebar-refresh-btn):active:not(:disabled),
 :root[data-theme="light"] .sidebar-settings-btn.active:not(.sidebar-refresh-btn):focus-visible {
-  box-shadow: 0 0 0 2px var(--c-171616), 0 0 0 4px var(--purple-accent);
+  border-color: var(--sidebar-settings-ring) !important;
+  box-shadow: 0 0 0 2px var(--sidebar-settings-ring);
 }

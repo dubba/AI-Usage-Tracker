@@ -25,8 +25,8 @@ import type {
   AccountBucket,
   Provider,
 } from "../../types";
-import { persistVisibleAccountOrder, subscribeReordering } from "../reorder";
-import { isMobileDevice } from "../../shared/lib/platform";
+import { persistVisibleAccountOrder } from "../reorder";
+import { UI_EVENTS } from "../../shared/lib/events";
 import { STORAGE_KEYS, storageGet, storageSet } from "../../shared/lib/storage";
 import { moveAnnouncement, moveById } from "../reorder/reorder-utils";
 import { AccountDashboardCard, REORDER_HINT_ID } from "./AccountDashboardCard";
@@ -118,16 +118,18 @@ export function AccountsView(props: {
     storageSet(STORAGE_KEYS.reorderHintSeen, "1");
     setReorderHintSeen(true);
   }, []);
-  const showReorderHint = canReorder && !reorderHintSeen && isMobileDevice();
+  const showReorderHint = canReorder && !reorderHintSeen;
 
-  // Someone who has already reordered doesn't need the hint.
+  // Dismiss the hint permanently once the user actually reorders a card or group.
   useEffect(() => {
     if (!showReorderHint) return;
-    let dragged = false;
-    return subscribeReordering((active) => {
-      if (active) dragged = true;
-      else if (dragged) markReorderHintSeen();
-    });
+    const onReorder = () => markReorderHintSeen();
+    window.addEventListener(UI_EVENTS.pageOrderChanged, onReorder);
+    window.addEventListener(UI_EVENTS.groupOrderChanged, onReorder);
+    return () => {
+      window.removeEventListener(UI_EVENTS.pageOrderChanged, onReorder);
+      window.removeEventListener(UI_EVENTS.groupOrderChanged, onReorder);
+    };
   }, [showReorderHint, markReorderHintSeen]);
 
   const moveAccount = (account: Account, delta: -1 | 1) => {
@@ -284,7 +286,7 @@ export function AccountsView(props: {
 
         {showReorderHint ? (
           <div className="reorder-hint-banner" role="note">
-            <span>Hold and drag a card to reorder</span>
+            <span>Press and drag a card below or in the sidebar to reorder</span>
             <button
               type="button"
               className="reorder-hint-dismiss"

@@ -185,3 +185,42 @@ describe("AccountsView summary cards", () => {
   });
 });
 
+describe("AccountsView reorder hint banner", () => {
+  let app: Mounted | null = null;
+
+  afterEach(() => {
+    app?.unmount();
+    app = null;
+    vi.unstubAllGlobals();
+    localStorage.clear();
+  });
+
+  it("shows the reorder hint banner on desktop and dismisses when clicked", () => {
+    app = renderView({
+      allAccounts: [account, { ...account, id: "acct-2" }],
+      accounts: [account, { ...account, id: "acct-2" }],
+      selectedGroup: { ...allGroup, accounts: [account, { ...account, id: "acct-2" }] },
+    });
+    const banner = document.querySelector(".reorder-hint-banner");
+    expect(banner).not.toBeNull();
+    expect(banner?.textContent).toContain("Press and drag a card below or in the sidebar to reorder");
+
+    const dismissBtn = banner?.querySelector<HTMLButtonElement>(".reorder-hint-dismiss");
+    expect(dismissBtn).not.toBeNull();
+    click(dismissBtn!);
+    expect(document.querySelector(".reorder-hint-banner")).toBeNull();
+  });
+
+  it("shows the reorder hint banner on mobile devices", () => {
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)" });
+    app = renderView({
+      allAccounts: [account, { ...account, id: "acct-2" }],
+      accounts: [account, { ...account, id: "acct-2" }],
+      selectedGroup: { ...allGroup, accounts: [account, { ...account, id: "acct-2" }] },
+    });
+    const banner = document.querySelector(".reorder-hint-banner");
+    expect(banner).not.toBeNull();
+    expect(banner?.textContent).toContain("Press and drag a card below or in the sidebar to reorder");
+  });
+});
+

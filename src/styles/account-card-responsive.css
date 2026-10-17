@@ -9,7 +9,7 @@
   align-items: flex-start;
   justify-content: center;
   align-self: flex-end;
-  max-height: 42px;
+  margin-bottom: 0px;
   min-width: 0;
 }
 
@@ -30,7 +30,8 @@
 .provider-account-card .account-card-email {
   min-width: 0;
   max-width: 100%;
-  margin: 3px 0 0;
+  margin: 1px 0 0;
+  padding-bottom: 2px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

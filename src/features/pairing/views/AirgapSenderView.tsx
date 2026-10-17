@@ -78,7 +78,7 @@ export function AirgapSenderView({
               </span>
               <button
                 type="button"
-                className="button ghost compact-button airgap-control-btn"
+                className="button primary compact-button airgap-control-btn airgap-play-btn"
                 onClick={onTogglePlaying}
                 aria-label={playing ? "Pause animation" : "Play animation"}
               >

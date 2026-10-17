@@ -1249,6 +1249,8 @@
   display: inline-flex;
   align-items: center;
   padding: 3px 10px;
+  min-height: 32px;
+  box-sizing: border-box;
   font-size: 0.75rem;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   background: var(--obsidian-surface-low);
@@ -1258,12 +1260,15 @@
 }
 
 .airgap-control-btn {
-  height: 24px;
+  min-height: 32px;
   padding: 0 10px;
   font-size: 0.75rem;
   border-radius: 6px;
-  border-color: var(--obsidian-border);
   gap: 4px;
+}
+
+.airgap-control-btn:not(.primary) {
+  border-color: var(--obsidian-border);
 }
 
 .airgap-control-btn svg {
@@ -1271,7 +1276,17 @@
   height: 8px;
 }
 
-.airgap-control-btn:hover {
+.airgap-control-btn.airgap-play-btn {
+  gap: 6px;
+  font-weight: 600;
+}
+
+.airgap-control-btn.airgap-play-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.airgap-control-btn:not(.primary):hover {
   border-color: var(--obsidian-purple-strong);
   color: var(--c-ffffff);
 }

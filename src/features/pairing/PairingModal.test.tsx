@@ -741,8 +741,12 @@ describe("air-gap transfer: sending", () => {
 
   it("pauses, resumes, and changes speed", async () => {
     await openSender();
+    expect(button("Pause").classList.contains("primary")).toBe(true);
+    expect(button("Pause").classList.contains("airgap-play-btn")).toBe(true);
     await press("Pause");
     expect(button("Play")).toBeDefined();
+    expect(button("Play").classList.contains("primary")).toBe(true);
+    expect(button("Play").classList.contains("airgap-play-btn")).toBe(true);
     await press("Play");
     expect(text()).toContain("Speed: Normal");
     await press("Speed: Normal");

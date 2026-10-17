@@ -574,13 +574,48 @@ fn oauth_popup_window_methods() -> String {
     val signInBackButtonJs = """
       (() => {
         try {
+          if (window.top !== window.self) return;
           const root = document.documentElement;
           if (!root) return;
-          const id = '__ai_tracker_back';
+          const offset = 'calc(max(env(safe-area-inset-top, 0px), 28px) + 44px)';
+          const headerId = '__ai_tracker_header';
+          const buttonId = '__ai_tracker_back';
+          const getBg = () => {
+            try {
+              const parse = (c) => (c && c !== 'transparent' && c !== 'rgba(0, 0, 0, 0)') ? c : null;
+              const bodyBg = document.body && parse(window.getComputedStyle(document.body).backgroundColor);
+              if (bodyBg) return bodyBg;
+              const rootBg = parse(window.getComputedStyle(root).backgroundColor);
+              if (rootBg) return rootBg;
+            } catch (e) {}
+            return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? '#131314' : '#ffffff';
+          };
           const install = () => {
-            if (!document.documentElement || document.getElementById(id)) return;
+            const docEl = document.documentElement;
+            if (!docEl) return;
+            if (docEl.style.getPropertyValue('padding-top') !== offset) {
+              docEl.style.setProperty('box-sizing', 'border-box', 'important');
+              docEl.style.setProperty('padding-top', offset, 'important');
+            }
+            if (document.body && document.body.style.boxSizing !== 'border-box') {
+              document.body.style.setProperty('box-sizing', 'border-box', 'important');
+            }
+            let header = document.getElementById(headerId);
+            if (!header) {
+              header = document.createElement('div');
+              header.id = headerId;
+              header.setAttribute('aria-hidden', 'true');
+              docEl.appendChild(header);
+            }
+            header.style.cssText = [
+              'position:fixed', 'top:0', 'left:0', 'right:0', 'width:100%',
+              'height:' + offset, 'z-index:2147483646', 'background:' + getBg(),
+              'pointer-events:none',
+            ].join(';');
+
+            if (document.getElementById(buttonId)) return;
             const button = document.createElement('button');
-            button.id = id;
+            button.id = buttonId;
             button.type = 'button';
             button.setAttribute('aria-label', 'Back to AI Usage Tracker');
             button.style.cssText = [
@@ -613,12 +648,12 @@ fn oauth_popup_window_methods() -> String {
               event.stopPropagation();
               location.hash = 'ai-usage-tracker-back';
             }, true);
-            document.documentElement.appendChild(button);
+            docEl.appendChild(button);
           };
           install();
-          if (window.__aiTrackerBackRoot !== document.documentElement) {
-            window.__aiTrackerBackRoot = document.documentElement;
-            new MutationObserver(install).observe(document.documentElement, { childList: true });
+          if (window.__aiTrackerBackRoot !== root) {
+            window.__aiTrackerBackRoot = root;
+            new MutationObserver(install).observe(root, { childList: true });
           }
         } catch (e) {}
       })();
