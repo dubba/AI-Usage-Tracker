@@ -652,6 +652,39 @@ fn status_from_github_latest(
     )
 }
 
+/// The release notes and publish date for the update window. The signed manifest's `notes` have
+/// been empty since v0.4.1, so when they are, and GitHub's latest release is the same version, the
+/// window shows that release's body and its ISO publish date instead. Anything else stays as the
+/// manifest gave it, so a different version's notes are never shown.
+fn notes_for_update(
+    manifest_body: Option<String>,
+    manifest_date: Option<String>,
+    version: &str,
+    github: Option<&GitHubLatestRelease>,
+) -> (Option<String>, Option<String>) {
+    if manifest_body
+        .as_deref()
+        .is_some_and(|body| !body.trim().is_empty())
+    {
+        return (manifest_body, manifest_date);
+    }
+    let bare = |value: &str| value.trim().trim_start_matches(['v', 'V']).to_string();
+    let Some(release) = github.filter(|release| bare(&release.version) == bare(version)) else {
+        return (manifest_body, manifest_date);
+    };
+    match release
+        .body
+        .as_deref()
+        .filter(|body| !body.trim().is_empty())
+    {
+        Some(body) => (
+            Some(body.to_string()),
+            release.published_at.clone().or(manifest_date),
+        ),
+        None => (manifest_body, manifest_date),
+    }
+}
+
 pub static PENDING_UPDATE_NOTICE: parking_lot::Mutex<Option<String>> =
     parking_lot::Mutex::new(None);
 
@@ -739,11 +772,33 @@ pub async fn check_for_app_update(
                         }
                     }
 
+                    // latest.json carries no release notes, so ask GitHub for them. The GitHub
+                    // client has its own timeout, and a failure just leaves the notes empty.
+                    let manifest_has_notes = update
+                        .body
+                        .as_deref()
+                        .is_some_and(|body| !body.trim().is_empty());
+                    let github = if manifest_has_notes {
+                        None
+                    } else {
+                        fetch_github_latest_release(
+                            beta_updates_wanted(state.inner().as_ref()),
+                            required_update_asset(),
+                        )
+                        .await
+                        .ok()
+                    };
+                    let (body, date) = notes_for_update(
+                        update.body,
+                        update.date.map(|date| date.to_string()),
+                        &available_version,
+                        github.as_ref(),
+                    );
                     return Ok(AppUpdateStatus::available(
                         current_version,
                         available_version,
-                        update.date.map(|date| date.to_string()),
-                        update.body,
+                        date,
+                        body,
                     ));
                 }
                 Ok(Ok(None)) => {}
@@ -936,6 +991,88 @@ pub async fn install_app_update(
 
 #[cfg(test)]
 mod tests {
+    fn github_release(
+        version: &str,
+        body: Option<&str>,
+        published_at: Option<&str>,
+    ) -> GitHubLatestRelease {
+        GitHubLatestRelease {
+            version: version.to_string(),
+            tag: format!("v{version}"),
+            published_at: published_at.map(str::to_string),
+            body: body.map(str::to_string),
+            apk_url: None,
+            apk_sha256_url: None,
+        }
+    }
+
+    #[test]
+    fn notes_from_the_manifest_are_kept() {
+        let release = github_release("0.4.6", Some("From GitHub"), Some("2026-10-17T03:41:55Z"));
+        let (body, date) = notes_for_update(
+            Some("From the manifest".into()),
+            Some("2026-10-17 3:51:37.748 +00:00:00".into()),
+            "0.4.6",
+            Some(&release),
+        );
+        assert_eq!(body.as_deref(), Some("From the manifest"));
+        assert_eq!(date.as_deref(), Some("2026-10-17 3:51:37.748 +00:00:00"));
+    }
+
+    #[test]
+    fn empty_manifest_notes_use_the_matching_github_release() {
+        let release = github_release(
+            "0.4.6",
+            Some("## v0.4.6\n\n- A change."),
+            Some("2026-10-17T03:41:55Z"),
+        );
+        for empty in [None, Some(String::new()), Some("  \n".to_string())] {
+            let (body, date) = notes_for_update(
+                empty,
+                Some("2026-10-17 3:51:37.748 +00:00:00".into()),
+                "v0.4.6",
+                Some(&release),
+            );
+            assert_eq!(body.as_deref(), Some("## v0.4.6\n\n- A change."));
+            assert_eq!(date.as_deref(), Some("2026-10-17T03:41:55Z"));
+        }
+    }
+
+    #[test]
+    fn another_versions_notes_are_never_used() {
+        let release = github_release("0.4.7", Some("Newer notes"), Some("2026-10-18T00:00:00Z"));
+        let (body, date) = notes_for_update(
+            Some(String::new()),
+            Some("2026-10-17 3:51:37.748 +00:00:00".into()),
+            "0.4.6",
+            Some(&release),
+        );
+        assert_eq!(body.as_deref(), Some(""));
+        assert_eq!(date.as_deref(), Some("2026-10-17 3:51:37.748 +00:00:00"));
+    }
+
+    #[test]
+    fn missing_github_data_leaves_the_manifest_values() {
+        let (body, date) = notes_for_update(
+            None,
+            Some("2026-10-17 3:51:37.748 +00:00:00".into()),
+            "0.4.6",
+            None,
+        );
+        assert_eq!(body, None);
+        assert_eq!(date.as_deref(), Some("2026-10-17 3:51:37.748 +00:00:00"));
+
+        let no_body = github_release("0.4.6", None, Some("2026-10-17T03:41:55Z"));
+        let (body, date) = notes_for_update(
+            None,
+            Some("2026-10-17 3:51:37.748 +00:00:00".into()),
+            "0.4.6",
+            Some(&no_body),
+        );
+        assert_eq!(body, None);
+        assert_eq!(date.as_deref(), Some("2026-10-17 3:51:37.748 +00:00:00"));
+    }
+
     use super::*;
 
     #[test]
