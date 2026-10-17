@@ -6,6 +6,7 @@ import type { UpdateBusy } from "../../types";
 import { cleanReleaseNotes, formatReleaseDate } from "./releaseNotesText";
 import { UpdateErrorMessage } from "./UpdateErrorMessage";
 import { UpdateProgressBar, updateInstallLabel } from "./UpdateProgressBar";
+import { ArrowUpCircleIcon } from "../../shared/ui/icons";
 import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
 
 interface Block {
@@ -261,7 +262,8 @@ export function UpdateNotesModal({
                 onInstallUpdate();
               }}
             >
-              {updateInstallLabel(updateBusy ?? null)}
+              <ArrowUpCircleIcon className="settings-update-action-icon" />
+              <span>{updateInstallLabel(updateBusy ?? null)}</span>
             </button>
           ) : null}
         </div>

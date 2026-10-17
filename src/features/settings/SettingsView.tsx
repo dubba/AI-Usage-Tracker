@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  ArrowUpCircleIcon,
   ChevronIcon,
   DevicesIcon,
   DownloadCloudIcon,
@@ -215,7 +216,8 @@ export function SettingsView({
                   disabled={updateBusy !== null}
                   onClick={onInstallUpdate}
                 >
-                  {updateInstallLabel(updateBusy, isIOS())}
+                  <ArrowUpCircleIcon className="settings-update-action-icon" />
+                  <span>{updateInstallLabel(updateBusy, isIOS())}</span>
                 </button>
               ) : (
                 <button

@@ -99,6 +99,15 @@ export const DownloadCloudIcon = (props: IconProps) => (
   </Base>
 );
 
+/** A circle with an upward arrow: "upgrade to a newer version". */
+export const ArrowUpCircleIcon = (props: IconProps) => (
+  <Base {...props}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="m16 12-4-4-4 4" />
+    <path d="M12 16V8" />
+  </Base>
+);
+
 export const FlipCameraIcon = (props: IconProps) => (
   <Base {...props}>
     <path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5" />
