@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased (21 changes)
+## Unreleased (22 changes)
 
-### Improved (17)
+### Improved (18)
 
 - The Account and Group buttons use the same text weight as Check Now, Link Devices, and Settings.
+- Antigravity accounts now report the latest Antigravity release version to Google. The app reads the newest release number from Google's public Antigravity changelog once a day and uses it when it asks for usage limits, so new limit groups (such as the separate Gemini 4 Argon limit) appear without waiting for an app update. If the changelog cannot be read, it reports the last known-good release.
 
 - The DASHBOARD title, the sidebar title, the Current Version label, and the email and countdown on the Account connected page now use a lighter purple, so they read clearly on the dark background.
 - In the light theme, selected and hovered rows, cards, and buttons use a clean pale lavender instead of a muddy gray-purple.

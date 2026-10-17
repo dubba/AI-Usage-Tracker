@@ -6,23 +6,49 @@ use super::{
 };
 use crate::google_client::{client_secret, CLIENT_ID};
 use crate::{
+    diagnostics,
     model::{Account, OAuthSecret, ProviderSecret, UsageWindow},
     state::AppState,
     store::save_provider_secret,
 };
+use parking_lot::RwLock;
 use reqwest::StatusCode;
 use serde_json::{json, Map, Value};
 use std::collections::HashSet;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 const TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 const USERINFO_URL: &str = "https://www.googleapis.com/oauth2/v2/userinfo";
 const CLOUD_CODE_BASE: &str = "https://daily-cloudcode-pa.googleapis.com";
 /// Google decides which quota groups to return from the client version in the
-/// User-Agent: 1.x only receives the Claude and GPT group, while 2.23.1 and
-/// newer also receive the Gemini group. Keep this at the current Antigravity
-/// release.
-const IDE_VERSION: &str = "2.23.1";
+/// User-Agent: 1.x only receives the Claude and GPT group, 2.23.1 and newer
+/// also receive the Gemini group, and a newer release can be required for new
+/// groups (Gemini 4 Argon). The newest release is read from the public
+/// changelog feed below once a day; this floor is the lowest version ever
+/// reported and the fallback when the feed cannot be read. Raise it whenever a
+/// known-good release is newer.
+const MIN_IDE_VERSION: &str = "2.24.0";
+/// Antigravity's public docs changelog as markdown. The first release link
+/// with `tab=hub` is the newest Antigravity App release; the CLI, IDE, and SDK
+/// sections link other tabs.
+const CHANGELOG_URL: &str = "https://antigravity.google/docs/changelog.md";
+/// How long a successfully parsed release stays fresh before it is read again.
+const VERSION_CACHE_TTL: Duration = Duration::from_secs(24 * 60 * 60);
+/// A failed feed read is retried at most hourly, so an unreachable docs site
+/// cannot slow every account refresh with a request timeout.
+const VERSION_FAILURE_RETRY: Duration = Duration::from_secs(60 * 60);
+/// The changelog page is far smaller than this; anything bigger is rejected
+/// without parsing.
+const MAX_CHANGELOG_BYTES: usize = 2 * 1024 * 1024;
+
+struct CachedIdeVersion {
+    version: String,
+    parsed: bool,
+    fetched_at: Instant,
+}
+
+static IDE_VERSION_CACHE: RwLock<Option<CachedIdeVersion>> = RwLock::new(None);
 
 pub async fn refresh(
     app: &AppState,
@@ -50,19 +76,119 @@ pub async fn refresh(
     Ok((result, secret))
 }
 
+/// The Antigravity App version this client reports to Google: the newest
+/// release from the public changelog feed, or the pinned floor when the feed
+/// is unreachable, unreadable, or older than the floor.
+async fn resolve_ide_version(app: &AppState) -> String {
+    if let Some(version) = cached_ide_version() {
+        return version;
+    }
+    let fetched = fetch_latest_hub_version(app).await;
+    let (version, parsed) = match fetched.as_deref() {
+        Some(version) if version_at_least(version, MIN_IDE_VERSION) => (version.to_string(), true),
+        _ => {
+            diagnostics::warn(
+                "Unable to read the Antigravity release feed. Reporting the pinned version.",
+            );
+            (MIN_IDE_VERSION.to_string(), false)
+        }
+    };
+    *IDE_VERSION_CACHE.write() = Some(CachedIdeVersion {
+        version: version.clone(),
+        parsed,
+        fetched_at: Instant::now(),
+    });
+    version
+}
+
+fn cached_ide_version() -> Option<String> {
+    let cache = IDE_VERSION_CACHE.read();
+    let entry = cache.as_ref()?;
+    let ttl = if entry.parsed {
+        VERSION_CACHE_TTL
+    } else {
+        VERSION_FAILURE_RETRY
+    };
+    (entry.fetched_at.elapsed() < ttl).then(|| entry.version.clone())
+}
+
+async fn fetch_latest_hub_version(app: &AppState) -> Option<String> {
+    // The docs CDN can serve a stale edge copy; a daily cache-buster keeps the
+    // feed at most a day behind without defeating the cache for everyone.
+    let day = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|since| since.as_secs() / 86_400)
+        .unwrap_or(0);
+    let response = app
+        .client
+        .get(format!("{CHANGELOG_URL}?fresh={day}"))
+        .send()
+        .await
+        .ok()?;
+    if !response.status().is_success() {
+        return None;
+    }
+    if response
+        .content_length()
+        .is_some_and(|length| length as usize > MAX_CHANGELOG_BYTES)
+    {
+        return None;
+    }
+    let body = response.bytes().await.ok()?;
+    if body.len() > MAX_CHANGELOG_BYTES {
+        return None;
+    }
+    parse_latest_hub_version(std::str::from_utf8(&body).ok()?)
+}
+
+/// The changelog lists each release newest-first as
+/// `### [v2.24.0](/releases?tab=hub&version=2.24.0 "View release 2.24.0")`.
+/// Only Antigravity App releases link `tab=hub`, so the first such link is
+/// the newest App release. The link's closing bracket is the one the marker
+/// search finds, so the version is whatever sits between `[v` and it.
+fn parse_latest_hub_version(body: &str) -> Option<String> {
+    let start = body.find("](/releases?tab=hub")?;
+    let head = body.get(..start)?;
+    let open = head.rfind("[v")?;
+    let version = head.get(open + 2..)?;
+    version_tuple(version)?;
+    Some(version.to_string())
+}
+
+/// `(major, minor, patch)` for a plain numeric version like "2.24.0".
+fn version_tuple(version: &str) -> Option<(u64, u64, u64)> {
+    let mut parts = version.split('.');
+    let tuple = (
+        parts.next()?.parse().ok()?,
+        parts.next()?.parse().ok()?,
+        parts.next()?.parse().ok()?,
+    );
+    parts.next().is_none().then_some(tuple)
+}
+
+fn version_at_least(version: &str, floor: &str) -> bool {
+    match (version_tuple(version), version_tuple(floor)) {
+        (Some(version), Some(floor)) => version >= floor,
+        _ => false,
+    }
+}
+
 async fn fetch_usage(
     app: &AppState,
     account: &Account,
     secret: &OAuthSecret,
 ) -> Result<ProviderUsage, ProviderError> {
+    let ide_version = resolve_ide_version(app).await;
+
     let load = cloud_code_post(
         app,
         "/v1internal:loadCodeAssist",
         &json!({
-            "metadata": metadata(None),
+            "metadata": metadata(None, &ide_version),
             "mode": "FULL_ELIGIBILITY_CHECK"
         }),
         &secret.access_token,
+        &ide_version,
     )
     .await?;
 
@@ -89,6 +215,7 @@ async fn fetch_usage(
         "/v1internal:retrieveUserQuotaSummary",
         &json!({ "project": project_id }),
         &secret.access_token,
+        &ide_version,
     )
     .await;
 
@@ -105,6 +232,7 @@ async fn fetch_usage(
             "/v1internal:fetchAvailableModels",
             &json!({ "project": project_id }),
             &secret.access_token,
+            &ide_version,
         )
         .await?;
         windows = parse_available_models(&models);
@@ -139,6 +267,7 @@ async fn cloud_code_post(
     path: &str,
     payload: &Value,
     access_token: &str,
+    ide_version: &str,
 ) -> Result<Value, ProviderError> {
     let response = app
         .client
@@ -146,7 +275,7 @@ async fn cloud_code_post(
         .bearer_auth(access_token)
         .header("Accept", "application/json")
         .header("Content-Type", "application/json")
-        .header("User-Agent", user_agent())
+        .header("User-Agent", user_agent(ide_version))
         .header("x-activity-request-id", Uuid::new_v4().to_string())
         .json(payload)
         .send()
@@ -226,11 +355,11 @@ async fn fetch_email(app: &AppState, access_token: &str) -> Result<String, Provi
         })
 }
 
-fn metadata(duet_project: Option<&str>) -> Value {
+fn metadata(duet_project: Option<&str>, ide_version: &str) -> Value {
     let mut value = Map::new();
     value.insert("ideName".into(), Value::String("antigravity".into()));
     value.insert("ideType".into(), Value::String("ANTIGRAVITY".into()));
-    value.insert("ideVersion".into(), Value::String(IDE_VERSION.into()));
+    value.insert("ideVersion".into(), Value::String(ide_version.into()));
     value.insert(
         "pluginVersion".into(),
         Value::String(env!("CARGO_PKG_VERSION").into()),
@@ -255,7 +384,7 @@ fn platform() -> &'static str {
     }
 }
 
-fn user_agent() -> String {
+fn user_agent(ide_version: &str) -> String {
     let os = match std::env::consts::OS {
         "macos" => "darwin",
         other => other,
@@ -265,7 +394,7 @@ fn user_agent() -> String {
         "aarch64" => "arm64",
         other => other,
     };
-    format!("antigravity/{IDE_VERSION} {os}/{arch}")
+    format!("antigravity/{ide_version} {os}/{arch}")
 }
 
 fn extract_project_id(value: Option<&Value>) -> Option<String> {
@@ -535,6 +664,83 @@ fn slug(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const CHANGELOG_SNIPPET: &str = "# Changelog\n\n\
+        New versions roll out gradually.\n\n\
+        ## Antigravity App\n\n\
+        ### [v2.24.0](/releases?tab=hub&version=2.24.0 \"View release 2.24.0\")\n\n\
+        Latest\n\n\
+        October 15, 2026\n\n\
+        ### [v2.23.1](/releases?tab=hub&version=2.23.1 \"View release 2.23.1\")\n\n\
+        October 13, 2026\n\n\
+        ## Antigravity CLI\n\n\
+        ### [v1.4.0](/releases?tab=cli&version=1.4.0 \"View release 1.4.0\")\n";
+
+    #[test]
+    fn parses_latest_hub_release_from_changelog() {
+        assert_eq!(
+            parse_latest_hub_version(CHANGELOG_SNIPPET).as_deref(),
+            Some("2.24.0")
+        );
+    }
+
+    #[test]
+    fn changelog_without_a_usable_hub_release_is_rejected() {
+        // Negative checks: a hostile or restructured page must never yield a
+        // version, so the pinned floor is reported instead.
+        assert_eq!(parse_latest_hub_version(""), None);
+        assert_eq!(
+            parse_latest_hub_version("# Changelog\n\nnothing here\n"),
+            None
+        );
+        // CLI and IDE sections use other tabs and must be ignored.
+        assert_eq!(
+            parse_latest_hub_version(
+                "### [v1.4.0](/releases?tab=cli&version=1.4.0 \"View release 1.4.0\")\n"
+            ),
+            None
+        );
+        // A hub link whose version is not plain numbers is rejected.
+        assert_eq!(
+            parse_latest_hub_version("### [vlatest](/releases?tab=hub \"View release\")\n"),
+            None
+        );
+        assert_eq!(
+            parse_latest_hub_version("### [v2.24.0.7](/releases?tab=hub \"View release\")\n"),
+            None
+        );
+        assert_eq!(
+            parse_latest_hub_version("### [v 2.24.0](/releases?tab=hub \"View release\")\n"),
+            None
+        );
+        // A hub link with no version bracket before it is rejected.
+        assert_eq!(
+            parse_latest_hub_version("Plain text with a stray ](/releases?tab=hub link\n"),
+            None
+        );
+    }
+
+    #[test]
+    fn versions_below_the_floor_are_never_reported() {
+        assert!(version_at_least("2.24.0", MIN_IDE_VERSION));
+        assert!(version_at_least("3.0.0", MIN_IDE_VERSION));
+        assert!(version_at_least("2.25.0", MIN_IDE_VERSION));
+        assert!(!version_at_least("2.23.1", MIN_IDE_VERSION));
+        assert!(!version_at_least("2.24", MIN_IDE_VERSION));
+        assert!(!version_at_least("", MIN_IDE_VERSION));
+        assert!(!version_at_least("2.24.0-beta.1", MIN_IDE_VERSION));
+    }
+
+    #[test]
+    fn user_agent_and_metadata_carry_the_resolved_version() {
+        assert!(user_agent("2.24.0").starts_with("antigravity/2.24.0 "));
+        let value = metadata(None, "2.24.0");
+        assert_eq!(value["ideVersion"], "2.24.0");
+        assert_eq!(value["ideName"], "antigravity");
+        let with_project = metadata(Some("my-project"), "2.25.0");
+        assert_eq!(with_project["duetProject"], "my-project");
+        assert_eq!(with_project["ideVersion"], "2.25.0");
+    }
 
     #[test]
     fn parses_grouped_quota_summary() {
