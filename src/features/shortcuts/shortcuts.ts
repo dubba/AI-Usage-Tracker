@@ -13,7 +13,7 @@ export interface ShortcutKeyEvent {
 
 /** The shortcuts, in the order they are listed in Settings. `key` is the lower-case `event.key`. */
 export const SHORTCUTS: ReadonlyArray<{ action: ShortcutAction; key: string; label: string }> = [
-  { action: "refreshAll", key: "r", label: "Refresh all accounts" },
+  { action: "refreshAll", key: "u", label: "Update all accounts" },
   { action: "addAccount", key: "n", label: "Add an account" },
   { action: "addGroup", key: "g", label: "Add a group" },
   { action: "openSettings", key: ",", label: "Open Settings" },
@@ -23,7 +23,7 @@ export function isMacPlatform(): boolean {
   return typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent);
 }
 
-/** "⌘R" on macOS, "Ctrl+R" elsewhere. */
+/** "⌘U" on macOS, "Ctrl+U" elsewhere (for the update-all shortcut). */
 export function shortcutLabel(key: string, mac: boolean): string {
   const shown = key.length === 1 ? key.toUpperCase() : key;
   return mac ? `⌘${shown}` : `Ctrl+${shown}`;
