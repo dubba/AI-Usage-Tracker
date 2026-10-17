@@ -14,8 +14,14 @@ export const STORAGE_KEYS = {
   theme: "ai-usage-tracker:theme",
   /** sessionStorage: survives a reload during sign-in, not an app restart. */
   loginAttempt: "ai-usage-tracker:login-attempt",
-  /** "1" once the touch-only "press and drag to reorder" hint was dismissed or the user reordered. */
+  /** "1" once the user has completed a reorder gesture or keyboard reorder. */
   reorderHintSeen: "ai-usage-tracker:reorder-hint-seen",
+  /** Number of newly opened app sessions (up to 2) where the reorder hint was eligible to be shown. */
+  reorderHintOpenCount: "ai-usage-tracker:reorder-hint-open-count",
+  /** sessionStorage: "1" once this session has been counted toward the open count. */
+  reorderHintSessionCounted: "ai-usage-tracker:reorder-hint-session-counted",
+  /** sessionStorage: "1" if the reorder hint was dismissed in the current session. */
+  reorderHintSessionDismissed: "ai-usage-tracker:reorder-hint-session-dismissed",
 } as const;
 
 export const STORAGE_PREFIXES = {

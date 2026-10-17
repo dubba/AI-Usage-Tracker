@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { click, mount, type Mounted } from "../../test-utils/react";
 import type { Account, AccountBucket } from "../../types";
@@ -193,6 +194,7 @@ describe("AccountsView reorder hint banner", () => {
     app = null;
     vi.unstubAllGlobals();
     localStorage.clear();
+    sessionStorage.clear();
   });
 
   it("shows the reorder hint banner on desktop and dismisses when clicked", () => {
@@ -221,6 +223,61 @@ describe("AccountsView reorder hint banner", () => {
     const banner = document.querySelector(".reorder-hint-banner");
     expect(banner).not.toBeNull();
     expect(banner?.textContent).toContain("Press and drag a card below or in the sidebar to reorder");
+  });
+
+  it("appears on the first 2 opens and stops appearing on the 3rd open", () => {
+    const props = {
+      allAccounts: [account, { ...account, id: "acct-2" }],
+      accounts: [account, { ...account, id: "acct-2" }],
+      selectedGroup: { ...allGroup, accounts: [account, { ...account, id: "acct-2" }] },
+    };
+
+    // Open #1
+    app = renderView(props);
+    expect(document.querySelector(".reorder-hint-banner")).not.toBeNull();
+    // Dismiss in session 1
+    click(document.querySelector<HTMLButtonElement>(".reorder-hint-dismiss")!);
+    expect(document.querySelector(".reorder-hint-banner")).toBeNull();
+    app.unmount();
+
+    // Open #2 (new session: clear sessionStorage, keep localStorage)
+    sessionStorage.clear();
+    app = renderView(props);
+    expect(document.querySelector(".reorder-hint-banner")).not.toBeNull();
+    app.unmount();
+
+    // Open #3 (new session)
+    sessionStorage.clear();
+    app = renderView(props);
+    expect(document.querySelector(".reorder-hint-banner")).toBeNull();
+  });
+
+  it("permanently dismisses when an actual reorder event occurs", () => {
+    const props = {
+      allAccounts: [account, { ...account, id: "acct-2" }],
+      accounts: [account, { ...account, id: "acct-2" }],
+      selectedGroup: { ...allGroup, accounts: [account, { ...account, id: "acct-2" }] },
+    };
+
+    // Open #1: banner is shown
+    app = renderView(props);
+    expect(document.querySelector(".reorder-hint-banner")).not.toBeNull();
+
+    // Trigger an actual reorder event
+    act(() => {
+      window.dispatchEvent(new CustomEvent("ai-subscription-tracker:page-order-changed", {
+        detail: { pageId: "all", order: ["acct-2", account.id] },
+      }));
+    });
+
+    // Banner is dismissed immediately
+    expect(document.querySelector(".reorder-hint-banner")).toBeNull();
+    app.unmount();
+
+    // Open #2: does not appear because reorder completed
+    sessionStorage.clear();
+    app = renderView(props);
+    expect(document.querySelector(".reorder-hint-banner")).toBeNull();
   });
 });
 

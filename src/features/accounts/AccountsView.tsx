@@ -45,6 +45,27 @@ const EMPTY_STATE_PROVIDERS: { provider: Provider; brand: string; product: strin
   { provider: "grok", brand: "xAI", product: "Grok" },
 ];
 
+export const MAX_REORDER_HINT_OPENS = 2;
+
+export function checkReorderHintEligibility(canReorder: boolean, reorderCompleted: boolean): boolean {
+  if (!canReorder || reorderCompleted) return false;
+  const sessionDismissed = storageGet(STORAGE_KEYS.reorderHintSessionDismissed, "session") === "1";
+  if (sessionDismissed) return false;
+
+  const sessionCounted = storageGet(STORAGE_KEYS.reorderHintSessionCounted, "session") === "1";
+  const stored = parseInt(storageGet(STORAGE_KEYS.reorderHintOpenCount) ?? "0", 10) || 0;
+
+  if (sessionCounted) {
+    return stored <= MAX_REORDER_HINT_OPENS;
+  }
+
+  // Count this open session towards the total
+  const next = stored + 1;
+  storageSet(STORAGE_KEYS.reorderHintOpenCount, String(next));
+  storageSet(STORAGE_KEYS.reorderHintSessionCounted, "1", "session");
+  return next <= MAX_REORDER_HINT_OPENS;
+}
+
 function dashboardDescription(group: SidebarGroup, accountCount: number): string {
   const count = formatCount(accountCount, ACCOUNT_FORMS);
   if (group.type === "bucket") return `Usage across ${count} in this group.`;
@@ -113,29 +134,46 @@ export function AccountsView(props: {
 
   // Moving within a filtered subset would reorder against a partial list, so it is only offered on the full page.
   const canReorder = !showAttentionOnly && displayedAccounts.length > 1;
-  const [reorderHintSeen, setReorderHintSeen] = useState(() => storageGet(STORAGE_KEYS.reorderHintSeen) === "1");
-  const markReorderHintSeen = useCallback(() => {
-    storageSet(STORAGE_KEYS.reorderHintSeen, "1");
-    setReorderHintSeen(true);
+  const [reorderCompleted, setReorderCompleted] = useState(
+    () => storageGet(STORAGE_KEYS.reorderHintSeen) === "1",
+  );
+  const [sessionDismissed, setSessionDismissed] = useState(
+    () => storageGet(STORAGE_KEYS.reorderHintSessionDismissed, "session") === "1",
+  );
+
+  const isEligible = useMemo(
+    () => checkReorderHintEligibility(canReorder, reorderCompleted),
+    [canReorder, reorderCompleted],
+  );
+
+  const showReorderHint = isEligible && !sessionDismissed;
+
+  const dismissReorderHint = useCallback(() => {
+    storageSet(STORAGE_KEYS.reorderHintSessionDismissed, "1", "session");
+    setSessionDismissed(true);
   }, []);
-  const showReorderHint = canReorder && !reorderHintSeen;
+
+  const completeReorderHint = useCallback(() => {
+    storageSet(STORAGE_KEYS.reorderHintSeen, "1");
+    setReorderCompleted(true);
+  }, []);
 
   // Dismiss the hint permanently once the user actually reorders a card or group.
   useEffect(() => {
     if (!showReorderHint) return;
-    const onReorder = () => markReorderHintSeen();
+    const onReorder = () => completeReorderHint();
     window.addEventListener(UI_EVENTS.pageOrderChanged, onReorder);
     window.addEventListener(UI_EVENTS.groupOrderChanged, onReorder);
     return () => {
       window.removeEventListener(UI_EVENTS.pageOrderChanged, onReorder);
       window.removeEventListener(UI_EVENTS.groupOrderChanged, onReorder);
     };
-  }, [showReorderHint, markReorderHintSeen]);
+  }, [showReorderHint, completeReorderHint]);
 
   const moveAccount = (account: Account, delta: -1 | 1) => {
     const move = moveById(displayedAccounts.map((candidate) => candidate.id), account.id, delta);
     if (!move) return;
-    if (showReorderHint) markReorderHintSeen();
+    if (showReorderHint) completeReorderHint();
     void persistVisibleAccountOrder(move.ids, props.selectedGroup.id);
     setAnnouncement(moveAnnouncement(displayAccountLabel(account), move.to, move.ids.length));
   };
@@ -290,7 +328,7 @@ export function AccountsView(props: {
             <button
               type="button"
               className="reorder-hint-dismiss"
-              onClick={markReorderHintSeen}
+              onClick={dismissReorderHint}
               aria-label="Dismiss reorder hint"
             >
               <CloseIcon />
