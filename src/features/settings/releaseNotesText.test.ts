@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanReleaseNotes } from "./releaseNotesText";
+import { cleanReleaseNotes, formatReleaseDate } from "./releaseNotesText";
 
 const body = `## v0.4.1 - 2026-10-12 (3 changes)
 
@@ -47,5 +47,24 @@ describe("cleanReleaseNotes", () => {
 
   it("leaves plain changelog text untouched", () => {
     expect(cleanReleaseNotes("### Fixed (1)\n\n- A fix.\n")).toBe("### Fixed (1)\n\n- A fix.");
+  });
+});
+
+describe("formatReleaseDate", () => {
+  const readable = (value: string | null) => value !== null && /2026/.test(value) && !value.includes(":");
+
+  it("reads the date the desktop updater prints", () => {
+    expect(readable(formatReleaseDate("2026-10-17 3:51:37.748 +00:00:00"))).toBe(true);
+    expect(readable(formatReleaseDate("2026-10-17 13:51:37 -05:00:00"))).toBe(true);
+  });
+
+  it("reads GitHub's ISO timestamps", () => {
+    expect(readable(formatReleaseDate("2026-10-17T03:41:55Z"))).toBe(true);
+  });
+
+  it("returns nothing for a missing date and the raw text for an unreadable one", () => {
+    expect(formatReleaseDate(null)).toBeNull();
+    expect(formatReleaseDate("")).toBeNull();
+    expect(formatReleaseDate("sometime last week")).toBe("sometime last week");
   });
 });

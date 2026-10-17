@@ -3,7 +3,7 @@ import { isAllowedExternalUrl } from "../../shared/lib/safeUrl";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { backdropMouseDown } from "../../shared/hooks/useModalClosePolicy";
 import type { UpdateBusy } from "../../types";
-import { cleanReleaseNotes } from "./releaseNotesText";
+import { cleanReleaseNotes, formatReleaseDate } from "./releaseNotesText";
 import { UpdateErrorMessage } from "./UpdateErrorMessage";
 import { UpdateProgressBar, updateInstallLabel } from "./UpdateProgressBar";
 import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
@@ -141,17 +141,6 @@ function renderTokens(tokens: InlineToken[], onOpenLink: OpenLink, parentKey = "
 
 function renderInline(text: string, onOpenLink: OpenLink): ReactNode {
   return renderTokens(parseInlineTokens(text), onOpenLink);
-}
-
-function formatReleaseDate(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
 }
 
 export function UpdateNotesModal({
