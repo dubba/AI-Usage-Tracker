@@ -206,15 +206,6 @@ export function SettingsView({
                   )}
                 </div>
                 )}
-                {!updateBusy && update?.available && update.availableVersion && onOpenUpdateNotes ? (
-                  <button
-                    type="button"
-                    className="settings-view-changelog-link"
-                    onClick={onOpenUpdateNotes}
-                  >
-                    {`View what changed in v${update.availableVersion.replace(/^v/i, "")}`}
-                  </button>
-                ) : null}
               </div>
               {update?.available ? (
                 <button
@@ -235,6 +226,17 @@ export function SettingsView({
                   {updateBusy === "checking" ? "Checking…" : "Check Now"}
                 </button>
               )}
+              {!updateBusy && update?.available && update.availableVersion && onOpenUpdateNotes ? (
+                <div className="settings-updates-subcard-link-row">
+                  <button
+                    type="button"
+                    className="settings-view-changelog-link"
+                    onClick={onOpenUpdateNotes}
+                  >
+                    {`View what changed in v${update.availableVersion.replace(/^v/i, "")}`}
+                  </button>
+                </div>
+              ) : null}
               <UpdateProgressBar busy={updateBusy} percent={updateProgress?.percent ?? null} />
               {updateMessage ? <div className="info-panel settings-update-info">{updateMessage}</div> : null}
               {updateError ? <UpdateErrorMessage error={updateError} onOpenLink={onOpenLink} /> : null}

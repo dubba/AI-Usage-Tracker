@@ -1818,6 +1818,15 @@ button.account-card-provider-icon:active {
   font-weight: 600;
 }
 
+/* The link sits on its own row below the version and the button, so the button stays centered
+   against the two lines it sits beside whether it says Check Now or Update. The negative margin
+   cancels most of the card's row gap to keep the link close to the status line. */
+.settings-updates-subcard-link-row {
+  flex: 1 0 100%;
+  min-width: 0;
+  margin-top: -10px;
+}
+
 .settings-view-changelog-link {
   display: inline-flex;
   align-items: center;
@@ -3465,6 +3474,10 @@ select.text-input option,
   .settings-account-refresh {
     width: auto;
     max-width: max-content;
+  .settings-updates-subcard-link-row {
+    margin-top: -6px;
+  }
+
     flex: 0 0 auto;
   }
 
