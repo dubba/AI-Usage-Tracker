@@ -1,8 +1,10 @@
 # Changelog
 
-## Unreleased (20 changes)
+## Unreleased (21 changes)
 
-### Improved (16)
+### Improved (17)
+
+- The Account and Group buttons use the same text weight as Check Now, Link Devices, and Settings.
 
 - The DASHBOARD title, the sidebar title, the Current Version label, and the email and countdown on the Account connected page now use a lighter purple, so they read clearly on the dark background.
 - In the light theme, selected and hovered rows, cards, and buttons use a clean pale lavender instead of a muddy gray-purple.
