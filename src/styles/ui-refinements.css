@@ -978,7 +978,8 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 /* Persistent, dismissible error banners */
 .app-error-stack {
   position: fixed;
-  top: calc(12px + var(--safe-area-top, 0px));
+  /* Below the page header (the hamburger and the title) so the banner does not cover them. */
+  top: calc(64px + var(--safe-area-top, 0px));
   left: 50%;
   transform: translateX(-50%);
   z-index: var(--z-error-banner, 10200);
@@ -992,9 +993,9 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .app-error-banner {
   pointer-events: auto;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
-  padding: 11px 12px 11px 14px;
+  padding: 6px 6px 6px 14px;
   border-radius: 10px;
   background: var(--danger-banner-surface);
   border: 1px solid var(--danger-banner-border);
@@ -1011,18 +1012,26 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .app-error-dismiss {
+  position: relative;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 10px;
-  min-width: 44px;
-  min-height: 44px;
+  padding: 0;
+  min-width: 28px;
+  min-height: 28px;
   border: none;
   border-radius: 6px;
   background: transparent;
   color: var(--c-ffaaaa);
   cursor: pointer;
+}
+
+/* The button is 28px so a one-line banner stays slim; this keeps the 44px touch target. */
+.app-error-dismiss::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
 }
 
 .app-error-dismiss svg {
