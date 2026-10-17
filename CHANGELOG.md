@@ -1,6 +1,29 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (17 changes)
+
+### Improved (15)
+
+- The Update button in Settings and in the What changed window has a circled up-arrow icon to the left of its label.
+- The Check Now button in Settings has a cloud-download icon to the left of its label.
+- Error banners (such as "Sign-in failed: Sign-in was canceled.") are as tall as their text instead of a fixed tall box, and sit below the page header so they no longer cover the menu button and title.
+- On account cards, the provider button icon is now 44px with a 28px inner icon on desktop and 40px with a 26px inner icon on mobile, giving comfortable touch targets with balanced icon spacing.
+- The sidebar Refresh All button is now called "Update all accounts", and its keyboard shortcut is Cmd+U (Ctrl+U on Windows) instead of Cmd+R (Ctrl+R).
+- On account cards, the account name, rename button, and email sit slightly higher with padded email text, preventing font descenders (such as the "y" in Yahoo) from being cut off.
+- On mobile, provider sign-in pages now display below the "Back to AI Usage Tracker" button and status bar with a matching header bar so page content is never overlapped.
+- In both the dark and light themes, the active Settings button in the sidebar now has an even lighter purple circle around it.
+- The reorder hint banner now displays on both desktop and mobile during the first two app launches (or until dismissed for the session), and is dismissed permanently once an account or group is reordered.
+- In the Link Devices air-gap transfer screen, the Play and Pause animation button now uses the same solid purple style and filled icon as the Back button.
+- In the Add Account provider menu, the descriptions for ChatGPT, Claude, and Antigravity now say "using Browser OAuth" without repeating the company names.
+- Inline utility buttons (such as Select All in the group picker, air-gap playback controls, and camera retry) now use a 32px height for easier tapping.
+- Action buttons in dialogs (Cancel, Save, Back, Create Group, Connect, and Delete) now use a comfortable 44px height and rounded corners, matching the Settings controls and mobile touch targets.
+- The buttons in Settings (Check Now, Link Devices, View, and Copy) now use the same 44px height and rounded corners as the dropdowns, giving controls consistent touch targets and alignment across the page.
+- The Usage Notifications dialog on a computer is as wide as the other dialogs instead of wider, so the threshold dropdown no longer sits far from its window's checkbox.
+
+### Fixed (2)
+
+- The What changed window for an update now shows the release's changes instead of "No detailed release notes were provided", and shows the publish date as a short date instead of raw timestamp text.
+- In Settings, the update button stays where Check Now was when it changes to Update and the View what changed link appears. The link now sits on its own line below.
 
 ## v0.4.6 - 2026-10-16 (22 changes)
 
