@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   ChevronIcon,
   DevicesIcon,
+  DownloadCloudIcon,
   ExternalLinkIcon,
   MenuIcon,
 } from "../../shared/ui/icons";
@@ -223,7 +224,8 @@ export function SettingsView({
                   disabled={updateBusy !== null}
                   onClick={onCheckForUpdate}
                 >
-                  {updateBusy === "checking" ? "Checking…" : "Check Now"}
+                  <DownloadCloudIcon className="settings-update-action-icon" />
+                  <span>{updateBusy === "checking" ? "Checking…" : "Check Now"}</span>
                 </button>
               )}
               {!updateBusy && update?.available && update.availableVersion && onOpenUpdateNotes ? (

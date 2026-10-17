@@ -90,6 +90,15 @@ export const DevicesIcon = (props: IconProps) => (
   </Base>
 );
 
+/** A cloud with a downward arrow: "download an available update". */
+export const DownloadCloudIcon = (props: IconProps) => (
+  <Base {...props}>
+    <path d="M4.4 15.3A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.4 8.3" />
+    <path d="M12 13v8l-4-4" />
+    <path d="m12 21 4-4" />
+  </Base>
+);
+
 export const FlipCameraIcon = (props: IconProps) => (
   <Base {...props}>
     <path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5" />
