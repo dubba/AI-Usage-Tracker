@@ -1,11 +1,17 @@
 # Changelog
 
-## Unreleased (2 changes)
+## Unreleased (5 changes)
 
-### Improved (2)
+### Fixed (1)
+
+- The Delete Group button stays red while the pointer is over it.
+
+### Improved (4)
 
 - The pen button next to the group name and pill now shares the same solid purple fill, white icon, and responsive touch styling as the rename button on account cards across desktop and mobile.
 - In Settings and the What changed window, the Check Now and Update button icons are swapped: Check Now has a circled up-arrow icon to the left of its label, and Update has a cloud-download icon.
+- The Update button in Settings and in the What changed window uses a deeper, richer green background.
+- In empty groups, the Edit Group button uses the solid purple primary button styling matching Check Now and Link Devices.
 
 ## v0.4.7 - 2026-10-17 (17 changes)
 

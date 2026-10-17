@@ -861,7 +861,7 @@ button.button.ghost.empty-provider-other:active:not(:disabled) {
 }
 
 .button.ghost:hover:not(:disabled),
-.button:hover:not(:disabled):not(.primary):not(.settings-update-action-danger):not(.remove-confirm-button) {
+.button:hover:not(:disabled):not(.primary):not(.settings-update-action-danger):not(.remove-confirm-button):not(.bucket-delete-button) {
   background: var(--c-222121) !important;
   border-color: var(--obsidian-purple-strong) !important;
 }
@@ -1895,19 +1895,24 @@ button.account-card-provider-icon:active {
 /* Shared by Settings and the What's Changed modal. */
 .settings-update-action.settings-update-action-danger,
 .update-notes-actions .settings-update-action {
-  background: #1a9d56 !important;
-  border: 1px solid #22b463 !important;
+  background: #147d44 !important;
+  border: 1px solid #1a9d56 !important;
   color: #ffffff !important;
 }
 
 .settings-update-action.settings-update-action-danger:hover:not(:disabled),
 .settings-update-action.settings-update-action-danger:focus-visible,
-.settings-update-action.settings-update-action-danger:active:not(:disabled),
 .update-notes-actions .settings-update-action:hover:not(:disabled),
-.update-notes-actions .settings-update-action:focus-visible,
+.update-notes-actions .settings-update-action:focus-visible {
+  background: #189250 !important;
+  border-color: #20a85c !important;
+  color: #ffffff !important;
+}
+
+.settings-update-action.settings-update-action-danger:active:not(:disabled),
 .update-notes-actions .settings-update-action:active:not(:disabled) {
-  background: #20b062 !important;
-  border-color: #2bc572 !important;
+  background: #106637 !important;
+  border-color: #178749 !important;
   color: #ffffff !important;
 }
 
@@ -2771,9 +2776,16 @@ select.text-input option,
   border-color: #d94a4a !important;
 }
 
-.button.ghost.bucket-delete-button:hover {
+.button.ghost.bucket-delete-button:hover:not(:disabled),
+.button.ghost.bucket-delete-button:focus-visible:not(:disabled) {
   background: #d93d3d !important;
   border-color: #ff6464 !important;
+  color: #fff !important;
+}
+
+.button.ghost.bucket-delete-button:active:not(:disabled) {
+  background: #b52828 !important;
+  border-color: #a82020 !important;
   color: #fff !important;
 }
 

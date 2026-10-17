@@ -140,6 +140,28 @@ describe("AccountsView empty dashboard", () => {
     click(editBtn!);
     expect(onEditBucket).toHaveBeenCalledWith(workBucket);
   });
+
+  it("renders Edit Group as a primary button in empty custom groups and triggers onEditBucket", () => {
+    const onEditBucket = vi.fn();
+    const onDeleteBucket = vi.fn();
+    app = renderView({
+      selectedGroup: bucketGroup,
+      onEditBucket,
+      onDeleteBucket,
+    });
+    const editBtn = document.querySelector<HTMLButtonElement>(".edit-bucket-empty-btn");
+    expect(editBtn).not.toBeNull();
+    expect(editBtn?.classList.contains("primary")).toBe(true);
+    expect(editBtn?.textContent).toContain("Edit Group");
+    click(editBtn!);
+    expect(onEditBucket).toHaveBeenCalledWith(workBucket);
+
+    const deleteBtn = document.querySelector<HTMLButtonElement>(".bucket-delete-button");
+    expect(deleteBtn).not.toBeNull();
+    expect(deleteBtn?.textContent).toContain("Delete Group");
+    click(deleteBtn!);
+    expect(onDeleteBucket).toHaveBeenCalledWith(workBucket);
+  });
 });
 
 describe("AccountsView summary cards", () => {

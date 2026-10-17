@@ -367,7 +367,7 @@ export function AccountsView(props: {
                 <>
                   {props.selectedGroup.type === "bucket" && props.selectedGroup.bucket ? (
                     <>
-                      <button type="button" className="button ghost edit-bucket-empty-btn" onClick={() => props.onEditBucket?.(props.selectedGroup.bucket!)}>
+                      <button type="button" className="button primary edit-bucket-empty-btn" onClick={() => props.onEditBucket?.(props.selectedGroup.bucket!)}>
                         <EditIcon /><span className="edit-bucket-label">Edit Group</span>
                       </button>
                       <button type="button" className="button ghost bucket-delete-button" onClick={() => props.onDeleteBucket?.(props.selectedGroup.bucket!)}>

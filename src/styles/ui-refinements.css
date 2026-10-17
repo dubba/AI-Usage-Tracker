@@ -1374,10 +1374,13 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   cursor: not-allowed;
 }
 
-/* Settings: buttons match the 44px height and 6px radius of the dropdown triggers for visual parity and touch targets */
+/* Settings & empty group state: buttons match the 44px height and 6px radius of the dropdown triggers and primary action buttons */
 .settings-style-content .settings-card .button,
 .settings-style-content .settings-update-action,
-.settings-style-content .settings-changelog-button {
+.settings-style-content .settings-changelog-button,
+.empty-group-actions > .button,
+.edit-bucket-empty-btn,
+.bucket-delete-button {
   min-height: 44px;
   border-radius: 6px !important;
 }
