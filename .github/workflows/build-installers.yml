@@ -514,14 +514,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ needs.check-changes.outputs.version }}
+          RELEASE_DATE: ${{ needs.check-changes.outputs.release_date }}
         run: |
           set -euo pipefail
           tag="v$VERSION"
           work=$(mktemp -d)
           gh release view "$tag" --json assets > "$work/assets.json"
           gh release download "$tag" --pattern '*.sig' --dir "$work/sigs"
+          # The app's What changed window reads the notes from latest.json; without them it
+          # says "No detailed release notes were provided".
+          node scripts/release-notes.mjs --version "$VERSION" --date "$RELEASE_DATE" --output "$work/notes.md"
           node scripts/updater-manifest.mjs --version "$VERSION" --assets "$work/assets.json" \
-            --sigs "$work/sigs" --out "$work/latest.json"
+            --sigs "$work/sigs" --notes "$work/notes.md" --out "$work/latest.json"
           gh release upload "$tag" "$work/latest.json" --clobber
 
   # The release page is the version's changelog followed by the download guide,

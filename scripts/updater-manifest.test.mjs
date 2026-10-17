@@ -82,3 +82,14 @@ test("assets from another version are ignored", () => {
     /no desktop updater bundles for 0\.4\.3/,
   );
 });
+
+test("carries the release notes into latest.json for the app's What changed window", () => {
+  const manifest = buildUpdaterManifest({
+    version: "0.4.2",
+    assets: v042,
+    signatures,
+    pubDate: "2026-10-13T03:51:42.039Z",
+    notes: "## v0.4.2\n\n- One change.",
+  });
+  assert.equal(manifest.notes, "## v0.4.2\n\n- One change.");
+});

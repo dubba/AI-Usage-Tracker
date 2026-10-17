@@ -352,6 +352,10 @@ test("latest.json is written once, after both desktop jobs", () => {
   assert.match(job[1], /needs: \[[^\]]*publish-windows[^\]]*\]/);
   assert.match(job[1], /needs: \[[^\]]*publish-macos[^\]]*\]/);
   assert.match(job[1], /node scripts\/updater-manifest\.mjs/);
+  // The app shows latest.json's notes in its What changed window and says "No detailed release
+  // notes were provided" when they are empty, so the manifest must be built with the notes.
+  assert.match(job[1], /node scripts\/release-notes\.mjs/, "the manifest job generates the notes");
+  assert.match(job[1], /updater-manifest\.mjs[^\n]*\\\n[^\n]*--notes /, "the manifest is built with --notes");
 });
 
 test("only runs on main save Rust caches", () => {
@@ -405,10 +409,10 @@ test("every job that writes the release date uses the one taken when the run sta
   const calls = installers
     .split("\n")
     .filter((line) => /node scripts\/release-notes\.mjs|--stamp-changelog/.test(line));
-  assert.equal(calls.length, 3, "create-release, commit-version-bump and release-notes");
+  assert.equal(calls.length, 4, "create-release, commit-version-bump, updater-manifest and release-notes");
   for (const line of calls) assert.match(line, /--date "\$RELEASE_DATE"/, line.trim());
   assert.equal(
     (installers.match(/RELEASE_DATE: \$\{\{ needs\.check-changes\.outputs\.release_date \}\}/g) ?? []).length,
-    3,
+    4,
   );
 });

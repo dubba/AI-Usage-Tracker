@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 // platform. Until this file exists the app ignores the release (desktop only
 // installs releases that publish latest.json), so users never see a half-built one.
 //
-//   node scripts/updater-manifest.mjs --version 0.4.3 --assets assets.json --sigs dir --out latest.json
+//   node scripts/updater-manifest.mjs --version 0.4.3 --assets assets.json --sigs dir --out latest.json [--notes notes.md]
 //
 // assets.json is `gh release view <tag> --json assets`; dir holds the release's
 // .sig files (`gh release download <tag> --pattern '*.sig'`).
@@ -30,10 +30,13 @@ const BUNDLES = [
  * is one and at the NSIS installer otherwise (beta builds ship NSIS only), as
  * tauri-action does.
  *
+ * `notes` is the release notes markdown the app shows in its "What changed" window; an update
+ * with empty notes shows "No detailed release notes were provided".
+ *
  * @param {{ version: string, assets: { name: string, apiUrl: string }[],
- *   signatures: Record<string, string>, pubDate: string }} input
+ *   signatures: Record<string, string>, pubDate: string, notes?: string }} input
  */
-export function buildUpdaterManifest({ version, assets, signatures, pubDate }) {
+export function buildUpdaterManifest({ version, assets, signatures, pubDate, notes = "" }) {
   const platforms = {};
   for (const { ending, keys } of BUNDLES) {
     const asset = assets.find((item) => item.name.endsWith(`_${version}${ending}`));
@@ -47,7 +50,7 @@ export function buildUpdaterManifest({ version, assets, signatures, pubDate }) {
   }
   const windows = platforms["windows-x86_64-msi"] ?? platforms["windows-x86_64-nsis"];
   const ordered = windows ? { "windows-x86_64": windows, ...platforms } : platforms;
-  return { version, notes: "", pub_date: pubDate, platforms: ordered };
+  return { version, notes, pub_date: pubDate, platforms: ordered };
 }
 
 function parseArgs(argv) {
@@ -77,6 +80,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     assets,
     signatures,
     pubDate: new Date().toISOString(),
+    notes: args.notes ? readFileSync(args.notes, "utf-8").trim() : "",
   });
   writeFileSync(args.out, `${JSON.stringify(manifest, null, 2)}\n`);
   console.log(`Wrote ${args.out} for ${args.version}: ${Object.keys(manifest.platforms).join(", ")}`);
