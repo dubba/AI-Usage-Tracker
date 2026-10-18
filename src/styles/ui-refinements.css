@@ -225,11 +225,23 @@
   background: var(--c-0-56-36-a720) !important;
 }
 
+.account-name-confirm:active:not(:disabled) {
+  color: var(--c-8af0c2) !important;
+  border-color: #178749 !important;
+  background: #106637 !important;
+}
+
 .account-name-cancel:hover:not(:disabled),
 .account-name-cancel:focus-visible {
   color: #fff !important;
   border-color: #ff6464 !important;
   background: #d93d3d !important;
+}
+
+.account-name-cancel:active:not(:disabled) {
+  color: #fff !important;
+  border-color: #a82020 !important;
+  background: #b52828 !important;
 }
 
 .account-card-action.notify-action {
@@ -244,6 +256,12 @@
   background: var(--c-72-41-0-a720) !important;
 }
 
+.account-card-action.notify-action:active:not(:disabled) {
+  color: var(--c-ffd19a);
+  border-color: rgba(255, 184, 105, 0.9) !important;
+  background: rgba(114, 41, 0, 0.9) !important;
+}
+
 .account-card-action.remove-action {
   color: #c53131;
   border-color: #c53131;
@@ -254,6 +272,12 @@
   color: #fff !important;
   border-color: #ff6464 !important;
   background: #d93d3d !important;
+}
+
+.account-card-action.remove-action:active:not(:disabled) {
+  color: #fff !important;
+  border-color: #a82020 !important;
+  background: #b52828 !important;
 }
 
 .account-card-action.move-action {
@@ -268,6 +292,12 @@
   background: var(--c-353335) !important;
 }
 
+.account-card-action.move-action:active:not(:disabled) {
+  color: #fff !important;
+  border-color: #fff !important;
+  background: var(--c-242323) !important;
+}
+
 .account-card-action.refresh-action {
   color: var(--obsidian-green);
   border-color: var(--obsidian-green);
@@ -278,6 +308,12 @@
   color: var(--c-8af0c2);
   border-color: rgba(78, 222, 163, 0.9) !important;
   background: var(--c-0-56-36-a720) !important;
+}
+
+.account-card-action.refresh-action:active:not(:disabled) {
+  color: var(--c-8af0c2);
+  border-color: rgba(78, 222, 163, 0.9) !important;
+  background: rgba(0, 56, 36, 0.9) !important;
 }
 
 .account-card-action,

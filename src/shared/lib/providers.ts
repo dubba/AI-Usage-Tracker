@@ -17,7 +17,7 @@ export const PROVIDER_META: Record<Provider, ProviderMeta> = {
   openai: {
     name: "ChatGPT",
     connectLabel: "OpenAI ChatGPT",
-    connectDetail: "ChatGPT Go, Plus or Pro plans using Browser OAuth",
+    connectDetail: "ChatGPT Go, Plus or Pro using Browser OAuth",
   },
   anthropic: {
     name: "Claude",

@@ -333,7 +333,7 @@ export function AddAccountModal({
               spellCheck={false}
               disabled={busy || modelsBusy}
             />
-            <div className="credential-note">When you already sign in to this provider elsewhere, entering the address selects the intended account instead of reusing the signed-in session.</div>
+            <div className="credential-note">If you've signed in to this provider before, entering an email lets you sign in with that account instead of reusing the existing session.</div>
           </>
         ) : null}
 

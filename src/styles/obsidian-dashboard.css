@@ -860,8 +860,7 @@ button.button.ghost.empty-provider-other:active:not(:disabled) {
   border: 1px solid var(--obsidian-border-strong);
 }
 
-.button.ghost:hover:not(:disabled),
-.button:hover:not(:disabled):not(.primary):not(.settings-update-action-danger):not(.remove-confirm-button):not(.bucket-delete-button) {
+.button:hover:not(:disabled):not(.primary):not(.settings-update-action-danger):not(.remove-confirm-button):not(.bucket-delete-button):not(.filter-active-clear-btn) {
   background: var(--c-222121) !important;
   border-color: var(--obsidian-purple-strong) !important;
 }
@@ -963,10 +962,17 @@ button.summary-card:focus-visible {
   color: var(--obsidian-amber);
 }
 
-.filter-active-banner .compact-button:hover {
-  background: rgba(255, 184, 105, 0.2);
-  border-color: var(--obsidian-amber);
-  color: var(--c-ffffff);
+.filter-active-banner .compact-button:hover:not(:disabled),
+.filter-active-banner .compact-button:focus-visible:not(:disabled) {
+  background: rgba(255, 184, 105, 0.2) !important;
+  border-color: var(--obsidian-amber) !important;
+  color: var(--c-ffffff) !important;
+}
+
+.filter-active-banner .compact-button:active:not(:disabled) {
+  background: rgba(255, 184, 105, 0.35) !important;
+  border-color: var(--obsidian-amber) !important;
+  color: var(--c-ffffff) !important;
 }
 
 .filter-active-banner .compact-button svg {

@@ -77,15 +77,22 @@
 }
 
 .button.remove-confirm-button {
-  color: #fff;
-  background: #c53131;
-  border-color: #d94a4a;
+  color: #fff !important;
+  background: #c53131 !important;
+  border-color: #d94a4a !important;
 }
 
-.button.remove-confirm-button:hover:not(:disabled) {
+.button.remove-confirm-button:hover:not(:disabled),
+.button.remove-confirm-button:focus-visible:not(:disabled) {
   background: #d93d3d !important;
   border-color: #ff6464 !important;
-  color: #fff;
+  color: #fff !important;
+}
+
+.button.remove-confirm-button:active:not(:disabled) {
+  background: #b52828 !important;
+  border-color: #a82020 !important;
+  color: #fff !important;
 }
 
 /* Light theme: a quiet outlined close button that turns red on hover, instead of a solid red

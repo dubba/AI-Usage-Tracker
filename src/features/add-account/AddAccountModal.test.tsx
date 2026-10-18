@@ -228,6 +228,9 @@ describe("browser sign-in providers", () => {
     render();
     const email = document.getElementById("account-email") as HTMLInputElement;
     expect(email).toBeTruthy();
+    expect(document.querySelector(".credential-note")?.textContent).toBe(
+      "If you've signed in to this provider before, entering an email lets you sign in with that account instead of reusing the existing session."
+    );
     typeInto(email, "second@example.com");
     click(primary());
     await settle();

@@ -19,4 +19,8 @@ describe("provider registry", () => {
     expect(providerName("google_ai_studio")).toBe("AI Studio");
     expect(providerName("opencode_go")).toBe("OpenCode Go");
   });
+
+  it("describes ChatGPT with Go, Plus or Pro without the word plans", () => {
+    expect(PROVIDER_META.openai.connectDetail).toBe("ChatGPT Go, Plus or Pro using Browser OAuth");
+  });
 });

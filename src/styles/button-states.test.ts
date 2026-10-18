@@ -1,0 +1,46 @@
+/// <reference types="node" />
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const STYLES = __dirname;
+const OBSIDIAN_CSS = readFileSync(join(STYLES, "obsidian-dashboard.css"), "utf8");
+const MODAL_CLOSE_CSS = readFileSync(join(STYLES, "modal-close.css"), "utf8");
+const UI_REFINEMENTS_CSS = readFileSync(join(STYLES, "ui-refinements.css"), "utf8");
+
+describe("Button hover and active state invariants", () => {
+  it("excludes danger and amber buttons from generic button:hover override", () => {
+    // Ensure the default button hover rule excludes all custom buttons so their hover states are not hijacked
+    expect(OBSIDIAN_CSS).toMatch(
+      /\.button:hover:not\(:disabled\)(?::not\(\.[a-zA-Z0-9_-]+\)){4,}/
+    );
+    expect(OBSIDIAN_CSS).toContain(":not(.bucket-delete-button)");
+    expect(OBSIDIAN_CSS).toContain(":not(.remove-confirm-button)");
+    expect(OBSIDIAN_CSS).toContain(":not(.filter-active-clear-btn)");
+    expect(OBSIDIAN_CSS).toContain(":not(.settings-update-action-danger)");
+  });
+
+  it("provides hover and active states for destructive confirmation buttons", () => {
+    // Delete Group (bucket-delete-button)
+    expect(OBSIDIAN_CSS).toContain(".button.ghost.bucket-delete-button:hover:not(:disabled)");
+    expect(OBSIDIAN_CSS).toContain(".button.ghost.bucket-delete-button:active:not(:disabled)");
+
+    // Remove Confirmation (remove-confirm-button)
+    expect(MODAL_CLOSE_CSS).toContain(".button.remove-confirm-button:hover:not(:disabled)");
+    expect(MODAL_CLOSE_CSS).toContain(".button.remove-confirm-button:focus-visible:not(:disabled)");
+    expect(MODAL_CLOSE_CSS).toContain(".button.remove-confirm-button:active:not(:disabled)");
+  });
+
+  it("provides hover and active states for the filter active banner clear button", () => {
+    expect(OBSIDIAN_CSS).toContain(".filter-active-banner .compact-button:hover:not(:disabled)");
+    expect(OBSIDIAN_CSS).toContain(".filter-active-banner .compact-button:active:not(:disabled)");
+  });
+
+  it("provides active states for account card actions and rename buttons", () => {
+    expect(UI_REFINEMENTS_CSS).toContain(".account-card-action.remove-action:active:not(:disabled)");
+    expect(UI_REFINEMENTS_CSS).toContain(".account-card-action.refresh-action:active:not(:disabled)");
+    expect(UI_REFINEMENTS_CSS).toContain(".account-card-action.notify-action:active:not(:disabled)");
+    expect(UI_REFINEMENTS_CSS).toContain(".account-name-confirm:active:not(:disabled)");
+    expect(UI_REFINEMENTS_CSS).toContain(".account-name-cancel:active:not(:disabled)");
+  });
+});
