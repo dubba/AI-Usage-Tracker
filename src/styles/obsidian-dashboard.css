@@ -2503,22 +2503,24 @@ select.text-input option,
   gap: 10px;
 }
 
+/* Same look as the sidebar's .bucket-mini-badge (uppercase lavender label on a faint purple
+   fill, no border), scaled up to sit beside the 15px page title. */
 .dashboard-bucket-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 16px;
+  height: 22px;
   box-sizing: border-box;
-  padding: 0 6px;
-  border-radius: 3px;
-  font-size: 9.5px;
+  padding: 0 8px;
+  border-radius: 4px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   line-height: 1;
+  text-transform: uppercase;
   white-space: nowrap;
-  color: var(--c-f3f0ef);
-  background: rgb(var(--purple-accent-rgb) / 0.22);
-  border: 1px solid var(--chrome-border);
+  color: var(--obsidian-purple);
+  background: rgb(var(--purple-accent-rgb) / 0.16);
   flex-shrink: 0;
 }
 

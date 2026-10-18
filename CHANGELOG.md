@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (13 changes)
+## Unreleased (14 changes)
 
 ### Added (1)
 
@@ -12,8 +12,9 @@
 - Remove confirmation buttons, the Clear Filter button, and account action buttons retain their intended red, amber, and green colors through hover and active states without reverting to gray or purple.
 - Pressing Cmd+N or Cmd+G while in Settings no longer switches to the dashboard in the background, keeping you on Settings when you exit the modal.
 
-### Improved (9)
+### Improved (10)
 
+- The Group label next to a group's title now uses the same uppercase lavender style as the Group label in the sidebar, sized to match the title.
 - The pen button next to the group name and pill now shares the same solid purple fill, white icon, and responsive touch styling as the rename button on account cards across desktop and mobile.
 - In Settings and the What changed window, the Check Now and Update button icons are swapped: Check Now has a circled up-arrow icon to the left of its label, and Update has a cloud-download icon.
 - The Update button in Settings and in the What changed window uses a deeper, richer green background.
