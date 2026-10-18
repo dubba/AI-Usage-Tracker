@@ -333,3 +333,54 @@ describe("SidebarGroupRow usage display mode", () => {
     expect(document.querySelector(".provider-average")?.textContent).toBe("80% | 9%");
   });
 });
+
+describe("SidebarGroupRow Grok Bot limit", () => {
+  let app: Mounted | null = null;
+
+  afterEach(() => {
+    app?.unmount();
+    app = null;
+  });
+
+  function grokAccount(id: string, weeklyRemaining: number, botRemaining: number | null): Account {
+    const account = makeAccount({ id, provider: "grok", weeklyRemaining });
+    if (botRemaining !== null) {
+      account.lastUsage!.windows.push({
+        id: "grok_bot",
+        label: "Grok Bot weekly",
+        usedPercent: 100 - botRemaining,
+        remainingPercent: botRemaining,
+        resetsAt: null,
+        windowSeconds: 604800,
+      });
+    }
+    return account;
+  }
+
+  const row = (accounts: Account[], provider: Provider = "grok") =>
+    mount(
+      <SidebarGroupRow
+        group={{ id: provider, type: "provider", title: "Grok", provider, accounts }}
+        selected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+
+  it("shows the Grok Bot limit before the Grok limit on a Grok-only row", () => {
+    app = row([grokAccount("g1", 16, 62)]);
+    const average = document.querySelector<HTMLElement>(".provider-average");
+    expect(average?.textContent).toBe("62% | 16%");
+    expect(average?.getAttribute("data-tooltip")).toBe("Average left: Grok Bot | Grok");
+    expect(document.querySelector(".provider-summary-row")?.getAttribute("aria-label")).toContain("Grok Bot 62%, Grok 16%");
+  });
+
+  it("shows a dash for the Grok Bot limit when no account reports one", () => {
+    app = row([grokAccount("g1", 16, null)]);
+    expect(document.querySelector(".provider-average")?.textContent).toBe("— | 16%");
+  });
+
+  it("leaves rows that mix providers on 5-hour and 7-day", () => {
+    app = row([grokAccount("g1", 16, 62), makeAccount({ id: "a1", fiveRemaining: 80, weeklyRemaining: 50 })], "anthropic");
+    expect(document.querySelector(".provider-average")?.textContent).toBe("80% | 33%");
+  });
+});

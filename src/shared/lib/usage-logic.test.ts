@@ -10,6 +10,7 @@ import {
   formatResetAtShort,
   formatUpdatedAt,
   groupAverage,
+  cardWindows,
   isMonthlyWindow,
   nextResetSummary,
   orderedWindows,
@@ -371,6 +372,23 @@ describe("windowLength", () => {
   it("falls back to monthly detection, else null", () => {
     expect(windowLength(win({ id: "monthly", label: "x", windowSeconds: null }))).toBe("30d limit");
     expect(windowLength(win({ id: "x", label: "x", windowSeconds: null }))).toBeNull();
+  });
+});
+
+describe("cardWindows", () => {
+  const grok = win({ id: "weekly", label: "SuperGrok weekly", windowSeconds: 604_800 });
+  const bot = win({ id: "grok_bot", label: "Grok Bot weekly", windowSeconds: 604_800 });
+
+  it("shows Grok Bot before the Grok window on a Grok card", () => {
+    expect(cardWindows([grok, bot], "grok").map((w) => w.id)).toEqual(["grok_bot", "weekly"]);
+  });
+
+  it("leaves a Grok card without a bot window as it was", () => {
+    expect(cardWindows([grok], "grok").map((w) => w.id)).toEqual(["weekly"]);
+  });
+
+  it("does not reorder other providers", () => {
+    expect(cardWindows([grok, bot], "openai").map((w) => w.id)).toEqual(["weekly", "grok_bot"]);
   });
 });
 

@@ -143,6 +143,19 @@ export function groupAverage(accounts: Account[], target: SidebarWindow): number
   if (!values.length) return null;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
+/** True for a sidebar row whose accounts are all Grok: its first slot shows the Grok Bot limit. */
+export function isGrokOnlyGroup(accounts: Account[]): boolean {
+  return accounts.length > 0 && accounts.every((account) => account.provider === "grok");
+}
+/** Average percent remaining of the Grok Bot limit over the accounts that report one. */
+export function grokBotAverage(accounts: Account[]): number | null {
+  const values = accounts.flatMap((account) => {
+    const remaining = account.lastUsage?.windows.find((window) => window.id === "grok_bot")?.remainingPercent;
+    return remaining != null && Number.isFinite(remaining) ? [remaining] : [];
+  });
+  if (!values.length) return null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
 export function nextResetSummary(accounts: Account[], now: number = Date.now()): NextResetSummary {
   const currentNow = Math.max(now, Date.now());
   const candidates = accounts.flatMap((account) =>
@@ -263,6 +276,16 @@ export function orderedWindows(windows: UsageWindow[]): UsageWindow[] {
     }
     return windowWeight(left) - windowWeight(right);
   });
+}
+/**
+ * The windows in the order an account card shows them. Grok Bot comes before the
+ * SuperGrok window here only; the backend still sends the SuperGrok window first, because
+ * the sidebar and alerts take the first weekly window as the account's headline limit.
+ */
+export function cardWindows(windows: UsageWindow[], provider?: Provider | string): UsageWindow[] {
+  const ordered = orderedWindows(windows);
+  if (provider !== "grok") return ordered;
+  return [...ordered.filter((w) => w.id === "grok_bot"), ...ordered.filter((w) => w.id !== "grok_bot")];
 }
 export function windowLength(window: UsageWindow): string | null {
   const id = window.id.toLowerCase().replaceAll("-", "_");

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { bridgeApi } from "../../shared/lib/api";
+import { EyeIcon, EyeOffIcon, RefreshIcon } from "../../shared/ui/icons";
 import type { BridgeInfo } from "../../types";
 
 const DETAILS_REFRESH_MS = 2_000;
@@ -10,6 +11,15 @@ function statusLabel(bridge: BridgeInfo): string {
   if (bridge.running) return "Running";
   if (bridge.error) return "Needs attention";
   return "Starting";
+}
+
+/** Same look as the Settings Copy buttons, text only. */
+function CopyButton({ label = "Copy", copied, onClick }: { label?: string; copied: boolean; onClick: () => void }) {
+  return (
+    <button type="button" className="button ghost settings-changelog-button" aria-live="polite" onClick={onClick}>
+      <span>{copied ? "Copied!" : label}</span>
+    </button>
+  );
 }
 
 export function ApiIntegrationWindow() {
@@ -46,11 +56,12 @@ export function ApiIntegrationWindow() {
     return () => window.clearInterval(interval);
   }, [load]);
 
-  // Clear the in-memory full token when hiding or unmounting so it does not
-  // linger in renderer memory longer than the reveal session.
+  // Clear the in-memory full token when hiding so it does not linger in
+  // renderer memory longer than the reveal session. (An effect cleanup that
+  // cleared it would also run as `revealed` turns true, wiping the token that
+  // was just fetched; the state is dropped with the window on unmount.)
   useEffect(() => {
     if (!revealed) setFullToken(null);
-    return () => setFullToken(null);
   }, [revealed]);
 
   const healthEndpoint = useMemo(
@@ -143,7 +154,6 @@ export function ApiIntegrationWindow() {
     <div className="bridge-window-shell">
       <header className="bridge-window-header">
         <div>
-          <span className="eyebrow">Integration details</span>
           <h1>Paseo Bridge</h1>
           <p>Local, authenticated access to sanitized AI usage data for Paseo.</p>
         </div>
@@ -162,26 +172,26 @@ export function ApiIntegrationWindow() {
       <section className="bridge-detail-card">
         <div className="bridge-detail-row">
           <div><strong>Usage endpoint</strong><small>Authenticated usage data for Paseo.</small></div>
-          <div className="bridge-detail-value"><code>{bridge.endpoint}</code><button type="button" className="button ghost" aria-live="polite" onClick={() => void copy(bridge.endpoint, "endpoint")}>{copiedKey === "endpoint" ? "Copied!" : "Copy"}</button></div>
+          <div className="bridge-detail-value"><code>{bridge.endpoint}</code><CopyButton copied={copiedKey === "endpoint"} onClick={() => void copy(bridge.endpoint, "endpoint")} /></div>
         </div>
         <div className="bridge-detail-row">
           <div><strong>Health endpoint</strong><small>Confirms that the local bridge listener is available.</small></div>
-          <div className="bridge-detail-value"><code>{healthEndpoint}</code><button type="button" className="button ghost" aria-live="polite" onClick={() => void copy(healthEndpoint, "health")}>{copiedKey === "health" ? "Copied!" : "Copy"}</button></div>
+          <div className="bridge-detail-value"><code>{healthEndpoint}</code><CopyButton copied={copiedKey === "health"} onClick={() => void copy(healthEndpoint, "health")} /></div>
         </div>
         <div className="bridge-detail-row">
           <div><strong>Bearer token</strong><small>Required in the Authorization header for usage requests. Hidden by default.</small></div>
-          <div className="bridge-detail-value bridge-token-value"><code>{displayToken}</code>{revealed ? (<button type="button" className="button ghost" onClick={() => setRevealed(false)}>Hide</button>) : (<button type="button" className="button ghost" onClick={() => void reveal()}>Reveal</button>)}<button type="button" className="button ghost" aria-live="polite" onClick={() => void copyToken()}>{copiedKey === "token" ? "Copied!" : "Copy"}</button></div>
+          <div className="bridge-detail-value bridge-token-value"><code>{displayToken}</code>{revealed ? (<button type="button" className="button primary settings-update-action" onClick={() => setRevealed(false)}><EyeOffIcon className="settings-update-action-icon" /><span>Hide</span></button>) : (<button type="button" className="button primary settings-update-action" onClick={() => void reveal()}><EyeIcon className="settings-update-action-icon" /><span>Reveal</span></button>)}<CopyButton copied={copiedKey === "token"} onClick={() => void copyToken()} /></div>
         </div>
         <div className="bridge-detail-row">
           <div><strong>Rotate token</strong><small>Existing Paseo configuration stops working until its token is replaced.</small></div>
-          <button type="button" className="button ghost" disabled={busy || !bridge.enabled} onClick={() => void rotateToken()}>{busy ? "Rotating…" : "Regenerate"}</button>
+          <button type="button" className="button primary settings-update-action" disabled={busy || !bridge.enabled} onClick={() => void rotateToken()}><RefreshIcon className="settings-update-action-icon" /><span>{busy ? "Rotating…" : "Regenerate"}</span></button>
         </div>
       </section>
 
       <section className="bridge-config-card">
         <div className="bridge-config-heading">
           <div><strong>Environment configuration</strong><small>Add these values to Paseo's external provider-usage adapter.</small></div>
-          <button type="button" className="button ghost" aria-live="polite" onClick={() => void copyEnv()}>{copiedKey === "env" ? "Copied!" : "Copy All"}</button>
+          <CopyButton label="Copy All" copied={copiedKey === "env"} onClick={() => void copyEnv()} />
         </div>
         <pre>{environment}</pre>
       </section>

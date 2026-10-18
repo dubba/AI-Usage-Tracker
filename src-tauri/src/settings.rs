@@ -14,6 +14,10 @@ pub const MAX_ACCOUNT_REFRESH_MINUTES: u64 = 60;
 pub const ACCOUNT_REFRESH_STEP_MINUTES: u64 = 5;
 /// The intervals the Settings dropdown offers; stored values are snapped to the closest one.
 const OFFERED_REFRESH_MINUTES: [u64; 6] = [5, 10, 15, 30, 45, 60];
+/// Bounds, in logical pixels, for the remembered Paseo Bridge window size. A hand-edited or
+/// corrupt value outside them is dropped instead of being handed to the window system.
+const MIN_REMEMBERED_WINDOW_PIXELS: u32 = 200;
+const MAX_REMEMBERED_WINDOW_PIXELS: u32 = 16_384;
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -42,6 +46,9 @@ struct StoredAppSettings {
     autostart_enabled: bool,
     #[serde(default)]
     last_notified_update_version: Option<String>,
+    /// Logical (width, height) of the Paseo Bridge window the last time it was closed.
+    #[serde(default)]
+    api_integration_window_size: Option<(u32, u32)>,
 }
 
 impl Default for StoredAppSettings {
@@ -54,6 +61,7 @@ impl Default for StoredAppSettings {
             include_beta_updates: false,
             autostart_enabled: false,
             last_notified_update_version: None,
+            api_integration_window_size: None,
         }
     }
 }
@@ -94,6 +102,12 @@ impl SettingsStore {
         settings.account_refresh_minutes = snap_refresh_minutes(settings.account_refresh_minutes)
             .unwrap_or(DEFAULT_ACCOUNT_REFRESH_MINUTES);
         settings.version = settings_version();
+        if settings
+            .api_integration_window_size
+            .is_some_and(|(width, height)| !valid_window_size(width, height))
+        {
+            settings.api_integration_window_size = None;
+        }
 
         Ok(Self {
             path,
@@ -208,6 +222,29 @@ impl SettingsStore {
         Ok(settings.public())
     }
 
+    /// The Paseo Bridge window size saved when it was last closed, in logical pixels.
+    pub fn api_integration_window_size(&self) -> Option<(u32, u32)> {
+        self.settings.read().api_integration_window_size
+    }
+
+    #[cfg(any(desktop, test))]
+    pub fn set_api_integration_window_size(&self, width: u32, height: u32) -> Result<(), String> {
+        if !valid_window_size(width, height) {
+            return Err("Window size is out of range.".into());
+        }
+
+        let mut settings = self.settings.write();
+        if settings.api_integration_window_size == Some((width, height)) {
+            return Ok(());
+        }
+
+        let mut next = settings.clone();
+        next.api_integration_window_size = Some((width, height));
+        self.persist(&next)?;
+        *settings = next;
+        Ok(())
+    }
+
     pub async fn wait_for_bridge_state_change(&self) {
         self.bridge_state_changed.notified().await;
     }
@@ -245,6 +282,11 @@ fn default_account_refresh_minutes() -> u64 {
 
 fn default_automatic_updates_enabled() -> bool {
     true
+}
+
+fn valid_window_size(width: u32, height: u32) -> bool {
+    (MIN_REMEMBERED_WINDOW_PIXELS..=MAX_REMEMBERED_WINDOW_PIXELS).contains(&width)
+        && (MIN_REMEMBERED_WINDOW_PIXELS..=MAX_REMEMBERED_WINDOW_PIXELS).contains(&height)
 }
 
 fn valid_refresh_minutes(minutes: u64) -> bool {
@@ -285,6 +327,40 @@ mod tests {
                 .account_refresh_minutes,
             45
         );
+    }
+
+    #[test]
+    fn remembers_the_bridge_window_size_across_restarts() {
+        let directory = tempfile::tempdir().unwrap();
+        let store = SettingsStore::load(directory.path()).unwrap();
+        assert_eq!(store.api_integration_window_size(), None);
+        store.set_api_integration_window_size(1000, 1100).unwrap();
+        assert_eq!(
+            SettingsStore::load(directory.path())
+                .unwrap()
+                .api_integration_window_size(),
+            Some((1000, 1100))
+        );
+    }
+
+    #[test]
+    fn rejects_and_drops_out_of_range_bridge_window_sizes() {
+        let directory = tempfile::tempdir().unwrap();
+        let store = SettingsStore::load(directory.path()).unwrap();
+        assert!(store.set_api_integration_window_size(0, 900).is_err());
+        assert!(store
+            .set_api_integration_window_size(780, u32::MAX)
+            .is_err());
+        assert_eq!(store.api_integration_window_size(), None);
+
+        // A hand-edited file with an absurd size is ignored rather than trusted.
+        fs::write(
+            directory.path().join(SETTINGS_FILE_NAME),
+            r#"{"apiIntegrationWindowSize":[4000000000,5]}"#,
+        )
+        .unwrap();
+        let reloaded = SettingsStore::load(directory.path()).unwrap();
+        assert_eq!(reloaded.api_integration_window_size(), None);
     }
 
     #[test]

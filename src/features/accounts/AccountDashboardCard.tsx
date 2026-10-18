@@ -19,7 +19,7 @@ import {
   accountStatus,
   usageTone,
   formatUpdatedAt,
-  orderedWindows,
+  cardWindows,
 } from "../../shared/lib/usage-logic";
 import {
   displayAccountSubtitle,
@@ -129,7 +129,7 @@ export function AccountDashboardCard({
   // remove/notify usable.
   const isGlobalRefresh = busy.has(REFRESH_ALL_KEY);
   const cardBusy = isRefreshing || isRenaming || isRemoving;
-  const windows = orderedWindows(account.lastUsage?.windows ?? []);
+  const windows = cardWindows(account.lastUsage?.windows ?? [], account.provider);
   const remainingValues = windows.flatMap((window) => (window.remainingPercent == null ? [] : [window.remainingPercent]));
   const lowestRemaining = remainingValues.length ? Math.min(...remainingValues) : null;
   const [displayMode] = useUsageDisplayMode();

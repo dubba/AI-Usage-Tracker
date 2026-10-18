@@ -76,6 +76,7 @@ pub(crate) fn build_tray(app: &tauri::App) -> tauri::Result<()> {
             "show" => show_main_window(app),
             "quit" => {
                 let _ = app.save_window_state(SAVED_WINDOW_STATE);
+                crate::commands::bridge::remember_api_integration_window_size(app);
                 app.exit(0);
             }
             _ => {}

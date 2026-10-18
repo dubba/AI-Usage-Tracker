@@ -193,6 +193,12 @@ pub fn run() {
                 } => true,
                 _ => false,
             };
+            // Quitting with Cmd+Q or from the system menu: the tray's Quit and closing the
+            // window have their own hooks.
+            #[cfg(desktop)]
+            if matches!(event, tauri::RunEvent::ExitRequested { .. }) {
+                commands::bridge::remember_api_integration_window_size(app_handle);
+            }
             if should_check_refresh {
                 if let Some(state) = app_handle.try_state::<Arc<AppState>>() {
                     state.request_refresh_check();

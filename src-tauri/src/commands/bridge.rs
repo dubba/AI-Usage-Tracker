@@ -12,7 +12,10 @@ pub(crate) const API_INTEGRATION_WINDOW_LABEL: &str = "api-integration";
 /// Inner size that shows the Paseo Bridge page without scrolling.
 /// The page is about 833px tall at this width, so the previous 760px height
 /// cut off the connection details. An already-open window smaller than this
-/// is grown to it; a larger size the user chose is left alone.
+/// is grown to it; a larger size the user chose is left alone, and is
+/// remembered for the next time the window opens. This size is also the
+/// minimum that is remembered, so a window the user shrank never reopens
+/// cut off.
 const API_INTEGRATION_WINDOW_WIDTH: f64 = 780.0;
 const API_INTEGRATION_WINDOW_HEIGHT: f64 = 900.0;
 
@@ -26,6 +29,54 @@ fn api_integration_window_size(current: Option<(f64, f64)>) -> Option<(f64, f64)
     match current {
         Some((width, height)) if next.0 - width < 1.0 && next.1 - height < 1.0 => None,
         _ => Some(next),
+    }
+}
+
+/// Size a new window opens at: the remembered size, but never smaller than the default.
+fn api_integration_opening_size(saved: Option<(u32, u32)>) -> (f64, f64) {
+    let (width, height) = saved.unwrap_or((0, 0));
+    (
+        f64::from(width).max(API_INTEGRATION_WINDOW_WIDTH),
+        f64::from(height).max(API_INTEGRATION_WINDOW_HEIGHT),
+    )
+}
+
+/// What to remember from the window's current logical size: each side at least the default.
+#[cfg(any(desktop, test))]
+fn api_integration_size_to_remember(current: (f64, f64)) -> (u32, u32) {
+    (
+        current.0.max(API_INTEGRATION_WINDOW_WIDTH).round() as u32,
+        current.1.max(API_INTEGRATION_WINDOW_HEIGHT).round() as u32,
+    )
+}
+
+/// Saves the open Paseo Bridge window's size for next time. A maximized, full-screen or
+/// minimized window is skipped: its size is the screen's (or meaningless), not a choice.
+#[cfg(desktop)]
+pub(crate) fn remember_api_integration_window_size(app: &AppHandle) {
+    let Some(window) = app.get_webview_window(API_INTEGRATION_WINDOW_LABEL) else {
+        return;
+    };
+    if window.is_maximized().unwrap_or(false)
+        || window.is_fullscreen().unwrap_or(false)
+        || window.is_minimized().unwrap_or(false)
+    {
+        return;
+    }
+    let (Some(current), Some(state)) = (
+        logical_inner_size(&window),
+        app.try_state::<Arc<AppState>>(),
+    ) else {
+        return;
+    };
+    let (width, height) = api_integration_size_to_remember(current);
+    if let Err(error) = state
+        .settings
+        .set_api_integration_window_size(width, height)
+    {
+        crate::diagnostics::warn(&format!(
+            "Could not remember the Paseo Bridge window size: {error}"
+        ));
     }
 }
 
@@ -92,6 +143,9 @@ pub(crate) async fn open_api_integration_window(
         return Ok(());
     }
 
+    let (opening_width, opening_height) =
+        api_integration_opening_size(state.settings.api_integration_window_size());
+
     #[allow(unused_mut)]
     let mut builder = WebviewWindowBuilder::new(
         &app,
@@ -99,7 +153,7 @@ pub(crate) async fn open_api_integration_window(
         WebviewUrl::App("index.html".into()),
     )
     .title("Paseo Bridge")
-    .inner_size(API_INTEGRATION_WINDOW_WIDTH, API_INTEGRATION_WINDOW_HEIGHT)
+    .inner_size(opening_width, opening_height)
     .min_inner_size(640.0, 560.0);
 
     #[cfg(desktop)]
@@ -112,7 +166,17 @@ pub(crate) async fn open_api_integration_window(
         }
     }
 
-    builder.build().map_err(crate::diagnostics::command_error)?;
+    #[allow(unused_variables)]
+    let window = builder.build().map_err(crate::diagnostics::command_error)?;
+    #[cfg(desktop)]
+    {
+        let handle = app.clone();
+        window.on_window_event(move |event| {
+            if matches!(event, tauri::WindowEvent::CloseRequested { .. }) {
+                remember_api_integration_window_size(&handle);
+            }
+        });
+    }
     Ok(())
 }
 
@@ -175,7 +239,9 @@ pub(crate) fn bridge_info(state: &AppState) -> BridgeInfo {
 
 #[cfg(test)]
 mod tests {
-    use super::api_integration_window_size;
+    use super::{
+        api_integration_opening_size, api_integration_size_to_remember, api_integration_window_size,
+    };
 
     #[test]
     fn new_window_is_tall_enough_for_the_bridge_page() {
@@ -203,5 +269,34 @@ mod tests {
         assert_eq!(api_integration_window_size(Some((900.0, 1000.0))), None);
         assert_eq!(api_integration_window_size(Some((780.0, 900.0))), None);
         assert_eq!(api_integration_window_size(Some((779.2, 899.4))), None);
+    }
+
+    #[test]
+    fn a_new_window_opens_at_the_remembered_size_but_never_below_the_default() {
+        assert_eq!(api_integration_opening_size(None), (780.0, 900.0));
+        assert_eq!(
+            api_integration_opening_size(Some((1000, 1100))),
+            (1000.0, 1100.0)
+        );
+        // A size saved by hand or by an older build that was smaller keeps the minimum.
+        assert_eq!(
+            api_integration_opening_size(Some((640, 560))),
+            (780.0, 900.0)
+        );
+        assert_eq!(
+            api_integration_opening_size(Some((1000, 600))),
+            (1000.0, 900.0)
+        );
+    }
+
+    #[test]
+    fn only_a_size_above_the_default_is_remembered_as_chosen() {
+        assert_eq!(
+            api_integration_size_to_remember((1000.4, 1100.6)),
+            (1000, 1101)
+        );
+        // Shrinking below the default remembers the default, not the smaller size.
+        assert_eq!(api_integration_size_to_remember((640.0, 560.0)), (780, 900));
+        assert_eq!(api_integration_size_to_remember((900.0, 700.0)), (900, 900));
     }
 }

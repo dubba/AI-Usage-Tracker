@@ -1,19 +1,25 @@
 # Changelog
 
-## Unreleased (14 changes)
+## Unreleased (20 changes)
 
 ### Added (1)
 
 - An L / U toggle at the right of the sidebar's Account and Group buttons switches every usage percentage, in the sidebar and on the dashboard, between the quota left (L) and the quota already used (U), and remembers your choice. Transferring settings to another device with Link Devices also carries the choice over.
 
-### Fixed (3)
+### Fixed (4)
 
+- Clicking Reveal in the Paseo Bridge window now shows the full bearer token instead of leaving it hidden behind dots.
 - The Delete Group button stays red while the pointer is over it.
 - Remove confirmation buttons, the Clear Filter button, and account action buttons retain their intended red, amber, and green colors through hover and active states without reverting to gray or purple.
 - Pressing Cmd+N or Cmd+G while in Settings no longer switches to the dashboard in the background, keeping you on Settings when you exit the modal.
 
-### Improved (10)
+### Improved (15)
 
+- The Paseo Bridge window remembers the size you gave it when you close it or quit, and opens at that size next time. It never opens smaller than its default size, so the connection details stay fully visible.
+- The Change Log View button in Settings now says it opens in your web browser.
+- The Paseo Bridge window now matches the app and Settings: the same dark and light backgrounds, cards, purple page title, status badge, and text sizes, and its Reveal, Hide, and Regenerate buttons use the same solid purple style as the Link Devices button, and its Copy buttons match the Copy button in Settings.
+- The sidebar Grok row now shows the Grok Bot percentage in front of the Grok percentage, instead of a dash.
+- On Grok account cards, the Grok Bot limit now appears above the Grok limit.
 - The Group label next to a group's title now uses the same uppercase lavender style as the Group label in the sidebar, sized to match the title.
 - The pen button next to the group name and pill now shares the same solid purple fill, white icon, and responsive touch styling as the rename button on account cards across desktop and mobile.
 - In Settings and the What changed window, the Check Now and Update button icons are swapped: Check Now has a circled up-arrow icon to the left of its label, and Update has a cloud-download icon.

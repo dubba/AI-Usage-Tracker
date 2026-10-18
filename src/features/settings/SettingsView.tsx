@@ -271,8 +271,8 @@ export function SettingsView({
             <button
               type="button"
               className="button ghost settings-changelog-button"
-              aria-label="View change log (opens in a new window)"
-              data-tooltip="Opens in a new window"
+              aria-label="View change log (opens in web browser)"
+              data-tooltip="Opens in web browser"
               onClick={() => onOpenLink(CHANGELOG_URL)}
             >
               <span>View</span>

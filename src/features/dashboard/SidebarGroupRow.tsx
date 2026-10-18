@@ -4,7 +4,9 @@ import {
 } from "../../shared/ui/icons";
 import { ProviderIcon } from "../../shared/ui/ProviderIcon";
 import {
+  grokBotAverage,
   groupAverage,
+  isGrokOnlyGroup,
   usageTone,
 } from "../../shared/lib/usage-logic";
 import { useUsageDisplayMode } from "../../shared/hooks/useUsageDisplayMode";
@@ -57,7 +59,9 @@ export function SidebarGroupRow({
   onMove?: (delta: -1 | 1) => void;
 }) {
   const [displayMode] = useUsageDisplayMode();
-  const five = groupAverage(group.accounts, "five_hour");
+  // Grok has no 5-hour limit, so a Grok-only row uses that slot for the Grok Bot limit.
+  const grokOnly = isGrokOnlyGroup(group.accounts);
+  const five = grokOnly ? grokBotAverage(group.accounts) : groupAverage(group.accounts, "five_hour");
   const weekly = groupAverage(group.accounts, "weekly");
   const displayValue = five ?? weekly;
   const toneValue = five != null && weekly != null ? Math.min(five, weekly) : displayValue;
@@ -93,7 +97,7 @@ export function SidebarGroupRow({
         event.preventDefault();
         onMove?.(delta);
       }}
-      aria-label={`${group.title}, ${formatCount(group.accounts.length, ACCOUNT_FORMS)}, 5h ${labelFive}, 7d ${labelWeekly}`}
+      aria-label={`${group.title}, ${formatCount(group.accounts.length, ACCOUNT_FORMS)}, ${grokOnly ? "Grok Bot" : "5h"} ${labelFive}, ${grokOnly ? "Grok" : "7d"} ${labelWeekly}`}
     >
       {reorderable ? <span className="reorder-grip" data-tooltip="Drag to reorder" aria-hidden="true" /> : null}
       {group.type === "bucket" ? (
@@ -110,7 +114,7 @@ export function SidebarGroupRow({
             <span className="sidebar-group-count">({group.accounts.length})</span>
             {group.type === "bucket" ? <span className="bucket-mini-badge">Group</span> : null}
           </strong>
-          <span className="provider-average" data-tooltip={`Average ${displayMode === "used" ? "used" : "left"}: 5-hour | 7-day`}>
+          <span className="provider-average" data-tooltip={`Average ${displayMode === "used" ? "used" : "left"}: ${grokOnly ? "Grok Bot | Grok" : "5-hour | 7-day"}`}>
             <span className={five == null ? "tone-na" : `tone-${toneFive}`}>{labelFive}</span>
             <span className="tone-pipe"> | </span>
             <span className={weekly == null ? "tone-na" : `tone-${toneWeekly}`}>{labelWeekly}</span>
