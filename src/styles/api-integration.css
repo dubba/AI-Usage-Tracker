@@ -175,6 +175,17 @@
   flex-shrink: 0;
 }
 
+/* A revealed token is 64 characters, wider than the cap above, and an ellipsis would hide the
+   end of it. It wraps onto a second line instead, so the whole value can be read and checked. */
+.bridge-token-value.is-revealed code {
+  max-width: 280px;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
 .bridge-config-card,
 .bridge-security-card {
   padding: 16px;

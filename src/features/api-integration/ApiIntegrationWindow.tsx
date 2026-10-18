@@ -180,7 +180,7 @@ export function ApiIntegrationWindow() {
         </div>
         <div className="bridge-detail-row">
           <div><strong>Bearer token</strong><small>Required in the Authorization header for usage requests. Hidden by default.</small></div>
-          <div className="bridge-detail-value bridge-token-value"><code>{displayToken}</code>{revealed ? (<button type="button" className="button primary settings-update-action" onClick={() => setRevealed(false)}><EyeOffIcon className="settings-update-action-icon" /><span>Hide</span></button>) : (<button type="button" className="button primary settings-update-action" onClick={() => void reveal()}><EyeIcon className="settings-update-action-icon" /><span>Reveal</span></button>)}<CopyButton copied={copiedKey === "token"} onClick={() => void copyToken()} /></div>
+          <div className={`bridge-detail-value bridge-token-value${revealed ? " is-revealed" : ""}`}><code>{displayToken}</code>{revealed ? (<button type="button" className="button primary settings-update-action" onClick={() => setRevealed(false)}><EyeOffIcon className="settings-update-action-icon" /><span>Hide</span></button>) : (<button type="button" className="button primary settings-update-action" onClick={() => void reveal()}><EyeIcon className="settings-update-action-icon" /><span>Reveal</span></button>)}<CopyButton copied={copiedKey === "token"} onClick={() => void copyToken()} /></div>
         </div>
         <div className="bridge-detail-row">
           <div><strong>Rotate token</strong><small>Existing Paseo configuration stops working until its token is replaced.</small></div>

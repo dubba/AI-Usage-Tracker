@@ -8,7 +8,7 @@
 
 ### Fixed (4)
 
-- Clicking Reveal in the Paseo Bridge window now shows the full bearer token instead of leaving it hidden behind dots.
+- Clicking Reveal in the Paseo Bridge window now shows the full bearer token instead of leaving it hidden behind dots, and the revealed token wraps onto a second line instead of being cut off with an ellipsis.
 - The Delete Group button stays red while the pointer is over it.
 - Remove confirmation buttons, the Clear Filter button, and account action buttons retain their intended red, amber, and green colors through hover and active states without reverting to gray or purple.
 - Pressing Cmd+N or Cmd+G while in Settings no longer switches to the dashboard in the background, keeping you on Settings when you exit the modal.

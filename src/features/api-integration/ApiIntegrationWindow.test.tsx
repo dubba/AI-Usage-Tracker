@@ -59,10 +59,13 @@ describe("ApiIntegrationWindow bearer token", () => {
     await settle();
     expect(bridgeApi.revealBridgeToken).toHaveBeenCalledTimes(1);
     expect(tokenText()).toBe(FULL_TOKEN);
+    // The revealed token wraps instead of being cut off with an ellipsis.
+    expect(document.querySelector(".bridge-token-value")?.classList.contains("is-revealed")).toBe(true);
     expect(document.querySelector("pre")?.textContent).toContain(FULL_TOKEN);
 
     click(button("Hide"));
     await settle();
     expect(tokenText()).toBe(MASKED_TOKEN);
+    expect(document.querySelector(".bridge-token-value")?.classList.contains("is-revealed")).toBe(false);
   });
 });
