@@ -37,3 +37,16 @@ export function computeSyncStatus(accounts: Account[], now: number, refreshMinut
   if (stale === 0) return { tone: "fresh", label, detail: null };
   return { tone: "stale", label, detail: `${formatCount(stale, ACCOUNT_FORMS)} out of date` };
 }
+
+const SYNCED_PREFIX = "Accounts synced";
+
+/**
+ * Splits "Accounts synced 4m ago" into the part that stays whole and the elapsed time, which may
+ * wrap to its own line in a narrow sidebar. Other labels ("Not synced yet") have no elapsed part.
+ */
+export function splitSyncLabel(label: string): { title: string; elapsed: string | null } {
+  if (label.startsWith(`${SYNCED_PREFIX} `)) {
+    return { title: SYNCED_PREFIX, elapsed: label.slice(SYNCED_PREFIX.length + 1) };
+  }
+  return { title: label, elapsed: null };
+}

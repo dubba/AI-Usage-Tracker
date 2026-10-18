@@ -1247,10 +1247,19 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   align-items: center;
   justify-content: flex-start;
   gap: 6px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   max-width: 100%;
+}
+
+/* When the sidebar is too narrow for the elapsed time beside "Accounts synced", "4m ago" wraps
+   to the next line and both lines are centered. Narrower still, "Accounts synced" wraps by word
+   too; "4m ago" itself never splits. */
+.sidebar-sync-status-words {
+  min-width: 0;
+  text-align: center;
+}
+
+.sidebar-sync-status-elapsed {
+  white-space: nowrap;
 }
 
 .sidebar-sync-status-label::before {
@@ -1283,9 +1292,8 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   box-sizing: border-box;
   font-size: 11px;
   line-height: 1.2;
-  overflow: hidden;
-  text-overflow: ellipsis;
   max-width: 100%;
+  text-align: center;
 }
 
 /* On small screens the sync status line (with Refresh All and Settings) sits at the bottom of the drawer. */

@@ -1,6 +1,6 @@
 import { isRefreshKey, type BusyKeys } from "../../shared/lib/busy";
 import { useClock } from "../../shared/hooks/useClock";
-import { computeSyncStatus } from "./sync-status";
+import { computeSyncStatus, splitSyncLabel } from "./sync-status";
 import { RefreshIcon, SettingsIcon } from "../../shared/ui/icons";
 import type { Account } from "../../types";
 
@@ -24,10 +24,16 @@ export function SyncStatusLine({
   const tone = useClock((now) => computeSyncStatus(accounts, now, refreshMinutes).tone);
   const label = useClock((now) => computeSyncStatus(accounts, now, refreshMinutes).label);
   const detail = useClock((now) => computeSyncStatus(accounts, now, refreshMinutes).detail);
+  const { title, elapsed } = splitSyncLabel(label);
   return (
     <div className={`sidebar-sync-status is-${syncing ? "syncing" : tone}`}>
       <div className="sidebar-sync-status-text" role="status">
-        <span className="sidebar-sync-status-label">{syncing ? "Syncing…" : label}</span>
+        <span className="sidebar-sync-status-label">
+          <span className="sidebar-sync-status-words">
+            <span className="sidebar-sync-status-title">{syncing ? "Syncing…" : title}</span>
+            {!syncing && elapsed ? <> <span className="sidebar-sync-status-elapsed">{elapsed}</span></> : null}
+          </span>
+        </span>
         {!syncing && detail ? <span className="sidebar-sync-status-detail">{detail}</span> : null}
       </div>
       <div className="sidebar-sync-status-actions">

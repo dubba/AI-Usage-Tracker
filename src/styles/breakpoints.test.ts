@@ -5,11 +5,11 @@ import { describe, expect, it } from "vitest";
 import { MOBILE_OVERLAY_QUERY } from "../features/dashboard/sidebar-width";
 
 /**
- * Every width used in a CSS media query. Keep this list, the table in
+ * Every width used in a CSS media or container query. Keep this list, the table in
  * docs/CSS_ARCHITECTURE.md and the CSS in step: adding a new breakpoint should
  * be a deliberate decision, not something that happens by accident.
  */
-const MAX_WIDTHS = [360, 400, 480, 600, 640, 720, 760, 768, 860, 1180, 1220];
+const MAX_WIDTHS = [273, 360, 400, 480, 600, 640, 720, 760, 768, 860, 1180, 1220];
 const MIN_WIDTHS = [861];
 
 function cssFiles(dir: string): string[] {

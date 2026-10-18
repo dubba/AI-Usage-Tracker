@@ -116,7 +116,7 @@ select {
 .provider-sidebar-heading {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   flex-wrap: nowrap;
   gap: 8px;
   /* Same side inset as the cards, so + Group shares their right edge. The bottom is 5px
@@ -126,6 +126,23 @@ select {
   color: var(--obsidian-muted);
   flex: 0 0 auto;
   min-width: 0;
+}
+
+/* The buttons and the L / U toggle share a row. Narrower than the default sidebar (its content
+   box is 275px at 300px) the toggle drops below the buttons and right-aligns to the Group
+   button's right edge, because the stack is only as wide as the button row. The sidebar is the
+   size container. */
+.provider-sidebar-heading-stack {
+  display: contents;
+}
+
+@container (max-width: 273px) {
+  .provider-sidebar-heading-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+  }
 }
 
 .provider-sidebar-heading-actions {

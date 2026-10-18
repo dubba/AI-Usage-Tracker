@@ -435,27 +435,29 @@ export default function App() {
         </div>
 
         <div className="provider-sidebar-heading">
-          <div className="provider-sidebar-heading-actions">
-            <button
-              type="button"
-              className="button primary add-account-header-button"
-              data-tooltip="Add new account"
-              aria-label="Add new account"
-              onClick={() => { openAdd(undefined, selectedGroup.provider ?? undefined); setSidebarOpen(false); }}
-            >
-              <PlusIcon />Account
-            </button>
-            <button
-              type="button"
-              className="button primary add-bucket-header-button"
-              data-tooltip={"Group accounts to track usage in\none place, like “Work” or “Personal”"}
-              aria-label="Group accounts to track usage in one place, like “Work” or “Personal”"
-              onClick={() => { openNewBucket(selectedGroup.provider); setSidebarOpen(false); }}
-            >
-              <PlusIcon />Group
-            </button>
+          <div className="provider-sidebar-heading-stack">
+            <div className="provider-sidebar-heading-actions">
+              <button
+                type="button"
+                className="button primary add-account-header-button"
+                data-tooltip="Add new account"
+                aria-label="Add new account"
+                onClick={() => { openAdd(undefined, selectedGroup.provider ?? undefined); setSidebarOpen(false); }}
+              >
+                <PlusIcon />Account
+              </button>
+              <button
+                type="button"
+                className="button primary add-bucket-header-button"
+                data-tooltip={"Group accounts to track usage in\none place, like “Work” or “Personal”"}
+                aria-label="Group accounts to track usage in one place, like “Work” or “Personal”"
+                onClick={() => { openNewBucket(selectedGroup.provider); setSidebarOpen(false); }}
+              >
+                <PlusIcon />Group
+              </button>
+            </div>
+            <UsageDisplayToggle />
           </div>
-          <UsageDisplayToggle />
         </div>
 
         <div ref={providerListRef} className={`provider-list${providerListOverflows ? " has-overflow" : ""}`}>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeSyncStatus } from "./sync-status";
+import { computeSyncStatus, splitSyncLabel } from "./sync-status";
 import type { Account, UsageSnapshot } from "../../types";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z").getTime();
@@ -53,5 +53,17 @@ describe("computeSyncStatus", () => {
   it("ignores accounts that are not refreshed automatically", () => {
     const status = computeSyncStatus([account("a", 1), account("b", 300, { authRequired: true })], NOW, 15);
     expect(status.tone).toBe("fresh");
+  });
+});
+
+describe("splitSyncLabel", () => {
+  it("separates the elapsed time so it can wrap on its own", () => {
+    expect(splitSyncLabel("Accounts synced 4m ago")).toEqual({ title: "Accounts synced", elapsed: "4m ago" });
+    expect(splitSyncLabel("Accounts synced just now")).toEqual({ title: "Accounts synced", elapsed: "just now" });
+  });
+
+  it("leaves labels without an elapsed time whole", () => {
+    expect(splitSyncLabel("Not synced yet")).toEqual({ title: "Not synced yet", elapsed: null });
+    expect(splitSyncLabel("Accounts synced")).toEqual({ title: "Accounts synced", elapsed: null });
   });
 });

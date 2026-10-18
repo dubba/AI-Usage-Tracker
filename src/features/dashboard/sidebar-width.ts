@@ -25,8 +25,6 @@ export function defaultSidebarWidth(overlay: boolean): number {
   return overlay ? DEFAULT_MOBILE_SIDEBAR_WIDTH : DEFAULT_DESKTOP_SIDEBAR_WIDTH;
 }
 
-const MEASURE_BUFFER_PX = 2;
-
 /** Horizontal padding and border. A max-content child does not include its parent's. */
 function horizontalChrome(element: HTMLElement): number {
   const styles = getComputedStyle(element);
@@ -38,12 +36,15 @@ function horizontalChrome(element: HTMLElement): number {
   );
 }
 
+const MEASURE_BUFFER_PX = 2;
+
 /**
- * Measures `element` at its natural, unwrapped width using an invisible copy,
- * so the sidebar's current width does not limit the result.
+ * Measures `element` at its natural, unwrapped width using an invisible copy, so the
+ * sidebar's current width does not limit the result. `prepare` can change the copy first.
  */
-function naturalWidth(sidebar: HTMLElement, element: HTMLElement): number {
+function naturalWidth(sidebar: HTMLElement, element: HTMLElement, prepare?: (clone: HTMLElement) => void): number {
   const clone = element.cloneNode(true) as HTMLElement;
+  prepare?.(clone);
   clone.setAttribute("aria-hidden", "true");
   Object.assign(clone.style, {
     position: "absolute",
@@ -64,19 +65,37 @@ function naturalWidth(sidebar: HTMLElement, element: HTMLElement): number {
 }
 
 /**
- * Narrowest the sidebar can be before the sync line at its bottom is cut off:
- * the status text must fit beside the refresh and settings buttons.
+ * Width at which the whole sync line ("Accounts synced 2m ago") fits on one line beside the
+ * refresh and settings buttons, for double-clicking the resize handle. The out-of-date note
+ * under it is left out: it wraps, and would otherwise widen the sidebar for no reason.
+ */
+export function measureSyncLineFitWidth(sidebar: HTMLElement): number | null {
+  const status = sidebar.querySelector<HTMLElement>(".sidebar-sync-status");
+  if (!status) return null;
+
+  const width = naturalWidth(sidebar, status, (clone) => {
+    clone.querySelectorAll(".sidebar-sync-status-detail").forEach((part) => part.remove());
+  });
+  if (!Number.isFinite(width) || width <= 0) return null;
+  return Math.ceil(width + horizontalChrome(sidebar) + MEASURE_BUFFER_PX);
+}
+
+/**
+ * Narrowest the sidebar can be before the + Account and + Group buttons are cut off: the
+ * Group button's right edge lines up with the L / U toggle's right edge below it. The sync line at the bottom
+ * wraps ("Accounts synced", then "4m ago") instead of limiting the width, and the L / U
+ * toggle drops below the buttons.
  */
 export function measureMinSidebarWidth(sidebar: HTMLElement): number {
-  const status = sidebar.querySelector<HTMLElement>(".sidebar-sync-status");
-  if (!status) return FALLBACK_MIN_SIDEBAR_WIDTH;
+  const heading = sidebar.querySelector<HTMLElement>(".provider-sidebar-heading");
+  const buttons = heading?.querySelector<HTMLElement>(".provider-sidebar-heading-actions");
+  if (!heading || !buttons) return FALLBACK_MIN_SIDEBAR_WIDTH;
 
-  // Measure the whole row at its natural width with the live label, so at the
-  // minimum the gap left of the refresh button matches the gap between the
-  // buttons. The row is cloned, so how much the live label is clipped is not
-  // counted twice.
-  const width = naturalWidth(sidebar, status);
-
+  // The button group never shrinks or wraps, so its own width is the natural width.
+  const width = buttons.getBoundingClientRect().width;
   if (!Number.isFinite(width) || width <= 0) return FALLBACK_MIN_SIDEBAR_WIDTH;
-  return Math.ceil(width + horizontalChrome(sidebar) + MEASURE_BUFFER_PX);
+  // No safety margin: at the minimum the Group button's right edge lines up with the right
+  // edge of the L / U toggle beneath it (and the account cards). The button group cannot wrap,
+  // so rounding up to the next pixel is the only slack.
+  return Math.ceil(width + horizontalChrome(heading) + horizontalChrome(sidebar));
 }

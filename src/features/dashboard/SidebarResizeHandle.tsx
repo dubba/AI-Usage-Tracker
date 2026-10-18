@@ -8,6 +8,7 @@ import {
   KEYBOARD_STEP,
   maxSidebarWidth,
   measureMinSidebarWidth,
+  measureSyncLineFitWidth,
   MOBILE_OVERLAY_QUERY,
 } from "./sidebar-width";
 import { storageGet, storageSet, STORAGE_KEYS } from "../../shared/lib/storage";
@@ -83,20 +84,12 @@ export function SidebarResizeHandle({
     const overlayQuery = window.matchMedia(MOBILE_OVERLAY_QUERY);
     window.addEventListener("resize", syncToViewport);
     overlayQuery.addEventListener("change", syncToViewport);
-    // The label's width changes as the elapsed time does. Skip while syncing:
-    // "Syncing…" is shorter, and following it would shrink the minimum for a moment.
-    const status = sidebarRef.current?.querySelector(".sidebar-sync-status");
-    const observer = new MutationObserver(() => {
-      if (!status?.classList.contains("is-syncing")) syncToViewport();
-    });
-    if (status) observer.observe(status, { childList: true, characterData: true, subtree: true });
     return () => {
-      observer.disconnect();
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", syncToViewport);
       overlayQuery.removeEventListener("change", syncToViewport);
     };
-  }, [syncToViewport, sidebarRef]);
+  }, [syncToViewport]);
 
   const stopFollowing = useRef<(() => void) | null>(null);
 
@@ -155,6 +148,14 @@ export function SidebarResizeHandle({
     setDragging(true);
   };
 
+  // Double-click: widen or narrow the sidebar until the whole sync line fits on one line. If it
+  // cannot be measured (no sync line yet), go back to the default width.
+  const fitToSyncLine = () => {
+    const sidebar = sidebarRef.current;
+    const fit = sidebar ? measureSyncLineFitWidth(sidebar) : null;
+    applyWidth(fit ?? defaultSidebarWidth(isOverlay()), true);
+  };
+
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     let next: number | null = null;
     if (event.key === "ArrowLeft") next = currentWidth.current - KEYBOARD_STEP;
@@ -179,10 +180,10 @@ export function SidebarResizeHandle({
       aria-valuenow={range.now}
       onPointerDown={onPointerDown}
       onLostPointerCapture={finishDrag}
-      onDoubleClick={() => applyWidth(defaultSidebarWidth(isOverlay()), true)}
+      onDoubleClick={fitToSyncLine}
       onKeyDown={onKeyDown}
     >
-      <div className="sidebar-resize-grip" aria-hidden="true" data-tooltip="Drag to resize, double-click to reset">
+      <div className="sidebar-resize-grip" aria-hidden="true" data-tooltip="Drag to resize, double-click to fit">
         <span />
         <span />
         <span />

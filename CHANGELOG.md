@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (2 changes)
+
+### Improved (2)
+
+- Double-clicking the sidebar's resize handle now sizes the sidebar so "Accounts synced 2m ago" fits on one line, instead of resetting it to the default width.
+- The sidebar can now be made narrower, down to the width of the Account and Group buttons. The sync line at the bottom wraps onto centered lines ("Accounts synced", then "4m ago"), and the L / U toggle drops below the Account and Group buttons, right-aligned with the Group button, when the sidebar is narrower than its default width.
 
 ## v0.4.8 - 2026-10-18 (20 changes)
 
