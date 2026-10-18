@@ -293,7 +293,7 @@ export function SettingsView({
               className="button primary settings-update-action"
               onClick={onOpenPairing}
             >
-              <DevicesIcon />
+              <DevicesIcon className="settings-update-action-icon" />
               <span>Link Devices</span>
             </button>
           </div>

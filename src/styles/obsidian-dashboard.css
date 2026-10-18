@@ -740,6 +740,10 @@ button.button.ghost.empty-provider-other {
   font-size: 13px;
 }
 
+button.button.ghost.empty-provider-other svg {
+  stroke-width: 2.5;
+}
+
 .empty-provider-other span {
   min-width: 0;
   overflow: hidden;
@@ -1896,6 +1900,15 @@ button.account-card-provider-icon:active {
 .status-indicator-dot.red {
   background: #ff5449;
   box-shadow: 0 0 6px rgba(255, 84, 73, 0.5);
+}
+
+.settings-update-action {
+  padding-inline: 12px 14px;
+}
+
+.settings-update-action svg,
+.settings-update-action-icon {
+  stroke-width: 2.5;
 }
 
 /* Shared by Settings and the What's Changed modal. */
@@ -3427,9 +3440,12 @@ select.text-input option,
     white-space: nowrap;
   }
 
-  .settings-style-content .settings-changelog-button,
-  .settings-style-content .settings-update-action {
+  .settings-style-content .settings-changelog-button {
     padding-inline: 10px 8px;
+  }
+
+  .settings-style-content .settings-update-action {
+    padding-inline: 10px 12px;
   }
 
   .settings-updates-subcard {

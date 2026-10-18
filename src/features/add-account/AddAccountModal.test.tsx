@@ -105,11 +105,11 @@ describe("browser sign-in providers", () => {
     );
     expect(labels).toEqual([
       "Anthropic Claude",
-      "Google Antigravity",
+      "Google Antigravity (Gemini)",
       "OpenAI ChatGPT",
       "xAI Grok",
       "OpenCode",
-      "Google AI Studio",
+      "Google AI Studio (Gemini)",
     ]);
   });
 
@@ -118,7 +118,7 @@ describe("browser sign-in providers", () => {
     chooseProvider("Anthropic Claude");
     expect(primary().textContent).toBe("Open Claude Login");
     expect((document.getElementById("account-label") as HTMLInputElement).value).toBe("Claude");
-    chooseProvider("Google Antigravity");
+    chooseProvider("Google Antigravity (Gemini)");
     expect(primary().textContent).toBe("Open Antigravity Login");
     expect((document.getElementById("account-label") as HTMLInputElement).value).toBe("Antigravity");
   });
@@ -381,7 +381,7 @@ describe("Google AI Studio", () => {
     api.testGoogleAiStudioKey.mockResolvedValue(probe);
     api.addGoogleAiStudioAccount.mockResolvedValue(ACCOUNT);
     render();
-    chooseProvider("Google AI Studio");
+    chooseProvider("Google AI Studio (Gemini)");
     expect(primary().textContent).toBe("Add Selected Models");
     expect(primary().disabled).toBe(true);
 
@@ -403,7 +403,7 @@ describe("Google AI Studio", () => {
   it("selects and clears every model", async () => {
     api.testGoogleAiStudioKey.mockResolvedValue(probe);
     render();
-    chooseProvider("Google AI Studio");
+    chooseProvider("Google AI Studio (Gemini)");
     typeInto($("#google-ai-studio-key"), "k");
     click($(".google-load-models"));
     await settle();
@@ -417,7 +417,7 @@ describe("Google AI Studio", () => {
   it("reports a key that exposes no trackable models", async () => {
     api.testGoogleAiStudioKey.mockResolvedValue({ lastUsage: { windows: [] } });
     render();
-    chooseProvider("Google AI Studio");
+    chooseProvider("Google AI Studio (Gemini)");
     typeInto($("#google-ai-studio-key"), "k");
     click($(".google-load-models"));
     await settle();
@@ -427,7 +427,7 @@ describe("Google AI Studio", () => {
   it("shows a rejected key's error and drops any earlier model list", async () => {
     api.testGoogleAiStudioKey.mockResolvedValueOnce(probe).mockRejectedValueOnce(new Error("bad key"));
     render();
-    chooseProvider("Google AI Studio");
+    chooseProvider("Google AI Studio (Gemini)");
     typeInto($("#google-ai-studio-key"), "k");
     click($(".google-load-models"));
     await settle();
@@ -441,7 +441,7 @@ describe("Google AI Studio", () => {
   it("clears the loaded models when the key is edited", async () => {
     api.testGoogleAiStudioKey.mockResolvedValue(probe);
     render();
-    chooseProvider("Google AI Studio");
+    chooseProvider("Google AI Studio (Gemini)");
     typeInto($("#google-ai-studio-key"), "k");
     click($(".google-load-models"));
     await settle();
@@ -453,7 +453,7 @@ describe("Google AI Studio", () => {
     api.testGoogleAiStudioKey.mockResolvedValue(probe);
     api.addGoogleAiStudioAccount.mockRejectedValue(new Error("duplicate key"));
     render();
-    chooseProvider("Google AI Studio");
+    chooseProvider("Google AI Studio (Gemini)");
     typeInto($("#google-ai-studio-key"), "k");
     click($(".google-load-models"));
     await settle();

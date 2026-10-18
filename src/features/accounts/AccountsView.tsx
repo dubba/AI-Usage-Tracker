@@ -408,7 +408,7 @@ export function AccountsView(props: {
                             className="button ghost empty-provider-other"
                             onClick={props.onOpenPairing}
                           >
-                            <DevicesIcon />
+                            <DevicesIcon className="settings-update-action-icon" />
                             <span>Link Devices</span>
                           </button>
                         ) : null}

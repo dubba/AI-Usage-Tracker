@@ -37,8 +37,8 @@ export function SyncStatusLine({
             className={`sidebar-settings-btn sidebar-refresh-btn ${syncing ? "spinning" : ""}`}
             onClick={onRefreshAll}
             disabled={syncing}
-            aria-label="Update all accounts"
-            data-tooltip="Update all accounts"
+            aria-label="Refresh all accounts"
+            data-tooltip="Refresh all accounts"
           >
             <RefreshIcon />
           </button>

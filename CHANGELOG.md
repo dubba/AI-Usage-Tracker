@@ -1,20 +1,24 @@
 # Changelog
 
-## Unreleased (8 changes)
+## Unreleased (12 changes)
 
-### Fixed (2)
+### Fixed (3)
 
 - The Delete Group button stays red while the pointer is over it.
 - Remove confirmation buttons, the Clear Filter button, and account action buttons retain their intended red, amber, and green colors through hover and active states without reverting to gray or purple.
+- Pressing Cmd+N or Cmd+G while in Settings no longer switches to the dashboard in the background, keeping you on Settings when you exit the modal.
 
-### Improved (6)
+### Improved (9)
 
 - The pen button next to the group name and pill now shares the same solid purple fill, white icon, and responsive touch styling as the rename button on account cards across desktop and mobile.
 - In Settings and the What changed window, the Check Now and Update button icons are swapped: Check Now has a circled up-arrow icon to the left of its label, and Update has a cloud-download icon.
 - The Update button in Settings and in the What changed window uses a deeper, richer green background.
+- In Settings and the What changed window, the Update and Check Now button padding is optically balanced between the icon and label.
+- The icons inside the Link Devices, Update, and Check Now buttons use a bolder stroke matching the visual weight of their bold label text.
 - In empty groups, the Edit Group button uses the solid purple primary button styling matching Check Now and Link Devices.
-- In the Add Account provider menu, the description for ChatGPT now reads "ChatGPT Go, Plus or Pro using Browser OAuth".
+- In the Add Account provider menu, Google Antigravity and Google AI Studio are labeled "(Gemini)", and each provider description starts with "Link".
 - In the Add Account dialog, the email hint description clarifies that entering an email allows signing in with that account instead of reusing an existing session.
+- The sidebar button is renamed to "Refresh all accounts", and its keyboard shortcut is restored to Cmd+R (Ctrl+R on Windows).
 
 ## v0.4.7 - 2026-10-17 (17 changes)
 

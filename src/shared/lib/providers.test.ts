@@ -20,7 +20,14 @@ describe("provider registry", () => {
     expect(providerName("opencode_go")).toBe("OpenCode Go");
   });
 
-  it("describes ChatGPT with Go, Plus or Pro without the word plans", () => {
-    expect(PROVIDER_META.openai.connectDetail).toBe("ChatGPT Go, Plus or Pro using Browser OAuth");
+  it("describes each provider in the Add Account menu", () => {
+    expect(PROVIDER_META.openai.connectDetail).toBe("Link Go, Plus or Pro plans using Browser OAuth");
+    expect(PROVIDER_META.anthropic.connectDetail).toBe("Link Pro or Max plans using Browser OAuth");
+    expect(PROVIDER_META.antigravity.connectLabel).toBe("Google Antigravity (Gemini)");
+    expect(PROVIDER_META.antigravity.connectDetail).toBe("Link Plus, Pro or Ultra plans using Browser OAuth");
+    expect(PROVIDER_META.grok.connectDetail).toBe("Link SuperGrok, Plus or Heavy plans using Grok.com login");
+    expect(PROVIDER_META.google_ai_studio.connectLabel).toBe("Google AI Studio (Gemini)");
+    expect(PROVIDER_META.google_ai_studio.connectDetail).toBe("Link models using API key validation");
+    expect(PROVIDER_META.opencode_go.connectDetail).toBe("Link Go plan using OpenCode.ai login");
   });
 });

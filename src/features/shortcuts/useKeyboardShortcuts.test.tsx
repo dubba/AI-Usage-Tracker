@@ -31,7 +31,7 @@ describe("useKeyboardShortcuts", () => {
   it("runs the action and stops the browser default", () => {
     const handlers = makeHandlers();
     mounted = mount(<Probe enabled handlers={handlers} />);
-    const event = press("u");
+    const event = press("r");
     expect(handlers.refreshAll).toHaveBeenCalledTimes(1);
     expect(event.defaultPrevented).toBe(true);
     press(",");
@@ -45,7 +45,7 @@ describe("useKeyboardShortcuts", () => {
   it("does nothing when disabled", () => {
     const handlers = makeHandlers();
     mounted = mount(<Probe enabled={false} handlers={handlers} />);
-    const event = press("u");
+    const event = press("r");
     expect(handlers.refreshAll).not.toHaveBeenCalled();
     expect(event.defaultPrevented).toBe(false);
   });
@@ -56,12 +56,12 @@ describe("useKeyboardShortcuts", () => {
     const dialog = document.createElement("div");
     dialog.setAttribute("aria-modal", "true");
     document.body.appendChild(dialog);
-    press("u");
+    press("r");
     press("n");
     expect(handlers.refreshAll).not.toHaveBeenCalled();
     expect(handlers.addAccount).not.toHaveBeenCalled();
     dialog.remove();
-    press("u");
+    press("r");
     expect(handlers.refreshAll).toHaveBeenCalledTimes(1);
   });
 
@@ -70,7 +70,7 @@ describe("useKeyboardShortcuts", () => {
     const second = makeHandlers();
     mounted = mount(<Probe enabled handlers={first} />);
     mounted.rerender(<Probe enabled handlers={second} />);
-    press("u");
+    press("r");
     expect(first.refreshAll).not.toHaveBeenCalled();
     expect(second.refreshAll).toHaveBeenCalledTimes(1);
   });
@@ -78,7 +78,7 @@ describe("useKeyboardShortcuts", () => {
   it("ignores keys without the modifier", () => {
     const handlers = makeHandlers();
     mounted = mount(<Probe enabled handlers={handlers} />);
-    press("u", {});
+    press("r", {});
     expect(handlers.refreshAll).not.toHaveBeenCalled();
   });
 });

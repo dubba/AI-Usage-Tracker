@@ -306,11 +306,9 @@ export default function App() {
       setSidebarOpen(false);
     },
     addAccount: () => {
-      setSection("accounts");
       openAdd(undefined, selectedGroup.provider ?? undefined);
     },
     addGroup: () => {
-      setSection("accounts");
       openNewBucket(selectedGroup.provider);
     },
   });
@@ -563,6 +561,7 @@ export default function App() {
         onSaved={async (saved) => {
           dispatchModal({ type: "close", kind: "bucket" });
           setSelectedGroupId(`bucket:${saved.id}`);
+          setSection("accounts");
           await load();
         }}
         onDeleted={async (deletedId) => {

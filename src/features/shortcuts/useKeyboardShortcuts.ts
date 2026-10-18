@@ -4,7 +4,7 @@ import { isMacPlatform, matchShortcut, type ShortcutAction } from "./shortcuts";
 /**
  * Desktop keyboard shortcuts. Pass `enabled` false on phones. Nothing happens while a dialog
  * (`aria-modal`) is open, so a shortcut never acts behind it. A handled shortcut also stops the
- * browser default, such as Ctrl+U opening the page source.
+ * browser default, such as Ctrl+R reloading the page.
  */
 export function useKeyboardShortcuts(
   enabled: boolean,
