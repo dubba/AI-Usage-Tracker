@@ -422,13 +422,13 @@
   opacity: 1;
 }
 
-/* On mobile / touch devices: auto-dismiss tooltips after 2 seconds */
+/* On mobile / touch devices: hold the tooltip, then fade it out by 2.5 seconds. */
 @media (hover: none), (pointer: coarse) {
   [data-tooltip]:hover::after,
   [data-tooltip]:focus-visible::after,
   .sidebar-resize-handle:focus-visible .sidebar-resize-grip[data-tooltip]::after,
   [data-tooltip-active]::after {
-    animation: mobile-tooltip-timer 2s forwards ease-out;
+    animation: mobile-tooltip-timer 2.5s forwards ease-out;
   }
 }
 
@@ -442,7 +442,7 @@
     opacity: 1;
     visibility: visible;
   }
-  88% {
+  92% {
     opacity: 1;
     visibility: visible;
   }

@@ -43,4 +43,18 @@ describe("Button hover and active state invariants", () => {
     expect(UI_REFINEMENTS_CSS).toContain(".account-name-confirm:active:not(:disabled)");
     expect(UI_REFINEMENTS_CSS).toContain(".account-name-cancel:active:not(:disabled)");
   });
+
+  it("scopes usage display toggle hover states to pointer devices and preserves default purple on mobile", () => {
+    expect(OBSIDIAN_CSS).toContain("@media (hover: hover) and (pointer: fine)");
+    expect(OBSIDIAN_CSS).toContain(".provider-window-toggle button.active:hover");
+    expect(OBSIDIAN_CSS).toMatch(
+      /\.provider-window-toggle button\.active,\s*\.provider-window-toggle button\.active:hover,\s*\.provider-window-toggle button\.active:focus/
+    );
+  });
+
+  it("keeps full 4-sided amber borders on the attention card without border-left clobbering", () => {
+    expect(OBSIDIAN_CSS).not.toContain(".summary-strip > .summary-card + .summary-card");
+    expect(OBSIDIAN_CSS).toContain(".summary-card.attention-card.is-filtering");
+    expect(OBSIDIAN_CSS).toContain("border-color: var(--obsidian-amber)");
+  });
 });

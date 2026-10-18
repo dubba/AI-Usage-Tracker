@@ -184,10 +184,6 @@ select {
   flex: 0 0 auto;
 }
 
-.provider-window-toggle:hover {
-  border-color: var(--obsidian-purple-strong);
-}
-
 .provider-window-toggle button:first-child {
   border-top-left-radius: 3px;
   border-bottom-left-radius: 3px;
@@ -211,11 +207,6 @@ select {
   transition: background 120ms ease, color 120ms ease;
 }
 
-.provider-window-toggle button:hover:not(.active) {
-  color: var(--c-f0edef);
-  background: rgb(var(--purple-accent-rgb) / 0.14);
-}
-
 .provider-window-toggle button:last-child {
   border-right: 0;
 }
@@ -226,16 +217,32 @@ select {
   background: var(--purple-fill);
 }
 
-/* The selected segment lightens on hover and focus the way the primary buttons do:
-   --purple-fill-hover in dark, --purple-chip in light. */
-:root:not([data-theme="light"]) .provider-window-toggle button.active:hover,
-:root:not([data-theme="light"]) .provider-window-toggle button.active:focus-visible {
-  background: var(--purple-fill-hover);
+.provider-window-toggle button:focus-visible {
+  outline: 2px solid var(--purple-accent);
+  outline-offset: -1px;
+  z-index: 1;
 }
 
-:root[data-theme="light"] .provider-window-toggle button.active:hover,
-:root[data-theme="light"] .provider-window-toggle button.active:focus-visible {
-  background: var(--purple-chip);
+/* Hover highlights apply only on pointer devices with true hover capability.
+   On mobile/touch devices, tapping would otherwise leave the segment stuck in
+   a sticky hover state. */
+@media (hover: hover) and (pointer: fine) {
+  .provider-window-toggle:hover {
+    border-color: var(--obsidian-purple-strong);
+  }
+
+  .provider-window-toggle button:hover:not(.active) {
+    color: var(--c-f0edef);
+    background: rgb(var(--purple-accent-rgb) / 0.14);
+  }
+
+  :root:not([data-theme="light"]) .provider-window-toggle button.active:hover {
+    background: var(--purple-fill-hover);
+  }
+
+  :root[data-theme="light"] .provider-window-toggle button.active:hover {
+    background: var(--purple-chip);
+  }
 }
 
 .provider-list {
@@ -2927,10 +2934,6 @@ select.text-input option,
     background: var(--obsidian-surface-container);
   }
 
-  .summary-strip > .summary-card + .summary-card {
-    border-left: 1px solid var(--obsidian-border);
-  }
-
   .summary-strip > .summary-card.total-card {
     background: linear-gradient(110deg, var(--obsidian-surface-container), var(--c-28252b));
   }
@@ -2944,6 +2947,7 @@ select.text-input option,
   }
 
   .summary-strip > .summary-card.attention-card.is-filtering {
+    border-color: var(--obsidian-amber);
     background: linear-gradient(110deg, var(--c-2a1c12), var(--c-392617));
   }
 
@@ -3630,6 +3634,23 @@ select.text-input option,
     opacity: 0 !important;
     visibility: hidden !important;
     pointer-events: none !important;
+  }
+
+  /* On mobile and touch devices, tapping the usage display toggle (L / U) must never
+     leave the tapped segment stuck in a light-purple hover or focus highlight. */
+  .provider-window-toggle button.active,
+  .provider-window-toggle button.active:hover,
+  .provider-window-toggle button.active:focus,
+  .provider-window-toggle button.active:focus-visible {
+    background: var(--purple-fill) !important;
+    color: #ffffff !important;
+  }
+
+  .provider-window-toggle button:not(.active),
+  .provider-window-toggle button:not(.active):hover,
+  .provider-window-toggle button:not(.active):focus,
+  .provider-window-toggle button:not(.active):focus-visible {
+    background: transparent !important;
   }
 }
 

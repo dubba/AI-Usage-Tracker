@@ -1,11 +1,17 @@
 # Changelog
 
-## Unreleased (2 changes)
+## Unreleased (5 changes)
 
-### Improved (2)
+### Improved (3)
 
 - Double-clicking the sidebar's resize handle now sizes the sidebar so "Accounts synced 2m ago" fits on one line, instead of resetting it to the default width.
 - The sidebar can now be made narrower, down to the width of the Account and Group buttons. The sync line at the bottom wraps onto centered lines ("Accounts synced", then "4m ago"), and the L / U toggle drops below the Account and Group buttons, right-aligned with the Group button, when the sidebar is narrower than its default width.
+- On a phone or tablet, a tooltip stays fully visible for 2.3 seconds, then fades out and is gone at 2.5 seconds.
+
+### Fixed (2)
+
+- On mobile and tablet screens, the Action Needed summary card now keeps its full four-sided amber highlight border when filtering instead of having its left border cut off with dark gray.
+- On mobile and touch devices, tapping the usage display toggle (L / U) in the sidebar no longer leaves the tapped button stuck in a light-purple hover highlight, keeping it in the solid default purple.
 
 ## v0.4.8 - 2026-10-18 (20 changes)
 
