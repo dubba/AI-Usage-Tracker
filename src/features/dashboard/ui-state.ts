@@ -2,10 +2,11 @@ import { collectPageUiState, applyPageUiState } from "./dashboard-page-state";
 import { requestDashboardResync, UI_EVENTS } from "../../shared/lib/events";
 import { isStringArray, readJson, storageGet, storageSet, STORAGE_KEYS, writeJson } from "../../shared/lib/storage";
 import { isThemePreference, readThemePreference, setThemePreference } from "../../shared/lib/theme";
+import { getUsageDisplayMode, isUsageDisplayMode, setUsageDisplayMode } from "../../shared/lib/usage-display";
 
 type UiState = Record<string, unknown>;
 
-/** Layout state (group/provider order, collapsed cards, page order, sidebar width, theme) to send to a paired device. */
+/** Layout state (group/provider order, collapsed cards, page order, sidebar width, theme, usage display mode) to send to a paired device. */
 export function collectUiState(): UiState {
   const ui: UiState = {};
   const groupOrder = readJson<string[]>(STORAGE_KEYS.sidebarGroupOrder, [], isStringArray);
@@ -16,6 +17,7 @@ export function collectUiState(): UiState {
   const width = Number.parseInt(storageGet(STORAGE_KEYS.sidebarWidthDesktop) ?? "", 10);
   if (Number.isFinite(width) && width > 0) ui.sidebar_width = width;
   ui.theme = readThemePreference();
+  ui.usage_display_mode = getUsageDisplayMode();
   return ui;
 }
 
@@ -36,6 +38,9 @@ export function applyUiState(payload: UiState): void {
   }
   if (isThemePreference(payload.theme)) {
     setThemePreference(payload.theme);
+  }
+  if (isUsageDisplayMode(payload.usage_display_mode)) {
+    setUsageDisplayMode(payload.usage_display_mode);
   }
   requestDashboardResync();
 }

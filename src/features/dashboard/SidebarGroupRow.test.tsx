@@ -1,7 +1,9 @@
 // @vitest-environment happy-dom
+import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { click, mount, type Mounted } from "../../test-utils/react";
 import { SidebarGroupRow } from "./SidebarGroupRow";
+import { setUsageDisplayMode } from "../../shared/lib/usage-display";
 import type { SidebarGroup } from "./sidebar-groups";
 import type { Account, Provider, UsageSnapshot, UsageWindow } from "../../types";
 
@@ -287,5 +289,47 @@ describe("SidebarGroupRow progress bar and tone matching", () => {
     expect(button).not.toBeNull();
     click(button!);
     expect(onSelect).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("SidebarGroupRow usage display mode", () => {
+  let app: Mounted | null = null;
+
+  afterEach(() => {
+    app?.unmount();
+    app = null;
+    setUsageDisplayMode("left");
+  });
+
+  it("shows the percentage used, and fills the bar to match, in used mode", () => {
+    setUsageDisplayMode("used");
+    app = mount(
+      <SidebarGroupRow
+        group={makeGroup([makeAccount({ fiveRemaining: 80, weeklyRemaining: 9 })])}
+        selected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    const average = document.querySelector<HTMLElement>(".provider-average");
+    expect(average?.textContent).toBe("20% | 91%");
+    expect(average?.getAttribute("data-tooltip")).toBe("Average used: 5-hour | 7-day");
+    const fill = document.querySelector<HTMLElement>(".provider-summary-track span");
+    expect(fill?.style.width).toBe("91%");
+    // The tone still reflects how much is left, so a nearly used-up account stays critical.
+    expect(fill?.classList.contains("tone-critical")).toBe(true);
+  });
+
+  it("switches back to the percentage left", () => {
+    setUsageDisplayMode("used");
+    app = mount(
+      <SidebarGroupRow
+        group={makeGroup([makeAccount({ fiveRemaining: 80, weeklyRemaining: 9 })])}
+        selected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+    act(() => setUsageDisplayMode("left"));
+    expect(document.querySelector(".provider-average")?.textContent).toBe("80% | 9%");
   });
 });

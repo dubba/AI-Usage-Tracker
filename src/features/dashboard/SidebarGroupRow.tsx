@@ -7,6 +7,8 @@ import {
   groupAverage,
   usageTone,
 } from "../../shared/lib/usage-logic";
+import { useUsageDisplayMode } from "../../shared/hooks/useUsageDisplayMode";
+import { displayPercent } from "../../shared/lib/usage-display";
 import { ACCOUNT_FORMS, formatCount } from "../../shared/lib/format";
 import { reorderKeyDelta } from "../reorder/reorder-utils";
 import type { SidebarGroup } from "./sidebar-groups";
@@ -54,16 +56,17 @@ export function SidebarGroupRow({
   /** Keyboard alternative to dragging; only passed for groups that can be reordered. */
   onMove?: (delta: -1 | 1) => void;
 }) {
+  const [displayMode] = useUsageDisplayMode();
   const five = groupAverage(group.accounts, "five_hour");
   const weekly = groupAverage(group.accounts, "weekly");
   const displayValue = five ?? weekly;
   const toneValue = five != null && weekly != null ? Math.min(five, weekly) : displayValue;
-  const width = toneValue == null ? 0 : Math.min(100, Math.max(0, toneValue));
+  const width = toneValue == null ? 0 : Math.min(100, Math.max(0, displayPercent(toneValue, displayMode)));
   const tone = usageTone(toneValue);
   const toneFive = five == null ? null : usageTone(five);
   const toneWeekly = weekly == null ? null : usageTone(weekly);
-  const labelFive = five == null ? "—" : `${Math.round(five)}%`;
-  const labelWeekly = weekly == null ? "—" : `${Math.round(weekly)}%`;
+  const labelFive = five == null ? "—" : `${Math.round(displayPercent(five, displayMode))}%`;
+  const labelWeekly = weekly == null ? "—" : `${Math.round(displayPercent(weekly, displayMode))}%`;
   const reorderable = group.type !== "all";
   return (
     <button
@@ -107,7 +110,7 @@ export function SidebarGroupRow({
             <span className="sidebar-group-count">({group.accounts.length})</span>
             {group.type === "bucket" ? <span className="bucket-mini-badge">Group</span> : null}
           </strong>
-          <span className="provider-average" data-tooltip="Average left: 5-hour | 7-day">
+          <span className="provider-average" data-tooltip={`Average ${displayMode === "used" ? "used" : "left"}: 5-hour | 7-day`}>
             <span className={five == null ? "tone-na" : `tone-${toneFive}`}>{labelFive}</span>
             <span className="tone-pipe"> | </span>
             <span className={weekly == null ? "tone-na" : `tone-${toneWeekly}`}>{labelWeekly}</span>

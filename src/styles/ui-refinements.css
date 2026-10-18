@@ -504,11 +504,13 @@
   overflow: visible;
 }
 
+/* The buttons sit at the left of the heading, so each tooltip opens rightwards from its own
+   button's left edge. */
 .add-bucket-header-button[data-tooltip]::after,
 .add-account-header-button[data-tooltip]::after {
   top: calc(100% + 24px);
-  left: auto;
-  right: 0;
+  left: 0;
+  right: auto;
   transform: none;
   z-index: 1000;
 }
@@ -691,6 +693,20 @@
    cannot scroll. (Older engines ignore it and keep hidden.) */
 .obsidian-shell .sidebar {
   overflow: clip;
+}
+
+/* Tooltips in the sidebar (the + Group one is wider than the space left of the sidebar's right
+   edge) float over the main area instead of being cut off. visible cannot scroll either. It is
+   limited to where the sidebar is on screen: a closed mobile sidebar sits off to the left, and
+   its resize handle would poke into view. */
+@media (min-width: 861px) {
+  .obsidian-shell .sidebar {
+    overflow: visible;
+  }
+}
+
+.obsidian-shell .sidebar.mobile-open {
+  overflow: visible;
 }
 
 .obsidian-shell .provider-list {

@@ -14,6 +14,8 @@ export const STORAGE_KEYS = {
   theme: "ai-usage-tracker:theme",
   /** sessionStorage: survives a reload during sign-in, not an app restart. */
   loginAttempt: "ai-usage-tracker:login-attempt",
+  /** "left" | "used": whether usage percentages show the quota remaining or already consumed. */
+  usageDisplayMode: "ai-usage-tracker:usage-display-mode",
   /** "1" once the user has completed a reorder gesture or keyboard reorder. */
   reorderHintSeen: "ai-usage-tracker:reorder-hint-seen",
   /** Number of newly opened app sessions (up to 2) where the reorder hint was eligible to be shown. */

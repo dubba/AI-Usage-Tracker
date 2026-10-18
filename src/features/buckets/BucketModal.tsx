@@ -13,6 +13,8 @@ import { backdropMouseDown, useModalClosePolicy } from "../../shared/hooks/useMo
 import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
 import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
 import { useVirtualKeyboard } from "../../shared/hooks/useVirtualKeyboard";
+import { useUsageDisplayMode } from "../../shared/hooks/useUsageDisplayMode";
+import { displayPercent } from "../../shared/lib/usage-display";
 
 const ALL_PROVIDERS: { id: Provider; label: string }[] = (Object.keys(PROVIDER_META) as Provider[])
   .map((id) => ({ id, label: PROVIDER_META[id].name }))
@@ -60,6 +62,7 @@ export function BucketModal({
   const dirty =
     name !== baseline.name || selectedProvider !== baseline.provider || !sameIds(selectedAccountIds, baseline.accountIds);
   const nestedOpen = confirmingDelete || confirmingDiscard;
+  const [displayMode] = useUsageDisplayMode();
 
   // While busy nothing closes. Otherwise a clean form closes straight away; a
   // dirty form first asks whether to discard the unsaved changes.
@@ -262,7 +265,7 @@ export function BucketModal({
                       </div>
                       {sessionWindow?.remainingPercent != null ? (
                         <span className="bucket-account-percent">
-                          {Math.round(sessionWindow.remainingPercent)}%
+                          {Math.round(displayPercent(sessionWindow.remainingPercent, displayMode))}%
                         </span>
                       ) : null}
                     </label>

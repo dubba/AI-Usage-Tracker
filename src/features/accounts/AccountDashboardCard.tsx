@@ -30,6 +30,8 @@ import type {
 } from "../../types";
 import { errorMessage, friendlyMessage } from "../../shared/lib/errors";
 import { useClock } from "../../shared/hooks/useClock";
+import { useUsageDisplayMode } from "../../shared/hooks/useUsageDisplayMode";
+import { displayPercent, usageDisplaySuffix } from "../../shared/lib/usage-display";
 import { reorderKeyDelta } from "../reorder/reorder-utils";
 import { AccountUsageMetric } from "./AccountUsageMetric";
 import { CREDENTIAL_PROTECTION_ACCOUNT_NOTE } from "../dashboard/credential-protection";
@@ -130,6 +132,7 @@ export function AccountDashboardCard({
   const windows = orderedWindows(account.lastUsage?.windows ?? []);
   const remainingValues = windows.flatMap((window) => (window.remainingPercent == null ? [] : [window.remainingPercent]));
   const lowestRemaining = remainingValues.length ? Math.min(...remainingValues) : null;
+  const [displayMode] = useUsageDisplayMode();
   const modelsOnly = account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_model_access";
   const waitingForMetrics = account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_monitoring_waiting";
   const googleUnavailableLabel = modelsOnly ? "Key only" : waitingForMetrics ? "Setup in progress" : "Unavailable";
@@ -379,7 +382,7 @@ export function AccountDashboardCard({
             {status.label !== "LIVE" ? <span className={`account-status-badge ${status.className}`}>{status.label}</span> : null}
             <span className="plan-with-dot">
               {isCollapsed && lowestRemaining != null ? (
-                <span className={`collapsed-summary tone-${usageTone(lowestRemaining)}`}>{Math.round(lowestRemaining)}% left</span>
+                <span className={`collapsed-summary tone-${usageTone(lowestRemaining)}`}>{Math.round(displayPercent(lowestRemaining, displayMode))}% {usageDisplaySuffix(displayMode)}</span>
               ) : null}
               <span
                 className={`live-dot ${needsAttention || status.label !== "LIVE" ? "attention" : ""}`}

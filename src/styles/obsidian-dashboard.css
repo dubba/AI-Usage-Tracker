@@ -161,6 +161,12 @@ select {
   transition: border-color 120ms ease;
 }
 
+/* Pinned to the right edge of the sidebar heading; the Account / Group buttons stay left. */
+.usage-display-toggle {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
 .provider-window-toggle:hover {
   border-color: var(--obsidian-purple-strong);
 }
@@ -197,9 +203,22 @@ select {
   border-right: 0;
 }
 
+/* Same solid purple fill and white label as the + Account / + Group primary buttons. */
 .provider-window-toggle button.active {
-  color: var(--purple-on-text);
-  background: var(--obsidian-purple);
+  color: #ffffff;
+  background: var(--purple-fill);
+}
+
+/* The selected segment lightens on hover and focus the way the primary buttons do:
+   --purple-fill-hover in dark, --purple-chip in light. */
+:root:not([data-theme="light"]) .provider-window-toggle button.active:hover,
+:root:not([data-theme="light"]) .provider-window-toggle button.active:focus-visible {
+  background: var(--purple-fill-hover);
+}
+
+:root[data-theme="light"] .provider-window-toggle button.active:hover,
+:root[data-theme="light"] .provider-window-toggle button.active:focus-visible {
+  background: var(--purple-chip);
 }
 
 .provider-list {

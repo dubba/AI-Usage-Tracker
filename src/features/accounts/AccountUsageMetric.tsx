@@ -1,4 +1,6 @@
 import { useClock } from "../../shared/hooks/useClock";
+import { useUsageDisplayMode } from "../../shared/hooks/useUsageDisplayMode";
+import { displayPercent, usageDisplaySuffix } from "../../shared/lib/usage-display";
 import {
   formatResetAtShort,
   usageTone,
@@ -44,7 +46,10 @@ export function AccountUsageMetric({
 }) {
   const remaining = window.remainingPercent;
   const resetLine = useClock((now) => resetSummaryLine(window, remaining, provider, now));
-  const width = remaining == null ? 0 : Math.min(100, Math.max(0, remaining));
+  const [displayMode] = useUsageDisplayMode();
+  const shown = remaining == null ? null : displayPercent(remaining, displayMode);
+  const suffix = usageDisplaySuffix(displayMode);
+  const width = shown == null ? 0 : Math.min(100, Math.max(0, shown));
   const tone = usageTone(remaining);
   const length = windowLength(window);
   const group = metricGroupLabel(window, provider);
@@ -63,18 +68,18 @@ export function AccountUsageMetric({
         <span
           className="account-metric-track"
           role="progressbar"
-          aria-label={`${length ?? window.label} remaining`}
+          aria-label={`${length ?? window.label} ${displayMode === "used" ? "used" : "remaining"}`}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-valuenow={remaining == null ? undefined : Math.round(remaining)}
-          aria-valuetext={remaining == null ? unavailableLabel : `${Math.round(remaining)}% left`}
+          aria-valuenow={shown == null ? undefined : Math.round(shown)}
+          aria-valuetext={shown == null ? unavailableLabel : `${Math.round(shown)}% ${suffix}`}
         ><span className={`tone-${tone}`} style={{ width: `${width}%` }} /></span>
         {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
       </div>
       <div className="metric-detail-row">
         <span className="metric-percent-line">
-          <strong className={`metric-full-value tone-${tone}`}>{remaining == null ? unavailableLabel : `${Math.round(remaining)}%`}</strong>
-          {remaining == null ? null : <span className="metric-percent-suffix">left</span>}
+          <strong className={`metric-full-value tone-${tone}`}>{shown == null ? unavailableLabel : `${Math.round(shown)}%`}</strong>
+          {shown == null ? null : <span className="metric-percent-suffix">{suffix}</span>}
         </span>
         <span className="metric-reset">{resetLine}</span>
       </div>

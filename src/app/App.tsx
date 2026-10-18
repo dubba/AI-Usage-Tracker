@@ -7,6 +7,7 @@ import { busyKey, useBusyKeys } from "../shared/lib/busy";
 import { useAppErrors } from "../shared/lib/errors";
 import { resumeLoginAttemptWatch, subscribeLoginStatus } from "../shared/lib/login-status";
 import { AccountAlertModal } from "../features/accounts/AccountAlertModal";
+import { UsageDisplayToggle } from "../features/dashboard/UsageDisplayToggle";
 import { AccountsView } from "../features/accounts/AccountsView";
 import { SyncStatusLine } from "../features/dashboard/SyncStatusLine";
 import { RemoveAccountModal } from "../features/accounts/RemoveAccountModal";
@@ -454,6 +455,7 @@ export default function App() {
               <PlusIcon />Group
             </button>
           </div>
+          <UsageDisplayToggle />
         </div>
 
         <div ref={providerListRef} className={`provider-list${providerListOverflows ? " has-overflow" : ""}`}>

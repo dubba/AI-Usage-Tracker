@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased (12 changes)
+## Unreleased (13 changes)
+
+### Added (1)
+
+- An L / U toggle at the right of the sidebar's Account and Group buttons switches every usage percentage, in the sidebar and on the dashboard, between the quota left (L) and the quota already used (U), and remembers your choice. Transferring settings to another device with Link Devices also carries the choice over.
 
 ### Fixed (3)
 

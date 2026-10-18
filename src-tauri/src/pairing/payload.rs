@@ -61,6 +61,9 @@ pub struct UiStateSyncPayload {
     /// Appearance theme ("dark" | "light" | "system"). Older peers ignore it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub theme: Option<String>,
+    /// Whether usage percentages show the quota left or used ("left" | "used"). Older peers ignore it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub usage_display_mode: Option<String>,
 }
 
 impl UiStateSyncPayload {
@@ -113,6 +116,14 @@ impl UiStateSyncPayload {
             .is_some_and(|theme| !matches!(theme, "dark" | "light" | "system"))
         {
             self.theme = None;
+        }
+        // Same for the usage display mode.
+        if self
+            .usage_display_mode
+            .as_deref()
+            .is_some_and(|mode| !matches!(mode, "left" | "used"))
+        {
+            self.usage_display_mode = None;
         }
     }
 }
@@ -238,6 +249,7 @@ pub fn create_export_payload(state: &AppState) -> Result<Vec<u8>, String> {
                     || ui.page_account_order.is_some()
                     || ui.sidebar_width.is_some()
                     || ui.theme.is_some()
+                    || ui.usage_display_mode.is_some()
             });
 
         (
