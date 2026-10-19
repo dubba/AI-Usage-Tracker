@@ -271,28 +271,62 @@ describe("useDashboardData", () => {
     });
   });
 
-  // Known bug (audit F8): a slower, older response overwrites a newer one. Step 1.6 fixes it
-  // with a request counter and turns this into a normal test.
-  it.fails("keeps the newest snapshot when an earlier load answers last", async () => {
-    const older = deferred<DashboardSnapshot>();
-    const newer = deferred<DashboardSnapshot>();
-    api.snapshot.mockReturnValueOnce(older.promise).mockReturnValueOnce(newer.promise);
-    mounted = mount(<Harness />);
-    await settle();
-    act(() => {
-      window.dispatchEvent(new Event(UI_EVENTS.dashboardResync));
+  describe("overlapping loads", () => {
+    async function startTwoLoads() {
+      const older = deferred<DashboardSnapshot>();
+      const newer = deferred<DashboardSnapshot>();
+      api.snapshot.mockReturnValueOnce(older.promise).mockReturnValueOnce(newer.promise);
+      mounted = mount(<Harness />);
+      await settle();
+      act(() => {
+        window.dispatchEvent(new Event(UI_EVENTS.dashboardResync));
+      });
+      await settle();
+      expect(api.snapshot).toHaveBeenCalledTimes(2);
+      return { older, newer };
+    }
+
+    it("keeps the newest snapshot when an earlier load answers last", async () => {
+      const { older, newer } = await startTwoLoads();
+
+      const newest = makeSnapshot("newest");
+      newer.resolve(newest);
+      await settle();
+      expect(latest.snapshot).toBe(newest);
+
+      older.resolve(makeSnapshot("older"));
+      await settle();
+      expect(latest.snapshot).toBe(newest);
+      expect(getLatestSnapshot()).toBe(newest);
     });
-    await settle();
-    expect(api.snapshot).toHaveBeenCalledTimes(2);
 
-    const newest = makeSnapshot("newest");
-    newer.resolve(newest);
-    await settle();
-    expect(latest.snapshot).toBe(newest);
+    it("shows both answers in order when they arrive in order", async () => {
+      const { older, newer } = await startTwoLoads();
+      const first = makeSnapshot("first");
+      const second = makeSnapshot("second");
 
-    older.resolve(makeSnapshot("older"));
-    await settle();
-    expect(latest.snapshot).toBe(newest);
-    expect(getLatestSnapshot()).toBe(newest);
+      older.resolve(first);
+      await settle();
+      expect(latest.snapshot).toBe(first);
+      newer.resolve(second);
+      await settle();
+      expect(latest.snapshot).toBe(second);
+    });
+
+    it("does not report a failure of an older load once a newer answer is shown", async () => {
+      const { older, newer } = await startTwoLoads();
+      newer.resolve(makeSnapshot("newest"));
+      await settle();
+      older.reject(new Error("timed out"));
+      await settle();
+      expect(reportError).not.toHaveBeenCalled();
+    });
+
+    it("reports a failure when nothing newer has been shown", async () => {
+      const { older } = await startTwoLoads();
+      older.reject(new Error("backend down"));
+      await settle();
+      expect(reportError).toHaveBeenCalledWith("load", expect.any(Error));
+    });
   });
 });

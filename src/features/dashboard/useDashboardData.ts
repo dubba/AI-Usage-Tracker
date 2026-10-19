@@ -36,6 +36,10 @@ export function useDashboardData({
   const wasHiddenRef = useRef(false);
   const unprotectedCredentialsRef = useRef(0);
   const loadSkippedRef = useRef(false);
+  // Loads can overlap (poll, focus, resync, user actions). Each gets a rising number and an answer
+  // is shown only if nothing newer has been shown, so a slow old response cannot replace a newer one.
+  const lastRequestRef = useRef(0);
+  const lastShownRequestRef = useRef(0);
 
   /**
    * The only place the snapshot is fetched. Resolves to the snapshot, or null if it could not be
@@ -48,12 +52,15 @@ export function useDashboardData({
       return null;
     }
     loadSkippedRef.current = false;
+    const requestId = ++lastRequestRef.current;
     try {
       const next = await withTimeout(
         bridgeApi.snapshot(),
         LOAD_TIMEOUT_MS,
         "Timed out loading accounts from the app backend.",
       );
+      if (requestId < lastShownRequestRef.current) return next;
+      lastShownRequestRef.current = requestId;
       clearPendingAllOrder();
       setSnapshot(next);
       publishSnapshot(next);
@@ -67,6 +74,8 @@ export function useDashboardData({
       }
       return next;
     } catch (cause) {
+      // A newer answer is already on screen; this failure is no longer news.
+      if (requestId < lastShownRequestRef.current) return null;
       reportError("load", cause);
       return null;
     }

@@ -106,6 +106,11 @@ export function PairingModal({
     setErrorMessage(friendlyMessage(context, raw));
   };
 
+  // `showError` and `startLinkCode` are new on every render. The effects below call them through
+  // these effect events, so they always run the current ones without listing them as
+  // dependencies and re-running on every render.
+  const showErrorFromEffect = useEffectEvent((context: string, cause: unknown) => showError(context, cause));
+
   const player = useAirgapPlayer(airgapExport, viewMode === "airgap-sender");
   const capture = useAirgapCapture({
     active: open && viewMode === "scanner",
@@ -295,7 +300,7 @@ export function PairingModal({
     setBusy(true);
     setErrorMessage(null);
     void pairingApi.selectRole(intendedRole).catch((err) => {
-      showError("Couldn't apply the send or receive role", err);
+      showErrorFromEffect("Couldn't apply the send or receive role", err);
       roleAutoSelectedRef.current = false;
       setBusy(false);
     });
@@ -468,6 +473,8 @@ export function PairingModal({
     void checkPendingAndStart();
   }, [open, initialJoinUri, setStatus, startFromUri, setErrorMessage, setAirgapPrepareError, setCameraError]);
 
+  const startLinkCodeFromEffect = useEffectEvent((action: "host" | "code") => startLinkCode(action));
+
   // While the Wi-Fi prompt is up, poll so returning from the system panel (or
   // flipping Wi-Fi in the Android overlay) continues the link-code step.
   useEffect(() => {
@@ -481,7 +488,7 @@ export function PairingModal({
         if (cancelled || continued || !enabled) return;
         continued = true;
         setWifiPrompt(null);
-        startLinkCode(action);
+        startLinkCodeFromEffect(action);
       } catch (cause) {
         logIgnored("pairing.wifiEnabled", cause);
       }
