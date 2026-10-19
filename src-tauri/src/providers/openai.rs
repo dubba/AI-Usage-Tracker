@@ -2,12 +2,11 @@ use super::{
     oauth_refresh::{
         refresh_oauth_secret, IdToken, InvalidGrant, Lifetime, RefreshBody, RefreshRequest,
     },
-    ProviderError, ProviderUsage,
+    with_fresh_secret, ProviderError, ProviderUsage,
 };
 use crate::{
     model::{Account, OAuthSecret, ProviderSecret, UsageWindow},
     state::AppState,
-    store::save_provider_secret,
 };
 use chrono::{TimeZone, Utc};
 use reqwest::{header::RETRY_AFTER, StatusCode};
@@ -57,25 +56,16 @@ struct RawCredits {
 pub async fn refresh(
     app: &AppState,
     account: &Account,
-    mut secret: OAuthSecret,
+    secret: OAuthSecret,
 ) -> Result<(ProviderUsage, OAuthSecret), ProviderError> {
-    if secret.expires_within(300) {
-        secret = refresh_secret(app, &secret).await?;
-        save_provider_secret(&account.id, &ProviderSecret::Openai(secret.clone())).map_err(
-            |_| ProviderError::Transient("Unable to save refreshed credentials.".into()),
-        )?;
-    }
-
-    let raw = match call_usage(app, account, &secret).await {
-        Err(ProviderError::Auth) => {
-            secret = refresh_secret(app, &secret).await?;
-            save_provider_secret(&account.id, &ProviderSecret::Openai(secret.clone())).map_err(
-                |_| ProviderError::Transient("Unable to save refreshed credentials.".into()),
-            )?;
-            call_usage(app, account, &secret).await?
-        }
-        result => result?,
-    };
+    let (raw, secret) = with_fresh_secret(
+        account,
+        secret,
+        ProviderSecret::Openai,
+        |secret| Box::pin(async move { refresh_secret(app, &secret).await }),
+        |secret| Box::pin(async move { call_usage(app, account, &secret).await }),
+    )
+    .await?;
 
     let is_free_plan = raw
         .plan_type

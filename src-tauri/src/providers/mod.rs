@@ -7,10 +7,11 @@ pub mod openai;
 pub mod opencode_go;
 
 use crate::{
-    model::{Account, ProviderSecret, UsageWindow},
+    model::{Account, OAuthSecret, ProviderSecret, UsageWindow},
     state::AppState,
+    store::save_provider_secret,
 };
-use std::{sync::Arc, time::Duration};
+use std::{future::Future, pin::Pin, sync::Arc, time::Duration};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -70,6 +71,73 @@ pub fn rate_limited(provider: &str, retry_after_header: Option<&str>) -> Provide
         message,
         retry_after,
     }
+}
+
+/// A token that expires within this many seconds is refreshed before it is used, so a request
+/// does not start with a token that dies on the way.
+pub(crate) const REFRESH_SKEW_SECS: i64 = 300;
+
+/// A provider call that borrows the secret it runs with.
+pub(crate) type SecretFuture<'a, T> =
+    Pin<Box<dyn Future<Output = Result<T, ProviderError>> + Send + 'a>>;
+
+/// Stores a secret the provider just rotated. The refresh already happened, so a failure here
+/// is reported without the underlying error, which can name the credential store's paths.
+pub(crate) fn save_refreshed(
+    account_id: &str,
+    secret: ProviderSecret,
+) -> Result<(), ProviderError> {
+    save_provider_secret(account_id, &secret)
+        .map_err(|_| ProviderError::Transient("Unable to save refreshed credentials.".into()))
+}
+
+/// Runs `call` with a token that is valid, refreshing it as needed:
+///
+/// 1. if `secret` expires within `REFRESH_SKEW_SECS`, refresh it first and save it;
+/// 2. run `call`; if the provider answers `Auth` (the token was revoked or expired early),
+///    refresh once more, save, and run `call` again. A second `Auth` is returned as it is.
+///
+/// `refresh` and `call` each get their own copy of the secret.
+///
+/// Returns what `call` produced together with the secret that is now current, which the caller
+/// hands back so the next refresh starts from it. `wrap` puts the refreshed secret into the
+/// provider's `ProviderSecret` variant for saving.
+pub(crate) async fn with_fresh_secret<'c, T>(
+    account: &Account,
+    secret: OAuthSecret,
+    wrap: fn(OAuthSecret) -> ProviderSecret,
+    refresh: impl Fn(OAuthSecret) -> SecretFuture<'c, OAuthSecret>,
+    call: impl Fn(OAuthSecret) -> SecretFuture<'c, T>,
+) -> Result<(T, OAuthSecret), ProviderError> {
+    with_fresh_secret_saving(
+        secret,
+        |fresh| save_refreshed(&account.id, wrap(fresh.clone())),
+        refresh,
+        call,
+    )
+    .await
+}
+
+/// `with_fresh_secret` with the saving injectable, so tests need no credential store.
+async fn with_fresh_secret_saving<'c, T>(
+    mut secret: OAuthSecret,
+    save: impl Fn(&OAuthSecret) -> Result<(), ProviderError>,
+    refresh: impl Fn(OAuthSecret) -> SecretFuture<'c, OAuthSecret>,
+    call: impl Fn(OAuthSecret) -> SecretFuture<'c, T>,
+) -> Result<(T, OAuthSecret), ProviderError> {
+    if secret.expires_within(REFRESH_SKEW_SECS) {
+        secret = refresh(secret.clone()).await?;
+        save(&secret)?;
+    }
+    let result = match call(secret.clone()).await {
+        Err(ProviderError::Auth) => {
+            secret = refresh(secret.clone()).await?;
+            save(&secret)?;
+            call(secret.clone()).await?
+        }
+        result => result?,
+    };
+    Ok((result, secret))
 }
 
 #[derive(Clone, Debug)]
@@ -166,5 +234,160 @@ mod tests {
         assert_eq!(parse_retry_after(""), None);
         assert_eq!(parse_retry_after("soon"), None);
         assert_eq!(parse_retry_after("-5"), None);
+    }
+
+    mod fresh_secret {
+        use super::super::*;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        fn secret(access: &str, expires_in_secs: i64) -> OAuthSecret {
+            OAuthSecret {
+                access_token: access.into(),
+                refresh_token: "refresh".into(),
+                id_token: None,
+                expires_at: chrono::Utc::now().timestamp_millis() + expires_in_secs * 1000,
+            }
+        }
+
+        /// Counts refreshes (each yields a token named "fresh-N", valid for an hour), saves and
+        /// calls, and answers each call with the next entry of `answers`.
+        struct Run {
+            refreshes: AtomicUsize,
+            saves: AtomicUsize,
+            calls: AtomicUsize,
+            seen_tokens: parking_lot::Mutex<Vec<String>>,
+        }
+
+        impl Run {
+            fn new() -> Self {
+                Self {
+                    refreshes: AtomicUsize::new(0),
+                    saves: AtomicUsize::new(0),
+                    calls: AtomicUsize::new(0),
+                    seen_tokens: parking_lot::Mutex::new(Vec::new()),
+                }
+            }
+
+            async fn go(
+                &self,
+                start: OAuthSecret,
+                answers: Vec<Result<&'static str, ProviderError>>,
+                save_fails: bool,
+            ) -> Result<(&'static str, OAuthSecret), ProviderError> {
+                let answers = parking_lot::Mutex::new(answers.into_iter());
+                with_fresh_secret_saving(
+                    start,
+                    |_| {
+                        self.saves.fetch_add(1, Ordering::SeqCst);
+                        if save_fails {
+                            Err(ProviderError::Transient(
+                                "Unable to save refreshed credentials.".into(),
+                            ))
+                        } else {
+                            Ok(())
+                        }
+                    },
+                    |_| {
+                        let n = self.refreshes.fetch_add(1, Ordering::SeqCst) + 1;
+                        Box::pin(async move { Ok(secret(&format!("fresh-{n}"), 3600)) })
+                    },
+                    |current| {
+                        self.calls.fetch_add(1, Ordering::SeqCst);
+                        self.seen_tokens.lock().push(current.access_token.clone());
+                        let answer = answers.lock().next().expect("an answer per call");
+                        Box::pin(async move { answer })
+                    },
+                )
+                .await
+            }
+        }
+
+        #[tokio::test]
+        async fn a_valid_token_is_used_as_it_is() {
+            let run = Run::new();
+            let (value, current) = run
+                .go(secret("old", 3600), vec![Ok("usage")], false)
+                .await
+                .unwrap();
+            assert_eq!(value, "usage");
+            assert_eq!(current.access_token, "old");
+            assert_eq!(run.refreshes.load(Ordering::SeqCst), 0);
+            assert_eq!(run.saves.load(Ordering::SeqCst), 0);
+            assert_eq!(run.calls.load(Ordering::SeqCst), 1);
+        }
+
+        #[tokio::test]
+        async fn a_token_about_to_expire_is_refreshed_and_saved_before_the_call() {
+            let run = Run::new();
+            let (_, current) = run
+                .go(
+                    secret("old", REFRESH_SKEW_SECS - 1),
+                    vec![Ok("usage")],
+                    false,
+                )
+                .await
+                .unwrap();
+            assert_eq!(current.access_token, "fresh-1");
+            assert_eq!(run.refreshes.load(Ordering::SeqCst), 1);
+            assert_eq!(run.saves.load(Ordering::SeqCst), 1);
+            assert_eq!(*run.seen_tokens.lock(), ["fresh-1"]);
+        }
+
+        #[tokio::test]
+        async fn an_auth_answer_refreshes_once_and_retries_with_the_new_token() {
+            let run = Run::new();
+            let (value, current) = run
+                .go(
+                    secret("old", 3600),
+                    vec![Err(ProviderError::Auth), Ok("usage")],
+                    false,
+                )
+                .await
+                .unwrap();
+            assert_eq!(value, "usage");
+            assert_eq!(current.access_token, "fresh-1");
+            assert_eq!(*run.seen_tokens.lock(), ["old", "fresh-1"]);
+            assert_eq!(run.saves.load(Ordering::SeqCst), 1);
+        }
+
+        #[tokio::test]
+        async fn a_second_auth_answer_is_returned_without_another_retry() {
+            let run = Run::new();
+            let result = run
+                .go(
+                    secret("old", 3600),
+                    vec![Err(ProviderError::Auth), Err(ProviderError::Auth)],
+                    false,
+                )
+                .await;
+            assert!(matches!(result, Err(ProviderError::Auth)));
+            assert_eq!(run.refreshes.load(Ordering::SeqCst), 1);
+            assert_eq!(run.calls.load(Ordering::SeqCst), 2);
+        }
+
+        #[tokio::test]
+        async fn other_errors_are_not_retried() {
+            let run = Run::new();
+            let result = run
+                .go(
+                    secret("old", 3600),
+                    vec![Err(ProviderError::Transient("boom".into()))],
+                    false,
+                )
+                .await;
+            assert!(matches!(result, Err(ProviderError::Transient(ref m)) if m == "boom"));
+            assert_eq!(run.refreshes.load(Ordering::SeqCst), 0);
+            assert_eq!(run.calls.load(Ordering::SeqCst), 1);
+        }
+
+        #[tokio::test]
+        async fn a_failed_save_stops_before_the_call() {
+            let run = Run::new();
+            let result = run.go(secret("old", 1), vec![Ok("usage")], true).await;
+            assert!(
+                matches!(result, Err(ProviderError::Transient(ref m)) if m.contains("save refreshed"))
+            );
+            assert_eq!(run.calls.load(Ordering::SeqCst), 0);
+        }
     }
 }
