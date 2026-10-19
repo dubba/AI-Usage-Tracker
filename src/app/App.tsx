@@ -1,43 +1,22 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { bridgeApi } from "../shared/lib/api";
-import { logIgnored } from "../shared/lib/log";
 import { modalReducer } from "./modal-state";
 import { openSafeUrl } from "../shared/lib/safeUrl";
-import { busyKey, useBusyKeys } from "../shared/lib/busy";
+import { useBusyKeys } from "../shared/lib/busy";
 import { useAppErrors } from "../shared/lib/errors";
 import { resumeLoginAttemptWatch, subscribeLoginStatus } from "../shared/lib/login-status";
-import { AccountAlertModal } from "../features/accounts/AccountAlertModal";
-import { UsageDisplayToggle } from "../features/dashboard/UsageDisplayToggle";
 import { AccountsView } from "../features/accounts/AccountsView";
-import { SyncStatusLine } from "../features/dashboard/SyncStatusLine";
-import { RemoveAccountModal } from "../features/accounts/RemoveAccountModal";
-import { UnprotectedSignInsModal } from "../features/accounts/UnprotectedSignInsModal";
 import { useUnprotectedSignIns } from "../features/accounts/useUnprotectedSignIns";
-import { AddAccountModal } from "../features/add-account/AddAccountModal";
-import { BucketModal } from "../features/buckets/BucketModal";
 import { ErrorBanner } from "../shared/ui/ErrorBanner";
-import { GoogleAiStudioUsageModal } from "../features/accounts/GoogleAiStudioUsageModal";
-import { PairingModal } from "../features/pairing/PairingModal";
 import { SettingsView } from "../features/settings/SettingsView";
-import { UpdateNotesModal } from "../features/settings/UpdateNotesModal";
 import { useLayout } from "../features/dashboard/layout-store";
 import { AppSettingsContext, AppUpdateContext } from "../features/settings/settings-context";
-import { GROUP_REORDER_HINT_ID, SidebarGroupRow } from "../features/dashboard/SidebarGroupRow";
-import { SidebarResizeHandle } from "../features/dashboard/SidebarResizeHandle";
+import { GROUP_REORDER_HINT_ID } from "../features/dashboard/SidebarGroupRow";
 import { UsageAlertToasts } from "../features/alerts/UsageAlertToasts";
 import "../features/pairing/pairing.css";
 import { persistGroupOrder } from "../features/reorder";
-import {
-  readDashboardProviderOrder,
-  readSidebarGroupOrder,
-  storeSidebarGroupOrder,
-} from "../features/dashboard/sidebar-order";
-import {
-  applyPageAccountOrder,
-  migrateLegacyAllPageOrder,
-  migrateLegacyCollapsedCards,
-} from "../features/dashboard/dashboard-page-state";
-import { DEFAULT_ACCOUNT_REFRESH_MINUTES, SIDEBAR_ID } from "../shared/lib/constants";
+import { storeSidebarGroupOrder } from "../features/dashboard/sidebar-order";
+import { applyPageAccountOrder } from "../features/dashboard/dashboard-page-state";
+import { DEFAULT_ACCOUNT_REFRESH_MINUTES } from "../shared/lib/constants";
 import { useAccountActions } from "../features/accounts/useAccountActions";
 import { useAppSettings } from "../features/settings/useAppSettings";
 import { useAppUpdate } from "../features/settings/useAppUpdate";
@@ -47,27 +26,24 @@ import { useDashboardData } from "../features/dashboard/useDashboardData";
 import { useDragReorder } from "../features/reorder/useDragReorder";
 import { usePairingEvents } from "../features/pairing/hooks/usePairingEvents";
 import { useSidebarOverlay } from "../features/dashboard/useSidebarOverlay";
-import { useScrollThumb } from "../shared/hooks/useScrollThumb";
 import { useTouchTooltips } from "../shared/hooks/useTouchTooltips";
 import { useUsageAlerts } from "../features/alerts/useUsageAlerts";
-import {
-  CloseIcon,
-  GaugeIcon,
-  PlusIcon,
-} from "../shared/ui/icons";
 import {
   ALL_ACCOUNTS_GROUP_ID,
   bucketGroupId,
   buildAllAccountsGroup,
   buildSidebarGroups,
-  providerGroupId,
-  reconciledSidebarGroupOrder,
   type SidebarGroup,
 } from "../features/dashboard/sidebar-groups";
 import { moveAnnouncement, moveById } from "../features/reorder/reorder-utils";
 import { requestDashboardResync } from "../shared/lib/events";
-import { displayAccountLabel, googleAiStudioHasQuotaWindows } from "../shared/lib/usage-logic";
 import type { Account, AccountBucket, Provider } from "../types";
+import { AppModals } from "./AppModals";
+import { Sidebar } from "./Sidebar";
+import { useAfterAccountAdded } from "./useAfterAccountAdded";
+import { useAppMigrations } from "./useAppMigrations";
+import { useGroupOrderReconcile } from "./useGroupOrderReconcile";
+import { useSidebarNavigation } from "./useSidebarNavigation";
 
 // One shared empty list, so the "not loaded yet" value is the same object on every render.
 const NO_ACCOUNTS: Account[] = [];
@@ -75,31 +51,24 @@ const NO_BUCKETS: AccountBucket[] = [];
 
 export type { SidebarGroup };
 
-type Section = "accounts" | "settings";
-
+/** The app shell: the sidebar, the page beside it, and the dialogs; the work is in the hooks and components it composes. */
 export default function App() {
-  const [selectedGroupId, setSelectedGroupId] = useState(ALL_ACCOUNTS_GROUP_ID);
-  const { providerOrder, groupOrder: sidebarGroupOrder, pageOrderVersion } = useLayout();
-  const [section, setSection] = useState<Section>("accounts");
   const [modal, dispatchModal] = useReducer(modalReducer, null);
-  const addModal = modal?.kind === "add" ? modal : null;
-  const addOpen = addModal != null;
-  const bucketModal = modal?.kind === "bucket" ? modal : null;
-  const alertAccount = modal?.kind === "alert" ? modal.account : null;
-  const accountToRemove = modal?.kind === "remove" ? modal.account : null;
   const googleUsageAccount = modal?.kind === "googleUsage" ? modal.account : null;
   const setGoogleUsageAccount = useCallback(
     (account: Account | null) =>
       dispatchModal(account ? { type: "open", modal: { kind: "googleUsage", account } } : { type: "close", kind: "googleUsage" }),
     [],
   );
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const nav = useSidebarNavigation();
+  const { selectedGroupId, section, sidebarOpen } = nav;
+  const { providerOrder, groupOrder: sidebarGroupOrder, pageOrderVersion } = useLayout();
   const [groupAnnouncement, setGroupAnnouncement] = useState("");
   useTouchTooltips();
   useDragReorder();
   const shellRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
-  const { overlay: sidebarIsOverlay } = useSidebarOverlay(sidebarRef, sidebarOpen, () => setSidebarOpen(false));
+  const { overlay: sidebarIsOverlay } = useSidebarOverlay(sidebarRef, sidebarOpen, nav.closeSidebar);
   // As an off-canvas overlay the sidebar is a modal dialog while open and unreachable while closed.
   const sidebarModal = sidebarIsOverlay && sidebarOpen;
   const sidebarHidden = sidebarIsOverlay && !sidebarOpen;
@@ -117,16 +86,6 @@ export default function App() {
     accountRefreshMinutes: appSettings?.accountRefreshMinutes,
   });
   const update = useAppUpdate({ automaticUpdatesEnabled: appSettings?.automaticUpdatesEnabled });
-  const {
-    appUpdate,
-    updateBusy,
-    updateProgress,
-    updateError,
-    updateNotesOpen,
-    setUpdateNotesOpen,
-    pendingUpdateVersion,
-    installUpdate,
-  } = update;
   const { alerts: inAppAlerts, dismiss: dismissAlert } = useUsageAlerts();
   const { pairingOpen, setPairingOpen, pairingInitialUri, closePairing } = usePairingEvents();
   const {
@@ -138,6 +97,7 @@ export default function App() {
     openApiIntegrationWindow,
   } = useAccountActions({ load, setSnapshot, busy: busyKeys, reportError, clearError });
   const unprotectedSignIns = useUnprotectedSignIns({ snapshot, load, modal, dispatchModal, reportError, clearError });
+  useAppMigrations(snapshot);
 
   const openAdd = useCallback((account?: Account, provider?: Provider) => {
     dispatchModal({ type: "open", modal: { kind: "add", label: account?.label ?? "", provider: account?.provider ?? provider, reconnectAccountId: account?.id } });
@@ -168,26 +128,9 @@ export default function App() {
     requestDashboardResync();
   }, [load, reloadFromBackend]);
 
-  useEffect(() => {
-    migrateLegacyCollapsedCards();
-  }, []);
-
-  // Older versions kept a separate saved order for the "all" page. Once the accounts are known,
-  // fold it into the backend order (which that page now follows) so the page looks the same.
-  const legacyAllOrderHandledRef = useRef(false);
-  useEffect(() => {
-    if (!snapshot || legacyAllOrderHandledRef.current) return;
-    legacyAllOrderHandledRef.current = true;
-    const next = migrateLegacyAllPageOrder(snapshot.accounts.map((account) => account.id));
-    if (!next) return;
-    void bridgeApi
-      .reorderAccounts(next)
-      .catch((cause) => logIgnored("legacy all-page order", cause))
-      .finally(requestDashboardResync);
-  }, [snapshot]);
-
   // A sign-in failure is reported here only when no dialog that shows it inline is open,
   // so the subscription is renewed whenever one of those dialogs opens or closes.
+  const addOpen = modal?.kind === "add";
   const googleUsageOpen = googleUsageAccount != null;
   useEffect(() => {
     return subscribeLoginStatus((status) => {
@@ -222,47 +165,19 @@ export default function App() {
 
   const allAccountsGroup = useMemo<SidebarGroup>(() => buildAllAccountsGroup(accounts), [accounts]);
 
-  // The list keeps room for its scroll bar only while it overflows, so the cards sit centered otherwise.
-  const providerListRef = useRef<HTMLDivElement>(null);
-  const providerListOverflows = useScrollThumb(providerListRef, true, sidebarGroups).overflows;
-
   useEffect(() => {
     if (selectedGroupId === ALL_ACCOUNTS_GROUP_ID) return;
     if (!sidebarGroups.some((group) => group.id === selectedGroupId)) {
-      setSelectedGroupId(ALL_ACCOUNTS_GROUP_ID);
+      nav.resetGroup();
     }
-  }, [selectedGroupId, sidebarGroups]);
+  }, [selectedGroupId, sidebarGroups, nav]);
 
   const selectedGroup = useMemo<SidebarGroup>(() => {
     if (selectedGroupId === ALL_ACCOUNTS_GROUP_ID) return allAccountsGroup;
     return sidebarGroups.find((group) => group.id === selectedGroupId) ?? allAccountsGroup;
   }, [selectedGroupId, sidebarGroups, allAccountsGroup]);
 
-  // Removing and re-adding an account appends it last in the backend order while the saved
-  // sidebar order still slots its group in the old place, so the sidebar and the All page
-  // disagree. Re-derive the group order from the backend order whenever the membership
-  // changes; a no-op otherwise, so card and group drags (which keep both sides in step
-  // themselves) are never disturbed.
-  const membershipKey = useMemo(
-    () =>
-      [
-        accounts.map((account) => account.id).join(" "),
-        buckets.map((bucket) => bucket.id).join(" "),
-      ].join("\n"),
-    [accounts, buckets],
-  );
-  const reconciledMembershipRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!snapshot || reconciledMembershipRef.current === membershipKey) return;
-    reconciledMembershipRef.current = membershipKey;
-    const saved = readSidebarGroupOrder();
-    const next = reconciledSidebarGroupOrder(
-      accounts.map((account) => account.id),
-      buildSidebarGroups(accounts, buckets, readDashboardProviderOrder(), saved),
-      saved,
-    );
-    if (next) storeSidebarGroupOrder(next);
-  }, [snapshot, membershipKey, accounts, buckets]);
+  useGroupOrderReconcile({ snapshot, accounts, buckets });
 
   // The page order lives in storage, not in state; the layout store's version says it was saved
   // again and must be re-read.
@@ -276,10 +191,7 @@ export default function App() {
 
   useKeyboardShortcuts(!isMobileDevice(), {
     refreshAll: () => void refreshAll(),
-    openSettings: () => {
-      setSection((current) => (current === "settings" ? "accounts" : "settings"));
-      setSidebarOpen(false);
-    },
+    openSettings: nav.toggleSettings,
     addAccount: () => {
       openAdd(undefined, selectedGroup.provider ?? undefined);
     },
@@ -314,13 +226,46 @@ export default function App() {
     }, 0);
   };
 
+  // What the dialogs do when they are done.
+  const handleAccountAdded = useAfterAccountAdded({
+    closeAddDialog: useCallback(() => dispatchModal({ type: "close", kind: "add" }), []),
+    selectGroup: nav.selectGroup,
+    load,
+    reportError,
+    openGoogleUsage: setGoogleUsageAccount,
+  });
+  const handleBucketSaved = useCallback(
+    async (saved: AccountBucket) => {
+      dispatchModal({ type: "close", kind: "bucket" });
+      nav.selectGroup(bucketGroupId(saved.id));
+      await load();
+    },
+    [nav, load],
+  );
+  const handleBucketDeleted = useCallback(
+    async (deletedId: string) => {
+      dispatchModal({ type: "close", kind: "bucket" });
+      if (selectedGroupId === bucketGroupId(deletedId)) nav.resetGroup();
+      await load();
+    },
+    [nav, load, selectedGroupId],
+  );
+  const handleGoogleUsageConnected = useCallback(async () => {
+    setGoogleUsageAccount(null);
+    await load();
+  }, [setGoogleUsageAccount, load]);
+  const handleAlertSaved = useCallback(async () => {
+    dispatchModal({ type: "close", kind: "alert" });
+    await load();
+  }, [load]);
+
   const renderContent = () => {
     if (section === "settings") {
       return (
         <AppSettingsContext.Provider value={settings}>
           <AppUpdateContext.Provider value={update}>
             <SettingsView
-              onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+              onToggleSidebar={nav.toggleSidebar}
               sidebarOpen={sidebarOpen}
               onOpenPairing={() => setPairingOpen(true)}
               onOpenLink={openLink}
@@ -329,7 +274,7 @@ export default function App() {
               integrationWindowBusy={busy.has("open-api-integration")}
               onToggleBridge={(enabled) => void setApiIntegrationEnabled(enabled)}
               onViewBridgeWindow={() => void openApiIntegrationWindow()}
-              onOpenUpdateNotes={() => setUpdateNotesOpen(true)}
+              onOpenUpdateNotes={() => update.setUpdateNotesOpen(true)}
             />
           </AppUpdateContext.Provider>
         </AppSettingsContext.Provider>
@@ -341,7 +286,7 @@ export default function App() {
         accounts={visibleAccounts}
         selectedGroup={selectedGroup}
         refreshMinutes={appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES}
-        onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+        onToggleSidebar={nav.toggleSidebar}
         sidebarOpen={sidebarOpen}
         onAdd={(provider) => openAdd(undefined, provider ?? selectedGroup.provider ?? undefined)}
         onOpenPairing={() => setPairingOpen(true)}
@@ -364,105 +309,37 @@ export default function App() {
     <div ref={shellRef} className="app-shell obsidian-shell">
       <div
         className={`sidebar-backdrop ${sidebarOpen ? "active" : ""}`}
-        onClick={() => setSidebarOpen(false)}
+        onClick={nav.closeSidebar}
         role="presentation"
         aria-hidden="true"
       />
-      <aside
-        ref={sidebarRef}
-        id={SIDEBAR_ID}
-        className={`sidebar ${sidebarOpen ? "mobile-open" : ""}`}
-        inert={sidebarHidden}
-        role={sidebarModal ? "dialog" : undefined}
-        aria-modal={sidebarModal ? true : undefined}
-        aria-label={sidebarModal ? "Navigation menu" : undefined}
-      >
-        <div className="sidebar-mobile-header">
-          <button
-            type="button"
-            className="mobile-sidebar-toggle-btn mobile-sidebar-close-btn"
-            onClick={() => setSidebarOpen(false)}
-            aria-label="Close navigation menu"
-            data-tooltip="Close navigation menu"
-          >
-            <CloseIcon />
-          </button>
-          <span className="eyebrow sidebar-title">AI Usage Tracker</span>
-        </div>
-        <div className="brand">
-          <span className="brand-mark"><GaugeIcon /></span>
-          <strong>AI Usage Tracker</strong>
-        </div>
-
-        <div className="provider-sidebar-heading">
-          <div className="provider-sidebar-heading-stack">
-            <div className="provider-sidebar-heading-actions">
-              <button
-                type="button"
-                className="button primary add-account-header-button"
-                data-tooltip="Add new account"
-                aria-label="Add new account"
-                onClick={() => { openAdd(undefined, selectedGroup.provider ?? undefined); setSidebarOpen(false); }}
-              >
-                <PlusIcon />Account
-              </button>
-              <button
-                type="button"
-                className="button primary add-bucket-header-button"
-                data-tooltip={"Group accounts to track usage in\none place, like “Work” or “Personal”"}
-                aria-label="Group accounts to track usage in one place, like “Work” or “Personal”"
-                onClick={() => { openNewBucket(selectedGroup.provider); setSidebarOpen(false); }}
-              >
-                <PlusIcon />Group
-              </button>
-            </div>
-            <UsageDisplayToggle />
-          </div>
-        </div>
-
-        <div ref={providerListRef} className={`provider-list${providerListOverflows ? " has-overflow" : ""}`}>
-          <SidebarGroupRow
-            group={allAccountsGroup}
-            selected={section === "accounts" && selectedGroup.id === ALL_ACCOUNTS_GROUP_ID}
-            onSelect={() => {
-              setSelectedGroupId(ALL_ACCOUNTS_GROUP_ID);
-              setSection("accounts");
-              setSidebarOpen(false);
-            }}
-          />
-          {sidebarGroups.map((group, index) => (
-            <SidebarGroupRow
-              key={group.id}
-              group={group}
-              onMove={
-                (delta) => {
-                  const target = index + delta;
-                  if (target >= 0 && target < sidebarGroups.length) moveGroup(group, delta);
-                }
-              }
-              selected={section === "accounts" && selectedGroup.id === group.id}
-              onSelect={() => {
-                setSelectedGroupId(group.id);
-                setSection("accounts");
-                setSidebarOpen(false);
-              }}
-            />
-          ))}
-        </div>
-
-        <SyncStatusLine
-          accounts={accounts}
-          refreshMinutes={appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES}
-          busy={busy}
-          onRefreshAll={() => void refreshAll()}
-          onOpenSettings={() => {
-            setSection("settings");
-            setSidebarOpen(false);
-          }}
-          settingsActive={section === "settings"}
-        />
-        <SidebarResizeHandle shellRef={shellRef} sidebarRef={sidebarRef} />
-      </aside>
+      <Sidebar
+        sidebarRef={sidebarRef}
+        shellRef={shellRef}
+        open={sidebarOpen}
+        hidden={sidebarHidden}
+        modal={sidebarModal}
+        section={section}
+        selectedGroupId={selectedGroup.id}
+        allAccountsGroup={allAccountsGroup}
+        groups={sidebarGroups}
+        accounts={accounts}
+        refreshMinutes={appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES}
+        busy={busy}
+        onClose={nav.closeSidebar}
+        onAddAccount={() => {
+          openAdd(undefined, selectedGroup.provider ?? undefined);
+          nav.closeSidebar();
+        }}
+        onAddGroup={() => {
+          openNewBucket(selectedGroup.provider);
+          nav.closeSidebar();
+        }}
+        onSelectGroup={(groupId) => nav.selectGroup(groupId, { closeSidebar: true })}
+        onMoveGroup={moveGroup}
+        onRefreshAll={() => void refreshAll()}
+        onOpenSettings={nav.showSettings}
+      />
 
       <main className="main-stage" inert={sidebarModal}>
         {snapshot ? renderContent() : (
@@ -486,105 +363,24 @@ export default function App() {
         )}
       </main>
 
-      <AddAccountModal
-        open={addOpen}
-        initialLabel={addModal?.label ?? ""}
-        initialProvider={addModal?.provider}
-        reconnectAccountId={addModal?.reconnectAccountId}
-        onClose={() => dispatchModal({ type: "close", kind: "add" })}
-        onAdded={async (account) => {
-          dispatchModal({ type: "close", kind: "add" });
-          setSelectedGroupId(providerGroupId(account.provider));
-          setSection("accounts");
-          let nextAccount = account;
-          const currentSnapshot = await load();
-          const stored = currentSnapshot?.accounts.find((item) => item.id === account.id);
-          if (stored?.lastUsage) {
-            nextAccount = stored;
-          } else if (!nextAccount.lastUsage) {
-            try {
-              nextAccount = await bridgeApi.refreshAccount(account.id);
-              await load();
-            } catch (cause) {
-              // The account is saved and stays available with cached state; say that the first refresh failed.
-              reportError(busyKey("refresh", account.id), cause, `Added ${displayAccountLabel(account)}, but couldn't refresh it yet`);
-            }
-          }
-          if (nextAccount.provider === "google_ai_studio" && !googleAiStudioHasQuotaWindows(nextAccount)) {
-            setGoogleUsageAccount(nextAccount);
-          }
-        }}
-      />
-      <BucketModal
-        open={bucketModal != null}
-        bucket={bucketModal?.bucket ?? null}
-        initialProvider={bucketModal?.provider ?? null}
+      <AppModals
+        modal={modal}
+        dispatchModal={dispatchModal}
         accounts={accounts}
-        initialConfirmDelete={bucketModal?.confirmDelete ?? false}
-        onClose={() => dispatchModal({ type: "close", kind: "bucket" })}
-        onSaved={async (saved) => {
-          dispatchModal({ type: "close", kind: "bucket" });
-          setSelectedGroupId(bucketGroupId(saved.id));
-          setSection("accounts");
-          await load();
-        }}
-        onDeleted={async (deletedId) => {
-          dispatchModal({ type: "close", kind: "bucket" });
-          if (selectedGroupId === bucketGroupId(deletedId)) {
-            setSelectedGroupId(ALL_ACCOUNTS_GROUP_ID);
-          }
-          await load();
-        }}
-      />
-      <GoogleAiStudioUsageModal
-        account={googleUsageAccount}
-        onClose={() => setGoogleUsageAccount(null)}
-        onConnected={async () => {
-          setGoogleUsageAccount(null);
-          await load();
-        }}
-      />
-      <AccountAlertModal
-        account={alertAccount}
-        onClose={() => dispatchModal({ type: "close", kind: "alert" })}
-        onSaved={async () => {
-          dispatchModal({ type: "close", kind: "alert" });
-          await load();
-        }}
-      />
-      <RemoveAccountModal
-        account={accountToRemove}
-        busy={Boolean(accountToRemove && busy.has(busyKey("remove", accountToRemove.id)))}
-        onClose={() => dispatchModal({ type: "close", kind: "remove" })}
-        onConfirm={() => {
-          if (accountToRemove) void remove(accountToRemove, () => dispatchModal({ type: "close", kind: "remove" }));
-        }}
-      />
-      <UnprotectedSignInsModal
-        accounts={unprotectedSignIns.accounts}
-        busy={unprotectedSignIns.busy}
-        retryFailed={unprotectedSignIns.retryFailed}
-        onRetry={() => void unprotectedSignIns.retry()}
-        onRemove={() => void unprotectedSignIns.remove()}
-        onClose={unprotectedSignIns.dismiss}
-      />
-      <PairingModal
-        open={pairingOpen}
-        initialJoinUri={pairingInitialUri}
-        onClose={closePairing}
-        onCompleted={handlePairingCompleted}
-      />
-      <UpdateNotesModal
-        open={updateNotesOpen}
-        version={appUpdate?.availableVersion ?? pendingUpdateVersion ?? null}
-        releaseDate={appUpdate?.date}
-        releaseNotes={appUpdate?.body}
-        onClose={() => setUpdateNotesOpen(false)}
-        onInstallUpdate={() => void installUpdate()}
-        onOpenLink={openLink}
-        updateBusy={updateBusy}
-        updatePercent={updateProgress?.percent ?? null}
-        updateError={updateError}
+        busy={busy}
+        openLink={openLink}
+        onAccountAdded={handleAccountAdded}
+        onBucketSaved={handleBucketSaved}
+        onBucketDeleted={handleBucketDeleted}
+        googleUsageAccount={googleUsageAccount}
+        onGoogleUsageClose={() => setGoogleUsageAccount(null)}
+        onGoogleUsageConnected={handleGoogleUsageConnected}
+        onAlertSaved={handleAlertSaved}
+        onRemoveAccount={(account, onStarted) => void remove(account, onStarted)}
+        unprotectedSignIns={unprotectedSignIns}
+        pairing={{ open: pairingOpen, initialUri: pairingInitialUri, onClose: closePairing, onCompleted: handlePairingCompleted }}
+        update={update}
+        onCloseUpdateNotes={() => update.setUpdateNotesOpen(false)}
       />
       <ErrorBanner
         errors={snapshot ? errors : errors.filter((entry) => entry.source !== "load")}
