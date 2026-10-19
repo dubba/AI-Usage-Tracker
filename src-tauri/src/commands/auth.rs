@@ -232,11 +232,15 @@ mod tests {
         let mut found = BTreeSet::new();
         for file in files {
             for line in fs::read_to_string(&file).unwrap().lines() {
-                let Some(rest) = line.trim().strip_prefix("pub(crate) const ").or_else(|| {
-                    line.trim()
-                        .strip_prefix("const ")
-                        .or_else(|| line.trim().strip_prefix("pub const "))
-                }) else {
+                let line = line.trim();
+                let Some(rest) = [
+                    "pub(crate) const ",
+                    "pub(super) const ",
+                    "pub const ",
+                    "const ",
+                ]
+                .iter()
+                .find_map(|prefix| line.strip_prefix(prefix)) else {
                     continue;
                 };
                 let Some((name, value)) = rest.split_once(": &str = \"") else {

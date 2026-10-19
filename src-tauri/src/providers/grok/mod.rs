@@ -33,8 +33,6 @@ mod bot;
 use billing::*;
 pub(crate) use bot::*;
 
-#[cfg(test)]
-mod tests;
 const MAX_COOKIE_HEADER_BYTES: usize = 32 * 1024;
 pub(crate) const GROK_COOKIE_URLS: &[&str] = &[
     "https://grok.com/",
@@ -399,3 +397,6 @@ pub(crate) fn normalize_cookie_header(value: &str) -> Result<String, String> {
     }
     Ok(normalized)
 }
+
+#[cfg(test)]
+mod tests;

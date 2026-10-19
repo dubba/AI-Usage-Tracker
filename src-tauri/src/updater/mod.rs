@@ -23,9 +23,6 @@ use desktop::*;
 use github::*;
 use version::*;
 
-#[cfg(test)]
-mod tests;
-
 #[derive(Clone, Serialize)]
 struct AppUpdateProgress {
     phase: &'static str,
@@ -335,3 +332,6 @@ pub async fn install_app_update(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests;

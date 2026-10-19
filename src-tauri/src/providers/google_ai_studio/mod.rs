@@ -28,8 +28,6 @@ mod quota;
 
 use quota::*;
 
-#[cfg(test)]
-mod tests;
 const MODELS_URL: &str = "https://generativelanguage.googleapis.com/v1beta/models";
 const MONITORING_BASE: &str = "https://monitoring.googleapis.com/v3";
 const METRIC_PREFIX: &str = "generativelanguage.googleapis.com/quota/";
@@ -658,3 +656,6 @@ fn key_fingerprint(api_key: &str) -> String {
         .map(|byte| format!("{byte:02x}"))
         .collect()
 }
+
+#[cfg(test)]
+mod tests;
