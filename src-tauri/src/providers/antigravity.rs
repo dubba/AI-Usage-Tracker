@@ -1,8 +1,9 @@
 use super::{
+    classify_status,
     oauth_refresh::{
         refresh_oauth_secret, IdToken, InvalidGrant, Lifetime, RefreshBody, RefreshRequest,
     },
-    with_fresh_secret, ProviderError, ProviderUsage,
+    with_fresh_secret, Forbidden, ProviderError, ProviderUsage, StatusPolicy,
 };
 use crate::google_client::{client_secret, CLIENT_ID, TOKEN_URL};
 use crate::{
@@ -11,7 +12,6 @@ use crate::{
     state::AppState,
 };
 use parking_lot::RwLock;
-use reqwest::StatusCode;
 use serde_json::{json, Map, Value};
 use std::collections::HashSet;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -274,13 +274,17 @@ async fn cloud_code_post(
         .text()
         .await
         .map_err(|_| ProviderError::Transient("Unable to read the Antigravity response.".into()))?;
-    if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
-        return Err(ProviderError::Auth);
-    }
-    if !status.is_success() {
-        return Err(ProviderError::Transient(format!(
-            "Antigravity endpoint {path} returned {status}."
-        )));
+    if let Some(error) = classify_status(
+        "Antigravity",
+        status,
+        None,
+        &StatusPolicy {
+            forbidden: Forbidden::Auth,
+            rate_limits: false,
+            other: Box::new(|status| format!("Antigravity endpoint {path} returned {status}.")),
+        },
+    ) {
+        return Err(error);
     }
     serde_json::from_str(&body).map_err(|_| {
         ProviderError::Transient("Antigravity returned incompatible quota data.".into())
@@ -320,14 +324,17 @@ async fn fetch_email(app: &AppState, access_token: &str) -> Result<String, Provi
         .send()
         .await
         .map_err(|_| ProviderError::Transient("Google user-info request failed.".into()))?;
-    if response.status() == StatusCode::UNAUTHORIZED || response.status() == StatusCode::FORBIDDEN {
-        return Err(ProviderError::Auth);
-    }
-    if !response.status().is_success() {
-        return Err(ProviderError::Transient(format!(
-            "Google user-info request returned {}.",
-            response.status()
-        )));
+    if let Some(error) = classify_status(
+        "Google",
+        response.status(),
+        None,
+        &StatusPolicy {
+            forbidden: Forbidden::Auth,
+            rate_limits: false,
+            other: Box::new(|status| format!("Google user-info request returned {status}.")),
+        },
+    ) {
+        return Err(error);
     }
     let value: Value = response
         .json()

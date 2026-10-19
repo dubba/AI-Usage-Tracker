@@ -1,15 +1,16 @@
 use super::{
+    classify_status,
     oauth_refresh::{
         refresh_oauth_secret, IdToken, InvalidGrant, Lifetime, RefreshBody, RefreshRequest,
     },
-    with_fresh_secret, ProviderError, ProviderUsage,
+    with_fresh_secret, Forbidden, ProviderError, ProviderUsage, StatusPolicy,
 };
 use crate::{
     model::{Account, OAuthSecret, ProviderSecret, UsageWindow},
     state::AppState,
 };
 use chrono::{TimeZone, Utc};
-use reqwest::{header::RETRY_AFTER, StatusCode};
+use reqwest::header::RETRY_AFTER;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -185,25 +186,18 @@ async fn call_usage(
         ))
     })?;
 
-    if status == StatusCode::UNAUTHORIZED {
-        return Err(ProviderError::Auth);
-    }
-    if status == StatusCode::FORBIDDEN {
-        return Err(ProviderError::Transient(
-            if body.trim_start().starts_with('<') {
-                "OpenAI returned an HTML access challenge. Cached usage is being kept.".into()
-            } else {
-                "OpenAI denied the usage request. Cached usage is being kept.".into()
-            },
-        ));
-    }
-    if status == StatusCode::TOO_MANY_REQUESTS {
-        return Err(super::rate_limited("OpenAI", retry_after.as_deref()));
-    }
-    if !status.is_success() {
-        return Err(ProviderError::Transient(format!(
-            "OpenAI usage request returned {status}."
-        )));
+    let denied = if body.trim_start().starts_with('<') {
+        "OpenAI returned an HTML access challenge. Cached usage is being kept."
+    } else {
+        "OpenAI denied the usage request. Cached usage is being kept."
+    };
+    if let Some(error) = classify_status(
+        "OpenAI",
+        status,
+        retry_after.as_deref(),
+        &StatusPolicy::usage("OpenAI", Forbidden::Transient(denied)),
+    ) {
+        return Err(error);
     }
     if body.trim_start().starts_with('<') {
         return Err(ProviderError::Transient(

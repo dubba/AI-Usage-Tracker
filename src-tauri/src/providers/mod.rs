@@ -11,6 +11,7 @@ use crate::{
     state::AppState,
     store::save_provider_secret,
 };
+use reqwest::StatusCode;
 use std::{future::Future, pin::Pin, sync::Arc, time::Duration};
 use thiserror::Error;
 
@@ -138,6 +139,61 @@ async fn with_fresh_secret_saving<'c, T>(
         result => result?,
     };
     Ok((result, secret))
+}
+
+/// What an HTTP 403 means for a provider. It differs on purpose: Anthropic's edge answers 403 for
+/// bot challenges and regional blocks, so treating it as rejected credentials would suspend the
+/// account until the user signs in again (see `anthropic::usage_status_error`), while Google's
+/// APIs answer 403 for a token that no longer works.
+pub(crate) enum Forbidden<'a> {
+    /// The credentials are rejected.
+    Auth,
+    /// A transient failure with this user-facing message; the cached usage is kept.
+    Transient(&'a str),
+}
+
+/// How one provider's failing HTTP statuses map to errors.
+pub(crate) struct StatusPolicy<'a> {
+    pub forbidden: Forbidden<'a>,
+    /// Whether a 429 becomes `ProviderError::RateLimited` (with the provider's `Retry-After`).
+    /// Providers that never did stay on the generic failure, so their backoff is unchanged.
+    pub rate_limits: bool,
+    /// The message for any other failing status.
+    pub other: Box<dyn Fn(StatusCode) -> String + 'a>,
+}
+
+impl<'a> StatusPolicy<'a> {
+    /// The policy of a usage endpoint: 429 is rate limiting, and any other failure says
+    /// "<provider> usage request returned <status>."
+    pub(crate) fn usage(provider: &'a str, forbidden: Forbidden<'a>) -> Self {
+        Self {
+            forbidden,
+            rate_limits: true,
+            other: Box::new(move |status| format!("{provider} usage request returned {status}.")),
+        }
+    }
+}
+
+/// Maps a non-success HTTP status to a provider error: 401 always means the credentials are
+/// rejected; 403, 429 and everything else follow `policy`. `None` for a success status.
+pub(crate) fn classify_status(
+    provider: &str,
+    status: StatusCode,
+    retry_after: Option<&str>,
+    policy: &StatusPolicy<'_>,
+) -> Option<ProviderError> {
+    if status.is_success() {
+        return None;
+    }
+    Some(match status {
+        StatusCode::UNAUTHORIZED => ProviderError::Auth,
+        StatusCode::FORBIDDEN => match policy.forbidden {
+            Forbidden::Auth => ProviderError::Auth,
+            Forbidden::Transient(message) => ProviderError::Transient(message.to_string()),
+        },
+        StatusCode::TOO_MANY_REQUESTS if policy.rate_limits => rate_limited(provider, retry_after),
+        other => ProviderError::Transient((policy.other)(other)),
+    })
 }
 
 #[derive(Clone, Debug)]
@@ -388,6 +444,86 @@ mod tests {
                 matches!(result, Err(ProviderError::Transient(ref m)) if m.contains("save refreshed"))
             );
             assert_eq!(run.calls.load(Ordering::SeqCst), 0);
+        }
+    }
+
+    mod status_classes {
+        use super::super::*;
+
+        fn usage(forbidden: Forbidden<'static>) -> StatusPolicy<'static> {
+            StatusPolicy::usage("Acme", forbidden)
+        }
+
+        #[test]
+        fn success_is_not_an_error() {
+            for status in [StatusCode::OK, StatusCode::NO_CONTENT] {
+                assert!(classify_status("Acme", status, None, &usage(Forbidden::Auth)).is_none());
+            }
+        }
+
+        #[test]
+        fn a_401_always_rejects_the_credentials() {
+            for forbidden in [Forbidden::Auth, Forbidden::Transient("denied")] {
+                assert!(matches!(
+                    classify_status("Acme", StatusCode::UNAUTHORIZED, None, &usage(forbidden)),
+                    Some(ProviderError::Auth)
+                ));
+            }
+        }
+
+        #[test]
+        fn a_403_follows_the_providers_rule() {
+            assert!(matches!(
+                classify_status("Acme", StatusCode::FORBIDDEN, None, &usage(Forbidden::Auth)),
+                Some(ProviderError::Auth)
+            ));
+            let transient = classify_status(
+                "Acme",
+                StatusCode::FORBIDDEN,
+                None,
+                &usage(Forbidden::Transient("Acme denied the usage request.")),
+            );
+            assert!(matches!(
+                transient,
+                Some(ProviderError::Transient(ref m)) if m == "Acme denied the usage request."
+            ));
+        }
+
+        #[test]
+        fn a_429_is_rate_limiting_only_where_the_policy_says_so() {
+            let limited = classify_status(
+                "Acme",
+                StatusCode::TOO_MANY_REQUESTS,
+                Some("30"),
+                &usage(Forbidden::Auth),
+            );
+            assert!(matches!(
+                limited,
+                Some(ProviderError::RateLimited { retry_after: Some(d), .. }) if d == Duration::from_secs(30)
+            ));
+
+            let mut policy = usage(Forbidden::Auth);
+            policy.rate_limits = false;
+            let generic =
+                classify_status("Acme", StatusCode::TOO_MANY_REQUESTS, Some("30"), &policy);
+            assert!(matches!(
+                generic,
+                Some(ProviderError::Transient(ref m)) if m.contains("429")
+            ));
+        }
+
+        #[test]
+        fn other_failures_use_the_policys_message() {
+            let error = classify_status(
+                "Acme",
+                StatusCode::BAD_GATEWAY,
+                None,
+                &usage(Forbidden::Auth),
+            );
+            assert!(matches!(
+                error,
+                Some(ProviderError::Transient(ref m)) if m == "Acme usage request returned 502 Bad Gateway."
+            ));
         }
     }
 }

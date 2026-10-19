@@ -1,8 +1,9 @@
 use super::{
+    classify_status,
     oauth_refresh::{
         refresh_oauth_secret, IdToken, InvalidGrant, Lifetime, RefreshBody, RefreshRequest,
     },
-    with_fresh_secret, ProviderError, ProviderUsage,
+    with_fresh_secret, Forbidden, ProviderError, ProviderUsage, StatusPolicy,
 };
 use crate::{
     model::{Account, OAuthSecret, ProviderSecret, UsageWindow},
@@ -142,17 +143,15 @@ async fn call_usage(app: &AppState, secret: &OAuthSecret) -> Result<RawUsage, Pr
 /// bot challenges and regional blocks, so it must stay transient: treating it
 /// as an auth failure suspends the account until the user signs in again.
 fn usage_status_error(status: StatusCode, retry_after: Option<String>) -> Option<ProviderError> {
-    if status.is_success() {
-        return None;
-    }
-    Some(match status {
-        StatusCode::UNAUTHORIZED => ProviderError::Auth,
-        StatusCode::FORBIDDEN => ProviderError::Transient(
-            "Anthropic denied the usage request. Cached usage is being kept.".into(),
+    classify_status(
+        "Anthropic",
+        status,
+        retry_after.as_deref(),
+        &StatusPolicy::usage(
+            "Anthropic",
+            Forbidden::Transient("Anthropic denied the usage request. Cached usage is being kept."),
         ),
-        StatusCode::TOO_MANY_REQUESTS => super::rate_limited("Anthropic", retry_after.as_deref()),
-        _ => ProviderError::Transient(format!("Anthropic usage request returned {status}.")),
-    })
+    )
 }
 
 async fn refresh_secret(

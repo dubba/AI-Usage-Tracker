@@ -6,15 +6,16 @@ use crate::{
     },
     oauth_common::{merge_into_existing, ConnectedFields},
     providers::{
+        classify_status,
         oauth_refresh::{
             refresh_oauth_secret, IdToken, InvalidGrant, Lifetime, RefreshBody, RefreshRequest,
         },
-        save_refreshed, ProviderError, ProviderUsage, REFRESH_SKEW_SECS,
+        save_refreshed, Forbidden, ProviderError, ProviderUsage, StatusPolicy, REFRESH_SKEW_SECS,
     },
     state::AppState,
 };
 use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Utc, Weekday};
-use reqwest::{RequestBuilder, StatusCode};
+use reqwest::RequestBuilder;
 use serde::{de::DeserializeOwned, Deserialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -569,19 +570,19 @@ async fn google_json<T: DeserializeOwned>(
     let response = request.send().await.map_err(|_| network_error(context))?;
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
-    if status == StatusCode::UNAUTHORIZED {
-        return Err(ProviderError::Auth);
-    }
-    if status == StatusCode::FORBIDDEN {
-        return Err(ProviderError::Transient(
-            "Google Cloud denied Monitoring access. Confirm the project ID, enable the Cloud Monitoring API, and grant this Google account Monitoring Viewer access.".into(),
-        ));
-    }
-    if !status.is_success() {
-        return Err(ProviderError::Transient(format!(
-            "{context} returned HTTP {}.",
-            status.as_u16()
-        )));
+    if let Some(error) = classify_status(
+        "Google",
+        status,
+        None,
+        &StatusPolicy {
+            forbidden: Forbidden::Transient(
+                "Google Cloud denied Monitoring access. Confirm the project ID, enable the Cloud Monitoring API, and grant this Google account Monitoring Viewer access.",
+            ),
+            rate_limits: false,
+            other: Box::new(|status| format!("{context} returned HTTP {}.", status.as_u16())),
+        },
+    ) {
+        return Err(error);
     }
     serde_json::from_str(&body)
         .map_err(|_| ProviderError::Transient(format!("{context} returned unreadable data.")))
