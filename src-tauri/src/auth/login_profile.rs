@@ -27,7 +27,7 @@ pub(crate) fn create_private_profile_dir(
     let dir = std::env::temp_dir().join(format!("{prefix}{attempt_id}"));
     std::fs::create_dir_all(&dir)
         .map_err(|error| format!("Unable to prepare the private login profile: {error}"))?;
-    if let Err(error) = crate::fs_util::restrict_private_permissions(&dir) {
+    if let Err(error) = crate::platform::fs_util::restrict_private_permissions(&dir) {
         let _ = std::fs::remove_dir_all(&dir);
         return Err(error);
     }
@@ -72,9 +72,9 @@ fn is_removable_profile(file_type: std::io::Result<std::fs::FileType>) -> bool {
 
 /// Sweeps every kind of login profile. Run once at startup, before any login window opens.
 pub(crate) fn sweep_all_stale_profiles() {
-    sweep_stale_profiles(crate::grok_login::GROK_PROFILE_PREFIX);
-    sweep_stale_profiles(crate::opencode_login::OPENCODE_PROFILE_PREFIX);
-    sweep_stale_profiles(crate::oauth::PROVIDER_LOGIN_PROFILE_PREFIX);
+    sweep_stale_profiles(crate::auth::grok_login::GROK_PROFILE_PREFIX);
+    sweep_stale_profiles(crate::auth::opencode_login::OPENCODE_PROFILE_PREFIX);
+    sweep_stale_profiles(crate::auth::oauth::PROVIDER_LOGIN_PROFILE_PREFIX);
 }
 
 #[cfg(test)]

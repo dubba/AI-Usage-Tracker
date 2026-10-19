@@ -1926,7 +1926,7 @@ async fn export_everything() -> (tempfile::TempDir, Vec<u8>) {
         .alerts
         .save(
             "acc-w",
-            vec![crate::alerts::UsageAlertSetting {
+            vec![crate::store::alerts::UsageAlertSetting {
                 window_id: "weekly".into(),
                 enabled: true,
                 threshold_percent: 20,

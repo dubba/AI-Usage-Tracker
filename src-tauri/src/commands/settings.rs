@@ -1,4 +1,4 @@
-use crate::{settings::AppSettings, state::AppState};
+use crate::{state::AppState, store::settings::AppSettings};
 use std::sync::Arc;
 use tauri::{AppHandle, State};
 
@@ -63,7 +63,7 @@ pub fn set_autostart(
             app.autolaunch()
                 .enable()
                 .map_err(crate::diagnostics::command_error)?;
-            crate::autostart::quote_windows_run_value(&app.package_info().name);
+            crate::platform::autostart::quote_windows_run_value(&app.package_info().name);
         } else {
             app.autolaunch()
                 .disable()

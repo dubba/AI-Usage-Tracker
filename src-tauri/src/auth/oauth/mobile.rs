@@ -24,7 +24,7 @@ pub(super) fn open_mobile_oauth(
         return Err("Disallowed authorization URL host".to_string());
     }
     let intercept_started = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-    crate::mobile_auth::open_in_main_webview(
+    crate::auth::mobile_auth::open_in_main_webview(
         handle,
         app.clone(),
         context.attempt_id.clone(),

@@ -12,7 +12,7 @@
 //! Recovering from an unreadable file (moving it aside) is the caller's job, through
 //! `load_with_metadata_recovery` in `state.rs`.
 
-use crate::fs_util::{atomic_write_private, ensure_private_dir, ensure_private_file};
+use crate::platform::fs_util::{atomic_write_private, ensure_private_dir, ensure_private_file};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{
     fs,

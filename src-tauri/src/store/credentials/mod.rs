@@ -29,11 +29,11 @@ use self::keyring_store::{
     credential_entry_for, delete_credential, delete_legacy_credential, BRIDGE_TOKEN_USER,
     CREDENTIAL_SERVICE, LEGACY_CREDENTIAL_SERVICE,
 };
-#[cfg(any(target_os = "android", debug_assertions))]
-use crate::credential_file::{platform_cipher, read_credential_file, write_credential_file};
-#[cfg(any(target_os = "android", debug_assertions))]
-use crate::fs_util::ensure_private_dir;
 use crate::model::ProviderSecret;
+#[cfg(any(target_os = "android", debug_assertions))]
+use crate::platform::fs_util::ensure_private_dir;
+#[cfg(any(target_os = "android", debug_assertions))]
+use crate::store::credential_file::{platform_cipher, read_credential_file, write_credential_file};
 #[cfg(any(target_os = "android", debug_assertions))]
 use crate::store::DATA_DIRS;
 use crate::store::{check_account_id, is_valid_account_id, StoreError};
@@ -413,7 +413,7 @@ pub(crate) fn generate_bridge_token() -> String {
 #[cfg_attr(not(target_os = "android"), allow(dead_code))]
 pub fn upgrade_plaintext_credentials() -> UpgradeReport {
     match current_credentials_dir() {
-        Ok(dir) => crate::credential_file::upgrade_directory(platform_cipher(), &dir),
+        Ok(dir) => crate::store::credential_file::upgrade_directory(platform_cipher(), &dir),
         Err(_) => Default::default(),
     }
 }

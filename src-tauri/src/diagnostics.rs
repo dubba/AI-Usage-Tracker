@@ -32,7 +32,7 @@ static WRITE_LOCK: Mutex<()> = Mutex::new(());
 /// folder cannot be created) messages still go to stderr.
 pub fn init(data_dir: &Path) {
     let dir = data_dir.join(LOG_DIR_NAME);
-    if crate::fs_util::ensure_private_dir(&dir).is_ok() {
+    if crate::platform::fs_util::ensure_private_dir(&dir).is_ok() {
         let _ = LOG_DIR.set(dir);
     }
 }

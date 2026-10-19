@@ -8,7 +8,7 @@ use crate::{
         google_ai_studio::{SOURCE_MODELS_ONLY, SOURCE_MONITORING, SOURCE_MONITORING_WAITING},
         grok::GROK_BOT_WINDOW_ID,
     },
-    settings::{DEFAULT_ACCOUNT_REFRESH_MINUTES, OFFERED_REFRESH_MINUTES},
+    store::settings::{DEFAULT_ACCOUNT_REFRESH_MINUTES, OFFERED_REFRESH_MINUTES},
 };
 use std::{collections::BTreeMap, str::FromStr};
 

@@ -122,7 +122,7 @@ pub(crate) fn is_allowed_main_navigation(
 ) -> bool {
     // The "Account connected" page the app shows when a sign-in has finished
     // (mobile_auth.rs): only the exact page it made, never `data:` in general.
-    if url.as_str() == "about:blank" || crate::oauth_common::is_connected_page(url) {
+    if url.as_str() == "about:blank" || crate::auth::oauth_common::is_connected_page(url) {
         return true;
     }
     if is_app_page(url, dev_url) {
@@ -171,7 +171,7 @@ pub(crate) fn plugin<R: Runtime>() -> TauriPlugin<R> {
                 signing_in,
             );
             if allowed {
-                crate::mobile_auth::note_main_navigation(url);
+                crate::auth::mobile_auth::note_main_navigation(url);
             } else {
                 crate::diagnostics::warn(&format!(
                     "Blocked the app window from navigating to {}",
@@ -182,7 +182,7 @@ pub(crate) fn plugin<R: Runtime>() -> TauriPlugin<R> {
         })
         .on_page_load(|webview, payload| {
             if webview.label() == "main" && matches!(payload.event(), PageLoadEvent::Finished) {
-                crate::mobile_auth::note_main_page_loaded(
+                crate::auth::mobile_auth::note_main_page_loaded(
                     payload.url(),
                     webview.config().build.dev_url.as_ref(),
                 );

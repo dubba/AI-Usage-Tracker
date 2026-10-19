@@ -38,7 +38,7 @@ pub fn open_settings() -> Result<(), String> {
 
 #[cfg(target_os = "android")]
 fn android_is_enabled() -> Result<bool, String> {
-    crate::android_context::with_activity("Unable to check Wi-Fi", |env, activity| {
+    crate::platform::android_context::with_activity("Unable to check Wi-Fi", |env, activity| {
         if env.exception_check().unwrap_or(false) {
             let _ = env.exception_clear();
         }
@@ -56,16 +56,19 @@ fn android_is_enabled() -> Result<bool, String> {
 
 #[cfg(target_os = "android")]
 fn android_open_settings() -> Result<(), String> {
-    crate::android_context::with_activity("Unable to open Wi-Fi settings", |env, activity| {
-        let result = env.call_method(activity, "openWifiSettings", "()V", &[]);
-        if env.exception_check().unwrap_or(false) {
-            let _ = env.exception_clear();
-            return Err("Unable to open Wi-Fi settings.".into());
-        }
-        result
-            .map(|_| ())
-            .map_err(|_| "Unable to open Wi-Fi settings.".into())
-    })
+    crate::platform::android_context::with_activity(
+        "Unable to open Wi-Fi settings",
+        |env, activity| {
+            let result = env.call_method(activity, "openWifiSettings", "()V", &[]);
+            if env.exception_check().unwrap_or(false) {
+                let _ = env.exception_clear();
+                return Err("Unable to open Wi-Fi settings.".into());
+            }
+            result
+                .map(|_| ())
+                .map_err(|_| "Unable to open Wi-Fi settings.".into())
+        },
+    )
 }
 
 /// Wi-Fi-like interface names used on iOS (`en0`) and Android (`wlan0`).

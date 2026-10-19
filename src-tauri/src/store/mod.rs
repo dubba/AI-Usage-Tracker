@@ -1,4 +1,5 @@
-//! Saved account data and credentials.
+//! Saved data: account metadata and credentials, and the other files the app keeps (settings,
+//! alerts, groups, account order).
 //!
 //! - [`accounts`]: account metadata (`accounts.json`, its backup, and the deleted-accounts list).
 //! - [`credentials`]: the secrets behind each account and the local API token, kept in the
@@ -7,8 +8,15 @@
 //! The two are separate on purpose: metadata may be read, copied and diffed freely, while a
 //! credential only ever goes through `credentials`.
 
+pub(crate) mod account_order;
 mod accounts;
+pub(crate) mod alerts;
+pub(crate) mod buckets;
+#[cfg(any(target_os = "android", debug_assertions))]
+pub(crate) mod credential_file;
 mod credentials;
+pub(crate) mod json_file;
+pub(crate) mod settings;
 #[cfg(test)]
 mod tests;
 

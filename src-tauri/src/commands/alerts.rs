@@ -1,8 +1,8 @@
-use crate::alerts;
+use crate::store::alerts;
 use crate::{
-    alerts::UsageAlertSetting,
     model::{Account, Provider},
     state::AppState,
+    store::alerts::UsageAlertSetting,
     usage,
 };
 use std::sync::Arc;

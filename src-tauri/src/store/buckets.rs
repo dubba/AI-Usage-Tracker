@@ -1,9 +1,9 @@
 use crate::{
-    json_file::JsonFileStore,
     limits::{clamp_chars, MAX_BUCKETS, MAX_BUCKET_NAME_CHARS},
     model::{now_rfc3339, AccountBucket, Provider},
     pairing::payload::MAX_ACCOUNTS,
     store::is_valid_account_id,
+    store::json_file::JsonFileStore,
 };
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};

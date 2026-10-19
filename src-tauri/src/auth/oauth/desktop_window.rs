@@ -136,7 +136,7 @@ pub(crate) fn is_allowed_provider_login_navigation(url: &Url) -> bool {
         return false;
     }
     url.host_str()
-        .is_some_and(crate::signin_navigation::host_is_sign_in)
+        .is_some_and(crate::auth::signin_navigation::host_is_sign_in)
 }
 
 /// Opens `authorization_url` in a private window with a top-left Back button.
@@ -159,10 +159,10 @@ pub(crate) fn open_provider_login_window(
         .clone()
         .ok_or_else(|| "The app is not ready to open sign-in.".to_string())?;
     if let Some(window) = handle.get_webview_window(PROVIDER_LOGIN_WINDOW) {
-        crate::mobile_auth::dismiss_login_window(&window);
+        crate::auth::mobile_auth::dismiss_login_window(&window);
     }
-    crate::login_profile::sweep_stale_profiles(PROVIDER_LOGIN_PROFILE_PREFIX);
-    let profile_dir = crate::login_profile::create_private_profile_dir(
+    crate::auth::login_profile::sweep_stale_profiles(PROVIDER_LOGIN_PROFILE_PREFIX);
+    let profile_dir = crate::auth::login_profile::create_private_profile_dir(
         PROVIDER_LOGIN_PROFILE_PREFIX,
         attempt_id,
     )?;
@@ -202,10 +202,12 @@ pub(crate) fn open_provider_login_window(
                         {
                             let close_dir = load_dir.clone();
                             tauri::async_runtime::spawn(async move {
-                                tokio::time::sleep(crate::oauth_common::CONNECTED_PAGE_DISPLAY)
-                                    .await;
+                                tokio::time::sleep(
+                                    crate::auth::oauth_common::CONNECTED_PAGE_DISPLAY,
+                                )
+                                .await;
                                 let _ = std::fs::remove_dir_all(&close_dir);
-                                crate::mobile_auth::dismiss_login_window(&window);
+                                crate::auth::mobile_auth::dismiss_login_window(&window);
                             });
                         }
                     }
@@ -239,7 +241,7 @@ pub(crate) fn open_provider_login_window(
                         back_state.abort_login_resources(&back_attempt);
                         if let Some(window) = back_handle.get_webview_window(PROVIDER_LOGIN_WINDOW)
                         {
-                            crate::mobile_auth::dismiss_login_window(&window);
+                            crate::auth::mobile_auth::dismiss_login_window(&window);
                         }
                         return false;
                     }
@@ -309,7 +311,7 @@ pub(super) fn open_provider_login_popup(
     // The page's own window.open size is about 640×800 and clips 2-step
     // verification. Open taller than that, then apply it again after build so
     // the requested size does not stick.
-    let (width, height, position) = crate::oauth_common::window_geometry_centered_on(
+    let (width, height, position) = crate::auth::oauth_common::window_geometry_centered_on(
         handle,
         PROVIDER_LOGIN_WINDOW,
         0.0,
@@ -366,12 +368,12 @@ pub(super) fn open_provider_login_popup(
                 break;
             };
             let Some(opener) = watch_handle.get_webview_window(PROVIDER_LOGIN_WINDOW) else {
-                crate::mobile_auth::dismiss_login_window(&popup);
+                crate::auth::mobile_auth::dismiss_login_window(&popup);
                 break;
             };
             if let Ok(current) = opener.url() {
                 if is_loopback_callback(&current) {
-                    crate::mobile_auth::dismiss_login_window(&popup);
+                    crate::auth::mobile_auth::dismiss_login_window(&popup);
                     break;
                 }
             }
@@ -387,7 +389,7 @@ pub(super) fn open_provider_login_popup(
 pub(super) fn close_provider_login_popups(handle: &tauri::AppHandle) {
     for (label, popup) in handle.webview_windows() {
         if label.starts_with(PROVIDER_LOGIN_POPUP_PREFIX) {
-            crate::mobile_auth::dismiss_login_window(&popup);
+            crate::auth::mobile_auth::dismiss_login_window(&popup);
         }
     }
 }

@@ -8,7 +8,7 @@ use jni::{objects::JValue, JNIEnv};
 #[cfg(target_os = "android")]
 pub fn set_pairing_lan_binding(enabled: bool) -> Result<(), String> {
     const PREFIX: &str = "Unable to configure pairing network";
-    crate::android_context::with_activity(PREFIX, |env, activity| {
+    crate::platform::android_context::with_activity(PREFIX, |env, activity| {
         let result = env.call_method(
             activity,
             "setPairingLanBinding",
@@ -60,7 +60,7 @@ fn jni_exception_message(env: &mut JNIEnv, throwable: &jni::objects::JThrowable)
 #[cfg(target_os = "android")]
 pub fn post_expandable_notification(title: &str, body: &str) -> Result<(), String> {
     const PREFIX: &str = "Unable to post notification";
-    crate::android_context::with_activity(PREFIX, |env, activity| {
+    crate::platform::android_context::with_activity(PREFIX, |env, activity| {
         let title_j = env
             .new_string(title)
             .map_err(|error| format!("{PREFIX}: {error}"))?;

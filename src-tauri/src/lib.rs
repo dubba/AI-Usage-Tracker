@@ -1,58 +1,24 @@
-mod account_order;
-mod alerts;
-#[cfg(target_os = "android")]
-mod android_context;
-#[cfg(target_os = "android")]
-mod android_keystore;
-#[cfg(target_os = "android")]
-mod apk_install;
-mod autostart;
+mod auth;
 mod backend;
 mod bridge_api;
-mod buckets;
-mod camera_permission;
 mod commands;
 mod confirm;
-#[cfg(any(target_os = "android", debug_assertions))]
-mod credential_file;
 mod diagnostics;
 #[cfg(test)]
 mod frontend_contract;
-mod fs_util;
-mod google_ai_studio_oauth;
-mod google_client;
-mod grok_login;
-#[cfg(target_os = "ios")]
-mod ios_cookies;
-#[cfg(target_os = "ios")]
-mod ios_popups;
-mod json_file;
-mod lan_binding;
 mod limits;
-#[cfg(desktop)]
-mod login_profile;
-mod login_window;
-#[cfg(target_os = "macos")]
-mod macos_notifications;
 mod migrations;
-mod mobile_auth;
 mod model;
-mod oauth;
-mod oauth_common;
-mod opencode_login;
 mod pairing;
+mod platform;
 mod providers;
 mod refresh_backoff;
 mod refresh_loop;
-mod settings;
-mod signin_navigation;
 mod startup;
 mod state;
 mod store;
-mod tray;
 mod updater;
 mod usage;
-mod wifi;
 
 use crate::state::AppState;
 use std::sync::Arc;
@@ -71,15 +37,15 @@ pub fn run() {
     {
         builder = builder
             .plugin(tauri_plugin_single_instance::init(|app, _, _| {
-                tray::show_main_window(app);
+                platform::tray::show_main_window(app);
             }))
             .plugin(tauri_plugin_autostart::init(
                 MacosLauncher::LaunchAgent,
-                Some(autostart::AUTOSTART_ARGS.to_vec()),
+                Some(platform::autostart::AUTOSTART_ARGS.to_vec()),
             ))
             .plugin(
                 tauri_plugin_window_state::Builder::default()
-                    .with_state_flags(tray::SAVED_WINDOW_STATE)
+                    .with_state_flags(platform::tray::SAVED_WINDOW_STATE)
                     .with_filter(|label| label == "main")
                     .build(),
             )
@@ -89,7 +55,7 @@ pub fn run() {
     // In-app sign-in uses the main window on mobile; keep it on sign-in pages.
     #[cfg(mobile)]
     {
-        builder = builder.plugin(signin_navigation::plugin());
+        builder = builder.plugin(auth::signin_navigation::plugin());
     }
 
     builder
@@ -99,14 +65,14 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             #[cfg(desktop)]
-            tray::setup_main_window(app);
+            platform::tray::setup_main_window(app);
 
             // Entries written by earlier versions have an unquoted path.
             #[cfg(windows)]
-            autostart::quote_windows_run_value(&app.package_info().name);
+            platform::autostart::quote_windows_run_value(&app.package_info().name);
 
             #[cfg(target_os = "macos")]
-            macos_notifications::setup_macos_notification_delegate();
+            platform::macos_notifications::setup_macos_notification_delegate();
 
             // A failure here must not abort setup: the window still opens and
             // the frontend shows the problem with a Retry button.
@@ -117,7 +83,7 @@ pub fn run() {
             }
 
             #[cfg(desktop)]
-            tray::build_tray(app)?;
+            platform::tray::build_tray(app)?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

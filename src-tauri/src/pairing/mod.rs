@@ -388,7 +388,7 @@ impl PairingSessionManager {
                     PairingStatus::Completed { .. }
                     | PairingStatus::Failed { .. }
                     | PairingStatus::Idle => {
-                        crate::lan_binding::configure_pairing_network(false);
+                        crate::platform::lan_binding::configure_pairing_network(false);
                         let mut act = active_lock.write().await;
                         if act.as_ref().map(|s| &s.session_id) == Some(&session_id_str) {
                             if let Some(session) = act.take() {
@@ -495,7 +495,7 @@ impl PairingSessionManager {
                     PairingStatus::Completed { .. }
                     | PairingStatus::Failed { .. }
                     | PairingStatus::Idle => {
-                        crate::lan_binding::configure_pairing_network(false);
+                        crate::platform::lan_binding::configure_pairing_network(false);
                         let mut act = active_lock.write().await;
                         if act.as_ref().map(|s| &s.session_id) == Some(&sid) {
                             *act = None;

@@ -1,14 +1,14 @@
 #[cfg(desktop)]
-use crate::login_window::{self, LoginWindowSpec, LOGIN_USER_AGENT};
+use crate::auth::login_window::{self, LoginWindowSpec, LOGIN_USER_AGENT};
 use crate::{
-    google_client::{client_secret, CLIENT_ID, TOKEN_URL as GOOGLE_TOKEN_URL},
-    login_window::{is_back_request, BACK_QUERY_FLAG},
-    model::{Account, LoginStart, LoginState, LoginStatus, OAuthSecret, Provider, ProviderSecret},
-    oauth_common::{
+    auth::google_client::{client_secret, CLIENT_ID, TOKEN_URL as GOOGLE_TOKEN_URL},
+    auth::login_window::{is_back_request, BACK_QUERY_FLAG},
+    auth::oauth_common::{
         account_connected_html, auth_failure_html, callback_html, merge_into_existing,
         pkce_challenge, random_base64, spawn_callback_server, spawn_login_timeout, CallbackQuery,
         ConnectedFields, OAUTH_LOGIN_TIMEOUT_MINUTES,
     },
+    model::{Account, LoginStart, LoginState, LoginStatus, OAuthSecret, Provider, ProviderSecret},
     providers::{
         anthropic::{CLIENT_ID as ANTHROPIC_CLIENT_ID, TOKEN_URL as ANTHROPIC_TOKEN_URL},
         oauth_refresh::{Lifetime, RefreshBody, TokenResponse},

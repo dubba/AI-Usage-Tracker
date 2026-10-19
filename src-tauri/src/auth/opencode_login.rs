@@ -1,10 +1,10 @@
 #[cfg(desktop)]
-use crate::login_window::{
+use crate::auth::login_window::{
     self, is_back_request, LoginWindowEnd, LoginWindowSpec, BACK_BUTTON_SCRIPT, BACK_QUERY_FLAG,
 };
 use crate::{
+    auth::oauth_common::{finish_window_login, merge_into_existing, ConnectedFields},
     model::{Account, LoginStart, OpenCodeGoSecret, Provider, ProviderSecret},
-    oauth_common::{finish_window_login, merge_into_existing, ConnectedFields},
     providers,
     state::AppState,
     usage,
@@ -149,8 +149,8 @@ pub async fn start_login(
         // A private profile per attempt (like the Grok window) so a previous
         // OpenCode or Google session can never silently sign in a second
         // account: every login starts without stored cookies.
-        crate::login_profile::sweep_stale_profiles(OPENCODE_PROFILE_PREFIX);
-        let temp_data_dir = match crate::login_profile::create_private_profile_dir(
+        crate::auth::login_profile::sweep_stale_profiles(OPENCODE_PROFILE_PREFIX);
+        let temp_data_dir = match crate::auth::login_profile::create_private_profile_dir(
             OPENCODE_PROFILE_PREFIX,
             &attempt_id,
         ) {
@@ -414,7 +414,7 @@ async fn start_mobile_login(
             return Err(error.to_string());
         }
     };
-    let window = match crate::mobile_auth::main_window(&app) {
+    let window = match crate::auth::mobile_auth::main_window(&app) {
         Ok(window) => window,
         Err(error) => {
             state.clear_pending_login(&attempt_id);
@@ -428,7 +428,7 @@ async fn start_mobile_login(
     let page_email = email;
     let page_reconnect = reconnect_account_id;
     let page_window = window;
-    if let Err(error) = crate::mobile_auth::open_in_main_webview(
+    if let Err(error) = crate::auth::mobile_auth::open_in_main_webview(
         app.clone(),
         state.clone(),
         attempt_id.clone(),
@@ -510,7 +510,7 @@ async fn start_mobile_login(
 }
 
 fn close_login_window(window: &WebviewWindow) {
-    crate::mobile_auth::dismiss_login_window(window);
+    crate::auth::mobile_auth::dismiss_login_window(window);
 }
 
 /// The cookies the WebView holds for `url`'s host. Tauri's lookup blocks the main thread in a
@@ -523,7 +523,7 @@ fn read_opencode_cookies(
     #[cfg(target_os = "ios")]
     {
         let host = url.host_str().unwrap_or_default();
-        let cookies = crate::ios_cookies::all_cookies(window)?;
+        let cookies = crate::auth::ios_cookies::all_cookies(window)?;
         Ok(cookies
             .into_iter()
             .filter(|cookie| {
@@ -608,7 +608,7 @@ fn read_auth_cookie_with_retry(window: &WebviewWindow) -> Result<(String, Option
 /// cookie-capture window to an attacker-controlled page.
 #[cfg(desktop)]
 fn is_allowed_login_navigation(url: &Url) -> bool {
-    if url.as_str() == "about:blank" || crate::oauth_common::is_connected_page(url) {
+    if url.as_str() == "about:blank" || crate::auth::oauth_common::is_connected_page(url) {
         return true;
     }
     if url.scheme() != "https" {

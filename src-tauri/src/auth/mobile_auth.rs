@@ -16,7 +16,7 @@ const NAVIGATE_DELAY: Duration = Duration::from_millis(250);
 #[cfg(mobile)]
 const POLL_INTERVAL: Duration = Duration::from_millis(400);
 #[cfg(mobile)]
-const SUCCESS_DISPLAY_DELAY: Duration = crate::oauth_common::CONNECTED_PAGE_DISPLAY;
+const SUCCESS_DISPLAY_DELAY: Duration = crate::auth::oauth_common::CONNECTED_PAGE_DISPLAY;
 /// How long a finished sign-in waits for its result page to be shown before
 /// starting `SUCCESS_DISPLAY_DELAY` anyway.
 #[cfg(mobile)]
@@ -33,7 +33,7 @@ const RESULT_PAGE_SHOWN: u8 = 2;
 /// The main window started loading a page (the navigation guard allowed it).
 #[cfg_attr(not(any(test, mobile)), allow(dead_code))]
 pub(crate) fn note_main_navigation(url: &Url) {
-    if crate::oauth_common::is_result_page(url) {
+    if crate::auth::oauth_common::is_result_page(url) {
         RESULT_PAGE.fetch_max(RESULT_PAGE_REQUESTED, Ordering::SeqCst);
     }
 }
@@ -41,9 +41,9 @@ pub(crate) fn note_main_navigation(url: &Url) {
 /// The main window finished loading a page.
 #[cfg_attr(not(any(test, mobile)), allow(dead_code))]
 pub(crate) fn note_main_page_loaded(url: &Url, dev_url: Option<&Url>) {
-    if crate::oauth_common::is_result_page(url) {
+    if crate::auth::oauth_common::is_result_page(url) {
         RESULT_PAGE.store(RESULT_PAGE_SHOWN, Ordering::SeqCst);
-    } else if crate::signin_navigation::is_app_page(url, dev_url) {
+    } else if crate::auth::signin_navigation::is_app_page(url, dev_url) {
         #[cfg(target_os = "android")]
         clear_android_web_view_history();
     }
@@ -235,9 +235,9 @@ pub(crate) fn forget_provider_sign_in(window: &WebviewWindow) {
     }
     #[cfg(target_os = "ios")]
     {
-        if let Err(error) = crate::ios_cookies::delete_cookies(
+        if let Err(error) = crate::auth::ios_cookies::delete_cookies(
             window,
-            crate::signin_navigation::cookie_domain_is_sign_in,
+            crate::auth::signin_navigation::cookie_domain_is_sign_in,
         ) {
             crate::diagnostics::warn(&format!("Sign-in session reset failed: {error}"));
         }
@@ -247,7 +247,7 @@ pub(crate) fn forget_provider_sign_in(window: &WebviewWindow) {
 #[cfg(target_os = "android")]
 fn clear_android_sign_in_cookies() -> Result<(), String> {
     const PREFIX: &str = "Unable to reset the sign-in session";
-    crate::android_context::with_activity(PREFIX, |env, activity| {
+    crate::platform::android_context::with_activity(PREFIX, |env, activity| {
         let result = env.call_method(activity, "clearWebViewCookies", "()Z", &[]);
         if env.exception_check().unwrap_or(false) {
             let _ = env.exception_clear();
@@ -262,13 +262,14 @@ fn clear_android_sign_in_cookies() -> Result<(), String> {
 
 #[cfg(target_os = "android")]
 pub(crate) fn clear_android_web_view_history() {
-    let _ = crate::android_context::with_activity("clearWebViewHistory", |env, activity| {
-        let _ = env.call_method(activity, "clearWebViewHistory", "()V", &[]);
-        if env.exception_check().unwrap_or(false) {
-            let _ = env.exception_clear();
-        }
-        Ok(())
-    });
+    let _ =
+        crate::platform::android_context::with_activity("clearWebViewHistory", |env, activity| {
+            let _ = env.call_method(activity, "clearWebViewHistory", "()V", &[]);
+            if env.exception_check().unwrap_or(false) {
+                let _ = env.exception_clear();
+            }
+            Ok(())
+        });
 }
 
 /// Android wry only supports one WebView. Closing the app shell would kill the UI.
@@ -324,7 +325,7 @@ pub fn open_in_main_webview(
     RESULT_PAGE.store(RESULT_PAGE_NONE, Ordering::SeqCst);
     // Claude's "Continue with Google" needs a real popup (see IOS_POPUP_SCRIPT).
     #[cfg(target_os = "ios")]
-    crate::ios_popups::install(&window);
+    crate::auth::ios_popups::install(&window);
 
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(NAVIGATE_DELAY).await;
@@ -366,7 +367,7 @@ pub fn open_in_main_webview(
                 });
                 if is_completed {
                     if show_result_page(&window, &state, &attempt_id).await {
-                        crate::oauth_common::run_connected_countdown(&window).await;
+                        crate::auth::oauth_common::run_connected_countdown(&window).await;
                     } else {
                         tokio::time::sleep(SUCCESS_DISPLAY_DELAY).await;
                     }
@@ -425,7 +426,7 @@ pub fn open_in_main_webview(
         }
         // A sign-in popup must not outlive the sign-in that opened it.
         #[cfg(target_os = "ios")]
-        crate::ios_popups::close_all(&window);
+        crate::auth::ios_popups::close_all(&window);
     });
     Ok(())
 }
@@ -439,15 +440,15 @@ pub fn open_in_main_webview(
 /// cannot make the poll loop adopt the new page as the one to compare with.
 #[cfg(target_os = "ios")]
 fn close_stale_popups(window: &WebviewWindow, current: &Url) {
-    if !crate::ios_popups::any_open() {
+    if !crate::auth::ios_popups::any_open() {
         return;
     }
-    let Some(opened_from) = crate::ios_popups::opened_from() else {
+    let Some(opened_from) = crate::auth::ios_popups::opened_from() else {
         return;
     };
     if !same_page(&opened_from, current) {
         crate::diagnostics::info("The sign-in moved on behind the popup; closing it.");
-        crate::ios_popups::close_all(window);
+        crate::auth::ios_popups::close_all(window);
     }
 }
 
@@ -477,7 +478,7 @@ async fn show_result_page(window: &WebviewWindow, state: &AppState, attempt_id: 
             .and_then(|login| login.account.clone());
         let Some(page) = account
             .as_ref()
-            .and_then(crate::oauth_common::connected_page_url)
+            .and_then(crate::auth::oauth_common::connected_page_url)
         else {
             return false;
         };

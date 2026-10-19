@@ -5,7 +5,7 @@ use super::{
     },
     with_fresh_secret, Forbidden, ProviderError, ProviderUsage, StatusPolicy,
 };
-use crate::google_client::{client_secret, CLIENT_ID, TOKEN_URL};
+use crate::auth::google_client::{client_secret, CLIENT_ID, TOKEN_URL};
 use crate::{
     diagnostics,
     model::{Account, OAuthSecret, ProviderSecret, UsageWindow},

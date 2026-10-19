@@ -671,7 +671,7 @@ async fn rejects_start_login_when_another_login_in_progress() {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            crate::oauth_common::LOGIN_IN_PROGRESS_MESSAGE
+            crate::auth::oauth_common::LOGIN_IN_PROGRESS_MESSAGE
         );
     }
 }

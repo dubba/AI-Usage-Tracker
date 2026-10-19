@@ -375,5 +375,5 @@ fn is_sign_in_url(url: &Url) -> bool {
         && url.username().is_empty()
         && url
             .host_str()
-            .is_some_and(crate::signin_navigation::host_is_sign_in)
+            .is_some_and(crate::auth::signin_navigation::host_is_sign_in)
 }

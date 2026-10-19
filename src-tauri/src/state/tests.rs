@@ -41,7 +41,7 @@ fn begin_login_claims_the_slot_only_when_no_login_is_in_progress() {
 
     // A second start is refused and leaves the first attempt alone.
     let error = state.begin_login("attempt-2", None).unwrap_err();
-    assert_eq!(error, crate::oauth_common::LOGIN_IN_PROGRESS_MESSAGE);
+    assert_eq!(error, crate::auth::oauth_common::LOGIN_IN_PROGRESS_MESSAGE);
     assert_eq!(pending_state(&state).unwrap().0, "attempt-1");
 
     // A finished login does not block the next one.

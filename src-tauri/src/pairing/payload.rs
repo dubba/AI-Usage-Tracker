@@ -39,7 +39,7 @@ pub struct AccountOrderSyncPayload {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AlertSyncEntry {
     pub account_id: String,
-    pub settings: Vec<crate::alerts::UsageAlertSetting>,
+    pub settings: Vec<crate::store::alerts::UsageAlertSetting>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
@@ -477,7 +477,7 @@ async fn apply_import(
     if let Some(settings) = payload.settings {
         let mut settings_failed = false;
         if let Some(minutes) =
-            crate::settings::snap_refresh_minutes(settings.account_refresh_minutes)
+            crate::store::settings::snap_refresh_minutes(settings.account_refresh_minutes)
         {
             settings_failed |= state.settings.set_account_refresh_minutes(minutes).is_err();
         }

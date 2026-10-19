@@ -1,10 +1,10 @@
 use crate::{
-    google_client::{client_secret, CLIENT_ID, TOKEN_URL},
+    auth::google_client::{client_secret, CLIENT_ID, TOKEN_URL},
+    auth::oauth_common::{merge_into_existing, ConnectedFields},
     model::{
         now_rfc3339, Account, GoogleAiStudioSecret, OAuthSecret, Provider, ProviderSecret,
         UsageFreshness, UsageSnapshot, UsageWindow,
     },
-    oauth_common::{merge_into_existing, ConnectedFields},
     providers::{
         classify_status,
         oauth_refresh::{

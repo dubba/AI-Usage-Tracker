@@ -1,13 +1,13 @@
 use crate::{
-    google_client::{client_secret, CLIENT_ID, TOKEN_URL},
-    model::{
-        Account, CloudProjectOption, LoginStart, LoginState, LoginStatus, OAuthSecret, Provider,
-        ProviderSecret,
-    },
-    oauth_common::{
+    auth::google_client::{client_secret, CLIENT_ID, TOKEN_URL},
+    auth::oauth_common::{
         account_connected_html, auth_failure_html, callback_html, escape_html, pkce_challenge,
         random_base64, spawn_callback_server, spawn_login_timeout, CallbackQuery,
         OAUTH_LOGIN_TIMEOUT_MINUTES,
+    },
+    model::{
+        Account, CloudProjectOption, LoginStart, LoginState, LoginStatus, OAuthSecret, Provider,
+        ProviderSecret,
     },
     providers::{
         google_ai_studio,
@@ -142,7 +142,7 @@ async fn start_oauth(
 
     app.begin_login(&attempt_id, message)?;
 
-    let (listener, addr) = match crate::oauth::bind_ephemeral_loopback().await {
+    let (listener, addr) = match crate::auth::oauth::bind_ephemeral_loopback().await {
         Ok(bound) => bound,
         Err(error) => {
             app.clear_pending_login(&attempt_id);
@@ -150,7 +150,7 @@ async fn start_oauth(
         }
     };
     let expected_state = random_base64(24);
-    let redirect_uri = crate::oauth::loopback_http_origin(addr);
+    let redirect_uri = crate::auth::oauth::loopback_http_origin(addr);
     let verifier = random_base64(48);
     let challenge = pkce_challenge(&verifier);
     let scopes = match &mode {
@@ -216,7 +216,7 @@ async fn start_oauth(
     // load in the main webview, which carries privileged Tauri IPC.
     #[cfg(desktop)]
     {
-        if let Err(error) = crate::oauth::open_provider_login_window(
+        if let Err(error) = crate::auth::oauth::open_provider_login_window(
             &app,
             &attempt_id,
             &authorization_url,
@@ -255,7 +255,7 @@ async fn select_project(
             .as_ref()
             .is_some_and(|login| login.status == LoginState::Waiting)
         {
-            return Err(crate::oauth_common::LOGIN_IN_PROGRESS_MESSAGE.into());
+            return Err(crate::auth::oauth_common::LOGIN_IN_PROGRESS_MESSAGE.into());
         }
         *pending = Some(LoginStatus::waiting(
             attempt_id.clone(),
@@ -291,7 +291,7 @@ async fn callback(
     // Only Google's redirect carries this attempt's state; anything else leaves
     // the sign-in and the callback server as they are (see oauth.rs).
     if query.state.as_deref() != Some(context.expected_state.as_str()) {
-        return crate::oauth_common::unrecognized_callback_response();
+        return crate::auth::oauth_common::unrecognized_callback_response();
     }
     let result = complete_callback(context.clone(), query).await;
     if let Err(error) = &result {

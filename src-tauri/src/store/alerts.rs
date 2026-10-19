@@ -1,6 +1,6 @@
 use crate::{
-    json_file::JsonFileStore,
     model::{Account, UsageWindow, WindowKind},
+    store::json_file::JsonFileStore,
 };
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};

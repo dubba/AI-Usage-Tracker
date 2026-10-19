@@ -10,7 +10,7 @@
 //! written by earlier versions; they are upgraded in place, and one that cannot
 //! be sealed is refused rather than used (`read_credential_file`).
 
-use crate::fs_util::atomic_write_private;
+use crate::platform::fs_util::atomic_write_private;
 use crate::store::UpgradeReport;
 use std::{fs, path::Path};
 
@@ -30,7 +30,7 @@ pub trait SecretCipher: Send + Sync {
 pub fn platform_cipher() -> Option<&'static dyn SecretCipher> {
     #[cfg(target_os = "android")]
     {
-        Some(&crate::android_keystore::AndroidKeystore)
+        Some(&crate::platform::android_keystore::AndroidKeystore)
     }
     #[cfg(not(target_os = "android"))]
     {

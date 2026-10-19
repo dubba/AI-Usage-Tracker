@@ -2,7 +2,7 @@
 //! Android Keystore key. The key never leaves the Keystore, so the sealed
 //! files are useless without this app on this device.
 
-use crate::{apk_install::jni_exception_message, credential_file::SecretCipher};
+use crate::{platform::apk_install::jni_exception_message, store::credential_file::SecretCipher};
 use jni::{
     objects::{JByteArray, JObject, JValue},
     JNIEnv,
@@ -23,7 +23,7 @@ impl SecretCipher for AndroidKeystore {
 const FAILURE: &str = "Secure storage is unavailable.";
 
 fn call(method: &str, data: &[u8], context: &[u8]) -> Result<Vec<u8>, String> {
-    crate::android_context::with_activity(FAILURE, |env, activity| {
+    crate::platform::android_context::with_activity(FAILURE, |env, activity| {
         invoke(env, activity, method, data, context)
     })
 }

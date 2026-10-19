@@ -55,7 +55,7 @@ pub(crate) fn is_connected_page(url: &Url) -> bool {
 /// The "Account connected" (or other result) page of a sign-in: the loopback
 /// callback page, or the page `connected_page_url` made.
 pub(crate) fn is_result_page(url: &Url) -> bool {
-    crate::oauth::is_loopback_callback(url) || is_connected_page(url)
+    crate::auth::oauth::is_loopback_callback(url) || is_connected_page(url)
 }
 
 /// Counts the `connected_page_url` page down from 5 to 0 over
@@ -91,7 +91,7 @@ pub(crate) fn close_after_connected_page(window: tauri::WebviewWindow, account: 
             }
         }
         run_connected_countdown(&window).await;
-        crate::mobile_auth::dismiss_login_window(&window);
+        crate::auth::mobile_auth::dismiss_login_window(&window);
     });
 }
 

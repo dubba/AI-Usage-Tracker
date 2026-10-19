@@ -64,7 +64,7 @@ fn call_path(path: &Path, name: &str, sig: &str, expect_string: bool) -> Result<
 const UNAVAILABLE: &str = "Unable to start the Android installer.";
 
 fn call_string(name: &str, sig: &str, value: &str, expect_string: bool) -> Result<String, String> {
-    crate::android_context::with_activity(UNAVAILABLE, |env, activity| {
+    crate::platform::android_context::with_activity(UNAVAILABLE, |env, activity| {
         let value = env
             .new_string(value)
             .map_err(|error| format!("Unable to start the Android installer: {error}"))?;
@@ -81,7 +81,7 @@ fn call_string(name: &str, sig: &str, value: &str, expect_string: bool) -> Resul
 }
 
 fn call(name: &str, sig: &str, args: &[JValue], expect_string: bool) -> Result<String, String> {
-    crate::android_context::with_activity(UNAVAILABLE, |env, activity| {
+    crate::platform::android_context::with_activity(UNAVAILABLE, |env, activity| {
         invoke(env, activity, name, sig, args, expect_string)
     })
 }

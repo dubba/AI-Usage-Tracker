@@ -29,7 +29,7 @@ pub(crate) fn initialize_backend(app: &AppHandle) -> Result<(), startup::Startup
     // Crash-safe cleanup: remove stale private Grok, OpenCode and provider OAuth login
     // profiles left by a previous crash/kill before any new login window opens.
     #[cfg(desktop)]
-    crate::login_profile::sweep_all_stale_profiles();
+    crate::auth::login_profile::sweep_all_stale_profiles();
 
     // Seal plaintext credential files from earlier versions (Android only:
     // there is no platform cipher elsewhere, so this does nothing).

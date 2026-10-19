@@ -1,5 +1,5 @@
 #[cfg(target_os = "android")]
-use crate::apk_install;
+use crate::platform::apk_install;
 use crate::{model::AppUpdateStatus, state::AppState};
 use serde::Serialize;
 use std::{sync::Arc, time::Duration};

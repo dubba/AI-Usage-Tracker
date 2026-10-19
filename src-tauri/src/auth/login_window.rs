@@ -123,7 +123,7 @@ pub(crate) fn open_private_login_window<'a>(
         WebviewWindowBuilder<'a, tauri::Wry, AppHandle>,
     ) -> WebviewWindowBuilder<'a, tauri::Wry, AppHandle>,
 ) -> tauri::Result<WebviewWindow> {
-    let (width, height, position) = crate::oauth_common::window_geometry_centered_on(
+    let (width, height, position) = crate::auth::oauth_common::window_geometry_centered_on(
         app,
         "main",
         1.0,
@@ -198,7 +198,7 @@ pub(crate) fn spawn_login_close_and_timeout(
             let _ = std::fs::remove_dir_all(&timeout_dir);
             timeout_state.fail_login_if_waiting(&timeout_attempt, end.timed_out.into());
             if let Some(window) = timeout_app.get_webview_window(end.label) {
-                crate::mobile_auth::dismiss_login_window(&window);
+                crate::auth::mobile_auth::dismiss_login_window(&window);
             }
         }
     });

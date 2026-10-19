@@ -61,7 +61,7 @@ pub(super) async fn handle_callback(
     // port) is answered without claiming the callback, failing the sign-in, or
     // showing its text in the app.
     if query.state.as_deref() != Some(context.expected_state.as_str()) {
-        return crate::oauth_common::unrecognized_callback_response();
+        return crate::auth::oauth_common::unrecognized_callback_response();
     }
     if context
         .callback_claimed

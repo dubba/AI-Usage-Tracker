@@ -1,8 +1,12 @@
 use super::validate_label;
 use crate::{
-    google_ai_studio_oauth, grok_login, limits,
+    auth::google_ai_studio_oauth,
+    auth::grok_login,
+    auth::oauth,
+    auth::opencode_login,
+    limits,
     model::{Account, LoginStart, LoginState, LoginStatus, Provider},
-    oauth, opencode_login, providers,
+    providers,
     state::AppState,
 };
 use std::str::FromStr;

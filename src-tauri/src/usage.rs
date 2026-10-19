@@ -310,7 +310,8 @@ pub fn emit_alerts_for_account(app: &AppState, account: &Account) {
             notification.threshold_percent
         );
         #[cfg(target_os = "android")]
-        let notify_result = crate::lan_binding::post_expandable_notification(&title, &body);
+        let notify_result =
+            crate::platform::lan_binding::post_expandable_notification(&title, &body);
         #[cfg(not(target_os = "android"))]
         let notify_result = app_handle
             .notification()

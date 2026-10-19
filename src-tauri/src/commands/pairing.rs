@@ -6,13 +6,13 @@ use tauri::{AppHandle, State};
 pub async fn pairing_start_host(
     state: State<'_, Arc<AppState>>,
 ) -> Result<crate::pairing::PairingHostInit, String> {
-    crate::lan_binding::configure_pairing_network(true);
+    crate::platform::lan_binding::configure_pairing_network(true);
     state.pairing.start_host(state.inner().clone()).await
 }
 
 #[tauri::command]
 pub async fn ensure_camera_permission() -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(crate::camera_permission::ensure)
+    tauri::async_runtime::spawn_blocking(crate::platform::camera_permission::ensure)
         .await
         .map_err(|e| {
             format!(
@@ -24,7 +24,7 @@ pub async fn ensure_camera_permission() -> Result<(), String> {
 
 #[tauri::command]
 pub async fn pairing_wifi_enabled() -> Result<bool, String> {
-    tauri::async_runtime::spawn_blocking(crate::wifi::is_enabled)
+    tauri::async_runtime::spawn_blocking(crate::platform::wifi::is_enabled)
         .await
         .map_err(|e| {
             format!(
@@ -36,7 +36,7 @@ pub async fn pairing_wifi_enabled() -> Result<bool, String> {
 
 #[tauri::command]
 pub async fn pairing_open_wifi_settings() -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(crate::wifi::open_settings)
+    tauri::async_runtime::spawn_blocking(crate::platform::wifi::open_settings)
         .await
         .map_err(|e| {
             format!(
@@ -51,7 +51,7 @@ pub async fn pairing_start_client(
     state: State<'_, Arc<AppState>>,
     qr_uri: String,
 ) -> Result<(), String> {
-    crate::lan_binding::configure_pairing_network(true);
+    crate::platform::lan_binding::configure_pairing_network(true);
     state
         .pairing
         .start_client(state.inner().clone(), qr_uri)
@@ -63,7 +63,7 @@ pub async fn pairing_start_client_by_code(
     state: State<'_, Arc<AppState>>,
     code: String,
 ) -> Result<(), String> {
-    crate::lan_binding::configure_pairing_network(true);
+    crate::platform::lan_binding::configure_pairing_network(true);
     state
         .pairing
         .start_client_by_code(state.inner().clone(), code)
@@ -91,7 +91,7 @@ pub async fn pairing_confirm_sas(
 pub async fn pairing_cancel(state: State<'_, Arc<AppState>>) -> Result<(), String> {
     state.pairing.cancel().await;
     state.pairing_options.write().reset();
-    crate::lan_binding::configure_pairing_network(false);
+    crate::platform::lan_binding::configure_pairing_network(false);
     Ok(())
 }
 

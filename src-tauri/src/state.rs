@@ -1,10 +1,10 @@
 use crate::{
-    account_order::AccountOrderStore,
-    alerts::AlertStore,
-    buckets::BucketStore,
     model::{Account, LoginStatus, ProviderSecret},
     refresh_backoff::RefreshBackoff,
-    settings::SettingsStore,
+    store::account_order::AccountOrderStore,
+    store::alerts::AlertStore,
+    store::buckets::BucketStore,
+    store::settings::SettingsStore,
     store::{AccountStore, StoreError},
 };
 use parking_lot::{Mutex, RwLock};
@@ -266,7 +266,7 @@ impl AppState {
             .as_ref()
             .is_some_and(|login| login.status.is_in_progress())
         {
-            return Err(crate::oauth_common::LOGIN_IN_PROGRESS_MESSAGE.into());
+            return Err(crate::auth::oauth_common::LOGIN_IN_PROGRESS_MESSAGE.into());
         }
         *pending = Some(LoginStatus::waiting(attempt_id, message));
         Ok(())

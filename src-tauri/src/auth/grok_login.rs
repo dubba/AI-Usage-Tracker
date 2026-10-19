@@ -1,11 +1,11 @@
 #[cfg(desktop)]
-use crate::login_window::{
+use crate::auth::login_window::{
     self, is_back_request, LoginWindowEnd, LoginWindowSpec, BACK_BUTTON_SCRIPT, BACK_QUERY_FLAG,
     LOGIN_USER_AGENT,
 };
 use crate::{
+    auth::oauth_common::{finish_window_login, merge_into_existing, ConnectedFields},
     model::{Account, GrokSecret, LoginStart, Provider, ProviderSecret},
-    oauth_common::{finish_window_login, merge_into_existing, ConnectedFields},
     providers::{
         self,
         grok::{
@@ -278,8 +278,8 @@ pub async fn start_login(
 
         // Sweep profiles left behind by a previous crash/kill before creating a
         // new one, then create the new profile as owner-only.
-        crate::login_profile::sweep_stale_profiles(GROK_PROFILE_PREFIX);
-        let temp_data_dir = match crate::login_profile::create_private_profile_dir(
+        crate::auth::login_profile::sweep_stale_profiles(GROK_PROFILE_PREFIX);
+        let temp_data_dir = match crate::auth::login_profile::create_private_profile_dir(
             GROK_PROFILE_PREFIX,
             &attempt_id,
         ) {
@@ -385,7 +385,7 @@ async fn start_mobile_login(
         }
     }
 
-    let window = match crate::mobile_auth::main_window(&app) {
+    let window = match crate::auth::mobile_auth::main_window(&app) {
         Ok(window) => window,
         Err(error) => {
             state.clear_pending_login(&attempt_id);
@@ -394,7 +394,7 @@ async fn start_mobile_login(
     };
     // The poll reads cookies on its first iteration, so the previous session
     // has to be gone before that thread starts. An empty jar keeps waiting.
-    crate::mobile_auth::forget_provider_sign_in(&window);
+    crate::auth::mobile_auth::forget_provider_sign_in(&window);
     start_cookie_poll(
         window,
         state.clone(),
@@ -403,7 +403,7 @@ async fn start_mobile_login(
         reconnect_account_id,
         None,
     );
-    if let Err(error) = crate::mobile_auth::open_in_main_webview(
+    if let Err(error) = crate::auth::mobile_auth::open_in_main_webview(
         app,
         state.clone(),
         attempt_id.clone(),
@@ -616,7 +616,7 @@ async fn complete_cookie_login(
 }
 
 fn close_login_window(window: &WebviewWindow) {
-    crate::mobile_auth::dismiss_login_window(window);
+    crate::auth::mobile_auth::dismiss_login_window(window);
 }
 
 /// Restrict the private login window to Grok/X sign-in hosts (plus the SSO
@@ -627,7 +627,7 @@ fn close_login_window(window: &WebviewWindow) {
 fn is_allowed_login_navigation(url: &Url) -> bool {
     if url.as_str() == "about:blank"
         || url.scheme() == "blob"
-        || crate::oauth_common::is_connected_page(url)
+        || crate::auth::oauth_common::is_connected_page(url)
     {
         return true;
     }
@@ -693,7 +693,7 @@ fn read_cookie_header(window: &WebviewWindow) -> Result<String, String> {
     // app on iOS, so read the store once without blocking (see ios_cookies.rs) and filter here.
     #[cfg(target_os = "ios")]
     {
-        let cookies = crate::ios_cookies::all_cookies(window)?;
+        let cookies = crate::auth::ios_cookies::all_cookies(window)?;
         for cookie in cookies {
             let domain = cookie.domain().unwrap_or("").trim_start_matches('.');
             let value = cookie.value().trim();

@@ -1,4 +1,4 @@
-use crate::json_file::JsonFileStore;
+use crate::store::json_file::JsonFileStore;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
