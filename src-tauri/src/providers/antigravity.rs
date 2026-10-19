@@ -2,14 +2,13 @@ use super::{
     oauth_refresh::{
         refresh_oauth_secret, IdToken, InvalidGrant, Lifetime, RefreshBody, RefreshRequest,
     },
-    ProviderError, ProviderUsage,
+    with_fresh_secret, ProviderError, ProviderUsage,
 };
 use crate::google_client::{client_secret, CLIENT_ID, TOKEN_URL};
 use crate::{
     diagnostics,
     model::{Account, OAuthSecret, ProviderSecret, UsageWindow},
     state::AppState,
-    store::save_provider_secret,
 };
 use parking_lot::RwLock;
 use reqwest::StatusCode;
@@ -52,26 +51,16 @@ static IDE_VERSION_CACHE: RwLock<Option<CachedIdeVersion>> = RwLock::new(None);
 pub async fn refresh(
     app: &AppState,
     account: &Account,
-    mut secret: OAuthSecret,
+    secret: OAuthSecret,
 ) -> Result<(ProviderUsage, OAuthSecret), ProviderError> {
-    if secret.expires_within(300) {
-        secret = refresh_secret(app, &secret).await?;
-        save_provider_secret(&account.id, &ProviderSecret::Antigravity(secret.clone())).map_err(
-            |_| ProviderError::Transient("Unable to save refreshed credentials.".into()),
-        )?;
-    }
-
-    let result = match fetch_usage(app, account, &secret).await {
-        Err(ProviderError::Auth) => {
-            secret = refresh_secret(app, &secret).await?;
-            save_provider_secret(&account.id, &ProviderSecret::Antigravity(secret.clone()))
-                .map_err(|_| {
-                    ProviderError::Transient("Unable to save refreshed credentials.".into())
-                })?;
-            fetch_usage(app, account, &secret).await?
-        }
-        result => result?,
-    };
+    let (result, secret) = with_fresh_secret(
+        account,
+        secret,
+        ProviderSecret::Antigravity,
+        |secret| Box::pin(async move { refresh_secret(app, &secret).await }),
+        |secret| Box::pin(async move { fetch_usage(app, account, &secret).await }),
+    )
+    .await?;
     Ok((result, secret))
 }
 
