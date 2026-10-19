@@ -313,6 +313,15 @@ pub async fn import_sync_payload_with_replace(
     payload_bytes: &[u8],
     allow_replace: bool,
 ) -> Result<SyncSummary, String> {
+    let mut payload = validate_payload(payload_bytes)?;
+    let mut summary = SyncSummary::default();
+    let planned = plan_account_ids(std::mem::take(&mut payload.accounts), &mut summary)?;
+    apply_import(state, planned, payload, allow_replace, summary).await
+}
+
+/// The payload as sent, once its shape is accepted: JSON of the expected format, within the
+/// account limit. Nothing is read from the device's own state here.
+fn validate_payload(payload_bytes: &[u8]) -> Result<SyncPayload, String> {
     let payload: SyncPayload = serde_json::from_slice(payload_bytes)
         .map_err(|e| format!("Invalid sync payload JSON: {e}"))?;
 
@@ -330,15 +339,26 @@ pub async fn import_sync_payload_with_replace(
             MAX_ACCOUNTS
         ));
     }
+    Ok(payload)
+}
 
-    let mut summary = SyncSummary::default();
-    let mut id_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+/// An incoming account with the id this device will use for it.
+struct PlannedAccount {
+    /// The id the sender used, which buckets, ordering and layout refer to.
+    sender_id: String,
+    entry: SyncAccountEntry,
+}
 
-    // Transfers only add or update accounts on the receiver. Deletions on
-    // the sender are not applied here, so existing accounts on this device
-    // stay until the user removes them.
-
-    for mut entry in payload.accounts {
+/// Decides which incoming accounts are acceptable and what id each gets on this device. An
+/// account whose secret is larger than `MAX_SECRET_BYTES` is dropped (counted as skipped). Whether
+/// an account already exists here is decided later, one account at a time, so that two entries
+/// for the same account in one payload collapse into one.
+fn plan_account_ids(
+    accounts: Vec<SyncAccountEntry>,
+    summary: &mut SyncSummary,
+) -> Result<Vec<PlannedAccount>, String> {
+    let mut planned = Vec::with_capacity(accounts.len());
+    for mut entry in accounts {
         let sender_id = entry.account.id.clone();
         // The sender's id becomes a credential file/keychain name here, so an
         // id that is not a plain token (e.g. `../accounts`) is never used
@@ -357,6 +377,27 @@ pub async fn import_sync_payload_with_replace(
             continue;
         }
 
+        planned.push(PlannedAccount { sender_id, entry });
+    }
+    Ok(planned)
+}
+
+/// Saves the planned accounts, then the groups, settings, order, alerts and layout that refer to
+/// them. A part that cannot be saved is reported in the summary's warnings; the transfer goes on.
+async fn apply_import(
+    state: &Arc<AppState>,
+    planned: Vec<PlannedAccount>,
+    payload: SyncPayload,
+    allow_replace: bool,
+    mut summary: SyncSummary,
+) -> Result<SyncSummary, String> {
+    let mut id_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+
+    // Transfers only add or update accounts on the receiver. Deletions on
+    // the sender are not applied here, so existing accounts on this device
+    // stay until the user removes them.
+
+    for PlannedAccount { sender_id, entry } in planned {
         let existing = state
             .store
             .find_duplicate(
