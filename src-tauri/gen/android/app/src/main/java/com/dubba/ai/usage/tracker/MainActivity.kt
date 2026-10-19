@@ -115,6 +115,7 @@ class MainActivity : TauriActivity() {
   private class InstallStatusException(message: String) : IllegalStateException(message)
 
   private var activeWebView: WebView? = null
+  @Volatile private var signInResultShowing: Boolean = false
   private var appShellUrl: String = "http://tauri.localhost/"
   @Volatile private var lastUpdateNotifyAt: Long = 0L
   @Volatile private var pendingUpdateNotice: String? = null
@@ -143,26 +144,30 @@ class MainActivity : TauriActivity() {
     return isApp
   }
 
-  private fun isResultPageUrl(url: String?): Boolean {
-    if (url.isNullOrBlank()) return false
-    if (url.startsWith("data:text/html")) return true
-    val uri = try {
-      Uri.parse(url)
-    } catch (_: Exception) {
-      return false
-    }
-    val host = uri.host?.lowercase().orEmpty()
-    val isLoopback = host == "localhost" || host == "127.0.0.1" || host == "::1"
-    return isLoopback && (uri.path?.contains("callback") == true)
-  }
-
   /**
    * Clears the back-forward navigation history so that back gestures in the
    * app shell do not navigate back into stale OAuth or "Account connected" pages.
    */
   fun clearWebViewHistory() {
     runOnUiThread {
+      signInResultShowing = false
       activeWebView?.clearHistory()
+    }
+  }
+
+  /**
+   * Rust reports when the sign-in's "Account connected" page is up (and that it is gone). Back on
+   * that page must return to the dashboard whatever URL the WebView reports for it, because the
+   * page differs per provider (the app's own `data:` page, a loopback redirect) and a URL
+   * test alone missed some of them. Rust reports it again once the page has loaded, which is when
+   * the history can be cleared for good.
+   */
+  fun setSignInResultShowing(showing: Boolean) {
+    signInResultShowing = showing
+    if (showing) {
+      // A WebView that can go back takes the back gesture itself, before the callback below runs
+      // (it stepped back through the login pages). With no history left, back reaches the callback.
+      runOnUiThread { activeWebView?.clearHistory() }
     }
   }
 
@@ -292,6 +297,18 @@ class MainActivity : TauriActivity() {
         val wv = activeWebView
         if (wv != null) {
           val url = wv.url.orEmpty()
+          android.util.Log.i(
+            TAG,
+            "Back: scheme=${url.substringBefore(':', "")} resultShowing=$signInResultShowing canGoBack=${wv.canGoBack()}"
+          )
+          if (signInResultShowing || SignInPages.isResultPage(url)) {
+            signInResultShowing = false
+            // If the user presses back while viewing the 5-second "Account connected" page,
+            // dismiss it immediately and restore the app shell rather than going back to OAuth.
+            wv.clearHistory()
+            wv.loadUrl(appShellUrl)
+            return
+          }
           if (isAppShellUrl(url)) {
             // Once returned to the app shell, the user must never be navigated back
             // into completed OAuth or "Account connected" pages.
@@ -308,13 +325,6 @@ class MainActivity : TauriActivity() {
                 }
               }
             }
-            return
-          }
-          if (isResultPageUrl(url)) {
-            // If the user presses back while viewing the 5-second "Account connected" page,
-            // dismiss it immediately and restore the app shell rather than going back to OAuth.
-            wv.clearHistory()
-            wv.loadUrl(appShellUrl)
             return
           }
           if (wv.canGoBack()) {

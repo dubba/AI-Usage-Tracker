@@ -35,6 +35,8 @@ const RESULT_PAGE_SHOWN: u8 = 2;
 pub(crate) fn note_main_navigation(url: &Url) {
     if crate::auth::oauth_common::is_result_page(url) {
         RESULT_PAGE.fetch_max(RESULT_PAGE_REQUESTED, Ordering::SeqCst);
+        #[cfg(target_os = "android")]
+        set_android_sign_in_result_showing(true);
     }
 }
 
@@ -43,9 +45,14 @@ pub(crate) fn note_main_navigation(url: &Url) {
 pub(crate) fn note_main_page_loaded(url: &Url, dev_url: Option<&Url>) {
     if crate::auth::oauth_common::is_result_page(url) {
         RESULT_PAGE.store(RESULT_PAGE_SHOWN, Ordering::SeqCst);
+        #[cfg(target_os = "android")]
+        set_android_sign_in_result_showing(true);
     } else if crate::auth::signin_navigation::is_app_page(url, dev_url) {
         #[cfg(target_os = "android")]
-        clear_android_web_view_history();
+        {
+            set_android_sign_in_result_showing(false);
+            clear_android_web_view_history();
+        }
     }
 }
 
@@ -272,6 +279,31 @@ pub(crate) fn clear_android_web_view_history() {
         });
 }
 
+/// Tells the activity whether the sign-in's "Account connected" page is on screen, so the system
+/// back gesture there returns to the dashboard instead of stepping back through the login pages.
+#[cfg(target_os = "android")]
+pub(crate) fn set_android_sign_in_result_showing(showing: bool) {
+    let result = crate::platform::android_context::with_activity(
+        "setSignInResultShowing",
+        |env, activity| {
+            let call = env.call_method(
+                activity,
+                "setSignInResultShowing",
+                "(Z)V",
+                &[showing.into()],
+            );
+            if env.exception_check().unwrap_or(false) {
+                let _ = env.exception_clear();
+                return Err("The activity rejected the sign-in page state.".to_string());
+            }
+            call.map(|_| ()).map_err(|error| error.to_string())
+        },
+    );
+    if let Err(error) = result {
+        crate::diagnostics::warn(&format!("Sign-in page state was not delivered: {error}"));
+    }
+}
+
 /// Android wry only supports one WebView. Closing the app shell would kill the UI.
 pub fn dismiss_login_window(window: &WebviewWindow) {
     if is_app_shell(window) {
@@ -366,7 +398,15 @@ pub fn open_in_main_webview(
                         && login.status == crate::model::LoginState::Complete
                 });
                 if is_completed {
-                    if show_result_page(&window, &state, &attempt_id).await {
+                    // From here the page on screen is the result page, or about to be.
+                    #[cfg(target_os = "android")]
+                    set_android_sign_in_result_showing(true);
+                    let shown_by_app = show_result_page(&window, &state, &attempt_id).await;
+                    // Again, now the page is on screen: the history is cleared after the
+                    // navigation that added it, so back reaches the activity's handler.
+                    #[cfg(target_os = "android")]
+                    set_android_sign_in_result_showing(true);
+                    if shown_by_app {
                         crate::auth::oauth_common::run_connected_countdown(&window).await;
                     } else {
                         tokio::time::sleep(SUCCESS_DISPLAY_DELAY).await;
