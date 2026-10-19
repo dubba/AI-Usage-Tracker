@@ -466,10 +466,36 @@ pub struct PublicUsageAccount {
     pub plan: Option<String>,
     pub status: String,
     pub source: Option<String>,
-    pub windows: Vec<UsageWindow>,
+    pub windows: Vec<BridgeUsageWindow>,
     pub credits_usd: Option<f64>,
     pub fetched_at: Option<String>,
     pub error: Option<String>,
+}
+
+/// A usage window as the local API (`/v1/paseo-usage`) publishes it. It is its own type, apart from
+/// `UsageWindow`, so a field added to the app's model cannot reach the public API by accident.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BridgeUsageWindow {
+    pub id: String,
+    pub label: String,
+    pub used_percent: Option<f64>,
+    pub remaining_percent: Option<f64>,
+    pub resets_at: Option<String>,
+    pub window_seconds: Option<u64>,
+}
+
+impl From<&UsageWindow> for BridgeUsageWindow {
+    fn from(window: &UsageWindow) -> Self {
+        Self {
+            id: window.id.clone(),
+            label: window.label.clone(),
+            used_percent: window.used_percent,
+            remaining_percent: window.remaining_percent,
+            resets_at: window.resets_at.clone(),
+            window_seconds: window.window_seconds,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]

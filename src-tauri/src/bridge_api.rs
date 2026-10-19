@@ -1,5 +1,8 @@
 use crate::{
-    model::{now_rfc3339, PublicUsageAccount, PublicUsageResponse, UsageFreshness},
+    model::{
+        now_rfc3339, Account, BridgeUsageWindow, PublicUsageAccount, PublicUsageResponse,
+        UsageFreshness,
+    },
     state::AppState,
 };
 use axum::{
@@ -221,9 +224,23 @@ async fn usage(
     if let Err(response) = admit(&app, addr.ip(), &headers) {
         return response;
     }
-    let accounts = app
-        .store
-        .list()
+    let accounts = public_accounts(app.store.list());
+    with_security_headers(
+        (
+            StatusCode::OK,
+            Json(PublicUsageResponse {
+                schema_version: 1,
+                generated_at: now_rfc3339(),
+                accounts,
+            }),
+        )
+            .into_response(),
+    )
+}
+
+/// The accounts as the local API lists them.
+fn public_accounts(accounts: Vec<Account>) -> Vec<PublicUsageAccount> {
+    accounts
         .into_iter()
         .map(|account| {
             let usage = account.last_usage.clone();
@@ -248,25 +265,14 @@ async fn usage(
                 source: usage.as_ref().map(|usage| usage.source.clone()),
                 windows: usage
                     .as_ref()
-                    .map(|usage| usage.windows.clone())
+                    .map(|usage| usage.windows.iter().map(BridgeUsageWindow::from).collect())
                     .unwrap_or_default(),
                 credits_usd: usage.as_ref().and_then(|usage| usage.credits_usd),
                 fetched_at: usage.as_ref().map(|usage| usage.fetched_at.clone()),
                 error: account.last_error,
             }
         })
-        .collect();
-    with_security_headers(
-        (
-            StatusCode::OK,
-            Json(PublicUsageResponse {
-                schema_version: 1,
-                generated_at: now_rfc3339(),
-                accounts,
-            }),
-        )
-            .into_response(),
-    )
+        .collect()
 }
 
 fn forbidden() -> axum::response::Response {
@@ -484,6 +490,76 @@ mod tests {
 
     /// The exact strings the allowlists accept. Spelled out on purpose, so widening them (or
     /// changing the port) fails here and has to be done knowingly.
+    fn sample_account() -> Account {
+        Account {
+            id: "local-account-id".into(),
+            label: "Personal Claude".into(),
+            provider: crate::model::Provider::Anthropic,
+            email: Some("person@example.com".into()),
+            provider_account_id: Some("provider-account-id".into()),
+            chatgpt_account_id: None,
+            plan: Some("max".into()),
+            created_at: "2026-09-03T11:00:00Z".into(),
+            updated_at: "2026-09-03T11:00:00Z".into(),
+            last_usage: Some(crate::model::UsageSnapshot {
+                plan: Some("max".into()),
+                email: None,
+                windows: vec![crate::model::UsageWindow {
+                    id: "five_hour".into(),
+                    label: "5 hour".into(),
+                    used_percent: Some(18.0),
+                    remaining_percent: Some(82.0),
+                    resets_at: Some("2026-09-03T17:00:00Z".into()),
+                    window_seconds: Some(18_000),
+                }],
+                credits_usd: None,
+                unlimited_credits: false,
+                fetched_at: "2026-09-03T12:00:00Z".into(),
+                freshness: UsageFreshness::Live,
+                source: "anthropic_oauth_usage".into(),
+            }),
+            last_error: None,
+            auth_required: false,
+        }
+    }
+
+    /// The public API is a contract with other tools (README, "Response contract"). Its JSON is
+    /// pinned here at every level, so a field added to the app's own model cannot leak into it.
+    #[test]
+    fn usage_response_matches_the_documented_contract_exactly() {
+        let response = PublicUsageResponse {
+            schema_version: 1,
+            generated_at: "2026-09-03T12:00:00Z".into(),
+            accounts: public_accounts(vec![sample_account()]),
+        };
+        let expected = json!({
+            "schemaVersion": 1,
+            "generatedAt": "2026-09-03T12:00:00Z",
+            "accounts": [{
+                "id": "local-account-id",
+                "label": "Personal Claude",
+                "provider": "anthropic",
+                "email": "person@example.com",
+                "providerAccountId": "provider-account-id",
+                "plan": "max",
+                "status": "available",
+                "source": "anthropic_oauth_usage",
+                "windows": [{
+                    "id": "five_hour",
+                    "label": "5 hour",
+                    "usedPercent": 18.0,
+                    "remainingPercent": 82.0,
+                    "resetsAt": "2026-09-03T17:00:00Z",
+                    "windowSeconds": 18000
+                }],
+                "creditsUsd": null,
+                "fetchedAt": "2026-09-03T12:00:00Z",
+                "error": null
+            }]
+        });
+        assert_eq!(serde_json::to_value(&response).unwrap(), expected);
+    }
+
     #[test]
     fn allowlists_accept_exactly_these_hosts_and_origins() {
         assert_eq!(
