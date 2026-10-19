@@ -20,6 +20,7 @@ import { GoogleAiStudioUsageModal } from "../features/accounts/GoogleAiStudioUsa
 import { PairingModal } from "../features/pairing/PairingModal";
 import { SettingsView } from "../features/settings/SettingsView";
 import { UpdateNotesModal } from "../features/settings/UpdateNotesModal";
+import { useLayout } from "../features/dashboard/layout-store";
 import { AppSettingsContext, AppUpdateContext } from "../features/settings/settings-context";
 import { GROUP_REORDER_HINT_ID, SidebarGroupRow } from "../features/dashboard/SidebarGroupRow";
 import { SidebarResizeHandle } from "../features/dashboard/SidebarResizeHandle";
@@ -64,7 +65,7 @@ import {
   type SidebarGroup,
 } from "../features/dashboard/sidebar-groups";
 import { moveAnnouncement, moveById } from "../features/reorder/reorder-utils";
-import { requestDashboardResync, UI_EVENTS } from "../shared/lib/events";
+import { requestDashboardResync } from "../shared/lib/events";
 import { displayAccountLabel, googleAiStudioHasQuotaWindows } from "../shared/lib/usage-logic";
 import type { Account, AccountBucket, Provider } from "../types";
 
@@ -78,9 +79,7 @@ type Section = "accounts" | "settings";
 
 export default function App() {
   const [selectedGroupId, setSelectedGroupId] = useState(ALL_ACCOUNTS_GROUP_ID);
-  const [providerOrder, setProviderOrder] = useState<Provider[]>(readDashboardProviderOrder);
-  const [sidebarGroupOrder, setSidebarGroupOrder] = useState<string[]>(readSidebarGroupOrder);
-  const [pageOrderTick, setPageOrderTick] = useState(0);
+  const { providerOrder, groupOrder: sidebarGroupOrder, pageOrderVersion } = useLayout();
   const [section, setSection] = useState<Section>("accounts");
   const [modal, dispatchModal] = useReducer(modalReducer, null);
   const addModal = modal?.kind === "add" ? modal : null;
@@ -171,9 +170,6 @@ export default function App() {
 
   useEffect(() => {
     migrateLegacyCollapsedCards();
-    const onPageOrder = () => setPageOrderTick((tick) => tick + 1);
-    window.addEventListener(UI_EVENTS.pageOrderChanged, onPageOrder);
-    return () => window.removeEventListener(UI_EVENTS.pageOrderChanged, onPageOrder);
   }, []);
 
   // Older versions kept a separate saved order for the "all" page. Once the accounts are known,
@@ -214,19 +210,6 @@ export default function App() {
 
   useEffect(() => {
     void resumeLoginAttemptWatch();
-  }, []);
-
-  useEffect(() => {
-    const handleOrderChange = () => {
-      setProviderOrder(readDashboardProviderOrder());
-      setSidebarGroupOrder(readSidebarGroupOrder());
-    };
-    window.addEventListener(UI_EVENTS.groupOrderChanged, handleOrderChange);
-    window.addEventListener(UI_EVENTS.providerOrderChanged, handleOrderChange);
-    return () => {
-      window.removeEventListener(UI_EVENTS.groupOrderChanged, handleOrderChange);
-      window.removeEventListener(UI_EVENTS.providerOrderChanged, handleOrderChange);
-    };
   }, []);
 
   const accounts = snapshot?.accounts ?? NO_ACCOUNTS;
@@ -281,11 +264,13 @@ export default function App() {
     if (next) storeSidebarGroupOrder(next);
   }, [snapshot, membershipKey, accounts, buckets]);
 
-  // The page order lives in storage, not in state; the tick says it changed and must be re-read.
-  const visibleAccounts = useMemo(() => {
-    void pageOrderTick;
-    return applyPageAccountOrder(selectedGroup.accounts, selectedGroup.id);
-  }, [selectedGroup, pageOrderTick]);
+  // The page order lives in storage, not in state; the layout store's version says it was saved
+  // again and must be re-read.
+  const visibleAccounts = useMemo(
+    () => applyPageAccountOrder(selectedGroup.accounts, selectedGroup.id),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedGroup, pageOrderVersion],
+  );
 
   const loadError = errors.find((entry) => entry.source === "load");
 

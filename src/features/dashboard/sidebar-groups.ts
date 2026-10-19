@@ -49,8 +49,8 @@ export function buildAllAccountsGroup(accounts: Account[]): SidebarGroup {
 export function buildSidebarGroups(
   accounts: Account[],
   buckets: AccountBucket[],
-  providerOrder: Provider[],
-  sidebarGroupOrder: string[],
+  providerOrder: readonly Provider[],
+  sidebarGroupOrder: readonly string[],
 ): SidebarGroup[] {
   const assignedIds = new Set<string>();
   const bucketGroups: SidebarGroup[] = [];

@@ -3,7 +3,8 @@ import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mount, type Mounted } from "../../test-utils/react";
 import { UI_EVENTS } from "../../shared/lib/events";
-import { STORAGE_KEYS, storageGet, storageSet } from "../../shared/lib/storage";
+import { STORAGE_KEYS, storageGet, storageSet, writeJson } from "../../shared/lib/storage";
+import { resetLayoutForTests } from "../dashboard/layout-store";
 import { countReorderHintSession, isReorderHintEligible, MAX_REORDER_HINT_OPENS, useReorderHint } from "./useReorderHint";
 
 let latest: ReturnType<typeof useReorderHint>;
@@ -23,6 +24,7 @@ const opens = () => storageGet(STORAGE_KEYS.reorderHintOpenCount);
 beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
+  resetLayoutForTests();
 });
 afterEach(() => {
   mounted?.unmount();
@@ -120,6 +122,7 @@ describe("useReorderHint", () => {
 
   it("also finishes when a sidebar group is moved, and completeReorderHint does the same", () => {
     mounted = mount(<Probe canReorder />);
+    writeJson(STORAGE_KEYS.sidebarGroupOrder, ["provider:grok", "provider:openai"]);
     act(() => {
       window.dispatchEvent(new Event(UI_EVENTS.groupOrderChanged));
     });

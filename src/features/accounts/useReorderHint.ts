@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { UI_EVENTS } from "../../shared/lib/events";
 import { STORAGE_KEYS, storageGet, storageSet } from "../../shared/lib/storage";
+import { subscribeLayout } from "../dashboard/layout-store";
 
 /** The reorder hint shows in at most this many app sessions (opens of the dashboard in a new session). */
 export const MAX_REORDER_HINT_OPENS = 2;
@@ -56,15 +56,10 @@ export function useReorderHint(canReorder: boolean) {
     setCompleted(true);
   }, []);
 
-  // Done for good once the user reorders a card or a group.
+  // Done for good once the user reorders a card or a group (any saved change of the layout).
   useEffect(() => {
     if (!showReorderHint) return;
-    window.addEventListener(UI_EVENTS.pageOrderChanged, completeReorderHint);
-    window.addEventListener(UI_EVENTS.groupOrderChanged, completeReorderHint);
-    return () => {
-      window.removeEventListener(UI_EVENTS.pageOrderChanged, completeReorderHint);
-      window.removeEventListener(UI_EVENTS.groupOrderChanged, completeReorderHint);
-    };
+    return subscribeLayout(completeReorderHint);
   }, [showReorderHint, completeReorderHint]);
 
   return { showReorderHint, dismissReorderHint, completeReorderHint };
