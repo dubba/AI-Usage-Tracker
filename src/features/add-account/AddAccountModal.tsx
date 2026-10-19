@@ -8,7 +8,7 @@ import {
   strategyFor,
   type AddAccountDraft,
 } from "./strategies";
-import { describeError } from "../../shared/lib/errors";
+import { useAsyncAction } from "../../shared/hooks/useAsyncAction";
 import { logIgnored } from "../../shared/lib/log";
 import { isAndroid as detectAndroid, isIOS } from "../../shared/lib/platform";
 import { PROVIDER_META } from "../../shared/lib/providers";
@@ -54,10 +54,10 @@ export function AddAccountModal({
   // Android or iOS by operating system. Not `isMobileDevice()`: that is also true for touch-screen laptops.
   const isMobileOs = detectAndroid() || isIOS();
   const [draft, setDraft] = useState<AddAccountDraft>(() => emptyDraft("anthropic"));
-  const [modelsBusy, setModelsBusy] = useState(false);
   const [status, setStatus] = useState<LoginStatus | null>(null);
-  const [busy, setBusy] = useState(false);
   const { error, setError } = useAutoDismissedError(open);
+  const { busy, setBusy, run } = useAsyncAction({ source: "add-account", setError });
+  const { busy: modelsBusy, setBusy: setModelsBusy, run: runModels } = useAsyncAction({ source: "add-account", setError });
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   const [baselineLabel, setBaselineLabel] = useState("");
   const [isKeyboardOpen, setIsKeyboardOpen] = useVirtualKeyboard(open);
@@ -87,7 +87,7 @@ export function AddAccountModal({
       setBaselineLabel(initialLabel?.trim() || defaultAccountName(nextProvider));
       setModelsBusy(false);
     }
-  }, [open, initialLabel, initialProvider, providerLocked, setError]);
+  }, [open, initialLabel, initialProvider, providerLocked, setError, setBusy, setModelsBusy]);
 
   useEffect(() => {
     if (!open) return;
@@ -104,7 +104,7 @@ export function AddAccountModal({
         setError(next.message ?? `${connectLabel(provider)} authentication failed.`);
       }
     });
-  }, [open, onAdded, provider, setError]);
+  }, [open, onAdded, provider, setError, setBusy]);
 
   const closeModal = () => {
     closeRequestedRef.current = true;
@@ -165,31 +165,28 @@ export function AddAccountModal({
       return;
     }
 
-    setModelsBusy(true);
-    setError(null);
-    try {
-      const probe = await bridgeApi.testGoogleAiStudioKey(key);
-      const models = (probe.lastUsage?.windows ?? []).map((model) => ({
-        name: model.id,
-        label: model.label,
-      }));
-      if (!models.length) {
-        update({ availableModels: [], selectedModels: [] });
-        setError("Google returned no models that can be tracked with this key.");
-        return;
-      }
-      const availableNames = new Set(models.map((model) => model.name));
-      setDraft((current) => ({
-        ...current,
-        availableModels: models,
-        selectedModels: current.selectedModels.filter((name) => availableNames.has(name)),
-      }));
-    } catch (cause) {
-      update({ availableModels: [], selectedModels: [] });
-      setError(describeError("add-account", "Couldn't load models for this key", cause));
-    } finally {
-      setModelsBusy(false);
-    }
+    await runModels(
+      async () => {
+        const probe = await bridgeApi.testGoogleAiStudioKey(key);
+        const models = (probe.lastUsage?.windows ?? []).map((model) => ({
+          name: model.id,
+          label: model.label,
+        }));
+        if (!models.length) {
+          update({ availableModels: [], selectedModels: [] });
+          setError("Google returned no models that can be tracked with this key.");
+          return;
+        }
+        const availableNames = new Set(models.map((model) => model.name));
+        setDraft((current) => ({
+          ...current,
+          availableModels: models,
+          selectedModels: current.selectedModels.filter((name) => availableNames.has(name)),
+        }));
+      },
+      "Couldn't load models for this key",
+      { onError: () => update({ availableModels: [], selectedModels: [] }) },
+    );
   };
 
   /** Starts a browser or private-window sign-in and waits for the backend to report its result. */
@@ -231,21 +228,20 @@ export function AddAccountModal({
       return;
     }
 
-    setBusy(true);
-    setError(null);
-    try {
-      const name = draft.label.trim() || defaultAccountName(provider);
-      if (strategy.connectMode(draft) === "sign-in") {
-        await startSignIn(name);
-      } else {
-        onAdded(await strategy.connectDirect!(draft, name, reconnectAccountId));
-      }
-    } catch (cause) {
-      if (!closeRequestedRef.current) {
-        setBusy(false);
-        setError(describeError("add-account", "Couldn't connect the account", cause));
-      }
-    }
+    // Busy stays on after success: a sign-in now waits for the backend, and a direct connect
+    // closes the dialog.
+    await run(
+      async () => {
+        const name = draft.label.trim() || defaultAccountName(provider);
+        if (strategy.connectMode(draft) === "sign-in") {
+          await startSignIn(name);
+        } else {
+          onAdded(await strategy.connectDirect!(draft, name, reconnectAccountId));
+        }
+      },
+      "Couldn't connect the account",
+      { keepBusyOnSuccess: true, isCurrent: () => !closeRequestedRef.current },
+    );
   };
 
   const retry = () => {
