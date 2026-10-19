@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReportError } from "../../shared/lib/errors";
 import { bridgeApi } from "../../shared/lib/api";
 import { logIgnored } from "../../shared/lib/log";
@@ -34,41 +34,35 @@ export function useAppSettings({ reportError, clearError }: { reportError: Repor
     }
   }, [clearError, reportError]);
 
-  const saveAccountRefreshMinutes = useCallback(async (minutes: number) => {
-    setSettingsBusyKey("refresh");
-    try {
-      setAppSettings(await bridgeApi.setAccountRefreshMinutes(minutes));
-      clearError("settings");
-    } catch (cause) {
-      reportError("settings", cause, "Couldn't save the refresh interval");
-    } finally {
-      setSettingsBusyKey(null);
-    }
-  }, [clearError, reportError]);
+  /** A save function for one setting: marks it busy, stores the settings the backend returns, reports a failure. */
+  const makeSaver = useCallback(
+    <Value,>(busyKey: string, save: (value: Value) => Promise<AppSettings>, errorText: string) =>
+      async (value: Value) => {
+        setSettingsBusyKey(busyKey);
+        try {
+          setAppSettings(await save(value));
+          clearError("settings");
+        } catch (cause) {
+          reportError("settings", cause, errorText);
+        } finally {
+          setSettingsBusyKey(null);
+        }
+      },
+    [clearError, reportError],
+  );
 
-  const saveAutomaticUpdatesEnabled = useCallback(async (enabled: boolean) => {
-    setSettingsBusyKey("automatic");
-    try {
-      setAppSettings(await bridgeApi.setAutomaticUpdatesEnabled(enabled));
-      clearError("settings");
-    } catch (cause) {
-      reportError("settings", cause, "Couldn't save the automatic updates setting");
-    } finally {
-      setSettingsBusyKey(null);
-    }
-  }, [clearError, reportError]);
-
-  const saveIncludeBetaUpdates = useCallback(async (enabled: boolean) => {
-    setSettingsBusyKey("beta");
-    try {
-      setAppSettings(await bridgeApi.setIncludeBetaUpdates(enabled));
-      clearError("settings");
-    } catch (cause) {
-      reportError("settings", cause, "Couldn't save the beta updates setting");
-    } finally {
-      setSettingsBusyKey(null);
-    }
-  }, [clearError, reportError]);
+  const saveAccountRefreshMinutes = useMemo(
+    () => makeSaver("refresh", bridgeApi.setAccountRefreshMinutes, "Couldn't save the refresh interval"),
+    [makeSaver],
+  );
+  const saveAutomaticUpdatesEnabled = useMemo(
+    () => makeSaver("automatic", bridgeApi.setAutomaticUpdatesEnabled, "Couldn't save the automatic updates setting"),
+    [makeSaver],
+  );
+  const saveIncludeBetaUpdates = useMemo(
+    () => makeSaver("beta", bridgeApi.setIncludeBetaUpdates, "Couldn't save the beta updates setting"),
+    [makeSaver],
+  );
 
   const toggleAutostart = useCallback(async () => {
     try {
