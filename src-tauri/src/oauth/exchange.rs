@@ -201,6 +201,14 @@ pub(super) async fn complete_exchange(
     Ok(account)
 }
 
+/// When an access token runs out, given the reply's `expires_in`. A reply that does not say gets an hour.
+fn expires_at(expires_in: Option<i64>) -> i64 {
+    let seconds = Lifetime::DefaultsToOneHour
+        .seconds(expires_in)
+        .unwrap_or_default();
+    Utc::now().timestamp_millis() + seconds * 1000
+}
+
 pub(super) async fn exchange_tokens(
     context: &LoginContext,
     code: &str,
@@ -221,20 +229,17 @@ pub(super) async fn exchange_openai(
     context: &LoginContext,
     code: &str,
 ) -> ExchangeResult<(ProviderSecret, ProviderIdentity)> {
-    let response = context
-        .app
-        .client
-        .post(OPENAI_TOKEN_URL)
-        .form(&[
-            ("grant_type", "authorization_code"),
-            ("client_id", OPENAI_CLIENT_ID),
-            ("code", code),
-            ("code_verifier", context.verifier.as_str()),
-            ("redirect_uri", context.redirect_uri.as_str()),
-        ])
-        .send()
-        .await
-        .map_err(|error| ExchangeError::from_send("OpenAI token exchange failed", &error))?;
+    let response = RefreshBody::Form(&[
+        ("grant_type", "authorization_code"),
+        ("client_id", OPENAI_CLIENT_ID),
+        ("code", code),
+        ("code_verifier", context.verifier.as_str()),
+        ("redirect_uri", context.redirect_uri.as_str()),
+    ])
+    .apply(context.app.client.post(OPENAI_TOKEN_URL))
+    .send()
+    .await
+    .map_err(|error| ExchangeError::from_send("OpenAI token exchange failed", &error))?;
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     if !status.is_success() {
@@ -243,11 +248,11 @@ pub(super) async fn exchange_openai(
             status,
         ));
     }
-    let tokens: OAuthTokenResponse =
+    let tokens: TokenResponse =
         serde_json::from_str(&body).map_err(|_| String::from("Invalid OpenAI token response."))?;
     // Unlike the other providers, OpenAI always reports a lifetime; a response without one is malformed.
-    let expires_in = tokens
-        .expires_in
+    let expires_in = Lifetime::Required
+        .seconds(tokens.expires_in)
         .ok_or_else(|| "Invalid OpenAI token response: missing field `expires_in`".to_string())?;
     let refresh_token = tokens
         .refresh_token
@@ -281,21 +286,18 @@ pub(super) async fn exchange_anthropic(
     context: &LoginContext,
     code: &str,
 ) -> ExchangeResult<(ProviderSecret, ProviderIdentity)> {
-    let response = context
-        .app
-        .client
-        .post(ANTHROPIC_TOKEN_URL)
-        .json(&json!({
-            "grant_type": "authorization_code",
-            "client_id": ANTHROPIC_CLIENT_ID,
-            "code": code,
-            "state": context.expected_state.clone(),
-            "redirect_uri": context.redirect_uri.clone(),
-            "code_verifier": context.verifier.clone(),
-        }))
-        .send()
-        .await
-        .map_err(|error| ExchangeError::from_send("Anthropic token exchange failed", &error))?;
+    let response = RefreshBody::Json(json!({
+        "grant_type": "authorization_code",
+        "client_id": ANTHROPIC_CLIENT_ID,
+        "code": code,
+        "state": context.expected_state.clone(),
+        "redirect_uri": context.redirect_uri.clone(),
+        "code_verifier": context.verifier.clone(),
+    }))
+    .apply(context.app.client.post(ANTHROPIC_TOKEN_URL))
+    .send()
+    .await
+    .map_err(|error| ExchangeError::from_send("Anthropic token exchange failed", &error))?;
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     if !status.is_success() {
@@ -306,7 +308,7 @@ pub(super) async fn exchange_anthropic(
     }
     let token_json: Value = serde_json::from_str(&body)
         .map_err(|_| String::from("Invalid Anthropic token response."))?;
-    let tokens: OAuthTokenResponse = serde_json::from_value(token_json.clone())
+    let tokens: TokenResponse = serde_json::from_value(token_json.clone())
         .map_err(|_| String::from("Invalid Anthropic token response."))?;
     let refresh_token = tokens
         .refresh_token
@@ -321,7 +323,7 @@ pub(super) async fn exchange_anthropic(
             access_token: tokens.access_token,
             refresh_token,
             id_token: tokens.id_token,
-            expires_at: Utc::now().timestamp_millis() + tokens.expires_in.unwrap_or(3600) * 1000,
+            expires_at: expires_at(tokens.expires_in),
         }),
         identity,
     ))
@@ -332,21 +334,18 @@ pub(super) async fn exchange_antigravity(
     code: &str,
 ) -> ExchangeResult<(ProviderSecret, ProviderIdentity)> {
     let client_secret = client_secret();
-    let response = context
-        .app
-        .client
-        .post(GOOGLE_TOKEN_URL)
-        .form(&[
-            ("client_id", CLIENT_ID),
-            ("client_secret", client_secret.as_str()),
-            ("code", code),
-            ("redirect_uri", context.redirect_uri.as_str()),
-            ("grant_type", "authorization_code"),
-            ("code_verifier", context.verifier.as_str()),
-        ])
-        .send()
-        .await
-        .map_err(|error| ExchangeError::from_send("Google token exchange failed", &error))?;
+    let response = RefreshBody::Form(&[
+        ("client_id", CLIENT_ID),
+        ("client_secret", client_secret.as_str()),
+        ("code", code),
+        ("redirect_uri", context.redirect_uri.as_str()),
+        ("grant_type", "authorization_code"),
+        ("code_verifier", context.verifier.as_str()),
+    ])
+    .apply(context.app.client.post(GOOGLE_TOKEN_URL))
+    .send()
+    .await
+    .map_err(|error| ExchangeError::from_send("Google token exchange failed", &error))?;
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     if !status.is_success() {
@@ -355,7 +354,7 @@ pub(super) async fn exchange_antigravity(
             status,
         ));
     }
-    let tokens: OAuthTokenResponse =
+    let tokens: TokenResponse =
         serde_json::from_str(&body).map_err(|_| String::from("Invalid Google token response."))?;
     let refresh_token = tokens.refresh_token.clone().ok_or_else(|| {
         "Google did not return a refresh token. Revoke access and try again.".to_string()
@@ -375,7 +374,7 @@ pub(super) async fn exchange_antigravity(
             access_token: tokens.access_token,
             refresh_token,
             id_token: tokens.id_token,
-            expires_at: Utc::now().timestamp_millis() + tokens.expires_in.unwrap_or(3600) * 1000,
+            expires_at: expires_at(tokens.expires_in),
         }),
         identity,
     ))

@@ -11,6 +11,7 @@ use crate::{
     },
     providers::{
         anthropic::{CLIENT_ID as ANTHROPIC_CLIENT_ID, TOKEN_URL as ANTHROPIC_TOKEN_URL},
+        oauth_refresh::{Lifetime, RefreshBody, TokenResponse},
         openai::{CLIENT_ID as OPENAI_CLIENT_ID, TOKEN_URL as OPENAI_TOKEN_URL},
     },
     state::AppState,
@@ -23,7 +24,6 @@ use axum::{
 };
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use chrono::{Duration, Utc};
-use serde::Deserialize;
 use serde_json::{json, Value};
 #[cfg(desktop)]
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -63,23 +63,6 @@ struct LoginContext {
     /// The callback can arrive twice (the loopback server and the mobile WebView URL poll both
     /// see it), and an authorization code works once.
     callback_claimed: Arc<std::sync::atomic::AtomicBool>,
-}
-
-#[derive(Deserialize)]
-struct OAuthTokenResponse {
-    access_token: String,
-    refresh_token: Option<String>,
-    id_token: Option<String>,
-    expires_in: Option<i64>,
-}
-
-impl std::fmt::Debug for OAuthTokenResponse {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("OAuthTokenResponse")
-            .field("expires_in", &self.expires_in)
-            .finish_non_exhaustive()
-    }
 }
 
 pub async fn start_login(

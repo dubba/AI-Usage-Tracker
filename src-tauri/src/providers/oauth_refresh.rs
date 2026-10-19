@@ -4,6 +4,11 @@
 //! They all follow the same steps and fail the same ways; they differ in a few small, deliberate
 //! details, which are spelled out as options on [`RefreshRequest`] rather than hidden.
 //!
+//! The sign-in code exchanges (`oauth/exchange.rs`, `google_ai_studio_oauth.rs`) talk to the same
+//! token endpoints, so they share the pieces that do not depend on the grant: how a request body
+//! is sent ([`RefreshBody`]), what a reply looks like ([`TokenResponse`]) and how long a token
+//! lives when the reply does not say ([`Lifetime`]).
+//!
 //! Errors never carry text from the provider's response: a failed refresh says only which
 //! provider and which HTTP status, so a token echoed in an error body cannot reach a message.
 
@@ -18,6 +23,16 @@ pub(crate) enum RefreshBody<'a> {
     /// `application/x-www-form-urlencoded` fields.
     Form(&'a [(&'a str, &'a str)]),
     Json(serde_json::Value),
+}
+
+impl RefreshBody<'_> {
+    /// Puts the body on a request.
+    pub(crate) fn apply(&self, builder: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        match self {
+            RefreshBody::Form(fields) => builder.form(fields),
+            RefreshBody::Json(value) => builder.json(value),
+        }
+    }
 }
 
 /// When a provider's reply means "sign in again" rather than "try again later".
@@ -36,6 +51,18 @@ pub(crate) enum Lifetime {
     Required,
     /// A reply without `expires_in` is valid and the token is assumed to last an hour.
     DefaultsToOneHour,
+}
+
+impl Lifetime {
+    /// How many seconds the token lives: what the reply said, or this rule's answer when it said
+    /// nothing. `None` means the reply is malformed.
+    pub(crate) fn seconds(self, expires_in: Option<i64>) -> Option<i64> {
+        match (expires_in, self) {
+            (Some(seconds), _) => Some(seconds),
+            (None, Lifetime::DefaultsToOneHour) => Some(DEFAULT_LIFETIME_SECS),
+            (None, Lifetime::Required) => None,
+        }
+    }
 }
 
 /// Which `id_token` the refreshed secret keeps.
@@ -58,12 +85,23 @@ pub(crate) struct RefreshRequest<'a> {
     pub id_token: IdToken,
 }
 
+/// A token endpoint's reply to a code exchange or a refresh.
 #[derive(Deserialize)]
-struct TokenReply {
-    access_token: String,
-    refresh_token: Option<String>,
-    id_token: Option<String>,
-    expires_in: Option<i64>,
+pub(crate) struct TokenResponse {
+    pub access_token: String,
+    pub refresh_token: Option<String>,
+    pub id_token: Option<String>,
+    pub expires_in: Option<i64>,
+}
+
+// Formatting a reply (a stray `{:?}`, an assert failure) must not print its tokens.
+impl std::fmt::Debug for TokenResponse {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("TokenResponse")
+            .field("expires_in", &self.expires_in)
+            .finish_non_exhaustive()
+    }
 }
 
 const DEFAULT_LIFETIME_SECS: i64 = 3600;
@@ -86,12 +124,9 @@ pub(crate) async fn refresh_oauth_secret(
     secret: &OAuthSecret,
 ) -> Result<OAuthSecret, ProviderError> {
     let provider = request.provider;
-    let builder = request.client.post(request.url);
-    let builder = match &request.body {
-        RefreshBody::Form(fields) => builder.form(fields),
-        RefreshBody::Json(value) => builder.json(value),
-    };
-    let response = builder
+    let response = request
+        .body
+        .apply(request.client.post(request.url))
         .send()
         .await
         .map_err(|_| ProviderError::Transient(format!("{provider} token refresh failed.")))?;
@@ -107,12 +142,11 @@ pub(crate) async fn refresh_oauth_secret(
     }
     let invalid =
         || ProviderError::Transient(format!("Invalid {provider} token refresh response."));
-    let reply: TokenReply = serde_json::from_str(&body).map_err(|_| invalid())?;
-    let lifetime_secs = match (reply.expires_in, request.lifetime) {
-        (Some(seconds), _) => seconds,
-        (None, Lifetime::DefaultsToOneHour) => DEFAULT_LIFETIME_SECS,
-        (None, Lifetime::Required) => return Err(invalid()),
-    };
+    let reply: TokenResponse = serde_json::from_str(&body).map_err(|_| invalid())?;
+    let lifetime_secs = request
+        .lifetime
+        .seconds(reply.expires_in)
+        .ok_or_else(invalid)?;
     let id_token = match request.id_token {
         IdToken::KeepCurrent => secret.id_token.clone(),
         IdToken::PreferNew => reply.id_token.or_else(|| secret.id_token.clone()),
@@ -445,5 +479,24 @@ mod tests {
         let sent = server.await.unwrap();
         assert!(sent.to_ascii_lowercase().contains("application/json"));
         assert!(sent.contains(r#""refresh_token":"old-refresh""#));
+    }
+
+    #[test]
+    fn a_token_response_does_not_print_its_tokens() {
+        let response: TokenResponse = serde_json::from_str(
+            r#"{"access_token":"SECRET_ACCESS","refresh_token":"SECRET_REFRESH","id_token":"SECRET_ID","expires_in":3600}"#,
+        )
+        .unwrap();
+        let text = format!("{response:?}");
+        assert!(!text.contains("SECRET"), "{text}");
+        assert!(text.contains("3600"), "{text}");
+    }
+
+    #[test]
+    fn a_reply_without_a_lifetime_follows_the_rule() {
+        assert_eq!(Lifetime::Required.seconds(Some(60)), Some(60));
+        assert_eq!(Lifetime::Required.seconds(None), None);
+        assert_eq!(Lifetime::DefaultsToOneHour.seconds(None), Some(3600));
+        assert_eq!(Lifetime::DefaultsToOneHour.seconds(Some(60)), Some(60));
     }
 }

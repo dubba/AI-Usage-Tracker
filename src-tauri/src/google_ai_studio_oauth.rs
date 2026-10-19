@@ -9,7 +9,11 @@ use crate::{
         random_base64, spawn_callback_server, spawn_login_timeout, CallbackQuery,
         OAUTH_LOGIN_TIMEOUT_MINUTES,
     },
-    providers::{google_ai_studio, oauth_refresh::IdToken, ProviderError},
+    providers::{
+        google_ai_studio,
+        oauth_refresh::{IdToken, RefreshBody, TokenResponse},
+        ProviderError,
+    },
     state::AppState,
     store::{load_provider_secret, save_provider_secret},
     usage,
@@ -47,23 +51,6 @@ struct LoginContext {
     expected_state: String,
     redirect_uri: String,
     verifier: String,
-}
-
-#[derive(Deserialize)]
-struct TokenResponse {
-    access_token: String,
-    refresh_token: Option<String>,
-    id_token: Option<String>,
-    expires_in: Option<i64>,
-}
-
-impl std::fmt::Debug for TokenResponse {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("TokenResponse")
-            .field("expires_in", &self.expires_in)
-            .finish_non_exhaustive()
-    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -855,21 +842,18 @@ fn network_unavailable(action: &str) -> String {
 
 async fn exchange_tokens(context: &LoginContext, code: &str) -> Result<TokenResponse, String> {
     let client_secret = client_secret();
-    let response = context
-        .app
-        .client
-        .post(TOKEN_URL)
-        .form(&[
-            ("client_id", CLIENT_ID),
-            ("client_secret", client_secret.as_str()),
-            ("code", code),
-            ("redirect_uri", context.redirect_uri.as_str()),
-            ("grant_type", "authorization_code"),
-            ("code_verifier", context.verifier.as_str()),
-        ])
-        .send()
-        .await
-        .map_err(|_| network_unavailable("Google token exchange"))?;
+    let response = RefreshBody::Form(&[
+        ("client_id", CLIENT_ID),
+        ("client_secret", client_secret.as_str()),
+        ("code", code),
+        ("redirect_uri", context.redirect_uri.as_str()),
+        ("grant_type", "authorization_code"),
+        ("code_verifier", context.verifier.as_str()),
+    ])
+    .apply(context.app.client.post(TOKEN_URL))
+    .send()
+    .await
+    .map_err(|_| network_unavailable("Google token exchange"))?;
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     if !status.is_success() {

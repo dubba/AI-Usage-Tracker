@@ -837,14 +837,3 @@ async fn a_callback_without_this_attempts_state_changes_nothing() {
         "only the provider's own redirect may set the message"
     );
 }
-
-#[test]
-fn a_token_response_does_not_print_its_tokens() {
-    let response: OAuthTokenResponse = serde_json::from_str(
-        r#"{"access_token":"SECRET_ACCESS","refresh_token":"SECRET_REFRESH","id_token":"SECRET_ID","expires_in":3600}"#,
-    )
-    .unwrap();
-    let text = format!("{response:?}");
-    assert!(!text.contains("SECRET"), "{text}");
-    assert!(text.contains("3600"), "{text}");
-}
