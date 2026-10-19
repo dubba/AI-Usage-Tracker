@@ -352,8 +352,32 @@ mod tests {
             &mut files,
         );
         assert!(!files.is_empty());
+        let mut called = BTreeSet::new();
+        let mut non_test_sources = Vec::new();
         for file in files {
+            let is_test = file
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.contains(".test."));
             let text = std::fs::read_to_string(&file).unwrap();
+            let is_api = file.ends_with("shared/lib/api.ts");
+            if !is_test {
+                // Join `bridgeApi\n  .method(` chains so the call is found on one line.
+                let mut joined = String::with_capacity(text.len());
+                let mut pending_space = String::new();
+                for ch in text.chars() {
+                    if ch.is_whitespace() {
+                        pending_space.push(ch);
+                        continue;
+                    }
+                    if ch != '.' {
+                        joined.push_str(&pending_space);
+                    }
+                    pending_space.clear();
+                    joined.push(ch);
+                }
+                non_test_sources.push(joined);
+            }
             let mut rest = text.as_str();
             while let Some(index) = rest.find("invoke") {
                 rest = &rest[index + "invoke".len()..];
@@ -389,9 +413,92 @@ mod tests {
                         "{} invokes unknown command {name}",
                         file.display()
                     );
+                    // `api.ts` only declares wrappers; whether a wrapper is used is checked below.
+                    if !is_test && !is_api {
+                        called.insert(name.to_string());
+                    }
                 }
             }
         }
+
+        // Every registered command has a caller in the app's own frontend. A command nothing
+        // calls is attack surface with no user: it stays registered, listed in `build.rs`,
+        // and granted to the main window for nothing. A command counts as called when code
+        // outside the tests invokes it directly, or calls the `bridgeApi` / `pairingApi`
+        // method in `api.ts` that wraps it. The list of exceptions is exact on purpose, so
+        // removing a command from it (or the code) cannot be forgotten.
+        const REGISTERED_BUT_UNCALLED: &[&str] = &[
+            "get_account_buckets",
+            "pairing_set_allow_credential_replace",
+            "pairing_start_receiver",
+            "pairing_start_sender",
+        ];
+        let api_source = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../src/shared/lib/api.ts"),
+        )
+        .unwrap();
+        // (object name, method name) -> command, read from lines like `  getBuckets: () => invoke<..>("cmd")`.
+        let mut wrappers: Vec<(&str, String, String)> = Vec::new();
+        let mut object = "";
+        let mut method = String::new();
+        for line in api_source.lines() {
+            if let Some(name) = line
+                .strip_prefix("export const ")
+                .and_then(|rest| rest.split(' ').next())
+            {
+                object = if name == "bridgeApi" || name == "pairingApi" {
+                    name
+                } else {
+                    ""
+                };
+            }
+            if object.is_empty() {
+                continue;
+            }
+            let property = line
+                .strip_prefix("  ")
+                .filter(|rest| !rest.starts_with(' '))
+                .and_then(|rest| rest.split_once(':'))
+                .map(|(name, _)| name)
+                .filter(|name| !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric()));
+            if let Some(name) = property {
+                method = name.to_string();
+            }
+            if let Some(index) = line.find("invoke<").or_else(|| line.find("invoke(")) {
+                let after = &line[index..];
+                if let Some(quote) = after.find('"') {
+                    let command = &after[quote + 1..];
+                    let command = &command[..command.find('"').unwrap()];
+                    wrappers.push((object, method.clone(), command.to_string()));
+                }
+            }
+        }
+        assert!(
+            wrappers.len() > 40,
+            "api.ts wrapper parsing found too few commands"
+        );
+        let used_methods = |object: &str, method: &str| {
+            let needle = format!("{object}.{method}");
+            non_test_sources.iter().any(|text| {
+                text.match_indices(&needle).any(|(index, _)| {
+                    !text[index + needle.len()..].starts_with(|c: char| c.is_ascii_alphanumeric())
+                })
+            })
+        };
+        for (object, method, command) in &wrappers {
+            if used_methods(object, method) {
+                called.insert(command.clone());
+            }
+        }
+        let uncalled: BTreeSet<String> = handlers.difference(&called).cloned().collect();
+        let expected: BTreeSet<String> = REGISTERED_BUT_UNCALLED
+            .iter()
+            .map(|name| name.to_string())
+            .collect();
+        assert_eq!(
+            uncalled, expected,
+            "registered commands no frontend code calls must match REGISTERED_BUT_UNCALLED"
+        );
 
         // The Paseo Bridge window may only call what its capability allows.
         let bridge_window =
