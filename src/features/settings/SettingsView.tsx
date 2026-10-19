@@ -23,6 +23,7 @@ import { UpdateErrorMessage } from "./UpdateErrorMessage";
 import { UpdateProgressBar, updateInstallLabel } from "./UpdateProgressBar";
 import { useThemePreference } from "../../shared/hooks/useThemePreference";
 import type { ThemePreference } from "../../shared/lib/theme";
+import { readSettingsAdvancedOpen, writeSettingsAdvancedOpen } from "./settings-view-state";
 
 const ACCOUNT_REFRESH_OPTIONS = [5, 10, 15, 30, 45, 60] as const;
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
@@ -92,7 +93,15 @@ export function SettingsView({
   const automaticUpdates = appSettings?.automaticUpdatesEnabled ?? true;
   const includeBetaUpdates = appSettings?.includeBetaUpdates ?? false;
   const [themePreference, setThemePreference] = useThemePreference();
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(readSettingsAdvancedOpen);
+
+  const toggleAdvanced = () => {
+    setAdvancedOpen((prev) => {
+      const next = !prev;
+      writeSettingsAdvancedOpen(next);
+      return next;
+    });
+  };
   return (
     <div className="content-scroll dashboard-content settings-style-content">
       <header className="dashboard-header">
@@ -303,7 +312,7 @@ export function SettingsView({
           <button
             type="button"
             className="settings-advanced-toggle"
-            onClick={() => setAdvancedOpen((prev) => !prev)}
+            onClick={toggleAdvanced}
             aria-expanded={advancedOpen}
             aria-controls="settings-advanced-content"
           >

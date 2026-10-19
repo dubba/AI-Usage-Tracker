@@ -1,14 +1,15 @@
 # Changelog
 
-## Unreleased (8 changes)
+## Unreleased (9 changes)
 
 ### Added (2)
 
 - Cmd+A (Ctrl+A on Windows and Linux) can now be used alongside Cmd+N (Ctrl+N) to open the Add Account dialog.
 - Cmd+S (Ctrl+S on Windows and Linux) can now be used alongside Cmd+, (Ctrl+,) to open the settings page, and pressing either while on Settings returns to the accounts dashboard.
 
-### Improved (4)
+### Improved (5)
 
+- In Settings, whether the Advanced section is expanded or collapsed is now remembered when switching between views and across app restarts.
 - In the keyboard shortcuts card in Settings, the shortcut is now labeled "Switch between Settings and Dashboard page".
 - The sidebar now starts wide enough for "Accounts synced 2m ago" to fit on one line until you resize it, and double-clicking its resize handle sets that width again instead of resetting it to a fixed default.
 - The sidebar can now be made narrower, down to the width of the Account and Group buttons. The sync line at the bottom wraps onto centered lines ("Accounts synced", then "4m ago"), and the L / U toggle drops below the Account and Group buttons, left-aligned with the Account button, when the sidebar is narrower than its default width.

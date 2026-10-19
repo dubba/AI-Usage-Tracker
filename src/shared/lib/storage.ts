@@ -24,6 +24,8 @@ export const STORAGE_KEYS = {
   reorderHintSessionCounted: "ai-usage-tracker:reorder-hint-session-counted",
   /** sessionStorage: "1" if the reorder hint was dismissed in the current session. */
   reorderHintSessionDismissed: "ai-usage-tracker:reorder-hint-session-dismissed",
+  /** "true" if the Advanced section in Settings is expanded. */
+  settingsAdvancedOpen: "ai-usage-tracker:settings-advanced-open",
 } as const;
 
 export const STORAGE_PREFIXES = {
