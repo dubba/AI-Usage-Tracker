@@ -36,8 +36,9 @@ export function SidebarResizeHandle({
   const [range, setRange] = useState({ min: FALLBACK_MIN_SIDEBAR_WIDTH, max: 720, now: DEFAULT_DESKTOP_SIDEBAR_WIDTH });
   const [dragging, setDragging] = useState(false);
   // Width per layout, and the sidebar's measured minimum. Refs: they change without needing a render.
+  const savedDesktop = useRef(readSavedWidth(STORAGE_KEYS.sidebarWidthDesktop));
   const widths = useRef({
-    desktop: readSavedWidth(STORAGE_KEYS.sidebarWidthDesktop) ?? DEFAULT_DESKTOP_SIDEBAR_WIDTH,
+    desktop: savedDesktop.current ?? DEFAULT_DESKTOP_SIDEBAR_WIDTH,
     mobile: readSavedWidth(STORAGE_KEYS.sidebarWidthMobile) ?? DEFAULT_MOBILE_SIDEBAR_WIDTH,
   });
   const minWidth = useRef(FALLBACK_MIN_SIDEBAR_WIDTH);
@@ -71,10 +72,19 @@ export function SidebarResizeHandle({
     if (sidebar) minWidth.current = measureMinSidebarWidth(sidebar);
   }, [sidebarRef]);
 
+  // Until the user picks a width, the desktop sidebar is as wide as the sync line needs to show
+  // "Accounts synced 2m ago" on one line; the fixed default is only a fallback.
+  const useFitAsDefault = useRef(savedDesktop.current === null);
+
   const syncToViewport = useCallback(() => {
     refreshMin();
+    const sidebar = sidebarRef.current;
+    if (!isOverlay() && useFitAsDefault.current && sidebar) {
+      const fit = measureSyncLineFitWidth(sidebar);
+      if (fit !== null) widths.current.desktop = fit;
+    }
     applyWidth(isOverlay() ? widths.current.mobile : widths.current.desktop);
-  }, [applyWidth, refreshMin]);
+  }, [applyWidth, refreshMin, sidebarRef]);
 
   useEffect(() => {
     syncToViewport();
@@ -120,6 +130,7 @@ export function SidebarResizeHandle({
     if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
+    useFitAsDefault.current = false;
     activePointer.current = event.pointerId;
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
@@ -153,6 +164,7 @@ export function SidebarResizeHandle({
   const fitToSyncLine = () => {
     const sidebar = sidebarRef.current;
     const fit = sidebar ? measureSyncLineFitWidth(sidebar) : null;
+    useFitAsDefault.current = false;
     applyWidth(fit ?? defaultSidebarWidth(isOverlay()), true);
   };
 
@@ -164,6 +176,7 @@ export function SidebarResizeHandle({
     if (event.key === "End") next = limits().max;
     if (next === null) return;
     event.preventDefault();
+    useFitAsDefault.current = false;
     applyWidth(next, true);
   };
 

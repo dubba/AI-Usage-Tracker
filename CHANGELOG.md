@@ -4,8 +4,8 @@
 
 ### Improved (3)
 
-- Double-clicking the sidebar's resize handle now sizes the sidebar so "Accounts synced 2m ago" fits on one line, instead of resetting it to the default width.
-- The sidebar can now be made narrower, down to the width of the Account and Group buttons. The sync line at the bottom wraps onto centered lines ("Accounts synced", then "4m ago"), and the L / U toggle drops below the Account and Group buttons, right-aligned with the Group button, when the sidebar is narrower than its default width.
+- The sidebar now starts wide enough for "Accounts synced 2m ago" to fit on one line until you resize it, and double-clicking its resize handle sets that width again instead of resetting it to a fixed default.
+- The sidebar can now be made narrower, down to the width of the Account and Group buttons. The sync line at the bottom wraps onto centered lines ("Accounts synced", then "4m ago"), and the L / U toggle drops below the Account and Group buttons, left-aligned with the Account button, when the sidebar is narrower than its default width.
 - On a phone or tablet, a tooltip stays fully visible for 2.3 seconds, then fades out and is gone at 2.5 seconds.
 
 ### Fixed (2)

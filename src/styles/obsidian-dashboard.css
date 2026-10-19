@@ -129,9 +129,8 @@ select {
 }
 
 /* The buttons and the L / U toggle share a row. Narrower than the default sidebar (its content
-   box is 275px at 300px) the toggle drops below the buttons and right-aligns to the Group
-   button's right edge, because the stack is only as wide as the button row. The sidebar is the
-   size container. */
+   box is 275px at 300px) the toggle drops below the buttons and left-aligns with the Account
+   button. The sidebar is the size container. */
 .provider-sidebar-heading-stack {
   display: contents;
 }
@@ -140,8 +139,14 @@ select {
   .provider-sidebar-heading-stack {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
+    align-items: flex-start;
     gap: 8px;
+  }
+
+  /* Its auto left margin pins it right on the shared row; in the stack it follows the Account
+     button's left edge. */
+  .provider-sidebar-heading-stack .usage-display-toggle {
+    margin-left: 0;
   }
 }
 

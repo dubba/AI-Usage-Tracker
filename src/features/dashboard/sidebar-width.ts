@@ -64,18 +64,36 @@ function naturalWidth(sidebar: HTMLElement, element: HTMLElement, prepare?: (clo
   return width;
 }
 
+/** The label the sidebar is sized for, whatever the live label is at the moment. */
+const SAMPLE_SYNC_TITLE = "Accounts synced";
+const SAMPLE_SYNC_ELAPSED = "2m ago";
+
 /**
  * Width at which the whole sync line ("Accounts synced 2m ago") fits on one line beside the
- * refresh and settings buttons, for double-clicking the resize handle. The out-of-date note
- * under it is left out: it wraps, and would otherwise widen the sidebar for no reason.
+ * refresh and settings buttons: the default sidebar width, and what double-clicking the resize
+ * handle sets. It is the wider of the live label and a sample one, so a start-up "Not synced yet"
+ * does not size the sidebar too narrow for the label that replaces it. The out-of-date note under
+ * the label is left out: it wraps, and would otherwise widen the sidebar for no reason.
  */
 export function measureSyncLineFitWidth(sidebar: HTMLElement): number | null {
   const status = sidebar.querySelector<HTMLElement>(".sidebar-sync-status");
   if (!status) return null;
 
-  const width = naturalWidth(sidebar, status, (clone) => {
+  const withoutNote = (clone: HTMLElement) => {
     clone.querySelectorAll(".sidebar-sync-status-detail").forEach((part) => part.remove());
+  };
+  const live = naturalWidth(sidebar, status, withoutNote);
+  const sample = naturalWidth(sidebar, status, (clone) => {
+    withoutNote(clone);
+    const label = clone.querySelector<HTMLElement>(".sidebar-sync-status-label");
+    if (!label) return;
+    const words = document.createElement("span");
+    words.className = "sidebar-sync-status-words";
+    words.append(`${SAMPLE_SYNC_TITLE} ${SAMPLE_SYNC_ELAPSED}`);
+    label.replaceChildren(words);
   });
+
+  const width = Math.max(live, sample);
   if (!Number.isFinite(width) || width <= 0) return null;
   return Math.ceil(width + horizontalChrome(sidebar) + MEASURE_BUFFER_PX);
 }

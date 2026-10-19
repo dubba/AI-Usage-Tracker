@@ -44,30 +44,53 @@ describe("measureSyncLineFitWidth", () => {
     HTMLElement.prototype.getBoundingClientRect = originalRect;
   });
 
-  function sidebarWithStatus(withDetail: boolean): HTMLElement {
+  /**
+   * A sidebar whose sync row reads `liveLabel`. The stubbed row is as wide as its text:
+   * 100px for "Not synced yet", 285px for "Accounts synced 2m ago", 295px for "...12h ago",
+   * and 400px more if the out-of-date note is still in it.
+   */
+  function sidebarWithStatus(liveLabel: string, withDetail = false): HTMLElement {
     const sidebar = document.createElement("aside");
     sidebar.style.cssText =
       "padding-left: 12px; padding-right: 12px; border-left-width: 0px; border-right-width: 1px; border-style: solid";
     const status = document.createElement("div");
     status.className = "sidebar-sync-status";
-    status.innerHTML =
-      '<span class="sidebar-sync-status-words">Accounts synced 2m ago</span>' +
-      (withDetail ? '<span class="sidebar-sync-status-detail">2 accounts out of date</span>' : "");
+    const label = document.createElement("span");
+    label.className = "sidebar-sync-status-label";
+    label.textContent = liveLabel;
+    status.append(label);
+    if (withDetail) {
+      const detail = document.createElement("span");
+      detail.className = "sidebar-sync-status-detail";
+      detail.textContent = "2 accounts out of date";
+      status.append(detail);
+    }
     sidebar.append(status);
     document.body.append(sidebar);
-    // The unwrapped row is 285px wide; the out-of-date note, if counted, would make it 400px.
     HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
-      const isStatus = this.classList.contains("sidebar-sync-status");
-      const width = isStatus ? (this.querySelector(".sidebar-sync-status-detail") ? 400 : 285) : 0;
-      return { width } as DOMRect;
+      if (!this.classList.contains("sidebar-sync-status")) return { width: 0 } as DOMRect;
+      const text = this.textContent ?? "";
+      const base = text.includes("12h ago") ? 295 : text.includes("2m ago") ? 285 : 100;
+      return { width: base + (text.includes("out of date") ? 400 : 0) } as DOMRect;
     };
     return sidebar;
   }
 
-  it("fits the whole sync line plus the sidebar padding, ignoring the wrapping note", () => {
+  it("fits the whole sample sync line plus the sidebar padding", () => {
     // 285 row + 24 padding + 1 border + 2 buffer.
-    expect(measureSyncLineFitWidth(sidebarWithStatus(true))).toBe(312);
-    expect(measureSyncLineFitWidth(sidebarWithStatus(false))).toBe(312);
+    expect(measureSyncLineFitWidth(sidebarWithStatus("Accounts synced 2m ago"))).toBe(312);
+  });
+
+  it("is sized for the sample label even while the live label is shorter", () => {
+    expect(measureSyncLineFitWidth(sidebarWithStatus("Not synced yet"))).toBe(312);
+  });
+
+  it("follows a live label that is longer than the sample", () => {
+    expect(measureSyncLineFitWidth(sidebarWithStatus("Accounts synced 12h ago"))).toBe(322);
+  });
+
+  it("ignores the wrapping out-of-date note", () => {
+    expect(measureSyncLineFitWidth(sidebarWithStatus("Accounts synced 2m ago", true))).toBe(312);
   });
 
   it("returns null without a sync line", () => {
