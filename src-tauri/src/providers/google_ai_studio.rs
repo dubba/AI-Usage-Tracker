@@ -9,10 +9,9 @@ use crate::{
         oauth_refresh::{
             refresh_oauth_secret, IdToken, InvalidGrant, Lifetime, RefreshBody, RefreshRequest,
         },
-        ProviderError, ProviderUsage,
+        save_refreshed, ProviderError, ProviderUsage, REFRESH_SKEW_SECS,
     },
     state::AppState,
-    store::save_provider_secret,
 };
 use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Utc, Weekday};
 use reqwest::{RequestBuilder, StatusCode};
@@ -341,13 +340,12 @@ pub async fn refresh(
         return Ok((models_only_usage(account, selected), secret));
     };
 
-    if oauth.expires_within(300) {
+    // Only refreshed up front: a rejected token is not retried, as for the other providers
+    // (`with_fresh_secret`), because the Cloud token sits inside the API-key secret.
+    if oauth.expires_within(REFRESH_SKEW_SECS) {
         oauth = refresh_cloud_secret(app, &oauth, IdToken::KeepCurrent).await?;
         secret.cloud_oauth = Some(oauth.clone());
-        save_provider_secret(&account.id, &ProviderSecret::GoogleAiStudio(secret.clone()))
-            .map_err(|_| {
-                ProviderError::Transient("Unable to save refreshed credentials.".into())
-            })?;
+        save_refreshed(&account.id, ProviderSecret::GoogleAiStudio(secret.clone()))?;
     }
 
     let windows = fetch_cloud_usage(app, &project_id, &oauth.access_token, &selected).await?;
