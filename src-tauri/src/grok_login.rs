@@ -1,3 +1,8 @@
+#[cfg(desktop)]
+use crate::login_window::{
+    self, is_back_request, LoginWindowEnd, LoginWindowSpec, BACK_BUTTON_SCRIPT, BACK_QUERY_FLAG,
+    LOGIN_USER_AGENT,
+};
 use crate::{
     model::{now_rfc3339, Account, GrokSecret, LoginStart, LoginStatus, Provider, ProviderSecret},
     providers::{
@@ -22,14 +27,16 @@ use std::{
 };
 #[cfg(mobile)]
 use tauri::AppHandle;
-use tauri::WebviewWindow;
 #[cfg(desktop)]
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri::Manager;
+use tauri::WebviewWindow;
 use url::Url;
 use uuid::Uuid;
 
 /// Label of the Grok sign-in window; `cancel_login` closes it by this name.
 pub(crate) const LOGIN_WINDOW_LABEL: &str = "grok-login";
+#[cfg(desktop)]
+const GROK_CANCELED_MESSAGE: &str = "Grok login was canceled.";
 #[cfg(desktop)]
 pub(crate) const GROK_PROFILE_PREFIX: &str = "ai-usage-grok-";
 const LOGIN_URL: &str = "https://accounts.x.ai/sign-in?redirect_uri=https%3A%2F%2Fgrok.com%2F";
@@ -79,84 +86,6 @@ const CONNECT_BANNER_SCRIPT: &str = r#"
   }
 })();
 "#;
-
-/// Query flag the injected top-left "Back" button appends to the current
-/// page. `on_navigation` intercepts it (and blocks the reload): the login
-/// attempt is canceled and the window closes, so users can always exit the
-/// authorization flow.
-#[cfg(desktop)]
-const BACK_QUERY_FLAG: &str = "ai-usage-tracker-back";
-
-/// Top-left "Back" button for the login window, which has no browser chrome.
-/// Unlike the banner it is installed on every page (including the SSO
-/// hand-off hosts), because a user can get stuck on any of them.
-/// Built without `innerHTML` and reattached if removed: "Continue with Google"
-/// loads `accounts.google.com`, which rejects HTML assignment and drops nodes
-/// it did not create.
-#[cfg(desktop)]
-const BACK_BUTTON_SCRIPT: &str = r#"
-(() => {
-  try {
-    // Not on the app's own "Account connected" page, which closes by itself.
-    if (window.top !== window || !document.documentElement || location.protocol === 'data:') return;
-    const id = '__ai_tracker_back';
-    const install = () => {
-      if (!document.documentElement || document.getElementById(id)) return;
-      const button = document.createElement('button');
-      button.id = id;
-      button.type = 'button';
-      button.setAttribute('aria-label', 'Back to AI Usage Tracker');
-      button.style.cssText = [
-        'position:fixed', 'top:max(env(safe-area-inset-top),8px)', 'left:8px', 'z-index:2147483647',
-        'display:inline-flex', 'align-items:center', 'gap:6px',
-        'padding:7px 14px 7px 9px', 'border:0', 'border-radius:999px', 'background:#6d3bd7', 'color:#fff',
-        'font:600 14px -apple-system,system-ui,sans-serif', 'box-shadow:0 2px 10px rgba(0,0,0,.4)',
-        'cursor:pointer',
-      ].join(';');
-      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('viewBox', '0 0 24 24');
-      svg.setAttribute('width', '9');
-      svg.setAttribute('height', '15');
-      svg.setAttribute('fill', 'none');
-      svg.setAttribute('stroke', 'currentColor');
-      svg.setAttribute('stroke-width', '2.5');
-      svg.setAttribute('stroke-linecap', 'round');
-      svg.setAttribute('stroke-linejoin', 'round');
-      svg.setAttribute('aria-hidden', 'true');
-      svg.style.display = 'block';
-      svg.style.flex = 'none';
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', 'm15 18-6-6 6-6');
-      svg.appendChild(path);
-      const label = document.createElement('span');
-      label.textContent = 'Back';
-      button.appendChild(svg);
-      button.appendChild(label);
-      button.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        try {
-          const url = new URL(window.location.href);
-          url.searchParams.set('ai-usage-tracker-back', '1');
-          window.location.href = url.toString();
-        } catch (e) {}
-      }, true);
-      document.documentElement.appendChild(button);
-    };
-    install();
-    if (window.__aiTrackerBackRoot !== document.documentElement) {
-      window.__aiTrackerBackRoot = document.documentElement;
-      new MutationObserver(install).observe(document.documentElement, { childList: true });
-    }
-  } catch (e) {}
-})();
-"#;
-
-#[cfg(desktop)]
-fn is_back_request(url: &Url) -> bool {
-    url.query_pairs()
-        .any(|(key, value)| key == BACK_QUERY_FLAG && value == "1")
-}
 
 /// Last resort when neither the reconnect target nor the signed-in identity matches a
 /// stored Grok account: reuse one that already carries the label the user typed.
@@ -351,52 +280,40 @@ pub async fn start_login(
             }
         };
 
-        let (width, height, position) =
-            crate::oauth_common::window_geometry_centered_on(&app, "main", 1.0, 0.96, 820.0, 620.0);
-        let back_app = app.clone();
-        let back_state = state.clone();
-        let back_attempt = attempt_id.clone();
-        #[allow(unused_mut)]
-        let mut builder = WebviewWindowBuilder::new(
+        let login_window = match login_window::open_private_login_window(
             &app,
-            LOGIN_WINDOW_LABEL,
-            WebviewUrl::External(login_url),
-        )
-        .title("Connect Grok")
-        .inner_size(width, height)
-        .min_inner_size(820.0, 620.0)
-        .resizable(true)
-        .data_directory(temp_data_dir.clone())
-        .incognito(true)
-        .devtools(false)
-        .initialization_script(format!("{CONNECT_BANNER_SCRIPT}\n{BACK_BUTTON_SCRIPT}"))
-        .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15")
-        .on_navigation(move |url| {
-            if is_back_request(url) {
-                if let Some(window) = back_app.get_webview_window(LOGIN_WINDOW_LABEL) {
-                    close_login_window(&window);
-                }
-                back_state
-                    .fail_login_if_waiting(&back_attempt, "Grok login was canceled.".into());
-                return false;
-            }
-            let allowed = is_allowed_login_navigation(url);
-            if !allowed {
-                crate::diagnostics::warn(&format!(
-                    "Grok login blocked navigation to host {}",
-                    url.host_str().unwrap_or("(none)")
-                ));
-            }
-            allowed
-        });
-
-        if let Some((x, y)) = position {
-            builder = builder.position(x, y);
-        } else {
-            builder = builder.center();
-        }
-
-        let login_window = match builder.build() {
+            LoginWindowSpec {
+                label: LOGIN_WINDOW_LABEL,
+                title: "Connect Grok",
+                start_url: login_url,
+                profile_dir: temp_data_dir.clone(),
+                init_script: format!("{CONNECT_BANNER_SCRIPT}\n{BACK_BUTTON_SCRIPT}"),
+                user_agent: Some(LOGIN_USER_AGENT),
+            },
+            |builder| {
+                let back_app = app.clone();
+                let back_state = state.clone();
+                let back_attempt = attempt_id.clone();
+                builder.on_navigation(move |url| {
+                    if is_back_request(url, BACK_QUERY_FLAG) {
+                        if let Some(window) = back_app.get_webview_window(LOGIN_WINDOW_LABEL) {
+                            close_login_window(&window);
+                        }
+                        back_state
+                            .fail_login_if_waiting(&back_attempt, GROK_CANCELED_MESSAGE.into());
+                        return false;
+                    }
+                    let allowed = is_allowed_login_navigation(url);
+                    if !allowed {
+                        crate::diagnostics::warn(&format!(
+                            "Grok login blocked navigation to host {}",
+                            url.host_str().unwrap_or("(none)")
+                        ));
+                    }
+                    allowed
+                })
+            },
+        ) {
             Ok(window) => window,
             Err(error) => {
                 let _ = std::fs::remove_dir_all(&temp_data_dir);
@@ -405,48 +322,28 @@ pub async fn start_login(
             }
         };
 
-        if let Some((x, y)) = position {
-            let _ = login_window.set_position(tauri::LogicalPosition::new(x, y));
-        }
-
-        let cleanup_dir = temp_data_dir.clone();
         start_cookie_poll(
             login_window.clone(),
             state.clone(),
             attempt_id.clone(),
             label,
             reconnect_account_id,
-            Some(cleanup_dir),
+            Some(temp_data_dir.clone()),
         );
 
-        let close_state = state.clone();
-        let close_attempt = attempt_id.clone();
-        let close_dir = temp_data_dir.clone();
-        login_window.on_window_event(move |event| {
-            if matches!(event, WindowEvent::CloseRequested { .. }) {
-                let _ = std::fs::remove_dir_all(&close_dir);
-                close_state
-                    .fail_login_if_waiting(&close_attempt, "Grok login was canceled.".into());
-            }
-        });
-
-        let timeout_state = state.clone();
-        let timeout_attempt = attempt_id.clone();
-        let timeout_app = app.clone();
-        let timeout_dir = temp_data_dir.clone();
-        tauri::async_runtime::spawn(async move {
-            tokio::time::sleep(Duration::from_secs((LOGIN_TIMEOUT_MINUTES * 60) as u64)).await;
-            if timeout_state.login_is_waiting(&timeout_attempt) {
-                let _ = std::fs::remove_dir_all(&timeout_dir);
-                timeout_state.fail_login_if_waiting(
-                    &timeout_attempt,
-                    "Grok login timed out. Start the connection again.".into(),
-                );
-                if let Some(window) = timeout_app.get_webview_window(LOGIN_WINDOW_LABEL) {
-                    close_login_window(&window);
-                }
-            }
-        });
+        login_window::spawn_login_close_and_timeout(
+            &app,
+            &state,
+            &login_window,
+            &attempt_id,
+            &temp_data_dir,
+            LoginWindowEnd {
+                label: LOGIN_WINDOW_LABEL,
+                timeout_minutes: LOGIN_TIMEOUT_MINUTES,
+                canceled: GROK_CANCELED_MESSAGE,
+                timed_out: "Grok login timed out. Start the connection again.",
+            },
+        );
 
         Ok(LoginStart {
             attempt_id,
@@ -927,37 +824,6 @@ mod tests {
             let url = Url::parse(blocked).unwrap();
             assert!(!is_allowed_login_navigation(&url), "{blocked}");
         }
-    }
-
-    #[test]
-    fn back_button_stays_off_the_connected_page() {
-        assert!(BACK_BUTTON_SCRIPT.contains("location.protocol === 'data:'"));
-    }
-    #[test]
-    fn back_button_requests_cancel_the_login() {
-        // The injected button appends the flag to whatever page is showing.
-        for back in [
-            "https://accounts.x.ai/sign-in?ai-usage-tracker-back=1",
-            "https://grok.com/?_s=usage&ai-usage-tracker-back=1",
-            "https://accounts.google.com/o/oauth2/auth?client_id=x&ai-usage-tracker-back=1",
-        ] {
-            let url = Url::parse(back).unwrap();
-            assert!(is_back_request(&url), "{back}");
-        }
-        for not_back in [
-            "https://accounts.x.ai/sign-in",
-            "https://grok.com/?_s=usage",
-            "https://grok.com/?ai-usage-tracker-back=0",
-            "https://grok.com/?other=ai-usage-tracker-back",
-        ] {
-            let url = Url::parse(not_back).unwrap();
-            assert!(!is_back_request(&url), "{not_back}");
-        }
-        assert!(BACK_BUTTON_SCRIPT.contains("ai-usage-tracker-back"));
-        assert!(BACK_BUTTON_SCRIPT.contains("aria-label"));
-        assert!(BACK_BUTTON_SCRIPT.contains("createElementNS"));
-        assert!(BACK_BUTTON_SCRIPT.contains("MutationObserver"));
-        assert!(!BACK_BUTTON_SCRIPT.contains("innerHTML"));
     }
 
     #[test]

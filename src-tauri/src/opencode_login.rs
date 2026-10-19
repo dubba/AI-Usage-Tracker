@@ -1,3 +1,7 @@
+#[cfg(desktop)]
+use crate::login_window::{
+    self, is_back_request, LoginWindowEnd, LoginWindowSpec, BACK_BUTTON_SCRIPT, BACK_QUERY_FLAG,
+};
 use crate::{
     model::{
         now_rfc3339, Account, LoginStart, LoginStatus, OpenCodeGoSecret, Provider, ProviderSecret,
@@ -15,7 +19,7 @@ use std::{
     time::Duration as StdDuration,
 };
 #[cfg(desktop)]
-use tauri::{webview::PageLoadEvent, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri::{webview::PageLoadEvent, Manager};
 use tauri::{AppHandle, WebviewWindow};
 use url::Url;
 use uuid::Uuid;
@@ -24,88 +28,12 @@ use uuid::Uuid;
 pub(crate) const LOGIN_WINDOW_LABEL: &str = "opencode-go-login";
 #[cfg(desktop)]
 pub(crate) const OPENCODE_PROFILE_PREFIX: &str = "ai-usage-opencode-";
+#[cfg(desktop)]
+const OPENCODE_CANCELED_MESSAGE: &str = "OpenCode login was canceled.";
 const LOGIN_URL: &str = "https://opencode.ai/auth";
 const LOGIN_TIMEOUT_MINUTES: i64 = 10;
 const COOKIE_CAPTURE_ATTEMPTS: usize = 30;
 const COOKIE_CAPTURE_RETRY_DELAY_MS: u64 = 500;
-
-/// Query flag the injected top-left "Back" button appends to the current
-/// page. `on_navigation` intercepts it (and blocks the reload): the login
-/// attempt is canceled and the window closes, so users can always exit the
-/// authorization flow.
-#[cfg(desktop)]
-const BACK_QUERY_FLAG: &str = "ai-usage-tracker-back";
-
-/// Top-left "Back" button for the login window, which has no browser chrome.
-/// Installed on every page (including the SSO hand-off hosts), because a
-/// user can get stuck on any of them.
-/// Built without `innerHTML` and reattached if removed: "Continue with Google"
-/// loads `accounts.google.com`, which rejects HTML assignment and drops nodes
-/// it did not create.
-#[cfg(desktop)]
-const BACK_BUTTON_SCRIPT: &str = r#"
-(() => {
-  try {
-    // Not on the app's own "Account connected" page, which closes by itself.
-    if (window.top !== window || !document.documentElement || location.protocol === 'data:') return;
-    const id = '__ai_tracker_back';
-    const install = () => {
-      if (!document.documentElement || document.getElementById(id)) return;
-      const button = document.createElement('button');
-      button.id = id;
-      button.type = 'button';
-      button.setAttribute('aria-label', 'Back to AI Usage Tracker');
-      button.style.cssText = [
-        'position:fixed', 'top:max(env(safe-area-inset-top),8px)', 'left:8px', 'z-index:2147483647',
-        'display:inline-flex', 'align-items:center', 'gap:6px',
-        'padding:7px 14px 7px 9px', 'border:0', 'border-radius:999px', 'background:#6d3bd7', 'color:#fff',
-        'font:600 14px -apple-system,system-ui,sans-serif', 'box-shadow:0 2px 10px rgba(0,0,0,.4)',
-        'cursor:pointer',
-      ].join(';');
-      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('viewBox', '0 0 24 24');
-      svg.setAttribute('width', '9');
-      svg.setAttribute('height', '15');
-      svg.setAttribute('fill', 'none');
-      svg.setAttribute('stroke', 'currentColor');
-      svg.setAttribute('stroke-width', '2.5');
-      svg.setAttribute('stroke-linecap', 'round');
-      svg.setAttribute('stroke-linejoin', 'round');
-      svg.setAttribute('aria-hidden', 'true');
-      svg.style.display = 'block';
-      svg.style.flex = 'none';
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', 'm15 18-6-6 6-6');
-      svg.appendChild(path);
-      const label = document.createElement('span');
-      label.textContent = 'Back';
-      button.appendChild(svg);
-      button.appendChild(label);
-      button.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        try {
-          const url = new URL(window.location.href);
-          url.searchParams.set('ai-usage-tracker-back', '1');
-          window.location.href = url.toString();
-        } catch (e) {}
-      }, true);
-      document.documentElement.appendChild(button);
-    };
-    install();
-    if (window.__aiTrackerBackRoot !== document.documentElement) {
-      window.__aiTrackerBackRoot = document.documentElement;
-      new MutationObserver(install).observe(document.documentElement, { childList: true });
-    }
-  } catch (e) {}
-})();
-"#;
-
-#[cfg(desktop)]
-fn is_back_request(url: &Url) -> bool {
-    url.query_pairs()
-        .any(|(key, value)| key == BACK_QUERY_FLAG && value == "1")
-}
 
 #[cfg(desktop)]
 const CONNECT_BANNER_SCRIPT: &str = r#"
@@ -228,8 +156,6 @@ pub async fn start_login(
                 return Err(error);
             }
         };
-        let (width, height, position) =
-            crate::oauth_common::window_geometry_centered_on(&app, "main", 1.0, 0.96, 820.0, 620.0);
         let login_url = match Url::parse(LOGIN_URL) {
             Ok(url) => url,
             Err(error) => {
@@ -246,147 +172,117 @@ pub async fn start_login(
         let page_reconnect = reconnect_account_id.clone();
         let page_capture_started = capture_started.clone();
 
-        #[allow(unused_mut)]
-        let mut builder = WebviewWindowBuilder::new(
+        let login_window = match login_window::open_private_login_window(
             &app,
-            LOGIN_WINDOW_LABEL,
-            WebviewUrl::External(login_url.clone()),
-        )
-        .title("Connect OpenCode Go — sign in, then select Go")
-        .inner_size(width, height)
-        .min_inner_size(820.0, 620.0)
-        .resizable(true)
-        .data_directory(temp_data_dir.clone())
-        .incognito(true)
-        .devtools(false)
-        .initialization_script(format!("{CONNECT_BANNER_SCRIPT}\n{BACK_BUTTON_SCRIPT}"))
-        .on_navigation({
-            let back_app = app.clone();
-            let back_state = state.clone();
-            let back_attempt = attempt_id.clone();
-            move |url| {
-                if is_back_request(url) {
-                    if let Some(window) = back_app.get_webview_window(LOGIN_WINDOW_LABEL) {
-                        close_login_window(&window);
-                    }
-                    back_state.fail_login_if_waiting(
-                        &back_attempt,
-                        "OpenCode login was canceled.".into(),
-                    );
-                    return false;
-                }
-                is_allowed_login_navigation(url)
-            }
-        });
+            LoginWindowSpec {
+                label: LOGIN_WINDOW_LABEL,
+                title: "Connect OpenCode Go — sign in, then select Go",
+                start_url: login_url,
+                profile_dir: temp_data_dir.clone(),
+                init_script: format!("{CONNECT_BANNER_SCRIPT}\n{BACK_BUTTON_SCRIPT}"),
+                user_agent: None,
+            },
+            |builder| {
+                builder
+                    .on_navigation({
+                        let back_app = app.clone();
+                        let back_state = state.clone();
+                        let back_attempt = attempt_id.clone();
+                        move |url| {
+                            if is_back_request(url, BACK_QUERY_FLAG) {
+                                if let Some(window) = back_app.get_webview_window(LOGIN_WINDOW_LABEL) {
+                                    close_login_window(&window);
+                                }
+                                back_state.fail_login_if_waiting(
+                                    &back_attempt,
+                                    OPENCODE_CANCELED_MESSAGE.into(),
+                                );
+                                return false;
+                            }
+                            is_allowed_login_navigation(url)
+                        }
+                    })
+                    .on_page_load(move |window, payload| {
+                        if !matches!(payload.event(), PageLoadEvent::Finished) {
+                            return;
+                        }
+                        let Some(workspace_id) = workspace_id_from_url(payload.url()) else {
+                            return;
+                        };
+                        if !page_state.login_is_waiting(&page_attempt) {
+                            return;
+                        }
+                        if page_capture_started.swap(true, Ordering::SeqCst) {
+                            return;
+                        }
 
-        #[cfg(desktop)]
-        {
-            if let Some((x, y)) = position {
-                builder = builder.position(x, y);
-            } else {
-                builder = builder.center();
-            }
-        }
+                        let cookie_window = window.clone();
+                        let completion_window = window.clone();
+                        let completion_state = page_state.clone();
+                        let completion_attempt = page_attempt.clone();
+                        let completion_label = page_label.clone();
+                        let completion_email = page_email.clone();
+                        let completion_reconnect = page_reconnect.clone();
+                        let completion_capture_started = page_capture_started.clone();
 
-        let login_window = match builder
-        .on_page_load(move |window, payload| {
-        if !matches!(payload.event(), PageLoadEvent::Finished) {
-            return;
-        }
-        let Some(workspace_id) = workspace_id_from_url(payload.url()) else {
-            return;
+                        std::thread::spawn(move || {
+                            let cookie_result = read_auth_cookie_with_retry(&cookie_window);
+
+                            tauri::async_runtime::spawn(async move {
+                                match cookie_result {
+                                    Ok((auth_cookie, discovered_email)) => {
+                                        let final_email = completion_email.or(discovered_email);
+                                        complete_login(
+                                            completion_state,
+                                            completion_attempt,
+                                            completion_label,
+                                            workspace_id,
+                                            auth_cookie,
+                                            final_email,
+                                            completion_reconnect,
+                                            completion_window,
+                                        )
+                                        .await;
+                                    }
+                                    Err(error) => {
+                                        completion_capture_started.store(false, Ordering::SeqCst);
+                                        completion_state.set_waiting_message(
+                                            &completion_attempt,
+                                            format!(
+                                                "{error} Navigate away from Go, then select Go again to retry."
+                                            ),
+                                        );
+                                    }
+                                }
+                            });
+                        });
+                    })
+            },
+        ) {
+            Ok(window) => window,
+            Err(error) => {
+                let _ = std::fs::remove_dir_all(&temp_data_dir);
+                state.clear_pending_login(&attempt_id);
+                return Err(format!(
+                    "Unable to open the OpenCode login window: {}",
+                    crate::diagnostics::command_error(error)
+                ));
+            }
         };
-        if !page_state.login_is_waiting(&page_attempt) {
-            return;
-        }
-        if page_capture_started.swap(true, Ordering::SeqCst) {
-            return;
-        }
 
-        let cookie_window = window.clone();
-        let completion_window = window.clone();
-        let completion_state = page_state.clone();
-        let completion_attempt = page_attempt.clone();
-        let completion_label = page_label.clone();
-        let completion_email = page_email.clone();
-        let completion_reconnect = page_reconnect.clone();
-        let completion_capture_started = page_capture_started.clone();
-
-        std::thread::spawn(move || {
-            let cookie_result = read_auth_cookie_with_retry(&cookie_window);
-
-            tauri::async_runtime::spawn(async move {
-                match cookie_result {
-                    Ok((auth_cookie, discovered_email)) => {
-                        let final_email = completion_email.or(discovered_email);
-                        complete_login(
-                            completion_state,
-                            completion_attempt,
-                            completion_label,
-                            workspace_id,
-                            auth_cookie,
-                            final_email,
-                            completion_reconnect,
-                            completion_window,
-                        )
-                        .await;
-                    }
-                    Err(error) => {
-                        completion_capture_started.store(false, Ordering::SeqCst);
-                        completion_state.set_waiting_message(
-                            &completion_attempt,
-                            format!("{error} Navigate away from Go, then select Go again to retry."),
-                        );
-                    }
-                }
-            });
-        });
-    })
-    .build() {
-        Ok(window) => window,
-        Err(error) => {
-            let _ = std::fs::remove_dir_all(&temp_data_dir);
-            state.clear_pending_login(&attempt_id);
-            return Err(format!(
-                "Unable to open the OpenCode login window: {}",
-                crate::diagnostics::command_error(error)
-            ));
-        }
-    };
-
-        #[cfg(desktop)]
-        if let Some((x, y)) = position {
-            let _ = login_window.set_position(tauri::LogicalPosition::new(x, y));
-        }
-
-        let close_state = state.clone();
-        let close_attempt = attempt_id.clone();
-        let close_dir = temp_data_dir.clone();
-        login_window.on_window_event(move |event| {
-            if matches!(event, WindowEvent::CloseRequested { .. }) {
-                let _ = std::fs::remove_dir_all(&close_dir);
-                close_state
-                    .fail_login_if_waiting(&close_attempt, "OpenCode login was canceled.".into());
-            }
-        });
-
-        let timeout_state = state.clone();
-        let timeout_attempt = attempt_id.clone();
-        let timeout_app = app.clone();
-        let timeout_dir = temp_data_dir.clone();
-        tauri::async_runtime::spawn(async move {
-            tokio::time::sleep(StdDuration::from_secs((LOGIN_TIMEOUT_MINUTES * 60) as u64)).await;
-            if timeout_state.login_is_waiting(&timeout_attempt) {
-                let _ = std::fs::remove_dir_all(&timeout_dir);
-                timeout_state.fail_login_if_waiting(
-                    &timeout_attempt,
-                    "OpenCode login timed out. Start the connection again.".into(),
-                );
-                if let Some(window) = timeout_app.get_webview_window(LOGIN_WINDOW_LABEL) {
-                    close_login_window(&window);
-                }
-            }
-        });
+        login_window::spawn_login_close_and_timeout(
+            &app,
+            &state,
+            &login_window,
+            &attempt_id,
+            &temp_data_dir,
+            LoginWindowEnd {
+                label: LOGIN_WINDOW_LABEL,
+                timeout_minutes: LOGIN_TIMEOUT_MINUTES,
+                canceled: OPENCODE_CANCELED_MESSAGE,
+                timed_out: "OpenCode login timed out. Start the connection again.",
+            },
+        );
 
         Ok(LoginStart {
             attempt_id,
@@ -825,36 +721,5 @@ mod tests {
             let url = Url::parse(blocked).unwrap();
             assert!(!is_allowed_login_navigation(&url), "{blocked}");
         }
-    }
-
-    #[test]
-    fn back_button_stays_off_the_connected_page() {
-        assert!(BACK_BUTTON_SCRIPT.contains("location.protocol === 'data:'"));
-    }
-
-    #[test]
-    fn back_button_requests_cancel_the_login() {
-        // The injected button appends the flag to whatever page is showing.
-        for back in [
-            "https://opencode.ai/auth?ai-usage-tracker-back=1",
-            "https://opencode.ai/workspace/w/go?ai-usage-tracker-back=1",
-            "https://accounts.google.com/o/oauth2/auth?client_id=x&ai-usage-tracker-back=1",
-        ] {
-            let url = Url::parse(back).unwrap();
-            assert!(is_back_request(&url), "{back}");
-        }
-        for not_back in [
-            "https://opencode.ai/auth",
-            "https://opencode.ai/workspace/w/go",
-            "https://opencode.ai/auth?ai-usage-tracker-back=0",
-        ] {
-            let url = Url::parse(not_back).unwrap();
-            assert!(!is_back_request(&url), "{not_back}");
-        }
-        assert!(BACK_BUTTON_SCRIPT.contains("ai-usage-tracker-back"));
-        assert!(BACK_BUTTON_SCRIPT.contains("aria-label"));
-        assert!(BACK_BUTTON_SCRIPT.contains("createElementNS"));
-        assert!(BACK_BUTTON_SCRIPT.contains("MutationObserver"));
-        assert!(!BACK_BUTTON_SCRIPT.contains("innerHTML"));
     }
 }

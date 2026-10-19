@@ -1,5 +1,8 @@
+#[cfg(desktop)]
+use crate::login_window::{self, LoginWindowSpec, LOGIN_USER_AGENT};
 use crate::{
     google_client::{client_secret, CLIENT_ID, TOKEN_URL as GOOGLE_TOKEN_URL},
+    login_window::{is_back_request, BACK_QUERY_FLAG},
     model::{
         now_rfc3339, Account, LoginStart, LoginState, LoginStatus, OAuthSecret, Provider,
         ProviderSecret,
@@ -222,12 +225,7 @@ pub async fn start_login(
 pub(crate) const PROVIDER_LOGIN_WINDOW: &str = "provider-login";
 /// Label prefix of the popups a sign-in page opens (see `open_provider_login_popup`).
 const PROVIDER_LOGIN_POPUP_PREFIX: &str = "provider-login-popup-";
-const PROVIDER_LOGIN_USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15";
 pub(crate) const PROVIDER_LOGIN_PROFILE_PREFIX: &str = "ai-usage-oauth-";
-
-/// Query flag the injected top-left Back button appends. `on_navigation`
-/// blocks that load, cancels the attempt, and closes the window.
-const BACK_QUERY_FLAG: &str = "ai-usage-tracker-back";
 
 /// Top-left Back button for a provider page that has no browser chrome.
 /// Built without `innerHTML` and reattached if removed: Antigravity loads
@@ -275,8 +273,7 @@ const LOGIN_BACK_BUTTON_SCRIPT: &str = r#"
 "#;
 
 pub(crate) fn is_provider_login_back_request(url: &Url) -> bool {
-    url.query_pairs()
-        .any(|(key, value)| key == BACK_QUERY_FLAG && value == "1")
+    is_back_request(url, BACK_QUERY_FLAG)
 }
 
 /// Query flag injected into popups when `window.close()` is called or when
@@ -399,93 +396,91 @@ pub(crate) fn open_provider_login_window(
     let nav_popups_handle = handle.clone();
     let load_dir = profile_dir.clone();
     let popup_handle = handle.clone();
-    let (width, height, position) =
-        crate::oauth_common::window_geometry_centered_on(&handle, "main", 1.0, 0.96, 820.0, 620.0);
-    let mut builder =
-        WebviewWindowBuilder::new(&handle, PROVIDER_LOGIN_WINDOW, WebviewUrl::External(target))
-            .title(title)
-            .inner_size(width, height)
-            .min_inner_size(820.0, 620.0)
-            .resizable(true)
-            .data_directory(profile_dir.clone())
-            .incognito(true)
-            .devtools(false)
-            .initialization_script(LOGIN_BACK_BUTTON_SCRIPT)
-            .user_agent(PROVIDER_LOGIN_USER_AGENT)
-            .on_page_load(move |window, payload| {
-                if matches!(payload.event(), PageLoadEvent::Finished) {
-                    let _ = window.eval(LOGIN_BACK_BUTTON_SCRIPT);
-                    // A new page here means the popup's job is done: Claude moves on once
-                    // Google's popup has handed it the sign-in result.
-                    close_provider_login_popups(window.app_handle());
-                    // Time the close from when the result page is shown, not from when
-                    // the callback was requested: the callback server answers only after
-                    // the token exchange (and, for Antigravity, the project lookup),
-                    // which can take seconds and would cut the page's countdown short.
-                    if is_loopback_callback(payload.url())
-                        && !close_scheduled.swap(true, Ordering::SeqCst)
-                    {
-                        let close_dir = load_dir.clone();
-                        tauri::async_runtime::spawn(async move {
-                            tokio::time::sleep(crate::oauth_common::CONNECTED_PAGE_DISPLAY).await;
-                            let _ = std::fs::remove_dir_all(&close_dir);
-                            crate::mobile_auth::dismiss_login_window(&window);
-                        });
+    let window = match login_window::open_private_login_window(
+        &handle,
+        LoginWindowSpec {
+            label: PROVIDER_LOGIN_WINDOW,
+            title,
+            start_url: target,
+            profile_dir: profile_dir.clone(),
+            init_script: LOGIN_BACK_BUTTON_SCRIPT.to_string(),
+            user_agent: Some(LOGIN_USER_AGENT),
+        },
+        |builder| {
+            builder
+                .on_page_load(move |window, payload| {
+                    if matches!(payload.event(), PageLoadEvent::Finished) {
+                        let _ = window.eval(LOGIN_BACK_BUTTON_SCRIPT);
+                        // A new page here means the popup's job is done: Claude moves on once
+                        // Google's popup has handed it the sign-in result.
+                        close_provider_login_popups(window.app_handle());
+                        // Time the close from when the result page is shown, not from when
+                        // the callback was requested: the callback server answers only after
+                        // the token exchange (and, for Antigravity, the project lookup),
+                        // which can take seconds and would cut the page's countdown short.
+                        if is_loopback_callback(payload.url())
+                            && !close_scheduled.swap(true, Ordering::SeqCst)
+                        {
+                            let close_dir = load_dir.clone();
+                            tauri::async_runtime::spawn(async move {
+                                tokio::time::sleep(crate::oauth_common::CONNECTED_PAGE_DISPLAY)
+                                    .await;
+                                let _ = std::fs::remove_dir_all(&close_dir);
+                                crate::mobile_auth::dismiss_login_window(&window);
+                            });
+                        }
                     }
-                }
-            })
-            .on_new_window(move |url, features| {
-                // Claude's "Continue with Google" is a Google Identity Services popup
-                // that hands the result back through `window.opener`, so it needs a
-                // real window; without one Claude reports an error.
-                if url.scheme() != "https" || !is_allowed_provider_login_navigation(&url) {
-                    crate::diagnostics::warn(&format!(
-                        "Sign-in blocked a popup to host {}",
-                        url.host_str().unwrap_or("(none)")
-                    ));
-                    return NewWindowResponse::Deny;
-                }
-                match open_provider_login_popup(&popup_handle, features) {
-                    Ok(window) => NewWindowResponse::Create { window },
-                    Err(error) => {
+                })
+                .on_new_window(move |url, features| {
+                    // Claude's "Continue with Google" is a Google Identity Services popup
+                    // that hands the result back through `window.opener`, so it needs a
+                    // real window; without one Claude reports an error.
+                    if url.scheme() != "https" || !is_allowed_provider_login_navigation(&url) {
                         crate::diagnostics::warn(&format!(
-                            "Unable to open the sign-in popup: {}",
-                            crate::diagnostics::command_error(error)
+                            "Sign-in blocked a popup to host {}",
+                            url.host_str().unwrap_or("(none)")
                         ));
-                        NewWindowResponse::Deny
+                        return NewWindowResponse::Deny;
                     }
-                }
-            })
-            .on_navigation(move |url| {
-                if is_provider_login_back_request(url) {
-                    back_state.fail_login_if_waiting(&back_attempt, "Sign-in was canceled.".into());
-                    back_state.abort_login_resources(&back_attempt);
-                    if let Some(window) = back_handle.get_webview_window(PROVIDER_LOGIN_WINDOW) {
-                        crate::mobile_auth::dismiss_login_window(&window);
+                    match open_provider_login_popup(&popup_handle, features) {
+                        Ok(window) => NewWindowResponse::Create { window },
+                        Err(error) => {
+                            crate::diagnostics::warn(&format!(
+                                "Unable to open the sign-in popup: {}",
+                                crate::diagnostics::command_error(error)
+                            ));
+                            NewWindowResponse::Deny
+                        }
                     }
-                    return false;
-                }
-                if is_loopback_callback(url) {
-                    close_provider_login_popups(&nav_popups_handle);
-                    // The window closes once the result page has been shown (on_page_load).
-                    nav_callback_seen.store(true, Ordering::SeqCst);
-                    return true;
-                }
-                let allowed = is_allowed_provider_login_navigation(url);
-                if !allowed {
-                    crate::diagnostics::warn(&format!(
-                        "Sign-in blocked navigation to host {}",
-                        url.host_str().unwrap_or("(none)")
-                    ));
-                }
-                allowed
-            });
-    if let Some((x, y)) = position {
-        builder = builder.position(x, y);
-    } else {
-        builder = builder.center();
-    }
-    let window = match builder.build() {
+                })
+                .on_navigation(move |url| {
+                    if is_provider_login_back_request(url) {
+                        back_state
+                            .fail_login_if_waiting(&back_attempt, "Sign-in was canceled.".into());
+                        back_state.abort_login_resources(&back_attempt);
+                        if let Some(window) = back_handle.get_webview_window(PROVIDER_LOGIN_WINDOW)
+                        {
+                            crate::mobile_auth::dismiss_login_window(&window);
+                        }
+                        return false;
+                    }
+                    if is_loopback_callback(url) {
+                        close_provider_login_popups(&nav_popups_handle);
+                        // The window closes once the result page has been shown (on_page_load).
+                        nav_callback_seen.store(true, Ordering::SeqCst);
+                        return true;
+                    }
+                    let allowed = is_allowed_provider_login_navigation(url);
+                    if !allowed {
+                        crate::diagnostics::warn(&format!(
+                            "Sign-in blocked navigation to host {}",
+                            url.host_str().unwrap_or("(none)")
+                        ));
+                    }
+                    allowed
+                })
+        },
+    ) {
         Ok(window) => window,
         Err(error) => {
             let _ = std::fs::remove_dir_all(&profile_dir);
@@ -495,9 +490,6 @@ pub(crate) fn open_provider_login_window(
             ));
         }
     };
-    if let Some((x, y)) = position {
-        let _ = window.set_position(tauri::LogicalPosition::new(x, y));
-    }
     let close_state = app.clone();
     let close_attempt = attempt_id.to_string();
     let close_dir = profile_dir;
@@ -558,7 +550,7 @@ fn open_provider_login_popup(
     .resizable(true)
     .devtools(false)
     .initialization_script(POPUP_AUTO_CLOSE_SCRIPT)
-    .user_agent(PROVIDER_LOGIN_USER_AGENT);
+    .user_agent(LOGIN_USER_AGENT);
     if let Some((x, y)) = position {
         window_builder = window_builder.position(x, y);
     } else {

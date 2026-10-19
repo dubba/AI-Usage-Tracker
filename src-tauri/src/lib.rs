@@ -30,6 +30,7 @@ mod lan_binding;
 mod limits;
 #[cfg(desktop)]
 mod login_profile;
+mod login_window;
 #[cfg(target_os = "macos")]
 mod macos_notifications;
 mod migrations;
