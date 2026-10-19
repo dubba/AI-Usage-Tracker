@@ -4,6 +4,7 @@ use crate::{
         now_rfc3339, Account, GoogleAiStudioSecret, OAuthSecret, Provider, ProviderSecret,
         UsageFreshness, UsageSnapshot, UsageWindow,
     },
+    oauth_common::{merge_into_existing, ConnectedFields},
     providers::{
         oauth_refresh::{
             refresh_oauth_secret, IdToken, InvalidGrant, Lifetime, RefreshBody, RefreshRequest,
@@ -22,7 +23,6 @@ use std::{
     collections::{BTreeMap, HashMap},
     sync::Arc,
 };
-use uuid::Uuid;
 
 const MODELS_URL: &str = "https://generativelanguage.googleapis.com/v1beta/models";
 const MONITORING_BASE: &str = "https://monitoring.googleapis.com/v3";
@@ -265,42 +265,34 @@ pub async fn add_account(
             ProviderSecret::GoogleAiStudio(secret) => Some(secret),
             _ => None,
         });
-    let now = now_rfc3339();
-    let account = Account {
-        id: duplicate
-            .as_ref()
-            .map(|account| account.id.clone())
-            .unwrap_or_else(|| Uuid::new_v4().to_string()),
-        label: normalized_label(&label),
-        provider,
-        email: duplicate
-            .as_ref()
-            .and_then(|account| account.email.clone())
-            .or_else(|| Some(ACCOUNT_EMAIL.into())),
-        provider_account_id: duplicate
-            .as_ref()
-            .and_then(|account| account.provider_account_id.clone())
-            .or(Some(provider_account_id)),
-        chatgpt_account_id: None,
-        plan: Some(ACCOUNT_PLAN.into()),
-        created_at: duplicate
-            .as_ref()
-            .map(|account| account.created_at.clone())
-            .unwrap_or_else(|| now.clone()),
-        updated_at: now.clone(),
-        last_usage: Some(UsageSnapshot {
+    let mut account = merge_into_existing(
+        duplicate.as_ref(),
+        ConnectedFields {
+            label: normalized_label(&label),
+            provider,
+            email: duplicate
+                .as_ref()
+                .and_then(|account| account.email.clone())
+                .or_else(|| Some(ACCOUNT_EMAIL.into())),
+            provider_account_id: duplicate
+                .as_ref()
+                .and_then(|account| account.provider_account_id.clone())
+                .or(Some(provider_account_id)),
+            chatgpt_account_id: None,
             plan: Some(ACCOUNT_PLAN.into()),
-            email: Some(ACCOUNT_EMAIL.into()),
-            windows: model_windows(selected),
-            credits_usd: None,
-            unlimited_credits: false,
-            fetched_at: now,
-            freshness: UsageFreshness::Live,
-            source: SOURCE_MODELS_ONLY.into(),
-        }),
-        last_error: None,
-        auth_required: false,
-    };
+        },
+    );
+    // A new key has not been read for quota yet; until the first refresh it only proves access.
+    account.last_usage = Some(UsageSnapshot {
+        plan: Some(ACCOUNT_PLAN.into()),
+        email: Some(ACCOUNT_EMAIL.into()),
+        windows: model_windows(selected),
+        credits_usd: None,
+        unlimited_credits: false,
+        fetched_at: account.updated_at.clone(),
+        freshness: UsageFreshness::Live,
+        source: SOURCE_MODELS_ONLY.into(),
+    });
 
     state
         .persist_connected_account(

@@ -4,7 +4,8 @@ use crate::login_window::{
     LOGIN_USER_AGENT,
 };
 use crate::{
-    model::{now_rfc3339, Account, GrokSecret, LoginStart, LoginStatus, Provider, ProviderSecret},
+    model::{Account, GrokSecret, LoginStart, Provider, ProviderSecret},
+    oauth_common::{finish_window_login, merge_into_existing, ConnectedFields},
     providers::{
         self,
         grok::{
@@ -120,6 +121,57 @@ fn default_grok_label(state: &AppState, email: Option<&str>) -> String {
     }
 }
 
+/// The account a Grok sign-in saves, from what the Usage service reported: an existing account
+/// (the reconnect target, the same identity, or one carrying the typed label) is updated.
+fn account_from_usage(
+    state: &AppState,
+    usage: &providers::ProviderUsage,
+    label: &str,
+    reconnect_account_id: Option<&str>,
+) -> Account {
+    let duplicate = state
+        .store
+        .account_to_update(
+            &Provider::Grok,
+            reconnect_account_id,
+            usage.provider_account_id.as_deref(),
+            usage.email.as_deref(),
+        )
+        .or_else(|| grok_account_with_label(state, label));
+    let provider_account_id = usage
+        .provider_account_id
+        .clone()
+        .or_else(|| usage.email.clone())
+        .or_else(|| {
+            duplicate
+                .as_ref()
+                .and_then(|account| account.provider_account_id.clone())
+        })
+        .or_else(|| Some(Uuid::new_v4().to_string()));
+    let label = if label.trim().is_empty() {
+        duplicate
+            .as_ref()
+            .map(|account| account.label.clone())
+            .unwrap_or_else(|| default_grok_label(state, usage.email.as_deref()))
+    } else {
+        label.trim().to_string()
+    };
+    merge_into_existing(
+        duplicate.as_ref(),
+        ConnectedFields {
+            label,
+            provider: Provider::Grok,
+            email: usage
+                .email
+                .clone()
+                .or_else(|| duplicate.as_ref().and_then(|account| account.email.clone())),
+            provider_account_id,
+            chatgpt_account_id: None,
+            plan: usage.plan.clone().or_else(|| Some("Grok".into())),
+        },
+    )
+}
+
 /// Add a Grok account from a manually supplied cookie header (no WebView).
 pub async fn add_account(
     state: Arc<AppState>,
@@ -141,59 +193,13 @@ pub async fn add_account(
             }
         })?;
 
-    let duplicate = state
-        .store
-        .account_to_update(
-            &Provider::Grok,
-            reconnect_account_id.as_deref(),
-            probe.provider_account_id.as_deref(),
-            probe.email.as_deref(),
-        )
-        .or_else(|| grok_account_with_label(state.as_ref(), &label));
-    let now = now_rfc3339();
-    let account_id = duplicate
-        .as_ref()
-        .map(|account| account.id.clone())
-        .unwrap_or_else(|| Uuid::new_v4().to_string());
-    let provider_account_id = probe
-        .provider_account_id
-        .clone()
-        .or_else(|| probe.email.clone())
-        .or_else(|| {
-            duplicate
-                .as_ref()
-                .and_then(|account| account.provider_account_id.clone())
-        })
-        .or_else(|| Some(Uuid::new_v4().to_string()));
-    let account = Account {
-        id: account_id.clone(),
-        label: if label.trim().is_empty() {
-            duplicate
-                .as_ref()
-                .map(|account| account.label.clone())
-                .unwrap_or_else(|| default_grok_label(state.as_ref(), probe.email.as_deref()))
-        } else {
-            label.trim().to_string()
-        },
-        provider: Provider::Grok,
-        email: probe
-            .email
-            .clone()
-            .or_else(|| duplicate.as_ref().and_then(|account| account.email.clone())),
-        provider_account_id,
-        chatgpt_account_id: None,
-        plan: probe.plan.clone().or_else(|| Some("Grok".into())),
-        created_at: duplicate
-            .as_ref()
-            .map(|account| account.created_at.clone())
-            .unwrap_or_else(|| now.clone()),
-        updated_at: now,
-        last_usage: duplicate
-            .as_ref()
-            .and_then(|account| account.last_usage.clone()),
-        last_error: None,
-        auth_required: false,
-    };
+    let account = account_from_usage(
+        state.as_ref(),
+        &probe,
+        &label,
+        reconnect_account_id.as_deref(),
+    );
+    let account_id = account.id.clone();
 
     let normalized_cookie =
         normalize_cookie_header(&cookie_header).map_err(|error| error.to_string())?;
@@ -538,59 +544,13 @@ async fn complete_cookie_login(
         return;
     }
 
-    let duplicate = state
-        .store
-        .account_to_update(
-            &Provider::Grok,
-            reconnect_account_id.as_deref(),
-            usage.provider_account_id.as_deref(),
-            usage.email.as_deref(),
-        )
-        .or_else(|| grok_account_with_label(state.as_ref(), &label));
-    let now = now_rfc3339();
-    let account_id = duplicate
-        .as_ref()
-        .map(|account| account.id.clone())
-        .unwrap_or_else(|| Uuid::new_v4().to_string());
-    let provider_account_id = usage
-        .provider_account_id
-        .clone()
-        .or_else(|| usage.email.clone())
-        .or_else(|| {
-            duplicate
-                .as_ref()
-                .and_then(|account| account.provider_account_id.clone())
-        })
-        .or_else(|| Some(Uuid::new_v4().to_string()));
-    let account = Account {
-        id: account_id.clone(),
-        label: if label.trim().is_empty() {
-            duplicate
-                .as_ref()
-                .map(|account| account.label.clone())
-                .unwrap_or_else(|| default_grok_label(state.as_ref(), usage.email.as_deref()))
-        } else {
-            label.trim().to_string()
-        },
-        provider: Provider::Grok,
-        email: usage
-            .email
-            .clone()
-            .or_else(|| duplicate.as_ref().and_then(|account| account.email.clone())),
-        provider_account_id,
-        chatgpt_account_id: None,
-        plan: usage.plan.clone().or_else(|| Some("Grok".into())),
-        created_at: duplicate
-            .as_ref()
-            .map(|account| account.created_at.clone())
-            .unwrap_or_else(|| now.clone()),
-        updated_at: now,
-        last_usage: duplicate
-            .as_ref()
-            .and_then(|account| account.last_usage.clone()),
-        last_error: None,
-        auth_required: false,
-    };
+    let account = account_from_usage(
+        state.as_ref(),
+        &usage,
+        &label,
+        reconnect_account_id.as_deref(),
+    );
+    let account_id = account.id.clone();
 
     let normalized_cookie = match normalize_cookie_header(&cookie_header) {
         Ok(value) => value,
@@ -641,18 +601,10 @@ async fn complete_cookie_login(
         },
     };
 
-    #[cfg(desktop)]
-    let connected = account.clone();
-    let completed = state.update_login_if_waiting(&attempt_id, |login| {
-        *login = LoginStatus::complete(attempt_id.clone(), account);
-    });
-    if completed {
+    if finish_window_login(&state, &attempt_id, account, window) {
         if let Some(dir) = &temp_data_dir {
             let _ = std::fs::remove_dir_all(dir);
         }
-        // On mobile the sign-in poll loop (mobile_auth.rs) shows the page instead.
-        #[cfg(desktop)]
-        crate::oauth_common::close_after_connected_page(window, &connected);
     }
 }
 

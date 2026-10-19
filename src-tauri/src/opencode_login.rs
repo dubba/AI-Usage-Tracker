@@ -3,9 +3,8 @@ use crate::login_window::{
     self, is_back_request, LoginWindowEnd, LoginWindowSpec, BACK_BUTTON_SCRIPT, BACK_QUERY_FLAG,
 };
 use crate::{
-    model::{
-        now_rfc3339, Account, LoginStart, LoginStatus, OpenCodeGoSecret, Provider, ProviderSecret,
-    },
+    model::{Account, LoginStart, OpenCodeGoSecret, Provider, ProviderSecret},
+    oauth_common::{finish_window_login, merge_into_existing, ConnectedFields},
     providers,
     state::AppState,
     usage,
@@ -321,40 +320,29 @@ pub async fn add_account(
         Some(workspace_id),
         email.as_deref(),
     );
-    let now = now_rfc3339();
-    let account = Account {
-        id: duplicate
-            .as_ref()
-            .map(|account| account.id.clone())
-            .unwrap_or_else(|| Uuid::new_v4().to_string()),
-        label: if label.trim().is_empty() {
-            provider.display_name().into()
-        } else {
-            label.trim().to_string()
+    let account = merge_into_existing(
+        duplicate.as_ref(),
+        ConnectedFields {
+            label: if label.trim().is_empty() {
+                provider.display_name().into()
+            } else {
+                label.trim().to_string()
+            },
+            provider,
+            email: email
+                .map(|v| v.trim().to_string())
+                .filter(|v| !v.is_empty())
+                .or_else(|| duplicate.as_ref().and_then(|account| account.email.clone()))
+                .or_else(|| {
+                    crate::providers::grok::extract_identity_from_jwt(&auth_cookie).or_else(|| {
+                        crate::providers::grok::extract_identity_from_cookies(&auth_cookie)
+                    })
+                }),
+            provider_account_id: Some(workspace_id.to_string()),
+            chatgpt_account_id: None,
+            plan: Some("OpenCode Go".into()),
         },
-        provider,
-        email: email
-            .map(|v| v.trim().to_string())
-            .filter(|v| !v.is_empty())
-            .or_else(|| duplicate.as_ref().and_then(|account| account.email.clone()))
-            .or_else(|| {
-                crate::providers::grok::extract_identity_from_jwt(&auth_cookie)
-                    .or_else(|| crate::providers::grok::extract_identity_from_cookies(&auth_cookie))
-            }),
-        provider_account_id: Some(workspace_id.to_string()),
-        chatgpt_account_id: None,
-        plan: Some("OpenCode Go".into()),
-        created_at: duplicate
-            .as_ref()
-            .map(|account| account.created_at.clone())
-            .unwrap_or_else(|| now.clone()),
-        updated_at: now,
-        last_usage: duplicate
-            .as_ref()
-            .and_then(|account| account.last_usage.clone()),
-        last_error: None,
-        auth_required: false,
-    };
+    );
 
     let account = state
         .persist_connected_account(
@@ -395,16 +383,7 @@ async fn complete_login(
     .await
     {
         Ok(account) => {
-            #[cfg(desktop)]
-            let connected = account.clone();
-            let completed = state.update_login_if_waiting(&attempt_id, |login| {
-                *login = LoginStatus::complete(attempt_id.clone(), account);
-            });
-            if completed {
-                // On mobile the sign-in poll loop (mobile_auth.rs) shows the page instead.
-                #[cfg(desktop)]
-                crate::oauth_common::close_after_connected_page(window, &connected);
-            }
+            finish_window_login(&state, &attempt_id, account, window);
         }
         Err(error) => {
             state.fail_login_if_waiting(&attempt_id, error);

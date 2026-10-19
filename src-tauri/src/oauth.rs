@@ -3,13 +3,11 @@ use crate::login_window::{self, LoginWindowSpec, LOGIN_USER_AGENT};
 use crate::{
     google_client::{client_secret, CLIENT_ID, TOKEN_URL as GOOGLE_TOKEN_URL},
     login_window::{is_back_request, BACK_QUERY_FLAG},
-    model::{
-        now_rfc3339, Account, LoginStart, LoginState, LoginStatus, OAuthSecret, Provider,
-        ProviderSecret,
-    },
+    model::{Account, LoginStart, LoginState, LoginStatus, OAuthSecret, Provider, ProviderSecret},
     oauth_common::{
-        account_connected_html, auth_failure_html, callback_html, pkce_challenge, random_base64,
-        spawn_callback_server, spawn_login_timeout, CallbackQuery, LOGIN_TIMEOUT_MINUTES,
+        account_connected_html, auth_failure_html, callback_html, merge_into_existing,
+        pkce_challenge, random_base64, spawn_callback_server, spawn_login_timeout, CallbackQuery,
+        ConnectedFields, LOGIN_TIMEOUT_MINUTES,
     },
     providers::{
         anthropic::{CLIENT_ID as ANTHROPIC_CLIENT_ID, TOKEN_URL as ANTHROPIC_TOKEN_URL},
@@ -979,7 +977,6 @@ async fn complete_exchange(context: &LoginContext, code: &str) -> ExchangeResult
         return Err("The login attempt was canceled.".into());
     }
     let duplicate = find_account_to_update(context, &identity);
-    let now = now_rfc3339();
     let label = if context.label.trim().is_empty() {
         identity
             .email
@@ -1002,32 +999,21 @@ async fn complete_exchange(context: &LoginContext, code: &str) -> ExchangeResult
     } else {
         None
     };
-    let account = Account {
-        id: duplicate
-            .as_ref()
-            .map(|account| account.id.clone())
-            .unwrap_or_else(|| Uuid::new_v4().to_string()),
-        label,
-        provider: context.provider.clone(),
-        email: identity
-            .email
-            .or_else(|| duplicate.as_ref().and_then(|account| account.email.clone())),
-        provider_account_id,
-        chatgpt_account_id,
-        plan: identity
-            .plan
-            .or_else(|| duplicate.as_ref().and_then(|account| account.plan.clone())),
-        created_at: duplicate
-            .as_ref()
-            .map(|account| account.created_at.clone())
-            .unwrap_or_else(|| now.clone()),
-        updated_at: now,
-        last_usage: duplicate
-            .as_ref()
-            .and_then(|account| account.last_usage.clone()),
-        last_error: None,
-        auth_required: false,
-    };
+    let account = merge_into_existing(
+        duplicate.as_ref(),
+        ConnectedFields {
+            label,
+            provider: context.provider.clone(),
+            email: identity
+                .email
+                .or_else(|| duplicate.as_ref().and_then(|account| account.email.clone())),
+            provider_account_id,
+            chatgpt_account_id,
+            plan: identity
+                .plan
+                .or_else(|| duplicate.as_ref().and_then(|account| account.plan.clone())),
+        },
+    );
     if !context.app.login_is_waiting(&context.attempt_id) {
         return Err("The login attempt was canceled.".into());
     }
@@ -1542,6 +1528,7 @@ async fn stop_callback(context: &LoginContext) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::model::now_rfc3339;
 
     #[test]
     fn extracts_openai_claims() {
