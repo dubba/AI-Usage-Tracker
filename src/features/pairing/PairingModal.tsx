@@ -78,7 +78,6 @@ export function PairingModal({
   const [busy, setBusy] = useState(false);
   const { error: errorMessage, setError: setErrorMessage } = useAutoDismissedError(viewMode);
   const { error: airgapPrepareError, setError: setAirgapPrepareError } = useAutoDismissedError(viewMode);
-  const [cameraFailed, setCameraFailed] = useState(false);
   const [confirmedSas, setConfirmedSas] = useState(false);
   const [includeSettings, setIncludeSettings] = useState(true);
   const [isKeyboardOpen, setIsKeyboardOpen] = useVirtualKeyboard(open);
@@ -94,7 +93,6 @@ export function PairingModal({
       request.cancel();
       setErrorMessage(null);
       setAirgapPrepareError(null);
-      setCameraFailed(false);
       dispatchFlow({ type: "show", view, flow });
     },
     [request, setErrorMessage, setAirgapPrepareError],
@@ -135,6 +133,7 @@ export function PairingModal({
     availableCameras,
     isFrontCamera,
     cameraError,
+    cameraFailed,
     clearCameraError,
     stopCamera,
     handleScannerTap,
@@ -190,7 +189,6 @@ export function PairingModal({
     if (clearError) {
       setErrorMessage(null);
       setAirgapPrepareError(null);
-      setCameraFailed(false);
     }
     setBusy(false);
     setStatus({ status: "idle" });
@@ -289,10 +287,6 @@ export function PairingModal({
     if (backendFailedError == null) return;
     setErrorMessage(pairingFailedMessage(backendFailedError));
   }, [backendFailedError, setErrorMessage]);
-
-  useEffect(() => {
-    if (cameraError) setCameraFailed(true);
-  }, [cameraError]);
 
   // Apply the role chosen in step 1 as soon as the devices have connected.
   useEffect(() => {
@@ -431,7 +425,6 @@ export function PairingModal({
       discardSession();
       setErrorMessage(null);
       setAirgapPrepareError(null);
-      setCameraFailed(false);
       setJoinCodeInput("");
       dispatchFlow({ type: "reset" });
       roleAutoSelectedRef.current = false;
@@ -690,7 +683,6 @@ export function PairingModal({
             }}
             onScan={() => {
               dispatchFlow({ type: "set-flow", flow: "wifi" });
-              setCameraFailed(false);
               void pairingApi.ensureCameraPermission()
                 .catch((cause) => logIgnored("pairing.cameraPermission", cause))
                 .finally(() => showView("scanner"));
@@ -726,7 +718,6 @@ export function PairingModal({
             onSwitchCamera={() => void handleSwitchCamera()}
             onRetryCamera={() => {
               clearCameraError();
-              setCameraFailed(false);
               setScannerRestartKey((key) => key + 1);
             }}
             onAirgapBack={() => {

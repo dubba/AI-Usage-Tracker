@@ -185,19 +185,38 @@ describe("camera errors", () => {
     expect(latest.cameraError).toContain("secure context");
   });
 
-  it("hides the message after a few seconds and clears it on request", async () => {
+  it("hides the message after a few seconds but remembers that the camera failed until it restarts", async () => {
     await failWith(named("NotFoundError"));
     expect(latest.cameraError).not.toBeNull();
+    expect(latest.cameraFailed).toBe(true);
     await runFor(ERROR_AUTO_DISMISS_MS);
     expect(latest.cameraError).toBeNull();
+    expect(latest.cameraFailed).toBe(true);
+
+    camera.getCameraStream.mockResolvedValue(makeStream().stream);
+    await act(async () => {
+      mounted!.rerender(<Harness {...baseOptions({ restartKey: 1 })} />);
+    });
+    await runFor(10);
+    expect(latest.cameraFailed).toBe(false);
+  });
+
+  it("clears the message on request without forgetting the failure", async () => {
+    await failWith(named("NotFoundError"));
+    act(() => latest.clearCameraError());
+    expect(latest.cameraError).toBeNull();
+    expect(latest.cameraFailed).toBe(true);
+  });
+
+  it("shows a new message after a restart that fails again", async () => {
+    await failWith(named("NotFoundError"));
+    await runFor(ERROR_AUTO_DISMISS_MS);
 
     await act(async () => {
       mounted!.rerender(<Harness {...baseOptions({ restartKey: 1 })} />);
     });
     await runFor(10);
     expect(latest.cameraError).not.toBeNull();
-    act(() => latest.clearCameraError());
-    expect(latest.cameraError).toBeNull();
   });
 });
 

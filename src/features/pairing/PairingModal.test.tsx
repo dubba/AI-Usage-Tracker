@@ -51,12 +51,22 @@ const scanner = vi.hoisted(() => ({
   handleSwitchCamera: vi.fn(),
 }));
 vi.mock("./hooks/useQrScanner", async () => {
-  const { useState } = await import("react");
+  const { useEffect, useState } = await import("react");
   return {
     useQrScanner: (options: ScannerOptions) => {
       scanner.options = options;
-      const [cameraError, setCameraError] = useState<string | null>(null);
+      const [cameraError, setCameraErrorMessage] = useState<string | null>(null);
+      const [cameraFailed, setCameraFailed] = useState(false);
       const [videoReady, setVideoReady] = useState(false);
+      // Like the real hook: a failure outlives its message and ends when the camera starts again.
+      const setCameraError = (message: string | null) => {
+        setCameraErrorMessage(message);
+        if (message !== null) setCameraFailed(true);
+      };
+      useEffect(() => {
+        setCameraFailed(false);
+        setCameraErrorMessage(null);
+      }, [options.active, options.restartKey]);
       scanner.setCameraError = setCameraError;
       return {
         videoRef: scanner.videoRef,
@@ -65,7 +75,8 @@ vi.mock("./hooks/useQrScanner", async () => {
         availableCameras: [],
         isFrontCamera: false,
         cameraError,
-        clearCameraError: () => setCameraError(null),
+        cameraFailed,
+        clearCameraError: () => setCameraErrorMessage(null),
         stopCamera: scanner.stopCamera,
         handleScannerTap: scanner.handleScannerTap,
         handleSwitchCamera: scanner.handleSwitchCamera,

@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import { pairingApi } from "../../../shared/lib/api";
 import { describeError } from "../../../shared/lib/errors";
 import { useAutoDismissedError } from "../../../shared/hooks/useAutoDismissedError";
@@ -54,9 +54,18 @@ export function useQrScanner({ active, restartKey, onDecoded, onError }: UseQrSc
   const [videoReady, setVideoReady] = useState(false);
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
   const [isFrontCamera, setIsFrontCamera] = useState(false);
-  // The message goes away by itself (and when the scanner closes); the view keeps its
-  // "camera failed" state of its own.
-  const { error: cameraError, setError: setCameraError, clearError: clearCameraError } = useAutoDismissedError(active);
+  // The message goes away by itself (and when the scanner closes). `cameraFailed` outlives it:
+  // the view keeps offering "Retry Camera" and hides the scan beam until the camera is started
+  // again.
+  const { error: cameraError, setError: setCameraErrorMessage, clearError: clearCameraError } = useAutoDismissedError(active);
+  const [cameraFailed, setCameraFailed] = useState(false);
+  const setCameraError = useCallback(
+    (message: string | null) => {
+      setCameraErrorMessage(message);
+      if (message !== null) setCameraFailed(true);
+    },
+    [setCameraErrorMessage],
+  );
 
   const handleDecoded = useEffectEvent(onDecoded);
   const handleError = useEffectEvent((cause: unknown) => onError?.(cause));
@@ -74,6 +83,7 @@ export function useQrScanner({ active, restartKey, onDecoded, onError }: UseQrSc
       setAvailableCameras([]);
       setIsFrontCamera(false);
       setVideoReady(false);
+      setCameraFailed(false);
       return;
     }
 
@@ -82,6 +92,7 @@ export function useQrScanner({ active, restartKey, onDecoded, onError }: UseQrSc
 
     const startCamera = async () => {
       setVideoReady(false);
+      setCameraFailed(false);
       try {
         setCameraError(null);
 
@@ -388,6 +399,7 @@ export function useQrScanner({ active, restartKey, onDecoded, onError }: UseQrSc
     availableCameras,
     isFrontCamera,
     cameraError,
+    cameraFailed,
     clearCameraError,
     stopCamera,
     handleScannerTap,
