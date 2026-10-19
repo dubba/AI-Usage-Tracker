@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { type BusyKeys } from "../../shared/lib/busy";
+import { useReorderHint } from "./useReorderHint";
 import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
 import {
   AlertCircleIcon,
@@ -25,8 +26,6 @@ import type {
   Provider,
 } from "../../types";
 import { persistVisibleAccountOrder } from "../reorder";
-import { UI_EVENTS } from "../../shared/lib/events";
-import { STORAGE_KEYS, storageGet, storageSet } from "../../shared/lib/storage";
 import { moveAnnouncement, moveById } from "../reorder/reorder-utils";
 import { AccountDashboardCard, REORDER_HINT_ID } from "./AccountDashboardCard";
 import { ACCOUNT_FORMS, formatCount } from "../../shared/lib/format";
@@ -43,27 +42,6 @@ const EMPTY_STATE_PROVIDERS: { provider: Provider; brand: string; product: strin
   { provider: "openai", brand: "OpenAI", product: "ChatGPT" },
   { provider: "grok", brand: "xAI", product: "Grok" },
 ];
-
-export const MAX_REORDER_HINT_OPENS = 2;
-
-export function checkReorderHintEligibility(canReorder: boolean, reorderCompleted: boolean): boolean {
-  if (!canReorder || reorderCompleted) return false;
-  const sessionDismissed = storageGet(STORAGE_KEYS.reorderHintSessionDismissed, "session") === "1";
-  if (sessionDismissed) return false;
-
-  const sessionCounted = storageGet(STORAGE_KEYS.reorderHintSessionCounted, "session") === "1";
-  const stored = parseInt(storageGet(STORAGE_KEYS.reorderHintOpenCount) ?? "0", 10) || 0;
-
-  if (sessionCounted) {
-    return stored <= MAX_REORDER_HINT_OPENS;
-  }
-
-  // Count this open session towards the total
-  const next = stored + 1;
-  storageSet(STORAGE_KEYS.reorderHintOpenCount, String(next));
-  storageSet(STORAGE_KEYS.reorderHintSessionCounted, "1", "session");
-  return next <= MAX_REORDER_HINT_OPENS;
-}
 
 function dashboardDescription(group: SidebarGroup, accountCount: number): string {
   const count = formatCount(accountCount, ACCOUNT_FORMS);
@@ -134,41 +112,7 @@ export function AccountsView(props: {
 
   // Moving within a filtered subset would reorder against a partial list, so it is only offered on the full page.
   const canReorder = !showAttentionOnly && displayedAccounts.length > 1;
-  const [reorderCompleted, setReorderCompleted] = useState(
-    () => storageGet(STORAGE_KEYS.reorderHintSeen) === "1",
-  );
-  const [sessionDismissed, setSessionDismissed] = useState(
-    () => storageGet(STORAGE_KEYS.reorderHintSessionDismissed, "session") === "1",
-  );
-
-  const isEligible = useMemo(
-    () => checkReorderHintEligibility(canReorder, reorderCompleted),
-    [canReorder, reorderCompleted],
-  );
-
-  const showReorderHint = isEligible && !sessionDismissed;
-
-  const dismissReorderHint = useCallback(() => {
-    storageSet(STORAGE_KEYS.reorderHintSessionDismissed, "1", "session");
-    setSessionDismissed(true);
-  }, []);
-
-  const completeReorderHint = useCallback(() => {
-    storageSet(STORAGE_KEYS.reorderHintSeen, "1");
-    setReorderCompleted(true);
-  }, []);
-
-  // Dismiss the hint permanently once the user actually reorders a card or group.
-  useEffect(() => {
-    if (!showReorderHint) return;
-    const onReorder = () => completeReorderHint();
-    window.addEventListener(UI_EVENTS.pageOrderChanged, onReorder);
-    window.addEventListener(UI_EVENTS.groupOrderChanged, onReorder);
-    return () => {
-      window.removeEventListener(UI_EVENTS.pageOrderChanged, onReorder);
-      window.removeEventListener(UI_EVENTS.groupOrderChanged, onReorder);
-    };
-  }, [showReorderHint, completeReorderHint]);
+  const { showReorderHint, dismissReorderHint, completeReorderHint } = useReorderHint(canReorder);
 
   const moveAccount = (account: Account, delta: -1 | 1) => {
     const move = moveById(displayedAccounts.map((candidate) => candidate.id), account.id, delta);
