@@ -102,13 +102,8 @@ pub struct AppState {
     pub refresh_backoff: Mutex<RefreshBackoff>,
     refresh_wakeup: Notify,
     refresh_check: Notify,
-    pub pairing_include_settings: RwLock<bool>,
-    pub pairing_pending_ui_state: RwLock<Option<serde_json::Value>>,
-    /// Explicit per-transfer opt-in to replace credentials of existing local
-    /// accounts during a pairing import. Defaults to false (preserve local
-    /// credentials); the frontend must set it for the transfer that should
-    /// overwrite, and it is cleared after each import.
-    pub pairing_allow_credential_replace: RwLock<bool>,
+    /// What the next pairing transfer carries beyond accounts; reset between transfers.
+    pub pairing_options: RwLock<crate::pairing::PairingTransferOptions>,
 }
 
 impl AppState {
@@ -162,9 +157,7 @@ impl AppState {
             refresh_backoff: Mutex::new(RefreshBackoff::default()),
             refresh_wakeup: Notify::new(),
             refresh_check: Notify::new(),
-            pairing_include_settings: RwLock::new(false),
-            pairing_pending_ui_state: RwLock::new(None),
-            pairing_allow_credential_replace: RwLock::new(false),
+            pairing_options: RwLock::new(Default::default()),
         })
     }
 

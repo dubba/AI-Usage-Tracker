@@ -90,9 +90,7 @@ pub async fn pairing_confirm_sas(
 #[tauri::command]
 pub async fn pairing_cancel(state: State<'_, Arc<AppState>>) -> Result<(), String> {
     state.pairing.cancel().await;
-    *state.pairing_include_settings.write() = false;
-    *state.pairing_pending_ui_state.write() = None;
-    *state.pairing_allow_credential_replace.write() = false;
+    state.pairing_options.write().reset();
     crate::lan_binding::configure_pairing_network(false);
     Ok(())
 }
@@ -109,7 +107,7 @@ pub fn pairing_set_include_settings(
     state: State<'_, Arc<AppState>>,
     include: bool,
 ) -> Result<(), String> {
-    *state.pairing_include_settings.write() = include;
+    state.pairing_options.write().include_settings = include;
     Ok(())
 }
 
@@ -123,14 +121,15 @@ pub fn pairing_set_pending_ui_state(
         return Err("UI state must be an object".into());
     }
     limits::check_ui_state_size(&ui_state)?;
-    *state.pairing_pending_ui_state.write() = Some(ui_state);
+    state.pairing_options.write().pending_ui_state = Some(ui_state);
     Ok(())
 }
 
 #[tauri::command]
 pub fn pairing_clear_pending_ui_state(state: State<'_, Arc<AppState>>) -> Result<(), String> {
-    *state.pairing_pending_ui_state.write() = None;
-    *state.pairing_include_settings.write() = false;
+    let mut options = state.pairing_options.write();
+    options.pending_ui_state = None;
+    options.include_settings = false;
     Ok(())
 }
 
@@ -150,12 +149,14 @@ pub async fn pairing_prepare_airgap_export(
         &crate::confirm::AIRGAP_EXPORT,
         crate::confirm::ask(&app, &crate::confirm::AIRGAP_EXPORT),
         || {
-            *state.pairing_include_settings.write() = include_settings;
+            let mut options = state.pairing_options.write();
+            options.include_settings = include_settings;
             if let Some(ui) = ui_state {
-                *state.pairing_pending_ui_state.write() = Some(ui);
+                options.pending_ui_state = Some(ui);
             } else if !include_settings {
-                *state.pairing_pending_ui_state.write() = None;
+                options.pending_ui_state = None;
             }
+            drop(options);
             pairing::airgap::prepare_airgap_export(state.inner().as_ref())
         },
     )

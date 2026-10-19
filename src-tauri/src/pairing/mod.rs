@@ -104,6 +104,26 @@ pub struct PairingHostInit {
     pub expires_at: u64,
 }
 
+/// What one pairing transfer carries beyond the accounts, chosen by the user for that transfer.
+/// Everything defaults to "nothing extra" and goes back to it between transfers (`reset`).
+#[derive(Clone, Debug, Default)]
+pub struct PairingTransferOptions {
+    /// Also send the app settings, account order and alerts.
+    pub include_settings: bool,
+    /// The layout (localStorage snapshot) the frontend supplied for this transfer.
+    pub pending_ui_state: Option<serde_json::Value>,
+    /// Explicit per-transfer opt-in to replace credentials of existing local accounts during an
+    /// import. Nothing sets it today; step 3.9 removes it.
+    pub allow_credential_replace: bool,
+}
+
+impl PairingTransferOptions {
+    /// Back to the defaults, so one transfer's choices never leak into the next.
+    pub fn reset(&mut self) {
+        *self = Self::default();
+    }
+}
+
 pub struct ActiveSession {
     pub session_id: String,
     pub cancel_tx: Option<oneshot::Sender<()>>,
@@ -191,9 +211,7 @@ impl PairingSessionManager {
         self.cancel().await;
         // Reset per-transfer flags for the new session. Credential replacement
         // in particular requires fresh explicit opt-in each session.
-        *state.pairing_include_settings.write() = false;
-        *state.pairing_pending_ui_state.write() = None;
-        *state.pairing_allow_credential_replace.write() = false;
+        state.pairing_options.write().reset();
         let epoch = self.epoch.fetch_add(1, Ordering::SeqCst) + 1;
 
         let keypair = EphemeralKeyPair::generate();
@@ -394,9 +412,7 @@ impl PairingSessionManager {
 
     pub async fn start_client(&self, state: Arc<AppState>, qr_uri: String) -> Result<(), String> {
         self.cancel().await;
-        *state.pairing_include_settings.write() = false;
-        *state.pairing_pending_ui_state.write() = None;
-        *state.pairing_allow_credential_replace.write() = false;
+        state.pairing_options.write().reset();
         self.epoch.fetch_add(1, Ordering::SeqCst);
 
         let parsed = parse_qr_uri(&qr_uri)?;

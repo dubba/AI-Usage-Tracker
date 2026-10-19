@@ -898,8 +898,11 @@ async fn run_authenticated_transfer<E>(
             Ok(b) => {
                 // Clear per-transfer settings flag after snapshotting payload so it
                 // does not leak into the next session.
-                *state.pairing_include_settings.write() = false;
-                *state.pairing_pending_ui_state.write() = None;
+                {
+                    let mut options = state.pairing_options.write();
+                    options.include_settings = false;
+                    options.pending_ui_state = None;
+                }
                 b
             }
             Err(e) => {

@@ -618,7 +618,7 @@ async fn test_settings_transfer_includes_beta_flag() {
         .settings
         .set_include_beta_updates(true)
         .unwrap();
-    *state_sender.pairing_include_settings.write() = true;
+    state_sender.pairing_options.write().include_settings = true;
 
     let export_bytes = create_export_payload(&state_sender).unwrap();
     let payload: super::payload::SyncPayload = serde_json::from_slice(&export_bytes).unwrap();
@@ -1944,7 +1944,7 @@ async fn export_everything() -> (tempfile::TempDir, Vec<u8>) {
             }],
         )
         .unwrap();
-    *state_sender.pairing_include_settings.write() = true;
+    state_sender.pairing_options.write().include_settings = true;
     let bytes = create_export_payload(&state_sender).unwrap();
     (dir_sender, bytes)
 }
@@ -2016,4 +2016,43 @@ fn sync_summary_without_warnings_still_parses() {
         serde_json::from_str(r#"{"added":1,"updated":2,"skipped":3}"#).unwrap();
     assert_eq!((parsed.added, parsed.updated, parsed.skipped), (1, 2, 3));
     assert!(parsed.warnings.is_empty());
+}
+
+#[test]
+fn transfer_options_default_to_nothing_extra_and_reset_clears_every_choice() {
+    use super::PairingTransferOptions;
+    let fresh = PairingTransferOptions::default();
+    assert!(!fresh.include_settings);
+    assert!(fresh.pending_ui_state.is_none());
+    assert!(!fresh.allow_credential_replace);
+
+    let mut options = PairingTransferOptions {
+        include_settings: true,
+        pending_ui_state: Some(serde_json::json!({"theme": "dark"})),
+        allow_credential_replace: true,
+    };
+    options.reset();
+    assert!(!options.include_settings);
+    assert!(options.pending_ui_state.is_none());
+    assert!(!options.allow_credential_replace);
+}
+
+#[tokio::test]
+async fn starting_a_host_session_resets_the_transfer_options() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = Arc::new(AppState::new(dir.path().to_path_buf(), "tok-opt".into()).unwrap());
+    {
+        let mut options = state.pairing_options.write();
+        options.include_settings = true;
+        options.pending_ui_state = Some(serde_json::json!({}));
+        options.allow_credential_replace = true;
+    }
+    // A host session needs a local network address; where there is none it fails after the
+    // reset, which is the part under test.
+    let _ = state.pairing.start_host(state.clone()).await;
+    state.pairing.cancel().await;
+    let options = state.pairing_options.read();
+    assert!(!options.include_settings);
+    assert!(options.pending_ui_state.is_none());
+    assert!(!options.allow_credential_replace);
 }

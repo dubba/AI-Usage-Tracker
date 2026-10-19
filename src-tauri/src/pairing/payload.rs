@@ -212,7 +212,10 @@ pub fn create_export_payload(state: &AppState) -> Result<Vec<u8>, String> {
 
     let buckets = state.buckets.list();
 
-    let include_settings = *state.pairing_include_settings.read();
+    let (include_settings, pending_ui_state) = {
+        let options = state.pairing_options.read();
+        (options.include_settings, options.pending_ui_state.clone())
+    };
 
     let (settings, account_order, alerts, ui_state) = if include_settings {
         let app = state.settings.get();
@@ -251,10 +254,7 @@ pub fn create_export_payload(state: &AppState) -> Result<Vec<u8>, String> {
         };
 
         // UI state: pending value supplied by frontend (localStorage snapshot)
-        let ui_state_payload = state
-            .pairing_pending_ui_state
-            .read()
-            .clone()
+        let ui_state_payload = pending_ui_state
             .and_then(|value| serde_json::from_value::<UiStateSyncPayload>(value).ok())
             .filter(|ui| {
                 ui.sidebar_group_order.is_some()
@@ -300,11 +300,11 @@ pub async fn import_sync_payload(
     state: &Arc<AppState>,
     payload_bytes: &[u8],
 ) -> Result<SyncSummary, String> {
-    let allow_replace = *state.pairing_allow_credential_replace.read();
+    let allow_replace = state.pairing_options.read().allow_credential_replace;
     let summary = import_sync_payload_with_replace(state, payload_bytes, allow_replace).await?;
     // Single-use opt-in: replacing credentials always requires explicit user
     // action for the transfer being imported.
-    *state.pairing_allow_credential_replace.write() = false;
+    state.pairing_options.write().allow_credential_replace = false;
     Ok(summary)
 }
 
