@@ -10,6 +10,15 @@ use std::sync::Arc;
 use tauri::Manager;
 use tauri::{AppHandle, State};
 
+/// Every sign-in window a login can open, named by the module that opens it. `cancel_login`
+/// closes all of them, so a window added without a label here would stay open after Cancel (the
+/// test below fails until it is listed).
+const LOGIN_WINDOW_LABELS: [&str; 3] = [
+    opencode_login::LOGIN_WINDOW_LABEL,
+    grok_login::LOGIN_WINDOW_LABEL,
+    oauth::PROVIDER_LOGIN_WINDOW,
+];
+
 #[tauri::command]
 pub async fn start_login(
     app: AppHandle,
@@ -187,11 +196,97 @@ pub fn cancel_login(
         return Ok(());
     }
 
-    for label in ["opencode-go-login", "grok-login", "provider-login"] {
+    for label in LOGIN_WINDOW_LABELS {
         if let Some(window) = app.get_webview_window(label) {
             let _ = window.close();
             let _ = window.destroy();
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::LOGIN_WINDOW_LABELS;
+    use std::{collections::BTreeSet, fs, path::Path};
+
+    fn rust_sources(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
+        for entry in fs::read_dir(dir).unwrap().flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                rust_sources(&path, out);
+            } else if path.extension().is_some_and(|ext| ext == "rs") {
+                out.push(path);
+            }
+        }
+    }
+
+    /// `const SOME_WINDOW: &str = "some-login";` lines whose name and value look like the label
+    /// of a sign-in window (or the prefix of its popups).
+    fn login_window_constants() -> BTreeSet<(String, String)> {
+        let mut files = Vec::new();
+        rust_sources(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("src"),
+            &mut files,
+        );
+        let mut found = BTreeSet::new();
+        for file in files {
+            for line in fs::read_to_string(&file).unwrap().lines() {
+                let Some(rest) = line.trim().strip_prefix("pub(crate) const ").or_else(|| {
+                    line.trim()
+                        .strip_prefix("const ")
+                        .or_else(|| line.trim().strip_prefix("pub const "))
+                }) else {
+                    continue;
+                };
+                let Some((name, value)) = rest.split_once(": &str = \"") else {
+                    continue;
+                };
+                let Some(value) = value.strip_suffix("\";") else {
+                    continue;
+                };
+                let name_fits = ["WINDOW", "LABEL", "POPUP_PREFIX"]
+                    .iter()
+                    .any(|word| name.contains(word));
+                if name_fits && value.contains("login") {
+                    found.insert((name.to_string(), value.to_string()));
+                }
+            }
+        }
+        found
+    }
+
+    #[test]
+    fn cancel_login_closes_every_sign_in_window() {
+        let constants = login_window_constants();
+        // Guards the scan above against quietly matching nothing.
+        assert!(
+            constants.len() >= 4,
+            "expected the three window labels and the popup prefix, found {constants:?}"
+        );
+        for (name, value) in constants {
+            if value.ends_with('-') {
+                // A popup prefix: popups are children of one of the listed windows.
+                assert!(
+                    LOGIN_WINDOW_LABELS
+                        .iter()
+                        .any(|label| value.starts_with(label)),
+                    "{name} ({value}) is not a popup of a window in LOGIN_WINDOW_LABELS"
+                );
+            } else {
+                assert!(
+                    LOGIN_WINDOW_LABELS.contains(&value.as_str()),
+                    "{name} ({value}) opens a sign-in window that cancel_login does not close; add it to LOGIN_WINDOW_LABELS"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_labels_are_the_three_known_windows() {
+        assert_eq!(
+            LOGIN_WINDOW_LABELS,
+            ["opencode-go-login", "grok-login", "provider-login"]
+        );
+    }
 }

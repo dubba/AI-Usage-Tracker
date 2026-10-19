@@ -246,7 +246,8 @@ pub async fn start_login(
     }
 }
 
-const PROVIDER_LOGIN_WINDOW: &str = "provider-login";
+/// Label of the provider OAuth sign-in window; `cancel_login` closes it by this name.
+pub(crate) const PROVIDER_LOGIN_WINDOW: &str = "provider-login";
 /// Label prefix of the popups a sign-in page opens (see `open_provider_login_popup`).
 const PROVIDER_LOGIN_POPUP_PREFIX: &str = "provider-login-popup-";
 const PROVIDER_LOGIN_USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15";

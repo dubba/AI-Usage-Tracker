@@ -31,8 +31,8 @@ use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use url::Url;
 use uuid::Uuid;
 
-#[cfg(desktop)]
-const LOGIN_WINDOW_LABEL: &str = "grok-login";
+/// Label of the Grok sign-in window; `cancel_login` closes it by this name.
+pub(crate) const LOGIN_WINDOW_LABEL: &str = "grok-login";
 #[cfg(desktop)]
 pub(crate) const GROK_PROFILE_PREFIX: &str = "ai-usage-grok-";
 const LOGIN_URL: &str = "https://accounts.x.ai/sign-in?redirect_uri=https%3A%2F%2Fgrok.com%2F";

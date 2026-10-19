@@ -21,8 +21,8 @@ use tauri::{AppHandle, WebviewWindow};
 use url::Url;
 use uuid::Uuid;
 
-#[cfg(desktop)]
-const LOGIN_WINDOW_LABEL: &str = "opencode-go-login";
+/// Label of the OpenCode sign-in window; `cancel_login` closes it by this name.
+pub(crate) const LOGIN_WINDOW_LABEL: &str = "opencode-go-login";
 #[cfg(desktop)]
 pub(crate) const OPENCODE_PROFILE_PREFIX: &str = "ai-usage-opencode-";
 const LOGIN_URL: &str = "https://opencode.ai/auth";
