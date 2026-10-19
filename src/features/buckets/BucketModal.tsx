@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { bridgeApi } from "../../shared/lib/api";
-import { errorMessage, friendlyMessage } from "../../shared/lib/errors";
+import { useAsyncAction } from "../../shared/hooks/useAsyncAction";
 import { TrashIcon } from "../../shared/ui/icons";
 import { PROVIDER_META } from "../../shared/lib/providers";
 import { ProviderIcon } from "../../shared/ui/ProviderIcon";
@@ -43,8 +43,8 @@ export function BucketModal({
   const [selectedProvider, setSelectedProvider] = useState<Provider | "all">("all");
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const accountScrollRef = useRef<HTMLDivElement>(null);
-  const [busy, setBusy] = useState(false);
   const { error, setError } = useAutoDismissedError(open);
+  const { busy, setBusy, run } = useAsyncAction({ source: "buckets", setError });
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   // The values shown when the dialog opened, for the unsaved-changes check.
@@ -109,7 +109,7 @@ export function BucketModal({
       setConfirmingDiscard(false);
       setConfirmingDelete(Boolean(initialConfirmDelete && bucket));
     }
-  }, [open, bucket, initialConfirmDelete, accounts, setError]);
+  }, [open, bucket, initialConfirmDelete, accounts, setError, setBusy]);
 
   const filteredAccounts = useMemo(() => {
     if (selectedProvider === "all") return accounts;
@@ -149,35 +149,18 @@ export function BucketModal({
     // so a single-account group does not pollute its own filter forever.
     const bucketProvider = selectedProvider === "all" ? null : selectedProvider;
 
-    setBusy(true);
-    setError(null);
-    try {
-      const saved = await bridgeApi.saveBucket(
-        trimmed,
-        bucketProvider,
-        selectedAccountIds,
-        bucket?.id
-      );
+    await run(async () => {
+      const saved = await bridgeApi.saveBucket(trimmed, bucketProvider, selectedAccountIds, bucket?.id);
       onSaved(saved);
-    } catch (cause) {
-      setError(friendlyMessage("Couldn't save this group", errorMessage(cause)));
-    } finally {
-      setBusy(false);
-    }
+    }, "Couldn't save this group");
   };
 
   const handleDelete = async () => {
     if (!bucket || !onDeleted) return;
-    setBusy(true);
-    setError(null);
-    try {
+    await run(async () => {
       await bridgeApi.deleteBucket(bucket.id);
       onDeleted(bucket.id);
-    } catch (cause) {
-      setError(friendlyMessage("Couldn't delete this group", errorMessage(cause)));
-    } finally {
-      setBusy(false);
-    }
+    }, "Couldn't delete this group");
   };
 
   return (

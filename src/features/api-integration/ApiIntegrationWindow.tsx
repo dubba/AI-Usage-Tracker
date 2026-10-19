@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { bridgeApi } from "../../shared/lib/api";
+import { useAsyncAction } from "../../shared/hooks/useAsyncAction";
 import { describeError } from "../../shared/lib/errors";
 import { EyeIcon, EyeOffIcon, RefreshIcon } from "../../shared/ui/icons";
 import type { BridgeInfo } from "../../types";
@@ -25,8 +26,8 @@ function CopyButton({ label = "Copy", copied, onClick }: { label?: string; copie
 
 export function ApiIntegrationWindow() {
   const [bridge, setBridge] = useState<BridgeInfo | null>(null);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { busy, run } = useAsyncAction({ source: "api-integration", setError });
   const [revealed, setRevealed] = useState(false);
   const [fullToken, setFullToken] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -133,18 +134,12 @@ export function ApiIntegrationWindow() {
   };
 
   const rotateToken = async () => {
-    setBusy(true);
-    try {
+    await run(async () => {
       const next = await bridgeApi.regenerateToken();
       setBridge(next);
       setRevealed(false);
       setFullToken(null);
-      setError(null);
-    } catch (cause) {
-      setError(describeError("api-integration", "Couldn't generate a new token", cause));
-    } finally {
-      setBusy(false);
-    }
+    }, "Couldn't generate a new token");
   };
 
   if (!bridge) {

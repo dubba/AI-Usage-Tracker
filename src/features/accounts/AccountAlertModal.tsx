@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { bridgeApi } from "../../shared/lib/api";
+import { useAsyncAction } from "../../shared/hooks/useAsyncAction";
 import { describeError } from "../../shared/lib/errors";
 import { BellIcon } from "../../shared/ui/icons";
 import type { Account, UsageAlertSetting, UsageWindow } from "../../types";
@@ -47,8 +48,8 @@ export function AccountAlertModal({
 }) {
   const [settings, setSettings] = useState<UsageAlertSetting[]>([]);
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
   const { error, setError } = useAutoDismissedError(account?.id);
+  const { busy: saving, setBusy: setSaving, run } = useAsyncAction({ source: "alerts", setError });
   const dialogRef = useRef<HTMLElement>(null);
   const requestClose = useModalClosePolicy(!saving, onClose);
   const handleEscape = () => {
@@ -93,7 +94,7 @@ export function AccountAlertModal({
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [account, availableWindows, setError]);
+  }, [account, availableWindows, setError, setSaving]);
 
   if (!account) return null;
 
@@ -102,16 +103,10 @@ export function AccountAlertModal({
   };
 
   const save = async () => {
-    setSaving(true);
-    setError(null);
-    try {
+    await run(async () => {
       await bridgeApi.saveAccountAlerts(account.id, settings);
       onSaved();
-    } catch (cause) {
-      setError(describeError("alerts", "Couldn't save the alert settings", cause));
-    } finally {
-      setSaving(false);
-    }
+    }, "Couldn't save the alert settings");
   };
 
   return (
