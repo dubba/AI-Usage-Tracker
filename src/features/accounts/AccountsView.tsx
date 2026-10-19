@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type BusyKeys } from "../../shared/lib/busy";
-import { SIDEBAR_ID } from "../../shared/lib/constants";
+import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
 import {
   AlertCircleIcon,
   CheckCircleIcon,
@@ -8,7 +8,6 @@ import {
   CloseIcon,
   DevicesIcon,
   EditIcon,
-  MenuIcon,
   PlusIcon,
   TrashIcon,
   UsersIcon,
@@ -195,19 +194,7 @@ export function AccountsView(props: {
       <header className="dashboard-header">
         <div>
           <div className="dashboard-title-row">
-            {props.onToggleSidebar ? (
-              <button
-                type="button"
-                className="mobile-sidebar-toggle-btn"
-                onClick={props.onToggleSidebar}
-                aria-expanded={props.sidebarOpen ?? false}
-                aria-controls={SIDEBAR_ID}
-                aria-label="Toggle navigation menu"
-                data-tooltip="Toggle navigation menu"
-              >
-                <MenuIcon />
-              </button>
-            ) : null}
+            {props.onToggleSidebar ? <MobileSidebarToggle onToggle={props.onToggleSidebar} open={props.sidebarOpen} /> : null}
             <h1 className="eyebrow" tabIndex={-1} style={{ outline: "none" }}>
               {props.selectedGroup.type === "all"
                 ? props.allAccounts.length === 0 ? "Dashboard" : "All accounts"

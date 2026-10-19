@@ -1,56 +1,21 @@
 import { useState } from "react";
-import {
-  ArrowUpCircleIcon,
-  ChevronIcon,
-  DevicesIcon,
-  DownloadCloudIcon,
-  ExternalLinkIcon,
-  MenuIcon,
-} from "../../shared/ui/icons";
+import { ChevronIcon, DevicesIcon } from "../../shared/ui/icons";
 import { CopyDiagnosticsButton } from "./CopyDiagnosticsButton";
-import { CustomDropdown } from "../../shared/ui/CustomDropdown";
-import type {
-  AppSettings,
-  AppUpdateProgress,
-  AppUpdateStatus,
-  BridgeStatus,
-  UpdateBusy,
-} from "../../types";
-import { FALLBACK_APP_VERSION, SIDEBAR_ID } from "../../shared/lib/constants";
-import { isIOS, isMobileDevice } from "../../shared/lib/platform";
+import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
+import type { BridgeStatus } from "../../types";
+import { isMobileDevice } from "../../shared/lib/platform";
 import { SHORTCUTS, isMacPlatform, shortcutLabel } from "../shortcuts/shortcuts";
-import { UpdateErrorMessage } from "./UpdateErrorMessage";
-import { UpdateProgressBar, updateInstallLabel } from "./UpdateProgressBar";
-import { useThemePreference } from "../../shared/hooks/useThemePreference";
-import type { ThemePreference } from "../../shared/lib/theme";
+import { GeneralSection } from "./GeneralSection";
+import { LocalApiSection } from "./LocalApiSection";
+import { UpdatesSection } from "./UpdatesSection";
 import { readSettingsAdvancedOpen, writeSettingsAdvancedOpen } from "./settings-view-state";
 
-const ACCOUNT_REFRESH_OPTIONS = [5, 10, 15, 30, 45, 60] as const;
-const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
-  { value: "dark", label: "Dark" },
-  { value: "light", label: "Light" },
-  { value: "system", label: "System" },
-];
-const CHANGELOG_URL = "https://github.com/dubba/AI-Usage-Tracker/blob/main/CHANGELOG.md";
-
+/**
+ * The Settings page. The app settings and the update state it shows come from the contexts in
+ * `settings-context.tsx`; the props are what only the app shell knows (the sidebar, the pairing
+ * dialog, links, and the local API state).
+ */
 export function SettingsView({
-  autostart,
-  onToggleAutostart,
-  appSettings,
-  refreshIntervalBusy,
-  automaticUpdatesBusy,
-  includeBetaUpdatesBusy,
-  onAccountRefreshMinutesChange,
-  onAutomaticUpdatesChange,
-  onIncludeBetaUpdatesChange,
-  installedVersion,
-  update,
-  updateBusy,
-  updateProgress,
-  updateError,
-  updateMessage,
-  onCheckForUpdate,
-  onInstallUpdate,
   onToggleSidebar,
   sidebarOpen,
   onOpenPairing,
@@ -62,23 +27,6 @@ export function SettingsView({
   onViewBridgeWindow,
   onOpenUpdateNotes,
 }: {
-  autostart: boolean;
-  onToggleAutostart: () => void;
-  appSettings: AppSettings | null;
-  refreshIntervalBusy: boolean;
-  automaticUpdatesBusy: boolean;
-  includeBetaUpdatesBusy: boolean;
-  onAccountRefreshMinutesChange: (minutes: number) => void;
-  onAutomaticUpdatesChange: (enabled: boolean) => void;
-  onIncludeBetaUpdatesChange: (enabled: boolean) => void;
-  installedVersion: string;
-  update: AppUpdateStatus | null;
-  updateBusy: UpdateBusy;
-  updateProgress: AppUpdateProgress | null;
-  updateError: string | null;
-  updateMessage?: string | null;
-  onCheckForUpdate: () => void;
-  onInstallUpdate: () => void;
   onToggleSidebar?: () => void;
   sidebarOpen?: boolean;
   onOpenPairing?: () => void;
@@ -90,9 +38,6 @@ export function SettingsView({
   onViewBridgeWindow: () => void;
   onOpenUpdateNotes?: () => void;
 }) {
-  const automaticUpdates = appSettings?.automaticUpdatesEnabled ?? true;
-  const includeBetaUpdates = appSettings?.includeBetaUpdates ?? false;
-  const [themePreference, setThemePreference] = useThemePreference();
   const [advancedOpen, setAdvancedOpen] = useState(readSettingsAdvancedOpen);
 
   const toggleAdvanced = () => {
@@ -107,188 +52,15 @@ export function SettingsView({
       <header className="dashboard-header">
         <div>
           <div className="dashboard-title-row">
-            {onToggleSidebar ? (
-              <button
-                type="button"
-                className="mobile-sidebar-toggle-btn"
-                onClick={onToggleSidebar}
-                aria-expanded={sidebarOpen ?? false}
-                aria-controls={SIDEBAR_ID}
-                aria-label="Toggle navigation menu"
-                data-tooltip="Toggle navigation menu"
-              >
-                <MenuIcon />
-              </button>
-            ) : null}
+            {onToggleSidebar ? <MobileSidebarToggle onToggle={onToggleSidebar} open={sidebarOpen} /> : null}
             <h1 className="eyebrow" tabIndex={-1} style={{ outline: "none" }}>App Settings</h1>
           </div>
         </div>
       </header>
       <div className="dashboard-scroll">
-        <h2 className="settings-section-title">General</h2>
-        <section className="settings-card">
-          <div className="settings-row">
-            <div>
-              <strong>Appearance</strong>
-              <small>Dark, light, or match your device.</small>
-            </div>
-            <div className="settings-account-refresh settings-theme-dropdown">
-              <CustomDropdown<ThemePreference>
-                id="setting-theme"
-                aria-label="Theme"
-                value={themePreference}
-                options={THEME_OPTIONS}
-                onChange={setThemePreference}
-              />
-            </div>
-          </div>
-          <div className="settings-row">
-            <div>
-              <strong id="setting-autostart-label">Launch at Startup</strong>
-              <small>Start the app when your device starts.</small>
-            </div>
-            <button type="button" role="switch" aria-checked={autostart} aria-labelledby="setting-autostart-label" className={`toggle ${autostart ? "on" : ""}`} onClick={onToggleAutostart}><span /></button>
-          </div>
-          <div className="settings-row">
-            <div>
-              <strong>Account Updates</strong>
-              <small>How often usage is refreshed.</small>
-            </div>
-            <div className="settings-account-refresh">
-              <CustomDropdown<number>
-                aria-label="Refresh interval"
-                value={
-                  appSettings?.accountRefreshMinutes != null &&
-                  (ACCOUNT_REFRESH_OPTIONS as readonly number[]).includes(appSettings.accountRefreshMinutes)
-                    ? appSettings.accountRefreshMinutes
-                    : 15
-                }
-                disabled={!appSettings || refreshIntervalBusy}
-                options={ACCOUNT_REFRESH_OPTIONS.map((minutes) => ({
-                  value: minutes,
-                  label: `${minutes} minutes`,
-                }))}
-                onChange={(minutes) => onAccountRefreshMinutesChange(minutes)}
-              />
-            </div>
-          </div>
-        </section>
+        <GeneralSection />
 
-        <h2 className="settings-section-title">Updates</h2>
-        <section className="settings-card">
-          <div className="settings-row settings-updates-group-row">
-            <div className="settings-updates-group-header">
-              <div>
-                <strong id="setting-auto-update-label">Automatic Updates</strong>
-                <small>Check for new versions automatically.</small>
-              </div>
-              <button
-                type="button"
-                className={`toggle ${automaticUpdates ? "on" : ""}`}
-                disabled={!appSettings || automaticUpdatesBusy}
-                role="switch"
-                aria-checked={automaticUpdates}
-                aria-labelledby="setting-auto-update-label"
-                onClick={() => onAutomaticUpdatesChange(!automaticUpdates)}
-              >
-                <span />
-              </button>
-            </div>
-
-            <div className="settings-updates-subcard">
-              <div className="settings-updates-subcard-info">
-                <span className="settings-installed-version mono">
-                  {`Current Version: ${String(update?.currentVersion || installedVersion || FALLBACK_APP_VERSION).replace(/^v/i, "")}`}
-                </span>
-                {updateBusy === "downloading" || updateBusy === "verifying" || updateBusy === "installing" ? null : (
-                <div className={`settings-updates-subcard-status ${!updateBusy && update?.available ? "update-available" : ""}`}>
-                  {updateBusy === "checking" ? (
-                    <span>Checking for updates…</span>
-                  ) : update?.available && update.availableVersion ? (
-                    <>
-                      <span className="status-indicator-dot red" aria-hidden="true" />
-                      <span>{`Version ${update.availableVersion.replace(/^v/i, "")} available`}</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="status-indicator-dot green" aria-hidden="true" />
-                      <span>Up to date</span>
-                    </>
-                  )}
-                </div>
-                )}
-              </div>
-              {update?.available ? (
-                <button
-                  type="button"
-                  className="button danger settings-update-action settings-update-action-danger"
-                  disabled={updateBusy !== null}
-                  onClick={onInstallUpdate}
-                >
-                  <DownloadCloudIcon className="settings-update-action-icon" />
-                  <span>{updateInstallLabel(updateBusy, isIOS())}</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="button primary settings-update-action"
-                  disabled={updateBusy !== null}
-                  onClick={onCheckForUpdate}
-                >
-                  <ArrowUpCircleIcon className="settings-update-action-icon" />
-                  <span>{updateBusy === "checking" ? "Checking…" : "Check Now"}</span>
-                </button>
-              )}
-              {!updateBusy && update?.available && update.availableVersion && onOpenUpdateNotes ? (
-                <div className="settings-updates-subcard-link-row">
-                  <button
-                    type="button"
-                    className="settings-view-changelog-link"
-                    onClick={onOpenUpdateNotes}
-                  >
-                    {`View what changed in v${update.availableVersion.replace(/^v/i, "")}`}
-                  </button>
-                </div>
-              ) : null}
-              <UpdateProgressBar busy={updateBusy} percent={updateProgress?.percent ?? null} />
-              {updateMessage ? <div className="info-panel settings-update-info">{updateMessage}</div> : null}
-              {updateError ? <UpdateErrorMessage error={updateError} onOpenLink={onOpenLink} /> : null}
-            </div>
-
-            <div className="settings-updates-group-header settings-updates-beta-row">
-              <div>
-                <strong id="setting-beta-label">Include Beta Releases</strong>
-              </div>
-              <button
-                type="button"
-                className={`toggle ${includeBetaUpdates ? "on" : ""}`}
-                disabled={!appSettings || includeBetaUpdatesBusy}
-                role="switch"
-                aria-checked={includeBetaUpdates}
-                aria-labelledby="setting-beta-label"
-                onClick={() => onIncludeBetaUpdatesChange(!includeBetaUpdates)}
-              >
-                <span />
-              </button>
-            </div>
-          </div>
-          <div className="settings-row">
-            <div>
-              <strong>Change Log</strong>
-              <small>Full history of app changes.</small>
-            </div>
-            <button
-              type="button"
-              className="button ghost settings-changelog-button"
-              aria-label="View change log (opens in web browser)"
-              data-tooltip="Opens in web browser"
-              onClick={() => onOpenLink(CHANGELOG_URL)}
-            >
-              <span>View</span>
-              <ExternalLinkIcon />
-            </button>
-          </div>
-        </section>
+        <UpdatesSection onOpenLink={onOpenLink} onOpenUpdateNotes={onOpenUpdateNotes} />
 
         <h2 className="settings-section-title">Devices</h2>
         <section className="settings-card">
@@ -332,45 +104,13 @@ export function SettingsView({
                 <CopyDiagnosticsButton compact className="button ghost settings-changelog-button" />
               </div>
             </section>
-            {!isMobileDevice() ? (
-              <section className="settings-card">
-                <div className="settings-row">
-                  <div>
-                    <strong id="setting-bridge-label">Paseo Bridge</strong>
-                    <small>Allows local HTTP tools to access quota usage & notification status.</small>
-                  </div>
-                  <button
-                    type="button"
-                    className={`toggle ${bridge?.enabled ? "on" : ""}`}
-                    disabled={bridgeBusy}
-                    role="switch"
-                    aria-checked={Boolean(bridge?.enabled)}
-                    aria-labelledby="setting-bridge-label"
-                    onClick={() => onToggleBridge(!bridge?.enabled)}
-                  >
-                    <span />
-                  </button>
-                </div>
-                <div className="settings-row">
-                  <div>
-                    <strong>Integration Window</strong>
-                    <small>View local bridge status, auth tokens and connection URL.</small>
-                  </div>
-                  <button
-                    type="button"
-                    className="button ghost settings-changelog-button"
-                    aria-label="View integration window (opens in a new window)"
-                    data-tooltip="Opens in a new window"
-                    disabled={integrationWindowBusy}
-                    onClick={onViewBridgeWindow}
-                  >
-                    <span>View</span>
-                    <ExternalLinkIcon />
-                  </button>
-                </div>
-              </section>
-            ) : null}
-            {!isMobileDevice() && bridge?.error ? <div className="error-panel api-integration-error" role="alert">{bridge.error}</div> : null}
+            <LocalApiSection
+              bridge={bridge}
+              bridgeBusy={bridgeBusy}
+              integrationWindowBusy={integrationWindowBusy}
+              onToggleBridge={onToggleBridge}
+              onViewBridgeWindow={onViewBridgeWindow}
+            />
             {!isMobileDevice() ? (
               <section className="settings-card settings-shortcuts-card" aria-labelledby="settings-shortcuts-heading">
                 <div className="settings-row settings-shortcuts-row">

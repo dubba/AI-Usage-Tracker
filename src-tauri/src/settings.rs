@@ -10,7 +10,7 @@ pub const MIN_ACCOUNT_REFRESH_MINUTES: u64 = 5;
 pub const MAX_ACCOUNT_REFRESH_MINUTES: u64 = 60;
 pub const ACCOUNT_REFRESH_STEP_MINUTES: u64 = 5;
 /// The intervals the Settings dropdown offers; stored values are snapped to the closest one.
-const OFFERED_REFRESH_MINUTES: [u64; 6] = [5, 10, 15, 30, 45, 60];
+pub(crate) const OFFERED_REFRESH_MINUTES: [u64; 6] = [5, 10, 15, 30, 45, 60];
 /// Bounds, in logical pixels, for the remembered Paseo Bridge window size. A hand-edited or
 /// corrupt value outside them is dropped instead of being handed to the window system.
 const MIN_REMEMBERED_WINDOW_PIXELS: u32 = 200;

@@ -20,6 +20,7 @@ import { GoogleAiStudioUsageModal } from "../features/accounts/GoogleAiStudioUsa
 import { PairingModal } from "../features/pairing/PairingModal";
 import { SettingsView } from "../features/settings/SettingsView";
 import { UpdateNotesModal } from "../features/settings/UpdateNotesModal";
+import { AppSettingsContext, AppUpdateContext } from "../features/settings/settings-context";
 import { GROUP_REORDER_HINT_ID, SidebarGroupRow } from "../features/dashboard/SidebarGroupRow";
 import { SidebarResizeHandle } from "../features/dashboard/SidebarResizeHandle";
 import { UsageAlertToasts } from "../features/alerts/UsageAlertToasts";
@@ -107,36 +108,26 @@ export default function App() {
   const busyKeys = useBusyKeys();
   const { busy } = busyKeys;
   const { errors, report: reportError, clear: clearError } = useAppErrors();
-  const {
-    appSettings,
-    autostart,
-    refreshIntervalBusy,
-    automaticUpdatesBusy,
-    includeBetaUpdatesBusy,
-    reloadFromBackend,
-    saveAccountRefreshMinutes,
-    saveAutomaticUpdatesEnabled,
-    saveIncludeBetaUpdates,
-    toggleAutostart,
-  } = useAppSettings({ reportError, clearError });
+  // The Settings page reads these two from context (settings-context.tsx); they run here because
+  // the dashboard, the pairing dialog and the update-notes dialog need them on every page.
+  const settings = useAppSettings({ reportError, clearError });
+  const { appSettings, reloadFromBackend } = settings;
   const { snapshot, setSnapshot, load } = useDashboardData({
     reportError,
     clearError,
     accountRefreshMinutes: appSettings?.accountRefreshMinutes,
   });
+  const update = useAppUpdate({ automaticUpdatesEnabled: appSettings?.automaticUpdatesEnabled });
   const {
-    installedVersion,
     appUpdate,
     updateBusy,
     updateProgress,
     updateError,
-    updateMessage,
     updateNotesOpen,
     setUpdateNotesOpen,
     pendingUpdateVersion,
-    checkForUpdate,
     installUpdate,
-  } = useAppUpdate({ automaticUpdatesEnabled: appSettings?.automaticUpdatesEnabled });
+  } = update;
   const { alerts: inAppAlerts, dismiss: dismissAlert } = useUsageAlerts();
   const { pairingOpen, setPairingOpen, pairingInitialUri, closePairing } = usePairingEvents();
   const {
@@ -341,35 +332,22 @@ export default function App() {
   const renderContent = () => {
     if (section === "settings") {
       return (
-        <SettingsView
-          autostart={autostart}
-          onToggleAutostart={toggleAutostart}
-          appSettings={appSettings}
-          refreshIntervalBusy={refreshIntervalBusy}
-          automaticUpdatesBusy={automaticUpdatesBusy}
-          includeBetaUpdatesBusy={includeBetaUpdatesBusy}
-          onAccountRefreshMinutesChange={(minutes) => void saveAccountRefreshMinutes(minutes)}
-          onAutomaticUpdatesChange={(enabled) => void saveAutomaticUpdatesEnabled(enabled)}
-          onIncludeBetaUpdatesChange={(enabled) => void saveIncludeBetaUpdates(enabled)}
-          installedVersion={installedVersion}
-          update={appUpdate}
-          updateBusy={updateBusy}
-          updateProgress={updateProgress}
-          updateError={updateError}
-          updateMessage={updateMessage}
-          onCheckForUpdate={() => void checkForUpdate(true)}
-          onInstallUpdate={() => void installUpdate()}
-          onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
-          sidebarOpen={sidebarOpen}
-          onOpenPairing={() => setPairingOpen(true)}
-          onOpenLink={openLink}
-          bridge={snapshot?.bridge ?? null}
-          bridgeBusy={busy.has("toggle-api-integration")}
-          integrationWindowBusy={busy.has("open-api-integration")}
-          onToggleBridge={(enabled) => void setApiIntegrationEnabled(enabled)}
-          onViewBridgeWindow={() => void openApiIntegrationWindow()}
-          onOpenUpdateNotes={() => setUpdateNotesOpen(true)}
-        />
+        <AppSettingsContext.Provider value={settings}>
+          <AppUpdateContext.Provider value={update}>
+            <SettingsView
+              onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+              sidebarOpen={sidebarOpen}
+              onOpenPairing={() => setPairingOpen(true)}
+              onOpenLink={openLink}
+              bridge={snapshot?.bridge ?? null}
+              bridgeBusy={busy.has("toggle-api-integration")}
+              integrationWindowBusy={busy.has("open-api-integration")}
+              onToggleBridge={(enabled) => void setApiIntegrationEnabled(enabled)}
+              onViewBridgeWindow={() => void openApiIntegrationWindow()}
+              onOpenUpdateNotes={() => setUpdateNotesOpen(true)}
+            />
+          </AppUpdateContext.Provider>
+        </AppSettingsContext.Provider>
       );
     }
     return (

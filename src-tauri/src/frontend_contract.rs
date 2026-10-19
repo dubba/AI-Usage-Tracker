@@ -8,13 +8,14 @@ use crate::{
         google_ai_studio::{SOURCE_MODELS_ONLY, SOURCE_MONITORING, SOURCE_MONITORING_WAITING},
         grok::GROK_BOT_WINDOW_ID,
     },
-    settings::DEFAULT_ACCOUNT_REFRESH_MINUTES,
+    settings::{DEFAULT_ACCOUNT_REFRESH_MINUTES, OFFERED_REFRESH_MINUTES},
 };
 use std::{collections::BTreeMap, str::FromStr};
 
 const USAGE_SOURCES_TS: &str = include_str!("../../src/shared/lib/usage-sources.ts");
 const CONSTANTS_TS: &str = include_str!("../../src/shared/lib/constants.ts");
 const PROVIDERS_TS: &str = include_str!("../../src/shared/lib/providers.ts");
+const GENERAL_SECTION_TSX: &str = include_str!("../../src/features/settings/GeneralSection.tsx");
 
 /// The text of `export const <name> = ...;` up to the closing `;`.
 fn ts_const<'a>(source: &'a str, name: &str) -> &'a str {
@@ -194,4 +195,17 @@ fn bridge_window_names_the_real_port() {
         window.contains(&format!("<code>{address}</code>")),
         "ApiIntegrationWindow.tsx must show the local API address {address}"
     );
+}
+
+#[test]
+fn refresh_interval_choices_match_the_settings_page() {
+    let marker = "const ACCOUNT_REFRESH_OPTIONS = [";
+    let start = GENERAL_SECTION_TSX.find(marker).expect("options list") + marker.len();
+    let list = &GENERAL_SECTION_TSX[start..];
+    let list = &list[..list.find(']').unwrap()];
+    let offered: Vec<u64> = list
+        .split(',')
+        .filter_map(|value| value.trim().parse().ok())
+        .collect();
+    assert_eq!(offered, OFFERED_REFRESH_MINUTES);
 }
