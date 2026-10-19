@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { openSafeUrl } from "../../shared/lib/safeUrl";
 import { bridgeApi, readLoginAttempt } from "../../shared/lib/api";
 import { useAsyncAction } from "../../shared/hooks/useAsyncAction";
-import { logIgnored } from "../../shared/lib/log";
-import { abandonLoginAttempt, getLastLoginStatus, retryLoginAttempt, subscribeLoginStatus, watchLoginAttempt } from "../../shared/lib/login-status";
-import type { Account, CloudProjectOption, LoginStatus } from "../../types";
+import { getLastLoginStatus, watchLoginAttempt } from "../../shared/lib/login-status";
+import { useLoginAttempt, waitingStatus } from "../../shared/hooks/useLoginAttempt";
+import type { Account, CloudProjectOption } from "../../types";
 import { CustomDropdown } from "../../shared/ui/CustomDropdown";
 import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
@@ -22,48 +22,15 @@ export function GoogleAiStudioUsageModal({
   onClose: () => void;
   onConnected: (account: Account) => void;
 }) {
-  const [status, setStatus] = useState<LoginStatus | null>(null);
   const [stage, setStage] = useState<SetupStage>("signin");
   const [projects, setProjects] = useState<CloudProjectOption[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const { error, setError } = useAutoDismissedError(account?.id);
   const { busy, setBusy, run } = useAsyncAction({ source: "google-ai-studio", setError });
-  const closeRequestedRef = useRef(false);
-  const attemptIdRef = useRef<string | null>(null);
   const dialogRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    closeRequestedRef.current = account == null;
-    if (!account) attemptIdRef.current = null;
-    setStatus(null);
-    setStage("signin");
-    setProjects([]);
-    setSelectedProjectId("");
-    setBusy(false);
-    setError(null);
-    if (!account) return;
-    const last = getLastLoginStatus();
-    if (last && (last.status === "choose_project" || last.status === "monitoring_disabled")) {
-      attemptIdRef.current = last.attemptId;
-      setStatus(last);
-      setProjects(last.projects ?? []);
-      setSelectedProjectId(last.selectedProjectId ?? last.projects?.[0]?.projectId ?? "");
-      setStage(last.status);
-    }
-    const attemptId = readLoginAttempt();
-    if (attemptId) {
-      attemptIdRef.current = attemptId;
-      watchLoginAttempt(attemptId);
-    }
-  }, [account, setError, setBusy]);
-
-  useEffect(() => {
-    if (!account) return;
-    return subscribeLoginStatus((next) => {
-      if (closeRequestedRef.current) return;
-      if (attemptIdRef.current && next.attemptId !== attemptIdRef.current) return;
-      if (!attemptIdRef.current) return;
-      setStatus(next);
+  const { status, setStatus, attemptIdRef, closeRequestedRef, adopt, retry: retryAttempt, abandon } = useLoginAttempt({
+    active: account != null,
+    onStatus: (next) => {
       if (next.status === "complete" && next.account) {
         setBusy(false);
         onConnected(next.account);
@@ -84,18 +51,35 @@ export function GoogleAiStudioUsageModal({
         setSelectedProjectId(next.selectedProjectId ?? next.projects[0].projectId);
         setStage(next.status);
       }
-    });
-  }, [account, onConnected, setError, setBusy]);
+    },
+  });
+
+  useEffect(() => {
+    setStatus(null);
+    setStage("signin");
+    setProjects([]);
+    setSelectedProjectId("");
+    setBusy(false);
+    setError(null);
+    if (!account) return;
+    const last = getLastLoginStatus();
+    if (last && (last.status === "choose_project" || last.status === "monitoring_disabled")) {
+      attemptIdRef.current = last.attemptId;
+      setStatus(last);
+      setProjects(last.projects ?? []);
+      setSelectedProjectId(last.selectedProjectId ?? last.projects?.[0]?.projectId ?? "");
+      setStage(last.status);
+    }
+    const attemptId = readLoginAttempt();
+    if (attemptId) {
+      attemptIdRef.current = attemptId;
+      watchLoginAttempt(attemptId);
+    }
+  }, [account, setError, setBusy, setStatus, attemptIdRef]);
 
   const closeModal = () => {
-    closeRequestedRef.current = true;
-    const attemptId = status?.attemptId ?? attemptIdRef.current;
-    setStatus(null);
+    abandon();
     setBusy(false);
-    attemptIdRef.current = null;
-    if (attemptId) {
-      abandonLoginAttempt(attemptId);
-    }
     onClose();
   };
 
@@ -115,20 +99,7 @@ export function GoogleAiStudioUsageModal({
     await run(
       async () => {
         const next = await bridgeApi.startGoogleAiStudioUsageLogin(account.id, projectId, enableMonitoring);
-        if (closeRequestedRef.current) {
-          await bridgeApi.cancelLogin(next.attemptId).catch((cause) => logIgnored("login.cancel", cause));
-          return;
-        }
-        attemptIdRef.current = next.attemptId;
-        setStatus({
-          attemptId: next.attemptId,
-          status: "waiting",
-          message: null,
-          account: null,
-          projects: null,
-          selectedProjectId: null,
-        });
-        watchLoginAttempt(next.attemptId);
+        if (!(await adopt(next.attemptId, waitingStatus(next.attemptId, null)))) return;
         if (next.authorizationUrl) {
           await openSafeUrl(next.authorizationUrl);
         }
@@ -139,18 +110,15 @@ export function GoogleAiStudioUsageModal({
   };
 
   const retry = () => {
-    const attemptId = status?.attemptId ?? attemptIdRef.current;
-    if (attemptId && retryLoginAttempt(attemptId)) {
-      setError(null);
-      setBusy(true);
-      setStatus({
-        attemptId,
-        status: "waiting",
-        message: "Reconnecting to Google…",
-        account: null,
+    const resumed = retryAttempt((attemptId) =>
+      waitingStatus(attemptId, "Reconnecting to Google…", {
         projects: status?.projects ?? projects,
         selectedProjectId: selectedProjectId || null,
-      });
+      }),
+    );
+    if (resumed) {
+      setError(null);
+      setBusy(true);
       return;
     }
     if (stage === "choose_project") {
