@@ -4,7 +4,8 @@ import { act } from "react";
 import { click, mount, settle, type Mounted } from "../../test-utils/react";
 import type { Account } from "../../types";
 import { CREDENTIAL_PROTECTION_ACCOUNT_NOTE } from "../dashboard/credential-protection";
-import { AccountDashboardCard, computeAccountCardMenuPlacement } from "./AccountDashboardCard";
+import { computeAccountCardMenuPlacement } from "./AccountCardMenu";
+import { AccountDashboardCard } from "./AccountDashboardCard";
 
 const account = {
   id: "acct-1",

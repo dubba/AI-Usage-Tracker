@@ -91,3 +91,33 @@ describe("AccountUsageMetric tone classes", () => {
     expect(bar?.classList.contains("tone-neutral")).toBe(true);
   });
 });
+
+describe("AccountUsageMetric unavailable mode", () => {
+  it("shows an empty bar and says to refresh", () => {
+    const m = mount(<AccountUsageMetric unavailable creditLabel="Credits: $4.00" />);
+    try {
+      const root = document.querySelector(".account-usage-metric")!;
+      expect(root.classList.contains("unavailable-metric")).toBe(true);
+      const bar = root.querySelector("[role=progressbar]")!;
+      expect(bar.getAttribute("aria-label")).toBe("Quota remaining");
+      expect(bar.getAttribute("aria-valuetext")).toBe("Unavailable");
+      expect(bar.getAttribute("aria-valuenow")).toBeNull();
+      expect((bar.firstElementChild as HTMLElement).style.width).toBe("0%");
+      expect(root.querySelector(".metric-full-value")?.textContent).toBe("Unavailable");
+      expect(root.querySelector(".metric-reset")?.textContent).toBe("Refresh this account to retrieve its limits.");
+      expect(root.querySelector(".metric-inline-credit")?.textContent).toBe("Credits: $4.00");
+      expect(root.querySelector(".metric-window-pill")).toBeNull();
+    } finally {
+      m.unmount();
+    }
+  });
+
+  it("omits the credit line when there is none", () => {
+    const m = mount(<AccountUsageMetric unavailable />);
+    try {
+      expect(document.querySelector(".metric-inline-credit")).toBeNull();
+    } finally {
+      m.unmount();
+    }
+  });
+});

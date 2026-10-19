@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { busyKey, REFRESH_ALL_KEY, type BusyKeys } from "../../shared/lib/busy";
 import { isCardCollapsedOnPage, setCardCollapsedOnPage } from "../dashboard/dashboard-page-state";
 import {
@@ -28,7 +28,6 @@ import {
 import type {
   Account,
 } from "../../types";
-import { errorMessage, friendlyMessage } from "../../shared/lib/errors";
 import { useClock } from "../../shared/hooks/useClock";
 import { useUsageDisplayMode } from "../../shared/hooks/useUsageDisplayMode";
 import { displayPercent, usageDisplaySuffix } from "../../shared/lib/usage-display";
@@ -36,43 +35,12 @@ import { isGoogleKeyOnly, isGoogleSetupPending } from "../../shared/lib/usage-so
 import { reorderKeyDelta } from "../reorder/reorder-utils";
 import { AccountUsageMetric } from "./AccountUsageMetric";
 import { CREDENTIAL_PROTECTION_ACCOUNT_NOTE } from "../dashboard/credential-protection";
-import { computeDropdownPlacement } from "../../shared/ui/dropdown-placement";
+import { AccountCardMenu } from "./AccountCardMenu";
+import { useInlineAccountRename } from "./useInlineAccountRename";
 
 /** Id of the visually hidden hint that AccountsView renders once for every card. */
 export const REORDER_HINT_ID = "account-reorder-hint";
 
-
-export const MENU_GAP = 8;
-export const MENU_ESTIMATED_HEIGHT_MOVE = 220;
-export const MENU_ESTIMATED_HEIGHT_BASIC = 135;
-
-export type MobileMenuPlacement = {
-  openUpward: boolean;
-  maxHeight?: number;
-};
-
-export function computeAccountCardMenuPlacement(
-  toggle: HTMLElement | null,
-  hasMoveMenu: boolean,
-  menu?: HTMLElement | null,
-): MobileMenuPlacement {
-  if (!toggle) {
-    return { openUpward: false };
-  }
-
-  const estimatedHeight = hasMoveMenu ? MENU_ESTIMATED_HEIGHT_MOVE : MENU_ESTIMATED_HEIGHT_BASIC;
-  const result = computeDropdownPlacement(toggle, menu ?? null, {
-    gap: MENU_GAP,
-    minHeight: 80,
-    estimatedHeight,
-    isFixed: false,
-  });
-
-  return {
-    openUpward: result.openUpward,
-    maxHeight: result.maxHeight,
-  };
-}
 
 export function AccountDashboardCard({
   pageId,
@@ -108,12 +76,9 @@ export function AccountDashboardCard({
   const plan = displayPlan(account);
   const needsAttention = accountNeedsAttention(account);
   const [isCollapsed, setIsCollapsed] = useState(() => isCardCollapsedOnPage(pageId, account.id));
-  const [editing, setEditing] = useState(false);
-  const [label, setLabel] = useState(account.label);
-  const [renameError, setRenameError] = useState<string | null>(null);
-  const committingRenameRef = useRef(false);
+  const rename = useInlineAccountRename(account, onRename);
   const iconButtonRef = useRef<HTMLButtonElement>(null);
-  const mobileMenuId = `account-actions-${account.id}`;
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const toggleCollapse = () => {
     // Persist outside the state updater: updaters must be pure (StrictMode runs them twice).
@@ -146,143 +111,11 @@ export function AccountDashboardCard({
         ? `Credits: $${account.lastUsage.creditsUsd.toFixed(2)}`
         : null;
 
-  useEffect(() => {
-    if (!editing) setLabel(account.label);
-  }, [account.label, editing]);
-
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [mobileMenuPlacement, setMobileMenuPlacement] = useState<MobileMenuPlacement>({ openUpward: false });
-  const mobileMenuRef = useRef<HTMLDivElement>(null);
-  const mobileMenuToggleRef = useRef<HTMLButtonElement>(null);
-  const menuElementRef = useRef<HTMLDivElement>(null);
-
-  const openMobileMenu = () => {
-    setMobileMenuPlacement(computeAccountCardMenuPlacement(mobileMenuToggleRef.current, Boolean(onMove), menuElementRef.current));
-    setMobileMenuOpen(true);
-  };
-
-  const closeMobileMenu = (restoreFocus = false) => {
-    setMobileMenuOpen(false);
-    if (restoreFocus) {
-      // The menu unmounts when it closes, so wait until the toggle is all that's left.
-      window.setTimeout(() => mobileMenuToggleRef.current?.focus(), 0);
-    }
-  };
-
-  const toggleMobileMenu = () => {
-    if (mobileMenuOpen) {
-      closeMobileMenu(true);
-    } else {
-      openMobileMenu();
-    }
-  };
-
-  useLayoutEffect(() => {
-    if (!mobileMenuOpen) return;
-
-    const updatePlacement = () => {
-      setMobileMenuPlacement((prev) => {
-        const next = computeAccountCardMenuPlacement(
-          mobileMenuToggleRef.current,
-          Boolean(onMove),
-          menuElementRef.current,
-        );
-        if (prev.openUpward === next.openUpward && prev.maxHeight === next.maxHeight) {
-          return prev;
-        }
-        return next;
-      });
-    };
-
-    updatePlacement();
-    window.addEventListener("resize", updatePlacement);
-    window.addEventListener("scroll", updatePlacement, true);
-    window.visualViewport?.addEventListener("resize", updatePlacement);
-    window.visualViewport?.addEventListener("scroll", updatePlacement);
-    return () => {
-      window.removeEventListener("resize", updatePlacement);
-      window.removeEventListener("scroll", updatePlacement, true);
-      window.visualViewport?.removeEventListener("resize", updatePlacement);
-      window.visualViewport?.removeEventListener("scroll", updatePlacement);
-    };
-  }, [mobileMenuOpen, onMove]);
-
-  useEffect(() => {
-    if (!mobileMenuOpen) return;
-    const menu = mobileMenuRef.current?.querySelector<HTMLElement>(".mobile-dropdown-menu");
-    const items = () => Array.from(menu?.querySelectorAll<HTMLButtonElement>(".mobile-dropdown-item") ?? []);
-    items().find((item) => !item.disabled)?.focus();
-
-    const handlePointerOutside = (event: Event) => {
-      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
-        setMobileMenuOpen(false);
-      }
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const enabled = items().filter((item) => !item.disabled);
-      const current = enabled.indexOf(document.activeElement as HTMLButtonElement);
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeMobileMenu(true);
-        return;
-      }
-      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-        event.preventDefault();
-        if (!enabled.length) return;
-        const next = event.key === "ArrowDown" ? current + 1 : current - 1;
-        enabled[(next + enabled.length) % enabled.length]?.focus();
-        return;
-      }
-      if (event.key === "Home" || event.key === "End") {
-        event.preventDefault();
-        enabled[event.key === "Home" ? 0 : enabled.length - 1]?.focus();
-      }
-    };
-    document.addEventListener("mousedown", handlePointerOutside);
-    document.addEventListener("touchstart", handlePointerOutside);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handlePointerOutside);
-      document.removeEventListener("touchstart", handlePointerOutside);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [mobileMenuOpen]);
-
   const requestMove = (delta: -1 | 1) => {
     if (!onMove || (delta < 0 ? !canMoveUp : !canMoveDown)) return;
     onMove(delta);
     // React moves the card's DOM node, which drops focus; put it back once the move has rendered.
     window.setTimeout(() => iconButtonRef.current?.focus(), 0);
-  };
-
-  const commitRename = async () => {
-    const next = label.trim();
-    if (!next) {
-      setRenameError("Account name is required.");
-      return;
-    }
-    if (next === account.label) {
-      setEditing(false);
-      setRenameError(null);
-      return;
-    }
-    if (committingRenameRef.current) return;
-    committingRenameRef.current = true;
-    try {
-      await onRename(next);
-      setEditing(false);
-      setRenameError(null);
-    } catch (cause) {
-      setRenameError(friendlyMessage("Couldn't rename this account", errorMessage(cause)));
-    } finally {
-      committingRenameRef.current = false;
-    }
-  };
-
-  const cancelRename = () => {
-    setLabel(account.label);
-    setRenameError(null);
-    setEditing(false);
   };
 
   return (
@@ -320,26 +153,23 @@ export function AccountDashboardCard({
         </button>
         <div className="account-card-identity">
           <div className="account-card-name-row">
-            {editing ? (
+            {rename.editing ? (
               <div className="account-card-name-edit-wrap">
                 <input
                   className="account-card-name-input"
-                  value={label}
+                  value={rename.label}
                   maxLength={80}
                   disabled={isRenaming}
                   autoFocus
                   aria-label={`Rename ${account.label}`}
-                  onChange={(event) => {
-                    setLabel(event.target.value);
-                    setRenameError(null);
-                  }}
+                  onChange={(event) => rename.setLabel(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       event.preventDefault();
-                      void commitRename();
+                      void rename.commit();
                     } else if (event.key === "Escape") {
                       event.preventDefault();
-                      cancelRename();
+                      rename.cancel();
                     }
                   }}
                 />
@@ -351,7 +181,7 @@ export function AccountDashboardCard({
                     aria-label={`Cancel renaming ${account.label}`}
                     disabled={isRenaming}
                     onMouseDown={(event) => event.preventDefault()}
-                    onClick={cancelRename}
+                    onClick={rename.cancel}
                   >
                     <CloseIcon />
                   </button>
@@ -362,21 +192,21 @@ export function AccountDashboardCard({
                     aria-label={`Save name for ${account.label}`}
                     disabled={isRenaming}
                     onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => void commitRename()}
+                    onClick={() => void rename.commit()}
                   >
                     {isRenaming ? <span className="mini-spinner" /> : <CheckIcon />}
                   </button>
                 </div>
               </div>
             ) : <h2>{displayAccountLabel(account)}</h2>}
-            {!editing ? (
-              <button type="button" className="account-name-edit" data-tooltip="Edit account name" aria-label={`Edit ${account.label}`} onClick={() => setEditing(true)}>
+            {!rename.editing ? (
+              <button type="button" className="account-name-edit" data-tooltip="Edit account name" aria-label={`Edit ${account.label}`} onClick={rename.startEditing}>
                 <EditIcon />
               </button>
             ) : null}
           </div>
           <p className="account-card-email">{displayAccountSubtitle(account)}</p>
-          {renameError ? <small className="account-card-inline-error">{renameError}</small> : null}
+          {rename.renameError ? <small className="account-card-inline-error">{rename.renameError}</small> : null}
         </div>
         <div className={`account-card-header-actions ${account.provider === "google_ai_studio" ? "has-google-action" : ""}`}>
           <div className="account-card-header-meta">
@@ -446,50 +276,20 @@ export function AccountDashboardCard({
               onClick={onRemove}
             >{isRemoving ? <span className="mini-spinner" /> : <TrashIcon />}</button>
            </div>
-            <div className={`mobile-actions-dropdown${onMove ? " has-move-menu" : ""}`} ref={mobileMenuRef}>
-              <button
-                ref={mobileMenuToggleRef}
-                type="button"
-                className="mobile-dropdown-toggle"
-                onClick={toggleMobileMenu}
-                aria-expanded={mobileMenuOpen}
-                aria-haspopup="menu"
-                aria-controls={mobileMenuOpen ? mobileMenuId : undefined}
-                aria-label={`More actions for ${displayAccountLabel(account)}`}
-              >
-                <ChevronIcon className={mobileMenuOpen ? "open" : ""} />
-              </button>
-              {mobileMenuOpen ? (
-                <div
-                  ref={menuElementRef}
-                  className={`mobile-dropdown-menu ${mobileMenuPlacement.openUpward ? "upward" : ""}`}
-                  id={mobileMenuId}
-                  role="menu"
-                  aria-label={`Actions for ${displayAccountLabel(account)}`}
-                  style={mobileMenuPlacement.maxHeight != null ? { maxHeight: `${mobileMenuPlacement.maxHeight}px` } : undefined}
-                >
-                  {onMove ? (
-                    <>
-                      <button type="button" role="menuitem" className="mobile-dropdown-item move-action" disabled={cardBusy || !canMoveUp} onClick={() => { closeMobileMenu(true); requestMove(-1); }}>
-                        <ArrowUpIcon /> Move up
-                      </button>
-                      <button type="button" role="menuitem" className="mobile-dropdown-item move-action" disabled={cardBusy || !canMoveDown} onClick={() => { closeMobileMenu(true); requestMove(1); }}>
-                        <ArrowDownIcon /> Move down
-                      </button>
-                    </>
-                  ) : null}
-                  <button type="button" role="menuitem" className="mobile-dropdown-item mobile-only-item refresh-action" disabled={cardBusy || isGlobalRefresh} onClick={() => { closeMobileMenu(true); onRefresh(); }}>
-                    <RefreshIcon /> Refresh
-                  </button>
-                  <button type="button" role="menuitem" className="mobile-dropdown-item mobile-only-item notify-action" disabled={cardBusy} onClick={() => { closeMobileMenu(true); onNotifications(); }}>
-                    <BellIcon /> Notifications
-                  </button>
-                  <button type="button" role="menuitem" className="mobile-dropdown-item mobile-only-item remove-action" disabled={cardBusy} onClick={() => { closeMobileMenu(true); onRemove(); }}>
-                    <TrashIcon /> Remove
-                  </button>
-                </div>
-              ) : null}
-            </div>
+            <AccountCardMenu
+              account={account}
+              open={mobileMenuOpen}
+              onOpenChange={setMobileMenuOpen}
+              hasMove={Boolean(onMove)}
+              canMoveUp={canMoveUp}
+              canMoveDown={canMoveDown}
+              cardBusy={cardBusy}
+              refreshDisabled={isGlobalRefresh}
+              onMove={requestMove}
+              onRefresh={onRefresh}
+              onNotifications={onNotifications}
+              onRemove={onRemove}
+            />
             </div>
           </div>
         </div>
@@ -520,28 +320,7 @@ export function AccountDashboardCard({
                 creditLabel={index === 0 ? creditLabel : null}
               />
             )) : (
-              <div className="account-usage-metric unavailable-metric">
-                <div className="metric-divider-row">
-                  <span className="metric-divider-line" aria-hidden="true" />
-                </div>
-                <div className="metric-value-row">
-                  <span
-                    className="account-metric-track"
-                    role="progressbar"
-                    aria-label="Quota remaining"
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuetext="Unavailable"
-                  ><span className="tone-neutral" style={{ width: "0%" }} /></span>
-                  {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
-                </div>
-                <div className="metric-detail-row">
-                  <span className="metric-percent-line">
-                    <strong className="metric-full-value">Unavailable</strong>
-                  </span>
-                  <span className="metric-reset">Refresh this account to retrieve its limits.</span>
-                </div>
-              </div>
+              <AccountUsageMetric unavailable creditLabel={creditLabel} />
             )}
           </div>
         </>

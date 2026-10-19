@@ -33,17 +33,55 @@ function resetSummaryLine(
   return "Rolling window";
 }
 
-export function AccountUsageMetric({
-  window,
-  provider,
-  unavailableLabel = "Unavailable",
-  creditLabel = null,
-}: {
+/**
+ * One usage window of an account card. With `unavailable` (the provider reported no windows at all)
+ * it shows an empty bar and says to refresh instead.
+ */
+export function AccountUsageMetric(props: WindowMetricProps | { unavailable: true; creditLabel?: string | null }) {
+  if ("unavailable" in props) return <UnavailableMetric creditLabel={props.creditLabel ?? null} />;
+  return <WindowMetric {...props} />;
+}
+
+function UnavailableMetric({ creditLabel }: { creditLabel: string | null }) {
+  return (
+    <div className="account-usage-metric unavailable-metric">
+      <div className="metric-divider-row">
+        <span className="metric-divider-line" aria-hidden="true" />
+      </div>
+      <div className="metric-value-row">
+        <span
+          className="account-metric-track"
+          role="progressbar"
+          aria-label="Quota remaining"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuetext="Unavailable"
+        ><span className="tone-neutral" style={{ width: "0%" }} /></span>
+        {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
+      </div>
+      <div className="metric-detail-row">
+        <span className="metric-percent-line">
+          <strong className="metric-full-value">Unavailable</strong>
+        </span>
+        <span className="metric-reset">Refresh this account to retrieve its limits.</span>
+      </div>
+    </div>
+  );
+}
+
+type WindowMetricProps = {
   window: UsageWindow;
   provider?: Provider | string;
   unavailableLabel?: string;
   creditLabel?: string | null;
-}) {
+};
+
+function WindowMetric({
+  window,
+  provider,
+  unavailableLabel = "Unavailable",
+  creditLabel = null,
+}: WindowMetricProps) {
   const remaining = window.remainingPercent;
   const resetLine = useClock((now) => resetSummaryLine(window, remaining, provider, now));
   const [displayMode] = useUsageDisplayMode();
