@@ -1,7 +1,6 @@
 use crate::{
     model::{
-        now_rfc3339, Account, LoginStart, LoginState, LoginStatus, OpenCodeGoSecret, Provider,
-        ProviderSecret,
+        now_rfc3339, Account, LoginStart, LoginStatus, OpenCodeGoSecret, Provider, ProviderSecret,
     },
     providers,
     state::AppState,
@@ -188,23 +187,10 @@ pub async fn start_login(
     reconnect_account_id: Option<String>,
 ) -> Result<LoginStart, String> {
     let attempt_id = Uuid::new_v4().to_string();
-    {
-        let mut pending = state.pending_login.write();
-        if pending
-            .as_ref()
-            .is_some_and(|login| login.status.is_in_progress())
-        {
-            return Err("Another provider login is already in progress.".into());
-        }
-        *pending = Some(LoginStatus {
-            attempt_id: attempt_id.clone(),
-            status: LoginState::Waiting,
-            message: Some("Sign in to OpenCode and open your Go subscription.".into()),
-            account: None,
-            projects: None,
-            selected_project_id: None,
-        });
-    }
+    state.begin_login(
+        &attempt_id,
+        Some("Sign in to OpenCode and open your Go subscription.".into()),
+    )?;
 
     #[cfg(mobile)]
     {
@@ -238,13 +224,7 @@ pub async fn start_login(
         ) {
             Ok(dir) => dir,
             Err(error) => {
-                let mut pending = state.pending_login.write();
-                if pending
-                    .as_ref()
-                    .is_some_and(|login| login.attempt_id == attempt_id)
-                {
-                    *pending = None;
-                }
+                state.clear_pending_login(&attempt_id);
                 return Err(error);
             }
         };
@@ -253,13 +233,7 @@ pub async fn start_login(
         let login_url = match Url::parse(LOGIN_URL) {
             Ok(url) => url,
             Err(error) => {
-                let mut pending = state.pending_login.write();
-                if pending
-                    .as_ref()
-                    .is_some_and(|login| login.attempt_id == attempt_id)
-                {
-                    *pending = None;
-                }
+                state.clear_pending_login(&attempt_id);
                 return Err(error.to_string());
             }
         };
@@ -372,10 +346,7 @@ pub async fn start_login(
         Ok(window) => window,
         Err(error) => {
             let _ = std::fs::remove_dir_all(&temp_data_dir);
-            let mut pending = state.pending_login.write();
-            if pending.as_ref().is_some_and(|login| login.attempt_id == attempt_id) {
-                *pending = None;
-            }
+            state.clear_pending_login(&attempt_id);
             return Err(format!(
                 "Unable to open the OpenCode login window: {}",
                 crate::diagnostics::command_error(error)
@@ -531,14 +502,7 @@ async fn complete_login(
             #[cfg(desktop)]
             let connected = account.clone();
             let completed = state.update_login_if_waiting(&attempt_id, |login| {
-                *login = LoginStatus {
-                    attempt_id: attempt_id.clone(),
-                    status: LoginState::Complete,
-                    message: None,
-                    account: Some(account),
-                    projects: None,
-                    selected_project_id: None,
-                };
+                *login = LoginStatus::complete(attempt_id.clone(), account);
             });
             if completed {
                 // On mobile the sign-in poll loop (mobile_auth.rs) shows the page instead.
@@ -566,26 +530,14 @@ async fn start_mobile_login(
     let login_url = match Url::parse(LOGIN_URL) {
         Ok(url) => url,
         Err(error) => {
-            let mut pending = state.pending_login.write();
-            if pending
-                .as_ref()
-                .is_some_and(|login| login.attempt_id == attempt_id)
-            {
-                *pending = None;
-            }
+            state.clear_pending_login(&attempt_id);
             return Err(error.to_string());
         }
     };
     let window = match crate::mobile_auth::main_window(&app) {
         Ok(window) => window,
         Err(error) => {
-            let mut pending = state.pending_login.write();
-            if pending
-                .as_ref()
-                .is_some_and(|login| login.attempt_id == attempt_id)
-            {
-                *pending = None;
-            }
+            state.clear_pending_login(&attempt_id);
             return Err(error);
         }
     };
@@ -651,13 +603,7 @@ async fn start_mobile_login(
             });
         },
     ) {
-        let mut pending = state.pending_login.write();
-        if pending
-            .as_ref()
-            .is_some_and(|login| login.attempt_id == attempt_id)
-        {
-            *pending = None;
-        }
+        state.clear_pending_login(&attempt_id);
         return Err(error);
     }
 

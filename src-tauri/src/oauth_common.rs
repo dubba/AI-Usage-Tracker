@@ -22,6 +22,9 @@ use std::{sync::Arc, time::Duration};
 use tokio::{net::TcpListener, sync::oneshot};
 use url::Url;
 
+/// Why a second sign-in cannot start while one is still in progress.
+pub(crate) const LOGIN_IN_PROGRESS_MESSAGE: &str = "Another provider login is already in progress.";
+
 /// How long a sign-in keeps the "Account connected" page up once it is shown,
 /// matching the page's own countdown (`account_connected_html`).
 pub(crate) const CONNECTED_PAGE_DISPLAY: Duration = Duration::from_secs(5);

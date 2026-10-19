@@ -314,6 +314,30 @@ impl LoginStatus {
         }
     }
 
+    /// A sign-in that has started and is waiting on the provider; `message` is what to show meanwhile.
+    pub fn waiting(attempt_id: impl Into<String>, message: Option<String>) -> Self {
+        Self {
+            attempt_id: attempt_id.into(),
+            status: LoginState::Waiting,
+            message,
+            account: None,
+            projects: None,
+            selected_project_id: None,
+        }
+    }
+
+    /// A sign-in that finished and connected `account`.
+    pub fn complete(attempt_id: impl Into<String>, account: Account) -> Self {
+        Self {
+            attempt_id: attempt_id.into(),
+            status: LoginState::Complete,
+            message: None,
+            account: Some(account),
+            projects: None,
+            selected_project_id: None,
+        }
+    }
+
     /// True when this is attempt `attempt_id` and it is still waiting on the provider.
     pub fn is_waiting_for(&self, attempt_id: &str) -> bool {
         self.attempt_id == attempt_id && self.status == LoginState::Waiting

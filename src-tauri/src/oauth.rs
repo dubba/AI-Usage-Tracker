@@ -103,34 +103,12 @@ pub async fn start_login(
     }
 
     let attempt_id = Uuid::new_v4().to_string();
-    {
-        let mut pending = app.pending_login.write();
-        if pending
-            .as_ref()
-            .is_some_and(|login| login.status.is_in_progress())
-        {
-            return Err("Another provider login is already in progress.".into());
-        }
-        *pending = Some(LoginStatus {
-            attempt_id: attempt_id.clone(),
-            status: LoginState::Waiting,
-            message: None,
-            account: None,
-            projects: None,
-            selected_project_id: None,
-        });
-    }
+    app.begin_login(&attempt_id, None)?;
 
     let (listener, addr) = match bind_callback_port(&provider).await {
         Ok(bound) => bound,
         Err(error) => {
-            let mut pending = app.pending_login.write();
-            if pending
-                .as_ref()
-                .is_some_and(|login| login.attempt_id == attempt_id)
-            {
-                *pending = None;
-            }
+            app.clear_pending_login(&attempt_id);
             return Err(error);
         }
     };
@@ -147,13 +125,7 @@ pub async fn start_login(
     ) {
         Ok(url) => url,
         Err(error) => {
-            let mut pending = app.pending_login.write();
-            if pending
-                .as_ref()
-                .is_some_and(|login| login.attempt_id == attempt_id)
-            {
-                *pending = None;
-            }
+            app.clear_pending_login(&attempt_id);
             return Err(error);
         }
     };
@@ -804,14 +776,7 @@ pub async fn login_status(app: &Arc<AppState>, attempt_id: &str) -> Result<Login
             };
             match complete_exchange(&context, &exchange.code).await {
                 Ok(account) => {
-                    return Ok(LoginStatus {
-                        attempt_id: attempt_id.into(),
-                        status: LoginState::Complete,
-                        message: None,
-                        account: Some(account),
-                        projects: None,
-                        selected_project_id: None,
-                    });
+                    return Ok(LoginStatus::complete(attempt_id, account));
                 }
                 Err(error) => {
                     // Authorization codes are single-use. Never restore or
@@ -1084,14 +1049,10 @@ async fn complete_exchange(context: &LoginContext, code: &str) -> ExchangeResult
         .as_ref()
         .is_some_and(|login| login.attempt_id == context.attempt_id)
     {
-        *pending = Some(LoginStatus {
-            attempt_id: context.attempt_id.clone(),
-            status: LoginState::Complete,
-            message: None,
-            account: Some(account.clone()),
-            projects: None,
-            selected_project_id: None,
-        });
+        *pending = Some(LoginStatus::complete(
+            context.attempt_id.clone(),
+            account.clone(),
+        ));
     }
     let refresh_app = context.app.clone();
     let refresh_account_id = account.id.clone();
@@ -2262,7 +2223,7 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                "Another provider login is already in progress."
+                crate::oauth_common::LOGIN_IN_PROGRESS_MESSAGE
             );
         }
     }

@@ -265,6 +265,32 @@ impl AppState {
         }
     }
 
+    /// Makes `attempt_id` the pending login, waiting with `message`, unless another login is still
+    /// in progress. The check and the write share one lock.
+    pub fn begin_login(&self, attempt_id: &str, message: Option<String>) -> Result<(), String> {
+        let mut pending = self.pending_login.write();
+        if pending
+            .as_ref()
+            .is_some_and(|login| login.status.is_in_progress())
+        {
+            return Err(crate::oauth_common::LOGIN_IN_PROGRESS_MESSAGE.into());
+        }
+        *pending = Some(LoginStatus::waiting(attempt_id, message));
+        Ok(())
+    }
+
+    /// Forgets the pending login if it is attempt `attempt_id`, e.g. when starting it failed
+    /// before anything was shown to the user. Another attempt's status is left alone.
+    pub fn clear_pending_login(&self, attempt_id: &str) {
+        let mut pending = self.pending_login.write();
+        if pending
+            .as_ref()
+            .is_some_and(|login| login.attempt_id == attempt_id)
+        {
+            *pending = None;
+        }
+    }
+
     /// Marks attempt `attempt_id` failed with `message` if it is still waiting.
     pub fn fail_login_if_waiting(&self, attempt_id: &str, message: String) {
         self.update_login_if_waiting(attempt_id, |login| {
@@ -439,6 +465,75 @@ mod tests {
                 login.message.clone(),
             )
         })
+    }
+
+    #[test]
+    fn begin_login_claims_the_slot_only_when_no_login_is_in_progress() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = AppState::new(directory.path().to_path_buf(), "test-token".into()).unwrap();
+
+        state
+            .begin_login("attempt-1", Some("Sign in".into()))
+            .unwrap();
+        assert_eq!(
+            pending_state(&state),
+            Some((
+                "attempt-1".into(),
+                LoginState::Waiting,
+                Some("Sign in".into())
+            ))
+        );
+
+        // A second start is refused and leaves the first attempt alone.
+        let error = state.begin_login("attempt-2", None).unwrap_err();
+        assert_eq!(error, crate::oauth_common::LOGIN_IN_PROGRESS_MESSAGE);
+        assert_eq!(pending_state(&state).unwrap().0, "attempt-1");
+
+        // A finished login does not block the next one.
+        *state.pending_login.write() = Some(login("attempt-1", LoginState::Failed));
+        state.begin_login("attempt-3", None).unwrap();
+        assert_eq!(pending_state(&state).unwrap().0, "attempt-3");
+    }
+
+    #[test]
+    fn clear_pending_login_only_clears_its_own_attempt() {
+        let directory = tempfile::tempdir().unwrap();
+        let state = AppState::new(directory.path().to_path_buf(), "test-token".into()).unwrap();
+        *state.pending_login.write() = Some(login("attempt-1", LoginState::Waiting));
+
+        state.clear_pending_login("attempt-2");
+        assert!(state.pending_login.read().is_some());
+        state.clear_pending_login("attempt-1");
+        assert!(state.pending_login.read().is_none());
+        // Nothing pending: no-op.
+        state.clear_pending_login("attempt-1");
+    }
+
+    #[test]
+    fn login_status_constructors_build_the_expected_states() {
+        let waiting = LoginStatus::waiting("a", Some("hi".into()));
+        assert_eq!(waiting.status, LoginState::Waiting);
+        assert_eq!(waiting.message.as_deref(), Some("hi"));
+        assert!(waiting.account.is_none() && waiting.projects.is_none());
+
+        let account = crate::model::Account {
+            id: "acc".into(),
+            label: "Acc".into(),
+            provider: crate::model::Provider::Openai,
+            email: None,
+            provider_account_id: None,
+            chatgpt_account_id: None,
+            plan: None,
+            created_at: String::new(),
+            updated_at: String::new(),
+            last_usage: None,
+            last_error: None,
+            auth_required: false,
+        };
+        let complete = LoginStatus::complete("a", account.clone());
+        assert_eq!(complete.status, LoginState::Complete);
+        assert_eq!(complete.account.map(|a| a.id), Some(account.id));
+        assert!(complete.message.is_none());
     }
 
     #[test]

@@ -153,34 +153,12 @@ async fn start_oauth(
         }
     });
 
-    {
-        let mut pending = app.pending_login.write();
-        if pending
-            .as_ref()
-            .is_some_and(|login| login.status.is_in_progress())
-        {
-            return Err("Another provider login is already in progress.".into());
-        }
-        *pending = Some(LoginStatus {
-            attempt_id: attempt_id.clone(),
-            status: LoginState::Waiting,
-            message,
-            account: None,
-            projects: None,
-            selected_project_id: None,
-        });
-    }
+    app.begin_login(&attempt_id, message)?;
 
     let (listener, addr) = match crate::oauth::bind_ephemeral_loopback().await {
         Ok(bound) => bound,
         Err(error) => {
-            let mut pending = app.pending_login.write();
-            if pending
-                .as_ref()
-                .is_some_and(|login| login.attempt_id == attempt_id)
-            {
-                *pending = None;
-            }
+            app.clear_pending_login(&attempt_id);
             return Err(error);
         }
     };
@@ -196,13 +174,7 @@ async fn start_oauth(
         match build_authorization_url(&redirect_uri, &expected_state, scopes, &challenge) {
             Ok(url) => url,
             Err(error) => {
-                let mut pending = app.pending_login.write();
-                if pending
-                    .as_ref()
-                    .is_some_and(|login| login.attempt_id == attempt_id)
-                {
-                    *pending = None;
-                }
+                app.clear_pending_login(&attempt_id);
                 return Err(error);
             }
         };
@@ -296,16 +268,12 @@ async fn select_project(
             .as_ref()
             .is_some_and(|login| login.status == LoginState::Waiting)
         {
-            return Err("Another provider login is already in progress.".into());
+            return Err(crate::oauth_common::LOGIN_IN_PROGRESS_MESSAGE.into());
         }
-        *pending = Some(LoginStatus {
-            attempt_id: attempt_id.clone(),
-            status: LoginState::Waiting,
-            message: Some("Checking the selected Google Cloud project.".into()),
-            account: None,
-            projects: None,
-            selected_project_id: None,
-        });
+        *pending = Some(LoginStatus::waiting(
+            attempt_id.clone(),
+            Some("Checking the selected Google Cloud project.".into()),
+        ));
     }
 
     let mut stored = load_google_ai_studio_secret(&account_id)?;
@@ -569,14 +537,7 @@ fn update_account_identity(
 
 fn apply_outcome(app: &AppState, attempt_id: &str, outcome: CallbackOutcome) -> Result<(), String> {
     let status = match outcome {
-        CallbackOutcome::Complete(account) => LoginStatus {
-            attempt_id: attempt_id.into(),
-            status: LoginState::Complete,
-            message: None,
-            account: Some(account),
-            projects: None,
-            selected_project_id: None,
-        },
+        CallbackOutcome::Complete(account) => LoginStatus::complete(attempt_id, account),
         CallbackOutcome::ChooseProject(projects) => LoginStatus {
             attempt_id: attempt_id.into(),
             status: LoginState::ChooseProject,

@@ -1,8 +1,5 @@
 use crate::{
-    model::{
-        now_rfc3339, Account, GrokSecret, LoginStart, LoginState, LoginStatus, Provider,
-        ProviderSecret,
-    },
+    model::{now_rfc3339, Account, GrokSecret, LoginStart, LoginStatus, Provider, ProviderSecret},
     providers::{
         self,
         grok::{
@@ -298,37 +295,15 @@ pub async fn start_login(
     reconnect_account_id: Option<String>,
 ) -> Result<LoginStart, String> {
     let attempt_id = Uuid::new_v4().to_string();
-    {
-        let mut pending = state.pending_login.write();
-        if pending
-            .as_ref()
-            .is_some_and(|login| login.status.is_in_progress())
-        {
-            return Err("Another provider login is already in progress.".into());
-        }
-        *pending = Some(LoginStatus {
-            attempt_id: attempt_id.clone(),
-            status: LoginState::Waiting,
-            message: Some(
+    state.begin_login(&attempt_id, Some(
                 "Sign in to Grok in the private window. The tracker will close it after the Usage service recognizes your session."
                     .into(),
-            ),
-            account: None,
-            projects: None,
-            selected_project_id: None,
-        });
-    }
+            ))?;
 
     let app = match state.app_handle.read().clone() {
         Some(app) => app,
         None => {
-            let mut pending = state.pending_login.write();
-            if pending
-                .as_ref()
-                .is_some_and(|login| login.attempt_id == attempt_id)
-            {
-                *pending = None;
-            }
+            state.clear_pending_login(&attempt_id);
             return Err("The application is not ready to open Grok login.".to_string());
         }
     };
@@ -337,13 +312,7 @@ pub async fn start_login(
     let login_url = match Url::parse(LOGIN_URL) {
         Ok(url) => url,
         Err(error) => {
-            let mut pending = state.pending_login.write();
-            if pending
-                .as_ref()
-                .is_some_and(|login| login.attempt_id == attempt_id)
-            {
-                *pending = None;
-            }
+            state.clear_pending_login(&attempt_id);
             return Err(crate::diagnostics::command_error(error));
         }
     };
@@ -377,13 +346,7 @@ pub async fn start_login(
         ) {
             Ok(dir) => dir,
             Err(error) => {
-                let mut pending = state.pending_login.write();
-                if pending
-                    .as_ref()
-                    .is_some_and(|login| login.attempt_id == attempt_id)
-                {
-                    *pending = None;
-                }
+                state.clear_pending_login(&attempt_id);
                 return Err(error);
             }
         };
@@ -437,13 +400,7 @@ pub async fn start_login(
             Ok(window) => window,
             Err(error) => {
                 let _ = std::fs::remove_dir_all(&temp_data_dir);
-                let mut pending = state.pending_login.write();
-                if pending
-                    .as_ref()
-                    .is_some_and(|login| login.attempt_id == attempt_id)
-                {
-                    *pending = None;
-                }
+                state.clear_pending_login(&attempt_id);
                 return Err(format!("Unable to open the Grok login window: {error}"));
             }
         };
@@ -524,7 +481,7 @@ async fn start_mobile_login(
     let window = match crate::mobile_auth::main_window(&app) {
         Ok(window) => window,
         Err(error) => {
-            clear_pending(&state, &attempt_id);
+            state.clear_pending_login(&attempt_id);
             return Err(error);
         }
     };
@@ -546,7 +503,7 @@ async fn start_mobile_login(
         login_url,
         |_| {},
     ) {
-        clear_pending(&state, &attempt_id);
+        state.clear_pending_login(&attempt_id);
         return Err(error);
     }
 
@@ -567,17 +524,6 @@ async fn start_mobile_login(
         authorization_url: String::new(),
         expires_at,
     })
-}
-
-#[cfg(mobile)]
-fn clear_pending(state: &AppState, attempt_id: &str) {
-    let mut pending = state.pending_login.write();
-    if pending
-        .as_ref()
-        .is_some_and(|login| login.attempt_id == attempt_id)
-    {
-        *pending = None;
-    }
 }
 
 fn start_cookie_poll(
@@ -801,14 +747,7 @@ async fn complete_cookie_login(
     #[cfg(desktop)]
     let connected = account.clone();
     let completed = state.update_login_if_waiting(&attempt_id, |login| {
-        *login = LoginStatus {
-            attempt_id: attempt_id.clone(),
-            status: LoginState::Complete,
-            message: None,
-            account: Some(account),
-            projects: None,
-            selected_project_id: None,
-        };
+        *login = LoginStatus::complete(attempt_id.clone(), account);
     });
     if completed {
         if let Some(dir) = &temp_data_dir {
