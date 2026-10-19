@@ -4,7 +4,7 @@ use super::{
         encrypt_payload, verify_confirmation_tag, EphemeralKeyPair, CONFIRM_RECEIVER_INFO,
         CONFIRM_SENDER_INFO,
     },
-    payload::{create_export_payload, import_sync_payload, import_sync_payload_with_replace},
+    payload::{create_export_payload, import_sync_payload},
     protocol::{
         generate_qr_uri, parse_qr_uri, read_frame, write_frame, MSG_ABORT, MSG_HANDSHAKE_INIT,
         MSG_HANDSHAKE_RESP,
@@ -376,21 +376,15 @@ async fn test_export_and_import_payload() {
     assert_eq!(buckets.len(), 1);
     assert_eq!(buckets[0].name, "Work Accounts");
 
-    // Importing again with explicit replace opt-in should update duplicates
-    let summary2 = import_sync_payload_with_replace(&state_receiver, &export_bytes, true)
+    assert_eq!(buckets[0].account_ids, vec!["acc-1".to_string()]);
+
+    // Importing again never replaces what is already here: the account is skipped.
+    let summary2 = import_sync_payload(&state_receiver, &export_bytes)
         .await
         .unwrap();
     assert_eq!(summary2.added, 0);
-    assert_eq!(summary2.updated, 1);
-    assert_eq!(buckets[0].account_ids, vec!["acc-1".to_string()]);
-
-    // Without the opt-in, existing credentials are preserved (skipped).
-    let summary3 = import_sync_payload(&state_receiver, &export_bytes)
-        .await
-        .unwrap();
-    assert_eq!(summary3.added, 0);
-    assert_eq!(summary3.updated, 0);
-    assert_eq!(summary3.skipped, 1);
+    assert_eq!(summary2.updated, 0);
+    assert_eq!(summary2.skipped, 1);
 }
 
 #[tokio::test]
@@ -732,21 +726,14 @@ async fn test_import_keeps_accounts_sharing_project_id() {
     assert_eq!(buckets.len(), 1);
     assert_eq!(buckets[0].account_ids.len(), 2);
 
-    // A second import of the same payload updates all three accounts in place
-    // when the user explicitly opts into credential replacement.
-    let summary2 = import_sync_payload_with_replace(&state_receiver, &export_bytes, true)
+    // A second import of the same payload keeps all three accounts as they are.
+    let summary2 = import_sync_payload(&state_receiver, &export_bytes)
         .await
         .unwrap();
     assert_eq!(summary2.added, 0);
-    assert_eq!(summary2.updated, 3);
+    assert_eq!(summary2.updated, 0);
+    assert_eq!(summary2.skipped, 3);
     assert_eq!(state_receiver.store.list().len(), 3);
-
-    // Default import preserves existing credentials.
-    let summary3 = import_sync_payload(&state_receiver, &export_bytes)
-        .await
-        .unwrap();
-    assert_eq!(summary3.updated, 0);
-    assert_eq!(summary3.skipped, 3);
 }
 
 // Control: distinct identity fields import independently.
@@ -808,11 +795,12 @@ async fn test_import_collapses_accounts_with_duplicate_email() {
         Arc::new(AppState::new(dir_receiver.path().to_path_buf(), "tok-cr".into()).unwrap());
 
     let export_bytes = create_export_payload(&state_sender).unwrap();
-    let summary = import_sync_payload_with_replace(&state_receiver, &export_bytes, true)
+    let summary = import_sync_payload(&state_receiver, &export_bytes)
         .await
         .unwrap();
     assert_eq!(summary.added, 1);
-    assert_eq!(summary.updated, 1);
+    assert_eq!(summary.updated, 0);
+    assert_eq!(summary.skipped, 1);
     assert_eq!(state_receiver.store.list().len(), 1);
 }
 
@@ -1139,11 +1127,12 @@ async fn test_bucket_account_remapping_on_import() {
         .unwrap();
 
     let export_bytes = create_export_payload(&state_sender).unwrap();
-    let summary = import_sync_payload_with_replace(&state_receiver, &export_bytes, true)
+    let summary = import_sync_payload(&state_receiver, &export_bytes)
         .await
         .unwrap();
     assert_eq!(summary.added, 0);
-    assert_eq!(summary.updated, 1);
+    assert_eq!(summary.updated, 0);
+    assert_eq!(summary.skipped, 1);
 
     // Verify the bucket was imported and its account ID remapped to the receiver's local ID
     let receiver_buckets = state_receiver.buckets.list();
@@ -2024,17 +2013,14 @@ fn transfer_options_default_to_nothing_extra_and_reset_clears_every_choice() {
     let fresh = PairingTransferOptions::default();
     assert!(!fresh.include_settings);
     assert!(fresh.pending_ui_state.is_none());
-    assert!(!fresh.allow_credential_replace);
 
     let mut options = PairingTransferOptions {
         include_settings: true,
         pending_ui_state: Some(serde_json::json!({"theme": "dark"})),
-        allow_credential_replace: true,
     };
     options.reset();
     assert!(!options.include_settings);
     assert!(options.pending_ui_state.is_none());
-    assert!(!options.allow_credential_replace);
 }
 
 #[tokio::test]
@@ -2045,7 +2031,6 @@ async fn starting_a_host_session_resets_the_transfer_options() {
         let mut options = state.pairing_options.write();
         options.include_settings = true;
         options.pending_ui_state = Some(serde_json::json!({}));
-        options.allow_credential_replace = true;
     }
     // A host session needs a local network address; where there is none it fails after the
     // reset, which is the part under test.
@@ -2054,5 +2039,117 @@ async fn starting_a_host_session_resets_the_transfer_options() {
     let options = state.pairing_options.read();
     assert!(!options.include_settings);
     assert!(options.pending_ui_state.is_none());
-    assert!(!options.allow_credential_replace);
+}
+
+fn claude_account(id: &str, label: &str, email: &str) -> Account {
+    Account {
+        id: id.into(),
+        label: label.into(),
+        provider: Provider::Anthropic,
+        email: Some(email.into()),
+        provider_account_id: None,
+        chatgpt_account_id: None,
+        plan: Some("Pro".into()),
+        created_at: Utc::now().to_rfc3339(),
+        updated_at: Utc::now().to_rfc3339(),
+        last_usage: None,
+        last_error: None,
+        auth_required: false,
+    }
+}
+
+fn claude_secret(tag: &str) -> ProviderSecret {
+    ProviderSecret::Anthropic(crate::model::OAuthSecret {
+        access_token: format!("sk-ant-access-{tag}"),
+        refresh_token: format!("sk-ant-refresh-{tag}"),
+        id_token: None,
+        expires_at: 0,
+    })
+}
+
+/// Pairing never replaces credentials: an account this device already has keeps its own secret,
+/// label and plan, whatever the other device sends for it.
+#[tokio::test]
+async fn import_never_overwrites_an_existing_accounts_local_credentials() {
+    let dir_receiver = tempfile::tempdir().unwrap();
+    let state_receiver =
+        Arc::new(AppState::new(dir_receiver.path().to_path_buf(), "tok-keep-r".into()).unwrap());
+    state_receiver
+        .persist_connected_account(
+            claude_account("local-1", "Local name", "me@example.com"),
+            &claude_secret("local"),
+        )
+        .await
+        .unwrap();
+
+    let dir_sender = tempfile::tempdir().unwrap();
+    let state_sender =
+        Arc::new(AppState::new(dir_sender.path().to_path_buf(), "tok-keep-s".into()).unwrap());
+    let mut sent = claude_account("sender-1", "Sender name", "ME@example.com");
+    sent.plan = Some("Max".into());
+    state_sender
+        .persist_connected_account(sent, &claude_secret("sender"))
+        .await
+        .unwrap();
+    let export_bytes = create_export_payload(&state_sender).unwrap();
+
+    let summary = import_sync_payload(&state_receiver, &export_bytes)
+        .await
+        .unwrap();
+
+    assert_eq!((summary.added, summary.updated, summary.skipped), (0, 0, 1));
+    let accounts = state_receiver.store.list();
+    assert_eq!(accounts.len(), 1);
+    assert_eq!(accounts[0].id, "local-1");
+    assert_eq!(accounts[0].label, "Local name");
+    assert_eq!(accounts[0].plan.as_deref(), Some("Pro"));
+    match crate::store::load_provider_secret("local-1").unwrap() {
+        ProviderSecret::Anthropic(secret) => {
+            assert_eq!(secret.access_token, "sk-ant-access-local");
+            assert_eq!(secret.refresh_token, "sk-ant-refresh-local");
+        }
+        _ => panic!("the local secret changed provider"),
+    }
+    // Nothing was stored under the sender's id either.
+    assert!(state_receiver.store.get("sender-1").is_none());
+}
+
+/// An account that matches only by the sender's own id still keeps its credentials.
+#[tokio::test]
+async fn import_keeps_credentials_when_only_the_account_id_matches() {
+    // Credentials live in one store per process, keyed by account id, so the sender's payload is
+    // exported before the receiver stores its own secret under the same id.
+    let dir_sender = tempfile::tempdir().unwrap();
+    let state_sender =
+        Arc::new(AppState::new(dir_sender.path().to_path_buf(), "tok-id-s".into()).unwrap());
+    state_sender
+        .persist_connected_account(
+            claude_account("shared-id", "Theirs", "theirs@example.com"),
+            &claude_secret("theirs"),
+        )
+        .await
+        .unwrap();
+    let export_bytes = create_export_payload(&state_sender).unwrap();
+
+    let dir_receiver = tempfile::tempdir().unwrap();
+    let state_receiver =
+        Arc::new(AppState::new(dir_receiver.path().to_path_buf(), "tok-id-r".into()).unwrap());
+    state_receiver
+        .persist_connected_account(
+            claude_account("shared-id", "Mine", "mine@example.com"),
+            &claude_secret("mine"),
+        )
+        .await
+        .unwrap();
+
+    let summary = import_sync_payload(&state_receiver, &export_bytes)
+        .await
+        .unwrap();
+    assert_eq!(summary.skipped, 1);
+    assert_eq!(state_receiver.store.list().len(), 1);
+    assert_eq!(state_receiver.store.list()[0].label, "Mine");
+    match crate::store::load_provider_secret("shared-id").unwrap() {
+        ProviderSecret::Anthropic(secret) => assert_eq!(secret.access_token, "sk-ant-access-mine"),
+        _ => panic!("the local secret changed provider"),
+    }
 }

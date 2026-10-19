@@ -296,27 +296,19 @@ pub fn create_export_payload(state: &AppState) -> Result<Vec<u8>, String> {
     Ok(serialized)
 }
 
+/// Imports a payload received from the paired device and says what happened.
+///
+/// Pairing never replaces credentials: an account this device already has keeps its local
+/// secret and metadata (it is counted as skipped, and the sender's layout is mapped onto it). A
+/// transfer therefore cannot overwrite a sign-in, however the other device is set up.
 pub async fn import_sync_payload(
     state: &Arc<AppState>,
     payload_bytes: &[u8],
 ) -> Result<SyncSummary, String> {
-    let allow_replace = state.pairing_options.read().allow_credential_replace;
-    let summary = import_sync_payload_with_replace(state, payload_bytes, allow_replace).await?;
-    // Single-use opt-in: replacing credentials always requires explicit user
-    // action for the transfer being imported.
-    state.pairing_options.write().allow_credential_replace = false;
-    Ok(summary)
-}
-
-pub async fn import_sync_payload_with_replace(
-    state: &Arc<AppState>,
-    payload_bytes: &[u8],
-    allow_replace: bool,
-) -> Result<SyncSummary, String> {
     let mut payload = validate_payload(payload_bytes)?;
     let mut summary = SyncSummary::default();
     let planned = plan_account_ids(std::mem::take(&mut payload.accounts), &mut summary)?;
-    apply_import(state, planned, payload, allow_replace, summary).await
+    apply_import(state, planned, payload, summary).await
 }
 
 /// The payload as sent, once its shape is accepted: JSON of the expected format, within the
@@ -388,7 +380,6 @@ async fn apply_import(
     state: &Arc<AppState>,
     planned: Vec<PlannedAccount>,
     payload: SyncPayload,
-    allow_replace: bool,
     mut summary: SyncSummary,
 ) -> Result<SyncSummary, String> {
     let mut id_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
@@ -407,48 +398,13 @@ async fn apply_import(
             )
             .or_else(|| state.store.get(&sender_id));
 
-        if let Some(mut existing_acc) = existing {
-            let receiver_id = existing_acc.id.clone();
+        if let Some(existing_acc) = existing {
+            let receiver_id = existing_acc.id;
             id_map.insert(sender_id, receiver_id.clone());
-
-            if !allow_replace {
-                // Default: preserve existing local credentials. Importing must
-                // never silently overwrite a local secret — replacing requires
-                // explicit per-transfer opt-in from the user. Still map ids so
-                // buckets/orders remap, and count as skipped.
-                state.store.clear_tombstone(&receiver_id);
-                summary.skipped += 1;
-                continue;
-            }
-
-            // Explicit replace path: merge into existing account
-            let lock = state.account_lock(&receiver_id);
-            let _guard = lock.lock().await;
-
-            // Update secret in native store
-            if let Err(e) = crate::store::save_provider_secret(&receiver_id, &entry.secret) {
-                crate::diagnostics::warn(&format!(
-                    "Failed to save updated secret for account: {e}"
-                ));
-                summary.skipped += 1;
-                continue;
-            }
-
-            // Update metadata
-            existing_acc.label = entry.account.label;
-            if entry.account.plan.is_some() {
-                existing_acc.plan = entry.account.plan;
-            }
-            existing_acc.touch();
-
-            if let Err(e) = state.store.upsert(existing_acc) {
-                crate::diagnostics::warn(&format!("Failed to update account metadata: {e}"));
-                summary.skipped += 1;
-                continue;
-            }
-
+            // Keep the local credentials, but map the ids so groups and ordering remap onto the
+            // account already here.
             state.store.clear_tombstone(&receiver_id);
-            summary.updated += 1;
+            summary.skipped += 1;
         } else {
             // New account
             match state

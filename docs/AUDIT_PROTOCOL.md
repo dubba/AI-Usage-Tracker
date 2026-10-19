@@ -135,7 +135,7 @@ Act as a penetration tester. For each path give prerequisites, steps, impact, li
 **Device pairing** (`pairing/`):
 - mDNS exposure: confirm TXT records carry only the ephemeral public key, session id, and nonce.
 - The 6-digit join code is a discovery handle only. Try to find any code path where it grants trust.
-- Man-in-the-middle: SAS derivation covers both public keys and nonces; SAS comparison cannot be skipped or auto-confirmed; downgrade of role or the `allow_credential_replace` flag by the peer.
+- Man-in-the-middle: SAS derivation covers both public keys and nonces; SAS comparison cannot be skipped or auto-confirmed; downgrade of role by the peer. Pairing never replaces the credentials of an account the receiver already has, so there is no flag for a peer to downgrade.
 - Crypto: X25519 low-order points, HKDF context separation, XChaCha20-Poly1305 nonce uniqueness, key reuse across sessions, replay of a captured handshake.
 - Transport: message size limits, timeouts, malformed frames, concurrent sessions, session cleanup after cancel.
 - Payload import: what a malicious paired device can write into the importer (settings, accounts, credentials) and whether it can overwrite existing credentials without consent.

@@ -112,9 +112,6 @@ pub struct PairingTransferOptions {
     pub include_settings: bool,
     /// The layout (localStorage snapshot) the frontend supplied for this transfer.
     pub pending_ui_state: Option<serde_json::Value>,
-    /// Explicit per-transfer opt-in to replace credentials of existing local accounts during an
-    /// import. Nothing sets it today; step 3.9 removes it.
-    pub allow_credential_replace: bool,
 }
 
 impl PairingTransferOptions {
