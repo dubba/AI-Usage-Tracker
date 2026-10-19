@@ -29,8 +29,6 @@ import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { useModalClosePolicy } from "../../shared/hooks/useModalClosePolicy";
 import {
   describeError,
-  errorMessage as rawErrorMessage,
-  friendlyMessage,
   recordErrorDetail,
 } from "../../shared/lib/errors";
 import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
@@ -88,14 +86,20 @@ export function PairingModal({
   // Every start of a session, join or export is a request; a newer one (or leaving the view) makes
   // an older one's answer moot.
   const request = useLatestRequest();
+
+  /** Hides the dialog's own error messages (the camera's message is the scanner hook's). */
+  const clearAllErrors = useCallback(() => {
+    setErrorMessage(null);
+    setAirgapPrepareError(null);
+  }, [setErrorMessage, setAirgapPrepareError]);
+
   const showView = useCallback(
     (view: ViewMode, flow?: ActiveFlow) => {
       request.cancel();
-      setErrorMessage(null);
-      setAirgapPrepareError(null);
+      clearAllErrors();
       dispatchFlow({ type: "show", view, flow });
     },
-    [request, setErrorMessage, setAirgapPrepareError],
+    [request, clearAllErrors],
   );
 
   const dialogRef = useRef<HTMLElement>(null);
@@ -119,10 +123,7 @@ export function PairingModal({
   const capture = useAirgapCapture({
     active: open && viewMode === "scanner",
     onVerifyStart: () => setErrorMessage(null),
-    onVerifyError: (raw) => {
-      recordErrorDetail("pairing", "Couldn't verify the scanned frames", raw);
-      setErrorMessage(friendlyMessage("Couldn't verify the scanned frames", raw));
-    },
+    onVerifyError: (cause) => showError("Couldn't verify the scanned frames", cause),
     onRescan: () => setScannerRestartKey((key) => key + 1),
   });
 
@@ -186,21 +187,17 @@ export function PairingModal({
   const backToModes = useCallback((clearError = true) => {
     cancelPairing();
     request.cancel();
-    if (clearError) {
-      setErrorMessage(null);
-      setAirgapPrepareError(null);
-    }
+    if (clearError) clearAllErrors();
     setBusy(false);
     setStatus({ status: "idle" });
     showView("select-mode", null);
-  }, [request, showView, setStatus, setErrorMessage, setAirgapPrepareError]);
+  }, [request, showView, setStatus, clearAllErrors]);
 
   const isWaitingState = isWaitingStatus(status.status);
 
   const handleEscape = useCallback(() => {
     if (errorMessage || airgapPrepareError || cameraError) {
-      setErrorMessage(null);
-      setAirgapPrepareError(null);
+      clearAllErrors();
       clearCameraError();
       return;
     }
@@ -245,7 +242,7 @@ export function PairingModal({
     showView,
     requestClose,
     capture,
-    setErrorMessage,
+    clearAllErrors,
     setAirgapPrepareError,
     clearCameraError,
   ]);
@@ -406,9 +403,7 @@ export function PairingModal({
       } catch (err) {
         if (!request.isLatest(ticket)) return;
         setBusy(false);
-        const raw = rawErrorMessage(err);
-        recordErrorDetail("pairing", "Couldn't connect with the link", raw);
-        const msg = friendlyMessage("Couldn't connect with the link", raw);
+        const msg = describeError("pairing", "Couldn't connect with the link", err);
         setErrorMessage(msg);
         setStatus({
           status: "failed",
@@ -423,8 +418,7 @@ export function PairingModal({
   useEffect(() => {
     if (!open) {
       discardSession();
-      setErrorMessage(null);
-      setAirgapPrepareError(null);
+      clearAllErrors();
       setJoinCodeInput("");
       dispatchFlow({ type: "reset" });
       roleAutoSelectedRef.current = false;
@@ -463,7 +457,7 @@ export function PairingModal({
     };
 
     void checkPendingAndStart();
-  }, [open, initialJoinUri, setStatus, startFromUri, setErrorMessage, setAirgapPrepareError, request]);
+  }, [open, initialJoinUri, setStatus, startFromUri, clearAllErrors, request]);
 
   const startLinkCodeFromEffect = useEffectEvent((action: "host" | "code") => startLinkCode(action));
 
@@ -549,9 +543,7 @@ export function PairingModal({
       player.restart();
     } catch (err) {
       if (!request.isLatest(ticket)) return;
-      const raw = rawErrorMessage(err);
-      recordErrorDetail("pairing", "Couldn't prepare the transfer", raw);
-      setAirgapPrepareError(friendlyMessage("Couldn't prepare the transfer", raw));
+      setAirgapPrepareError(describeError("pairing", "Couldn't prepare the transfer", err));
     } finally {
       if (request.isLatest(ticket)) {
         setBusy(false);
