@@ -76,6 +76,7 @@ export function accountStatus(account: Account): { label: string; className: str
   return { label: "LIVE", className: "success" };
 }
 export function canonicalWindow(window: UsageWindow, target: SidebarWindow): boolean {
+  if (window.kind !== undefined) return window.kind === target;
   const id = window.id.toLowerCase().replaceAll("-", "_");
   const label = window.label.toLowerCase();
   if (target === "five_hour") {
@@ -98,6 +99,7 @@ export function canonicalWindow(window: UsageWindow, target: SidebarWindow): boo
     || label.includes("7-day");
 }
 export function isMonthlyWindow(window: UsageWindow): boolean {
+  if (window.kind !== undefined) return window.kind === "monthly";
   const id = window.id.toLowerCase().replaceAll("-", "_");
   const label = window.label.toLowerCase();
   return (

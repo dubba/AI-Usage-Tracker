@@ -2,6 +2,9 @@ export type Provider = "openai" | "anthropic" | "antigravity" | "google_ai_studi
 
 export type UsageFreshness = "live" | "stale" | "unavailable" | "auth_required";
 
+/** What a usage window measures; the backend works it out once (`WindowKind` in `model.rs`). */
+export type WindowKind = "five_hour" | "weekly" | "monthly";
+
 export interface UsageWindow {
   id: string;
   label: string;
@@ -9,6 +12,8 @@ export interface UsageWindow {
   remainingPercent: number | null;
   resetsAt: string | null;
   windowSeconds: number | null;
+  /** `null` when it is none of the three kinds; missing only on data older than this field. */
+  kind?: WindowKind | null;
 }
 
 export interface UsageSnapshot {

@@ -22,8 +22,9 @@ function classify(window: UsageWindow): Kind {
   return null;
 }
 
-function toWindow(entry: Case): UsageWindow {
+function toWindow(entry: Case, withKind = false): UsageWindow {
   return {
+    ...(withKind ? { kind: entry.kind } : {}),
     id: entry.id,
     label: entry.label,
     usedPercent: null,
@@ -35,10 +36,16 @@ function toWindow(entry: Case): UsageWindow {
 
 const cases = fixture.cases as Case[];
 
-describe("window kinds (shared with src-tauri/src/alerts.rs)", () => {
+describe("window kinds (shared with WindowKind::classify in src-tauri/src/model.rs)", () => {
   it.each(cases)("$name", (entry) => {
     const expected = entry.knownExceptions && "ts" in entry.knownExceptions ? entry.knownExceptions.ts : entry.kind;
     expect(classify(toWindow(entry))).toBe(expected);
+  });
+
+  it("reads the kind the backend set, whatever the name says", () => {
+    for (const entry of cases) {
+      expect(classify(toWindow(entry, true)), entry.name).toBe(entry.kind);
+    }
   });
 
   it("lists a known exception only where it really differs from the intended kind", () => {
