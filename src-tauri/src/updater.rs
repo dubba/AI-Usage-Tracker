@@ -604,22 +604,45 @@ async fn download_android_apk(
     }
 }
 
-fn show_update_available_notification(app: &AppHandle, version: &str) -> Result<(), String> {
+fn show_update_available_notification(
+    app: &AppHandle,
+    version: &str,
+    ready_to: &str,
+) -> Result<(), String> {
     #[cfg(target_os = "android")]
     {
-        let _ = app;
+        let _ = (app, ready_to);
         apk_install::show_update_available(version)
     }
     #[cfg(not(target_os = "android"))]
     {
         let title = "AI Usage Tracker update available";
-        let body = format!("Version {version} is ready to download.");
+        let body = format!("Version {version} is ready to {ready_to}.");
         app.notification()
             .builder()
             .title(title)
             .body(body)
             .show()
             .map_err(|error| error.to_string())
+    }
+}
+
+/// Tells the user about `version` once, when the check was not silent, automatic updates are on
+/// and that version has not been announced yet. `ready_to` is the verb in the notification:
+/// "install" when the app can install it itself, "download" when the user fetches it.
+fn notify_update_available(
+    app: &AppHandle,
+    state: &AppState,
+    notify: bool,
+    version: &str,
+    ready_to: &str,
+) {
+    if notify
+        && state.settings.automatic_updates_enabled()
+        && state.settings.update_notification_needed(version)
+        && show_update_available_notification(app, version, ready_to).is_ok()
+    {
+        let _ = state.settings.mark_update_notified(version);
     }
 }
 
@@ -634,15 +657,7 @@ fn status_from_github_latest(
         return AppUpdateStatus::up_to_date(current_version);
     }
 
-    if notify
-        && state.settings.automatic_updates_enabled()
-        && state.settings.update_notification_needed(&latest.version)
-    {
-        let shown = show_update_available_notification(app, &latest.version);
-        if shown.is_ok() {
-            let _ = state.settings.mark_update_notified(&latest.version);
-        }
-    }
+    notify_update_available(app, state, notify, &latest.version, "download");
 
     AppUpdateStatus::available(
         current_version,
@@ -755,22 +770,13 @@ pub async fn check_for_app_update(
             {
                 Ok(Ok(Some(update))) => {
                     let available_version = update.version.to_string();
-                    if notify
-                        && state.settings.automatic_updates_enabled()
-                        && state
-                            .settings
-                            .update_notification_needed(&available_version)
-                    {
-                        let shown = app
-                            .notification()
-                            .builder()
-                            .title("AI Usage Tracker update available")
-                            .body(format!("Version {available_version} is ready to install."))
-                            .show();
-                        if shown.is_ok() {
-                            let _ = state.settings.mark_update_notified(&available_version);
-                        }
-                    }
+                    notify_update_available(
+                        &app,
+                        state.inner().as_ref(),
+                        notify,
+                        &available_version,
+                        "install",
+                    );
 
                     // latest.json carries no release notes, so ask GitHub for them. The GitHub
                     // client has its own timeout, and a failure just leaves the notes empty.
@@ -882,6 +888,24 @@ async fn install_android_apk(app: AppHandle, include_beta: bool) -> Result<(), S
     Ok(())
 }
 
+/// Opens the page to download the update from in the browser. With betas enabled that is the page
+/// of the release being offered rather than `/releases/latest`, which only ever shows the newest
+/// stable one.
+#[cfg(not(target_os = "android"))]
+async fn open_release_page(app: &AppHandle, state: &AppState) -> Result<(), String> {
+    let page = if beta_updates_wanted(state) {
+        fetch_github_latest_release(true, required_update_asset())
+            .await
+            .map(|release| format!("{GITHUB_RELEASES_TAG_PAGE_URL}{}", release.tag))
+            .unwrap_or_else(|_| GITHUB_RELEASES_PAGE_URL.to_string())
+    } else {
+        GITHUB_RELEASES_PAGE_URL.to_string()
+    };
+    app.opener()
+        .open_url(page, None::<&str>)
+        .map_err(|error| format!("Unable to open download page: {error}"))
+}
+
 #[tauri::command]
 pub async fn install_app_update(
     app: AppHandle,
@@ -955,36 +979,14 @@ pub async fn install_app_update(
         // or open the GitHub releases page as a fallback.
         let sidestore_url = "sidestore://";
         if app.opener().open_url(sidestore_url, None::<&str>).is_err() {
-            let page = if beta_updates_wanted(state.inner().as_ref()) {
-                fetch_github_latest_release(true, required_update_asset())
-                    .await
-                    .map(|release| format!("{GITHUB_RELEASES_TAG_PAGE_URL}{}", release.tag))
-                    .unwrap_or_else(|_| GITHUB_RELEASES_PAGE_URL.to_string())
-            } else {
-                GITHUB_RELEASES_PAGE_URL.to_string()
-            };
-            app.opener()
-                .open_url(page, None::<&str>)
-                .map_err(|error| format!("Unable to open download page: {error}"))?;
+            open_release_page(&app, state.inner().as_ref()).await?;
         }
         return Ok(());
     }
 
     #[cfg(all(not(target_os = "android"), not(target_os = "ios")))]
     {
-        // With betas enabled, open the page of the release being offered rather
-        // than /releases/latest, which only ever shows the newest stable one.
-        let page = if beta_updates_wanted(state.inner().as_ref()) {
-            fetch_github_latest_release(true, required_update_asset())
-                .await
-                .map(|release| format!("{GITHUB_RELEASES_TAG_PAGE_URL}{}", release.tag))
-                .unwrap_or_else(|_| GITHUB_RELEASES_PAGE_URL.to_string())
-        } else {
-            GITHUB_RELEASES_PAGE_URL.to_string()
-        };
-        app.opener()
-            .open_url(page, None::<&str>)
-            .map_err(|error| format!("Unable to open download page: {error}"))?;
+        open_release_page(&app, state.inner().as_ref()).await?;
     }
     Ok(())
 }

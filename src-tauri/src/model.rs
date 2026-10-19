@@ -177,6 +177,7 @@ impl UsageWindow {
     }
 
     /// This window with its kind set.
+    #[cfg(test)]
     pub fn classified(mut self) -> Self {
         self.classify();
         self
