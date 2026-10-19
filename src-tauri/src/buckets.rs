@@ -1,5 +1,5 @@
 use crate::{
-    fs_util::{atomic_write_private, ensure_private_dir, ensure_private_file},
+    json_file::JsonFileStore,
     limits::{clamp_chars, MAX_BUCKETS, MAX_BUCKET_NAME_CHARS},
     model::{now_rfc3339, AccountBucket, Provider},
     pairing::payload::MAX_ACCOUNTS,
@@ -7,10 +7,7 @@ use crate::{
 };
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::path::Path;
 use uuid::Uuid;
 
 const BUCKETS_FILE_NAME: &str = "account-buckets.json";
@@ -38,27 +35,20 @@ fn normalize_account_ids(ids: Vec<String>) -> Vec<String> {
 }
 
 pub struct BucketStore {
-    path: PathBuf,
+    file: JsonFileStore<BucketsFile>,
     buckets: RwLock<Vec<AccountBucket>>,
 }
 
 impl BucketStore {
     pub fn load(data_dir: &Path) -> Result<Self, String> {
-        ensure_private_dir(data_dir)?;
-        let path = data_dir.join(BUCKETS_FILE_NAME);
-        let buckets = if path.exists() {
-            let payload = fs::read_to_string(&path).map_err(|error| error.to_string())?;
-            let parsed = serde_json::from_str::<BucketsFile>(&payload)
-                .map_err(|error| format!("Unable to read saved account buckets: {error}"))?
-                .buckets;
-            ensure_private_file(&path)?;
-            parsed
-        } else {
-            Vec::new()
-        };
+        let (file, saved) = JsonFileStore::<BucketsFile>::open(
+            data_dir,
+            BUCKETS_FILE_NAME,
+            "Unable to read saved account buckets",
+        )?;
         Ok(Self {
-            path,
-            buckets: RwLock::new(buckets),
+            file,
+            buckets: RwLock::new(saved.buckets),
         })
     }
 
@@ -205,12 +195,10 @@ impl BucketStore {
     }
 
     fn persist(&self) -> Result<(), String> {
-        let payload = BucketsFile {
+        self.file.save(&BucketsFile {
             version: 1,
             buckets: self.buckets.read().clone(),
-        };
-        let bytes = serde_json::to_vec_pretty(&payload).map_err(|error| error.to_string())?;
-        atomic_write_private(&self.path, &bytes)
+        })
     }
 }
 
