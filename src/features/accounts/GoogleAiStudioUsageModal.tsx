@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { openSafeUrl } from "../../shared/lib/safeUrl";
 import { bridgeApi, readLoginAttempt } from "../../shared/lib/api";
-import { describeError } from "../../shared/lib/errors";
+import { useAsyncAction } from "../../shared/hooks/useAsyncAction";
 import { logIgnored } from "../../shared/lib/log";
 import { abandonLoginAttempt, getLastLoginStatus, retryLoginAttempt, subscribeLoginStatus, watchLoginAttempt } from "../../shared/lib/login-status";
 import type { Account, CloudProjectOption, LoginStatus } from "../../types";
@@ -26,8 +26,8 @@ export function GoogleAiStudioUsageModal({
   const [stage, setStage] = useState<SetupStage>("signin");
   const [projects, setProjects] = useState<CloudProjectOption[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
-  const [busy, setBusy] = useState(false);
   const { error, setError } = useAutoDismissedError(account?.id);
+  const { busy, setBusy, run } = useAsyncAction({ source: "google-ai-studio", setError });
   const closeRequestedRef = useRef(false);
   const attemptIdRef = useRef<string | null>(null);
   const dialogRef = useRef<HTMLElement>(null);
@@ -55,7 +55,7 @@ export function GoogleAiStudioUsageModal({
       attemptIdRef.current = attemptId;
       watchLoginAttempt(attemptId);
     }
-  }, [account, setError]);
+  }, [account, setError, setBusy]);
 
   useEffect(() => {
     if (!account) return;
@@ -85,7 +85,7 @@ export function GoogleAiStudioUsageModal({
         setStage(next.status);
       }
     });
-  }, [account, onConnected, setError]);
+  }, [account, onConnected, setError, setBusy]);
 
   const closeModal = () => {
     closeRequestedRef.current = true;
@@ -111,33 +111,31 @@ export function GoogleAiStudioUsageModal({
   if (!account) return null;
 
   const start = async (projectId = "", enableMonitoring = false) => {
-    setBusy(true);
-    setError(null);
-    try {
-      const next = await bridgeApi.startGoogleAiStudioUsageLogin(account.id, projectId, enableMonitoring);
-      if (closeRequestedRef.current) {
-        await bridgeApi.cancelLogin(next.attemptId).catch((cause) => logIgnored("login.cancel", cause));
-        return;
-      }
-      attemptIdRef.current = next.attemptId;
-      setStatus({
-        attemptId: next.attemptId,
-        status: "waiting",
-        message: null,
-        account: null,
-        projects: null,
-        selectedProjectId: null,
-      });
-      watchLoginAttempt(next.attemptId);
-      if (next.authorizationUrl) {
-        await openSafeUrl(next.authorizationUrl);
-      }
-    } catch (cause) {
-      if (!closeRequestedRef.current) {
-        setBusy(false);
-        setError(describeError("google-ai-studio", "Couldn't start the Google Cloud connection", cause));
-      }
-    }
+    // Busy stays on after a successful start: the backend reports the result through the poll.
+    await run(
+      async () => {
+        const next = await bridgeApi.startGoogleAiStudioUsageLogin(account.id, projectId, enableMonitoring);
+        if (closeRequestedRef.current) {
+          await bridgeApi.cancelLogin(next.attemptId).catch((cause) => logIgnored("login.cancel", cause));
+          return;
+        }
+        attemptIdRef.current = next.attemptId;
+        setStatus({
+          attemptId: next.attemptId,
+          status: "waiting",
+          message: null,
+          account: null,
+          projects: null,
+          selectedProjectId: null,
+        });
+        watchLoginAttempt(next.attemptId);
+        if (next.authorizationUrl) {
+          await openSafeUrl(next.authorizationUrl);
+        }
+      },
+      "Couldn't start the Google Cloud connection",
+      { keepBusyOnSuccess: true, isCurrent: () => !closeRequestedRef.current },
+    );
   };
 
   const retry = () => {
