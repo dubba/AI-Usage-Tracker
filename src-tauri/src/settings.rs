@@ -1,10 +1,7 @@
-use crate::fs_util::{atomic_write_private, ensure_private_dir, ensure_private_file};
+use crate::json_file::JsonFileStore;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::path::Path;
 use tokio::sync::Notify;
 
 const SETTINGS_FILE_NAME: &str = "app-settings.json";
@@ -79,7 +76,7 @@ impl StoredAppSettings {
 }
 
 pub struct SettingsStore {
-    path: PathBuf,
+    file: JsonFileStore<StoredAppSettings>,
     settings: RwLock<StoredAppSettings>,
     refresh_schedule_changed: Notify,
     bridge_state_changed: Notify,
@@ -87,17 +84,11 @@ pub struct SettingsStore {
 
 impl SettingsStore {
     pub fn load(data_dir: &Path) -> Result<Self, String> {
-        ensure_private_dir(data_dir)?;
-        let path = data_dir.join(SETTINGS_FILE_NAME);
-        let mut settings = if path.exists() {
-            let payload = fs::read_to_string(&path).map_err(|error| error.to_string())?;
-            let parsed = serde_json::from_str::<StoredAppSettings>(&payload)
-                .map_err(|error| format!("Unable to read app settings: {error}"))?;
-            ensure_private_file(&path)?;
-            parsed
-        } else {
-            StoredAppSettings::default()
-        };
+        let (file, mut settings) = JsonFileStore::<StoredAppSettings>::open(
+            data_dir,
+            SETTINGS_FILE_NAME,
+            "Unable to read app settings",
+        )?;
 
         settings.account_refresh_minutes = snap_refresh_minutes(settings.account_refresh_minutes)
             .unwrap_or(DEFAULT_ACCOUNT_REFRESH_MINUTES);
@@ -110,7 +101,7 @@ impl SettingsStore {
         }
 
         Ok(Self {
-            path,
+            file,
             settings: RwLock::new(settings),
             refresh_schedule_changed: Notify::new(),
             bridge_state_changed: Notify::new(),
@@ -267,8 +258,7 @@ impl SettingsStore {
     }
 
     fn persist(&self, settings: &StoredAppSettings) -> Result<(), String> {
-        let payload = serde_json::to_vec_pretty(settings).map_err(|error| error.to_string())?;
-        atomic_write_private(&self.path, &payload)
+        self.file.save(settings)
     }
 }
 
@@ -307,6 +297,7 @@ pub fn snap_refresh_minutes(minutes: u64) -> Option<u64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn saves_supported_refresh_intervals() {
