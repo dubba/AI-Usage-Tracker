@@ -27,6 +27,7 @@ function makeAccount({
       remainingPercent: fiveRemaining,
       resetsAt: null,
       windowSeconds: 18000,
+      kind: "five_hour",
     });
   }
   if (weeklyRemaining !== null) {
@@ -37,6 +38,7 @@ function makeAccount({
       remainingPercent: weeklyRemaining,
       resetsAt: null,
       windowSeconds: 604800,
+      kind: "weekly",
     });
   }
   return {
@@ -352,6 +354,7 @@ describe("SidebarGroupRow Grok Bot limit", () => {
         remainingPercent: botRemaining,
         resetsAt: null,
         windowSeconds: 604800,
+        kind: "weekly",
       });
     }
     return account;

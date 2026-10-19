@@ -1,6 +1,6 @@
-import type { Account, Provider, UsageWindow } from "../../types";
+import type { Account, Provider, UsageWindow, WindowKind } from "../../types";
 import { providerName } from "./providers";
-import { canonicalWindow, displayAccountLabel, isMonthlyWindow } from "./usage-logic";
+import { displayAccountLabel } from "./usage-logic";
 
 export function displayProviderGroupTitle(provider: Provider, accounts: Account[]): string {
   const labels = accounts.map(displayAccountLabel).filter((label) => label.trim());
@@ -84,24 +84,20 @@ export function antigravityGroupLabel(window: UsageWindow): string | null {
   return prefix;
 }
 
+/** The group a window falls into when its label names none, by provider. */
+const DEFAULT_GROUP_BY_PROVIDER: Record<string, string> = {
+  anthropic: "Claude",
+  grok: "Grok",
+  google_ai_studio: "Gemini",
+  opencode_go: "OpenCode",
+};
+
 function providerDefaultGroup(window: UsageWindow, provider?: Provider | string): string | null {
-  switch (provider) {
-    case "openai":
-      if (window.id.toLowerCase().includes("code_review") || window.label.toLowerCase().includes("code review")) {
-        return "Code Review";
-      }
-      return "GPT";
-    case "anthropic":
-      return "Claude";
-    case "grok":
-      return "Grok";
-    case "google_ai_studio":
-      return "Gemini";
-    case "opencode_go":
-      return "OpenCode";
-    default:
-      return null;
+  if (provider === "openai") {
+    const codeReview = window.id.toLowerCase().includes("code_review") || window.label.toLowerCase().includes("code review");
+    return codeReview ? "Code Review" : "GPT";
   }
+  return (provider && DEFAULT_GROUP_BY_PROVIDER[provider]) || null;
 }
 
 export function metricGroupLabel(window: UsageWindow, provider?: Provider | string): string | null {
@@ -111,101 +107,117 @@ export function metricGroupLabel(window: UsageWindow, provider?: Provider | stri
   return windowGroupPrefix(window) ?? providerDefaultGroup(window, provider);
 }
 
+const WINDOW_PILL_CLASS: Record<WindowKind, string> = {
+  five_hour: "window-pill-5h",
+  weekly: "window-pill-7d",
+  monthly: "window-pill-monthly",
+};
+
 export function windowPillClass(window: UsageWindow): string {
-  if (canonicalWindow(window, "five_hour")) return "window-pill-5h";
-  if (canonicalWindow(window, "weekly")) return "window-pill-7d";
-  if (isMonthlyWindow(window)) return "window-pill-monthly";
-  return "window-pill-default";
+  return (window.kind && WINDOW_PILL_CLASS[window.kind]) || "window-pill-default";
 }
+
+/** The plan as it was stored, in the spellings the rules below test. */
+interface PlanText {
+  /** Lower case, as stored. */
+  lower: string;
+  /** Without a trailing "-tier", original case. */
+  withoutTier: string;
+  /** Lower case, without a trailing "-tier". */
+  stripped: string;
+}
+
+/** One line of a provider's plan table: the first rule that matches decides. */
+type PlanRule = readonly [matches: (plan: PlanText) => boolean, plan: string | ((plan: PlanText) => string)];
+
+/** True when the plan contains any of the words. */
+const mentions = (...words: string[]) => (plan: PlanText) => words.some((word) => plan.lower.includes(word));
+/** True when the whole plan is one of the spellings. */
+const isOneOf = (...spellings: string[]) => (plan: PlanText) => spellings.includes(plan.lower);
+const isFree = (plan: PlanText) => plan.stripped === "free" || plan.lower === "free" || plan.lower === "free-tier";
+const ultraPlan = (plan: PlanText) => (mentions("200", "30tb", "genie")(plan) ? "Ultra/$200" : "Ultra/$100");
+const upperOrFree = (plan: PlanText) => plan.withoutTier.toUpperCase() || "Free";
+
+// Reference: user-provided plan table (Free | Budget $5-10 | Standard $20-30 | Mid $100 | Max $200-300)
+// OpenCode: Free | Go $10 | Zen PAYG | Black Tier
+// OpenAI: Free | Go $8 | Plus $20 | Pro $100 | Pro $200
+// Anthropic: Free | Pro $20 | Max $100 | Max $200
+// Google: Free | Plus $5 (4.99→5) | Pro $20 (19.99→20) | Ultra $100 | Ultra $200 - cents rounded to nearest dollar (AI prefix removed)
+// xAI: Free | SuperGrok $30 | SuperGrok $100 | Heavy $300
+// Cursor: Free $0 | Start ~$8-10 | Pro $20 | Pro+ $60 | Ultra $200
+//
+// The order of the rules is the behavior: a plan such as "ultra plus" takes the first rule it fits.
+const PLAN_RULES: Record<string, readonly PlanRule[]> = {
+  openai: [
+    [mentions("free"), "Free"],
+    [(plan) => plan.lower === "go" || plan.lower.includes("go/") || plan.stripped === "go", "Go/$8"],
+    [mentions("plus"), "Plus/$20"],
+    [mentions("pro"), (plan) => (mentions("100")(plan) ? "Pro/$100" : "Pro/$200")],
+    [mentions("team"), "Team"],
+  ],
+  anthropic: [
+    [mentions("free"), "Free"],
+    [mentions("max"), (plan) => (mentions("200", "20x")(plan) ? "Max/$200" : "Max/$100")],
+    [mentions("enterprise"), "Enterprise"],
+    [mentions("team"), "Team"],
+    [mentions("pro"), "Pro/$20"],
+  ],
+  antigravity: [
+    [isOneOf("google antigravity", "antigravity"), "ANTIGRAVITY"],
+    [isFree, "Free"],
+    // G1-Pro/$20 removed as redundant
+    [mentions("ultra"), ultraPlan],
+    [mentions("plus"), "Plus/$5"],
+    [mentions("pro"), "Pro/$20"],
+  ],
+  google_ai_studio: [
+    [(plan) => plan.lower.includes("free") || plan.lower === "google ai studio", "Free"],
+    [mentions("ultra"), ultraPlan],
+    [mentions("plus"), "Plus/$5"],
+    [mentions("pro"), "Pro/$20"],
+  ],
+  grok: [
+    [mentions("free"), "Free"],
+    [mentions("heavy"), "SuperGrok Heavy/$300"],
+    [mentions("100", "plus"), "SuperGrok Plus/$100"],
+  ],
+  opencode_go: [
+    [mentions("free"), "Free"],
+    [mentions("go"), "Go/$10"],
+    [mentions("zen"), "Zen/PAYG"],
+    [mentions("black"), "Black Tier"],
+  ],
+};
+
+/** What a provider's plan is shown as when none of its rules matches; null shows no plan. */
+const PLAN_FALLBACK: Record<string, (plan: PlanText) => string | null> = {
+  openai: upperOrFree,
+  // Unrecognized values (legacy "Claude subscription", generic rate-limit tiers) say nothing
+  // about the plan, so show none until the next refresh stores a real one.
+  anthropic: () => null,
+  antigravity: (plan) => {
+    const cleaned = plan.withoutTier.replaceAll("_", " ").trim();
+    // G1-Pro fallback also removed - treat as Pro
+    if (cleaned.toLowerCase().startsWith("g1-")) return "Pro/$20";
+    return cleaned.toUpperCase() || "Free";
+  },
+  google_ai_studio: upperOrFree,
+  grok: () => "SuperGrok/$30",
+  opencode_go: (plan) => plan.withoutTier.toUpperCase() || "Go/$10",
+};
 
 export function displayPlan(account: Account): string | null {
   const raw = account.plan?.trim();
   if (!raw) return null;
-  const lower = raw.toLowerCase();
-  const provider = account.provider;
   const withoutTier = raw.replace(/-tier$/i, "").trim();
-  const lowStrip = withoutTier.toLowerCase();
+  const plan: PlanText = { lower: raw.toLowerCase(), withoutTier, stripped: withoutTier.toLowerCase() };
 
-  // Reference: user-provided plan table (Free | Budget $5-10 | Standard $20-30 | Mid $100 | Max $200-300)
-  // OpenCode: Free | Go $10 | Zen PAYG | Black Tier
-  // OpenAI: Free | Go $8 | Plus $20 | Pro $100 | Pro $200
-  // Anthropic: Free | Pro $20 | Max $100 | Max $200
-  // Google: Free | Plus $5 (4.99→5) | Pro $20 (19.99→20) | Ultra $100 | Ultra $200 - cents rounded to nearest dollar (AI prefix removed)
-  // xAI: Free | SuperGrok $30 | SuperGrok $100 | Heavy $300
-  // Cursor: Free $0 | Start ~$8-10 | Pro $20 | Pro+ $60 | Ultra $200
-
-  if (provider === "openai") {
-    if (lower.includes("free")) return "Free";
-    if (lower === "go" || lower.includes("go/") || lowStrip === "go") return "Go/$8";
-    if (lower.includes("plus")) return "Plus/$20";
-    if (lower.includes("pro")) {
-      if (lower.includes("100") || lower.includes("pro/$100")) return "Pro/$100";
-      if (lower.includes("200") || lower.includes("enterprise")) return "Pro/$200";
-      return "Pro/$200";
-    }
-    if (lower.includes("team")) return "Team";
-    return withoutTier.toUpperCase() || "Free";
+  const rules = PLAN_RULES[account.provider];
+  if (rules) {
+    const rule = rules.find(([matches]) => matches(plan));
+    if (rule) return typeof rule[1] === "function" ? rule[1](plan) : rule[1];
+    return PLAN_FALLBACK[account.provider](plan);
   }
-
-  if (provider === "anthropic") {
-    if (lower.includes("free")) return "Free";
-    if (lower.includes("max")) {
-      if (lower.includes("200") || lower.includes("20x")) return "Max/$200";
-      return "Max/$100";
-    }
-    if (lower.includes("enterprise")) return "Enterprise";
-    if (lower.includes("team")) return "Team";
-    if (lower.includes("pro")) return "Pro/$20";
-    // Unrecognized values (legacy "Claude subscription", generic rate-limit tiers) say nothing
-    // about the plan, so show none until the next refresh stores a real one.
-    return null;
-  }
-
-  if (provider === "antigravity") {
-    if (lower === "google antigravity" || lower === "antigravity") return "ANTIGRAVITY";
-    if (lowStrip === "free" || lower === "free" || lower === "free-tier") return "Free";
-    // G1-Pro/$20 removed as redundant
-    if (lower.includes("ultra")) {
-      if (lower.includes("200") || lower.includes("30tb") || lower.includes("genie")) return "Ultra/$200";
-      return "Ultra/$100";
-    }
-    if (lower.includes("plus")) return "Plus/$5";
-    if (lower.includes("pro")) return "Pro/$20";
-    const cleaned = withoutTier.replaceAll("_", " ").trim();
-    // G1-Pro fallback also removed - treat as Pro
-    if (cleaned.toLowerCase().startsWith("g1-")) return "Pro/$20";
-    return cleaned.toUpperCase() || "Free";
-  }
-
-  if (provider === "google_ai_studio") {
-    if (lower.includes("free") || lower === "google ai studio") return "Free";
-    if (lower.includes("ultra")) {
-      if (lower.includes("200") || lower.includes("30tb") || lower.includes("genie")) return "Ultra/$200";
-      return "Ultra/$100";
-    }
-    if (lower.includes("plus")) return "Plus/$5";
-    if (lower.includes("pro")) return "Pro/$20";
-    return withoutTier.toUpperCase() || "Free";
-  }
-
-  if (provider === "grok") {
-    if (lower.includes("free")) return "Free";
-    if (lower.includes("heavy")) return "SuperGrok Heavy/$300";
-    if (lower.includes("100") || lower.includes("plus")) return "SuperGrok Plus/$100";
-    if (lower.includes("supergrok") || lower.includes("sgrok") || lower === "grok" || lower === "grok / supergrok" || lower === "supergrok / grok") {
-      return "SuperGrok/$30";
-    }
-    return "SuperGrok/$30";
-  }
-
-  if (provider === "opencode_go") {
-    if (lower.includes("free")) return "Free";
-    if (lower.includes("go")) return "Go/$10";
-    if (lower.includes("zen")) return "Zen/PAYG";
-    if (lower.includes("black")) return "Black Tier";
-    return withoutTier.toUpperCase() || "Go/$10";
-  }
-
-  if (lowStrip === "free" || lower === "free" || lower === "free-tier") return "Free";
+  if (isFree(plan)) return "Free";
   return withoutTier.replaceAll("_", " ").toUpperCase() || raw.toUpperCase();
 }

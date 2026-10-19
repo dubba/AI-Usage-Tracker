@@ -4,7 +4,6 @@ import { useAsyncAction } from "../../shared/hooks/useAsyncAction";
 import { describeError } from "../../shared/lib/errors";
 import { BellIcon } from "../../shared/ui/icons";
 import type { Account, UsageAlertSetting, UsageWindow } from "../../types";
-import { canonicalWindow, isMonthlyWindow } from "../../shared/lib/usage-logic";
 import { CustomDropdown } from "../../shared/ui/CustomDropdown";
 import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
@@ -16,10 +15,7 @@ const WINDOW_ORDER = ["five_hour", "weekly", "monthly"] as const;
 type AlertWindowId = typeof WINDOW_ORDER[number];
 
 function canonicalWindowId(window: UsageWindow): AlertWindowId | null {
-  if (canonicalWindow(window, "five_hour")) return "five_hour";
-  if (canonicalWindow(window, "weekly")) return "weekly";
-  if (isMonthlyWindow(window)) return "monthly";
-  return null;
+  return window.kind;
 }
 
 function windowLabel(windowId: AlertWindowId): string {

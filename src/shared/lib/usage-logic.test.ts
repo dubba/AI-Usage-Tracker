@@ -24,7 +24,11 @@ const NOW = new Date("2026-09-29T12:00:00.000Z").getTime();
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 
+const KINDS = ["five_hour", "weekly", "monthly"] as const;
+
+/** A window whose kind is the one its id names, unless the test says otherwise. */
 function win(overrides: Partial<UsageWindow> = {}): UsageWindow {
+  const id = overrides.id ?? "five_hour";
   return {
     id: "five_hour",
     label: "5 hour limit",
@@ -32,6 +36,7 @@ function win(overrides: Partial<UsageWindow> = {}): UsageWindow {
     remainingPercent: 80,
     resetsAt: null,
     windowSeconds: null,
+    kind: KINDS.find((kind) => kind === id) ?? null,
     ...overrides,
   };
 }
@@ -230,25 +235,26 @@ describe("usageTone", () => {
 });
 
 describe("window classification", () => {
-  it("recognizes five-hour windows by id, seconds, or label", () => {
-    expect(canonicalWindow(win({ id: "five-hour" }), "five_hour")).toBe(true);
-    expect(canonicalWindow(win({ id: "x", label: "misc", windowSeconds: 18_000 }), "five_hour")).toBe(true);
-    expect(canonicalWindow(win({ id: "x", label: "Claude · 5h limit" }), "five_hour")).toBe(true);
-    expect(canonicalWindow(win({ id: "weekly", label: "Weekly" }), "five_hour")).toBe(false);
+  // The backend works the kind out from the provider's wording (`WindowKind::classify`, tested in
+  // `model.rs`); the frontend only reads it.
+  it("reads the kind, whatever the id and label say", () => {
+    const fiveHour = win({ id: "x", label: "misc", kind: "five_hour" });
+    expect(canonicalWindow(fiveHour, "five_hour")).toBe(true);
+    expect(canonicalWindow(fiveHour, "weekly")).toBe(false);
+    expect(isMonthlyWindow(fiveHour)).toBe(false);
+
+    const weekly = win({ id: "x", label: "x", kind: "weekly" });
+    expect(canonicalWindow(weekly, "weekly")).toBe(true);
+    expect(canonicalWindow(weekly, "five_hour")).toBe(false);
+
+    expect(isMonthlyWindow(win({ id: "x", label: "x", kind: "monthly" }))).toBe(true);
   });
 
-  it("recognizes weekly windows by id, seconds, or label", () => {
-    expect(canonicalWindow(win({ id: "weekly", label: "x" }), "weekly")).toBe(true);
-    expect(canonicalWindow(win({ id: "x", label: "x", windowSeconds: 604_800 }), "weekly")).toBe(true);
-    expect(canonicalWindow(win({ id: "x", label: "7 day limit" }), "weekly")).toBe(true);
-    expect(canonicalWindow(win({ id: "five_hour" }), "weekly")).toBe(false);
-  });
-
-  it("recognizes monthly windows", () => {
-    expect(isMonthlyWindow(win({ id: "monthly", label: "x" }))).toBe(true);
-    expect(isMonthlyWindow(win({ id: "x", label: "30-day" }))).toBe(true);
-    expect(isMonthlyWindow(win({ id: "x", label: "x", windowSeconds: 2_592_000 }))).toBe(true);
-    expect(isMonthlyWindow(win({ id: "weekly", label: "Weekly", windowSeconds: 604_800 }))).toBe(false);
+  it("does not guess a kind from the name when there is none", () => {
+    const unknown = win({ id: "weekly", label: "Weekly", windowSeconds: 604_800, kind: null });
+    expect(canonicalWindow(unknown, "weekly")).toBe(false);
+    expect(canonicalWindow(unknown, "five_hour")).toBe(false);
+    expect(isMonthlyWindow(unknown)).toBe(false);
   });
 });
 
@@ -407,10 +413,10 @@ describe("orderedWindows", () => {
   });
 
   it("keeps model groups together in first-seen order", () => {
-    const gemini5 = win({ id: "g5", label: "Gemini · 5h limit" });
-    const claudeWeekly = win({ id: "cw", label: "Claude · Weekly", windowSeconds: 604_800 });
-    const geminiWeekly = win({ id: "gw", label: "Gemini · Weekly", windowSeconds: 604_800 });
-    const claude5 = win({ id: "c5", label: "Claude · 5h limit" });
+    const gemini5 = win({ id: "g5", label: "Gemini · 5h limit", kind: "five_hour" });
+    const claudeWeekly = win({ id: "cw", label: "Claude · Weekly", windowSeconds: 604_800, kind: "weekly" });
+    const geminiWeekly = win({ id: "gw", label: "Gemini · Weekly", windowSeconds: 604_800, kind: "weekly" });
+    const claude5 = win({ id: "c5", label: "Claude · 5h limit", kind: "five_hour" });
     expect(orderedWindows([gemini5, claudeWeekly, geminiWeekly, claude5]).map((w) => w.id)).toEqual([
       "g5",
       "gw",

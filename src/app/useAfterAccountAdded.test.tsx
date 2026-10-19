@@ -107,7 +107,7 @@ describe("after an account is added", () => {
   });
 
   it("leaves a Google AI Studio account that already has quota windows alone", async () => {
-    const window = { id: "w", label: "Gemini", usedPercent: 10, remainingPercent: 90, resetsAt: null, windowSeconds: null };
+    const window = { id: "w", label: "Gemini", usedPercent: 10, remainingPercent: 90, resetsAt: null, windowSeconds: null, kind: null };
     const connected = account({ provider: "google_ai_studio", lastUsage: usage("google_ai_studio_cloud_monitoring", [window]) });
     load.mockResolvedValue(snapshotWith(connected));
     await handle(connected);

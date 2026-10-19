@@ -1,4 +1,3 @@
-import { FIVE_HOUR_WINDOW_SECONDS, WEEKLY_WINDOW_SECONDS } from "./constants";
 import { formatClockTime, formatMonthDay } from "./format";
 import { providerName } from "./providers";
 import { GROK_BOT_WINDOW_ID, isGoogleCloudMonitored, isGoogleKeyOnly } from "./usage-sources";
@@ -75,45 +74,12 @@ export function accountStatus(account: Account): { label: string; className: str
   }
   return { label: "LIVE", className: "success" };
 }
+/** True when the window is of the given kind. The backend works the kind out once (`WindowKind` in `model.rs`). */
 export function canonicalWindow(window: UsageWindow, target: SidebarWindow): boolean {
-  if (window.kind !== undefined) return window.kind === target;
-  const id = window.id.toLowerCase().replaceAll("-", "_");
-  const label = window.label.toLowerCase();
-  if (target === "five_hour") {
-    return id === "five_hour"
-      || id.startsWith("five_hour")
-      || id === "rolling"
-      || window.windowSeconds === FIVE_HOUR_WINDOW_SECONDS
-      || label.includes("5 hour")
-      || label.includes("five hour")
-      || label.includes("5h")
-      || label.includes("5-hour");
-  }
-  return id === "weekly"
-    || id.startsWith("weekly")
-    || window.windowSeconds === WEEKLY_WINDOW_SECONDS
-    || label.includes("weekly")
-    || label.includes("7 day")
-    || label.includes("seven day")
-    || label.includes("7d")
-    || label.includes("7-day");
+  return window.kind === target;
 }
 export function isMonthlyWindow(window: UsageWindow): boolean {
-  if (window.kind !== undefined) return window.kind === "monthly";
-  const id = window.id.toLowerCase().replaceAll("-", "_");
-  const label = window.label.toLowerCase();
-  return (
-    id.includes("monthly") ||
-    id.includes("30d") ||
-    id.includes("30_day") ||
-    id.includes("thirty_day") ||
-    (window.windowSeconds != null && window.windowSeconds >= 2_000_000 && window.windowSeconds <= 2_700_000) ||
-    label.includes("monthly") ||
-    label.includes("30d") ||
-    label.includes("30-day") ||
-    label.includes("30 day") ||
-    label.includes("thirty day")
-  );
+  return window.kind === "monthly";
 }
 export function accountWindowRemaining(account: Account, target: SidebarWindow): number | null {
   const windows = account.lastUsage?.windows ?? [];
@@ -289,17 +255,12 @@ export function cardWindows(windows: UsageWindow[], provider?: Provider | string
   return [...ordered.filter((w) => w.id === GROK_BOT_WINDOW_ID), ...ordered.filter((w) => w.id !== GROK_BOT_WINDOW_ID)];
 }
 export function windowLength(window: UsageWindow): string | null {
-  const id = window.id.toLowerCase().replaceAll("-", "_");
-  const label = window.label.toLowerCase();
   if (window.windowSeconds) {
     const hours = Math.round(window.windowSeconds / 3600);
     if (hours >= 24 && hours % 24 === 0) return `${hours / 24}d limit`;
     return `${hours}h limit`;
   }
-  if (id.includes("monthly") || label.includes("monthly") || id.includes("30d") || label.includes("30d")) {
-    return "30d limit";
-  }
-  return null;
+  return window.kind === "monthly" ? "30d limit" : null;
 }
 export function resetCountdownLabel(
   value: string | null | undefined,

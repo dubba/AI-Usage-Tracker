@@ -12,6 +12,7 @@ function makeWindow(remainingPercent: number | null): UsageWindow {
     remainingPercent,
     resetsAt: null,
     windowSeconds: 18000,
+    kind: "five_hour",
   };
 }
 

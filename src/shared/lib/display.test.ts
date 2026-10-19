@@ -10,7 +10,7 @@ import {
 import type { Account, Provider, UsageWindow } from "../../types";
 
 function win(overrides: Partial<UsageWindow> = {}): UsageWindow {
-  return { id: "x", label: "x", usedPercent: null, remainingPercent: null, resetsAt: null, windowSeconds: null, ...overrides };
+  return { id: "x", label: "x", usedPercent: null, remainingPercent: null, resetsAt: null, windowSeconds: null, kind: null, ...overrides };
 }
 
 function account(overrides: Partial<Account> = {}): Account {
@@ -91,15 +91,17 @@ describe("metricGroupLabel", () => {
 
 describe("windowPillClass", () => {
   it("classifies by window kind", () => {
-    expect(windowPillClass(win({ id: "five_hour" }))).toBe("window-pill-5h");
-    expect(windowPillClass(win({ id: "weekly" }))).toBe("window-pill-7d");
-    expect(windowPillClass(win({ id: "monthly" }))).toBe("window-pill-monthly");
-    expect(windowPillClass(win({ id: "custom", label: "custom" }))).toBe("window-pill-default");
+    expect(windowPillClass(win({ kind: "five_hour" }))).toBe("window-pill-5h");
+    expect(windowPillClass(win({ kind: "weekly" }))).toBe("window-pill-7d");
+    expect(windowPillClass(win({ kind: "monthly" }))).toBe("window-pill-monthly");
+    expect(windowPillClass(win({ id: "five_hour", kind: null }))).toBe("window-pill-default");
   });
 });
 
 describe("displayPlan", () => {
   const plan = (provider: Provider, value: string | null) => displayPlan(account({ provider, plan: value }));
+  // A provider this build does not know, as an account from a newer version would have.
+  const displayAccountPlan = (value: string) => displayPlan(account({ provider: "newcomer" as Provider, plan: value }));
 
   it("does not label Anthropic accounts Free when the stored plan is unrecognized", () => {
     expect(plan("anthropic", "default_claude_ai")).toBeNull();
@@ -111,23 +113,85 @@ describe("displayPlan", () => {
     expect(plan("openai", "  ")).toBeNull();
   });
 
+  // Every rule of every provider, and what falls through. The order of the rules matters
+  // ("go" before "zen" for OpenCode, "free" before everything), so the cases include plans that
+  // match two rules.
   it.each([
-    ["openai", "plus", "Plus/$20"],
-    ["openai", "pro-100", "Pro/$100"],
+    ["openai", "Free", "Free"],
+    ["openai", "free-tier", "Free"],
     ["openai", "go", "Go/$8"],
+    ["openai", "GO", "Go/$8"],
+    ["openai", "chatgpt-go/8", "Go/$8"],
+    ["openai", "go-tier", "Go/$8"],
+    ["openai", "plus", "Plus/$20"],
+    ["openai", "pro", "Pro/$200"],
+    ["openai", "pro-100", "Pro/$100"],
+    ["openai", "pro/$100", "Pro/$100"],
+    ["openai", "pro-200", "Pro/$200"],
+    ["openai", "pro-enterprise", "Pro/$200"],
+    ["openai", "team", "Team"],
+    ["openai", "plus team", "Plus/$20"],
+    ["openai", "prolite", "Pro/$200"],
+    ["openai", "business", "BUSINESS"],
+    ["openai", "free_trial-tier", "Free"],
+    ["anthropic", "free", "Free"],
     ["anthropic", "claude_max_200", "Max/$200"],
-    ["anthropic", "Claude Pro", "Pro/$20"],
-    ["anthropic", "claude_pro", "Pro/$20"],
     ["anthropic", "claude_max_5x", "Max/$100"],
     ["anthropic", "claude_max_20x", "Max/$200"],
+    ["anthropic", "max", "Max/$100"],
+    ["anthropic", "enterprise", "Enterprise"],
     ["anthropic", "claude_team", "Team"],
-    ["anthropic", "free", "Free"],
+    ["anthropic", "claude_pro", "Pro/$20"],
+    ["anthropic", "max pro", "Max/$100"],
+    ["anthropic", "team pro", "Team"],
+    ["anthropic", "enterprise team", "Enterprise"],
+    ["anthropic", "default_claude_ai", null],
+    ["antigravity", "Google Antigravity", "ANTIGRAVITY"],
+    ["antigravity", "antigravity", "ANTIGRAVITY"],
+    ["antigravity", "free", "Free"],
+    ["antigravity", "Free-Tier", "Free"],
     ["antigravity", "g1-ultra", "Ultra/$100"],
+    ["antigravity", "ultra-genie", "Ultra/$200"],
+    ["antigravity", "ultra 30tb", "Ultra/$200"],
+    ["antigravity", "ultra-200", "Ultra/$200"],
+    ["antigravity", "plus", "Plus/$5"],
+    ["antigravity", "pro", "Pro/$20"],
+    ["antigravity", "ultra plus", "Ultra/$100"],
+    ["antigravity", "plus pro", "Plus/$5"],
+    ["antigravity", "g1-standard", "Pro/$20"],
+    ["antigravity", "G1-Standard-tier", "Pro/$20"],
+    ["antigravity", "some_new_plan", "SOME NEW PLAN"],
+    ["google_ai_studio", "Google AI Studio", "Free"],
     ["google_ai_studio", "free-tier", "Free"],
+    ["google_ai_studio", "ultra", "Ultra/$100"],
+    ["google_ai_studio", "ultra-200", "Ultra/$200"],
+    ["google_ai_studio", "plus", "Plus/$5"],
+    ["google_ai_studio", "pro", "Pro/$20"],
+    ["google_ai_studio", "paid-tier", "PAID"],
+    ["google_ai_studio", "free ultra", "Free"],
+    ["grok", "free", "Free"],
     ["grok", "SuperGrok Heavy", "SuperGrok Heavy/$300"],
+    ["grok", "supergrok-100", "SuperGrok Plus/$100"],
+    ["grok", "SuperGrok Plus", "SuperGrok Plus/$100"],
+    ["grok", "supergrok", "SuperGrok/$30"],
+    ["grok", "anything else", "SuperGrok/$30"],
+    ["grok", "heavy plus", "SuperGrok Heavy/$300"],
+    ["opencode_go", "free", "Free"],
+    ["opencode_go", "go", "Go/$10"],
     ["opencode_go", "zen", "Zen/PAYG"],
+    ["opencode_go", "zen-go", "Go/$10"],
+    ["opencode_go", "black", "Black Tier"],
+    ["opencode_go", "Black Tier", "Black Tier"],
+    ["opencode_go", "enterprise", "ENTERPRISE"],
   ] as const)("maps %s %s to %s", (provider, value, expected) => {
     expect(plan(provider, value)).toBe(expected);
+  });
+
+  it("shows an unknown provider's plan in capitals without underscores, and Free as Free", () => {
+    const unknown = (value: string) => displayAccountPlan(value);
+    expect(unknown("free")).toBe("Free");
+    expect(unknown("free-tier")).toBe("Free");
+    expect(unknown("some_plan-tier")).toBe("SOME PLAN");
   });
 });
 

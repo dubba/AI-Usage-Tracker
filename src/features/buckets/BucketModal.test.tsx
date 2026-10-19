@@ -119,7 +119,7 @@ describe("BucketModal create provider filter", () => {
 
 describe("BucketModal account percentages", () => {
   function window(id: string, label: string, remainingPercent: number | null) {
-    return { id, label, usedPercent: remainingPercent == null ? null : 100 - remainingPercent, remainingPercent, resetsAt: null, windowSeconds: null };
+    return { id, label, usedPercent: remainingPercent == null ? null : 100 - remainingPercent, remainingPercent, resetsAt: null, windowSeconds: null, kind: id === "five_hour" || id === "weekly" ? id : null };
   }
 
   function withWindows(id: string, provider: Provider, windows: ReturnType<typeof window>[]): Account {

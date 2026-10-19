@@ -12,8 +12,8 @@ export interface UsageWindow {
   remainingPercent: number | null;
   resetsAt: string | null;
   windowSeconds: number | null;
-  /** `null` when it is none of the three kinds; missing only on data older than this field. */
-  kind?: WindowKind | null;
+  /** `null` when it is none of the three kinds. */
+  kind: WindowKind | null;
 }
 
 export interface UsageSnapshot {
