@@ -23,6 +23,7 @@ import {
 import { isAirgapFrameCode } from "./lib/airgap-frame";
 import { isPairingUri } from "./lib/uri";
 import { collectUiState } from "../dashboard/ui-state";
+import { useLatestRequest } from "../../shared/hooks/useLatestRequest";
 import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { useModalClosePolicy } from "../../shared/hooks/useModalClosePolicy";
@@ -85,16 +86,18 @@ export function PairingModal({
   const [scannerRestartKey, setScannerRestartKey] = useState(0);
   const [wifiPrompt, setWifiPrompt] = useState<"host" | "code" | null>(null);
 
-  const hostStartIdRef = useRef(0);
+  // Every start of a session, join or export is a request; a newer one (or leaving the view) makes
+  // an older one's answer moot.
+  const request = useLatestRequest();
   const showView = useCallback(
     (view: ViewMode, flow?: ActiveFlow) => {
-      hostStartIdRef.current += 1;
+      request.cancel();
       setErrorMessage(null);
       setAirgapPrepareError(null);
       setCameraFailed(false);
       dispatchFlow({ type: "show", view, flow });
     },
-    [setErrorMessage, setAirgapPrepareError],
+    [request, setErrorMessage, setAirgapPrepareError],
   );
 
   const dialogRef = useRef<HTMLElement>(null);
@@ -144,7 +147,7 @@ export function PairingModal({
         // A pairing link on the other device's screen: join it.
         controls.stopCamera();
         showView("host");
-        hostStartIdRef.current += 1;
+        request.cancel();
         setBusy(true);
         setErrorMessage(null);
         await pairingApi.startClient(code);
@@ -183,7 +186,7 @@ export function PairingModal({
   /** Abandon the current attempt and return to choosing how to connect. */
   const backToModes = useCallback((clearError = true) => {
     cancelPairing();
-    hostStartIdRef.current += 1;
+    request.cancel();
     if (clearError) {
       setErrorMessage(null);
       setAirgapPrepareError(null);
@@ -192,7 +195,7 @@ export function PairingModal({
     setBusy(false);
     setStatus({ status: "idle" });
     showView("select-mode", null);
-  }, [showView, setStatus, setErrorMessage, setAirgapPrepareError]);
+  }, [request, showView, setStatus, setErrorMessage, setAirgapPrepareError]);
 
   const isWaitingState = isWaitingStatus(status.status);
 
@@ -371,12 +374,12 @@ export function PairingModal({
   };
 
   const initHostSession = async () => {
-    const startId = ++hostStartIdRef.current;
+    const ticket = request.begin();
     setBusy(true);
     setErrorMessage(null);
     try {
       const init = await pairingApi.startHost();
-      if (startId !== hostStartIdRef.current) return;
+      if (!request.isLatest(ticket)) return;
       setStatus({
         status: "hostWaiting",
         data: {
@@ -389,10 +392,10 @@ export function PairingModal({
         },
       });
     } catch (err) {
-      if (startId !== hostStartIdRef.current) return;
+      if (!request.isLatest(ticket)) return;
       showError("Couldn't start the pairing session", err);
     } finally {
-      if (startId === hostStartIdRef.current) setBusy(false);
+      if (request.isLatest(ticket)) setBusy(false);
     }
   };
 
@@ -400,14 +403,14 @@ export function PairingModal({
   const startFromUri = useCallback(
     async (pendingUri: string) => {
       joinUriRef.current = pendingUri;
-      const startId = ++hostStartIdRef.current;
+      const ticket = request.begin();
       dispatchFlow({ type: "set-flow", flow: "wifi" });
       setBusy(true);
       setStatus({ status: "clientConnecting", data: { sessionId: "" } });
       try {
         await pairingApi.startClient(pendingUri);
       } catch (err) {
-        if (startId !== hostStartIdRef.current) return;
+        if (!request.isLatest(ticket)) return;
         setBusy(false);
         const raw = rawErrorMessage(err);
         recordErrorDetail("pairing", "Couldn't connect with the link", raw);
@@ -419,7 +422,7 @@ export function PairingModal({
         });
       }
     },
-    [setStatus, setErrorMessage],
+    [request, setStatus, setErrorMessage],
   );
 
   // On open: join straight away if a pairing link is waiting; on close: forget everything.
@@ -437,7 +440,7 @@ export function PairingModal({
       setIncludeSettings(true);
       setAirgapExport(null);
       setWifiPrompt(null);
-      hostStartIdRef.current += 1;
+      request.cancel();
       joinUriRef.current = null;
       return;
     }
@@ -467,7 +470,7 @@ export function PairingModal({
     };
 
     void checkPendingAndStart();
-  }, [open, initialJoinUri, setStatus, startFromUri, setErrorMessage, setAirgapPrepareError]);
+  }, [open, initialJoinUri, setStatus, startFromUri, setErrorMessage, setAirgapPrepareError, request]);
 
   const startLinkCodeFromEffect = useEffectEvent((action: "host" | "code") => startLinkCode(action));
 
@@ -508,29 +511,29 @@ export function PairingModal({
   const handleConnectByCode = async (code: string) => {
     const digits = code.replace(/\D/g, "").slice(0, PAIRING_CODE_LENGTH);
     if (digits.length !== PAIRING_CODE_LENGTH || busy) return;
-    const startId = ++hostStartIdRef.current;
+    const ticket = request.begin();
     setBusy(true);
     setErrorMessage(null);
     try {
       await pairingApi.startClientByCode(digits);
     } catch (err) {
-      if (startId !== hostStartIdRef.current) return;
+      if (!request.isLatest(ticket)) return;
       showError("Couldn't connect with that code", err);
     } finally {
-      if (startId === hostStartIdRef.current) {
+      if (request.isLatest(ticket)) {
         setBusy(false);
       }
     }
   };
 
   const handleSelectRole = async (role: IntendedRole) => {
-    const startId = ++hostStartIdRef.current;
+    const ticket = request.begin();
     setBusy(true);
     setErrorMessage(null);
     try {
       await pairingApi.selectRole(role);
     } catch (err) {
-      if (startId !== hostStartIdRef.current) return;
+      if (!request.isLatest(ticket)) return;
       showError("Couldn't apply the send or receive role", err);
       roleAutoSelectedRef.current = false;
       setBusy(false);
@@ -540,7 +543,7 @@ export function PairingModal({
   const startAirgapSender = async (includeSettingsOpt?: boolean) => {
     stopCamera();
     showView("airgap-sender");
-    const startId = ++hostStartIdRef.current;
+    const ticket = request.begin();
     setBusy(true);
     setErrorMessage(null);
     setAirgapPrepareError(null);
@@ -548,16 +551,16 @@ export function PairingModal({
       const shouldInclude = includeSettingsOpt ?? includeSettings;
       const ui = shouldInclude ? collectUiState() : undefined;
       const exp = await pairingApi.prepareAirgapExport(shouldInclude, ui);
-      if (startId !== hostStartIdRef.current) return;
+      if (!request.isLatest(ticket)) return;
       setAirgapExport(exp);
       player.restart();
     } catch (err) {
-      if (startId !== hostStartIdRef.current) return;
+      if (!request.isLatest(ticket)) return;
       const raw = rawErrorMessage(err);
       recordErrorDetail("pairing", "Couldn't prepare the transfer", raw);
       setAirgapPrepareError(friendlyMessage("Couldn't prepare the transfer", raw));
     } finally {
-      if (startId === hostStartIdRef.current) {
+      if (request.isLatest(ticket)) {
         setBusy(false);
       }
     }
@@ -565,13 +568,13 @@ export function PairingModal({
 
   const handleAirgapImport = async () => {
     if (capture.importing || !capture.verifyCode) return;
-    const startId = ++hostStartIdRef.current;
+    const ticket = request.begin();
     capture.setImporting(true);
     setErrorMessage(null);
     try {
       const chunks = Array.from(capture.chunks.values());
       const summary = await pairingApi.importAirgapFrames(chunks);
-      if (startId !== hostStartIdRef.current) return;
+      if (!request.isLatest(ticket)) return;
       hasCompletedRef.current = true;
       capture.closePrompt();
       stopCamera();
@@ -581,10 +584,10 @@ export function PairingModal({
       });
       onCompleted();
     } catch (err) {
-      if (startId !== hostStartIdRef.current) return;
+      if (!request.isLatest(ticket)) return;
       showError("Couldn't import the accounts", err);
     } finally {
-      if (startId === hostStartIdRef.current) {
+      if (request.isLatest(ticket)) {
         capture.setImporting(false);
       }
     }
@@ -594,7 +597,7 @@ export function PairingModal({
     if (confirmed) {
       setConfirmedSas(true);
     }
-    const startId = ++hostStartIdRef.current;
+    const ticket = request.begin();
     setBusy(true);
     try {
       if (confirmed) {
@@ -613,11 +616,11 @@ export function PairingModal({
       }
       await pairingApi.confirmSas(sessionId, confirmed);
     } catch (err) {
-      if (startId !== hostStartIdRef.current) return;
+      if (!request.isLatest(ticket)) return;
       showError("Couldn't confirm the codes", err);
       setConfirmedSas(false);
     } finally {
-      if (startId === hostStartIdRef.current) {
+      if (request.isLatest(ticket)) {
         setBusy(false);
       }
     }
