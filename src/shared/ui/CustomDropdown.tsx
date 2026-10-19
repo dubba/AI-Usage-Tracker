@@ -1,5 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState, useId, type CSSProperties, type RefObject } from "react";
+import { useLayoutEffect, useRef, useState, useId, type CSSProperties, type RefObject } from "react";
 import { useScrollThumb } from "../hooks/useScrollThumb";
+import { useAnchoredMenuPlacement, useMenuDismissal } from "./menu-hooks";
 
 export type DropdownOption<T extends string | number> = {
   value: T;
@@ -108,18 +109,30 @@ export function CustomDropdown<T extends string | number>({
   const dropdownId = id ?? generatedId;
   const listboxId = `${dropdownId}-listbox`;
   const [isOpen, setIsOpen] = useState(false);
-  const [placement, setPlacement] = useState<MenuPlacement>({ openUpward: false, style: {} });
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const thumb = useScrollThumb(listRef, isOpen, options.length);
+  const [placement, measurePlacement] = useAnchoredMenuPlacement<MenuPlacement>({
+    open: isOpen,
+    initial: { openUpward: false, style: {} },
+    measure: () => computeCustomDropdownPlacement(containerRef.current, listRef.current, options.length),
+    isSame: (a, b) =>
+      a.openUpward === b.openUpward &&
+      a.style.top === b.style.top &&
+      a.style.bottom === b.style.bottom &&
+      a.style.left === b.style.left &&
+      a.style.width === b.style.width &&
+      a.style.maxHeight === b.style.maxHeight,
+    changeKey: options.length,
+  });
 
   const selectedOption = options.find((opt) => opt.value === value);
   const selectedIndex = options.findIndex((opt) => opt.value === value);
 
   const openMenu = () => {
-    setPlacement(computeCustomDropdownPlacement(containerRef.current, listRef.current, options.length));
+    measurePlacement();
     setHighlightedIndex(selectedIndex >= 0 ? selectedIndex : 0);
     setIsOpen(true);
   };
@@ -132,62 +145,7 @@ export function CustomDropdown<T extends string | number>({
     }
   };
 
-  useLayoutEffect(() => {
-    if (!isOpen) return;
-
-    const updatePlacement = () => {
-      setPlacement((prev) => {
-        const next = computeCustomDropdownPlacement(containerRef.current, listRef.current, options.length);
-        if (
-          prev.openUpward === next.openUpward &&
-          prev.style.top === next.style.top &&
-          prev.style.bottom === next.style.bottom &&
-          prev.style.left === next.style.left &&
-          prev.style.width === next.style.width &&
-          prev.style.maxHeight === next.style.maxHeight
-        ) {
-          return prev;
-        }
-        return next;
-      });
-    };
-
-    updatePlacement();
-    window.addEventListener("resize", updatePlacement);
-    window.addEventListener("scroll", updatePlacement, true);
-    window.visualViewport?.addEventListener("resize", updatePlacement);
-    window.visualViewport?.addEventListener("scroll", updatePlacement);
-    return () => {
-      window.removeEventListener("resize", updatePlacement);
-      window.removeEventListener("scroll", updatePlacement, true);
-      window.visualViewport?.removeEventListener("resize", updatePlacement);
-      window.visualViewport?.removeEventListener("scroll", updatePlacement);
-    };
-  }, [isOpen, options.length]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        closeMenu();
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeMenu(true);
-      }
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen]);
+  useMenuDismissal({ open: isOpen, containerRef, pressEvents: ["pointerdown"], onDismiss: closeMenu });
 
   useLayoutEffect(() => {
     if (!isOpen || highlightedIndex < 0 || !listRef.current) return;
