@@ -24,6 +24,7 @@ import { isAirgapFrameCode } from "./lib/airgap-frame";
 import { isPairingUri } from "./lib/uri";
 import { collectUiState } from "../dashboard/ui-state";
 import { useLatestRequest } from "../../shared/hooks/useLatestRequest";
+import { useWifiGate } from "./hooks/useWifiGate";
 import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { useModalClosePolicy } from "../../shared/hooks/useModalClosePolicy";
@@ -56,9 +57,6 @@ import type { AirgapExport } from "../../types";
 const FOCUS_DELAY_MS = 50;
 /** How long opening the modal waits for a pairing link that arrived with the app launch. */
 const PENDING_URI_WAIT_MS = 1500;
-/** How often the "turn on Wi-Fi" prompt checks whether Wi-Fi came on. */
-const WIFI_POLL_MS = 800;
-
 export function PairingModal({
   open,
   initialJoinUri,
@@ -81,7 +79,6 @@ export function PairingModal({
   const [isKeyboardOpen, setIsKeyboardOpen] = useVirtualKeyboard(open);
   const [airgapExport, setAirgapExport] = useState<AirgapExport | null>(null);
   const [scannerRestartKey, setScannerRestartKey] = useState(0);
-  const [wifiPrompt, setWifiPrompt] = useState<"host" | "code" | null>(null);
 
   // Every start of a session, join or export is a request; a newer one (or leaving the view) makes
   // an older one's answer moot.
@@ -346,23 +343,10 @@ export function PairingModal({
     setJoinCodeInput("");
   };
 
-  const requireWifiThen = async (action: "host" | "code") => {
-    if (!isMobileDevice()) {
-      startLinkCode(action);
-      return;
-    }
-    let enabled = true;
-    try {
-      enabled = await pairingApi.wifiEnabled();
-    } catch (cause) {
-      logIgnored("pairing.wifiEnabled", cause);
-    }
-    if (enabled) {
-      startLinkCode(action);
-      return;
-    }
-    setWifiPrompt(action);
-  };
+  const { prompt: wifiPrompt, setPrompt: setWifiPrompt, requireWifiThen } = useWifiGate({
+    open,
+    onReady: startLinkCode,
+  });
 
   const initHostSession = async () => {
     const ticket = request.begin();
@@ -457,41 +441,7 @@ export function PairingModal({
     };
 
     void checkPendingAndStart();
-  }, [open, initialJoinUri, setStatus, startFromUri, clearAllErrors, request]);
-
-  const startLinkCodeFromEffect = useEffectEvent((action: "host" | "code") => startLinkCode(action));
-
-  // While the Wi-Fi prompt is up, poll so returning from the system panel (or
-  // flipping Wi-Fi in the Android overlay) continues the link-code step.
-  useEffect(() => {
-    if (!open || !wifiPrompt) return;
-    let cancelled = false;
-    let continued = false;
-    const action = wifiPrompt;
-    const tick = async () => {
-      try {
-        const enabled = await pairingApi.wifiEnabled();
-        if (cancelled || continued || !enabled) return;
-        continued = true;
-        setWifiPrompt(null);
-        startLinkCodeFromEffect(action);
-      } catch (cause) {
-        logIgnored("pairing.wifiEnabled", cause);
-      }
-    };
-    const onVisible = () => {
-      if (document.visibilityState === "visible") void tick();
-    };
-    const id = window.setInterval(() => void tick(), WIFI_POLL_MS);
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", onVisible);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", onVisible);
-    };
-  }, [open, wifiPrompt]);
+  }, [open, initialJoinUri, setStatus, startFromUri, clearAllErrors, request, setWifiPrompt]);
 
   if (!open) return null;
 
