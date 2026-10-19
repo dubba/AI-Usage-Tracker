@@ -547,6 +547,7 @@ mod tests {
                 remaining_percent: Some(90.0),
                 resets_at: None,
                 window_seconds: None,
+                kind: None,
             }],
             credits_usd: None,
             unlimited_credits: false,

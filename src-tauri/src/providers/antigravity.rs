@@ -495,6 +495,7 @@ fn walk_quota(
                         .and_then(Value::as_str)
                         .map(str::to_string),
                     window_seconds: infer_window_seconds(&display),
+                    kind: None,
                 });
             }
 
@@ -579,6 +580,7 @@ fn parse_available_models(value: &Value) -> Vec<UsageWindow> {
                 .and_then(Value::as_str)
                 .map(str::to_string),
             window_seconds: None,
+            kind: None,
         });
     }
     windows

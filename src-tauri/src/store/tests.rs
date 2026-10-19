@@ -233,6 +233,53 @@ fn tombstone_list_is_capped_and_a_corrupt_file_is_rebuilt() {
 }
 
 #[test]
+fn window_kinds_are_set_on_load_upsert_and_update() {
+    use crate::model::{UsageFreshness, UsageWindow, WindowKind};
+    let usage = |id: &str, label: &str| UsageSnapshot {
+        plan: None,
+        email: None,
+        windows: vec![UsageWindow {
+            id: id.into(),
+            label: label.into(),
+            used_percent: None,
+            remaining_percent: None,
+            resets_at: None,
+            window_seconds: None,
+            kind: None,
+        }],
+        credits_usd: None,
+        unlimited_credits: false,
+        fetched_at: now_rfc3339(),
+        freshness: UsageFreshness::Live,
+        source: "test".into(),
+    };
+    let kind_of = |account: &Account| account.last_usage.as_ref().unwrap().windows[0].kind;
+
+    // An account file written before windows had a kind.
+    let dir = tempdir().unwrap();
+    let mut old = sample_account("old", "Old");
+    old.last_usage = Some(usage("weekly", "Weekly"));
+    write_account_file(dir.path(), &[old]).unwrap();
+    let store = AccountStore::load(dir.path().to_path_buf()).unwrap();
+    assert_eq!(
+        kind_of(&store.get("old").unwrap()),
+        Some(WindowKind::Weekly)
+    );
+
+    let mut incoming = sample_account("new", "New");
+    incoming.last_usage = Some(usage("plan", "5h Limit"));
+    let saved = store.upsert(incoming).unwrap();
+    assert_eq!(kind_of(&saved), Some(WindowKind::FiveHour));
+
+    let updated = store
+        .mutate("new", |account| {
+            account.last_usage = Some(usage("plan", "30-day limit"));
+        })
+        .unwrap();
+    assert_eq!(kind_of(&updated), Some(WindowKind::Monthly));
+}
+
+#[test]
 fn legacy_account_defaults_to_openai() {
     let raw = r#"{
       "version": 1,

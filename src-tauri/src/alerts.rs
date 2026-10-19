@@ -1,6 +1,6 @@
 use crate::{
     json_file::JsonFileStore,
-    model::{Account, UsageWindow},
+    model::{Account, UsageWindow, WindowKind},
 };
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
@@ -292,49 +292,9 @@ impl AlertStore {
     }
 }
 
+/// The id the alert settings use for a window: its kind, if it has one.
 pub fn canonical_window_id(window: &UsageWindow) -> Option<&'static str> {
-    let id = window.id.to_ascii_lowercase().replace('-', "_");
-    let label = window.label.to_ascii_lowercase();
-    if id == "five_hour"
-        || id.starts_with("five_hour")
-        || id == "rolling"
-        || window.window_seconds == Some(crate::model::FIVE_HOUR_WINDOW_SECONDS)
-        || label.contains("5 hour")
-        || label.contains("five hour")
-        || label.contains("5h")
-        || label.contains("5-hour")
-    {
-        Some("five_hour")
-    } else if id == "weekly"
-        || id.starts_with("weekly")
-        || window.window_seconds == Some(crate::model::WEEKLY_WINDOW_SECONDS)
-        || label.contains("weekly")
-        || label.contains("7 day")
-        || label.contains("seven day")
-        || label.contains("7d")
-        || label.contains("7-day")
-    {
-        Some("weekly")
-    } else if id == "monthly"
-        || id.starts_with("monthly")
-        || id == "thirty_day"
-        || id.starts_with("thirty_day")
-        || id.contains("30d")
-        || id.contains("30-day")
-        || id.contains("30_day")
-        || window
-            .window_seconds
-            .is_some_and(|s| (2_000_000..=2_700_000).contains(&s))
-        || label.contains("monthly")
-        || label.contains("30 day")
-        || label.contains("thirty day")
-        || label.contains("30d")
-        || label.contains("30-day")
-    {
-        Some("monthly")
-    } else {
-        None
-    }
+    window.kind.map(WindowKind::as_str)
 }
 
 fn display_window_label(window_id: &str) -> &'static str {
@@ -385,7 +345,9 @@ mod tests {
                     remaining_percent: Some(remaining),
                     resets_at: Some("2026-07-20T00:00:00Z".into()),
                     window_seconds: Some(604_800),
-                }],
+                    kind: None,
+                }
+                .classified()],
                 credits_usd: None,
                 unlimited_credits: false,
                 fetched_at: now,
@@ -432,87 +394,6 @@ mod tests {
             .is_err());
     }
 
-    /// `canonical_window_id` and the frontend's `canonicalWindow` / `isMonthlyWindow` classify
-    /// the same sample windows (`window-kinds.fixture.json`). Where they disagree today, the
-    /// fixture records it as a known exception, so a change in either one fails a test.
-    #[test]
-    fn window_kind_parity_fixture_matches_the_frontend() {
-        let fixture: serde_json::Value = serde_json::from_str(include_str!(
-            "../../src/shared/lib/window-kinds.fixture.json"
-        ))
-        .unwrap();
-        let cases = fixture["cases"].as_array().unwrap();
-        assert!(cases.len() > 20);
-        for case in cases {
-            let name = case["name"].as_str().unwrap();
-            let window = UsageWindow {
-                id: case["id"].as_str().unwrap().to_string(),
-                label: case["label"].as_str().unwrap().to_string(),
-                used_percent: None,
-                remaining_percent: None,
-                resets_at: None,
-                window_seconds: case["windowSeconds"].as_u64(),
-            };
-            let kind = &case["kind"];
-            let expected = match case["knownExceptions"].get("rust") {
-                Some(exception) => {
-                    assert_ne!(
-                        exception, kind,
-                        "{name}: exception equals the intended kind"
-                    );
-                    exception
-                }
-                None => kind,
-            };
-            assert_eq!(
-                canonical_window_id(&window),
-                expected.as_str(),
-                "{name}: Rust classification differs from the fixture"
-            );
-        }
-    }
-
-    #[test]
-    fn canonical_window_id_recognizes_aliases_and_sub_windows() {
-        let w1 = UsageWindow {
-            id: "five_hour_2".into(),
-            label: "Gemini models · 5-Hour Limit".into(),
-            used_percent: Some(85.0),
-            remaining_percent: Some(15.0),
-            resets_at: None,
-            window_seconds: Some(18_000),
-        };
-        let w2 = UsageWindow {
-            id: "weekly_2".into(),
-            label: "Gemini models · 7-Day Limit".into(),
-            used_percent: Some(90.0),
-            remaining_percent: Some(10.0),
-            resets_at: None,
-            window_seconds: Some(604_800),
-        };
-        let w3 = UsageWindow {
-            id: "window-5h".into(),
-            label: "5h Limit".into(),
-            used_percent: None,
-            remaining_percent: None,
-            resets_at: None,
-            window_seconds: None,
-        };
-        let w4 = UsageWindow {
-            id: "window-7d".into(),
-            label: "7d Limit".into(),
-            used_percent: None,
-            remaining_percent: None,
-            resets_at: None,
-            window_seconds: None,
-        };
-
-        assert_eq!(canonical_window_id(&w1), Some("five_hour"));
-        assert_eq!(canonical_window_id(&w2), Some("weekly"));
-        assert_eq!(canonical_window_id(&w3), Some("five_hour"));
-        assert_eq!(canonical_window_id(&w4), Some("weekly"));
-    }
-
     #[test]
     fn antigravity_multi_window_evaluation_triggers_alert_for_depleted_window() {
         let directory = tempfile::tempdir().unwrap();
@@ -557,7 +438,9 @@ mod tests {
                         remaining_percent: Some(95.0),
                         resets_at: Some("2026-09-05T06:00:00Z".into()),
                         window_seconds: Some(18_000),
-                    },
+                        kind: None,
+                    }
+                    .classified(),
                     UsageWindow {
                         id: "weekly_1".into(),
                         label: "Claude models · Weekly Limit".into(),
@@ -565,7 +448,9 @@ mod tests {
                         remaining_percent: Some(90.0),
                         resets_at: Some("2026-09-12T00:00:00Z".into()),
                         window_seconds: Some(604_800),
-                    },
+                        kind: None,
+                    }
+                    .classified(),
                     UsageWindow {
                         id: "five_hour_2".into(),
                         label: "Gemini models · 5-Hour Limit".into(),
@@ -573,7 +458,9 @@ mod tests {
                         remaining_percent: Some(15.0),
                         resets_at: Some("2026-09-05T07:00:00Z".into()),
                         window_seconds: Some(18_000),
-                    },
+                        kind: None,
+                    }
+                    .classified(),
                     UsageWindow {
                         id: "weekly_2".into(),
                         label: "Gemini models · Weekly Limit".into(),
@@ -581,7 +468,9 @@ mod tests {
                         remaining_percent: Some(8.0),
                         resets_at: Some("2026-09-12T00:00:00Z".into()),
                         window_seconds: Some(604_800),
-                    },
+                        kind: None,
+                    }
+                    .classified(),
                 ],
                 credits_usd: None,
                 unlimited_credits: false,
@@ -620,47 +509,6 @@ mod tests {
     }
 
     #[test]
-    fn canonical_window_id_recognizes_thirty_day_windows() {
-        let w1 = UsageWindow {
-            id: "monthly".into(),
-            label: "GPT · 30-Day Limit".into(),
-            used_percent: Some(90.0),
-            remaining_percent: Some(10.0),
-            resets_at: None,
-            window_seconds: Some(2_592_000),
-        };
-        let w2 = UsageWindow {
-            id: "session".into(),
-            label: "Session".into(),
-            used_percent: Some(85.0),
-            remaining_percent: Some(15.0),
-            resets_at: None,
-            window_seconds: Some(2_592_000),
-        };
-        let w3 = UsageWindow {
-            id: "window-30d".into(),
-            label: "30d window".into(),
-            used_percent: None,
-            remaining_percent: None,
-            resets_at: None,
-            window_seconds: None,
-        };
-        let w4 = UsageWindow {
-            id: "thirty_day".into(),
-            label: "Monthly Limit".into(),
-            used_percent: None,
-            remaining_percent: None,
-            resets_at: None,
-            window_seconds: None,
-        };
-
-        assert_eq!(canonical_window_id(&w1), Some("monthly"));
-        assert_eq!(canonical_window_id(&w2), Some("monthly"));
-        assert_eq!(canonical_window_id(&w3), Some("monthly"));
-        assert_eq!(canonical_window_id(&w4), Some("monthly"));
-    }
-
-    #[test]
     fn thirty_day_alert_triggers_and_formats_label() {
         let directory = tempfile::tempdir().unwrap();
         let store = AlertStore::load(directory.path()).unwrap();
@@ -696,7 +544,9 @@ mod tests {
                     remaining_percent: Some(15.0),
                     resets_at: Some("2026-10-01T00:00:00Z".into()),
                     window_seconds: Some(2_592_000),
-                }],
+                    kind: None,
+                }
+                .classified()],
                 credits_usd: None,
                 unlimited_credits: false,
                 fetched_at: now,
@@ -715,5 +565,20 @@ mod tests {
 
         // Deduplication
         assert!(store.evaluate(&account).unwrap().is_empty());
+    }
+
+    #[test]
+    fn a_window_is_alerted_under_its_kind() {
+        let weekly = UsageWindow {
+            id: "weekly_2".into(),
+            label: "Gemini models · 7-Day Limit".into(),
+            used_percent: None,
+            remaining_percent: None,
+            resets_at: None,
+            window_seconds: None,
+            kind: None,
+        };
+        assert_eq!(canonical_window_id(&weekly), None, "not classified yet");
+        assert_eq!(canonical_window_id(&weekly.classified()), Some("weekly"));
     }
 }

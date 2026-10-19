@@ -749,6 +749,7 @@ mod tests {
                 remaining_percent: Some(100.0),
                 resets_at: None,
                 window_seconds: Some(18_000),
+                kind: None,
             },
             crate::model::UsageWindow {
                 id: "weekly".into(),
@@ -757,6 +758,7 @@ mod tests {
                 remaining_percent: Some(60.0),
                 resets_at: Some("2026-10-04T12:00:00Z".into()),
                 window_seconds: Some(604_800),
+                kind: None,
             },
         ]);
         assert_eq!(windows, "five_hour 100% reset=no, weekly 60% reset=yes");

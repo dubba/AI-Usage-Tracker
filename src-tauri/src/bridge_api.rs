@@ -511,6 +511,7 @@ mod tests {
                     remaining_percent: Some(82.0),
                     resets_at: Some("2026-09-03T17:00:00Z".into()),
                     window_seconds: Some(18_000),
+                    kind: None,
                 }],
                 credits_usd: None,
                 unlimited_credits: false,

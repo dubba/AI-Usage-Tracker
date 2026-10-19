@@ -294,6 +294,7 @@ fn normalize_window(
         remaining_percent: Some((100.0 - used).max(0.0)),
         resets_at,
         window_seconds,
+        kind: None,
     }
 }
 

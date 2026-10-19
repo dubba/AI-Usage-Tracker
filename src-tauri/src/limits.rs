@@ -163,6 +163,7 @@ mod tests {
                         remaining_percent: Some(40.0),
                         resets_at: Some("r".repeat(1000)),
                         window_seconds: Some(1),
+                        kind: None,
                     })
                     .collect(),
                 credits_usd: Some(f64::INFINITY),

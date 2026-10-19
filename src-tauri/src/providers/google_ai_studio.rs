@@ -189,7 +189,7 @@ pub async fn probe_account(
     }
 
     let now = now_rfc3339();
-    Ok(Account {
+    let mut account = Account {
         id: "google-ai-studio-probe".into(),
         label: normalized_label(&label),
         provider: Provider::GoogleAiStudio,
@@ -211,7 +211,9 @@ pub async fn probe_account(
         }),
         last_error: None,
         auth_required: false,
-    })
+    };
+    account.classify_windows();
+    Ok(account)
 }
 
 pub async fn add_account(
@@ -678,6 +680,7 @@ fn normalize_quota_windows(
                 .is_daily()
                 .then(|| next_pacific_midnight(now).to_rfc3339()),
             window_seconds: Some(kind.window_seconds()),
+            kind: None,
         };
         let key = (model.name.clone(), kind);
         let candidate = WindowCandidate {
@@ -834,6 +837,7 @@ fn model_windows(models: Vec<TrackableModel>) -> Vec<UsageWindow> {
             remaining_percent: None,
             resets_at: None,
             window_seconds: None,
+            kind: None,
         })
         .collect()
 }
@@ -848,6 +852,7 @@ fn waiting_windows(models: Vec<TrackableModel>) -> Vec<UsageWindow> {
             remaining_percent: None,
             resets_at: None,
             window_seconds: None,
+            kind: None,
         })
         .collect()
 }

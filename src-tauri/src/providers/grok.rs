@@ -332,6 +332,7 @@ fn usage_from_snapshot(
         remaining_percent: Some((100.0 - used).max(0.0)),
         resets_at: snapshot.resets_at.map(|value| value.to_rfc3339()),
         window_seconds,
+        kind: None,
     }];
     if let Some(bot) = bot {
         windows.push(bot_usage_window(&bot));
@@ -370,6 +371,7 @@ fn bot_usage_window(bot: &BotUsage) -> UsageWindow {
         remaining_percent: Some((100.0 - bot.used_percent).max(0.0)),
         resets_at: bot.resets_at.map(|value| value.to_rfc3339()),
         window_seconds: Some(window_seconds),
+        kind: None,
     }
 }
 

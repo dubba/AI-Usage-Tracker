@@ -265,6 +265,7 @@ fn normalize_window(id: &str, label: &str, raw: &RawWindow) -> UsageWindow {
         remaining_percent: used.map(|value| (100.0 - value).max(0.0)),
         resets_at,
         window_seconds,
+        kind: None,
     }
 }
 

@@ -104,7 +104,8 @@ impl AccountStore {
             .cloned()
     }
 
-    pub fn upsert(&self, account: Account) -> Result<Account, StoreError> {
+    pub fn upsert(&self, mut account: Account) -> Result<Account, StoreError> {
+        account.classify_windows();
         let (saved, snapshot, version) = {
             let mut accounts = self.accounts.write();
             let saved = if let Some(existing) = accounts
@@ -135,6 +136,7 @@ impl AccountStore {
                 .find(|account| account.id == id)
                 .ok_or_else(|| StoreError::Invalid("account not found".into()))?;
             update(account);
+            account.classify_windows();
             account.touch();
             let result = account.clone();
             (result, accounts.clone(), self.next_version())
@@ -424,7 +426,10 @@ pub(crate) fn read_account_file(data_dir: &Path) -> Result<Vec<Account>, StoreEr
     let raw = fs::read_to_string(source).map_err(|error| StoreError::Io(error.to_string()))?;
     let parsed: AccountFile =
         serde_json::from_str(&raw).map_err(|error| StoreError::Invalid(error.to_string()))?;
-    Ok(parsed.accounts)
+    // Accounts saved before windows had a kind, or by a version that worked it out differently.
+    let mut accounts = parsed.accounts;
+    accounts.iter_mut().for_each(Account::classify_windows);
+    Ok(accounts)
 }
 
 pub(crate) fn write_account_file(data_dir: &Path, accounts: &[Account]) -> Result<(), StoreError> {

@@ -69,6 +69,91 @@ impl FromStr for Provider {
 pub const FIVE_HOUR_WINDOW_SECONDS: u64 = 18_000;
 pub const WEEKLY_WINDOW_SECONDS: u64 = 604_800;
 
+/// The monthly window lengths providers report: about 30 days, give or take a few.
+const MONTHLY_WINDOW_SECONDS: std::ops::RangeInclusive<u64> = 2_000_000..=2_700_000;
+
+/// What a usage window measures. Providers name their windows in their own words (ids such as
+/// `five_hour_2`, labels such as "Gemini models · 7-Day Limit"); this is the one place that turns
+/// those into the three kinds the app has alerts, sidebar slots and styling for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WindowKind {
+    FiveHour,
+    Weekly,
+    Monthly,
+}
+
+/// Words that name a window, as lower-case tokens ("5-Hour" is `5`, `hour`). The kinds are tried in
+/// this order, so a window that could be read two ways is the shorter one.
+const KIND_PHRASES: [(WindowKind, &[&[&str]]); 3] = [
+    (
+        WindowKind::FiveHour,
+        &[&["5h"], &["5hr"], &["5", "hour"], &["five", "hour"]],
+    ),
+    (
+        WindowKind::Weekly,
+        &[&["weekly"], &["7d"], &["7", "day"], &["seven", "day"]],
+    ),
+    (
+        WindowKind::Monthly,
+        &[&["monthly"], &["30d"], &["30", "day"], &["thirty", "day"]],
+    ),
+];
+
+/// Splits on anything that is not a letter or digit, and reads "hours" and "days" as "hour" and
+/// "day". Whole tokens are matched, so "15h" is not "5h" and "17d" is not "7d".
+fn name_tokens(text: &str) -> Vec<String> {
+    text.to_lowercase()
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|token| !token.is_empty())
+        .map(|token| match token {
+            "hours" => "hour".to_string(),
+            "days" => "day".to_string(),
+            other => other.to_string(),
+        })
+        .collect()
+}
+
+fn mentions(tokens: &[String], phrase: &[&str]) -> bool {
+    tokens.windows(phrase.len()).any(|run| {
+        run.iter()
+            .zip(phrase)
+            .all(|(token, expected)| token == expected)
+    })
+}
+
+impl WindowKind {
+    /// The serialized name, which is also the id the alert settings use for the kind.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::FiveHour => "five_hour",
+            Self::Weekly => "weekly",
+            Self::Monthly => "monthly",
+        }
+    }
+
+    /// The kind of a window from its id, label and length, or `None` when it is none of the three
+    /// (a model's quota, say).
+    pub fn classify(id: &str, label: &str, window_seconds: Option<u64>) -> Option<Self> {
+        let id_tokens = name_tokens(id);
+        let label_tokens = name_tokens(label);
+        KIND_PHRASES.iter().find_map(|(kind, phrases)| {
+            let by_length = match kind {
+                Self::FiveHour => window_seconds == Some(FIVE_HOUR_WINDOW_SECONDS),
+                Self::Weekly => window_seconds == Some(WEEKLY_WINDOW_SECONDS),
+                Self::Monthly => {
+                    window_seconds.is_some_and(|s| MONTHLY_WINDOW_SECONDS.contains(&s))
+                }
+            };
+            let by_name = phrases
+                .iter()
+                .any(|phrase| mentions(&id_tokens, phrase) || mentions(&label_tokens, phrase));
+            let by_id = *kind == Self::FiveHour && id.eq_ignore_ascii_case("rolling");
+            (by_length || by_name || by_id).then_some(*kind)
+        })
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UsageWindow {
@@ -78,6 +163,31 @@ pub struct UsageWindow {
     pub remaining_percent: Option<f64>,
     pub resets_at: Option<String>,
     pub window_seconds: Option<u64>,
+    /// Worked out from the fields above by [`WindowKind::classify`] wherever usage enters the app
+    /// (a refresh, the account file, a pairing import), never read from a provider. Providers leave
+    /// it `None`. It is for the app's own commands; the local API does not publish it.
+    #[serde(default)]
+    pub kind: Option<WindowKind>,
+}
+
+impl UsageWindow {
+    /// Sets `kind` from the id, label and length.
+    pub fn classify(&mut self) {
+        self.kind = WindowKind::classify(&self.id, &self.label, self.window_seconds);
+    }
+
+    /// This window with its kind set.
+    pub fn classified(mut self) -> Self {
+        self.classify();
+        self
+    }
+}
+
+impl UsageSnapshot {
+    /// Sets the kind of every window.
+    pub fn classify_windows(&mut self) {
+        self.windows.iter_mut().for_each(UsageWindow::classify);
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -123,6 +233,13 @@ pub struct Account {
 }
 
 impl Account {
+    /// Sets the kind of every window in the account's last usage.
+    pub fn classify_windows(&mut self) {
+        if let Some(usage) = self.last_usage.as_mut() {
+            usage.classify_windows();
+        }
+    }
+
     pub fn touch(&mut self) {
         self.updated_at = Utc::now().to_rfc3339();
     }
@@ -610,5 +727,51 @@ mod tests {
         assert!(all[0].contains("expires_at: 1700000000000"), "{}", all[0]);
         assert!(all[3].contains("wrk_123"), "{}", all[3]);
         assert!(all[4].contains("gemini-pro") && all[4].contains("project-1"));
+    }
+
+    /// The same sample windows are checked against the frontend's fallback classifier
+    /// (`src/shared/lib/window-kinds.test.ts`), so the two cannot drift apart unnoticed.
+    #[test]
+    fn window_kinds_match_the_shared_fixture() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../src/shared/lib/window-kinds.fixture.json"
+        ))
+        .unwrap();
+        let cases = fixture["cases"].as_array().unwrap();
+        assert!(cases.len() > 20);
+        for case in cases {
+            let name = case["name"].as_str().unwrap();
+            let kind = WindowKind::classify(
+                case["id"].as_str().unwrap(),
+                case["label"].as_str().unwrap(),
+                case["windowSeconds"].as_u64(),
+            );
+            assert_eq!(
+                kind.map(WindowKind::as_str),
+                case["kind"].as_str(),
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn kind_is_recomputed_not_trusted_and_the_old_file_format_loads() {
+        let old: UsageWindow = serde_json::from_value(serde_json::json!({
+            "id": "five_hour", "label": "5 hour", "usedPercent": 1.0, "remainingPercent": 99.0,
+            "resetsAt": null, "windowSeconds": 18000
+        }))
+        .unwrap();
+        assert_eq!(old.kind, None);
+        assert_eq!(old.classified().kind, Some(WindowKind::FiveHour));
+        let json = serde_json::to_value(UsageWindow {
+            kind: Some(WindowKind::Monthly),
+            ..serde_json::from_value(serde_json::json!({
+                "id": "x", "label": "x", "usedPercent": null, "remainingPercent": null,
+                "resetsAt": null, "windowSeconds": null
+            }))
+            .unwrap()
+        })
+        .unwrap();
+        assert_eq!(json["kind"], "monthly");
     }
 }

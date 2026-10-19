@@ -236,6 +236,7 @@ fn windows_from_raw(raw: &RawUsage) -> Vec<UsageWindow> {
                 remaining_percent: Some((100.0 - utilization).max(0.0)),
                 resets_at: extra.resets_at.clone(),
                 window_seconds: None,
+                kind: None,
             });
         }
     }
@@ -258,6 +259,7 @@ fn push_window(
         remaining_percent: used.map(|value| (100.0 - value).max(0.0)),
         resets_at: raw.resets_at.clone(),
         window_seconds,
+        kind: None,
     });
 }
 

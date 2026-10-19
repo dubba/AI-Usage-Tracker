@@ -1,5 +1,5 @@
 {
-  "_comment": "Shared by src/shared/lib/window-kinds.test.ts (canonicalWindow / isMonthlyWindow) and the window_kind_parity test in src-tauri/src/alerts.rs (canonical_window_id). `kind` is what the window should be classified as. `knownExceptions` records where one implementation gives a different answer today, per implementation (ts, rust). The phase 4 single classifier removes them; until then a changed answer fails the test, so a disagreement can only be added or removed on purpose.",
+  "_comment": "Shared by src/shared/lib/window-kinds.test.ts and the window_kinds_match_the_shared_fixture test in src-tauri/src/model.rs (WindowKind::classify). `kind` is what the window should be classified as; the backend gets every case right. `knownExceptions.ts` records where the frontend fallback (used only for a window that has no `kind`) still answers differently; a changed answer fails the test.",
   "cases": [
     { "name": "five_hour id and seconds", "id": "five_hour", "label": "5 hour limit", "windowSeconds": 18000, "kind": "five_hour" },
     { "name": "five_hour sub-window", "id": "five_hour_2", "label": "Gemini models · 5-Hour Limit", "windowSeconds": 18000, "kind": "five_hour" },
@@ -29,10 +29,12 @@
     { "name": "seconds just below the monthly range", "id": "plan", "label": "Allowance", "windowSeconds": 1999999, "kind": null },
     { "name": "seconds at the end of the monthly range", "id": "plan", "label": "Allowance", "windowSeconds": 2700000, "kind": "monthly" },
     { "name": "seconds just above the monthly range", "id": "plan", "label": "Allowance", "windowSeconds": 2700001, "kind": null },
+    { "name": "plural hours in a label", "id": "plan", "label": "5 hours", "windowSeconds": null, "kind": "five_hour" },
+    { "name": "plural days in a label", "id": "plan", "label": "30 days", "windowSeconds": null, "kind": "monthly" },
     { "name": "unknown window", "id": "grok_bot", "label": "Grok", "windowSeconds": null, "kind": null },
     { "name": "unknown window with unrelated seconds", "id": "daily", "label": "Daily", "windowSeconds": 86400, "kind": null },
-    { "name": "monthly word inside the id", "id": "credits_monthly", "label": "Credits", "windowSeconds": null, "kind": "monthly", "knownExceptions": { "rust": null } },
-    { "name": "15h is not 5h", "id": "plan", "label": "15h limit", "windowSeconds": null, "kind": null, "knownExceptions": { "ts": "five_hour", "rust": "five_hour" } },
-    { "name": "17d is not 7d", "id": "plan", "label": "17d limit", "windowSeconds": null, "kind": null, "knownExceptions": { "ts": "weekly", "rust": "weekly" } }
+    { "name": "monthly word inside the id", "id": "credits_monthly", "label": "Credits", "windowSeconds": null, "kind": "monthly" },
+    { "name": "15h is not 5h", "id": "plan", "label": "15h limit", "windowSeconds": null, "kind": null, "knownExceptions": { "ts": "five_hour" } },
+    { "name": "17d is not 7d", "id": "plan", "label": "17d limit", "windowSeconds": null, "kind": null, "knownExceptions": { "ts": "weekly" } }
   ]
 }
