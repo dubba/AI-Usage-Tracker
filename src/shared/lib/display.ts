@@ -22,11 +22,6 @@ export function displayAccountSubtitle(account: Account): string {
   return pName;
 }
 
-export function formatAlertTime(timestamp: number): string {
-  const date = new Date(timestamp);
-  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-}
-
 export function cleanModelPrefix(prefix: string): string {
   return prefix
     .replace(/\bclaude\s+and\s+gpt\b/i, "Claude & GPT")

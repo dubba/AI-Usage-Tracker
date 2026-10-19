@@ -1,4 +1,4 @@
-import { formatAlertTime } from "../../shared/lib/display";
+import { formatAlertTime } from "../../shared/lib/format";
 import { BellIcon, CloseIcon } from "../../shared/ui/icons";
 import type { UsageAlertToast } from "./usage-alerts";
 

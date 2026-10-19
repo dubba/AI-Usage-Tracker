@@ -1,12 +1,8 @@
 import { useClock } from "../../shared/hooks/useClock";
 import { useUsageDisplayMode } from "../../shared/hooks/useUsageDisplayMode";
 import { displayPercent, usageDisplaySuffix } from "../../shared/lib/usage-display";
-import {
-  formatResetAtShort,
-  usageTone,
-  windowLength,
-  resetCountdownLabel,
-} from "../../shared/lib/usage-logic";
+import { formatResetAtShort, resetCountdownLabel } from "../../shared/lib/format";
+import { usageTone, windowLength } from "../../shared/lib/usage-logic";
 import {
   metricGroupLabel,
   windowPillClass,

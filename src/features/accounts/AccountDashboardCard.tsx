@@ -18,9 +18,9 @@ import {
   accountNeedsAttention,
   accountStatus,
   usageTone,
-  formatUpdatedAt,
   cardWindows,
 } from "../../shared/lib/usage-logic";
+import { formatUpdatedAt } from "../../shared/lib/format";
 import {
   displayAccountSubtitle,
   displayPlan,

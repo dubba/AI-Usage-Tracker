@@ -1,5 +1,6 @@
 import { ACCOUNT_FORMS, formatCount } from "../../shared/lib/format";
-import { accountAutoRefreshEligible, formatElapsed } from "../../shared/lib/usage-logic";
+import { formatElapsed } from "../../shared/lib/format";
+import { accountAutoRefreshEligible } from "../../shared/lib/usage-logic";
 import type { Account } from "../../types";
 
 export type SyncTone = "none" | "fresh" | "stale";
