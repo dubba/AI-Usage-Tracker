@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (17 changes)
+## Unreleased (18 changes)
 
 ### Added (2)
 
@@ -16,7 +16,7 @@
 - The sidebar can now be made narrower, down to the width of the Account and Group buttons. The sync line at the bottom wraps onto centered lines ("Accounts synced", then "4m ago"), and the L / U toggle drops below the Account and Group buttons, left-aligned with the Account button, when the sidebar is narrower than its default width.
 - On a phone or tablet, a tooltip stays fully visible for 2.3 seconds, then fades out and is gone at 2.5 seconds.
 
-### Fixed (9)
+### Fixed (10)
 
 - Usage alerts and the 5h / 7d / 30-day labels no longer mistake a window named "15h" for a 5-hour window or "17d" for a 7-day one, and a window whose name contains "monthly" (such as "credits_monthly") is now recognized as monthly in alerts, as it already was on the dashboard.
 - Receiving an air-gap transfer that fits in a single QR code now completes instead of waiting for more codes.
@@ -27,6 +27,7 @@
 - On mobile and tablet screens, the Action Needed summary card now keeps its full four-sided amber highlight border when filtering instead of having its left border cut off with dark gray.
 - On mobile and touch devices, tapping the usage display toggle (L / U) in the sidebar no longer leaves the tapped button stuck in a light-purple hover highlight, keeping it in the solid default purple.
 - On Android, the back gesture or back button on the "Account connected" screen now returns straight to the dashboard for every provider, instead of stepping back through the earlier sign-in pages (it only did for some providers).
+- On Android, going back from the "Account connected" screen and then signing in to another provider right away no longer lets the first sign-in's countdown reset the page in the middle of the new one.
 
 ## v0.4.8 - 2026-10-18 (20 changes)
 

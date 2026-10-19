@@ -62,6 +62,7 @@ pub(crate) fn is_result_page(url: &Url) -> bool {
 /// `CONNECTED_PAGE_DISPLAY`. Script the app evaluates is not held to the page's
 /// Content Security Policy, unlike the page's own inline script, and the number
 /// and the close then run on one clock.
+#[cfg_attr(not(desktop), allow(dead_code))]
 pub(crate) async fn run_connected_countdown(window: &tauri::WebviewWindow) {
     let seconds = CONNECTED_PAGE_DISPLAY.as_secs();
     for remaining in (0..seconds).rev() {

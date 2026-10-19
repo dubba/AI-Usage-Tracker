@@ -406,11 +406,14 @@ pub fn open_in_main_webview(
                     // navigation that added it, so back reaches the activity's handler.
                     #[cfg(target_os = "android")]
                     set_android_sign_in_result_showing(true);
-                    if shown_by_app {
-                        crate::auth::oauth_common::run_connected_countdown(&window).await;
-                    } else {
-                        tokio::time::sleep(SUCCESS_DISPLAY_DELAY).await;
-                    }
+                    hold_result_page(&window, &state, &attempt_id, &restore_url, shown_by_app)
+                        .await;
+                }
+                // A newer sign-in owns the WebView now (back on the result page returns to the
+                // dashboard at once, so the next sign-in can start before this one has finished
+                // its countdown). Touching the page or its history here would break that one.
+                if !attempt_matches(&state, &attempt_id) {
+                    break;
                 }
                 if let Ok(current) = window.url() {
                     if !urls_share_origin(&current, &restore_url) {
@@ -533,6 +536,37 @@ async fn show_result_page(window: &WebviewWindow, state: &AppState, attempt_id: 
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
     shown_by_app
+}
+
+/// Keeps the result page up for `SUCCESS_DISPLAY_DELAY`, counting its number down when the app
+/// showed the page (`count_down`). Ends early when the user has left the page (back returns to the
+/// app's own origin, `restore_url`) or a newer sign-in has replaced this attempt.
+#[cfg(mobile)]
+async fn hold_result_page(
+    window: &WebviewWindow,
+    state: &AppState,
+    attempt_id: &str,
+    restore_url: &Url,
+    count_down: bool,
+) {
+    let seconds = SUCCESS_DISPLAY_DELAY.as_secs();
+    for remaining in (0..seconds).rev() {
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        if !attempt_matches(state, attempt_id) {
+            return;
+        }
+        if window
+            .url()
+            .is_ok_and(|current| urls_share_origin(&current, restore_url))
+        {
+            return;
+        }
+        if count_down {
+            let _ = window.eval(format!(
+                "(() => {{ const el = document.getElementById('sec'); if (el) el.textContent = '{remaining}'; }})();"
+            ));
+        }
+    }
 }
 
 #[cfg(mobile)]
