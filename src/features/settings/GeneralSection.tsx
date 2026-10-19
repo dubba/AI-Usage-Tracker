@@ -6,7 +6,7 @@ import { useAppSettingsState } from "./settings-context";
 
 /**
  * The intervals the dropdown offers. They must match `OFFERED_REFRESH_MINUTES` in
- * `src-tauri/src/settings.rs`, which snaps any stored value to the nearest one; a test in
+ * `src-tauri/src/store/settings.rs`, which snaps any stored value to the nearest one; a test in
  * `src-tauri` (`frontend_contract.rs`) checks the two lists agree.
  */
 const ACCOUNT_REFRESH_OPTIONS = [5, 10, 15, 30, 45, 60] as const;

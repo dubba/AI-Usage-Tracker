@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
  * The app's purple is three tokens (--purple-fill, --purple-accent, --purple-text, defined in
  * tokens.css) plus the tint triplets next to them. This keeps a new stylesheet from adding a
  * fourth shade by pasting a hex, and keeps the one place CSS cannot reach (the native title bar
- * in src-tauri/src/tray.rs) on the same value.
+ * in src-tauri/src/platform/tray.rs) on the same value.
  */
 const STYLES = __dirname;
 const SRC = join(__dirname, "..");
@@ -18,6 +18,14 @@ function cssFiles(dir: string): string[] {
     const path = join(dir, name);
     if (statSync(path).isDirectory()) return cssFiles(path);
     return path.endsWith(".css") ? [path] : [];
+  });
+}
+
+function rustFiles(dir: string): string[] {
+  return readdirSync(dir).flatMap((name: string) => {
+    const path = join(dir, name);
+    if (statSync(path).isDirectory()) return rustFiles(path);
+    return path.endsWith(".rs") ? [path] : [];
   });
 }
 
@@ -74,22 +82,20 @@ describe("purple tokens", () => {
   });
 
   it("paints the native title bar with --purple-fill", () => {
-    const tray = readFileSync(join(SRC, "..", "src-tauri", "src", "tray.rs"), "utf8");
+    const tray = readFileSync(join(SRC, "..", "src-tauri", "src", "platform", "tray.rs"), "utf8");
     const match = tray.match(/TITLE_BAR_PURPLE_RGB: \(u8, u8, u8\) = \(0x([0-9a-f]{2}), 0x([0-9a-f]{2}), 0x([0-9a-f]{2})\)/i);
-    expect(match, "TITLE_BAR_PURPLE_RGB not found in tray.rs").not.toBeNull();
+    expect(match, "TITLE_BAR_PURPLE_RGB not found in platform/tray.rs").not.toBeNull();
     expect(`#${match![1]}${match![2]}${match![3]}`.toLowerCase()).toBe(token("--purple-fill"));
   });
 
   it("keeps Rust-rendered pages on the token values", () => {
     const allowed = new Set([token("--purple-fill"), token("--purple-accent")]);
     const rustDir = join(SRC, "..", "src-tauri", "src");
-    const offenders = readdirSync(rustDir)
-      .filter((name) => name.endsWith(".rs"))
-      .flatMap((name) =>
-        purpleLiterals(readFileSync(join(rustDir, name), "utf8"))
-          .filter((literal) => !allowed.has(literal.toLowerCase()))
-          .map((literal) => `${name}: ${literal}`),
-      );
+    const offenders = rustFiles(rustDir).flatMap((file) =>
+      purpleLiterals(readFileSync(file, "utf8"))
+        .filter((literal) => !allowed.has(literal.toLowerCase()))
+        .map((literal) => `${file.slice(rustDir.length + 1)}: ${literal}`),
+    );
     expect(offenders).toEqual([]);
   });
 });
