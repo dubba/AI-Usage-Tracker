@@ -26,6 +26,7 @@ mod grok_login;
 mod ios_cookies;
 #[cfg(target_os = "ios")]
 mod ios_popups;
+mod json_file;
 mod lan_binding;
 mod limits;
 #[cfg(desktop)]

@@ -1,13 +1,9 @@
-use crate::{
-    fs_util::{atomic_write_private, ensure_private_dir, ensure_private_file},
-    model::Account,
-};
+use crate::{json_file::JsonFileStore, model::Account};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
-    fs,
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 const ORDER_FILE_NAME: &str = "account-order.json";
@@ -20,27 +16,20 @@ struct AccountOrderFile {
 }
 
 pub struct AccountOrderStore {
-    path: PathBuf,
+    file: JsonFileStore<AccountOrderFile>,
     account_ids: RwLock<Vec<String>>,
 }
 
 impl AccountOrderStore {
     pub fn load(data_dir: &Path) -> Result<Self, String> {
-        ensure_private_dir(data_dir)?;
-        let path = data_dir.join(ORDER_FILE_NAME);
-        let account_ids = if path.exists() {
-            let payload = fs::read_to_string(&path).map_err(|error| error.to_string())?;
-            let parsed = serde_json::from_str::<AccountOrderFile>(&payload)
-                .map_err(|error| format!("Unable to read saved account order: {error}"))?
-                .account_ids;
-            ensure_private_file(&path)?;
-            parsed
-        } else {
-            Vec::new()
-        };
+        let (file, saved) = JsonFileStore::<AccountOrderFile>::open(
+            data_dir,
+            ORDER_FILE_NAME,
+            "Unable to read saved account order",
+        )?;
         Ok(Self {
-            path,
-            account_ids: RwLock::new(account_ids),
+            file,
+            account_ids: RwLock::new(saved.account_ids),
         })
     }
 
@@ -124,12 +113,10 @@ impl AccountOrderStore {
     }
 
     fn persist(&self) -> Result<(), String> {
-        let file = AccountOrderFile {
+        self.file.save(&AccountOrderFile {
             version: 1,
             account_ids: self.account_ids.read().clone(),
-        };
-        let payload = serde_json::to_vec_pretty(&file).map_err(|error| error.to_string())?;
-        atomic_write_private(&self.path, &payload)
+        })
     }
 }
 
