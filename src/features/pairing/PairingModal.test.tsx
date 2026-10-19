@@ -38,31 +38,41 @@ vi.mock("@tauri-apps/api/event", () => ({
 type ScannerOptions = {
   active: boolean;
   restartKey: number;
-  setCameraError: (value: string | null) => void;
-  setAirgapCapturedChunks: (value: Map<number, string>) => void;
-  setAirgapTotalChunks: (value: number) => void;
-  setAirgapPinPrompt: (value: boolean) => void;
-  setAirgapCaptureSecs: (value: number | null) => void;
-  airgapVerifyPromptRef: { current: boolean };
+  onDecoded: (code: string, controls: { stopCamera: () => void }) => boolean | void | Promise<boolean | void>;
+  onError?: (cause: unknown) => void;
 };
 const scanner = vi.hoisted(() => ({
   options: null as null | ScannerOptions,
+  // Camera error shown by the scanner view; tests set it the way the real hook would.
+  setCameraError: null as null | ((message: string | null) => void),
   videoRef: { current: null },
-  streamRef: { current: null },
+  stopCamera: vi.fn(),
   handleScannerTap: vi.fn(),
   handleSwitchCamera: vi.fn(),
 }));
-vi.mock("./hooks/useQrScanner", () => ({
-  useQrScanner: (options: ScannerOptions) => {
-    scanner.options = options;
-    return {
-      videoRef: scanner.videoRef,
-      streamRef: scanner.streamRef,
-      handleScannerTap: scanner.handleScannerTap,
-      handleSwitchCamera: scanner.handleSwitchCamera,
-    };
-  },
-}));
+vi.mock("./hooks/useQrScanner", async () => {
+  const { useState } = await import("react");
+  return {
+    useQrScanner: (options: ScannerOptions) => {
+      scanner.options = options;
+      const [cameraError, setCameraError] = useState<string | null>(null);
+      const [videoReady, setVideoReady] = useState(false);
+      scanner.setCameraError = setCameraError;
+      return {
+        videoRef: scanner.videoRef,
+        videoReady,
+        setVideoReady,
+        availableCameras: [],
+        isFrontCamera: false,
+        cameraError,
+        clearCameraError: () => setCameraError(null),
+        stopCamera: scanner.stopCamera,
+        handleScannerTap: scanner.handleScannerTap,
+        handleSwitchCamera: scanner.handleSwitchCamera,
+      };
+    },
+  };
+});
 vi.mock("../dashboard/ui-state", () => ({ collectUiState: () => ({ marker: true }) }));
 
 import { click, mount, settle, typeInto, type Mounted } from "../../test-utils/react";
@@ -881,7 +891,7 @@ describe("scanning", () => {
       video.dispatchEvent(new Event("playing"));
     });
     expect(document.querySelector(".pairing-scan-beam")).not.toBeNull();
-    await act(async () => scanner.options!.setCameraError("No camera found"));
+    await act(async () => scanner.setCameraError!("No camera found"));
     expect(text()).toContain("No camera found");
     expect(document.querySelector(".pairing-scan-beam")).toBeNull();
     const restartKey = scanner.options!.restartKey;
@@ -891,26 +901,24 @@ describe("scanning", () => {
     expect(document.querySelector(".pairing-scan-beam")).not.toBeNull();
   });
 
-  it("auto-dismisses the camera error after 6 seconds and keeps Retry Camera", async () => {
+  it("keeps Retry Camera and hides the scan beam after the camera error message goes away", async () => {
     await openScanner();
-    vi.useFakeTimers();
-    try {
-      await act(async () => scanner.options!.setCameraError("No camera found"));
-      expect(text()).toContain("No camera found");
-      await act(async () => {
-        vi.advanceTimersByTime(ERROR_AUTO_DISMISS_MS);
-      });
-      expect(text()).not.toContain("No camera found");
-      expect(button("Retry Camera")).toBeDefined();
-      expect(document.querySelector(".pairing-scan-beam")).toBeNull();
-    } finally {
-      vi.useRealTimers();
-    }
+    const video = document.querySelector<HTMLVideoElement>(".pairing-scanner-video")!;
+    await act(async () => {
+      video.dispatchEvent(new Event("playing"));
+    });
+    await act(async () => scanner.setCameraError!("No camera found"));
+    expect(text()).toContain("No camera found");
+    // The scanner hook dismisses the message by itself after a few seconds (its own test covers that).
+    await act(async () => scanner.setCameraError!(null));
+    expect(text()).not.toContain("No camera found");
+    expect(button("Retry Camera")).toBeDefined();
+    expect(document.querySelector(".pairing-scan-beam")).toBeNull();
   });
 
   it("places the camera error message below the Back button and controls", async () => {
     await openScanner();
-    await act(async () => scanner.options!.setCameraError("Camera permission was denied."));
+    await act(async () => scanner.setCameraError!("Camera permission was denied."));
     const errorEl = document.querySelector(".pairing-camera-error")!;
     const backBtn = document.querySelector(".pairing-scan-actions .pairing-back-btn")!;
     expect(errorEl).not.toBeNull();
@@ -990,24 +998,35 @@ describe("scanning", () => {
 });
 
 describe("air-gap transfer: receiving", () => {
+  const FRAME_1 = "aiut-airgap://1/sess-1/1/2/aa?d=a";
+  const FRAME_2 = "aiut-airgap://1/sess-1/2/2/bb?d=b";
+
+  /** Feeds scanned frames to the screen the way the scanner hook does. */
+  async function scan(...codes: string[]) {
+    for (const code of codes) {
+      await act(async () => {
+        await scanner.options!.onDecoded(code, { stopCamera: scanner.stopCamera });
+      });
+    }
+  }
+
   async function captureAll() {
     render();
     await press("Receive Accounts on This Device");
     await press("Scan QR Code");
-    await act(async () => {
-      scanner.options!.airgapVerifyPromptRef.current = true;
-      scanner.options!.setAirgapTotalChunks(2);
-      scanner.options!.setAirgapCapturedChunks(new Map([[0, "a"], [1, "b"]]));
-      scanner.options!.setAirgapCaptureSecs(7);
-      scanner.options!.setAirgapPinPrompt(true);
-    });
+    const now = vi.spyOn(Date, "now");
+    now.mockReturnValue(1_000_000);
+    await scan(FRAME_1);
+    now.mockReturnValue(1_007_000);
+    await scan(FRAME_2);
+    now.mockRestore();
     await settle();
   }
 
   it("verifies the captured frames and shows the code to compare", async () => {
     api.verifyAirgapFrames.mockResolvedValue({ verifyCode: "311 207" });
     await captureAll();
-    expect(api.verifyAirgapFrames).toHaveBeenCalledWith(["a", "b"]);
+    expect(api.verifyAirgapFrames).toHaveBeenCalledWith([FRAME_1, FRAME_2]);
     expect(title()).toBe("Confirm the connection");
     expect(text()).toContain("Captured all 2 frames in 7 seconds");
     expect(document.querySelector('[aria-label="Verification code 311 207"]')).not.toBeNull();
@@ -1018,7 +1037,7 @@ describe("air-gap transfer: receiving", () => {
     api.importAirgapFrames.mockResolvedValue({ added: 1, updated: 0, skipped: 0 });
     await captureAll();
     await press("Yes, They Match");
-    expect(api.importAirgapFrames).toHaveBeenCalledWith(["a", "b"]);
+    expect(api.importAirgapFrames).toHaveBeenCalledWith([FRAME_1, FRAME_2]);
     expect(title()).toBe("Devices linked");
     expect(onCompleted).toHaveBeenCalledTimes(1);
   });
@@ -1038,12 +1057,7 @@ describe("air-gap transfer: receiving", () => {
     await press("Receive Accounts on This Device");
     await press("Scan QR Code");
     const before = scanner.options!.restartKey;
-    await act(async () => {
-      scanner.options!.airgapVerifyPromptRef.current = true;
-      scanner.options!.setAirgapTotalChunks(1);
-      scanner.options!.setAirgapCapturedChunks(new Map([[0, "a"]]));
-      scanner.options!.setAirgapPinPrompt(true);
-    });
+    await scan("aiut-airgap://1/sess-1/1/1/aa?d=a");
     await settle();
     expect(text()).toContain("frames damaged");
     expect(scanner.options!.restartKey).toBe(before + 1);

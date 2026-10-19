@@ -20,6 +20,7 @@ import {
   type IntendedRole,
   type ViewMode,
 } from "./lib/view-model";
+import { isAirgapFrameCode } from "./lib/airgap-frame";
 import { isPairingUri } from "./lib/uri";
 import { collectUiState } from "../dashboard/ui-state";
 import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError";
@@ -76,13 +77,9 @@ export function PairingModal({
   const [busy, setBusy] = useState(false);
   const { error: errorMessage, setError: setErrorMessage } = useAutoDismissedError(viewMode);
   const { error: airgapPrepareError, setError: setAirgapPrepareError } = useAutoDismissedError(viewMode);
-  const { error: cameraError, setError: setCameraError } = useAutoDismissedError(viewMode);
   const [cameraFailed, setCameraFailed] = useState(false);
   const [confirmedSas, setConfirmedSas] = useState(false);
   const [includeSettings, setIncludeSettings] = useState(true);
-  const [isFrontCamera, setIsFrontCamera] = useState(false);
-  const [videoReady, setVideoReady] = useState(false);
-  const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
   const [isKeyboardOpen, setIsKeyboardOpen] = useVirtualKeyboard(open);
   const [airgapExport, setAirgapExport] = useState<AirgapExport | null>(null);
   const [scannerRestartKey, setScannerRestartKey] = useState(0);
@@ -94,11 +91,10 @@ export function PairingModal({
       hostStartIdRef.current += 1;
       setErrorMessage(null);
       setAirgapPrepareError(null);
-      setCameraError(null);
       setCameraFailed(false);
       dispatchFlow({ type: "show", view, flow });
     },
-    [setErrorMessage, setAirgapPrepareError, setCameraError],
+    [setErrorMessage, setAirgapPrepareError],
   );
 
   const dialogRef = useRef<HTMLElement>(null);
@@ -129,34 +125,36 @@ export function PairingModal({
     onRescan: () => setScannerRestartKey((key) => key + 1),
   });
 
-  const { videoRef, streamRef, handleScannerTap, handleSwitchCamera } = useQrScanner({
+  const {
+    videoRef,
+    videoReady,
+    setVideoReady,
+    availableCameras,
+    isFrontCamera,
+    cameraError,
+    clearCameraError,
+    stopCamera,
+    handleScannerTap,
+    handleSwitchCamera,
+  } = useQrScanner({
     active: viewMode === "scanner" && open,
     restartKey: scannerRestartKey,
-    isFrontCamera,
-    availableCameras,
-    hostStartIdRef,
-    airgapSessionIdRef: capture.sessionIdRef,
-    airgapVerifyPromptRef: capture.verifyPromptRef,
-    airgapCaptureStartRef: capture.captureStartRef,
-    setViewMode: showView,
-    setBusy,
-    setErrorMessage,
-    setCameraError,
-    setVideoReady,
-    setAvailableCameras,
-    setIsFrontCamera,
-    setAirgapCapturedChunks: capture.setChunks,
-    setAirgapTotalChunks: capture.setTotal,
-    setAirgapCaptureSecs: capture.setCaptureSecs,
-    setAirgapPinPrompt: capture.setVerifyPrompt,
+    onDecoded: async (code, controls) => {
+      if (isPairingUri(code)) {
+        // A pairing link on the other device's screen: join it.
+        controls.stopCamera();
+        showView("host");
+        hostStartIdRef.current += 1;
+        setBusy(true);
+        setErrorMessage(null);
+        await pairingApi.startClient(code);
+        return true;
+      }
+      if (isAirgapFrameCode(code)) capture.addFrame(code, controls.stopCamera);
+    },
+    // A scanned code that could not be acted on is dropped; the backend reports a failed join itself.
+    onError: (cause) => logIgnored("pairing.scan", cause),
   });
-
-  const stopCamera = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-  }, [streamRef]);
 
   // Drops the camera and the state of any pairing in progress. `stopCamera` and `capture` are new
   // every render, so the open/close effect below calls this effect event instead of listing them
@@ -189,13 +187,12 @@ export function PairingModal({
     if (clearError) {
       setErrorMessage(null);
       setAirgapPrepareError(null);
-      setCameraError(null);
       setCameraFailed(false);
     }
     setBusy(false);
     setStatus({ status: "idle" });
     showView("select-mode", null);
-  }, [showView, setStatus, setErrorMessage, setAirgapPrepareError, setCameraError]);
+  }, [showView, setStatus, setErrorMessage, setAirgapPrepareError]);
 
   const isWaitingState = isWaitingStatus(status.status);
 
@@ -203,7 +200,7 @@ export function PairingModal({
     if (errorMessage || airgapPrepareError || cameraError) {
       setErrorMessage(null);
       setAirgapPrepareError(null);
-      setCameraError(null);
+      clearCameraError();
       return;
     }
     if (isWaitingState && viewMode === "code") {
@@ -249,7 +246,7 @@ export function PairingModal({
     capture,
     setErrorMessage,
     setAirgapPrepareError,
-    setCameraError,
+    clearCameraError,
   ]);
 
   useModalA11y(dialogRef, open, handleEscape);
@@ -431,7 +428,6 @@ export function PairingModal({
       discardSession();
       setErrorMessage(null);
       setAirgapPrepareError(null);
-      setCameraError(null);
       setCameraFailed(false);
       setJoinCodeInput("");
       dispatchFlow({ type: "reset" });
@@ -439,8 +435,6 @@ export function PairingModal({
       setBusy(false);
       setConfirmedSas(false);
       setIncludeSettings(true);
-      setIsFrontCamera(false);
-      setAvailableCameras([]);
       setAirgapExport(null);
       setWifiPrompt(null);
       hostStartIdRef.current += 1;
@@ -473,7 +467,7 @@ export function PairingModal({
     };
 
     void checkPendingAndStart();
-  }, [open, initialJoinUri, setStatus, startFromUri, setErrorMessage, setAirgapPrepareError, setCameraError]);
+  }, [open, initialJoinUri, setStatus, startFromUri, setErrorMessage, setAirgapPrepareError]);
 
   const startLinkCodeFromEffect = useEffectEvent((action: "host" | "code") => startLinkCode(action));
 
@@ -693,7 +687,6 @@ export function PairingModal({
             }}
             onScan={() => {
               dispatchFlow({ type: "set-flow", flow: "wifi" });
-              setCameraError(null);
               setCameraFailed(false);
               void pairingApi.ensureCameraPermission()
                 .catch((cause) => logIgnored("pairing.cameraPermission", cause))
@@ -729,7 +722,7 @@ export function PairingModal({
             onScannerTap={() => void handleScannerTap()}
             onSwitchCamera={() => void handleSwitchCamera()}
             onRetryCamera={() => {
-              setCameraError(null);
+              clearCameraError();
               setCameraFailed(false);
               setScannerRestartKey((key) => key + 1);
             }}

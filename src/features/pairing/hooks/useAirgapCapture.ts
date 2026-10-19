@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { pairingApi } from "../../../shared/lib/api";
+import { parseAirgapFrame } from "../lib/airgap-frame";
 
 /**
  * The receiving side of an air-gap transfer: frames captured by the camera, the code to compare
@@ -66,6 +67,41 @@ export function useAirgapCapture({
     setVerifyPrompt(false);
   };
 
+  /**
+   * Takes in one scanned frame. A frame of another transfer starts the capture over; a frame
+   * already held is ignored. When the last frame arrives the capture time is recorded, the
+   * comparison is asked for, and `onComplete` runs (the caller stops the camera).
+   */
+  const addFrame = (code: string, onComplete: () => void) => {
+    const frame = parseAirgapFrame(code);
+    if (!frame) return;
+    const { sessionId, chunkIndex, totalChunks } = frame;
+    setChunks((previous) => {
+      let next: Map<number, string>;
+      if (sessionIdRef.current !== sessionId) {
+        sessionIdRef.current = sessionId;
+        captureStartRef.current = Date.now();
+        setCaptureSecs(null);
+        next = new Map();
+      } else {
+        if (previous.has(chunkIndex)) return previous;
+        next = new Map(previous);
+      }
+      next.set(chunkIndex, code);
+      setTotal(totalChunks);
+      if (next.size === totalChunks) {
+        const start = captureStartRef.current;
+        if (start !== null) {
+          setCaptureSecs(Math.max(1, Math.round((Date.now() - start) / 1000)));
+        }
+        verifyPromptRef.current = true;
+        setVerifyPrompt(true);
+        onComplete();
+      }
+      return next;
+    });
+  };
+
   /** Everything, for when the dialog closes. */
   const resetAll = () => {
     clearCapture();
@@ -122,6 +158,7 @@ export function useAirgapCapture({
     sessionIdRef,
     verifyPromptRef,
     captureStartRef,
+    addFrame,
     clearCapture,
     rescan,
     closePrompt,

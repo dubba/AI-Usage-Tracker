@@ -1,6 +1,7 @@
-import { useEffect, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { pairingApi } from "../../../shared/lib/api";
 import { describeError } from "../../../shared/lib/errors";
+import { useAutoDismissedError } from "../../../shared/hooks/useAutoDismissedError";
 import { isMobileUserAgent } from "../../../shared/lib/platform";
 import { applyAutofocusAndZoom, getCameraStream } from "../lib/camera-stream";
 import {
@@ -8,81 +9,71 @@ import {
   isFrontFacingCamera,
   listDesktopCameras,
 } from "../lib/camera-selection";
-import { isPairingUri } from "../lib/uri";
+import { createNativeQrDetector, resolveGetUserMedia } from "../lib/legacy-media";
 import { decodeQrSandboxed, sanitizeDecodedQrText } from "../lib/qr-decoder";
 
-export type ScannerViewMode = "scanner" | (string & {});
+/** What the scan loop hands `onDecoded` to act on. */
+export interface QrScannerControls {
+  /** Stops the camera. The scan loop keeps running but finds nothing more to read. */
+  stopCamera: () => void;
+}
 
-/**
- * The setters and refs below must keep their identity between renders (state setters, refs, or
- * callbacks memoised without dependencies): a new one restarts the camera.
- */
-export interface UseQrScannerOptions<T extends string = string> {
+export interface UseQrScannerOptions {
+  /** The scanner is on screen: the camera runs while this is true. */
   active: boolean;
+  /** Bump to restart the camera (Retry Camera, scanning again). */
   restartKey: number;
-  isFrontCamera: boolean;
-  availableCameras: MediaDeviceInfo[];
-  hostStartIdRef: MutableRefObject<number>;
-  airgapSessionIdRef: MutableRefObject<string | null>;
-  airgapVerifyPromptRef: MutableRefObject<boolean>;
-  airgapCaptureStartRef: MutableRefObject<number | null>;
-  setViewMode: (view: T) => void;
-  setBusy: Dispatch<SetStateAction<boolean>>;
-  setErrorMessage: Dispatch<SetStateAction<string | null>>;
-  setCameraError: Dispatch<SetStateAction<string | null>>;
-  setVideoReady: Dispatch<SetStateAction<boolean>>;
-  setAvailableCameras: Dispatch<SetStateAction<MediaDeviceInfo[]>>;
-  setIsFrontCamera: Dispatch<SetStateAction<boolean>>;
-  setAirgapCapturedChunks: Dispatch<SetStateAction<Map<number, string>>>;
-  setAirgapTotalChunks: Dispatch<SetStateAction<number>>;
-  setAirgapCaptureSecs: Dispatch<SetStateAction<number | null>>;
-  setAirgapPinPrompt: Dispatch<SetStateAction<boolean>>;
+  /**
+   * A QR code was read (sanitized text, allowlisted by the decoder). Return true when it ends
+   * scanning: the camera is stopped and the loop ends. The latest callback is always the one
+   * called; a new one does not restart the camera.
+   */
+  onDecoded: (code: string, controls: QrScannerControls) => boolean | void | Promise<boolean | void>;
+  /** `onDecoded` threw or rejected. The frame is dropped and scanning goes on. */
+  onError?: (cause: unknown) => void;
+}
+
+const SCAN_THROTTLE_MS = 150;
+
+function stopTracks(stream: MediaStream | null) {
+  stream?.getTracks().forEach((track) => track.stop());
 }
 
 /**
- * In-app camera QR scanner: opens the best available camera, keeps the stream
- * and current device in `streamRef` / `selectedCameraIdRef`, and runs a
- * throttled scan loop (native BarcodeDetector first, sandboxed jsQR fallback)
- * until the scanner deactivates or unmounts — stopping every track on cleanup.
+ * In-app camera QR scanner: opens the best available camera and runs a throttled scan loop
+ * (native BarcodeDetector first, sandboxed jsQR fallback) until the scanner deactivates or
+ * unmounts, stopping every track on cleanup. It owns the camera state the scanner view shows
+ * (`videoReady`, `availableCameras`, `isFrontCamera`, `cameraError`); what a decoded code means is
+ * the caller's (`onDecoded`).
  */
-export function useQrScanner<T extends string = string>(options: UseQrScannerOptions<T>) {
-  const {
-    active,
-    restartKey,
-    isFrontCamera,
-    availableCameras,
-    hostStartIdRef,
-    airgapSessionIdRef,
-    airgapVerifyPromptRef,
-    airgapCaptureStartRef,
-    setViewMode,
-    setBusy,
-    setErrorMessage,
-    setCameraError,
-    setVideoReady,
-    setAvailableCameras,
-    setIsFrontCamera,
-    setAirgapCapturedChunks,
-    setAirgapTotalChunks,
-    setAirgapCaptureSecs,
-    setAirgapPinPrompt,
-  } = options;
-
+export function useQrScanner({ active, restartKey, onDecoded, onError }: UseQrScannerOptions) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const selectedCameraIdRef = useRef<string | null>(null);
   const switchingCameraRef = useRef(false);
+  const [videoReady, setVideoReady] = useState(false);
+  const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
+  const [isFrontCamera, setIsFrontCamera] = useState(false);
+  // The message goes away by itself (and when the scanner closes); the view keeps its
+  // "camera failed" state of its own.
+  const { error: cameraError, setError: setCameraError, clearError: clearCameraError } = useAutoDismissedError(active);
 
-  // In-app camera scanning loop. It restarts only for `active` / `restartKey`; the other
-  // dependencies are setters and refs that never change identity.
+  const handleDecoded = useEffectEvent(onDecoded);
+  const handleError = useEffectEvent((cause: unknown) => onError?.(cause));
+
+  const stopCamera = () => {
+    stopTracks(streamRef.current);
+    streamRef.current = null;
+  };
+
+  // In-app camera scanning loop. It restarts only for `active` / `restartKey`.
   useEffect(() => {
     if (!active) {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-      }
+      stopCamera();
       selectedCameraIdRef.current = null;
       setAvailableCameras([]);
+      setIsFrontCamera(false);
+      setVideoReady(false);
       return;
     }
 
@@ -95,17 +86,7 @@ export function useQrScanner<T extends string = string>(options: UseQrScannerOpt
         setCameraError(null);
 
         const mediaDevices = navigator.mediaDevices;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const nav = navigator as any;
-        const getUserMediaFn = mediaDevices?.getUserMedia
-          ? (c: MediaStreamConstraints) => mediaDevices.getUserMedia(c)
-          : nav.webkitGetUserMedia
-          ? (c: MediaStreamConstraints) =>
-              new Promise<MediaStream>((res, rej) => nav.webkitGetUserMedia(c, res, rej))
-          : nav.mozGetUserMedia
-          ? (c: MediaStreamConstraints) =>
-              new Promise<MediaStream>((res, rej) => nav.mozGetUserMedia(c, res, rej))
-          : null;
+        const getUserMediaFn = resolveGetUserMedia();
 
         if (!getUserMediaFn) {
           if (!window.isSecureContext) {
@@ -129,8 +110,7 @@ export function useQrScanner<T extends string = string>(options: UseQrScannerOpt
           nativePermissionError = String(permErr).replace(/^Error:\s*/, "");
         }
 
-        const isMobile =
-          isMobileUserAgent();
+        const isMobile = isMobileUserAgent();
 
         let stream: MediaStream | null = null;
         let chosenDeviceId = selectedCameraIdRef.current;
@@ -178,9 +158,7 @@ export function useQrScanner<T extends string = string>(options: UseQrScannerOpt
         }
 
         if (!activeScan || !stream) {
-          if (stream) {
-            stream.getTracks().forEach((t) => t.stop());
-          }
+          stopTracks(stream);
           return;
         }
 
@@ -232,18 +210,13 @@ export function useQrScanner<T extends string = string>(options: UseQrScannerOpt
         }
 
         // Native BarcodeDetector (Android/Chrome) + cross-platform jsQR fallback (Windows/macOS/Safari)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const nativeDetector = "BarcodeDetector" in window
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ? new (window as any).BarcodeDetector({ formats: ["qr_code"] })
-          : null;
+        const nativeDetector = createNativeQrDetector();
 
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
         let scanning = false;
         let lastScanAt = 0;
-        const SCAN_THROTTLE_MS = 150;
         const scan = async () => {
           if (!activeScan || !videoRef.current) return;
           if (scanning) {
@@ -269,9 +242,8 @@ export function useQrScanner<T extends string = string>(options: UseQrScannerOpt
               if (nativeDetector) {
                 try {
                   const codes = await nativeDetector.detect(video);
-                  if (codes.length > 0 && codes[0].rawValue) {
-                    detectedCode = sanitizeDecodedQrText(codes[0].rawValue);
-                  }
+                  const raw = codes[0]?.rawValue;
+                  if (raw) detectedCode = sanitizeDecodedQrText(raw);
                 } catch {
                   // Fall back to jsQR
                 }
@@ -290,60 +262,14 @@ export function useQrScanner<T extends string = string>(options: UseQrScannerOpt
                 detectedCode = decodeQrSandboxed(imageData);
               }
 
-              if (detectedCode && isPairingUri(detectedCode)) {
-                if (streamRef.current) {
-                  streamRef.current.getTracks().forEach((t) => t.stop());
-                  streamRef.current = null;
-                }
-                setViewMode("host" as T);
-                hostStartIdRef.current += 1;
-                setBusy(true);
-                setErrorMessage(null);
-                await pairingApi.startClient(detectedCode);
-                return;
-              }
-
-              if (
-                detectedCode &&
-                (detectedCode.startsWith("aiut-airgap:") || detectedCode.startsWith("aiut-airgap://"))
-              ) {
-                const match = detectedCode.match(
-                  /aiut-airgap:\/\/(?:1\/)?([^/]+)\/(\d+)\/(\d+)\/([0-9a-fA-F]+)\?d=(.+)/
-                );
-                if (match) {
-                  const [, sessionId, chunkStr, totalStr] = match;
-                  const chunkIndex = parseInt(chunkStr, 10);
-                  const totalChunks = parseInt(totalStr, 10);
-                  if (chunkIndex > 0 && totalChunks > 0) {
-                    setAirgapCapturedChunks((prev) => {
-                      if (airgapSessionIdRef.current !== sessionId) {
-                        airgapSessionIdRef.current = sessionId;
-                        airgapCaptureStartRef.current = Date.now();
-                        setAirgapCaptureSecs(null);
-                        const next = new Map<number, string>();
-                        next.set(chunkIndex, detectedCode);
-                        setAirgapTotalChunks(totalChunks);
-                        return next;
-                      }
-                      if (prev.has(chunkIndex)) return prev;
-                      const next = new Map(prev);
-                      next.set(chunkIndex, detectedCode);
-                      setAirgapTotalChunks(totalChunks);
-                      if (next.size === totalChunks) {
-                        const start = airgapCaptureStartRef.current;
-                        if (start !== null) {
-                          setAirgapCaptureSecs(Math.max(1, Math.round((Date.now() - start) / 1000)));
-                        }
-                        airgapVerifyPromptRef.current = true;
-                        setAirgapPinPrompt(true);
-                        if (streamRef.current) {
-                          streamRef.current.getTracks().forEach((t) => t.stop());
-                          streamRef.current = null;
-                        }
-                      }
-                      return next;
-                    });
+              if (detectedCode) {
+                try {
+                  if (await handleDecoded(detectedCode, { stopCamera })) {
+                    stopCamera();
+                    return;
                   }
+                } catch (cause) {
+                  handleError(cause);
                 }
               }
             }
@@ -365,30 +291,11 @@ export function useQrScanner<T extends string = string>(options: UseQrScannerOpt
     return () => {
       activeScan = false;
       if (animFrameId) cancelAnimationFrame(animFrameId);
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
-      }
+      stopCamera();
     };
-  }, [
-    active,
-    restartKey,
-    hostStartIdRef,
-    airgapSessionIdRef,
-    airgapVerifyPromptRef,
-    airgapCaptureStartRef,
-    setViewMode,
-    setBusy,
-    setErrorMessage,
-    setCameraError,
-    setVideoReady,
-    setAvailableCameras,
-    setIsFrontCamera,
-    setAirgapCapturedChunks,
-    setAirgapTotalChunks,
-    setAirgapCaptureSecs,
-    setAirgapPinPrompt,
-  ]);
+    // `stopCamera` only touches a ref, and the callbacks are effect events.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, restartKey, setCameraError]);
 
   const handleScannerTap = async () => {
     const track = streamRef.current?.getVideoTracks()[0];
@@ -403,23 +310,10 @@ export function useQrScanner<T extends string = string>(options: UseQrScannerOpt
     setVideoReady(false);
 
     try {
-      const mediaDevices = navigator.mediaDevices;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const nav = navigator as any;
-      const getUserMediaFn = mediaDevices?.getUserMedia
-        ? (c: MediaStreamConstraints) => mediaDevices.getUserMedia(c)
-        : nav.webkitGetUserMedia
-        ? (c: MediaStreamConstraints) =>
-            new Promise<MediaStream>((res, rej) => nav.webkitGetUserMedia(c, res, rej))
-        : nav.mozGetUserMedia
-        ? (c: MediaStreamConstraints) =>
-            new Promise<MediaStream>((res, rej) => nav.mozGetUserMedia(c, res, rej))
-        : null;
-
+      const getUserMediaFn = resolveGetUserMedia();
       if (!getUserMediaFn) return;
 
-      const isMobile =
-        isMobileUserAgent();
+      const isMobile = isMobileUserAgent();
 
       let newStream: MediaStream | null = null;
       let nextIsFront = !isFrontCamera;
@@ -432,10 +326,7 @@ export function useQrScanner<T extends string = string>(options: UseQrScannerOpt
         const nextDevice = availableCameras[nextIndex];
 
         if (nextDevice?.deviceId) {
-          if (streamRef.current) {
-            streamRef.current.getTracks().forEach((track) => track.stop());
-            streamRef.current = null;
-          }
+          stopCamera();
 
           newStream = await getCameraStream(getUserMediaFn, nextDevice.deviceId, isMobile);
           selectedCameraIdRef.current = nextDevice.deviceId;
@@ -449,10 +340,7 @@ export function useQrScanner<T extends string = string>(options: UseQrScannerOpt
 
       // Fallback toggle for single-camera devices / dev mode
       if (!newStream) {
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach((track) => track.stop());
-          streamRef.current = null;
-        }
+        stopCamera();
         if (isMobile) {
           const targetFacing = isFrontCamera ? "environment" : "user";
           try {
@@ -493,5 +381,16 @@ export function useQrScanner<T extends string = string>(options: UseQrScannerOpt
     }
   };
 
-  return { videoRef, streamRef, handleScannerTap, handleSwitchCamera };
+  return {
+    videoRef,
+    videoReady,
+    setVideoReady,
+    availableCameras,
+    isFrontCamera,
+    cameraError,
+    clearCameraError,
+    stopCamera,
+    handleScannerTap,
+    handleSwitchCamera,
+  };
 }
