@@ -66,7 +66,7 @@ export interface ProviderStrategy {
   /** False while a required field is empty, which keeps the primary button disabled. */
   isReady(draft: AddAccountDraft): boolean;
   /** Explains the sign-in under the title when reconnecting. */
-  description(env: { isAndroid: boolean }): string;
+  description(env: { isMobileOs: boolean }): string;
   /** Status text shown the moment a sign-in starts; null when the browser callback speaks for itself. */
   signInStartMessage: string | null;
   /** Text for the waiting panel; `backendMessage` is what the backend last reported. */
@@ -89,8 +89,8 @@ const browserSignIn = (provider: Provider): ProviderStrategy => ({
   connectMode: () => "sign-in",
   validate: () => null,
   isReady: () => true,
-  description: ({ isAndroid }) =>
-    isAndroid
+  description: ({ isMobileOs }) =>
+    isMobileOs
       ? `The ${connectLabel(provider)} sign-in page opens in the app. Choose or enter the account. Back at the top left returns you here. Passwords never pass through this app.`
       : `A sign-in window opens on top of the app. Choose or enter the account there. Back at the top left returns you here. Passwords never pass through this app.`,
   signInStartMessage: null,
@@ -127,8 +127,8 @@ const opencodeGo: ProviderStrategy = {
     draft.advancedManual
       ? Boolean(draft.workspaceId.trim() && draft.authCookie.trim())
       : true,
-  description: ({ isAndroid }) =>
-    isAndroid
+  description: ({ isMobileOs }) =>
+    isMobileOs
       ? "The app opens OpenCode sign-in in this window. Sign in, then select Go from the OpenCode sidebar. After your limits are found, the app returns to the dashboard."
       : "A private OpenCode window will open in the app. Sign in, then select Go from the OpenCode sidebar. The bridge detects the workspace and session automatically and closes the window when the account is connected.",
   signInStartMessage: "Sign in to OpenCode and select Go from the sidebar.",
@@ -155,8 +155,8 @@ const grok: ProviderStrategy = {
   validate: (draft) =>
     draft.advancedManual && !draft.grokCookie.trim() ? "Grok session cookies are required for manual connection." : null,
   isReady: (draft) => !draft.advancedManual || Boolean(draft.grokCookie.trim()),
-  description: ({ isAndroid }) =>
-    isAndroid
+  description: ({ isMobileOs }) =>
+    isMobileOs
       ? "The app opens Grok sign-in in this window. After you sign in, it returns to the dashboard and securely saves only the session needed to read weekly usage. Your xAI password never passes through the tracker."
       : "A private Grok window opens inside the tracker. After you sign in, the tracker securely saves only the Grok session needed to read the provider-reported weekly usage percentage and reset time. Your xAI password never passes through the tracker.",
   signInStartMessage: "Sign in to Grok in the private window.",

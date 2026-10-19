@@ -49,8 +49,8 @@ describe("drafts", () => {
 describe("every provider", () => {
   it.each(PROVIDERS)("%s has a strategy with a non-empty description and button label", (provider) => {
     const strategy = strategyFor(provider);
-    expect(strategy.description({ isAndroid: false })).not.toBe("");
-    expect(strategy.description({ isAndroid: true })).not.toBe("");
+    expect(strategy.description({ isMobileOs: false })).not.toBe("");
+    expect(strategy.description({ isMobileOs: true })).not.toBe("");
     expect(strategy.actionLabel(emptyDraft(provider), false)).not.toBe("");
     expect(strategy.actionLabel(emptyDraft(provider), true)).not.toBe("");
   });
@@ -86,10 +86,10 @@ describe("browser sign-in providers", () => {
 
   it("names the provider in the reconnect copy, differently on Android", () => {
     const strategy = strategyFor("anthropic");
-    expect(strategy.description({ isAndroid: false })).toContain("A sign-in window opens on top of the app.");
-    expect(strategy.description({ isAndroid: false })).toContain("Back at the top left");
-    expect(strategy.description({ isAndroid: true })).toContain("The Anthropic Claude sign-in page opens in the app.");
-    expect(strategy.description({ isAndroid: true })).toContain("Back at the top left");
+    expect(strategy.description({ isMobileOs: false })).toContain("A sign-in window opens on top of the app.");
+    expect(strategy.description({ isMobileOs: false })).toContain("Back at the top left");
+    expect(strategy.description({ isMobileOs: true })).toContain("The Anthropic Claude sign-in page opens in the app.");
+    expect(strategy.description({ isMobileOs: true })).toContain("Back at the top left");
   });
 });
 

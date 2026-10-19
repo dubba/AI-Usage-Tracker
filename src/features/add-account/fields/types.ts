@@ -7,5 +7,5 @@ export type FieldsProps = {
   setError: (message: string | null) => void;
   /** An add or sign-in is in flight. */
   busy: boolean;
-  isAndroid: boolean;
+  isMobileOs: boolean;
 };

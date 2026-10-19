@@ -51,7 +51,8 @@ export function AddAccountModal({
   onClose: () => void;
   onAdded: (account: Account) => void;
 }) {
-  const isAndroid = detectAndroid() || isIOS();
+  // Android or iOS by operating system. Not `isMobileDevice()`: that is also true for touch-screen laptops.
+  const isMobileOs = detectAndroid() || isIOS();
   const [draft, setDraft] = useState<AddAccountDraft>(() => emptyDraft("anthropic"));
   const [modelsBusy, setModelsBusy] = useState(false);
   const [status, setStatus] = useState<LoginStatus | null>(null);
@@ -265,7 +266,7 @@ export function AddAccountModal({
     void begin();
   };
 
-  const fieldProps: FieldsProps = { draft, update, setError, busy, isAndroid };
+  const fieldProps: FieldsProps = { draft, update, setError, busy, isMobileOs };
   const providerFields = (() => {
     switch (provider) {
       case "google_ai_studio":
@@ -279,7 +280,7 @@ export function AddAccountModal({
     }
   })();
 
-  const providerCopy = strategy.description({ isAndroid });
+  const providerCopy = strategy.description({ isMobileOs });
 
   return (
     <div
