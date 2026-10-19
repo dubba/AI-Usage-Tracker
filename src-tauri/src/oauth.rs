@@ -248,7 +248,7 @@ const PROVIDER_LOGIN_WINDOW: &str = "provider-login";
 /// Label prefix of the popups a sign-in page opens (see `open_provider_login_popup`).
 const PROVIDER_LOGIN_POPUP_PREFIX: &str = "provider-login-popup-";
 const PROVIDER_LOGIN_USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15";
-const PROVIDER_LOGIN_PROFILE_PREFIX: &str = "ai-usage-oauth-";
+pub(crate) const PROVIDER_LOGIN_PROFILE_PREFIX: &str = "ai-usage-oauth-";
 
 /// Query flag the injected top-left Back button appends. `on_navigation`
 /// blocks that load, cancels the attempt, and closes the window.
@@ -388,50 +388,6 @@ pub(crate) fn is_allowed_provider_login_navigation(url: &Url) -> bool {
         .is_some_and(crate::signin_navigation::host_is_sign_in)
 }
 
-#[cfg(desktop)]
-fn create_private_oauth_profile_dir(attempt_id: &str) -> Result<std::path::PathBuf, String> {
-    if attempt_id.is_empty()
-        || attempt_id.len() > 64
-        || !attempt_id
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
-    {
-        return Err("Invalid login attempt.".into());
-    }
-    let dir = std::env::temp_dir().join(format!("{PROVIDER_LOGIN_PROFILE_PREFIX}{attempt_id}"));
-    std::fs::create_dir_all(&dir)
-        .map_err(|error| format!("Unable to prepare the private login profile: {error}"))?;
-    if let Err(error) = crate::fs_util::restrict_private_permissions(&dir) {
-        let _ = std::fs::remove_dir_all(&dir);
-        return Err(error);
-    }
-    Ok(dir)
-}
-
-#[cfg(desktop)]
-fn sweep_stale_oauth_profiles() {
-    let tmp = std::env::temp_dir();
-    let Ok(entries) = std::fs::read_dir(&tmp) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let name = entry.file_name();
-        let Some(name) = name.to_str() else {
-            continue;
-        };
-        if !name.starts_with(PROVIDER_LOGIN_PROFILE_PREFIX)
-            || name.contains('/')
-            || name.contains('\\')
-            || name.contains("..")
-        {
-            continue;
-        }
-        if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
-            let _ = std::fs::remove_dir_all(tmp.join(name));
-        }
-    }
-}
-
 /// Opens `authorization_url` in a private window with a top-left Back button.
 /// The loopback callback server is already listening; this window does not
 /// receive the app's privileged IPC.
@@ -454,8 +410,11 @@ pub(crate) fn open_provider_login_window(
     if let Some(window) = handle.get_webview_window(PROVIDER_LOGIN_WINDOW) {
         crate::mobile_auth::dismiss_login_window(&window);
     }
-    sweep_stale_oauth_profiles();
-    let profile_dir = create_private_oauth_profile_dir(attempt_id)?;
+    crate::login_profile::sweep_stale_profiles(PROVIDER_LOGIN_PROFILE_PREFIX);
+    let profile_dir = crate::login_profile::create_private_profile_dir(
+        PROVIDER_LOGIN_PROFILE_PREFIX,
+        attempt_id,
+    )?;
     let callback_seen = Arc::new(AtomicBool::new(false));
     let close_scheduled = Arc::new(AtomicBool::new(false));
     let back_handle = handle.clone();

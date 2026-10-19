@@ -34,7 +34,7 @@ use uuid::Uuid;
 #[cfg(desktop)]
 const LOGIN_WINDOW_LABEL: &str = "grok-login";
 #[cfg(desktop)]
-const GROK_PROFILE_PREFIX: &str = "ai-usage-grok-";
+pub(crate) const GROK_PROFILE_PREFIX: &str = "ai-usage-grok-";
 const LOGIN_URL: &str = "https://accounts.x.ai/sign-in?redirect_uri=https%3A%2F%2Fgrok.com%2F";
 const LOGIN_TIMEOUT_MINUTES: i64 = 10;
 const COOKIE_POLL_INTERVAL_MS: u64 = 750;
@@ -292,61 +292,6 @@ pub async fn add_account(
     Ok(account)
 }
 
-#[cfg(desktop)]
-fn create_private_grok_profile_dir(attempt_id: &str) -> Result<std::path::PathBuf, String> {
-    // Validate the attempt id so the joined path cannot escape the temp dir.
-    if attempt_id.is_empty()
-        || attempt_id.len() > 64
-        || !attempt_id
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b == b'-')
-    {
-        return Err("Invalid login attempt.".into());
-    }
-    let dir = std::env::temp_dir().join(format!("{GROK_PROFILE_PREFIX}{attempt_id}"));
-    std::fs::create_dir_all(&dir)
-        .map_err(|e| format!("Unable to prepare the private login profile: {e}"))?;
-    // Owner-only (0700 / Windows ACL). Fail closed: remove the dir rather
-    // than leaving a world-readable session profile behind.
-    if let Err(error) = crate::fs_util::restrict_private_permissions(&dir) {
-        let _ = std::fs::remove_dir_all(&dir);
-        return Err(error);
-    }
-    Ok(dir)
-}
-
-/// Best-effort removal of stale `ai-usage-grok-*` profiles (crash-safe
-/// cleanup). Only removes directories with our exact prefix in the system
-/// temp dir; never follows symlinks beyond the profile root.
-#[cfg(desktop)]
-pub fn sweep_stale_grok_profiles() {
-    let tmp = std::env::temp_dir();
-    let Ok(entries) = std::fs::read_dir(&tmp) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let name = entry.file_name();
-        let Some(name) = name.to_str() else {
-            continue;
-        };
-        if !name.starts_with(GROK_PROFILE_PREFIX) {
-            continue;
-        };
-        // Guard against path traversal tricks in exotic temp-dir listings.
-        if name.contains('/') || name.contains('\\') || name.contains("..") {
-            continue;
-        }
-        let path = tmp.join(name);
-        // Only remove directories (profiles), never files/symlinks.
-        if let Ok(ft) = entry.file_type() {
-            if !ft.is_dir() {
-                continue;
-            }
-        }
-        let _ = std::fs::remove_dir_all(&path);
-    }
-}
-
 pub async fn start_login(
     state: Arc<AppState>,
     label: String,
@@ -425,8 +370,11 @@ pub async fn start_login(
 
         // Sweep profiles left behind by a previous crash/kill before creating a
         // new one, then create the new profile as owner-only.
-        sweep_stale_grok_profiles();
-        let temp_data_dir = match create_private_grok_profile_dir(&attempt_id) {
+        crate::login_profile::sweep_stale_profiles(GROK_PROFILE_PREFIX);
+        let temp_data_dir = match crate::login_profile::create_private_profile_dir(
+            GROK_PROFILE_PREFIX,
+            &attempt_id,
+        ) {
             Ok(dir) => dir,
             Err(error) => {
                 let mut pending = state.pending_login.write();

@@ -26,6 +26,8 @@ mod ios_cookies;
 mod ios_popups;
 mod lan_binding;
 mod limits;
+#[cfg(desktop)]
+mod login_profile;
 #[cfg(target_os = "macos")]
 mod macos_notifications;
 mod migrations;
