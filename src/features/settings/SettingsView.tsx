@@ -371,7 +371,11 @@ export function SettingsView({
                       {SHORTCUTS.map((shortcut) => (
                         <li key={shortcut.action}>
                           <span>{shortcut.label}</span>
-                          <kbd>{shortcutLabel(shortcut.key, isMacPlatform())}</kbd>
+                          <span className="settings-shortcut-keys">
+                            {shortcut.keys.map((k) => (
+                              <kbd key={k}>{shortcutLabel(k, isMacPlatform())}</kbd>
+                            ))}
+                          </span>
                         </li>
                       ))}
                     </ul>

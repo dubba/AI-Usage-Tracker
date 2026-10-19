@@ -303,7 +303,7 @@ export default function App() {
   useKeyboardShortcuts(!isMobileDevice(), {
     refreshAll: () => void refreshAll(),
     openSettings: () => {
-      setSection("settings");
+      setSection((current) => (current === "settings" ? "accounts" : "settings"));
       setSidebarOpen(false);
     },
     addAccount: () => {

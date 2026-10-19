@@ -14,14 +14,19 @@ describe("matchShortcut", () => {
   it("uses Ctrl on Windows and Linux", () => {
     expect(matchShortcut(press("r", { ctrlKey: true }), false)).toBe("refreshAll");
     expect(matchShortcut(press("n", { ctrlKey: true }), false)).toBe("addAccount");
+    expect(matchShortcut(press("a", { ctrlKey: true }), false)).toBe("addAccount");
     expect(matchShortcut(press(",", { ctrlKey: true }), false)).toBe("openSettings");
+    expect(matchShortcut(press("s", { ctrlKey: true }), false)).toBe("openSettings");
     expect(matchShortcut(press("g", { ctrlKey: true }), false)).toBe("addGroup");
     expect(matchShortcut(press("r", { metaKey: true }), false)).toBeNull();
   });
 
   it("uses Cmd on macOS", () => {
     expect(matchShortcut(press("r", { metaKey: true }), true)).toBe("refreshAll");
+    expect(matchShortcut(press("n", { metaKey: true }), true)).toBe("addAccount");
+    expect(matchShortcut(press("a", { metaKey: true }), true)).toBe("addAccount");
     expect(matchShortcut(press(",", { metaKey: true }), true)).toBe("openSettings");
+    expect(matchShortcut(press("s", { metaKey: true }), true)).toBe("openSettings");
     expect(matchShortcut(press("r", { ctrlKey: true }), true)).toBeNull();
   });
 
@@ -32,6 +37,12 @@ describe("matchShortcut", () => {
 
   it("is not case sensitive (caps lock)", () => {
     expect(matchShortcut(press("R", { ctrlKey: true }), false)).toBe("refreshAll");
+  });
+
+  it("matches via physical event.code when key layout differs", () => {
+    expect(matchShortcut(press("ф", { metaKey: true, code: "KeyA" }), true)).toBe("addAccount");
+    expect(matchShortcut(press("ы", { metaKey: true, code: "KeyS" }), true)).toBe("openSettings");
+    expect(matchShortcut(press("?", { metaKey: true, code: "Comma" }), true)).toBe("openSettings");
   });
 
   it("leaves other modifier combinations alone", () => {
@@ -58,5 +69,10 @@ describe("shortcutLabel", () => {
     expect(shortcutLabel("r", true)).toBe("⌘R");
     expect(shortcutLabel("r", false)).toBe("Ctrl+R");
     expect(shortcutLabel(",", false)).toBe("Ctrl+,");
+  });
+
+  it("formats multiple keys joined by commas", () => {
+    expect(shortcutLabel(["n", "a"], true)).toBe("⌘N, ⌘A");
+    expect(shortcutLabel(["n", "a"], false)).toBe("Ctrl+N, Ctrl+A");
   });
 });

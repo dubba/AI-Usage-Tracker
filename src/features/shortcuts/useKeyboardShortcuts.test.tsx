@@ -81,4 +81,59 @@ describe("useKeyboardShortcuts", () => {
     press("r", {});
     expect(handlers.refreshAll).not.toHaveBeenCalled();
   });
+
+  it("supports both 'n' and 'a' for addAccount", () => {
+    const handlers = makeHandlers();
+    mounted = mount(<Probe enabled handlers={handlers} />);
+    press("n");
+    expect(handlers.addAccount).toHaveBeenCalledTimes(1);
+    press("a");
+    expect(handlers.addAccount).toHaveBeenCalledTimes(2);
+  });
+
+  it("supports both ',' and 's' for openSettings", () => {
+    const handlers = makeHandlers();
+    mounted = mount(<Probe enabled handlers={handlers} />);
+    press(",");
+    expect(handlers.openSettings).toHaveBeenCalledTimes(1);
+    press("s");
+    expect(handlers.openSettings).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not intercept shortcuts while typing in editable fields", () => {
+    const handlers = makeHandlers();
+    mounted = mount(<Probe enabled handlers={handlers} />);
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+
+    const event = new KeyboardEvent("keydown", { key: "a", ctrlKey: true, bubbles: true, cancelable: true });
+    act(() => {
+      input.dispatchEvent(event);
+    });
+
+    expect(handlers.addAccount).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+    input.remove();
+  });
+
+  it("does not intercept shortcuts while focused in a child of contenteditable", () => {
+    const handlers = makeHandlers();
+    mounted = mount(<Probe enabled handlers={handlers} />);
+    const editable = document.createElement("div");
+    editable.contentEditable = "true";
+    const span = document.createElement("span");
+    editable.appendChild(span);
+    document.body.appendChild(editable);
+    span.focus();
+
+    const event = new KeyboardEvent("keydown", { key: "a", ctrlKey: true, bubbles: true, cancelable: true });
+    act(() => {
+      span.dispatchEvent(event);
+    });
+
+    expect(handlers.addAccount).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+    editable.remove();
+  });
 });

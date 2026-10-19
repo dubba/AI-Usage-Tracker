@@ -795,6 +795,12 @@
   font-size: 13px;
 }
 
+.settings-shortcut-keys {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .settings-shortcuts kbd {
   padding: 2px 8px;
   border: 1px solid var(--obsidian-border-strong, var(--c-353335));

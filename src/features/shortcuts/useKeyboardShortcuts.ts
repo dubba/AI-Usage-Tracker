@@ -19,12 +19,16 @@ export function useKeyboardShortcuts(
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       if (document.querySelector('[aria-modal="true"]')) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest?.("input, textarea, [contenteditable='true']")) {
+        return;
+      }
       const action = matchShortcut(event, mac);
       if (!action) return;
       event.preventDefault();
       handlersRef.current[action]();
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [enabled]);
 }
