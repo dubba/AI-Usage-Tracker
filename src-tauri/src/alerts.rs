@@ -1,13 +1,12 @@
 use crate::{
-    fs_util::{atomic_write_private, ensure_private_dir, ensure_private_file},
+    json_file::JsonFileStore,
     model::{Account, UsageWindow},
 };
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
-    fs,
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 const ALERTS_FILE_NAME: &str = "usage-alerts.json";
@@ -46,27 +45,20 @@ struct AlertFile {
 }
 
 pub struct AlertStore {
-    path: PathBuf,
+    file: JsonFileStore<AlertFile>,
     accounts: RwLock<HashMap<String, Vec<StoredUsageAlertSetting>>>,
 }
 
 impl AlertStore {
     pub fn load(data_dir: &Path) -> Result<Self, String> {
-        ensure_private_dir(data_dir)?;
-        let path = data_dir.join(ALERTS_FILE_NAME);
-        let accounts = if path.exists() {
-            let payload = fs::read_to_string(&path).map_err(|error| error.to_string())?;
-            let parsed = serde_json::from_str::<AlertFile>(&payload)
-                .map_err(|error| format!("Unable to read usage alert settings: {error}"))?
-                .accounts;
-            ensure_private_file(&path)?;
-            parsed
-        } else {
-            HashMap::new()
-        };
+        let (file, saved) = JsonFileStore::<AlertFile>::open(
+            data_dir,
+            ALERTS_FILE_NAME,
+            "Unable to read usage alert settings",
+        )?;
         Ok(Self {
-            path,
-            accounts: RwLock::new(accounts),
+            file,
+            accounts: RwLock::new(saved.accounts),
         })
     }
 
@@ -293,12 +285,10 @@ impl AlertStore {
         &self,
         accounts: &HashMap<String, Vec<StoredUsageAlertSetting>>,
     ) -> Result<(), String> {
-        let file = AlertFile {
+        self.file.save(&AlertFile {
             version: 1,
             accounts: accounts.clone(),
-        };
-        let payload = serde_json::to_vec_pretty(&file).map_err(|error| error.to_string())?;
-        atomic_write_private(&self.path, &payload)
+        })
     }
 }
 
