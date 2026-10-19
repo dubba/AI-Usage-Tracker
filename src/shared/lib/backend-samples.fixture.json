@@ -1,0 +1,374 @@
+{
+  "Account": [
+    {
+      "authRequired": false,
+      "chatgptAccountId": null,
+      "createdAt": "2026-09-01T00:00:00Z",
+      "email": "person@example.com",
+      "id": "account-1",
+      "label": "Personal",
+      "lastError": null,
+      "lastUsage": {
+        "creditsUsd": 1.5,
+        "email": null,
+        "fetchedAt": "2026-09-03T12:00:00Z",
+        "freshness": "auth_required",
+        "plan": "pro",
+        "source": "test",
+        "unlimitedCredits": false,
+        "windows": [
+          {
+            "id": "five_hour",
+            "kind": "five_hour",
+            "label": "5 hour",
+            "remainingPercent": 82.0,
+            "resetsAt": "2026-09-03T17:00:00Z",
+            "usedPercent": 18.0,
+            "windowSeconds": 18000
+          },
+          {
+            "id": "gemini-pro",
+            "kind": null,
+            "label": "5 hour",
+            "remainingPercent": 82.0,
+            "resetsAt": "2026-09-03T17:00:00Z",
+            "usedPercent": 18.0,
+            "windowSeconds": 18000
+          }
+        ]
+      },
+      "plan": "pro",
+      "provider": "google_ai_studio",
+      "providerAccountId": "provider-id",
+      "updatedAt": "2026-09-03T12:00:00Z"
+    },
+    {
+      "authRequired": true,
+      "chatgptAccountId": null,
+      "createdAt": "2026-09-01T00:00:00Z",
+      "email": null,
+      "id": "account-1",
+      "label": "Personal",
+      "lastError": "Sign in again",
+      "lastUsage": null,
+      "plan": null,
+      "provider": "google_ai_studio",
+      "providerAccountId": null,
+      "updatedAt": "2026-09-03T12:00:00Z"
+    }
+  ],
+  "AppSettings": [
+    {
+      "accountRefreshMinutes": 15,
+      "automaticUpdatesEnabled": true,
+      "autostartEnabled": true,
+      "includeBetaUpdates": false,
+      "paseoBridgeEnabled": true
+    },
+    {
+      "accountRefreshMinutes": 15,
+      "automaticUpdatesEnabled": true,
+      "autostartEnabled": false,
+      "includeBetaUpdates": false,
+      "paseoBridgeEnabled": false
+    }
+  ],
+  "AppUpdateStatus": [
+    {
+      "available": true,
+      "availableVersion": "0.5.0",
+      "body": "Notes",
+      "currentVersion": "0.4.8",
+      "date": "2026-10-01",
+      "error": null
+    },
+    {
+      "available": false,
+      "availableVersion": null,
+      "body": null,
+      "currentVersion": "0.4.8",
+      "date": null,
+      "error": "Offline"
+    }
+  ],
+  "DashboardSnapshot": [
+    {
+      "accounts": [
+        {
+          "authRequired": false,
+          "chatgptAccountId": null,
+          "createdAt": "2026-09-01T00:00:00Z",
+          "email": "person@example.com",
+          "id": "account-1",
+          "label": "Personal",
+          "lastError": null,
+          "lastUsage": {
+            "creditsUsd": 1.5,
+            "email": null,
+            "fetchedAt": "2026-09-03T12:00:00Z",
+            "freshness": "auth_required",
+            "plan": "pro",
+            "source": "test",
+            "unlimitedCredits": false,
+            "windows": [
+              {
+                "id": "five_hour",
+                "kind": "five_hour",
+                "label": "5 hour",
+                "remainingPercent": 82.0,
+                "resetsAt": "2026-09-03T17:00:00Z",
+                "usedPercent": 18.0,
+                "windowSeconds": 18000
+              },
+              {
+                "id": "gemini-pro",
+                "kind": null,
+                "label": "5 hour",
+                "remainingPercent": 82.0,
+                "resetsAt": "2026-09-03T17:00:00Z",
+                "usedPercent": 18.0,
+                "windowSeconds": 18000
+              }
+            ]
+          },
+          "plan": "pro",
+          "provider": "google_ai_studio",
+          "providerAccountId": "provider-id",
+          "updatedAt": "2026-09-03T12:00:00Z"
+        },
+        {
+          "authRequired": true,
+          "chatgptAccountId": null,
+          "createdAt": "2026-09-01T00:00:00Z",
+          "email": null,
+          "id": "account-1",
+          "label": "Personal",
+          "lastError": "Sign in again",
+          "lastUsage": null,
+          "plan": null,
+          "provider": "google_ai_studio",
+          "providerAccountId": null,
+          "updatedAt": "2026-09-03T12:00:00Z"
+        }
+      ],
+      "bridge": {
+        "enabled": true,
+        "endpoint": "http://127.0.0.1:47831/v1/paseo-usage",
+        "error": null,
+        "running": true
+      },
+      "buckets": [
+        {
+          "accountIds": [
+            "account-1"
+          ],
+          "createdAt": "2026-09-01T00:00:00Z",
+          "id": "bucket-1",
+          "name": "Work",
+          "provider": "anthropic",
+          "updatedAt": "2026-09-02T00:00:00Z"
+        },
+        {
+          "accountIds": [
+            "account-1"
+          ],
+          "createdAt": "2026-09-01T00:00:00Z",
+          "id": "bucket-1",
+          "name": "Work",
+          "provider": null,
+          "updatedAt": "2026-09-02T00:00:00Z"
+        }
+      ],
+      "unprotectedAccountIds": [
+        "account-1"
+      ],
+      "unprotectedCredentials": 1
+    },
+    {
+      "accounts": [],
+      "bridge": {
+        "enabled": true,
+        "endpoint": "http://127.0.0.1:47831/v1/paseo-usage",
+        "error": "Port in use",
+        "running": false
+      },
+      "buckets": [],
+      "unprotectedAccountIds": [],
+      "unprotectedCredentials": 0
+    }
+  ],
+  "LoginStatus": [
+    {
+      "account": null,
+      "attemptId": "attempt-1",
+      "message": "Waiting for sign-in",
+      "projects": null,
+      "selectedProjectId": null,
+      "status": "waiting"
+    },
+    {
+      "account": {
+        "authRequired": false,
+        "chatgptAccountId": null,
+        "createdAt": "2026-09-01T00:00:00Z",
+        "email": "person@example.com",
+        "id": "account-1",
+        "label": "Personal",
+        "lastError": null,
+        "lastUsage": {
+          "creditsUsd": 1.5,
+          "email": null,
+          "fetchedAt": "2026-09-03T12:00:00Z",
+          "freshness": "auth_required",
+          "plan": "pro",
+          "source": "test",
+          "unlimitedCredits": false,
+          "windows": [
+            {
+              "id": "five_hour",
+              "kind": "five_hour",
+              "label": "5 hour",
+              "remainingPercent": 82.0,
+              "resetsAt": "2026-09-03T17:00:00Z",
+              "usedPercent": 18.0,
+              "windowSeconds": 18000
+            },
+            {
+              "id": "gemini-pro",
+              "kind": null,
+              "label": "5 hour",
+              "remainingPercent": 82.0,
+              "resetsAt": "2026-09-03T17:00:00Z",
+              "usedPercent": 18.0,
+              "windowSeconds": 18000
+            }
+          ]
+        },
+        "plan": "pro",
+        "provider": "google_ai_studio",
+        "providerAccountId": "provider-id",
+        "updatedAt": "2026-09-03T12:00:00Z"
+      },
+      "attemptId": "attempt-1",
+      "message": null,
+      "projects": null,
+      "selectedProjectId": null,
+      "status": "complete"
+    },
+    {
+      "account": null,
+      "attemptId": "attempt-1",
+      "message": "Sign-in failed",
+      "projects": null,
+      "selectedProjectId": null,
+      "status": "failed"
+    },
+    {
+      "account": null,
+      "attemptId": "attempt-1",
+      "message": null,
+      "projects": [
+        {
+          "displayName": "Project",
+          "projectId": "project",
+          "projectNumber": "1"
+        }
+      ],
+      "selectedProjectId": "project",
+      "status": "choose_project"
+    }
+  ],
+  "PairingHostInit": [
+    {
+      "expiresAt": 1790000000,
+      "fingerprint": "AB:CD",
+      "joinCode": "123456",
+      "qrSvg": "<svg/>",
+      "qrUri": "aiut-pair://x",
+      "sessionId": "session-1"
+    }
+  ],
+  "PairingStatus": [
+    {
+      "status": "idle"
+    },
+    {
+      "data": {
+        "expiresAt": 1790000000,
+        "fingerprint": "AB:CD",
+        "joinCode": "123456",
+        "qrSvg": "<svg/>",
+        "qrUri": "aiut-pair://x",
+        "sessionId": "session-1"
+      },
+      "status": "hostWaiting"
+    },
+    {
+      "data": {
+        "sessionId": "session-1"
+      },
+      "status": "clientConnecting"
+    },
+    {
+      "data": {
+        "fingerprint": "AB:CD",
+        "sasCode": "1234",
+        "sessionId": "session-1"
+      },
+      "status": "peerConnected"
+    },
+    {
+      "data": {
+        "fingerprint": "AB:CD",
+        "sasCode": "1234",
+        "sessionId": "session-1"
+      },
+      "status": "roleSelection"
+    },
+    {
+      "data": {
+        "accountCount": null,
+        "fingerprint": "AB:CD",
+        "role": "sender",
+        "sasCode": "1234",
+        "sessionId": "session-1"
+      },
+      "status": "sasVerification"
+    },
+    {
+      "data": {
+        "accountCount": 3,
+        "fingerprint": "AB:CD",
+        "role": "receiver",
+        "sasCode": "1234",
+        "sessionId": "session-1"
+      },
+      "status": "sasVerification"
+    },
+    {
+      "data": {
+        "sessionId": "session-1"
+      },
+      "status": "transferring"
+    },
+    {
+      "data": {
+        "summary": {
+          "added": 1,
+          "skipped": 3,
+          "updated": 2,
+          "warnings": [
+            "Settings could not be saved."
+          ]
+        }
+      },
+      "status": "completed"
+    },
+    {
+      "data": {
+        "error": "Timed out"
+      },
+      "status": "failed"
+    }
+  ]
+}

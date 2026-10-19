@@ -85,6 +85,8 @@ export interface AppSettings {
   paseoBridgeEnabled: boolean;
   automaticUpdatesEnabled: boolean;
   includeBetaUpdates: boolean;
+  /** Start the app at login (desktop). */
+  autostartEnabled: boolean;
 }
 
 export interface LoginStart {
@@ -187,7 +189,7 @@ export type PairingStatus =
         sasCode: string;
         fingerprint: string;
         role: "receiver" | "sender";
-        accountCount?: number;
+        accountCount?: number | null;
       };
     }
   | {

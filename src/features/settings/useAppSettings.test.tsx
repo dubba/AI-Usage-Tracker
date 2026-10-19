@@ -22,6 +22,7 @@ function settings(overrides: Partial<AppSettings> = {}): AppSettings {
     paseoBridgeEnabled: false,
     automaticUpdatesEnabled: true,
     includeBetaUpdates: false,
+    autostartEnabled: false,
     ...overrides,
   };
 }

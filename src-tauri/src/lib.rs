@@ -17,6 +17,8 @@ mod refresh_loop;
 mod startup;
 mod state;
 mod store;
+#[cfg(test)]
+mod type_contract;
 mod updater;
 mod usage;
 
