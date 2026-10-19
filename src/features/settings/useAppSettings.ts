@@ -83,7 +83,6 @@ export function useAppSettings({ reportError, clearError }: { reportError: Repor
   return {
     appSettings,
     autostart,
-    settingsBusy: settingsBusyKey !== null,
     refreshIntervalBusy: settingsBusyKey === "refresh",
     automaticUpdatesBusy: settingsBusyKey === "automatic",
     includeBetaUpdatesBusy: settingsBusyKey === "beta",

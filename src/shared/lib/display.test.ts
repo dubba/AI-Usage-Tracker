@@ -3,7 +3,6 @@ import {
   antigravityGroupLabel,
   cleanModelPrefix,
   displayAccountSubtitle,
-  displayMetricLabel,
   displayPlan,
   metricGroupLabel,
   windowPillClass,
@@ -57,9 +56,6 @@ describe("antigravityGroupLabel", () => {
 
   it("keeps Gemini 4 Argon as its own group", () => {
     expect(antigravityGroupLabel(win({ label: "Gemini 4 Argon · Weekly Limit" }))).toBe("Gemini 4 Argon");
-    expect(displayMetricLabel(win({ label: "Gemini 4 Argon · Weekly Limit" }), "antigravity")).toBe(
-      "Gemini 4 Argon · Remaining Limit",
-    );
   });
 
   it("has no group for plain window labels", () => {
@@ -90,27 +86,6 @@ describe("metricGroupLabel", () => {
     expect(metricGroupLabel(win({ label: "Grok Bot weekly" }), "grok")).toBe("Grok Bot");
     expect(metricGroupLabel(win({ label: "5 hour" }), "anthropic")).toBe("Claude");
     expect(metricGroupLabel(win({ label: "Weekly" }), "opencode_go")).toBe("OpenCode");
-  });
-});
-
-describe("displayMetricLabel", () => {
-  it("labels model-grouped windows", () => {
-    expect(displayMetricLabel(win({ label: "Gemini · 5 hour" }))).toBe("Gemini · Remaining Limit");
-    expect(displayMetricLabel(win({ label: "Gemini · Other thing" }))).toBe("Gemini · Other thing");
-    expect(displayMetricLabel(win({ label: "Sonnet weekly" }))).toBe("Sonnet · Remaining Limit");
-    expect(displayMetricLabel(win({ label: "Grok Bot weekly" }), "grok")).toBe("Grok Bot · Remaining Limit");
-  });
-
-  it("uses provider-specific defaults for plain labels", () => {
-    expect(displayMetricLabel(win({ label: "Weekly" }), "openai")).toBe("GPT · Remaining Limit");
-    expect(displayMetricLabel(win({ label: "Weekly" }), "grok")).toBe("Grok · Remaining Limit");
-    expect(displayMetricLabel(win({ label: "Weekly" }), "anthropic")).toBe("Remaining Limit");
-  });
-
-  it("recognizes OpenAI code review windows", () => {
-    expect(displayMetricLabel(win({ id: "code_review", label: "Code review" }), "openai")).toBe(
-      "Code Review · Remaining Limit",
-    );
   });
 });
 

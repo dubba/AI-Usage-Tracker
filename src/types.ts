@@ -139,7 +139,6 @@ export interface PairingHostInit {
   expiresAt: number;
 }
 
-export type PairingReceiverInit = PairingHostInit;
 
 export type PairingStatus =
   | { status: "idle" }

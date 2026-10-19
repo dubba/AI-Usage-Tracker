@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { logIgnored } from "./log";
 import { storageGet, storageRemove, storageSet, STORAGE_KEYS } from "./storage";
-import type { Account, AccountBucket, AirgapExport, AirgapVerifyResult, AppSettings, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, PairingHostInit, PairingReceiverInit, PairingStatus, Provider, StartupIssue, SyncSummary, UsageAlertSetting } from "../../types";
+import type { Account, AccountBucket, AirgapExport, AirgapVerifyResult, AppSettings, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, PairingHostInit, PairingStatus, Provider, StartupIssue, SyncSummary, UsageAlertSetting } from "../../types";
 
 export function rememberLoginAttempt(attemptId: string) {
   storageSet(STORAGE_KEYS.loginAttempt, attemptId, "session");
@@ -71,7 +71,6 @@ export const bridgeApi = {
   getAccountAlerts: (accountId: string) => invoke<UsageAlertSetting[]>("get_account_alerts", { accountId }),
   saveAccountAlerts: (accountId: string, settings: UsageAlertSetting[]) =>
     invoke<UsageAlertSetting[]>("save_account_alerts", { accountId, settings }),
-  getBuckets: () => invoke<AccountBucket[]>("get_account_buckets"),
   saveBucket: (name: string, provider: Provider | null, accountIds: string[], id?: string) =>
     invoke<AccountBucket>("save_account_bucket", { id: id ?? null, name, provider, accountIds }),
   deleteBucket: (id: string) => invoke<void>("delete_account_bucket", { id }),
@@ -92,10 +91,8 @@ export const pairingApi = {
   wifiEnabled: () => invoke<boolean>("pairing_wifi_enabled"),
   openWifiSettings: () => invoke<void>("pairing_open_wifi_settings"),
   startHost: () => invoke<PairingHostInit>("pairing_start_host"),
-  startReceiver: () => invoke<PairingReceiverInit>("pairing_start_receiver"),
   startClient: (qrUri: string) => invoke<void>("pairing_start_client", { qrUri }),
   startClientByCode: (code: string) => invoke<void>("pairing_start_client_by_code", { code }),
-  startSender: (qrUri: string) => invoke<void>("pairing_start_sender", { qrUri }),
   selectRole: (role: "send" | "receive") => invoke<void>("pairing_select_role", { role }),
   confirmSas: (sessionId: string, confirmed: boolean) =>
     invoke<void>("pairing_confirm_sas", { sessionId, confirmed }),
@@ -104,8 +101,6 @@ export const pairingApi = {
   getPendingPairingUri: () => invoke<string | null>("get_pending_pairing_uri"),
   setIncludeSettings: (include: boolean) =>
     invoke<void>("pairing_set_include_settings", { include }),
-  setAllowCredentialReplace: (allow: boolean) =>
-    invoke<void>("pairing_set_allow_credential_replace", { allow }),
   setPendingUiState: (uiState: Record<string, unknown>) =>
     invoke<void>("pairing_set_pending_ui_state", { uiState }),
   clearPendingUiState: () => invoke<void>("pairing_clear_pending_ui_state"),

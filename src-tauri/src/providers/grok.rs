@@ -207,42 +207,6 @@ pub(crate) async fn fetch_grok_user_email(app: &AppState, cookie_header: &str) -
 }
 
 #[derive(Clone, Debug)]
-#[allow(dead_code)]
-pub(crate) struct GrokCredentials {
-    pub access_token: String,
-    pub email: Option<String>,
-    pub user_id: Option<String>,
-    pub team_id: Option<String>,
-    pub principal_type: Option<String>,
-    pub auth_mode: Option<String>,
-    pub expires_at: Option<DateTime<Utc>>,
-}
-
-impl GrokCredentials {
-    pub(crate) fn account_id(&self) -> Option<String> {
-        self.user_id.clone().or_else(|| self.team_id.clone())
-    }
-
-    pub(crate) fn plan(&self) -> String {
-        if self
-            .principal_type
-            .as_deref()
-            .is_some_and(|value| value.eq_ignore_ascii_case("team"))
-        {
-            "Grok Team".into()
-        } else if self
-            .auth_mode
-            .as_deref()
-            .is_some_and(|value| value.eq_ignore_ascii_case("oidc"))
-        {
-            "SuperGrok".into()
-        } else {
-            "Grok".into()
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
 struct BillingSnapshot {
     used_percent: f64,
     resets_at: Option<DateTime<Utc>>,
@@ -276,7 +240,6 @@ pub async fn refresh(
     account: &Account,
     secret: &GrokSecret,
 ) -> Result<(ProviderUsage, GrokSecret), ProviderError> {
-    let credentials: Option<GrokCredentials> = None;
     let secret = recapture_stored_cookies(&account.id, secret)?;
 
     let Some(cookie_header) = secret
@@ -301,7 +264,7 @@ pub async fn refresh(
     );
     match billing {
         Ok(snapshot) => {
-            let mut usage = usage_from_snapshot(account, credentials.as_ref(), snapshot, bot);
+            let mut usage = usage_from_snapshot(account, snapshot, bot);
             if usage.email.is_none() {
                 usage.email = discovered_email.or_else(|| account.email.clone());
             }
@@ -340,7 +303,6 @@ pub async fn probe_cookie(
             last_error: None,
             auth_required: false,
         },
-        None,
         snapshot,
         bot,
     );
@@ -352,7 +314,6 @@ pub async fn probe_cookie(
 
 fn usage_from_snapshot(
     account: &Account,
-    credentials: Option<&GrokCredentials>,
     snapshot: BillingSnapshot,
     bot: Option<BotUsage>,
 ) -> ProviderUsage {
@@ -376,18 +337,11 @@ fn usage_from_snapshot(
         windows.push(bot_usage_window(&bot));
     }
     ProviderUsage {
-        plan: Some(
-            credentials
-                .map(GrokCredentials::plan)
-                .or_else(|| account.plan.clone())
-                .unwrap_or_else(|| "Grok".into()),
-        ),
-        email: credentials
-            .and_then(|value| value.email.clone())
-            .or_else(|| account.email.clone()),
-        provider_account_id: credentials
-            .and_then(GrokCredentials::account_id)
-            .or_else(|| account.provider_account_id.clone())
+        plan: Some(account.plan.clone().unwrap_or_else(|| "Grok".into())),
+        email: account.email.clone(),
+        provider_account_id: account
+            .provider_account_id
+            .clone()
             .or_else(|| Some("grok-browser-session".into())),
         windows,
         credits_usd: None,
@@ -1338,7 +1292,7 @@ mod tests {
             resets_at: Some(bot_reset),
         };
 
-        let usage = usage_from_snapshot(&account, None, snapshot, Some(bot));
+        let usage = usage_from_snapshot(&account, snapshot, Some(bot));
         assert_eq!(usage.windows.len(), 2);
         assert_eq!(usage.windows[0].id, "weekly");
         assert_eq!(usage.windows[0].label, "Weekly");

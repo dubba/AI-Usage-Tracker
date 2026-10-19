@@ -56,7 +56,7 @@ guard.
 | Local API rate limit, separate lanes for requests with and without the token | `bridge_api.rs:28-33,262-325` | `local_api_rate_limits_per_client_ip` (:473); `bad_requests_cannot_use_up_the_token_holders_budget` (:527, fails with a single shared budget); `idle_rate_limit_entries_are_pruned` (:562); `rate_limit_response_includes_retry_after` (:581) | guards |
 | Local API security headers always win | `bridge_api.rs:101-118` | `security_headers_are_set_and_override_the_handler` (:615); `responses_carry_defensive_headers` (:594) | guards |
 | Bridge stays off when token unreadable | `bridge_api.rs:35-93` | `controller_stays_off_and_reports_why_when_the_token_is_unavailable` (:387) | guards |
-| IPC surface stays in sync (handler = build.rs = capabilities = frontend calls) | `lib.rs:96-175`, `build.rs:330-390`, `capabilities/*` | `app_commands_capabilities_and_frontend_stay_in_sync` (lib.rs:215-392; five-way cross-check incl. scanning every frontend `invoke()`, which must name its command as a double-quoted literal; the opener allowlist must equal `safeUrl.ts`; the bridge window must not call `invoke` directly) | guards |
+| IPC surface stays in sync (handler = build.rs = capabilities = frontend calls) | `lib.rs:121-176`, `build.rs:330-390`, `capabilities/*` | `app_commands_capabilities_and_frontend_stay_in_sync` (lib.rs:216-514; five-way cross-check incl. scanning every frontend `invoke()`, which must name its command as a double-quoted literal, and a check that every registered command has a frontend caller; the opener allowlist must equal `safeUrl.ts`; the bridge window must not call `invoke` directly) | guards |
 | Sealed credential files (Android): plaintext never on disk, file↔account binding, fail-closed | `credential_file.rs` | `sealed_files_hide_the_plaintext_and_round_trip` (:202); `a_sealed_file_cannot_be_moved_to_another_account` (:244); `a_sealed_file_without_secure_storage_is_an_error_not_garbage` (:254); `plaintext_from_an_earlier_version_loads_and_is_upgraded` (:226); `directory_upgrade_counts_files_it_could_not_seal_and_retries_them` (:320) | guards |
 | Chunked Credential Manager secrets survive Windows blob limits and crashes | `store/credentials/chunking.rs` | `large_provider_secret_round_trips_through_chunks` (store/tests.rs:258); `chunk_split_respects_utf16_surrogate_pairs` (:284); `recognizes_legacy_chunked_manifest` (:311) | guards |
 | All app files owner-only (Unix modes; Windows SID validation) | `fs_util.rs` | `atomic_write_private_creates_owner_only_files` (fs_util.rs:297); `whoami_output_yields_only_a_well_formed_sid` (:285); `hidden_command_still_returns_whoami_output` (:271, Windows); `ensure_private_dir_is_owner_only` (:403); `account_metadata_files_are_owner_only` (store/tests.rs:53) | guards |
@@ -118,12 +118,11 @@ rediscover it.
    - OAuth `state` mismatch rejection (oauth.rs:486) — no direct test.
    - Updater fail-closed on missing `.apk.sha256` (updater.rs:774-782) — no test.
    - Android APK max-size and magic-byte download rules (updater.rs:448,520-585) — no test. (The host and redirect rules are covered; see the map above.)
-   - PairingModal's credential-replace opt-in UI (`setAllowCredentialReplace`) — no frontend test (backend is covered).
    - Airgap decompression limit — the library's `decompress_to_vec_with_limit` is tested directly, but the production wiring (airgap.rs:313-316) is not.
 2. **`commands/` has exactly one test** (commands/alerts.rs:117) across 55 command functions.
 3. **Frontend screens with no dedicated tests**: `SettingsView`,
    `ApiIntegrationWindow`, `GoogleAiStudioUsageModal`, `BucketModal`, `AccountAlertModal`,
-   plus `useDashboardData`/`useAppSettings` hooks (only indirectly exercised).
+   plus the `useAppSettings` hook (only indirectly exercised; `useDashboardData`, `useAppUpdate` and `useAccountActions` now have direct tests).
    `AccountsView` covers the empty-dashboard Link Devices / Other Provider actions.
 4. **No integration or E2E harness** (no `src-tauri/tests/`, no browser/device tests) and
    **no coverage tooling** on either side.

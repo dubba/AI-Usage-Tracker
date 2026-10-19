@@ -111,64 +111,6 @@ export function metricGroupLabel(window: UsageWindow, provider?: Provider | stri
   return windowGroupPrefix(window) ?? providerDefaultGroup(window, provider);
 }
 
-export function displayMetricLabel(window: UsageWindow, provider?: Provider | string): string {
-  const label = window.label.trim();
-  const lower = label.toLowerCase();
-  const providerLower = provider?.toLowerCase();
-
-  // Model-grouped windows, e.g. "Gemini models · 5 hour", "Claude & GPT models · 5 hour", "GPT · 30-Day Limit"
-  if (label.includes(" · ")) {
-    const parts = label.split(" · ");
-    const prefix = cleanModelPrefix(parts.slice(0, -1).join(" · "));
-    const last = parts[parts.length - 1].trim().toLowerCase();
-    if (
-      last === "5 hour" ||
-      last === "5-hour" ||
-      last === "five hour" ||
-      last === "weekly" ||
-      last === "rolling" ||
-      last.includes("limit")
-    ) {
-      return `${prefix} · Remaining Limit`;
-    }
-    return `${prefix} · ${parts[parts.length - 1].trim()}`;
-  }
-
-  // Model-specific suffixes like "Sonnet weekly" -> "Sonnet · Remaining Limit"
-  const stripped = stripWindowSuffix(label);
-  if (stripped !== null) return `${cleanModelPrefix(stripped)} · Remaining Limit`;
-
-  // Pure standalone window labels or provider-specific defaults
-  if (providerLower === "openai") {
-    if (window.id.toLowerCase().includes("code_review") || lower.includes("code review")) {
-      return "Code Review · Remaining Limit";
-    }
-    return "GPT · Remaining Limit";
-  }
-
-  if (
-    lower === "weekly" ||
-    lower === "5 hour" ||
-    lower === "5-hour" ||
-    lower === "five hour" ||
-    lower === "five_hour" ||
-    lower === "monthly" ||
-    lower === "rolling" ||
-    lower === "session" ||
-    lower === "five hour limit remaining" ||
-    lower === "weekly limit remaining" ||
-    lower === "5 hour limit remaining" ||
-    lower === "5-hour limit remaining" ||
-    lower === "limit remaining" ||
-    lower === "usage"
-  ) {
-    if (providerLower === "grok") return "Grok · Remaining Limit";
-    return "Remaining Limit";
-  }
-
-  return cleanModelPrefix(label);
-}
-
 export function windowPillClass(window: UsageWindow): string {
   if (canonicalWindow(window, "five_hour")) return "window-pill-5h";
   if (canonicalWindow(window, "weekly")) return "window-pill-7d";

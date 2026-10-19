@@ -149,7 +149,6 @@ pub fn run() {
             commands::accounts::rename_account,
             commands::accounts::remove_account,
             commands::accounts::remove_unprotected_accounts,
-            commands::buckets::get_account_buckets,
             commands::buckets::save_account_bucket,
             commands::buckets::delete_account_bucket,
             commands::bridge::regenerate_bridge_token,
@@ -161,16 +160,13 @@ pub fn run() {
             commands::pairing::pairing_wifi_enabled,
             commands::pairing::pairing_open_wifi_settings,
             commands::pairing::pairing_start_host,
-            commands::pairing::pairing_start_receiver,
             commands::pairing::pairing_start_client,
             commands::pairing::pairing_start_client_by_code,
-            commands::pairing::pairing_start_sender,
             commands::pairing::pairing_select_role,
             commands::pairing::pairing_confirm_sas,
             commands::pairing::pairing_cancel,
             commands::pairing::pairing_status,
             commands::pairing::pairing_set_include_settings,
-            commands::pairing::pairing_set_allow_credential_replace,
             commands::pairing::pairing_set_pending_ui_state,
             commands::pairing::pairing_clear_pending_ui_state,
             commands::pairing::pairing_prepare_airgap_export,
@@ -429,14 +425,7 @@ mod tests {
         // calls is attack surface with no user: it stays registered, listed in `build.rs`,
         // and granted to the main window for nothing. A command counts as called when code
         // outside the tests invokes it directly, or calls the `bridgeApi` / `pairingApi`
-        // method in `api.ts` that wraps it. The list of exceptions is exact on purpose, so
-        // removing a command from it (or the code) cannot be forgotten.
-        const REGISTERED_BUT_UNCALLED: &[&str] = &[
-            "get_account_buckets",
-            "pairing_set_allow_credential_replace",
-            "pairing_start_receiver",
-            "pairing_start_sender",
-        ];
+        // method in `api.ts` that wraps it.
         let api_source = std::fs::read_to_string(
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../src/shared/lib/api.ts"),
         )
@@ -494,14 +483,10 @@ mod tests {
                 called.insert(command.clone());
             }
         }
-        let uncalled: BTreeSet<String> = handlers.difference(&called).cloned().collect();
-        let expected: BTreeSet<String> = REGISTERED_BUT_UNCALLED
-            .iter()
-            .map(|name| name.to_string())
-            .collect();
-        assert_eq!(
-            uncalled, expected,
-            "registered commands no frontend code calls must match REGISTERED_BUT_UNCALLED"
+        let uncalled: Vec<_> = handlers.difference(&called).collect();
+        assert!(
+            uncalled.is_empty(),
+            "registered commands that no frontend code calls: {uncalled:?}"
         );
 
         // The Paseo Bridge window may only call what its capability allows.

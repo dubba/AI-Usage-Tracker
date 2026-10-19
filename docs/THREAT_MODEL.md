@@ -42,7 +42,7 @@ The app is a client with no server and no multi-user database, so the classic
 
 ## Trust boundaries
 
-1. **Webview → Rust backend** — 56 Tauri commands, gated by per-window capability files.
+1. **Webview → Rust backend** — 54 Tauri commands, gated by per-window capability files.
 2. **Rust → OS credential stores** — Keychain / Credential Manager / Android Keystore.
 3. **Rust → provider APIs** — outbound HTTPS; responses treated as untrusted input.
 4. **Rust → LAN peers** — pairing TCP listener, mDNS, QR codes.
@@ -70,7 +70,7 @@ refresh loop spawn. Failure is reported on the startup screen, not swallowed
 React 19 with no state library: a single `DashboardSnapshot` fetched only by
 `useDashboardData` (`src/features/dashboard/useDashboardData.ts:34-73`), 30 s poll +
 focus/visibility refresh. All backend calls go through `bridgeApi` (37) and `pairingApi`
-(20) wrappers in `src/shared/lib/api.ts:18-117` — exactly the 58 registered commands.
+(17) wrappers in `src/shared/lib/api.ts:18-116` — exactly the 54 registered commands.
 Backend events (`usage-alert`, `pairing-status`, `pairing-uri-received`,
 `pairing-ui-state`, `open-update-notes`, `app-update-progress`) are consumed via `useTauriEvent`. The `api-integration` window
 renders `ApiIntegrationWindow.tsx` and can call only three bridge methods
@@ -80,7 +80,7 @@ renders `ApiIntegrationWindow.tsx` and can call only three bridge methods
 
 | Area | Modules |
 | --- | --- |
-| App shell / IPC | `lib.rs` (58 commands, `lib.rs:96-175`), `commands/*` (per-domain commands), `state.rs` (shared `AppState`: locks, rate-limit map, refresh semaphore), `backend.rs`, `startup.rs` |
+| App shell / IPC | `lib.rs` (54 commands, `lib.rs:121-176`), `commands/*` (per-domain commands), `state.rs` (shared `AppState`: locks, rate-limit map, refresh semaphore), `backend.rs`, `startup.rs` |
 | Usage engine | `usage.rs` (refresh orchestration, per-account locks), `refresh_loop.rs` (wall-clock ticker), `refresh_backoff.rs`, `limits.rs`, `buckets.rs`, `account_order.rs`, `alerts.rs`, `settings.rs` |
 | Providers | `providers/{mod,openai,anthropic,antigravity,google_ai_studio,grok,opencode_go,oauth_refresh}.rs` — each normalizes a provider's quota response into `UsageWindow`s |
 | Login flows | `oauth.rs`, `oauth_common.rs` (loopback OAuth), `google_ai_studio_oauth.rs` (Cloud connection), `grok_login.rs`, `opencode_login.rs` (WebView cookie capture), `mobile_auth.rs` (mobile in-app sign-in) |
@@ -112,11 +112,11 @@ Android, plaintext in debug builds). Corrupt JSON is quarantined and reloaded, n
 
 ## Entry points and guards
 
-### 1. Tauri IPC commands (58) — reachable by injected frontend code
+### 1. Tauri IPC commands (54) — reachable by injected frontend code
 
 | Guard | Code |
 | --- | --- |
-| Per-window capability allowlists: main window = exactly the 58 commands; `api-integration` window = only `get-bridge-info`, `reveal-bridge-token`, `regenerate-bridge-token` | `capabilities/default.json`, `capabilities/api-integration.json`; five-way sync test `lib.rs:215-392` (handler list vs `build.rs APP_COMMANDS` vs capabilities vs every frontend `invoke()` vs the API window's three methods) |
+| Per-window capability allowlists: main window = exactly the 54 commands; `api-integration` window = only `get-bridge-info`, `reveal-bridge-token`, `regenerate-bridge-token` | `capabilities/default.json`, `capabilities/api-integration.json`; sync test `lib.rs:216-514` (handler list vs `build.rs APP_COMMANDS` vs capabilities vs every frontend `invoke()` vs the API window's three methods; every registered command must also have a frontend caller) |
 | `build.rs APP_COMMANDS` mirrors the handler list into generated permissions | `build.rs:330-390` |
 | Plugin permissions on the main window: `core:default`, `core:window:allow-set-theme`, `opener:allow-open-url` (URL allowlist, see §12), `autostart:allow-enable`/`allow-disable`/`allow-is-enabled`, `notification:default`, `window-state:default`. The `api-integration` window gets only `core:default` and `allow-set-theme` beyond its three commands | `capabilities/default.json`, `capabilities/api-integration.json` |
 | Windows without a capability: the desktop `grok-login` and `opencode-go-login` windows match no capability file, so they are granted no commands. Neither capability file declares a `remote` URL scope | `capabilities/*.json` (`windows` keys), `grok_login.rs:33`, `opencode_login.rs:25` |

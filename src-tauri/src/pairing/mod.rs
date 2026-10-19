@@ -104,8 +104,6 @@ pub struct PairingHostInit {
     pub expires_at: u64,
 }
 
-pub type PairingReceiverInit = PairingHostInit;
-
 pub struct ActiveSession {
     pub session_id: String,
     pub cancel_tx: Option<oneshot::Sender<()>>,
@@ -394,13 +392,6 @@ impl PairingSessionManager {
         Ok(init)
     }
 
-    pub async fn start_receiver(
-        &self,
-        state: Arc<AppState>,
-    ) -> Result<PairingReceiverInit, String> {
-        self.start_host(state).await
-    }
-
     pub async fn start_client(&self, state: Arc<AppState>, qr_uri: String) -> Result<(), String> {
         self.cancel().await;
         *state.pairing_include_settings.write() = false;
@@ -504,10 +495,6 @@ impl PairingSessionManager {
         });
 
         Ok(())
-    }
-
-    pub async fn start_sender(&self, state: Arc<AppState>, qr_uri: String) -> Result<(), String> {
-        self.start_client(state, qr_uri).await
     }
 
     pub async fn start_client_by_code(

@@ -7,11 +7,6 @@ use std::sync::Arc;
 use tauri::State;
 
 #[tauri::command]
-pub fn get_account_buckets(state: State<'_, Arc<AppState>>) -> Result<Vec<AccountBucket>, String> {
-    Ok(state.buckets.list())
-}
-
-#[tauri::command]
 pub fn save_account_bucket(
     state: State<'_, Arc<AppState>>,
     id: Option<String>,

@@ -11,13 +11,6 @@ pub async fn pairing_start_host(
 }
 
 #[tauri::command]
-pub async fn pairing_start_receiver(
-    state: State<'_, Arc<AppState>>,
-) -> Result<crate::pairing::PairingReceiverInit, String> {
-    state.pairing.start_receiver(state.inner().clone()).await
-}
-
-#[tauri::command]
 pub async fn ensure_camera_permission() -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(crate::camera_permission::ensure)
         .await
@@ -62,17 +55,6 @@ pub async fn pairing_start_client(
     state
         .pairing
         .start_client(state.inner().clone(), qr_uri)
-        .await
-}
-
-#[tauri::command]
-pub async fn pairing_start_sender(
-    state: State<'_, Arc<AppState>>,
-    qr_uri: String,
-) -> Result<(), String> {
-    state
-        .pairing
-        .start_sender(state.inner().clone(), qr_uri)
         .await
 }
 
@@ -128,17 +110,6 @@ pub fn pairing_set_include_settings(
     include: bool,
 ) -> Result<(), String> {
     *state.pairing_include_settings.write() = include;
-    Ok(())
-}
-
-#[tauri::command]
-pub fn pairing_set_allow_credential_replace(
-    state: State<'_, Arc<AppState>>,
-    allow: bool,
-) -> Result<(), String> {
-    // Explicit per-transfer opt-in to overwrite credentials of existing local
-    // accounts during the next pairing import. Defaults to false (preserve).
-    *state.pairing_allow_credential_replace.write() = allow;
     Ok(())
 }
 
