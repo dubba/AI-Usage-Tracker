@@ -1,3 +1,7 @@
 # Rust sources are scanned as text by tests (include_str!), so keep their
 # line endings identical on every platform, including Windows CI checkouts.
 *.rs text eol=lf
+
+# The backend-samples fixture is compared byte for byte with generated JSON (type_contract.rs),
+# so a Windows checkout must not turn its line endings into CRLF.
+*.fixture.json text eol=lf
