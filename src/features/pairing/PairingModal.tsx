@@ -13,17 +13,16 @@ import { pairingFailedMessage } from "./lib/pairing-errors";
 import {
   hasOwnActionButtons as viewHasOwnActionButtons,
   isWaitingStatus,
-  PAIRING_CODE_LENGTH,
   pairingHeader,
   sasFields,
   type ActiveFlow,
-  type IntendedRole,
   type ViewMode,
 } from "./lib/view-model";
 import { isAirgapFrameCode } from "./lib/airgap-frame";
 import { isPairingUri } from "./lib/uri";
 import { collectUiState } from "../dashboard/ui-state";
 import { useLatestRequest } from "../../shared/hooks/useLatestRequest";
+import { usePairingSession } from "./hooks/usePairingSession";
 import { useWifiGate } from "./hooks/useWifiGate";
 import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
@@ -332,6 +331,15 @@ export function PairingModal({
     return () => clearTimeout(timer);
   }, [viewMode, status.status, open]);
 
+  const { initHostSession, startFromUri, handleConnectByCode, handleSelectRole, handleConfirmSas } = usePairingSession({
+    context: { request, busy, setBusy, setStatus, setErrorMessage, showError },
+    dispatchFlow,
+    joinUriRef,
+    roleAutoSelectedRef,
+    includeSettings,
+    setConfirmedSas,
+  });
+
   // Start showing a link code. A newer start (or leaving the view) makes an older one's result moot.
   const startLinkCode = (action: "host" | "code") => {
     if (action === "host") {
@@ -347,56 +355,6 @@ export function PairingModal({
     open,
     onReady: startLinkCode,
   });
-
-  const initHostSession = async () => {
-    const ticket = request.begin();
-    setBusy(true);
-    setErrorMessage(null);
-    try {
-      const init = await pairingApi.startHost();
-      if (!request.isLatest(ticket)) return;
-      setStatus({
-        status: "hostWaiting",
-        data: {
-          sessionId: init.sessionId,
-          qrSvg: init.qrSvg,
-          qrUri: init.qrUri,
-          fingerprint: init.fingerprint,
-          joinCode: init.joinCode,
-          expiresAt: init.expiresAt,
-        },
-      });
-    } catch (err) {
-      if (!request.isLatest(ticket)) return;
-      showError("Couldn't start the pairing session", err);
-    } finally {
-      if (request.isLatest(ticket)) setBusy(false);
-    }
-  };
-
-  /** Join a session from a pairing link: a deep link, or one handed to the modal on open. */
-  const startFromUri = useCallback(
-    async (pendingUri: string) => {
-      joinUriRef.current = pendingUri;
-      const ticket = request.begin();
-      dispatchFlow({ type: "set-flow", flow: "wifi" });
-      setBusy(true);
-      setStatus({ status: "clientConnecting", data: { sessionId: "" } });
-      try {
-        await pairingApi.startClient(pendingUri);
-      } catch (err) {
-        if (!request.isLatest(ticket)) return;
-        setBusy(false);
-        const msg = describeError("pairing", "Couldn't connect with the link", err);
-        setErrorMessage(msg);
-        setStatus({
-          status: "failed",
-          data: { error: msg },
-        });
-      }
-    },
-    [request, setStatus, setErrorMessage],
-  );
 
   // On open: join straight away if a pairing link is waiting; on close: forget everything.
   useEffect(() => {
@@ -445,38 +403,6 @@ export function PairingModal({
 
   if (!open) return null;
 
-  const handleConnectByCode = async (code: string) => {
-    const digits = code.replace(/\D/g, "").slice(0, PAIRING_CODE_LENGTH);
-    if (digits.length !== PAIRING_CODE_LENGTH || busy) return;
-    const ticket = request.begin();
-    setBusy(true);
-    setErrorMessage(null);
-    try {
-      await pairingApi.startClientByCode(digits);
-    } catch (err) {
-      if (!request.isLatest(ticket)) return;
-      showError("Couldn't connect with that code", err);
-    } finally {
-      if (request.isLatest(ticket)) {
-        setBusy(false);
-      }
-    }
-  };
-
-  const handleSelectRole = async (role: IntendedRole) => {
-    const ticket = request.begin();
-    setBusy(true);
-    setErrorMessage(null);
-    try {
-      await pairingApi.selectRole(role);
-    } catch (err) {
-      if (!request.isLatest(ticket)) return;
-      showError("Couldn't apply the send or receive role", err);
-      roleAutoSelectedRef.current = false;
-      setBusy(false);
-    }
-  };
-
   const startAirgapSender = async (includeSettingsOpt?: boolean) => {
     stopCamera();
     showView("airgap-sender");
@@ -524,39 +450,6 @@ export function PairingModal({
     } finally {
       if (request.isLatest(ticket)) {
         capture.setImporting(false);
-      }
-    }
-  };
-
-  const handleConfirmSas = async (sessionId: string, confirmed: boolean, role?: string) => {
-    if (confirmed) {
-      setConfirmedSas(true);
-    }
-    const ticket = request.begin();
-    setBusy(true);
-    try {
-      if (confirmed) {
-        const shouldInclude = role === "sender" && includeSettings;
-        try {
-          await pairingApi.setIncludeSettings(shouldInclude);
-          if (shouldInclude) {
-            await pairingApi.setPendingUiState(collectUiState());
-          } else {
-            await pairingApi.clearPendingUiState();
-          }
-        } catch (cause) {
-          // Pairing can still complete; the other device just won't receive settings or layout.
-          logIgnored("pairing settings transfer", cause);
-        }
-      }
-      await pairingApi.confirmSas(sessionId, confirmed);
-    } catch (err) {
-      if (!request.isLatest(ticket)) return;
-      showError("Couldn't confirm the codes", err);
-      setConfirmedSas(false);
-    } finally {
-      if (request.isLatest(ticket)) {
-        setBusy(false);
       }
     }
   };
