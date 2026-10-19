@@ -13,12 +13,14 @@ import { pairingFailedMessage } from "./lib/pairing-errors";
 import {
   hasOwnActionButtons as viewHasOwnActionButtons,
   isWaitingStatus,
+  PAIRING_CODE_LENGTH,
   pairingHeader,
   sasFields,
   type ActiveFlow,
   type IntendedRole,
   type ViewMode,
 } from "./lib/view-model";
+import { isPairingUri } from "./lib/uri";
 import { collectUiState } from "../dashboard/ui-state";
 import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
@@ -49,6 +51,13 @@ import {
   TransferringPanel,
 } from "./views/StatusPanels";
 import type { AirgapExport } from "../../types";
+
+/** Wait after a view change before moving keyboard focus into it, so the new view has rendered. */
+const FOCUS_DELAY_MS = 50;
+/** How long opening the modal waits for a pairing link that arrived with the app launch. */
+const PENDING_URI_WAIT_MS = 1500;
+/** How often the "turn on Wi-Fi" prompt checks whether Wi-Fi came on. */
+const WIFI_POLL_MS = 800;
 
 export function PairingModal({
   open,
@@ -332,7 +341,7 @@ export function PairingModal({
           container.focus({ preventScroll: true });
         }
       }
-    }, 50);
+    }, FOCUS_DELAY_MS);
 
     return () => clearTimeout(timer);
   }, [viewMode, status.status, open]);
@@ -451,17 +460,14 @@ export function PairingModal({
               logIgnored("pending pairing uri", cause);
               return null;
             }),
-            new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), PENDING_URI_WAIT_MS)),
           ]);
         } catch (cause) {
           logIgnored("pending pairing uri", cause);
         }
       }
 
-      if (
-        pendingUri &&
-        (pendingUri.startsWith("aiusage-pair:") || pendingUri.startsWith("aiusage:"))
-      ) {
+      if (pendingUri && isPairingUri(pendingUri)) {
         void startFromUri(pendingUri);
         return;
       }
@@ -495,7 +501,7 @@ export function PairingModal({
     const onVisible = () => {
       if (document.visibilityState === "visible") void tick();
     };
-    const id = window.setInterval(() => void tick(), 800);
+    const id = window.setInterval(() => void tick(), WIFI_POLL_MS);
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
     return () => {
@@ -509,8 +515,8 @@ export function PairingModal({
   if (!open) return null;
 
   const handleConnectByCode = async (code: string) => {
-    const digits = code.replace(/\D/g, "").slice(0, 6);
-    if (digits.length !== 6 || busy) return;
+    const digits = code.replace(/\D/g, "").slice(0, PAIRING_CODE_LENGTH);
+    if (digits.length !== PAIRING_CODE_LENGTH || busy) return;
     const startId = ++hostStartIdRef.current;
     setBusy(true);
     setErrorMessage(null);

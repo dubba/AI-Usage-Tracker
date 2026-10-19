@@ -212,8 +212,9 @@ pub(crate) fn escape_html(input: &str) -> String {
         .replace('\'', "&#39;")
 }
 
-/// How long a browser sign-in may stay open before it is given up on.
-pub(crate) const LOGIN_TIMEOUT_MINUTES: i64 = 5;
+/// How long a browser sign-in may stay open before it is given up on. The cookie sign-ins in app
+/// windows (Grok, OpenCode) wait `COOKIE_LOGIN_TIMEOUT_MINUTES` (10) on purpose.
+pub(crate) const OAUTH_LOGIN_TIMEOUT_MINUTES: i64 = 5;
 
 /// Serves the loopback OAuth callback until `shutdown` fires. If the server itself fails (as
 /// opposed to being shut down), `fail` is told why, prefixed with `failure_prefix`, and the

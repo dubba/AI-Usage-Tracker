@@ -7,7 +7,7 @@ use crate::{
     oauth_common::{
         account_connected_html, auth_failure_html, callback_html, merge_into_existing,
         pkce_challenge, random_base64, spawn_callback_server, spawn_login_timeout, CallbackQuery,
-        ConnectedFields, LOGIN_TIMEOUT_MINUTES,
+        ConnectedFields, OAUTH_LOGIN_TIMEOUT_MINUTES,
     },
     providers::{
         anthropic::{CLIENT_ID as ANTHROPIC_CLIENT_ID, TOKEN_URL as ANTHROPIC_TOKEN_URL},
@@ -130,7 +130,7 @@ pub async fn start_login(
             return Err(error);
         }
     };
-    let expires_at = (Utc::now() + Duration::minutes(LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
+    let expires_at = (Utc::now() + Duration::minutes(OAUTH_LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
 
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
     app.register_login_shutdown(attempt_id.clone(), shutdown_tx);
@@ -170,7 +170,7 @@ pub async fn start_login(
     spawn_login_timeout(
         app.clone(),
         attempt_id.clone(),
-        std::time::Duration::from_secs((LOGIN_TIMEOUT_MINUTES * 60) as u64),
+        std::time::Duration::from_secs((OAUTH_LOGIN_TIMEOUT_MINUTES * 60) as u64),
         format!(
             "{} login timed out. Start the login again.",
             context.provider.display_name()

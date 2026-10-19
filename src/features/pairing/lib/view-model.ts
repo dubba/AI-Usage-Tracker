@@ -159,9 +159,12 @@ export function sasFields(status: PairingStatus): {
   };
 }
 
+/** The join code one device shows and the other types (`discovery::is_valid_join_code` on the backend). */
+export const PAIRING_CODE_LENGTH = 6;
+
 /** "123456" -> "123 456"; anything that is not a digit is dropped, at most six digits are kept. */
 export function formatJoinCode(code: string): string {
-  const digits = code.replace(/\D/g, "").slice(0, 6);
+  const digits = code.replace(/\D/g, "").slice(0, PAIRING_CODE_LENGTH);
   if (digits.length <= 3) return digits;
   return `${digits.slice(0, 3)} ${digits.slice(3)}`;
 }

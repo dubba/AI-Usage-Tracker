@@ -8,6 +8,7 @@ import {
   isFrontFacingCamera,
   listDesktopCameras,
 } from "../lib/camera-selection";
+import { isPairingUri } from "../lib/uri";
 import { decodeQrSandboxed, sanitizeDecodedQrText } from "../lib/qr-decoder";
 
 export type ScannerViewMode = "scanner" | (string & {});
@@ -294,10 +295,7 @@ export function useQrScanner<T extends string = string>(options: UseQrScannerOpt
                 detectedCode = decodeQrSandboxed(imageData);
               }
 
-              if (
-                detectedCode &&
-                (detectedCode.startsWith("aiusage-pair:") || detectedCode.startsWith("aiusage:"))
-              ) {
+              if (detectedCode && isPairingUri(detectedCode)) {
                 if (streamRef.current) {
                   streamRef.current.getTracks().forEach((t) => t.stop());
                   streamRef.current = null;

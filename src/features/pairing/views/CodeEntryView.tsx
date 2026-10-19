@@ -1,3 +1,5 @@
+import { PAIRING_CODE_LENGTH } from "../lib/view-model";
+
 import { ChevronIcon, ShieldIcon } from "../../../shared/ui/icons";
 import { isMobileDevice } from "../../../shared/lib/platform";
 
@@ -28,7 +30,7 @@ export function CodeEntryView({
         inputMode="numeric"
         autoComplete="one-time-code"
         pattern="[0-9]*"
-        maxLength={6}
+        maxLength={PAIRING_CODE_LENGTH}
         placeholder="000 000"
         value={value}
         autoFocus
@@ -47,9 +49,9 @@ export function CodeEntryView({
             }
           }, 120);
         }}
-        onChange={(event) => onChange(event.target.value.replace(/\D/g, "").slice(0, 6))}
+        onChange={(event) => onChange(event.target.value.replace(/\D/g, "").slice(0, PAIRING_CODE_LENGTH))}
         onKeyDown={(event) => {
-          if (event.key === "Enter" && value.length === 6) onSubmit();
+          if (event.key === "Enter" && value.length === PAIRING_CODE_LENGTH) onSubmit();
         }}
         aria-describedby="pairing-code-help"
       />
@@ -67,7 +69,7 @@ export function CodeEntryView({
           <ChevronIcon style={{ transform: "rotate(180deg)" }} />
           <span>Back</span>
         </button>
-        <button type="button" className="button primary" disabled={busy || value.length !== 6} onClick={onSubmit}>
+        <button type="button" className="button primary" disabled={busy || value.length !== PAIRING_CODE_LENGTH} onClick={onSubmit}>
           {busy ? "Connecting…" : "Connect to Device"}
         </button>
       </div>

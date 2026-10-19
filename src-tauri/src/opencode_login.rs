@@ -30,7 +30,10 @@ pub(crate) const OPENCODE_PROFILE_PREFIX: &str = "ai-usage-opencode-";
 #[cfg(desktop)]
 const OPENCODE_CANCELED_MESSAGE: &str = "OpenCode login was canceled.";
 const LOGIN_URL: &str = "https://opencode.ai/auth";
-const LOGIN_TIMEOUT_MINUTES: i64 = 10;
+/// How long a sign-in that runs in an app window (cookie capture; SSO, two-step verification and
+/// choosing a workspace happen there) waits before it gives up. Browser OAuth waits
+/// `OAUTH_LOGIN_TIMEOUT_MINUTES` (5). The two differ on purpose: do not unify them.
+const COOKIE_LOGIN_TIMEOUT_MINUTES: i64 = 10;
 const COOKIE_CAPTURE_ATTEMPTS: usize = 30;
 const COOKIE_CAPTURE_RETRY_DELAY_MS: u64 = 500;
 
@@ -121,7 +124,8 @@ pub async fn start_login(
 
     #[cfg(mobile)]
     {
-        let expires_at = (Utc::now() + Duration::minutes(LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
+        let expires_at =
+            (Utc::now() + Duration::minutes(COOKIE_LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
         return start_mobile_login(
             app,
             state,
@@ -140,7 +144,8 @@ pub async fn start_login(
             close_login_window(&window);
         }
 
-        let expires_at = (Utc::now() + Duration::minutes(LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
+        let expires_at =
+            (Utc::now() + Duration::minutes(COOKIE_LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
         // A private profile per attempt (like the Grok window) so a previous
         // OpenCode or Google session can never silently sign in a second
         // account: every login starts without stored cookies.
@@ -277,7 +282,7 @@ pub async fn start_login(
             &temp_data_dir,
             LoginWindowEnd {
                 label: LOGIN_WINDOW_LABEL,
-                timeout_minutes: LOGIN_TIMEOUT_MINUTES,
+                timeout_minutes: COOKIE_LOGIN_TIMEOUT_MINUTES,
                 canceled: OPENCODE_CANCELED_MESSAGE,
                 timed_out: "OpenCode login timed out. Start the connection again.",
             },
@@ -485,7 +490,10 @@ async fn start_mobile_login(
     let timeout_state = state.clone();
     let timeout_attempt = attempt_id.clone();
     tauri::async_runtime::spawn(async move {
-        tokio::time::sleep(StdDuration::from_secs((LOGIN_TIMEOUT_MINUTES * 60) as u64)).await;
+        tokio::time::sleep(StdDuration::from_secs(
+            (COOKIE_LOGIN_TIMEOUT_MINUTES * 60) as u64,
+        ))
+        .await;
         if timeout_state.login_is_waiting(&timeout_attempt) {
             timeout_state.fail_login_if_waiting(
                 &timeout_attempt,

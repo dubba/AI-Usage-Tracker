@@ -7,7 +7,7 @@ use crate::{
     oauth_common::{
         account_connected_html, auth_failure_html, callback_html, escape_html, pkce_challenge,
         random_base64, spawn_callback_server, spawn_login_timeout, CallbackQuery,
-        LOGIN_TIMEOUT_MINUTES,
+        OAUTH_LOGIN_TIMEOUT_MINUTES,
     },
     providers::{google_ai_studio, oauth_refresh::IdToken, ProviderError},
     state::AppState,
@@ -178,7 +178,7 @@ async fn start_oauth(
                 return Err(error);
             }
         };
-    let expires_at = (Utc::now() + Duration::minutes(LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
+    let expires_at = (Utc::now() + Duration::minutes(OAUTH_LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
 
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
     app.register_login_shutdown(attempt_id.clone(), shutdown_tx);
@@ -215,7 +215,7 @@ async fn start_oauth(
     spawn_login_timeout(
         app.clone(),
         attempt_id.clone(),
-        std::time::Duration::from_secs((LOGIN_TIMEOUT_MINUTES * 60) as u64),
+        std::time::Duration::from_secs((OAUTH_LOGIN_TIMEOUT_MINUTES * 60) as u64),
         "Google Cloud authorization timed out. Start it again.".into(),
         move |message| {
             timeout_context
@@ -261,7 +261,7 @@ async fn select_project(
     project_id: String,
 ) -> Result<LoginStart, String> {
     let attempt_id = Uuid::new_v4().to_string();
-    let expires_at = (Utc::now() + Duration::minutes(LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
+    let expires_at = (Utc::now() + Duration::minutes(OAUTH_LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
     {
         let mut pending = app.pending_login.write();
         if pending

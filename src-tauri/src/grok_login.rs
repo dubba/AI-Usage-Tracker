@@ -41,7 +41,10 @@ const GROK_CANCELED_MESSAGE: &str = "Grok login was canceled.";
 #[cfg(desktop)]
 pub(crate) const GROK_PROFILE_PREFIX: &str = "ai-usage-grok-";
 const LOGIN_URL: &str = "https://accounts.x.ai/sign-in?redirect_uri=https%3A%2F%2Fgrok.com%2F";
-const LOGIN_TIMEOUT_MINUTES: i64 = 10;
+/// How long a sign-in that runs in an app window (cookie capture; SSO, two-step verification and
+/// choosing a workspace happen there) waits before it gives up. Browser OAuth waits
+/// `OAUTH_LOGIN_TIMEOUT_MINUTES` (5). The two differ on purpose: do not unify them.
+const COOKIE_LOGIN_TIMEOUT_MINUTES: i64 = 10;
 const COOKIE_POLL_INTERVAL_MS: u64 = 750;
 const COOKIE_POLL_ATTEMPTS: usize = 800;
 
@@ -243,7 +246,8 @@ pub async fn start_login(
         }
     };
 
-    let expires_at = (Utc::now() + ChronoDuration::minutes(LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
+    let expires_at =
+        (Utc::now() + ChronoDuration::minutes(COOKIE_LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
     let login_url = match Url::parse(LOGIN_URL) {
         Ok(url) => url,
         Err(error) => {
@@ -345,7 +349,7 @@ pub async fn start_login(
             &temp_data_dir,
             LoginWindowEnd {
                 label: LOGIN_WINDOW_LABEL,
-                timeout_minutes: LOGIN_TIMEOUT_MINUTES,
+                timeout_minutes: COOKIE_LOGIN_TIMEOUT_MINUTES,
                 canceled: GROK_CANCELED_MESSAGE,
                 timed_out: "Grok login timed out. Start the connection again.",
             },
@@ -413,7 +417,10 @@ async fn start_mobile_login(
     let timeout_state = state.clone();
     let timeout_attempt = attempt_id.clone();
     tauri::async_runtime::spawn(async move {
-        tokio::time::sleep(Duration::from_secs((LOGIN_TIMEOUT_MINUTES * 60) as u64)).await;
+        tokio::time::sleep(Duration::from_secs(
+            (COOKIE_LOGIN_TIMEOUT_MINUTES * 60) as u64,
+        ))
+        .await;
         if timeout_state.login_is_waiting(&timeout_attempt) {
             timeout_state.fail_login_if_waiting(
                 &timeout_attempt,
