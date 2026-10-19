@@ -161,7 +161,7 @@ export function ApiIntegrationWindow() {
       {!bridge.enabled ? (
         <div className="bridge-window-warning">The Paseo Bridge is disabled. Return to Settings in the main app to turn it on.</div>
       ) : null}
-      {bridge.error ? <div className="error-panel">{bridge.error}</div> : null}
+      {bridge.error ? <div className="error-panel" role="alert">{bridge.error}</div> : null}
       {error ? <div className="error-panel" role="alert">{error}</div> : null}
       <div aria-live="polite" aria-atomic="true" className="sr-only">{copiedKey ? "Copied!" : ""}</div>
 

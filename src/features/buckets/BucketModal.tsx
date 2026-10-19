@@ -9,8 +9,8 @@ import { CustomDropdown } from "../../shared/ui/CustomDropdown";
 import { useScrollThumb } from "../../shared/hooks/useScrollThumb";
 import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
-import { backdropMouseDown, useModalClosePolicy } from "../../shared/hooks/useModalClosePolicy";
-import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
+import { useModalClosePolicy, useEscapeOrClosePolicy } from "../../shared/hooks/useModalClosePolicy";
+import { ModalDialog } from "../../shared/ui/ModalDialog";
 import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
 import { useVirtualKeyboard } from "../../shared/hooks/useVirtualKeyboard";
 import { useUsageDisplayMode } from "../../shared/hooks/useUsageDisplayMode";
@@ -74,13 +74,7 @@ export function BucketModal({
       handleClose();
     }
   });
-  const handleEscape = () => {
-    if (error) {
-      setError(null);
-      return;
-    }
-    requestClose();
-  };
+  const handleEscape = useEscapeOrClosePolicy(Boolean(error), () => setError(null), requestClose);
   useModalA11y(dialogRef, open && !nestedOpen, handleEscape);
 
   useEffect(() => {
@@ -164,152 +158,150 @@ export function BucketModal({
   };
 
   return (
-    <div
-      className={`modal-backdrop ${isKeyboardOpen ? "keyboard-open" : ""}`}
-      role="presentation"
-      onMouseDown={backdropMouseDown(requestClose)}
+    <ModalDialog
+      dialogRef={dialogRef}
+      labelledBy="bucket-modal-title"
+      className={`bucket-modal-card ${isKeyboardOpen ? "keyboard-open" : ""}`}
+      backdropClassName={isKeyboardOpen ? "keyboard-open" : ""}
+      onClose={requestClose}
+      closeDisabled={busy}
+    
+      afterDialog={
+        <>
+        {bucket && onDeleted ? (
+          <ConfirmDialog
+            open={confirmingDelete}
+            kicker="Delete group"
+            title={<>Delete “{bucket.name}”?</>}
+            body="Only the grouping is removed. The accounts stay connected and keep their own settings and alerts."
+            confirmLabel="Delete Group"
+            busyLabel="Deleting…"
+            busy={busy}
+            onConfirm={() => void handleDelete()}
+            onCancel={() => setConfirmingDelete(false)}
+          />
+        ) : null}
+        <ConfirmDialog
+          open={confirmingDiscard}
+          kicker="Unsaved changes"
+          title="Discard changes?"
+          body="Your changes to this group haven't been saved and will be lost."
+          confirmLabel="Discard Changes"
+          onConfirm={() => {
+            setConfirmingDiscard(false);
+            handleClose();
+          }}
+          onCancel={() => setConfirmingDiscard(false)}
+        />
+        </>
+      }
     >
-      <section
-        ref={dialogRef}
-        className={`modal-card bucket-modal-card ${isKeyboardOpen ? "keyboard-open" : ""}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="bucket-modal-title"
-        tabIndex={-1}
-      >
-        <ModalCloseButton onClose={requestClose} disabled={busy} />
-        <div className="modal-kicker">Account Grouping</div>
-        <h2 id="bucket-modal-title">{bucket ? "Edit Group" : "Create Group"}</h2>
-        <p>Group accounts together in the sidebar to track their combined usage and limits. Groups can be empty.</p>
+      <div className="modal-kicker">Account Grouping</div>
+      <h2 id="bucket-modal-title">{bucket ? "Edit Group" : "Create Group"}</h2>
+      <p>Group accounts together in the sidebar to track their combined usage and limits. Groups can be empty.</p>
 
-        <form onSubmit={handleSave} className="bucket-modal-form">
-          <label className="field-group">
-            <span className="field-label">Group Name</span>
-            <input
-              type="text"
-              className="text-input"
-              placeholder="e.g. Antigravity - Work or Grok Team A"
-              value={name}
-              autoFocus
-              disabled={busy}
-              onChange={(event) => setName(event.target.value)}
-            />
-          </label>
+      <form onSubmit={handleSave} className="bucket-modal-form">
+        <label className="field-group">
+          <span className="field-label">Group Name</span>
+          <input
+            type="text"
+            className="text-input"
+            placeholder="e.g. Antigravity - Work or Grok Team A"
+            value={name}
+            autoFocus
+            disabled={busy}
+            onChange={(event) => setName(event.target.value)}
+          />
+        </label>
 
-          <div className="field-group">
-            <div className="bucket-account-heading">
-              <span className="field-label">Select Accounts ({selectedAccountIds.length} selected)</span>
-              <div className="bucket-filter-actions">
-                <CustomDropdown<Provider | "all">
-                  aria-label="Filter by provider"
-                  value={selectedProvider}
-                  disabled={busy}
-                  options={[
-                    { value: "all", label: "All Providers" },
-                    ...ALL_PROVIDERS.map((item) => ({
-                      value: item.id,
-                      label: item.label,
-                    })),
-                  ]}
-                  onChange={(val) => setSelectedProvider(val)}
-                />
-                <button type="button" className="button ghost compact-button" onClick={selectAllFiltered} disabled={busy || !filteredAccounts.length}>
-                  {filteredAccounts.length && filteredAccounts.every((a) => selectedAccountIds.includes(a.id)) ? "Deselect All" : "Select All"}
-                </button>
-              </div>
-            </div>
-
-            <div className="bucket-account-picker-list">
-              <div ref={accountScrollRef} className={`bucket-account-picker-scroll${accountThumb.overflows ? " has-overflow" : ""}`}>
-                {accountThumb.overflows && (
-                  <div
-                    ref={accountThumb.thumbRef as RefObject<HTMLDivElement>}
-                    aria-hidden="true"
-                    className="scroll-thumb"
-                    onPointerDown={accountThumb.onThumbPointerDown}
-                  />
-                )}
-                {filteredAccounts.length ? filteredAccounts.map((account) => {
-                  const isSelected = selectedAccountIds.includes(account.id);
-                  const sessionWindow = cardWindows(account.lastUsage?.windows ?? [], account.provider)[0];
-                  return (
-                    <label key={account.id} className={`bucket-account-item ${isSelected ? "selected" : ""}`}>
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        disabled={busy}
-                        onChange={() => toggleAccount(account.id)}
-                      />
-                      <span className={`bucket-account-provider-icon provider-${account.provider}`}>
-                        <ProviderIcon provider={account.provider} />
-                      </span>
-                      <div className="bucket-account-info">
-                        <strong className="bucket-account-label">{account.label}</strong>
-                        <span className="bucket-account-email">{account.email ?? account.plan ?? account.provider}</span>
-                      </div>
-                      {sessionWindow?.remainingPercent != null ? (
-                        <span className="bucket-account-percent">
-                          {Math.round(displayPercent(sessionWindow.remainingPercent, displayMode))}%
-                        </span>
-                      ) : null}
-                    </label>
-                  );
-                }) : (
-                  <div className="bucket-picker-empty">No accounts match the selected filter.</div>
-                )}
-              </div>
+        <div className="field-group">
+          <div className="bucket-account-heading">
+            <span className="field-label">Select Accounts ({selectedAccountIds.length} selected)</span>
+            <div className="bucket-filter-actions">
+              <CustomDropdown<Provider | "all">
+                aria-label="Filter by provider"
+                value={selectedProvider}
+                disabled={busy}
+                options={[
+                  { value: "all", label: "All Providers" },
+                  ...ALL_PROVIDERS.map((item) => ({
+                    value: item.id,
+                    label: item.label,
+                  })),
+                ]}
+                onChange={(val) => setSelectedProvider(val)}
+              />
+              <button type="button" className="button ghost compact-button" onClick={selectAllFiltered} disabled={busy || !filteredAccounts.length}>
+                {filteredAccounts.length && filteredAccounts.every((a) => selectedAccountIds.includes(a.id)) ? "Deselect All" : "Select All"}
+              </button>
             </div>
           </div>
 
-          <footer className="modal-actions bucket-modal-actions">
-            {bucket && onDeleted ? (
-              <button
-                type="button"
-                className="button ghost bucket-delete-button"
-                disabled={busy}
-                onClick={() => setConfirmingDelete(true)}
-              >
-                <TrashIcon /> Delete Group
-              </button>
-            ) : null}
-            <div className="bucket-modal-save-group">
-              <button type="button" className="button ghost" disabled={busy} onClick={requestClose}>
-                Cancel
-              </button>
-              <button type="submit" className="button primary" disabled={busy}>
-                {busy ? "Saving…" : bucket ? "Save" : "Create Group"}
-              </button>
+          <div className="bucket-account-picker-list">
+            <div ref={accountScrollRef} className={`bucket-account-picker-scroll${accountThumb.overflows ? " has-overflow" : ""}`}>
+              {accountThumb.overflows && (
+                <div
+                  ref={accountThumb.thumbRef as RefObject<HTMLDivElement>}
+                  aria-hidden="true"
+                  className="scroll-thumb"
+                  onPointerDown={accountThumb.onThumbPointerDown}
+                />
+              )}
+              {filteredAccounts.length ? filteredAccounts.map((account) => {
+                const isSelected = selectedAccountIds.includes(account.id);
+                const sessionWindow = cardWindows(account.lastUsage?.windows ?? [], account.provider)[0];
+                return (
+                  <label key={account.id} className={`bucket-account-item ${isSelected ? "selected" : ""}`}>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      disabled={busy}
+                      onChange={() => toggleAccount(account.id)}
+                    />
+                    <span className={`bucket-account-provider-icon provider-${account.provider}`}>
+                      <ProviderIcon provider={account.provider} />
+                    </span>
+                    <div className="bucket-account-info">
+                      <strong className="bucket-account-label">{account.label}</strong>
+                      <span className="bucket-account-email">{account.email ?? account.plan ?? account.provider}</span>
+                    </div>
+                    {sessionWindow?.remainingPercent != null ? (
+                      <span className="bucket-account-percent">
+                        {Math.round(displayPercent(sessionWindow.remainingPercent, displayMode))}%
+                      </span>
+                    ) : null}
+                  </label>
+                );
+              }) : (
+                <div className="bucket-picker-empty">No accounts match the selected filter.</div>
+              )}
             </div>
-          </footer>
+          </div>
+        </div>
 
-          {error ? <div className="error-panel modal-error modal-error-message" role="alert">{error}</div> : null}
-        </form>
-      </section>
-      {bucket && onDeleted ? (
-        <ConfirmDialog
-          open={confirmingDelete}
-          kicker="Delete group"
-          title={<>Delete “{bucket.name}”?</>}
-          body="Only the grouping is removed. The accounts stay connected and keep their own settings and alerts."
-          confirmLabel="Delete Group"
-          busyLabel="Deleting…"
-          busy={busy}
-          onConfirm={() => void handleDelete()}
-          onCancel={() => setConfirmingDelete(false)}
-        />
-      ) : null}
-      <ConfirmDialog
-        open={confirmingDiscard}
-        kicker="Unsaved changes"
-        title="Discard changes?"
-        body="Your changes to this group haven't been saved and will be lost."
-        confirmLabel="Discard Changes"
-        onConfirm={() => {
-          setConfirmingDiscard(false);
-          handleClose();
-        }}
-        onCancel={() => setConfirmingDiscard(false)}
-      />
-    </div>
+        <footer className="modal-actions bucket-modal-actions">
+          {bucket && onDeleted ? (
+            <button
+              type="button"
+              className="button ghost bucket-delete-button"
+              disabled={busy}
+              onClick={() => setConfirmingDelete(true)}
+            >
+              <TrashIcon /> Delete Group
+            </button>
+          ) : null}
+          <div className="bucket-modal-save-group">
+            <button type="button" className="button ghost" disabled={busy} onClick={requestClose}>
+              Cancel
+            </button>
+            <button type="submit" className="button primary" disabled={busy}>
+              {busy ? "Saving…" : bucket ? "Save" : "Create Group"}
+            </button>
+          </div>
+        </footer>
+
+        {error ? <div className="error-panel modal-error modal-error-message" role="alert">{error}</div> : null}
+      </form>
+    </ModalDialog>
   );
 }

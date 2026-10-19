@@ -24,7 +24,7 @@ import { isPairingUri } from "./lib/uri";
 import { collectUiState } from "../dashboard/ui-state";
 import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
-import { backdropMouseDown, useModalClosePolicy } from "../../shared/hooks/useModalClosePolicy";
+import { useModalClosePolicy } from "../../shared/hooks/useModalClosePolicy";
 import {
   describeError,
   errorMessage as rawErrorMessage,
@@ -32,7 +32,7 @@ import {
   recordErrorDetail,
 } from "../../shared/lib/errors";
 import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
-import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
+import { ModalDialog } from "../../shared/ui/ModalDialog";
 import { AirgapConfirmView } from "./views/AirgapConfirmView";
 import { AirgapSenderView } from "./views/AirgapSenderView";
 import { CodeEntryView } from "./views/CodeEntryView";
@@ -650,235 +650,226 @@ export function PairingModal({
 
   return (
     <>
-    <div
-      className={`modal-backdrop ${isKeyboardOpen ? "keyboard-open" : ""}`}
-      role="presentation"
-      onMouseDown={backdropMouseDown(requestClose)}
+    <ModalDialog
+      dialogRef={dialogRef}
+      labelledBy="pairing-modal-title"
+      className={`pairing-modal ${isWaitingState && viewMode === "code" ? "view-code-entry" : ""} ${isKeyboardOpen ? "keyboard-open" : ""}`}
+      backdropClassName={isKeyboardOpen ? "keyboard-open" : ""}
+      onClose={requestClose}
+      closeDisabled={status.status === "transferring"}
     >
-      <section
-        ref={dialogRef}
-        className={`modal-card pairing-modal ${
-          isWaitingState && viewMode === "code" ? "view-code-entry" : ""
-        } ${isKeyboardOpen ? "keyboard-open" : ""}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="pairing-modal-title"
-        tabIndex={-1}
-      >
-        <ModalCloseButton onClose={requestClose} disabled={status.status === "transferring"} />
-        {/* Status changes are visual; announce them for screen reader users. */}
-        <div className="sr-only" role="status" aria-live="polite">
-          {modalTitle}. {modalSubtitle}
-        </div>
-        <div className="modal-kicker">Local Device Sync</div>
-        <h2 id="pairing-modal-title">{modalTitle}</h2>
-        {showStepDots ? (
-          <ol className="pairing-step-dots" aria-label={`Step ${step} of 3`}>
-            <li className={step === 1 ? "is-active" : step > 1 ? "is-complete" : ""}>Send/receive</li>
-            <li className={step === 2 ? "is-active" : step > 2 ? "is-complete" : ""}>Connect</li>
-            <li className={step === 3 ? "is-active" : ""}>Confirm</li>
-          </ol>
-        ) : null}
-        <p className="pairing-subtitle">{modalSubtitle}</p>
+      {/* Status changes are visual; announce them for screen reader users. */}
+      <div className="sr-only" role="status" aria-live="polite">
+        {modalTitle}. {modalSubtitle}
+      </div>
+      <div className="modal-kicker">Local Device Sync</div>
+      <h2 id="pairing-modal-title">{modalTitle}</h2>
+      {showStepDots ? (
+        <ol className="pairing-step-dots" aria-label={`Step ${step} of 3`}>
+          <li className={step === 1 ? "is-active" : step > 1 ? "is-complete" : ""}>Send/receive</li>
+          <li className={step === 2 ? "is-active" : step > 2 ? "is-complete" : ""}>Connect</li>
+          <li className={step === 3 ? "is-active" : ""}>Confirm</li>
+        </ol>
+      ) : null}
+      <p className="pairing-subtitle">{modalSubtitle}</p>
 
-        <div className="pairing-body">
-          {isWaitingState && viewMode === "select-role" && (
-            <RoleSelectView
-              includeSettings={includeSettings}
-              onIncludeSettingsChange={setIncludeSettings}
-              onChoose={(role) => dispatchFlow({ type: "choose-role", role })}
-            />
-          )}
+      <div className="pairing-body">
+        {isWaitingState && viewMode === "select-role" && (
+          <RoleSelectView
+            includeSettings={includeSettings}
+            onIncludeSettingsChange={setIncludeSettings}
+            onChoose={(role) => dispatchFlow({ type: "choose-role", role })}
+          />
+        )}
 
-          {isWaitingState && viewMode === "select-mode" && (
-            <ModeSelectView
-              intendedRole={intendedRole}
-              onShowCode={() => void requireWifiThen("host")}
-              onEnterCode={() => void requireWifiThen("code")}
-              onShowQr={() => {
-                dispatchFlow({ type: "set-flow", flow: "airgap" });
+        {isWaitingState && viewMode === "select-mode" && (
+          <ModeSelectView
+            intendedRole={intendedRole}
+            onShowCode={() => void requireWifiThen("host")}
+            onEnterCode={() => void requireWifiThen("code")}
+            onShowQr={() => {
+              dispatchFlow({ type: "set-flow", flow: "airgap" });
+              void startAirgapSender();
+            }}
+            onScan={() => {
+              dispatchFlow({ type: "set-flow", flow: "wifi" });
+              setCameraError(null);
+              setCameraFailed(false);
+              void pairingApi.ensureCameraPermission()
+                .catch((cause) => logIgnored("pairing.cameraPermission", cause))
+                .finally(() => showView("scanner"));
+            }}
+          />
+        )}
+
+        {isWaitingState && viewMode === "host" && (
+          <HostCodeView
+            status={status}
+            remainingSecs={remainingSecs}
+            onRegenerate={() => void initHostSession()}
+          />
+        )}
+
+        {isWaitingState && viewMode === "scanner" && (
+          <ScannerView
+            airgapVerifyPrompt={capture.verifyPrompt}
+            airgapTotalChunks={capture.total}
+            airgapCaptureSecs={capture.captureSecs}
+            airgapVerifying={capture.verifying}
+            airgapVerifyCode={capture.verifyCode}
+            airgapImporting={capture.importing}
+            airgapCapturedChunks={capture.chunks}
+            cameraError={cameraError}
+            cameraFailed={cameraFailed}
+            isFrontCamera={isFrontCamera}
+            videoReady={videoReady}
+            showSwitchCamera={showSwitchCamera}
+            videoRef={videoRef}
+            setVideoReady={setVideoReady}
+            onScannerTap={() => void handleScannerTap()}
+            onSwitchCamera={() => void handleSwitchCamera()}
+            onRetryCamera={() => {
+              setCameraError(null);
+              setCameraFailed(false);
+              setScannerRestartKey((key) => key + 1);
+            }}
+            onAirgapBack={() => {
+              capture.rescan();
+              showView("scanner");
+              setScannerRestartKey((key) => key + 1);
+            }}
+            onAirgapImport={() => void handleAirgapImport()}
+            onBack={() => {
+              if (activeFlow === "airgap") {
+                showView("airgap-sender");
+                return;
+              }
+              capture.clearCapture();
+              backToModes();
+            }}
+          />
+        )}
+
+        {isWaitingState && viewMode === "code" && (
+          <CodeEntryView
+            value={joinCodeInput}
+            busy={busy}
+            onChange={setJoinCodeInput}
+            onSubmit={() => void handleConnectByCode(joinCodeInput)}
+            onBack={() => backToModes()}
+            setKeyboardOpen={setIsKeyboardOpen}
+          />
+        )}
+
+        {isWaitingState && viewMode === "airgap-sender" && (
+          <AirgapSenderView
+            exportData={airgapExport}
+            busy={busy}
+            error={airgapPrepareError}
+            frameIndex={player.frameIndex}
+            playing={player.playing}
+            speed={player.speed}
+            onTogglePlaying={player.togglePlaying}
+            onToggleSpeed={player.toggleSpeed}
+            onContinue={() => showView("airgap-confirm")}
+            onRetry={() => void startAirgapSender()}
+            onBack={() => {
+              setAirgapExport(null);
+              setAirgapPrepareError(null);
+              setErrorMessage(null);
+              capture.clearCapture();
+              showView("select-mode", null);
+            }}
+            onCancel={requestClose}
+          />
+        )}
+
+        {isWaitingState && viewMode === "airgap-confirm" && airgapExport && (
+          <AirgapConfirmView
+            verifyCode={airgapExport.verifyCode}
+            onBack={() => showView("airgap-sender")}
+            onCancel={requestClose}
+          />
+        )}
+
+        {(status.status === "clientConnecting" || status.status === "senderConnecting") && <ConnectingPanel />}
+
+        {status.status === "peerConnected" && <PeerConnectedPanel />}
+
+        {/* Role selection is applied automatically when chosen in step 1; this is the fallback for devices that joined through a pairing link. */}
+        {status.status === "roleSelection" && !intendedRole && (
+          <RoleFallbackView busy={busy} onChoose={(role) => void handleSelectRole(role)} />
+        )}
+
+        {status.status === "roleSelection" && intendedRole && <ApplyingRolePanel role={intendedRole} />}
+
+        {sas && (
+          <SasCard
+            sasCode={sas.sasCode}
+            isSender={sas.isSender}
+            accountCount={sas.accountCount}
+            busy={busy}
+            confirmed={confirmedSas}
+            onConfirm={() => void handleConfirmSas(sas.sessionId, true, sas.role)}
+            onDecline={() => void handleConfirmSas(sas.sessionId, false, sas.role)}
+          />
+        )}
+
+        {status.status === "transferring" && <TransferringPanel />}
+
+        {status.status === "completed" && <CompletedCard summary={status.data.summary} onDone={handleDone} />}
+
+        {status.status === "failed" && (
+          <FailedCard
+            onRetry={() => {
+              setErrorMessage(null);
+              if (activeFlow === "airgap") {
                 void startAirgapSender();
-              }}
-              onScan={() => {
-                dispatchFlow({ type: "set-flow", flow: "wifi" });
-                setCameraError(null);
-                setCameraFailed(false);
-                void pairingApi.ensureCameraPermission()
-                  .catch((cause) => logIgnored("pairing.cameraPermission", cause))
-                  .finally(() => showView("scanner"));
-              }}
-            />
-          )}
-
-          {isWaitingState && viewMode === "host" && (
-            <HostCodeView
-              status={status}
-              remainingSecs={remainingSecs}
-              onRegenerate={() => void initHostSession()}
-            />
-          )}
-
-          {isWaitingState && viewMode === "scanner" && (
-            <ScannerView
-              airgapVerifyPrompt={capture.verifyPrompt}
-              airgapTotalChunks={capture.total}
-              airgapCaptureSecs={capture.captureSecs}
-              airgapVerifying={capture.verifying}
-              airgapVerifyCode={capture.verifyCode}
-              airgapImporting={capture.importing}
-              airgapCapturedChunks={capture.chunks}
-              cameraError={cameraError}
-              cameraFailed={cameraFailed}
-              isFrontCamera={isFrontCamera}
-              videoReady={videoReady}
-              showSwitchCamera={showSwitchCamera}
-              videoRef={videoRef}
-              setVideoReady={setVideoReady}
-              onScannerTap={() => void handleScannerTap()}
-              onSwitchCamera={() => void handleSwitchCamera()}
-              onRetryCamera={() => {
-                setCameraError(null);
-                setCameraFailed(false);
-                setScannerRestartKey((key) => key + 1);
-              }}
-              onAirgapBack={() => {
-                capture.rescan();
-                showView("scanner");
-                setScannerRestartKey((key) => key + 1);
-              }}
-              onAirgapImport={() => void handleAirgapImport()}
-              onBack={() => {
-                if (activeFlow === "airgap") {
-                  showView("airgap-sender");
-                  return;
-                }
-                capture.clearCapture();
+              } else if (viewMode === "host") {
+                void initHostSession();
+              } else if (joinUriRef.current) {
+                // The join through a link failed; retry that join.
+                void startFromUri(joinUriRef.current);
+              } else {
+                dispatchFlow({ type: "set-flow", flow: null });
                 backToModes();
-              }}
-            />
-          )}
+              }
+            }}
+          />
+        )}
 
-          {isWaitingState && viewMode === "code" && (
-            <CodeEntryView
-              value={joinCodeInput}
-              busy={busy}
-              onChange={setJoinCodeInput}
-              onSubmit={() => void handleConnectByCode(joinCodeInput)}
-              onBack={() => backToModes()}
-              setKeyboardOpen={setIsKeyboardOpen}
-            />
-          )}
+      </div>
 
-          {isWaitingState && viewMode === "airgap-sender" && (
-            <AirgapSenderView
-              exportData={airgapExport}
-              busy={busy}
-              error={airgapPrepareError}
-              frameIndex={player.frameIndex}
-              playing={player.playing}
-              speed={player.speed}
-              onTogglePlaying={player.togglePlaying}
-              onToggleSpeed={player.toggleSpeed}
-              onContinue={() => showView("airgap-confirm")}
-              onRetry={() => void startAirgapSender()}
-              onBack={() => {
-                setAirgapExport(null);
-                setAirgapPrepareError(null);
-                setErrorMessage(null);
-                capture.clearCapture();
-                showView("select-mode", null);
-              }}
-              onCancel={requestClose}
-            />
-          )}
-
-          {isWaitingState && viewMode === "airgap-confirm" && airgapExport && (
-            <AirgapConfirmView
-              verifyCode={airgapExport.verifyCode}
-              onBack={() => showView("airgap-sender")}
-              onCancel={requestClose}
-            />
-          )}
-
-          {(status.status === "clientConnecting" || status.status === "senderConnecting") && <ConnectingPanel />}
-
-          {status.status === "peerConnected" && <PeerConnectedPanel />}
-
-          {/* Role selection is applied automatically when chosen in step 1; this is the fallback for devices that joined through a pairing link. */}
-          {status.status === "roleSelection" && !intendedRole && (
-            <RoleFallbackView busy={busy} onChoose={(role) => void handleSelectRole(role)} />
-          )}
-
-          {status.status === "roleSelection" && intendedRole && <ApplyingRolePanel role={intendedRole} />}
-
-          {sas && (
-            <SasCard
-              sasCode={sas.sasCode}
-              isSender={sas.isSender}
-              accountCount={sas.accountCount}
-              busy={busy}
-              confirmed={confirmedSas}
-              onConfirm={() => void handleConfirmSas(sas.sessionId, true, sas.role)}
-              onDecline={() => void handleConfirmSas(sas.sessionId, false, sas.role)}
-            />
-          )}
-
-          {status.status === "transferring" && <TransferringPanel />}
-
-          {status.status === "completed" && <CompletedCard summary={status.data.summary} onDone={handleDone} />}
-
-          {status.status === "failed" && (
-            <FailedCard
-              onRetry={() => {
-                setErrorMessage(null);
-                if (activeFlow === "airgap") {
-                  void startAirgapSender();
-                } else if (viewMode === "host") {
-                  void initHostSession();
-                } else if (joinUriRef.current) {
-                  // The join through a link failed; retry that join.
-                  void startFromUri(joinUriRef.current);
-                } else {
-                  dispatchFlow({ type: "set-flow", flow: null });
-                  backToModes();
-                }
-              }}
-            />
-          )}
-
-        </div>
-
-        {/* Modal footer actions: only shown when the active view doesn't have inline action buttons */}
-        {!hasOwnActionButtons && (
-          <div
-            className={`modal-actions${
-              (isWaitingState && (viewMode === "host" || viewMode === "select-mode")) ||
-              status.status === "failed"
-                ? " pairing-host-actions"
-                : ""
-            }`}
+      {/* Modal footer actions: only shown when the active view doesn't have inline action buttons */}
+      {!hasOwnActionButtons && (
+        <div
+          className={`modal-actions${
+            (isWaitingState && (viewMode === "host" || viewMode === "select-mode")) ||
+            status.status === "failed"
+              ? " pairing-host-actions"
+              : ""
+          }`}
+        >
+          {isWaitingState && viewMode === "select-mode" ? (
+            <BackButton onClick={() => showView("select-role")} />
+          ) : null}
+          {isWaitingState && viewMode === "host" ? <BackButton onClick={() => backToModes()} /> : null}
+          {status.status === "failed" ? <BackButton onClick={() => backToModes(true)} /> : null}
+          <button
+            type="button"
+            className="button ghost"
+            onClick={requestClose}
+            disabled={status.status === "transferring"}
           >
-            {isWaitingState && viewMode === "select-mode" ? (
-              <BackButton onClick={() => showView("select-role")} />
-            ) : null}
-            {isWaitingState && viewMode === "host" ? <BackButton onClick={() => backToModes()} /> : null}
-            {status.status === "failed" ? <BackButton onClick={() => backToModes(true)} /> : null}
-            <button
-              type="button"
-              className="button ghost"
-              onClick={requestClose}
-              disabled={status.status === "transferring"}
-            >
-              {status.status === "failed" ? "Close" : "Cancel"}
-            </button>
-          </div>
-        )}
+            {status.status === "failed" ? "Close" : "Cancel"}
+          </button>
+        </div>
+      )}
 
-        {errorMessage && !airgapPrepareError && (
-          <div className="error-panel modal-error" role="alert">{errorMessage}</div>
-        )}
-      </section>
-    </div>
+      {errorMessage && !airgapPrepareError && (
+        <div className="error-panel modal-error" role="alert">{errorMessage}</div>
+      )}
+    </ModalDialog>
     <ConfirmDialog
       open={wifiPrompt != null}
       kicker="Link code"

@@ -1,7 +1,7 @@
 import { useId, useRef, type ReactNode } from "react";
 import { useModalA11y } from "../hooks/useModalA11y";
-import { backdropMouseDown, useModalClosePolicy } from "../hooks/useModalClosePolicy";
-import { ModalCloseButton } from "./ModalCloseButton";
+import { useModalClosePolicy } from "../hooks/useModalClosePolicy";
+import { ModalDialog } from "./ModalDialog";
 
 /**
  * The shared confirm-before-acting dialog (deletions, discarding unsaved
@@ -45,38 +45,32 @@ export function ConfirmDialog({
   if (!open) return null;
 
   return (
-    <div
-      className="modal-backdrop confirm-dialog-backdrop"
-      role="presentation"
-      onMouseDown={backdropMouseDown(requestCancel)}
+    <ModalDialog
+      dialogRef={dialogRef}
+      role="alertdialog"
+      labelledBy={titleId}
+      describedBy={bodyId}
+      className="remove-account-modal"
+      backdropClassName="confirm-dialog-backdrop"
+      onClose={requestCancel}
+      closeDisabled={busy}
     >
-      <section
-        ref={dialogRef}
-        className="modal-card remove-account-modal"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={bodyId}
-        tabIndex={-1}
-      >
-        <ModalCloseButton onClose={requestCancel} disabled={busy} />
-        <div className="modal-kicker">{kicker}</div>
-        <h2 id={titleId}>{title}</h2>
-        <p id={bodyId}>{body}</p>
-        <div className="modal-actions">
-          <button type="button" className="button ghost" disabled={busy} onClick={requestCancel}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className={confirmDanger ? "button remove-confirm-button" : "button primary"}
-            disabled={busy}
-            onClick={onConfirm}
-          >
-            {busy ? (busyLabel ?? confirmLabel) : confirmLabel}
-          </button>
-        </div>
-      </section>
-    </div>
+      <div className="modal-kicker">{kicker}</div>
+      <h2 id={titleId}>{title}</h2>
+      <p id={bodyId}>{body}</p>
+      <div className="modal-actions">
+        <button type="button" className="button ghost" disabled={busy} onClick={requestCancel}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className={confirmDanger ? "button remove-confirm-button" : "button primary"}
+          disabled={busy}
+          onClick={onConfirm}
+        >
+          {busy ? (busyLabel ?? confirmLabel) : confirmLabel}
+        </button>
+      </div>
+    </ModalDialog>
   );
 }

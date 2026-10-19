@@ -370,7 +370,7 @@ export function SettingsView({
                 </div>
               </section>
             ) : null}
-            {!isMobileDevice() && bridge?.error ? <div className="error-panel api-integration-error">{bridge.error}</div> : null}
+            {!isMobileDevice() && bridge?.error ? <div className="error-panel api-integration-error" role="alert">{bridge.error}</div> : null}
             {!isMobileDevice() ? (
               <section className="settings-card settings-shortcuts-card" aria-labelledby="settings-shortcuts-heading">
                 <div className="settings-row settings-shortcuts-row">

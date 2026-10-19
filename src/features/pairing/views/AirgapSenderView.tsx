@@ -53,7 +53,7 @@ export function AirgapSenderView({
               Try Again
             </button>
           </div>
-          {error ? <div className="error-panel modal-error">{error}</div> : null}
+          {error ? <div className="error-panel modal-error" role="alert">{error}</div> : null}
         </div>
       ) : busy || !exportData ? (
         <div className="pairing-panel-status">

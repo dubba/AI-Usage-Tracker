@@ -506,7 +506,7 @@ export default function App() {
           <div className="loading-screen" aria-busy="true" aria-live="polite">
             {loadError ? (
               <div className="loading-error" role="alert">
-                <div className="error-panel">{loadError.message}</div>
+                <div className="error-panel" role="alert">{loadError.message}</div>
                 <button className="button" type="button" autoFocus onClick={() => { clearError("load"); void load(); }}>
                   Retry
                 </button>

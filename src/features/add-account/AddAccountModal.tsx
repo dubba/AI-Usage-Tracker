@@ -21,8 +21,9 @@ import type { FieldsProps } from "./fields/types";
 import { CustomDropdown, type DropdownOption } from "../../shared/ui/CustomDropdown";
 import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
-import { backdropMouseDown } from "../../shared/hooks/useModalClosePolicy";
-import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
+import { useEscapeOrClosePolicy } from "../../shared/hooks/useModalClosePolicy";
+
+import { ModalDialog } from "../../shared/ui/ModalDialog";
 import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
 import { useVirtualKeyboard } from "../../shared/hooks/useVirtualKeyboard";
 
@@ -120,13 +121,7 @@ export function AddAccountModal({
     }
   };
 
-  const handleEscape = () => {
-    if (error) {
-      setError(null);
-      return;
-    }
-    requestClose();
-  };
+  const handleEscape = useEscapeOrClosePolicy(Boolean(error), () => setError(null), requestClose);
   useModalA11y(dialogRef, open && !confirmingDiscard, handleEscape);
 
   if (!open) return null;
@@ -240,100 +235,97 @@ export function AddAccountModal({
   const providerCopy = strategy.description({ isMobileOs });
 
   return (
-    <div
-      className={`modal-backdrop ${isKeyboardOpen ? "keyboard-open" : ""}`}
-      role="presentation"
-      onMouseDown={backdropMouseDown(requestClose)}
+    <ModalDialog
+      dialogRef={dialogRef}
+      labelledBy="add-account-title"
+      className={`provider-connection-modal ${isKeyboardOpen ? "keyboard-open" : ""}`}
+      backdropClassName={isKeyboardOpen ? "keyboard-open" : ""}
+      onClose={requestClose}
+    
+      afterDialog={
+        <>
+        <ConfirmDialog
+          open={confirmingDiscard}
+          kicker="Unsaved changes"
+          title="Discard what you entered?"
+          body="The sign-in details you typed haven't been saved and will be lost."
+          confirmLabel="Discard Changes"
+          onConfirm={() => {
+            setConfirmingDiscard(false);
+            closeModal();
+          }}
+          onCancel={() => setConfirmingDiscard(false)}
+        />
+        </>
+      }
     >
-      <section
-        ref={dialogRef}
-        className={`modal-card provider-connection-modal ${isKeyboardOpen ? "keyboard-open" : ""}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="add-account-title"
-        tabIndex={-1}
-      >
-        <ModalCloseButton onClose={requestClose} />
-        <div className="modal-kicker">Provider connection</div>
-        <h2 id="add-account-title">{providerLocked ? `Reconnect ${connectLabel(provider)}` : "Add AI Provider Account"}</h2>
-        <p>{providerLocked ? providerCopy : "Choose a provider, name the account, and enter its secure connection details."}</p>
+      <div className="modal-kicker">Provider connection</div>
+      <h2 id="add-account-title">{providerLocked ? `Reconnect ${connectLabel(provider)}` : "Add AI Provider Account"}</h2>
+      <p>{providerLocked ? providerCopy : "Choose a provider, name the account, and enter its secure connection details."}</p>
 
-        <label className="field-label" htmlFor="account-provider">Provider</label>
-        <CustomDropdown<Provider>
-          id="account-provider"
-          aria-label="Provider"
-          value={provider}
-          options={providerDropdownOptions}
-          onChange={changeProvider}
-          disabled={busy || modelsBusy || providerLocked}
-        />
-
-        <label className="field-label field-spaced" htmlFor="account-label">Account name</label>
-        <input
-          id="account-label"
-          className="text-input"
-          value={draft.label}
-          onChange={(event) => update({ label: event.target.value })}
-          placeholder={defaultAccountName(provider)}
-          disabled={busy || modelsBusy}
-        />
-
-        {strategy.wantsEmailHint ? (
-          <>
-            <label className="field-label field-spaced" htmlFor="account-email">Account email (optional)</label>
-            <input
-              id="account-email"
-              className="text-input"
-              type="email"
-              value={draft.email}
-              onChange={(event) => update({ email: event.target.value })}
-              placeholder="you@example.com"
-              autoComplete="email"
-              spellCheck={false}
-              disabled={busy || modelsBusy}
-            />
-            <div className="credential-note">If you've signed in to this provider before, entering an email lets you sign in with that account instead of reusing the existing session.</div>
-          </>
-        ) : null}
-
-        {providerFields}
-
-        {status?.status === "waiting" ? (
-          <div className="waiting-panel">
-            <span className="spinner" />
-            {strategy.waitingText(status.message)}
-          </div>
-        ) : null}
-        <div className="modal-actions">
-          <button type="button" className="button ghost" onClick={requestClose}>Cancel</button>
-          {status?.status === "failed" ? (
-            <button type="button" className="button primary" onClick={retry} disabled={busy || modelsBusy}>
-              Retry
-            </button>
-          ) : (
-            <button type="button"
-              className="button primary"
-              onClick={begin}
-              disabled={busy || modelsBusy || !strategy.isReady(draft)}
-            >
-              {strategy.actionLabel(draft, busy)}
-            </button>
-          )}
-        </div>
-        {error ? <div className="error-panel modal-error">{error}</div> : null}
-      </section>
-      <ConfirmDialog
-        open={confirmingDiscard}
-        kicker="Unsaved changes"
-        title="Discard what you entered?"
-        body="The sign-in details you typed haven't been saved and will be lost."
-        confirmLabel="Discard Changes"
-        onConfirm={() => {
-          setConfirmingDiscard(false);
-          closeModal();
-        }}
-        onCancel={() => setConfirmingDiscard(false)}
+      <label className="field-label" htmlFor="account-provider">Provider</label>
+      <CustomDropdown<Provider>
+        id="account-provider"
+        aria-label="Provider"
+        value={provider}
+        options={providerDropdownOptions}
+        onChange={changeProvider}
+        disabled={busy || modelsBusy || providerLocked}
       />
-    </div>
+
+      <label className="field-label field-spaced" htmlFor="account-label">Account name</label>
+      <input
+        id="account-label"
+        className="text-input"
+        value={draft.label}
+        onChange={(event) => update({ label: event.target.value })}
+        placeholder={defaultAccountName(provider)}
+        disabled={busy || modelsBusy}
+      />
+
+      {strategy.wantsEmailHint ? (
+        <>
+          <label className="field-label field-spaced" htmlFor="account-email">Account email (optional)</label>
+          <input
+            id="account-email"
+            className="text-input"
+            type="email"
+            value={draft.email}
+            onChange={(event) => update({ email: event.target.value })}
+            placeholder="you@example.com"
+            autoComplete="email"
+            spellCheck={false}
+            disabled={busy || modelsBusy}
+          />
+          <div className="credential-note">If you've signed in to this provider before, entering an email lets you sign in with that account instead of reusing the existing session.</div>
+        </>
+      ) : null}
+
+      {providerFields}
+
+      {status?.status === "waiting" ? (
+        <div className="waiting-panel">
+          <span className="spinner" />
+          {strategy.waitingText(status.message)}
+        </div>
+      ) : null}
+      <div className="modal-actions">
+        <button type="button" className="button ghost" onClick={requestClose}>Cancel</button>
+        {status?.status === "failed" ? (
+          <button type="button" className="button primary" onClick={retry} disabled={busy || modelsBusy}>
+            Retry
+          </button>
+        ) : (
+          <button type="button"
+            className="button primary"
+            onClick={begin}
+            disabled={busy || modelsBusy || !strategy.isReady(draft)}
+          >
+            {strategy.actionLabel(draft, busy)}
+          </button>
+        )}
+      </div>
+      {error ? <div className="error-panel modal-error" role="alert">{error}</div> : null}
+    </ModalDialog>
   );
 }

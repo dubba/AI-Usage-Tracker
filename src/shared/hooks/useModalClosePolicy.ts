@@ -29,3 +29,17 @@ export function backdropMouseDown(requestClose: () => void) {
     if (event.target === event.currentTarget) requestClose();
   };
 }
+
+/**
+ * What Escape does in a dialog that shows an error: the first press dismisses the error, the next
+ * one closes the dialog. Pass the result to `useModalA11y`.
+ */
+export function useEscapeOrClosePolicy(hasError: boolean, clearError: () => void, requestClose: () => void): () => void {
+  return useCallback(() => {
+    if (hasError) {
+      clearError();
+      return;
+    }
+    requestClose();
+  }, [hasError, clearError, requestClose]);
+}

@@ -1,13 +1,12 @@
 import { useRef, type ReactNode } from "react";
 import { isAllowedExternalUrl } from "../../shared/lib/safeUrl";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
-import { backdropMouseDown } from "../../shared/hooks/useModalClosePolicy";
 import type { UpdateBusy } from "../../types";
 import { cleanReleaseNotes, formatReleaseDate } from "./releaseNotesText";
 import { UpdateErrorMessage } from "./UpdateErrorMessage";
 import { UpdateProgressBar, updateInstallLabel } from "./UpdateProgressBar";
 import { DownloadCloudIcon } from "../../shared/ui/icons";
-import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
+import { ModalDialog } from "../../shared/ui/ModalDialog";
 
 interface Block {
   type: "h2" | "h3" | "h4" | "list" | "paragraph";
@@ -177,101 +176,87 @@ export function UpdateNotesModal({
   const formattedDate = formatReleaseDate(releaseDate);
 
   return (
-    <div
-      className="modal-backdrop"
-      role="presentation"
-      onMouseDown={backdropMouseDown(onClose)}
-    >
-      <section
-        ref={dialogRef}
-        className="modal-card update-notes-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="update-notes-title"
-        tabIndex={-1}
-      >
-        <ModalCloseButton onClose={onClose} />
-        <div className="modal-kicker">App Update</div>
-        <h2 id="update-notes-title">
-          {cleanVersion ? `What changed in v${cleanVersion}` : "Release Changes"}
-        </h2>
-        {formattedDate ? (
-          <p className="update-notes-subtitle">Published {formattedDate}</p>
-        ) : null}
+    <ModalDialog dialogRef={dialogRef} labelledBy="update-notes-title" className="update-notes-modal" onClose={onClose}>
+      <div className="modal-kicker">App Update</div>
+      <h2 id="update-notes-title">
+        {cleanVersion ? `What changed in v${cleanVersion}` : "Release Changes"}
+      </h2>
+      {formattedDate ? (
+        <p className="update-notes-subtitle">Published {formattedDate}</p>
+      ) : null}
 
-        <div className="update-notes-content">
-          {blocks.length > 0 ? (
-            blocks.map((block, idx) => {
-              if (block.type === "h2") {
-                return (
-                  <h3 key={idx} className="update-notes-heading-2">
-                    {renderInline(block.text || "", onOpenLink)}
-                  </h3>
-                );
-              }
-              if (block.type === "h3") {
-                return (
-                  <h4 key={idx} className="update-notes-heading-3">
-                    {renderInline(block.text || "", onOpenLink)}
-                  </h4>
-                );
-              }
-              if (block.type === "h4") {
-                return (
-                  <h5 key={idx} className="update-notes-heading-4">
-                    {renderInline(block.text || "", onOpenLink)}
-                  </h5>
-                );
-              }
-              if (block.type === "list" && block.items) {
-                return (
-                  <ul key={idx} className="update-notes-list">
-                    {block.items.map((item, itemIdx) => (
-                      <li key={itemIdx}>{renderInline(item, onOpenLink)}</li>
-                    ))}
-                  </ul>
-                );
-              }
+      <div className="update-notes-content">
+        {blocks.length > 0 ? (
+          blocks.map((block, idx) => {
+            if (block.type === "h2") {
               return (
-                <p key={idx} className="update-notes-paragraph">
+                <h3 key={idx} className="update-notes-heading-2">
                   {renderInline(block.text || "", onOpenLink)}
-                </p>
+                </h3>
               );
-            })
-          ) : updateBusy === "checking" ? (
-            <p className="update-notes-empty">Loading release notes…</p>
-          ) : (
-            <p className="update-notes-empty">
-              No detailed release notes were provided for this release.
-            </p>
-          )}
-        </div>
+            }
+            if (block.type === "h3") {
+              return (
+                <h4 key={idx} className="update-notes-heading-3">
+                  {renderInline(block.text || "", onOpenLink)}
+                </h4>
+              );
+            }
+            if (block.type === "h4") {
+              return (
+                <h5 key={idx} className="update-notes-heading-4">
+                  {renderInline(block.text || "", onOpenLink)}
+                </h5>
+              );
+            }
+            if (block.type === "list" && block.items) {
+              return (
+                <ul key={idx} className="update-notes-list">
+                  {block.items.map((item, itemIdx) => (
+                    <li key={itemIdx}>{renderInline(item, onOpenLink)}</li>
+                  ))}
+                </ul>
+              );
+            }
+            return (
+              <p key={idx} className="update-notes-paragraph">
+                {renderInline(block.text || "", onOpenLink)}
+              </p>
+            );
+          })
+        ) : updateBusy === "checking" ? (
+          <p className="update-notes-empty">Loading release notes…</p>
+        ) : (
+          <p className="update-notes-empty">
+            No detailed release notes were provided for this release.
+          </p>
+        )}
+      </div>
 
-        <UpdateProgressBar busy={updateBusy ?? null} percent={updatePercent ?? null} className="update-notes-progress" />
+      <UpdateProgressBar busy={updateBusy ?? null} percent={updatePercent ?? null} className="update-notes-progress" />
 
-        <div className="modal-actions update-notes-actions">
-          <button type="button" className="button ghost" onClick={onClose}>
-            Close
+      <div className="modal-actions update-notes-actions">
+        <button type="button" className="button ghost" onClick={onClose}>
+          Close
+        </button>
+        {onInstallUpdate ? (
+          <button
+            type="button"
+            className="button danger settings-update-action settings-update-action-danger"
+            disabled={updateBusy != null}
+            onClick={() => {
+              onInstallUpdate();
+            }}
+          >
+            <DownloadCloudIcon className="settings-update-action-icon" />
+            <span>{updateInstallLabel(updateBusy ?? null)}</span>
           </button>
-          {onInstallUpdate ? (
-            <button
-              type="button"
-              className="button danger settings-update-action settings-update-action-danger"
-              disabled={updateBusy != null}
-              onClick={() => {
-                onInstallUpdate();
-              }}
-            >
-              <DownloadCloudIcon className="settings-update-action-icon" />
-              <span>{updateInstallLabel(updateBusy ?? null)}</span>
-            </button>
-          ) : null}
-        </div>
-
-        {updateError ? (
-          <UpdateErrorMessage error={updateError} onOpenLink={onOpenLink} className="update-notes-error" />
         ) : null}
-      </section>
-    </div>
+      </div>
+
+      {updateError ? (
+        <UpdateErrorMessage error={updateError} onOpenLink={onOpenLink} className="update-notes-error" />
+      ) : null}
+    </ModalDialog>
   );
 }

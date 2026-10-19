@@ -8,8 +8,8 @@ import { canonicalWindow, isMonthlyWindow } from "../../shared/lib/usage-logic";
 import { CustomDropdown } from "../../shared/ui/CustomDropdown";
 import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
-import { backdropMouseDown, useModalClosePolicy } from "../../shared/hooks/useModalClosePolicy";
-import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
+import { useModalClosePolicy, useEscapeOrClosePolicy } from "../../shared/hooks/useModalClosePolicy";
+import { ModalDialog } from "../../shared/ui/ModalDialog";
 
 const THRESHOLDS = [10, 20, 30, 40, 50];
 const WINDOW_ORDER = ["five_hour", "weekly", "monthly"] as const;
@@ -52,13 +52,7 @@ export function AccountAlertModal({
   const { busy: saving, setBusy: setSaving, run } = useAsyncAction({ source: "alerts", setError });
   const dialogRef = useRef<HTMLElement>(null);
   const requestClose = useModalClosePolicy(!saving, onClose);
-  const handleEscape = () => {
-    if (error) {
-      setError(null);
-      return;
-    }
-    requestClose();
-  };
+  const handleEscape = useEscapeOrClosePolicy(Boolean(error), () => setError(null), requestClose);
   useModalA11y(dialogRef, account != null, handleEscape);
 
   const availableWindows = useMemo(() => {
@@ -110,69 +104,66 @@ export function AccountAlertModal({
   };
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={backdropMouseDown(requestClose)}>
-      <section ref={dialogRef} className="modal-card alert-settings-modal notification-only-modal" role="dialog" aria-modal="true" aria-labelledby="alert-settings-title" tabIndex={-1}>
-        <ModalCloseButton onClose={requestClose} disabled={saving} />
-        <div className="modal-kicker">Account alerts</div>
-        <h2 id="alert-settings-title">Usage Notifications</h2>
-        <p>Choose when to notify you about the 5-hour, weekly, and 30-day limits for <strong>{account.label}</strong>.</p>
+    <ModalDialog dialogRef={dialogRef} labelledBy="alert-settings-title" className="alert-settings-modal notification-only-modal" onClose={requestClose} closeDisabled={saving}>
+      <div className="modal-kicker">Account alerts</div>
+      <h2 id="alert-settings-title">Usage Notifications</h2>
+      <p>Choose when to notify you about the 5-hour, weekly, and 30-day limits for <strong>{account.label}</strong>.</p>
 
-        <section className="account-settings-section">
-          {loading ? <div className="waiting-panel"><span className="spinner" />Loading notification settings…</div> : null}
+      <section className="account-settings-section">
+        {loading ? <div className="waiting-panel"><span className="spinner" />Loading notification settings…</div> : null}
 
-          {!loading && availableWindows.length ? (
-            <div className="alert-window-list">
-              {availableWindows.map((windowId) => {
-                const setting = settings.find((candidate) => candidate.windowId === windowId) ?? defaultSetting(windowId);
-                return (
-                  <div className={`alert-window-row ${setting.enabled ? "enabled" : ""}`} key={windowId}>
-                    <label className="alert-window-toggle">
-                      <input
-                        type="checkbox"
-                        checked={setting.enabled}
-                        disabled={saving}
-                        onChange={(event) => updateSetting(windowId, { enabled: event.target.checked })}
-                      />
-                      <span className="alert-checkbox" />
-                      <span><strong>{windowLabel(windowId)}</strong><small>Notify once per quota period</small></span>
-                    </label>
-                    <div className="alert-threshold">
-                      <span>At or below</span>
-                      <CustomDropdown<number>
-                        aria-label="Alert threshold"
-                        value={setting.thresholdPercent}
-                        disabled={!setting.enabled || saving}
-                        options={THRESHOLDS.map((threshold) => ({
-                          value: threshold,
-                          label: `${threshold}% remaining`,
-                        }))}
-                        onChange={(threshold) => updateSetting(windowId, { thresholdPercent: threshold })}
-                      />
-                    </div>
+        {!loading && availableWindows.length ? (
+          <div className="alert-window-list">
+            {availableWindows.map((windowId) => {
+              const setting = settings.find((candidate) => candidate.windowId === windowId) ?? defaultSetting(windowId);
+              return (
+                <div className={`alert-window-row ${setting.enabled ? "enabled" : ""}`} key={windowId}>
+                  <label className="alert-window-toggle">
+                    <input
+                      type="checkbox"
+                      checked={setting.enabled}
+                      disabled={saving}
+                      onChange={(event) => updateSetting(windowId, { enabled: event.target.checked })}
+                    />
+                    <span className="alert-checkbox" />
+                    <span><strong>{windowLabel(windowId)}</strong><small>Notify once per quota period</small></span>
+                  </label>
+                  <div className="alert-threshold">
+                    <span>At or below</span>
+                    <CustomDropdown<number>
+                      aria-label="Alert threshold"
+                      value={setting.thresholdPercent}
+                      disabled={!setting.enabled || saving}
+                      options={THRESHOLDS.map((threshold) => ({
+                        value: threshold,
+                        label: `${threshold}% remaining`,
+                      }))}
+                      onChange={(threshold) => updateSetting(windowId, { thresholdPercent: threshold })}
+                    />
                   </div>
-                );
-              })}
-            </div>
-          ) : null}
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
 
-          {!loading && !availableWindows.length ? (
-            <div className="alert-empty-state compact-alert-empty">
-              <BellIcon />
-              <strong>No 5-hour, weekly, or 30-day limits detected yet</strong>
-              <span>Refresh this account so the app can detect its available usage windows.</span>
-            </div>
-          ) : null}
-        </section>
-
-        <div className="credential-note alert-notification-note">
-          Alerts use your OS notifications and are sent only once per quota period.
-        </div>
-        <div className="modal-actions">
-          <button type="button" className="button ghost" onClick={requestClose} disabled={saving}>Cancel</button>
-          <button type="button" className="button primary" onClick={() => void save()} disabled={loading || saving || !availableWindows.length}>{saving ? "Saving…" : "Save Notifications"}</button>
-        </div>
-        {error ? <div className="error-panel modal-error">{error}</div> : null}
+        {!loading && !availableWindows.length ? (
+          <div className="alert-empty-state compact-alert-empty">
+            <BellIcon />
+            <strong>No 5-hour, weekly, or 30-day limits detected yet</strong>
+            <span>Refresh this account so the app can detect its available usage windows.</span>
+          </div>
+        ) : null}
       </section>
-    </div>
+
+      <div className="credential-note alert-notification-note">
+        Alerts use your OS notifications and are sent only once per quota period.
+      </div>
+      <div className="modal-actions">
+        <button type="button" className="button ghost" onClick={requestClose} disabled={saving}>Cancel</button>
+        <button type="button" className="button primary" onClick={() => void save()} disabled={loading || saving || !availableWindows.length}>{saving ? "Saving…" : "Save Notifications"}</button>
+      </div>
+      {error ? <div className="error-panel modal-error" role="alert">{error}</div> : null}
+    </ModalDialog>
   );
 }

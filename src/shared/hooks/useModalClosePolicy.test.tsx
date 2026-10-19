@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { act, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { mount, type Mounted } from "../../test-utils/react";
-import { backdropMouseDown, useModalClosePolicy } from "./useModalClosePolicy";
+import { click, mount, type Mounted } from "../../test-utils/react";
+import { backdropMouseDown, useEscapeOrClosePolicy, useModalClosePolicy } from "./useModalClosePolicy";
 
 function Dialog({ closable, onClose }: { closable: boolean; onClose: () => void }) {
   const requestClose = useModalClosePolicy(closable, onClose);
@@ -90,5 +90,26 @@ describe("useModalClosePolicy in a component with changing state", () => {
     });
     pressBackdrop();
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useEscapeOrClosePolicy", () => {
+  function Probe({ hasError, clearError, requestClose }: { hasError: boolean; clearError: () => void; requestClose: () => void }) {
+    const handler = useEscapeOrClosePolicy(hasError, clearError, requestClose);
+    return <button type="button" onClick={handler}>escape</button>;
+  }
+
+  it("dismisses an error first and closes only when there is none", () => {
+    const clearError = vi.fn();
+    const requestClose = vi.fn();
+    mounted = mount(<Probe hasError clearError={clearError} requestClose={requestClose} />);
+    click(document.querySelector("button")!);
+    expect(clearError).toHaveBeenCalledTimes(1);
+    expect(requestClose).not.toHaveBeenCalled();
+
+    mounted.rerender(<Probe hasError={false} clearError={clearError} requestClose={requestClose} />);
+    click(document.querySelector("button")!);
+    expect(requestClose).toHaveBeenCalledTimes(1);
+    expect(clearError).toHaveBeenCalledTimes(1);
   });
 });

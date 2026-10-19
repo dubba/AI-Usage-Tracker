@@ -8,8 +8,9 @@ import type { Account, CloudProjectOption } from "../../types";
 import { CustomDropdown } from "../../shared/ui/CustomDropdown";
 import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
-import { backdropMouseDown } from "../../shared/hooks/useModalClosePolicy";
-import { ModalCloseButton } from "../../shared/ui/ModalCloseButton";
+import { useEscapeOrClosePolicy } from "../../shared/hooks/useModalClosePolicy";
+
+import { ModalDialog } from "../../shared/ui/ModalDialog";
 
 type SetupStage = "signin" | "choose_project" | "monitoring_disabled";
 
@@ -83,13 +84,7 @@ export function GoogleAiStudioUsageModal({
     onClose();
   };
 
-  const handleEscape = () => {
-    if (error) {
-      setError(null);
-      return;
-    }
-    closeModal();
-  };
+  const handleEscape = useEscapeOrClosePolicy(Boolean(error), () => setError(null), closeModal);
   useModalA11y(dialogRef, account != null, handleEscape);
 
   if (!account) return null;
@@ -135,87 +130,84 @@ export function GoogleAiStudioUsageModal({
   const selectedProject = projects.find((project) => project.projectId === selectedProjectId) ?? null;
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={backdropMouseDown(closeModal)}>
-      <section ref={dialogRef} className="modal-card google-cloud-usage-modal" role="dialog" aria-modal="true" aria-labelledby="google-cloud-usage-title" tabIndex={-1}>
-        <ModalCloseButton onClose={closeModal} />
-        <div className="modal-kicker">Google AI Studio quota usage</div>
-        <h2 id="google-cloud-usage-title">
-          {stage === "choose_project" ? "Choose the API key project" : stage === "monitoring_disabled" ? "Enable Cloud Monitoring" : "Connect Google Usage"}
-        </h2>
+    <ModalDialog dialogRef={dialogRef} labelledBy="google-cloud-usage-title" className="google-cloud-usage-modal" onClose={closeModal}>
+      <div className="modal-kicker">Google AI Studio quota usage</div>
+      <h2 id="google-cloud-usage-title">
+        {stage === "choose_project" ? "Choose the API key project" : stage === "monitoring_disabled" ? "Enable Cloud Monitoring" : "Connect Google Usage"}
+      </h2>
 
-        {stage === "signin" ? (
-          <>
-            <p>Sign in once. The app will find the Google Cloud project that owns this API key and connect its reported Gemini quota usage automatically.</p>
-            <div className="guided-login-card google-cloud-scope-card">
-              <strong>Automatic Google Cloud setup</strong>
-              <p>Google grants Cloud access to complete setup. The app uses it only to find the API key project, inspect or read Cloud Monitoring, and enable Monitoring when you explicitly approve that action. It does not change billing, quotas, IAM roles, or other services.</p>
-            </div>
-          </>
-        ) : null}
+      {stage === "signin" ? (
+        <>
+          <p>Sign in once. The app will find the Google Cloud project that owns this API key and connect its reported Gemini quota usage automatically.</p>
+          <div className="guided-login-card google-cloud-scope-card">
+            <strong>Automatic Google Cloud setup</strong>
+            <p>Google grants Cloud access to complete setup. The app uses it only to find the API key project, inspect or read Cloud Monitoring, and enable Monitoring when you explicitly approve that action. It does not change billing, quotas, IAM roles, or other services.</p>
+          </div>
+        </>
+      ) : null}
 
-        {stage === "choose_project" ? (
-          <>
-            <p>Google could not identify the API key’s project automatically. Choose it from the projects available to this Google account.</p>
-            <label className="field-label" htmlFor="google-cloud-project-choice">Google Cloud project</label>
-            <CustomDropdown<string>
-              id="google-cloud-project-choice"
-              aria-label="Google Cloud project"
-              value={selectedProjectId}
-              options={projects.map((project) => ({
-                value: project.projectId,
-                label: project.displayName,
-                detail: project.projectId,
-              }))}
-              onChange={(projectId) => {
-                setSelectedProjectId(projectId);
-                setError(null);
-              }}
-              disabled={busy}
-            />
-            <div className="credential-note">Only projects this Google account can view are shown.</div>
-          </>
-        ) : null}
+      {stage === "choose_project" ? (
+        <>
+          <p>Google could not identify the API key’s project automatically. Choose it from the projects available to this Google account.</p>
+          <label className="field-label" htmlFor="google-cloud-project-choice">Google Cloud project</label>
+          <CustomDropdown<string>
+            id="google-cloud-project-choice"
+            aria-label="Google Cloud project"
+            value={selectedProjectId}
+            options={projects.map((project) => ({
+              value: project.projectId,
+              label: project.displayName,
+              detail: project.projectId,
+            }))}
+            onChange={(projectId) => {
+              setSelectedProjectId(projectId);
+              setError(null);
+            }}
+            disabled={busy}
+          />
+          <div className="credential-note">Only projects this Google account can view are shown.</div>
+        </>
+      ) : null}
 
-        {stage === "monitoring_disabled" ? (
-          <>
-            <p>
-              The app found <strong>{selectedProject?.displayName ?? selectedProjectId}</strong>, but Cloud Monitoring is disabled for it.
-            </p>
-            <div className="guided-login-card google-cloud-scope-card">
-              <strong>Confirm the one-time action</strong>
-              <p>Clicking Enable authorizes the app to turn on Cloud Monitoring for this project. The app does not change quotas, billing, IAM roles, or other services.</p>
-            </div>
-          </>
-        ) : null}
+      {stage === "monitoring_disabled" ? (
+        <>
+          <p>
+            The app found <strong>{selectedProject?.displayName ?? selectedProjectId}</strong>, but Cloud Monitoring is disabled for it.
+          </p>
+          <div className="guided-login-card google-cloud-scope-card">
+            <strong>Confirm the one-time action</strong>
+            <p>Clicking Enable authorizes the app to turn on Cloud Monitoring for this project. The app does not change quotas, billing, IAM roles, or other services.</p>
+          </div>
+        </>
+      ) : null}
 
-        {status?.status === "waiting" ? (
-          <div className="login-status"><span className="spinner" />Waiting for Google…</div>
+      {status?.status === "waiting" ? (
+        <div className="login-status"><span className="spinner" />Waiting for Google…</div>
+      ) : null}
+      <div className="modal-actions">
+        <button type="button" className="button ghost" onClick={closeModal}>Cancel</button>
+        {status?.status === "failed" ? (
+          <button type="button" className="button primary" onClick={retry} disabled={busy}>
+            Retry
+          </button>
         ) : null}
-        <div className="modal-actions">
-          <button type="button" className="button ghost" onClick={closeModal}>Cancel</button>
-          {status?.status === "failed" ? (
-            <button type="button" className="button primary" onClick={retry} disabled={busy}>
-              Retry
-            </button>
-          ) : null}
-          {status?.status !== "failed" && stage === "signin" ? (
-            <button type="button" className="button primary" onClick={() => void start()} disabled={busy}>
-              {busy ? "Waiting for Google…" : "Sign In with Google"}
-            </button>
-          ) : null}
-          {status?.status !== "failed" && stage === "choose_project" ? (
-            <button type="button" className="button primary" onClick={() => void start(selectedProjectId)} disabled={busy || !selectedProjectId}>
-              {busy ? "Checking Project…" : "Connect This Project"}
-            </button>
-          ) : null}
-          {status?.status !== "failed" && stage === "monitoring_disabled" ? (
-            <button type="button" className="button primary" onClick={() => void start(selectedProjectId, true)} disabled={busy || !selectedProjectId}>
-              {busy ? "Waiting for Google…" : "Enable Cloud Monitoring"}
-            </button>
-          ) : null}
-        </div>
-        {error ? <div className="error-panel modal-error">{error}</div> : null}
-      </section>
-    </div>
+        {status?.status !== "failed" && stage === "signin" ? (
+          <button type="button" className="button primary" onClick={() => void start()} disabled={busy}>
+            {busy ? "Waiting for Google…" : "Sign In with Google"}
+          </button>
+        ) : null}
+        {status?.status !== "failed" && stage === "choose_project" ? (
+          <button type="button" className="button primary" onClick={() => void start(selectedProjectId)} disabled={busy || !selectedProjectId}>
+            {busy ? "Checking Project…" : "Connect This Project"}
+          </button>
+        ) : null}
+        {status?.status !== "failed" && stage === "monitoring_disabled" ? (
+          <button type="button" className="button primary" onClick={() => void start(selectedProjectId, true)} disabled={busy || !selectedProjectId}>
+            {busy ? "Waiting for Google…" : "Enable Cloud Monitoring"}
+          </button>
+        ) : null}
+      </div>
+      {error ? <div className="error-panel modal-error" role="alert">{error}</div> : null}
+    </ModalDialog>
   );
 }
