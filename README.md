@@ -198,13 +198,12 @@ Response contract:
 
 ```text
 src/                               React dashboard and components
-src-tauri/src/oauth.rs             Provider browser OAuth and callback flows
+src-tauri/src/auth/                Provider sign-in: browser OAuth, callback servers, WebView cookie capture
 src-tauri/src/providers/           Provider-specific usage clients and parsers
 src-tauri/src/usage.rs             Common refresh, cache, and stale-state behavior
-src-tauri/src/store.rs             Metadata and native credential storage
+src-tauri/src/store/               Metadata, native credential storage, settings, groups (buckets) and alerts
+src-tauri/src/platform/            Android, macOS and tray integration, autostart, Wi-Fi and local network
 src-tauri/src/bridge_api.rs        Versioned localhost API
-src-tauri/src/buckets.rs           Custom group (bucket) data and filtering
-src-tauri/src/alerts.rs            Quota usage threshold alerts and notifications
 
 docs/provider-integrations-plan.md Implementation and security plan
 docs/CHANGELOG_WORKFLOW.md         Changelog maintenance guide

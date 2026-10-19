@@ -98,11 +98,11 @@ Verify each rule in `AGENTS.md` and `src-tauri/AGENTS.md` is actually enforced b
 - Only `https://chatgpt.com/backend-api/wham/usage` is used for OpenAI quota retrieval.
 - Last-known-good usage survives transient failure and is marked stale.
 - All logging goes through `diagnostics::*`. Search for `eprintln!`, `println!`, `dbg!`, `console.log`, and Kotlin `Log.` calls.
-- Coupling between providers and the dashboard model; duplicated normalization logic; dead code; modules that have grown past what one person can review (`updater.rs` is over 1,000 lines).
+- Coupling between providers and the dashboard model; duplicated normalization logic; dead code; modules that have grown past what one person can review.
 
 ## Pass 2: Credentials and secrets
 
-- Storage per platform: Windows Credential Manager, macOS Keychain (`credential_store.md`), Android Keystore-sealed files (`credential_file.rs`, `android_keystore.rs`, `CredentialVault.kt`). Confirm the debug-only plaintext path cannot be compiled into a release build.
+- Storage per platform: Windows Credential Manager, macOS Keychain (`credential_store.md`), Android Keystore-sealed files (`store/credential_file.rs`, `platform/android_keystore.rs`, `CredentialVault.kt`). Confirm the debug-only plaintext path cannot be compiled into a release build.
 - Key lifecycle: non-exportable Keystore key, behaviour on biometric/lock-screen change, key loss and recovery.
 - In-memory handling: `zeroize` coverage, secrets in `Debug` or `Serialize` derives, secrets in error strings.
 - Leak channels: `diagnostics.rs` redaction (test it with adversarial input: JWTs, cookies, emails, home paths, URLs with `code=` and `state=`), panic messages, crash dumps, clipboard, the diagnostics report, `reqwest` error `Display` output that includes URLs.
@@ -115,8 +115,8 @@ Verify each rule in `AGENTS.md` and `src-tauri/AGENTS.md` is actually enforced b
 For each provider (OpenAI, Anthropic, Antigravity, Google AI Studio, Grok, OpenCode Go):
 
 - OAuth: PKCE verifier entropy and one-time use; `state` generation and validation; redirect URI exactness; code replay; loopback callback listener lifetime, port binding to `127.0.0.1` only, and what a second local process can do by hitting the callback first; callback handling when the user cancels or the flow times out.
-- Mobile: system-browser flow, deep-link scheme registration and hijacking by another app, intent filter `autoVerify`, state tied to the originating session (`mobile_auth.rs`).
-- Cookie capture (`grok_login.rs`, `opencode_login.rs`): `on_navigation` host allowlists, incognito isolation, which cookies are retained, what happens to the session on logout and account removal, Android single-WebView limitation.
+- Mobile: system-browser flow, deep-link scheme registration and hijacking by another app, intent filter `autoVerify`, state tied to the originating session (`auth/mobile_auth.rs`).
+- Cookie capture (`auth/grok_login.rs`, `auth/opencode_login.rs`): `on_navigation` host allowlists, incognito isolation, which cookies are retained, what happens to the session on logout and account removal, Android single-WebView limitation.
 - Token refresh: rotating refresh tokens, failure after rotation but before persist, revoked-token handling, backoff (`refresh_backoff.rs`) that avoids lockout.
 - Account removal: are credentials actually deleted from the OS store, memory cache, and any legacy item?
 - URL validation for every WebView load: HTTPS or the exact loopback callback only; no `javascript:`, `intent:`, `file:`, `content:`.
@@ -125,7 +125,7 @@ For each provider (OpenAI, Anthropic, Antigravity, Google AI Studio, Grok, OpenC
 
 Act as a penetration tester. For each path give prerequisites, steps, impact, likelihood, severity, remediation. Do not change anything.
 
-**Loopback bridge API** (`bridge_api.rs`, `lan_binding.rs`, port 47831):
+**Loopback bridge API** (`bridge_api.rs`, `platform/lan_binding.rs`, port 47831):
 - Bind address: confirm loopback only, including after network change, IPv6, and `0.0.0.0` fallbacks.
 - Auth: constant-time bearer comparison (`subtle`), behaviour on missing, malformed, or duplicate `Authorization` headers, token in query string or logs.
 - Browser attacks: DNS rebinding (is the `Host` header validated?), cross-origin fetch (CORS headers, preflight handling), cross-site requests with simple methods.
@@ -155,7 +155,7 @@ Act as a penetration tester. For each path give prerequisites, steps, impact, li
 
 ## Pass 6: Platform-specific security and behaviour
 
-**Android** (`src-tauri/gen/android/`): exported flags on every component in `AndroidManifest.xml`; `ApkInstallReceiver.kt`, `BootReceiver.kt` (who can trigger them, intent validation, package and signature verification before install); `apk_install.rs` update integrity; `network_security_config.xml`; `file_paths.xml` FileProvider scope; `allowBackup` and `data_extraction_rules.xml`; WebView settings (file access, JavaScript interfaces); `CredentialVault.kt` Keystore parameters; ProGuard rules; permissions requested vs used; behaviour in Doze, background kill, and boot.
+**Android** (`src-tauri/gen/android/`): exported flags on every component in `AndroidManifest.xml`; `ApkInstallReceiver.kt`, `BootReceiver.kt` (who can trigger them, intent validation, package and signature verification before install); `platform/apk_install.rs` update integrity; `network_security_config.xml`; `file_paths.xml` FileProvider scope; `allowBackup` and `data_extraction_rules.xml`; WebView settings (file access, JavaScript interfaces); `CredentialVault.kt` Keystore parameters; ProGuard rules; permissions requested vs used; behaviour in Doze, background kill, and boot.
 
 **macOS:** `Entitlements.plist` (every entitlement justified), hardened runtime, notarization, Keychain access group and prompt behaviour across updates, `Info.plist` usage strings.
 
@@ -172,13 +172,13 @@ Six providers, four of which use undocumented interfaces. This is the app's most
 - Drift detection: how does the user learn a connector broke (stale marker, diagnostics) versus silently showing wrong numbers?
 - Concurrency: simultaneous refresh from timer, window focus, manual refresh, and device resume; account removal during an in-flight refresh; reorder during refresh; two app instances (`single-instance`).
 - Time handling: clock changes, DST, reset-time parsing, timezone display, sleep and wake.
-- Alerts (`alerts.rs`): duplicate notifications, notification storms after resume, thresholds at boundaries.
+- Alerts (`store/alerts.rs`): duplicate notifications, notification storms after resume, thresholds at boundaries.
 - Retries and backoff: no tight retry loops, `Retry-After` honoured, 401 versus 429 versus 5xx treated differently.
 - Each connector has fixture-based tests covering success, partial data, auth failure, and schema change.
 
 ## Pass 8: Local data, migrations, and upgrades
 
-There is no database server. The equivalent concerns are the on-disk store (`src-tauri/src/store/`, `settings.rs`, `migrations.rs`, `fs_util.rs`).
+There is no database server. The equivalent concerns are the on-disk store (`src-tauri/src/store/` with the settings, alerts, groups and account-order files, `migrations.rs`, `platform/fs_util.rs`).
 
 - Atomic writes (temp file plus rename plus fsync), behaviour on crash or full disk mid-write, file permissions on creation.
 - Corrupt or truncated JSON: does the app recover, back up, or crash-loop (`startup.rs` startup-issue handling)?

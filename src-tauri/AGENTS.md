@@ -3,7 +3,7 @@
 This directory owns all sensitive and platform-specific behavior.
 
 - Keep OAuth authorization codes, access tokens, refresh tokens, and ID tokens out of Tauri command responses and logs.
-- Store secrets only through the native operating-system credential store. On Android that is credential files sealed with a non-exportable Android Keystore key (`credential_file.rs`, `android_keystore.rs`, `CredentialVault.kt`); plaintext credential files are only for desktop development builds.
+- Store secrets only through the native operating-system credential store. On Android that is credential files sealed with a non-exportable Android Keystore key (`store/credential_file.rs`, `platform/android_keystore.rs`, `CredentialVault.kt`); plaintext credential files are only for desktop development builds.
 - Store only non-secret account metadata and cached usage in the application data directory.
 - Use only `https://chatgpt.com/backend-api/wham/usage` for quota retrieval unless the product decision is explicitly changed.
 - Serialize token refreshes per account so rotating refresh tokens cannot race.

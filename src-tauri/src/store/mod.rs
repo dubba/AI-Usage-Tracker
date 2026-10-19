@@ -22,7 +22,7 @@ mod tests;
 
 pub use accounts::AccountStore;
 pub(crate) use credentials::generate_bridge_token;
-// Only `credential_file` names this type, and it is compiled under the same cfg (see lib.rs).
+// Only `credential_file` names this type, and it is compiled under the same cfg (see above).
 #[cfg(any(target_os = "android", debug_assertions))]
 pub use credentials::UpgradeReport;
 pub use credentials::{
