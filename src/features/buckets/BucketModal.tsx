@@ -15,6 +15,7 @@ import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
 import { useVirtualKeyboard } from "../../shared/hooks/useVirtualKeyboard";
 import { useUsageDisplayMode } from "../../shared/hooks/useUsageDisplayMode";
 import { displayPercent } from "../../shared/lib/usage-display";
+import { cardWindows } from "../../shared/lib/usage-logic";
 
 const ALL_PROVIDERS: { id: Provider; label: string }[] = (Object.keys(PROVIDER_META) as Provider[])
   .map((id) => ({ id, label: PROVIDER_META[id].name }))
@@ -247,7 +248,7 @@ export function BucketModal({
                 )}
                 {filteredAccounts.length ? filteredAccounts.map((account) => {
                   const isSelected = selectedAccountIds.includes(account.id);
-                  const sessionWindow = account.lastUsage?.windows[0];
+                  const sessionWindow = cardWindows(account.lastUsage?.windows ?? [], account.provider)[0];
                   return (
                     <label key={account.id} className={`bucket-account-item ${isSelected ? "selected" : ""}`}>
                       <input

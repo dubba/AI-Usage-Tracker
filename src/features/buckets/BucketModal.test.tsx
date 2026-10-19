@@ -117,6 +117,42 @@ describe("BucketModal create provider filter", () => {
   });
 });
 
+describe("BucketModal account percentages", () => {
+  function window(id: string, label: string, remainingPercent: number | null) {
+    return { id, label, usedPercent: remainingPercent == null ? null : 100 - remainingPercent, remainingPercent, resetsAt: null, windowSeconds: null };
+  }
+
+  function withWindows(id: string, provider: Provider, windows: ReturnType<typeof window>[]): Account {
+    return { ...makeAccount(id, provider), lastUsage: { windows } } as unknown as Account;
+  }
+
+  const percents = () => Array.from(document.querySelectorAll(".bucket-account-percent")).map((el) => el.textContent);
+
+  function renderCreate(accounts: Account[]) {
+    mounted = mount(<BucketModal open bucket={null} accounts={accounts} onClose={vi.fn()} onSaved={vi.fn()} />);
+  }
+
+  it("shows a Grok account's Grok Bot limit, the same headline its card shows", () => {
+    renderCreate([
+      withWindows("g1", "grok", [window("weekly", "Weekly", 80), window("grok_bot", "Grok Bot weekly", 25)]),
+    ]);
+    expect(percents()).toEqual(["25%"]);
+  });
+
+  it("shows the first window for other providers, with the 5 hour limit ahead of the weekly one", () => {
+    renderCreate([
+      withWindows("o1", "openai", [window("weekly", "Weekly", 60), window("five_hour", "5 hour", 90)]),
+      withWindows("a1", "anthropic", [window("five_hour", "5 hour", 40), window("weekly", "Weekly", 70)]),
+    ]);
+    expect(percents()).toEqual(["90%", "40%"]);
+  });
+
+  it("shows no percentage for an account without a reading", () => {
+    renderCreate([makeAccount("x1", "openai"), withWindows("x2", "openai", [window("weekly", "Weekly", null)])]);
+    expect(percents()).toEqual([]);
+  });
+});
+
 describe("BucketModal edit provider filter", () => {
   it("starts on All Providers even when the group was saved under one provider", () => {
     renderEdit(makeBucket(["a1"], "anthropic"), [makeAccount("a1", "anthropic")]);

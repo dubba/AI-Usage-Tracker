@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (13 changes)
+## Unreleased (14 changes)
 
 ### Added (2)
 
@@ -16,8 +16,9 @@
 - The sidebar can now be made narrower, down to the width of the Account and Group buttons. The sync line at the bottom wraps onto centered lines ("Accounts synced", then "4m ago"), and the L / U toggle drops below the Account and Group buttons, left-aligned with the Account button, when the sidebar is narrower than its default width.
 - On a phone or tablet, a tooltip stays fully visible for 2.3 seconds, then fades out and is gone at 2.5 seconds.
 
-### Fixed (5)
+### Fixed (6)
 
+- In the group editor, Grok accounts now list the same usage percentage as their card (the Grok Bot limit) instead of a different limit.
 - The dashboard no longer shows older account data when two refreshes overlap and the slower, older one finishes last; it keeps showing the newest data until the next refresh.
 - When linking devices, the "Transfer Complete" screen now lists any part of the transfer that couldn't be saved on the receiving device (account groups, settings, account order or usage alerts) instead of reporting a clean success.
 - On Windows, opening the app no longer flashes a series of terminal windows while it protects its saved files.
