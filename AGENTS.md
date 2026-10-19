@@ -10,6 +10,8 @@ Before changing behavior:
 4. Do not add a secondary usage endpoint without an explicit product decision.
 5. Do not introduce dependencies on external coding CLIs.
 
+Adding a provider: follow `docs/ADDING_A_PROVIDER.md`, which lists every place a provider is wired in.
+
 Changelog:
 
 - Read `docs/CHANGELOG_WORKFLOW.md` before completing a pull request.

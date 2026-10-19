@@ -82,7 +82,7 @@ fn usage_source_strings_match_the_frontend() {
     .collect();
     assert_eq!(
         sources, expected,
-        "src/shared/lib/usage-sources.ts and providers/google_ai_studio.rs disagree"
+        "src/shared/lib/usage-sources.ts and providers/google_ai_studio/mod.rs disagree"
     );
 }
 

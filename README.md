@@ -207,6 +207,7 @@ src-tauri/src/bridge_api.rs        Versioned localhost API
 
 docs/provider-integrations-plan.md Implementation and security plan
 docs/CHANGELOG_WORKFLOW.md         Changelog maintenance guide
+docs/ADDING_A_PROVIDER.md          Every place a new provider has to be wired in
 ```
 
 ## License
