@@ -58,8 +58,10 @@ import {
 } from "../shared/ui/icons";
 import {
   ALL_ACCOUNTS_GROUP_ID,
+  bucketGroupId,
   buildAllAccountsGroup,
   buildSidebarGroups,
+  providerGroupId,
   reconciledSidebarGroupOrder,
   type SidebarGroup,
 } from "../features/dashboard/sidebar-groups";
@@ -534,7 +536,7 @@ export default function App() {
         onClose={() => dispatchModal({ type: "close", kind: "add" })}
         onAdded={async (account) => {
           dispatchModal({ type: "close", kind: "add" });
-          setSelectedGroupId(`provider:${account.provider}`);
+          setSelectedGroupId(providerGroupId(account.provider));
           setSection("accounts");
           let nextAccount = account;
           const currentSnapshot = await load();
@@ -564,13 +566,13 @@ export default function App() {
         onClose={() => dispatchModal({ type: "close", kind: "bucket" })}
         onSaved={async (saved) => {
           dispatchModal({ type: "close", kind: "bucket" });
-          setSelectedGroupId(`bucket:${saved.id}`);
+          setSelectedGroupId(bucketGroupId(saved.id));
           setSection("accounts");
           await load();
         }}
         onDeleted={async (deletedId) => {
           dispatchModal({ type: "close", kind: "bucket" });
-          if (selectedGroupId === `bucket:${deletedId}`) {
+          if (selectedGroupId === bucketGroupId(deletedId)) {
             setSelectedGroupId(ALL_ACCOUNTS_GROUP_ID);
           }
           await load();

@@ -1,6 +1,6 @@
 import { bridgeApi } from "../../shared/lib/api";
 import { storePageAccountOrder, whileSavingAllOrder } from "../dashboard/dashboard-page-state";
-import { buildSidebarGroups, groupOrderForAccounts } from "../dashboard/sidebar-groups";
+import { bucketIdFromGroup, buildSidebarGroups, groupOrderForAccounts, providerIdFromGroup } from "../dashboard/sidebar-groups";
 import { readDashboardProviderOrder, readSidebarGroupOrder, storeSidebarGroupOrder } from "../dashboard/sidebar-order";
 import { requestDashboardResync } from "../../shared/lib/events";
 import { logIgnored } from "../../shared/lib/log";
@@ -28,11 +28,12 @@ export function accountOrderForGroups(
   };
 
   for (const groupId of orderedGroupIds) {
-    if (groupId.startsWith("bucket:")) {
-      const bucket = buckets.find((candidate) => candidate.id === groupId.slice(7));
+    const bucketId = bucketIdFromGroup(groupId);
+    const provider = providerIdFromGroup(groupId);
+    if (bucketId !== null) {
+      const bucket = buckets.find((candidate) => candidate.id === bucketId);
       bucket?.accountIds.forEach(place);
-    } else if (groupId.startsWith("provider:")) {
-      const provider = groupId.slice(9);
+    } else if (provider !== null) {
       accounts
         .filter((account) => account.provider === provider && !inBucket.has(account.id))
         .forEach((account) => place(account.id));
@@ -101,9 +102,10 @@ export async function persistVisibleAccountOrder(orderedVisibleIds: string[], gr
       const snapshot = getLatestSnapshot();
       if (snapshot) syncSidebarGroupOrder(orderedVisibleIds, snapshot);
       await whileSavingAllOrder(() => bridgeApi.reorderAccounts(orderedVisibleIds));
-    } else if (pageId.startsWith("bucket:")) {
+    } else if (bucketIdFromGroup(pageId) !== null) {
+      const bucketId = bucketIdFromGroup(pageId);
       const snapshot = getLatestSnapshot() ?? await bridgeApi.snapshot();
-      const bucket = (snapshot.buckets ?? []).find((candidate) => candidate.id === pageId.slice(7));
+      const bucket = (snapshot.buckets ?? []).find((candidate) => candidate.id === bucketId);
       if (bucket) {
         const visible = new Set(orderedVisibleIds);
         const nextAccountIds = [...orderedVisibleIds, ...bucket.accountIds.filter((id) => !visible.has(id))];

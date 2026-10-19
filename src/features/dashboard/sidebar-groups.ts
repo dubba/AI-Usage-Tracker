@@ -3,6 +3,26 @@ import type { Account, AccountBucket, Provider } from "../../types";
 
 export const ALL_ACCOUNTS_GROUP_ID = "all";
 
+// A sidebar group id is also the id of its dashboard page, and the pairing payload carries both
+// ("bucket:<id>" in `payload.rs`), so the format must not change.
+const BUCKET_GROUP_PREFIX = "bucket:";
+const PROVIDER_GROUP_PREFIX = "provider:";
+
+export const bucketGroupId = (bucketId: string): string => `${BUCKET_GROUP_PREFIX}${bucketId}`;
+export const providerGroupId = (provider: Provider): string => `${PROVIDER_GROUP_PREFIX}${provider}`;
+export const isBucketGroupId = (groupId: string): boolean => groupId.startsWith(BUCKET_GROUP_PREFIX);
+export const isProviderGroupId = (groupId: string): boolean => groupId.startsWith(PROVIDER_GROUP_PREFIX);
+
+/** The bucket id inside a "bucket:<id>" group id, or null for any other group. */
+export function bucketIdFromGroup(groupId: string): string | null {
+  return isBucketGroupId(groupId) ? groupId.slice(BUCKET_GROUP_PREFIX.length) : null;
+}
+
+/** The provider id inside a "provider:<id>" group id, or null for any other group. Not checked against known providers. */
+export function providerIdFromGroup(groupId: string): string | null {
+  return isProviderGroupId(groupId) ? groupId.slice(PROVIDER_GROUP_PREFIX.length) : null;
+}
+
 export type SidebarGroup = {
   id: string;
   type: "all" | "bucket" | "provider";
@@ -41,7 +61,7 @@ export function buildSidebarGroups(
       .filter((account): account is Account => Boolean(account));
     bucket.accountIds.forEach((id) => assignedIds.add(id));
     bucketGroups.push({
-      id: `bucket:${bucket.id}`,
+      id: bucketGroupId(bucket.id),
       type: "bucket",
       title: bucket.name,
       provider: bucket.provider ?? bucketAccounts[0]?.provider ?? null,
@@ -58,7 +78,7 @@ export function buildSidebarGroups(
     );
     if (unassigned.length === 0) return;
     providerGroups.push({
-      id: `provider:${provider}`,
+      id: providerGroupId(provider),
       type: "provider",
       title: displayProviderGroupTitle(provider, unassigned),
       provider,

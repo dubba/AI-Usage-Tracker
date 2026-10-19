@@ -1,3 +1,4 @@
+import { providerIdFromGroup } from "./sidebar-groups";
 import { UI_EVENTS } from "../../shared/lib/events";
 import { DEFAULT_PROVIDER_ORDER } from "../../shared/lib/providers";
 import { readJson, storageGet, STORAGE_KEYS, writeJson } from "../../shared/lib/storage";
@@ -44,8 +45,9 @@ export function storeSidebarGroupOrder(order: string[]): void {
   // Also derive Provider[] order for backwards compatibility
   const derivedProviders: Provider[] = [];
   for (const id of deduped) {
-    if (id.startsWith("provider:")) {
-      const p = id.slice(9) as Provider;
+    const providerId = providerIdFromGroup(id);
+    if (providerId !== null) {
+      const p = providerId as Provider;
       if (KNOWN_PROVIDERS.includes(p) && !derivedProviders.includes(p)) {
         derivedProviders.push(p);
       }

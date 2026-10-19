@@ -1,3 +1,4 @@
+import { isBucketGroupId, isProviderGroupId } from "./sidebar-groups";
 import { UI_EVENTS } from "../../shared/lib/events";
 import { readJson, storageGet, storageKeys, storageRemove, storageSet, STORAGE_PREFIXES, writeJson } from "../../shared/lib/storage";
 import type { Account } from "../../types";
@@ -38,7 +39,7 @@ export async function whileSavingAllOrder<T>(save: () => Promise<T>): Promise<T>
 }
 
 function isPageScopedCollapsedKey(rest: string): boolean {
-  return rest.startsWith("all:") || rest.startsWith("provider:") || rest.startsWith("bucket:");
+  return rest.startsWith("all:") || isProviderGroupId(rest) || isBucketGroupId(rest);
 }
 
 /**
@@ -50,7 +51,7 @@ export function parseCollapsedKey(rest: string): { pageId: string; accountId: st
   if (split <= 0) return null;
   let pageId: string;
   let accountId: string;
-  if (rest.startsWith("provider:") || rest.startsWith("bucket:")) {
+  if (isProviderGroupId(rest) || isBucketGroupId(rest)) {
     const second = rest.indexOf(":", split + 1);
     if (second < 0) return null;
     pageId = rest.slice(0, second);

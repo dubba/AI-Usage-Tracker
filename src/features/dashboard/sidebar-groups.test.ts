@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   ALL_ACCOUNTS_GROUP_ID,
+  bucketGroupId,
+  bucketIdFromGroup,
   buildAllAccountsGroup,
   buildSidebarGroups,
   groupOrderForAccounts,
+  isBucketGroupId,
+  isProviderGroupId,
+  providerGroupId,
+  providerIdFromGroup,
   reconciledSidebarGroupOrder,
 } from "./sidebar-groups";
 import type { Account, AccountBucket, Provider } from "../../types";
@@ -182,5 +188,27 @@ describe("reconciledSidebarGroupOrder", () => {
     expect(groups.map((group) => group.id)).toEqual(["provider:openai", "provider:grok"]);
     // Unsaved groups already trail saved ones; the backend order agrees here.
     expect(reconciledSidebarGroupOrder(backendIds, groups, saved)).toBeNull();
+  });
+});
+
+describe("group id helpers", () => {
+  it("build and read the ids the sidebar and the pairing payload use", () => {
+    expect(bucketGroupId("b1")).toBe("bucket:b1");
+    expect(providerGroupId("openai")).toBe("provider:openai");
+    expect(bucketIdFromGroup("bucket:b1")).toBe("b1");
+    expect(providerIdFromGroup("provider:openai")).toBe("openai");
+  });
+
+  it("read nothing from another kind of group", () => {
+    expect(bucketIdFromGroup("provider:openai")).toBeNull();
+    expect(bucketIdFromGroup("all")).toBeNull();
+    expect(providerIdFromGroup("bucket:b1")).toBeNull();
+    expect(providerIdFromGroup("all")).toBeNull();
+  });
+
+  it("round-trip, including ids that contain a colon", () => {
+    expect(bucketIdFromGroup(bucketGroupId("a:b"))).toBe("a:b");
+    expect(isBucketGroupId(bucketGroupId("x"))).toBe(true);
+    expect(isProviderGroupId(bucketGroupId("x"))).toBe(false);
   });
 });
