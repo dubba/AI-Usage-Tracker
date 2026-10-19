@@ -2,7 +2,7 @@ import { useCallback, useEffect, useEffectEvent, useReducer, useRef, useState } 
 import { cancelPairing, pairingApi } from "../../shared/lib/api";
 import { ChevronIcon } from "../../shared/ui/icons";
 import { useAirgapCapture } from "./hooks/useAirgapCapture";
-import { useAirgapPlayer } from "./hooks/useAirgapPlayer";
+import { useAirgapFlow } from "./hooks/useAirgapFlow";
 import { usePairingStatus } from "./hooks/usePairingStatus";
 import { useQrScanner } from "./hooks/useQrScanner";
 import { useVirtualKeyboard } from "../../shared/hooks/useVirtualKeyboard";
@@ -20,7 +20,6 @@ import {
 } from "./lib/view-model";
 import { isAirgapFrameCode } from "./lib/airgap-frame";
 import { isPairingUri } from "./lib/uri";
-import { collectUiState } from "../dashboard/ui-state";
 import { useLatestRequest } from "../../shared/hooks/useLatestRequest";
 import { usePairingSession } from "./hooks/usePairingSession";
 import { useWifiGate } from "./hooks/useWifiGate";
@@ -50,7 +49,6 @@ import {
   SasCard,
   TransferringPanel,
 } from "./views/StatusPanels";
-import type { AirgapExport } from "../../types";
 
 /** Wait after a view change before moving keyboard focus into it, so the new view has rendered. */
 const FOCUS_DELAY_MS = 50;
@@ -76,7 +74,6 @@ export function PairingModal({
   const [confirmedSas, setConfirmedSas] = useState(false);
   const [includeSettings, setIncludeSettings] = useState(true);
   const [isKeyboardOpen, setIsKeyboardOpen] = useVirtualKeyboard(open);
-  const [airgapExport, setAirgapExport] = useState<AirgapExport | null>(null);
   const [scannerRestartKey, setScannerRestartKey] = useState(0);
 
   // Every start of a session, join or export is a request; a newer one (or leaving the view) makes
@@ -110,12 +107,14 @@ export function PairingModal({
     setErrorMessage(describeError("pairing", context, cause));
   };
 
+  /** What the session and air-gap actions share with this dialog. */
+  const actionContext = { request, busy, setBusy, setStatus, setErrorMessage, showError };
+
   // `showError` and `startLinkCode` are new on every render. The effects below call them through
   // these effect events, so they always run the current ones without listing them as
   // dependencies and re-running on every render.
   const showErrorFromEffect = useEffectEvent((context: string, cause: unknown) => showError(context, cause));
 
-  const player = useAirgapPlayer(airgapExport, viewMode === "airgap-sender");
   const capture = useAirgapCapture({
     active: open && viewMode === "scanner",
     onVerifyStart: () => setErrorMessage(null),
@@ -153,6 +152,19 @@ export function PairingModal({
     },
     // A scanned code that could not be acted on is dropped; the backend reports a failed join itself.
     onError: (cause) => logIgnored("pairing.scan", cause),
+  });
+
+  const { airgapExport, clearExport, player, startAirgapSender, handleAirgapImport } = useAirgapFlow({
+    context: actionContext,
+    senderViewActive: viewMode === "airgap-sender",
+    includeSettings,
+    capture,
+    stopCamera,
+    showView,
+    setAirgapPrepareError,
+    setStatus,
+    hasCompletedRef,
+    onCompleted,
   });
 
   // Drops the camera and the state of any pairing in progress. `stopCamera` and `capture` are new
@@ -212,7 +224,7 @@ export function PairingModal({
       return;
     }
     if (isWaitingState && viewMode === "airgap-sender") {
-      setAirgapExport(null);
+      clearExport();
       setAirgapPrepareError(null);
       capture.clearCapture();
       backToModes();
@@ -241,6 +253,7 @@ export function PairingModal({
     clearAllErrors,
     setAirgapPrepareError,
     clearCameraError,
+    clearExport,
   ]);
 
   useModalA11y(dialogRef, open, handleEscape);
@@ -332,7 +345,7 @@ export function PairingModal({
   }, [viewMode, status.status, open]);
 
   const { initHostSession, startFromUri, handleConnectByCode, handleSelectRole, handleConfirmSas } = usePairingSession({
-    context: { request, busy, setBusy, setStatus, setErrorMessage, showError },
+    context: actionContext,
     dispatchFlow,
     joinUriRef,
     roleAutoSelectedRef,
@@ -367,7 +380,7 @@ export function PairingModal({
       setBusy(false);
       setConfirmedSas(false);
       setIncludeSettings(true);
-      setAirgapExport(null);
+      clearExport();
       setWifiPrompt(null);
       request.cancel();
       joinUriRef.current = null;
@@ -399,60 +412,9 @@ export function PairingModal({
     };
 
     void checkPendingAndStart();
-  }, [open, initialJoinUri, setStatus, startFromUri, clearAllErrors, request, setWifiPrompt]);
+  }, [open, initialJoinUri, setStatus, startFromUri, clearAllErrors, request, setWifiPrompt, clearExport]);
 
   if (!open) return null;
-
-  const startAirgapSender = async (includeSettingsOpt?: boolean) => {
-    stopCamera();
-    showView("airgap-sender");
-    const ticket = request.begin();
-    setBusy(true);
-    setErrorMessage(null);
-    setAirgapPrepareError(null);
-    try {
-      const shouldInclude = includeSettingsOpt ?? includeSettings;
-      const ui = shouldInclude ? collectUiState() : undefined;
-      const exp = await pairingApi.prepareAirgapExport(shouldInclude, ui);
-      if (!request.isLatest(ticket)) return;
-      setAirgapExport(exp);
-      player.restart();
-    } catch (err) {
-      if (!request.isLatest(ticket)) return;
-      setAirgapPrepareError(describeError("pairing", "Couldn't prepare the transfer", err));
-    } finally {
-      if (request.isLatest(ticket)) {
-        setBusy(false);
-      }
-    }
-  };
-
-  const handleAirgapImport = async () => {
-    if (capture.importing || !capture.verifyCode) return;
-    const ticket = request.begin();
-    capture.setImporting(true);
-    setErrorMessage(null);
-    try {
-      const chunks = Array.from(capture.chunks.values());
-      const summary = await pairingApi.importAirgapFrames(chunks);
-      if (!request.isLatest(ticket)) return;
-      hasCompletedRef.current = true;
-      capture.closePrompt();
-      stopCamera();
-      setStatus({
-        status: "completed",
-        data: { summary },
-      });
-      onCompleted();
-    } catch (err) {
-      if (!request.isLatest(ticket)) return;
-      showError("Couldn't import the accounts", err);
-    } finally {
-      if (request.isLatest(ticket)) {
-        capture.setImporting(false);
-      }
-    }
-  };
 
   const handleDone = () => {
     if (!hasCompletedRef.current) {
@@ -596,7 +558,7 @@ export function PairingModal({
             onContinue={() => showView("airgap-confirm")}
             onRetry={() => void startAirgapSender()}
             onBack={() => {
-              setAirgapExport(null);
+              clearExport();
               setAirgapPrepareError(null);
               setErrorMessage(null);
               capture.clearCapture();
