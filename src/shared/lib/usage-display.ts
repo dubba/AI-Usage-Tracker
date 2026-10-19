@@ -1,4 +1,5 @@
-import { STORAGE_KEYS, storageGet, storageSet } from "./storage";
+import { createPreferenceStore } from "./preference-store";
+import { STORAGE_KEYS } from "./storage";
 
 /** "left" shows the quota remaining, "used" shows the quota already consumed. */
 export type UsageDisplayMode = "left" | "used";
@@ -20,37 +21,14 @@ export function usageDisplaySuffix(mode: UsageDisplayMode): string {
   return mode === "used" ? "used" : "left";
 }
 
-let mode: UsageDisplayMode = readMode();
-const listeners = new Set<() => void>();
+const store = createPreferenceStore<UsageDisplayMode>(STORAGE_KEYS.usageDisplayMode, DEFAULT_MODE, isUsageDisplayMode);
+store.refresh();
 
-function readMode(): UsageDisplayMode {
-  const saved = storageGet(STORAGE_KEYS.usageDisplayMode);
-  return isUsageDisplayMode(saved) ? saved : DEFAULT_MODE;
-}
-
-function setMode(next: UsageDisplayMode): void {
-  if (next === mode) return;
-  mode = next;
-  listeners.forEach((notify) => notify());
-}
-
-export function getUsageDisplayMode(): UsageDisplayMode {
-  return mode;
-}
-
-export function subscribeUsageDisplayMode(notify: () => void): () => void {
-  listeners.add(notify);
-  return () => listeners.delete(notify);
-}
-
-export function setUsageDisplayMode(next: UsageDisplayMode): void {
-  storageSet(STORAGE_KEYS.usageDisplayMode, next);
-  setMode(next);
-}
+export const getUsageDisplayMode = store.get;
+export const subscribeUsageDisplayMode = store.subscribe;
+export const setUsageDisplayMode = store.set;
 
 if (typeof window !== "undefined") {
   // Keeps the app's other windows in step when the choice changes in one of them.
-  window.addEventListener("storage", (event) => {
-    if (event.key === STORAGE_KEYS.usageDisplayMode) setMode(readMode());
-  });
+  store.followOtherWindows();
 }
