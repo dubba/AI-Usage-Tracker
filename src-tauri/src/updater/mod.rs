@@ -8,13 +8,16 @@ use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_opener::OpenerExt;
 #[cfg(desktop)]
 use tauri_plugin_updater::UpdaterExt;
+#[cfg(target_os = "android")]
 use tokio::io::AsyncWriteExt;
 
+#[cfg(any(target_os = "android", test))]
 mod android;
 mod desktop;
 mod github;
 mod version;
 
+#[cfg(any(target_os = "android", test))]
 use android::*;
 use desktop::*;
 use github::*;
@@ -141,6 +144,9 @@ fn notes_for_update(
         None => (manifest_body, manifest_date),
     }
 }
+
+pub static PENDING_UPDATE_NOTICE: parking_lot::Mutex<Option<String>> =
+    parking_lot::Mutex::new(None);
 
 #[tauri::command]
 pub async fn get_pending_update_notice() -> Result<Option<String>, String> {

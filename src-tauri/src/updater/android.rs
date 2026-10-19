@@ -1,6 +1,61 @@
+#[cfg(target_os = "android")]
 use super::*;
 
-#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+/// Hosts a release download may be redirected through: GitHub itself, then the
+/// storage hosts it hands asset downloads to.
+pub(super) const RELEASE_DOWNLOAD_HOSTS: &[&str] = &[
+    "github.com",
+    "objects.githubusercontent.com",
+    "release-assets.githubusercontent.com",
+];
+
+/// A hop an update download may follow: HTTPS on one of GitHub's download hosts.
+pub(super) fn is_release_download_host(url: &reqwest::Url) -> bool {
+    url.scheme() == "https"
+        && url.port().is_none()
+        && url
+            .host_str()
+            .is_some_and(|host| RELEASE_DOWNLOAD_HOSTS.contains(&host))
+}
+
+/// Redirect policy for update downloads: at most 10 hops, each to a GitHub
+/// download host. A redirect anywhere else fails the download.
+pub(super) fn release_download_redirects() -> reqwest::redirect::Policy {
+    reqwest::redirect::Policy::custom(|attempt| {
+        if attempt.previous().len() >= 10 {
+            attempt.error("too many redirects")
+        } else if is_release_download_host(attempt.url()) {
+            attempt.follow()
+        } else {
+            attempt.error("the update download was redirected away from GitHub")
+        }
+    })
+}
+
+/// The version an update notification refers to, in the form our own
+/// notification sends (`0.4.1`, `0.4.2-beta.1`, optionally with a leading `v`).
+/// The value arrives as an intent extra that any installed app can set, so
+/// anything else is ignored rather than shown in the update dialog.
+pub(super) fn is_update_notice_version(value: &str) -> bool {
+    let core = value.strip_prefix(['v', 'V']).unwrap_or(value);
+    let (numbers, prerelease) = match core.split_once('-') {
+        Some((numbers, prerelease)) => (numbers, Some(prerelease)),
+        None => (core, None),
+    };
+    value.len() <= 32
+        && numbers.split('.').count() == 3
+        && numbers
+            .split('.')
+            .all(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit()))
+        && prerelease.is_none_or(|tag| {
+            !tag.is_empty()
+                && tag
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'.')
+        })
+}
+
+#[cfg(target_os = "android")]
 pub(super) async fn fetch_apk_sha256(url: &str) -> Result<String, String> {
     if !is_repo_release_asset_url(url) {
         return Err("The update checksum is not hosted on this app's GitHub releases.".into());
@@ -40,6 +95,7 @@ pub(super) fn parse_sha256_digest(body: &str) -> Option<String> {
     }
 }
 
+#[cfg(target_os = "android")]
 pub(super) const MAX_APK_BYTES: u64 = 250 * 1024 * 1024;
 
 #[cfg(target_os = "android")]
@@ -50,7 +106,7 @@ pub(super) fn notify_android_download_progress(percent: Option<u8>) {
     }
 }
 
-#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+#[cfg(target_os = "android")]
 pub(super) async fn download_android_apk(
     app: &AppHandle,
     url: &str,
@@ -164,9 +220,6 @@ pub(super) async fn download_android_apk(
         }
     }
 }
-
-pub static PENDING_UPDATE_NOTICE: parking_lot::Mutex<Option<String>> =
-    parking_lot::Mutex::new(None);
 
 #[cfg(target_os = "android")]
 pub(super) async fn install_android_apk(app: AppHandle, include_beta: bool) -> Result<(), String> {

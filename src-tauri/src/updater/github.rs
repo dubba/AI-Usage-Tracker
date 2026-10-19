@@ -17,14 +17,6 @@ pub(super) const GITHUB_LATEST_RELEASE_URL: &str =
 pub(super) const RELEASE_ASSET_URL_PREFIX: &str =
     "https://github.com/dubba/AI-Usage-Tracker/releases/download/";
 
-/// Hosts a release download may be redirected through: GitHub itself, then the
-/// storage hosts it hands asset downloads to.
-pub(super) const RELEASE_DOWNLOAD_HOSTS: &[&str] = &[
-    "github.com",
-    "objects.githubusercontent.com",
-    "release-assets.githubusercontent.com",
-];
-
 /// A release asset of this repository, as listed by the GitHub API. Anything
 /// else in a release listing is ignored, so a tampered or misdirected API
 /// response cannot point the updater at another host.
@@ -37,30 +29,6 @@ pub(super) fn is_repo_release_asset_url(url: &str) -> bool {
             && url.username().is_empty()
             && url.host_str() == Some("github.com")
             && url.as_str().starts_with(RELEASE_ASSET_URL_PREFIX)
-    })
-}
-
-/// A hop an update download may follow: HTTPS on one of GitHub's download hosts.
-pub(super) fn is_release_download_host(url: &reqwest::Url) -> bool {
-    url.scheme() == "https"
-        && url.port().is_none()
-        && url
-            .host_str()
-            .is_some_and(|host| RELEASE_DOWNLOAD_HOSTS.contains(&host))
-}
-
-/// Redirect policy for update downloads: at most 10 hops, each to a GitHub
-/// download host. A redirect anywhere else fails the download.
-#[cfg_attr(not(any(target_os = "android", test)), allow(dead_code))]
-pub(super) fn release_download_redirects() -> reqwest::redirect::Policy {
-    reqwest::redirect::Policy::custom(|attempt| {
-        if attempt.previous().len() >= 10 {
-            attempt.error("too many redirects")
-        } else if is_release_download_host(attempt.url()) {
-            attempt.follow()
-        } else {
-            attempt.error("the update download was redirected away from GitHub")
-        }
     })
 }
 
@@ -90,13 +58,13 @@ pub(super) struct GitHubLatestRelease {
     pub(super) tag: String,
     pub(super) published_at: Option<String>,
     pub(super) body: Option<String>,
+    // Only the Android installer reads the two APK addresses.
     #[cfg_attr(not(target_os = "android"), allow(dead_code))]
     pub(super) apk_url: Option<String>,
     #[cfg_attr(not(target_os = "android"), allow(dead_code))]
     pub(super) apk_sha256_url: Option<String>,
 }
 
-#[cfg_attr(not(target_os = "android"), allow(dead_code))]
 pub(super) fn is_expected_apk_name(name: &str) -> bool {
     let name = name.to_ascii_lowercase();
     name.ends_with(".apk")
@@ -106,7 +74,6 @@ pub(super) fn is_expected_apk_name(name: &str) -> bool {
             .contains("ai-usage-tracker")
 }
 
-#[cfg_attr(not(target_os = "android"), allow(dead_code))]
 pub(super) fn apk_assets_from_github(json: &serde_json::Value) -> (Option<String>, Option<String>) {
     let Some(assets) = json.get("assets").and_then(|value| value.as_array()) else {
         return (None, None);
