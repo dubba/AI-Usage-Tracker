@@ -123,6 +123,7 @@ export function SasCard({
 }
 
 export function CompletedCard({ summary, onDone }: { summary: SyncSummary; onDone: () => void }) {
+  const warnings = summary.warnings ?? [];
   return (
     <div className="pairing-completed-card">
       <div className="pairing-success-icon"><CheckCircleIcon /></div>
@@ -141,6 +142,16 @@ export function CompletedCard({ summary, onDone }: { summary: SyncSummary; onDon
       <p className="pairing-completed-text">
         Your accounts and credentials have been securely synchronized.
       </p>
+      {warnings.length > 0 && (
+        <div role="alert">
+          <p className="pairing-completed-text">The transfer finished, but not everything could be saved on this device:</p>
+          <ul>
+            {warnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <button type="button" className="button primary pairing-done-btn" onClick={onDone}>
         Done
       </button>

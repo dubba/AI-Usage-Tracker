@@ -947,6 +947,7 @@ async fn run_authenticated_transfer<E>(
                     added,
                     updated,
                     skipped,
+                    ..SyncSummary::default()
                 })
             })
             .await;

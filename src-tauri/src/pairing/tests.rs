@@ -1885,3 +1885,135 @@ mod link_code_interop {
         check(Side::DnsSd, Side::DnsSd).await;
     }
 }
+
+/// A sender with an account plus everything an opted-in transfer carries: a group, non-default
+/// settings, an account order and an alert.
+async fn export_everything() -> (tempfile::TempDir, Vec<u8>) {
+    let dir_sender = tempfile::tempdir().unwrap();
+    let state_sender =
+        Arc::new(AppState::new(dir_sender.path().to_path_buf(), "tok-w-s".into()).unwrap());
+    let account = Account {
+        id: "acc-w".into(),
+        label: "Claude Work".into(),
+        provider: Provider::Anthropic,
+        email: Some("work@example.com".into()),
+        provider_account_id: None,
+        chatgpt_account_id: None,
+        plan: Some("Pro".into()),
+        created_at: Utc::now().to_rfc3339(),
+        updated_at: Utc::now().to_rfc3339(),
+        last_usage: None,
+        last_error: None,
+        auth_required: false,
+    };
+    let secret = ProviderSecret::Anthropic(crate::model::OAuthSecret {
+        access_token: "sk-ant-access-w".into(),
+        refresh_token: "sk-ant-refresh-w".into(),
+        id_token: None,
+        expires_at: 0,
+    });
+    state_sender
+        .persist_connected_account(account, &secret)
+        .await
+        .unwrap();
+    state_sender
+        .buckets
+        .save(
+            None,
+            "Work".into(),
+            Some(Provider::Anthropic),
+            vec!["acc-w".into()],
+        )
+        .unwrap();
+    state_sender
+        .settings
+        .set_automatic_updates_enabled(false)
+        .unwrap();
+    state_sender
+        .account_order
+        .save(vec!["acc-w".into()], state_sender.store.list())
+        .unwrap();
+    state_sender
+        .alerts
+        .save(
+            "acc-w",
+            vec![crate::alerts::UsageAlertSetting {
+                window_id: "weekly".into(),
+                enabled: true,
+                threshold_percent: 20,
+            }],
+        )
+        .unwrap();
+    *state_sender.pairing_include_settings.write() = true;
+    let bytes = create_export_payload(&state_sender).unwrap();
+    (dir_sender, bytes)
+}
+
+#[tokio::test]
+async fn import_reports_no_warnings_when_everything_is_saved() {
+    let (_sender_dir, export_bytes) = export_everything().await;
+    let dir_receiver = tempfile::tempdir().unwrap();
+    let state_receiver =
+        Arc::new(AppState::new(dir_receiver.path().to_path_buf(), "tok-w-r".into()).unwrap());
+
+    let summary = import_sync_payload(&state_receiver, &export_bytes)
+        .await
+        .unwrap();
+
+    assert_eq!(summary.added, 1);
+    assert!(summary.warnings.is_empty(), "{:?}", summary.warnings);
+    assert_eq!(state_receiver.buckets.list().len(), 1);
+    assert!(!state_receiver.settings.get().automatic_updates_enabled);
+    assert_eq!(state_receiver.account_order.snapshot_ids(), vec!["acc-w"]);
+    assert_eq!(state_receiver.alerts.get("acc-w").len(), 1);
+}
+
+#[tokio::test]
+async fn import_reports_each_part_it_could_not_save_without_failing_the_transfer() {
+    let (_sender_dir, export_bytes) = export_everything().await;
+    let dir_receiver = tempfile::tempdir().unwrap();
+    let state_receiver =
+        Arc::new(AppState::new(dir_receiver.path().to_path_buf(), "tok-w-r2".into()).unwrap());
+    // A directory where a store writes its file makes that one save fail.
+    for file in [
+        "account-buckets.json",
+        "app-settings.json",
+        "account-order.json",
+        "usage-alerts.json",
+    ] {
+        std::fs::create_dir(dir_receiver.path().join(file)).unwrap();
+    }
+
+    let summary = import_sync_payload(&state_receiver, &export_bytes)
+        .await
+        .unwrap();
+
+    // The account itself still arrived.
+    assert_eq!(summary.added, 1);
+    assert_eq!(state_receiver.store.list().len(), 1);
+    let mut warnings = summary.warnings.clone();
+    warnings.sort();
+    assert_eq!(
+        warnings,
+        vec![
+            "Some account groups couldn't be saved.",
+            "Some settings couldn't be applied.",
+            "Some usage alerts couldn't be saved.",
+            "The account order couldn't be saved.",
+        ]
+    );
+    // Warnings are fixed sentences, never what the peer sent.
+    let text = warnings.join(" ");
+    for secret in ["Claude Work", "work@example.com", "sk-ant", "acc-w"] {
+        assert!(!text.contains(secret), "warning leaks {secret}");
+    }
+}
+
+#[test]
+fn sync_summary_without_warnings_still_parses() {
+    // An older peer's summary has no `warnings` field.
+    let parsed: super::payload::SyncSummary =
+        serde_json::from_str(r#"{"added":1,"updated":2,"skipped":3}"#).unwrap();
+    assert_eq!((parsed.added, parsed.updated, parsed.skipped), (1, 2, 3));
+    assert!(parsed.warnings.is_empty());
+}

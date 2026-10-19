@@ -155,6 +155,22 @@ pub struct SyncSummary {
     pub added: u16,
     pub updated: u16,
     pub skipped: u16,
+    /// Short, fixed sentences about parts of the transfer that could not be saved on this
+    /// device (never payload contents). Only the importing device fills this in; the
+    /// sender's summary comes from the 6-byte acknowledgement and has none.
+    #[serde(default)]
+    pub warnings: Vec<String>,
+}
+
+impl SyncSummary {
+    /// Notes a failed save: logs `log` and keeps `warning` for the user, once per sentence.
+    /// Both are fixed text, because the error behind them can carry what the peer sent.
+    fn warn(&mut self, log: &str, warning: &str) {
+        crate::diagnostics::warn(log);
+        if !self.warnings.iter().any(|existing| existing == warning) {
+            self.warnings.push(warning.to_string());
+        }
+    }
 }
 
 fn remap_ui_page_id(
@@ -448,45 +464,68 @@ pub async fn import_sync_payload_with_replace(
         let expected_receiver_id = existing_match
             .map(|b| b.id.clone())
             .unwrap_or_else(|| incoming_bucket.id.clone());
-        let _ = state.buckets.upsert_imported(incoming_bucket);
-        if let Some(existing) = existing_match {
-            bucket_id_map.insert(sender_bucket_id, existing.id.clone());
-        } else {
-            bucket_id_map.insert(sender_bucket_id.clone(), expected_receiver_id);
+        // Only a saved group can be the target of the sender's layout (page ids, group order).
+        match state.buckets.upsert_imported(incoming_bucket) {
+            Ok(()) => {
+                bucket_id_map.insert(sender_bucket_id, expected_receiver_id);
+            }
+            Err(_) => summary.warn(
+                "Pairing import: an account group could not be saved.",
+                "Some account groups couldn't be saved.",
+            ),
         }
     }
 
     // Apply optional settings if present (opt-in per transfer)
     if let Some(settings) = payload.settings {
+        let mut settings_failed = false;
         if let Some(minutes) =
             crate::settings::snap_refresh_minutes(settings.account_refresh_minutes)
         {
-            let _ = state.settings.set_account_refresh_minutes(minutes);
+            settings_failed |= state.settings.set_account_refresh_minutes(minutes).is_err();
         }
-        let _ = state
+        settings_failed |= state
             .settings
-            .set_automatic_updates_enabled(settings.automatic_updates_enabled);
-        let _ = state
+            .set_automatic_updates_enabled(settings.automatic_updates_enabled)
+            .is_err();
+        settings_failed |= state
             .settings
-            .set_include_beta_updates(settings.include_beta_updates);
-        let _ = state
+            .set_include_beta_updates(settings.include_beta_updates)
+            .is_err();
+        settings_failed |= state
             .settings
-            .set_autostart_enabled(settings.autostart_enabled);
+            .set_autostart_enabled(settings.autostart_enabled)
+            .is_err();
         // The local API only exists on desktop; a phone must not carry the flag.
         #[cfg(desktop)]
-        let _ = state
-            .settings
-            .set_paseo_bridge_enabled(settings.paseo_bridge_enabled);
+        {
+            settings_failed |= state
+                .settings
+                .set_paseo_bridge_enabled(settings.paseo_bridge_enabled)
+                .is_err();
+        }
+        if settings_failed {
+            summary.warn(
+                "Pairing import: some settings could not be saved.",
+                "Some settings couldn't be applied.",
+            );
+        }
         // Try to apply system autostart when possible
         if let Some(handle) = state.app_handle.read().clone() {
             #[cfg(desktop)]
             {
                 use tauri_plugin_autostart::ManagerExt;
-                let _ = if settings.autostart_enabled {
+                let result = if settings.autostart_enabled {
                     handle.autolaunch().enable()
                 } else {
                     handle.autolaunch().disable()
                 };
+                if result.is_err() {
+                    summary.warn(
+                        "Pairing import: the start-at-login setting could not be applied.",
+                        "Start at login couldn't be updated.",
+                    );
+                }
             }
             #[cfg(not(desktop))]
             {
@@ -520,7 +559,16 @@ pub async fn import_sync_payload_with_replace(
             }
             // Only save if length matches
             if remapped.len() == state.store.list().len() {
-                let _ = state.account_order.save(remapped, state.store.list());
+                if state
+                    .account_order
+                    .save(remapped, state.store.list())
+                    .is_err()
+                {
+                    summary.warn(
+                        "Pairing import: the account order could not be saved.",
+                        "The account order couldn't be saved.",
+                    );
+                }
             }
         }
     }
@@ -533,7 +581,12 @@ pub async fn import_sync_payload_with_replace(
                 .cloned()
                 .unwrap_or(entry.account_id);
             if state.store.get(&target_id).is_some() {
-                let _ = state.alerts.save(&target_id, entry.settings);
+                if state.alerts.save(&target_id, entry.settings).is_err() {
+                    summary.warn(
+                        "Pairing import: usage alerts could not be saved.",
+                        "Some usage alerts couldn't be saved.",
+                    );
+                }
             }
         }
     }

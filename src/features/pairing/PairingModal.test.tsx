@@ -626,6 +626,29 @@ describe("finishing", () => {
     expect(onCompleted).toHaveBeenCalledTimes(1);
   });
 
+  it("shows no warning when everything was saved", async () => {
+    render();
+    await settle();
+    await emit({ status: "completed", data: { summary: { added: 1, updated: 0, skipped: 0, warnings: [] } } } as unknown as PairingStatus);
+    expect(document.querySelector("[role=alert]")).toBeNull();
+    await emit(COMPLETED);
+    expect(document.querySelector("[role=alert]")).toBeNull();
+  });
+
+  it("lists what could not be saved on this device", async () => {
+    render();
+    await settle();
+    await emit({
+      status: "completed",
+      data: { summary: { added: 1, updated: 0, skipped: 0, warnings: ["Some settings couldn't be applied.", "The account order couldn't be saved."] } },
+    } as unknown as PairingStatus);
+    const alert = document.querySelector("[role=alert]");
+    expect(alert?.textContent).toContain("not everything could be saved");
+    expect(alert?.textContent).toContain("Some settings couldn't be applied.");
+    expect(alert?.textContent).toContain("The account order couldn't be saved.");
+    expect(onCompleted).toHaveBeenCalledTimes(1);
+  });
+
   it("closes from Done without telling the app twice", async () => {
     render();
     await settle();

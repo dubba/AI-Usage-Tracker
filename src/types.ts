@@ -126,6 +126,8 @@ export interface SyncSummary {
   added: number;
   updated: number;
   skipped: number;
+  /** Parts of the transfer this device could not save (fixed sentences from the backend). */
+  warnings: string[];
 }
 
 export interface PairingHostInit {
