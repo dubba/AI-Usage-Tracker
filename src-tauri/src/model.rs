@@ -477,7 +477,7 @@ mod tests {
             accounts: Vec::new(),
             buckets: Vec::new(),
             bridge: BridgeStatus {
-                endpoint: "http://127.0.0.1:47831/v1/paseo-usage".into(),
+                endpoint: crate::bridge_api::bridge_endpoint(),
                 enabled: true,
                 running: true,
                 error: None,

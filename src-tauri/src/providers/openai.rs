@@ -15,8 +15,10 @@ use serde::Deserialize;
 use serde_json::Value;
 
 const USAGE_URL: &str = "https://chatgpt.com/backend-api/wham/usage";
-const TOKEN_URL: &str = "https://auth.openai.com/oauth/token";
-const CLIENT_ID: &str = "app_EMoamEEZ73f0CkXaXp7hrann";
+/// The OAuth client and token endpoint, shared with sign-in (`oauth.rs`) so a login and a
+/// later refresh always talk to the same one.
+pub(crate) const TOKEN_URL: &str = "https://auth.openai.com/oauth/token";
+pub(crate) const CLIENT_ID: &str = "app_EMoamEEZ73f0CkXaXp7hrann";
 
 #[derive(Debug, Deserialize)]
 struct RawUsage {

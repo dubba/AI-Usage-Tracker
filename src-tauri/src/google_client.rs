@@ -8,6 +8,10 @@
 
 use zeroize::Zeroizing;
 
+/// Where the client's authorization codes and refresh tokens are exchanged. Sign-in
+/// (`oauth`, `google_ai_studio_oauth`) and token refresh (`providers`) must use the same one.
+pub(crate) const TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
+
 pub(crate) const CLIENT_ID: &str =
     "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com";
 

@@ -148,7 +148,7 @@ impl AppState {
             bridge_token: RwLock::new(bridge_token),
             bridge_rate_limit: Mutex::new(std::collections::HashMap::new()),
             api_runtime: RwLock::new(ApiRuntime {
-                endpoint: "http://127.0.0.1:47831/v1/paseo-usage".into(),
+                endpoint: crate::bridge_api::bridge_endpoint(),
                 running: false,
                 error: None,
             }),

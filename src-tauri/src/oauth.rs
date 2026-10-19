@@ -1,5 +1,5 @@
 use crate::{
-    google_client::{client_secret, CLIENT_ID},
+    google_client::{client_secret, CLIENT_ID, TOKEN_URL as GOOGLE_TOKEN_URL},
     model::{
         now_rfc3339, Account, LoginStart, LoginState, LoginStatus, OAuthSecret, Provider,
         ProviderSecret,
@@ -7,6 +7,10 @@ use crate::{
     oauth_common::{
         account_connected_html, auth_failure_html, callback_html, pkce_challenge, random_base64,
         spawn_callback_server, spawn_login_timeout, CallbackQuery, LOGIN_TIMEOUT_MINUTES,
+    },
+    providers::{
+        anthropic::{CLIENT_ID as ANTHROPIC_CLIENT_ID, TOKEN_URL as ANTHROPIC_TOKEN_URL},
+        openai::{CLIENT_ID as OPENAI_CLIENT_ID, TOKEN_URL as OPENAI_TOKEN_URL},
     },
     state::AppState,
 };
@@ -36,11 +40,9 @@ use url::Url;
 use uuid::Uuid;
 
 const OPENAI_ISSUER: &str = "https://auth.openai.com";
-const OPENAI_CLIENT_ID: &str = "app_EMoamEEZ73f0CkXaXp7hrann";
 const OPENAI_ORIGINATOR: &str = "ai_usage_tracker";
 /// Codex CLI Hydra allow-list: 1455 preferred, 1457 fallback.
 const OPENAI_CALLBACK_PORTS: &[u16] = &[1455, 1457];
-const ANTHROPIC_CLIENT_ID: &str = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
 /// Profile identity plus subscription usage. Intentionally omits API-key creation,
 /// Claude Code sessions, MCP servers, and file upload.
 const ANTHROPIC_SCOPES: &str = "user:profile user:inference";
@@ -1126,7 +1128,7 @@ async fn exchange_openai(
     let response = context
         .app
         .client
-        .post(format!("{OPENAI_ISSUER}/oauth/token"))
+        .post(OPENAI_TOKEN_URL)
         .form(&[
             ("grant_type", "authorization_code"),
             ("client_id", OPENAI_CLIENT_ID),
@@ -1186,7 +1188,7 @@ async fn exchange_anthropic(
     let response = context
         .app
         .client
-        .post("https://platform.claude.com/v1/oauth/token")
+        .post(ANTHROPIC_TOKEN_URL)
         .json(&json!({
             "grant_type": "authorization_code",
             "client_id": ANTHROPIC_CLIENT_ID,
@@ -1237,7 +1239,7 @@ async fn exchange_antigravity(
     let response = context
         .app
         .client
-        .post("https://oauth2.googleapis.com/token")
+        .post(GOOGLE_TOKEN_URL)
         .form(&[
             ("client_id", CLIENT_ID),
             ("client_secret", client_secret.as_str()),

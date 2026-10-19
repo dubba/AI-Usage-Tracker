@@ -185,3 +185,13 @@ fn the_extractors_read_what_they_should() {
     assert_eq!(ts_provider_names().len(), 6);
     assert_eq!(ts_number(CONSTANTS_TS, "FIVE_HOUR_WINDOW_SECONDS"), 18_000);
 }
+
+#[test]
+fn bridge_window_names_the_real_port() {
+    let window = include_str!("../../src/features/api-integration/ApiIntegrationWindow.tsx");
+    let address = format!("127.0.0.1:{}", crate::bridge_api::BRIDGE_PORT);
+    assert!(
+        window.contains(&format!("<code>{address}</code>")),
+        "ApiIntegrationWindow.tsx must show the local API address {address}"
+    );
+}

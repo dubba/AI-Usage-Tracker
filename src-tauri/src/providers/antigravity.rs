@@ -4,7 +4,7 @@ use super::{
     },
     ProviderError, ProviderUsage,
 };
-use crate::google_client::{client_secret, CLIENT_ID};
+use crate::google_client::{client_secret, CLIENT_ID, TOKEN_URL};
 use crate::{
     diagnostics,
     model::{Account, OAuthSecret, ProviderSecret, UsageWindow},
@@ -18,7 +18,6 @@ use std::collections::HashSet;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 const USERINFO_URL: &str = "https://www.googleapis.com/oauth2/v2/userinfo";
 const CLOUD_CODE_BASE: &str = "https://daily-cloudcode-pa.googleapis.com";
 /// Google decides which quota groups to return from the client version in the

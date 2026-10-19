@@ -16,8 +16,10 @@ use serde_json::Value;
 const USAGE_URL: &str = "https://api.anthropic.com/api/oauth/usage";
 const PROFILE_URL: &str = "https://api.anthropic.com/api/oauth/profile";
 const LEGACY_PROFILE_URL: &str = "https://api.anthropic.com/api/auth/oauth/profile";
-const TOKEN_URL: &str = "https://platform.claude.com/v1/oauth/token";
-const CLIENT_ID: &str = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
+/// The OAuth client and token endpoint, shared with sign-in (`oauth.rs`) so a login and a
+/// later refresh always talk to the same one.
+pub(crate) const TOKEN_URL: &str = "https://platform.claude.com/v1/oauth/token";
+pub(crate) const CLIENT_ID: &str = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
 const OAUTH_BETA: &str = "oauth-2025-04-20";
 
 #[derive(Debug, Deserialize)]

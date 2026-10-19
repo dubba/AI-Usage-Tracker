@@ -1,5 +1,5 @@
 use crate::{
-    google_client::{client_secret, CLIENT_ID},
+    google_client::{client_secret, CLIENT_ID, TOKEN_URL},
     model::{
         Account, CloudProjectOption, LoginStart, LoginState, LoginStatus, OAuthSecret, Provider,
         ProviderSecret,
@@ -897,7 +897,7 @@ async fn exchange_tokens(context: &LoginContext, code: &str) -> Result<TokenResp
     let response = context
         .app
         .client
-        .post("https://oauth2.googleapis.com/token")
+        .post(TOKEN_URL)
         .form(&[
             ("client_id", CLIENT_ID),
             ("client_secret", client_secret.as_str()),

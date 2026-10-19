@@ -15,14 +15,17 @@ use axum::{
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::{
-    net::{IpAddr, SocketAddr},
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::Arc,
     time::{Duration, Instant},
 };
 use subtle::ConstantTimeEq;
 use tokio::net::TcpListener;
 
-const API_ADDR: &str = "127.0.0.1:47831";
+/// The one port the local API listens on. The Host and Origin allowlists, the endpoint shown
+/// in the app and the tests are all built from it.
+pub(crate) const BRIDGE_PORT: u16 = 47831;
+const API_ADDR: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), BRIDGE_PORT);
 const RETRY_DELAY_SECONDS: u64 = 3;
 /// A client may make this many requests back to back...
 const RATE_LIMIT_BURST: f64 = 10.0;
@@ -124,10 +127,40 @@ fn host_valid(headers: &HeaderMap) -> bool {
     let Some(host) = headers.get(HOST).and_then(|v| v.to_str().ok()) else {
         return false;
     };
-    matches!(
-        host.to_ascii_lowercase().as_str(),
-        "127.0.0.1:47831" | "localhost:47831" | "127.0.0.1" | "localhost"
-    )
+    let host = host.to_ascii_lowercase();
+    allowed_hosts().contains(&host)
+}
+
+/// The Host header values the API answers to: the loopback names with the API's port (what
+/// a client connecting to it sends) and without one.
+fn allowed_hosts() -> [String; 4] {
+    [
+        format!("127.0.0.1:{BRIDGE_PORT}"),
+        format!("localhost:{BRIDGE_PORT}"),
+        "127.0.0.1".to_string(),
+        "localhost".to_string(),
+    ]
+}
+
+/// The origin of the local API, e.g. for the endpoint shown in the app.
+pub(crate) fn bridge_origin() -> String {
+    format!("http://127.0.0.1:{BRIDGE_PORT}")
+}
+
+/// The URL of the usage endpoint (`/v1/paseo-usage`).
+pub(crate) fn bridge_endpoint() -> String {
+    format!("{}/v1/paseo-usage", bridge_origin())
+}
+
+/// The Origin header values a browser request may carry: the loopback origins with the API's
+/// port and without one.
+fn allowed_origins() -> [String; 4] {
+    [
+        format!("http://127.0.0.1:{BRIDGE_PORT}"),
+        format!("http://localhost:{BRIDGE_PORT}"),
+        "http://127.0.0.1".to_string(),
+        "http://localhost".to_string(),
+    ]
 }
 
 /// Allows requests with no Origin/Referer (native non-browser clients) and
@@ -148,13 +181,7 @@ fn origin_allowed(headers: &HeaderMap) -> bool {
 
 fn is_loopback_origin(origin: &str) -> bool {
     let lower = origin.to_ascii_lowercase();
-    matches!(
-        lower.as_str(),
-        "http://127.0.0.1:47831"
-            | "http://localhost:47831"
-            | "http://127.0.0.1"
-            | "http://localhost"
-    )
+    allowed_origins().contains(&lower)
 }
 
 fn referer_origin(referer: &str) -> Option<String> {
@@ -369,9 +396,13 @@ mod tests {
         )
     }
 
+    fn host_header(value: &str) -> HeaderValue {
+        HeaderValue::from_str(value).unwrap()
+    }
+
     fn loopback_headers() -> HeaderMap {
         let mut headers = HeaderMap::new();
-        headers.insert(HOST, HeaderValue::from_static("127.0.0.1:47831"));
+        headers.insert(HOST, host_header(&format!("127.0.0.1:{BRIDGE_PORT}")));
         headers.insert(
             AUTHORIZATION,
             HeaderValue::from_static("Bearer test-bridge-token-32-chars-minimum-xx"),
@@ -444,11 +475,73 @@ mod tests {
         headers.insert(HOST, HeaderValue::from_static("127.0.0.1.evil.com"));
         assert!(!host_valid(&headers));
 
-        headers.insert(HOST, HeaderValue::from_static("127.0.0.1:47831"));
+        headers.insert(HOST, host_header(&format!("127.0.0.1:{BRIDGE_PORT}")));
         assert!(host_valid(&headers));
 
-        headers.insert(HOST, HeaderValue::from_static("localhost:47831"));
+        headers.insert(HOST, host_header(&format!("localhost:{BRIDGE_PORT}")));
         assert!(host_valid(&headers));
+    }
+
+    /// The exact strings the allowlists accept. Spelled out on purpose, so widening them (or
+    /// changing the port) fails here and has to be done knowingly.
+    #[test]
+    fn allowlists_accept_exactly_these_hosts_and_origins() {
+        assert_eq!(
+            allowed_hosts(),
+            [
+                "127.0.0.1:47831",
+                "localhost:47831",
+                "127.0.0.1",
+                "localhost"
+            ]
+        );
+        assert_eq!(
+            allowed_origins(),
+            [
+                "http://127.0.0.1:47831",
+                "http://localhost:47831",
+                "http://127.0.0.1",
+                "http://localhost"
+            ]
+        );
+        assert_eq!(bridge_origin(), "http://127.0.0.1:47831");
+        assert_eq!(bridge_endpoint(), "http://127.0.0.1:47831/v1/paseo-usage");
+        assert_eq!(API_ADDR.to_string(), "127.0.0.1:47831");
+    }
+
+    #[test]
+    fn host_and_origin_matching_is_exact_and_case_insensitive() {
+        for host in ["LOCALHOST:47831", "Localhost", "127.0.0.1:47831"] {
+            let mut headers = HeaderMap::new();
+            headers.insert(HOST, host_header(host));
+            assert!(host_valid(&headers), "{host}");
+        }
+        for host in [
+            "127.0.0.1:47832",
+            "127.0.0.1:",
+            "localhost:80",
+            "127.0.0.2",
+            "[::1]",
+            "0.0.0.0:47831",
+            "127.0.0.1:47831.evil.com",
+            " 127.0.0.1",
+        ] {
+            let mut headers = HeaderMap::new();
+            headers.insert(HOST, host_header(host));
+            assert!(!host_valid(&headers), "{host}");
+        }
+        for origin in ["http://LOCALHOST", "http://127.0.0.1:47831"] {
+            assert!(is_loopback_origin(origin), "{origin}");
+        }
+        for origin in [
+            "https://127.0.0.1:47831",
+            "http://127.0.0.1:1",
+            "http://localhost.evil.com",
+            "http://127.0.0.1:47831/",
+            "null",
+        ] {
+            assert!(!is_loopback_origin(origin), "{origin}");
+        }
     }
 
     #[test]
@@ -457,7 +550,7 @@ mod tests {
         assert!(origin_allowed(&headers));
 
         let mut same = HeaderMap::new();
-        same.insert(ORIGIN, HeaderValue::from_static("http://127.0.0.1:47831"));
+        same.insert(ORIGIN, host_header(&bridge_origin()));
         assert!(origin_allowed(&same));
 
         let mut cross = HeaderMap::new();

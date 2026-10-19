@@ -1,5 +1,5 @@
 use crate::{
-    google_client::{client_secret, CLIENT_ID},
+    google_client::{client_secret, CLIENT_ID, TOKEN_URL},
     model::{
         now_rfc3339, Account, GoogleAiStudioSecret, OAuthSecret, Provider, ProviderSecret,
         UsageFreshness, UsageSnapshot, UsageWindow,
@@ -609,7 +609,7 @@ pub(crate) async fn refresh_cloud_secret(
         RefreshRequest {
             client: &app.client,
             provider: "Google",
-            url: "https://oauth2.googleapis.com/token",
+            url: TOKEN_URL,
             body: RefreshBody::Form(&[
                 ("client_id", CLIENT_ID),
                 ("client_secret", client_secret.as_str()),
