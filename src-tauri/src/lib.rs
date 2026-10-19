@@ -16,6 +16,8 @@ mod confirm;
 #[cfg(any(target_os = "android", debug_assertions))]
 mod credential_file;
 mod diagnostics;
+#[cfg(test)]
+mod frontend_contract;
 mod fs_util;
 mod google_ai_studio_oauth;
 mod google_client;

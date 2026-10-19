@@ -226,14 +226,14 @@ fn windows_from_raw(raw: &RawUsage) -> Vec<UsageWindow> {
         "five_hour",
         "5 hour",
         raw.five_hour.as_ref(),
-        Some(18_000),
+        Some(crate::model::FIVE_HOUR_WINDOW_SECONDS),
     );
     push_window(
         &mut windows,
         "weekly",
         "Weekly",
         raw.seven_day.as_ref(),
-        Some(604_800),
+        Some(crate::model::WEEKLY_WINDOW_SECONDS),
     );
     if let Some(extra) = raw.extra_usage.as_ref() {
         if extra.is_enabled.unwrap_or(true) && extra.utilization.is_some() {

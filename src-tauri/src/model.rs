@@ -64,6 +64,11 @@ impl FromStr for Provider {
     }
 }
 
+/// Length of the 5-hour and weekly usage windows. The frontend has the same two numbers
+/// (`constants.ts`); `frontend_contract.rs` checks that they agree.
+pub const FIVE_HOUR_WINDOW_SECONDS: u64 = 18_000;
+pub const WEEKLY_WINDOW_SECONDS: u64 = 604_800;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UsageWindow {

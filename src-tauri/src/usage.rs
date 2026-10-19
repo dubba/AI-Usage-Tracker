@@ -4,6 +4,7 @@ use crate::{
     state::AppState,
     store::{load_provider_secret, save_provider_secret},
 };
+use providers::google_ai_studio::SOURCE_MODELS_ONLY;
 use std::{
     future::Future,
     sync::Arc,
@@ -12,7 +13,6 @@ use std::{
 use tauri::Emitter;
 use tauri_plugin_notification::NotificationExt;
 
-const GOOGLE_AI_STUDIO_MODELS_ONLY_SOURCE: &str = "google_ai_studio_model_access";
 const ACCOUNT_REFRESH_TIMEOUT: Duration = Duration::from_secs(45);
 
 pub async fn refresh_account(app: Arc<AppState>, account_id: &str) -> Result<Account, String> {
@@ -192,7 +192,7 @@ fn should_auto_refresh(account: &Account) -> bool {
         && account
             .last_usage
             .as_ref()
-            .is_some_and(|usage| usage.source == GOOGLE_AI_STUDIO_MODELS_ONLY_SOURCE)
+            .is_some_and(|usage| usage.source == SOURCE_MODELS_ONLY)
     {
         return false;
     }
@@ -430,6 +430,7 @@ fn save_failure(app: &AppState, account_id: &str, error: ProviderError) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::providers::google_ai_studio::SOURCE_MONITORING;
 
     fn account(provider: Provider, source: &str, auth_required: bool) -> Account {
         let now = now_rfc3339();
@@ -471,7 +472,7 @@ mod tests {
     fn skips_google_ai_studio_until_cloud_setup_finishes() {
         assert!(!should_auto_refresh(&account(
             Provider::GoogleAiStudio,
-            GOOGLE_AI_STUDIO_MODELS_ONLY_SOURCE,
+            SOURCE_MODELS_ONLY,
             false,
         )));
     }
@@ -480,7 +481,7 @@ mod tests {
     fn refreshes_connected_google_ai_studio_accounts() {
         assert!(should_auto_refresh(&account(
             Provider::GoogleAiStudio,
-            "google_ai_studio_cloud_monitoring",
+            SOURCE_MONITORING,
             false,
         )));
     }
@@ -497,11 +498,7 @@ mod tests {
 
         let mut account1 = account(Provider::Openai, "test", true);
         account1.id = "account1".into();
-        let mut account2 = account(
-            Provider::GoogleAiStudio,
-            GOOGLE_AI_STUDIO_MODELS_ONLY_SOURCE,
-            false,
-        );
+        let mut account2 = account(Provider::GoogleAiStudio, SOURCE_MODELS_ONLY, false);
         account2.id = "account2".into();
         app.store.upsert(account1).unwrap();
         app.store.upsert(account2).unwrap();

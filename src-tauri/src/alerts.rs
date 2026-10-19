@@ -308,7 +308,7 @@ pub fn canonical_window_id(window: &UsageWindow) -> Option<&'static str> {
     if id == "five_hour"
         || id.starts_with("five_hour")
         || id == "rolling"
-        || window.window_seconds == Some(18_000)
+        || window.window_seconds == Some(crate::model::FIVE_HOUR_WINDOW_SECONDS)
         || label.contains("5 hour")
         || label.contains("five hour")
         || label.contains("5h")
@@ -317,7 +317,7 @@ pub fn canonical_window_id(window: &UsageWindow) -> Option<&'static str> {
         Some("five_hour")
     } else if id == "weekly"
         || id.starts_with("weekly")
-        || window.window_seconds == Some(604_800)
+        || window.window_seconds == Some(crate::model::WEEKLY_WINDOW_SECONDS)
         || label.contains("weekly")
         || label.contains("7 day")
         || label.contains("seven day")

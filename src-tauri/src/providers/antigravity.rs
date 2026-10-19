@@ -620,8 +620,8 @@ fn classify_id(label: &str) -> String {
 
 fn infer_window_seconds(label: &str) -> Option<u64> {
     match classify_id(label).as_str() {
-        "five_hour" => Some(18_000),
-        "weekly" => Some(604_800),
+        "five_hour" => Some(crate::model::FIVE_HOUR_WINDOW_SECONDS),
+        "weekly" => Some(crate::model::WEEKLY_WINDOW_SECONDS),
         _ => None,
     }
 }

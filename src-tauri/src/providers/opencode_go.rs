@@ -79,11 +79,16 @@ pub async fn refresh(
             "five_hour",
             "5 hour",
             window,
-            Some(18_000),
+            Some(crate::model::FIVE_HOUR_WINDOW_SECONDS),
         ));
     }
     if let Some(window) = weekly {
-        windows.push(normalize_window("weekly", "Weekly", window, Some(604_800)));
+        windows.push(normalize_window(
+            "weekly",
+            "Weekly",
+            window,
+            Some(crate::model::WEEKLY_WINDOW_SECONDS),
+        ));
     }
     if let Some(window) = monthly {
         windows.push(normalize_window("monthly", "Monthly", window, None));

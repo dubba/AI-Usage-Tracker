@@ -27,9 +27,11 @@ use uuid::Uuid;
 const MODELS_URL: &str = "https://generativelanguage.googleapis.com/v1beta/models";
 const MONITORING_BASE: &str = "https://monitoring.googleapis.com/v3";
 const METRIC_PREFIX: &str = "generativelanguage.googleapis.com/quota/";
-const SOURCE_MODELS_ONLY: &str = "google_ai_studio_model_access";
-const SOURCE_MONITORING_WAITING: &str = "google_ai_studio_monitoring_waiting";
-const SOURCE_MONITORING: &str = "google_ai_studio_cloud_monitoring";
+/// The `source` strings of a Google AI Studio usage snapshot. The frontend spells them the
+/// same (`usage-sources.ts`); `frontend_contract.rs` checks that they agree.
+pub(crate) const SOURCE_MODELS_ONLY: &str = "google_ai_studio_model_access";
+pub(crate) const SOURCE_MONITORING_WAITING: &str = "google_ai_studio_monitoring_waiting";
+pub(crate) const SOURCE_MONITORING: &str = "google_ai_studio_cloud_monitoring";
 const ACCOUNT_EMAIL: &str = "Google AI Studio API key";
 const ACCOUNT_PLAN: &str = "Google AI Studio";
 const MAX_SELECTED_MODELS: usize = 200;

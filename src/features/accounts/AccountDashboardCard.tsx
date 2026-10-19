@@ -32,6 +32,7 @@ import { errorMessage, friendlyMessage } from "../../shared/lib/errors";
 import { useClock } from "../../shared/hooks/useClock";
 import { useUsageDisplayMode } from "../../shared/hooks/useUsageDisplayMode";
 import { displayPercent, usageDisplaySuffix } from "../../shared/lib/usage-display";
+import { isGoogleKeyOnly, isGoogleSetupPending } from "../../shared/lib/usage-sources";
 import { reorderKeyDelta } from "../reorder/reorder-utils";
 import { AccountUsageMetric } from "./AccountUsageMetric";
 import { CREDENTIAL_PROTECTION_ACCOUNT_NOTE } from "../dashboard/credential-protection";
@@ -133,8 +134,8 @@ export function AccountDashboardCard({
   const remainingValues = windows.flatMap((window) => (window.remainingPercent == null ? [] : [window.remainingPercent]));
   const lowestRemaining = remainingValues.length ? Math.min(...remainingValues) : null;
   const [displayMode] = useUsageDisplayMode();
-  const modelsOnly = account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_model_access";
-  const waitingForMetrics = account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_monitoring_waiting";
+  const modelsOnly = isGoogleKeyOnly(account);
+  const waitingForMetrics = isGoogleSetupPending(account);
   const googleUnavailableLabel = modelsOnly ? "Key only" : waitingForMetrics ? "Setup in progress" : "Unavailable";
   const updatedAtLabel = useClock((now) => formatUpdatedAt(account.lastUsage?.fetchedAt, now) ?? "Not updated yet");
   const creditLabel = account.provider !== "openai"

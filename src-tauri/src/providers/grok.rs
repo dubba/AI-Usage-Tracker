@@ -396,6 +396,9 @@ fn usage_from_snapshot(
     }
 }
 
+/// Id of the Grok Bot usage window; the frontend spells it the same (`usage-sources.ts`).
+pub(crate) const GROK_BOT_WINDOW_ID: &str = "grok_bot";
+
 fn bot_usage_window(bot: &BotUsage) -> UsageWindow {
     let window_seconds = match (bot.period_start, bot.resets_at) {
         (Some(start), Some(end))
@@ -403,10 +406,10 @@ fn bot_usage_window(bot: &BotUsage) -> UsageWindow {
         {
             (end - start).num_seconds() as u64
         }
-        _ => 604_800,
+        _ => crate::model::WEEKLY_WINDOW_SECONDS,
     };
     UsageWindow {
-        id: "grok_bot".into(),
+        id: GROK_BOT_WINDOW_ID.into(),
         // "<name> weekly" renders as its own "Grok Bot" group in the dashboard.
         label: "Grok Bot weekly".into(),
         used_percent: Some(bot.used_percent),
@@ -1053,7 +1056,11 @@ fn classify_period(
         }
     }
     if web_weekly {
-        ("weekly", "Weekly", Some(604_800))
+        (
+            "weekly",
+            "Weekly",
+            Some(crate::model::WEEKLY_WINDOW_SECONDS),
+        )
     } else {
         ("credits", "Included usage", None)
     }

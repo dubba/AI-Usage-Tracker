@@ -1,5 +1,7 @@
+import { FIVE_HOUR_WINDOW_SECONDS, WEEKLY_WINDOW_SECONDS } from "./constants";
 import { formatClockTime, formatMonthDay } from "./format";
 import { providerName } from "./providers";
+import { GROK_BOT_WINDOW_ID, isGoogleCloudMonitored, isGoogleKeyOnly } from "./usage-sources";
 import type { Account, Provider, UsageWindow } from "../../types";
 
 export type SidebarWindow = "five_hour" | "weekly";
@@ -9,8 +11,6 @@ export type NextResetSummary = {
   value: string;
   resetsAt: string | null;
 };
-
-const GOOGLE_AI_STUDIO_MODELS_ONLY_SOURCE = "google_ai_studio_model_access";
 
 // Legacy accounts were auto-labeled with an older provider display name
 // (e.g. "Google Antigravity"). Collapse only those obsolete branded defaults
@@ -43,9 +43,8 @@ export function formatResetAtShort(value: string | null | undefined, locale?: st
   return `${formatMonthDay(date, locale)} @ ${formatClockTime(date, locale)}`;
 }
 export function googleAiStudioHasQuotaWindows(account: Account): boolean {
-  return account.provider === "google_ai_studio"
-    && account.lastUsage?.source === "google_ai_studio_cloud_monitoring"
-    && (account.lastUsage.windows ?? []).some((window) => window.remainingPercent != null);
+  return isGoogleCloudMonitored(account)
+    && (account.lastUsage?.windows ?? []).some((window) => window.remainingPercent != null);
 }
 export function accountNeedsAttention(account: Account): boolean {
   if (account.provider === "google_ai_studio" && !googleAiStudioHasQuotaWindows(account)) {
@@ -65,7 +64,7 @@ export function accountStatus(account: Account): { label: string; className: str
   if (account.lastError || account.lastUsage?.freshness === "stale") {
     return { label: "ACTION NEEDED", className: "warning" };
   }
-  if (account.provider === "google_ai_studio" && account.lastUsage?.source === "google_ai_studio_model_access") {
+  if (isGoogleKeyOnly(account)) {
     return { label: "KEY ONLY", className: "warning" };
   }
   if (account.provider === "google_ai_studio" && !googleAiStudioHasQuotaWindows(account)) {
@@ -83,7 +82,7 @@ export function canonicalWindow(window: UsageWindow, target: SidebarWindow): boo
     return id === "five_hour"
       || id.startsWith("five_hour")
       || id === "rolling"
-      || window.windowSeconds === 18_000
+      || window.windowSeconds === FIVE_HOUR_WINDOW_SECONDS
       || label.includes("5 hour")
       || label.includes("five hour")
       || label.includes("5h")
@@ -91,7 +90,7 @@ export function canonicalWindow(window: UsageWindow, target: SidebarWindow): boo
   }
   return id === "weekly"
     || id.startsWith("weekly")
-    || window.windowSeconds === 604_800
+    || window.windowSeconds === WEEKLY_WINDOW_SECONDS
     || label.includes("weekly")
     || label.includes("7 day")
     || label.includes("seven day")
@@ -150,7 +149,7 @@ export function isGrokOnlyGroup(accounts: Account[]): boolean {
 /** Average percent remaining of the Grok Bot limit over the accounts that report one. */
 export function grokBotAverage(accounts: Account[]): number | null {
   const values = accounts.flatMap((account) => {
-    const remaining = account.lastUsage?.windows.find((window) => window.id === "grok_bot")?.remainingPercent;
+    const remaining = account.lastUsage?.windows.find((window) => window.id === GROK_BOT_WINDOW_ID)?.remainingPercent;
     return remaining != null && Number.isFinite(remaining) ? [remaining] : [];
   });
   if (!values.length) return null;
@@ -212,7 +211,7 @@ export function formatRemainingDuration(remainingMs: number): string | null {
 }
 export function accountAutoRefreshEligible(account: Account): boolean {
   if (account.authRequired) return false;
-  if (account.provider === "google_ai_studio" && account.lastUsage?.source === GOOGLE_AI_STUDIO_MODELS_ONLY_SOURCE) {
+  if (isGoogleKeyOnly(account)) {
     return false;
   }
   return true;
@@ -285,7 +284,7 @@ export function orderedWindows(windows: UsageWindow[]): UsageWindow[] {
 export function cardWindows(windows: UsageWindow[], provider?: Provider | string): UsageWindow[] {
   const ordered = orderedWindows(windows);
   if (provider !== "grok") return ordered;
-  return [...ordered.filter((w) => w.id === "grok_bot"), ...ordered.filter((w) => w.id !== "grok_bot")];
+  return [...ordered.filter((w) => w.id === GROK_BOT_WINDOW_ID), ...ordered.filter((w) => w.id !== GROK_BOT_WINDOW_ID)];
 }
 export function windowLength(window: UsageWindow): string | null {
   const id = window.id.toLowerCase().replaceAll("-", "_");
