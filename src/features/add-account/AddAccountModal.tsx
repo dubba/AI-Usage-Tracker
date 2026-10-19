@@ -9,11 +9,11 @@ import {
   type AddAccountDraft,
 } from "./strategies";
 import { useAsyncAction } from "../../shared/hooks/useAsyncAction";
-import { logIgnored } from "../../shared/lib/log";
 import { isAndroid as detectAndroid, isIOS } from "../../shared/lib/platform";
 import { PROVIDER_META } from "../../shared/lib/providers";
-import { abandonLoginAttempt, recoverFromStaleLogin, retryLoginAttempt, subscribeLoginStatus, watchLoginAttempt } from "../../shared/lib/login-status";
-import type { Account, LoginStatus, Provider } from "../../types";
+import { recoverFromStaleLogin } from "../../shared/lib/login-status";
+import { useLoginAttempt, waitingStatus } from "../../shared/hooks/useLoginAttempt";
+import type { Account, Provider } from "../../types";
 import { GoogleAiStudioFields } from "./fields/GoogleAiStudioFields";
 import { GrokFields } from "./fields/GrokFields";
 import { OpenCodeFields } from "./fields/OpenCodeFields";
@@ -54,47 +54,19 @@ export function AddAccountModal({
   // Android or iOS by operating system. Not `isMobileDevice()`: that is also true for touch-screen laptops.
   const isMobileOs = detectAndroid() || isIOS();
   const [draft, setDraft] = useState<AddAccountDraft>(() => emptyDraft("anthropic"));
-  const [status, setStatus] = useState<LoginStatus | null>(null);
   const { error, setError } = useAutoDismissedError(open);
   const { busy, setBusy, run } = useAsyncAction({ source: "add-account", setError });
   const { busy: modelsBusy, setBusy: setModelsBusy, run: runModels } = useAsyncAction({ source: "add-account", setError });
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   const [baselineLabel, setBaselineLabel] = useState("");
   const [isKeyboardOpen, setIsKeyboardOpen] = useVirtualKeyboard(open);
-  const closeRequestedRef = useRef(false);
-  const attemptIdRef = useRef<string | null>(null);
   const dialogRef = useRef<HTMLElement>(null);
   const providerLocked = Boolean(initialProvider && initialLabel?.trim());
   const { provider } = draft;
   const strategy = strategyFor(provider);
-
-  const update = (patch: Partial<AddAccountDraft>) => setDraft((current) => ({ ...current, ...patch }));
-
-  useEffect(() => {
-    if (!open) {
-      closeRequestedRef.current = true;
-      setDraft(emptyDraft("anthropic"));
-      setModelsBusy(false);
-      setStatus(null);
-      setBusy(false);
-      setError(null);
-      setConfirmingDiscard(false);
-      attemptIdRef.current = null;
-    } else {
-      closeRequestedRef.current = false;
-      const nextProvider = initialProvider ?? "anthropic";
-      setDraft(emptyDraft(nextProvider, initialLabel?.trim() || defaultAccountName(nextProvider)));
-      setBaselineLabel(initialLabel?.trim() || defaultAccountName(nextProvider));
-      setModelsBusy(false);
-    }
-  }, [open, initialLabel, initialProvider, providerLocked, setError, setBusy, setModelsBusy]);
-
-  useEffect(() => {
-    if (!open) return;
-    return subscribeLoginStatus((next) => {
-      if (closeRequestedRef.current) return;
-      if (attemptIdRef.current !== next.attemptId) return;
-      setStatus(next);
+  const { status, setStatus, attemptIdRef, closeRequestedRef, adopt, retry: retryAttempt, abandon } = useLoginAttempt({
+    active: open,
+    onStatus: (next) => {
       if (next.status === "complete" && next.account) {
         onAdded(next.account);
         return;
@@ -103,20 +75,31 @@ export function AddAccountModal({
         setBusy(false);
         setError(next.message ?? `${connectLabel(provider)} authentication failed.`);
       }
-    });
-  }, [open, onAdded, provider, setError, setBusy]);
+    },
+  });
+
+  const update = (patch: Partial<AddAccountDraft>) => setDraft((current) => ({ ...current, ...patch }));
+
+  useEffect(() => {
+    if (!open) {
+      setDraft(emptyDraft("anthropic"));
+      setModelsBusy(false);
+      setBusy(false);
+      setError(null);
+      setConfirmingDiscard(false);
+    } else {
+      const nextProvider = initialProvider ?? "anthropic";
+      setDraft(emptyDraft(nextProvider, initialLabel?.trim() || defaultAccountName(nextProvider)));
+      setBaselineLabel(initialLabel?.trim() || defaultAccountName(nextProvider));
+      setModelsBusy(false);
+    }
+  }, [open, initialLabel, initialProvider, providerLocked, setError, setBusy, setModelsBusy]);
 
   const closeModal = () => {
-    closeRequestedRef.current = true;
-    const attemptId = status?.attemptId ?? attemptIdRef.current;
-    setStatus(null);
+    abandon();
     setBusy(false);
     setIsKeyboardOpen(false);
     document.documentElement.style.removeProperty("--visual-keyboard-height");
-    attemptIdRef.current = null;
-    if (attemptId) {
-      abandonLoginAttempt(attemptId);
-    }
     onClose();
   };
 
@@ -202,20 +185,7 @@ export function AddAccountModal({
       await recoverFromStaleLogin();
       start = await startLogin();
     }
-    if (closeRequestedRef.current) {
-      await bridgeApi.cancelLogin(start.attemptId).catch((cause) => logIgnored("login.cancel", cause));
-      return;
-    }
-    attemptIdRef.current = start.attemptId;
-    setStatus({
-      attemptId: start.attemptId,
-      status: "waiting",
-      message: strategy.signInStartMessage,
-      account: null,
-      projects: null,
-      selectedProjectId: null,
-    });
-    watchLoginAttempt(start.attemptId);
+    if (!(await adopt(start.attemptId, waitingStatus(start.attemptId, strategy.signInStartMessage)))) return;
     if (strategy.opensBrowser && start.authorizationUrl.trim()) {
       await openSafeUrl(start.authorizationUrl);
     }
@@ -245,18 +215,9 @@ export function AddAccountModal({
   };
 
   const retry = () => {
-    const attemptId = status?.attemptId ?? attemptIdRef.current;
-    if (attemptId && retryLoginAttempt(attemptId)) {
+    if (retryAttempt((attemptId) => waitingStatus(attemptId, "Reconnecting to the sign-in…"))) {
       setError(null);
       setBusy(true);
-      setStatus({
-        attemptId,
-        status: "waiting",
-        message: "Reconnecting to the sign-in…",
-        account: null,
-        projects: null,
-        selectedProjectId: null,
-      });
       return;
     }
     void begin();
