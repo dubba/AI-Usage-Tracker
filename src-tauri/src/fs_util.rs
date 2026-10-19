@@ -40,22 +40,21 @@ pub fn restrict_private_permissions(path: &Path) -> Result<(), String> {
 /// environment variable, which is unreliable on domain accounts and can be
 /// changed by anything that starts this process. Both helper tools run from
 /// `System32` by absolute path so nothing on `PATH` or in the working
-/// directory can stand in for them.
+/// directory can stand in for them. They are started with no console window,
+/// so a launch does not flash a terminal for each file.
 ///
 /// Secrets themselves live in Windows Credential Manager (DPAPI-backed) via
 /// the `keyring` crate in release builds; this function protects the metadata
 /// and debug-fallback files that remain on disk.
 #[cfg(windows)]
 pub fn restrict_private_permissions(path: &Path) -> Result<(), String> {
-    use std::process::Command;
-
     let sid = current_user_sid()?;
     let grant = if path.is_dir() {
         format!("*{sid}:(OI)(CI)F")
     } else {
         format!("*{sid}:F")
     };
-    let output = Command::new(system32_tool("icacls.exe"))
+    let output = hidden_command(system32_tool("icacls.exe"))
         .arg(path)
         .arg("/inheritance:r")
         .arg("/grant:r")
@@ -82,16 +81,34 @@ fn system32_tool(name: &str) -> PathBuf {
     Path::new(&root).join("System32").join(name)
 }
 
+/// `CreateProcess` flag: run a console program without allocating a console.
+///
+/// `whoami` and `icacls` are console programs. Started from this GUI app with
+/// the default flags, each one opens its own terminal (a Windows Terminal
+/// window, when that is the default console host). Stdout and stderr stay
+/// piped, so `.output()` still returns their text.
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+/// Starts `program` with no console window.
+#[cfg(windows)]
+fn hidden_command(program: PathBuf) -> std::process::Command {
+    use std::os::windows::process::CommandExt;
+    let mut command = std::process::Command::new(program);
+    command.creation_flags(CREATE_NO_WINDOW);
+    command
+}
+
 /// The current user's SID, looked up once per process.
 #[cfg(windows)]
 fn current_user_sid() -> Result<String, String> {
-    use std::{process::Command, sync::OnceLock};
+    use std::sync::OnceLock;
 
     static SID: OnceLock<String> = OnceLock::new();
     if let Some(sid) = SID.get() {
         return Ok(sid.clone());
     }
-    let output = Command::new(system32_tool("whoami.exe"))
+    let output = hidden_command(system32_tool("whoami.exe"))
         .args(["/user", "/fo", "csv", "/nh"])
         .output()
         .map_err(|error| {
@@ -248,6 +265,21 @@ pub fn atomic_write_private(path: &Path, payload: &[u8]) -> Result<(), String> {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[cfg(windows)]
+    #[test]
+    fn hidden_command_still_returns_whoami_output() {
+        let output = hidden_command(system32_tool("whoami.exe"))
+            .args(["/user", "/fo", "csv", "/nh"])
+            .output()
+            .expect("whoami");
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(parse_whoami_sid(&String::from_utf8_lossy(&output.stdout)).is_some());
+    }
 
     #[test]
     fn whoami_output_yields_only_a_well_formed_sid() {

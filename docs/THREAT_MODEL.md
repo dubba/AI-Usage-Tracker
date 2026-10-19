@@ -101,7 +101,7 @@ renders `ApiIntegrationWindow.tsx` and can call only three bridge methods
 ### On-disk data
 
 All in the Tauri app data dir, written via `atomic_write_private` (temp + fsync + rename,
-owner-only, `fs_util.rs:203-245`): `accounts.json` (v2) + hard-link backup `accounts.json.bak`
+owner-only, `fs_util.rs:220-262`): `accounts.json` (v2) + hard-link backup `accounts.json.bak`
 (`accounts.rs:456-470`), `deleted-accounts.json` (tombstones ≤500), `account-order.json`,
 `usage-alerts.json`, `account-buckets.json`, `app-settings.json` (v3), `logs/app.log(.1)`
 (rotating, 256 KiB, `diagnostics.rs:22,73`), `*.invalid` quarantine (`state.rs:336-385`), and on
@@ -221,7 +221,7 @@ bridge degrades to a session-only token instead of persisting (`startup.rs:56-73
 
 | Guard | Code |
 | --- | --- |
-| All metadata writes atomic (`atomic_write_private`: temp in same dir, fsync, rename) and owner-only: 0600/0700 Unix, Windows ACLs applied via `icacls.exe`/`whoami.exe` invoked only by absolute System32 path with SID shape-validation | `fs_util.rs:11-13,48-159,203-245` |
+| All metadata writes atomic (`atomic_write_private`: temp in same dir, fsync, rename) and owner-only: 0600/0700 Unix, Windows ACLs applied via `icacls.exe`/`whoami.exe` invoked only by absolute System32 path with SID shape-validation | `fs_util.rs:11-13,50-210,220-262` |
 | Corrupt JSON quarantined to `*.invalid` and the store reloads | `state.rs:300-349` |
 | `accounts.json.bak` previous-version backup via hard link (atomic-write fallback); tombstone list capped at 500 | `accounts.rs:380-412,456-470` |
 | Grok login temp profiles: owner-only, swept at startup and on close/timeout | `grok_login.rs:213-265`, `backend.rs:31-32` |
