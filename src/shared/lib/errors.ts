@@ -91,6 +91,17 @@ export function recordErrorDetail(source: string, context: string | undefined, r
   if (recorded.length > MAX_RECORDED) recorded.shift();
 }
 
+/**
+ * The text for an error shown next to the thing that failed (a modal, a hook's own message), as
+ * `useAppErrors` builds it for the banners: `friendlyMessage`, with the raw detail kept for Copy
+ * Diagnostics. `source` names the feature in that report.
+ */
+export function describeError(source: string, context: string | undefined, cause: unknown): string {
+  const raw = errorMessage(cause);
+  recordErrorDetail(source, context, raw);
+  return friendlyMessage(context, raw);
+}
+
 export function recentErrorDetails(): string[] {
   return [...recorded];
 }

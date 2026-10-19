@@ -68,4 +68,22 @@ describe("ApiIntegrationWindow bearer token", () => {
     expect(tokenText()).toBe(MASKED_TOKEN);
     expect(document.querySelector(".bridge-token-value")?.classList.contains("is-revealed")).toBe(false);
   });
+
+  it("explains a failed reveal in plain words", async () => {
+    await open();
+    bridgeApi.revealBridgeToken.mockRejectedValue(new Error("Confirmation was declined."));
+    click(button("Reveal"));
+    await settle();
+    expect(document.querySelector("[role=alert]")?.textContent).toBe("Couldn't reveal the token: Confirmation was declined.");
+  });
+
+  it("explains a failed token change in plain words", async () => {
+    await open();
+    bridgeApi.regenerateToken.mockRejectedValue(new Error("error sending request"));
+    click(button("Regenerate"));
+    await settle();
+    expect(document.querySelector("[role=alert]")?.textContent).toBe(
+      "Couldn't generate a new token. Check your internet connection and try again.",
+    );
+  });
 });

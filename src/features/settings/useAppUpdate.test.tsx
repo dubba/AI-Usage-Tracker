@@ -206,7 +206,7 @@ describe("useAppUpdate", () => {
         await vi.advanceTimersByTimeAsync(MIN_CHECK_MS);
         await check;
       });
-      expect(latest.updateError).toContain("boom");
+      expect(latest.updateError).toBe("Couldn't check for updates: boom");
       expect(latest.updateBusy).toBeNull();
     });
   });
@@ -279,7 +279,7 @@ describe("useAppUpdate", () => {
       await act(async () => {
         await latest.installUpdate();
       });
-      expect(latest.updateError).toContain("disk full");
+      expect(latest.updateError).toBe("Couldn't install the update: disk full");
       expect(latest.updateBusy).toBeNull();
       expect(latest.updateProgress).toBeNull();
       expect(latest.updateMessage).toBeNull();

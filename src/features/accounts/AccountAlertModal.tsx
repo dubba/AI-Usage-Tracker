@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { bridgeApi } from "../../shared/lib/api";
+import { describeError } from "../../shared/lib/errors";
 import { BellIcon } from "../../shared/ui/icons";
 import type { Account, UsageAlertSetting, UsageWindow } from "../../types";
 import { canonicalWindow, isMonthlyWindow } from "../../shared/lib/usage-logic";
@@ -86,7 +87,7 @@ export function AccountAlertModal({
         setSettings(availableWindows.map((windowId) => saved.find((setting) => setting.windowId === windowId) ?? defaultSetting(windowId)));
       })
       .catch((cause) => {
-        if (!cancelled) setError(String(cause));
+        if (!cancelled) setError(describeError("alerts", "Couldn't load the alert settings", cause));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -107,7 +108,7 @@ export function AccountAlertModal({
       await bridgeApi.saveAccountAlerts(account.id, settings);
       onSaved();
     } catch (cause) {
-      setError(String(cause));
+      setError(describeError("alerts", "Couldn't save the alert settings", cause));
     } finally {
       setSaving(false);
     }

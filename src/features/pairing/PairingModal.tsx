@@ -24,6 +24,7 @@ import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError"
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { backdropMouseDown, useModalClosePolicy } from "../../shared/hooks/useModalClosePolicy";
 import {
+  describeError,
   errorMessage as rawErrorMessage,
   friendlyMessage,
   recordErrorDetail,
@@ -101,9 +102,7 @@ export function PairingModal({
   // Every pairing failure goes through the friendly-message utility: what was being done,
   // a plain explanation, and the raw detail kept for Copy Diagnostics.
   const showError = (context: string, cause: unknown) => {
-    const raw = rawErrorMessage(cause);
-    recordErrorDetail("pairing", context, raw);
-    setErrorMessage(friendlyMessage(context, raw));
+    setErrorMessage(describeError("pairing", context, cause));
   };
 
   // `showError` and `startLinkCode` are new on every render. The effects below call them through

@@ -1,5 +1,6 @@
 import { useEffect, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { pairingApi } from "../../../shared/lib/api";
+import { describeError } from "../../../shared/lib/errors";
 import { isMobileUserAgent } from "../../../shared/lib/platform";
 import { applyAutofocusAndZoom, getCameraStream } from "../lib/camera-stream";
 import {
@@ -173,7 +174,7 @@ export function useQrScanner<T extends string = string>(options: UseQrScannerOpt
           } else if (errName === "NotReadableError" || errName === "TrackStartError") {
             setCameraError("Camera is currently in use by another application.");
           } else {
-            setCameraError(`Camera error: ${String(err)}`);
+            setCameraError(describeError("pairing", "Camera error", err));
           }
           return;
         }
@@ -362,7 +363,7 @@ export function useQrScanner<T extends string = string>(options: UseQrScannerOpt
         };
         animFrameId = requestAnimationFrame(scan);
       } catch (err) {
-        setCameraError(`Camera error: ${String(err)}`);
+        setCameraError(describeError("pairing", "Camera error", err));
       }
     };
 

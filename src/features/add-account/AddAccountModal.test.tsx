@@ -149,7 +149,7 @@ describe("browser sign-in providers", () => {
     await settle();
     const errorEl = $(".modal-error");
     const actionsEl = $(".modal-actions");
-    expect(errorEl.textContent).toContain("network down");
+    expect(errorEl.textContent).toBe("Couldn't connect the account: network down");
     expect(Boolean(actionsEl.compareDocumentPosition(errorEl) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
     expect(primary().disabled).toBe(false);
 
@@ -434,7 +434,7 @@ describe("Google AI Studio", () => {
     expect(document.querySelectorAll(".google-model-option")).toHaveLength(2);
     click($(".google-load-models"));
     await settle();
-    expect($(".modal-error").textContent).toContain("bad key");
+    expect($(".modal-error").textContent).toBe("Couldn't load models for this key: bad key");
     expect(document.querySelectorAll(".google-model-option")).toHaveLength(0);
   });
 

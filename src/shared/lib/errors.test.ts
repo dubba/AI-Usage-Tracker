@@ -3,6 +3,7 @@ import {
   classifyError,
   clearError,
   clearRecordedErrorDetails,
+  describeError,
   errorMessage,
   friendlyMessage,
   recentErrorDetails,
@@ -128,6 +129,28 @@ describe("friendlyMessage", () => {
       "Couldn't remove Claude: The account is already gone.",
     );
     expect(friendlyMessage(undefined, "Sign in again.")).toBe("Sign in again.");
+  });
+});
+
+describe("describeError", () => {
+  beforeEach(() => clearRecordedErrorDetails());
+
+  it("names what was being done, without the Error: prefix of a bare String(cause)", () => {
+    const text = describeError("alerts", "Couldn't save the alert settings", new Error("Threshold out of range"));
+    expect(text).toBe("Couldn't save the alert settings: Threshold out of range");
+    expect(text).not.toMatch(/Error:/);
+  });
+
+  it("replaces technical and network detail with a plain sentence", () => {
+    expect(describeError("s", "Couldn't load", new TypeError("TypeError: x is not a function"))).toMatch(/background service/);
+    expect(describeError("s", "Couldn't load", "error sending request for url")).toBe(
+      "Couldn't load. Check your internet connection and try again.",
+    );
+  });
+
+  it("keeps the raw detail for Copy Diagnostics", () => {
+    describeError("update", "Couldn't install the update", "disk full");
+    expect(recentErrorDetails()).toEqual([expect.stringContaining("[update] Couldn't install the update: disk full")]);
   });
 });
 

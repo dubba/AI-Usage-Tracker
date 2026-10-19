@@ -1,14 +1,15 @@
 # Changelog
 
-## Unreleased (12 changes)
+## Unreleased (13 changes)
 
 ### Added (2)
 
 - Cmd+A (Ctrl+A on Windows and Linux) can now be used alongside Cmd+N (Ctrl+N) to open the Add Account dialog.
 - Cmd+S (Ctrl+S on Windows and Linux) can now be used alongside Cmd+, (Ctrl+,) to open the settings page, and pressing either while on Settings returns to the accounts dashboard.
 
-### Improved (5)
+### Improved (6)
 
+- Errors in the Add Account dialog, the Paseo Bridge window, account alerts, the Google AI Studio connection, app updates and the camera scanner now say what failed in plain words, and technical failures no longer show raw text such as "Error: …". They are also included in Copy Diagnostics.
 - In Settings, whether the Advanced section is expanded or collapsed is now remembered when switching between views and across app restarts.
 - In the keyboard shortcuts card in Settings, the shortcut is now labeled "Switch between Settings and Dashboard page".
 - The sidebar now starts wide enough for "Accounts synced 2m ago" to fit on one line until you resize it, and double-clicking its resize handle sets that width again instead of resetting it to a fixed default.

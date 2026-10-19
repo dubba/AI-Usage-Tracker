@@ -8,6 +8,7 @@ import {
   strategyFor,
   type AddAccountDraft,
 } from "./strategies";
+import { describeError } from "../../shared/lib/errors";
 import { logIgnored } from "../../shared/lib/log";
 import { isAndroid as detectAndroid, isIOS } from "../../shared/lib/platform";
 import { PROVIDER_META } from "../../shared/lib/providers";
@@ -184,7 +185,7 @@ export function AddAccountModal({
       }));
     } catch (cause) {
       update({ availableModels: [], selectedModels: [] });
-      setError(String(cause));
+      setError(describeError("add-account", "Couldn't load models for this key", cause));
     } finally {
       setModelsBusy(false);
     }
@@ -241,7 +242,7 @@ export function AddAccountModal({
     } catch (cause) {
       if (!closeRequestedRef.current) {
         setBusy(false);
-        setError(String(cause));
+        setError(describeError("add-account", "Couldn't connect the account", cause));
       }
     }
   };

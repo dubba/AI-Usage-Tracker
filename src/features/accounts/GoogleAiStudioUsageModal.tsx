@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { openSafeUrl } from "../../shared/lib/safeUrl";
 import { bridgeApi, readLoginAttempt } from "../../shared/lib/api";
+import { describeError } from "../../shared/lib/errors";
 import { logIgnored } from "../../shared/lib/log";
 import { abandonLoginAttempt, getLastLoginStatus, retryLoginAttempt, subscribeLoginStatus, watchLoginAttempt } from "../../shared/lib/login-status";
 import type { Account, CloudProjectOption, LoginStatus } from "../../types";
@@ -134,7 +135,7 @@ export function GoogleAiStudioUsageModal({
     } catch (cause) {
       if (!closeRequestedRef.current) {
         setBusy(false);
-        setError(String(cause));
+        setError(describeError("google-ai-studio", "Couldn't start the Google Cloud connection", cause));
       }
     }
   };

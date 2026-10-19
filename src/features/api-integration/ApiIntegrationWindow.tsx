@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { bridgeApi } from "../../shared/lib/api";
+import { describeError } from "../../shared/lib/errors";
 import { EyeIcon, EyeOffIcon, RefreshIcon } from "../../shared/ui/icons";
 import type { BridgeInfo } from "../../types";
 
@@ -46,7 +47,7 @@ export function ApiIntegrationWindow() {
       setBridge(next);
       setError(null);
     } catch (cause) {
-      setError(String(cause));
+      setError(describeError("api-integration", "Couldn't load the Paseo Bridge details", cause));
     }
   }, []);
 
@@ -80,7 +81,7 @@ export function ApiIntegrationWindow() {
       setRevealed(true);
       setError(null);
     } catch (cause) {
-      setError(String(cause));
+      setError(describeError("api-integration", "Couldn't reveal the token", cause));
     }
   };
 
@@ -95,7 +96,7 @@ export function ApiIntegrationWindow() {
         COPIED_FEEDBACK_MS
       );
     } catch (cause) {
-      setError(`Unable to copy: ${String(cause)}`);
+      setError(describeError("api-integration", "Couldn't copy to the clipboard", cause));
     }
   };
 
@@ -114,7 +115,7 @@ export function ApiIntegrationWindow() {
       const token = await confirmedToken();
       await copy(token, "token");
     } catch (cause) {
-      setError(String(cause));
+      setError(describeError("api-integration", "Couldn't copy the token", cause));
     }
   };
 
@@ -127,7 +128,7 @@ export function ApiIntegrationWindow() {
         "env",
       );
     } catch (cause) {
-      setError(String(cause));
+      setError(describeError("api-integration", "Couldn't copy the settings", cause));
     }
   };
 
@@ -140,7 +141,7 @@ export function ApiIntegrationWindow() {
       setFullToken(null);
       setError(null);
     } catch (cause) {
-      setError(String(cause));
+      setError(describeError("api-integration", "Couldn't generate a new token", cause));
     } finally {
       setBusy(false);
     }
