@@ -4,7 +4,6 @@ import {
   applyPageUiState,
   clearPendingAllOrder,
   collectPageUiState,
-  DASHBOARD_PAGE_ORDER_EVENT,
   isCardCollapsedOnPage,
   migrateLegacyAllPageOrder,
   migrateLegacyCollapsedCards,
@@ -14,6 +13,7 @@ import {
   storePageAccountOrder,
   whileSavingAllOrder,
 } from "./dashboard-page-state";
+import { UI_EVENTS } from "../../shared/lib/events";
 import { STORAGE_PREFIXES } from "../../shared/lib/storage";
 import { captureEvents, installFakeWindow } from "../../test-utils/fakeWindow";
 import type { Account } from "../../types";
@@ -70,7 +70,7 @@ describe("collapsed cards", () => {
 
 describe("page account order", () => {
   it("stores the order and announces the change", () => {
-    const events = captureEvents(env.window, DASHBOARD_PAGE_ORDER_EVENT);
+    const events = captureEvents(env.window, UI_EVENTS.pageOrderChanged);
     storePageAccountOrder("bucket:b1", ["b", "a"]);
     expect(readPageAccountOrder("bucket:b1")).toEqual(["b", "a"]);
     expect(events).toEqual([{ pageId: "bucket:b1", order: ["b", "a"] }]);
@@ -96,7 +96,7 @@ describe("page account order", () => {
 
 describe("the all page follows the backend order", () => {
   it("shows a just-dragged order without saving it anywhere", () => {
-    const events = captureEvents(env.window, DASHBOARD_PAGE_ORDER_EVENT);
+    const events = captureEvents(env.window, UI_EVENTS.pageOrderChanged);
     storePageAccountOrder("all", ["c", "a", "b"]);
     expect(events).toEqual([{ pageId: "all", order: ["c", "a", "b"] }]);
     expect(env.localStorage.getItem(`${STORAGE_PREFIXES.pageAccountOrder}all`)).toBeNull();

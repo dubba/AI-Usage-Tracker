@@ -4,8 +4,6 @@ import { DEFAULT_PROVIDER_ORDER } from "../../shared/lib/providers";
 import { readJson, storageGet, STORAGE_KEYS, writeJson } from "../../shared/lib/storage";
 import type { Provider } from "../../types";
 
-export const DASHBOARD_PROVIDER_ORDER_EVENT = UI_EVENTS.providerOrderChanged;
-export const DASHBOARD_GROUP_ORDER_EVENT = UI_EVENTS.groupOrderChanged;
 
 export const KNOWN_PROVIDERS: Provider[] = [...DEFAULT_PROVIDER_ORDER];
 
@@ -60,8 +58,8 @@ export function storeSidebarGroupOrder(order: string[]): void {
   }
   writeJson(STORAGE_KEYS.providerOrder, derivedProviders);
 
-  window.dispatchEvent(new CustomEvent<string[]>(DASHBOARD_GROUP_ORDER_EVENT, { detail: deduped }));
-  window.dispatchEvent(new CustomEvent<Provider[]>(DASHBOARD_PROVIDER_ORDER_EVENT, { detail: derivedProviders }));
+  window.dispatchEvent(new CustomEvent<string[]>(UI_EVENTS.groupOrderChanged, { detail: deduped }));
+  window.dispatchEvent(new CustomEvent<Provider[]>(UI_EVENTS.providerOrderChanged, { detail: derivedProviders }));
 }
 
 export function readDashboardProviderOrder(): Provider[] {

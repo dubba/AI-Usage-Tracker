@@ -83,7 +83,6 @@ export function PairingModal({
   const [isFrontCamera, setIsFrontCamera] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
-  const [, setSelectedCameraId] = useState<string | null>(null);
   const [isKeyboardOpen, setIsKeyboardOpen] = useVirtualKeyboard(open);
   const [airgapExport, setAirgapExport] = useState<AirgapExport | null>(null);
   const [scannerRestartKey, setScannerRestartKey] = useState(0);
@@ -145,7 +144,6 @@ export function PairingModal({
     setCameraError,
     setVideoReady,
     setAvailableCameras,
-    setSelectedCameraId,
     setIsFrontCamera,
     setAirgapCapturedChunks: capture.setChunks,
     setAirgapTotalChunks: capture.setTotal,
@@ -442,7 +440,6 @@ export function PairingModal({
       setConfirmedSas(false);
       setIncludeSettings(true);
       setIsFrontCamera(false);
-      setSelectedCameraId(null);
       setAvailableCameras([]);
       setAirgapExport(null);
       setWifiPrompt(null);

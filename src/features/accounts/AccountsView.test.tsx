@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { UI_EVENTS } from "../../shared/lib/events";
 import { click, mount, type Mounted } from "../../test-utils/react";
 import type { Account, AccountBucket } from "../../types";
 import { ALL_ACCOUNTS_GROUP_ID, type SidebarGroup } from "../dashboard/sidebar-groups";
@@ -20,6 +21,9 @@ const account = {
   lastError: null,
   authRequired: false,
 } as Account;
+
+/** An account that needs nothing: it has live usage. (`account` above has none, so it needs attention.) */
+const healthyAccount = { ...account, id: "acct-healthy", lastUsage: { freshness: "live", windows: [] } } as unknown as Account;
 
 const allGroup: SidebarGroup = {
   id: ALL_ACCOUNTS_GROUP_ID,
@@ -53,7 +57,6 @@ function renderView(overrides: Partial<Parameters<typeof AccountsView>[0]> = {})
       allAccounts={[]}
       accounts={[]}
       selectedGroup={allGroup}
-      needsAttention={0}
       refreshMinutes={15}
       onAdd={() => undefined}
       onRefresh={() => undefined}
@@ -174,10 +177,9 @@ describe("AccountsView summary cards", () => {
 
   it("displays total accounts count and healthy count in Accounts card", () => {
     app = renderView({
-      allAccounts: [account, { ...account, id: "acct-2" }],
-      accounts: [account, { ...account, id: "acct-2" }],
-      selectedGroup: { ...allGroup, accounts: [account, { ...account, id: "acct-2" }] },
-      needsAttention: 1,
+      allAccounts: [account, healthyAccount],
+      accounts: [account, healthyAccount],
+      selectedGroup: { ...allGroup, accounts: [account, healthyAccount] },
     });
     const totalCard = document.querySelector(".summary-card.total-card")!;
     expect(totalCard).not.toBeNull();
@@ -190,7 +192,6 @@ describe("AccountsView summary cards", () => {
       allAccounts: [account, { ...account, id: "acct-2" }],
       accounts: [account, { ...account, id: "acct-2" }],
       selectedGroup: { ...allGroup, accounts: [account, { ...account, id: "acct-2" }] },
-      needsAttention: 2,
     });
     const attentionBtn = document.querySelector<HTMLButtonElement>("button.summary-card.attention-card");
     expect(attentionBtn).not.toBeNull();
@@ -208,10 +209,9 @@ describe("AccountsView summary cards", () => {
 
   it("renders Action Needed as a non-interactive div when all accounts are good", () => {
     app = renderView({
-      allAccounts: [account],
-      accounts: [account],
-      selectedGroup: { ...allGroup, accounts: [account] },
-      needsAttention: 0,
+      allAccounts: [healthyAccount],
+      accounts: [healthyAccount],
+      selectedGroup: { ...allGroup, accounts: [healthyAccount] },
     });
     expect(document.querySelector("button.summary-card.attention-card")).toBeNull();
     const attentionDiv = document.querySelector<HTMLDivElement>("div.summary-card.attention-card")!;
@@ -301,7 +301,7 @@ describe("AccountsView reorder hint banner", () => {
 
     // Trigger an actual reorder event
     act(() => {
-      window.dispatchEvent(new CustomEvent("ai-subscription-tracker:page-order-changed", {
+      window.dispatchEvent(new CustomEvent(UI_EVENTS.pageOrderChanged, {
         detail: { pageId: "all", order: ["acct-2", account.id] },
       }));
     });

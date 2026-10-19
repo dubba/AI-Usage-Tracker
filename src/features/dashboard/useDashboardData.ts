@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { ReportError } from "../../shared/lib/errors";
 import { bridgeApi } from "../../shared/lib/api";
 import { withTimeout } from "../../shared/lib/async-utils";
 import { DEFAULT_ACCOUNT_REFRESH_MINUTES } from "../../shared/lib/constants";
@@ -18,8 +19,6 @@ import type { DashboardSnapshot } from "../../types";
 const DASHBOARD_SYNC_INTERVAL_MS = 30 * 1000;
 const STARTUP_REFRESH_DELAY_MS = 3 * 1000;
 const LOAD_TIMEOUT_MS = 10_000;
-
-type ReportError = (source: string, cause: unknown, context?: string) => void;
 
 /** Owns the dashboard snapshot: polling, startup refresh, and refresh-when-due on return. */
 export function useDashboardData({

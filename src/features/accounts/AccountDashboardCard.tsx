@@ -36,11 +36,11 @@ import { isGoogleKeyOnly, isGoogleSetupPending } from "../../shared/lib/usage-so
 import { reorderKeyDelta } from "../reorder/reorder-utils";
 import { AccountUsageMetric } from "./AccountUsageMetric";
 import { CREDENTIAL_PROTECTION_ACCOUNT_NOTE } from "../dashboard/credential-protection";
+import { computeDropdownPlacement } from "../../shared/ui/dropdown-placement";
 
 /** Id of the visually hidden hint that AccountsView renders once for every card. */
 export const REORDER_HINT_ID = "account-reorder-hint";
 
-import { computeDropdownPlacement } from "../../shared/ui/dropdown-placement";
 
 export const MENU_GAP = 8;
 export const MENU_ESTIMATED_HEIGHT_MOVE = 220;

@@ -95,7 +95,6 @@ export function AccountsView(props: {
   allAccounts: Account[];
   accounts: Account[];
   selectedGroup: SidebarGroup;
-  needsAttention: number;
   refreshMinutes: number;
   onToggleSidebar?: () => void;
   sidebarOpen?: boolean;
@@ -121,11 +120,13 @@ export function AccountsView(props: {
     setShowAttentionOnly(false);
   }, [props.selectedGroup.id]);
 
+  const needsAttention = useMemo(() => props.accounts.filter(accountNeedsAttention).length, [props.accounts]);
+
   useEffect(() => {
-    if (showAttentionOnly && props.needsAttention === 0) {
+    if (showAttentionOnly && needsAttention === 0) {
       setShowAttentionOnly(false);
     }
-  }, [showAttentionOnly, props.needsAttention]);
+  }, [showAttentionOnly, needsAttention]);
 
   const displayedAccounts = useMemo(() => {
     if (!showAttentionOnly) return props.accounts;
@@ -237,8 +238,8 @@ export function AccountsView(props: {
             <div>
               <span className="summary-label">Accounts</span>
               <strong className="summary-helper">
-                {props.needsAttention > 0
-                  ? `${props.accounts.length - props.needsAttention} healthy`
+                {needsAttention > 0
+                  ? `${props.accounts.length - needsAttention} healthy`
                   : "Total"}
               </strong>
             </div>
@@ -247,7 +248,7 @@ export function AccountsView(props: {
               <UsersIcon />
             </div>
           </div>
-          {props.needsAttention > 0 ? (
+          {needsAttention > 0 ? (
             <button
               type="button"
               className={`summary-card attention-card has-attention is-clickable ${showAttentionOnly ? "is-filtering" : ""}`}
@@ -269,7 +270,7 @@ export function AccountsView(props: {
                 </strong>
               </div>
               <div className="summary-value-cluster">
-                <strong>{props.needsAttention}</strong>
+                <strong>{needsAttention}</strong>
                 <AlertCircleIcon />
               </div>
               <span id={ATTENTION_HINT_ID} className="sr-only">

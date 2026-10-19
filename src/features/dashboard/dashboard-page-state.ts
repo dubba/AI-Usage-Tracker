@@ -3,7 +3,6 @@ import { UI_EVENTS } from "../../shared/lib/events";
 import { readJson, storageGet, storageKeys, storageRemove, storageSet, STORAGE_PREFIXES, writeJson } from "../../shared/lib/storage";
 import type { Account } from "../../types";
 
-export const DASHBOARD_PAGE_ORDER_EVENT = UI_EVENTS.pageOrderChanged;
 
 const COLLAPSED_PREFIX = STORAGE_PREFIXES.cardCollapsed;
 const PAGE_ORDER_PREFIX = STORAGE_PREFIXES.pageAccountOrder;
@@ -98,7 +97,7 @@ export function storePageAccountOrder(pageId: string, accountIds: string[]): voi
     writeJson(`${PAGE_ORDER_PREFIX}${pageId}`, accountIds);
   }
   window.dispatchEvent(
-    new CustomEvent(DASHBOARD_PAGE_ORDER_EVENT, { detail: { pageId, order: accountIds } }),
+    new CustomEvent(UI_EVENTS.pageOrderChanged, { detail: { pageId, order: accountIds } }),
   );
 }
 

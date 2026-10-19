@@ -26,15 +26,12 @@ import { UsageAlertToasts } from "../features/alerts/UsageAlertToasts";
 import "../features/pairing/pairing.css";
 import { persistGroupOrder } from "../features/reorder";
 import {
-  DASHBOARD_GROUP_ORDER_EVENT,
-  DASHBOARD_PROVIDER_ORDER_EVENT,
   readDashboardProviderOrder,
   readSidebarGroupOrder,
   storeSidebarGroupOrder,
 } from "../features/dashboard/sidebar-order";
 import {
   applyPageAccountOrder,
-  DASHBOARD_PAGE_ORDER_EVENT,
   migrateLegacyAllPageOrder,
   migrateLegacyCollapsedCards,
 } from "../features/dashboard/dashboard-page-state";
@@ -66,8 +63,8 @@ import {
   type SidebarGroup,
 } from "../features/dashboard/sidebar-groups";
 import { moveAnnouncement, moveById } from "../features/reorder/reorder-utils";
-import { requestDashboardResync } from "../shared/lib/events";
-import { accountNeedsAttention, displayAccountLabel, googleAiStudioHasQuotaWindows } from "../shared/lib/usage-logic";
+import { requestDashboardResync, UI_EVENTS } from "../shared/lib/events";
+import { displayAccountLabel, googleAiStudioHasQuotaWindows } from "../shared/lib/usage-logic";
 import type { Account, AccountBucket, Provider } from "../types";
 
 // One shared empty list, so the "not loaded yet" value is the same object on every render.
@@ -184,8 +181,8 @@ export default function App() {
   useEffect(() => {
     migrateLegacyCollapsedCards();
     const onPageOrder = () => setPageOrderTick((tick) => tick + 1);
-    window.addEventListener(DASHBOARD_PAGE_ORDER_EVENT, onPageOrder);
-    return () => window.removeEventListener(DASHBOARD_PAGE_ORDER_EVENT, onPageOrder);
+    window.addEventListener(UI_EVENTS.pageOrderChanged, onPageOrder);
+    return () => window.removeEventListener(UI_EVENTS.pageOrderChanged, onPageOrder);
   }, []);
 
   // Older versions kept a separate saved order for the "all" page. Once the accounts are known,
@@ -233,11 +230,11 @@ export default function App() {
       setProviderOrder(readDashboardProviderOrder());
       setSidebarGroupOrder(readSidebarGroupOrder());
     };
-    window.addEventListener(DASHBOARD_GROUP_ORDER_EVENT, handleOrderChange);
-    window.addEventListener(DASHBOARD_PROVIDER_ORDER_EVENT, handleOrderChange);
+    window.addEventListener(UI_EVENTS.groupOrderChanged, handleOrderChange);
+    window.addEventListener(UI_EVENTS.providerOrderChanged, handleOrderChange);
     return () => {
-      window.removeEventListener(DASHBOARD_GROUP_ORDER_EVENT, handleOrderChange);
-      window.removeEventListener(DASHBOARD_PROVIDER_ORDER_EVENT, handleOrderChange);
+      window.removeEventListener(UI_EVENTS.groupOrderChanged, handleOrderChange);
+      window.removeEventListener(UI_EVENTS.providerOrderChanged, handleOrderChange);
     };
   }, []);
 
@@ -298,7 +295,6 @@ export default function App() {
     void pageOrderTick;
     return applyPageAccountOrder(selectedGroup.accounts, selectedGroup.id);
   }, [selectedGroup, pageOrderTick]);
-  const needsAttention = visibleAccounts.filter(accountNeedsAttention).length;
 
   const loadError = errors.find((entry) => entry.source === "load");
 
@@ -381,7 +377,6 @@ export default function App() {
         allAccounts={accounts}
         accounts={visibleAccounts}
         selectedGroup={selectedGroup}
-        needsAttention={needsAttention}
         refreshMinutes={appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES}
         onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
         sidebarOpen={sidebarOpen}

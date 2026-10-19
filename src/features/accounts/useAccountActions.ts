@@ -1,10 +1,9 @@
 import { useCallback } from "react";
+import type { ReportError } from "../../shared/lib/errors";
 import { bridgeApi } from "../../shared/lib/api";
 import { busyKey, REFRESH_ALL_KEY, type BusyTracker } from "../../shared/lib/busy";
 import { displayAccountLabel } from "../../shared/lib/usage-logic";
 import type { Account, BridgeStatus, DashboardSnapshot } from "../../types";
-
-type ReportError = (source: string, cause: unknown, context?: string) => void;
 
 /** Per-account and bridge operations. Each one holds its own busy key and error source. */
 export function useAccountActions({

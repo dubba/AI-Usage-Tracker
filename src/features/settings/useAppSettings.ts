@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import type { ReportError } from "../../shared/lib/errors";
 import { bridgeApi } from "../../shared/lib/api";
 import { logIgnored } from "../../shared/lib/log";
 import type { AppSettings } from "../../types";
-
-type ReportError = (source: string, cause: unknown, context?: string) => void;
 
 export function useAppSettings({ reportError, clearError }: { reportError: ReportError; clearError: (source: string) => void }) {
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null);

@@ -1,8 +1,8 @@
 /** Names of the window-level custom events the UI modules use to tell each other about changes. */
 export const UI_EVENTS = {
-  providerOrderChanged: "ai-subscription-tracker:provider-order-changed",
-  groupOrderChanged: "ai-subscription-tracker:group-order-changed",
-  pageOrderChanged: "ai-subscription-tracker:page-order-changed",
+  providerOrderChanged: "ai-usage-tracker:provider-order-changed",
+  groupOrderChanged: "ai-usage-tracker:group-order-changed",
+  pageOrderChanged: "ai-usage-tracker:page-order-changed",
   loginStatus: "ai-usage-tracker:login-status",
   /** Something changed layout or data behind the scenes; re-read the snapshot and re-apply saved ordering. */
   dashboardResync: "ai-usage-tracker:dashboard-resync",

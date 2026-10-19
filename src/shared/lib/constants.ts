@@ -1,8 +1,8 @@
-// Shown only until getVersion() resolves; getVersion() is the single source of truth.
-// Derived from package.json so it cannot go stale between releases.
 /** Id of the sidebar element, referenced by the menu buttons that open it. */
 export const SIDEBAR_ID = "app-sidebar";
 
+// Shown only until getVersion() resolves; getVersion() is the single source of truth.
+// Derived from package.json so it cannot go stale between releases.
 export { version as FALLBACK_APP_VERSION } from "../../../package.json";
 
 /**

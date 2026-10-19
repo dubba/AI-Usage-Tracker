@@ -32,7 +32,6 @@ export interface UseQrScannerOptions<T extends string = string> {
   setCameraError: Dispatch<SetStateAction<string | null>>;
   setVideoReady: Dispatch<SetStateAction<boolean>>;
   setAvailableCameras: Dispatch<SetStateAction<MediaDeviceInfo[]>>;
-  setSelectedCameraId: Dispatch<SetStateAction<string | null>>;
   setIsFrontCamera: Dispatch<SetStateAction<boolean>>;
   setAirgapCapturedChunks: Dispatch<SetStateAction<Map<number, string>>>;
   setAirgapTotalChunks: Dispatch<SetStateAction<number>>;
@@ -62,7 +61,6 @@ export function useQrScanner<T extends string = string>(options: UseQrScannerOpt
     setCameraError,
     setVideoReady,
     setAvailableCameras,
-    setSelectedCameraId,
     setIsFrontCamera,
     setAirgapCapturedChunks,
     setAirgapTotalChunks,
@@ -83,7 +81,6 @@ export function useQrScanner<T extends string = string>(options: UseQrScannerOpt
         streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
       }
-      setSelectedCameraId(null);
       selectedCameraIdRef.current = null;
       setAvailableCameras([]);
       return;
@@ -207,10 +204,8 @@ export function useQrScanner<T extends string = string>(options: UseQrScannerOpt
                 currentTrack.stop();
                 stream = await getCameraStream(getUserMediaFn, primary.deviceId, isMobile);
                 selectedCameraIdRef.current = primary.deviceId;
-                setSelectedCameraId(primary.deviceId);
               } else if (primary?.deviceId) {
                 selectedCameraIdRef.current = primary.deviceId;
-                setSelectedCameraId(primary.deviceId);
               }
             }
           } catch (enumErr) {
@@ -388,7 +383,6 @@ export function useQrScanner<T extends string = string>(options: UseQrScannerOpt
     setCameraError,
     setVideoReady,
     setAvailableCameras,
-    setSelectedCameraId,
     setIsFrontCamera,
     setAirgapCapturedChunks,
     setAirgapTotalChunks,
@@ -445,7 +439,6 @@ export function useQrScanner<T extends string = string>(options: UseQrScannerOpt
 
           newStream = await getCameraStream(getUserMediaFn, nextDevice.deviceId, isMobile);
           selectedCameraIdRef.current = nextDevice.deviceId;
-          setSelectedCameraId(nextDevice.deviceId);
 
           const videoTrack = newStream.getVideoTracks()[0];
           const settings = videoTrack?.getSettings?.();

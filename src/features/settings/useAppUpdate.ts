@@ -6,6 +6,7 @@ import { isIOS } from "../../shared/lib/platform";
 import { describeError } from "../../shared/lib/errors";
 import { logIgnored } from "../../shared/lib/log";
 import type { AppUpdateProgress, AppUpdateStatus, UpdateBusy } from "../../types";
+import { useOnAppResume } from "../../shared/hooks/useOnAppResume";
 import { useTauriEvent } from "../../shared/hooks/useTauriEvent";
 
 const UPDATE_CHECK_INTERVAL_MS = 8 * 60 * 60 * 1000; // 8 hours
@@ -155,27 +156,16 @@ export function useAppUpdate({ automaticUpdatesEnabled }: { automaticUpdatesEnab
     if (version) handleUpdateNotice(version);
   });
 
-  useEffect(() => {
-    const checkPending = () => {
-      bridgeApi
-        .getPendingUpdateNotice()
-        .then((ver) => {
-          if (ver) handleUpdateNotice(ver);
-        })
-        .catch((cause) => {
-          logIgnored("pending update notice on focus", cause);
-        });
-    };
-    window.addEventListener("focus", checkPending);
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") checkPending();
-    };
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => {
-      window.removeEventListener("focus", checkPending);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
-  }, [handleUpdateNotice]);
+  useOnAppResume(() => {
+    bridgeApi
+      .getPendingUpdateNotice()
+      .then((ver) => {
+        if (ver) handleUpdateNotice(ver);
+      })
+      .catch((cause) => {
+        logIgnored("pending update notice on focus", cause);
+      });
+  });
 
   return {
     installedVersion,

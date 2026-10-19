@@ -2,6 +2,9 @@ import { useCallback, useState } from "react";
 
 export type AppError = { source: string; message: string };
 
+/** Shows an error banner for `source`; `context` says what was being done. Provided by `useAppErrors`. */
+export type ReportError = (source: string, cause: unknown, context?: string) => void;
+
 /** Turns anything thrown (Error, Tauri's string rejections, objects) into readable text. */
 export function errorMessage(cause: unknown): string {
   if (cause instanceof Error) return cause.message.trim() || "Something went wrong.";
