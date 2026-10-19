@@ -558,17 +558,16 @@ pub async fn import_sync_payload_with_replace(
                 }
             }
             // Only save if length matches
-            if remapped.len() == state.store.list().len() {
-                if state
+            if remapped.len() == state.store.list().len()
+                && state
                     .account_order
                     .save(remapped, state.store.list())
                     .is_err()
-                {
-                    summary.warn(
-                        "Pairing import: the account order could not be saved.",
-                        "The account order couldn't be saved.",
-                    );
-                }
+            {
+                summary.warn(
+                    "Pairing import: the account order could not be saved.",
+                    "The account order couldn't be saved.",
+                );
             }
         }
     }
@@ -580,13 +579,13 @@ pub async fn import_sync_payload_with_replace(
                 .get(&entry.account_id)
                 .cloned()
                 .unwrap_or(entry.account_id);
-            if state.store.get(&target_id).is_some() {
-                if state.alerts.save(&target_id, entry.settings).is_err() {
-                    summary.warn(
-                        "Pairing import: usage alerts could not be saved.",
-                        "Some usage alerts couldn't be saved.",
-                    );
-                }
+            if state.store.get(&target_id).is_some()
+                && state.alerts.save(&target_id, entry.settings).is_err()
+            {
+                summary.warn(
+                    "Pairing import: usage alerts could not be saved.",
+                    "Some usage alerts couldn't be saved.",
+                );
             }
         }
     }
