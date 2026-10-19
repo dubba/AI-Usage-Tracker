@@ -2,12 +2,11 @@ use super::{
     oauth_refresh::{
         refresh_oauth_secret, IdToken, InvalidGrant, Lifetime, RefreshBody, RefreshRequest,
     },
-    ProviderError, ProviderUsage,
+    with_fresh_secret, ProviderError, ProviderUsage,
 };
 use crate::{
     model::{Account, OAuthSecret, ProviderSecret, UsageWindow},
     state::AppState,
-    store::save_provider_secret,
 };
 use reqwest::{header::RETRY_AFTER, StatusCode};
 use serde::Deserialize;
@@ -47,25 +46,16 @@ struct RawUsage {
 pub async fn refresh(
     app: &AppState,
     account: &Account,
-    mut secret: OAuthSecret,
+    secret: OAuthSecret,
 ) -> Result<(ProviderUsage, OAuthSecret), ProviderError> {
-    if secret.expires_within(300) {
-        secret = refresh_secret(app, &secret).await?;
-        save_provider_secret(&account.id, &ProviderSecret::Anthropic(secret.clone())).map_err(
-            |_| ProviderError::Transient("Unable to save refreshed credentials.".into()),
-        )?;
-    }
-
-    let raw = match call_usage(app, &secret).await {
-        Err(ProviderError::Auth) => {
-            secret = refresh_secret(app, &secret).await?;
-            save_provider_secret(&account.id, &ProviderSecret::Anthropic(secret.clone())).map_err(
-                |_| ProviderError::Transient("Unable to save refreshed credentials.".into()),
-            )?;
-            call_usage(app, &secret).await?
-        }
-        result => result?,
-    };
+    let (raw, secret) = with_fresh_secret(
+        account,
+        secret,
+        ProviderSecret::Anthropic,
+        |secret| Box::pin(async move { refresh_secret(app, &secret).await }),
+        |secret| Box::pin(async move { call_usage(app, &secret).await }),
+    )
+    .await?;
 
     let windows = windows_from_raw(&raw);
     if windows.is_empty() {
