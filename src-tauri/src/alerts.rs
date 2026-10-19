@@ -442,6 +442,46 @@ mod tests {
             .is_err());
     }
 
+    /// `canonical_window_id` and the frontend's `canonicalWindow` / `isMonthlyWindow` classify
+    /// the same sample windows (`window-kinds.fixture.json`). Where they disagree today, the
+    /// fixture records it as a known exception, so a change in either one fails a test.
+    #[test]
+    fn window_kind_parity_fixture_matches_the_frontend() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../src/shared/lib/window-kinds.fixture.json"
+        ))
+        .unwrap();
+        let cases = fixture["cases"].as_array().unwrap();
+        assert!(cases.len() > 20);
+        for case in cases {
+            let name = case["name"].as_str().unwrap();
+            let window = UsageWindow {
+                id: case["id"].as_str().unwrap().to_string(),
+                label: case["label"].as_str().unwrap().to_string(),
+                used_percent: None,
+                remaining_percent: None,
+                resets_at: None,
+                window_seconds: case["windowSeconds"].as_u64(),
+            };
+            let kind = &case["kind"];
+            let expected = match case["knownExceptions"].get("rust") {
+                Some(exception) => {
+                    assert_ne!(
+                        exception, kind,
+                        "{name}: exception equals the intended kind"
+                    );
+                    exception
+                }
+                None => kind,
+            };
+            assert_eq!(
+                canonical_window_id(&window),
+                expected.as_str(),
+                "{name}: Rust classification differs from the fixture"
+            );
+        }
+    }
+
     #[test]
     fn canonical_window_id_recognizes_aliases_and_sub_windows() {
         let w1 = UsageWindow {
