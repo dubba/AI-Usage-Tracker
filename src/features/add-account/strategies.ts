@@ -66,7 +66,7 @@ export interface ProviderStrategy {
   /** False while a required field is empty, which keeps the primary button disabled. */
   isReady(draft: AddAccountDraft): boolean;
   /** Explains the sign-in under the title when reconnecting. */
-  description(env: { isMobileOs: boolean }): string;
+  description(env: { isMobileOs: boolean; isAndroid: boolean }): string;
   /** Status text shown the moment a sign-in starts; null when the browser callback speaks for itself. */
   signInStartMessage: string | null;
   /** Text for the waiting panel; `backendMessage` is what the backend last reported. */
@@ -89,10 +89,14 @@ const browserSignIn = (provider: Provider): ProviderStrategy => ({
   connectMode: () => "sign-in",
   validate: () => null,
   isReady: () => true,
-  description: ({ isMobileOs }) =>
-    isMobileOs
-      ? `The ${connectLabel(provider)} sign-in page opens in the app. Choose or enter the account. Back at the top left returns you here. Passwords never pass through this app.`
-      : `A sign-in window opens on top of the app. Choose or enter the account there. Back at the top left returns you here. Passwords never pass through this app.`,
+  // Android signs in in a browser tab over the app (sign_in_tab.rs): Google refuses sign-in inside
+  // the app's own page there.
+  description: ({ isMobileOs, isAndroid }) =>
+    isAndroid
+      ? `The ${connectLabel(provider)} sign-in page opens in a browser tab over the app. Choose or enter the account there, and the app comes back once you are signed in. Closing the tab returns you here. Passwords never pass through this app.`
+      : isMobileOs
+        ? `The ${connectLabel(provider)} sign-in page opens in the app. Choose or enter the account. Back at the top left returns you here. Passwords never pass through this app.`
+        : `A sign-in window opens on top of the app. Choose or enter the account there. Back at the top left returns you here. Passwords never pass through this app.`,
   signInStartMessage: null,
   waitingText: () => "Waiting for sign-in…",
   opensBrowser: true,

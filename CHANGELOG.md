@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased (3 changes)
+## Unreleased (4 changes)
 
-### Fixed (2)
+### Fixed (3)
 
+- On Android, signing in to Claude, ChatGPT or Antigravity now opens the sign-in page in a browser tab over the app (Chrome, or your default browser when it supports this) instead of inside the app, so "Continue with Google" no longer fails with "This browser or app may not be secure" or a "400. That's an error" page. The "Account connected" page in the tab counts down from 5 and has the red X in the corner, which returns to the app straight away; the app comes back by itself when the countdown ends. Closing the tab returns you to the app without signing in. For Claude and ChatGPT the tab is a private one that starts signed out (Chrome 136 or newer), so "Continue with Google" asks which account to use instead of reusing your browser's. Antigravity's tab shares your browser's sign-ins and shows Google's account chooser with "Use another account". With a browser that has no private tabs, Claude and ChatGPT use your browser's sign-ins: if one goes straight to an account you don't want, use "Switch account" on its page, or sign out of it in your browser. Grok and OpenCode still sign in inside the app.
 - Antigravity accounts now show the separate Gemini 4 Argon weekly limit. Google only sends that group to clients that identify as the Antigravity App, so the app now identifies itself the same way when it asks for usage limits.
 - Aligned the group view header and horizontal divider line to match provider account views, preventing the group badge and edit button from inflating header height and pushing the divider downward.
 

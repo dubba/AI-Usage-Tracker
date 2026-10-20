@@ -269,7 +269,7 @@ describe("browser sign-in providers", () => {
   it("describes the sign-in differently on Android", () => {
     Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Linux; Android 14)", configurable: true });
     render({ initialProvider: "openai", initialLabel: "ChatGPT" });
-    expect(document.body.textContent).toContain("The OpenAI ChatGPT sign-in page opens in the app.");
+    expect(document.body.textContent).toContain("The OpenAI ChatGPT sign-in page opens in a browser tab over the app.");
   });
 });
 

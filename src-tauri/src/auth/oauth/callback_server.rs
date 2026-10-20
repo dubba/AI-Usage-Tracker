@@ -105,7 +105,12 @@ pub(super) async fn handle_callback(
     match complete_exchange(&context, &code).await {
         Ok(account) => {
             stop_callback(&context).await;
-            callback_html(account_connected_html("Account connected", &account))
+            let page = if crate::auth::sign_in_tab::is_open_for(&context.attempt_id) {
+                account_connected_in_tab_html("Account connected", &account)
+            } else {
+                account_connected_html("Account connected", &account)
+            };
+            callback_html(page)
         }
         Err(error) => {
             if error.is_retryable() && context.app.login_is_waiting(&context.attempt_id) {

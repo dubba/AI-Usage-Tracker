@@ -53,7 +53,8 @@ export function AddAccountModal({
   onAdded: (account: Account) => void;
 }) {
   // Android or iOS by operating system. Not `isMobileDevice()`: that is also true for touch-screen laptops.
-  const isMobileOs = detectAndroid() || isIOS();
+  const isAndroid = detectAndroid();
+  const isMobileOs = isAndroid || isIOS();
   const [draft, setDraft] = useState<AddAccountDraft>(() => emptyDraft("anthropic"));
   const { error, setError } = useAutoDismissedError(open);
   const { busy, setBusy, run } = useAsyncAction({ source: "add-account", setError });
@@ -232,7 +233,7 @@ export function AddAccountModal({
     }
   })();
 
-  const providerCopy = strategy.description({ isMobileOs });
+  const providerCopy = strategy.description({ isMobileOs, isAndroid });
 
   return (
     <ModalDialog

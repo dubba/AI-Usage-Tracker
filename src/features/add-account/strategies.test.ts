@@ -49,8 +49,9 @@ describe("drafts", () => {
 describe("every provider", () => {
   it.each(PROVIDERS)("%s has a strategy with a non-empty description and button label", (provider) => {
     const strategy = strategyFor(provider);
-    expect(strategy.description({ isMobileOs: false })).not.toBe("");
-    expect(strategy.description({ isMobileOs: true })).not.toBe("");
+    expect(strategy.description({ isMobileOs: false, isAndroid: false })).not.toBe("");
+    expect(strategy.description({ isMobileOs: true, isAndroid: false })).not.toBe("");
+    expect(strategy.description({ isMobileOs: true, isAndroid: true })).not.toBe("");
     expect(strategy.actionLabel(emptyDraft(provider), false)).not.toBe("");
     expect(strategy.actionLabel(emptyDraft(provider), true)).not.toBe("");
   });
@@ -84,12 +85,28 @@ describe("browser sign-in providers", () => {
     expect(strategyFor("google_ai_studio").wantsEmailHint).toBe(false);
   });
 
-  it("names the provider in the reconnect copy, differently on Android", () => {
+  it("names the provider in the reconnect copy, differently on phones", () => {
     const strategy = strategyFor("anthropic");
-    expect(strategy.description({ isMobileOs: false })).toContain("A sign-in window opens on top of the app.");
-    expect(strategy.description({ isMobileOs: false })).toContain("Back at the top left");
-    expect(strategy.description({ isMobileOs: true })).toContain("The Anthropic Claude sign-in page opens in the app.");
-    expect(strategy.description({ isMobileOs: true })).toContain("Back at the top left");
+    const desktop = { isMobileOs: false, isAndroid: false };
+    const ios = { isMobileOs: true, isAndroid: false };
+    expect(strategy.description(desktop)).toContain("A sign-in window opens on top of the app.");
+    expect(strategy.description(desktop)).toContain("Back at the top left");
+    expect(strategy.description(ios)).toContain("The Anthropic Claude sign-in page opens in the app.");
+    expect(strategy.description(ios)).toContain("Back at the top left");
+  });
+
+  it.each(["openai", "anthropic", "antigravity"] as const)(
+    "%s on Android says the sign-in opens in a browser tab, which has no in-page Back button",
+    (provider) => {
+      const copy = strategyFor(provider).description({ isMobileOs: true, isAndroid: true });
+      expect(copy).toContain("opens in a browser tab over the app");
+      expect(copy).toContain("Closing the tab returns you here.");
+      expect(copy).not.toContain("Back at the top left");
+    },
+  );
+
+  it.each(["grok", "opencode_go"] as const)("%s on Android still signs in in the app", (provider) => {
+    expect(strategyFor(provider).description({ isMobileOs: true, isAndroid: true })).toContain("in this window");
   });
 });
 

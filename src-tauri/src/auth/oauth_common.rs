@@ -37,7 +37,13 @@ static CONNECTED_PAGE_URL: Mutex<Option<String>> = Mutex::new(None);
 /// The "Account connected" page as a self-contained `data:` URL, which the
 /// navigation guards then allow (see `is_connected_page`).
 pub(crate) fn connected_page_url(account: &Account) -> Option<Url> {
-    let html = connected_html("Account connected", account, "");
+    let html = connected_html(
+        "Account connected",
+        account,
+        COUNTDOWN_FOOTER,
+        "",
+        &close_button_html(),
+    );
     let url = Url::parse(&format!(
         "data:text/html;charset=utf-8;base64,{}",
         STANDARD.encode(html)
@@ -281,8 +287,24 @@ fn provider_icon_svg(provider: &Provider) -> &'static str {
 /// the signed-in email (or the account label when no email is known and it adds something),
 /// with a 5-second visual countdown before automatic close.
 pub(crate) fn account_connected_html(title: &str, account: &Account) -> String {
-    connected_html(title, account, COUNTDOWN_SCRIPT)
+    connected_html(
+        title,
+        account,
+        COUNTDOWN_FOOTER,
+        COUNTDOWN_SCRIPT,
+        &close_button_html(),
+    )
 }
+
+/// The same page in the browser's sign-in tab on Android (`sign_in_tab.rs`). The app brings
+/// itself back over the tab, so the page says that instead of counting down, and how to get
+/// back if the app does not come forward.
+pub(crate) fn account_connected_in_tab_html(title: &str, account: &Account) -> String {
+    connected_html(title, account, TAB_FOOTER, "", "")
+}
+
+const COUNTDOWN_FOOTER: &str = r#"<p style="color:#8e9791;margin:0 0 6px">Returning to AI Usage Tracker in</p><div style="font-size:48px;font-weight:700;line-height:1.1;margin:0 0 16px;color:#a078ff"><span id="sec">5</span></div><p style="color:#626b65;font-size:13px;margin:0">You can also close this tab manually.</p>"#;
+const TAB_FOOTER: &str = r#"<p style="color:#d1d5db;font-size:16px;margin:0 0 6px">Returning to AI Usage Tracker…</p><p style="color:#626b65;font-size:13px;margin:0">If the app doesn't open, close this tab to go back to it.</p>"#;
 
 /// The page's own countdown, for the loopback callback page. The `data:` copy
 /// (`connected_page_url`) leaves it out: that page inherits the Content Security
@@ -337,7 +359,13 @@ fn close_button_html() -> String {
         .unwrap_or_default()
 }
 
-fn connected_html(title: &str, account: &Account, countdown_script: &str) -> String {
+fn connected_html(
+    title: &str,
+    account: &Account,
+    footer: &str,
+    script: &str,
+    close_button: &str,
+) -> String {
     let provider_name = account.provider.display_name();
     let identity = account
         .email
@@ -357,13 +385,14 @@ fn connected_html(title: &str, account: &Account, countdown_script: &str) -> Str
         })
         .unwrap_or_default();
     format!(
-        r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;min-height:100vh;min-height:100dvh;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000000;color:#f4f6f8;font-family:system-ui;padding:24px 20px;text-align:center"><div style="max-width:480px;width:100%"><h1 style="margin:0 0 12px;font-size:28px">{}</h1><div style="display:flex;justify-content:center;align-items:center;gap:10px;margin:8px 0 18px;font-size:20px;font-weight:600">{}<span>{}</span></div>{}<p style="color:#8e9791;margin:0 0 6px">Returning to AI Usage Tracker in</p><div style="font-size:48px;font-weight:700;line-height:1.1;margin:0 0 16px;color:#a078ff"><span id="sec">5</span></div><p style="color:#626b65;font-size:13px;margin:0">You can also close this tab manually.</p></div>{}{}</body></html>"#,
+        r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;min-height:100vh;min-height:100dvh;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000000;color:#f4f6f8;font-family:system-ui;padding:24px 20px;text-align:center"><div style="max-width:480px;width:100%"><h1 style="margin:0 0 12px;font-size:28px">{}</h1><div style="display:flex;justify-content:center;align-items:center;gap:10px;margin:8px 0 18px;font-size:20px;font-weight:600">{}<span>{}</span></div>{}{}</div>{}{}</body></html>"#,
         escape_html(title),
         provider_icon_svg(&account.provider),
         escape_html(provider_name),
         identity_html,
-        countdown_script,
-        close_button_html()
+        footer,
+        script,
+        close_button
     )
 }
 
@@ -619,6 +648,23 @@ mod tests {
         );
         // Tests run on desktop, where the page opens in a browser tab that closes itself.
         assert_eq!(html.contains("aria-label=\"Close and return"), cfg!(mobile));
+    }
+
+    #[test]
+    fn the_sign_in_tab_page_says_connected_and_points_back_to_the_app() {
+        let account = account(Provider::Antigravity, Some("me@example.com"), "Antigravity");
+        let tab = account_connected_in_tab_html("Account connected", &account);
+        assert!(tab.contains("Account connected"));
+        assert!(tab.contains("me@example.com"));
+        assert!(tab.contains("Returning to AI Usage Tracker…"));
+        assert!(tab.contains("close this tab to go back to it"));
+        // The app returns over the tab on its own clock, so the page neither counts nor closes.
+        assert!(!tab.contains("<script"));
+        assert!(!tab.contains(r#"id="sec""#));
+        // The in-app page keeps its countdown, and both share everything above the footer.
+        let in_app = account_connected_html("Account connected", &account);
+        let header = &in_app[..in_app.find(COUNTDOWN_FOOTER).expect("countdown footer")];
+        assert!(tab.starts_with(header));
     }
 
     #[test]

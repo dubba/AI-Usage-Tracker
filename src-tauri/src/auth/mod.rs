@@ -14,4 +14,5 @@ pub(crate) mod mobile_auth;
 pub(crate) mod oauth;
 pub(crate) mod oauth_common;
 pub(crate) mod opencode_login;
+pub(crate) mod sign_in_tab;
 pub(crate) mod signin_navigation;

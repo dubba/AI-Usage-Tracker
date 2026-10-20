@@ -5,6 +5,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInstaller
@@ -21,6 +22,14 @@ import android.webkit.WebView
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.OptIn
+import androidx.browser.customtabs.CustomTabColorSchemeParams
+import androidx.browser.customtabs.CustomTabsCallback
+import androidx.browser.customtabs.CustomTabsClient
+import androidx.browser.customtabs.CustomTabsIntent
+import androidx.browser.customtabs.CustomTabsServiceConnection
+import androidx.browser.customtabs.CustomTabsSession
+import androidx.browser.customtabs.ExperimentalMinimizationCallback
 import androidx.core.app.NotificationCompat
 import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
@@ -30,6 +39,7 @@ import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 class MainActivity : TauriActivity() {
@@ -59,6 +69,9 @@ class MainActivity : TauriActivity() {
     /** Hands this activity to Rust for its JNI calls (see android_context.rs). */
     @JvmStatic
     private external fun registerActivity(activity: MainActivity)
+
+    /** The Custom Tabs keep-alive extra (androidx.browser has no builder method for it). */
+    private const val KEEP_ALIVE_EXTRA = "android.support.customtabs.extra.KEEP_ALIVE"
 
     private const val UPDATE_CHANNEL = "updates"
     private const val UPDATE_AVAILABLE_CHANNEL = "update-available"
@@ -115,6 +128,9 @@ class MainActivity : TauriActivity() {
   private class InstallStatusException(message: String) : IllegalStateException(message)
 
   private var activeWebView: WebView? = null
+  private val signInTab = SignInTab()
+  // Bound from the JNI thread, unbound on the UI thread.
+  @Volatile private var signInTabConnection: CustomTabsServiceConnection? = null
   @Volatile private var signInResultShowing: Boolean = false
   private var appShellUrl: String = "http://tauri.localhost/"
   @Volatile private var lastUpdateNotifyAt: Long = 0L
@@ -255,11 +271,13 @@ class MainActivity : TauriActivity() {
 
   override fun onResume() {
     super.onResume()
+    signInTab.activityResumed()
     notifyInstallFailure = { text -> showUpdateFailure(text) }
     resumePendingInstall()
   }
 
   override fun onDestroy() {
+    disconnectSignInTabSession()
     notifyInstallFailure = null
     activeWebView = null
     super.onDestroy()
@@ -582,6 +600,157 @@ class MainActivity : TauriActivity() {
       false
     }
     return finished && success.get()
+  }
+
+  /**
+   * Opens a provider's sign-in page in a Custom Tab (see [SignInTab]), in the default browser
+   * when it supports them, else in another browser that does. Returns the tab's number, or 0 when
+   * no installed browser supports Custom Tabs or the tab did not open; Rust then uses the in-app
+   * page. Called from Rust over JNI (sign_in_tab.rs), never on the UI thread.
+   */
+  fun openSignInTab(url: String): Int {
+    if (!SignInTab.isAllowedUrl(url)) return 0
+    val browser = try {
+      CustomTabsClient.getPackageName(this, null)
+    } catch (e: Exception) {
+      null
+    }
+    if (browser == null) {
+      android.util.Log.i(TAG, "No browser supports Custom Tabs; signing in in the app")
+      return 0
+    }
+    val session = connectSignInTabSession(browser)
+    val opened = AtomicInteger(0)
+    val latch = CountDownLatch(1)
+    runOnUiThread {
+      try {
+        val black = CustomTabColorSchemeParams.Builder()
+          .setToolbarColor(Color.BLACK)
+          .setNavigationBarColor(Color.BLACK)
+          .build()
+        val builder = if (session != null) CustomTabsIntent.Builder(session) else CustomTabsIntent.Builder()
+        val tab = builder
+          .setColorScheme(CustomTabsIntent.COLOR_SCHEME_DARK)
+          .setDefaultColorSchemeParams(black)
+          .setShowTitle(true)
+          // The address bar stays, so the user can see which site asks for the password.
+          .setUrlBarHidingEnabled(false)
+          .setShareState(CustomTabsIntent.SHARE_STATE_OFF)
+          .setBookmarksButtonEnabled(false)
+          .setDownloadButtonEnabled(false)
+          .build()
+        tab.intent.setPackage(browser)
+        // The browser binds this while the tab is shown, which keeps the app from being frozen
+        // behind the tab before the provider redirects to the loopback callback.
+        tab.intent.putExtra(
+          KEEP_ALIVE_EXTRA,
+          Intent().setClassName(packageName, SignInTabKeepAliveService::class.java.name)
+        )
+        tab.launchUrl(this, Uri.parse(url))
+        // Still on the UI thread, so onResume cannot run before the tab counts as open.
+        opened.set(signInTab.opened())
+      } catch (e: Exception) {
+        android.util.Log.w(TAG, "The sign-in tab did not open: ${e.javaClass.simpleName}")
+      } finally {
+        latch.countDown()
+      }
+    }
+    val finished = try {
+      latch.await(5, TimeUnit.SECONDS)
+    } catch (_: InterruptedException) {
+      false
+    }
+    val tab = if (finished) opened.get() else 0
+    if (tab == 0) disconnectSignInTabSession()
+    return tab
+  }
+
+  /**
+   * Binds to [browser]'s Custom Tabs service for a session, whose callback reports when the user
+   * minimizes the tab. Without one (the browser has no such service, or it did not answer in
+   * time), a minimized tab looks closed and cancels the sign-in.
+   */
+  private fun connectSignInTabSession(browser: String): CustomTabsSession? {
+    disconnectSignInTabSession()
+    val session = AtomicReference<CustomTabsSession?>(null)
+    val ready = CountDownLatch(1)
+    val connection = object : CustomTabsServiceConnection() {
+      override fun onCustomTabsServiceConnected(name: ComponentName, client: CustomTabsClient) {
+        session.set(client.newSession(signInTabCallback))
+        ready.countDown()
+      }
+
+      override fun onServiceDisconnected(name: ComponentName) {}
+    }
+    val bound = try {
+      CustomTabsClient.bindCustomTabsService(this, browser, connection)
+    } catch (e: Exception) {
+      false
+    }
+    if (!bound) return null
+    synchronized(this) { signInTabConnection = connection }
+    val connected = try {
+      ready.await(2, TimeUnit.SECONDS)
+    } catch (_: InterruptedException) {
+      false
+    }
+    return if (connected) session.get() else null
+  }
+
+  private fun disconnectSignInTabSession() {
+    val connection = synchronized(this) {
+      signInTabConnection.also { signInTabConnection = null }
+    } ?: return
+    try {
+      unbindService(connection)
+    } catch (_: Exception) {
+    }
+  }
+
+  @OptIn(ExperimentalMinimizationCallback::class)
+  private val signInTabCallback = object : CustomTabsCallback() {
+    override fun onNavigationEvent(navigationEvent: Int, extras: Bundle?) {
+      when (navigationEvent) {
+        TAB_HIDDEN -> signInTab.hidden()
+        TAB_SHOWN -> signInTab.shown()
+      }
+    }
+
+    override fun onMinimized(extras: Bundle) {
+      android.util.Log.i(TAG, "The sign-in tab was minimized")
+      signInTab.minimized()
+    }
+
+    override fun onUnminimized(extras: Bundle) {
+      android.util.Log.i(TAG, "The sign-in tab was restored")
+      signInTab.unminimized()
+    }
+  }
+
+  /** Whether the user closed sign-in tab [tab] before the app returned over it. Reported once. */
+  fun takeSignInTabClosed(tab: Int): Boolean {
+    val closed = signInTab.takeClosedByUser(tab)
+    if (closed) runOnUiThread { disconnectSignInTabSession() }
+    return closed
+  }
+
+  /**
+   * Brings this activity back over sign-in tab [tab] once its sign-in has ended. The tab is in
+   * this task, above the activity, so restarting the activity (singleTask) finishes the tab.
+   */
+  fun closeSignInTab(tab: Int) {
+    runOnUiThread {
+      if (!signInTab.returning(tab)) return@runOnUiThread
+      disconnectSignInTabSession()
+      try {
+        startActivity(
+          Intent(this, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        )
+      } catch (e: Exception) {
+        android.util.Log.w(TAG, "Returning over the sign-in tab failed: ${e.javaClass.simpleName}")
+      }
+    }
   }
 
   /** Posts an alert notification whose body stays fully readable when expanded. */

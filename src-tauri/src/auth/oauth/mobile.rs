@@ -23,6 +23,18 @@ pub(super) fn open_mobile_oauth(
     {
         return Err("Disallowed authorization URL host".to_string());
     }
+    // Google refuses sign-in in the app's WebView, so Android uses the browser's tab when it can.
+    #[cfg(target_os = "android")]
+    if crate::auth::sign_in_tab::uses_sign_in_tab(&context.provider)
+        && crate::auth::sign_in_tab::open(
+            app.clone(),
+            &context.attempt_id,
+            context.callback_claimed.clone(),
+            &target,
+        )
+    {
+        return Ok(());
+    }
     let intercept_started = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     crate::auth::mobile_auth::open_in_main_webview(
         handle,

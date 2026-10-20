@@ -18,6 +18,16 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:mimeType="application/vnd.android.package-archive" />
         </intent>
+        <!-- Browsers that can show the sign-in Custom Tab (SignInTab.kt): the default browser,
+             and the browsers that offer the Custom Tabs service. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="http" />
+        </intent>
+        <intent>
+            <action android:name="android.support.customtabs.action.CustomTabsService" />
+        </intent>
     </queries>
 
     <!-- AndroidTV support -->
@@ -64,6 +74,12 @@
             android:name="android.support.FILE_PROVIDER_PATHS"
             android:resource="@xml/file_paths" />
         </provider>
+        <!-- Bound by the browser while the sign-in Custom Tab is shown, so the app stays awake to
+             answer the provider's redirect to its loopback callback (SignInTabKeepAliveService.kt).
+             Exported because the browser is another app; it returns a binder that does nothing. -->
+        <service
+            android:name=".SignInTabKeepAliveService"
+            android:exported="true" />
         <receiver
             android:name=".ApkInstallReceiver"
             android:exported="false" />
