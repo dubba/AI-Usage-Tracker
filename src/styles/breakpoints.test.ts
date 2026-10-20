@@ -9,7 +9,7 @@ import { MOBILE_OVERLAY_QUERY } from "../features/dashboard/sidebar-width";
  * docs/CSS_ARCHITECTURE.md and the CSS in step: adding a new breakpoint should
  * be a deliberate decision, not something that happens by accident.
  */
-const MAX_WIDTHS = [273, 360, 400, 480, 600, 640, 720, 760, 768, 860, 1180, 1220];
+const MAX_WIDTHS = [360, 400, 480, 600, 640, 720, 760, 768, 860, 1180, 1220];
 const MIN_WIDTHS = [861];
 
 function cssFiles(dir: string): string[] {

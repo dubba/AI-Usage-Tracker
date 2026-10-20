@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased (6 changes)
+## Unreleased (7 changes)
 
-### Improved (1)
+### Improved (2)
 
 - On Windows and macOS, the Google sign-in window that opens from "Continue with Google" on Claude's sign-in page is now as tall as the Claude window and lines up with its top, instead of opening at a fixed, taller size.
+- The sidebar opens at the width where the Account and Group buttons and the L / U toggle share one line, and double-clicking its resize handle returns to that width. Narrower than that, the toggle drops to its own line.
 
 ### Fixed (5)
 

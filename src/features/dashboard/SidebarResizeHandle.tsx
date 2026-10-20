@@ -8,8 +8,9 @@ import {
   KEYBOARD_STEP,
   maxSidebarWidth,
   measureMinSidebarWidth,
-  measureSyncLineFitWidth,
+  measureToggleLineWidth,
   MOBILE_OVERLAY_QUERY,
+  sidebarToggleStacks,
 } from "./sidebar-width";
 import { storageGet, storageSet, STORAGE_KEYS } from "../../shared/lib/storage";
 
@@ -42,6 +43,7 @@ export function SidebarResizeHandle({
     mobile: readSavedWidth(STORAGE_KEYS.sidebarWidthMobile) ?? DEFAULT_MOBILE_SIDEBAR_WIDTH,
   });
   const minWidth = useRef(FALLBACK_MIN_SIDEBAR_WIDTH);
+  const lineWidth = useRef<number | null>(null);
   const currentWidth = useRef(widths.current.desktop);
   const activePointer = useRef<number | null>(null);
 
@@ -63,28 +65,29 @@ export function SidebarResizeHandle({
     if (isOverlay()) widths.current.mobile = width;
     else widths.current.desktop = width;
     document.documentElement.style.setProperty("--sidebar-width", `${width}px`);
+    document.documentElement.toggleAttribute("data-sidebar-toggle-stacked", sidebarToggleStacks(width, lineWidth.current));
     setRange({ min: floor, max, now: width });
     if (persist) storageSet(storageKey(), String(width));
   }, [limits]);
 
-  const refreshMin = useCallback(() => {
+  const refreshMeasurements = useCallback(() => {
     const sidebar = sidebarRef.current;
-    if (sidebar) minWidth.current = measureMinSidebarWidth(sidebar);
+    if (!sidebar) return;
+    minWidth.current = measureMinSidebarWidth(sidebar);
+    lineWidth.current = measureToggleLineWidth(sidebar);
   }, [sidebarRef]);
 
-  // Until the user picks a width, the desktop sidebar is as wide as the sync line needs to show
-  // "Accounts synced 2m ago" on one line; the fixed default is only a fallback.
+  // Until the user picks a width, the desktop sidebar is exactly as wide as the Account button,
+  // Group button, and L / U toggle on one line. The fixed default is only a fallback.
   const useFitAsDefault = useRef(savedDesktop.current === null);
 
   const syncToViewport = useCallback(() => {
-    refreshMin();
-    const sidebar = sidebarRef.current;
-    if (!isOverlay() && useFitAsDefault.current && sidebar) {
-      const fit = measureSyncLineFitWidth(sidebar);
-      if (fit !== null) widths.current.desktop = fit;
+    refreshMeasurements();
+    if (!isOverlay() && useFitAsDefault.current && lineWidth.current !== null) {
+      widths.current.desktop = lineWidth.current;
     }
     applyWidth(isOverlay() ? widths.current.mobile : widths.current.desktop);
-  }, [applyWidth, refreshMin, sidebarRef]);
+  }, [applyWidth, refreshMeasurements]);
 
   useEffect(() => {
     syncToViewport();
@@ -124,6 +127,7 @@ export function SidebarResizeHandle({
   useEffect(() => () => {
     stopFollowing.current?.();
     document.body.classList.remove("sidebar-resizing");
+    document.documentElement.removeAttribute("data-sidebar-toggle-stacked");
   }, []);
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
@@ -159,13 +163,12 @@ export function SidebarResizeHandle({
     setDragging(true);
   };
 
-  // Double-click: widen or narrow the sidebar until the whole sync line fits on one line. If it
-  // cannot be measured (no sync line yet), go back to the default width.
-  const fitToSyncLine = () => {
-    const sidebar = sidebarRef.current;
-    const fit = sidebar ? measureSyncLineFitWidth(sidebar) : null;
+  // Double-click: the width where the L / U toggle stays on the same line as the buttons.
+  // If that row cannot be measured yet, go back to the fixed default.
+  const fitToToggleLine = () => {
+    refreshMeasurements();
     useFitAsDefault.current = false;
-    applyWidth(fit ?? defaultSidebarWidth(isOverlay()), true);
+    applyWidth(lineWidth.current ?? defaultSidebarWidth(isOverlay()), true);
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -193,7 +196,7 @@ export function SidebarResizeHandle({
       aria-valuenow={range.now}
       onPointerDown={onPointerDown}
       onLostPointerCapture={finishDrag}
-      onDoubleClick={fitToSyncLine}
+      onDoubleClick={fitToToggleLine}
       onKeyDown={onKeyDown}
     >
       <div className="sidebar-resize-grip" aria-hidden="true" data-tooltip="Drag to resize, double-click to fit">

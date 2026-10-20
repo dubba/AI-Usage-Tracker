@@ -29,7 +29,6 @@ Width breakpoints belong to individual components, so they are not collapsed int
 | Width | Used for |
 |-------|----------|
 | 860 / 861 | The main mobile/desktop split (sidebar overlay, card actions, mobile menu). The JS constant `MOBILE_OVERLAY_QUERY` must stay `(max-width: 860px)` |
-| 273 (container) | A container query on the sidebar's own content width (275px at the default 300px sidebar): below it the L / U toggle drops under the Account and Group buttons, left-aligned with the Account button. Everything else here is a viewport media query |
 | 1220, 1180 | Summary cards: 4 columns, then 2 columns, then the Next Reset card spans a full row |
 | 768 | The Link Devices dialog becomes a full-screen sheet |
 | 760, 720 | Stacked rows in the remove-account confirmation and the API window |
@@ -37,6 +36,8 @@ Width breakpoints belong to individual components, so they are not collapsed int
 | 480, 400, 360 | Small-phone tweaks (card text, camera button and tooltip, security note) |
 
 Keep one `@media` block per width and file where you can, and check that a later unconditional rule on the same selector does not override it: an earlier media rule loses to a later plain rule of the same specificity.
+
+The L / U toggle is not on a width breakpoint. It shares a row with the Account and Group buttons, and drops below them when `html` has `data-sidebar-toggle-stacked`. The resize handle sets that attribute while the sidebar is narrower than the measured one-line width of those controls.
 
 ## Tokens
 

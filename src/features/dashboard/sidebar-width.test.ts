@@ -6,6 +6,7 @@ import {
   defaultSidebarWidth,
   maxSidebarWidth,
   MAX_SIDEBAR_WIDTH,
+  sidebarToggleStacks,
 } from "./sidebar-width";
 
 describe("maxSidebarWidth", () => {
@@ -35,6 +36,14 @@ describe("clampSidebarWidth", () => {
 
   it("lets the maximum win when there is less room than the minimum", () => {
     expect(clampSidebarWidth(500, 300, 250)).toBe(250);
+  });
+});
+
+describe("sidebarToggleStacks", () => {
+  it("keeps the L / U toggle on the shared line at exactly the fit width", () => {
+    expect(sidebarToggleStacks(286, 286)).toBe(false);
+    expect(sidebarToggleStacks(285, 286)).toBe(true);
+    expect(sidebarToggleStacks(286, null)).toBe(false);
   });
 });
 

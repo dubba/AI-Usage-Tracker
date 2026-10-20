@@ -128,26 +128,24 @@ select {
   min-width: 0;
 }
 
-/* The buttons and the L / U toggle share a row. Narrower than the default sidebar (its content
-   box is 275px at 300px) the toggle drops below the buttons and left-aligns with the Account
-   button. The sidebar is the size container. */
+/* The buttons and the L / U toggle share a row. The resize handle marks the page when the
+   sidebar is narrower than that row, and the toggle then drops below the buttons,
+   left-aligned with the Account button. */
 .provider-sidebar-heading-stack {
   display: contents;
 }
 
-@container (max-width: 273px) {
-  .provider-sidebar-heading-stack {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
+html[data-sidebar-toggle-stacked] .provider-sidebar-heading-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
 
-  /* Its auto left margin pins it right on the shared row; in the stack it follows the Account
-     button's left edge. */
-  .provider-sidebar-heading-stack .usage-display-toggle {
-    margin-left: 0;
-  }
+/* Its auto left margin pins it right on the shared row; in the stack it follows the Account
+   button's left edge. */
+html[data-sidebar-toggle-stacked] .provider-sidebar-heading-stack .usage-display-toggle {
+  margin-left: 0;
 }
 
 .provider-sidebar-heading-actions {

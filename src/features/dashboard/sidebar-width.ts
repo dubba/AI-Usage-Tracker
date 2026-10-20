@@ -40,11 +40,10 @@ const MEASURE_BUFFER_PX = 2;
 
 /**
  * Measures `element` at its natural, unwrapped width using an invisible copy, so the
- * sidebar's current width does not limit the result. `prepare` can change the copy first.
+ * sidebar's current width does not limit the result.
  */
-function naturalWidth(sidebar: HTMLElement, element: HTMLElement, prepare?: (clone: HTMLElement) => void): number {
+function naturalWidth(sidebar: HTMLElement, element: HTMLElement): number {
   const clone = element.cloneNode(true) as HTMLElement;
-  prepare?.(clone);
   clone.setAttribute("aria-hidden", "true");
   Object.assign(clone.style, {
     position: "absolute",
@@ -56,6 +55,7 @@ function naturalWidth(sidebar: HTMLElement, element: HTMLElement, prepare?: (clo
     minWidth: "max-content",
     maxWidth: "none",
     flexWrap: "nowrap",
+    whiteSpace: "nowrap",
     height: "auto",
   });
   sidebar.append(clone);
@@ -64,38 +64,37 @@ function naturalWidth(sidebar: HTMLElement, element: HTMLElement, prepare?: (clo
   return width;
 }
 
-/** The label the sidebar is sized for, whatever the live label is at the moment. */
-const SAMPLE_SYNC_TITLE = "Accounts synced";
-const SAMPLE_SYNC_ELAPSED = "2m ago";
-
 /**
- * Width at which the whole sync line ("Accounts synced 2m ago") fits on one line beside the
- * refresh and settings buttons: the default sidebar width, and what double-clicking the resize
- * handle sets. It is the wider of the live label and a sample one, so a start-up "Not synced yet"
- * does not size the sidebar too narrow for the label that replaces it. The out-of-date note under
- * the label is left out: it wraps, and would otherwise widen the sidebar for no reason.
+ * Sidebar width at which the Account button, the Group button, and the L / U toggle
+ * sit on one line, with the toggle against the right edge. This is the first-launch
+ * width and what double-clicking the resize handle sets. Any narrower and the toggle
+ * drops to its own line (`sidebarToggleStacks`).
  */
-export function measureSyncLineFitWidth(sidebar: HTMLElement): number | null {
-  const status = sidebar.querySelector<HTMLElement>(".sidebar-sync-status");
-  if (!status) return null;
+export function measureToggleLineWidth(sidebar: HTMLElement): number | null {
+  const heading = sidebar.querySelector<HTMLElement>(".provider-sidebar-heading");
+  const actions = heading?.querySelector<HTMLElement>(".provider-sidebar-heading-actions");
+  const toggle = heading?.querySelector<HTMLElement>(".usage-display-toggle");
+  if (!heading || !actions || !toggle) return null;
 
-  const withoutNote = (clone: HTMLElement) => {
-    clone.querySelectorAll(".sidebar-sync-status-detail").forEach((part) => part.remove());
-  };
-  const live = naturalWidth(sidebar, status, withoutNote);
-  const sample = naturalWidth(sidebar, status, (clone) => {
-    withoutNote(clone);
-    const label = clone.querySelector<HTMLElement>(".sidebar-sync-status-label");
-    if (!label) return;
-    const words = document.createElement("span");
-    words.className = "sidebar-sync-status-words";
-    words.append(`${SAMPLE_SYNC_TITLE} ${SAMPLE_SYNC_ELAPSED}`);
-    label.replaceChildren(words);
-  });
+  const actionsWidth = naturalWidth(sidebar, actions);
+  const toggleWidth = naturalWidth(sidebar, toggle);
+  if (!Number.isFinite(actionsWidth) || actionsWidth <= 0) return null;
+  if (!Number.isFinite(toggleWidth) || toggleWidth <= 0) return null;
 
-  const width = Math.max(live, sample);
+  const gap = parseFloat(getComputedStyle(heading).columnGap);
+  const width =
+    actionsWidth +
+    (Number.isFinite(gap) ? gap : 0) +
+    toggleWidth +
+    horizontalChrome(heading) +
+    horizontalChrome(sidebar);
   if (!Number.isFinite(width) || width <= 0) return null;
-  return Math.ceil(width + horizontalChrome(sidebar) + MEASURE_BUFFER_PX);
+  return Math.ceil(width + MEASURE_BUFFER_PX);
+}
+
+/** The L / U toggle drops under the buttons when the sidebar is narrower than their shared line. */
+export function sidebarToggleStacks(width: number, lineWidth: number | null): boolean {
+  return lineWidth !== null && width < lineWidth;
 }
 
 /**
