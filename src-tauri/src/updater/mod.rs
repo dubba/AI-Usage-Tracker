@@ -58,14 +58,19 @@ fn show_update_available_notification(
     }
     #[cfg(not(target_os = "android"))]
     {
-        let title = "AI Usage Tracker update available";
-        let body = format!("Version {version} is ready to {ready_to}.");
-        app.notification()
+        let builder = app
+            .notification()
             .builder()
-            .title(title)
-            .body(body)
-            .show()
-            .map_err(|error| error.to_string())
+            .title(UPDATE_NOTIFICATION_TITLE)
+            .body(update_notification_body(version, ready_to))
+            // Read back when the notification is clicked (`open_update_notes_on_click`).
+            .extra(UPDATE_NOTIFICATION_KIND_KEY, UPDATE_NOTIFICATION_KIND)
+            .extra(UPDATE_NOTIFICATION_VERSION_KEY, version);
+        // On macOS the notification library waits for, and reports, a click only on a
+        // notification that has an action button; Windows shows the same button.
+        #[cfg(desktop)]
+        let builder = builder.action_type_id(UPDATE_NOTIFICATION_ACTION_TYPE);
+        builder.show().map_err(|error| error.to_string())
     }
 }
 
@@ -144,6 +149,118 @@ fn notes_for_update(
 
 pub static PENDING_UPDATE_NOTICE: parking_lot::Mutex<Option<String>> =
     parking_lot::Mutex::new(None);
+
+/// What marks a notification as the "update available" one, and carries its version, in the
+/// extras the plugin hands back with a click. Android has its own click path (MainActivity).
+#[cfg_attr(target_os = "android", allow(dead_code))]
+const UPDATE_NOTIFICATION_KIND_KEY: &str = "kind";
+#[cfg_attr(target_os = "android", allow(dead_code))]
+const UPDATE_NOTIFICATION_KIND: &str = "update-available";
+#[cfg_attr(target_os = "android", allow(dead_code))]
+const UPDATE_NOTIFICATION_VERSION_KEY: &str = "version";
+/// The action type of the desktop notification: one "What's new" button.
+#[cfg_attr(not(desktop), allow(dead_code))]
+const UPDATE_NOTIFICATION_ACTION_TYPE: &str = "update-available";
+#[cfg_attr(not(desktop), allow(dead_code))]
+const UPDATE_NOTIFICATION_ACTION: &str = "open-notes";
+
+/// The text of the "update available" notification. A click is matched against it when the
+/// platform does not report the notification's extras (iOS reports only its title and body).
+#[cfg_attr(target_os = "android", allow(dead_code))]
+const UPDATE_NOTIFICATION_TITLE: &str = "AI Usage Tracker update available";
+
+#[cfg_attr(target_os = "android", allow(dead_code))]
+fn update_notification_body(version: &str, ready_to: &str) -> String {
+    format!("Version {version} is ready to {ready_to}.")
+}
+
+/// The version in the body `update_notification_body` makes.
+#[cfg_attr(target_os = "android", allow(dead_code))]
+fn version_from_update_notification_body(body: &str) -> Option<&str> {
+    let (version, _) = body.strip_prefix("Version ")?.split_once(" is ready to ")?;
+    Some(version)
+}
+
+/// The version to show the update notes for when the user clicked a notification, from the
+/// action's id and the notification's extras. `None` for anything but a click on the "update
+/// available" notification or its button, so the alert notifications do not open the update window.
+#[cfg_attr(target_os = "android", allow(dead_code))]
+fn update_notice_for_click(
+    action_id: &str,
+    extra: &std::collections::HashMap<String, serde_json::Value>,
+    title: Option<&str>,
+    body: Option<&str>,
+) -> Option<String> {
+    // A click on the notification itself, or on its "What's new" button.
+    if action_id != "tap" && action_id != UPDATE_NOTIFICATION_ACTION {
+        return None;
+    }
+    // The extras mark the notification and carry its version. iOS reports no extras, so its
+    // click is recognised by the notification's own title and body instead.
+    let version = match extra.get(UPDATE_NOTIFICATION_KIND_KEY) {
+        Some(kind) => {
+            if kind.as_str()? != UPDATE_NOTIFICATION_KIND {
+                return None;
+            }
+            extra.get(UPDATE_NOTIFICATION_VERSION_KEY)?.as_str()?
+        }
+        None => {
+            if title? != UPDATE_NOTIFICATION_TITLE {
+                return None;
+            }
+            version_from_update_notification_body(body?)?
+        }
+    };
+    is_update_notice_version(version).then(|| version.to_string())
+}
+
+/// Opens the "What's new" window when the user clicks the "update available" notification, as
+/// the Android notification does: the version waits in `PENDING_UPDATE_NOTICE` for the app
+/// to pick up (a window that is not yet listening, or one resumed from the tray) and the
+/// `open-update-notes` event reaches one that is. On desktop the window is brought forward
+/// first. Windows reports a click only while the toast is still on screen, not after it has
+/// moved to the Action Center.
+#[cfg(not(target_os = "android"))]
+pub(crate) fn open_update_notes_on_click(app: &AppHandle) {
+    #[cfg(desktop)]
+    {
+        use tauri_plugin_notification::{Action, ActionType};
+        let action_type = ActionType::builder(UPDATE_NOTIFICATION_ACTION_TYPE)
+            .actions(vec![Action::builder(
+                UPDATE_NOTIFICATION_ACTION,
+                "What's new",
+            )
+            .build()])
+            .build();
+        if let Err(error) = app.notification().register_action_types(vec![action_type]) {
+            crate::diagnostics::warn(&format!(
+                "The update notification will have no What's new button: {error}"
+            ));
+        }
+    }
+    let handle = app.clone();
+    let registered = app.notification().on_action(move |performed| {
+        let Some(version) = performed.notification().and_then(|notification| {
+            update_notice_for_click(
+                performed.action_id(),
+                notification.extra(),
+                notification.title(),
+                notification.body(),
+            )
+        }) else {
+            return;
+        };
+        *PENDING_UPDATE_NOTICE.lock() = Some(version.clone());
+        #[cfg(desktop)]
+        crate::platform::tray::show_main_window(&handle);
+        let _ = handle.emit("open-update-notes", version);
+    });
+    if let Err(error) = registered {
+        crate::diagnostics::warn(&format!(
+            "Clicking the update notification will not open the update window: {error}"
+        ));
+    }
+}
 
 #[tauri::command]
 pub async fn get_pending_update_notice() -> Result<Option<String>, String> {

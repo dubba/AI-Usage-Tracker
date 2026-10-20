@@ -32,29 +32,6 @@ pub(super) fn release_download_redirects() -> reqwest::redirect::Policy {
     })
 }
 
-/// The version an update notification refers to, in the form our own
-/// notification sends (`0.4.1`, `0.4.2-beta.1`, optionally with a leading `v`).
-/// The value arrives as an intent extra that any installed app can set, so
-/// anything else is ignored rather than shown in the update dialog.
-pub(super) fn is_update_notice_version(value: &str) -> bool {
-    let core = value.strip_prefix(['v', 'V']).unwrap_or(value);
-    let (numbers, prerelease) = match core.split_once('-') {
-        Some((numbers, prerelease)) => (numbers, Some(prerelease)),
-        None => (core, None),
-    };
-    value.len() <= 32
-        && numbers.split('.').count() == 3
-        && numbers
-            .split('.')
-            .all(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit()))
-        && prerelease.is_none_or(|tag| {
-            !tag.is_empty()
-                && tag
-                    .bytes()
-                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'.')
-        })
-}
-
 #[cfg(target_os = "android")]
 pub(super) async fn fetch_apk_sha256(url: &str) -> Result<String, String> {
     if !is_repo_release_asset_url(url) {

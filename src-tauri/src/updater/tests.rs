@@ -390,3 +390,141 @@ fn update_notice_accepts_only_version_shaped_values() {
         assert!(!super::is_update_notice_version(bad), "{bad:?}");
     }
 }
+
+fn click_extras(
+    kind: &str,
+    version: serde_json::Value,
+) -> std::collections::HashMap<String, serde_json::Value> {
+    [
+        ("kind".to_string(), serde_json::json!(kind)),
+        ("version".to_string(), version),
+    ]
+    .into_iter()
+    .collect()
+}
+
+#[test]
+fn clicking_the_update_notification_opens_the_notes_for_its_version() {
+    let extras = click_extras("update-available", serde_json::json!("0.4.9"));
+    assert_eq!(
+        super::update_notice_for_click("tap", &extras, None, None).as_deref(),
+        Some("0.4.9")
+    );
+}
+
+#[test]
+fn the_whats_new_button_opens_the_notes_too() {
+    let extras = click_extras("update-available", serde_json::json!("0.4.9"));
+    assert_eq!(
+        super::update_notice_for_click("open-notes", &extras, None, None).as_deref(),
+        Some("0.4.9")
+    );
+}
+
+#[test]
+fn other_clicks_and_notifications_do_not_open_the_update_notes() {
+    let update = click_extras("update-available", serde_json::json!("0.4.9"));
+    // A dismissal or another button is not a click on the notification or its button.
+    assert_eq!(
+        super::update_notice_for_click("dismiss", &update, None, None),
+        None
+    );
+    assert_eq!(
+        super::update_notice_for_click("snooze", &update, None, None),
+        None
+    );
+    // The usage-alert notifications carry no marker.
+    assert_eq!(
+        super::update_notice_for_click("tap", &Default::default(), None, None),
+        None
+    );
+    let other = click_extras("usage-alert", serde_json::json!("0.4.9"));
+    assert_eq!(
+        super::update_notice_for_click("tap", &other, None, None),
+        None
+    );
+    // The version is shown in the update window, so only a version-shaped value is accepted.
+    for bad in [
+        serde_json::json!("Click here to log in again"),
+        serde_json::json!("0.4.9\nWhat changed"),
+        serde_json::json!(5),
+        serde_json::Value::Null,
+    ] {
+        let extras = click_extras("update-available", bad.clone());
+        assert_eq!(
+            super::update_notice_for_click("tap", &extras, None, None),
+            None,
+            "{bad}"
+        );
+    }
+}
+
+#[test]
+fn a_click_reported_by_the_notification_plugin_carries_the_update_extras() {
+    // The shape the plugin reports a tap in, on desktop and iOS alike.
+    let performed: tauri_plugin_notification::ActionPerformed =
+        serde_json::from_value(serde_json::json!({
+            "actionId": "tap",
+            "inputValue": null,
+            "notification": {
+                "id": 1,
+                "title": "AI Usage Tracker update available",
+                "body": "Version 0.4.9 is ready to install.",
+                "extra": { "kind": "update-available", "version": "0.4.9" }
+            }
+        }))
+        .unwrap();
+    let extra = performed.notification().unwrap().extra();
+    assert_eq!(
+        super::update_notice_for_click(
+            performed.action_id(),
+            extra,
+            performed.notification().unwrap().title(),
+            performed.notification().unwrap().body(),
+        )
+        .as_deref(),
+        Some("0.4.9")
+    );
+}
+
+#[test]
+fn a_tap_without_extras_is_recognised_by_the_notifications_own_text() {
+    // iOS reports only the title and body of the tapped notification, never its extras.
+    let body = super::update_notification_body("0.4.9", "download");
+    let none = Default::default();
+    assert_eq!(
+        super::update_notice_for_click(
+            "tap",
+            &none,
+            Some(super::UPDATE_NOTIFICATION_TITLE),
+            Some(&body)
+        )
+        .as_deref(),
+        Some("0.4.9")
+    );
+    // Other notifications, such as a usage alert, are not matched.
+    assert_eq!(
+        super::update_notice_for_click("tap", &none, Some("Usage alert"), Some(&body)),
+        None
+    );
+    for bad_body in [
+        "Version  is ready to install.",
+        "Version Click here to log in again is ready to install.",
+        "Your Codex limit is almost used.",
+    ] {
+        assert_eq!(
+            super::update_notice_for_click(
+                "tap",
+                &none,
+                Some(super::UPDATE_NOTIFICATION_TITLE),
+                Some(bad_body)
+            ),
+            None,
+            "{bad_body}"
+        );
+    }
+    assert_eq!(
+        super::update_notice_for_click("tap", &none, Some(super::UPDATE_NOTIFICATION_TITLE), None),
+        None
+    );
+}

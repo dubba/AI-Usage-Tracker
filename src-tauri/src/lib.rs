@@ -76,6 +76,9 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             platform::macos_notifications::setup_macos_notification_delegate();
 
+            #[cfg(not(target_os = "android"))]
+            updater::open_update_notes_on_click(app.handle());
+
             // A failure here must not abort setup: the window still opens and
             // the frontend shows the problem with a Retry button.
             app.manage(startup::StartupStatus::default());
