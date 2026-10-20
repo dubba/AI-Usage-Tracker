@@ -22,6 +22,8 @@
     "test:sidestore-source": "node --test scripts/update-sidestore-source.test.mjs",
     "test:updater-manifest": "node --test scripts/updater-manifest.test.mjs",
     "test:windows-uninstall": "node --test scripts/windows-uninstall-targets.test.mjs",
+    "test:macos-uninstall": "node --test scripts/macos-uninstall-targets.test.mjs",
+    "uninstall:macos": "bash scripts/uninstall-macos.sh",
     "test:workflows": "node --test scripts/workflow-guards.test.mjs",
     "test": "vitest run",
     "preflight": "bash scripts/preflight.sh",

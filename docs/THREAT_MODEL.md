@@ -220,7 +220,7 @@ Additional guards: all secret structs derive `Zeroize` (`model.rs:255-339`); the
 cache zeroizes on drop and keeps dirty entries until the native write succeeds
 (`store/credentials/cache.rs:10-93`); account ids are restricted to `[A-Za-z0-9_-]{1,64}` precisely because
 they become credential filenames (`store/mod.rs:40-50`); if secure storage is unreadable the
-bridge degrades to a session-only token instead of persisting (`startup.rs:56-73`); on Windows uninstallation, an NSIS hook (`windows/hooks.nsh`) runs `windows/remove-windows-credentials.ps1` to purge matching generic credentials for `ai-usage-tracker` and `paseo-usage-bridge` via Win32 `CredDeleteW` without reading secrets.
+bridge degrades to a session-only token instead of persisting (`startup.rs:56-73`); on Windows uninstallation, an NSIS hook (`windows/hooks.nsh`) runs `windows/remove-windows-credentials.ps1` to purge matching generic credentials for `ai-usage-tracker` and `paseo-usage-bridge` via Win32 `CredDeleteW` without reading secrets; on iOS and macOS fresh installations or reinstalls after uninstall, `store/installation.rs` purges lingering generic credentials for both services from Apple Keychain via `SecItemDelete` (`store/credentials/keyring_store.rs`).
 
 ### 10. Filesystem — reachable by local processes and other OS users
 
@@ -231,6 +231,8 @@ bridge degrades to a session-only token instead of persisting (`startup.rs:56-73
 | `accounts.json.bak` previous-version backup via hard link (atomic-write fallback); tombstone list capped at 500 | `store/accounts.rs:382-414,455-475` |
 | Grok login temp profiles: owner-only, swept at startup and on close/timeout | `auth/grok_login.rs:135-203`, `backend.rs:31` |
 | Windows uninstaller: purges `%APPDATA%\com.dubba.ai.usage.tracker`, `%LOCALAPPDATA%\com.dubba.ai.usage.tracker` and temp login profiles from `%TEMP%` without traversing reparse points | `windows/remove-windows-credentials.ps1:66-106`, `windows/hooks.nsh:8-19` |
+| macOS uninstaller: purges Application Support, Caches, WebKit, HTTPStorages, Saved Application State, Preferences plist, and `$TMPDIR/ai-usage-*` profiles without traversing reparse points | `scripts/uninstall-macos.sh:75-132` |
+| Installation receipt: `.installation_receipt` owner-only marker; fresh install detection purges lingering Keychain credentials before accessing storage | `store/installation.rs:30-65` |
 
 ### 11. Android components — reachable by other Android apps
 

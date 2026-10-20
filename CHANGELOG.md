@@ -1,15 +1,20 @@
 # Changelog
 
-## Unreleased (7 changes)
+## Unreleased (9 changes)
+
+### Added (1)
+
+- A standalone macOS uninstaller script (`scripts/uninstall-macos.sh` or `npm run uninstall:macos`) that completely removes application data, preferences, temporary sign-in profiles, and saved Apple Keychain credentials, and optionally deletes the application bundle.
 
 ### Improved (2)
 
 - On Windows and macOS, the Google sign-in window that opens from "Continue with Google" on Claude's sign-in page is now as tall as the Claude window and lines up with its top, instead of opening at a fixed, taller size.
 - The sidebar opens wide enough for "Accounts synced just now" to stay on one line, and double-clicking its resize handle returns to that width. Narrower than the Account, Group, and L/U row, the toggle still drops to its own line.
 
-### Fixed (5)
+### Fixed (6)
 
 - On Windows, uninstalling the app now deletes all locally stored accounts, preferences, temporary sign-in browser profiles, and Windows Credential Manager sign-ins, so reinstalling the app starts fresh.
+- On iPhone and iPad, reinstalling the app after deleting it now automatically purges leftover Apple Keychain credentials from the previous installation, starting the app completely fresh.
 - On Android, the "Account connected" screen after signing in to Claude, ChatGPT or Antigravity no longer freezes at 1 second. It counts down to 0 and returns to the dashboard, without having to close and reopen the app.
 - On Windows, choosing "Continue with Google" on Claude's sign-in page now opens Google's sign-in window instead of a black one.
 - On Windows, macOS and iPhone/iPad, clicking the "update available" notification now opens the What's new window, as it already did on Android. On Windows the click only works while the notification is still on screen, not after it has moved to the Action Center.

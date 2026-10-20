@@ -185,7 +185,7 @@ android_check() {
 script_tests() {
   npm run test:resolve-version && npm run test:release-notes && npm run test:sidestore-source &&
     npm run test:updater-manifest && npm run test:gemini-quota-probe && npm run test:windows-uninstall &&
-    npm run test:workflows
+    npm run test:macos-uninstall && npm run test:workflows
 }
 
 step "worktree" fail git -C "$repo" worktree add --detach "$wt" "$target"

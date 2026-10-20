@@ -31,6 +31,9 @@ pub(crate) fn initialize_backend(app: &AppHandle) -> Result<(), startup::Startup
     #[cfg(desktop)]
     crate::auth::login_profile::sweep_all_stale_profiles();
 
+    // Ensure a fresh install or reinstall starts clean without inheriting stale credentials.
+    crate::store::ensure_clean_installation(&data_dir);
+
     // Seal plaintext credential files from earlier versions (Android only:
     // there is no platform cipher elsewhere, so this does nothing).
     #[cfg(target_os = "android")]

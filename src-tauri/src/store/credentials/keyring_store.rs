@@ -80,3 +80,33 @@ pub(crate) fn delete_credential(user: &str) -> Result<(), StoreError> {
         None => Ok(()),
     }
 }
+
+/// Deletes all generic passwords matching the app's services from Apple Keychain.
+///
+/// Used during fresh install or reinstall detection to ensure no stale account
+/// credentials or API tokens survive from an uninstalled instance.
+#[cfg(all(any(target_os = "macos", target_os = "ios"), not(debug_assertions)))]
+pub(crate) fn purge_all_keychain_credentials() -> Result<(), StoreError> {
+    use security_framework::item::{ItemClass, ItemSearchOptions};
+    let mut first_error = None;
+    for service in [CREDENTIAL_SERVICE, LEGACY_CREDENTIAL_SERVICE] {
+        let mut query = ItemSearchOptions::new();
+        query.class(ItemClass::generic_password()).service(service);
+        match query.delete() {
+            Ok(()) => {}
+            Err(err) if err.code() == -25300 /* errSecItemNotFound */ => {}
+            Err(err) => {
+                first_error.get_or_insert(StoreError::Credential(err.to_string()));
+            }
+        }
+    }
+    match first_error {
+        Some(error) => Err(error),
+        None => Ok(()),
+    }
+}
+
+#[cfg(all(any(target_os = "macos", target_os = "ios"), debug_assertions))]
+pub(crate) fn purge_all_keychain_credentials() -> Result<(), StoreError> {
+    Ok(())
+}

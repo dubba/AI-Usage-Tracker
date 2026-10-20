@@ -32,6 +32,7 @@ jobs:
       - run: npm run test:updater-manifest
       - run: npm run test:gemini-quota-probe
       - run: npm run test:windows-uninstall
+      - run: npm run test:macos-uninstall
       - run: npm run test:workflows
       - run: npm run build
       - name: Publish frontend validation status
