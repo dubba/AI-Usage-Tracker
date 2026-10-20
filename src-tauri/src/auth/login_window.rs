@@ -30,7 +30,7 @@ pub(crate) const SIGN_IN_INCOGNITO: bool = true;
 
 /// Size every sign-in window opens at, and the smallest it can be resized to.
 #[cfg(desktop)]
-const LOGIN_WINDOW_SIZE: (f64, f64) = (820.0, 620.0);
+pub(crate) const LOGIN_WINDOW_SIZE: (f64, f64) = (820.0, 620.0);
 
 /// Whether `url` is the reload the injected Back button asks for: the current page with
 /// `?<flag>=1` appended.

@@ -312,16 +312,9 @@ pub(super) fn open_provider_login_popup(
     );
     let close_handle = handle.clone();
     // The page's own window.open size is about 640×800 and clips 2-step
-    // verification. Open taller than that, then apply it again after build so
-    // the requested size does not stick.
-    let (width, height, position) = crate::auth::oauth_common::window_geometry_centered_on(
-        handle,
-        PROVIDER_LOGIN_WINDOW,
-        0.0,
-        0.0,
-        640.0,
-        1040.0,
-    );
+    // verification. Open as tall as the sign-in window instead, then apply it
+    // again after build so the requested size does not stick.
+    let (width, height, position) = popup_geometry(handle);
     let mut window_builder = WebviewWindowBuilder::new(
         handle,
         label,
@@ -331,7 +324,7 @@ pub(super) fn open_provider_login_popup(
     .window_features(features)
     .incognito(login_window::SIGN_IN_INCOGNITO)
     .inner_size(width, height)
-    .min_inner_size(520.0, 680.0)
+    .min_inner_size(520.0, login_window::LOGIN_WINDOW_SIZE.1)
     .resizable(true)
     .devtools(false)
     .initialization_script(POPUP_AUTO_CLOSE_SCRIPT)
@@ -385,6 +378,53 @@ pub(super) fn open_provider_login_popup(
     });
 
     Ok(window)
+}
+
+/// Width of the Google sign-in popup: the size its page asks for.
+const POPUP_WIDTH: f64 = 640.0;
+
+/// Where the sign-in popup opens: as tall as the sign-in window (Claude's) and
+/// level with it, centered across it. Falls back to the old fixed size when the
+/// sign-in window cannot be measured.
+#[cfg(desktop)]
+fn popup_geometry(handle: &tauri::AppHandle) -> (f64, f64, Option<(f64, f64)>) {
+    let measured = handle
+        .get_webview_window(PROVIDER_LOGIN_WINDOW)
+        .and_then(|window| {
+            let scale = window.scale_factor().ok()?.max(0.1);
+            let position = window.outer_position().ok()?.to_logical::<f64>(scale);
+            let outer = window.outer_size().ok()?.to_logical::<f64>(scale);
+            let inner = window.inner_size().ok()?.to_logical::<f64>(scale);
+            Some(popup_geometry_over(
+                (position.x, position.y),
+                outer.width,
+                inner.height,
+            ))
+        });
+    match measured {
+        Some((width, height, position)) => (width, height, Some(position)),
+        None => crate::auth::oauth_common::window_geometry_centered_on(
+            handle,
+            PROVIDER_LOGIN_WINDOW,
+            0.0,
+            0.0,
+            POPUP_WIDTH,
+            1040.0,
+        ),
+    }
+}
+
+/// The popup's inner size and outer position over a sign-in window with the
+/// given outer position, outer width and inner height. Both windows have the
+/// same title bar, so matching inner heights and tops makes them line up.
+#[cfg_attr(not(desktop), allow(dead_code))]
+pub(super) fn popup_geometry_over(
+    opener_position: (f64, f64),
+    opener_outer_width: f64,
+    opener_inner_height: f64,
+) -> (f64, f64, (f64, f64)) {
+    let x = opener_position.0 + (opener_outer_width - POPUP_WIDTH) / 2.0;
+    (POPUP_WIDTH, opener_inner_height, (x, opener_position.1))
 }
 
 /// Closes any sign-in popups. Google's popup calls `window.close()` when it is

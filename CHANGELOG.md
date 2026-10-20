@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased (5 changes)
+## Unreleased (6 changes)
+
+### Improved (1)
+
+- On Windows and macOS, the Google sign-in window that opens from "Continue with Google" on Claude's sign-in page is now as tall as the Claude window and lines up with its top, instead of opening at a fixed, taller size.
 
 ### Fixed (5)
 

@@ -494,6 +494,19 @@ fn sign_in_popups_use_the_same_private_profile_as_their_window() {
 }
 
 #[test]
+fn the_google_popup_is_as_tall_as_the_sign_in_window_and_level_with_it() {
+    // Claude's window: outer top-left (350, 80), 1440 wide, 830 tall inside.
+    let (width, height, (x, y)) = popup_geometry_over((350.0, 80.0), 1440.0, 830.0);
+    assert_eq!(height, 830.0);
+    assert_eq!(y, 80.0);
+    assert_eq!(width, 640.0);
+    // Centered across the sign-in window.
+    assert_eq!(x + width / 2.0, 350.0 + 1440.0 / 2.0);
+    // A short sign-in window gives a short popup, not the old fixed 1040.
+    assert_eq!(popup_geometry_over((0.0, 0.0), 820.0, 620.0).1, 620.0);
+}
+
+#[test]
 fn provider_login_window_stays_on_sign_in_pages() {
     for url in [
         "https://accounts.google.com/o/oauth2/auth",
