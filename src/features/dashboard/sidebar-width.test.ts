@@ -6,6 +6,7 @@ import {
   defaultSidebarWidth,
   maxSidebarWidth,
   MAX_SIDEBAR_WIDTH,
+  sidebarFitWidth,
   sidebarToggleStacks,
 } from "./sidebar-width";
 
@@ -36,6 +37,16 @@ describe("clampSidebarWidth", () => {
 
   it("lets the maximum win when there is less room than the minimum", () => {
     expect(clampSidebarWidth(500, 300, 250)).toBe(250);
+  });
+});
+
+describe("sidebarFitWidth", () => {
+  it("uses the wider of the sync line and the L / U row", () => {
+    expect(sidebarFitWidth(360, 305)).toBe(360);
+    expect(sidebarFitWidth(280, 305)).toBe(305);
+    expect(sidebarFitWidth(360, null)).toBe(360);
+    expect(sidebarFitWidth(null, 305)).toBe(305);
+    expect(sidebarFitWidth(null, null)).toBeNull();
   });
 });
 

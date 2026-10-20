@@ -40,10 +40,11 @@ const MEASURE_BUFFER_PX = 2;
 
 /**
  * Measures `element` at its natural, unwrapped width using an invisible copy, so the
- * sidebar's current width does not limit the result.
+ * sidebar's current width does not limit the result. `prepare` can change the copy first.
  */
-function naturalWidth(sidebar: HTMLElement, element: HTMLElement): number {
+function naturalWidth(sidebar: HTMLElement, element: HTMLElement, prepare?: (clone: HTMLElement) => void): number {
   const clone = element.cloneNode(true) as HTMLElement;
+  prepare?.(clone);
   clone.setAttribute("aria-hidden", "true");
   Object.assign(clone.style, {
     position: "absolute",
@@ -97,11 +98,67 @@ export function sidebarToggleStacks(width: number, lineWidth: number | null): bo
   return lineWidth !== null && width < lineWidth;
 }
 
+/** The phrase the sidebar is opened wide enough to show on one line. */
+const SAMPLE_SYNC_TITLE = "Accounts synced";
+const SAMPLE_SYNC_ELAPSED = "just now";
+
+/** Keeps the sync copy from wrapping inside the measured copy. */
+function unwrapSyncRow(clone: HTMLElement) {
+  clone.querySelectorAll(".sidebar-sync-status-detail").forEach((part) => part.remove());
+  for (const node of clone.querySelectorAll<HTMLElement>(
+    ".sidebar-sync-status-text, .sidebar-sync-status-label, .sidebar-sync-status-words",
+  )) {
+    node.style.flex = "none";
+    node.style.minWidth = "max-content";
+    node.style.width = "max-content";
+    node.style.maxWidth = "none";
+    node.style.whiteSpace = "nowrap";
+  }
+}
+
+/**
+ * Sidebar width at which "Accounts synced just now" stays on one line beside the refresh and
+ * settings buttons. The live label is measured too, and the wider one wins, so a longer label
+ * is not cut off. The out-of-date note is left out: it wraps under the label on purpose.
+ */
+export function measureSyncLineFitWidth(sidebar: HTMLElement): number | null {
+  const status = sidebar.querySelector<HTMLElement>(".sidebar-sync-status");
+  if (!status) return null;
+
+  const live = naturalWidth(sidebar, status, unwrapSyncRow);
+  const sample = naturalWidth(sidebar, status, (clone) => {
+    unwrapSyncRow(clone);
+    const title = clone.querySelector<HTMLElement>(".sidebar-sync-status-title");
+    const words = clone.querySelector<HTMLElement>(".sidebar-sync-status-words");
+    if (title) title.textContent = SAMPLE_SYNC_TITLE;
+    const elapsed = clone.querySelector<HTMLElement>(".sidebar-sync-status-elapsed");
+    if (elapsed) {
+      elapsed.textContent = SAMPLE_SYNC_ELAPSED;
+    } else if (words) {
+      words.append(" ");
+      const span = document.createElement("span");
+      span.className = "sidebar-sync-status-elapsed";
+      span.textContent = SAMPLE_SYNC_ELAPSED;
+      words.append(span);
+    }
+  });
+
+  const width = Math.max(live, sample);
+  if (!Number.isFinite(width) || width <= 0) return null;
+  return Math.ceil(width + horizontalChrome(sidebar) + MEASURE_BUFFER_PX);
+}
+
+/** The wider of the sync line and the L / U row, so the default fits both on one line. */
+export function sidebarFitWidth(syncLine: number | null, toggleLine: number | null): number | null {
+  if (syncLine === null) return toggleLine;
+  if (toggleLine === null) return syncLine;
+  return Math.max(syncLine, toggleLine);
+}
+
 /**
  * Narrowest the sidebar can be before the + Account and + Group buttons are cut off: the
- * Group button's right edge lines up with the L / U toggle's right edge below it. The sync line at the bottom
- * wraps ("Accounts synced", then "4m ago") instead of limiting the width, and the L / U
- * toggle drops below the buttons.
+ * Group button's right edge lines up with the L / U toggle's right edge below it. The sync line
+ * wraps below the default width, and the L / U toggle drops below the buttons.
  */
 export function measureMinSidebarWidth(sidebar: HTMLElement): number {
   const heading = sidebar.querySelector<HTMLElement>(".provider-sidebar-heading");
