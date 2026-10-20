@@ -528,3 +528,26 @@ fn a_tap_without_extras_is_recognised_by_the_notifications_own_text() {
         None
     );
 }
+
+#[test]
+fn vendored_notification_plugin_keeps_the_ios_crash_fix() {
+    // tauri-plugin-notification force-unwrapped its in-memory notification map, so tapping a
+    // notification after iOS terminated the app crashed it (tauri-apps/plugins-workspace#3533).
+    // The app builds a patched copy; drop both once a released plugin has the fix
+    // (src-tauri/vendor/tauri-plugin-notification/VENDORED.md).
+    let swift = include_str!(
+        "../../vendor/tauri-plugin-notification/ios/Sources/NotificationHandler.swift"
+    );
+    assert!(
+        !swift.contains("notificationsMap[request.identifier]!"),
+        "the vendored plugin force-unwraps the notification map again"
+    );
+    assert!(swift.contains("notificationRequest?.sound"));
+    let manifest = include_str!("../../Cargo.toml");
+    assert!(
+        manifest.contains(
+            "tauri-plugin-notification = { path = \"vendor/tauri-plugin-notification\" }"
+        ),
+        "src-tauri/Cargo.toml no longer patches in the vendored notification plugin"
+    );
+}

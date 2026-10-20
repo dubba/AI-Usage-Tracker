@@ -193,6 +193,10 @@ Android, plaintext in debug builds). Corrupt JSON is quarantined and reloaded, n
 | Fixed manifest and API URLs: `github.com/dubba/AI-Usage-Tracker` and `api.github.com/repos/dubba/AI-Usage-Tracker`; a release tag must be letters, digits, `.`, `-`, `_` (no `..`, ≤64 chars) before it is used in the beta manifest or release-page URL | `updater/github.rs:7-13,39-44,138-241`, `tauri.conf.json:56-58` |
 | iOS (SideStore): no in-place update; opens `sidestore://` or the releases page | `updater/mod.rs:251-279` |
 
+### Vendored code
+
+`src-tauri/vendor/tauri-plugin-notification` is a trimmed copy of the published plugin (2.6.0) with one Swift change (no force-unwrap of its in-memory notification map; iOS crashed when a notification was tapped after the app was terminated). `src-tauri/Cargo.toml` patches it in; `src-tauri/vendor/tauri-plugin-notification/VENDORED.md` records the change and when to drop it, and `vendored_notification_plugin_keeps_the_ios_crash_fix` fails if the patch is lost. Cargo and `cargo audit` treat it as local code, so a security advisory against the upstream crate needs checking by hand while the copy exists.
+
 ### 8. Provider APIs — reachable by a malicious or compromised provider
 
 | Guard | Code |

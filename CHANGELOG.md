@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased (1 change)
+## Unreleased (2 changes)
 
-### Fixed (1)
+### Fixed (2)
 
 - On Windows, macOS and iPhone/iPad, clicking the "update available" notification now opens the What's new window, as it already did on Android. On Windows the click only works while the notification is still on screen, not after it has moved to the Action Center.
+- On iPhone and iPad, tapping a notification after the app was fully closed no longer crashes the app. This affected the usage alerts as well as the update notice.
 
 ## v0.4.9 - 2026-10-19 (18 changes)
 

@@ -96,3 +96,9 @@ lto = "thin"
 # codegen-units defaults to 16 so LLVM parallelizes across runner CPU cores;
 # ThinLTO still performs cross-module inlining and dead code elimination.
 strip = true
+
+# A trimmed copy of tauri-plugin-notification with one Swift fix: tapping a notification after
+# iOS terminated the app crashed it (https://github.com/tauri-apps/plugins-workspace/issues/3533).
+# See vendor/tauri-plugin-notification/VENDORED.md for what changed and when to drop it.
+[patch.crates-io]
+tauri-plugin-notification = { path = "vendor/tauri-plugin-notification" }
