@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased (4 changes)
+## Unreleased (5 changes)
 
-### Fixed (4)
+### Fixed (5)
 
+- On Windows, uninstalling the app now deletes all locally stored accounts, preferences, temporary sign-in browser profiles, and Windows Credential Manager sign-ins, so reinstalling the app starts fresh.
 - On Android, the "Account connected" screen after signing in to Claude, ChatGPT or Antigravity no longer freezes at 1 second. It counts down to 0 and returns to the dashboard, without having to close and reopen the app.
 - On Windows, choosing "Continue with Google" on Claude's sign-in page now opens Google's sign-in window instead of a black one.
 - On Windows, macOS and iPhone/iPad, clicking the "update available" notification now opens the What's new window, as it already did on Android. On Windows the click only works while the notification is still on screen, not after it has moved to the Action Center.

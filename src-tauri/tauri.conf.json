@@ -46,6 +46,11 @@
     "category": "Utility",
     "shortDescription": "Track AI usage across multiple providers",
     "longDescription": "AI Usage Tracker is a standalone Windows and macOS desktop app for monitoring ChatGPT, Anthropic Claude, Google Antigravity, Google AI Studio, Grok, and OpenCode Go usage, with an optional sanitized Paseo integration over localhost.",
+    "windows": {
+      "nsis": {
+        "installerHooks": "windows/hooks.nsh"
+      }
+    },
     "macOS": {
       "infoPlist": "Info.plist",
       "entitlements": "Entitlements.plist"

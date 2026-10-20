@@ -1,0 +1,13 @@
+{
+  "bundleId": "com.dubba.ai.usage.tracker",
+  "credentialServices": ["ai-usage-tracker", "paseo-usage-bridge"],
+  "bridgeTokenUser": "bridge-api-token",
+  "accountUserPrefix": "account:",
+  "chunkMarker": ":chunk:",
+  "accountIdPattern": "^[A-Za-z0-9_-]{1,64}$",
+  "generationPattern": "^[A-Za-z0-9]{16}$",
+  "maxChunkIndex": 31,
+  "tempProfilePrefixes": ["ai-usage-grok-", "ai-usage-oauth-", "ai-usage-opencode-"],
+  "attemptIdPattern": "^[A-Za-z0-9-]{1,64}$",
+  "maxTargetLength": 256
+}
