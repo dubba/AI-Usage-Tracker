@@ -21,6 +21,13 @@ pub(crate) const BACK_QUERY_FLAG: &str = "ai-usage-tracker-back";
 #[cfg(desktop)]
 pub(crate) const LOGIN_USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15";
 
+/// Sign-in windows keep no cookies or history of their own (incognito). A popup
+/// that a sign-in page opens must use the same setting: WebView2 hands a popup to
+/// its opener only when both have the same profile, and an InPrivate opener with
+/// a regular popup left Claude's "Continue with Google" window black on Windows.
+#[cfg(desktop)]
+pub(crate) const SIGN_IN_INCOGNITO: bool = true;
+
 /// Size every sign-in window opens at, and the smallest it can be resized to.
 #[cfg(desktop)]
 const LOGIN_WINDOW_SIZE: (f64, f64) = (820.0, 620.0);
@@ -138,7 +145,7 @@ pub(crate) fn open_private_login_window<'a>(
             .min_inner_size(LOGIN_WINDOW_SIZE.0, LOGIN_WINDOW_SIZE.1)
             .resizable(true)
             .data_directory(spec.profile_dir)
-            .incognito(true)
+            .incognito(SIGN_IN_INCOGNITO)
             .devtools(false)
             .initialization_script(spec.init_script);
     if let Some(user_agent) = spec.user_agent {

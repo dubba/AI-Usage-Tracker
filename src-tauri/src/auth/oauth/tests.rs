@@ -475,6 +475,24 @@ fn back_button_stays_out_of_sign_in_popups() {
     assert_ne!(PROVIDER_LOGIN_POPUP_PREFIX, PROVIDER_LOGIN_WINDOW);
 }
 
+#[cfg(desktop)]
+#[test]
+fn sign_in_popups_use_the_same_private_profile_as_their_window() {
+    // WebView2 attaches a popup to its opener only when both have the same profile. The popup
+    // was not InPrivate, so Claude's "Continue with Google" window stayed black on Windows.
+    const _: () = assert!(login_window::SIGN_IN_INCOGNITO);
+    let source = include_str!("desktop_window.rs");
+    let popup = &source[source
+        .find("pub(super) fn open_provider_login_popup")
+        .expect("popup builder")..];
+    let builder = &popup[..popup.find(".build()?").expect("popup build")];
+    assert!(builder.contains(".window_features(features)"));
+    assert!(builder.contains(".incognito(login_window::SIGN_IN_INCOGNITO)"));
+    let window = include_str!("../login_window.rs");
+    assert!(window.contains(".incognito(SIGN_IN_INCOGNITO)"));
+    assert!(!window.contains(".incognito(true)"));
+}
+
 #[test]
 fn provider_login_window_stays_on_sign_in_pages() {
     for url in [

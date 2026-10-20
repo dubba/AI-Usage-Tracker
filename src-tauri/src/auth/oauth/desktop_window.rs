@@ -297,6 +297,9 @@ pub(crate) fn open_provider_login_window(
 /// A popup opened by the sign-in page. Built from the opener's WebView
 /// configuration (`window_features`) so WebKit links it to its opener and it
 /// shares the sign-in session, and held to the same hosts as the sign-in window.
+/// On Windows that shares the WebView2 environment only; the profile comes from
+/// `incognito`, which must match the opener's or WebView2 refuses the popup and
+/// it stays black. macOS takes the profile from the shared configuration.
 #[cfg(desktop)]
 pub(super) fn open_provider_login_popup(
     handle: &tauri::AppHandle,
@@ -326,6 +329,7 @@ pub(super) fn open_provider_login_popup(
     )
     .title("Sign in with Google")
     .window_features(features)
+    .incognito(login_window::SIGN_IN_INCOGNITO)
     .inner_size(width, height)
     .min_inner_size(520.0, 680.0)
     .resizable(true)

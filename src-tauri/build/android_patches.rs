@@ -305,8 +305,12 @@ pub(super) fn oauth_popup_window_methods() -> String {
     return true
   }
 
+  // This client belongs to the app's only WebView (popups above have their own). A page in it
+  // that calls window.close() must not take the app with it: the sign-in's "Account connected"
+  // page does when its countdown ends, and destroying the WebView froze the app on "1".
+  // Rust returns the WebView to the dashboard (mobile_auth.rs).
   override fun onCloseWindow(window: WebView) {
-    window.destroy()
+    android.util.Log.i("AIUsageSignIn", "Ignored window.close() from the app WebView")
   }
 }"#
     .replace("@@LOOPBACK@@", LOOPBACK_FN)

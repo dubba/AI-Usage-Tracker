@@ -288,7 +288,19 @@ pub(crate) fn account_connected_html(title: &str, account: &Account) -> String {
 /// (`connected_page_url`) leaves it out: that page inherits the Content Security
 /// Policy of the provider page it replaces (grok.com allows only nonce scripts),
 /// so the app runs its countdown instead (`run_connected_countdown`).
-const COUNTDOWN_SCRIPT: &str = "<script>let s=5;const el=document.getElementById('sec');const t=setInterval(()=>{s--;if(el)el.textContent=String(Math.max(0,s));if(s<=0){clearInterval(t);window.close();}},1000);</script>";
+const COUNTDOWN_SCRIPT: &str = if cfg!(mobile) {
+    MOBILE_COUNTDOWN_SCRIPT
+} else {
+    DESKTOP_COUNTDOWN_SCRIPT
+};
+/// Asks to close the window at 0. The app closes the desktop sign-in window at
+/// that point too (`open_provider_login_window`), since wry may ignore the ask.
+const DESKTOP_COUNTDOWN_SCRIPT: &str = "<script>let s=5;const el=document.getElementById('sec');const t=setInterval(()=>{s--;if(el)el.textContent=String(Math.max(0,s));if(s<=0){clearInterval(t);window.close();}},1000);</script>";
+/// Only counts. On a phone the page is in the app's only WebView, which the app
+/// returns to the dashboard itself (`hold_result_page` in mobile_auth.rs); a
+/// `window.close()` there closed the app's WebView on Android and froze the app
+/// on "1".
+const MOBILE_COUNTDOWN_SCRIPT: &str = "<script>let s=5;const el=document.getElementById('sec');const t=setInterval(()=>{s--;if(el)el.textContent=String(Math.max(0,s));if(s<=0){clearInterval(t);}},1000);</script>";
 
 fn connected_html(title: &str, account: &Account, countdown_script: &str) -> String {
     let provider_name = account.provider.display_name();
@@ -545,6 +557,22 @@ mod tests {
         assert!(!html.contains("color:#6d3bd7"));
         assert!(html.contains("window.close()"));
         assert_eq!(CONNECTED_PAGE_DISPLAY, Duration::from_secs(5));
+    }
+
+    #[test]
+    fn the_phone_countdown_counts_the_same_but_never_closes_the_app_webview() {
+        // On Android, window.close() in the app's only WebView destroyed it at 0 and the
+        // app froze on "1" (Claude, ChatGPT, Antigravity; Grok's page has no script).
+        assert!(!MOBILE_COUNTDOWN_SCRIPT.contains("close"));
+        assert!(DESKTOP_COUNTDOWN_SCRIPT.contains("window.close()"));
+        assert_eq!(
+            MOBILE_COUNTDOWN_SCRIPT,
+            DESKTOP_COUNTDOWN_SCRIPT.replace("window.close();", "")
+        );
+        assert_eq!(
+            COUNTDOWN_SCRIPT, DESKTOP_COUNTDOWN_SCRIPT,
+            "tests run on desktop"
+        );
     }
 
     #[test]

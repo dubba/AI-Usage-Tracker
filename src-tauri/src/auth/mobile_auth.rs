@@ -656,6 +656,33 @@ mod tests {
     }
 
     #[test]
+    fn the_app_webview_survives_a_page_calling_window_close() {
+        // The "Account connected" page's window.close() reached this handler, which destroyed
+        // the app's only WebView: the app froze on "1" until it was force-closed.
+        let patches = include_str!("../../build/android_patches.rs");
+        let app_handler = |kotlin: &str| -> String {
+            let at = kotlin
+                .rfind("override fun onCloseWindow(window: WebView)")
+                .expect("the app WebView's onCloseWindow");
+            let body = &kotlin[at..];
+            body[..body.find("\n  }").expect("end of onCloseWindow")].to_string()
+        };
+        let handler = app_handler(patches);
+        assert!(!handler.contains("destroy"), "{handler}");
+        // A sign-in popup still closes itself.
+        assert!(patches
+            .contains("override fun onCloseWindow(window: WebView) {\n        dialog.dismiss()"));
+        // The build applies the patch to the generated Kotlin (gitignored; present after a
+        // `tauri android` command).
+        if let Ok(chrome) = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/gen/android/app/src/main/java/com/dubba/ai/usage/tracker/generated/RustWebChromeClient.kt"
+        )) {
+            assert!(!app_handler(&chrome).contains("destroy"));
+        }
+    }
+
+    #[test]
     fn about_blank_is_not_an_https_oauth_host() {
         let blank = Url::parse("about:blank").unwrap();
         assert_eq!(blank.scheme(), "about");
