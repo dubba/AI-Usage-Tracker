@@ -57,4 +57,9 @@ describe("Button hover and active state invariants", () => {
     expect(OBSIDIAN_CSS).toContain(".summary-card.attention-card.is-filtering");
     expect(OBSIDIAN_CSS).toContain("border-color: var(--obsidian-amber)");
   });
+
+  it("anchors L / U tooltips to the left edge when stacked on a second line", () => {
+    expect(UI_REFINEMENTS_CSS).toContain("html[data-sidebar-toggle-stacked] .provider-window-toggle button[data-tooltip]::after");
+    expect(UI_REFINEMENTS_CSS).toContain("html[data-sidebar-toggle-stacked] .provider-window-toggle button:last-child[data-tooltip]::after");
+  });
 });

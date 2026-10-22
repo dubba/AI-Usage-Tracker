@@ -538,6 +538,22 @@
   right: -31px;
 }
 
+/* When the L / U toggle drops below the buttons on its own row, it aligns with the left
+   edge of the heading. Anchor its tooltips to the toggle's left edge so they open rightwards
+   into the sidebar instead of clipping past the left edge of the screen. */
+html[data-sidebar-toggle-stacked] .provider-window-toggle button[data-tooltip]::after {
+  top: calc(100% + 8px);
+  left: 0;
+  right: auto !important;
+  width: max-content;
+  max-width: calc(var(--sidebar-width) - 24px);
+  white-space: normal;
+}
+
+html[data-sidebar-toggle-stacked] .provider-window-toggle button:last-child[data-tooltip]::after {
+  left: -31px;
+}
+
 /* Modal close button: right-aligned so it doesn't escape the top-right corner of the modal */
 .ui-modal-close[data-tooltip]::after {
   top: calc(100% + 6px);
@@ -600,7 +616,7 @@
   flex: 0 0 auto;
   width: fit-content;
   margin: 0;
-  padding: 2px 10px;
+  padding: 2px 8px;
   color: var(--obsidian-text);
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   border-radius: 999px;

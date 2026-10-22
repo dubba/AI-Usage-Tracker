@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (3 changes)
+
+### Fixed (1)
+
+- Anchored the `L / U` usage display toggle tooltips to the left edge of the toggle when wrapped onto a second line, preventing them from clipping past the left edge of the sidebar.
+
+### Improved (2)
+
+- On mobile, the sidebar drawer opens wide enough by default for the `L / U` toggle to stay on the same line as the Account and Group buttons and for the sync status to fit on one line, matching desktop.
+- Snugged the horizontal padding on account card usage limit pills from 10px to 8px for a tighter, cleaner capsule fit.
 
 ## v0.5.0 - 2026-10-21 (2 changes)
 

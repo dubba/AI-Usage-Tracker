@@ -59,8 +59,11 @@ describe("sidebarToggleStacks", () => {
 });
 
 describe("defaultSidebarWidth", () => {
-  it("has separate defaults for the phone overlay and desktop", () => {
+  it("returns the defaults for the phone overlay and desktop", () => {
     expect(defaultSidebarWidth(true)).toBe(DEFAULT_MOBILE_SIDEBAR_WIDTH);
     expect(defaultSidebarWidth(false)).toBe(DEFAULT_DESKTOP_SIDEBAR_WIDTH);
+    expect(DEFAULT_MOBILE_SIDEBAR_WIDTH).toBe(300);
+    expect(DEFAULT_DESKTOP_SIDEBAR_WIDTH).toBe(300);
+    expect(sidebarToggleStacks(DEFAULT_MOBILE_SIDEBAR_WIDTH, 286)).toBe(false);
   });
 });

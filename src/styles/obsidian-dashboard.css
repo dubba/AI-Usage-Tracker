@@ -1504,7 +1504,7 @@ button.account-card-provider-icon:active {
 .metric-inline-credit,
 .window-pill {
   flex: 0 0 auto;
-  padding: 2px 10px;
+  padding: 2px 8px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 999px;
   color: var(--obsidian-text);
@@ -2962,7 +2962,7 @@ select.text-input option,
 
 @media (max-width: 860px) {
   :root {
-    --sidebar-width: 268px;
+    --sidebar-width: 300px;
   }
 
   .obsidian-shell {

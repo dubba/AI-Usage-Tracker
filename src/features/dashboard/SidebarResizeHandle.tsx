@@ -40,14 +40,15 @@ export function SidebarResizeHandle({
   const [dragging, setDragging] = useState(false);
   // Width per layout, and the sidebar's measured minimum. Refs: they change without needing a render.
   const savedDesktop = useRef(readSavedWidth(STORAGE_KEYS.sidebarWidthDesktop));
+  const savedMobile = useRef(readSavedWidth(STORAGE_KEYS.sidebarWidthMobile));
   const widths = useRef({
     desktop: savedDesktop.current ?? DEFAULT_DESKTOP_SIDEBAR_WIDTH,
-    mobile: readSavedWidth(STORAGE_KEYS.sidebarWidthMobile) ?? DEFAULT_MOBILE_SIDEBAR_WIDTH,
+    mobile: savedMobile.current ?? DEFAULT_MOBILE_SIDEBAR_WIDTH,
   });
   const minWidth = useRef(FALLBACK_MIN_SIDEBAR_WIDTH);
   const toggleLineWidth = useRef<number | null>(null);
   const fitWidth = useRef<number | null>(null);
-  const currentWidth = useRef(widths.current.desktop);
+  const currentWidth = useRef(isOverlay() ? widths.current.mobile : widths.current.desktop);
   const activePointer = useRef<number | null>(null);
 
   const limits = useCallback(() => {
@@ -81,16 +82,21 @@ export function SidebarResizeHandle({
     fitWidth.current = sidebarFitWidth(measureSyncLineFitWidth(sidebar), toggleLineWidth.current);
   }, [sidebarRef]);
 
-  // Until the user picks a width, the desktop sidebar fits "Accounts synced just now" on one
+  // Until the user picks a width, the sidebar fits "Accounts synced just now" on one
   // line. The fixed default is only a fallback.
-  const useFitAsDefault = useRef(savedDesktop.current === null);
+  const useFitAsDefault = useRef({
+    desktop: savedDesktop.current === null,
+    mobile: savedMobile.current === null,
+  });
 
   const syncToViewport = useCallback(() => {
     refreshMeasurements();
-    if (!isOverlay() && useFitAsDefault.current && fitWidth.current !== null) {
-      widths.current.desktop = fitWidth.current;
+    const overlay = isOverlay();
+    if (useFitAsDefault.current[overlay ? "mobile" : "desktop"] && fitWidth.current !== null) {
+      if (overlay) widths.current.mobile = fitWidth.current;
+      else widths.current.desktop = fitWidth.current;
     }
-    applyWidth(isOverlay() ? widths.current.mobile : widths.current.desktop);
+    applyWidth(overlay ? widths.current.mobile : widths.current.desktop);
   }, [applyWidth, refreshMeasurements]);
 
   useEffect(() => {
@@ -138,7 +144,7 @@ export function SidebarResizeHandle({
     if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
-    useFitAsDefault.current = false;
+    useFitAsDefault.current[isOverlay() ? "mobile" : "desktop"] = false;
     activePointer.current = event.pointerId;
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
@@ -171,8 +177,9 @@ export function SidebarResizeHandle({
   // be measured yet, go back to the fixed default.
   const fitToSyncLine = () => {
     refreshMeasurements();
-    useFitAsDefault.current = false;
-    applyWidth(fitWidth.current ?? defaultSidebarWidth(isOverlay()), true);
+    const overlay = isOverlay();
+    useFitAsDefault.current[overlay ? "mobile" : "desktop"] = false;
+    applyWidth(fitWidth.current ?? defaultSidebarWidth(overlay), true);
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -183,7 +190,7 @@ export function SidebarResizeHandle({
     if (event.key === "End") next = limits().max;
     if (next === null) return;
     event.preventDefault();
-    useFitAsDefault.current = false;
+    useFitAsDefault.current[isOverlay() ? "mobile" : "desktop"] = false;
     applyWidth(next, true);
   };
 

@@ -3,7 +3,7 @@ export const MOBILE_OVERLAY_QUERY = "(max-width: 860px)";
 export const FALLBACK_MIN_SIDEBAR_WIDTH = 240;
 export const MAX_SIDEBAR_WIDTH = 720;
 export const DEFAULT_DESKTOP_SIDEBAR_WIDTH = 300;
-export const DEFAULT_MOBILE_SIDEBAR_WIDTH = 268;
+export const DEFAULT_MOBILE_SIDEBAR_WIDTH = 300;
 export const KEYBOARD_STEP = 16;
 
 const MIN_MAIN_WIDTH = 520;
