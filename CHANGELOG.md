@@ -8,7 +8,7 @@
 
 ### Improved (1)
 
-- On account cards, each usage limit now has a colored chip (`5H LIMIT` blue, `7D LIMIT` coral, `30D LIMIT` pink) that also names the provider or model, such as `7D LIMIT · Claude`, `30D LIMIT · ChatGPT` and `7D LIMIT · GrokBot`. The reset countdown sits above the bar and the percentage to the right of it.
+- On account cards, each usage limit now has a colored pill-shaped chip with rounded corners (such as `5H LIMIT`, `7D LIMIT`, and `30D LIMIT`) that names the provider or model, such as `7D LIMIT · Claude`, `30D LIMIT · ChatGPT` and `7D LIMIT · GrokBot`. The reset countdown sits above the bar and the percentage to the right of it.
 
 ## v0.4.10 - 2026-10-20 (9 changes)
 
