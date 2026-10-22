@@ -174,6 +174,7 @@ export function UpdateNotesModal({
   const cleanVersion = (version || "").replace(/^v/i, "");
   const blocks = releaseNotes ? parseMarkdownBlocks(cleanReleaseNotes(releaseNotes)) : [];
   const formattedDate = formatReleaseDate(releaseDate);
+  const isUpdating = updateBusy === "downloading" || updateBusy === "verifying" || updateBusy === "installing";
 
   return (
     <ModalDialog dialogRef={dialogRef} labelledBy="update-notes-title" className="update-notes-modal" onClose={onClose}>
@@ -185,7 +186,7 @@ export function UpdateNotesModal({
         <p className="update-notes-subtitle">Published {formattedDate}</p>
       ) : null}
 
-      <div className="update-notes-content">
+      <div className={`update-notes-content${isUpdating ? " has-progress" : ""}`}>
         {blocks.length > 0 ? (
           blocks.map((block, idx) => {
             if (block.type === "h2") {

@@ -1837,7 +1837,7 @@ button.account-card-provider-icon:active {
 }
 
 .update-notes-progress {
-  margin: 12px 0 4px;
+  margin: 16px 0;
 }
 
 .update-notes-error {
@@ -2379,6 +2379,11 @@ select.text-input option,
   padding-top: 16px;
   padding-bottom: 16px;
   min-height: 120px;
+}
+
+.update-notes-modal:has(.update-notes-progress) .update-notes-content,
+.update-notes-content.has-progress {
+  margin-bottom: 0;
 }
 
 .update-notes-content::-webkit-scrollbar {

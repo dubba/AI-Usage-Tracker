@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (1 change)
+
+### Improved (1)
+
+- Centered the update progress bar and status label symmetrically between the content divider and the action buttons in the release notes update modal.
 
 ## v0.5.1 - 2026-10-22 (3 changes)
 
