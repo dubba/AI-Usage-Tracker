@@ -62,4 +62,12 @@ describe("Button hover and active state invariants", () => {
     expect(UI_REFINEMENTS_CSS).toContain("html[data-sidebar-toggle-stacked] .provider-window-toggle button[data-tooltip]::after");
     expect(UI_REFINEMENTS_CSS).toContain("html[data-sidebar-toggle-stacked] .provider-window-toggle button:last-child[data-tooltip]::after");
   });
+
+  it("sizes group header controls to prevent inflating dashboard-title-row above eyebrow line-height", () => {
+    // Eyebrow heading line-height is 1.15 on 15px font (~17.25px).
+    // The bucket pill (16px) and edit button (17px) must not exceed this height,
+    // ensuring the header divider line aligns identically between group views and provider views.
+    expect(OBSIDIAN_CSS).toMatch(/\.dashboard-bucket-pill\s*\{[^}]*height:\s*16px/);
+    expect(UI_REFINEMENTS_CSS).toMatch(/\.edit-bucket-title-btn\s*\{[^}]*height:\s*17px\s*!important/);
+  });
 });

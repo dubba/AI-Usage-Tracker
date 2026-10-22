@@ -686,7 +686,7 @@ html[data-sidebar-toggle-stacked] .provider-sidebar-heading-stack .usage-display
 .dashboard-header .dashboard-title-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   margin-bottom: 8px;
 }
 
@@ -2521,19 +2521,20 @@ select.text-input option,
   gap: 10px;
 }
 
-/* Same look as the sidebar's .bucket-mini-badge (uppercase lavender label on a faint purple
-   fill, no border), scaled up to sit beside the 15px page title. */
+/* Scaled to sit cleanly beside the 15px uppercase heading (.dashboard-header h1.eyebrow,
+   line-height 17.25px) without inflating .dashboard-title-row height or shifting the header
+   divider. Matches the styling of the sidebar's .bucket-mini-badge. */
 .dashboard-bucket-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 22px;
+  height: 16px;
   box-sizing: border-box;
-  padding: 0 8px;
-  border-radius: 4px;
-  font-size: 12px;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   line-height: 1;
   text-transform: uppercase;
   white-space: nowrap;

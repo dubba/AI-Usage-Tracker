@@ -120,8 +120,7 @@
 
 .account-name-edit,
 .account-name-confirm,
-.account-name-cancel,
-.edit-bucket-title-btn {
+.account-name-cancel {
   display: inline-grid;
   place-items: center;
   box-sizing: border-box;
@@ -133,6 +132,27 @@
   border-width: 1px;
   border-style: solid;
   border-radius: 4px;
+  cursor: pointer;
+  vertical-align: middle;
+  position: relative;
+}
+
+/* Edit Group title pen button: sized to 17px to sit beside .dashboard-header h1.eyebrow
+   (15px font, 17.25px line-height) so .dashboard-title-row maintains the exact same
+   height and divider line position as provider account views. Touch target stays 44px
+   via ::before. */
+.edit-bucket-title-btn {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 17px;
+  height: 17px !important;
+  min-width: 17px !important;
+  min-height: 17px !important;
+  padding: 0;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 3px;
   cursor: pointer;
   vertical-align: middle;
   position: relative;
@@ -175,10 +195,14 @@
 .account-name-edit svg,
 .account-name-confirm svg,
 .account-name-confirm .mini-spinner,
-.account-name-cancel svg,
-.edit-bucket-title-btn svg {
+.account-name-cancel svg {
   width: 13px !important;
   height: 13px !important;
+}
+
+.edit-bucket-title-btn svg {
+  width: 10px !important;
+  height: 10px !important;
 }
 
 .account-name-edit svg,

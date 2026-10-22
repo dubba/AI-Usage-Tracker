@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased (1 change)
+## Unreleased (2 changes)
+
+### Fixed (1)
+
+- Aligned the group view header and horizontal divider line to match provider account views, preventing the group badge and edit button from inflating header height and pushing the divider downward.
 
 ### Improved (1)
 
