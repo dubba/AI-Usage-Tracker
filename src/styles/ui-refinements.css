@@ -586,47 +586,53 @@
   min-width: 0;
 }
 
+.account-usage-metric .metric-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  margin: 0 0 2px;
+}
+
 .account-usage-metric .metric-window-pill {
   flex: 0 0 auto;
   width: fit-content;
   margin: 0;
-  padding: 0;
-  color: var(--obsidian-muted-bright);
-  border: none !important;
-  border-radius: 0;
-  background: transparent !important;
+  padding: 2px 8px;
+  color: var(--obsidian-text);
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06) !important;
   box-shadow: none !important;
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.03em;
-  line-height: 1;
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+  white-space: nowrap;
 }
 
-.account-usage-metric .metric-window-pill.window-pill-5h {
-  color: var(--c-f5f1ef);
-  padding: 3px 10px;
-  border: 1px solid rgba(251, 146, 60, 0.5) !important;
-  border-radius: 999px;
-  background: rgba(251, 146, 60, 0.12) !important;
-  box-shadow: none !important;
+:root[data-theme="light"] .account-usage-metric .metric-window-pill {
+  background: rgba(0, 0, 0, 0.05) !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  color: var(--obsidian-text);
 }
 
-.account-usage-metric .metric-window-pill.window-pill-7d {
-  color: var(--c-f5f1ef);
-  padding: 3px 10px;
-  border: 1px solid rgba(56, 189, 248, 0.5) !important;
-  border-radius: 999px;
-  background: rgba(56, 189, 248, 0.12) !important;
-  box-shadow: none !important;
+/* One identity color per window length; the leading :root outranks the light-theme rule above. */
+:root .account-usage-metric .metric-window-pill.window-pill-5h {
+  border-color: rgb(var(--window-5h-rgb) / 0.5) !important;
+  background: rgb(var(--window-5h-rgb) / 0.12) !important;
 }
 
-.account-usage-metric .metric-window-pill.window-pill-monthly {
-  color: var(--c-f5f1ef);
-  padding: 3px 10px;
-  border: 1px solid rgb(var(--purple-accent-rgb) / 0.5) !important;
-  border-radius: 999px;
-  background: rgb(var(--purple-accent-rgb) / 0.12) !important;
-  box-shadow: none !important;
+:root .account-usage-metric .metric-window-pill.window-pill-7d {
+  border-color: rgb(var(--window-7d-rgb) / 0.5) !important;
+  background: rgb(var(--window-7d-rgb) / 0.12) !important;
+}
+
+:root .account-usage-metric .metric-window-pill.window-pill-monthly {
+  border-color: rgb(var(--window-30d-rgb) / 0.5) !important;
+  background: rgb(var(--window-30d-rgb) / 0.12) !important;
 }
 
 .account-usage-metric .metric-value-row {
@@ -666,11 +672,17 @@
 
 .account-usage-metric .metric-reset {
   display: block;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
   text-align: right;
   color: var(--obsidian-muted-bright);
-  font-weight: 600;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 550;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-left: auto;
 }
 
 /* Provider and account ordering */

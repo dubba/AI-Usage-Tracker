@@ -58,6 +58,14 @@
     --purple-surface-active: #32254e;
     --obsidian-blue: #6ecbff;
     --obsidian-blue-rgb: 110 203 255;
+    /* Usage-window identity colors (chip and tints): blue, coral, pink. They stay off green,
+     * amber and red, which mean usage level. 5h reuses the blue accent, so it follows the theme. */
+    --window-5h-rgb: var(--obsidian-blue-rgb);
+    --window-7d-rgb: 255 159 110;
+    --window-30d-rgb: 255 122 198;
+    --window-5h: rgb(var(--window-5h-rgb));
+    --window-7d: rgb(var(--window-7d-rgb));
+    --window-30d: rgb(var(--window-30d-rgb));
     /* from sidebar-controls.css */
     --sidebar-small-text-size: 12px;
     /* from dashboard-typography.css */
@@ -129,6 +137,8 @@
     --purple-surface-active: #ddd4f4;
     --obsidian-blue: #0b6fa4;
     --obsidian-blue-rgb: 11 111 164;
+    --window-7d-rgb: 196 87 31;
+    --window-30d-rgb: 194 57 138;
     --purple-soft: rgb(var(--purple-accent-rgb) / 0.12);
     --amber: #b8790a;
     --red: #d03a3a;

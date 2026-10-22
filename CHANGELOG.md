@@ -1,10 +1,14 @@
 # Changelog
 
-## Unreleased (1 change)
+## Unreleased (2 changes)
 
 ### Added (1)
 
 - On Android and iPhone/iPad, the "Account connected" screen now has a red X in the top-right corner that returns to the dashboard straight away, like swiping back.
+
+### Improved (1)
+
+- On account cards, each usage limit now has a colored chip (`5H LIMIT` blue, `7D LIMIT` coral, `30D LIMIT` pink) that also names the provider or model, such as `7D LIMIT · Claude`, `30D LIMIT · ChatGPT` and `7D LIMIT · GrokBot`. The reset countdown sits above the bar and the percentage to the right of it.
 
 ## v0.4.10 - 2026-10-20 (9 changes)
 

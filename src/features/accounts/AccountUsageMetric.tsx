@@ -4,7 +4,7 @@ import { displayPercent, usageDisplaySuffix } from "../../shared/lib/usage-displ
 import { formatResetAtShort, resetCountdownLabel } from "../../shared/lib/format";
 import { usageTone, windowLength } from "../../shared/lib/usage-logic";
 import {
-  metricGroupLabel,
+  metricChipLabel,
   windowPillClass,
 } from "../../shared/lib/display";
 import type {
@@ -41,8 +41,8 @@ export function AccountUsageMetric(props: WindowMetricProps | { unavailable: tru
 function UnavailableMetric({ creditLabel }: { creditLabel: string | null }) {
   return (
     <div className="account-usage-metric unavailable-metric">
-      <div className="metric-divider-row">
-        <span className="metric-divider-line" aria-hidden="true" />
+      <div className="metric-header-row">
+        <span className="metric-reset">Refresh this account to retrieve its limits.</span>
       </div>
       <div className="metric-value-row">
         <span
@@ -53,13 +53,10 @@ function UnavailableMetric({ creditLabel }: { creditLabel: string | null }) {
           aria-valuemax={100}
           aria-valuetext="Unavailable"
         ><span className="tone-neutral" style={{ width: "0%" }} /></span>
-        {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
-      </div>
-      <div className="metric-detail-row">
         <span className="metric-percent-line">
           <strong className="metric-full-value">Unavailable</strong>
         </span>
-        <span className="metric-reset">Refresh this account to retrieve its limits.</span>
+        {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
       </div>
     </div>
   );
@@ -85,37 +82,34 @@ function WindowMetric({
   const suffix = usageDisplaySuffix(displayMode);
   const width = shown == null ? 0 : Math.min(100, Math.max(0, shown));
   const tone = usageTone(remaining);
+  const chipText = metricChipLabel(window, provider);
   const length = windowLength(window);
-  const group = metricGroupLabel(window, provider);
-  const pillText = length && group ? `${length} · ${group}` : length;
+  const ariaLabel = `${chipText ?? length ?? window.label} ${displayMode === "used" ? "used" : "remaining"}`;
   return (
     <div className="account-usage-metric">
-      <div className="metric-divider-row">
-        {pillText ? (
+      <div className="metric-header-row">
+        {chipText ? (
           <span className={`metric-window-pill ${windowPillClass(window)}`}>
-            {pillText}
+            {chipText}
           </span>
         ) : null}
-        <span className="metric-divider-line" aria-hidden="true" />
+        <span className="metric-reset">{resetLine}</span>
       </div>
       <div className="metric-value-row">
         <span
           className="account-metric-track"
           role="progressbar"
-          aria-label={`${length ?? window.label} ${displayMode === "used" ? "used" : "remaining"}`}
+          aria-label={ariaLabel}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={shown == null ? undefined : Math.round(shown)}
           aria-valuetext={shown == null ? unavailableLabel : `${Math.round(shown)}% ${suffix}`}
         ><span className={`tone-${tone}`} style={{ width: `${width}%` }} /></span>
-        {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
-      </div>
-      <div className="metric-detail-row">
         <span className="metric-percent-line">
           <strong className={`metric-full-value tone-${tone}`}>{shown == null ? unavailableLabel : `${Math.round(shown)}%`}</strong>
           {shown == null ? null : <span className="metric-percent-suffix">{suffix}</span>}
         </span>
-        <span className="metric-reset">{resetLine}</span>
+        {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
       </div>
     </div>
   );

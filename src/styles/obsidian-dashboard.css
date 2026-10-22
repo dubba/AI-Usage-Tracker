@@ -1504,36 +1504,22 @@ button.account-card-provider-icon:active {
 .metric-inline-credit,
 .window-pill {
   flex: 0 0 auto;
-  padding: 2px 7px;
-  border: 1px solid var(--c-37343b);
+  padding: 2px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 4px;
-  color: var(--obsidian-muted-bright);
-  background: var(--obsidian-surface-low, var(--c-181717));
+  color: var(--obsidian-text);
+  background: rgba(255, 255, 255, 0.06);
   font-size: 11px;
-  font-weight: 550;
-  letter-spacing: 0.03em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   white-space: nowrap;
 }
 
-.metric-window-pill.window-pill-5h,
-.window-pill.window-pill-5h {
-  color: var(--c-fb923c);
-  border-color: rgba(251, 146, 60, 0.45);
-  background: rgba(251, 146, 60, 0.1);
-}
-
-.metric-window-pill.window-pill-7d,
-.window-pill.window-pill-7d {
-  color: var(--c-38bdf8);
-  border-color: rgba(56, 189, 248, 0.45);
-  background: rgba(56, 189, 248, 0.1);
-}
-
-.metric-window-pill.window-pill-monthly,
-.window-pill.window-pill-monthly {
-  color: var(--purple-accent);
-  border-color: rgb(var(--purple-accent-rgb) / 0.45);
-  background: rgb(var(--purple-accent-rgb) / 0.1);
+:root[data-theme="light"] .metric-window-pill,
+:root[data-theme="light"] .window-pill {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: var(--obsidian-text);
 }
 
 .metric-value-row {

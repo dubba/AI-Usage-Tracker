@@ -4,6 +4,7 @@ import {
   cleanModelPrefix,
   displayAccountSubtitle,
   displayPlan,
+  metricChipLabel,
   metricGroupLabel,
   windowPillClass,
 } from "./display";
@@ -86,6 +87,35 @@ describe("metricGroupLabel", () => {
     expect(metricGroupLabel(win({ label: "Grok Bot weekly" }), "grok")).toBe("Grok Bot");
     expect(metricGroupLabel(win({ label: "5 hour" }), "anthropic")).toBe("Claude");
     expect(metricGroupLabel(win({ label: "Weekly" }), "opencode_go")).toBe("OpenCode");
+  });
+});
+
+describe("metricChipLabel", () => {
+  it("formats Anthropic session and weekly windows as uppercase limit chips named for Claude", () => {
+    expect(metricChipLabel(win({ kind: "five_hour", windowSeconds: 18_000, label: "5-Hour Window" }), "anthropic")).toBe("5H LIMIT · Claude");
+    expect(metricChipLabel(win({ kind: "weekly", windowSeconds: 604_800, label: "Weekly" }), "anthropic")).toBe("7D LIMIT · Claude");
+    expect(metricChipLabel(win({ kind: "monthly", label: "Monthly" }), "anthropic")).toBe("30D LIMIT · Claude");
+  });
+
+  it("formats Grok windows distinguishing GrokBot from general Grok pool", () => {
+    expect(metricChipLabel(win({ id: "grok_bot", label: "Grok Bot weekly", windowSeconds: 604_800 }), "grok")).toBe("7D LIMIT · GrokBot");
+    expect(metricChipLabel(win({ id: "grok_weekly", label: "Weekly", windowSeconds: 604_800 }), "grok")).toBe("7D LIMIT · Grok");
+  });
+
+  it("formats OpenCode Go weekly window without repeating provider name", () => {
+    expect(metricChipLabel(win({ kind: "weekly", windowSeconds: 604_800, label: "Weekly" }), "opencode_go")).toBe("7D LIMIT");
+  });
+
+  it("formats OpenAI windows naming ChatGPT and distinguishing Code Review", () => {
+    expect(metricChipLabel(win({ id: "code_review", label: "Code Review · Limit", windowSeconds: 604_800 }), "openai")).toBe("7D LIMIT · Code Review");
+    expect(metricChipLabel(win({ id: "monthly", label: "GPT · 30-Day Limit", windowSeconds: 2_592_000 }), "openai")).toBe("30D LIMIT · ChatGPT");
+    expect(metricChipLabel(win({ id: "gpt_weekly", label: "GPT · Weekly Limit", windowSeconds: 604_800 }), "openai")).toBe("7D LIMIT · ChatGPT");
+    expect(metricChipLabel(win({ id: "session", label: "GPT · Session Limit", windowSeconds: 18_000 }), "openai")).toBe("5H LIMIT · ChatGPT");
+  });
+
+  it("formats Antigravity windows with their model groups", () => {
+    expect(metricChipLabel(win({ label: "Gemini · 5h limit", windowSeconds: 18_000 }), "antigravity")).toBe("5H LIMIT · Gemini");
+    expect(metricChipLabel(win({ label: "Claude and GPT models · Weekly", windowSeconds: 604_800 }), "antigravity")).toBe("7D LIMIT · Other");
   });
 });
 

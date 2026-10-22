@@ -653,13 +653,15 @@
   }
 }
 
+.account-usage-metric .metric-header-row,
 .account-usage-metric .metric-divider-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: flex-start;
+  gap: 8px;
   width: 100%;
   min-width: 0;
-  margin: 0 0 10px;
+  margin: 0 0 2px;
 }
 
 .account-usage-metric .metric-divider-line {
@@ -667,17 +669,6 @@
   min-width: 0;
   height: 0;
   border-top: 1px solid var(--c-2d2c2c);
-}
-
-.account-usage-metric .metric-detail-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 2px 12px;
-  width: 100%;
-  min-width: 0;
-  margin: 4px 0 0;
 }
 
 .account-usage-metric .metric-percent-line {
@@ -694,12 +685,12 @@
   font-weight: 600;
 }
 
-.account-usage-metric .metric-detail-row .metric-reset {
+.account-usage-metric .metric-header-row .metric-reset {
   flex: 0 1 auto;
   margin-left: auto;
 }
 
-.account-usage-metric .metric-detail-row .metric-full-value {
+.account-usage-metric .metric-value-row .metric-full-value {
   font-size: 15px;
   line-height: 20px;
 }
