@@ -15,11 +15,11 @@
       "iconURL": "https://raw.githubusercontent.com/dubba/AI-Usage-Tracker/main/src-tauri/icons/icon.png",
       "tintColor": "6366f1",
       "category": "utilities",
-      "version": "0.4.10",
-      "versionDate": "2026-10-20T07:40:39.648Z",
-      "versionDescription": "A standalone macOS uninstaller script (`scripts/uninstall-macos.sh` or `npm run uninstall:macos`) that completely removes application data, preferences, temporary sign-in profiles, and saved Apple Keychain credentials, and optionally deletes the application bundle.\nOn Windows and macOS, the Google sign-in window that opens from \"Continue with Google\" on Claude's sign-in page is now as tall as the Claude window and lines up with its top, instead of opening at a fixed, taller size.\nThe sidebar opens wide enough for \"Accounts synced just now\" to stay on one line, and double-clicking its resize handle returns to that width. Narrower than the Account, Group, and L/U row, the toggle still drops to its own line.\nOn Windows, uninstalling the app now deletes all locally stored accounts, preferences, temporary sign-in browser profiles, and Windows Credential Manager sign-ins, so reinstalling the app starts fresh.\nOn iPhone and iPad, reinstalling the app after deleting it now automatically purges leftover Apple Keychain credentials from the previous installation, starting the app completely fresh.\nOn Android, the \"Account connected\" screen after signing in to Claude, ChatGPT or Antigravity no longer freezes at 1 second. It counts down to 0 and returns to the dashboard, without having to close and reopen the app.\nOn Windows, choosing \"Continue with Google\" on Claude's sign-in page now opens Google's sign-in window instead of a black one.\nOn Windows, macOS and iPhone/iPad, clicking the \"update available\" notification now opens the What's new window, as it already did on Android. On Windows the click only works while the notification is still on screen, not after it has moved to the Action Center.\nOn iPhone and iPad, tapping a notification after the app was fully closed no longer crashes the app. This affected the usage alerts as well as the update notice.",
-      "downloadURL": "https://github.com/dubba/AI-Usage-Tracker/releases/download/v0.4.10/AI-Usage-Tracker.ipa",
-      "size": 5533342,
+      "version": "0.5.0",
+      "versionDate": "2026-10-22T03:59:55.170Z",
+      "versionDescription": "On Android and iPhone/iPad, the \"Account connected\" screen now has a red X in the top-right corner that returns to the dashboard straight away, like swiping back.\nOn account cards, each usage limit now has a colored pill-shaped chip with rounded corners (such as `5H LIMIT`, `7D LIMIT`, and `30D LIMIT`) that names the provider or model, such as `7D LIMIT · Claude`, `30D LIMIT · ChatGPT` and `7D LIMIT · GrokBot`. The reset countdown sits above the bar and the percentage to the right of it.",
+      "downloadURL": "https://github.com/dubba/AI-Usage-Tracker/releases/download/v0.5.0/AI-Usage-Tracker.ipa",
+      "size": 5539403,
       "minOSVersion": "16.0"
     }
   ],
