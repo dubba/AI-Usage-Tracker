@@ -314,11 +314,12 @@ pub(crate) fn set_connected_page_close_url(url: &Url) {
     *CLOSE_URL.lock() = Some(url.as_str().to_string());
 }
 
-/// Red "X" in the top-right corner, like the app's own close buttons: a link to the app's page, so
-/// it returns to the dashboard as the Android back gesture does.
+/// Red "X" in the top-right corner, the same 32 px square as the app's modal close buttons (inside
+/// a 44 px tap target): a link to the app's page, so it returns to the dashboard as the Android
+/// back gesture does.
 fn close_button_markup(app_url: &str) -> String {
     format!(
-        r##"<a href="{}" role="button" aria-label="Close and return to AI Usage Tracker" style="position:fixed;top:calc(max(env(safe-area-inset-top,0px),28px) + 8px);right:16px;width:44px;height:44px;border-radius:12px;background:#d32f2f;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.4);text-decoration:none;-webkit-tap-highlight-color:transparent"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></a>"##,
+        r##"<a href="{}" role="button" aria-label="Close and return to AI Usage Tracker" style="position:fixed;top:calc(max(env(safe-area-inset-top,0px),28px) + 2px);right:7px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;text-decoration:none;-webkit-tap-highlight-color:transparent"><span style="width:32px;height:32px;box-sizing:border-box;border:1px solid #d94a4a;border-radius:8px;background:#c53131;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></span></a>"##,
         escape_html(app_url)
     )
 }
@@ -598,9 +599,9 @@ mod tests {
     fn the_close_button_is_a_script_free_link_to_the_app_page() {
         let button = close_button_markup("http://tauri.localhost/");
         assert!(button.contains(r#"href="http://tauri.localhost/""#));
-        assert!(button.contains("background:#d32f2f"));
+        assert!(button.contains("background:#c53131"));
         assert!(button.contains("position:fixed"));
-        assert!(button.contains("right:16px"));
+        assert!(button.contains("width:32px;height:32px"));
         assert!(button.contains("aria-label"));
         // The `data:` page may not run script, so the button must not need any.
         assert!(!button.contains("<script"));
