@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (1 change)
+
+### Added (1)
+
+- On Android and iPhone/iPad, the "Account connected" screen now has a red X in the top-right corner that returns to the dashboard straight away, like swiping back.
 
 ## v0.4.10 - 2026-10-20 (9 changes)
 

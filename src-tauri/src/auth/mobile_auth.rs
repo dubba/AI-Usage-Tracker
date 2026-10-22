@@ -354,6 +354,8 @@ pub fn open_in_main_webview(
     // Clear the previous provider session before the page loads, and before a
     // cookie poll can read it. The app URL above is already saved for restore.
     forget_provider_sign_in(&window);
+    // The connected page's close button goes back to the app page.
+    crate::auth::oauth_common::set_connected_page_close_url(&restore_url);
     RESULT_PAGE.store(RESULT_PAGE_NONE, Ordering::SeqCst);
     // Claude's "Continue with Google" needs a real popup (see IOS_POPUP_SCRIPT).
     #[cfg(target_os = "ios")]
@@ -539,8 +541,9 @@ async fn show_result_page(window: &WebviewWindow, state: &AppState, attempt_id: 
 }
 
 /// Keeps the result page up for `SUCCESS_DISPLAY_DELAY`, counting its number down when the app
-/// showed the page (`count_down`). Ends early when the user has left the page (back returns to the
-/// app's own origin, `restore_url`) or a newer sign-in has replaced this attempt.
+/// showed the page (`count_down`). Ends early when the user has left the page (back, or the page's
+/// close button, returns to the app's own origin, `restore_url`) or a newer sign-in has replaced
+/// this attempt.
 #[cfg(mobile)]
 async fn hold_result_page(
     window: &WebviewWindow,

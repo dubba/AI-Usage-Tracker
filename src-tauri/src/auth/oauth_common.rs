@@ -302,6 +302,40 @@ const DESKTOP_COUNTDOWN_SCRIPT: &str = "<script>let s=5;const el=document.getEle
 /// on "1".
 const MOBILE_COUNTDOWN_SCRIPT: &str = "<script>let s=5;const el=document.getElementById('sec');const t=setInterval(()=>{s--;if(el)el.textContent=String(Math.max(0,s));if(s<=0){clearInterval(t);}},1000);</script>";
 
+/// Where the connected page's close button goes: the app's own page, set when a phone sign-in
+/// starts (`set_connected_page_close_url`). A plain link, because the `data:` copy may not run
+/// script (it inherits the provider page's Content Security Policy) and cannot link to a
+/// fragment of itself (the WebView refuses a page-initiated navigation to a `data:` URL).
+static CLOSE_URL: Mutex<Option<String>> = Mutex::new(None);
+
+/// Remembers the app's own page for the connected page's close button (phones only).
+#[cfg_attr(not(any(test, mobile)), allow(dead_code))]
+pub(crate) fn set_connected_page_close_url(url: &Url) {
+    *CLOSE_URL.lock() = Some(url.as_str().to_string());
+}
+
+/// Red "X" in the top-right corner, like the app's own close buttons: a link to the app's page, so
+/// it returns to the dashboard as the Android back gesture does.
+fn close_button_markup(app_url: &str) -> String {
+    format!(
+        r##"<a href="{}" role="button" aria-label="Close and return to AI Usage Tracker" style="position:fixed;top:calc(max(env(safe-area-inset-top,0px),28px) + 8px);right:16px;width:44px;height:44px;border-radius:12px;background:#d32f2f;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.4);text-decoration:none;-webkit-tap-highlight-color:transparent"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></a>"##,
+        escape_html(app_url)
+    )
+}
+
+/// The close button for the connected page: phones only (a desktop browser tab closes itself),
+/// and only once a sign-in has said where the app is.
+fn close_button_html() -> String {
+    if !cfg!(mobile) {
+        return String::new();
+    }
+    CLOSE_URL
+        .lock()
+        .as_deref()
+        .map(close_button_markup)
+        .unwrap_or_default()
+}
+
 fn connected_html(title: &str, account: &Account, countdown_script: &str) -> String {
     let provider_name = account.provider.display_name();
     let identity = account
@@ -322,12 +356,13 @@ fn connected_html(title: &str, account: &Account, countdown_script: &str) -> Str
         })
         .unwrap_or_default();
     format!(
-        r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;min-height:100vh;min-height:100dvh;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000000;color:#f4f6f8;font-family:system-ui;padding:24px 20px;text-align:center"><div style="max-width:480px;width:100%"><h1 style="margin:0 0 12px;font-size:28px">{}</h1><div style="display:flex;justify-content:center;align-items:center;gap:10px;margin:8px 0 18px;font-size:20px;font-weight:600">{}<span>{}</span></div>{}<p style="color:#8e9791;margin:0 0 6px">Returning to AI Usage Tracker in</p><div style="font-size:48px;font-weight:700;line-height:1.1;margin:0 0 16px;color:#a078ff"><span id="sec">5</span></div><p style="color:#626b65;font-size:13px;margin:0">You can also close this tab manually.</p></div>{}</body></html>"#,
+        r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;min-height:100vh;min-height:100dvh;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000000;color:#f4f6f8;font-family:system-ui;padding:24px 20px;text-align:center"><div style="max-width:480px;width:100%"><h1 style="margin:0 0 12px;font-size:28px">{}</h1><div style="display:flex;justify-content:center;align-items:center;gap:10px;margin:8px 0 18px;font-size:20px;font-weight:600">{}<span>{}</span></div>{}<p style="color:#8e9791;margin:0 0 6px">Returning to AI Usage Tracker in</p><div style="font-size:48px;font-weight:700;line-height:1.1;margin:0 0 16px;color:#a078ff"><span id="sec">5</span></div><p style="color:#626b65;font-size:13px;margin:0">You can also close this tab manually.</p></div>{}{}</body></html>"#,
         escape_html(title),
         provider_icon_svg(&account.provider),
         escape_html(provider_name),
         identity_html,
-        countdown_script
+        countdown_script,
+        close_button_html()
     )
 }
 
@@ -557,6 +592,32 @@ mod tests {
         assert!(!html.contains("color:#6d3bd7"));
         assert!(html.contains("window.close()"));
         assert_eq!(CONNECTED_PAGE_DISPLAY, Duration::from_secs(5));
+    }
+
+    #[test]
+    fn the_close_button_is_a_script_free_link_to_the_app_page() {
+        let button = close_button_markup("http://tauri.localhost/");
+        assert!(button.contains(r#"href="http://tauri.localhost/""#));
+        assert!(button.contains("background:#d32f2f"));
+        assert!(button.contains("position:fixed"));
+        assert!(button.contains("right:16px"));
+        assert!(button.contains("aria-label"));
+        // The `data:` page may not run script, so the button must not need any.
+        assert!(!button.contains("<script"));
+        assert!(!button.contains("onclick"));
+        // The address is escaped like any other text put in the page.
+        assert!(close_button_markup("http://x/\"><b>").contains("&quot;&gt;&lt;b&gt;"));
+    }
+
+    #[test]
+    fn only_phone_connected_pages_get_the_close_button() {
+        set_connected_page_close_url(&Url::parse("http://tauri.localhost/").unwrap());
+        let html = account_connected_html(
+            "Account connected",
+            &account(Provider::Anthropic, Some("a@example.com"), "Claude"),
+        );
+        // Tests run on desktop, where the page opens in a browser tab that closes itself.
+        assert_eq!(html.contains("aria-label=\"Close and return"), cfg!(mobile));
     }
 
     #[test]
