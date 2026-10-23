@@ -22,14 +22,12 @@ import android.webkit.WebView
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
-import androidx.annotation.OptIn
 import androidx.browser.customtabs.CustomTabColorSchemeParams
 import androidx.browser.customtabs.CustomTabsCallback
 import androidx.browser.customtabs.CustomTabsClient
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.browser.customtabs.CustomTabsServiceConnection
 import androidx.browser.customtabs.CustomTabsSession
-import androidx.browser.customtabs.ExperimentalMinimizationCallback
 import androidx.core.app.NotificationCompat
 import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
@@ -606,9 +604,10 @@ class MainActivity : TauriActivity() {
    * Opens a provider's sign-in page in a Custom Tab (see [SignInTab]), in the default browser
    * when it supports them, else in another browser that does. Returns the tab's number, or 0 when
    * no installed browser supports Custom Tabs or the tab did not open; Rust then uses the in-app
-   * page. Called from Rust over JNI (sign_in_tab.rs), never on the UI thread.
+   * page. With [freshSession] the tab starts with no sign-ins of the browser's, where the
+   * browser supports it. Called from Rust over JNI (sign_in_tab.rs), never on the UI thread.
    */
-  fun openSignInTab(url: String): Int {
+  fun openSignInTab(url: String, freshSession: Boolean): Int {
     if (!SignInTab.isAllowedUrl(url)) return 0
     val browser = try {
       CustomTabsClient.getPackageName(this, null)
@@ -629,6 +628,12 @@ class MainActivity : TauriActivity() {
           .setNavigationBarColor(Color.BLACK)
           .build()
         val builder = if (session != null) CustomTabsIntent.Builder(session) else CustomTabsIntent.Builder()
+        // A fresh session sees none of the browser's sign-ins, so "Continue with Google" on
+        // Claude's or ChatGPT's page asks which account instead of reusing the browser's. A
+        // browser without that mode keeps the shared session.
+        val fresh = freshSession && ephemeralSupported(browser)
+        if (fresh) builder.setEphemeralBrowsingEnabled(true)
+        android.util.Log.i(TAG, "Sign-in tab: fresh session requested=$freshSession used=$fresh")
         val tab = builder
           .setColorScheme(CustomTabsIntent.COLOR_SCHEME_DARK)
           .setDefaultColorSchemeParams(black)
@@ -663,6 +668,12 @@ class MainActivity : TauriActivity() {
     val tab = if (finished) opened.get() else 0
     if (tab == 0) disconnectSignInTabSession()
     return tab
+  }
+
+  private fun ephemeralSupported(browser: String): Boolean = try {
+    CustomTabsClient.isEphemeralBrowsingSupported(this, browser)
+  } catch (e: Throwable) {
+    false
   }
 
   /**
@@ -707,7 +718,6 @@ class MainActivity : TauriActivity() {
     }
   }
 
-  @OptIn(ExperimentalMinimizationCallback::class)
   private val signInTabCallback = object : CustomTabsCallback() {
     override fun onNavigationEvent(navigationEvent: Int, extras: Bundle?) {
       when (navigationEvent) {

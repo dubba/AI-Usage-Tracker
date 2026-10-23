@@ -54,6 +54,15 @@ pub(crate) fn uses_sign_in_tab(provider: &Provider) -> bool {
     }
 }
 
+/// Whether the tab for `provider` starts with none of the browser's sign-ins. Claude and ChatGPT
+/// only offer "Continue with Google" on their own page and send Google no account prompt, so
+/// Google would reuse the browser's account; Antigravity asks Google directly with
+/// `prompt=select_account`, whose chooser lists the browser's accounts.
+#[cfg(any(test, target_os = "android"))]
+pub(crate) fn uses_fresh_browser_session(provider: &Provider) -> bool {
+    matches!(provider, Provider::Openai | Provider::Anthropic)
+}
+
 /// Whether attempt `attempt_id` is signing in in the tab.
 pub(crate) fn is_open_for(attempt_id: &str) -> bool {
     TAB_ATTEMPT.lock().as_deref() == Some(attempt_id)
@@ -113,13 +122,14 @@ fn cancel(state: &AppState, attempt_id: &str) {
 #[cfg(target_os = "android")]
 pub(crate) fn open(
     state: Arc<AppState>,
+    provider: &Provider,
     attempt_id: &str,
     callback_claimed: Arc<AtomicBool>,
     target: &Url,
 ) -> bool {
     *TAB_ATTEMPT.lock() = Some(attempt_id.to_string());
     // The activity numbers its tabs, so this watch can never close or cancel a newer one.
-    let tab = match launch(target) {
+    let tab = match launch(target, uses_fresh_browser_session(provider)) {
         Ok(tab) if tab != 0 => tab,
         Ok(_) => {
             forget(attempt_id);
@@ -170,7 +180,7 @@ fn forget(attempt_id: &str) {
 }
 
 #[cfg(target_os = "android")]
-fn launch(target: &Url) -> Result<i32, String> {
+fn launch(target: &Url, fresh_session: bool) -> Result<i32, String> {
     const PREFIX: &str = "Unable to open the sign-in tab";
     crate::platform::android_context::with_activity(PREFIX, |env, activity| {
         let url = env
@@ -179,8 +189,11 @@ fn launch(target: &Url) -> Result<i32, String> {
         let result = env.call_method(
             activity,
             "openSignInTab",
-            "(Ljava/lang/String;)I",
-            &[jni::objects::JValue::Object(&url.into())],
+            "(Ljava/lang/String;Z)I",
+            &[
+                jni::objects::JValue::Object(&url.into()),
+                fresh_session.into(),
+            ],
         );
         if env.exception_check().unwrap_or(false) {
             let _ = env.exception_clear();
@@ -251,6 +264,13 @@ mod tests {
         assert!(!uses_sign_in_tab(&Provider::OpencodeGo));
         // Opens the system browser from the dialog.
         assert!(!uses_sign_in_tab(&Provider::GoogleAiStudio));
+    }
+
+    #[test]
+    fn claude_and_chatgpt_start_signed_out_but_antigravity_lists_the_browsers_accounts() {
+        assert!(uses_fresh_browser_session(&Provider::Anthropic));
+        assert!(uses_fresh_browser_session(&Provider::Openai));
+        assert!(!uses_fresh_browser_session(&Provider::Antigravity));
     }
 
     #[test]

@@ -28,6 +28,7 @@ pub(super) fn open_mobile_oauth(
     if crate::auth::sign_in_tab::uses_sign_in_tab(&context.provider)
         && crate::auth::sign_in_tab::open(
             app.clone(),
+            &context.provider,
             &context.attempt_id,
             context.callback_claimed.clone(),
             &target,

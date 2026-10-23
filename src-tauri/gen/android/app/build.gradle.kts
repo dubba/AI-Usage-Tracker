@@ -61,7 +61,7 @@ rust {
 dependencies {
     implementation("androidx.webkit:webkit:1.14.0")
     // Custom Tabs for the Claude, ChatGPT and Antigravity sign-in (SignInTab.kt).
-    implementation("androidx.browser:browser:1.8.0")
+    implementation("androidx.browser:browser:1.9.0")
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("androidx.activity:activity-ktx:1.10.1")
     implementation("com.google.android.material:material:1.12.0")
