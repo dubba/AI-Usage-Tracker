@@ -176,6 +176,7 @@ jobs:
       contents: read
       statuses: write
       checks: write
+      issues: write
 
   # Creates the release and its tag at the commit being built, so the platform
   # jobs can start together and each upload as soon as it finishes (tauri-action
