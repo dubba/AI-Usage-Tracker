@@ -77,6 +77,10 @@ export function antigravityGroupLabel(window: UsageWindow): string | null {
   if (/claude|gpt/i.test(prefix)) {
     return "Other";
   }
+  // The quota name is "Gemini 4 Argon". The card only needs the model.
+  if (/^gemini 4 argon$/i.test(prefix)) {
+    return "Argon";
+  }
   return prefix;
 }
 

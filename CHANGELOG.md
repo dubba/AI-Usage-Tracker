@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (1 change)
+
+### Improved (1)
+
+- On Antigravity account cards, the Gemini 4 Argon limit is labeled Argon.
 
 ## v0.5.2 - 2026-10-23 (4 changes)
 

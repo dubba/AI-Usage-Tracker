@@ -55,8 +55,8 @@ describe("antigravityGroupLabel", () => {
     expect(antigravityGroupLabel(win({ label: "Claude and GPT models · Weekly" }))).toBe("Other");
   });
 
-  it("keeps Gemini 4 Argon as its own group", () => {
-    expect(antigravityGroupLabel(win({ label: "Gemini 4 Argon · Weekly Limit" }))).toBe("Gemini 4 Argon");
+  it("shortens Gemini 4 Argon to Argon on the card", () => {
+    expect(antigravityGroupLabel(win({ label: "Gemini 4 Argon · Weekly Limit" }))).toBe("Argon");
   });
 
   it("has no group for plain window labels", () => {
@@ -116,6 +116,7 @@ describe("metricChipLabel", () => {
   it("formats Antigravity windows with their model groups", () => {
     expect(metricChipLabel(win({ label: "Gemini · 5h limit", windowSeconds: 18_000 }), "antigravity")).toBe("5H LIMIT · Gemini");
     expect(metricChipLabel(win({ label: "Claude and GPT models · Weekly", windowSeconds: 604_800 }), "antigravity")).toBe("7D LIMIT · Other");
+    expect(metricChipLabel(win({ label: "Gemini 4 Argon · Weekly Limit", windowSeconds: 604_800 }), "antigravity")).toBe("7D LIMIT · Argon");
   });
 });
 
