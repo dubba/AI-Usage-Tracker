@@ -15,11 +15,11 @@
       "iconURL": "https://raw.githubusercontent.com/dubba/AI-Usage-Tracker/main/src-tauri/icons/icon.png",
       "tintColor": "6366f1",
       "category": "utilities",
-      "version": "0.5.1",
-      "versionDate": "2026-10-22T06:13:57.604Z",
-      "versionDescription": "Anchored the `L / U` usage display toggle tooltips to the left edge of the toggle when wrapped onto a second line, preventing them from clipping past the left edge of the sidebar.\nOn mobile, the sidebar drawer opens wide enough by default for the `L / U` toggle to stay on the same line as the Account and Group buttons and for the sync status to fit on one line, matching desktop.\nSnugged the horizontal padding on account card usage limit pills from 10px to 8px for a tighter, cleaner capsule fit.",
-      "downloadURL": "https://github.com/dubba/AI-Usage-Tracker/releases/download/v0.5.1/AI-Usage-Tracker.ipa",
-      "size": 5539101,
+      "version": "0.5.2",
+      "versionDate": "2026-10-23T08:50:11.746Z",
+      "versionDescription": "On Android, signing in to Claude, ChatGPT or Antigravity now opens the sign-in page in a browser tab over the app (Chrome, or your default browser when it supports this) instead of inside the app, so \"Continue with Google\" no longer fails with \"This browser or app may not be secure\" or a \"400. That's an error\" page. The \"Account connected\" page in the tab counts down from 5 and has the red X in the corner, which returns to the app straight away; the app comes back by itself when the countdown ends. Closing the tab returns you to the app without signing in. For Claude and ChatGPT the tab is a private one that starts signed out (Chrome 136 or newer), so \"Continue with Google\" asks which account to use instead of reusing your browser's. Antigravity's tab shares your browser's sign-ins and shows Google's account chooser with \"Use another account\". With a browser that has no private tabs, Claude and ChatGPT use your browser's sign-ins: if one goes straight to an account you don't want, use \"Switch account\" on its page, or sign out of it in your browser. Grok and OpenCode still sign in inside the app.\nAntigravity accounts now show the separate Gemini 4 Argon weekly limit. Google only sends that group to clients that identify as the Antigravity App, so the app now identifies itself the same way when it asks for usage limits.\nAligned the group view header and horizontal divider line to match provider account views, preventing the group badge and edit button from inflating header height and pushing the divider downward.\nCentered the update progress bar and status label symmetrically between the content divider and the action buttons in the release notes update modal.",
+      "downloadURL": "https://github.com/dubba/AI-Usage-Tracker/releases/download/v0.5.2/AI-Usage-Tracker.ipa",
+      "size": 5534787,
       "minOSVersion": "16.0"
     }
   ],
