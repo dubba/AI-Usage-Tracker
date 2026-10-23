@@ -379,6 +379,10 @@ fn platform() -> &'static str {
     }
 }
 
+/// The shape the Antigravity App itself sends (`antigravity/hub/2.25.0
+/// (aidev_client; os_type=darwin; arch=arm64; cl=...)`), captured from its
+/// language server. The `cl` build number changes every release and cannot be
+/// read from the changelog, so it is left out.
 fn user_agent(ide_version: &str) -> String {
     let os = match std::env::consts::OS {
         "macos" => "darwin",
@@ -389,7 +393,7 @@ fn user_agent(ide_version: &str) -> String {
         "aarch64" => "arm64",
         other => other,
     };
-    format!("antigravity/{ide_version} {os}/{arch}")
+    format!("antigravity/hub/{ide_version} (aidev_client; os_type={os}; arch={arch})")
 }
 
 fn extract_project_id(value: Option<&Value>) -> Option<String> {
@@ -730,7 +734,7 @@ mod tests {
 
     #[test]
     fn user_agent_and_metadata_carry_the_resolved_version() {
-        assert!(user_agent("2.24.0").starts_with("antigravity/2.24.0 "));
+        assert!(user_agent("2.24.0").starts_with("antigravity/hub/2.24.0 (aidev_client; os_type="));
         let value = metadata(None, "2.24.0");
         assert_eq!(value["ideVersion"], "2.24.0");
         assert_eq!(value["ideName"], "antigravity");

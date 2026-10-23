@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased (2 changes)
+## Unreleased (3 changes)
 
-### Fixed (1)
+### Fixed (2)
 
+- Antigravity accounts now show the separate Gemini 4 Argon weekly limit. Google only sends that group to clients that identify as the Antigravity App, so the app now identifies itself the same way when it asks for usage limits.
 - Aligned the group view header and horizontal divider line to match provider account views, preventing the group badge and edit button from inflating header height and pushing the divider downward.
 
 ### Improved (1)
