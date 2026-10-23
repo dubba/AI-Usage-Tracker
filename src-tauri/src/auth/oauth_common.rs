@@ -297,14 +297,14 @@ pub(crate) fn account_connected_html(title: &str, account: &Account) -> String {
 }
 
 /// The same page in the browser's sign-in tab on Android (`sign_in_tab.rs`). The app brings
-/// itself back over the tab, so the page says that instead of counting down, and the red "X"
-/// brings the app back at once.
+/// itself back over the tab when the 5-second countdown ends (`sign_in_tab.rs`), and the red "X"
+/// brings it back at once. The countdown only counts: closing is the app's job here too.
 pub(crate) fn account_connected_in_tab_html(title: &str, account: &Account) -> String {
     connected_html(
         title,
         account,
-        TAB_FOOTER,
-        "",
+        COUNTDOWN_FOOTER,
+        MOBILE_COUNTDOWN_SCRIPT,
         &close_button_markup(TAB_RETURN_URL),
     )
 }
@@ -317,7 +317,6 @@ const TAB_RETURN_URL: &str =
     "intent://done#Intent;scheme=aiusage-signin;package=com.dubba.ai.usage.tracker;end";
 
 const COUNTDOWN_FOOTER: &str = r#"<p style="color:#8e9791;margin:0 0 6px">Returning to AI Usage Tracker in</p><div style="font-size:48px;font-weight:700;line-height:1.1;margin:0 0 16px;color:#a078ff"><span id="sec">5</span></div><p style="color:#626b65;font-size:13px;margin:0">You can also close this tab manually.</p>"#;
-const TAB_FOOTER: &str = r#"<p style="color:#d1d5db;font-size:16px;margin:0 0 6px">Returning to AI Usage Tracker…</p><p style="color:#626b65;font-size:13px;margin:0">If the app doesn't open, close this tab to go back to it.</p>"#;
 
 /// The page's own countdown, for the loopback callback page. The `data:` copy
 /// (`connected_page_url`) leaves it out: that page inherits the Content Security
@@ -664,23 +663,20 @@ mod tests {
     }
 
     #[test]
-    fn the_sign_in_tab_page_says_connected_and_points_back_to_the_app() {
+    fn the_sign_in_tab_page_counts_down_and_points_back_to_the_app() {
         let account = account(Provider::Antigravity, Some("me@example.com"), "Antigravity");
         let tab = account_connected_in_tab_html("Account connected", &account);
         assert!(tab.contains("Account connected"));
         assert!(tab.contains("me@example.com"));
-        assert!(tab.contains("Returning to AI Usage Tracker…"));
-        assert!(tab.contains("close this tab to go back to it"));
-        // The app returns over the tab on its own clock, so the page neither counts nor closes.
-        assert!(!tab.contains("<script"));
-        assert!(!tab.contains(r#"id="sec""#));
+        // The same 5-second countdown as the in-app page, which only counts: the app brings
+        // itself back over the tab when it ends, so the page never closes anything.
+        assert!(tab.contains("Returning to AI Usage Tracker in"));
+        assert!(tab.contains(r#"<span id="sec">5</span>"#));
+        assert!(tab.contains(MOBILE_COUNTDOWN_SCRIPT));
+        assert!(!tab.contains("window.close"));
         // The red X returns to the app from the browser, even on desktop builds of the test.
         assert!(tab.contains(&format!(r#"href="{TAB_RETURN_URL}""#)));
         assert!(tab.contains("aria-label=\"Close and return"));
-        // The in-app page keeps its countdown, and both share everything above the footer.
-        let in_app = account_connected_html("Account connected", &account);
-        let header = &in_app[..in_app.find(COUNTDOWN_FOOTER).expect("countdown footer")];
-        assert!(tab.starts_with(header));
     }
 
     #[test]
