@@ -63,6 +63,14 @@
                 <data android:scheme="aiusage-pair" />
                 <data android:scheme="aiusage" />
             </intent-filter>
+            <!-- The sign-in tab's page links here to bring the app back over the tab. Only brings
+                 the activity forward: it is not a pairing link (MainActivity.isPairingUri). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="aiusage-signin" />
+            </intent-filter>
         </activity>
 
         <provider

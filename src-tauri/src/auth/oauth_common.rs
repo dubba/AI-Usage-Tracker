@@ -297,11 +297,24 @@ pub(crate) fn account_connected_html(title: &str, account: &Account) -> String {
 }
 
 /// The same page in the browser's sign-in tab on Android (`sign_in_tab.rs`). The app brings
-/// itself back over the tab, so the page says that instead of counting down, and how to get
-/// back if the app does not come forward.
+/// itself back over the tab, so the page says that instead of counting down, and the red "X"
+/// brings the app back at once.
 pub(crate) fn account_connected_in_tab_html(title: &str, account: &Account) -> String {
-    connected_html(title, account, TAB_FOOTER, "", "")
+    connected_html(
+        title,
+        account,
+        TAB_FOOTER,
+        "",
+        &close_button_markup(TAB_RETURN_URL),
+    )
 }
+
+/// A link the browser turns into an intent for this app alone (`package=`), matching the
+/// `aiusage-signin` filter in `AndroidManifest.xml`. It only brings the activity forward, which
+/// finishes the tab above it. A plain package or launcher intent does not work: Chrome opens
+/// only `BROWSABLE` filters.
+const TAB_RETURN_URL: &str =
+    "intent://done#Intent;scheme=aiusage-signin;package=com.dubba.ai.usage.tracker;end";
 
 const COUNTDOWN_FOOTER: &str = r#"<p style="color:#8e9791;margin:0 0 6px">Returning to AI Usage Tracker in</p><div style="font-size:48px;font-weight:700;line-height:1.1;margin:0 0 16px;color:#a078ff"><span id="sec">5</span></div><p style="color:#626b65;font-size:13px;margin:0">You can also close this tab manually.</p>"#;
 const TAB_FOOTER: &str = r#"<p style="color:#d1d5db;font-size:16px;margin:0 0 6px">Returning to AI Usage Tracker…</p><p style="color:#626b65;font-size:13px;margin:0">If the app doesn't open, close this tab to go back to it.</p>"#;
@@ -661,6 +674,9 @@ mod tests {
         // The app returns over the tab on its own clock, so the page neither counts nor closes.
         assert!(!tab.contains("<script"));
         assert!(!tab.contains(r#"id="sec""#));
+        // The red X returns to the app from the browser, even on desktop builds of the test.
+        assert!(tab.contains(&format!(r#"href="{TAB_RETURN_URL}""#)));
+        assert!(tab.contains("aria-label=\"Close and return"));
         // The in-app page keeps its countdown, and both share everything above the footer.
         let in_app = account_connected_html("Account connected", &account);
         let header = &in_app[..in_app.find(COUNTDOWN_FOOTER).expect("countdown footer")];
