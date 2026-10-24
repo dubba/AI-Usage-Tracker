@@ -451,14 +451,33 @@
     height: 28px;
   }
 
+  /* Dates under the 30 day chart: the first day, the days a third and two thirds along, and Today. */
   .activity-axis {
     grid-column: 2;
-    display: flex;
-    justify-content: space-between;
+    position: relative;
+    height: 12px;
     margin-top: 6px;
     color: var(--obsidian-muted);
     font-size: 12px;
-    line-height: 1;
+    line-height: 12px;
+    white-space: nowrap;
+  }
+
+  .activity-axis > span {
+    position: absolute;
+    top: 0;
+  }
+
+  .activity-axis > .is-first {
+    left: 0;
+  }
+
+  .activity-axis > .is-middle {
+    transform: translateX(-50%);
+  }
+
+  .activity-axis > .is-last {
+    right: 0;
   }
 
   /* A weekly reset on the 30 day chart: a thin dashed line in the day's column. */

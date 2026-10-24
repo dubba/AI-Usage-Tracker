@@ -30,6 +30,17 @@ function dayTooltip(day: ActivityDay, date: Date, isToday: boolean): string {
   return day.quality === "approximate" ? `${value}\n${APPROXIMATE_DAY_TOOLTIP}` : value;
 }
 
+/** The days that split a chart of `count` days into thirds: a third and two thirds of the way along. */
+function thirdsOf(count: number): number[] {
+  return [Math.round(count / 3), Math.round((2 * count) / 3)];
+}
+
+/** Where the middle of day `index`'s column is, across the bars' area (the columns have gaps between). */
+function columnCenter(index: number, count: number, gap: number): string {
+  const position = (index + 0.5) / count;
+  return `calc(${position * 100}% + ${gap * (position - 0.5)}px)`;
+}
+
 interface ResetMarker {
   instant: string;
   date: Date;
@@ -146,8 +157,13 @@ export function DailyBars({
       </div>
       {labelled ? null : (
         <div className="activity-axis" aria-hidden="true">
-          <span>{formatMonthDay(dayStarts[0])}</span>
-          <span>Today</span>
+          <span className="is-first">{formatMonthDay(dayStarts[0])}</span>
+          {thirdsOf(days.length).map((index) => (
+            <span className="is-middle" style={{ left: columnCenter(index, days.length, gap) }} key={index}>
+              {formatMonthDay(dayStarts[index])}
+            </span>
+          ))}
+          <span className="is-last">Today</span>
         </div>
       )}
       <table className="sr-only">

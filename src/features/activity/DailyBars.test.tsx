@@ -201,12 +201,26 @@ describe("DailyBars y-axis", () => {
 describe("DailyBars, 30 days", () => {
   const days = Array.from({ length: 30 }, (_, index): ActivityDay => (index % 7 === 0 ? noData : index % 5 === 0 ? estimated(index) : measured(index)));
 
-  it("has no labels on the bars, and the first date and Today under the ends", () => {
+  it("has no labels on the bars, and dates under the chart: the first day, thirds of the way along, and Today", () => {
     const root = render({ days });
     expect(all(root, ".activity-bar")).toHaveLength(30);
     expect(all(root, ".activity-day-value")).toHaveLength(0);
     expect(all(root, ".activity-day-label")).toHaveLength(0);
-    expect(texts(root, ".activity-axis span")).toEqual(["Sep 16", "Today"]);
+    // Days 10 and 20 of 30 (0-based), so the month is split into thirds.
+    expect(texts(root, ".activity-axis span")).toEqual(["Sep 16", "Sep 26", "Oct 6", "Today"]);
+  });
+
+  it("centers the middle dates under their bars", () => {
+    const [first, second] = all(render({ days }), ".activity-axis .is-middle");
+    const centerOf = (element: HTMLElement) => {
+      const [, percent, offset] = /calc\(([\d.]+)% \+ (-?[\d.]+)px\)/.exec(element.style.left)!;
+      return { percent: Number(percent), offset: Number(offset) };
+    };
+    // Column 10 and column 20 of 30, each at its middle.
+    expect(centerOf(first).percent).toBeCloseTo((10.5 / 30) * 100, 5);
+    expect(centerOf(second).percent).toBeCloseTo((20.5 / 30) * 100, 5);
+    // The gaps between columns shift a column's middle by less than one gap.
+    expect(Math.abs(centerOf(first).offset)).toBeLessThan(3);
   });
 
   it("tells the date and the value in each bar's tooltip", () => {
