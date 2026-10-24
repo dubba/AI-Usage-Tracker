@@ -55,15 +55,15 @@ function render(props: { section: Section; showMainNav: boolean; selectedGroupId
 }
 
 describe("Sidebar page links", () => {
-  it("are Usage, Accounts and Settings, between the group list and the sync status", () => {
+  it("are Usage, Accounts and Settings, at the very bottom, below the sync status", () => {
     const { nav, items } = render({ section: "accounts", showMainNav: true });
     expect(items.map((item) => item.textContent)).toEqual(["Usage", "Accounts", "Settings"]);
     const list = mounted!.container.querySelector(".provider-list")!;
     const status = mounted!.container.querySelector(".sidebar-sync-status")!;
-    expect(list.compareDocumentPosition(nav!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(nav!.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // Directly above the sync status: nothing sits between them.
-    expect(nav!.nextElementSibling).toBe(status);
+    expect(list.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(status.compareDocumentPosition(nav!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Directly below the sync status: nothing sits between them.
+    expect(status.nextElementSibling).toBe(nav);
   });
 
   it("are left to the bottom bar when the sidebar is an overlay", () => {

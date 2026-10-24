@@ -21,8 +21,8 @@ const PAGE_LINKS = [
 ] as const satisfies ReadonlyArray<{ section: Section; label: string; Icon: typeof GridIcon }>;
 
 /**
- * The navigation sidebar: add buttons, the All accounts row and one row per group, then (on wide
- * windows; a phone has the bottom bar) the Usage, Accounts and Settings links, and the sync status.
+ * The navigation sidebar: add buttons, the All accounts row and one row per group, then the sync status and (on wide
+ * windows; a phone has the bottom bar) the Usage, Accounts and Settings links.
  */
 export function Sidebar({
   sidebarRef,
@@ -152,6 +152,13 @@ export function Sidebar({
         ))}
       </div>
 
+      <SyncStatusLine
+        accounts={accounts}
+        refreshMinutes={refreshMinutes}
+        busy={busy}
+        onRefreshAll={onRefreshAll}
+      />
+
       {showMainNav ? (
         <nav className="sidebar-main-nav" aria-label="Main">
           {PAGE_LINKS.map(({ section: target, label, Icon }) => {
@@ -171,13 +178,6 @@ export function Sidebar({
           })}
         </nav>
       ) : null}
-
-      <SyncStatusLine
-        accounts={accounts}
-        refreshMinutes={refreshMinutes}
-        busy={busy}
-        onRefreshAll={onRefreshAll}
-      />
       <SidebarResizeHandle shellRef={shellRef} sidebarRef={sidebarRef} />
     </aside>
   );
