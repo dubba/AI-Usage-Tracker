@@ -14,7 +14,7 @@ describe("matchShortcut", () => {
   it("uses Ctrl on Windows and Linux", () => {
     expect(matchShortcut(press("r", { ctrlKey: true }), false)).toBe("refreshAll");
     expect(matchShortcut(press("n", { ctrlKey: true }), false)).toBe("addAccount");
-    expect(matchShortcut(press("a", { ctrlKey: true }), false)).toBe("addAccount");
+    expect(matchShortcut(press("a", { ctrlKey: true }), false)).toBe("showAccounts");
     expect(matchShortcut(press(",", { ctrlKey: true }), false)).toBe("openSettings");
     expect(matchShortcut(press("s", { ctrlKey: true }), false)).toBe("openSettings");
     expect(matchShortcut(press("g", { ctrlKey: true }), false)).toBe("addGroup");
@@ -24,7 +24,7 @@ describe("matchShortcut", () => {
   it("uses Cmd on macOS", () => {
     expect(matchShortcut(press("r", { metaKey: true }), true)).toBe("refreshAll");
     expect(matchShortcut(press("n", { metaKey: true }), true)).toBe("addAccount");
-    expect(matchShortcut(press("a", { metaKey: true }), true)).toBe("addAccount");
+    expect(matchShortcut(press("a", { metaKey: true }), true)).toBe("showAccounts");
     expect(matchShortcut(press(",", { metaKey: true }), true)).toBe("openSettings");
     expect(matchShortcut(press("s", { metaKey: true }), true)).toBe("openSettings");
     expect(matchShortcut(press("r", { ctrlKey: true }), true)).toBeNull();
@@ -39,33 +39,29 @@ describe("matchShortcut", () => {
     expect(matchShortcut(press("R", { ctrlKey: true }), false)).toBe("refreshAll");
   });
 
-  it("maps U to the Usage page and 2 to the Accounts page", () => {
+  it("maps U to the Usage page and A to the Accounts page", () => {
     expect(matchShortcut(press("u", { ctrlKey: true }), false)).toBe("showActivity");
     expect(matchShortcut(press("U", { ctrlKey: true }), false)).toBe("showActivity");
     expect(matchShortcut(press("u", { metaKey: true }), true)).toBe("showActivity");
-    expect(matchShortcut(press("2", { ctrlKey: true }), false)).toBe("showAccounts");
-    expect(matchShortcut(press("2", { metaKey: true }), true)).toBe("showAccounts");
+    expect(matchShortcut(press("a", { ctrlKey: true }), false)).toBe("showAccounts");
+    expect(matchShortcut(press("A", { ctrlKey: true }), false)).toBe("showAccounts");
+    expect(matchShortcut(press("a", { metaKey: true }), true)).toBe("showAccounts");
     expect(matchShortcut(press("u"), false)).toBeNull();
+    expect(matchShortcut(press("a"), false)).toBeNull();
     expect(matchShortcut(press("u", { ctrlKey: true }), true)).toBeNull();
   });
 
-  it("no longer uses 1 or 3", () => {
-    for (const key of ["1", "3"]) {
+  it("uses no digit keys: 1, 2 and 3 do nothing, by character or by physical key", () => {
+    for (const key of ["1", "2", "3"]) {
       expect(matchShortcut(press(key, { ctrlKey: true }), false)).toBeNull();
       expect(matchShortcut(press(key, { metaKey: true }), true)).toBeNull();
+      expect(matchShortcut(press("&", { metaKey: true, code: `Digit${key}` }), true)).toBeNull();
     }
-    expect(matchShortcut(press("&", { metaKey: true, code: "Digit1" }), true)).toBeNull();
-    expect(matchShortcut(press('"', { ctrlKey: true, code: "Digit3" }), false)).toBeNull();
-  });
-
-  it("matches the digit row by physical key on layouts that type digits with Shift", () => {
-    // French AZERTY: the 2 key types "é" unshifted, and the shortcut modifier must be alone.
-    expect(matchShortcut(press("é", { ctrlKey: true, code: "Digit2" }), false)).toBe("showAccounts");
-    expect(matchShortcut(press("é", { metaKey: true, code: "Digit2" }), true)).toBe("showAccounts");
   });
 
   it("matches via physical event.code when key layout differs", () => {
-    expect(matchShortcut(press("ф", { metaKey: true, code: "KeyA" }), true)).toBe("addAccount");
+    expect(matchShortcut(press("ф", { metaKey: true, code: "KeyA" }), true)).toBe("showAccounts");
+    expect(matchShortcut(press("т", { metaKey: true, code: "KeyN" }), true)).toBe("addAccount");
     expect(matchShortcut(press("ы", { metaKey: true, code: "KeyS" }), true)).toBe("openSettings");
     expect(matchShortcut(press("?", { metaKey: true, code: "Comma" }), true)).toBe("openSettings");
   });

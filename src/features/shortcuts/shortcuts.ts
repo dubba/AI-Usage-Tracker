@@ -22,10 +22,10 @@ export interface ShortcutItem {
 /** The shortcuts, in the order they are listed in Settings. `key` is the lower-case `event.key`. */
 export const SHORTCUTS: ReadonlyArray<ShortcutItem> = [
   { action: "refreshAll", key: "r", keys: ["r"], label: "Refresh all accounts" },
-  { action: "addAccount", key: "n", keys: ["n", "a"], label: "Add an account" },
+  { action: "addAccount", key: "n", keys: ["n"], label: "Add an account" },
   { action: "addGroup", key: "g", keys: ["g"], label: "Add a group" },
   { action: "showActivity", key: "u", keys: ["u"], label: "Show the Usage page" },
-  { action: "showAccounts", key: "2", keys: ["2"], label: "Show the Accounts page" },
+  { action: "showAccounts", key: "a", keys: ["a"], label: "Show the Accounts page" },
   { action: "openSettings", key: ",", keys: [",", "s"], label: "Switch between Settings and the page you came from" },
 ];
 
@@ -52,15 +52,11 @@ export function matchShortcut(event: ShortcutKeyEvent, mac: boolean): ShortcutAc
   const modifier = mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
   if (!modifier) return null;
   const key = event.key.toLowerCase();
-  // The physical key, for layouts where the character differs (a Cyrillic "ф" on the A key, or the
-  // digit row of a French keyboard, which types its digits with Shift).
   const codeKey = event.code?.startsWith("Key")
     ? event.code.slice(3).toLowerCase()
-    : event.code?.startsWith("Digit")
-      ? event.code.slice(5)
-      : event.code === "Comma"
-        ? ","
-        : null;
+    : event.code === "Comma"
+      ? ","
+      : null;
   return (
     SHORTCUTS.find(
       (shortcut) =>
