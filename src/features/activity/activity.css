@@ -227,7 +227,7 @@
 
   .activity-card-limit {
     margin: 2px 0 0;
-    color: var(--purple-text);
+    color: var(--purple-accent);
     font-size: 13px;
     font-weight: 600;
   }
