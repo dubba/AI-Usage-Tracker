@@ -4,7 +4,7 @@ import { ALL_ACCOUNTS_GROUP_ID } from "../features/dashboard/sidebar-groups";
 export type Section = "activity" | "accounts" | "settings";
 
 /**
- * Which page is shown (Activity, the accounts of a sidebar group, or Settings) and whether the
+ * Which page is shown (Usage, the accounts of a sidebar group, or Settings) and whether the
  * sidebar is open as an overlay. Choosing a page, a group, a new group after saving it, or Settings
  * are each one call, so the "set the group, show the accounts, close the sidebar" sequence is
  * written once.

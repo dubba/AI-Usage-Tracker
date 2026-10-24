@@ -109,7 +109,7 @@ describe("useKeyboardShortcuts", () => {
     expect(handlers.openSettings).toHaveBeenCalledTimes(3);
   });
 
-  it("shows the Activity page on 1 and the Accounts page on 2", () => {
+  it("shows the Usage page on 1 and the Accounts page on 2", () => {
     const handlers = makeHandlers();
     mounted = mount(<Probe enabled handlers={handlers} />);
     const event = press("1");

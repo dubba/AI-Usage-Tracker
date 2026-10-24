@@ -1,7 +1,7 @@
 import { createPreferenceStore } from "../../shared/lib/preference-store";
 import { STORAGE_KEYS } from "../../shared/lib/storage";
 
-/** How far back the Activity page looks: the last 7 or the last 30 days, today included. */
+/** How far back the Usage page looks: the last 7 or the last 30 days, today included. */
 export type ActivityPeriod = "7d" | "30d";
 
 export const ACTIVITY_PERIODS: readonly ActivityPeriod[] = ["7d", "30d"];

@@ -29,7 +29,7 @@ export const AlertCircleIcon = (props: IconProps) => (
     <line x1="12" y1="16" x2="12.01" y2="16" />
   </Base>
 );
-export const ActivityChartIcon = (props: IconProps) => <Base {...props}><path d="M4 20V4"/><path d="M4 20h16"/><path d="M8.5 20v-6M13 20V8M17.5 20v-9"/></Base>;
+export const BarChartIcon = (props: IconProps) => <Base {...props}><path d="M4 20V4"/><path d="M4 20h16"/><path d="M8.5 20v-6M13 20V8M17.5 20v-9"/></Base>;
 export const GridIcon = (props: IconProps) => (
   <Base {...props}>
     <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" />

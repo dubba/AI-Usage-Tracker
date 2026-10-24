@@ -7,13 +7,13 @@ import { ALL_ACCOUNTS_GROUP_ID, type SidebarGroup } from "../features/dashboard/
 import { SIDEBAR_ID } from "../shared/lib/constants";
 import type { BusyKeys } from "../shared/lib/busy";
 import { useScrollThumb } from "../shared/hooks/useScrollThumb";
-import { ActivityChartIcon, CloseIcon, GaugeIcon, GridIcon, PlusIcon } from "../shared/ui/icons";
+import { BarChartIcon, CloseIcon, GaugeIcon, GridIcon, PlusIcon } from "../shared/ui/icons";
 import type { Account } from "../types";
 import type { Section } from "./useSidebarNavigation";
 import "./sidebar-nav.css";
 
 /**
- * The navigation sidebar: add buttons, the Activity and Accounts entries (on wide windows; a phone
+ * The navigation sidebar: add buttons, the Usage and Accounts entries (on wide windows; a phone
  * has the bottom bar), the All accounts row and one row per group, and the sync status.
  */
 export function Sidebar({
@@ -55,7 +55,7 @@ export function Sidebar({
   accounts: Account[];
   refreshMinutes: number;
   busy: BusyKeys;
-  /** Show the Activity and Accounts entries: the bottom bar is not there to offer them. */
+  /** Show the Usage and Accounts entries: the bottom bar is not there to offer them. */
   showMainNav: boolean;
   onClose: () => void;
   onAddAccount: () => void;
@@ -132,8 +132,8 @@ export function Sidebar({
             aria-current={section === "activity" ? "page" : undefined}
             onClick={onOpenActivity}
           >
-            <ActivityChartIcon />
-            Activity
+            <BarChartIcon />
+            Usage
           </button>
           <button
             type="button"

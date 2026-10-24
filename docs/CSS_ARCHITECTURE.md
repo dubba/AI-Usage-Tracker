@@ -24,7 +24,7 @@ The order below **is the cascade**. Later files override earlier ones, so do not
 
 ## Layered component files
 
-The newer component stylesheets are the first rules in `@layer components`: `features/activity/activity.css` (the Activity page), `app/bottom-nav.css` (the bottom navigation bar) and `app/sidebar-nav.css` (the Activity and Accounts entries in the sidebar). Each is imported by its component, so it loads with the component and not in the order of the table above; that does not matter, because a layered rule loses to every unlayered one whatever the order.
+The newer component stylesheets are the first rules in `@layer components`: `features/activity/activity.css` (the Usage page), `app/bottom-nav.css` (the bottom navigation bar) and `app/sidebar-nav.css` (the Usage and Accounts entries in the sidebar). Each is imported by its component, so it loads with the component and not in the order of the table above; that does not matter, because a layered rule loses to every unlayered one whatever the order.
 
 That has one consequence for what they can style. A few global rules are unlayered and set properties the components need to set themselves:
 

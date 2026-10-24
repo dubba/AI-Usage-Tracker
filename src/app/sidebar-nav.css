@@ -1,4 +1,4 @@
-/* The Activity and Accounts entries at the top of the sidebar (Sidebar.tsx), on wide windows.
+/* The Usage and Accounts entries at the top of the sidebar (Sidebar.tsx), on wide windows.
  * They borrow the look of the group rows below them (.provider-summary-row in
  * obsidian-dashboard.css) at half the height. */
 /* Layered rules lose to unlayered ones, and the global rules `button { color: inherit; font: inherit }`,

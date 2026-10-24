@@ -63,11 +63,11 @@ describe("DataSection", () => {
     expect(button("Clear")).toBeTruthy();
   });
 
-  it("clears the activity history on one click, without touching cached usage", async () => {
+  it("clears the usage history on one click, without touching cached usage", async () => {
     const { onUsageCleared, onAllDataDeleted } = render();
-    expect(document.body.textContent).toContain("Clear Activity History");
+    expect(document.body.textContent).toContain("Clear Usage History");
 
-    click(byLabel("Clear activity history"));
+    click(byLabel("Clear usage history"));
     await flush();
 
     expect(api.clearActivityHistory).toHaveBeenCalledTimes(1);
@@ -75,37 +75,37 @@ describe("DataSection", () => {
     expect(onUsageCleared).not.toHaveBeenCalled();
     expect(api.deleteAllLocalData).not.toHaveBeenCalled();
     expect(onAllDataDeleted).not.toHaveBeenCalled();
-    expect(byLabel("Clear activity history").textContent).toBe("Cleared!");
+    expect(byLabel("Clear usage history").textContent).toBe("Cleared!");
     expect(byLabel("Clear cached usage").textContent).toBe("Clear");
-    expect(document.querySelector("[role=status]")?.textContent).toBe("Activity history cleared.");
+    expect(document.querySelector("[role=status]")?.textContent).toBe("Usage history cleared.");
   });
 
-  it("shows the activity history clearing in progress, and the button cannot be pressed twice", async () => {
+  it("shows the usage history clearing in progress, and the button cannot be pressed twice", async () => {
     let finish!: () => void;
     api.clearActivityHistory.mockReturnValue(new Promise<void>((done) => (finish = done)));
     render();
 
-    click(byLabel("Clear activity history"));
+    click(byLabel("Clear usage history"));
     await flush();
-    expect(byLabel("Clear activity history").textContent).toBe("Clearing…");
-    expect(byLabel("Clear activity history").disabled).toBe(true);
-    click(byLabel("Clear activity history"));
+    expect(byLabel("Clear usage history").textContent).toBe("Clearing…");
+    expect(byLabel("Clear usage history").disabled).toBe(true);
+    click(byLabel("Clear usage history"));
     expect(api.clearActivityHistory).toHaveBeenCalledTimes(1);
 
     finish();
     await flush();
-    expect(byLabel("Clear activity history").textContent).toBe("Cleared!");
+    expect(byLabel("Clear usage history").textContent).toBe("Cleared!");
   });
 
-  it("shows why clearing the activity history failed and does not report success", async () => {
+  it("shows why clearing the usage history failed and does not report success", async () => {
     api.clearActivityHistory.mockRejectedValue(new Error("disk full"));
     render();
 
-    click(byLabel("Clear activity history"));
+    click(byLabel("Clear usage history"));
     await flush();
 
-    expect(document.querySelector("[role=alert]")?.textContent).toBe("Couldn't clear activity history: disk full");
-    expect(byLabel("Clear activity history").textContent).toBe("Clear");
+    expect(document.querySelector("[role=alert]")?.textContent).toBe("Couldn't clear usage history: disk full");
+    expect(byLabel("Clear usage history").textContent).toBe("Clear");
     expect(document.querySelector("[role=status]")?.textContent).toBe("");
     // The cached usage row is unaffected, and a later success clears the message.
     click(byLabel("Clear cached usage"));
@@ -113,11 +113,11 @@ describe("DataSection", () => {
     expect(document.querySelector("[role=alert]")).toBeNull();
   });
 
-  it("says that deleting everything removes the activity history too", () => {
+  it("says that deleting everything removes the usage history too", () => {
     render();
-    expect(document.body.textContent).toContain("usage snapshots, activity history, and settings");
+    expect(document.body.textContent).toContain("usage snapshots, usage history, and settings");
     click(button("Delete"));
-    expect(document.querySelector("[role=alertdialog]")?.textContent).toContain("usage snapshots, activity history, groups");
+    expect(document.querySelector("[role=alertdialog]")?.textContent).toContain("usage snapshots, usage history, groups");
   });
 
   it("deletes nothing until the confirmation is accepted", async () => {

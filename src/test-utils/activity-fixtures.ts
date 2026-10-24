@@ -7,7 +7,7 @@ import type {
   WeeklyActivity,
 } from "../types";
 
-/** An account with live usage, for tests of the Activity page. */
+/** An account with live usage, for tests of the Usage page. */
 export function makeAccount(overrides: Partial<Account> & { id: string }): Account {
   return {
     label: overrides.id,

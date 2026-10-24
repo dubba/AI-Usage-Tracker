@@ -20,7 +20,7 @@ pub async fn get_weekly_activity(
         weekly_activity(&app, &day_starts, chrono::Utc::now().timestamp())
     })
     .await
-    .map_err(|_| "Activity could not be loaded.".to_string())?
+    .map_err(|_| "Usage history could not be loaded.".to_string())?
 }
 
 /// Deletes the recorded weekly readings of every account. Accounts and their current usage stay.
@@ -29,6 +29,6 @@ pub async fn clear_activity_history(state: State<'_, Arc<AppState>>) -> Result<(
     let app = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || app.history.clear())
         .await
-        .map_err(|_| "Activity history could not be cleared.".to_string())?
+        .map_err(|_| "Usage history could not be cleared.".to_string())?
         .map_err(crate::diagnostics::command_error)
 }

@@ -74,7 +74,7 @@ describe("useSidebarNavigation", () => {
     expect(nav.sidebarOpen).toBe(false);
   });
 
-  it("shows the Activity and Accounts pages and closes the sidebar", () => {
+  it("shows the Usage and Accounts pages and closes the sidebar", () => {
     mounted = mount(<Probe />);
     act(() => nav.toggleSidebar());
     act(() => nav.showActivity());
@@ -97,7 +97,7 @@ describe("useSidebarNavigation", () => {
     expect(nav.selectedGroupId).toBe("bucket:b1");
   });
 
-  it("choosing a group from Activity shows the accounts", () => {
+  it("choosing a group from Usage shows the accounts", () => {
     mounted = mount(<Probe />);
     act(() => nav.showActivity());
     act(() => nav.selectGroup("provider:openai", { closeSidebar: true }));
@@ -105,7 +105,7 @@ describe("useSidebarNavigation", () => {
     expect(nav.selectedGroupId).toBe("provider:openai");
   });
 
-  it("the settings shortcut goes back to Activity when Settings was opened from it", () => {
+  it("the settings shortcut goes back to Usage when Settings was opened from it", () => {
     mounted = mount(<Probe />);
     act(() => nav.showActivity());
     act(() => nav.toggleSettings());

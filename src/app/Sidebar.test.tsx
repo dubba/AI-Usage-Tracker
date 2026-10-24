@@ -52,10 +52,10 @@ function render(props: { section: Section; showMainNav: boolean; selectedGroupId
   return { nav, items: nav ? [...nav.querySelectorAll<HTMLButtonElement>("button")] : [], handlers };
 }
 
-describe("Sidebar entries for Activity and Accounts", () => {
+describe("Sidebar entries for Usage and Accounts", () => {
   it("are above the group list on a wide window", () => {
     const { nav, items } = render({ section: "accounts", showMainNav: true });
-    expect(items.map((item) => item.textContent)).toEqual(["Activity", "Accounts"]);
+    expect(items.map((item) => item.textContent)).toEqual(["Usage", "Accounts"]);
     const list = mounted!.container.querySelector(".provider-list")!;
     expect(nav!.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });

@@ -67,7 +67,7 @@ export const bridgeApi = {
   setAutostart: (enabled: boolean) => invoke<boolean>("set_autostart", { enabled }),
   /** Drops every account's saved usage snapshot; accounts and sign-ins stay. */
   clearCachedUsage: () => invoke<void>("clear_cached_usage"),
-  /** Deletes accounts, saved sign-ins, snapshots, groups, alerts, activity history and settings from this device. */
+  /** Deletes accounts, saved sign-ins, snapshots, groups, alerts, usage history and settings from this device. */
   deleteAllLocalData: () => invoke<void>("delete_all_local_data"),
   /**
    * Weekly usage per day. `dayStarts` are the local midnights of the days to show plus the one

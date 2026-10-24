@@ -41,10 +41,10 @@ function useClearAction(
 }
 
 /**
- * Clearing cached usage or the activity history, and deleting everything the app keeps on this device.
+ * Clearing cached usage or the usage history, and deleting everything the app keeps on this device.
  *
  * Clearing cached usage is harmless (usage is fetched again straight away), so it runs on one click.
- * Clearing the activity history discards only the recorded daily bars (accounts and sign-ins stay),
+ * Clearing the usage history discards only the recorded daily bars (accounts and sign-ins stay),
  * and it too runs on one click. Deleting signs out every account and cannot be undone, so it asks
  * first, naming what goes and what does not.
  */
@@ -71,7 +71,7 @@ export function DataSection({
   );
   const [historyState, clearHistory] = useClearAction(
     () => bridgeApi.clearActivityHistory(),
-    "Couldn't clear activity history",
+    "Couldn't clear usage history",
     setFailure,
   );
 
@@ -110,13 +110,13 @@ export function DataSection({
         </div>
         <div className="settings-row">
           <div>
-            <strong>Clear Activity History</strong>
-            <small>Removes the daily weekly-usage history shown on the Activity page. Accounts and current usage stay, and tracking starts over.</small>
+            <strong>Clear Usage History</strong>
+            <small>Removes the daily history shown on the Usage page. Accounts and current usage stay, and tracking starts over.</small>
           </div>
           <button
             type="button"
             className="button ghost settings-changelog-button"
-            aria-label="Clear activity history"
+            aria-label="Clear usage history"
             disabled={historyState === "clearing"}
             onClick={() => void clearHistory()}
           >
@@ -127,7 +127,7 @@ export function DataSection({
         <div className="settings-row">
           <div>
             <strong className="settings-danger-title">Delete All Local Data</strong>
-            <small>Removes accounts, saved sign-ins, usage snapshots, activity history, and settings from this device.</small>
+            <small>Removes accounts, saved sign-ins, usage snapshots, usage history, and settings from this device.</small>
           </div>
           <button
             type="button"
@@ -141,7 +141,7 @@ export function DataSection({
         </div>
       </section>
       <span className="sr-only" role="status" aria-live="polite">
-        {clearState === "cleared" ? "Cached usage cleared." : historyState === "cleared" ? "Activity history cleared." : ""}
+        {clearState === "cleared" ? "Cached usage cleared." : historyState === "cleared" ? "Usage history cleared." : ""}
       </span>
       {failure ? (
         <p className="settings-data-error" role="alert">
@@ -152,7 +152,7 @@ export function DataSection({
         open={confirmingDelete}
         kicker="Delete all local data"
         title="Delete all local data?"
-        body="Removes every account and its saved sign-in, usage snapshots, activity history, groups, alert settings, and app settings from this device, and replaces the local API token. Your provider accounts are not canceled, other linked devices keep their own copies, and this can't be undone."
+        body="Removes every account and its saved sign-in, usage snapshots, usage history, groups, alert settings, and app settings from this device, and replaces the local API token. Your provider accounts are not canceled, other linked devices keep their own copies, and this can't be undone."
         confirmLabel="Delete Everything"
         busyLabel="Deleting…"
         busy={deleting}

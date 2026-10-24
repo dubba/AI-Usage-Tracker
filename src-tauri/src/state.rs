@@ -67,7 +67,7 @@ pub struct AppState {
     pub alerts: AlertStore,
     pub buckets: BucketStore,
     pub settings: SettingsStore,
-    /// Weekly usage readings for the Activity page.
+    /// Weekly usage readings for the Usage page.
     pub history: HistoryStore,
     pub client: Client,
     pub pending_login: RwLock<Option<LoginStatus>>,
@@ -380,7 +380,7 @@ impl AppState {
     }
 
     /// Removes every account with its saved sign-in, then what is left over: bucket groups, the
-    /// account order, alert settings, the activity history, the deleted-account list, and all
+    /// account order, alert settings, the usage history, the deleted-account list, and all
     /// settings. Accounts go one at a time through `remove_account`, so a failure part-way leaves
     /// the rest of the data as it was and can simply be tried again.
     pub async fn delete_all_local_data(&self) -> Result<(), String> {

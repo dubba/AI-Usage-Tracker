@@ -136,7 +136,7 @@ impl HistoryStore {
     pub(super) fn load_at(data_dir: &Path, now: i64) -> Self {
         let dir = data_dir.join(DIR_NAME);
         if let Err(error) = ensure_private_dir(&dir) {
-            diagnostics::warn(&format!("Activity history folder unavailable: {error}"));
+            diagnostics::warn(&format!("Usage history folder unavailable: {error}"));
         }
         let mut inner = Inner {
             dir,
@@ -229,14 +229,14 @@ impl HistoryStore {
         let entries = match fs::read_dir(&inner.dir) {
             Ok(entries) => entries,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-            Err(error) => return Err(format!("Unable to list the activity history: {error}")),
+            Err(error) => return Err(format!("Unable to list the usage history: {error}")),
         };
         let mut failure = None;
         for entry in entries.flatten() {
             let is_file = entry.file_type().is_ok_and(|kind| kind.is_file());
             if is_file {
                 if let Err(error) = fs::remove_file(entry.path()) {
-                    failure = Some(format!("Unable to delete activity history: {error}"));
+                    failure = Some(format!("Unable to delete usage history: {error}"));
                 }
             }
         }
@@ -296,7 +296,7 @@ impl Inner {
         {
             self.months.remove(&expired);
             if let Err(error) = fs::remove_file(self.dir.join(expired.file_name())) {
-                diagnostics::warn(&format!("Unable to delete old activity history: {error}"));
+                diagnostics::warn(&format!("Unable to delete old usage history: {error}"));
             }
         }
     }
@@ -364,11 +364,11 @@ fn read_month(dir: &Path, month: MonthKey) -> Month {
         Ok(loaded) => loaded,
         Err(error) => {
             diagnostics::warn(&format!(
-                "Activity history for {:04}-{:02} is unreadable and was set aside: {error}",
+                "Usage history for {:04}-{:02} is unreadable and was set aside: {error}",
                 month.year, month.month
             ));
             if let Err(error) = crate::state::quarantine_metadata_file(dir, &month.file_name()) {
-                diagnostics::warn(&format!("Unable to set aside activity history: {error}"));
+                diagnostics::warn(&format!("Unable to set aside usage history: {error}"));
             }
             Month::default()
         }
@@ -409,7 +409,7 @@ fn persist(dir: &Path, key: MonthKey, month: &mut Month) -> Result<(), String> {
         match fs::remove_file(&path) {
             Ok(()) => {}
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => return Err(format!("Unable to delete activity history: {error}")),
+            Err(error) => return Err(format!("Unable to delete usage history: {error}")),
         }
     } else {
         let payload = serde_json::to_vec(&MonthFileRef {

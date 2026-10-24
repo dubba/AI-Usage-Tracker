@@ -24,9 +24,9 @@ export const SHORTCUTS: ReadonlyArray<ShortcutItem> = [
   { action: "refreshAll", key: "r", keys: ["r"], label: "Refresh all accounts" },
   { action: "addAccount", key: "n", keys: ["n", "a"], label: "Add an account" },
   { action: "addGroup", key: "g", keys: ["g"], label: "Add a group" },
-  { action: "showActivity", key: "1", keys: ["1"], label: "Show the Activity page" },
+  { action: "showActivity", key: "1", keys: ["1"], label: "Show the Usage page" },
   { action: "showAccounts", key: "2", keys: ["2"], label: "Show the Accounts page" },
-  // "3" completes the 1, 2, 3 row of the bottom bar (Activity, Accounts, Settings).
+  // "3" completes the 1, 2, 3 row of the bottom bar (Usage, Accounts, Settings).
   { action: "openSettings", key: ",", keys: [",", "s", "3"], label: "Switch between Settings and the page you came from" },
 ];
 

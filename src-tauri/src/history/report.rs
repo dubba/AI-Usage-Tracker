@@ -91,7 +91,7 @@ impl OtherLimit {
 pub fn validate_day_starts(day_starts: &[String], now: i64) -> Result<Vec<i64>, String> {
     if !(MIN_BOUNDARIES..=MAX_BOUNDARIES).contains(&day_starts.len()) {
         return Err(format!(
-            "Activity needs between {MIN_BOUNDARIES} and {MAX_BOUNDARIES} day boundaries."
+            "Usage history needs between {MIN_BOUNDARIES} and {MAX_BOUNDARIES} day boundaries."
         ));
     }
     let mut instants = Vec::with_capacity(day_starts.len());
@@ -119,7 +119,7 @@ pub fn validate_day_starts(day_starts: &[String], now: i64) -> Result<Vec<i64>, 
     Ok(instants)
 }
 
-/// Weekly activity for the current accounts over the days between `day_starts`.
+/// Weekly usage for the current accounts over the days between `day_starts`.
 pub fn weekly_activity(
     app: &AppState,
     day_starts: &[String],

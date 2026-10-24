@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
-import { ActivityChartIcon } from "../../shared/ui/icons";
+import { BarChartIcon } from "../../shared/ui/icons";
 import type { Account, ActivityTracker, UntrackedAccount } from "../../types";
 import { ACTIVITY_PERIODS, ACTIVITY_PERIOD_DAYS, type ActivityPeriod } from "./activity-period";
 import { NoWeeklyLimitCard } from "./NoWeeklyLimitCard";
@@ -49,7 +49,7 @@ function PeriodSwitch({ period, onChange }: { period: ActivityPeriod; onChange: 
 
 function SkeletonCards() {
   return (
-    <div className="activity-grid" aria-busy="true" aria-label="Loading activity">
+    <div className="activity-grid" aria-busy="true" aria-label="Loading usage">
       {[0, 1, 2].map((index) => (
         <div className="activity-skeleton" aria-hidden="true" key={index}>
           <span className="activity-skeleton-line" />
@@ -57,13 +57,13 @@ function SkeletonCards() {
           <span className="activity-skeleton-bars" />
         </div>
       ))}
-      <span className="sr-only">Loading activity…</span>
+      <span className="sr-only">Loading usage…</span>
     </div>
   );
 }
 
 /**
- * The Activity page: for each account with a weekly limit, how much of it was used on each of the
+ * The Usage page: for each account with a weekly limit, how much of it was used on each of the
  * last 7 or 30 days, with the accounts in the order of the All accounts page.
  */
 export function ActivityView({
@@ -109,7 +109,7 @@ export function ActivityView({
     if (accounts.length === 0) {
       return (
         <section className="activity-message" aria-label="No accounts">
-          <ActivityChartIcon />
+          <BarChartIcon />
           <h2>No accounts yet</h2>
           <p>Add an account to see how much of its weekly limit you use each day.</p>
           <button type="button" className="button primary" onClick={onAddAccount}>
@@ -122,7 +122,7 @@ export function ActivityView({
       if (error) {
         return (
           <div className="activity-error" role="alert">
-            <span>Couldn’t load activity: {error}</span>
+            <span>Couldn’t load usage: {error}</span>
             {retry}
           </div>
         );
@@ -133,7 +133,7 @@ export function ActivityView({
       <>
         {error ? (
           <div className="activity-error" role="alert">
-            <span>Couldn’t refresh activity: {error}</span>
+            <span>Couldn’t refresh usage: {error}</span>
             {retry}
           </div>
         ) : null}
@@ -169,7 +169,7 @@ export function ActivityView({
         <div>
           <div className="dashboard-title-row">
             {onToggleSidebar ? <MobileSidebarToggle onToggle={onToggleSidebar} open={sidebarOpen} /> : null}
-            <h1 className="eyebrow" tabIndex={-1} style={{ outline: "none" }}>Activity</h1>
+            <h1 className="eyebrow" tabIndex={-1} style={{ outline: "none" }}>Usage</h1>
           </div>
           <p className="dashboard-description">How much of each weekly limit you used on each day.</p>
         </div>

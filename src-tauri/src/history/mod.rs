@@ -1,4 +1,4 @@
-//! Weekly usage history, for the Activity page.
+//! Weekly usage history, for the Usage page.
 //!
 //! Every live refresh that reports a weekly window leaves a small *reading* behind: when it was
 //! taken, how much of the window was used, and when the window resets. Readings are the only thing
@@ -79,7 +79,7 @@ pub(crate) fn parse_timestamp(text: &str) -> Option<i64> {
         .map(|time| time.timestamp())
 }
 
-/// The windows of `account` that become Activity trackers.
+/// The windows of `account` that become trackers on the Usage page.
 ///
 /// Antigravity reports a weekly limit per model family, so each of its weekly windows is a
 /// tracker. Every other provider has one headline weekly limit: the first weekly window, the same

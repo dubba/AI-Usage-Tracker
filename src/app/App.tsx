@@ -76,7 +76,7 @@ export default function App() {
   // As an off-canvas overlay the sidebar is a modal dialog while open and unreachable while closed.
   const sidebarModal = sidebarIsOverlay && sidebarOpen;
   const sidebarHidden = sidebarIsOverlay && !sidebarOpen;
-  // The same overlay layout gets a bottom bar instead of sidebar entries for Activity and Accounts.
+  // The same overlay layout gets a bottom bar instead of sidebar entries for Usage and Accounts.
   const bottomNavVisible = useBottomNavVisible(sidebarIsOverlay);
 
   const busyKeys = useBusyKeys();
@@ -192,7 +192,7 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [selectedGroup, pageOrderVersion],
   );
-  // The Activity page lists accounts in the order of the All accounts page.
+  // The Usage page lists accounts in the order of the All accounts page.
   const activityAccounts = useMemo(
     () => applyPageAccountOrder(allAccountsGroup.accounts, ALL_ACCOUNTS_GROUP_ID),
     // eslint-disable-next-line react-hooks/exhaustive-deps

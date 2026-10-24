@@ -1,4 +1,4 @@
-/* The Activity page (ActivityView.tsx and the components beside it).
+/* The Usage page (ActivityView.tsx and the components beside it).
  *
  * Layered rules lose to unlayered ones, and a few global rules are unlayered: `button { color:
  * inherit; font: inherit }`, `svg { width; height }`, `:focus-visible { outline-offset }`, and the

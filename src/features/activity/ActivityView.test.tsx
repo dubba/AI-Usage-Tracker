@@ -62,7 +62,7 @@ describe("ActivityView", () => {
     const { root } = renderView([work]);
 
     expect(root.querySelector('[aria-busy="true"]')).not.toBeNull();
-    expect(root.textContent).toContain("Loading activity…");
+    expect(root.textContent).toContain("Loading usage…");
     expect(select(root, ".activity-skeleton")).toHaveLength(3);
     expect(select(root, ".activity-bar")).toHaveLength(0);
 
@@ -107,7 +107,7 @@ describe("ActivityView", () => {
     act(() => void window.dispatchEvent(new Event("focus")));
     await settle();
     expect(titles(root)).toEqual(["Work Claude"]);
-    expect(root.querySelector('[role="alert"]')!.textContent).toContain("Couldn’t refresh activity: offline");
+    expect(root.querySelector('[role="alert"]')!.textContent).toContain("Couldn’t refresh usage: offline");
   });
 
   it("says tracking starts at the next refresh when nothing has been recorded yet", async () => {
@@ -296,7 +296,7 @@ describe("ActivityView", () => {
     const onToggleSidebar = vi.fn();
     const { root } = renderView([work], { onToggleSidebar, sidebarOpen: false });
     await settle();
-    expect(root.querySelector("h1")!.textContent).toBe("Activity");
+    expect(root.querySelector("h1")!.textContent).toBe("Usage");
     expect(root.querySelector("h1")!.getAttribute("tabindex")).toBe("-1");
     click(root.querySelector<HTMLButtonElement>('button[aria-label="Toggle navigation menu"]')!);
     expect(onToggleSidebar).toHaveBeenCalledTimes(1);
