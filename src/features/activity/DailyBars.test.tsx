@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mount, type Mounted } from "../../test-utils/react";
 import { estimated, measured, noData } from "../../test-utils/activity-fixtures";
 import type { ActivityDay } from "../../types";
-import { APPROXIMATE_DAY_TOOLTIP, NO_DATA_DAY_TOOLTIP, resetTimeLabel, weekdayShort } from "./activity-format";
+import { APPROXIMATE_DAY_TOOLTIP, resetTimeLabel, weekdayShort } from "./activity-format";
 import { DailyBars } from "./DailyBars";
 
 const originalZone = process.env.TZ;
@@ -41,9 +41,10 @@ const texts = (root: ParentNode, selector: string) => all(root, selector).map((e
 describe("DailyBars, 7 days", () => {
   const days = [measured(15.4), noData, measured(0.4), measured(0), estimated(7.6), measured(99.5), measured(3)];
 
-  it("shows the percent above each bar and the weekday below, with Today last", () => {
+  it("shows the weekday below each bar, with Today last, and no percent above the bars", () => {
     const root = render({ days });
-    expect(texts(root, ".activity-day-value")).toEqual(["15%", "—", "<1%", "0%", "8%", "100%", "3%"]);
+    expect(all(root, ".activity-day-value")).toHaveLength(0);
+    expect(texts(root, ".activity-bars")[0]).not.toContain("%");
     expect(texts(root, ".activity-day-label")).toEqual([
       ...week.slice(0, 6).map((start) => weekdayShort(start)),
       "Today",
@@ -66,22 +67,27 @@ describe("DailyBars, 7 days", () => {
     expect(parseFloat(bars[2].style.height)).toBe(100);
   });
 
-  it("draws no data as a striped placeholder with a dash, not as an empty bar", () => {
-    const root = render({ days });
-    const bar = all(root, ".activity-bar")[1];
+  it("draws no data as a striped placeholder, not as an empty bar", () => {
+    const bar = all(render({ days }), ".activity-bar")[1];
     expect(bar.classList.contains("is-empty")).toBe(true);
     expect(bar.style.height).toBe("");
-    expect(bar.dataset.tooltip).toBe(NO_DATA_DAY_TOOLTIP);
-    expect(texts(root, ".activity-day-value")[1]).toBe("—");
+    expect(bar.dataset.tooltip).toBe("Oct 10: no data");
   });
 
-  it("marks estimated days and explains them; measured days have no tooltip", () => {
+  it("tells the date and the value in each bar's tooltip, since the bars carry no percent", () => {
+    const bars = all(render({ days }), ".activity-bar");
+    expect(bars.map((bar) => bar.dataset.tooltip?.split("\n")[0])).toEqual([
+      "Oct 9: 15%", "Oct 10: no data", "Oct 11: <1%", "Oct 12: 0%", "Oct 13: 8%", "Oct 14: 100%", "Today: 3%",
+    ]);
+  });
+
+  it("marks estimated days and explains them on a second line", () => {
     const bars = all(render({ days }), ".activity-bar");
     expect(bars[4].classList.contains("is-approximate")).toBe(true);
-    expect(bars[4].dataset.tooltip).toBe("Estimated: the app wasn't refreshing for part of this day");
-    expect(bars[4].dataset.tooltip).toBe(APPROXIMATE_DAY_TOOLTIP);
+    expect(bars[4].dataset.tooltip).toBe(`Oct 13: 8%\n${APPROXIMATE_DAY_TOOLTIP}`);
+    expect(APPROXIMATE_DAY_TOOLTIP).toBe("Estimated: the app wasn't refreshing for part of this day");
     expect(bars[0].classList.contains("is-approximate")).toBe(false);
-    expect(bars[0].hasAttribute("data-tooltip")).toBe(false);
+    expect(bars[0].dataset.tooltip).not.toContain("Estimated");
   });
 
   it("shows a measured zero as a thin bar, not as missing", () => {

@@ -53,7 +53,6 @@ export function resetTimeLabel(date: Date, locale?: string): string {
 }
 
 export const APPROXIMATE_DAY_TOOLTIP = "Estimated: the app wasn't refreshing for part of this day";
-export const NO_DATA_DAY_TOOLTIP = "No data: the app wasn't refreshing this day";
 
 /**
  * "Work Claude, last 7 days: Mon 15%, Tue 7%, …": the chart in words, for screen readers. Estimated

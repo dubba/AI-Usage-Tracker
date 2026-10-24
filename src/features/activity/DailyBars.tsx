@@ -3,7 +3,6 @@ import { formatMonthDay } from "../../shared/lib/format";
 import type { ActivityDay } from "../../types";
 import {
   APPROXIMATE_DAY_TOOLTIP,
-  NO_DATA_DAY_TOOLTIP,
   barHeightPercent,
   chartSummary,
   dayLabel,
@@ -23,16 +22,12 @@ function tooltipSide(position: number): "is-left" | "is-right" | "" {
   return "";
 }
 
-function dayTooltip(day: ActivityDay, date: Date, period: ActivityPeriod, isToday: boolean): string | undefined {
-  // The 30 day chart has no labels on its bars, so the tooltip says which day and how much.
+/** Which day and how much, for the bar's tooltip: the bars carry no percent of their own. */
+function dayTooltip(day: ActivityDay, date: Date, isToday: boolean): string {
   const when = isToday ? "Today" : formatMonthDay(date);
-  if (day.quality === "none") return period === "30d" ? `${when}: no data` : NO_DATA_DAY_TOOLTIP;
-  if (day.quality === "approximate") {
-    return period === "30d"
-      ? `${when}: ${formatDayPercent(day.usedPercent)}\n${APPROXIMATE_DAY_TOOLTIP}`
-      : APPROXIMATE_DAY_TOOLTIP;
-  }
-  return period === "30d" ? `${when}: ${formatDayPercent(day.usedPercent)}` : undefined;
+  if (day.quality === "none") return `${when}: no data`;
+  const value = `${when}: ${formatDayPercent(day.usedPercent)}`;
+  return day.quality === "approximate" ? `${value}\n${APPROXIMATE_DAY_TOOLTIP}` : value;
 }
 
 interface ResetMarker {
@@ -125,12 +120,11 @@ export function DailyBars({
             .join(" ");
           return (
             <div className="activity-day" key={dayStarts[index].getTime()}>
-              {labelled ? <span className="activity-day-value">{formatDayPercent(day.usedPercent)}</span> : null}
               <div className="activity-bar-slot">
                 <div
                   className={barClass}
                   style={empty ? undefined : { height: `${barHeightPercent(day.usedPercent ?? 0, axis.top)}%` }}
-                  data-tooltip={dayTooltip(day, dayStarts[index], period, isToday)}
+                  data-tooltip={dayTooltip(day, dayStarts[index], isToday)}
                 />
               </div>
               {labelled ? (

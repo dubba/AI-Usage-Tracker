@@ -214,13 +214,14 @@ describe("ActivityView", () => {
     expect(select(root, ".activity-reset")).toHaveLength(0);
   });
 
-  it("shows a day with nothing observed as a dash, and an estimated day as estimated", async () => {
+  it("shows a day with nothing observed as striped, and an estimated day as estimated", async () => {
     api.getWeeklyActivity.mockResolvedValue(
       makeActivity([makeTracker({ accountId: "work", days: [measured(5), noData, estimated(2), measured(0), measured(1), measured(1), measured(1)] })]),
     );
     const { root } = renderView([work]);
     await settle();
-    expect(select(root, ".activity-day-value").map((value) => value.textContent).slice(0, 4)).toEqual(["5%", "—", "2%", "0%"]);
+    expect(select(root, ".activity-day-value")).toHaveLength(0);
+    expect(select(root, ".activity-bar").slice(0, 4).map((bar) => bar.dataset.tooltip?.split("\n")[0].split(": ")[1])).toEqual(["5%", "no data", "2%", "0%"]);
     expect(select(root, ".activity-bar.is-empty")).toHaveLength(1);
     expect(select(root, ".activity-bar.is-approximate")).toHaveLength(1);
   });
