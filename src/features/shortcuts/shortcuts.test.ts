@@ -39,6 +39,21 @@ describe("matchShortcut", () => {
     expect(matchShortcut(press("R", { ctrlKey: true }), false)).toBe("refreshAll");
   });
 
+  it("maps 1, 2 and 3 to Activity, Accounts and Settings", () => {
+    expect(matchShortcut(press("1", { ctrlKey: true }), false)).toBe("showActivity");
+    expect(matchShortcut(press("2", { ctrlKey: true }), false)).toBe("showAccounts");
+    expect(matchShortcut(press("3", { ctrlKey: true }), false)).toBe("openSettings");
+    expect(matchShortcut(press("1", { metaKey: true }), true)).toBe("showActivity");
+    expect(matchShortcut(press("1"), false)).toBeNull();
+    expect(matchShortcut(press("4", { ctrlKey: true }), false)).toBeNull();
+  });
+
+  it("matches the digit row by physical key on layouts that type digits with Shift", () => {
+    // French AZERTY: the 1 key types "&" unshifted, and the shortcut modifier must be alone.
+    expect(matchShortcut(press("&", { metaKey: true, code: "Digit1" }), true)).toBe("showActivity");
+    expect(matchShortcut(press("é", { ctrlKey: true, code: "Digit2" }), false)).toBe("showAccounts");
+  });
+
   it("matches via physical event.code when key layout differs", () => {
     expect(matchShortcut(press("ф", { metaKey: true, code: "KeyA" }), true)).toBe("addAccount");
     expect(matchShortcut(press("ы", { metaKey: true, code: "KeyS" }), true)).toBe("openSettings");

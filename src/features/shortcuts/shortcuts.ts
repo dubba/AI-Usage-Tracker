@@ -1,5 +1,5 @@
 /** What a keyboard shortcut does. */
-export type ShortcutAction = "refreshAll" | "openSettings" | "addAccount" | "addGroup";
+export type ShortcutAction = "refreshAll" | "openSettings" | "addAccount" | "addGroup" | "showActivity" | "showAccounts";
 
 export interface ShortcutKeyEvent {
   key: string;
@@ -24,7 +24,10 @@ export const SHORTCUTS: ReadonlyArray<ShortcutItem> = [
   { action: "refreshAll", key: "r", keys: ["r"], label: "Refresh all accounts" },
   { action: "addAccount", key: "n", keys: ["n", "a"], label: "Add an account" },
   { action: "addGroup", key: "g", keys: ["g"], label: "Add a group" },
-  { action: "openSettings", key: ",", keys: [",", "s"], label: "Switch between Settings and Dashboard page" },
+  { action: "showActivity", key: "1", keys: ["1"], label: "Show the Activity page" },
+  { action: "showAccounts", key: "2", keys: ["2"], label: "Show the Accounts page" },
+  // "3" completes the 1, 2, 3 row of the bottom bar (Activity, Accounts, Settings).
+  { action: "openSettings", key: ",", keys: [",", "s", "3"], label: "Switch between Settings and the page you came from" },
 ];
 
 export function isMacPlatform(): boolean {
@@ -50,11 +53,15 @@ export function matchShortcut(event: ShortcutKeyEvent, mac: boolean): ShortcutAc
   const modifier = mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
   if (!modifier) return null;
   const key = event.key.toLowerCase();
+  // The physical key, for layouts where the character differs (a Cyrillic "ф" on the A key, or the
+  // digit row of a French keyboard, which types its digits with Shift).
   const codeKey = event.code?.startsWith("Key")
     ? event.code.slice(3).toLowerCase()
-    : event.code === "Comma"
-      ? ","
-      : null;
+    : event.code?.startsWith("Digit")
+      ? event.code.slice(5)
+      : event.code === "Comma"
+        ? ","
+        : null;
   return (
     SHORTCUTS.find(
       (shortcut) =>

@@ -3074,8 +3074,9 @@ select.text-input option,
   .obsidian-shell .main-stage {
     width: 100%;
     min-width: 0;
-    height: 100vh;
-    height: 100dvh;
+    /* --bottom-nav-height is set only while the bottom navigation bar shows (bottom-nav.css). */
+    height: calc(100vh - var(--bottom-nav-height, 0px));
+    height: calc(100dvh - var(--bottom-nav-height, 0px));
   }
 
   .dashboard-content {
@@ -3083,8 +3084,8 @@ select.text-input option,
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    height: 100vh;
-    height: 100dvh;
+    height: calc(100vh - var(--bottom-nav-height, 0px));
+    height: calc(100dvh - var(--bottom-nav-height, 0px));
   }
 
   .modal-backdrop {

@@ -7,11 +7,15 @@ import { ALL_ACCOUNTS_GROUP_ID, type SidebarGroup } from "../features/dashboard/
 import { SIDEBAR_ID } from "../shared/lib/constants";
 import type { BusyKeys } from "../shared/lib/busy";
 import { useScrollThumb } from "../shared/hooks/useScrollThumb";
-import { CloseIcon, GaugeIcon, PlusIcon } from "../shared/ui/icons";
+import { ActivityChartIcon, CloseIcon, GaugeIcon, GridIcon, PlusIcon } from "../shared/ui/icons";
 import type { Account } from "../types";
 import type { Section } from "./useSidebarNavigation";
+import "./sidebar-nav.css";
 
-/** The navigation sidebar: add buttons, the All accounts row and one row per group, and the sync status. */
+/**
+ * The navigation sidebar: add buttons, the Activity and Accounts entries (on wide windows; a phone
+ * has the bottom bar), the All accounts row and one row per group, and the sync status.
+ */
 export function Sidebar({
   sidebarRef,
   shellRef,
@@ -25,6 +29,7 @@ export function Sidebar({
   accounts,
   refreshMinutes,
   busy,
+  showMainNav,
   onClose,
   onAddAccount,
   onAddGroup,
@@ -32,6 +37,8 @@ export function Sidebar({
   onMoveGroup,
   onRefreshAll,
   onOpenSettings,
+  onOpenActivity,
+  onOpenAccounts,
 }: {
   sidebarRef: RefObject<HTMLElement | null>;
   shellRef: RefObject<HTMLDivElement | null>;
@@ -48,6 +55,8 @@ export function Sidebar({
   accounts: Account[];
   refreshMinutes: number;
   busy: BusyKeys;
+  /** Show the Activity and Accounts entries: the bottom bar is not there to offer them. */
+  showMainNav: boolean;
   onClose: () => void;
   onAddAccount: () => void;
   onAddGroup: () => void;
@@ -55,6 +64,8 @@ export function Sidebar({
   onMoveGroup: (group: SidebarGroup, delta: -1 | 1) => void;
   onRefreshAll: () => void;
   onOpenSettings: () => void;
+  onOpenActivity: () => void;
+  onOpenAccounts: () => void;
 }) {
   // The list keeps room for its scroll bar only while it overflows, so the cards sit centered otherwise.
   const providerListRef = useRef<HTMLDivElement>(null);
@@ -112,6 +123,29 @@ export function Sidebar({
           <UsageDisplayToggle />
         </div>
       </div>
+
+      {showMainNav ? (
+        <nav className="sidebar-main-nav" aria-label="Main">
+          <button
+            type="button"
+            className={`sidebar-main-nav-item${section === "activity" ? " is-active" : ""}`}
+            aria-current={section === "activity" ? "page" : undefined}
+            onClick={onOpenActivity}
+          >
+            <ActivityChartIcon />
+            Activity
+          </button>
+          <button
+            type="button"
+            className={`sidebar-main-nav-item${section === "accounts" ? " is-active" : ""}`}
+            aria-current={section === "accounts" ? "page" : undefined}
+            onClick={onOpenAccounts}
+          >
+            <GridIcon />
+            Accounts
+          </button>
+        </nav>
+      ) : null}
 
       <div ref={providerListRef} className={`provider-list${providerListOverflows ? " has-overflow" : ""}`}>
         <SidebarGroupRow

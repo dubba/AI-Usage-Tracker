@@ -29,6 +29,22 @@ export const AlertCircleIcon = (props: IconProps) => (
     <line x1="12" y1="16" x2="12.01" y2="16" />
   </Base>
 );
+export const ActivityChartIcon = (props: IconProps) => <Base {...props}><path d="M4 20V4"/><path d="M4 20h16"/><path d="M8.5 20v-6M13 20V8M17.5 20v-9"/></Base>;
+export const GridIcon = (props: IconProps) => (
+  <Base {...props}>
+    <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" />
+    <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" />
+    <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" />
+    <rect x="13.5" y="13.5" width="7" height="7" rx="1.5" />
+  </Base>
+);
+export const CalendarOffIcon = (props: IconProps) => (
+  <Base {...props}>
+    <path d="M16 3v3M8 3v3M3 10h5M13 10h8" />
+    <path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+    <path d="m3 3 18 18" />
+  </Base>
+);
 export const CheckIcon = (props: IconProps) => <Base {...props}><path d="m5 12 5 5L20 7"/></Base>;
 export const MenuIcon = (props: IconProps) => <Base {...props}><path d="M4 6h16M4 12h16M4 18h16" /></Base>;
 export const ExternalLinkIcon = (props: IconProps) => (

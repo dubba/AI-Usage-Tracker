@@ -1,0 +1,66 @@
+/* The bottom navigation bar (BottomNav.tsx), shown while the sidebar is an overlay.
+ *
+ * `--bottom-nav-height` is set on the shell only while the bar is showing. The page shell
+ * (.main-stage, .dashboard-content in obsidian-dashboard.css) and the toasts subtract it, so the
+ * bar never covers content and nothing needs to override those unlayered rules. */
+/* Layered rules lose to unlayered ones, and the global rules `button { color: inherit; font: inherit }`,
+ * `svg { width; height }` and `:focus-visible { outline-offset }` are unlayered. The declarations
+ * below that must beat them are `!important`, which inverts the order (a layered `!important`
+ * beats an unlayered one); see docs/CSS_ARCHITECTURE.md. */
+@layer components {
+  .app-shell.has-bottom-nav {
+    --bottom-nav-height: calc(56px + var(--safe-area-bottom, 0px));
+  }
+
+  .bottom-nav {
+    position: fixed;
+    inset: auto 0 0;
+    /* Above the pages, below the sidebar overlay (250), its backdrop (200) and dialogs. */
+    z-index: 100;
+    box-sizing: border-box;
+    display: flex;
+    height: var(--bottom-nav-height, 56px);
+    padding: 0 var(--safe-area-right, 0px) var(--safe-area-bottom, 0px) var(--safe-area-left, 0px);
+    background: var(--obsidian-surface-low);
+    border-top: 1px solid var(--border);
+  }
+
+  .bottom-nav-item {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--muted) !important;
+    font-size: 11px !important;
+    font-weight: 650 !important;
+    line-height: 1 !important;
+    letter-spacing: 0.02em;
+  }
+
+  .bottom-nav-item svg {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .bottom-nav-item.is-active {
+    color: var(--purple-text) !important;
+  }
+
+  .bottom-nav-item:focus-visible {
+    outline: 2px solid var(--purple-accent);
+    outline-offset: -3px !important;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .bottom-nav-item:not(.is-active):hover {
+      color: var(--text) !important;
+    }
+  }
+}

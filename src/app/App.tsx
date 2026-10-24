@@ -5,6 +5,7 @@ import { useBusyKeys } from "../shared/lib/busy";
 import { useAppErrors } from "../shared/lib/errors";
 import { resumeLoginAttemptWatch, subscribeLoginStatus } from "../shared/lib/login-status";
 import { AccountsView } from "../features/accounts/AccountsView";
+import { ActivityView } from "../features/activity/ActivityView";
 import { useUnprotectedSignIns } from "../features/accounts/useUnprotectedSignIns";
 import { ErrorBanner } from "../shared/ui/ErrorBanner";
 import { SettingsView } from "../features/settings/SettingsView";
@@ -40,9 +41,11 @@ import { requestDashboardResync } from "../shared/lib/events";
 import { clearAppStorage } from "../shared/lib/storage";
 import type { Account, AccountBucket, Provider } from "../types";
 import { AppModals } from "./AppModals";
+import { BottomNav } from "./BottomNav";
 import { Sidebar } from "./Sidebar";
 import { useAfterAccountAdded } from "./useAfterAccountAdded";
 import { useAppMigrations } from "./useAppMigrations";
+import { useBottomNavVisible } from "./useBottomNavVisible";
 import { useGroupOrderReconcile } from "./useGroupOrderReconcile";
 import { useSidebarNavigation } from "./useSidebarNavigation";
 
@@ -73,6 +76,8 @@ export default function App() {
   // As an off-canvas overlay the sidebar is a modal dialog while open and unreachable while closed.
   const sidebarModal = sidebarIsOverlay && sidebarOpen;
   const sidebarHidden = sidebarIsOverlay && !sidebarOpen;
+  // The same overlay layout gets a bottom bar instead of sidebar entries for Activity and Accounts.
+  const bottomNavVisible = useBottomNavVisible(sidebarIsOverlay);
 
   const busyKeys = useBusyKeys();
   const { busy } = busyKeys;
@@ -187,12 +192,20 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [selectedGroup, pageOrderVersion],
   );
+  // The Activity page lists accounts in the order of the All accounts page.
+  const activityAccounts = useMemo(
+    () => applyPageAccountOrder(allAccountsGroup.accounts, ALL_ACCOUNTS_GROUP_ID),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allAccountsGroup, pageOrderVersion],
+  );
 
   const loadError = errors.find((entry) => entry.source === "load");
 
   useKeyboardShortcuts(!isMobileDevice(), {
     refreshAll: () => void refreshAll(),
     openSettings: nav.toggleSettings,
+    showActivity: nav.showActivity,
+    showAccounts: nav.showAccounts,
     addAccount: () => {
       openAdd(undefined, selectedGroup.provider ?? undefined);
     },
@@ -294,6 +307,17 @@ export default function App() {
         </AppSettingsContext.Provider>
       );
     }
+    if (section === "activity") {
+      return (
+        <ActivityView
+          accounts={activityAccounts}
+          onToggleSidebar={nav.toggleSidebar}
+          sidebarOpen={sidebarOpen}
+          onAddAccount={() => openAdd()}
+          onReconnect={(account) => account.provider === "google_ai_studio" ? setGoogleUsageAccount(account) : openAdd(account)}
+        />
+      );
+    }
     return (
       <AccountsView
         allAccounts={accounts}
@@ -320,7 +344,7 @@ export default function App() {
   };
 
   return (
-    <div ref={shellRef} className="app-shell obsidian-shell">
+    <div ref={shellRef} className={`app-shell obsidian-shell${bottomNavVisible ? " has-bottom-nav" : ""}`}>
       <div
         className={`sidebar-backdrop ${sidebarOpen ? "active" : ""}`}
         onClick={nav.closeSidebar}
@@ -340,6 +364,7 @@ export default function App() {
         accounts={accounts}
         refreshMinutes={appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES}
         busy={busy}
+        showMainNav={!sidebarIsOverlay}
         onClose={nav.closeSidebar}
         onAddAccount={() => {
           openAdd(undefined, selectedGroup.provider ?? undefined);
@@ -353,6 +378,8 @@ export default function App() {
         onMoveGroup={moveGroup}
         onRefreshAll={() => void refreshAll()}
         onOpenSettings={nav.showSettings}
+        onOpenActivity={nav.showActivity}
+        onOpenAccounts={nav.showAccounts}
       />
 
       <main className="main-stage" inert={sidebarModal}>
@@ -376,6 +403,18 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {bottomNavVisible ? (
+        <BottomNav
+          section={section}
+          inert={sidebarModal}
+          onSelect={(target) => {
+            if (target === "activity") nav.showActivity();
+            else if (target === "accounts") nav.showAccounts();
+            else nav.showSettings();
+          }}
+        />
+      ) : null}
 
       <AppModals
         modal={modal}

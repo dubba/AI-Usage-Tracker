@@ -1,0 +1,436 @@
+/* The Activity page (ActivityView.tsx and the components beside it).
+ *
+ * Layered rules lose to unlayered ones, and a few global rules are unlayered: `button { color:
+ * inherit; font: inherit }`, `svg { width; height }`, `:focus-visible { outline-offset }`, and the
+ * tooltip rules `[data-tooltip] { position }` / `[data-tooltip]::after { left; top; transform;
+ * white-space }`. The declarations below that must beat them are `!important`, which inverts the
+ * order (a layered `!important` beats an unlayered one); see docs/CSS_ARCHITECTURE.md. Nothing else
+ * here needs it, because every class is new.
+ *
+ * Breakpoints: none of its own. The grid fits as many 540px columns as the page has room for. */
+@layer components {
+  /* ---- header ---- */
+
+  .activity-period-switch {
+    display: inline-flex;
+    align-self: flex-start;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--chrome-border);
+    border-radius: 8px;
+    background: var(--obsidian-surface-low);
+  }
+
+  .activity-period-switch button {
+    min-width: 46px;
+    height: 30px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted) !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.06em;
+  }
+
+  .activity-period-switch button.active {
+    background: var(--purple-fill);
+    color: var(--purple-on-fill) !important;
+  }
+
+  .activity-period-switch button:focus-visible {
+    outline: 2px solid var(--purple);
+    outline-offset: 1px !important;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .activity-period-switch button:not(.active):hover {
+      color: var(--text) !important;
+    }
+  }
+
+  /* ---- states ---- */
+
+  .activity-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(540px, 100%), 1fr));
+    gap: 8px;
+    align-items: start;
+  }
+
+  .activity-message {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    max-width: 420px;
+    margin: 48px auto 0;
+    text-align: center;
+  }
+
+  .activity-message svg {
+    width: 36px !important;
+    height: 36px !important;
+    color: var(--purple-accent);
+  }
+
+  .activity-message h2 {
+    margin: 4px 0 0;
+    font-size: 16px;
+    font-weight: 650;
+  }
+
+  .activity-message p {
+    margin: 0 0 8px;
+    color: var(--obsidian-muted);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .activity-note {
+    margin: 0 0 8px;
+    padding: 12px 14px;
+    border: 1px dashed var(--border-strong);
+    border-radius: 8px;
+    color: var(--obsidian-muted);
+    font-size: 14px;
+  }
+
+  .activity-error {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+    margin: 0 0 8px;
+    padding: 10px 14px;
+    border: 1px solid var(--danger-banner-border);
+    border-radius: 8px;
+    background: var(--danger-banner-surface);
+    color: var(--red);
+    font-size: 14px;
+  }
+
+  .activity-skeleton {
+    display: grid;
+    gap: 12px;
+    height: 220px;
+    padding: 16px;
+    border: 1px solid var(--obsidian-border);
+    border-radius: 8px;
+    background: linear-gradient(90deg, var(--obsidian-surface-low) 25%, var(--obsidian-surface-container) 37%, var(--obsidian-surface-low) 63%);
+    background-size: 400% 100%;
+    animation: activity-shimmer 1.4s ease infinite;
+    align-content: start;
+  }
+
+  .activity-skeleton-line {
+    height: 12px;
+    border-radius: 999px;
+    background: var(--border);
+  }
+
+  .activity-skeleton-line.short {
+    width: 38%;
+  }
+
+  .activity-skeleton-bars {
+    height: 110px;
+    margin-top: 8px;
+    border-radius: 6px;
+    background: repeating-linear-gradient(90deg, var(--border) 0 28px, transparent 28px 44px);
+  }
+
+  @keyframes activity-shimmer {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+  }
+
+  /* ---- cards ---- */
+
+  .activity-card {
+    position: relative;
+    box-sizing: border-box;
+    min-width: 0;
+    padding: 16px;
+    border: 1px solid var(--obsidian-border);
+    border-radius: 8px;
+    background: var(--obsidian-surface-low);
+  }
+
+  /* A tooltip hangs over the next card, so the card it belongs to comes to the front. */
+  .activity-card:has([data-tooltip]:hover),
+  .activity-card:has([data-tooltip-active]) {
+    z-index: 50;
+  }
+
+  .activity-card-head {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 12px;
+  }
+
+  .activity-card-icon {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    color: var(--obsidian-muted-bright);
+  }
+
+  .activity-card-icon svg {
+    width: 24px !important;
+    height: 24px !important;
+  }
+
+  .activity-card-title {
+    margin: 0;
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 650;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  .activity-card-limit {
+    margin: 2px 0 0;
+    color: var(--window-7d);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .activity-card-details {
+    margin: 2px 0 0;
+    color: var(--obsidian-muted);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .activity-card-total {
+    display: grid;
+    justify-items: end;
+    gap: 2px;
+    line-height: 1.1;
+    text-align: right;
+  }
+
+  .activity-card-total strong {
+    font-size: 24px;
+    font-weight: 700;
+  }
+
+  .activity-card-total span {
+    color: var(--obsidian-muted);
+    font-size: 12px;
+  }
+
+  .activity-card-total.tone-healthy strong { color: var(--green); }
+  .activity-card-total.tone-warning strong { color: var(--amber); }
+  .activity-card-total.tone-critical strong { color: var(--red); }
+  .activity-card-total.tone-neutral strong { color: var(--muted); }
+
+  /* A card whose account needs to sign in again shows its last data, dimmed. */
+  .activity-card.is-dimmed .activity-card-head,
+  .activity-card.is-dimmed .activity-chart {
+    opacity: 0.55;
+  }
+
+  .activity-card-notice {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+    margin-top: 12px;
+    padding: 8px 10px;
+    border: 1px solid rgba(255, 133, 133, 0.42);
+    border-radius: 6px;
+    color: var(--obsidian-red);
+    font-size: 13px;
+  }
+
+  /* An account with no weekly limit: no chart, a dashed outline instead. */
+  .activity-card.is-no-weekly {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 12px;
+    border-style: dashed;
+    border-color: var(--border-strong);
+    background: transparent;
+  }
+
+  .activity-card-title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+  }
+
+  .activity-badge {
+    padding: 2px 8px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    color: var(--obsidian-muted);
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  /* ---- the chart ---- */
+
+  .activity-chart {
+    position: relative;
+    margin-top: 16px;
+  }
+
+  .activity-bars {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(var(--activity-days), minmax(0, 1fr));
+    gap: var(--activity-gap);
+  }
+
+  .activity-day {
+    display: grid;
+    justify-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .activity-day-value,
+  .activity-day-label {
+    max-width: 100%;
+    color: var(--obsidian-muted);
+    font-size: 12px;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .activity-day-value {
+    color: var(--text);
+    font-weight: 650;
+  }
+
+  .activity-day-label.is-today {
+    color: var(--purple-text);
+    font-weight: 650;
+  }
+
+  .activity-bar-slot {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    width: 100%;
+    height: 112px;
+  }
+
+  .activity-chart.is-30d .activity-bar-slot {
+    height: 88px;
+  }
+
+  .activity-bar {
+    width: 100%;
+    max-width: 44px;
+    min-height: 3px;
+    border-radius: 4px 4px 1px 1px;
+    background: var(--window-7d);
+  }
+
+  /* Used nothing that day: a thin line, so it does not read as missing. */
+  .activity-bar.is-zero {
+    min-height: 2px;
+    height: 2px;
+    opacity: 0.5;
+  }
+
+  /* Estimated: a dotted top edge. */
+  .activity-bar.is-approximate::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 3px;
+    border-radius: 4px 4px 0 0;
+    background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.85) 0 2px, transparent 2px 4px);
+  }
+
+  /* No data: striped, and not zero. */
+  .activity-bar.is-empty {
+    height: 44px;
+    border: 1px solid var(--border-strong);
+    background: repeating-linear-gradient(135deg, var(--border-strong) 0 2px, transparent 2px 6px);
+    opacity: 0.7;
+  }
+
+  .activity-chart.is-30d .activity-bar.is-empty {
+    height: 28px;
+  }
+
+  .activity-axis {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    color: var(--obsidian-muted);
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  /* A weekly reset on the 30 day chart: a thin dashed line in the day's column. */
+  .activity-reset {
+    position: absolute;
+    top: -4px;
+    bottom: 0;
+    width: 0;
+    pointer-events: none;
+  }
+
+  .activity-reset-hit {
+    position: absolute;
+    inset: 0 -6px;
+    border-left: 0;
+    pointer-events: auto;
+  }
+
+  .activity-reset-hit::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    border-left: 1px dashed var(--purple-accent);
+  }
+
+  /* ---- tooltips: the shared ones are centered under their element, which would run off the
+     card at either end of the chart; these hang from the near edge and may wrap. ---- */
+
+  .activity-bar[data-tooltip]::after,
+  .activity-reset-hit[data-tooltip]::after {
+    width: max-content;
+    max-width: 240px;
+    /* Wraps, but keeps the line break between a bar's day and the note about it. */
+    white-space: pre-line !important;
+    text-align: left;
+  }
+
+  .activity-bar.is-left[data-tooltip]::after,
+  .activity-reset-hit.is-left[data-tooltip]::after {
+    left: 0 !important;
+    right: auto !important;
+    transform: none !important;
+  }
+
+  .activity-bar.is-right[data-tooltip]::after,
+  .activity-reset-hit.is-right[data-tooltip]::after {
+    left: auto !important;
+    right: 0 !important;
+    transform: none !important;
+  }
+
+  /* The shared rule puts `position: relative` on every element with a tooltip; the marker line is
+     positioned by its wrapper, so it only needs its own box. */
+  .activity-reset-hit[data-tooltip] {
+    position: absolute !important;
+  }
+}

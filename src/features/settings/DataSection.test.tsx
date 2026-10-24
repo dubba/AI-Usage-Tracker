@@ -6,6 +6,7 @@ import { DataSection } from "./DataSection";
 
 const api = vi.hoisted(() => ({
   clearCachedUsage: vi.fn(),
+  clearActivityHistory: vi.fn(),
   deleteAllLocalData: vi.fn(),
 }));
 vi.mock("../../shared/lib/api", () => ({ bridgeApi: api }));
@@ -14,6 +15,7 @@ let app: Mounted | null = null;
 
 beforeEach(() => {
   api.clearCachedUsage.mockReset().mockResolvedValue(undefined);
+  api.clearActivityHistory.mockReset().mockResolvedValue(undefined);
   api.deleteAllLocalData.mockReset().mockResolvedValue(undefined);
 });
 
@@ -24,6 +26,7 @@ afterEach(() => {
 
 const button = (label: string) =>
   [...document.querySelectorAll("button")].find((el) => el.textContent?.trim() === label) as HTMLButtonElement;
+const byLabel = (label: string) => document.querySelector(`button[aria-label="${label}"]`) as HTMLButtonElement;
 const flush = () => act(async () => {});
 
 function render(props: Partial<Parameters<typeof DataSection>[0]> = {}) {
@@ -58,6 +61,63 @@ describe("DataSection", () => {
     expect(document.querySelector("[role=alert]")?.textContent).toContain("disk full");
     expect(onUsageCleared).not.toHaveBeenCalled();
     expect(button("Clear")).toBeTruthy();
+  });
+
+  it("clears the activity history on one click, without touching cached usage", async () => {
+    const { onUsageCleared, onAllDataDeleted } = render();
+    expect(document.body.textContent).toContain("Clear Activity History");
+
+    click(byLabel("Clear activity history"));
+    await flush();
+
+    expect(api.clearActivityHistory).toHaveBeenCalledTimes(1);
+    expect(api.clearCachedUsage).not.toHaveBeenCalled();
+    expect(onUsageCleared).not.toHaveBeenCalled();
+    expect(api.deleteAllLocalData).not.toHaveBeenCalled();
+    expect(onAllDataDeleted).not.toHaveBeenCalled();
+    expect(byLabel("Clear activity history").textContent).toBe("Cleared!");
+    expect(byLabel("Clear cached usage").textContent).toBe("Clear");
+    expect(document.querySelector("[role=status]")?.textContent).toBe("Activity history cleared.");
+  });
+
+  it("shows the activity history clearing in progress, and the button cannot be pressed twice", async () => {
+    let finish!: () => void;
+    api.clearActivityHistory.mockReturnValue(new Promise<void>((done) => (finish = done)));
+    render();
+
+    click(byLabel("Clear activity history"));
+    await flush();
+    expect(byLabel("Clear activity history").textContent).toBe("Clearing…");
+    expect(byLabel("Clear activity history").disabled).toBe(true);
+    click(byLabel("Clear activity history"));
+    expect(api.clearActivityHistory).toHaveBeenCalledTimes(1);
+
+    finish();
+    await flush();
+    expect(byLabel("Clear activity history").textContent).toBe("Cleared!");
+  });
+
+  it("shows why clearing the activity history failed and does not report success", async () => {
+    api.clearActivityHistory.mockRejectedValue(new Error("disk full"));
+    render();
+
+    click(byLabel("Clear activity history"));
+    await flush();
+
+    expect(document.querySelector("[role=alert]")?.textContent).toBe("Couldn't clear activity history: disk full");
+    expect(byLabel("Clear activity history").textContent).toBe("Clear");
+    expect(document.querySelector("[role=status]")?.textContent).toBe("");
+    // The cached usage row is unaffected, and a later success clears the message.
+    click(byLabel("Clear cached usage"));
+    await flush();
+    expect(document.querySelector("[role=alert]")).toBeNull();
+  });
+
+  it("says that deleting everything removes the activity history too", () => {
+    render();
+    expect(document.body.textContent).toContain("usage snapshots, activity history, and settings");
+    click(button("Delete"));
+    expect(document.querySelector("[role=alertdialog]")?.textContent).toContain("usage snapshots, activity history, groups");
   });
 
   it("deletes nothing until the confirmation is accepted", async () => {

@@ -10,7 +10,14 @@ function Probe({ enabled, handlers }: { enabled: boolean; handlers: Record<Short
   return null;
 }
 
-const makeHandlers = () => ({ refreshAll: vi.fn(), openSettings: vi.fn(), addAccount: vi.fn(), addGroup: vi.fn() });
+const makeHandlers = () => ({
+  refreshAll: vi.fn(),
+  openSettings: vi.fn(),
+  addAccount: vi.fn(),
+  addGroup: vi.fn(),
+  showActivity: vi.fn(),
+  showAccounts: vi.fn(),
+});
 
 function press(key: string, init: KeyboardEventInit = { ctrlKey: true }): KeyboardEvent {
   const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init });
@@ -91,13 +98,27 @@ describe("useKeyboardShortcuts", () => {
     expect(handlers.addAccount).toHaveBeenCalledTimes(2);
   });
 
-  it("supports both ',' and 's' for openSettings", () => {
+  it("supports ',', 's' and '3' for openSettings", () => {
     const handlers = makeHandlers();
     mounted = mount(<Probe enabled handlers={handlers} />);
     press(",");
     expect(handlers.openSettings).toHaveBeenCalledTimes(1);
     press("s");
     expect(handlers.openSettings).toHaveBeenCalledTimes(2);
+    press("3");
+    expect(handlers.openSettings).toHaveBeenCalledTimes(3);
+  });
+
+  it("shows the Activity page on 1 and the Accounts page on 2", () => {
+    const handlers = makeHandlers();
+    mounted = mount(<Probe enabled handlers={handlers} />);
+    const event = press("1");
+    expect(handlers.showActivity).toHaveBeenCalledTimes(1);
+    expect(event.defaultPrevented).toBe(true);
+    press("2");
+    expect(handlers.showAccounts).toHaveBeenCalledTimes(1);
+    press("1", {});
+    expect(handlers.showActivity).toHaveBeenCalledTimes(1);
   });
 
   it("does not intercept shortcuts while typing in editable fields", () => {

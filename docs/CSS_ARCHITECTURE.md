@@ -22,6 +22,21 @@ The order below **is the cascade**. Later files override earlier ones, so do not
 
 `app/App.tsx` pulls in `pairing.css` while `app/main.tsx` is still resolving its imports, which is why it sits before `base.css`. Check the real order in the browser (`document.querySelectorAll('style[data-vite-dev-id]')` in `npm run dev`) after changing any import.
 
+## Layered component files
+
+The newer component stylesheets are the first rules in `@layer components`: `features/activity/activity.css` (the Activity page), `app/bottom-nav.css` (the bottom navigation bar) and `app/sidebar-nav.css` (the Activity and Accounts entries in the sidebar). Each is imported by its component, so it loads with the component and not in the order of the table above; that does not matter, because a layered rule loses to every unlayered one whatever the order.
+
+That has one consequence for what they can style. A few global rules are unlayered and set properties the components need to set themselves:
+
+- `button { color: inherit; font: inherit }` (`base.css`, `obsidian-dashboard.css`), so a layered button cannot set its own `color`, `font-size`, `font-weight` or `line-height`;
+- `svg { width: 18px; height: 18px }` (`base.css`), so a layered icon cannot set its size;
+- `:focus-visible { outline-offset: 2px }`;
+- the tooltip rules, `[data-tooltip] { position: relative }` and `[data-tooltip]::after { left; top; transform; white-space }` (`ui-refinements.css`), so a layered rule cannot move or wrap a tooltip.
+
+The layered files set those properties with `!important`, which inverts the order (a layered `!important` beats an unlayered one, as the section on `!important` below says), and each file says so in its header. That is a different thing from winning a specificity fight: nothing else in them needs `!important`, because every class is new. If those global rules move into `@layer base` one day, the `!important`s can go.
+
+`--bottom-nav-height` is how the bar and the page shell agree. `.app-shell.has-bottom-nav` sets it while the bar shows, and the unlayered mobile rules for `.main-stage` and `.dashboard-content` (`obsidian-dashboard.css`) and the toasts (`ui-refinements.css`) subtract it with a `0px` fallback, so no layered rule has to override their heights.
+
 ## Breakpoints
 
 Width breakpoints belong to individual components, so they are not collapsed into a few shared ones: moving one changes the layout at the widths in between. `src/styles/breakpoints.test.ts` fails when a width is added or removed, so update this table and that list together.

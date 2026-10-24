@@ -1,15 +1,19 @@
 # Changelog
 
-## Unreleased (3 changes)
+## Unreleased (7 changes)
 
-### Added (2)
+### Added (5)
 
 - Settings now has a Data section. "Clear Cached Usage" removes the stored usage numbers but keeps your accounts and sign-ins, then loads fresh usage right away.
-- "Delete All Local Data" in the new Data section removes every account and saved sign-in, groups, alert settings and app settings from the device, after you confirm. Your provider accounts are not affected and other linked devices keep their own copies.
+- "Delete All Local Data" in the new Data section removes every account and saved sign-in, groups, alert settings, activity history and app settings from the device, after you confirm. Your provider accounts are not affected and other linked devices keep their own copies.
+- A new Activity page charts how much of each account's weekly limit you used on each of the last 7 or 30 days, with a dashed line at every weekly reset on the 30-day view. Days when the app was not refreshing show as missing instead of zero, partly estimated days are marked, and accounts without a weekly limit say so. History builds up from the next refresh onward.
+- On phones and narrow windows, a bottom bar switches between Activity, Accounts and Settings. On wider windows, Activity and Accounts are at the top of the sidebar, and Ctrl+1, 2 and 3 (⌘1, 2 and 3 on macOS) open Activity, Accounts and Settings.
+- "Clear Activity History" in Settings now removes the recorded daily usage while keeping your accounts, sign-ins and current usage.
 
-### Improved (1)
+### Improved (2)
 
 - On Antigravity account cards, the Gemini 4 Argon limit is labeled Argon.
+- The Settings shortcut (Ctrl+, or ⌘,) now returns to the page you opened Settings from, such as Activity, instead of always going back to Accounts.
 
 ## v0.5.2 - 2026-10-23 (4 changes)
 

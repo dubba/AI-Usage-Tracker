@@ -7,10 +7,46 @@ import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
 type ClearState = "idle" | "clearing" | "cleared";
 
 /**
- * Clearing cached usage and deleting everything the app keeps on this device.
+ * One click that runs `action` and says so: idle, clearing, then cleared for a moment. A failure
+ * goes to `onFailure` (and `null` when a new attempt starts).
+ */
+function useClearAction(
+  action: () => Promise<void>,
+  failureText: string,
+  onFailure: (message: string | null) => void,
+) {
+  const [state, setState] = useState<ClearState>("idle");
+  const resetTimer = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (resetTimer.current !== null) window.clearTimeout(resetTimer.current);
+    },
+    [],
+  );
+
+  const run = async () => {
+    setState("clearing");
+    onFailure(null);
+    try {
+      await action();
+      setState("cleared");
+      resetTimer.current = window.setTimeout(() => setState("idle"), 2500);
+    } catch (cause) {
+      onFailure(`${failureText}: ${errorMessage(cause)}`);
+      setState("idle");
+    }
+  };
+  return [state, run] as const;
+}
+
+/**
+ * Clearing cached usage or the activity history, and deleting everything the app keeps on this device.
  *
- * Clearing is harmless (usage is fetched again straight away), so it runs on one click. Deleting
- * signs out every account and cannot be undone, so it asks first, naming what goes and what does not.
+ * Clearing cached usage is harmless (usage is fetched again straight away), so it runs on one click.
+ * Clearing the activity history discards only the recorded daily bars (accounts and sign-ins stay),
+ * and it too runs on one click. Deleting signs out every account and cannot be undone, so it asks
+ * first, naming what goes and what does not.
  */
 export function DataSection({
   onUsageCleared,
@@ -21,32 +57,23 @@ export function DataSection({
   /** Runs once everything is deleted; the app reloads itself so no screen keeps showing removed data. */
   onAllDataDeleted: () => void;
 }) {
-  const [clearState, setClearState] = useState<ClearState>("idle");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
-  const resetTimer = useRef<number | null>(null);
 
-  useEffect(
-    () => () => {
-      if (resetTimer.current !== null) window.clearTimeout(resetTimer.current);
-    },
-    [],
-  );
-
-  const clearUsage = async () => {
-    setClearState("clearing");
-    setFailure(null);
-    try {
+  const [clearState, clearUsage] = useClearAction(
+    async () => {
       await bridgeApi.clearCachedUsage();
       await onUsageCleared();
-      setClearState("cleared");
-      resetTimer.current = window.setTimeout(() => setClearState("idle"), 2500);
-    } catch (cause) {
-      setFailure(`Couldn't clear cached usage: ${errorMessage(cause)}`);
-      setClearState("idle");
-    }
-  };
+    },
+    "Couldn't clear cached usage",
+    setFailure,
+  );
+  const [historyState, clearHistory] = useClearAction(
+    () => bridgeApi.clearActivityHistory(),
+    "Couldn't clear activity history",
+    setFailure,
+  );
 
   const deleteEverything = async () => {
     setDeleting(true);
@@ -73,6 +100,7 @@ export function DataSection({
           <button
             type="button"
             className="button ghost settings-changelog-button"
+            aria-label="Clear cached usage"
             disabled={clearState === "clearing"}
             onClick={() => void clearUsage()}
           >
@@ -82,8 +110,24 @@ export function DataSection({
         </div>
         <div className="settings-row">
           <div>
+            <strong>Clear Activity History</strong>
+            <small>Removes the daily weekly-usage history shown on the Activity page. Accounts and current usage stay, and tracking starts over.</small>
+          </div>
+          <button
+            type="button"
+            className="button ghost settings-changelog-button"
+            aria-label="Clear activity history"
+            disabled={historyState === "clearing"}
+            onClick={() => void clearHistory()}
+          >
+            <span>{historyState === "clearing" ? "Clearing…" : historyState === "cleared" ? "Cleared!" : "Clear"}</span>
+            {historyState === "cleared" ? <CheckIcon /> : null}
+          </button>
+        </div>
+        <div className="settings-row">
+          <div>
             <strong className="settings-danger-title">Delete All Local Data</strong>
-            <small>Removes accounts, saved sign-ins, usage snapshots, and settings from this device.</small>
+            <small>Removes accounts, saved sign-ins, usage snapshots, activity history, and settings from this device.</small>
           </div>
           <button
             type="button"
@@ -97,7 +141,7 @@ export function DataSection({
         </div>
       </section>
       <span className="sr-only" role="status" aria-live="polite">
-        {clearState === "cleared" ? "Cached usage cleared." : ""}
+        {clearState === "cleared" ? "Cached usage cleared." : historyState === "cleared" ? "Activity history cleared." : ""}
       </span>
       {failure ? (
         <p className="settings-data-error" role="alert">
@@ -108,7 +152,7 @@ export function DataSection({
         open={confirmingDelete}
         kicker="Delete all local data"
         title="Delete all local data?"
-        body="Removes every account and its saved sign-in, usage snapshots, groups, alert settings, and app settings from this device, and replaces the local API token. Your provider accounts are not canceled, other linked devices keep their own copies, and this can't be undone."
+        body="Removes every account and its saved sign-in, usage snapshots, activity history, groups, alert settings, and app settings from this device, and replaces the local API token. Your provider accounts are not canceled, other linked devices keep their own copies, and this can't be undone."
         confirmLabel="Delete Everything"
         busyLabel="Deleting…"
         busy={deleting}

@@ -26,6 +26,8 @@ export const STORAGE_KEYS = {
   reorderHintSessionDismissed: "ai-usage-tracker:reorder-hint-session-dismissed",
   /** "true" if the Advanced section in Settings is expanded. */
   settingsAdvancedOpen: "ai-usage-tracker:settings-advanced-open",
+  /** "7d" | "30d": how many days the Activity page shows. */
+  activityPeriod: "ai-usage-tracker:activity-period",
 } as const;
 
 export const STORAGE_PREFIXES = {

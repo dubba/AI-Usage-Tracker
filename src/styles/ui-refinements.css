@@ -966,7 +966,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 /* In-App Usage Alert Toasts */
 .usage-alert-toast-container {
   position: fixed;
-  bottom: calc(24px + var(--safe-area-bottom, 0px));
+  bottom: calc(24px + var(--bottom-nav-height, var(--safe-area-bottom, 0px)));
   right: 24px;
   z-index: var(--z-toast, 10100);
   display: flex;
@@ -1087,7 +1087,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
     left: 16px;
     right: 16px;
     width: auto;
-    bottom: calc(16px + var(--safe-area-bottom, 0px));
+    bottom: calc(16px + var(--bottom-nav-height, var(--safe-area-bottom, 0px)));
   }
 }
 

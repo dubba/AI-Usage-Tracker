@@ -1,0 +1,60 @@
+/* The Activity and Accounts entries at the top of the sidebar (Sidebar.tsx), on wide windows.
+ * They borrow the look of the group rows below them (.provider-summary-row in
+ * obsidian-dashboard.css) at half the height. */
+/* Layered rules lose to unlayered ones, and the global rules `button { color: inherit; font: inherit }`,
+ * `svg { width; height }` and `:focus-visible { outline-offset }` are unlayered. The declarations
+ * below that must beat them are `!important`, which inverts the order (a layered `!important`
+ * beats an unlayered one); see docs/CSS_ARCHITECTURE.md. */
+@layer components {
+  .sidebar-main-nav {
+    display: grid;
+    gap: 6px;
+    /* The same 5px of room the group list keeps for a focused row's ring. */
+    padding: 0 5px 12px;
+  }
+
+  .sidebar-main-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--chrome-border);
+    border-radius: 5px;
+    background: var(--obsidian-surface-low);
+    color: var(--muted) !important;
+    font-size: 14px !important;
+    font-weight: 650 !important;
+    text-align: left;
+    transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+  }
+
+  .sidebar-main-nav-item svg {
+    width: 20px !important;
+    height: 20px !important;
+    flex: 0 0 auto;
+  }
+
+  .sidebar-main-nav-item:hover,
+  .sidebar-main-nav-item:active {
+    border-color: var(--obsidian-purple-strong);
+    background: var(--purple-surface);
+    color: var(--text) !important;
+  }
+
+  .sidebar-main-nav-item:focus-visible {
+    border-color: var(--obsidian-purple-strong);
+    background: var(--purple-surface);
+    color: var(--text) !important;
+    outline: 2px solid var(--purple);
+  }
+
+  .sidebar-main-nav-item.is-active,
+  .sidebar-main-nav-item.is-active:hover {
+    border-color: rgb(var(--purple-text-rgb) / 0.75);
+    background: linear-gradient(90deg, rgb(var(--purple-fill-rgb) / 0.15), var(--obsidian-surface-container) 48%);
+    box-shadow: inset 2px 0 0 var(--obsidian-purple-strong);
+    color: var(--purple-text) !important;
+  }
+}
