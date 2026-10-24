@@ -52,7 +52,6 @@
     /* Hover and pressed surface of the sidebar footer and primary button (dark text on it). */
     --purple-chip: #dfd0ff;
     --purple-chip-active: #c3abfc;
-    --sidebar-settings-ring: #bda4ff;
     /* Hover and selected backgrounds of rows, cards and buttons (default text on them). */
     --purple-surface: #28213a;
     --purple-surface-active: #32254e;
@@ -132,7 +131,6 @@
     --purple-ink: #381f7a;
     --purple-chip: #3c1f7a;
     --purple-chip-active: #3a1f7a;
-    --sidebar-settings-ring: #bda4ff;
     --purple-surface: #ebe6f8;
     --purple-surface-active: #ddd4f4;
     --obsidian-blue: #0b6fa4;

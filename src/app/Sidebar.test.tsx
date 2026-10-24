@@ -6,7 +6,9 @@ import { Sidebar } from "./Sidebar";
 import type { Section } from "./useSidebarNavigation";
 
 // The parts of the sidebar that are not under test measure and observe the page.
-vi.mock("../features/dashboard/SyncStatusLine", () => ({ SyncStatusLine: () => null }));
+vi.mock("../features/dashboard/SyncStatusLine", () => ({
+  SyncStatusLine: () => <div className="sidebar-sync-status" />,
+}));
 vi.mock("../features/dashboard/SidebarResizeHandle", () => ({ SidebarResizeHandle: () => null }));
 vi.mock("../features/dashboard/UsageDisplayToggle", () => ({ UsageDisplayToggle: () => null }));
 vi.mock("../shared/hooks/useScrollThumb", () => ({ useScrollThumb: () => ({ overflows: false }) }));
@@ -52,42 +54,48 @@ function render(props: { section: Section; showMainNav: boolean; selectedGroupId
   return { nav, items: nav ? [...nav.querySelectorAll<HTMLButtonElement>("button")] : [], handlers };
 }
 
-describe("Sidebar entries for Usage and Accounts", () => {
-  it("are above the group list on a wide window", () => {
+describe("Sidebar page links", () => {
+  it("are Usage, Accounts and Settings, between the group list and the sync status", () => {
     const { nav, items } = render({ section: "accounts", showMainNav: true });
-    expect(items.map((item) => item.textContent)).toEqual(["Usage", "Accounts"]);
+    expect(items.map((item) => item.textContent)).toEqual(["Usage", "Accounts", "Settings"]);
     const list = mounted!.container.querySelector(".provider-list")!;
-    expect(nav!.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const status = mounted!.container.querySelector(".sidebar-sync-status")!;
+    expect(list.compareDocumentPosition(nav!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(nav!.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Directly above the sync status: nothing sits between them.
+    expect(nav!.nextElementSibling).toBe(status);
   });
 
   it("are left to the bottom bar when the sidebar is an overlay", () => {
     const { nav } = render({ section: "accounts", showMainNav: false });
     expect(nav).toBeNull();
     expect(mounted!.container.querySelector(".provider-list")).not.toBeNull();
+    // Settings is not offered anywhere else in the sidebar.
+    expect(mounted!.container.querySelector('[aria-label="Open settings"]')).toBeNull();
+    expect(mounted!.container.textContent).not.toContain("Settings");
   });
 
   it.each([
     ["activity", 0],
     ["accounts", 1],
-  ] as const)("show the %s entry as the current page", (section, index) => {
+    ["settings", 2],
+  ] as const)("show the %s link as the current page", (section, index) => {
     const { items } = render({ section, showMainNav: true });
     items.forEach((item, position) => {
       expect(item.getAttribute("aria-current")).toBe(position === index ? "page" : null);
+      expect(item.classList.contains("is-active")).toBe(position === index);
     });
   });
 
-  it("show neither as current while Settings is open", () => {
-    const { items } = render({ section: "settings", showMainNav: true });
-    expect(items.map((item) => item.getAttribute("aria-current"))).toEqual([null, null]);
-  });
-
   it("open their page when clicked", () => {
-    const { items, handlers } = render({ section: "settings", showMainNav: true });
+    const { items, handlers } = render({ section: "accounts", showMainNav: true });
     click(items[0]);
     expect(handlers.onOpenActivity).toHaveBeenCalledTimes(1);
     click(items[1]);
     expect(handlers.onOpenAccounts).toHaveBeenCalledTimes(1);
-    expect(handlers.onOpenSettings).not.toHaveBeenCalled();
+    click(items[2]);
+    expect(handlers.onOpenSettings).toHaveBeenCalledTimes(1);
+    expect(handlers.onSelectGroup).not.toHaveBeenCalled();
   });
 
   it("leave the group rows selected only on the Accounts page", () => {
@@ -95,6 +103,9 @@ describe("Sidebar entries for Usage and Accounts", () => {
     expect(mounted!.container.querySelector(".provider-summary-row.selected")).not.toBeNull();
     mounted!.unmount();
     render({ section: "activity", showMainNav: true });
+    expect(mounted!.container.querySelector(".provider-summary-row.selected")).toBeNull();
+    mounted!.unmount();
+    render({ section: "settings", showMainNav: true });
     expect(mounted!.container.querySelector(".provider-summary-row.selected")).toBeNull();
   });
 });

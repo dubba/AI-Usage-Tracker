@@ -1,5 +1,5 @@
-/* The Usage and Accounts entries at the top of the sidebar (Sidebar.tsx), on wide windows.
- * They borrow the look of the group rows below them (.provider-summary-row in
+/* The Usage, Accounts and Settings links at the bottom of the sidebar (Sidebar.tsx), just above the
+ * sync status, on wide windows. They borrow the look of the group rows (.provider-summary-row in
  * obsidian-dashboard.css) at half the height. */
 /* Layered rules lose to unlayered ones, and the global rules `button { color: inherit; font: inherit }`,
  * `svg { width; height }` and `:focus-visible { outline-offset }` are unlayered. The declarations
@@ -10,7 +10,7 @@
     display: grid;
     gap: 6px;
     /* The same 5px of room the group list keeps for a focused row's ring. */
-    padding: 0 5px 12px;
+    padding: 4px 5px 0;
   }
 
   .sidebar-main-nav-item {

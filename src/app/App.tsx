@@ -76,7 +76,7 @@ export default function App() {
   // As an off-canvas overlay the sidebar is a modal dialog while open and unreachable while closed.
   const sidebarModal = sidebarIsOverlay && sidebarOpen;
   const sidebarHidden = sidebarIsOverlay && !sidebarOpen;
-  // The same overlay layout gets a bottom bar instead of sidebar entries for Usage and Accounts.
+  // The same overlay layout gets a bottom bar instead of the sidebar's Usage, Accounts and Settings links.
   const bottomNavVisible = useBottomNavVisible(sidebarIsOverlay);
 
   const busyKeys = useBusyKeys();

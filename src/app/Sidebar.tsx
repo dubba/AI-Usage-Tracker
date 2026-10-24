@@ -7,14 +7,21 @@ import { ALL_ACCOUNTS_GROUP_ID, type SidebarGroup } from "../features/dashboard/
 import { SIDEBAR_ID } from "../shared/lib/constants";
 import type { BusyKeys } from "../shared/lib/busy";
 import { useScrollThumb } from "../shared/hooks/useScrollThumb";
-import { BarChartIcon, CloseIcon, GaugeIcon, GridIcon, PlusIcon } from "../shared/ui/icons";
+import { BarChartIcon, CloseIcon, GaugeIcon, GridIcon, PlusIcon, SettingsIcon } from "../shared/ui/icons";
 import type { Account } from "../types";
 import type { Section } from "./useSidebarNavigation";
 import "./sidebar-nav.css";
 
+/** The page links at the bottom of the sidebar on a wide window; a phone has the bottom bar instead. */
+const PAGE_LINKS = [
+  { section: "activity", label: "Usage", Icon: BarChartIcon },
+  { section: "accounts", label: "Accounts", Icon: GridIcon },
+  { section: "settings", label: "Settings", Icon: SettingsIcon },
+] as const satisfies ReadonlyArray<{ section: Section; label: string; Icon: typeof GridIcon }>;
+
 /**
- * The navigation sidebar: add buttons, the Usage and Accounts entries (on wide windows; a phone
- * has the bottom bar), the All accounts row and one row per group, and the sync status.
+ * The navigation sidebar: add buttons, the All accounts row and one row per group, then (on wide
+ * windows; a phone has the bottom bar) the Usage, Accounts and Settings links, and the sync status.
  */
 export function Sidebar({
   sidebarRef,
@@ -55,7 +62,7 @@ export function Sidebar({
   accounts: Account[];
   refreshMinutes: number;
   busy: BusyKeys;
-  /** Show the Usage and Accounts entries: the bottom bar is not there to offer them. */
+  /** Show the Usage, Accounts and Settings links: the bottom bar is not there to offer them. */
   showMainNav: boolean;
   onClose: () => void;
   onAddAccount: () => void;
@@ -124,29 +131,6 @@ export function Sidebar({
         </div>
       </div>
 
-      {showMainNav ? (
-        <nav className="sidebar-main-nav" aria-label="Main">
-          <button
-            type="button"
-            className={`sidebar-main-nav-item${section === "activity" ? " is-active" : ""}`}
-            aria-current={section === "activity" ? "page" : undefined}
-            onClick={onOpenActivity}
-          >
-            <BarChartIcon />
-            Usage
-          </button>
-          <button
-            type="button"
-            className={`sidebar-main-nav-item${section === "accounts" ? " is-active" : ""}`}
-            aria-current={section === "accounts" ? "page" : undefined}
-            onClick={onOpenAccounts}
-          >
-            <GridIcon />
-            Accounts
-          </button>
-        </nav>
-      ) : null}
-
       <div ref={providerListRef} className={`provider-list${providerListOverflows ? " has-overflow" : ""}`}>
         <SidebarGroupRow
           group={allAccountsGroup}
@@ -167,13 +151,31 @@ export function Sidebar({
         ))}
       </div>
 
+      {showMainNav ? (
+        <nav className="sidebar-main-nav" aria-label="Main">
+          {PAGE_LINKS.map(({ section: target, label, Icon }) => {
+            const active = section === target;
+            return (
+              <button
+                key={target}
+                type="button"
+                className={`sidebar-main-nav-item${active ? " is-active" : ""}`}
+                aria-current={active ? "page" : undefined}
+                onClick={target === "activity" ? onOpenActivity : target === "accounts" ? onOpenAccounts : onOpenSettings}
+              >
+                <Icon />
+                {label}
+              </button>
+            );
+          })}
+        </nav>
+      ) : null}
+
       <SyncStatusLine
         accounts={accounts}
         refreshMinutes={refreshMinutes}
         busy={busy}
         onRefreshAll={onRefreshAll}
-        onOpenSettings={onOpenSettings}
-        settingsActive={section === "settings"}
       />
       <SidebarResizeHandle shellRef={shellRef} sidebarRef={sidebarRef} />
     </aside>

@@ -66,46 +66,35 @@ describe("SyncStatusLine", () => {
     expect(document.body.textContent).toContain("Syncing…");
   });
 
-  it("renders the settings button and triggers onOpenSettings on click", () => {
-    const onOpenSettings = vi.fn();
+  it("has the refresh button, and no Settings button (Settings is a page link in the sidebar and the bottom bar)", () => {
+    const onRefreshAll = vi.fn();
     app = mount(
       <SyncStatusLine
         accounts={[fakeAccount]}
         refreshMinutes={15}
         busy={new Set()}
-        onOpenSettings={onOpenSettings}
-        settingsActive={false}
+        onRefreshAll={onRefreshAll}
       />
     );
 
-    const actions = document.querySelector(".sidebar-sync-status-actions");
-    expect(actions).not.toBeNull();
-    const settingsBtn = actions?.querySelector<HTMLButtonElement>(".sidebar-settings-btn");
-    expect(settingsBtn).not.toBeNull();
-    expect(settingsBtn?.getAttribute("aria-label")).toBe("Open settings");
-    expect(settingsBtn?.getAttribute("data-tooltip")).toBe("Settings");
-    expect(settingsBtn?.getAttribute("aria-current")).toBeNull();
-    expect(settingsBtn?.classList.contains("active")).toBe(false);
+    const buttons = [...document.querySelectorAll<HTMLButtonElement>(".sidebar-sync-status-actions button")];
+    expect(buttons.map((button) => button.getAttribute("aria-label"))).toEqual(["Refresh all accounts"]);
+    expect(document.querySelector('[aria-label="Open settings"]')).toBeNull();
 
-    click(settingsBtn!);
-    expect(onOpenSettings).toHaveBeenCalledTimes(1);
+    click(buttons[0]);
+    expect(onRefreshAll).toHaveBeenCalledTimes(1);
   });
 
-  it("reflects active state when settingsActive is true", () => {
-    const onOpenSettings = vi.fn();
+  it("disables the refresh button while a refresh is in progress", () => {
     app = mount(
       <SyncStatusLine
         accounts={[fakeAccount]}
         refreshMinutes={15}
-        busy={new Set()}
-        onOpenSettings={onOpenSettings}
-        settingsActive={true}
+        busy={new Set([REFRESH_ALL_KEY])}
+        onRefreshAll={vi.fn()}
       />
     );
 
-    const settingsBtn = document.querySelector<HTMLButtonElement>(".sidebar-settings-btn");
-    expect(settingsBtn).not.toBeNull();
-    expect(settingsBtn?.getAttribute("aria-current")).toBe("page");
-    expect(settingsBtn?.classList.contains("active")).toBe(true);
+    expect(document.querySelector<HTMLButtonElement>(".sidebar-refresh-btn")?.disabled).toBe(true);
   });
 });

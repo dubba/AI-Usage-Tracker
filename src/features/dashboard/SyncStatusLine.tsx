@@ -1,24 +1,24 @@
 import { isRefreshKey, type BusyKeys } from "../../shared/lib/busy";
 import { useClock } from "../../shared/hooks/useClock";
 import { computeSyncStatus, splitSyncLabel } from "./sync-status";
-import { RefreshIcon, SettingsIcon } from "../../shared/ui/icons";
+import { RefreshIcon } from "../../shared/ui/icons";
 import type { Account } from "../../types";
 
-/** When the numbers on screen were last refreshed, flagging accounts that have been left behind. */
+/**
+ * When the numbers on screen were last refreshed, flagging accounts that have been left behind, with
+ * the refresh button. (Settings is not here: it is in the sidebar's page links on a wide window and
+ * in the bottom bar on a phone.)
+ */
 export function SyncStatusLine({
   accounts,
   refreshMinutes,
   busy,
   onRefreshAll,
-  onOpenSettings,
-  settingsActive,
 }: {
   accounts: Account[];
   refreshMinutes: number;
   busy: BusyKeys;
   onRefreshAll?: () => void;
-  onOpenSettings?: () => void;
-  settingsActive?: boolean;
 }) {
   const syncing = [...busy].some(isRefreshKey);
   const tone = useClock((now) => computeSyncStatus(accounts, now, refreshMinutes).tone);
@@ -47,18 +47,6 @@ export function SyncStatusLine({
             data-tooltip="Refresh all accounts"
           >
             <RefreshIcon />
-          </button>
-        ) : null}
-        {onOpenSettings ? (
-          <button
-            type="button"
-            className={`sidebar-settings-btn ${settingsActive ? "active" : ""}`}
-            onClick={onOpenSettings}
-            aria-label="Open settings"
-            data-tooltip="Settings"
-            aria-current={settingsActive ? "page" : undefined}
-          >
-            <SettingsIcon />
           </button>
         ) : null}
       </div>

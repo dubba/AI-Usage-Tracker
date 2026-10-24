@@ -1160,7 +1160,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   background: var(--c-255-255-255-a100);
 }
 
-/* Last-synced line at the bottom of the sidebar, just above Settings */
+/* Last-synced line at the bottom of the sidebar, with the refresh button */
 .sidebar-sync-status {
   flex: 0 0 auto;
   display: flex;
@@ -1241,23 +1241,6 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .sidebar-settings-btn:focus-visible svg {
-  color: var(--c-ffffff);
-}
-
-.sidebar-settings-btn.active,
-.sidebar-settings-btn.active:hover,
-.sidebar-settings-btn.active:active:not(:disabled),
-.sidebar-settings-btn.active:focus-visible {
-  background: var(--purple-surface);
-  border-color: var(--obsidian-purple-strong);
-  box-shadow: none;
-  color: var(--c-ffffff);
-}
-
-.sidebar-settings-btn.active svg,
-.sidebar-settings-btn.active:hover svg,
-.sidebar-settings-btn.active:active:not(:disabled) svg,
-.sidebar-settings-btn.active:focus-visible svg {
   color: var(--c-ffffff);
 }
 
@@ -1903,20 +1886,17 @@ html::after {
   background: rgb(178 94 0 / 0.1) !important;
 }
 
-/* The rename pen, group edit pen, and sidebar Settings button use the same solid purple fill and white icon
-   as the primary buttons, in both themes. The refresh button next to Settings keeps the
-   outlined style. */
+/* The rename pen and group edit pen use the same solid purple fill and white icon as the primary
+   buttons, in both themes. */
 :root .account-name-edit,
-:root .edit-bucket-title-btn,
-:root .sidebar-settings-btn:not(.sidebar-refresh-btn) {
+:root .edit-bucket-title-btn {
   color: #ffffff !important;
   border-color: var(--purple-fill) !important;
   background: var(--purple-fill) !important;
 }
 
 :root .account-name-edit svg,
-:root .edit-bucket-title-btn svg,
-:root .sidebar-settings-btn:not(.sidebar-refresh-btn) svg {
+:root .edit-bucket-title-btn svg {
   color: #ffffff !important;
 }
 
@@ -1925,10 +1905,7 @@ html::after {
 :root .account-name-edit:active:not(:disabled),
 :root .edit-bucket-title-btn:hover:not(:disabled),
 :root .edit-bucket-title-btn:focus-visible,
-:root .edit-bucket-title-btn:active:not(:disabled),
-:root .sidebar-settings-btn:not(.sidebar-refresh-btn):hover:not(:disabled),
-:root .sidebar-settings-btn:not(.sidebar-refresh-btn):focus-visible,
-:root .sidebar-settings-btn:not(.sidebar-refresh-btn):active:not(:disabled) {
+:root .edit-bucket-title-btn:active:not(:disabled) {
   color: #ffffff !important;
   border-color: var(--purple-fill-line) !important;
   background: var(--purple-fill-hover) !important;
@@ -1940,36 +1917,8 @@ html::after {
 :root .account-name-edit:active:not(:disabled) svg,
 :root .edit-bucket-title-btn:hover:not(:disabled) svg,
 :root .edit-bucket-title-btn:focus-visible svg,
-:root .edit-bucket-title-btn:active:not(:disabled) svg,
-:root .sidebar-settings-btn:not(.sidebar-refresh-btn):hover:not(:disabled) svg,
-:root .sidebar-settings-btn:not(.sidebar-refresh-btn):focus-visible svg,
-:root .sidebar-settings-btn:not(.sidebar-refresh-btn):active:not(:disabled) svg {
+:root .edit-bucket-title-btn:active:not(:disabled) svg {
   color: #ffffff !important;
-}
-
-/* Settings is open: keep the fill and add a light purple ring so it still reads as selected. */
-:root .sidebar-settings-btn.active:not(.sidebar-refresh-btn),
-:root .sidebar-settings-btn.active:not(.sidebar-refresh-btn):hover,
-:root .sidebar-settings-btn.active:not(.sidebar-refresh-btn):active:not(:disabled),
-:root .sidebar-settings-btn.active:not(.sidebar-refresh-btn):focus-visible {
-  color: #ffffff;
-  border-color: var(--sidebar-settings-ring) !important;
-  background: var(--purple-fill) !important;
-  box-shadow: 0 0 0 2px var(--sidebar-settings-ring);
-}
-
-/* Keyboard focus on the selected Settings button sits outside its selected ring. */
-:root .sidebar-settings-btn.active:not(.sidebar-refresh-btn):focus-visible {
-  outline-offset: 6px;
-}
-
-/* Light theme: matches dark mode with a light purple circle directly around the active Settings button. */
-:root[data-theme="light"] .sidebar-settings-btn.active:not(.sidebar-refresh-btn),
-:root[data-theme="light"] .sidebar-settings-btn.active:not(.sidebar-refresh-btn):hover,
-:root[data-theme="light"] .sidebar-settings-btn.active:not(.sidebar-refresh-btn):active:not(:disabled),
-:root[data-theme="light"] .sidebar-settings-btn.active:not(.sidebar-refresh-btn):focus-visible {
-  border-color: var(--sidebar-settings-ring) !important;
-  box-shadow: 0 0 0 2px var(--sidebar-settings-ring);
 }
 
 /* Settings > Data: the destructive row's title is red, and a failure shows under the card. */

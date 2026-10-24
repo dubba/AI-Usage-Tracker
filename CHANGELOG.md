@@ -7,7 +7,7 @@
 - Settings now has a Data section. "Clear Cached Usage" removes the stored usage numbers but keeps your accounts and sign-ins, then loads fresh usage right away.
 - "Delete All Local Data" in the new Data section removes every account and saved sign-in, groups, alert settings, usage history and app settings from the device, after you confirm. Your provider accounts are not affected and other linked devices keep their own copies.
 - A new Usage page charts how much of each account's weekly limit you used on each of the last 7 or 30 days, with a dashed line at every weekly reset on the 30-day view. Days when the app was not refreshing show as missing instead of zero, partly estimated days are marked, and accounts without a weekly limit say so. History builds up from the next refresh onward.
-- On phones and narrow windows, a bottom bar switches between Usage, Accounts and Settings. On wider windows, Usage and Accounts are at the top of the sidebar, and Ctrl+1, 2 and 3 (⌘1, 2 and 3 on macOS) open Usage, Accounts and Settings.
+- On phones and narrow windows, a bottom bar switches between Usage, Accounts and Settings, so the Settings button is no longer in the sidebar. On wider windows, Usage, Accounts and Settings sit together at the bottom of the sidebar, above the sync status, and Ctrl+1, 2 and 3 (⌘1, 2 and 3 on macOS) open Usage, Accounts and Settings.
 - "Clear Usage History" in Settings now removes the recorded daily usage while keeping your accounts, sign-ins and current usage.
 
 ### Improved (2)
