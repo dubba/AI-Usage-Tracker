@@ -39,19 +39,29 @@ describe("matchShortcut", () => {
     expect(matchShortcut(press("R", { ctrlKey: true }), false)).toBe("refreshAll");
   });
 
-  it("maps 1, 2 and 3 to Activity, Accounts and Settings", () => {
-    expect(matchShortcut(press("1", { ctrlKey: true }), false)).toBe("showActivity");
+  it("maps U to the Usage page and 2 to the Accounts page", () => {
+    expect(matchShortcut(press("u", { ctrlKey: true }), false)).toBe("showActivity");
+    expect(matchShortcut(press("U", { ctrlKey: true }), false)).toBe("showActivity");
+    expect(matchShortcut(press("u", { metaKey: true }), true)).toBe("showActivity");
     expect(matchShortcut(press("2", { ctrlKey: true }), false)).toBe("showAccounts");
-    expect(matchShortcut(press("3", { ctrlKey: true }), false)).toBe("openSettings");
-    expect(matchShortcut(press("1", { metaKey: true }), true)).toBe("showActivity");
-    expect(matchShortcut(press("1"), false)).toBeNull();
-    expect(matchShortcut(press("4", { ctrlKey: true }), false)).toBeNull();
+    expect(matchShortcut(press("2", { metaKey: true }), true)).toBe("showAccounts");
+    expect(matchShortcut(press("u"), false)).toBeNull();
+    expect(matchShortcut(press("u", { ctrlKey: true }), true)).toBeNull();
+  });
+
+  it("no longer uses 1 or 3", () => {
+    for (const key of ["1", "3"]) {
+      expect(matchShortcut(press(key, { ctrlKey: true }), false)).toBeNull();
+      expect(matchShortcut(press(key, { metaKey: true }), true)).toBeNull();
+    }
+    expect(matchShortcut(press("&", { metaKey: true, code: "Digit1" }), true)).toBeNull();
+    expect(matchShortcut(press('"', { ctrlKey: true, code: "Digit3" }), false)).toBeNull();
   });
 
   it("matches the digit row by physical key on layouts that type digits with Shift", () => {
-    // French AZERTY: the 1 key types "&" unshifted, and the shortcut modifier must be alone.
-    expect(matchShortcut(press("&", { metaKey: true, code: "Digit1" }), true)).toBe("showActivity");
+    // French AZERTY: the 2 key types "é" unshifted, and the shortcut modifier must be alone.
     expect(matchShortcut(press("é", { ctrlKey: true, code: "Digit2" }), false)).toBe("showAccounts");
+    expect(matchShortcut(press("é", { metaKey: true, code: "Digit2" }), true)).toBe("showAccounts");
   });
 
   it("matches via physical event.code when key layout differs", () => {
@@ -74,7 +84,7 @@ describe("matchShortcut", () => {
 
   it("ignores other keys", () => {
     expect(matchShortcut(press("x", { ctrlKey: true }), false)).toBeNull();
-    expect(matchShortcut(press("u", { ctrlKey: true }), false)).toBeNull();
+    expect(matchShortcut(press("q", { ctrlKey: true }), false)).toBeNull();
     expect(matchShortcut(press("ArrowUp", { ctrlKey: true }), false)).toBeNull();
   });
 });
