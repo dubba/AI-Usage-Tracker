@@ -272,9 +272,26 @@ fn trackers_and_untracked_accounts_follow_the_dashboard_order() {
     assert_eq!(
         tracked,
         [
+            ("free", "monthly"),
             ("anti", "gemini_weekly"),
             ("anti", "claude_weekly"),
-            ("claude", "weekly")
+            ("claude", "weekly"),
+            ("mixed", "monthly"),
+        ]
+    );
+    let kinds: Vec<WindowKind> = activity
+        .trackers
+        .iter()
+        .map(|tracker| tracker.window_kind)
+        .collect();
+    assert_eq!(
+        kinds,
+        [
+            WindowKind::Monthly,
+            WindowKind::Weekly,
+            WindowKind::Weekly,
+            WindowKind::Weekly,
+            WindowKind::Monthly,
         ]
     );
     let untracked: Vec<(&str, &[OtherLimit])> = activity
@@ -299,7 +316,8 @@ fn trackers_and_untracked_accounts_follow_the_dashboard_order() {
         ]
     );
 
-    let claude = &activity.trackers[2];
+    // Accounts with only a monthly limit are listed as having no weekly limit too.
+    let claude = &activity.trackers[3];
     assert_eq!(claude.window_label, "Weekly");
     assert_eq!(claude.current_used_percent, Some(40.0));
     assert_eq!(claude.resets_at, Some(iso(reset)));
@@ -308,7 +326,7 @@ fn trackers_and_untracked_accounts_follow_the_dashboard_order() {
     assert!(claude.days.iter().all(|day| day.used_percent.is_none()));
     // The upcoming reset is today, so it is in the range.
     assert_eq!(claude.resets, ["2026-10-15T20:00:00Z"]);
-    assert_eq!(activity.trackers[0].window_label, "Gemini 4 Argon · Weekly");
+    assert_eq!(activity.trackers[1].window_label, "Gemini 4 Argon · Weekly");
 }
 
 #[test]
@@ -351,6 +369,79 @@ fn recorded_readings_become_daily_values_in_the_response() {
     for day in &days[..6] {
         assert_eq!(day, &json!({"usedPercent": null, "quality": "none"}));
     }
+}
+
+fn monthly_account(used: f64, reset: i64, fetched_at: i64) -> Account {
+    account(
+        "free",
+        Provider::Openai,
+        Some(vec![UsageWindow {
+            id: "monthly".into(),
+            label: "Monthly".into(),
+            used_percent: Some(used),
+            remaining_percent: Some(100.0 - used),
+            resets_at: Some(iso(reset)),
+            window_seconds: None,
+            kind: Some(WindowKind::Monthly),
+        }]),
+        fetched_at,
+    )
+}
+
+#[test]
+fn a_monthly_tracker_reports_its_daily_usage_and_says_it_is_monthly() {
+    let (_root, app) = app();
+    let reset = at(30, 0, 0);
+    app.store
+        .upsert(monthly_account(13.0, reset, at(15, 11, 0)))
+        .unwrap();
+    app.history
+        .record(&monthly_account(10.0, reset, at(15, 10, 0)))
+        .unwrap();
+    app.history
+        .record(&monthly_account(13.0, reset, at(15, 11, 0)))
+        .unwrap();
+
+    let activity = weekly_activity(&app, &week(), now()).unwrap();
+
+    assert_eq!(activity.trackers.len(), 1);
+    let tracker = &activity.trackers[0];
+    assert_eq!(tracker.window_kind, WindowKind::Monthly);
+    assert_eq!(tracker.days[6].used_percent, Some(3.0));
+    // It is still listed as having no weekly limit, which the 7 day view shows.
+    assert_eq!(activity.untracked.len(), 1);
+    assert_eq!(activity.untracked[0].other_limits, [OtherLimit::Monthly]);
+    let value = serde_json::to_value(tracker).unwrap();
+    assert_eq!(value["windowKind"], "monthly");
+}
+
+#[test]
+fn a_monthly_tracker_reads_far_enough_back_to_know_where_its_period_began() {
+    let (_root, mut app) = app();
+    let reset = at(30, 0, 0);
+    app.store
+        .upsert(monthly_account(14.0, reset, at(15, 10, 0)))
+        .unwrap();
+    // A reading from Oct 1, which a weekly tracker would not look back to from Oct 9.
+    let early = HistoryStore::load_at(_root.path(), at(1, 0, 0));
+    early
+        .record(&monthly_account(10.0, reset, at(1, 12, 0)))
+        .unwrap();
+    drop(early);
+    app.history = HistoryStore::load_at(_root.path(), now());
+    app.history
+        .record(&monthly_account(14.0, reset, at(15, 10, 0)))
+        .unwrap();
+
+    let activity = weekly_activity(&app, &week(), now()).unwrap();
+    let days = &activity.trackers[0].days;
+    // The 4% rise since Oct 1 is spread over the fourteen days between the readings, so some of it
+    // lands on the days of the range, as an estimate.
+    let total: f64 = days.iter().filter_map(|day| day.used_percent).sum();
+    assert!(total > 0.0 && total < 4.0, "{total}");
+    assert!(days
+        .iter()
+        .any(|day| day.quality == crate::history::activity::DayQuality::Approximate));
 }
 
 #[test]

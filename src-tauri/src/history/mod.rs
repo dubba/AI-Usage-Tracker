@@ -83,22 +83,31 @@ pub(crate) fn parse_timestamp(text: &str) -> Option<i64> {
 ///
 /// Antigravity reports a weekly limit per model family, so each of its weekly windows is a
 /// tracker. Every other provider has one headline weekly limit: the first weekly window, the same
-/// one the sidebar and the alerts use. An account with no weekly window has no tracker. Windows
-/// that repeat an id are listed once, since the id is the tracker's key.
+/// one the sidebar and the alerts use. An account with no weekly window but a monthly one (ChatGPT
+/// Free) tracks its first monthly window instead, which the page shows on its 30 day view. An
+/// account with neither has no tracker. Windows that repeat an id are listed once, since the id is
+/// the tracker's key.
 pub fn tracker_windows(account: &Account) -> Vec<&UsageWindow> {
     let Some(usage) = account.last_usage.as_ref() else {
         return Vec::new();
     };
-    let mut seen = std::collections::HashSet::new();
-    let weekly = usage
-        .windows
-        .iter()
-        .filter(|window| window.kind == Some(WindowKind::Weekly))
-        .filter(|window| seen.insert(window.id.as_str()));
-    if account.provider == Provider::Antigravity {
-        weekly.collect()
+    let of_kind = |kind: WindowKind| {
+        let mut seen = std::collections::HashSet::new();
+        usage
+            .windows
+            .iter()
+            .filter(move |window| window.kind == Some(kind))
+            .filter(move |window| seen.insert(window.id.as_str()))
+    };
+    let weekly: Vec<&UsageWindow> = if account.provider == Provider::Antigravity {
+        of_kind(WindowKind::Weekly).collect()
     } else {
-        weekly.take(1).collect()
+        of_kind(WindowKind::Weekly).take(1).collect()
+    };
+    if weekly.is_empty() {
+        of_kind(WindowKind::Monthly).take(1).collect()
+    } else {
+        weekly
     }
 }
 

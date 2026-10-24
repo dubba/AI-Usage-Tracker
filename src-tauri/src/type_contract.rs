@@ -155,6 +155,7 @@ fn weekly_activity_samples() -> Vec<WeeklyActivity> {
                     account_id: "account-1".into(),
                     window_id: "weekly".into(),
                     window_label: "Weekly".into(),
+                    window_kind: WindowKind::Weekly,
                     current_used_percent: Some(42.5),
                     resets_at: Some("2026-09-07T17:00:00Z".into()),
                     days: vec![
@@ -167,7 +168,8 @@ fn weekly_activity_samples() -> Vec<WeeklyActivity> {
                 ActivityTracker {
                     account_id: "account-2".into(),
                     window_id: "model_gemini".into(),
-                    window_label: "Gemini 4 Argon · Weekly".into(),
+                    window_label: "Gemini 4 Argon · Monthly".into(),
+                    window_kind: WindowKind::Monthly,
                     current_used_percent: None,
                     resets_at: None,
                     days: vec![day(None, DayQuality::None)],

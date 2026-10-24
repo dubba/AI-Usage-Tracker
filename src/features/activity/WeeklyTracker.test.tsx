@@ -85,6 +85,20 @@ describe("WeeklyTracker", () => {
     expect(root.querySelector('.activity-bars[role="img"]')!.getAttribute("aria-label")).toContain("Work Claude, last 7 days");
   });
 
+  it("calls a monthly limit monthly: this month, the monthly summary and monthly resets", () => {
+    const account = makeAccount({ id: "free", label: "ChatGPT", provider: "openai" });
+    const tracker = makeTracker({ accountId: "free", windowId: "monthly", windowKind: "monthly", currentUsedPercent: 40, resets: ["2026-10-12T15:00:00Z"] }, 30);
+    mounted = mount(
+      <WeeklyTracker tracker={tracker} account={account} dayStarts={Array.from({ length: 31 }, (_, i) => new Date(Date.UTC(2026, 8, 16 + i)))} period="30d" />,
+    );
+    const root = mounted.container;
+    expect(text(root, ".activity-card-total span")).toBe("this month");
+    expect(root.querySelector(".activity-card-total strong")!.getAttribute("aria-label")).toBe("40% of the monthly limit used");
+    expect(root.querySelector<HTMLElement>(".activity-reset [data-tooltip]")!.dataset.tooltip).toMatch(/^Monthly reset · /);
+    expect(text(root, "table th")).toBe("Day");
+    expect(root.querySelector("table thead")!.textContent).toContain("Monthly limit used");
+  });
+
   it("is not dimmed and has no notice while the account is signed in", () => {
     const root = render(makeAccount({ id: "a1" }), undefined, vi.fn());
     expect(root.querySelector(".activity-card")!.classList.contains("is-dimmed")).toBe(false);

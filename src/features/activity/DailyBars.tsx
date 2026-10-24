@@ -80,6 +80,7 @@ export function DailyBars({
   dayStarts,
   resets,
   period,
+  limit = "weekly",
 }: {
   /** Names the chart in the summary: the account, and the limit when the account has several. */
   name: string;
@@ -89,6 +90,8 @@ export function DailyBars({
   /** Weekly resets inside the range, as RFC 3339 instants. */
   resets: readonly string[];
   period: ActivityPeriod;
+  /** Which limit the bars chart, for the wording of the reset markers and the table. */
+  limit?: "weekly" | "monthly";
 }) {
   const axis = yAxis(days);
   const gap = GAP_PX[period];
@@ -150,7 +153,7 @@ export function DailyBars({
           <span className="activity-reset" style={{ left: marker.left }} key={marker.instant}>
             <span
               className={["activity-reset-hit", tooltipSide(marker.position)].filter(Boolean).join(" ")}
-              data-tooltip={`Weekly reset · ${resetTimeLabel(marker.date)}`}
+              data-tooltip={`${limit === "monthly" ? "Monthly" : "Weekly"} reset · ${resetTimeLabel(marker.date)}`}
             />
           </span>
         ))}
@@ -171,7 +174,7 @@ export function DailyBars({
         <thead>
           <tr>
             <th scope="col">Day</th>
-            <th scope="col">Weekly limit used</th>
+            <th scope="col">{limit === "monthly" ? "Monthly" : "Weekly"} limit used</th>
           </tr>
         </thead>
         <tbody>

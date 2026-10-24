@@ -59,6 +59,7 @@ export function makeTracker(
   return {
     windowId: "weekly",
     windowLabel: "Weekly",
+    windowKind: "weekly",
     currentUsedPercent: 40,
     resetsAt: "2026-10-27T15:00:00Z",
     days: Array.from({ length: dayCount }, () => fill),

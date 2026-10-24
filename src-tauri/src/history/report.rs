@@ -28,6 +28,10 @@ const MAX_BOUNDARY_CHARS: usize = 64;
 /// Readings are read from this long before the first day, so the weekly period the range starts in
 /// is known from its beginning.
 const LOOKBACK_SECONDS: i64 = 8 * 24 * 3600;
+/// The same for a monthly window, whose period can start a month before the range does.
+const MONTHLY_LOOKBACK_SECONDS: i64 = 32 * 24 * 3600;
+/// The length of a monthly window the provider did not give one for.
+const MONTHLY_WINDOW_SECONDS: i64 = 30 * 24 * 3600;
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -42,6 +46,8 @@ pub struct ActivityTracker {
     pub account_id: String,
     pub window_id: String,
     pub window_label: String,
+    /// `weekly`, or `monthly` for an account that has no weekly limit (shown on the 30 day view).
+    pub window_kind: WindowKind,
     pub current_used_percent: Option<f64>,
     pub resets_at: Option<String>,
     /// One entry per requested day.
@@ -137,15 +143,30 @@ fn build(accounts: &[Account], history: &HistoryStore, bounds: &[i64]) -> Weekly
             keys.push(tracker_key(&account.id, &window.id));
         }
     }
-    let from = bounds.first().map_or(0, |start| start - LOOKBACK_SECONDS);
+    let any_monthly = accounts.iter().any(|account| {
+        tracker_windows(account)
+            .iter()
+            .any(|window| window.kind == Some(WindowKind::Monthly))
+    });
+    let lookback = if any_monthly {
+        MONTHLY_LOOKBACK_SECONDS
+    } else {
+        LOOKBACK_SECONDS
+    };
+    let from = bounds.first().map_or(0, |start| start - lookback);
     let mut readings = history.readings(&keys, from);
 
     let mut trackers = Vec::new();
     let mut untracked = Vec::new();
     for account in accounts {
         let windows = tracker_windows(account);
-        if windows.is_empty() {
-            // An account that has never reported usage says nothing about its limits yet.
+        let has_weekly = windows
+            .first()
+            .is_some_and(|window| window.kind == Some(WindowKind::Weekly));
+        if !has_weekly {
+            // No weekly limit: the account gets its "No weekly limit" card (a monthly limit may
+            // still give it a tracker below). An account that has never reported usage says
+            // nothing about its limits yet.
             if let Some(usage) = account
                 .last_usage
                 .as_ref()
@@ -160,22 +181,26 @@ fn build(accounts: &[Account], history: &HistoryStore, bounds: &[i64]) -> Weekly
                     other_limits,
                 });
             }
-            continue;
         }
         for window in windows {
             let own = readings
                 .remove(&tracker_key(&account.id, &window.id))
                 .unwrap_or_default();
+            let kind = window.kind.unwrap_or(WindowKind::Weekly);
             let window_seconds = window
                 .window_seconds
                 .and_then(|seconds| i64::try_from(seconds).ok())
-                .unwrap_or(WEEKLY_WINDOW_SECONDS as i64);
+                .unwrap_or(match kind {
+                    WindowKind::Monthly => MONTHLY_WINDOW_SECONDS,
+                    _ => WEEKLY_WINDOW_SECONDS as i64,
+                });
             let current_reset = window.resets_at.as_deref().and_then(parse_timestamp);
             let activity = daily_usage(&own, bounds, window_seconds, current_reset);
             trackers.push(ActivityTracker {
                 account_id: account.id.clone(),
                 window_id: window.id.clone(),
                 window_label: window.label.clone(),
+                window_kind: kind,
                 current_used_percent: window.used_percent,
                 resets_at: window.resets_at.clone(),
                 days: activity.days,

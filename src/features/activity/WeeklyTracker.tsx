@@ -33,6 +33,7 @@ export function WeeklyTracker({
   const reset = formatResetAtShort(tracker.resetsAt);
   const details = [displayPlan(account), reset ? `resets ${reset}` : null].filter(Boolean).join(" · ");
   const chartName = limitName ? `${label} ${limitName}` : label;
+  const monthly = tracker.windowKind === "monthly";
 
   return (
     <article className={`activity-card${needsSignIn ? " is-dimmed" : ""}`} aria-labelledby={titleId}>
@@ -46,10 +47,10 @@ export function WeeklyTracker({
           {details ? <p className="activity-card-details">{details}</p> : null}
         </div>
         <div className={`activity-card-total tone-${tone}`}>
-          <strong aria-label={used == null ? "Usage unknown" : `${formatDayPercent(used)} of the weekly limit used`}>
+          <strong aria-label={used == null ? "Usage unknown" : `${formatDayPercent(used)} of the ${monthly ? "monthly" : "weekly"} limit used`}>
             {formatDayPercent(used)}
           </strong>
-          <span aria-hidden="true">this week</span>
+          <span aria-hidden="true">{monthly ? "this month" : "this week"}</span>
         </div>
       </header>
       {needsSignIn ? (
@@ -62,7 +63,14 @@ export function WeeklyTracker({
           ) : null}
         </div>
       ) : null}
-      <DailyBars name={chartName} days={tracker.days} dayStarts={dayStarts} resets={tracker.resets} period={period} />
+      <DailyBars
+        name={chartName}
+        days={tracker.days}
+        dayStarts={dayStarts}
+        resets={tracker.resets}
+        period={period}
+        limit={tracker.windowKind}
+      />
     </article>
   );
 }

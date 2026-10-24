@@ -214,6 +214,76 @@ describe("ActivityView", () => {
     expect(select(root, ".activity-reset")).toHaveLength(0);
   });
 
+  describe("an account with only a monthly limit", () => {
+    const free = makeAccount({ id: "free", label: "ChatGPT", provider: "openai" });
+    const monthlyAnswer = (dayCount: number, days = measured(2)) =>
+      makeActivity(
+        [makeTracker({ accountId: "free", windowId: "monthly", windowLabel: "Monthly", windowKind: "monthly", currentUsedPercent: 40 }, dayCount, days)],
+        [{ accountId: "free", otherLimits: ["monthly"] }],
+      );
+
+    it("keeps its No weekly limit card on 7 days, with a hint to choose 30D", async () => {
+      api.getWeeklyActivity.mockImplementation(async (starts: string[]) => monthlyAnswer(starts.length - 1));
+      const { root } = renderView([free]);
+      await settle();
+      expect(titles(root)).toEqual(["ChatGPT"]);
+      expect(select(root, ".activity-bar")).toHaveLength(0);
+      expect(select(root, ".activity-card.is-no-weekly")).toHaveLength(1);
+      expect(root.querySelector(".activity-card-details")!.textContent).toContain("Choose 30D to see its monthly usage.");
+      // Monthly usage is not what "Tracking starts" is about here.
+      expect(root.querySelector('[role="status"]')).toBeNull();
+    });
+
+    it("charts its monthly usage on 30 days instead of the No weekly limit card", async () => {
+      api.getWeeklyActivity.mockImplementation(async (starts: string[]) => monthlyAnswer(starts.length - 1));
+      const { root } = renderView([free]);
+      await settle();
+      click(button(root, "Last 30 days"));
+      await settle();
+      expect(select(root, ".activity-card.is-no-weekly")).toHaveLength(0);
+      expect(select(root, ".activity-bar")).toHaveLength(30);
+      expect(root.querySelector(".activity-card-total span")!.textContent).toBe("this month");
+      expect(root.querySelector(".activity-bars")!.getAttribute("aria-label")).toContain("ChatGPT, last 30 days");
+
+      click(button(root, "Last 7 days"));
+      await settle();
+      expect(select(root, ".activity-bar")).toHaveLength(0);
+      expect(select(root, ".activity-card.is-no-weekly")).toHaveLength(1);
+    });
+
+    it("lists the monthly chart after the weekly ones, in account order", async () => {
+      api.getWeeklyActivity.mockImplementation(async (starts: string[]) => {
+        const days = starts.length - 1;
+        return makeActivity(
+          [
+            makeTracker({ accountId: "free", windowId: "monthly", windowKind: "monthly" }, days),
+            makeTracker({ accountId: "work" }, days),
+          ],
+          [{ accountId: "free", otherLimits: ["monthly"] }],
+        );
+      });
+      const { root } = renderView([work, free]);
+      await settle();
+      expect(titles(root)).toEqual(["Work Claude", "ChatGPT"]);
+      click(button(root, "Last 30 days"));
+      await settle();
+      expect(titles(root)).toEqual(["Work Claude", "ChatGPT"]);
+      expect(select(root, ".activity-card.is-no-weekly")).toHaveLength(0);
+    });
+
+    it("says tracking starts at the next refresh on 30 days until something is recorded, and keeps its card", async () => {
+      api.getWeeklyActivity.mockImplementation(async (starts: string[]) => monthlyAnswer(starts.length - 1, noData));
+      const { root } = renderView([free]);
+      await settle();
+      click(button(root, "Last 30 days"));
+      await settle();
+      expect(root.querySelector('[role="status"]')!.textContent).toBe("Tracking starts at the next refresh.");
+      expect(select(root, ".activity-bar")).toHaveLength(0);
+      expect(titles(root)).toEqual(["ChatGPT"]);
+      expect(root.querySelector(".activity-card-details")!.textContent).not.toContain("Choose 30D");
+    });
+  });
+
   it("shows a day with nothing observed as striped, and an estimated day as estimated", async () => {
     api.getWeeklyActivity.mockResolvedValue(
       makeActivity([makeTracker({ accountId: "work", days: [measured(5), noData, estimated(2), measured(0), measured(1), measured(1), measured(1)] })]),

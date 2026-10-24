@@ -89,11 +89,15 @@ export interface ActivityDay {
   quality: ActivityQuality;
 }
 
-/** One weekly limit of one account, with one entry per requested day. */
+/**
+ * One limit of one account, with one entry per requested day: its weekly limit, or its monthly one
+ * when it has no weekly limit (the page shows those on its 30 day view).
+ */
 export interface ActivityTracker {
   accountId: string;
   windowId: string;
   windowLabel: string;
+  windowKind: "weekly" | "monthly";
   currentUsedPercent: number | null;
   resetsAt: string | null;
   days: ActivityDay[];

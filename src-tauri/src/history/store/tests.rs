@@ -264,12 +264,12 @@ fn accounts_without_a_weekly_window_produce_no_readings() {
         now(),
         UsageFreshness::Live,
     );
-    let free = account_with(
-        "free",
+    let five_hour_only = account_with(
+        "short",
         Provider::Openai,
         vec![window(
-            "monthly",
-            Some(WindowKind::Monthly),
+            "five_hour",
+            Some(WindowKind::FiveHour),
             Some(40.0),
             None,
         )],
@@ -280,10 +280,60 @@ fn accounts_without_a_weekly_window_produce_no_readings() {
         last_usage: None,
         ..claude("never", 1.0, None, now())
     };
-    for account in [&studio, &free, &never_refreshed] {
+    for account in [&studio, &five_hour_only, &never_refreshed] {
         store.record(account).unwrap();
     }
     assert!(!history_dir(root.path()).join("2026-10.json").exists());
+}
+
+#[test]
+fn an_account_with_no_weekly_window_tracks_its_first_monthly_one() {
+    let names = |account: &Account| -> Vec<String> {
+        tracker_windows(account)
+            .iter()
+            .map(|window| window.id.clone())
+            .collect()
+    };
+    let monthly = |id: &str| window(id, Some(WindowKind::Monthly), Some(40.0), None);
+    let free = account_with(
+        "free",
+        Provider::Openai,
+        vec![
+            window("five_hour", Some(WindowKind::FiveHour), Some(1.0), None),
+            monthly("monthly"),
+            monthly("other_monthly"),
+            monthly("monthly"),
+        ],
+        now(),
+        UsageFreshness::Live,
+    );
+    assert_eq!(names(&free), ["monthly"]);
+
+    // A weekly limit wins: the monthly one is not tracked beside it.
+    let both = account_with(
+        "both",
+        Provider::Anthropic,
+        vec![monthly("monthly"), weekly("weekly", 5.0, None)],
+        now(),
+        UsageFreshness::Live,
+    );
+    assert_eq!(names(&both), ["weekly"]);
+
+    // Antigravity falls back the same way when it has no weekly window at all.
+    let anti = account_with(
+        "anti",
+        Provider::Antigravity,
+        vec![monthly("monthly")],
+        now(),
+        UsageFreshness::Live,
+    );
+    assert_eq!(names(&anti), ["monthly"]);
+
+    let root = tempfile::tempdir().unwrap();
+    let store = HistoryStore::load_at(root.path(), now());
+    store.record(&free).unwrap();
+    assert_eq!(stored(&store, "free", "monthly").len(), 1);
+    assert!(stored(&store, "free", "other_monthly").is_empty());
 }
 
 #[test]

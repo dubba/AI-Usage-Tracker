@@ -90,14 +90,24 @@ export function ActivityView({
 
   const accountById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts]);
   const trackers = useMemo<ActivityTracker[]>(
-    () => (data ? inAccountOrder(data.activity.trackers, accounts) : []),
-    [data, accounts],
-  );
-  const untracked = useMemo<UntrackedAccount[]>(
-    () => (data ? inAccountOrder(data.activity.untracked, accounts) : []),
-    [data, accounts],
+    // An account with no weekly limit but a monthly one is charted on the 30 day view only.
+    () => (data ? inAccountOrder(data.activity.trackers.filter((tracker) => period === "30d" || tracker.windowKind === "weekly"), accounts) : []),
+    [data, accounts, period],
   );
   const hasReadings = trackers.some((tracker) => tracker.days.some((day) => day.quality !== "none"));
+  // Accounts whose monthly usage the 30 day view charts, for a hint on their card on the 7 day view.
+  const monthlyAccountIds = useMemo(
+    () => new Set((data?.activity.trackers ?? []).filter((tracker) => tracker.windowKind === "monthly").map((tracker) => tracker.accountId)),
+    [data],
+  );
+  // The "No weekly limit" cards: not for an account whose monthly usage is charted instead.
+  const untracked = useMemo<UntrackedAccount[]>(() => {
+    if (!data) return [];
+    const charted = new Set(hasReadings ? trackers.map((tracker) => tracker.accountId) : []);
+    return inAccountOrder(data.activity.untracked, accounts).filter((entry) => !charted.has(entry.accountId));
+  }, [data, accounts, trackers, hasReadings]);
+  // Nothing recorded yet for the charts on screen, or no limits known at all.
+  const waitingForReadings = trackers.length > 0 ? !hasReadings : untracked.length === 0;
 
   const retry = (
     <button type="button" className="button ghost compact-button" onClick={() => void reload()}>
@@ -137,7 +147,7 @@ export function ActivityView({
             {retry}
           </div>
         ) : null}
-        {!hasReadings ? (
+        {waitingForReadings ? (
           <p className="activity-note" role="status">
             Tracking starts at the next refresh.
           </p>
@@ -156,7 +166,12 @@ export function ActivityView({
               ))
             : null}
           {untracked.map((entry) => (
-            <NoWeeklyLimitCard key={entry.accountId} account={accountById.get(entry.accountId)!} otherLimits={entry.otherLimits} />
+            <NoWeeklyLimitCard
+              key={entry.accountId}
+              account={accountById.get(entry.accountId)!}
+              otherLimits={entry.otherLimits}
+              monthlyOn30d={period === "7d" && monthlyAccountIds.has(entry.accountId)}
+            />
           ))}
         </div>
       </>
