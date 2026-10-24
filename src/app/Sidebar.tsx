@@ -10,6 +10,7 @@ import { useScrollThumb } from "../shared/hooks/useScrollThumb";
 import { BarChartIcon, CloseIcon, GaugeIcon, GridIcon, PlusIcon, SettingsIcon } from "../shared/ui/icons";
 import type { Account } from "../types";
 import type { Section } from "./useSidebarNavigation";
+import "./bottom-nav.css";
 import "./sidebar-nav.css";
 
 /** The page links at the bottom of the sidebar on a wide window; a phone has the bottom bar instead. */
@@ -159,7 +160,7 @@ export function Sidebar({
               <button
                 key={target}
                 type="button"
-                className={`sidebar-main-nav-item${active ? " is-active" : ""}`}
+                className={`bottom-nav-item${active ? " is-active" : ""}`}
                 aria-current={active ? "page" : undefined}
                 onClick={target === "activity" ? onOpenActivity : target === "accounts" ? onOpenAccounts : onOpenSettings}
               >
