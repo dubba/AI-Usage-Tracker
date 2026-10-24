@@ -292,6 +292,19 @@ describe("ActivityView", () => {
     expect(select(root, ".activity-skeleton")).toHaveLength(3);
   });
 
+  it("keeps the 7D / 30D switch in the title row, after the title, so a phone shows them on one line", async () => {
+    const { root } = renderView([work], { onToggleSidebar: vi.fn() });
+    await settle();
+    const row = root.querySelector(".dashboard-title-row")!;
+    const children = [...row.children];
+    expect(children.map((child) => child.tagName + (child.classList.contains("activity-period-switch") ? ".switch" : ""))).toEqual([
+      "BUTTON",
+      "H1",
+      "DIV.switch",
+    ]);
+    expect(root.querySelectorAll(".activity-period-switch")).toHaveLength(1);
+  });
+
   it("has the title as a focusable heading, and the sidebar button when it is given one", async () => {
     const onToggleSidebar = vi.fn();
     const { root } = renderView([work], { onToggleSidebar, sidebarOpen: false });

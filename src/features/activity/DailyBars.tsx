@@ -5,11 +5,11 @@ import {
   APPROXIMATE_DAY_TOOLTIP,
   NO_DATA_DAY_TOOLTIP,
   barHeightPercent,
-  barScale,
   chartSummary,
   dayLabel,
   formatDayPercent,
   resetTimeLabel,
+  yAxis,
 } from "./activity-format";
 import type { ActivityPeriod } from "./activity-period";
 
@@ -61,9 +61,10 @@ function resetMarkers(resets: readonly string[], starts: readonly Date[], gap: n
 }
 
 /**
- * One bar per day for one weekly limit. The bars are scaled to the highest day in view (at least
- * 15%), so a quiet week does not look like a busy one. Days with nothing observed are striped, days
- * partly estimated have a dotted top edge, and the 30 day chart marks each weekly reset.
+ * One bar per day for one weekly limit, on a y-axis that fits the busiest day in view: ticks every
+ * 5, 10 or 20 percent (see `yAxis`), so a quiet week does not look like a busy one. Days with
+ * nothing observed are striped, days partly estimated have a dotted top edge, and the 30 day chart
+ * marks each weekly reset.
  *
  * Screen readers get the chart as a sentence on the picture and as a table beside it.
  */
@@ -83,7 +84,7 @@ export function DailyBars({
   resets: readonly string[];
   period: ActivityPeriod;
 }) {
-  const scale = barScale(days);
+  const axis = yAxis(days);
   const gap = GAP_PX[period];
   const labelled = period === "7d";
   const summary = chartSummary(name, days, dayStarts, period);
@@ -92,7 +93,25 @@ export function DailyBars({
 
   return (
     <div className={`activity-chart is-${period}`} style={style}>
+      <div className="activity-yaxis" aria-hidden="true">
+        <div className="activity-scale">
+          {axis.ticks.map((tick) => (
+            <span className="activity-tick-label" style={{ bottom: `${(tick / axis.top) * 100}%` }} key={tick}>
+              {tick}%
+            </span>
+          ))}
+        </div>
+      </div>
       <div className="activity-bars" role="img" aria-label={summary}>
+        <div className="activity-gridlines" aria-hidden="true">
+          {axis.ticks.map((tick) => (
+            <span
+              className={`activity-gridline${tick === 0 ? " is-baseline" : ""}`}
+              style={{ bottom: `${(tick / axis.top) * 100}%` }}
+              key={tick}
+            />
+          ))}
+        </div>
         {days.map((day, index) => {
           const isToday = index === days.length - 1;
           const empty = day.usedPercent == null;
@@ -110,7 +129,7 @@ export function DailyBars({
               <div className="activity-bar-slot">
                 <div
                   className={barClass}
-                  style={empty ? undefined : { height: `${barHeightPercent(day.usedPercent ?? 0, scale)}%` }}
+                  style={empty ? undefined : { height: `${barHeightPercent(day.usedPercent ?? 0, axis.top)}%` }}
                   data-tooltip={dayTooltip(day, dayStarts[index], period, isToday)}
                 />
               </div>

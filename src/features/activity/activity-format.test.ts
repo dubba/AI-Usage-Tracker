@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { ActivityDay, OtherLimit } from "../../types";
 import {
   barHeightPercent,
-  barScale,
   chartSummary,
   dayLabel,
   describeOtherLimits,
   formatDayPercent,
   resetTimeLabel,
+  yAxis,
 } from "./activity-format";
 
 const day = (usedPercent: number | null, quality: ActivityDay["quality"] = "measured"): ActivityDay => ({
@@ -34,15 +34,50 @@ describe("formatDayPercent", () => {
   });
 });
 
-describe("bar scale", () => {
-  it("is the highest day in view, but at least 15", () => {
-    expect(barScale([day(3), day(6)])).toBe(15);
-    expect(barScale([day(3), day(40.5), day(null)])).toBe(40.5);
-    expect(barScale([day(null)])).toBe(15);
-    expect(barScale([])).toBe(15);
+describe("y-axis", () => {
+  const axis = (...values: Array<number | null>) => yAxis(values.map((value) => day(value)));
+
+  it("ticks every 5% while the busiest day is 20% or less, and never ends below 15%", () => {
+    expect(axis(3, 6)).toEqual({ step: 5, top: 15, ticks: [0, 5, 10, 15] });
+    expect(axis(null)).toEqual({ step: 5, top: 15, ticks: [0, 5, 10, 15] });
+    expect(yAxis([])).toEqual({ step: 5, top: 15, ticks: [0, 5, 10, 15] });
+    expect(axis(15)).toEqual({ step: 5, top: 15, ticks: [0, 5, 10, 15] });
+    expect(axis(15.1)).toEqual({ step: 5, top: 20, ticks: [0, 5, 10, 15, 20] });
+    expect(axis(17, 2)).toEqual({ step: 5, top: 20, ticks: [0, 5, 10, 15, 20] });
+    expect(axis(20)).toEqual({ step: 5, top: 20, ticks: [0, 5, 10, 15, 20] });
   });
 
-  it("makes the tallest bar full height and the others proportional", () => {
+  it("ticks every 10% from just above 20% up to 50%", () => {
+    expect(axis(20.1)).toEqual({ step: 10, top: 30, ticks: [0, 10, 20, 30] });
+    expect(axis(31, 8)).toEqual({ step: 10, top: 40, ticks: [0, 10, 20, 30, 40] });
+    expect(axis(40.5, null)).toEqual({ step: 10, top: 50, ticks: [0, 10, 20, 30, 40, 50] });
+    expect(axis(50)).toEqual({ step: 10, top: 50, ticks: [0, 10, 20, 30, 40, 50] });
+  });
+
+  it("ticks every 20% above 50%, as far as 100% and beyond", () => {
+    expect(axis(50.1)).toEqual({ step: 20, top: 60, ticks: [0, 20, 40, 60] });
+    expect(axis(61)).toEqual({ step: 20, top: 80, ticks: [0, 20, 40, 60, 80] });
+    expect(axis(99.5)).toEqual({ step: 20, top: 100, ticks: [0, 20, 40, 60, 80, 100] });
+    expect(axis(100)).toEqual({ step: 20, top: 100, ticks: [0, 20, 40, 60, 80, 100] });
+    expect(axis(101)).toEqual({ step: 20, top: 120, ticks: [0, 20, 40, 60, 80, 100, 120] });
+  });
+
+  it("always has a tick at 0 and at the top, with room for the busiest day and at most one step to spare", () => {
+    for (const highest of [0, 0.4, 4.99, 5, 12, 15, 19.99, 22, 33.3, 49.9, 50, 63, 87.5, 100, 140]) {
+      const { top, step, ticks } = axis(highest);
+      expect(ticks[0]).toBe(0);
+      expect(ticks.at(-1)).toBe(top);
+      expect(top).toBeGreaterThanOrEqual(highest);
+      // Only the 15% floor may leave more than a step of room above the busiest day.
+      if (highest >= 15) expect(top - highest).toBeLessThan(step);
+      else expect(top).toBe(15);
+      // A tick every `step`, and no more than about six of them for any day a week can hold.
+      expect(ticks.every((tick, index) => tick === index * step)).toBe(true);
+      if (highest <= 100) expect(ticks.length).toBeLessThanOrEqual(6);
+    }
+  });
+
+  it("makes a bar as tall as its share of the axis", () => {
     expect(barHeightPercent(40, 40)).toBe(100);
     expect(barHeightPercent(20, 40)).toBe(50);
     expect(barHeightPercent(3, 15)).toBeCloseTo(20);

@@ -166,14 +166,14 @@ export function ActivityView({
   return (
     <div className="content-scroll dashboard-content activity-content">
       <header className="dashboard-header">
-        <div>
-          <div className="dashboard-title-row">
+        <div className="activity-header-main">
+          <div className="dashboard-title-row activity-title-row">
             {onToggleSidebar ? <MobileSidebarToggle onToggle={onToggleSidebar} open={sidebarOpen} /> : null}
             <h1 className="eyebrow" tabIndex={-1} style={{ outline: "none" }}>Usage</h1>
+            <PeriodSwitch period={period} onChange={setPeriod} />
           </div>
           <p className="dashboard-description">How much of each weekly limit you used on each day.</p>
         </div>
-        <PeriodSwitch period={period} onChange={setPeriod} />
       </header>
       <div className="dashboard-scroll">{renderBody()}</div>
     </div>

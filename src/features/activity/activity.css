@@ -7,13 +7,23 @@
  * order (a layered `!important` beats an unlayered one); see docs/CSS_ARCHITECTURE.md. Nothing else
  * here needs it, because every class is new.
  *
- * Breakpoints: none of its own. The grid fits as many 540px columns as the page has room for. */
+ * Breakpoints: only the shared 860 / 861 split, for where the 7D / 30D switch sits. The grid fits as
+ * many 540px columns as the page has room for. */
 @layer components {
   /* ---- header ---- */
 
+  /* The 7D / 30D switch. On a phone it sits in the title row, at the right end and centered on the
+     title: the switch is taller than the title line, so its vertical margins are negative and the
+     row stays as high as the menu button. On a wide window it stays where it always was, at the
+     top right of the header, out of the flow, with room kept beside the title and description. */
+  .activity-header-main {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
   .activity-period-switch {
     display: inline-flex;
-    align-self: flex-start;
+    margin-left: auto;
     gap: 2px;
     padding: 2px;
     border: 1px solid var(--chrome-border);
@@ -21,10 +31,32 @@
     background: var(--obsidian-surface-low);
   }
 
+  @media (max-width: 860px) {
+    .activity-period-switch {
+      margin-block: -10px;
+    }
+  }
+
+  @media (min-width: 861px) {
+    .activity-header-main {
+      /* The switch's width (two 48px buttons, a 2px gap, 2px padding and a 1px border each side)
+         and the 24px the header's flex gap used to leave beside it. */
+      --activity-switch-room: 128px;
+      position: relative;
+      padding-right: var(--activity-switch-room);
+    }
+
+    .activity-period-switch {
+      position: absolute;
+      top: 0;
+      right: 0;
+    }
+  }
+
   .activity-period-switch button {
-    min-width: 46px;
+    width: 48px;
     height: 30px;
-    padding: 0 12px;
+    padding: 0;
     border: 0;
     border-radius: 6px;
     background: transparent;
@@ -281,13 +313,49 @@
 
   /* ---- the chart ---- */
 
+  /* The y-axis on the left and the bars beside it. `--activity-pad-*` is how far the bars' own room
+     (the slot) sits in from the top and bottom of the bars area: on the 7 day chart a percent above
+     each bar and a weekday below it, 12px of text and a 6px gap each. The axis and the gridlines
+     use the same two numbers, so a tick lines up with the bars' height. */
   .activity-chart {
+    --activity-pad-top: 0px;
+    --activity-pad-bottom: 0px;
     position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 8px;
     margin-top: 16px;
+  }
+
+  .activity-chart.is-7d {
+    --activity-pad-top: 18px;
+    --activity-pad-bottom: 18px;
+  }
+
+  .activity-yaxis {
+    position: relative;
+    width: 30px;
+  }
+
+  .activity-scale {
+    position: absolute;
+    inset: var(--activity-pad-top) 0 var(--activity-pad-bottom);
+  }
+
+  .activity-tick-label {
+    position: absolute;
+    right: 0;
+    transform: translateY(50%);
+    color: var(--obsidian-muted);
+    font-size: 11px;
+    line-height: 1;
+    white-space: nowrap;
   }
 
   .activity-bars {
     position: relative;
+    /* A stacking context of its own, so the gridlines can sit behind the bars and nothing else. */
+    isolation: isolate;
     display: grid;
     grid-template-columns: repeat(var(--activity-days), minmax(0, 1fr));
     gap: var(--activity-gap);
@@ -300,12 +368,33 @@
     min-width: 0;
   }
 
+  .activity-gridlines {
+    position: absolute;
+    inset: var(--activity-pad-top) 0 var(--activity-pad-bottom);
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  .activity-gridline {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 1px;
+    transform: translateY(50%);
+    background: var(--obsidian-border);
+  }
+
+  .activity-gridline.is-baseline {
+    background: var(--border-strong);
+  }
+
   .activity-day-value,
   .activity-day-label {
     max-width: 100%;
+    height: 12px;
     color: var(--obsidian-muted);
     font-size: 12px;
-    line-height: 1;
+    line-height: 12px;
     white-space: nowrap;
   }
 
@@ -370,6 +459,7 @@
   }
 
   .activity-axis {
+    grid-column: 2;
     display: flex;
     justify-content: space-between;
     margin-top: 6px;

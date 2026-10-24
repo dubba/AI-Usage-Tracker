@@ -51,10 +51,11 @@ describe("DailyBars, 7 days", () => {
     expect(all(root, ".activity-day-label")[6].classList.contains("is-today")).toBe(true);
   });
 
-  it("scales the bars to the highest day", () => {
+  it("scales the bars to the top of the axis, which is the first tick above the highest day", () => {
     const bars = all(render({ days }), ".activity-bar");
-    expect(parseFloat(bars[0].style.height)).toBeCloseTo((15.4 / 99.5) * 100, 1);
-    expect(parseFloat(bars[5].style.height)).toBe(100);
+    // The highest day is 99.5%, so the axis runs to 100%.
+    expect(parseFloat(bars[0].style.height)).toBeCloseTo(15.4, 5);
+    expect(parseFloat(bars[5].style.height)).toBeCloseTo(99.5, 5);
     expect(parseFloat(bars[3].style.height)).toBe(0);
   });
 
@@ -121,6 +122,73 @@ describe("DailyBars, 7 days", () => {
     const root = render({ days, resets: ["2026-10-12T15:00:00Z"] });
     expect(all(root, ".activity-reset")).toHaveLength(0);
     expect(all(root, ".activity-axis")).toHaveLength(0);
+  });
+});
+
+describe("DailyBars y-axis", () => {
+  const sevenDays = (...values: Array<number | null>): ActivityDay[] =>
+    [...values, ...Array(7 - values.length).fill(null)].map((value) => (value == null ? noData : measured(value)));
+
+  const labels = (root: ParentNode) => texts(root, ".activity-tick-label");
+  const heightOf = (element: HTMLElement) => parseFloat(element.style.height);
+  const bottomOf = (element: HTMLElement) => parseFloat(element.style.bottom);
+
+  it("ticks every 5% for a quiet week, from 0 up to at least 15%", () => {
+    expect(labels(render({ days: sevenDays(3, 6) }))).toEqual(["0%", "5%", "10%", "15%"]);
+    mounted!.unmount();
+    expect(labels(render({ days: sevenDays(17, 2) }))).toEqual(["0%", "5%", "10%", "15%", "20%"]);
+  });
+
+  it("ticks every 10% for a busier week", () => {
+    expect(labels(render({ days: sevenDays(31, 8) }))).toEqual(["0%", "10%", "20%", "30%", "40%"]);
+  });
+
+  it("ticks every 20% for the busiest weeks", () => {
+    expect(labels(render({ days: sevenDays(64, 8) }))).toEqual(["0%", "20%", "40%", "60%", "80%"]);
+    mounted!.unmount();
+    expect(labels(render({ days: sevenDays(99.5) }))).toEqual(["0%", "20%", "40%", "60%", "80%", "100%"]);
+  });
+
+  it("is on the 30 day chart too, and follows the 30 days' busiest day", () => {
+    const days = Array.from({ length: 30 }, (_, index) => measured(index === 12 ? 33 : 2));
+    const root = render({ days });
+    expect(labels(root)).toEqual(["0%", "10%", "20%", "30%", "40%"]);
+    expect(all(root, ".activity-gridline")).toHaveLength(5);
+  });
+
+  it("draws a gridline at each tick, behind the bars, with a stronger one at 0", () => {
+    const root = render({ days: sevenDays(31, 8) });
+    const lines = all(root, ".activity-gridline");
+    expect(lines.map(bottomOf)).toEqual([0, 25, 50, 75, 100]);
+    expect(lines.filter((line) => line.classList.contains("is-baseline"))).toEqual([lines[0]]);
+    // The lines are inside the bars' area, before the first day, so they are painted behind it.
+    const area = root.querySelector(".activity-bars")!;
+    expect(area.firstElementChild!.classList.contains("activity-gridlines")).toBe(true);
+    expect(area.querySelector(".activity-gridlines")!.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("puts each tick label at the height of its gridline", () => {
+    const root = render({ days: sevenDays(31, 8) });
+    expect(all(root, ".activity-tick-label").map(bottomOf)).toEqual(all(root, ".activity-gridline").map(bottomOf));
+    expect(root.querySelector(".activity-yaxis")!.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("makes a bar as tall as the tick it reaches", () => {
+    // A 20% day on an axis that ends at 40% is half the height of the room.
+    const root = render({ days: sevenDays(40, 20) });
+    const bars = all(root, ".activity-bar");
+    expect(heightOf(bars[0])).toBe(100);
+    expect(heightOf(bars[1])).toBe(50);
+    const ticks = all(root, ".activity-tick-label");
+    const tickAt = (percent: number) => ticks.find((tick) => tick.textContent === `${percent}%`)!;
+    expect(bottomOf(tickAt(20))).toBe(heightOf(bars[1]));
+    expect(bottomOf(tickAt(40))).toBe(heightOf(bars[0]));
+  });
+
+  it("is not read out: the summary and the table already have the numbers", () => {
+    const root = render({ days: sevenDays(31, 8) });
+    expect(root.querySelector('[role="img"]')!.getAttribute("aria-label")).not.toContain("40%");
+    expect(root.querySelector("table")!.textContent).not.toContain("40%");
   });
 });
 

@@ -2,8 +2,16 @@ import type { ActivityDay, OtherLimit } from "../../types";
 import { formatClockTime, formatMonthDay } from "../../shared/lib/format";
 import type { ActivityPeriod } from "./activity-period";
 
-/** The tallest a bar can be is this many percent, even when every day in view is lower. */
-export const MIN_BAR_SCALE_PERCENT = 15;
+/** The axis goes up to at least this many percent, even when every day in view is lower. */
+export const MIN_AXIS_TOP_PERCENT = 15;
+
+/** The y-axis of one chart: ticks every `step` percent from 0 up to `top`, the height of a full bar. */
+export interface YAxis {
+  step: number;
+  top: number;
+  /** 0, `step`, 2 * `step`, ... `top`. */
+  ticks: number[];
+}
 
 /** What a day's bar shows above it and in summaries: "—" for no data, "<1%" below one percent. */
 export function formatDayPercent(value: number | null): string {
@@ -12,14 +20,21 @@ export function formatDayPercent(value: number | null): string {
   return `${Math.round(value)}%`;
 }
 
-/** The value a bar of `value` percent is scaled against: the highest day in view, but at least 15. */
-export function barScale(days: readonly ActivityDay[]): number {
-  return Math.max(MIN_BAR_SCALE_PERCENT, ...days.map((day) => day.usedPercent ?? 0));
+/**
+ * The y-axis that fits the busiest day in view: a tick every 5% while the highest day is 20% or
+ * less, every 10% up to 50%, and every 20% above that. It ends at the first tick at or above the
+ * highest day, and never below 15%, so a quiet week does not look like a busy one.
+ */
+export function yAxis(days: readonly ActivityDay[]): YAxis {
+  const highest = Math.max(0, ...days.map((day) => day.usedPercent ?? 0));
+  const step = highest <= 20 ? 5 : highest <= 50 ? 10 : 20;
+  const top = Math.max(MIN_AXIS_TOP_PERCENT, Math.ceil(highest / step) * step);
+  return { step, top, ticks: Array.from({ length: top / step + 1 }, (_, index) => index * step) };
 }
 
-/** How tall a bar is, as a percent of the room it has. */
-export function barHeightPercent(value: number, scale: number): number {
-  return Math.min(100, Math.max(0, (value / scale) * 100));
+/** How tall a bar is, as a percent of the room it has (the room is the axis from 0 to `top`). */
+export function barHeightPercent(value: number, top: number): number {
+  return Math.min(100, Math.max(0, (value / top) * 100));
 }
 
 export function weekdayShort(date: Date, locale?: string): string {
