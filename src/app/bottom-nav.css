@@ -50,7 +50,8 @@
   }
 
   .bottom-nav-item.is-active {
-    color: var(--purple-text) !important;
+    /* The app's purple, as on the page titles and the usage bars. */
+    color: var(--purple-accent) !important;
   }
 
   .bottom-nav-item:focus-visible {
