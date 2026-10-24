@@ -37,6 +37,7 @@ import {
 } from "../features/dashboard/sidebar-groups";
 import { moveAnnouncement, moveById } from "../features/reorder/reorder-utils";
 import { requestDashboardResync } from "../shared/lib/events";
+import { clearAppStorage } from "../shared/lib/storage";
 import type { Account, AccountBucket, Provider } from "../types";
 import { AppModals } from "./AppModals";
 import { Sidebar } from "./Sidebar";
@@ -254,6 +255,17 @@ export default function App() {
     setGoogleUsageAccount(null);
     await load();
   }, [setGoogleUsageAccount, load]);
+  const handleUsageCleared = useCallback(async () => {
+    // Show the accounts without usage first, then fill them in again.
+    await load();
+    void refreshAll();
+  }, [load, refreshAll]);
+  // Everything the backend kept is gone; the saved layout goes too, and the reload makes every
+  // screen and in-memory store start over instead of showing removed accounts.
+  const handleAllDataDeleted = useCallback(() => {
+    clearAppStorage();
+    window.location.reload();
+  }, []);
   const handleAlertSaved = useCallback(async () => {
     dispatchModal({ type: "close", kind: "alert" });
     await load();
@@ -275,6 +287,8 @@ export default function App() {
               onToggleBridge={(enabled) => void setApiIntegrationEnabled(enabled)}
               onViewBridgeWindow={() => void openApiIntegrationWindow()}
               onOpenUpdateNotes={() => update.setUpdateNotesOpen(true)}
+              onUsageCleared={handleUsageCleared}
+              onAllDataDeleted={handleAllDataDeleted}
             />
           </AppUpdateContext.Provider>
         </AppSettingsContext.Provider>

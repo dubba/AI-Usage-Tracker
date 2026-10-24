@@ -1971,3 +1971,16 @@ html::after {
   border-color: var(--sidebar-settings-ring) !important;
   box-shadow: 0 0 0 2px var(--sidebar-settings-ring);
 }
+
+/* Settings > Data: the destructive row's title is red, and a failure shows under the card. */
+.settings-style-content .settings-row strong.settings-danger-title {
+  color: var(--red);
+}
+
+.settings-data-error {
+  margin: 10px 2px 0;
+  color: var(--red);
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}

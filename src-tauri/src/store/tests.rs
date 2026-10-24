@@ -478,6 +478,43 @@ fn remove_drops_account_after_secret_delete() {
     assert!(reopened.list().is_empty());
 }
 
+#[test]
+fn clearing_cached_usage_keeps_the_accounts_and_survives_a_restart() {
+    use crate::model::UsageFreshness;
+    let dir = tempdir().unwrap();
+    let store = AccountStore::load(dir.path().to_path_buf()).unwrap();
+    let mut with_usage = sample_account("one", "Main");
+    with_usage.email = Some("main@example.com".into());
+    with_usage.last_error = Some("Rate limited".into());
+    with_usage.last_usage = Some(UsageSnapshot {
+        plan: Some("plus".into()),
+        email: None,
+        windows: Vec::new(),
+        credits_usd: None,
+        unlimited_credits: false,
+        fetched_at: "2026-08-30T12:00:00Z".into(),
+        freshness: UsageFreshness::Live,
+        source: "wham".into(),
+    });
+    store.upsert(with_usage).unwrap();
+    store.upsert(sample_account("two", "Empty")).unwrap();
+
+    assert_eq!(store.clear_cached_usage().unwrap(), 1);
+    for accounts in [
+        store.list(),
+        AccountStore::load(dir.path().to_path_buf()).unwrap().list(),
+    ] {
+        assert_eq!(accounts.len(), 2);
+        assert!(accounts.iter().all(|account| account.last_usage.is_none()));
+        let main = accounts.iter().find(|account| account.id == "one").unwrap();
+        assert_eq!(main.label, "Main");
+        assert_eq!(main.email.as_deref(), Some("main@example.com"));
+        assert_eq!(main.last_error.as_deref(), Some("Rate limited"));
+    }
+    // Nothing left to clear.
+    assert_eq!(store.clear_cached_usage().unwrap(), 0);
+}
+
 fn sample_openai_secret(token: &str) -> ProviderSecret {
     ProviderSecret::Openai(OAuthSecret {
         access_token: format!("access-{token}"),

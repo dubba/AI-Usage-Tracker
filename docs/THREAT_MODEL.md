@@ -42,7 +42,7 @@ The app is a client with no server and no multi-user database, so the classic
 
 ## Trust boundaries
 
-1. **Webview → Rust backend** — 54 Tauri commands, gated by per-window capability files.
+1. **Webview → Rust backend** — 56 Tauri commands, gated by per-window capability files.
 2. **Rust → OS credential stores** — Keychain / Credential Manager / Android Keystore.
 3. **Rust → provider APIs** — outbound HTTPS; responses treated as untrusted input.
 4. **Rust → LAN peers** — pairing TCP listener, mDNS, QR codes.
@@ -69,8 +69,8 @@ refresh loop spawn. Failure is reported on the startup screen, not swallowed
 
 React 19 with no state library: a single `DashboardSnapshot` fetched only by
 `useDashboardData` (`src/features/dashboard/useDashboardData.ts:34-73`), 30 s poll +
-focus/visibility refresh. All backend calls go through `bridgeApi` (37) and `pairingApi`
-(17) wrappers in `src/shared/lib/api.ts:18-116` — exactly the 54 registered commands.
+focus/visibility refresh. All backend calls go through `bridgeApi` (39) and `pairingApi`
+(17) wrappers in `src/shared/lib/api.ts:18-116` — exactly the 56 registered commands.
 Backend events (`usage-alert`, `pairing-status`, `pairing-uri-received`,
 `pairing-ui-state`, `open-update-notes`, `app-update-progress`) are consumed via `useTauriEvent`. The `api-integration` window
 renders `ApiIntegrationWindow.tsx` and can call only three bridge methods
@@ -80,7 +80,7 @@ renders `ApiIntegrationWindow.tsx` and can call only three bridge methods
 
 | Area | Modules |
 | --- | --- |
-| App shell / IPC | `lib.rs` (54 commands, `lib.rs:93-143`), `commands/*` (per-domain commands), `state.rs` (shared `AppState`: locks, rate-limit map, refresh semaphore), `backend.rs`, `startup.rs` |
+| App shell / IPC | `lib.rs` (56 commands, `lib.rs:93-143`), `commands/*` (per-domain commands), `state.rs` (shared `AppState`: locks, rate-limit map, refresh semaphore), `backend.rs`, `startup.rs` |
 | Usage engine | `usage.rs` (refresh orchestration, per-account locks), `refresh_loop.rs` (wall-clock ticker), `refresh_backoff.rs`, `limits.rs`, `store/buckets.rs`, `store/account_order.rs`, `store/alerts.rs`, `store/settings.rs` |
 | Providers | `providers/{mod,openai,anthropic,antigravity,google_ai_studio,grok,opencode_go,oauth_refresh}.rs` — each normalizes a provider's quota response into `UsageWindow`s |
 | Login flows | `auth/oauth/`, `auth/oauth_common.rs` (loopback OAuth), `auth/google_ai_studio_oauth.rs` (Cloud connection), `auth/grok_login.rs`, `auth/opencode_login.rs` (WebView cookie capture), `auth/mobile_auth.rs` (mobile in-app sign-in) |
@@ -112,15 +112,16 @@ Android, plaintext in debug builds). Corrupt JSON is quarantined and reloaded, n
 
 ## Entry points and guards
 
-### 1. Tauri IPC commands (54) — reachable by injected frontend code
+### 1. Tauri IPC commands (56) — reachable by injected frontend code
 
 | Guard | Code |
 | --- | --- |
-| Per-window capability allowlists: main window = exactly the 54 commands; `api-integration` window = only `get-bridge-info`, `reveal-bridge-token`, `regenerate-bridge-token` | `capabilities/default.json`, `capabilities/api-integration.json`; sync test `lib.rs:185-478` (handler list vs `build.rs APP_COMMANDS` vs capabilities vs every frontend `invoke()` vs the API window's three methods; every registered command must also have a frontend caller) |
+| Per-window capability allowlists: main window = exactly the 56 commands; `api-integration` window = only `get-bridge-info`, `reveal-bridge-token`, `regenerate-bridge-token` | `capabilities/default.json`, `capabilities/api-integration.json`; sync test `lib.rs:185-478` (handler list vs `build.rs APP_COMMANDS` vs capabilities vs every frontend `invoke()` vs the API window's three methods; every registered command must also have a frontend caller) |
 | `build.rs APP_COMMANDS` mirrors the handler list into generated permissions | `build.rs:25-79` |
 | Plugin permissions on the main window: `core:default`, `core:window:allow-set-theme`, `opener:allow-open-url` (URL allowlist, see §12), `autostart:allow-enable`/`allow-disable`/`allow-is-enabled`, `notification:default`, `window-state:default`. The `api-integration` window gets only `core:default` and `allow-set-theme` beyond its three commands | `capabilities/default.json`, `capabilities/api-integration.json` |
 | Windows without a capability: the desktop `grok-login` and `opencode-go-login` windows match no capability file, so they are granted no commands. Neither capability file declares a `remote` URL scope | `capabilities/*.json` (`windows` keys), `auth/grok_login.rs:38`, `auth/opencode_login.rs:27` |
 | Rust-side validation on every string input: labels trimmed ≤80 (`commands/mod.rs:16-28`), provider strings matched against a fixed whitelist (`model.rs:49-65`), emails trimmed ≤254 (`limits.rs:84-98`), refresh minutes restricted to {5,10,15,30,45,60} (`store/settings.rs:105-107`), reorder must be an exact permutation (`store/account_order.rs:64-110`), pending UI state object/null ≤64 KiB (`commands/pairing.rs:99-108`), pairing role `send`/`receive` only (`pairing/mod.rs:162-195`), join codes 6 digits with 5-attempt lockout (`pairing/mod.rs:513-540`) | as cited |
+| `clear_cached_usage` only drops saved usage snapshots; `delete_all_local_data` is the one command that removes every account, saved sign-in, group, alert setting and setting, replaces the local API token and turns off launch at startup. It takes no arguments and returns nothing. The page asks with its confirmation dialog first, but injected page code could call it directly, which gives it no more power than calling `remove_account` for each account and is why it has no native dialog (the secret-revealing commands below do, because they hand data out). Accounts are removed one at a time through `AppState::remove_account`, so a failure part-way leaves the rest intact (`commands/settings.rs`, `state.rs` `delete_all_local_data`; test `delete_all_local_data_removes_accounts_groups_alerts_and_settings`) | as cited |
 | `reveal_bridge_token` returns the full token only after the user confirms a native OS dialog opened by Rust, which page code cannot see or answer (`commands/bridge.rs:92-108`, `confirm.rs`); the webview holds no dialog permission; `get_bridge_info` and `regenerate_bridge_token` return only a masked token (`commands/bridge.rs:81-90,111-127`, `model.rs:412-420`) | as cited |
 | CSP: `script-src 'self'`, `object-src 'none'`, `frame-ancestors 'none'`, no remote script/style origins | `src-tauri/tauri.conf.json:30` |
 

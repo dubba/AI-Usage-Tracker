@@ -176,6 +176,17 @@ impl BucketStore {
         Ok(())
     }
 
+    /// Deletes every bucket group.
+    pub fn clear(&self) -> Result<(), String> {
+        let mut buckets = self.buckets.write();
+        if !buckets.is_empty() {
+            buckets.clear();
+            drop(buckets);
+            self.persist()?;
+        }
+        Ok(())
+    }
+
     pub fn cleanup_account(&self, account_id: &str) -> Result<(), String> {
         let mut buckets = self.buckets.write();
         let mut modified = false;

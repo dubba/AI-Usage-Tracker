@@ -236,6 +236,23 @@ impl SettingsStore {
         Ok(())
     }
 
+    /// Puts every setting back to its default, including what the app remembers (the window size,
+    /// the last update announced). Wakes the refresh loop and the local API so they follow.
+    pub fn reset(&self) -> Result<AppSettings, String> {
+        let mut settings = self.settings.write();
+        let next = StoredAppSettings::default();
+        if *settings == next {
+            return Ok(settings.public());
+        }
+
+        self.persist(&next)?;
+        *settings = next;
+        self.refresh_schedule_changed.notify_one();
+        self.bridge_state_changed.notify_one();
+
+        Ok(settings.public())
+    }
+
     pub async fn wait_for_bridge_state_change(&self) {
         self.bridge_state_changed.notified().await;
     }

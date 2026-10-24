@@ -372,6 +372,22 @@ impl AppState {
         Ok(())
     }
 
+    /// Removes every account with its saved sign-in, then what is left over: bucket groups, the
+    /// account order, alert settings, the deleted-account list, and all settings. Accounts go one
+    /// at a time through `remove_account`, so a failure part-way leaves the rest of the data as it
+    /// was and can simply be tried again.
+    pub async fn delete_all_local_data(&self) -> Result<(), String> {
+        for account in self.store.list() {
+            self.remove_account(&account.id).await?;
+        }
+        self.store.clear_tombstones();
+        self.account_order.clear()?;
+        self.alerts.clear()?;
+        self.buckets.clear()?;
+        self.settings.reset()?;
+        Ok(())
+    }
+
     pub async fn persist_connected_account(
         &self,
         account: Account,

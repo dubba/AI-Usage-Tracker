@@ -58,6 +58,8 @@ function view(
           integrationWindowBusy={false}
           onToggleBridge={vi.fn()}
           onViewBridgeWindow={vi.fn()}
+          onUsageCleared={vi.fn()}
+          onAllDataDeleted={vi.fn()}
           {...props}
         />
       </AppUpdateContext.Provider>
@@ -140,7 +142,7 @@ describe("SettingsView accessibility", () => {
 
   it("needs its contexts", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    expect(() => mount(<SettingsView onOpenLink={vi.fn()} bridge={null} bridgeBusy={false} integrationWindowBusy={false} onToggleBridge={vi.fn()} onViewBridgeWindow={vi.fn()} />)).toThrow(
+    expect(() => mount(<SettingsView onOpenLink={vi.fn()} bridge={null} bridgeBusy={false} integrationWindowBusy={false} onToggleBridge={vi.fn()} onViewBridgeWindow={vi.fn()} onUsageCleared={vi.fn()} onAllDataDeleted={vi.fn()} />)).toThrow(
       /AppSettingsContext/,
     );
     error.mockRestore();

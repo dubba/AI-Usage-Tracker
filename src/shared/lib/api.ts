@@ -65,6 +65,10 @@ export const bridgeApi = {
   setIncludeBetaUpdates: (enabled: boolean) => invoke<AppSettings>("set_include_beta_updates", { enabled }),
   getAutostart: () => invoke<boolean>("get_autostart"),
   setAutostart: (enabled: boolean) => invoke<boolean>("set_autostart", { enabled }),
+  /** Drops every account's saved usage snapshot; accounts and sign-ins stay. */
+  clearCachedUsage: () => invoke<void>("clear_cached_usage"),
+  /** Deletes accounts, saved sign-ins, snapshots, groups, alerts and settings from this device. */
+  deleteAllLocalData: () => invoke<void>("delete_all_local_data"),
   setApiIntegrationEnabled: (enabled: boolean) => invoke<BridgeStatus>("set_api_integration_enabled", { enabled }),
   openApiIntegrationWindow: () => invoke<void>("open_api_integration_window"),
   reorderAccounts: (accountIds: string[]) => invoke<Account[]>("reorder_accounts", { accountIds }),

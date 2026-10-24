@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased (1 change)
+## Unreleased (3 changes)
+
+### Added (2)
+
+- Settings now has a Data section. "Clear Cached Usage" removes the stored usage numbers but keeps your accounts and sign-ins, then loads fresh usage right away.
+- "Delete All Local Data" in the new Data section removes every account and saved sign-in, groups, alert settings and app settings from the device, after you confirm. Your provider accounts are not affected and other linked devices keep their own copies.
 
 ### Improved (1)
 

@@ -62,6 +62,8 @@
     "allow-set-include-beta-updates",
     "allow-get-autostart",
     "allow-set-autostart",
+    "allow-clear-cached-usage",
+    "allow-delete-all-local-data",
     "allow-set-api-integration-enabled",
     "allow-open-api-integration-window",
     "allow-reorder-accounts",

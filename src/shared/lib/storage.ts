@@ -88,6 +88,18 @@ export function storageKeys(prefix: string, which: Area = "local"): string[] {
   });
 }
 
+/** Every key this app writes starts with one of these (current and older versions). */
+const APP_STORAGE_PREFIXES = ["ai-usage-tracker:", "ai-subscription-tracker:", "paseo-usage-bridge:"];
+
+/** Removes everything the app saved in this browser's storage: layout, theme, hints, per-card state. */
+export function clearAppStorage(): void {
+  for (const which of ["local", "session"] as const) {
+    for (const prefix of APP_STORAGE_PREFIXES) {
+      for (const key of storageKeys(prefix, which)) storageRemove(key, which);
+    }
+  }
+}
+
 /** Parses stored JSON; anything missing, malformed, or rejected by `isValid` yields `fallback`. */
 export function readJson<T>(key: string, fallback: T, isValid?: (value: unknown) => value is T): T {
   const raw = storageGet(key);

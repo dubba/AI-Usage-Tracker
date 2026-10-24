@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { installFakeWindow } from "../../test-utils/fakeWindow";
-import { isStringArray, readJson, storageGet, storageKeys, storageRemove, storageSet, writeJson } from "./storage";
+import { clearAppStorage, isStringArray, readJson, storageGet, storageKeys, storageRemove, storageSet, writeJson } from "./storage";
 
 beforeEach(() => {
   installFakeWindow();
@@ -25,6 +25,29 @@ describe("storage helpers", () => {
     storageSet("k", "session", "session");
     expect(storageGet("k")).toBe("local");
     expect(storageGet("k", "session")).toBe("session");
+  });
+
+  it("clears every key the app wrote, in both storages, and nothing else", () => {
+    for (const key of [
+      "ai-usage-tracker:theme",
+      "ai-usage-tracker:card-collapsed:abc",
+      "ai-subscription-tracker:provider-order",
+      "paseo-usage-bridge:sidebar-width",
+      "somebody-else:theme",
+    ]) {
+      storageSet(key, "x");
+    }
+    storageSet("ai-usage-tracker:login-attempt", "x", "session");
+    storageSet("somebody-else:session", "x", "session");
+
+    clearAppStorage();
+
+    expect(storageKeys("ai-usage-tracker:")).toEqual([]);
+    expect(storageKeys("ai-subscription-tracker:")).toEqual([]);
+    expect(storageKeys("paseo-usage-bridge:")).toEqual([]);
+    expect(storageKeys("ai-usage-tracker:", "session")).toEqual([]);
+    expect(storageGet("somebody-else:theme")).toBe("x");
+    expect(storageGet("somebody-else:session", "session")).toBe("x");
   });
 
   it("lists keys by prefix", () => {

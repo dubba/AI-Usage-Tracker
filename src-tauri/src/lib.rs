@@ -114,6 +114,8 @@ pub fn run() {
             commands::settings::set_include_beta_updates,
             commands::settings::get_autostart,
             commands::settings::set_autostart,
+            commands::settings::clear_cached_usage,
+            commands::settings::delete_all_local_data,
             commands::bridge::set_api_integration_enabled,
             commands::bridge::open_api_integration_window,
             commands::accounts::reorder_accounts,

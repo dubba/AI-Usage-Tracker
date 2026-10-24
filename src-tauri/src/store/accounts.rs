@@ -151,6 +151,31 @@ impl AccountStore {
         Ok(())
     }
 
+    /// Drops every account's saved usage snapshot and keeps the accounts, their sign-ins and
+    /// their other details. Returns how many snapshots were dropped.
+    pub fn clear_cached_usage(&self) -> Result<usize, StoreError> {
+        let (cleared, snapshot, version) = {
+            let mut accounts = self.accounts.write();
+            let cleared = accounts
+                .iter_mut()
+                .filter_map(|account| account.last_usage.take())
+                .count();
+            (cleared, accounts.clone(), self.next_version())
+        };
+        self.commit_snapshot(&snapshot, version)?;
+        Ok(cleared)
+    }
+
+    /// Forgets the deleted-account list. Used only when all local data is deleted, so a device
+    /// that is linked again afterwards can bring its accounts back.
+    pub fn clear_tombstones(&self) {
+        self.update_tombstones(|ids| {
+            let changed = !ids.is_empty();
+            ids.clear();
+            changed
+        });
+    }
+
     #[cfg(test)]
     pub fn tombstones(&self) -> Vec<String> {
         read_tombstone_file(&self.data_dir).deleted_account_ids

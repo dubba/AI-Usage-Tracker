@@ -281,6 +281,16 @@ impl AlertStore {
         Ok(())
     }
 
+    /// Forgets every account's alert settings, including those of accounts that no longer exist.
+    pub fn clear(&self) -> Result<(), String> {
+        let mut accounts = self.accounts.write();
+        if !accounts.is_empty() {
+            accounts.clear();
+            self.persist_locked(&accounts)?;
+        }
+        Ok(())
+    }
+
     fn persist_locked(
         &self,
         accounts: &HashMap<String, Vec<StoredUsageAlertSetting>>,

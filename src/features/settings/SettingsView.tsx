@@ -5,6 +5,7 @@ import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
 import type { BridgeStatus } from "../../types";
 import { isMobileDevice } from "../../shared/lib/platform";
 import { SHORTCUTS, isMacPlatform, shortcutLabel } from "../shortcuts/shortcuts";
+import { DataSection } from "./DataSection";
 import { GeneralSection } from "./GeneralSection";
 import { LocalApiSection } from "./LocalApiSection";
 import { UpdatesSection } from "./UpdatesSection";
@@ -26,6 +27,8 @@ export function SettingsView({
   onToggleBridge,
   onViewBridgeWindow,
   onOpenUpdateNotes,
+  onUsageCleared,
+  onAllDataDeleted,
 }: {
   onToggleSidebar?: () => void;
   sidebarOpen?: boolean;
@@ -37,6 +40,8 @@ export function SettingsView({
   onToggleBridge: (enabled: boolean) => void;
   onViewBridgeWindow: () => void;
   onOpenUpdateNotes?: () => void;
+  onUsageCleared: () => void | Promise<void>;
+  onAllDataDeleted: () => void;
 }) {
   const [advancedOpen, setAdvancedOpen] = useState(readSettingsAdvancedOpen);
 
@@ -79,6 +84,8 @@ export function SettingsView({
             </button>
           </div>
         </section>
+
+        <DataSection onUsageCleared={onUsageCleared} onAllDataDeleted={onAllDataDeleted} />
 
         <h2 className="settings-section-title">
           <button

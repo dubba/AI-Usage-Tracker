@@ -45,6 +45,8 @@ const APP_COMMANDS: &[&str] = &[
     "set_include_beta_updates",
     "get_autostart",
     "set_autostart",
+    "clear_cached_usage",
+    "delete_all_local_data",
     "set_api_integration_enabled",
     "open_api_integration_window",
     "reorder_accounts",

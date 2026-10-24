@@ -112,6 +112,17 @@ impl AccountOrderStore {
         Ok(())
     }
 
+    /// Forgets the saved order, including ids of accounts that no longer exist.
+    pub fn clear(&self) -> Result<(), String> {
+        let mut account_ids = self.account_ids.write();
+        if !account_ids.is_empty() {
+            account_ids.clear();
+            drop(account_ids);
+            self.persist()?;
+        }
+        Ok(())
+    }
+
     fn persist(&self) -> Result<(), String> {
         self.file.save(&AccountOrderFile {
             version: 1,

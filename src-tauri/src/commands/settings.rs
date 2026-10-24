@@ -1,4 +1,7 @@
-use crate::{state::AppState, store::settings::AppSettings};
+use crate::{
+    state::AppState,
+    store::{rotate_bridge_token, settings::AppSettings},
+};
 use std::sync::Arc;
 use tauri::{AppHandle, State};
 
@@ -75,4 +78,45 @@ pub fn set_autostart(
 
     state.settings.set_autostart_enabled(enabled)?;
     Ok(enabled)
+}
+
+/// Drops every account's saved usage snapshot. Accounts, sign-ins and settings are untouched; the
+/// page refreshes usage afterwards.
+#[tauri::command]
+pub fn clear_cached_usage(state: State<'_, Arc<AppState>>) -> Result<(), String> {
+    state
+        .store
+        .clear_cached_usage()
+        .map_err(crate::diagnostics::command_error)?;
+    Ok(())
+}
+
+/// Deletes everything the app keeps on this device: accounts, saved sign-ins, usage snapshots,
+/// groups, alert settings, and settings. The local API token is replaced and launch at startup is
+/// turned off. The page asks for the user's confirmation first; nothing here is recoverable.
+#[tauri::command]
+pub async fn delete_all_local_data(
+    app: AppHandle,
+    state: State<'_, Arc<AppState>>,
+) -> Result<(), String> {
+    #[cfg(desktop)]
+    {
+        use tauri_plugin_autostart::ManagerExt;
+        let autolaunch = app.autolaunch();
+        if autolaunch.is_enabled().unwrap_or(false) {
+            if let Err(error) = autolaunch.disable() {
+                crate::diagnostics::warn(&format!(
+                    "Could not turn off launch at startup while deleting local data: {}",
+                    crate::diagnostics::command_error(error)
+                ));
+            }
+        }
+    }
+    #[cfg(not(desktop))]
+    let _ = app;
+
+    state.delete_all_local_data().await?;
+    let token = rotate_bridge_token().map_err(crate::diagnostics::command_error)?;
+    *state.bridge_token.write() = token;
+    Ok(())
 }

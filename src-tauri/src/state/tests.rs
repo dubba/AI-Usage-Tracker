@@ -243,6 +243,78 @@ async fn remove_account_waits_for_an_in_flight_refresh() {
     assert!(state.account_locks.lock().get(id).is_none());
 }
 
+#[tokio::test]
+async fn delete_all_local_data_removes_accounts_groups_alerts_and_settings() {
+    let directory = tempfile::tempdir().unwrap();
+    let state =
+        Arc::new(AppState::new(directory.path().to_path_buf(), "test-token".into()).unwrap());
+    let ids = ["state-wipe-one", "state-wipe-two"];
+    for id in ids {
+        let now = crate::model::now_rfc3339();
+        let account = Account {
+            id: id.into(),
+            label: id.into(),
+            provider: crate::model::Provider::Openai,
+            email: None,
+            provider_account_id: None,
+            chatgpt_account_id: None,
+            plan: None,
+            created_at: now.clone(),
+            updated_at: now,
+            last_usage: None,
+            last_error: None,
+            auth_required: false,
+        };
+        let secret = ProviderSecret::Openai(crate::model::OAuthSecret {
+            access_token: "a".into(),
+            refresh_token: "r".into(),
+            id_token: None,
+            expires_at: 1,
+        });
+        state.store.persist_account(account, &secret).unwrap();
+    }
+    state
+        .account_order
+        .save(
+            ids.iter().map(|id| id.to_string()).collect(),
+            state.store.list(),
+        )
+        .unwrap();
+    state
+        .buckets
+        .save(
+            None,
+            "Work".into(),
+            None,
+            ids.iter().map(|id| id.to_string()).collect(),
+        )
+        .unwrap();
+    state.settings.set_account_refresh_minutes(45).unwrap();
+    state.settings.set_include_beta_updates(true).unwrap();
+
+    state.delete_all_local_data().await.unwrap();
+
+    assert!(state.store.list().is_empty());
+    assert!(state.store.tombstones().is_empty());
+    assert!(state.account_order.snapshot_ids().is_empty());
+    assert!(state.buckets.list().is_empty());
+    let settings = state.settings.get();
+    assert_eq!(
+        settings.account_refresh_minutes,
+        crate::store::settings::DEFAULT_ACCOUNT_REFRESH_MINUTES
+    );
+    assert!(!settings.include_beta_updates);
+    for id in ids {
+        assert!(crate::store::load_provider_secret(id).is_err());
+    }
+
+    // The wipe reached the disk too, not only memory.
+    let reopened = AppState::new(directory.path().to_path_buf(), "test-token".into()).unwrap();
+    assert!(reopened.store.list().is_empty());
+    assert!(reopened.buckets.list().is_empty());
+    assert_eq!(reopened.settings.get().account_refresh_minutes, 15);
+}
+
 #[test]
 fn invalid_primary_accounts_fall_back_to_backup() {
     let directory = tempfile::tempdir().unwrap();
