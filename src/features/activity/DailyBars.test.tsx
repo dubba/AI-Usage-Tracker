@@ -121,6 +121,9 @@ describe("DailyBars, 7 days", () => {
     ]);
     expect(rows[6].querySelector("th")!.textContent).toBe("Today");
     expect(root.querySelector("table")!.classList.contains("sr-only")).toBe(true);
+    // The table sits in a non-table box. On the table itself, .sr-only does not cap the height.
+    expect(root.querySelector("table")!.parentElement!.tagName).toBe("DIV");
+    expect(root.querySelector("table")!.parentElement!.classList.contains("sr-only")).toBe(true);
     expect(root.querySelector("caption")!.textContent).toBe(label);
   });
 

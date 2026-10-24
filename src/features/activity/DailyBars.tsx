@@ -169,27 +169,31 @@ export function DailyBars({
           <span className="is-last">Today</span>
         </div>
       )}
-      <table className="sr-only">
-        <caption>{summary}</caption>
-        <thead>
-          <tr>
-            <th scope="col">Day</th>
-            <th scope="col">{limit === "monthly" ? "Monthly" : "Weekly"} limit used</th>
-          </tr>
-        </thead>
-        <tbody>
-          {days.map((day, index) => (
-            <tr key={dayStarts[index].getTime()}>
-              <th scope="row">{dayLabel(dayStarts[index], period, index === days.length - 1)}</th>
-              <td>
-                {day.usedPercent == null
-                  ? "No data"
-                  : `${formatDayPercent(day.usedPercent)}${day.quality === "approximate" ? " (estimated)" : ""}`}
-              </td>
+      {/* A table treats height as a minimum, so .sr-only on the table alone leaves a tall
+          invisible box and the page scrolls past the cards. The wrapper is an ordinary 1px box. */}
+      <div className="sr-only">
+        <table className="sr-only">
+          <caption>{summary}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Day</th>
+              <th scope="col">{limit === "monthly" ? "Monthly" : "Weekly"} limit used</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {days.map((day, index) => (
+              <tr key={dayStarts[index].getTime()}>
+                <th scope="row">{dayLabel(dayStarts[index], period, index === days.length - 1)}</th>
+                <td>
+                  {day.usedPercent == null
+                    ? "No data"
+                    : `${formatDayPercent(day.usedPercent)}${day.quality === "approximate" ? " (estimated)" : ""}`}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

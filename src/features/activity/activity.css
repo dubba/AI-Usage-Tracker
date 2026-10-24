@@ -397,7 +397,7 @@
   }
 
   .activity-day-label.is-today {
-    color: var(--purple-text);
+    color: var(--purple-accent);
     font-weight: 650;
   }
 
@@ -496,7 +496,7 @@
     pointer-events: auto;
   }
 
-  /* Dashes in the lighter purple with a halo in the card's color, so the line stays visible where it
+  /* Dashes in the accent purple with a halo in the card's color, so the line stays visible where it
      crosses a bar of the same purple family. */
   .activity-reset-hit::before {
     content: "";
@@ -506,7 +506,7 @@
     left: calc(50% - 1px);
     width: 3px;
     background:
-      repeating-linear-gradient(to bottom, var(--purple-text) 0 4px, transparent 4px 7px) center / 1px 100% no-repeat,
+      repeating-linear-gradient(to bottom, var(--purple-accent) 0 4px, transparent 4px 7px) center / 1px 100% no-repeat,
       repeating-linear-gradient(to bottom, var(--obsidian-surface-low) 0 4px, transparent 4px 7px) center / 3px 100% no-repeat;
   }
 

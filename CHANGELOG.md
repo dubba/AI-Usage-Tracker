@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased (7 changes)
+## Unreleased (9 changes)
+
+### Fixed (1)
+
+- On the Usage page, scrolling ends at the usage cards.
 
 ### Added (5)
 
@@ -10,9 +14,10 @@
 - On phones and narrow windows, a bottom bar switches between Usage, Accounts and Settings, so the Settings button is no longer in the sidebar. On wider windows, Usage, Accounts and Settings sit together at the bottom of the sidebar, above the sync status, and Ctrl+U opens Usage while Ctrl+A opens Accounts (⌘U and ⌘A on macOS). Ctrl+A no longer opens the Add Account dialog; Ctrl+N still does.
 - "Clear Usage History" in Settings now removes the recorded daily usage while keeping your accounts, sign-ins and current usage.
 
-### Improved (2)
+### Improved (3)
 
 - On Antigravity account cards, the Gemini 4 Argon limit is labeled Argon.
+- On the Usage page, the Today label under the 7-day chart and the weekly reset dashes on the 30-day chart use the same purple as the current page link.
 - The Settings shortcut (Ctrl+, or ⌘,) now returns to the page you opened Settings from, such as Usage, instead of always going back to Accounts.
 
 ## v0.5.2 - 2026-10-23 (4 changes)
