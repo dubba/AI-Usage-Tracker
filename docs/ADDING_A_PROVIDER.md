@@ -24,6 +24,7 @@ Use an existing provider of the same kind as the model:
 
 - `src-tauri/src/providers/<name>.rs` (or a folder) — a `refresh` function that returns `ProviderUsage` with `UsageWindow`s. Window ids and labels are the provider's own words; the backend works out each window's `kind` (5 hour, weekly, monthly) from them in `WindowKind::classify` (`model.rs`), so check that a new provider's labels classify as intended by adding a case to `src/shared/lib/window-kinds.fixture.json`.
 - `src-tauri/src/providers/mod.rs` — `pub mod <name>;` and the arm in `refresh`.
+- Nothing to add for the Activity page: a provider's first window that classifies as `Weekly` becomes an Activity tracker automatically (`history::tracker_windows`; Antigravity tracks every weekly window), and an account with no weekly window gets a "No weekly limit" card. Keep window ids stable between refreshes, because they key the stored history.
 - Token handling:
   - OAuth providers refresh through `with_fresh_secret` (it serializes refreshes and saves a rotated token even after a timeout) and `oauth_refresh::refresh_oauth_secret` with a `RefreshRequest`. The options on `RefreshRequest` (`InvalidGrant`, `Lifetime`, `IdToken`) are the places providers differ.
   - Map HTTP failures with `classify_status` and a `StatusPolicy`, so only a rejected credential marks the account as needing sign-in.

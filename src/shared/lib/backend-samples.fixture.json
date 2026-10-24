@@ -370,5 +370,70 @@
       },
       "status": "failed"
     }
+  ],
+  "WeeklyActivity": [
+    {
+      "trackers": [
+        {
+          "accountId": "account-1",
+          "currentUsedPercent": 42.5,
+          "days": [
+            {
+              "quality": "measured",
+              "usedPercent": 12.5
+            },
+            {
+              "quality": "approximate",
+              "usedPercent": 3.0
+            },
+            {
+              "quality": "none",
+              "usedPercent": null
+            }
+          ],
+          "resets": [
+            "2026-09-05T17:00:00Z"
+          ],
+          "resetsAt": "2026-09-07T17:00:00Z",
+          "windowId": "weekly",
+          "windowLabel": "Weekly"
+        },
+        {
+          "accountId": "account-2",
+          "currentUsedPercent": null,
+          "days": [
+            {
+              "quality": "none",
+              "usedPercent": null
+            }
+          ],
+          "resets": [],
+          "resetsAt": null,
+          "windowId": "model_gemini",
+          "windowLabel": "Gemini 4 Argon · Weekly"
+        }
+      ],
+      "untracked": [
+        {
+          "accountId": "account-3",
+          "otherLimits": [
+            "daily",
+            "per_minute"
+          ]
+        },
+        {
+          "accountId": "account-4",
+          "otherLimits": [
+            "five_hour",
+            "monthly",
+            "other"
+          ]
+        }
+      ]
+    },
+    {
+      "trackers": [],
+      "untracked": []
+    }
   ]
 }

@@ -6,6 +6,7 @@ mod confirm;
 mod diagnostics;
 #[cfg(test)]
 mod frontend_contract;
+mod history;
 mod limits;
 mod migrations;
 mod model;
@@ -116,6 +117,8 @@ pub fn run() {
             commands::settings::set_autostart,
             commands::settings::clear_cached_usage,
             commands::settings::delete_all_local_data,
+            commands::history::get_weekly_activity,
+            commands::history::clear_activity_history,
             commands::bridge::set_api_integration_enabled,
             commands::bridge::open_api_integration_window,
             commands::accounts::reorder_accounts,

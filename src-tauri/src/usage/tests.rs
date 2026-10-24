@@ -384,3 +384,92 @@ fn sanitize_error_message_never_splits_a_multibyte_character() {
     let at_limit = "界 ".repeat(100).trim().to_string();
     assert_eq!(sanitize_error_message(&at_limit), at_limit);
 }
+
+fn usage_with_weekly_window(used: f64) -> ProviderUsage {
+    let mut usage = usage_with_one_window();
+    usage.windows = vec![crate::model::UsageWindow {
+        id: "weekly".into(),
+        label: "Weekly".into(),
+        used_percent: Some(used),
+        remaining_percent: Some(100.0 - used),
+        resets_at: Some((chrono::Utc::now() + chrono::Duration::days(3)).to_rfc3339()),
+        window_seconds: Some(crate::model::WEEKLY_WINDOW_SECONDS),
+        kind: None,
+    }];
+    usage
+}
+
+fn history_of(app: &AppState, account_id: &str) -> Vec<crate::history::Reading> {
+    let key = crate::history::tracker_key(account_id, "weekly");
+    app.history
+        .readings(std::slice::from_ref(&key), 0)
+        .remove(&key)
+        .unwrap_or_default()
+}
+
+fn app_with_bare_account(id: &str, data_dir: &std::path::Path) -> Arc<AppState> {
+    let app = Arc::new(AppState::new(data_dir.to_path_buf(), "test-token".into()).unwrap());
+    let mut openai = account(Provider::Openai, "wham", false);
+    openai.id = id.into();
+    app.store.upsert(openai).unwrap();
+    app
+}
+
+#[test]
+fn a_live_refresh_records_the_weekly_reading_and_a_failed_one_does_not() {
+    let temp = tempfile::tempdir().unwrap();
+    let id = "usage-history-live";
+    let app = app_with_bare_account(id, temp.path());
+
+    let saved = save_success(&app, id, usage_with_weekly_window(12.5)).unwrap();
+    assert_eq!(
+        saved.last_usage.as_ref().unwrap().windows[0].used_percent,
+        Some(12.5)
+    );
+    let readings = history_of(&app, id);
+    assert_eq!(readings.len(), 1);
+    assert_eq!(readings[0].u, 12.5);
+    assert!(readings[0].r.is_some());
+
+    // The stale snapshot a failed refresh leaves behind is not a new observation.
+    save_failure(
+        &app,
+        id,
+        ProviderError::Transient("The provider is down.".into()),
+    )
+    .unwrap();
+    save_failure(&app, id, ProviderError::Auth).unwrap();
+    assert_eq!(history_of(&app, id).len(), 1);
+}
+
+#[test]
+fn a_refresh_without_a_weekly_window_records_nothing() {
+    let temp = tempfile::tempdir().unwrap();
+    let id = "usage-history-none";
+    let app = app_with_bare_account(id, temp.path());
+    save_success(&app, id, usage_with_one_window()).unwrap();
+    assert!(history_of(&app, id).is_empty());
+    assert_eq!(
+        std::fs::read_dir(temp.path().join("activity-history"))
+            .unwrap()
+            .count(),
+        0
+    );
+}
+
+#[test]
+fn a_history_folder_that_cannot_be_written_never_fails_the_refresh() {
+    let temp = tempfile::tempdir().unwrap();
+    // A file where the folder belongs: loading must survive it and every write must fail.
+    std::fs::write(temp.path().join("activity-history"), "in the way").unwrap();
+    let id = "usage-history-blocked";
+    let app = app_with_bare_account(id, temp.path());
+
+    let saved = save_success(&app, id, usage_with_weekly_window(30.0)).unwrap();
+
+    let usage = saved.last_usage.as_ref().unwrap();
+    assert_eq!(usage.freshness, UsageFreshness::Live);
+    assert_eq!(usage.windows[0].used_percent, Some(30.0));
+    assert!(saved.last_error.is_none() && !saved.auth_required);
+    assert!(!app.refresh_backoff.lock().is_deferred(id, Instant::now()));
+}

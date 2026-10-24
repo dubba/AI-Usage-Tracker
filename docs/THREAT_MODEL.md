@@ -42,7 +42,7 @@ The app is a client with no server and no multi-user database, so the classic
 
 ## Trust boundaries
 
-1. **Webview → Rust backend** — 56 Tauri commands, gated by per-window capability files.
+1. **Webview → Rust backend** — 58 Tauri commands, gated by per-window capability files.
 2. **Rust → OS credential stores** — Keychain / Credential Manager / Android Keystore.
 3. **Rust → provider APIs** — outbound HTTPS; responses treated as untrusted input.
 4. **Rust → LAN peers** — pairing TCP listener, mDNS, QR codes.
@@ -69,8 +69,8 @@ refresh loop spawn. Failure is reported on the startup screen, not swallowed
 
 React 19 with no state library: a single `DashboardSnapshot` fetched only by
 `useDashboardData` (`src/features/dashboard/useDashboardData.ts:34-73`), 30 s poll +
-focus/visibility refresh. All backend calls go through `bridgeApi` (39) and `pairingApi`
-(17) wrappers in `src/shared/lib/api.ts:18-116` — exactly the 56 registered commands.
+focus/visibility refresh. All backend calls go through `bridgeApi` (41) and `pairingApi`
+(17) wrappers in `src/shared/lib/api.ts:18-116` — exactly the 58 registered commands.
 Backend events (`usage-alert`, `pairing-status`, `pairing-uri-received`,
 `pairing-ui-state`, `open-update-notes`, `app-update-progress`) are consumed via `useTauriEvent`. The `api-integration` window
 renders `ApiIntegrationWindow.tsx` and can call only three bridge methods
@@ -80,8 +80,9 @@ renders `ApiIntegrationWindow.tsx` and can call only three bridge methods
 
 | Area | Modules |
 | --- | --- |
-| App shell / IPC | `lib.rs` (56 commands, `lib.rs:93-143`), `commands/*` (per-domain commands), `state.rs` (shared `AppState`: locks, rate-limit map, refresh semaphore), `backend.rs`, `startup.rs` |
+| App shell / IPC | `lib.rs` (58 commands, `lib.rs:93-143`), `commands/*` (per-domain commands), `state.rs` (shared `AppState`: locks, rate-limit map, refresh semaphore), `backend.rs`, `startup.rs` |
 | Usage engine | `usage.rs` (refresh orchestration, per-account locks), `refresh_loop.rs` (wall-clock ticker), `refresh_backoff.rs`, `limits.rs`, `store/buckets.rs`, `store/account_order.rs`, `store/alerts.rs`, `store/settings.rs` |
+| Activity history | `history/{mod,store,activity,report}.rs` (weekly readings, the month files, the calculation, the `get_weekly_activity` answer), `commands/history.rs` |
 | Providers | `providers/{mod,openai,anthropic,antigravity,google_ai_studio,grok,opencode_go,oauth_refresh}.rs` — each normalizes a provider's quota response into `UsageWindow`s |
 | Login flows | `auth/oauth/`, `auth/oauth_common.rs` (loopback OAuth), `auth/google_ai_studio_oauth.rs` (Cloud connection), `auth/grok_login.rs`, `auth/opencode_login.rs` (WebView cookie capture), `auth/mobile_auth.rs` (mobile in-app sign-in) |
 | Local API | `bridge_api.rs` (loopback HTTP), `commands/bridge.rs` |
@@ -92,7 +93,7 @@ renders `ApiIntegrationWindow.tsx` and can call only three bridge methods
 
 ### Key data flows
 
-- **Usage refresh**: timer/resume/manual (`lib.rs:126-145`) → `refresh_all` (semaphore of 4, `state.rs:26,156`) → per-account async lock (`state.rs:299-315`) → provider call on a spawned task that owns the lock with a 45 s wait timeout (`usage.rs:16,31-135`) → normalize → persist to `accounts.json` keeping last-known-good marked `Stale` on failure (`usage.rs:395-428`); auth failure sets `auth_required` and suspends auto-refresh (`usage.rs:186-239`).
+- **Usage refresh**: timer/resume/manual (`lib.rs:126-145`) → `refresh_all` (semaphore of 4, `state.rs:26,156`) → per-account async lock (`state.rs:299-315`) → provider call on a spawned task that owns the lock with a 45 s wait timeout (`usage.rs:16,31-135`) → normalize → persist to `accounts.json` keeping last-known-good marked `Stale` on failure (`usage.rs:395-428`); a live result also appends a reading of each weekly window (used percent and reset time, ids only) to the current month's activity-history file, and a failure to do so is logged and ignored (`usage.rs` `save_success`, `history/store.rs`); auth failure sets `auth_required` and suspends auto-refresh (`usage.rs:186-239`).
 - **Credentials**: provider secret → `ProviderSecret` (Zeroize) → platform store dispatch (`store/credentials/mod.rs:107-174`) → in-memory cache with 300 s TTL and a dirty flag that survives until the native write succeeds (`store/credentials/cache.rs:10-93`). Secrets never appear in command responses or metadata files.
 - **Local API**: account store → `PublicUsageResponse` (no tokens or cookies; carries labels, emails, provider account ids, plans, usage windows, and the sanitized last error) → `GET /v1/paseo-usage`, schema v1 (`model.rs:524-568`, `bridge_api.rs:207-291`).
 - **Pairing**: QR URI or 6-digit code → host TCP listener bound to the advertised LAN address on an ephemeral port, and only if that address is private, link-local, CGNAT, or loopback (no fallback to all interfaces) (`pairing/mod.rs:216-219,544-555`; address choice `pairing/transport.rs:43-85`) → X25519 + HKDF + SAS confirmation → XChaCha20-Poly1305-encrypted payload import with per-field clamping (`payload.rs`, `limits.rs:103-121`).
@@ -103,8 +104,8 @@ renders `ApiIntegrationWindow.tsx` and can call only three bridge methods
 All in the Tauri app data dir, written via `atomic_write_private` (temp + fsync + rename,
 owner-only, `platform/fs_util.rs:193-259`): `accounts.json` (v2) + hard-link backup `accounts.json.bak`
 (`store/accounts.rs:461-480`), `deleted-accounts.json` (tombstones ≤500), `account-order.json`,
-`usage-alerts.json`, `account-buckets.json`, `app-settings.json` (v3), `logs/app.log(.1)`
-(rotating, 256 KiB, `diagnostics.rs:22,73`), `*.invalid` quarantine (`state.rs:355-399`), and on
+`usage-alerts.json`, `account-buckets.json`, `app-settings.json` (v3), `activity-history/YYYY-MM.json` (one compact file per UTC month, v1: readings `[unix time, used percent, reset time]` per `<account id>|<window id>`, no labels, emails or provider text; the current and previous month are held in memory, month files older than 13 months are deleted at startup and at a month change; `history/store.rs`), `logs/app.log(.1)`
+(rotating, 256 KiB, `diagnostics.rs:22,73`), `*.invalid` quarantine (`state.rs:355-399`, also used for an unreadable month file), and on
 Android + debug builds `credentials/{id}.json` and `credentials/bridge-token.txt` (sealed on
 Android, plaintext in debug builds). Corrupt JSON is quarantined and reloaded, not crashed on
 (`state.rs:355-371`). On Android, `BootReceiver` reads `app-settings.json` directly
@@ -112,16 +113,17 @@ Android, plaintext in debug builds). Corrupt JSON is quarantined and reloaded, n
 
 ## Entry points and guards
 
-### 1. Tauri IPC commands (56) — reachable by injected frontend code
+### 1. Tauri IPC commands (58) — reachable by injected frontend code
 
 | Guard | Code |
 | --- | --- |
-| Per-window capability allowlists: main window = exactly the 56 commands; `api-integration` window = only `get-bridge-info`, `reveal-bridge-token`, `regenerate-bridge-token` | `capabilities/default.json`, `capabilities/api-integration.json`; sync test `lib.rs:185-478` (handler list vs `build.rs APP_COMMANDS` vs capabilities vs every frontend `invoke()` vs the API window's three methods; every registered command must also have a frontend caller) |
+| Per-window capability allowlists: main window = exactly the 58 commands; `api-integration` window = only `get-bridge-info`, `reveal-bridge-token`, `regenerate-bridge-token` | `capabilities/default.json`, `capabilities/api-integration.json`; sync test `lib.rs:185-478` (handler list vs `build.rs APP_COMMANDS` vs capabilities vs every frontend `invoke()` vs the API window's three methods; every registered command must also have a frontend caller) |
 | `build.rs APP_COMMANDS` mirrors the handler list into generated permissions | `build.rs:25-79` |
 | Plugin permissions on the main window: `core:default`, `core:window:allow-set-theme`, `opener:allow-open-url` (URL allowlist, see §12), `autostart:allow-enable`/`allow-disable`/`allow-is-enabled`, `notification:default`, `window-state:default`. The `api-integration` window gets only `core:default` and `allow-set-theme` beyond its three commands | `capabilities/default.json`, `capabilities/api-integration.json` |
 | Windows without a capability: the desktop `grok-login` and `opencode-go-login` windows match no capability file, so they are granted no commands. Neither capability file declares a `remote` URL scope | `capabilities/*.json` (`windows` keys), `auth/grok_login.rs:38`, `auth/opencode_login.rs:27` |
 | Rust-side validation on every string input: labels trimmed ≤80 (`commands/mod.rs:16-28`), provider strings matched against a fixed whitelist (`model.rs:49-65`), emails trimmed ≤254 (`limits.rs:84-98`), refresh minutes restricted to {5,10,15,30,45,60} (`store/settings.rs:105-107`), reorder must be an exact permutation (`store/account_order.rs:64-110`), pending UI state object/null ≤64 KiB (`commands/pairing.rs:99-108`), pairing role `send`/`receive` only (`pairing/mod.rs:162-195`), join codes 6 digits with 5-attempt lockout (`pairing/mod.rs:513-540`) | as cited |
-| `clear_cached_usage` only drops saved usage snapshots; `delete_all_local_data` is the one command that removes every account, saved sign-in, group, alert setting and setting, replaces the local API token and turns off launch at startup. It takes no arguments and returns nothing. The page asks with its confirmation dialog first, but injected page code could call it directly, which gives it no more power than calling `remove_account` for each account and is why it has no native dialog (the secret-revealing commands below do, because they hand data out). Accounts are removed one at a time through `AppState::remove_account`, so a failure part-way leaves the rest intact (`commands/settings.rs`, `state.rs` `delete_all_local_data`; test `delete_all_local_data_removes_accounts_groups_alerts_and_settings`) | as cited |
+| `clear_cached_usage` only drops saved usage snapshots and keeps the activity history; `delete_all_local_data` is the one command that removes every account, saved sign-in, group, alert setting, the activity history and setting, replaces the local API token and turns off launch at startup. It takes no arguments and returns nothing. The page asks with its confirmation dialog first, but injected page code could call it directly, which gives it no more power than calling `remove_account` for each account and is why it has no native dialog (the secret-revealing commands below do, because they hand data out). Accounts are removed one at a time through `AppState::remove_account`, so a failure part-way leaves the rest intact (`commands/settings.rs`, `state.rs` `delete_all_local_data`; test `delete_all_local_data_removes_accounts_groups_alerts_and_settings`) | as cited |
+| `get_weekly_activity` takes the page's local-day boundaries as RFC 3339 strings; they are refused unless there are 2 to 32 of them, each at most 64 characters and a valid RFC 3339 instant, strictly increasing, 22 to 26 hours apart, with the last no more than 26 hours after now, so a call cannot ask for an unbounded range (`history/report.rs` `validate_day_starts`; tests `boundaries_*`, `days_must_last_between_22_and_26_hours`, `the_last_boundary_cannot_be_more_than_26_hours_ahead`, `too_few_or_too_many_boundaries_are_refused`). The response holds ids, window labels and percentages the dashboard already shows, never a token or provider text. `clear_activity_history` takes no arguments, deletes the files in `activity-history/` and returns nothing, which gives injected page code no more power than `delete_all_local_data` | `commands/history.rs`, `history/report.rs`, `history/store.rs` |
 | `reveal_bridge_token` returns the full token only after the user confirms a native OS dialog opened by Rust, which page code cannot see or answer (`commands/bridge.rs:92-108`, `confirm.rs`); the webview holds no dialog permission; `get_bridge_info` and `regenerate_bridge_token` return only a masked token (`commands/bridge.rs:81-90,111-127`, `model.rs:412-420`) | as cited |
 | CSP: `script-src 'self'`, `object-src 'none'`, `frame-ancestors 'none'`, no remote script/style origins | `src-tauri/tauri.conf.json:30` |
 

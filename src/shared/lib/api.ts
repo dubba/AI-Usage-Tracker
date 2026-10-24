@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { logIgnored } from "./log";
 import { storageGet, storageRemove, storageSet, STORAGE_KEYS } from "./storage";
-import type { Account, AccountBucket, AirgapExport, AirgapVerifyResult, AppSettings, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, PairingHostInit, PairingStatus, Provider, StartupIssue, SyncSummary, UsageAlertSetting } from "../../types";
+import type { Account, AccountBucket, AirgapExport, AirgapVerifyResult, AppSettings, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, PairingHostInit, PairingStatus, Provider, StartupIssue, SyncSummary, UsageAlertSetting, WeeklyActivity } from "../../types";
 
 export function rememberLoginAttempt(attemptId: string) {
   storageSet(STORAGE_KEYS.loginAttempt, attemptId, "session");
@@ -67,8 +67,15 @@ export const bridgeApi = {
   setAutostart: (enabled: boolean) => invoke<boolean>("set_autostart", { enabled }),
   /** Drops every account's saved usage snapshot; accounts and sign-ins stay. */
   clearCachedUsage: () => invoke<void>("clear_cached_usage"),
-  /** Deletes accounts, saved sign-ins, snapshots, groups, alerts and settings from this device. */
+  /** Deletes accounts, saved sign-ins, snapshots, groups, alerts, activity history and settings from this device. */
   deleteAllLocalData: () => invoke<void>("delete_all_local_data"),
+  /**
+   * Weekly usage per day. `dayStarts` are the local midnights of the days to show plus the one
+   * after the last, as RFC 3339 instants (N days need N + 1 values).
+   */
+  getWeeklyActivity: (dayStarts: string[]) => invoke<WeeklyActivity>("get_weekly_activity", { dayStarts }),
+  /** Deletes the recorded weekly readings of every account; accounts and current usage stay. */
+  clearActivityHistory: () => invoke<void>("clear_activity_history"),
   setApiIntegrationEnabled: (enabled: boolean) => invoke<BridgeStatus>("set_api_integration_enabled", { enabled }),
   openApiIntegrationWindow: () => invoke<void>("open_api_integration_window"),
   reorderAccounts: (accountIds: string[]) => invoke<Account[]>("reorder_accounts", { accountIds }),

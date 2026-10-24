@@ -47,6 +47,8 @@ const APP_COMMANDS: &[&str] = &[
     "set_autostart",
     "clear_cached_usage",
     "delete_all_local_data",
+    "get_weekly_activity",
+    "clear_activity_history",
     "set_api_integration_enabled",
     "open_api_integration_window",
     "reorder_accounts",

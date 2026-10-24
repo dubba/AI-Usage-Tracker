@@ -7,6 +7,7 @@ pub mod alerts;
 pub mod auth;
 pub mod bridge;
 pub mod buckets;
+pub mod history;
 pub mod pairing;
 pub mod settings;
 pub mod system;

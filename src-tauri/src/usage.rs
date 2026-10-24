@@ -267,6 +267,10 @@ fn save_success(app: &AppState, account_id: &str, usage: ProviderUsage) -> Resul
         })
         .map_err(|error| error.to_string())?;
     app.refresh_backoff.lock().record_success(account_id);
+    // Activity history is a bonus: failing to record must never fail the refresh.
+    if let Err(error) = app.history.record(&account) {
+        crate::diagnostics::warn(&format!("Could not record activity history: {error}"));
+    }
     emit_alerts_for_account(app, &account);
     Ok(account)
 }

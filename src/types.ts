@@ -80,6 +80,40 @@ export interface DashboardSnapshot {
   unprotectedAccountIds?: string[];
 }
 
+/** How well a day of weekly activity is known; the backend works it out (`DayQuality` in `history/activity.rs`). */
+export type ActivityQuality = "measured" | "approximate" | "none";
+
+export interface ActivityDay {
+  /** Percent of the weekly limit used that day; `null` when nothing was observed (`quality` is `"none"`). */
+  usedPercent: number | null;
+  quality: ActivityQuality;
+}
+
+/** One weekly limit of one account, with one entry per requested day. */
+export interface ActivityTracker {
+  accountId: string;
+  windowId: string;
+  windowLabel: string;
+  currentUsedPercent: number | null;
+  resetsAt: string | null;
+  days: ActivityDay[];
+  /** Weekly resets inside the range, as RFC 3339 instants. */
+  resets: string[];
+}
+
+/** What an account without a weekly limit has instead. */
+export type OtherLimit = "five_hour" | "daily" | "per_minute" | "monthly" | "other";
+
+export interface UntrackedAccount {
+  accountId: string;
+  otherLimits: OtherLimit[];
+}
+
+export interface WeeklyActivity {
+  trackers: ActivityTracker[];
+  untracked: UntrackedAccount[];
+}
+
 export interface AppSettings {
   accountRefreshMinutes: number;
   paseoBridgeEnabled: boolean;

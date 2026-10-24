@@ -10,6 +10,10 @@
 //! `UPDATE_FIXTURES=1 cargo test --manifest-path src-tauri/Cargo.toml --lib type_contract`.
 
 use crate::{
+    history::{
+        activity::{DayQuality, DayUsage},
+        report::{ActivityTracker, OtherLimit, UntrackedAccount, WeeklyActivity},
+    },
     model::{
         Account, AccountBucket, AppUpdateStatus, BridgeStatus, CloudProjectOption,
         DashboardSnapshot, LoginStatus, Provider, UsageFreshness, UsageSnapshot, UsageWindow,
@@ -139,6 +143,59 @@ fn pairing_statuses() -> Vec<PairingStatus> {
     ]
 }
 
+fn weekly_activity_samples() -> Vec<WeeklyActivity> {
+    let day = |used_percent: Option<f64>, quality: DayQuality| DayUsage {
+        used_percent,
+        quality,
+    };
+    vec![
+        WeeklyActivity {
+            trackers: vec![
+                ActivityTracker {
+                    account_id: "account-1".into(),
+                    window_id: "weekly".into(),
+                    window_label: "Weekly".into(),
+                    current_used_percent: Some(42.5),
+                    resets_at: Some("2026-09-07T17:00:00Z".into()),
+                    days: vec![
+                        day(Some(12.5), DayQuality::Measured),
+                        day(Some(3.0), DayQuality::Approximate),
+                        day(None, DayQuality::None),
+                    ],
+                    resets: vec!["2026-09-05T17:00:00Z".into()],
+                },
+                ActivityTracker {
+                    account_id: "account-2".into(),
+                    window_id: "model_gemini".into(),
+                    window_label: "Gemini 4 Argon · Weekly".into(),
+                    current_used_percent: None,
+                    resets_at: None,
+                    days: vec![day(None, DayQuality::None)],
+                    resets: vec![],
+                },
+            ],
+            untracked: vec![
+                UntrackedAccount {
+                    account_id: "account-3".into(),
+                    other_limits: vec![OtherLimit::Daily, OtherLimit::PerMinute],
+                },
+                UntrackedAccount {
+                    account_id: "account-4".into(),
+                    other_limits: vec![
+                        OtherLimit::FiveHour,
+                        OtherLimit::Monthly,
+                        OtherLimit::Other,
+                    ],
+                },
+            ],
+        },
+        WeeklyActivity {
+            trackers: vec![],
+            untracked: vec![],
+        },
+    ]
+}
+
 fn to_json<T: serde::Serialize>(values: &[T]) -> Value {
     Value::Array(
         values
@@ -189,6 +246,7 @@ fn samples() -> Value {
                 unprotected_account_ids: vec![],
             },
         ]),
+        "WeeklyActivity": to_json(&weekly_activity_samples()),
         "PairingStatus": to_json(&pairing_statuses()),
         "PairingHostInit": to_json(&[PairingHostInit {
             session_id: "session-1".into(),

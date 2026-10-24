@@ -1,4 +1,5 @@
 use crate::{
+    history::HistoryStore,
     model::{Account, LoginStatus, ProviderSecret},
     refresh_backoff::RefreshBackoff,
     store::account_order::AccountOrderStore,
@@ -66,6 +67,8 @@ pub struct AppState {
     pub alerts: AlertStore,
     pub buckets: BucketStore,
     pub settings: SettingsStore,
+    /// Weekly usage readings for the Activity page.
+    pub history: HistoryStore,
     pub client: Client,
     pub pending_login: RwLock<Option<LoginStatus>>,
     pub pending_auth_exchange: Mutex<Option<PendingAuthExchange>>,
@@ -123,6 +126,8 @@ impl AppState {
         let settings = load_with_metadata_recovery(&data_dir, "app-settings.json", || {
             SettingsStore::load(&data_dir)
         })?;
+        // Cannot fail: unreadable history is set aside and the app starts without it.
+        let history = HistoryStore::load(&data_dir);
         let client = Client::builder()
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(15))
@@ -135,6 +140,7 @@ impl AppState {
             alerts,
             buckets,
             settings,
+            history,
             client,
             pending_login: RwLock::new(None),
             pending_auth_exchange: Mutex::new(None),
@@ -369,13 +375,14 @@ impl AppState {
         self.account_order.remove(account_id)?;
         self.alerts.remove(account_id)?;
         self.buckets.cleanup_account(account_id)?;
+        self.history.remove_account(account_id)?;
         Ok(())
     }
 
     /// Removes every account with its saved sign-in, then what is left over: bucket groups, the
-    /// account order, alert settings, the deleted-account list, and all settings. Accounts go one
-    /// at a time through `remove_account`, so a failure part-way leaves the rest of the data as it
-    /// was and can simply be tried again.
+    /// account order, alert settings, the activity history, the deleted-account list, and all
+    /// settings. Accounts go one at a time through `remove_account`, so a failure part-way leaves
+    /// the rest of the data as it was and can simply be tried again.
     pub async fn delete_all_local_data(&self) -> Result<(), String> {
         for account in self.store.list() {
             self.remove_account(&account.id).await?;
@@ -384,6 +391,7 @@ impl AppState {
         self.account_order.clear()?;
         self.alerts.clear()?;
         self.buckets.clear()?;
+        self.history.clear()?;
         self.settings.reset()?;
         Ok(())
     }
@@ -419,7 +427,10 @@ where
     }
 }
 
-fn quarantine_metadata_file(data_dir: &Path, file_name: &str) -> Result<Option<PathBuf>, String> {
+pub(crate) fn quarantine_metadata_file(
+    data_dir: &Path,
+    file_name: &str,
+) -> Result<Option<PathBuf>, String> {
     let source = data_dir.join(file_name);
     if !source.exists() {
         return Ok(None);

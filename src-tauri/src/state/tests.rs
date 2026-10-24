@@ -465,3 +465,118 @@ fn update_login_account_updates_completed_login() {
         Some("ChatGPT Plus".into())
     );
 }
+
+/// An account whose last refresh was live and reported a weekly window, so it has a tracker.
+fn account_with_weekly_usage(id: &str) -> Account {
+    use crate::model::{UsageFreshness, UsageSnapshot, UsageWindow, WindowKind};
+    let now = crate::model::now_rfc3339();
+    Account {
+        id: id.into(),
+        label: id.into(),
+        provider: crate::model::Provider::Anthropic,
+        email: None,
+        provider_account_id: None,
+        chatgpt_account_id: None,
+        plan: None,
+        created_at: now.clone(),
+        updated_at: now.clone(),
+        last_usage: Some(UsageSnapshot {
+            plan: None,
+            email: None,
+            windows: vec![UsageWindow {
+                id: "weekly".into(),
+                label: "Weekly".into(),
+                used_percent: Some(10.0),
+                remaining_percent: Some(90.0),
+                resets_at: None,
+                window_seconds: Some(crate::model::WEEKLY_WINDOW_SECONDS),
+                kind: Some(WindowKind::Weekly),
+            }],
+            credits_usd: None,
+            unlimited_credits: false,
+            fetched_at: now,
+            freshness: UsageFreshness::Live,
+            source: "test".into(),
+        }),
+        last_error: None,
+        auth_required: false,
+    }
+}
+
+fn recorded_readings(state: &AppState, account_id: &str) -> usize {
+    let key = crate::history::tracker_key(account_id, "weekly");
+    state
+        .history
+        .readings(std::slice::from_ref(&key), 0)
+        .remove(&key)
+        .map_or(0, |readings| readings.len())
+}
+
+#[tokio::test]
+async fn removing_an_account_forgets_its_activity_history_and_only_its_own() {
+    let directory = tempfile::tempdir().unwrap();
+    let state =
+        Arc::new(AppState::new(directory.path().to_path_buf(), "test-token".into()).unwrap());
+    for id in ["state-history-gone", "state-history-kept"] {
+        let account = account_with_weekly_usage(id);
+        state.store.upsert(account.clone()).unwrap();
+        state.history.record(&account).unwrap();
+    }
+    assert_eq!(recorded_readings(&state, "state-history-gone"), 1);
+
+    state.remove_account("state-history-gone").await.unwrap();
+
+    assert_eq!(recorded_readings(&state, "state-history-gone"), 0);
+    assert_eq!(recorded_readings(&state, "state-history-kept"), 1);
+    // The removal reached the disk too.
+    let reopened = AppState::new(directory.path().to_path_buf(), "test-token".into()).unwrap();
+    assert_eq!(recorded_readings(&reopened, "state-history-gone"), 0);
+    assert_eq!(recorded_readings(&reopened, "state-history-kept"), 1);
+}
+
+#[tokio::test]
+async fn deleting_all_local_data_deletes_the_activity_history() {
+    let directory = tempfile::tempdir().unwrap();
+    let state =
+        Arc::new(AppState::new(directory.path().to_path_buf(), "test-token".into()).unwrap());
+    let account = account_with_weekly_usage("state-history-wipe");
+    state.store.upsert(account.clone()).unwrap();
+    state.history.record(&account).unwrap();
+    // History of an account that is already gone from the list is deleted as well.
+    state
+        .history
+        .record(&account_with_weekly_usage("state-history-orphan"))
+        .unwrap();
+    let history_files = || {
+        fs::read_dir(directory.path().join("activity-history"))
+            .unwrap()
+            .count()
+    };
+    assert_eq!(history_files(), 1);
+
+    state.delete_all_local_data().await.unwrap();
+
+    assert_eq!(recorded_readings(&state, "state-history-wipe"), 0);
+    assert_eq!(recorded_readings(&state, "state-history-orphan"), 0);
+    assert_eq!(history_files(), 0);
+}
+
+#[tokio::test]
+async fn clearing_cached_usage_keeps_the_activity_history() {
+    let directory = tempfile::tempdir().unwrap();
+    let state =
+        Arc::new(AppState::new(directory.path().to_path_buf(), "test-token".into()).unwrap());
+    let account = account_with_weekly_usage("state-history-cache");
+    state.store.upsert(account.clone()).unwrap();
+    state.history.record(&account).unwrap();
+
+    state.store.clear_cached_usage().unwrap();
+
+    assert!(state
+        .store
+        .get("state-history-cache")
+        .unwrap()
+        .last_usage
+        .is_none());
+    assert_eq!(recorded_readings(&state, "state-history-cache"), 1);
+}

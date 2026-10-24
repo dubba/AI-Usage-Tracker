@@ -64,6 +64,8 @@
     "allow-set-autostart",
     "allow-clear-cached-usage",
     "allow-delete-all-local-data",
+    "allow-get-weekly-activity",
+    "allow-clear-activity-history",
     "allow-set-api-integration-enabled",
     "allow-open-api-integration-window",
     "allow-reorder-accounts",
