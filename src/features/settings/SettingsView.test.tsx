@@ -107,6 +107,19 @@ describe("SettingsView accessibility", () => {
     }
   });
 
+  it("puts the data controls in Advanced, above Diagnostics", () => {
+    app = mount(view());
+    expect(document.body.textContent).not.toContain("Refresh Usage");
+    openAdvanced();
+    const titles = [...document.querySelectorAll(".settings-section-title")].map((el) => el.textContent?.replace(/\s+/g, " ").trim());
+    expect(titles).not.toContain("Data");
+    const cards = [...document.querySelectorAll("#settings-advanced-content > .settings-card")];
+    expect(cards[0]?.textContent).toContain("Refresh Usage");
+    expect(cards[0]?.textContent).toContain("Delete Local App Data");
+    expect(cards[1]?.textContent).toContain("Diagnostics");
+    act(() => document.querySelector<HTMLButtonElement>(".settings-advanced-toggle")!.click());
+  });
+
   it("remembers whether the Advanced section is expanded or collapsed", () => {
     app = mount(view());
     const toggle = () => document.querySelector<HTMLButtonElement>(".settings-advanced-toggle")!;

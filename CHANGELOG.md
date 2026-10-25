@@ -1,6 +1,21 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (6 changes)
+
+### Added (1)
+
+- On the Usage page, pulling down from the top on mobile now refreshes usage across all accounts and reloads the charts, matching the dashboard's pull-to-refresh gesture.
+
+### Improved (3)
+
+- On the Usage page, Antigravity cards show the model family and leave off the weekly limit name.
+- In Settings, "Clear Cached Usage" is renamed to "Refresh Usage" with a Refresh button, "Delete All Local Data" is renamed to "Delete Local App Data", and the descriptions for Refresh Usage, Clear Usage History, and Delete Local App Data have been clarified.
+- In Settings, Refresh Usage, Clear Usage History, and Delete Local App Data are in Advanced, above Diagnostics.
+
+### Fixed (2)
+
+- On a phone, scrolling to the end of a page keeps the last rows above the Usage, Accounts and Settings bar. On Android the page also sits below the status bar and above the system navigation bar.
+- Account cards with three or more rows of limits (such as Antigravity with Gemini, Other, and Argon) now keep uniform vertical spacing across all rows, so the gap above subsequent limits matches the gap above earlier ones.
 
 ## v0.5.3 - 2026-10-24 (9 changes)
 

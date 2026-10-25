@@ -37,35 +37,41 @@ function render(props: Partial<Parameters<typeof DataSection>[0]> = {}) {
 }
 
 describe("DataSection", () => {
-  it("clears cached usage on one click and then lets the app reload it", async () => {
+  it("clears cached usage and refreshes all accounts on one click", async () => {
     const { onUsageCleared, onAllDataDeleted } = render();
-    expect(document.querySelector("h2")?.textContent).toBe("Data");
+    expect(document.querySelector("h2")).toBeNull();
+    expect(document.body.textContent).toContain("Refresh Usage");
+    expect(document.body.textContent).toContain("Clears cached usage data and fetches fresh usage for all accounts.");
 
-    click(button("Clear"));
+    click(button("Refresh"));
     await flush();
 
     expect(api.clearCachedUsage).toHaveBeenCalledTimes(1);
     expect(onUsageCleared).toHaveBeenCalledTimes(1);
-    expect(button("Cleared!")).toBeTruthy();
+    expect(button("Refreshed!")).toBeTruthy();
+    expect(document.querySelector("[role=status]")?.textContent).toBe("Usage refreshed.");
     expect(api.deleteAllLocalData).not.toHaveBeenCalled();
     expect(onAllDataDeleted).not.toHaveBeenCalled();
   });
 
-  it("shows why clearing failed and does not report success", async () => {
+  it("shows why refreshing failed and does not report success", async () => {
     api.clearCachedUsage.mockRejectedValue(new Error("disk full"));
     const { onUsageCleared } = render();
 
-    click(button("Clear"));
+    click(button("Refresh"));
     await flush();
 
-    expect(document.querySelector("[role=alert]")?.textContent).toContain("disk full");
+    expect(document.querySelector("[role=alert]")?.textContent).toBe("Couldn't refresh usage: disk full");
     expect(onUsageCleared).not.toHaveBeenCalled();
-    expect(button("Clear")).toBeTruthy();
+    expect(button("Refresh")).toBeTruthy();
   });
 
   it("clears the usage history on one click, without touching cached usage", async () => {
     const { onUsageCleared, onAllDataDeleted } = render();
     expect(document.body.textContent).toContain("Clear Usage History");
+    expect(document.body.textContent).toContain(
+      "Deletes your Usage chart history and restarts tracking. Accounts remains unchanged.",
+    );
 
     click(byLabel("Clear usage history"));
     await flush();
@@ -76,7 +82,7 @@ describe("DataSection", () => {
     expect(api.deleteAllLocalData).not.toHaveBeenCalled();
     expect(onAllDataDeleted).not.toHaveBeenCalled();
     expect(byLabel("Clear usage history").textContent).toBe("Cleared!");
-    expect(byLabel("Clear cached usage").textContent).toBe("Clear");
+    expect(byLabel("Refresh usage").textContent).toBe("Refresh");
     expect(document.querySelector("[role=status]")?.textContent).toBe("Usage history cleared.");
   });
 
@@ -107,15 +113,15 @@ describe("DataSection", () => {
     expect(document.querySelector("[role=alert]")?.textContent).toBe("Couldn't clear usage history: disk full");
     expect(byLabel("Clear usage history").textContent).toBe("Clear");
     expect(document.querySelector("[role=status]")?.textContent).toBe("");
-    // The cached usage row is unaffected, and a later success clears the message.
-    click(byLabel("Clear cached usage"));
+    // The refresh usage row is unaffected, and a later success clears the message.
+    click(byLabel("Refresh usage"));
     await flush();
     expect(document.querySelector("[role=alert]")).toBeNull();
   });
 
   it("says that deleting everything removes the usage history too", () => {
     render();
-    expect(document.body.textContent).toContain("usage snapshots, usage history, and settings");
+    expect(document.body.textContent).toContain("Remove all accounts, usage history, and settings from this device.");
     click(button("Delete"));
     expect(document.querySelector("[role=alertdialog]")?.textContent).toContain("usage snapshots, usage history, groups");
   });

@@ -40,6 +40,17 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
+/** onPageFinished runs on the WebView client. The view's context may be the activity or a wrapper around it. */
+fun reapplyWindowInsetsFrom(view: WebView) {
+  var ctx = view.context
+  while (ctx is android.content.ContextWrapper && ctx !is MainActivity) {
+    val next = ctx.baseContext ?: break
+    if (next === ctx) break
+    ctx = next
+  }
+  if (ctx is MainActivity) ctx.reapplyWindowInsets()
+}
+
 class MainActivity : TauriActivity() {
   companion object {
     private const val TAG = "AIUsagePairing"
@@ -201,15 +212,32 @@ class MainActivity : TauriActivity() {
       webView.settings.userAgentString = ua.replace("; wv", "")
     }
     applyInsetsToWebView()
+    // The view may not be in the hierarchy yet. Ask again once it is attached,
+    // so the listener below runs with the real status and navigation insets.
+    webView.post { ViewCompat.requestApplyInsets(window.decorView) }
+  }
+
+  /**
+   * Writes the latest system insets onto the app page. The decor view listener can
+   * run before that document exists, and a load replaces the document, so the
+   * WebView client calls this again from onPageFinished.
+   */
+  fun reapplyWindowInsets() {
+    applyInsetsToWebView()
   }
 
   private fun applyInsetsToWebView() {
     val wv = activeWebView ?: return
+    // Provider sign-in pages do not use these variables. Skip them so this script
+    // is not injected into accounts.google.com and the other login hosts.
+    if (!isAppShellUrl(wv.url)) return
     wv.post {
+      if (!isAppShellUrl(wv.url)) return@post
       val js = """
         (function() {
-          var root = document.documentElement;
-          if (root) {
+          function apply() {
+            var root = document.documentElement;
+            if (!root) return;
             root.style.setProperty('--android-safe-top', '${safeTopDp}px');
             root.style.setProperty('--android-safe-bottom', '${safeBottomDp}px');
             root.style.setProperty('--android-keyboard-height', '${safeImeDp}px');
@@ -219,6 +247,8 @@ class MainActivity : TauriActivity() {
               root.classList.remove('keyboard-active');
             }
           }
+          apply();
+          document.addEventListener('DOMContentLoaded', apply, { once: true });
         })();
       """.trimIndent()
       wv.evaluateJavascript(js, null)
@@ -383,6 +413,9 @@ class MainActivity : TauriActivity() {
       }
       windowInsets
     }
+    // enableEdgeToEdge can dispatch insets before this listener exists. Ask again
+    // after the decor view is laid out, or the page keeps a 0px status-bar inset.
+    window.decorView.post { ViewCompat.requestApplyInsets(window.decorView) }
 
     handlePairingIntent(intent)
     handleUpdateIntent(intent)

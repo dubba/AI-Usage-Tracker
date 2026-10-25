@@ -8,6 +8,13 @@ import { formatDayPercent } from "./activity-format";
 import type { ActivityPeriod } from "./activity-period";
 import { DailyBars } from "./DailyBars";
 
+/** "Gemini Models · Weekly Limit Remaining" -> "Gemini Models". A name with no family stays whole. */
+function antigravityFamilyLabel(windowLabel: string): string {
+  const splitAt = windowLabel.indexOf(" · ");
+  if (splitAt <= 0) return windowLabel.trim();
+  return windowLabel.slice(0, splitAt).trim();
+}
+
 /** One weekly limit of one account: who and when it resets, how much is used, and the daily bars. */
 export function WeeklyTracker({
   tracker,
@@ -28,8 +35,7 @@ export function WeeklyTracker({
   const used = tracker.currentUsedPercent;
   const tone = usageTone(used == null ? null : 100 - used);
   const needsSignIn = account.authRequired || account.lastUsage?.freshness === "auth_required";
-  // Antigravity has a weekly limit per model family, so its cards say which one this is.
-  const limitName = account.provider === "antigravity" ? tracker.windowLabel : null;
+  const limitName = account.provider === "antigravity" ? antigravityFamilyLabel(tracker.windowLabel) : null;
   const reset = formatResetAtShort(tracker.resetsAt);
   const details = [displayPlan(account), reset ? `resets ${reset}` : null].filter(Boolean).join(" · ");
   const chartName = limitName ? `${label} ${limitName}` : label;

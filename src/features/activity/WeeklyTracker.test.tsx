@@ -67,15 +67,35 @@ describe("WeeklyTracker", () => {
     expect(root.querySelector(".activity-card-total strong")!.getAttribute("aria-label")).toBe("42% of the weekly limit used");
   });
 
-  it("says which limit it is on an Antigravity card, and not on others", () => {
-    const tracker = makeTracker({ accountId: "a1", windowId: "gemini", windowLabel: "Gemini 4 Argon · Weekly" });
-    const antigravity = render(makeAccount({ id: "a1", provider: "antigravity", label: "Antigravity" }), tracker);
-    expect(text(antigravity, ".activity-card-limit")).toBe("Gemini 4 Argon · Weekly");
-    expect(antigravity.querySelector('.activity-bars[role="img"]')!.getAttribute("aria-label")).toContain("Antigravity Gemini 4 Argon · Weekly, last 7 days");
+  it("names the Antigravity model family and leaves off the weekly limit", () => {
+    const families = [
+      ["Gemini Models · Weekly Limit Remaining", "Gemini Models"],
+      ["Claude and GPT models · Weekly Limit Remaining", "Claude and GPT models"],
+      ["Gemini 4 Argon · Weekly Limit", "Gemini 4 Argon"],
+    ] as const;
+    for (const [windowLabel, family] of families) {
+      const root = render(
+        makeAccount({ id: "a1", provider: "antigravity", label: "Antigravity" }),
+        makeTracker({ accountId: "a1", windowId: "gemini", windowLabel }),
+      );
+      expect(text(root, ".activity-card-limit")).toBe(family);
+      expect(root.querySelector('.activity-bars[role="img"]')!.getAttribute("aria-label")).toContain(`Antigravity ${family}, last 7 days`);
+      mounted!.unmount();
+      mounted = null;
+    }
+
+    const bare = render(
+      makeAccount({ id: "a1", provider: "antigravity", label: "Antigravity" }),
+      makeTracker({ accountId: "a1", windowLabel: "Weekly Limit Remaining" }),
+    );
+    expect(text(bare, ".activity-card-limit")).toBe("Weekly Limit Remaining");
     mounted!.unmount();
     mounted = null;
 
-    const claude = render(makeAccount({ id: "a1", label: "Work Claude" }), tracker);
+    const claude = render(
+      makeAccount({ id: "a1", label: "Work Claude" }),
+      makeTracker({ accountId: "a1", windowLabel: "Gemini Models · Weekly Limit Remaining" }),
+    );
     expect(claude.querySelector(".activity-card-limit")).toBeNull();
   });
 

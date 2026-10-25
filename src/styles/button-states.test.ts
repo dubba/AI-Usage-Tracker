@@ -63,11 +63,13 @@ describe("Button hover and active state invariants", () => {
     expect(UI_REFINEMENTS_CSS).toContain("html[data-sidebar-toggle-stacked] .provider-window-toggle button:last-child[data-tooltip]::after");
   });
 
-  it("sizes group header controls to prevent inflating dashboard-title-row above eyebrow line-height", () => {
-    // Eyebrow heading line-height is 1.15 on 15px font (~17.25px).
-    // The bucket pill (16px) and edit button (17px) must not exceed this height,
-    // ensuring the header divider line aligns identically between group views and provider views.
+  it("keeps the group title pen at the account-card size without stretching the title row", () => {
+    // The pen matches .account-name-edit (24px). On a wide window the title row is locked
+    // to the eyebrow line (15px * 1.15) so the subtitle and divider stay with the other views.
     expect(OBSIDIAN_CSS).toMatch(/\.dashboard-bucket-pill\s*\{[^}]*height:\s*16px/);
-    expect(UI_REFINEMENTS_CSS).toMatch(/\.edit-bucket-title-btn\s*\{[^}]*height:\s*17px\s*!important/);
+    expect(UI_REFINEMENTS_CSS).toMatch(/\.edit-bucket-title-btn\s*\{[^}]*height:\s*24px\s*!important/);
+    expect(UI_REFINEMENTS_CSS).toMatch(
+      /@media \(min-width: 861px\)\s*\{\s*\.dashboard-header \.dashboard-title-row:has\(\.edit-bucket-title-btn\)\s*\{\s*height:\s*calc\(15px \* 1\.15\);/,
+    );
   });
 });

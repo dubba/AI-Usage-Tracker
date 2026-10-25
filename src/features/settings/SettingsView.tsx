@@ -85,8 +85,6 @@ export function SettingsView({
           </div>
         </section>
 
-        <DataSection onUsageCleared={onUsageCleared} onAllDataDeleted={onAllDataDeleted} />
-
         <h2 className="settings-section-title">
           <button
             type="button"
@@ -102,6 +100,7 @@ export function SettingsView({
 
         {advancedOpen ? (
           <div id="settings-advanced-content" className="settings-advanced-group">
+            <DataSection onUsageCleared={onUsageCleared} onAllDataDeleted={onAllDataDeleted} />
             <section className="settings-card">
               <div className="settings-row">
                 <div>

@@ -632,7 +632,8 @@
   border-left: 0;
 }
 
-.provider-account-card .account-card-metrics.multi-row-metrics .account-usage-metric:nth-child(-n+2) {
+.provider-account-card .account-card-metrics.multi-row-metrics .account-usage-metric:not(:last-child):not(:nth-child(odd):nth-last-child(2)),
+.provider-account-card .account-card-metrics:not(.two-column-metrics) .account-usage-metric:not(:last-child) {
   padding-bottom: 12px;
 }
 

@@ -38,6 +38,7 @@ import {
 } from "../features/dashboard/sidebar-groups";
 import { moveAnnouncement, moveById } from "../features/reorder/reorder-utils";
 import { requestDashboardResync } from "../shared/lib/events";
+import { bridgeApi } from "../shared/lib/api";
 import { clearAppStorage } from "../shared/lib/storage";
 import type { Account, AccountBucket, Provider } from "../types";
 import { AppModals } from "./AppModals";
@@ -271,8 +272,17 @@ export default function App() {
   const handleUsageCleared = useCallback(async () => {
     // Show the accounts without usage first, then fill them in again.
     await load();
-    void refreshAll();
+    await refreshAll();
   }, [load, refreshAll]);
+  const handleRefreshUsage = useCallback(async () => {
+    try {
+      await bridgeApi.clearCachedUsage();
+      await handleUsageCleared();
+      clearError("refresh-usage");
+    } catch (cause) {
+      reportError("refresh-usage", cause, "Couldn't refresh usage");
+    }
+  }, [handleUsageCleared, clearError, reportError]);
   // Everything the backend kept is gone; the saved layout goes too, and the reload makes every
   // screen and in-memory store start over instead of showing removed accounts.
   const handleAllDataDeleted = useCallback(() => {
@@ -315,6 +325,7 @@ export default function App() {
           sidebarOpen={sidebarOpen}
           onAddAccount={() => openAdd()}
           onReconnect={(account) => account.provider === "google_ai_studio" ? setGoogleUsageAccount(account) : openAdd(account)}
+          onRefresh={accounts.length === 0 ? undefined : handleRefreshUsage}
         />
       );
     }

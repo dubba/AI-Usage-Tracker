@@ -35,7 +35,7 @@ That has one consequence for what they can style. A few global rules are unlayer
 
 The layered files set those properties with `!important`, which inverts the order (a layered `!important` beats an unlayered one, as the section on `!important` below says), and each file says so in its header. That is a different thing from winning a specificity fight: nothing else in them needs `!important`, because every class is new. If those global rules move into `@layer base` one day, the `!important`s can go.
 
-`--bottom-nav-height` is how the bar and the page shell agree. `.app-shell.has-bottom-nav` sets it while the bar shows, and the unlayered mobile rules for `.main-stage` and `.dashboard-content` (`obsidian-dashboard.css`) and the toasts (`ui-refinements.css`) subtract it with a `0px` fallback, so no layered rule has to override their heights.
+`--bottom-nav-height` is how the bar and the page shell agree. `.app-shell.has-bottom-nav` sets it while the bar shows. The mobile calc in `obsidian-dashboard.css` does not survive: `ui-refinements.css` later sets `.main-stage` to `height: 100%`, so the rule that actually shortens the stage is the `.has-bottom-nav` one after that, in the same file. The toasts there subtract the variable too, with a `0px` fallback. No layered rule has to override those heights.
 
 ## Breakpoints
 

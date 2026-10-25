@@ -258,6 +258,7 @@ export function BucketModal({
                       disabled={busy}
                       onChange={() => toggleAccount(account.id)}
                     />
+                    <span className="bucket-account-check" aria-hidden="true" />
                     <span className={`bucket-account-provider-icon provider-${account.provider}`}>
                       <ProviderIcon provider={account.provider} />
                     </span>

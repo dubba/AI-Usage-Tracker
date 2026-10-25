@@ -137,25 +137,30 @@
   position: relative;
 }
 
-/* Edit Group title pen button: sized to 17px to sit beside .dashboard-header h1.eyebrow
-   (15px font, 17.25px line-height) so .dashboard-title-row maintains the exact same
-   height and divider line position as provider account views. Touch target stays 44px
-   via ::before. */
+/* Same 24px box as the account-card pen. On a wide window the title row stays the
+   eyebrow line (15px * 1.15), so this button hangs out of the row instead of pushing
+   the subtitle and the divider down. Touch target stays 44px via ::before. */
 .edit-bucket-title-btn {
   display: inline-grid;
   place-items: center;
   box-sizing: border-box;
-  width: 17px;
-  height: 17px !important;
-  min-width: 17px !important;
-  min-height: 17px !important;
+  width: 24px;
+  height: 24px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
   padding: 0;
   border-width: 1px;
   border-style: solid;
-  border-radius: 3px;
+  border-radius: 4px;
   cursor: pointer;
   vertical-align: middle;
   position: relative;
+}
+
+@media (min-width: 861px) {
+  .dashboard-header .dashboard-title-row:has(.edit-bucket-title-btn) {
+    height: calc(15px * 1.15);
+  }
 }
 
 .account-name-edit::before,
@@ -195,14 +200,10 @@
 .account-name-edit svg,
 .account-name-confirm svg,
 .account-name-confirm .mini-spinner,
-.account-name-cancel svg {
+.account-name-cancel svg,
+.edit-bucket-title-btn svg {
   width: 13px !important;
   height: 13px !important;
-}
-
-.edit-bucket-title-btn svg {
-  width: 10px !important;
-  height: 10px !important;
 }
 
 .account-name-edit svg,
@@ -737,6 +738,21 @@ html[data-sidebar-toggle-stacked] .provider-window-toggle button:last-child[data
   min-height: 0;
   height: 100%;
   overflow: hidden;
+}
+
+/* height: 100% above fills the shell, so the page runs under the bottom bar. Shorten the
+   stage while that bar is showing. Its height already includes the system navigation
+   inset, so the scroll only needs a little room past the last row. padding-bottom is
+   !important because the mobile .dashboard-scroll padding shorthand already is. */
+@media (max-width: 860px) {
+  .obsidian-shell.has-bottom-nav .main-stage {
+    height: calc(100vh - var(--bottom-nav-height, 0px));
+    height: calc(100dvh - var(--bottom-nav-height, 0px));
+  }
+
+  .obsidian-shell.has-bottom-nav .dashboard-scroll {
+    padding-bottom: 16px !important;
+  }
 }
 
 /* The resize handle and its tooltip stick out past the sidebar's right edge. With overflow:

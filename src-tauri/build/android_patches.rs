@@ -352,9 +352,32 @@ pub(super) fn patch_chrome_client(content: &str) -> String {
 }
 
 pub(super) fn patch_webview_client(content: &str) -> String {
-    if content.contains("browser_fallback_url") {
+    let patched = if content.contains("browser_fallback_url") {
+        content.to_string()
+    } else {
+        patch_webview_client_navigation(content)
+    };
+    patch_webview_client_insets(&patched)
+}
+
+/// The inset listener often runs before the document exists, and a navigation
+/// drops the CSS variables it wrote. Reapply them once the page has loaded.
+fn patch_webview_client_insets(content: &str) -> String {
+    if content.contains("reapplyWindowInsetsFrom(view)") {
         return content.to_string();
     }
+    let needle = "        Rust.onPageLoaded((view as RustWebView).id, url)\n";
+    if !content.contains(needle) {
+        return content.to_string();
+    }
+    content.replacen(
+        needle,
+        "        Rust.onPageLoaded((view as RustWebView).id, url)\n        reapplyWindowInsetsFrom(view)\n",
+        1,
+    )
+}
+
+fn patch_webview_client_navigation(content: &str) -> String {
     let mut patched = content.to_string();
     if !patched.contains("import android.content.Intent") {
         patched = patched.replace(

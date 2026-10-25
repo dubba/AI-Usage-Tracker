@@ -395,4 +395,60 @@ describe("ActivityView", () => {
     click(select(root, ".activity-card-notice button")[0]);
     expect(onReconnect).toHaveBeenCalledWith(stale);
   });
+
+  describe("pull to refresh", () => {
+    function createTouchEvent(type: string, target: Element, clientX: number, clientY: number) {
+      const touch = { clientX, clientY, identifier: 0, target };
+      return new TouchEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        touches: type === "touchend" || type === "touchcancel" ? [] : [touch as unknown as Touch],
+        targetTouches: type === "touchend" || type === "touchcancel" ? [] : [touch as unknown as Touch],
+        changedTouches: [touch as unknown as Touch],
+      });
+    }
+
+    it("triggers onRefresh when pulled down on mobile and reloads activity", async () => {
+      Object.defineProperty(window, "innerWidth", { value: 400, writable: true, configurable: true });
+      Object.defineProperty(window, "ontouchstart", { value: {}, writable: true, configurable: true });
+
+      const onRefresh = vi.fn().mockResolvedValue(undefined);
+      const { root } = renderView([work], { onRefresh });
+      await settle();
+
+      const container = root.querySelector(".content-scroll")!;
+      act(() => {
+        container.dispatchEvent(createTouchEvent("touchstart", container, 100, 100));
+        window.dispatchEvent(createTouchEvent("touchmove", container, 100, 260));
+      });
+
+      const indicator = root.querySelector(".pull-to-refresh-indicator");
+      expect(indicator).not.toBeNull();
+      expect(indicator?.classList.contains("is-primed")).toBe(true);
+
+      await act(async () => {
+        window.dispatchEvent(createTouchEvent("touchend", container, 100, 260));
+      });
+
+      expect(onRefresh).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not enable pull-to-refresh when there are no accounts", async () => {
+      Object.defineProperty(window, "innerWidth", { value: 400, writable: true, configurable: true });
+      Object.defineProperty(window, "ontouchstart", { value: {}, writable: true, configurable: true });
+
+      const onRefresh = vi.fn().mockResolvedValue(undefined);
+      const { root } = renderView([], { onRefresh });
+      await settle();
+
+      const container = root.querySelector(".content-scroll")!;
+      act(() => {
+        container.dispatchEvent(createTouchEvent("touchstart", container, 100, 100));
+        window.dispatchEvent(createTouchEvent("touchmove", container, 100, 260));
+      });
+
+      expect(root.querySelector(".pull-to-refresh-indicator")).toBeNull();
+      expect(onRefresh).not.toHaveBeenCalled();
+    });
+  });
 });

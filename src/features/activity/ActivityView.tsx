@@ -1,6 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
 import { BarChartIcon } from "../../shared/ui/icons";
+import { PullToRefreshIndicator } from "../dashboard/PullToRefreshIndicator";
+import { usePullToRefresh } from "../dashboard/usePullToRefresh";
 import type { Account, ActivityTracker, UntrackedAccount } from "../../types";
 import { ACTIVITY_PERIODS, ACTIVITY_PERIOD_DAYS, type ActivityPeriod } from "./activity-period";
 import { NoWeeklyLimitCard } from "./NoWeeklyLimitCard";
@@ -72,6 +74,7 @@ export function ActivityView({
   sidebarOpen,
   onAddAccount,
   onReconnect,
+  onRefresh,
 }: {
   /** The accounts in the order the All accounts page shows them. */
   accounts: readonly Account[];
@@ -79,13 +82,29 @@ export function ActivityView({
   sidebarOpen?: boolean;
   onAddAccount: () => void;
   onReconnect?: (account: Account) => void;
+  onRefresh?: () => void | Promise<void>;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
   const [period, setPeriod] = useActivityPeriod();
   const refreshKey = useMemo(() => refreshKeyOf(accounts), [accounts]);
   const { data, error, reload } = useWeeklyActivity({
     dayCount: ACTIVITY_PERIOD_DAYS[period],
     refreshKey,
     enabled: accounts.length > 0,
+  });
+
+  const pullData = usePullToRefresh({
+    containerRef,
+    scrollRef,
+    onRefresh: onRefresh
+      ? async () => {
+          await onRefresh();
+          await reload();
+        }
+      : undefined,
+    disabled: !onRefresh || accounts.length === 0,
   });
 
   const accountById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts]);
@@ -179,7 +198,8 @@ export function ActivityView({
   };
 
   return (
-    <div className="content-scroll dashboard-content activity-content">
+    <div ref={containerRef} className="content-scroll dashboard-content activity-content">
+      <PullToRefreshIndicator data={pullData} />
       <header className="dashboard-header">
         <div className="activity-header-main">
           <div className="dashboard-title-row activity-title-row">
@@ -190,7 +210,7 @@ export function ActivityView({
           <p className="dashboard-description">How much of each weekly limit you used on each day.</p>
         </div>
       </header>
-      <div className="dashboard-scroll">{renderBody()}</div>
+      <div ref={scrollRef} className="dashboard-scroll">{renderBody()}</div>
     </div>
   );
 }

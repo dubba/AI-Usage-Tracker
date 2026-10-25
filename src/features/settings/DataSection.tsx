@@ -66,7 +66,7 @@ export function DataSection({
       await bridgeApi.clearCachedUsage();
       await onUsageCleared();
     },
-    "Couldn't clear cached usage",
+    "Couldn't refresh usage",
     setFailure,
   );
   const [historyState, clearHistory] = useClearAction(
@@ -90,28 +90,27 @@ export function DataSection({
 
   return (
     <>
-      <h2 className="settings-section-title">Data</h2>
       <section className="settings-card">
         <div className="settings-row">
           <div>
-            <strong>Clear Cached Usage</strong>
-            <small>Removes stored usage snapshots but keeps your accounts. Fresh usage loads right away.</small>
+            <strong>Refresh Usage</strong>
+            <small>Clears cached usage data and fetches fresh usage for all accounts.</small>
           </div>
           <button
             type="button"
             className="button ghost settings-changelog-button"
-            aria-label="Clear cached usage"
+            aria-label="Refresh usage"
             disabled={clearState === "clearing"}
             onClick={() => void clearUsage()}
           >
-            <span>{clearState === "clearing" ? "Clearing…" : clearState === "cleared" ? "Cleared!" : "Clear"}</span>
+            <span>{clearState === "clearing" ? "Refreshing…" : clearState === "cleared" ? "Refreshed!" : "Refresh"}</span>
             {clearState === "cleared" ? <CheckIcon /> : null}
           </button>
         </div>
         <div className="settings-row">
           <div>
             <strong>Clear Usage History</strong>
-            <small>Removes the daily history shown on the Usage page. Accounts and current usage stay, and tracking starts over.</small>
+            <small>Deletes your Usage chart history and restarts tracking. Accounts remains unchanged.</small>
           </div>
           <button
             type="button"
@@ -126,8 +125,8 @@ export function DataSection({
         </div>
         <div className="settings-row">
           <div>
-            <strong className="settings-danger-title">Delete All Local Data</strong>
-            <small>Removes accounts, saved sign-ins, usage snapshots, usage history, and settings from this device.</small>
+            <strong className="settings-danger-title">Delete Local App Data</strong>
+            <small>Remove all accounts, usage history, and settings from this device.</small>
           </div>
           <button
             type="button"
@@ -141,7 +140,7 @@ export function DataSection({
         </div>
       </section>
       <span className="sr-only" role="status" aria-live="polite">
-        {clearState === "cleared" ? "Cached usage cleared." : historyState === "cleared" ? "Usage history cleared." : ""}
+        {clearState === "cleared" ? "Usage refreshed." : historyState === "cleared" ? "Usage history cleared." : ""}
       </span>
       {failure ? (
         <p className="settings-data-error" role="alert">
@@ -150,8 +149,8 @@ export function DataSection({
       ) : null}
       <ConfirmDialog
         open={confirmingDelete}
-        kicker="Delete all local data"
-        title="Delete all local data?"
+        kicker="Delete local app data"
+        title="Delete local app data?"
         body="Removes every account and its saved sign-in, usage snapshots, usage history, groups, alert settings, and app settings from this device, and replaces the local API token. Your provider accounts are not canceled, other linked devices keep their own copies, and this can't be undone."
         confirmLabel="Delete Everything"
         busyLabel="Deleting…"
