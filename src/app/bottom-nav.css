@@ -9,7 +9,19 @@
  * beats an unlayered one); see docs/CSS_ARCHITECTURE.md. */
 @layer components {
   .app-shell.has-bottom-nav {
-    --bottom-nav-height: calc(56px + var(--safe-area-bottom, 0px));
+    /* How much room the labels leave below them, worked out from the system area at the bottom
+     * so the gap to whatever is there equals the gap above the icons (about 12px as drawn).
+     *  - Buttons (back, home, recents; --android-nav-buttons, set by MainActivity.kt): they fill
+     *    their area, so the labels keep the full 12px above it.
+     *  - A gesture handle or home indicator (the rest of the system area: Android swipe gestures,
+     *    an iPhone with Face ID): a thin line about 14px above the screen's bottom edge, so the
+     *    labels sit 26px above the edge less the 12px gap, i.e. 26px minus the area's height here;
+     *    never under 2px, so they stay out of the area.
+     *  - No system area (a desktop window): the 12px. */
+    --bottom-nav-gesture-zone: calc(var(--safe-area-bottom, 0px) - var(--android-nav-buttons, 0px));
+    --bottom-nav-below: clamp(2px, calc(26px - var(--bottom-nav-gesture-zone)), 12px);
+    /* 10px above the icons + icon 22px + 3px + label 11px, then the space above. */
+    --bottom-nav-height: calc(46px + var(--bottom-nav-below) + var(--safe-area-bottom, 0px));
   }
 
   .bottom-nav {
@@ -21,8 +33,11 @@
     display: flex;
     height: var(--bottom-nav-height, 56px);
     padding: 0 var(--safe-area-right, 0px) var(--safe-area-bottom, 0px) var(--safe-area-left, 0px);
-    background: var(--obsidian-surface-low);
-    border-top: 1px solid var(--border);
+    /* The purple of the title bar and status bar, in both themes, so the bar reads as part of
+     * the app's chrome. Everything on it uses the on-fill colors, which hold their contrast
+     * on this purple whichever theme the page is in. */
+    background: var(--purple-fill);
+    border-top: 1px solid var(--purple-fill-line);
   }
 
   .bottom-nav-item {
@@ -31,13 +46,15 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 3px;
-    padding: 0;
+    /* The 10px gap above the icons; the space below comes from --bottom-nav-below. */
+    padding: 10px 0 0;
     border: 0;
     border-radius: 0;
+    position: relative;
     background: transparent;
-    color: var(--muted) !important;
+    color: var(--purple-on-fill-muted) !important;
     font-size: 11px !important;
     font-weight: 650 !important;
     line-height: 1 !important;
@@ -50,18 +67,37 @@
   }
 
   .bottom-nav-item.is-active {
-    /* The app's purple, as on the page titles and the usage bars. */
-    color: var(--purple-accent) !important;
+    color: var(--purple-on-fill) !important;
+    font-weight: 750 !important;
+  }
+
+  /* Color alone is a weak signal on one hue, so the current page also gets a bar on the
+   * top edge and a heavier label. */
+  .bottom-nav-item.is-active::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 28%;
+    right: 28%;
+    height: 3px;
+    border-radius: 0 0 3px 3px;
+    background: var(--purple-on-fill);
+  }
+
+  /* A light veil, not --purple-fill-hover: the label would drop under 4.5:1 on that lighter purple. */
+  .bottom-nav-item:active {
+    background: rgb(255 255 255 / 0.1);
   }
 
   .bottom-nav-item:focus-visible {
-    outline: 2px solid var(--purple-accent);
+    outline: 2px solid var(--purple-on-fill);
     outline-offset: -3px !important;
   }
 
   @media (hover: hover) and (pointer: fine) {
     .bottom-nav-item:not(.is-active):hover {
-      color: var(--text) !important;
+      color: var(--purple-on-fill) !important;
+      background: rgb(255 255 255 / 0.1);
     }
   }
 }

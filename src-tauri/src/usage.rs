@@ -296,7 +296,11 @@ pub fn emit_alerts_for_account(app: &AppState, account: &Account) {
         return;
     }
     let app_handle = app.app_handle.read().clone();
-    let Some(app_handle) = app_handle else {
+    // A background refresh with no window still owes the user the alert; on
+    // Android it hands the text to the worker, which posts the notification.
+    #[cfg(not(target_os = "android"))]
+    let Some(app_handle) = app_handle
+    else {
         return;
     };
 
@@ -313,6 +317,11 @@ pub fn emit_alerts_for_account(app: &AppState, account: &Account) {
             notification.window_label,
             notification.threshold_percent
         );
+        #[cfg(target_os = "android")]
+        let Some(app_handle) = app_handle.as_ref() else {
+            crate::background_refresh::queue_alert(title, body);
+            continue;
+        };
         #[cfg(target_os = "android")]
         let notify_result =
             crate::platform::lan_binding::post_expandable_notification(&title, &body);

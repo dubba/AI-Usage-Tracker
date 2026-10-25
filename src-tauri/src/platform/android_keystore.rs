@@ -23,8 +23,8 @@ impl SecretCipher for AndroidKeystore {
 const FAILURE: &str = "Secure storage is unavailable.";
 
 fn call(method: &str, data: &[u8], context: &[u8]) -> Result<Vec<u8>, String> {
-    crate::platform::android_context::with_activity(FAILURE, |env, activity| {
-        invoke(env, activity, method, data, context)
+    crate::platform::android_context::with_credential_target(FAILURE, |env, target| {
+        invoke(env, target, method, data, context)
     })
 }
 

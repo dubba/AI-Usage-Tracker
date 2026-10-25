@@ -17,3 +17,8 @@
     public void loadHTMLMainThread(java.lang.String);
     public void clearAllBrowsingData();
 }
+# Called by name over JNI from Rust (background_refresh.rs, android_keystore.rs) and
+# created by WorkManager from its class name.
+-keep class com.dubba.ai.usage.tracker.BackgroundRefreshWorker { *; }
+-keep class com.dubba.ai.usage.tracker.BackgroundRefreshWorker$Companion { *; }
+-keep class com.dubba.ai.usage.tracker.CredentialVault { *; }

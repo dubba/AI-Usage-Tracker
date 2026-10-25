@@ -209,3 +209,24 @@ fn refresh_interval_choices_match_the_settings_page() {
         .collect();
     assert_eq!(offered, OFFERED_REFRESH_MINUTES);
 }
+
+/// The iOS background refresh names its task, and its data folder, in the Rust source;
+/// the app's configuration and `Info.ios.plist` spell the same values. A mismatch
+/// would fail only on a phone: iOS refuses an identifier the plist does not list,
+/// and a wrong folder would read an empty copy of the app's data.
+#[test]
+fn ios_background_refresh_matches_the_app_configuration() {
+    const SOURCE: &str = include_str!("platform/ios_background.rs");
+    const CONFIG: &str = include_str!("../tauri.conf.json");
+    const PLIST: &str = include_str!("../Info.ios.plist");
+    let config: serde_json::Value = serde_json::from_str(CONFIG).unwrap();
+    let bundle_id = config["identifier"].as_str().unwrap();
+    let task_id = format!("{bundle_id}.refresh");
+    assert!(SOURCE.contains(&format!("BUNDLE_IDENTIFIER: &str = \"{bundle_id}\"")));
+    assert!(SOURCE.contains(&format!("TASK_IDENTIFIER: &str = \"{task_id}\"")));
+    assert!(PLIST.contains(&format!("<string>{task_id}</string>")));
+    assert!(PLIST.contains("<key>BGTaskSchedulerPermittedIdentifiers</key>"));
+    assert!(
+        PLIST.contains("<key>UIBackgroundModes</key>") && PLIST.contains("<string>fetch</string>")
+    );
+}

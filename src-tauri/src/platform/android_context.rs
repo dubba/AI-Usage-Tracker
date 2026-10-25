@@ -16,6 +16,10 @@ use parking_lot::{Condvar, Mutex};
 
 static VM: OnceLock<JavaVM> = OnceLock::new();
 static ACTIVITY: Mutex<Option<GlobalRef>> = Mutex::new(None);
+/// `CredentialVault`, handed over by the background refresh worker so the
+/// Keystore works when no activity exists (the phone was rebooted, or Android
+/// ended the app while it was closed).
+static VAULT: Mutex<Option<GlobalRef>> = Mutex::new(None);
 static REGISTERED: Condvar = Condvar::new();
 
 /// The Rust runtime can start before the first activity is created, so a
@@ -41,6 +45,44 @@ pub extern "C" fn Java_com_dubba_ai_usage_tracker_MainActivity_registerActivity(
     // calls keep the previous reference alive until they finish.
     *ACTIVITY.lock() = Some(activity);
     REGISTERED.notify_all();
+}
+
+/// Registers the Java VM and the Keystore helper for a run without an activity
+/// (see `background_refresh.rs`). Safe to call on every run.
+pub fn register_vault(env: &JNIEnv, vault: &JObject) -> Result<(), String> {
+    let vault = env
+        .new_global_ref(vault)
+        .map_err(|_| "Secure storage is unavailable.".to_string())?;
+    if VM.get().is_none() {
+        let vm = env
+            .get_java_vm()
+            .map_err(|_| "Secure storage is unavailable.".to_string())?;
+        let _ = VM.set(vm);
+    }
+    *VAULT.lock() = Some(vault);
+    Ok(())
+}
+
+/// Runs `f` with a JNI environment and the object that implements
+/// `encryptCredential` / `decryptCredential`: the activity when one is
+/// registered, otherwise the vault helper from a background run. Waits for an
+/// activity only when neither exists yet, as at app startup.
+pub fn with_credential_target<T>(
+    unavailable: &str,
+    f: impl FnOnce(&mut JNIEnv, &JObject) -> Result<T, String>,
+) -> Result<T, String> {
+    let vault = if ACTIVITY.lock().is_some() {
+        None
+    } else {
+        VAULT.lock().clone()
+    };
+    let (Some(vault), Some(vm)) = (vault, VM.get()) else {
+        return with_activity(unavailable, f);
+    };
+    let mut env = vm
+        .attach_current_thread()
+        .map_err(|_| unavailable.to_string())?;
+    f(&mut env, vault.as_obj())
 }
 
 /// Runs `f` with a JNI environment attached to the current thread and the

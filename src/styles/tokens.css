@@ -47,6 +47,9 @@
     /* Label color on the fill (same in both themes), on a --purple-text surface, and
      * purple-tinted body text on the page. */
     --purple-on-fill: #f7f4ff;
+    /* The same label color, dimmed, for the unselected items on the fill (still above 4.5:1; the
+     * bottom bar's test checks it). */
+    --purple-on-fill-muted: rgb(247 244 255 / 0.85);
     --purple-on-text: #2d145f;
     --purple-ink: #f7f4ff;
     /* Hover and pressed surface of the sidebar footer and primary button (dark text on it). */

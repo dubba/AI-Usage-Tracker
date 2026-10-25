@@ -1,19 +1,23 @@
 # Changelog
 
-## Unreleased (6 changes)
+## Unreleased (10 changes)
 
-### Added (1)
+### Added (3)
 
+- On iPhone, usage now also refreshes in the background while the app is closed, whenever iOS allows it. iOS decides when, usually a few times a day rather than on a fixed schedule, and not at all with Low Power Mode or Background App Refresh turned off. Saved sign-ins stay readable while the phone is locked so these refreshes can use them.
+- On Android, usage now refreshes in the background about every 15 minutes while the app is closed (whenever the phone is online), following your refresh interval in Settings if it is longer, so the Usage page has no gaps and limit alerts arrive without opening the app. Android may delay runs when the battery is low or the phone is idle.
 - On the Usage page, pulling down from the top on mobile now refreshes usage across all accounts and reloads the charts, matching the dashboard's pull-to-refresh gesture.
 
-### Improved (3)
+### Improved (4)
 
+- On a phone, the Usage, Accounts and Settings bar at the bottom is now the app's purple, matching the title bar, in both dark and light mode. The current page is bright white with a bar along the top edge, and the other two are a softer white that stays readable on the purple. The bar is also a little shorter: on Android the space below the labels now matches the space above the icons, measured to the gesture handle with swipe navigation, or to the buttons with three-button navigation.
 - On the Usage page, Antigravity cards show the model family and leave off the weekly limit name.
 - In Settings, "Clear Cached Usage" is renamed to "Refresh Usage" with a Refresh button, "Delete All Local Data" is renamed to "Delete Local App Data", and the descriptions for Refresh Usage, Clear Usage History, and Delete Local App Data have been clarified.
 - In Settings, Refresh Usage, Clear Usage History, and Delete Local App Data are in Advanced, above Diagnostics.
 
-### Fixed (2)
+### Fixed (3)
 
+- On Android and iOS, Settings no longer shows the "Launch at Startup" switch, because neither system lets an app open itself when the phone starts.
 - On a phone, scrolling to the end of a page keeps the last rows above the Usage, Accounts and Settings bar. On Android the page also sits below the status bar and above the system navigation bar.
 - Account cards with three or more rows of limits (such as Antigravity with Gemini, Other, and Argon) now keep uniform vertical spacing across all rows, so the gap above subsequent limits matches the gap above earlier ones.
 

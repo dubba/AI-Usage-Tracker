@@ -10,6 +10,16 @@
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>AI Usage Tracker requires camera access to scan device linking QR codes.</string>
+	<!-- Refresh usage while the app is closed (platform/ios_background.rs). The identifier
+	     must match TASK_IDENTIFIER there. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.dubba.ai.usage.tracker.refresh</string>
+	</array>
 	<!-- Apps built with the iOS 27 SDK must use the scene life cycle; this key opts tao
 	     into it. One window, so a single scene. tao installs its own scene delegate. -->
 	<key>UIApplicationSceneManifest</key>

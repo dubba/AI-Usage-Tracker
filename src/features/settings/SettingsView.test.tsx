@@ -172,6 +172,21 @@ describe("General", () => {
     expect(settings.toggleAutostart).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    ["Android", "Mozilla/5.0 (Linux; Android 16; Pixel) AppleWebKit/537.36 Chrome/130 Mobile Safari/537.36"],
+    ["iOS", "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148"],
+  ])("hides launch at startup on %s, where an app cannot open itself at boot", (_name, agent) => {
+    const userAgent = vi.spyOn(navigator, "userAgent", "get").mockReturnValue(agent);
+    try {
+      app = mount(view());
+      expect(document.getElementById("setting-autostart-label")).toBeNull();
+      expect(document.body.textContent).not.toContain("Launch at Startup");
+      expect(document.body.textContent).toContain("Account Updates");
+    } finally {
+      userAgent.mockRestore();
+    }
+  });
+
   it("disables the refresh interval until settings load and while it saves", () => {
     app = mount(view({ settings: settingsState({ appSettings: null }) }));
     const trigger = () => [...document.querySelectorAll<HTMLButtonElement>(".custom-dropdown-trigger")].find((el) => el.getAttribute("aria-label") === "Refresh interval")!;

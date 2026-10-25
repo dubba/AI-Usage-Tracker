@@ -49,6 +49,13 @@ object CredentialVault {
     return cipher.doFinal(sealed, IV_BYTES, sealed.size - IV_BYTES)
   }
 
+  // The names Rust calls over JNI (android_keystore.rs): `MainActivity` has the same two
+  // methods for a call made while the app is open, and Rust passes this object to a
+  // background run, where no activity exists.
+  fun encryptCredential(data: ByteArray, context: ByteArray): ByteArray = seal(data, context)
+
+  fun decryptCredential(data: ByteArray, context: ByteArray): ByteArray = open(data, context)
+
   private fun key(): SecretKey = synchronized(keyLock) {
     val store = KeyStore.getInstance(KEYSTORE).apply { load(null) }
     (store.getKey(KEY_ALIAS, null) as? SecretKey) ?: createKey()

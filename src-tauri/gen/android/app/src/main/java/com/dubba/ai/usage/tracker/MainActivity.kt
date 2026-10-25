@@ -147,6 +147,8 @@ class MainActivity : TauriActivity() {
   private var notificationPromptedFor: String? = null
   private var safeTopDp: Int = 0
   private var safeBottomDp: Int = 0
+  /** The part of the bottom inset that is real buttons (back, home, recents); 0 with swipe gestures. */
+  private var navButtonsDp: Int = 0
   private var safeImeDp: Int = 0
   private var multicastLock: android.net.wifi.WifiManager.MulticastLock? = null
   private var boundLanNetwork: Boolean = false
@@ -226,6 +228,26 @@ class MainActivity : TauriActivity() {
     applyInsetsToWebView()
   }
 
+  /**
+   * How tall the back, home and recents buttons are, in dp: 0 when the phone uses swipe gestures,
+   * where the bottom inset holds only a thin handle that cannot be tapped. The page uses it to
+   * keep the same gap below the labels whichever navigation the phone has. Android 11 and later
+   * report it as the tappable-element inset; before that, the navigation mode setting says.
+   */
+  private fun readNavButtonsDp(windowInsets: WindowInsetsCompat, density: Float, navBarDp: Int): Int {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      val tappable = windowInsets.getInsets(WindowInsetsCompat.Type.tappableElement()).bottom
+      return (tappable / density).toInt()
+    }
+    // 2 is gesture navigation; 0 (three buttons) and 1 (two buttons) have tappable buttons.
+    val gestures = try {
+      android.provider.Settings.Secure.getInt(contentResolver, "navigation_mode", 0) == 2
+    } catch (_: Exception) {
+      false
+    }
+    return if (gestures) 0 else navBarDp
+  }
+
   private fun applyInsetsToWebView() {
     val wv = activeWebView ?: return
     // Provider sign-in pages do not use these variables. Skip them so this script
@@ -240,6 +262,7 @@ class MainActivity : TauriActivity() {
             if (!root) return;
             root.style.setProperty('--android-safe-top', '${safeTopDp}px');
             root.style.setProperty('--android-safe-bottom', '${safeBottomDp}px');
+            root.style.setProperty('--android-nav-buttons', '${navButtonsDp}px');
             root.style.setProperty('--android-keyboard-height', '${safeImeDp}px');
             if (${safeImeDp} > 0) {
               root.classList.add('keyboard-active');
@@ -328,6 +351,7 @@ class MainActivity : TauriActivity() {
     } catch (e: Throwable) {
       android.util.Log.e(TAG, "registerActivity failed: ${e.message}")
     }
+    BackgroundRefreshWorker.schedule(this)
     window.decorView.setBackgroundColor(Color.BLACK)
     window.setBackgroundDrawableResource(android.R.color.black)
     super.onCreate(savedInstanceState)
@@ -408,6 +432,7 @@ class MainActivity : TauriActivity() {
           safeTopDp = top
         }
         safeBottomDp = bottom
+        navButtonsDp = minOf(bottom, readNavButtonsDp(windowInsets, density, bottom))
         safeImeDp = ime
         applyInsetsToWebView()
       }
@@ -798,22 +823,7 @@ class MainActivity : TauriActivity() {
 
   /** Posts an alert notification whose body stays fully readable when expanded. */
   fun postExpandableNotification(title: String, body: String) {
-    try {
-      val notification = androidx.core.app.NotificationCompat.Builder(this, "default")
-        .setSmallIcon(applicationInfo.icon)
-        .setContentTitle(title)
-        .setContentText(body)
-        .setStyle(androidx.core.app.NotificationCompat.BigTextStyle().bigText(body))
-        .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
-        .setAutoCancel(true)
-        .setContentIntent(appLaunchPendingIntent())
-        .build()
-      val manager = getSystemService(Context.NOTIFICATION_SERVICE)
-        as android.app.NotificationManager
-      manager.notify((System.currentTimeMillis() % Int.MAX_VALUE).toInt(), notification)
-    } catch (e: Throwable) {
-      android.util.Log.w(TAG, "postExpandableNotification failed: ${e.message}")
-    }
+    AlertNotifications.post(this, title, body)
   }
 
   fun showUpdateAvailable(version: String): String {

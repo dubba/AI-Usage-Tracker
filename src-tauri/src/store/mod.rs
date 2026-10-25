@@ -25,6 +25,8 @@ pub use accounts::AccountStore;
 pub(crate) use credentials::generate_bridge_token;
 pub use installation::ensure_clean_installation;
 // Only `credential_file` names this type, and it is compiled under the same cfg (see above).
+#[cfg(all(target_os = "ios", not(debug_assertions)))]
+pub use credentials::allow_background_credential_access;
 #[cfg(any(target_os = "android", debug_assertions))]
 pub use credentials::UpgradeReport;
 pub use credentials::{

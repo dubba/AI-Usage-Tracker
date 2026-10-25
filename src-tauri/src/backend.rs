@@ -10,6 +10,12 @@ use tauri::Manager;
 /// Serializes startup and retries so the backend is never built twice.
 pub(crate) static BACKEND_INIT: parking_lot::Mutex<()> = parking_lot::Mutex::new(());
 
+/// The shared state, kept here as well as in Tauri's managed state so a
+/// background refresh that starts before any window (Android's WorkManager job)
+/// and the UI that opens later use one `AppState`, never two writers on the
+/// same files. Only read or written while holding `BACKEND_INIT`.
+static SHARED_STATE: parking_lot::Mutex<Option<Arc<AppState>>> = parking_lot::Mutex::new(None);
+
 /// Loads saved data, manages the shared state, and starts the background
 /// tasks. Safe to call again after a failure, and a no-op once it succeeded.
 pub(crate) fn initialize_backend(app: &AppHandle) -> Result<(), startup::StartupIssue> {
@@ -21,6 +27,40 @@ pub(crate) fn initialize_backend(app: &AppHandle) -> Result<(), startup::Startup
     let data_dir = app.path().app_data_dir().map_err(|error| {
         startup::StartupIssue::new("Couldn't find the app data folder", error, None)
     })?;
+    let state = shared_state(&data_dir)?;
+    state.set_app_handle(app.clone());
+    *GLOBAL_APP_HANDLE.lock() = Some(app.clone());
+    app.manage(state.clone());
+    // Paseo runs on the desktop, so a phone has nobody to serve on loopback.
+    #[cfg(desktop)]
+    tauri::async_runtime::spawn(crate::bridge_api::run_controller(state.clone()));
+    tauri::async_runtime::spawn(run_account_refresh_loop(state.clone()));
+    Ok(())
+}
+
+/// The state for a refresh that runs without a window. It has no app handle, so
+/// it cannot emit events to the page.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+pub(crate) fn background_state(
+    data_dir: &std::path::Path,
+) -> Result<Arc<AppState>, startup::StartupIssue> {
+    let _guard = BACKEND_INIT.lock();
+    shared_state(data_dir)
+}
+
+/// The existing shared state, or a new one built from the saved data. The
+/// caller holds `BACKEND_INIT`.
+fn shared_state(data_dir: &std::path::Path) -> Result<Arc<AppState>, startup::StartupIssue> {
+    if let Some(state) = SHARED_STATE.lock().clone() {
+        return Ok(state);
+    }
+    let state = build_state(data_dir)?;
+    *SHARED_STATE.lock() = Some(state.clone());
+    Ok(state)
+}
+
+fn build_state(data_dir: &std::path::Path) -> Result<Arc<AppState>, startup::StartupIssue> {
+    let data_dir = data_dir.to_path_buf();
     let issue = |what: &str, detail: String| {
         startup::StartupIssue::new(what, detail, Some(data_dir.as_path()))
     };
@@ -52,18 +92,16 @@ pub(crate) fn initialize_backend(app: &AppHandle) -> Result<(), startup::Startup
         )
     })?);
     state.set_bridge_unavailable(bridge_unavailable);
+    // Sign-ins saved before the background refresh existed are readable only while
+    // the phone is unlocked. Converting them needs an unlocked phone, which the
+    // app has whenever the user opens it.
+    #[cfg(all(target_os = "ios", not(debug_assertions)))]
+    crate::store::allow_background_credential_access();
     #[cfg(target_os = "android")]
     state.set_unprotected_credentials(
         credential_upgrade.failed,
         credential_upgrade.failed_accounts,
     );
     migrate_google_ai_studio_accounts(state.as_ref());
-    state.set_app_handle(app.clone());
-    *GLOBAL_APP_HANDLE.lock() = Some(app.clone());
-    app.manage(state.clone());
-    // Paseo runs on the desktop, so a phone has nobody to serve on loopback.
-    #[cfg(desktop)]
-    tauri::async_runtime::spawn(crate::bridge_api::run_controller(state.clone()));
-    tauri::async_runtime::spawn(run_account_refresh_loop(state.clone()));
-    Ok(())
+    Ok(state)
 }

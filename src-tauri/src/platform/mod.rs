@@ -9,6 +9,8 @@ pub(crate) mod apk_install;
 pub(crate) mod autostart;
 pub(crate) mod camera_permission;
 pub(crate) mod fs_util;
+#[cfg(target_os = "ios")]
+pub(crate) mod ios_background;
 pub(crate) mod lan_binding;
 #[cfg(target_os = "macos")]
 pub(crate) mod macos_notifications;

@@ -1,5 +1,7 @@
 pub(super) mod cache;
 pub(super) mod chunking;
+#[cfg(all(target_os = "ios", not(debug_assertions)))]
+mod keychain_access;
 #[cfg(not(target_os = "android"))]
 pub(super) mod keyring_store;
 
@@ -113,7 +115,18 @@ pub(crate) fn persist_provider_secret(
         serde_json::to_string(secret).map_err(|error| StoreError::Invalid(error.to_string()))?;
     account_credential_entry(account_id)?
         .set_password(&payload)
-        .map_err(|error| StoreError::Credential(error.to_string()))
+        .map_err(|error| StoreError::Credential(error.to_string()))?;
+    // A new item starts readable only while the phone is unlocked.
+    #[cfg(target_os = "ios")]
+    allow_background_credential_access();
+    Ok(())
+}
+
+/// Makes the saved sign-ins readable while the phone is locked, so the
+/// background refresh can use them. See `keychain_access.rs`.
+#[cfg(all(target_os = "ios", not(debug_assertions)))]
+pub fn allow_background_credential_access() {
+    keychain_access::allow_background_access();
 }
 
 #[cfg(all(

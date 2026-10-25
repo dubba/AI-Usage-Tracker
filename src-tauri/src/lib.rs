@@ -1,5 +1,7 @@
 mod auth;
 mod backend;
+#[cfg(any(target_os = "android", target_os = "ios"))]
+mod background_refresh;
 mod bridge_api;
 mod commands;
 mod confirm;
@@ -32,6 +34,11 @@ use tauri_plugin_autostart::MacosLauncher;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let _ = rustls::crypto::ring::default_provider().install_default();
+
+    // iOS wants every background task handler registered before the app finishes
+    // launching, which the event loop below does.
+    #[cfg(target_os = "ios")]
+    platform::ios_background::register();
 
     #[allow(unused_mut)]
     let mut builder = tauri::Builder::default();
@@ -180,6 +187,25 @@ pub fn run() {
             if should_check_refresh {
                 if let Some(state) = app_handle.try_state::<Arc<AppState>>() {
                     state.request_refresh_check();
+                }
+            }
+            // Ask iOS for the next background refresh at launch, on returning to the
+            // app and on leaving it; a new request replaces the pending one.
+            #[cfg(target_os = "ios")]
+            if should_check_refresh
+                || matches!(
+                    event,
+                    tauri::RunEvent::Ready
+                        | tauri::RunEvent::WindowEvent {
+                            event: tauri::WindowEvent::Focused(false),
+                            ..
+                        }
+                )
+            {
+                if let Some(state) = app_handle.try_state::<Arc<AppState>>() {
+                    platform::ios_background::schedule_next(
+                        state.settings.account_refresh_minutes(),
+                    );
                 }
             }
         });

@@ -1,6 +1,7 @@
 import { CustomDropdown } from "../../shared/ui/CustomDropdown";
 import { ToggleSwitch } from "../../shared/ui/ToggleSwitch";
 import { useThemePreference } from "../../shared/hooks/useThemePreference";
+import { isAndroid, isIOS } from "../../shared/lib/platform";
 import type { ThemePreference } from "../../shared/lib/theme";
 import { useAppSettingsState } from "./settings-context";
 
@@ -42,13 +43,16 @@ export function GeneralSection() {
             />
           </div>
         </div>
-        <div className="settings-row">
-          <div>
-            <strong id="setting-autostart-label">Launch at Startup</strong>
-            <small>Start the app when your device starts.</small>
+        {/* Neither Android nor iOS lets an app open its screen when the phone starts, so the switch would do nothing. */}
+        {!isAndroid() && !isIOS() ? (
+          <div className="settings-row">
+            <div>
+              <strong id="setting-autostart-label">Launch at Startup</strong>
+              <small>Start the app when your device starts.</small>
+            </div>
+            <ToggleSwitch checked={autostart} labelledBy="setting-autostart-label" onChange={() => void toggleAutostart()} />
           </div>
-          <ToggleSwitch checked={autostart} labelledBy="setting-autostart-label" onChange={() => void toggleAutostart()} />
-        </div>
+        ) : null}
         <div className="settings-row">
           <div>
             <strong>Account Updates</strong>
