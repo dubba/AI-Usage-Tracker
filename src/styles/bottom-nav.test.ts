@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const TOKENS = readFileSync(join(__dirname, "tokens.css"), "utf8");
 const NAV = readFileSync(join(__dirname, "..", "app", "bottom-nav.css"), "utf8");
+const SIDEBAR_NAV = readFileSync(join(__dirname, "..", "app", "sidebar-nav.css"), "utf8");
 const LIGHT = TOKENS.slice(TOKENS.indexOf(':root[data-theme="light"]'));
 
 type Rgb = [number, number, number];
@@ -44,6 +45,12 @@ describe("bottom bar colors", () => {
     expect(NAV).toContain("background: var(--purple-fill);");
     expect(NAV).toContain("color: var(--purple-on-fill-muted) !important;");
     expect(NAV).toContain("color: var(--purple-on-fill) !important;");
+  });
+
+  it("paints the desktop sidebar nav with the same purple fill and line, extending flush to the edges", () => {
+    expect(SIDEBAR_NAV).toContain("background: var(--purple-fill);");
+    expect(SIDEBAR_NAV).toContain("border-top: 1px solid var(--purple-fill-line);");
+    expect(SIDEBAR_NAV).toContain("margin: 0 -12px -12px -12px;");
   });
 
   it("keeps the selected and unselected labels readable on the purple (4.5:1)", () => {

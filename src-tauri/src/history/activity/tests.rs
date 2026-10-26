@@ -143,6 +143,38 @@ fn reset_times_a_few_minutes_apart_are_the_same_reset() {
 }
 
 #[test]
+fn a_sliding_future_reset_time_on_an_unused_account_is_not_a_reset() {
+    // Providers like Antigravity dynamically report `resetTime = now + 7 days` while quota is
+    // unused. The sliding reset time moves forward on each refresh, but since the scheduled reset
+    // is in the future and usage has not dropped, no resets or periods are created.
+    let activity = usage(
+        &[
+            reading(BASE + HOUR, 0.0, Some(BASE + HOUR + WEEK)),
+            reading(BASE + HOUR + 900, 0.0, Some(BASE + HOUR + 900 + WEEK)),
+            reading(BASE + HOUR + 1800, 0.0, Some(BASE + HOUR + 1800 + WEEK)),
+        ],
+        1,
+    );
+    assert_eq!(percents(&activity), [Some(0.0)]);
+    assert!(activity.resets.is_empty());
+}
+
+#[test]
+fn usage_starting_after_a_sliding_reset_time_counts_as_usage_not_a_reset() {
+    let activity = usage(
+        &[
+            reading(BASE + HOUR, 0.0, Some(BASE + HOUR + WEEK)),
+            reading(BASE + HOUR + 900, 0.0, Some(BASE + HOUR + 900 + WEEK)),
+            // The user begins using the account; quota becomes 10% and the reset time locks in.
+            reading(BASE + HOUR + 1800, 10.0, Some(BASE + HOUR + 1800 + WEEK)),
+        ],
+        1,
+    );
+    assert_eq!(percents(&activity), [Some(10.0)]);
+    assert!(activity.resets.is_empty());
+}
+
+#[test]
 fn a_small_decrease_is_ignored_and_does_not_lower_the_high_water_mark() {
     let activity = usage(
         &[

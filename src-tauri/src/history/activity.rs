@@ -67,10 +67,10 @@ struct DayTotal {
 /// the account reports now, if any.
 ///
 /// A new weekly period starts at a reading when
-/// - both it and the one before name a reset time and the two differ by more than ten minutes, or
-/// - the reset time of the one before has passed, unless this reading still names that same reset
-///   time (the provider has not rolled over, so nothing was reset), or
-/// - the used percent fell at least five points and either reading names no reset time.
+/// - the reset time of the one before has passed (within jitter), unless this reading still names
+///   that same reset time (the provider has not rolled over, so nothing was reset), or
+/// - the used percent fell at least five points (a reset occurred even if reset times are missing
+///   or rescheduled). A sliding future reset time on an unused account does not start a new period.
 ///
 /// Inside a period only a rise above the highest value seen so far counts, so a reading that is a
 /// little lower (rounding) or repeated (two devices watching the same account) adds nothing. At the
@@ -154,20 +154,14 @@ pub fn daily_usage(
 }
 
 fn starts_new_period(previous: &Reading, current: &Reading, high_water: f64) -> bool {
-    if let (Some(before), Some(now)) = (previous.r, current.r) {
-        if (now - before).abs() > RESET_JITTER_SECONDS {
-            return true;
-        }
-    }
     if let Some(before) = previous.r {
         let still_the_old_window =
             matches!(current.r, Some(now) if (now - before).abs() <= RESET_JITTER_SECONDS);
-        if current.t >= before && !still_the_old_window {
+        if current.t + RESET_JITTER_SECONDS >= before && !still_the_old_window {
             return true;
         }
     }
-    (previous.r.is_none() || current.r.is_none())
-        && high_water - f64::from(current.u) >= RESET_DROP_PERCENT
+    high_water - f64::from(current.u) >= RESET_DROP_PERCENT
 }
 
 /// When the period that ends at `previous` is taken to have ended: its reset time, when it is

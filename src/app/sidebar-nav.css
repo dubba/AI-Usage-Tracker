@@ -1,12 +1,13 @@
 /* The Usage, Accounts and Settings links at the very bottom of the sidebar (Sidebar.tsx), below the
  * sync status, on wide windows. The buttons are the bottom bar's own (`.bottom-nav-item` in
- * bottom-nav.css, loaded with it): side by side, icon above label, purple when current. This file
- * only lays out the row that holds them. */
+ * bottom-nav.css, loaded with it): side by side, icon above label, on the same purple fill as
+ * the mobile bottom bar. */
 @layer components {
   .sidebar-main-nav {
     display: flex;
     height: 56px;
-    margin: 0;
-    border-top: 1px solid var(--border);
+    margin: 0 -12px -12px -12px;
+    background: var(--purple-fill);
+    border-top: 1px solid var(--purple-fill-line);
   }
 }
