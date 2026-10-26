@@ -47,6 +47,9 @@ interface ResetMarker {
   /** Where the marker sits across the chart, 0 to 1. */
   position: number;
   left: string;
+  /** Which day column holds the reset, and how far across that day it falls (0 to 1). */
+  day: number;
+  fraction: number;
 }
 
 /** Where each weekly reset falls on the chart: in its day's column, at the right fraction of the day. */
@@ -62,7 +65,7 @@ function resetMarkers(resets: readonly string[], starts: readonly Date[], gap: n
     const fraction = (time - starts[day].getTime()) / dayLength;
     const position = (day + fraction) / dayCount;
     // The columns are separated by gaps, so a fraction of the whole width is off by up to one gap.
-    return [{ instant, date, position, left: `calc(${position * 100}% + ${gap * (position - fraction)}px)` }];
+    return [{ instant, date, position, day, fraction, left: `calc(${position * 100}% + ${gap * (position - fraction)}px)` }];
   });
 }
 
@@ -70,7 +73,7 @@ function resetMarkers(resets: readonly string[], starts: readonly Date[], gap: n
  * One bar per day for one weekly limit, on a y-axis that fits the busiest day in view: ticks every
  * 5, 10 or 20 percent (see `yAxis`), so a quiet week does not look like a busy one. Days with
  * nothing observed are striped, days partly estimated have a dotted top edge, and each weekly
- * reset is marked with a dashed line.
+ * reset is marked with one dashed line: purple beside and above a bar, black across the bar.
  *
  * Screen readers get the chart as a sentence on the picture and as a table beside it.
  */
@@ -132,14 +135,36 @@ export function DailyBars({
           ]
             .filter(Boolean)
             .join(" ");
+          const barHeight = empty ? undefined : `${barHeightPercent(day.usedPercent ?? 0, axis.top)}%`;
+          // A zero or missing day is not a solid purple bar, so the dash stays purple across it.
+          const inkOnBar = !empty && day.usedPercent !== 0;
+          const dayResets = markers.filter((marker) => marker.day === index);
           return (
             <div className="activity-day" key={dayStarts[index].getTime()}>
               <div className="activity-bar-slot">
                 <div
                   className={barClass}
-                  style={empty ? undefined : { height: `${barHeightPercent(day.usedPercent ?? 0, axis.top)}%` }}
+                  style={barHeight == null ? undefined : { height: barHeight }}
                   data-tooltip={dayTooltip(day, dayStarts[index], isToday)}
                 />
+                {dayResets.map((marker) => (
+                  <span
+                    key={`${marker.instant}-line`}
+                    className="activity-reset-line"
+                    style={{ "--reset-fraction": `${marker.fraction}` } as CSSProperties}
+                  />
+                ))}
+                {inkOnBar
+                  ? dayResets.map((marker) => (
+                      <span
+                        key={`${marker.instant}-ink`}
+                        className="activity-reset-clip"
+                        style={{ height: barHeight, "--reset-fraction": `${marker.fraction}` } as CSSProperties}
+                      >
+                        <span className="activity-reset-ink" />
+                      </span>
+                    ))
+                  : null}
               </div>
               {labelled ? (
                 <span className={`activity-day-label${isToday ? " is-today" : ""}`}>

@@ -1,10 +1,14 @@
 # Changelog
 
-## Unreleased (1 change)
+## Unreleased (2 changes)
 
 ### Improved (1)
 
 - On the Usage page, hovering over a reset line shows the exact calendar date with the time (e.g. "Weekly reset · Oct 25 @ 4:00a"), matching the date format under card titles and making time changes like Daylight Saving Time clear.
+
+### Fixed (1)
+
+- On the Usage page, a reset line is a single dash: purple above and beside a bar, and black where it crosses the bar.
 
 ## v0.5.4 - 2026-10-25 (15 changes)
 

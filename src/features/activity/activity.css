@@ -462,6 +462,7 @@
   }
 
   .activity-bar-slot {
+    position: relative;
     display: flex;
     align-items: flex-end;
     justify-content: center;
@@ -556,18 +557,48 @@
     pointer-events: auto;
   }
 
-  /* Dashes in the accent purple with a halo in the card's color, so the line stays visible where it
-     crosses a bar of the same purple family. */
-  .activity-reset-hit::before {
-    content: "";
+  /* One dash for the whole column. Purple everywhere the bar does not cover. A black copy, the
+     same width and the same rhythm measured from the bottom, is painted on top only across a solid
+     bar, so the line stays visible there without a second stroke beside it. Both are placed with
+     --reset-fraction of this column, so they share one x. */
+  .activity-reset-line,
+  .activity-reset-ink {
     position: absolute;
+    width: 1px;
+    left: calc(var(--reset-fraction) * 100%);
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  .activity-reset-line {
+    top: -4px;
+    bottom: 0;
+    background: repeating-linear-gradient(to top, var(--purple-accent) 0 4px, transparent 4px 7px);
+  }
+
+  /* Full column width and only as tall as the bar, so the mask can keep the black dash on the bar
+     even when the bar is narrower than its column. */
+  .activity-reset-clip {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    min-height: 3px;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(#fff, #fff);
+    mask-image: linear-gradient(#fff, #fff);
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center bottom;
+    mask-position: center bottom;
+    -webkit-mask-size: min(100%, 44px) 100%;
+    mask-size: min(100%, 44px) 100%;
+  }
+
+  .activity-reset-ink {
     top: 0;
     bottom: 0;
-    left: calc(50% - 1px);
-    width: 3px;
-    background:
-      repeating-linear-gradient(to bottom, var(--purple-accent) 0 4px, transparent 4px 7px) center / 1px 100% no-repeat,
-      repeating-linear-gradient(to bottom, var(--obsidian-surface-low) 0 4px, transparent 4px 7px) center / 3px 100% no-repeat;
+    background: repeating-linear-gradient(to top, #000 0 4px, transparent 4px 7px);
   }
 
   /* ---- tooltips: the shared ones are centered under their element, which would run off the

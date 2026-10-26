@@ -132,6 +132,32 @@ describe("DailyBars, 7 days", () => {
     expect(all(root, ".activity-reset")).toHaveLength(1);
     expect(all(root, ".activity-axis")).toHaveLength(0);
   });
+
+  it("keeps one reset dash, and paints it black only across a solid bar", () => {
+    const root = render({
+      days,
+      resets: ["2026-10-09T12:00:00Z", "2026-10-10T06:00:00Z", "2026-10-12T00:00:00Z", "2026-10-13T18:00:00Z"],
+    });
+    const lines = all(root, ".activity-reset-line");
+    const clips = all(root, ".activity-reset-clip");
+    const bars = all(root, ".activity-bar");
+    const fraction = (element: HTMLElement) => Number(element.style.getPropertyValue("--reset-fraction"));
+    // Noon on a measured day, morning on a missing day, midnight on a zero day, evening on an estimate.
+    expect(lines).toHaveLength(4);
+    expect(lines.map(fraction)).toEqual([0.5, 0.25, 0, 0.75]);
+    expect(all(root, ".activity-reset")).toHaveLength(4);
+    // Black ink only on the solid bars (measured and estimated), sharing that line's place in the column.
+    expect(clips).toHaveLength(2);
+    expect(fraction(clips[0])).toBe(fraction(lines[0]));
+    expect(fraction(clips[1])).toBe(fraction(lines[3]));
+    expect(clips[0].style.height).toBe(bars[0].style.height);
+    expect(clips[1].style.height).toBe(bars[4].style.height);
+    expect(clips[0].querySelector(".activity-reset-ink")).not.toBeNull();
+    expect(bars[0].parentElement!.querySelector(".activity-reset-clip")).toBe(clips[0]);
+    expect(bars[1].parentElement!.querySelector(".activity-reset-clip")).toBeNull();
+    expect(bars[3].parentElement!.querySelector(".activity-reset-clip")).toBeNull();
+    expect(bars[4].parentElement!.querySelector(".activity-reset-clip")).toBe(clips[1]);
+  });
 });
 
 describe("DailyBars y-axis", () => {
