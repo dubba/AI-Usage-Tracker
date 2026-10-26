@@ -55,9 +55,9 @@
 
   @media (min-width: 861px) {
     .activity-header-main {
-      /* The label (about 56px), its 8px gap, the switch (two 48px buttons, a 2px gap, 2px padding
+      /* The label (about 48px), its 8px gap, the switch (two 48px buttons, a 2px gap, 2px padding
          and a 1px border each side) and the 24px the header's flex gap used to leave beside it. */
-      --activity-switch-room: 194px;
+      --activity-switch-room: 186px;
       position: relative;
       padding-right: var(--activity-switch-room);
     }
@@ -85,6 +85,14 @@
   .activity-period-switch button.active {
     background: var(--purple-fill);
     color: var(--purple-on-fill) !important;
+  }
+
+  /* The switch is at the right edge of the page, so the shared tooltip, centered under its button,
+     would run off the screen: the second button's tooltip hangs from its right edge instead. */
+  .activity-period-switch button:last-child[data-tooltip]::after {
+    left: auto !important;
+    right: 0 !important;
+    transform: none !important;
   }
 
   .activity-period-switch button:focus-visible {

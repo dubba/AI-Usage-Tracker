@@ -13,6 +13,7 @@ import "./activity.css";
 
 const PERIOD_LABELS: Record<ActivityPeriod, string> = { "7d": "7D", "30d": "30D" };
 const PERIOD_NAMES: Record<ActivityPeriod, string> = { "7d": "Last 7 days", "30d": "Last 30 days" };
+const PERIOD_TOOLTIPS: Record<ActivityPeriod, string> = { "7d": "Show the last 7 days", "30d": "Show the last 30 days" };
 
 /**
  * A key that changes when a refresh brings new usage or the accounts change, so the page loads the
@@ -35,7 +36,7 @@ function PeriodSwitch({ period, onChange }: { period: ActivityPeriod; onChange: 
   const labelId = useId();
   return (
     <div className="activity-period">
-      <span className="activity-period-label" id={labelId}>Period:</span>
+      <span className="activity-period-label" id={labelId}>Period</span>
       <div className="activity-period-switch" role="group" aria-labelledby={labelId}>
         {ACTIVITY_PERIODS.map((candidate) => (
           <button
@@ -44,6 +45,7 @@ function PeriodSwitch({ period, onChange }: { period: ActivityPeriod; onChange: 
             className={candidate === period ? "active" : undefined}
             aria-pressed={candidate === period}
             aria-label={PERIOD_NAMES[candidate]}
+            data-tooltip={PERIOD_TOOLTIPS[candidate]}
             onClick={() => onChange(candidate)}
           >
             {PERIOD_LABELS[candidate]}
