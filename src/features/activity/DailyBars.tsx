@@ -185,13 +185,17 @@ export function DailyBars({
       </div>
       {labelled ? null : (
         <div className="activity-axis" aria-hidden="true">
-          <span className="is-first">{formatMonthDay(dayStarts[0])}</span>
-          {thirdsOf(days.length).map((index) => (
-            <span className="is-middle" style={{ left: columnCenter(index, days.length, gap) }} key={index}>
-              {formatMonthDay(dayStarts[index])}
-            </span>
-          ))}
-          <span className="is-last">Today</span>
+          {[0, ...thirdsOf(days.length), days.length - 1].map((index) => {
+            const place = index === 0 ? "is-first" : index === days.length - 1 ? "is-last" : "is-middle";
+            const left = columnCenter(index, days.length, gap);
+            return (
+              <span className={place} style={{ left }} key={index}>
+                {/* The tick shares this span's anchor, so it lands on the bar the date names. */}
+                <span className="activity-axis-tick" />
+                {index === days.length - 1 ? "Today" : formatMonthDay(dayStarts[index])}
+              </span>
+            );
+          })}
         </div>
       )}
       {/* A table treats height as a minimum, so .sr-only on the table alone leaves a tall

@@ -236,20 +236,24 @@ describe("DailyBars, 30 days", () => {
     expect(all(root, ".activity-day-value")).toHaveLength(0);
     expect(all(root, ".activity-day-label")).toHaveLength(0);
     // Days 10 and 20 of 30 (0-based), so the month is split into thirds.
-    expect(texts(root, ".activity-axis span")).toEqual(["Sep 16", "Sep 26", "Oct 6", "Today"]);
+    expect(texts(root, ".activity-axis > span")).toEqual(["Sep 16", "Sep 26", "Oct 6", "Today"]);
   });
 
-  it("centers the middle dates under their bars", () => {
-    const [first, second] = all(render({ days }), ".activity-axis .is-middle");
+  it("anchors each date on its bar, with a tick at that bar", () => {
+    const root = render({ days });
+    const labels = all(root, ".activity-axis > span");
     const centerOf = (element: HTMLElement) => {
       const [, percent, offset] = /calc\(([\d.]+)% \+ (-?[\d.]+)px\)/.exec(element.style.left)!;
       return { percent: Number(percent), offset: Number(offset) };
     };
-    // Column 10 and column 20 of 30, each at its middle.
-    expect(centerOf(first).percent).toBeCloseTo((10.5 / 30) * 100, 5);
-    expect(centerOf(second).percent).toBeCloseTo((20.5 / 30) * 100, 5);
-    // The gaps between columns shift a column's middle by less than one gap.
-    expect(Math.abs(centerOf(first).offset)).toBeLessThan(3);
+    // The first day, a third and two thirds along, and Today: columns 0, 10, 20, and 29 of 30.
+    expect(labels.map((label) => label.className)).toEqual(["is-first", "is-middle", "is-middle", "is-last"]);
+    [0, 10, 20, 29].forEach((index, place) => {
+      const center = centerOf(labels[place]);
+      expect(center.percent).toBeCloseTo(((index + 0.5) / 30) * 100, 5);
+      expect(Math.abs(center.offset)).toBeLessThan(3);
+      expect(labels[place].querySelector(".activity-axis-tick")).not.toBeNull();
+    });
   });
 
   it("tells the date and the value in each bar's tooltip", () => {

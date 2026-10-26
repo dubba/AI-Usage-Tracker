@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased (2 changes)
+## Unreleased (3 changes)
 
-### Improved (1)
+### Improved (2)
 
 - On the Usage page, hovering over a reset line shows the exact calendar date with the time (e.g. "Weekly reset · Oct 25 @ 4:00a"), matching the date format under card titles and making time changes like Daylight Saving Time clear.
+- On the Usage page, each date under the 30-day chart has a tick on the bar it names, so the first day, the days partway across, and Today line up with their days.
 
 ### Fixed (1)
 

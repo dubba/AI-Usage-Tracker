@@ -512,7 +512,8 @@
     height: 28px;
   }
 
-  /* Dates under the 30 day chart: the first day, the days a third and two thirds along, and Today. */
+  /* Dates under the 30 day chart: the first day, the days a third and two thirds along, and Today.
+     Each date is anchored on the middle of its bar, and a tick rises from that anchor into the bar. */
   .activity-axis {
     grid-column: 2;
     position: relative;
@@ -529,16 +530,36 @@
     top: 0;
   }
 
-  .activity-axis > .is-first {
-    left: 0;
-  }
-
+  /* The first date starts at its bar, the last ends at its bar, and the others are centered on theirs.
+     The inline `left` is that bar's middle. */
   .activity-axis > .is-middle {
     transform: translateX(-50%);
   }
 
   .activity-axis > .is-last {
+    transform: translateX(-100%);
+  }
+
+  /* A hairline from the date up into its bar. Bright enough to read on a striped day, and solid so
+     it does not look like a weekly reset. It hangs out of the label, over the bars. */
+  .activity-axis-tick {
+    position: absolute;
+    bottom: calc(100% + 2px);
+    left: 0;
+    width: 1px;
+    height: 14px;
+    background: var(--obsidian-muted-bright);
+    pointer-events: none;
+  }
+
+  .activity-axis > .is-middle > .activity-axis-tick {
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .activity-axis > .is-last > .activity-axis-tick {
     right: 0;
+    left: auto;
   }
 
   /* A weekly reset on the chart: a thin dashed line in the day's column. */
