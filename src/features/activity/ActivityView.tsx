@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useId, useMemo, useRef } from "react";
 import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
 import { BarChartIcon } from "../../shared/ui/icons";
 import { PullToRefreshIndicator } from "../dashboard/PullToRefreshIndicator";
@@ -30,21 +30,26 @@ function inAccountOrder<T extends { accountId: string }>(items: readonly T[], ac
     .sort((left, right) => position.get(left.accountId)! - position.get(right.accountId)!);
 }
 
+/** The 7D / 30D switch with a label saying what it chooses: how many days the charts cover. */
 function PeriodSwitch({ period, onChange }: { period: ActivityPeriod; onChange: (next: ActivityPeriod) => void }) {
+  const labelId = useId();
   return (
-    <div className="activity-period-switch" role="group" aria-label="Period">
-      {ACTIVITY_PERIODS.map((candidate) => (
-        <button
-          key={candidate}
-          type="button"
-          className={candidate === period ? "active" : undefined}
-          aria-pressed={candidate === period}
-          aria-label={PERIOD_NAMES[candidate]}
-          onClick={() => onChange(candidate)}
-        >
-          {PERIOD_LABELS[candidate]}
-        </button>
-      ))}
+    <div className="activity-period">
+      <span className="activity-period-label" id={labelId}>Period</span>
+      <div className="activity-period-switch" role="group" aria-labelledby={labelId}>
+        {ACTIVITY_PERIODS.map((candidate) => (
+          <button
+            key={candidate}
+            type="button"
+            className={candidate === period ? "active" : undefined}
+            aria-pressed={candidate === period}
+            aria-label={PERIOD_NAMES[candidate]}
+            onClick={() => onChange(candidate)}
+          >
+            {PERIOD_LABELS[candidate]}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

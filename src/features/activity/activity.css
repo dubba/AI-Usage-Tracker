@@ -12,18 +12,33 @@
 @layer components {
   /* ---- header ---- */
 
-  /* The 7D / 30D switch. On a phone it sits in the title row, at the right end and centered on the
-     title: the switch is taller than the title line, so its vertical margins are negative and the
-     row stays as high as the menu button. On a wide window it stays where it always was, at the
-     top right of the header, out of the flow, with room kept beside the title and description. */
+  /* The 7D / 30D switch and its label. On a phone it sits in the title row, at the right end and
+     centered on the title: the switch is taller than the title line, so its vertical margins are
+     negative and the row stays as high as the menu button. On a wide window it stays where it
+     always was, at the top right of the header, out of the flow, with room kept beside the title
+     and description. */
   .activity-header-main {
     flex: 1 1 auto;
     min-width: 0;
   }
 
+  .activity-period {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  .activity-period-label {
+    color: var(--obsidian-muted);
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    line-height: 1;
+  }
+
   .activity-period-switch {
     display: inline-flex;
-    margin-left: auto;
     gap: 2px;
     padding: 2px;
     border: 1px solid var(--chrome-border);
@@ -32,21 +47,21 @@
   }
 
   @media (max-width: 860px) {
-    .activity-period-switch {
+    .activity-period {
       margin-block: -10px;
     }
   }
 
   @media (min-width: 861px) {
     .activity-header-main {
-      /* The switch's width (two 48px buttons, a 2px gap, 2px padding and a 1px border each side)
-         and the 24px the header's flex gap used to leave beside it. */
-      --activity-switch-room: 128px;
+      /* The label (about 42px), its 8px gap, the switch (two 48px buttons, a 2px gap, 2px padding
+         and a 1px border each side) and the 24px the header's flex gap used to leave beside it. */
+      --activity-switch-room: 180px;
       position: relative;
       padding-right: var(--activity-switch-room);
     }
 
-    .activity-period-switch {
+    .activity-period {
       position: absolute;
       top: 0;
       right: 0;

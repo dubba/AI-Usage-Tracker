@@ -163,7 +163,9 @@ describe("ActivityView", () => {
     expect(requested(0)).toHaveLength(8);
     expect(button(root, "Last 7 days").getAttribute("aria-pressed")).toBe("true");
     expect(button(root, "Last 30 days").getAttribute("aria-pressed")).toBe("false");
-    expect(root.querySelector('[role="group"][aria-label="Period"]')).not.toBeNull();
+    // The switch is named by a visible label beside it.
+    const group = root.querySelector('[role="group"]')!;
+    expect(root.querySelector(`#${CSS.escape(group.getAttribute("aria-labelledby")!)}`)!.textContent).toBe("Period");
   });
 
   it("switches to 30 days, loads again with 31 boundaries, and remembers the choice", async () => {
@@ -368,10 +370,15 @@ describe("ActivityView", () => {
     await settle();
     const row = root.querySelector(".dashboard-title-row")!;
     const children = [...row.children];
-    expect(children.map((child) => child.tagName + (child.classList.contains("activity-period-switch") ? ".switch" : ""))).toEqual([
+    expect(children.map((child) => child.tagName + (child.classList.contains("activity-period") ? ".period" : ""))).toEqual([
       "BUTTON",
       "H1",
-      "DIV.switch",
+      "DIV.period",
+    ]);
+    // The label comes first, so the switch reads "Period 7D 30D".
+    expect([...row.querySelector(".activity-period")!.children].map((child) => child.className)).toEqual([
+      "activity-period-label",
+      "activity-period-switch",
     ]);
     expect(root.querySelectorAll(".activity-period-switch")).toHaveLength(1);
   });
