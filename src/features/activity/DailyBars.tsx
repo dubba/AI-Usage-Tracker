@@ -69,8 +69,8 @@ function resetMarkers(resets: readonly string[], starts: readonly Date[], gap: n
 /**
  * One bar per day for one weekly limit, on a y-axis that fits the busiest day in view: ticks every
  * 5, 10 or 20 percent (see `yAxis`), so a quiet week does not look like a busy one. Days with
- * nothing observed are striped, days partly estimated have a dotted top edge, and the 30 day chart
- * marks each weekly reset.
+ * nothing observed are striped, days partly estimated have a dotted top edge, and each weekly
+ * reset is marked with a dashed line.
  *
  * Screen readers get the chart as a sentence on the picture and as a table beside it.
  */
@@ -97,7 +97,7 @@ export function DailyBars({
   const gap = GAP_PX[period];
   const labelled = period === "7d";
   const summary = chartSummary(name, days, dayStarts, period);
-  const markers = labelled ? [] : resetMarkers(resets, dayStarts, gap);
+  const markers = resetMarkers(resets, dayStarts, gap);
   const style = { "--activity-days": days.length, "--activity-gap": `${gap}px` } as CSSProperties;
 
   return (

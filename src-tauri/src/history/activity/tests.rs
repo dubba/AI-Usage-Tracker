@@ -373,6 +373,43 @@ fn resets_are_listed_inside_the_range_with_the_current_one() {
 }
 
 #[test]
+fn weekly_resets_project_cadence_across_the_whole_range() {
+    // An upcoming reset 6 days in the future projects weekly resets backwards across the 30 days,
+    // even when no readings were recorded for those earlier weeks.
+    let upcoming = BASE + 28 * DAY + 5 * HOUR;
+    let activity = daily_usage(&[], &days(30), WEEK, Some(upcoming));
+    assert_eq!(
+        activity.resets,
+        [
+            upcoming - 4 * WEEK,
+            upcoming - 3 * WEEK,
+            upcoming - 2 * WEEK,
+            upcoming - WEEK,
+            upcoming,
+        ]
+    );
+}
+
+#[test]
+fn weekly_resets_project_cadence_on_a_seven_day_range() {
+    // On a 7 day chart, a reset occurring tomorrow projects backward to show the reset that
+    // happened earlier in the 7 day window.
+    let upcoming_tomorrow = BASE + 7 * DAY + 2 * HOUR;
+    let activity = daily_usage(&[], &days(7), WEEK, Some(upcoming_tomorrow));
+    assert_eq!(activity.resets, [upcoming_tomorrow - WEEK]);
+}
+
+#[test]
+fn monthly_resets_project_cadence_across_a_thirty_day_range() {
+    // A monthly reset occurring in 23 days projects backward to place the monthly reset that
+    // occurred 30 days earlier inside the 30-day view.
+    let month_step = 30 * DAY;
+    let upcoming = BASE + 53 * DAY + 2 * HOUR;
+    let activity = daily_usage(&[], &days(30), month_step, Some(upcoming));
+    assert_eq!(activity.resets, [upcoming - month_step]);
+}
+
+#[test]
 fn readings_before_the_range_place_the_high_water_mark() {
     // Day zero is before the range: 70% was already used when the range starts.
     let starts = [BASE + DAY, BASE + 2 * DAY];

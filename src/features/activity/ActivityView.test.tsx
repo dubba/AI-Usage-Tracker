@@ -199,7 +199,7 @@ describe("ActivityView", () => {
     expect(getActivityPeriod()).toBe("7d");
   });
 
-  it("shows the weekly reset markers on 30 days only", async () => {
+  it("shows the weekly reset markers on both 7 days and 30 days", async () => {
     api.getWeeklyActivity.mockImplementation(async (starts: string[]) => {
       // The reset is inside whichever range the page asked for.
       const first = Date.parse(starts[0]);
@@ -208,14 +208,15 @@ describe("ActivityView", () => {
     });
     const { root } = renderView([work]);
     await settle();
-    expect(select(root, ".activity-reset")).toHaveLength(0);
+    expect(select(root, ".activity-reset")).toHaveLength(1);
+    expect(select(root, ".activity-reset [data-tooltip]")[0].dataset.tooltip).toMatch(/^Weekly reset · /);
     click(button(root, "Last 30 days"));
     await settle();
     expect(select(root, ".activity-reset")).toHaveLength(1);
     expect(select(root, ".activity-reset [data-tooltip]")[0].dataset.tooltip).toMatch(/^Weekly reset · /);
     click(button(root, "Last 7 days"));
     await settle();
-    expect(select(root, ".activity-reset")).toHaveLength(0);
+    expect(select(root, ".activity-reset")).toHaveLength(1);
   });
 
   describe("an account with only a monthly limit", () => {

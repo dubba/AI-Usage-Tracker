@@ -127,9 +127,9 @@ describe("DailyBars, 7 days", () => {
     expect(root.querySelector("caption")!.textContent).toBe(label);
   });
 
-  it("draws no reset markers, even when the backend lists resets", () => {
+  it("draws reset markers inside the 7 days without showing the 30d axis", () => {
     const root = render({ days, resets: ["2026-10-12T15:00:00Z"] });
-    expect(all(root, ".activity-reset")).toHaveLength(0);
+    expect(all(root, ".activity-reset")).toHaveLength(1);
     expect(all(root, ".activity-axis")).toHaveLength(0);
   });
 });
@@ -261,6 +261,12 @@ describe("DailyBars, 30 days", () => {
     const root = render({ days, resets: ["2026-09-01T00:00:00Z", "2026-10-30T00:00:00Z", "2026-10-16T00:00:00Z", "soon", "2026-09-30T00:00:00Z"] });
     // Only Sep 30 is inside the 30 days that end Oct 16 00:00 (the end itself is tomorrow, not today).
     expect(all(root, ".activity-reset")).toHaveLength(1);
+  });
+
+  it("marks weekly resets on the 7 day chart as well", () => {
+    const root = render({ days: days.slice(23), resets: ["2026-10-14T12:00:00Z"], period: "7d" });
+    expect(all(root, ".activity-reset")).toHaveLength(1);
+    expect(root.querySelector<HTMLElement>(".activity-reset [data-tooltip]")!.dataset.tooltip).toContain("Weekly reset · ");
   });
 
   it("describes the days in the summary as dates", () => {

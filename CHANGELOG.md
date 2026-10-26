@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (14 changes)
+## Unreleased (15 changes)
 
 ### Added (3)
 
@@ -17,8 +17,9 @@
 - In Settings, "Clear Cached Usage" is renamed to "Refresh Usage" with a Refresh button, "Delete All Local Data" is renamed to "Delete Local App Data", and the descriptions for Refresh Usage, Clear Usage History, and Delete Local App Data have been clarified.
 - In Settings, Refresh Usage, Clear Usage History, and Delete Local App Data are in Advanced, above Diagnostics.
 
-### Fixed (5)
+### Fixed (6)
 
+- On the Usage page, weekly and monthly reset lines now appear on both the 7-day and 30-day views across all providers, and recurring resets are projected across earlier periods even before usage history was recorded.
 - On the Usage, Accounts, and Settings pages, leaving for another page and coming back returns you to the same place on the page.
 - On the Usage page, accounts with 0% usage no longer show phantom weekly reset lines on the 30-day chart when their provider reports a sliding reset time.
 - On Android and iOS, Settings no longer shows the "Launch at Startup" switch, because neither system lets an app open itself when the phone starts.

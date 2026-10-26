@@ -6,6 +6,7 @@
 //! time zones: the caller passes the day boundaries.
 
 use super::Reading;
+use crate::model::WEEKLY_WINDOW_SECONDS;
 use serde::Serialize;
 
 /// Readings further apart than this were not watched continuously. The time between them does not
@@ -119,13 +120,21 @@ pub fn daily_usage(
         }
     }
 
-    resets.extend(current_reset);
     let (Some(&range_start), Some(&range_end)) = (day_starts.first(), day_starts.last()) else {
         return Activity {
             days: Vec::new(),
             resets: Vec::new(),
         };
     };
+
+    if window_seconds >= WEEKLY_WINDOW_SECONDS as i64 {
+        if let Some(anchor) = current_reset.or_else(|| resets.iter().copied().max()) {
+            project_cadence(&mut resets, anchor, window_seconds, range_start, range_end);
+        }
+    } else {
+        resets.extend(current_reset);
+    }
+
     resets.retain(|instant| (range_start..=range_end).contains(instant));
     resets.sort_unstable();
     resets.dedup_by(|later, earlier| *later - *earlier <= RESET_JITTER_SECONDS);
@@ -185,6 +194,37 @@ fn period_start(previous: &Reading, current: &Reading, window_seconds: i64) -> i
             }
         }
         _ => previous.t,
+    }
+}
+
+/// Projects a periodic reset cadence (e.g. weekly or monthly) across `[range_start, range_end]`
+/// from a known reset instant `anchor`, so scheduled resets on periods without stored readings
+/// are still displayed.
+fn project_cadence(
+    resets: &mut Vec<i64>,
+    anchor: i64,
+    step: i64,
+    range_start: i64,
+    range_end: i64,
+) {
+    if step <= 0 {
+        return;
+    }
+    let mut t = anchor;
+    while t > range_end {
+        t -= step;
+    }
+    while t >= range_start {
+        resets.push(t);
+        t -= step;
+    }
+    let mut t = anchor + step;
+    while t < range_start {
+        t += step;
+    }
+    while t <= range_end {
+        resets.push(t);
+        t += step;
     }
 }
 

@@ -362,7 +362,8 @@ fn recorded_readings_become_daily_values_in_the_response() {
     assert_eq!(tracker["windowId"], "weekly");
     assert_eq!(tracker["currentUsedPercent"], 14.0);
     assert_eq!(tracker["resetsAt"], iso(reset));
-    assert_eq!(tracker["resets"], json!([]));
+    // The weekly reset is projected across the range: Oct 17 minus 1 week is Oct 10.
+    assert_eq!(tracker["resets"], json!(["2026-10-10T12:00:00Z"]));
     let days = tracker["days"].as_array().unwrap();
     assert_eq!(days.len(), 7);
     assert_eq!(days[6], json!({"usedPercent": 4.0, "quality": "measured"}));
@@ -475,6 +476,35 @@ fn a_thirty_day_range_spans_month_files() {
     // The readings are on Sep 20, the fifth day.
     assert_eq!(days[4].used_percent, Some(6.0));
     assert_eq!(days[3].used_percent, None);
+}
+
+#[test]
+fn monthly_tracker_projects_reset_on_thirty_day_view() {
+    let (_root, app) = app();
+    let reset = at(30, 0, 0);
+    app.store
+        .upsert(monthly_account(10.0, reset, at(15, 11, 0)))
+        .unwrap();
+
+    let thirty: Vec<String> = (0..=30)
+        .map(|offset| iso(at(16, 0, 0) - (30 - offset) * DAY))
+        .collect();
+    let activity = weekly_activity(&app, &thirty, now()).unwrap();
+    let tracker = &activity.trackers[0];
+    assert_eq!(tracker.resets, ["2026-09-30T00:00:00Z"]);
+}
+
+#[test]
+fn unused_antigravity_tracker_projects_weekly_resets() {
+    let (_root, app) = app();
+    let reset = at(17, 12, 0);
+    let mut account = claude_at(0.0, reset, now());
+    account.provider = Provider::Antigravity;
+    app.store.upsert(account).unwrap();
+
+    let activity = weekly_activity(&app, &week(), now()).unwrap();
+    let tracker = &activity.trackers[0];
+    assert_eq!(tracker.resets, ["2026-10-10T12:00:00Z"]);
 }
 
 #[test]

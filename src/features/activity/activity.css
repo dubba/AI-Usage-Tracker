@@ -540,11 +540,11 @@
     right: 0;
   }
 
-  /* A weekly reset on the 30 day chart: a thin dashed line in the day's column. */
+  /* A weekly reset on the chart: a thin dashed line in the day's column. */
   .activity-reset {
     position: absolute;
     top: -4px;
-    bottom: 0;
+    bottom: var(--activity-pad-bottom);
     width: 0;
     pointer-events: none;
   }
