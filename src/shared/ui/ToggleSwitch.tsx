@@ -21,7 +21,19 @@ export function ToggleSwitch({
       disabled={disabled}
       onClick={() => onChange(!checked)}
     >
-      <span />
+      <span>
+        <ToggleMark kind="off" />
+        <ToggleMark kind="on" />
+      </span>
     </button>
+  );
+}
+
+/** The mark inside the knob: an X while off, a check while on. Both stay mounted so the swap can fade. */
+function ToggleMark({ kind }: { kind: "on" | "off" }) {
+  return (
+    <svg className={`toggle-mark toggle-mark-${kind}`} viewBox="0 0 24 24" aria-hidden="true">
+      {kind === "on" ? <path d="M6.2 12.4 10.4 16.6 18 8.2" /> : <path d="M8 8l8 8M16 8l-8 8" />}
+    </svg>
   );
 }

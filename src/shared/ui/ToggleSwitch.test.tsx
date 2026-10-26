@@ -27,6 +27,11 @@ describe("ToggleSwitch", () => {
     expect(toggle.classList.contains("on")).toBe(true);
     expect(toggle.children).toHaveLength(1);
     expect(toggle.firstElementChild!.tagName).toBe("SPAN");
+    const marks = toggle.querySelectorAll(".toggle-mark");
+    expect(marks).toHaveLength(2);
+    expect(toggle.querySelector(".toggle-mark-on")).not.toBeNull();
+    expect(toggle.querySelector(".toggle-mark-off")).not.toBeNull();
+    for (const mark of marks) expect(mark.getAttribute("aria-hidden")).toBe("true");
   });
 
   it("is off without the on class, and asks for the opposite state when clicked", () => {

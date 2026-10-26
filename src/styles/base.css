@@ -108,8 +108,15 @@ svg { width: 18px; height: 18px; }
 .settings-row > div:first-child { display: grid; }
 .settings-row small { color: var(--muted); margin-top: 5px; }
 .toggle { border: 0; border-radius: 99px; padding: 3px; cursor: pointer; }
-.toggle span { display: block; width: 18px; height: 18px; border-radius: 99px; background: var(--c-dce1de); transition: transform .18s; }
+.toggle span { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 99px; background: var(--c-dce1de); transition: transform .18s; }
 .toggle.on span { transform: translateX(24px); }
+/* Pixel-style marks: an X in the knob while off, a check while on. The knob is light in both
+   themes, so the X stays dark ink and the check uses the track purple. */
+.toggle-mark { grid-area: 1 / 1; width: 12px; height: 12px; fill: none; stroke-width: 2.8; stroke-linecap: round; stroke-linejoin: round; transition: opacity .15s ease; }
+.toggle-mark-off { stroke: #3a3544; }
+.toggle-mark-on { stroke: var(--purple-fill); opacity: 0; }
+.toggle.on .toggle-mark-off { opacity: 0; }
+.toggle.on .toggle-mark-on { opacity: 1; }
 .modal-card { width: min(480px, 100%); padding: 24px; }
 .modal-kicker { color: var(--purple); text-transform: uppercase; letter-spacing: .12em; font-weight: 800; }
 .modal-card h2 { margin: 6px 0 7px; }
