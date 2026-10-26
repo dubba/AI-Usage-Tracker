@@ -2,6 +2,7 @@ import { useId } from "react";
 import { displayAccountLabel } from "../../shared/lib/usage-logic";
 import { CalendarOffIcon } from "../../shared/ui/icons";
 import type { Account, OtherLimit } from "../../types";
+import { accountEmail, ActivityAccountTitle } from "./account-title";
 import { describeOtherLimits } from "./activity-format";
 
 /** Stands in for the chart of an account that has no weekly limit (AI Studio, ChatGPT Free, ...). */
@@ -16,6 +17,7 @@ export function NoWeeklyLimitCard({
   monthlyOn30d?: boolean;
 }) {
   const titleId = useId();
+  const email = accountEmail(account);
   return (
     <article className="activity-card is-no-weekly" aria-labelledby={titleId}>
       <span className="activity-card-icon" aria-hidden="true">
@@ -23,7 +25,9 @@ export function NoWeeklyLimitCard({
       </span>
       <div className="activity-card-identity">
         <div className="activity-card-title-row">
-          <h2 className="activity-card-title" id={titleId}>{displayAccountLabel(account)}</h2>
+          <h2 className="activity-card-title" id={titleId}>
+            <ActivityAccountTitle label={displayAccountLabel(account)} email={email} />
+          </h2>
           <span className="activity-badge">No weekly limit</span>
         </div>
         <p className="activity-card-details">

@@ -2,6 +2,8 @@
 import { act } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { mount, type Mounted } from "../test-utils/react";
+import { STORAGE_KEYS, storageRemove } from "../shared/lib/storage";
+import { restorePageScroll } from "./page-scroll";
 import { useSidebarNavigation } from "./useSidebarNavigation";
 
 let nav: ReturnType<typeof useSidebarNavigation>;
@@ -19,9 +21,24 @@ let mounted: Mounted | null = null;
 afterEach(() => {
   mounted?.unmount();
   mounted = null;
+  storageRemove(STORAGE_KEYS.openSection);
 });
 
 describe("useSidebarNavigation", () => {
+  it("opens again on the page that was open last time", () => {
+    mounted = mount(<Probe />);
+    act(() => nav.showSettings());
+    mounted.unmount();
+    mounted = mount(<Probe />);
+    expect(nav.section).toBe("settings");
+
+    act(() => nav.showActivity());
+    mounted.unmount();
+    mounted = mount(<Probe />);
+    expect(nav.section).toBe("activity");
+    expect(nav.sidebarOpen).toBe(false);
+  });
+
   it("starts on All accounts with the sidebar closed", () => {
     mounted = mount(<Probe />);
     expect(nav.selectedGroupId).toBe("all");
@@ -72,6 +89,25 @@ describe("useSidebarNavigation", () => {
     expect(nav.sidebarOpen).toBe(true);
     act(() => nav.closeSidebar());
     expect(nav.sidebarOpen).toBe(false);
+  });
+
+  it("records the open page's scroll position before leaving it", () => {
+    document.body.insertAdjacentHTML("beforeend", `
+      <main class="main-stage">
+        <div class="kept-page" data-page="activity">
+          <div class="dashboard-scroll" id="usage-scroll"></div>
+        </div>
+      </main>`);
+    const usage = document.getElementById("usage-scroll")!;
+    Object.defineProperty(usage, "scrollHeight", { configurable: true, get: () => 2000 });
+    Object.defineProperty(usage, "clientHeight", { configurable: true, get: () => 100 });
+    usage.scrollTop = 510;
+    mounted = mount(<Probe />);
+    act(() => nav.showAccounts());
+    usage.scrollTop = 0;
+    expect(restorePageScroll("activity")).toBe(true);
+    expect(usage.scrollTop).toBe(510);
+    document.querySelector(".main-stage")?.remove();
   });
 
   it("shows the Usage and Accounts pages and closes the sidebar", () => {

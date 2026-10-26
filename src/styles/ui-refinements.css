@@ -804,6 +804,18 @@ html[data-sidebar-toggle-stacked] .provider-window-toggle button:last-child[data
   overflow-x: hidden;
 }
 
+/* Usage, Accounts, and Settings stay in the document so each page keeps its scroll position.
+   The hidden attribute has to win over author display rules, and the wrapper needs
+   a height so the page inside can still be height: 100%. */
+.main-stage > .kept-page {
+  height: 100%;
+  min-height: 0;
+}
+
+.main-stage > .kept-page[hidden] {
+  display: none !important;
+}
+
 @media (min-width: 861px) {
   .obsidian-shell .dashboard-scroll {
     /* Always keep the 6px classic track, plus --scrollbar-gap so cards do not

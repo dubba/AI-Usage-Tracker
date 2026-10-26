@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import { modalReducer } from "./modal-state";
 import { openSafeUrl } from "../shared/lib/safeUrl";
 import { useBusyKeys } from "../shared/lib/busy";
@@ -48,6 +48,7 @@ import { useAfterAccountAdded } from "./useAfterAccountAdded";
 import { useAppMigrations } from "./useAppMigrations";
 import { useBottomNavVisible } from "./useBottomNavVisible";
 import { useGroupOrderReconcile } from "./useGroupOrderReconcile";
+import { watchPageScrollRestore } from "./page-scroll";
 import { useSidebarNavigation } from "./useSidebarNavigation";
 
 // One shared empty list, so the "not loaded yet" value is the same object on every render.
@@ -222,12 +223,17 @@ export default function App() {
       isInitialMount.current = false;
       return;
     }
-    // After view changes, move focus to the new view's primary heading so screen readers announce it
+    // After view changes, move focus to the new view's primary heading so screen readers announce it.
+    // preventScroll keeps that move from jumping the page back to the top.
     window.setTimeout(() => {
-      const heading = document.querySelector<HTMLElement>(".main-stage h1.eyebrow");
-      heading?.focus();
+      const heading = document.querySelector<HTMLElement>(".main-stage .kept-page:not([hidden]) h1.eyebrow");
+      heading?.focus({ preventScroll: true });
     }, 0);
   }, [activeViewKey]);
+
+  // Usage, Accounts, and Settings stay mounted. Putting the saved position back covers a browser
+  // that clears scrollTop while a page is hidden.
+  useLayoutEffect(() => watchPageScrollRestore(section), [section]);
 
   const moveGroup = (group: SidebarGroup, delta: -1 | 1) => {
     const move = moveById(sidebarGroups.map((candidate) => candidate.id), group.id, delta);
@@ -294,9 +300,42 @@ export default function App() {
     await load();
   }, [load]);
 
-  const renderContent = () => {
-    if (section === "settings") {
-      return (
+  const renderContent = () => (
+    <>
+      <div className="kept-page" data-page="activity" hidden={section !== "activity"} inert={section !== "activity"}>
+        <ActivityView
+          accounts={activityAccounts}
+          onToggleSidebar={nav.toggleSidebar}
+          sidebarOpen={sidebarOpen}
+          onAddAccount={() => openAdd()}
+          onReconnect={(account) => account.provider === "google_ai_studio" ? setGoogleUsageAccount(account) : openAdd(account)}
+          onRefresh={accounts.length === 0 ? undefined : handleRefreshUsage}
+        />
+      </div>
+      <div className="kept-page" data-page="accounts" hidden={section !== "accounts"} inert={section !== "accounts"}>
+        <AccountsView
+          allAccounts={accounts}
+          accounts={visibleAccounts}
+          selectedGroup={selectedGroup}
+          refreshMinutes={appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES}
+          onToggleSidebar={nav.toggleSidebar}
+          sidebarOpen={sidebarOpen}
+          onAdd={(provider) => openAdd(undefined, provider ?? selectedGroup.provider ?? undefined)}
+          onOpenPairing={() => setPairingOpen(true)}
+          onRefreshAll={refreshAll}
+          onEditBucket={openEditBucket}
+          onDeleteBucket={openDeleteBucket}
+          onRefresh={(account) => void refreshOne(account.id)}
+          onReconnect={(account) => account.provider === "google_ai_studio" ? setGoogleUsageAccount(account) : openAdd(account)}
+          onConnectGoogleUsage={setGoogleUsageAccount}
+          onRename={(account, label) => rename(account, label)}
+          onRemove={(account) => dispatchModal({ type: "open", modal: { kind: "remove", account } })}
+          onNotifications={(account) => dispatchModal({ type: "open", modal: { kind: "alert", account } })}
+          busy={busy}
+          unprotectedAccountIds={snapshot?.unprotectedAccountIds}
+        />
+      </div>
+      <div className="kept-page" data-page="settings" hidden={section !== "settings"} inert={section !== "settings"}>
         <AppSettingsContext.Provider value={settings}>
           <AppUpdateContext.Provider value={update}>
             <SettingsView
@@ -315,44 +354,9 @@ export default function App() {
             />
           </AppUpdateContext.Provider>
         </AppSettingsContext.Provider>
-      );
-    }
-    if (section === "activity") {
-      return (
-        <ActivityView
-          accounts={activityAccounts}
-          onToggleSidebar={nav.toggleSidebar}
-          sidebarOpen={sidebarOpen}
-          onAddAccount={() => openAdd()}
-          onReconnect={(account) => account.provider === "google_ai_studio" ? setGoogleUsageAccount(account) : openAdd(account)}
-          onRefresh={accounts.length === 0 ? undefined : handleRefreshUsage}
-        />
-      );
-    }
-    return (
-      <AccountsView
-        allAccounts={accounts}
-        accounts={visibleAccounts}
-        selectedGroup={selectedGroup}
-        refreshMinutes={appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES}
-        onToggleSidebar={nav.toggleSidebar}
-        sidebarOpen={sidebarOpen}
-        onAdd={(provider) => openAdd(undefined, provider ?? selectedGroup.provider ?? undefined)}
-        onOpenPairing={() => setPairingOpen(true)}
-        onRefreshAll={refreshAll}
-        onEditBucket={openEditBucket}
-        onDeleteBucket={openDeleteBucket}
-        onRefresh={(account) => void refreshOne(account.id)}
-        onReconnect={(account) => account.provider === "google_ai_studio" ? setGoogleUsageAccount(account) : openAdd(account)}
-        onConnectGoogleUsage={setGoogleUsageAccount}
-        onRename={(account, label) => rename(account, label)}
-        onRemove={(account) => dispatchModal({ type: "open", modal: { kind: "remove", account } })}
-        onNotifications={(account) => dispatchModal({ type: "open", modal: { kind: "alert", account } })}
-        busy={busy}
-        unprotectedAccountIds={snapshot?.unprotectedAccountIds}
-      />
-    );
-  };
+      </div>
+    </>
+  );
 
   return (
     <div ref={shellRef} className={`app-shell obsidian-shell${bottomNavVisible ? " has-bottom-nav" : ""}`}>

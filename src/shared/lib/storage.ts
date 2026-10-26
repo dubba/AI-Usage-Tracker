@@ -28,6 +28,8 @@ export const STORAGE_KEYS = {
   settingsAdvancedOpen: "ai-usage-tracker:settings-advanced-open",
   /** "7d" | "30d": how many days the Usage page shows. */
   activityPeriod: "ai-usage-tracker:activity-period",
+  /** "activity" | "accounts" | "settings": the page to open on the next launch. */
+  openSection: "ai-usage-tracker:open-section",
 } as const;
 
 export const STORAGE_PREFIXES = {

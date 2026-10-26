@@ -70,15 +70,18 @@ describe("WeeklyTracker", () => {
   it("names the Antigravity model family and leaves off the weekly limit", () => {
     const families = [
       ["Gemini Models · Weekly Limit Remaining", "Gemini Models"],
-      ["Claude and GPT models · Weekly Limit Remaining", "Claude and GPT models"],
-      ["Gemini 4 Argon · Weekly Limit", "Gemini 4 Argon"],
+      ["Claude and GPT models · Weekly Limit Remaining", "Claude & GPT Models"],
+      ["Gemini 4 Argon · Weekly Limit", "Argon Models"],
     ] as const;
     for (const [windowLabel, family] of families) {
       const root = render(
-        makeAccount({ id: "a1", provider: "antigravity", label: "Antigravity" }),
+        makeAccount({ id: "a1", provider: "antigravity", label: "Antigravity", email: "me@example.com" }),
         makeTracker({ accountId: "a1", windowId: "gemini", windowLabel }),
       );
+      expect(text(root, ".activity-card-title-line")).toBe("Antigravity · me@example.com");
       expect(text(root, ".activity-card-limit")).toBe(family);
+      expect(root.querySelector(".activity-card-family")).toBeNull();
+      expect(root.querySelector(".activity-card-dot")?.textContent).toBe(" · ");
       expect(root.querySelector('.activity-bars[role="img"]')!.getAttribute("aria-label")).toContain(`Antigravity ${family}, last 7 days`);
       mounted!.unmount();
       mounted = null;
@@ -93,10 +96,26 @@ describe("WeeklyTracker", () => {
     mounted = null;
 
     const claude = render(
-      makeAccount({ id: "a1", label: "Work Claude" }),
+      makeAccount({ id: "a1", label: "Work Claude", email: "work@example.com" }),
       makeTracker({ accountId: "a1", windowLabel: "Gemini Models · Weekly Limit Remaining" }),
     );
     expect(claude.querySelector(".activity-card-limit")).toBeNull();
+    expect(text(claude, ".activity-card-title-line")).toBe("Work Claude · work@example.com");
+  });
+
+  it("shows the account email beside the name for every provider", () => {
+    const root = render(makeAccount({ id: "a1", label: "Work Claude", provider: "anthropic", email: "work@example.com" }));
+    expect(text(root, ".activity-card-title-line")).toBe("Work Claude · work@example.com");
+    expect(text(root, ".activity-card-provider")).toBe("Work Claude");
+    expect(text(root, ".activity-card-email")).toBe("work@example.com");
+    expect(root.querySelector(".activity-card-limit")).toBeNull();
+  });
+
+  it("uses the email from the latest usage when the account has none saved", () => {
+    const account = makeAccount({ id: "a1", label: "Grok", provider: "grok" });
+    account.lastUsage!.email = "grok@example.com";
+    const root = render(account);
+    expect(text(root, ".activity-card-email")).toBe("grok@example.com");
   });
 
   it("draws the daily bars for its days and resets", () => {
@@ -155,12 +174,21 @@ describe("NoWeeklyLimitCard", () => {
     mounted = mount(<NoWeeklyLimitCard account={makeAccount({ id: "s1", label: "Studio key", provider: "google_ai_studio" })} otherLimits={["daily", "per_minute"]} />);
     const root = mounted.container;
     expect(text(root, ".activity-card-title")).toBe("Studio key");
+    expect(root.querySelector(".activity-card-email")).toBeNull();
     expect(text(root, ".activity-badge")).toBe("No weekly limit");
     expect(text(root, ".activity-card-details")).toBe(
       "This account only has daily and per-minute limits, so there's no weekly usage to chart. Its current limits are on the Accounts tab.",
     );
     expect(root.querySelector(".activity-card")!.classList.contains("is-no-weekly")).toBe(true);
     expect(root.querySelector(".activity-bars")).toBeNull();
+  });
+
+  it("shows the account email beside the name", () => {
+    mounted = mount(
+      <NoWeeklyLimitCard account={makeAccount({ id: "s1", label: "Studio key", provider: "google_ai_studio", email: "studio@example.com" })} otherLimits={["daily"]} />,
+    );
+    expect(text(mounted.container, ".activity-card-title-line")).toBe("Studio key · studio@example.com");
+    expect(text(mounted.container, ".activity-badge")).toBe("No weekly limit");
   });
 
   it("words a monthly-only account differently", () => {
