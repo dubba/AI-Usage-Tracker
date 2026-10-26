@@ -35,6 +35,7 @@
     font-weight: 650;
     letter-spacing: 0.04em;
     line-height: 1;
+    text-transform: uppercase;
   }
 
   .activity-period-switch {
@@ -54,9 +55,9 @@
 
   @media (min-width: 861px) {
     .activity-header-main {
-      /* The label (about 42px), its 8px gap, the switch (two 48px buttons, a 2px gap, 2px padding
+      /* The label (about 56px), its 8px gap, the switch (two 48px buttons, a 2px gap, 2px padding
          and a 1px border each side) and the 24px the header's flex gap used to leave beside it. */
-      --activity-switch-room: 180px;
+      --activity-switch-room: 194px;
       position: relative;
       padding-right: var(--activity-switch-room);
     }

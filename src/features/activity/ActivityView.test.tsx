@@ -165,7 +165,7 @@ describe("ActivityView", () => {
     expect(button(root, "Last 30 days").getAttribute("aria-pressed")).toBe("false");
     // The switch is named by a visible label beside it.
     const group = root.querySelector('[role="group"]')!;
-    expect(root.querySelector(`#${CSS.escape(group.getAttribute("aria-labelledby")!)}`)!.textContent).toBe("Period");
+    expect(root.querySelector(`#${CSS.escape(group.getAttribute("aria-labelledby")!)}`)!.textContent).toBe("Period:");
   });
 
   it("switches to 30 days, loads again with 31 boundaries, and remembers the choice", async () => {

@@ -35,7 +35,7 @@ function PeriodSwitch({ period, onChange }: { period: ActivityPeriod; onChange: 
   const labelId = useId();
   return (
     <div className="activity-period">
-      <span className="activity-period-label" id={labelId}>Period</span>
+      <span className="activity-period-label" id={labelId}>Period:</span>
       <div className="activity-period-switch" role="group" aria-labelledby={labelId}>
         {ACTIVITY_PERIODS.map((candidate) => (
           <button
