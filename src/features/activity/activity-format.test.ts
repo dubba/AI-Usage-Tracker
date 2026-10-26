@@ -94,9 +94,9 @@ describe("day labels", () => {
     expect(dayLabel(monday, "30d", true, "en-US")).toBe("Today");
   });
 
-  it("names a reset by its weekday and time", () => {
-    expect(resetTimeLabel(new Date(2026, 9, 12, 15, 0), "en-US")).toBe("Mon 3:00p");
-    expect(resetTimeLabel(new Date(2026, 9, 12, 8, 5), "en-US")).toBe("Mon 8:05a");
+  it("names a reset by its date and time", () => {
+    expect(resetTimeLabel(new Date(2026, 9, 12, 15, 0), "en-US")).toBe("Oct 12 @ 3:00p");
+    expect(resetTimeLabel(new Date(2026, 9, 12, 8, 5), "en-US")).toBe("Oct 12 @ 8:05a");
   });
 });
 

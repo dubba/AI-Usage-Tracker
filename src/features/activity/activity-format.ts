@@ -47,9 +47,9 @@ export function dayLabel(date: Date, period: ActivityPeriod, isToday: boolean, l
   return period === "7d" ? weekdayShort(date, locale) : formatMonthDay(date, locale);
 }
 
-/** "Mon 3:00p": the time of a weekly reset, with its weekday. */
+/** "Oct 12 @ 3:00p": the date and time of a reset. */
 export function resetTimeLabel(date: Date, locale?: string): string {
-  return `${weekdayShort(date, locale)} ${formatClockTime(date, locale)}`;
+  return `${formatMonthDay(date, locale)} @ ${formatClockTime(date, locale)}`;
 }
 
 export const APPROXIMATE_DAY_TOOLTIP = "Estimated: the app wasn't refreshing for part of this day";
