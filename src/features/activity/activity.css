@@ -578,48 +578,32 @@
     pointer-events: auto;
   }
 
-  /* One dash for the whole column. Purple everywhere the bar does not cover. A black copy, the
-     same width and the same rhythm measured from the bottom, is painted on top only across a solid
-     bar, so the line stays visible there without a second stroke beside it. Both are placed with
-     --reset-fraction of this column, so they share one x. */
-  .activity-reset-line,
-  .activity-reset-ink {
+  /* One 1px dash for the column. A second line beside it is what made the bar look double, so the
+     black part is painted on this same element, covering only the bar's height, and one mask cuts
+     both colors into the same dashes. --reset-cover is that height as a percent of the slot. The
+     line itself also sticks 4px above the slot, which the cover math leaves purple. */
+  .activity-reset-line {
     position: absolute;
+    top: -4px;
+    bottom: 0;
     width: 1px;
     left: calc(var(--reset-fraction) * 100%);
     transform: translateX(-50%);
+    background: var(--purple-accent);
     pointer-events: none;
+    -webkit-mask-image: repeating-linear-gradient(to top, #000 0 4px, transparent 4px 7px);
+    mask-image: repeating-linear-gradient(to top, #000 0 4px, transparent 4px 7px);
   }
 
-  .activity-reset-line {
-    top: -4px;
-    bottom: 0;
-    background: repeating-linear-gradient(to top, var(--purple-accent) 0 4px, transparent 4px 7px);
-  }
-
-  /* Full column width and only as tall as the bar, so the mask can keep the black dash on the bar
-     even when the bar is narrower than its column. */
-  .activity-reset-clip {
+  .activity-reset-line.has-ink::after {
+    content: "";
     position: absolute;
     right: 0;
     bottom: 0;
     left: 0;
-    min-height: 3px;
-    pointer-events: none;
-    -webkit-mask-image: linear-gradient(#fff, #fff);
-    mask-image: linear-gradient(#fff, #fff);
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-position: center bottom;
-    mask-position: center bottom;
-    -webkit-mask-size: min(100%, 44px) 100%;
-    mask-size: min(100%, 44px) 100%;
-  }
-
-  .activity-reset-ink {
-    top: 0;
-    bottom: 0;
-    background: repeating-linear-gradient(to top, #000 0 4px, transparent 4px 7px);
+    /* At least the bar's 3px minimum, and otherwise the bar's share of the slot. */
+    height: max(3px, calc(var(--reset-cover) / 100 * (100% - 4px)));
+    background: #000;
   }
 
   /* ---- tooltips: the shared ones are centered under their element, which would run off the
