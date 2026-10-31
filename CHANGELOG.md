@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (1 change)
+
+### Improved (1)
+
+- On the Usage page, the provider name and account email are slightly smaller so they fit on one line, with the name still a step larger than the email.
 
 ## v0.5.5 - 2026-10-29 (4 changes)
 
