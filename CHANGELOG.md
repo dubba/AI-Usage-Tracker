@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased (1 change)
+## Unreleased (2 changes)
 
-### Improved (1)
+### Improved (2)
 
 - On the Usage page, the provider name and account email are slightly smaller so they fit on one line, with the name still a step larger than the email.
+- Settings switches now clearly differentiate the off state like Pixel phones: a muted gray knob with a cut-out X mark and subtle track outline when off, contrasting with the bright white knob and purple fill when on.
 
 ## v0.5.5 - 2026-10-29 (4 changes)
 

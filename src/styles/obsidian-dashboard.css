@@ -2270,11 +2270,13 @@ select.text-input option,
   flex-shrink: 0;
   box-sizing: border-box;
   margin: 0;
-  border-color: var(--obsidian-border-strong);
+  outline: 1px solid var(--obsidian-border-strong);
+  outline-offset: 0;
   background: var(--c-292829);
 }
 
 .toggle.on {
+  outline-color: transparent;
   background: var(--purple-fill) !important;
 }
 

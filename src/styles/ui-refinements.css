@@ -1518,9 +1518,13 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 /* Settings: toggles match the purple hover of the View / Link Devices buttons.
    The outline is drawn outside the track so it never shrinks it or shifts the knob. */
 .settings-style-content .toggle {
-  outline: 1px solid transparent;
+  outline: 1px solid var(--obsidian-border-strong);
   outline-offset: 0;
   transition: outline-color 140ms ease, background-color 140ms ease;
+}
+
+.settings-style-content .toggle.on {
+  outline-color: transparent;
 }
 
 .settings-style-content .toggle:hover:not(:disabled) {
