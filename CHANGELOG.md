@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased (13 changes)
+## Unreleased (14 changes)
 
-### Improved (10)
+### Improved (11)
 
+- On the All Accounts page, the reorder hint says "Press & drag a card below or in the sidebar to reorder".
 - In Settings, the X on an off switch is the same size as the check on an on switch.
 - The bar along the bottom lists Accounts, then Usage, then Settings, on the phone and on Windows and macOS.
 - The iPhone and iPad download on a release is named `AI Usage Tracker_<version>.ipa`, including the version the way the other installers do.

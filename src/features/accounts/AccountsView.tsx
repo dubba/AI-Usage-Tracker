@@ -243,7 +243,7 @@ export function AccountsView(props: {
 
         {showReorderHint ? (
           <div className="reorder-hint-banner" role="note">
-            <span>Press and drag a card below or in the sidebar to reorder</span>
+            <span>Press & drag a card below or in the sidebar to reorder</span>
             <button
               type="button"
               className="reorder-hint-dismiss"

@@ -241,7 +241,7 @@ describe("AccountsView reorder hint banner", () => {
     });
     const banner = document.querySelector(".reorder-hint-banner");
     expect(banner).not.toBeNull();
-    expect(banner?.textContent).toContain("Press and drag a card below or in the sidebar to reorder");
+    expect(banner?.textContent).toContain("Press & drag a card below or in the sidebar to reorder");
 
     const dismissBtn = banner?.querySelector<HTMLButtonElement>(".reorder-hint-dismiss");
     expect(dismissBtn).not.toBeNull();
@@ -258,7 +258,7 @@ describe("AccountsView reorder hint banner", () => {
     });
     const banner = document.querySelector(".reorder-hint-banner");
     expect(banner).not.toBeNull();
-    expect(banner?.textContent).toContain("Press and drag a card below or in the sidebar to reorder");
+    expect(banner?.textContent).toContain("Press & drag a card below or in the sidebar to reorder");
   });
 
   it("appears on the first 2 opens and stops appearing on the 3rd open", () => {
