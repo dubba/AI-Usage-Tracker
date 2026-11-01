@@ -467,10 +467,6 @@
     align-items: flex-end;
     justify-content: center;
     width: 100%;
-    height: 112px;
-  }
-
-  .activity-chart.is-30d .activity-bar-slot {
     height: 88px;
   }
 
@@ -502,14 +498,10 @@
 
   /* No data: striped, and not zero. */
   .activity-bar.is-empty {
-    height: 44px;
+    height: 28px;
     border: 1px solid var(--border-strong);
     background: repeating-linear-gradient(135deg, var(--border-strong) 0 2px, transparent 2px 6px);
     opacity: 0.7;
-  }
-
-  .activity-chart.is-30d .activity-bar.is-empty {
-    height: 28px;
   }
 
   /* Dates under the 30 day chart: the first day, the days a third and two thirds along, and Today.

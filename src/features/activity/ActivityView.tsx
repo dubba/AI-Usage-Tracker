@@ -115,10 +115,13 @@ export function ActivityView({
   });
 
   const accountById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts]);
+  // The switch updates immediately. The chart stays on the period it has data for until the other
+  // report arrives, so the cards are not replaced by placeholders in between.
+  const chartPeriod: ActivityPeriod = data == null ? period : data.dayCount === ACTIVITY_PERIOD_DAYS["30d"] ? "30d" : "7d";
   const trackers = useMemo<ActivityTracker[]>(
     // An account with no weekly limit but a monthly one is charted on the 30 day view only.
-    () => (data ? inAccountOrder(data.activity.trackers.filter((tracker) => period === "30d" || tracker.windowKind === "weekly"), accounts) : []),
-    [data, accounts, period],
+    () => (data ? inAccountOrder(data.activity.trackers.filter((tracker) => chartPeriod === "30d" || tracker.windowKind === "weekly"), accounts) : []),
+    [data, accounts, chartPeriod],
   );
   const hasReadings = trackers.some((tracker) => tracker.days.some((day) => day.quality !== "none"));
   // Accounts whose monthly usage the 30 day view charts, for a hint on their card on the 7 day view.
@@ -129,10 +132,10 @@ export function ActivityView({
   // The "No weekly limit" cards belong to the 7 day view. The 30 day view charts monthly
   // usage instead, and says tracking has not started yet when nothing is recorded.
   const untracked = useMemo<UntrackedAccount[]>(() => {
-    if (!data || period === "30d") return [];
+    if (!data || chartPeriod === "30d") return [];
     const charted = new Set(hasReadings ? trackers.map((tracker) => tracker.accountId) : []);
     return inAccountOrder(data.activity.untracked, accounts).filter((entry) => !charted.has(entry.accountId));
-  }, [data, accounts, trackers, hasReadings, period]);
+  }, [data, accounts, trackers, hasReadings, chartPeriod]);
   // Nothing recorded yet for the charts on screen, or no limits known at all.
   const waitingForReadings = trackers.length > 0 ? !hasReadings : untracked.length === 0;
 
@@ -170,7 +173,11 @@ export function ActivityView({
       <>
         {error ? (
           <div className="activity-error" role="alert">
-            <span>Couldn’t refresh usage: {error}</span>
+            <span>
+              {data.dayCount === ACTIVITY_PERIOD_DAYS[period]
+                ? `Couldn’t refresh usage: ${error}`
+                : `Couldn’t load usage: ${error}`}
+            </span>
             {retry}
           </div>
         ) : null}
@@ -187,7 +194,7 @@ export function ActivityView({
                   tracker={tracker}
                   account={accountById.get(tracker.accountId)!}
                   dayStarts={data.dayStarts}
-                  period={period}
+                  period={chartPeriod}
                   onReconnect={onReconnect}
                 />
               ))
@@ -197,7 +204,7 @@ export function ActivityView({
               key={entry.accountId}
               account={accountById.get(entry.accountId)!}
               otherLimits={entry.otherLimits}
-              monthlyOn30d={period === "7d" && monthlyAccountIds.has(entry.accountId)}
+              monthlyOn30d={chartPeriod === "7d" && monthlyAccountIds.has(entry.accountId)}
             />
           ))}
         </div>

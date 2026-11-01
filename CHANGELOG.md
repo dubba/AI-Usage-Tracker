@@ -1,11 +1,13 @@
 # Changelog
 
-## Unreleased (7 changes)
+## Unreleased (9 changes)
 
-### Improved (5)
+### Improved (7)
 
+- On the Usage page, switching between 7 days and 30 days keeps the chart on screen. A period you have already opened comes back at once.
+- On the Usage page, the 7-day chart is the same height as the 30-day chart.
 - On the Usage page, the plan and reset line and Antigravity model family labels under card titles are 11 pixels, matching the size of the account email beside the provider name.
-- In Settings, the on/off switches are 28 pixels tall and stay 48 pixels wide.
+- In Settings, the on/off switches stay 48 pixels wide. On the desktop they are 24 pixels tall, and on a phone they are 28.
 - On the All Accounts page and the Add Account dialog, the headings "Connect an AI Provider Account" and "Add AI Provider Account" are now "Connect an AI Account" and "Add AI Account".
 - On the Usage page, the provider name and account email are slightly smaller so they fit on one line, with the name still a step larger than the email.
 - Settings switches now clearly differentiate the off state like Pixel phones: a muted gray knob with a cut-out X mark and subtle track outline when off, contrasting with the bright white knob and purple fill when on.

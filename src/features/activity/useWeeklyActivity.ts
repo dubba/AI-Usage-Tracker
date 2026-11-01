@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { bridgeApi } from "../../shared/lib/api";
 import { errorMessage } from "../../shared/lib/errors";
 import { useLatestRequest } from "../../shared/hooks/useLatestRequest";
@@ -20,8 +20,9 @@ export interface ActivityData {
  * when `refreshKey` changes (the dashboard got new usage from a refresh) and when the app comes
  * back to the front, and the newest answer wins however slowly an older request finishes.
  *
- * `data` is the answer for the current `dayCount` only; the previous period's answer is not shown
- * while the new one loads, but an answer for the same period stays on screen while it is refreshed.
+ * Each period is remembered, so switching back shows that chart at once. A period that has not
+ * arrived yet leaves the other one on screen instead of clearing it. A refresh of the period
+ * already on screen also leaves that chart up. An error stays with the period it belongs to.
  */
 export function useWeeklyActivity({
   dayCount,
@@ -32,22 +33,32 @@ export function useWeeklyActivity({
   refreshKey: string;
   enabled: boolean;
 }) {
-  const [answer, setAnswer] = useState<ActivityData | null>(null);
-  const [failure, setFailure] = useState<{ dayCount: number; message: string } | null>(null);
+  const [byCount, setByCount] = useState<Partial<Record<number, ActivityData>>>({});
+  const [failures, setFailures] = useState<Partial<Record<number, string>>>({});
   const request = useLatestRequest();
+  // The newest request for each period. A slow 30-day report can still be stored after the view
+  // has moved on to 7 days; a newer request for those same 30 days replaces it.
+  const generation = useRef(new Map<number, number>());
 
   const load = useCallback(async () => {
     if (!enabled) return;
     const ticket = request.begin();
+    generation.current.set(dayCount, ticket);
     const dayStarts = dayStartsFor(dayCount);
     try {
       const activity = await bridgeApi.getWeeklyActivity(dayStartInstants(dayStarts));
-      if (!request.isLatest(ticket)) return;
-      setAnswer({ dayCount, dayStarts, activity });
-      setFailure(null);
+      if (generation.current.get(dayCount) !== ticket) return;
+      setByCount((current) => ({ ...current, [dayCount]: { dayCount, dayStarts, activity } }));
+      // A late answer for the other period must not clear an error the user is looking at.
+      setFailures((current) => {
+        if (current[dayCount] == null) return current;
+        const next = { ...current };
+        delete next[dayCount];
+        return next;
+      });
     } catch (cause) {
-      if (!request.isLatest(ticket)) return;
-      setFailure({ dayCount, message: errorMessage(cause) });
+      if (generation.current.get(dayCount) !== ticket) return;
+      setFailures((current) => ({ ...current, [dayCount]: errorMessage(cause) }));
     }
   }, [dayCount, enabled, request]);
 
@@ -60,9 +71,16 @@ export function useWeeklyActivity({
   useOnAppResume(() => void load());
 
   // Leaving the page makes an answer still on its way stale.
-  useEffect(() => () => request.cancel(), [request]);
+  useEffect(
+    () => () => {
+      generation.current.clear();
+      request.cancel();
+    },
+    [request],
+  );
 
-  const data = answer && answer.dayCount === dayCount ? answer : null;
-  const error = failure && failure.dayCount === dayCount ? failure.message : null;
+  const requested = byCount[dayCount] ?? null;
+  const data = requested ?? Object.values(byCount).find((item) => item != null) ?? null;
+  const error = failures[dayCount] ?? null;
   return { data, error, reload: load };
 }

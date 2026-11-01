@@ -108,11 +108,16 @@ svg { width: 18px; height: 18px; }
 .settings-row > div:first-child { display: grid; }
 .settings-row small { color: var(--muted); margin-top: 5px; }
 .toggle { border: 0; border-radius: 99px; padding: 3px; cursor: pointer; }
-.toggle span { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 99px; background: var(--obsidian-muted); transition: transform .18s, background-color .18s; }
-.toggle.on span { transform: translateX(20px); background: var(--c-dce1de); }
+.toggle span { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 99px; background: var(--obsidian-muted); transition: transform .18s, background-color .18s; }
+.toggle.on span { transform: translateX(24px); background: var(--c-dce1de); }
 /* Pixel-style switch: the knob is muted gray with a cut-out X mark while off,
    and bright white with a purple checkmark while on. */
-.toggle-mark { grid-area: 1 / 1; width: 14px; height: 14px; fill: none; stroke-width: 2.8; stroke-linecap: round; stroke-linejoin: round; transition: opacity .15s ease; }
+.toggle-mark { grid-area: 1 / 1; width: 12px; height: 12px; fill: none; stroke-width: 2.8; stroke-linecap: round; stroke-linejoin: round; transition: opacity .15s ease; }
+@media (max-width: 860px) {
+  .toggle span { width: 22px; height: 22px; }
+  .toggle.on span { transform: translateX(20px); }
+  .toggle-mark { width: 14px; height: 14px; }
+}
 .toggle-mark-off { stroke: var(--obsidian-surface-low); }
 .toggle-mark-on { stroke: var(--purple-fill); opacity: 0; }
 .toggle.on .toggle-mark-off { opacity: 0; }

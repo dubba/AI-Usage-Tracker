@@ -170,6 +170,46 @@ describe("ActivityView", () => {
     expect(root.querySelector(`#${CSS.escape(group.getAttribute("aria-labelledby")!)}`)!.textContent).toBe("Period");
   });
 
+  it("keeps the 7-day charts on screen while 30 days loads, and brings 7 days back at once", async () => {
+    let resolve30!: (value: WeeklyActivity) => void;
+    api.getWeeklyActivity.mockImplementation(async (starts: string[]) => {
+      if (starts.length === 8) return answer(1, 7);
+      return new Promise<WeeklyActivity>((done) => {
+        resolve30 = done;
+      });
+    });
+    const { root } = renderView([work]);
+    await settle();
+    expect(select(root, ".activity-bar")).toHaveLength(7);
+
+    click(button(root, "Last 30 days"));
+    await settle();
+    expect(button(root, "Last 30 days").getAttribute("aria-pressed")).toBe("true");
+    expect(select(root, ".activity-skeleton")).toHaveLength(0);
+    expect(select(root, ".activity-bar")).toHaveLength(7);
+
+    resolve30(answer(1, 30));
+    await settle();
+    expect(select(root, ".activity-bar")).toHaveLength(30);
+
+    let resolve7!: (value: WeeklyActivity) => void;
+    api.getWeeklyActivity.mockImplementation(async (starts: string[]) => {
+      if (starts.length === 8) {
+        return new Promise<WeeklyActivity>((done) => {
+          resolve7 = done;
+        });
+      }
+      return answer(1, 30);
+    });
+    click(button(root, "Last 7 days"));
+    await settle();
+    expect(select(root, ".activity-skeleton")).toHaveLength(0);
+    expect(select(root, ".activity-bar")).toHaveLength(7);
+    resolve7(answer(1, 7));
+    await settle();
+    expect(select(root, ".activity-bar")).toHaveLength(7);
+  });
+
   it("switches to 30 days, loads again with 31 boundaries, and remembers the choice", async () => {
     api.getWeeklyActivity.mockImplementation(async (starts: string[]) => answer(1, starts.length - 1));
     const { root } = renderView([work]);
@@ -357,15 +397,50 @@ describe("ActivityView", () => {
     expect(select(root, ".activity-axis")).toHaveLength(1);
   });
 
-  it("does not show the old period's charts, or its error, while the new one loads", async () => {
+  it("hides the old period's error while the new one loads, and keeps its charts", async () => {
     api.getWeeklyActivity.mockResolvedValueOnce(answer());
     const { root } = renderView([work]);
     await settle();
+
+    api.getWeeklyActivity.mockRejectedValueOnce("offline");
+    act(() => void window.dispatchEvent(new Event("focus")));
+    await settle();
+    expect(root.querySelector('[role="alert"]')!.textContent).toContain("Couldn’t refresh usage: offline");
+
     api.getWeeklyActivity.mockReturnValueOnce(new Promise(() => {}));
     click(button(root, "Last 30 days"));
     await settle();
+    expect(root.querySelector('[role="alert"]')).toBeNull();
+    expect(select(root, ".activity-skeleton")).toHaveLength(0);
+    expect(select(root, ".activity-bar")).toHaveLength(7);
+  });
+
+  it("keeps a period's load error when the other period answers later", async () => {
+    const pending: Array<(value: WeeklyActivity) => void> = [];
+    const rejectors: Array<(reason: unknown) => void> = [];
+    api.getWeeklyActivity.mockImplementation(
+      () =>
+        new Promise<WeeklyActivity>((done, reject) => {
+          pending.push(done);
+          rejectors.push(reject);
+        }),
+    );
+    const { root } = renderView([work]);
+    click(button(root, "Last 30 days"));
+    await settle();
+    expect(pending).toHaveLength(2);
+
+    rejectors[1](new Error("The history could not be read."));
+    await settle();
+    expect(root.querySelector('[role="alert"]')!.textContent).toContain("Couldn’t load usage: The history could not be read.");
     expect(select(root, ".activity-bar")).toHaveLength(0);
-    expect(select(root, ".activity-skeleton")).toHaveLength(3);
+
+    pending[0](answer(1, 7));
+    await settle();
+    expect(root.querySelector('[role="alert"]')!.textContent).toContain("Couldn’t load usage: The history could not be read.");
+    expect(select(root, ".activity-skeleton")).toHaveLength(0);
+    expect(select(root, ".activity-bar")).toHaveLength(7);
+    expect(button(root, "Last 30 days").getAttribute("aria-pressed")).toBe("true");
   });
 
   it("keeps the 7D / 30D switch in the title row, after the title, so a phone shows them on one line", async () => {
