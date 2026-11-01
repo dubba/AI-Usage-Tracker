@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (10 changes)
+## Unreleased (11 changes)
 
 ### Improved (8)
 
@@ -17,6 +17,10 @@
 
 - On the Usage page, the 30-day view no longer shows the "No weekly limit" card. That card stays on the 7-day view, where it points you to 30D.
 - In Settings, tapping switches on mobile no longer triggers or sticks in the lighter purple hover color meant for desktop pointer devices.
+
+### Security (1)
+
+- Desktop updates no longer install an older release that a changed update listing describes as a newer version.
 
 ## v0.5.5 - 2026-10-29 (4 changes)
 

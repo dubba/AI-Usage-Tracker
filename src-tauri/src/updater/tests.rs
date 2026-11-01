@@ -370,6 +370,19 @@ fn release_tags_are_checked_before_they_go_into_urls() {
 }
 
 #[test]
+fn desktop_updates_require_a_signature_for_the_announced_version() {
+    // The manifest is not signed. Without this flag the plugin accepts a signature
+    // that carries no version, so a changed listing can pair a new version number
+    // with an older signed installer.
+    let config: serde_json::Value =
+        serde_json::from_str(include_str!("../../tauri.conf.json")).expect("tauri.conf.json");
+    assert_eq!(
+        config["plugins"]["updater"]["requireSignedVersion"].as_bool(),
+        Some(true)
+    );
+}
+
+#[test]
 fn update_notice_accepts_only_version_shaped_values() {
     for ok in ["0.4.1", "v0.4.1", "0.4.2-beta.1", "10.20.30-rc1"] {
         assert!(super::is_update_notice_version(ok), "{ok}");
