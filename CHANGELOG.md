@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased (6 changes)
+## Unreleased (7 changes)
 
-### Improved (4)
+### Improved (5)
 
+- On the Usage page, the plan and reset line and Antigravity model family labels under card titles are 11 pixels, matching the size of the account email beside the provider name.
 - In Settings, the on/off switches are 28 pixels tall and stay 48 pixels wide.
 - On the All Accounts page and the Add Account dialog, the headings "Connect an AI Provider Account" and "Add AI Provider Account" are now "Connect an AI Account" and "Add AI Account".
 - On the Usage page, the provider name and account email are slightly smaller so they fit on one line, with the name still a step larger than the email.
