@@ -10,8 +10,8 @@ const ITEMS = [
 
 /**
  * The main navigation on a phone or a narrow window, where the sidebar is an off-canvas overlay:
- * Accounts, Usage and Settings, one tap away. On wider windows the sidebar has the same entries
- * and this bar is not rendered.
+ * Accounts, Usage and Settings, one tap away. On wider windows the sidebar lists them in that
+ * order and this bar is not rendered.
  */
 export function BottomNav({
   section,
