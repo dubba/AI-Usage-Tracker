@@ -10,6 +10,7 @@ import {
   extractChangelogNotes,
   applyRelease,
   validateSource,
+  ipaAssetName,
   SOURCE_URL,
 } from "./update-sidestore-source.mjs";
 
@@ -41,7 +42,8 @@ test("applyRelease sets version, exact size, minOSVersion and sourceURL", () => 
   assert.equal(app.size, 12345);
   assert.equal(app.minOSVersion, "16.0");
   assert.equal(app.versionDescription, "Release v0.3.17");
-  assert.match(app.downloadURL, /\/releases\/download\/v0\.3\.17\/AI-Usage-Tracker\.ipa$/);
+  assert.equal(ipaAssetName("v0.3.17"), "AI Usage Tracker_0.3.17.ipa");
+  assert.equal(app.downloadURL, "https://github.com/dubba/AI-Usage-Tracker/releases/download/v0.3.17/AI%20Usage%20Tracker_0.3.17.ipa");
   assert.deepEqual(validateSource(source), []);
 });
 

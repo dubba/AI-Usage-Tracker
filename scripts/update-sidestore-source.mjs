@@ -21,6 +21,11 @@ export function isPrerelease(version) {
   return normalizeVersion(version).includes("-");
 }
 
+/** Release asset name, matching the other installers (`AI Usage Tracker_<version>.apk`). */
+export function ipaAssetName(version) {
+  return `AI Usage Tracker_${normalizeVersion(version)}.ipa`;
+}
+
 /** Bullet text of a changelog section ("Unreleased" or a version), or "" when absent. */
 export function extractChangelogNotes(changelog, version) {
   const lines = changelog.split(/\r?\n/);
@@ -45,7 +50,8 @@ export function applyRelease(source, { version, size, date, notes, downloadUrl }
   app.version = clean;
   app.versionDate = date;
   app.versionDescription = notes || `Release v${clean}`;
-  app.downloadURL = downloadUrl || `https://github.com/${REPO}/releases/download/v${clean}/AI-Usage-Tracker.ipa`;
+  const asset = encodeURIComponent(ipaAssetName(clean));
+  app.downloadURL = downloadUrl || `https://github.com/${REPO}/releases/download/v${clean}/${asset}`;
   app.minOSVersion = MIN_OS_VERSION;
   if (typeof size === "number" && Number.isInteger(size) && size > 0) app.size = size;
   return source;

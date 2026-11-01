@@ -90,14 +90,17 @@ jobs:
           fi
 
           echo "Packaging unsigned IPA from $APP_DIR"
+          VERSION=$(node -p "require('./package.json').version")
+          # Same stem as the APK and the desktop installers, so the release lists the version.
+          IPA_NAME="AI Usage Tracker_${VERSION}.ipa"
           mkdir -p release-ipa/Payload
           cp -R "$APP_DIR" release-ipa/Payload/
-          (cd release-ipa && zip -q -r -y AI-Usage-Tracker.ipa Payload && rm -rf Payload)
+          (cd release-ipa && zip -q -r -y "$IPA_NAME" Payload && rm -rf Payload)
 
           # Records the exact IPA byte size; skipped for pre-release versions.
-          node scripts/update-sidestore-source.mjs --ipa release-ipa/AI-Usage-Tracker.ipa
+          node scripts/update-sidestore-source.mjs --ipa "release-ipa/$IPA_NAME"
 
-          (cd release-ipa && shasum -a 256 AI-Usage-Tracker.ipa > AI-Usage-Tracker.ipa.sha256)
+          (cd release-ipa && shasum -a 256 "$IPA_NAME" > "$IPA_NAME.sha256")
           cp sidestore-source.json release-ipa/sidestore-source.json
           ls -la release-ipa/
 
@@ -106,8 +109,8 @@ jobs:
         with:
           name: ios-ipa
           path: |
-            release-ipa/AI-Usage-Tracker.ipa
-            release-ipa/AI-Usage-Tracker.ipa.sha256
+            release-ipa/*.ipa
+            release-ipa/*.sha256
             release-ipa/sidestore-source.json
           if-no-files-found: error
           retention-days: 30
@@ -122,7 +125,10 @@ jobs:
           TAG="v$(node -p "require('./package.json').version")"
           for i in $(seq 1 20); do
             if gh release view "$TAG" >/dev/null 2>&1; then
-              for file in release-ipa/AI-Usage-Tracker.ipa release-ipa/AI-Usage-Tracker.ipa.sha256 release-ipa/sidestore-source.json; do
+              # The IPA name contains spaces, so the names stay in an array.
+              shopt -s nullglob
+              files=(release-ipa/*.ipa release-ipa/*.sha256 release-ipa/sidestore-source.json)
+              for file in "${files[@]}"; do
                 [ -f "$file" ] || continue
                 file_name=$(basename "$file")
                 gh release upload "$TAG" "${file}#${file_name}" --clobber

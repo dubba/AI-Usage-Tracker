@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased (9 changes)
+## Unreleased (10 changes)
 
-### Improved (7)
+### Improved (8)
 
+- The iPhone and iPad download on a release is named `AI Usage Tracker_<version>.ipa`, including the version the way the other installers do.
 - On the Usage page, switching between 7 days and 30 days keeps the chart on screen. A period you have already opened comes back at once.
 - On the Usage page, the 7-day chart is the same height as the 30-day chart.
 - On the Usage page, the plan and reset line and Antigravity model family labels under card titles are 11 pixels, matching the size of the account email beside the provider name.

@@ -206,6 +206,12 @@ test("macOS builds sign and notarize with a full Apple secret set, ad-hoc with n
   assert.deepEqual(exported, { ...full, APPLE_CERTIFICATE: "TUlJQ2ZhZWtlUDEy" });
 });
 
+test("the iOS release IPA is named with the version, like the other installers", () => {
+  const ios = workflows.find((w) => w.name === "build-ios.yml").text;
+  assert.match(ios, /IPA_NAME="AI Usage Tracker_\$\{VERSION\}\.ipa"/);
+  assert.doesNotMatch(ios, /AI-Usage-Tracker\.ipa/);
+});
+
 test("the Android signing step signs release APKs only and refuses debug ones", async () => {
   const { spawnSync } = await import("node:child_process");
   const fs = await import("node:fs");
