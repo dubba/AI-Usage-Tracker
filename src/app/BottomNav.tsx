@@ -3,15 +3,15 @@ import type { Section } from "./useSidebarNavigation";
 import "./bottom-nav.css";
 
 const ITEMS = [
-  { section: "activity", label: "Usage", Icon: BarChartIcon },
   { section: "accounts", label: "Accounts", Icon: GridIcon },
+  { section: "activity", label: "Usage", Icon: BarChartIcon },
   { section: "settings", label: "Settings", Icon: SettingsIcon },
 ] as const satisfies ReadonlyArray<{ section: Section; label: string; Icon: typeof GridIcon }>;
 
 /**
  * The main navigation on a phone or a narrow window, where the sidebar is an off-canvas overlay:
- * Usage, Accounts and Settings, one tap away. On wider windows the sidebar has the same entries
- * and this bar is not rendered.
+ * Accounts, Usage and Settings, one tap away. On wider windows the sidebar lists them in that
+ * order and this bar is not rendered.
  */
 export function BottomNav({
   section,

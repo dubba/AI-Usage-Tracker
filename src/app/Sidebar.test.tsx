@@ -55,9 +55,9 @@ function render(props: { section: Section; showMainNav: boolean; selectedGroupId
 }
 
 describe("Sidebar page links", () => {
-  it("are Usage, Accounts and Settings, at the very bottom, below the sync status", () => {
+  it("are Accounts, Usage and Settings, at the very bottom, below the sync status", () => {
     const { nav, items } = render({ section: "accounts", showMainNav: true });
-    expect(items.map((item) => item.textContent)).toEqual(["Usage", "Accounts", "Settings"]);
+    expect(items.map((item) => item.textContent)).toEqual(["Accounts", "Usage", "Settings"]);
     const list = mounted!.container.querySelector(".provider-list")!;
     const status = mounted!.container.querySelector(".sidebar-sync-status")!;
     expect(list.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -76,8 +76,8 @@ describe("Sidebar page links", () => {
   });
 
   it.each([
-    ["activity", 0],
-    ["accounts", 1],
+    ["accounts", 0],
+    ["activity", 1],
     ["settings", 2],
   ] as const)("show the %s link as the current page", (section, index) => {
     const { items } = render({ section, showMainNav: true });
@@ -90,9 +90,9 @@ describe("Sidebar page links", () => {
   it("open their page when clicked", () => {
     const { items, handlers } = render({ section: "accounts", showMainNav: true });
     click(items[0]);
-    expect(handlers.onOpenActivity).toHaveBeenCalledTimes(1);
-    click(items[1]);
     expect(handlers.onOpenAccounts).toHaveBeenCalledTimes(1);
+    click(items[1]);
+    expect(handlers.onOpenActivity).toHaveBeenCalledTimes(1);
     click(items[2]);
     expect(handlers.onOpenSettings).toHaveBeenCalledTimes(1);
     expect(handlers.onSelectGroup).not.toHaveBeenCalled();

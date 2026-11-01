@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased (10 changes)
+## Unreleased (12 changes)
 
-### Improved (8)
+### Improved (9)
 
+- The bar along the bottom lists Accounts, then Usage, then Settings, on the phone and on Windows and macOS.
 - The iPhone and iPad download on a release is named `AI Usage Tracker_<version>.ipa`, including the version the way the other installers do.
 - On the Usage page, switching between 7 days and 30 days keeps the chart on screen. A period you have already opened comes back at once.
 - On the Usage page, the 7-day chart is the same height as the 30-day chart.
@@ -17,6 +18,10 @@
 
 - On the Usage page, the 30-day view no longer shows the "No weekly limit" card. That card stays on the 7-day view, where it points you to 30D.
 - In Settings, tapping switches on mobile no longer triggers or sticks in the lighter purple hover color meant for desktop pointer devices.
+
+### Security (1)
+
+- Desktop updates no longer install an older release that a changed update listing describes as a newer version.
 
 ## v0.5.5 - 2026-10-29 (4 changes)
 

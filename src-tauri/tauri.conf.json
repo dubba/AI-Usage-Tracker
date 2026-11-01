@@ -65,6 +65,7 @@
       "endpoints": [
         "https://github.com/dubba/AI-Usage-Tracker/releases/latest/download/latest.json"
       ],
+      "requireSignedVersion": true,
       "windows": {
         "installMode": "passive"
       }

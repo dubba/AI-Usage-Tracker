@@ -15,14 +15,14 @@ import "./sidebar-nav.css";
 
 /** The page links at the bottom of the sidebar on a wide window; a phone has the bottom bar instead. */
 const PAGE_LINKS = [
-  { section: "activity", label: "Usage", Icon: BarChartIcon },
   { section: "accounts", label: "Accounts", Icon: GridIcon },
+  { section: "activity", label: "Usage", Icon: BarChartIcon },
   { section: "settings", label: "Settings", Icon: SettingsIcon },
 ] as const satisfies ReadonlyArray<{ section: Section; label: string; Icon: typeof GridIcon }>;
 
 /**
  * The navigation sidebar: add buttons, the All accounts row and one row per group, then the sync status and (on wide
- * windows; a phone has the bottom bar) the Usage, Accounts and Settings links.
+ * windows; a phone has the bottom bar) the Accounts, Usage and Settings links.
  */
 export function Sidebar({
   sidebarRef,

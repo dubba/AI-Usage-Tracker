@@ -1,4 +1,4 @@
-/* The Usage, Accounts and Settings links at the very bottom of the sidebar (Sidebar.tsx), below the
+/* The Accounts, Usage and Settings links at the very bottom of the sidebar (Sidebar.tsx), below the
  * sync status, on wide windows. The buttons are the bottom bar's own (`.bottom-nav-item` in
  * bottom-nav.css, loaded with it): side by side, icon above label, on the same purple fill as
  * the mobile bottom bar. */

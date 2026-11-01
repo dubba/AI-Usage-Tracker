@@ -18,16 +18,16 @@ function render(section: Section, props: { inert?: boolean } = {}) {
 }
 
 describe("BottomNav", () => {
-  it("is the Main navigation, with Usage, Accounts and Settings in that order", () => {
+  it("is the Main navigation, with Accounts, Usage and Settings in that order", () => {
     const { nav, items } = render("accounts");
     expect(nav.getAttribute("aria-label")).toBe("Main");
-    expect(items.map((item) => item.textContent)).toEqual(["Usage", "Accounts", "Settings"]);
+    expect(items.map((item) => item.textContent)).toEqual(["Accounts", "Usage", "Settings"]);
     expect(items.every((item) => item.type === "button" && item.querySelector("svg") !== null)).toBe(true);
   });
 
   it.each([
-    ["activity", 0],
-    ["accounts", 1],
+    ["accounts", 0],
+    ["activity", 1],
     ["settings", 2],
   ] as const)("marks only the %s item as the current page", (section, index) => {
     const { items } = render(section);
@@ -42,7 +42,7 @@ describe("BottomNav", () => {
     click(items[0]);
     click(items[1]);
     click(items[2]);
-    expect(onSelect.mock.calls.map(([section]) => section)).toEqual(["activity", "accounts", "settings"]);
+    expect(onSelect.mock.calls.map(([section]) => section)).toEqual(["accounts", "activity", "settings"]);
   });
 
   it("takes nothing behind an open sidebar", () => {
