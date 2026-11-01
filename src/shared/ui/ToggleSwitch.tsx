@@ -33,7 +33,8 @@ export function ToggleSwitch({
 function ToggleMark({ kind }: { kind: "on" | "off" }) {
   return (
     <svg className={`toggle-mark toggle-mark-${kind}`} viewBox="0 0 24 24" aria-hidden="true">
-      {kind === "on" ? <path d="M6.2 12.4 10.4 16.6 18 8.2" /> : <path d="M8 8l8 8M16 8l-8 8" />}
+      {/* The check is wide and short. A square X of that width looks taller, so this X is a step smaller and the two marks read as one size. */}
+      {kind === "on" ? <path d="M6.2 12.4 10.4 16.6 18 8.2" /> : <path d="M7.3 7.6 16.9 17.2M16.9 7.6 7.3 17.2" />}
     </svg>
   );
 }

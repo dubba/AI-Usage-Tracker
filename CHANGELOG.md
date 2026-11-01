@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased (12 changes)
+## Unreleased (13 changes)
 
-### Improved (9)
+### Improved (10)
 
+- In Settings, the X on an off switch is the same size as the check on an on switch.
 - The bar along the bottom lists Accounts, then Usage, then Settings, on the phone and on Windows and macOS.
 - The iPhone and iPad download on a release is named `AI Usage Tracker_<version>.ipa`, including the version the way the other installers do.
 - On the Usage page, switching between 7 days and 30 days keeps the chart on screen. A period you have already opened comes back at once.
