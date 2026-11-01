@@ -6,8 +6,8 @@ use crate::{
         OAUTH_LOGIN_TIMEOUT_MINUTES,
     },
     model::{
-        Account, CloudProjectOption, LoginStart, LoginState, LoginStatus, OAuthSecret, Provider,
-        ProviderSecret,
+        Account, CloudProjectOption, GoogleAiStudioSecret, LoginStart, LoginState, LoginStatus,
+        OAuthSecret, Provider, ProviderSecret,
     },
     providers::{
         google_ai_studio,
@@ -263,15 +263,20 @@ async fn select_project(
         ));
     }
 
-    let mut stored = load_google_ai_studio_secret(&account_id)?;
-    let oauth = stored
-        .cloud_oauth
-        .clone()
-        .ok_or_else(|| "Sign in to Google before selecting a project.".to_string())?;
-    let oauth = ensure_fresh_oauth(app.as_ref(), oauth).await?;
-    stored.cloud_oauth = Some(oauth.clone());
-    save_provider_secret(&account_id, &ProviderSecret::GoogleAiStudio(stored))
-        .map_err(|error| error.to_string())?;
+    // Refresh and save under the same lock a usage refresh holds, then release
+    // it before project setup. That path locks again, and this mutex is not reentrant.
+    let app_for_refresh = app.clone();
+    let oauth =
+        modify_google_ai_studio_secret(app.as_ref(), &account_id, |mut stored| async move {
+            let current = stored
+                .cloud_oauth
+                .clone()
+                .ok_or_else(|| "Sign in to Google before selecting a project.".to_string())?;
+            let fresh = ensure_fresh_oauth(app_for_refresh.as_ref(), current).await?;
+            stored.cloud_oauth = Some(fresh.clone());
+            Ok((stored, fresh))
+        })
+        .await?;
 
     let project = resolve_project_by_id(app.as_ref(), &project_id, &oauth.access_token).await?;
     let outcome = finish_project_setup(app.clone(), &account_id, project, oauth, None).await?;
@@ -334,48 +339,57 @@ async fn complete_callback(
         return Err("The Google authorization was canceled.".into());
     }
 
-    let mut stored = load_google_ai_studio_secret(&context.account_id)?;
-    let tokens = exchange_tokens(&context, &code).await?;
-    if !context.app.login_is_waiting(&context.attempt_id) {
-        return Err("The Google authorization was canceled.".into());
-    }
-    let refresh_token = tokens
-        .refresh_token
-        .or_else(|| {
-            stored
-                .cloud_oauth
-                .as_ref()
-                .map(|secret| secret.refresh_token.clone())
+    // The exchange and the save share the usage-refresh lock. A refresh that
+    // loaded the previous secret cannot write it back over this grant, and
+    // this grant cannot write a secret it loaded before that refresh finished.
+    // Project setup locks again, so the guard ends with this save. The project
+    // chooser returns after the save and does not write the secret a second time.
+    let (oauth, email, api_key) =
+        modify_google_ai_studio_secret(context.app.as_ref(), &context.account_id, |mut stored| {
+            let context = context.clone();
+            let code = code.clone();
+            async move {
+                let tokens = exchange_tokens(&context, &code).await?;
+                if !context.app.login_is_waiting(&context.attempt_id) {
+                    return Err("The Google authorization was canceled.".into());
+                }
+                let refresh_token = tokens
+                    .refresh_token
+                    .or_else(|| {
+                        stored
+                            .cloud_oauth
+                            .as_ref()
+                            .map(|secret| secret.refresh_token.clone())
+                    })
+                    .ok_or_else(|| {
+                        "Google did not return a refresh token. Revoke the app's Google access and try again."
+                            .to_string()
+                    })?;
+                let oauth = OAuthSecret {
+                    access_token: tokens.access_token,
+                    refresh_token,
+                    id_token: tokens.id_token,
+                    expires_at: Utc::now().timestamp_millis()
+                        + tokens.expires_in.unwrap_or(3600) * 1000,
+                };
+                let email = fetch_email(context.app.as_ref(), &oauth.access_token)
+                    .await
+                    .ok();
+                if !context.app.login_is_waiting(&context.attempt_id) {
+                    return Err("The Google authorization was canceled.".into());
+                }
+                let api_key = stored.api_key.clone();
+                stored.cloud_oauth = Some(oauth.clone());
+                update_account_identity(context.app.as_ref(), &context.account_id, email.clone())?;
+                Ok((stored, (oauth, email, api_key)))
+            }
         })
-        .ok_or_else(|| {
-            "Google did not return a refresh token. Revoke the app's Google access and try again."
-                .to_string()
-        })?;
-    let oauth = OAuthSecret {
-        access_token: tokens.access_token,
-        refresh_token,
-        id_token: tokens.id_token,
-        expires_at: Utc::now().timestamp_millis() + tokens.expires_in.unwrap_or(3600) * 1000,
-    };
-    let email = fetch_email(context.app.as_ref(), &oauth.access_token)
-        .await
-        .ok();
-    if !context.app.login_is_waiting(&context.attempt_id) {
-        return Err("The Google authorization was canceled.".into());
-    }
-    stored.cloud_oauth = Some(oauth.clone());
-    save_provider_secret(
-        &context.account_id,
-        &ProviderSecret::GoogleAiStudio(stored.clone()),
-    )
-    .map_err(|error| error.to_string())?;
-    update_account_identity(context.app.as_ref(), &context.account_id, email.clone())?;
+        .await?;
 
     let outcome = match &context.mode {
         LoginMode::Connect => {
             if let Some(project) =
-                lookup_key_project(context.app.as_ref(), &stored.api_key, &oauth.access_token)
-                    .await?
+                lookup_key_project(context.app.as_ref(), &api_key, &oauth.access_token).await?
             {
                 finish_project_setup(
                     context.app.clone(),
@@ -827,9 +841,28 @@ fn validate_google_ai_studio_account(app: &AppState, account_id: &str) -> Result
     Ok(())
 }
 
-fn load_google_ai_studio_secret(
+/// Loads the Google AI Studio secret, runs `modify`, and saves the secret it
+/// returns, while this account's lock is held. Usage refresh holds the same
+/// lock for its whole provider call, including a Cloud token rotation.
+async fn modify_google_ai_studio_secret<T, F, Fut>(
+    app: &AppState,
     account_id: &str,
-) -> Result<crate::model::GoogleAiStudioSecret, String> {
+    modify: F,
+) -> Result<T, String>
+where
+    F: FnOnce(GoogleAiStudioSecret) -> Fut,
+    Fut: std::future::Future<Output = Result<(GoogleAiStudioSecret, T), String>>,
+{
+    let lock = app.account_lock(account_id);
+    let _guard = lock.lock().await;
+    let current = load_google_ai_studio_secret(account_id)?;
+    let (updated, value) = modify(current).await?;
+    save_provider_secret(account_id, &ProviderSecret::GoogleAiStudio(updated))
+        .map_err(|error| error.to_string())?;
+    Ok(value)
+}
+
+fn load_google_ai_studio_secret(account_id: &str) -> Result<GoogleAiStudioSecret, String> {
     match load_provider_secret(account_id).map_err(|error| error.to_string())? {
         ProviderSecret::GoogleAiStudio(secret) => Ok(secret),
         _ => Err("This account is not a Google AI Studio connection.".into()),
@@ -1056,5 +1089,121 @@ mod tests {
             .await;
             assert!(app.login_is_waiting("attempt"));
         }
+    }
+
+    fn function_body<'a>(source: &'a str, signature: &str) -> &'a str {
+        let start = source
+            .find(signature)
+            .unwrap_or_else(|| panic!("missing {signature}"));
+        let rest = &source[start + signature.len()..];
+        let end = rest
+            .find("\nasync fn ")
+            .or_else(|| rest.find("\nfn "))
+            .unwrap_or(rest.len());
+        &rest[..end]
+    }
+
+    #[test]
+    fn project_selection_and_the_callback_save_cloud_oauth_under_the_account_lock() {
+        let source = include_str!("google_ai_studio_oauth.rs");
+        for signature in ["async fn select_project(", "async fn complete_callback("] {
+            let body = function_body(source, signature);
+            assert!(
+                body.contains("modify_google_ai_studio_secret"),
+                "{signature} must save through the locked helper"
+            );
+            assert!(
+                !body.contains("save_provider_secret"),
+                "{signature} must not write the secret itself"
+            );
+        }
+        let helper = function_body(source, "async fn modify_google_ai_studio_secret<");
+        let lock = helper.find("account_lock").expect("helper takes the lock");
+        let load = helper
+            .find("load_google_ai_studio_secret")
+            .expect("helper loads");
+        let save = helper.find("save_provider_secret").expect("helper saves");
+        assert!(
+            lock < load && load < save,
+            "load and save stay inside the lock"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_refresh_that_rotates_under_the_lock_is_not_overwritten_by_an_earlier_load() {
+        let temp = tempfile::tempdir().unwrap();
+        let app = Arc::new(AppState::new(temp.path().to_path_buf(), "test-token".into()).unwrap());
+        let account_id = "l45-cloud-oauth";
+        let now = crate::model::now_rfc3339();
+        app.store
+            .upsert(Account {
+                id: account_id.into(),
+                label: "Google AI Studio".into(),
+                provider: Provider::GoogleAiStudio,
+                email: None,
+                provider_account_id: None,
+                chatgpt_account_id: None,
+                plan: Some("Google AI Studio".into()),
+                created_at: now.clone(),
+                updated_at: now,
+                last_usage: None,
+                last_error: None,
+                auth_required: false,
+            })
+            .unwrap();
+        save_provider_secret(account_id, &studio_secret("old")).unwrap();
+
+        let loaded = Arc::new(tokio::sync::Notify::new());
+        let release = Arc::new(tokio::sync::Notify::new());
+        let loaded_flag = loaded.clone();
+        let release_flag = release.clone();
+        let callback_app = app.clone();
+        let callback = tokio::spawn(async move {
+            modify_google_ai_studio_secret(&callback_app, account_id, |stored| async move {
+                // Inside the lock, after the load, before the save. A refresh
+                // uses this same helper, so it cannot write until we return.
+                loaded_flag.notify_one();
+                release_flag.notified().await;
+                Ok((stored, ()))
+            })
+            .await
+            .unwrap();
+        });
+
+        loaded.notified().await;
+        let refresh_app = app.clone();
+        let refresh = tokio::spawn(async move {
+            modify_google_ai_studio_secret(&refresh_app, account_id, |mut stored| async move {
+                stored.cloud_oauth.as_mut().unwrap().refresh_token = "rotated".into();
+                Ok((stored, ()))
+            })
+            .await
+            .unwrap();
+        });
+
+        release.notify_one();
+        callback.await.unwrap();
+        refresh.await.unwrap();
+
+        let stored = load_google_ai_studio_secret(account_id).unwrap();
+        assert_eq!(
+            stored.cloud_oauth.unwrap().refresh_token,
+            "rotated",
+            "the refresh that waited for the lock keeps the token it rotated"
+        );
+    }
+
+    fn studio_secret(refresh_token: &str) -> ProviderSecret {
+        ProviderSecret::GoogleAiStudio(GoogleAiStudioSecret {
+            api_key: "test-api-key".into(),
+            selected_models: vec!["gemini-2.5-pro".into()],
+            cloud_project_id: None,
+            cloud_oauth: Some(OAuthSecret {
+                access_token: "access".into(),
+                refresh_token: refresh_token.into(),
+                id_token: None,
+                expires_at: Utc::now().timestamp_millis() + 3_600_000,
+            }),
+        })
     }
 }
