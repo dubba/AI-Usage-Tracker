@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased (11 changes)
+## Unreleased (12 changes)
 
-### Improved (8)
+### Improved (9)
 
+- On a phone, the bottom bar lists Accounts, then Usage, then Settings.
 - The iPhone and iPad download on a release is named `AI Usage Tracker_<version>.ipa`, including the version the way the other installers do.
 - On the Usage page, switching between 7 days and 30 days keeps the chart on screen. A period you have already opened comes back at once.
 - On the Usage page, the 7-day chart is the same height as the 30-day chart.
