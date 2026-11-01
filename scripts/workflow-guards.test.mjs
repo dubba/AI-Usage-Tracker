@@ -369,7 +369,7 @@ test("only runs on main save Rust caches", () => {
   }
 });
 
-test("the release is scheduled for Thursday and Sunday at 10:15 PM Eastern, with a fallback that cannot double-publish", () => {
+test("the release is scheduled for Thursday and Sunday at 5:15 PM Eastern, with a fallback that cannot double-publish", () => {
   // No scheduled run was created for the Thursday 2026-10-15 slot (or the UTC
   // slots before it), so each night has a second, fallback entry. The pair is
   // only safe because a scheduled run skips itself after a recent release and
@@ -384,10 +384,10 @@ test("the release is scheduled for Thursday and Sunday at 10:15 PM Eastern, with
       timezone: /timezone: (\S+)/.exec(entry)?.[1] ?? null,
     }));
   assert.deepEqual(entries, [
-    { cron: "15 22 * * 4", timezone: "America/New_York" },
-    { cron: "15 22 * * 0", timezone: "America/New_York" },
-    { cron: "30 23 * * 4", timezone: "America/New_York" },
-    { cron: "30 23 * * 0", timezone: "America/New_York" },
+    { cron: "15 17 * * 4", timezone: "America/New_York" },
+    { cron: "15 17 * * 0", timezone: "America/New_York" },
+    { cron: "30 18 * * 4", timezone: "America/New_York" },
+    { cron: "30 18 * * 0", timezone: "America/New_York" },
   ]);
 
   assert.match(installers, /^concurrency:\n {2}group: publish-release\n {2}cancel-in-progress: false\n/m);

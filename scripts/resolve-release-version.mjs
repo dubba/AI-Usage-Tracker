@@ -128,15 +128,15 @@ export function applyVersionToFiles(
 
 /**
  * Release dates in the changelog and on the release page are US Eastern dates.
- * A manual run gets the date it runs on. A scheduled run is dated by the night
- * it is for: the Thursday and Sunday runs start at 10:15 PM Eastern and the
- * fallback at 11:30 PM, and GitHub can start either one late, so for a
- * scheduled run anything before 6 AM Eastern counts as the night before. The
+ * A manual run gets the date it runs on. A scheduled run is dated by the day
+ * it is for: the Thursday and Sunday runs start at 5:15 PM Eastern and the
+ * fallback at 6:30 PM, and GitHub can start either one hours late, so for a
+ * scheduled run anything before 6 AM Eastern counts as the day before. The
  * release workflow takes this date once, at the start of a run (the
  * release_date output), and passes it to the jobs that write it.
  */
 export function releaseDateEastern(now = new Date(), { scheduled = false } = {}) {
-  const nightStart = scheduled ? new Date(now.getTime() - 6 * 60 * 60 * 1000) : now;
+  const dayStart = scheduled ? new Date(now.getTime() - 6 * 60 * 60 * 1000) : now;
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat("en-US", {
       timeZone: "America/New_York",
@@ -144,7 +144,7 @@ export function releaseDateEastern(now = new Date(), { scheduled = false } = {})
       month: "2-digit",
       day: "2-digit",
     })
-      .formatToParts(nightStart)
+      .formatToParts(dayStart)
       .map(({ type, value }) => [type, value])
   );
   return `${parts.year}-${parts.month}-${parts.day}`;

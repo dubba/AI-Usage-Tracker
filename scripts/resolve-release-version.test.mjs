@@ -278,14 +278,14 @@ test("stampChangelog rejects a malformed date", () => {
   assert.throws(() => stampChangelog(SAMPLE_CHANGELOG, "0.4.1", "10/11/2026"));
 });
 
-test("releaseDateEastern dates a scheduled run by the night it is for", () => {
+test("releaseDateEastern dates a scheduled run by the day it is for", () => {
   const scheduled = (iso) => releaseDateEastern(new Date(iso), { scheduled: true });
-  // 10:15 PM EDT (summer) is 02:15 UTC and 10:15 PM EST (winter) is 03:15 UTC.
-  assert.equal(scheduled("2026-10-12T02:15:00Z"), "2026-10-11");
-  assert.equal(scheduled("2026-12-14T03:15:00Z"), "2026-12-13");
-  // The 11:30 PM fallback: 03:30 UTC in EDT, 04:30 UTC in EST.
-  assert.equal(scheduled("2026-10-16T03:30:00Z"), "2026-10-15");
-  assert.equal(scheduled("2026-12-14T04:30:00Z"), "2026-12-13");
+  // 5:15 PM EDT (summer) is 21:15 UTC and 5:15 PM EST (winter) is 22:15 UTC.
+  assert.equal(scheduled("2026-10-11T21:15:00Z"), "2026-10-11");
+  assert.equal(scheduled("2026-12-13T22:15:00Z"), "2026-12-13");
+  // The 6:30 PM fallback: 22:30 UTC in EDT, 23:30 UTC in EST.
+  assert.equal(scheduled("2026-10-15T22:30:00Z"), "2026-10-15");
+  assert.equal(scheduled("2026-12-13T23:30:00Z"), "2026-12-13");
   // GitHub can start a scheduled run late, past midnight.
   assert.equal(scheduled("2026-12-14T05:30:00Z"), "2026-12-13");
   // From 6 AM Eastern on, it is the new day.
