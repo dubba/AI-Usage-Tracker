@@ -1516,7 +1516,9 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 /* Settings: toggles match the purple hover of the View / Link Devices buttons.
-   The outline is drawn outside the track so it never shrinks it or shifts the knob. */
+   The outline is drawn outside the track so it never shrinks it or shifts the knob.
+   Hover states are scoped to pointer devices with true hover capability so mobile/touch
+   taps do not leave the toggle stuck in the lighter purple hover state. */
 .settings-style-content .toggle {
   outline: 1px solid var(--obsidian-border-strong);
   outline-offset: 0;
@@ -1527,14 +1529,16 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   outline-color: transparent;
 }
 
-.settings-style-content .toggle:hover:not(:disabled) {
-  background-color: var(--purple-surface) !important;
-  outline-color: var(--obsidian-purple-strong);
-}
+@media (hover: hover) and (pointer: fine) {
+  .settings-style-content .toggle:hover:not(:disabled) {
+    background-color: var(--purple-surface) !important;
+    outline-color: var(--obsidian-purple-strong);
+  }
 
-.settings-style-content .toggle.on:hover:not(:disabled) {
-  background-color: var(--purple-fill-hover) !important;
-  outline-color: var(--obsidian-purple-strong);
+  .settings-style-content .toggle.on:hover:not(:disabled) {
+    background-color: var(--purple-fill-hover) !important;
+    outline-color: var(--obsidian-purple-strong);
+  }
 }
 
 /* The resting outline above beats the global :focus-visible ring. Restore the

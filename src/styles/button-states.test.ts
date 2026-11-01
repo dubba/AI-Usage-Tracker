@@ -52,6 +52,12 @@ describe("Button hover and active state invariants", () => {
     );
   });
 
+  it("scopes settings switch toggle hover states to pointer devices so mobile taps do not stick in lighter purple", () => {
+    expect(UI_REFINEMENTS_CSS).toMatch(
+      /@media \(hover:\s*hover\) and \(pointer:\s*fine\)\s*\{[\s\S]*?\.settings-style-content \.toggle:hover:not\(:disabled\)[\s\S]*?\.settings-style-content \.toggle\.on:hover:not\(:disabled\)[\s\S]*?\}/
+    );
+  });
+
   it("keeps full 4-sided amber borders on the attention card without border-left clobbering", () => {
     expect(OBSIDIAN_CSS).not.toContain(".summary-strip > .summary-card + .summary-card");
     expect(OBSIDIAN_CSS).toContain(".summary-card.attention-card.is-filtering");

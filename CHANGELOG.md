@@ -1,11 +1,16 @@
 # Changelog
 
-## Unreleased (2 changes)
+## Unreleased (4 changes)
 
-### Improved (2)
+### Improved (3)
 
+- On the All Accounts page and the Add Account dialog, the headings "Connect an AI Provider Account" and "Add AI Provider Account" are now "Connect an AI Account" and "Add AI Account".
 - On the Usage page, the provider name and account email are slightly smaller so they fit on one line, with the name still a step larger than the email.
 - Settings switches now clearly differentiate the off state like Pixel phones: a muted gray knob with a cut-out X mark and subtle track outline when off, contrasting with the bright white knob and purple fill when on.
+
+### Fixed (1)
+
+- In Settings, tapping switches on mobile no longer triggers or sticks in the lighter purple hover color meant for desktop pointer devices.
 
 ## v0.5.5 - 2026-10-29 (4 changes)
 
