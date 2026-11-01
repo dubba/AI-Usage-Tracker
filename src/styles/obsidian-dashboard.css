@@ -1769,11 +1769,11 @@ button.account-card-provider-icon:active {
 }
 
 .settings-updates-group-header.settings-updates-beta-row {
-  /* The toggle is 24px in a row whose text line is ~20px, so it overhangs
-     about 2px. The divider sits 12px below the row, so 10px above the toggle
+  /* The toggle is 28px in a row whose text line is ~20px, so it overhangs
+     about 4px. The divider sits 12px below the row, so 8px above the toggle
      lands it the same distance from the version card. */
   margin-top: 0 !important;
-  padding-top: 10px;
+  padding-top: 8px;
   align-items: center;
 }
 
@@ -2265,7 +2265,7 @@ select.text-input option,
   width: 48px;
   min-width: 48px;
   max-width: 48px;
-  height: 24px;
+  height: 28px;
   flex: 0 0 48px !important;
   flex-shrink: 0;
   box-sizing: border-box;

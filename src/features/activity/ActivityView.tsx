@@ -126,12 +126,13 @@ export function ActivityView({
     () => new Set((data?.activity.trackers ?? []).filter((tracker) => tracker.windowKind === "monthly").map((tracker) => tracker.accountId)),
     [data],
   );
-  // The "No weekly limit" cards: not for an account whose monthly usage is charted instead.
+  // The "No weekly limit" cards belong to the 7 day view. The 30 day view charts monthly
+  // usage instead, and says tracking has not started yet when nothing is recorded.
   const untracked = useMemo<UntrackedAccount[]>(() => {
-    if (!data) return [];
+    if (!data || period === "30d") return [];
     const charted = new Set(hasReadings ? trackers.map((tracker) => tracker.accountId) : []);
     return inAccountOrder(data.activity.untracked, accounts).filter((entry) => !charted.has(entry.accountId));
-  }, [data, accounts, trackers, hasReadings]);
+  }, [data, accounts, trackers, hasReadings, period]);
   // Nothing recorded yet for the charts on screen, or no limits known at all.
   const waitingForReadings = trackers.length > 0 ? !hasReadings : untracked.length === 0;
 

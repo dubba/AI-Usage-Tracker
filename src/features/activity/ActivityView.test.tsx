@@ -276,7 +276,7 @@ describe("ActivityView", () => {
       expect(select(root, ".activity-card.is-no-weekly")).toHaveLength(0);
     });
 
-    it("says tracking starts at the next refresh on 30 days until something is recorded, and keeps its card", async () => {
+    it("says tracking starts at the next refresh on 30 days until something is recorded, without the No weekly limit card", async () => {
       api.getWeeklyActivity.mockImplementation(async (starts: string[]) => monthlyAnswer(starts.length - 1, noData));
       const { root } = renderView([free]);
       await settle();
@@ -284,8 +284,8 @@ describe("ActivityView", () => {
       await settle();
       expect(root.querySelector('[role="status"]')!.textContent).toBe("Tracking starts at the next refresh.");
       expect(select(root, ".activity-bar")).toHaveLength(0);
-      expect(titles(root)).toEqual(["ChatGPT"]);
-      expect(root.querySelector(".activity-card-details")!.textContent).not.toContain("Choose 30D");
+      expect(select(root, ".activity-card.is-no-weekly")).toHaveLength(0);
+      expect(titles(root)).toEqual([]);
     });
   });
 

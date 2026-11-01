@@ -1,15 +1,17 @@
 # Changelog
 
-## Unreleased (4 changes)
+## Unreleased (6 changes)
 
-### Improved (3)
+### Improved (4)
 
+- In Settings, the on/off switches are 28 pixels tall and stay 48 pixels wide.
 - On the All Accounts page and the Add Account dialog, the headings "Connect an AI Provider Account" and "Add AI Provider Account" are now "Connect an AI Account" and "Add AI Account".
 - On the Usage page, the provider name and account email are slightly smaller so they fit on one line, with the name still a step larger than the email.
 - Settings switches now clearly differentiate the off state like Pixel phones: a muted gray knob with a cut-out X mark and subtle track outline when off, contrasting with the bright white knob and purple fill when on.
 
-### Fixed (1)
+### Fixed (2)
 
+- On the Usage page, the 30-day view no longer shows the "No weekly limit" card. That card stays on the 7-day view, where it points you to 30D.
 - In Settings, tapping switches on mobile no longer triggers or sticks in the lighter purple hover color meant for desktop pointer devices.
 
 ## v0.5.5 - 2026-10-29 (4 changes)
