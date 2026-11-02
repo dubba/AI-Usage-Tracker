@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased (14 changes)
+## Unreleased (0 changes)
+
+## v0.5.6 - 2026-11-01 (14 changes)
 
 ### Improved (11)
 
