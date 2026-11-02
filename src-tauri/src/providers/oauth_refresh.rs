@@ -12,7 +12,9 @@
 //! Errors never carry text from the provider's response: a failed refresh says only which
 //! provider and which HTTP status, so a token echoed in an error body cannot reach a message.
 
-use super::ProviderError;
+use super::{
+    body_too_large, read_capped_text, CappedBodyError, ProviderError, MAX_PROVIDER_BODY_BYTES,
+};
 use crate::model::OAuthSecret;
 use chrono::Utc;
 use reqwest::StatusCode;
@@ -131,7 +133,11 @@ pub(crate) async fn refresh_oauth_secret(
         .await
         .map_err(|_| ProviderError::Transient(format!("{provider} token refresh failed.")))?;
     let status = response.status();
-    let body = response.text().await.unwrap_or_default();
+    let body = match read_capped_text(response, MAX_PROVIDER_BODY_BYTES).await {
+        Ok(body) => body,
+        Err(CappedBodyError::TooLarge) => return Err(body_too_large(provider)),
+        Err(CappedBodyError::Unreadable(_)) => String::new(),
+    };
     if !status.is_success() {
         if needs_new_sign_in(status, &body, request.invalid_grant) {
             return Err(ProviderError::Auth);

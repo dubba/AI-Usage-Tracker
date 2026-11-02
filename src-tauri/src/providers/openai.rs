@@ -1,9 +1,10 @@
 use super::{
-    classify_status,
+    body_too_large, classify_status,
     oauth_refresh::{
         refresh_oauth_secret, IdToken, InvalidGrant, Lifetime, RefreshBody, RefreshRequest,
     },
-    with_fresh_secret, Forbidden, ProviderError, ProviderUsage, StatusPolicy,
+    read_capped_text, with_fresh_secret, CappedBodyError, Forbidden, ProviderError, ProviderUsage,
+    StatusPolicy, MAX_PROVIDER_BODY_BYTES,
 };
 use crate::{
     model::{Account, OAuthSecret, ProviderSecret, UsageWindow},
@@ -179,12 +180,15 @@ async fn call_usage(
         .get(RETRY_AFTER)
         .and_then(|value| value.to_str().ok())
         .map(str::to_string);
-    let body = response.text().await.map_err(|error| {
-        ProviderError::Transient(format!(
-            "Unable to read the usage response: {}.",
-            super::transport_failure(&error)
-        ))
-    })?;
+    let body = match read_capped_text(response, MAX_PROVIDER_BODY_BYTES).await {
+        Ok(body) => body,
+        Err(CappedBodyError::TooLarge) => return Err(body_too_large("OpenAI")),
+        Err(CappedBodyError::Unreadable(reason)) => {
+            return Err(ProviderError::Transient(format!(
+                "Unable to read the usage response: {reason}."
+            )))
+        }
+    };
 
     let denied = if body.trim_start().starts_with('<') {
         "OpenAI returned an HTML access challenge. Cached usage is being kept."

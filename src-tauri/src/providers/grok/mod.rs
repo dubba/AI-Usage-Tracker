@@ -4,7 +4,7 @@
 // tracker never reads the Grok Build CLI's ~/.grok/auth.json credentials.
 // No message or token allowance is estimated.
 
-use super::{ProviderError, ProviderUsage};
+use super::{read_capped_text, ProviderError, ProviderUsage, MAX_PROVIDER_BODY_BYTES};
 use crate::{
     model::{Account, GrokSecret, ProviderSecret, UsageWindow},
     state::AppState,
@@ -190,9 +190,11 @@ pub(crate) async fn fetch_grok_user_email(app: &AppState, cookie_header: &str) -
             .await
         {
             if response.status().is_success() {
-                if let Ok(body) = response.json::<Value>().await {
-                    if let Some(identity) = find_identity_in_json(&body) {
-                        return Some(identity);
+                if let Ok(body) = read_capped_text(response, MAX_PROVIDER_BODY_BYTES).await {
+                    if let Ok(body) = serde_json::from_str::<Value>(&body) {
+                        if let Some(identity) = find_identity_in_json(&body) {
+                            return Some(identity);
+                        }
                     }
                 }
             }

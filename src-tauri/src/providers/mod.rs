@@ -57,6 +57,62 @@ pub fn transport_failure(error: &reqwest::Error) -> &'static str {
     }
 }
 
+/// Largest usage or token body a refresh will keep. The shared client already
+/// stops at 15 seconds. This stops a fast response from being stored past
+/// this size while the account lock is held. Monitoring pages and the
+/// OpenCode dashboard are larger than the 2 MiB changelog cap, so this sits
+/// above that.
+pub(crate) const MAX_PROVIDER_BODY_BYTES: usize = 8 * 1024 * 1024;
+
+#[derive(Debug)]
+pub(crate) enum CappedBodyError {
+    TooLarge,
+    Unreadable(&'static str),
+}
+
+/// The sentence stored when a provider sends more than [`MAX_PROVIDER_BODY_BYTES`].
+pub(crate) fn body_too_large(provider: &str) -> ProviderError {
+    ProviderError::Transient(format!(
+        "{provider} returned a response that is too large. Cached usage is being kept."
+    ))
+}
+
+/// Reads `response` up to `max_bytes`. A `Content-Length` above the cap is
+/// rejected before the body is read. A body that grows past the cap while it
+/// arrives is rejected without keeping the extra bytes.
+pub(crate) async fn read_capped_bytes(
+    mut response: reqwest::Response,
+    max_bytes: usize,
+) -> Result<Vec<u8>, CappedBodyError> {
+    if response
+        .content_length()
+        .is_some_and(|length| length > max_bytes as u64)
+    {
+        return Err(CappedBodyError::TooLarge);
+    }
+    let mut body = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|error| CappedBodyError::Unreadable(transport_failure(&error)))?
+    {
+        if body.len().saturating_add(chunk.len()) > max_bytes {
+            return Err(CappedBodyError::TooLarge);
+        }
+        body.extend_from_slice(&chunk);
+    }
+    Ok(body)
+}
+
+pub(crate) async fn read_capped_text(
+    response: reqwest::Response,
+    max_bytes: usize,
+) -> Result<String, CappedBodyError> {
+    let bytes = read_capped_bytes(response, max_bytes).await?;
+    String::from_utf8(bytes)
+        .map_err(|_| CappedBodyError::Unreadable("the response could not be read"))
+}
+
 /// The error for an HTTP 429. The user-visible text is built from the parsed
 /// delay, never from the raw `Retry-After` header, which the provider controls.
 pub fn rate_limited(provider: &str, retry_after_header: Option<&str>) -> ProviderError {
@@ -243,6 +299,7 @@ pub async fn refresh(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     #[test]
     fn retry_after_accepts_seconds_and_http_dates() {
@@ -525,5 +582,96 @@ mod tests {
                 Some(ProviderError::Transient(ref m)) if m == "Acme usage request returned 502 Bad Gateway."
             ));
         }
+    }
+
+    #[test]
+    fn usage_and_token_reads_go_through_the_body_cap() {
+        let sources = [
+            include_str!("openai.rs"),
+            include_str!("anthropic.rs"),
+            include_str!("antigravity.rs"),
+            include_str!("google_ai_studio/mod.rs"),
+            include_str!("grok/mod.rs"),
+            include_str!("grok/billing.rs"),
+            include_str!("opencode_go.rs"),
+            include_str!("oauth_refresh.rs"),
+        ];
+        for source in sources {
+            assert!(
+                !source.contains(".text().await")
+                    && !source.contains(".json().await")
+                    && !source.contains(".json::<")
+                    && !source.contains("response.bytes().await"),
+                "a provider body read bypasses the cap"
+            );
+        }
+    }
+
+    fn http_client() -> reqwest::Client {
+        reqwest::Client::builder()
+            .timeout(Duration::from_secs(5))
+            .build()
+            .unwrap()
+    }
+
+    /// Speaks one HTTP/1.1 response after the request headers arrive.
+    async fn serve_raw(raw: &'static [u8]) -> String {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}/body", listener.local_addr().unwrap());
+        tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut buf = [0u8; 2048];
+            let mut received = 0usize;
+            loop {
+                let n = socket.read(&mut buf[received..]).await.unwrap();
+                if n == 0 {
+                    return;
+                }
+                received += n;
+                if buf[..received]
+                    .windows(4)
+                    .any(|window| window == b"\r\n\r\n")
+                {
+                    break;
+                }
+            }
+            let _ = socket.write_all(raw).await;
+        });
+        url
+    }
+
+    #[tokio::test]
+    async fn a_declared_body_over_the_cap_is_rejected_before_it_is_read() {
+        let url =
+            serve_raw(b"HTTP/1.1 200 OK\r\nContent-Length: 10485760\r\nConnection: close\r\n\r\n")
+                .await;
+        let response = http_client().get(url).send().await.unwrap();
+        let started = std::time::Instant::now();
+        let error = read_capped_bytes(response, 32).await.unwrap_err();
+        assert!(matches!(error, CappedBodyError::TooLarge));
+        assert!(started.elapsed() < Duration::from_secs(2));
+    }
+
+    #[tokio::test]
+    async fn a_chunked_body_over_the_cap_is_rejected_and_one_at_the_cap_is_kept() {
+        let over = serve_raw(
+            b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n\
+5\r\nhello\r\n\
+5\r\nworld\r\n\
+0\r\n\r\n",
+        )
+        .await;
+        let response = http_client().get(over).send().await.unwrap();
+        assert!(matches!(
+            read_capped_bytes(response, 8).await,
+            Err(CappedBodyError::TooLarge)
+        ));
+
+        let exact =
+            serve_raw(b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\nabcd")
+                .await;
+        let response = http_client().get(exact).send().await.unwrap();
+        let body = read_capped_text(response, 4).await.unwrap();
+        assert_eq!(body, "abcd");
     }
 }

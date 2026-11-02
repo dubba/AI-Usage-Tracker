@@ -1,9 +1,10 @@
 use super::{
-    classify_status,
+    body_too_large, classify_status,
     oauth_refresh::{
         refresh_oauth_secret, IdToken, InvalidGrant, Lifetime, RefreshBody, RefreshRequest,
     },
-    with_fresh_secret, Forbidden, ProviderError, ProviderUsage, StatusPolicy,
+    read_capped_text, with_fresh_secret, CappedBodyError, Forbidden, ProviderError, ProviderUsage,
+    StatusPolicy, MAX_PROVIDER_BODY_BYTES,
 };
 use crate::{
     model::{Account, OAuthSecret, ProviderSecret, UsageWindow},
@@ -124,12 +125,15 @@ async fn call_usage(app: &AppState, secret: &OAuthSecret) -> Result<RawUsage, Pr
         .get(RETRY_AFTER)
         .and_then(|value| value.to_str().ok())
         .map(str::to_string);
-    let body = response.text().await.map_err(|error| {
-        ProviderError::Transient(format!(
-            "Unable to read the Anthropic usage response: {}.",
-            super::transport_failure(&error)
-        ))
-    })?;
+    let body = match read_capped_text(response, MAX_PROVIDER_BODY_BYTES).await {
+        Ok(body) => body,
+        Err(CappedBodyError::TooLarge) => return Err(body_too_large("Anthropic")),
+        Err(CappedBodyError::Unreadable(reason)) => {
+            return Err(ProviderError::Transient(format!(
+                "Unable to read the Anthropic usage response: {reason}."
+            )))
+        }
+    };
 
     if let Some(error) = usage_status_error(status, retry_after) {
         return Err(error);
@@ -204,9 +208,16 @@ async fn fetch_profile_url(
             response.status()
         )));
     }
-    response
-        .json()
-        .await
+    let body = match read_capped_text(response, MAX_PROVIDER_BODY_BYTES).await {
+        Ok(body) => body,
+        Err(CappedBodyError::TooLarge) => return Err(body_too_large("Anthropic")),
+        Err(CappedBodyError::Unreadable(_)) => {
+            return Err(ProviderError::Transient(
+                "Invalid Anthropic profile response.".into(),
+            ))
+        }
+    };
+    serde_json::from_str(&body)
         .map_err(|_| ProviderError::Transient("Invalid Anthropic profile response.".into()))
 }
 

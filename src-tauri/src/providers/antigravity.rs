@@ -1,9 +1,10 @@
 use super::{
-    classify_status,
+    body_too_large, classify_status,
     oauth_refresh::{
         refresh_oauth_secret, IdToken, InvalidGrant, Lifetime, RefreshBody, RefreshRequest,
     },
-    with_fresh_secret, Forbidden, ProviderError, ProviderUsage, StatusPolicy,
+    read_capped_bytes, read_capped_text, with_fresh_secret, CappedBodyError, Forbidden,
+    ProviderError, ProviderUsage, StatusPolicy, MAX_PROVIDER_BODY_BYTES,
 };
 use crate::auth::google_client::{client_secret, CLIENT_ID, TOKEN_URL};
 use crate::{
@@ -116,16 +117,9 @@ async fn fetch_latest_hub_version(app: &AppState) -> Option<String> {
     if !response.status().is_success() {
         return None;
     }
-    if response
-        .content_length()
-        .is_some_and(|length| length as usize > MAX_CHANGELOG_BYTES)
-    {
-        return None;
-    }
-    let body = response.bytes().await.ok()?;
-    if body.len() > MAX_CHANGELOG_BYTES {
-        return None;
-    }
+    let body = read_capped_bytes(response, MAX_CHANGELOG_BYTES)
+        .await
+        .ok()?;
     parse_latest_hub_version(std::str::from_utf8(&body).ok()?)
 }
 
@@ -270,10 +264,15 @@ async fn cloud_code_post(
         .await
         .map_err(|_| ProviderError::Transient("Antigravity quota request failed.".into()))?;
     let status = response.status();
-    let body = response
-        .text()
-        .await
-        .map_err(|_| ProviderError::Transient("Unable to read the Antigravity response.".into()))?;
+    let body = match read_capped_text(response, MAX_PROVIDER_BODY_BYTES).await {
+        Ok(body) => body,
+        Err(CappedBodyError::TooLarge) => return Err(body_too_large("Antigravity")),
+        Err(CappedBodyError::Unreadable(_)) => {
+            return Err(ProviderError::Transient(
+                "Unable to read the Antigravity response.".into(),
+            ))
+        }
+    };
     if let Some(error) = classify_status(
         "Antigravity",
         status,
@@ -336,9 +335,16 @@ async fn fetch_email(app: &AppState, access_token: &str) -> Result<String, Provi
     ) {
         return Err(error);
     }
-    let value: Value = response
-        .json()
-        .await
+    let body = match read_capped_text(response, MAX_PROVIDER_BODY_BYTES).await {
+        Ok(body) => body,
+        Err(CappedBodyError::TooLarge) => return Err(body_too_large("Google")),
+        Err(CappedBodyError::Unreadable(_)) => {
+            return Err(ProviderError::Transient(
+                "Invalid Google user-info response.".into(),
+            ))
+        }
+    };
+    let value: Value = serde_json::from_str(&body)
         .map_err(|_| ProviderError::Transient("Invalid Google user-info response.".into()))?;
     value
         .get("email")

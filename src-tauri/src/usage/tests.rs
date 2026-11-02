@@ -473,3 +473,107 @@ fn a_history_folder_that_cannot_be_written_never_fails_the_refresh() {
     assert!(saved.last_error.is_none() && !saved.auth_required);
     assert!(!app.refresh_backoff.lock().is_deferred(id, Instant::now()));
 }
+
+#[test]
+fn the_refresh_window_cap_covers_a_full_google_model_selection() {
+    assert!(
+        MAX_REFRESH_USAGE_WINDOWS
+            >= crate::providers::google_ai_studio::MAX_SELECTED_MODELS
+                * crate::providers::google_ai_studio::MAX_QUOTA_WINDOWS_PER_MODEL
+    );
+}
+
+#[test]
+fn too_many_usage_windows_leave_the_previous_snapshot() {
+    let temp = tempfile::tempdir().unwrap();
+    let id = "usage-window-cap";
+    let app = app_with_bare_account(id, temp.path());
+    save_success(&app, id, usage_with_one_window()).unwrap();
+
+    let mut huge = usage_with_one_window();
+    huge.windows[0].used_percent = Some(99.0);
+    huge.windows = vec![huge.windows[0].clone(); MAX_REFRESH_USAGE_WINDOWS + 1];
+    let saved = save_success(&app, id, huge).unwrap();
+
+    let usage = saved.last_usage.as_ref().unwrap();
+    assert_eq!(usage.windows.len(), 1);
+    assert_eq!(usage.windows[0].used_percent, Some(10.0));
+    assert_eq!(usage.freshness, UsageFreshness::Stale);
+    assert_eq!(
+        saved.last_error.as_deref(),
+        Some(
+            "The provider returned more usage windows than this app can store. Cached usage is being kept."
+        )
+    );
+}
+
+#[tokio::test]
+async fn an_oversized_usage_body_leaves_the_previous_snapshot() {
+    let id = "usage-body-cap";
+    let app = test_app_with_account(id);
+    app.store
+        .mutate(id, |account| {
+            let usage = account.last_usage.as_mut().unwrap();
+            usage.windows = usage_with_one_window().windows;
+            usage.freshness = UsageFreshness::Live;
+        })
+        .unwrap();
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}/usage", listener.local_addr().unwrap());
+    let declared = crate::providers::MAX_PROVIDER_BODY_BYTES as u64 + 1;
+    tokio::spawn(async move {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let (mut socket, _) = listener.accept().await.unwrap();
+        let mut buf = [0u8; 2048];
+        let mut received = 0usize;
+        loop {
+            let n = socket.read(&mut buf[received..]).await.unwrap();
+            if n == 0 {
+                return;
+            }
+            received += n;
+            if buf[..received]
+                .windows(4)
+                .any(|window| window == b"\r\n\r\n")
+            {
+                break;
+            }
+        }
+        let header =
+            format!("HTTP/1.1 200 OK\r\nContent-Length: {declared}\r\nConnection: close\r\n\r\n");
+        let _ = socket.write_all(header.as_bytes()).await;
+    });
+
+    let saved = refresh_account_with(
+        app,
+        id,
+        Duration::from_secs(5),
+        move |app, _, _| async move {
+            let response = app.client.get(url).send().await.unwrap();
+            match crate::providers::read_capped_bytes(
+                response,
+                crate::providers::MAX_PROVIDER_BODY_BYTES,
+            )
+            .await
+            {
+                Err(crate::providers::CappedBodyError::TooLarge) => {
+                    Err(crate::providers::body_too_large("OpenAI"))
+                }
+                other => panic!("expected the body cap, got {other:?}"),
+            }
+        },
+    )
+    .await
+    .unwrap();
+
+    let usage = saved.last_usage.as_ref().unwrap();
+    assert_eq!(usage.windows.len(), 1);
+    assert_eq!(usage.windows[0].used_percent, Some(10.0));
+    assert_eq!(usage.freshness, UsageFreshness::Stale);
+    assert_eq!(
+        saved.last_error.as_deref(),
+        Some("OpenAI returned a response that is too large. Cached usage is being kept.")
+    );
+    assert!(!saved.auth_required);
+}

@@ -15,6 +15,12 @@ use tauri_plugin_notification::NotificationExt;
 
 const ACCOUNT_REFRESH_TIMEOUT: Duration = Duration::from_secs(45);
 
+/// Most windows one refresh may store. Google AI Studio can return four quota
+/// windows for each of 200 selected models. A longer list is not stored: the
+/// refresh fails and the previous snapshot stays. Pairing import still keeps
+/// only `MAX_USAGE_WINDOWS` (32).
+const MAX_REFRESH_USAGE_WINDOWS: usize = 1024;
+
 pub async fn refresh_account(app: Arc<AppState>, account_id: &str) -> Result<Account, String> {
     refresh_account_with(
         app,
@@ -226,6 +232,16 @@ fn save_credential_failure(
 }
 
 fn save_success(app: &AppState, account_id: &str, usage: ProviderUsage) -> Result<Account, String> {
+    if usage.windows.len() > MAX_REFRESH_USAGE_WINDOWS {
+        return save_failure(
+            app,
+            account_id,
+            ProviderError::Transient(
+                "The provider returned more usage windows than this app can store. Cached usage is being kept."
+                    .into(),
+            ),
+        );
+    }
     if usage.windows.is_empty() {
         return save_failure(
             app,

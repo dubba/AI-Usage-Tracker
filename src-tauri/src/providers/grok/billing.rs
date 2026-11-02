@@ -1,4 +1,5 @@
 use super::*;
+use crate::providers::{read_capped_bytes, CappedBodyError, MAX_PROVIDER_BODY_BYTES};
 
 pub(super) const WEB_BILLING_ENDPOINT: &str =
     "https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig";
@@ -71,10 +72,12 @@ pub(super) async fn fetch_web_billing(
         .map_err(|_| GrokFetchError::Unavailable)?;
     let status = response.status();
     let headers = response.headers().clone();
-    let body = response
-        .bytes()
-        .await
-        .map_err(|_| GrokFetchError::Unavailable)?;
+    let body = match read_capped_bytes(response, MAX_PROVIDER_BODY_BYTES).await {
+        Ok(body) => body,
+        Err(CappedBodyError::TooLarge | CappedBodyError::Unreadable(_)) => {
+            return Err(GrokFetchError::Unavailable)
+        }
+    };
 
     if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
         return Err(GrokFetchError::Auth);

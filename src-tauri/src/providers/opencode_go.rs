@@ -1,4 +1,7 @@
-use super::{ProviderError, ProviderUsage};
+use super::{
+    body_too_large, read_capped_text, CappedBodyError, ProviderError, ProviderUsage,
+    MAX_PROVIDER_BODY_BYTES,
+};
 use crate::{
     model::{Account, OpenCodeGoSecret, UsageWindow},
     state::AppState,
@@ -46,9 +49,15 @@ pub async fn refresh(
         .map_err(|_| ProviderError::Transient("OpenCode Go dashboard request failed.".into()))?;
     let status = response.status();
     let final_path = response.url().path().to_string();
-    let body = response.text().await.map_err(|_| {
-        ProviderError::Transient("Unable to read the OpenCode Go dashboard.".into())
-    })?;
+    let body = match read_capped_text(response, MAX_PROVIDER_BODY_BYTES).await {
+        Ok(body) => body,
+        Err(CappedBodyError::TooLarge) => return Err(body_too_large("OpenCode Go")),
+        Err(CappedBodyError::Unreadable(_)) => {
+            return Err(ProviderError::Transient(
+                "Unable to read the OpenCode Go dashboard.".into(),
+            ))
+        }
+    };
 
     if status == StatusCode::UNAUTHORIZED
         || status == StatusCode::FORBIDDEN

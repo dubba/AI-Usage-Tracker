@@ -6,11 +6,12 @@ use crate::{
         UsageFreshness, UsageSnapshot, UsageWindow,
     },
     providers::{
-        classify_status,
+        body_too_large, classify_status,
         oauth_refresh::{
             refresh_oauth_secret, IdToken, InvalidGrant, Lifetime, RefreshBody, RefreshRequest,
         },
-        save_refreshed, Forbidden, ProviderError, ProviderUsage, StatusPolicy, REFRESH_SKEW_SECS,
+        read_capped_text, save_refreshed, CappedBodyError, Forbidden, ProviderError, ProviderUsage,
+        StatusPolicy, MAX_PROVIDER_BODY_BYTES, REFRESH_SKEW_SECS,
     },
     state::AppState,
 };
@@ -36,9 +37,11 @@ const METRIC_PREFIX: &str = "generativelanguage.googleapis.com/quota/";
 pub(crate) const SOURCE_MODELS_ONLY: &str = "google_ai_studio_model_access";
 pub(crate) const SOURCE_MONITORING_WAITING: &str = "google_ai_studio_monitoring_waiting";
 pub(crate) const SOURCE_MONITORING: &str = "google_ai_studio_cloud_monitoring";
+pub(crate) const MAX_SELECTED_MODELS: usize = 200;
+/// RPM, TPM, RPD, and TPD. A refresh stores one window for each kind.
+pub(crate) const MAX_QUOTA_WINDOWS_PER_MODEL: usize = 4;
 const ACCOUNT_EMAIL: &str = "Google AI Studio API key";
 const ACCOUNT_PLAN: &str = "Google AI Studio";
-const MAX_SELECTED_MODELS: usize = 200;
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ModelsPage {
@@ -507,7 +510,11 @@ async fn google_json<T: DeserializeOwned>(
 ) -> Result<T, ProviderError> {
     let response = request.send().await.map_err(|_| network_error(context))?;
     let status = response.status();
-    let body = response.text().await.unwrap_or_default();
+    let body = match read_capped_text(response, MAX_PROVIDER_BODY_BYTES).await {
+        Ok(body) => body,
+        Err(CappedBodyError::TooLarge) => return Err(body_too_large("Google")),
+        Err(CappedBodyError::Unreadable(_)) => String::new(),
+    };
     if let Some(error) = classify_status(
         "Google",
         status,
