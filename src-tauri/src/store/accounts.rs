@@ -72,10 +72,9 @@ impl AccountStore {
         })
     }
 
-    /// Writes `snapshot` unless a newer one already reached the disk. Callers
-    /// must not hold the `accounts` lock: the write does file I/O (and on
-    /// Windows spawns processes), and readers such as the UI and the local API
-    /// should not wait for it.
+    /// Writes `snapshot` to disk unless a newer one already reached the disk.
+    /// Callers write first before updating the in-memory accounts list so a
+    /// failed disk write leaves memory in sync with the file on disk.
     fn commit_snapshot(&self, snapshot: &[Account], version: u64) -> Result<(), StoreError> {
         let mut written = self.written_version.lock();
         if version <= *written {
@@ -106,22 +105,22 @@ impl AccountStore {
 
     pub fn upsert(&self, mut account: Account) -> Result<Account, StoreError> {
         account.classify_windows();
-        let (saved, snapshot, version) = {
-            let mut accounts = self.accounts.write();
-            let saved = if let Some(existing) = accounts
-                .iter_mut()
-                .find(|candidate| candidate.id == account.id)
-            {
-                merge_account(existing, account);
-                existing.touch();
-                existing.clone()
-            } else {
-                accounts.push(account.clone());
-                account
-            };
-            (saved, accounts.clone(), self.next_version())
+        let mut accounts = self.accounts.write();
+        let mut next = accounts.clone();
+        let saved = if let Some(existing) = next
+            .iter_mut()
+            .find(|candidate| candidate.id == account.id)
+        {
+            merge_account(existing, account);
+            existing.touch();
+            existing.clone()
+        } else {
+            next.push(account.clone());
+            account
         };
-        self.commit_snapshot(&snapshot, version)?;
+        let version = self.next_version();
+        self.commit_snapshot(&next, version)?;
+        *accounts = next;
         Ok(saved)
     }
 
@@ -129,19 +128,19 @@ impl AccountStore {
     where
         F: FnOnce(&mut Account),
     {
-        let (result, snapshot, version) = {
-            let mut accounts = self.accounts.write();
-            let account = accounts
-                .iter_mut()
-                .find(|account| account.id == id)
-                .ok_or_else(|| StoreError::Invalid("account not found".into()))?;
-            update(account);
-            account.classify_windows();
-            account.touch();
-            let result = account.clone();
-            (result, accounts.clone(), self.next_version())
-        };
-        self.commit_snapshot(&snapshot, version)?;
+        let mut accounts = self.accounts.write();
+        let mut next = accounts.clone();
+        let account = next
+            .iter_mut()
+            .find(|account| account.id == id)
+            .ok_or_else(|| StoreError::Invalid("account not found".into()))?;
+        update(account);
+        account.classify_windows();
+        account.touch();
+        let result = account.clone();
+        let version = self.next_version();
+        self.commit_snapshot(&next, version)?;
+        *accounts = next;
         Ok(result)
     }
 
@@ -154,15 +153,15 @@ impl AccountStore {
     /// Drops every account's saved usage snapshot and keeps the accounts, their sign-ins and
     /// their other details. Returns how many snapshots were dropped.
     pub fn clear_cached_usage(&self) -> Result<usize, StoreError> {
-        let (cleared, snapshot, version) = {
-            let mut accounts = self.accounts.write();
-            let cleared = accounts
-                .iter_mut()
-                .filter_map(|account| account.last_usage.take())
-                .count();
-            (cleared, accounts.clone(), self.next_version())
-        };
-        self.commit_snapshot(&snapshot, version)?;
+        let mut accounts = self.accounts.write();
+        let mut next = accounts.clone();
+        let cleared = next
+            .iter_mut()
+            .filter_map(|account| account.last_usage.take())
+            .count();
+        let version = self.next_version();
+        self.commit_snapshot(&next, version)?;
+        *accounts = next;
         Ok(cleared)
     }
 

@@ -143,30 +143,42 @@ fn concurrent_updates_leave_the_latest_state_on_disk() {
 }
 
 #[test]
-fn a_failed_write_is_retried_by_the_next_change() {
+fn a_failed_write_leaves_in_memory_state_unchanged() {
     let dir = tempdir().unwrap();
     let store = AccountStore::load(dir.path().to_path_buf()).unwrap();
     store.upsert(sample_account("one", "Start")).unwrap();
 
-    // A directory where the file goes makes the replace fail.
+    // A directory where the file goes makes the atomic replace fail.
     let path = dir.path().join("accounts.json");
     let saved = fs::read(&path).unwrap();
     fs::remove_file(&path).unwrap();
     fs::create_dir(&path).unwrap();
+
+    // Mutate failure must not update in-memory account
     assert!(store
-        .mutate("one", |account| account.label = "Lost".into())
+        .mutate("one", |account| account.label = "FailedMutation".into())
         .is_err());
+    assert_eq!(store.get("one").unwrap().label, "Start");
+    assert_eq!(store.list()[0].label, "Start");
+
+    // Upsert failure must not add new account to memory
+    assert!(store.upsert(sample_account("two", "Second")).is_err());
+    assert!(store.get("two").is_none());
+    assert_eq!(store.list().len(), 1);
+
     fs::remove_dir(&path).unwrap();
     fs::write(&path, saved).unwrap();
 
-    // The next change writes everything, including the failed one.
+    // After restoring the file, subsequent mutations succeed and persist
     store
         .mutate("one", |account| {
+            account.label = "Updated".into();
             account.updated_at = "2026-01-01T00:00:00Z".into()
         })
         .unwrap();
+    assert_eq!(store.get("one").unwrap().label, "Updated");
     let reopened = AccountStore::load(dir.path().to_path_buf()).unwrap();
-    assert_eq!(reopened.list()[0].label, "Lost");
+    assert_eq!(reopened.list()[0].label, "Updated");
 }
 
 #[test]
