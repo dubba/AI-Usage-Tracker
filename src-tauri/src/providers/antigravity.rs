@@ -13,6 +13,7 @@ use crate::{
     state::AppState,
 };
 use parking_lot::RwLock;
+use reqwest::StatusCode;
 use serde_json::{json, Map, Value};
 use std::collections::HashSet;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -264,6 +265,11 @@ async fn cloud_code_post(
         .await
         .map_err(|_| ProviderError::Transient("Antigravity quota request failed.".into()))?;
     let status = response.status();
+    let retry_after = response
+        .headers()
+        .get(reqwest::header::RETRY_AFTER)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string);
     let body = match read_capped_text(response, MAX_PROVIDER_BODY_BYTES).await {
         Ok(body) => body,
         Err(CappedBodyError::TooLarge) => return Err(body_too_large("Antigravity")),
@@ -273,21 +279,31 @@ async fn cloud_code_post(
             ))
         }
     };
-    if let Some(error) = classify_status(
-        "Antigravity",
-        status,
-        None,
-        &StatusPolicy {
-            forbidden: Forbidden::Auth,
-            rate_limits: false,
-            other: Box::new(|status| format!("Antigravity endpoint {path} returned {status}.")),
-        },
-    ) {
+    if let Some(error) = quota_status_error(status, retry_after.as_deref(), path) {
         return Err(error);
     }
     serde_json::from_str(&body).map_err(|_| {
         ProviderError::Transient("Antigravity returned incompatible quota data.".into())
     })
+}
+
+fn quota_status_error(
+    status: StatusCode,
+    retry_after: Option<&str>,
+    path: &str,
+) -> Option<ProviderError> {
+    classify_status(
+        "Antigravity",
+        status,
+        retry_after,
+        &StatusPolicy {
+            forbidden: Forbidden::Auth,
+            rate_limits: true,
+            other: Box::new(move |status| {
+                format!("Antigravity endpoint {path} returned {status}.")
+            }),
+        },
+    )
 }
 
 async fn refresh_secret(
@@ -901,5 +917,28 @@ mod tests {
         assert_eq!(windows.len(), 1);
         assert_eq!(windows[0].label, "Gemini 4 Argon · Valid Limit");
         assert_eq!(windows[0].remaining_percent, Some(50.0));
+    }
+
+    #[test]
+    fn antigravity_status_error_mapping() {
+        assert!(matches!(
+            quota_status_error(StatusCode::UNAUTHORIZED, None, "/test"),
+            Some(ProviderError::Auth)
+        ));
+        assert!(matches!(
+            quota_status_error(StatusCode::FORBIDDEN, None, "/test"),
+            Some(ProviderError::Auth)
+        ));
+        assert!(matches!(
+            quota_status_error(StatusCode::TOO_MANY_REQUESTS, Some("45"), "/test"),
+            Some(ProviderError::RateLimited { message, retry_after })
+                if message.contains("Retry after 45")
+                    && retry_after == Some(std::time::Duration::from_secs(45))
+        ));
+        assert!(matches!(
+            quota_status_error(StatusCode::INTERNAL_SERVER_ERROR, None, "/test"),
+            Some(ProviderError::Transient(_))
+        ));
+        assert!(quota_status_error(StatusCode::OK, None, "/test").is_none());
     }
 }

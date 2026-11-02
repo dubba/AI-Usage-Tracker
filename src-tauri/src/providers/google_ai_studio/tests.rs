@@ -135,3 +135,26 @@ fn normalize_quota_windows_drops_non_finite_windows() {
     let windows = normalize_quota_windows(series, &models, now);
     assert!(windows.is_empty());
 }
+
+#[test]
+fn google_status_error_mapping() {
+    assert!(matches!(
+        google_status_error(StatusCode::UNAUTHORIZED, None, "Monitoring"),
+        Some(ProviderError::Auth)
+    ));
+    assert!(matches!(
+        google_status_error(StatusCode::FORBIDDEN, None, "Monitoring"),
+        Some(ProviderError::Transient(_))
+    ));
+    assert!(matches!(
+        google_status_error(StatusCode::TOO_MANY_REQUESTS, Some("60"), "Monitoring"),
+        Some(ProviderError::RateLimited { message, retry_after })
+            if message.contains("Retry after 60")
+                && retry_after == Some(std::time::Duration::from_secs(60))
+    ));
+    assert!(matches!(
+        google_status_error(StatusCode::INTERNAL_SERVER_ERROR, None, "Monitoring"),
+        Some(ProviderError::Transient(_))
+    ));
+    assert!(google_status_error(StatusCode::OK, None, "Monitoring").is_none());
+}

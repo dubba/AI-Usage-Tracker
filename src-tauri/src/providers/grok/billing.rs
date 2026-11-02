@@ -72,6 +72,10 @@ pub(super) async fn fetch_web_billing(
         .map_err(|_| GrokFetchError::Unavailable)?;
     let status = response.status();
     let headers = response.headers().clone();
+    let retry_after = headers
+        .get(header::RETRY_AFTER)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string);
     let body = match read_capped_bytes(response, MAX_PROVIDER_BODY_BYTES).await {
         Ok(body) => body,
         Err(CappedBodyError::TooLarge | CappedBodyError::Unreadable(_)) => {
@@ -79,11 +83,12 @@ pub(super) async fn fetch_web_billing(
         }
     };
 
-    if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
-        return Err(GrokFetchError::Auth);
-    }
-    if !status.is_success() {
-        return Err(GrokFetchError::Unavailable);
+    if let Some(error) = billing_status_error(status, retry_after.as_deref()) {
+        return Err(match error {
+            ProviderError::Auth => GrokFetchError::Auth,
+            ProviderError::RateLimited { .. } => GrokFetchError::RateLimited(retry_after),
+            _ => GrokFetchError::Unavailable,
+        });
     }
     validate_grpc_status(
         headers
@@ -106,6 +111,22 @@ pub(super) async fn fetch_web_billing(
         period_start,
         source: "grok_web_billing",
     })
+}
+
+pub(super) fn billing_status_error(
+    status: StatusCode,
+    retry_after: Option<&str>,
+) -> Option<ProviderError> {
+    classify_status(
+        "Grok",
+        status,
+        retry_after,
+        &StatusPolicy {
+            forbidden: Forbidden::Auth,
+            rate_limits: true,
+            other: Box::new(|_| "Grok did not provide current billing usage.".into()),
+        },
+    )
 }
 
 pub(super) fn validate_grpc_status(

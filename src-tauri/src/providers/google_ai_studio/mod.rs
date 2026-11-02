@@ -16,7 +16,7 @@ use crate::{
     state::AppState,
 };
 use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Utc, Weekday};
-use reqwest::RequestBuilder;
+use reqwest::{RequestBuilder, StatusCode};
 use serde::{de::DeserializeOwned, Deserialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -510,27 +510,40 @@ async fn google_json<T: DeserializeOwned>(
 ) -> Result<T, ProviderError> {
     let response = request.send().await.map_err(|_| network_error(context))?;
     let status = response.status();
+    let retry_after = response
+        .headers()
+        .get(reqwest::header::RETRY_AFTER)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string);
     let body = match read_capped_text(response, MAX_PROVIDER_BODY_BYTES).await {
         Ok(body) => body,
         Err(CappedBodyError::TooLarge) => return Err(body_too_large("Google")),
         Err(CappedBodyError::Unreadable(_)) => String::new(),
     };
-    if let Some(error) = classify_status(
-        "Google",
-        status,
-        None,
-        &StatusPolicy {
-            forbidden: Forbidden::Transient(
-                "Google Cloud denied Monitoring access. Confirm the project ID, enable the Cloud Monitoring API, and grant this Google account Monitoring Viewer access.",
-            ),
-            rate_limits: false,
-            other: Box::new(|status| format!("{context} returned HTTP {}.", status.as_u16())),
-        },
-    ) {
+    if let Some(error) = google_status_error(status, retry_after.as_deref(), context) {
         return Err(error);
     }
     serde_json::from_str(&body)
         .map_err(|_| ProviderError::Transient(format!("{context} returned unreadable data.")))
+}
+
+pub(super) fn google_status_error(
+    status: StatusCode,
+    retry_after: Option<&str>,
+    context: &str,
+) -> Option<ProviderError> {
+    classify_status(
+        "Google",
+        status,
+        retry_after,
+        &StatusPolicy {
+            forbidden: Forbidden::Transient(
+                "Google Cloud denied Monitoring access. Confirm the project ID, enable the Cloud Monitoring API, and grant this Google account Monitoring Viewer access.",
+            ),
+            rate_limits: true,
+            other: Box::new(move |status| format!("{context} returned HTTP {}.", status.as_u16())),
+        },
+    )
 }
 
 /// Refreshes the Google Cloud authorization used for quota reads. Also called while connecting,

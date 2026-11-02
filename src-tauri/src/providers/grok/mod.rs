@@ -4,7 +4,10 @@
 // tracker never reads the Grok Build CLI's ~/.grok/auth.json credentials.
 // No message or token allowance is estimated.
 
-use super::{read_capped_text, ProviderError, ProviderUsage, MAX_PROVIDER_BODY_BYTES};
+use super::{
+    classify_status, rate_limited, read_capped_text, Forbidden, ProviderError, ProviderUsage,
+    StatusPolicy, MAX_PROVIDER_BODY_BYTES,
+};
 use crate::{
     model::{Account, GrokSecret, ProviderSecret, UsageWindow},
     state::AppState,
@@ -205,19 +208,21 @@ pub(crate) async fn fetch_grok_user_email(app: &AppState, cookie_header: &str) -
 }
 
 #[derive(Debug)]
-enum GrokFetchError {
+pub(super) enum GrokFetchError {
     Auth,
     TeamUnavailable,
     Unavailable,
+    RateLimited(Option<String>),
 }
 
 impl GrokFetchError {
-    fn into_provider_error(self) -> ProviderError {
+    pub(super) fn into_provider_error(self) -> ProviderError {
         match self {
             Self::Auth => ProviderError::Auth,
             Self::TeamUnavailable => ProviderError::Transient(
                 "Grok team usage is unavailable from the current billing surface.".into(),
             ),
+            Self::RateLimited(retry_after) => rate_limited("Grok", retry_after.as_deref()),
             Self::Unavailable => {
                 ProviderError::Transient("Grok did not provide current billing usage.".into())
             }

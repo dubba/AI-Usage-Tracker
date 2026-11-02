@@ -1,6 +1,6 @@
 use super::{
-    body_too_large, read_capped_text, CappedBodyError, ProviderError, ProviderUsage,
-    MAX_PROVIDER_BODY_BYTES,
+    body_too_large, classify_status, read_capped_text, CappedBodyError, Forbidden, ProviderError,
+    ProviderUsage, StatusPolicy, MAX_PROVIDER_BODY_BYTES,
 };
 use crate::{
     model::{Account, OpenCodeGoSecret, UsageWindow},
@@ -49,6 +49,11 @@ pub async fn refresh(
         .map_err(|_| ProviderError::Transient("OpenCode Go dashboard request failed.".into()))?;
     let status = response.status();
     let final_path = response.url().path().to_string();
+    let retry_after = response
+        .headers()
+        .get(reqwest::header::RETRY_AFTER)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string);
     let body = match read_capped_text(response, MAX_PROVIDER_BODY_BYTES).await {
         Ok(body) => body,
         Err(CappedBodyError::TooLarge) => return Err(body_too_large("OpenCode Go")),
@@ -59,17 +64,11 @@ pub async fn refresh(
         }
     };
 
-    if status == StatusCode::UNAUTHORIZED
-        || status == StatusCode::FORBIDDEN
-        || !final_path.starts_with(&expected_path)
-        || looks_like_login(&body)
-    {
-        return Err(ProviderError::Auth);
+    if let Some(error) = opencode_status_error(status, retry_after.as_deref()) {
+        return Err(error);
     }
-    if !status.is_success() {
-        return Err(ProviderError::Transient(format!(
-            "OpenCode Go dashboard returned {status}."
-        )));
+    if !final_path.starts_with(&expected_path) || looks_like_login(&body) {
+        return Err(ProviderError::Auth);
     }
 
     let mut rolling = parse_ssr_window(&body, "rollingUsage");
@@ -136,6 +135,19 @@ pub fn normalize_cookie(value: &str) -> Result<String, String> {
         return Err("The OpenCode console cookie contains invalid characters.".into());
     }
     Ok(cookie.to_string())
+}
+
+fn opencode_status_error(status: StatusCode, retry_after: Option<&str>) -> Option<ProviderError> {
+    classify_status(
+        "OpenCode Go",
+        status,
+        retry_after,
+        &StatusPolicy {
+            forbidden: Forbidden::Auth,
+            rate_limits: true,
+            other: Box::new(|status| format!("OpenCode Go dashboard returned {status}.")),
+        },
+    )
 }
 
 fn looks_like_login(body: &str) -> bool {
@@ -504,5 +516,28 @@ mod tests {
         let window = normalize_window("rolling", "Rolling", raw, Some(1800));
         assert_eq!(window.used_percent, Some(25.0));
         assert!(window.resets_at.is_some());
+    }
+
+    #[test]
+    fn opencode_status_error_mapping() {
+        assert!(matches!(
+            opencode_status_error(StatusCode::UNAUTHORIZED, None),
+            Some(ProviderError::Auth)
+        ));
+        assert!(matches!(
+            opencode_status_error(StatusCode::FORBIDDEN, None),
+            Some(ProviderError::Auth)
+        ));
+        assert!(matches!(
+            opencode_status_error(StatusCode::TOO_MANY_REQUESTS, Some("120")),
+            Some(ProviderError::RateLimited { message, retry_after })
+                if message.contains("Retry after 120")
+                    && retry_after == Some(std::time::Duration::from_secs(120))
+        ));
+        assert!(matches!(
+            opencode_status_error(StatusCode::INTERNAL_SERVER_ERROR, None),
+            Some(ProviderError::Transient(_))
+        ));
+        assert!(opencode_status_error(StatusCode::OK, None).is_none());
     }
 }

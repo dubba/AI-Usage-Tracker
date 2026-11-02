@@ -148,6 +148,36 @@ fn grok_rpc_errors_are_sanitized_for_the_ui() {
 }
 
 #[test]
+fn grok_billing_status_error_mapping() {
+    assert!(matches!(
+        billing_status_error(StatusCode::UNAUTHORIZED, None),
+        Some(ProviderError::Auth)
+    ));
+    assert!(matches!(
+        billing_status_error(StatusCode::FORBIDDEN, None),
+        Some(ProviderError::Auth)
+    ));
+    assert!(matches!(
+        billing_status_error(StatusCode::TOO_MANY_REQUESTS, Some("30")),
+        Some(ProviderError::RateLimited { message, retry_after })
+            if message.contains("Retry after 30")
+                && retry_after == Some(std::time::Duration::from_secs(30))
+    ));
+    assert!(matches!(
+        billing_status_error(StatusCode::INTERNAL_SERVER_ERROR, None),
+        Some(ProviderError::Transient(_))
+    ));
+    assert!(billing_status_error(StatusCode::OK, None).is_none());
+
+    let err = GrokFetchError::RateLimited(Some("30".into())).into_provider_error();
+    assert!(matches!(
+        err,
+        ProviderError::RateLimited { retry_after, .. }
+            if retry_after == Some(std::time::Duration::from_secs(30))
+    ));
+}
+
+#[test]
 fn extracts_email_from_jwt_and_cookie_header() {
     // Sample JWT payload with email: {"sub":"123","email":"test.user@example.com"}
     let jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMiLCJlbWFpbCI6InRlc3QudXNlckBleGFtcGxlLmNvbSJ9.signature";
