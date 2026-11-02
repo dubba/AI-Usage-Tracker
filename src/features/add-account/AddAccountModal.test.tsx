@@ -142,6 +142,34 @@ describe("browser sign-in providers", () => {
     expect(login.watchLoginAttempt).toHaveBeenCalledWith("att-2");
   });
 
+  it("ignores rapid duplicate clicks on connect and does not cancel the in-flight sign-in", async () => {
+    let resolveFirstLogin!: (value: { attemptId: string; authorizationUrl: string }) => void;
+    api.startLogin.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveFirstLogin = resolve;
+        }),
+    );
+
+    render();
+    const button = primary();
+    // Simulate rapid double click before React re-renders to disable the button
+    click(button);
+    click(button);
+
+    // Synchronous guard must prevent a second startLogin call
+    expect(api.startLogin).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      resolveFirstLogin({ attemptId: "att-1", authorizationUrl: "https://auth.example/start" });
+    });
+    await settle();
+
+    expect(login.watchLoginAttempt).toHaveBeenCalledWith("att-1");
+    expect(login.recoverFromStaleLogin).not.toHaveBeenCalled();
+    expect(api.cancelLogin).not.toHaveBeenCalled();
+  });
+
   it("shows the error and re-enables the button when starting fails", async () => {
     api.startLogin.mockRejectedValue(new Error("network down"));
     render();

@@ -63,6 +63,7 @@ export function AddAccountModal({
   const [baselineLabel, setBaselineLabel] = useState("");
   const [isKeyboardOpen, setIsKeyboardOpen] = useVirtualKeyboard(open);
   const dialogRef = useRef<HTMLElement>(null);
+  const connectInFlightRef = useRef(false);
   const providerLocked = Boolean(initialProvider && initialLabel?.trim());
   const { provider } = draft;
   const strategy = strategyFor(provider);
@@ -70,10 +71,12 @@ export function AddAccountModal({
     active: open,
     onStatus: (next) => {
       if (next.status === "complete" && next.account) {
+        connectInFlightRef.current = false;
         onAdded(next.account);
         return;
       }
       if (next.status === "failed") {
+        connectInFlightRef.current = false;
         setBusy(false);
         setError(next.message ?? `${connectLabel(provider)} authentication failed.`);
       }
@@ -83,6 +86,7 @@ export function AddAccountModal({
   const update = (patch: Partial<AddAccountDraft>) => setDraft((current) => ({ ...current, ...patch }));
 
   useEffect(() => {
+    connectInFlightRef.current = false;
     if (!open) {
       setDraft(emptyDraft("anthropic"));
       setModelsBusy(false);
@@ -98,6 +102,7 @@ export function AddAccountModal({
   }, [open, initialLabel, initialProvider, providerLocked, setError, setBusy, setModelsBusy]);
 
   const closeModal = () => {
+    connectInFlightRef.current = false;
     abandon();
     setBusy(false);
     setIsKeyboardOpen(false);
@@ -128,6 +133,7 @@ export function AddAccountModal({
   if (!open) return null;
 
   const changeProvider = (nextProvider: Provider) => {
+    connectInFlightRef.current = false;
     setDraft((current) => emptyDraft(
       nextProvider,
       isAutoAccountName(current.label, current.provider) ? defaultAccountName(nextProvider) : current.label,
@@ -175,7 +181,7 @@ export function AddAccountModal({
     try {
       start = await startLogin();
     } catch (cause) {
-      if (!String(cause).toLowerCase().includes("already in progress")) {
+      if (!String(cause).toLowerCase().includes("already in progress") || attemptIdRef.current) {
         throw cause;
       }
       await recoverFromStaleLogin();
@@ -188,15 +194,15 @@ export function AddAccountModal({
   };
 
   const begin = async () => {
+    if (connectInFlightRef.current) return;
     const problem = strategy.validate(draft);
     if (problem) {
       setError(problem);
       return;
     }
 
-    // Busy stays on after success: a sign-in now waits for the backend, and a direct connect
-    // closes the dialog.
-    await run(
+    connectInFlightRef.current = true;
+    const succeeded = await run(
       async () => {
         const name = draft.label.trim() || defaultAccountName(provider);
         if (strategy.connectMode(draft) === "sign-in") {
@@ -208,10 +214,16 @@ export function AddAccountModal({
       "Couldn't connect the account",
       { keepBusyOnSuccess: true, isCurrent: () => !closeRequestedRef.current },
     );
+
+    if (!succeeded || strategy.connectMode(draft) !== "sign-in") {
+      connectInFlightRef.current = false;
+    }
   };
 
   const retry = () => {
+    if (connectInFlightRef.current) return;
     if (retryAttempt((attemptId) => waitingStatus(attemptId, "Reconnecting to the sign-in…"))) {
+      connectInFlightRef.current = true;
       setError(null);
       setBusy(true);
       return;

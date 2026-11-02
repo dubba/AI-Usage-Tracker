@@ -1,15 +1,16 @@
 # Changelog
 
-## Unreleased (4 changes)
+## Unreleased (5 changes)
 
 ### Added (2)
 
 - On the Usage page, cards can now be pressed and dragged to reorder them, keeping their order in sync across the Usage page, the All Accounts page, and the sidebar.
 - On the Usage page, the reorder hint ("Press & drag a card below or in the sidebar to reorder") is shown for the first two sessions.
 
-### Fixed (2)
+### Fixed (3)
 
 - Alert notifications for usage windows without a reset time no longer repeat on every refresh while remaining under the threshold.
+- Rapidly clicking the Connect or Retry button when adding an account no longer triggers an in-progress collision that cancels the starting sign-in.
 - Launch no longer runs two account refresh waves back-to-back, halving startup network requests.
 
 ## v0.5.6 - 2026-11-01 (14 changes)
