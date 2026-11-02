@@ -1129,10 +1129,14 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "current_thread")]
+    #[allow(clippy::await_holding_lock)]
     async fn a_refresh_that_rotates_under_the_lock_is_not_overwritten_by_an_earlier_load() {
         let temp = tempfile::tempdir().unwrap();
         let app = Arc::new(AppState::new(temp.path().to_path_buf(), "test-token".into()).unwrap());
+        // Credential files follow a process-wide directory. Hold it on this
+        // temp dir for the overlap, including across the wait below.
+        let _credentials = crate::store::pin_data_dir_for_test(temp.path().to_path_buf());
         let account_id = "l45-cloud-oauth";
         let now = crate::model::now_rfc3339();
         app.store

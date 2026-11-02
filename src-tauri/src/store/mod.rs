@@ -62,13 +62,46 @@ pub(crate) fn check_account_id(id: &str) -> Result<(), StoreError> {
     }
 }
 
+/// Tests share one process, and credential saves follow whichever directory was
+/// set last. A test that waits between a load and a save holds the guard from
+/// [`pin_data_dir_for_test`], or another test can aim that save at a directory
+/// it then deletes.
+#[cfg(test)]
+static DATA_DIR_TEST_LOCK: LazyLock<std::sync::Mutex<()>> =
+    LazyLock::new(|| std::sync::Mutex::new(()));
+
 pub fn set_data_dir(path: PathBuf) {
+    #[cfg(test)]
+    let _guard = DATA_DIR_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    set_data_dir_unlocked(path);
+}
+
+fn set_data_dir_unlocked(path: PathBuf) {
     let mut dirs = DATA_DIRS.write();
     dirs.retain(|p| p.exists());
     if let Some(pos) = dirs.iter().position(|p| p == &path) {
         dirs.remove(pos);
     }
     dirs.insert(0, path);
+}
+
+/// Points credential saves at `path` and keeps them there until the guard drops.
+///
+/// The guard is not `Send`. Hold it in a `current_thread` test.
+#[cfg(test)]
+pub struct DataDirPin {
+    _guard: std::sync::MutexGuard<'static, ()>,
+}
+
+#[cfg(test)]
+pub fn pin_data_dir_for_test(path: PathBuf) -> DataDirPin {
+    let guard = DATA_DIR_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    set_data_dir_unlocked(path);
+    DataDirPin { _guard: guard }
 }
 
 #[derive(Debug, Error)]
