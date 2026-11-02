@@ -236,6 +236,7 @@ pub async fn run_host_listener(
     session_nonce: Vec<u8>,
     fingerprint: String,
     status_tx: mpsc::Sender<HostEvent>,
+    mut sas_offer: Option<oneshot::Sender<bool>>,
     sas_confirm_rx: oneshot::Receiver<bool>,
     mut cancel_rx: oneshot::Receiver<()>,
 ) {
@@ -430,6 +431,14 @@ pub async fn run_host_listener(
     };
 
     let host_role = if host_is_sender { "sender" } else { "receiver" };
+    // Install the answer channel only once this phase is reached, and before
+    // the UI is told, so an earlier confirm has nothing to send on.
+    if let Some(tx) = sas_offer.take() {
+        state
+            .pairing
+            .offer_sas_confirm(&session_id.to_string(), tx)
+            .await;
+    }
     let _ = status_tx
         .send(HostEvent::SasVerification {
             sas_code: sas_code.clone(),
@@ -481,6 +490,7 @@ pub async fn run_receiver_listener(
         session_nonce,
         fp,
         status_tx,
+        None,
         sas_confirm_rx,
         cancel_rx,
     )
@@ -488,11 +498,16 @@ pub async fn run_receiver_listener(
 }
 
 /// Runs the client connector loop (connects to host, selects role, verifies SAS, transfers)
+// Session plumbing: one channel/handle per concern, kept as separate
+// arguments so the host, receiver, and client paths stay symmetrical.
+#[allow(clippy::too_many_arguments)]
 pub async fn run_client_connector(
     state: Arc<AppState>,
     parsed: ParsedQrPayload,
     status_tx: mpsc::Sender<ClientEvent>,
+    mut role_offer: Option<oneshot::Sender<String>>,
     mut role_select_rx: oneshot::Receiver<String>,
+    mut sas_offer: Option<oneshot::Sender<bool>>,
     sas_confirm_rx: oneshot::Receiver<bool>,
     mut cancel_rx: oneshot::Receiver<()>,
 ) {
@@ -613,6 +628,14 @@ pub async fn run_client_connector(
             account_count: local_account_count,
         })
         .await;
+    // Install the answer channel only once this phase is reached, and before
+    // the UI is told, so an earlier role choice has nothing to send on.
+    if let Some(tx) = role_offer.take() {
+        state
+            .pairing
+            .offer_role_select(&parsed.session_id.to_string(), tx)
+            .await;
+    }
     let _ = status_tx
         .send(ClientEvent::RoleSelection {
             sas_code: sas_code.clone(),
@@ -744,6 +767,12 @@ pub async fn run_client_connector(
     } else {
         "receiver"
     };
+    if let Some(tx) = sas_offer.take() {
+        state
+            .pairing
+            .offer_sas_confirm(&parsed.session_id.to_string(), tx)
+            .await;
+    }
     let _ = status_tx
         .send(ClientEvent::SasVerification {
             sas_code: sas_code.clone(),
@@ -778,7 +807,17 @@ pub async fn run_sender_client(
 ) {
     let (role_tx, role_rx) = oneshot::channel();
     let _ = role_tx.send("send".to_string());
-    run_client_connector(state, parsed, status_tx, role_rx, sas_confirm_rx, cancel_rx).await;
+    run_client_connector(
+        state,
+        parsed,
+        status_tx,
+        None,
+        role_rx,
+        None,
+        sas_confirm_rx,
+        cancel_rx,
+    )
+    .await;
 }
 
 /// Shared mutual confirmation and authenticated data transfer logic for both Host and Client
@@ -896,13 +935,9 @@ async fn run_authenticated_transfer<E>(
         // SENDER: Export state, encrypt, and send payload
         let mut export_bytes = match create_export_payload(&state) {
             Ok(b) => {
-                // Clear per-transfer settings flag after snapshotting payload so it
-                // does not leak into the next session.
-                {
-                    let mut options = state.pairing_options.write();
-                    options.include_settings = false;
-                    options.pending_ui_state = None;
-                }
+                // Clear the confirm-time snapshot and the live flags after
+                // snapshotting, so this transfer's choices do not leak into the next one.
+                state.pairing_options.write().clear_after_export();
                 b
             }
             Err(e) => {

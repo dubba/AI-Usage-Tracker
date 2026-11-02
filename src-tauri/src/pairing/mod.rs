@@ -106,12 +106,21 @@ pub struct PairingHostInit {
 
 /// What one pairing transfer carries beyond the accounts, chosen by the user for that transfer.
 /// Everything defaults to "nothing extra" and goes back to it between transfers (`reset`).
+/// Confirming the code freezes the choice, so a later write cannot change what that transfer sends.
 #[derive(Clone, Debug, Default)]
 pub struct PairingTransferOptions {
     /// Also send the app settings, account order and alerts.
     pub include_settings: bool,
     /// The layout (localStorage snapshot) the frontend supplied for this transfer.
     pub pending_ui_state: Option<serde_json::Value>,
+    /// Set once, when the user confirms the code. Export prefers this over the live fields.
+    frozen: Option<FrozenExtras>,
+}
+
+#[derive(Clone, Debug)]
+struct FrozenExtras {
+    include_settings: bool,
+    pending_ui_state: Option<serde_json::Value>,
 }
 
 impl PairingTransferOptions {
@@ -119,12 +128,46 @@ impl PairingTransferOptions {
     pub fn reset(&mut self) {
         *self = Self::default();
     }
+
+    /// Remember the extras chosen at the moment the code is confirmed.
+    /// A second call keeps the first snapshot.
+    pub(crate) fn freeze(&mut self) {
+        if self.frozen.is_none() {
+            self.frozen = Some(FrozenExtras {
+                include_settings: self.include_settings,
+                pending_ui_state: self.pending_ui_state.clone(),
+            });
+        }
+    }
+
+    /// Drop a confirm-time snapshot so the next export reads the live fields.
+    /// The air-gap dialog sets those fields itself, after its own confirmation.
+    pub(crate) fn unfreeze(&mut self) {
+        self.frozen = None;
+    }
+
+    /// What this transfer should send. A confirm-time snapshot wins over a later write.
+    pub(crate) fn exported_extras(&self) -> (bool, Option<serde_json::Value>) {
+        match &self.frozen {
+            Some(frozen) => (frozen.include_settings, frozen.pending_ui_state.clone()),
+            None => (self.include_settings, self.pending_ui_state.clone()),
+        }
+    }
+
+    /// Forget this transfer's extras once its payload has been snapshotted.
+    pub(crate) fn clear_after_export(&mut self) {
+        self.include_settings = false;
+        self.pending_ui_state = None;
+        self.frozen = None;
+    }
 }
 
 pub struct ActiveSession {
     pub session_id: String,
     pub cancel_tx: Option<oneshot::Sender<()>>,
+    /// Installed when role selection starts. Absent until then, so an earlier answer is refused.
     pub role_select_tx: Option<oneshot::Sender<String>>,
+    /// Installed when code confirmation starts. Absent until then, so an earlier answer is refused.
     pub sas_confirm_tx: Option<oneshot::Sender<bool>>,
     pub advertisement: Option<discovery::MdnsAdvertisement>,
 }
@@ -189,19 +232,63 @@ impl PairingSessionManager {
         Ok(())
     }
 
-    pub async fn confirm_sas(&self, session_id: &str, confirmed: bool) -> Result<(), String> {
-        let mut active = self.active.write().await;
-        let Some(session) = active.as_mut() else {
-            return Err("No active pairing session".into());
+    pub async fn confirm_sas(
+        &self,
+        session_id: &str,
+        confirmed: bool,
+        options: &parking_lot::RwLock<PairingTransferOptions>,
+    ) -> Result<(), String> {
+        // Take the sender before touching the extras. A confirm that arrives
+        // before this phase has no sender, and must not freeze a choice the
+        // transfer will never use. The session lock is released before the
+        // options lock: the settings command takes only the options lock.
+        let confirm_tx = {
+            let mut active = self.active.write().await;
+            let Some(session) = active.as_mut() else {
+                return Err("No active pairing session".into());
+            };
+            if session.session_id != session_id {
+                return Err("Session ID mismatch".into());
+            }
+            let Some(confirm_tx) = session.sas_confirm_tx.take() else {
+                return Err(
+                    "Confirmation already handled or not waiting for SAS confirmation".into(),
+                );
+            };
+            confirm_tx
         };
-        if session.session_id != session_id {
-            return Err("Session ID mismatch".into());
+        if confirmed {
+            options.write().freeze();
         }
-        let Some(confirm_tx) = session.sas_confirm_tx.take() else {
-            return Err("Confirmation already handled or not waiting for SAS confirmation".into());
-        };
         let _ = confirm_tx.send(confirmed);
         Ok(())
+    }
+
+    /// Publish the role answer channel once that phase is reached.
+    /// A session that has moved on, or that already has a channel, drops `tx`
+    /// so the waiter hears a disconnect and aborts.
+    pub(crate) async fn offer_role_select(&self, session_id: &str, tx: oneshot::Sender<String>) {
+        let mut active = self.active.write().await;
+        if let Some(session) = active.as_mut() {
+            if session.session_id == session_id && session.role_select_tx.is_none() {
+                session.role_select_tx = Some(tx);
+                return;
+            }
+        }
+        drop(tx);
+    }
+
+    /// Publish the code-confirmation channel once that phase is reached.
+    /// A session that has moved on, or that already has a channel, drops `tx`.
+    pub(crate) async fn offer_sas_confirm(&self, session_id: &str, tx: oneshot::Sender<bool>) {
+        let mut active = self.active.write().await;
+        if let Some(session) = active.as_mut() {
+            if session.session_id == session_id && session.sas_confirm_tx.is_none() {
+                session.sas_confirm_tx = Some(tx);
+                return;
+            }
+        }
+        drop(tx);
     }
 
     pub async fn start_host(&self, state: Arc<AppState>) -> Result<PairingHostInit, String> {
@@ -285,7 +372,7 @@ impl PairingSessionManager {
             session_id: session_id.to_string(),
             cancel_tx: Some(cancel_tx),
             role_select_tx: None,
-            sas_confirm_tx: Some(sas_confirm_tx),
+            sas_confirm_tx: None,
             advertisement: None,
         });
 
@@ -332,6 +419,7 @@ impl PairingSessionManager {
                 session_nonce,
                 fp_clone,
                 status_tx,
+                Some(sas_confirm_tx),
                 sas_confirm_rx,
                 cancel_rx,
             )
@@ -427,8 +515,8 @@ impl PairingSessionManager {
         *self.active.write().await = Some(ActiveSession {
             session_id: session_id_str.clone(),
             cancel_tx: Some(cancel_tx),
-            role_select_tx: Some(role_select_tx),
-            sas_confirm_tx: Some(sas_confirm_tx),
+            role_select_tx: None,
+            sas_confirm_tx: None,
             advertisement: None,
         });
 
@@ -442,7 +530,9 @@ impl PairingSessionManager {
                 state_for_client,
                 parsed,
                 status_tx,
+                Some(role_select_tx),
                 role_select_rx,
+                Some(sas_confirm_tx),
                 sas_confirm_rx,
                 cancel_rx,
             )
@@ -541,6 +631,18 @@ impl PairingSessionManager {
                 Err(err)
             }
         }
+    }
+
+    /// An open session with neither answer channel installed, for tests of the phase gate.
+    #[cfg(test)]
+    pub(crate) async fn testing_open_session(&self, session_id: &str) {
+        *self.active.write().await = Some(ActiveSession {
+            session_id: session_id.to_string(),
+            cancel_tx: None,
+            role_select_tx: None,
+            sas_confirm_tx: None,
+            advertisement: None,
+        });
     }
 }
 

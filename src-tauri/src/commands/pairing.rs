@@ -84,7 +84,10 @@ pub async fn pairing_confirm_sas(
     session_id: String,
     confirmed: bool,
 ) -> Result<(), String> {
-    state.pairing.confirm_sas(&session_id, confirmed).await
+    state
+        .pairing
+        .confirm_sas(&session_id, confirmed, &state.pairing_options)
+        .await
 }
 
 #[tauri::command]
@@ -150,6 +153,9 @@ pub async fn pairing_prepare_airgap_export(
         crate::confirm::ask(&app, &crate::confirm::AIRGAP_EXPORT),
         || {
             let mut options = state.pairing_options.write();
+            // A code confirmation freezes the LAN transfer's choice. This dialog
+            // is a separate choice, so that snapshot must not override it.
+            options.unfreeze();
             options.include_settings = include_settings;
             if let Some(ui) = ui_state {
                 options.pending_ui_state = Some(ui);

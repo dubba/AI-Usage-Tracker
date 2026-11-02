@@ -954,6 +954,7 @@ async fn test_host_survives_garbage_and_squatter_before_real_peer() {
         host_nonce,
         parsed_qr.fingerprint.clone(),
         host_status_tx,
+        None,
         host_confirm_rx,
         host_cancel_rx,
     ));
@@ -1393,6 +1394,7 @@ async fn test_end_to_end_role_selection_client_sends() {
         host_nonce,
         fp,
         host_status_tx,
+        None,
         host_confirm_rx,
         host_cancel_rx,
     ));
@@ -1406,7 +1408,9 @@ async fn test_end_to_end_role_selection_client_sends() {
         state_client.clone(),
         parsed_qr,
         client_status_tx,
+        None,
         role_select_rx,
+        None,
         client_confirm_rx,
         client_cancel_rx,
     ));
@@ -1531,6 +1535,7 @@ async fn test_end_to_end_role_selection_client_receives() {
         host_nonce,
         fp,
         host_status_tx,
+        None,
         host_confirm_rx,
         host_cancel_rx,
     ));
@@ -1544,7 +1549,9 @@ async fn test_end_to_end_role_selection_client_receives() {
         state_client.clone(),
         parsed_qr,
         client_status_tx,
+        None,
         role_select_rx,
+        None,
         client_confirm_rx,
         client_cancel_rx,
     ));
@@ -1642,6 +1649,7 @@ async fn test_end_to_end_sas_rejection_aborts() {
         host_nonce,
         fp,
         host_status_tx,
+        None,
         host_confirm_rx,
         host_cancel_rx,
     ));
@@ -1655,7 +1663,9 @@ async fn test_end_to_end_sas_rejection_aborts() {
         state_client.clone(),
         parsed_qr,
         client_status_tx,
+        None,
         role_select_rx,
+        None,
         client_confirm_rx,
         client_cancel_rx,
     ));
@@ -2017,10 +2027,14 @@ fn transfer_options_default_to_nothing_extra_and_reset_clears_every_choice() {
     let mut options = PairingTransferOptions {
         include_settings: true,
         pending_ui_state: Some(serde_json::json!({"theme": "dark"})),
+        frozen: None,
     };
+    options.freeze();
     options.reset();
     assert!(!options.include_settings);
     assert!(options.pending_ui_state.is_none());
+    // A confirm-time snapshot must not survive into the next transfer.
+    assert!(!options.exported_extras().0);
 }
 
 #[tokio::test]
@@ -2152,4 +2166,159 @@ async fn import_keeps_credentials_when_only_the_account_id_matches() {
         ProviderSecret::Anthropic(secret) => assert_eq!(secret.access_token, "sk-ant-access-mine"),
         _ => panic!("the local secret changed provider"),
     }
+}
+
+fn exported_payload(state: &AppState) -> super::payload::SyncPayload {
+    let bytes = create_export_payload(state).unwrap();
+    serde_json::from_slice(&bytes).unwrap()
+}
+
+#[tokio::test]
+async fn answers_are_refused_until_that_phase_and_a_confirm_freezes_the_extras() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = Arc::new(AppState::new(dir.path().to_path_buf(), "tok-phase".into()).unwrap());
+    let session_id = "session-phase";
+    state.pairing.testing_open_session(session_id).await;
+
+    let role_err = state.pairing.select_role("send").await.unwrap_err();
+    assert!(role_err.contains("not in role selection"));
+    let sas_err = state
+        .pairing
+        .confirm_sas(session_id, true, &state.pairing_options)
+        .await
+        .unwrap_err();
+    assert!(sas_err.contains("not waiting for SAS"));
+
+    // An offer for a different session is dropped, and this session stays closed.
+    let (bogus_role_tx, mut bogus_role_rx) = oneshot::channel();
+    state
+        .pairing
+        .offer_role_select("other-session", bogus_role_tx)
+        .await;
+    assert!(matches!(
+        bogus_role_rx.try_recv(),
+        Err(oneshot::error::TryRecvError::Closed)
+    ));
+    assert!(state.pairing.select_role("send").await.is_err());
+
+    let (role_tx, mut role_rx) = oneshot::channel();
+    state.pairing.offer_role_select(session_id, role_tx).await;
+    state.pairing.select_role("send").await.unwrap();
+    assert_eq!(role_rx.try_recv().unwrap(), "send");
+    assert!(state.pairing.select_role("send").await.is_err());
+
+    {
+        let mut options = state.pairing_options.write();
+        options.include_settings = true;
+        options.pending_ui_state = Some(serde_json::json!({"theme": "dark"}));
+    }
+    let (sas_tx, mut sas_rx) = oneshot::channel();
+    state.pairing.offer_sas_confirm(session_id, sas_tx).await;
+    state
+        .pairing
+        .confirm_sas(session_id, true, &state.pairing_options)
+        .await
+        .unwrap();
+    assert!(sas_rx.try_recv().unwrap());
+    assert!(state
+        .pairing
+        .confirm_sas(session_id, true, &state.pairing_options)
+        .await
+        .is_err());
+
+    // A later write must not take the settings back out of this transfer.
+    {
+        let mut options = state.pairing_options.write();
+        options.include_settings = false;
+        options.pending_ui_state = None;
+    }
+    let payload = exported_payload(&state);
+    assert!(payload.settings.is_some());
+    assert_eq!(
+        payload.ui_state.and_then(|ui| ui.theme),
+        Some("dark".to_string())
+    );
+}
+
+#[tokio::test]
+async fn a_confirm_while_settings_are_off_keeps_them_out_of_the_export() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = Arc::new(AppState::new(dir.path().to_path_buf(), "tok-phase-off".into()).unwrap());
+    let session_id = "session-off";
+    state.pairing.testing_open_session(session_id).await;
+
+    let (sas_tx, mut sas_rx) = oneshot::channel();
+    state.pairing.offer_sas_confirm(session_id, sas_tx).await;
+    state
+        .pairing
+        .confirm_sas(session_id, true, &state.pairing_options)
+        .await
+        .unwrap();
+    assert!(sas_rx.try_recv().unwrap());
+
+    state.pairing_options.write().include_settings = true;
+    state.pairing_options.write().pending_ui_state = Some(serde_json::json!({"theme": "light"}));
+    let payload = exported_payload(&state);
+    assert!(payload.settings.is_none());
+    assert!(payload.ui_state.is_none());
+}
+
+#[tokio::test]
+async fn rejecting_the_code_does_not_freeze_the_extras() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = Arc::new(AppState::new(dir.path().to_path_buf(), "tok-phase-no".into()).unwrap());
+    let session_id = "session-reject";
+    state.pairing.testing_open_session(session_id).await;
+    state.pairing_options.write().include_settings = true;
+
+    let (sas_tx, mut sas_rx) = oneshot::channel();
+    state.pairing.offer_sas_confirm(session_id, sas_tx).await;
+    state
+        .pairing
+        .confirm_sas(session_id, false, &state.pairing_options)
+        .await
+        .unwrap();
+    assert!(!sas_rx.try_recv().unwrap());
+
+    state.pairing_options.write().include_settings = false;
+    assert!(exported_payload(&state).settings.is_none());
+}
+
+#[tokio::test]
+async fn unfreeze_lets_the_next_export_read_the_live_choice() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = Arc::new(AppState::new(dir.path().to_path_buf(), "tok-unfreeze".into()).unwrap());
+    {
+        let mut options = state.pairing_options.write();
+        options.include_settings = true;
+        options.freeze();
+        options.include_settings = false;
+        options.unfreeze();
+    }
+    assert!(exported_payload(&state).settings.is_none());
+    state.pairing_options.write().include_settings = true;
+    assert!(exported_payload(&state).settings.is_some());
+}
+
+#[test]
+fn airgap_export_clears_a_confirm_freeze_before_using_the_live_choice() {
+    // The air-gap command sets the live flags itself, after its own dialog.
+    // A leftover LAN confirm must be dropped first, or the export would send
+    // the earlier choice instead of the one this dialog just confirmed.
+    let source = include_str!("../commands/pairing.rs").replace("\r\n", "\n");
+    let start = source
+        .find("fn pairing_prepare_airgap_export(")
+        .expect("airgap export command");
+    let body = &source[start..];
+    let body = &body[..body.find("\n}\n").expect("end of function")];
+    let unfreeze = body
+        .find(".unfreeze()")
+        .expect("airgap must drop a leftover freeze");
+    let write = body
+        .find("include_settings = include_settings")
+        .expect("airgap writes the live choice");
+    let export = body
+        .find("airgap::prepare_airgap_export(")
+        .expect("airgap builds the payload");
+    assert!(unfreeze < write && write < export);
 }

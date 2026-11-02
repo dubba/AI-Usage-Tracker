@@ -212,10 +212,7 @@ pub fn create_export_payload(state: &AppState) -> Result<Vec<u8>, String> {
 
     let buckets = state.buckets.list();
 
-    let (include_settings, pending_ui_state) = {
-        let options = state.pairing_options.read();
-        (options.include_settings, options.pending_ui_state.clone())
-    };
+    let (include_settings, pending_ui_state) = state.pairing_options.read().exported_extras();
 
     let (settings, account_order, alerts, ui_state) = if include_settings {
         let app = state.settings.get();
