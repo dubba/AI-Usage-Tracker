@@ -24,6 +24,15 @@ impl From<&str> for ExchangeError {
     }
 }
 
+async fn read_token_body(
+    response: reqwest::Response,
+    too_large: &'static str,
+) -> ExchangeResult<String> {
+    crate::providers::read_sign_in_body(response, too_large)
+        .await
+        .map_err(ExchangeError::from)
+}
+
 impl ExchangeError {
     pub(super) fn message(&self) -> &str {
         match self {
@@ -241,7 +250,7 @@ pub(super) async fn exchange_openai(
     .await
     .map_err(|error| ExchangeError::from_send("OpenAI token exchange failed", &error))?;
     let status = response.status();
-    let body = response.text().await.unwrap_or_default();
+    let body = read_token_body(response, "OpenAI returned a response that is too large.").await?;
     if !status.is_success() {
         return Err(ExchangeError::from_status(
             format!("OpenAI token exchange failed ({status})."),
@@ -299,7 +308,8 @@ pub(super) async fn exchange_anthropic(
     .await
     .map_err(|error| ExchangeError::from_send("Anthropic token exchange failed", &error))?;
     let status = response.status();
-    let body = response.text().await.unwrap_or_default();
+    let body =
+        read_token_body(response, "Anthropic returned a response that is too large.").await?;
     if !status.is_success() {
         return Err(ExchangeError::from_status(
             format!("Anthropic token exchange failed ({status})."),
@@ -347,7 +357,7 @@ pub(super) async fn exchange_antigravity(
     .await
     .map_err(|error| ExchangeError::from_send("Google token exchange failed", &error))?;
     let status = response.status();
-    let body = response.text().await.unwrap_or_default();
+    let body = read_token_body(response, "Google returned a response that is too large.").await?;
     if !status.is_success() {
         return Err(ExchangeError::from_status(
             format!("Google token exchange failed ({status})."),

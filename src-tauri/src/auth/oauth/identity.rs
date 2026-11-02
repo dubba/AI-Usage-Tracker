@@ -29,13 +29,16 @@ pub(super) async fn fetch_json_with_headers(
         .send()
         .await
         .map_err(|error| format!("Profile request failed: {error}"))?;
-    if !response.status().is_success() {
-        return Err(format!("Profile request returned {}.", response.status()));
+    let status = response.status();
+    let body = crate::providers::read_sign_in_body(
+        response,
+        "The provider returned a response that is too large.",
+    )
+    .await?;
+    if !status.is_success() {
+        return Err(format!("Profile request returned {status}."));
     }
-    response
-        .json()
-        .await
-        .map_err(|_| String::from("Invalid profile response."))
+    serde_json::from_str(&body).map_err(|_| String::from("Invalid profile response."))
 }
 
 /// Decodes the payload segment of a JWT without verifying the signature.

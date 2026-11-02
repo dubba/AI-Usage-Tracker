@@ -57,11 +57,10 @@ pub fn transport_failure(error: &reqwest::Error) -> &'static str {
     }
 }
 
-/// Largest usage or token body a refresh will keep. The shared client already
-/// stops at 15 seconds. This stops a fast response from being stored past
-/// this size while the account lock is held. Monitoring pages and the
-/// OpenCode dashboard are larger than the 2 MiB changelog cap, so this sits
-/// above that.
+/// Largest provider body a refresh or a sign-in will keep. The shared client
+/// already stops at 15 seconds. This stops a fast response from being stored
+/// past this size. Monitoring pages and the OpenCode dashboard are larger
+/// than the 2 MiB changelog cap, so this sits above that.
 pub(crate) const MAX_PROVIDER_BODY_BYTES: usize = 8 * 1024 * 1024;
 
 #[derive(Debug)]
@@ -111,6 +110,21 @@ pub(crate) async fn read_capped_text(
     let bytes = read_capped_bytes(response, max_bytes).await?;
     String::from_utf8(bytes)
         .map_err(|_| CappedBodyError::Unreadable("the response could not be read"))
+}
+
+/// Reads a sign-in or profile response up to [`MAX_PROVIDER_BODY_BYTES`].
+///
+/// An unreadable body is empty, so the caller keeps its existing
+/// invalid-response sentence. A body over the cap returns `too_large`.
+pub(crate) async fn read_sign_in_body(
+    response: reqwest::Response,
+    too_large: &'static str,
+) -> Result<String, &'static str> {
+    match read_capped_text(response, MAX_PROVIDER_BODY_BYTES).await {
+        Ok(body) => Ok(body),
+        Err(CappedBodyError::TooLarge) => Err(too_large),
+        Err(CappedBodyError::Unreadable(_)) => Ok(String::new()),
+    }
 }
 
 /// The error for an HTTP 429. The user-visible text is built from the parsed
@@ -595,6 +609,9 @@ mod tests {
             include_str!("grok/billing.rs"),
             include_str!("opencode_go.rs"),
             include_str!("oauth_refresh.rs"),
+            include_str!("../auth/oauth/exchange.rs"),
+            include_str!("../auth/oauth/identity.rs"),
+            include_str!("../auth/google_ai_studio_oauth.rs"),
         ];
         for source in sources {
             assert!(
@@ -602,7 +619,7 @@ mod tests {
                     && !source.contains(".json().await")
                     && !source.contains(".json::<")
                     && !source.contains("response.bytes().await"),
-                "a provider body read bypasses the cap"
+                "a provider or sign-in body read bypasses the cap"
             );
         }
     }
@@ -673,5 +690,17 @@ mod tests {
         let response = http_client().get(exact).send().await.unwrap();
         let body = read_capped_text(response, 4).await.unwrap();
         assert_eq!(body, "abcd");
+    }
+
+    #[tokio::test]
+    async fn a_sign_in_body_over_the_cap_returns_the_fixed_sentence() {
+        let url =
+            serve_raw(b"HTTP/1.1 200 OK\r\nContent-Length: 10485760\r\nConnection: close\r\n\r\n")
+                .await;
+        let response = http_client().get(url).send().await.unwrap();
+        let error = read_sign_in_body(response, "OpenAI returned a response that is too large.")
+            .await
+            .unwrap_err();
+        assert_eq!(error, "OpenAI returned a response that is too large.");
     }
 }

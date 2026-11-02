@@ -579,7 +579,7 @@ async fn lookup_key_project(
                 .to_string()
         })?;
     let status = response.status();
-    let body = response.text().await.unwrap_or_default();
+    let body = read_google_body(response).await?;
     if status == StatusCode::UNAUTHORIZED {
         return Err(
             "Google authorization expired before the API-key project could be found.".into(),
@@ -627,7 +627,7 @@ async fn list_projects(
             .await
             .map_err(|error| format!("Google Cloud project search failed: {error}"))?;
         let status = response.status();
-        let body = response.text().await.unwrap_or_default();
+        let body = read_google_body(response).await?;
         if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
             return Err("Google did not allow this account to list Cloud projects.".into());
         }
@@ -680,7 +680,7 @@ async fn resolve_project_resource(
         .await
         .map_err(|error| format!("Google Cloud project lookup failed: {error}"))?;
     let status = response.status();
-    let body = response.text().await.unwrap_or_default();
+    let body = read_google_body(response).await?;
     if status == StatusCode::NOT_FOUND {
         return Err("Google Cloud could not find that project.".into());
     }
@@ -740,7 +740,7 @@ async fn monitoring_enabled(
         .await
         .map_err(|error| format!("Unable to check Cloud Monitoring: {error}"))?;
     let status = response.status();
-    let body = response.text().await.unwrap_or_default();
+    let body = read_google_body(response).await?;
     if status == StatusCode::UNAUTHORIZED {
         return Err("Google authorization expired while checking Cloud Monitoring.".into());
     }
@@ -775,7 +775,7 @@ async fn enable_monitoring(
         .await
         .map_err(|error| format!("Unable to enable Cloud Monitoring: {error}"))?;
     let status = response.status();
-    let body = response.text().await.unwrap_or_default();
+    let body = read_google_body(response).await?;
     if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
         return Err("Google did not allow this account to enable Cloud Monitoring. A project owner or Service Usage Admin must enable it.".into());
     }
@@ -810,7 +810,7 @@ async fn poll_operation(app: &AppState, name: &str, access_token: &str) -> Resul
             .await
             .map_err(|error| format!("Unable to check Cloud Monitoring enablement: {error}"))?;
         let status = response.status();
-        let body = response.text().await.unwrap_or_default();
+        let body = read_google_body(response).await?;
         if !status.is_success() {
             return Err(format!(
                 "Cloud Monitoring enablement check returned HTTP {}.",
@@ -873,6 +873,12 @@ fn network_unavailable(action: &str) -> String {
     format!("{action} could not be reached. Check your network and try again.")
 }
 
+async fn read_google_body(response: reqwest::Response) -> Result<String, String> {
+    crate::providers::read_sign_in_body(response, "Google returned a response that is too large.")
+        .await
+        .map_err(str::to_string)
+}
+
 async fn exchange_tokens(context: &LoginContext, code: &str) -> Result<TokenResponse, String> {
     let client_secret = client_secret();
     let response = RefreshBody::Form(&[
@@ -888,7 +894,7 @@ async fn exchange_tokens(context: &LoginContext, code: &str) -> Result<TokenResp
     .await
     .map_err(|_| network_unavailable("Google token exchange"))?;
     let status = response.status();
-    let body = response.text().await.unwrap_or_default();
+    let body = read_google_body(response).await?;
     if !status.is_success() {
         return Err(format!("Google token exchange failed ({status})."));
     }
@@ -915,15 +921,12 @@ async fn fetch_email(app: &AppState, access_token: &str) -> Result<String, Strin
         .send()
         .await
         .map_err(|error| format!("Google user-info request failed: {error}"))?;
-    if !response.status().is_success() {
-        return Err(format!(
-            "Google user-info request returned {}.",
-            response.status()
-        ));
+    let status = response.status();
+    let body = read_google_body(response).await?;
+    if !status.is_success() {
+        return Err(format!("Google user-info request returned {status}."));
     }
-    let value: Value = response
-        .json()
-        .await
+    let value: Value = serde_json::from_str(&body)
         .map_err(|_| String::from("Invalid Google user-info response."))?;
     value
         .get("email")
