@@ -135,5 +135,17 @@ export function useDashboardData({
   // Something behind the scenes changed (reorder applied, paired-device layout arrived) or the window regained focus.
   useEffect(() => onDashboardResync(() => void load()), [load]);
 
-  return { snapshot, setSnapshot, load };
+  const updateSnapshot = useCallback(
+    (action: React.SetStateAction<DashboardSnapshot | null>) => {
+      lastShownRequestRef.current = ++lastRequestRef.current;
+      setSnapshot((current) => {
+        const next = typeof action === "function" ? action(current) : action;
+        if (next) publishSnapshot(next);
+        return next;
+      });
+    },
+    [],
+  );
+
+  return { snapshot, setSnapshot: updateSnapshot, load };
 }

@@ -326,6 +326,29 @@ describe("useDashboardData", () => {
       expect(latest.snapshot).toBe(second);
     });
 
+    it("drops an in-flight snapshot that started before a manual snapshot update", async () => {
+      const inFlight = deferred<DashboardSnapshot>();
+      api.snapshot.mockReturnValueOnce(inFlight.promise);
+      mounted = mount(<Harness />);
+      await settle();
+      expect(api.snapshot).toHaveBeenCalledTimes(1);
+
+      const patched = makeSnapshot("patched");
+      act(() => {
+        latest.setSnapshot(patched);
+      });
+      expect(latest.snapshot).toBe(patched);
+      expect(getLatestSnapshot()).toBe(patched);
+
+      // Now the earlier load completes with a stale snapshot
+      inFlight.resolve(makeSnapshot("stale"));
+      await settle();
+
+      // The patched snapshot remains; stale load was dropped
+      expect(latest.snapshot).toBe(patched);
+      expect(getLatestSnapshot()).toBe(patched);
+    });
+
     it("does not report a failure of an older load once a newer answer is shown", async () => {
       const { older, newer } = await startTwoLoads();
       newer.resolve(makeSnapshot("newest"));
