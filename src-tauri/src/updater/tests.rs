@@ -564,3 +564,176 @@ fn vendored_notification_plugin_keeps_the_ios_crash_fix() {
         "src-tauri/Cargo.toml no longer patches in the vendored notification plugin"
     );
 }
+
+#[tokio::test]
+async fn android_apk_download_size_and_zip_magic_guards() {
+    use axum::{
+        body::{Body, Bytes},
+        http::header,
+        response::Response,
+        routing::get,
+        Router,
+    };
+    use sha2::{Digest, Sha256};
+
+    let router = Router::new()
+        .route(
+            "/oversized-content-length",
+            get(|| async {
+                Response::builder()
+                    .header(
+                        header::CONTENT_LENGTH,
+                        (super::android::MAX_APK_BYTES + 1).to_string(),
+                    )
+                    .body(Body::from_stream(futures_util::stream::pending::<
+                        Result<Bytes, std::io::Error>,
+                    >()))
+                    .unwrap()
+            }),
+        )
+        .route(
+            "/oversized-stream",
+            get(|| async {
+                let chunks = (0..33).map(|i| {
+                    if i == 0 {
+                        let mut first = vec![0u8; 8 * 1024 * 1024];
+                        first[0..4].copy_from_slice(b"PK\x03\x04");
+                        Ok::<_, std::io::Error>(Bytes::from(first))
+                    } else {
+                        Ok(Bytes::from(vec![0u8; 8 * 1024 * 1024]))
+                    }
+                });
+                Body::from_stream(futures_util::stream::iter(chunks))
+            }),
+        )
+        .route("/not-a-zip", get(|| async { Body::from(vec![b'X'; 2048]) }))
+        .route(
+            "/short-zip",
+            get(|| async {
+                let mut short = vec![0u8; 500];
+                short[0..4].copy_from_slice(b"PK\x03\x04");
+                Body::from(short)
+            }),
+        )
+        .route(
+            "/valid-apk",
+            get(|| async {
+                let mut valid = vec![0x33u8; 2048];
+                valid[0..4].copy_from_slice(b"PK\x03\x04");
+                Body::from(valid)
+            }),
+        );
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+
+    let temp = tempfile::tempdir().unwrap();
+    let client = reqwest::Client::new();
+
+    // 1. Content-Length > MAX_APK_BYTES (250 MiB)
+    let dest = temp.path().join("oversized-len.apk");
+    let resp = client
+        .get(format!("http://{addr}/oversized-content-length"))
+        .send()
+        .await
+        .unwrap();
+    let err = super::android::download_android_apk_from_response(None, resp, &dest)
+        .await
+        .expect_err("oversized content-length must fail");
+    assert_eq!(err, "The update package is larger than expected.");
+    assert!(!dest.exists(), "partial file must be removed");
+
+    // 2. Stream exceeding MAX_APK_BYTES without content-length
+    let dest = temp.path().join("oversized-stream.apk");
+    let resp = client
+        .get(format!("http://{addr}/oversized-stream"))
+        .send()
+        .await
+        .unwrap();
+    let err = super::android::download_android_apk_from_response(None, resp, &dest)
+        .await
+        .expect_err("oversized stream must fail");
+    assert_eq!(err, "The update package is larger than expected.");
+    assert!(!dest.exists(), "partial file must be removed");
+
+    // 3. Header missing PK magic
+    let dest = temp.path().join("not-a-zip.apk");
+    let resp = client
+        .get(format!("http://{addr}/not-a-zip"))
+        .send()
+        .await
+        .unwrap();
+    let err = super::android::download_android_apk_from_response(None, resp, &dest)
+        .await
+        .expect_err("non-ZIP body must fail");
+    assert_eq!(err, "Downloaded update is not a valid Android package.");
+    assert!(!dest.exists(), "partial file must be removed");
+
+    // 4. File < 1024 bytes (even with PK)
+    let dest = temp.path().join("short.apk");
+    let resp = client
+        .get(format!("http://{addr}/short-zip"))
+        .send()
+        .await
+        .unwrap();
+    let err = super::android::download_android_apk_from_response(None, resp, &dest)
+        .await
+        .expect_err("short APK must fail");
+    assert_eq!(err, "Downloaded update is not a valid Android package.");
+    assert!(!dest.exists(), "partial file must be removed");
+
+    // 5. Valid APK: succeeds, writes to disk, and matches expected SHA256
+    let dest = temp.path().join("valid.apk");
+    let resp = client
+        .get(format!("http://{addr}/valid-apk"))
+        .send()
+        .await
+        .unwrap();
+    let digest = super::android::download_android_apk_from_response(None, resp, &dest)
+        .await
+        .expect("valid APK must succeed");
+    let mut valid_bytes = vec![0x33u8; 2048];
+    valid_bytes[0..4].copy_from_slice(b"PK\x03\x04");
+    let mut hasher = Sha256::new();
+    hasher.update(&valid_bytes);
+    let expected = hasher
+        .finalize()
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect::<String>();
+    assert_eq!(digest, expected);
+    assert!(dest.exists(), "downloaded APK file must exist");
+}
+
+#[tokio::test]
+async fn android_apk_missing_checksum_fails_closed() {
+    let temp = tempfile::tempdir().unwrap();
+    let dest = temp.path().join("unverified.apk");
+
+    // apk_sha256_url: None fails closed and removes the downloaded APK
+    tokio::fs::write(&dest, b"downloaded-apk-content")
+        .await
+        .unwrap();
+    assert!(dest.exists());
+
+    let release_no_sha = GitHubLatestRelease {
+        version: "0.5.6".into(),
+        tag: "v0.5.6".into(),
+        published_at: None,
+        body: None,
+        apk_url: Some(
+            "https://github.com/dubba/AI-Usage-Tracker/releases/download/v0.5.6/app.apk".into(),
+        ),
+        apk_sha256_url: None,
+    };
+
+    let err = super::android::verify_android_apk_checksum(&release_no_sha, "any-digest", &dest)
+        .await
+        .expect_err("release missing sha256 url must fail closed");
+    assert_eq!(
+        err,
+        "The latest release does not include a checksum for the update package."
+    );
+    assert!(!dest.exists(), "unconfirmed APK must be deleted from disk");
+}

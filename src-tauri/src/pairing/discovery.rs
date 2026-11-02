@@ -31,7 +31,10 @@ pub const SERVICE_TYPE: &str = "_aiut-pair._tcp.local.";
 pub(crate) const DNSSD_REGTYPE: &str = "_aiut-pair._tcp";
 const NOT_FOUND: &str = "No device found with that pairing code. Check the code and that both devices are on the same Wi-Fi network.";
 const CODE_DIGITS: usize = 6;
+#[cfg(not(test))]
 const RESOLVE_TIMEOUT_MS: u64 = 15_000;
+#[cfg(test)]
+const RESOLVE_TIMEOUT_MS: u64 = 25;
 /// Failed join-by-code lookups per code before the joiner is locked out.
 /// The code is a discovery handle, not authentication — SAS still authenticates.
 pub const MAX_JOIN_ATTEMPTS: u8 = 5;

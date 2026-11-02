@@ -1,5 +1,7 @@
-#[cfg(target_os = "android")]
+#[cfg(any(target_os = "android", test))]
 use super::*;
+#[cfg(any(target_os = "android", test))]
+use tokio::io::AsyncWriteExt;
 
 /// Hosts a release download may be redirected through: GitHub itself, then the
 /// storage hosts it hands asset downloads to.
@@ -32,7 +34,7 @@ pub(super) fn release_download_redirects() -> reqwest::redirect::Policy {
     })
 }
 
-#[cfg(target_os = "android")]
+#[cfg(any(target_os = "android", test))]
 pub(super) async fn fetch_apk_sha256(url: &str) -> Result<String, String> {
     if !is_repo_release_asset_url(url) {
         return Err("The update checksum is not hosted on this app's GitHub releases.".into());
@@ -72,7 +74,7 @@ pub(super) fn parse_sha256_digest(body: &str) -> Option<String> {
     }
 }
 
-#[cfg(target_os = "android")]
+#[cfg(any(target_os = "android", test))]
 pub(super) const MAX_APK_BYTES: u64 = 250 * 1024 * 1024;
 
 #[cfg(target_os = "android")]
@@ -83,35 +85,14 @@ pub(super) fn notify_android_download_progress(percent: Option<u8>) {
     }
 }
 
-#[cfg(target_os = "android")]
-pub(super) async fn download_android_apk(
-    app: &AppHandle,
-    url: &str,
+#[cfg(any(target_os = "android", test))]
+pub(super) async fn download_android_apk_from_response(
+    app: Option<&AppHandle>,
+    mut response: reqwest::Response,
     dest: &std::path::Path,
 ) -> Result<String, String> {
     use sha2::{Digest, Sha256};
 
-    if !is_repo_release_asset_url(url) {
-        return Err("The update is not hosted on this app's GitHub releases.".into());
-    }
-    let client = reqwest::Client::builder()
-        .connect_timeout(Duration::from_secs(20))
-        .timeout(Duration::from_secs(15 * 60))
-        .redirect(release_download_redirects())
-        .build()
-        .map_err(|error| format!("Unable to download the update: {error}"))?;
-    let mut response = client
-        .get(url)
-        .header("User-Agent", "AI-Usage-Tracker")
-        .send()
-        .await
-        .map_err(|error| format!("Unable to download the update: {error}"))?;
-    if !response.status().is_success() {
-        return Err(format!(
-            "Unable to download the update: GitHub returned HTTP {}",
-            response.status()
-        ));
-    }
     let total = response.content_length();
     if total.is_some_and(|size| size > MAX_APK_BYTES) {
         return Err("The update package is larger than expected.".into());
@@ -132,7 +113,9 @@ pub(super) async fn download_android_apk(
         .checked_sub(Duration::from_secs(1))
         .unwrap_or_else(std::time::Instant::now);
 
-    emit_update_progress(app, "downloading", 0, total);
+    if let Some(app) = app {
+        emit_update_progress(app, "downloading", 0, total);
+    }
     #[cfg(target_os = "android")]
     notify_android_download_progress(update_download_percent(0, total));
 
@@ -164,7 +147,9 @@ pub(super) async fn download_android_apk(
                 || total.is_some_and(|size| downloaded >= size)
             {
                 last_emit = std::time::Instant::now();
-                emit_update_progress(app, "downloading", downloaded, total);
+                if let Some(app) = app {
+                    emit_update_progress(app, "downloading", downloaded, total);
+                }
                 #[cfg(target_os = "android")]
                 notify_android_download_progress(update_download_percent(downloaded, total));
             }
@@ -180,7 +165,9 @@ pub(super) async fn download_android_apk(
 
     match download.await {
         Ok(()) => {
-            emit_update_progress(app, "downloading", downloaded, total.or(Some(downloaded)));
+            if let Some(app) = app {
+                emit_update_progress(app, "downloading", downloaded, total.or(Some(downloaded)));
+            }
             #[cfg(target_os = "android")]
             apk_install::show_download_progress(100, false);
             Ok(hasher
@@ -199,6 +186,62 @@ pub(super) async fn download_android_apk(
 }
 
 #[cfg(target_os = "android")]
+pub(super) async fn download_android_apk(
+    app: &AppHandle,
+    url: &str,
+    dest: &std::path::Path,
+) -> Result<String, String> {
+    if !is_repo_release_asset_url(url) {
+        return Err("The update is not hosted on this app's GitHub releases.".into());
+    }
+    let client = reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(20))
+        .timeout(Duration::from_secs(15 * 60))
+        .redirect(release_download_redirects())
+        .build()
+        .map_err(|error| format!("Unable to download the update: {error}"))?;
+    let response = client
+        .get(url)
+        .header("User-Agent", "AI-Usage-Tracker")
+        .send()
+        .await
+        .map_err(|error| format!("Unable to download the update: {error}"))?;
+    if !response.status().is_success() {
+        return Err(format!(
+            "Unable to download the update: GitHub returned HTTP {}",
+            response.status()
+        ));
+    }
+    download_android_apk_from_response(Some(app), response, dest).await
+}
+
+#[cfg(any(target_os = "android", test))]
+pub(super) async fn verify_android_apk_checksum(
+    latest: &GitHubLatestRelease,
+    digest: &str,
+    dest: &std::path::Path,
+) -> Result<(), String> {
+    let Some(sha_url) = latest.apk_sha256_url.as_deref() else {
+        // Fail closed: without a published digest we cannot confirm the
+        // download is the release we pointed the user at.
+        let _ = tokio::fs::remove_file(dest).await;
+        #[cfg(target_os = "android")]
+        apk_install::clear_update_notification();
+        return Err(
+            "The latest release does not include a checksum for the update package.".into(),
+        );
+    };
+    let expected = fetch_apk_sha256(sha_url).await?;
+    if expected != digest {
+        let _ = tokio::fs::remove_file(dest).await;
+        #[cfg(target_os = "android")]
+        apk_install::clear_update_notification();
+        return Err("The downloaded update did not match the published checksum.".into());
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "android")]
 pub(super) async fn install_android_apk(app: AppHandle, include_beta: bool) -> Result<(), String> {
     let latest = fetch_github_latest_release(include_beta, required_update_asset()).await?;
     let apk_url = latest
@@ -208,21 +251,7 @@ pub(super) async fn install_android_apk(app: AppHandle, include_beta: bool) -> R
     let dest = apk_install::update_download_path()?;
     let digest = download_android_apk(&app, &apk_url, &dest).await?;
     emit_update_progress(&app, "verifying", 0, None);
-    let Some(sha_url) = latest.apk_sha256_url.as_deref() else {
-        // Fail closed: without a published digest we cannot confirm the
-        // download is the release we pointed the user at.
-        let _ = tokio::fs::remove_file(&dest).await;
-        apk_install::clear_update_notification();
-        return Err(
-            "The latest release does not include a checksum for the update package.".into(),
-        );
-    };
-    let expected = fetch_apk_sha256(sha_url).await?;
-    if expected != digest {
-        let _ = tokio::fs::remove_file(&dest).await;
-        apk_install::clear_update_notification();
-        return Err("The downloaded update did not match the published checksum.".into());
-    }
+    verify_android_apk_checksum(&latest, &digest, &dest).await?;
     apk_install::verify_apk_signature(&dest).map_err(|error| {
         apk_install::clear_update_notification();
         error

@@ -6,8 +6,8 @@ use super::{
     },
     payload::{create_export_payload, import_sync_payload},
     protocol::{
-        generate_qr_uri, parse_qr_uri, read_frame, write_frame, MSG_ABORT, MSG_HANDSHAKE_INIT,
-        MSG_HANDSHAKE_RESP,
+        generate_qr_uri, parse_qr_uri, read_frame, read_frame_limited, write_frame, MAX_FRAME_SIZE,
+        MAX_PREAUTH_FRAME_SIZE, MSG_ABORT, MSG_HANDSHAKE_INIT, MSG_HANDSHAKE_RESP,
     },
     transport::{
         run_client_connector, run_host_listener, run_receiver_listener, run_sender_client,
@@ -307,6 +307,129 @@ async fn test_framing_read_write() {
     assert_eq!(resp_payload, b"ack-frame");
 
     server_task.await.unwrap();
+}
+
+#[tokio::test]
+async fn preauth_frame_cap_rejects_oversized_frames() {
+    use std::io::Cursor;
+
+    // Frame of exactly MAX_PREAUTH_FRAME_SIZE (1024 bytes: 1 type byte + 1023 payload bytes)
+    let mut valid_bytes = Vec::new();
+    let frame_len = MAX_PREAUTH_FRAME_SIZE as u32;
+    valid_bytes.extend_from_slice(&frame_len.to_be_bytes());
+    valid_bytes.push(MSG_HANDSHAKE_INIT);
+    valid_bytes.resize(4 + MAX_PREAUTH_FRAME_SIZE, 0x42);
+
+    let mut cursor = Cursor::new(&valid_bytes);
+    let (msg_type, payload) = read_frame_limited(&mut cursor, MAX_PREAUTH_FRAME_SIZE)
+        .await
+        .expect("1024-byte frame must be accepted under MAX_PREAUTH_FRAME_SIZE");
+    assert_eq!(msg_type, MSG_HANDSHAKE_INIT);
+    assert_eq!(payload.len(), 1023);
+
+    // Frame of MAX_PREAUTH_FRAME_SIZE + 1 (1025 bytes): rejected before reading payload
+    let mut oversized_bytes = Vec::new();
+    let over_len = (MAX_PREAUTH_FRAME_SIZE + 1) as u32;
+    oversized_bytes.extend_from_slice(&over_len.to_be_bytes());
+    oversized_bytes.push(MSG_HANDSHAKE_INIT);
+
+    let mut cursor = Cursor::new(&oversized_bytes);
+    let err = read_frame_limited(&mut cursor, MAX_PREAUTH_FRAME_SIZE)
+        .await
+        .expect_err("frame > 1024 bytes must be rejected under MAX_PREAUTH_FRAME_SIZE");
+    assert!(
+        err.contains("exceeds maximum allowed size 1024"),
+        "error message must cite the limit: {err}"
+    );
+
+    // The same 1025-byte frame succeeds under the authenticated MAX_FRAME_SIZE budget
+    let mut full_oversized = Vec::new();
+    full_oversized.extend_from_slice(&over_len.to_be_bytes());
+    full_oversized.push(MSG_HANDSHAKE_INIT);
+    full_oversized.resize(4 + 1025, 0x42);
+
+    let mut cursor = Cursor::new(&full_oversized);
+    let (msg_type, payload) = read_frame_limited(&mut cursor, MAX_FRAME_SIZE)
+        .await
+        .expect("1025-byte frame is allowed under MAX_FRAME_SIZE");
+    assert_eq!(msg_type, MSG_HANDSHAKE_INIT);
+    assert_eq!(payload.len(), 1024);
+}
+
+#[test]
+fn preauth_transport_sites_use_max_preauth_frame_size() {
+    let source = include_str!("transport.rs");
+    // Ensure all 4 pre-authentication frame reads pass MAX_PREAUTH_FRAME_SIZE
+    let stream_preauth = source
+        .matches("read_frame_limited(&mut stream, MAX_PREAUTH_FRAME_SIZE)")
+        .count();
+    let read_half_preauth = source
+        .matches("read_frame_limited(&mut read_half, MAX_PREAUTH_FRAME_SIZE)")
+        .count();
+    assert_eq!(
+        stream_preauth + read_half_preauth,
+        4,
+        "Expected exactly 4 pre-auth reads using MAX_PREAUTH_FRAME_SIZE"
+    );
+
+    // Small authenticated control frames use MAX_CONTROL_FRAME_SIZE
+    let control_reads = source
+        .matches("read_frame_limited(&mut stream, MAX_CONTROL_FRAME_SIZE)")
+        .count();
+    assert_eq!(
+        control_reads, 3,
+        "Expected 3 control frame reads using MAX_CONTROL_FRAME_SIZE"
+    );
+
+    // Only the post-SAS encrypted payload uses the 16 MB MAX_FRAME_SIZE budget
+    let payload_reads = source
+        .matches("read_frame_limited(&mut stream, MAX_FRAME_SIZE)")
+        .count();
+    assert_eq!(
+        payload_reads, 1,
+        "Only the post-SAS encrypted payload read must use MAX_FRAME_SIZE"
+    );
+}
+
+#[tokio::test]
+async fn join_code_lockout_locks_after_five_failed_attempts() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = Arc::new(AppState::new(dir.path().to_path_buf(), "tok1".into()).unwrap());
+    let manager = crate::pairing::PairingSessionManager::new();
+
+    let code = "123456";
+    // 5 attempts fail during discovery resolution
+    for attempt in 1..=5 {
+        let res = manager
+            .start_client_by_code(state.clone(), code.to_string())
+            .await;
+        let err = res.expect_err(&format!("attempt {attempt} must fail resolution"));
+        assert!(
+            err.contains("No device found with that pairing code"),
+            "attempt {attempt} must fail with resolution error, got: {err}"
+        );
+    }
+
+    // 6th attempt must be locked out immediately without resolving
+    let res6 = manager
+        .start_client_by_code(state.clone(), code.to_string())
+        .await;
+    let err6 = res6.expect_err("6th attempt must be locked out");
+    assert_eq!(
+        err6,
+        "Too many attempts for this code. Ask the other device to start a new pairing session."
+    );
+
+    // A different code is not locked out and still attempts resolution
+    let other_code = "654321";
+    let res_other = manager
+        .start_client_by_code(state.clone(), other_code.to_string())
+        .await;
+    let err_other = res_other.expect_err("other code must fail resolution, not lockout");
+    assert!(
+        err_other.contains("No device found with that pairing code"),
+        "different code must not be locked out, got: {err_other}"
+    );
 }
 
 #[tokio::test]
