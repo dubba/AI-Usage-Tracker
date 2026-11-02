@@ -16,7 +16,7 @@
 - A failed account save or rename on disk no longer leaves in-memory state modified until restart.
 - On the Usage page, weekly reset marker dashed lines are now consistently purple across the full chart height instead of turning black at the bottom.
 - On mobile, spacing between the bottom navigation bar and page content on Accounts, Usage, and Settings now matches the 10-pixel gap under the header.
-- In Settings on mobile, the General heading now matches the spacing between the header and cards on the Accounts and Usage pages.
+- In Settings, the gap above the General heading now matches the spacing above Updates, Devices, and Advanced.
 - On Android, multiple alerts that fire in the same refresh now receive unique notification IDs instead of overwriting each other in the notification tray.
 - Overlapping app update checks now keep the newest result and keep the checking state busy until the latest check settles.
 - Toggling the local API on or off is no longer overwritten by an in-flight background dashboard refresh.

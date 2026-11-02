@@ -21,12 +21,12 @@ describe("mobile shell clears the bottom bar", () => {
     expect(UI).toContain(".obsidian-shell.has-bottom-nav .dashboard-scroll {\n    padding-bottom: 10px !important;");
   });
 
-  it("aligns the first settings section title with mobile dashboard cards", () => {
+  it("matches the gap above the first settings section title to the other sections", () => {
     const mobileIndex = OBSIDIAN.indexOf("@media (max-width: 860px)");
     expect(mobileIndex).toBeGreaterThan(-1);
     const mobileCss = OBSIDIAN.slice(mobileIndex);
     expect(mobileCss).toMatch(
-      /\.settings-style-content \.dashboard-scroll > \.settings-section-title:first-child[^}]*margin-top:\s*0;/
+      /\.settings-style-content \.dashboard-scroll > \.settings-section-title:first-child[^}]*margin-top:\s*8px;/
     );
   });
 

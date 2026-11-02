@@ -3230,10 +3230,10 @@ select.text-input option,
     margin-top: 0 !important;
   }
 
-  /* The scroll area already adds 10px of top padding, so the first section title needs 0 to match Accounts and Usage. */
+  /* The scroll area already adds 10px of top padding, so General needs 8px to total 18px, matching Updates, Devices, and Advanced. */
   .settings-style-content .dashboard-scroll > .settings-section-title:first-child,
   .settings-style-content .dashboard-scroll > .settings-section-title:first-of-type {
-    margin-top: 0;
+    margin-top: 8px;
   }
 
   .settings-style-content .dashboard-scroll > .settings-section-title:last-child {
