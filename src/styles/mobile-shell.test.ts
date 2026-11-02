@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const UI = readFileSync(join(__dirname, "ui-refinements.css"), "utf8");
+const OBSIDIAN = readFileSync(join(__dirname, "obsidian-dashboard.css"), "utf8");
 
 describe("mobile shell clears the bottom bar", () => {
   it("shortens the stage after the later height: 100% rule", () => {
@@ -17,6 +18,24 @@ describe("mobile shell clears the bottom bar", () => {
   });
 
   it("does not add the system inset again under the bottom bar", () => {
-    expect(UI).toContain(".obsidian-shell.has-bottom-nav .dashboard-scroll {\n    padding-bottom: 16px !important;");
+    expect(UI).toContain(".obsidian-shell.has-bottom-nav .dashboard-scroll {\n    padding-bottom: 10px !important;");
+  });
+
+  it("aligns the first settings section title with mobile dashboard cards", () => {
+    const mobileIndex = OBSIDIAN.indexOf("@media (max-width: 860px)");
+    expect(mobileIndex).toBeGreaterThan(-1);
+    const mobileCss = OBSIDIAN.slice(mobileIndex);
+    expect(mobileCss).toMatch(
+      /\.settings-style-content \.dashboard-scroll > \.settings-section-title:first-child[^}]*margin-top:\s*0;/
+    );
+  });
+
+  it("sets bottom margin of settings cards to 0 on mobile to match the 10px scroll gap", () => {
+    const mobileIndex = OBSIDIAN.indexOf("@media (max-width: 860px)");
+    expect(mobileIndex).toBeGreaterThan(-1);
+    const mobileCss = OBSIDIAN.slice(mobileIndex);
+    expect(mobileCss).toMatch(
+      /\.settings-style-content \.settings-card[^}]*margin-bottom:\s*0\s*!important;/
+    );
   });
 });

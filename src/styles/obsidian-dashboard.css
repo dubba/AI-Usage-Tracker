@@ -3223,16 +3223,21 @@ select.text-input option,
   .settings-style-content .settings-card,
   .settings-card {
     margin-top: 10px !important;
+    margin-bottom: 0 !important;
   }
 
   .settings-style-content .dashboard-scroll > .settings-card:first-child {
     margin-top: 0 !important;
   }
 
-  /* The scroll area already adds 10px of top padding, so General needs 8px to total 18px. */
+  /* The scroll area already adds 10px of top padding, so the first section title needs 0 to match Accounts and Usage. */
   .settings-style-content .dashboard-scroll > .settings-section-title:first-child,
   .settings-style-content .dashboard-scroll > .settings-section-title:first-of-type {
-    margin-top: 8px;
+    margin-top: 0;
+  }
+
+  .settings-style-content .dashboard-scroll > .settings-section-title:last-child {
+    margin-bottom: 0;
   }
 
   .dashboard-header {
