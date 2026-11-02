@@ -15,11 +15,11 @@
       "iconURL": "https://raw.githubusercontent.com/dubba/AI-Usage-Tracker/main/src-tauri/icons/icon.png",
       "tintColor": "6366f1",
       "category": "utilities",
-      "version": "0.5.5",
-      "versionDate": "2026-10-30T08:50:35.321Z",
-      "versionDescription": "On the Usage page, hovering over a reset line shows the exact calendar date with the time (e.g. \"Weekly reset · Oct 25 @ 4:00a\"), matching the date format under card titles and making time changes like Daylight Saving Time clear.\nOn the Usage page, each date under the 30-day chart has a tick on the bar it names, so the first day, the days partway across, and Today line up with their days.\nSettings switches show a checkmark in the knob when on and an X when off.\nOn the Usage page, a reset line is a single dash: purple above and beside a bar, and black where it crosses the bar.",
-      "downloadURL": "https://github.com/dubba/AI-Usage-Tracker/releases/download/v0.5.5/AI-Usage-Tracker.ipa",
-      "size": 5620682,
+      "version": "0.5.6",
+      "versionDate": "2026-11-02T01:37:37.150Z",
+      "versionDescription": "On the All Accounts page, the reorder hint says \"Press & drag a card below or in the sidebar to reorder\".\nIn Settings, the X on an off switch is the same size as the check on an on switch.\nThe bar along the bottom lists Accounts, then Usage, then Settings, on the phone and on Windows and macOS.\nThe iPhone and iPad download on a release is named `AI Usage Tracker_<version>.ipa`, including the version the way the other installers do.\nOn the Usage page, switching between 7 days and 30 days keeps the chart on screen. A period you have already opened comes back at once.\nOn the Usage page, the 7-day chart is the same height as the 30-day chart.\nOn the Usage page, the plan and reset line and Antigravity model family labels under card titles are 11 pixels, matching the size of the account email beside the provider name.\nIn Settings, the on/off switches stay 48 pixels wide. On the desktop they are 24 pixels tall, and on a phone they are 28.\nOn the All Accounts page and the Add Account dialog, the headings \"Connect an AI Provider Account\" and \"Add AI Provider Account\" are now \"Connect an AI Account\" and \"Add AI Account\".\nOn the Usage page, the provider name and account email are slightly smaller so they fit on one line, with the name still a step larger than the email.\nSettings switches now clearly differentiate the off state like Pixel phones: a muted gray knob with a cut-out X mark and subtle track outline when off, contrasting with the bright white knob and purple fill when on.\nOn the Usage page, the 30-day view no longer shows the \"No weekly limit\" card. That card stays on the 7-day view, where it points you to 30D.\nIn Settings, tapping switches on mobile no longer triggers or sticks in the lighter purple hover color meant for desktop pointer devices.\nDesktop updates no longer install an older release that a changed update listing describes as a newer version.",
+      "downloadURL": "https://github.com/dubba/AI-Usage-Tracker/releases/download/v0.5.6/AI%20Usage%20Tracker_0.5.6.ipa",
+      "size": 5637954,
       "minOSVersion": "16.0"
     }
   ],
