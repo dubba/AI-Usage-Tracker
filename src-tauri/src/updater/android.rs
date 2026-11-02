@@ -246,10 +246,11 @@ pub(super) async fn install_android_apk(app: AppHandle, include_beta: bool) -> R
     let latest = fetch_github_latest_release(include_beta, required_update_asset()).await?;
     let apk_url = latest
         .apk_url
+        .as_deref()
         .ok_or_else(|| "The latest GitHub release does not include an Android APK.".to_string())?;
     // cacheDir/updates is a FileProvider root; JNI avoids the path-plugin round trip.
     let dest = apk_install::update_download_path()?;
-    let digest = download_android_apk(&app, &apk_url, &dest).await?;
+    let digest = download_android_apk(&app, apk_url, &dest).await?;
     emit_update_progress(&app, "verifying", 0, None);
     verify_android_apk_checksum(&latest, &digest, &dest).await?;
     apk_install::verify_apk_signature(&dest).map_err(|error| {

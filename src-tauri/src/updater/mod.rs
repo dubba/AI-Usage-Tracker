@@ -446,8 +446,8 @@ pub async fn install_app_update(
     #[cfg(all(not(target_os = "android"), not(target_os = "ios")))]
     {
         open_release_page(&app, state.inner().as_ref()).await?;
+        Ok(())
     }
-    Ok(())
 }
 
 #[cfg(test)]
