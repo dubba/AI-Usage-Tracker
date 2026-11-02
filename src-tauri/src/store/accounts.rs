@@ -107,17 +107,15 @@ impl AccountStore {
         account.classify_windows();
         let mut accounts = self.accounts.write();
         let mut next = accounts.clone();
-        let saved = if let Some(existing) = next
-            .iter_mut()
-            .find(|candidate| candidate.id == account.id)
-        {
-            merge_account(existing, account);
-            existing.touch();
-            existing.clone()
-        } else {
-            next.push(account.clone());
-            account
-        };
+        let saved =
+            if let Some(existing) = next.iter_mut().find(|candidate| candidate.id == account.id) {
+                merge_account(existing, account);
+                existing.touch();
+                existing.clone()
+            } else {
+                next.push(account.clone());
+                account
+            };
         let version = self.next_version();
         self.commit_snapshot(&next, version)?;
         *accounts = next;

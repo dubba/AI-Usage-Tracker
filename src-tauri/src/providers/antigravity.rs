@@ -490,8 +490,11 @@ fn walk_quota(
                 _ => None,
             };
 
-            if let Some(remaining) = object.get("remainingFraction").and_then(value_as_f64) {
-                let remaining_percent = fraction_to_percent(remaining);
+            if let Some(remaining_percent) = object
+                .get("remainingFraction")
+                .and_then(value_as_f64)
+                .and_then(fraction_to_percent)
+            {
                 let display = label.clone().unwrap_or_else(|| "Antigravity quota".into());
                 let base_id = classify_id(&display);
                 let id = unique_id(&base_id, ids);
@@ -572,14 +575,17 @@ fn parse_available_models(value: &Value) -> Vec<UsageWindow> {
         let Some(quota) = model.get("quotaInfo") else {
             continue;
         };
-        let Some(remaining) = quota.get("remainingFraction").and_then(value_as_f64) else {
+        let Some(remaining_percent) = quota
+            .get("remainingFraction")
+            .and_then(value_as_f64)
+            .and_then(fraction_to_percent)
+        else {
             continue;
         };
         let label = model
             .get("displayName")
             .and_then(Value::as_str)
             .unwrap_or(model_id);
-        let remaining_percent = fraction_to_percent(remaining);
         windows.push(UsageWindow {
             id: format!("model_{}", slug(model_id)),
             label: label.to_string(),
@@ -596,16 +602,22 @@ fn parse_available_models(value: &Value) -> Vec<UsageWindow> {
     windows
 }
 
-fn fraction_to_percent(value: f64) -> f64 {
-    if value <= 1.0 {
+fn fraction_to_percent(value: f64) -> Option<f64> {
+    if !value.is_finite() {
+        return None;
+    }
+    Some(if value <= 1.0 {
         (value * 100.0).clamp(0.0, 100.0)
     } else {
         value.clamp(0.0, 100.0)
-    }
+    })
 }
 
 fn value_as_f64(value: &Value) -> Option<f64> {
-    value.as_f64().or_else(|| value.as_str()?.parse().ok())
+    value
+        .as_f64()
+        .or_else(|| value.as_str()?.parse().ok())
+        .filter(|v| v.is_finite())
 }
 
 fn classify_id(label: &str) -> String {
@@ -848,5 +860,46 @@ mod tests {
             split_group_from_window("Weekly Limit Remaining"),
             "Weekly Limit Remaining"
         );
+    }
+
+    #[test]
+    fn fraction_to_percent_rejects_non_finite_values() {
+        assert!(fraction_to_percent(f64::NAN).is_none());
+        assert!(fraction_to_percent(f64::INFINITY).is_none());
+        assert!(fraction_to_percent(f64::NEG_INFINITY).is_none());
+        assert_eq!(fraction_to_percent(0.4), Some(40.0));
+        assert_eq!(fraction_to_percent(1.0), Some(100.0));
+        assert_eq!(fraction_to_percent(75.0), Some(75.0));
+        assert_eq!(fraction_to_percent(150.0), Some(100.0));
+    }
+
+    #[test]
+    fn parse_quota_value_drops_non_finite_buckets() {
+        let value = json!({
+            "buckets": [
+                {
+                    "bucketId": "nan-bucket",
+                    "displayName": "Gemini 4 Argon · Weekly Limit",
+                    "remainingFraction": "NaN",
+                    "window": "weekly"
+                },
+                {
+                    "bucketId": "inf-bucket",
+                    "displayName": "Gemini 4 Argon · Session Limit",
+                    "remainingFraction": "Infinity",
+                    "window": "session"
+                },
+                {
+                    "bucketId": "valid-bucket",
+                    "displayName": "Gemini 4 Argon · Valid Limit",
+                    "remainingFraction": 0.5,
+                    "window": "weekly"
+                }
+            ]
+        });
+        let windows = parse_quota_value(&value);
+        assert_eq!(windows.len(), 1);
+        assert_eq!(windows[0].label, "Gemini 4 Argon · Valid Limit");
+        assert_eq!(windows[0].remaining_percent, Some(50.0));
     }
 }

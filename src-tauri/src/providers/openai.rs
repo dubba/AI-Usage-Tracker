@@ -93,7 +93,9 @@ pub async fn refresh(
         } else {
             ("session", "GPT · Session Limit")
         };
-        windows.push(normalize_window(id, label, window));
+        if let Some(window) = normalize_window(id, label, window) {
+            windows.push(window);
+        }
     }
     if let Some(window) = raw
         .rate_limit
@@ -110,18 +112,18 @@ pub async fn refresh(
         } else {
             ("weekly", "GPT · Weekly Limit")
         };
-        windows.push(normalize_window(id, label, window));
+        if let Some(window) = normalize_window(id, label, window) {
+            windows.push(window);
+        }
     }
     if let Some(window) = raw
         .code_review_rate_limit
         .as_ref()
         .and_then(|rate| rate.primary_window.as_ref())
     {
-        windows.push(normalize_window(
-            "code_review",
-            "Code Review · Limit",
-            window,
-        ));
+        if let Some(window) = normalize_window("code_review", "Code Review · Limit", window) {
+            windows.push(window);
+        }
     }
     if windows.is_empty() {
         return Err(ProviderError::Transient(
@@ -235,17 +237,17 @@ async fn refresh_secret(
     .await
 }
 
-fn normalize_window(id: &str, label: &str, raw: &RawWindow) -> UsageWindow {
+fn normalize_window(id: &str, label: &str, raw: &RawWindow) -> Option<UsageWindow> {
     let used = raw
         .used_percent
         .as_ref()
         .and_then(value_as_f64)
-        .map(|value| value.clamp(0.0, 100.0));
+        .map(|value| value.clamp(0.0, 100.0))?;
     let reset_at_seconds = raw.reset_at.as_ref().and_then(value_as_i64).or_else(|| {
         raw.reset_after_seconds
             .as_ref()
             .and_then(value_as_i64)
-            .filter(|_| used.unwrap_or(0.0) > 0.0)
+            .filter(|_| used > 0.0)
             .map(|seconds| Utc::now().timestamp() + seconds)
     });
     let resets_at = reset_at_seconds
@@ -262,19 +264,22 @@ fn normalize_window(id: &str, label: &str, raw: &RawWindow) -> UsageWindow {
                 raw.reset_after_seconds.as_ref().and_then(value_as_u64)
             }
         });
-    UsageWindow {
+    Some(UsageWindow {
         id: id.into(),
         label: label.into(),
-        used_percent: used,
-        remaining_percent: used.map(|value| (100.0 - value).max(0.0)),
+        used_percent: Some(used),
+        remaining_percent: Some((100.0 - used).max(0.0)),
         resets_at,
         window_seconds,
         kind: None,
-    }
+    })
 }
 
 fn value_as_f64(value: &Value) -> Option<f64> {
-    value.as_f64().or_else(|| value.as_str()?.parse().ok())
+    value
+        .as_f64()
+        .or_else(|| value.as_str()?.parse().ok())
+        .filter(|v| v.is_finite())
 }
 
 fn value_as_i64(value: &Value) -> Option<i64> {
@@ -305,7 +310,7 @@ mod tests {
         }))
         .unwrap();
 
-        let window = normalize_window("session", "Session", &raw);
+        let window = normalize_window("session", "Session", &raw).unwrap();
         assert_eq!(window.used_percent, Some(0.0));
         assert_eq!(window.remaining_percent, Some(100.0));
         assert!(window.resets_at.is_none());
@@ -320,7 +325,7 @@ mod tests {
         }))
         .unwrap();
 
-        let window = normalize_window("session", "Session", &raw);
+        let window = normalize_window("session", "Session", &raw).unwrap();
         assert_eq!(window.used_percent, Some(15.0));
         assert_eq!(window.remaining_percent, Some(85.0));
         assert!(window.resets_at.is_some());
@@ -335,12 +340,42 @@ mod tests {
         }))
         .unwrap();
 
-        let window = normalize_window("monthly", "GPT · 30-Day Limit", &raw);
+        let window = normalize_window("monthly", "GPT · 30-Day Limit", &raw).unwrap();
         assert_eq!(window.id, "monthly");
         assert_eq!(window.label, "GPT · 30-Day Limit");
         assert_eq!(window.used_percent, Some(25.0));
         assert_eq!(window.remaining_percent, Some(75.0));
         assert_eq!(window.window_seconds, Some(2592000));
         assert!(window.resets_at.is_some());
+    }
+
+    #[test]
+    fn normalize_window_drops_non_finite_used_percent() {
+        let nan_raw: RawWindow = serde_json::from_value(json!({
+            "used_percent": "NaN",
+            "reset_after_seconds": 18000,
+        }))
+        .unwrap();
+        assert!(normalize_window("session", "Session", &nan_raw).is_none());
+
+        let inf_raw: RawWindow = serde_json::from_value(json!({
+            "used_percent": "Infinity",
+            "reset_after_seconds": 18000,
+        }))
+        .unwrap();
+        assert!(normalize_window("session", "Session", &inf_raw).is_none());
+
+        let neg_inf_raw: RawWindow = serde_json::from_value(json!({
+            "used_percent": "-Infinity",
+            "reset_after_seconds": 18000,
+        }))
+        .unwrap();
+        assert!(normalize_window("session", "Session", &neg_inf_raw).is_none());
+
+        let missing_raw: RawWindow = serde_json::from_value(json!({
+            "reset_after_seconds": 18000,
+        }))
+        .unwrap();
+        assert!(normalize_window("session", "Session", &missing_raw).is_none());
     }
 }

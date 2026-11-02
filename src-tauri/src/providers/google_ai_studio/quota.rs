@@ -95,7 +95,7 @@ pub(super) fn normalize_quota_windows(
                 .iter()
                 .max_by_key(|point| point.end_time)
                 .map(|point| point.value);
-            if let Some(value) = latest.filter(|value| *value > 0.0) {
+            if let Some(value) = latest.filter(|value| *value > 0.0 && value.is_finite()) {
                 bucket.limit = Some(bucket.limit.map_or(value, |current| current.max(value)));
             }
         }
@@ -107,7 +107,10 @@ pub(super) fn normalize_quota_windows(
         .collect::<HashMap<_, _>>();
     let mut best: BTreeMap<(String, QuotaKind), WindowCandidate> = BTreeMap::new();
     for ((model_name, base, limit_name), bucket) in buckets {
-        let Some(limit) = bucket.limit.filter(|limit| *limit > 0.0) else {
+        let Some(limit) = bucket
+            .limit
+            .filter(|limit| *limit > 0.0 && limit.is_finite())
+        else {
             continue;
         };
         let Some(kind) = classify_quota(&base, &limit_name) else {
@@ -120,7 +123,11 @@ pub(super) fn normalize_quota_windows(
             continue;
         }
         let used = usage_for_window(&bucket.usage_points, kind, now).max(0.0);
-        let used_percent = (used / limit * 100.0).clamp(0.0, 100.0);
+        let used_percent = used / limit * 100.0;
+        if !used_percent.is_finite() {
+            continue;
+        }
+        let used_percent = used_percent.clamp(0.0, 100.0);
         let window = UsageWindow {
             id: format!("{}:{}", model.name, kind.label().to_ascii_lowercase()),
             label: format!("{} · {}", model.label, kind.label()),
@@ -249,6 +256,7 @@ pub(super) fn monitoring_value(value: &Value) -> Option<f64> {
                 .or_else(|| value.as_i64().map(|value| value as f64))
         })
         .or_else(|| value.get("doubleValue").and_then(Value::as_f64))
+        .filter(|v| v.is_finite())
 }
 
 pub(super) fn current_pacific_midnight(now: DateTime<Utc>) -> DateTime<Utc> {

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (14 changes)
+## Unreleased (15 changes)
 
 ### Added (3)
 
@@ -8,8 +8,9 @@
 - On the Usage page, the reorder hint ("Press & drag a card below or in the sidebar to reorder") is shown for the first two sessions.
 - On custom account group pages, a red trashcan button next to the group edit pen allows deleting the group directly from the header.
 
-### Fixed (11)
+### Fixed (12)
 
+- Usage percentage values that are non-numeric or infinite (such as "NaN" or "Infinity") are now rejected instead of being saved as live snapshots.
 - In Settings on the light theme, toggle switches now have a lighter track and knob and a clearly visible outline when off.
 - A failed account save or rename on disk no longer leaves in-memory state modified until restart.
 - On the Usage page, weekly reset marker dashed lines are now consistently purple across the full chart height instead of turning black at the bottom.

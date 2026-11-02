@@ -80,3 +80,58 @@ fn fingerprint_does_not_store_the_key() {
     assert_eq!(fingerprint.len(), 16);
     assert!(!fingerprint.contains("abcdef"));
 }
+
+#[test]
+fn monitoring_value_rejects_non_finite_values() {
+    assert_eq!(
+        monitoring_value(&serde_json::json!({ "int64Value": "NaN" })),
+        None
+    );
+    assert_eq!(
+        monitoring_value(&serde_json::json!({ "int64Value": "Infinity" })),
+        None
+    );
+    assert_eq!(
+        monitoring_value(&serde_json::json!({ "int64Value": "-Infinity" })),
+        None
+    );
+    assert_eq!(
+        monitoring_value(&serde_json::json!({ "int64Value": "123" })),
+        Some(123.0)
+    );
+    assert_eq!(
+        monitoring_value(&serde_json::json!({ "doubleValue": 45.6 })),
+        Some(45.6)
+    );
+}
+
+#[test]
+fn normalize_quota_windows_drops_non_finite_windows() {
+    let now = Utc::now();
+    let models = vec![TrackableModel {
+        name: "models/gemini-flash".into(),
+        label: "Gemini Flash".into(),
+    }];
+    let series = vec![
+        QuotaSeries {
+            metric_type: "serviceruntime.googleapis.com/quota/allocation/usage".into(),
+            model: "gemini-flash".into(),
+            limit_name: "GenerateRequestsPerModelPerMinute-FreeTier".into(),
+            points: vec![QuotaPoint {
+                end_time: now,
+                value: f64::NAN,
+            }],
+        },
+        QuotaSeries {
+            metric_type: "serviceruntime.googleapis.com/quota/rate/net_limit".into(),
+            model: "gemini-flash".into(),
+            limit_name: "GenerateRequestsPerModelPerMinute-FreeTier".into(),
+            points: vec![QuotaPoint {
+                end_time: now,
+                value: 15.0,
+            }],
+        },
+    ];
+    let windows = normalize_quota_windows(series, &models, now);
+    assert!(windows.is_empty());
+}
