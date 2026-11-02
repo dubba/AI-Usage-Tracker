@@ -537,6 +537,62 @@ fn an_unreadable_file_is_set_aside_and_loading_continues() {
 }
 
 #[test]
+fn persist_keeps_a_month_file_within_the_size_cap() {
+    let root = tempfile::tempdir().unwrap();
+    let dir = history_dir(root.path());
+    fs::create_dir_all(&dir).unwrap();
+
+    // The wrapper dominates a one-reading file, so the per-reading size comes
+    // from the difference of two samples.
+    let thousand = encode_month(&bulky_month(1_000)).unwrap().len();
+    let two_thousand = encode_month(&bulky_month(2_000)).unwrap().len();
+    let per_thousand = two_thousand - thousand;
+    let count = (MAX_FILE_BYTES as usize / per_thousand) * 1_000 + 2_000;
+    let mut month = bulky_month(count);
+    let newest = month.trackers["acc|weekly"].last().unwrap().t;
+    let oldest = month.trackers["acc|weekly"][0].t;
+    assert!(encode_month(&month).unwrap().len() as u64 > MAX_FILE_BYTES);
+
+    let key = MonthKey {
+        year: 2026,
+        month: 10,
+    };
+    persist(&dir, key, &mut month).unwrap();
+    assert!(!month.dirty);
+
+    let path = dir.join("2026-10.json");
+    let size = fs::metadata(&path).unwrap().len();
+    assert!(size <= MAX_FILE_BYTES, "wrote {size} bytes");
+    let loaded = read_month_file(&path).unwrap();
+    let kept = &loaded.trackers["acc|weekly"];
+    assert_eq!(kept.last().unwrap().t, newest);
+    assert!(kept[0].t > oldest);
+    assert!(kept.len() < count);
+
+    // The next launch reads the file. It does not set it aside.
+    let _store = HistoryStore::load_at(root.path(), now());
+    assert_eq!(file_names(root.path()), ["2026-10.json"]);
+}
+
+fn bulky_month(count: usize) -> Month {
+    let mut trackers = BTreeMap::new();
+    trackers.insert(
+        "acc|weekly".to_string(),
+        (0..count)
+            .map(|index| Reading {
+                t: index as i64 + 1,
+                u: 12.5,
+                r: None,
+            })
+            .collect(),
+    );
+    Month {
+        trackers,
+        dirty: true,
+    }
+}
+
+#[test]
 fn a_file_that_is_too_large_is_set_aside() {
     let root = tempfile::tempdir().unwrap();
     let dir = history_dir(root.path());

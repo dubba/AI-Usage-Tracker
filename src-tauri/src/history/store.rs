@@ -31,7 +31,9 @@ const FORMAT_VERSION: u32 = 1;
 const HEARTBEAT_SECONDS: i64 = 60 * 60;
 /// Month files older than this many months before the current one are deleted.
 const RETENTION_MONTHS: i32 = 13;
-/// A month file larger than this is not ours (a full month is about 100 KB per account).
+/// A month file larger than this is not loaded (a full month is about 100 KB per account).
+/// `persist` shortens a month before writing so the file stays within this size and the next
+/// launch can read it instead of setting it aside.
 const MAX_FILE_BYTES: u64 = 16 * 1024 * 1024;
 
 /// A UTC calendar month. Ordered oldest first.
@@ -403,24 +405,99 @@ fn read_month_file(path: &Path) -> Result<Month, String> {
 }
 
 /// Writes `month` as `dir/YYYY-MM.json`, or deletes the file if the month is empty.
+/// A month that would exceed [`MAX_FILE_BYTES`] is shortened, oldest readings first, so the
+/// file that lands on disk is one the next launch can read.
 fn persist(dir: &Path, key: MonthKey, month: &mut Month) -> Result<(), String> {
     let path = dir.join(key.file_name());
     if month.trackers.is_empty() {
-        match fs::remove_file(&path) {
-            Ok(()) => {}
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => return Err(format!("Unable to delete usage history: {error}")),
-        }
-    } else {
-        let payload = serde_json::to_vec(&MonthFileRef {
-            version: FORMAT_VERSION,
-            trackers: &month.trackers,
-        })
-        .map_err(|error| error.to_string())?;
-        atomic_write_private(&path, &payload)?;
+        delete_month_file(&path)?;
+        month.dirty = false;
+        return Ok(());
     }
+
+    let before = reading_count(month);
+    let payload = fit_month_within_cap(month)?;
+    if reading_count(month) < before {
+        diagnostics::warn(&format!(
+            "Usage history for {:04}-{:02} was shortened so the saved file stays readable.",
+            key.year, key.month
+        ));
+    }
+    if month.trackers.is_empty() {
+        // No reading fit in the cap. Leave whatever file is already on disk.
+        month.dirty = false;
+        return Ok(());
+    }
+    if payload.len() as u64 > MAX_FILE_BYTES {
+        return Err("Usage history for this month is too large to store.".into());
+    }
+    atomic_write_private(&path, &payload)?;
     month.dirty = false;
     Ok(())
+}
+
+fn reading_count(month: &Month) -> usize {
+    month.trackers.values().map(|list| list.len()).sum()
+}
+
+fn encode_month(month: &Month) -> Result<Vec<u8>, String> {
+    serde_json::to_vec(&MonthFileRef {
+        version: FORMAT_VERSION,
+        trackers: &month.trackers,
+    })
+    .map_err(|error| error.to_string())
+}
+
+/// Drops the oldest readings until `month` encodes at or under [`MAX_FILE_BYTES`].
+fn fit_month_within_cap(month: &mut Month) -> Result<Vec<u8>, String> {
+    loop {
+        let payload = encode_month(month)?;
+        if payload.len() as u64 <= MAX_FILE_BYTES {
+            return Ok(payload);
+        }
+        let total = reading_count(month);
+        if total == 0 {
+            return Ok(payload);
+        }
+        let over = payload.len() - MAX_FILE_BYTES as usize;
+        let average = (payload.len() / total).max(1);
+        let drop_count = (over / average).max(1).min(total);
+        drop_oldest(month, drop_count);
+    }
+}
+
+/// Removes the `count` oldest readings. Each tracker's list stays oldest first.
+fn drop_oldest(month: &mut Month, count: usize) {
+    let mut indexed = Vec::new();
+    for (key, list) in &month.trackers {
+        for reading in list {
+            indexed.push((reading.t, key.clone(), *reading));
+        }
+    }
+    if count >= indexed.len() {
+        month.trackers.clear();
+        return;
+    }
+    indexed.select_nth_unstable_by(count, |left, right| {
+        left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1))
+    });
+    let kept = indexed.split_off(count);
+    let mut trackers: BTreeMap<String, Vec<Reading>> = BTreeMap::new();
+    for (_, key, reading) in kept {
+        trackers.entry(key).or_default().push(reading);
+    }
+    for list in trackers.values_mut() {
+        list.sort_by_key(|reading| reading.t);
+    }
+    month.trackers = trackers;
+}
+
+fn delete_month_file(path: &Path) -> Result<(), String> {
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!("Unable to delete usage history: {error}")),
+    }
 }
 
 #[cfg(test)]
