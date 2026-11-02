@@ -129,8 +129,12 @@ pub(crate) async fn read_sign_in_body(
 
 /// The error for an HTTP 429. The user-visible text is built from the parsed
 /// delay, never from the raw `Retry-After` header, which the provider controls.
+/// The delay is capped at the automatic refresh's longest wait, so the sentence
+/// does not name a longer pause than the app will actually take.
 pub fn rate_limited(provider: &str, retry_after_header: Option<&str>) -> ProviderError {
-    let retry_after = retry_after_header.and_then(parse_retry_after);
+    let retry_after = retry_after_header
+        .and_then(parse_retry_after)
+        .map(|delay| delay.min(crate::refresh_backoff::BACKOFF_MAX));
     let message = match retry_after {
         Some(delay) => format!(
             "{provider} rate-limited the usage request. Retry after {} seconds.",
@@ -354,6 +358,35 @@ mod tests {
         };
         assert_eq!(message, "Acme rate-limited the usage request.");
         assert!(!message.contains("sk-secret"));
+    }
+
+    #[test]
+    fn rate_limit_message_caps_the_delay_at_one_hour() {
+        let ProviderError::RateLimited {
+            message,
+            retry_after,
+        } = rate_limited("Acme", Some("999999"))
+        else {
+            unreachable!()
+        };
+        assert_eq!(
+            message,
+            "Acme rate-limited the usage request. Retry after 3600 seconds."
+        );
+        assert_eq!(retry_after, Some(crate::refresh_backoff::BACKOFF_MAX));
+
+        let ProviderError::RateLimited {
+            message,
+            retry_after,
+        } = rate_limited("Acme", Some(&u64::MAX.to_string()))
+        else {
+            unreachable!()
+        };
+        assert_eq!(
+            message,
+            "Acme rate-limited the usage request. Retry after 3600 seconds."
+        );
+        assert_eq!(retry_after, Some(Duration::from_secs(3600)));
     }
 
     #[test]

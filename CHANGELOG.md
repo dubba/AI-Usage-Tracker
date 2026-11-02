@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (17 changes)
+## Unreleased (18 changes)
 
 ### Added (3)
 
@@ -8,10 +8,10 @@
 - On the Usage page, the reorder hint ("Press & drag a card below or in the sidebar to reorder") is shown for the first two sessions.
 - On custom account group pages, a red trashcan button next to the group edit pen allows deleting the group directly from the header.
 
-### Fixed (14)
+### Fixed (15)
 
+- A rate-limit message now says to retry after at most 60 minutes, which is as long as the app waits.
 - In Settings, the Appearance dropdown now follows the same styling, chevron spacing, and menu alignment as the Account Updates dropdown.
-
 - Rate limit responses with a Retry-After header are now honored across all providers (Antigravity, Google AI Studio, Grok, and OpenCode Go).
 - Usage percentage values that are non-numeric or infinite (such as "NaN" or "Infinity") are now rejected instead of being saved as live snapshots.
 - In Settings on the light theme, toggle switches now have a lighter track and knob and a clearly visible outline when off.
