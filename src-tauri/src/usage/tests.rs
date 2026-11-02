@@ -1,3 +1,4 @@
+use super::refresh_accounts_with;
 use super::*;
 use crate::providers::google_ai_studio::SOURCE_MONITORING;
 
@@ -317,6 +318,68 @@ async fn refresh_slots_are_capped() {
     assert!(app.refresh_permits.clone().try_acquire_owned().is_err());
     held.pop();
     assert!(app.refresh_permits.clone().try_acquire_owned().is_ok());
+}
+
+#[tokio::test]
+async fn concurrent_refresh_all_awaits_in_flight_refreshes_without_duplicate_provider_calls() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let temp = tempfile::tempdir().unwrap();
+    let app = Arc::new(AppState::new(temp.path().to_path_buf(), "test-token".into()).unwrap());
+    std::mem::forget(temp);
+
+    let mut account1 = account(Provider::Openai, "wham", false);
+    account1.id = "acc1".into();
+    app.store
+        .persist_account(account1, &openai_secret())
+        .unwrap();
+
+    let mut account2 = account(Provider::Openai, "wham", false);
+    account2.id = "acc2".into();
+    app.store
+        .persist_account(account2, &openai_secret())
+        .unwrap();
+
+    let provider_calls = Arc::new(AtomicUsize::new(0));
+    let calls_clone = provider_calls.clone();
+
+    let (entered_tx, entered_rx) = tokio::sync::watch::channel(0usize);
+    let (release_tx, release_rx) = tokio::sync::watch::channel(false);
+
+    let runner = move |_, _, secret: ProviderSecret| {
+        let calls = calls_clone.clone();
+        let entered_tx = entered_tx.clone();
+        let mut release_rx = release_rx.clone();
+        async move {
+            calls.fetch_add(1, Ordering::SeqCst);
+            entered_tx.send_modify(|c| *c += 1);
+            let _ = release_rx.wait_for(|unpause| *unpause).await;
+            Ok((usage_with_one_window(), secret))
+        }
+    };
+
+    let app_auto = app.clone();
+    let runner_auto = runner.clone();
+    let auto_task =
+        tokio::spawn(async move { refresh_accounts_with(app_auto, true, runner_auto).await });
+
+    let mut entered_waiter = entered_rx.clone();
+    let _ = entered_waiter.wait_for(|count| *count == 2).await;
+    assert_eq!(provider_calls.load(Ordering::SeqCst), 2);
+
+    let app_manual = app.clone();
+    let runner_manual = runner.clone();
+    let manual_task =
+        tokio::spawn(async move { refresh_accounts_with(app_manual, false, runner_manual).await });
+
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let _ = release_tx.send(true);
+
+    let (res_auto, res_manual) = tokio::join!(auto_task, manual_task);
+    assert_eq!(res_auto.unwrap().len(), 2);
+    assert_eq!(res_manual.unwrap().len(), 2);
+
+    assert_eq!(provider_calls.load(Ordering::SeqCst), 2);
 }
 
 #[test]

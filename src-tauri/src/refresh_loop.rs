@@ -83,6 +83,7 @@ pub(crate) async fn run_account_refresh_loop(state: Arc<AppState>) {
         if due {
             let _ = usage::refresh_all_auto(state.clone()).await;
             last_refresh = Some(SystemTime::now());
+            state.emit_to_page("dashboard-refresh-finished", ());
             continue;
         }
         tokio::select! {

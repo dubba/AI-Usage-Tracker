@@ -1,11 +1,15 @@
 # Changelog
 
-## Unreleased (2 changes)
+## Unreleased (3 changes)
 
 ### Added (2)
 
 - On the Usage page, cards can now be pressed and dragged to reorder them, keeping their order in sync across the Usage page, the All Accounts page, and the sidebar.
 - On the Usage page, the reorder hint ("Press & drag a card below or in the sidebar to reorder") is shown for the first two sessions.
+
+### Fixed (1)
+
+- Launch no longer runs two account refresh waves back-to-back, halving startup network requests.
 
 ## v0.5.6 - 2026-11-01 (14 changes)
 

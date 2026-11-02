@@ -8,6 +8,16 @@ const api = vi.hoisted(() => ({
 }));
 vi.mock("../../shared/lib/api", () => ({ bridgeApi: api }));
 
+const events = vi.hoisted(() => ({ handlers: new Map<string, (event: { payload: unknown }) => void>() }));
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: async (name: string, handler: (event: { payload: unknown }) => void) => {
+    events.handlers.set(name, handler);
+    return () => {
+      events.handlers.delete(name);
+    };
+  },
+}));
+
 import { mount, settle, type Mounted } from "../../test-utils/react";
 import { UI_EVENTS } from "../../shared/lib/events";
 import { beginReordering, DROP_COOLDOWN_MS, endReordering, resetReorderingForTests } from "../../shared/lib/reorder-activity";
@@ -128,7 +138,7 @@ describe("useDashboardData", () => {
     expect(raised).toHaveLength(1);
   });
 
-  it("polls every 30 seconds and refreshes all accounts 3 seconds after launch", async () => {
+  it("polls every 30 seconds without starting a redundant startup refresh timer", async () => {
     api.snapshot.mockResolvedValue(makeSnapshot("a"));
     mounted = mount(<Harness />);
     await settle();
@@ -136,25 +146,28 @@ describe("useDashboardData", () => {
     expect(api.refreshAll).not.toHaveBeenCalled();
 
     await advance(3_000);
-    expect(api.refreshAll).toHaveBeenCalledTimes(1);
-    const afterStartup = api.snapshot.mock.calls.length;
-    expect(afterStartup).toBe(2);
+    expect(api.refreshAll).not.toHaveBeenCalled();
+    expect(api.snapshot).toHaveBeenCalledTimes(1);
 
-    await advance(26_999);
-    expect(api.snapshot).toHaveBeenCalledTimes(afterStartup);
-    await advance(1);
-    expect(api.snapshot).toHaveBeenCalledTimes(afterStartup + 1);
+    await advance(27_000);
+    expect(api.snapshot).toHaveBeenCalledTimes(2);
     await advance(30_000);
-    expect(api.snapshot).toHaveBeenCalledTimes(afterStartup + 2);
+    expect(api.snapshot).toHaveBeenCalledTimes(3);
   });
 
-  it("reports a failed startup refresh", async () => {
+  it("reloads the snapshot when the backend signals that an automatic refresh completed", async () => {
     api.snapshot.mockResolvedValue(makeSnapshot("a"));
-    api.refreshAll.mockRejectedValue(new Error("offline"));
     mounted = mount(<Harness />);
     await settle();
-    await advance(3_000);
-    expect(reportError).toHaveBeenCalledWith("refresh-all", expect.any(Error), "Couldn't refresh accounts");
+    expect(api.snapshot).toHaveBeenCalledTimes(1);
+
+    const handler = events.handlers.get("dashboard-refresh-finished");
+    expect(handler).toBeDefined();
+    await act(async () => {
+      handler!({ payload: undefined });
+      await settle();
+    });
+    expect(api.snapshot).toHaveBeenCalledTimes(2);
   });
 
   it("skips loads while dragging and runs one as soon as the drag has ended", async () => {

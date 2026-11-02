@@ -40,6 +40,24 @@ pub async fn refresh_account(app: Arc<AppState>, account_id: &str) -> Result<Acc
 
 type RefreshOutcome = Result<(ProviderUsage, ProviderSecret), ProviderError>;
 
+async fn wait_for_in_flight(
+    app: &AppState,
+    account_id: &str,
+    mut rx: crate::state::InFlightRefreshReceiver,
+) -> Result<Account, String> {
+    match rx.wait_for(|val| val.is_some()).await {
+        Ok(borrow) => borrow.as_ref().cloned().unwrap_or_else(|| {
+            app.store
+                .get(account_id)
+                .ok_or_else(|| "Account not found.".to_string())
+        }),
+        Err(_) => app
+            .store
+            .get(account_id)
+            .ok_or_else(|| "Account refresh stopped unexpectedly.".to_string()),
+    }
+}
+
 /// `refresh_account` with the provider call and timeout injectable for tests.
 async fn refresh_account_with<Run, RunFuture>(
     app: Arc<AppState>,
@@ -51,6 +69,18 @@ where
     Run: FnOnce(Arc<AppState>, Account, ProviderSecret) -> RunFuture + Send + 'static,
     RunFuture: Future<Output = RefreshOutcome> + Send + 'static,
 {
+    let in_flight_guard = match app.join_or_lead_refresh(account_id) {
+        crate::state::InFlightRefresh::Joined(rx) => {
+            return wait_for_in_flight(&app, account_id, rx).await;
+        }
+        crate::state::InFlightRefresh::Leader(guard) => guard,
+    };
+
+    let _permit = match app.refresh_permits.clone().acquire_owned().await {
+        Ok(permit) => permit,
+        Err(_) => return Err("Refresh permit queue closed.".into()),
+    };
+
     let lock = app.account_lock(account_id);
     let guard = lock.lock_owned().await;
 
@@ -130,10 +160,12 @@ where
     };
 
     if app.store.get(account_id).is_none() {
-        return Err("Account removed during refresh.".into());
+        let err = Err("Account removed during refresh.".into());
+        in_flight_guard.finish(err.clone());
+        return err;
     }
 
-    match refresh_result {
+    let outcome = match refresh_result {
         Ok(Ok(Ok(usage))) => save_success(&app, account_id, usage),
         Ok(Ok(Err(error))) => save_failure(&app, account_id, error),
         Ok(Err(save_error)) => Err(save_error),
@@ -142,7 +174,9 @@ where
             account_id,
             ProviderError::Transient("Account refresh timed out.".into()),
         ),
-    }
+    };
+    in_flight_guard.finish(outcome.clone());
+    outcome
 }
 
 /// Refreshes every eligible account now (the "Refresh all" button). Ignores
@@ -158,6 +192,21 @@ pub async fn refresh_all_auto(app: Arc<AppState>) -> Vec<Account> {
 }
 
 async fn refresh_accounts(app: Arc<AppState>, respect_backoff: bool) -> Vec<Account> {
+    refresh_accounts_with(app, respect_backoff, |app, account, secret| async move {
+        providers::refresh(app, &account, secret).await
+    })
+    .await
+}
+
+pub(crate) async fn refresh_accounts_with<Run, RunFuture>(
+    app: Arc<AppState>,
+    respect_backoff: bool,
+    run: Run,
+) -> Vec<Account>
+where
+    Run: Fn(Arc<AppState>, Account, ProviderSecret) -> RunFuture + Send + Sync + Clone + 'static,
+    RunFuture: Future<Output = RefreshOutcome> + Send + 'static,
+{
     let accounts = app.store.list();
     let now = Instant::now();
     let mut tasks = tokio::task::JoinSet::new();
@@ -171,11 +220,11 @@ async fn refresh_accounts(app: Arc<AppState>, respect_backoff: bool) -> Vec<Acco
         }
         let refresh_app = app.clone();
         let refresh_id = account.id.clone();
+        let run_fn = run.clone();
         tasks.spawn(async move {
-            // Wait for a slot *before* taking the account lock or starting the
-            // per-account timeout, so queueing never counts against either.
-            let _permit = refresh_app.refresh_permits.clone().acquire_owned().await;
-            let result = refresh_account(refresh_app, &refresh_id).await;
+            let result =
+                refresh_account_with(refresh_app, &refresh_id, ACCOUNT_REFRESH_TIMEOUT, run_fn)
+                    .await;
             (refresh_id, result)
         });
     }

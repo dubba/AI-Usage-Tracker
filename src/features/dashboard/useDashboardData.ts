@@ -11,13 +11,12 @@ import {
 import { isReordering, subscribeReordering } from "../../shared/lib/reorder-activity";
 import { onDashboardResync } from "../../shared/lib/events";
 import { publishSnapshot } from "./snapshot-store";
-import { REFRESH_ALL_KEY } from "../../shared/lib/busy";
 import { clearPendingAllOrder } from "./dashboard-page-state";
 import { accountsNeedScheduledRefresh } from "../../shared/lib/usage-logic";
+import { useTauriEvent } from "../../shared/hooks/useTauriEvent";
 import type { DashboardSnapshot } from "../../types";
 
 const DASHBOARD_SYNC_INTERVAL_MS = 30 * 1000;
-const STARTUP_REFRESH_DELAY_MS = 3 * 1000;
 const LOAD_TIMEOUT_MS = 10_000;
 
 /** Owns the dashboard snapshot: polling, startup refresh, and refresh-when-due on return. */
@@ -83,14 +82,13 @@ export function useDashboardData({
   useEffect(() => {
     void load();
     const syncInterval = window.setInterval(() => void load(), DASHBOARD_SYNC_INTERVAL_MS);
-    const initialRefreshTimeout = window.setTimeout(() => {
-      void bridgeApi.refreshAll().then(() => load()).catch((cause) => reportError(REFRESH_ALL_KEY, cause, "Couldn't refresh accounts"));
-    }, STARTUP_REFRESH_DELAY_MS);
     return () => {
       window.clearInterval(syncInterval);
-      window.clearTimeout(initialRefreshTimeout);
     };
-  }, [load, reportError]);
+  }, [load]);
+
+  // When the backend's automatic refresh loop finishes an account refresh wave, reload the snapshot.
+  useTauriEvent("dashboard-refresh-finished", () => void load());
 
   // A load skipped during a drag would otherwise wait for the next poll.
   useEffect(

@@ -20,11 +20,42 @@ use std::{
     },
     time::Duration,
 };
-use tauri::AppHandle;
-use tokio::sync::{oneshot, Mutex as AsyncMutex, Notify, Semaphore};
+use tauri::{AppHandle, Emitter};
+use tokio::sync::{oneshot, watch, Mutex as AsyncMutex, Notify, Semaphore};
 
 /// Most accounts refreshed at the same time.
 pub const MAX_CONCURRENT_REFRESHES: usize = 4;
+
+pub(crate) type InFlightRefreshReceiver = watch::Receiver<Option<Result<Account, String>>>;
+
+pub(crate) enum InFlightRefresh {
+    Leader(InFlightRefreshGuard),
+    Joined(InFlightRefreshReceiver),
+}
+
+pub(crate) struct InFlightRefreshGuard {
+    app: Arc<AppState>,
+    account_id: String,
+    tx: Option<watch::Sender<Option<Result<Account, String>>>>,
+}
+
+impl InFlightRefreshGuard {
+    pub(crate) fn finish(mut self, result: Result<Account, String>) {
+        if let Some(tx) = self.tx.take() {
+            self.app.remove_in_flight_refresh(&self.account_id);
+            let _ = tx.send(Some(result));
+        }
+    }
+}
+
+impl Drop for InFlightRefreshGuard {
+    fn drop(&mut self) {
+        if let Some(tx) = self.tx.take() {
+            self.app.remove_in_flight_refresh(&self.account_id);
+            let _ = tx.send(Some(Err("Account refresh stopped unexpectedly.".into())));
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct ApiRuntime {
@@ -98,6 +129,7 @@ pub struct AppState {
     pub app_handle: RwLock<Option<AppHandle>>,
     pub pairing: Arc<crate::pairing::PairingSessionManager>,
     account_locks: Mutex<HashMap<String, Arc<AsyncMutex<()>>>>,
+    in_flight_refreshes: Mutex<HashMap<String, InFlightRefreshReceiver>>,
     /// Caps how many accounts are refreshed at once so a large account list
     /// does not open dozens of simultaneous provider connections.
     pub refresh_permits: Arc<Semaphore>,
@@ -159,6 +191,7 @@ impl AppState {
             app_handle: RwLock::new(None),
             pairing: Arc::new(crate::pairing::PairingSessionManager::new()),
             account_locks: Mutex::new(HashMap::new()),
+            in_flight_refreshes: Mutex::new(HashMap::new()),
             refresh_permits: Arc::new(Semaphore::new(MAX_CONCURRENT_REFRESHES)),
             refresh_backoff: Mutex::new(RefreshBackoff::default()),
             refresh_wakeup: Notify::new(),
@@ -350,6 +383,30 @@ impl AppState {
             .is_some_and(|lock| Arc::strong_count(lock) == 1)
         {
             locks.remove(account_id);
+        }
+    }
+
+    pub(crate) fn join_or_lead_refresh(self: &Arc<Self>, account_id: &str) -> InFlightRefresh {
+        let mut in_flight = self.in_flight_refreshes.lock();
+        if let Some(rx) = in_flight.get(account_id) {
+            return InFlightRefresh::Joined(rx.clone());
+        }
+        let (tx, rx) = watch::channel(None);
+        in_flight.insert(account_id.to_string(), rx);
+        InFlightRefresh::Leader(InFlightRefreshGuard {
+            app: self.clone(),
+            account_id: account_id.to_string(),
+            tx: Some(tx),
+        })
+    }
+
+    pub(crate) fn remove_in_flight_refresh(&self, account_id: &str) {
+        self.in_flight_refreshes.lock().remove(account_id);
+    }
+
+    pub(crate) fn emit_to_page<T: serde::Serialize + Clone>(&self, event: &str, payload: T) {
+        if let Some(app_handle) = self.app_handle.read().as_ref() {
+            let _ = app_handle.emit(event, payload);
         }
     }
 
