@@ -59,6 +59,15 @@ describe("Button hover and active state invariants", () => {
     );
   });
 
+  it("provides light theme off-state toggle contrast for track, knob, and border", () => {
+    expect(UI_REFINEMENTS_CSS).toMatch(
+      /:root\[data-theme="light"\] \.toggle:not\(\.on\)\s*\{[^}]*background:\s*#edeaf2;[^}]*outline-color:\s*#857f90;/
+    );
+    expect(UI_REFINEMENTS_CSS).toMatch(
+      /:root\[data-theme="light"\] \.toggle:not\(\.on\) span\s*\{[^}]*background:\s*#958ea0;/
+    );
+  });
+
   it("keeps full 4-sided amber borders on the attention card without border-left clobbering", () => {
     expect(OBSIDIAN_CSS).not.toContain(".summary-strip > .summary-card + .summary-card");
     expect(OBSIDIAN_CSS).toContain(".summary-card.attention-card.is-filtering");

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (13 changes)
+## Unreleased (14 changes)
 
 ### Added (3)
 
@@ -8,8 +8,9 @@
 - On the Usage page, the reorder hint ("Press & drag a card below or in the sidebar to reorder") is shown for the first two sessions.
 - On custom account group pages, a red trashcan button next to the group edit pen allows deleting the group directly from the header.
 
-### Fixed (10)
+### Fixed (11)
 
+- In Settings on the light theme, toggle switches now have a lighter track and knob and a clearly visible outline when off.
 - A failed account save or rename on disk no longer leaves in-memory state modified until restart.
 - On the Usage page, weekly reset marker dashed lines are now consistently purple across the full chart height instead of turning black at the bottom.
 - On mobile, spacing between the bottom navigation bar and page content on Accounts, Usage, and Settings now matches the 10-pixel gap under the header.

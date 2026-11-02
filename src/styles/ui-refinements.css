@@ -1896,6 +1896,28 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   background: #ffffff !important;
 }
 
+/* Light theme: toggle switches when off have a light, subtle track and knob
+   instead of dark charcoal, with a crisp, visible outline matching dark mode. */
+:root[data-theme="light"] .toggle:not(.on) {
+  background: #edeaf2;
+  outline-color: #857f90;
+}
+
+:root[data-theme="light"] .toggle:not(.on) span {
+  background: #958ea0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-theme="light"] .settings-style-content .toggle:hover:not(:disabled) {
+    outline-color: var(--obsidian-purple-strong);
+  }
+}
+
+:root[data-theme="light"] .settings-style-content .toggle:focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: 2px;
+}
+
 /* The Android status bar is transparent with light (white) icons. Paint the inset
    with a fixed overlay in the Light-theme Check Now purple, in both themes, so
    clock/battery stay readable. */
