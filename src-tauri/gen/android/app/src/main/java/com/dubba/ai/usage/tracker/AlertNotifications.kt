@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Posts a usage alert on the "default" channel that `MainActivity` creates. Used by the
@@ -13,6 +14,13 @@ import androidx.core.app.NotificationCompat
  */
 object AlertNotifications {
   private const val CHANNEL_ID = "default"
+  private val nextId = AtomicInteger((System.currentTimeMillis() and 0x7fffffff).toInt())
+
+  /** Generates a strictly increasing positive notification ID across bursts. */
+  fun nextNotificationId(): Int {
+    val id = nextId.incrementAndGet() and 0x7fffffff
+    return if (id == 0) 1 else id
+  }
 
   /** The body stays fully readable when the notification is expanded. Never throws. */
   fun post(context: Context, title: String, body: String) {
@@ -23,7 +31,7 @@ object AlertNotifications {
           addCategory(Intent.CATEGORY_LAUNCHER)
         }
       launch.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-      val notificationId = (System.currentTimeMillis() % Int.MAX_VALUE).toInt()
+      val notificationId = nextNotificationId()
       val notification = NotificationCompat.Builder(context, CHANNEL_ID)
         .setSmallIcon(context.applicationInfo.icon)
         .setContentTitle(title)

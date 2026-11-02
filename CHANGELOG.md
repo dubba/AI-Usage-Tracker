@@ -1,14 +1,15 @@
 # Changelog
 
-## Unreleased (7 changes)
+## Unreleased (8 changes)
 
 ### Added (2)
 
 - On the Usage page, cards can now be pressed and dragged to reorder them, keeping their order in sync across the Usage page, the All Accounts page, and the sidebar.
 - On the Usage page, the reorder hint ("Press & drag a card below or in the sidebar to reorder") is shown for the first two sessions.
 
-### Fixed (5)
+### Fixed (6)
 
+- On Android, multiple alerts that fire in the same refresh now receive unique notification IDs instead of overwriting each other in the notification tray.
 - Overlapping app update checks now keep the newest result and keep the checking state busy until the latest check settles.
 - Toggling the local API on or off is no longer overwritten by an in-flight background dashboard refresh.
 - Alert notifications for usage windows without a reset time no longer repeat on every refresh while remaining under the threshold.
