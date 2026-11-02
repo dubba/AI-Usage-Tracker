@@ -209,6 +209,94 @@ describe("useAppUpdate", () => {
       expect(latest.updateError).toBe("Couldn't check for updates: boom");
       expect(latest.updateBusy).toBeNull();
     });
+
+    it("keeps the newer result when a slower earlier check finishes last", async () => {
+      const slowCheck = deferred<AppUpdateStatus>();
+      const fastCheck = deferred<AppUpdateStatus>();
+
+      // Mount without auto check completing yet
+      api.checkForUpdate.mockReturnValueOnce(slowCheck.promise);
+      mounted = mount(<Harness automatic={false} />);
+      await settle();
+
+      let firstPromise!: Promise<void>;
+      act(() => {
+        firstPromise = latest.checkForUpdate(false);
+      });
+      expect(latest.updateBusy).toBe("checking");
+
+      // Now start a second, manual check
+      api.checkForUpdate.mockReturnValueOnce(fastCheck.promise);
+      let secondPromise!: Promise<void>;
+      act(() => {
+        secondPromise = latest.checkForUpdate(true);
+      });
+      expect(latest.updateBusy).toBe("checking");
+
+      // Resolve the second (manual) check first with an available update
+      fastCheck.resolve(status({ available: true, availableVersion: "2.0.0" }));
+      await advance(MIN_CHECK_MS);
+      await act(async () => {
+        await secondPromise;
+      });
+
+      expect(latest.appUpdate?.available).toBe(true);
+      expect(latest.appUpdate?.availableVersion).toBe("2.0.0");
+      expect(latest.updateBusy).toBeNull();
+
+      // Now resolve the slower first (background) check with available: false
+      slowCheck.resolve(status({ available: false }));
+      await advance(MIN_CHECK_MS);
+      await act(async () => {
+        await firstPromise;
+      });
+
+      // The newer result (2.0.0) remains on screen and is not overwritten by the older check
+      expect(latest.appUpdate?.available).toBe(true);
+      expect(latest.appUpdate?.availableVersion).toBe("2.0.0");
+      expect(latest.updateBusy).toBeNull();
+    });
+
+    it("keeps updateBusy checking while a newer check is still running when an earlier check finishes", async () => {
+      const slowCheck = deferred<AppUpdateStatus>();
+      const fastCheck = deferred<AppUpdateStatus>();
+
+      mounted = mount(<Harness automatic={false} />);
+      await settle();
+
+      api.checkForUpdate.mockReturnValueOnce(fastCheck.promise);
+      let firstPromise!: Promise<void>;
+      act(() => {
+        firstPromise = latest.checkForUpdate(false);
+      });
+
+      api.checkForUpdate.mockReturnValueOnce(slowCheck.promise);
+      let secondPromise!: Promise<void>;
+      act(() => {
+        secondPromise = latest.checkForUpdate(true);
+      });
+      expect(latest.updateBusy).toBe("checking");
+
+      // The first check finishes early, but second check is still running
+      fastCheck.resolve(status({ available: false }));
+      await advance(MIN_CHECK_MS);
+      await act(async () => {
+        await firstPromise;
+      });
+
+      // Busy state must remain "checking" because the second check is still in flight!
+      expect(latest.updateBusy).toBe("checking");
+
+      // Resolve the second check
+      slowCheck.resolve(status({ available: true, availableVersion: "3.0.0" }));
+      await advance(MIN_CHECK_MS);
+      await act(async () => {
+        await secondPromise;
+      });
+
+      expect(latest.updateBusy).toBeNull();
+      expect(latest.appUpdate?.availableVersion).toBe("3.0.0");
+    });
   });
 
   describe("install", () => {

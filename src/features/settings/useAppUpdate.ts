@@ -22,6 +22,7 @@ export function useAppUpdate({ automaticUpdatesEnabled }: { automaticUpdatesEnab
   // Progress events can arrive after install_app_update has already returned;
   // without this guard a late one would leave the button stuck on "Downloading…".
   const installInFlightRef = useRef(false);
+  const lastCheckRequestRef = useRef(0);
 
   const showTransientUpdateMessage = useCallback((msg: string | null) => {
     if (updateMessageTimerRef.current) {
@@ -55,6 +56,7 @@ export function useAppUpdate({ automaticUpdatesEnabled }: { automaticUpdatesEnab
   const checkForUpdate = useCallback(async (showFeedback = false) => {
     // A check would overwrite the busy state of a download in progress.
     if (installInFlightRef.current) return;
+    const checkId = ++lastCheckRequestRef.current;
     setUpdateBusy("checking");
     const minDelayPromise = new Promise((resolve) => setTimeout(resolve, 500));
     if (showFeedback) {
@@ -68,6 +70,8 @@ export function useAppUpdate({ automaticUpdatesEnabled }: { automaticUpdatesEnab
         bridgeApi.checkForUpdate(!showFeedback),
         minDelayPromise,
       ]);
+      if (checkId !== lastCheckRequestRef.current) return;
+
       if (status.error) {
         if (showFeedback) {
           setUpdateError(status.error);
@@ -81,11 +85,14 @@ export function useAppUpdate({ automaticUpdatesEnabled }: { automaticUpdatesEnab
       }
     } catch (cause) {
       await minDelayPromise;
+      if (checkId !== lastCheckRequestRef.current) return;
       if (showFeedback) {
         setUpdateError(describeError("update", "Couldn't check for updates", cause));
       }
     } finally {
-      setUpdateBusy(null);
+      if (checkId === lastCheckRequestRef.current && !installInFlightRef.current) {
+        setUpdateBusy(null);
+      }
     }
   }, [installedVersion, showTransientUpdateMessage]);
 
