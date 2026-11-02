@@ -42,6 +42,7 @@ describe("Button hover and active state invariants", () => {
     expect(UI_REFINEMENTS_CSS).toContain(".account-card-action.notify-action:active:not(:disabled)");
     expect(UI_REFINEMENTS_CSS).toContain(".account-name-confirm:active:not(:disabled)");
     expect(UI_REFINEMENTS_CSS).toContain(".account-name-cancel:active:not(:disabled)");
+    expect(UI_REFINEMENTS_CSS).toContain(".delete-bucket-title-btn:active:not(:disabled)");
   });
 
   it("scopes usage display toggle hover states to pointer devices and preserves default purple on mobile", () => {
@@ -69,11 +70,12 @@ describe("Button hover and active state invariants", () => {
     expect(UI_REFINEMENTS_CSS).toContain("html[data-sidebar-toggle-stacked] .provider-window-toggle button:last-child[data-tooltip]::after");
   });
 
-  it("keeps the group title pen at the account-card size without stretching the title row", () => {
+  it("keeps the group title pen and delete button at the account-card size without stretching the title row", () => {
     // The pen matches .account-name-edit (24px). On a wide window the title row is locked
     // to the eyebrow line (15px * 1.15) so the subtitle and divider stay with the other views.
     expect(OBSIDIAN_CSS).toMatch(/\.dashboard-bucket-pill\s*\{[^}]*height:\s*16px/);
     expect(UI_REFINEMENTS_CSS).toMatch(/\.edit-bucket-title-btn\s*\{[^}]*height:\s*24px\s*!important/);
+    expect(UI_REFINEMENTS_CSS).toMatch(/\.delete-bucket-title-btn\s*\{[^}]*height:\s*24px\s*!important/);
     expect(UI_REFINEMENTS_CSS).toMatch(
       /@media \(min-width: 861px\)\s*\{\s*\.dashboard-header \.dashboard-title-row:has\(\.edit-bucket-title-btn\)\s*\{\s*height:\s*calc\(15px \* 1\.15\);/,
     );

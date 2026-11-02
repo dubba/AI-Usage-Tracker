@@ -157,6 +157,59 @@
   position: relative;
 }
 
+.delete-bucket-title-btn {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+  padding: 0;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 4px;
+  cursor: pointer;
+  vertical-align: middle;
+  position: relative;
+  flex-shrink: 0;
+  color: #ffffff;
+  border-color: #d94a4a;
+  background: #c53131;
+  box-shadow: none;
+  transition: background 150ms ease, transform 100ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.delete-bucket-title-btn svg {
+  color: #ffffff;
+  transition: color 150ms ease;
+}
+
+.delete-bucket-title-btn:hover:not(:disabled),
+.delete-bucket-title-btn:focus-visible {
+  color: #ffffff !important;
+  border-color: #ff6464 !important;
+  background: #d93d3d !important;
+  box-shadow: none !important;
+}
+
+.delete-bucket-title-btn:hover:not(:disabled) svg,
+.delete-bucket-title-btn:focus-visible svg {
+  color: #ffffff !important;
+}
+
+.delete-bucket-title-btn:active:not(:disabled) {
+  color: #ffffff !important;
+  border-color: #a82020 !important;
+  background: #b52828 !important;
+  box-shadow: none !important;
+  transform: scale(0.95);
+}
+
+.delete-bucket-title-btn:active:not(:disabled) svg {
+  color: #ffffff !important;
+}
+
 @media (min-width: 861px) {
   .dashboard-header .dashboard-title-row:has(.edit-bucket-title-btn) {
     height: calc(15px * 1.15);
@@ -166,7 +219,8 @@
 .account-name-edit::before,
 .account-name-confirm::before,
 .account-name-cancel::before,
-.edit-bucket-title-btn::before {
+.edit-bucket-title-btn::before,
+.delete-bucket-title-btn::before {
   content: "";
   position: absolute;
   top: 50%;
@@ -201,7 +255,8 @@
 .account-name-confirm svg,
 .account-name-confirm .mini-spinner,
 .account-name-cancel svg,
-.edit-bucket-title-btn svg {
+.edit-bucket-title-btn svg,
+.delete-bucket-title-btn svg {
   width: 13px !important;
   height: 13px !important;
 }
@@ -507,7 +562,8 @@
 .account-name-edit[data-tooltip]::after,
 .account-name-confirm[data-tooltip]::after,
 .account-name-cancel[data-tooltip]::after,
-.edit-bucket-title-btn[data-tooltip]::after {
+.edit-bucket-title-btn[data-tooltip]::after,
+.delete-bucket-title-btn[data-tooltip]::after {
   top: calc(100% + 26px);
   left: 0;
   right: auto;
@@ -1954,6 +2010,43 @@ html::after {
 :root .edit-bucket-title-btn:hover:not(:disabled) svg,
 :root .edit-bucket-title-btn:focus-visible svg,
 :root .edit-bucket-title-btn:active:not(:disabled) svg {
+  color: #ffffff !important;
+}
+
+/* The group delete trashcan button uses a solid red fill and white icon, matching
+   the destructive action style in both themes. */
+:root .delete-bucket-title-btn {
+  color: #ffffff !important;
+  border-color: #d94a4a !important;
+  background: #c53131 !important;
+}
+
+:root .delete-bucket-title-btn svg {
+  color: #ffffff !important;
+}
+
+:root .delete-bucket-title-btn:hover:not(:disabled),
+:root .delete-bucket-title-btn:focus-visible {
+  color: #ffffff !important;
+  border-color: #ff6464 !important;
+  background: #d93d3d !important;
+  box-shadow: none !important;
+}
+
+:root .delete-bucket-title-btn:hover:not(:disabled) svg,
+:root .delete-bucket-title-btn:focus-visible svg {
+  color: #ffffff !important;
+}
+
+:root .delete-bucket-title-btn:active:not(:disabled) {
+  color: #ffffff !important;
+  border-color: #a82020 !important;
+  background: #b52828 !important;
+  box-shadow: none !important;
+  transform: scale(0.95);
+}
+
+:root .delete-bucket-title-btn:active:not(:disabled) svg {
   color: #ffffff !important;
 }
 

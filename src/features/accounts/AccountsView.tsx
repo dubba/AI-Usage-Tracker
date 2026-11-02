@@ -148,15 +148,26 @@ export function AccountsView(props: {
               <span className="dashboard-bucket-pill">Group</span>
             ) : null}
             {props.selectedGroup.type === "bucket" && props.selectedGroup.bucket ? (
-              <button
-                type="button"
-                className="edit-bucket-title-btn"
-                onClick={() => props.onEditBucket?.(props.selectedGroup.bucket!)}
-                aria-label="Edit Group"
-                data-tooltip="Edit Group"
-              >
-                <EditIcon />
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="edit-bucket-title-btn"
+                  onClick={() => props.onEditBucket?.(props.selectedGroup.bucket!)}
+                  aria-label="Edit Group"
+                  data-tooltip="Edit Group"
+                >
+                  <EditIcon />
+                </button>
+                <button
+                  type="button"
+                  className="delete-bucket-title-btn"
+                  onClick={() => props.onDeleteBucket?.(props.selectedGroup.bucket!)}
+                  aria-label="Delete Group"
+                  data-tooltip="Delete Group"
+                >
+                  <TrashIcon />
+                </button>
+              </>
             ) : null}
           </div>
           <p className="dashboard-description">{dashboardDescription(props.selectedGroup, props.accounts.length)}</p>

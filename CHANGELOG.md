@@ -1,11 +1,12 @@
 # Changelog
 
-## Unreleased (10 changes)
+## Unreleased (11 changes)
 
-### Added (2)
+### Added (3)
 
 - On the Usage page, cards can now be pressed and dragged to reorder them, keeping their order in sync across the Usage page, the All Accounts page, and the sidebar.
 - On the Usage page, the reorder hint ("Press & drag a card below or in the sidebar to reorder") is shown for the first two sessions.
+- On custom account group pages, a red trashcan button next to the group edit pen allows deleting the group directly from the header.
 
 ### Fixed (8)
 

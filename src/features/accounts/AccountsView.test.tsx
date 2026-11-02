@@ -144,6 +144,20 @@ describe("AccountsView empty dashboard", () => {
     expect(onEditBucket).toHaveBeenCalledWith(workBucket);
   });
 
+  it("renders the delete-bucket-title-btn trashcan button for a custom group and triggers onDeleteBucket", () => {
+    const onDeleteBucket = vi.fn();
+    app = renderView({
+      selectedGroup: bucketGroup,
+      onDeleteBucket,
+    });
+    const deleteBtn = document.querySelector<HTMLButtonElement>(".delete-bucket-title-btn");
+    expect(deleteBtn).not.toBeNull();
+    expect(deleteBtn?.getAttribute("aria-label")).toBe("Delete Group");
+    expect(deleteBtn?.getAttribute("data-tooltip")).toBe("Delete Group");
+    click(deleteBtn!);
+    expect(onDeleteBucket).toHaveBeenCalledWith(workBucket);
+  });
+
   it("renders Edit Group as a primary button in empty custom groups and triggers onEditBucket", () => {
     const onEditBucket = vi.fn();
     const onDeleteBucket = vi.fn();
