@@ -5,56 +5,89 @@ import { subscribeLayout } from "../dashboard/layout-store";
 /** The reorder hint shows in at most this many app sessions (opens of the dashboard in a new session). */
 export const MAX_REORDER_HINT_OPENS = 2;
 
-function openCount(): number {
-  return parseInt(storageGet(STORAGE_KEYS.reorderHintOpenCount) ?? "0", 10) || 0;
+export type ReorderHintPage = "accounts" | "activity";
+
+interface HintKeys {
+  seen: string;
+  openCount: string;
+  sessionCounted: string;
+  sessionDismissed: string;
 }
 
-const sessionFlag = (key: (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS]) => storageGet(key, "session") === "1";
+function keysForPage(page: ReorderHintPage): HintKeys {
+  if (page === "activity") {
+    return {
+      seen: STORAGE_KEYS.activityReorderHintSeen,
+      openCount: STORAGE_KEYS.activityReorderHintOpenCount,
+      sessionCounted: STORAGE_KEYS.activityReorderHintSessionCounted,
+      sessionDismissed: STORAGE_KEYS.activityReorderHintSessionDismissed,
+    };
+  }
+  return {
+    seen: STORAGE_KEYS.reorderHintSeen,
+    openCount: STORAGE_KEYS.reorderHintOpenCount,
+    sessionCounted: STORAGE_KEYS.reorderHintSessionCounted,
+    sessionDismissed: STORAGE_KEYS.reorderHintSessionDismissed,
+  };
+}
+
+function openCount(keys: HintKeys): number {
+  return parseInt(storageGet(keys.openCount) ?? "0", 10) || 0;
+}
+
+const sessionFlag = (key: string) => storageGet(key, "session") === "1";
 
 /**
  * Whether the hint should be offered: more than one card can be moved, the user has not moved
  * one yet, it was not dismissed in this session, and this session is within the first few. A
  * pure read of storage; `countReorderHintSession` records the session.
  */
-export function isReorderHintEligible(canReorder: boolean, reorderCompleted: boolean): boolean {
+export function isReorderHintEligible(
+  canReorder: boolean,
+  reorderCompleted: boolean,
+  page: ReorderHintPage = "accounts",
+): boolean {
   if (!canReorder || reorderCompleted) return false;
-  if (sessionFlag(STORAGE_KEYS.reorderHintSessionDismissed)) return false;
+  const keys = keysForPage(page);
+  if (sessionFlag(keys.sessionDismissed)) return false;
   // A session not counted yet will count as one more when it is.
-  return (sessionFlag(STORAGE_KEYS.reorderHintSessionCounted) ? openCount() : openCount() + 1) <= MAX_REORDER_HINT_OPENS;
+  return (sessionFlag(keys.sessionCounted) ? openCount(keys) : openCount(keys) + 1) <= MAX_REORDER_HINT_OPENS;
 }
 
 /** Counts this session towards the total, once, if the hint was offered in it. */
-export function countReorderHintSession(): void {
-  if (sessionFlag(STORAGE_KEYS.reorderHintSessionCounted) || sessionFlag(STORAGE_KEYS.reorderHintSessionDismissed)) return;
-  storageSet(STORAGE_KEYS.reorderHintOpenCount, String(openCount() + 1));
-  storageSet(STORAGE_KEYS.reorderHintSessionCounted, "1", "session");
+export function countReorderHintSession(page: ReorderHintPage = "accounts"): void {
+  const keys = keysForPage(page);
+  if (sessionFlag(keys.sessionCounted) || sessionFlag(keys.sessionDismissed)) return;
+  storageSet(keys.openCount, String(openCount(keys) + 1));
+  storageSet(keys.sessionCounted, "1", "session");
 }
 
 /**
- * The "you can drag or move cards" hint of the accounts page: shown a couple of times, until
- * dismissed, and never again once the user reorders a card or a sidebar group.
+ * The "you can drag or move cards" hint of the accounts or usage page: shown a couple of times,
+ * until dismissed, and never again once the user reorders a card or a sidebar group.
  */
-export function useReorderHint(canReorder: boolean) {
-  const [completed, setCompleted] = useState(() => storageGet(STORAGE_KEYS.reorderHintSeen) === "1");
-  const [sessionDismissed, setSessionDismissed] = useState(() => sessionFlag(STORAGE_KEYS.reorderHintSessionDismissed));
+export function useReorderHint(canReorder: boolean, page: ReorderHintPage = "accounts") {
+  const keys = keysForPage(page);
+  const [completed, setCompleted] = useState(() => storageGet(keys.seen) === "1");
+  const [sessionDismissed, setSessionDismissed] = useState(() => sessionFlag(keys.sessionDismissed));
 
-  const eligible = isReorderHintEligible(canReorder, completed);
+  const eligible = isReorderHintEligible(canReorder, completed, page);
   const showReorderHint = eligible && !sessionDismissed;
 
   // The count is written here, not while rendering: a render must not change storage.
   useEffect(() => {
-    if (canReorder && !completed) countReorderHintSession();
-  }, [canReorder, completed]);
+    if (canReorder && !completed) countReorderHintSession(page);
+  }, [canReorder, completed, page]);
 
   const dismissReorderHint = useCallback(() => {
-    storageSet(STORAGE_KEYS.reorderHintSessionDismissed, "1", "session");
+    storageSet(keys.sessionDismissed, "1", "session");
     setSessionDismissed(true);
-  }, []);
+  }, [keys.sessionDismissed]);
 
   const completeReorderHint = useCallback(() => {
-    storageSet(STORAGE_KEYS.reorderHintSeen, "1");
+    storageSet(keys.seen, "1");
     setCompleted(true);
-  }, []);
+  }, [keys.seen]);
 
   // Done for good once the user reorders a card or a group (any saved change of the layout).
   useEffect(() => {

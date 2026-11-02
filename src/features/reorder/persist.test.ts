@@ -131,6 +131,15 @@ describe("persistVisibleAccountOrder", () => {
     expect(resync).toHaveBeenCalledTimes(1);
   });
 
+  it("includes non-visible accounts from the snapshot when saving the all page", async () => {
+    const shown = accounts.map((account) => ({ ...account, label: account.id, email: null })) as unknown as Account[];
+    latest.snapshot = { accounts: shown, buckets: [] };
+    await persistVisibleAccountOrder(["g1", "a1"], "all");
+    expect(pageOrder).toHaveBeenCalledWith("all", ["g1", "a1", "o1", "o2"]);
+    expect(api.reorderAccounts).toHaveBeenCalledWith(["g1", "a1", "o1", "o2"]);
+    expect(resync).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps a bucket's hidden members after the visible ones", async () => {
     api.snapshot.mockResolvedValue({
       accounts,

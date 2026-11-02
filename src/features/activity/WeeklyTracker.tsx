@@ -51,7 +51,15 @@ export function WeeklyTracker({
   const monthly = tracker.windowKind === "monthly";
 
   return (
-    <article className={`activity-card${needsSignIn ? " is-dimmed" : ""}`} aria-labelledby={titleId}>
+    <article
+      className={`activity-card${needsSignIn ? " is-dimmed" : ""}`}
+      aria-labelledby={titleId}
+      data-account-id={account.id}
+      data-reorder-provider={account.provider}
+      data-reorder-enabled="true"
+      draggable={false}
+    >
+      <span className="reorder-grip" data-tooltip="Drag to reorder" aria-hidden="true" />
       <header className="activity-card-head">
         <span className="activity-card-icon">
           <ProviderIcon provider={account.provider} />

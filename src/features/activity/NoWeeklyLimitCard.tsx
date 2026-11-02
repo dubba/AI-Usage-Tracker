@@ -19,7 +19,15 @@ export function NoWeeklyLimitCard({
   const titleId = useId();
   const email = accountEmail(account);
   return (
-    <article className="activity-card is-no-weekly" aria-labelledby={titleId}>
+    <article
+      className="activity-card is-no-weekly"
+      aria-labelledby={titleId}
+      data-account-id={account.id}
+      data-reorder-provider={account.provider}
+      data-reorder-enabled="true"
+      draggable={false}
+    >
+      <span className="reorder-grip" data-tooltip="Drag to reorder" aria-hidden="true" />
       <span className="activity-card-icon" aria-hidden="true">
         <CalendarOffIcon />
       </span>

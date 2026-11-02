@@ -13,13 +13,14 @@ function capture(value: ReturnType<typeof useReorderHint>) {
   latest = value;
 }
 
-function Probe({ canReorder }: { canReorder: boolean }) {
-  capture(useReorderHint(canReorder));
+function Probe({ canReorder, page }: { canReorder: boolean; page?: "accounts" | "activity" }) {
+  capture(useReorderHint(canReorder, page));
   return null;
 }
 
 let mounted: Mounted | null = null;
 const opens = () => storageGet(STORAGE_KEYS.reorderHintOpenCount);
+const activityOpens = () => storageGet(STORAGE_KEYS.activityReorderHintOpenCount);
 
 beforeEach(() => {
   localStorage.clear();
@@ -133,5 +134,21 @@ describe("useReorderHint", () => {
     mounted = mount(<Probe canReorder />);
     act(() => latest.completeReorderHint());
     expect(latest.showReorderHint).toBe(false);
+  });
+
+  it("operates independently on the activity page", () => {
+    // Accounts page has reached max opens
+    storageSet(STORAGE_KEYS.reorderHintOpenCount, String(MAX_REORDER_HINT_OPENS));
+    mounted = mount(<Probe canReorder page="activity" />);
+    expect(latest.showReorderHint).toBe(true);
+    expect(activityOpens()).toBe("1");
+    // Accounts open count should not be touched
+    expect(opens()).toBe(String(MAX_REORDER_HINT_OPENS));
+
+    // Dismissing on activity page records activity session dismissed
+    act(() => latest.dismissReorderHint());
+    expect(latest.showReorderHint).toBe(false);
+    expect(storageGet(STORAGE_KEYS.activityReorderHintSessionDismissed, "session")).toBe("1");
+    expect(storageGet(STORAGE_KEYS.reorderHintSessionDismissed, "session")).toBeNull();
   });
 });

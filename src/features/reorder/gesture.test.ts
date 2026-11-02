@@ -32,6 +32,20 @@ function mountAccounts(): { cards: HTMLElement[]; list: HTMLElement } {
   return { cards, list };
 }
 
+function mountActivityGrid(): { cards: HTMLElement[]; list: HTMLElement } {
+  document.body.innerHTML = `
+    <div class="dashboard-scroll"><div class="activity-grid" data-group-id="all">
+      ${["a", "b", "c"]
+        .map((id) => `<article class="activity-card" data-account-id="${id}" data-reorder-provider="openai" data-reorder-enabled="true"><p>${id}</p></article>`)
+        .join("")}
+    </div></div>`;
+  const list = document.querySelector<HTMLElement>(".activity-grid")!;
+  const cards = Array.from(list.children) as HTMLElement[];
+  cards.forEach((card, index) => setRect(card, index * CARD_HEIGHT));
+  setRect(document.querySelector(".dashboard-scroll")!, 0, 1000);
+  return { cards, list };
+}
+
 function mountGroups(): HTMLElement[] {
   document.body.innerHTML = `<div class="sidebar-list">
     ${["provider:openai", "provider:grok", "bucket:1"]
@@ -64,7 +78,8 @@ function touch(type: string, target: EventTarget, points: Array<{ x: number; y: 
   target.dispatchEvent(event);
 }
 
-const order = (list: HTMLElement) => Array.from(list.querySelectorAll<HTMLElement>(".provider-account-card")).map((c) => c.dataset.accountId);
+const order = (list: HTMLElement) =>
+  Array.from(list.querySelectorAll<HTMLElement>(".provider-account-card, .activity-card")).map((c) => c.dataset.accountId);
 
 let uninstall: () => void;
 
@@ -100,6 +115,19 @@ describe("mouse drag of an account card", () => {
     expect(document.documentElement.classList.contains("dashboard-reordering")).toBe(true);
     expect(isReordering()).toBe(true);
     // Far below every card: the placeholder goes to the end of the list.
+    pointer("pointermove", cards[0], { x: 10, y: 450 });
+    pointer("pointerup", cards[0], { x: 10, y: 450 });
+
+    expect(order(list)).toEqual(["b", "c", "a"]);
+    expect(persisted.persistVisibleAccountOrder).toHaveBeenCalledWith(["b", "c", "a"], "all");
+  });
+
+  it("drags an activity card in the usage grid and persists the new order with group 'all'", () => {
+    const { cards, list } = mountActivityGrid();
+    pointer("pointerdown", cards[0], { x: 10, y: 10 });
+    pointer("pointermove", cards[0], { x: 10, y: 60 });
+    expect(document.documentElement.classList.contains("dashboard-reordering")).toBe(true);
+    expect(isReordering()).toBe(true);
     pointer("pointermove", cards[0], { x: 10, y: 450 });
     pointer("pointerup", cards[0], { x: 10, y: 450 });
 

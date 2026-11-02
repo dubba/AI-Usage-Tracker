@@ -14,6 +14,8 @@ import {
 import type { Account, WeeklyActivity } from "../../types";
 import { getActivityPeriod, refreshActivityPeriod, setActivityPeriod } from "./activity-period";
 import { ActivityView } from "./ActivityView";
+import { STORAGE_KEYS, storageGet, storageSet } from "../../shared/lib/storage";
+import { MAX_REORDER_HINT_OPENS } from "../accounts/useReorderHint";
 
 const api = vi.hoisted(() => ({ getWeeklyActivity: vi.fn() }));
 vi.mock("../../shared/lib/api", () => ({ bridgeApi: api }));
@@ -24,6 +26,7 @@ let mounted: Mounted | null = null;
 beforeEach(() => {
   process.env.TZ = "UTC";
   localStorage.clear();
+  sessionStorage.clear();
   refreshActivityPeriod();
   api.getWeeklyActivity.mockReset().mockResolvedValue(makeActivity());
 });
@@ -534,6 +537,77 @@ describe("ActivityView", () => {
 
       expect(root.querySelector(".pull-to-refresh-indicator")).toBeNull();
       expect(onRefresh).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("reordering support", () => {
+    it("renders reorder data attributes and grips on activity cards", async () => {
+      api.getWeeklyActivity.mockResolvedValue(answer(2));
+      const { root } = renderView([work, personal]);
+      await settle();
+
+      const grid = root.querySelector(".activity-grid");
+      expect(grid?.getAttribute("data-group-id")).toBe("all");
+
+      const cards = select(root, ".activity-card");
+      expect(cards).toHaveLength(2);
+      expect(cards[0].getAttribute("data-account-id")).toBe("work");
+      expect(cards[0].getAttribute("data-reorder-provider")).toBe("anthropic");
+      expect(cards[0].getAttribute("data-reorder-enabled")).toBe("true");
+      expect(cards[0].getAttribute("draggable")).toBe("false");
+
+      const grips = select(root, ".reorder-grip");
+      expect(grips).toHaveLength(2);
+      expect(grips[0].getAttribute("data-tooltip")).toBe("Drag to reorder");
+      expect(grips[0].getAttribute("aria-hidden")).toBe("true");
+    });
+
+    it("renders reorder attributes on no-weekly-limit cards", async () => {
+      api.getWeeklyActivity.mockResolvedValue(makeActivity([], [{ accountId: "studio", otherLimits: [] }]));
+      const { root } = renderView([studio]);
+      await settle();
+
+      const card = root.querySelector(".activity-card.is-no-weekly");
+      expect(card?.getAttribute("data-account-id")).toBe("studio");
+      expect(card?.getAttribute("data-reorder-provider")).toBe("google_ai_studio");
+      expect(card?.getAttribute("data-reorder-enabled")).toBe("true");
+      expect(card?.querySelector(".reorder-grip")).not.toBeNull();
+    });
+
+    it("shows the reorder hint banner for the first two sessions and dismisses it", async () => {
+      api.getWeeklyActivity.mockResolvedValue(answer(2));
+      const { root } = renderView([work, personal]);
+      await settle();
+
+      const banner = root.querySelector(".reorder-hint-banner");
+      expect(banner).not.toBeNull();
+      expect(banner?.textContent).toContain("Press & drag a card below or in the sidebar to reorder");
+      expect(storageGet(STORAGE_KEYS.activityReorderHintOpenCount)).toBe("1");
+
+      const dismissBtn = banner?.querySelector(".reorder-hint-dismiss") as HTMLButtonElement;
+      expect(dismissBtn).not.toBeNull();
+      click(dismissBtn);
+
+      expect(root.querySelector(".reorder-hint-banner")).toBeNull();
+      expect(storageGet(STORAGE_KEYS.activityReorderHintSessionDismissed, "session")).toBe("1");
+    });
+
+    it("does not show the reorder hint banner when there is only one account", async () => {
+      api.getWeeklyActivity.mockResolvedValue(answer(1));
+      const { root } = renderView([work]);
+      await settle();
+
+      expect(root.querySelector(".reorder-hint-banner")).toBeNull();
+      expect(storageGet(STORAGE_KEYS.activityReorderHintOpenCount)).toBeNull();
+    });
+
+    it("hides the banner after MAX_REORDER_HINT_OPENS sessions", async () => {
+      storageSet(STORAGE_KEYS.activityReorderHintOpenCount, String(MAX_REORDER_HINT_OPENS));
+      api.getWeeklyActivity.mockResolvedValue(answer(2));
+      const { root } = renderView([work, personal]);
+      await settle();
+
+      expect(root.querySelector(".reorder-hint-banner")).toBeNull();
     });
   });
 });

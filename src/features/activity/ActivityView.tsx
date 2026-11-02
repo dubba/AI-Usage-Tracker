@@ -1,8 +1,9 @@
 import { useId, useMemo, useRef } from "react";
 import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
-import { BarChartIcon } from "../../shared/ui/icons";
+import { BarChartIcon, CloseIcon } from "../../shared/ui/icons";
 import { PullToRefreshIndicator } from "../dashboard/PullToRefreshIndicator";
 import { usePullToRefresh } from "../dashboard/usePullToRefresh";
+import { useReorderHint } from "../accounts/useReorderHint";
 import type { Account, ActivityTracker, UntrackedAccount } from "../../types";
 import { ACTIVITY_PERIODS, ACTIVITY_PERIOD_DAYS, type ActivityPeriod } from "./activity-period";
 import { NoWeeklyLimitCard } from "./NoWeeklyLimitCard";
@@ -139,6 +140,9 @@ export function ActivityView({
   // Nothing recorded yet for the charts on screen, or no limits known at all.
   const waitingForReadings = trackers.length > 0 ? !hasReadings : untracked.length === 0;
 
+  const canReorder = accounts.length > 1 && (trackers.length + untracked.length) > 1;
+  const { showReorderHint, dismissReorderHint } = useReorderHint(canReorder, "activity");
+
   const retry = (
     <button type="button" className="button ghost compact-button" onClick={() => void reload()}>
       Retry
@@ -171,6 +175,19 @@ export function ActivityView({
     }
     return (
       <>
+        {showReorderHint ? (
+          <div className="reorder-hint-banner" role="note">
+            <span>Press & drag a card below or in the sidebar to reorder</span>
+            <button
+              type="button"
+              className="reorder-hint-dismiss"
+              onClick={dismissReorderHint}
+              aria-label="Dismiss reorder hint"
+            >
+              <CloseIcon />
+            </button>
+          </div>
+        ) : null}
         {error ? (
           <div className="activity-error" role="alert">
             <span>
@@ -186,27 +203,35 @@ export function ActivityView({
             Tracking starts at the next refresh.
           </p>
         ) : null}
-        <div className="activity-grid">
+        <div className="activity-grid" data-group-id="all">
           {hasReadings
-            ? trackers.map((tracker) => (
-                <WeeklyTracker
-                  key={`${tracker.accountId}|${tracker.windowId}`}
-                  tracker={tracker}
-                  account={accountById.get(tracker.accountId)!}
-                  dayStarts={data.dayStarts}
-                  period={chartPeriod}
-                  onReconnect={onReconnect}
-                />
-              ))
+            ? trackers.map((tracker) => {
+                const account = accountById.get(tracker.accountId);
+                if (!account) return null;
+                return (
+                  <WeeklyTracker
+                    key={`${tracker.accountId}|${tracker.windowId}`}
+                    tracker={tracker}
+                    account={account}
+                    dayStarts={data.dayStarts}
+                    period={chartPeriod}
+                    onReconnect={onReconnect}
+                  />
+                );
+              })
             : null}
-          {untracked.map((entry) => (
-            <NoWeeklyLimitCard
-              key={entry.accountId}
-              account={accountById.get(entry.accountId)!}
-              otherLimits={entry.otherLimits}
-              monthlyOn30d={chartPeriod === "7d" && monthlyAccountIds.has(entry.accountId)}
-            />
-          ))}
+          {untracked.map((entry) => {
+            const account = accountById.get(entry.accountId);
+            if (!account) return null;
+            return (
+              <NoWeeklyLimitCard
+                key={entry.accountId}
+                account={account}
+                otherLimits={entry.otherLimits}
+                monthlyOn30d={chartPeriod === "7d" && monthlyAccountIds.has(entry.accountId)}
+              />
+            );
+          })}
         </div>
       </>
     );

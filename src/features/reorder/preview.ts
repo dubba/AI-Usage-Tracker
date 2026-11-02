@@ -171,7 +171,9 @@ export function clearDragArtifacts(): void {
   // Hidden cards are found from the live inline style, not a [style*=...] selector: the style
   // attribute can disagree with the element's real styles (see reorder-source.ts).
   const hidden = Array.from(
-    document.querySelectorAll<HTMLElement>(".is-reorder-origin, .provider-account-card, .provider-summary-row"),
+    document.querySelectorAll<HTMLElement>(
+      ".is-reorder-origin, .provider-account-card, .provider-summary-row, .activity-card",
+    ),
   ).filter((element) => element.classList.contains("is-reorder-origin") || isHiddenInline(element));
   const strays = document.querySelectorAll(".dashboard-reorder-float, .dashboard-reorder-placeholder");
   for (const element of hidden) {

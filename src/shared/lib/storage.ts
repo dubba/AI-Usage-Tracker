@@ -24,6 +24,14 @@ export const STORAGE_KEYS = {
   reorderHintSessionCounted: "ai-usage-tracker:reorder-hint-session-counted",
   /** sessionStorage: "1" if the reorder hint was dismissed in the current session. */
   reorderHintSessionDismissed: "ai-usage-tracker:reorder-hint-session-dismissed",
+  /** "1" once the user has completed a reorder gesture on the usage page. */
+  activityReorderHintSeen: "ai-usage-tracker:activity-reorder-hint-seen",
+  /** Number of newly opened app sessions (up to 2) where the usage reorder hint was eligible to be shown. */
+  activityReorderHintOpenCount: "ai-usage-tracker:activity-reorder-hint-open-count",
+  /** sessionStorage: "1" once this session has been counted toward the usage open count. */
+  activityReorderHintSessionCounted: "ai-usage-tracker:activity-reorder-hint-session-counted",
+  /** sessionStorage: "1" if the usage reorder hint was dismissed in the current session. */
+  activityReorderHintSessionDismissed: "ai-usage-tracker:activity-reorder-hint-session-dismissed",
   /** "true" if the Advanced section in Settings is expanded. */
   settingsAdvancedOpen: "ai-usage-tracker:settings-advanced-open",
   /** "7d" | "30d": how many days the Usage page shows. */

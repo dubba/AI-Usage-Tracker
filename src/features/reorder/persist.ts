@@ -94,15 +94,19 @@ function syncSidebarGroupOrder(
 
 export async function persistVisibleAccountOrder(orderedVisibleIds: string[], groupId: string | null): Promise<void> {
   const pageId = groupId && groupId.length > 0 ? groupId : "all";
-  storePageAccountOrder(pageId, orderedVisibleIds);
 
   try {
     if (pageId === "all") {
       // Update the sidebar right away from the snapshot on screen, like the cards themselves.
-      const snapshot = getLatestSnapshot();
-      if (snapshot) syncSidebarGroupOrder(orderedVisibleIds, snapshot);
-      await whileSavingAllOrder(() => bridgeApi.reorderAccounts(orderedVisibleIds));
+      const snapshot = getLatestSnapshot() ?? await bridgeApi.snapshot().catch(() => null);
+      const allKnownIds = snapshot?.accounts ? snapshot.accounts.map((a) => a.id) : [];
+      const visibleSet = new Set(orderedVisibleIds);
+      const fullOrderedIds = [...orderedVisibleIds, ...allKnownIds.filter((id) => !visibleSet.has(id))];
+      storePageAccountOrder("all", fullOrderedIds);
+      if (snapshot) syncSidebarGroupOrder(fullOrderedIds, snapshot);
+      await whileSavingAllOrder(() => bridgeApi.reorderAccounts(fullOrderedIds));
     } else if (bucketIdFromGroup(pageId) !== null) {
+      storePageAccountOrder(pageId, orderedVisibleIds);
       const bucketId = bucketIdFromGroup(pageId);
       const snapshot = getLatestSnapshot() ?? await bridgeApi.snapshot();
       const bucket = (snapshot.buckets ?? []).find((candidate) => candidate.id === bucketId);
@@ -111,6 +115,8 @@ export async function persistVisibleAccountOrder(orderedVisibleIds: string[], gr
         const nextAccountIds = [...orderedVisibleIds, ...bucket.accountIds.filter((id) => !visible.has(id))];
         await bridgeApi.saveBucket(bucket.name, bucket.provider, nextAccountIds, bucket.id);
       }
+    } else {
+      storePageAccountOrder(pageId, orderedVisibleIds);
     }
   } catch (cause) {
     logIgnored("dashboard-reorder persist", cause);

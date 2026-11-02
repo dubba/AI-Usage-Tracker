@@ -30,7 +30,9 @@ export function groupRows(container: HTMLElement): HTMLElement[] {
 }
 
 export function accountCards(container: HTMLElement): HTMLElement[] {
-  return Array.from(container.querySelectorAll<HTMLElement>(":scope > .provider-account-card"));
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(":scope > .provider-account-card, :scope > .activity-card"),
+  );
 }
 
 export function visibleAccountIds(container: HTMLElement): string[] {
@@ -50,7 +52,9 @@ export function dragFromPointerTarget(target: Element): DragDescriptor | null {
   }
 
   if (target.closest("input, textarea, select, [contenteditable='true'], .remove-account-confirmation")) return null;
-  const card = target.closest<HTMLElement>(".provider-account-card[data-reorder-enabled='true']");
+  const card = target.closest<HTMLElement>(
+    ".provider-account-card[data-reorder-enabled='true'], .activity-card[data-reorder-enabled='true']",
+  );
   if (!card) return null;
   const accountId = card.dataset.accountId;
   const provider = providerOf(card);
@@ -72,6 +76,25 @@ export function committedOrder(drag: ActiveDrag): string[] {
       .map(groupIdFromRow)
       .filter((id): id is string => Boolean(id));
     return uniqueStrings(ids);
+  }
+  const draggedId = drag.descriptor.accountId;
+  const cards = accountCards(drag.container);
+  const sourceIndex = cards.indexOf(drag.source);
+  if (sourceIndex >= 0) {
+    const beforeCards = cards.slice(0, sourceIndex);
+    const afterCards = cards.slice(sourceIndex + 1);
+    const beforeIds = uniqueStrings(
+      beforeCards
+        .map((c) => c.dataset.accountId?.trim() ?? "")
+        .filter((id) => id.length > 0 && id !== draggedId),
+    );
+    const beforeSet = new Set(beforeIds);
+    const afterIds = uniqueStrings(
+      afterCards
+        .map((c) => c.dataset.accountId?.trim() ?? "")
+        .filter((id) => id.length > 0 && id !== draggedId && !beforeSet.has(id)),
+    );
+    return [...beforeIds, draggedId, ...afterIds];
   }
   return visibleAccountIds(drag.container);
 }

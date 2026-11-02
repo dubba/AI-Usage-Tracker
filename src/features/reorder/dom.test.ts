@@ -19,6 +19,8 @@ function html(markup: string): HTMLElement {
 
 const card = (id: string, extra = "") =>
   `<div class="provider-account-card" data-account-id="${id}" data-reorder-provider="openai" data-reorder-enabled="true">${extra}</div>`;
+const activityCard = (id: string, extra = "") =>
+  `<article class="activity-card" data-account-id="${id}" data-reorder-provider="antigravity" data-reorder-enabled="true">${extra}</article>`;
 const row = (id: string, extra = "") =>
   `<div class="provider-summary-row" data-group-id="${id}" data-reorder-provider="anthropic" data-reorder-enabled="true">${extra}</div>`;
 
@@ -31,6 +33,12 @@ describe("list queries", () => {
     const list = html(`<div>${card("a")}${card("b")}${card("a")}</div>`);
     expect(accountCards(list)).toHaveLength(3);
     expect(visibleAccountIds(list)).toEqual(["a", "b"]);
+  });
+
+  it("reads activity cards in document order, ignoring duplicates", () => {
+    const list = html(`<div>${activityCard("ag1")}${activityCard("ag1")}${activityCard("oa1")}</div>`);
+    expect(accountCards(list)).toHaveLength(3);
+    expect(visibleAccountIds(list)).toEqual(["ag1", "oa1"]);
   });
 
   it("only counts direct children, so nested cards are not reorderable", () => {
@@ -57,6 +65,15 @@ describe("dragFromPointerTarget", () => {
       kind: "account",
       accountId: "a1",
       provider: "openai",
+    });
+  });
+
+  it("finds an activity card and its provider", () => {
+    html(`<div>${activityCard("ag1", `<p id="inner">x</p>`)}</div>`);
+    expect(dragFromPointerTarget(document.getElementById("inner")!)).toMatchObject({
+      kind: "account",
+      accountId: "ag1",
+      provider: "antigravity",
     });
   });
 
@@ -102,5 +119,20 @@ describe("order helpers", () => {
     const groups = html(`<div>${row("provider:openai")}${row("provider:grok")}</div>`);
     const groupDescriptor = { kind: "group", groupId: "provider:openai", provider: "openai", source: groups.children[0] as HTMLElement } as const;
     expect(originalOrder(groupDescriptor, groups)).toEqual(["provider:openai", "provider:grok"]);
+  });
+
+  it("handles multi-tracker accounts in committed order", () => {
+    // Accounts: ag1 (2 cards), oa1 (1 card), cl1 (1 card).
+    // Initial order: ag1-tracker1, ag1-tracker2, oa1, cl1.
+    // User drags ag1-tracker1 after oa1:
+    // DOM becomes: ag1-tracker2, oa1, ag1-tracker1 (source), cl1.
+    const list = html(`<div>${activityCard("ag1")}${card("oa1")}${activityCard("ag1")}${card("cl1")}</div>`);
+    const draggedSource = list.children[2] as HTMLElement;
+    const drag = {
+      descriptor: { kind: "account", accountId: "ag1", provider: "antigravity", source: draggedSource },
+      source: draggedSource,
+      container: list,
+    } as unknown as ActiveDrag;
+    expect(committedOrder(drag)).toEqual(["oa1", "ag1", "cl1"]);
   });
 });

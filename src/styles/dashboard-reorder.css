@@ -5,7 +5,8 @@
 
 .provider-summary-row[data-reorder-enabled="true"],
 .provider-summary-row:not(.is-all-row),
-.provider-account-card[data-reorder-enabled="true"] {
+.provider-account-card[data-reorder-enabled="true"],
+.activity-card[data-reorder-enabled="true"] {
   position: relative;
   cursor: grab;
   user-select: none;
@@ -16,7 +17,8 @@
 
 .provider-summary-row[data-reorder-enabled="true"] *,
 .provider-summary-row:not(.is-all-row) *,
-.provider-account-card[data-reorder-enabled="true"] * {
+.provider-account-card[data-reorder-enabled="true"] *,
+.activity-card[data-reorder-enabled="true"] * {
   cursor: inherit;
 }
 
@@ -28,7 +30,9 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .
 html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .account-name-cancel,
 html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .account-card-provider-icon,
 html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .mobile-dropdown-toggle,
-html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .mobile-dropdown-item {
+html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .mobile-dropdown-item,
+html:not(.dashboard-reordering):not(.dashboard-holding) .activity-card button,
+html:not(.dashboard-reordering):not(.dashboard-holding) .activity-card a {
   cursor: pointer !important;
 }
 
@@ -42,6 +46,10 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .
 
 .provider-account-card[data-reorder-enabled="true"] .provider-account-card-header {
   position: relative;
+  padding-left: 28px;
+}
+
+.activity-card[data-reorder-enabled="true"] {
   padding-left: 28px;
 }
 
@@ -91,8 +99,15 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .
   bottom: calc(21px - 2px);
 }
 
+.activity-card[data-reorder-enabled="true"] .reorder-grip {
+  left: 12px;
+  top: 30px;
+  transform: translateY(-50%);
+}
+
 .provider-summary-row[data-reorder-enabled="true"]:hover .reorder-grip,
-.provider-account-card[data-reorder-enabled="true"]:hover .reorder-grip {
+.provider-account-card[data-reorder-enabled="true"]:hover .reorder-grip,
+.activity-card[data-reorder-enabled="true"]:hover .reorder-grip {
   background: var(--purple-text);
   box-shadow: 0 -6px 0 var(--purple-text), 0 6px 0 var(--purple-text);
 }
@@ -103,6 +118,9 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card .
   }
   .provider-account-card[data-reorder-enabled="true"] .provider-account-card-header {
     padding-left: var(--account-card-inline-padding, 16px) !important;
+  }
+  .activity-card[data-reorder-enabled="true"] {
+    padding-left: 16px !important;
   }
   .reorder-grip {
     display: none;
@@ -154,6 +172,8 @@ html.dashboard-holding .provider-account-card .account-card-action,
 html.dashboard-holding .provider-account-card .account-card-action:disabled,
 html.dashboard-holding .provider-account-card .account-card-action svg,
 html.dashboard-holding .provider-account-card input.account-card-name-input,
+html.dashboard-holding .activity-card button,
+html.dashboard-holding .activity-card a,
 html.dashboard-reordering a,
 html.dashboard-reordering button,
 html.dashboard-reordering button:disabled,
@@ -180,6 +200,8 @@ html.dashboard-reordering .provider-account-card .account-card-action,
 html.dashboard-reordering .provider-account-card .account-card-action:disabled,
 html.dashboard-reordering .provider-account-card .account-card-action svg,
 html.dashboard-reordering .provider-account-card input.account-card-name-input,
+html.dashboard-reordering .activity-card button,
+html.dashboard-reordering .activity-card a,
 html.dashboard-reordering .sidebar-resize-grip span,
 html.dashboard-reordering .sidebar-resize-handle,
 html.dashboard-reordering .sidebar-resize-handle * {
@@ -217,7 +239,8 @@ html.dashboard-reordering .provider-list {
 }
 
 .provider-account-card.is-reorder-origin,
-.provider-summary-row.is-reorder-origin {
+.provider-summary-row.is-reorder-origin,
+.activity-card.is-reorder-origin {
   display: none !important;
 }
 
@@ -235,6 +258,10 @@ html.dashboard-reordering .provider-list {
   pointer-events: none;
 }
 
+.activity-grid .dashboard-reorder-placeholder {
+  grid-column: auto;
+}
+
 .provider-reorder-placeholder {
   border-radius: 5px;
 }
@@ -244,7 +271,8 @@ html.dashboard-reordering .provider-list {
 }
 
 html.dashboard-reordering .provider-summary-row.is-dragging,
-html.dashboard-reordering .provider-account-card.is-dragging {
+html.dashboard-reordering .provider-account-card.is-dragging,
+html.dashboard-reordering .activity-card.is-dragging {
   opacity: 0.96;
   border-color: rgb(var(--purple-text-rgb) / 0.88) !important;
   background-color: var(--c-242222);
