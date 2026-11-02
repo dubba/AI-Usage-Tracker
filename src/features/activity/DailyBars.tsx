@@ -73,7 +73,7 @@ function resetMarkers(resets: readonly string[], starts: readonly Date[], gap: n
  * One bar per day for one weekly limit, on a y-axis that fits the busiest day in view: ticks every
  * 5, 10 or 20 percent (see `yAxis`), so a quiet week does not look like a busy one. Days with
  * nothing observed are striped, days partly estimated have a dotted top edge, and each weekly
- * reset is marked with one dashed line. The part across a solid bar is black; the rest is purple.
+ * reset is marked with one dashed purple line.
  *
  * Screen readers get the chart as a sentence on the picture and as a table beside it.
  */
@@ -136,9 +136,6 @@ export function DailyBars({
             .filter(Boolean)
             .join(" ");
           const barHeight = empty ? undefined : `${barHeightPercent(day.usedPercent ?? 0, axis.top)}%`;
-          // A zero or missing day is not a solid purple bar, so the dash stays purple across it.
-          // The cover is a percent of the slot. The line paints black over that much of itself.
-          const resetCover = !empty && day.usedPercent !== 0 ? barHeightPercent(day.usedPercent ?? 0, axis.top) : 0;
           const dayResets = markers.filter((marker) => marker.day === index);
           return (
             <div className="activity-day" key={dayStarts[index].getTime()}>
@@ -151,13 +148,8 @@ export function DailyBars({
                 {dayResets.map((marker) => (
                   <span
                     key={marker.instant}
-                    className={resetCover > 0 ? "activity-reset-line has-ink" : "activity-reset-line"}
-                    style={
-                      {
-                        "--reset-fraction": `${marker.fraction}`,
-                        "--reset-cover": resetCover,
-                      } as CSSProperties
-                    }
+                    className="activity-reset-line"
+                    style={{ "--reset-fraction": `${marker.fraction}` } as CSSProperties}
                   />
                 ))}
               </div>

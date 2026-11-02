@@ -570,10 +570,7 @@
     pointer-events: auto;
   }
 
-  /* One 1px dash for the column. A second line beside it is what made the bar look double, so the
-     black part is painted on this same element, covering only the bar's height, and one mask cuts
-     both colors into the same dashes. --reset-cover is that height as a percent of the slot. The
-     line itself also sticks 4px above the slot, which the cover math leaves purple. */
+  /* One 1px dashed purple line for the column, positioned at the reset's fraction of the day. */
   .activity-reset-line {
     position: absolute;
     top: -4px;
@@ -585,17 +582,6 @@
     pointer-events: none;
     -webkit-mask-image: repeating-linear-gradient(to top, #000 0 4px, transparent 4px 7px);
     mask-image: repeating-linear-gradient(to top, #000 0 4px, transparent 4px 7px);
-  }
-
-  .activity-reset-line.has-ink::after {
-    content: "";
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    /* At least the bar's 3px minimum, and otherwise the bar's share of the slot. */
-    height: max(3px, calc(var(--reset-cover) / 100 * (100% - 4px)));
-    background: #000;
   }
 
   /* ---- tooltips: the shared ones are centered under their element, which would run off the

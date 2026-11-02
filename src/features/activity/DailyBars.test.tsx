@@ -133,7 +133,7 @@ describe("DailyBars, 7 days", () => {
     expect(all(root, ".activity-axis")).toHaveLength(0);
   });
 
-  it("keeps one reset dash, and paints it black only across a solid bar", () => {
+  it("draws each reset as one dashed purple line at the reset fraction", () => {
     const root = render({
       days,
       resets: ["2026-10-09T12:00:00Z", "2026-10-10T06:00:00Z", "2026-10-12T00:00:00Z", "2026-10-13T18:00:00Z"],
@@ -141,18 +141,12 @@ describe("DailyBars, 7 days", () => {
     const lines = all(root, ".activity-reset-line");
     const bars = all(root, ".activity-bar");
     const fraction = (element: HTMLElement) => Number(element.style.getPropertyValue("--reset-fraction"));
-    const cover = (element: HTMLElement) => element.style.getPropertyValue("--reset-cover");
     // Noon on a measured day, morning on a missing day, midnight on a zero day, evening on an estimate.
     expect(lines).toHaveLength(4);
     expect(lines.map(fraction)).toEqual([0.5, 0.25, 0, 0.75]);
     expect(all(root, ".activity-reset")).toHaveLength(4);
-    // One element per reset. Black ink is a layer of that same element, only on a solid bar.
-    expect(all(root, ".activity-reset-clip, .activity-reset-ink")).toHaveLength(0);
-    expect(lines.map((line) => line.classList.contains("has-ink"))).toEqual([true, false, false, true]);
-    expect(cover(lines[0])).toBe(String(parseFloat(bars[0].style.height)));
-    expect(cover(lines[3])).toBe(String(parseFloat(bars[4].style.height)));
-    expect(cover(lines[1])).toBe("0");
-    expect(cover(lines[2])).toBe("0");
+    // All reset lines stay purple without splitting into black ink dashes.
+    expect(all(root, ".has-ink, .activity-reset-clip, .activity-reset-ink")).toHaveLength(0);
     expect(lines[0].parentElement).toBe(bars[0].parentElement);
     expect(lines[1].parentElement).toBe(bars[1].parentElement);
   });
