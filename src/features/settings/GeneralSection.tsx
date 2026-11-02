@@ -33,7 +33,7 @@ export function GeneralSection() {
             <strong>Appearance</strong>
             <small>Dark, light, or match your device.</small>
           </div>
-          <div className="settings-account-refresh settings-theme-dropdown">
+          <div className="settings-account-refresh settings-appearance-dropdown">
             <CustomDropdown<ThemePreference>
               id="setting-theme"
               aria-label="Theme"
