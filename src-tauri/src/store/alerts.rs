@@ -215,15 +215,21 @@ impl AlertStore {
                     continue;
                 };
                 let remaining = remaining.clamp(0.0, 100.0).round() as u8;
-                let period = window.resets_at.as_deref().unwrap_or(&usage.fetched_at);
-                let notification_key =
-                    format!("{}:{}:{}", window.id, period, setting.threshold_percent);
-                let legacy_key = format!("{period}:{}", setting.threshold_percent);
+                let (notification_key, legacy_key) = match window.resets_at.as_deref() {
+                    Some(period) => (
+                        format!("{}:{}:{}", window.id, period, setting.threshold_percent),
+                        Some(format!("{period}:{}", setting.threshold_percent)),
+                    ),
+                    None => (format!("{}:{}", window.id, setting.threshold_percent), None),
+                };
+
+                let already_notified = notified_keys.contains(&notification_key)
+                    || legacy_key
+                        .as_deref()
+                        .is_some_and(|k| notified_keys.contains(k));
 
                 if remaining <= setting.threshold_percent {
-                    if !notified_keys.contains(&notification_key)
-                        && !notified_keys.contains(&legacy_key)
-                    {
+                    if !already_notified {
                         notified_keys.insert(notification_key);
                         changed = true;
 
@@ -247,7 +253,9 @@ impl AlertStore {
                         });
                     }
                 } else if notified_keys.remove(&notification_key)
-                    || notified_keys.remove(&legacy_key)
+                    || legacy_key
+                        .as_deref()
+                        .is_some_and(|k| notified_keys.remove(k))
                 {
                     changed = true;
                 }

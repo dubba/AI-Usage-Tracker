@@ -259,3 +259,82 @@ fn a_window_is_alerted_under_its_kind() {
     assert_eq!(canonical_window_id(&weekly), None, "not classified yet");
     assert_eq!(canonical_window_id(&weekly.classified()), Some("weekly"));
 }
+
+#[test]
+fn window_without_reset_time_notifies_once_and_does_not_repeat_on_subsequent_refreshes() {
+    let directory = tempfile::tempdir().unwrap();
+    let store = AlertStore::load(directory.path()).unwrap();
+    store
+        .save(
+            "account-no-reset",
+            vec![UsageAlertSetting {
+                window_id: "five_hour".into(),
+                enabled: true,
+                threshold_percent: 20,
+            }],
+        )
+        .unwrap();
+
+    let mut account = Account {
+        id: "account-no-reset".into(),
+        label: "Account without reset".into(),
+        provider: Provider::Openai,
+        email: None,
+        provider_account_id: None,
+        chatgpt_account_id: None,
+        plan: None,
+        created_at: "2026-11-01T00:00:00Z".into(),
+        updated_at: "2026-11-01T00:00:00Z".into(),
+        last_usage: Some(UsageSnapshot {
+            plan: None,
+            email: None,
+            windows: vec![UsageWindow {
+                id: "five_hour".into(),
+                label: "5-Hour Limit".into(),
+                used_percent: Some(85.0),
+                remaining_percent: Some(15.0),
+                resets_at: None,
+                window_seconds: Some(18_000),
+                kind: None,
+            }
+            .classified()],
+            credits_usd: None,
+            unlimited_credits: false,
+            fetched_at: "2026-11-01T12:00:00Z".into(),
+            freshness: UsageFreshness::Live,
+            source: "test".into(),
+        }),
+        last_error: None,
+        auth_required: false,
+    };
+
+    // First evaluation: remaining is 15% <= 20% -> triggers alert
+    let alerts = store.evaluate(&account).unwrap();
+    assert_eq!(alerts.len(), 1);
+    assert_eq!(alerts[0].remaining_percent, 15);
+
+    // Second evaluation with a new fetched_at (simulating periodic refresh) but same usage:
+    // Should NOT re-trigger because window has already notified for this threshold.
+    if let Some(usage) = account.last_usage.as_mut() {
+        usage.fetched_at = "2026-11-01T12:05:00Z".into();
+    }
+    assert!(store.evaluate(&account).unwrap().is_empty());
+
+    // Third evaluation: usage recovers above threshold (80% remaining)
+    if let Some(usage) = account.last_usage.as_mut() {
+        usage.windows[0].remaining_percent = Some(80.0);
+        usage.windows[0].used_percent = Some(20.0);
+        usage.fetched_at = "2026-11-01T12:10:00Z".into();
+    }
+    assert!(store.evaluate(&account).unwrap().is_empty());
+
+    // Fourth evaluation: usage drops below threshold again -> triggers again
+    if let Some(usage) = account.last_usage.as_mut() {
+        usage.windows[0].remaining_percent = Some(10.0);
+        usage.windows[0].used_percent = Some(90.0);
+        usage.fetched_at = "2026-11-01T12:15:00Z".into();
+    }
+    let alerts_recovered = store.evaluate(&account).unwrap();
+    assert_eq!(alerts_recovered.len(), 1);
+    assert_eq!(alerts_recovered[0].remaining_percent, 10);
+}
