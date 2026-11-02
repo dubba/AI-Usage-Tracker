@@ -475,15 +475,6 @@ fn a_history_folder_that_cannot_be_written_never_fails_the_refresh() {
 }
 
 #[test]
-fn the_refresh_window_cap_covers_a_full_google_model_selection() {
-    assert!(
-        MAX_REFRESH_USAGE_WINDOWS
-            >= crate::providers::google_ai_studio::MAX_SELECTED_MODELS
-                * crate::providers::google_ai_studio::MAX_QUOTA_WINDOWS_PER_MODEL
-    );
-}
-
-#[test]
 fn too_many_usage_windows_leave_the_previous_snapshot() {
     let temp = tempfile::tempdir().unwrap();
     let id = "usage-window-cap";

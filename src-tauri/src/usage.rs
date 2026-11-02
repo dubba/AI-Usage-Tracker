@@ -21,6 +21,13 @@ const ACCOUNT_REFRESH_TIMEOUT: Duration = Duration::from_secs(45);
 /// only `MAX_USAGE_WINDOWS` (32).
 const MAX_REFRESH_USAGE_WINDOWS: usize = 1024;
 
+/// A full Google model selection, at one window per quota kind, fits in one refresh.
+const _: () = assert!(
+    MAX_REFRESH_USAGE_WINDOWS
+        >= crate::providers::google_ai_studio::MAX_SELECTED_MODELS
+            * crate::providers::google_ai_studio::MAX_QUOTA_WINDOWS_PER_MODEL
+);
+
 pub async fn refresh_account(app: Arc<AppState>, account_id: &str) -> Result<Account, String> {
     refresh_account_with(
         app,
