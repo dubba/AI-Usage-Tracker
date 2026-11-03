@@ -1500,7 +1500,8 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .settings-style-content .settings-changelog-button,
 .settings-changelog-button {
   background: var(--obsidian-surface-low, var(--c-1c1b1b)) !important;
-  border: 1px solid var(--chrome-border) !important;
+  /* At rest, the same gray as the outline of a switch that is off. */
+  border: 1px solid var(--obsidian-border-strong) !important;
   border-radius: 6px !important;
   color: var(--c-ffffff) !important;
   transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
@@ -1581,8 +1582,9 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   transition: outline-color 140ms ease, background-color 140ms ease;
 }
 
+/* On keeps the same 1px outline in its own purple, so both states are the same size. */
 .settings-style-content .toggle.on {
-  outline-color: transparent;
+  outline-color: var(--purple-fill);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -1610,7 +1612,8 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 /* Settings: Account Updates dropdown trigger & menu matching refresh all button look & feel */
 .settings-account-refresh .custom-dropdown-trigger {
   background: var(--obsidian-surface-low, var(--c-1c1b1b)) !important;
-  border: 1px solid var(--chrome-border) !important;
+  /* At rest, the same gray as the outline of a switch that is off. */
+  border: 1px solid var(--obsidian-border-strong) !important;
   border-radius: 6px !important;
   color: var(--c-ffffff) !important;
   transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
@@ -1863,6 +1866,13 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   background-color: #ffffff !important;
   border-color: var(--chrome-border) !important;
   color: #000000 !important;
+}
+
+/* Light theme at rest: the gray outline of a switch that is off (#857f90 above), on the dropdowns
+   and the outlined buttons (View, Copy). Hover, focus and open keep the purple. */
+:root[data-theme="light"] .settings-account-refresh .custom-dropdown-container:not(.open) .custom-dropdown-trigger:not(:hover):not(:focus-visible):not(:active),
+:root[data-theme="light"] .settings-changelog-button:not(:hover):not(:focus-visible):not(:active) {
+  border-color: #857f90 !important;
 }
 
 :root[data-theme="light"] .settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger,

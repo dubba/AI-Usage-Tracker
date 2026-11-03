@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setNarrowWindow } from "../../test-utils/media";
 import { mount, type Mounted } from "../../test-utils/react";
 import { AccountUsageMetric } from "./AccountUsageMetric";
 import type { UsageWindow } from "../../types";
@@ -126,9 +127,13 @@ describe("AccountUsageMetric unavailable mode", () => {
 describe("AccountUsageMetric header row and neutral chip (Option B)", () => {
   let app: Mounted | null = null;
 
+  // The chip above the bar is the phone layout.
+  beforeEach(() => setNarrowWindow(true));
+
   afterEach(() => {
     app?.unmount();
     app = null;
+    vi.restoreAllMocks();
   });
 
   it("renders the limit chip and reset countdown above the bar with the percent to its right for Anthropic", () => {
@@ -185,5 +190,47 @@ describe("AccountUsageMetric header row and neutral chip (Option B)", () => {
     const pill = document.querySelector(".metric-header-row .metric-window-pill");
     expect(pill?.textContent?.trim()).toBe("7D LIMIT · GrokBot");
     expect(pill?.classList.contains("window-pill-7d")).toBe(true);
+  });
+});
+
+describe("AccountUsageMetric on a wide window", () => {
+  let app: Mounted | null = null;
+
+  beforeEach(() => setNarrowWindow(false));
+
+  afterEach(() => {
+    app?.unmount();
+    app = null;
+    vi.restoreAllMocks();
+  });
+
+  it("puts the window and its name beside the percent, the bar under them, then the reset time and date", () => {
+    const resetsAt = new Date(Date.now() + (2 * 60 + 8) * 60_000 + 30_000).toISOString();
+    app = mount(
+      <AccountUsageMetric
+        window={{ id: "weekly", label: "Grok 7d", usedPercent: 79, remainingPercent: 21, resetsAt, windowSeconds: 604800, kind: "weekly" }}
+        provider="grok"
+      />,
+    );
+    const metric = document.querySelector(".desktop-metric")!;
+    expect(metric.querySelector(".desktop-metric-span")?.textContent).toBe("7-day");
+    expect(metric.querySelector(".desktop-metric-name")?.textContent).toBe("Grok");
+    expect(metric.querySelector(".metric-full-value")?.textContent).toBe("21%");
+    expect(metric.querySelector(".metric-full-value")?.classList.contains("tone-warning")).toBe(true);
+    expect(metric.querySelector(".metric-percent-suffix")?.textContent).toBe("left");
+    expect(metric.querySelector(".metric-reset")?.textContent).toBe("Resets in 2h 8m");
+    expect(metric.querySelector(".desktop-metric-date")?.textContent).toMatch(/, /);
+    const parts = [...metric.children].map((child) => child.className);
+    expect(parts).toEqual(["desktop-metric-head", "account-metric-track", "desktop-metric-foot"]);
+    expect(metric.querySelector(".account-metric-track")?.getAttribute("aria-label")).toBe("7-day Grok remaining");
+    expect(document.querySelector(".metric-window-pill")).toBeNull();
+  });
+
+  it("says a Claude window starts on first use, with no date", () => {
+    app = mount(<AccountUsageMetric window={makeWindow(100)} provider="anthropic" />);
+    expect(document.querySelector(".desktop-metric-span")?.textContent).toBe("5-hour");
+    expect(document.querySelector(".desktop-metric-name")?.textContent).toBe("Claude");
+    expect(document.querySelector(".desktop-metric .metric-reset")?.textContent).toBe("Starts on first use");
+    expect(document.querySelector(".desktop-metric-date")).toBeNull();
   });
 });

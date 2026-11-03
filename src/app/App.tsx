@@ -44,6 +44,7 @@ import type { Account, AccountBucket, Provider } from "../types";
 import { AppModals } from "./AppModals";
 import { BottomNav } from "./BottomNav";
 import { Sidebar } from "./Sidebar";
+import { TopBar } from "./TopBar";
 import { useAfterAccountAdded } from "./useAfterAccountAdded";
 import { useAppMigrations } from "./useAppMigrations";
 import { useBottomNavVisible } from "./useBottomNavVisible";
@@ -359,7 +360,23 @@ export default function App() {
   );
 
   return (
-    <div ref={shellRef} className={`app-shell obsidian-shell${bottomNavVisible ? " has-bottom-nav" : ""}`}>
+    <div ref={shellRef} className={`app-shell obsidian-shell${bottomNavVisible ? " has-bottom-nav" : ""}${sidebarIsOverlay ? "" : " has-top-bar"}`}>
+      {sidebarIsOverlay ? null : (
+        <TopBar
+          section={section}
+          accounts={accounts}
+          refreshMinutes={appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES}
+          busy={busy}
+          onSelect={(target) => {
+            if (target === "activity") nav.showActivity();
+            else if (target === "accounts") nav.showAccounts();
+            else nav.showSettings();
+          }}
+          onRefreshAll={() => void refreshAll()}
+          onAddAccount={() => openAdd(undefined, selectedGroup.provider ?? undefined)}
+          onAddGroup={() => openNewBucket(selectedGroup.provider)}
+        />
+      )}
       <div
         className={`sidebar-backdrop ${sidebarOpen ? "active" : ""}`}
         onClick={nav.closeSidebar}
@@ -379,7 +396,7 @@ export default function App() {
         accounts={accounts}
         refreshMinutes={appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES}
         busy={busy}
-        showMainNav={!sidebarIsOverlay}
+        topBar={!sidebarIsOverlay}
         onClose={nav.closeSidebar}
         onAddAccount={() => {
           openAdd(undefined, selectedGroup.provider ?? undefined);
@@ -392,9 +409,6 @@ export default function App() {
         onSelectGroup={(groupId) => nav.selectGroup(groupId, { closeSidebar: true })}
         onMoveGroup={moveGroup}
         onRefreshAll={() => void refreshAll()}
-        onOpenSettings={nav.showSettings}
-        onOpenActivity={nav.showActivity}
-        onOpenAccounts={nav.showAccounts}
       />
 
       <main className="main-stage" inert={sidebarModal}>

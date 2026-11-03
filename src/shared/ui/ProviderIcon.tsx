@@ -24,7 +24,9 @@ export function ProviderIcon({ provider, className, ...props }: ProviderIconProp
 
   if (provider === "antigravity" || provider === "google_ai_studio") {
     return (
-      <svg viewBox="0 0 24 24" aria-label="Google" role="img" className={className} {...props}>
+      // The G spans 2 to 21.6 of the 24-unit canvas; cropping to it makes it as large in its box as
+      // the other providers' marks, which fill theirs.
+      <svg viewBox="2 2 20 20" aria-label="Google" role="img" className={className} {...props}>
         <path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.7 4.7 0 0 1-2 3v2.5h3.2c1.9-1.8 3-4.3 3-7.3Z" />
         <path fill="#34A853" d="M12 22c2.7 0 5-.9 6.6-2.5L15.4 17c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.2H3.1v2.6A10 10 0 0 0 12 22Z" />
         <path fill="#FBBC05" d="M6.4 13.8A6 6 0 0 1 6.1 12c0-.6.1-1.2.3-1.8V7.6H3.1A10 10 0 0 0 2 12c0 1.6.4 3.1 1.1 4.4l3.3-2.6Z" />

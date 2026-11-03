@@ -24,7 +24,7 @@ The order below **is the cascade**. Later files override earlier ones, so do not
 
 ## Layered component files
 
-The newer component stylesheets are the first rules in `@layer components`: `features/activity/activity.css` (the Usage page), `app/bottom-nav.css` (the bottom navigation bar) and `app/sidebar-nav.css` (the Usage, Accounts and Settings links in the sidebar). Each is imported by its component, so it loads with the component and not in the order of the table above; that does not matter, because a layered rule loses to every unlayered one whatever the order.
+The newer component stylesheets are the first rules in `@layer components`: `features/activity/activity.css` (the Usage page), `app/bottom-nav.css` (the bottom navigation bar) and `app/top-bar.css` (the desktop top bar with the Accounts, Usage and Settings pages and the add buttons, which also puts the shell in two rows while it shows). Each is imported by its component, so it loads with the component and not in the order of the table above; that does not matter, because a layered rule loses to every unlayered one whatever the order.
 
 That has one consequence for what they can style. A few global rules are unlayered and set properties the components need to set themselves:
 
@@ -44,7 +44,7 @@ Width breakpoints belong to individual components, so they are not collapsed int
 | Width | Used for |
 |-------|----------|
 | 860 / 861 | The main mobile/desktop split (sidebar overlay, card actions, mobile menu). The JS constant `MOBILE_OVERLAY_QUERY` must stay `(max-width: 860px)` |
-| 1220, 1180 | Summary cards: 4 columns, then 2 columns, then the Next Reset card spans a full row |
+| 1220, 1180 | Summary cards: 4 columns, then 2 columns, then the Next Reset card spans a full row. Below 1180 the top bar shows the app mark without its name |
 | 768 | The Link Devices dialog becomes a full-screen sheet |
 | 760, 720 | Stacked rows in the remove-account confirmation and the API window |
 | 640, 600 | Release-notes dialog and alert toasts fill the width; summary grid spacing |
@@ -52,7 +52,9 @@ Width breakpoints belong to individual components, so they are not collapsed int
 
 Keep one `@media` block per width and file where you can, and check that a later unconditional rule on the same selector does not override it: an earlier media rule loses to a later plain rule of the same specificity.
 
-The L / U toggle is not on a width breakpoint. It shares a row with the Account and Group buttons, and drops below them when `html` has `data-sidebar-toggle-stacked`. The resize handle sets that attribute while the sidebar is narrower than the measured one-line width of those controls.
+The L / U toggle is not on a width breakpoint. On desktop it is in the top bar. In the phone overlay it shares a row with the Account and Group buttons, and drops below them when `html` has `data-sidebar-toggle-stacked`. The resize handle sets that attribute while the sidebar is narrower than the measured one-line width of those controls.
+
+The desktop account card (`desktop-card`, from 861px) is a separate set of rules at the end of `account-card-responsive.css`. The card and its usage rows render different markup on desktop (`useMediaQuery(MOBILE_OVERLAY_QUERY)`), so those rules never reach the phone layout.
 
 ## Tokens
 

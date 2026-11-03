@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (18 changes)
+## Unreleased (26 changes)
 
 ### Added (3)
 
@@ -8,8 +8,19 @@
 - On the Usage page, the reorder hint ("Press & drag a card below or in the sidebar to reorder") is shown for the first two sessions.
 - On custom account group pages, a red trashcan button next to the group edit pen allows deleting the group directly from the header.
 
-### Fixed (15)
+### Improved (5)
 
+- On desktop, widening the sidebar or narrowing the window now stops before account cards run out of room, so a card's plan and buttons stay on one line with its name.
+- In Settings, the dropdowns and outlined buttons now have the same gray border as a switch that is off, turning purple on hover.
+- On desktop, a bar across the top of the window now holds the Accounts, Usage and Settings pages, the sync status, Refresh all, the Left / Used switch, and the Add account and new group buttons; the sidebar keeps the account and group list.
+- On desktop, account cards show the plan chip (and a status chip when an account needs attention), with Refresh and Alerts buttons and a ⋯ menu for Move up, Move down, Collapse, Rename and Remove.
+- On desktop, each usage limit on an account card shows its window and name beside a larger percentage, with the time until reset and the reset date under the bar.
+
+### Fixed (18)
+
+- An account card's actions menu now closes when you click another card or the sidebar, not only elsewhere on the page.
+- The Google (Antigravity) icon is now the same size as the other providers' icons instead of slightly smaller.
+- In Settings, switches that are on are now the same size as switches that are off.
 - A rate-limit message now says to retry after at most 60 minutes, which is as long as the app waits.
 - In Settings, the Appearance dropdown now follows the same styling, chevron spacing, and menu alignment as the Account Updates dropdown.
 - Rate limit responses with a Retry-After header are now honored across all providers (Antigravity, Google AI Studio, Grok, and OpenCode Go).

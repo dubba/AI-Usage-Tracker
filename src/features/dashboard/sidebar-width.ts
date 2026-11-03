@@ -9,9 +9,19 @@ export const KEYBOARD_STEP = 16;
 const MIN_MAIN_WIDTH = 520;
 const MOBILE_EDGE_GUTTER = 48;
 
-/** Widest the sidebar may be: leave room for the main area, or for a tap target beside the overlay. */
-export function maxSidebarWidth(input: { overlay: boolean; viewportWidth: number; shellWidth: number; min: number }): number {
-  const room = input.overlay ? input.viewportWidth - MOBILE_EDGE_GUTTER : input.shellWidth - MIN_MAIN_WIDTH;
+/**
+ * Widest the sidebar may be: leave room for the main area, or for a tap target beside the overlay.
+ * `mainMin` is the main area's measured need (`measureMainMinWidth`) when it is more than the fixed floor.
+ */
+export function maxSidebarWidth(input: {
+  overlay: boolean;
+  viewportWidth: number;
+  shellWidth: number;
+  min: number;
+  mainMin?: number | null;
+}): number {
+  const mainRoom = Math.max(MIN_MAIN_WIDTH, input.mainMin ?? 0);
+  const room = input.overlay ? input.viewportWidth - MOBILE_EDGE_GUTTER : input.shellWidth - mainRoom;
   return Math.max(input.min, Math.min(MAX_SIDEBAR_WIDTH, room));
 }
 
@@ -172,4 +182,35 @@ export function measureMinSidebarWidth(sidebar: HTMLElement): number {
   // edge of the L / U toggle beneath it (and the account cards). The button group cannot wrap,
   // so rounding up to the next pixel is the only slack.
   return Math.ceil(width + horizontalChrome(heading) + horizontalChrome(sidebar));
+}
+
+/**
+ * Narrowest the main area can be before a desktop account card's header wraps: the name and email,
+ * then the chips, updated time and buttons, all on one line. That is the widest header's one-line
+ * width plus everything between the header and the main area's edges (card and page padding, the
+ * scroll bar). Null when no desktop card is on screen (another page, or the phone layout).
+ */
+export function measureMainMinWidth(shell: HTMLElement): number | null {
+  const main = shell.querySelector<HTMLElement>(".main-stage");
+  if (!main) return null;
+  let widest: number | null = null;
+  for (const header of shell.querySelectorAll<HTMLElement>(".provider-account-card.desktop-card .provider-account-card-header")) {
+    const headerWidth = header.getBoundingClientRect().width;
+    if (headerWidth <= 0) continue;
+    const parts = [...header.children].filter(
+      (child): child is HTMLElement => child instanceof HTMLElement && getComputedStyle(child).position !== "absolute",
+    );
+    if (!parts.length) continue;
+    // The header wraps rather than shrinking its parts, so each one is at its full width already,
+    // on one line or two. (A hidden copy of a part measures narrower than the part itself.)
+    const gap = parseFloat(getComputedStyle(header).columnGap);
+    const line =
+      parts.reduce((sum, part) => sum + part.getBoundingClientRect().width, 0) +
+      (Number.isFinite(gap) ? gap : 0) * (parts.length - 1) +
+      horizontalChrome(header);
+    const around = main.getBoundingClientRect().width - headerWidth;
+    const need = Math.ceil(line + around + MEASURE_BUFFER_PX);
+    if (Number.isFinite(need) && (widest === null || need > widest)) widest = need;
+  }
+  return widest;
 }

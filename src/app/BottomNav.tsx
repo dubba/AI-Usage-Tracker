@@ -2,7 +2,8 @@ import { BarChartIcon, GridIcon, SettingsIcon } from "../shared/ui/icons";
 import type { Section } from "./useSidebarNavigation";
 import "./bottom-nav.css";
 
-const ITEMS = [
+/** The three pages, in the order every navigation shows them (this bar, the desktop top bar). */
+export const MAIN_PAGES = [
   { section: "accounts", label: "Accounts", Icon: GridIcon },
   { section: "activity", label: "Usage", Icon: BarChartIcon },
   { section: "settings", label: "Settings", Icon: SettingsIcon },
@@ -25,7 +26,7 @@ export function BottomNav({
 }) {
   return (
     <nav className="bottom-nav" aria-label="Main" inert={inert}>
-      {ITEMS.map(({ section: target, label, Icon }) => {
+      {MAIN_PAGES.map(({ section: target, label, Icon }) => {
         const active = section === target;
         return (
           <button

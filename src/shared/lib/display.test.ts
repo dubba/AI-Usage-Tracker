@@ -6,6 +6,7 @@ import {
   displayPlan,
   metricChipLabel,
   metricGroupLabel,
+  metricWindowParts,
   windowPillClass,
 } from "./display";
 import type { Account, Provider, UsageWindow } from "../../types";
@@ -117,6 +118,22 @@ describe("metricChipLabel", () => {
     expect(metricChipLabel(win({ label: "Gemini · 5h limit", windowSeconds: 18_000 }), "antigravity")).toBe("5H LIMIT · Gemini");
     expect(metricChipLabel(win({ label: "Claude and GPT models · Weekly", windowSeconds: 604_800 }), "antigravity")).toBe("7D LIMIT · Other");
     expect(metricChipLabel(win({ label: "Gemini 4 Argon · Weekly Limit", windowSeconds: 604_800 }), "antigravity")).toBe("7D LIMIT · Argon");
+  });
+});
+
+describe("metricWindowParts", () => {
+  it("splits the limit chip into the window length and what it covers", () => {
+    expect(metricWindowParts(win({ id: "weekly", label: "Grok 7d", kind: "weekly" }), "grok")).toEqual({ span: "7-day", name: "Grok" });
+    expect(metricWindowParts(win({ id: "five_hour", label: "5h", kind: "five_hour" }), "anthropic")).toEqual({ span: "5-hour", name: "Claude" });
+    expect(metricWindowParts(win({ id: "monthly", label: "30d", kind: "monthly" }), "openai")).toEqual({ span: "30-day", name: "ChatGPT" });
+  });
+
+  it("keeps a chip with no known length whole, as the name", () => {
+    expect(metricWindowParts(win({ id: "code_review", label: "Code Review" }), "openai")).toEqual({ span: null, name: "Code Review" });
+  });
+
+  it("gives a length alone when the chip names nothing else", () => {
+    expect(metricWindowParts(win({ id: "weekly", label: "Weekly", kind: "weekly" }), "zai")).toEqual({ span: "7-day", name: null });
   });
 });
 

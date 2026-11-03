@@ -164,3 +164,5 @@ export const EyeOffIcon = (props: IconProps) => (
 );
 export const ArrowUpIcon = (props: IconProps) => <Base {...props}><path d="M12 19V5M5 12l7-7 7 7"/></Base>;
 export const ArrowDownIcon = (props: IconProps) => <Base {...props}><path d="M12 5v14M19 12l-7 7-7-7"/></Base>;
+export const MoreIcon = (props: IconProps) => <Base {...props}><circle cx="5" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="12" r="1" fill="currentColor"/></Base>;
+export const UserPlusIcon = (props: IconProps) => <Base {...props}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M16 11h6"/></Base>;

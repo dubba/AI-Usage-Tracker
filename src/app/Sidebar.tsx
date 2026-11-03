@@ -7,22 +7,14 @@ import { ALL_ACCOUNTS_GROUP_ID, type SidebarGroup } from "../features/dashboard/
 import { SIDEBAR_ID } from "../shared/lib/constants";
 import type { BusyKeys } from "../shared/lib/busy";
 import { useScrollThumb } from "../shared/hooks/useScrollThumb";
-import { BarChartIcon, CloseIcon, GaugeIcon, GridIcon, PlusIcon, SettingsIcon } from "../shared/ui/icons";
+import { CloseIcon, GaugeIcon, PlusIcon } from "../shared/ui/icons";
 import type { Account } from "../types";
 import type { Section } from "./useSidebarNavigation";
-import "./bottom-nav.css";
-import "./sidebar-nav.css";
-
-/** The page links at the bottom of the sidebar on a wide window; a phone has the bottom bar instead. */
-const PAGE_LINKS = [
-  { section: "accounts", label: "Accounts", Icon: GridIcon },
-  { section: "activity", label: "Usage", Icon: BarChartIcon },
-  { section: "settings", label: "Settings", Icon: SettingsIcon },
-] as const satisfies ReadonlyArray<{ section: Section; label: string; Icon: typeof GridIcon }>;
 
 /**
- * The navigation sidebar: add buttons, the All accounts row and one row per group, then the sync status and (on wide
- * windows; a phone has the bottom bar) the Accounts, Usage and Settings links.
+ * The navigation sidebar: the All accounts row and one row per group. As the phone overlay it also
+ * has the add buttons, the L / U switch and the sync status; on a wide window those are in the top
+ * bar (TopBar.tsx), and the Accounts, Usage and Settings pages are there or in the bottom bar.
  */
 export function Sidebar({
   sidebarRef,
@@ -37,16 +29,13 @@ export function Sidebar({
   accounts,
   refreshMinutes,
   busy,
-  showMainNav,
+  topBar,
   onClose,
   onAddAccount,
   onAddGroup,
   onSelectGroup,
   onMoveGroup,
   onRefreshAll,
-  onOpenSettings,
-  onOpenActivity,
-  onOpenAccounts,
 }: {
   sidebarRef: RefObject<HTMLElement | null>;
   shellRef: RefObject<HTMLDivElement | null>;
@@ -63,17 +52,14 @@ export function Sidebar({
   accounts: Account[];
   refreshMinutes: number;
   busy: BusyKeys;
-  /** Show the Usage, Accounts and Settings links: the bottom bar is not there to offer them. */
-  showMainNav: boolean;
+  /** The top bar is showing and holds the app name, add buttons, L / U switch and sync status. */
+  topBar: boolean;
   onClose: () => void;
   onAddAccount: () => void;
   onAddGroup: () => void;
   onSelectGroup: (groupId: string) => void;
   onMoveGroup: (group: SidebarGroup, delta: -1 | 1) => void;
   onRefreshAll: () => void;
-  onOpenSettings: () => void;
-  onOpenActivity: () => void;
-  onOpenAccounts: () => void;
 }) {
   // The list keeps room for its scroll bar only while it overflows, so the cards sit centered otherwise.
   const providerListRef = useRef<HTMLDivElement>(null);
@@ -101,36 +87,40 @@ export function Sidebar({
         </button>
         <span className="eyebrow sidebar-title">AI Usage Tracker</span>
       </div>
-      <div className="brand">
-        <span className="brand-mark"><GaugeIcon /></span>
-        <strong>AI Usage Tracker</strong>
-      </div>
-
-      <div className="provider-sidebar-heading">
-        <div className="provider-sidebar-heading-stack">
-          <div className="provider-sidebar-heading-actions">
-            <button
-              type="button"
-              className="button primary add-account-header-button"
-              data-tooltip="Add new account"
-              aria-label="Add new account"
-              onClick={onAddAccount}
-            >
-              <PlusIcon />Account
-            </button>
-            <button
-              type="button"
-              className="button primary add-bucket-header-button"
-              data-tooltip={"Group accounts to track usage in\none place, like “Work” or “Personal”"}
-              aria-label="Group accounts to track usage in one place, like “Work” or “Personal”"
-              onClick={onAddGroup}
-            >
-              <PlusIcon />Group
-            </button>
+      {topBar ? null : (
+        <>
+          <div className="brand">
+            <span className="brand-mark"><GaugeIcon /></span>
+            <strong>AI Usage Tracker</strong>
           </div>
-          <UsageDisplayToggle />
-        </div>
-      </div>
+
+          <div className="provider-sidebar-heading">
+            <div className="provider-sidebar-heading-stack">
+              <div className="provider-sidebar-heading-actions">
+                <button
+                  type="button"
+                  className="button primary add-account-header-button"
+                  data-tooltip="Add new account"
+                  aria-label="Add new account"
+                  onClick={onAddAccount}
+                >
+                  <PlusIcon />Account
+                </button>
+                <button
+                  type="button"
+                  className="button primary add-bucket-header-button"
+                  data-tooltip={"Group accounts to track usage in\none place, like “Work” or “Personal”"}
+                  aria-label="Group accounts to track usage in one place, like “Work” or “Personal”"
+                  onClick={onAddGroup}
+                >
+                  <PlusIcon />Group
+                </button>
+              </div>
+              <UsageDisplayToggle />
+            </div>
+          </div>
+        </>
+      )}
 
       <div ref={providerListRef} className={`provider-list${providerListOverflows ? " has-overflow" : ""}`}>
         <SidebarGroupRow
@@ -152,32 +142,14 @@ export function Sidebar({
         ))}
       </div>
 
-      <SyncStatusLine
-        accounts={accounts}
-        refreshMinutes={refreshMinutes}
-        busy={busy}
-        onRefreshAll={onRefreshAll}
-      />
-
-      {showMainNav ? (
-        <nav className="sidebar-main-nav" aria-label="Main">
-          {PAGE_LINKS.map(({ section: target, label, Icon }) => {
-            const active = section === target;
-            return (
-              <button
-                key={target}
-                type="button"
-                className={`bottom-nav-item${active ? " is-active" : ""}`}
-                aria-current={active ? "page" : undefined}
-                onClick={target === "activity" ? onOpenActivity : target === "accounts" ? onOpenAccounts : onOpenSettings}
-              >
-                <Icon />
-                {label}
-              </button>
-            );
-          })}
-        </nav>
-      ) : null}
+      {topBar ? null : (
+        <SyncStatusLine
+          accounts={accounts}
+          refreshMinutes={refreshMinutes}
+          busy={busy}
+          onRefreshAll={onRefreshAll}
+        />
+      )}
       <SidebarResizeHandle shellRef={shellRef} sidebarRef={sidebarRef} />
     </aside>
   );

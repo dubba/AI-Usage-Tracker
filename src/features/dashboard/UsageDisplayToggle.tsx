@@ -1,16 +1,25 @@
 import { useUsageDisplayMode } from "../../shared/hooks/useUsageDisplayMode";
 import type { UsageDisplayMode } from "../../shared/lib/usage-display";
 
-const OPTIONS: ReadonlyArray<{ mode: UsageDisplayMode; letter: string; tooltip: string }> = [
-  { mode: "left", letter: "L", tooltip: "Show the percentage of usage left" },
-  { mode: "used", letter: "U", tooltip: "Show the percentage already used" },
+const OPTIONS: ReadonlyArray<{ mode: UsageDisplayMode; letter: string; word: string; tooltip: string }> = [
+  { mode: "left", letter: "L", word: "Left", tooltip: "Show the percentage of usage left" },
+  { mode: "used", letter: "U", word: "Used", tooltip: "Show the percentage already used" },
 ];
 
-/** Switches every usage percentage between the quota left (L) and the quota used (U). */
-export function UsageDisplayToggle() {
+/**
+ * Switches every usage percentage between the quota left (L) and the quota used (U). The desktop
+ * top bar spells the options out (`labels` "words") and styles it with its own `className`.
+ */
+export function UsageDisplayToggle({
+  labels = "letters",
+  className = "provider-window-toggle usage-display-toggle",
+}: {
+  labels?: "letters" | "words";
+  className?: string;
+} = {}) {
   const [mode, setMode] = useUsageDisplayMode();
   return (
-    <div className="provider-window-toggle usage-display-toggle" role="group" aria-label="Usage display">
+    <div className={className} role="group" aria-label="Usage display">
       {OPTIONS.map((option) => (
         <button
           key={option.mode}
@@ -21,7 +30,7 @@ export function UsageDisplayToggle() {
           data-tooltip={option.tooltip}
           onClick={() => setMode(option.mode)}
         >
-          {option.letter}
+          {labels === "words" ? option.word : option.letter}
         </button>
       ))}
     </div>

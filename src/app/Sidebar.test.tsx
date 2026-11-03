@@ -21,13 +21,8 @@ afterEach(() => {
 
 const allGroup: SidebarGroup = { id: ALL_ACCOUNTS_GROUP_ID, type: "all", title: "All Accounts", provider: null, accounts: [] };
 
-function render(props: { section: Section; showMainNav: boolean; selectedGroupId?: string }) {
-  const handlers = {
-    onOpenActivity: vi.fn(),
-    onOpenAccounts: vi.fn(),
-    onSelectGroup: vi.fn(),
-    onOpenSettings: vi.fn(),
-  };
+function render(props: { section: Section; topBar: boolean; selectedGroupId?: string }) {
+  const onSelectGroup = vi.fn();
   mounted = mount(
     <Sidebar
       sidebarRef={{ current: null }}
@@ -46,66 +41,53 @@ function render(props: { section: Section; showMainNav: boolean; selectedGroupId
       onAddGroup={vi.fn()}
       onMoveGroup={vi.fn()}
       onRefreshAll={vi.fn()}
+      onSelectGroup={onSelectGroup}
       {...props}
-      {...handlers}
     />,
   );
-  const nav = mounted.container.querySelector<HTMLElement>('nav[aria-label="Main"]');
-  return { nav, items: nav ? [...nav.querySelectorAll<HTMLButtonElement>("button")] : [], handlers };
+  return { onSelectGroup };
 }
 
-describe("Sidebar page links", () => {
-  it("are Accounts, Usage and Settings, at the very bottom, below the sync status", () => {
-    const { nav, items } = render({ section: "accounts", showMainNav: true });
-    expect(items.map((item) => item.textContent)).toEqual(["Accounts", "Usage", "Settings"]);
+describe("Sidebar", () => {
+  it("leaves the app name, add buttons and sync status to the top bar on a wide window", () => {
+    render({ section: "accounts", topBar: true });
+    expect(mounted!.container.querySelector(".provider-list")).not.toBeNull();
+    expect(mounted!.container.querySelector(".brand")).toBeNull();
+    expect(mounted!.container.querySelector(".add-account-header-button")).toBeNull();
+    expect(mounted!.container.querySelector(".add-bucket-header-button")).toBeNull();
+    expect(mounted!.container.querySelector(".sidebar-sync-status")).toBeNull();
+  });
+
+  it("keeps them as the phone overlay, with the sync status below the groups", () => {
+    render({ section: "accounts", topBar: false });
+    expect(mounted!.container.querySelector(".brand")).not.toBeNull();
+    expect(mounted!.container.querySelector(".add-account-header-button")).not.toBeNull();
+    expect(mounted!.container.querySelector(".add-bucket-header-button")).not.toBeNull();
     const list = mounted!.container.querySelector(".provider-list")!;
     const status = mounted!.container.querySelector(".sidebar-sync-status")!;
     expect(list.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(status.compareDocumentPosition(nav!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // Directly below the sync status: nothing sits between them.
-    expect(status.nextElementSibling).toBe(nav);
   });
 
-  it("are left to the bottom bar when the sidebar is an overlay", () => {
-    const { nav } = render({ section: "accounts", showMainNav: false });
-    expect(nav).toBeNull();
-    expect(mounted!.container.querySelector(".provider-list")).not.toBeNull();
-    // Settings is not offered anywhere else in the sidebar.
-    expect(mounted!.container.querySelector('[aria-label="Open settings"]')).toBeNull();
+  it.each([true, false])("never lists the Accounts, Usage and Settings pages (top bar %s)", (topBar) => {
+    render({ section: "accounts", topBar });
+    expect(mounted!.container.querySelector('nav[aria-label="Main"]')).toBeNull();
     expect(mounted!.container.textContent).not.toContain("Settings");
   });
 
-  it.each([
-    ["accounts", 0],
-    ["activity", 1],
-    ["settings", 2],
-  ] as const)("show the %s link as the current page", (section, index) => {
-    const { items } = render({ section, showMainNav: true });
-    items.forEach((item, position) => {
-      expect(item.getAttribute("aria-current")).toBe(position === index ? "page" : null);
-      expect(item.classList.contains("is-active")).toBe(position === index);
-    });
-  });
-
-  it("open their page when clicked", () => {
-    const { items, handlers } = render({ section: "accounts", showMainNav: true });
-    click(items[0]);
-    expect(handlers.onOpenAccounts).toHaveBeenCalledTimes(1);
-    click(items[1]);
-    expect(handlers.onOpenActivity).toHaveBeenCalledTimes(1);
-    click(items[2]);
-    expect(handlers.onOpenSettings).toHaveBeenCalledTimes(1);
-    expect(handlers.onSelectGroup).not.toHaveBeenCalled();
-  });
-
-  it("leave the group rows selected only on the Accounts page", () => {
-    render({ section: "accounts", showMainNav: true });
+  it("leaves the group rows selected only on the Accounts page", () => {
+    render({ section: "accounts", topBar: true });
     expect(mounted!.container.querySelector(".provider-summary-row.selected")).not.toBeNull();
     mounted!.unmount();
-    render({ section: "activity", showMainNav: true });
+    render({ section: "activity", topBar: true });
     expect(mounted!.container.querySelector(".provider-summary-row.selected")).toBeNull();
     mounted!.unmount();
-    render({ section: "settings", showMainNav: true });
+    render({ section: "settings", topBar: true });
     expect(mounted!.container.querySelector(".provider-summary-row.selected")).toBeNull();
+  });
+
+  it("selects a group when its row is clicked", () => {
+    const { onSelectGroup } = render({ section: "accounts", topBar: true });
+    click(mounted!.container.querySelector<HTMLElement>(".provider-summary-row")!);
+    expect(onSelectGroup).toHaveBeenCalledTimes(1);
   });
 });

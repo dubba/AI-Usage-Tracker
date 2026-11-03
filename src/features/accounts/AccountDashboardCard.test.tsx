@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
+import { setNarrowWindow } from "../../test-utils/media";
 import { click, mount, settle, type Mounted } from "../../test-utils/react";
 import type { Account } from "../../types";
 import { CREDENTIAL_PROTECTION_ACCOUNT_NOTE } from "../dashboard/credential-protection";
@@ -65,9 +66,13 @@ describe("AccountDashboardCard credential protection", () => {
 describe("AccountDashboardCard actions dropdown placement", () => {
   let app: Mounted | null = null;
 
+  // The chevron menu is the phone layout's.
+  beforeEach(() => setNarrowWindow(true));
+
   afterEach(() => {
     app?.unmount();
     app = null;
+    vi.restoreAllMocks();
   });
 
   it("opens downward when there is ample space below the toggle button", () => {
@@ -257,3 +262,117 @@ describe("AccountDashboardCard actions dropdown placement", () => {
   });
 });
 
+
+function renderDesktopCard(overrides: Partial<Parameters<typeof AccountDashboardCard>[0]> = {}) {
+  const handlers = {
+    onRefresh: vi.fn(),
+    onRemove: vi.fn(),
+    onNotifications: vi.fn(),
+    onMove: vi.fn(),
+  };
+  const app = mount(
+    <AccountDashboardCard
+      pageId="all"
+      account={{ ...account, plan: "pro", lastUsage: { plan: "pro", email: null, windows: [], creditsUsd: null, unlimitedCredits: false, fetchedAt: new Date().toISOString(), freshness: "live", source: "test" } }}
+      busy={new Set()}
+      onReconnect={() => undefined}
+      onConnectGoogleUsage={() => undefined}
+      onRename={async () => undefined}
+      canMoveUp
+      canMoveDown
+      {...handlers}
+      {...overrides}
+    />,
+  );
+  return { app, handlers };
+}
+
+describe("AccountDashboardCard on a wide window", () => {
+  let app: Mounted | null = null;
+
+  beforeEach(() => setNarrowWindow(false));
+
+  afterEach(() => {
+    app?.unmount();
+    app = null;
+    vi.restoreAllMocks();
+  });
+
+  it("shows the plan chip, the updated time, then Refresh, Alerts and a more-actions menu", () => {
+    const rendered = renderDesktopCard();
+    app = rendered.app;
+    const actions = app.container.querySelector(".account-card-desktop-actions")!;
+    // A live account needs no status chip.
+    expect(actions.querySelector(".account-status-chip")).toBeNull();
+    expect(actions.querySelector(".account-plan-badge")?.textContent).toBe("Pro/$20");
+    expect(actions.querySelector(".account-card-updated")?.textContent).toMatch(/^Updated /);
+    const buttons = [...actions.querySelectorAll<HTMLButtonElement>(":scope > button, .account-card-menu > button")].map((b) => b.getAttribute("aria-label"));
+    expect(buttons).toEqual(["Refresh Claude", "Configure usage notifications for Claude", "More actions for Claude"]);
+    // The phone layout's chevron menu and the old row of move / remove buttons are gone.
+    expect(app.container.querySelector(".mobile-dropdown-toggle")).toBeNull();
+    expect(app.container.querySelector('[aria-label="Remove Claude"]')).toBeNull();
+    expect(app.container.querySelector(".provider-account-card")?.classList.contains("desktop-card")).toBe(true);
+  });
+
+  it("runs Refresh and Alerts from their buttons", () => {
+    const rendered = renderDesktopCard();
+    app = rendered.app;
+    click(app.container.querySelector<HTMLButtonElement>('[aria-label="Refresh Claude"]')!);
+    click(app.container.querySelector<HTMLButtonElement>('[aria-label="Configure usage notifications for Claude"]')!);
+    expect(rendered.handlers.onRefresh).toHaveBeenCalledTimes(1);
+    expect(rendered.handlers.onNotifications).toHaveBeenCalledTimes(1);
+  });
+
+  it("collapses the card and starts renaming from the menu", async () => {
+    const rendered = renderDesktopCard();
+    app = rendered.app;
+    const toggle = () => app!.container.querySelector<HTMLButtonElement>('[aria-label="More actions for Claude"]')!;
+    const item = (text: string) => [...document.querySelectorAll<HTMLButtonElement>(".account-card-menu-list .mobile-dropdown-item")].find((b) => b.textContent?.includes(text))!;
+
+    click(toggle());
+    click(item("Collapse card"));
+    expect(app.container.querySelector(".provider-account-card")?.classList.contains("is-collapsed")).toBe(true);
+
+    click(toggle());
+    expect(item("Expand card")).toBeDefined();
+    click(item("Rename"));
+    await settle();
+    expect(app.container.querySelector<HTMLInputElement>(".account-card-name-input")).not.toBeNull();
+  });
+
+  it("moves and removes from the menu", () => {
+    const rendered = renderDesktopCard();
+    app = rendered.app;
+    const toggle = () => app!.container.querySelector<HTMLButtonElement>('[aria-label="More actions for Claude"]')!;
+    const item = (text: string) => [...document.querySelectorAll<HTMLButtonElement>(".account-card-menu-list .mobile-dropdown-item")].find((b) => b.textContent?.includes(text))!;
+
+    click(toggle());
+    click(item("Move down"));
+    expect(rendered.handlers.onMove).toHaveBeenCalledWith(1);
+    click(toggle());
+    click(item("Remove account"));
+    expect(rendered.handlers.onRemove).toHaveBeenCalledTimes(1);
+  });
+
+  it("names a status that is not live in the chip", () => {
+    const rendered = renderDesktopCard({ account: { ...account, authRequired: true } });
+    app = rendered.app;
+    const chip = app.container.querySelector(".account-status-chip")!;
+    expect(chip.textContent).toBe("Auth needed");
+    expect(chip.classList.contains("danger")).toBe(true);
+  });
+});
+
+describe("AccountDashboardCard menu on a wide window", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("lists the actions without keyboard shortcut hints", () => {
+    setNarrowWindow(false);
+    const { app } = renderDesktopCard();
+    click(app.container.querySelector<HTMLButtonElement>('[aria-label="More actions for Claude"]')!);
+    const items = [...document.querySelectorAll(".account-card-menu-list .mobile-dropdown-item")].map((item) => item.textContent?.trim());
+    // The card's collapsed state is remembered between tests, so the third item may say Expand.
+    expect(items).toEqual(["Move up", "Move down", expect.stringMatching(/^(Collapse|Expand) card$/), "Rename", "Remove account"]);
+    app.unmount();
+  });
+});

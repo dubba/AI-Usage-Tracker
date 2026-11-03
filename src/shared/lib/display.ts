@@ -200,6 +200,26 @@ export function metricChipLabel(window: UsageWindow, provider?: Provider | strin
   return (hasDistinctGroup ? group : null) ?? window.label ?? null;
 }
 
+const DURATION_SPAN: Record<string, string> = {
+  "5H LIMIT": "5-hour",
+  "7D LIMIT": "7-day",
+  "30D LIMIT": "30-day",
+  "SESSION LIMIT": "Session",
+};
+
+/**
+ * The limit chip split in two for the desktop account card: the window length ("7-day") and what it
+ * covers ("Grok"). Either may be missing, e.g. a window with no known length shows only its name.
+ */
+export function metricWindowParts(window: UsageWindow, provider?: Provider | string): { span: string | null; name: string | null } {
+  const chip = metricChipLabel(window, provider);
+  if (!chip) return { span: null, name: window.label || null };
+  const [first, ...rest] = chip.split(" · ");
+  const span = DURATION_SPAN[first] ?? null;
+  if (!span) return { span: null, name: chip };
+  return { span, name: rest.join(" · ") || null };
+}
+
 const WINDOW_PILL_CLASS: Record<WindowKind, string> = {
   five_hour: "window-pill-5h",
   weekly: "window-pill-7d",

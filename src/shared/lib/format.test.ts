@@ -5,8 +5,10 @@ import {
   formatElapsed,
   formatMonthDay,
   formatRemainingDuration,
+  formatResetAtDate,
   formatResetAtShort,
   formatUpdatedAt,
+  resetCountdown,
   resetCountdownLabel,
 } from "./format";
 
@@ -119,6 +121,18 @@ describe("resetCountdownLabel", () => {
   });
 });
 
+describe("resetCountdown", () => {
+  it("is the time remaining without the label", () => {
+    expect(resetCountdown(new Date(NOW + 128 * MINUTE).toISOString(), NOW)).toBe("2h 8m");
+    expect(resetCountdown(new Date(NOW + 10 * HOUR).toISOString(), NOW, 5 * 3600)).toBe("4h 59m");
+  });
+
+  it("returns null without a reset time or once it has passed", () => {
+    expect(resetCountdown(null)).toBeNull();
+    expect(resetCountdown(new Date(NOW - MINUTE).toISOString(), NOW)).toBeNull();
+  });
+});
+
 describe("formatUpdatedAt", () => {
   it("returns null for empty or invalid input", () => {
     expect(formatUpdatedAt(null)).toBeNull();
@@ -153,6 +167,18 @@ describe("formatResetAtShort", () => {
 
   it("uses the locale's own date and 24-hour time elsewhere", () => {
     expect(formatResetAtShort(new Date(2026, 9, 6, 14, 5).toISOString(), "en-GB")).toBe("6 Oct @ 14:05");
+  });
+});
+
+describe("formatResetAtDate", () => {
+  it("returns null for empty or invalid input", () => {
+    expect(formatResetAtDate(null)).toBeNull();
+    expect(formatResetAtDate("nope")).toBeNull();
+  });
+
+  it("joins the date and the app's compact time with a comma", () => {
+    expect(formatResetAtDate(new Date(2026, 10, 3, 1, 32).toISOString(), "en-US")).toBe("Nov 3, 1:32a");
+    expect(formatResetAtDate(new Date(2026, 9, 6, 14, 5).toISOString(), "en-GB")).toBe("6 Oct, 14:05");
   });
 });
 

@@ -1002,3 +1002,361 @@
     box-sizing: border-box;
   }
 }
+
+/* ==========================================================================
+   Desktop account card (min-width 861px). AccountDashboardCard adds
+   `desktop-card` and renders `.account-card-desktop-actions` (a status chip
+   unless the account is live, the plan chip, updated time, Refresh, Alerts, the ⋯ menu); AccountUsageMetric renders
+   `.desktop-metric` (window and name with the percent, bar, then reset time and
+   date). The phone layout renders neither, so these rules never reach it.
+   ========================================================================== */
+@media (min-width: 861px) {
+  .provider-account-card.desktop-card {
+    border-radius: 14px;
+  }
+
+  /* When the name and the actions do not fit on one line, the actions drop below, right-aligned,
+     instead of squeezing the name and email. */
+  .provider-account-card.desktop-card .provider-account-card-header {
+    align-items: center;
+    flex-wrap: wrap;
+    row-gap: 12px;
+    min-height: 0;
+    /* The drag grip spans 12px to 16px (dashboard-reorder.css); 28px leaves the same 12px between
+       it and the icon as the header's gap between the icon and the name. */
+    padding: 18px 20px 16px 28px;
+  }
+
+  /* The header no longer ends at the icon (the actions can wrap below it), so the grip is
+     centered on the icon from the top: 18px of padding plus half the 44px icon. */
+  .provider-account-card.desktop-card .provider-account-card-header .reorder-grip {
+    top: 40px;
+    bottom: auto;
+    transform: translateY(-50%);
+  }
+
+  .provider-account-card.desktop-card .account-card-provider-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 11px;
+    background: var(--obsidian-surface-container-high);
+    border: 1px solid var(--obsidian-border);
+  }
+
+  .provider-account-card.desktop-card .account-card-identity h2 {
+    font-size: 18px;
+  }
+
+  /* A quiet pencil beside the name. The filled purple pencil (`:root .account-name-edit` in
+     ui-refinements.css) is !important, so the overrides here are too. */
+  .provider-account-card.desktop-card .account-name-edit {
+    border: 0;
+    border-radius: 6px;
+    background: transparent !important;
+    color: var(--obsidian-muted);
+  }
+
+  .provider-account-card.desktop-card .account-name-edit svg {
+    width: 15px !important;
+    height: 15px !important;
+    color: var(--obsidian-muted-bright) !important;
+  }
+
+  .provider-account-card.desktop-card .account-name-edit:hover:not(:disabled),
+  .provider-account-card.desktop-card .account-name-edit:focus-visible {
+    background: var(--purple-surface) !important;
+  }
+
+  .provider-account-card.desktop-card .account-name-edit:hover:not(:disabled) svg,
+  .provider-account-card.desktop-card .account-name-edit:focus-visible svg {
+    color: var(--obsidian-text) !important;
+  }
+
+  .provider-account-card.desktop-card .account-card-email {
+    margin-top: 2px;
+    font-size: 13px;
+    color: var(--obsidian-muted);
+  }
+
+  .account-card-desktop-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-left: auto;
+    min-width: 0;
+  }
+
+  .provider-account-card.desktop-card .account-status-chip,
+  .provider-account-card.desktop-card .account-plan-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 26px;
+    min-height: 26px;
+    max-height: 26px;
+    padding: 0 11px;
+    border: 0;
+    border-radius: 999px;
+    /* ui-refinements.css sets the plan badge to 10px with !important. */
+    font-size: 12px !important;
+    font-weight: 650;
+    line-height: 1;
+    letter-spacing: 0;
+    text-transform: none;
+    white-space: nowrap;
+  }
+
+  .provider-account-card.desktop-card .account-plan-badge {
+    background: var(--purple-surface);
+    color: var(--purple-text);
+  }
+
+  .account-status-chip-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .provider-account-card.desktop-card .account-status-chip.warning {
+    background: rgb(255 184 105 / 0.14);
+    color: var(--obsidian-amber);
+  }
+
+  .provider-account-card.desktop-card .account-status-chip.danger {
+    background: rgb(255 84 73 / 0.14);
+    color: var(--c-ff9d9d);
+  }
+
+  .provider-account-card.desktop-card .account-status-chip.neutral {
+    background: var(--obsidian-surface-container-high);
+    color: var(--obsidian-muted-bright);
+  }
+
+  .provider-account-card.desktop-card .account-card-desktop-actions .account-card-updated {
+    margin: 0 4px 0 2px;
+    font-size: 13px;
+    color: var(--obsidian-muted);
+    white-space: nowrap;
+  }
+
+  /* ui-refinements.css caps every card action at 28px (max-width / max-height), which left these
+     36px wide but 28px tall. */
+  .provider-account-card.desktop-card .account-card-desktop-actions .account-card-action {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    max-width: 36px;
+    min-height: 36px;
+    max-height: 36px;
+    padding: 0;
+    border: 1px solid var(--obsidian-border-strong);
+    border-radius: 9px;
+    background: var(--obsidian-surface-container);
+    color: var(--obsidian-muted-bright);
+    box-shadow: none;
+  }
+
+  .provider-account-card.desktop-card .account-card-desktop-actions .account-card-action svg,
+  .provider-account-card.desktop-card .account-card-desktop-actions .account-card-action .mini-spinner {
+    width: 17px;
+    height: 17px;
+    color: inherit;
+  }
+
+  .provider-account-card.desktop-card .account-card-desktop-actions .account-card-action:disabled {
+    opacity: 0.5;
+  }
+
+  .provider-account-card.desktop-card .account-card-desktop-actions .account-card-action:not(:disabled):hover,
+  .provider-account-card.desktop-card .account-card-desktop-actions .more-action[aria-expanded="true"] {
+    border-color: var(--purple-accent);
+    background: var(--purple-surface);
+    color: var(--obsidian-text);
+  }
+
+  .provider-account-card.desktop-card .account-card-desktop-actions .refresh-action.spinning svg {
+    animation: account-refresh-spin 0.8s linear infinite;
+  }
+
+  .provider-account-card.desktop-card .collapsed-summary {
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .account-card-menu {
+    position: relative;
+  }
+
+  /* As wide as its longest item (the base menu is max-content). */
+  .account-card-menu-list {
+    padding: 6px;
+    border-color: var(--obsidian-border-strong);
+    border-radius: 10px;
+  }
+
+  /* The icons are drawn 2px inside their 16px box, so 2px more on the right makes the space after
+     the widest label ("Remove account") match the space before its trash can. */
+  .account-card-menu-list .mobile-dropdown-item {
+    border-radius: 6px;
+    padding: 9px 12px 9px 10px;
+    font-size: 14px;
+  }
+
+  .account-card-menu-list .mobile-dropdown-item.move-action,
+  .account-card-menu-list .mobile-dropdown-item.collapse-action,
+  .account-card-menu-list .mobile-dropdown-item.rename-action {
+    color: var(--obsidian-text);
+  }
+
+  .account-card-menu-list .mobile-dropdown-item.remove-action {
+    color: var(--c-ff9d9d);
+  }
+
+  /* Hover reads like the card's Refresh (green) and Alerts (amber) buttons: a strong border in
+     its color over a tint. The border is an inset shadow, so the item does not move. */
+  .account-card-menu-list .mobile-dropdown-item.remove-action:hover:not(:disabled),
+  .account-card-menu-list .mobile-dropdown-item.remove-action:focus-visible {
+    background: var(--c-85-15-15-a420);
+    box-shadow: inset 0 0 0 1px rgba(255, 100, 100, 0.9);
+    color: var(--c-ffb4ab);
+  }
+
+  /* The chevron points right; up for Collapse, down for Expand. */
+  .account-card-menu-list .collapse-action svg {
+    transform: rotate(-90deg);
+  }
+
+  .account-card-menu-list .collapse-action svg.is-collapsed {
+    transform: rotate(90deg);
+  }
+
+  .account-card-menu-separator {
+    height: 1px;
+    margin: 4px 2px;
+    background: var(--obsidian-border);
+  }
+
+  /* The row gap equals the 16px between the divider and the first row. */
+  .provider-account-card.desktop-card .account-card-metrics {
+    gap: 16px 36px;
+    margin: 0 20px;
+    padding: 16px 0 20px;
+    border-top: 1px solid var(--obsidian-border);
+  }
+
+  /* The rows are spaced by the grid gap alone. The phone layout's 12px under each row
+     (`.multi-row-metrics .account-usage-metric:not(:last-child)...` above) is more specific than
+     this rule, hence !important. */
+  .provider-account-card.desktop-card .account-card-metrics .account-usage-metric.desktop-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0 !important;
+  }
+
+  .desktop-metric .desktop-metric-head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .desktop-metric .desktop-metric-span {
+    color: var(--obsidian-muted);
+    font-size: 12px;
+    font-weight: 750;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .desktop-metric .desktop-metric-name {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--obsidian-text);
+    font-size: 15px;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .desktop-metric .metric-percent-line {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    margin-left: auto;
+  }
+
+  .desktop-metric .metric-full-value {
+    font-size: 20px;
+    font-weight: 750;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .desktop-metric .metric-percent-suffix {
+    color: var(--obsidian-muted);
+    font-size: 13px;
+  }
+
+  .desktop-metric .account-metric-track {
+    flex: none;
+    width: 100%;
+    height: 7px;
+  }
+
+  .desktop-metric .desktop-metric-foot {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--obsidian-muted);
+    font-size: 13px;
+  }
+
+  .desktop-metric .desktop-metric-foot .metric-reset {
+    margin: 0;
+    text-align: left;
+    color: var(--obsidian-muted);
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .desktop-metric .desktop-metric-foot .metric-reset strong {
+    color: var(--obsidian-muted-bright);
+    font-weight: 650;
+  }
+
+  .desktop-metric .desktop-metric-date {
+    margin-left: auto;
+    white-space: nowrap;
+  }
+}
+
+/* The Group pill beside a group's name in the sidebar and in its page header, drawn like the plan
+   chip on a desktop account card ("Pro/$20"): a rounded purple pill in normal case. */
+@media (min-width: 861px) {
+  .provider-summary-row .bucket-mini-badge,
+  .dashboard-title-row .dashboard-bucket-pill {
+    height: 22px;
+    margin-left: 6px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: var(--purple-surface);
+    color: var(--purple-text);
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .dashboard-title-row .dashboard-bucket-pill {
+    height: 26px;
+    margin-left: 4px;
+    padding: 0 11px;
+  }
+}

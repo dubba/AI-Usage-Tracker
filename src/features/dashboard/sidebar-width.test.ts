@@ -23,6 +23,11 @@ describe("maxSidebarWidth", () => {
     expect(maxSidebarWidth({ overlay: true, viewportWidth: 390, shellWidth: 390, min: 240 })).toBe(342);
   });
 
+  it("leaves the measured room for the account cards when that is more than the fixed floor", () => {
+    expect(maxSidebarWidth({ overlay: false, viewportWidth: 1280, shellWidth: 1200, min: 240, mainMin: 860 })).toBe(340);
+    expect(maxSidebarWidth({ overlay: false, viewportWidth: 1280, shellWidth: 1200, min: 240, mainMin: 300 })).toBe(680);
+  });
+
   it("never goes below the minimum, even in a tiny window", () => {
     expect(maxSidebarWidth({ overlay: false, viewportWidth: 600, shellWidth: 600, min: 240 })).toBe(240);
   });

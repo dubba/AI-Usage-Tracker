@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { ArrowDownIcon, ArrowUpIcon, BellIcon, ChevronIcon, RefreshIcon, TrashIcon } from "../../shared/ui/icons";
+import { ArrowDownIcon, ArrowUpIcon, BellIcon, ChevronIcon, EditIcon, MoreIcon, RefreshIcon, TrashIcon } from "../../shared/ui/icons";
 import { computeDropdownPlacement } from "../../shared/ui/dropdown-placement";
 import { useAnchoredMenuPlacement, useMenuDismissal, useMenuKeyboardNav } from "../../shared/ui/menu-hooks";
 import { displayAccountLabel } from "../../shared/lib/usage-logic";
@@ -38,9 +38,11 @@ export function computeAccountCardMenuPlacement(
 }
 
 /**
- * The account card's "more actions" menu (the chevron button that shows Move, Refresh, Notifications
- * and Remove on narrow screens). Whether it is open belongs to the card, which also styles itself
- * while a menu is open, so it is controlled through `open` / `onOpenChange`.
+ * The account card's "more actions" menu. On narrow screens (`variant` "mobile") it is the chevron
+ * button that shows Move, Refresh, Notifications and Remove. On a wide window ("desktop") it is the
+ * ⋯ button beside Refresh and Alerts, holding Move, Collapse, Rename and Remove. Whether it is open
+ * belongs to the card, which also styles itself while a menu is open, so it is controlled through
+ * `open` / `onOpenChange`.
  */
 export function AccountCardMenu({
   account,
@@ -55,6 +57,10 @@ export function AccountCardMenu({
   onRefresh,
   onNotifications,
   onRemove,
+  variant = "mobile",
+  collapsed = false,
+  onToggleCollapse,
+  onRename,
 }: {
   account: Account;
   open: boolean;
@@ -70,6 +76,11 @@ export function AccountCardMenu({
   onRefresh: () => void;
   onNotifications: () => void;
   onRemove: () => void;
+  variant?: "mobile" | "desktop";
+  /** Desktop only: the card is collapsed, so the menu offers Expand instead of Collapse. */
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+  onRename?: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
@@ -105,7 +116,9 @@ export function AccountCardMenu({
   useMenuDismissal({
     open,
     containerRef,
-    pressEvents: ["mousedown", "touchstart"],
+    // pointerdown too: a press on a card or sidebar row starts the reorder gesture, which cancels
+    // the press's default action, so no mousedown follows it.
+    pressEvents: ["pointerdown", "mousedown", "touchstart"],
     onDismiss: (restoreFocus) => close(restoreFocus),
   });
   useMenuKeyboardNav({ open, menuRef, itemSelector: ".mobile-dropdown-item" });
@@ -115,6 +128,68 @@ export function AccountCardMenu({
     close(true);
     action();
   };
+
+  const menuStyle = placement.maxHeight != null ? { maxHeight: `${placement.maxHeight}px` } : undefined;
+  const moveItems = hasMove ? (
+    <>
+      <button type="button" role="menuitem" className="mobile-dropdown-item move-action" disabled={cardBusy || !canMoveUp} onClick={choose(() => onMove(-1))}>
+        <ArrowUpIcon /> Move up
+      </button>
+      <button type="button" role="menuitem" className="mobile-dropdown-item move-action" disabled={cardBusy || !canMoveDown} onClick={choose(() => onMove(1))}>
+        <ArrowDownIcon /> Move down
+      </button>
+    </>
+  ) : null;
+
+  if (variant === "desktop") {
+    return (
+      <div className="account-card-menu" ref={containerRef}>
+        <button
+          ref={toggleRef}
+          type="button"
+          className="account-card-action more-action"
+          onClick={toggle}
+          aria-expanded={open}
+          aria-haspopup="menu"
+          aria-controls={open ? menuId : undefined}
+          aria-label={`More actions for ${label}`}
+          data-tooltip={open ? undefined : "More actions"}
+        >
+          <MoreIcon />
+        </button>
+        {open ? (
+          <div
+            ref={menuRef}
+            className={`mobile-dropdown-menu account-card-menu-list ${placement.openUpward ? "upward" : ""}`}
+            id={menuId}
+            role="menu"
+            aria-label={`Actions for ${label}`}
+            style={menuStyle}
+          >
+            {moveItems}
+            {onToggleCollapse ? (
+              <button type="button" role="menuitem" className="mobile-dropdown-item collapse-action" onClick={choose(onToggleCollapse)}>
+                <ChevronIcon className={collapsed ? "is-collapsed" : undefined} /> {collapsed ? "Expand card" : "Collapse card"}
+              </button>
+            ) : null}
+            {onRename ? (
+              <button type="button" role="menuitem" className="mobile-dropdown-item rename-action" disabled={cardBusy} onClick={() => {
+                // Focus goes to the name field, not back to the toggle.
+                close();
+                onRename();
+              }}>
+                <EditIcon /> Rename
+              </button>
+            ) : null}
+            <div className="account-card-menu-separator" role="separator" />
+            <button type="button" role="menuitem" className="mobile-dropdown-item remove-action" disabled={cardBusy} onClick={choose(onRemove)}>
+              <TrashIcon /> Remove account
+            </button>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div className={`mobile-actions-dropdown${hasMove ? " has-move-menu" : ""}`} ref={containerRef}>
@@ -137,18 +212,9 @@ export function AccountCardMenu({
           id={menuId}
           role="menu"
           aria-label={`Actions for ${label}`}
-          style={placement.maxHeight != null ? { maxHeight: `${placement.maxHeight}px` } : undefined}
+          style={menuStyle}
         >
-          {hasMove ? (
-            <>
-              <button type="button" role="menuitem" className="mobile-dropdown-item move-action" disabled={cardBusy || !canMoveUp} onClick={choose(() => onMove(-1))}>
-                <ArrowUpIcon /> Move up
-              </button>
-              <button type="button" role="menuitem" className="mobile-dropdown-item move-action" disabled={cardBusy || !canMoveDown} onClick={choose(() => onMove(1))}>
-                <ArrowDownIcon /> Move down
-              </button>
-            </>
-          ) : null}
+          {moveItems}
           <button type="button" role="menuitem" className="mobile-dropdown-item mobile-only-item refresh-action" disabled={cardBusy || refreshDisabled} onClick={choose(onRefresh)}>
             <RefreshIcon /> Refresh
           </button>

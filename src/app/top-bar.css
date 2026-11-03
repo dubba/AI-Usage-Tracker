@@ -1,0 +1,260 @@
+/* The bar across the top of a wide window (TopBar.tsx): the app name, the Accounts, Usage and
+ * Settings pages, the sync status, Refresh all, the Left / Used switch and the Add account and
+ * New group buttons. It only renders while the sidebar is not an overlay, so none of this
+ * reaches a phone.
+ *
+ * Layered rules lose to unlayered ones, and the global rules `button { color: inherit; font: inherit }`,
+ * `svg { width; height }` and `:focus-visible { outline-offset }` are unlayered. The declarations
+ * below that must beat them are `!important`, which inverts the order (a layered `!important`
+ * beats an unlayered one); see docs/CSS_ARCHITECTURE.md. */
+@layer components {
+  /* The bar takes the first row across both columns; the sidebar and the page share the second. */
+  .app-shell.has-top-bar {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .app-shell.has-top-bar > .sidebar,
+  .app-shell.has-top-bar > .main-stage {
+    grid-row: 2;
+  }
+
+  .top-bar {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: clamp(12px, 2vw, 24px);
+    min-width: 0;
+    padding: 12px 24px;
+    background: var(--c-171616);
+    border-bottom: 1px solid var(--obsidian-border);
+  }
+
+  .top-bar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 0 0 auto;
+  }
+
+  .top-bar-brand strong {
+    font-size: 15px;
+    font-weight: 750;
+    color: var(--obsidian-text);
+    white-space: nowrap;
+  }
+
+  /* The app's own icon (src-tauri/icons/icon.svg), the size and corners of the Refresh all button. */
+  .top-bar-brand-mark {
+    display: block;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 auto;
+    border-radius: 9px;
+  }
+
+  /* A narrower window keeps the mark and gives the name's room to the sync status. */
+  @media (max-width: 1180px) {
+    .top-bar-brand strong {
+      display: none;
+    }
+  }
+
+  .top-bar-nav {
+    display: flex;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid var(--obsidian-border);
+    border-radius: 10px;
+    background: var(--obsidian-surface-low);
+    transition: border-color 120ms ease;
+  }
+
+  .top-bar-nav-item {
+    height: 32px;
+    padding: 0 16px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--obsidian-muted) !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    cursor: pointer;
+    transition: background 120ms ease, color 120ms ease;
+  }
+
+  .top-bar-nav-item.is-active {
+    background: var(--purple-fill);
+    color: var(--purple-on-fill) !important;
+  }
+
+  .top-bar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+    min-width: 0;
+  }
+
+  /* The first thing to give way when the window narrows: it shortens with an ellipsis. */
+  .top-bar-sync {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--obsidian-muted);
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .top-bar-sync > span:not(.top-bar-sync-dot) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .top-bar-sync-dot {
+    width: 7px;
+    height: 7px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: var(--obsidian-muted);
+  }
+
+  .top-bar-sync.is-fresh .top-bar-sync-dot { background: var(--obsidian-green); }
+  .top-bar-sync.is-stale .top-bar-sync-dot { background: var(--obsidian-amber); }
+  .top-bar-sync.is-syncing .top-bar-sync-dot { background: var(--purple-accent); }
+  .top-bar-sync-detail { color: var(--obsidian-amber); }
+
+  .top-bar-icon-button {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 auto;
+    padding: 0;
+    border: 1px solid var(--obsidian-border-strong);
+    border-radius: 9px;
+    background: var(--obsidian-surface-container);
+    color: var(--obsidian-muted-bright) !important;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+  }
+
+  .top-bar-icon-button svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  .top-bar-icon-button:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+
+  .top-bar-refresh.spinning svg {
+    animation: spin 0.75s linear infinite;
+  }
+
+  .top-bar-segmented {
+    display: flex;
+    flex: 0 0 auto;
+    padding: 3px;
+    border: 1px solid var(--obsidian-border);
+    border-radius: 9px;
+    background: var(--obsidian-surface-low);
+    transition: border-color 120ms ease;
+  }
+
+  .top-bar-segmented button {
+    height: 30px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--obsidian-muted) !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    cursor: pointer;
+    transition: background 120ms ease, color 120ms ease;
+  }
+
+  /* The selected option sits on the gray of a switch that is off, with the same outline, so it
+     stands clear of the bar's darker track. */
+  .top-bar-segmented button.active {
+    background: var(--c-292829);
+    outline: 1px solid var(--obsidian-border-strong);
+    outline-offset: -1px;
+    color: var(--obsidian-text) !important;
+  }
+
+  .top-bar-add-account {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    flex: 0 0 auto;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--purple-fill);
+    color: var(--purple-on-fill) !important;
+    font-size: 14px !important;
+    font-weight: 650 !important;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 120ms ease;
+  }
+
+  .top-bar-add-account svg {
+    width: 17px !important;
+    height: 17px !important;
+  }
+
+  .top-bar-add-group {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+  }
+
+  /* Its copy breaks after "in" on purpose, as on the phone sidebar's Group button. The global
+     tooltip rule keeps tooltips on one line, so this needs !important (see the header). */
+  .top-bar-add-group[data-tooltip]::after {
+    width: max-content !important;
+    max-width: 260px;
+    white-space: pre-line !important;
+    text-align: left;
+  }
+
+  @media (hover: hover) {
+    .top-bar-nav-item:not(.is-active):hover,
+    .top-bar-segmented button:not(.active):hover {
+      color: var(--obsidian-text) !important;
+    }
+
+    /* The page switch and the Left / Used switch outline in purple, like the buttons beside them. */
+    .top-bar-nav:hover,
+    .top-bar-segmented:hover {
+      border-color: var(--purple-accent);
+    }
+
+    .top-bar-icon-button:not(:disabled):hover {
+      border-color: var(--purple-accent);
+      background: var(--purple-surface);
+      color: var(--obsidian-text) !important;
+    }
+
+    .top-bar-add-account:hover {
+      background: var(--purple-fill-hover);
+    }
+  }
+
+  .top-bar-nav-item:focus-visible,
+  .top-bar-segmented button:focus-visible,
+  .top-bar-icon-button:focus-visible,
+  .top-bar-add-account:focus-visible {
+    outline: 2px solid var(--purple-accent);
+    outline-offset: 2px !important;
+  }
+}

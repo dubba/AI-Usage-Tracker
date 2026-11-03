@@ -42,6 +42,14 @@ export function formatResetAtShort(value: string | null | undefined, locale?: st
   return `${formatMonthDay(date, locale)} @ ${formatClockTime(date, locale)}`;
 }
 
+/** "Nov 3, 1:32a": the reset date as the desktop account card shows it, under the bar. */
+export function formatResetAtDate(value: string | null | undefined, locale?: string): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return `${formatMonthDay(date, locale)}, ${formatClockTime(date, locale)}`;
+}
+
 export function formatRemainingDuration(remainingMs: number): string | null {
   if (!Number.isFinite(remainingMs) || remainingMs <= 0) return null;
   const totalMinutes = Math.floor(remainingMs / 60_000);
@@ -87,6 +95,16 @@ export function resetCountdownLabel(
   now: number = Date.now(),
   windowSeconds?: number | null,
 ): string | null {
+  const remaining = resetCountdown(value, now, windowSeconds);
+  return remaining ? `Reset: ${remaining}` : null;
+}
+
+/** Time left until a reset ("2h 8m"), capped just under the window length; null once it has passed. */
+export function resetCountdown(
+  value: string | null | undefined,
+  now: number = Date.now(),
+  windowSeconds?: number | null,
+): string | null {
   if (!value) return null;
   const resetAt = new Date(value).getTime();
   if (!Number.isFinite(resetAt)) return null;
@@ -95,8 +113,7 @@ export function resetCountdownLabel(
   if (windowSeconds && remainingMs >= windowSeconds * 1000) {
     remainingMs = windowSeconds * 1000 - 1;
   }
-  const remaining = formatRemainingDuration(remainingMs);
-  return remaining ? `Reset: ${remaining}` : null;
+  return formatRemainingDuration(remainingMs);
 }
 
 export function formatAlertTime(timestamp: number): string {

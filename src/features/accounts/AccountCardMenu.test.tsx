@@ -153,6 +153,15 @@ describe("AccountCardMenu", () => {
     expect(menu()).not.toBeNull();
   });
 
+  it("closes on a press outside that sends no mousedown, as on a card the reorder gesture holds", () => {
+    mounted = mount(<Harness handlers={handlers()} />);
+    click(toggle());
+    act(() => {
+      document.getElementById("outside")!.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    });
+    expect(menu()).toBeNull();
+  });
+
   it("closes on a touch outside too, and from the toggle itself", () => {
     mounted = mount(<Harness handlers={handlers()} />);
     click(toggle());
