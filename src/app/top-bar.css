@@ -177,7 +177,7 @@
     font-size: 13px !important;
     font-weight: 600 !important;
     cursor: pointer;
-    transition: background 120ms ease, color 120ms ease;
+    transition: background 120ms ease, color 120ms ease, outline-color 120ms ease;
   }
 
   /* The selected option sits on the gray of a switch that is off, with the same outline, so it
@@ -247,6 +247,17 @@
 
     .top-bar-add-account:hover {
       background: var(--purple-fill-hover);
+    }
+
+    /* The selected page brightens like Add account. */
+    .top-bar-nav-item.is-active:hover {
+      background: var(--purple-fill-hover);
+    }
+
+    /* The selected Left / Used option takes the hover of a Settings switch: purple outline, purple tint. */
+    .top-bar-segmented button.active:hover {
+      outline-color: var(--obsidian-purple-strong);
+      background: var(--purple-surface);
     }
   }
 
