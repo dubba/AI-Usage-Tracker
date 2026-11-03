@@ -1179,6 +1179,37 @@
     color: var(--obsidian-text);
   }
 
+  /* The menu button is tinted purple so it reads as the one with more inside, not a third
+     plain action beside Refresh and Alerts. */
+  /* The edge and fill stay as quiet as the gray buttons' borders (a brighter purple made the same
+     36px box look larger). */
+  .provider-account-card.desktop-card .account-card-desktop-actions .account-card-action.more-action {
+    border-color: rgb(var(--purple-accent-rgb) / 0.35);
+    background: rgb(var(--purple-accent-rgb) / 0.12);
+    color: var(--purple-text);
+  }
+
+  .provider-account-card.desktop-card .account-card-desktop-actions .account-card-action.more-action:not(:disabled):hover,
+  .provider-account-card.desktop-card .account-card-desktop-actions .account-card-action.more-action[aria-expanded="true"] {
+    border-color: var(--purple-accent);
+    background: rgb(var(--purple-accent-rgb) / 0.28);
+    color: var(--purple-ink);
+  }
+
+  /* The menu's chevron points down, and up while the menu is open, as on the phone layout. */
+  /* A chevron carries its weight in its arms, so it is drawn a little larger than the other icons
+     and moved 1px toward its point to look centered. */
+  .provider-account-card.desktop-card .account-card-desktop-actions .more-action svg {
+    width: 19px;
+    height: 19px;
+    transform: translateY(1px) rotate(90deg);
+    transition: transform 200ms ease;
+  }
+
+  .provider-account-card.desktop-card .account-card-desktop-actions .more-action svg.open {
+    transform: translateY(-1px) rotate(-90deg);
+  }
+
   .provider-account-card.desktop-card .account-card-desktop-actions .refresh-action.spinning svg {
     animation: account-refresh-spin 0.8s linear infinite;
   }
@@ -1241,11 +1272,12 @@
     background: var(--obsidian-border);
   }
 
-  /* The row gap equals the 16px between the divider and the first row. */
+  /* 14px over the first row leaves about the same visible space from the divider to the top of
+     the percent as from the reset date to the card's bottom edge (20px of padding there). */
   .provider-account-card.desktop-card .account-card-metrics {
     gap: 16px 36px;
     margin: 0 20px;
-    padding: 16px 0 20px;
+    padding: 14px 0 20px;
     border-top: 1px solid var(--obsidian-border);
   }
 
@@ -1255,7 +1287,7 @@
   .provider-account-card.desktop-card .account-card-metrics .account-usage-metric.desktop-metric {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 0;
     padding: 0 !important;
   }
 
@@ -1303,10 +1335,12 @@
     font-size: 13px;
   }
 
+  /* The same 6px of spacing above and below the bar. */
   .desktop-metric .account-metric-track {
     flex: none;
     width: 100%;
     height: 7px;
+    margin: 6px 0;
   }
 
   .desktop-metric .desktop-metric-foot {
@@ -1331,8 +1365,10 @@
     font-weight: 650;
   }
 
+  /* The same 550 weight as "Resets in" beside it (`.account-usage-metric .metric-reset`). */
   .desktop-metric .desktop-metric-date {
     margin-left: auto;
+    font-weight: 550;
     white-space: nowrap;
   }
 }

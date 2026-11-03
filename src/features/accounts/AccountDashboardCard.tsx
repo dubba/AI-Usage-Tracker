@@ -88,7 +88,7 @@ export function AccountDashboardCard({
   const iconButtonRef = useRef<HTMLButtonElement>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   // A wide window gets the desktop header: a status chip (unless the account is live), the plan chip,
-  // then Refresh, Alerts and a ⋯ menu.
+  // then Refresh, Alerts and a menu behind a chevron.
   const desktop = !useMediaQuery(MOBILE_OVERLAY_QUERY);
 
   const toggleCollapse = () => {

@@ -1157,11 +1157,12 @@ button.summary-card:focus-visible {
   font-weight: 700;
 }
 
+/* "5H Claude": the limit's short name and the account, a little smaller than a card title. */
 .next-reset-account {
   overflow: hidden;
   max-width: 210px;
   color: var(--c-f0ecef);
-  font-size: 17px;
+  font-size: 15px;
   line-height: 22px;
   font-weight: 600;
   white-space: nowrap;

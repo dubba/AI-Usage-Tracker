@@ -52,7 +52,13 @@ function dashboardDescription(group: SidebarGroup, accountCount: number): string
 
 /** Time until the soonest reset. Updates itself with the shared clock, so the dashboard does not re-render for it. */
 function NextResetCard({ accounts }: { accounts: Account[] }) {
-  const account = useClock((now) => nextResetSummary(accounts, now).account ?? "No upcoming reset");
+  // Which limit resets, not only whose: "7D Grok", "5H Claude".
+  const account = useClock((now) => {
+    const next = nextResetSummary(accounts, now);
+    if (!next.account) return "No upcoming reset";
+    const short = next.limit?.replace("-hour", "H").replace("-day", "D");
+    return short ? `${short} ${next.account}` : next.account;
+  });
   const value = useClock((now) => nextResetSummary(accounts, now).value);
   return (
     <div className="summary-card next-reset-card">

@@ -10,6 +10,7 @@ import {
   cardWindows,
   isMonthlyWindow,
   nextResetSummary,
+  windowLimitName,
   orderedWindows,
   usageTone,
   windowLength,
@@ -78,10 +79,24 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe("windowLimitName", () => {
+  it("names a window by its kind", () => {
+    expect(windowLimitName(win({ id: "five_hour" }))).toBe("5-hour");
+    expect(windowLimitName(win({ id: "weekly" }))).toBe("7-day");
+    expect(windowLimitName(win({ id: "monthly" }))).toBe("30-day");
+  });
+
+  it("falls back to its length in seconds, and to nothing", () => {
+    expect(windowLimitName(win({ id: "x", windowSeconds: 3 * 86400 }))).toBe("3-day");
+    expect(windowLimitName(win({ id: "x", windowSeconds: 2 * 3600 }))).toBe("2-hour");
+    expect(windowLimitName(win({ id: "x" }))).toBeNull();
+  });
+});
+
 describe("nextResetSummary", () => {
   it("reports no upcoming reset when nothing is scheduled", () => {
-    expect(nextResetSummary([account()], NOW)).toEqual({ account: null, value: "—", resetsAt: null });
-    expect(nextResetSummary([], NOW)).toEqual({ account: null, value: "—", resetsAt: null });
+    expect(nextResetSummary([account()], NOW)).toEqual({ account: null, limit: null, value: "—", resetsAt: null });
+    expect(nextResetSummary([], NOW)).toEqual({ account: null, limit: null, value: "—", resetsAt: null });
   });
 
   it("picks the earliest future reset across accounts and windows", () => {
@@ -95,7 +110,7 @@ describe("nextResetSummary", () => {
         lastUsage: usage({ windows: [win({ resetsAt: later }), win({ id: "weekly", resetsAt: soon })] }),
       }),
     ];
-    expect(nextResetSummary(accounts, NOW)).toEqual({ account: "Sooner", value: "2h 0m", resetsAt: soon });
+    expect(nextResetSummary(accounts, NOW)).toEqual({ account: "Sooner", limit: "7-day", value: "2h 0m", resetsAt: soon });
   });
 
   it("ignores resets in the past and invalid dates", () => {

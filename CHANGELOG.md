@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (26 changes)
+## Unreleased (27 changes)
 
 ### Added (3)
 
@@ -8,12 +8,13 @@
 - On the Usage page, the reorder hint ("Press & drag a card below or in the sidebar to reorder") is shown for the first two sessions.
 - On custom account group pages, a red trashcan button next to the group edit pen allows deleting the group directly from the header.
 
-### Improved (5)
+### Improved (6)
 
+- The Next reset card now says which limit resets next before the account's name, such as "5H Claude" or "7D Grok".
 - On desktop, widening the sidebar or narrowing the window now stops before account cards run out of room, so a card's plan and buttons stay on one line with its name.
 - In Settings, the dropdowns and outlined buttons now have the same gray border as a switch that is off, turning purple on hover.
 - On desktop, a bar across the top of the window now holds the Accounts, Usage and Settings pages, the sync status, Refresh all, the Left / Used switch, and the Add account and new group buttons; the sidebar keeps the account and group list.
-- On desktop, account cards show the plan chip (and a status chip when an account needs attention), with Refresh and Alerts buttons and a ⋯ menu for Move up, Move down, Collapse, Rename and Remove.
+- On desktop, account cards show the plan chip (and a status chip when an account needs attention), with Refresh and Alerts buttons and a menu (the chevron, as on mobile) for Move up, Move down, Collapse, Rename and Remove.
 - On desktop, each usage limit on an account card shows its window and name beside a larger percentage, with the time until reset and the reset date under the bar.
 
 ### Fixed (18)

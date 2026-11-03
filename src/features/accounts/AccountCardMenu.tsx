@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { ArrowDownIcon, ArrowUpIcon, BellIcon, ChevronIcon, EditIcon, MoreIcon, RefreshIcon, TrashIcon } from "../../shared/ui/icons";
+import { ArrowDownIcon, ArrowUpIcon, BellIcon, ChevronIcon, EditIcon, RefreshIcon, TrashIcon } from "../../shared/ui/icons";
 import { computeDropdownPlacement } from "../../shared/ui/dropdown-placement";
 import { useAnchoredMenuPlacement, useMenuDismissal, useMenuKeyboardNav } from "../../shared/ui/menu-hooks";
 import { displayAccountLabel } from "../../shared/lib/usage-logic";
@@ -40,7 +40,7 @@ export function computeAccountCardMenuPlacement(
 /**
  * The account card's "more actions" menu. On narrow screens (`variant` "mobile") it is the chevron
  * button that shows Move, Refresh, Notifications and Remove. On a wide window ("desktop") it is the
- * ⋯ button beside Refresh and Alerts, holding Move, Collapse, Rename and Remove. Whether it is open
+ * chevron button beside Refresh and Alerts, holding Move, Collapse, Rename and Remove. Whether it is open
  * belongs to the card, which also styles itself while a menu is open, so it is controlled through
  * `open` / `onOpenChange`.
  */
@@ -155,7 +155,7 @@ export function AccountCardMenu({
           aria-label={`More actions for ${label}`}
           data-tooltip={open ? undefined : "More actions"}
         >
-          <MoreIcon />
+          <ChevronIcon className={open ? "open" : ""} />
         </button>
         {open ? (
           <div

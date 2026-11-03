@@ -1,15 +1,27 @@
 import { formatRemainingDuration } from "./format";
 import { providerName } from "./providers";
 import { GROK_BOT_WINDOW_ID, isGoogleCloudMonitored, isGoogleKeyOnly } from "./usage-sources";
-import type { Account, Provider, UsageWindow } from "../../types";
+import type { Account, Provider, UsageWindow, WindowKind } from "../../types";
 
 export type SidebarWindow = "five_hour" | "weekly";
 
 export type NextResetSummary = {
   account: string | null;
+  /** The limit that resets: "5-hour", "7-day", "30-day"; null when its length is unknown. */
+  limit: string | null;
   value: string;
   resetsAt: string | null;
 };
+
+const LIMIT_BY_KIND: Record<WindowKind, string> = { five_hour: "5-hour", weekly: "7-day", monthly: "30-day" };
+
+/** A window's length as the Next reset card names it ("5-hour", "7-day"), from its kind or its seconds. */
+export function windowLimitName(window: UsageWindow): string | null {
+  if (window.kind) return LIMIT_BY_KIND[window.kind];
+  if (!window.windowSeconds) return null;
+  const hours = Math.round(window.windowSeconds / 3600);
+  return hours >= 24 && hours % 24 === 0 ? `${hours / 24}-day` : `${hours}-hour`;
+}
 
 // Legacy accounts were auto-labeled with an older provider display name
 // (e.g. "Google Antigravity"). Collapse only those obsolete branded defaults
@@ -127,6 +139,7 @@ export function nextResetSummary(accounts: Account[], now: number = Date.now()):
       return [{
         resetAt,
         account: displayAccountLabel(account),
+        limit: windowLimitName(window),
         resetsAt: window.resetsAt,
         windowSeconds: window.windowSeconds,
       }];
@@ -134,7 +147,7 @@ export function nextResetSummary(accounts: Account[], now: number = Date.now()):
   );
 
   if (!candidates.length) {
-    return { account: null, value: "—", resetsAt: null };
+    return { account: null, limit: null, value: "—", resetsAt: null };
   }
 
   candidates.sort((left, right) => left.resetAt - right.resetAt);
@@ -145,6 +158,7 @@ export function nextResetSummary(accounts: Account[], now: number = Date.now()):
   }
   return {
     account: next.account,
+    limit: next.limit,
     value: formatRemainingDuration(remainingMs) ?? "—",
     resetsAt: next.resetsAt,
   };
