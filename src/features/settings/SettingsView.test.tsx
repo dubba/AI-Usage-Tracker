@@ -82,6 +82,17 @@ function openAdvanced() {
 }
 const toggleLabelled = (id: string) => document.querySelector<HTMLButtonElement>(`button[role=switch][aria-labelledby="${id}"]`)!;
 
+describe("SettingsView header", () => {
+  it("says what the page is for under its title, like the Accounts and Usage pages", () => {
+    app = mount(view());
+    const header = document.querySelector(".dashboard-header")!;
+    expect(header.querySelector("p.dashboard-description")?.textContent).toBe("Customize app preferences and settings.");
+    // After the title row, so it sits under the title.
+    const parts = [...header.firstElementChild!.children].map((el) => el.className);
+    expect(parts).toEqual(["dashboard-title-row", "dashboard-description"]);
+  });
+});
+
 describe("SettingsView accessibility", () => {
   it("renders with a focusable h1 heading and labeled dropdowns", () => {
     app = mount(view());

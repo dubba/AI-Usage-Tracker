@@ -2,6 +2,7 @@
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { UI_EVENTS } from "../../shared/lib/events";
+import { setNarrowWindow } from "../../test-utils/media";
 import { click, mount, type Mounted } from "../../test-utils/react";
 import type { Account, AccountBucket } from "../../types";
 import { ALL_ACCOUNTS_GROUP_ID, type SidebarGroup } from "../dashboard/sidebar-groups";
@@ -331,3 +332,32 @@ describe("AccountsView reorder hint banner", () => {
   });
 });
 
+describe("AccountsView L / U switch", () => {
+  let app: Mounted | null = null;
+
+  afterEach(() => {
+    app?.unmount();
+    app = null;
+    vi.restoreAllMocks();
+  });
+
+  it("sits in the page's title row on a phone, after the title", () => {
+    setNarrowWindow(true);
+    app = renderView({ onToggleSidebar: () => undefined });
+    const row = document.querySelector(".dashboard-title-row")!;
+    expect(row.querySelector(".usage-display-toggle")).not.toBeNull();
+    expect(row.lastElementChild?.classList.contains("usage-display-toggle")).toBe(true);
+  });
+
+  it("sits at the header's top right on a wide window, spelled out, and not in the title row", () => {
+    setNarrowWindow(false);
+    app = renderView({ onToggleSidebar: () => undefined });
+    const toggle = document.querySelector(".accounts-display-switch .usage-display-toggle, .accounts-display-switch .top-bar-segmented");
+    expect(toggle).not.toBeNull();
+    expect(toggle?.textContent).toBe("LeftUsed");
+    // Labeled, as "Period" is beside 7D / 30D.
+    expect(document.querySelector(".accounts-display-switch .accounts-display-label")?.textContent).toBe("Show");
+    expect(document.querySelector(".dashboard-title-row .top-bar-segmented")).toBeNull();
+    expect(document.querySelectorAll(".top-bar-segmented")).toHaveLength(1);
+  });
+});

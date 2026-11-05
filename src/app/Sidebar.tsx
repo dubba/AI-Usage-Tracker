@@ -1,13 +1,12 @@
-import { useRef, type RefObject } from "react";
+import { useRef, type ReactNode, type RefObject } from "react";
 import { SyncStatusLine } from "../features/dashboard/SyncStatusLine";
 import { SidebarGroupRow } from "../features/dashboard/SidebarGroupRow";
 import { SidebarResizeHandle } from "../features/dashboard/SidebarResizeHandle";
-import { UsageDisplayToggle } from "../features/dashboard/UsageDisplayToggle";
-import { ALL_ACCOUNTS_GROUP_ID, type SidebarGroup } from "../features/dashboard/sidebar-groups";
+import { ALL_ACCOUNTS_GROUP_ID, isBucketGroup, type SidebarGroup } from "../features/dashboard/sidebar-groups";
 import { SIDEBAR_ID } from "../shared/lib/constants";
 import type { BusyKeys } from "../shared/lib/busy";
 import { useScrollThumb } from "../shared/hooks/useScrollThumb";
-import { CloseIcon, GaugeIcon, PlusIcon } from "../shared/ui/icons";
+import { CloseIcon, GaugeIcon, PlusIcon, UserPlusIcon } from "../shared/ui/icons";
 import type { Account } from "../types";
 import type { Section } from "./useSidebarNavigation";
 
@@ -65,6 +64,30 @@ export function Sidebar({
   const providerListRef = useRef<HTMLDivElement>(null);
   const providerListOverflows = useScrollThumb(providerListRef, true, groups).overflows;
 
+  // Provider rows and custom groups share one saved order, but the sidebar lists them in two sections.
+  const accountGroups = groups.filter((group) => !isBucketGroup(group));
+  const bucketGroups = groups.filter(isBucketGroup);
+  const renderRow = (group: SidebarGroup, index: number, list: SidebarGroup[]) => (
+    <SidebarGroupRow
+      key={group.id}
+      group={group}
+      onMove={(delta) => {
+        const target = index + delta;
+        if (target >= 0 && target < list.length) onMoveGroup(group, delta);
+      }}
+      selected={section === "accounts" && selectedGroupId === group.id}
+      onSelect={() => onSelectGroup(group.id)}
+    />
+  );
+
+  const allAccountsRow = (
+    <SidebarGroupRow
+      group={allAccountsGroup}
+      selected={section === "accounts" && selectedGroupId === ALL_ACCOUNTS_GROUP_ID}
+      onSelect={() => onSelectGroup(ALL_ACCOUNTS_GROUP_ID)}
+    />
+  );
+
   return (
     <aside
       ref={sidebarRef}
@@ -88,58 +111,48 @@ export function Sidebar({
         <span className="eyebrow sidebar-title">AI Usage Tracker</span>
       </div>
       {topBar ? null : (
-        <>
-          <div className="brand">
-            <span className="brand-mark"><GaugeIcon /></span>
-            <strong>AI Usage Tracker</strong>
-          </div>
-
-          <div className="provider-sidebar-heading">
-            <div className="provider-sidebar-heading-stack">
-              <div className="provider-sidebar-heading-actions">
-                <button
-                  type="button"
-                  className="button primary add-account-header-button"
-                  data-tooltip="Add new account"
-                  aria-label="Add new account"
-                  onClick={onAddAccount}
-                >
-                  <PlusIcon />Account
-                </button>
-                <button
-                  type="button"
-                  className="button primary add-bucket-header-button"
-                  data-tooltip={"Group accounts to track usage in\none place, like “Work” or “Personal”"}
-                  aria-label="Group accounts to track usage in one place, like “Work” or “Personal”"
-                  onClick={onAddGroup}
-                >
-                  <PlusIcon />Group
-                </button>
-              </div>
-              <UsageDisplayToggle />
-            </div>
-          </div>
-        </>
+        <div className="brand">
+          <span className="brand-mark"><GaugeIcon /></span>
+          <strong>AI Usage Tracker</strong>
+        </div>
       )}
 
       <div ref={providerListRef} className={`provider-list${providerListOverflows ? " has-overflow" : ""}`}>
-        <SidebarGroupRow
-          group={allAccountsGroup}
-          selected={section === "accounts" && selectedGroupId === ALL_ACCOUNTS_GROUP_ID}
-          onSelect={() => onSelectGroup(ALL_ACCOUNTS_GROUP_ID)}
+        {allAccountsRow}
+        <SidebarSectionHeader
+          title="Accounts"
+          action={
+            <button
+              type="button"
+              className="sidebar-section-button is-primary"
+              onClick={onAddAccount}
+              aria-label="Add new account"
+              data-tooltip="Add new account"
+            >
+              <PlusIcon />
+            </button>
+          }
         />
-        {groups.map((group, index) => (
-          <SidebarGroupRow
-            key={group.id}
-            group={group}
-            onMove={(delta) => {
-              const target = index + delta;
-              if (target >= 0 && target < groups.length) onMoveGroup(group, delta);
-            }}
-            selected={section === "accounts" && selectedGroupId === group.id}
-            onSelect={() => onSelectGroup(group.id)}
-          />
-        ))}
+        {accountGroups.map((group, index) => renderRow(group, index, accountGroups))}
+        <SidebarSectionHeader
+          title="Groups"
+          action={
+            <button
+              type="button"
+              className="sidebar-section-button"
+              onClick={onAddGroup}
+              aria-label="New group"
+              data-tooltip={"Group accounts to track usage in\none place, like “Work” or “Personal”"}
+            >
+              <UserPlusIcon />
+            </button>
+          }
+        />
+        {bucketGroups.length === 0 ? (
+          <p className="sidebar-section-empty">No groups yet</p>
+        ) : (
+          bucketGroups.map((group, index) => renderRow(group, index, bucketGroups))
+        )}
       </div>
 
       {topBar ? null : (
@@ -152,5 +165,15 @@ export function Sidebar({
       )}
       <SidebarResizeHandle shellRef={shellRef} sidebarRef={sidebarRef} />
     </aside>
+  );
+}
+
+/** A small label above one list of rows, with an optional small button at its right edge. */
+function SidebarSectionHeader({ title, action }: { title: string; action: ReactNode }) {
+  return (
+    <div className="sidebar-section-header">
+      <span className="sidebar-section-title">{title}</span>
+      {action}
+    </div>
   );
 }

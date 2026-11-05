@@ -1,10 +1,12 @@
-import { describe, expect, it } from "vitest";
+// @vitest-environment happy-dom
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   clampSidebarWidth,
   DEFAULT_DESKTOP_SIDEBAR_WIDTH,
   DEFAULT_MOBILE_SIDEBAR_WIDTH,
   defaultSidebarWidth,
   maxSidebarWidth,
+  measureNavAlignedWidth,
   MAX_SIDEBAR_WIDTH,
   sidebarFitWidth,
   sidebarToggleStacks,
@@ -70,5 +72,41 @@ describe("defaultSidebarWidth", () => {
     expect(DEFAULT_MOBILE_SIDEBAR_WIDTH).toBe(300);
     expect(DEFAULT_DESKTOP_SIDEBAR_WIDTH).toBe(300);
     expect(sidebarToggleStacks(DEFAULT_MOBILE_SIDEBAR_WIDTH, 286)).toBe(false);
+  });
+});
+
+describe("measureNavAlignedWidth", () => {
+  afterEach(() => {
+    document.body.replaceChildren();
+    vi.restoreAllMocks();
+  });
+
+  function setup(navRight: number | null) {
+    const shell = document.createElement("div");
+    const sidebar = document.createElement("aside");
+    sidebar.style.paddingRight = "12px";
+    sidebar.style.borderRightWidth = "1px";
+    sidebar.style.borderRightStyle = "solid";
+    shell.append(sidebar);
+    if (navRight !== null) {
+      const nav = document.createElement("nav");
+      nav.className = "top-bar-nav";
+      vi.spyOn(nav, "getBoundingClientRect").mockReturnValue(new DOMRect(35, 12, navRight - 35, 40));
+      shell.append(nav);
+    }
+    document.body.append(shell);
+    vi.spyOn(shell, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 1280, 800));
+    return { shell, sidebar };
+  }
+
+  it("is the switch's right edge plus what lies between the cards' right edge and the sidebar's", () => {
+    const { shell, sidebar } = setup(305);
+    // 5px list padding + 12px sidebar padding + 1px border.
+    expect(measureNavAlignedWidth(shell, sidebar)).toBe(323);
+  });
+
+  it("is null without a top bar, as on the phone overlay", () => {
+    const { shell, sidebar } = setup(null);
+    expect(measureNavAlignedWidth(shell, sidebar)).toBeNull();
   });
 });

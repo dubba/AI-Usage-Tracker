@@ -19,6 +19,7 @@ The order below **is the cascade**. Later files override earlier ones, so do not
 | 9 | `styles/dashboard-reorder.css` | `app/main.tsx` | Drag-to-reorder visuals |
 | 10 | `styles/modal-close.css` | `app/main.tsx` | The close button and removal-confirm button |
 | 11 | `styles/account-card-responsive.css` | `app/main.tsx` | Account card layout at every width |
+| 12 | `styles/sidebar-list.css` | `app/main.tsx` | The sidebar list: flat rows, two labeled meters, Accounts and Groups headers. Overrides the older `.provider-summary-row` rules by repeating the class; must not depend on ancestors, because a drag clones the row onto `body` |
 
 `app/App.tsx` pulls in `pairing.css` while `app/main.tsx` is still resolving its imports, which is why it sits before `base.css`. Check the real order in the browser (`document.querySelectorAll('style[data-vite-dev-id]')` in `npm run dev`) after changing any import.
 
@@ -44,7 +45,7 @@ Width breakpoints belong to individual components, so they are not collapsed int
 | Width | Used for |
 |-------|----------|
 | 860 / 861 | The main mobile/desktop split (sidebar overlay, card actions, mobile menu). The JS constant `MOBILE_OVERLAY_QUERY` must stay `(max-width: 860px)` |
-| 1220, 1180 | Summary cards: 4 columns, then 2 columns, then the Next Reset card spans a full row. Below 1180 the top bar shows the app mark without its name |
+| 1220, 1180 | Summary cards: 4 columns, then 2 columns, then the Next Reset card spans a full row. |
 | 768 | The Link Devices dialog becomes a full-screen sheet |
 | 760, 720 | Stacked rows in the remove-account confirmation and the API window |
 | 640, 600 | Release-notes dialog and alert toasts fill the width; summary grid spacing |
@@ -54,7 +55,7 @@ Keep one `@media` block per width and file where you can, and check that a later
 
 The L / U toggle is not on a width breakpoint. On desktop it is in the top bar. In the phone overlay it shares a row with the Account and Group buttons, and drops below them when `html` has `data-sidebar-toggle-stacked`. The resize handle sets that attribute while the sidebar is narrower than the measured one-line width of those controls.
 
-The desktop account card (`desktop-card`, from 861px) is a separate set of rules at the end of `account-card-responsive.css`. The card and its usage rows render different markup on desktop (`useMediaQuery(MOBILE_OVERLAY_QUERY)`), so those rules never reach the phone layout.
+The desktop account card (`desktop-card`, from 861px) is a separate set of rules in `account-card-responsive.css`. The card's header renders different markup on desktop (`useMediaQuery(MOBILE_OVERLAY_QUERY)`), so those rules never reach the phone layout, which has its own block at the end of the file (the same look, with the actions in the menu). The usage rows (`.desktop-metric`) are the same markup and styles at every width.
 
 ## Tokens
 

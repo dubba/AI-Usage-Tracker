@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { readDashboardProviderOrder, readSidebarGroupOrder, storeSidebarGroupOrder } from "../features/dashboard/sidebar-order";
-import { buildSidebarGroups, reconciledSidebarGroupOrder } from "../features/dashboard/sidebar-groups";
+import { buildSidebarGroups, listAccountsUnderProviders, reconciledSidebarGroupOrder } from "../features/dashboard/sidebar-groups";
 import type { Account, AccountBucket, DashboardSnapshot } from "../types";
 
 /**
@@ -30,7 +30,7 @@ export function useGroupOrderReconcile({
     const saved = readSidebarGroupOrder();
     const next = reconciledSidebarGroupOrder(
       accounts.map((account) => account.id),
-      buildSidebarGroups(accounts, buckets, readDashboardProviderOrder(), saved),
+      listAccountsUnderProviders(buildSidebarGroups(accounts, buckets, readDashboardProviderOrder(), saved), accounts, saved),
       saved,
     );
     if (next) storeSidebarGroupOrder(next);

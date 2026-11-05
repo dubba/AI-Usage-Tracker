@@ -3,6 +3,7 @@ import { ChevronIcon, DevicesIcon } from "../../shared/ui/icons";
 import { CopyDiagnosticsButton } from "./CopyDiagnosticsButton";
 import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
 import type { BridgeStatus } from "../../types";
+import { SETTINGS_DESCRIPTION } from "../../shared/lib/constants";
 import { isMobileDevice } from "../../shared/lib/platform";
 import { SHORTCUTS, isMacPlatform, shortcutLabel } from "../shortcuts/shortcuts";
 import { DataSection } from "./DataSection";
@@ -60,6 +61,8 @@ export function SettingsView({
             {onToggleSidebar ? <MobileSidebarToggle onToggle={onToggleSidebar} open={sidebarOpen} /> : null}
             <h1 className="eyebrow" tabIndex={-1} style={{ outline: "none" }}>App Settings</h1>
           </div>
+          {/* A full sentence, like the other pages' subtitles; the top bar tooltip uses the same words without the period. */}
+          <p className="dashboard-description">{SETTINGS_DESCRIPTION}.</p>
         </div>
       </header>
       <div className="dashboard-scroll">

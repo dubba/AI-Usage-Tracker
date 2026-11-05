@@ -38,28 +38,38 @@
     text-transform: uppercase;
   }
 
+  /* The same look as the top bar's Left / Used switch (.top-bar-segmented in top-bar.css). */
   .activity-period-switch {
     display: inline-flex;
     gap: 2px;
+    /* 2px around 30px buttons and a 1px border: 36px tall, the same as the Left / Used switch. */
     padding: 2px;
-    border: 1px solid var(--chrome-border);
-    border-radius: 8px;
+    border: 1px solid var(--obsidian-border-strong);
+    border-radius: 9px;
     background: var(--obsidian-surface-low);
+    transition: border-color 120ms ease;
   }
 
   @media (max-width: 860px) {
     .activity-period {
-      margin-block: -10px;
+      margin-block: -11px;
     }
   }
 
   @media (min-width: 861px) {
     .activity-header-main {
-      /* The label (about 48px), its 8px gap, the switch (two 48px buttons, a 2px gap, 2px padding
-         and a 1px border each side) and the 24px the header's flex gap used to leave beside it. */
-      --activity-switch-room: 186px;
+      /* The label (about 48px), its 8px gap, the switch (a 40px and a 48px button, a 2px gap, 2px
+         padding and a 1px border each side) and the 24px the header's flex gap used to leave beside it. */
+      --activity-switch-room: 184px;
       position: relative;
       padding-right: var(--activity-switch-room);
+    }
+
+    /* Room between the header's divider and the first card, as the Accounts page has above its summary
+       cards (18px). Without it the first card's top edge sits on the divider and the two read as one
+       line. The page's own padding is unlayered, hence !important. */
+    .activity-content .dashboard-scroll {
+      padding-top: 18px !important;
     }
 
     .activity-period {
@@ -70,16 +80,16 @@
   }
 
   .activity-period-switch button {
-    width: 48px;
     height: 30px;
-    padding: 0;
+    padding: 0 12px;
     border: 0;
     border-radius: 6px;
     background: transparent;
-    color: var(--muted) !important;
+    color: var(--obsidian-muted) !important;
     font-size: 12px !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.06em;
+    font-weight: 600 !important;
+    cursor: pointer;
+    transition: background 120ms ease, color 120ms ease;
   }
 
   .activity-period-switch button.active {
@@ -96,13 +106,21 @@
   }
 
   .activity-period-switch button:focus-visible {
-    outline: 2px solid var(--purple);
-    outline-offset: 1px !important;
+    outline: 2px solid var(--purple-accent);
+    outline-offset: 2px !important;
   }
 
   @media (hover: hover) and (pointer: fine) {
+    .activity-period-switch:hover {
+      border-color: var(--purple-accent);
+    }
+
     .activity-period-switch button:not(.active):hover {
-      color: var(--text) !important;
+      color: var(--obsidian-text) !important;
+    }
+
+    .activity-period-switch button.active:hover {
+      background: var(--purple-fill-hover);
     }
   }
 

@@ -1634,10 +1634,6 @@ button.account-card-provider-icon:active {
   overflow: hidden;
 }
 
-.settings-style-content .dashboard-header .dashboard-title-row {
-  margin-bottom: 0;
-}
-
 .settings-style-content .dashboard-scroll > .settings-card:first-child {
   margin-top: 8px;
 }

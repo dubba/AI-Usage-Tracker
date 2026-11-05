@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { type BusyKeys } from "../../shared/lib/busy";
 import { useReorderHint } from "./useReorderHint";
 import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
+import { UsageDisplayToggle } from "../dashboard/UsageDisplayToggle";
+import { MOBILE_OVERLAY_QUERY } from "../dashboard/sidebar-width";
+import { useMediaQuery } from "../../shared/hooks/useMediaQuery";
 import {
   AlertCircleIcon,
   CheckCircleIcon,
@@ -97,6 +100,8 @@ export function AccountsView(props: {
 }) {
   const [showAttentionOnly, setShowAttentionOnly] = useState(false);
   const [announcement, setAnnouncement] = useState("");
+  // The L / U switch sits in the title row on a phone and at the header's top right on a wide window.
+  const phone = useMediaQuery(MOBILE_OVERLAY_QUERY);
 
   useEffect(() => {
     setShowAttentionOnly(false);
@@ -174,8 +179,18 @@ export function AccountsView(props: {
                 </button>
               </>
             ) : null}
+            {/* On a phone the L / U switch sits at the right end of the title row. */}
+            {phone ? <UsageDisplayToggle /> : null}
           </div>
           <p className="dashboard-description">{dashboardDescription(props.selectedGroup, props.accounts.length)}</p>
+          {/* On a wide window the L / U switch sits at the header's top right, like the Usage page's 7D / 30D. */}
+          {phone ? null : (
+            <div className="accounts-display-switch">
+              {/* Names what the switch chooses, as "Period" does on the Usage page; the group already has its own name. */}
+              <span className="accounts-display-label" aria-hidden="true">Show</span>
+              <UsageDisplayToggle labels="words" className="top-bar-segmented" />
+            </div>
+          )}
         </div>
       </header>
 

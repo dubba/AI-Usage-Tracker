@@ -16,6 +16,7 @@ import "../styles/ui-refinements.css";
 import "../styles/dashboard-reorder.css";
 import "../styles/modal-close.css";
 import "../styles/account-card-responsive.css";
+import "../styles/sidebar-list.css";
 
 // On Android, getCurrentWindow() may throw because the window plugin metadata
 // is not injected the same way as on desktop. There is only one window on

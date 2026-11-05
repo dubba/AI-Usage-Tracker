@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (27 changes)
+## Unreleased (39 changes)
 
 ### Added (3)
 
@@ -8,18 +8,30 @@
 - On the Usage page, the reorder hint ("Press & drag a card below or in the sidebar to reorder") is shown for the first two sessions.
 - On custom account group pages, a red trashcan button next to the group edit pen allows deleting the group directly from the header.
 
-### Improved (6)
+### Improved (16)
 
+- On desktop, the App Settings page now has a subtitle under its title, "Customize app preferences and settings.", like the Accounts and Usage pages.
+- On mobile, account cards now look like the desktop ones (same icon, tinted pen, plan pill, divider and usage rows with the reset time and date), with Refresh and Alerts still in the menu and "Updated ..." above the menu button.
+- On desktop, the sidebar's default width now lines the right edge of its cards up with the right edge of the Accounts / Usage / Settings switch, and double-clicking the sidebar's resize handle returns to that width.
+- On desktop, the top bar no longer shows the app icon and name; its Accounts / Usage / Settings switch now lines up with the sidebar's provider icons.
+- On mobile, the sidebar now matches the desktop one: the Account and Group buttons moved from the top into the Accounts and Groups headers, and the L / U switch moved to the top right of the Accounts page header, beside the title.
+- On desktop, the Left / Used switch (now at the top right of the Accounts page header, labeled "Show") and the Usage page's 7D / 30D switch now share one look (a purple selected option that brightens on hover, and a border that turns purple on hover, like the Accounts / Usage / Settings switch), and the pen beside a group's name matches the account cards' pen.
+- Moving a provider in the sidebar's Accounts list now moves all of its accounts on the All Accounts page, including accounts that are also in a group, and dragging cards on that page reorders the Accounts list to match. Groups keep their own order.
+- In the sidebar, an account you add to a group now stays under its provider in Accounts too, and its provider keeps a row even when all of its accounts are in groups.
+- On desktop and mobile, the usage bars on account cards now use the same purple gradient as the sidebar bars at every level; the percentage still turns amber or red as the limit runs low.
+- The sidebar now lists accounts and groups under their own headers, each with its add button on a wide window. Rows are flat, and every row shows its 5H and 7D (or Grok Bot and Grok) limits as two labeled bars on one purple gradient, with the percentage colored by how much is left. The drag handle appears on hover, and a row can only be dragged within its own section.
 - The Next reset card now says which limit resets next before the account's name, such as "5H Claude" or "7D Grok".
 - On desktop, widening the sidebar or narrowing the window now stops before account cards run out of room, so a card's plan and buttons stay on one line with its name.
 - In Settings, the dropdowns and outlined buttons now have the same gray border as a switch that is off, turning purple on hover.
-- On desktop, a bar across the top of the window now holds the Accounts, Usage and Settings pages, the sync status, Refresh all, the Left / Used switch, and the Add account and new group buttons; the sidebar keeps the account and group list.
+- On desktop, a bar across the top of the window now holds the Accounts, Usage and Settings pages, the sync status, Refresh all, and the Add account and new group buttons; the sidebar keeps the account and group list.
 - On desktop, account cards show the plan chip (and a status chip when an account needs attention), with Refresh and Alerts buttons and a menu (the chevron, as on mobile) for Move up, Move down, Collapse, Rename and Remove.
 - On desktop, the pen next to an account's name has the same purple tint, border and hover as the card's menu button.
 - On desktop, each usage limit on an account card shows its window and name beside a larger percentage, with the time until reset and the reset date under the bar.
 
-### Fixed (18)
+### Fixed (20)
 
+- On mobile, a group's page header now shows the same rounded "Group" pill and tinted edit pen as on desktop, instead of a small uppercase badge and a solid purple pen.
+- On desktop, the Usage page now leaves the same space under its header divider as the Accounts page, so the first card no longer sits on the divider.
 - An account card's actions menu now closes when you click another card or the sidebar, not only elsewhere on the page.
 - The Google (Antigravity) icon is now the same size as the other providers' icons instead of slightly smaller.
 - In Settings, switches that are on are now the same size as switches that are off.

@@ -158,6 +158,29 @@ export function measureSyncLineFitWidth(sidebar: HTMLElement): number | null {
   return Math.ceil(width + horizontalChrome(sidebar) + MEASURE_BUFFER_PX);
 }
 
+/** The `.provider-list`'s left and right padding (obsidian-dashboard.css): the cards sit inside it. */
+const LIST_SIDE_PADDING_PX = 5;
+
+/**
+ * Sidebar width at which the right edge of its cards lines up with the right edge of the top bar's
+ * Accounts / Usage / Settings switch. (The left edges already do: the switch starts at the cards'
+ * icons, see `--sidebar-icon-inset` in sidebar-list.css.) This is the default width on a wide
+ * window, and what double-clicking the resize handle sets. Null when there is no top bar to line
+ * up with (the phone overlay) or it has not been laid out yet.
+ */
+export function measureNavAlignedWidth(shell: HTMLElement, sidebar: HTMLElement): number | null {
+  const nav = shell.querySelector<HTMLElement>(".top-bar-nav");
+  if (!nav) return null;
+  const navRight = nav.getBoundingClientRect().right - shell.getBoundingClientRect().left;
+  if (!Number.isFinite(navRight) || navRight <= 0) return null;
+  const styles = getComputedStyle(sidebar);
+  // From the cards' right edge to the sidebar's: the list's padding, the sidebar's padding and its
+  // right border.
+  const inset =
+    LIST_SIDE_PADDING_PX + (parseFloat(styles.paddingRight) || 0) + (parseFloat(styles.borderRightWidth) || 0);
+  return Math.round(navRight + inset);
+}
+
 /** The wider of the sync line and the L / U row, so the default fits both on one line. */
 export function sidebarFitWidth(syncLine: number | null, toggleLine: number | null): number | null {
   if (syncLine === null) return toggleLine;

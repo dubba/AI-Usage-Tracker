@@ -177,7 +177,21 @@ describe("SidebarGroupRow bucket composite icons", () => {
 });
 
 
-describe("SidebarGroupRow progress bar and tone matching", () => {
+/** The two meters of the mounted row: label, percentage text, its tone class, and the bar's fill width. */
+function meters() {
+  return Array.from(document.querySelectorAll<HTMLElement>(".sidebar-meter")).map((meter) => {
+    const value = meter.querySelector<HTMLElement>(".sidebar-meter-value")!;
+    const fill = meter.querySelector<HTMLElement>(".provider-summary-track > span")!;
+    return {
+      label: meter.querySelector(".sidebar-meter-label")?.textContent,
+      text: value.textContent,
+      tone: Array.from(value.classList).find((name) => name.startsWith("tone-")),
+      width: fill.style.width,
+    };
+  });
+}
+
+describe("SidebarGroupRow meters and tone matching", () => {
   let app: Mounted | null = null;
 
   afterEach(() => {
@@ -185,107 +199,58 @@ describe("SidebarGroupRow progress bar and tone matching", () => {
     app = null;
   });
 
-  it("applies tone-critical to the progress bar and percentage when account is at 9%", () => {
-    const account = makeAccount({ fiveRemaining: 9 });
-    const group = makeGroup([account]);
-    app = mount(
-      <SidebarGroupRow
-        group={group}
-        selected={false}
-        onSelect={vi.fn()}
-      />
-    );
+  const mountRow = (account: Account) => {
+    app = mount(<SidebarGroupRow group={makeGroup([account])} selected={false} onSelect={vi.fn()} />);
+  };
 
-    const track = document.querySelector(".provider-summary-track");
-    expect(track).not.toBeNull();
-    const fill = track?.querySelector("span");
-    expect(fill).not.toBeNull();
-    expect(fill?.classList.contains("tone-critical")).toBe(true);
-    expect(fill?.style.width).toBe("9%");
-
-    const average = document.querySelector(".provider-average");
-    const criticalPercent = average?.querySelector(".tone-critical");
-    expect(criticalPercent).not.toBeNull();
-    expect(criticalPercent?.textContent).toBe("9%");
+  it("colors the percentage critical when the 5-hour window is at 9%", () => {
+    mountRow(makeAccount({ fiveRemaining: 9 }));
+    expect(meters()[0]).toEqual({ label: "5h", text: "9%", tone: "tone-critical", width: "9%" });
   });
 
-  it("applies tone-warning to the progress bar and percentage when account is at 25%", () => {
-    const account = makeAccount({ fiveRemaining: 25 });
-    const group = makeGroup([account]);
-    app = mount(
-      <SidebarGroupRow
-        group={group}
-        selected={false}
-        onSelect={vi.fn()}
-      />
-    );
-
-    const track = document.querySelector(".provider-summary-track");
-    const fill = track?.querySelector("span");
-    expect(fill?.classList.contains("tone-warning")).toBe(true);
-    expect(fill?.style.width).toBe("25%");
-
-    const average = document.querySelector(".provider-average");
-    const warningPercent = average?.querySelector(".tone-warning");
-    expect(warningPercent).not.toBeNull();
-    expect(warningPercent?.textContent).toBe("25%");
+  it("colors the percentage warning when the 5-hour window is at 25%", () => {
+    mountRow(makeAccount({ fiveRemaining: 25 }));
+    expect(meters()[0]).toEqual({ label: "5h", text: "25%", tone: "tone-warning", width: "25%" });
   });
 
-  it("applies tone-healthy to the progress bar and percentage when account is at 75%", () => {
-    const account = makeAccount({ fiveRemaining: 75 });
-    const group = makeGroup([account]);
-    app = mount(
-      <SidebarGroupRow
-        group={group}
-        selected={false}
-        onSelect={vi.fn()}
-      />
-    );
-
-    const track = document.querySelector(".provider-summary-track");
-    const fill = track?.querySelector("span");
-    expect(fill?.classList.contains("tone-healthy")).toBe(true);
-    expect(fill?.style.width).toBe("75%");
-
-    const average = document.querySelector(".provider-average");
-    const healthyPercent = average?.querySelector(".tone-healthy");
-    expect(healthyPercent).not.toBeNull();
-    expect(healthyPercent?.textContent).toBe("75%");
+  it("colors the percentage healthy when the 5-hour window is at 75%", () => {
+    mountRow(makeAccount({ fiveRemaining: 75 }));
+    expect(meters()[0]).toEqual({ label: "5h", text: "75%", tone: "tone-healthy", width: "75%" });
   });
 
-  it("uses the lowest window value for the progress bar when both 5h and weekly exist", () => {
-    // 5h is 80% (healthy), but weekly is 9% (critical) -> bar must be critical with 9% width
-    const account = makeAccount({ fiveRemaining: 80, weeklyRemaining: 9 });
-    const group = makeGroup([account]);
-    app = mount(
-      <SidebarGroupRow
-        group={group}
-        selected={false}
-        onSelect={vi.fn()}
-      />
-    );
+  it("gives each window its own bar and tone", () => {
+    mountRow(makeAccount({ fiveRemaining: 80, weeklyRemaining: 9 }));
+    expect(meters()).toEqual([
+      { label: "5h", text: "80%", tone: "tone-healthy", width: "80%" },
+      { label: "7d", text: "9%", tone: "tone-critical", width: "9%" },
+    ]);
+  });
 
-    const track = document.querySelector(".provider-summary-track");
-    const fill = track?.querySelector("span");
-    expect(fill?.classList.contains("tone-critical")).toBe(true);
-    expect(fill?.style.width).toBe("9%");
+  it("leaves the bar unfilled and the percentage a dash for a window with no data", () => {
+    mountRow(makeAccount({ weeklyRemaining: 98 }));
+    expect(meters()).toEqual([
+      { label: "5h", text: "—", tone: "tone-na", width: "0%" },
+      { label: "7d", text: "98%", tone: "tone-healthy", width: "98%" },
+    ]);
+  });
 
-    const average = document.querySelector(".provider-average");
-    expect(average?.querySelector(".tone-healthy")?.textContent).toBe("80%");
-    expect(average?.querySelector(".tone-critical")?.textContent).toBe("9%");
+  it("has no tooltip on the row or its meters, only on the drag dots", () => {
+    app = mount(<SidebarGroupRow group={makeGroup([makeAccount({ fiveRemaining: 50 })])} selected={false} onSelect={vi.fn()} />);
+    const tooltips = Array.from(document.querySelectorAll("[data-tooltip]"));
+    expect(tooltips.map((el) => el.className)).toEqual(["reorder-grip"]);
+    expect(tooltips[0].getAttribute("data-tooltip")).toBe("Drag to reorder");
+    expect(document.querySelector(".provider-summary-row")?.hasAttribute("data-tooltip")).toBe(false);
+  });
+
+  it("shows no meters for an empty group", () => {
+    app = mount(<SidebarGroupRow group={makeGroup([])} selected={false} onSelect={vi.fn()} />);
+    expect(document.querySelector(".sidebar-meter")).toBeNull();
+    expect(document.querySelector(".sidebar-group-empty")?.textContent).toBe("No accounts yet");
   });
 
   it("calls onSelect when clicked", () => {
     const onSelect = vi.fn();
-    const account = makeAccount({ fiveRemaining: 50 });
-    const group = makeGroup([account]);
-    app = mount(
-      <SidebarGroupRow
-        group={group}
-        selected={false}
-        onSelect={onSelect}
-      />
-    );
+    app = mount(<SidebarGroupRow group={makeGroup([makeAccount({ fiveRemaining: 50 })])} selected={false} onSelect={onSelect} />);
 
     const button = document.querySelector<HTMLButtonElement>(".provider-summary-row");
     expect(button).not.toBeNull();
@@ -303,7 +268,7 @@ describe("SidebarGroupRow usage display mode", () => {
     setUsageDisplayMode("left");
   });
 
-  it("shows the percentage used, and fills the bar to match, in used mode", () => {
+  it("shows the percentage used, and fills the bars to match, in used mode", () => {
     setUsageDisplayMode("used");
     app = mount(
       <SidebarGroupRow
@@ -313,13 +278,11 @@ describe("SidebarGroupRow usage display mode", () => {
       />,
     );
 
-    const average = document.querySelector<HTMLElement>(".provider-average");
-    expect(average?.textContent).toBe("20% | 91%");
-    expect(average?.getAttribute("data-tooltip")).toBe("Average used: 5-hour | 7-day");
-    const fill = document.querySelector<HTMLElement>(".provider-summary-track span");
-    expect(fill?.style.width).toBe("91%");
     // The tone still reflects how much is left, so a nearly used-up account stays critical.
-    expect(fill?.classList.contains("tone-critical")).toBe(true);
+    expect(meters()).toEqual([
+      { label: "5h", text: "20%", tone: "tone-healthy", width: "20%" },
+      { label: "7d", text: "91%", tone: "tone-critical", width: "91%" },
+    ]);
   });
 
   it("switches back to the percentage left", () => {
@@ -332,7 +295,7 @@ describe("SidebarGroupRow usage display mode", () => {
       />,
     );
     act(() => setUsageDisplayMode("left"));
-    expect(document.querySelector(".provider-average")?.textContent).toBe("80% | 9%");
+    expect(meters().map((meter) => meter.text)).toEqual(["80%", "9%"]);
   });
 });
 
@@ -371,19 +334,17 @@ describe("SidebarGroupRow Grok Bot limit", () => {
 
   it("shows the Grok Bot limit before the Grok limit on a Grok-only row", () => {
     app = row([grokAccount("g1", 16, 62)]);
-    const average = document.querySelector<HTMLElement>(".provider-average");
-    expect(average?.textContent).toBe("62% | 16%");
-    expect(average?.getAttribute("data-tooltip")).toBe("Average left: Grok Bot | Grok");
+    expect(meters().map((meter) => [meter.label, meter.text])).toEqual([["GrokBot", "62%"], ["Grok", "16%"]]);
     expect(document.querySelector(".provider-summary-row")?.getAttribute("aria-label")).toContain("Grok Bot 62%, Grok 16%");
   });
 
   it("shows a dash for the Grok Bot limit when no account reports one", () => {
     app = row([grokAccount("g1", 16, null)]);
-    expect(document.querySelector(".provider-average")?.textContent).toBe("— | 16%");
+    expect(meters().map((meter) => meter.text)).toEqual(["—", "16%"]);
   });
 
   it("leaves rows that mix providers on 5-hour and 7-day", () => {
     app = row([grokAccount("g1", 16, 62), makeAccount({ id: "a1", fiveRemaining: 80, weeklyRemaining: 50 })], "anthropic");
-    expect(document.querySelector(".provider-average")?.textContent).toBe("80% | 33%");
+    expect(meters().map((meter) => [meter.label, meter.text])).toEqual([["5h", "80%"], ["7d", "33%"]]);
   });
 });

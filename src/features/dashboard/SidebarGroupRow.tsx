@@ -46,6 +46,29 @@ export function BucketGroupIcon({ group }: { group: SidebarGroup }) {
 }
 
 
+/** One usage window of a row: its label and percentage above a bar that fills to match. */
+function SidebarMeter({
+  label,
+  text,
+  tone,
+  width,
+}: {
+  label: string;
+  text: string;
+  tone: string | null;
+  width: number;
+}) {
+  return (
+    <span className="sidebar-meter">
+      <span className="sidebar-meter-head">
+        <span className="sidebar-meter-label">{label}</span>
+        <span className={`sidebar-meter-value ${tone == null ? "tone-na" : `tone-${tone}`}`}>{text}</span>
+      </span>
+      <span className="provider-summary-track" aria-hidden="true"><span style={{ width: `${width}%` }} /></span>
+    </span>
+  );
+}
+
 export function SidebarGroupRow({
   group,
   selected,
@@ -63,14 +86,12 @@ export function SidebarGroupRow({
   const grokOnly = isGrokOnlyGroup(group.accounts);
   const five = grokOnly ? grokBotAverage(group.accounts) : groupAverage(group.accounts, "five_hour");
   const weekly = groupAverage(group.accounts, "weekly");
-  const displayValue = five ?? weekly;
-  const toneValue = five != null && weekly != null ? Math.min(five, weekly) : displayValue;
-  const width = toneValue == null ? 0 : Math.min(100, Math.max(0, displayPercent(toneValue, displayMode)));
-  const tone = usageTone(toneValue);
   const toneFive = five == null ? null : usageTone(five);
   const toneWeekly = weekly == null ? null : usageTone(weekly);
   const labelFive = five == null ? "—" : `${Math.round(displayPercent(five, displayMode))}%`;
   const labelWeekly = weekly == null ? "—" : `${Math.round(displayPercent(weekly, displayMode))}%`;
+  const barWidth = (value: number | null) =>
+    value == null ? 0 : Math.min(100, Math.max(0, displayPercent(value, displayMode)));
   const reorderable = group.type !== "all";
   return (
     <button
@@ -111,16 +132,18 @@ export function SidebarGroupRow({
         <span className="provider-summary-topline">
           <strong className="sidebar-group-title">
             <span className="sidebar-group-name">{group.title}</span>
-            <span className="sidebar-group-count">({group.accounts.length})</span>
+            <span className="sidebar-group-count">{group.accounts.length}</span>
             {group.type === "bucket" ? <span className="bucket-mini-badge">Group</span> : null}
           </strong>
-          <span className="provider-average" data-tooltip={`Average ${displayMode === "used" ? "used" : "left"}: ${grokOnly ? "Grok Bot | Grok" : "5-hour | 7-day"}`}>
-            <span className={five == null ? "tone-na" : `tone-${toneFive}`}>{labelFive}</span>
-            <span className="tone-pipe"> | </span>
-            <span className={weekly == null ? "tone-na" : `tone-${toneWeekly}`}>{labelWeekly}</span>
-          </span>
         </span>
-        <span className="provider-summary-track" aria-hidden="true"><span className={`tone-${tone}`} style={{ width: `${width}%` }} /></span>
+        {group.accounts.length === 0 ? (
+          <span className="sidebar-group-empty">No accounts yet</span>
+        ) : (
+          <span className="provider-average sidebar-meters">
+            <SidebarMeter label={grokOnly ? "GrokBot" : "5h"} text={labelFive} tone={toneFive} width={barWidth(five)} />
+            <SidebarMeter label={grokOnly ? "Grok" : "7d"} text={labelWeekly} tone={toneWeekly} width={barWidth(weekly)} />
+          </span>
+        )}
       </span>
     </button>
   );

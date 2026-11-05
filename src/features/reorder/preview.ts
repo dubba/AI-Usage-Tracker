@@ -11,9 +11,17 @@ const REORDER_ANIMATION_MS = 150;
 const MAX_FLOAT_HEIGHT_PX = 200;
 const CAPPED_FLOAT_GRAB_OFFSET_PX = 48;
 
+/**
+ * The elements the dragged one can swap places with. A sidebar row only moves among the rows of its
+ * own section: custom groups and provider rows are listed under separate headers, so the placeholder
+ * must never appear to land in the other section.
+ */
 export function reorderElements(drag: ActiveDrag): HTMLElement[] {
   if (drag.descriptor.kind === "group") {
-    return groupRows(drag.container).filter((row) => row !== drag.source);
+    const isGroupRow = (row: HTMLElement) => row.classList.contains("is-bucket-row");
+    return groupRows(drag.container).filter(
+      (row) => row !== drag.source && isGroupRow(row) === isGroupRow(drag.source),
+    );
   }
   return accountCards(drag.container).filter((card) => card !== drag.source);
 }
@@ -61,6 +69,7 @@ function floatingCenterY(drag: ActiveDrag): number {
 export function updatePlaceholderFromPointer(drag: ActiveDrag): void {
   const clientY = floatingCenterY(drag);
   const elements = reorderElements(drag);
+  if (elements.length === 0) return;
   let reference: HTMLElement | null = null;
   for (const element of elements) {
     const bounds = element.getBoundingClientRect();
@@ -75,6 +84,8 @@ export function updatePlaceholderFromPointer(drag: ActiveDrag): void {
 
   const before = capturePositions(elements);
   if (reference) drag.container.insertBefore(drag.placeholder, reference);
+  // Past the last row of its section: directly after it, not at the end of the whole list.
+  else if (drag.descriptor.kind === "group") elements[elements.length - 1].after(drag.placeholder);
   else drag.container.appendChild(drag.placeholder);
   animateReorder(elements, before);
 }

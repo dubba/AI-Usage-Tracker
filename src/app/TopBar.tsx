@@ -1,9 +1,8 @@
-import { UsageDisplayToggle } from "../features/dashboard/UsageDisplayToggle";
 import { computeSyncStatus, splitSyncLabel } from "../features/dashboard/sync-status";
 import { useClock } from "../shared/hooks/useClock";
+import { SETTINGS_DESCRIPTION } from "../shared/lib/constants";
 import { isRefreshKey, type BusyKeys } from "../shared/lib/busy";
 import { PlusIcon, RefreshIcon, UserPlusIcon } from "../shared/ui/icons";
-import appIconUrl from "../../src-tauri/icons/icon.svg";
 import type { Account } from "../types";
 import { MAIN_PAGES } from "./BottomNav";
 import type { Section } from "./useSidebarNavigation";
@@ -18,13 +17,12 @@ function topBarSyncLabel(label: string): string {
 const PAGE_TOOLTIPS: Record<Section, string> = {
   accounts: "View of all accounts and usage limits",
   activity: "See daily usage against weekly limits",
-  settings: "Customize app preferences and settings",
+  settings: SETTINGS_DESCRIPTION,
 };
 
 /**
- * The bar across the top of a wide window: the app name, the Accounts, Usage and Settings pages,
- * then the sync status, Refresh all, the Left / Used switch and the New group and Add account
- * buttons. A phone has none of this here: the sidebar overlay and the bottom bar hold it.
+ * The bar across the top of a wide window: the Accounts, Usage and Settings pages,
+ * then the sync status, Refresh all, and the New group and Add account buttons. A phone has none of this here: the sidebar overlay and the bottom bar hold it.
  */
 export function TopBar({
   section,
@@ -54,11 +52,6 @@ export function TopBar({
 
   return (
     <header className="top-bar" inert={inert}>
-      <div className="top-bar-brand">
-        <img className="top-bar-brand-mark" src={appIconUrl} alt="" width={38} height={38} />
-        <strong>AI Usage Tracker</strong>
-      </div>
-
       <nav className="top-bar-nav" aria-label="Main">
         {MAIN_PAGES.map(({ section: target, label: pageLabel }) => {
           const active = section === target;
@@ -93,7 +86,6 @@ export function TopBar({
         >
           <RefreshIcon />
         </button>
-        <UsageDisplayToggle labels="words" className="top-bar-segmented" />
         <button
           type="button"
           className="top-bar-icon-button top-bar-add-group"

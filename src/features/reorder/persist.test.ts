@@ -23,7 +23,7 @@ vi.mock("../dashboard/dashboard-page-state", () => ({
   whileSavingAllOrder: (save: () => Promise<unknown>) => save(),
 }));
 
-import { buildSidebarGroups, groupOrderForAccounts } from "../dashboard/sidebar-groups";
+import { buildSidebarGroups, groupOrderForAccounts, listAccountsUnderProviders } from "../dashboard/sidebar-groups";
 import { accountOrderForGroups, persistGroupOrder, persistVisibleAccountOrder } from "./persist";
 import type { Account } from "../../types";
 
@@ -52,18 +52,28 @@ describe("accountOrderForGroups", () => {
     ]);
   });
 
-  it("places a bucket's members where the bucket sits and skips them later", () => {
+  it("lists a custom group's members under their provider row, not where the group sits", () => {
     const buckets = [{ id: "b1", accountIds: ["o2", "g1"] }];
-    expect(accountOrderForGroups(["bucket:b1", "provider:openai"], accounts, buckets)).toEqual(["o2", "g1", "o1", "a1"]);
-  });
-
-  it("keeps a bucket's members with the bucket even when their provider comes first", () => {
-    const buckets = [{ id: "b1", accountIds: ["o2", "g1"] }];
-    expect(accountOrderForGroups(["provider:openai", "provider:anthropic", "bucket:b1"], accounts, buckets)).toEqual([
-      "o1",
+    // o2 is in the group and in the OpenAI row: the row decides where it goes.
+    expect(accountOrderForGroups(["bucket:b1", "provider:openai"], accounts, buckets)).toEqual(["o1", "o2", "g1", "a1"]);
+    expect(accountOrderForGroups(["provider:anthropic", "provider:openai", "bucket:b1"], accounts, buckets)).toEqual([
       "a1",
+      "o1",
       "o2",
       "g1",
+    ]);
+  });
+
+  it("moves a grouped account when its provider row moves", () => {
+    const buckets = [{ id: "b1", accountIds: ["o1", "o2"] }];
+    const all = ["provider:openai", "provider:anthropic", "provider:grok", "bucket:b1"];
+    expect(accountOrderForGroups(all, accounts, buckets)).toEqual(["o1", "o2", "a1", "g1"]);
+    // ChatGPT moved to the end of the Accounts list: both its accounts follow, though both are grouped.
+    expect(accountOrderForGroups(["provider:anthropic", "provider:grok", "provider:openai", "bucket:b1"], accounts, buckets)).toEqual([
+      "a1",
+      "g1",
+      "o1",
+      "o2",
     ]);
   });
 
@@ -188,14 +198,18 @@ describe("persistVisibleAccountOrder keeps the sidebar in step", () => {
     expect(sidebar.store).not.toHaveBeenCalled();
   });
 
-  it("round-trips with a sidebar drag, buckets included", () => {
+  it("round-trips the provider rows with a sidebar drag, custom groups included", () => {
     const buckets = [{ id: "b1", name: "Work", provider: null, accountIds: ["o2", "g1"], createdAt: "", updatedAt: "" }];
-    const groups = buildSidebarGroups(shown, buckets, ["openai", "anthropic", "grok"], []);
+    const groups = listAccountsUnderProviders(buildSidebarGroups(shown, buckets, ["openai", "anthropic", "grok"], []), shown);
+    const providers = (ids: string[]) => ids.filter((id) => id.startsWith("provider:"));
     for (const order of [
-      ["provider:anthropic", "bucket:b1", "provider:openai"],
-      ["provider:openai", "provider:anthropic", "bucket:b1"],
+      ["provider:anthropic", "bucket:b1", "provider:openai", "provider:grok"],
+      ["provider:grok", "provider:openai", "provider:anthropic", "bucket:b1"],
     ]) {
-      expect(groupOrderForAccounts(accountOrderForGroups(order, shown, buckets), groups)).toEqual(order);
+      const back = groupOrderForAccounts(accountOrderForGroups(order, shown, buckets), groups);
+      expect(providers(back)).toEqual(providers(order));
+      // The custom group did not move.
+      expect(back.indexOf("bucket:b1")).toBe(groups.map((group) => group.id).indexOf("bucket:b1"));
     }
   });
 });

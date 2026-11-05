@@ -1,4 +1,5 @@
 import { displayProviderGroupTitle } from "../../shared/lib/display";
+import { moveById } from "../reorder/reorder-utils";
 import type { Account, AccountBucket, Provider } from "../../types";
 
 export const ALL_ACCOUNTS_GROUP_ID = "all";
@@ -97,12 +98,15 @@ export function buildSidebarGroups(
     pushProviderGroup(provider);
   }
 
-  const allGroups = [...bucketGroups, ...providerGroups];
-  if (sidebarGroupOrder.length === 0) return allGroups;
+  return sortBySavedOrder([...bucketGroups, ...providerGroups], sidebarGroupOrder);
+}
 
-  return [...allGroups].sort((a, b) => {
-    const indexA = sidebarGroupOrder.indexOf(a.id);
-    const indexB = sidebarGroupOrder.indexOf(b.id);
+/** Groups in the saved order; any not in it keep their relative order after the saved ones. */
+function sortBySavedOrder(groups: SidebarGroup[], savedOrder: readonly string[]): SidebarGroup[] {
+  if (savedOrder.length === 0) return groups;
+  return [...groups].sort((a, b) => {
+    const indexA = savedOrder.indexOf(a.id);
+    const indexB = savedOrder.indexOf(b.id);
     if (indexA !== -1 && indexB !== -1) return indexA - indexB;
     if (indexA !== -1) return -1;
     if (indexB !== -1) return 1;
@@ -111,10 +115,13 @@ export function buildSidebarGroups(
 }
 
 /**
- * The sidebar group order implied by a new account order on the All page: groups sorted by where
- * their first account now sits. The inverse of `accountOrderForGroups`, so dragging a card and
- * dragging a sidebar group both leave the two views matching. A group with no accounts (an empty
- * custom group) keeps its slot.
+ * The sidebar group order implied by a new account order on the All page: provider rows sorted by
+ * where their first account now sits. The inverse of `accountOrderForGroups`, so dragging a card
+ * and dragging a sidebar row both leave the two views matching. Custom groups do not take part:
+ * the Accounts list sets the All page's order, so a group keeps its own place (and its place
+ * relative to the other groups), as does a provider row with no accounts. `groups` should be the
+ * list as the sidebar shows it (`listAccountsUnderProviders`), so every provider row holds all of
+ * its provider's accounts.
  */
 export function groupOrderForAccounts(
   orderedAccountIds: string[],
@@ -123,7 +130,9 @@ export function groupOrderForAccounts(
   const position = new Map(orderedAccountIds.map((id, index) => [id, index]));
   const ranked = groups.map((group) => ({
     id: group.id,
-    at: Math.min(...group.accounts.map((account) => position.get(account.id) ?? Infinity)),
+    at: isBucketGroupId(group.id)
+      ? Infinity
+      : Math.min(...group.accounts.map((account) => position.get(account.id) ?? Infinity)),
   }));
   const placed = ranked.filter((group) => Number.isFinite(group.at)).sort((a, b) => a.at - b.at);
   let next = 0;
@@ -148,4 +157,69 @@ export function reconciledSidebarGroupOrder(
   const hasGhosts = savedOrder.some((id) => !known.has(id));
   const sameOrder = next.length === current.length && next.every((id, index) => id === current[index]);
   return sameOrder && !hasGhosts ? null : next;
+}
+
+/** The sidebar lists custom groups apart from the provider rows; this is the section a row sits in. */
+export const isBucketGroup = (group: Pick<SidebarGroup, "type">): boolean => group.type === "bucket";
+
+/**
+ * Moves a group one place up or down among the groups in its own sidebar section (custom groups or
+ * provider rows), leaving every group of the other kind where it is in the saved order. `to` and
+ * `total` are the new position and the size of that section, for the screen-reader announcement.
+ * Null when the id is missing or the group is already at that end of its section.
+ */
+export function moveGroupWithinSection(
+  groups: Pick<SidebarGroup, "id" | "type">[],
+  id: string,
+  delta: -1 | 1,
+): { ids: string[]; to: number; total: number } | null {
+  const moving = groups.find((group) => group.id === id);
+  if (!moving) return null;
+  const section = groups.filter((group) => isBucketGroup(group) === isBucketGroup(moving));
+  const from = section.findIndex((group) => group.id === id);
+  const neighbor = section[from + delta];
+  if (!neighbor) return null;
+  const ids = groups.map((group) => group.id);
+  const move = moveById(ids, id, ids.indexOf(neighbor.id) - ids.indexOf(id));
+  return move ? { ids: move.ids, to: from + delta, total: section.length } : null;
+}
+
+/**
+ * The groups as the sidebar lists them: every provider row holds all of that provider's accounts,
+ * including the ones that are also in a custom group. A provider whose accounts are all in custom
+ * groups still gets a row, after the others unless the saved order says otherwise.
+ *
+ * `buildSidebarGroups` keeps each account in one group on purpose: the sidebar order and the
+ * All page's card order are derived from each other through it (see `groupOrderForAccounts`), so
+ * the order logic must keep using that list. Only what the sidebar and a provider's page show uses
+ * this one.
+ */
+export function listAccountsUnderProviders(
+  groups: SidebarGroup[],
+  accounts: Account[],
+  savedOrder: readonly string[] = [],
+): SidebarGroup[] {
+  const shown = new Set<Provider>();
+  const withAll = groups.map((group) => {
+    if (group.type !== "provider" || !group.provider) return group;
+    shown.add(group.provider);
+    const provider = group.provider;
+    return { ...group, accounts: accounts.filter((account) => account.provider === provider) };
+  });
+  const missing: SidebarGroup[] = [];
+  for (const account of accounts) {
+    if (shown.has(account.provider)) continue;
+    shown.add(account.provider);
+    const providerAccounts = accounts.filter((candidate) => candidate.provider === account.provider);
+    missing.push({
+      id: providerGroupId(account.provider),
+      type: "provider",
+      title: displayProviderGroupTitle(account.provider, providerAccounts),
+      provider: account.provider,
+      accounts: providerAccounts,
+    });
+  }
+  // The rows added above follow the saved order too, so dragging one holds at once instead of
+  // snapping back until the accounts' own order catches up.
+  return sortBySavedOrder([...withAll, ...missing], savedOrder);
 }

@@ -34,9 +34,11 @@ import {
   bucketGroupId,
   buildAllAccountsGroup,
   buildSidebarGroups,
+  listAccountsUnderProviders,
+  moveGroupWithinSection,
   type SidebarGroup,
 } from "../features/dashboard/sidebar-groups";
-import { moveAnnouncement, moveById } from "../features/reorder/reorder-utils";
+import { moveAnnouncement } from "../features/reorder/reorder-utils";
 import { requestDashboardResync } from "../shared/lib/events";
 import { bridgeApi } from "../shared/lib/api";
 import { clearAppStorage } from "../shared/lib/storage";
@@ -168,7 +170,7 @@ export default function App() {
   const buckets = snapshot?.buckets ?? NO_BUCKETS;
 
   const sidebarGroups = useMemo<SidebarGroup[]>(
-    () => buildSidebarGroups(accounts, buckets, providerOrder, sidebarGroupOrder),
+    () => listAccountsUnderProviders(buildSidebarGroups(accounts, buckets, providerOrder, sidebarGroupOrder), accounts, sidebarGroupOrder),
     [accounts, buckets, providerOrder, sidebarGroupOrder],
   );
 
@@ -237,11 +239,11 @@ export default function App() {
   useLayoutEffect(() => watchPageScrollRestore(section), [section]);
 
   const moveGroup = (group: SidebarGroup, delta: -1 | 1) => {
-    const move = moveById(sidebarGroups.map((candidate) => candidate.id), group.id, delta);
+    const move = moveGroupWithinSection(sidebarGroups, group.id, delta);
     if (!move) return;
     storeSidebarGroupOrder(move.ids);
     void persistGroupOrder(move.ids);
-    setGroupAnnouncement(moveAnnouncement(group.title, move.to, move.ids.length));
+    setGroupAnnouncement(moveAnnouncement(group.title, move.to, move.total));
     // React moves the row's DOM node, which drops focus; put it back once the move has rendered.
     window.setTimeout(() => {
       document.querySelector<HTMLElement>(`.provider-summary-row[data-group-id="${CSS.escape(group.id)}"]`)?.focus();

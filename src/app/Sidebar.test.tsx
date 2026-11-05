@@ -10,7 +10,6 @@ vi.mock("../features/dashboard/SyncStatusLine", () => ({
   SyncStatusLine: () => <div className="sidebar-sync-status" />,
 }));
 vi.mock("../features/dashboard/SidebarResizeHandle", () => ({ SidebarResizeHandle: () => null }));
-vi.mock("../features/dashboard/UsageDisplayToggle", () => ({ UsageDisplayToggle: () => null }));
 vi.mock("../shared/hooks/useScrollThumb", () => ({ useScrollThumb: () => ({ overflows: false }) }));
 
 let mounted: Mounted | null = null;
@@ -21,8 +20,10 @@ afterEach(() => {
 
 const allGroup: SidebarGroup = { id: ALL_ACCOUNTS_GROUP_ID, type: "all", title: "All Accounts", provider: null, accounts: [] };
 
-function render(props: { section: Section; topBar: boolean; selectedGroupId?: string }) {
+function render(props: { section: Section; topBar: boolean; selectedGroupId?: string; groups?: SidebarGroup[] }) {
   const onSelectGroup = vi.fn();
+  const onAddAccount = vi.fn();
+  const onAddGroup = vi.fn();
   mounted = mount(
     <Sidebar
       sidebarRef={{ current: null }}
@@ -32,20 +33,20 @@ function render(props: { section: Section; topBar: boolean; selectedGroupId?: st
       modal={false}
       selectedGroupId={props.selectedGroupId ?? ALL_ACCOUNTS_GROUP_ID}
       allAccountsGroup={allGroup}
-      groups={[]}
+      groups={props.groups ?? []}
       accounts={[]}
       refreshMinutes={15}
       busy={new Set()}
       onClose={vi.fn()}
-      onAddAccount={vi.fn()}
-      onAddGroup={vi.fn()}
+      onAddAccount={onAddAccount}
+      onAddGroup={onAddGroup}
       onMoveGroup={vi.fn()}
       onRefreshAll={vi.fn()}
       onSelectGroup={onSelectGroup}
       {...props}
     />,
   );
-  return { onSelectGroup };
+  return { onSelectGroup, onAddAccount, onAddGroup };
 }
 
 describe("Sidebar", () => {
@@ -61,8 +62,11 @@ describe("Sidebar", () => {
   it("keeps them as the phone overlay, with the sync status below the groups", () => {
     render({ section: "accounts", topBar: false });
     expect(mounted!.container.querySelector(".brand")).not.toBeNull();
-    expect(mounted!.container.querySelector(".add-account-header-button")).not.toBeNull();
-    expect(mounted!.container.querySelector(".add-bucket-header-button")).not.toBeNull();
+    // The add buttons moved out of a heading at the top into the Accounts and Groups headers.
+    expect(mounted!.container.querySelector(".provider-sidebar-heading")).toBeNull();
+    expect(mounted!.container.querySelector(".add-account-header-button")).toBeNull();
+    expect(mounted!.container.querySelector('.sidebar-section-header [aria-label="Add new account"]')).not.toBeNull();
+    expect(mounted!.container.querySelector('.sidebar-section-header [aria-label="New group"]')).not.toBeNull();
     const list = mounted!.container.querySelector(".provider-list")!;
     const status = mounted!.container.querySelector(".sidebar-sync-status")!;
     expect(list.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -89,5 +93,57 @@ describe("Sidebar", () => {
     const { onSelectGroup } = render({ section: "accounts", topBar: true });
     click(mounted!.container.querySelector<HTMLElement>(".provider-summary-row")!);
     expect(onSelectGroup).toHaveBeenCalledTimes(1);
+  });
+
+  describe("sections", () => {
+    const group = (id: string, type: SidebarGroup["type"], title: string): SidebarGroup => ({
+      id,
+      type,
+      title,
+      provider: null,
+      accounts: [],
+    });
+    // The saved order interleaves custom groups and provider rows; the sidebar splits them in two.
+    const mixed = [
+      group("bucket:b1", "bucket", "work"),
+      group("provider:anthropic", "provider", "Claude"),
+      group("bucket:b2", "bucket", "home"),
+      group("provider:grok", "provider", "Grok"),
+    ];
+    const titles = () => Array.from(mounted!.container.querySelectorAll(".sidebar-group-name")).map((el) => el.textContent);
+
+    it("lists provider rows under Accounts and custom groups under Groups", () => {
+      render({ section: "accounts", topBar: true, groups: mixed });
+      expect(titles()).toEqual(["All Accounts", "Claude", "Grok", "work", "home"]);
+      const headers = Array.from(mounted!.container.querySelectorAll(".sidebar-section-title")).map((el) => el.textContent);
+      expect(headers).toEqual(["Accounts", "Groups"]);
+    });
+
+    it("puts the add buttons in the section headers on a wide window", () => {
+      const { onAddAccount, onAddGroup } = render({ section: "accounts", topBar: true });
+      click(mounted!.container.querySelector<HTMLElement>('[aria-label="Add new account"]')!);
+      click(mounted!.container.querySelector<HTMLElement>('[aria-label="New group"]')!);
+      expect(onAddAccount).toHaveBeenCalledTimes(1);
+      expect(onAddGroup).toHaveBeenCalledTimes(1);
+    });
+
+    it("puts the add buttons in the section headers on the phone overlay too", () => {
+      const { onAddAccount, onAddGroup } = render({ section: "accounts", topBar: false });
+      click(mounted!.container.querySelector<HTMLElement>('[aria-label="Add new account"]')!);
+      click(mounted!.container.querySelector<HTMLElement>('[aria-label="New group"]')!);
+      expect(onAddAccount).toHaveBeenCalledTimes(1);
+      expect(onAddGroup).toHaveBeenCalledTimes(1);
+      expect(mounted!.container.querySelectorAll(".sidebar-section-title")).toHaveLength(2);
+    });
+
+    it("has no L / U switch of its own: it is in the page header on a phone and the top bar on a wide window", () => {
+      render({ section: "accounts", topBar: false });
+      expect(mounted!.container.querySelector(".usage-display-toggle")).toBeNull();
+    });
+
+    it("says so when there are no custom groups", () => {
+      render({ section: "accounts", topBar: true, groups: [mixed[1]] });
+      expect(mounted!.container.querySelector(".sidebar-section-empty")?.textContent).toBe("No groups yet");
+    });
   });
 });

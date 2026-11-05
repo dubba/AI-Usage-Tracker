@@ -1,6 +1,6 @@
-/* The bar across the top of a wide window (TopBar.tsx): the app name, the Accounts, Usage and
- * Settings pages, the sync status, Refresh all, the Left / Used switch and the Add account and
- * New group buttons. It only renders while the sidebar is not an overlay, so none of this
+/* The bar across the top of a wide window (TopBar.tsx): the Accounts, Usage and Settings pages,
+ * the sync status, Refresh all, and the New group and Add account buttons.
+ * It only renders while the sidebar is not an overlay, so none of this
  * reaches a phone.
  *
  * Layered rules lose to unlayered ones, and the global rules `button { color: inherit; font: inherit }`,
@@ -26,46 +26,17 @@
     align-items: center;
     gap: clamp(12px, 2vw, 24px);
     min-width: 0;
-    padding: 12px 24px;
+    /* The page switch's left edge lines up with the sidebar's provider icons (sidebar-list.css). */
+    padding: 12px 24px 12px var(--sidebar-icon-inset, 24px);
     background: var(--c-171616);
     border-bottom: 1px solid var(--obsidian-border);
-  }
-
-  .top-bar-brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex: 0 0 auto;
-  }
-
-  .top-bar-brand strong {
-    font-size: 15px;
-    font-weight: 750;
-    color: var(--obsidian-text);
-    white-space: nowrap;
-  }
-
-  /* The app's own icon (src-tauri/icons/icon.svg), the size and corners of the Refresh all button. */
-  .top-bar-brand-mark {
-    display: block;
-    width: 38px;
-    height: 38px;
-    flex: 0 0 auto;
-    border-radius: 9px;
-  }
-
-  /* A narrower window keeps the mark and gives the name's room to the sync status. */
-  @media (max-width: 1180px) {
-    .top-bar-brand strong {
-      display: none;
-    }
   }
 
   .top-bar-nav {
     display: flex;
     gap: 2px;
     padding: 3px;
-    border: 1px solid var(--obsidian-border);
+    border: 1px solid var(--obsidian-border-strong);
     border-radius: 10px;
     background: var(--obsidian-surface-low);
     transition: border-color 120ms ease;
@@ -87,6 +58,55 @@
   .top-bar-nav-item.is-active {
     background: var(--purple-fill);
     color: var(--purple-on-fill) !important;
+  }
+
+  /* The first page's tooltip is wider than the room to its left (the switch starts near the window's
+     edge), so it hangs from the button's left edge instead of being centered under it. The global
+     tooltip rule is unlayered, hence !important (see the header). */
+  .top-bar-nav-item:first-child[data-tooltip]::after {
+    left: 0 !important;
+    transform: none !important;
+  }
+
+  /* The Left / Used switch (on the Accounts page, AccountsView.tsx) and the Usage page's 7D / 30D
+     switch (activity.css) share one smaller look: the same purple selected option and hover as the page switch above, in a 30px box. */
+  .top-bar-segmented {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 2px;
+    /* 2px around 30px buttons and a 1px border: 36px tall, the same as the 7D / 30D switch. */
+    padding: 2px;
+    border: 1px solid var(--obsidian-border-strong);
+    border-radius: 9px;
+    background: var(--obsidian-surface-low);
+    transition: border-color 120ms ease;
+  }
+
+  .top-bar-segmented button {
+    height: 30px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--obsidian-muted) !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    cursor: pointer;
+    transition: background 120ms ease, color 120ms ease;
+  }
+
+  .top-bar-segmented button.active {
+    background: var(--purple-fill);
+    color: var(--purple-on-fill) !important;
+  }
+
+  /* The switch is at the page's right edge, so the last option's tooltip hangs from its right edge
+     instead of being centered under it. The global tooltip rule is
+     unlayered, hence !important (see the header). */
+  .top-bar-segmented button:last-child[data-tooltip]::after {
+    left: auto !important;
+    right: 0 !important;
+    transform: none !important;
   }
 
   .top-bar-actions {
@@ -131,12 +151,14 @@
   .top-bar-icon-button {
     display: grid;
     place-items: center;
-    width: 38px;
-    height: 38px;
+    /* 40px, like the page switch, Add account and the Left / Used switch, so the bar's controls are
+       all the same height. */
+    width: 40px;
+    height: 40px;
     flex: 0 0 auto;
     padding: 0;
     border: 1px solid var(--obsidian-border-strong);
-    border-radius: 9px;
+    border-radius: 10px;
     background: var(--obsidian-surface-container);
     color: var(--obsidian-muted-bright) !important;
     cursor: pointer;
@@ -155,38 +177,6 @@
 
   .top-bar-refresh.spinning svg {
     animation: spin 0.75s linear infinite;
-  }
-
-  .top-bar-segmented {
-    display: flex;
-    flex: 0 0 auto;
-    padding: 3px;
-    border: 1px solid var(--obsidian-border);
-    border-radius: 9px;
-    background: var(--obsidian-surface-low);
-    transition: border-color 120ms ease;
-  }
-
-  .top-bar-segmented button {
-    height: 30px;
-    padding: 0 12px;
-    border: 0;
-    border-radius: 6px;
-    background: transparent;
-    color: var(--obsidian-muted) !important;
-    font-size: 13px !important;
-    font-weight: 600 !important;
-    cursor: pointer;
-    transition: background 120ms ease, color 120ms ease, outline-color 120ms ease;
-  }
-
-  /* The selected option sits on the gray of a switch that is off, with the same outline, so it
-     stands clear of the bar's darker track. */
-  .top-bar-segmented button.active {
-    background: var(--c-292829);
-    outline: 1px solid var(--obsidian-border-strong);
-    outline-offset: -1px;
-    color: var(--obsidian-text) !important;
   }
 
   .top-bar-add-account {
@@ -210,12 +200,6 @@
   .top-bar-add-account svg {
     width: 17px !important;
     height: 17px !important;
-  }
-
-  .top-bar-add-group {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
   }
 
   /* Its copy breaks after "in" on purpose, as on the phone sidebar's Group button. The global
@@ -249,15 +233,10 @@
       background: var(--purple-fill-hover);
     }
 
-    /* The selected page brightens like Add account. */
-    .top-bar-nav-item.is-active:hover {
-      background: var(--purple-fill-hover);
-    }
-
-    /* The selected Left / Used option takes the hover of a Settings switch: purple outline, purple tint. */
+    /* The selected page or option brightens like Add account. */
+    .top-bar-nav-item.is-active:hover,
     .top-bar-segmented button.active:hover {
-      outline-color: var(--obsidian-purple-strong);
-      background: var(--purple-surface);
+      background: var(--purple-fill-hover);
     }
   }
 

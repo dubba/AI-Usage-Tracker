@@ -9,6 +9,7 @@ import {
   maxSidebarWidth,
   measureMainMinWidth,
   measureMinSidebarWidth,
+  measureNavAlignedWidth,
   measureSyncLineFitWidth,
   measureToggleLineWidth,
   MOBILE_OVERLAY_QUERY,
@@ -97,11 +98,15 @@ export function SidebarResizeHandle({
     const mainMin = shell ? measureMainMinWidth(shell) : null;
     if (mainMin !== null) mainMinWidth.current = mainMin;
     toggleLineWidth.current = measureToggleLineWidth(sidebar);
-    fitWidth.current = sidebarFitWidth(measureSyncLineFitWidth(sidebar), toggleLineWidth.current);
+    // On a wide window the default lines the cards up with the top bar's page switch; on the phone
+    // overlay it fits the sync line and the L / U row.
+    fitWidth.current =
+      (shell ? measureNavAlignedWidth(shell, sidebar) : null) ??
+      sidebarFitWidth(measureSyncLineFitWidth(sidebar), toggleLineWidth.current);
   }, [sidebarRef, shellRef]);
 
-  // Until the user picks a width, the sidebar fits "Accounts synced just now" on one
-  // line. The fixed default is only a fallback.
+  // Until the user picks a width, the sidebar uses the default width (`fitWidth`). The fixed
+  // default is only a fallback.
   const useFitAsDefault = useRef({
     desktop: savedDesktop.current === null,
     mobile: savedMobile.current === null,
@@ -215,8 +220,8 @@ export function SidebarResizeHandle({
     setDragging(true);
   };
 
-  // Double-click: wide enough for "Accounts synced just now" on one line. If that row cannot
-  // be measured yet, go back to the fixed default.
+  // Double-click: back to the default width (see `fitWidth`). If that cannot be measured yet, the
+  // fixed default.
   const fitToSyncLine = () => {
     refreshMeasurements();
     const overlay = isOverlay();

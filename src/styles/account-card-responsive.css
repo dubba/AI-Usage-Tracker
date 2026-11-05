@@ -697,9 +697,9 @@
 }
 
 /*
- * The usage bar is colored by how much is left (see usageTone): purple while
- * healthy, amber at 30% or less, red at 15% or less. Both sidebar and dashboard
- * progress bars follow these same rules.
+ * Account card bars are one purple ramp whatever is left (see the override at the end of this
+ * file); the level shows in the percentage's color (usageTone: amber at 30% or less, red at 15%
+ * or less). The tone rules below still color the bar elsewhere that uses them.
  */
 /* Sidebar and account-card bars use the same purple as the mobile status bar and scroll bars. */
 .provider-summary-track > .tone-healthy,
@@ -1003,12 +1003,95 @@
   }
 }
 
+/* A usage window of an account card (AccountUsageMetric.tsx): its span and name beside the percent,
+   the bar, then the reset time and date. The phone and a wide window draw it the same way. */
+.desktop-metric .desktop-metric-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.desktop-metric .desktop-metric-span {
+  color: var(--obsidian-muted);
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.desktop-metric .desktop-metric-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--obsidian-text);
+  font-size: 15px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desktop-metric .metric-percent-line {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.desktop-metric .metric-full-value {
+  font-size: 20px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+.desktop-metric .metric-percent-suffix {
+  color: var(--obsidian-muted);
+  font-size: 13px;
+}
+
+/* The same 6px of spacing above and below the bar. */
+.desktop-metric .account-metric-track {
+  flex: none;
+  width: 100%;
+  height: 7px;
+  margin: 6px 0;
+}
+
+.desktop-metric .desktop-metric-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--obsidian-muted);
+  font-size: 13px;
+}
+
+.desktop-metric .desktop-metric-foot .metric-reset {
+  margin: 0;
+  text-align: left;
+  color: var(--obsidian-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.desktop-metric .desktop-metric-foot .metric-reset strong {
+  color: var(--obsidian-muted-bright);
+  font-weight: 650;
+}
+
+/* The same 550 weight as "Resets in" beside it (`.account-usage-metric .metric-reset`). */
+.desktop-metric .desktop-metric-date {
+  margin-left: auto;
+  font-weight: 550;
+  white-space: nowrap;
+}
+
 /* ==========================================================================
    Desktop account card (min-width 861px). AccountDashboardCard adds
    `desktop-card` and renders `.account-card-desktop-actions` (a status chip
-   unless the account is live, the plan chip, updated time, Refresh, Alerts, the ⋯ menu); AccountUsageMetric renders
-   `.desktop-metric` (window and name with the percent, bar, then reset time and
-   date). The phone layout renders neither, so these rules never reach it.
+   unless the account is live, the plan chip, updated time, Refresh, Alerts, the ⋯ menu). The phone
+   layout renders neither, so these rules never reach it; it has its own header (see "Phone account
+   card" at the end of this file). The usage rows (`.desktop-metric`, above) are shared.
    ========================================================================== */
 @media (min-width: 861px) {
   .provider-account-card.desktop-card {
@@ -1292,109 +1375,265 @@
     gap: 0;
     padding: 0 !important;
   }
+}
 
-  .desktop-metric .desktop-metric-head {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
+/* The Group pill beside a group's name in the sidebar and in its page header, drawn like the plan
+   chip on an account card ("Pro/$20"): a rounded purple pill in normal case, at every width. */
+.provider-summary-row .bucket-mini-badge,
+.dashboard-title-row .dashboard-bucket-pill {
+  height: 22px;
+  margin-left: 6px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--purple-surface);
+  color: var(--purple-text);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.dashboard-title-row .dashboard-bucket-pill {
+  height: 26px;
+  margin-left: 4px;
+  padding: 0 11px;
+}
+
+/* Account card bars: the same purple ramp as the sidebar bars, for every usage level. Longer
+   selector so it beats the !important tone colors above. */
+.obsidian-shell .account-usage-metric .account-metric-track > span {
+  background: linear-gradient(90deg, var(--purple-fill), var(--purple-accent)) !important;
+}
+
+/* Account card provider icons: the same fill as the sidebar's provider icons (sidebar-list.css), at
+   every width. The desktop card already used it; the phone card used a flat gray. */
+.obsidian-shell .account-card-provider-icon {
+  background: var(--obsidian-surface-container-high);
+}
+
+/* The group page's edit pen takes the look of the account cards' pen, at every width (see
+   `.account-name-edit` in the desktop-card rules): a soft purple tint and edge at rest, a stronger
+   tint and a purple edge on hover. The filled purple pen (`:root .edit-bucket-title-btn` in
+   ui-refinements.css) is !important, so these are too. */
+:root .dashboard-header .edit-bucket-title-btn {
+  border: 1px solid rgb(var(--purple-accent-rgb) / 0.35) !important;
+  border-radius: 6px;
+  background: rgb(var(--purple-accent-rgb) / 0.12) !important;
+  color: var(--purple-text) !important;
+  box-shadow: none !important;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+:root .dashboard-header .edit-bucket-title-btn svg {
+  width: 15px !important;
+  height: 15px !important;
+  color: inherit !important;
+}
+
+:root .dashboard-header .edit-bucket-title-btn:hover:not(:disabled),
+:root .dashboard-header .edit-bucket-title-btn:focus-visible,
+:root .dashboard-header .edit-bucket-title-btn:active:not(:disabled) {
+  border-color: var(--purple-accent) !important;
+  background: rgb(var(--purple-accent-rgb) / 0.28) !important;
+  color: var(--purple-ink) !important;
+}
+
+/* ==========================================================================
+   Phone account card. Drawn like the desktop card above (same corners, icon, pen, plan pill, menu
+   button, divider and usage rows), but it keeps the phone's header: no Refresh or Alerts buttons
+   (they are in the menu), and "Updated ..." above the menu button.
+   ========================================================================== */
+@media (max-width: 860px) {
+  .provider-account-card {
+    border-radius: 14px;
+  }
+
+  .provider-account-card .provider-account-card-header {
+    align-items: center;
+    gap: 9px;
+    min-height: 0;
+    padding: 16px 14px 14px;
+  }
+
+  /* Tight beside the name so the email shows in full next to the plan pill and the menu button. */
+  .provider-account-card .account-card-header-actions {
+    column-gap: 4px;
+  }
+
+  .provider-account-card .account-card-header-meta,
+  .provider-account-card .plan-with-dot {
+    gap: 4px;
+  }
+
+  /* A collapsed card adds its lowest percentage beside the plan pill, which leaves the name no room:
+     the actions drop below the name, right-aligned, as on the desktop card. */
+  .provider-account-card.is-collapsed .provider-account-card-header {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
+  .provider-account-card.is-collapsed .account-card-identity {
+    flex: 1 1 120px;
+  }
+
+  .provider-account-card.is-collapsed .account-card-header-actions {
+    margin-left: auto;
+  }
+
+  .provider-account-card .account-card-provider-icon {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    align-self: center;
+    border-radius: 11px;
+    background: var(--obsidian-surface-container-high);
+    border: 1px solid var(--obsidian-border);
+  }
+
+  .provider-account-card .account-card-identity {
     min-width: 0;
   }
 
-  .desktop-metric .desktop-metric-span {
+  .provider-account-card .account-card-identity h2 {
+    font-size: 18px;
+  }
+
+  .provider-account-card .account-card-identity .account-card-email {
+    margin-top: 2px;
+    font-size: 12px !important;
+    line-height: 1.3 !important;
     color: var(--obsidian-muted);
-    font-size: 12px;
-    font-weight: 750;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    white-space: nowrap;
-  }
-
-  .desktop-metric .desktop-metric-name {
-    min-width: 0;
     overflow: hidden;
-    color: var(--obsidian-text);
-    font-size: 15px;
-    font-weight: 650;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .desktop-metric .metric-percent-line {
+  /* The pen: the desktop card's tinted pen. */
+  :root .provider-account-card .account-name-edit {
+    border: 1px solid rgb(var(--purple-accent-rgb) / 0.35) !important;
+    border-radius: 6px;
+    background: rgb(var(--purple-accent-rgb) / 0.12) !important;
+    color: var(--purple-text) !important;
+    box-shadow: none !important;
+  }
+
+  :root .provider-account-card .account-name-edit svg {
+    width: 15px !important;
+    height: 15px !important;
+    color: inherit !important;
+  }
+
+  :root .provider-account-card .account-name-edit:active:not(:disabled) {
+    border-color: var(--purple-accent) !important;
+    background: rgb(var(--purple-accent-rgb) / 0.28) !important;
+    color: var(--purple-ink) !important;
+  }
+
+  /* The plan chip: the desktop pill. */
+  .provider-account-card .account-card-header-meta .account-plan-badge {
     display: inline-flex;
-    align-items: baseline;
-    gap: 4px;
-    margin-left: auto;
-  }
-
-  .desktop-metric .metric-full-value {
-    font-size: 20px;
-    font-weight: 750;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .desktop-metric .metric-percent-suffix {
-    color: var(--obsidian-muted);
-    font-size: 13px;
-  }
-
-  /* The same 6px of spacing above and below the bar. */
-  .desktop-metric .account-metric-track {
-    flex: none;
-    width: 100%;
-    height: 7px;
-    margin: 6px 0;
-  }
-
-  .desktop-metric .desktop-metric-foot {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    color: var(--obsidian-muted);
-    font-size: 13px;
-  }
-
-  .desktop-metric .desktop-metric-foot .metric-reset {
-    margin: 0;
-    text-align: left;
-    color: var(--obsidian-muted);
-    font-size: 13px;
-    white-space: nowrap;
-  }
-
-  .desktop-metric .desktop-metric-foot .metric-reset strong {
-    color: var(--obsidian-muted-bright);
-    font-weight: 650;
-  }
-
-  /* The same 550 weight as "Resets in" beside it (`.account-usage-metric .metric-reset`). */
-  .desktop-metric .desktop-metric-date {
-    margin-left: auto;
-    font-weight: 550;
-    white-space: nowrap;
-  }
-}
-
-/* The Group pill beside a group's name in the sidebar and in its page header, drawn like the plan
-   chip on a desktop account card ("Pro/$20"): a rounded purple pill in normal case. */
-@media (min-width: 861px) {
-  .provider-summary-row .bucket-mini-badge,
-  .dashboard-title-row .dashboard-bucket-pill {
-    height: 22px;
-    margin-left: 6px;
-    padding: 0 10px;
+    align-items: center;
+    height: 26px;
+    min-height: 26px;
+    max-height: 26px;
+    padding: 0 9px;
+    border: 0;
     border-radius: 999px;
     background: var(--purple-surface);
     color: var(--purple-text);
-    font-size: 12px;
+    font-size: 12px !important;
     font-weight: 650;
     letter-spacing: 0;
     text-transform: none;
   }
 
-  .dashboard-title-row .dashboard-bucket-pill {
+  .provider-account-card .plan-with-dot {
     height: 26px;
-    margin-left: 4px;
-    padding: 0 11px;
+    min-height: 26px;
+  }
+
+  .provider-account-card .account-card-updated {
+    height: auto;
+    min-height: 0 !important;
+    font-size: 12px;
+    color: var(--obsidian-muted);
+  }
+
+  /* The menu button: the desktop card's tint, at the plan pill's height (a 44px touch target remains,
+     see `.mobile-dropdown-toggle::before`). */
+  .provider-account-card .mobile-dropdown-toggle {
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    min-height: 26px;
+    border-radius: 7px;
+    border-color: rgb(var(--purple-accent-rgb) / 0.35);
+    background: rgb(var(--purple-accent-rgb) / 0.12);
+    color: var(--purple-text);
+  }
+
+  .provider-account-card .mobile-dropdown-toggle:active,
+  .provider-account-card .mobile-dropdown-toggle[aria-expanded="true"] {
+    border-color: var(--purple-accent);
+    background: rgb(var(--purple-accent-rgb) / 0.28);
+    color: var(--purple-ink);
+  }
+
+  .provider-account-card .mobile-dropdown-toggle svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  /* The usage rows: under a divider, spaced like the desktop card's. The longer selectors beat the
+     phone rules above that remove the gap between rows. */
+  .provider-account-card .account-card-metrics,
+  .provider-account-card .account-card-metrics.two-column-metrics,
+  .provider-account-card .account-card-metrics.multi-row-metrics {
+    gap: 16px;
+    /* The left edge lines up with the icon above (the header's left padding is 12px on a phone, see
+       dashboard-reorder.css), the right edge with the menu button. */
+    margin: 0 14px 0 12px;
+    padding: 14px 0 18px;
+    border-top: 1px solid var(--obsidian-border);
+  }
+
+  .provider-account-card .account-card-metrics .account-usage-metric.desktop-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0 !important;
+  }
+}
+
+/* The Left / Used switch on a wide window: at the Accounts page header's top right, out of the flow so
+   the title and description keep their place (like the Usage page's 7D / 30D switch). */
+@media (min-width: 861px) {
+  .dashboard-header > div:has(> .accounts-display-switch) {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    /* The label (about 36px), its 8px gap, the switch (about 112px) and the gap before it. */
+    padding-right: 192px;
+  }
+
+  /* At the header's right edge, the same edge as the Usage page's 7D / 30D switch and the top bar's
+     Add account button. (The cards below stop short of it, at the page's scroll bar.) */
+  .accounts-display-switch {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* The same label as "Period" beside the Usage page's 7D / 30D switch (activity.css). */
+  .accounts-display-label {
+    color: var(--obsidian-muted);
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    text-transform: uppercase;
   }
 }

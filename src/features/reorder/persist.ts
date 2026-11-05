@@ -1,6 +1,12 @@
 import { bridgeApi } from "../../shared/lib/api";
 import { storePageAccountOrder, whileSavingAllOrder } from "../dashboard/dashboard-page-state";
-import { bucketIdFromGroup, buildSidebarGroups, groupOrderForAccounts, providerIdFromGroup } from "../dashboard/sidebar-groups";
+import {
+  bucketIdFromGroup,
+  buildSidebarGroups,
+  groupOrderForAccounts,
+  listAccountsUnderProviders,
+  providerIdFromGroup,
+} from "../dashboard/sidebar-groups";
 import { readDashboardProviderOrder, readSidebarGroupOrder, storeSidebarGroupOrder } from "../dashboard/sidebar-order";
 import { requestDashboardResync } from "../../shared/lib/events";
 import { logIgnored } from "../../shared/lib/log";
@@ -9,9 +15,11 @@ import { arraysEqual } from "./dom";
 import type { Account, AccountBucket, DashboardSnapshot } from "../../types";
 
 /**
- * The full account order implied by a new order of sidebar groups: each group's accounts in
- * turn (a bucket's members, or a provider's accounts that are in no bucket, matching what the
- * sidebar lists under it), then any account no group claimed. Every account appears exactly once.
+ * The full account order implied by a new order of sidebar groups: each provider row's accounts in
+ * turn (all of that provider's accounts, including the ones that are also in a custom group, as the
+ * sidebar lists them), then any account only a custom group claims. The Accounts list in the
+ * sidebar sets the order of the All page; custom groups only add accounts no provider row listed.
+ * Every account appears exactly once.
  */
 export function accountOrderForGroups(
   orderedGroupIds: string[],
@@ -20,7 +28,6 @@ export function accountOrderForGroups(
 ): string[] {
   const ordered: string[] = [];
   const assigned = new Set<string>();
-  const inBucket = new Set(buckets.flatMap((bucket) => bucket.accountIds));
   const place = (id: string) => {
     if (assigned.has(id)) return;
     assigned.add(id);
@@ -28,16 +35,15 @@ export function accountOrderForGroups(
   };
 
   for (const groupId of orderedGroupIds) {
-    const bucketId = bucketIdFromGroup(groupId);
     const provider = providerIdFromGroup(groupId);
-    if (bucketId !== null) {
-      const bucket = buckets.find((candidate) => candidate.id === bucketId);
-      bucket?.accountIds.forEach(place);
-    } else if (provider !== null) {
-      accounts
-        .filter((account) => account.provider === provider && !inBucket.has(account.id))
-        .forEach((account) => place(account.id));
+    if (provider !== null) {
+      accounts.filter((account) => account.provider === provider).forEach((account) => place(account.id));
     }
+  }
+  for (const groupId of orderedGroupIds) {
+    const bucketId = bucketIdFromGroup(groupId);
+    if (bucketId === null) continue;
+    buckets.find((candidate) => candidate.id === bucketId)?.accountIds.forEach(place);
   }
   accounts.forEach((account) => place(account.id));
   return ordered;
@@ -82,11 +88,11 @@ function syncSidebarGroupOrder(
   orderedAccountIds: string[],
   snapshot: Pick<DashboardSnapshot, "accounts" | "buckets">,
 ): void {
-  const groups = buildSidebarGroups(
+  const saved = readSidebarGroupOrder();
+  const groups = listAccountsUnderProviders(
+    buildSidebarGroups(snapshot.accounts, snapshot.buckets ?? [], readDashboardProviderOrder(), saved),
     snapshot.accounts,
-    snapshot.buckets ?? [],
-    readDashboardProviderOrder(),
-    readSidebarGroupOrder(),
+    saved,
   );
   const next = groupOrderForAccounts(orderedAccountIds, groups);
   if (!arraysEqual(next, groups.map((group) => group.id))) storeSidebarGroupOrder(next);

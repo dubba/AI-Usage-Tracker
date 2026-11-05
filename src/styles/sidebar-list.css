@@ -1,0 +1,294 @@
+/* The sidebar list: flat rows with an icon chip, the group name and two labeled meters (5H and 7D,
+ * or Grok Bot and Grok), under "Accounts" and "Groups" headers.
+ *
+ * Loaded last. The older rules for .provider-summary-row set borders, backgrounds and padding with
+ * !important, so the row rules repeat the class (.provider-summary-row.provider-summary-row...) to
+ * match their specificity and win by order. Nothing here may depend on the row's ancestors: a drag
+ * clones the row onto <body>, outside .provider-list and .obsidian-shell.
+ *
+ * The bars are one purple ramp (--purple-fill to --purple-accent) for every window; the usage
+ * level shows in the percentage's color instead.
+ */
+/* How far the sidebar's provider icons sit from the window's left edge: the sidebar's 12px padding,
+   the list's 5px, the row's 1px border and its 17px left padding (below). The top bar starts its
+   page switch at this inset so the switch's left edge lines up with the icons. */
+:root {
+  --sidebar-icon-inset: 35px;
+}
+
+.obsidian-shell .provider-list {
+  gap: 2px;
+}
+
+/* Section headers */
+.sidebar-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  padding: 0 6px 0 14px;
+  margin-bottom: 5px;
+}
+
+/* 7px above a header (the list's 2px gap plus 5px), and the same below it via its margin-bottom, so
+   the add buttons sit evenly between the rows around them. Not tied to the row before it: while a
+   row is dragged, a placeholder sits there instead and the header would jump up. */
+.provider-list > .sidebar-section-header {
+  margin-top: 5px;
+}
+
+.sidebar-section-title {
+  color: var(--obsidian-muted);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sidebar-section-empty {
+  margin: 0;
+  padding: 4px 14px 8px;
+  color: var(--obsidian-muted);
+  font-size: 12px;
+}
+
+.sidebar-section-button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid var(--obsidian-border-strong);
+  border-radius: 8px;
+  background: var(--obsidian-surface-container);
+  color: var(--purple-text);
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.sidebar-section-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.sidebar-section-button.is-primary {
+  border-color: var(--purple-fill);
+  background: var(--purple-fill);
+  color: var(--purple-on-fill);
+}
+
+@media (hover: hover) {
+  .sidebar-section-button:hover {
+    border-color: var(--obsidian-purple-strong);
+    background: var(--purple-surface);
+  }
+
+  .sidebar-section-button.is-primary:hover {
+    border-color: var(--purple-fill-hover);
+    background: var(--purple-fill-hover);
+  }
+}
+
+.sidebar-section-button:active {
+  background: var(--purple-surface-active);
+}
+
+.sidebar-section-button.is-primary:active {
+  border-color: var(--purple-fill-hover);
+  background: var(--purple-fill-hover);
+}
+
+/* The tooltip stays inside the sidebar: the buttons sit at its right edge. */
+.sidebar-section-button[data-tooltip]::after {
+  left: auto;
+  right: 0;
+  transform: none;
+  /* The group button's copy has a line break on purpose ("...usage in" / "one place..."); the
+     global tooltip keeps everything on one line, so honor the break like the top bar does. */
+  width: max-content;
+  max-width: 260px;
+  white-space: pre-line;
+  text-align: left;
+}
+
+/* Rows */
+.provider-summary-row.provider-summary-row.provider-summary-row {
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 0;
+  /* 17px on the left: the selected row's 3px bar, 5px, the 4px drag dots, 5px, then the icon (36px). */
+  padding: 12px 14px 12px 17px !important;
+  border-color: transparent !important;
+  border-radius: 10px;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+@media (hover: hover) {
+  .provider-summary-row.provider-summary-row:not(.selected):hover {
+    background: rgb(var(--purple-accent-rgb) / 0.08) !important;
+    border-color: transparent !important;
+  }
+}
+
+.provider-summary-row.provider-summary-row:not(.selected):focus-visible,
+.provider-summary-row.provider-summary-row:not(.selected):active {
+  background: rgb(var(--purple-accent-rgb) / 0.14) !important;
+  border-color: transparent !important;
+}
+
+.provider-summary-row.provider-summary-row.selected,
+.provider-summary-row.provider-summary-row.selected:hover,
+.provider-summary-row.provider-summary-row.selected:active,
+.provider-summary-row.provider-summary-row.selected:focus-visible {
+  background: var(--purple-surface) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* The All row is not positioned by the reorder rules, so the bar below needs this. */
+.provider-summary-row.is-all-row {
+  position: relative;
+}
+
+/* The bar on the selected row's left edge. */
+.provider-summary-row.selected::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--obsidian-purple-strong);
+}
+
+/* The floating copy a drag puts under the pointer is the row cloned onto <body>, outside the list,
+   so it needs its own opaque background (the row rule above makes rows transparent). */
+.provider-summary-row.provider-summary-row.is-dragging:not(.selected) {
+  background: var(--obsidian-surface-low) !important;
+}
+
+/* The drag handle only shows while the row is hovered or focused. */
+.provider-summary-row .reorder-grip {
+  /* 5px after the selected row's 3px bar; the icon starts 5px after the 4px dots (17px). */
+  left: 8px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.provider-summary-row:hover .reorder-grip,
+.provider-summary-row:focus-visible .reorder-grip {
+  opacity: 1;
+}
+
+/* The copy that follows the pointer while dragging is never hovered (it ignores the pointer) and
+   no longer has data-reorder-enabled, so show its dots, in the hover color, explicitly. */
+.provider-summary-row.is-dragging .reorder-grip {
+  opacity: 1;
+  background: var(--purple-text);
+  box-shadow: 0 -6px 0 var(--purple-text), 0 6px 0 var(--purple-text);
+}
+
+/* Icon chip: the same border and fill as the provider icon on a desktop account card. */
+.provider-summary-row .provider-summary-icon {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--obsidian-border);
+  border-radius: 8px;
+  background: var(--obsidian-surface-container-high);
+}
+
+.provider-summary-row .provider-summary-icon > svg,
+.provider-summary-row .provider-summary-icon > img {
+  width: 22px;
+  height: 22px;
+}
+
+.provider-summary-row.selected .provider-summary-icon {
+  background: rgb(var(--purple-accent-rgb) / 0.16);
+}
+
+/* Name line */
+.provider-summary-row .provider-summary-content {
+  gap: 8px;
+}
+
+.provider-summary-row .sidebar-group-title {
+  font-size: 14px;
+  gap: 6px;
+}
+
+.provider-summary-row .sidebar-group-count {
+  color: var(--obsidian-muted);
+}
+
+.sidebar-group-empty {
+  color: var(--obsidian-muted);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+/* Meters */
+.provider-summary-row .sidebar-meters.provider-average {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 12px;
+  width: 100%;
+  font-size: 12px;
+}
+
+.sidebar-meter {
+  display: grid;
+  flex: 1 1 0;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sidebar-meter-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 4px;
+}
+
+.sidebar-meter-label {
+  color: var(--obsidian-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sidebar-meter-value {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Critical reads as the soft red; the older rule's #c53131 is too dark on the dark surface. */
+.provider-summary-row .sidebar-meters .sidebar-meter-value.tone-critical {
+  color: var(--obsidian-red) !important;
+}
+
+.provider-summary-row .sidebar-meters .sidebar-meter-value.tone-na,
+.provider-summary-row .sidebar-meters .sidebar-meter-value.tone-neutral {
+  color: var(--obsidian-muted);
+}
+
+.provider-summary-row .provider-summary-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--obsidian-border);
+}
+
+.provider-summary-row.selected .provider-summary-track {
+  background: rgb(var(--purple-text-rgb) / 0.16);
+}
+
+.provider-summary-row .provider-summary-track > span {
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--purple-fill), var(--purple-accent));
+}

@@ -8,6 +8,8 @@ import {
   groupOrderForAccounts,
   isBucketGroupId,
   isProviderGroupId,
+  listAccountsUnderProviders,
+  moveGroupWithinSection,
   providerGroupId,
   providerIdFromGroup,
   reconciledSidebarGroupOrder,
@@ -111,21 +113,24 @@ describe("buildAllAccountsGroup", () => {
 });
 
 describe("groupOrderForAccounts", () => {
+  // As the sidebar shows them: the provider row lists all of its provider's accounts, including the
+  // one that is also in the custom group.
+  const w = account("w", "openai");
   const groups = [
-    { id: "bucket:work", accounts: [account("w", "openai")] },
-    { id: "provider:openai", accounts: [account("o1", "openai"), account("o2", "openai")] },
+    { id: "bucket:work", accounts: [w] },
+    { id: "provider:openai", accounts: [account("o1", "openai"), account("o2", "openai"), w] },
     { id: "provider:grok", accounts: [account("g", "grok")] },
   ];
 
-  it("orders groups by where their first account now sits", () => {
+  it("orders provider rows by where their first account now sits, leaving custom groups in place", () => {
     expect(groupOrderForAccounts(["g", "o2", "w", "o1"], groups)).toEqual([
+      "bucket:work",
       "provider:grok",
       "provider:openai",
-      "bucket:work",
     ]);
   });
 
-  it("keeps the order when no group's first account moved past another group", () => {
+  it("keeps the order when no row's first account moved past another row's", () => {
     expect(groupOrderForAccounts(["w", "o2", "o1", "g"], groups)).toEqual([
       "bucket:work",
       "provider:openai",
@@ -136,11 +141,22 @@ describe("groupOrderForAccounts", () => {
   it("leaves an empty custom group in its slot", () => {
     const withEmpty = [groups[0], { id: "bucket:empty", accounts: [] }, groups[1], groups[2]];
     expect(groupOrderForAccounts(["g", "o1", "o2", "w"], withEmpty)).toEqual([
-      "provider:grok",
-      "bucket:empty",
-      "provider:openai",
       "bucket:work",
+      "bucket:empty",
+      "provider:grok",
+      "provider:openai",
     ]);
+  });
+
+  it("does not let card positions reorder the custom groups among themselves", () => {
+    const two = [
+      { id: "bucket:a", accounts: [account("x", "grok")] },
+      { id: "bucket:b", accounts: [account("y", "openai")] },
+      { id: "provider:openai", accounts: [account("y", "openai")] },
+      { id: "provider:grok", accounts: [account("x", "grok")] },
+    ];
+    // y now comes before x, but bucket:a stays above bucket:b.
+    expect(groupOrderForAccounts(["y", "x"], two)).toEqual(["bucket:a", "bucket:b", "provider:openai", "provider:grok"]);
   });
 });
 
@@ -210,5 +226,79 @@ describe("group id helpers", () => {
     expect(bucketIdFromGroup(bucketGroupId("a:b"))).toBe("a:b");
     expect(isBucketGroupId(bucketGroupId("x"))).toBe(true);
     expect(isProviderGroupId(bucketGroupId("x"))).toBe(false);
+  });
+});
+
+describe("moveGroupWithinSection", () => {
+  // The saved order interleaves custom groups (b) and provider rows (p).
+  const groups = ["bucket:b1", "provider:a", "bucket:b2", "provider:c"].map((id) => ({
+    id,
+    type: id.startsWith("bucket:") ? ("bucket" as const) : ("provider" as const),
+  }));
+
+  it("swaps a custom group with the next custom group, skipping the provider row between them", () => {
+    expect(moveGroupWithinSection(groups, "bucket:b1", 1)).toEqual({
+      ids: ["provider:a", "bucket:b2", "bucket:b1", "provider:c"],
+      to: 1,
+      total: 2,
+    });
+  });
+
+  it("moves a provider row up past a custom group", () => {
+    expect(moveGroupWithinSection(groups, "provider:c", -1)).toEqual({
+      ids: ["bucket:b1", "provider:c", "provider:a", "bucket:b2"],
+      to: 0,
+      total: 2,
+    });
+  });
+
+  it("does nothing at either end of a section, or for an unknown id", () => {
+    expect(moveGroupWithinSection(groups, "bucket:b1", -1)).toBeNull();
+    expect(moveGroupWithinSection(groups, "provider:c", 1)).toBeNull();
+    expect(moveGroupWithinSection(groups, "nope", 1)).toBeNull();
+  });
+});
+
+describe("listAccountsUnderProviders", () => {
+  const accounts = [account("a", "openai"), account("b", "openai"), account("c", "grok")];
+
+  it("keeps an account that is in a custom group under its provider row too", () => {
+    const base = buildSidebarGroups(accounts, [bucket("t", "Team", ["a"])], PROVIDERS, []);
+    // The order logic still sees each account once...
+    expect(base.find((group) => group.id === "provider:openai")!.accounts.map((a) => a.id)).toEqual(["b"]);
+    // ...but the sidebar lists every openai account under it, and the group keeps its members.
+    const shown = listAccountsUnderProviders(base, accounts);
+    expect(shown.map((group) => group.id)).toEqual(["bucket:t", "provider:openai", "provider:grok"]);
+    expect(shown.find((group) => group.id === "provider:openai")!.accounts.map((a) => a.id)).toEqual(["a", "b"]);
+    expect(shown.find((group) => group.id === "bucket:t")!.accounts.map((a) => a.id)).toEqual(["a"]);
+  });
+
+  it("still lists a provider whose accounts are all in custom groups, after the other rows", () => {
+    const base = buildSidebarGroups(accounts, [bucket("t", "Team", ["c"])], PROVIDERS, []);
+    expect(base.map((group) => group.id)).toEqual(["bucket:t", "provider:openai"]);
+    const shown = listAccountsUnderProviders(base, accounts);
+    expect(shown.map((group) => group.id)).toEqual(["bucket:t", "provider:openai", "provider:grok"]);
+    // Titled like any provider row: after a single account's own label (here "c").
+    expect(shown[2]).toMatchObject({ type: "provider", provider: "grok", title: "c" });
+    expect(shown[2].accounts.map((a) => a.id)).toEqual(["c"]);
+  });
+
+  it("changes nothing when no account is in a custom group", () => {
+    const base = buildSidebarGroups(accounts, [], PROVIDERS, []);
+    expect(listAccountsUnderProviders(base, accounts)).toEqual(base);
+  });
+
+  it("puts the rows it adds where the saved order says, so a drag holds", () => {
+    // Every account is in a group, so every provider row is one it adds.
+    const all = [account("a", "openai"), account("c", "grok"), account("d", "anthropic")];
+    const base = buildSidebarGroups(all, [bucket("t", "Team", ["a", "c", "d"])], PROVIDERS, []);
+    const saved = ["provider:grok", "provider:anthropic", "provider:openai", "bucket:t"];
+    expect(listAccountsUnderProviders(base, all, saved).map((group) => group.id)).toEqual(saved);
+    expect(listAccountsUnderProviders(base, all).map((group) => group.id)).toEqual([
+      "bucket:t",
+      "provider:openai",
+      "provider:grok",
+      "provider:anthropic",
+    ]);
   });
 });

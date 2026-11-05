@@ -48,11 +48,11 @@ describe("TopBar", () => {
     expect(handlers.onSelect).toHaveBeenCalledWith("settings");
   });
 
-  it("offers Refresh all, the Left / Used switch, Add account and New group", () => {
+  it("offers Refresh all, Add account and New group, and leaves the Left / Used switch to the Accounts page", () => {
     const { handlers } = render("accounts");
     const container = mounted!.container;
     expect(container.textContent).toContain("Not synced yet");
-    expect([...container.querySelectorAll('[aria-label="Usage display"] button')].map((b) => b.textContent)).toEqual(["Left", "Used"]);
+    expect(container.querySelector('[aria-label="Usage display"]')).toBeNull();
     click(container.querySelector<HTMLButtonElement>('[aria-label="Refresh all accounts"]')!);
     click(container.querySelector<HTMLButtonElement>(".top-bar-add-account")!);
     click(container.querySelector<HTMLButtonElement>('[aria-label="New group"]')!);
