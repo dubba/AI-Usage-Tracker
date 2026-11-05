@@ -224,6 +224,9 @@ describe("SidebarGroupRow meters and tone matching", () => {
       { label: "5h", text: "80%", tone: "tone-healthy", width: "80%" },
       { label: "7d", text: "9%", tone: "tone-critical", width: "9%" },
     ]);
+    const fills = document.querySelectorAll<HTMLElement>(".provider-summary-track > span");
+    expect(fills[0].classList.contains("tone-healthy")).toBe(true);
+    expect(fills[1].classList.contains("tone-critical")).toBe(true);
   });
 
   it("leaves the bar unfilled and the percentage a dash for a window with no data", () => {

@@ -64,7 +64,9 @@ function SidebarMeter({
         <span className="sidebar-meter-label">{label}</span>
         <span className={`sidebar-meter-value ${tone == null ? "tone-na" : `tone-${tone}`}`}>{text}</span>
       </span>
-      <span className="provider-summary-track" aria-hidden="true"><span style={{ width: `${width}%` }} /></span>
+      <span className="provider-summary-track" aria-hidden="true">
+        <span className={tone == null ? undefined : `tone-${tone}`} style={{ width: `${width}%` }} />
+      </span>
     </span>
   );
 }

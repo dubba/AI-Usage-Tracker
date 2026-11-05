@@ -62,9 +62,9 @@
   border: 1px solid var(--obsidian-border-strong);
   border-radius: 8px;
   background: var(--obsidian-surface-container);
-  color: var(--purple-text);
+  color: var(--obsidian-muted-bright);
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 
 .sidebar-section-button svg {
@@ -82,6 +82,7 @@
   .sidebar-section-button:hover {
     border-color: var(--obsidian-purple-strong);
     background: var(--purple-surface);
+    color: var(--obsidian-text);
   }
 
   .sidebar-section-button.is-primary:hover {
@@ -92,6 +93,7 @@
 
 .sidebar-section-button:active {
   background: var(--purple-surface-active);
+  color: var(--obsidian-text);
 }
 
 .sidebar-section-button.is-primary:active {
@@ -146,6 +148,7 @@
 
 /* Rows */
 .provider-summary-row.provider-summary-row.provider-summary-row {
+  position: relative;
   grid-template-columns: 36px minmax(0, 1fr);
   gap: 12px;
   min-height: 0;
@@ -194,6 +197,44 @@
   width: 3px;
   border-radius: 2px;
   background: var(--obsidian-purple-strong);
+}
+
+/* Thin separators between accounts (when there are 2 or more) and between groups (when there are 2 or more).
+   Rows with a separator have a 5px top margin (7px total gap with the list's 2px grid gap), centering
+   each card evenly between 3px of space above and below the 1px separator line. */
+.provider-summary-row:not(.is-bucket-row):not(.is-all-row) + .provider-summary-row:not(.is-bucket-row):not(.is-all-row),
+.provider-summary-row.is-bucket-row + .provider-summary-row.is-bucket-row,
+.provider-summary-row + .provider-reorder-placeholder,
+.provider-reorder-placeholder + .provider-summary-row {
+  margin-top: 5px;
+}
+
+.provider-reorder-placeholder {
+  position: relative;
+}
+
+.sidebar-section-header + .is-reorder-origin + .provider-summary-row {
+  margin-top: 0;
+}
+
+.sidebar-section-header + .is-reorder-origin + .provider-summary-row::after,
+.provider-summary-row.is-reorder-origin::after,
+.provider-summary-row.is-dragging::after {
+  display: none !important;
+}
+
+.provider-summary-row:not(.is-bucket-row):not(.is-all-row) + .provider-summary-row:not(.is-bucket-row):not(.is-all-row)::after,
+.provider-summary-row.is-bucket-row + .provider-summary-row.is-bucket-row::after,
+.provider-summary-row + .provider-reorder-placeholder::after,
+.provider-reorder-placeholder + .provider-summary-row::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: 14px;
+  right: 14px;
+  height: 1px;
+  background: var(--obsidian-border);
+  pointer-events: none;
 }
 
 /* The floating copy a drag puts under the pointer is the row cloned onto <body>, outside the list,
@@ -306,9 +347,13 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Critical reads as the soft red; the older rule's #c53131 is too dark on the dark surface. */
+/* Critical and warning colors match the account card text (#c53131 and obsidian-amber) */
 .provider-summary-row .sidebar-meters .sidebar-meter-value.tone-critical {
-  color: var(--obsidian-red) !important;
+  color: #c53131 !important;
+}
+
+.provider-summary-row .sidebar-meters .sidebar-meter-value.tone-warning {
+  color: var(--obsidian-amber) !important;
 }
 
 .provider-summary-row .sidebar-meters .sidebar-meter-value.tone-na,
@@ -326,7 +371,20 @@
   background: rgb(var(--purple-text-rgb) / 0.16);
 }
 
-.provider-summary-row .provider-summary-track > span {
+.provider-summary-row .provider-summary-track > span,
+.provider-summary-row .provider-summary-track > .tone-healthy {
   border-radius: 2px;
   background: linear-gradient(90deg, var(--purple-fill), var(--purple-accent));
+}
+
+.provider-summary-row .provider-summary-track > .tone-warning {
+  background: var(--obsidian-amber) !important;
+}
+
+.provider-summary-row .provider-summary-track > .tone-critical {
+  background: #c53131 !important;
+}
+
+.provider-summary-row .provider-summary-track > .tone-neutral {
+  background: var(--c-69656d) !important;
 }

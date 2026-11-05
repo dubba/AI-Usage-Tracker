@@ -97,9 +97,9 @@
     color: var(--purple-on-fill) !important;
   }
 
-  /* The switch is at the right edge of the page, so the shared tooltip, centered under its button,
-     would run off the screen: the second button's tooltip hangs from its right edge instead. */
-  .activity-period-switch button:last-child[data-tooltip]::after {
+  /* The switch is at the right edge of the page, so the tooltips hang from their right edge
+     instead of being centered under their buttons. */
+  .activity-period-switch button[data-tooltip]::after {
     left: auto !important;
     right: 0 !important;
     transform: none !important;

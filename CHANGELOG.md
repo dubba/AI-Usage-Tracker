@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (41 changes)
+## Unreleased (51 changes)
 
 ### Added (3)
 
@@ -8,8 +8,16 @@
 - On the Usage page, the reorder hint ("Press & drag a card below or in the sidebar to reorder") is shown for the first two sessions.
 - On custom account group pages, a red trashcan button next to the group edit pen allows deleting the group directly from the header.
 
-### Improved (17)
+### Improved (25)
 
+- Tooltips on both the Left / Used and 7D / 30D segmented switches are now right-aligned when hovering over either option to prevent running off the viewport edge.
+- On desktop, the display mode switch on the Accounts page now labels its options "% Left" and "% Used" for clearer clarity.
+- On mobile, refined the spacing above and below account card progress bars to 4px for a more compact and balanced metric layout.
+- On mobile, the account card dropdown menu now matches desktop by offering Collapse/Expand and Rename directly below Move (followed by Refresh and Notifications), a separator line before Remove, and styling the Remove action in the matching coral red tone.
+
+- In the sidebar, thin separators are now shown between accounts and between groups whenever a section has two or more rows, remaining visible during drag reordering, with each card evenly centered between its adjacent separators.
+- On mobile, refined spacing on account card usage metrics with an 11px top padding, 13px row gap, and 16px bottom padding to optically balance spacing around the separator, between rows, and to the card edge.
+- The sidebar's group button now matches the top bar's group button color and hover behavior, using the muted-bright token and brightening to primary text on hover.
 - On mobile, the sidebar's add buttons now say "Account" and "Group" beside their icons, and account cards no longer show the green status dot, as on desktop.
 - On desktop, the App Settings page now has a subtitle under its title, "Customize app preferences and settings.", like the Accounts and Usage pages.
 - On mobile, account cards now look like the desktop ones (same icon, tinted pen, plan pill, divider and usage rows with the reset time and date), with Refresh and Alerts still in the menu and "Updated ..." above the menu button.
@@ -29,8 +37,10 @@
 - On desktop, the pen next to an account's name has the same purple tint, border and hover as the card's menu button.
 - On desktop, each usage limit on an account card shows its window and name beside a larger percentage, with the time until reset and the reset date under the bar.
 
-### Fixed (21)
+### Fixed (23)
 
+- In the sidebar, progress bars now turn amber at 30% or less and red at 15% or less remaining, and alert text colors now match the red and amber on the All Accounts page.
+- On account cards, progress bars now turn amber at 30% or less and red at 15% or less remaining, matching the percentage text tone instead of staying purple.
 - On mobile, the sidebar's default width is now wide enough for "GROKBOT 100%" to stay on one line next to "GROK 100%". On a phone too narrow for both, the two meters stack instead of overflowing the card.
 - On mobile, a group's page header now shows the same rounded "Group" pill and tinted edit pen as on desktop, instead of a small uppercase badge and a solid purple pen.
 - On desktop, the Usage page now leaves the same space under its header divider as the Accounts page, so the first card no longer sits on the divider.

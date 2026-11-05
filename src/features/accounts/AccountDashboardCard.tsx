@@ -351,6 +351,9 @@ export function AccountDashboardCard({
                 onRefresh={onRefresh}
                 onNotifications={onNotifications}
                 onRemove={onRemove}
+                collapsed={isCollapsed}
+                onToggleCollapse={toggleCollapse}
+                onRename={rename.startEditing}
               />
               </div>
             </div>

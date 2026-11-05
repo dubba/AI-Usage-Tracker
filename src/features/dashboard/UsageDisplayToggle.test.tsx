@@ -52,4 +52,11 @@ describe("UsageDisplayToggle", () => {
     expect(usedBtn.classList.contains("active")).toBe(false);
     expect(usedBtn.getAttribute("aria-pressed")).toBe("false");
   });
+
+  it("renders % Left and % Used when labels is 'words'", () => {
+    app = mount(<UsageDisplayToggle labels="words" />);
+
+    const buttons = document.querySelectorAll<HTMLButtonElement>("button");
+    expect(Array.from(buttons).map((b) => b.textContent?.trim())).toEqual(["% Left", "% Used"]);
+  });
 });

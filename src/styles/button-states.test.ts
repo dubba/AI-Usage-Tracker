@@ -7,6 +7,8 @@ const STYLES = __dirname;
 const OBSIDIAN_CSS = readFileSync(join(STYLES, "obsidian-dashboard.css"), "utf8");
 const MODAL_CLOSE_CSS = readFileSync(join(STYLES, "modal-close.css"), "utf8");
 const UI_REFINEMENTS_CSS = readFileSync(join(STYLES, "ui-refinements.css"), "utf8");
+const TOP_BAR_CSS = readFileSync(join(STYLES, "../app/top-bar.css"), "utf8");
+const ACTIVITY_CSS = readFileSync(join(STYLES, "../features/activity/activity.css"), "utf8");
 
 describe("Button hover and active state invariants", () => {
   it("excludes danger and amber buttons from generic button:hover override", () => {
@@ -88,5 +90,10 @@ describe("Button hover and active state invariants", () => {
     expect(UI_REFINEMENTS_CSS).toMatch(
       /@media \(min-width: 861px\)\s*\{\s*\.dashboard-header \.dashboard-title-row:has\(\.edit-bucket-title-btn\)\s*\{\s*height:\s*calc\(15px \* 1\.15\);/,
     );
+  });
+
+  it("right-aligns tooltips for all buttons in left/used and 7d/30d segmented switches", () => {
+    expect(TOP_BAR_CSS).toMatch(/\.top-bar-segmented\s+button\[data-tooltip\]::after\s*\{[^}]*right:\s*0\s*!important/);
+    expect(ACTIVITY_CSS).toMatch(/\.activity-period-switch\s+button\[data-tooltip\]::after\s*\{[^}]*right:\s*0\s*!important/);
   });
 });

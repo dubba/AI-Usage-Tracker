@@ -2,8 +2,8 @@ import { useUsageDisplayMode } from "../../shared/hooks/useUsageDisplayMode";
 import type { UsageDisplayMode } from "../../shared/lib/usage-display";
 
 const OPTIONS: ReadonlyArray<{ mode: UsageDisplayMode; letter: string; word: string; tooltip: string }> = [
-  { mode: "left", letter: "L", word: "Left", tooltip: "Show the percentage of usage left" },
-  { mode: "used", letter: "U", word: "Used", tooltip: "Show the percentage already used" },
+  { mode: "left", letter: "L", word: "% Left", tooltip: "Show the percentage of usage left" },
+  { mode: "used", letter: "U", word: "% Used", tooltip: "Show the percentage already used" },
 ];
 
 /**

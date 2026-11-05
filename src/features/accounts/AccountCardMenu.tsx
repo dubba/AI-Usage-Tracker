@@ -208,20 +208,35 @@ export function AccountCardMenu({
       {open ? (
         <div
           ref={menuRef}
-          className={`mobile-dropdown-menu ${placement.openUpward ? "upward" : ""}`}
+          className={`mobile-dropdown-menu account-card-menu-list ${placement.openUpward ? "upward" : ""}`}
           id={menuId}
           role="menu"
           aria-label={`Actions for ${label}`}
           style={menuStyle}
         >
           {moveItems}
+          {onToggleCollapse ? (
+            <button type="button" role="menuitem" className="mobile-dropdown-item collapse-action" onClick={choose(onToggleCollapse)}>
+              <ChevronIcon className={collapsed ? "is-collapsed" : undefined} /> {collapsed ? "Expand card" : "Collapse card"}
+            </button>
+          ) : null}
+          {onRename ? (
+            <button type="button" role="menuitem" className="mobile-dropdown-item rename-action" disabled={cardBusy} onClick={() => {
+              // Focus goes to the name field, not back to the toggle.
+              close();
+              onRename();
+            }}>
+              <EditIcon /> Rename
+            </button>
+          ) : null}
           <button type="button" role="menuitem" className="mobile-dropdown-item mobile-only-item refresh-action" disabled={cardBusy || refreshDisabled} onClick={choose(onRefresh)}>
             <RefreshIcon /> Refresh
           </button>
           <button type="button" role="menuitem" className="mobile-dropdown-item mobile-only-item notify-action" disabled={cardBusy} onClick={choose(onNotifications)}>
             <BellIcon /> Notifications
           </button>
-          <button type="button" role="menuitem" className="mobile-dropdown-item mobile-only-item remove-action" disabled={cardBusy} onClick={choose(onRemove)}>
+          <div className="account-card-menu-separator" role="separator" />
+          <button type="button" role="menuitem" className="mobile-dropdown-item remove-action" disabled={cardBusy} onClick={choose(onRemove)}>
             <TrashIcon /> Remove
           </button>
         </div>

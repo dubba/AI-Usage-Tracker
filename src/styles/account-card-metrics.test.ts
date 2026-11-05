@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const RESPONSIVE_CSS = readFileSync(join(__dirname, "account-card-responsive.css"), "utf8");
+const SIDEBAR_CSS = readFileSync(join(__dirname, "sidebar-list.css"), "utf8");
 
 describe("account card metric row spacing", () => {
   it("keeps uniform vertical padding across all intermediate rows in multi-row cards", () => {
@@ -56,5 +57,22 @@ describe("account card metric row spacing", () => {
     }
     const matches6 = Array.from(dom6.children).map((el) => el.matches(selector));
     expect(matches6).toEqual([true, true, true, true, false, false]);
+  });
+
+  it("keeps 6px spacing above and below progress bars on desktop and 4px on mobile", () => {
+    expect(RESPONSIVE_CSS).toMatch(/\.desktop-metric\s+\.account-metric-track\s*\{[^}]*margin:\s*6px 0;/);
+    expect(RESPONSIVE_CSS).toMatch(/@media\s*\(max-width:\s*860px\)\s*\{[\s\S]*?\.desktop-metric\s+\.account-metric-track\s*\{[^}]*margin:\s*4px 0;/);
+  });
+
+  it("styles account card progress bars with amber and red for warning and critical tones", () => {
+    expect(RESPONSIVE_CSS).toMatch(/\.account-metric-track\s*>\s*\.tone-warning\s*\{[^}]*background:\s*var\(--obsidian-amber\)/);
+    expect(RESPONSIVE_CSS).toMatch(/\.account-metric-track\s*>\s*\.tone-critical\s*\{[^}]*background:\s*#c53131/);
+  });
+
+  it("styles sidebar meter text and bars with amber and red matching account cards", () => {
+    expect(SIDEBAR_CSS).toMatch(/\.sidebar-meter-value\.tone-critical\s*\{[^}]*color:\s*#c53131/);
+    expect(SIDEBAR_CSS).toMatch(/\.sidebar-meter-value\.tone-warning\s*\{[^}]*color:\s*var\(--obsidian-amber\)/);
+    expect(SIDEBAR_CSS).toMatch(/\.provider-summary-track\s*>\s*\.tone-warning\s*\{[^}]*background:\s*var\(--obsidian-amber\)/);
+    expect(SIDEBAR_CSS).toMatch(/\.provider-summary-track\s*>\s*\.tone-critical\s*\{[^}]*background:\s*#c53131/);
   });
 });

@@ -180,4 +180,47 @@ describe("AccountCardMenu", () => {
     click(toggle());
     expect(menu()!.classList.contains("upward")).toBe(true);
   });
+
+  it("renders collapse, rename, and separator when provided on mobile", () => {
+    const onToggleCollapse = vi.fn();
+    const onRename = vi.fn();
+    mounted = mount(
+      <Harness
+        handlers={handlers()}
+        onToggleCollapse={onToggleCollapse}
+        onRename={onRename}
+      />,
+    );
+    click(toggle());
+    expect(items().map((item) => item.textContent?.trim())).toEqual([
+      "Move up",
+      "Move down",
+      "Collapse card",
+      "Rename",
+      "Refresh",
+      "Notifications",
+      "Remove",
+    ]);
+    expect(document.querySelector(".account-card-menu-separator")).not.toBeNull();
+
+    click(items()[2]);
+    expect(onToggleCollapse).toHaveBeenCalledTimes(1);
+
+    click(toggle());
+    click(items()[3]);
+    expect(onRename).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows Expand card when collapsed is true on mobile", () => {
+    const onToggleCollapse = vi.fn();
+    mounted = mount(
+      <Harness
+        handlers={handlers()}
+        collapsed
+        onToggleCollapse={onToggleCollapse}
+      />,
+    );
+    click(toggle());
+    expect(items().map((item) => item.textContent?.trim())).toContain("Expand card");
+  });
 });

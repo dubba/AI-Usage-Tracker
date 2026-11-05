@@ -260,6 +260,32 @@ describe("AccountDashboardCard actions dropdown placement", () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(document.activeElement).toBe(toggle);
   });
+
+  it("allows collapsing and renaming from the mobile dropdown menu", async () => {
+    app = mount(
+      <AccountDashboardCard
+        pageId="all"
+        account={{ ...account, id: "mobile-collapse-test" }}
+        busy={new Set()}
+        onRefresh={() => undefined}
+        onReconnect={() => undefined}
+        onConnectGoogleUsage={() => undefined}
+        onRename={async () => undefined}
+        onRemove={() => undefined}
+        onNotifications={() => undefined}
+      />,
+    );
+    const toggle = app.container.querySelector<HTMLButtonElement>(".mobile-dropdown-toggle")!;
+    click(toggle);
+
+    const items = [...document.querySelectorAll<HTMLButtonElement>(".mobile-dropdown-menu .mobile-dropdown-item")].map((b) => b.textContent?.trim());
+    expect(items).toEqual(["Collapse card", "Rename", "Refresh", "Notifications", "Remove"]);
+    expect(document.querySelector(".mobile-dropdown-menu .account-card-menu-separator")).not.toBeNull();
+
+    const collapseBtn = [...document.querySelectorAll<HTMLButtonElement>(".mobile-dropdown-menu .mobile-dropdown-item")].find((b) => b.textContent?.includes("Collapse card"))!;
+    click(collapseBtn);
+    expect(app.container.querySelector(".provider-account-card")?.classList.contains("is-collapsed")).toBe(true);
+  });
 });
 
 

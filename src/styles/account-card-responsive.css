@@ -397,9 +397,58 @@
   flex-shrink: 0;
 }
 
-.mobile-dropdown-item.remove-action { color: #c53131; }
+.mobile-dropdown-item.remove-action { color: var(--c-ff9d9d); }
 .mobile-dropdown-item.notify-action { color: var(--obsidian-amber); }
 .mobile-dropdown-item.refresh-action { color: var(--obsidian-green); }
+
+.account-card-menu-separator {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--obsidian-border);
+}
+
+/* As wide as its longest item (the base menu is max-content). Shared between desktop and mobile. */
+.account-card-menu-list {
+  padding: 6px;
+  border-color: var(--obsidian-border-strong);
+  border-radius: 10px;
+}
+
+/* The icons are drawn 2px inside their 16px box, so 2px more on the right makes the space after
+   the widest label match the space before its icon. */
+.account-card-menu-list .mobile-dropdown-item {
+  border-radius: 6px;
+  padding: 9px 12px 9px 10px;
+  font-size: 14px;
+}
+
+.account-card-menu-list .mobile-dropdown-item.move-action,
+.account-card-menu-list .mobile-dropdown-item.collapse-action,
+.account-card-menu-list .mobile-dropdown-item.rename-action {
+  color: var(--obsidian-text);
+}
+
+.account-card-menu-list .mobile-dropdown-item.remove-action {
+  color: var(--c-ff9d9d);
+}
+
+/* Hover reads like the card's Refresh (green) and Alerts (amber) buttons: a strong border in
+   its color over a tint. The border is an inset shadow, so the item does not move. */
+.account-card-menu-list .mobile-dropdown-item.remove-action:hover:not(:disabled),
+.account-card-menu-list .mobile-dropdown-item.remove-action:focus-visible {
+  background: var(--c-85-15-15-a420);
+  box-shadow: inset 0 0 0 1px rgba(255, 100, 100, 0.9);
+  color: var(--c-ffb4ab);
+}
+
+/* The chevron points right; up for Collapse, down for Expand. */
+.account-card-menu-list .collapse-action svg {
+  transform: rotate(-90deg);
+}
+
+.account-card-menu-list .collapse-action svg.is-collapsed {
+  transform: rotate(90deg);
+}
 
 @media (max-width: 860px) {
   .provider-account-card .account-card-name-actions.desktop-only,
@@ -668,9 +717,8 @@
 }
 
 /*
- * Account card bars are one purple ramp whatever is left (see the override at the end of this
- * file); the level shows in the percentage's color (usageTone: amber at 30% or less, red at 15%
- * or less). The tone rules below still color the bar elsewhere that uses them.
+ * Account card bars turn amber (<= 30%) and red (<= 15%) when running low, matching the percentage
+ * text colors. At healthy levels, they use the purple gradient.
  */
 /* Sidebar and account-card bars use the same purple as the mobile status bar and scroll bars. */
 .provider-summary-track > .tone-healthy,
@@ -1020,7 +1068,7 @@
   font-size: 13px;
 }
 
-/* The same 6px of spacing above and below the bar. */
+/* The same 6px of spacing above and below the bar on desktop. */
 .desktop-metric .account-metric-track {
   flex: none;
   width: 100%;
@@ -1279,55 +1327,6 @@
     position: relative;
   }
 
-  /* As wide as its longest item (the base menu is max-content). */
-  .account-card-menu-list {
-    padding: 6px;
-    border-color: var(--obsidian-border-strong);
-    border-radius: 10px;
-  }
-
-  /* The icons are drawn 2px inside their 16px box, so 2px more on the right makes the space after
-     the widest label ("Remove account") match the space before its trash can. */
-  .account-card-menu-list .mobile-dropdown-item {
-    border-radius: 6px;
-    padding: 9px 12px 9px 10px;
-    font-size: 14px;
-  }
-
-  .account-card-menu-list .mobile-dropdown-item.move-action,
-  .account-card-menu-list .mobile-dropdown-item.collapse-action,
-  .account-card-menu-list .mobile-dropdown-item.rename-action {
-    color: var(--obsidian-text);
-  }
-
-  .account-card-menu-list .mobile-dropdown-item.remove-action {
-    color: var(--c-ff9d9d);
-  }
-
-  /* Hover reads like the card's Refresh (green) and Alerts (amber) buttons: a strong border in
-     its color over a tint. The border is an inset shadow, so the item does not move. */
-  .account-card-menu-list .mobile-dropdown-item.remove-action:hover:not(:disabled),
-  .account-card-menu-list .mobile-dropdown-item.remove-action:focus-visible {
-    background: var(--c-85-15-15-a420);
-    box-shadow: inset 0 0 0 1px rgba(255, 100, 100, 0.9);
-    color: var(--c-ffb4ab);
-  }
-
-  /* The chevron points right; up for Collapse, down for Expand. */
-  .account-card-menu-list .collapse-action svg {
-    transform: rotate(-90deg);
-  }
-
-  .account-card-menu-list .collapse-action svg.is-collapsed {
-    transform: rotate(90deg);
-  }
-
-  .account-card-menu-separator {
-    height: 1px;
-    margin: 4px 2px;
-    background: var(--obsidian-border);
-  }
-
   /* 14px over the first row leaves about the same visible space from the divider to the top of
      the percent as from the reset date to the card's bottom edge (20px of padding there). */
   .provider-account-card.desktop-card .account-card-metrics {
@@ -1370,10 +1369,23 @@
   padding: 0 11px;
 }
 
-/* Account card bars: the same purple ramp as the sidebar bars, for every usage level. Longer
-   selector so it beats the !important tone colors above. */
-.obsidian-shell .account-usage-metric .account-metric-track > span {
+/* Account card bars: the same purple ramp as the sidebar bars for healthy levels,
+   while turning amber (<= 30%) and red (<= 15%) when running low like the percentage text. */
+.obsidian-shell .account-usage-metric .account-metric-track > span,
+.obsidian-shell .account-usage-metric .account-metric-track > .tone-healthy {
   background: linear-gradient(90deg, var(--purple-fill), var(--purple-accent)) !important;
+}
+
+.obsidian-shell .account-usage-metric .account-metric-track > .tone-warning {
+  background: var(--obsidian-amber) !important;
+}
+
+.obsidian-shell .account-usage-metric .account-metric-track > .tone-critical {
+  background: #c53131 !important;
+}
+
+.obsidian-shell .account-usage-metric .account-metric-track > .tone-neutral {
+  background: var(--c-69656d) !important;
 }
 
 /* Account card provider icons: the same fill as the sidebar's provider icons (sidebar-list.css), at
@@ -1560,11 +1572,11 @@
   .provider-account-card .account-card-metrics,
   .provider-account-card .account-card-metrics.two-column-metrics,
   .provider-account-card .account-card-metrics.multi-row-metrics {
-    gap: 16px;
+    gap: 13px;
     /* The left edge lines up with the icon above (the header's left padding is 12px on a phone, see
        dashboard-reorder.css), the right edge with the menu button. */
     margin: 0 14px 0 12px;
-    padding: 14px 0 18px;
+    padding: 11px 0 16px;
     border-top: 1px solid var(--obsidian-border);
   }
 
@@ -1574,17 +1586,22 @@
     gap: 0;
     padding: 0 !important;
   }
+
+  /* 4px of spacing above and below the bar on mobile for a more compact metric layout. */
+  .desktop-metric .account-metric-track {
+    margin: 4px 0;
+  }
 }
 
-/* The Left / Used switch on a wide window: at the Accounts page header's top right, out of the flow so
+/* The % Left / % Used switch on a wide window: at the Accounts page header's top right, out of the flow so
    the title and description keep their place (like the Usage page's 7D / 30D switch). */
 @media (min-width: 861px) {
   .dashboard-header > div:has(> .accounts-display-switch) {
     position: relative;
     flex: 1 1 auto;
     min-width: 0;
-    /* The label (about 36px), its 8px gap, the switch (about 112px) and the gap before it. */
-    padding-right: 192px;
+    /* The label (about 36px), its 8px gap, the switch (about 132px) and the gap before it. */
+    padding-right: 212px;
   }
 
   /* At the header's right edge, the same edge as the Usage page's 7D / 30D switch and the top bar's

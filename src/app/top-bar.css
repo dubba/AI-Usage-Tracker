@@ -100,10 +100,10 @@
     color: var(--purple-on-fill) !important;
   }
 
-  /* The switch is at the page's right edge, so the last option's tooltip hangs from its right edge
-     instead of being centered under it. The global tooltip rule is
+  /* The switch is at the page's right edge, so the options' tooltips hang from their right edge
+     instead of being centered under them. The global tooltip rule is
      unlayered, hence !important (see the header). */
-  .top-bar-segmented button:last-child[data-tooltip]::after {
+  .top-bar-segmented button[data-tooltip]::after {
     left: auto !important;
     right: 0 !important;
     transform: none !important;
