@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (39 changes)
+## Unreleased (41 changes)
 
 ### Added (3)
 
@@ -8,8 +8,9 @@
 - On the Usage page, the reorder hint ("Press & drag a card below or in the sidebar to reorder") is shown for the first two sessions.
 - On custom account group pages, a red trashcan button next to the group edit pen allows deleting the group directly from the header.
 
-### Improved (16)
+### Improved (17)
 
+- On mobile, the sidebar's add buttons now say "Account" and "Group" beside their icons, and account cards no longer show the green status dot, as on desktop.
 - On desktop, the App Settings page now has a subtitle under its title, "Customize app preferences and settings.", like the Accounts and Usage pages.
 - On mobile, account cards now look like the desktop ones (same icon, tinted pen, plan pill, divider and usage rows with the reset time and date), with Refresh and Alerts still in the menu and "Updated ..." above the menu button.
 - On desktop, the sidebar's default width now lines the right edge of its cards up with the right edge of the Accounts / Usage / Settings switch, and double-clicking the sidebar's resize handle returns to that width.
@@ -28,8 +29,9 @@
 - On desktop, the pen next to an account's name has the same purple tint, border and hover as the card's menu button.
 - On desktop, each usage limit on an account card shows its window and name beside a larger percentage, with the time until reset and the reset date under the bar.
 
-### Fixed (20)
+### Fixed (21)
 
+- On mobile, the sidebar's default width is now wide enough for "GROKBOT 100%" to stay on one line next to "GROK 100%". On a phone too narrow for both, the two meters stack instead of overflowing the card.
 - On mobile, a group's page header now shows the same rounded "Group" pill and tinted edit pen as on desktop, instead of a small uppercase badge and a solid purple pen.
 - On desktop, the Usage page now leaves the same space under its header divider as the Accounts page, so the first card no longer sits on the divider.
 - An account card's actions menu now closes when you click another card or the sidebar, not only elsewhere on the page.

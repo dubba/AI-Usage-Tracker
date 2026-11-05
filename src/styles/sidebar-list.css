@@ -99,6 +99,38 @@
   background: var(--purple-fill-hover);
 }
 
+/* The words beside the icons ("+ Account", "Group") show on the phone overlay only; on a wide window the
+   buttons are icons alone. */
+.sidebar-section-button-label {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .sidebar-section-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: auto;
+    padding: 0 12px 0 10px;
+  }
+
+  .sidebar-section-button-label {
+    display: inline;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  /* The plus is drawn smaller inside its 18px box (about 10px of ink) than the user-plus beside "Group"
+     (about 15px), which left more blank space around it than around that icon. Trimming its box by the
+     difference (2.3px a side) makes the space from the button's edge to the glyph, and from the glyph to
+     the word, the same on both buttons. */
+  .sidebar-section-button.is-primary svg {
+    margin-inline: -2.3px;
+  }
+}
+
 /* The tooltip stays inside the sidebar: the buttons sit at its right edge. */
 .sidebar-section-button[data-tooltip]::after {
   left: auto;
@@ -233,17 +265,23 @@
 /* Meters */
 .provider-summary-row .sidebar-meters.provider-average {
   display: flex;
+  /* On a phone too narrow for both pairs side by side (a Grok row at 320px), the second meter drops
+     below the first instead of overflowing the card. */
+  flex-wrap: wrap;
   flex: 1 1 auto;
-  gap: 12px;
+  gap: 6px 12px;
   width: 100%;
   font-size: 12px;
 }
 
+/* Two equal columns, unless a label and its percentage ("GROKBOT 100%") need more than half: then that
+   column takes what it needs from the other, so the pair never wraps. With room for neither
+   arrangement the meters stack (see `.sidebar-meters`). */
 .sidebar-meter {
   display: grid;
   flex: 1 1 0;
   gap: 4px;
-  min-width: 0;
+  min-width: max-content;
 }
 
 .sidebar-meter-head {

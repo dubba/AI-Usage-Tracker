@@ -130,6 +130,7 @@ export function Sidebar({
               data-tooltip="Add new account"
             >
               <PlusIcon />
+              <span className="sidebar-section-button-label">Account</span>
             </button>
           }
         />
@@ -145,6 +146,7 @@ export function Sidebar({
               data-tooltip={"Group accounts to track usage in\none place, like “Work” or “Personal”"}
             >
               <UserPlusIcon />
+              <span className="sidebar-section-button-label">Group</span>
             </button>
           }
         />

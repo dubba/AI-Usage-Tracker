@@ -200,6 +200,9 @@
   .top-bar-add-account svg {
     width: 17px !important;
     height: 17px !important;
+    /* The plus is drawn with a 1.8 stroke (a 24px box scaled to 17px: about 1.3px), thin beside the
+       bold label; 3 gives it the label's weight. */
+    stroke-width: 3;
   }
 
   /* Its copy breaks after "in" on purpose, as on the phone sidebar's Group button. The global

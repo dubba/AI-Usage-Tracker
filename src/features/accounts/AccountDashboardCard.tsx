@@ -281,10 +281,6 @@ export function AccountDashboardCard({
                 {isCollapsed && lowestRemaining != null ? (
                   <span className={`collapsed-summary tone-${usageTone(lowestRemaining)}`}>{Math.round(displayPercent(lowestRemaining, displayMode))}% {usageDisplaySuffix(displayMode)}</span>
                 ) : null}
-                <span
-                  className={`live-dot ${needsAttention || status.label !== "LIVE" ? "attention" : ""}`}
-                  aria-hidden="true"
-                />
                 {plan ? <span className="account-plan-badge">{plan}</span> : null}
               </span>
               {account.provider === "google_ai_studio" ? (

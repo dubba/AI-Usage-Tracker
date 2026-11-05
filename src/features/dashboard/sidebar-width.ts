@@ -158,6 +158,32 @@ export function measureSyncLineFitWidth(sidebar: HTMLElement): number | null {
   return Math.ceil(width + horizontalChrome(sidebar) + MEASURE_BUFFER_PX);
 }
 
+/**
+ * Sidebar width at which every row's two meters fit with their label and percentage ("GROKBOT 100%")
+ * on one line each. The columns size to their content (see `.sidebar-meter`), so a row needs the
+ * natural widths of its two label-and-value pairs plus the gap between them; the widest row decides.
+ * Worked out from the layout as it is: whatever the sidebar spends on padding, borders and the icon
+ * is the difference between its width and a row's meters. Null when no row is on screen.
+ */
+export function measureMeterFitWidth(sidebar: HTMLElement): number | null {
+  const rows = Array.from(sidebar.querySelectorAll<HTMLElement>(".sidebar-meters"));
+  if (rows.length === 0) return null;
+  const sidebarWidth = sidebar.getBoundingClientRect().width;
+  const metersWidth = rows[0].getBoundingClientRect().width;
+  if (!Number.isFinite(metersWidth) || metersWidth <= 0 || !Number.isFinite(sidebarWidth)) return null;
+  const gap = parseFloat(getComputedStyle(rows[0]).columnGap) || 0;
+  let widestRow = 0;
+  for (const row of rows) {
+    let total = gap;
+    for (const head of row.querySelectorAll<HTMLElement>(".sidebar-meter-head")) {
+      total += naturalWidth(sidebar, head, (clone) => { clone.style.flexWrap = "nowrap"; });
+    }
+    widestRow = Math.max(widestRow, total);
+  }
+  if (!Number.isFinite(widestRow) || widestRow <= gap) return null;
+  return Math.ceil(sidebarWidth - metersWidth + widestRow + MEASURE_BUFFER_PX);
+}
+
 /** The `.provider-list`'s left and right padding (obsidian-dashboard.css): the cards sit inside it. */
 const LIST_SIDE_PADDING_PX = 5;
 

@@ -6,6 +6,7 @@ import {
   DEFAULT_MOBILE_SIDEBAR_WIDTH,
   defaultSidebarWidth,
   maxSidebarWidth,
+  measureMeterFitWidth,
   measureNavAlignedWidth,
   MAX_SIDEBAR_WIDTH,
   sidebarFitWidth,
@@ -108,5 +109,51 @@ describe("measureNavAlignedWidth", () => {
   it("is null without a top bar, as on the phone overlay", () => {
     const { shell, sidebar } = setup(null);
     expect(measureNavAlignedWidth(shell, sidebar)).toBeNull();
+  });
+});
+
+describe("measureMeterFitWidth", () => {
+  afterEach(() => {
+    document.body.replaceChildren();
+    vi.restoreAllMocks();
+  });
+
+  /** Rows of meters; each number is one label-and-value pair's natural width. */
+  function setup(rows: number[][]) {
+    const sidebar = document.createElement("aside");
+    const metersEls: HTMLElement[] = [];
+    for (const heads of rows) {
+      const meters = document.createElement("span");
+      meters.className = "sidebar-meters";
+      meters.style.columnGap = "12px";
+      for (const width of heads) {
+        const head = document.createElement("span");
+        head.className = "sidebar-meter-head";
+        head.dataset.natural = String(width);
+        meters.append(head);
+      }
+      sidebar.append(meters);
+      metersEls.push(meters);
+    }
+    document.body.append(sidebar);
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      // The invisible copy `naturalWidth` measures carries the head's natural width.
+      if (this.getAttribute("aria-hidden") === "true") return new DOMRect(0, 0, Number(this.dataset.natural), 14);
+      if (this === sidebar) return new DOMRect(0, 0, 262, 600);
+      if (metersEls.includes(this)) return new DOMRect(0, 0, 146, 40);
+      return new DOMRect(0, 0, 0, 0);
+    });
+    return sidebar;
+  }
+
+  it("is what the sidebar spends beside the meters plus the widest row's two pairs and the gap", () => {
+    // 262 - 146 = 116 beside the meters; the Grok row needs 95 + 70 + 12; 2px buffer.
+    expect(measureMeterFitWidth(setup([[62, 62], [95, 70], [66, 66]]))).toBe(116 + 95 + 70 + 12 + 2);
+  });
+
+  it("is null when no row is on screen", () => {
+    const sidebar = document.createElement("aside");
+    document.body.append(sidebar);
+    expect(measureMeterFitWidth(sidebar)).toBeNull();
   });
 });

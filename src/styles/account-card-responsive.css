@@ -261,35 +261,6 @@
   gap: 6px;
 }
 
-.live-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--obsidian-green);
-  box-shadow: 0 0 8px rgba(78, 222, 163, 0.8), 0 0 16px rgba(78, 222, 163, 0.4);
-  flex-shrink: 0;
-  display: inline-block;
-  position: relative;
-  animation: live-pulse 2s ease-in-out infinite;
-}
-
-.live-dot.attention,
-.live-dot.red {
-  background: #ff5449;
-  box-shadow: 0 0 8px rgba(255, 84, 73, 0.8), 0 0 16px rgba(255, 84, 73, 0.4);
-  animation: attention-pulse 2s ease-in-out infinite;
-}
-
-@keyframes live-pulse {
-  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(78, 222, 163, 0.8), 0 0 16px rgba(78, 222, 163, 0.4); }
-  50% { opacity: 0.8; box-shadow: 0 0 12px rgba(78, 222, 163, 1), 0 0 24px rgba(78, 222, 163, 0.6); }
-}
-
-@keyframes attention-pulse {
-  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(255, 84, 73, 0.8), 0 0 16px rgba(255, 84, 73, 0.4); }
-  50% { opacity: 0.8; box-shadow: 0 0 12px rgba(255, 84, 73, 1), 0 0 24px rgba(255, 84, 73, 0.6); }
-}
-
 .mobile-actions-dropdown {
   position: relative;
   display: none;

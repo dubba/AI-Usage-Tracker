@@ -127,6 +127,12 @@ describe("Sidebar", () => {
       expect(onAddGroup).toHaveBeenCalledTimes(1);
     });
 
+    it("spells the buttons out beside their icons (shown on the phone overlay by CSS)", () => {
+      render({ section: "accounts", topBar: false });
+      const labels = [...mounted!.container.querySelectorAll(".sidebar-section-button .sidebar-section-button-label")].map((el) => el.textContent);
+      expect(labels).toEqual(["Account", "Group"]);
+    });
+
     it("puts the add buttons in the section headers on the phone overlay too", () => {
       const { onAddAccount, onAddGroup } = render({ section: "accounts", topBar: false });
       click(mounted!.container.querySelector<HTMLElement>('[aria-label="Add new account"]')!);

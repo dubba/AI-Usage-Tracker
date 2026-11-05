@@ -8,6 +8,7 @@ import {
   KEYBOARD_STEP,
   maxSidebarWidth,
   measureMainMinWidth,
+  measureMeterFitWidth,
   measureMinSidebarWidth,
   measureNavAlignedWidth,
   measureSyncLineFitWidth,
@@ -99,10 +100,13 @@ export function SidebarResizeHandle({
     if (mainMin !== null) mainMinWidth.current = mainMin;
     toggleLineWidth.current = measureToggleLineWidth(sidebar);
     // On a wide window the default lines the cards up with the top bar's page switch; on the phone
-    // overlay it fits the sync line and the L / U row.
-    fitWidth.current =
+    // overlay it fits the sync line and the L / U row. Both also leave the meters room.
+    const lineWidth =
       (shell ? measureNavAlignedWidth(shell, sidebar) : null) ??
       sidebarFitWidth(measureSyncLineFitWidth(sidebar), toggleLineWidth.current);
+    // Never narrower than the meters need, so "GROKBOT 100%" does not wrap.
+    const meterWidth = measureMeterFitWidth(sidebar);
+    fitWidth.current = lineWidth === null ? meterWidth : meterWidth === null ? lineWidth : Math.max(lineWidth, meterWidth);
   }, [sidebarRef, shellRef]);
 
   // Until the user picks a width, the sidebar uses the default width (`fitWidth`). The fixed
@@ -127,6 +131,8 @@ export function SidebarResizeHandle({
     const frame = requestAnimationFrame(syncToViewport);
     // The sync line and the heading depend on the web font, which may load after first paint.
     void document.fonts?.ready.then(syncToViewport);
+    // A font used for the first time loads after `ready` has resolved; the measurements depend on it.
+    document.fonts?.addEventListener?.("loadingdone", syncToViewport);
     const overlayQuery = window.matchMedia(MOBILE_OVERLAY_QUERY);
     window.addEventListener("resize", syncToViewport);
     overlayQuery.addEventListener("change", syncToViewport);
@@ -134,8 +140,46 @@ export function SidebarResizeHandle({
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", syncToViewport);
       overlayQuery.removeEventListener("change", syncToViewport);
+      document.fonts?.removeEventListener?.("loadingdone", syncToViewport);
     };
   }, [syncToViewport]);
+
+  // The rows load, and change, after the handle mounts, and a font used for the first time loads after
+  // `document.fonts.ready` has resolved, which changes how wide a label and its percentage are (on the
+  // phone nothing else re-measures). While the sidebar is on its default width, measure again when the
+  // rows change or their meters change size, so the default keeps room for them.
+  useEffect(() => {
+    const list = sidebarRef.current?.querySelector(".provider-list");
+    if (!list) return;
+    let timer: number | undefined;
+    const remeasure = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        if (useFitAsDefault.current[isOverlay() ? "mobile" : "desktop"]) syncToViewport();
+      }, 50);
+    };
+    const sizes = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(remeasure);
+    const watchMeters = () => {
+      sizes?.disconnect();
+      list.querySelectorAll(".sidebar-meter").forEach((meter) => sizes?.observe(meter));
+    };
+    watchMeters();
+    const rows = new MutationObserver(() => {
+      watchMeters();
+      remeasure();
+    });
+    rows.observe(list, { childList: true, subtree: true, characterData: true });
+    // The phone overlay is laid out differently once it is open, so measure again then.
+    const sidebar = sidebarRef.current;
+    const opening = new MutationObserver(remeasure);
+    if (sidebar) opening.observe(sidebar, { attributes: true, attributeFilter: ["class"] });
+    return () => {
+      window.clearTimeout(timer);
+      sizes?.disconnect();
+      rows.disconnect();
+      opening.disconnect();
+    };
+  }, [sidebarRef, syncToViewport]);
 
   // The account cards load, and change, after the handle mounts. Measure again when the page
   // changes, so the window's minimum width follows the cards actually on screen.
