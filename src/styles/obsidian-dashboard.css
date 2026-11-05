@@ -1169,6 +1169,16 @@ button.summary-card:focus-visible {
   text-overflow: ellipsis;
 }
 
+/* "5H" before the account, in the look of a desktop card's "5-HOUR" (.desktop-metric-span). */
+.next-reset-limit {
+  margin-right: 8px;
+  color: var(--obsidian-muted);
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .next-reset-actions {
   display: flex;
   align-items: center;

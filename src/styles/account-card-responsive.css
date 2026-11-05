@@ -1047,29 +1047,31 @@
     font-size: 18px;
   }
 
-  /* A quiet pencil beside the name. The filled purple pencil (`:root .account-name-edit` in
-     ui-refinements.css) is !important, so the overrides here are too. */
+  /* The pencil beside the name takes the look of the card's menu button (.more-action below): a
+     soft purple tint and edge at rest, a stronger tint and a purple edge on hover. The filled
+     purple pencil (`:root .account-name-edit` in ui-refinements.css) is !important, so the
+     overrides here are too. */
   .provider-account-card.desktop-card .account-name-edit {
-    border: 0;
+    border: 1px solid rgb(var(--purple-accent-rgb) / 0.35) !important;
     border-radius: 6px;
-    background: transparent !important;
-    color: var(--obsidian-muted);
+    background: rgb(var(--purple-accent-rgb) / 0.12) !important;
+    color: var(--purple-text) !important;
+    box-shadow: none !important;
+    transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
   }
 
   .provider-account-card.desktop-card .account-name-edit svg {
     width: 15px !important;
     height: 15px !important;
-    color: var(--obsidian-muted-bright) !important;
+    color: inherit !important;
   }
 
   .provider-account-card.desktop-card .account-name-edit:hover:not(:disabled),
-  .provider-account-card.desktop-card .account-name-edit:focus-visible {
-    background: var(--purple-surface) !important;
-  }
-
-  .provider-account-card.desktop-card .account-name-edit:hover:not(:disabled) svg,
-  .provider-account-card.desktop-card .account-name-edit:focus-visible svg {
-    color: var(--obsidian-text) !important;
+  .provider-account-card.desktop-card .account-name-edit:focus-visible,
+  .provider-account-card.desktop-card .account-name-edit:active:not(:disabled) {
+    border-color: var(--purple-accent) !important;
+    background: rgb(var(--purple-accent-rgb) / 0.28) !important;
+    color: var(--purple-ink) !important;
   }
 
   .provider-account-card.desktop-card .account-card-email {

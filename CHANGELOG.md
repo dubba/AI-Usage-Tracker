@@ -15,6 +15,7 @@
 - In Settings, the dropdowns and outlined buttons now have the same gray border as a switch that is off, turning purple on hover.
 - On desktop, a bar across the top of the window now holds the Accounts, Usage and Settings pages, the sync status, Refresh all, the Left / Used switch, and the Add account and new group buttons; the sidebar keeps the account and group list.
 - On desktop, account cards show the plan chip (and a status chip when an account needs attention), with Refresh and Alerts buttons and a menu (the chevron, as on mobile) for Move up, Move down, Collapse, Rename and Remove.
+- On desktop, the pen next to an account's name has the same purple tint, border and hover as the card's menu button.
 - On desktop, each usage limit on an account card shows its window and name beside a larger percentage, with the time until reset and the reset date under the bar.
 
 ### Fixed (18)
