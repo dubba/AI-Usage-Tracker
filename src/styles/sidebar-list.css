@@ -160,6 +160,25 @@
   box-shadow: none !important;
 }
 
+/* Phone overlay: the drag dots are never drawn (dashboard-reorder.css hides them), so the icon does not
+   need the room they take. Its left padding drops from 17px to 12px (the selected row's 3px bar and 9px
+   to the icon), and the right padding matches it. The list also reaches 7px into the sidebar's right
+   padding so the cards end closer to the resize dots; the section headers add that 7px back so the
+   Account and Group buttons stay where they were. */
+@media (max-width: 860px) {
+  .provider-summary-row.provider-summary-row.provider-summary-row {
+    padding: 12px 12px 12px 12px !important;
+  }
+
+  .obsidian-shell .provider-list {
+    margin-right: -7px;
+  }
+
+  .provider-list > .sidebar-section-header {
+    padding-right: 13px;
+  }
+}
+
 @media (hover: hover) {
   .provider-summary-row.provider-summary-row:not(.selected):hover {
     background: rgb(var(--purple-accent-rgb) / 0.08) !important;

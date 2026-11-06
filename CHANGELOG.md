@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased (2 changes)
+## Unreleased (3 changes)
 
-### Improved (1)
+### Improved (2)
 
 - On Grok account cards, the GrokBot limit is now labeled "Bot" to avoid repeating the provider name.
+- On mobile, the sidebar's account and group cards now sit closer to the left edge, with the provider icon and the right padding matching, and the cards' right edge moved closer to the resize dots.
 
 ### Removed (1)
 
