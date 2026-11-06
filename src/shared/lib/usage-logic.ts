@@ -132,6 +132,37 @@ export function grokBotAverage(accounts: Account[]): number | null {
   if (!values.length) return null;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
+/**
+ * The label for the second meter in a sidebar group row.
+ * - Grok-only groups show "7D Grok".
+ * - Groups containing an account with a weekly window show "7d".
+ * - Groups whose reported limit is monthly (such as ChatGPT Free) show "30d".
+ * - When accounts have no usage yet, free OpenAI groups default to "30d", all others to "7d".
+ */
+export function groupSecondMeterLabel(accounts: Account[]): string {
+  if (isGrokOnlyGroup(accounts)) return "7D Grok";
+
+  const hasWeekly = accounts.some((account) =>
+    (account.lastUsage?.windows ?? []).some(
+      (window) => canonicalWindow(window, "weekly") || window.id === "weekly",
+    ),
+  );
+  if (hasWeekly) return "7d";
+
+  const hasMonthly = accounts.some((account) =>
+    (account.lastUsage?.windows ?? []).some(
+      (window) => isMonthlyWindow(window) || window.id === "monthly",
+    ),
+  );
+  if (hasMonthly) return "30d";
+
+  const isAllFreeOpenAI =
+    accounts.length > 0 &&
+    accounts.every((account) => account.provider === "openai" && account.plan?.toLowerCase().includes("free"));
+  if (isAllFreeOpenAI) return "30d";
+
+  return "7d";
+}
 export function nextResetSummary(accounts: Account[], now: number = Date.now()): NextResetSummary {
   const currentNow = Math.max(now, Date.now());
   const candidates = accounts.flatMap((account) =>

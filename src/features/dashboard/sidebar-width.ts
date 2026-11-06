@@ -108,6 +108,11 @@ export function sidebarToggleStacks(width: number, lineWidth: number | null): bo
   return lineWidth !== null && width < lineWidth;
 }
 
+/** All rows' meters drop to two stacked lines when the sidebar is narrower than the widest pair needs. */
+export function sidebarMetersStack(width: number, meterFitWidth: number | null): boolean {
+  return meterFitWidth !== null && width < meterFitWidth;
+}
+
 /** The phrase the sidebar is opened wide enough to show on one line. */
 const SAMPLE_SYNC_TITLE = "Accounts synced";
 const SAMPLE_SYNC_ELAPSED = "just now";
@@ -159,7 +164,7 @@ export function measureSyncLineFitWidth(sidebar: HTMLElement): number | null {
 }
 
 /**
- * Sidebar width at which every row's two meters fit with their label and percentage ("GROKBOT 100%")
+ * Sidebar width at which every row's two meters fit with their label and percentage ("7D BOT 100%")
  * on one line each. The columns size to their content (see `.sidebar-meter`), so a row needs the
  * natural widths of its two label-and-value pairs plus the gap between them; the widest row decides.
  * Worked out from the layout as it is: whatever the sidebar spends on padding, borders and the icon

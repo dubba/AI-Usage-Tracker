@@ -334,7 +334,18 @@
   font-size: 12px;
 }
 
-/* Two equal columns, unless a label and its percentage ("GROKBOT 100%") need more than half: then that
+/* When the sidebar is narrower than its widest row needs (such as Grok's two 7D meters), all rows
+   drop their meters into two stacked lines together. */
+html[data-sidebar-meters-stacked] .provider-summary-row .sidebar-meters.provider-average {
+  flex-direction: column;
+}
+
+html[data-sidebar-meters-stacked] .provider-summary-row .sidebar-meter {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Two equal columns, unless a label and its percentage ("7D BOT 100%") need more than half: then that
    column takes what it needs from the other, so the pair never wraps. With room for neither
    arrangement the meters stack (see `.sidebar-meters`). */
 .sidebar-meter {

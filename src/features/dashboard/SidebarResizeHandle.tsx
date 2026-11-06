@@ -15,6 +15,7 @@ import {
   measureToggleLineWidth,
   MOBILE_OVERLAY_QUERY,
   sidebarFitWidth,
+  sidebarMetersStack,
   sidebarToggleStacks,
 } from "./sidebar-width";
 import { storageGet, storageSet, STORAGE_KEYS } from "../../shared/lib/storage";
@@ -54,6 +55,7 @@ export function SidebarResizeHandle({
   // kept while no card is on screen (Usage or Settings), so coming back to Accounts does not wrap.
   const mainMinWidth = useRef<number | null>(null);
   const toggleLineWidth = useRef<number | null>(null);
+  const meterFitWidth = useRef<number | null>(null);
   const fitWidth = useRef<number | null>(null);
   const currentWidth = useRef(isOverlay() ? widths.current.mobile : widths.current.desktop);
   const activePointer = useRef<number | null>(null);
@@ -87,6 +89,7 @@ export function SidebarResizeHandle({
     document.documentElement.style.setProperty("--sidebar-width", `${width}px`);
     if (!isOverlay()) keepWindowWideEnough(width, mainMinWidth.current);
     document.documentElement.toggleAttribute("data-sidebar-toggle-stacked", sidebarToggleStacks(width, toggleLineWidth.current));
+    document.documentElement.toggleAttribute("data-sidebar-meters-stacked", sidebarMetersStack(width, meterFitWidth.current));
     setRange({ min: floor, max, now: width });
     if (persist) storageSet(storageKey(), String(width));
   }, [limits]);
@@ -104,8 +107,9 @@ export function SidebarResizeHandle({
     const lineWidth =
       (shell ? measureNavAlignedWidth(shell, sidebar) : null) ??
       sidebarFitWidth(measureSyncLineFitWidth(sidebar), toggleLineWidth.current);
-    // Never narrower than the meters need, so "GROKBOT 100%" does not wrap.
+    // Never narrower than the meters need, so "7D BOT 100%" does not wrap.
     const meterWidth = measureMeterFitWidth(sidebar);
+    meterFitWidth.current = meterWidth;
     fitWidth.current = lineWidth === null ? meterWidth : meterWidth === null ? lineWidth : Math.max(lineWidth, meterWidth);
   }, [sidebarRef, shellRef]);
 
@@ -155,7 +159,12 @@ export function SidebarResizeHandle({
     const remeasure = () => {
       window.clearTimeout(timer);
       timer = window.setTimeout(() => {
-        if (useFitAsDefault.current[isOverlay() ? "mobile" : "desktop"]) syncToViewport();
+        if (useFitAsDefault.current[isOverlay() ? "mobile" : "desktop"]) {
+          syncToViewport();
+        } else {
+          refreshMeasurements();
+          applyWidth(currentWidth.current);
+        }
       }, 50);
     };
     const sizes = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(remeasure);
@@ -179,7 +188,7 @@ export function SidebarResizeHandle({
       rows.disconnect();
       opening.disconnect();
     };
-  }, [sidebarRef, syncToViewport]);
+  }, [applyWidth, refreshMeasurements, sidebarRef, syncToViewport]);
 
   // The account cards load, and change, after the handle mounts. Measure again when the page
   // changes, so the window's minimum width follows the cards actually on screen.
@@ -226,6 +235,7 @@ export function SidebarResizeHandle({
     stopFollowing.current?.();
     document.body.classList.remove("sidebar-resizing");
     document.documentElement.removeAttribute("data-sidebar-toggle-stacked");
+    document.documentElement.removeAttribute("data-sidebar-meters-stacked");
   }, []);
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {

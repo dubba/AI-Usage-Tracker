@@ -7,6 +7,7 @@ import {
   canonicalWindow,
   displayAccountLabel,
   groupAverage,
+  groupSecondMeterLabel,
   cardWindows,
   isMonthlyWindow,
   nextResetSummary,
@@ -234,6 +235,49 @@ describe("accountWindowRemaining / groupAverage", () => {
     expect(groupAverage([hourlyAndWeekly, weeklyOnly, monthlyOnly], "weekly")).toBeCloseTo(70);
     expect(groupAverage([hourlyAndWeekly, weeklyOnly], "five_hour")).toBe(40);
     expect(groupAverage([weeklyOnly], "five_hour")).toBeNull();
+  });
+});
+
+describe("groupSecondMeterLabel", () => {
+  const weeklyAccount = account({
+    id: "w1",
+    provider: "anthropic",
+    lastUsage: usage({ windows: [win({ id: "weekly", label: "Weekly", kind: "weekly" })] }),
+  });
+  const monthlyAccount = account({
+    id: "m1",
+    provider: "openai",
+    plan: "Free",
+    lastUsage: usage({ windows: [win({ id: "monthly", label: "GPT · 30-Day Limit", kind: "monthly" })] }),
+  });
+  const grokAccount = account({
+    id: "g1",
+    provider: "grok",
+    lastUsage: usage({ windows: [win({ id: "weekly", label: "Grok 7d", kind: "weekly" })] }),
+  });
+
+  it("returns '7D Grok' for a Grok-only group", () => {
+    expect(groupSecondMeterLabel([grokAccount])).toBe("7D Grok");
+  });
+
+  it("returns '7d' when any account in the group has a weekly window", () => {
+    expect(groupSecondMeterLabel([weeklyAccount])).toBe("7d");
+    expect(groupSecondMeterLabel([weeklyAccount, monthlyAccount])).toBe("7d");
+  });
+
+  it("returns '30d' when accounts report a monthly window and no weekly window", () => {
+    expect(groupSecondMeterLabel([monthlyAccount])).toBe("30d");
+  });
+
+  it("defaults free OpenAI accounts to '30d' even before usage is fetched", () => {
+    const pendingFree = account({ provider: "openai", plan: "free", lastUsage: null });
+    expect(groupSecondMeterLabel([pendingFree])).toBe("30d");
+  });
+
+  it("defaults to '7d' when no weekly or monthly windows are reported", () => {
+    const pendingPaid = account({ provider: "openai", plan: "Plus", lastUsage: null });
+    expect(groupSecondMeterLabel([pendingPaid])).toBe("7d");
+    expect(groupSecondMeterLabel([])).toBe("7d");
   });
 });
 

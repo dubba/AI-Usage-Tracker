@@ -10,6 +10,7 @@ import {
   measureNavAlignedWidth,
   MAX_SIDEBAR_WIDTH,
   sidebarFitWidth,
+  sidebarMetersStack,
   sidebarToggleStacks,
 } from "./sidebar-width";
 
@@ -63,6 +64,14 @@ describe("sidebarToggleStacks", () => {
     expect(sidebarToggleStacks(286, 286)).toBe(false);
     expect(sidebarToggleStacks(285, 286)).toBe(true);
     expect(sidebarToggleStacks(286, null)).toBe(false);
+  });
+});
+
+describe("sidebarMetersStack", () => {
+  it("keeps meters on one line at or above the fit width", () => {
+    expect(sidebarMetersStack(286, 286)).toBe(false);
+    expect(sidebarMetersStack(285, 286)).toBe(true);
+    expect(sidebarMetersStack(286, null)).toBe(false);
   });
 });
 

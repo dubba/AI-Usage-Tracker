@@ -6,6 +6,7 @@ import { ProviderIcon } from "../../shared/ui/ProviderIcon";
 import {
   grokBotAverage,
   groupAverage,
+  groupSecondMeterLabel,
   isGrokOnlyGroup,
   usageTone,
 } from "../../shared/lib/usage-logic";
@@ -86,6 +87,7 @@ export function SidebarGroupRow({
   const [displayMode] = useUsageDisplayMode();
   // Grok has no 5-hour limit, so a Grok-only row uses that slot for the Grok Bot limit.
   const grokOnly = isGrokOnlyGroup(group.accounts);
+  const secondMeterLabel = groupSecondMeterLabel(group.accounts);
   const five = grokOnly ? grokBotAverage(group.accounts) : groupAverage(group.accounts, "five_hour");
   const weekly = groupAverage(group.accounts, "weekly");
   const toneFive = five == null ? null : usageTone(five);
@@ -120,7 +122,7 @@ export function SidebarGroupRow({
         event.preventDefault();
         onMove?.(delta);
       }}
-      aria-label={`${group.title}, ${formatCount(group.accounts.length, ACCOUNT_FORMS)}, ${grokOnly ? "Grok Bot" : "5h"} ${labelFive}, ${grokOnly ? "Grok" : "7d"} ${labelWeekly}`}
+      aria-label={`${group.title}, ${formatCount(group.accounts.length, ACCOUNT_FORMS)}, ${grokOnly ? "7D Bot" : "5h"} ${labelFive}, ${secondMeterLabel} ${labelWeekly}`}
     >
       {reorderable ? <span className="reorder-grip" data-tooltip="Drag to reorder" aria-hidden="true" /> : null}
       {group.type === "bucket" ? (
@@ -142,8 +144,8 @@ export function SidebarGroupRow({
           <span className="sidebar-group-empty">No accounts yet</span>
         ) : (
           <span className="provider-average sidebar-meters">
-            <SidebarMeter label={grokOnly ? "GrokBot" : "5h"} text={labelFive} tone={toneFive} width={barWidth(five)} />
-            <SidebarMeter label={grokOnly ? "Grok" : "7d"} text={labelWeekly} tone={toneWeekly} width={barWidth(weekly)} />
+            <SidebarMeter label={grokOnly ? "7D Bot" : "5h"} text={labelFive} tone={toneFive} width={barWidth(five)} />
+            <SidebarMeter label={secondMeterLabel} text={labelWeekly} tone={toneWeekly} width={barWidth(weekly)} />
           </span>
         )}
       </span>

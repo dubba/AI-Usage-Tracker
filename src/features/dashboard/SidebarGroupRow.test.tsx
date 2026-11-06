@@ -337,8 +337,8 @@ describe("SidebarGroupRow Grok Bot limit", () => {
 
   it("shows the Grok Bot limit before the Grok limit on a Grok-only row", () => {
     app = row([grokAccount("g1", 16, 62)]);
-    expect(meters().map((meter) => [meter.label, meter.text])).toEqual([["GrokBot", "62%"], ["Grok", "16%"]]);
-    expect(document.querySelector(".provider-summary-row")?.getAttribute("aria-label")).toContain("Grok Bot 62%, Grok 16%");
+    expect(meters().map((meter) => [meter.label, meter.text])).toEqual([["7D Bot", "62%"], ["7D Grok", "16%"]]);
+    expect(document.querySelector(".provider-summary-row")?.getAttribute("aria-label")).toContain("7D Bot 62%, 7D Grok 16%");
   });
 
   it("shows a dash for the Grok Bot limit when no account reports one", () => {
@@ -349,5 +349,56 @@ describe("SidebarGroupRow Grok Bot limit", () => {
   it("leaves rows that mix providers on 5-hour and 7-day", () => {
     app = row([grokAccount("g1", 16, 62), makeAccount({ id: "a1", fiveRemaining: 80, weeklyRemaining: 50 })], "anthropic");
     expect(meters().map((meter) => [meter.label, meter.text])).toEqual([["5h", "80%"], ["7d", "33%"]]);
+  });
+});
+
+describe("SidebarGroupRow monthly limit (e.g. ChatGPT Free)", () => {
+  let app: Mounted | null = null;
+
+  afterEach(() => {
+    app?.unmount();
+    app = null;
+  });
+
+  function monthlyAccount(id: string, remainingPercent: number): Account {
+    return {
+      id,
+      label: "ChatGPT",
+      provider: "openai" as Provider,
+      plan: "free",
+      lastUsage: {
+        fetchedAt: new Date().toISOString(),
+        freshness: "live",
+        source: "test",
+        windows: [
+          {
+            id: "monthly",
+            label: "GPT · 30-Day Limit",
+            usedPercent: 100 - remainingPercent,
+            remainingPercent,
+            resetsAt: null,
+            windowSeconds: 2592000,
+            kind: "monthly",
+          },
+        ],
+      } as unknown as UsageSnapshot,
+      lastError: null,
+      authRequired: false,
+    } as Account;
+  }
+
+  const row = (accounts: Account[]) =>
+    mount(
+      <SidebarGroupRow
+        group={{ id: "openai", type: "provider", title: "ChatGPT", provider: "openai", accounts }}
+        selected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+
+  it("labels the second meter 30d and includes 30d in aria-label for an account with a 30-day limit", () => {
+    app = row([monthlyAccount("gpt1", 98)]);
+    expect(meters().map((meter) => [meter.label, meter.text])).toEqual([["5h", "—"], ["30d", "98%"]]);
+    expect(document.querySelector(".provider-summary-row")?.getAttribute("aria-label")).toContain("5h —, 30d 98%");
   });
 });

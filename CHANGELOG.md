@@ -1,9 +1,12 @@
 # Changelog
 
-## Unreleased (4 changes)
+## Unreleased (7 changes)
 
-### Improved (3)
+### Improved (6)
 
+- In the sidebar, when a narrow width causes meter pairs to stack into two lines (such as for Grok's 7D limits), all provider rows now stack their meters into two lines uniformly.
+- In the sidebar, group rows for accounts with monthly limits (such as ChatGPT Free) now label the second meter "30D" instead of "7D", matching the dashboard.
+- In the sidebar, Grok rows now label their two limits "7D Bot" and "7D Grok" instead of "GROKBOT" and "GROK", matching the dashboard.
 - On Grok account cards, the GrokBot limit is now labeled "Bot" to avoid repeating the provider name.
 - On the Accounts page, the Next reset card now names the model after the limit for Antigravity ("5H Gemini Antigravity", with Other or Argon) and for the Grok Bot limit ("7D Bot Grok"); the plain Grok limit still reads "7D Grok".
 - On mobile, the sidebar's account and group cards now sit closer to the left edge, with the provider icon and the right padding matching, and the cards' right edge moved closer to the resize dots.
