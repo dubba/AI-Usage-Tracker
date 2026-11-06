@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased (3 changes)
+## Unreleased (4 changes)
 
-### Improved (2)
+### Improved (3)
 
 - On Grok account cards, the GrokBot limit is now labeled "Bot" to avoid repeating the provider name.
+- On the Accounts page, the Next reset card now names the model after the limit for Antigravity ("5H Gemini Antigravity", with Other or Argon) and for the Grok Bot limit ("7D Bot Grok"); the plain Grok limit still reads "7D Grok".
 - On mobile, the sidebar's account and group cards now sit closer to the left edge, with the provider icon and the right padding matching, and the cards' right edge moved closer to the resize dots.
 
 ### Removed (1)

@@ -95,8 +95,8 @@ describe("windowLimitName", () => {
 
 describe("nextResetSummary", () => {
   it("reports no upcoming reset when nothing is scheduled", () => {
-    expect(nextResetSummary([account()], NOW)).toEqual({ account: null, limit: null, value: "—", resetsAt: null });
-    expect(nextResetSummary([], NOW)).toEqual({ account: null, limit: null, value: "—", resetsAt: null });
+    expect(nextResetSummary([account()], NOW)).toEqual({ account: null, limit: null, value: "—", resetsAt: null, provider: null, window: null });
+    expect(nextResetSummary([], NOW)).toEqual({ account: null, limit: null, value: "—", resetsAt: null, provider: null, window: null });
   });
 
   it("picks the earliest future reset across accounts and windows", () => {
@@ -110,7 +110,7 @@ describe("nextResetSummary", () => {
         lastUsage: usage({ windows: [win({ resetsAt: later }), win({ id: "weekly", resetsAt: soon })] }),
       }),
     ];
-    expect(nextResetSummary(accounts, NOW)).toEqual({ account: "Sooner", limit: "7-day", value: "2h 0m", resetsAt: soon });
+    expect(nextResetSummary(accounts, NOW)).toMatchObject({ account: "Sooner", limit: "7-day", value: "2h 0m", resetsAt: soon });
   });
 
   it("ignores resets in the past and invalid dates", () => {

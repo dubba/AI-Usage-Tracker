@@ -33,6 +33,7 @@ import { moveAnnouncement, moveById } from "../reorder/reorder-utils";
 import { AccountDashboardCard, REORDER_HINT_ID } from "./AccountDashboardCard";
 import { ACCOUNT_FORMS, formatCount } from "../../shared/lib/format";
 import { useClock } from "../../shared/hooks/useClock";
+import { nextResetModelLabel } from "../../shared/lib/display";
 import { usePullToRefresh } from "../dashboard/usePullToRefresh";
 import { PullToRefreshIndicator } from "../dashboard/PullToRefreshIndicator";
 
@@ -56,8 +57,13 @@ function dashboardDescription(group: SidebarGroup, accountCount: number): string
 /** Time until the soonest reset. Updates itself with the shared clock, so the dashboard does not re-render for it. */
 function NextResetCard({ accounts }: { accounts: Account[] }) {
   const account = useClock((now) => nextResetSummary(accounts, now).account ?? "No upcoming reset");
-  // Which limit resets, not only whose: "7D Grok", "5H Claude", the limit styled like a card's "5-HOUR".
+  // Which limit resets, not only whose: "7D Grok", "5H Claude", the limit styled like a card's "5-HOUR". Antigravity
+  // and the Grok Bot limit add their model after it: "5H Gemini Antigravity", "7D Bot Grok".
   const limit = useClock((now) => nextResetSummary(accounts, now).limit?.replace("-hour", "H").replace("-day", "D") ?? null);
+  const model = useClock((now) => {
+    const next = nextResetSummary(accounts, now);
+    return nextResetModelLabel(next.provider, next.window);
+  });
   const value = useClock((now) => nextResetSummary(accounts, now).value);
   return (
     <div className="summary-card next-reset-card">
@@ -65,6 +71,7 @@ function NextResetCard({ accounts }: { accounts: Account[] }) {
         <span className="summary-label">Next reset</span>
         <strong className="next-reset-account">
           {limit ? <span className="next-reset-limit">{limit}</span> : null}
+          {model ? <span className="next-reset-limit">{model}</span> : null}
           {account}
         </strong>
       </div>

@@ -108,6 +108,18 @@ export function metricGroupLabel(window: UsageWindow, provider?: Provider | stri
   return windowGroupPrefix(window) ?? providerDefaultGroup(window, provider);
 }
 
+/**
+ * The model named on the Next reset card between the limit and the account: Antigravity's "Gemini",
+ * "Other" or "Argon", and "Bot" for the Grok Bot limit. Null for anything else, so a plain Grok limit
+ * reads "7D Grok".
+ */
+export function nextResetModelLabel(provider: Provider | null, window: UsageWindow | null): string | null {
+  if (!provider || !window) return null;
+  if (provider === "antigravity") return antigravityGroupLabel(window);
+  if (provider === "grok" && window.id === GROK_BOT_WINDOW_ID) return "Bot";
+  return null;
+}
+
 function windowDurationDescriptor(window: UsageWindow): string | null {
   const is5h =
     window.kind === "five_hour" ||

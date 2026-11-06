@@ -11,6 +11,9 @@ export type NextResetSummary = {
   limit: string | null;
   value: string;
   resetsAt: string | null;
+  /** The provider and window that reset, so the card can name the model ("Gemini", "Bot"); null when none. */
+  provider: Provider | null;
+  window: UsageWindow | null;
 };
 
 const LIMIT_BY_KIND: Record<WindowKind, string> = { five_hour: "5-hour", weekly: "7-day", monthly: "30-day" };
@@ -139,6 +142,8 @@ export function nextResetSummary(accounts: Account[], now: number = Date.now()):
       return [{
         resetAt,
         account: displayAccountLabel(account),
+        provider: account.provider,
+        window,
         limit: windowLimitName(window),
         resetsAt: window.resetsAt,
         windowSeconds: window.windowSeconds,
@@ -147,7 +152,7 @@ export function nextResetSummary(accounts: Account[], now: number = Date.now()):
   );
 
   if (!candidates.length) {
-    return { account: null, limit: null, value: "—", resetsAt: null };
+    return { account: null, limit: null, value: "—", resetsAt: null, provider: null, window: null };
   }
 
   candidates.sort((left, right) => left.resetAt - right.resetAt);
@@ -161,6 +166,8 @@ export function nextResetSummary(accounts: Account[], now: number = Date.now()):
     limit: next.limit,
     value: formatRemainingDuration(remainingMs) ?? "—",
     resetsAt: next.resetsAt,
+    provider: next.provider,
+    window: next.window,
   };
 }
 export function accountAutoRefreshEligible(account: Account): boolean {

@@ -7,6 +7,7 @@ import {
   metricChipLabel,
   metricGroupLabel,
   metricWindowParts,
+  nextResetModelLabel,
   windowPillClass,
 } from "./display";
 import type { Account, Provider, UsageWindow } from "../../types";
@@ -252,5 +253,23 @@ describe("displayAccountSubtitle", () => {
   it("falls back to 'Connected account' for default labels, else the provider name", () => {
     expect(displayAccountSubtitle(account({ label: "ChatGPT" }))).toBe("Connected account");
     expect(displayAccountSubtitle(account({ label: "Work" }))).toBe("ChatGPT");
+  });
+});
+
+describe("nextResetModelLabel", () => {
+  it("names the Antigravity model after the limit", () => {
+    expect(nextResetModelLabel("antigravity", win({ label: "Gemini · 5 hour" }))).toBe("Gemini");
+    expect(nextResetModelLabel("antigravity", win({ label: "Claude and GPT models · Weekly" }))).toBe("Other");
+    expect(nextResetModelLabel("antigravity", win({ label: "Gemini 4 Argon · Weekly Limit" }))).toBe("Argon");
+  });
+
+  it("names the Grok Bot limit, but not the plain Grok limit", () => {
+    expect(nextResetModelLabel("grok", win({ id: "grok_bot", label: "Grok Bot weekly" }))).toBe("Bot");
+    expect(nextResetModelLabel("grok", win({ id: "weekly", label: "Weekly" }))).toBeNull();
+  });
+
+  it("adds nothing for other providers or when nothing resets", () => {
+    expect(nextResetModelLabel("anthropic", win({ label: "Sonnet weekly" }))).toBeNull();
+    expect(nextResetModelLabel(null, null)).toBeNull();
   });
 });
