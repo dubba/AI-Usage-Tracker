@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (2 changes)
+
+### Improved (1)
+
+- On Grok account cards, the GrokBot limit is now labeled "Bot" to avoid repeating the provider name.
+
+### Removed (1)
+
+- On mobile, account cards no longer show the percentage pill when collapsed.
 
 ## v0.5.7 - 2026-11-05 (51 changes)
 

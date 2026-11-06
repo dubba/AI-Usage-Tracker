@@ -182,7 +182,7 @@ export function metricChipLabel(window: UsageWindow, provider?: Provider | strin
 
   if (provider === "grok") {
     const isBot = window.id === GROK_BOT_WINDOW_ID || /grok\s*bot/i.test(window.label) || /grok\s*bot/i.test(window.id);
-    const subLabel = isBot ? "GrokBot" : "Grok";
+    const subLabel = isBot ? "Bot" : "Grok";
     return duration ? `${duration} · ${subLabel}` : subLabel;
   }
 

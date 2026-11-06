@@ -1014,14 +1014,6 @@
   color: var(--obsidian-red);
 }
 
-@media (max-width: 860px) {
-  .collapsed-summary {
-    padding: 0 7px;
-    height: 22px;
-    box-sizing: border-box;
-  }
-}
-
 /* A usage window of an account card (AccountUsageMetric.tsx): its span and name beside the percent,
    the bar, then the reset time and date. The phone and a wide window draw it the same way. */
 .desktop-metric .desktop-metric-head {
@@ -1446,21 +1438,6 @@
   .provider-account-card .account-card-header-meta,
   .provider-account-card .plan-with-dot {
     gap: 4px;
-  }
-
-  /* A collapsed card adds its lowest percentage beside the plan pill, which leaves the name no room:
-     the actions drop below the name, right-aligned, as on the desktop card. */
-  .provider-account-card.is-collapsed .provider-account-card-header {
-    flex-wrap: wrap;
-    row-gap: 8px;
-  }
-
-  .provider-account-card.is-collapsed .account-card-identity {
-    flex: 1 1 120px;
-  }
-
-  .provider-account-card.is-collapsed .account-card-header-actions {
-    margin-left: auto;
   }
 
   .provider-account-card .account-card-provider-icon {

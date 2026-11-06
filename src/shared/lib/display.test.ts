@@ -98,8 +98,8 @@ describe("metricChipLabel", () => {
     expect(metricChipLabel(win({ kind: "monthly", label: "Monthly" }), "anthropic")).toBe("30D LIMIT · Claude");
   });
 
-  it("formats Grok windows distinguishing GrokBot from general Grok pool", () => {
-    expect(metricChipLabel(win({ id: "grok_bot", label: "Grok Bot weekly", windowSeconds: 604_800 }), "grok")).toBe("7D LIMIT · GrokBot");
+  it("formats Grok windows distinguishing Bot from general Grok pool", () => {
+    expect(metricChipLabel(win({ id: "grok_bot", label: "Grok Bot weekly", windowSeconds: 604_800 }), "grok")).toBe("7D LIMIT · Bot");
     expect(metricChipLabel(win({ id: "grok_weekly", label: "Weekly", windowSeconds: 604_800 }), "grok")).toBe("7D LIMIT · Grok");
   });
 
@@ -124,6 +124,7 @@ describe("metricChipLabel", () => {
 describe("metricWindowParts", () => {
   it("splits the limit chip into the window length and what it covers", () => {
     expect(metricWindowParts(win({ id: "weekly", label: "Grok 7d", kind: "weekly" }), "grok")).toEqual({ span: "7-day", name: "Grok" });
+    expect(metricWindowParts(win({ id: "grok_bot", label: "Grok Bot weekly", windowSeconds: 604_800 }), "grok")).toEqual({ span: "7-day", name: "Bot" });
     expect(metricWindowParts(win({ id: "five_hour", label: "5h", kind: "five_hour" }), "anthropic")).toEqual({ span: "5-hour", name: "Claude" });
     expect(metricWindowParts(win({ id: "monthly", label: "30d", kind: "monthly" }), "openai")).toEqual({ span: "30-day", name: "ChatGPT" });
   });

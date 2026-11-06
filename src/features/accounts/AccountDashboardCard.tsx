@@ -277,12 +277,11 @@ export function AccountDashboardCard({
           <div className={`account-card-header-actions ${account.provider === "google_ai_studio" ? "has-google-action" : ""}`}>
             <div className="account-card-header-meta">
               {status.label !== "LIVE" ? <span className={`account-status-badge ${status.className}`}>{status.label}</span> : null}
-              <span className="plan-with-dot">
-                {isCollapsed && lowestRemaining != null ? (
-                  <span className={`collapsed-summary tone-${usageTone(lowestRemaining)}`}>{Math.round(displayPercent(lowestRemaining, displayMode))}% {usageDisplaySuffix(displayMode)}</span>
-                ) : null}
-                {plan ? <span className="account-plan-badge">{plan}</span> : null}
-              </span>
+              {plan ? (
+                <span className="plan-with-dot">
+                  <span className="account-plan-badge">{plan}</span>
+                </span>
+              ) : null}
               {account.provider === "google_ai_studio" ? (
                 <button type="button" className="button ghost compact-button google-cloud-connect-action" disabled={cardBusy} onClick={onConnectGoogleUsage}>
                   {modelsOnly || waitingForMetrics ? "Connect Cloud Usage" : "Change Cloud Project"}

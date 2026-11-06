@@ -286,6 +286,53 @@ describe("AccountDashboardCard actions dropdown placement", () => {
     click(collapseBtn);
     expect(app.container.querySelector(".provider-account-card")?.classList.contains("is-collapsed")).toBe(true);
   });
+
+  it("does not render the percentage pill when collapsed on mobile", () => {
+    app = mount(
+      <AccountDashboardCard
+        pageId="all"
+        account={{
+          ...account,
+          id: "mobile-collapse-pill-test",
+          plan: "pro",
+          lastUsage: {
+            plan: "pro",
+            email: null,
+            windows: [
+              {
+                id: "5h",
+                label: "5-Hour",
+                remainingPercent: 70,
+                usedPercent: 30,
+                resetsAt: new Date(Date.now() + 3600000).toISOString(),
+                windowSeconds: 5 * 3600,
+                kind: "five_hour",
+              },
+            ],
+            creditsUsd: null,
+            unlimitedCredits: false,
+            fetchedAt: new Date().toISOString(),
+            freshness: "live",
+            source: "test",
+          },
+        }}
+        busy={new Set()}
+        onRefresh={() => undefined}
+        onReconnect={() => undefined}
+        onConnectGoogleUsage={() => undefined}
+        onRename={async () => undefined}
+        onRemove={() => undefined}
+        onNotifications={() => undefined}
+      />,
+    );
+    const toggle = app.container.querySelector<HTMLButtonElement>(".mobile-dropdown-toggle")!;
+    click(toggle);
+
+    const collapseBtn = [...document.querySelectorAll<HTMLButtonElement>(".mobile-dropdown-menu .mobile-dropdown-item")].find((b) => b.textContent?.includes("Collapse card"))!;
+    click(collapseBtn);
+    expect(app.container.querySelector(".provider-account-card")?.classList.contains("is-collapsed")).toBe(true);
+    expect(app.container.querySelector(".collapsed-summary")).toBeNull();
+  });
 });
 
 
@@ -386,6 +433,48 @@ describe("AccountDashboardCard on a wide window", () => {
     const chip = app.container.querySelector(".account-status-chip")!;
     expect(chip.textContent).toBe("Auth needed");
     expect(chip.classList.contains("danger")).toBe(true);
+  });
+
+  it("shows the percentage pill when collapsed on desktop", () => {
+    const rendered = renderDesktopCard({
+      account: {
+        ...account,
+        id: "desktop-collapse-pill-test",
+        plan: "pro",
+        lastUsage: {
+          plan: "pro",
+          email: null,
+          windows: [
+            {
+              id: "5h",
+              label: "5-Hour",
+              remainingPercent: 70,
+              usedPercent: 30,
+              resetsAt: new Date(Date.now() + 3600000).toISOString(),
+              windowSeconds: 5 * 3600,
+              kind: "five_hour",
+            },
+          ],
+          creditsUsd: null,
+          unlimitedCredits: false,
+          fetchedAt: new Date().toISOString(),
+          freshness: "live",
+          source: "test",
+        },
+      },
+    });
+    app = rendered.app;
+    expect(app.container.querySelector(".collapsed-summary")).toBeNull();
+
+    const toggle = app.container.querySelector<HTMLButtonElement>('[aria-label="More actions for Claude"]')!;
+    click(toggle);
+    const collapseBtn = [...document.querySelectorAll<HTMLButtonElement>(".account-card-menu-list .mobile-dropdown-item")].find((b) => b.textContent?.includes("Collapse card"))!;
+    click(collapseBtn);
+
+    expect(app.container.querySelector(".provider-account-card")?.classList.contains("is-collapsed")).toBe(true);
+    const pill = app.container.querySelector(".collapsed-summary");
+    expect(pill).not.toBeNull();
+    expect(pill?.textContent).toBe("70% left");
   });
 });
 
