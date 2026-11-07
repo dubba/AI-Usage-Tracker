@@ -115,6 +115,84 @@ function sortBySavedOrder(groups: SidebarGroup[], savedOrder: readonly string[])
 }
 
 /**
+ * The full account order implied by a sidebar group order: each provider row's accounts in turn
+ * (all of that provider's accounts, including ones that are also in a custom group), then any
+ * account only a custom group claims. The Accounts list sets the All page's order; custom groups
+ * only add accounts no provider row listed. Every account appears exactly once.
+ */
+export function accountOrderForGroups(
+  orderedGroupIds: string[],
+  accounts: Pick<Account, "id" | "provider">[],
+  buckets: Pick<AccountBucket, "id" | "accountIds">[],
+): string[] {
+  const ordered: string[] = [];
+  const assigned = new Set<string>();
+  const place = (id: string) => {
+    if (assigned.has(id)) return;
+    assigned.add(id);
+    ordered.push(id);
+  };
+
+  for (const groupId of orderedGroupIds) {
+    const provider = providerIdFromGroup(groupId);
+    if (provider !== null) {
+      accounts.filter((account) => account.provider === provider).forEach((account) => place(account.id));
+    }
+  }
+  for (const groupId of orderedGroupIds) {
+    const bucketId = bucketIdFromGroup(groupId);
+    if (bucketId === null) continue;
+    buckets.find((candidate) => candidate.id === bucketId)?.accountIds.forEach(place);
+  }
+  accounts.forEach((account) => place(account.id));
+  return ordered;
+}
+
+function providerRowOrder(ids: readonly string[]): string[] {
+  return ids.filter((id) => isProviderGroupId(id));
+}
+
+function sameIds(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((id, index) => id === right[index]);
+}
+
+/** Accounts in `ids` order; ids that are not on the page are skipped, and any leftover accounts stay at the end. */
+function orderAccountsByIds<T extends { id: string }>(accounts: T[], ids: readonly string[]): T[] {
+  if (sameIds(ids, accounts.map((account) => account.id))) return accounts;
+  const remaining = new Map(accounts.map((account) => [account.id, account]));
+  const ordered: T[] = [];
+  for (const id of ids) {
+    const account = remaining.get(id);
+    if (!account) continue;
+    ordered.push(account);
+    remaining.delete(id);
+  }
+  for (const account of accounts) {
+    if (remaining.has(account.id)) ordered.push(account);
+  }
+  return ordered;
+}
+
+/**
+ * The All page (and the Usage page, which follows it) once the sidebar order and the account
+ * order disagree. Dragging a provider row should move that provider's accounts in the same
+ * paint as the row. An order the sidebar already agrees with — including cards interleaved by
+ * a drag on the page — is returned unchanged, and moving a custom group does not move accounts.
+ * `groups` is the sidebar list (`listAccountsUnderProviders`).
+ */
+export function allPageAccountsForSidebar<T extends Pick<Account, "id" | "provider">>(
+  pageAccounts: T[],
+  groups: Pick<SidebarGroup, "id" | "accounts">[],
+  buckets: Pick<AccountBucket, "id" | "accountIds">[],
+): T[] {
+  if (pageAccounts.length < 2 || groups.length === 0) return pageAccounts;
+  const shownIds = groups.map((group) => group.id);
+  const implied = groupOrderForAccounts(pageAccounts.map((account) => account.id), groups);
+  if (sameIds(providerRowOrder(implied), providerRowOrder(shownIds))) return pageAccounts;
+  return orderAccountsByIds(pageAccounts, accountOrderForGroups(shownIds, pageAccounts, buckets));
+}
+
+/**
  * The sidebar group order implied by a new account order on the All page: provider rows sorted by
  * where their first account now sits. The inverse of `accountOrderForGroups`, so dragging a card
  * and dragging a sidebar row both leave the two views matching. Custom groups do not take part:

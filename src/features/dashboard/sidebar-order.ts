@@ -36,7 +36,23 @@ export function readSidebarGroupOrder(): string[] {
   return uniqueStrings(saved.filter((item): item is string => typeof item === "string" && item.length > 0));
 }
 
+// Set when a sidebar order is saved this session. Until then the All page keeps the backend
+// account order, so a saved sidebar that has not been reconciled yet cannot reshuffle cards
+// on startup. After a drag, the page follows the rows in the same render.
+let sidebarOrderLeadsAllPage = false;
+
+/** True once this session has saved a sidebar order, so the All page follows a row drag immediately. */
+export function sidebarOrderLeadsAllPageNow(): boolean {
+  return sidebarOrderLeadsAllPage;
+}
+
+/** For tests: forget that a sidebar order was saved. */
+export function resetSidebarOrderLeadsAllPageForTests(): void {
+  sidebarOrderLeadsAllPage = false;
+}
+
 export function storeSidebarGroupOrder(order: string[]): void {
+  sidebarOrderLeadsAllPage = true;
   const deduped = uniqueStrings(order.filter((id) => id !== "all"));
   writeJson(STORAGE_KEYS.sidebarGroupOrder, deduped);
 

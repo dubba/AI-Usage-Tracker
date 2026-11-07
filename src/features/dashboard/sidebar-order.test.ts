@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { KNOWN_PROVIDERS, readDashboardProviderOrder, readSidebarGroupOrder, storeSidebarGroupOrder, uniqueStrings } from "./sidebar-order";
+import { KNOWN_PROVIDERS, readDashboardProviderOrder, readSidebarGroupOrder, resetSidebarOrderLeadsAllPageForTests, sidebarOrderLeadsAllPageNow, storeSidebarGroupOrder, uniqueStrings } from "./sidebar-order";
 import { STORAGE_KEYS } from "../../shared/lib/storage";
 import { captureEvents, installFakeWindow } from "../../test-utils/fakeWindow";
 import { UI_EVENTS } from "../../shared/lib/events";
@@ -8,6 +8,7 @@ let env: ReturnType<typeof installFakeWindow>;
 
 beforeEach(() => {
   env = installFakeWindow();
+  resetSidebarOrderLeadsAllPageForTests();
 });
 
 afterEach(() => {
@@ -30,6 +31,12 @@ describe("sidebar group order", () => {
   it("ignores non-string entries", () => {
     env.localStorage.setItem(STORAGE_KEYS.sidebarGroupOrder, JSON.stringify(["a", 1, "", "b"]));
     expect(readSidebarGroupOrder()).toEqual(["a", "b"]);
+  });
+
+  it("lets the All page follow a sidebar reorder saved this session", () => {
+    expect(sidebarOrderLeadsAllPageNow()).toBe(false);
+    storeSidebarGroupOrder(["provider:grok", "provider:openai"]);
+    expect(sidebarOrderLeadsAllPageNow()).toBe(true);
   });
 
   it("stores the order without 'all' and derives the provider order from it", () => {

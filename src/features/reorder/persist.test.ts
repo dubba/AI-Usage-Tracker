@@ -23,8 +23,8 @@ vi.mock("../dashboard/dashboard-page-state", () => ({
   whileSavingAllOrder: (save: () => Promise<unknown>) => save(),
 }));
 
-import { buildSidebarGroups, groupOrderForAccounts, listAccountsUnderProviders } from "../dashboard/sidebar-groups";
-import { accountOrderForGroups, persistGroupOrder, persistVisibleAccountOrder } from "./persist";
+import { accountOrderForGroups, buildSidebarGroups, groupOrderForAccounts, listAccountsUnderProviders } from "../dashboard/sidebar-groups";
+import { persistGroupOrder, persistVisibleAccountOrder } from "./persist";
 import type { Account } from "../../types";
 
 const accounts = [

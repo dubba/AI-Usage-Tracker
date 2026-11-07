@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ALL_ACCOUNTS_GROUP_ID,
+  allPageAccountsForSidebar,
   bucketGroupId,
   bucketIdFromGroup,
   buildAllAccountsGroup,
@@ -157,6 +158,31 @@ describe("groupOrderForAccounts", () => {
     ];
     // y now comes before x, but bucket:a stays above bucket:b.
     expect(groupOrderForAccounts(["y", "x"], two)).toEqual(["bucket:a", "bucket:b", "provider:openai", "provider:grok"]);
+  });
+});
+
+describe("allPageAccountsForSidebar", () => {
+  const accounts = [account("o1", "openai"), account("g1", "grok"), account("o2", "openai")];
+  const buckets = [bucket("b1", "Work", ["o2", "g1"])];
+
+  function shown(order: string[]) {
+    return listAccountsUnderProviders(buildSidebarGroups(accounts, buckets, PROVIDERS, order), accounts, order);
+  }
+
+  it("keeps cards interleaved when the sidebar already matches that order", () => {
+    const page = allPageAccountsForSidebar(accounts, shown(["provider:openai", "provider:grok", "bucket:b1"]), buckets);
+    expect(page).toBe(accounts);
+    expect(page.map((item) => item.id)).toEqual(["o1", "g1", "o2"]);
+  });
+
+  it("moves a provider's accounts with that row", () => {
+    const page = allPageAccountsForSidebar(accounts, shown(["provider:grok", "provider:openai", "bucket:b1"]), buckets);
+    expect(page.map((item) => item.id)).toEqual(["g1", "o1", "o2"]);
+  });
+
+  it("leaves accounts where they are when only a custom group moves", () => {
+    const page = allPageAccountsForSidebar(accounts, shown(["bucket:b1", "provider:openai", "provider:grok"]), buckets);
+    expect(page).toBe(accounts);
   });
 });
 

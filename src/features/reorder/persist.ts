@@ -1,53 +1,18 @@
 import { bridgeApi } from "../../shared/lib/api";
 import { storePageAccountOrder, whileSavingAllOrder } from "../dashboard/dashboard-page-state";
 import {
+  accountOrderForGroups,
   bucketIdFromGroup,
   buildSidebarGroups,
   groupOrderForAccounts,
   listAccountsUnderProviders,
-  providerIdFromGroup,
 } from "../dashboard/sidebar-groups";
 import { readDashboardProviderOrder, readSidebarGroupOrder, storeSidebarGroupOrder } from "../dashboard/sidebar-order";
 import { requestDashboardResync } from "../../shared/lib/events";
 import { logIgnored } from "../../shared/lib/log";
 import { getLatestSnapshot } from "../dashboard/snapshot-store";
 import { arraysEqual } from "./dom";
-import type { Account, AccountBucket, DashboardSnapshot } from "../../types";
-
-/**
- * The full account order implied by a new order of sidebar groups: each provider row's accounts in
- * turn (all of that provider's accounts, including the ones that are also in a custom group, as the
- * sidebar lists them), then any account only a custom group claims. The Accounts list in the
- * sidebar sets the order of the All page; custom groups only add accounts no provider row listed.
- * Every account appears exactly once.
- */
-export function accountOrderForGroups(
-  orderedGroupIds: string[],
-  accounts: Pick<Account, "id" | "provider">[],
-  buckets: Pick<AccountBucket, "id" | "accountIds">[],
-): string[] {
-  const ordered: string[] = [];
-  const assigned = new Set<string>();
-  const place = (id: string) => {
-    if (assigned.has(id)) return;
-    assigned.add(id);
-    ordered.push(id);
-  };
-
-  for (const groupId of orderedGroupIds) {
-    const provider = providerIdFromGroup(groupId);
-    if (provider !== null) {
-      accounts.filter((account) => account.provider === provider).forEach((account) => place(account.id));
-    }
-  }
-  for (const groupId of orderedGroupIds) {
-    const bucketId = bucketIdFromGroup(groupId);
-    if (bucketId === null) continue;
-    buckets.find((candidate) => candidate.id === bucketId)?.accountIds.forEach(place);
-  }
-  accounts.forEach((account) => place(account.id));
-  return ordered;
-}
+import type { DashboardSnapshot } from "../../types";
 
 /** The account order for `orderedGroupIds`, or null when it would not be complete and exact. */
 function completeAccountOrder(

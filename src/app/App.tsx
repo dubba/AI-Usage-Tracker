@@ -15,7 +15,7 @@ import { GROUP_REORDER_HINT_ID } from "../features/dashboard/SidebarGroupRow";
 import { UsageAlertToasts } from "../features/alerts/UsageAlertToasts";
 import "../features/pairing/pairing.css";
 import { persistGroupOrder } from "../features/reorder";
-import { storeSidebarGroupOrder } from "../features/dashboard/sidebar-order";
+import { sidebarOrderLeadsAllPageNow, storeSidebarGroupOrder } from "../features/dashboard/sidebar-order";
 import { applyPageAccountOrder } from "../features/dashboard/dashboard-page-state";
 import { DEFAULT_ACCOUNT_REFRESH_MINUTES } from "../shared/lib/constants";
 import { useAccountActions } from "../features/accounts/useAccountActions";
@@ -31,6 +31,7 @@ import { useTouchTooltips } from "../shared/hooks/useTouchTooltips";
 import { useUsageAlerts } from "../features/alerts/useUsageAlerts";
 import {
   ALL_ACCOUNTS_GROUP_ID,
+  allPageAccountsForSidebar,
   bucketGroupId,
   buildAllAccountsGroup,
   buildSidebarGroups,
@@ -190,19 +191,26 @@ export default function App() {
 
   useGroupOrderReconcile({ snapshot, accounts, buckets });
 
-  // The page order lives in storage, not in state; the layout store's version says it was saved
-  // again and must be re-read.
+  // Card drags store a pending order (`pageOrderVersion`). A sidebar row drag updates the
+  // group order in the same turn; follow that here so the Accounts and Usage pages move
+  // with the sidebar instead of waiting for the saved snapshot to reload.
+  const allPageAccounts = useMemo(() => {
+    const base = applyPageAccountOrder(accounts, ALL_ACCOUNTS_GROUP_ID);
+    if (!sidebarOrderLeadsAllPageNow()) return base;
+    return allPageAccountsForSidebar(base, sidebarGroups, buckets);
+    // pageOrderVersion changes when a card drag stores an order outside React state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accounts, buckets, sidebarGroups, pageOrderVersion]);
   const visibleAccounts = useMemo(
-    () => applyPageAccountOrder(selectedGroup.accounts, selectedGroup.id),
+    () =>
+      selectedGroup.id === ALL_ACCOUNTS_GROUP_ID
+        ? allPageAccounts
+        : applyPageAccountOrder(selectedGroup.accounts, selectedGroup.id),
+    // The page order for a provider or group page lives outside React state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedGroup, pageOrderVersion],
+    [selectedGroup, pageOrderVersion, allPageAccounts],
   );
-  // The Usage page lists accounts in the order of the All accounts page.
-  const activityAccounts = useMemo(
-    () => applyPageAccountOrder(allAccountsGroup.accounts, ALL_ACCOUNTS_GROUP_ID),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [allAccountsGroup, pageOrderVersion],
-  );
+  const activityAccounts = allPageAccounts;
 
   const loadError = errors.find((entry) => entry.source === "load");
 
