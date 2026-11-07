@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased (9 changes)
+## Unreleased (10 changes)
 
-### Improved (7)
+### Improved (8)
 
+- On desktop, the tooltips on the Accounts, Usage, and Settings switch buttons now describe each page in detail and align to the switch's left edge, and the % Left display mode tooltip now extends all the way to the right edge matching % Used.
 - In the sidebar, when a narrow width causes meter pairs to stack into two lines (such as for Grok's 7D limits), all provider rows now stack their meters into two lines uniformly.
 - In the sidebar, group rows for accounts with monthly limits (such as ChatGPT Free) now label the second meter "30D" instead of "7D", matching the dashboard.
 - In the sidebar, Grok rows now label their two limits "7D Bot" and "7D Grok" instead of "GROKBOT" and "GROK", matching the dashboard.

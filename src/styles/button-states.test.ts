@@ -93,7 +93,12 @@ describe("Button hover and active state invariants", () => {
   });
 
   it("right-aligns tooltips for all buttons in left/used and 7d/30d segmented switches", () => {
-    expect(TOP_BAR_CSS).toMatch(/\.top-bar-segmented\s+button\[data-tooltip\]::after\s*\{[^}]*right:\s*0\s*!important/);
-    expect(ACTIVITY_CSS).toMatch(/\.activity-period-switch\s+button\[data-tooltip\]::after\s*\{[^}]*right:\s*0\s*!important/);
+    expect(TOP_BAR_CSS).toMatch(/\.top-bar-segmented\s+button\[data-tooltip\]::after\s*\{[^}]*right:\s*2px\s*!important/);
+    expect(ACTIVITY_CSS).toMatch(/\.activity-period-switch\s+button\[data-tooltip\]::after\s*\{[^}]*right:\s*2px\s*!important/);
+  });
+
+  it("aligns Accounts, Usage, and Settings tooltips with the left edge of the page switch", () => {
+    expect(TOP_BAR_CSS).toContain(".top-bar-nav-item[data-tooltip]::after");
+    expect(TOP_BAR_CSS).toMatch(/\.top-bar-nav-item\[data-tooltip\]::after\s*\{[^}]*left:\s*3px\s*!important/);
   });
 });

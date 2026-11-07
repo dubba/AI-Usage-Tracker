@@ -40,6 +40,7 @@
 
   /* The same look as the top bar's Left / Used switch (.top-bar-segmented in top-bar.css). */
   .activity-period-switch {
+    position: relative;
     display: inline-flex;
     gap: 2px;
     /* 2px around 30px buttons and a 1px border: 36px tall, the same as the Left / Used switch. */
@@ -80,6 +81,7 @@
   }
 
   .activity-period-switch button {
+    position: static !important;
     height: 30px;
     padding: 0 12px;
     border: 0;
@@ -97,11 +99,12 @@
     color: var(--purple-on-fill) !important;
   }
 
-  /* The switch is at the right edge of the page, so the tooltips hang from their right edge
-     instead of being centered under their buttons. */
+  /* The switch is at the right edge of the page, so the tooltips hang from the switch's right edge
+     instead of being right-justified to their individual buttons. */
   .activity-period-switch button[data-tooltip]::after {
     left: auto !important;
-    right: 0 !important;
+    right: 2px !important;
+    top: calc(100% + 6px) !important;
     transform: none !important;
   }
 

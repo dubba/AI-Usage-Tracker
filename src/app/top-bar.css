@@ -33,6 +33,7 @@
   }
 
   .top-bar-nav {
+    position: relative;
     display: flex;
     gap: 2px;
     padding: 3px;
@@ -43,6 +44,7 @@
   }
 
   .top-bar-nav-item {
+    position: static !important;
     height: 32px;
     padding: 0 16px;
     border: 0;
@@ -60,17 +62,20 @@
     color: var(--purple-on-fill) !important;
   }
 
-  /* The first page's tooltip is wider than the room to its left (the switch starts near the window's
-     edge), so it hangs from the button's left edge instead of being centered under it. The global
-     tooltip rule is unlayered, hence !important (see the header). */
-  .top-bar-nav-item:first-child[data-tooltip]::after {
-    left: 0 !important;
+  /* The page switch tooltips (Accounts, Usage, Settings) are wider than the room to their left (the
+     switch starts near the window's edge), so they hang from the first button's left edge instead of
+     being centered under their individual buttons. The global tooltip rule is unlayered, hence
+     !important (see the header). */
+  .top-bar-nav-item[data-tooltip]::after {
+    left: 3px !important;
+    top: calc(100% + 5px) !important;
     transform: none !important;
   }
 
   /* The Left / Used switch (on the Accounts page, AccountsView.tsx) and the Usage page's 7D / 30D
      switch (activity.css) share one smaller look: the same purple selected option and hover as the page switch above, in a 30px box. */
   .top-bar-segmented {
+    position: relative;
     display: flex;
     flex: 0 0 auto;
     gap: 2px;
@@ -83,6 +88,7 @@
   }
 
   .top-bar-segmented button {
+    position: static !important;
     height: 30px;
     padding: 0 12px;
     border: 0;
@@ -100,12 +106,13 @@
     color: var(--purple-on-fill) !important;
   }
 
-  /* The switch is at the page's right edge, so the options' tooltips hang from their right edge
-     instead of being centered under them. The global tooltip rule is
-     unlayered, hence !important (see the header). */
+  /* The switch is at the page's right edge, so the options' tooltips hang from the switch's right edge
+     (matching the used button) instead of being right-justified to their individual buttons. The global
+     tooltip rule is unlayered, hence !important (see the header). */
   .top-bar-segmented button[data-tooltip]::after {
     left: auto !important;
-    right: 0 !important;
+    right: 2px !important;
+    top: calc(100% + 6px) !important;
     transform: none !important;
   }
 

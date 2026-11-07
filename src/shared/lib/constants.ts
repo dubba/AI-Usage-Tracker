@@ -15,5 +15,5 @@ export const DEFAULT_ACCOUNT_REFRESH_MINUTES = 15;
 export const FIVE_HOUR_WINDOW_SECONDS = 18_000;
 export const WEEKLY_WINDOW_SECONDS = 604_800;
 
-/** What the Settings page is for: under its title, and as the top bar's Settings tooltip. */
+/** What the Settings page is for: under its title. */
 export const SETTINGS_DESCRIPTION = "Customize app preferences and settings";

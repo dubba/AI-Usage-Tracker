@@ -1,6 +1,5 @@
 import { computeSyncStatus, splitSyncLabel } from "../features/dashboard/sync-status";
 import { useClock } from "../shared/hooks/useClock";
-import { SETTINGS_DESCRIPTION } from "../shared/lib/constants";
 import { isRefreshKey, type BusyKeys } from "../shared/lib/busy";
 import { PlusIcon, RefreshIcon, UserPlusIcon } from "../shared/ui/icons";
 import type { Account } from "../types";
@@ -15,9 +14,9 @@ function topBarSyncLabel(label: string): string {
 }
 
 const PAGE_TOOLTIPS: Record<Section, string> = {
-  accounts: "View of all accounts and usage limits",
-  activity: "See daily usage against weekly limits",
-  settings: SETTINGS_DESCRIPTION,
+  accounts: "Dashboard of all your AI accounts, usage limits, and reset times",
+  activity: "Shows daily usage as a percentage of each weekly limit",
+  settings: "Customize app preferences, manage updates, and link devices",
 };
 
 /**
