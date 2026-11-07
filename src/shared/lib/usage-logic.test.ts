@@ -6,6 +6,7 @@ import {
   accountsNeedScheduledRefresh,
   canonicalWindow,
   displayAccountLabel,
+  groupAlert,
   groupAverage,
   groupSecondMeterLabel,
   cardWindows,
@@ -395,3 +396,23 @@ describe("orderedWindows", () => {
   });
 });
 
+describe("groupAlert", () => {
+  const live = account({ id: "live", lastUsage: usage({ freshness: "live" }) });
+  const stale = account({ id: "stale", lastUsage: usage({ freshness: "stale" }) });
+  const errored = account({ id: "err", lastError: "Couldn't refresh", lastUsage: usage({ freshness: "live" }) });
+  const signedOut = account({ id: "out", authRequired: true, lastUsage: null });
+  const authFreshness = account({ id: "auth", lastUsage: usage({ freshness: "auth_required" }) });
+
+  it("is null when every account is live", () => {
+    expect(groupAlert([live])).toBeNull();
+    expect(groupAlert([])).toBeNull();
+  });
+
+  it("counts accounts that must sign in again, and ranks that above stale data", () => {
+    expect(groupAlert([live, signedOut, authFreshness, stale])).toEqual({ level: "sign-in", count: 2 });
+  });
+
+  it("counts stale and errored accounts as out of date", () => {
+    expect(groupAlert([live, stale, errored])).toEqual({ level: "stale", count: 2 });
+  });
+});

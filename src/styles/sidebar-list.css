@@ -377,13 +377,13 @@ html[data-sidebar-meters-stacked] .provider-summary-row .sidebar-meter {
   font-variant-numeric: tabular-nums;
 }
 
-/* Critical and warning colors match the account card text (#c53131 and obsidian-amber) */
+/* Critical and warning colors match the account card text (the --tone-*-text tokens) */
 .provider-summary-row .sidebar-meters .sidebar-meter-value.tone-critical {
-  color: #c53131 !important;
+  color: var(--tone-critical-text) !important;
 }
 
 .provider-summary-row .sidebar-meters .sidebar-meter-value.tone-warning {
-  color: var(--obsidian-amber) !important;
+  color: var(--tone-warning-text) !important;
 }
 
 .provider-summary-row .sidebar-meters .sidebar-meter-value.tone-na,
@@ -417,4 +417,48 @@ html[data-sidebar-meters-stacked] .provider-summary-row .sidebar-meter {
 
 .provider-summary-row .provider-summary-track > .tone-neutral {
   background: var(--c-69656d) !important;
+}
+
+/* A row whose group holds an account that must sign in again (red) or whose data is out of date
+ * (amber) gets a dot on the icon's top-right corner. The dot shares the icon's grid cell, so the icon
+ * and the text are placed explicitly; nothing here depends on an ancestor, because a drag clones the
+ * row onto body. New rules, so they sit in the components layer. */
+@layer components {
+  .provider-summary-row > .provider-summary-icon {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .provider-summary-row > .provider-summary-content {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .provider-summary-row > .sidebar-row-alert {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: start;
+    justify-self: end;
+    width: 10px;
+    height: 10px;
+    margin: -3px -3px 0 0;
+    border: 2px solid var(--obsidian-surface-low);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .provider-summary-row > .sidebar-row-alert.is-sign-in {
+    background: var(--tone-critical-text);
+  }
+
+  .provider-summary-row > .sidebar-row-alert.is-stale {
+    background: var(--tone-warning-text);
+  }
+
+  .provider-summary-row .sidebar-group-signin {
+    color: var(--tone-critical-text);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.2;
+  }
 }

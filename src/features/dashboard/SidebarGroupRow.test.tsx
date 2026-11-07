@@ -402,3 +402,73 @@ describe("SidebarGroupRow monthly limit (e.g. ChatGPT Free)", () => {
     expect(document.querySelector(".provider-summary-row")?.getAttribute("aria-label")).toContain("5h —, 30d 98%");
   });
 });
+
+describe("SidebarGroupRow averages and account problems", () => {
+  let app: Mounted | null = null;
+
+  afterEach(() => {
+    app?.unmount();
+    app = null;
+    setUsageDisplayMode("left");
+  });
+
+  const render = (accounts: Account[]) => {
+    app = mount(<SidebarGroupRow group={makeGroup(accounts)} selected={false} onSelect={vi.fn()} />);
+    return app.container.querySelector<HTMLButtonElement>(".provider-summary-row")!;
+  };
+  const values = () => Array.from(document.querySelectorAll(".sidebar-meter-value")).map((el) => [el.textContent, el.className]);
+
+  it("shows the average of the row's accounts for each limit", () => {
+    const row = render([
+      makeAccount({ id: "a1", fiveRemaining: 8, weeklyRemaining: 22 }),
+      makeAccount({ id: "a2", fiveRemaining: 46, weeklyRemaining: 4 }),
+    ]);
+    expect(values()).toEqual([
+      ["27%", "sidebar-meter-value tone-warning"],
+      ["13%", "sidebar-meter-value tone-critical"],
+    ]);
+    expect(row.getAttribute("aria-label")).toBe("Claude, 2 accounts, 5h 27%, 7d 13%");
+  });
+
+  it("averages what is used in % Used mode", () => {
+    setUsageDisplayMode("used");
+    render([makeAccount({ id: "a1", fiveRemaining: 8 }), makeAccount({ id: "a2", fiveRemaining: 46 })]);
+    expect(values()[0][0]).toBe("73%");
+  });
+
+  it("flags a signed-out account and says so instead of blank meters", () => {
+    const signedOut = { ...makeAccount({ id: "a1" }), authRequired: true, lastUsage: null };
+    const row = render([signedOut]);
+    expect(row.querySelector(".sidebar-row-alert")!.className).toBe("sidebar-row-alert is-sign-in");
+    expect(row.querySelector(".sidebar-group-signin")!.textContent).toBe("Sign-in needed");
+    expect(row.querySelector(".sidebar-meters")).toBeNull();
+    expect(row.getAttribute("aria-label")).toBe("Claude, 1 account, needs sign-in, 5h —, 7d —");
+  });
+
+  it("keeps the other accounts' meters when only one of several must sign in", () => {
+    const signedOut = { ...makeAccount({ id: "a1" }), authRequired: true, lastUsage: null };
+    const row = render([signedOut, makeAccount({ id: "a2", fiveRemaining: 70, weeklyRemaining: 50 })]);
+    expect(row.querySelector(".sidebar-row-alert.is-sign-in")).not.toBeNull();
+    expect(values().map(([text]) => text)).toEqual(["70%", "50%"]);
+    expect(row.getAttribute("aria-label")).toContain(", needs sign-in, ");
+  });
+
+  it("marks out-of-date data in amber, and sign-in outranks it", () => {
+    const stale = makeAccount({ id: "a1", fiveRemaining: 50 });
+    stale.lastUsage!.freshness = "stale";
+    const errored = { ...makeAccount({ id: "a2", fiveRemaining: 50 }), lastError: "Couldn't refresh" };
+    let row = render([stale, errored]);
+    expect(row.querySelector(".sidebar-row-alert")!.className).toBe("sidebar-row-alert is-stale");
+    expect(row.getAttribute("aria-label")).toContain(", 2 accounts out of date, ");
+    app!.unmount();
+
+    const signedOut = { ...makeAccount({ id: "a3", fiveRemaining: 50 }), authRequired: true };
+    row = render([stale, signedOut]);
+    expect(row.querySelector(".sidebar-row-alert")!.className).toBe("sidebar-row-alert is-sign-in");
+  });
+
+  it("shows no marker when every account is live", () => {
+    const row = render([makeAccount({ id: "a1", fiveRemaining: 50 })]);
+    expect(row.querySelector(".sidebar-row-alert")).toBeNull();
+  });
+});

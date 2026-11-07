@@ -132,6 +132,33 @@ export function grokBotAverage(accounts: Account[]): number | null {
   if (!values.length) return null;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
+
+/** Why a sidebar row flags its group: an account must sign in again, or its data is out of date. */
+export type GroupAlertLevel = "sign-in" | "stale";
+
+export interface GroupAlert {
+  level: GroupAlertLevel;
+  /** How many accounts in the group have this problem (the worse level wins). */
+  count: number;
+}
+
+function accountAlertLevel(account: Account): GroupAlertLevel | null {
+  if (account.authRequired || account.lastUsage?.freshness === "auth_required") return "sign-in";
+  if (account.lastError || account.lastUsage?.freshness === "stale") return "stale";
+  return null;
+}
+
+/**
+ * The problem a sidebar row should flag, or null. Signing in again outranks stale data; a key-only
+ * or not-yet-set-up Google AI Studio account is a normal state and is not flagged.
+ */
+export function groupAlert(accounts: Account[]): GroupAlert | null {
+  const levels = accounts.map(accountAlertLevel);
+  const signIn = levels.filter((level) => level === "sign-in").length;
+  if (signIn) return { level: "sign-in", count: signIn };
+  const stale = levels.filter((level) => level === "stale").length;
+  return stale ? { level: "stale", count: stale } : null;
+}
 /**
  * The label for the second meter in a sidebar group row.
  * - Grok-only groups show "7D Grok".

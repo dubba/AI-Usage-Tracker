@@ -745,13 +745,13 @@
 .provider-average .tone-warning,
 .provider-summary-row.selected .provider-average .tone-warning,
 .account-usage-metric .metric-full-value.tone-warning {
-  color: var(--obsidian-amber) !important;
+  color: var(--tone-warning-text) !important;
 }
 
 .provider-average .tone-critical,
 .provider-summary-row.selected .provider-average .tone-critical,
 .account-usage-metric .metric-full-value.tone-critical {
-  color: #c53131 !important;
+  color: var(--tone-critical-text) !important;
 }
 
 .account-usage-metric .metric-full-value.tone-healthy {
@@ -1003,15 +1003,15 @@
 }
 
 .collapsed-summary.tone-healthy {
-  color: var(--obsidian-green);
+  color: var(--tone-healthy-text);
 }
 
 .collapsed-summary.tone-warning {
-  color: var(--obsidian-amber);
+  color: var(--tone-warning-text);
 }
 
 .collapsed-summary.tone-critical {
-  color: var(--obsidian-red);
+  color: var(--tone-critical-text);
 }
 
 /* A usage window of an account card (AccountUsageMetric.tsx): its span and name beside the percent,

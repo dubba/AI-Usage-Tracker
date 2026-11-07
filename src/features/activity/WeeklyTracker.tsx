@@ -41,6 +41,8 @@ export function WeeklyTracker({
   const titleId = useId();
   const label = displayAccountLabel(account);
   const used = tracker.currentUsedPercent;
+  // Toned by what is left, like the account cards. The number itself is always what was used:
+  // this page is about consumption, and the daily bars below count usage too.
   const tone = usageTone(used == null ? null : 100 - used);
   const needsSignIn = account.authRequired || account.lastUsage?.freshness === "auth_required";
   const limitName = account.provider === "antigravity" ? antigravityFamilyLabel(tracker.windowLabel) : null;
@@ -75,7 +77,9 @@ export function WeeklyTracker({
           <strong aria-label={used == null ? "Usage unknown" : `${formatDayPercent(used)} of the ${monthly ? "monthly" : "weekly"} limit used`}>
             {formatDayPercent(used)}
           </strong>
-          <span aria-hidden="true">{monthly ? "this month" : "this week"}</span>
+          <span className="activity-card-total-period" aria-hidden="true">
+            {`${used == null ? "" : "used "}${monthly ? "this month" : "this week"}`}
+          </span>
         </div>
       </header>
       {needsSignIn ? (

@@ -93,6 +93,11 @@
     --obsidian-green: #4edea3;
     --obsidian-amber: #ffb869;
     --obsidian-red: #ff8585;
+    /* Quota tone *text* (percentages). Each clears WCAG AA 4.5:1 on the sidebar and card surfaces
+     * of its theme; bars keep the saturated fills. Checked by src/styles/tone-contrast.test.ts. */
+    --tone-healthy-text: #4edea3;
+    --tone-warning-text: #ffb869;
+    --tone-critical-text: #ff6b6b;
     --opencode-mark-back: #4b4646;
     --opencode-mark-front: #f1ecec;
     /* In-app usage-alert toasts and dismissible error banners. Text colors come from
@@ -156,6 +161,9 @@
     --obsidian-green: #0a8f5f;
     --obsidian-amber: #b25e00;
     --obsidian-red: #c93b3b;
+    --tone-healthy-text: #056b46;
+    --tone-warning-text: #9a4f00;
+    --tone-critical-text: #b42a2a;
     --opencode-mark-back: #b9b3b3;
     --opencode-mark-front: #4b4646;
     --toast-surface: rgba(255, 255, 255, 0.97);

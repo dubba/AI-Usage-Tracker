@@ -298,7 +298,7 @@ describe("ActivityView", () => {
       await settle();
       expect(select(root, ".activity-card.is-no-weekly")).toHaveLength(0);
       expect(select(root, ".activity-bar")).toHaveLength(30);
-      expect(root.querySelector(".activity-card-total span")!.textContent).toBe("this month");
+      expect(root.querySelector(".activity-card-total-period")!.textContent).toBe("used this month");
       expect(root.querySelector(".activity-bars")!.getAttribute("aria-label")).toContain("ChatGPT, last 30 days");
 
       click(button(root, "Last 7 days"));

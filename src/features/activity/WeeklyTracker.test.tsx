@@ -5,6 +5,7 @@ import { click, mount, type Mounted } from "../../test-utils/react";
 import { makeAccount, makeTracker, measured } from "../../test-utils/activity-fixtures";
 import { displayPlan } from "../../shared/lib/display";
 import { formatResetAtShort } from "../../shared/lib/format";
+import { setUsageDisplayMode } from "../../shared/lib/usage-display";
 import type { Account } from "../../types";
 import { NoWeeklyLimitCard } from "./NoWeeklyLimitCard";
 import { WeeklyTracker } from "./WeeklyTracker";
@@ -18,6 +19,7 @@ beforeEach(() => {
 afterEach(() => {
   mounted?.unmount();
   mounted = null;
+  setUsageDisplayMode("left");
   if (originalZone === undefined) delete process.env.TZ;
   else process.env.TZ = originalZone;
 });
@@ -63,8 +65,25 @@ describe("WeeklyTracker", () => {
     expect(tone(0.4)).toEqual(["<1%", "tone-healthy"]);
     expect(tone(null)).toEqual(["—", "tone-neutral"]);
     const root = render(makeAccount({ id: "a1" }), makeTracker({ accountId: "a1", currentUsedPercent: 42 }));
-    expect(text(root, ".activity-card-total span")).toBe("this week");
+    expect(text(root, ".activity-card-total-period")).toBe("used this week");
     expect(root.querySelector(".activity-card-total strong")!.getAttribute("aria-label")).toBe("42% of the weekly limit used");
+  });
+
+  it("always shows what was used, whatever the Accounts page's Left / Used choice", () => {
+    for (const mode of ["left", "used"] as const) {
+      setUsageDisplayMode(mode);
+      const root = render(makeAccount({ id: "a1" }), makeTracker({ accountId: "a1", currentUsedPercent: 61 }));
+      expect(text(root, ".activity-card-total strong")).toBe("61%");
+      expect(text(root, ".activity-card-total-period")).toBe("used this week");
+      mounted!.unmount();
+      mounted = null;
+    }
+  });
+
+  it("leaves off the unit when the usage is unknown", () => {
+    const root = render(makeAccount({ id: "a1" }), makeTracker({ accountId: "a1", currentUsedPercent: null }));
+    expect(text(root, ".activity-card-total strong")).toBe("—");
+    expect(text(root, ".activity-card-total-period")).toBe("this week");
   });
 
   it("names the Antigravity model family and leaves off the weekly limit", () => {
@@ -131,7 +150,7 @@ describe("WeeklyTracker", () => {
       <WeeklyTracker tracker={tracker} account={account} dayStarts={Array.from({ length: 31 }, (_, i) => new Date(Date.UTC(2026, 8, 16 + i)))} period="30d" />,
     );
     const root = mounted.container;
-    expect(text(root, ".activity-card-total span")).toBe("this month");
+    expect(text(root, ".activity-card-total-period")).toBe("used this month");
     expect(root.querySelector(".activity-card-total strong")!.getAttribute("aria-label")).toBe("40% of the monthly limit used");
     expect(root.querySelector<HTMLElement>(".activity-reset [data-tooltip]")!.dataset.tooltip).toMatch(/^Monthly reset · /);
     expect(text(root, "table th")).toBe("Day");

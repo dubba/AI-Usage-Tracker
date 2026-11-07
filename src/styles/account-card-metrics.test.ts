@@ -70,8 +70,9 @@ describe("account card metric row spacing", () => {
   });
 
   it("styles sidebar meter text and bars with amber and red matching account cards", () => {
-    expect(SIDEBAR_CSS).toMatch(/\.sidebar-meter-value\.tone-critical\s*\{[^}]*color:\s*#c53131/);
-    expect(SIDEBAR_CSS).toMatch(/\.sidebar-meter-value\.tone-warning\s*\{[^}]*color:\s*var\(--obsidian-amber\)/);
+    // Text uses the readable tone tokens (tone-contrast.test.ts); the bars keep the saturated fills.
+    expect(SIDEBAR_CSS).toMatch(/\.sidebar-meter-value\.tone-critical\s*\{[^}]*color:\s*var\(--tone-critical-text\)/);
+    expect(SIDEBAR_CSS).toMatch(/\.sidebar-meter-value\.tone-warning\s*\{[^}]*color:\s*var\(--tone-warning-text\)/);
     expect(SIDEBAR_CSS).toMatch(/\.provider-summary-track\s*>\s*\.tone-warning\s*\{[^}]*background:\s*var\(--obsidian-amber\)/);
     expect(SIDEBAR_CSS).toMatch(/\.provider-summary-track\s*>\s*\.tone-critical\s*\{[^}]*background:\s*#c53131/);
   });

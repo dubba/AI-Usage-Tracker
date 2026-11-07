@@ -483,7 +483,7 @@ html[data-sidebar-toggle-stacked] .provider-sidebar-heading-stack .usage-display
 }
 
 .tone-healthy {
-  color: var(--obsidian-green);
+  color: var(--tone-healthy-text);
 }
 
 .provider-summary-track > .tone-healthy,
@@ -493,7 +493,7 @@ html[data-sidebar-toggle-stacked] .provider-sidebar-heading-stack .usage-display
 
 .tone-warning,
 .provider-average .tone-warning {
-  color: var(--obsidian-amber);
+  color: var(--tone-warning-text);
 }
 
 .provider-summary-track > .tone-warning,
@@ -503,7 +503,7 @@ html[data-sidebar-toggle-stacked] .provider-sidebar-heading-stack .usage-display
 
 .tone-critical,
 .provider-average .tone-critical {
-  color: #c53131;
+  color: var(--tone-critical-text);
 }
 
 .provider-summary-track > .tone-critical,

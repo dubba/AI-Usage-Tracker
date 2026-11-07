@@ -5,10 +5,12 @@ import {
 import { ProviderIcon } from "../../shared/ui/ProviderIcon";
 import {
   grokBotAverage,
+  groupAlert,
   groupAverage,
   groupSecondMeterLabel,
   isGrokOnlyGroup,
   usageTone,
+  type GroupAlert,
 } from "../../shared/lib/usage-logic";
 import { useUsageDisplayMode } from "../../shared/hooks/useUsageDisplayMode";
 import { displayPercent } from "../../shared/lib/usage-display";
@@ -72,6 +74,13 @@ function SidebarMeter({
   );
 }
 
+/** "needs sign-in" / "2 accounts need sign-in" / "1 account out of date", for the row's accessible name. */
+function alertSpoken(alert: GroupAlert): string {
+  const subject = alert.count === 1 ? "" : `${formatCount(alert.count, ACCOUNT_FORMS)} `;
+  if (alert.level === "sign-in") return alert.count === 1 ? "needs sign-in" : `${subject}need sign-in`;
+  return alert.count === 1 ? "out of date" : `${subject}out of date`;
+}
+
 export function SidebarGroupRow({
   group,
   selected,
@@ -87,15 +96,17 @@ export function SidebarGroupRow({
   const [displayMode] = useUsageDisplayMode();
   // Grok has no 5-hour limit, so a Grok-only row uses that slot for the Grok Bot limit.
   const grokOnly = isGrokOnlyGroup(group.accounts);
+  const firstMeterLabel = grokOnly ? "7D Bot" : "5h";
   const secondMeterLabel = groupSecondMeterLabel(group.accounts);
+  // Each meter shows the average of the row's accounts.
   const five = grokOnly ? grokBotAverage(group.accounts) : groupAverage(group.accounts, "five_hour");
   const weekly = groupAverage(group.accounts, "weekly");
-  const toneFive = five == null ? null : usageTone(five);
-  const toneWeekly = weekly == null ? null : usageTone(weekly);
-  const labelFive = five == null ? "—" : `${Math.round(displayPercent(five, displayMode))}%`;
-  const labelWeekly = weekly == null ? "—" : `${Math.round(displayPercent(weekly, displayMode))}%`;
+  const alert = groupAlert(group.accounts);
+  const meterText = (value: number | null) =>
+    value == null ? "—" : `${Math.round(displayPercent(value, displayMode))}%`;
   const barWidth = (value: number | null) =>
     value == null ? 0 : Math.min(100, Math.max(0, displayPercent(value, displayMode)));
+  const hasMeterData = five != null || weekly != null;
   const reorderable = group.type !== "all";
   return (
     <button
@@ -122,7 +133,13 @@ export function SidebarGroupRow({
         event.preventDefault();
         onMove?.(delta);
       }}
-      aria-label={`${group.title}, ${formatCount(group.accounts.length, ACCOUNT_FORMS)}, ${grokOnly ? "7D Bot" : "5h"} ${labelFive}, ${secondMeterLabel} ${labelWeekly}`}
+      aria-label={[
+        group.title,
+        formatCount(group.accounts.length, ACCOUNT_FORMS),
+        alert ? alertSpoken(alert) : null,
+        `${firstMeterLabel} ${meterText(five)}`,
+        `${secondMeterLabel} ${meterText(weekly)}`,
+      ].filter(Boolean).join(", ")}
     >
       {reorderable ? <span className="reorder-grip" data-tooltip="Drag to reorder" aria-hidden="true" /> : null}
       {group.type === "bucket" ? (
@@ -132,6 +149,7 @@ export function SidebarGroupRow({
           {group.provider ? <ProviderIcon provider={group.provider} /> : <UsersIcon />}
         </span>
       )}
+      {alert ? <span className={`sidebar-row-alert is-${alert.level}`} aria-hidden="true" /> : null}
       <span className="provider-summary-content">
         <span className="provider-summary-topline">
           <strong className="sidebar-group-title">
@@ -142,10 +160,12 @@ export function SidebarGroupRow({
         </span>
         {group.accounts.length === 0 ? (
           <span className="sidebar-group-empty">No accounts yet</span>
+        ) : alert?.level === "sign-in" && !hasMeterData ? (
+          <span className="sidebar-group-signin">Sign-in needed</span>
         ) : (
           <span className="provider-average sidebar-meters">
-            <SidebarMeter label={grokOnly ? "7D Bot" : "5h"} text={labelFive} tone={toneFive} width={barWidth(five)} />
-            <SidebarMeter label={secondMeterLabel} text={labelWeekly} tone={toneWeekly} width={barWidth(weekly)} />
+            <SidebarMeter label={firstMeterLabel} text={meterText(five)} tone={five == null ? null : usageTone(five)} width={barWidth(five)} />
+            <SidebarMeter label={secondMeterLabel} text={meterText(weekly)} tone={weekly == null ? null : usageTone(weekly)} width={barWidth(weekly)} />
           </span>
         )}
       </span>

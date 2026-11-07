@@ -1,14 +1,19 @@
 # Changelog
 
-## Unreleased (14 changes)
+## Unreleased (17 changes)
 
-### Improved (12)
+### Added (1)
+
+- In the sidebar, a row now shows a red dot and "Sign-in needed" when one of its accounts must sign in again, and an amber dot when an account's usage is out of date, instead of looking the same as a provider with no data.
+
+### Improved (13)
 
 - In Settings, the account update interval setting is now labeled "Account Refresh".
 - In the device sync modal, the kicker is now "Sync devices over local network", the title heading is scaled to fit on one line on phones, and the settings toggle is labeled "Also Transfer Settings & Layout".
 - In Settings, the device pairing button is now labeled "Sync Devices".
 - Subheaders under the Accounts, Usage, and Settings page titles now clearly describe what each page monitors and manages.
 - On desktop, the tooltips on the Accounts, Usage, and Settings switch buttons now describe each page in detail and align to the switch's left edge, and the % Left display mode tooltip now extends all the way to the right edge matching % Used.
+- On the Usage page, each card's total now says what it measures ("used this week" under the percentage), so it is no longer mistaken for the amount left.
 - In the sidebar, when a narrow width causes meter pairs to stack into two lines (such as for Grok's 7D limits), all provider rows now stack their meters into two lines uniformly.
 - In the sidebar, group rows for accounts with monthly limits (such as ChatGPT Free) now label the second meter "30D" instead of "7D", matching the dashboard.
 - In the sidebar, Grok rows now label their two limits "7D Bot" and "7D Grok" instead of "GROKBOT" and "GROK", matching the dashboard.
@@ -17,8 +22,9 @@
 - On mobile, the sidebar's account and group cards now sit closer to the left edge, with the provider icon and the right padding matching, and the cards' right edge moved closer to the resize dots.
 - Antigravity now uses Google's official full-color Antigravity icon. Google AI Studio still uses the Google G.
 
-### Fixed (1)
+### Fixed (2)
 
+- Usage percentages in the sidebar, on account cards and on the Usage page are easier to read: the red in the dark theme and the green and amber in the light theme now meet accessible contrast.
 - Dragging a row in the sidebar now reorders the accounts on the Accounts and Usage pages immediately, together with the sidebar.
 
 ### Removed (1)
