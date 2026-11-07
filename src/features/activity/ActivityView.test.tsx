@@ -59,6 +59,14 @@ function answer(trackerCount = 1, dayCount = 7): WeeklyActivity {
 }
 
 describe("ActivityView", () => {
+  it("describes what the page is for in the header subheader", async () => {
+    const { root } = renderView([work]);
+    await settle();
+    expect(root.querySelector(".dashboard-description")?.textContent).toBe(
+      "Track daily usage as a percentage of each account's weekly limit."
+    );
+  });
+
   it("shows placeholders while loading and the charts when the answer arrives", async () => {
     let resolve!: (value: WeeklyActivity) => void;
     api.getWeeklyActivity.mockReturnValue(new Promise<WeeklyActivity>((done) => (resolve = done)));

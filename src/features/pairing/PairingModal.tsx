@@ -449,7 +449,7 @@ export function PairingModal({
       <div className="sr-only" role="status" aria-live="polite">
         {modalTitle}. {modalSubtitle}
       </div>
-      <div className="modal-kicker">Local Device Sync</div>
+      <div className="modal-kicker">Sync devices over local network</div>
       <h2 id="pairing-modal-title">{modalTitle}</h2>
       {showStepDots ? (
         <ol className="pairing-step-dots" aria-label={`Step ${step} of 3`}>

@@ -9,6 +9,7 @@ const MODAL_CLOSE_CSS = readFileSync(join(STYLES, "modal-close.css"), "utf8");
 const UI_REFINEMENTS_CSS = readFileSync(join(STYLES, "ui-refinements.css"), "utf8");
 const TOP_BAR_CSS = readFileSync(join(STYLES, "../app/top-bar.css"), "utf8");
 const ACTIVITY_CSS = readFileSync(join(STYLES, "../features/activity/activity.css"), "utf8");
+const PAIRING_CSS = readFileSync(join(STYLES, "../features/pairing/pairing.css"), "utf8");
 
 describe("Button hover and active state invariants", () => {
   it("excludes danger and amber buttons from generic button:hover override", () => {
@@ -100,5 +101,9 @@ describe("Button hover and active state invariants", () => {
   it("aligns Accounts, Usage, and Settings tooltips with the left edge of the page switch", () => {
     expect(TOP_BAR_CSS).toContain(".top-bar-nav-item[data-tooltip]::after");
     expect(TOP_BAR_CSS).toMatch(/\.top-bar-nav-item\[data-tooltip\]::after\s*\{[^}]*left:\s*3px\s*!important/);
+  });
+
+  it("scales down the pairing modal title on phones to fit on one line", () => {
+    expect(PAIRING_CSS).toMatch(/@media\s*\(max-width:\s*480px\)\s*\{[\s\S]*?\.modal-card\.pairing-modal\s+h2[^{]*\{[^}]*font-size:\s*1\.2rem\s*!important/);
   });
 });

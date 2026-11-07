@@ -182,6 +182,26 @@ describe("AccountsView empty dashboard", () => {
   });
 });
 
+describe("AccountsView header", () => {
+  let app: Mounted | null = null;
+
+  afterEach(() => {
+    app?.unmount();
+    app = null;
+  });
+
+  it("describes what the page is for in the header subheader", () => {
+    app = renderView({
+      allAccounts: [account],
+      accounts: [account],
+      selectedGroup: { ...allGroup, accounts: [account] },
+    });
+    expect(document.querySelector(".dashboard-description")?.textContent).toBe(
+      "Monitor usage limits and reset times across all your AI subscriptions."
+    );
+  });
+});
+
 describe("AccountsView summary cards", () => {
   let app: Mounted | null = null;
 

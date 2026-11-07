@@ -83,7 +83,7 @@ export function SettingsView({
               onClick={onOpenPairing}
             >
               <DevicesIcon className="settings-update-action-icon" />
-              <span>Link Devices</span>
+              <span>Sync Devices</span>
             </button>
           </div>
         </section>

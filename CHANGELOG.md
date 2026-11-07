@@ -1,9 +1,13 @@
 # Changelog
 
-## Unreleased (10 changes)
+## Unreleased (14 changes)
 
-### Improved (8)
+### Improved (12)
 
+- In Settings, the account update interval setting is now labeled "Account Refresh".
+- In the device sync modal, the kicker is now "Sync devices over local network", the title heading is scaled to fit on one line on phones, and the settings toggle is labeled "Also Transfer Settings & Layout".
+- In Settings, the device pairing button is now labeled "Sync Devices".
+- Subheaders under the Accounts, Usage, and Settings page titles now clearly describe what each page monitors and manages.
 - On desktop, the tooltips on the Accounts, Usage, and Settings switch buttons now describe each page in detail and align to the switch's left edge, and the % Left display mode tooltip now extends all the way to the right edge matching % Used.
 - In the sidebar, when a narrow width causes meter pairs to stack into two lines (such as for Grok's 7D limits), all provider rows now stack their meters into two lines uniformly.
 - In the sidebar, group rows for accounts with monthly limits (such as ChatGPT Free) now label the second meter "30D" instead of "7D", matching the dashboard.

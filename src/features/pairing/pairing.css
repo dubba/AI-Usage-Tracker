@@ -941,6 +941,10 @@
   .pairing-modal {
     padding: 18px 14px 16px;
   }
+  .modal-card.pairing-modal h2,
+  .modal-card.pairing-modal #pairing-modal-title {
+    font-size: 1.2rem !important;
+  }
   .modal-card.pairing-modal .pairing-subtitle,
   .modal-card.pairing-modal p.pairing-subtitle {
     font-size: 0.81rem !important;

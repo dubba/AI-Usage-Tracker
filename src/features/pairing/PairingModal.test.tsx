@@ -160,10 +160,15 @@ describe("choosing a role and a way to connect", () => {
     render();
     await settle();
     expect(title()).toBe("Send or Receive Accounts");
+    expect(document.querySelector(".modal-kicker")?.textContent).toBe("Sync devices over local network");
     expect(document.querySelector('[aria-label="Step 1 of 3"]')).not.toBeNull();
     expect(text()).toContain("Send Accounts from This Device");
     expect(text()).toContain("Receive Accounts on This Device");
     expect(document.querySelector<HTMLInputElement>(".pairing-settings-toggle input")?.checked).toBe(true);
+    expect(document.querySelector(".pairing-settings-toggle span")?.textContent).toContain("Also Transfer Settings & Layout");
+    expect(document.querySelector(".pairing-settings-toggle small")?.textContent).toBe(
+      "Includes appearance, launch at startup, account refresh intervals, automatic updates, app alerts, and card ordering."
+    );
   });
 
   it("offers every way to connect when sending", async () => {

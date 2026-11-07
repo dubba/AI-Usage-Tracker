@@ -86,7 +86,7 @@ describe("SettingsView header", () => {
   it("says what the page is for under its title, like the Accounts and Usage pages", () => {
     app = mount(view());
     const header = document.querySelector(".dashboard-header")!;
-    expect(header.querySelector("p.dashboard-description")?.textContent).toBe("Customize app preferences and settings.");
+    expect(header.querySelector("p.dashboard-description")?.textContent).toBe("Manage app preferences, updates, and sync devices.");
     // After the title row, so it sits under the title.
     const parts = [...header.firstElementChild!.children].map((el) => el.className);
     expect(parts).toEqual(["dashboard-title-row", "dashboard-description"]);
@@ -192,7 +192,7 @@ describe("General", () => {
       app = mount(view());
       expect(document.getElementById("setting-autostart-label")).toBeNull();
       expect(document.body.textContent).not.toContain("Launch at Startup");
-      expect(document.body.textContent).toContain("Account Updates");
+      expect(document.body.textContent).toContain("Account Refresh");
     } finally {
       userAgent.mockRestore();
     }
@@ -282,7 +282,7 @@ describe("Devices and the local API", () => {
   it("starts device linking", () => {
     const onOpenPairing = vi.fn();
     app = mount(view({ props: { onOpenPairing } }));
-    click(button("Link Devices"));
+    click(button("Sync Devices"));
     expect(onOpenPairing).toHaveBeenCalledTimes(1);
   });
 

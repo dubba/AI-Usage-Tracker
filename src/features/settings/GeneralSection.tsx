@@ -55,7 +55,7 @@ export function GeneralSection() {
         ) : null}
         <div className="settings-row">
           <div>
-            <strong>Account Updates</strong>
+            <strong>Account Refresh</strong>
             <small>How often usage is refreshed.</small>
           </div>
           <div className="settings-account-refresh">

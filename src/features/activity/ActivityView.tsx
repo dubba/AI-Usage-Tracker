@@ -247,7 +247,7 @@ export function ActivityView({
             <h1 className="eyebrow" tabIndex={-1} style={{ outline: "none" }}>Usage</h1>
             <PeriodSwitch period={period} onChange={setPeriod} />
           </div>
-          <p className="dashboard-description">How much of each weekly limit you used on each day.</p>
+          <p className="dashboard-description">Track daily usage as a percentage of each account's weekly limit.</p>
         </div>
       </header>
       <div ref={scrollRef} className="dashboard-scroll">{renderBody()}</div>

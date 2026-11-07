@@ -29,9 +29,9 @@ describe("TopBar", () => {
   it("describes each page in a tooltip", () => {
     const { pages } = render("accounts");
     expect(pages.map((page) => page.getAttribute("data-tooltip"))).toEqual([
-      "Dashboard of all your AI accounts, usage limits, and reset times",
-      "Shows daily usage as a percentage of each weekly limit",
-      "Customize app preferences, manage updates, and link devices",
+      "Dashboard of all your AI accounts",
+      "Shows daily usage across your AI accounts",
+      "Customize app preferences and sync devices",
     ]);
   });
 

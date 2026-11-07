@@ -14,9 +14,9 @@ function topBarSyncLabel(label: string): string {
 }
 
 const PAGE_TOOLTIPS: Record<Section, string> = {
-  accounts: "Dashboard of all your AI accounts, usage limits, and reset times",
-  activity: "Shows daily usage as a percentage of each weekly limit",
-  settings: "Customize app preferences, manage updates, and link devices",
+  accounts: "Dashboard of all your AI accounts",
+  activity: "Shows daily usage across your AI accounts",
+  settings: "Customize app preferences and sync devices",
 };
 
 /**

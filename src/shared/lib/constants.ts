@@ -16,4 +16,4 @@ export const FIVE_HOUR_WINDOW_SECONDS = 18_000;
 export const WEEKLY_WINDOW_SECONDS = 604_800;
 
 /** What the Settings page is for: under its title. */
-export const SETTINGS_DESCRIPTION = "Customize app preferences and settings";
+export const SETTINGS_DESCRIPTION = "Manage app preferences, updates, and sync devices";
