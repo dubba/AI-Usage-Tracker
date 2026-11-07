@@ -1,5 +1,6 @@
 import type { SVGProps } from "react";
 import type { Provider } from "../../types";
+import antigravityIcon from "./antigravity-icon.png";
 
 type ProviderIconProps = SVGProps<SVGSVGElement> & {
   provider: Provider;
@@ -22,7 +23,15 @@ export function ProviderIcon({ provider, className, ...props }: ProviderIconProp
     );
   }
 
-  if (provider === "antigravity" || provider === "google_ai_studio") {
+  if (provider === "antigravity") {
+    return (
+      // Official full-color mark from the Antigravity press kit. The file's empty margin is trimmed
+      // so it fills its chip the way the other providers' marks do. AI Studio keeps the Google G.
+      <img src={antigravityIcon} alt="Antigravity" draggable={false} className={className} />
+    );
+  }
+
+  if (provider === "google_ai_studio") {
     return (
       // The G spans 2 to 21.6 of the 24-unit canvas; cropping to it makes it as large in its box as
       // the other providers' marks, which fill theirs.
