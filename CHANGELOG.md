@@ -1,13 +1,14 @@
 # Changelog
 
-## Unreleased (27 changes)
+## Unreleased (28 changes)
 
 ### Added (1)
 
 - In the sidebar, a row now shows a red dot and "Sign-in needed" when one of its accounts must sign in again, and an amber dot when an account's usage is out of date, instead of looking the same as a provider with no data.
 
-### Improved (18)
+### Improved (19)
 
+- The New group buttons in the top bar and the sidebar now show stacked layers with a plus, instead of a person with a plus that read as "invite someone".
 - A signed-out account card now shows one message with a single "Sign in again" button (or "Reconnect Cloud Usage" for Google AI Studio), and its empty usage area says "Usage appears after you sign in."
 - Account card status chips now say what is wrong: "Signed out", "Out of date" (with the Refresh button highlighted) or "Refresh failed", instead of "Auth needed" and "Action needed". A failed refresh's message now has a Retry button beside it.
 - On phones, the menu and close buttons, the sidebar's Account and Group buttons, the rename pen and the % Left / % Used switch now have larger tap areas.

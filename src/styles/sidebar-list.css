@@ -124,7 +124,7 @@
     line-height: 1;
   }
 
-  /* The plus is drawn smaller inside its 18px box (about 10px of ink) than the user-plus beside "Group"
+  /* The plus is drawn smaller inside its 18px box (about 10px of ink) than the stack-plus beside "Group"
      (about 15px), which left more blank space around it than around that icon. Trimming its box by the
      difference (2.3px a side) makes the space from the button's edge to the glyph, and from the glyph to
      the word, the same on both buttons. */

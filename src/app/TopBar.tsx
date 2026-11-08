@@ -1,7 +1,7 @@
 import { computeSyncStatus, splitSyncLabel } from "../features/dashboard/sync-status";
 import { useClock } from "../shared/hooks/useClock";
 import { isRefreshKey, type BusyKeys } from "../shared/lib/busy";
-import { PlusIcon, RefreshIcon, UserPlusIcon } from "../shared/ui/icons";
+import { PlusIcon, RefreshIcon, StackPlusIcon } from "../shared/ui/icons";
 import type { Account } from "../types";
 import { MAIN_PAGES } from "./BottomNav";
 import type { Section } from "./useSidebarNavigation";
@@ -92,7 +92,7 @@ export function TopBar({
           aria-label="New group"
           data-tooltip={"Group accounts to track usage in\none place, like “Work” or “Personal”"}
         >
-          <UserPlusIcon />
+          <StackPlusIcon />
         </button>
         <button
           type="button"

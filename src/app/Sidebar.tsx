@@ -6,7 +6,7 @@ import { ALL_ACCOUNTS_GROUP_ID, isBucketGroup, type SidebarGroup } from "../feat
 import { SIDEBAR_ID } from "../shared/lib/constants";
 import type { BusyKeys } from "../shared/lib/busy";
 import { useScrollThumb } from "../shared/hooks/useScrollThumb";
-import { CloseIcon, GaugeIcon, PlusIcon, UserPlusIcon } from "../shared/ui/icons";
+import { CloseIcon, GaugeIcon, PlusIcon, StackPlusIcon } from "../shared/ui/icons";
 import type { Account } from "../types";
 import type { Section } from "./useSidebarNavigation";
 
@@ -145,7 +145,7 @@ export function Sidebar({
               aria-label="New group"
               data-tooltip={"Group accounts to track usage in\none place, like “Work” or “Personal”"}
             >
-              <UserPlusIcon />
+              <StackPlusIcon />
               <span className="sidebar-section-button-label">Group</span>
             </button>
           }
