@@ -142,7 +142,7 @@ export function Sidebar({
               type="button"
               className="sidebar-section-button"
               onClick={onAddGroup}
-              aria-label="New group"
+              aria-label="Add new group"
               data-tooltip={"Group accounts to track usage in\none place, like “Work” or “Personal”"}
             >
               <StackPlusIcon />

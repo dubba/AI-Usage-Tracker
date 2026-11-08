@@ -1,13 +1,14 @@
 # Changelog
 
-## Unreleased (30 changes)
+## Unreleased (31 changes)
 
 ### Added (1)
 
 - In the sidebar, a row now shows a red dot and "Sign-in needed" when one of its accounts must sign in again, and an amber dot when an account's usage is out of date, instead of looking the same as a provider with no data.
 
-### Improved (20)
+### Improved (21)
 
+- On desktop, the top bar\'s add buttons now read "Group" and "Account" beside their icons, matching the phone sidebar.
 - On desktop, "Accounts synced …" and the Refresh all button now sit at the bottom of the sidebar, as on phones, instead of in the top bar.
 - The New group buttons in the top bar and the sidebar now show stacked layers with a plus, instead of a person with a plus that read as "invite someone".
 - A signed-out account card now shows one message with a single "Sign in again" button (or "Reconnect Cloud Usage" for Google AI Studio), and its empty usage area says "Usage appears after you sign in."

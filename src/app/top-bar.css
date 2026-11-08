@@ -1,5 +1,5 @@
 /* The bar across the top of a wide window (TopBar.tsx): the Accounts, Usage and Settings pages,
- * then the New group and Add account buttons. The sync status and Refresh all are at the foot of
+ * then the Group and Account add buttons. The sync status and Refresh all are at the foot of
  * the sidebar, as on a phone.
  * It only renders while the sidebar is not an overlay, so none of this
  * reaches a phone.
@@ -145,6 +145,18 @@
   .top-bar-icon-button svg {
     width: 18px !important;
     height: 18px !important;
+  }
+
+  /* Group: the icon button with its word beside the icon, like Account next to it. */
+  .top-bar-icon-button.has-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: auto;
+    padding: 0 16px 0 14px;
+    font-size: 14px !important;
+    font-weight: 650 !important;
+    white-space: nowrap;
   }
 
   .top-bar-icon-button:disabled {

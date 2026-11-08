@@ -68,7 +68,7 @@ describe("Sidebar", () => {
     expect(mounted!.container.querySelector(".provider-sidebar-heading")).toBeNull();
     expect(mounted!.container.querySelector(".add-account-header-button")).toBeNull();
     expect(mounted!.container.querySelector('.sidebar-section-header [aria-label="Add new account"]')).not.toBeNull();
-    expect(mounted!.container.querySelector('.sidebar-section-header [aria-label="New group"]')).not.toBeNull();
+    expect(mounted!.container.querySelector('.sidebar-section-header [aria-label="Add new group"]')).not.toBeNull();
     const list = mounted!.container.querySelector(".provider-list")!;
     const status = mounted!.container.querySelector(".sidebar-sync-status")!;
     expect(list.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -124,7 +124,7 @@ describe("Sidebar", () => {
     it("puts the add buttons in the section headers on a wide window", () => {
       const { onAddAccount, onAddGroup } = render({ section: "accounts", topBar: true });
       click(mounted!.container.querySelector<HTMLElement>('[aria-label="Add new account"]')!);
-      click(mounted!.container.querySelector<HTMLElement>('[aria-label="New group"]')!);
+      click(mounted!.container.querySelector<HTMLElement>('[aria-label="Add new group"]')!);
       expect(onAddAccount).toHaveBeenCalledTimes(1);
       expect(onAddGroup).toHaveBeenCalledTimes(1);
     });
@@ -138,7 +138,7 @@ describe("Sidebar", () => {
     it("puts the add buttons in the section headers on the phone overlay too", () => {
       const { onAddAccount, onAddGroup } = render({ section: "accounts", topBar: false });
       click(mounted!.container.querySelector<HTMLElement>('[aria-label="Add new account"]')!);
-      click(mounted!.container.querySelector<HTMLElement>('[aria-label="New group"]')!);
+      click(mounted!.container.querySelector<HTMLElement>('[aria-label="Add new group"]')!);
       expect(onAddAccount).toHaveBeenCalledTimes(1);
       expect(onAddGroup).toHaveBeenCalledTimes(1);
       expect(mounted!.container.querySelectorAll(".sidebar-section-title")).toHaveLength(2);

@@ -10,8 +10,8 @@ const PAGE_TOOLTIPS: Record<Section, string> = {
 };
 
 /**
- * The bar across the top of a wide window: the Accounts, Usage and Settings pages, then the New group
- * and Add account buttons. The sync status and Refresh all are at the foot of the sidebar, as on a
+ * The bar across the top of a wide window: the Accounts, Usage and Settings pages, then the Group
+ * and Account add buttons (named like the phone sidebar's). The sync status and Refresh all are at the foot of the sidebar, as on a
  * phone. A phone has no top bar: the sidebar overlay and the bottom bar hold all of this.
  */
 export function TopBar({
@@ -50,20 +50,22 @@ export function TopBar({
       <div className="top-bar-actions">
         <button
           type="button"
-          className="top-bar-icon-button top-bar-add-group"
+          className="top-bar-icon-button top-bar-add-group has-label"
           onClick={onAddGroup}
-          aria-label="New group"
+          aria-label="Add new group"
           data-tooltip={"Group accounts to track usage in\none place, like “Work” or “Personal”"}
         >
           <StackPlusIcon />
+          <span>Group</span>
         </button>
         <button
           type="button"
           className="top-bar-add-account"
           onClick={onAddAccount}
+          aria-label="Add new account"
           data-tooltip="Add new account"
         >
-          <PlusIcon />Add account
+          <PlusIcon />Account
         </button>
       </div>
     </header>
