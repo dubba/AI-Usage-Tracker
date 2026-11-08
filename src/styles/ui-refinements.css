@@ -230,6 +230,12 @@
   min-height: 44px;
 }
 
+/* The rename pen stands alone beside the name, so its tap area can be a full 44px wide; the confirm
+   and cancel buttons sit side by side and keep 36px so their areas don't overlap. */
+.account-name-edit::before {
+  min-width: 44px;
+}
+
 .account-name-edit,
 .edit-bucket-title-btn {
   color: var(--obsidian-purple);
@@ -1774,7 +1780,6 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   background: #d93d3d !important;
   border-color: #ff6464 !important;
   color: #fff !important;
-  outline: none !important;
 }
 
 .sidebar-mobile-header .mobile-sidebar-close-btn:active:not(:disabled),

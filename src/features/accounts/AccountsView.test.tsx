@@ -369,6 +369,14 @@ describe("AccountsView L / U switch", () => {
     expect(row.lastElementChild?.classList.contains("usage-display-toggle")).toBe(true);
   });
 
+  it("spells the options out on a phone, which shows no tooltip to explain L and U", () => {
+    setNarrowWindow(true);
+    app = renderView({ onToggleSidebar: () => undefined });
+    const toggle = document.querySelector(".dashboard-title-row .usage-display-toggle")!;
+    expect(toggle.classList.contains("is-words")).toBe(true);
+    expect(toggle.textContent).toBe("% Left% Used");
+  });
+
   it("sits at the header's top right on a wide window, spelled out, and not in the title row", () => {
     setNarrowWindow(false);
     app = renderView({ onToggleSidebar: () => undefined });

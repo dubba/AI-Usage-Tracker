@@ -1,13 +1,16 @@
 # Changelog
 
-## Unreleased (17 changes)
+## Unreleased (23 changes)
 
 ### Added (1)
 
 - In the sidebar, a row now shows a red dot and "Sign-in needed" when one of its accounts must sign in again, and an amber dot when an account's usage is out of date, instead of looking the same as a provider with no data.
 
-### Improved (13)
+### Improved (16)
 
+- On phones, the menu and close buttons, the sidebar's Account and Group buttons, the rename pen and the % Left / % Used switch now have larger tap areas.
+- On phones, the switch beside the page title now reads "% Left / % Used" instead of "L / U", and moves to its own line when a long group name leaves no room.
+- In the sidebar, the 5H / 7D labels above each meter are slightly larger and easier to read.
 - In Settings, the account update interval setting is now labeled "Account Refresh".
 - In the device sync modal, the kicker is now "Sync devices over local network", the title heading is scaled to fit on one line on phones, and the settings toggle is labeled "Also Transfer Settings & Layout".
 - In Settings, the device pairing button is now labeled "Sync Devices".
@@ -22,13 +25,16 @@
 - On mobile, the sidebar's account and group cards now sit closer to the left edge, with the provider icon and the right padding matching, and the cards' right edge moved closer to the resize dots.
 - Antigravity now uses Google's official full-color Antigravity icon. Google AI Studio still uses the Google G.
 
-### Fixed (2)
+### Fixed (4)
 
+- Keyboard focus is now visible on the account card's logo, the phone menu and close buttons, dialog close buttons and the account card menu's items.
+- On phones, the Action Needed card's "Requires action" text no longer runs under the count.
 - Usage percentages in the sidebar, on account cards and on the Usage page are easier to read: the red in the dark theme and the green and amber in the light theme now meet accessible contrast.
 - Dragging a row in the sidebar now reorders the accounts on the Accounts and Usage pages immediately, together with the sidebar.
 
-### Removed (1)
+### Removed (2)
 
+- Sidebar group rows no longer show a "Group" pill, since they already sit under the Groups heading.
 - On mobile, account cards no longer show the percentage pill when collapsed.
 
 ## v0.5.7 - 2026-11-05 (51 changes)

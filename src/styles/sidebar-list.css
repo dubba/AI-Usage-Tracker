@@ -365,9 +365,9 @@ html[data-sidebar-meters-stacked] .provider-summary-row .sidebar-meter {
 
 .sidebar-meter-label {
   color: var(--obsidian-muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 

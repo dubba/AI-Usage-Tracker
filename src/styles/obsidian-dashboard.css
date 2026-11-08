@@ -214,6 +214,15 @@ html[data-sidebar-toggle-stacked] .provider-sidebar-heading-stack .usage-display
   border-right: 0;
 }
 
+/* The phone title row's % Left / % Used switch: words instead of L / U, so the segments size to
+   their label and are as tall as the other title-row controls. */
+.provider-window-toggle.is-words button {
+  width: auto;
+  height: 32px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
 /* Same solid purple fill and white label as the + Account / + Group primary buttons. */
 .provider-window-toggle button.active {
   color: #ffffff;
@@ -1251,7 +1260,6 @@ button.account-card-provider-icon {
   border: 1px solid var(--c-3d3b3d);
   cursor: pointer;
   padding: 0;
-  outline: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   transition: transform 120ms ease, filter 120ms ease, border-color 120ms ease;
@@ -2511,24 +2519,6 @@ select.text-input option,
   }
 }
 
-.bucket-mini-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 15px;
-  margin-left: 4px;
-  padding: 0 5px;
-  border-radius: 3px;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  line-height: 1;
-  text-transform: uppercase;
-  color: var(--obsidian-purple);
-  background: rgb(var(--purple-accent-rgb) / 0.16);
-  flex-shrink: 0;
-}
-
 .dashboard-title-row {
   display: flex;
   align-items: center;
@@ -2537,7 +2527,7 @@ select.text-input option,
 
 /* Scaled to sit cleanly beside the 15px uppercase heading (.dashboard-header h1.eyebrow,
    line-height 17.25px) without inflating .dashboard-title-row height or shifting the header
-   divider. Matches the styling of the sidebar's .bucket-mini-badge. */
+   divider. */
 .dashboard-bucket-pill {
   display: inline-flex;
   align-items: center;
@@ -2903,7 +2893,6 @@ select.text-input option,
   box-shadow: none;
   transition: background 150ms ease, transform 100ms ease, border-color 150ms ease, color 150ms ease;
   -webkit-tap-highlight-color: transparent;
-  outline: none;
 }
 
 @media (hover: hover) {
@@ -2912,11 +2901,6 @@ select.text-input option,
     background: var(--c-2a2929);
     color: var(--c-ffffff);
   }
-}
-
-.mobile-sidebar-toggle-btn:focus,
-.mobile-sidebar-toggle-btn:focus-visible {
-  outline: none;
 }
 
 .mobile-sidebar-toggle-btn svg {
@@ -3077,7 +3061,6 @@ select.text-input option,
   .mobile-sidebar-toggle-btn {
     display: inline-flex;
     -webkit-tap-highlight-color: transparent;
-    outline: none;
     box-shadow: none;
     user-select: none;
     -webkit-touch-callout: none;
@@ -3091,7 +3074,6 @@ select.text-input option,
     border-color: rgb(var(--purple-text-rgb) / 0.75);
     background: var(--obsidian-surface-container);
     color: var(--purple-ink);
-    outline: none;
     box-shadow: none;
   }
 
@@ -3163,6 +3145,13 @@ select.text-input option,
     gap: 12px;
     margin-bottom: 0 !important;
     width: 100%;
+  }
+
+  /* A long group title plus its pill and buttons can leave no room for the % Left / % Used switch;
+     it then drops to a line of its own instead of running off the screen. */
+  .dashboard-title-row:has(.usage-display-toggle.is-words) {
+    flex-wrap: wrap;
+    row-gap: 8px;
   }
 
   .dashboard-header > div:first-child {
@@ -3254,17 +3243,17 @@ select.text-input option,
     gap: 6px;
   }
 
+  /* The label and helper wrap instead of running under the count: at 375px "Requires action"
+     is wider than the text column beside a two-digit number. */
   .summary-card .summary-label {
     font-size: 10px;
     line-height: 1.25;
     letter-spacing: 0.06em;
-    white-space: nowrap;
   }
 
   .summary-card .summary-helper {
     font-size: 12px;
     line-height: 1.3;
-    white-space: nowrap;
   }
 
   .summary-card.attention-card.has-attention .summary-helper {

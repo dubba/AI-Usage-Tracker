@@ -383,7 +383,11 @@
 .mobile-dropdown-item:hover:not(:disabled),
 .mobile-dropdown-item:focus-visible {
   background: var(--c-242323);
-  outline: none;
+}
+
+/* Menu items fill the menu's width, so the keyboard ring sits inside the item's edge. */
+.mobile-dropdown-item:focus-visible {
+  outline-offset: -2px;
 }
 
 .mobile-dropdown-item:disabled {
@@ -1339,9 +1343,9 @@
   }
 }
 
-/* The Group pill beside a group's name in the sidebar and in its page header, drawn like the plan
-   chip on an account card ("Pro/$20"): a rounded purple pill in normal case, at every width. */
-.provider-summary-row .bucket-mini-badge,
+/* The Group pill beside a group's name in its page header, drawn like the plan chip on an account
+   card ("Pro/$20"): a rounded purple pill in normal case, at every width. (Sidebar group rows sit
+   under the Groups heading, so they carry no pill.) */
 .dashboard-title-row .dashboard-bucket-pill {
   height: 22px;
   margin-left: 6px;
@@ -1600,5 +1604,35 @@
     letter-spacing: 0.04em;
     line-height: 1;
     text-transform: uppercase;
+  }
+}
+
+/* Phone touch targets: the visible buttons stay their size, and an invisible ::before gives each a
+   tap area of at least 44px (the same pattern as .mobile-dropdown-toggle and .ui-modal-close).
+   The % Left / % Used segments sit side by side, so they only grow in height. New rules, so they
+   sit in the components layer. */
+@layer components {
+  @media (max-width: 860px) {
+    .mobile-sidebar-toggle-btn,
+    .sidebar-section-button,
+    .provider-window-toggle.is-words button {
+      position: relative;
+    }
+
+    .mobile-sidebar-toggle-btn::before,
+    .sidebar-section-button::before,
+    .provider-window-toggle.is-words button::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
+    }
+
+    .provider-window-toggle.is-words button::before {
+      width: 100%;
+    }
   }
 }

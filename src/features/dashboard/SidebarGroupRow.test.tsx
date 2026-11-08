@@ -472,3 +472,21 @@ describe("SidebarGroupRow averages and account problems", () => {
     expect(row.querySelector(".sidebar-row-alert")).toBeNull();
   });
 });
+
+describe("SidebarGroupRow custom group", () => {
+  let app: Mounted | null = null;
+
+  afterEach(() => {
+    app?.unmount();
+    app = null;
+  });
+
+  it("carries no Group pill, since it already sits under the Groups heading", () => {
+    app = mount(
+      <SidebarGroupRow group={makeBucketGroup([makeAccount({ id: "a1", fiveRemaining: 50 })])} selected={false} onSelect={vi.fn()} />,
+    );
+    expect(app.container.querySelector(".provider-summary-row.is-bucket-row")).not.toBeNull();
+    expect(app.container.querySelector(".bucket-mini-badge")).toBeNull();
+    expect(app.container.querySelector(".sidebar-group-name")!.textContent).toBe("My Group");
+  });
+});

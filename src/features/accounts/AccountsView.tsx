@@ -186,8 +186,9 @@ export function AccountsView(props: {
                 </button>
               </>
             ) : null}
-            {/* On a phone the L / U switch sits at the right end of the title row. */}
-            {phone ? <UsageDisplayToggle /> : null}
+            {/* On a phone the % Left / % Used switch sits at the right end of the title row, spelled
+                out because a phone shows no tooltip to explain single letters. */}
+            {phone ? <UsageDisplayToggle labels="words" className="provider-window-toggle usage-display-toggle is-words" /> : null}
           </div>
           <p className="dashboard-description">{dashboardDescription(props.selectedGroup, props.accounts.length)}</p>
           {/* On a wide window the L / U switch sits at the header's top right, like the Usage page's 7D / 30D. */}

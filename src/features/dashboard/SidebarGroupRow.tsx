@@ -155,7 +155,6 @@ export function SidebarGroupRow({
           <strong className="sidebar-group-title">
             <span className="sidebar-group-name">{group.title}</span>
             <span className="sidebar-group-count">{group.accounts.length}</span>
-            {group.type === "bucket" ? <span className="bucket-mini-badge">Group</span> : null}
           </strong>
         </span>
         {group.accounts.length === 0 ? (
