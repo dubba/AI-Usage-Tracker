@@ -9,7 +9,7 @@
 ### Improved (33)
 
 - On desktop, the account name and email on account cards are now vertically centered relative to the provider icon and action buttons.
-- On the Usage page, provider icons are larger to align with the two lines of summary text and vertically center with the drag reorder grip.
+- On the Usage page, provider icons now match the 28px size of Dashboard account cards and vertically center with the drag reorder grip.
 - In the Usage Notifications modal, the provider name stands out in bold white, quota rows on phones stay on a single line without a divider line matching desktop, and limits are labeled 5-HOUR, 7-DAY, and 30-DAY without repeating the quota period note.
 - On phones, the sidebar's Account and Group buttons have 10px corners and a larger, bolder label, like the desktop top bar's.
 - On desktop, the top bar's page switch and its Group and Account buttons are now 44px tall, the same as the Settings page's buttons, with the page tabs grown to match and the same padding and edge as those buttons.
