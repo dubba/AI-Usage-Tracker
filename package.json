@@ -15,6 +15,7 @@
     "tauri:build": "tauri build",
     "android:dev": "JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home tauri android dev",
     "android:build": "JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home tauri android build --target aarch64",
+    "ios:dev": "sh scripts/ios-dev.sh",
     "update:sidestore": "node scripts/update-sidestore-source.mjs",
     "resolve:version": "node scripts/resolve-release-version.mjs",
     "test:release-notes": "node --test scripts/release-notes.test.mjs",
