@@ -21,6 +21,12 @@
   color: var(--obsidian-muted);
 }
 
+/* A first load that failed: the error, with Retry under it, centered like the loading text. */
+.bridge-window-failed {
+  place-content: center;
+  gap: 12px;
+}
+
 .bridge-window-shell {
   min-height: 100vh;
   padding: 24px;

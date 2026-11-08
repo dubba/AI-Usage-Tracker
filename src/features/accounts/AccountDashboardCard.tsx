@@ -16,6 +16,7 @@ import { ProviderIcon } from "../../shared/ui/ProviderIcon";
 import {
   displayAccountLabel,
   accountNeedsAttention,
+  accountSignedOut,
   accountStatus,
   usageTone,
   cardWindows,
@@ -81,6 +82,10 @@ export function AccountDashboardCard({
   signInUnprotected?: boolean;
 }) {
   const status = accountStatus(account);
+  // Signed out, the card asks for one thing only: sign in again. Its notice holds the button.
+  const signedOut = accountSignedOut(account);
+  // Older usage is still on screen: point at Refresh.
+  const outOfDate = !signedOut && account.lastUsage?.freshness === "stale";
   const plan = displayPlan(account);
   const needsAttention = accountNeedsAttention(account);
   const [isCollapsed, setIsCollapsed] = useState(() => isCardCollapsedOnPage(pageId, account.id));
@@ -221,7 +226,7 @@ export function AccountDashboardCard({
         </div>
         {desktop ? (
           <div className="account-card-desktop-actions">
-            {account.provider === "google_ai_studio" ? (
+            {account.provider === "google_ai_studio" && !signedOut ? (
               <button type="button" className="button ghost compact-button google-cloud-connect-action" disabled={cardBusy} onClick={onConnectGoogleUsage}>
                 {modelsOnly || waitingForMetrics ? "Connect Cloud Usage" : "Change Cloud Project"}
               </button>
@@ -239,7 +244,7 @@ export function AccountDashboardCard({
             <span className="account-card-updated">{updatedAtLabel}</span>
             <button
               type="button"
-              className={`account-card-action refresh-action ${isRefreshing ? "spinning" : ""}`}
+              className={`account-card-action refresh-action ${isRefreshing ? "spinning" : ""}${outOfDate ? " is-suggested" : ""}`}
               data-tooltip="Refresh this account"
               aria-label={`Refresh ${account.label}`}
               disabled={cardBusy || isGlobalRefresh}
@@ -274,7 +279,7 @@ export function AccountDashboardCard({
             />
           </div>
         ) : (
-          <div className={`account-card-header-actions ${account.provider === "google_ai_studio" ? "has-google-action" : ""}`}>
+          <div className={`account-card-header-actions ${account.provider === "google_ai_studio" && !signedOut ? "has-google-action" : ""}`}>
             <div className="account-card-header-meta">
               {status.label !== "LIVE" ? <span className={`account-status-badge ${status.className}`}>{status.label}</span> : null}
               {plan ? (
@@ -282,7 +287,7 @@ export function AccountDashboardCard({
                   <span className="account-plan-badge">{plan}</span>
                 </span>
               ) : null}
-              {account.provider === "google_ai_studio" ? (
+              {account.provider === "google_ai_studio" && !signedOut ? (
                 <button type="button" className="button ghost compact-button google-cloud-connect-action" disabled={cardBusy} onClick={onConnectGoogleUsage}>
                   {modelsOnly || waitingForMetrics ? "Connect Cloud Usage" : "Change Cloud Project"}
                 </button>
@@ -314,7 +319,7 @@ export function AccountDashboardCard({
               ) : null}
               <button
                 type="button"
-                className={`account-card-action refresh-action ${isRefreshing ? "spinning" : ""}`}
+                className={`account-card-action refresh-action ${isRefreshing ? "spinning" : ""}${outOfDate ? " is-suggested" : ""}`}
                 data-tooltip="Refresh this account"
                 aria-label={`Refresh ${account.label}`}
                 disabled={cardBusy || isGlobalRefresh}
@@ -368,10 +373,23 @@ export function AccountDashboardCard({
 
       {!isCollapsed ? (
         <>
-          {account.lastError ? (
+          {signedOut ? (
+            <div className="account-card-error is-signed-out">
+              <span>{account.lastError ?? "This account is signed out."}</span>
+              <button type="button" className="button primary compact-button" disabled={cardBusy} onClick={onReconnect}>
+                {account.provider === "google_ai_studio" ? "Reconnect Cloud Usage" : "Sign in again"}
+              </button>
+            </div>
+          ) : account.lastError ? (
             <div className="account-card-error">
               <span>{account.lastError}</span>
-              {account.authRequired ? <button type="button" className="button ghost compact-button" onClick={onReconnect}>{account.provider === "google_ai_studio" ? "Reconnect Cloud Usage" : "Reconnect"}</button> : null}
+              <button
+                type="button"
+                className="button ghost compact-button"
+                aria-label={`Retry refreshing ${account.label}`}
+                disabled={cardBusy || isGlobalRefresh}
+                onClick={onRefresh}
+              >Retry</button>
             </div>
           ) : null}
 
@@ -385,7 +403,7 @@ export function AccountDashboardCard({
                 creditLabel={index === 0 ? creditLabel : null}
               />
             )) : (
-              <AccountUsageMetric unavailable creditLabel={creditLabel} />
+              <AccountUsageMetric unavailable signedOut={signedOut} creditLabel={creditLabel} />
             )}
           </div>
         </>

@@ -298,10 +298,10 @@ describe("accountNeedsAttention / accountStatus", () => {
   });
 
   it("reports the right status label", () => {
-    expect(accountStatus(account({ authRequired: true })).label).toBe("AUTH NEEDED");
-    expect(accountStatus(account({ lastUsage: usage({ freshness: "auth_required" }) })).label).toBe("AUTH NEEDED");
-    expect(accountStatus(account({ lastError: "x" })).label).toBe("ACTION NEEDED");
-    expect(accountStatus(account({ lastUsage: usage({ freshness: "stale" }) })).label).toBe("ACTION NEEDED");
+    expect(accountStatus(account({ authRequired: true })).label).toBe("SIGNED OUT");
+    expect(accountStatus(account({ lastUsage: usage({ freshness: "auth_required" }) })).label).toBe("SIGNED OUT");
+    expect(accountStatus(account({ lastError: "x" })).label).toBe("REFRESH FAILED");
+    expect(accountStatus(account({ lastUsage: usage({ freshness: "stale" }) })).label).toBe("OUT OF DATE");
     expect(accountStatus(account({ lastUsage: null })).label).toBe("INACTIVE");
   });
 

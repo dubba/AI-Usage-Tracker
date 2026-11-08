@@ -1,13 +1,15 @@
 # Changelog
 
-## Unreleased (23 changes)
+## Unreleased (27 changes)
 
 ### Added (1)
 
 - In the sidebar, a row now shows a red dot and "Sign-in needed" when one of its accounts must sign in again, and an amber dot when an account's usage is out of date, instead of looking the same as a provider with no data.
 
-### Improved (16)
+### Improved (18)
 
+- A signed-out account card now shows one message with a single "Sign in again" button (or "Reconnect Cloud Usage" for Google AI Studio), and its empty usage area says "Usage appears after you sign in."
+- Account card status chips now say what is wrong: "Signed out", "Out of date" (with the Refresh button highlighted) or "Refresh failed", instead of "Auth needed" and "Action needed". A failed refresh's message now has a Retry button beside it.
 - On phones, the menu and close buttons, the sidebar's Account and Group buttons, the rename pen and the % Left / % Used switch now have larger tap areas.
 - On phones, the switch beside the page title now reads "% Left / % Used" instead of "L / U", and moves to its own line when a long group name leaves no room.
 - In the sidebar, the 5H / 7D labels above each meter are slightly larger and easier to read.
@@ -25,8 +27,10 @@
 - On mobile, the sidebar's account and group cards now sit closer to the left edge, with the provider icon and the right padding matching, and the cards' right edge moved closer to the resize dots.
 - Antigravity now uses Google's official full-color Antigravity icon. Google AI Studio still uses the Google G.
 
-### Fixed (4)
+### Fixed (6)
 
+- The Paseo Bridge window no longer stays on "Loading…" forever when its details can't be loaded; it shows why, with a Retry button.
+- On desktop, the Accounts page now shows its loading placeholder instead of a blank page while accounts load.
 - Keyboard focus is now visible on the account card's logo, the phone menu and close buttons, dialog close buttons and the account card menu's items.
 - On phones, the Action Needed card's "Requires action" text no longer runs under the count.
 - Usage percentages in the sidebar, on account cards and on the Usage page are easier to read: the red in the dark theme and the green and amber in the light theme now meet accessible contrast.

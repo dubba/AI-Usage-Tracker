@@ -143,6 +143,19 @@ export function ApiIntegrationWindow() {
   };
 
   if (!bridge) {
+    // The details poll keeps retrying every couple of seconds, but a first load that fails would
+    // otherwise sit on "Loading…" forever with no word of what went wrong.
+    if (error) {
+      return (
+        <div className="bridge-window-loading bridge-window-failed">
+          <div className="error-panel" role="alert">{error}</div>
+          <button type="button" className="button primary settings-update-action" onClick={() => void load()}>
+            <RefreshIcon className="settings-update-action-icon" />
+            <span>Retry</span>
+          </button>
+        </div>
+      );
+    }
     return <div className="bridge-window-loading">Loading Paseo Bridge configuration…</div>;
   }
 

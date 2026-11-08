@@ -65,12 +65,23 @@ export function accountNeedsAttention(account: Account): boolean {
     || account.lastUsage.freshness !== "live",
   );
 }
+/** The provider stopped accepting this account's saved sign-in: only signing in again fixes it. */
+export function accountSignedOut(account: Account): boolean {
+  return Boolean(account.authRequired || account.lastUsage?.freshness === "auth_required");
+}
+/**
+ * The card's status chip. Each label says what is wrong: signed out (sign in again), out of date
+ * (older usage is still shown) or a refresh that failed before any usage loaded.
+ */
 export function accountStatus(account: Account): { label: string; className: string } {
-  if (account.authRequired || account.lastUsage?.freshness === "auth_required") {
-    return { label: "AUTH NEEDED", className: "danger" };
+  if (accountSignedOut(account)) {
+    return { label: "SIGNED OUT", className: "danger" };
   }
-  if (account.lastError || account.lastUsage?.freshness === "stale") {
-    return { label: "ACTION NEEDED", className: "warning" };
+  if (account.lastUsage?.freshness === "stale") {
+    return { label: "OUT OF DATE", className: "warning" };
+  }
+  if (account.lastError) {
+    return { label: "REFRESH FAILED", className: "warning" };
   }
   if (isGoogleKeyOnly(account)) {
     return { label: "KEY ONLY", className: "warning" };

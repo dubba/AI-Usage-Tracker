@@ -2974,6 +2974,42 @@ select.text-input option,
   }
 }
 
+/* The loading skeleton App.tsx draws before the first snapshot. It used to live in the phone block
+   below, which left a wide window blank while loading. */
+.skeleton-grid {
+  display: grid;
+  gap: 16px;
+  width: min(560px, 90vw);
+}
+
+.skeleton-card {
+  height: 92px;
+  border: 1px solid var(--obsidian-border);
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--obsidian-surface-low) 25%, var(--c-232222) 37%, var(--obsidian-surface-low) 63%);
+  background-size: 400% 100%;
+  animation: skeletonShimmer 1.4s ease infinite;
+  display: grid;
+  align-content: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+.skeleton-line {
+  height: 12px;
+  border-radius: 999px;
+  background: var(--c-255-255-255-a80);
+}
+
+.skeleton-line.short {
+  width: 38%;
+}
+
+@keyframes skeletonShimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
 @media (max-width: 860px) {
   :root {
     --sidebar-width: 300px;
@@ -3537,40 +3573,6 @@ select.text-input option,
 
   .settings-account-refresh .custom-dropdown-menu {
     right: auto;
-  }
-
-  .skeleton-grid {
-    display: grid;
-    gap: 16px;
-    width: min(560px, 90vw);
-  }
-
-  .skeleton-card {
-    height: 92px;
-    border: 1px solid var(--obsidian-border);
-    border-radius: 8px;
-    background: linear-gradient(90deg, var(--obsidian-surface-low) 25%, var(--c-232222) 37%, var(--obsidian-surface-low) 63%);
-    background-size: 400% 100%;
-    animation: skeletonShimmer 1.4s ease infinite;
-    display: grid;
-    align-content: center;
-    gap: 12px;
-    padding: 16px;
-  }
-
-  .skeleton-line {
-    height: 12px;
-    border-radius: 999px;
-    background: var(--c-255-255-255-a80);
-  }
-
-  .skeleton-line.short {
-    width: 38%;
-  }
-
-  @keyframes skeletonShimmer {
-    0% { background-position: 100% 0; }
-    100% { background-position: -100% 0; }
   }
 
   .bucket-account-heading {

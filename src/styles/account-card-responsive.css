@@ -1636,3 +1636,27 @@
     }
   }
 }
+
+@layer components {
+  /* Signed out: the notice's message wraps beside its one button. */
+  .account-card-error > span {
+    min-width: 0;
+  }
+
+  .account-card-error > .button {
+    flex-shrink: 0;
+  }
+}
+
+/* Out of date: Refresh turns green with a soft ring to point at the fix. Unlayered, because the card
+   action rules above it set the neutral desktop look (and box-shadow: none) unlayered. The keyboard
+   focus ring is an outline, so the two never fight. */
+.provider-account-card .account-card-action.refresh-action.is-suggested {
+  color: var(--tone-healthy-text);
+  border-color: var(--obsidian-green);
+  box-shadow: 0 0 0 3px rgb(78 222 163 / 0.3);
+}
+
+:root[data-theme="light"] .provider-account-card .account-card-action.refresh-action.is-suggested {
+  box-shadow: 0 0 0 3px rgb(10 143 95 / 0.22);
+}

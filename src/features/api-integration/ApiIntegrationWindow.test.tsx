@@ -87,3 +87,30 @@ describe("ApiIntegrationWindow bearer token", () => {
     );
   });
 });
+
+describe("ApiIntegrationWindow first load", () => {
+  let app: Mounted | null = null;
+
+  afterEach(() => {
+    app?.unmount();
+    app = null;
+    vi.clearAllMocks();
+  });
+
+  it("shows why the details didn't load and retries on request, instead of loading forever", async () => {
+    bridgeApi.bridgeInfo.mockRejectedValue(new Error("Bridge state is unavailable."));
+    app = mount(<ApiIntegrationWindow />);
+    await settle();
+    expect(document.body.textContent).not.toContain("Loading Paseo Bridge configuration");
+    expect(document.querySelector("[role=alert]")?.textContent).toBe(
+      "Couldn't load the Paseo Bridge details: Bridge state is unavailable.",
+    );
+
+    bridgeApi.bridgeInfo.mockResolvedValue(info());
+    const retry = Array.from(document.querySelectorAll("button")).find((el) => el.textContent?.trim() === "Retry")!;
+    click(retry);
+    await settle();
+    expect(document.querySelector("h1")?.textContent).toBe("Paseo Bridge");
+    expect(document.querySelector("[role=alert]")).toBeNull();
+  });
+});

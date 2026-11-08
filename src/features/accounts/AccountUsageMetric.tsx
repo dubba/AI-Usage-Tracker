@@ -20,18 +20,25 @@ function noResetNote(remaining: number | null | undefined, provider: Provider | 
 /**
  * One usage window of an account card: its span and name beside the percent, the bar, then the reset
  * time and date. The phone and a wide window draw it the same way. With `unavailable` (the provider
- * reported no windows at all) it shows an empty bar and says to refresh instead.
+ * reported no windows at all) it shows an empty bar and says to refresh instead, or, while the account
+ * is signed out, that usage comes after signing in (a refresh can't fetch it then).
  */
-export function AccountUsageMetric(props: WindowMetricProps | { unavailable: true; creditLabel?: string | null }) {
-  if ("unavailable" in props) return <UnavailableMetric creditLabel={props.creditLabel ?? null} />;
+export function AccountUsageMetric(
+  props: WindowMetricProps | { unavailable: true; signedOut?: boolean; creditLabel?: string | null },
+) {
+  if ("unavailable" in props) {
+    return <UnavailableMetric signedOut={props.signedOut ?? false} creditLabel={props.creditLabel ?? null} />;
+  }
   return <WindowMetric {...props} />;
 }
 
-function UnavailableMetric({ creditLabel }: { creditLabel: string | null }) {
+function UnavailableMetric({ signedOut, creditLabel }: { signedOut: boolean; creditLabel: string | null }) {
   return (
     <div className="account-usage-metric unavailable-metric">
       <div className="metric-header-row">
-        <span className="metric-reset">Refresh this account to retrieve its limits.</span>
+        <span className="metric-reset">
+          {signedOut ? "Usage appears after you sign in." : "Refresh this account to retrieve its limits."}
+        </span>
       </div>
       <div className="metric-value-row">
         <span

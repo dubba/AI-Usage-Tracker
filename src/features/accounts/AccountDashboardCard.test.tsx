@@ -431,8 +431,63 @@ describe("AccountDashboardCard on a wide window", () => {
     const rendered = renderDesktopCard({ account: { ...account, authRequired: true } });
     app = rendered.app;
     const chip = app.container.querySelector(".account-status-chip")!;
-    expect(chip.textContent).toBe("Auth needed");
+    expect(chip.textContent).toBe("Signed out");
     expect(chip.classList.contains("danger")).toBe(true);
+  });
+
+  it("asks a signed-out account for one thing: sign in again", () => {
+    const onReconnect = vi.fn();
+    const onConnectGoogleUsage = vi.fn();
+    const rendered = renderDesktopCard({
+      account: { ...account, id: "signed-out-google", provider: "google_ai_studio", authRequired: true, lastError: "Google authorization expired. Sign in again." },
+      onReconnect,
+      onConnectGoogleUsage,
+    });
+    app = rendered.app;
+    const notices = app.container.querySelectorAll(".account-card-error");
+    expect(notices).toHaveLength(1);
+    expect(notices[0].textContent).toContain("Google authorization expired. Sign in again.");
+    // Change Cloud Project opens the same dialog as the notice's button, so it steps aside.
+    expect(app.container.querySelector(".google-cloud-connect-action")).toBeNull();
+    expect(app.container.querySelector(".metric-reset")?.textContent).toBe("Usage appears after you sign in.");
+    const signIn = notices[0].querySelector<HTMLButtonElement>("button")!;
+    expect(signIn.textContent).toBe("Reconnect Cloud Usage");
+    expect(signIn.classList.contains("primary")).toBe(true);
+    click(signIn);
+    expect(onReconnect).toHaveBeenCalledTimes(1);
+    expect(onConnectGoogleUsage).not.toHaveBeenCalled();
+  });
+
+  it("offers Sign in again even when the provider sent no message", () => {
+    const rendered = renderDesktopCard({ account: { ...account, id: "signed-out-silent", authRequired: true } });
+    app = rendered.app;
+    const notice = app.container.querySelector(".account-card-error")!;
+    expect(notice.textContent).toBe("This account is signed out.Sign in again");
+  });
+
+  it("calls out-of-date usage that, and points at Refresh", () => {
+    const rendered = renderDesktopCard({
+      account: {
+        ...account,
+        id: "out-of-date",
+        lastError: "OpenAI rate-limited the usage request.",
+        lastUsage: { plan: null, email: null, windows: [], creditsUsd: null, unlimitedCredits: false, fetchedAt: new Date().toISOString(), freshness: "stale", source: "test" },
+      },
+    });
+    app = rendered.app;
+    expect(app.container.querySelector(".account-status-chip")?.textContent).toBe("Out of date");
+    expect(app.container.querySelector(".refresh-action")?.classList.contains("is-suggested")).toBe(true);
+    const notice = app.container.querySelector(".account-card-error")!;
+    expect(notice.textContent).toContain("OpenAI rate-limited the usage request.");
+    click(notice.querySelector<HTMLButtonElement>('[aria-label="Retry refreshing Claude"]')!);
+    expect(rendered.handlers.onRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not point at Refresh for a live account", () => {
+    const rendered = renderDesktopCard({ account: { ...account, id: "live-expanded" } });
+    app = rendered.app;
+    expect(app.container.querySelector(".refresh-action")?.classList.contains("is-suggested")).toBe(false);
+    expect(app.container.querySelector(".account-card-error")).toBeNull();
   });
 
   it("shows the percentage pill when collapsed on desktop", () => {
