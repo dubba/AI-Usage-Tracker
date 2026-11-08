@@ -374,15 +374,11 @@ export default function App() {
       {sidebarIsOverlay ? null : (
         <TopBar
           section={section}
-          accounts={accounts}
-          refreshMinutes={appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES}
-          busy={busy}
           onSelect={(target) => {
             if (target === "activity") nav.showActivity();
             else if (target === "accounts") nav.showAccounts();
             else nav.showSettings();
           }}
-          onRefreshAll={() => void refreshAll()}
           onAddAccount={() => openAdd(undefined, selectedGroup.provider ?? undefined)}
           onAddGroup={() => openNewBucket(selectedGroup.provider)}
         />

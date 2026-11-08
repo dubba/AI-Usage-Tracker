@@ -11,9 +11,9 @@ import type { Account } from "../types";
 import type { Section } from "./useSidebarNavigation";
 
 /**
- * The navigation sidebar: the All accounts row and one row per group. As the phone overlay it also
- * has the add buttons, the L / U switch and the sync status; on a wide window those are in the top
- * bar (TopBar.tsx), and the Accounts, Usage and Settings pages are there or in the bottom bar.
+ * The navigation sidebar: the All accounts row and one row per group, with the sync status and
+ * Refresh all at its foot on every width. On a wide window the app name and the Accounts, Usage and
+ * Settings pages are in the top bar (TopBar.tsx); on a phone the pages are in the bottom bar.
  */
 export function Sidebar({
   sidebarRef,
@@ -51,7 +51,7 @@ export function Sidebar({
   accounts: Account[];
   refreshMinutes: number;
   busy: BusyKeys;
-  /** The top bar is showing and holds the app name, add buttons, L / U switch and sync status. */
+  /** The top bar is showing and holds the app name and the page switch. */
   topBar: boolean;
   onClose: () => void;
   onAddAccount: () => void;
@@ -157,14 +157,12 @@ export function Sidebar({
         )}
       </div>
 
-      {topBar ? null : (
-        <SyncStatusLine
-          accounts={accounts}
-          refreshMinutes={refreshMinutes}
-          busy={busy}
-          onRefreshAll={onRefreshAll}
-        />
-      )}
+      <SyncStatusLine
+        accounts={accounts}
+        refreshMinutes={refreshMinutes}
+        busy={busy}
+        onRefreshAll={onRefreshAll}
+      />
       <SidebarResizeHandle shellRef={shellRef} sidebarRef={sidebarRef} />
     </aside>
   );

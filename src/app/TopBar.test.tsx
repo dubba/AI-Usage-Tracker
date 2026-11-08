@@ -1,8 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { click, mount, type Mounted } from "../test-utils/react";
-import { REFRESH_ALL_KEY } from "../shared/lib/busy";
-import type { Account } from "../types";
 import { TopBar } from "./TopBar";
 import type { Section } from "./useSidebarNavigation";
 
@@ -12,9 +10,9 @@ afterEach(() => {
   mounted = null;
 });
 
-function render(section: Section, busy: Set<string> = new Set()) {
-  const handlers = { onSelect: vi.fn(), onRefreshAll: vi.fn(), onAddAccount: vi.fn(), onAddGroup: vi.fn() };
-  mounted = mount(<TopBar section={section} accounts={[]} refreshMinutes={15} busy={busy} {...handlers} />);
+function render(section: Section) {
+  const handlers = { onSelect: vi.fn(), onAddAccount: vi.fn(), onAddGroup: vi.fn() };
+  mounted = mount(<TopBar section={section} {...handlers} />);
   const pages = [...mounted.container.querySelectorAll<HTMLButtonElement>('nav[aria-label="Main"] button')];
   return { handlers, pages };
 }
@@ -35,35 +33,22 @@ describe("TopBar", () => {
     ]);
   });
 
-  it("says when all accounts were last synced", () => {
-    const fetchedAt = new Date(Date.now() - 3 * 60_000).toISOString();
-    const account = { id: "a", lastUsage: { fetchedAt }, provider: "anthropic", authRequired: false } as unknown as Account;
-    mounted = mount(<TopBar section="accounts" accounts={[account]} refreshMinutes={15} busy={new Set()} onSelect={vi.fn()} onRefreshAll={vi.fn()} onAddAccount={vi.fn()} onAddGroup={vi.fn()} />);
-    expect(mounted.container.querySelector(".top-bar-sync")?.textContent).toBe("All accounts synced 3m ago");
-  });
-
   it("opens a page when clicked", () => {
     const { pages, handlers } = render("accounts");
     click(pages[2]);
     expect(handlers.onSelect).toHaveBeenCalledWith("settings");
   });
 
-  it("offers Refresh all, Add account and New group, and leaves the Left / Used switch to the Accounts page", () => {
+  it("offers Add account and New group, and leaves the sync status, Refresh all and the Left / Used switch to others", () => {
     const { handlers } = render("accounts");
     const container = mounted!.container;
-    expect(container.textContent).toContain("Not synced yet");
+    // The sync status and Refresh all sit at the foot of the sidebar, as on a phone.
+    expect(container.textContent).not.toContain("synced");
+    expect(container.querySelector('[aria-label="Refresh all accounts"]')).toBeNull();
     expect(container.querySelector('[aria-label="Usage display"]')).toBeNull();
-    click(container.querySelector<HTMLButtonElement>('[aria-label="Refresh all accounts"]')!);
     click(container.querySelector<HTMLButtonElement>(".top-bar-add-account")!);
     click(container.querySelector<HTMLButtonElement>('[aria-label="New group"]')!);
-    expect(handlers.onRefreshAll).toHaveBeenCalledTimes(1);
     expect(handlers.onAddAccount).toHaveBeenCalledTimes(1);
     expect(handlers.onAddGroup).toHaveBeenCalledTimes(1);
-  });
-
-  it("says it is syncing and holds Refresh all while a refresh runs", () => {
-    render("accounts", new Set([REFRESH_ALL_KEY]));
-    expect(mounted!.container.textContent).toContain("Syncing…");
-    expect(mounted!.container.querySelector<HTMLButtonElement>('[aria-label="Refresh all accounts"]')!.disabled).toBe(true);
   });
 });

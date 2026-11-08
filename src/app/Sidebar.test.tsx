@@ -50,13 +50,15 @@ function render(props: { section: Section; topBar: boolean; selectedGroupId?: st
 }
 
 describe("Sidebar", () => {
-  it("leaves the app name, add buttons and sync status to the top bar on a wide window", () => {
+  it("leaves the app name to the top bar on a wide window, and keeps the sync status below the groups as on a phone", () => {
     render({ section: "accounts", topBar: true });
     expect(mounted!.container.querySelector(".provider-list")).not.toBeNull();
     expect(mounted!.container.querySelector(".brand")).toBeNull();
     expect(mounted!.container.querySelector(".add-account-header-button")).toBeNull();
     expect(mounted!.container.querySelector(".add-bucket-header-button")).toBeNull();
-    expect(mounted!.container.querySelector(".sidebar-sync-status")).toBeNull();
+    const list = mounted!.container.querySelector(".provider-list")!;
+    const status = mounted!.container.querySelector(".sidebar-sync-status")!;
+    expect(list.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("keeps them as the phone overlay, with the sync status below the groups", () => {

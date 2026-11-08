@@ -1,13 +1,14 @@
 # Changelog
 
-## Unreleased (28 changes)
+## Unreleased (30 changes)
 
 ### Added (1)
 
 - In the sidebar, a row now shows a red dot and "Sign-in needed" when one of its accounts must sign in again, and an amber dot when an account's usage is out of date, instead of looking the same as a provider with no data.
 
-### Improved (19)
+### Improved (20)
 
+- On desktop, "Accounts synced …" and the Refresh all button now sit at the bottom of the sidebar, as on phones, instead of in the top bar.
 - The New group buttons in the top bar and the sidebar now show stacked layers with a plus, instead of a person with a plus that read as "invite someone".
 - A signed-out account card now shows one message with a single "Sign in again" button (or "Reconnect Cloud Usage" for Google AI Studio), and its empty usage area says "Usage appears after you sign in."
 - Account card status chips now say what is wrong: "Signed out", "Out of date" (with the Refresh button highlighted) or "Refresh failed", instead of "Auth needed" and "Action needed". A failed refresh's message now has a Retry button beside it.
@@ -28,8 +29,9 @@
 - On mobile, the sidebar's account and group cards now sit closer to the left edge, with the provider icon and the right padding matching, and the cards' right edge moved closer to the resize dots.
 - Antigravity now uses Google's official full-color Antigravity icon. Google AI Studio still uses the Google G.
 
-### Fixed (6)
+### Fixed (7)
 
+- Sidebar rows no longer squeeze together and overlap when the list is longer than the window; the list scrolls instead.
 - The Paseo Bridge window no longer stays on "Loading…" forever when its details can't be loaded; it shows why, with a Retry button.
 - On desktop, the Accounts page now shows its loading placeholder instead of a blank page while accounts load.
 - Keyboard focus is now visible on the account card's logo, the phone menu and close buttons, dialog close buttons and the account card menu's items.

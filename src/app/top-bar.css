@@ -1,5 +1,6 @@
 /* The bar across the top of a wide window (TopBar.tsx): the Accounts, Usage and Settings pages,
- * the sync status, Refresh all, and the New group and Add account buttons.
+ * then the New group and Add account buttons. The sync status and Refresh all are at the foot of
+ * the sidebar, as on a phone.
  * It only renders while the sidebar is not an overlay, so none of this
  * reaches a phone.
  *
@@ -124,37 +125,6 @@
     min-width: 0;
   }
 
-  /* The first thing to give way when the window narrows: it shortens with an ellipsis. */
-  .top-bar-sync {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    min-width: 0;
-    overflow: hidden;
-    color: var(--obsidian-muted);
-    font-size: 13px;
-    white-space: nowrap;
-  }
-
-  .top-bar-sync > span:not(.top-bar-sync-dot) {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .top-bar-sync-dot {
-    width: 7px;
-    height: 7px;
-    flex: 0 0 auto;
-    border-radius: 50%;
-    background: var(--obsidian-muted);
-  }
-
-  .top-bar-sync.is-fresh .top-bar-sync-dot { background: var(--obsidian-green); }
-  .top-bar-sync.is-stale .top-bar-sync-dot { background: var(--obsidian-amber); }
-  .top-bar-sync.is-syncing .top-bar-sync-dot { background: var(--purple-accent); }
-  .top-bar-sync-detail { color: var(--obsidian-amber); }
-
   .top-bar-icon-button {
     display: grid;
     place-items: center;
@@ -180,10 +150,6 @@
   .top-bar-icon-button:disabled {
     cursor: default;
     opacity: 0.6;
-  }
-
-  .top-bar-refresh.spinning svg {
-    animation: spin 0.75s linear infinite;
   }
 
   .top-bar-add-account {

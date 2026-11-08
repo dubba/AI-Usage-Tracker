@@ -462,3 +462,12 @@ html[data-sidebar-meters-stacked] .provider-summary-row .sidebar-meter {
     line-height: 1.2;
   }
 }
+
+/* Each row is as tall as its content. Rows set min-height: 0, so once the list overflows (a short
+   window, or stacked meters at a narrow width, now that the sync status sits below the list on every
+   width) the default auto rows shrank below their content and the rows overlapped. */
+@layer components {
+  .provider-list {
+    grid-auto-rows: max-content;
+  }
+}
