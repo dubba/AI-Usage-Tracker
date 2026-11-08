@@ -49,6 +49,7 @@ input[type="reset"]:not(:disabled),
 input[type="checkbox"]:not(:disabled),
 input[type="radio"]:not(:disabled) {
   cursor: pointer;
+  accent-color: var(--purple-fill);
 }
 button:disabled,
 select:disabled,

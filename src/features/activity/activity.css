@@ -251,15 +251,15 @@
   .activity-card-icon {
     display: grid;
     place-items: center;
-    width: 28px;
-    height: 28px;
+    width: 34px;
+    height: 34px;
     color: var(--obsidian-muted-bright);
   }
 
   .activity-card-icon svg,
   .activity-card-icon img {
-    width: 24px !important;
-    height: 24px !important;
+    width: 32px !important;
+    height: 32px !important;
     object-fit: contain;
   }
 

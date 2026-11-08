@@ -218,8 +218,41 @@ select.text-input option {
 }
 
 .google-model-option input {
+  appearance: none;
+  -webkit-appearance: none;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
   margin: 2px 0 0;
-  accent-color: var(--purple);
+  padding: 0;
+  border: 1.5px solid var(--obsidian-border-strong);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.google-model-option input:checked {
+  background: var(--purple-fill);
+  border-color: var(--purple-fill);
+}
+
+.google-model-option input:checked::after {
+  content: "";
+  width: 4px;
+  height: 7px;
+  margin-top: -1px;
+  border: solid var(--purple-on-fill);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.google-model-option input:focus-visible {
+  outline: 2px solid var(--purple-fill);
+  outline-offset: 2px;
 }
 
 .google-model-option span {
@@ -339,6 +372,11 @@ select.text-input option {
   width: min(650px, calc(100vw - 48px));
 }
 
+.alert-settings-modal p strong {
+  color: var(--c-ffffff);
+  font-weight: 600;
+}
+
 .alert-window-list {
   display: grid;
   gap: 9px;
@@ -390,7 +428,7 @@ select.text-input option {
 
 .alert-window-toggle input:checked + .alert-checkbox {
   background: var(--purple-fill);
-  border-color: var(--purple-fill-line);
+  border-color: var(--purple-fill);
 }
 
 .alert-window-toggle input:checked + .alert-checkbox::after {
@@ -400,14 +438,14 @@ select.text-input option {
   top: 2px;
   width: 5px;
   height: 10px;
-  border: solid white;
+  border: solid var(--purple-on-fill);
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
 
 .alert-window-toggle > span:last-child {
-  display: grid;
-  gap: 3px;
+  display: flex;
+  align-items: center;
 }
 
 .alert-window-toggle strong {
@@ -415,7 +453,7 @@ select.text-input option {
 }
 
 .alert-window-toggle small,
-.alert-threshold span,
+.alert-threshold > span,
 .alert-notification-note,
 .alert-empty-state span {
   font-size: 12px;
@@ -425,7 +463,7 @@ select.text-input option {
 .alert-threshold {
   display: grid;
   gap: 5px;
-  min-width: 150px;
+  min-width: 155px;
 }
 
 .alert-threshold select {

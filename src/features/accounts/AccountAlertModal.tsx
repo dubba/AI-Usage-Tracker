@@ -21,11 +21,11 @@ function canonicalWindowId(window: UsageWindow): AlertWindowId | null {
 function windowLabel(windowId: AlertWindowId): string {
   switch (windowId) {
     case "five_hour":
-      return "5 hour";
+      return "5-HOUR";
     case "weekly":
-      return "Weekly";
+      return "7-DAY";
     case "monthly":
-      return "30-day";
+      return "30-DAY";
   }
 }
 
@@ -103,7 +103,7 @@ export function AccountAlertModal({
     <ModalDialog dialogRef={dialogRef} labelledBy="alert-settings-title" className="alert-settings-modal notification-only-modal" onClose={requestClose} closeDisabled={saving}>
       <div className="modal-kicker">Account alerts</div>
       <h2 id="alert-settings-title">Usage Notifications</h2>
-      <p>Choose when to notify you about the 5-hour, weekly, and 30-day limits for <strong>{account.label}</strong>.</p>
+      <p>Choose when to notify you about the 5-hour, 7-day, and 30-day limits for <strong>{account.label}</strong>.</p>
 
       <section className="account-settings-section">
         {loading ? <div className="waiting-panel"><span className="spinner" />Loading notification settings…</div> : null}
@@ -122,7 +122,7 @@ export function AccountAlertModal({
                       onChange={(event) => updateSetting(windowId, { enabled: event.target.checked })}
                     />
                     <span className="alert-checkbox" />
-                    <span><strong>{windowLabel(windowId)}</strong><small>Notify once per quota period</small></span>
+                    <span><strong>{windowLabel(windowId)}</strong></span>
                   </label>
                   <div className="alert-threshold">
                     <span>At or below</span>
@@ -146,7 +146,7 @@ export function AccountAlertModal({
         {!loading && !availableWindows.length ? (
           <div className="alert-empty-state compact-alert-empty">
             <BellIcon />
-            <strong>No 5-hour, weekly, or 30-day limits detected yet</strong>
+            <strong>No 5-hour, 7-day, or 30-day limits detected yet</strong>
             <span>Refresh this account so the app can detect its available usage windows.</span>
           </div>
         ) : null}

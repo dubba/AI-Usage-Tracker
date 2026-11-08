@@ -67,12 +67,26 @@
     color: var(--purple-on-fill) !important;
   }
 
-  /* The page switch tooltips (Dashboard, Usage, Settings) are wider than the room to their left (the
-     switch starts near the window's edge), so they hang from the first button's left edge instead of
-     being centered under their individual buttons. The global tooltip rule is unlayered, hence
-     !important (see the header). */
-  .top-bar-nav-item[data-tooltip]::after {
+  /* Page switch tooltips (TopBar.tsx): Dashboard hangs from the left edge, Usage is
+     centered under the switch, and Settings hangs from the right edge so they never
+     overlap each other or clip off-screen. */
+  .top-bar-nav-item:first-child[data-tooltip]::after {
     left: 3px !important;
+    right: auto !important;
+    top: calc(100% + 5px) !important;
+    transform: none !important;
+  }
+
+  .top-bar-nav-item:nth-child(2)[data-tooltip]::after {
+    left: 50% !important;
+    right: auto !important;
+    top: calc(100% + 5px) !important;
+    transform: translateX(-50%) !important;
+  }
+
+  .top-bar-nav-item:last-child[data-tooltip]::after {
+    left: auto !important;
+    right: 3px !important;
     top: calc(100% + 5px) !important;
     transform: none !important;
   }

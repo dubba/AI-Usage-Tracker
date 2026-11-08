@@ -1,13 +1,16 @@
 # Changelog
 
-## Unreleased (40 changes)
+## Unreleased (46 changes)
 
 ### Added (1)
 
 - In the sidebar, a row now shows a red dot and "Sign-in needed" when one of its accounts must sign in again, and an amber dot when an account's usage is out of date, instead of looking the same as a provider with no data.
 
-### Improved (30)
+### Improved (33)
 
+- On desktop, the account name and email on account cards are now vertically centered relative to the provider icon and action buttons.
+- On the Usage page, provider icons are larger to align with the two lines of summary text and vertically center with the drag reorder grip.
+- In the Usage Notifications modal, the provider name stands out in bold white, quota rows on phones stay on a single line without a divider line matching desktop, and limits are labeled 5-HOUR, 7-DAY, and 30-DAY without repeating the quota period note.
 - On phones, the sidebar's Account and Group buttons have 10px corners and a larger, bolder label, like the desktop top bar's.
 - On desktop, the top bar's page switch and its Group and Account buttons are now 44px tall, the same as the Settings page's buttons, with the page tabs grown to match and the same padding and edge as those buttons.
 - Buttons on the Settings page and in the Paseo Bridge window now have 10px corners and slightly bolder text, matching the top bar's Group and Account buttons. In the dark theme, the Settings buttons and the Group buttons in the top bar and sidebar use the same off-white label as Add account.
@@ -39,8 +42,11 @@
 - On mobile, the sidebar's account and group cards now sit closer to the left edge, with the provider icon and the right padding matching, and the cards' right edge moved closer to the resize dots.
 - Antigravity now uses Google's official full-color Antigravity icon. Google AI Studio still uses the Google G.
 
-### Fixed (7)
+### Fixed (10)
 
+- Tooltips on the Dashboard, Usage, and Settings switch buttons now anchor individually (left, center, and right), preventing adjacent tooltips from overlapping.
+- Checkboxes in device sync, Google AI Studio, and usage alert settings now use the app's solid purple theme across all browsers, replacing washed-out platform accent colors.
+- In Settings, selected items in the Appearance and Account Refresh dropdowns now highlight in purple matching modal dropdowns, and unselected options in the Usage Notifications dropdown display in crisp white.
 - Sidebar rows no longer squeeze together and overlap when the list is longer than the window; the list scrolls instead.
 - The Paseo Bridge window no longer stays on "Loading…" forever when its details can't be loaded; it shows why, with a Retry button.
 - On desktop, the Accounts page now shows its loading placeholder instead of a blank page while accounts load.

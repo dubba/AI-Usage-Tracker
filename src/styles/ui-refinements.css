@@ -1675,18 +1675,25 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   color: var(--c-ffffff) !important;
 }
 
-.settings-account-refresh .custom-dropdown-item.highlighted .custom-dropdown-item-label,
-.settings-account-refresh .custom-dropdown-item:hover .custom-dropdown-item-label {
+.settings-account-refresh .custom-dropdown-item.highlighted:not(.selected) .custom-dropdown-item-label,
+.settings-account-refresh .custom-dropdown-item:hover:not(.selected) .custom-dropdown-item-label,
+.settings-appearance-dropdown .custom-dropdown-item.highlighted:not(.selected) .custom-dropdown-item-label,
+.settings-appearance-dropdown .custom-dropdown-item:hover:not(.selected) .custom-dropdown-item-label {
   color: var(--c-ffffff) !important;
 }
 
-.settings-account-refresh .custom-dropdown-item.selected {
+.settings-account-refresh .custom-dropdown-item.selected,
+.settings-appearance-dropdown .custom-dropdown-item.selected {
   background-color: var(--purple-surface-active) !important;
-  color: var(--c-ffffff) !important;
 }
 
-.settings-account-refresh .custom-dropdown-item.selected .custom-dropdown-item-label {
-  color: var(--c-ffffff) !important;
+.settings-account-refresh .custom-dropdown-item.selected .custom-dropdown-item-label,
+.settings-account-refresh .custom-dropdown-item.selected.highlighted .custom-dropdown-item-label,
+.settings-account-refresh .custom-dropdown-item.selected:hover .custom-dropdown-item-label,
+.settings-appearance-dropdown .custom-dropdown-item.selected .custom-dropdown-item-label,
+.settings-appearance-dropdown .custom-dropdown-item.selected.highlighted .custom-dropdown-item-label,
+.settings-appearance-dropdown .custom-dropdown-item.selected:hover .custom-dropdown-item-label {
+  color: var(--obsidian-purple) !important;
 }
 
 /* Sidebar expanded mobile close button: matches red modal close button */

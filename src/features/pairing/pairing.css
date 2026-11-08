@@ -819,11 +819,41 @@
 }
 
 .pairing-settings-toggle input[type="checkbox"] {
-  margin-top: 2px;
+  appearance: none;
+  -webkit-appearance: none;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
   width: 16px;
   height: 16px;
-  accent-color: var(--obsidian-purple-strong);
+  margin-top: 2px;
+  padding: 0;
+  border: 1.5px solid var(--obsidian-border-strong);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
   flex-shrink: 0;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.pairing-settings-toggle input[type="checkbox"]:checked {
+  background: var(--purple-fill);
+  border-color: var(--purple-fill);
+}
+
+.pairing-settings-toggle input[type="checkbox"]:checked::after {
+  content: "";
+  width: 4px;
+  height: 7px;
+  margin-top: -1px;
+  border: solid var(--purple-on-fill);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.pairing-settings-toggle input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--purple-fill);
+  outline-offset: 2px;
 }
 
 .pairing-settings-toggle span {

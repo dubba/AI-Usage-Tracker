@@ -98,9 +98,13 @@ describe("Button hover and active state invariants", () => {
     expect(ACTIVITY_CSS).toMatch(/\.activity-period-switch\s+button\[data-tooltip\]::after\s*\{[^}]*right:\s*2px\s*!important/);
   });
 
-  it("aligns Dashboard, Usage, and Settings tooltips with the left edge of the page switch", () => {
-    expect(TOP_BAR_CSS).toContain(".top-bar-nav-item[data-tooltip]::after");
-    expect(TOP_BAR_CSS).toMatch(/\.top-bar-nav-item\[data-tooltip\]::after\s*\{[^}]*left:\s*3px\s*!important/);
+  it("positions page switch tooltips: Dashboard left, Usage centered, and Settings right", () => {
+    expect(TOP_BAR_CSS).toContain(".top-bar-nav-item:first-child[data-tooltip]::after");
+    expect(TOP_BAR_CSS).toMatch(/\.top-bar-nav-item:first-child\[data-tooltip\]::after\s*\{[^}]*left:\s*3px\s*!important/);
+    expect(TOP_BAR_CSS).toContain(".top-bar-nav-item:nth-child(2)[data-tooltip]::after");
+    expect(TOP_BAR_CSS).toMatch(/\.top-bar-nav-item:nth-child\(2\)\[data-tooltip\]::after\s*\{[^}]*left:\s*50%\s*!important/);
+    expect(TOP_BAR_CSS).toContain(".top-bar-nav-item:last-child[data-tooltip]::after");
+    expect(TOP_BAR_CSS).toMatch(/\.top-bar-nav-item:last-child\[data-tooltip\]::after\s*\{[^}]*right:\s*3px\s*!important/);
   });
 
   it("scales down the pairing modal title on phones to fit on one line", () => {
