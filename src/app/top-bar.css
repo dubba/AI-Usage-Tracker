@@ -1,4 +1,4 @@
-/* The bar across the top of a wide window (TopBar.tsx): the Accounts, Usage and Settings pages,
+/* The bar across the top of a wide window (TopBar.tsx): the Dashboard, Usage and Settings pages,
  * then the Group and Account add buttons. The sync status and Refresh all are at the foot of
  * the sidebar, as on a phone.
  * It only renders while the sidebar is not an overlay, so none of this
@@ -63,7 +63,7 @@
     color: var(--purple-on-fill) !important;
   }
 
-  /* The page switch tooltips (Accounts, Usage, Settings) are wider than the room to their left (the
+  /* The page switch tooltips (Dashboard, Usage, Settings) are wider than the room to their left (the
      switch starts near the window's edge), so they hang from the first button's left edge instead of
      being centered under their individual buttons. The global tooltip rule is unlayered, hence
      !important (see the header). */
@@ -136,8 +136,9 @@
     padding: 0;
     border: 1px solid var(--obsidian-border-strong);
     border-radius: 10px;
-    background: var(--obsidian-surface-container);
-    color: var(--obsidian-muted-bright) !important;
+    /* The same dark fill and white text as Refresh all and the Settings page's View button. */
+    background: var(--obsidian-surface-low, var(--c-1c1b1b));
+    color: var(--c-ffffff) !important;
     cursor: pointer;
     transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
   }

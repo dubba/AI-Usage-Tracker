@@ -18,10 +18,10 @@ function render(section: Section, props: { inert?: boolean } = {}) {
 }
 
 describe("BottomNav", () => {
-  it("is the Main navigation, with Accounts, Usage and Settings in that order", () => {
+  it("is the Main navigation, with Dashboard, Usage and Settings in that order", () => {
     const { nav, items } = render("accounts");
     expect(nav.getAttribute("aria-label")).toBe("Main");
-    expect(items.map((item) => item.textContent)).toEqual(["Accounts", "Usage", "Settings"]);
+    expect(items.map((item) => item.textContent)).toEqual(["Dashboard", "Usage", "Settings"]);
     expect(items.every((item) => item.type === "button" && item.querySelector("svg") !== null)).toBe(true);
   });
 

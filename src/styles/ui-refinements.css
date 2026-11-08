@@ -1258,8 +1258,10 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin: 10px 0 10px;
-  padding: 0 4px;
+  margin: 4px 0 0;
+  padding: 12px 4px 0;
+  /* A line across the sidebar separates the sync line from the list above it. */
+  border-top: 1px solid var(--obsidian-border);
   color: var(--obsidian-muted);
   font-size: 14px;
   line-height: 1.4;
@@ -1281,7 +1283,8 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   min-height: 40px;
   border-radius: 50%;
   background: var(--obsidian-surface-low, var(--c-1c1b1b));
-  border: 1px solid var(--chrome-border);
+  /* The same grey outline as the Settings page's View button and the sidebar's Group button. */
+  border: 1px solid var(--obsidian-border-strong);
   color: var(--c-ffffff);
   display: inline-flex;
   align-items: center;
@@ -1358,50 +1361,56 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   }
 }
 
+/* Two lines beside Refresh all: a dot and "All accounts synced:" on the first, the elapsed time under
+   the words on the second, both starting at the same left edge, and the block centered on the button.
+   Out-of-date accounts only turn the dot amber, like the dots on their sidebar rows. */
 .sidebar-sync-status-text {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   min-width: 0;
-  gap: 1px;
+  gap: 2px;
 }
 
 .sidebar-sync-status-label {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-start;
-  gap: 6px;
+  gap: 8px;
   max-width: 100%;
 }
 
-/* When the sidebar is too narrow for the elapsed time beside "Accounts synced", "4m ago" wraps
-   to the next line and both lines are centered. Narrower still, "Accounts synced" wraps by word
-   too; "4m ago" itself never splits. */
+/* The title on one line and the elapsed time under it, both left-aligned. In a very narrow sidebar
+   the title wraps by word; "4m ago" itself never splits. */
 .sidebar-sync-status-words {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   min-width: 0;
-  text-align: center;
+  text-align: left;
 }
 
+/* The time stands out from the grey title. */
 .sidebar-sync-status-elapsed {
   white-space: nowrap;
+  color: var(--c-ffffff);
+  font-weight: 700;
 }
 
+/* Centered on the first line: (line height - dot) / 2. */
 .sidebar-sync-status-label::before {
   content: "";
   flex: none;
-  width: 6px;
-  height: 6px;
+  width: 9px;
+  height: 9px;
+  margin-top: calc((1.4em - 9px) / 2);
   border-radius: 50%;
   background: var(--obsidian-muted);
 }
 
 .sidebar-sync-status.is-fresh .sidebar-sync-status-label::before {
   background: var(--obsidian-green);
-}
-
-.sidebar-sync-status.is-stale {
-  color: var(--obsidian-amber);
 }
 
 .sidebar-sync-status.is-stale .sidebar-sync-status-label::before {
@@ -1412,24 +1421,15 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   background: var(--obsidian-purple);
 }
 
-.sidebar-sync-status-detail {
-  padding-left: 12px;
-  box-sizing: border-box;
-  font-size: 11px;
-  line-height: 1.2;
-  max-width: 100%;
-  text-align: center;
-}
-
 /* On small screens the sync status line (with Refresh All and Settings) sits at the bottom of the drawer. */
 @media (max-width: 860px) {
   .obsidian-shell aside.sidebar {
-    padding-bottom: max(60px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 54px)) !important;
+    padding-bottom: max(74px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 62px)) !important;
   }
 
   .obsidian-shell .sidebar-sync-status {
     position: absolute;
-    bottom: max(10px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 10px));
+    bottom: max(12px, var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)));
     left: max(16px, calc(var(--safe-area-left, env(safe-area-inset-left, 0px)) + 14px));
     right: max(16px, calc(var(--safe-area-right, env(safe-area-inset-right, 0px)) + 14px));
     margin: 0;
@@ -1437,7 +1437,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
        resizes. The cards above sit 2px in from the sidebar padding, so match
        that inset and the settings button shares their right edge. */
     gap: 8px;
-    padding: 0 2px;
+    padding: 12px 2px 0;
   }
 }
 
@@ -1718,8 +1718,9 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn) {
-  border: 1px solid var(--chrome-border) !important;
-  background: var(--obsidian-surface-container-high, var(--c-211e29)) !important;
+  /* The same grey outline and dark fill as the Settings page's View button and the sidebar's buttons. */
+  border: 1px solid var(--obsidian-border-strong) !important;
+  background: var(--obsidian-surface-low, var(--c-1c1b1b)) !important;
   color: var(--c-ffffff) !important;
   box-shadow: none !important;
   line-height: 0;

@@ -18,16 +18,16 @@ function render(section: Section) {
 }
 
 describe("TopBar", () => {
-  it("lists Accounts, Usage and Settings and marks the current page", () => {
+  it("lists Dashboard, Usage and Settings and marks the current page", () => {
     const { pages } = render("activity");
-    expect(pages.map((page) => page.textContent)).toEqual(["Accounts", "Usage", "Settings"]);
+    expect(pages.map((page) => page.textContent)).toEqual(["Dashboard", "Usage", "Settings"]);
     expect(pages.map((page) => page.getAttribute("aria-current"))).toEqual([null, "page", null]);
   });
 
   it("describes each page in a tooltip", () => {
     const { pages } = render("accounts");
     expect(pages.map((page) => page.getAttribute("data-tooltip"))).toEqual([
-      "Dashboard of all your AI accounts",
+      "View all your AI accounts, their limits, and reset times",
       "Shows daily usage across your AI accounts",
       "Customize app preferences and sync devices",
     ]);

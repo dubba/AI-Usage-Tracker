@@ -74,7 +74,7 @@ describe("Sidebar", () => {
     expect(list.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it.each([true, false])("never lists the Accounts, Usage and Settings pages (top bar %s)", (topBar) => {
+  it.each([true, false])("never lists the Dashboard, Usage and Settings pages (top bar %s)", (topBar) => {
     render({ section: "accounts", topBar });
     expect(mounted!.container.querySelector('nav[aria-label="Main"]')).toBeNull();
     expect(mounted!.container.textContent).not.toContain("Settings");

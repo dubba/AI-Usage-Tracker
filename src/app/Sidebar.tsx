@@ -12,7 +12,7 @@ import type { Section } from "./useSidebarNavigation";
 
 /**
  * The navigation sidebar: the All accounts row and one row per group, with the sync status and
- * Refresh all at its foot on every width. On a wide window the app name and the Accounts, Usage and
+ * Refresh all at its foot on every width. On a wide window the app name and the Dashboard, Usage and
  * Settings pages are in the top bar (TopBar.tsx); on a phone the pages are in the bottom bar.
  */
 export function Sidebar({

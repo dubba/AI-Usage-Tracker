@@ -1,15 +1,20 @@
 # Changelog
 
-## Unreleased (31 changes)
+## Unreleased (36 changes)
 
 ### Added (1)
 
 - In the sidebar, a row now shows a red dot and "Sign-in needed" when one of its accounts must sign in again, and an amber dot when an account's usage is out of date, instead of looking the same as a provider with no data.
 
-### Improved (21)
+### Improved (26)
 
-- On desktop, the top bar\'s add buttons now read "Group" and "Account" beside their icons, matching the phone sidebar.
-- On desktop, "Accounts synced …" and the Refresh all button now sit at the bottom of the sidebar, as on phones, instead of in the top bar.
+- The sync status at the bottom of the sidebar now reads "All accounts synced:" with the time in bold white on the line under it, a larger status dot that turns amber when some accounts are out of date, and both lines lined up and centred beside Refresh all. The separate "accounts out of date" note is gone: the sidebar rows, the Action needed card and each account card already flag those accounts.
+- On iPhone, the app now opens with its icon centred on black, the same startup screen as Android, instead of a blank screen.
+- The sidebar's Refresh all button now has the same grey outline as the other buttons, and the Group buttons in the sidebar and the top bar now use the same dark fill and white icon and text as Refresh all and the Settings page's buttons, and an off switch now has the same dark fill as those buttons. The phone's menu button uses the same grey outline and dark fill too.
+- On phones, the sidebar's resize dots now sit midway between the list's scroll bar and the sidebar edge, instead of touching the scroll bar.
+- The first page in the top bar and the phone bottom bar is now called "Dashboard" instead of "Accounts", its tooltip reads "View all your AI accounts, their limits, and reset times", and its subtitle now names weekly and session limits.
+- On desktop, the top bar's add buttons now read "Group" and "Account" beside their icons, matching the phone sidebar.
+- On desktop, "Accounts synced …" and the Refresh all button now sit at the bottom of the sidebar, as on phones, instead of in the top bar, below a line that separates them from the account list.
 - The New group buttons in the top bar and the sidebar now show stacked layers with a plus, instead of a person with a plus that read as "invite someone".
 - A signed-out account card now shows one message with a single "Sign in again" button (or "Reconnect Cloud Usage" for Google AI Studio), and its empty usage area says "Usage appears after you sign in."
 - Account card status chips now say what is wrong: "Signed out", "Out of date" (with the Refresh button highlighted) or "Refresh failed", instead of "Auth needed" and "Action needed". A failed refresh's message now has a Retry button beside it.
@@ -53,7 +58,7 @@
 - On the Usage page, the reorder hint ("Press & drag a card below or in the sidebar to reorder") is shown for the first two sessions.
 - On custom account group pages, a red trashcan button next to the group edit pen allows deleting the group directly from the header.
 
-### Improved (25)
+### Improved (26)
 
 - Tooltips on both the Left / Used and 7D / 30D segmented switches are now right-aligned when hovering over either option to prevent running off the viewport edge.
 - On desktop, the display mode switch on the Accounts page now labels its options "% Left" and "% Used" for clearer clarity.

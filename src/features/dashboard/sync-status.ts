@@ -1,4 +1,3 @@
-import { ACCOUNT_FORMS, formatCount } from "../../shared/lib/format";
 import { formatElapsed } from "../../shared/lib/format";
 import { accountAutoRefreshEligible } from "../../shared/lib/usage-logic";
 import type { Account } from "../../types";
@@ -7,12 +6,14 @@ export type SyncTone = "none" | "fresh" | "stale";
 
 export type SyncStatus = {
   tone: SyncTone;
+  /** "All accounts synced: 4m ago". Out-of-date accounts only turn the dot amber: the sidebar rows,
+   * the Action needed card and each account's chip already say which ones. */
   label: string;
-  /** Shown on its own line under the label, e.g. how many accounts are out of date. */
-  detail: string | null;
 };
 
 const MIN_STALE_MINUTES = 10;
+
+const SYNCED_PREFIX = "All accounts synced:";
 
 /**
  * When the data on screen was last refreshed, and whether any of it has been
@@ -25,7 +26,7 @@ export function computeSyncStatus(accounts: Account[], now: number, refreshMinut
     const time = Date.parse(account.lastUsage?.fetchedAt ?? "");
     return Number.isFinite(time) ? [{ account, time }] : [];
   });
-  if (fetchedTimes.length === 0) return { tone: "none", label: "Not synced yet", detail: null };
+  if (fetchedTimes.length === 0) return { tone: "none", label: "Not synced yet" };
 
   // The moment every account had been synced: the oldest sync, not the newest.
   // A refresh of one account does not move it until the rest have caught up.
@@ -34,16 +35,13 @@ export function computeSyncStatus(accounts: Account[], now: number, refreshMinut
   const stale = fetchedTimes.filter(
     (entry) => accountAutoRefreshEligible(entry.account) && now - entry.time >= staleAfterMs,
   ).length;
-  const label = `Accounts synced ${formatElapsed(now - oldest)}`;
-  if (stale === 0) return { tone: "fresh", label, detail: null };
-  return { tone: "stale", label, detail: `${formatCount(stale, ACCOUNT_FORMS)} out of date` };
+  const label = `${SYNCED_PREFIX} ${formatElapsed(now - oldest)}`;
+  return { tone: stale === 0 ? "fresh" : "stale", label };
 }
 
-const SYNCED_PREFIX = "Accounts synced";
-
 /**
- * Splits "Accounts synced 4m ago" into the part that stays whole and the elapsed time, which may
- * wrap to its own line in a narrow sidebar. Other labels ("Not synced yet") have no elapsed part.
+ * Splits "All accounts synced: 4m ago" into the title and the elapsed time, which the sidebar shows
+ * on its own line under the title. Other labels ("Not synced yet") have no elapsed part.
  */
 export function splitSyncLabel(label: string): { title: string; elapsed: string | null } {
   if (label.startsWith(`${SYNCED_PREFIX} `)) {

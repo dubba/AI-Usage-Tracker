@@ -23,7 +23,6 @@ export function SyncStatusLine({
   const syncing = [...busy].some(isRefreshKey);
   const tone = useClock((now) => computeSyncStatus(accounts, now, refreshMinutes).tone);
   const label = useClock((now) => computeSyncStatus(accounts, now, refreshMinutes).label);
-  const detail = useClock((now) => computeSyncStatus(accounts, now, refreshMinutes).detail);
   const { title, elapsed } = splitSyncLabel(label);
   return (
     <div className={`sidebar-sync-status is-${syncing ? "syncing" : tone}`}>
@@ -34,7 +33,6 @@ export function SyncStatusLine({
             {!syncing && elapsed ? <> <span className="sidebar-sync-status-elapsed">{elapsed}</span></> : null}
           </span>
         </span>
-        {!syncing && detail ? <span className="sidebar-sync-status-detail">{detail}</span> : null}
       </div>
       <div className="sidebar-sync-status-actions">
         {onRefreshAll ? (

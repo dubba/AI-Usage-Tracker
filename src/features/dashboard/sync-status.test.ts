@@ -14,24 +14,23 @@ function account(id: string, fetchedMinutesAgo: number | null, overrides: Partia
 
 describe("computeSyncStatus", () => {
   it("says nothing has synced when no account has data", () => {
-    expect(computeSyncStatus([], NOW, 15)).toEqual({ tone: "none", label: "Not synced yet", detail: null });
-    expect(computeSyncStatus([account("a", null)], NOW, 15)).toEqual({ tone: "none", label: "Not synced yet", detail: null });
+    expect(computeSyncStatus([], NOW, 15)).toEqual({ tone: "none", label: "Not synced yet" });
+    expect(computeSyncStatus([account("a", null)], NOW, 15)).toEqual({ tone: "none", label: "Not synced yet" });
   });
 
   it("reports the oldest refresh, the moment every account had been synced", () => {
     const status = computeSyncStatus([account("a", 5), account("b", 2)], NOW, 15);
-    expect(status).toEqual({ tone: "fresh", label: "Accounts synced 5m ago", detail: null });
+    expect(status).toEqual({ tone: "fresh", label: "All accounts synced: 5m ago" });
   });
 
   it("uses 'just now' inside the first minute", () => {
-    expect(computeSyncStatus([account("a", 0)], NOW, 15).label).toBe("Accounts synced just now");
+    expect(computeSyncStatus([account("a", 0)], NOW, 15).label).toBe("All accounts synced: just now");
   });
 
   it("flags accounts older than twice the refresh interval", () => {
     const status = computeSyncStatus([account("a", 1), account("b", 31)], NOW, 15);
     expect(status.tone).toBe("stale");
-    expect(status.label).toBe("Accounts synced 31m ago");
-    expect(status.detail).toBe("1 account out of date");
+    expect(status.label).toBe("All accounts synced: 31m ago");
   });
 
   it("does not flag an account just under the threshold", () => {
@@ -44,10 +43,10 @@ describe("computeSyncStatus", () => {
     expect(computeSyncStatus([account("a", 10)], NOW, 1).tone).toBe("stale");
   });
 
-  it("pluralizes the out-of-date count", () => {
+  it("keeps the synced wording while accounts are out of date, timed from the oldest", () => {
     const status = computeSyncStatus([account("a", 60), account("b", 90)], NOW, 15);
-    expect(status.label).toBe("Accounts synced 1h ago");
-    expect(status.detail).toBe("2 accounts out of date");
+    expect(status.tone).toBe("stale");
+    expect(status.label).toBe("All accounts synced: 1h ago");
   });
 
   it("ignores accounts that are not refreshed automatically", () => {
@@ -58,12 +57,12 @@ describe("computeSyncStatus", () => {
 
 describe("splitSyncLabel", () => {
   it("separates the elapsed time so it can wrap on its own", () => {
-    expect(splitSyncLabel("Accounts synced 4m ago")).toEqual({ title: "Accounts synced", elapsed: "4m ago" });
-    expect(splitSyncLabel("Accounts synced just now")).toEqual({ title: "Accounts synced", elapsed: "just now" });
+    expect(splitSyncLabel("All accounts synced: 4m ago")).toEqual({ title: "All accounts synced:", elapsed: "4m ago" });
+    expect(splitSyncLabel("All accounts synced: just now")).toEqual({ title: "All accounts synced:", elapsed: "just now" });
   });
 
   it("leaves labels without an elapsed time whole", () => {
     expect(splitSyncLabel("Not synced yet")).toEqual({ title: "Not synced yet", elapsed: null });
-    expect(splitSyncLabel("Accounts synced")).toEqual({ title: "Accounts synced", elapsed: null });
+    expect(splitSyncLabel("All accounts synced:")).toEqual({ title: "All accounts synced:", elapsed: null });
   });
 });

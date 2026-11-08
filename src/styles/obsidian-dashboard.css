@@ -2292,7 +2292,8 @@ select.text-input option,
   margin: 0;
   outline: 1px solid var(--obsidian-border-strong);
   outline-offset: 0;
-  background: var(--c-292829);
+  /* Off, the same dark fill as the Settings page's View button and the sidebar's Refresh all. */
+  background: var(--obsidian-surface-low, var(--c-1c1b1b));
 }
 
 .toggle.on {

@@ -4,13 +4,13 @@ import type { Section } from "./useSidebarNavigation";
 import "./top-bar.css";
 
 const PAGE_TOOLTIPS: Record<Section, string> = {
-  accounts: "Dashboard of all your AI accounts",
+  accounts: "View all your AI accounts, their limits, and reset times",
   activity: "Shows daily usage across your AI accounts",
   settings: "Customize app preferences and sync devices",
 };
 
 /**
- * The bar across the top of a wide window: the Accounts, Usage and Settings pages, then the Group
+ * The bar across the top of a wide window: the Dashboard, Usage and Settings pages, then the Group
  * and Account add buttons (named like the phone sidebar's). The sync status and Refresh all are at the foot of the sidebar, as on a
  * phone. A phone has no top bar: the sidebar overlay and the bottom bar hold all of this.
  */

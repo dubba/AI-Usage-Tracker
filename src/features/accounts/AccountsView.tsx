@@ -51,7 +51,7 @@ function dashboardDescription(group: SidebarGroup, accountCount: number): string
   const count = formatCount(accountCount, ACCOUNT_FORMS);
   if (group.type === "bucket") return `Usage across ${count} in this group.`;
   if (group.type === "provider") return `${group.title} usage across ${count}.`;
-  return "Monitor usage limits and reset times across all your AI subscriptions.";
+  return "Monitor weekly limits, session limits, and reset times across all your AI subscriptions.";
 }
 
 /** Time until the soonest reset. Updates itself with the shared clock, so the dashboard does not re-render for it. */

@@ -4,14 +4,14 @@ import "./bottom-nav.css";
 
 /** The three pages, in the order every navigation shows them (this bar, the desktop top bar). */
 export const MAIN_PAGES = [
-  { section: "accounts", label: "Accounts", Icon: GridIcon },
+  { section: "accounts", label: "Dashboard", Icon: GridIcon },
   { section: "activity", label: "Usage", Icon: BarChartIcon },
   { section: "settings", label: "Settings", Icon: SettingsIcon },
 ] as const satisfies ReadonlyArray<{ section: Section; label: string; Icon: typeof GridIcon }>;
 
 /**
  * The main navigation on a phone or a narrow window, where the sidebar is an off-canvas overlay:
- * Accounts, Usage and Settings, one tap away. On wider windows the sidebar lists them in that
+ * Dashboard, Usage and Settings, one tap away. On wider windows the sidebar lists them in that
  * order and this bar is not rendered.
  */
 export function BottomNav({

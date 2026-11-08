@@ -88,9 +88,9 @@ describe("measureSyncLineFitWidth", () => {
 
   /**
    * The stubbed row is 100px for "Not synced yet", 320px once it reads "just now",
-   * 340px for "12h ago", and 400px more while the out-of-date note is still in it.
+   * 340px for "12h ago".
    */
-  function sidebarWithStatus(liveLabel: string, withDetail = false): HTMLElement {
+  function sidebarWithStatus(liveLabel: string): HTMLElement {
     const sidebar = document.createElement("aside");
     sidebar.style.cssText =
       "padding-left: 12px; padding-right: 12px; border-left-width: 0px; border-right-width: 1px; border-style: solid";
@@ -104,8 +104,8 @@ describe("measureSyncLineFitWidth", () => {
     words.className = "sidebar-sync-status-words";
     const title = document.createElement("span");
     title.className = "sidebar-sync-status-title";
-    const elapsedText = liveLabel.startsWith("Accounts synced ") ? liveLabel.slice("Accounts synced ".length) : null;
-    title.textContent = elapsedText === null ? liveLabel : "Accounts synced";
+    const elapsedText = liveLabel.startsWith("All accounts synced: ") ? liveLabel.slice("All accounts synced: ".length) : null;
+    title.textContent = elapsedText === null ? liveLabel : "All accounts synced:";
     words.append(title);
     if (elapsedText !== null) {
       words.append(" ");
@@ -116,12 +116,6 @@ describe("measureSyncLineFitWidth", () => {
     }
     label.append(words);
     text.append(label);
-    if (withDetail) {
-      const detail = document.createElement("span");
-      detail.className = "sidebar-sync-status-detail";
-      detail.textContent = "2 accounts out of date";
-      text.append(detail);
-    }
     status.append(text);
     sidebar.append(status);
     document.body.append(sidebar);
@@ -129,14 +123,14 @@ describe("measureSyncLineFitWidth", () => {
       if (!this.classList.contains("sidebar-sync-status")) return { width: 0 } as DOMRect;
       const content = this.textContent ?? "";
       const base = content.includes("12h ago") ? 340 : content.includes("just now") ? 320 : 100;
-      return { width: base + (content.includes("out of date") ? 400 : 0) } as DOMRect;
+      return { width: base } as DOMRect;
     };
     return sidebar;
   }
 
-  it("fits Accounts synced just now plus the sidebar padding", () => {
+  it("fits the sync line plus the sidebar padding", () => {
     // 320 row + 24 padding + 1 border + 2 buffer.
-    expect(measureSyncLineFitWidth(sidebarWithStatus("Accounts synced just now"))).toBe(347);
+    expect(measureSyncLineFitWidth(sidebarWithStatus("All accounts synced: just now"))).toBe(347);
   });
 
   it("is sized for just now even while the live label is shorter", () => {
@@ -144,11 +138,7 @@ describe("measureSyncLineFitWidth", () => {
   });
 
   it("follows a live label that is longer than just now", () => {
-    expect(measureSyncLineFitWidth(sidebarWithStatus("Accounts synced 12h ago"))).toBe(367);
-  });
-
-  it("ignores the wrapping out-of-date note", () => {
-    expect(measureSyncLineFitWidth(sidebarWithStatus("Accounts synced just now", true))).toBe(347);
+    expect(measureSyncLineFitWidth(sidebarWithStatus("All accounts synced: 12h ago"))).toBe(367);
   });
 
   it("returns null without a sync line", () => {

@@ -98,7 +98,7 @@ describe("Button hover and active state invariants", () => {
     expect(ACTIVITY_CSS).toMatch(/\.activity-period-switch\s+button\[data-tooltip\]::after\s*\{[^}]*right:\s*2px\s*!important/);
   });
 
-  it("aligns Accounts, Usage, and Settings tooltips with the left edge of the page switch", () => {
+  it("aligns Dashboard, Usage, and Settings tooltips with the left edge of the page switch", () => {
     expect(TOP_BAR_CSS).toContain(".top-bar-nav-item[data-tooltip]::after");
     expect(TOP_BAR_CSS).toMatch(/\.top-bar-nav-item\[data-tooltip\]::after\s*\{[^}]*left:\s*3px\s*!important/);
   });

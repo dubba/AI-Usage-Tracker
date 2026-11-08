@@ -641,7 +641,8 @@ body.sidebar-resizing * {
   .sidebar-resize-grip {
     position: absolute;
     top: 50%;
-    right: 14px;
+    /* Midway between the sidebar list's scroll bar and the edge line drawn while dragging. */
+    right: 14.125px;
     transform: translate(50%, -50%);
     left: auto;
     display: flex;

@@ -37,10 +37,10 @@ describe("SyncStatusLine", () => {
       />
     );
 
-    expect(document.body.textContent).toContain("Accounts synced");
+    expect(document.body.textContent).toContain("All accounts synced:");
   });
 
-  it("keeps Accounts synced whole and puts the elapsed time in its own element so it can wrap", () => {
+  it("puts the title and the elapsed time in their own elements, so the time sits on its own line", () => {
     app = mount(
       <SyncStatusLine
         accounts={[fakeAccount]}
@@ -49,9 +49,9 @@ describe("SyncStatusLine", () => {
       />
     );
 
-    expect(document.querySelector(".sidebar-sync-status-title")?.textContent).toBe("Accounts synced");
+    expect(document.querySelector(".sidebar-sync-status-title")?.textContent).toBe("All accounts synced:");
     expect(document.querySelector(".sidebar-sync-status-elapsed")?.textContent).toBe("5m ago");
-    expect(document.querySelector(".sidebar-sync-status-label")?.textContent).toBe("Accounts synced 5m ago");
+    expect(document.querySelector(".sidebar-sync-status-label")?.textContent).toBe("All accounts synced: 5m ago");
   });
 
   it("shows syncing state when a refresh is in progress", () => {

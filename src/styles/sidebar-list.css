@@ -61,8 +61,9 @@
   padding: 0;
   border: 1px solid var(--obsidian-border-strong);
   border-radius: 8px;
-  background: var(--obsidian-surface-container);
-  color: var(--obsidian-muted-bright);
+  /* The same dark fill and white icon as Refresh all and the Settings page's View button. */
+  background: var(--obsidian-surface-low, var(--c-1c1b1b));
+  color: var(--c-ffffff);
   cursor: pointer;
   transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
 }
@@ -172,6 +173,12 @@
 
   .obsidian-shell .provider-list {
     margin-right: -7px;
+  }
+
+  /* While the list scrolls, its scroll bar stops 4px short of that, so the resize dots sit
+     midway between the bar and the sidebar edge (see .sidebar-resize-grip in shell-patches.css). */
+  .obsidian-shell .provider-list.has-overflow {
+    margin-right: -3px;
   }
 
   .provider-list > .sidebar-section-header {

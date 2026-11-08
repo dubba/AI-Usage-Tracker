@@ -113,13 +113,12 @@ export function sidebarMetersStack(width: number, meterFitWidth: number | null):
   return meterFitWidth !== null && width < meterFitWidth;
 }
 
-/** The phrase the sidebar is opened wide enough to show on one line. */
-const SAMPLE_SYNC_TITLE = "Accounts synced";
+/** The title the sidebar is opened wide enough to show on one line; the elapsed time sits under it. */
+const SAMPLE_SYNC_TITLE = "All accounts synced:";
 const SAMPLE_SYNC_ELAPSED = "just now";
 
 /** Keeps the sync copy from wrapping inside the measured copy. */
 function unwrapSyncRow(clone: HTMLElement) {
-  clone.querySelectorAll(".sidebar-sync-status-detail").forEach((part) => part.remove());
   for (const node of clone.querySelectorAll<HTMLElement>(
     ".sidebar-sync-status-text, .sidebar-sync-status-label, .sidebar-sync-status-words",
   )) {
@@ -132,9 +131,9 @@ function unwrapSyncRow(clone: HTMLElement) {
 }
 
 /**
- * Sidebar width at which "Accounts synced just now" stays on one line beside the refresh and
- * settings buttons. The live label is measured too, and the wider one wins, so a longer label
- * is not cut off. The out-of-date note is left out: it wraps under the label on purpose.
+ * Sidebar width at which the sync line's title ("All accounts synced:") and the elapsed time under
+ * it ("just now") each stay on one line beside the refresh button. The live label is measured too, and the wider one wins, so a longer label
+ * is not cut off.
  */
 export function measureSyncLineFitWidth(sidebar: HTMLElement): number | null {
   const status = sidebar.querySelector<HTMLElement>(".sidebar-sync-status");
