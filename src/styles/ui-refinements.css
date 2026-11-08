@@ -1621,17 +1621,17 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   /* At rest, the same gray as the outline of a switch that is off. */
   border: 1px solid var(--obsidian-border-strong) !important;
   border-radius: 6px !important;
-  color: var(--c-ffffff) !important;
+  color: var(--c-ded8df) !important;
   transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
 }
 
 .settings-account-refresh .custom-dropdown-label {
-  color: var(--c-ffffff) !important;
+  color: var(--c-ded8df) !important;
   transition: color 140ms ease;
 }
 
 .settings-account-refresh .custom-dropdown-chevron {
-  color: var(--c-ffffff) !important;
+  color: var(--c-ded8df) !important;
   transition: transform 180ms cubic-bezier(0.4, 0, 0.2, 1), color 140ms ease;
 }
 
@@ -1662,11 +1662,11 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .settings-account-refresh .custom-dropdown-item {
-  color: var(--c-ffffff) !important;
+  color: var(--c-ded8df) !important;
 }
 
 .settings-account-refresh .custom-dropdown-item-label {
-  color: var(--c-ffffff) !important;
+  color: var(--c-ded8df) !important;
 }
 
 .settings-account-refresh .custom-dropdown-item.highlighted,
@@ -2119,9 +2119,9 @@ html::after {
   font-weight: 650 !important;
 }
 
-/* Their labels and icons are off-white (#f7f4ff), the color Add account and the selected page tab use.
-   On a colored fill (Sync Devices, Check Now, Delete) it stays off-white in both themes; on the dark
-   outlined buttons (View, Refresh, Clear, Copy) it turns dark in the light theme. */
+/* Outlined buttons on the Settings page (View, Refresh, Clear, Copy) have off-white labels (#f7f4ff)
+   in dark and turn dark in the light theme. Buttons on a colored fill (Sync Devices, Check Now, Delete)
+   use pure white (#ffffff), matching modal primary action buttons. */
 :root body .settings-style-content .button.ghost:not(.bucket-delete-button),
 :root body .settings-style-content .button.ghost:not(.bucket-delete-button) :is(span, svg) {
   color: var(--c-f7f4ff) !important;
@@ -2129,5 +2129,5 @@ html::after {
 
 :root body .settings-style-content :is(.button.primary, .button-green, .bucket-delete-button),
 :root body .settings-style-content :is(.button.primary, .button-green, .bucket-delete-button) :is(span, svg) {
-  color: var(--purple-on-fill) !important;
+  color: #ffffff !important;
 }

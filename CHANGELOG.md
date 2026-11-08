@@ -1,19 +1,21 @@
 # Changelog
 
-## Unreleased (46 changes)
+## Unreleased (48 changes)
 
 ### Added (1)
 
 - In the sidebar, a row now shows a red dot and "Sign-in needed" when one of its accounts must sign in again, and an amber dot when an account's usage is out of date, instead of looking the same as a provider with no data.
 
-### Improved (33)
+### Improved (35)
 
+- The active top bar page tab, Sync Devices, Check Now, and the Add Account buttons now use pure white text and icons, and the sidebar Add Account plus icon matches the top bar's bold stroke.
+- Dropdown labels and unselected menu options across Settings and modals, as well as the group modal's selected account count, now match the off-white font color of ghost buttons.
 - On desktop, the account name and email on account cards are now vertically centered relative to the provider icon and action buttons.
 - On the Usage page, provider icons now match the 28px size of Dashboard account cards and vertically center with the drag reorder grip.
 - In the Usage Notifications modal, the provider name stands out in bold white, quota rows on phones stay on a single line without a divider line matching desktop, and limits are labeled 5-HOUR, 7-DAY, and 30-DAY without repeating the quota period note.
 - On phones, the sidebar's Account and Group buttons have 10px corners and a larger, bolder label, like the desktop top bar's.
 - On desktop, the top bar's page switch and its Group and Account buttons are now 44px tall, the same as the Settings page's buttons, with the page tabs grown to match and the same padding and edge as those buttons.
-- Buttons on the Settings page and in the Paseo Bridge window now have 10px corners and slightly bolder text, matching the top bar's Group and Account buttons. In the dark theme, the Settings buttons and the Group buttons in the top bar and sidebar use the same off-white label as Add account.
+- Buttons on the Settings page and in the Paseo Bridge window now have 10px corners and slightly bolder text, matching the top bar's Group and Account buttons. In the dark theme, the ghost Settings buttons and the Group buttons in the top bar and sidebar use an off-white label.
 - In Settings, Check Now is green like the Update button it turns into, as is Regenerate in the Paseo Bridge window, and "Version X available" shows an amber dot instead of a red one, since a new version is not an error.
 - The sync status at the bottom of the sidebar now reads "All accounts synced:" with the time in bold white on the line under it, a larger status dot that turns amber when some accounts are out of date, and both lines lined up and centred beside Refresh all. The separate "accounts out of date" note is gone: the sidebar rows, the Action needed card and each account card already flag those accounts.
 - On iPhone, the app now opens with its icon centred on black, the same startup screen as Android, instead of a blank screen.
@@ -46,7 +48,7 @@
 
 - Tooltips on the Dashboard, Usage, and Settings switch buttons now anchor individually (left, center, and right), preventing adjacent tooltips from overlapping.
 - Checkboxes in device sync, Google AI Studio, and usage alert settings now use the app's solid purple theme across all browsers, replacing washed-out platform accent colors.
-- In Settings, selected items in the Appearance and Account Refresh dropdowns now highlight in purple matching modal dropdowns, and unselected options in the Usage Notifications dropdown display in crisp white.
+- In Settings, selected items in the Appearance and Account Refresh dropdowns now highlight in purple matching modal dropdowns.
 - Sidebar rows no longer squeeze together and overlap when the list is longer than the window; the list scrolls instead.
 - The Paseo Bridge window no longer stays on "Loading…" forever when its details can't be loaded; it shows why, with a Retry button.
 - On desktop, the Accounts page now shows its loading placeholder instead of a blank page while accounts load.

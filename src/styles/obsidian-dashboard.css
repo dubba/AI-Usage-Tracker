@@ -2573,6 +2573,10 @@ select.text-input option,
   flex-shrink: 0;
 }
 
+.bucket-account-heading .bucket-selected-count {
+  color: var(--c-ded8df);
+}
+
 .bucket-filter-actions {
   display: flex;
   align-items: center;
@@ -2592,6 +2596,7 @@ select.text-input option,
 
 .bucket-filter-actions .custom-dropdown-label {
   font-size: 12px;
+  color: var(--c-ded8df) !important;
 }
 
 .bucket-filter-actions .custom-dropdown-menu {
@@ -2602,6 +2607,7 @@ select.text-input option,
 .bucket-filter-actions .custom-dropdown-item {
   padding: 6px 10px !important;
   gap: 12px;
+  color: var(--c-ded8df) !important;
 }
 
 .bucket-filter-actions .custom-dropdown-item-content {
@@ -2611,6 +2617,18 @@ select.text-input option,
 
 .bucket-filter-actions .custom-dropdown-item-label {
   font-size: 12px !important;
+  color: var(--c-ded8df) !important;
+}
+
+.bucket-filter-actions .custom-dropdown-item.selected .custom-dropdown-item-label,
+.bucket-filter-actions .custom-dropdown-item.selected:hover .custom-dropdown-item-label,
+.bucket-filter-actions .custom-dropdown-item.selected.highlighted .custom-dropdown-item-label {
+  color: var(--obsidian-purple) !important;
+}
+
+.bucket-filter-actions .custom-dropdown-item.highlighted:not(.selected) .custom-dropdown-item-label,
+.bucket-filter-actions .custom-dropdown-item:hover:not(.selected) .custom-dropdown-item-label {
+  color: var(--c-ffffff) !important;
 }
 
 .bucket-filter-actions .custom-dropdown-check {
@@ -2626,19 +2644,38 @@ select.text-input option,
 .alert-threshold .custom-dropdown-trigger {
   min-height: 36px;
   padding: 6px 10px;
+  color: var(--c-ded8df) !important;
 }
 
 .alert-threshold .custom-dropdown-label {
   font-size: 13px !important;
+  color: var(--c-ded8df) !important;
+}
+
+.alert-threshold .custom-dropdown-chevron {
+  color: var(--c-ded8df) !important;
+  transition: transform 180ms cubic-bezier(0.4, 0, 0.2, 1), color 140ms ease;
+}
+
+.alert-threshold .custom-dropdown-trigger:hover:not(:disabled) .custom-dropdown-label,
+.alert-threshold .custom-dropdown-trigger:hover:not(:disabled) .custom-dropdown-chevron,
+.alert-threshold .custom-dropdown-container.open .custom-dropdown-trigger .custom-dropdown-label,
+.alert-threshold .custom-dropdown-container.open .custom-dropdown-trigger .custom-dropdown-chevron {
   color: var(--c-ffffff) !important;
 }
 
 .alert-threshold .custom-dropdown-item {
   padding: 6px 10px !important;
+  color: var(--c-ded8df) !important;
 }
 
 .alert-threshold .custom-dropdown-item-label {
   font-size: 13px !important;
+  color: var(--c-ded8df) !important;
+}
+
+.alert-threshold .custom-dropdown-item.highlighted:not(.selected) .custom-dropdown-item-label,
+.alert-threshold .custom-dropdown-item:hover:not(.selected) .custom-dropdown-item-label {
   color: var(--c-ffffff) !important;
 }
 

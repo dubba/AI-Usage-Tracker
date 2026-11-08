@@ -77,7 +77,11 @@
 .sidebar-section-button.is-primary {
   border-color: var(--purple-fill);
   background: var(--purple-fill);
-  color: var(--purple-on-fill);
+  color: #ffffff !important;
+}
+
+.sidebar-section-button.is-primary svg {
+  stroke-width: 3;
 }
 
 @media (hover: hover) {

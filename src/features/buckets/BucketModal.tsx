@@ -216,7 +216,9 @@ export function BucketModal({
 
         <div className="field-group">
           <div className="bucket-account-heading">
-            <span className="field-label">Select Accounts ({selectedAccountIds.length} selected)</span>
+            <span className="field-label">
+              Select Accounts <span className="bucket-selected-count">({selectedAccountIds.length} selected)</span>
+            </span>
             <div className="bucket-filter-actions">
               <CustomDropdown<Provider | "all">
                 aria-label="Filter by provider"
