@@ -193,7 +193,7 @@ export function ApiIntegrationWindow() {
         </div>
         <div className="bridge-detail-row">
           <div><strong>Rotate token</strong><small>Existing Paseo configuration stops working until its token is replaced.</small></div>
-          <button type="button" className="button primary settings-update-action" disabled={busy || !bridge.enabled} onClick={() => void rotateToken()}><RefreshIcon className="settings-update-action-icon" /><span>{busy ? "Rotating…" : "Regenerate"}</span></button>
+          <button type="button" className="button settings-update-action button-green" disabled={busy || !bridge.enabled} onClick={() => void rotateToken()}><RefreshIcon className="settings-update-action-icon" /><span>{busy ? "Rotating…" : "Regenerate"}</span></button>
         </div>
       </section>
 

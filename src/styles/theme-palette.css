@@ -10,6 +10,8 @@
     --c-255-255-255-a80: rgba(255, 255, 255, 0.08);
     --c-211e29: #211e29;
     --c-ffffff: #ffffff;
+    /* Off-white label on dark outlined buttons (dark text in light). */
+    --c-f7f4ff: #f7f4ff;
     --c-353335: #353335;
     --c-ddd7e2: #ddd7e2;
     --c-242323: #242323;
@@ -126,6 +128,7 @@
     --c-255-255-255-a80: rgba(0, 0, 0, 0.08);
     --c-211e29: #d9d6e1;
     --c-ffffff: #1c1b1f;
+    --c-f7f4ff: #1c1b1f;
     --c-353335: #cccacc;
     --c-ddd7e2: #231d28;
     --c-242323: #dcdbdb;

@@ -60,7 +60,7 @@ export function UpdatesSection({
                     <span>Checking for updates…</span>
                   ) : update?.available && update.availableVersion ? (
                     <>
-                      <span className="status-indicator-dot red" aria-hidden="true" />
+                      <span className="status-indicator-dot amber" aria-hidden="true" />
                       <span>{`Version ${update.availableVersion.replace(/^v/i, "")} available`}</span>
                     </>
                   ) : (
@@ -75,7 +75,7 @@ export function UpdatesSection({
             {update?.available ? (
               <button
                 type="button"
-                className="button danger settings-update-action settings-update-action-danger"
+                className="button settings-update-action button-green"
                 disabled={updateBusy !== null}
                 onClick={() => void installUpdate()}
               >
@@ -85,7 +85,7 @@ export function UpdatesSection({
             ) : (
               <button
                 type="button"
-                className="button primary settings-update-action"
+                className="button settings-update-action button-green"
                 disabled={updateBusy !== null}
                 onClick={() => void checkForUpdate(true)}
               >

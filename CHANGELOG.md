@@ -1,16 +1,20 @@
 # Changelog
 
-## Unreleased (36 changes)
+## Unreleased (40 changes)
 
 ### Added (1)
 
 - In the sidebar, a row now shows a red dot and "Sign-in needed" when one of its accounts must sign in again, and an amber dot when an account's usage is out of date, instead of looking the same as a provider with no data.
 
-### Improved (26)
+### Improved (30)
 
+- On phones, the sidebar's Account and Group buttons have 10px corners and a larger, bolder label, like the desktop top bar's.
+- On desktop, the top bar's page switch and its Group and Account buttons are now 44px tall, the same as the Settings page's buttons, with the page tabs grown to match and the same padding and edge as those buttons.
+- Buttons on the Settings page and in the Paseo Bridge window now have 10px corners and slightly bolder text, matching the top bar's Group and Account buttons. In the dark theme, the Settings buttons and the Group buttons in the top bar and sidebar use the same off-white label as Add account.
+- In Settings, Check Now is green like the Update button it turns into, as is Regenerate in the Paseo Bridge window, and "Version X available" shows an amber dot instead of a red one, since a new version is not an error.
 - The sync status at the bottom of the sidebar now reads "All accounts synced:" with the time in bold white on the line under it, a larger status dot that turns amber when some accounts are out of date, and both lines lined up and centred beside Refresh all. The separate "accounts out of date" note is gone: the sidebar rows, the Action needed card and each account card already flag those accounts.
 - On iPhone, the app now opens with its icon centred on black, the same startup screen as Android, instead of a blank screen.
-- The sidebar's Refresh all button now has the same grey outline as the other buttons, and the Group buttons in the sidebar and the top bar now use the same dark fill and white icon and text as Refresh all and the Settings page's buttons, and an off switch now has the same dark fill as those buttons. The phone's menu button uses the same grey outline and dark fill too.
+- The sidebar's Refresh all button now has the same grey outline as the other buttons, and the Group buttons in the sidebar and the top bar now use the same dark fill and white icon and text as Refresh all and the Settings page's buttons. The phone's menu button uses the same grey outline and dark fill too.
 - On phones, the sidebar's resize dots now sit midway between the list's scroll bar and the sidebar edge, instead of touching the scroll bar.
 - The first page in the top bar and the phone bottom bar is now called "Dashboard" instead of "Accounts", its tooltip reads "View all your AI accounts, their limits, and reset times", and its subtitle now names weekly and session limits.
 - On desktop, the top bar's add buttons now read "Group" and "Account" beside their icons, matching the phone sidebar.
@@ -58,7 +62,7 @@
 - On the Usage page, the reorder hint ("Press & drag a card below or in the sidebar to reorder") is shown for the first two sessions.
 - On custom account group pages, a red trashcan button next to the group edit pen allows deleting the group directly from the header.
 
-### Improved (26)
+### Improved (30)
 
 - Tooltips on both the Left / Used and 7D / 30D segmented switches are now right-aligned when hovering over either option to prevent running off the viewport edge.
 - On desktop, the display mode switch on the Accounts page now labels its options "% Left" and "% Used" for clearer clarity.
@@ -1126,7 +1130,7 @@
 
 ## v0.3.5 - 2026-09-03 (49 changes)
 
-### Improved (28)
+### Improved (30)
 
 - On Android, tapping Update downloads the APK in the app and opens the system installer instead of sending you to GitHub in a browser.
 - When an app update is available, the Settings action button now says Update instead of including the version number.

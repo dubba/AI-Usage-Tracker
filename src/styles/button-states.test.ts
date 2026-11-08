@@ -12,7 +12,7 @@ const ACTIVITY_CSS = readFileSync(join(STYLES, "../features/activity/activity.cs
 const PAIRING_CSS = readFileSync(join(STYLES, "../features/pairing/pairing.css"), "utf8");
 
 describe("Button hover and active state invariants", () => {
-  it("excludes danger and amber buttons from generic button:hover override", () => {
+  it("excludes the green update button and other custom buttons from generic button:hover override", () => {
     // Ensure the default button hover rule excludes all custom buttons so their hover states are not hijacked
     expect(OBSIDIAN_CSS).toMatch(
       /\.button:hover:not\(:disabled\)(?::not\(\.[a-zA-Z0-9_-]+\)){4,}/
@@ -20,7 +20,7 @@ describe("Button hover and active state invariants", () => {
     expect(OBSIDIAN_CSS).toContain(":not(.bucket-delete-button)");
     expect(OBSIDIAN_CSS).toContain(":not(.remove-confirm-button)");
     expect(OBSIDIAN_CSS).toContain(":not(.filter-active-clear-btn)");
-    expect(OBSIDIAN_CSS).toContain(":not(.settings-update-action-danger)");
+    expect(OBSIDIAN_CSS).toContain(":not(.button-green)");
   });
 
   it("provides hover and active states for destructive confirmation buttons", () => {

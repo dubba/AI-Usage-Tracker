@@ -2100,3 +2100,27 @@ html::after {
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
+
+/* Every button on the Settings page and in the Paseo Bridge window (Copy, Reveal, Regenerate, Check
+   Now, View, Sync Devices, Refresh, Clear, Delete…) has 10px corners and 650 text, like the top bar's
+   Group and Account buttons. Led by `:root body` so it outranks the `!important` radius rules above,
+   the strongest being `.settings-style-content .settings-card .button`; dropdowns, switches and the
+   Advanced toggle are not `.button` and keep their own shapes. */
+:root body .settings-style-content .button,
+:root body .bridge-window-shell .button {
+  border-radius: 10px !important;
+  font-weight: 650 !important;
+}
+
+/* Their labels and icons are off-white (#f7f4ff), the color Add account and the selected page tab use.
+   On a colored fill (Sync Devices, Check Now, Delete) it stays off-white in both themes; on the dark
+   outlined buttons (View, Refresh, Clear, Copy) it turns dark in the light theme. */
+:root body .settings-style-content .button.ghost:not(.bucket-delete-button),
+:root body .settings-style-content .button.ghost:not(.bucket-delete-button) :is(span, svg) {
+  color: var(--c-f7f4ff) !important;
+}
+
+:root body .settings-style-content :is(.button.primary, .button-green, .bucket-delete-button),
+:root body .settings-style-content :is(.button.primary, .button-green, .bucket-delete-button) :is(span, svg) {
+  color: var(--purple-on-fill) !important;
+}

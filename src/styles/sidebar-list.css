@@ -61,9 +61,10 @@
   padding: 0;
   border: 1px solid var(--obsidian-border-strong);
   border-radius: 8px;
-  /* The same dark fill and white icon as Refresh all and the Settings page's View button. */
+  /* The same dark fill as Refresh all and the Settings page's View button, with the off-white icon
+     and label of the Account button beside it (dark text in the light theme). */
   background: var(--obsidian-surface-low, var(--c-1c1b1b));
-  color: var(--c-ffffff);
+  color: var(--c-f7f4ff);
   cursor: pointer;
   transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
 }
@@ -115,13 +116,16 @@
     justify-content: center;
     gap: 6px;
     width: auto;
-    padding: 0 12px 0 10px;
+    padding: 0 14px 0 12px;
+    /* 12px before the icon and 14px after the word, 10px corners and a 14px, 650 label, like the top
+       bar's Group and Account buttons. */
+    border-radius: 10px;
   }
 
   .sidebar-section-button-label {
     display: inline;
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 14px;
+    font-weight: 650;
     line-height: 1;
   }
 

@@ -248,10 +248,11 @@ describe("Updates", () => {
     const onOpenUpdateNotes = vi.fn();
     app = mount(view({ update, props: { onOpenUpdateNotes } }));
     expect(document.querySelector(".settings-updates-subcard-status")?.textContent).toContain("Version 1.2.0 available");
+    expect(document.querySelector(".settings-updates-subcard-status .status-indicator-dot.amber")).not.toBeNull();
     click(button("View what changed in v1.2.0"));
     expect(onOpenUpdateNotes).toHaveBeenCalledTimes(1);
-    expect(document.querySelector(".settings-update-action-danger")).not.toBeNull();
-    click(document.querySelector(".settings-update-action-danger")!);
+    expect(document.querySelector(".button-green")).not.toBeNull();
+    click(document.querySelector(".button-green")!);
     expect(update.installUpdate).toHaveBeenCalledTimes(1);
   });
 

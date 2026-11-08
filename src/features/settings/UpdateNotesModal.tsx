@@ -243,7 +243,7 @@ export function UpdateNotesModal({
         {onInstallUpdate ? (
           <button
             type="button"
-            className="button danger settings-update-action settings-update-action-danger"
+            className="button settings-update-action button-green"
             disabled={updateBusy != null}
             onClick={() => {
               onInstallUpdate();

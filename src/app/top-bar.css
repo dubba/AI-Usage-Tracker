@@ -44,11 +44,14 @@
     transition: border-color 120ms ease;
   }
 
+  /* 36px inside the switch's 1px border and 3px padding: 44px tall, like Group and Account. The 1px
+     border is clear here and purple on the selected page, so switching pages never changes a tab's
+     size. */
   .top-bar-nav-item {
     position: static !important;
-    height: 32px;
-    padding: 0 16px;
-    border: 0;
+    height: 36px;
+    padding: 0 15px;
+    border: 1px solid transparent;
     border-radius: 7px;
     background: transparent;
     color: var(--obsidian-muted) !important;
@@ -59,6 +62,7 @@
   }
 
   .top-bar-nav-item.is-active {
+    border-color: var(--purple-fill);
     background: var(--purple-fill);
     color: var(--purple-on-fill) !important;
   }
@@ -128,17 +132,18 @@
   .top-bar-icon-button {
     display: grid;
     place-items: center;
-    /* 40px, like the page switch, Add account and the Left / Used switch, so the bar's controls are
-       all the same height. */
-    width: 40px;
-    height: 40px;
+    /* 44px, like the page switch and Add account, so the bar's controls are all the same height (and
+       match the Settings page's buttons). */
+    width: 44px;
+    height: 44px;
     flex: 0 0 auto;
     padding: 0;
     border: 1px solid var(--obsidian-border-strong);
     border-radius: 10px;
-    /* The same dark fill and white text as Refresh all and the Settings page's View button. */
+    /* The same dark fill as Refresh all and the Settings page's View button, with the off-white
+       label the Settings buttons use. */
     background: var(--obsidian-surface-low, var(--c-1c1b1b));
-    color: var(--c-ffffff) !important;
+    color: var(--c-f7f4ff) !important;
     cursor: pointer;
     transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
   }
@@ -154,7 +159,8 @@
     align-items: center;
     gap: 8px;
     width: auto;
-    padding: 0 16px 0 14px;
+    /* 12px before the icon, 14px after the word, as on the Settings page's icon buttons. */
+    padding: 0 14px 0 12px;
     font-size: 14px !important;
     font-weight: 650 !important;
     white-space: nowrap;
@@ -169,10 +175,12 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    height: 40px;
+    height: 44px;
     flex: 0 0 auto;
-    padding: 0 18px;
-    border: 0;
+    /* 12px before the icon, 14px after the word, as on the Settings page's icon buttons. */
+    padding: 0 14px 0 12px;
+    /* A border in the fill's own colour, like the Settings page's purple buttons. */
+    border: 1px solid var(--purple-fill);
     border-radius: 10px;
     background: var(--purple-fill);
     color: var(--purple-on-fill) !important;
@@ -183,10 +191,11 @@
     transition: background 120ms ease;
   }
 
+  /* 18px, the same as Group's icon beside it. */
   .top-bar-add-account svg {
-    width: 17px !important;
-    height: 17px !important;
-    /* The plus is drawn with a 1.8 stroke (a 24px box scaled to 17px: about 1.3px), thin beside the
+    width: 18px !important;
+    height: 18px !important;
+    /* The plus is drawn with a 1.8 stroke (a 24px box scaled to 18px: about 1.35px), thin beside the
        bold label; 3 gives it the label's weight. */
     stroke-width: 3;
   }
@@ -219,6 +228,7 @@
     }
 
     .top-bar-add-account:hover {
+      border-color: var(--purple-fill-hover);
       background: var(--purple-fill-hover);
     }
 
@@ -226,6 +236,10 @@
     .top-bar-nav-item.is-active:hover,
     .top-bar-segmented button.active:hover {
       background: var(--purple-fill-hover);
+    }
+
+    .top-bar-nav-item.is-active:hover {
+      border-color: var(--purple-fill-hover);
     }
   }
 
