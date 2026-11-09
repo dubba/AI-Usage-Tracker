@@ -347,7 +347,7 @@ describe("ActivityView", () => {
     const { root } = renderView([work]);
     await settle();
     expect(select(root, ".activity-day-value")).toHaveLength(0);
-    expect(select(root, ".activity-bar").slice(0, 4).map((bar) => bar.dataset.tooltip?.split("\n")[0].split(": ")[1])).toEqual(["5%", "no data", "2%", "0%"]);
+    expect(select(root, ".activity-bar").slice(0, 4).map((bar) => bar.dataset.tooltip?.split("\n")[0].split(": ")[1])).toEqual(["5% used", "no data", "2% used", "0% used"]);
     expect(select(root, ".activity-bar.is-empty")).toHaveLength(1);
     expect(select(root, ".activity-bar.is-approximate")).toHaveLength(1);
   });

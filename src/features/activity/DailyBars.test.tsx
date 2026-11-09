@@ -155,7 +155,7 @@ describe("DailyBars, 7 days", () => {
     const resets = ["2026-10-12T15:00:00Z", "2026-10-13T06:00:00Z", "2026-10-14T18:00:00Z"];
     const root = render({ days, resets, resetUsedPercent: [49.2, 0.4, null] });
     expect(texts(root, ".activity-reset-used")).toEqual(["49%", "<1%"]);
-    expect(root.querySelector(".activity-chart")!.style.getPropertyValue("--activity-pad-top")).toBe("16px");
+    expect(root.querySelector<HTMLElement>(".activity-chart")!.style.getPropertyValue("--activity-pad-top")).toBe("16px");
     const tips = all(root, ".activity-reset [data-tooltip]").map((element) => element.dataset.tooltip);
     expect(tips).toEqual([
       `Weekly reset · ${resetTimeLabel(new Date(resets[0]))}\n49% used in previous week`,
