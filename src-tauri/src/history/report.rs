@@ -55,6 +55,8 @@ pub struct ActivityTracker {
     /// Reset lines inside the range: reset times the provider recorded, plus the one week before
     /// a weekly limit's latest reset when that week was not recorded.
     pub resets: Vec<String>,
+    /// How full the window was at each reset in `resets`. `None` when that week was not watched.
+    pub reset_used_percent: Vec<Option<f64>>,
 }
 
 /// An account that has no weekly limit to chart.
@@ -197,6 +199,14 @@ fn build(accounts: &[Account], history: &HistoryStore, bounds: &[i64]) -> Weekly
                 });
             let current_reset = window.resets_at.as_deref().and_then(parse_timestamp);
             let activity = daily_usage(&own, bounds, window_seconds, current_reset);
+            let mut resets = Vec::with_capacity(activity.resets.len());
+            let mut reset_used_percent = Vec::with_capacity(activity.resets.len());
+            for (instant, used) in activity.resets.iter().zip(&activity.reset_used_percent) {
+                if let Some(text) = rfc3339(*instant) {
+                    resets.push(text);
+                    reset_used_percent.push(*used);
+                }
+            }
             trackers.push(ActivityTracker {
                 account_id: account.id.clone(),
                 window_id: window.id.clone(),
@@ -205,7 +215,8 @@ fn build(accounts: &[Account], history: &HistoryStore, bounds: &[i64]) -> Weekly
                 current_used_percent: window.used_percent,
                 resets_at: window.resets_at.clone(),
                 days: activity.days,
-                resets: activity.resets.iter().filter_map(|t| rfc3339(*t)).collect(),
+                resets,
+                reset_used_percent,
             });
         }
     }

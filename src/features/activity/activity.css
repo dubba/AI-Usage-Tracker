@@ -433,8 +433,9 @@
 
   /* The y-axis on the left and the bars beside it. `--activity-pad-*` is how far the bars' own room
      (the slot) sits in from the top and bottom of the bars area: on the 7 day chart there is a weekday
-     below each bar, 12px of text and a 6px gap. The axis and the gridlines use the same two numbers,
-     so a tick lines up with the bars' height. */
+     below each bar, 12px of text and a 6px gap. A chart with a watched reset also leaves 16px on top
+     for that week's percent. The axis and the gridlines use the same two numbers, so a tick lines up
+     with the bars' height. */
   .activity-chart {
     --activity-pad-top: 0px;
     --activity-pad-bottom: 0px;
@@ -526,6 +527,7 @@
     justify-content: center;
     width: 100%;
     height: 88px;
+    margin-top: var(--activity-pad-top);
   }
 
   .activity-bar {
@@ -612,12 +614,26 @@
     left: auto;
   }
 
-  /* A weekly reset on the chart: a thin dashed line in the day's column. */
+  /* A weekly reset on the chart: a thin dashed line in the day's column. The percent, when the
+     week was watched, sits in the pad above the line. */
   .activity-reset {
     position: absolute;
-    top: -4px;
+    top: var(--activity-pad-top);
     bottom: var(--activity-pad-bottom);
     width: 0;
+    pointer-events: none;
+  }
+
+  .activity-reset-used {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform: translate(-50%, calc(-100% - 2px));
+    color: var(--purple-accent);
+    font-size: 11px;
+    font-weight: 650;
+    line-height: 1;
+    white-space: nowrap;
     pointer-events: none;
   }
 
@@ -631,7 +647,7 @@
   /* One 1px dashed purple line for the column, positioned at the reset's fraction of the day. */
   .activity-reset-line {
     position: absolute;
-    top: -4px;
+    top: 0;
     bottom: 0;
     width: 1px;
     left: calc(var(--reset-fraction) * 100%);

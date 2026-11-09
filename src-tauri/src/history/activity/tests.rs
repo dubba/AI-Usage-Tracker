@@ -96,8 +96,9 @@ fn a_reading_after_the_reset_time_that_still_names_it_is_not_a_reset() {
     );
     assert_eq!(percents(&activity), [Some(1.0)]);
     // The provider still names this reset, and it falls in the chart, so the line stays. Usage is
-    // not started over, because the window has not rolled.
+    // not started over, because the window has not rolled. The line shows how full it has gotten.
     assert_eq!(activity.resets, [reset]);
+    assert_eq!(activity.reset_used_percent, [Some(81.0)]);
 }
 
 #[test]
@@ -389,6 +390,8 @@ fn a_weekly_chart_keeps_the_latest_reset_and_the_one_week_before_it() {
     let upcoming = BASE + 20 * DAY;
     let activity = daily_usage(&[], &days(30), WEEK, Some(upcoming));
     assert_eq!(activity.resets, [upcoming - WEEK, upcoming]);
+    // Neither week was watched.
+    assert_eq!(activity.reset_used_percent, [None, None]);
 }
 
 #[test]
@@ -398,6 +401,7 @@ fn a_weekly_chart_shows_only_the_previous_week_when_nothing_earlier_was_recorded
     let upcoming = BASE + 31 * DAY;
     let activity = daily_usage(&[], &days(30), WEEK, Some(upcoming));
     assert_eq!(activity.resets, [upcoming - WEEK]);
+    assert_eq!(activity.reset_used_percent, [None]);
 }
 
 #[test]
@@ -423,6 +427,35 @@ fn provider_recorded_resets_stay_on_the_chart() {
         Some(upcoming),
     );
     assert_eq!(activity.resets, [first, second, third, fourth]);
+    assert_eq!(
+        activity.reset_used_percent,
+        [Some(40.0), Some(5.0), Some(6.0), Some(7.0)]
+    );
+}
+
+#[test]
+fn a_reset_line_shows_how_full_the_week_got() {
+    // Two watched weeks. The first climbed to 49, dipped, then the provider moved the reset.
+    // The second climbed to 79. The current week is past the chart.
+    let first = BASE + 16 * DAY;
+    let second = first + WEEK;
+    let upcoming = second + WEEK + HOUR;
+    let activity = daily_usage(
+        &[
+            reading(first - 3 * DAY, 10.0, Some(first)),
+            reading(first - 2 * DAY, 48.0, Some(first)),
+            reading(first - 2 * HOUR, 49.0, Some(first + 30)),
+            reading(first - HOUR, 30.0, Some(first)),
+            reading(second - 2 * DAY, 20.0, Some(second)),
+            reading(second - HOUR, 79.0, Some(second)),
+            reading(second + DAY, 4.0, Some(upcoming)),
+        ],
+        &days(30),
+        WEEK,
+        Some(upcoming),
+    );
+    assert_eq!(activity.resets, [first, second]);
+    assert_eq!(activity.reset_used_percent, [Some(49.0), Some(79.0)]);
 }
 
 #[test]

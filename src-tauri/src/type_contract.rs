@@ -164,6 +164,7 @@ fn weekly_activity_samples() -> Vec<WeeklyActivity> {
                         day(None, DayQuality::None),
                     ],
                     resets: vec!["2026-09-05T17:00:00Z".into()],
+                    reset_used_percent: vec![Some(64.0)],
                 },
                 ActivityTracker {
                     account_id: "account-2".into(),
@@ -174,6 +175,7 @@ fn weekly_activity_samples() -> Vec<WeeklyActivity> {
                     resets_at: None,
                     days: vec![day(None, DayQuality::None)],
                     resets: vec![],
+                    reset_used_percent: vec![],
                 },
             ],
             untracked: vec![

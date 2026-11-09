@@ -26,7 +26,7 @@ function tooltipSide(position: number): "is-left" | "is-right" | "" {
 function dayTooltip(day: ActivityDay, date: Date, isToday: boolean): string {
   const when = isToday ? "Today" : formatMonthDay(date);
   if (day.quality === "none") return `${when}: no data`;
-  const value = `${when}: ${formatDayPercent(day.usedPercent)}`;
+  const value = `${when}: ${formatDayPercent(day.usedPercent)} used`;
   return day.quality === "approximate" ? `${value}\n${APPROXIMATE_DAY_TOOLTIP}` : value;
 }
 
@@ -50,30 +50,52 @@ interface ResetMarker {
   /** Which day column holds the reset, and how far across that day it falls (0 to 1). */
   day: number;
   fraction: number;
+  /** How full the window was when this reset passed. Null when that week was not watched. */
+  usedPercent: number | null;
 }
 
 /** Where each weekly reset falls on the chart: in its day's column, at the right fraction of the day. */
-function resetMarkers(resets: readonly string[], starts: readonly Date[], gap: number): ResetMarker[] {
+function resetMarkers(
+  resets: readonly string[],
+  usedPercents: readonly (number | null)[] | undefined,
+  starts: readonly Date[],
+  gap: number,
+): ResetMarker[] {
   const dayCount = starts.length - 1;
-  return resets.flatMap((instant) => {
+  return resets.flatMap((instant, index) => {
     const date = new Date(instant);
     const time = date.getTime();
     if (Number.isNaN(time)) return [];
-    const day = starts.findIndex((start, index) => index < dayCount && time >= start.getTime() && time < starts[index + 1].getTime());
+    const day = starts.findIndex((start, dayIndex) => dayIndex < dayCount && time >= start.getTime() && time < starts[dayIndex + 1].getTime());
     if (day < 0) return [];
     const dayLength = starts[day + 1].getTime() - starts[day].getTime();
     const fraction = (time - starts[day].getTime()) / dayLength;
     const position = (day + fraction) / dayCount;
     // The columns are separated by gaps, so a fraction of the whole width is off by up to one gap.
-    return [{ instant, date, position, day, fraction, left: `calc(${position * 100}% + ${gap * (position - fraction)}px)` }];
+    return [{
+      instant,
+      date,
+      position,
+      day,
+      fraction,
+      usedPercent: usedPercents?.[index] ?? null,
+      left: `calc(${position * 100}% + ${gap * (position - fraction)}px)`,
+    }];
   });
+}
+
+function resetTooltip(marker: ResetMarker, limit: "weekly" | "monthly"): string {
+  const kind = limit === "monthly" ? "Monthly" : "Weekly";
+  const when = `${kind} reset · ${resetTimeLabel(marker.date)}`;
+  const period = limit === "monthly" ? "month" : "week";
+  return marker.usedPercent == null ? when : `${when}\n${formatDayPercent(marker.usedPercent)} used in previous ${period}`;
 }
 
 /**
  * One bar per day for one weekly limit, on a y-axis that fits the busiest day in view: ticks every
  * 5, 10 or 20 percent (see `yAxis`), so a quiet week does not look like a busy one. Days with
  * nothing observed are striped, days partly estimated have a dotted top edge, and each weekly
- * reset is marked with one dashed purple line.
+ * reset is marked with one dashed purple line. A watched week shows how full it got above that line.
  *
  * Screen readers get the chart as a sentence on the picture and as a table beside it.
  */
@@ -82,6 +104,7 @@ export function DailyBars({
   days,
   dayStarts,
   resets,
+  resetUsedPercent,
   period,
   limit = "weekly",
 }: {
@@ -92,6 +115,8 @@ export function DailyBars({
   dayStarts: readonly Date[];
   /** Weekly resets inside the range, as RFC 3339 instants. */
   resets: readonly string[];
+  /** How full the limit was at each reset. Missing entries, and null, draw no label. */
+  resetUsedPercent?: readonly (number | null)[];
   period: ActivityPeriod;
   /** Which limit the bars chart, for the wording of the reset markers and the table. */
   limit?: "weekly" | "monthly";
@@ -100,8 +125,13 @@ export function DailyBars({
   const gap = GAP_PX[period];
   const labelled = period === "7d";
   const summary = chartSummary(name, days, dayStarts, period);
-  const markers = resetMarkers(resets, dayStarts, gap);
-  const style = { "--activity-days": days.length, "--activity-gap": `${gap}px` } as CSSProperties;
+  const markers = resetMarkers(resets, resetUsedPercent, dayStarts, gap);
+  const showsUsed = markers.some((marker) => marker.usedPercent != null);
+  const style = {
+    "--activity-days": days.length,
+    "--activity-gap": `${gap}px`,
+    ...(showsUsed ? { "--activity-pad-top": "16px" } : {}),
+  } as CSSProperties;
 
   return (
     <div className={`activity-chart is-${period}`} style={style}>
@@ -163,9 +193,12 @@ export function DailyBars({
         })}
         {markers.map((marker) => (
           <span className="activity-reset" style={{ left: marker.left }} key={marker.instant}>
+            {marker.usedPercent == null ? null : (
+              <span className="activity-reset-used">{formatDayPercent(marker.usedPercent)}</span>
+            )}
             <span
               className={["activity-reset-hit", tooltipSide(marker.position)].filter(Boolean).join(" ")}
-              data-tooltip={`${limit === "monthly" ? "Monthly" : "Weekly"} reset · ${resetTimeLabel(marker.date)}`}
+              data-tooltip={resetTooltip(marker, limit)}
             />
           </span>
         ))}

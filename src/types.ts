@@ -103,6 +103,8 @@ export interface ActivityTracker {
   days: ActivityDay[];
   /** Reset lines inside the range: reset times the provider recorded, plus one previous week when that week was not recorded. */
   resets: string[];
+  /** How full the limit was at each reset in `resets`. Null when that week was not watched. */
+  resetUsedPercent: (number | null)[];
 }
 
 /** What an account without a weekly limit has instead. */

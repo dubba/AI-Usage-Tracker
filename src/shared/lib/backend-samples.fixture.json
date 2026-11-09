@@ -391,6 +391,9 @@
               "usedPercent": null
             }
           ],
+          "resetUsedPercent": [
+            64.0
+          ],
           "resets": [
             "2026-09-05T17:00:00Z"
           ],
@@ -408,6 +411,7 @@
               "usedPercent": null
             }
           ],
+          "resetUsedPercent": [],
           "resets": [],
           "resetsAt": null,
           "windowId": "model_gemini",

@@ -52,7 +52,7 @@ export function resetTimeLabel(date: Date, locale?: string): string {
   return `${formatMonthDay(date, locale)} @ ${formatClockTime(date, locale)}`;
 }
 
-export const APPROXIMATE_DAY_TOOLTIP = "Estimated: the app wasn't refreshing for part of this day";
+export const APPROXIMATE_DAY_TOOLTIP = "Estimated bc data didn't refresh\nfor part of this day";
 
 /**
  * "Work Claude, last 7 days: Mon 15%, Tue 7%, …": the chart in words, for screen readers. Estimated

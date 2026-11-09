@@ -64,6 +64,7 @@ export function makeTracker(
     resetsAt: "2026-10-27T15:00:00Z",
     days: Array.from({ length: dayCount }, () => fill),
     resets: [],
+    resetUsedPercent: [],
     ...overrides,
   };
 }

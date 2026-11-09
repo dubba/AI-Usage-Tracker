@@ -97,6 +97,7 @@ export function WeeklyTracker({
         days={tracker.days}
         dayStarts={dayStarts}
         resets={tracker.resets}
+        resetUsedPercent={tracker.resetUsedPercent}
         period={period}
         limit={tracker.windowKind}
       />

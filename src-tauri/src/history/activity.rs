@@ -56,6 +56,9 @@ pub struct Activity {
     /// passed. A weekly limit also gets the one week before its latest reset when that week was
     /// not named. Nothing older is filled in, and a usage drop does not add a line.
     pub resets: Vec<i64>,
+    /// How full the window was while the provider still named each reset in `resets`, in the same
+    /// order. `None` when that week was not watched.
+    pub reset_used_percent: Vec<Option<f64>>,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -131,38 +134,59 @@ pub fn daily_usage(
         return Activity {
             days: Vec::new(),
             resets: Vec::new(),
+            reset_used_percent: Vec::new(),
         };
     };
 
     // Lines are reset times the provider held still and then moved forward by a whole window.
     // That is the reset that passed. A sliding clock, which moves by minutes, never qualifies.
     // A weekly limit with no older named reset still gets the single week before its latest one.
+    // The percent on a recorded line is the fullest the window got while that reset was named.
     let anchor = current_reset.or_else(|| sorted.iter().filter_map(|reading| reading.r).max());
-    let mut resets = recorded_reset_instants(&sorted, window_seconds);
+    let (mut resets, named) = recorded_reset_instants(&sorted, window_seconds);
     if let Some(anchor) = anchor {
         if window_seconds == WEEKLY_WINDOW_SECONDS as i64 {
             let previous = anchor - window_seconds;
             if (range_start..=range_end).contains(&previous) && !near_any(&resets, previous) {
-                resets.push(previous);
+                resets.push(ResetMark {
+                    instant: previous,
+                    used_percent: None,
+                });
             }
         }
         if (range_start..=range_end).contains(&anchor) && !near_any(&resets, anchor) {
-            resets.push(anchor);
+            let used_percent = named
+                .filter(|open| (open.instant - anchor).abs() <= SAME_RESET_SECONDS)
+                .and_then(|open| finite_percent(open.used));
+            resets.push(ResetMark {
+                instant: anchor,
+                used_percent,
+            });
         }
     }
-    resets.retain(|instant| (range_start..=range_end).contains(instant));
-    resets.sort_unstable();
+    resets.retain(|mark| (range_start..=range_end).contains(&mark.instant));
+    resets.sort_unstable_by_key(|mark| mark.instant);
     let mut collapsed = Vec::with_capacity(resets.len());
-    for instant in resets {
-        if collapsed
-            .last()
-            .is_some_and(|earlier: &i64| instant - earlier <= RESET_JITTER_SECONDS)
-        {
+    for mark in resets {
+        if collapsed.last().is_some_and(|earlier: &ResetMark| {
+            mark.instant - earlier.instant <= RESET_JITTER_SECONDS
+        }) {
+            let earlier = collapsed.last_mut().expect("the line just checked");
+            earlier.used_percent = match (earlier.used_percent, mark.used_percent) {
+                (Some(left), Some(right)) => Some(left.max(right)),
+                (Some(left), None) => Some(left),
+                (None, right) => right,
+            };
             continue;
         }
-        collapsed.push(instant);
+        collapsed.push(mark);
     }
-    let resets = collapsed;
+    let mut resets = Vec::with_capacity(collapsed.len());
+    let mut reset_used_percent = Vec::with_capacity(collapsed.len());
+    for mark in collapsed {
+        resets.push(mark.instant);
+        reset_used_percent.push(mark.used_percent);
+    }
 
     let days = totals
         .iter()
@@ -184,7 +208,11 @@ pub fn daily_usage(
             }
         })
         .collect();
-    Activity { days, resets }
+    Activity {
+        days,
+        resets,
+        reset_used_percent,
+    }
 }
 
 fn starts_new_period(previous: &Reading, current: &Reading, high_water: f64) -> bool {
@@ -214,30 +242,71 @@ fn period_start(previous: &Reading, current: &Reading, window_seconds: i64) -> i
     }
 }
 
+/// A reset line and, when the week was watched, how full the window got.
+#[derive(Clone, Copy)]
+struct ResetMark {
+    instant: i64,
+    used_percent: Option<f64>,
+}
+
+/// The reset the provider is still naming, and the fullest reading while it did.
+#[derive(Clone, Copy)]
+struct NamedWindow {
+    instant: i64,
+    used: f64,
+}
+
 /// Reset times the provider named, then replaced with the next period of the same schedule.
 ///
-/// Readings name the upcoming reset. While that time stays put (within jitter) it is one reset.
-/// When the next reading names a time one or more whole windows later, the time that was left
-/// behind is a reset that happened. A reset that only slides forward with the clock is not.
-fn recorded_reset_instants(readings: &[Reading], window_seconds: i64) -> Vec<i64> {
+/// Readings name the upcoming reset. While that time stays put (within jitter) it is one reset,
+/// and the percent kept for it is the highest used percent in that stretch. When the next reading
+/// names a time one or more whole windows later, the time that was left behind is a reset that
+/// happened. A reset that only slides forward with the clock is not. The second value is the reset
+/// still being named at the last reading.
+fn recorded_reset_instants(
+    readings: &[Reading],
+    window_seconds: i64,
+) -> (Vec<ResetMark>, Option<NamedWindow>) {
     let mut events = Vec::new();
-    let mut named: Option<i64> = None;
+    let mut named: Option<NamedWindow> = None;
     for reading in readings {
         let Some(reset) = reading.r else {
             continue;
         };
+        let used = f64::from(reading.u);
         match named {
-            None => named = Some(reset),
-            Some(previous) if (reset - previous).abs() <= RESET_JITTER_SECONDS => {}
+            None => {
+                named = Some(NamedWindow {
+                    instant: reset,
+                    used,
+                })
+            }
+            Some(previous) if (reset - previous.instant).abs() <= RESET_JITTER_SECONDS => {
+                named = Some(NamedWindow {
+                    instant: previous.instant,
+                    used: previous.used.max(used),
+                });
+            }
             Some(previous) => {
-                if is_next_period(previous, reset, window_seconds) {
-                    events.push(previous);
+                if is_next_period(previous.instant, reset, window_seconds) {
+                    events.push(ResetMark {
+                        instant: previous.instant,
+                        used_percent: finite_percent(previous.used),
+                    });
                 }
-                named = Some(reset);
+                named = Some(NamedWindow {
+                    instant: reset,
+                    used,
+                });
             }
         }
     }
-    events
+    (events, named)
+}
+
+/// Two decimals, the same rounding as a day's percent. A non-finite reading adds nothing.
+fn finite_percent(used: f64) -> Option<f64> {
+    used.is_finite().then(|| (used * 100.0).round() / 100.0)
 }
 
 /// `new_reset` is one or more whole windows after `previous`.
@@ -253,10 +322,10 @@ fn is_next_period(previous: i64, new_reset: i64, window_seconds: i64) -> bool {
     (delta - periods * window_seconds).abs() <= RESET_STEP_SLOP_SECONDS
 }
 
-fn near_any(instants: &[i64], instant: i64) -> bool {
-    instants
+fn near_any(marks: &[ResetMark], instant: i64) -> bool {
+    marks
         .iter()
-        .any(|existing| (existing - instant).abs() <= SAME_RESET_SECONDS)
+        .any(|existing| (existing.instant - instant).abs() <= SAME_RESET_SECONDS)
 }
 
 /// Calls `visit(day, seconds)` for every day that the interval `(from, to]` overlaps, with the

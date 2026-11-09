@@ -77,15 +77,15 @@ describe("DailyBars, 7 days", () => {
   it("tells the date and the value in each bar's tooltip, since the bars carry no percent", () => {
     const bars = all(render({ days }), ".activity-bar");
     expect(bars.map((bar) => bar.dataset.tooltip?.split("\n")[0])).toEqual([
-      "Oct 9: 15%", "Oct 10: no data", "Oct 11: <1%", "Oct 12: 0%", "Oct 13: 8%", "Oct 14: 100%", "Today: 3%",
+      "Oct 9: 15% used", "Oct 10: no data", "Oct 11: <1% used", "Oct 12: 0% used", "Oct 13: 8% used", "Oct 14: 100% used", "Today: 3% used",
     ]);
   });
 
   it("marks estimated days and explains them on a second line", () => {
     const bars = all(render({ days }), ".activity-bar");
     expect(bars[4].classList.contains("is-approximate")).toBe(true);
-    expect(bars[4].dataset.tooltip).toBe(`Oct 13: 8%\n${APPROXIMATE_DAY_TOOLTIP}`);
-    expect(APPROXIMATE_DAY_TOOLTIP).toBe("Estimated: the app wasn't refreshing for part of this day");
+    expect(bars[4].dataset.tooltip).toBe(`Oct 13: 8% used\n${APPROXIMATE_DAY_TOOLTIP}`);
+    expect(APPROXIMATE_DAY_TOOLTIP).toBe("Estimated bc data didn't refresh\nfor part of this day");
     expect(bars[0].classList.contains("is-approximate")).toBe(false);
     expect(bars[0].dataset.tooltip).not.toContain("Estimated");
   });
@@ -149,6 +149,19 @@ describe("DailyBars, 7 days", () => {
     expect(all(root, ".has-ink, .activity-reset-clip, .activity-reset-ink")).toHaveLength(0);
     expect(lines[0].parentElement).toBe(bars[0].parentElement);
     expect(lines[1].parentElement).toBe(bars[1].parentElement);
+  });
+
+  it("shows how full a watched week was above its reset line", () => {
+    const resets = ["2026-10-12T15:00:00Z", "2026-10-13T06:00:00Z", "2026-10-14T18:00:00Z"];
+    const root = render({ days, resets, resetUsedPercent: [49.2, 0.4, null] });
+    expect(texts(root, ".activity-reset-used")).toEqual(["49%", "<1%"]);
+    expect(root.querySelector(".activity-chart")!.style.getPropertyValue("--activity-pad-top")).toBe("16px");
+    const tips = all(root, ".activity-reset [data-tooltip]").map((element) => element.dataset.tooltip);
+    expect(tips).toEqual([
+      `Weekly reset · ${resetTimeLabel(new Date(resets[0]))}\n49% used in previous week`,
+      `Weekly reset · ${resetTimeLabel(new Date(resets[1]))}\n<1% used in previous week`,
+      `Weekly reset · ${resetTimeLabel(new Date(resets[2]))}`,
+    ]);
   });
 });
 
@@ -250,10 +263,10 @@ describe("DailyBars, 30 days", () => {
 
   it("tells the date and the value in each bar's tooltip", () => {
     const bars = all(render({ days }), ".activity-bar");
-    expect(bars[1].dataset.tooltip).toBe("Sep 17: 1%");
+    expect(bars[1].dataset.tooltip).toBe("Sep 17: 1% used");
     expect(bars[0].dataset.tooltip).toBe("Sep 16: no data");
-    expect(bars[5].dataset.tooltip).toBe(`Sep 21: 5%\n${APPROXIMATE_DAY_TOOLTIP}`);
-    expect(bars[29].dataset.tooltip).toBe("Today: 29%");
+    expect(bars[5].dataset.tooltip).toBe(`Sep 21: 5% used\n${APPROXIMATE_DAY_TOOLTIP}`);
+    expect(bars[29].dataset.tooltip).toBe("Today: 29% used");
   });
 
   it("marks each weekly reset in its day's column at the right fraction of the day", () => {

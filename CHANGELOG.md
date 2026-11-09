@@ -1,10 +1,12 @@
 # Changelog
 
-## Unreleased (10 changes)
+## Unreleased (12 changes)
 
-### Improved (9)
+### Improved (11)
 
 - The sync status at the bottom of the sidebar now reads "All accounts updated:" instead of "All accounts synced:".
+- On the Usage page, each reset line shows how full that week was, just above the line.
+- On the Usage page, a day's tooltip says how much was used, such as "Nov 1: 63% used". An estimated day adds "Estimated bc data didn't refresh" and, on the next line, "for part of this day".
 
 - On the Usage page, the provider icon, account name, and total usage percentage align at the top of the card header with the period label below the percentage, giving the email and date/time details lines full width extending up to the percentage without premature truncation or wrapping, and keeping tight spacing above plan and model details.
 - The keyboard shortcut to show the Dashboard page is now ⌘D / Ctrl+D (labeled "Show the Dashboard page"), and Add an account now additionally supports ⌘A / Ctrl+A alongside ⌘N / Ctrl+N.
