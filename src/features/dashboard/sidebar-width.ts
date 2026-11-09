@@ -114,7 +114,7 @@ export function sidebarMetersStack(width: number, meterFitWidth: number | null):
 }
 
 /** The title the sidebar is opened wide enough to show on one line; the elapsed time sits under it. */
-const SAMPLE_SYNC_TITLE = "All accounts synced:";
+const SAMPLE_SYNC_TITLE = "All accounts updated:";
 const SAMPLE_SYNC_ELAPSED = "just now";
 
 /** Keeps the sync copy from wrapping inside the measured copy. */
@@ -131,7 +131,7 @@ function unwrapSyncRow(clone: HTMLElement) {
 }
 
 /**
- * Sidebar width at which the sync line's title ("All accounts synced:") and the elapsed time under
+ * Sidebar width at which the sync line's title ("All accounts updated:") and the elapsed time under
  * it ("just now") each stay on one line beside the refresh button. The live label is measured too, and the wider one wins, so a longer label
  * is not cut off.
  */

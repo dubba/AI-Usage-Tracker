@@ -180,6 +180,7 @@
   }
 
   .obsidian-shell .provider-list {
+    margin-left: -7px;
     margin-right: -7px;
   }
 
@@ -419,7 +420,7 @@ html[data-sidebar-meters-stacked] .provider-summary-row .sidebar-meter {
 .provider-summary-row .provider-summary-track > span,
 .provider-summary-row .provider-summary-track > .tone-healthy {
   border-radius: 2px;
-  background: linear-gradient(90deg, var(--purple-fill), var(--purple-accent));
+  background: linear-gradient(90deg, var(--purple-fill), var(--purple-accent)) !important;
 }
 
 .provider-summary-row .provider-summary-track > .tone-warning {
@@ -449,24 +450,19 @@ html[data-sidebar-meters-stacked] .provider-summary-row .sidebar-meter {
     grid-row: 1;
   }
 
-  .provider-summary-row > .sidebar-row-alert {
-    grid-column: 1;
-    grid-row: 1;
-    align-self: start;
-    justify-self: end;
-    width: 10px;
-    height: 10px;
-    margin: -3px -3px 0 0;
-    border: 2px solid var(--obsidian-surface-low);
+  .provider-summary-row .sidebar-row-alert {
+    flex-shrink: 0;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     pointer-events: none;
   }
 
-  .provider-summary-row > .sidebar-row-alert.is-sign-in {
+  .provider-summary-row .sidebar-row-alert.is-sign-in {
     background: var(--tone-critical-text);
   }
 
-  .provider-summary-row > .sidebar-row-alert.is-stale {
+  .provider-summary-row .sidebar-row-alert.is-stale {
     background: var(--tone-warning-text);
   }
 

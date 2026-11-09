@@ -21,6 +21,13 @@ const RESET_JITTER_SECONDS: i64 = 600;
 /// falls are the provider rounding differently.
 const RESET_DROP_PERCENT: f64 = 5.0;
 
+/// How far a new reset time may sit from a whole number of windows and still be the next period
+/// of the same schedule. A sliding reset moves by minutes, which is not one of these steps.
+const RESET_STEP_SLOP_SECONDS: i64 = 6 * 3600;
+
+/// The one filled-in week and a reset the provider recorded are the same line when this close.
+const SAME_RESET_SECONDS: i64 = 24 * 3600;
+
 /// How well a day's value is known.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -45,7 +52,9 @@ pub struct DayUsage {
 pub struct Activity {
     /// One entry per day.
     pub days: Vec<DayUsage>,
-    /// Unix seconds of each weekly reset inside the range, oldest first.
+    /// Reset lines to draw, oldest first. Each is a reset time the provider named that has since
+    /// passed. A weekly limit also gets the one week before its latest reset when that week was
+    /// not named. Nothing older is filled in, and a usage drop does not add a line.
     pub resets: Vec<i64>,
 }
 
@@ -85,7 +94,6 @@ pub fn daily_usage(
 ) -> Activity {
     let day_count = day_starts.len().saturating_sub(1);
     let mut totals = vec![DayTotal::default(); day_count];
-    let mut resets = Vec::new();
 
     let mut sorted = readings.to_vec();
     sorted.sort_by_key(|reading| reading.t);
@@ -98,7 +106,6 @@ pub fn daily_usage(
             let used = f64::from(current.u);
             let (increment, from) = if starts_new_period(&previous, current, high_water) {
                 high_water = used;
-                resets.push(reset_instant(&previous, current));
                 (used, period_start(&previous, current, window_seconds))
             } else {
                 let increment = (used - high_water).max(0.0);
@@ -127,17 +134,35 @@ pub fn daily_usage(
         };
     };
 
-    if window_seconds >= WEEKLY_WINDOW_SECONDS as i64 {
-        if let Some(anchor) = current_reset.or_else(|| resets.iter().copied().max()) {
-            project_cadence(&mut resets, anchor, window_seconds, range_start, range_end);
+    // Lines are reset times the provider held still and then moved forward by a whole window.
+    // That is the reset that passed. A sliding clock, which moves by minutes, never qualifies.
+    // A weekly limit with no older named reset still gets the single week before its latest one.
+    let anchor = current_reset.or_else(|| sorted.iter().filter_map(|reading| reading.r).max());
+    let mut resets = recorded_reset_instants(&sorted, window_seconds);
+    if let Some(anchor) = anchor {
+        if window_seconds == WEEKLY_WINDOW_SECONDS as i64 {
+            let previous = anchor - window_seconds;
+            if (range_start..=range_end).contains(&previous) && !near_any(&resets, previous) {
+                resets.push(previous);
+            }
         }
-    } else {
-        resets.extend(current_reset);
+        if (range_start..=range_end).contains(&anchor) && !near_any(&resets, anchor) {
+            resets.push(anchor);
+        }
     }
-
     resets.retain(|instant| (range_start..=range_end).contains(instant));
     resets.sort_unstable();
-    resets.dedup_by(|later, earlier| *later - *earlier <= RESET_JITTER_SECONDS);
+    let mut collapsed = Vec::with_capacity(resets.len());
+    for instant in resets {
+        if collapsed
+            .last()
+            .is_some_and(|earlier: &i64| instant - earlier <= RESET_JITTER_SECONDS)
+        {
+            continue;
+        }
+        collapsed.push(instant);
+    }
+    let resets = collapsed;
 
     let days = totals
         .iter()
@@ -173,14 +198,6 @@ fn starts_new_period(previous: &Reading, current: &Reading, high_water: f64) -> 
     high_water - f64::from(current.u) >= RESET_DROP_PERCENT
 }
 
-/// When the period that ends at `previous` is taken to have ended: its reset time, when it is
-/// known and was not in the future of `current`, else when `current` showed it was over.
-fn reset_instant(previous: &Reading, current: &Reading) -> i64 {
-    previous
-        .r
-        .map_or(current.t, |reset| reset.clamp(previous.t, current.t))
-}
-
 /// Where the usage in the first reading of a period starts: the start of the period when the
 /// reading names its reset time, else the reading before.
 fn period_start(previous: &Reading, current: &Reading, window_seconds: i64) -> i64 {
@@ -197,35 +214,49 @@ fn period_start(previous: &Reading, current: &Reading, window_seconds: i64) -> i
     }
 }
 
-/// Projects a periodic reset cadence (e.g. weekly or monthly) across `[range_start, range_end]`
-/// from a known reset instant `anchor`, so scheduled resets on periods without stored readings
-/// are still displayed.
-fn project_cadence(
-    resets: &mut Vec<i64>,
-    anchor: i64,
-    step: i64,
-    range_start: i64,
-    range_end: i64,
-) {
-    if step <= 0 {
-        return;
+/// Reset times the provider named, then replaced with the next period of the same schedule.
+///
+/// Readings name the upcoming reset. While that time stays put (within jitter) it is one reset.
+/// When the next reading names a time one or more whole windows later, the time that was left
+/// behind is a reset that happened. A reset that only slides forward with the clock is not.
+fn recorded_reset_instants(readings: &[Reading], window_seconds: i64) -> Vec<i64> {
+    let mut events = Vec::new();
+    let mut named: Option<i64> = None;
+    for reading in readings {
+        let Some(reset) = reading.r else {
+            continue;
+        };
+        match named {
+            None => named = Some(reset),
+            Some(previous) if (reset - previous).abs() <= RESET_JITTER_SECONDS => {}
+            Some(previous) => {
+                if is_next_period(previous, reset, window_seconds) {
+                    events.push(previous);
+                }
+                named = Some(reset);
+            }
+        }
     }
-    let mut t = anchor;
-    while t > range_end {
-        t -= step;
+    events
+}
+
+/// `new_reset` is one or more whole windows after `previous`.
+fn is_next_period(previous: i64, new_reset: i64, window_seconds: i64) -> bool {
+    if window_seconds <= 0 || new_reset <= previous {
+        return false;
     }
-    while t >= range_start {
-        resets.push(t);
-        t -= step;
+    let delta = new_reset - previous;
+    let periods = (delta as f64 / window_seconds as f64).round() as i64;
+    if periods < 1 {
+        return false;
     }
-    let mut t = anchor + step;
-    while t < range_start {
-        t += step;
-    }
-    while t <= range_end {
-        resets.push(t);
-        t += step;
-    }
+    (delta - periods * window_seconds).abs() <= RESET_STEP_SLOP_SECONDS
+}
+
+fn near_any(instants: &[i64], instant: i64) -> bool {
+    instants
+        .iter()
+        .any(|existing| (existing - instant).abs() <= SAME_RESET_SECONDS)
 }
 
 /// Calls `visit(day, seconds)` for every day that the interval `(from, to]` overlaps, with the

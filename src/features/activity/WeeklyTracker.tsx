@@ -69,8 +69,8 @@ export function WeeklyTracker({
         <div className="activity-card-identity">
           <h2 className="activity-card-title" id={titleId}>
             <ActivityAccountTitle label={label} email={email} />
-            {limitName ? <span className="activity-card-limit">{limitName}</span> : null}
           </h2>
+          {limitName ? <span className="activity-card-limit">{limitName}</span> : null}
           {details ? <p className="activity-card-details">{details}</p> : null}
         </div>
         <div className={`activity-card-total tone-${tone}`}>

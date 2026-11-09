@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 const RESPONSIVE_CSS = readFileSync(join(__dirname, "account-card-responsive.css"), "utf8");
 const SIDEBAR_CSS = readFileSync(join(__dirname, "sidebar-list.css"), "utf8");
+const ACTIVITY_CSS = readFileSync(join(__dirname, "../features/activity/activity.css"), "utf8");
 
 describe("account card metric row spacing", () => {
   it("keeps uniform vertical padding across all intermediate rows in multi-row cards", () => {
@@ -75,5 +76,28 @@ describe("account card metric row spacing", () => {
     expect(SIDEBAR_CSS).toMatch(/\.sidebar-meter-value\.tone-warning\s*\{[^}]*color:\s*var\(--tone-warning-text\)/);
     expect(SIDEBAR_CSS).toMatch(/\.provider-summary-track\s*>\s*\.tone-warning\s*\{[^}]*background:\s*var\(--obsidian-amber\)/);
     expect(SIDEBAR_CSS).toMatch(/\.provider-summary-track\s*>\s*\.tone-critical\s*\{[^}]*background:\s*#c53131/);
+    expect(SIDEBAR_CSS).toMatch(/\.provider-summary-track\s*>\s*\.tone-healthy\s*\{[^}]*background:\s*linear-gradient\(90deg,\s*var\(--purple-fill\),\s*var\(--purple-accent\)\)\s*!important/);
+  });
+
+  it("styles mobile account card inline error replacing timestamp", () => {
+    expect(RESPONSIVE_CSS).toMatch(/\.account-card-updated-error\s*\{[\s\S]*?grid-column:\s*1\s*\/\s*-1;[\s\S]*?grid-row:\s*1;/);
+    expect(RESPONSIVE_CSS).toMatch(/\.account-card-updated\.is-error\s*\{[\s\S]*?color:\s*var\(--c-ffb4ab\);[\s\S]*?text-overflow:\s*ellipsis;/);
+    expect(RESPONSIVE_CSS).toMatch(/\.account-card-error-btn\s*\{[\s\S]*?flex-shrink:\s*0;/);
+  });
+
+  it("styles sidebar alert dot and mobile sidebar list margins", () => {
+    expect(SIDEBAR_CSS).toMatch(/\.provider-summary-row\s+\.sidebar-row-alert\s*\{[\s\S]*?width:\s*7px;[\s\S]*?height:\s*7px;[\s\S]*?border-radius:\s*50%;/);
+    expect(SIDEBAR_CSS).toMatch(/\.obsidian-shell\s+\.provider-list\s*\{[\s\S]*?margin-left:\s*-7px;[\s\S]*?margin-right:\s*-7px;/);
+  });
+
+  it("styles activity card header with aligned columns and tight title-detail spacing", () => {
+    expect(ACTIVITY_CSS).toMatch(/\.activity-card-head\s*\{[\s\S]*?grid-template-columns:\s*auto\s+minmax\(0,\s*1fr\)\s+auto;[\s\S]*?align-items:\s*start;[\s\S]*?column-gap:\s*6px;/);
+    expect(ACTIVITY_CSS).toMatch(/\.activity-card-identity\s*\{[\s\S]*?display:\s*flex;[\s\S]*?flex-direction:\s*column;/);
+    expect(ACTIVITY_CSS).toMatch(/\.activity-card-total\s*\{[\s\S]*?display:\s*flex;[\s\S]*?flex-direction:\s*column;[\s\S]*?align-items:\s*flex-end;/);
+    expect(ACTIVITY_CSS).toMatch(/\.activity-card-total-period\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?top:\s*100%;[\s\S]*?right:\s*0;/);
+    expect(ACTIVITY_CSS).toMatch(/\.activity-card-limit\s*\{[\s\S]*?margin:\s*2px 0 0;/);
+    expect(ACTIVITY_CSS).toMatch(/\.activity-card-details\s*\{[\s\S]*?margin:\s*2px 0 0;[\s\S]*?text-overflow:\s*ellipsis;[\s\S]*?white-space:\s*nowrap;/);
+    expect(ACTIVITY_CSS).toMatch(/\.activity-card-icon\s*\{[\s\S]*?width:\s*28px;[\s\S]*?height:\s*28px;[\s\S]*?margin-right:\s*6px;/);
+    expect(ACTIVITY_CSS).toMatch(/\.activity-card-email\s*\{[\s\S]*?text-overflow:\s*ellipsis;[\s\S]*?white-space:\s*nowrap;/);
   });
 });

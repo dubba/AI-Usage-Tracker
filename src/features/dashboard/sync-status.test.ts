@@ -20,17 +20,17 @@ describe("computeSyncStatus", () => {
 
   it("reports the oldest refresh, the moment every account had been synced", () => {
     const status = computeSyncStatus([account("a", 5), account("b", 2)], NOW, 15);
-    expect(status).toEqual({ tone: "fresh", label: "All accounts synced: 5m ago" });
+    expect(status).toEqual({ tone: "fresh", label: "All accounts updated: 5m ago" });
   });
 
   it("uses 'just now' inside the first minute", () => {
-    expect(computeSyncStatus([account("a", 0)], NOW, 15).label).toBe("All accounts synced: just now");
+    expect(computeSyncStatus([account("a", 0)], NOW, 15).label).toBe("All accounts updated: just now");
   });
 
   it("flags accounts older than twice the refresh interval", () => {
     const status = computeSyncStatus([account("a", 1), account("b", 31)], NOW, 15);
     expect(status.tone).toBe("stale");
-    expect(status.label).toBe("All accounts synced: 31m ago");
+    expect(status.label).toBe("All accounts updated: 31m ago");
   });
 
   it("does not flag an account just under the threshold", () => {
@@ -46,7 +46,7 @@ describe("computeSyncStatus", () => {
   it("keeps the synced wording while accounts are out of date, timed from the oldest", () => {
     const status = computeSyncStatus([account("a", 60), account("b", 90)], NOW, 15);
     expect(status.tone).toBe("stale");
-    expect(status.label).toBe("All accounts synced: 1h ago");
+    expect(status.label).toBe("All accounts updated: 1h ago");
   });
 
   it("ignores accounts that are not refreshed automatically", () => {
@@ -57,12 +57,12 @@ describe("computeSyncStatus", () => {
 
 describe("splitSyncLabel", () => {
   it("separates the elapsed time so it can wrap on its own", () => {
-    expect(splitSyncLabel("All accounts synced: 4m ago")).toEqual({ title: "All accounts synced:", elapsed: "4m ago" });
-    expect(splitSyncLabel("All accounts synced: just now")).toEqual({ title: "All accounts synced:", elapsed: "just now" });
+    expect(splitSyncLabel("All accounts updated: 4m ago")).toEqual({ title: "All accounts updated:", elapsed: "4m ago" });
+    expect(splitSyncLabel("All accounts updated: just now")).toEqual({ title: "All accounts updated:", elapsed: "just now" });
   });
 
   it("leaves labels without an elapsed time whole", () => {
     expect(splitSyncLabel("Not synced yet")).toEqual({ title: "Not synced yet", elapsed: null });
-    expect(splitSyncLabel("All accounts synced:")).toEqual({ title: "All accounts synced:", elapsed: null });
+    expect(splitSyncLabel("All accounts updated:")).toEqual({ title: "All accounts updated:", elapsed: null });
   });
 });

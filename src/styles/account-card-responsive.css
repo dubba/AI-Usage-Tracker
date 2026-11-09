@@ -512,6 +512,7 @@
     grid-template-rows: auto auto;
     gap: 4px 6px;
     align-items: center;
+    min-width: 0;
   }
   .account-card-header-meta {
     grid-column: 1;
@@ -541,6 +542,51 @@
     margin: 0;
     padding-right: 3px;
     white-space: nowrap;
+  }
+  .account-card-updated-error {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .account-card-updated-error .account-card-updated {
+    grid-column: auto;
+    grid-row: auto;
+    justify-self: auto;
+    padding-right: 0;
+  }
+  .account-card-updated.is-error {
+    color: var(--c-ffb4ab);
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .account-card-error-btn {
+    flex-shrink: 0;
+    height: 20px;
+    min-height: 20px !important;
+    padding: 0 7px !important;
+    font-size: 11px !important;
+    font-weight: 600;
+    border-radius: 4px;
+    line-height: 1;
+    position: relative;
+  }
+  .account-card-error-btn::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 44px;
+    min-height: 44px;
   }
   .account-card-action-stack .mobile-actions-dropdown {
     grid-column: 2;
@@ -1376,10 +1422,12 @@
   padding: 0 11px;
 }
 
-/* Account card bars: the same purple ramp as the sidebar bars for healthy levels,
+/* Account card and sidebar bars: the same purple ramp for healthy levels,
    while turning amber (<= 30%) and red (<= 15%) when running low like the percentage text. */
 .obsidian-shell .account-usage-metric .account-metric-track > span,
-.obsidian-shell .account-usage-metric .account-metric-track > .tone-healthy {
+.obsidian-shell .account-usage-metric .account-metric-track > .tone-healthy,
+.provider-summary-track > span,
+.provider-summary-track > .tone-healthy {
   background: linear-gradient(90deg, var(--purple-fill), var(--purple-accent)) !important;
 }
 
@@ -1532,6 +1580,11 @@
     min-height: 0 !important;
     font-size: 12px;
     color: var(--obsidian-muted);
+  }
+
+  .provider-account-card .account-card-updated.is-error {
+    color: var(--c-ffb4ab);
+    font-weight: 600;
   }
 
   /* The menu button: the desktop card's tint, at the plan pill's height (a 44px touch target remains,

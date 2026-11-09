@@ -294,7 +294,39 @@ export function AccountDashboardCard({
               ) : null}
             </div>
             <div className="account-card-action-stack">
-              <p className="account-card-updated">{updatedAtLabel}</p>
+              {signedOut ? (
+                <div className="account-card-updated-error">
+                  <p className="account-card-updated is-error" title={account.lastError ?? "This account is signed out."}>
+                    {account.lastError ?? "This account is signed out."}
+                  </p>
+                  <button
+                    type="button"
+                    className="button primary compact-button account-card-error-btn"
+                    aria-label={account.provider === "google_ai_studio" ? `Reconnect Cloud Usage for ${account.label}` : `Sign in again to ${account.label}`}
+                    disabled={cardBusy}
+                    onClick={onReconnect}
+                  >
+                    {account.provider === "google_ai_studio" ? "Reconnect" : "Sign in"}
+                  </button>
+                </div>
+              ) : account.lastError ? (
+                <div className="account-card-updated-error">
+                  <p className="account-card-updated is-error" title={account.lastError}>
+                    {account.lastError}
+                  </p>
+                  <button
+                    type="button"
+                    className="button ghost compact-button account-card-error-btn"
+                    aria-label={`Retry refreshing ${account.label}`}
+                    disabled={cardBusy || isGlobalRefresh}
+                    onClick={onRefresh}
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : (
+                <p className="account-card-updated">{updatedAtLabel}</p>
+              )}
               <div className="account-card-action-row">
               <div className="account-card-name-actions desktop-only">
               {onMove ? (
@@ -373,7 +405,7 @@ export function AccountDashboardCard({
 
       {!isCollapsed ? (
         <>
-          {signedOut ? (
+          {desktop && (signedOut ? (
             <div className="account-card-error is-signed-out">
               <span>{account.lastError ?? "This account is signed out."}</span>
               <button type="button" className="button primary compact-button" disabled={cardBusy} onClick={onReconnect}>
@@ -391,7 +423,7 @@ export function AccountDashboardCard({
                 onClick={onRefresh}
               >Retry</button>
             </div>
-          ) : null}
+          ) : null)}
 
           <div className={`account-card-metrics${windows.length > 1 ? " two-column-metrics" : ""}${windows.length > 2 ? " multi-row-metrics" : ""}`}>
             {windows.length ? windows.map((window, index) => (

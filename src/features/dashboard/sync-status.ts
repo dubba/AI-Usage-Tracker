@@ -6,14 +6,14 @@ export type SyncTone = "none" | "fresh" | "stale";
 
 export type SyncStatus = {
   tone: SyncTone;
-  /** "All accounts synced: 4m ago". Out-of-date accounts only turn the dot amber: the sidebar rows,
+  /** "All accounts updated: 4m ago". Out-of-date accounts only turn the dot amber: the sidebar rows,
    * the Action needed card and each account's chip already say which ones. */
   label: string;
 };
 
 const MIN_STALE_MINUTES = 10;
 
-const SYNCED_PREFIX = "All accounts synced:";
+const SYNCED_PREFIX = "All accounts updated:";
 
 /**
  * When the data on screen was last refreshed, and whether any of it has been
@@ -40,7 +40,7 @@ export function computeSyncStatus(accounts: Account[], now: number, refreshMinut
 }
 
 /**
- * Splits "All accounts synced: 4m ago" into the title and the elapsed time, which the sidebar shows
+ * Splits "All accounts updated: 4m ago" into the title and the elapsed time, which the sidebar shows
  * on its own line under the title. Other labels ("Not synced yet") have no elapsed part.
  */
 export function splitSyncLabel(label: string): { title: string; elapsed: string | null } {

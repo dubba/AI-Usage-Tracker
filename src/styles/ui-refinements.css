@@ -1361,7 +1361,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   }
 }
 
-/* Two lines beside Refresh all: a dot and "All accounts synced:" on the first, the elapsed time under
+/* Two lines beside Refresh all: a dot and "All accounts updated:" on the first, the elapsed time under
    the words on the second, both starting at the same left edge, and the block centered on the button.
    Out-of-date accounts only turn the dot amber, like the dots on their sidebar rows. */
 .sidebar-sync-status-text {

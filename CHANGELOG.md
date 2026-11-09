@@ -1,6 +1,23 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (10 changes)
+
+### Improved (9)
+
+- The sync status at the bottom of the sidebar now reads "All accounts updated:" instead of "All accounts synced:".
+
+- On the Usage page, the provider icon, account name, and total usage percentage align at the top of the card header with the period label below the percentage, giving the email and date/time details lines full width extending up to the percentage without premature truncation or wrapping, and keeping tight spacing above plan and model details.
+- The keyboard shortcut to show the Dashboard page is now ⌘D / Ctrl+D (labeled "Show the Dashboard page"), and Add an account now additionally supports ⌘A / Ctrl+A alongside ⌘N / Ctrl+N.
+- On phones, the Usage card icon size and padding now match the right edge symmetrically so content aligns evenly across both sides of the card.
+- In the sidebar, the alert dot now aligns directly next to the provider name on the left instead of floating over the icon.
+- On phones, the sidebar list's left padding now matches the right padding so cards sit evenly within the drawer.
+- On phones, account error messages and retry actions replace the timestamp in the header instead of rendering a separate banner below it.
+- Sidebar meter progress bars now display the same purple gradient as account cards for healthy quota levels.
+- On phones, the % Left / % Used switch now appears only on the All Accounts page, keeping individual provider pages clean.
+
+### Fixed (1)
+
+- On the Usage page, reset lines are the reset times the provider recorded. A weekly limit also shows the one week before its latest reset when that week was not recorded. Older resets are not guessed, and a usage drop does not add a line.
 
 ## v0.5.8 - 2026-11-08 (48 changes)
 

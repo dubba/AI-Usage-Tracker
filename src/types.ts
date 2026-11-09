@@ -101,7 +101,7 @@ export interface ActivityTracker {
   currentUsedPercent: number | null;
   resetsAt: string | null;
   days: ActivityDay[];
-  /** Weekly resets inside the range, as RFC 3339 instants. */
+  /** Reset lines inside the range: reset times the provider recorded, plus one previous week when that week was not recorded. */
   resets: string[];
 }
 

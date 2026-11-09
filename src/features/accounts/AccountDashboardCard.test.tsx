@@ -546,3 +546,169 @@ describe("AccountDashboardCard menu on a wide window", () => {
     app.unmount();
   });
 });
+
+describe("AccountDashboardCard error display on mobile vs desktop", () => {
+  let app: Mounted | null = null;
+  afterEach(() => {
+    app?.unmount();
+    app = null;
+  });
+
+  it("replaces the timestamp with the error message and retry button on mobile without rendering a separate banner", () => {
+    setNarrowWindow(true);
+    const onRefresh = vi.fn();
+    app = mount(
+      <AccountDashboardCard
+        pageId="all"
+        account={{
+          ...account,
+          id: "mobile-error-test",
+          lastError: "Rate limit exceeded. Try again later.",
+          lastUsage: {
+            plan: "pro",
+            email: null,
+            windows: [],
+            creditsUsd: null,
+            unlimitedCredits: false,
+            fetchedAt: new Date().toISOString(),
+            freshness: "stale",
+            source: "test",
+          },
+        }}
+        busy={new Set()}
+        onRefresh={onRefresh}
+        onReconnect={() => undefined}
+        onConnectGoogleUsage={() => undefined}
+        onRename={async () => undefined}
+        onRemove={() => undefined}
+        onNotifications={() => undefined}
+      />,
+    );
+
+    // The timestamp is replaced by the error message in the header
+    const inlineError = app.container.querySelector(".account-card-updated.is-error");
+    expect(inlineError).not.toBeNull();
+    expect(inlineError?.textContent).toBe("Rate limit exceeded. Try again later.");
+    expect(inlineError?.getAttribute("title")).toBe("Rate limit exceeded. Try again later.");
+
+    // A compact Retry button is rendered beside it
+    const retryBtn = app.container.querySelector<HTMLButtonElement>(".account-card-error-btn");
+    expect(retryBtn).not.toBeNull();
+    expect(retryBtn?.textContent).toBe("Retry");
+    click(retryBtn!);
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+
+    // The separate error box below the header is NOT rendered on mobile
+    expect(app.container.querySelector(".account-card-error")).toBeNull();
+  });
+
+  it("replaces the timestamp with signed-out message and sign-in button on mobile", () => {
+    setNarrowWindow(true);
+    const onReconnect = vi.fn();
+    app = mount(
+      <AccountDashboardCard
+        pageId="all"
+        account={{
+          ...account,
+          id: "mobile-signed-out-test",
+          authRequired: true,
+          lastError: "Session expired. Sign in again.",
+        }}
+        busy={new Set()}
+        onRefresh={() => undefined}
+        onReconnect={onReconnect}
+        onConnectGoogleUsage={() => undefined}
+        onRename={async () => undefined}
+        onRemove={() => undefined}
+        onNotifications={() => undefined}
+      />,
+    );
+
+    const inlineError = app.container.querySelector(".account-card-updated.is-error");
+    expect(inlineError).not.toBeNull();
+    expect(inlineError?.textContent).toBe("Session expired. Sign in again.");
+
+    const signInBtn = app.container.querySelector<HTMLButtonElement>(".account-card-error-btn");
+    expect(signInBtn).not.toBeNull();
+    expect(signInBtn?.textContent).toBe("Sign in");
+    click(signInBtn!);
+    expect(onReconnect).toHaveBeenCalledTimes(1);
+
+    expect(app.container.querySelector(".account-card-error")).toBeNull();
+  });
+
+  it("shows Reconnect button for Google AI Studio signed-out account on mobile", () => {
+    setNarrowWindow(true);
+    const onReconnect = vi.fn();
+    app = mount(
+      <AccountDashboardCard
+        pageId="all"
+        account={{
+          ...account,
+          id: "mobile-google-signed-out-test",
+          provider: "google_ai_studio",
+          authRequired: true,
+          lastError: null,
+        }}
+        busy={new Set()}
+        onRefresh={() => undefined}
+        onReconnect={onReconnect}
+        onConnectGoogleUsage={() => undefined}
+        onRename={async () => undefined}
+        onRemove={() => undefined}
+        onNotifications={() => undefined}
+      />,
+    );
+
+    const inlineError = app.container.querySelector(".account-card-updated.is-error");
+    expect(inlineError?.textContent).toBe("This account is signed out.");
+
+    const reconnectBtn = app.container.querySelector<HTMLButtonElement>(".account-card-error-btn");
+    expect(reconnectBtn?.textContent).toBe("Reconnect");
+    click(reconnectBtn!);
+    expect(onReconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps timestamp and renders error banner below header on desktop", () => {
+    setNarrowWindow(false);
+    const onRefresh = vi.fn();
+    app = mount(
+      <AccountDashboardCard
+        pageId="all"
+        account={{
+          ...account,
+          id: "desktop-error-test",
+          lastError: "Server temporarily unavailable.",
+          lastUsage: {
+            plan: "pro",
+            email: null,
+            windows: [],
+            creditsUsd: null,
+            unlimitedCredits: false,
+            fetchedAt: new Date().toISOString(),
+            freshness: "stale",
+            source: "test",
+          },
+        }}
+        busy={new Set()}
+        onRefresh={onRefresh}
+        onReconnect={() => undefined}
+        onConnectGoogleUsage={() => undefined}
+        onRename={async () => undefined}
+        onRemove={() => undefined}
+        onNotifications={() => undefined}
+      />,
+    );
+
+    // Desktop header keeps the timestamp
+    const updated = app.container.querySelector(".account-card-updated");
+    expect(updated).not.toBeNull();
+    expect(updated?.classList.contains("is-error")).toBe(false);
+    expect(updated?.textContent).toMatch(/^Updated /);
+
+    // Desktop renders the error banner below the header
+    const errorBanner = app.container.querySelector(".account-card-error");
+    expect(errorBanner).not.toBeNull();
+    expect(errorBanner?.textContent).toContain("Server temporarily unavailable.");
+  });
+});

@@ -52,7 +52,8 @@ pub struct ActivityTracker {
     pub resets_at: Option<String>,
     /// One entry per requested day.
     pub days: Vec<DayUsage>,
-    /// Weekly resets inside the range, as RFC 3339 instants.
+    /// Reset lines inside the range: reset times the provider recorded, plus the one week before
+    /// a weekly limit's latest reset when that week was not recorded.
     pub resets: Vec<String>,
 }
 

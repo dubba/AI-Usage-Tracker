@@ -22,9 +22,9 @@ export interface ShortcutItem {
 /** The shortcuts, in the order they are listed in Settings. `key` is the lower-case `event.key`. */
 export const SHORTCUTS: ReadonlyArray<ShortcutItem> = [
   { action: "refreshAll", key: "r", keys: ["r"], label: "Refresh all accounts" },
-  { action: "addAccount", key: "n", keys: ["n"], label: "Add an account" },
+  { action: "addAccount", key: "n", keys: ["n", "a"], label: "Add an account" },
   { action: "addGroup", key: "g", keys: ["g"], label: "Add a group" },
-  { action: "showAccounts", key: "a", keys: ["a"], label: "Show the Accounts page" },
+  { action: "showAccounts", key: "d", keys: ["d"], label: "Show the Dashboard page" },
   { action: "showActivity", key: "u", keys: ["u"], label: "Show the Usage page" },
   { action: "openSettings", key: ",", keys: [",", "s"], label: "Switch between Settings and the page you came from" },
 ];

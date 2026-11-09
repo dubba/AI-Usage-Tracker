@@ -458,7 +458,10 @@ describe("SidebarGroupRow averages and account problems", () => {
     stale.lastUsage!.freshness = "stale";
     const errored = { ...makeAccount({ id: "a2", fiveRemaining: 50 }), lastError: "Couldn't refresh" };
     let row = render([stale, errored]);
-    expect(row.querySelector(".sidebar-row-alert")!.className).toBe("sidebar-row-alert is-stale");
+    const alertDot = row.querySelector(".sidebar-row-alert")!;
+    expect(alertDot.className).toBe("sidebar-row-alert is-stale");
+    expect(alertDot.parentElement?.classList.contains("sidebar-group-title")).toBe(true);
+    expect(alertDot.nextElementSibling?.classList.contains("sidebar-group-name")).toBe(true);
     expect(row.getAttribute("aria-label")).toContain(", 2 accounts out of date, ");
     app!.unmount();
 

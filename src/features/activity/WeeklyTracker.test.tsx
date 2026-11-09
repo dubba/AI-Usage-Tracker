@@ -130,6 +130,24 @@ describe("WeeklyTracker", () => {
     expect(root.querySelector(".activity-card-limit")).toBeNull();
   });
 
+  it("places the title and limit in the identity column beside the total usage percentage", () => {
+    const root = render(
+      makeAccount({ id: "a1", label: "Antigravity", provider: "antigravity", email: "m.bahabib@yahoo.com" }),
+      makeTracker({ accountId: "a1", currentUsedPercent: 17, windowLabel: "Claude and GPT Models · Weekly Limit Remaining" }),
+    );
+    // Identity column contains the title (with email) and the limit name directly stacked
+    const identity = root.querySelector(".activity-card-identity")!;
+    expect(identity).not.toBeNull();
+    expect(identity.querySelector(".activity-card-title")!.textContent).toBe("Antigravity · m.bahabib@yahoo.com");
+    expect(identity.querySelector(".activity-card-limit")!.textContent).toBe("Claude & GPT Models");
+
+    // Total column contains the percentage and the period label below it
+    const total = root.querySelector(".activity-card-total")!;
+    expect(total).not.toBeNull();
+    expect(total.querySelector("strong")!.textContent).toBe("17%");
+    expect(total.querySelector(".activity-card-total-period")!.textContent).toBe("used this week");
+  });
+
   it("uses the email from the latest usage when the account has none saved", () => {
     const account = makeAccount({ id: "a1", label: "Grok", provider: "grok" });
     account.lastUsage!.email = "grok@example.com";

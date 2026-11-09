@@ -362,7 +362,7 @@ fn recorded_readings_become_daily_values_in_the_response() {
     assert_eq!(tracker["windowId"], "weekly");
     assert_eq!(tracker["currentUsedPercent"], 14.0);
     assert_eq!(tracker["resetsAt"], iso(reset));
-    // The weekly reset is projected across the range: Oct 17 minus 1 week is Oct 10.
+    // The next reset is Oct 17, after this week. The one line is the week before it.
     assert_eq!(tracker["resets"], json!(["2026-10-10T12:00:00Z"]));
     let days = tracker["days"].as_array().unwrap();
     assert_eq!(days.len(), 7);
@@ -479,8 +479,9 @@ fn a_thirty_day_range_spans_month_files() {
 }
 
 #[test]
-fn monthly_tracker_projects_reset_on_thirty_day_view() {
+fn monthly_tracker_does_not_invent_a_reset_before_the_recorded_one() {
     let (_root, app) = app();
+    // Oct 30 is after the Sep 16–Oct 16 range, and a month earlier is not drawn.
     let reset = at(30, 0, 0);
     app.store
         .upsert(monthly_account(10.0, reset, at(15, 11, 0)))
@@ -491,11 +492,11 @@ fn monthly_tracker_projects_reset_on_thirty_day_view() {
         .collect();
     let activity = weekly_activity(&app, &thirty, now()).unwrap();
     let tracker = &activity.trackers[0];
-    assert_eq!(tracker.resets, ["2026-09-30T00:00:00Z"]);
+    assert!(tracker.resets.is_empty());
 }
 
 #[test]
-fn unused_antigravity_tracker_projects_weekly_resets() {
+fn unused_antigravity_tracker_shows_the_previous_week() {
     let (_root, app) = app();
     let reset = at(17, 12, 0);
     let mut account = claude_at(0.0, reset, now());

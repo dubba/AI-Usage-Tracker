@@ -149,10 +149,10 @@ export function SidebarGroupRow({
           {group.provider ? <ProviderIcon provider={group.provider} /> : <UsersIcon />}
         </span>
       )}
-      {alert ? <span className={`sidebar-row-alert is-${alert.level}`} aria-hidden="true" /> : null}
       <span className="provider-summary-content">
         <span className="provider-summary-topline">
           <strong className="sidebar-group-title">
+            {alert ? <span className={`sidebar-row-alert is-${alert.level}`} aria-hidden="true" /> : null}
             <span className="sidebar-group-name">{group.title}</span>
             <span className="sidebar-group-count">{group.accounts.length}</span>
           </strong>

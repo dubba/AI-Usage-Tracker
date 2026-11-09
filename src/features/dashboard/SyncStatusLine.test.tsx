@@ -37,7 +37,7 @@ describe("SyncStatusLine", () => {
       />
     );
 
-    expect(document.body.textContent).toContain("All accounts synced:");
+    expect(document.body.textContent).toContain("All accounts updated:");
   });
 
   it("puts the title and the elapsed time in their own elements, so the time sits on its own line", () => {
@@ -49,9 +49,9 @@ describe("SyncStatusLine", () => {
       />
     );
 
-    expect(document.querySelector(".sidebar-sync-status-title")?.textContent).toBe("All accounts synced:");
+    expect(document.querySelector(".sidebar-sync-status-title")?.textContent).toBe("All accounts updated:");
     expect(document.querySelector(".sidebar-sync-status-elapsed")?.textContent).toBe("5m ago");
-    expect(document.querySelector(".sidebar-sync-status-label")?.textContent).toBe("All accounts synced: 5m ago");
+    expect(document.querySelector(".sidebar-sync-status-label")?.textContent).toBe("All accounts updated: 5m ago");
   });
 
   it("shows syncing state when a refresh is in progress", () => {

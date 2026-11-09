@@ -245,14 +245,16 @@
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: start;
-    gap: 12px;
+    column-gap: 6px;
+    min-height: 42px;
   }
 
   .activity-card-icon {
     display: grid;
     place-items: center;
-    width: 34px;
-    height: 34px;
+    width: 28px;
+    height: 28px;
+    margin-right: 6px;
     color: var(--obsidian-muted-bright);
   }
 
@@ -263,33 +265,40 @@
     object-fit: contain;
   }
 
+  @media (max-width: 860px) {
+    .activity-card-icon {
+      width: 28px;
+      height: 28px;
+    }
+  }
+
+  .activity-card-identity {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
   .activity-card-title {
     margin: 0;
     color: var(--text);
     font-size: 13px;
     font-weight: 650;
     line-height: 1.3;
-    overflow-wrap: anywhere;
-  }
-
-  /* The provider name stays the title size and the email beside it is smaller.
-     Antigravity adds the model family on the next line. */
-  .activity-card-title:has(.activity-card-limit) {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-    width: 100%;
     min-width: 0;
   }
 
   .activity-card-title-line {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     max-width: 100%;
     line-height: 1;
-    overflow-wrap: normal;
+    overflow: hidden;
+  }
+
+  .activity-card-provider {
+    flex-shrink: 0;
+    white-space: nowrap;
   }
 
   .activity-card-email {
@@ -297,9 +306,14 @@
     font-size: 11px;
     font-weight: 600;
     line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
   }
 
   .activity-card-dot {
+    flex-shrink: 0;
     /* A flex item trims a normal space, so the spaces around the dot would vanish. */
     font-size: 11px;
     font-weight: 600;
@@ -308,11 +322,14 @@
   }
 
   .activity-card-limit {
-    margin: 0;
+    margin: 2px 0 0;
     color: var(--purple-accent);
     font-size: 11px;
     font-weight: 600;
     line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .activity-card-details {
@@ -320,24 +337,42 @@
     color: var(--c-b8b1bc);
     font-size: 11px;
     line-height: 1.45;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .activity-card.is-no-weekly .activity-card-details {
+    white-space: normal;
   }
 
   .activity-card-total {
-    display: grid;
-    justify-items: end;
-    gap: 2px;
-    line-height: 1.1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    flex-shrink: 0;
+    min-width: 36px;
+    line-height: 1;
     text-align: right;
+    white-space: nowrap;
   }
 
   .activity-card-total strong {
     font-size: 24px;
     font-weight: 700;
+    line-height: 1;
   }
 
   .activity-card-total-period {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 2px;
     color: var(--obsidian-muted);
     font-size: 12px;
+    line-height: 1.2;
+    white-space: nowrap;
   }
 
   .activity-card-total.tone-healthy strong { color: var(--tone-healthy-text); }

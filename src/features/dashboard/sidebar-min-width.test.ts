@@ -104,8 +104,8 @@ describe("measureSyncLineFitWidth", () => {
     words.className = "sidebar-sync-status-words";
     const title = document.createElement("span");
     title.className = "sidebar-sync-status-title";
-    const elapsedText = liveLabel.startsWith("All accounts synced: ") ? liveLabel.slice("All accounts synced: ".length) : null;
-    title.textContent = elapsedText === null ? liveLabel : "All accounts synced:";
+    const elapsedText = liveLabel.startsWith("All accounts updated: ") ? liveLabel.slice("All accounts updated: ".length) : null;
+    title.textContent = elapsedText === null ? liveLabel : "All accounts updated:";
     words.append(title);
     if (elapsedText !== null) {
       words.append(" ");
@@ -130,7 +130,7 @@ describe("measureSyncLineFitWidth", () => {
 
   it("fits the sync line plus the sidebar padding", () => {
     // 320 row + 24 padding + 1 border + 2 buffer.
-    expect(measureSyncLineFitWidth(sidebarWithStatus("All accounts synced: just now"))).toBe(347);
+    expect(measureSyncLineFitWidth(sidebarWithStatus("All accounts updated: just now"))).toBe(347);
   });
 
   it("is sized for just now even while the live label is shorter", () => {
@@ -138,7 +138,7 @@ describe("measureSyncLineFitWidth", () => {
   });
 
   it("follows a live label that is longer than just now", () => {
-    expect(measureSyncLineFitWidth(sidebarWithStatus("All accounts synced: 12h ago"))).toBe(367);
+    expect(measureSyncLineFitWidth(sidebarWithStatus("All accounts updated: 12h ago"))).toBe(367);
   });
 
   it("returns null without a sync line", () => {

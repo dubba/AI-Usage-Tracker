@@ -101,7 +101,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .activity-card a {
 
 .activity-card[data-reorder-enabled="true"] .reorder-grip {
   left: 12px;
-  top: 33px;
+  top: 30px;
   transform: translateY(-50%);
 }
 

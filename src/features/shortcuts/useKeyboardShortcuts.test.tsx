@@ -89,16 +89,20 @@ describe("useKeyboardShortcuts", () => {
     expect(handlers.refreshAll).not.toHaveBeenCalled();
   });
 
-  it("adds an account on 'n' only; 'a' shows the Accounts page instead", () => {
+  it("adds an account on 'n' and 'a'; 'd' shows the Dashboard page", () => {
     const handlers = makeHandlers();
     mounted = mount(<Probe enabled handlers={handlers} />);
     press("n");
     expect(handlers.addAccount).toHaveBeenCalledTimes(1);
     expect(handlers.showAccounts).not.toHaveBeenCalled();
-    const event = press("a");
-    expect(handlers.addAccount).toHaveBeenCalledTimes(1);
+    const eventA = press("a");
+    expect(handlers.addAccount).toHaveBeenCalledTimes(2);
+    expect(handlers.showAccounts).not.toHaveBeenCalled();
+    expect(eventA.defaultPrevented).toBe(true);
+    const eventD = press("d");
+    expect(handlers.addAccount).toHaveBeenCalledTimes(2);
     expect(handlers.showAccounts).toHaveBeenCalledTimes(1);
-    expect(event.defaultPrevented).toBe(true);
+    expect(eventD.defaultPrevented).toBe(true);
   });
 
   it("supports ',' and 's' for openSettings", () => {
@@ -113,13 +117,13 @@ describe("useKeyboardShortcuts", () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
-  it("shows the Usage page on U and the Accounts page on A, and ignores the digits", () => {
+  it("shows the Usage page on U and the Dashboard page on D, and ignores the digits", () => {
     const handlers = makeHandlers();
     mounted = mount(<Probe enabled handlers={handlers} />);
     const event = press("u");
     expect(handlers.showActivity).toHaveBeenCalledTimes(1);
     expect(event.defaultPrevented).toBe(true);
-    press("a");
+    press("d");
     expect(handlers.showAccounts).toHaveBeenCalledTimes(1);
     press("u", {});
     expect(handlers.showActivity).toHaveBeenCalledTimes(1);

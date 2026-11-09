@@ -14,7 +14,8 @@ describe("matchShortcut", () => {
   it("uses Ctrl on Windows and Linux", () => {
     expect(matchShortcut(press("r", { ctrlKey: true }), false)).toBe("refreshAll");
     expect(matchShortcut(press("n", { ctrlKey: true }), false)).toBe("addAccount");
-    expect(matchShortcut(press("a", { ctrlKey: true }), false)).toBe("showAccounts");
+    expect(matchShortcut(press("a", { ctrlKey: true }), false)).toBe("addAccount");
+    expect(matchShortcut(press("d", { ctrlKey: true }), false)).toBe("showAccounts");
     expect(matchShortcut(press(",", { ctrlKey: true }), false)).toBe("openSettings");
     expect(matchShortcut(press("s", { ctrlKey: true }), false)).toBe("openSettings");
     expect(matchShortcut(press("g", { ctrlKey: true }), false)).toBe("addGroup");
@@ -24,7 +25,8 @@ describe("matchShortcut", () => {
   it("uses Cmd on macOS", () => {
     expect(matchShortcut(press("r", { metaKey: true }), true)).toBe("refreshAll");
     expect(matchShortcut(press("n", { metaKey: true }), true)).toBe("addAccount");
-    expect(matchShortcut(press("a", { metaKey: true }), true)).toBe("showAccounts");
+    expect(matchShortcut(press("a", { metaKey: true }), true)).toBe("addAccount");
+    expect(matchShortcut(press("d", { metaKey: true }), true)).toBe("showAccounts");
     expect(matchShortcut(press(",", { metaKey: true }), true)).toBe("openSettings");
     expect(matchShortcut(press("s", { metaKey: true }), true)).toBe("openSettings");
     expect(matchShortcut(press("r", { ctrlKey: true }), true)).toBeNull();
@@ -39,15 +41,15 @@ describe("matchShortcut", () => {
     expect(matchShortcut(press("R", { ctrlKey: true }), false)).toBe("refreshAll");
   });
 
-  it("maps U to the Usage page and A to the Accounts page", () => {
+  it("maps U to the Usage page and D to the Dashboard page", () => {
     expect(matchShortcut(press("u", { ctrlKey: true }), false)).toBe("showActivity");
     expect(matchShortcut(press("U", { ctrlKey: true }), false)).toBe("showActivity");
     expect(matchShortcut(press("u", { metaKey: true }), true)).toBe("showActivity");
-    expect(matchShortcut(press("a", { ctrlKey: true }), false)).toBe("showAccounts");
-    expect(matchShortcut(press("A", { ctrlKey: true }), false)).toBe("showAccounts");
-    expect(matchShortcut(press("a", { metaKey: true }), true)).toBe("showAccounts");
+    expect(matchShortcut(press("d", { ctrlKey: true }), false)).toBe("showAccounts");
+    expect(matchShortcut(press("D", { ctrlKey: true }), false)).toBe("showAccounts");
+    expect(matchShortcut(press("d", { metaKey: true }), true)).toBe("showAccounts");
     expect(matchShortcut(press("u"), false)).toBeNull();
-    expect(matchShortcut(press("a"), false)).toBeNull();
+    expect(matchShortcut(press("d"), false)).toBeNull();
     expect(matchShortcut(press("u", { ctrlKey: true }), true)).toBeNull();
   });
 
@@ -60,7 +62,8 @@ describe("matchShortcut", () => {
   });
 
   it("matches via physical event.code when key layout differs", () => {
-    expect(matchShortcut(press("ф", { metaKey: true, code: "KeyA" }), true)).toBe("showAccounts");
+    expect(matchShortcut(press("ф", { metaKey: true, code: "KeyA" }), true)).toBe("addAccount");
+    expect(matchShortcut(press("в", { metaKey: true, code: "KeyD" }), true)).toBe("showAccounts");
     expect(matchShortcut(press("т", { metaKey: true, code: "KeyN" }), true)).toBe("addAccount");
     expect(matchShortcut(press("ы", { metaKey: true, code: "KeyS" }), true)).toBe("openSettings");
     expect(matchShortcut(press("?", { metaKey: true, code: "Comma" }), true)).toBe("openSettings");

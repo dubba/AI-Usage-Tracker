@@ -95,7 +95,9 @@ fn a_reading_after_the_reset_time_that_still_names_it_is_not_a_reset() {
         1,
     );
     assert_eq!(percents(&activity), [Some(1.0)]);
-    assert!(activity.resets.is_empty());
+    // The provider still names this reset, and it falls in the chart, so the line stays. Usage is
+    // not started over, because the window has not rolled.
+    assert_eq!(activity.resets, [reset]);
 }
 
 #[test]
@@ -109,8 +111,9 @@ fn a_fall_of_five_points_without_a_reset_time_starts_a_new_period() {
         1,
     );
     assert_eq!(percents(&activity), [Some(14.0)]);
-    // The reset is placed at the reading that showed it.
-    assert_eq!(activity.resets, [BASE + 3 * HOUR]);
+    // The drop starts a new period for the day totals. It is not a reset the provider recorded,
+    // so the chart draws no line.
+    assert!(activity.resets.is_empty());
 }
 
 #[test]
@@ -145,8 +148,8 @@ fn reset_times_a_few_minutes_apart_are_the_same_reset() {
 #[test]
 fn a_sliding_future_reset_time_on_an_unused_account_is_not_a_reset() {
     // Providers like Antigravity dynamically report `resetTime = now + 7 days` while quota is
-    // unused. The sliding reset time moves forward on each refresh, but since the scheduled reset
-    // is in the future and usage has not dropped, no resets or periods are created.
+    // unused. The sliding time does not start a new period. The chart still marks one week before
+    // the latest advertised reset, and nothing earlier.
     let activity = usage(
         &[
             reading(BASE + HOUR, 0.0, Some(BASE + HOUR + WEEK)),
@@ -156,7 +159,9 @@ fn a_sliding_future_reset_time_on_an_unused_account_is_not_a_reset() {
         1,
     );
     assert_eq!(percents(&activity), [Some(0.0)]);
-    assert!(activity.resets.is_empty());
+    // The latest advertised reset is a week ahead, outside this day. The one line is that instant
+    // minus a week, which is the last sample. No earlier line is added.
+    assert_eq!(activity.resets, [BASE + HOUR + 1800]);
 }
 
 #[test]
@@ -171,7 +176,7 @@ fn usage_starting_after_a_sliding_reset_time_counts_as_usage_not_a_reset() {
         1,
     );
     assert_eq!(percents(&activity), [Some(10.0)]);
-    assert!(activity.resets.is_empty());
+    assert_eq!(activity.resets, [BASE + HOUR + 1800]);
 }
 
 #[test]
@@ -291,6 +296,8 @@ fn the_first_reading_of_a_new_period_counts_from_the_start_of_the_period() {
     // The 8% was used after midnight, so none of it lands on day one.
     assert_eq!(percents(&activity), [None, Some(8.0)]);
     assert_eq!(qualities(&activity)[1], DayQuality::Approximate);
+    // The provider named the reset an hour before midnight. The week implied by the later reset
+    // is that same line.
     assert_eq!(activity.resets, [day_two - HOUR]);
 }
 
@@ -355,12 +362,15 @@ fn resets_are_listed_inside_the_range_with_the_current_one() {
         WEEK,
         Some(upcoming),
     );
+    // The provider named `first`, then a reset one week later. Both `first` and the current reset
+    // fall in these two days.
     assert_eq!(activity.resets, [first, upcoming]);
 
-    // Outside the range, or the same moment twice, they are not listed.
+    // A reset past the end of the range is not drawn, and neither is the week before it when that
+    // week is also outside.
     let outside = daily_usage(&[], &days(2), WEEK, Some(BASE + 5 * DAY));
     assert!(outside.resets.is_empty());
-    let twice = daily_usage(
+    let current = daily_usage(
         &[
             reading(BASE + HOUR, 80.0, Some(first)),
             reading(BASE + 3 * HOUR, 2.0, Some(first + WEEK)),
@@ -369,44 +379,106 @@ fn resets_are_listed_inside_the_range_with_the_current_one() {
         WEEK,
         Some(first + 60),
     );
-    assert_eq!(twice.resets, [first]);
+    // The current reset is a minute after the one the provider already named.
+    assert_eq!(current.resets, [first]);
 }
 
 #[test]
-fn weekly_resets_project_cadence_across_the_whole_range() {
-    // An upcoming reset 6 days in the future projects weekly resets backwards across the 30 days,
-    // even when no readings were recorded for those earlier weeks.
-    let upcoming = BASE + 28 * DAY + 5 * HOUR;
+fn a_weekly_chart_keeps_the_latest_reset_and_the_one_week_before_it() {
+    // Both fall inside the 30 days. Weeks older than that are not filled in.
+    let upcoming = BASE + 20 * DAY;
     let activity = daily_usage(&[], &days(30), WEEK, Some(upcoming));
-    assert_eq!(
-        activity.resets,
-        [
-            upcoming - 4 * WEEK,
-            upcoming - 3 * WEEK,
-            upcoming - 2 * WEEK,
-            upcoming - WEEK,
-            upcoming,
-        ]
-    );
+    assert_eq!(activity.resets, [upcoming - WEEK, upcoming]);
 }
 
 #[test]
-fn weekly_resets_project_cadence_on_a_seven_day_range() {
-    // On a 7 day chart, a reset occurring tomorrow projects backward to show the reset that
-    // happened earlier in the 7 day window.
+fn a_weekly_chart_shows_only_the_previous_week_when_nothing_earlier_was_recorded() {
+    // No stored reset times. The next reset is one day past the chart, so the only line is the
+    // week before it. Nothing older is invented.
+    let upcoming = BASE + 31 * DAY;
+    let activity = daily_usage(&[], &days(30), WEEK, Some(upcoming));
+    assert_eq!(activity.resets, [upcoming - WEEK]);
+}
+
+#[test]
+fn provider_recorded_resets_stay_on_the_chart() {
+    // The provider named a reset, held it, then named the next week, four times. Each of those
+    // times is inside the 30 days. The fifth, the upcoming one, is past the end.
+    let first = BASE + 4 * DAY;
+    let second = first + WEEK;
+    let third = second + WEEK;
+    let fourth = third + WEEK;
+    let upcoming = fourth + WEEK;
+    let activity = daily_usage(
+        &[
+            reading(first - 2 * HOUR, 40.0, Some(first)),
+            reading(first - HOUR, 40.0, Some(first + 60)),
+            reading(second - HOUR, 5.0, Some(second)),
+            reading(third - HOUR, 6.0, Some(third)),
+            reading(fourth - HOUR, 7.0, Some(fourth)),
+            reading(fourth + HOUR, 8.0, Some(upcoming)),
+        ],
+        &days(30),
+        WEEK,
+        Some(upcoming),
+    );
+    assert_eq!(activity.resets, [first, second, third, fourth]);
+}
+
+#[test]
+fn weekly_resets_on_a_seven_day_range_show_the_previous_week() {
+    // The next reset is just after these seven days, so the line is the one a week earlier.
     let upcoming_tomorrow = BASE + 7 * DAY + 2 * HOUR;
     let activity = daily_usage(&[], &days(7), WEEK, Some(upcoming_tomorrow));
     assert_eq!(activity.resets, [upcoming_tomorrow - WEEK]);
 }
 
 #[test]
-fn monthly_resets_project_cadence_across_a_thirty_day_range() {
-    // A monthly reset occurring in 23 days projects backward to place the monthly reset that
-    // occurred 30 days earlier inside the 30-day view.
-    let month_step = 30 * DAY;
+fn a_usage_drop_does_not_add_a_reset_line() {
+    let scheduled_upcoming = BASE + 8 * DAY + 3 * HOUR;
+    let scheduled_past = scheduled_upcoming - WEEK;
+    let activity = daily_usage(
+        &[
+            reading(BASE + DAY - 2 * HOUR, 80.0, None),
+            reading(BASE + DAY - HOUR, 5.0, None),
+        ],
+        &days(7),
+        WEEK,
+        Some(scheduled_upcoming),
+    );
+    assert_eq!(activity.resets, [scheduled_past]);
+}
+
+#[test]
+fn a_gap_in_a_sliding_reset_does_not_add_extra_lines() {
+    // The first sample's advertised reset is a week later. After a long gap the provider still
+    // says the reset is a week ahead. The chart keeps that latest reset and the one week before
+    // it, not a line at the stale advertised time from before the gap.
+    let latest = BASE + 20 * DAY + WEEK;
+    let activity = daily_usage(
+        &[
+            reading(BASE + DAY, 0.0, Some(BASE + DAY + WEEK)),
+            reading(BASE + 20 * DAY, 0.0, Some(latest)),
+        ],
+        &days(30),
+        WEEK,
+        Some(latest),
+    );
+    assert_eq!(activity.resets, [latest - WEEK, latest]);
+}
+
+#[test]
+fn a_monthly_chart_does_not_invent_an_earlier_reset() {
+    // The recorded monthly reset is after the 30 days. A line 30 days earlier would be a guess,
+    // and it is more than a week before the recorded reset, so the chart stays empty.
     let upcoming = BASE + 53 * DAY + 2 * HOUR;
-    let activity = daily_usage(&[], &days(30), month_step, Some(upcoming));
-    assert_eq!(activity.resets, [upcoming - month_step]);
+    let activity = daily_usage(&[], &days(30), 30 * DAY, Some(upcoming));
+    assert!(activity.resets.is_empty());
+
+    // The recorded reset itself is drawn when it falls inside the range. The month before it is not.
+    let inside = BASE + 10 * DAY;
+    let activity = daily_usage(&[], &days(30), 30 * DAY, Some(inside));
+    assert_eq!(activity.resets, [inside]);
 }
 
 #[test]

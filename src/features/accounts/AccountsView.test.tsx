@@ -369,6 +369,21 @@ describe("AccountsView L / U switch", () => {
     expect(row.lastElementChild?.classList.contains("usage-display-toggle")).toBe(true);
   });
 
+  it("hides the % Left / % Used switch on a phone when viewing a provider group", () => {
+    setNarrowWindow(true);
+    app = renderView({
+      onToggleSidebar: () => undefined,
+      selectedGroup: {
+        id: "provider:anthropic",
+        type: "provider",
+        title: "Claude",
+        provider: "anthropic",
+        accounts: [account],
+      },
+    });
+    expect(document.querySelector(".dashboard-title-row .usage-display-toggle")).toBeNull();
+  });
+
   it("spells the options out on a phone, which shows no tooltip to explain L and U", () => {
     setNarrowWindow(true);
     app = renderView({ onToggleSidebar: () => undefined });
