@@ -18,14 +18,14 @@ function canonicalWindowId(window: UsageWindow): AlertWindowId | null {
   return window.kind;
 }
 
-function windowLabel(windowId: AlertWindowId): string {
+function windowLabel(windowId: AlertWindowId): { name: string; suffix: string } {
   switch (windowId) {
     case "five_hour":
-      return "5-HOUR";
+      return { name: "5-Hour", suffix: "Limit" };
     case "weekly":
-      return "7-DAY";
+      return { name: "7-Day", suffix: "Limit" };
     case "monthly":
-      return "30-DAY";
+      return { name: "30-Day", suffix: "Limit" };
   }
 }
 
@@ -112,6 +112,7 @@ export function AccountAlertModal({
           <div className="alert-window-list">
             {availableWindows.map((windowId) => {
               const setting = settings.find((candidate) => candidate.windowId === windowId) ?? defaultSetting(windowId);
+              const label = windowLabel(windowId);
               return (
                 <div className={`alert-window-row ${setting.enabled ? "enabled" : ""}`} key={windowId}>
                   <label className="alert-window-toggle">
@@ -122,7 +123,12 @@ export function AccountAlertModal({
                       onChange={(event) => updateSetting(windowId, { enabled: event.target.checked })}
                     />
                     <span className="alert-checkbox" />
-                    <span><strong>{windowLabel(windowId)}</strong></span>
+                    <span>
+                      <strong className="alert-window-label">
+                        <span className="alert-window-name">{label.name}</span>
+                        <span className="alert-window-suffix">{label.suffix}</span>
+                      </strong>
+                    </span>
                   </label>
                   <div className="alert-threshold">
                     <span>At or below</span>

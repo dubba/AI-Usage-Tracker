@@ -214,13 +214,29 @@ html[data-sidebar-toggle-stacked] .provider-sidebar-heading-stack .usage-display
   border-right: 0;
 }
 
-/* The phone title row's % Left / % Used switch: words instead of L / U, so the segments size to
-   their label and are as tall as the other title-row controls. */
+/* The phone title row's % Left / % Used switch. The same inset pill as the Usage page's 7D / 30D
+   switch: 2px of track around 30px options, 9px outer corners and 6px option corners. */
+.provider-window-toggle.is-words {
+  gap: 2px;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--obsidian-surface-low);
+}
+
 .provider-window-toggle.is-words button {
   width: auto;
-  height: 32px;
-  padding: 0 10px;
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--obsidian-muted);
+  font-size: 12px;
+  font-weight: 600;
   white-space: nowrap;
+}
+
+.provider-window-toggle.is-words button.active {
+  color: var(--purple-on-fill);
 }
 
 /* Same solid purple fill and white label as the + Account / + Group primary buttons. */
@@ -2664,9 +2680,25 @@ select.text-input option,
   color: var(--c-ffffff) !important;
 }
 
+/* The menu hugs the option. The space between "remaining" and the check equals the
+   space after the check: the item's right padding plus the menu's 6px padding. */
+.alert-threshold .custom-dropdown-menu {
+  width: max-content !important;
+  min-width: 0 !important;
+  max-width: calc(100vw - 32px);
+}
+
 .alert-threshold .custom-dropdown-item {
-  padding: 6px 10px !important;
+  width: 100%;
+  box-sizing: border-box;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 6px 6px 6px 10px !important;
   color: var(--c-ded8df) !important;
+}
+
+.alert-threshold .custom-dropdown-item-content {
+  flex: 0 0 auto;
 }
 
 .alert-threshold .custom-dropdown-item-label {
@@ -3701,6 +3733,14 @@ select.text-input option,
   .provider-window-toggle button:not(.active):focus,
   .provider-window-toggle button:not(.active):focus-visible {
     background: transparent !important;
+  }
+
+  /* The spelled-out switch matches 7D / 30D, whose selected label is --purple-on-fill, not pure white. */
+  .provider-window-toggle.is-words button.active,
+  .provider-window-toggle.is-words button.active:hover,
+  .provider-window-toggle.is-words button.active:focus,
+  .provider-window-toggle.is-words button.active:focus-visible {
+    color: var(--purple-on-fill) !important;
   }
 }
 

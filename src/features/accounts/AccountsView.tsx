@@ -10,13 +10,11 @@ import {
   CheckCircleIcon,
   ClockIcon,
   CloseIcon,
-  DevicesIcon,
   EditIcon,
-  PlusIcon,
   TrashIcon,
   UsersIcon,
 } from "../../shared/ui/icons";
-import { ProviderIcon } from "../../shared/ui/ProviderIcon";
+import { DASHBOARD_EMPTY_ACCOUNT_DESCRIPTION, EmptyAccountPanel } from "./EmptyAccountPanel";
 import {
   accountNeedsAttention,
   displayAccountLabel,
@@ -38,14 +36,6 @@ import { usePullToRefresh } from "../dashboard/usePullToRefresh";
 import { PullToRefreshIndicator } from "../dashboard/PullToRefreshIndicator";
 
 const ATTENTION_HINT_ID = "attention-filter-hint";
-
-/** First-run cards. Brand on top, product underneath — Google's product is Antigravity, not AI Studio. */
-const EMPTY_STATE_PROVIDERS: { provider: Provider; brand: string; product: string }[] = [
-  { provider: "anthropic", brand: "Anthropic", product: "Claude" },
-  { provider: "antigravity", brand: "Google", product: "Antigravity" },
-  { provider: "openai", brand: "OpenAI", product: "ChatGPT" },
-  { provider: "grok", brand: "xAI", product: "Grok" },
-];
 
 function dashboardDescription(group: SidebarGroup, accountCount: number): string {
   const count = formatCount(accountCount, ACCOUNT_FORMS);
@@ -315,84 +305,42 @@ export function AccountsView(props: {
             onMove={canReorder ? (delta) => moveAccount(account, delta) : undefined}
             signInUnprotected={props.unprotectedAccountIds?.includes(account.id) ?? false}
           />
-        )) : (
+        )) : showAttentionOnly || props.selectedGroup.type === "bucket" ? (
           <section className="welcome-panel mockup-empty-panel">
             <UsersIcon />
             <h2>
               {showAttentionOnly
                 ? "No accounts need attention"
-                : props.selectedGroup.type === "bucket"
-                  ? `No accounts in ${props.selectedGroup.title}`
-                  : "Connect an AI Account"}
+                : `No accounts in ${props.selectedGroup.title}`}
             </h2>
             <p>
               {showAttentionOnly
                 ? "All accounts in this view are healthy and reporting live quota."
-                : props.selectedGroup.type === "bucket"
-                  ? "This group is still saved. Add accounts to it, or delete the group."
-                  : "Add an account to begin monitoring its usage limits."}
+                : "This group is still saved. Add accounts to it, or delete the group."}
             </p>
             <div className="empty-group-actions">
               {showAttentionOnly ? (
                 <button type="button" className="button primary" onClick={() => setShowAttentionOnly(false)}>
                   Show all accounts
                 </button>
-              ) : (
+              ) : props.selectedGroup.bucket ? (
                 <>
-                  {props.selectedGroup.type === "bucket" && props.selectedGroup.bucket ? (
-                    <>
-                      <button type="button" className="button primary edit-bucket-empty-btn" onClick={() => props.onEditBucket?.(props.selectedGroup.bucket!)}>
-                        <EditIcon /><span className="edit-bucket-label">Edit Group</span>
-                      </button>
-                      <button type="button" className="button ghost bucket-delete-button" onClick={() => props.onDeleteBucket?.(props.selectedGroup.bucket!)}>
-                        <TrashIcon />Delete Group
-                      </button>
-                    </>
-                  ) : null}
-                  {props.selectedGroup.type !== "bucket" ? (
-                    <div className="empty-provider-grid">
-                      {EMPTY_STATE_PROVIDERS.map(({ provider, brand, product }) => (
-                        <button
-                          key={provider}
-                          type="button"
-                          className="empty-provider-card"
-                          aria-label={`Add ${brand} ${product}`}
-                          onClick={() => props.onAdd(provider)}
-                        >
-                          <span className={`empty-provider-mark provider-${provider}`}>
-                            <ProviderIcon provider={provider} />
-                          </span>
-                          <span className="empty-provider-brand">{brand}</span>
-                          <span className="empty-provider-product">{product}</span>
-                        </button>
-                      ))}
-                      <div className="empty-provider-actions">
-                        <button
-                          type="button"
-                          className="button ghost empty-provider-other"
-                          aria-label="Other Provider"
-                          onClick={() => props.onAdd("opencode_go")}
-                        >
-                          <PlusIcon />
-                          <span>Other</span>
-                        </button>
-                        {props.onOpenPairing ? (
-                          <button
-                            type="button"
-                            className="button ghost empty-provider-other"
-                            onClick={props.onOpenPairing}
-                          >
-                            <DevicesIcon className="settings-update-action-icon" />
-                            <span>Link Devices</span>
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-                  ) : null}
+                  <button type="button" className="button primary edit-bucket-empty-btn" onClick={() => props.onEditBucket?.(props.selectedGroup.bucket!)}>
+                    <EditIcon /><span className="edit-bucket-label">Edit Group</span>
+                  </button>
+                  <button type="button" className="button ghost bucket-delete-button" onClick={() => props.onDeleteBucket?.(props.selectedGroup.bucket!)}>
+                    <TrashIcon />Delete Group
+                  </button>
                 </>
-              )}
+              ) : null}
             </div>
           </section>
+        ) : (
+          <EmptyAccountPanel
+            description={DASHBOARD_EMPTY_ACCOUNT_DESCRIPTION}
+            onAdd={props.onAdd}
+            onOpenPairing={props.onOpenPairing}
+          />
         )}
       </section>
       </div>

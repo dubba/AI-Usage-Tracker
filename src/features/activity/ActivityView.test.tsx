@@ -88,8 +88,10 @@ describe("ActivityView", () => {
     const { root, onAddAccount } = renderView([]);
     await settle();
     expect(root.textContent).toContain("No accounts yet");
-    click(select(root, "button").find((candidate) => candidate.textContent === "Add account")!);
-    expect(onAddAccount).toHaveBeenCalledTimes(1);
+    expect(root.textContent).toContain("Add an account to see how much of its weekly limit you use each day.");
+    expect(select(root, ".empty-provider-card")).toHaveLength(4);
+    click(root.querySelector('button[aria-label="Add Anthropic Claude"]')!);
+    expect(onAddAccount).toHaveBeenCalledWith("anthropic");
     expect(api.getWeeklyActivity).not.toHaveBeenCalled();
   });
 

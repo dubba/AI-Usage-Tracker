@@ -318,7 +318,8 @@ export default function App() {
           accounts={activityAccounts}
           onToggleSidebar={nav.toggleSidebar}
           sidebarOpen={sidebarOpen}
-          onAddAccount={() => openAdd()}
+          onAddAccount={(provider) => openAdd(undefined, provider)}
+          onOpenPairing={() => setPairingOpen(true)}
           onReconnect={(account) => account.provider === "google_ai_studio" ? setGoogleUsageAccount(account) : openAdd(account)}
           onRefresh={accounts.length === 0 ? undefined : handleRefreshUsage}
         />

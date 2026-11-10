@@ -134,7 +134,11 @@ export function Sidebar({
             </button>
           }
         />
-        {accountGroups.map((group, index) => renderRow(group, index, accountGroups))}
+        {accountGroups.length === 0 ? (
+          <p className="sidebar-section-empty">No accounts yet</p>
+        ) : (
+          accountGroups.map((group, index) => renderRow(group, index, accountGroups))
+        )}
         <SidebarSectionHeader
           title="Groups"
           action={

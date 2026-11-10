@@ -140,28 +140,70 @@
     display: grid;
     justify-items: center;
     gap: 8px;
-    max-width: 420px;
-    margin: 48px auto 0;
+    max-width: 680px;
+    width: 100%;
+    /* 24px from the header rule to the icon, and 24px from the heading to the card. The scroll
+       area already pads 10px on a phone and 18px on a wide window, so the margin makes up the rest. */
+    margin: 14px auto 0;
     text-align: center;
   }
 
-  .activity-message svg {
+  @media (min-width: 861px) {
+    .activity-message {
+      margin-top: 6px;
+    }
+  }
+
+  .activity-message > svg {
     width: 36px !important;
     height: 36px !important;
     color: var(--purple-accent);
   }
 
-  .activity-message h2 {
-    margin: 4px 0 0;
+  .activity-message > h2 {
+    margin: 0;
     font-size: 16px;
     font-weight: 650;
   }
 
-  .activity-message p {
+  .activity-message > p {
     margin: 0 0 8px;
     color: var(--obsidian-muted);
     font-size: 14px;
     line-height: 1.5;
+  }
+
+  .activity-message .mockup-empty-panel {
+    width: 100%;
+    justify-self: stretch;
+    /* 8px grid gap plus this margin is the 24px under the heading. */
+    margin-top: 16px;
+  }
+
+  /* On a phone the Dashboard cards are 70px: `.summary-strip > .summary-card` (min-height 70px)
+     beats the later 66px `.summary-card` rule. The two rows, the 10px gap, the Next reset card
+     (70.5px once its line box is counted), and the strip's 10px margin are 160.5px. The icon and
+     heading take 64px of that, so 48.25px above the icon and below the heading put Connect an
+     AI Account on the same line, with equal space on both sides of "No accounts yet". */
+  @media (max-width: 860px) {
+    .activity-message {
+      margin-top: 0;
+      gap: 0;
+    }
+
+    .activity-message > svg {
+      margin-top: 48.25px;
+      margin-bottom: 8px;
+    }
+
+    .activity-message > h2 {
+      margin-bottom: 48.25px;
+      line-height: 20px;
+    }
+
+    .activity-message .mockup-empty-panel {
+      margin-top: 0;
+    }
   }
 
   .activity-note {

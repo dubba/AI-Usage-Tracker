@@ -3,8 +3,9 @@ import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
 import { BarChartIcon, CloseIcon } from "../../shared/ui/icons";
 import { PullToRefreshIndicator } from "../dashboard/PullToRefreshIndicator";
 import { usePullToRefresh } from "../dashboard/usePullToRefresh";
+import { EmptyAccountPanel } from "../accounts/EmptyAccountPanel";
 import { useReorderHint } from "../accounts/useReorderHint";
-import type { Account, ActivityTracker, UntrackedAccount } from "../../types";
+import type { Account, ActivityTracker, Provider, UntrackedAccount } from "../../types";
 import { ACTIVITY_PERIODS, ACTIVITY_PERIOD_DAYS, type ActivityPeriod } from "./activity-period";
 import { NoWeeklyLimitCard } from "./NoWeeklyLimitCard";
 import { useActivityPeriod } from "./useActivityPeriod";
@@ -81,6 +82,7 @@ export function ActivityView({
   onToggleSidebar,
   sidebarOpen,
   onAddAccount,
+  onOpenPairing,
   onReconnect,
   onRefresh,
 }: {
@@ -88,7 +90,9 @@ export function ActivityView({
   accounts: readonly Account[];
   onToggleSidebar?: () => void;
   sidebarOpen?: boolean;
-  onAddAccount: () => void;
+  /** Opens add-account for a provider. With no provider, the chooser starts on its default. */
+  onAddAccount: (provider?: Provider) => void;
+  onOpenPairing?: () => void;
   onReconnect?: (account: Account) => void;
   onRefresh?: () => void | Promise<void>;
 }) {
@@ -155,10 +159,7 @@ export function ActivityView({
         <section className="activity-message" aria-label="No accounts">
           <BarChartIcon />
           <h2>No accounts yet</h2>
-          <p>Add an account to see how much of its weekly limit you use each day.</p>
-          <button type="button" className="button primary" onClick={onAddAccount}>
-            Add account
-          </button>
+          <EmptyAccountPanel onAdd={onAddAccount} onOpenPairing={onOpenPairing} />
         </section>
       );
     }

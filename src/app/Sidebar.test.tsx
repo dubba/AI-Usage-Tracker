@@ -149,9 +149,16 @@ describe("Sidebar", () => {
       expect(mounted!.container.querySelector(".usage-display-toggle")).toBeNull();
     });
 
+    it("says so when there are no accounts and no custom groups", () => {
+      render({ section: "accounts", topBar: true, groups: [] });
+      const empties = [...mounted!.container.querySelectorAll(".sidebar-section-empty")].map((el) => el.textContent);
+      expect(empties).toEqual(["No accounts yet", "No groups yet"]);
+    });
+
     it("says so when there are no custom groups", () => {
       render({ section: "accounts", topBar: true, groups: [mixed[1]] });
-      expect(mounted!.container.querySelector(".sidebar-section-empty")?.textContent).toBe("No groups yet");
+      const empties = [...mounted!.container.querySelectorAll(".sidebar-section-empty")].map((el) => el.textContent);
+      expect(empties).toEqual(["No groups yet"]);
     });
   });
 });

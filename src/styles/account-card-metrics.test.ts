@@ -100,4 +100,9 @@ describe("account card metric row spacing", () => {
     expect(ACTIVITY_CSS).toMatch(/\.activity-card-icon\s*\{[\s\S]*?width:\s*28px;[\s\S]*?height:\s*28px;[\s\S]*?margin-right:\s*6px;/);
     expect(ACTIVITY_CSS).toMatch(/\.activity-card-email\s*\{[\s\S]*?text-overflow:\s*ellipsis;[\s\S]*?white-space:\s*nowrap;/);
   });
+
+  it("styles mobile notification modal to stack limit suffix onto the next line", () => {
+    expect(RESPONSIVE_CSS).toMatch(/\.alert-window-label\s*\{[\s\S]*?display:\s*flex;[\s\S]*?flex-direction:\s*column;[\s\S]*?align-items:\s*flex-start;/);
+    expect(RESPONSIVE_CSS).toMatch(/\.alert-window-suffix\s*\{[\s\S]*?display:\s*block;/);
+  });
 });

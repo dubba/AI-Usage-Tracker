@@ -1,12 +1,14 @@
 # Changelog
 
-## Unreleased (12 changes)
+## Unreleased (16 changes)
 
-### Improved (11)
+### Improved (15)
 
 - The sync status at the bottom of the sidebar now reads "All accounts updated:" instead of "All accounts synced:".
 - On the Usage page, each reset line shows how full that week was, just above the line.
 - On the Usage page, a day's tooltip says how much was used, such as "Nov 1: 63% used". An estimated day adds "Estimated bc data didn't refresh" and, on the next line, "for part of this day".
+- In Usage Notifications, the limits are named "5-Hour Limit", "7-Day Limit", and "30-Day Limit", and on phones "Limit" always sits on its own line below the window duration. The threshold menu is only as wide as its options, a hovered option highlights the whole row, and the check mark has the same space on both sides.
+- On the Usage page, an empty account list offers the same choices as the Dashboard — Claude, Antigravity, ChatGPT, Grok, Other, and Link Devices — instead of one Add account button. "No accounts yet" has equal space above and below it, and the picker starts at the same height as on the Dashboard. The Usage page describes it as "Add an account to see how much of its weekly limit you use each day." The Dashboard describes it as "Add an account to begin monitoring its usage limits."
 
 - On the Usage page, the provider icon, account name, and total usage percentage align at the top of the card header with the period label below the percentage, giving the email and date/time details lines full width extending up to the percentage without premature truncation or wrapping, and keeping tight spacing above plan and model details.
 - The keyboard shortcut to show the Dashboard page is now ⌘D / Ctrl+D (labeled "Show the Dashboard page"), and Add an account now additionally supports ⌘A / Ctrl+A alongside ⌘N / Ctrl+N.
@@ -16,6 +18,8 @@
 - On phones, account error messages and retry actions replace the timestamp in the header instead of rendering a separate banner below it.
 - Sidebar meter progress bars now display the same purple gradient as account cards for healthy quota levels.
 - On phones, the % Left / % Used switch now appears only on the All Accounts page, keeping individual provider pages clean.
+- In the sidebar, an empty Accounts list says "No accounts yet", the same way an empty Groups list says "No groups yet".
+- On phones, the Dashboard's % Left / % Used switch matches the Usage page's 7D / 30D switch: the same height, rounded track, and inset selected option.
 
 ### Fixed (1)
 

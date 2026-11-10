@@ -85,6 +85,8 @@ describe("AccountsView empty dashboard", () => {
     const onAdd = vi.fn();
     app = renderView({ onOpenPairing, onAdd });
     expect(document.body.textContent).toContain("Connect an AI Account");
+    expect(document.body.textContent).toContain("Add an account to begin monitoring its usage limits.");
+    expect(document.body.textContent).not.toContain("Add an account to see how much of its weekly limit you use each day.");
     expect(document.querySelector('button[aria-label="Other Provider"]')).not.toBeNull();
     expect(document.body.textContent).toContain("Link Devices");
     const grid = document.querySelector(".empty-provider-grid");
