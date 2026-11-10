@@ -182,9 +182,11 @@
 
   /* On a phone the Dashboard cards are 70px: `.summary-strip > .summary-card` (min-height 70px)
      beats the later 66px `.summary-card` rule. The two rows, the 10px gap, the Next reset card
-     (70.5px once its line box is counted), and the strip's 10px margin are 160.5px. The icon and
-     heading take 64px of that, so 48.25px above the icon and below the heading put Connect an
-     AI Account on the same line, with equal space on both sides of "No accounts yet". */
+     (70.5px once its line box is counted), and the strip's 10px margin are 160.5px. The scroll
+     area adds 10px of top padding, so 170.5px from the header rule to the card. The icon and
+     heading take 64px, leaving 106.5px of space. Splitting that evenly (53.25px each) centers
+     "No accounts yet" and its icon with equal space above and below, keeping Connect an AI Account
+     on the same line as the Dashboard. */
   @media (max-width: 860px) {
     .activity-message {
       margin-top: 0;
@@ -192,12 +194,12 @@
     }
 
     .activity-message > svg {
-      margin-top: 48.25px;
+      margin-top: 43.25px;
       margin-bottom: 8px;
     }
 
     .activity-message > h2 {
-      margin-bottom: 48.25px;
+      margin-bottom: 53.25px;
       line-height: 20px;
     }
 

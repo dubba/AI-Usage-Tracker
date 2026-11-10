@@ -105,4 +105,9 @@ describe("account card metric row spacing", () => {
     expect(RESPONSIVE_CSS).toMatch(/\.alert-window-label\s*\{[\s\S]*?display:\s*flex;[\s\S]*?flex-direction:\s*column;[\s\S]*?align-items:\s*flex-start;/);
     expect(RESPONSIVE_CSS).toMatch(/\.alert-window-suffix\s*\{[\s\S]*?display:\s*block;/);
   });
+
+  it("centers the empty activity message on mobile with equal gap above and below", () => {
+    expect(ACTIVITY_CSS).toMatch(/\.activity-message > svg\s*\{[\s\S]*?margin-top:\s*43\.25px;/);
+    expect(ACTIVITY_CSS).toMatch(/\.activity-message > h2\s*\{[\s\S]*?margin-bottom:\s*53\.25px;/);
+  });
 });
