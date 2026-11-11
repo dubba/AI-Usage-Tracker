@@ -60,8 +60,8 @@ describe("account card metric row spacing", () => {
     expect(matches6).toEqual([true, true, true, true, false, false]);
   });
 
-  it("keeps 6px spacing above and below progress bars on desktop and 4px on mobile", () => {
-    expect(RESPONSIVE_CSS).toMatch(/\.desktop-metric\s+\.account-metric-track\s*\{[^}]*margin:\s*6px 0;/);
+  it("visually balances spacing above and below progress bars (4px top / 6px bottom on desktop, 4px on mobile)", () => {
+    expect(RESPONSIVE_CSS).toMatch(/\.desktop-metric\s+\.account-metric-track\s*\{[^}]*margin:\s*4px 0 6px;/);
     expect(RESPONSIVE_CSS).toMatch(/@media\s*\(max-width:\s*860px\)\s*\{[\s\S]*?\.desktop-metric\s+\.account-metric-track\s*\{[^}]*margin:\s*4px 0;/);
   });
 

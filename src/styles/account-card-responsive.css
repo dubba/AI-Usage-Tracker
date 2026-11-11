@@ -1132,12 +1132,13 @@
   font-size: 13px;
 }
 
-/* The same 6px of spacing above and below the bar on desktop. */
+/* Visually balance the space above and below the bar on desktop: 4px top offsets the
+   descender space of the 20px metric value above, matching the 6px bottom gap. */
 .desktop-metric .account-metric-track {
   flex: none;
   width: 100%;
   height: 7px;
-  margin: 6px 0;
+  margin: 4px 0 6px;
 }
 
 .desktop-metric .desktop-metric-foot {

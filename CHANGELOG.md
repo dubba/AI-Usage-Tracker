@@ -1,13 +1,14 @@
 # Changelog
 
-## Unreleased (28 changes)
+## Unreleased (29 changes)
 
 ### Added (1)
 
 - Account cards list a provider's saved limit resets when that account has one. Open Limit resets to see what each one clears and when it expires. Claude and ChatGPT accounts can use one after a confirmation. Grok accounts list theirs, and redeeming stays on grok.com.
 
-### Improved (25)
+### Improved (26)
 
+- On desktop account cards, the spacing above each usage progress bar is adjusted to 4px, visually balancing the top gap with the 6px space below the bar.
 - On an open Limit resets row, the space under the pill matches the space above it.
 - Hovering the Limit resets row brightens the pill like Add account and turns the chevron the same colour as the Advanced chevron in Settings.
 - At the bottom of the sidebar, there is 16px above "All accounts updated" and 16px below the elapsed time.
