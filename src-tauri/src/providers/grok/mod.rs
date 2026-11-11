@@ -1,8 +1,9 @@
 // Grok billing integration is adapted from the MIT-licensed CodexBar Grok
 // provider and the MIT-licensed Grok Rate Limit Display userscript. The live
-// path uses the same grok.com billing request as Grok's own Usage page. The
-// tracker never reads the Grok Build CLI's ~/.grok/auth.json credentials.
-// No message or token allowance is estimated.
+// path uses the same grok.com billing request as Grok's own Usage page, and
+// reads that page's reset-token list without keeping the id that would spend
+// one. The tracker never reads the Grok Build CLI's ~/.grok/auth.json
+// credentials. No message or token allowance is estimated.
 
 use super::{
     classify_status, rate_limited, read_capped_text, Forbidden, ProviderError, ProviderUsage,
@@ -32,6 +33,7 @@ use tokio_tungstenite::tungstenite::{
 
 mod billing;
 mod bot;
+mod resets;
 
 use billing::*;
 pub(crate) use bot::*;
@@ -251,15 +253,18 @@ pub async fn refresh(
         None
     };
 
-    // Grok Bot usage is optional: it runs beside the billing request so it adds
-    // no latency, and any failure leaves the SuperGrok window untouched.
-    let (billing, bot) = tokio::join!(
+    // Bot usage and the reset-token list run beside billing. Either one
+    // failing leaves the SuperGrok window in place. Reset rows are
+    // display-only.
+    let (billing, bot, resets) = tokio::join!(
         fetch_web_billing(app, cookie_header),
-        fetch_bot_usage(cookie_header)
+        fetch_bot_usage(cookie_header),
+        resets::fetch_remaining_resets(app, cookie_header)
     );
     match billing {
         Ok(snapshot) => {
-            let mut usage = usage_from_snapshot(account, snapshot, bot);
+            let mut usage =
+                usage_from_snapshot(account, snapshot, bot, resets::limit_resets_from(resets));
             if usage.email.is_none() {
                 usage.email = discovered_email.or_else(|| account.email.clone());
             }
@@ -274,9 +279,10 @@ pub async fn probe_cookie(
     cookie_header: &str,
 ) -> Result<ProviderUsage, ProviderError> {
     let cookie_header = normalize_cookie_header(cookie_header).map_err(ProviderError::Transient)?;
-    let (billing, bot) = tokio::join!(
+    let (billing, bot, resets) = tokio::join!(
         fetch_web_billing(app, &cookie_header),
-        fetch_bot_usage(&cookie_header)
+        fetch_bot_usage(&cookie_header),
+        resets::fetch_remaining_resets(app, &cookie_header)
     );
     let snapshot = match billing {
         Ok(snapshot) => snapshot,
@@ -300,6 +306,7 @@ pub async fn probe_cookie(
         },
         snapshot,
         bot,
+        resets::limit_resets_from(resets),
     );
     if usage.email.is_none() {
         usage.email = discovered_email;

@@ -38,6 +38,7 @@ const APP_COMMANDS: &[&str] = &[
     "current_login_status",
     "cancel_login",
     "refresh_account",
+    "use_limit_reset",
     "refresh_all",
     "get_app_settings",
     "set_account_refresh_minutes",

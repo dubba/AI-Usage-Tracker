@@ -191,6 +191,26 @@ impl UsageSnapshot {
     }
 }
 
+fn limit_reset_is_usable() -> bool {
+    true
+}
+
+/// One saved limit reset the provider has offered. Spending it is a separate,
+/// confirmed action. `id` is the provider's redeem id when `usable` is true.
+/// A display-only row uses an id this app made, and the provider's spend id
+/// is never stored.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct LimitReset {
+    pub id: String,
+    pub label: String,
+    pub detail: String,
+    pub expires_at: Option<String>,
+    /// Missing on snapshots saved before this field. Those grants can be used.
+    #[serde(default = "limit_reset_is_usable")]
+    pub usable: bool,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UsageSnapshot {
@@ -202,6 +222,9 @@ pub struct UsageSnapshot {
     pub fetched_at: String,
     pub freshness: UsageFreshness,
     pub source: String,
+    /// Empty when this account has nothing to spend. Missing on older snapshots.
+    #[serde(default)]
+    pub limit_resets: Vec<LimitReset>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]

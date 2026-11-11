@@ -56,6 +56,7 @@
     "allow-current-login-status",
     "allow-cancel-login",
     "allow-refresh-account",
+    "allow-use-limit-reset",
     "allow-refresh-all",
     "allow-get-app-settings",
     "allow-set-account-refresh-minutes",

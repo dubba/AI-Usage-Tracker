@@ -2,12 +2,13 @@ pub mod anthropic;
 pub mod antigravity;
 pub mod google_ai_studio;
 pub mod grok;
+pub mod limit_resets;
 pub mod oauth_refresh;
 pub mod openai;
 pub mod opencode_go;
 
 use crate::{
-    model::{Account, OAuthSecret, ProviderSecret, UsageWindow},
+    model::{Account, LimitReset, OAuthSecret, ProviderSecret, UsageWindow},
     state::AppState,
     store::save_provider_secret,
 };
@@ -279,6 +280,7 @@ pub struct ProviderUsage {
     pub credits_usd: Option<f64>,
     pub unlimited_credits: bool,
     pub source: String,
+    pub limit_resets: Vec<LimitReset>,
 }
 
 pub async fn refresh(
@@ -311,6 +313,26 @@ pub async fn refresh(
             let (usage, secret) = grok::refresh(app.as_ref(), account, &secret).await?;
             Ok((usage, ProviderSecret::Grok(secret)))
         }
+    }
+}
+
+/// Spends one limit reset the card is already showing. Grok lists resets
+/// without a spend id, and those rows never reach this call.
+pub async fn use_limit_reset(
+    app: &AppState,
+    account: &Account,
+    secret: &ProviderSecret,
+    grant_id: &str,
+    request_id: &str,
+) -> limit_resets::RedeemOutcome {
+    match secret {
+        ProviderSecret::Openai(secret) => {
+            openai::redeem_reset_credit(app, account, secret, grant_id, request_id).await
+        }
+        ProviderSecret::Anthropic(secret) => {
+            anthropic::redeem_limit_reset(app, secret, grant_id, request_id).await
+        }
+        _ => limit_resets::RedeemOutcome::Rejected("This account has no limit resets."),
     }
 }
 
@@ -640,6 +662,7 @@ mod tests {
             include_str!("google_ai_studio/mod.rs"),
             include_str!("grok/mod.rs"),
             include_str!("grok/billing.rs"),
+            include_str!("grok/resets.rs"),
             include_str!("opencode_go.rs"),
             include_str!("oauth_refresh.rs"),
             include_str!("../auth/oauth/exchange.rs"),

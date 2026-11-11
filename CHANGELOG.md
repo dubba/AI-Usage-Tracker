@@ -1,9 +1,15 @@
 # Changelog
 
-## Unreleased (16 changes)
+## Unreleased (19 changes)
 
-### Improved (15)
+### Added (1)
 
+- Account cards list a provider's saved limit resets when that account has one. Open Limit resets to see what each one clears and when it expires. Claude and ChatGPT accounts can use one after a confirmation. Grok accounts list theirs, and redeeming stays on grok.com.
+
+### Improved (17)
+
+- Antigravity account cards and Usage charts now label Gemini 4 Carbon as "Carbon" and "Carbon Models", matching Argon.
+- Claude account cards now display the dedicated 7-day Fable limit ("7-day Fable") when returned by Anthropic for accounts with Fable access.
 - The sync status at the bottom of the sidebar now reads "All accounts updated:" instead of "All accounts synced:".
 - On the Usage page, each reset line shows how full that week was, just above the line.
 - On the Usage page, a day's tooltip says how much was used, such as "Nov 1: 63% used". An estimated day adds "Estimated bc data didn't refresh" and, on the next line, "for part of this day".

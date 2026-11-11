@@ -129,6 +129,7 @@ fn sample_account() -> Account {
             fetched_at: "2026-09-03T12:00:00Z".into(),
             freshness: UsageFreshness::Live,
             source: "anthropic_oauth_usage".into(),
+            limit_resets: Vec::new(),
         }),
         last_error: None,
         auth_required: false,

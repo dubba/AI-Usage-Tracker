@@ -123,6 +123,7 @@ mod tests {
                 fetched_at: fetched_at.into(),
                 freshness: UsageFreshness::Live,
                 source: "test".into(),
+                limit_resets: Vec::new(),
             }),
             last_error: None,
             auth_required: false,

@@ -69,6 +69,15 @@ pub async fn refresh_account(
 }
 
 #[tauri::command]
+pub async fn use_limit_reset(
+    state: State<'_, Arc<AppState>>,
+    account_id: String,
+    grant_id: String,
+) -> Result<Account, String> {
+    usage::use_limit_reset(state.inner().clone(), &account_id, &grant_id).await
+}
+
+#[tauri::command]
 pub async fn refresh_all(state: State<'_, Arc<AppState>>) -> Result<Vec<Account>, String> {
     Ok(usage::refresh_all(state.inner().clone()).await)
 }

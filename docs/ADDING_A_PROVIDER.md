@@ -23,6 +23,7 @@ Use an existing provider of the same kind as the model:
 ## 2. Reading usage
 
 - `src-tauri/src/providers/<name>.rs` (or a folder) — a `refresh` function that returns `ProviderUsage` with `UsageWindow`s. Window ids and labels are the provider's own words; the backend works out each window's `kind` (5 hour, weekly, monthly) from them in `WindowKind::classify` (`model.rs`), so check that a new provider's labels classify as intended by adding a case to `src/shared/lib/window-kinds.fixture.json`.
+- `ProviderUsage.limit_resets` is the saved grants the account card can spend. Leave it empty unless that provider documents a grant list. Reading the list is part of refresh. Spending one is `providers::use_limit_reset`, and only after the person confirms. Grok lists each reset's expiry and does not keep the id that would spend it, so those rows are shown without a Use button.
 - `src-tauri/src/providers/mod.rs` — `pub mod <name>;` and the arm in `refresh`.
 - Nothing to add for the Usage page (code: `features/activity`): a provider's first window that classifies as `Weekly` becomes a tracker on the Usage page automatically (`history::tracker_windows`; Antigravity tracks every weekly window), an account with no weekly window but a monthly one tracks that instead and the page charts it on the 30 day view, and an account with no weekly window gets a "No weekly limit" card. Keep window ids stable between refreshes, because they key the stored history.
 - Token handling:

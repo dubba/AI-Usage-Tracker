@@ -91,6 +91,7 @@ describe("WeeklyTracker", () => {
       ["Gemini Models · Weekly Limit Remaining", "Gemini Models"],
       ["Claude and GPT models · Weekly Limit Remaining", "Claude & GPT Models"],
       ["Gemini 4 Argon · Weekly Limit", "Argon Models"],
+      ["Gemini 4 Carbon · Weekly Limit", "Carbon Models"],
     ] as const;
     for (const [windowLabel, family] of families) {
       const root = render(

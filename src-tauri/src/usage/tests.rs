@@ -23,6 +23,7 @@ fn account(provider: Provider, source: &str, auth_required: bool) -> Account {
             fetched_at: now,
             freshness: UsageFreshness::Live,
             source: source.into(),
+            limit_resets: Vec::new(),
         }),
         last_error: None,
         auth_required,
@@ -122,6 +123,7 @@ fn usage_with_one_window() -> ProviderUsage {
         credits_usd: None,
         unlimited_credits: false,
         source: "test".into(),
+        limit_resets: Vec::new(),
     }
 }
 
@@ -630,4 +632,68 @@ async fn an_oversized_usage_body_leaves_the_previous_snapshot() {
         Some("OpenAI returned a response that is too large. Cached usage is being kept.")
     );
     assert!(!saved.auth_required);
+}
+
+#[tokio::test]
+async fn use_limit_reset_rejects_ids_before_any_request() {
+    let app = test_app_with_account("acct-reset-ids");
+    let oversized = "a".repeat(129);
+    for grant_id in ["", "bad id", oversized.as_str(), "grant/1"] {
+        let error = use_limit_reset(app.clone(), "acct-reset-ids", grant_id)
+            .await
+            .unwrap_err();
+        assert_eq!(error, "That limit reset is no longer available.");
+        assert!(!error.contains(&oversized));
+    }
+    let missing = use_limit_reset(app.clone(), "../accounts", "grant-1")
+        .await
+        .unwrap_err();
+    assert_eq!(missing, "Account not found.");
+    let unknown = use_limit_reset(app, "missing-account", "grant-1")
+        .await
+        .unwrap_err();
+    assert_eq!(unknown, "Account not found.");
+}
+
+#[tokio::test]
+async fn use_limit_reset_rejects_a_grant_that_is_not_saved() {
+    let app = test_app_with_account("acct-reset-unknown-grant");
+    let error = use_limit_reset(app, "acct-reset-unknown-grant", "grant-1")
+        .await
+        .unwrap_err();
+    assert_eq!(error, "That limit reset is no longer available.");
+}
+
+#[tokio::test]
+async fn use_limit_reset_refuses_a_display_only_grant_before_loading_credentials() {
+    let app = test_app_with_account("acct-display-only");
+    app.store
+        .mutate("acct-display-only", |account| {
+            account.last_usage.as_mut().unwrap().limit_resets = vec![crate::model::LimitReset {
+                id: "shown-1".into(),
+                label: "Limit reset".into(),
+                detail: "Clears the weekly limit".into(),
+                expires_at: None,
+                usable: false,
+            }];
+        })
+        .unwrap();
+    let error = use_limit_reset(app, "acct-display-only", "shown-1")
+        .await
+        .unwrap_err();
+    assert_eq!(error, "Use that limit reset on grok.com.");
+    assert!(!error.contains("shown-1"));
+}
+
+#[test]
+fn a_second_use_is_refused_while_the_first_grant_is_in_flight() {
+    let first = InFlightGrant::try_begin("acct-flight", "grant-flight").unwrap();
+    let second = InFlightGrant::try_begin("acct-flight", "grant-flight");
+    assert_eq!(
+        second.unwrap_err(),
+        "That limit reset is already being used."
+    );
+    drop(first);
+    let again = InFlightGrant::try_begin("acct-flight", "grant-flight").unwrap();
+    drop(again);
 }

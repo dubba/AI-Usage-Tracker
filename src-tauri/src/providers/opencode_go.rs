@@ -121,6 +121,7 @@ pub async fn refresh(
         credits_usd: None,
         unlimited_credits: false,
         source: "opencode_go_dashboard".into(),
+        limit_resets: Vec::new(),
     })
 }
 

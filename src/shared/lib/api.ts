@@ -58,6 +58,8 @@ export const bridgeApi = {
   currentLoginStatus: () => invoke<LoginStatus | null>("current_login_status"),
   cancelLogin: (attemptId: string) => invoke<void>("cancel_login", { attemptId }),
   refreshAccount: (accountId: string) => invoke<Account>("refresh_account", { accountId }),
+  useLimitReset: (accountId: string, grantId: string) =>
+    invoke<Account>("use_limit_reset", { accountId, grantId }),
   refreshAll: () => invoke<Account[]>("refresh_all"),
   getAppSettings: () => invoke<AppSettings>("get_app_settings"),
   setAccountRefreshMinutes: (minutes: number) => invoke<AppSettings>("set_account_refresh_minutes", { minutes }),

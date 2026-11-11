@@ -35,6 +35,7 @@ import { displayPercent, usageDisplaySuffix } from "../../shared/lib/usage-displ
 import { isGoogleKeyOnly, isGoogleSetupPending } from "../../shared/lib/usage-sources";
 import { reorderKeyDelta } from "../reorder/reorder-utils";
 import { AccountUsageMetric } from "./AccountUsageMetric";
+import { LimitResetsSection } from "./LimitResetsSection";
 import { CREDENTIAL_PROTECTION_ACCOUNT_NOTE } from "../dashboard/credential-protection";
 import { AccountCardMenu } from "./AccountCardMenu";
 import { useInlineAccountRename } from "./useInlineAccountRename";
@@ -64,6 +65,7 @@ export function AccountDashboardCard({
   canMoveUp = false,
   canMoveDown = false,
   onMove,
+  onUseLimitReset,
   signInUnprotected = false,
 }: {
   pageId: string;
@@ -78,6 +80,8 @@ export function AccountDashboardCard({
   canMoveUp?: boolean;
   canMoveDown?: boolean;
   onMove?: (delta: -1 | 1) => void;
+  /** Spends one saved limit reset. Absent in tests that never render the section. */
+  onUseLimitReset?: (grantId: string) => void;
   /** This account's saved sign-in is still a plain file because locking it failed. */
   signInUnprotected?: boolean;
 }) {
@@ -105,12 +109,14 @@ export function AccountDashboardCard({
   const isRefreshing = busy.has(busyKey("refresh", account.id));
   const isRenaming = busy.has(busyKey("rename", account.id));
   const isRemoving = busy.has(busyKey("remove", account.id));
+  const isUsingReset = busy.has(busyKey("reset", account.id));
   // Gate actions per account: refreshing or renaming one card must not freeze
   // the controls of every other card. A global "Refresh All" still locks
   // per-account refresh to avoid redundant provider calls, but leaves
   // remove/notify usable.
   const isGlobalRefresh = busy.has(REFRESH_ALL_KEY);
-  const cardBusy = isRefreshing || isRenaming || isRemoving;
+  const cardBusy = isRefreshing || isRenaming || isRemoving || isUsingReset;
+  const limitResets = account.lastUsage?.limitResets ?? [];
   const windows = cardWindows(account.lastUsage?.windows ?? [], account.provider);
   const remainingValues = windows.flatMap((window) => (window.remainingPercent == null ? [] : [window.remainingPercent]));
   const lowestRemaining = remainingValues.length ? Math.min(...remainingValues) : null;
@@ -438,6 +444,13 @@ export function AccountDashboardCard({
               <AccountUsageMetric unavailable signedOut={signedOut} creditLabel={creditLabel} />
             )}
           </div>
+          {limitResets.length > 0 ? (
+            <LimitResetsSection
+              grants={limitResets}
+              busy={cardBusy}
+              onUse={onUseLimitReset}
+            />
+          ) : null}
         </>
       ) : null}
     </article>

@@ -105,5 +105,20 @@ export function useAccountActions({
     }
   }, [begin, end, clearError, reportError]);
 
-  return { refreshOne, refreshAll, rename, remove, setApiIntegrationEnabled, openApiIntegrationWindow };
+  const redeemLimitReset = useCallback(async (id: string, grantId: string) => {
+    if (has(REFRESH_ALL_KEY) || has(busyKey("refresh", id))) return;
+    const key = busyKey("reset", id);
+    if (!begin(key)) return;
+    try {
+      await bridgeApi.useLimitReset(id, grantId);
+      await load();
+      clearError(key);
+    } catch (cause) {
+      reportError(key, cause, "Couldn't use limit reset");
+    } finally {
+      end(key);
+    }
+  }, [begin, end, has, load, clearError, reportError]);
+
+  return { refreshOne, refreshAll, rename, remove, setApiIntegrationEnabled, openApiIntegrationWindow, redeemLimitReset };
 }

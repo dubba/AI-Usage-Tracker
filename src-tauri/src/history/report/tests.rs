@@ -177,6 +177,7 @@ fn account(
             fetched_at: iso(fetched_at),
             freshness: UsageFreshness::Live,
             source: "test".into(),
+            limit_resets: Vec::new(),
         }),
         last_error: None,
         auth_required: false,

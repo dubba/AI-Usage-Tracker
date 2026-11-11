@@ -115,6 +115,7 @@ pub fn run() {
             commands::auth::current_login_status,
             commands::auth::cancel_login,
             commands::accounts::refresh_account,
+            commands::accounts::use_limit_reset,
             commands::accounts::refresh_all,
             commands::settings::get_app_settings,
             commands::settings::set_account_refresh_minutes,

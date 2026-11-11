@@ -66,6 +66,7 @@ fn sanitize_usage(usage: &mut UsageSnapshot) {
     finite_or_none(&mut usage.credits_usd);
     usage.windows.truncate(MAX_USAGE_WINDOWS);
     usage.windows.iter_mut().for_each(sanitize_window);
+    crate::providers::limit_resets::sanitize_stored(&mut usage.limit_resets);
 }
 
 /// Rejects UI state (handed over by the frontend for pairing) that is larger
@@ -171,6 +172,7 @@ mod tests {
                 fetched_at: now,
                 freshness: UsageFreshness::Live,
                 source: "s".repeat(1000),
+                limit_resets: Vec::new(),
             }),
             last_error: Some("!".repeat(5000)),
             auth_required: false,
@@ -213,6 +215,55 @@ mod tests {
         }));
         assert!(usage.credits_usd.is_none());
         assert_eq!(usage.source.chars().count(), MAX_IDENTITY_CHARS);
+    }
+
+    #[test]
+    fn imported_limit_resets_drop_bad_ids_and_clamp_text() {
+        use crate::model::LimitReset;
+        let mut account = oversized_account();
+        let mut grants = vec![
+            LimitReset {
+                id: "../secret".into(),
+                label: "Bad".into(),
+                detail: "No".into(),
+                expires_at: None,
+                usable: true,
+            },
+            LimitReset {
+                id: "ok".into(),
+                label: format!("Full\nreset {}", "L".repeat(200)),
+                detail: format!("Clears it. {}", "D".repeat(400)),
+                expires_at: Some("not-a-date".into()),
+                usable: false,
+            },
+        ];
+        for index in 0..10 {
+            grants.push(LimitReset {
+                id: format!("extra-{index}"),
+                label: "Limit reset".into(),
+                detail: "Restores that limit.".into(),
+                expires_at: None,
+                usable: true,
+            });
+        }
+        account.last_usage.as_mut().unwrap().limit_resets = grants;
+        sanitize_imported_account(&mut account);
+        let grants = &account.last_usage.unwrap().limit_resets;
+        assert!(grants.len() <= 8);
+        assert!(grants
+            .iter()
+            .all(|grant| !grant.id.contains('/') && !grant.id.contains('.')));
+        assert!(grants
+            .iter()
+            .all(|grant| grant.label.chars().count() <= MAX_LABEL_CHARS));
+        assert!(grants
+            .iter()
+            .all(|grant| grant.detail.chars().count() <= 160));
+        assert!(grants.iter().all(|grant| !grant.label.contains('\n')));
+        assert!(!grants.iter().find(|grant| grant.id == "ok").unwrap().usable);
+        let kept = grants.iter().find(|grant| grant.id == "ok").unwrap();
+        assert!(kept.expires_at.is_none());
+        assert!(!kept.label.contains('<'));
     }
 
     #[test]

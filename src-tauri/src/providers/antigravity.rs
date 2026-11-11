@@ -242,6 +242,7 @@ async fn fetch_usage(
         credits_usd: None,
         unlimited_credits: false,
         source,
+        limit_resets: Vec::new(),
     })
 }
 

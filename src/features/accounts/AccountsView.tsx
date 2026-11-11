@@ -91,6 +91,7 @@ export function AccountsView(props: {
   onRename: (account: Account, label: string) => Promise<void>;
   onRemove: (account: Account) => void;
   onNotifications: (account: Account) => void;
+  onUseLimitReset?: (account: Account, grantId: string) => void;
   busy: BusyKeys;
   /** Accounts whose saved sign-in could not be locked on this phone. */
   unprotectedAccountIds?: string[];
@@ -300,6 +301,11 @@ export function AccountsView(props: {
             onRename={(label) => props.onRename(account, label)}
             onRemove={() => props.onRemove(account)}
             onNotifications={() => props.onNotifications(account)}
+            onUseLimitReset={
+              props.onUseLimitReset
+                ? (grantId) => props.onUseLimitReset?.(account, grantId)
+                : undefined
+            }
             canMoveUp={canReorder && index > 0}
             canMoveDown={canReorder && index < displayedAccounts.length - 1}
             onMove={canReorder ? (delta) => moveAccount(account, delta) : undefined}

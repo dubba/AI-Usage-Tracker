@@ -1,4 +1,5 @@
 use super::*;
+use crate::model::LimitReset;
 use crate::providers::{read_capped_bytes, CappedBodyError, MAX_PROVIDER_BODY_BYTES};
 
 pub(super) const WEB_BILLING_ENDPOINT: &str =
@@ -15,6 +16,7 @@ pub(super) fn usage_from_snapshot(
     account: &Account,
     snapshot: BillingSnapshot,
     bot: Option<BotUsage>,
+    limit_resets: Vec<LimitReset>,
 ) -> ProviderUsage {
     let used = snapshot.used_percent.clamp(0.0, 100.0);
     let (id, label, window_seconds) = classify_period(
@@ -47,6 +49,7 @@ pub(super) fn usage_from_snapshot(
         credits_usd: None,
         unlimited_credits: false,
         source: snapshot.source.into(),
+        limit_resets,
     }
 }
 

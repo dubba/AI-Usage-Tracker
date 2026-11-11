@@ -1169,6 +1169,134 @@
   white-space: nowrap;
 }
 
+/* Saved limit resets, under the meters. The block is rendered only when the account has one,
+   and it starts closed. The same rules apply on a phone and a wide window. */
+.provider-account-card .limit-resets-section {
+  margin: 0 20px 16px;
+  border-top: 1px solid var(--obsidian-border);
+}
+
+.provider-account-card .limit-resets-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  margin: 0;
+  padding: 12px 0 8px;
+  border: 0;
+  border-bottom: 1px solid var(--obsidian-border);
+  background: transparent;
+  color: var(--obsidian-muted);
+  cursor: pointer;
+  text-align: left;
+}
+
+.provider-account-card .limit-resets-kicker {
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.provider-account-card .limit-resets-count {
+  color: var(--obsidian-muted-bright);
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.provider-account-card .limit-resets-chevron {
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+  transition: transform 200ms ease;
+}
+
+.provider-account-card .limit-resets-toggle[aria-expanded="true"] .limit-resets-chevron {
+  transform: rotate(90deg);
+}
+
+.provider-account-card .limit-resets {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.provider-account-card .limit-reset {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "name action" "when action" "detail detail";
+  column-gap: 12px;
+  row-gap: 2px;
+  align-items: center;
+  padding: 12px 0;
+}
+
+.provider-account-card .limit-reset.is-readonly {
+  grid-template-areas: "name name" "when when" "detail detail";
+}
+
+.provider-account-card .limit-reset + .limit-reset {
+  border-top: 1px solid var(--obsidian-border);
+}
+
+.provider-account-card .limit-reset-name {
+  grid-area: name;
+  min-width: 0;
+  color: var(--obsidian-text);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.provider-account-card .limit-reset-when {
+  grid-area: when;
+  color: var(--obsidian-muted-bright);
+  font-size: 13px;
+}
+
+.provider-account-card .limit-reset-when:empty {
+  display: none;
+}
+
+.provider-account-card .limit-reset-detail {
+  grid-area: detail;
+  margin: 2px 0 0;
+  color: var(--obsidian-muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.provider-account-card .limit-reset-use.button {
+  grid-area: action;
+  align-self: center;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 14px;
+  border: 1px solid var(--obsidian-border-strong);
+  border-radius: 8px !important;
+  background: transparent;
+  color: var(--obsidian-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.provider-account-card .limit-reset-use.button:disabled {
+  opacity: 0.5;
+}
+
+.provider-account-card .limit-resets-note {
+  margin: 0;
+  padding: 2px 0 4px;
+  color: var(--obsidian-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 /* ==========================================================================
    Desktop account card (min-width 861px). AccountDashboardCard adds
    `desktop-card` and renders `.account-card-desktop-actions` (a status chip
@@ -1650,6 +1778,12 @@
   /* 4px of spacing above and below the bar on mobile for a more compact metric layout. */
   .desktop-metric .account-metric-track {
     margin: 4px 0;
+  }
+
+  /* Same side edges as the meters above (their margin in this block). */
+  .provider-account-card .limit-resets-section {
+    margin-right: 14px;
+    margin-left: 12px;
   }
 }
 

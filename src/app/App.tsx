@@ -107,6 +107,7 @@ export default function App() {
     remove,
     setApiIntegrationEnabled,
     openApiIntegrationWindow,
+    redeemLimitReset,
   } = useAccountActions({ load, setSnapshot, busy: busyKeys, reportError, clearError });
   const unprotectedSignIns = useUnprotectedSignIns({ snapshot, load, modal, dispatchModal, reportError, clearError });
   useAppMigrations(snapshot);
@@ -343,6 +344,7 @@ export default function App() {
           onRename={(account, label) => rename(account, label)}
           onRemove={(account) => dispatchModal({ type: "open", modal: { kind: "remove", account } })}
           onNotifications={(account) => dispatchModal({ type: "open", modal: { kind: "alert", account } })}
+          onUseLimitReset={(account, grantId) => void redeemLimitReset(account.id, grantId)}
           busy={busy}
           unprotectedAccountIds={snapshot?.unprotectedAccountIds}
         />

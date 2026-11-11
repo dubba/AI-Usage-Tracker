@@ -298,7 +298,8 @@ fn appends_grok_bot_window_after_supergrok_weekly_window() {
         resets_at: Some(bot_reset),
     };
 
-    let usage = usage_from_snapshot(&account, snapshot, Some(bot));
+    let usage = usage_from_snapshot(&account, snapshot, Some(bot), Vec::new());
+    assert!(usage.limit_resets.is_empty());
     assert_eq!(usage.windows.len(), 2);
     assert_eq!(usage.windows[0].id, "weekly");
     assert_eq!(usage.windows[0].label, "Weekly");

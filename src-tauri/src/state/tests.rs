@@ -497,6 +497,7 @@ fn account_with_weekly_usage(id: &str) -> Account {
             fetched_at: now,
             freshness: UsageFreshness::Live,
             source: "test".into(),
+            limit_resets: Vec::new(),
         }),
         last_error: None,
         auth_required: false,

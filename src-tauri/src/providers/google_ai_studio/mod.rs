@@ -147,6 +147,7 @@ pub async fn probe_account(
             fetched_at: now,
             freshness: UsageFreshness::Live,
             source: SOURCE_MODELS_ONLY.into(),
+            limit_resets: Vec::new(),
         }),
         last_error: None,
         auth_required: false,
@@ -233,6 +234,7 @@ pub async fn add_account(
         fetched_at: account.updated_at.clone(),
         freshness: UsageFreshness::Live,
         source: SOURCE_MODELS_ONLY.into(),
+        limit_resets: Vec::new(),
     });
 
     state
@@ -306,6 +308,7 @@ pub async fn refresh(
             credits_usd: None,
             unlimited_credits: false,
             source: source.into(),
+            limit_resets: Vec::new(),
         },
         secret,
     ))
@@ -329,6 +332,7 @@ fn models_only_usage(account: &Account, models: Vec<TrackableModel>) -> Provider
         credits_usd: None,
         unlimited_credits: false,
         source: SOURCE_MODELS_ONLY.into(),
+        limit_resets: Vec::new(),
     }
 }
 

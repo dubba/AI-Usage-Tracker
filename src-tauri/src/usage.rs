@@ -333,6 +333,11 @@ fn save_success(app: &AppState, account_id: &str, usage: ProviderUsage) -> Resul
                 fetched_at,
                 freshness: UsageFreshness::Live,
                 source: usage.source,
+                limit_resets: {
+                    let mut grants = usage.limit_resets;
+                    crate::providers::limit_resets::sanitize_stored(&mut grants);
+                    grants
+                },
             });
             account.last_error = None;
             account.auth_required = false;
@@ -511,6 +516,91 @@ fn save_failure(app: &AppState, account_id: &str, error: ProviderError) -> Resul
             account.auth_required = is_auth;
         })
         .map_err(|error| error.to_string())
+}
+
+static LIMIT_RESETS_IN_FLIGHT: std::sync::LazyLock<
+    std::sync::Mutex<std::collections::HashSet<String>>,
+> = std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashSet::new()));
+
+#[derive(Debug)]
+struct InFlightGrant {
+    key: String,
+}
+
+impl InFlightGrant {
+    fn try_begin(account_id: &str, grant_id: &str) -> Result<Self, &'static str> {
+        let key = format!("{account_id}\0{grant_id}");
+        let mut inflight = LIMIT_RESETS_IN_FLIGHT
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        if !inflight.insert(key.clone()) {
+            return Err("That limit reset is already being used.");
+        }
+        Ok(Self { key })
+    }
+}
+
+impl Drop for InFlightGrant {
+    fn drop(&mut self) {
+        let mut inflight = LIMIT_RESETS_IN_FLIGHT
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        inflight.remove(&self.key);
+    }
+}
+
+/// Spends one limit reset that is already on the account, then refreshes usage.
+/// The account lock is not held across that refresh: `refresh_account` takes it.
+pub async fn use_limit_reset(
+    app: Arc<AppState>,
+    account_id: &str,
+    grant_id: &str,
+) -> Result<Account, String> {
+    if !crate::store::is_valid_account_id(account_id) {
+        return Err("Account not found.".into());
+    }
+    if !crate::providers::limit_resets::is_valid_grant_id(grant_id) {
+        return Err("That limit reset is no longer available.".into());
+    }
+    let account = app
+        .store
+        .get(account_id)
+        .ok_or_else(|| "Account not found.".to_string())?;
+    let known = account
+        .last_usage
+        .as_ref()
+        .is_some_and(|usage| usage.limit_resets.iter().any(|grant| grant.id == grant_id));
+    if !known {
+        return Err("That limit reset is no longer available.".into());
+    }
+    let display_only = account.last_usage.as_ref().is_some_and(|usage| {
+        usage
+            .limit_resets
+            .iter()
+            .any(|grant| grant.id == grant_id && !grant.usable)
+    });
+    if display_only {
+        return Err("Use that limit reset on grok.com.".into());
+    }
+    let secret = load_provider_secret(account_id)
+        .map_err(|_| "Unable to load provider credentials.".to_string())?;
+    if secret.provider() != account.provider {
+        return Err("Unable to load provider credentials.".into());
+    }
+    let _flight = InFlightGrant::try_begin(account_id, grant_id)?;
+    let request_id = crate::providers::limit_resets::new_request_id();
+    match providers::use_limit_reset(app.as_ref(), &account, &secret, grant_id, &request_id).await {
+        crate::providers::limit_resets::RedeemOutcome::Spent => {
+            refresh_account(app, account_id).await
+        }
+        crate::providers::limit_resets::RedeemOutcome::Rejected(message) => {
+            Err(message.to_string())
+        }
+        crate::providers::limit_resets::RedeemOutcome::Unconfirmed => {
+            let _ = refresh_account(app, account_id).await;
+            Err(crate::providers::limit_resets::UNCONFIRMED.to_string())
+        }
+    }
 }
 
 #[cfg(test)]

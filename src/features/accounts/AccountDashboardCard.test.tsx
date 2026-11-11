@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { setNarrowWindow } from "../../test-utils/media";
 import { click, mount, settle, type Mounted } from "../../test-utils/react";
-import type { Account } from "../../types";
+import type { Account, UsageSnapshot } from "../../types";
+import { setCardCollapsedOnPage } from "../dashboard/dashboard-page-state";
 import { CREDENTIAL_PROTECTION_ACCOUNT_NOTE } from "../dashboard/credential-protection";
 import { computeAccountCardMenuPlacement } from "./AccountCardMenu";
 import { AccountDashboardCard } from "./AccountDashboardCard";
@@ -712,3 +713,78 @@ describe("AccountDashboardCard error display on mobile vs desktop", () => {
     expect(errorBanner?.textContent).toContain("Server temporarily unavailable.");
   });
 });
+
+const resetGrant = {
+  id: "grant-secret-1",
+  label: "Full reset",
+  detail: "Clears the 5-hour and weekly limits",
+  expiresAt: "2026-12-10T16:00:00Z",
+};
+
+function usageWithResets(limitResets?: UsageSnapshot["limitResets"]): UsageSnapshot {
+  return {
+    plan: "pro",
+    email: null,
+    windows: [],
+    creditsUsd: null,
+    unlimitedCredits: false,
+    fetchedAt: "2026-11-10T16:00:00Z",
+    freshness: "live",
+    source: "anthropic_oauth_usage",
+    limitResets,
+  };
+}
+
+describe("AccountDashboardCard limit resets", () => {
+  let app: Mounted | null = null;
+
+  afterEach(() => {
+    app?.unmount();
+    app = null;
+    setCardCollapsedOnPage("resets", "acct-resets", false);
+  });
+
+  function renderResets(lastUsage: UsageSnapshot | null, collapsed = false) {
+    if (collapsed) setCardCollapsedOnPage("resets", "acct-resets", true);
+    app = mount(
+      <AccountDashboardCard
+        pageId="resets"
+        account={{ ...account, id: "acct-resets", lastUsage }}
+        busy={new Set()}
+        onRefresh={() => undefined}
+        onReconnect={() => undefined}
+        onConnectGoogleUsage={() => undefined}
+        onRename={async () => undefined}
+        onRemove={() => undefined}
+        onNotifications={() => undefined}
+        onUseLimitReset={() => undefined}
+      />,
+    );
+  }
+
+  it("hides the section when the account has no limit resets", () => {
+    renderResets(null);
+    expect(document.querySelector(".limit-resets-section")).toBeNull();
+    app?.unmount();
+    renderResets(usageWithResets([]));
+    expect(document.querySelector(".limit-resets-section")).toBeNull();
+    app?.unmount();
+    renderResets(usageWithResets(undefined));
+    expect(document.querySelector(".limit-resets-section")).toBeNull();
+  });
+
+  it("shows a closed section only when a reset is available", () => {
+    renderResets(usageWithResets([resetGrant]));
+    const toggle = document.querySelector(".limit-resets-toggle");
+    expect(toggle?.getAttribute("aria-expanded")).toBe("false");
+    expect(document.body.textContent).toContain("Limit resets");
+    expect(document.body.textContent).not.toContain("Clears the 5-hour and weekly limits");
+    expect(document.body.textContent).not.toContain("grant-secret-1");
+  });
+
+  it("hides the section while the whole card is collapsed", () => {
+    renderResets(usageWithResets([resetGrant]), true);
+    expect(document.querySelector(".limit-resets-section")).toBeNull();
+  });
+});
+

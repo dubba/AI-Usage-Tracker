@@ -264,6 +264,7 @@ fn window_kinds_are_set_on_load_upsert_and_update() {
         fetched_at: now_rfc3339(),
         freshness: UsageFreshness::Live,
         source: "test".into(),
+        limit_resets: Vec::new(),
     };
     let kind_of = |account: &Account| account.last_usage.as_ref().unwrap().windows[0].kind;
 
@@ -402,6 +403,7 @@ fn upsert_preserves_newer_usage_when_reconnecting() {
         fetched_at: "2026-08-30T12:00:00Z".into(),
         freshness: UsageFreshness::Live,
         source: "wham".into(),
+        limit_resets: Vec::new(),
     });
     store.upsert(current).unwrap();
 
@@ -416,6 +418,7 @@ fn upsert_preserves_newer_usage_when_reconnecting() {
         fetched_at: "2026-08-30T11:00:00Z".into(),
         freshness: UsageFreshness::Live,
         source: "wham".into(),
+        limit_resets: Vec::new(),
     });
     let saved = store.upsert(incoming).unwrap();
     assert_eq!(saved.label, "Renamed");
@@ -507,6 +510,7 @@ fn clearing_cached_usage_keeps_the_accounts_and_survives_a_restart() {
         fetched_at: "2026-08-30T12:00:00Z".into(),
         freshness: UsageFreshness::Live,
         source: "wham".into(),
+        limit_resets: Vec::new(),
     });
     store.upsert(with_usage).unwrap();
     store.upsert(sample_account("two", "Empty")).unwrap();

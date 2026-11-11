@@ -71,6 +71,7 @@ fn account_with(
             fetched_at: rfc3339(fetched_at),
             freshness,
             source: "test".into(),
+            limit_resets: Vec::new(),
         }),
         last_error: None,
         auth_required: false,

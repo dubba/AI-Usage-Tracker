@@ -1,3 +1,4 @@
+use super::limit_resets::{self, RedeemOutcome};
 use super::{
     body_too_large, classify_status,
     oauth_refresh::{
@@ -14,7 +15,12 @@ use reqwest::{header::RETRY_AFTER, StatusCode};
 use serde::Deserialize;
 use serde_json::Value;
 
-const USAGE_URL: &str = "https://api.anthropic.com/api/oauth/usage";
+/// `cedar_ember=1` asks for saved limit resets. The spend-skip flag stays off:
+/// it clears `extra_usage`, which the card already shows.
+pub(crate) const USAGE_URL: &str = "https://api.anthropic.com/api/oauth/usage?cedar_ember=1";
+/// Grants are only returned when the usage request identifies as Claude Code.
+pub(crate) const CLAUDE_CLI_USER_AGENT: &str = "claude-cli/2.1.304 (external, cli)";
+const RESET_URL_PREFIX: &str = "https://api.anthropic.com/api/organizations/";
 const PROFILE_URL: &str = "https://api.anthropic.com/api/oauth/profile";
 const LEGACY_PROFILE_URL: &str = "https://api.anthropic.com/api/auth/oauth/profile";
 /// The OAuth client and token endpoint, shared with sign-in (`oauth.rs`) so a login and a
@@ -42,7 +48,12 @@ struct RawExtraUsage {
 struct RawUsage {
     five_hour: Option<RawWindow>,
     seven_day: Option<RawWindow>,
+    #[serde(alias = "fable", alias = "fable_only")]
+    seven_day_fable: Option<RawWindow>,
     extra_usage: Option<RawExtraUsage>,
+    /// Saved limit resets. A missing or unexpected shape must not fail the usage parse.
+    #[serde(default)]
+    cedar_ember: Option<Value>,
 }
 
 pub async fn refresh(
@@ -99,6 +110,10 @@ pub async fn refresh(
             credits_usd,
             unlimited_credits: false,
             source: "anthropic_oauth_usage".into(),
+            limit_resets: limit_resets::from_cedar_ember(
+                raw.cedar_ember.as_ref(),
+                chrono::Utc::now(),
+            ),
         },
         secret,
     ))
@@ -111,6 +126,7 @@ async fn call_usage(app: &AppState, secret: &OAuthSecret) -> Result<RawUsage, Pr
         .bearer_auth(&secret.access_token)
         .header("Accept", "application/json")
         .header("anthropic-beta", OAUTH_BETA)
+        .header("User-Agent", CLAUDE_CLI_USER_AGENT)
         .send()
         .await
         .map_err(|error| {
@@ -237,6 +253,17 @@ fn windows_from_raw(raw: &RawUsage) -> Vec<UsageWindow> {
         raw.seven_day.as_ref(),
         Some(crate::model::WEEKLY_WINDOW_SECONDS),
     );
+    if let Some(fable) = raw.seven_day_fable.as_ref() {
+        if fable.utilization.is_some() || fable.resets_at.is_some() {
+            push_window(
+                &mut windows,
+                "seven_day_fable",
+                "Fable · Weekly",
+                Some(fable),
+                Some(crate::model::WEEKLY_WINDOW_SECONDS),
+            );
+        }
+    }
     if let Some(extra) = raw.extra_usage.as_ref() {
         if extra.is_enabled.unwrap_or(true) && extra.utilization.is_some() {
             let utilization = extra.utilization.unwrap_or_default().clamp(0.0, 100.0);
@@ -403,6 +430,80 @@ fn find_bool(value: &Value, key: &str) -> Option<bool> {
     }
 }
 
+pub(crate) async fn redeem_limit_reset(
+    app: &AppState,
+    secret: &OAuthSecret,
+    grant_id: &str,
+    request_id: &str,
+) -> RedeemOutcome {
+    if !limit_resets::is_valid_grant_id(grant_id) {
+        return RedeemOutcome::Rejected("That limit reset is no longer available.");
+    }
+    let profile = match fetch_profile(app, &secret.access_token).await {
+        Ok(profile) => profile,
+        Err(_) => return RedeemOutcome::Rejected("Couldn't use that limit reset."),
+    };
+    let Some(org) = organization_uuid(&profile) else {
+        return RedeemOutcome::Rejected("Couldn't use that limit reset.");
+    };
+    let response = match app
+        .client
+        .post(format!("{RESET_URL_PREFIX}{org}/reset_rate_limits"))
+        .bearer_auth(&secret.access_token)
+        .header("Accept", "application/json")
+        .header("Content-Type", "application/json")
+        .header("anthropic-beta", OAUTH_BETA)
+        .header("User-Agent", CLAUDE_CLI_USER_AGENT)
+        .json(&serde_json::json!({
+            "program": "cedar_ember",
+            "grant_id": grant_id,
+            "request_id": request_id,
+        }))
+        .send()
+        .await
+    {
+        Ok(response) => response,
+        Err(_) => return RedeemOutcome::Unconfirmed,
+    };
+    let status = response.status();
+    let body = read_capped_text(response, MAX_PROVIDER_BODY_BYTES)
+        .await
+        .unwrap_or_default();
+    interpret_claude_reset(status, &body)
+}
+
+fn organization_uuid(profile: &Value) -> Option<String> {
+    let uuid = profile.get("organization")?.get("uuid")?.as_str()?;
+    limit_resets::is_org_uuid(uuid).then(|| uuid.to_string())
+}
+
+pub(crate) fn interpret_claude_reset(status: StatusCode, body: &str) -> RedeemOutcome {
+    if status == StatusCode::TOO_MANY_REQUESTS {
+        return RedeemOutcome::Rejected(
+            "The provider asked to wait before trying that limit reset again.",
+        );
+    }
+    if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
+        return RedeemOutcome::Rejected(
+            "Sign in to this account again before using a limit reset.",
+        );
+    }
+    if !status.is_success() {
+        return RedeemOutcome::Unconfirmed;
+    }
+    let Ok(value) = serde_json::from_str::<Value>(body) else {
+        return RedeemOutcome::Unconfirmed;
+    };
+    match value.get("result").and_then(Value::as_str) {
+        Some("reset" | "already_used") => RedeemOutcome::Spent,
+        Some("not_limited") => RedeemOutcome::Rejected("This limit does not need a reset."),
+        Some("cooldown") => RedeemOutcome::Rejected("That limit reset is not ready yet."),
+        Some("ineligible") => RedeemOutcome::Rejected("This account cannot use that limit reset."),
+        Some("unavailable") => RedeemOutcome::Rejected("That limit reset is no longer available."),
+        _ => RedeemOutcome::Unconfirmed,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -464,6 +565,49 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["five_hour", "weekly"]
         );
+    }
+
+    #[test]
+    fn includes_fable_window_when_present() {
+        let raw: RawUsage = serde_json::from_value(serde_json::json!({
+            "five_hour": { "utilization": 10, "resets_at": "2026-11-10T16:00:00Z" },
+            "seven_day": { "utilization": 20, "resets_at": "2026-11-15T12:00:00Z" },
+            "seven_day_fable": { "utilization": 0, "resets_at": "2026-11-16T18:30:00Z" }
+        }))
+        .unwrap();
+        let windows = windows_from_raw(&raw);
+        assert_eq!(windows.len(), 3);
+        assert_eq!(windows[0].id, "five_hour");
+        assert_eq!(windows[1].id, "weekly");
+        assert_eq!(windows[2].id, "seven_day_fable");
+        assert_eq!(windows[2].label, "Fable · Weekly");
+        assert_eq!(windows[2].used_percent, Some(0.0));
+        assert_eq!(windows[2].remaining_percent, Some(100.0));
+        assert_eq!(
+            windows[2].resets_at.as_deref(),
+            Some("2026-11-16T18:30:00Z")
+        );
+    }
+
+    #[test]
+    fn omits_fable_window_when_absent_or_null() {
+        let raw: RawUsage = serde_json::from_value(serde_json::json!({
+            "five_hour": { "utilization": 10, "resets_at": "2026-11-10T16:00:00Z" },
+            "seven_day": { "utilization": 20, "resets_at": "2026-11-15T12:00:00Z" },
+            "seven_day_fable": null
+        }))
+        .unwrap();
+        let windows = windows_from_raw(&raw);
+        assert_eq!(windows.len(), 2);
+
+        let empty_fable: RawUsage = serde_json::from_value(serde_json::json!({
+            "five_hour": { "utilization": 10, "resets_at": "2026-11-10T16:00:00Z" },
+            "seven_day": { "utilization": 20, "resets_at": "2026-11-15T12:00:00Z" },
+            "seven_day_fable": { "utilization": null, "resets_at": null }
+        }))
+        .unwrap();
+        let empty_windows = windows_from_raw(&empty_fable);
+        assert_eq!(empty_windows.len(), 2);
     }
 
     #[test]
@@ -533,5 +677,67 @@ mod tests {
         let unknown =
             serde_json::json!({ "organization": { "rate_limit_tier": "default_claude_ai" } });
         assert_eq!(plan_from_profile(&unknown), None);
+    }
+
+    #[test]
+    fn usage_request_asks_for_grants_as_claude_cli() {
+        assert!(USAGE_URL.contains("cedar_ember=1"));
+        // Split so this test's own source is not the match.
+        let spend_flag = concat!("skip", "_spend");
+        assert!(!USAGE_URL.contains(spend_flag));
+        assert!(!include_str!("anthropic.rs").contains(spend_flag));
+        let refresh = include_str!("anthropic.rs");
+        let call = refresh.find("async fn call_usage").unwrap();
+        let call_body = &refresh[call..call + refresh[call..].find("\nasync fn ").unwrap()];
+        assert!(call_body.contains("CLAUDE_CLI_USER_AGENT"));
+        assert!(call_body.contains("USAGE_URL"));
+        let start = refresh.find("async fn refresh_secret").unwrap();
+        let body = &refresh[start..start + refresh[start..].find("\nasync fn ").unwrap()];
+        assert!(!body.contains("User-Agent"));
+        assert!(!body.contains("CLAUDE_CLI_USER_AGENT"));
+    }
+
+    #[test]
+    fn a_weird_cedar_ember_value_does_not_reject_the_usage_parse() {
+        let raw: RawUsage =
+            serde_json::from_str(r#"{"five_hour":{"utilization":10},"cedar_ember":"nope"}"#)
+                .unwrap();
+        assert!(raw.five_hour.is_some());
+        assert!(
+            limit_resets::from_cedar_ember(raw.cedar_ember.as_ref(), chrono::Utc::now()).is_empty()
+        );
+    }
+
+    #[test]
+    fn reset_results_map_to_fixed_sentences() {
+        assert_eq!(
+            interpret_claude_reset(StatusCode::OK, r#"{"result":"reset"}"#),
+            RedeemOutcome::Spent
+        );
+        assert_eq!(
+            interpret_claude_reset(StatusCode::OK, r#"{"result":"already_used"}"#),
+            RedeemOutcome::Spent
+        );
+        assert_eq!(
+            interpret_claude_reset(StatusCode::OK, r#"{"result":"not_limited"}"#),
+            RedeemOutcome::Rejected("This limit does not need a reset.")
+        );
+        assert_eq!(
+            interpret_claude_reset(StatusCode::OK, r#"{"result":"surprise"}"#),
+            RedeemOutcome::Unconfirmed
+        );
+        assert_eq!(
+            interpret_claude_reset(StatusCode::INTERNAL_SERVER_ERROR, r#"{"result":"reset"}"#),
+            RedeemOutcome::Unconfirmed
+        );
+        assert!(matches!(
+            interpret_claude_reset(StatusCode::UNAUTHORIZED, ""),
+            RedeemOutcome::Rejected(_)
+        ));
+        let org = serde_json::json!({"organization": {"uuid": "org-9"}});
+        assert!(organization_uuid(&org).is_none());
+        let org =
+            serde_json::json!({"organization": {"uuid": "550e8400-e29b-41d4-a716-446655440000"}});
+        assert!(organization_uuid(&org).is_some());
     }
 }

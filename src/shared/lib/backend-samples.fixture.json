@@ -13,6 +13,15 @@
         "email": null,
         "fetchedAt": "2026-09-03T12:00:00Z",
         "freshness": "auth_required",
+        "limitResets": [
+          {
+            "detail": "Clears the 5-hour and weekly limits",
+            "expiresAt": "2026-12-10T00:00:00Z",
+            "id": "grant-1",
+            "label": "Full reset",
+            "usable": true
+          }
+        ],
         "plan": "pro",
         "source": "test",
         "unlimitedCredits": false,
@@ -107,6 +116,15 @@
             "email": null,
             "fetchedAt": "2026-09-03T12:00:00Z",
             "freshness": "auth_required",
+            "limitResets": [
+              {
+                "detail": "Clears the 5-hour and weekly limits",
+                "expiresAt": "2026-12-10T00:00:00Z",
+                "id": "grant-1",
+                "label": "Full reset",
+                "usable": true
+              }
+            ],
             "plan": "pro",
             "source": "test",
             "unlimitedCredits": false,
@@ -220,6 +238,15 @@
           "email": null,
           "fetchedAt": "2026-09-03T12:00:00Z",
           "freshness": "auth_required",
+          "limitResets": [
+            {
+              "detail": "Clears the 5-hour and weekly limits",
+              "expiresAt": "2026-12-10T00:00:00Z",
+              "id": "grant-1",
+              "label": "Full reset",
+              "usable": true
+            }
+          ],
           "plan": "pro",
           "source": "test",
           "unlimitedCredits": false,

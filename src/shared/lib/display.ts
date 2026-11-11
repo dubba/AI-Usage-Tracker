@@ -77,9 +77,12 @@ export function antigravityGroupLabel(window: UsageWindow): string | null {
   if (/claude|gpt/i.test(prefix)) {
     return "Other";
   }
-  // The quota name is "Gemini 4 Argon". The card only needs the model.
+  // The quota names are "Gemini 4 Argon" and "Gemini 4 Carbon". The card only needs the model.
   if (/^gemini 4 argon$/i.test(prefix)) {
     return "Argon";
+  }
+  if (/^gemini 4 carbon$/i.test(prefix)) {
+    return "Carbon";
   }
   return prefix;
 }
@@ -117,6 +120,7 @@ export function nextResetModelLabel(provider: Provider | null, window: UsageWind
   if (!provider || !window) return null;
   if (provider === "antigravity") return antigravityGroupLabel(window);
   if (provider === "grok" && window.id === GROK_BOT_WINDOW_ID) return "Bot";
+  if (provider === "anthropic" && (window.id === "seven_day_fable" || /fable/i.test(window.label) || /fable/i.test(window.id))) return "Fable";
   return null;
 }
 
@@ -178,7 +182,9 @@ export function metricChipLabel(window: UsageWindow, provider?: Provider | strin
   const duration = windowDurationDescriptor(window);
 
   if (provider === "anthropic") {
-    if (duration) return `${duration} · Claude`;
+    const isFable = window.id === "seven_day_fable" || /fable/i.test(window.label) || /fable/i.test(window.id);
+    const subLabel = isFable ? "Fable" : "Claude";
+    if (duration) return `${duration} · ${subLabel}`;
   }
 
   if (provider === "openai") {

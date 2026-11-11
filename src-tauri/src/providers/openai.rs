@@ -1,3 +1,4 @@
+use super::limit_resets::{self, RedeemOutcome};
 use super::{
     body_too_large, classify_status,
     oauth_refresh::{
@@ -16,6 +17,9 @@ use serde::Deserialize;
 use serde_json::Value;
 
 const USAGE_URL: &str = "https://chatgpt.com/backend-api/wham/usage";
+const RESET_CREDITS_URL: &str = "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits";
+const CONSUME_RESET_URL: &str =
+    "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits/consume";
 /// The OAuth client and token endpoint, shared with sign-in (`oauth.rs`) so a login and a
 /// later refresh always talk to the same one.
 pub(crate) const TOKEN_URL: &str = "https://auth.openai.com/oauth/token";
@@ -28,6 +32,9 @@ struct RawUsage {
     rate_limit: Option<RawRateLimit>,
     code_review_rate_limit: Option<RawCodeReviewRateLimit>,
     credits: Option<RawCredits>,
+    /// Present when the account has saved rate-limit resets. A wrong shape must not fail the parse.
+    #[serde(default)]
+    rate_limit_reset_credits: Option<Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -141,6 +148,20 @@ pub async fn refresh(
         .as_ref()
         .and_then(|credits| credits.unlimited)
         .unwrap_or(false);
+    let limit_resets =
+        if limit_resets::should_fetch_chatgpt_resets(raw.rate_limit_reset_credits.as_ref()) {
+            match fetch_reset_credits(app, account, &secret).await {
+                Ok(grants) => grants,
+                Err(()) => {
+                    crate::diagnostics::warn(
+                        "Could not read ChatGPT limit resets. Usage was still updated.",
+                    );
+                    Vec::new()
+                }
+            }
+        } else {
+            Vec::new()
+        };
 
     Ok((
         ProviderUsage {
@@ -151,6 +172,7 @@ pub async fn refresh(
             credits_usd,
             unlimited_credits,
             source: "wham".into(),
+            limit_resets,
         },
         secret,
     ))
@@ -235,6 +257,102 @@ async fn refresh_secret(
         secret,
     )
     .await
+}
+
+async fn fetch_reset_credits(
+    app: &AppState,
+    account: &Account,
+    secret: &OAuthSecret,
+) -> Result<Vec<crate::model::LimitReset>, ()> {
+    let response = match with_account_headers(app.client.get(RESET_CREDITS_URL), account, secret)
+        .send()
+        .await
+    {
+        Ok(response) => response,
+        Err(_) => return Err(()),
+    };
+    if !response.status().is_success() {
+        return Err(());
+    }
+    let body = match read_capped_text(response, MAX_PROVIDER_BODY_BYTES).await {
+        Ok(body) => body,
+        Err(_) => return Err(()),
+    };
+    let Ok(value) = serde_json::from_str::<Value>(&body) else {
+        return Ok(Vec::new());
+    };
+    Ok(limit_resets::from_chatgpt_credits(
+        &value,
+        chrono::Utc::now(),
+    ))
+}
+
+pub(crate) async fn redeem_reset_credit(
+    app: &AppState,
+    account: &Account,
+    secret: &OAuthSecret,
+    grant_id: &str,
+    request_id: &str,
+) -> RedeemOutcome {
+    if !limit_resets::is_valid_grant_id(grant_id) {
+        return RedeemOutcome::Rejected("That limit reset is no longer available.");
+    }
+    let response = match with_account_headers(app.client.post(CONSUME_RESET_URL), account, secret)
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({
+            "redeem_request_id": request_id,
+            "credit_id": grant_id,
+        }))
+        .send()
+        .await
+    {
+        Ok(response) => response,
+        Err(_) => return RedeemOutcome::Unconfirmed,
+    };
+    let status = response.status();
+    let body = read_capped_text(response, MAX_PROVIDER_BODY_BYTES)
+        .await
+        .unwrap_or_default();
+    interpret_chatgpt_reset(status, &body)
+}
+
+fn with_account_headers(
+    request: reqwest::RequestBuilder,
+    account: &Account,
+    secret: &OAuthSecret,
+) -> reqwest::RequestBuilder {
+    let mut request = request
+        .bearer_auth(&secret.access_token)
+        .header("Accept", "application/json");
+    if let Some(account_id) = account.effective_account_id() {
+        request = request.header("ChatGPT-Account-Id", account_id);
+    }
+    request
+}
+
+pub(crate) fn interpret_chatgpt_reset(status: reqwest::StatusCode, body: &str) -> RedeemOutcome {
+    if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+        return RedeemOutcome::Rejected(
+            "The provider asked to wait before trying that limit reset again.",
+        );
+    }
+    if status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::FORBIDDEN {
+        return RedeemOutcome::Rejected(
+            "Sign in to this account again before using a limit reset.",
+        );
+    }
+    if !status.is_success() {
+        return RedeemOutcome::Unconfirmed;
+    }
+    let Ok(value) = serde_json::from_str::<Value>(body) else {
+        return RedeemOutcome::Unconfirmed;
+    };
+    match value.get("code").and_then(Value::as_str) {
+        Some("reset" | "already_redeemed") => RedeemOutcome::Spent,
+        Some("nothing_to_reset") => RedeemOutcome::Rejected("This limit does not need a reset."),
+        Some("no_credit") => RedeemOutcome::Rejected("That limit reset is no longer available."),
+        _ => RedeemOutcome::Unconfirmed,
+    }
 }
 
 fn normalize_window(id: &str, label: &str, raw: &RawWindow) -> Option<UsageWindow> {
@@ -377,5 +495,34 @@ mod tests {
         }))
         .unwrap();
         assert!(normalize_window("session", "Session", &missing_raw).is_none());
+    }
+
+    #[test]
+    fn reset_credit_results_map_to_fixed_sentences() {
+        assert_eq!(
+            interpret_chatgpt_reset(reqwest::StatusCode::OK, r#"{"code":"reset"}"#),
+            RedeemOutcome::Spent
+        );
+        assert_eq!(
+            interpret_chatgpt_reset(reqwest::StatusCode::OK, r#"{"code":"already_redeemed"}"#),
+            RedeemOutcome::Spent
+        );
+        assert_eq!(
+            interpret_chatgpt_reset(reqwest::StatusCode::OK, r#"{"code":"nothing_to_reset"}"#),
+            RedeemOutcome::Rejected("This limit does not need a reset.")
+        );
+        assert_eq!(
+            interpret_chatgpt_reset(reqwest::StatusCode::OK, r#"{"code":"no_credit"}"#),
+            RedeemOutcome::Rejected("That limit reset is no longer available.")
+        );
+        assert_eq!(
+            interpret_chatgpt_reset(reqwest::StatusCode::BAD_GATEWAY, ""),
+            RedeemOutcome::Unconfirmed
+        );
+        let source = include_str!("openai.rs");
+        let redeem = source.find("async fn redeem_reset_credit").unwrap();
+        let body = &source[redeem..redeem + source[redeem..].find("\nfn ").unwrap()];
+        assert!(body.contains(".post(CONSUME_RESET_URL)"));
+        assert!(body.contains("\"credit_id\": grant_id"));
     }
 }

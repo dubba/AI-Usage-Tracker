@@ -57,8 +57,9 @@ describe("antigravityGroupLabel", () => {
     expect(antigravityGroupLabel(win({ label: "Claude and GPT models · Weekly" }))).toBe("Other");
   });
 
-  it("shortens Gemini 4 Argon to Argon on the card", () => {
+  it("shortens Gemini 4 Argon and Gemini 4 Carbon to Argon and Carbon on the card", () => {
     expect(antigravityGroupLabel(win({ label: "Gemini 4 Argon · Weekly Limit" }))).toBe("Argon");
+    expect(antigravityGroupLabel(win({ label: "Gemini 4 Carbon · Weekly Limit" }))).toBe("Carbon");
   });
 
   it("has no group for plain window labels", () => {
@@ -96,6 +97,7 @@ describe("metricChipLabel", () => {
   it("formats Anthropic session and weekly windows as uppercase limit chips named for Claude", () => {
     expect(metricChipLabel(win({ kind: "five_hour", windowSeconds: 18_000, label: "5-Hour Window" }), "anthropic")).toBe("5H LIMIT · Claude");
     expect(metricChipLabel(win({ kind: "weekly", windowSeconds: 604_800, label: "Weekly" }), "anthropic")).toBe("7D LIMIT · Claude");
+    expect(metricChipLabel(win({ kind: "weekly", windowSeconds: 604_800, id: "seven_day_fable", label: "Fable · Weekly" }), "anthropic")).toBe("7D LIMIT · Fable");
     expect(metricChipLabel(win({ kind: "monthly", label: "Monthly" }), "anthropic")).toBe("30D LIMIT · Claude");
   });
 
@@ -119,6 +121,7 @@ describe("metricChipLabel", () => {
     expect(metricChipLabel(win({ label: "Gemini · 5h limit", windowSeconds: 18_000 }), "antigravity")).toBe("5H LIMIT · Gemini");
     expect(metricChipLabel(win({ label: "Claude and GPT models · Weekly", windowSeconds: 604_800 }), "antigravity")).toBe("7D LIMIT · Other");
     expect(metricChipLabel(win({ label: "Gemini 4 Argon · Weekly Limit", windowSeconds: 604_800 }), "antigravity")).toBe("7D LIMIT · Argon");
+    expect(metricChipLabel(win({ label: "Gemini 4 Carbon · Weekly Limit", windowSeconds: 604_800 }), "antigravity")).toBe("7D LIMIT · Carbon");
   });
 });
 
@@ -127,6 +130,7 @@ describe("metricWindowParts", () => {
     expect(metricWindowParts(win({ id: "weekly", label: "Grok 7d", kind: "weekly" }), "grok")).toEqual({ span: "7-day", name: "Grok" });
     expect(metricWindowParts(win({ id: "grok_bot", label: "Grok Bot weekly", windowSeconds: 604_800 }), "grok")).toEqual({ span: "7-day", name: "Bot" });
     expect(metricWindowParts(win({ id: "five_hour", label: "5h", kind: "five_hour" }), "anthropic")).toEqual({ span: "5-hour", name: "Claude" });
+    expect(metricWindowParts(win({ id: "seven_day_fable", label: "Fable · Weekly", kind: "weekly", windowSeconds: 604_800 }), "anthropic")).toEqual({ span: "7-day", name: "Fable" });
     expect(metricWindowParts(win({ id: "monthly", label: "30d", kind: "monthly" }), "openai")).toEqual({ span: "30-day", name: "ChatGPT" });
   });
 
@@ -261,11 +265,17 @@ describe("nextResetModelLabel", () => {
     expect(nextResetModelLabel("antigravity", win({ label: "Gemini · 5 hour" }))).toBe("Gemini");
     expect(nextResetModelLabel("antigravity", win({ label: "Claude and GPT models · Weekly" }))).toBe("Other");
     expect(nextResetModelLabel("antigravity", win({ label: "Gemini 4 Argon · Weekly Limit" }))).toBe("Argon");
+    expect(nextResetModelLabel("antigravity", win({ label: "Gemini 4 Carbon · Weekly Limit" }))).toBe("Carbon");
   });
 
   it("names the Grok Bot limit, but not the plain Grok limit", () => {
     expect(nextResetModelLabel("grok", win({ id: "grok_bot", label: "Grok Bot weekly" }))).toBe("Bot");
     expect(nextResetModelLabel("grok", win({ id: "weekly", label: "Weekly" }))).toBeNull();
+  });
+
+  it("names the Anthropic Fable limit, but not the plain Claude limit", () => {
+    expect(nextResetModelLabel("anthropic", win({ id: "seven_day_fable", label: "Fable · Weekly" }))).toBe("Fable");
+    expect(nextResetModelLabel("anthropic", win({ id: "weekly", label: "Weekly" }))).toBeNull();
   });
 
   it("adds nothing for other providers or when nothing resets", () => {

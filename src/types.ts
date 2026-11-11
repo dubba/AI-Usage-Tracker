@@ -16,6 +16,16 @@ export interface UsageWindow {
   kind: WindowKind | null;
 }
 
+/** A saved limit reset the provider offered. `id` stays in the app and is not shown. */
+export interface LimitReset {
+  id: string;
+  label: string;
+  detail: string;
+  expiresAt: string | null;
+  /** Missing on older snapshots. Those grants can be used. `false` is display-only. */
+  usable?: boolean;
+}
+
 export interface UsageSnapshot {
   plan: string | null;
   email: string | null;
@@ -25,6 +35,8 @@ export interface UsageSnapshot {
   fetchedAt: string;
   freshness: UsageFreshness;
   source: string;
+  /** Missing on snapshots saved before limit resets were recorded. */
+  limitResets?: LimitReset[];
 }
 
 export interface Account {

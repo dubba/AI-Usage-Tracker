@@ -9,6 +9,7 @@ const api = vi.hoisted(() => ({
   removeAccount: vi.fn(),
   setApiIntegrationEnabled: vi.fn(),
   openApiIntegrationWindow: vi.fn(),
+  useLimitReset: vi.fn(),
 }));
 vi.mock("../../shared/lib/api", () => ({ bridgeApi: api }));
 
@@ -112,6 +113,37 @@ describe("refreshOne", () => {
     expect(reportError).toHaveBeenCalledWith("refresh:a1", cause, "Couldn't refresh account");
     expect(clearError).not.toHaveBeenCalled();
     expect(busy.has("refresh:a1")).toBe(false);
+  });
+});
+
+describe("redeemLimitReset", () => {
+  it("uses the reset, reloads, and releases the busy key", async () => {
+    await act(async () => {
+      await actions.redeemLimitReset("a1", "grant-1");
+    });
+    expect(api.useLimitReset).toHaveBeenCalledWith("a1", "grant-1");
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(clearError).toHaveBeenCalledWith("reset:a1");
+    expect(busy.has("reset:a1")).toBe(false);
+  });
+
+  it("does nothing while that account is refreshing", async () => {
+    busy.begin("refresh:a1");
+    await act(async () => {
+      await actions.redeemLimitReset("a1", "grant-1");
+    });
+    expect(api.useLimitReset).not.toHaveBeenCalled();
+  });
+
+  it("reports a failure and does not reload", async () => {
+    const cause = new Error("rejected");
+    api.useLimitReset.mockRejectedValue(cause);
+    await act(async () => {
+      await actions.redeemLimitReset("a1", "grant-1");
+    });
+    expect(reportError).toHaveBeenCalledWith("reset:a1", cause, "Couldn't use limit reset");
+    expect(load).not.toHaveBeenCalled();
+    expect(busy.has("reset:a1")).toBe(false);
   });
 });
 

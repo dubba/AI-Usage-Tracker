@@ -14,6 +14,7 @@ const ANTIGRAVITY_FAMILY_NAMES: Record<string, string> = {
   "claude and gpt models": "Claude & GPT Models",
   "claude & gpt models": "Claude & GPT Models",
   "gemini 4 argon": "Argon Models",
+  "gemini 4 carbon": "Carbon Models",
 };
 
 /** "Gemini Models · Weekly Limit Remaining" -> "Gemini Models". A name with no family stays whole. */
