@@ -38,8 +38,7 @@ describe("LimitResetsSection", () => {
     const toggle = document.querySelector(".limit-resets-toggle");
     expect(toggle?.getAttribute("aria-expanded")).toBe("false");
     expect(document.querySelector(".limit-reset-detail")).toBeNull();
-    expect(document.body.textContent).toContain("Limit resets");
-    expect(document.body.textContent).toContain("2");
+    expect(document.body.textContent).toContain("You have 2 available Limit Resets");
     expect(document.body.textContent).not.toContain("grant-secret-1");
   });
 
@@ -53,7 +52,7 @@ describe("LimitResetsSection", () => {
     );
     expect(document.body.textContent).toContain("Clears the 5-hour and weekly limits");
     expect(document.body.textContent).toContain("Fable reset");
-    expect(document.body.textContent).toContain("Using one restores that limit. It cannot be undone.");
+    expect(document.body.textContent).toContain("Warning: This reset action cannot be undone!");
     expect(document.querySelectorAll(".limit-reset-use")).toHaveLength(2);
     expect(document.body.textContent).not.toContain("grant-secret");
   });
@@ -108,7 +107,7 @@ describe("LimitResetsSection", () => {
       `Expires ${formatMonthDay(new Date("2026-12-10T16:00:00Z"))}`,
     );
     expect(document.body.textContent).toContain("Redeem these in Grok, under Settings → Usage.");
-    expect(document.body.textContent).not.toContain("Using one restores that limit");
+    expect(document.body.textContent).not.toContain("Warning: This reset action cannot be undone!");
     expect(document.body.textContent).not.toContain("spend-secret-id");
     expect(onUse).not.toHaveBeenCalled();
   });

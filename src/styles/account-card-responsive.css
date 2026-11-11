@@ -1172,7 +1172,11 @@
 /* Saved limit resets, under the meters. The block is rendered only when the account has one,
    and it starts closed. The same rules apply on a phone and a wide window. */
 .provider-account-card .limit-resets-section {
-  margin: 0 20px 16px;
+  /* 11px plus the toggle's 8px bottom padding is 19px under the pill. That
+     matches the space above the provider icon on a wide card: the header's
+     18px top padding, plus 1px because the name and email are 2px taller
+     than the 44px icon and the icon is centered on them. */
+  margin: 0 20px 11px;
   border-top: 1px solid var(--obsidian-border);
 }
 
@@ -1185,34 +1189,55 @@
   margin: 0;
   padding: 12px 0 8px;
   border: 0;
-  border-bottom: 1px solid var(--obsidian-border);
   background: transparent;
   color: var(--obsidian-muted);
   cursor: pointer;
   text-align: left;
 }
 
+/* Same size and shape as the plan chip. The fill is the Add account button's purple. */
 .provider-account-card .limit-resets-kicker {
-  font-size: 12px;
-  font-weight: 750;
-  letter-spacing: 0.06em;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-.provider-account-card .limit-resets-count {
-  color: var(--obsidian-muted-bright);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: var(--purple-fill);
+  color: #ffffff;
   font-size: 12px;
   font-weight: 650;
-  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
   line-height: 1;
+  text-transform: none;
+  white-space: nowrap;
+  transition: background 120ms ease;
 }
 
 .provider-account-card .limit-resets-chevron {
   width: 16px;
   height: 16px;
   margin-left: auto;
-  transition: transform 200ms ease;
+  transition: transform 200ms ease, color 120ms ease;
+}
+
+/* The pill brightens like Add account. The chevron turns the same colour as the
+   Advanced chevron in Settings. */
+@media (hover: hover) {
+  .provider-account-card .limit-resets-toggle:hover .limit-resets-kicker {
+    background: var(--purple-fill-hover);
+  }
+
+  .provider-account-card .limit-resets-toggle:hover .limit-resets-chevron {
+    color: var(--obsidian-text);
+  }
+}
+
+.provider-account-card .limit-resets-toggle[aria-expanded="true"] {
+  /* Same 12px under the pill as above it. Closed rows keep 8px so the card
+     edge stays 19px below the pill. */
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--obsidian-border);
 }
 
 .provider-account-card .limit-resets-toggle[aria-expanded="true"] .limit-resets-chevron {
@@ -1285,16 +1310,31 @@
   font-weight: 600;
 }
 
+.provider-account-card .limit-reset-use.button:hover:not(:disabled) {
+  background: #d93d3d;
+  border-color: #ff6464;
+  color: #fff;
+}
+
 .provider-account-card .limit-reset-use.button:disabled {
   opacity: 0.5;
 }
 
+/* Same size and colors as the plan chip (Pro/$20). */
 .provider-account-card .limit-resets-note {
-  margin: 0;
-  padding: 2px 0 4px;
-  color: var(--obsidian-muted);
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 26px;
+  margin: 10px 0 4px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: var(--purple-surface);
+  color: var(--purple-text);
   font-size: 12px;
-  line-height: 1.4;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 /* ==========================================================================

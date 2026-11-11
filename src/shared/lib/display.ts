@@ -352,3 +352,17 @@ export function displayPlan(account: Account): string | null {
   if (isFree(plan)) return "Free";
   return withoutTier.replaceAll("_", " ").toUpperCase() || raw.toUpperCase();
 }
+
+/**
+ * Sanitizes and formats account error messages for UI display.
+ * Maps legacy or unformatted "authentication is required" to "Re-authentication required".
+ */
+export function displayAccountError(error: string | null | undefined): string | null {
+  if (!error) return null;
+  const trimmed = error.trim();
+  if (/^authentication is required$/i.test(trimmed)) {
+    return "Re-authentication required";
+  }
+  return error;
+}
+

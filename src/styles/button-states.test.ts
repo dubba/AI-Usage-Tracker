@@ -21,6 +21,7 @@ describe("Button hover and active state invariants", () => {
     expect(OBSIDIAN_CSS).toContain(":not(.remove-confirm-button)");
     expect(OBSIDIAN_CSS).toContain(":not(.filter-active-clear-btn)");
     expect(OBSIDIAN_CSS).toContain(":not(.button-green)");
+    expect(OBSIDIAN_CSS).toContain(":not(.limit-reset-use)");
   });
 
   it("provides hover and active states for destructive confirmation buttons", () => {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   antigravityGroupLabel,
   cleanModelPrefix,
+  displayAccountError,
   displayAccountSubtitle,
   displayPlan,
   metricChipLabel,
@@ -281,5 +282,25 @@ describe("nextResetModelLabel", () => {
   it("adds nothing for other providers or when nothing resets", () => {
     expect(nextResetModelLabel("anthropic", win({ label: "Sonnet weekly" }))).toBeNull();
     expect(nextResetModelLabel(null, null)).toBeNull();
+  });
+});
+
+describe("displayAccountError", () => {
+  it("formats 'authentication is required' to 'Re-authentication required'", () => {
+    expect(displayAccountError("authentication is required")).toBe("Re-authentication required");
+    expect(displayAccountError("  authentication is required  ")).toBe("Re-authentication required");
+    expect(displayAccountError("Authentication Is Required")).toBe("Re-authentication required");
+  });
+
+  it("preserves 'Re-authentication required' and other provider errors as-is", () => {
+    expect(displayAccountError("Re-authentication required")).toBe("Re-authentication required");
+    expect(displayAccountError("Rate limit exceeded. Try again later.")).toBe("Rate limit exceeded. Try again later.");
+    expect(displayAccountError("Server temporarily unavailable.")).toBe("Server temporarily unavailable.");
+  });
+
+  it("returns null for null, undefined, or empty values", () => {
+    expect(displayAccountError(null)).toBeNull();
+    expect(displayAccountError(undefined)).toBeNull();
+    expect(displayAccountError("")).toBeNull();
   });
 });

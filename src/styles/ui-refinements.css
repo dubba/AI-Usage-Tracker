@@ -1363,7 +1363,10 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 
 /* Two lines beside Refresh all: a dot and "All accounts updated:" on the first, the elapsed time under
    the words on the second, both starting at the same left edge, and the block centered on the button.
-   Out-of-date accounts only turn the dot amber, like the dots on their sidebar rows. */
+   Out-of-date accounts only turn the dot amber, like the dots on their sidebar rows.
+   The letters sit low in the line, so the block is shifted up 1px. With the row's 12px top padding
+   and the sidebar's 12px bottom padding plus 1px here, the clear space above the words and under the
+   time is 16px. */
 .sidebar-sync-status-text {
   flex: 1 1 auto;
   display: flex;
@@ -1379,6 +1382,10 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   justify-content: flex-start;
   gap: 8px;
   max-width: 100%;
+}
+
+.sidebar-sync-status-label:has(.sidebar-sync-status-elapsed) {
+  transform: translateY(-1px);
 }
 
 /* The title on one line and the elapsed time under it, both left-aligned. In a very narrow sidebar
@@ -1419,6 +1426,13 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 
 .sidebar-sync-status.is-syncing .sidebar-sync-status-label::before {
   background: var(--obsidian-purple);
+}
+
+/* 1px under the row makes the space below the time match the space above the title. */
+@media (min-width: 861px) {
+  .obsidian-shell .sidebar-sync-status {
+    padding-bottom: 1px;
+  }
 }
 
 /* On small screens the sync status line (with Refresh All and Settings) sits at the bottom of the drawer. */

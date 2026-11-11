@@ -23,6 +23,7 @@ import {
 } from "../../shared/lib/usage-logic";
 import { formatUpdatedAt } from "../../shared/lib/format";
 import {
+  displayAccountError,
   displayAccountSubtitle,
   displayPlan,
 } from "../../shared/lib/display";
@@ -88,6 +89,7 @@ export function AccountDashboardCard({
   const status = accountStatus(account);
   // Signed out, the card asks for one thing only: sign in again. Its notice holds the button.
   const signedOut = accountSignedOut(account);
+  const accountErrorMessage = displayAccountError(account.lastError);
   // Older usage is still on screen: point at Refresh.
   const outOfDate = !signedOut && account.lastUsage?.freshness === "stale";
   const plan = displayPlan(account);
@@ -302,8 +304,8 @@ export function AccountDashboardCard({
             <div className="account-card-action-stack">
               {signedOut ? (
                 <div className="account-card-updated-error">
-                  <p className="account-card-updated is-error" title={account.lastError ?? "This account is signed out."}>
-                    {account.lastError ?? "This account is signed out."}
+                  <p className="account-card-updated is-error" title={accountErrorMessage ?? "This account is signed out."}>
+                    {accountErrorMessage ?? "This account is signed out."}
                   </p>
                   <button
                     type="button"
@@ -317,8 +319,8 @@ export function AccountDashboardCard({
                 </div>
               ) : account.lastError ? (
                 <div className="account-card-updated-error">
-                  <p className="account-card-updated is-error" title={account.lastError}>
-                    {account.lastError}
+                  <p className="account-card-updated is-error" title={accountErrorMessage ?? account.lastError}>
+                    {accountErrorMessage ?? account.lastError}
                   </p>
                   <button
                     type="button"
@@ -413,14 +415,14 @@ export function AccountDashboardCard({
         <>
           {desktop && (signedOut ? (
             <div className="account-card-error is-signed-out">
-              <span>{account.lastError ?? "This account is signed out."}</span>
+              <span>{accountErrorMessage ?? "This account is signed out."}</span>
               <button type="button" className="button primary compact-button" disabled={cardBusy} onClick={onReconnect}>
                 {account.provider === "google_ai_studio" ? "Reconnect Cloud Usage" : "Sign in again"}
               </button>
             </div>
           ) : account.lastError ? (
             <div className="account-card-error">
-              <span>{account.lastError}</span>
+              <span>{accountErrorMessage ?? account.lastError}</span>
               <button
                 type="button"
                 className="button ghost compact-button"

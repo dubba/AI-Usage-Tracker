@@ -29,9 +29,10 @@ pub(crate) const TOKEN_URL: &str = "https://platform.claude.com/v1/oauth/token";
 pub(crate) const CLIENT_ID: &str = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
 const OAUTH_BETA: &str = "oauth-2025-04-20";
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 struct RawWindow {
     utilization: Option<f64>,
+    #[serde(alias = "resetsAt")]
     resets_at: Option<String>,
 }
 
@@ -44,16 +45,55 @@ struct RawExtraUsage {
     is_enabled: Option<bool>,
 }
 
+#[derive(Clone, Debug, Deserialize)]
+struct RawLimitScopeModel {
+    #[allow(dead_code)]
+    id: Option<String>,
+    display_name: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct RawLimitScope {
+    model: Option<RawLimitScopeModel>,
+    #[allow(dead_code)]
+    surface: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct RawLimit {
+    #[allow(dead_code)]
+    group: Option<String>,
+    kind: Option<String>,
+    percent: Option<f64>,
+    resets_at: Option<String>,
+    scope: Option<RawLimitScope>,
+    #[allow(dead_code)]
+    severity: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 struct RawUsage {
     five_hour: Option<RawWindow>,
     seven_day: Option<RawWindow>,
-    #[serde(alias = "fable", alias = "fable_only")]
+    #[serde(
+        alias = "seven_day_overage_included",
+        alias = "seven_day_fable",
+        alias = "fable",
+        alias = "fable_only",
+        alias = "seven_day_fable_only",
+        alias = "fable_weekly",
+        alias = "seven_day_fable_weekly",
+        alias = "7d_oi"
+    )]
     seven_day_fable: Option<RawWindow>,
     extra_usage: Option<RawExtraUsage>,
+    #[serde(default)]
+    limits: Vec<RawLimit>,
     /// Saved limit resets. A missing or unexpected shape must not fail the usage parse.
     #[serde(default)]
     cedar_ember: Option<Value>,
+    #[serde(flatten, default)]
+    other_windows: std::collections::HashMap<String, Value>,
 }
 
 pub async fn refresh(
@@ -253,7 +293,43 @@ fn windows_from_raw(raw: &RawUsage) -> Vec<UsageWindow> {
         raw.seven_day.as_ref(),
         Some(crate::model::WEEKLY_WINDOW_SECONDS),
     );
-    if let Some(fable) = raw.seven_day_fable.as_ref() {
+    let fable_window = raw
+        .seven_day_fable
+        .clone()
+        .or_else(|| {
+            raw.limits.iter().find_map(|limit| {
+                let name = limit
+                    .scope
+                    .as_ref()
+                    .and_then(|s| s.model.as_ref())
+                    .and_then(|m| m.display_name.as_deref());
+                let is_fable = name.is_some_and(|n| n.eq_ignore_ascii_case("fable"))
+                    || limit
+                        .kind
+                        .as_deref()
+                        .is_some_and(|k| k.contains("fable") || k.contains("overage_included"));
+                if is_fable {
+                    Some(RawWindow {
+                        utilization: limit.percent,
+                        resets_at: limit.resets_at.clone(),
+                    })
+                } else {
+                    None
+                }
+            })
+        })
+        .or_else(|| {
+            raw.other_windows.iter().find_map(|(key, val)| {
+                let lower = key.to_ascii_lowercase();
+                if lower.contains("fable") || lower.contains("overage_included") || lower == "7d_oi"
+                {
+                    serde_json::from_value::<RawWindow>(val.clone()).ok()
+                } else {
+                    None
+                }
+            })
+        });
+    if let Some(fable) = fable_window.as_ref() {
         if fable.utilization.is_some() || fable.resets_at.is_some() {
             push_window(
                 &mut windows,
@@ -586,6 +662,79 @@ mod tests {
         assert_eq!(
             windows[2].resets_at.as_deref(),
             Some("2026-11-16T18:30:00Z")
+        );
+    }
+
+    #[test]
+    fn parses_fable_window_under_alternative_key_names() {
+        for key in [
+            "seven_day_overage_included",
+            "fable_weekly",
+            "fable",
+            "7d_oi",
+        ] {
+            let raw: RawUsage = serde_json::from_value(serde_json::json!({
+                "five_hour": { "utilization": 10, "resets_at": "2026-11-10T16:00:00Z" },
+                "seven_day": { "utilization": 20, "resets_at": "2026-11-15T12:00:00Z" },
+                key: { "utilization": 5, "resets_at": "2026-11-16T18:30:00Z" }
+            }))
+            .unwrap();
+            let windows = windows_from_raw(&raw);
+            assert_eq!(windows.len(), 3, "failed for key {key}");
+            assert_eq!(windows[2].id, "seven_day_fable");
+            assert_eq!(windows[2].used_percent, Some(5.0));
+            assert_eq!(
+                windows[2].resets_at.as_deref(),
+                Some("2026-11-16T18:30:00Z")
+            );
+        }
+    }
+
+    #[test]
+    fn parses_fable_window_from_limits_array() {
+        let raw: RawUsage = serde_json::from_value(serde_json::json!({
+            "five_hour": { "utilization": 2, "resets_at": "2026-11-11T11:09:59Z" },
+            "seven_day": { "utilization": 3, "resets_at": "2026-11-15T07:59:59Z" },
+            "limits": [
+                {
+                    "group": "session",
+                    "kind": "session",
+                    "percent": 2,
+                    "resets_at": "2026-11-11T11:09:59Z"
+                },
+                {
+                    "group": "weekly",
+                    "kind": "weekly_all",
+                    "percent": 3,
+                    "resets_at": "2026-11-15T07:59:59Z"
+                },
+                {
+                    "group": "weekly",
+                    "kind": "weekly_scoped",
+                    "percent": 0,
+                    "resets_at": "2026-11-15T08:00:00Z",
+                    "scope": {
+                        "model": {
+                            "display_name": "Fable",
+                            "id": null
+                        },
+                        "surface": null
+                    }
+                }
+            ]
+        }))
+        .unwrap();
+        let windows = windows_from_raw(&raw);
+        assert_eq!(windows.len(), 3);
+        assert_eq!(windows[0].id, "five_hour");
+        assert_eq!(windows[1].id, "weekly");
+        assert_eq!(windows[2].id, "seven_day_fable");
+        assert_eq!(windows[2].label, "Fable · Weekly");
+        assert_eq!(windows[2].used_percent, Some(0.0));
+        assert_eq!(windows[2].remaining_percent, Some(100.0));
+        assert_eq!(
+            windows[2].resets_at.as_deref(),
+            Some("2026-11-15T08:00:00Z")
         );
     }
 

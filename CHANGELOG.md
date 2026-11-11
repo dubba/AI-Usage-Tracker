@@ -1,13 +1,21 @@
 # Changelog
 
-## Unreleased (19 changes)
+## Unreleased (28 changes)
 
 ### Added (1)
 
 - Account cards list a provider's saved limit resets when that account has one. Open Limit resets to see what each one clears and when it expires. Claude and ChatGPT accounts can use one after a confirmation. Grok accounts list theirs, and redeeming stays on grok.com.
 
-### Improved (17)
+### Improved (25)
 
+- On an open Limit resets row, the space under the pill matches the space above it.
+- Hovering the Limit resets row brightens the pill like Add account and turns the chevron the same colour as the Advanced chevron in Settings.
+- At the bottom of the sidebar, there is 16px above "All accounts updated" and 16px below the elapsed time.
+- On account cards, the space under the Limit resets pill is 19px, the same as the space above the provider icon.
+- On account cards, the Use button on a limit reset turns red when hovered.
+- Under Limit resets, the note is a pill in the same purple as the plan chip and reads "Warning: This reset action cannot be undone!"
+- Signed-out accounts now display "Re-authentication required" as their error message instead of "authentication is required".
+- On account cards, saved limit resets appear as a pill in the same purple as the Add account button. It reads "You have 2 available Limit Resets," and the number matches how many that account has.
 - Antigravity account cards and Usage charts now label Gemini 4 Carbon as "Carbon" and "Carbon Models", matching Argon.
 - Claude account cards now display the dedicated 7-day Fable limit ("7-day Fable") when returned by Anthropic for accounts with Fable access.
 - The sync status at the bottom of the sidebar now reads "All accounts updated:" instead of "All accounts synced:".
@@ -27,8 +35,9 @@
 - In the sidebar, an empty Accounts list says "No accounts yet", the same way an empty Groups list says "No groups yet".
 - On phones, the Dashboard's % Left / % Used switch matches the Usage page's 7D / 30D switch: the same height, rounded track, and inset selected option.
 
-### Fixed (1)
+### Fixed (2)
 
+- A closed Limit resets row no longer draws a line under the label. The card edge is the bottom of that row. The line comes back when the list is open, between the label and the resets.
 - On the Usage page, reset lines are the reset times the provider recorded. A weekly limit also shows the one week before its latest reset when that week was not recorded. Older resets are not guessed, and a usage drop does not add a line.
 
 ## v0.5.8 - 2026-11-08 (48 changes)

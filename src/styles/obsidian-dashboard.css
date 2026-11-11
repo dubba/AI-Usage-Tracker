@@ -940,7 +940,7 @@ button.button.ghost.empty-provider-other:active:not(:disabled) {
   border: 1px solid var(--obsidian-border-strong);
 }
 
-.button:hover:not(:disabled):not(.primary):not(.button-green):not(.remove-confirm-button):not(.bucket-delete-button):not(.filter-active-clear-btn) {
+.button:hover:not(:disabled):not(.primary):not(.button-green):not(.remove-confirm-button):not(.bucket-delete-button):not(.filter-active-clear-btn):not(.limit-reset-use) {
   background: var(--c-222121) !important;
   border-color: var(--obsidian-purple-strong) !important;
 }

@@ -18,7 +18,7 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ProviderError {
-    #[error("authentication is required")]
+    #[error("Re-authentication required")]
     Auth,
     #[error("{0}")]
     Transient(String),

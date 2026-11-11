@@ -1,6 +1,6 @@
 import { useId } from "react";
 import { formatResetAtShort } from "../../shared/lib/format";
-import { displayPlan } from "../../shared/lib/display";
+import { displayAccountError, displayPlan } from "../../shared/lib/display";
 import { displayAccountLabel, usageTone } from "../../shared/lib/usage-logic";
 import { ProviderIcon } from "../../shared/ui/ProviderIcon";
 import type { Account, ActivityTracker } from "../../types";
@@ -85,7 +85,7 @@ export function WeeklyTracker({
       </header>
       {needsSignIn ? (
         <div className="activity-card-notice">
-          <span>{account.lastError ?? "Sign in again to keep tracking this account."}</span>
+          <span>{displayAccountError(account.lastError) ?? "Sign in again to keep tracking this account."}</span>
           {onReconnect ? (
             <button type="button" className="button ghost compact-button" onClick={() => onReconnect(account)}>
               {account.provider === "google_ai_studio" ? "Reconnect Cloud Usage" : "Reconnect"}

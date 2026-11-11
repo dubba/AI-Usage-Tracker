@@ -121,7 +121,7 @@ fn grok_rpc_errors_are_sanitized_for_the_ui() {
     assert!(matches!(auth, Err(GrokFetchError::Auth)));
     assert_eq!(
         GrokFetchError::Auth.into_provider_error().to_string(),
-        "authentication is required"
+        "Re-authentication required"
     );
 
     let team = validate_grpc_status(Some("9"), Some("no personal team"));

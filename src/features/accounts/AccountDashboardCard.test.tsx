@@ -638,6 +638,31 @@ describe("AccountDashboardCard error display on mobile vs desktop", () => {
     expect(app.container.querySelector(".account-card-error")).toBeNull();
   });
 
+  it("formats 'authentication is required' to 'Re-authentication required' on mobile", () => {
+    setNarrowWindow(true);
+    app = mount(
+      <AccountDashboardCard
+        pageId="all"
+        account={{
+          ...account,
+          id: "mobile-reauth-test",
+          authRequired: true,
+          lastError: "authentication is required",
+        }}
+        busy={new Set()}
+        onRefresh={() => undefined}
+        onReconnect={() => undefined}
+        onConnectGoogleUsage={() => undefined}
+        onRename={async () => undefined}
+        onRemove={() => undefined}
+        onNotifications={() => undefined}
+      />,
+    );
+
+    const inlineError = app.container.querySelector(".account-card-updated.is-error");
+    expect(inlineError?.textContent).toBe("Re-authentication required");
+  });
+
   it("shows Reconnect button for Google AI Studio signed-out account on mobile", () => {
     setNarrowWindow(true);
     const onReconnect = vi.fn();
@@ -777,7 +802,7 @@ describe("AccountDashboardCard limit resets", () => {
     renderResets(usageWithResets([resetGrant]));
     const toggle = document.querySelector(".limit-resets-toggle");
     expect(toggle?.getAttribute("aria-expanded")).toBe("false");
-    expect(document.body.textContent).toContain("Limit resets");
+    expect(document.body.textContent).toContain("You have 1 available Limit Reset");
     expect(document.body.textContent).not.toContain("Clears the 5-hour and weekly limits");
     expect(document.body.textContent).not.toContain("grant-secret-1");
   });
@@ -785,6 +810,82 @@ describe("AccountDashboardCard limit resets", () => {
   it("hides the section while the whole card is collapsed", () => {
     renderResets(usageWithResets([resetGrant]), true);
     expect(document.querySelector(".limit-resets-section")).toBeNull();
+  });
+});
+
+describe("AccountDashboardCard Claude limits", () => {
+  let app: Mounted | null = null;
+
+  afterEach(() => {
+    app?.unmount();
+    app = null;
+  });
+
+  it("renders all 3 limits for a Claude account with Fable", () => {
+    const claudeUsage: UsageSnapshot = {
+      plan: "claude_pro",
+      email: "claude@example.com",
+      windows: [
+        {
+          id: "five_hour",
+          label: "5 hour",
+          usedPercent: 0,
+          remainingPercent: 100,
+          resetsAt: null,
+          windowSeconds: 18000,
+          kind: "five_hour",
+        },
+        {
+          id: "weekly",
+          label: "Weekly",
+          usedPercent: 2,
+          remainingPercent: 98,
+          resetsAt: "2026-11-15T07:59:59Z",
+          windowSeconds: 604800,
+          kind: "weekly",
+        },
+        {
+          id: "seven_day_fable",
+          label: "Fable · Weekly",
+          usedPercent: 0,
+          remainingPercent: 100,
+          resetsAt: "2026-11-15T07:59:59Z",
+          windowSeconds: 604800,
+          kind: "weekly",
+        },
+      ],
+      creditsUsd: null,
+      unlimitedCredits: false,
+      fetchedAt: "2026-11-11T06:00:00Z",
+      freshness: "live",
+      source: "anthropic_oauth_usage",
+      limitResets: [],
+    };
+
+    app = mount(
+      <AccountDashboardCard
+        pageId="all"
+        account={{ ...account, id: "acct-claude-3", lastUsage: claudeUsage }}
+        busy={new Set()}
+        onRefresh={() => undefined}
+        onReconnect={() => undefined}
+        onConnectGoogleUsage={() => undefined}
+        onRename={async () => undefined}
+        onRemove={() => undefined}
+        onNotifications={() => undefined}
+      />,
+    );
+
+    const metrics = app.container.querySelectorAll(".account-usage-metric");
+    expect(metrics).toHaveLength(3);
+    expect(app.container.querySelector(".multi-row-metrics")).not.toBeNull();
+    const metricSpans = Array.from(app.container.querySelectorAll(".desktop-metric-span")).map((el) => el.textContent);
+    const metricNames = Array.from(app.container.querySelectorAll(".desktop-metric-name")).map((el) => el.textContent);
+    expect(metricSpans).toEqual(["5-hour", "7-day", "7-day"]);
+    expect(metricNames).toEqual(["Claude", "Claude", "Fable"]);
+    expect(document.body.textContent).toContain("100%left");
+    expect(document.body.textContent).toContain("98%left");
+    expect(document.body.textContent).toContain("Resets in 4d");
   });
 });
 

@@ -16,6 +16,11 @@ function confirmBody(detail: string): string {
   return `${sentence}. This cannot be undone.`;
 }
 
+function availableLabel(count: number): string {
+  const noun = count === 1 ? "Limit Reset" : "Limit Resets";
+  return `You have ${count} available ${noun}`;
+}
+
 /** The limit-reset block on an account card. Render it only when `grants` is not empty. */
 export function LimitResetsSection({
   grants,
@@ -39,8 +44,7 @@ export function LimitResetsSection({
         aria-controls={panelId}
         onClick={() => setOpen((current) => !current)}
       >
-        <span className="limit-resets-kicker">Limit resets</span>
-        <span className="limit-resets-count">{grants.length}</span>
+        <span className="limit-resets-kicker">{availableLabel(grants.length)}</span>
         <ChevronIcon className="limit-resets-chevron" />
       </button>
       {open ? (
@@ -71,7 +75,7 @@ export function LimitResetsSection({
           <p className="limit-resets-note">
             {grants.every((grant) => grant.usable === false)
               ? "Redeem these in Grok, under Settings → Usage."
-              : "Using one restores that limit. It cannot be undone."}
+              : "Warning: This reset action cannot be undone!"}
           </p>
         </div>
       ) : null}
