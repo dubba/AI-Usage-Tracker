@@ -816,7 +816,13 @@ describe("AccountDashboardCard limit resets", () => {
 describe("AccountDashboardCard Claude limits", () => {
   let app: Mounted | null = null;
 
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-11T07:59:59Z"));
+  });
+
   afterEach(() => {
+    vi.useRealTimers();
     app?.unmount();
     app = null;
   });
