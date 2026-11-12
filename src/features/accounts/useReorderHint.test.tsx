@@ -2,8 +2,8 @@
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mount, type Mounted } from "../../test-utils/react";
-import { UI_EVENTS } from "../../shared/lib/events";
-import { STORAGE_KEYS, storageGet, storageSet, writeJson } from "../../shared/lib/storage";
+import { announceReorder } from "../../shared/lib/events";
+import { STORAGE_KEYS, storageGet, storageSet } from "../../shared/lib/storage";
 import { resetLayoutForTests } from "../dashboard/layout-store";
 import { countReorderHintSession, isReorderHintEligible, MAX_REORDER_HINT_OPENS, useReorderHint } from "./useReorderHint";
 
@@ -15,6 +15,15 @@ function capture(value: ReturnType<typeof useReorderHint>) {
 
 function Probe({ canReorder, page }: { canReorder: boolean; page?: "accounts" | "activity" }) {
   capture(useReorderHint(canReorder, page));
+  return null;
+}
+
+let latestActivity: ReturnType<typeof useReorderHint>;
+function captureActivity(value: ReturnType<typeof useReorderHint>) {
+  latestActivity = value;
+}
+function ActivityProbe({ canReorder }: { canReorder: boolean }) {
+  captureActivity(useReorderHint(canReorder, "activity"));
   return null;
 }
 
@@ -110,9 +119,7 @@ describe("useReorderHint", () => {
 
   it("is done for good after the user moves a card or a group", () => {
     mounted = mount(<Probe canReorder />);
-    act(() => {
-      window.dispatchEvent(new Event(UI_EVENTS.pageOrderChanged));
-    });
+    act(() => announceReorder("accounts"));
     expect(latest.showReorderHint).toBe(false);
     expect(storageGet(STORAGE_KEYS.reorderHintSeen)).toBe("1");
     sessionStorage.clear();
@@ -121,12 +128,13 @@ describe("useReorderHint", () => {
     expect(latest.showReorderHint).toBe(false);
   });
 
-  it("also finishes when a sidebar group is moved, and completeReorderHint does the same", () => {
+  it("also finishes when a sidebar group is moved on that page, and completeReorderHint does the same", () => {
     mounted = mount(<Probe canReorder />);
-    writeJson(STORAGE_KEYS.sidebarGroupOrder, ["provider:grok", "provider:openai"]);
-    act(() => {
-      window.dispatchEvent(new Event(UI_EVENTS.groupOrderChanged));
-    });
+    const stage = document.createElement("div");
+    stage.innerHTML = '<div class="kept-page" data-page="accounts"></div>';
+    document.body.append(stage);
+    act(() => announceReorder("sidebar"));
+    stage.remove();
     expect(latest.showReorderHint).toBe(false);
     localStorage.clear();
     sessionStorage.clear();
@@ -134,6 +142,33 @@ describe("useReorderHint", () => {
     mounted = mount(<Probe canReorder />);
     act(() => latest.completeReorderHint());
     expect(latest.showReorderHint).toBe(false);
+  });
+
+  it("keeps each page's hint when a card is moved on the other page", () => {
+    mounted = mount(<><Probe canReorder page="accounts" /><ActivityProbe canReorder /></>);
+    act(() => announceReorder("accounts"));
+    expect(latest.showReorderHint).toBe(false);
+    expect(latestActivity.showReorderHint).toBe(true);
+    expect(storageGet(STORAGE_KEYS.activityReorderHintSeen)).toBeNull();
+    act(() => announceReorder("activity"));
+    expect(latestActivity.showReorderHint).toBe(false);
+    expect(storageGet(STORAGE_KEYS.activityReorderHintSeen)).toBe("1");
+  });
+
+  it("finishes only the page on screen when a sidebar group is moved, and none from Settings", () => {
+    mounted = mount(<><Probe canReorder page="accounts" /><ActivityProbe canReorder /></>);
+    const stage = document.createElement("div");
+    stage.innerHTML = '<div class="kept-page" data-page="settings"></div>';
+    document.body.append(stage);
+    act(() => announceReorder("sidebar"));
+    expect(latest.showReorderHint).toBe(true);
+    expect(latestActivity.showReorderHint).toBe(true);
+
+    stage.innerHTML = '<div class="kept-page" data-page="activity"></div><div class="kept-page" data-page="accounts" hidden></div>';
+    act(() => announceReorder("sidebar"));
+    expect(latestActivity.showReorderHint).toBe(false);
+    expect(latest.showReorderHint).toBe(true);
+    stage.remove();
   });
 
   it("operates independently on the activity page", () => {

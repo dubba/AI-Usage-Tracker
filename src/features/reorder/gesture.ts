@@ -3,6 +3,7 @@ import { beginReordering, DROP_COOLDOWN_MS, droppedWithin, endReordering } from 
 import { persistGroupOrder, persistVisibleAccountOrder } from "./persist";
 import { clearDragArtifacts, enterDragVisuals, moveFloat, prepareDrag, settleVisualDrag, updatePlaceholderFromPointer } from "./preview";
 import { storeSidebarGroupOrder } from "../dashboard/sidebar-order";
+import { announceReorder } from "../../shared/lib/events";
 import type { ActiveDrag, PointerCandidate } from "./types";
 
 const DRAG_THRESHOLD_PX = 5;
@@ -103,8 +104,10 @@ function finishDrag(commit: boolean): void {
   if (drag.descriptor.kind === "group") {
     storeSidebarGroupOrder(nextOrder);
     void persistGroupOrder(nextOrder);
+    announceReorder("sidebar");
   } else {
     void persistVisibleAccountOrder(nextOrder, drag.container.dataset.groupId ?? null);
+    announceReorder(drag.container.classList.contains("activity-grid") ? "activity" : "accounts");
   }
 }
 

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { UI_EVENTS } from "../../shared/lib/events";
+import { announceReorder } from "../../shared/lib/events";
 import { setNarrowWindow } from "../../test-utils/media";
 import { click, mount, type Mounted } from "../../test-utils/react";
 import type { Account, AccountBucket } from "../../types";
@@ -337,11 +337,7 @@ describe("AccountsView reorder hint banner", () => {
     expect(document.querySelector(".reorder-hint-banner")).not.toBeNull();
 
     // Trigger an actual reorder event
-    act(() => {
-      window.dispatchEvent(new CustomEvent(UI_EVENTS.pageOrderChanged, {
-        detail: { pageId: "all", order: ["acct-2", account.id] },
-      }));
-    });
+    act(() => announceReorder("accounts"));
 
     // Banner is dismissed immediately
     expect(document.querySelector(".reorder-hint-banner")).toBeNull();

@@ -40,7 +40,7 @@ import {
   type SidebarGroup,
 } from "../features/dashboard/sidebar-groups";
 import { moveAnnouncement } from "../features/reorder/reorder-utils";
-import { requestDashboardResync } from "../shared/lib/events";
+import { announceReorder, requestDashboardResync } from "../shared/lib/events";
 import { bridgeApi } from "../shared/lib/api";
 import { clearAppStorage } from "../shared/lib/storage";
 import type { Account, AccountBucket, Provider } from "../types";
@@ -252,6 +252,7 @@ export default function App() {
     if (!move) return;
     storeSidebarGroupOrder(move.ids);
     void persistGroupOrder(move.ids);
+    announceReorder("sidebar");
     setGroupAnnouncement(moveAnnouncement(group.title, move.to, move.total));
     // React moves the row's DOM node, which drops focus; put it back once the move has rendered.
     window.setTimeout(() => {

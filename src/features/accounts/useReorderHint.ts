@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { STORAGE_KEYS, storageGet, storageSet } from "../../shared/lib/storage";
-import { subscribeLayout } from "../dashboard/layout-store";
+import { onReorderDone } from "../../shared/lib/events";
 
 /** The reorder hint shows in at most this many app sessions (opens of the dashboard in a new session). */
 export const MAX_REORDER_HINT_OPENS = 2;
@@ -64,7 +64,7 @@ export function countReorderHintSession(page: ReorderHintPage = "accounts"): voi
 
 /**
  * The "you can drag or move cards" hint of the accounts or usage page: shown a couple of times,
- * until dismissed, and never again once the user reorders a card or a sidebar group.
+ * until dismissed, and never again once the user reorders a card or a sidebar group while on this page.
  */
 export function useReorderHint(canReorder: boolean, page: ReorderHintPage = "accounts") {
   const keys = keysForPage(page);
@@ -89,11 +89,15 @@ export function useReorderHint(canReorder: boolean, page: ReorderHintPage = "acc
     setCompleted(true);
   }, [keys.seen]);
 
-  // Done for good once the user reorders a card or a group (any saved change of the layout).
+  // Done for good once the user reorders while on this page (a card, or a sidebar group). A reorder
+  // on another page, Settings included, leaves this page's hint alone, so each page teaches
+  // dragging on its own.
   useEffect(() => {
     if (!showReorderHint) return;
-    return subscribeLayout(completeReorderHint);
-  }, [showReorderHint, completeReorderHint]);
+    return onReorderDone((reorderedOn) => {
+      if (reorderedOn === page) completeReorderHint();
+    });
+  }, [showReorderHint, completeReorderHint, page]);
 
   return { showReorderHint, dismissReorderHint, completeReorderHint };
 }
