@@ -1,13 +1,26 @@
 # Changelog
 
-## Unreleased (5 changes)
+## Unreleased (12 changes)
 
-### Improved (4)
+### Added (2)
+
+- New keyboard shortcuts go straight to a page: ⌘1 / Ctrl+1 for the Dashboard, ⌘2 / Ctrl+2 for Usage and ⌘3 / Ctrl+3 for Settings.
+- ⌘S / Ctrl+S now steps through the Dashboard, Usage and Settings pages, and round to the Dashboard again.
+
+### Improved (8)
 
 - On phones, the menu button is 40px tall instead of 36px, and the Dashboard's % Left / % Used switch and the Usage page's 7D / 30D switch grow to match it. The header is 4px taller, with the same space above and below.
 - On the Usage page, an account card's plan and reset line now sits under its name, with the model name (such as Gemini Models) on the line below.
 - On the Usage page, the gap between "used this week" and the weekly percentages above the chart is smaller.
 - The tip about dragging cards to reorder them now goes away separately on the Dashboard and the Usage page. Moving a card, or a sidebar group while on a page, removes it only from that page. Moving a sidebar group from Settings removes neither.
+- On desktop account cards, the space below each usage progress bar is now 4px, the same as above it.
+- On account cards, the line between the account name and the usage meters is gone, and the meters start closer to the name. On phones, the space from the provider icon to the first meter is the same as between meters. When Limit resets is open, the line under its pill is gone too, and the list starts closer to the pill.
+- ⌘, / Ctrl+, now only opens Settings, the same as ⌘3 / Ctrl+3, instead of also going back to the page you came from. The shortcuts list in Settings shows both keys on one line.
+- On desktop account cards, the visible space from the provider icon to the first usage row and between usage rows is about 28px, and the card has 16px of padding above the name and below the last row.
+
+### Removed (1)
+
+- The ⌘D / Ctrl+D and ⌘U / Ctrl+U shortcuts are gone. Use ⌘1 / Ctrl+1 for the Dashboard and ⌘2 / Ctrl+2 for Usage.
 
 ### Fixed (1)
 

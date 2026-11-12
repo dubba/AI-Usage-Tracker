@@ -1132,13 +1132,12 @@
   font-size: 13px;
 }
 
-/* Visually balance the space above and below the bar on desktop: 4px top offsets the
-   descender space of the 20px metric value above, matching the 6px bottom gap. */
+/* 4px above and below the bar on desktop, the same as on a phone. */
 .desktop-metric .account-metric-track {
   flex: none;
   width: 100%;
   height: 7px;
-  margin: 4px 0 6px;
+  margin: 4px 0;
 }
 
 .desktop-metric .desktop-metric-foot {
@@ -1235,10 +1234,9 @@
 }
 
 .provider-account-card .limit-resets-toggle[aria-expanded="true"] {
-  /* Same 12px under the pill as above it. Closed rows keep 8px so the card
-     edge stays 19px below the pill. */
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--obsidian-border);
+  /* No divider under the pill: the list starts right below it, and its first row's own 12px of
+     padding is the space. Closed rows keep 8px so the card edge stays 19px below the pill. */
+  padding-bottom: 0;
 }
 
 .provider-account-card .limit-resets-toggle[aria-expanded="true"] .limit-resets-chevron {
@@ -1359,13 +1357,13 @@
     min-height: 0;
     /* The drag grip spans 12px to 16px (dashboard-reorder.css); 28px leaves the same 12px between
        it and the icon as the header's gap between the icon and the name. */
-    padding: 18px 20px 16px 28px;
+    padding: 16px 20px 16px 28px;
   }
 
   /* The header no longer ends at the icon (the actions can wrap below it), so the grip is
-     centered on the icon from the top: 18px of padding plus half the 44px icon. */
+     centered on the icon from the top: 16px of padding plus half the 44px icon. */
   .provider-account-card.desktop-card .provider-account-card-header .reorder-grip {
-    top: 40px;
+    top: 38px;
     bottom: auto;
     transform: translateY(-50%);
   }
@@ -1564,13 +1562,18 @@
     position: relative;
   }
 
-  /* 14px over the first row leaves about the same visible space from the divider to the top of
-     the percent as from the reset date to the card's bottom edge (20px of padding there). */
+  /* No divider between the header and the usage rows: the header drops its bottom padding. With the
+     empty space inside a line of text, 15px under the header leaves about 28px of visible space
+     from the icon to the first label, and 13px between rows leaves about 28px from a reset time to
+     the next label. */
   .provider-account-card.desktop-card .account-card-metrics {
-    gap: 16px 36px;
+    gap: 13px 36px;
     margin: 0 20px;
-    padding: 14px 0 20px;
-    border-top: 1px solid var(--obsidian-border);
+    padding: 15px 0 16px;
+  }
+
+  .provider-account-card.desktop-card:not(.is-collapsed) .provider-account-card-header:has(+ .account-card-metrics) {
+    padding-bottom: 0;
   }
 
   /* The rows are spaced by the grid gap alone. The phone layout's 12px under each row
@@ -1796,8 +1799,10 @@
     height: 15px;
   }
 
-  /* The usage rows: under a divider, spaced like the desktop card's. The longer selectors beat the
-     phone rules above that remove the gap between rows. */
+  /* The usage rows, with no divider under the header: the header drops its bottom padding, and 16px
+     of padding above the rows leaves about 28px of visible space from the icon to the first label,
+     the same as between rows (13px gap). The longer selectors beat the phone rules above that remove
+     the gap between rows. */
   .provider-account-card .account-card-metrics,
   .provider-account-card .account-card-metrics.two-column-metrics,
   .provider-account-card .account-card-metrics.multi-row-metrics {
@@ -1805,8 +1810,11 @@
     /* The left edge lines up with the icon above (the header's left padding is 12px on a phone, see
        dashboard-reorder.css), the right edge with the menu button. */
     margin: 0 14px 0 12px;
-    padding: 11px 0 16px;
-    border-top: 1px solid var(--obsidian-border);
+    padding: 16px 0;
+  }
+
+  .provider-account-card:not(.is-collapsed) .provider-account-card-header:has(+ .account-card-metrics) {
+    padding-bottom: 0;
   }
 
   .provider-account-card .account-card-metrics .account-usage-metric.desktop-metric {
