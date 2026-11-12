@@ -25,20 +25,26 @@ export function useSidebarNavigation() {
     return openSection.get();
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  // The page Settings was opened from, which the Settings shortcut goes back to.
-  const pageBeforeSettings = useRef<Exclude<Section, "settings">>(section === "activity" ? "activity" : "accounts");
+  // The page on screen, kept here (not read from state) so two shortcuts pressed in quick succession
+  // each see the page the previous one chose.
+  const currentSection = useRef<Section>(section);
 
   useEffect(() => {
     openSection.set(section);
   }, [section]);
 
-  /** Shows `page`, remembering it as the page Settings returns to. */
-  const showPage = useCallback((page: Exclude<Section, "settings">, closeSidebar: boolean) => {
+  /** Shows `next`. */
+  const navigate = useCallback((next: Section, closeSidebar: boolean) => {
     rememberVisiblePageScroll();
-    pageBeforeSettings.current = page;
-    setSection(page);
+    currentSection.current = next;
+    setSection(next);
     if (closeSidebar) setSidebarOpen(false);
   }, []);
+
+  /** Shows `page`. */
+  const showPage = useCallback((page: Exclude<Section, "settings">, closeSidebar: boolean) => {
+    navigate(page, closeSidebar);
+  }, [navigate]);
 
   /** Shows the accounts of `groupId`. Pass `closeSidebar` when the choice was made in the sidebar. */
   const selectGroup = useCallback(
@@ -57,18 +63,13 @@ export function useSidebarNavigation() {
   /** The accounts page, on whichever group was last chosen. */
   const showAccounts = useCallback(() => showPage("accounts", true), [showPage]);
 
-  const showSettings = useCallback(() => {
-    rememberVisiblePageScroll();
-    setSection("settings");
-    setSidebarOpen(false);
-  }, []);
+  const showSettings = useCallback(() => navigate("settings", true), [navigate]);
 
-  /** The keyboard shortcut: Settings, or back to the page it was opened from when it is already open. */
-  const toggleSettings = useCallback(() => {
-    rememberVisiblePageScroll();
-    setSection((current) => (current === "settings" ? pageBeforeSettings.current : "settings"));
-    setSidebarOpen(false);
-  }, []);
+  /** The keyboard shortcut that steps through the pages in the order of the page switch: Dashboard, Usage, Settings, and round again. */
+  const cyclePages = useCallback(() => {
+    const order: Section[] = ["accounts", "activity", "settings"];
+    navigate(order[(order.indexOf(currentSection.current) + 1) % order.length], true);
+  }, [navigate]);
 
   const toggleSidebar = useCallback(() => setSidebarOpen((open) => !open), []);
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
@@ -82,7 +83,7 @@ export function useSidebarNavigation() {
     showActivity,
     showAccounts,
     showSettings,
-    toggleSettings,
+    cyclePages,
     toggleSidebar,
     closeSidebar,
   };

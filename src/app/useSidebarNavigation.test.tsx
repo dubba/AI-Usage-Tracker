@@ -64,14 +64,24 @@ describe("useSidebarNavigation", () => {
     expect(nav.sidebarOpen).toBe(false);
   });
 
-  it("the settings shortcut toggles Settings and closes the sidebar", () => {
+  it("showSettings opens Settings and closes the sidebar", () => {
     mounted = mount(<Probe />);
     act(() => nav.toggleSidebar());
-    act(() => nav.toggleSettings());
+    act(() => nav.showSettings());
     expect(nav.section).toBe("settings");
     expect(nav.sidebarOpen).toBe(false);
-    act(() => nav.toggleSettings());
-    expect(nav.section).toBe("accounts");
+    act(() => nav.showSettings());
+    expect(nav.section).toBe("settings");
+  });
+
+  it("cyclePages carries on from the page that was just chosen, also back to back", () => {
+    mounted = mount(<Probe />);
+    act(() => {
+      nav.showSettings();
+      nav.cyclePages();
+      nav.cyclePages();
+    });
+    expect(nav.section).toBe("activity");
   });
 
   it("resetGroup returns to All accounts without changing the page", () => {
@@ -141,54 +151,26 @@ describe("useSidebarNavigation", () => {
     expect(nav.selectedGroupId).toBe("provider:openai");
   });
 
-  it("the settings shortcut goes back to Usage when Settings was opened from it", () => {
+  it("the cycle shortcut steps Dashboard, Usage, Settings and round again", () => {
     mounted = mount(<Probe />);
-    act(() => nav.showActivity());
-    act(() => nav.toggleSettings());
-    expect(nav.section).toBe("settings");
-    act(() => nav.toggleSettings());
-    expect(nav.section).toBe("activity");
-  });
-
-  it("the settings shortcut goes back to Accounts when Settings was opened from there", () => {
-    mounted = mount(<Probe />);
-    act(() => nav.showActivity());
-    act(() => nav.showAccounts());
-    act(() => nav.toggleSettings());
-    act(() => nav.toggleSettings());
     expect(nav.section).toBe("accounts");
-  });
-
-  it("returns from Settings to the page it was opened from, also when opened by the Settings button", () => {
-    mounted = mount(<Probe />);
-    act(() => nav.showActivity());
-    act(() => nav.showSettings());
-    expect(nav.section).toBe("settings");
-    act(() => nav.toggleSettings());
+    act(() => nav.cyclePages());
     expect(nav.section).toBe("activity");
-  });
-
-  it("follows the last page chosen while Settings is open", () => {
-    mounted = mount(<Probe />);
-    act(() => nav.showActivity());
-    act(() => nav.showSettings());
-    act(() => nav.showAccounts());
-    expect(nav.section).toBe("accounts");
-    act(() => nav.toggleSettings());
+    act(() => nav.cyclePages());
     expect(nav.section).toBe("settings");
-    act(() => nav.toggleSettings());
+    act(() => nav.cyclePages());
     expect(nav.section).toBe("accounts");
   });
 
   it("keeps the same functions between renders", () => {
     mounted = mount(<Probe />);
-    const { selectGroup, showSettings, showActivity, showAccounts, toggleSettings, toggleSidebar } = nav;
+    const { selectGroup, showSettings, showActivity, showAccounts, cyclePages, toggleSidebar } = nav;
     act(() => nav.toggleSidebar());
     expect(nav.selectGroup).toBe(selectGroup);
     expect(nav.showSettings).toBe(showSettings);
     expect(nav.showActivity).toBe(showActivity);
     expect(nav.showAccounts).toBe(showAccounts);
-    expect(nav.toggleSettings).toBe(toggleSettings);
+    expect(nav.cyclePages).toBe(cyclePages);
     expect(nav.toggleSidebar).toBe(toggleSidebar);
   });
 });

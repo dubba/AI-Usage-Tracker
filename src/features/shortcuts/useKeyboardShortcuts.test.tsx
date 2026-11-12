@@ -15,8 +15,9 @@ const makeHandlers = () => ({
   openSettings: vi.fn(),
   addAccount: vi.fn(),
   addGroup: vi.fn(),
-  showActivity: vi.fn(),
-  showAccounts: vi.fn(),
+  cyclePages: vi.fn(),
+  goAccounts: vi.fn(),
+  goActivity: vi.fn(),
 });
 
 function press(key: string, init: KeyboardEventInit = { ctrlKey: true }): KeyboardEvent {
@@ -89,51 +90,43 @@ describe("useKeyboardShortcuts", () => {
     expect(handlers.refreshAll).not.toHaveBeenCalled();
   });
 
-  it("adds an account on 'n' and 'a'; 'd' shows the Dashboard page", () => {
+  it("adds an account on 'n' and 'a'; 'd' does nothing", () => {
     const handlers = makeHandlers();
     mounted = mount(<Probe enabled handlers={handlers} />);
     press("n");
     expect(handlers.addAccount).toHaveBeenCalledTimes(1);
-    expect(handlers.showAccounts).not.toHaveBeenCalled();
     const eventA = press("a");
     expect(handlers.addAccount).toHaveBeenCalledTimes(2);
-    expect(handlers.showAccounts).not.toHaveBeenCalled();
     expect(eventA.defaultPrevented).toBe(true);
     const eventD = press("d");
     expect(handlers.addAccount).toHaveBeenCalledTimes(2);
-    expect(handlers.showAccounts).toHaveBeenCalledTimes(1);
-    expect(eventD.defaultPrevented).toBe(true);
+    expect(eventD.defaultPrevented).toBe(false);
   });
 
-  it("supports ',' and 's' for openSettings", () => {
+  it("uses ',' for Settings and 's' to cycle the pages", () => {
     const handlers = makeHandlers();
     mounted = mount(<Probe enabled handlers={handlers} />);
     press(",");
     expect(handlers.openSettings).toHaveBeenCalledTimes(1);
     press("s");
-    expect(handlers.openSettings).toHaveBeenCalledTimes(2);
-    const event = press("3");
-    expect(handlers.openSettings).toHaveBeenCalledTimes(2);
+    expect(handlers.cyclePages).toHaveBeenCalledTimes(1);
+    expect(handlers.openSettings).toHaveBeenCalledTimes(1);
+    const event = press("4");
+    expect(handlers.openSettings).toHaveBeenCalledTimes(1);
     expect(event.defaultPrevented).toBe(false);
   });
 
-  it("shows the Usage page on U and the Dashboard page on D, and ignores the digits", () => {
+  it("goes to the Dashboard, Usage and Settings on 1, 2 and 3, and leaves U alone", () => {
     const handlers = makeHandlers();
     mounted = mount(<Probe enabled handlers={handlers} />);
-    const event = press("u");
-    expect(handlers.showActivity).toHaveBeenCalledTimes(1);
-    expect(event.defaultPrevented).toBe(true);
-    press("d");
-    expect(handlers.showAccounts).toHaveBeenCalledTimes(1);
-    press("u", {});
-    expect(handlers.showActivity).toHaveBeenCalledTimes(1);
-    for (const digit of ["1", "2", "3"]) {
-      const ignored = press(digit);
-      expect(ignored.defaultPrevented).toBe(false);
-    }
-    expect(handlers.showActivity).toHaveBeenCalledTimes(1);
-    expect(handlers.showAccounts).toHaveBeenCalledTimes(1);
-    expect(handlers.openSettings).not.toHaveBeenCalled();
+    expect(press("u").defaultPrevented).toBe(false);
+    const one = press("1");
+    press("2");
+    press("3");
+    expect(one.defaultPrevented).toBe(true);
+    expect(handlers.goAccounts).toHaveBeenCalledTimes(1);
+    expect(handlers.goActivity).toHaveBeenCalledTimes(1);
+    expect(handlers.openSettings).toHaveBeenCalledTimes(1);
   });
 
   it("does not intercept shortcuts while typing in editable fields", () => {
@@ -149,7 +142,6 @@ describe("useKeyboardShortcuts", () => {
     });
 
     // Select all keeps working in a field.
-    expect(handlers.showAccounts).not.toHaveBeenCalled();
     expect(handlers.addAccount).not.toHaveBeenCalled();
     expect(event.defaultPrevented).toBe(false);
     input.remove();
@@ -170,7 +162,6 @@ describe("useKeyboardShortcuts", () => {
       span.dispatchEvent(event);
     });
 
-    expect(handlers.showAccounts).not.toHaveBeenCalled();
     expect(handlers.addAccount).not.toHaveBeenCalled();
     expect(event.defaultPrevented).toBe(false);
     editable.remove();

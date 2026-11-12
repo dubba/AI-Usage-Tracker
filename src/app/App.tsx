@@ -217,9 +217,10 @@ export default function App() {
 
   useKeyboardShortcuts(!isMobileDevice(), {
     refreshAll: () => void refreshAll(),
-    openSettings: nav.toggleSettings,
-    showActivity: nav.showActivity,
-    showAccounts: nav.showAccounts,
+    openSettings: nav.showSettings,
+    cyclePages: nav.cyclePages,
+    goAccounts: nav.showAccounts,
+    goActivity: nav.showActivity,
     addAccount: () => {
       openAdd(undefined, selectedGroup.provider ?? undefined);
     },

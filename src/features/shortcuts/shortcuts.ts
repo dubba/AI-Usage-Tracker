@@ -1,5 +1,12 @@
 /** What a keyboard shortcut does. */
-export type ShortcutAction = "refreshAll" | "openSettings" | "addAccount" | "addGroup" | "showActivity" | "showAccounts";
+export type ShortcutAction =
+  | "refreshAll"
+  | "openSettings"
+  | "cyclePages"
+  | "addAccount"
+  | "addGroup"
+  | "goAccounts"
+  | "goActivity";
 
 export interface ShortcutKeyEvent {
   key: string;
@@ -21,12 +28,13 @@ export interface ShortcutItem {
 
 /** The shortcuts, in the order they are listed in Settings. `key` is the lower-case `event.key`. */
 export const SHORTCUTS: ReadonlyArray<ShortcutItem> = [
-  { action: "refreshAll", key: "r", keys: ["r"], label: "Refresh all accounts" },
   { action: "addAccount", key: "n", keys: ["n", "a"], label: "Add an account" },
   { action: "addGroup", key: "g", keys: ["g"], label: "Add a group" },
-  { action: "showAccounts", key: "d", keys: ["d"], label: "Show the Dashboard page" },
-  { action: "showActivity", key: "u", keys: ["u"], label: "Show the Usage page" },
-  { action: "openSettings", key: ",", keys: [",", "s"], label: "Switch between Settings and the page you came from" },
+  { action: "refreshAll", key: "r", keys: ["r"], label: "Refresh all accounts" },
+  { action: "cyclePages", key: "s", keys: ["s"], label: "Cycle through the Dashboard, Usage and Settings pages" },
+  { action: "goAccounts", key: "1", keys: ["1"], label: "Go to the Dashboard page" },
+  { action: "goActivity", key: "2", keys: ["2"], label: "Go to the Usage page" },
+  { action: "openSettings", key: ",", keys: [",", "3"], label: "Go to the Settings page" },
 ];
 
 export function isMacPlatform(): boolean {
@@ -56,7 +64,9 @@ export function matchShortcut(event: ShortcutKeyEvent, mac: boolean): ShortcutAc
     ? event.code.slice(3).toLowerCase()
     : event.code === "Comma"
       ? ","
-      : null;
+      : event.code?.startsWith("Digit")
+        ? event.code.slice(5)
+        : null;
   return (
     SHORTCUTS.find(
       (shortcut) =>
