@@ -1,6 +1,17 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (5 changes)
+
+### Improved (4)
+
+- On phones, the menu button is 40px tall instead of 36px, and the Dashboard's % Left / % Used switch and the Usage page's 7D / 30D switch grow to match it. The header is 4px taller, with the same space above and below.
+- On the Usage page, an account card's plan and reset line now sits under its name, with the model name (such as Gemini Models) on the line below.
+- On the Usage page, the gap between "used this week" and the weekly percentages above the chart is smaller.
+- The tip about dragging cards to reorder them now goes away separately on the Dashboard and the Usage page. Moving a card, or a sidebar group while on a page, removes it only from that page. Moving a sidebar group from Settings removes neither.
+
+### Fixed (1)
+
+- The "Connect an AI Account" box on the Usage page now sits at the same height as on the Dashboard, on phones and on wide windows.
 
 ## v0.5.9 - 2026-11-11 (29 changes)
 

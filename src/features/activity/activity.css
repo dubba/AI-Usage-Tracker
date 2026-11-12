@@ -55,6 +55,12 @@
     .activity-period {
       margin-block: -11px;
     }
+
+    /* 34px options in the 2px track and 1px border: a 40px switch on a phone, as tall as the menu button
+       and the % Left / % Used switch. */
+    .activity-period .activity-period-switch button {
+      height: 34px;
+    }
   }
 
   @media (min-width: 861px) {
@@ -152,6 +158,20 @@
     .activity-message {
       margin-top: 6px;
     }
+
+    /* The heading's inherited 1.45 line height made the box 7.2px lower than the Dashboard's
+       (108px from the scroll area's top on a wide window). 16px takes exactly that off. */
+    .activity-message > h2 {
+      line-height: 16px;
+    }
+  }
+
+  /* Up to 1180px the Dashboard's status cards wrap to a second row (70px card and a 16px gap), which
+     pushes its box down by 86px; the same space here keeps the two boxes at the same height. */
+  @media (min-width: 861px) and (max-width: 1180px) {
+    .activity-message {
+      margin-top: 92px;
+    }
   }
 
   .activity-message > svg {
@@ -186,7 +206,11 @@
      area adds 10px of top padding, so 170.5px from the header rule to the card. The icon and
      heading take 64px, leaving 106.5px of space. Splitting that evenly (53.25px each) centers
      "No accounts yet" and its icon with equal space above and below, keeping Connect an AI Account
-     on the same line as the Dashboard. */
+     on the same line as the Dashboard.
+
+     On a real phone the Dashboard's Next reset card comes out about 1.4px taller than that (its
+     pill follows the system font), which left this box 1.4px higher. 0.7px more on each side of the
+     heading moves the box down by that much and keeps the space above and below equal. */
   @media (max-width: 860px) {
     .activity-message {
       margin-top: 0;
@@ -194,12 +218,12 @@
     }
 
     .activity-message > svg {
-      margin-top: 43.25px;
+      margin-top: 43.95px;
       margin-bottom: 8px;
     }
 
     .activity-message > h2 {
-      margin-bottom: 53.25px;
+      margin-bottom: 53.95px;
       line-height: 20px;
     }
 
@@ -370,7 +394,7 @@
     color: var(--purple-accent);
     font-size: 11px;
     font-weight: 600;
-    line-height: 1.3;
+    line-height: 14px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -380,7 +404,7 @@
     margin: 2px 0 0;
     color: var(--c-b8b1bc);
     font-size: 11px;
-    line-height: 1.45;
+    line-height: 14px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -492,6 +516,12 @@
 
   .activity-chart.is-7d {
     --activity-pad-bottom: 18px;
+  }
+
+  /* The week's percents already sit in the 16px pad above the bars, so the chart closes up under
+     the header instead of adding its full margin on top of that pad. */
+  .activity-chart.has-used {
+    margin-top: 4px;
   }
 
   .activity-yaxis {

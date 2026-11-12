@@ -215,7 +215,7 @@ html[data-sidebar-toggle-stacked] .provider-sidebar-heading-stack .usage-display
 }
 
 /* The phone title row's % Left / % Used switch. The same inset pill as the Usage page's 7D / 30D
-   switch: 2px of track around 30px options, 9px outer corners and 6px option corners. */
+   switch: 2px of track around 34px options (a 40px switch, as tall as the menu button), 9px outer corners and 6px option corners. */
 .provider-window-toggle.is-words {
   gap: 2px;
   padding: 2px;
@@ -225,7 +225,7 @@ html[data-sidebar-toggle-stacked] .provider-sidebar-heading-stack .usage-display
 
 .provider-window-toggle.is-words button {
   width: auto;
-  height: 30px;
+  height: 34px;
   padding: 0 12px;
   border: 0;
   border-radius: 6px;
@@ -2966,8 +2966,8 @@ select.text-input option,
   display: none;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   padding: 0;
   border: 1px solid var(--chrome-border);
   border-radius: 6px;
@@ -3284,8 +3284,8 @@ select.text-input option,
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     align-self: center;
     flex-shrink: 0;
     margin: 0;

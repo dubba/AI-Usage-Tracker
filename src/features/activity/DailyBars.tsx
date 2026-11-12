@@ -134,7 +134,7 @@ export function DailyBars({
   } as CSSProperties;
 
   return (
-    <div className={`activity-chart is-${period}`} style={style}>
+    <div className={`activity-chart is-${period}${showsUsed ? " has-used" : ""}`} style={style}>
       <div className="activity-yaxis" aria-hidden="true">
         <div className="activity-scale">
           {axis.ticks.map((tick) => (

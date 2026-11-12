@@ -107,7 +107,7 @@ describe("account card metric row spacing", () => {
   });
 
   it("centers the empty activity message on mobile with equal gap above and below", () => {
-    expect(ACTIVITY_CSS).toMatch(/\.activity-message > svg\s*\{[\s\S]*?margin-top:\s*43\.25px;/);
-    expect(ACTIVITY_CSS).toMatch(/\.activity-message > h2\s*\{[\s\S]*?margin-bottom:\s*53\.25px;/);
+    expect(ACTIVITY_CSS).toMatch(/\.activity-message > svg\s*\{[\s\S]*?margin-top:\s*43\.95px;/);
+    expect(ACTIVITY_CSS).toMatch(/\.activity-message > h2\s*\{[\s\S]*?margin-bottom:\s*53\.95px;/);
   });
 });
