@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type BusyKeys } from "../../shared/lib/busy";
 import { useReorderHint } from "./useReorderHint";
+import { useHidePillWhenCramped } from "./useHidePillWhenCramped";
 import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
 import { UsageDisplayToggle } from "../dashboard/UsageDisplayToggle";
 import { MOBILE_OVERLAY_QUERY } from "../dashboard/sidebar-width";
@@ -104,6 +105,8 @@ export function AccountsView(props: {
   const [announcement, setAnnouncement] = useState("");
   // The L / U switch sits in the title row on a phone and at the header's top right on a wide window.
   const phone = useMediaQuery(MOBILE_OVERLAY_QUERY);
+  const titleRowRef = useRef<HTMLDivElement>(null);
+  useHidePillWhenCramped(titleRowRef, phone && props.selectedGroup.type === "bucket", props.selectedGroup.title);
 
   useEffect(() => {
     setShowAttentionOnly(false);
@@ -149,7 +152,7 @@ export function AccountsView(props: {
       <PullToRefreshIndicator data={pullData} />
       <header className="dashboard-header">
         <div>
-          <div className="dashboard-title-row">
+          <div className="dashboard-title-row" ref={titleRowRef}>
             {props.onToggleSidebar ? <MobileSidebarToggle onToggle={props.onToggleSidebar} open={props.sidebarOpen} /> : null}
             <h1 className="eyebrow" tabIndex={-1} style={{ outline: "none" }}>
               {props.selectedGroup.type === "all"

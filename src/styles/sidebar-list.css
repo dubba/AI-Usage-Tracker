@@ -237,6 +237,39 @@
     margin-inline: -6px;
   }
 
+  /* A title too long for the pill, the pen and the add buttons loses the pill instead of its ending
+     (useHidePillWhenCramped). */
+  .dashboard-title-row[data-pill-hidden] .dashboard-bucket-pill {
+    display: none;
+  }
+
+  /* Without the pill the pen sits midway between the title and the add buttons: the same gap on both
+     sides, 5px at the least (the row's gap, narrowed from 10px; the menu button keeps its 10px with a
+     margin). When the title ends in an ellipsis,
+     useHidePillWhenCramped shrinks its box to end right after the dots, so the blank space the dots
+     leave goes to the pen's two sides. */
+  .dashboard-title-row[data-pill-hidden]:has(.dashboard-header-actions):has(.edit-bucket-title-btn) {
+    column-gap: 5px;
+  }
+
+  .dashboard-title-row[data-pill-hidden]:has(.dashboard-header-actions):has(.edit-bucket-title-btn) > :first-child {
+    margin-right: 5px;
+  }
+
+  .dashboard-title-row[data-pill-hidden]:has(.dashboard-header-actions):has(.edit-bucket-title-btn) .edit-bucket-title-btn {
+    margin-inline: auto;
+  }
+
+  .dashboard-title-row[data-pill-hidden]:has(.dashboard-header-actions):has(.edit-bucket-title-btn) .dashboard-header-actions {
+    margin-left: 0;
+  }
+
+  /* The dots of an ellipsis carry about 8px of blank space on their right; moving the pen half of that
+     towards the title evens the two gaps out. */
+  .dashboard-title-row[data-title-cut] .edit-bucket-title-btn {
+    translate: -4px 0;
+  }
+
   /* A phone shows no tooltips, and the switch's hidden ones would widen the list's scroll area. */
   .sidebar-display-switch [data-tooltip]::after {
     display: none !important;
