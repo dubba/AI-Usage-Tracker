@@ -87,8 +87,8 @@ export function WeeklyTracker({
         <div className="activity-card-notice">
           <span>{displayAccountError(account.lastError) ?? "Sign in again to keep tracking this account."}</span>
           {onReconnect ? (
-            <button type="button" className="button ghost compact-button" onClick={() => onReconnect(account)}>
-              {account.provider === "google_ai_studio" ? "Reconnect Cloud Usage" : "Reconnect"}
+            <button type="button" className="button primary compact-button" onClick={() => onReconnect(account)}>
+              {account.provider === "google_ai_studio" ? "Reconnect Cloud Usage" : "Sign in"}
             </button>
           ) : null}
         </div>

@@ -583,14 +583,15 @@
     white-space: nowrap;
     min-width: 0;
   }
-  .account-card-error-btn {
+  /* The 6px corners of the Sync Devices button; its purple fill and hover/active states come from .button.primary. */
+  .button.account-card-error-btn {
+    border-radius: 6px !important;
     flex-shrink: 0;
     height: 20px;
     min-height: 20px !important;
     padding: 0 7px !important;
     font-size: 11px !important;
     font-weight: 600;
-    border-radius: 4px;
     line-height: 1;
     position: relative;
   }
@@ -607,6 +608,26 @@
     grid-column: 2;
     grid-row: 2;
     justify-self: end;
+  }
+  /* The error line (Re-authentication required + Sign in / Retry) sits beneath the
+     "Updated" line and the status, plan and menu row. */
+  .account-card-header-actions .account-card-updated-error {
+    position: absolute;
+    right: 14px;
+    bottom: var(--card-error-bottom, 0);
+    grid-row: auto;
+  }
+  /* It hangs below the header's own row, so the icon, name and badges stay aligned like a card
+     without an error; the header just grows by the error line (20px) plus a 5px gap, the same as the space
+     from the bottom of the "Updated" text down to the menu button. */
+  .provider-account-card .provider-account-card-header:has(.account-card-updated-error) {
+    --card-error-bottom: 14px;
+    position: relative;
+    padding-bottom: 39px;
+  }
+  .provider-account-card:not(.is-collapsed) .provider-account-card-header:has(.account-card-updated-error):has(+ .account-card-metrics) {
+    --card-error-bottom: 0px;
+    padding-bottom: 25px;
   }
   .plan-with-dot {
     display: inline-flex;

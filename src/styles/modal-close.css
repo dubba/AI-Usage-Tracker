@@ -21,10 +21,12 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  border: 1px solid #d94a4a;
+  /* A quiet outlined button at rest, in both themes: red is kept for hover, focus and press, so it
+     does not outshout the dialog's own actions. In light these tokens are #c4bfd0 / #ffffff. */
+  border: 1px solid var(--obsidian-border-strong);
   border-radius: 8px;
-  background: #c53131;
-  color: #fff;
+  background: var(--obsidian-surface-low);
+  color: var(--muted);
   font-size: 26px;
   font-weight: 600;
   line-height: 1;
@@ -47,7 +49,7 @@
 .ui-modal-close svg {
   width: 20px;
   height: 20px;
-  stroke: #fff;
+  stroke: currentColor;
   stroke-width: 2.2;
 }
 
@@ -66,6 +68,7 @@
 }
 
 .ui-modal-close:active:not(:disabled) {
+  color: #fff;
   background: #b52828;
   border-color: #a82020;
 }
@@ -94,18 +97,7 @@
   color: #fff !important;
 }
 
-/* Light theme: a quiet outlined close button that turns red on hover, instead of a solid red
-   block that outshouts the modal's own actions. */
-:root[data-theme="light"] .ui-modal-close {
-  border-color: var(--border-strong);
-  background: var(--panel);
-  color: var(--muted);
-}
-
-:root[data-theme="light"] .ui-modal-close svg {
-  stroke: currentColor;
-}
-
+/* Light theme: the same rest look as dark (above); only the red states use a deeper red. */
 @media (hover: hover) and (pointer: fine) {
   :root[data-theme="light"] .ui-modal-close:hover:not(:disabled) {
     color: #fff;

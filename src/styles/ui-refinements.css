@@ -1710,15 +1710,17 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   color: var(--obsidian-purple) !important;
 }
 
-/* Sidebar expanded mobile close button: matches red modal close button */
+/* Phone drawer close button: at rest it looks like the hamburger it replaces (same 40px box, grey
+   outline and fill); it turns red only on hover, focus and press, like the dialog close button
+   (modal-close.css). Light theme: see the white-fill rule below. */
 .sidebar-mobile-header .mobile-sidebar-close-btn,
 .mobile-sidebar-close-btn {
-  background: #c53131 !important;
-  border: 1px solid #d94a4a !important;
+  background: var(--obsidian-surface-low, var(--c-1c1b1b)) !important;
+  border: 1px solid var(--obsidian-border-strong) !important;
   border-radius: 8px !important;
-  color: #fff !important;
-  width: 36px;
-  height: 36px;
+  color: var(--c-ffffff) !important;
+  width: 40px;
+  height: 40px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1733,8 +1735,8 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   display: block;
   width: 22px;
   height: 22px;
-  color: #fff !important;
-  stroke: #fff !important;
+  color: inherit !important;
+  stroke: currentColor !important;
   stroke-width: 2.2;
 }
 
@@ -1790,11 +1792,14 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   color: var(--c-ffffff) !important;
 }
 
-.sidebar-mobile-header .mobile-sidebar-close-btn:hover:not(:disabled),
-.mobile-sidebar-close-btn:hover:not(:disabled) {
-  background: #d93d3d !important;
-  border-color: #ff6464 !important;
-  color: #fff !important;
+/* Hover only on devices that hover, so a tap on a phone does not leave it stuck red. */
+@media (hover: hover) {
+  .sidebar-mobile-header .mobile-sidebar-close-btn:hover:not(:disabled),
+  .mobile-sidebar-close-btn:hover:not(:disabled) {
+    background: #d93d3d !important;
+    border-color: #ff6464 !important;
+    color: #fff !important;
+  }
 }
 
 .sidebar-mobile-header .mobile-sidebar-close-btn:focus-visible,
@@ -1827,7 +1832,8 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 
 /* Light theme: hamburger, account-card dropdown, and Settings use a
    white fill with black ink. Dark keeps the existing purple-on-surface chrome.
-   Literals: --c-ffffff inverts in Light. Close-X and update-available stay as-is. */
+   Literals: --c-ffffff inverts in Light. The drawer close X gets the same white fill at rest
+   (its own rule, after this one); update-available stays as-is. */
 :root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn),
 :root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):hover:not(:disabled),
 :root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):focus-visible,
@@ -1854,6 +1860,13 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 :root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):focus-visible > span,
 :root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):active:not(:disabled) svg,
 :root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):active:not(:disabled) > span {
+  color: #000000 !important;
+}
+
+/* Light theme drawer close X at rest: white fill and black ink, like the hamburger above. `:where`
+   keeps this at the base rule's specificity, so the red hover, focus and press rules still win. */
+:where(:root[data-theme="light"]) .sidebar-mobile-header .mobile-sidebar-close-btn {
+  background: #ffffff !important;
   color: #000000 !important;
 }
 

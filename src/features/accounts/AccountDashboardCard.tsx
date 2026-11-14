@@ -302,6 +302,7 @@ export function AccountDashboardCard({
               ) : null}
             </div>
             <div className="account-card-action-stack">
+              <p className="account-card-updated">{updatedAtLabel}</p>
               {signedOut ? (
                 <div className="account-card-updated-error">
                   <p className="account-card-updated is-error" title={accountErrorMessage ?? "This account is signed out."}>
@@ -332,9 +333,7 @@ export function AccountDashboardCard({
                     Retry
                   </button>
                 </div>
-              ) : (
-                <p className="account-card-updated">{updatedAtLabel}</p>
-              )}
+              ) : null}
               <div className="account-card-action-row">
               <div className="account-card-name-actions desktop-only">
               {onMove ? (

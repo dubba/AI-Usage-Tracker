@@ -1,6 +1,17 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (8 changes)
+
+### Improved (8)
+
+- On phones, the Dashboard header now has icon-only New group and Add account buttons at the top right, the same size and shape as the menu button. The side menu no longer has its own Account and Group buttons, on phones or desktop: add from the Dashboard header on a phone, or the top bar on a wide window. On a custom group's page, the Group pill and the edit pen stay on the same line as the group's name.
+- On phones, the % Left / % Used switch has moved from the Dashboard header to the bottom of the side menu, full width just above the sync status, so it is there on every page and stays in view while the list scrolls.
+- On phone-width account cards, the "Re-authentication required" message and its Sign in (or Retry) button now sit on a line below the Signed out badge, plan pill and menu button, and the "Updated … ago" line is back above them.
+- In the sidebar, the space above and below the Accounts and Groups headings is 4px instead of 7px.
+- The trash icon is gone from the header of a group. To delete a group, use Edit Group.
+- On phones, a group's page keeps the Group pill and the edit pen on the same line as the group's name, with about 6px around them, so a name like "Work Accounts" fits in full.
+- On the Usage page, the re-authentication notice and its Sign in button are smaller to match the card text. Both Sign in buttons now have the same 6px corners and purple fill, hover and pressed colours as the Sync Devices button.
+- Close buttons are no longer solid red until you use them. In the dark theme a dialog's ✕ is now outlined in grey, the same as in the light theme. On phones, the ✕ that closes the side menu looks like the menu button it replaces, in both themes, and is 40px instead of 36px. Both still turn red when you hover over, focus or press them.
 
 ## v0.5.10 - 2026-11-12 (12 changes)
 

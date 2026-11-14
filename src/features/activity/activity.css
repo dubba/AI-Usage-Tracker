@@ -461,11 +461,22 @@
     justify-content: space-between;
     gap: 8px 12px;
     margin-top: 12px;
-    padding: 8px 10px;
+    padding: 6px 8px;
     border: 1px solid rgba(255, 133, 133, 0.42);
     border-radius: 6px;
     color: var(--obsidian-red);
-    font-size: 13px;
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  /* A compact purple button, sized to the card's 12-13px text. */
+  .activity-card-notice .button {
+    border-radius: 6px !important;
+    min-height: 0;
+    height: 24px;
+    padding: 0 10px;
+    font-size: 12px;
+    line-height: 1;
   }
 
   /* An account with no weekly limit: no chart, a dashed outline instead. */
