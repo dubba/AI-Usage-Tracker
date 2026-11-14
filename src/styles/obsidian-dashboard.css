@@ -507,8 +507,10 @@ html[data-sidebar-toggle-stacked] .provider-sidebar-heading-stack .usage-display
   border-radius: inherit;
 }
 
+/* A healthy quota number is plain text: colour is kept for warning and critical, where the number
+   and its bar change together. */
 .tone-healthy {
-  color: var(--tone-healthy-text);
+  color: var(--c-f5f1ef);
 }
 
 .provider-summary-track > .tone-healthy,

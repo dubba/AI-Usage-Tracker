@@ -63,10 +63,10 @@ describe("MobileSidebarToggle", () => {
     mounted = mount(<MobileSidebarToggle onToggle={onToggle} open />);
     const button = document.querySelector("button")!;
     expect(button.className).toBe("mobile-sidebar-toggle-btn");
-    expect(button.getAttribute("aria-label")).toBe("Toggle navigation menu");
+    expect(button.getAttribute("aria-label")).toBe("Filter by account or group");
     expect(button.getAttribute("aria-controls")).toBe("app-sidebar");
     expect(button.getAttribute("aria-expanded")).toBe("true");
-    expect(button.getAttribute("data-tooltip")).toBe("Toggle navigation menu");
+    expect(button.getAttribute("data-tooltip")).toBe("Filter by account or group");
     click(button);
     expect(onToggle).toHaveBeenCalledTimes(1);
   });

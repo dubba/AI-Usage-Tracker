@@ -47,9 +47,13 @@
     /* Label color on the fill (same in both themes), on a --purple-text surface, and
      * purple-tinted body text on the page. */
     --purple-on-fill: #f7f4ff;
-    /* The same label color, dimmed, for the unselected items on the fill (still above 4.5:1; the
-     * bottom bar's test checks it). */
-    --purple-on-fill-muted: rgb(247 244 255 / 0.85);
+    /* The floating bottom bar (app/bottom-nav.css): a neutral pill and its labels. The current
+     * page sits on a --purple-fill pill with the --purple-on-fill label. Hex values, so src/styles/bottom-nav.test.ts can check the
+     * contrast in both themes. */
+    --bottom-nav-surface: #2a2a2c;
+    --bottom-nav-line: #3a3a3e;
+    --bottom-nav-label: #b4b4ba;
+    --bottom-nav-label-active: #ffffff;
     --purple-on-text: #2d145f;
     --purple-ink: #f7f4ff;
     /* Hover and pressed surface of the sidebar footer and primary button (dark text on it). */
@@ -93,7 +97,8 @@
     --obsidian-green: #4edea3;
     --obsidian-amber: #ffb869;
     --obsidian-red: #ff8585;
-    /* Quota tone *text* (percentages). Each clears WCAG AA 4.5:1 on the sidebar and card surfaces
+    /* Quota tone *text* (percentages). Healthy percentages are plain text (--c-f5f1ef), so
+     * --tone-healthy-text now only colours the suggested Refresh button. Each clears WCAG AA 4.5:1 on the sidebar and card surfaces
      * of its theme; bars keep the saturated fills. Checked by src/styles/tone-contrast.test.ts. */
     --tone-healthy-text: #4edea3;
     --tone-warning-text: #ffb869;
@@ -135,6 +140,10 @@
     --purple-accent-rgb: 118 80 217;
     --purple-text: #6d3bd7;
     --purple-text-rgb: 109 59 215;
+    --bottom-nav-surface: #ffffff;
+    --bottom-nav-line: #d6d6dc;
+    --bottom-nav-label: #5c5c66;
+    --bottom-nav-label-active: #1c1b1f;
     --purple-on-text: #f7f4ff;
     --purple-ink: #381f7a;
     --purple-chip: #3c1f7a;

@@ -46,7 +46,8 @@ export const CalendarOffIcon = (props: IconProps) => (
   </Base>
 );
 export const CheckIcon = (props: IconProps) => <Base {...props}><path d="m5 12 5 5L20 7"/></Base>;
-export const MenuIcon = (props: IconProps) => <Base {...props}><path d="M4 6h16M4 12h16M4 18h16" /></Base>;
+/** A funnel: opens the list of accounts and groups, which filters the Dashboard and Usage pages. */
+export const FilterIcon = (props: IconProps) => <Base {...props}><path d="M3 4h18l-7 8.5V19l-4 2v-8.5Z" /></Base>;
 export const ExternalLinkIcon = (props: IconProps) => (
   <Base {...props}>
     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />

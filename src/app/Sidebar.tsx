@@ -100,8 +100,8 @@ export function Sidebar({
           type="button"
           className="mobile-sidebar-toggle-btn mobile-sidebar-close-btn"
           onClick={onClose}
-          aria-label="Close navigation menu"
-          data-tooltip="Close navigation menu"
+          aria-label="Close accounts and groups"
+          data-tooltip="Close accounts and groups"
         >
           <CloseIcon />
         </button>

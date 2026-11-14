@@ -480,7 +480,7 @@ describe("ActivityView", () => {
     await settle();
     expect(root.querySelector("h1")!.textContent).toBe("Usage");
     expect(root.querySelector("h1")!.getAttribute("tabindex")).toBe("-1");
-    click(root.querySelector<HTMLButtonElement>('button[aria-label="Toggle navigation menu"]')!);
+    click(root.querySelector<HTMLButtonElement>('button[aria-label="Filter by account or group"]')!);
     expect(onToggleSidebar).toHaveBeenCalledTimes(1);
   });
 

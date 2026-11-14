@@ -1096,7 +1096,7 @@
 }
 
 .collapsed-summary.tone-healthy {
-  color: var(--tone-healthy-text);
+  color: var(--c-f5f1ef);
 }
 
 .collapsed-summary.tone-warning {

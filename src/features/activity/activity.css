@@ -443,7 +443,7 @@
     white-space: nowrap;
   }
 
-  .activity-card-total.tone-healthy strong { color: var(--tone-healthy-text); }
+  .activity-card-total.tone-healthy strong { color: var(--c-f5f1ef); }
   .activity-card-total.tone-warning strong { color: var(--tone-warning-text); }
   .activity-card-total.tone-critical strong { color: var(--tone-critical-text); }
   .activity-card-total.tone-neutral strong { color: var(--muted); }

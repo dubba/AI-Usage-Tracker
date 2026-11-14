@@ -802,18 +802,14 @@ html[data-sidebar-toggle-stacked] .provider-window-toggle button:last-child[data
   overflow: hidden;
 }
 
-/* height: 100% above fills the shell, so the page runs under the bottom bar. Shorten the
-   stage while that bar is showing. Its height already includes the system navigation
-   inset, so the scroll only needs a little room past the last row. padding-bottom is
-   !important because the mobile .dashboard-scroll padding shorthand already is. */
+/* height: 100% above fills the shell, so the page runs under the floating bottom bar and shows
+   around it. The scroll gets the bar's room (--bottom-nav-height, which includes the system
+   navigation inset) plus a little past the last row, so that row can be scrolled clear of the
+   bar. padding-bottom is !important because the mobile .dashboard-scroll padding shorthand
+   already is. */
 @media (max-width: 860px) {
-  .obsidian-shell.has-bottom-nav .main-stage {
-    height: calc(100vh - var(--bottom-nav-height, 0px));
-    height: calc(100dvh - var(--bottom-nav-height, 0px));
-  }
-
   .obsidian-shell.has-bottom-nav .dashboard-scroll {
-    padding-bottom: 10px !important;
+    padding-bottom: calc(var(--bottom-nav-height, 0px) + 10px) !important;
   }
 }
 
@@ -1421,7 +1417,12 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 }
 
 .sidebar-sync-status.is-stale .sidebar-sync-status-label::before {
-  background: var(--obsidian-amber);
+  background: var(--tone-warning-text);
+}
+
+/* The same red and amber as the sidebar rows' alert dots (.sidebar-row-alert). */
+.sidebar-sync-status.is-sign-in .sidebar-sync-status-label::before {
+  background: var(--tone-critical-text);
 }
 
 .sidebar-sync-status.is-syncing .sidebar-sync-status-label::before {

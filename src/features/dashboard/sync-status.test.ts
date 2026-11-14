@@ -49,9 +49,24 @@ describe("computeSyncStatus", () => {
     expect(status.label).toBe("All accounts updated: 1h ago");
   });
 
-  it("ignores accounts that are not refreshed automatically", () => {
+  it("turns red when an account must sign in again, however fresh the rest are", () => {
     const status = computeSyncStatus([account("a", 1), account("b", 300, { authRequired: true })], NOW, 15);
-    expect(status.tone).toBe("fresh");
+    expect(status.tone).toBe("sign-in");
+  });
+
+  it("turns red for a signed-out account that never loaded any usage", () => {
+    expect(computeSyncStatus([account("a", 1), account("b", null, { authRequired: true })], NOW, 15).tone).toBe("sign-in");
+  });
+
+  it("turns amber when a recent refresh failed or left older usage on screen", () => {
+    expect(computeSyncStatus([account("a", 1), account("b", 1, { lastError: "boom" })], NOW, 15).tone).toBe("stale");
+    const staleUsage = { ...account("b", 1).lastUsage, freshness: "stale" } as UsageSnapshot;
+    expect(computeSyncStatus([account("a", 1), account("b", 1, { lastUsage: staleUsage })], NOW, 15).tone).toBe("stale");
+  });
+
+  it("shows red rather than amber when both problems are present", () => {
+    const accounts = [account("a", 90), account("b", 1, { authRequired: true })];
+    expect(computeSyncStatus(accounts, NOW, 15).tone).toBe("sign-in");
   });
 });
 

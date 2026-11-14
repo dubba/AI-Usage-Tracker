@@ -1,12 +1,16 @@
 import { formatElapsed } from "../../shared/lib/format";
-import { accountAutoRefreshEligible } from "../../shared/lib/usage-logic";
+import { accountAutoRefreshEligible, groupAlert } from "../../shared/lib/usage-logic";
 import type { Account } from "../../types";
 
-export type SyncTone = "none" | "fresh" | "stale";
+/**
+ * The dot's colour: "sign-in" is red and "stale" is amber, the same two levels the sidebar rows
+ * flag, so the dot is never green while a row shows a red or amber dot. "fresh" is green.
+ */
+export type SyncTone = "none" | "fresh" | "stale" | "sign-in";
 
 export type SyncStatus = {
   tone: SyncTone;
-  /** "All accounts updated: 4m ago". Out-of-date accounts only turn the dot amber: the sidebar rows,
+  /** "All accounts updated: 4m ago". Problem accounts only change the dot's colour: the sidebar rows,
    * the Action needed card and each account's chip already say which ones. */
   label: string;
 };
@@ -17,9 +21,12 @@ const SYNCED_PREFIX = "All accounts updated:";
 
 /**
  * When the data on screen was last refreshed, and whether any of it has been
- * left behind. An account counts as out of date once it is older than twice the
- * refresh interval (and at least ten minutes); accounts that are never
- * refreshed automatically (sign-in needed, key-only) are not counted.
+ * left behind. The tone is the worst problem among the accounts: one that must
+ * sign in again (red), then one that is out of date (amber). An account counts
+ * as out of date when the sidebar rows flag it (a failed or stale refresh), or
+ * once it is older than twice the refresh interval (and at least ten minutes);
+ * that age check skips accounts that are never refreshed automatically
+ * (key-only).
  */
 export function computeSyncStatus(accounts: Account[], now: number, refreshMinutes: number): SyncStatus {
   const fetchedTimes = accounts.flatMap((account) => {
@@ -36,7 +43,9 @@ export function computeSyncStatus(accounts: Account[], now: number, refreshMinut
     (entry) => accountAutoRefreshEligible(entry.account) && now - entry.time >= staleAfterMs,
   ).length;
   const label = `${SYNCED_PREFIX} ${formatElapsed(now - oldest)}`;
-  return { tone: stale === 0 ? "fresh" : "stale", label };
+  const alert = groupAlert(accounts);
+  if (alert?.level === "sign-in") return { tone: "sign-in", label };
+  return { tone: alert || stale > 0 ? "stale" : "fresh", label };
 }
 
 /**

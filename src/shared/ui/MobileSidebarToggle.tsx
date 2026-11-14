@@ -1,7 +1,11 @@
 import { SIDEBAR_ID } from "../lib/constants";
-import { MenuIcon } from "./icons";
+import { FilterIcon } from "./icons";
 
-/** The menu button that opens the sidebar on a narrow screen; the pages render it only when given `onToggle`. */
+/**
+ * The button that opens the sidebar on a narrow screen; the pages render it only when given
+ * `onToggle`. It is a funnel, not a hamburger: the sidebar lists accounts and groups to filter the
+ * page by, and the pages themselves are in the bottom bar.
+ */
 export function MobileSidebarToggle({ onToggle, open }: { onToggle: () => void; open?: boolean }) {
   return (
     <button
@@ -10,10 +14,10 @@ export function MobileSidebarToggle({ onToggle, open }: { onToggle: () => void; 
       onClick={onToggle}
       aria-expanded={open ?? false}
       aria-controls={SIDEBAR_ID}
-      aria-label="Toggle navigation menu"
-      data-tooltip="Toggle navigation menu"
+      aria-label="Filter by account or group"
+      data-tooltip="Filter by account or group"
     >
-      <MenuIcon />
+      <FilterIcon />
     </button>
   );
 }

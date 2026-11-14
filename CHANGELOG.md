@@ -1,9 +1,13 @@
 # Changelog
 
-## Unreleased (9 changes)
+## Unreleased (13 changes)
 
-### Improved (9)
+### Improved (13)
 
+- On phones, the bar with Dashboard, Usage and Settings is no longer a solid purple strip across the bottom of the screen. It is now a neutral rounded bar that floats above the page, centered, with the current page on a purple pill. The page scrolls behind it, in both themes.
+- On phones, the button that opens the list of accounts and groups is now a filter (funnel) icon in place of the three-line menu icon, since that list filters the page and the pages themselves are in the bottom bar.
+- Healthy usage percentages are no longer green. In the sidebar, on a collapsed account card and in the Usage page totals, a healthy number is now plain text (white in the dark theme, near-black in the light theme), the same as on the account cards. Amber and red still mark a limit that is running low, on the number and its bar together. The Next reset countdown stays green.
+- The dot beside "All accounts updated" in the sidebar now matches the dots on the rows above it: red when an account is signed out, amber when an account is out of date or its last refresh failed, and green only when every account is updating. It used to stay green while an account was signed out.
 - On phones, the Dashboard header now has icon-only New group and Add account buttons at the top right, the same size and shape as the menu button. The side menu no longer has its own Account and Group buttons, on phones or desktop: add from the Dashboard header on a phone, or the top bar on a wide window. On a custom group's page, the Group pill and the edit pen stay on the same line as the group's name.
 - On phones, the % Left / % Used switch has moved from the Dashboard header to the bottom of the side menu, full width just above the sync status, so it is there on every page and stays in view while the list scrolls.
 - On phone-width account cards, the "Re-authentication required" message and its Sign in (or Retry) button now sit on a line below the Signed out badge, plan pill and menu button, and the "Updated … ago" line is back above them.
