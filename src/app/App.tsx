@@ -336,6 +336,7 @@ export default function App() {
           onToggleSidebar={nav.toggleSidebar}
           sidebarOpen={sidebarOpen}
           onAdd={(provider) => openAdd(undefined, provider ?? selectedGroup.provider ?? undefined)}
+          onAddGroup={() => openNewBucket(selectedGroup.provider)}
           onOpenPairing={() => setPairingOpen(true)}
           onRefreshAll={refreshAll}
           onEditBucket={openEditBucket}
@@ -409,14 +410,6 @@ export default function App() {
         busy={busy}
         topBar={!sidebarIsOverlay}
         onClose={nav.closeSidebar}
-        onAddAccount={() => {
-          openAdd(undefined, selectedGroup.provider ?? undefined);
-          nav.closeSidebar();
-        }}
-        onAddGroup={() => {
-          openNewBucket(selectedGroup.provider);
-          nav.closeSidebar();
-        }}
         onSelectGroup={(groupId) => nav.selectGroup(groupId, { closeSidebar: true })}
         onMoveGroup={moveGroup}
         onRefreshAll={() => void refreshAll()}

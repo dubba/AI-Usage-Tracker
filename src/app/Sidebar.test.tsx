@@ -22,8 +22,6 @@ const allGroup: SidebarGroup = { id: ALL_ACCOUNTS_GROUP_ID, type: "all", title: 
 
 function render(props: { section: Section; topBar: boolean; selectedGroupId?: string; groups?: SidebarGroup[] }) {
   const onSelectGroup = vi.fn();
-  const onAddAccount = vi.fn();
-  const onAddGroup = vi.fn();
   mounted = mount(
     <Sidebar
       sidebarRef={{ current: null }}
@@ -38,15 +36,13 @@ function render(props: { section: Section; topBar: boolean; selectedGroupId?: st
       refreshMinutes={15}
       busy={new Set()}
       onClose={vi.fn()}
-      onAddAccount={onAddAccount}
-      onAddGroup={onAddGroup}
       onMoveGroup={vi.fn()}
       onRefreshAll={vi.fn()}
       onSelectGroup={onSelectGroup}
       {...props}
     />,
   );
-  return { onSelectGroup, onAddAccount, onAddGroup };
+  return { onSelectGroup };
 }
 
 describe("Sidebar", () => {
@@ -64,11 +60,9 @@ describe("Sidebar", () => {
   it("keeps them as the phone overlay, with the sync status below the groups", () => {
     render({ section: "accounts", topBar: false });
     expect(mounted!.container.querySelector(".brand")).not.toBeNull();
-    // The add buttons moved out of a heading at the top into the Accounts and Groups headers.
+    // No add buttons: the phone Dashboard header has them (AccountsView).
     expect(mounted!.container.querySelector(".provider-sidebar-heading")).toBeNull();
     expect(mounted!.container.querySelector(".add-account-header-button")).toBeNull();
-    expect(mounted!.container.querySelector('.sidebar-section-header [aria-label="Add new account"]')).not.toBeNull();
-    expect(mounted!.container.querySelector('.sidebar-section-header [aria-label="Add new group"]')).not.toBeNull();
     const list = mounted!.container.querySelector(".provider-list")!;
     const status = mounted!.container.querySelector(".sidebar-sync-status")!;
     expect(list.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -121,32 +115,37 @@ describe("Sidebar", () => {
       expect(headers).toEqual(["Accounts", "Groups"]);
     });
 
-    it("puts the add buttons in the section headers on a wide window", () => {
-      const { onAddAccount, onAddGroup } = render({ section: "accounts", topBar: true });
-      click(mounted!.container.querySelector<HTMLElement>('[aria-label="Add new account"]')!);
-      click(mounted!.container.querySelector<HTMLElement>('[aria-label="Add new group"]')!);
-      expect(onAddAccount).toHaveBeenCalledTimes(1);
-      expect(onAddGroup).toHaveBeenCalledTimes(1);
+    it.each([true, false])("has no add buttons in its headings: the top bar or page header has them (top bar %s)", (topBar) => {
+      render({ section: "accounts", topBar });
+      expect(mounted!.container.querySelector(".sidebar-section-header button")).toBeNull();
+      expect(mounted!.container.querySelector('[aria-label="Add new account"], [aria-label="Add new group"]')).toBeNull();
+      const titles = [...mounted!.container.querySelectorAll(".sidebar-section-title")].map((el) => el.textContent);
+      expect(titles).toEqual(["Accounts", "Groups"]);
     });
 
-    it("spells the buttons out beside their icons (shown on the phone overlay by CSS)", () => {
-      render({ section: "accounts", topBar: false });
-      const labels = [...mounted!.container.querySelectorAll(".sidebar-section-button .sidebar-section-button-label")].map((el) => el.textContent);
-      expect(labels).toEqual(["Account", "Group"]);
-    });
+    it.each(["accounts", "activity", "settings"] as const)(
+      "starts the phone overlay's list with All Accounts and pins the % Left / % Used switch above the sync line (%s page)",
+      (section) => {
+        render({ section, topBar: false });
+        const list = mounted!.container.querySelector(".provider-list")!;
+        expect(list.children[0].classList.contains("is-all-row")).toBe(true);
+        expect(list.querySelector(".sidebar-filter-header")).toBeNull();
 
-    it("puts the add buttons in the section headers on the phone overlay too", () => {
-      const { onAddAccount, onAddGroup } = render({ section: "accounts", topBar: false });
-      click(mounted!.container.querySelector<HTMLElement>('[aria-label="Add new account"]')!);
-      click(mounted!.container.querySelector<HTMLElement>('[aria-label="Add new group"]')!);
-      expect(onAddAccount).toHaveBeenCalledTimes(1);
-      expect(onAddGroup).toHaveBeenCalledTimes(1);
-      expect(mounted!.container.querySelectorAll(".sidebar-section-title")).toHaveLength(2);
-    });
+        // Outside the scrolling list, between it and the sync line.
+        const switchRow = list.nextElementSibling!;
+        expect(switchRow.classList.contains("sidebar-display-switch")).toBe(true);
+        expect(switchRow.nextElementSibling?.classList.contains("sidebar-sync-status")).toBe(true);
+        const toggle = switchRow.querySelector(".usage-display-toggle")!;
+        expect(toggle.classList.contains("is-words")).toBe(true);
+        expect(toggle.textContent).toBe("% Left% Used");
+        expect(list.querySelector(".usage-display-toggle")).toBeNull();
+      },
+    );
 
-    it("has no L / U switch of its own: it is in the page header on a phone and the top bar on a wide window", () => {
-      render({ section: "accounts", topBar: false });
+    it("has no % Left / % Used switch on a wide window: the Dashboard header has it", () => {
+      render({ section: "accounts", topBar: true });
       expect(mounted!.container.querySelector(".usage-display-toggle")).toBeNull();
+      expect(mounted!.container.querySelector(".sidebar-display-switch, .sidebar-filter-header")).toBeNull();
     });
 
     it("says so when there are no accounts and no custom groups", () => {

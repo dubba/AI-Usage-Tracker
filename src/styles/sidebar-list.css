@@ -27,14 +27,14 @@
   justify-content: space-between;
   min-height: 32px;
   padding: 0 6px 0 14px;
-  margin-bottom: 5px;
+  margin-bottom: 2px;
 }
 
-/* 7px above a header (the list's 2px gap plus 5px), and the same below it via its margin-bottom, so
-   the add buttons sit evenly between the rows around them. Not tied to the row before it: while a
+/* 4px above a header (the list's 2px gap plus 2px), and the same below it via its margin-bottom, so
+   it sits evenly between the rows around it. Not tied to the row before it: while a
    row is dragged, a placeholder sits there instead and the header would jump up. */
 .provider-list > .sidebar-section-header {
-  margin-top: 5px;
+  margin-top: 2px;
 }
 
 .sidebar-section-title {
@@ -107,54 +107,6 @@
   background: var(--purple-fill-hover);
 }
 
-/* The words beside the icons ("+ Account", "Group") show on the phone overlay only; on a wide window the
-   buttons are icons alone. */
-.sidebar-section-button-label {
-  display: none;
-}
-
-@media (max-width: 860px) {
-  .sidebar-section-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    width: auto;
-    padding: 0 14px 0 12px;
-    /* 12px before the icon and 14px after the word, 10px corners and a 14px, 650 label, like the top
-       bar's Group and Account buttons. */
-    border-radius: 10px;
-  }
-
-  .sidebar-section-button-label {
-    display: inline;
-    font-size: 14px;
-    font-weight: 650;
-    line-height: 1;
-  }
-
-  /* The plus is drawn smaller inside its 18px box (about 10px of ink) than the stack-plus beside "Group"
-     (about 15px), which left more blank space around it than around that icon. Trimming its box by the
-     difference (2.3px a side) makes the space from the button's edge to the glyph, and from the glyph to
-     the word, the same on both buttons. */
-  .sidebar-section-button.is-primary svg {
-    margin-inline: -2.3px;
-  }
-}
-
-/* The tooltip stays inside the sidebar: the buttons sit at its right edge. */
-.sidebar-section-button[data-tooltip]::after {
-  left: auto;
-  right: 0;
-  transform: none;
-  /* The group button's copy has a line break on purpose ("...usage in" / "one place..."); the
-     global tooltip keeps everything on one line, so honor the break like the top bar does. */
-  width: max-content;
-  max-width: 260px;
-  white-space: pre-line;
-  text-align: left;
-}
-
 /* Rows */
 .provider-summary-row.provider-summary-row.provider-summary-row {
   position: relative;
@@ -192,6 +144,102 @@
 
   .provider-list > .sidebar-section-header {
     padding-right: 13px;
+  }
+
+  /* Phone overlay (Sidebar.tsx): the % Left / % Used switch, full width with two equal options, pinned
+     between the scrolling list and the sync line. One divider above it starts the footer; the sync
+     line drops its own (ui-refinements.css) so the switch and sync line read as one block. */
+  .sidebar-display-switch {
+    flex: 0 0 auto;
+    margin-top: 4px;
+    /* The sync line is pinned to the drawer's bottom (ui-refinements.css) and its contents would start
+       about 21px below the switch; pulling the switch 9px into the drawer's reserved bottom space
+       leaves 12px, the same as between the divider and the switch. */
+    margin-bottom: -9px;
+    padding-top: 12px;
+    border-top: 1px solid var(--obsidian-border);
+  }
+
+  /* No second divider, and only 2px of top padding so the sync line's box stays clear of the
+     switch and never takes its taps. */
+  .obsidian-shell .sidebar-display-switch + .sidebar-sync-status {
+    border-top: 0;
+    padding-top: 2px;
+  }
+
+  .sidebar-display-switch .provider-window-toggle.is-words {
+    display: flex;
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .sidebar-display-switch .provider-window-toggle.is-words button {
+    flex: 1 1 0;
+  }
+
+  /* Phone Dashboard header (AccountsView.tsx): icon-only New group and Add account at the right end of
+     the title row. The side menu's button colors, in a 40px square with 6px corners to match the menu
+     button beside the title. */
+  .dashboard-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+
+  .dashboard-header-actions .sidebar-section-button {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+  }
+
+  .dashboard-header-actions .sidebar-section-button svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* The plus spans 14 of its 24 units and the stack-plus 20, so at the same 20px box it looked about
+     30% smaller. At 27.8px with a 1.75 stroke both marks are about 18.2px square. */
+  .dashboard-header-actions .sidebar-section-button.is-primary svg {
+    width: 27.8px;
+    height: 27.8px;
+    stroke-width: 1.75;
+  }
+
+  /* A custom group's page also has the Group pill and the edit pen. They stay on the title's line, right
+     after the title, and the add buttons keep the right edge. When the three do not fit, the title
+     gives way first and ends in an ellipsis. */
+  .dashboard-title-row:has(.dashboard-header-actions):has(.edit-bucket-title-btn) h1.eyebrow {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dashboard-title-row:has(.dashboard-header-actions):has(.edit-bucket-title-btn) .dashboard-bucket-pill,
+  .dashboard-title-row:has(.dashboard-header-actions):has(.edit-bucket-title-btn) .edit-bucket-title-btn {
+    flex-shrink: 0;
+  }
+
+  .dashboard-title-row:has(.dashboard-header-actions):has(.edit-bucket-title-btn) .dashboard-header-actions {
+    margin-left: auto;
+  }
+
+  /* Tighter around the pill and the pen: 6px from the title to the pill, between the pill and the pen,
+     and from the pen to the add buttons (the row's own gap is 12px, and the pill has 4px of margin). */
+  .dashboard-title-row:has(.dashboard-header-actions):has(.edit-bucket-title-btn) .dashboard-bucket-pill {
+    margin-left: -6px;
+  }
+
+  .dashboard-title-row:has(.dashboard-header-actions):has(.edit-bucket-title-btn) .edit-bucket-title-btn {
+    margin-inline: -6px;
+  }
+
+  /* A phone shows no tooltips, and the switch's hidden ones would widen the list's scroll area. */
+  .sidebar-display-switch [data-tooltip]::after {
+    display: none !important;
   }
 }
 

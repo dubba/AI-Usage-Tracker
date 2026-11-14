@@ -147,18 +147,13 @@ describe("AccountsView empty dashboard", () => {
     expect(onEditBucket).toHaveBeenCalledWith(workBucket);
   });
 
-  it("renders the delete-bucket-title-btn trashcan button for a custom group and triggers onDeleteBucket", () => {
-    const onDeleteBucket = vi.fn();
+  it("has no trash button in the header of a custom group: Delete Group is in Edit Group and the empty group panel", () => {
     app = renderView({
       selectedGroup: bucketGroup,
-      onDeleteBucket,
+      onDeleteBucket: vi.fn(),
     });
-    const deleteBtn = document.querySelector<HTMLButtonElement>(".delete-bucket-title-btn");
-    expect(deleteBtn).not.toBeNull();
-    expect(deleteBtn?.getAttribute("aria-label")).toBe("Delete Group");
-    expect(deleteBtn?.getAttribute("data-tooltip")).toBe("Delete Group");
-    click(deleteBtn!);
-    expect(onDeleteBucket).toHaveBeenCalledWith(workBucket);
+    expect(document.querySelector(".delete-bucket-title-btn")).toBeNull();
+    expect(document.querySelector('.dashboard-header [aria-label="Delete Group"]')).toBeNull();
   });
 
   it("renders Edit Group as a primary button in empty custom groups and triggers onEditBucket", () => {
@@ -359,35 +354,36 @@ describe("AccountsView L / U switch", () => {
     vi.restoreAllMocks();
   });
 
-  it("sits in the page's title row on a phone, after the title", () => {
+  it("ends the phone title row with icon-only New group and Add account buttons", () => {
     setNarrowWindow(true);
-    app = renderView({ onToggleSidebar: () => undefined });
+    const onAdd = vi.fn();
+    const onAddGroup = vi.fn();
+    app = renderView({ onToggleSidebar: () => undefined, onAdd, onAddGroup });
     const row = document.querySelector(".dashboard-title-row")!;
-    expect(row.querySelector(".usage-display-toggle")).not.toBeNull();
-    expect(row.lastElementChild?.classList.contains("usage-display-toggle")).toBe(true);
+    const actions = row.lastElementChild!;
+    expect(actions.classList.contains("dashboard-header-actions")).toBe(true);
+    const [group, account] = [...actions.querySelectorAll("button")];
+    expect(group.getAttribute("aria-label")).toBe("Add new group");
+    expect(account.getAttribute("aria-label")).toBe("Add new account");
+    expect(group.textContent).toBe("");
+    expect(account.textContent).toBe("");
+    click(group);
+    click(account);
+    expect(onAddGroup).toHaveBeenCalledTimes(1);
+    expect(onAdd).toHaveBeenCalledTimes(1);
   });
 
-  it("hides the % Left / % Used switch on a phone when viewing a provider group", () => {
-    setNarrowWindow(true);
-    app = renderView({
-      onToggleSidebar: () => undefined,
-      selectedGroup: {
-        id: "provider:anthropic",
-        type: "provider",
-        title: "Claude",
-        provider: "anthropic",
-        accounts: [account],
-      },
-    });
-    expect(document.querySelector(".dashboard-title-row .usage-display-toggle")).toBeNull();
+  it("has no header add buttons on a wide window: the top bar has them", () => {
+    setNarrowWindow(false);
+    app = renderView({ onToggleSidebar: () => undefined, onAddGroup: () => undefined });
+    expect(document.querySelector(".dashboard-header-actions")).toBeNull();
   });
 
-  it("spells the options out on a phone, which shows no tooltip to explain L and U", () => {
+  it("is not in the page header on a phone: the side menu has it (Sidebar.tsx)", () => {
     setNarrowWindow(true);
     app = renderView({ onToggleSidebar: () => undefined });
-    const toggle = document.querySelector(".dashboard-title-row .usage-display-toggle")!;
-    expect(toggle.classList.contains("is-words")).toBe(true);
-    expect(toggle.textContent).toBe("% Left% Used");
+    expect(document.querySelector(".dashboard-header .usage-display-toggle")).toBeNull();
+    expect(document.querySelector(".dashboard-header .top-bar-segmented")).toBeNull();
   });
 
   it("sits at the header's top right on a wide window, spelled out, and not in the title row", () => {

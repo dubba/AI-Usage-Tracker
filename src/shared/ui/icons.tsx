@@ -173,6 +173,8 @@ export const StackPlusIcon = (props: IconProps) => (
     <path d="M10 2 18 6 10 10 2 6Z" fill="currentColor" />
     <path d="m2 10.5 8 4 8-4" />
     <path d="m2 15 8 4 3-1.5" />
-    <path d="M19 15v6M16 18h6" />
+    {/* The small plus reaches y 22 so the mark is as tall as it is wide (20 units plus the stroke),
+        and so the same size as PlusIcon beside it where the two are paired. */}
+    <path d="M19 16v6M16 19h6" />
   </Base>
 );

@@ -11,6 +11,8 @@ import {
   ClockIcon,
   CloseIcon,
   EditIcon,
+  PlusIcon,
+  StackPlusIcon,
   TrashIcon,
   UsersIcon,
 } from "../../shared/ui/icons";
@@ -81,6 +83,8 @@ export function AccountsView(props: {
   onToggleSidebar?: () => void;
   sidebarOpen?: boolean;
   onAdd: (provider?: Provider) => void;
+  /** Opens the new-group dialog (phone header's Group button). */
+  onAddGroup?: () => void;
   onOpenPairing?: () => void;
   onRefreshAll?: () => void;
   onEditBucket?: (bucket: AccountBucket) => void;
@@ -166,22 +170,32 @@ export function AccountsView(props: {
                 >
                   <EditIcon />
                 </button>
-                <button
-                  type="button"
-                  className="delete-bucket-title-btn"
-                  onClick={() => props.onDeleteBucket?.(props.selectedGroup.bucket!)}
-                  aria-label="Delete Group"
-                  data-tooltip="Delete Group"
-                >
-                  <TrashIcon />
-                </button>
               </>
             ) : null}
-            {/* On a phone the % Left / % Used switch sits at the right end of the title row, spelled
-                out because a phone shows no tooltip to explain single letters.
-                Shown only on the All Accounts page, not individual provider pages. */}
-            {phone && props.selectedGroup.type === "all" ? (
-              <UsageDisplayToggle labels="words" className="provider-window-toggle usage-display-toggle is-words" />
+            {/* On a phone the title row ends with icon-only New group and Add account buttons, the same
+                actions as the side menu's labeled ones. A wide window has them in the top bar. The
+                % Left / % Used switch is at the bottom of the side menu (Sidebar.tsx). */}
+            {phone ? (
+              <div className="dashboard-header-actions">
+                {props.onAddGroup ? (
+                  <button
+                    type="button"
+                    className="sidebar-section-button"
+                    onClick={props.onAddGroup}
+                    aria-label="Add new group"
+                  >
+                    <StackPlusIcon />
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="sidebar-section-button is-primary"
+                  onClick={() => props.onAdd()}
+                  aria-label="Add new account"
+                >
+                  <PlusIcon />
+                </button>
+              </div>
             ) : null}
           </div>
           <p className="dashboard-description">{dashboardDescription(props.selectedGroup, props.accounts.length)}</p>

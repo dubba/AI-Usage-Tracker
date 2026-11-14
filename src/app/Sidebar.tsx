@@ -1,12 +1,13 @@
-import { useRef, type ReactNode, type RefObject } from "react";
+import { useRef, type RefObject } from "react";
 import { SyncStatusLine } from "../features/dashboard/SyncStatusLine";
 import { SidebarGroupRow } from "../features/dashboard/SidebarGroupRow";
 import { SidebarResizeHandle } from "../features/dashboard/SidebarResizeHandle";
+import { UsageDisplayToggle } from "../features/dashboard/UsageDisplayToggle";
 import { ALL_ACCOUNTS_GROUP_ID, isBucketGroup, type SidebarGroup } from "../features/dashboard/sidebar-groups";
 import { SIDEBAR_ID } from "../shared/lib/constants";
 import type { BusyKeys } from "../shared/lib/busy";
 import { useScrollThumb } from "../shared/hooks/useScrollThumb";
-import { CloseIcon, GaugeIcon, PlusIcon, StackPlusIcon } from "../shared/ui/icons";
+import { CloseIcon, GaugeIcon } from "../shared/ui/icons";
 import type { Account } from "../types";
 import type { Section } from "./useSidebarNavigation";
 
@@ -30,8 +31,6 @@ export function Sidebar({
   busy,
   topBar,
   onClose,
-  onAddAccount,
-  onAddGroup,
   onSelectGroup,
   onMoveGroup,
   onRefreshAll,
@@ -54,8 +53,6 @@ export function Sidebar({
   /** The top bar is showing and holds the app name and the page switch. */
   topBar: boolean;
   onClose: () => void;
-  onAddAccount: () => void;
-  onAddGroup: () => void;
   onSelectGroup: (groupId: string) => void;
   onMoveGroup: (group: SidebarGroup, delta: -1 | 1) => void;
   onRefreshAll: () => void;
@@ -119,47 +116,28 @@ export function Sidebar({
 
       <div ref={providerListRef} className={`provider-list${providerListOverflows ? " has-overflow" : ""}`}>
         {allAccountsRow}
-        <SidebarSectionHeader
-          title="Accounts"
-          action={
-            <button
-              type="button"
-              className="sidebar-section-button is-primary"
-              onClick={onAddAccount}
-              aria-label="Add new account"
-              data-tooltip="Add new account"
-            >
-              <PlusIcon />
-              <span className="sidebar-section-button-label">Account</span>
-            </button>
-          }
-        />
+        <SidebarSectionHeader title="Accounts" />
         {accountGroups.length === 0 ? (
           <p className="sidebar-section-empty">No accounts yet</p>
         ) : (
           accountGroups.map((group, index) => renderRow(group, index, accountGroups))
         )}
-        <SidebarSectionHeader
-          title="Groups"
-          action={
-            <button
-              type="button"
-              className="sidebar-section-button"
-              onClick={onAddGroup}
-              aria-label="Add new group"
-              data-tooltip={"Group accounts to track usage in\none place, like “Work” or “Personal”"}
-            >
-              <StackPlusIcon />
-              <span className="sidebar-section-button-label">Group</span>
-            </button>
-          }
-        />
+        <SidebarSectionHeader title="Groups" />
         {bucketGroups.length === 0 ? (
           <p className="sidebar-section-empty">No groups yet</p>
         ) : (
           bucketGroups.map((group, index) => renderRow(group, index, bucketGroups))
         )}
       </div>
+
+      {/* Phone overlay: the % Left / % Used switch, full width and pinned above the sync line, outside
+          the scrolling list. It changes these meters and every card, on every page. A wide window
+          keeps it at the Dashboard header's top right (AccountsView). */}
+      {topBar ? null : (
+        <div className="sidebar-display-switch">
+          <UsageDisplayToggle labels="words" className="provider-window-toggle usage-display-toggle is-words" />
+        </div>
+      )}
 
       <SyncStatusLine
         accounts={accounts}
@@ -173,11 +151,10 @@ export function Sidebar({
 }
 
 /** A small label above one list of rows, with an optional small button at its right edge. */
-function SidebarSectionHeader({ title, action }: { title: string; action: ReactNode }) {
+function SidebarSectionHeader({ title, className }: { title: string; className?: string }) {
   return (
-    <div className="sidebar-section-header">
+    <div className={className ? `sidebar-section-header ${className}` : "sidebar-section-header"}>
       <span className="sidebar-section-title">{title}</span>
-      {action}
     </div>
   );
 }
