@@ -3,6 +3,8 @@ import { act, type ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { click, mount, type Mounted } from "../../test-utils/react";
 import type { AppSettings, AppUpdateStatus, BridgeStatus } from "../../types";
+import { setNarrowWindow } from "../../test-utils/media";
+import { getBottomNavLabels, setBottomNavLabels } from "../../shared/lib/bottom-nav-labels";
 import { SettingsView } from "./SettingsView";
 import { AppSettingsContext, AppUpdateContext, type AppSettingsState, type AppUpdateState } from "./settings-context";
 
@@ -181,6 +183,26 @@ describe("General", () => {
     expect(toggle.getAttribute("aria-checked")).toBe("true");
     click(toggle);
     expect(settings.toggleAutostart).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers the bottom bar's labels switch on a narrow window, and saves the choice", () => {
+    setNarrowWindow(true);
+    try {
+      app = mount(view());
+      const toggle = toggleLabelled("setting-nav-labels-label");
+      expect(toggle.getAttribute("aria-checked")).toBe("true");
+      click(toggle);
+      expect(getBottomNavLabels()).toBe("off");
+      expect(toggleLabelled("setting-nav-labels-label").getAttribute("aria-checked")).toBe("false");
+    } finally {
+      setBottomNavLabels("on");
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("leaves that switch out on a wide window, which has no bottom bar", () => {
+    app = mount(view());
+    expect(document.getElementById("setting-nav-labels-label")).toBeNull();
   });
 
   it.each([

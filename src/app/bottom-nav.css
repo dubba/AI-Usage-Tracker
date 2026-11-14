@@ -66,6 +66,17 @@
     height: 22px !important;
   }
 
+  /* Page names turned off in Settings: narrower items that hold only the icon. The bar keeps its
+   * height, so --bottom-nav-height stays right. */
+  .bottom-nav.is-icon-only .bottom-nav-item {
+    width: 64px;
+  }
+
+  .bottom-nav.is-icon-only .bottom-nav-item svg {
+    width: 24px !important;
+    height: 24px !important;
+  }
+
   /* The current page: a pill in the purple of the primary buttons (the desktop top bar marks its
    * current page the same way), with the on-fill label, which is the same in both themes. */
   .bottom-nav-item.is-active {

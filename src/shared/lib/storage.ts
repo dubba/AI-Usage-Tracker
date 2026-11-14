@@ -36,6 +36,8 @@ export const STORAGE_KEYS = {
   settingsAdvancedOpen: "ai-usage-tracker:settings-advanced-open",
   /** "7d" | "30d": how many days the Usage page shows. */
   activityPeriod: "ai-usage-tracker:activity-period",
+  /** "on" | "off": whether the bottom navigation bar shows the page names under its icons. */
+  bottomNavLabels: "ai-usage-tracker:bottom-nav-labels",
   /** "activity" | "accounts" | "settings": the page to open on the next launch. */
   openSection: "ai-usage-tracker:open-section",
 } as const;

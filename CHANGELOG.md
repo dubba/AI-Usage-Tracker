@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased (13 changes)
+## Unreleased (14 changes)
+
+### Added (1)
+
+- Settings → General has a new Menu Bar Labels switch, shown on phones and narrow windows. Turn it off to hide the Dashboard, Usage and Settings names in the bottom bar and show the icons only.
 
 ### Improved (13)
 

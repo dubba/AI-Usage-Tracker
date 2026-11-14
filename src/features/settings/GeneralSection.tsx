@@ -1,8 +1,11 @@
 import { CustomDropdown } from "../../shared/ui/CustomDropdown";
 import { ToggleSwitch } from "../../shared/ui/ToggleSwitch";
+import { useBottomNavLabels } from "../../shared/hooks/useBottomNavLabels";
+import { useMediaQuery } from "../../shared/hooks/useMediaQuery";
 import { useThemePreference } from "../../shared/hooks/useThemePreference";
 import { isAndroid, isIOS } from "../../shared/lib/platform";
 import type { ThemePreference } from "../../shared/lib/theme";
+import { MOBILE_OVERLAY_QUERY } from "../dashboard/sidebar-width";
 import { useAppSettingsState } from "./settings-context";
 
 /**
@@ -18,10 +21,13 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: "system", label: "System" },
 ];
 
-/** Appearance, launch at startup, and how often accounts refresh. */
+/** Appearance, the bottom bar's labels, launch at startup, and how often accounts refresh. */
 export function GeneralSection() {
   const { appSettings, autostart, toggleAutostart, refreshIntervalBusy, saveAccountRefreshMinutes } = useAppSettingsState();
   const [themePreference, setThemePreference] = useThemePreference();
+  const [navLabels, setNavLabels] = useBottomNavLabels();
+  // The bottom bar only exists while the sidebar is an overlay: a phone, or a narrow window.
+  const hasBottomNav = useMediaQuery(MOBILE_OVERLAY_QUERY);
   const minutes = appSettings?.accountRefreshMinutes;
 
   return (
@@ -43,6 +49,15 @@ export function GeneralSection() {
             />
           </div>
         </div>
+        {hasBottomNav ? (
+          <div className="settings-row">
+            <div>
+              <strong id="setting-nav-labels-label">Menu Bar Labels</strong>
+              <small>Show the page names under the icons in the bottom bar.</small>
+            </div>
+            <ToggleSwitch checked={navLabels} labelledBy="setting-nav-labels-label" onChange={setNavLabels} />
+          </div>
+        ) : null}
         {/* Neither Android nor iOS lets an app open its screen when the phone starts, so the switch would do nothing. */}
         {!isAndroid() && !isIOS() ? (
           <div className="settings-row">

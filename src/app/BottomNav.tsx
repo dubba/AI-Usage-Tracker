@@ -1,3 +1,4 @@
+import { useBottomNavLabels } from "../shared/hooks/useBottomNavLabels";
 import { BarChartIcon, GridIcon, SettingsIcon } from "../shared/ui/icons";
 import type { Section } from "./useSidebarNavigation";
 import "./bottom-nav.css";
@@ -12,7 +13,8 @@ export const MAIN_PAGES = [
 /**
  * The main navigation on a phone or a narrow window, where the sidebar is an off-canvas overlay:
  * Dashboard, Usage and Settings, one tap away. On wider windows the sidebar lists them in that
- * order and this bar is not rendered.
+ * order and this bar is not rendered. The page names under the icons can be turned off in Settings;
+ * each button then carries its name as its accessible name.
  */
 export function BottomNav({
   section,
@@ -24,8 +26,9 @@ export function BottomNav({
   /** The sidebar overlay is open over the page: nothing behind it takes focus. */
   inert?: boolean;
 }) {
+  const [showLabels] = useBottomNavLabels();
   return (
-    <nav className="bottom-nav" aria-label="Main" inert={inert}>
+    <nav className={`bottom-nav${showLabels ? "" : " is-icon-only"}`} aria-label="Main" inert={inert}>
       {MAIN_PAGES.map(({ section: target, label, Icon }) => {
         const active = section === target;
         return (
@@ -34,10 +37,11 @@ export function BottomNav({
             type="button"
             className={`bottom-nav-item${active ? " is-active" : ""}`}
             aria-current={active ? "page" : undefined}
+            aria-label={showLabels ? undefined : label}
             onClick={() => onSelect(target)}
           >
             <Icon />
-            <span>{label}</span>
+            {showLabels ? <span>{label}</span> : null}
           </button>
         );
       })}
