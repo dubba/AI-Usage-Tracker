@@ -289,7 +289,12 @@ export function AccountDashboardCard({
         ) : (
           <div className={`account-card-header-actions ${account.provider === "google_ai_studio" && !signedOut ? "has-google-action" : ""}`}>
             <div className="account-card-header-meta">
-              {status.label !== "LIVE" ? <span className={`account-status-badge ${status.className}`}>{status.label}</span> : null}
+              {status.label !== "LIVE" ? (
+                <span className={`account-status-chip ${status.className}`}>
+                  <span className="account-status-chip-dot" aria-hidden="true" />
+                  {statusChipLabel(status.label)}
+                </span>
+              ) : null}
               {plan ? (
                 <span className="plan-with-dot">
                   <span className="account-plan-badge">{plan}</span>

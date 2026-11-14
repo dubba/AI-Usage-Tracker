@@ -34,6 +34,15 @@ export function GeneralSection() {
     <>
       <h2 className="settings-section-title">General</h2>
       <section className="settings-card">
+        {hasBottomNav ? (
+          <div className="settings-row">
+            <div>
+              <strong id="setting-nav-labels-label">Menu Bar Labels</strong>
+              <small>Show the page names under the icons in the bottom bar.</small>
+            </div>
+            <ToggleSwitch checked={navLabels} labelledBy="setting-nav-labels-label" onChange={setNavLabels} />
+          </div>
+        ) : null}
         <div className="settings-row">
           <div>
             <strong>Appearance</strong>
@@ -49,15 +58,6 @@ export function GeneralSection() {
             />
           </div>
         </div>
-        {hasBottomNav ? (
-          <div className="settings-row">
-            <div>
-              <strong id="setting-nav-labels-label">Menu Bar Labels</strong>
-              <small>Show the page names under the icons in the bottom bar.</small>
-            </div>
-            <ToggleSwitch checked={navLabels} labelledBy="setting-nav-labels-label" onChange={setNavLabels} />
-          </div>
-        ) : null}
         {/* Neither Android nor iOS lets an app open its screen when the phone starts, so the switch would do nothing. */}
         {!isAndroid() && !isIOS() ? (
           <div className="settings-row">

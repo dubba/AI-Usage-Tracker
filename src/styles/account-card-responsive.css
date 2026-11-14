@@ -1783,6 +1783,48 @@
     min-height: 26px;
   }
 
+  /* The status chip (Signed out, Out of date, ...): the desktop pill, dot included. */
+  .provider-account-card .account-card-header-meta .account-status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-sizing: border-box;
+    height: 26px;
+    min-height: 26px;
+    max-height: 26px;
+    padding: 0 11px;
+    border: 0;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 650;
+    line-height: 1;
+    letter-spacing: 0;
+    text-transform: none;
+    white-space: nowrap;
+  }
+
+  .provider-account-card .account-card-header-meta .account-status-chip-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .provider-account-card .account-card-header-meta .account-status-chip.warning {
+    background: rgb(255 184 105 / 0.14);
+    color: var(--obsidian-amber);
+  }
+
+  .provider-account-card .account-card-header-meta .account-status-chip.danger {
+    background: rgb(255 84 73 / 0.14);
+    color: var(--c-ff9d9d);
+  }
+
+  .provider-account-card .account-card-header-meta .account-status-chip.neutral {
+    background: var(--obsidian-surface-container-high);
+    color: var(--obsidian-muted-bright);
+  }
+
   .provider-account-card .account-card-updated {
     height: auto;
     min-height: 0 !important;

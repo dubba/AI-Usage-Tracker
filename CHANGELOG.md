@@ -1,13 +1,14 @@
 # Changelog
 
-## Unreleased (14 changes)
+## Unreleased (15 changes)
 
 ### Added (1)
 
 - Settings → General has a new Menu Bar Labels switch, shown on phones and narrow windows. Turn it off to hide the Dashboard, Usage and Settings names in the bottom bar and show the icons only.
 
-### Improved (13)
+### Improved (14)
 
+- On phones, the Signed out pill (and Out of date, Refresh failed and the other status pills) on an account card now looks like the desktop one: a rounded pill with a dot and the label in sentence case, instead of small uppercase text in a boxy badge.
 - On phones, the bar with Dashboard, Usage and Settings is no longer a solid purple strip across the bottom of the screen. It is now a neutral rounded bar that floats above the page, centered, with the current page on a purple pill. The page scrolls behind it, in both themes.
 - On phones, the button that opens the list of accounts and groups is now a filter (funnel) icon in place of the three-line menu icon, since that list filters the page and the pages themselves are in the bottom bar.
 - Healthy usage percentages are no longer green. In the sidebar, on a collapsed account card and in the Usage page totals, a healthy number is now plain text (white in the dark theme, near-black in the light theme), the same as on the account cards. Amber and red still mark a limit that is running low, on the number and its bar together. The Next reset countdown stays green.
