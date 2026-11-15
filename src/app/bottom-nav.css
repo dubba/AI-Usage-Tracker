@@ -40,11 +40,11 @@
     gap: 2px;
     max-width: calc(100% - 24px - var(--safe-area-left, 0px) - var(--safe-area-right, 0px));
     padding: 6px;
-    border: 1px solid var(--bottom-nav-line);
+    border: 1px solid var(--bottom-nav-border);
     border-radius: 999px;
     /* Neutral in both themes: purple is kept for the current page's pill. */
     background: var(--bottom-nav-surface);
-    box-shadow: 0 8px 24px rgb(0 0 0 / 0.32), 0 1px 3px rgb(0 0 0 / 0.24);
+    box-shadow: var(--bottom-nav-shadow);
   }
 
   .bottom-nav-item {

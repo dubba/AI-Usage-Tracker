@@ -52,6 +52,8 @@
      * contrast in both themes. */
     --bottom-nav-surface: #2a2a2c;
     --bottom-nav-line: #3a3a3e;
+    --bottom-nav-border: #686870;
+    --bottom-nav-shadow: 0 0 0 1px rgb(0 0 0 / 0.55), 0 10px 26px rgb(0 0 0 / 0.52), 0 2px 6px rgb(0 0 0 / 0.36);
     --bottom-nav-label: #b4b4ba;
     --bottom-nav-label-active: #ffffff;
     --purple-on-text: #2d145f;
@@ -142,6 +144,8 @@
     --purple-text-rgb: 109 59 215;
     --bottom-nav-surface: #ffffff;
     --bottom-nav-line: #d6d6dc;
+    --bottom-nav-border: #b6b6c0;
+    --bottom-nav-shadow: 0 0 0 1px rgb(0 0 0 / 0.06), 0 8px 24px rgb(0 0 0 / 0.16), 0 2px 6px rgb(0 0 0 / 0.1);
     --bottom-nav-label: #5c5c66;
     --bottom-nav-label-active: #1c1b1f;
     --purple-on-text: #f7f4ff;

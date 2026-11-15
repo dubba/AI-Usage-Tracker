@@ -34,12 +34,16 @@ describe("bottom bar colors", () => {
 
   it("is a neutral floating pill, not the title bar purple", () => {
     expect(NAV).toContain("background: var(--bottom-nav-surface);");
+    expect(NAV).toContain("border: 1px solid var(--bottom-nav-border);");
     expect(NAV).not.toMatch(/\.bottom-nav \{[^}]*var\(--purple/);
     expect(NAV).toMatch(/\.bottom-nav \{[^}]*border-radius: 999px;/);
     expect(NAV).toMatch(/\.bottom-nav \{[^}]*width: fit-content;\s*margin: 0 auto;/);
     for (const [theme, source] of THEMES) {
-      const [r, g, b] = hexIn(source, "--bottom-nav-surface");
-      expect(Math.max(r, g, b) - Math.min(r, g, b), theme).toBeLessThanOrEqual(8);
+      const surface = hexIn(source, "--bottom-nav-surface");
+      const border = hexIn(source, "--bottom-nav-border");
+      expect(Math.max(...surface) - Math.min(...surface), theme).toBeLessThanOrEqual(8);
+      expect(Math.max(...border) - Math.min(...border), theme).toBeLessThanOrEqual(10);
+      expect(contrast(border, surface), theme).toBeGreaterThanOrEqual(2);
     }
   });
 
