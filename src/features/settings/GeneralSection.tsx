@@ -1,5 +1,5 @@
 import { CustomDropdown } from "../../shared/ui/CustomDropdown";
-import { ToggleSwitch } from "../../shared/ui/ToggleSwitch";
+import { SettingsToggleRow } from "./SettingsToggleRow";
 import { useBottomNavLabels } from "../../shared/hooks/useBottomNavLabels";
 import { useMediaQuery } from "../../shared/hooks/useMediaQuery";
 import { useThemePreference } from "../../shared/hooks/useThemePreference";
@@ -36,22 +36,28 @@ export function GeneralSection() {
       <section className="settings-card">
         {/* Neither Android nor iOS lets an app open its screen when the phone starts, so the switch would do nothing. */}
         {!isAndroid() && !isIOS() ? (
-          <div className="settings-row">
+          <SettingsToggleRow
+            checked={autostart}
+            labelledBy="setting-autostart-label"
+            onChange={() => void toggleAutostart()}
+          >
             <div>
               <strong id="setting-autostart-label">Launch at Startup</strong>
               <small>Start the app when your device starts.</small>
             </div>
-            <ToggleSwitch checked={autostart} labelledBy="setting-autostart-label" onChange={() => void toggleAutostart()} />
-          </div>
+          </SettingsToggleRow>
         ) : null}
         {hasBottomNav ? (
-          <div className="settings-row">
+          <SettingsToggleRow
+            checked={navLabels}
+            labelledBy="setting-nav-labels-label"
+            onChange={setNavLabels}
+          >
             <div>
               <strong id="setting-nav-labels-label">Menu Bar Labels</strong>
               <small>Show page labels below icons in bottom bar.</small>
             </div>
-            <ToggleSwitch checked={navLabels} labelledBy="setting-nav-labels-label" onChange={setNavLabels} />
-          </div>
+          </SettingsToggleRow>
         ) : null}
         <div className="settings-row">
           <div>

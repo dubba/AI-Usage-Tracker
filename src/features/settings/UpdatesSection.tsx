@@ -1,7 +1,7 @@
 import { ArrowUpCircleIcon, DownloadCloudIcon, ExternalLinkIcon } from "../../shared/ui/icons";
-import { ToggleSwitch } from "../../shared/ui/ToggleSwitch";
 import { FALLBACK_APP_VERSION } from "../../shared/lib/constants";
 import { isIOS } from "../../shared/lib/platform";
+import { SettingsToggleRow } from "./SettingsToggleRow";
 import { useAppSettingsState, useAppUpdateState } from "./settings-context";
 import { UpdateErrorMessage } from "./UpdateErrorMessage";
 import { UpdateProgressBar, updateInstallLabel } from "./UpdateProgressBar";
@@ -36,18 +36,18 @@ export function UpdatesSection({
       <h2 className="settings-section-title">Updates</h2>
       <section className="settings-card">
         <div className="settings-row settings-updates-group-row">
-          <div className="settings-updates-group-header">
+          <SettingsToggleRow
+            className="settings-updates-group-header"
+            checked={automaticUpdates}
+            labelledBy="setting-auto-update-label"
+            disabled={!appSettings || automaticUpdatesBusy}
+            onChange={(enabled) => void saveAutomaticUpdatesEnabled(enabled)}
+          >
             <div>
               <strong id="setting-auto-update-label">Automatic Updates</strong>
               <small>Check for new versions automatically.</small>
             </div>
-            <ToggleSwitch
-              checked={automaticUpdates}
-              labelledBy="setting-auto-update-label"
-              disabled={!appSettings || automaticUpdatesBusy}
-              onChange={(enabled) => void saveAutomaticUpdatesEnabled(enabled)}
-            />
-          </div>
+          </SettingsToggleRow>
 
           <div className="settings-updates-subcard">
             <div className="settings-updates-subcard-info">
@@ -105,17 +105,17 @@ export function UpdatesSection({
             {updateError ? <UpdateErrorMessage error={updateError} onOpenLink={onOpenLink} /> : null}
           </div>
 
-          <div className="settings-updates-group-header settings-updates-beta-row">
+          <SettingsToggleRow
+            className="settings-updates-group-header settings-updates-beta-row"
+            checked={includeBetaUpdates}
+            labelledBy="setting-beta-label"
+            disabled={!appSettings || includeBetaUpdatesBusy}
+            onChange={(enabled) => void saveIncludeBetaUpdates(enabled)}
+          >
             <div>
               <strong id="setting-beta-label">Include Beta Releases</strong>
             </div>
-            <ToggleSwitch
-              checked={includeBetaUpdates}
-              labelledBy="setting-beta-label"
-              disabled={!appSettings || includeBetaUpdatesBusy}
-              onChange={(enabled) => void saveIncludeBetaUpdates(enabled)}
-            />
-          </div>
+          </SettingsToggleRow>
         </div>
         <div className="settings-row">
           <div>

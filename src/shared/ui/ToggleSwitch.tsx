@@ -22,19 +22,26 @@ export function ToggleSwitch({
       onClick={() => onChange(!checked)}
     >
       <span>
-        <ToggleMark kind="off" />
-        <ToggleMark kind="on" />
+        <ToggleMark />
       </span>
     </button>
   );
 }
 
-/** The mark inside the knob: an X while off, a check while on. Both stay mounted so the swap can fade. */
-function ToggleMark({ kind }: { kind: "on" | "off" }) {
+/**
+ * The mark inside the knob: two strokes that morph smoothly between an X (off) and a checkmark
+ * (on). Each arm is anchored at its off-state origin so CSS transforms translate/rotate/trim it
+ * into the checkmark in lockstep with the knob slide.
+ */
+function ToggleMark() {
   return (
-    <svg className={`toggle-mark toggle-mark-${kind}`} viewBox="0 0 24 24" aria-hidden="true">
-      {/* The check is wide and short. A square X of that width looks taller, so this X is a step smaller and the two marks read as one size. */}
-      {kind === "on" ? <path d="M6.2 12.4 10.4 16.6 18 8.2" /> : <path d="M7.3 7.6 16.9 17.2M16.9 7.6 7.3 17.2" />}
+    <svg className="toggle-mark" viewBox="0 0 24 24" aria-hidden="true">
+      <g transform="translate(7.3 7.6)">
+        <line className="toggle-mark-arm toggle-mark-primary" x1="0" y1="0" x2="9.6" y2="9.6" />
+      </g>
+      <g transform="translate(7.3 17.2)">
+        <line className="toggle-mark-arm toggle-mark-secondary" x1="0" y1="0" x2="9.6" y2="-9.6" />
+      </g>
     </svg>
   );
 }

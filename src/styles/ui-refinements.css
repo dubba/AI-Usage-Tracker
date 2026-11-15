@@ -1608,13 +1608,25 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   outline-color: var(--purple-fill);
 }
 
+.settings-toggle-row {
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.settings-toggle-row:has(.toggle:disabled) {
+  cursor: not-allowed;
+}
+
 @media (hover: hover) and (pointer: fine) {
-  .settings-style-content .toggle:hover:not(:disabled) {
+  .settings-style-content .toggle:hover:not(:disabled),
+  .settings-style-content .settings-toggle-row:hover .toggle:not(:disabled) {
     background-color: var(--purple-surface) !important;
     outline-color: var(--obsidian-purple-strong);
   }
 
-  .settings-style-content .toggle.on:hover:not(:disabled) {
+  .settings-style-content .toggle.on:hover:not(:disabled),
+  .settings-style-content .settings-toggle-row:hover .toggle.on:not(:disabled) {
     background-color: var(--purple-fill-hover) !important;
     outline-color: var(--obsidian-purple-strong);
   }

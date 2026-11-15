@@ -241,6 +241,33 @@ describe("General", () => {
     click([...document.querySelectorAll("[role=option]")].find((el) => el.textContent?.includes("30 minutes"))!);
     expect(settings.saveAccountRefreshMinutes).toHaveBeenCalledWith(30);
   });
+  it("toggles switches when clicking their label, description, or row background without double-firing", () => {
+    setNarrowWindow(true);
+    const settings = settingsState({ autostart: false });
+    try {
+      app = mount(view({ settings }));
+
+      // Launch at Startup: click description text
+      click(document.querySelector("#setting-autostart-label")!.nextElementSibling!);
+      expect(settings.toggleAutostart).toHaveBeenCalledTimes(1);
+
+      // Menu Bar Labels: click label text, description text, and row padding
+      expect(getBottomNavLabels()).toBe("on");
+      click(document.getElementById("setting-nav-labels-label")!);
+      expect(getBottomNavLabels()).toBe("off");
+      click(document.getElementById("setting-nav-labels-label")!.nextElementSibling!);
+      expect(getBottomNavLabels()).toBe("on");
+      click(document.getElementById("setting-nav-labels-label")!.closest(".settings-toggle-row")!);
+      expect(getBottomNavLabels()).toBe("off");
+
+      // Direct switch click still toggles once
+      click(toggleLabelled("setting-nav-labels-label"));
+      expect(getBottomNavLabels()).toBe("on");
+    } finally {
+      setBottomNavLabels("on");
+      vi.restoreAllMocks();
+    }
+  });
 });
 
 describe("Updates", () => {
@@ -249,12 +276,18 @@ describe("Updates", () => {
     app = mount(view({ settings }));
     click(toggleLabelled("setting-auto-update-label"));
     expect(settings.saveAutomaticUpdatesEnabled).toHaveBeenCalledWith(false);
-    click(toggleLabelled("setting-beta-label"));
+    click(document.getElementById("setting-auto-update-label")!.nextElementSibling!);
+    expect(settings.saveAutomaticUpdatesEnabled).toHaveBeenLastCalledWith(false);
+    click(document.getElementById("setting-beta-label")!);
     expect(settings.saveIncludeBetaUpdates).toHaveBeenCalledWith(true);
 
     app.rerender(view({ settings: settingsState({ automaticUpdatesBusy: true, includeBetaUpdatesBusy: true }) }));
     expect(toggleLabelled("setting-auto-update-label").disabled).toBe(true);
     expect(toggleLabelled("setting-beta-label").disabled).toBe(true);
+    click(document.getElementById("setting-auto-update-label")!);
+    click(document.getElementById("setting-beta-label")!);
+    expect(settings.saveAutomaticUpdatesEnabled).toHaveBeenCalledTimes(2);
+    expect(settings.saveIncludeBetaUpdates).toHaveBeenCalledTimes(1);
   });
 
   it("says the app is up to date and checks on request", () => {
@@ -321,6 +354,8 @@ describe("Devices and the local API", () => {
     expect(toggle.getAttribute("aria-checked")).toBe("true");
     click(toggle);
     expect(onToggleBridge).toHaveBeenCalledWith(false);
+    click(document.getElementById("setting-bridge-label")!);
+    expect(onToggleBridge).toHaveBeenCalledTimes(2);
     click(button("View integration window (opens in a new window)"));
     expect(onViewBridgeWindow).toHaveBeenCalledTimes(1);
     expect(document.querySelector(".api-integration-error")?.getAttribute("role")).toBe("alert");

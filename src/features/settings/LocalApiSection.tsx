@@ -1,7 +1,7 @@
 import { ExternalLinkIcon } from "../../shared/ui/icons";
-import { ToggleSwitch } from "../../shared/ui/ToggleSwitch";
 import { isMobileDevice } from "../../shared/lib/platform";
 import type { BridgeStatus } from "../../types";
+import { SettingsToggleRow } from "./SettingsToggleRow";
 
 /** The Paseo Bridge (local HTTP API) switch and its window. Not shown on a phone or tablet. */
 export function LocalApiSection({
@@ -21,18 +21,17 @@ export function LocalApiSection({
   return (
     <>
       <section className="settings-card">
-        <div className="settings-row">
+        <SettingsToggleRow
+          checked={Boolean(bridge?.enabled)}
+          labelledBy="setting-bridge-label"
+          disabled={bridgeBusy}
+          onChange={onToggleBridge}
+        >
           <div>
             <strong id="setting-bridge-label">Paseo Bridge</strong>
             <small>Allows local HTTP tools to access quota usage & notification status.</small>
           </div>
-          <ToggleSwitch
-            checked={Boolean(bridge?.enabled)}
-            labelledBy="setting-bridge-label"
-            disabled={bridgeBusy}
-            onChange={onToggleBridge}
-          />
-        </div>
+        </SettingsToggleRow>
         <div className="settings-row">
           <div>
             <strong>Integration Window</strong>
