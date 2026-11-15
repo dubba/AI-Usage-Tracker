@@ -491,5 +491,6 @@ describe("SidebarGroupRow custom group", () => {
     expect(app.container.querySelector(".provider-summary-row.is-bucket-row")).not.toBeNull();
     expect(app.container.querySelector(".bucket-mini-badge")).toBeNull();
     expect(app.container.querySelector(".sidebar-group-name")!.textContent).toBe("My Group");
+    expect(app.container.querySelector(".sidebar-group-count")!.textContent).toBe("(1)");
   });
 });

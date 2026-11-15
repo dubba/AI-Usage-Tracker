@@ -154,7 +154,7 @@ export function SidebarGroupRow({
           <strong className="sidebar-group-title">
             {alert ? <span className={`sidebar-row-alert is-${alert.level}`} aria-hidden="true" /> : null}
             <span className="sidebar-group-name">{group.title}</span>
-            <span className="sidebar-group-count">{group.accounts.length}</span>
+            <span className="sidebar-group-count">({group.accounts.length})</span>
           </strong>
         </span>
         {group.accounts.length === 0 ? (
