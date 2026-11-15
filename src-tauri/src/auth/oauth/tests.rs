@@ -809,8 +809,20 @@ fn login_response_parse_errors_do_not_echo_the_reply() {
         ("oauth/mobile.rs", include_str!("mobile.rs")),
         ("oauth/mod.rs", include_str!("mod.rs")),
         (
-            "google_ai_studio_oauth.rs",
-            include_str!("../google_ai_studio_oauth.rs"),
+            "google_ai_studio_oauth/mod.rs",
+            include_str!("../google_ai_studio_oauth/mod.rs"),
+        ),
+        (
+            "google_ai_studio_oauth/projects.rs",
+            include_str!("../google_ai_studio_oauth/projects.rs"),
+        ),
+        (
+            "google_ai_studio_oauth/monitoring.rs",
+            include_str!("../google_ai_studio_oauth/monitoring.rs"),
+        ),
+        (
+            "google_ai_studio_oauth/secret.rs",
+            include_str!("../google_ai_studio_oauth/secret.rs"),
         ),
     ] {
         for (number, line) in source.lines().enumerate() {

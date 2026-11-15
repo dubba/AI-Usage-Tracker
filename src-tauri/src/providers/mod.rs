@@ -669,7 +669,10 @@ mod tests {
             include_str!("oauth_refresh.rs"),
             include_str!("../auth/oauth/exchange.rs"),
             include_str!("../auth/oauth/identity.rs"),
-            include_str!("../auth/google_ai_studio_oauth.rs"),
+            include_str!("../auth/google_ai_studio_oauth/mod.rs"),
+            include_str!("../auth/google_ai_studio_oauth/projects.rs"),
+            include_str!("../auth/google_ai_studio_oauth/monitoring.rs"),
+            include_str!("../auth/google_ai_studio_oauth/secret.rs"),
         ];
         for source in sources {
             assert!(
