@@ -118,4 +118,13 @@ describe("Button hover and active state invariants", () => {
   it("scales down the pairing modal title on phones to fit on one line", () => {
     expect(PAIRING_CSS).toMatch(/@media\s*\(max-width:\s*480px\)\s*\{[\s\S]*?\.modal-card\.pairing-modal\s+h2[^{]*\{[^}]*font-size:\s*1\.2rem\s*!important/);
   });
+
+  it("right-aligns mobile header Add group and Add account tooltips inside the viewport", () => {
+    expect(SIDEBAR_LIST_CSS).toMatch(
+      /\.dashboard-header-actions\s+\.sidebar-section-button\[data-tooltip\]::after\s*\{[^}]*left:\s*auto;\s*right:\s*0;\s*transform:\s*none;/,
+    );
+    expect(SIDEBAR_LIST_CSS).toMatch(
+      /\.dashboard-header-actions\s+\.sidebar-section-button\[data-tooltip\]::after\s*\{[^}]*white-space:\s*pre-line;/,
+    );
+  });
 });

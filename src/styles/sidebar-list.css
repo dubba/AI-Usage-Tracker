@@ -200,6 +200,18 @@
     border-radius: 6px;
   }
 
+  /* Both buttons sit at the right edge of the header, so anchor their tooltips to their right
+     edges to keep them inside the viewport and preserve the group tooltip's line break. */
+  .dashboard-header-actions .sidebar-section-button[data-tooltip]::after {
+    left: auto;
+    right: 0;
+    transform: none;
+    width: max-content;
+    max-width: min(260px, calc(100vw - 32px));
+    white-space: pre-line;
+    text-align: left;
+  }
+
   .dashboard-header-actions .sidebar-section-button svg {
     width: 20px;
     height: 20px;

@@ -186,6 +186,7 @@ export function AccountsView(props: {
                     className="sidebar-section-button"
                     onClick={props.onAddGroup}
                     aria-label="Add new group"
+                    data-tooltip={"Group accounts to track usage in\none place, like “Work” or “Personal”"}
                   >
                     <StackPlusIcon />
                   </button>
@@ -195,6 +196,7 @@ export function AccountsView(props: {
                   className="sidebar-section-button is-primary"
                   onClick={() => props.onAdd()}
                   aria-label="Add new account"
+                  data-tooltip="Add new account"
                 >
                   <PlusIcon />
                 </button>
