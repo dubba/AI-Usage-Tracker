@@ -1,9 +1,17 @@
 # Changelog
 
-## Unreleased (13 changes)
+## Unreleased (18 changes)
 
-### Improved (13)
+### Added (1)
 
+- On phones, swiping left or right across the screen now switches between Dashboard, Usage, and Settings.
+
+### Improved (17)
+
+- In Settings, tapping anywhere on a toggle row now switches the setting on or off, rather than only the switch itself.
+- Toggle switches in Settings now smoothly morph between the X and checkmark when switched on or off.
+- In the sidebar, account counts next to each provider or group name are now displayed inside a rounded box badge.
+- On phones, the floating bottom navigation pill now has a clearer border and outer contrast shadow so it stands out from content scrolling behind it.
 - The highlight on a page or usage switch now slides over to the choice you pick, including Dashboard, Usage and Settings, % Used and % Left, and 7D and 30D.
 - On an account card, a usage bar with nothing to show, or one whose reading is out of date, is drawn with diagonal stripes instead of a solid fill.
 - On a wide window, the Dashboard, Usage and Settings switch lines up with the left edge of the account cards under it.
