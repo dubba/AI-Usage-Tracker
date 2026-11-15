@@ -65,6 +65,23 @@ fn clear_pending_login_only_clears_its_own_attempt() {
 }
 
 #[test]
+fn a_dropped_login_guard_forgets_the_attempt_and_a_kept_one_leaves_it() {
+    let directory = tempfile::tempdir().unwrap();
+    let state =
+        Arc::new(AppState::new(directory.path().to_path_buf(), "test-token".into()).unwrap());
+
+    // An early return drops the guard, so the next attempt can begin.
+    drop(state.begin_login_guarded("attempt-1", None).unwrap());
+    assert!(state.pending_login.read().is_none());
+
+    // A kept attempt stays pending and still blocks a second start.
+    state.begin_login_guarded("attempt-2", None).unwrap().keep();
+    assert_eq!(pending_state(&state).unwrap().0, "attempt-2");
+    assert!(state.begin_login_guarded("attempt-3", None).is_err());
+    assert_eq!(pending_state(&state).unwrap().0, "attempt-2");
+}
+
+#[test]
 fn login_status_constructors_build_the_expected_states() {
     let waiting = LoginStatus::waiting("a", Some("hi".into()));
     assert_eq!(waiting.status, LoginState::Waiting);

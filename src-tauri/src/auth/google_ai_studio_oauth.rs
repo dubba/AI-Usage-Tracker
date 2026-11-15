@@ -140,15 +140,9 @@ async fn start_oauth(
         }
     });
 
-    app.begin_login(&attempt_id, message)?;
+    let pending = app.begin_login_guarded(&attempt_id, message)?;
 
-    let (listener, addr) = match crate::auth::oauth::bind_ephemeral_loopback().await {
-        Ok(bound) => bound,
-        Err(error) => {
-            app.clear_pending_login(&attempt_id);
-            return Err(error);
-        }
-    };
+    let (listener, addr) = crate::auth::oauth::bind_ephemeral_loopback().await?;
     let expected_state = random_base64(24);
     let redirect_uri = crate::auth::oauth::loopback_http_origin(addr);
     let verifier = random_base64(48);
@@ -158,13 +152,9 @@ async fn start_oauth(
         LoginMode::EnableMonitoring { .. } => ENABLE_SCOPES,
     };
     let authorization_url =
-        match build_authorization_url(&redirect_uri, &expected_state, scopes, &challenge) {
-            Ok(url) => url,
-            Err(error) => {
-                app.clear_pending_login(&attempt_id);
-                return Err(error);
-            }
-        };
+        build_authorization_url(&redirect_uri, &expected_state, scopes, &challenge)?;
+    // From here a failure is shown as a failed attempt instead of being forgotten.
+    pending.keep();
     let expires_at = (Utc::now() + Duration::minutes(OAUTH_LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
 
     let (shutdown_tx, shutdown_rx) = oneshot::channel();

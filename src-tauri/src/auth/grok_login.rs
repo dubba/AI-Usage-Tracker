@@ -233,32 +233,24 @@ pub async fn start_login(
     reconnect_account_id: Option<String>,
 ) -> Result<LoginStart, String> {
     let attempt_id = Uuid::new_v4().to_string();
-    state.begin_login(&attempt_id, Some(
+    let pending = state.begin_login_guarded(&attempt_id, Some(
                 "Sign in to Grok in the private window. The tracker will close it after the Usage service recognizes your session."
                     .into(),
             ))?;
 
-    let app = match state.app_handle.read().clone() {
-        Some(app) => app,
-        None => {
-            state.clear_pending_login(&attempt_id);
-            return Err("The application is not ready to open Grok login.".to_string());
-        }
-    };
+    let app = state
+        .app_handle
+        .read()
+        .clone()
+        .ok_or_else(|| "The application is not ready to open Grok login.".to_string())?;
 
     let expires_at =
         (Utc::now() + ChronoDuration::minutes(COOKIE_LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
-    let login_url = match Url::parse(LOGIN_URL) {
-        Ok(url) => url,
-        Err(error) => {
-            state.clear_pending_login(&attempt_id);
-            return Err(crate::diagnostics::command_error(error));
-        }
-    };
+    let login_url = Url::parse(LOGIN_URL).map_err(crate::diagnostics::command_error)?;
 
     #[cfg(mobile)]
     {
-        return start_mobile_login(
+        let start = start_mobile_login(
             app,
             state,
             attempt_id,
@@ -267,7 +259,9 @@ pub async fn start_login(
             login_url,
             expires_at,
         )
-        .await;
+        .await?;
+        pending.keep();
+        return Ok(start);
     }
 
     #[cfg(desktop)]
@@ -279,16 +273,10 @@ pub async fn start_login(
         // Sweep profiles left behind by a previous crash/kill before creating a
         // new one, then create the new profile as owner-only.
         crate::auth::login_profile::sweep_stale_profiles(GROK_PROFILE_PREFIX);
-        let temp_data_dir = match crate::auth::login_profile::create_private_profile_dir(
+        let temp_data_dir = crate::auth::login_profile::create_private_profile_dir(
             GROK_PROFILE_PREFIX,
             &attempt_id,
-        ) {
-            Ok(dir) => dir,
-            Err(error) => {
-                state.clear_pending_login(&attempt_id);
-                return Err(error);
-            }
-        };
+        )?;
 
         let login_window = match login_window::open_private_login_window(
             &app,
@@ -327,7 +315,6 @@ pub async fn start_login(
             Ok(window) => window,
             Err(error) => {
                 let _ = std::fs::remove_dir_all(&temp_data_dir);
-                state.clear_pending_login(&attempt_id);
                 return Err(format!("Unable to open the Grok login window: {error}"));
             }
         };
@@ -355,6 +342,7 @@ pub async fn start_login(
             },
         );
 
+        pending.keep();
         Ok(LoginStart {
             attempt_id,
             authorization_url: String::new(),
@@ -385,13 +373,7 @@ async fn start_mobile_login(
         }
     }
 
-    let window = match crate::auth::mobile_auth::main_window(&app) {
-        Ok(window) => window,
-        Err(error) => {
-            state.clear_pending_login(&attempt_id);
-            return Err(error);
-        }
-    };
+    let window = crate::auth::mobile_auth::main_window(&app)?;
     // The poll reads cookies on its first iteration, so the previous session
     // has to be gone before that thread starts. An empty jar keeps waiting.
     crate::auth::mobile_auth::forget_provider_sign_in(&window);
@@ -403,16 +385,13 @@ async fn start_mobile_login(
         reconnect_account_id,
         None,
     );
-    if let Err(error) = crate::auth::mobile_auth::open_in_main_webview(
+    crate::auth::mobile_auth::open_in_main_webview(
         app,
         state.clone(),
         attempt_id.clone(),
         login_url,
         |_| {},
-    ) {
-        state.clear_pending_login(&attempt_id);
-        return Err(error);
-    }
+    )?;
 
     let timeout_state = state.clone();
     let timeout_attempt = attempt_id.clone();

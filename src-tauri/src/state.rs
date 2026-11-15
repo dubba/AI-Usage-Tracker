@@ -57,6 +57,31 @@ impl Drop for InFlightRefreshGuard {
     }
 }
 
+/// A login attempt that has begun but has put nothing in front of the user yet. Dropping it
+/// forgets the attempt, so a start that fails on any early return cannot block the next Add
+/// Account; `keep` leaves the attempt pending once the sign-in is under way.
+#[must_use = "dropping this forgets the login attempt; call keep() once the sign-in has started"]
+pub struct PendingLoginGuard {
+    app: Arc<AppState>,
+    attempt_id: String,
+    armed: bool,
+}
+
+impl PendingLoginGuard {
+    /// The sign-in is running: from here its timeout, cancel or completion ends the attempt.
+    pub fn keep(mut self) {
+        self.armed = false;
+    }
+}
+
+impl Drop for PendingLoginGuard {
+    fn drop(&mut self) {
+        if self.armed {
+            self.app.clear_pending_login(&self.attempt_id);
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct ApiRuntime {
     pub endpoint: String,
@@ -309,6 +334,20 @@ impl AppState {
         }
         *pending = Some(LoginStatus::waiting(attempt_id, message));
         Ok(())
+    }
+
+    /// `begin_login`, with a guard that forgets the attempt again unless the caller keeps it.
+    pub fn begin_login_guarded(
+        self: &Arc<Self>,
+        attempt_id: &str,
+        message: Option<String>,
+    ) -> Result<PendingLoginGuard, String> {
+        self.begin_login(attempt_id, message)?;
+        Ok(PendingLoginGuard {
+            app: self.clone(),
+            attempt_id: attempt_id.to_string(),
+            armed: true,
+        })
     }
 
     /// Forgets the pending login if it is attempt `attempt_id`, e.g. when starting it failed

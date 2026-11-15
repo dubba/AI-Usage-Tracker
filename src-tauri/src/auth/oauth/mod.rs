@@ -80,32 +80,22 @@ pub async fn start_login(
     }
 
     let attempt_id = Uuid::new_v4().to_string();
-    app.begin_login(&attempt_id, None)?;
+    let pending = app.begin_login_guarded(&attempt_id, None)?;
 
-    let (listener, addr) = match bind_callback_port(&provider).await {
-        Ok(bound) => bound,
-        Err(error) => {
-            app.clear_pending_login(&attempt_id);
-            return Err(error);
-        }
-    };
+    let (listener, addr) = bind_callback_port(&provider).await?;
     let verifier = random_base64(32);
     let challenge = pkce_challenge(&verifier);
     let expected_state = random_base64(24);
     let redirect_uri = redirect_uri(&provider, addr);
-    let authorization_url = match build_authorization_url(
+    let authorization_url = build_authorization_url(
         &provider,
         &redirect_uri,
         &challenge,
         &expected_state,
         email.as_deref(),
-    ) {
-        Ok(url) => url,
-        Err(error) => {
-            app.clear_pending_login(&attempt_id);
-            return Err(error);
-        }
-    };
+    )?;
+    // From here a failure is shown as a failed attempt instead of being forgotten.
+    pending.keep();
     let expires_at = (Utc::now() + Duration::minutes(OAUTH_LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
 
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
