@@ -122,7 +122,7 @@ pub(crate) fn is_allowed_main_navigation(
 ) -> bool {
     // The "Account connected" page the app shows when a sign-in has finished
     // (mobile_auth.rs): only the exact page it made, never `data:` in general.
-    if url.as_str() == "about:blank" || crate::auth::oauth_common::is_connected_page(url) {
+    if url.as_str() == "about:blank" || crate::auth::result_pages::is_connected_page(url) {
         return true;
     }
     if is_app_page(url, dev_url) {

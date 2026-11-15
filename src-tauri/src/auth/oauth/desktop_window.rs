@@ -203,7 +203,7 @@ pub(crate) fn open_provider_login_window(
                             let close_dir = load_dir.clone();
                             tauri::async_runtime::spawn(async move {
                                 tokio::time::sleep(
-                                    crate::auth::oauth_common::CONNECTED_PAGE_DISPLAY,
+                                    crate::auth::result_pages::CONNECTED_PAGE_DISPLAY,
                                 )
                                 .await;
                                 let _ = std::fs::remove_dir_all(&close_dir);
@@ -403,7 +403,7 @@ fn popup_geometry(handle: &tauri::AppHandle) -> (f64, f64, Option<(f64, f64)>) {
         });
     match measured {
         Some((width, height, position)) => (width, height, Some(position)),
-        None => crate::auth::oauth_common::window_geometry_centered_on(
+        None => crate::auth::window_geometry::window_geometry_centered_on(
             handle,
             PROVIDER_LOGIN_WINDOW,
             0.0,

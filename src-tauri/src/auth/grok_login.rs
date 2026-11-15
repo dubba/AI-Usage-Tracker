@@ -558,7 +558,7 @@ fn close_login_window(window: &WebviewWindow) {
 fn is_allowed_login_navigation(url: &Url) -> bool {
     if url.as_str() == "about:blank"
         || url.scheme() == "blob"
-        || crate::auth::oauth_common::is_connected_page(url)
+        || crate::auth::result_pages::is_connected_page(url)
     {
         return true;
     }

@@ -188,7 +188,7 @@ pub(crate) fn open_private_login_window<'a>(
         WebviewWindowBuilder<'a, tauri::Wry, AppHandle>,
     ) -> WebviewWindowBuilder<'a, tauri::Wry, AppHandle>,
 ) -> tauri::Result<WebviewWindow> {
-    let (width, height, position) = crate::auth::oauth_common::window_geometry_centered_on(
+    let (width, height, position) = crate::auth::window_geometry::window_geometry_centered_on(
         app,
         "main",
         1.0,

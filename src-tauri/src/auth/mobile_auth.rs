@@ -16,7 +16,7 @@ const NAVIGATE_DELAY: Duration = Duration::from_millis(250);
 #[cfg(mobile)]
 const POLL_INTERVAL: Duration = Duration::from_millis(400);
 #[cfg(mobile)]
-const SUCCESS_DISPLAY_DELAY: Duration = crate::auth::oauth_common::CONNECTED_PAGE_DISPLAY;
+const SUCCESS_DISPLAY_DELAY: Duration = crate::auth::result_pages::CONNECTED_PAGE_DISPLAY;
 /// How long a finished sign-in waits for its result page to be shown before
 /// starting `SUCCESS_DISPLAY_DELAY` anyway.
 #[cfg(mobile)]
@@ -33,7 +33,7 @@ const RESULT_PAGE_SHOWN: u8 = 2;
 /// The main window started loading a page (the navigation guard allowed it).
 #[cfg_attr(not(any(test, mobile)), allow(dead_code))]
 pub(crate) fn note_main_navigation(url: &Url) {
-    if crate::auth::oauth_common::is_result_page(url) {
+    if crate::auth::result_pages::is_result_page(url) {
         RESULT_PAGE.fetch_max(RESULT_PAGE_REQUESTED, Ordering::SeqCst);
         #[cfg(target_os = "android")]
         set_android_sign_in_result_showing(true);
@@ -43,7 +43,7 @@ pub(crate) fn note_main_navigation(url: &Url) {
 /// The main window finished loading a page.
 #[cfg_attr(not(any(test, mobile)), allow(dead_code))]
 pub(crate) fn note_main_page_loaded(url: &Url, dev_url: Option<&Url>) {
-    if crate::auth::oauth_common::is_result_page(url) {
+    if crate::auth::result_pages::is_result_page(url) {
         RESULT_PAGE.store(RESULT_PAGE_SHOWN, Ordering::SeqCst);
         #[cfg(target_os = "android")]
         set_android_sign_in_result_showing(true);
@@ -355,7 +355,7 @@ pub fn open_in_main_webview(
     // cookie poll can read it. The app URL above is already saved for restore.
     forget_provider_sign_in(&window);
     // The connected page's close button goes back to the app page.
-    crate::auth::oauth_common::set_connected_page_close_url(&restore_url);
+    crate::auth::result_pages::set_connected_page_close_url(&restore_url);
     RESULT_PAGE.store(RESULT_PAGE_NONE, Ordering::SeqCst);
     // Claude's "Continue with Google" needs a real popup (see IOS_POPUP_SCRIPT).
     #[cfg(target_os = "ios")]
@@ -523,7 +523,7 @@ async fn show_result_page(window: &WebviewWindow, state: &AppState, attempt_id: 
             .and_then(|login| login.account.clone());
         let Some(page) = account
             .as_ref()
-            .and_then(crate::auth::oauth_common::connected_page_url)
+            .and_then(crate::auth::result_pages::connected_page_url)
         else {
             return false;
         };

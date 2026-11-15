@@ -511,7 +511,7 @@ fn read_auth_cookie_with_retry(window: &WebviewWindow) -> Result<(String, Option
 /// cookie-capture window to an attacker-controlled page.
 #[cfg(desktop)]
 fn is_allowed_login_navigation(url: &Url) -> bool {
-    if url.as_str() == "about:blank" || crate::auth::oauth_common::is_connected_page(url) {
+    if url.as_str() == "about:blank" || crate::auth::result_pages::is_connected_page(url) {
         return true;
     }
     if url.scheme() != "https" {

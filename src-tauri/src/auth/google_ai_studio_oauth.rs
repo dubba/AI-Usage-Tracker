@@ -1,9 +1,11 @@
 use crate::{
     auth::google_client::{client_secret, CLIENT_ID, TOKEN_URL},
-    auth::oauth_common::{
-        account_connected_html, auth_failure_html, callback_html, escape_html, pkce_challenge,
-        random_base64, spawn_callback_server, spawn_login_timeout, CallbackQuery,
-        OAUTH_LOGIN_TIMEOUT_MINUTES,
+    auth::{
+        oauth_common::{
+            spawn_callback_server, spawn_login_timeout, CallbackQuery, OAUTH_LOGIN_TIMEOUT_MINUTES,
+        },
+        pkce::{pkce_challenge, random_base64},
+        result_pages::{account_connected_html, auth_failure_html, callback_html, escape_html},
     },
     model::{
         Account, CloudProjectOption, GoogleAiStudioSecret, LoginStart, LoginState, LoginStatus,
@@ -286,7 +288,7 @@ async fn callback(
     // Only Google's redirect carries this attempt's state; anything else leaves
     // the sign-in and the callback server as they are (see oauth.rs).
     if query.state.as_deref() != Some(context.expected_state.as_str()) {
-        return crate::auth::oauth_common::unrecognized_callback_response();
+        return crate::auth::result_pages::unrecognized_callback_response();
     }
     let result = complete_callback(context.clone(), query).await;
     if let Err(error) = &result {

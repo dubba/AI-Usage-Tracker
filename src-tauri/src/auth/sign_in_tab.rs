@@ -36,7 +36,7 @@ static TAB_ATTEMPT: Mutex<Option<String>> = Mutex::new(None);
 const POLL_INTERVAL: Duration = Duration::from_millis(400);
 /// How long the callback's page stays up in the tab, counting down, before the app returns over it.
 #[cfg(target_os = "android")]
-const RESULT_PAGE_GLANCE: Duration = crate::auth::oauth_common::CONNECTED_PAGE_DISPLAY;
+const RESULT_PAGE_GLANCE: Duration = crate::auth::result_pages::CONNECTED_PAGE_DISPLAY;
 
 /// The message the Back button on the in-app sign-in page sets too (`mobile_auth.rs`).
 #[cfg(any(test, target_os = "android"))]

@@ -3,10 +3,15 @@ use crate::auth::login_window::{self, LoginWindowSpec, LOGIN_USER_AGENT};
 use crate::{
     auth::google_client::{client_secret, CLIENT_ID, TOKEN_URL as GOOGLE_TOKEN_URL},
     auth::login_window::{is_back_request, BACK_QUERY_FLAG},
-    auth::oauth_common::{
-        account_connected_html, account_connected_in_tab_html, auth_failure_html, callback_html,
-        merge_into_existing, pkce_challenge, random_base64, spawn_callback_server,
-        spawn_login_timeout, CallbackQuery, ConnectedFields, OAUTH_LOGIN_TIMEOUT_MINUTES,
+    auth::{
+        oauth_common::{
+            merge_into_existing, spawn_callback_server, spawn_login_timeout, CallbackQuery,
+            ConnectedFields, OAUTH_LOGIN_TIMEOUT_MINUTES,
+        },
+        pkce::{pkce_challenge, random_base64},
+        result_pages::{
+            account_connected_html, account_connected_in_tab_html, auth_failure_html, callback_html,
+        },
     },
     model::{Account, LoginStart, LoginState, LoginStatus, OAuthSecret, Provider, ProviderSecret},
     providers::{
