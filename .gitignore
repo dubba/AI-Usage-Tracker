@@ -29,3 +29,6 @@ binaries/
 .secrets/
 # Local audit reports; may contain unfixed vulnerabilities (see docs/AUDIT_PROTOCOL.md).
 .audits/
+# Device captures taken while debugging (bug reports hold device logs).
+bugreport-*.zip
+/android_screen.png

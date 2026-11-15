@@ -1,6 +1,7 @@
+use crate::auth::login_window::LoginAttempt;
 #[cfg(desktop)]
 use crate::auth::login_window::{
-    self, is_back_request, LoginWindowEnd, LoginWindowSpec, BACK_BUTTON_SCRIPT, BACK_QUERY_FLAG,
+    self, LoginNavigationRules, LoginWindowEnd, LoginWindowSpec, BACK_BUTTON_SCRIPT,
 };
 use crate::{
     auth::oauth_common::{finish_window_login, merge_into_existing, ConnectedFields},
@@ -29,6 +30,7 @@ pub(crate) const LOGIN_WINDOW_LABEL: &str = "opencode-go-login";
 pub(crate) const OPENCODE_PROFILE_PREFIX: &str = "ai-usage-opencode-";
 #[cfg(desktop)]
 const OPENCODE_CANCELED_MESSAGE: &str = "OpenCode login was canceled.";
+const OPENCODE_TIMED_OUT_MESSAGE: &str = "OpenCode login timed out. Start the connection again.";
 const LOGIN_URL: &str = "https://opencode.ai/auth";
 /// How long a sign-in that runs in an app window (cookie capture; SSO, two-step verification and
 /// choosing a workspace happen there) waits before it gives up. Browser OAuth waits
@@ -117,25 +119,23 @@ pub async fn start_login(
     reconnect_account_id: Option<String>,
 ) -> Result<LoginStart, String> {
     let attempt_id = Uuid::new_v4().to_string();
-    state.begin_login(
+    let pending = state.begin_login_guarded(
         &attempt_id,
         Some("Sign in to OpenCode and open your Go subscription.".into()),
     )?;
+    let attempt = LoginAttempt {
+        state: state.clone(),
+        attempt_id: attempt_id.clone(),
+        label,
+        reconnect_account_id,
+    };
+    let expires_at = (Utc::now() + Duration::minutes(COOKIE_LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
 
     #[cfg(mobile)]
     {
-        let expires_at =
-            (Utc::now() + Duration::minutes(COOKIE_LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
-        return start_mobile_login(
-            app,
-            state,
-            attempt_id,
-            label,
-            email,
-            reconnect_account_id,
-            expires_at,
-        )
-        .await;
+        let start = start_mobile_login(app, attempt, email, expires_at).await?;
+        pending.keep();
+        return Ok(start);
     }
 
     #[cfg(desktop)]
@@ -144,37 +144,16 @@ pub async fn start_login(
             close_login_window(&window);
         }
 
-        let expires_at =
-            (Utc::now() + Duration::minutes(COOKIE_LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
         // A private profile per attempt (like the Grok window) so a previous
         // OpenCode or Google session can never silently sign in a second
         // account: every login starts without stored cookies.
         crate::auth::login_profile::sweep_stale_profiles(OPENCODE_PROFILE_PREFIX);
-        let temp_data_dir = match crate::auth::login_profile::create_private_profile_dir(
+        let temp_data_dir = crate::auth::login_profile::create_private_profile_dir(
             OPENCODE_PROFILE_PREFIX,
             &attempt_id,
-        ) {
-            Ok(dir) => dir,
-            Err(error) => {
-                state.clear_pending_login(&attempt_id);
-                return Err(error);
-            }
-        };
-        let login_url = match Url::parse(LOGIN_URL) {
-            Ok(url) => url,
-            Err(error) => {
-                state.clear_pending_login(&attempt_id);
-                return Err(error.to_string());
-            }
-        };
+        )?;
+        let login_url = Url::parse(LOGIN_URL).map_err(|error| error.to_string())?;
         let capture_started = Arc::new(AtomicBool::new(false));
-
-        let page_state = state.clone();
-        let page_attempt = attempt_id.clone();
-        let page_label = label.clone();
-        let page_email = email.clone();
-        let page_reconnect = reconnect_account_id.clone();
-        let page_capture_started = capture_started.clone();
 
         let login_window = match login_window::open_private_login_window(
             &app,
@@ -188,24 +167,17 @@ pub async fn start_login(
             },
             |builder| {
                 builder
-                    .on_navigation({
-                        let back_app = app.clone();
-                        let back_state = state.clone();
-                        let back_attempt = attempt_id.clone();
-                        move |url| {
-                            if is_back_request(url, BACK_QUERY_FLAG) {
-                                if let Some(window) = back_app.get_webview_window(LOGIN_WINDOW_LABEL) {
-                                    close_login_window(&window);
-                                }
-                                back_state.fail_login_if_waiting(
-                                    &back_attempt,
-                                    OPENCODE_CANCELED_MESSAGE.into(),
-                                );
-                                return false;
-                            }
-                            is_allowed_login_navigation(url)
-                        }
-                    })
+                    .on_navigation(login_window::guard_login_navigation(
+                        &app,
+                        &state,
+                        &attempt_id,
+                        LoginNavigationRules {
+                            label: LOGIN_WINDOW_LABEL,
+                            provider: "OpenCode",
+                            canceled: OPENCODE_CANCELED_MESSAGE,
+                            is_allowed: is_allowed_login_navigation,
+                        },
+                    ))
                     .on_page_load(move |window, payload| {
                         if !matches!(payload.event(), PageLoadEvent::Finished) {
                             return;
@@ -213,60 +185,19 @@ pub async fn start_login(
                         let Some(workspace_id) = workspace_id_from_url(payload.url()) else {
                             return;
                         };
-                        if !page_state.login_is_waiting(&page_attempt) {
-                            return;
-                        }
-                        if page_capture_started.swap(true, Ordering::SeqCst) {
-                            return;
-                        }
-
-                        let cookie_window = window.clone();
-                        let completion_window = window.clone();
-                        let completion_state = page_state.clone();
-                        let completion_attempt = page_attempt.clone();
-                        let completion_label = page_label.clone();
-                        let completion_email = page_email.clone();
-                        let completion_reconnect = page_reconnect.clone();
-                        let completion_capture_started = page_capture_started.clone();
-
-                        std::thread::spawn(move || {
-                            let cookie_result = read_auth_cookie_with_retry(&cookie_window);
-
-                            tauri::async_runtime::spawn(async move {
-                                match cookie_result {
-                                    Ok((auth_cookie, discovered_email)) => {
-                                        let final_email = completion_email.or(discovered_email);
-                                        complete_login(
-                                            completion_state,
-                                            completion_attempt,
-                                            completion_label,
-                                            workspace_id,
-                                            auth_cookie,
-                                            final_email,
-                                            completion_reconnect,
-                                            completion_window,
-                                        )
-                                        .await;
-                                    }
-                                    Err(error) => {
-                                        completion_capture_started.store(false, Ordering::SeqCst);
-                                        completion_state.set_waiting_message(
-                                            &completion_attempt,
-                                            format!(
-                                                "{error} Navigate away from Go, then select Go again to retry."
-                                            ),
-                                        );
-                                    }
-                                }
-                            });
-                        });
+                        capture_workspace_session(
+                            &attempt,
+                            &email,
+                            &capture_started,
+                            &window,
+                            workspace_id,
+                        );
                     })
             },
         ) {
             Ok(window) => window,
             Err(error) => {
                 let _ = std::fs::remove_dir_all(&temp_data_dir);
-                state.clear_pending_login(&attempt_id);
                 return Err(format!(
                     "Unable to open the OpenCode login window: {}",
                     crate::diagnostics::command_error(error)
@@ -284,16 +215,59 @@ pub async fn start_login(
                 label: LOGIN_WINDOW_LABEL,
                 timeout_minutes: COOKIE_LOGIN_TIMEOUT_MINUTES,
                 canceled: OPENCODE_CANCELED_MESSAGE,
-                timed_out: "OpenCode login timed out. Start the connection again.",
+                timed_out: OPENCODE_TIMED_OUT_MESSAGE,
             },
         );
 
+        pending.keep();
         Ok(LoginStart {
             attempt_id,
             authorization_url: String::new(),
             expires_at,
         })
     }
+}
+
+/// The Go page of workspace `workspace_id` has loaded in `window`: read the session cookie and
+/// finish the sign-in with it. Only one capture runs at a time (`capture_started`); one that
+/// finds no usable cookie says so and lets the next page load try again.
+fn capture_workspace_session(
+    attempt: &LoginAttempt,
+    email: &Option<String>,
+    capture_started: &Arc<AtomicBool>,
+    window: &WebviewWindow,
+    workspace_id: String,
+) {
+    if !attempt.state.login_is_waiting(&attempt.attempt_id) {
+        return;
+    }
+    if capture_started.swap(true, Ordering::SeqCst) {
+        return;
+    }
+
+    let attempt = attempt.clone();
+    let email = email.clone();
+    let capture_started = capture_started.clone();
+    let window = window.clone();
+    std::thread::spawn(move || {
+        let cookie_result = read_auth_cookie_with_retry(&window);
+
+        tauri::async_runtime::spawn(async move {
+            match cookie_result {
+                Ok((auth_cookie, discovered_email)) => {
+                    let final_email = email.or(discovered_email);
+                    complete_login(attempt, workspace_id, auth_cookie, final_email, window).await;
+                }
+                Err(error) => {
+                    capture_started.store(false, Ordering::SeqCst);
+                    attempt.state.set_waiting_message(
+                        &attempt.attempt_id,
+                        format!("{error} Navigate away from Go, then select Go again to retry."),
+                    );
+                }
+            }
+        });
+    });
 }
 
 pub async fn add_account(
@@ -339,9 +313,9 @@ pub async fn add_account(
                 .filter(|v| !v.is_empty())
                 .or_else(|| duplicate.as_ref().and_then(|account| account.email.clone()))
                 .or_else(|| {
-                    crate::providers::grok::extract_identity_from_jwt(&auth_cookie).or_else(|| {
-                        crate::providers::grok::extract_identity_from_cookies(&auth_cookie)
-                    })
+                    crate::providers::identity::extract_identity_from_jwt(&auth_cookie).or_else(
+                        || crate::providers::identity::extract_identity_from_cookies(&auth_cookie),
+                    )
                 }),
             provider_account_id: Some(workspace_id.to_string()),
             chatgpt_account_id: None,
@@ -362,17 +336,19 @@ pub async fn add_account(
     usage::refresh_account(state, &account.id).await
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn complete_login(
-    state: Arc<AppState>,
-    attempt_id: String,
-    label: String,
+    attempt: LoginAttempt,
     workspace_id: String,
     auth_cookie: String,
     email: Option<String>,
-    reconnect_account_id: Option<String>,
     window: WebviewWindow,
 ) {
+    let LoginAttempt {
+        state,
+        attempt_id,
+        label,
+        reconnect_account_id,
+    } = attempt;
     if !state.login_is_waiting(&attempt_id) {
         return;
     }
@@ -400,35 +376,16 @@ async fn complete_login(
 #[cfg(mobile)]
 async fn start_mobile_login(
     app: AppHandle,
-    state: Arc<AppState>,
-    attempt_id: String,
-    label: String,
+    attempt: LoginAttempt,
     email: Option<String>,
-    reconnect_account_id: Option<String>,
     expires_at: String,
 ) -> Result<LoginStart, String> {
-    let login_url = match Url::parse(LOGIN_URL) {
-        Ok(url) => url,
-        Err(error) => {
-            state.clear_pending_login(&attempt_id);
-            return Err(error.to_string());
-        }
-    };
-    let window = match crate::auth::mobile_auth::main_window(&app) {
-        Ok(window) => window,
-        Err(error) => {
-            state.clear_pending_login(&attempt_id);
-            return Err(error);
-        }
-    };
+    let state = attempt.state.clone();
+    let attempt_id = attempt.attempt_id.clone();
+    let login_url = Url::parse(LOGIN_URL).map_err(|error| error.to_string())?;
+    let window = crate::auth::mobile_auth::main_window(&app)?;
     let capture_started = Arc::new(AtomicBool::new(false));
-    let page_state = state.clone();
-    let page_attempt = attempt_id.clone();
-    let page_label = label;
-    let page_email = email;
-    let page_reconnect = reconnect_account_id;
-    let page_window = window;
-    if let Err(error) = crate::auth::mobile_auth::open_in_main_webview(
+    crate::auth::mobile_auth::open_in_main_webview(
         app.clone(),
         state.clone(),
         attempt_id.clone(),
@@ -437,70 +394,16 @@ async fn start_mobile_login(
             let Some(workspace_id) = workspace_id_from_url(&url) else {
                 return;
             };
-            if !page_state.login_is_waiting(&page_attempt) {
-                return;
-            }
-            if capture_started.swap(true, Ordering::SeqCst) {
-                return;
-            }
-            let cookie_window = page_window.clone();
-            let completion_window = page_window.clone();
-            let completion_state = page_state.clone();
-            let completion_attempt = page_attempt.clone();
-            let completion_label = page_label.clone();
-            let completion_email = page_email.clone();
-            let completion_reconnect = page_reconnect.clone();
-            let completion_capture_started = capture_started.clone();
-            std::thread::spawn(move || {
-                let cookie_result = read_auth_cookie_with_retry(&cookie_window);
-                tauri::async_runtime::spawn(async move {
-                    match cookie_result {
-                        Ok((auth_cookie, discovered_email)) => {
-                            let final_email = completion_email.or(discovered_email);
-                            complete_login(
-                                completion_state,
-                                completion_attempt,
-                                completion_label,
-                                workspace_id,
-                                auth_cookie,
-                                final_email,
-                                completion_reconnect,
-                                completion_window,
-                            )
-                            .await;
-                        }
-                        Err(error) => {
-                            completion_capture_started.store(false, Ordering::SeqCst);
-                            completion_state.set_waiting_message(
-                                &completion_attempt,
-                                format!(
-                                    "{error} Navigate away from Go, then select Go again to retry."
-                                ),
-                            );
-                        }
-                    }
-                });
-            });
+            capture_workspace_session(&attempt, &email, &capture_started, &window, workspace_id);
         },
-    ) {
-        state.clear_pending_login(&attempt_id);
-        return Err(error);
-    }
+    )?;
 
-    let timeout_state = state.clone();
-    let timeout_attempt = attempt_id.clone();
-    tauri::async_runtime::spawn(async move {
-        tokio::time::sleep(StdDuration::from_secs(
-            (COOKIE_LOGIN_TIMEOUT_MINUTES * 60) as u64,
-        ))
-        .await;
-        if timeout_state.login_is_waiting(&timeout_attempt) {
-            timeout_state.fail_login_if_waiting(
-                &timeout_attempt,
-                "OpenCode login timed out. Start the connection again.".into(),
-            );
-        }
-    });
+    crate::auth::login_window::spawn_mobile_login_timeout(
+        &state,
+        &attempt_id,
+        COOKIE_LOGIN_TIMEOUT_MINUTES,
+        OPENCODE_TIMED_OUT_MESSAGE,
+    );
 
     Ok(LoginStart {
         attempt_id,
@@ -559,7 +462,7 @@ fn read_auth_cookie_with_retry(window: &WebviewWindow) -> Result<(String, Option
 
                 if let Some(auth_val) = auth_cookie {
                     let mut discovered_email =
-                        crate::providers::grok::extract_identity_from_jwt(&auth_val);
+                        crate::providers::identity::extract_identity_from_jwt(&auth_val);
                     if discovered_email.is_none() {
                         for cookie in &cookies {
                             let name = cookie.name();
@@ -572,7 +475,7 @@ fn read_auth_cookie_with_retry(window: &WebviewWindow) -> Result<(String, Option
                                 break;
                             }
                             if let Some(identity) =
-                                crate::providers::grok::extract_identity_from_jwt(value)
+                                crate::providers::identity::extract_identity_from_jwt(value)
                             {
                                 discovered_email = Some(identity);
                                 break;
@@ -608,7 +511,7 @@ fn read_auth_cookie_with_retry(window: &WebviewWindow) -> Result<(String, Option
 /// cookie-capture window to an attacker-controlled page.
 #[cfg(desktop)]
 fn is_allowed_login_navigation(url: &Url) -> bool {
-    if url.as_str() == "about:blank" || crate::auth::oauth_common::is_connected_page(url) {
+    if url.as_str() == "about:blank" || crate::auth::result_pages::is_connected_page(url) {
         return true;
     }
     if url.scheme() != "https" {

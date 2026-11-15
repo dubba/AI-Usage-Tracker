@@ -67,6 +67,9 @@ export function useSidebarNavigation() {
 
   const showSettings = useCallback(() => navigate("settings", true), [navigate]);
 
+  /** Shows the page a top-bar or bottom-bar button names. */
+  const showSection = useCallback((target: Section) => navigate(target, true), [navigate]);
+
   /** The keyboard shortcut that steps through the pages in the order of the page switch: Dashboard, Usage, Settings, and round again. */
   const cyclePages = useCallback(() => {
     navigate(PAGE_ORDER[(PAGE_ORDER.indexOf(currentSection.current) + 1) % PAGE_ORDER.length], true);
@@ -90,6 +93,7 @@ export function useSidebarNavigation() {
     showActivity,
     showAccounts,
     showSettings,
+    showSection,
     cyclePages,
     stepPage,
     toggleSidebar,

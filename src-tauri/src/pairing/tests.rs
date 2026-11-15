@@ -1398,14 +1398,14 @@ async fn test_end_to_end_pairing_flow() {
         send_cancel_rx,
     ));
 
-    // Await Connected events from both sides
+    // Await the first event from both sides: each carries the verification code
     let recv_sas = match timeout(Duration::from_secs(5), recv_status_rx.recv())
         .await
         .unwrap()
         .unwrap()
     {
-        ReceiverEvent::Connected(sas) => sas,
-        _other => panic!("Expected ReceiverEvent::Connected, got other event"),
+        ReceiverEvent::PeerConnected { sas_code, .. } => sas_code,
+        _other => panic!("Expected ReceiverEvent::PeerConnected, got other event"),
     };
 
     let send_sas = match timeout(Duration::from_secs(5), send_status_rx.recv())
@@ -1413,15 +1413,17 @@ async fn test_end_to_end_pairing_flow() {
         .unwrap()
         .unwrap()
     {
-        SenderEvent::Connected {
-            sas_code,
-            account_count,
-            ..
-        } => {
-            assert_eq!(account_count, 1);
-            sas_code
-        }
-        _other => panic!("Expected SenderEvent::Connected, got other event"),
+        SenderEvent::RoleSelection { sas_code, .. } => sas_code,
+        _other => panic!("Expected SenderEvent::RoleSelection, got other event"),
+    };
+    // The sender then reports how many accounts it is about to send.
+    match timeout(Duration::from_secs(5), send_status_rx.recv())
+        .await
+        .unwrap()
+        .unwrap()
+    {
+        SenderEvent::SasVerification { account_count, .. } => assert_eq!(account_count, 1),
+        _other => panic!("Expected SenderEvent::SasVerification, got other event"),
     };
 
     // Verify SAS codes match
@@ -2457,4 +2459,27 @@ fn airgap_export_clears_a_confirm_freeze_before_using_the_live_choice() {
         .find("airgap::prepare_airgap_export(")
         .expect("airgap builds the payload");
     assert!(unfreeze < write && write < export);
+}
+
+#[test]
+fn abort_reasons_keep_their_wire_numbers() {
+    use crate::pairing::protocol::AbortReason::*;
+    let expected: [(crate::pairing::protocol::AbortReason, u8); 13] = [
+        (BadHandshake, 0x01),
+        (KeyDerivationFailed, 0x03),
+        (RoleSelectFailed, 0x04),
+        (RoleSelectTimedOut, 0x05),
+        (CanceledBeforeRole, 0x06),
+        (RoleChoiceDropped, 0x07),
+        (CanceledBeforeConfirm, 0x08),
+        (SasRejected, 0x09),
+        (PayloadInvalid, 0x0A),
+        (PayloadTimedOut, 0x0B),
+        (ImportFailed, 0x0C),
+        (InvalidPeerKey, 0x0D),
+        (InvalidRole, 0x10),
+    ];
+    for (reason, byte) in expected {
+        assert_eq!(reason.payload(), [byte], "{reason:?}");
+    }
 }

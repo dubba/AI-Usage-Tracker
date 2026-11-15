@@ -10,13 +10,32 @@ use tauri::WebviewWindow;
 use tauri::{AppHandle, Manager};
 use url::Url;
 
+#[cfg(target_os = "android")]
+mod android;
+#[cfg(any(test, target_os = "ios"))]
+mod ios;
+
+// What the sign-in loop asks of the platform it runs on. Each platform module answers every
+// call, with a no-op where it has nothing to do, so the loop itself has no platform switches.
+#[cfg(target_os = "android")]
+use android as platform;
+#[cfg(target_os = "ios")]
+use ios as platform;
+
+/// Desktop builds compile the page-load hooks below but never run a sign-in in the main WebView.
+#[cfg(not(mobile))]
+mod platform {
+    pub(super) fn result_page_showing(_showing: bool) {}
+    pub(super) fn clear_history() {}
+}
+
 const MAIN_WINDOW: &str = "main";
 #[cfg(mobile)]
 const NAVIGATE_DELAY: Duration = Duration::from_millis(250);
 #[cfg(mobile)]
 const POLL_INTERVAL: Duration = Duration::from_millis(400);
 #[cfg(mobile)]
-const SUCCESS_DISPLAY_DELAY: Duration = crate::auth::oauth_common::CONNECTED_PAGE_DISPLAY;
+const SUCCESS_DISPLAY_DELAY: Duration = crate::auth::result_pages::CONNECTED_PAGE_DISPLAY;
 /// How long a finished sign-in waits for its result page to be shown before
 /// starting `SUCCESS_DISPLAY_DELAY` anyway.
 #[cfg(mobile)]
@@ -33,26 +52,21 @@ const RESULT_PAGE_SHOWN: u8 = 2;
 /// The main window started loading a page (the navigation guard allowed it).
 #[cfg_attr(not(any(test, mobile)), allow(dead_code))]
 pub(crate) fn note_main_navigation(url: &Url) {
-    if crate::auth::oauth_common::is_result_page(url) {
+    if crate::auth::result_pages::is_result_page(url) {
         RESULT_PAGE.fetch_max(RESULT_PAGE_REQUESTED, Ordering::SeqCst);
-        #[cfg(target_os = "android")]
-        set_android_sign_in_result_showing(true);
+        platform::result_page_showing(true);
     }
 }
 
 /// The main window finished loading a page.
 #[cfg_attr(not(any(test, mobile)), allow(dead_code))]
 pub(crate) fn note_main_page_loaded(url: &Url, dev_url: Option<&Url>) {
-    if crate::auth::oauth_common::is_result_page(url) {
+    if crate::auth::result_pages::is_result_page(url) {
         RESULT_PAGE.store(RESULT_PAGE_SHOWN, Ordering::SeqCst);
-        #[cfg(target_os = "android")]
-        set_android_sign_in_result_showing(true);
+        platform::result_page_showing(true);
     } else if crate::auth::signin_navigation::is_app_page(url, dev_url) {
-        #[cfg(target_os = "android")]
-        {
-            set_android_sign_in_result_showing(false);
-            clear_android_web_view_history();
-        }
+        platform::result_page_showing(false);
+        platform::clear_history();
     }
 }
 
@@ -181,37 +195,6 @@ const BACK_BUTTON_SCRIPT: &str = r#"
 })();
 "#;
 
-/// wry only implements `window.open` popups on macOS, so on iOS the call silently returns null and
-/// "Continue with Google" never opens. Opening the target in the same WebView lets the redirect
-/// flows (ChatGPT, Antigravity, Grok) finish. A Google Identity Services popup (Claude) is the
-/// exception: it hands the result back through `window.opener`, so it gets a real popup from
-/// ios_popups.rs, and in the same window it would end on a blank page.
-#[cfg_attr(not(any(test, target_os = "ios")), allow(dead_code))]
-const IOS_POPUP_SCRIPT: &str = r#"
-(() => {
-  try {
-    if (window.__aiTrackerPopup) return;
-    window.__aiTrackerPopup = true;
-    const nativeOpen = window.open;
-    const needsOpener = (target) => {
-      try {
-        const url = new URL(target, location.href);
-        return url.protocol === 'https:' && url.hostname === 'accounts.google.com'
-          && (url.searchParams.get('display') === 'popup' || url.searchParams.has('gsiwebsdk'));
-      } catch (e) {
-        return false;
-      }
-    };
-    window.open = function (url) {
-      const target = url ? String(url) : '';
-      if (needsOpener(target)) return nativeOpen.apply(window, arguments);
-      if (target) location.href = target;
-      return null;
-    };
-  } catch (e) {}
-})();
-"#;
-
 #[cfg_attr(not(any(test, mobile)), allow(dead_code))]
 fn is_back_request(url: &Url) -> bool {
     url.fragment() == Some(BACK_FRAGMENT)
@@ -233,74 +216,8 @@ pub fn is_app_shell(window: &WebviewWindow) -> bool {
 /// block the login.
 #[cfg(mobile)]
 pub(crate) fn forget_provider_sign_in(window: &WebviewWindow) {
-    #[cfg(target_os = "android")]
-    {
-        let _ = window;
-        if let Err(error) = clear_android_sign_in_cookies() {
-            crate::diagnostics::warn(&format!("Sign-in session reset failed: {error}"));
-        }
-    }
-    #[cfg(target_os = "ios")]
-    {
-        if let Err(error) = crate::auth::ios_cookies::delete_cookies(
-            window,
-            crate::auth::signin_navigation::cookie_domain_is_sign_in,
-        ) {
-            crate::diagnostics::warn(&format!("Sign-in session reset failed: {error}"));
-        }
-    }
-}
-
-#[cfg(target_os = "android")]
-fn clear_android_sign_in_cookies() -> Result<(), String> {
-    const PREFIX: &str = "Unable to reset the sign-in session";
-    crate::platform::android_context::with_activity(PREFIX, |env, activity| {
-        let result = env.call_method(activity, "clearWebViewCookies", "()Z", &[]);
-        if env.exception_check().unwrap_or(false) {
-            let _ = env.exception_clear();
-            return Err(PREFIX.to_string());
-        }
-        match result.and_then(|value| value.z()) {
-            Ok(true) => Ok(()),
-            _ => Err(PREFIX.to_string()),
-        }
-    })
-}
-
-#[cfg(target_os = "android")]
-pub(crate) fn clear_android_web_view_history() {
-    let _ =
-        crate::platform::android_context::with_activity("clearWebViewHistory", |env, activity| {
-            let _ = env.call_method(activity, "clearWebViewHistory", "()V", &[]);
-            if env.exception_check().unwrap_or(false) {
-                let _ = env.exception_clear();
-            }
-            Ok(())
-        });
-}
-
-/// Tells the activity whether the sign-in's "Account connected" page is on screen, so the system
-/// back gesture there returns to the dashboard instead of stepping back through the login pages.
-#[cfg(target_os = "android")]
-pub(crate) fn set_android_sign_in_result_showing(showing: bool) {
-    let result = crate::platform::android_context::with_activity(
-        "setSignInResultShowing",
-        |env, activity| {
-            let call = env.call_method(
-                activity,
-                "setSignInResultShowing",
-                "(Z)V",
-                &[showing.into()],
-            );
-            if env.exception_check().unwrap_or(false) {
-                let _ = env.exception_clear();
-                return Err("The activity rejected the sign-in page state.".to_string());
-            }
-            call.map(|_| ()).map_err(|error| error.to_string())
-        },
-    );
-    if let Err(error) = result {
-        crate::diagnostics::warn(&format!("Sign-in page state was not delivered: {error}"));
+    if let Err(error) = platform::clear_sign_in_cookies(window) {
+        crate::diagnostics::warn(&format!("Sign-in session reset failed: {error}"));
     }
 }
 
@@ -355,11 +272,10 @@ pub fn open_in_main_webview(
     // cookie poll can read it. The app URL above is already saved for restore.
     forget_provider_sign_in(&window);
     // The connected page's close button goes back to the app page.
-    crate::auth::oauth_common::set_connected_page_close_url(&restore_url);
+    crate::auth::result_pages::set_connected_page_close_url(&restore_url);
     RESULT_PAGE.store(RESULT_PAGE_NONE, Ordering::SeqCst);
-    // Claude's "Continue with Google" needs a real popup (see IOS_POPUP_SCRIPT).
-    #[cfg(target_os = "ios")]
-    crate::auth::ios_popups::install(&window);
+    // Claude's "Continue with Google" needs a real popup on iOS (see `ios::IOS_POPUP_SCRIPT`).
+    platform::install_popups(&window);
 
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(NAVIGATE_DELAY).await;
@@ -401,13 +317,11 @@ pub fn open_in_main_webview(
                 });
                 if is_completed {
                     // From here the page on screen is the result page, or about to be.
-                    #[cfg(target_os = "android")]
-                    set_android_sign_in_result_showing(true);
+                    platform::result_page_showing(true);
                     let shown_by_app = show_result_page(&window, &state, &attempt_id).await;
                     // Again, now the page is on screen: the history is cleared after the
                     // navigation that added it, so back reaches the activity's handler.
-                    #[cfg(target_os = "android")]
-                    set_android_sign_in_result_showing(true);
+                    platform::result_page_showing(true);
                     hold_result_page(&window, &state, &attempt_id, &restore_url, shown_by_app)
                         .await;
                 }
@@ -424,8 +338,7 @@ pub fn open_in_main_webview(
                 } else {
                     let _ = window.navigate(restore_url);
                 }
-                #[cfg(target_os = "android")]
-                clear_android_web_view_history();
+                platform::clear_history();
                 break;
             }
             let _ = window.eval(POPUP_SHIM_SCRIPT);
@@ -436,32 +349,24 @@ pub fn open_in_main_webview(
                     let _ = window.navigate(oauth_start.clone());
                     continue;
                 }
-                #[cfg(mobile)]
+                if is_back_request(&current) {
+                    state.fail_login_if_waiting(&attempt_id, "Sign-in was canceled.".into());
+                    state.abort_login_resources(&attempt_id);
+                    let _ = window.navigate(restore_url);
+                    platform::clear_history();
+                    break;
+                }
+                if !urls_share_origin(&current, &restore_url)
+                    && matches!(current.scheme(), "http" | "https")
                 {
-                    if is_back_request(&current) {
-                        state.fail_login_if_waiting(&attempt_id, "Sign-in was canceled.".into());
-                        state.abort_login_resources(&attempt_id);
-                        let _ = window.navigate(restore_url);
-                        #[cfg(target_os = "android")]
-                        clear_android_web_view_history();
-                        break;
-                    }
-                    if !urls_share_origin(&current, &restore_url)
-                        && matches!(current.scheme(), "http" | "https")
-                    {
-                        let _ = window.eval(BACK_BUTTON_SCRIPT);
-                        #[cfg(target_os = "ios")]
-                        let _ = window.eval(IOS_POPUP_SCRIPT);
-                        #[cfg(target_os = "ios")]
-                        close_stale_popups(&window, &current);
-                    }
+                    let _ = window.eval(BACK_BUTTON_SCRIPT);
+                    platform::on_provider_page(&window, &current);
                 }
                 on_url(current.clone());
                 if urls_share_origin(&current, &restore_url) {
                     if left_app_shell {
                         let _ = state.abandon_waiting_login(&attempt_id);
-                        #[cfg(target_os = "android")]
-                        clear_android_web_view_history();
+                        platform::clear_history();
                         break;
                     }
                 } else {
@@ -470,37 +375,9 @@ pub fn open_in_main_webview(
             }
         }
         // A sign-in popup must not outlive the sign-in that opened it.
-        #[cfg(target_os = "ios")]
-        crate::auth::ios_popups::close_all(&window);
+        platform::close_popups(&window);
     });
     Ok(())
-}
-
-/// A sign-in popup (Claude's Google Identity Services one) hands its result to
-/// the main window through `window.opener` and then calls `window.close()`, but
-/// on iOS that close is not always delivered and the popup covers the page the
-/// sign-in moved on to. Once the main window navigates past the page the popup
-/// opened from, the popup's job is done, so close it. The popup records that
-/// page itself when it is created, so a quick hand-over between two polls
-/// cannot make the poll loop adopt the new page as the one to compare with.
-#[cfg(target_os = "ios")]
-fn close_stale_popups(window: &WebviewWindow, current: &Url) {
-    if !crate::auth::ios_popups::any_open() {
-        return;
-    }
-    let Some(opened_from) = crate::auth::ios_popups::opened_from() else {
-        return;
-    };
-    if !same_page(&opened_from, current) {
-        crate::diagnostics::info("The sign-in moved on behind the popup; closing it.");
-        crate::auth::ios_popups::close_all(window);
-    }
-}
-
-/// Whether two URLs are the same page, ignoring the fragment.
-#[cfg_attr(not(any(test, target_os = "ios")), allow(dead_code))]
-fn same_page(left: &Url, right: &Url) -> bool {
-    urls_share_origin(left, right) && left.path() == right.path() && left.query() == right.query()
 }
 
 /// Puts the finished sign-in's "Account connected" page on screen and waits
@@ -523,7 +400,7 @@ async fn show_result_page(window: &WebviewWindow, state: &AppState, attempt_id: 
             .and_then(|login| login.account.clone());
         let Some(page) = account
             .as_ref()
-            .and_then(crate::auth::oauth_common::connected_page_url)
+            .and_then(crate::auth::result_pages::connected_page_url)
         else {
             return false;
         };
@@ -590,6 +467,7 @@ pub(crate) fn urls_share_origin(left: &Url, right: &Url) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use super::ios::{same_page, IOS_POPUP_SCRIPT};
     use super::*;
 
     #[test]
@@ -662,7 +540,7 @@ mod tests {
     fn the_app_webview_survives_a_page_calling_window_close() {
         // The "Account connected" page's window.close() reached this handler, which destroyed
         // the app's only WebView: the app froze on "1" until it was force-closed.
-        let patches = include_str!("../../build/android_patches.rs");
+        let patches = include_str!("../../../build/android_patches.rs");
         let app_handler = |kotlin: &str| -> String {
             let at = kotlin
                 .rfind("override fun onCloseWindow(window: WebView)")

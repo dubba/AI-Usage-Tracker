@@ -203,58 +203,47 @@ export function PairingModal({
 
   const isWaitingState = isWaitingStatus(status.status);
 
+  /**
+   * One step back from the view that is showing: the rule behind every Back button and the
+   * Escape key. Returns false when there is no earlier step (the first view, or a pairing that
+   * has moved past choosing how to connect).
+   */
+  const goBack = useCallback((): boolean => {
+    if (!isWaitingState) return false;
+    switch (viewMode) {
+      case "select-mode":
+        showView("select-role");
+        return true;
+      case "airgap-confirm":
+        showView("airgap-sender");
+        return true;
+      case "host":
+      case "code":
+        backToModes();
+        return true;
+      case "scanner":
+        stopCamera();
+        capture.clearCapture();
+        backToModes();
+        return true;
+      case "airgap-sender":
+        clearExport();
+        capture.clearCapture();
+        backToModes();
+        return true;
+      case "select-role":
+        return false;
+    }
+  }, [isWaitingState, viewMode, backToModes, stopCamera, showView, capture, clearExport]);
+
   const handleEscape = useCallback(() => {
     if (errorMessage || airgapPrepareError || cameraError) {
       clearAllErrors();
       clearCameraError();
       return;
     }
-    if (isWaitingState && viewMode === "code") {
-      backToModes();
-      return;
-    }
-    if (isWaitingState && viewMode === "scanner") {
-      stopCamera();
-      capture.clearCapture();
-      backToModes();
-      return;
-    }
-    if (isWaitingState && viewMode === "host") {
-      backToModes();
-      return;
-    }
-    if (isWaitingState && viewMode === "airgap-sender") {
-      clearExport();
-      setAirgapPrepareError(null);
-      capture.clearCapture();
-      backToModes();
-      return;
-    }
-    if (isWaitingState && viewMode === "airgap-confirm") {
-      showView("airgap-sender");
-      return;
-    }
-    if (isWaitingState && viewMode === "select-mode") {
-      showView("select-role");
-      return;
-    }
-    requestClose();
-  }, [
-    errorMessage,
-    airgapPrepareError,
-    cameraError,
-    isWaitingState,
-    viewMode,
-    backToModes,
-    stopCamera,
-    showView,
-    requestClose,
-    capture,
-    clearAllErrors,
-    setAirgapPrepareError,
-    clearCameraError,
-    clearExport,
-  ]);
+    if (!goBack()) requestClose();
+  }, [errorMessage, airgapPrepareError, cameraError, goBack, requestClose, clearAllErrors, clearCameraError]);
 
   useModalA11y(dialogRef, open, handleEscape);
 
@@ -523,14 +512,7 @@ export function PairingModal({
               setScannerRestartKey((key) => key + 1);
             }}
             onAirgapImport={() => void handleAirgapImport()}
-            onBack={() => {
-              if (activeFlow === "airgap") {
-                showView("airgap-sender");
-                return;
-              }
-              capture.clearCapture();
-              backToModes();
-            }}
+            onBack={goBack}
           />
         )}
 
@@ -540,7 +522,7 @@ export function PairingModal({
             busy={busy}
             onChange={setJoinCodeInput}
             onSubmit={() => void handleConnectByCode(joinCodeInput)}
-            onBack={() => backToModes()}
+            onBack={goBack}
             setKeyboardOpen={setIsKeyboardOpen}
           />
         )}
@@ -557,13 +539,7 @@ export function PairingModal({
             onToggleSpeed={player.toggleSpeed}
             onContinue={() => showView("airgap-confirm")}
             onRetry={() => void startAirgapSender()}
-            onBack={() => {
-              clearExport();
-              setAirgapPrepareError(null);
-              setErrorMessage(null);
-              capture.clearCapture();
-              showView("select-mode", null);
-            }}
+            onBack={goBack}
             onCancel={requestClose}
           />
         )}
@@ -571,7 +547,7 @@ export function PairingModal({
         {isWaitingState && viewMode === "airgap-confirm" && airgapExport && (
           <AirgapConfirmView
             verifyCode={airgapExport.verifyCode}
-            onBack={() => showView("airgap-sender")}
+            onBack={goBack}
             onCancel={requestClose}
           />
         )}
@@ -634,11 +610,10 @@ export function PairingModal({
               : ""
           }`}
         >
-          {isWaitingState && viewMode === "select-mode" ? (
-            <BackButton onClick={() => showView("select-role")} />
+          {isWaitingState && (viewMode === "select-mode" || viewMode === "host") ? (
+            <BackButton onClick={goBack} />
           ) : null}
-          {isWaitingState && viewMode === "host" ? <BackButton onClick={() => backToModes()} /> : null}
-          {status.status === "failed" ? <BackButton onClick={() => backToModes(true)} /> : null}
+          {status.status === "failed" ? <BackButton onClick={() => backToModes()} /> : null}
           <button
             type="button"
             className="button ghost"

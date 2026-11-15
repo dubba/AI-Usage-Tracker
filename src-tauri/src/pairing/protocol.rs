@@ -38,6 +38,67 @@ pub const MSG_ROLE_SELECT: u8 = 0x10;
 pub const MSG_ROLE_SELECT_RESP: u8 = 0x11;
 pub const MSG_ABORT: u8 = 0xFF;
 
+/// Length of an X25519 public key on the wire.
+pub const PUBLIC_KEY_LEN: usize = 32;
+/// Length of the session id (a UUID) on the wire.
+pub const SESSION_ID_LEN: usize = 16;
+/// `MSG_HANDSHAKE_INIT` payload: the joiner's public key, then the session id.
+pub const HANDSHAKE_INIT_LEN: usize = PUBLIC_KEY_LEN + SESSION_ID_LEN;
+/// The one-byte payload of an accepting `MSG_HANDSHAKE_RESP`, and of the
+/// `MSG_ROLE_SELECT_RESP` that answers a joiner who sends.
+pub const RESP_OK: u8 = 0x00;
+/// First byte of `MSG_ROLE_SELECT`: the joiner sends its accounts, so the host receives.
+pub const ROLE_JOINER_SENDS: u8 = 0x01;
+/// First byte of `MSG_ROLE_SELECT`: the joiner receives, so the host sends.
+pub const ROLE_JOINER_RECEIVES: u8 = 0x02;
+/// Length of the confirmation tag in `MSG_SAS_CONFIRM`.
+pub const CONFIRM_TAG_LEN: usize = 32;
+/// First byte of `MSG_SAS_CONFIRM`: this side's user accepted the verification code.
+pub const SAS_ACCEPTED: u8 = 0x01;
+/// `MSG_SAS_CONFIRM` payload: the accept byte, then the confirmation tag.
+pub const SAS_CONFIRM_LEN: usize = 1 + CONFIRM_TAG_LEN;
+
+/// The one-byte payload of an `MSG_ABORT` frame: why this side gave up. The
+/// peer does not act on the value (any abort ends its read), so it is there
+/// for diagnosis only. The numbers are on the wire; do not renumber them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum AbortReason {
+    /// Host: the handshake init was malformed, for another session, or timed out.
+    BadHandshake = 0x01,
+    /// Host: the encryption key could not be derived.
+    KeyDerivationFailed = 0x03,
+    /// Host: the joiner sent a bad role selection or disconnected before choosing.
+    RoleSelectFailed = 0x04,
+    /// Host: the joiner did not choose a role in time.
+    RoleSelectTimedOut = 0x05,
+    /// Joiner: the user canceled before choosing a role.
+    CanceledBeforeRole = 0x06,
+    /// Joiner: the role choice was dropped without an answer.
+    RoleChoiceDropped = 0x07,
+    /// Either side: the user canceled while the verification code was showing.
+    CanceledBeforeConfirm = 0x08,
+    /// Either side: the user rejected the verification code.
+    SasRejected = 0x09,
+    /// Receiver: the encrypted payload could not be read or decrypted.
+    PayloadInvalid = 0x0A,
+    /// Receiver: the encrypted payload did not arrive in time.
+    PayloadTimedOut = 0x0B,
+    /// Receiver: the payload decrypted but could not be imported.
+    ImportFailed = 0x0C,
+    /// Host: the joiner's public key was invalid (non-contributory).
+    InvalidPeerKey = 0x0D,
+    /// Joiner: the app asked for a role other than send or receive.
+    InvalidRole = 0x10,
+}
+
+impl AbortReason {
+    /// The `MSG_ABORT` payload for this reason.
+    pub const fn payload(self) -> [u8; 1] {
+        [self as u8]
+    }
+}
+
 /// Pairing must stay on the local network. The host must be an IP literal
 /// (no DNS names, to avoid DNS-rebinding style redirects) in a private,
 /// loopback, link-local, or CGNAT (Tailscale) range.

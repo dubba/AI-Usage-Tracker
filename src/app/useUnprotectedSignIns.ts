@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ModalAction, ModalState } from "../../app/modal-state";
-import { bridgeApi } from "../../shared/lib/api";
-import { logIgnored } from "../../shared/lib/log";
-import type { DashboardSnapshot } from "../../types";
-import { unprotectedPromptKey } from "../dashboard/credential-protection";
-import type { UnprotectedSignInsBusy } from "./UnprotectedSignInsModal";
+import { unprotectedPromptKey } from "../features/dashboard/credential-protection";
+import type { UnprotectedSignInsBusy } from "../features/accounts/UnprotectedSignInsModal";
+import { bridgeApi } from "../shared/lib/api";
+import { logIgnored } from "../shared/lib/log";
+import type { DashboardSnapshot } from "../types";
+import type { ModalAction, ModalState } from "./modal-state";
 
 const REMOVE_ERROR_SOURCE = "remove-unprotected";
 

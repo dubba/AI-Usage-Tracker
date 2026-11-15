@@ -1,6 +1,7 @@
+use crate::auth::login_window::LoginAttempt;
 #[cfg(desktop)]
 use crate::auth::login_window::{
-    self, is_back_request, LoginWindowEnd, LoginWindowSpec, BACK_BUTTON_SCRIPT, BACK_QUERY_FLAG,
+    self, LoginNavigationRules, LoginWindowEnd, LoginWindowSpec, BACK_BUTTON_SCRIPT,
     LOGIN_USER_AGENT,
 };
 use crate::{
@@ -40,6 +41,7 @@ pub(crate) const LOGIN_WINDOW_LABEL: &str = "grok-login";
 const GROK_CANCELED_MESSAGE: &str = "Grok login was canceled.";
 #[cfg(desktop)]
 pub(crate) const GROK_PROFILE_PREFIX: &str = "ai-usage-grok-";
+const GROK_TIMED_OUT_MESSAGE: &str = "Grok login timed out. Start the connection again.";
 const LOGIN_URL: &str = "https://accounts.x.ai/sign-in?redirect_uri=https%3A%2F%2Fgrok.com%2F";
 /// How long a sign-in that runs in an app window (cookie capture; SSO, two-step verification and
 /// choosing a workspace happen there) waits before it gives up. Browser OAuth waits
@@ -233,41 +235,32 @@ pub async fn start_login(
     reconnect_account_id: Option<String>,
 ) -> Result<LoginStart, String> {
     let attempt_id = Uuid::new_v4().to_string();
-    state.begin_login(&attempt_id, Some(
+    let pending = state.begin_login_guarded(&attempt_id, Some(
                 "Sign in to Grok in the private window. The tracker will close it after the Usage service recognizes your session."
                     .into(),
             ))?;
 
-    let app = match state.app_handle.read().clone() {
-        Some(app) => app,
-        None => {
-            state.clear_pending_login(&attempt_id);
-            return Err("The application is not ready to open Grok login.".to_string());
-        }
-    };
+    let app = state
+        .app_handle
+        .read()
+        .clone()
+        .ok_or_else(|| "The application is not ready to open Grok login.".to_string())?;
 
     let expires_at =
         (Utc::now() + ChronoDuration::minutes(COOKIE_LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
-    let login_url = match Url::parse(LOGIN_URL) {
-        Ok(url) => url,
-        Err(error) => {
-            state.clear_pending_login(&attempt_id);
-            return Err(crate::diagnostics::command_error(error));
-        }
+    let login_url = Url::parse(LOGIN_URL).map_err(crate::diagnostics::command_error)?;
+    let attempt = LoginAttempt {
+        state: state.clone(),
+        attempt_id: attempt_id.clone(),
+        label,
+        reconnect_account_id,
     };
 
     #[cfg(mobile)]
     {
-        return start_mobile_login(
-            app,
-            state,
-            attempt_id,
-            label,
-            reconnect_account_id,
-            login_url,
-            expires_at,
-        )
-        .await;
+        let start = start_mobile_login(app, attempt, login_url, expires_at).await?;
+        pending.keep();
+        return Ok(start);
     }
 
     #[cfg(desktop)]
@@ -279,16 +272,10 @@ pub async fn start_login(
         // Sweep profiles left behind by a previous crash/kill before creating a
         // new one, then create the new profile as owner-only.
         crate::auth::login_profile::sweep_stale_profiles(GROK_PROFILE_PREFIX);
-        let temp_data_dir = match crate::auth::login_profile::create_private_profile_dir(
+        let temp_data_dir = crate::auth::login_profile::create_private_profile_dir(
             GROK_PROFILE_PREFIX,
             &attempt_id,
-        ) {
-            Ok(dir) => dir,
-            Err(error) => {
-                state.clear_pending_login(&attempt_id);
-                return Err(error);
-            }
-        };
+        )?;
 
         let login_window = match login_window::open_private_login_window(
             &app,
@@ -301,45 +288,27 @@ pub async fn start_login(
                 user_agent: Some(LOGIN_USER_AGENT),
             },
             |builder| {
-                let back_app = app.clone();
-                let back_state = state.clone();
-                let back_attempt = attempt_id.clone();
-                builder.on_navigation(move |url| {
-                    if is_back_request(url, BACK_QUERY_FLAG) {
-                        if let Some(window) = back_app.get_webview_window(LOGIN_WINDOW_LABEL) {
-                            close_login_window(&window);
-                        }
-                        back_state
-                            .fail_login_if_waiting(&back_attempt, GROK_CANCELED_MESSAGE.into());
-                        return false;
-                    }
-                    let allowed = is_allowed_login_navigation(url);
-                    if !allowed {
-                        crate::diagnostics::warn(&format!(
-                            "Grok login blocked navigation to host {}",
-                            url.host_str().unwrap_or("(none)")
-                        ));
-                    }
-                    allowed
-                })
+                builder.on_navigation(login_window::guard_login_navigation(
+                    &app,
+                    &state,
+                    &attempt_id,
+                    LoginNavigationRules {
+                        label: LOGIN_WINDOW_LABEL,
+                        provider: "Grok",
+                        canceled: GROK_CANCELED_MESSAGE,
+                        is_allowed: is_allowed_login_navigation,
+                    },
+                ))
             },
         ) {
             Ok(window) => window,
             Err(error) => {
                 let _ = std::fs::remove_dir_all(&temp_data_dir);
-                state.clear_pending_login(&attempt_id);
                 return Err(format!("Unable to open the Grok login window: {error}"));
             }
         };
 
-        start_cookie_poll(
-            login_window.clone(),
-            state.clone(),
-            attempt_id.clone(),
-            label,
-            reconnect_account_id,
-            Some(temp_data_dir.clone()),
-        );
+        start_cookie_poll(login_window.clone(), attempt, Some(temp_data_dir.clone()));
 
         login_window::spawn_login_close_and_timeout(
             &app,
@@ -351,10 +320,11 @@ pub async fn start_login(
                 label: LOGIN_WINDOW_LABEL,
                 timeout_minutes: COOKIE_LOGIN_TIMEOUT_MINUTES,
                 canceled: GROK_CANCELED_MESSAGE,
-                timed_out: "Grok login timed out. Start the connection again.",
+                timed_out: GROK_TIMED_OUT_MESSAGE,
             },
         );
 
+        pending.keep();
         Ok(LoginStart {
             attempt_id,
             authorization_url: String::new(),
@@ -366,13 +336,12 @@ pub async fn start_login(
 #[cfg(mobile)]
 async fn start_mobile_login(
     app: AppHandle,
-    state: Arc<AppState>,
-    attempt_id: String,
-    label: String,
-    reconnect_account_id: Option<String>,
+    attempt: LoginAttempt,
     login_url: Url,
     expires_at: String,
 ) -> Result<LoginStart, String> {
+    let state = attempt.state.clone();
+    let attempt_id = attempt.attempt_id.clone();
     {
         let mut pending = state.pending_login.write();
         if let Some(login) = pending
@@ -385,49 +354,25 @@ async fn start_mobile_login(
         }
     }
 
-    let window = match crate::auth::mobile_auth::main_window(&app) {
-        Ok(window) => window,
-        Err(error) => {
-            state.clear_pending_login(&attempt_id);
-            return Err(error);
-        }
-    };
+    let window = crate::auth::mobile_auth::main_window(&app)?;
     // The poll reads cookies on its first iteration, so the previous session
     // has to be gone before that thread starts. An empty jar keeps waiting.
     crate::auth::mobile_auth::forget_provider_sign_in(&window);
-    start_cookie_poll(
-        window,
-        state.clone(),
-        attempt_id.clone(),
-        label,
-        reconnect_account_id,
-        None,
-    );
-    if let Err(error) = crate::auth::mobile_auth::open_in_main_webview(
+    start_cookie_poll(window, attempt, None);
+    crate::auth::mobile_auth::open_in_main_webview(
         app,
         state.clone(),
         attempt_id.clone(),
         login_url,
         |_| {},
-    ) {
-        state.clear_pending_login(&attempt_id);
-        return Err(error);
-    }
+    )?;
 
-    let timeout_state = state.clone();
-    let timeout_attempt = attempt_id.clone();
-    tauri::async_runtime::spawn(async move {
-        tokio::time::sleep(Duration::from_secs(
-            (COOKIE_LOGIN_TIMEOUT_MINUTES * 60) as u64,
-        ))
-        .await;
-        if timeout_state.login_is_waiting(&timeout_attempt) {
-            timeout_state.fail_login_if_waiting(
-                &timeout_attempt,
-                "Grok login timed out. Start the connection again.".into(),
-            );
-        }
-    });
+    crate::auth::login_window::spawn_mobile_login_timeout(
+        &state,
+        &attempt_id,
+        COOKIE_LOGIN_TIMEOUT_MINUTES,
+        GROK_TIMED_OUT_MESSAGE,
+    );
 
     Ok(LoginStart {
         attempt_id,
@@ -438,17 +383,14 @@ async fn start_mobile_login(
 
 fn start_cookie_poll(
     window: WebviewWindow,
-    state: Arc<AppState>,
-    attempt_id: String,
-    label: String,
-    reconnect_account_id: Option<String>,
+    attempt: LoginAttempt,
     temp_data_dir: Option<std::path::PathBuf>,
 ) {
     let capture_in_flight = Arc::new(AtomicBool::new(false));
     std::thread::spawn(move || {
         let mut last_attempted_header: Option<String> = None;
         for _ in 0..COOKIE_POLL_ATTEMPTS {
-            if !state.login_is_waiting(&attempt_id) {
+            if !attempt.state.login_is_waiting(&attempt.attempt_id) {
                 if let Some(dir) = &temp_data_dir {
                     let _ = std::fs::remove_dir_all(dir);
                 }
@@ -460,26 +402,13 @@ fn start_cookie_poll(
                     let changed = last_attempted_header.as_deref() != Some(cookie_header.as_str());
                     if changed && !capture_in_flight.swap(true, Ordering::SeqCst) {
                         last_attempted_header = Some(cookie_header.clone());
-                        let completion_state = state.clone();
-                        let completion_attempt = attempt_id.clone();
-                        let completion_label = label.clone();
-                        let completion_reconnect = reconnect_account_id.clone();
-                        let completion_window = window.clone();
-                        let completion_flag = capture_in_flight.clone();
-                        let completion_dir = temp_data_dir.clone();
-                        tauri::async_runtime::spawn(async move {
-                            complete_cookie_login(
-                                completion_state,
-                                completion_attempt,
-                                completion_label,
-                                completion_reconnect,
-                                cookie_header,
-                                completion_window,
-                                completion_flag,
-                                completion_dir,
-                            )
-                            .await;
-                        });
+                        tauri::async_runtime::spawn(complete_cookie_login(
+                            attempt.clone(),
+                            cookie_header,
+                            window.clone(),
+                            capture_in_flight.clone(),
+                            temp_data_dir.clone(),
+                        ));
                     }
                 }
             }
@@ -492,17 +421,19 @@ fn start_cookie_poll(
     });
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn complete_cookie_login(
-    state: Arc<AppState>,
-    attempt_id: String,
-    label: String,
-    reconnect_account_id: Option<String>,
+    attempt: LoginAttempt,
     cookie_header: String,
     window: WebviewWindow,
     capture_in_flight: Arc<AtomicBool>,
     temp_data_dir: Option<std::path::PathBuf>,
 ) {
+    let LoginAttempt {
+        state,
+        attempt_id,
+        label,
+        reconnect_account_id,
+    } = attempt;
     if !state.login_is_waiting(&attempt_id) {
         if let Some(dir) = &temp_data_dir {
             let _ = std::fs::remove_dir_all(dir);
@@ -627,7 +558,7 @@ fn close_login_window(window: &WebviewWindow) {
 fn is_allowed_login_navigation(url: &Url) -> bool {
     if url.as_str() == "about:blank"
         || url.scheme() == "blob"
-        || crate::auth::oauth_common::is_connected_page(url)
+        || crate::auth::result_pages::is_connected_page(url)
     {
         return true;
     }

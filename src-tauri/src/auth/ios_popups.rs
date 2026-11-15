@@ -2,7 +2,7 @@
 //!
 //! wry implements popups only on macOS, so on iOS `window.open` returns null.
 //! Most provider pages cope once the target opens in the same window (see
-//! `IOS_POPUP_SCRIPT` in mobile_auth.rs), but Claude's "Continue with Google"
+//! `IOS_POPUP_SCRIPT` in mobile_auth/ios.rs), but Claude's "Continue with Google"
 //! uses a Google Identity Services popup that hands the result back to its
 //! opener through `window.opener` and then closes. Opened in the same window,
 //! that last page has no opener and stays blank, and the sign-in never ends.
@@ -25,7 +25,7 @@ use tauri::Url;
 use tauri::WebviewWindow;
 
 /// Whether any sign-in popup is open. WebKit creates and closes popups only on
-/// the main thread, but the sign-in poll loop (mobile_auth.rs) checks this from
+/// the main thread, but the sign-in poll loop (mobile_auth) checks this from
 /// its async task, so the flag is atomic instead of part of `POPUPS`.
 static ANY_POPUP_OPEN: AtomicBool = AtomicBool::new(false);
 

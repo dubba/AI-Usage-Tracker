@@ -3,10 +3,15 @@ use crate::auth::login_window::{self, LoginWindowSpec, LOGIN_USER_AGENT};
 use crate::{
     auth::google_client::{client_secret, CLIENT_ID, TOKEN_URL as GOOGLE_TOKEN_URL},
     auth::login_window::{is_back_request, BACK_QUERY_FLAG},
-    auth::oauth_common::{
-        account_connected_html, account_connected_in_tab_html, auth_failure_html, callback_html,
-        merge_into_existing, pkce_challenge, random_base64, spawn_callback_server,
-        spawn_login_timeout, CallbackQuery, ConnectedFields, OAUTH_LOGIN_TIMEOUT_MINUTES,
+    auth::{
+        oauth_common::{
+            merge_into_existing, spawn_callback_server, spawn_login_timeout, CallbackQuery,
+            ConnectedFields, OAUTH_LOGIN_TIMEOUT_MINUTES,
+        },
+        pkce::{pkce_challenge, random_base64},
+        result_pages::{
+            account_connected_html, account_connected_in_tab_html, auth_failure_html, callback_html,
+        },
     },
     model::{Account, LoginStart, LoginState, LoginStatus, OAuthSecret, Provider, ProviderSecret},
     providers::{
@@ -80,32 +85,22 @@ pub async fn start_login(
     }
 
     let attempt_id = Uuid::new_v4().to_string();
-    app.begin_login(&attempt_id, None)?;
+    let pending = app.begin_login_guarded(&attempt_id, None)?;
 
-    let (listener, addr) = match bind_callback_port(&provider).await {
-        Ok(bound) => bound,
-        Err(error) => {
-            app.clear_pending_login(&attempt_id);
-            return Err(error);
-        }
-    };
+    let (listener, addr) = bind_callback_port(&provider).await?;
     let verifier = random_base64(32);
     let challenge = pkce_challenge(&verifier);
     let expected_state = random_base64(24);
     let redirect_uri = redirect_uri(&provider, addr);
-    let authorization_url = match build_authorization_url(
+    let authorization_url = build_authorization_url(
         &provider,
         &redirect_uri,
         &challenge,
         &expected_state,
         email.as_deref(),
-    ) {
-        Ok(url) => url,
-        Err(error) => {
-            app.clear_pending_login(&attempt_id);
-            return Err(error);
-        }
-    };
+    )?;
+    // From here a failure is shown as a failed attempt instead of being forgotten.
+    pending.keep();
     let expires_at = (Utc::now() + Duration::minutes(OAUTH_LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
 
     let (shutdown_tx, shutdown_rx) = oneshot::channel();

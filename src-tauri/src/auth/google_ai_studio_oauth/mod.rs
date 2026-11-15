@@ -1,9 +1,11 @@
 use crate::{
     auth::google_client::{client_secret, CLIENT_ID, TOKEN_URL},
-    auth::oauth_common::{
-        account_connected_html, auth_failure_html, callback_html, escape_html, pkce_challenge,
-        random_base64, spawn_callback_server, spawn_login_timeout, CallbackQuery,
-        OAUTH_LOGIN_TIMEOUT_MINUTES,
+    auth::{
+        oauth_common::{
+            spawn_callback_server, spawn_login_timeout, CallbackQuery, OAUTH_LOGIN_TIMEOUT_MINUTES,
+        },
+        pkce::{pkce_challenge, random_base64},
+        result_pages::{account_connected_html, auth_failure_html, callback_html, escape_html},
     },
     model::{
         Account, CloudProjectOption, GoogleAiStudioSecret, LoginStart, LoginState, LoginStatus,
@@ -32,7 +34,14 @@ use tokio::sync::oneshot;
 use url::Url;
 use uuid::Uuid;
 
-const MONITORING_SERVICE: &str = "monitoring.googleapis.com";
+mod monitoring;
+mod projects;
+mod secret;
+
+use monitoring::*;
+use projects::*;
+use secret::*;
+
 const READ_ONLY_SCOPES: &str = "openid email profile https://www.googleapis.com/auth/monitoring.read https://www.googleapis.com/auth/cloudplatformprojects.readonly https://www.googleapis.com/auth/cloud-platform.read-only";
 const ENABLE_SCOPES: &str = "openid email profile https://www.googleapis.com/auth/monitoring.read https://www.googleapis.com/auth/cloudplatformprojects.readonly https://www.googleapis.com/auth/service.management";
 
@@ -53,42 +62,6 @@ struct LoginContext {
     verifier: String,
 }
 
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ProjectResponse {
-    name: String,
-    project_id: String,
-    display_name: Option<String>,
-    state: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ProjectSearchResponse {
-    #[serde(default)]
-    projects: Vec<ProjectResponse>,
-    next_page_token: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct LookupKeyResponse {
-    parent: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ServiceResponse {
-    state: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct OperationResponse {
-    name: Option<String>,
-    done: Option<bool>,
-    error: Option<Value>,
-}
-
-// Short-lived value moved straight into a `LoginStatus`; boxing would only
-// add indirection.
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone)]
 enum CallbackOutcome {
@@ -140,15 +113,9 @@ async fn start_oauth(
         }
     });
 
-    app.begin_login(&attempt_id, message)?;
+    let pending = app.begin_login_guarded(&attempt_id, message)?;
 
-    let (listener, addr) = match crate::auth::oauth::bind_ephemeral_loopback().await {
-        Ok(bound) => bound,
-        Err(error) => {
-            app.clear_pending_login(&attempt_id);
-            return Err(error);
-        }
-    };
+    let (listener, addr) = crate::auth::oauth::bind_ephemeral_loopback().await?;
     let expected_state = random_base64(24);
     let redirect_uri = crate::auth::oauth::loopback_http_origin(addr);
     let verifier = random_base64(48);
@@ -158,13 +125,9 @@ async fn start_oauth(
         LoginMode::EnableMonitoring { .. } => ENABLE_SCOPES,
     };
     let authorization_url =
-        match build_authorization_url(&redirect_uri, &expected_state, scopes, &challenge) {
-            Ok(url) => url,
-            Err(error) => {
-                app.clear_pending_login(&attempt_id);
-                return Err(error);
-            }
-        };
+        build_authorization_url(&redirect_uri, &expected_state, scopes, &challenge)?;
+    // From here a failure is shown as a failed attempt instead of being forgotten.
+    pending.keep();
     let expires_at = (Utc::now() + Duration::minutes(OAUTH_LOGIN_TIMEOUT_MINUTES)).to_rfc3339();
 
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
@@ -296,7 +259,7 @@ async fn callback(
     // Only Google's redirect carries this attempt's state; anything else leaves
     // the sign-in and the callback server as they are (see oauth.rs).
     if query.state.as_deref() != Some(context.expected_state.as_str()) {
-        return crate::auth::oauth_common::unrecognized_callback_response();
+        return crate::auth::result_pages::unrecognized_callback_response();
     }
     let result = complete_callback(context.clone(), query).await;
     if let Err(error) = &result {
@@ -562,318 +525,11 @@ fn apply_outcome(app: &AppState, attempt_id: &str, outcome: CallbackOutcome) -> 
     Ok(())
 }
 
-async fn lookup_key_project(
-    app: &AppState,
-    api_key: &str,
-    access_token: &str,
-) -> Result<Option<CloudProjectOption>, String> {
-    let response = app
-        .client
-        .post("https://apikeys.googleapis.com/v2/keys:lookupKey")
-        .bearer_auth(access_token)
-        .json(&serde_json::json!({ "keyString": api_key }))
-        .send()
-        .await
-        .map_err(|_| {
-            "Google API-key project lookup could not be reached. Check your network and try again."
-                .to_string()
-        })?;
-    let status = response.status();
-    let body = read_google_body(response).await?;
-    if status == StatusCode::UNAUTHORIZED {
-        return Err(
-            "Google authorization expired before the API-key project could be found.".into(),
-        );
-    }
-    if status == StatusCode::FORBIDDEN
-        || status == StatusCode::NOT_FOUND
-        || status == StatusCode::BAD_REQUEST
-    {
-        return Ok(None);
-    }
-    if !status.is_success() {
-        return Err(format!(
-            "Google API-key project lookup returned HTTP {}.",
-            status.as_u16()
-        ));
-    }
-    let lookup: LookupKeyResponse = serde_json::from_str(&body)
-        .map_err(|_| String::from("Google returned an invalid API-key lookup response."))?;
-    let Some(parent) = lookup.parent.filter(|value| !value.trim().is_empty()) else {
-        return Ok(None);
-    };
-    resolve_project_resource(app, &parent, access_token)
-        .await
-        .map(Some)
-}
-
-async fn list_projects(
-    app: &AppState,
-    access_token: &str,
-) -> Result<Vec<CloudProjectOption>, String> {
-    let mut page_token: Option<String> = None;
-    let mut projects = Vec::new();
-    loop {
-        let mut request = app
-            .client
-            .get("https://cloudresourcemanager.googleapis.com/v3/projects:search")
-            .bearer_auth(access_token)
-            .query(&[("pageSize", "1000")]);
-        if let Some(token) = page_token.as_deref() {
-            request = request.query(&[("pageToken", token)]);
-        }
-        let response = request
-            .send()
-            .await
-            .map_err(|error| format!("Google Cloud project search failed: {error}"))?;
-        let status = response.status();
-        let body = read_google_body(response).await?;
-        if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
-            return Err("Google did not allow this account to list Cloud projects.".into());
-        }
-        if !status.is_success() {
-            return Err(format!(
-                "Google Cloud project search returned HTTP {}.",
-                status.as_u16()
-            ));
-        }
-        let page: ProjectSearchResponse = serde_json::from_str(&body)
-            .map_err(|_| String::from("Google returned an invalid project list."))?;
-        projects.extend(page.projects.into_iter().filter_map(project_option));
-        page_token = page
-            .next_page_token
-            .filter(|value| !value.trim().is_empty());
-        if page_token.is_none() {
-            break;
-        }
-    }
-    projects.sort_by(|left, right| {
-        left.display_name
-            .to_ascii_lowercase()
-            .cmp(&right.display_name.to_ascii_lowercase())
-            .then_with(|| left.project_id.cmp(&right.project_id))
-    });
-    projects.dedup_by(|left, right| left.project_id == right.project_id);
-    Ok(projects)
-}
-
-async fn resolve_project_by_id(
-    app: &AppState,
-    project_id: &str,
-    access_token: &str,
-) -> Result<CloudProjectOption, String> {
-    resolve_project_resource(app, &format!("projects/{project_id}"), access_token).await
-}
-
-async fn resolve_project_resource(
-    app: &AppState,
-    resource: &str,
-    access_token: &str,
-) -> Result<CloudProjectOption, String> {
-    let response = app
-        .client
-        .get(format!(
-            "https://cloudresourcemanager.googleapis.com/v3/{resource}"
-        ))
-        .bearer_auth(access_token)
-        .send()
-        .await
-        .map_err(|error| format!("Google Cloud project lookup failed: {error}"))?;
-    let status = response.status();
-    let body = read_google_body(response).await?;
-    if status == StatusCode::NOT_FOUND {
-        return Err("Google Cloud could not find that project.".into());
-    }
-    if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
-        return Err("The signed-in Google account cannot view that Cloud project.".into());
-    }
-    if !status.is_success() {
-        return Err(format!(
-            "Google Cloud project lookup returned HTTP {}.",
-            status.as_u16()
-        ));
-    }
-    let project: ProjectResponse = serde_json::from_str(&body)
-        .map_err(|_| String::from("Google returned invalid project information."))?;
-    project_option(project).ok_or_else(|| "The selected Google Cloud project is not active.".into())
-}
-
-fn project_option(project: ProjectResponse) -> Option<CloudProjectOption> {
-    if project
-        .state
-        .as_deref()
-        .is_some_and(|state| state != "ACTIVE")
-    {
-        return None;
-    }
-    let project_number = project.name.strip_prefix("projects/")?.trim().to_string();
-    if project_number.is_empty() || project.project_id.trim().is_empty() {
-        return None;
-    }
-    let display_name = project
-        .display_name
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .unwrap_or(project.project_id.as_str())
-        .to_string();
-    Some(CloudProjectOption {
-        project_id: project.project_id,
-        project_number,
-        display_name,
-    })
-}
-
-async fn monitoring_enabled(
-    app: &AppState,
-    project: &CloudProjectOption,
-    access_token: &str,
-) -> Result<bool, String> {
-    let response = app
-        .client
-        .get(format!(
-            "https://serviceusage.googleapis.com/v1/projects/{}/services/{MONITORING_SERVICE}",
-            project.project_number
-        ))
-        .bearer_auth(access_token)
-        .send()
-        .await
-        .map_err(|error| format!("Unable to check Cloud Monitoring: {error}"))?;
-    let status = response.status();
-    let body = read_google_body(response).await?;
-    if status == StatusCode::UNAUTHORIZED {
-        return Err("Google authorization expired while checking Cloud Monitoring.".into());
-    }
-    if status == StatusCode::FORBIDDEN {
-        return Err("The signed-in account cannot inspect services for this project. Ask a project owner for Service Usage Viewer access.".into());
-    }
-    if !status.is_success() {
-        return Err(format!(
-            "Cloud Monitoring status returned HTTP {}.",
-            status.as_u16()
-        ));
-    }
-    let service: ServiceResponse = serde_json::from_str(&body)
-        .map_err(|_| String::from("Google returned an invalid service status."))?;
-    Ok(service.state.as_deref() == Some("ENABLED"))
-}
-
-async fn enable_monitoring(
-    app: &AppState,
-    project: &CloudProjectOption,
-    access_token: &str,
-) -> Result<(), String> {
-    let response = app
-        .client
-        .post(format!(
-            "https://serviceusage.googleapis.com/v1/projects/{}/services/{MONITORING_SERVICE}:enable",
-            project.project_number
-        ))
-        .bearer_auth(access_token)
-        .json(&json!({}))
-        .send()
-        .await
-        .map_err(|error| format!("Unable to enable Cloud Monitoring: {error}"))?;
-    let status = response.status();
-    let body = read_google_body(response).await?;
-    if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
-        return Err("Google did not allow this account to enable Cloud Monitoring. A project owner or Service Usage Admin must enable it.".into());
-    }
-    if !status.is_success() {
-        return Err(format!(
-            "Enabling Cloud Monitoring returned HTTP {}.",
-            status.as_u16()
-        ));
-    }
-    let operation: OperationResponse = serde_json::from_str(&body)
-        .map_err(|_| String::from("Google returned an invalid enable operation."))?;
-    if operation.done == Some(true) {
-        if operation.error.is_some() {
-            return Err("Google could not enable Cloud Monitoring for this project.".into());
-        }
-        return Ok(());
-    }
-    let Some(name) = operation.name.filter(|value| !value.trim().is_empty()) else {
-        return Ok(());
-    };
-    poll_operation(app, &name, access_token).await
-}
-
-async fn poll_operation(app: &AppState, name: &str, access_token: &str) -> Result<(), String> {
-    for _ in 0..30 {
-        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-        let response = app
-            .client
-            .get(format!("https://serviceusage.googleapis.com/v1/{name}"))
-            .bearer_auth(access_token)
-            .send()
-            .await
-            .map_err(|error| format!("Unable to check Cloud Monitoring enablement: {error}"))?;
-        let status = response.status();
-        let body = read_google_body(response).await?;
-        if !status.is_success() {
-            return Err(format!(
-                "Cloud Monitoring enablement check returned HTTP {}.",
-                status.as_u16()
-            ));
-        }
-        let operation: OperationResponse = serde_json::from_str(&body)
-            .map_err(|_| String::from("Google returned an invalid operation status."))?;
-        if operation.done == Some(true) {
-            return if operation.error.is_some() {
-                Err("Google could not enable Cloud Monitoring for this project.".into())
-            } else {
-                Ok(())
-            };
-        }
-    }
-    Err("Cloud Monitoring is still being enabled. Wait a minute and connect usage again.".into())
-}
-
-fn validate_google_ai_studio_account(app: &AppState, account_id: &str) -> Result<(), String> {
-    app.store
-        .get(account_id)
-        .ok_or_else(|| "Google AI Studio account not found.".to_string())?;
-    let secret = load_provider_secret(account_id).map_err(|error| error.to_string())?;
-    if !matches!(secret, ProviderSecret::GoogleAiStudio(_)) {
-        return Err("This account is not a Google AI Studio API-key connection.".into());
-    }
-    Ok(())
-}
-
-/// Loads the Google AI Studio secret, runs `modify`, and saves the secret it
-/// returns, while this account's lock is held. Usage refresh holds the same
-/// lock for its whole provider call, including a Cloud token rotation.
-async fn modify_google_ai_studio_secret<T, F, Fut>(
-    app: &AppState,
-    account_id: &str,
-    modify: F,
-) -> Result<T, String>
-where
-    F: FnOnce(GoogleAiStudioSecret) -> Fut,
-    Fut: std::future::Future<Output = Result<(GoogleAiStudioSecret, T), String>>,
-{
-    let lock = app.account_lock(account_id);
-    let _guard = lock.lock().await;
-    let current = load_google_ai_studio_secret(account_id)?;
-    let (updated, value) = modify(current).await?;
-    save_provider_secret(account_id, &ProviderSecret::GoogleAiStudio(updated))
-        .map_err(|error| error.to_string())?;
-    Ok(value)
-}
-
-fn load_google_ai_studio_secret(account_id: &str) -> Result<GoogleAiStudioSecret, String> {
-    match load_provider_secret(account_id).map_err(|error| error.to_string())? {
-        ProviderSecret::GoogleAiStudio(secret) => Ok(secret),
-        _ => Err("This account is not a Google AI Studio connection.".into()),
-    }
-}
-
-fn network_unavailable(action: &str) -> String {
+pub(super) fn network_unavailable(action: &str) -> String {
     format!("{action} could not be reached. Check your network and try again.")
 }
 
-async fn read_google_body(response: reqwest::Response) -> Result<String, String> {
+pub(super) async fn read_google_body(response: reqwest::Response) -> Result<String, String> {
     crate::providers::read_sign_in_body(response, "Google returned a response that is too large.")
         .await
         .map_err(str::to_string)
@@ -899,18 +555,6 @@ async fn exchange_tokens(context: &LoginContext, code: &str) -> Result<TokenResp
         return Err(format!("Google token exchange failed ({status})."));
     }
     serde_json::from_str(&body).map_err(|_| String::from("Invalid Google token response."))
-}
-
-async fn ensure_fresh_oauth(app: &AppState, oauth: OAuthSecret) -> Result<OAuthSecret, String> {
-    if !oauth.expires_within(300) {
-        return Ok(oauth);
-    }
-    google_ai_studio::refresh_cloud_secret(app, &oauth, IdToken::PreferNew)
-        .await
-        .map_err(|error| match error {
-            ProviderError::Auth => "Google authorization expired. Sign in again.".to_string(),
-            other => other.to_string(),
-        })
 }
 
 async fn fetch_email(app: &AppState, access_token: &str) -> Result<String, String> {
@@ -958,23 +602,6 @@ fn build_authorization_url(
         // keeps the refresh token coming for that second account.
         .append_pair("prompt", "select_account consent");
     Ok(url.to_string())
-}
-
-fn validate_project_id(value: &str) -> Result<String, String> {
-    let value = value.trim();
-    let valid_length = (6..=63).contains(&value.len());
-    let valid_edges = value.as_bytes().first().is_some_and(u8::is_ascii_lowercase)
-        && value
-            .as_bytes()
-            .last()
-            .is_some_and(|value| value.is_ascii_lowercase() || value.is_ascii_digit());
-    let valid_characters = value
-        .bytes()
-        .all(|value| value.is_ascii_lowercase() || value.is_ascii_digit() || value == b'-');
-    if !valid_length || !valid_edges || !valid_characters {
-        return Err("Google returned an invalid Cloud project ID.".into());
-    }
-    Ok(value.to_string())
 }
 
 async fn stop_callback(context: &LoginContext) {
@@ -1108,7 +735,7 @@ mod tests {
 
     #[test]
     fn project_selection_and_the_callback_save_cloud_oauth_under_the_account_lock() {
-        let source = include_str!("google_ai_studio_oauth.rs");
+        let source = include_str!("mod.rs");
         for signature in ["async fn select_project(", "async fn complete_callback("] {
             let body = function_body(source, signature);
             assert!(
@@ -1120,7 +747,10 @@ mod tests {
                 "{signature} must not write the secret itself"
             );
         }
-        let helper = function_body(source, "async fn modify_google_ai_studio_secret<");
+        let helper = function_body(
+            include_str!("secret.rs"),
+            "async fn modify_google_ai_studio_secret<",
+        );
         let lock = helper.find("account_lock").expect("helper takes the lock");
         let load = helper
             .find("load_google_ai_studio_secret")

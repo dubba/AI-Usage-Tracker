@@ -876,6 +876,23 @@ describe("air-gap transfer: sending", () => {
     expect(title()).toBe("How to Connect Devices");
     expect(document.querySelector(".airgap-sender-view")).toBeNull();
   });
+
+  it("cancels the transfer on Back exactly as Escape does", async () => {
+    await openSender();
+    cancelPairing.mockClear();
+    await press("Back");
+    expect(cancelPairing).toHaveBeenCalledTimes(1);
+    expect(title()).toBe("How to Connect Devices");
+
+    await press("Show QR Code");
+    cancelPairing.mockClear();
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    });
+    expect(cancelPairing).toHaveBeenCalledTimes(1);
+    expect(title()).toBe("How to Connect Devices");
+    expect(document.querySelector(".airgap-sender-view")).toBeNull();
+  });
 });
 
 describe("scanning", () => {

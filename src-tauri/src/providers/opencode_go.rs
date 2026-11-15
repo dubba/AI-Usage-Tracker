@@ -108,8 +108,8 @@ pub async fn refresh(
     }
 
     let email = account.email.clone().or_else(|| {
-        crate::providers::grok::extract_identity_from_jwt(&auth_cookie)
-            .or_else(|| crate::providers::grok::extract_identity_from_cookies(&auth_cookie))
+        crate::providers::identity::extract_identity_from_jwt(&auth_cookie)
+            .or_else(|| crate::providers::identity::extract_identity_from_cookies(&auth_cookie))
             .or_else(|| parse_email_from_dashboard(&body))
     });
 

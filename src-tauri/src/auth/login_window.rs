@@ -3,13 +3,25 @@
 //! and a timeout. This module holds what they have in common; each provider keeps its own
 //! navigation allowlist, banner script, popups and mobile path.
 
-#[cfg(desktop)]
 use crate::state::AppState;
 #[cfg(desktop)]
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::path::PathBuf;
+use std::{sync::Arc, time::Duration};
 #[cfg(desktop)]
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
 use url::Url;
+
+/// A cookie-capture sign-in (Grok, OpenCode) in progress: what each step needs to find the
+/// attempt and to save the account it ends with.
+#[derive(Clone)]
+pub(crate) struct LoginAttempt {
+    pub state: Arc<AppState>,
+    pub attempt_id: String,
+    /// The name the user typed for the account; may be empty.
+    pub label: String,
+    /// The account being signed in again, when this is a reconnect.
+    pub reconnect_account_id: Option<String>,
+}
 
 /// Query flag the injected top-left "Back" button appends to the current page. `on_navigation`
 /// intercepts it (and blocks the reload): the login attempt is canceled and the window closes,
@@ -104,6 +116,52 @@ pub(crate) const BACK_BUTTON_SCRIPT: &str = r#"
 })();
 "#;
 
+/// What `guard_login_navigation` needs to know about one provider's sign-in window.
+#[cfg(desktop)]
+pub(crate) struct LoginNavigationRules {
+    /// The window's label, to close it when the Back button is pressed.
+    pub label: &'static str,
+    /// The provider's name in the diagnostics line for a blocked page.
+    pub provider: &'static str,
+    /// What the attempt fails with when the Back button is pressed.
+    pub canceled: &'static str,
+    /// The provider's allowlist of pages the window may load.
+    pub is_allowed: fn(&Url) -> bool,
+}
+
+/// The `on_navigation` handler of a sign-in window. The injected Back button's reload closes the
+/// window and cancels the attempt; any other page loads only if the provider's allowlist has it,
+/// and a blocked one is noted in the diagnostics log by host.
+#[cfg(desktop)]
+pub(crate) fn guard_login_navigation(
+    app: &AppHandle,
+    state: &Arc<AppState>,
+    attempt_id: &str,
+    rules: LoginNavigationRules,
+) -> impl Fn(&Url) -> bool + Send + 'static {
+    let app = app.clone();
+    let state = state.clone();
+    let attempt_id = attempt_id.to_string();
+    move |url| {
+        if is_back_request(url, BACK_QUERY_FLAG) {
+            if let Some(window) = app.get_webview_window(rules.label) {
+                crate::auth::mobile_auth::dismiss_login_window(&window);
+            }
+            state.fail_login_if_waiting(&attempt_id, rules.canceled.into());
+            return false;
+        }
+        let allowed = (rules.is_allowed)(url);
+        if !allowed {
+            crate::diagnostics::warn(&format!(
+                "{} login blocked navigation to host {}",
+                rules.provider,
+                url.host_str().unwrap_or("(none)")
+            ));
+        }
+        allowed
+    }
+}
+
 /// What a sign-in window needs beyond the shared setup.
 #[cfg(desktop)]
 pub(crate) struct LoginWindowSpec<'a> {
@@ -130,7 +188,7 @@ pub(crate) fn open_private_login_window<'a>(
         WebviewWindowBuilder<'a, tauri::Wry, AppHandle>,
     ) -> WebviewWindowBuilder<'a, tauri::Wry, AppHandle>,
 ) -> tauri::Result<WebviewWindow> {
-    let (width, height, position) = crate::auth::oauth_common::window_geometry_centered_on(
+    let (width, height, position) = crate::auth::window_geometry::window_geometry_centered_on(
         app,
         "main",
         1.0,
@@ -207,6 +265,25 @@ pub(crate) fn spawn_login_close_and_timeout(
             if let Some(window) = timeout_app.get_webview_window(end.label) {
                 crate::auth::mobile_auth::dismiss_login_window(&window);
             }
+        }
+    });
+}
+
+/// On a phone the sign-in runs in the app's own WebView, so there is no window or profile to
+/// clean up: after `timeout_minutes` a still-waiting attempt is failed with `timed_out`.
+#[cfg(mobile)]
+pub(crate) fn spawn_mobile_login_timeout(
+    state: &Arc<AppState>,
+    attempt_id: &str,
+    timeout_minutes: i64,
+    timed_out: &'static str,
+) {
+    let state = state.clone();
+    let attempt_id = attempt_id.to_string();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(Duration::from_secs((timeout_minutes * 60) as u64)).await;
+        if state.login_is_waiting(&attempt_id) {
+            state.fail_login_if_waiting(&attempt_id, timed_out.into());
         }
     });
 }
