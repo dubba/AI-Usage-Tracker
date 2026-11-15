@@ -1,6 +1,6 @@
 //! Where the main app window may navigate on Android and iOS.
 //!
-//! In-app sign-in (`mobile_auth.rs`) loads a provider's sign-in page into the
+//! In-app sign-in (`mobile_auth`) loads a provider's sign-in page into the
 //! main window, which only checks the first URL. From there a link or an open
 //! redirect could load any page inside the app's own window, which is a place
 //! users trust. This plugin's navigation hook runs before each navigation of
@@ -121,7 +121,7 @@ pub(crate) fn is_allowed_main_navigation(
     signing_in: bool,
 ) -> bool {
     // The "Account connected" page the app shows when a sign-in has finished
-    // (mobile_auth.rs): only the exact page it made, never `data:` in general.
+    // (mobile_auth): only the exact page it made, never `data:` in general.
     if url.as_str() == "about:blank" || crate::auth::result_pages::is_connected_page(url) {
         return true;
     }
@@ -137,7 +137,7 @@ pub(crate) fn is_allowed_main_navigation(
     else {
         return false;
     };
-    // The loopback OAuth callback, which mobile_auth.rs intercepts.
+    // The loopback OAuth callback, which mobile_auth intercepts.
     if url.scheme() == "http" && matches!(host.as_str(), "localhost" | "127.0.0.1") {
         return true;
     }

@@ -43,7 +43,7 @@ Pick the path that matches the provider.
 - `src-tauri/src/auth/oauth/exchange.rs` — an `exchange_<name>` function and the arm in `exchange_tokens`. Build the request with `RefreshBody` and parse the reply as `TokenResponse`; the exchange keeps its own `ExchangeError`, because a single-use code is retried only when the token endpoint never answered.
 - `src-tauri/src/auth/oauth/identity.rs` — where the account's email and plan come from.
 - `src-tauri/src/auth/oauth/callback_server.rs` — `bind_callback_port`: the fixed loopback ports the provider's client registration allows (or an ephemeral port).
-- `src-tauri/src/auth/mobile_auth.rs` — the host allowlist for the mobile in-app sign-in.
+- `src-tauri/src/auth/mobile_auth/mod.rs` — the host allowlist for the mobile in-app sign-in.
 
 **Cookie capture in a login WebView**
 
@@ -59,7 +59,7 @@ Pick the path that matches the provider.
 All paths:
 
 - `src-tauri/src/commands/auth.rs` — `start_login` routes by provider; add the branch (or the error that says this provider signs in elsewhere), plus a command such as `add_<name>_account` for cookie and key providers.
-- `src-tauri/src/auth/oauth_common.rs` — the icon the "Account connected" page shows (`GROK_ICON`, `OPENCODE_ICON`, …).
+- `src-tauri/src/auth/result_pages.rs` — the icon the "Account connected" page shows (`GROK_ICON`, `OPENCODE_ICON`, …).
 
 A new command means four edits, and a test fails if one is missing:
 

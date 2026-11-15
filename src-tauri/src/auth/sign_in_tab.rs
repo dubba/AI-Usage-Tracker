@@ -38,7 +38,7 @@ const POLL_INTERVAL: Duration = Duration::from_millis(400);
 #[cfg(target_os = "android")]
 const RESULT_PAGE_GLANCE: Duration = crate::auth::result_pages::CONNECTED_PAGE_DISPLAY;
 
-/// The message the Back button on the in-app sign-in page sets too (`mobile_auth.rs`).
+/// The message the Back button on the in-app sign-in page sets too (`mobile_auth`).
 #[cfg(any(test, target_os = "android"))]
 const CANCELED_MESSAGE: &str = "Sign-in was canceled.";
 

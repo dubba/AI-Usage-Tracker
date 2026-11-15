@@ -191,7 +191,7 @@ const COUNTDOWN_SCRIPT: &str = if cfg!(mobile) {
 /// that point too (`open_provider_login_window`), since wry may ignore the ask.
 const DESKTOP_COUNTDOWN_SCRIPT: &str = "<script>let s=5;const el=document.getElementById('sec');const t=setInterval(()=>{s--;if(el)el.textContent=String(Math.max(0,s));if(s<=0){clearInterval(t);window.close();}},1000);</script>";
 /// Only counts. On a phone the page is in the app's only WebView, which the app
-/// returns to the dashboard itself (`hold_result_page` in mobile_auth.rs); a
+/// returns to the dashboard itself (`hold_result_page` in mobile_auth); a
 /// `window.close()` there closed the app's WebView on Android and froze the app
 /// on "1".
 const MOBILE_COUNTDOWN_SCRIPT: &str = "<script>let s=5;const el=document.getElementById('sec');const t=setInterval(()=>{s--;if(el)el.textContent=String(Math.max(0,s));if(s<=0){clearInterval(t);}},1000);</script>";

@@ -53,7 +53,7 @@ pub(crate) fn merge_into_existing(duplicate: Option<&Account>, fields: Connected
 
 /// Ends a sign-in that has its own window (Grok, OpenCode): marks the attempt complete if it is
 /// still waiting and, on desktop, shows the "Account connected" page and closes the window.
-/// On mobile the sign-in poll loop (`mobile_auth.rs`) shows the page instead. Returns whether
+/// On mobile the sign-in poll loop (`mobile_auth`) shows the page instead. Returns whether
 /// the attempt was still waiting; if not, nothing was shown.
 pub(crate) fn finish_window_login(
     state: &AppState,

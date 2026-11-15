@@ -4,7 +4,7 @@
 //! They all follow the same steps and fail the same ways; they differ in a few small, deliberate
 //! details, which are spelled out as options on [`RefreshRequest`] rather than hidden.
 //!
-//! The sign-in code exchanges (`oauth/exchange.rs`, `google_ai_studio_oauth.rs`) talk to the same
+//! The sign-in code exchanges (`oauth/exchange.rs`, `google_ai_studio_oauth/`) talk to the same
 //! token endpoints, so they share the pieces that do not depend on the grant: how a request body
 //! is sent ([`RefreshBody`]), what a reply looks like ([`TokenResponse`]) and how long a token
 //! lives when the reply does not say ([`Lifetime`]).
