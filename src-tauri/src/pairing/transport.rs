@@ -24,7 +24,7 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::{
-    io::AsyncWriteExt,
+    io::{AsyncWrite, AsyncWriteExt},
     net::{TcpListener, TcpStream},
     sync::{mpsc, oneshot},
     time::timeout,
@@ -221,6 +221,33 @@ pub enum ClientEvent {
 #[cfg(test)]
 pub type SenderEvent = ClientEvent;
 
+/// Tells the peer why this side is ending the connection. Best effort: the
+/// peer may already be gone.
+async fn send_abort<W: AsyncWrite + Unpin>(writer: &mut W, reason: AbortReason) {
+    let _ = write_frame(writer, MSG_ABORT, &reason.payload()).await;
+}
+
+/// A connection whose key exchange and role selection are done. What is left
+/// is for both users to confirm the verification code.
+struct NegotiatedPeer {
+    stream: TcpStream,
+    encryption_key: [u8; 32],
+    transcript: Vec<u8>,
+    sas_code: String,
+    is_sender: bool,
+    account_count: usize,
+}
+
+/// What the host does after one connection's negotiation ends.
+enum HostStep {
+    /// Carry on to the verification code with this peer.
+    Proceed(NegotiatedPeer),
+    /// This connection is finished but the session is not: accept another.
+    NextPeer,
+    /// The session is over; the UI has been told why.
+    EndSession,
+}
+
 /// Runs the host listener loop (displays QR code, accepts incoming peer connection)
 // Session plumbing: one channel/handle per concern, kept as separate
 // arguments so the host, receiver, and client paths stay symmetrical.
@@ -237,218 +264,41 @@ pub async fn run_host_listener(
     sas_confirm_rx: oneshot::Receiver<bool>,
     mut cancel_rx: oneshot::Receiver<()>,
 ) {
-    let host_pubkey = keypair.public_bytes();
     let session_id_bytes = *session_id.as_bytes();
     let deadline = Instant::now() + Duration::from_secs(SESSION_TIMEOUT_SECS);
 
-    let (stream, encryption_key, transcript, sas_code, host_is_sender, account_count) = 'session: loop {
-        let (mut stream, client_pubkey) = loop {
-            let remaining = deadline.saturating_duration_since(Instant::now());
-            if remaining.is_zero() {
-                let _ = status_tx.send(HostEvent::Expired).await;
-                return;
-            }
-
-            let accepted = tokio::select! {
-                _ = &mut cancel_rx => {
-                    let _ = status_tx.send(HostEvent::Cancelled).await;
-                    return;
-                }
-                res = timeout(remaining, listener.accept()) => {
-                    match res {
-                        Ok(Ok((stream, _))) => stream,
-                        Ok(Err(e)) => {
-                            let _ = status_tx.send(HostEvent::Failed(format!("Socket accept error: {e}"))).await;
-                            return;
-                        }
-                        Err(_) => {
-                            let _ = status_tx.send(HostEvent::Expired).await;
-                            return;
-                        }
-                    }
-                }
-            };
-
-            let mut stream = accepted;
-            let handshake_res: Result<Result<[u8; PUBLIC_KEY_LEN], String>, _> =
-                timeout(Duration::from_secs(SOCKET_TIMEOUT_SECS), async {
-                    // Pre-authentication: strict 1 KiB budget so an
-                    // unauthenticated LAN peer cannot force a 16 MB allocation.
-                    let (msg_type, payload) =
-                        read_frame_limited(&mut stream, MAX_PREAUTH_FRAME_SIZE).await?;
-                    if msg_type != MSG_HANDSHAKE_INIT {
-                        return Err("Expected MSG_HANDSHAKE_INIT".into());
-                    }
-                    if payload.len() != HANDSHAKE_INIT_LEN {
-                        return Err(format!("Invalid handshake length: {}", payload.len()));
-                    }
-
-                    let mut client_pubkey = [0u8; PUBLIC_KEY_LEN];
-                    client_pubkey.copy_from_slice(&payload[..PUBLIC_KEY_LEN]);
-
-                    let mut received_session_id = [0u8; SESSION_ID_LEN];
-                    received_session_id.copy_from_slice(&payload[PUBLIC_KEY_LEN..]);
-
-                    if received_session_id != session_id_bytes {
-                        return Err("Session ID mismatch".into());
-                    }
-
-                    Ok(client_pubkey)
-                })
-                .await;
-
-            match handshake_res {
-                Ok(Ok(pk)) => break (stream, pk),
-                Ok(Err(_)) | Err(_) => {
-                    // Abort this connection only. Bad handshakes must not kill
-                    // the session (any LAN host can send garbage); a short delay
-                    // throttles brute-force attempts.
-                    let _ =
-                        write_frame(&mut stream, MSG_ABORT, &AbortReason::BadHandshake.payload())
-                            .await;
-                    tokio::time::sleep(FAILED_HANDSHAKE_DELAY).await;
-                }
-            }
+    let peer = loop {
+        let Some((stream, client_pubkey)) = accept_handshake(
+            &listener,
+            deadline,
+            &session_id_bytes,
+            &mut cancel_rx,
+            &status_tx,
+        )
+        .await
+        else {
+            return;
         };
 
-        // Perform DH and key derivation
-        let client_point = x25519_dalek::PublicKey::from(client_pubkey);
-        let derived = match keypair.diffie_hellman(&client_point) {
-            Ok(d) => d,
-            Err(_) => {
-                // Invalid (non-contributory) peer key: abort this connection
-                // only and keep listening for a legitimate peer. Do not emit
-                // a Failed event here; the session is still alive.
-                let _ = write_frame(
-                    &mut stream,
-                    MSG_ABORT,
-                    &AbortReason::InvalidPeerKey.payload(),
-                )
-                .await;
-                continue 'session;
-            }
-        };
-        let mut encryption_key = match derived.derive_encryption_key(&session_nonce) {
-            Ok(k) => k,
-            Err(e) => {
-                let _ = write_frame(
-                    &mut stream,
-                    MSG_ABORT,
-                    &AbortReason::KeyDerivationFailed.payload(),
-                )
-                .await;
-                let _ = status_tx.send(HostEvent::Failed(e)).await;
-                return;
-            }
-        };
-
-        let transcript = build_transcript(
+        let step = negotiate_as_host(
+            &state,
+            stream,
+            client_pubkey,
+            &keypair,
             &session_id_bytes,
             &session_nonce,
-            &host_pubkey,
-            &client_pubkey,
-        );
-
-        let sas_code = compute_sas_code(&encryption_key, &transcript);
-
-        // Send Handshake OK response
-        if write_frame(&mut stream, MSG_HANDSHAKE_RESP, &[RESP_OK])
-            .await
-            .is_err()
-        {
-            // Peer is already gone; go back to accepting connections. Do not
-            // emit a Failed event; the session is still alive.
-            encryption_key.zeroize();
-            continue 'session;
-        }
-
-        // Tell the UI a peer has connected
-        let _ = status_tx
-            .send(HostEvent::PeerConnected {
-                sas_code: sas_code.clone(),
-                fingerprint: fingerprint.clone(),
-            })
-            .await;
-
-        // Wait for the joiner to pick send/receive. This is a user action, so it
-        // uses the session timeout rather than the short socket timeout.
-        let role_res: Result<Result<(bool, usize), String>, _> =
-            timeout(Duration::from_secs(SESSION_TIMEOUT_SECS), async {
-                let (msg_type, payload) =
-                    read_frame_limited(&mut stream, MAX_PREAUTH_FRAME_SIZE).await?;
-                if msg_type != MSG_ROLE_SELECT {
-                    return Err("Expected MSG_ROLE_SELECT".into());
-                }
-                if payload.is_empty() || payload.len() > 3 {
-                    return Err("Invalid role selection payload length".into());
-                }
-
-                match payload[0] {
-                    ROLE_JOINER_SENDS => {
-                        // Client selected "Send accounts from this device" -> Host is Receiver
-                        let count = if payload.len() >= 3 {
-                            u16::from_be_bytes([payload[1], payload[2]]) as usize
-                        } else {
-                            0
-                        };
-                        write_frame(&mut stream, MSG_ROLE_SELECT_RESP, &[RESP_OK]).await?;
-                        Ok((false, count))
-                    }
-                    ROLE_JOINER_RECEIVES => {
-                        // Client selected "Receive accounts on this device" -> Host is Sender
-                        let host_count = state.store.list().len();
-                        let count_bytes = (host_count as u16).to_be_bytes();
-                        write_frame(&mut stream, MSG_ROLE_SELECT_RESP, &count_bytes).await?;
-                        Ok((true, host_count))
-                    }
-                    other => Err(format!("Unknown role selection opcode: 0x{other:02X}")),
-                }
-            })
-            .await;
-
-        match role_res {
-            Ok(Ok((is_sender, count))) => {
-                break 'session (
-                    stream,
-                    encryption_key,
-                    transcript,
-                    sas_code,
-                    is_sender,
-                    count,
-                )
-            }
-            Ok(Err(_)) => {
-                // The peer failed, aborted, or disconnected before choosing a
-                // role. Don't wedge the session on that connection — go back to
-                // accepting so the legitimate device can still connect.
-                let _ = write_frame(
-                    &mut stream,
-                    MSG_ABORT,
-                    &AbortReason::RoleSelectFailed.payload(),
-                )
-                .await;
-                encryption_key.zeroize();
-                continue 'session;
-            }
-            Err(_) => {
-                let _ = write_frame(
-                    &mut stream,
-                    MSG_ABORT,
-                    &AbortReason::RoleSelectTimedOut.payload(),
-                )
-                .await;
-                let _ = status_tx
-                    .send(HostEvent::Failed(
-                        "Timed out waiting for role selection".into(),
-                    ))
-                    .await;
-                encryption_key.zeroize();
-                return;
-            }
+            &fingerprint,
+            &status_tx,
+        )
+        .await;
+        match step {
+            HostStep::Proceed(peer) => break peer,
+            HostStep::NextPeer => continue,
+            HostStep::EndSession => return,
         }
     };
 
-    let host_role = if host_is_sender { "sender" } else { "receiver" };
+    let host_role = if peer.is_sender { "sender" } else { "receiver" };
     // Install the answer channel only once this phase is reached, and before
     // the UI is told, so an earlier confirm has nothing to send on.
     if let Some(tx) = sas_offer.take() {
@@ -459,26 +309,248 @@ pub async fn run_host_listener(
     }
     let _ = status_tx
         .send(HostEvent::SasVerification {
-            sas_code: sas_code.clone(),
+            sas_code: peer.sas_code.clone(),
             fingerprint: fingerprint.clone(),
             role: host_role.to_string(),
-            account_count,
+            account_count: peer.account_count,
         })
         .await;
 
     // Proceed to mutual confirmation and payload transfer
     run_authenticated_transfer(
         state,
-        stream,
-        host_is_sender,
-        encryption_key,
-        transcript,
-        sas_code,
+        peer.stream,
+        peer.is_sender,
+        peer.encryption_key,
+        peer.transcript,
+        peer.sas_code,
         sas_confirm_rx,
         cancel_rx,
         status_tx,
     )
     .await;
+}
+
+/// Waits for a connection that opens with a valid handshake for this session
+/// and returns it with the peer's public key. Connections that send anything
+/// else are turned away and the wait goes on. Returns `None` once the session
+/// is cancelled, expires, or the listener fails; the UI has been told by then.
+async fn accept_handshake(
+    listener: &TcpListener,
+    deadline: Instant,
+    session_id_bytes: &[u8; SESSION_ID_LEN],
+    cancel_rx: &mut oneshot::Receiver<()>,
+    status_tx: &mpsc::Sender<HostEvent>,
+) -> Option<(TcpStream, [u8; PUBLIC_KEY_LEN])> {
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            let _ = status_tx.send(HostEvent::Expired).await;
+            return None;
+        }
+
+        let mut stream = tokio::select! {
+            _ = &mut *cancel_rx => {
+                let _ = status_tx.send(HostEvent::Cancelled).await;
+                return None;
+            }
+            res = timeout(remaining, listener.accept()) => {
+                match res {
+                    Ok(Ok((stream, _))) => stream,
+                    Ok(Err(e)) => {
+                        let _ = status_tx.send(HostEvent::Failed(format!("Socket accept error: {e}"))).await;
+                        return None;
+                    }
+                    Err(_) => {
+                        let _ = status_tx.send(HostEvent::Expired).await;
+                        return None;
+                    }
+                }
+            }
+        };
+
+        let handshake_res = timeout(Duration::from_secs(SOCKET_TIMEOUT_SECS), async {
+            // Pre-authentication: strict 1 KiB budget so an
+            // unauthenticated LAN peer cannot force a 16 MB allocation.
+            let frame = read_frame_limited(&mut stream, MAX_PREAUTH_FRAME_SIZE).await?;
+            parse_handshake_init(frame, session_id_bytes)
+        })
+        .await;
+
+        match handshake_res {
+            Ok(Ok(client_pubkey)) => return Some((stream, client_pubkey)),
+            Ok(Err(_)) | Err(_) => {
+                // Abort this connection only. Bad handshakes must not kill
+                // the session (any LAN host can send garbage); a short delay
+                // throttles brute-force attempts.
+                send_abort(&mut stream, AbortReason::BadHandshake).await;
+                tokio::time::sleep(FAILED_HANDSHAKE_DELAY).await;
+            }
+        }
+    }
+}
+
+/// The joiner's public key from its opening frame, provided the frame names
+/// this session.
+fn parse_handshake_init(
+    (msg_type, payload): (u8, Vec<u8>),
+    session_id_bytes: &[u8; SESSION_ID_LEN],
+) -> Result<[u8; PUBLIC_KEY_LEN], String> {
+    if msg_type != MSG_HANDSHAKE_INIT {
+        return Err("Expected MSG_HANDSHAKE_INIT".into());
+    }
+    if payload.len() != HANDSHAKE_INIT_LEN {
+        return Err(format!("Invalid handshake length: {}", payload.len()));
+    }
+
+    let mut client_pubkey = [0u8; PUBLIC_KEY_LEN];
+    client_pubkey.copy_from_slice(&payload[..PUBLIC_KEY_LEN]);
+
+    let mut received_session_id = [0u8; SESSION_ID_LEN];
+    received_session_id.copy_from_slice(&payload[PUBLIC_KEY_LEN..]);
+
+    if &received_session_id != session_id_bytes {
+        return Err("Session ID mismatch".into());
+    }
+
+    Ok(client_pubkey)
+}
+
+/// Derives the shared key with a peer whose handshake was accepted, answers
+/// the handshake, and waits for the peer to choose who sends.
+// One argument per piece of session material, as in `run_host_listener`.
+#[allow(clippy::too_many_arguments)]
+async fn negotiate_as_host(
+    state: &AppState,
+    mut stream: TcpStream,
+    client_pubkey: [u8; PUBLIC_KEY_LEN],
+    keypair: &EphemeralKeyPair,
+    session_id_bytes: &[u8; SESSION_ID_LEN],
+    session_nonce: &[u8],
+    fingerprint: &str,
+    status_tx: &mpsc::Sender<HostEvent>,
+) -> HostStep {
+    // Perform DH and key derivation
+    let client_point = x25519_dalek::PublicKey::from(client_pubkey);
+    let derived = match keypair.diffie_hellman(&client_point) {
+        Ok(d) => d,
+        Err(_) => {
+            // Invalid (non-contributory) peer key: abort this connection
+            // only and keep listening for a legitimate peer. Do not emit
+            // a Failed event here; the session is still alive.
+            send_abort(&mut stream, AbortReason::InvalidPeerKey).await;
+            return HostStep::NextPeer;
+        }
+    };
+    let mut encryption_key = match derived.derive_encryption_key(session_nonce) {
+        Ok(k) => k,
+        Err(e) => {
+            send_abort(&mut stream, AbortReason::KeyDerivationFailed).await;
+            let _ = status_tx.send(HostEvent::Failed(e)).await;
+            return HostStep::EndSession;
+        }
+    };
+
+    let transcript = build_transcript(
+        session_id_bytes,
+        session_nonce,
+        &keypair.public_bytes(),
+        &client_pubkey,
+    );
+
+    let sas_code = compute_sas_code(&encryption_key, &transcript);
+
+    // Send Handshake OK response
+    if write_frame(&mut stream, MSG_HANDSHAKE_RESP, &[RESP_OK])
+        .await
+        .is_err()
+    {
+        // Peer is already gone; go back to accepting connections. Do not
+        // emit a Failed event; the session is still alive.
+        encryption_key.zeroize();
+        return HostStep::NextPeer;
+    }
+
+    // Tell the UI a peer has connected
+    let _ = status_tx
+        .send(HostEvent::PeerConnected {
+            sas_code: sas_code.clone(),
+            fingerprint: fingerprint.to_string(),
+        })
+        .await;
+
+    // Wait for the joiner to pick send/receive. This is a user action, so it
+    // uses the session timeout rather than the short socket timeout.
+    let role_res = timeout(Duration::from_secs(SESSION_TIMEOUT_SECS), async {
+        let frame = read_frame_limited(&mut stream, MAX_PREAUTH_FRAME_SIZE).await?;
+        answer_role_selection(state, &mut stream, frame).await
+    })
+    .await;
+
+    match role_res {
+        Ok(Ok((is_sender, account_count))) => HostStep::Proceed(NegotiatedPeer {
+            stream,
+            encryption_key,
+            transcript,
+            sas_code,
+            is_sender,
+            account_count,
+        }),
+        Ok(Err(_)) => {
+            // The peer failed, aborted, or disconnected before choosing a
+            // role. Don't wedge the session on that connection — go back to
+            // accepting so the legitimate device can still connect.
+            send_abort(&mut stream, AbortReason::RoleSelectFailed).await;
+            encryption_key.zeroize();
+            HostStep::NextPeer
+        }
+        Err(_) => {
+            send_abort(&mut stream, AbortReason::RoleSelectTimedOut).await;
+            let _ = status_tx
+                .send(HostEvent::Failed(
+                    "Timed out waiting for role selection".into(),
+                ))
+                .await;
+            encryption_key.zeroize();
+            HostStep::EndSession
+        }
+    }
+}
+
+/// Answers the joiner's choice of who sends. Returns whether the host is the
+/// sender, and the number of accounts the sender has.
+async fn answer_role_selection(
+    state: &AppState,
+    stream: &mut TcpStream,
+    (msg_type, payload): (u8, Vec<u8>),
+) -> Result<(bool, usize), String> {
+    if msg_type != MSG_ROLE_SELECT {
+        return Err("Expected MSG_ROLE_SELECT".into());
+    }
+    if payload.is_empty() || payload.len() > 3 {
+        return Err("Invalid role selection payload length".into());
+    }
+
+    match payload[0] {
+        ROLE_JOINER_SENDS => {
+            // Client selected "Send accounts from this device" -> Host is Receiver
+            let count = if payload.len() >= 3 {
+                u16::from_be_bytes([payload[1], payload[2]]) as usize
+            } else {
+                0
+            };
+            write_frame(stream, MSG_ROLE_SELECT_RESP, &[RESP_OK]).await?;
+            Ok((false, count))
+        }
+        ROLE_JOINER_RECEIVES => {
+            // Client selected "Receive accounts on this device" -> Host is Sender
+            let host_count = state.store.list().len();
+            let count_bytes = (host_count as u16).to_be_bytes();
+            write_frame(stream, MSG_ROLE_SELECT_RESP, &count_bytes).await?;
+            Ok((true, host_count))
+        }
+        other => Err(format!("Unknown role selection opcode: 0x{other:02X}")),
+    }
 }
 
 #[cfg(test)]
