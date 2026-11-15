@@ -1,4 +1,4 @@
-import { useUnprotectedSignIns } from "../features/accounts/useUnprotectedSignIns";
+import { useUnprotectedSignIns } from "./useUnprotectedSignIns";
 import { AccountAlertModal } from "../features/accounts/AccountAlertModal";
 import { GoogleAiStudioUsageModal } from "../features/accounts/GoogleAiStudioUsageModal";
 import { RemoveAccountModal } from "../features/accounts/RemoveAccountModal";

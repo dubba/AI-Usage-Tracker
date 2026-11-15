@@ -6,7 +6,6 @@ import { useAppErrors } from "../shared/lib/errors";
 import { resumeLoginAttemptWatch, subscribeLoginStatus } from "../shared/lib/login-status";
 import { AccountsView } from "../features/accounts/AccountsView";
 import { ActivityView } from "../features/activity/ActivityView";
-import { useUnprotectedSignIns } from "../features/accounts/useUnprotectedSignIns";
 import { ErrorBanner } from "../shared/ui/ErrorBanner";
 import { SettingsView } from "../features/settings/SettingsView";
 import { useLayout } from "../features/dashboard/layout-store";
@@ -54,6 +53,7 @@ import { useBottomNavVisible } from "./useBottomNavVisible";
 import { useGroupOrderReconcile } from "./useGroupOrderReconcile";
 import { watchPageScrollRestore } from "./page-scroll";
 import { useSidebarNavigation } from "./useSidebarNavigation";
+import { useUnprotectedSignIns } from "./useUnprotectedSignIns";
 
 // One shared empty list, so the "not loaded yet" value is the same object on every render.
 const NO_ACCOUNTS: Account[] = [];
@@ -127,6 +127,12 @@ export default function App() {
   const openDeleteBucket = useCallback((bucket: AccountBucket) => {
     dispatchModal({ type: "open", modal: { kind: "bucket", bucket, provider: bucket.provider, confirmDelete: true } });
   }, []);
+
+  /** Signing in again: Google AI Studio reconnects through its usage dialog, the rest through Add Account. */
+  const reconnect = useCallback(
+    (account: Account) => (account.provider === "google_ai_studio" ? setGoogleUsageAccount(account) : openAdd(account)),
+    [setGoogleUsageAccount, openAdd],
+  );
 
   const openLink = useCallback((url: string) => {
     void openSafeUrl(url)
@@ -214,6 +220,11 @@ export default function App() {
   const activityAccounts = allPageAccounts;
 
   const loadError = errors.find((entry) => entry.source === "load");
+  const refreshMinutes = appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES;
+
+  // The add buttons and shortcuts start from the provider of the page that is open.
+  const addAccountHere = () => openAdd(undefined, selectedGroup.provider ?? undefined);
+  const addGroupHere = () => openNewBucket(selectedGroup.provider);
 
   useKeyboardShortcuts(!isMobileDevice(), {
     refreshAll: () => void refreshAll(),
@@ -221,12 +232,8 @@ export default function App() {
     cyclePages: nav.cyclePages,
     goAccounts: nav.showAccounts,
     goActivity: nav.showActivity,
-    addAccount: () => {
-      openAdd(undefined, selectedGroup.provider ?? undefined);
-    },
-    addGroup: () => {
-      openNewBucket(selectedGroup.provider);
-    },
+    addAccount: addAccountHere,
+    addGroup: addGroupHere,
   });
 
   const isInitialMount = useRef(true);
@@ -323,7 +330,7 @@ export default function App() {
           sidebarOpen={sidebarOpen}
           onAddAccount={(provider) => openAdd(undefined, provider)}
           onOpenPairing={() => setPairingOpen(true)}
-          onReconnect={(account) => account.provider === "google_ai_studio" ? setGoogleUsageAccount(account) : openAdd(account)}
+          onReconnect={reconnect}
           onRefresh={accounts.length === 0 ? undefined : handleRefreshUsage}
         />
       </div>
@@ -332,17 +339,17 @@ export default function App() {
           allAccounts={accounts}
           accounts={visibleAccounts}
           selectedGroup={selectedGroup}
-          refreshMinutes={appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES}
+          refreshMinutes={refreshMinutes}
           onToggleSidebar={nav.toggleSidebar}
           sidebarOpen={sidebarOpen}
           onAdd={(provider) => openAdd(undefined, provider ?? selectedGroup.provider ?? undefined)}
-          onAddGroup={() => openNewBucket(selectedGroup.provider)}
+          onAddGroup={addGroupHere}
           onOpenPairing={() => setPairingOpen(true)}
           onRefreshAll={refreshAll}
           onEditBucket={openEditBucket}
           onDeleteBucket={openDeleteBucket}
           onRefresh={(account) => void refreshOne(account.id)}
-          onReconnect={(account) => account.provider === "google_ai_studio" ? setGoogleUsageAccount(account) : openAdd(account)}
+          onReconnect={reconnect}
           onConnectGoogleUsage={setGoogleUsageAccount}
           onRename={(account, label) => rename(account, label)}
           onRemove={(account) => dispatchModal({ type: "open", modal: { kind: "remove", account } })}
@@ -380,13 +387,9 @@ export default function App() {
       {sidebarIsOverlay ? null : (
         <TopBar
           section={section}
-          onSelect={(target) => {
-            if (target === "activity") nav.showActivity();
-            else if (target === "accounts") nav.showAccounts();
-            else nav.showSettings();
-          }}
-          onAddAccount={() => openAdd(undefined, selectedGroup.provider ?? undefined)}
-          onAddGroup={() => openNewBucket(selectedGroup.provider)}
+          onSelect={nav.showSection}
+          onAddAccount={addAccountHere}
+          onAddGroup={addGroupHere}
         />
       )}
       <div
@@ -406,7 +409,7 @@ export default function App() {
         allAccountsGroup={allAccountsGroup}
         groups={sidebarGroups}
         accounts={accounts}
-        refreshMinutes={appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES}
+        refreshMinutes={refreshMinutes}
         busy={busy}
         topBar={!sidebarIsOverlay}
         onClose={nav.closeSidebar}
@@ -441,11 +444,7 @@ export default function App() {
         <BottomNav
           section={section}
           inert={sidebarModal}
-          onSelect={(target) => {
-            if (target === "activity") nav.showActivity();
-            else if (target === "accounts") nav.showAccounts();
-            else nav.showSettings();
-          }}
+          onSelect={nav.showSection}
         />
       ) : null}
 
