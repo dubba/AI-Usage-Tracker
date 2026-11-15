@@ -98,7 +98,7 @@
     font-size: 12px !important;
     font-weight: 600 !important;
     cursor: pointer;
-    transition: background 120ms ease, color 120ms ease;
+    transition: color 120ms ease;
   }
 
   .activity-period-switch button.active {
@@ -298,6 +298,10 @@
     position: relative;
     box-sizing: border-box;
     min-width: 0;
+    /* The reorder grip widens the left padding on a wide window (dashboard-reorder.css). The error
+       bar reads these so it still reaches both edges. */
+    --activity-card-pad-left: 16px;
+    --activity-card-pad-right: 16px;
     padding: 16px;
     border: 1px solid var(--obsidian-border);
     border-radius: 8px;
@@ -455,29 +459,35 @@
     opacity: 0.55;
   }
 
+  /* The same full-width red bar as an account card's error (.account-card-error): it runs to the
+     card's edges (the card pads 16px), with the message on the left and the button on the right. */
   .activity-card-notice {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 8px 12px;
-    margin-top: 12px;
-    padding: 6px 8px;
-    border: 1px solid rgba(255, 133, 133, 0.42);
-    border-radius: 6px;
-    color: var(--obsidian-red);
+    gap: 14px;
+    margin: 8px calc(-1 * var(--activity-card-pad-right)) 0 calc(-1 * var(--activity-card-pad-left));
+    padding: 8px 16px;
+    border: 0;
+    border-bottom: 1px solid rgba(255, 133, 133, 0.18);
+    border-radius: 0;
+    background: var(--c-147-0-10-a120);
+    color: var(--c-ffb4ab);
     font-size: 12px;
     line-height: 16px;
   }
 
-  /* A compact purple button, sized to the card's 12-13px text. */
+  .activity-card-notice > span {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: left;
+  }
+
+  /* .button forces 4px corners. 10px matches the account card's Sign in again button. */
   .activity-card-notice .button {
-    border-radius: 6px !important;
-    min-height: 0;
-    height: 24px;
-    padding: 0 10px;
-    font-size: 12px;
-    line-height: 1;
+    flex-shrink: 0;
+    margin-left: auto;
+    border-radius: 10px !important;
   }
 
   /* An account with no weekly limit: no chart, a dashed outline instead. */

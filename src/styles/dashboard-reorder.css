@@ -51,6 +51,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .activity-card a {
 
 .activity-card[data-reorder-enabled="true"] {
   padding-left: 28px;
+  --activity-card-pad-left: 28px;
 }
 
 .reorder-grip {
@@ -121,6 +122,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .activity-card a {
   }
   .activity-card[data-reorder-enabled="true"] {
     padding-left: 16px !important;
+    --activity-card-pad-left: 16px;
   }
   .reorder-grip {
     display: none;

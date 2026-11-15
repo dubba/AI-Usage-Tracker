@@ -193,8 +193,8 @@ const LIST_SIDE_PADDING_PX = 5;
 
 /**
  * Sidebar width at which the right edge of its cards lines up with the right edge of the top bar's
- * Accounts / Usage / Settings switch. (The left edges already do: the switch starts at the cards'
- * icons, see `--sidebar-icon-inset` in sidebar-list.css.) This is the default width on a wide
+ * Dashboard / Usage / Settings switch. (The left edges already do: the switch starts at the cards,
+ * see `--sidebar-card-inset` in sidebar-list.css.) This is the default width on a wide
  * window, and what double-clicking the resize handle sets. Null when there is no top bar to line
  * up with (the phone overlay) or it has not been laid out yet.
  */

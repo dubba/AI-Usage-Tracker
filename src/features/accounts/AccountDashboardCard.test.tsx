@@ -476,12 +476,48 @@ describe("AccountDashboardCard on a wide window", () => {
       },
     });
     app = rendered.app;
+    expect(app.container.querySelector(".account-metric-track")?.classList.contains("is-hatched")).toBe(true);
     expect(app.container.querySelector(".account-status-chip")?.textContent).toBe("Out of date");
     expect(app.container.querySelector(".refresh-action")?.classList.contains("is-suggested")).toBe(true);
     const notice = app.container.querySelector(".account-card-error")!;
     expect(notice.textContent).toContain("OpenAI rate-limited the usage request.");
     click(notice.querySelector<HTMLButtonElement>('[aria-label="Retry refreshing Claude"]')!);
     expect(rendered.handlers.onRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("stripes a percent that is out of date and leaves a live percent solid", () => {
+    const quotaWindow = {
+      id: "5h",
+      label: "5-Hour",
+      remainingPercent: 70,
+      usedPercent: 30,
+      resetsAt: null,
+      windowSeconds: 5 * 3600,
+      kind: "five_hour" as const,
+    };
+    const usage = {
+      plan: "pro",
+      email: null,
+      windows: [quotaWindow],
+      creditsUsd: null,
+      unlimitedCredits: false,
+      fetchedAt: new Date().toISOString(),
+      source: "test",
+    };
+    const stale = renderDesktopCard({
+      account: { ...account, id: "stale-bar", plan: "pro", lastUsage: { ...usage, freshness: "stale" } },
+    });
+    app = stale.app;
+    expect(app.container.querySelector(".account-usage-metric")?.classList.contains("is-stale")).toBe(true);
+    expect(app.container.querySelector(".account-metric-track")?.classList.contains("is-hatched")).toBe(false);
+
+    app.unmount();
+    const live = renderDesktopCard({
+      account: { ...account, id: "live-bar", plan: "pro", lastUsage: { ...usage, freshness: "live" } },
+    });
+    app = live.app;
+    expect(app.container.querySelector(".account-usage-metric")?.classList.contains("is-stale")).toBe(false);
+    expect(app.container.querySelector(".account-metric-track")?.classList.contains("is-hatched")).toBe(false);
   });
 
   it("does not point at Refresh for a live account", () => {
@@ -555,7 +591,7 @@ describe("AccountDashboardCard error display on mobile vs desktop", () => {
     app = null;
   });
 
-  it("replaces the timestamp with the error message and retry button on mobile without rendering a separate banner", () => {
+  it("keeps the timestamp and shows the error bar with Retry on the right on a phone", () => {
     setNarrowWindow(true);
     const onRefresh = vi.fn();
     app = mount(
@@ -586,24 +622,20 @@ describe("AccountDashboardCard error display on mobile vs desktop", () => {
       />,
     );
 
-    // The timestamp is replaced by the error message in the header
-    const inlineError = app.container.querySelector(".account-card-updated.is-error");
-    expect(inlineError).not.toBeNull();
-    expect(inlineError?.textContent).toBe("Rate limit exceeded. Try again later.");
-    expect(inlineError?.getAttribute("title")).toBe("Rate limit exceeded. Try again later.");
+    const updated = app.container.querySelector(".account-card-updated");
+    expect(updated?.textContent).toMatch(/^Updated /);
+    expect(updated?.classList.contains("is-error")).toBe(false);
 
-    // A compact Retry button is rendered beside it
-    const retryBtn = app.container.querySelector<HTMLButtonElement>(".account-card-error-btn");
-    expect(retryBtn).not.toBeNull();
-    expect(retryBtn?.textContent).toBe("Retry");
-    click(retryBtn!);
+    const banner = app.container.querySelector(".account-card-error")!;
+    expect(banner.querySelector("span")?.textContent).toBe("Rate limit exceeded. Try again later.");
+    const retryBtn = banner.querySelector("button")!;
+    expect(retryBtn.textContent).toBe("Retry");
+    expect(banner.lastElementChild).toBe(retryBtn);
+    click(retryBtn);
     expect(onRefresh).toHaveBeenCalledTimes(1);
-
-    // The separate error box below the header is NOT rendered on mobile
-    expect(app.container.querySelector(".account-card-error")).toBeNull();
   });
 
-  it("replaces the timestamp with signed-out message and sign-in button on mobile", () => {
+  it("shows the signed-out message and Sign in again on the right on a phone", () => {
     setNarrowWindow(true);
     const onReconnect = vi.fn();
     app = mount(
@@ -625,17 +657,13 @@ describe("AccountDashboardCard error display on mobile vs desktop", () => {
       />,
     );
 
-    const inlineError = app.container.querySelector(".account-card-updated.is-error");
-    expect(inlineError).not.toBeNull();
-    expect(inlineError?.textContent).toBe("Session expired. Sign in again.");
-
-    const signInBtn = app.container.querySelector<HTMLButtonElement>(".account-card-error-btn");
-    expect(signInBtn).not.toBeNull();
-    expect(signInBtn?.textContent).toBe("Sign in");
-    click(signInBtn!);
+    const banner = app.container.querySelector(".account-card-error")!;
+    expect(banner.querySelector("span")?.textContent).toBe("Session expired. Sign in again.");
+    const signInBtn = banner.querySelector("button")!;
+    expect(signInBtn.textContent).toBe("Sign in again");
+    expect(banner.lastElementChild).toBe(signInBtn);
+    click(signInBtn);
     expect(onReconnect).toHaveBeenCalledTimes(1);
-
-    expect(app.container.querySelector(".account-card-error")).toBeNull();
   });
 
   it("formats 'authentication is required' to 'Re-authentication required' on mobile", () => {
@@ -659,11 +687,10 @@ describe("AccountDashboardCard error display on mobile vs desktop", () => {
       />,
     );
 
-    const inlineError = app.container.querySelector(".account-card-updated.is-error");
-    expect(inlineError?.textContent).toBe("Re-authentication required");
+    expect(app.container.querySelector(".account-card-error span")?.textContent).toBe("Re-authentication required");
   });
 
-  it("shows Reconnect button for Google AI Studio signed-out account on mobile", () => {
+  it("shows Reconnect Cloud Usage for a Google AI Studio signed-out account on mobile", () => {
     setNarrowWindow(true);
     const onReconnect = vi.fn();
     app = mount(
@@ -686,12 +713,11 @@ describe("AccountDashboardCard error display on mobile vs desktop", () => {
       />,
     );
 
-    const inlineError = app.container.querySelector(".account-card-updated.is-error");
-    expect(inlineError?.textContent).toBe("This account is signed out.");
-
-    const reconnectBtn = app.container.querySelector<HTMLButtonElement>(".account-card-error-btn");
-    expect(reconnectBtn?.textContent).toBe("Reconnect");
-    click(reconnectBtn!);
+    const banner = app.container.querySelector(".account-card-error")!;
+    expect(banner.querySelector("span")?.textContent).toBe("This account is signed out.");
+    const reconnectBtn = banner.querySelector("button")!;
+    expect(reconnectBtn.textContent).toBe("Reconnect Cloud Usage");
+    click(reconnectBtn);
     expect(onReconnect).toHaveBeenCalledTimes(1);
   });
 

@@ -75,7 +75,7 @@ export function SettingsView({
           <div className="settings-row">
             <div>
               <strong>Device Transfer</strong>
-              <small>Sync accounts and credentials to another device securely.</small>
+              <small>Sync accounts &amp; credentials to another device securely.</small>
             </div>
             <button
               type="button"

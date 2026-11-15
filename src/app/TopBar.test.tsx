@@ -21,6 +21,7 @@ describe("TopBar", () => {
   it("lists Dashboard, Usage and Settings and marks the current page", () => {
     const { pages } = render("activity");
     expect(pages.map((page) => page.textContent)).toEqual(["Dashboard", "Usage", "Settings"]);
+    expect(pages.every((page) => page.querySelector("svg"))).toBe(true);
     expect(pages.map((page) => page.getAttribute("aria-current"))).toEqual([null, "page", null]);
   });
 

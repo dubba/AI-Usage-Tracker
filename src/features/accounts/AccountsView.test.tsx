@@ -391,7 +391,7 @@ describe("AccountsView L / U switch", () => {
     app = renderView({ onToggleSidebar: () => undefined });
     const toggle = document.querySelector(".accounts-display-switch .usage-display-toggle, .accounts-display-switch .top-bar-segmented");
     expect(toggle).not.toBeNull();
-    expect(toggle?.textContent).toBe("% Left% Used");
+    expect(toggle?.textContent).toBe("% Used% Left");
     // Labeled, as "Period" is beside 7D / 30D.
     expect(document.querySelector(".accounts-display-switch .accounts-display-label")?.textContent).toBe("Show");
     expect(document.querySelector(".dashboard-title-row .top-bar-segmented")).toBeNull();

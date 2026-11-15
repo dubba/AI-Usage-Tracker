@@ -189,6 +189,7 @@ describe("General", () => {
     setNarrowWindow(true);
     try {
       app = mount(view());
+      expect(document.body.textContent).toContain("Show page labels below icons in bottom bar.");
       const toggle = toggleLabelled("setting-nav-labels-label");
       expect(toggle.getAttribute("aria-checked")).toBe("true");
       click(toggle);
@@ -305,6 +306,7 @@ describe("Devices and the local API", () => {
   it("starts device linking", () => {
     const onOpenPairing = vi.fn();
     app = mount(view({ props: { onOpenPairing } }));
+    expect(document.body.textContent).toContain("Sync accounts & credentials to another device securely.");
     click(button("Sync Devices"));
     expect(onOpenPairing).toHaveBeenCalledTimes(1);
   });

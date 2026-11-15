@@ -1,6 +1,7 @@
 import { useId, useMemo, useRef } from "react";
 import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
 import { BarChartIcon, CloseIcon } from "../../shared/ui/icons";
+import { useSegmentIndicator } from "../../shared/ui/segment-indicator";
 import { PullToRefreshIndicator } from "../dashboard/PullToRefreshIndicator";
 import { usePullToRefresh } from "../dashboard/usePullToRefresh";
 import { EmptyAccountPanel } from "../accounts/EmptyAccountPanel";
@@ -36,10 +37,12 @@ function inAccountOrder<T extends { accountId: string }>(items: readonly T[], ac
 /** The 7D / 30D switch with a label saying what it chooses: how many days the charts cover. */
 function PeriodSwitch({ period, onChange }: { period: ActivityPeriod; onChange: (next: ActivityPeriod) => void }) {
   const labelId = useId();
+  const switchRef = useRef<HTMLDivElement>(null);
+  useSegmentIndicator(switchRef);
   return (
     <div className="activity-period">
       <span className="activity-period-label" id={labelId}>Period</span>
-      <div className="activity-period-switch" role="group" aria-labelledby={labelId}>
+      <div ref={switchRef} className="activity-period-switch segmented" role="group" aria-labelledby={labelId}>
         {ACTIVITY_PERIODS.map((candidate) => (
           <button
             key={candidate}

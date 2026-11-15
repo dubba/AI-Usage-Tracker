@@ -8,6 +8,7 @@ const OBSIDIAN_CSS = readFileSync(join(STYLES, "obsidian-dashboard.css"), "utf8"
 const MODAL_CLOSE_CSS = readFileSync(join(STYLES, "modal-close.css"), "utf8");
 const UI_REFINEMENTS_CSS = readFileSync(join(STYLES, "ui-refinements.css"), "utf8");
 const TOP_BAR_CSS = readFileSync(join(STYLES, "../app/top-bar.css"), "utf8");
+const SIDEBAR_LIST_CSS = readFileSync(join(STYLES, "sidebar-list.css"), "utf8");
 const ACTIVITY_CSS = readFileSync(join(STYLES, "../features/activity/activity.css"), "utf8");
 const PAIRING_CSS = readFileSync(join(STYLES, "../features/pairing/pairing.css"), "utf8");
 
@@ -97,6 +98,12 @@ describe("Button hover and active state invariants", () => {
   it("right-aligns tooltips for all buttons in left/used and 7d/30d segmented switches", () => {
     expect(TOP_BAR_CSS).toMatch(/\.top-bar-segmented\s+button\[data-tooltip\]::after\s*\{[^}]*right:\s*2px\s*!important/);
     expect(ACTIVITY_CSS).toMatch(/\.activity-period-switch\s+button\[data-tooltip\]::after\s*\{[^}]*right:\s*2px\s*!important/);
+  });
+
+  it("lines the page switch up with the left edge of the sidebar cards", () => {
+    // Sidebar padding 12px plus the list's 5px. The switch used to start at the provider icons.
+    expect(SIDEBAR_LIST_CSS).toMatch(/--sidebar-card-inset:\s*17px/);
+    expect(TOP_BAR_CSS).toMatch(/padding:\s*12px 24px 12px var\(--sidebar-card-inset,\s*17px\)/);
   });
 
   it("positions page switch tooltips: Dashboard left, Usage centered, and Settings right", () => {

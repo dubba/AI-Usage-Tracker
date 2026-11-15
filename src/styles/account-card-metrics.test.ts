@@ -65,6 +65,12 @@ describe("account card metric row spacing", () => {
     expect(RESPONSIVE_CSS).toMatch(/@media\s*\(max-width:\s*860px\)\s*\{[\s\S]*?\.desktop-metric\s+\.account-metric-track\s*\{[^}]*margin:\s*4px 0;/);
   });
 
+  it("stripes an account-card bar with nothing to show, and a stale fill, and leaves sidebar meters alone", () => {
+    expect(RESPONSIVE_CSS).toMatch(/\.account-usage-metric \.account-metric-track\.is-hatched\s*\{[^}]*repeating-linear-gradient\(-45deg, var\(--c-353434\)/);
+    expect(RESPONSIVE_CSS).toMatch(/\.account-usage-metric\.is-stale \.account-metric-track > span::after\s*\{[^}]*repeating-linear-gradient\(-45deg, transparent/);
+    expect(RESPONSIVE_CSS).not.toMatch(/\.provider-summary-track\.is-hatched/);
+  });
+
   it("styles account card progress bars with amber and red for warning and critical tones", () => {
     expect(RESPONSIVE_CSS).toMatch(/\.account-metric-track\s*>\s*\.tone-warning\s*\{[^}]*background:\s*var\(--obsidian-amber\)/);
     expect(RESPONSIVE_CSS).toMatch(/\.account-metric-track\s*>\s*\.tone-critical\s*\{[^}]*background:\s*#c53131/);
@@ -79,10 +85,9 @@ describe("account card metric row spacing", () => {
     expect(SIDEBAR_CSS).toMatch(/\.provider-summary-track\s*>\s*\.tone-healthy\s*\{[^}]*background:\s*linear-gradient\(90deg,\s*var\(--purple-fill\),\s*var\(--purple-accent\)\)\s*!important/);
   });
 
-  it("styles mobile account card inline error replacing timestamp", () => {
-    expect(RESPONSIVE_CSS).toMatch(/\.account-card-updated-error\s*\{[\s\S]*?grid-column:\s*1\s*\/\s*-1;[\s\S]*?grid-row:\s*1;/);
-    expect(RESPONSIVE_CSS).toMatch(/\.account-card-updated\.is-error\s*\{[\s\S]*?color:\s*var\(--c-ffb4ab\);[\s\S]*?text-overflow:\s*ellipsis;/);
-    expect(RESPONSIVE_CSS).toMatch(/\.account-card-error-btn\s*\{[\s\S]*?flex-shrink:\s*0;/);
+  it("gives a phone account error the same gap above it as the usage rows", () => {
+    expect(RESPONSIVE_CSS).toMatch(/\.provider-account-card \.account-card-error\s*\{[^}]*margin-top:\s*16px/);
+    expect(RESPONSIVE_CSS).not.toMatch(/account-card-updated-error/);
   });
 
   it("styles sidebar alert dot and mobile sidebar list margins", () => {

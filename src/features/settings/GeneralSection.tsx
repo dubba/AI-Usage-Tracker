@@ -48,7 +48,7 @@ export function GeneralSection() {
           <div className="settings-row">
             <div>
               <strong id="setting-nav-labels-label">Menu Bar Labels</strong>
-              <small>Show the page names under the icons in the bottom bar.</small>
+              <small>Show page labels below icons in bottom bar.</small>
             </div>
             <ToggleSwitch checked={navLabels} labelledBy="setting-nav-labels-label" onChange={setNavLabels} />
           </div>

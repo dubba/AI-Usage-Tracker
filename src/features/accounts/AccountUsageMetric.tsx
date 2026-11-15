@@ -42,7 +42,7 @@ function UnavailableMetric({ signedOut, creditLabel }: { signedOut: boolean; cre
       </div>
       <div className="metric-value-row">
         <span
-          className="account-metric-track"
+          className="account-metric-track is-hatched"
           role="progressbar"
           aria-label="Quota remaining"
           aria-valuemin={0}
@@ -63,6 +63,8 @@ type WindowMetricProps = {
   provider?: Provider | string;
   unavailableLabel?: string;
   creditLabel?: string | null;
+  /** The account is signed out, or this reading is no longer current. A bar that still has a percent is striped. */
+  stale?: boolean;
 };
 
 function WindowMetric({
@@ -70,6 +72,7 @@ function WindowMetric({
   provider,
   unavailableLabel = "Unavailable",
   creditLabel = null,
+  stale = false,
 }: WindowMetricProps) {
   const remaining = window.remainingPercent;
   const countdown = useClock((now) => resetCountdown(window.resetsAt, now, window.windowSeconds));
@@ -81,8 +84,11 @@ function WindowMetric({
   const tone = usageTone(remaining);
   const { span, name } = metricWindowParts(window, provider);
   const ariaLabel = `${[span, name].filter(Boolean).join(" ") || windowLength(window) || window.label} ${displayMode === "used" ? "used" : "remaining"}`;
+  // No percent: stripe the whole track. A percent that is no longer current: stripe only the fill.
+  const hatchTrack = shown == null;
+  const staleFill = stale && !hatchTrack;
   return (
-    <div className="account-usage-metric desktop-metric">
+    <div className={`account-usage-metric desktop-metric${staleFill ? " is-stale" : ""}`}>
       <div className="desktop-metric-head">
         {span ? <span className="desktop-metric-span">{span}</span> : null}
         {name ? <span className="desktop-metric-name">{name}</span> : null}
@@ -92,7 +98,7 @@ function WindowMetric({
         </span>
       </div>
       <span
-        className="account-metric-track"
+        className={`account-metric-track${hatchTrack ? " is-hatched" : ""}`}
         role="progressbar"
         aria-label={ariaLabel}
         aria-valuemin={0}

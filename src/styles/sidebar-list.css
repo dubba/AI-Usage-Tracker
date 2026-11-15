@@ -9,11 +9,11 @@
  * The bars are one purple ramp (--purple-fill to --purple-accent) for every window; the usage
  * level shows in the percentage's color instead.
  */
-/* How far the sidebar's provider icons sit from the window's left edge: the sidebar's 12px padding,
-   the list's 5px, the row's 1px border and its 17px left padding (below). The top bar starts its
-   page switch at this inset so the switch's left edge lines up with the icons. */
+/* How far the sidebar's cards sit from the window's left edge: the sidebar's 12px padding plus the
+   list's 5px. The top bar starts its page switch here so the switch's left edge lines up with the
+   cards. The provider icons sit further in, past the row's 1px border and its 17px left padding. */
 :root {
-  --sidebar-icon-inset: 35px;
+  --sidebar-card-inset: 17px;
 }
 
 .obsidian-shell .provider-list {

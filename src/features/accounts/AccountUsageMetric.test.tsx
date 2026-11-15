@@ -74,6 +74,22 @@ describe("AccountUsageMetric tone classes", () => {
 
     const bar = document.querySelector(".account-metric-track span");
     expect(bar?.classList.contains("tone-healthy")).toBe(true);
+    expect(document.querySelector(".account-metric-track")?.classList.contains("is-hatched")).toBe(false);
+    expect(document.querySelector(".account-usage-metric")?.classList.contains("is-stale")).toBe(false);
+  });
+
+  it("stripes a live percent when the reading is out of date, and only the fill", () => {
+    app = mount(
+      <AccountUsageMetric
+        window={makeWindow(80)}
+        provider="openai"
+        stale
+      />
+    );
+
+    expect(document.querySelector(".account-usage-metric")?.classList.contains("is-stale")).toBe(true);
+    expect(document.querySelector(".account-metric-track")?.classList.contains("is-hatched")).toBe(false);
+    expect(document.querySelector(".account-metric-track span")?.classList.contains("tone-healthy")).toBe(true);
   });
 
   it("applies tone-neutral when remaining is null", () => {
@@ -91,6 +107,8 @@ describe("AccountUsageMetric tone classes", () => {
 
     const bar = document.querySelector(".account-metric-track span");
     expect(bar?.classList.contains("tone-neutral")).toBe(true);
+    expect(document.querySelector(".account-metric-track")?.classList.contains("is-hatched")).toBe(true);
+    expect(document.querySelector(".account-usage-metric")?.classList.contains("is-stale")).toBe(false);
   });
 });
 
@@ -105,6 +123,7 @@ describe("AccountUsageMetric unavailable mode", () => {
       expect(bar.getAttribute("aria-valuetext")).toBe("Unavailable");
       expect(bar.getAttribute("aria-valuenow")).toBeNull();
       expect((bar.firstElementChild as HTMLElement).style.width).toBe("0%");
+      expect(bar.classList.contains("is-hatched")).toBe(true);
       expect(root.querySelector(".metric-full-value")?.textContent).toBe("Unavailable");
       expect(root.querySelector(".metric-reset")?.textContent).toBe("Refresh this account to retrieve its limits.");
       expect(root.querySelector(".metric-inline-credit")?.textContent).toBe("Credits: $4.00");

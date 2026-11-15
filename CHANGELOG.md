@@ -1,11 +1,22 @@
 # Changelog
 
-## Unreleased (2 changes)
+## Unreleased (13 changes)
 
-### Improved (2)
+### Improved (13)
 
+- The highlight on a page or usage switch now slides over to the choice you pick, including Dashboard, Usage and Settings, % Used and % Left, and 7D and 30D.
+- On an account card, a usage bar with nothing to show, or one whose reading is out of date, is drawn with diagonal stripes instead of a solid fill.
+- On a wide window, the Dashboard, Usage and Settings switch lines up with the left edge of the account cards under it.
+- Link Devices now carries the Menu Bar Labels choice along with the other settings, so the other device shows or hides the names under the bottom-bar icons the same way.
+- On a wide window, Dashboard, Usage and Settings in the top bar show the same icons as the phone's bottom bar, beside each name.
+- The % Left / % Used switch now puts % Used on the left and % Left on the right, in the top bar, on the Dashboard, and in the side menu. The L / U letters in the sidebar follow the same order.
+- On the Usage page, an account that needs to sign in shows the same full-width red bar as an account card, with Sign in again on the right and the same corners as that button. The bar sits close under the account line.
+- On an account card, the red error bar has the same space above and below it as the space between the header and the usage rows. Sign in again sits closer to the top and bottom of that bar, and its corners match the Add account button.
+- On phones, an account error uses that same red bar: the message on the left and Sign in again (or Retry, or Reconnect Cloud Usage) on the right. The Updated time stays in the header.
 - In Settings, Launch at Startup is now the first item under General, above Menu Bar Labels, Appearance and Account Refresh.
 - On phones, with Menu Bar Labels turned off, the bottom bar is now slimmer: the buttons are 40px tall instead of 48px, and the page and pop-up messages move down to match.
+- In Settings, the Device Transfer subtitle now uses an ampersand: "Sync accounts & credentials to another device securely."
+- In Settings, the Menu Bar Labels switch description now reads "Show page labels below icons in bottom bar."
 
 ## v0.5.11 - 2026-11-14 (15 changes)
 

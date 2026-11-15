@@ -92,6 +92,8 @@ export function AccountDashboardCard({
   const accountErrorMessage = displayAccountError(account.lastError);
   // Older usage is still on screen: point at Refresh.
   const outOfDate = !signedOut && account.lastUsage?.freshness === "stale";
+  // A bar that still has a percent, but the reading is signed out, out of date, or unavailable, is striped.
+  const usageStale = signedOut || account.lastUsage?.freshness === "stale" || account.lastUsage?.freshness === "unavailable";
   const plan = displayPlan(account);
   const needsAttention = accountNeedsAttention(account);
   const [isCollapsed, setIsCollapsed] = useState(() => isCardCollapsedOnPage(pageId, account.id));
@@ -308,37 +310,6 @@ export function AccountDashboardCard({
             </div>
             <div className="account-card-action-stack">
               <p className="account-card-updated">{updatedAtLabel}</p>
-              {signedOut ? (
-                <div className="account-card-updated-error">
-                  <p className="account-card-updated is-error" title={accountErrorMessage ?? "This account is signed out."}>
-                    {accountErrorMessage ?? "This account is signed out."}
-                  </p>
-                  <button
-                    type="button"
-                    className="button primary compact-button account-card-error-btn"
-                    aria-label={account.provider === "google_ai_studio" ? `Reconnect Cloud Usage for ${account.label}` : `Sign in again to ${account.label}`}
-                    disabled={cardBusy}
-                    onClick={onReconnect}
-                  >
-                    {account.provider === "google_ai_studio" ? "Reconnect" : "Sign in"}
-                  </button>
-                </div>
-              ) : account.lastError ? (
-                <div className="account-card-updated-error">
-                  <p className="account-card-updated is-error" title={accountErrorMessage ?? account.lastError}>
-                    {accountErrorMessage ?? account.lastError}
-                  </p>
-                  <button
-                    type="button"
-                    className="button ghost compact-button account-card-error-btn"
-                    aria-label={`Retry refreshing ${account.label}`}
-                    disabled={cardBusy || isGlobalRefresh}
-                    onClick={onRefresh}
-                  >
-                    Retry
-                  </button>
-                </div>
-              ) : null}
               <div className="account-card-action-row">
               <div className="account-card-name-actions desktop-only">
               {onMove ? (
@@ -417,7 +388,7 @@ export function AccountDashboardCard({
 
       {!isCollapsed ? (
         <>
-          {desktop && (signedOut ? (
+          {signedOut ? (
             <div className="account-card-error is-signed-out">
               <span>{accountErrorMessage ?? "This account is signed out."}</span>
               <button type="button" className="button primary compact-button" disabled={cardBusy} onClick={onReconnect}>
@@ -435,7 +406,7 @@ export function AccountDashboardCard({
                 onClick={onRefresh}
               >Retry</button>
             </div>
-          ) : null)}
+          ) : null}
 
           <div className={`account-card-metrics${windows.length > 1 ? " two-column-metrics" : ""}${windows.length > 2 ? " multi-row-metrics" : ""}`}>
             {windows.length ? windows.map((window, index) => (
@@ -445,6 +416,7 @@ export function AccountDashboardCard({
                 provider={account.provider}
                 unavailableLabel={googleUnavailableLabel}
                 creditLabel={index === 0 ? creditLabel : null}
+                stale={usageStale}
               />
             )) : (
               <AccountUsageMetric unavailable signedOut={signedOut} creditLabel={creditLabel} />

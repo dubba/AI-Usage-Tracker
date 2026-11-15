@@ -21,7 +21,7 @@ export function RoleSelectView({
         <span>
           Also Transfer Settings &amp; Layout
           <small>
-            Includes appearance, launch at startup, account refresh intervals, automatic updates, app alerts, and card ordering.
+            Includes appearance, menu bar labels, launch at startup, account refresh intervals, automatic updates, app alerts, and card ordering.
           </small>
         </span>
       </label>

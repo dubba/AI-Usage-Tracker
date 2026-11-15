@@ -558,76 +558,10 @@
     padding-right: 3px;
     white-space: nowrap;
   }
-  .account-card-updated-error {
-    grid-column: 1 / -1;
-    grid-row: 1;
-    justify-self: end;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 6px;
-    min-width: 0;
-    max-width: 100%;
-  }
-  .account-card-updated-error .account-card-updated {
-    grid-column: auto;
-    grid-row: auto;
-    justify-self: auto;
-    padding-right: 0;
-  }
-  .account-card-updated.is-error {
-    color: var(--c-ffb4ab);
-    font-weight: 600;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    min-width: 0;
-  }
-  /* The 6px corners of the Sync Devices button; its purple fill and hover/active states come from .button.primary. */
-  .button.account-card-error-btn {
-    border-radius: 6px !important;
-    flex-shrink: 0;
-    height: 20px;
-    min-height: 20px !important;
-    padding: 0 7px !important;
-    font-size: 11px !important;
-    font-weight: 600;
-    line-height: 1;
-    position: relative;
-  }
-  .account-card-error-btn::before {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    min-width: 44px;
-    min-height: 44px;
-  }
   .account-card-action-stack .mobile-actions-dropdown {
     grid-column: 2;
     grid-row: 2;
     justify-self: end;
-  }
-  /* The error line (Re-authentication required + Sign in / Retry) sits beneath the
-     "Updated" line and the status, plan and menu row. */
-  .account-card-header-actions .account-card-updated-error {
-    position: absolute;
-    right: 14px;
-    bottom: var(--card-error-bottom, 0);
-    grid-row: auto;
-  }
-  /* It hangs below the header's own row, so the icon, name and badges stay aligned like a card
-     without an error; the header just grows by the error line (20px) plus a 5px gap, the same as the space
-     from the bottom of the "Updated" text down to the menu button. */
-  .provider-account-card .provider-account-card-header:has(.account-card-updated-error) {
-    --card-error-bottom: 14px;
-    position: relative;
-    padding-bottom: 39px;
-  }
-  .provider-account-card:not(.is-collapsed) .provider-account-card-header:has(.account-card-updated-error):has(+ .account-card-metrics) {
-    --card-error-bottom: 0px;
-    padding-bottom: 25px;
   }
   .plan-with-dot {
     display: inline-flex;
@@ -1597,6 +1531,12 @@
     padding-bottom: 0;
   }
 
+  /* The header shorthand above sets 16px of bottom padding, and it wins over the earlier
+     :has(.account-card-error) rule. Drop it so the bar's 15px margin is the whole gap above it. */
+  .provider-account-card.desktop-card:has(.account-card-error) .provider-account-card-header {
+    padding-bottom: 0;
+  }
+
   /* The rows are spaced by the grid gap alone. The phone layout's 12px under each row
      (`.multi-row-metrics .account-usage-metric:not(:last-child)...` above) is more specific than
      this rule, hence !important. */
@@ -1832,11 +1772,6 @@
     color: var(--obsidian-muted);
   }
 
-  .provider-account-card .account-card-updated.is-error {
-    color: var(--c-ffb4ab);
-    font-weight: 600;
-  }
-
   /* The menu button: the desktop card's tint, at the plan pill's height (a 44px touch target remains,
      see `.mobile-dropdown-toggle::before`). */
   .provider-account-card .mobile-dropdown-toggle {
@@ -1878,6 +1813,12 @@
 
   .provider-account-card:not(.is-collapsed) .provider-account-card-header:has(+ .account-card-metrics) {
     padding-bottom: 0;
+  }
+
+  /* The phone usage rows start 16px below the header. The error bar uses that same gap above it;
+     the rows' padding is the gap below. */
+  .provider-account-card .account-card-error {
+    margin-top: 16px;
   }
 
   .provider-account-card .account-card-metrics .account-usage-metric.desktop-metric {
@@ -1984,4 +1925,27 @@
 
 :root[data-theme="light"] .provider-account-card .account-card-action.refresh-action.is-suggested {
   box-shadow: 0 0 0 3px rgb(10 143 95 / 0.22);
+}
+
+/* A usage bar with nothing to show (signed out, not loaded, or no percent) is striped across the
+   whole track. The two grays are the track and the neutral fill, so both themes pick it up.
+   Sidebar meters are not included. */
+.account-usage-metric .account-metric-track.is-hatched {
+  background: repeating-linear-gradient(-45deg, var(--c-353434) 0 2px, var(--c-69656d) 2px 4px);
+}
+
+/* A percent that is still on screen, but signed out or no longer current: the fill keeps its
+   colour and gains the same diagonal stripe. The overlay sits on top of the !important tone
+   fills, so those rules stay. A live bar is left solid. */
+.account-usage-metric.is-stale .account-metric-track > span {
+  position: relative;
+}
+
+.account-usage-metric.is-stale .account-metric-track > span::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: repeating-linear-gradient(-45deg, transparent 0 2px, rgb(0 0 0 / 0.38) 2px 4px);
+  pointer-events: none;
 }

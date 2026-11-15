@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { UI_EVENTS } from "../../shared/lib/events";
 import { STORAGE_KEYS, storageGet } from "../../shared/lib/storage";
 import { captureEvents, installFakeWindow } from "../../test-utils/fakeWindow";
+import { getBottomNavLabels, setBottomNavLabels } from "../../shared/lib/bottom-nav-labels";
 import { getUsageDisplayMode, setUsageDisplayMode } from "../../shared/lib/usage-display";
 import { applyUiState, collectUiState } from "./ui-state";
 
@@ -13,6 +14,7 @@ beforeEach(() => {
 
 afterEach(() => {
   setUsageDisplayMode("left");
+  setBottomNavLabels("on");
   vi.unstubAllGlobals();
 });
 
@@ -45,12 +47,32 @@ describe("applyUiState", () => {
     expect(getUsageDisplayMode()).toBe("used");
   });
 
+  it("applies menu bar labels to storage and the running app", () => {
+    applyUiState({ bottom_nav_labels: "off" });
+    expect(storageGet(STORAGE_KEYS.bottomNavLabels)).toBe("off");
+    expect(getBottomNavLabels()).toBe("off");
+  });
+
+  it("leaves menu bar labels alone when an older transfer omits them", () => {
+    setBottomNavLabels("off");
+    applyUiState({});
+    expect(storageGet(STORAGE_KEYS.bottomNavLabels)).toBe("off");
+    expect(getBottomNavLabels()).toBe("off");
+  });
+
   it("ignores invalid values", () => {
-    applyUiState({ sidebar_width: -5, sidebar_group_order: "nope", theme: "sepia", usage_display_mode: "remaining" });
+    applyUiState({
+      sidebar_width: -5,
+      sidebar_group_order: "nope",
+      theme: "sepia",
+      usage_display_mode: "remaining",
+      bottom_nav_labels: "maybe<script>",
+    });
     expect(storageGet(STORAGE_KEYS.sidebarWidthDesktop)).toBeNull();
     expect(storageGet(STORAGE_KEYS.sidebarGroupOrder)).toBeNull();
     expect(storageGet(STORAGE_KEYS.theme)).toBeNull();
     expect(storageGet(STORAGE_KEYS.usageDisplayMode)).toBeNull();
+    expect(storageGet(STORAGE_KEYS.bottomNavLabels)).toBeNull();
   });
 
   it("asks the dashboard to resync afterwards", () => {
@@ -62,7 +84,7 @@ describe("applyUiState", () => {
 
 describe("collectUiState", () => {
   it("reports the default theme and display mode when nothing has been customized", () => {
-    expect(collectUiState()).toEqual({ theme: "dark", usage_display_mode: "left" });
+    expect(collectUiState()).toEqual({ theme: "dark", usage_display_mode: "left", bottom_nav_labels: "on" });
   });
 
   it("round-trips through applyUiState", () => {
@@ -73,6 +95,7 @@ describe("collectUiState", () => {
       page_account_order: { "bucket:b1": ["a", "b"] },
       theme: "light",
       usage_display_mode: "used",
+      bottom_nav_labels: "off",
     });
     expect(collectUiState()).toEqual({
       sidebar_group_order: ["provider:grok"],
@@ -81,6 +104,7 @@ describe("collectUiState", () => {
       page_account_order: { "bucket:b1": ["a", "b"] },
       theme: "light",
       usage_display_mode: "used",
+      bottom_nav_labels: "off",
     });
   });
 });

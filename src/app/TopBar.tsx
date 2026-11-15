@@ -1,4 +1,6 @@
+import { useRef } from "react";
 import { PlusIcon, StackPlusIcon } from "../shared/ui/icons";
+import { useSegmentIndicator } from "../shared/ui/segment-indicator";
 import { MAIN_PAGES } from "./BottomNav";
 import type { Section } from "./useSidebarNavigation";
 import "./top-bar.css";
@@ -27,10 +29,12 @@ export function TopBar({
   onAddAccount: () => void;
   onAddGroup: () => void;
 }) {
+  const pagesRef = useRef<HTMLElement>(null);
+  useSegmentIndicator(pagesRef);
   return (
     <header className="top-bar" inert={inert}>
-      <nav className="top-bar-nav" aria-label="Main">
-        {MAIN_PAGES.map(({ section: target, label: pageLabel }) => {
+      <nav className="top-bar-nav segmented" aria-label="Main" ref={pagesRef}>
+        {MAIN_PAGES.map(({ section: target, label: pageLabel, Icon }) => {
           const active = section === target;
           return (
             <button
@@ -41,6 +45,7 @@ export function TopBar({
               data-tooltip={PAGE_TOOLTIPS[target]}
               onClick={() => onSelect(target)}
             >
+              <Icon />
               {pageLabel}
             </button>
           );

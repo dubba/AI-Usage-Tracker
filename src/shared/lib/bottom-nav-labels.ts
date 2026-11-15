@@ -4,7 +4,7 @@ import { STORAGE_KEYS } from "./storage";
 /** Whether the bottom navigation bar shows the page names under its icons ("on") or icons only. */
 export type BottomNavLabels = "on" | "off";
 
-function isBottomNavLabels(value: unknown): value is BottomNavLabels {
+export function isBottomNavLabels(value: unknown): value is BottomNavLabels {
   return value === "on" || value === "off";
 }
 

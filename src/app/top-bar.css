@@ -27,14 +27,16 @@
     align-items: center;
     gap: clamp(12px, 2vw, 24px);
     min-width: 0;
-    /* The page switch's left edge lines up with the sidebar's provider icons (sidebar-list.css). */
-    padding: 12px 24px 12px var(--sidebar-icon-inset, 24px);
+    /* The page switch's left edge lines up with the sidebar cards (sidebar-list.css). */
+    padding: 12px 24px 12px var(--sidebar-card-inset, 17px);
     background: var(--c-171616);
     border-bottom: 1px solid var(--obsidian-border);
   }
 
   .top-bar-nav {
     position: relative;
+    /* The sliding pill matches the option's 7px corners. */
+    --segment-radius: 7px;
     display: flex;
     gap: 2px;
     padding: 3px;
@@ -49,8 +51,11 @@
      size. */
   .top-bar-nav-item {
     position: static !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     height: 36px;
-    padding: 0 15px;
+    padding: 0 14px 0 11px;
     border: 1px solid transparent;
     border-radius: 7px;
     background: transparent;
@@ -58,7 +63,16 @@
     font-size: 14px !important;
     font-weight: 600 !important;
     cursor: pointer;
-    transition: background 120ms ease, color 120ms ease;
+    /* Colour only. The purple fill slides on its own (segment-indicator.css); a fading
+       background here would leave a second pill behind. */
+    transition: color 120ms ease;
+  }
+
+  /* The same icons as the phone's bottom bar (BottomNav.tsx), at Group's 18px. */
+  .top-bar-nav-item svg {
+    width: 18px !important;
+    height: 18px !important;
+    flex-shrink: 0;
   }
 
   .top-bar-nav-item.is-active {
@@ -118,7 +132,7 @@
     font-size: 12px !important;
     font-weight: 600 !important;
     cursor: pointer;
-    transition: background 120ms ease, color 120ms ease;
+    transition: color 120ms ease;
   }
 
   .top-bar-segmented button.active {

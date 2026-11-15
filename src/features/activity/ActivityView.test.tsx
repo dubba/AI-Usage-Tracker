@@ -469,7 +469,7 @@ describe("ActivityView", () => {
     // The label comes first, so the switch reads "Period 7D 30D".
     expect([...row.querySelector(".activity-period")!.children].map((child) => child.className)).toEqual([
       "activity-period-label",
-      "activity-period-switch",
+      "activity-period-switch segmented",
     ]);
     expect(root.querySelectorAll(".activity-period-switch")).toHaveLength(1);
   });

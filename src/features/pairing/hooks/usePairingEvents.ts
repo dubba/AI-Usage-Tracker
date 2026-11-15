@@ -5,7 +5,7 @@ import { applyUiState } from "../../dashboard/ui-state";
 import { isPairingUri } from "../lib/uri";
 import { useTauriEvent } from "../../../shared/hooks/useTauriEvent";
 
-/** Pairing modal state, deep-link URIs, and UI state (order, collapsed cards, sidebar width, theme) sent by a paired device. */
+/** Pairing modal state, deep-link URIs, and UI state (order, collapsed cards, sidebar width, theme, menu bar labels) sent by a paired device. */
 export function usePairingEvents() {
   const [pairingOpen, setPairingOpen] = useState(false);
   const [pairingInitialUri, setPairingInitialUri] = useState<string | null>(null);

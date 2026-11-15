@@ -676,6 +676,7 @@ fn ui_state_clamp_bounds_lists_pages_and_text() {
         sidebar_width: Some(u32::MAX),
         theme: Some("light".into()),
         usage_display_mode: Some("used".into()),
+        bottom_nav_labels: Some("off".into()),
     };
     ui.clamp();
 
@@ -696,16 +697,26 @@ fn ui_state_clamp_bounds_lists_pages_and_text() {
     assert_eq!(ui.sidebar_width, Some(MAX_SIDEBAR_WIDTH));
     assert_eq!(ui.theme, Some("light".to_string()));
     assert_eq!(ui.usage_display_mode, Some("used".to_string()));
+    assert_eq!(ui.bottom_nav_labels, Some("off".to_string()));
 
-    // Theme and usage display mode are allowlists: anything else is dropped.
+    // Theme, usage display mode and menu bar labels are allowlists: anything else is dropped.
     let mut evil = UiStateSyncPayload {
         theme: Some("sepia'; DROP TABLE".into()),
         usage_display_mode: Some("remaining<script>".into()),
+        bottom_nav_labels: Some("maybe<script>".into()),
         ..Default::default()
     };
     evil.clamp();
     assert_eq!(evil.theme, None);
     assert_eq!(evil.usage_display_mode, None);
+    assert_eq!(evil.bottom_nav_labels, None);
+
+    let mut labels_on = UiStateSyncPayload {
+        bottom_nav_labels: Some("on".into()),
+        ..Default::default()
+    };
+    labels_on.clamp();
+    assert_eq!(labels_on.bottom_nav_labels, Some("on".to_string()));
 
     // Ordinary state passes through unchanged.
     let mut small = UiStateSyncPayload {
@@ -716,6 +727,8 @@ fn ui_state_clamp_bounds_lists_pages_and_text() {
     small.clamp();
     assert_eq!(small.sidebar_width, Some(320));
     assert_eq!(small.provider_order.unwrap().len(), 2);
+    // A transfer that never mentions the labels leaves them unset.
+    assert_eq!(small.bottom_nav_labels, None);
 }
 
 #[tokio::test]

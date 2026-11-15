@@ -174,7 +174,10 @@ html[data-sidebar-toggle-stacked] .provider-sidebar-heading-stack .usage-display
 }
 
 .provider-window-toggle {
+  position: relative;
   display: inline-flex;
+  /* The sliding pill matches the letter option's corners. The spelled-out switch overrides it. */
+  --segment-radius: 3px;
   border: 1px solid var(--obsidian-border-strong);
   border-radius: 4px;
   background: var(--c-232222);
@@ -207,7 +210,7 @@ html[data-sidebar-toggle-stacked] .provider-sidebar-heading-stack .usage-display
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
+  transition: color 120ms ease;
 }
 
 .provider-window-toggle button:last-child {
@@ -1500,12 +1503,28 @@ button.account-card-provider-icon:active {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  margin: 10px 0;
-  padding: 16px;
+  /* Same space above this bar as between the header and the first usage row on a wide
+     window (15px of .account-card-metrics padding). The row's own padding is the space below. */
+  margin: 15px 0 0;
+  /* 8px above and below the button, down from 16px. */
+  padding: 8px 16px;
   color: var(--c-ffb4ab);
   background: var(--c-147-0-10-a120);
   border-bottom: 1px solid rgba(255, 133, 133, 0.18);
   font-size: 12px;
+}
+
+.account-card-error > span {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+}
+
+/* .button forces 4px corners. 10px matches the top bar's Add account button. */
+.account-card-error > .button {
+  flex-shrink: 0;
+  margin-left: auto;
+  border-radius: 10px !important;
 }
 
 .account-card-protection-note {
@@ -3568,7 +3587,7 @@ select.text-input option,
   }
 
   .account-card-error {
-    padding: 14px var(--account-card-inline-padding);
+    padding: 8px var(--account-card-inline-padding);
   }
 
   .account-card-protection-note {

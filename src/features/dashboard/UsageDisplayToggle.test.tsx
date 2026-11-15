@@ -24,9 +24,9 @@ describe("UsageDisplayToggle", () => {
     const buttons = document.querySelectorAll<HTMLButtonElement>(".provider-window-toggle button");
     expect(buttons.length).toBe(2);
 
-    const [leftBtn, usedBtn] = Array.from(buttons);
-    expect(leftBtn.textContent?.trim()).toBe("L");
+    const [usedBtn, leftBtn] = Array.from(buttons);
     expect(usedBtn.textContent?.trim()).toBe("U");
+    expect(leftBtn.textContent?.trim()).toBe("L");
 
     expect(leftBtn.classList.contains("active")).toBe(true);
     expect(leftBtn.getAttribute("aria-pressed")).toBe("true");
@@ -38,7 +38,7 @@ describe("UsageDisplayToggle", () => {
     app = mount(<UsageDisplayToggle />);
 
     const buttons = document.querySelectorAll<HTMLButtonElement>(".provider-window-toggle button");
-    const [leftBtn, usedBtn] = Array.from(buttons);
+    const [usedBtn, leftBtn] = Array.from(buttons);
 
     click(usedBtn);
     expect(getUsageDisplayMode()).toBe("used");
@@ -55,11 +55,36 @@ describe("UsageDisplayToggle", () => {
     expect(usedBtn.getAttribute("aria-pressed")).toBe("false");
   });
 
+  it("moves the highlight onto the option that was chosen", async () => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      if (this.getAttribute("role") === "group") return new DOMRect(0, 0, 100, 30);
+      const label = this.textContent?.trim();
+      if (label === "U") return new DOMRect(2, 3, 40, 26);
+      if (label === "L") return new DOMRect(46, 3, 40, 26);
+      return new DOMRect();
+    });
+    app = mount(<UsageDisplayToggle />);
+    const group = document.querySelector<HTMLElement>("[role=group]")!;
+    // % Left is the starting choice, the second option.
+    expect(group.style.getPropertyValue("--segment-x")).toBe("46px");
+    expect(group.style.getPropertyValue("--segment-y")).toBe("3px");
+    expect(group.style.getPropertyValue("--segment-w")).toBe("40px");
+    expect(group.style.getPropertyValue("--segment-h")).toBe("26px");
+
+    click(group.querySelectorAll("button")[0]);
+    // The highlight follows the class change on a microtask, the same turn the browser paints.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(group.style.getPropertyValue("--segment-x")).toBe("2px");
+    expect(group.querySelector(".segment-indicator")).toBeNull();
+  });
+
   it("renders % Left and % Used when labels is 'words'", () => {
     app = mount(<UsageDisplayToggle labels="words" />);
 
     const buttons = document.querySelectorAll<HTMLButtonElement>("button");
-    expect(Array.from(buttons).map((b) => b.textContent?.trim())).toEqual(["% Left", "% Used"]);
+    expect(Array.from(buttons).map((b) => b.textContent?.trim())).toEqual(["% Used", "% Left"]);
   });
 
   it("subtracts the switcher's border width so the highlight aligns with the padding box", () => {

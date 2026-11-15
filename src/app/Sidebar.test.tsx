@@ -137,7 +137,7 @@ describe("Sidebar", () => {
         expect(switchRow.nextElementSibling?.classList.contains("sidebar-sync-status")).toBe(true);
         const toggle = switchRow.querySelector(".usage-display-toggle")!;
         expect(toggle.classList.contains("is-words")).toBe(true);
-        expect(toggle.textContent).toBe("% Left% Used");
+        expect(toggle.textContent).toBe("% Used% Left");
         expect(list.querySelector(".usage-display-toggle")).toBeNull();
       },
     );

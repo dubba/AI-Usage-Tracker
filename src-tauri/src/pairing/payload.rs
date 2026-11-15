@@ -64,6 +64,9 @@ pub struct UiStateSyncPayload {
     /// Whether usage percentages show the quota left or used ("left" | "used"). Older peers ignore it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub usage_display_mode: Option<String>,
+    /// Whether the phone's bottom bar shows page names ("on" | "off"). Older peers ignore it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bottom_nav_labels: Option<String>,
 }
 
 impl UiStateSyncPayload {
@@ -124,6 +127,15 @@ impl UiStateSyncPayload {
             .is_some_and(|mode| !matches!(mode, "left" | "used"))
         {
             self.usage_display_mode = None;
+        }
+        // Same for the bottom-bar labels. Anything else is dropped, and a missing
+        // field stays missing so an older sender does not reset the receiver.
+        if self
+            .bottom_nav_labels
+            .as_deref()
+            .is_some_and(|labels| !matches!(labels, "on" | "off"))
+        {
+            self.bottom_nav_labels = None;
         }
     }
 }
@@ -263,6 +275,7 @@ pub fn create_export_payload(state: &AppState) -> Result<Vec<u8>, String> {
                     || ui.sidebar_width.is_some()
                     || ui.theme.is_some()
                     || ui.usage_display_mode.is_some()
+                    || ui.bottom_nav_labels.is_some()
             });
 
         (

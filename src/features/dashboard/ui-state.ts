@@ -2,11 +2,12 @@ import { collectPageUiState, applyPageUiState } from "./dashboard-page-state";
 import { requestDashboardResync, UI_EVENTS } from "../../shared/lib/events";
 import { isStringArray, readJson, storageGet, storageSet, STORAGE_KEYS, writeJson } from "../../shared/lib/storage";
 import { isThemePreference, readThemePreference, setThemePreference } from "../../shared/lib/theme";
+import { getBottomNavLabels, isBottomNavLabels, setBottomNavLabels } from "../../shared/lib/bottom-nav-labels";
 import { getUsageDisplayMode, isUsageDisplayMode, setUsageDisplayMode } from "../../shared/lib/usage-display";
 
 type UiState = Record<string, unknown>;
 
-/** Layout state (group/provider order, collapsed cards, page order, sidebar width, theme, usage display mode) to send to a paired device. */
+/** Layout state (group/provider order, collapsed cards, page order, sidebar width, theme, usage display mode, menu bar labels) to send to a paired device. */
 export function collectUiState(): UiState {
   const ui: UiState = {};
   const groupOrder = readJson<string[]>(STORAGE_KEYS.sidebarGroupOrder, [], isStringArray);
@@ -18,6 +19,7 @@ export function collectUiState(): UiState {
   if (Number.isFinite(width) && width > 0) ui.sidebar_width = width;
   ui.theme = readThemePreference();
   ui.usage_display_mode = getUsageDisplayMode();
+  ui.bottom_nav_labels = getBottomNavLabels();
   return ui;
 }
 
@@ -41,6 +43,10 @@ export function applyUiState(payload: UiState): void {
   }
   if (isUsageDisplayMode(payload.usage_display_mode)) {
     setUsageDisplayMode(payload.usage_display_mode);
+  }
+  // Absent on a transfer from an older app, which leaves this device's own choice alone.
+  if (isBottomNavLabels(payload.bottom_nav_labels)) {
+    setBottomNavLabels(payload.bottom_nav_labels);
   }
   requestDashboardResync();
 }

@@ -1,0 +1,71 @@
+/* The sliding selection on a segmented control (Dashboard / Usage / Settings, % Used / % Left,
+ * 7D / 30D, and the same controls on a phone). The purple fill lives on the control's ::before;
+ * the selected option keeps only its label colour, so the fill can travel between options.
+ *
+ * A pseudo-element, so it is never the first or last child. The tooltip and corner rules that
+ * key off those stay pointed at the options.
+ *
+ * Layered, like the other component sheets. The transparent selected fill is !important so it
+ * beats the unlayered purple backgrounds those buttons already have. */
+@layer components {
+  .segmented {
+    isolation: isolate;
+  }
+
+  /* A tooltip's z-index lives inside this control once it is its own stacking context. Lift the
+     whole control while a tooltip is open so the tip still paints over the page under it. */
+  .segmented:has([data-tooltip]:hover),
+  .segmented:has([data-tooltip]:focus-visible),
+  .segmented:has([data-tooltip-active]) {
+    z-index: var(--z-tooltip, 1100);
+  }
+
+  .segmented::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    left: 0;
+    top: 0;
+    width: var(--segment-w, 0px);
+    height: var(--segment-h, 0px);
+    border-radius: var(--segment-radius, 7px);
+    background: var(--purple-fill);
+    pointer-events: none;
+    transform: translate3d(var(--segment-x, 0px), var(--segment-y, 0px), 0);
+  }
+
+  /* The first placement happens before this attribute, so opening a screen does not slide in
+     from the corner. After that, the fill travels. */
+  .segmented[data-segment-ready]::before {
+    transition:
+      transform 280ms cubic-bezier(0.22, 0.8, 0.28, 1),
+      width 280ms cubic-bezier(0.22, 0.8, 0.28, 1),
+      height 280ms cubic-bezier(0.22, 0.8, 0.28, 1),
+      background-color 160ms ease;
+  }
+
+  .segmented[data-segment-ready] > .is-active,
+  .segmented[data-segment-ready] > .active {
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+
+  /* The page switch's purple border is the same colour as the fill. Once the fill slides, a
+     border left on the button would stay behind. Every option already has a 1px transparent
+     border, so dropping the colour does not change the size. */
+  .top-bar-nav.segmented[data-segment-ready] > .is-active {
+    border-color: transparent !important;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .segmented:has(> .is-active:hover)::before,
+    .segmented:has(> .active:hover)::before {
+      background: var(--purple-fill-hover);
+    }
+
+    /* The sidebar's L / U letters brighten to the chip in the light theme, as they did before. */
+    :root[data-theme="light"] .provider-window-toggle.segmented:has(> .active:hover)::before {
+      background: var(--purple-chip);
+    }
+  }
+}

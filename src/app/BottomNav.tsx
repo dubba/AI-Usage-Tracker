@@ -1,5 +1,7 @@
+import { useRef } from "react";
 import { useBottomNavLabels } from "../shared/hooks/useBottomNavLabels";
 import { BarChartIcon, GridIcon, SettingsIcon } from "../shared/ui/icons";
+import { useSegmentIndicator } from "../shared/ui/segment-indicator";
 import type { Section } from "./useSidebarNavigation";
 import "./bottom-nav.css";
 
@@ -27,8 +29,10 @@ export function BottomNav({
   inert?: boolean;
 }) {
   const [showLabels] = useBottomNavLabels();
+  const navRef = useRef<HTMLElement>(null);
+  useSegmentIndicator(navRef);
   return (
-    <nav className={`bottom-nav${showLabels ? "" : " is-icon-only"}`} aria-label="Main" inert={inert}>
+    <nav ref={navRef} className={`bottom-nav segmented${showLabels ? "" : " is-icon-only"}`} aria-label="Main" inert={inert}>
       {MAIN_PAGES.map(({ section: target, label, Icon }) => {
         const active = section === target;
         return (

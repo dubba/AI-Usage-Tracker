@@ -192,6 +192,7 @@ describe("WeeklyTracker", () => {
     expect(card.classList.contains("is-dimmed")).toBe(true);
     expect(card.classList.contains("needs-attention")).toBe(true);
     expect(text(root, ".activity-card-notice span")).toBe("Sign-in expired.");
+    expect(text(root, ".activity-card-notice button")).toBe("Sign in again");
     expect(root.querySelectorAll(".activity-bar")).toHaveLength(7);
     click(root.querySelector<HTMLButtonElement>(".activity-card-notice button")!);
     expect(onReconnect).toHaveBeenCalledWith(account);
