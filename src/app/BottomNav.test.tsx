@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { click, mount, type Mounted } from "../test-utils/react";
 import { BottomNav } from "./BottomNav";
@@ -10,6 +11,7 @@ afterEach(() => {
   mounted?.unmount();
   mounted = null;
   setBottomNavLabels("on");
+  vi.restoreAllMocks();
 });
 
 function render(section: Section, props: { inert?: boolean } = {}) {
@@ -66,5 +68,63 @@ describe("BottomNav", () => {
     expect(render("activity").nav.hasAttribute("inert")).toBe(false);
     mounted!.unmount();
     expect(render("activity", { inert: true }).nav.hasAttribute("inert")).toBe(true);
+  });
+
+  it("snaps the highlight when toggling page labels instead of animating past the resized bar", async () => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      if (this.tagName === "NAV") {
+        return this.classList.contains("is-icon-only")
+          ? new DOMRect(0, 0, 210, 54)
+          : new DOMRect(0, 0, 294, 62);
+      }
+      const buttons = [...(this.parentElement?.querySelectorAll("button") ?? [])];
+      const index = buttons.indexOf(this as HTMLButtonElement);
+      const iconOnly = this.parentElement?.classList.contains("is-icon-only") ?? false;
+      const width = iconOnly ? 64 : 92;
+      const height = iconOnly ? 40 : 48;
+      return new DOMRect(7 + index * (width + 2), 7, width, height);
+    });
+    const rafQueue: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      rafQueue.push(cb);
+      return rafQueue.length;
+    });
+    const flushRaf = () => {
+      const pending = rafQueue.splice(0, rafQueue.length);
+      for (const cb of pending) cb(16);
+    };
+
+    const { nav, onSelect } = render("settings");
+    expect(nav.style.getPropertyValue("--segment-w")).toBe("92px");
+    expect(nav.style.getPropertyValue("--segment-h")).toBe("48px");
+    expect(nav.style.getPropertyValue("--segment-x")).toBe("195px");
+    flushRaf();
+    flushRaf();
+    expect(nav.dataset.segmentReady).toBe("true");
+
+    // Turning off labels shrinks the bar immediately: the highlight must disarm and snap to the
+    // new bounds on that frame, then re-arm transitions once the snapped frame paints.
+    await act(async () => {
+      setBottomNavLabels("off");
+      await Promise.resolve();
+    });
+    expect(nav.classList.contains("is-icon-only")).toBe(true);
+    expect(nav.dataset.segmentReady).toBeUndefined();
+    expect(nav.style.getPropertyValue("--segment-w")).toBe("64px");
+    expect(nav.style.getPropertyValue("--segment-h")).toBe("40px");
+    expect(nav.style.getPropertyValue("--segment-x")).toBe("139px");
+
+    flushRaf();
+    expect(nav.dataset.segmentReady).toBeUndefined();
+    flushRaf();
+    expect(nav.dataset.segmentReady).toBe("true");
+
+    // Switching pages keeps transitions armed so the pill still slides smoothly.
+    mounted!.rerender(<BottomNav section="accounts" onSelect={onSelect} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(nav.dataset.segmentReady).toBe("true");
+    expect(nav.style.getPropertyValue("--segment-x")).toBe("7px");
   });
 });

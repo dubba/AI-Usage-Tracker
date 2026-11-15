@@ -12,6 +12,7 @@ export function useSegmentIndicator(rootRef: RefObject<HTMLElement | null>) {
 
     let armFirstFrame = 0;
     let armSecondFrame = 0;
+    let lastActive: HTMLElement | null = null;
 
     const cancelArm = () => {
       cancelAnimationFrame(armFirstFrame);
@@ -43,15 +44,17 @@ export function useSegmentIndicator(rootRef: RefObject<HTMLElement | null>) {
       });
     };
 
-    const place = () => {
+    const place = (snap = false, forceSnap = false) => {
       const active = root.querySelector<HTMLElement>(":scope > .active, :scope > .is-active");
       if (!active) {
+        lastActive = null;
         disarm();
         return;
       }
       const rootBox = root.getBoundingClientRect();
       const box = active.getBoundingClientRect();
       if (rootBox.width <= 0 || rootBox.height <= 0 || box.width <= 0 || box.height <= 0) {
+        lastActive = active;
         disarm();
         return;
       }
@@ -64,29 +67,47 @@ export function useSegmentIndicator(rootRef: RefObject<HTMLElement | null>) {
         "--segment-w": `${box.width}px`,
         "--segment-h": `${box.height}px`,
       };
+      let changed = false;
       for (const [name, value] of Object.entries(next)) {
-        if (root.style.getPropertyValue(name) !== value) root.style.setProperty(name, value);
+        if (root.style.getPropertyValue(name) !== value) {
+          root.style.setProperty(name, value);
+          changed = true;
+        }
       }
+      // Keep CSS transitions when switching between options, but snap immediately when the
+      // control itself resizes (e.g. toggling BottomNav's labels) so the highlight never lags
+      // outside the pill's new bounds.
+      if (snap && changed && (forceSnap || active === lastActive)) {
+        disarm();
+      }
+      lastActive = active;
       arm();
     };
 
     place();
 
+    const onResize = () => place(true);
+    const onMutations: MutationCallback = (records) => {
+      const rootChanged = records.some((record) => record.target === root);
+      place(true, rootChanged);
+    };
+
     const observed = [...root.children].filter((child): child is HTMLElement => child instanceof HTMLElement);
-    const resize = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(place);
+    const resize = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(onResize);
     resize?.observe(root);
     for (const child of observed) resize?.observe(child);
 
-    // Class changes are the selection moving. Style writes are ignored, so placing does not loop.
-    const mutations = new MutationObserver(place);
+    // Class changes are the selection moving (or the root switching layout modes like is-icon-only).
+    // Style writes are ignored, so placing does not loop.
+    const mutations = new MutationObserver(onMutations);
     mutations.observe(root, { attributes: true, attributeFilter: ["class"], subtree: true });
-    window.addEventListener("resize", place);
+    window.addEventListener("resize", onResize);
 
     return () => {
       cancelArm();
       resize?.disconnect();
       mutations.disconnect();
-      window.removeEventListener("resize", place);
+      window.removeEventListener("resize", onResize);
       delete root.dataset.segmentReady;
     };
   }, [rootRef]);
