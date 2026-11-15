@@ -474,11 +474,20 @@ html[data-sidebar-toggle-stacked] .provider-sidebar-heading-stack .usage-display
 }
 
 .sidebar-group-count {
-  color: var(--obsidian-text-muted);
-  font-size: 12px;
-  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  line-height: 1.2;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: var(--c-353434);
+  color: var(--c-eeeaea);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 .provider-average {

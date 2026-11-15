@@ -418,7 +418,12 @@
 }
 
 .provider-summary-row .sidebar-group-count {
-  color: var(--obsidian-muted);
+  color: var(--c-eeeaea);
+  background: var(--c-353434);
+}
+
+.provider-summary-row.selected .sidebar-group-count {
+  background: rgb(var(--purple-accent-rgb) / 0.2);
 }
 
 .sidebar-group-empty {
