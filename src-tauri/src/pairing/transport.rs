@@ -601,32 +601,10 @@ pub async fn run_client_connector(
     sas_confirm_rx: oneshot::Receiver<bool>,
     mut cancel_rx: oneshot::Receiver<()>,
 ) {
-    let connect_addr = parsed
-        .host
-        .parse::<std::net::IpAddr>()
-        .map(|ip| std::net::SocketAddr::new(ip, parsed.port).to_string())
-        .unwrap_or_else(|_| format!("{}:{}", format_uri_host(&parsed.host), parsed.port));
-    let mut stream = match timeout(
-        Duration::from_secs(CONNECT_TIMEOUT_SECS),
-        TcpStream::connect(&connect_addr),
-    )
-    .await
-    {
-        Ok(Ok(s)) => s,
-        Ok(Err(e)) => {
-            let _ = status_tx
-                .send(ClientEvent::Failed(format!(
-                    "Connection failed to {connect_addr}: {e}"
-                )))
-                .await;
-            return;
-        }
-        Err(_) => {
-            let _ = status_tx
-                .send(ClientEvent::Failed(format!(
-                    "Connection timed out to {connect_addr}"
-                )))
-                .await;
+    let mut stream = match connect_to_host(&parsed).await {
+        Ok(s) => s,
+        Err(e) => {
+            let _ = status_tx.send(ClientEvent::Failed(e)).await;
             return;
         }
     };
@@ -646,19 +624,11 @@ pub async fn run_client_connector(
     }
 
     // Read Handshake Resp
-    let resp_res: Result<Result<(), String>, _> =
-        timeout(Duration::from_secs(SOCKET_TIMEOUT_SECS), async {
-            let (msg_type, payload) =
-                read_frame_limited(&mut stream, MAX_PREAUTH_FRAME_SIZE).await?;
-            if msg_type != MSG_HANDSHAKE_RESP {
-                return Err("Expected MSG_HANDSHAKE_RESP".into());
-            }
-            if payload.len() != 1 || payload[0] != RESP_OK {
-                return Err("Host rejected handshake".into());
-            }
-            Ok(())
-        })
-        .await;
+    let resp_res = timeout(Duration::from_secs(SOCKET_TIMEOUT_SECS), async {
+        let frame = read_frame_limited(&mut stream, MAX_PREAUTH_FRAME_SIZE).await?;
+        check_handshake_resp(frame)
+    })
+    .await;
 
     match resp_res {
         Ok(Ok(())) => {}
@@ -681,38 +651,18 @@ pub async fn run_client_connector(
         }
     }
 
-    // Derive encryption key & SAS code
-    let host_point = x25519_dalek::PublicKey::from(parsed.peer_public_key);
-    let derived = match keypair.diffie_hellman(&host_point) {
-        Ok(d) => d,
+    let ClientKeys {
+        mut encryption_key,
+        transcript,
+        sas_code,
+        verified_fingerprint,
+    } = match derive_client_keys(&keypair, &parsed) {
+        Ok(keys) => keys,
         Err(e) => {
             let _ = status_tx.send(ClientEvent::Failed(e)).await;
             return;
         }
     };
-    let mut encryption_key = match derived.derive_encryption_key(&parsed.session_nonce) {
-        Ok(k) => k,
-        Err(e) => {
-            let _ = status_tx.send(ClientEvent::Failed(e)).await;
-            return;
-        }
-    };
-
-    let transcript = build_transcript(
-        &session_id_bytes,
-        &parsed.session_nonce,
-        &parsed.peer_public_key,
-        &client_pubkey,
-    );
-
-    let sas_code = compute_sas_code(&encryption_key, &transcript);
-    // Recompute the fingerprint from the actual peer key — never display the
-    // peer-supplied `fp` value (already rejected on mismatch at parse time).
-    let verified_fingerprint = compute_display_fingerprint(
-        &parsed.session_id,
-        &parsed.peer_public_key,
-        &parsed.session_nonce,
-    );
     let local_account_count = state.store.list().len();
 
     // Install the answer channel only once this phase is reached, and before
@@ -730,123 +680,55 @@ pub async fn run_client_connector(
         })
         .await;
 
-    // Wait for role selection from frontend
-    let role_choice = tokio::select! {
-        _ = &mut cancel_rx => {
-            let _ = write_frame(&mut stream, MSG_ABORT, &AbortReason::CanceledBeforeRole.payload()).await;
-            let _ = status_tx.send(ClientEvent::Cancelled).await;
-            encryption_key.zeroize();
-            return;
-        }
-        res = &mut role_select_rx => {
-            match res {
-                Ok(r) => r,
-                Err(_) => {
-                    let _ = write_frame(&mut stream, MSG_ABORT, &AbortReason::RoleChoiceDropped.payload()).await;
-                    let _ = status_tx.send(ClientEvent::Failed("Role selection canceled".into())).await;
-                    encryption_key.zeroize();
-                    return;
-                }
+    let client_is_sender =
+        match await_role_choice(&mut stream, &mut cancel_rx, &mut role_select_rx).await {
+            Ok(is_sender) => is_sender,
+            Err(event) => {
+                let _ = status_tx.send(event).await;
+                encryption_key.zeroize();
+                return;
             }
-        }
-    };
+        };
 
-    if role_choice != "send" && role_choice != "receive" {
-        let _ = write_frame(&mut stream, MSG_ABORT, &AbortReason::InvalidRole.payload()).await;
-        let _ = status_tx
-            .send(ClientEvent::Failed(format!(
-                "Invalid pairing role '{role_choice}'. Expected 'send' or 'receive'."
-            )))
+    // Tell the host the choice. Whichever side sends also says how many
+    // accounts it has.
+    let announced: Result<usize, String> = async {
+        if client_is_sender {
+            let count_bytes = (local_account_count as u16).to_be_bytes();
+            let mut msg = Vec::with_capacity(3);
+            msg.push(ROLE_JOINER_SENDS);
+            msg.extend_from_slice(&count_bytes);
+            write_frame(&mut stream, MSG_ROLE_SELECT, &msg).await?;
+
+            // Wait for Host response
+            let resp = timeout(
+                Duration::from_secs(SOCKET_TIMEOUT_SECS),
+                read_frame_limited(&mut stream, MAX_CONTROL_FRAME_SIZE),
+            )
             .await;
-        encryption_key.zeroize();
-        return;
+            check_role_select_ack(resp)?;
+            Ok(local_account_count)
+        } else {
+            let msg = [ROLE_JOINER_RECEIVES, 0x00, 0x00];
+            write_frame(&mut stream, MSG_ROLE_SELECT, &msg).await?;
+
+            // Host responds with its account count
+            let resp = timeout(
+                Duration::from_secs(SOCKET_TIMEOUT_SECS),
+                read_frame_limited(&mut stream, MAX_CONTROL_FRAME_SIZE),
+            )
+            .await;
+            parse_host_account_count(resp)
+        }
     }
-
-    let (client_is_sender, account_count) = if role_choice == "send" {
-        let count = local_account_count;
-        let count_bytes = (count as u16).to_be_bytes();
-        let mut msg = Vec::with_capacity(3);
-        msg.push(ROLE_JOINER_SENDS);
-        msg.extend_from_slice(&count_bytes);
-
-        if let Err(e) = write_frame(&mut stream, MSG_ROLE_SELECT, &msg).await {
+    .await;
+    let account_count = match announced {
+        Ok(count) => count,
+        Err(e) => {
             let _ = status_tx.send(ClientEvent::Failed(e)).await;
             encryption_key.zeroize();
             return;
         }
-
-        // Wait for Host response
-        let resp = match timeout(
-            Duration::from_secs(SOCKET_TIMEOUT_SECS),
-            read_frame_limited(&mut stream, MAX_CONTROL_FRAME_SIZE),
-        )
-        .await
-        {
-            Ok(Ok((msg_type, payload))) if msg_type == MSG_ROLE_SELECT_RESP => {
-                if payload.len() > MAX_CONTROL_FRAME_SIZE {
-                    Err("Role select response too large".into())
-                } else {
-                    Ok(())
-                }
-            }
-            Ok(Ok((msg_type, _))) => Err(format!(
-                "Unexpected message type 0x{msg_type:02X} after role select"
-            )),
-            Ok(Err(e)) => Err(e),
-            Err(_) => Err("Timed out waiting for host role select response".into()),
-        };
-
-        if let Err(e) = resp {
-            let _ = status_tx.send(ClientEvent::Failed(e)).await;
-            encryption_key.zeroize();
-            return;
-        }
-
-        (true, count)
-    } else {
-        // "receive"
-        let msg = [ROLE_JOINER_RECEIVES, 0x00, 0x00];
-        if let Err(e) = write_frame(&mut stream, MSG_ROLE_SELECT, &msg).await {
-            let _ = status_tx.send(ClientEvent::Failed(e)).await;
-            encryption_key.zeroize();
-            return;
-        }
-
-        // Host responds with its account count
-        let host_count_res: Result<Result<usize, String>, _> =
-            timeout(Duration::from_secs(SOCKET_TIMEOUT_SECS), async {
-                let (msg_type, payload) =
-                    read_frame_limited(&mut stream, MAX_CONTROL_FRAME_SIZE).await?;
-                if msg_type != MSG_ROLE_SELECT_RESP {
-                    return Err("Expected MSG_ROLE_SELECT_RESP".into());
-                }
-                if payload.len() != 2 {
-                    return Err("Invalid role select response length".into());
-                }
-                let count = u16::from_be_bytes([payload[0], payload[1]]) as usize;
-                Ok(count)
-            })
-            .await;
-
-        let host_count = match host_count_res {
-            Ok(Ok(c)) => c,
-            Ok(Err(e)) => {
-                let _ = status_tx.send(ClientEvent::Failed(e)).await;
-                encryption_key.zeroize();
-                return;
-            }
-            Err(_) => {
-                let _ = status_tx
-                    .send(ClientEvent::Failed(
-                        "Timed out waiting for host account count".into(),
-                    ))
-                    .await;
-                encryption_key.zeroize();
-                return;
-            }
-        };
-
-        (false, host_count)
     };
 
     let client_role = if client_is_sender {
@@ -882,6 +764,147 @@ pub async fn run_client_connector(
         status_tx,
     )
     .await;
+}
+
+/// Opens the TCP connection to the host named in the QR code or join code.
+async fn connect_to_host(parsed: &ParsedQrPayload) -> Result<TcpStream, String> {
+    let connect_addr = parsed
+        .host
+        .parse::<std::net::IpAddr>()
+        .map(|ip| std::net::SocketAddr::new(ip, parsed.port).to_string())
+        .unwrap_or_else(|_| format!("{}:{}", format_uri_host(&parsed.host), parsed.port));
+    match timeout(
+        Duration::from_secs(CONNECT_TIMEOUT_SECS),
+        TcpStream::connect(&connect_addr),
+    )
+    .await
+    {
+        Ok(Ok(s)) => Ok(s),
+        Ok(Err(e)) => Err(format!("Connection failed to {connect_addr}: {e}")),
+        Err(_) => Err(format!("Connection timed out to {connect_addr}")),
+    }
+}
+
+/// Accepts the host's answer to the opening frame only if it is the OK reply.
+fn check_handshake_resp((msg_type, payload): (u8, Vec<u8>)) -> Result<(), String> {
+    if msg_type != MSG_HANDSHAKE_RESP {
+        return Err("Expected MSG_HANDSHAKE_RESP".into());
+    }
+    if payload.len() != 1 || payload[0] != RESP_OK {
+        return Err("Host rejected handshake".into());
+    }
+    Ok(())
+}
+
+/// What the joiner derives from its own key pair and the host's details.
+struct ClientKeys {
+    encryption_key: [u8; 32],
+    transcript: Vec<u8>,
+    sas_code: String,
+    verified_fingerprint: String,
+}
+
+/// Derives the encryption key, the verification code and the fingerprint to
+/// show for the host named in `parsed`.
+fn derive_client_keys(
+    keypair: &EphemeralKeyPair,
+    parsed: &ParsedQrPayload,
+) -> Result<ClientKeys, String> {
+    let host_point = x25519_dalek::PublicKey::from(parsed.peer_public_key);
+    let derived = keypair.diffie_hellman(&host_point)?;
+    let encryption_key = derived.derive_encryption_key(&parsed.session_nonce)?;
+
+    let transcript = build_transcript(
+        parsed.session_id.as_bytes(),
+        &parsed.session_nonce,
+        &parsed.peer_public_key,
+        &keypair.public_bytes(),
+    );
+
+    let sas_code = compute_sas_code(&encryption_key, &transcript);
+    // Recompute the fingerprint from the actual peer key — never display the
+    // peer-supplied `fp` value (already rejected on mismatch at parse time).
+    let verified_fingerprint = compute_display_fingerprint(
+        &parsed.session_id,
+        &parsed.peer_public_key,
+        &parsed.session_nonce,
+    );
+    Ok(ClientKeys {
+        encryption_key,
+        transcript,
+        sas_code,
+        verified_fingerprint,
+    })
+}
+
+/// Waits for the user to choose whether this device sends or receives, and
+/// returns true if it sends. If there will be no usable choice, the host is
+/// told and the event to show is returned.
+async fn await_role_choice(
+    stream: &mut TcpStream,
+    cancel_rx: &mut oneshot::Receiver<()>,
+    role_select_rx: &mut oneshot::Receiver<String>,
+) -> Result<bool, ClientEvent> {
+    let role_choice = tokio::select! {
+        _ = &mut *cancel_rx => {
+            send_abort(stream, AbortReason::CanceledBeforeRole).await;
+            return Err(ClientEvent::Cancelled);
+        }
+        res = &mut *role_select_rx => {
+            match res {
+                Ok(r) => r,
+                Err(_) => {
+                    send_abort(stream, AbortReason::RoleChoiceDropped).await;
+                    return Err(ClientEvent::Failed("Role selection canceled".into()));
+                }
+            }
+        }
+    };
+
+    match role_choice.as_str() {
+        "send" => Ok(true),
+        "receive" => Ok(false),
+        _ => {
+            send_abort(stream, AbortReason::InvalidRole).await;
+            Err(ClientEvent::Failed(format!(
+                "Invalid pairing role '{role_choice}'. Expected 'send' or 'receive'."
+            )))
+        }
+    }
+}
+
+/// The outcome of waiting for one frame: the frame, a read error, or a timeout.
+type TimedFrame = Result<Result<(u8, Vec<u8>), String>, tokio::time::error::Elapsed>;
+
+/// Accepts the host's reply to "this device sends".
+fn check_role_select_ack(resp: TimedFrame) -> Result<(), String> {
+    match resp {
+        Ok(Ok((msg_type, payload))) if msg_type == MSG_ROLE_SELECT_RESP => {
+            if payload.len() > MAX_CONTROL_FRAME_SIZE {
+                Err("Role select response too large".into())
+            } else {
+                Ok(())
+            }
+        }
+        Ok(Ok((msg_type, _))) => Err(format!(
+            "Unexpected message type 0x{msg_type:02X} after role select"
+        )),
+        Ok(Err(e)) => Err(e),
+        Err(_) => Err("Timed out waiting for host role select response".into()),
+    }
+}
+
+/// The host's account count from its reply to "this device receives".
+fn parse_host_account_count(resp: TimedFrame) -> Result<usize, String> {
+    let (msg_type, payload) =
+        resp.map_err(|_| "Timed out waiting for host account count".to_string())??;
+    if msg_type != MSG_ROLE_SELECT_RESP {
+        return Err("Expected MSG_ROLE_SELECT_RESP".into());
+    }
+    if payload.len() != 2 {
+        return Err("Invalid role select response length".into());
+    }
+    Ok(u16::from_be_bytes([payload[0], payload[1]]) as usize)
 }
 
 #[cfg(test)]
