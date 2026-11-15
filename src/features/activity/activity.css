@@ -41,10 +41,11 @@
   /* The same look as the top bar's Left / Used switch (.top-bar-segmented in top-bar.css). */
   .activity-period-switch {
     position: relative;
+    --segment-radius: 5px;
     display: inline-flex;
     gap: 2px;
-    /* 2px around 30px buttons and a 1px border: 36px tall, the same as the Left / Used switch. */
-    padding: 2px;
+    /* 3px around 28px buttons and a 1px border: 36px tall, the same as the Left / Used switch. */
+    padding: 3px;
     border: 1px solid var(--obsidian-border-strong);
     border-radius: 9px;
     background: var(--obsidian-surface-low);
@@ -56,16 +57,16 @@
       margin-block: -11px;
     }
 
-    /* 34px options in the 2px track and 1px border: a 40px switch on a phone, as tall as the menu button
+    /* 32px options in the 3px track and 1px border: a 40px switch on a phone, as tall as the menu button
        and the % Left / % Used switch. */
     .activity-period .activity-period-switch button {
-      height: 34px;
+      height: 32px;
     }
   }
 
   @media (min-width: 861px) {
     .activity-header-main {
-      /* The label (about 48px), its 8px gap, the switch (a 40px and a 48px button, a 2px gap, 2px
+      /* The label (about 48px), its 8px gap, the switch (a 40px and a 48px button, a 2px gap, 3px
          padding and a 1px border each side) and the 24px the header's flex gap used to leave beside it. */
       --activity-switch-room: 184px;
       position: relative;
@@ -88,10 +89,10 @@
 
   .activity-period-switch button {
     position: static !important;
-    height: 30px;
-    padding: 0 12px;
+    height: 28px;
+    padding: 0 11px;
     border: 0;
-    border-radius: 6px;
+    border-radius: 5px;
     background: transparent;
     color: var(--obsidian-muted) !important;
     font-size: 12px !important;
@@ -488,6 +489,18 @@
     border-style: dashed;
     border-color: var(--border-strong);
     background: transparent;
+  }
+
+  /* Mimic .provider-account-card.needs-attention: red border and subtle left tint when an account
+     has an error or needs sign-in. Placed after .is-no-weekly so it tints dashed cards too. */
+  .activity-card.needs-attention {
+    border-color: rgba(255, 133, 133, 0.42);
+    background: linear-gradient(90deg, var(--c-147-0-10-a120), var(--obsidian-surface-low) 18%);
+  }
+
+  .activity-card.is-no-weekly.needs-attention {
+    border-color: rgba(255, 133, 133, 0.42);
+    background: linear-gradient(90deg, var(--c-147-0-10-a120), transparent 18%);
   }
 
   .activity-card-title-row {

@@ -18,9 +18,15 @@ export function NoWeeklyLimitCard({
 }) {
   const titleId = useId();
   const email = accountEmail(account);
+  const hasError = Boolean(
+    account.authRequired
+    || account.lastError
+    || !account.lastUsage
+    || account.lastUsage.freshness !== "live",
+  );
   return (
     <article
-      className="activity-card is-no-weekly"
+      className={`activity-card is-no-weekly${hasError ? " needs-attention" : ""}`}
       aria-labelledby={titleId}
       data-account-id={account.id}
       data-reorder-provider={account.provider}

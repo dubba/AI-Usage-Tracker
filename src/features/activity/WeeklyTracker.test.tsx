@@ -176,9 +176,11 @@ describe("WeeklyTracker", () => {
     expect(root.querySelector("table thead")!.textContent).toContain("Monthly limit used");
   });
 
-  it("is not dimmed and has no notice while the account is signed in", () => {
+  it("is not dimmed, has no notice, and has no error border while the account is signed in", () => {
     const root = render(makeAccount({ id: "a1" }), undefined, vi.fn());
-    expect(root.querySelector(".activity-card")!.classList.contains("is-dimmed")).toBe(false);
+    const card = root.querySelector(".activity-card")!;
+    expect(card.classList.contains("is-dimmed")).toBe(false);
+    expect(card.classList.contains("needs-attention")).toBe(false);
     expect(root.querySelector(".activity-card-notice")).toBeNull();
   });
 
@@ -186,17 +188,32 @@ describe("WeeklyTracker", () => {
     const onReconnect = vi.fn();
     const account = makeAccount({ id: "a1", authRequired: true, lastError: "Sign-in expired." });
     const root = render(account, undefined, onReconnect);
-    expect(root.querySelector(".activity-card")!.classList.contains("is-dimmed")).toBe(true);
+    const card = root.querySelector(".activity-card")!;
+    expect(card.classList.contains("is-dimmed")).toBe(true);
+    expect(card.classList.contains("needs-attention")).toBe(true);
     expect(text(root, ".activity-card-notice span")).toBe("Sign-in expired.");
     expect(root.querySelectorAll(".activity-bar")).toHaveLength(7);
     click(root.querySelector<HTMLButtonElement>(".activity-card-notice button")!);
     expect(onReconnect).toHaveBeenCalledWith(account);
   });
 
+  it("marks cards with lastError or stale usage as needing attention", () => {
+    const errored = render(makeAccount({ id: "a1", lastError: "Refresh failed." }));
+    expect(errored.querySelector(".activity-card")!.classList.contains("needs-attention")).toBe(true);
+    mounted!.unmount();
+    mounted = null;
+
+    const staleAccount = makeAccount({ id: "a2" });
+    staleAccount.lastUsage!.freshness = "stale";
+    const stale = render(staleAccount);
+    expect(stale.querySelector(".activity-card")!.classList.contains("needs-attention")).toBe(true);
+  });
+
   it("treats an auth_required snapshot like a sign-in notice, with a fallback text and the Cloud wording", () => {
     const account = makeAccount({ id: "a1", provider: "google_ai_studio" });
     account.lastUsage!.freshness = "auth_required";
     const root = render(account, undefined, vi.fn());
+    expect(root.querySelector(".activity-card")!.classList.contains("needs-attention")).toBe(true);
     expect(text(root, ".activity-card-notice span")).toBe("Sign in again to keep tracking this account.");
     expect(text(root, ".activity-card-notice button")).toBe("Reconnect Cloud Usage");
   });
@@ -218,7 +235,13 @@ describe("NoWeeklyLimitCard", () => {
       "This account only has daily and per-minute limits, so there's no weekly usage to chart. Its current limits are on the Accounts tab.",
     );
     expect(root.querySelector(".activity-card")!.classList.contains("is-no-weekly")).toBe(true);
+    expect(root.querySelector(".activity-card")!.classList.contains("needs-attention")).toBe(false);
     expect(root.querySelector(".activity-bars")).toBeNull();
+  });
+
+  it("marks a no-weekly-limit card as needing attention when it has an error", () => {
+    mounted = mount(<NoWeeklyLimitCard account={makeAccount({ id: "s1", label: "Studio key", provider: "google_ai_studio", lastError: "API key rejected." })} otherLimits={["daily"]} />);
+    expect(mounted.container.querySelector(".activity-card")!.classList.contains("needs-attention")).toBe(true);
   });
 
   it("shows the account email beside the name", () => {

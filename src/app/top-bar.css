@@ -92,14 +92,15 @@
   }
 
   /* The Left / Used switch (on the Accounts page, AccountsView.tsx) and the Usage page's 7D / 30D
-     switch (activity.css) share one smaller look: the same purple selected option and hover as the page switch above, in a 30px box. */
+     switch (activity.css) share one smaller look: the same purple selected option and hover as the page switch above, in a 28px box inside 3px padding. */
   .top-bar-segmented {
     position: relative;
+    --segment-radius: 5px;
     display: flex;
     flex: 0 0 auto;
     gap: 2px;
-    /* 2px around 30px buttons and a 1px border: 36px tall, the same as the 7D / 30D switch. */
-    padding: 2px;
+    /* 3px around 28px buttons and a 1px border: 36px tall, the same as the 7D / 30D switch. */
+    padding: 3px;
     border: 1px solid var(--obsidian-border-strong);
     border-radius: 9px;
     background: var(--obsidian-surface-low);
@@ -108,10 +109,10 @@
 
   .top-bar-segmented button {
     position: static !important;
-    height: 30px;
-    padding: 0 12px;
+    height: 28px;
+    padding: 0 11px;
     border: 0;
-    border-radius: 6px;
+    border-radius: 5px;
     background: transparent;
     color: var(--obsidian-muted) !important;
     font-size: 12px !important;

@@ -28,7 +28,7 @@ describe("sidebar list separators", () => {
     expect(rule).toContain("height: 1px;");
     expect(rule).toContain("background: var(--obsidian-border);");
     expect(rule).toContain("pointer-events: none;");
-    expect(rule).toContain("top: -4px;");
+    expect(rule).toContain("top: -5px;");
   });
 
   it("adds top margin on consecutive rows to evenly center cards between separators", () => {
@@ -81,5 +81,11 @@ describe("sidebar list separators", () => {
       ".provider-summary-row.is-bucket-row + .provider-summary-row.is-bucket-row",
     );
     expect(groupSeparatorsWithTwo).toHaveLength(1);
+  });
+
+  it("draws a 1px divider to the right of Accounts and Groups section titles", () => {
+    expect(SIDEBAR_CSS).toMatch(
+      /\.sidebar-section-header::after\s*\{[^}]*flex:\s*1\s+1\s+auto;[^}]*height:\s*1px;[^}]*background:\s*var\(--obsidian-border\);/,
+    );
   });
 });

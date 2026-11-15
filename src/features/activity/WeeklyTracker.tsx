@@ -46,6 +46,10 @@ export function WeeklyTracker({
   // this page is about consumption, and the daily bars below count usage too.
   const tone = usageTone(used == null ? null : 100 - used);
   const needsSignIn = account.authRequired || account.lastUsage?.freshness === "auth_required";
+  const hasError = needsSignIn
+    || Boolean(account.lastError)
+    || !account.lastUsage
+    || account.lastUsage.freshness !== "live";
   const limitName = account.provider === "antigravity" ? antigravityFamilyLabel(tracker.windowLabel) : null;
   const email = accountEmail(account);
   const reset = formatResetAtShort(tracker.resetsAt);
@@ -55,7 +59,7 @@ export function WeeklyTracker({
 
   return (
     <article
-      className={`activity-card${needsSignIn ? " is-dimmed" : ""}`}
+      className={`activity-card${needsSignIn ? " is-dimmed" : ""}${hasError ? " needs-attention" : ""}`}
       aria-labelledby={titleId}
       data-account-id={account.id}
       data-reorder-provider={account.provider}
