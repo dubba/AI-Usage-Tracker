@@ -941,12 +941,57 @@ async fn run_authenticated_transfer<E>(
     mut encryption_key: [u8; 32],
     transcript: Vec<u8>,
     sas_code: String,
-    mut sas_confirm_rx: oneshot::Receiver<bool>,
-    mut cancel_rx: oneshot::Receiver<()>,
+    sas_confirm_rx: oneshot::Receiver<bool>,
+    cancel_rx: oneshot::Receiver<()>,
     status_tx: mpsc::Sender<E>,
 ) where
     E: From<TransferEvent> + Send + 'static,
 {
+    let stream = match exchange_confirmations(
+        stream,
+        is_sender,
+        &encryption_key,
+        &sas_code,
+        sas_confirm_rx,
+        cancel_rx,
+    )
+    .await
+    {
+        Ok(s) => s,
+        Err(e) => {
+            let _ = status_tx.send(TransferEvent::Failed(e).into()).await;
+            encryption_key.zeroize();
+            return;
+        }
+    };
+
+    let _ = status_tx.send(TransferEvent::Transferring.into()).await;
+
+    let result = if is_sender {
+        send_accounts(&state, stream, &encryption_key, &transcript).await
+    } else {
+        receive_accounts(&state, stream, &encryption_key, &transcript).await
+    };
+    encryption_key.zeroize();
+
+    let event = match result {
+        Ok(summary) => TransferEvent::Completed(summary),
+        Err(e) => TransferEvent::Failed(e),
+    };
+    let _ = status_tx.send(event.into()).await;
+}
+
+/// Sends this side's confirmation of the verification code once the user
+/// accepts it, and checks the peer's. Returns the connection only when both
+/// sides confirmed the same code; nothing large is read before that.
+async fn exchange_confirmations(
+    stream: TcpStream,
+    is_sender: bool,
+    encryption_key: &[u8; 32],
+    sas_code: &str,
+    mut sas_confirm_rx: oneshot::Receiver<bool>,
+    mut cancel_rx: oneshot::Receiver<()>,
+) -> Result<TcpStream, String> {
     let my_tag_info = if is_sender {
         CONFIRM_SENDER_INFO
     } else {
@@ -958,7 +1003,7 @@ async fn run_authenticated_transfer<E>(
         CONFIRM_SENDER_INFO
     };
 
-    let my_tag = compute_confirmation_tag(&encryption_key, &sas_code, my_tag_info);
+    let my_tag = compute_confirmation_tag(encryption_key, sas_code, my_tag_info);
 
     // Split stream for concurrent mutual confirmation exchange
     let (mut read_half, mut write_half) = stream.into_split();
@@ -966,7 +1011,7 @@ async fn run_authenticated_transfer<E>(
     let writer_task = async {
         tokio::select! {
             _ = &mut cancel_rx => {
-                let _ = write_frame(&mut write_half, MSG_ABORT, &AbortReason::CanceledBeforeConfirm.payload()).await;
+                send_abort(&mut write_half, AbortReason::CanceledBeforeConfirm).await;
                 Err("Canceled by user".to_string())
             }
             confirmed = &mut sas_confirm_rx => {
@@ -979,7 +1024,7 @@ async fn run_authenticated_transfer<E>(
                         Ok(())
                     }
                     _ => {
-                        let _ = write_frame(&mut write_half, MSG_ABORT, &AbortReason::SasRejected.payload()).await;
+                        send_abort(&mut write_half, AbortReason::SasRejected).await;
                         Err("User rejected verification code".to_string())
                     }
                 }
@@ -1001,7 +1046,7 @@ async fn run_authenticated_transfer<E>(
         let mut peer_tag = [0u8; CONFIRM_TAG_LEN];
         peer_tag.copy_from_slice(&payload[1..]);
 
-        if !verify_confirmation_tag(&encryption_key, &sas_code, peer_tag_info, &peer_tag) {
+        if !verify_confirmation_tag(encryption_key, sas_code, peer_tag_info, &peer_tag) {
             return Err(
                 "The codes do not match. Compare all three groups. If the other device shows only two, update it and try again."
                     .to_string(),
@@ -1014,180 +1059,115 @@ async fn run_authenticated_transfer<E>(
 
     let exchange_res = timeout(Duration::from_secs(CONFIRM_TIMEOUT_SECS), exchange_task).await;
 
-    let mut stream = match exchange_res {
-        Ok(Ok((_, _))) => match read_half.reunite(write_half) {
-            Ok(s) => s,
-            Err(e) => {
-                let _ = status_tx
-                    .send(TransferEvent::Failed(format!("Socket reunite error: {e}")).into())
-                    .await;
-                encryption_key.zeroize();
-                return;
+    match exchange_res {
+        Ok(Ok((_, _))) => read_half
+            .reunite(write_half)
+            .map_err(|e| format!("Socket reunite error: {e}")),
+        Ok(Err(e)) => Err(e),
+        Err(_) => Err("Confirmation exchange timed out".into()),
+    }
+}
+
+/// SENDER: exports this device's accounts, encrypts them, sends them, and
+/// returns what the receiver says it did with them.
+async fn send_accounts(
+    state: &AppState,
+    mut stream: TcpStream,
+    encryption_key: &[u8; 32],
+    transcript: &[u8],
+) -> Result<SyncSummary, String> {
+    let mut export_bytes = create_export_payload(state)?;
+    // Clear the confirm-time snapshot and the live flags after
+    // snapshotting, so this transfer's choices do not leak into the next one.
+    state.pairing_options.write().clear_after_export();
+
+    let encrypted = encrypt_payload(encryption_key, transcript, &export_bytes);
+    export_bytes.zeroize();
+    let encrypted = encrypted?;
+
+    write_frame(&mut stream, MSG_ENCRYPTED_PAYLOAD, &encrypted).await?;
+
+    // Read ACK (small authenticated control frame)
+    let ack_res: Result<Result<SyncSummary, String>, _> =
+        timeout(Duration::from_secs(SOCKET_TIMEOUT_SECS), async {
+            let (msg_type, payload) =
+                read_frame_limited(&mut stream, MAX_CONTROL_FRAME_SIZE).await?;
+            if msg_type != MSG_ACK {
+                return Err("Expected MSG_ACK".into());
             }
-        },
+            if payload.len() != 6 {
+                return Err("Invalid ACK payload length".into());
+            }
+
+            let added = u16::from_be_bytes([payload[0], payload[1]]);
+            let updated = u16::from_be_bytes([payload[2], payload[3]]);
+            let skipped = u16::from_be_bytes([payload[4], payload[5]]);
+
+            Ok(SyncSummary {
+                added,
+                updated,
+                skipped,
+                ..SyncSummary::default()
+            })
+        })
+        .await;
+
+    ack_res.unwrap_or_else(|_| Err("Timed out waiting for transfer ACK".into()))
+}
+
+/// RECEIVER: reads the encrypted payload, decrypts and imports it, and tells
+/// the sender what happened.
+async fn receive_accounts(
+    state: &Arc<AppState>,
+    mut stream: TcpStream,
+    encryption_key: &[u8; 32],
+    transcript: &[u8],
+) -> Result<SyncSummary, String> {
+    // This is the only large frame in the protocol and it is accepted
+    // solely after mutual SAS confirmation succeeded.
+    let payload_res: Result<Result<Vec<u8>, String>, _> =
+        timeout(Duration::from_secs(SOCKET_TIMEOUT_SECS), async {
+            let (msg_type, payload) = read_frame_limited(&mut stream, MAX_FRAME_SIZE).await?;
+            if msg_type != MSG_ENCRYPTED_PAYLOAD {
+                return Err("Expected MSG_ENCRYPTED_PAYLOAD".into());
+            }
+            let decrypted = decrypt_payload(encryption_key, transcript, &payload)?;
+            Ok(decrypted)
+        })
+        .await;
+
+    let mut decrypted_bytes = match payload_res {
+        Ok(Ok(bytes)) => bytes,
         Ok(Err(e)) => {
-            let _ = status_tx.send(TransferEvent::Failed(e).into()).await;
-            encryption_key.zeroize();
-            return;
+            send_abort(&mut stream, AbortReason::PayloadInvalid).await;
+            return Err(e);
         }
         Err(_) => {
-            let _ = status_tx
-                .send(TransferEvent::Failed("Confirmation exchange timed out".into()).into())
-                .await;
-            encryption_key.zeroize();
-            return;
+            send_abort(&mut stream, AbortReason::PayloadTimedOut).await;
+            return Err("Payload reception timed out".into());
         }
     };
 
-    let _ = status_tx.send(TransferEvent::Transferring.into()).await;
-
-    if is_sender {
-        // SENDER: Export state, encrypt, and send payload
-        let mut export_bytes = match create_export_payload(&state) {
-            Ok(b) => {
-                // Clear the confirm-time snapshot and the live flags after
-                // snapshotting, so this transfer's choices do not leak into the next one.
-                state.pairing_options.write().clear_after_export();
-                b
-            }
-            Err(e) => {
-                let _ = status_tx.send(TransferEvent::Failed(e).into()).await;
-                encryption_key.zeroize();
-                return;
-            }
-        };
-
-        let encrypted = match encrypt_payload(&encryption_key, &transcript, &export_bytes) {
-            Ok(c) => c,
-            Err(e) => {
-                let _ = status_tx.send(TransferEvent::Failed(e).into()).await;
-                export_bytes.zeroize();
-                encryption_key.zeroize();
-                return;
-            }
-        };
-
-        export_bytes.zeroize();
-
-        if let Err(e) = write_frame(&mut stream, MSG_ENCRYPTED_PAYLOAD, &encrypted).await {
-            let _ = status_tx.send(TransferEvent::Failed(e).into()).await;
-            encryption_key.zeroize();
-            return;
+    // Import into native keystore and accounts.json
+    let imported = import_sync_payload(state, &decrypted_bytes).await;
+    decrypted_bytes.zeroize();
+    let summary = match imported {
+        Ok(s) => s,
+        Err(e) => {
+            send_abort(&mut stream, AbortReason::ImportFailed).await;
+            return Err(e);
         }
+    };
 
-        // Read ACK (small authenticated control frame)
-        let ack_res: Result<Result<SyncSummary, String>, _> =
-            timeout(Duration::from_secs(SOCKET_TIMEOUT_SECS), async {
-                let (msg_type, payload) =
-                    read_frame_limited(&mut stream, MAX_CONTROL_FRAME_SIZE).await?;
-                if msg_type != MSG_ACK {
-                    return Err("Expected MSG_ACK".into());
-                }
-                if payload.len() != 6 {
-                    return Err("Invalid ACK payload length".into());
-                }
+    // Send ACK frame
+    let mut ack_body = Vec::with_capacity(6);
+    ack_body.extend_from_slice(&summary.added.to_be_bytes());
+    ack_body.extend_from_slice(&summary.updated.to_be_bytes());
+    ack_body.extend_from_slice(&summary.skipped.to_be_bytes());
+    let _ = write_frame(&mut stream, MSG_ACK, &ack_body).await;
+    let _ = stream.shutdown().await;
 
-                let added = u16::from_be_bytes([payload[0], payload[1]]);
-                let updated = u16::from_be_bytes([payload[2], payload[3]]);
-                let skipped = u16::from_be_bytes([payload[4], payload[5]]);
-
-                Ok(SyncSummary {
-                    added,
-                    updated,
-                    skipped,
-                    ..SyncSummary::default()
-                })
-            })
-            .await;
-
-        encryption_key.zeroize();
-
-        match ack_res {
-            Ok(Ok(summary)) => {
-                let _ = status_tx
-                    .send(TransferEvent::Completed(summary).into())
-                    .await;
-            }
-            Ok(Err(e)) => {
-                let _ = status_tx.send(TransferEvent::Failed(e).into()).await;
-            }
-            Err(_) => {
-                let _ = status_tx
-                    .send(TransferEvent::Failed("Timed out waiting for transfer ACK".into()).into())
-                    .await;
-            }
-        }
-    } else {
-        // RECEIVER: Read encrypted payload, decrypt, and import.
-        // This is the only large frame in the protocol and it is accepted
-        // solely after mutual SAS confirmation succeeded.
-        let payload_res: Result<Result<Vec<u8>, String>, _> =
-            timeout(Duration::from_secs(SOCKET_TIMEOUT_SECS), async {
-                let (msg_type, payload) = read_frame_limited(&mut stream, MAX_FRAME_SIZE).await?;
-                if msg_type != MSG_ENCRYPTED_PAYLOAD {
-                    return Err("Expected MSG_ENCRYPTED_PAYLOAD".into());
-                }
-                let decrypted = decrypt_payload(&encryption_key, &transcript, &payload)?;
-                Ok(decrypted)
-            })
-            .await;
-
-        let mut decrypted_bytes = match payload_res {
-            Ok(Ok(bytes)) => bytes,
-            Ok(Err(e)) => {
-                let _ = write_frame(
-                    &mut stream,
-                    MSG_ABORT,
-                    &AbortReason::PayloadInvalid.payload(),
-                )
-                .await;
-                let _ = status_tx.send(TransferEvent::Failed(e).into()).await;
-                encryption_key.zeroize();
-                return;
-            }
-            Err(_) => {
-                let _ = write_frame(
-                    &mut stream,
-                    MSG_ABORT,
-                    &AbortReason::PayloadTimedOut.payload(),
-                )
-                .await;
-                let _ = status_tx
-                    .send(TransferEvent::Failed("Payload reception timed out".into()).into())
-                    .await;
-                encryption_key.zeroize();
-                return;
-            }
-        };
-
-        // Import into native keystore and accounts.json
-        let summary = match import_sync_payload(&state, &decrypted_bytes).await {
-            Ok(s) => s,
-            Err(e) => {
-                let _ =
-                    write_frame(&mut stream, MSG_ABORT, &AbortReason::ImportFailed.payload()).await;
-                let _ = status_tx.send(TransferEvent::Failed(e).into()).await;
-                decrypted_bytes.zeroize();
-                encryption_key.zeroize();
-                return;
-            }
-        };
-
-        decrypted_bytes.zeroize();
-        encryption_key.zeroize();
-
-        // Send ACK frame
-        let mut ack_body = Vec::with_capacity(6);
-        ack_body.extend_from_slice(&summary.added.to_be_bytes());
-        ack_body.extend_from_slice(&summary.updated.to_be_bytes());
-        ack_body.extend_from_slice(&summary.skipped.to_be_bytes());
-        let _ = write_frame(&mut stream, MSG_ACK, &ack_body).await;
-        let _ = stream.shutdown().await;
-
-        let _ = status_tx
-            .send(TransferEvent::Completed(summary).into())
-            .await;
-    }
+    Ok(summary)
 }
 
 pub enum TransferEvent {
