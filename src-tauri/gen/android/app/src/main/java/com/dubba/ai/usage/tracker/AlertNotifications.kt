@@ -8,7 +8,7 @@ import androidx.core.app.NotificationCompat
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Posts a usage alert on the "default" channel that `MainActivity` creates. Used by the
+ * Posts a usage alert on the "default" channel that `UpdateNotifications.createChannels` creates at launch. Used by the
  * activity (alerts raised while the app is open) and by `BackgroundRefreshWorker` (alerts
  * raised while it is closed), so both look the same.
  */

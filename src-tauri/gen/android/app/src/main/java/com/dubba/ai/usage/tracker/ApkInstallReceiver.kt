@@ -16,7 +16,7 @@ class ApkInstallReceiver : BroadcastReceiver() {
       @Suppress("DEPRECATION")
       intent.getParcelableExtra(Intent.EXTRA_INTENT)
     }
-    MainActivity.onInstallSessionStatus(context, status, confirm, message)
+    AppUpdateInstaller.onInstallSessionStatus(context, status, confirm, message)
   }
 
   companion object {
