@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import { pairingApi } from "../../../shared/lib/api";
 import { describeError } from "../../../shared/lib/errors";
+import { logIgnored } from "../../../shared/lib/log";
 import { useAutoDismissedError } from "../../../shared/hooks/useAutoDismissedError";
 import { isMobileUserAgent } from "../../../shared/lib/platform";
 import { applyAutofocusAndZoom, getCameraStream } from "../lib/camera-stream";
@@ -198,7 +199,7 @@ export function useQrScanner({ active, restartKey, onDecoded, onError }: UseQrSc
               }
             }
           } catch (enumErr) {
-            console.warn("Camera enumeration error:", enumErr);
+            logIgnored("pairing.cameraEnumeration", enumErr);
           }
         }
 
@@ -386,7 +387,7 @@ export function useQrScanner({ active, restartKey, onDecoded, onError }: UseQrSc
 
       await applyAutofocusAndZoom(videoTrack);
     } catch (err) {
-      console.warn("Failed to switch camera:", err);
+      logIgnored("pairing.switchCamera", err);
     } finally {
       switchingCameraRef.current = false;
     }

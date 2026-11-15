@@ -180,8 +180,6 @@ pub fn generate_qr_svg(uri: &str) -> Result<String, String> {
 
 #[derive(Debug, Clone)]
 pub enum HostEvent {
-    #[cfg_attr(not(test), allow(dead_code))]
-    Connected(String),
     PeerConnected {
         sas_code: String,
         fingerprint: String,
@@ -204,11 +202,6 @@ pub type ReceiverEvent = HostEvent;
 
 #[derive(Debug, Clone)]
 pub enum ClientEvent {
-    #[cfg_attr(not(test), allow(dead_code))]
-    Connected {
-        sas_code: String,
-        account_count: usize,
-    },
     RoleSelection {
         sas_code: String,
         fingerprint: String,
@@ -369,8 +362,7 @@ pub async fn run_host_listener(
             continue 'session;
         }
 
-        // Emit Connected events for backward-compat and peer connection status
-        let _ = status_tx.send(HostEvent::Connected(sas_code.clone())).await;
+        // Tell the UI a peer has connected
         let _ = status_tx
             .send(HostEvent::PeerConnected {
                 sas_code: sas_code.clone(),
@@ -651,13 +643,6 @@ pub async fn run_client_connector(
     );
     let local_account_count = state.store.list().len();
 
-    // Emit Connected for backward compatibility and RoleSelection for UI
-    let _ = status_tx
-        .send(ClientEvent::Connected {
-            sas_code: sas_code.clone(),
-            account_count: local_account_count,
-        })
-        .await;
     // Install the answer channel only once this phase is reached, and before
     // the UI is told, so an earlier role choice has nothing to send on.
     if let Some(tx) = role_offer.take() {

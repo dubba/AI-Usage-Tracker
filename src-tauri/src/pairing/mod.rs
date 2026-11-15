@@ -434,7 +434,6 @@ impl PairingSessionManager {
         tokio::spawn(async move {
             while let Some(event) = status_rx.recv().await {
                 let current_status = match event {
-                    HostEvent::Connected(_) => continue, // Followed by PeerConnected
                     HostEvent::PeerConnected {
                         sas_code,
                         fingerprint,
@@ -546,7 +545,6 @@ impl PairingSessionManager {
         tokio::spawn(async move {
             while let Some(event) = status_rx.recv().await {
                 let current_status = match event {
-                    ClientEvent::Connected { .. } => continue, // Followed by RoleSelection
                     ClientEvent::RoleSelection {
                         sas_code,
                         fingerprint,
