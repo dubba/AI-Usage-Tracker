@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (2 changes)
+
+### Improved (2)
+
+- In Settings, Launch at Startup is now the first item under General, above Menu Bar Labels, Appearance and Account Refresh.
+- On phones, with Menu Bar Labels turned off, the bottom bar is now slimmer: the buttons are 40px tall instead of 48px, and the page and pop-up messages move down to match.
 
 ## v0.5.11 - 2026-11-14 (15 changes)
 

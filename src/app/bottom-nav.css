@@ -18,6 +18,11 @@
     --bottom-nav-height: calc(62px + var(--bottom-nav-offset));
   }
 
+  /* Page names turned off: the items are 40px, so the bar is 8px shorter. */
+  .app-shell.has-bottom-nav:has(.bottom-nav.is-icon-only) {
+    --bottom-nav-height: calc(54px + var(--bottom-nav-offset));
+  }
+
   .bottom-nav {
     position: fixed;
     bottom: var(--bottom-nav-offset, 12px);
@@ -66,10 +71,12 @@
     height: 22px !important;
   }
 
-  /* Page names turned off in Settings: narrower items that hold only the icon. The bar keeps its
-   * height, so --bottom-nav-height stays right. */
+  /* Page names turned off in Settings: narrower, shorter items that hold only the icon. 40px is
+   * under the 44px touch target used elsewhere; the owner chose the slimmer bar (2026-11-15).
+   * --bottom-nav-height above follows this height. */
   .bottom-nav.is-icon-only .bottom-nav-item {
     width: 64px;
+    height: 40px;
   }
 
   .bottom-nav.is-icon-only .bottom-nav-item svg {

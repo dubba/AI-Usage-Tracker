@@ -73,6 +73,11 @@ describe("bottom bar colors", () => {
   it("floats above the system area and tells the shell how much room it takes", () => {
     expect(NAV).toContain("--bottom-nav-offset: max(12px, calc(var(--safe-area-bottom, 0px) + 6px));");
     expect(NAV).toContain("--bottom-nav-height: calc(62px + var(--bottom-nav-offset));");
+    // Icons only: 40px items, and the shell's height follows so the page padding and toasts move too.
+    expect(NAV).toMatch(/\.bottom-nav\.is-icon-only \.bottom-nav-item \{[^}]*height: 40px;/);
+    expect(NAV).toMatch(
+      /\.app-shell\.has-bottom-nav:has\(\.bottom-nav\.is-icon-only\) \{\s*--bottom-nav-height: calc\(54px \+ var\(--bottom-nav-offset\)\);/,
+    );
     expect(NAV).toContain("bottom: var(--bottom-nav-offset, 12px);");
   });
 });

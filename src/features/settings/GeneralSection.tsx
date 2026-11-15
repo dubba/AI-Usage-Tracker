@@ -21,7 +21,7 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: "system", label: "System" },
 ];
 
-/** Appearance, the bottom bar's labels, launch at startup, and how often accounts refresh. */
+/** Launch at startup, the bottom bar's labels, appearance, and how often accounts refresh. */
 export function GeneralSection() {
   const { appSettings, autostart, toggleAutostart, refreshIntervalBusy, saveAccountRefreshMinutes } = useAppSettingsState();
   const [themePreference, setThemePreference] = useThemePreference();
@@ -34,6 +34,16 @@ export function GeneralSection() {
     <>
       <h2 className="settings-section-title">General</h2>
       <section className="settings-card">
+        {/* Neither Android nor iOS lets an app open its screen when the phone starts, so the switch would do nothing. */}
+        {!isAndroid() && !isIOS() ? (
+          <div className="settings-row">
+            <div>
+              <strong id="setting-autostart-label">Launch at Startup</strong>
+              <small>Start the app when your device starts.</small>
+            </div>
+            <ToggleSwitch checked={autostart} labelledBy="setting-autostart-label" onChange={() => void toggleAutostart()} />
+          </div>
+        ) : null}
         {hasBottomNav ? (
           <div className="settings-row">
             <div>
@@ -58,16 +68,6 @@ export function GeneralSection() {
             />
           </div>
         </div>
-        {/* Neither Android nor iOS lets an app open its screen when the phone starts, so the switch would do nothing. */}
-        {!isAndroid() && !isIOS() ? (
-          <div className="settings-row">
-            <div>
-              <strong id="setting-autostart-label">Launch at Startup</strong>
-              <small>Start the app when your device starts.</small>
-            </div>
-            <ToggleSwitch checked={autostart} labelledBy="setting-autostart-label" onChange={() => void toggleAutostart()} />
-          </div>
-        ) : null}
         <div className="settings-row">
           <div>
             <strong>Account Refresh</strong>
