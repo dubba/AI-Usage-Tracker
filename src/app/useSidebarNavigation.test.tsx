@@ -162,15 +162,39 @@ describe("useSidebarNavigation", () => {
     expect(nav.section).toBe("accounts");
   });
 
+  it("stepPage moves forward and backward along Dashboard, Usage, Settings and stops at the ends", () => {
+    mounted = mount(<Probe />);
+    expect(nav.section).toBe("accounts");
+
+    // At Dashboard (first page): stepping backward stays on Dashboard.
+    act(() => nav.stepPage(-1));
+    expect(nav.section).toBe("accounts");
+
+    // Dashboard -> Usage -> Settings -> Usage -> Dashboard.
+    act(() => nav.stepPage(1));
+    expect(nav.section).toBe("activity");
+    act(() => nav.stepPage(1));
+    expect(nav.section).toBe("settings");
+    // At Settings (last page): stepping forward stays on Settings.
+    act(() => nav.stepPage(1));
+    expect(nav.section).toBe("settings");
+
+    act(() => nav.stepPage(-1));
+    expect(nav.section).toBe("activity");
+    act(() => nav.stepPage(-1));
+    expect(nav.section).toBe("accounts");
+  });
+
   it("keeps the same functions between renders", () => {
     mounted = mount(<Probe />);
-    const { selectGroup, showSettings, showActivity, showAccounts, cyclePages, toggleSidebar } = nav;
+    const { selectGroup, showSettings, showActivity, showAccounts, cyclePages, stepPage, toggleSidebar } = nav;
     act(() => nav.toggleSidebar());
     expect(nav.selectGroup).toBe(selectGroup);
     expect(nav.showSettings).toBe(showSettings);
     expect(nav.showActivity).toBe(showActivity);
     expect(nav.showAccounts).toBe(showAccounts);
     expect(nav.cyclePages).toBe(cyclePages);
+    expect(nav.stepPage).toBe(stepPage);
     expect(nav.toggleSidebar).toBe(toggleSidebar);
   });
 });

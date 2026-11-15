@@ -6,6 +6,8 @@ import { rememberVisiblePageScroll } from "./page-scroll";
 
 export type Section = "activity" | "accounts" | "settings";
 
+const PAGE_ORDER: readonly Section[] = ["accounts", "activity", "settings"];
+
 function isSection(value: unknown): value is Section {
   return value === "activity" || value === "accounts" || value === "settings";
 }
@@ -67,8 +69,13 @@ export function useSidebarNavigation() {
 
   /** The keyboard shortcut that steps through the pages in the order of the page switch: Dashboard, Usage, Settings, and round again. */
   const cyclePages = useCallback(() => {
-    const order: Section[] = ["accounts", "activity", "settings"];
-    navigate(order[(order.indexOf(currentSection.current) + 1) % order.length], true);
+    navigate(PAGE_ORDER[(PAGE_ORDER.indexOf(currentSection.current) + 1) % PAGE_ORDER.length], true);
+  }, [navigate]);
+
+  /** Moves one page forward (`1`) or backward (`-1`) along Dashboard -> Usage -> Settings, stopping at the ends. */
+  const stepPage = useCallback((delta: -1 | 1) => {
+    const next = PAGE_ORDER[PAGE_ORDER.indexOf(currentSection.current) + delta];
+    if (next) navigate(next, true);
   }, [navigate]);
 
   const toggleSidebar = useCallback(() => setSidebarOpen((open) => !open), []);
@@ -84,6 +91,7 @@ export function useSidebarNavigation() {
     showAccounts,
     showSettings,
     cyclePages,
+    stepPage,
     toggleSidebar,
     closeSidebar,
   };

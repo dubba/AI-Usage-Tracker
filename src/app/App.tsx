@@ -54,6 +54,7 @@ import { useBottomNavVisible } from "./useBottomNavVisible";
 import { useGroupOrderReconcile } from "./useGroupOrderReconcile";
 import { watchPageScrollRestore } from "./page-scroll";
 import { useSidebarNavigation } from "./useSidebarNavigation";
+import { useSwipePageNavigation } from "./useSwipePageNavigation";
 
 // One shared empty list, so the "not loaded yet" value is the same object on every render.
 const NO_ACCOUNTS: Account[] = [];
@@ -78,6 +79,7 @@ export default function App() {
   useDragReorder();
   const shellRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
+  const mainStageRef = useRef<HTMLElement>(null);
   const { overlay: sidebarIsOverlay } = useSidebarOverlay(sidebarRef, sidebarOpen, nav.closeSidebar);
   // As an off-canvas overlay the sidebar is a modal dialog while open and unreachable while closed.
   const sidebarModal = sidebarIsOverlay && sidebarOpen;
@@ -100,6 +102,13 @@ export default function App() {
   const update = useAppUpdate({ automaticUpdatesEnabled: appSettings?.automaticUpdatesEnabled });
   const { alerts: inAppAlerts, dismiss: dismissAlert } = useUsageAlerts();
   const { pairingOpen, setPairingOpen, pairingInitialUri, closePairing } = usePairingEvents();
+  const swipeNavigationEnabled =
+    (sidebarIsOverlay || isMobileDevice())
+    && !sidebarModal
+    && modal == null
+    && !pairingOpen
+    && !update.updateNotesOpen;
+  useSwipePageNavigation(mainStageRef, swipeNavigationEnabled, nav.stepPage);
   const {
     refreshOne,
     refreshAll,
@@ -415,7 +424,7 @@ export default function App() {
         onRefreshAll={() => void refreshAll()}
       />
 
-      <main className="main-stage" inert={sidebarModal}>
+      <main ref={mainStageRef} className="main-stage" inert={sidebarModal}>
         {snapshot ? renderContent() : (
           <div className="loading-screen" aria-busy="true" aria-live="polite">
             {loadError ? (
