@@ -1,3 +1,4 @@
+use super::json_values::{value_as_f64, value_as_i64, value_as_u64};
 use super::limit_resets::{self, RedeemOutcome};
 use super::{
     body_too_large, classify_status,
@@ -391,27 +392,6 @@ fn normalize_window(id: &str, label: &str, raw: &RawWindow) -> Option<UsageWindo
         window_seconds,
         kind: None,
     })
-}
-
-fn value_as_f64(value: &Value) -> Option<f64> {
-    value
-        .as_f64()
-        .or_else(|| value.as_str()?.parse().ok())
-        .filter(|v| v.is_finite())
-}
-
-fn value_as_i64(value: &Value) -> Option<i64> {
-    value
-        .as_i64()
-        .or_else(|| value.as_u64().and_then(|value| i64::try_from(value).ok()))
-        .or_else(|| value.as_str()?.parse().ok())
-}
-
-fn value_as_u64(value: &Value) -> Option<u64> {
-    value
-        .as_u64()
-        .or_else(|| value.as_i64().and_then(|value| u64::try_from(value).ok()))
-        .or_else(|| value.as_str()?.parse().ok())
 }
 
 #[cfg(test)]

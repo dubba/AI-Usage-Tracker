@@ -178,28 +178,6 @@ fn grok_billing_status_error_mapping() {
 }
 
 #[test]
-fn extracts_email_from_jwt_and_cookie_header() {
-    // Sample JWT payload with email: {"sub":"123","email":"test.user@example.com"}
-    let jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMiLCJlbWFpbCI6InRlc3QudXNlckBleGFtcGxlLmNvbSJ9.signature";
-    assert_eq!(
-        extract_identity_from_jwt(jwt).as_deref(),
-        Some("test.user@example.com")
-    );
-
-    let cookie_header = format!("sso-token={jwt}; theme=dark; session=active");
-    assert_eq!(
-        extract_identity_from_cookies(&cookie_header).as_deref(),
-        Some("test.user@example.com")
-    );
-
-    let plain_cookie = "email=user%40example.com; path=/";
-    assert_eq!(
-        extract_identity_from_cookies(plain_cookie).as_deref(),
-        Some("user@example.com")
-    );
-}
-
-#[test]
 fn parses_bot_usage_frames_and_reset_timestamp() {
     assert_eq!(
         classify_bot_frame(r#"{"connection_id":"conn-1","capabilities":["bot.usage"]}"#),

@@ -329,9 +329,9 @@ pub async fn add_account(
                 .filter(|v| !v.is_empty())
                 .or_else(|| duplicate.as_ref().and_then(|account| account.email.clone()))
                 .or_else(|| {
-                    crate::providers::grok::extract_identity_from_jwt(&auth_cookie).or_else(|| {
-                        crate::providers::grok::extract_identity_from_cookies(&auth_cookie)
-                    })
+                    crate::providers::identity::extract_identity_from_jwt(&auth_cookie).or_else(
+                        || crate::providers::identity::extract_identity_from_cookies(&auth_cookie),
+                    )
                 }),
             provider_account_id: Some(workspace_id.to_string()),
             chatgpt_account_id: None,
@@ -534,7 +534,7 @@ fn read_auth_cookie_with_retry(window: &WebviewWindow) -> Result<(String, Option
 
                 if let Some(auth_val) = auth_cookie {
                     let mut discovered_email =
-                        crate::providers::grok::extract_identity_from_jwt(&auth_val);
+                        crate::providers::identity::extract_identity_from_jwt(&auth_val);
                     if discovered_email.is_none() {
                         for cookie in &cookies {
                             let name = cookie.name();
@@ -547,7 +547,7 @@ fn read_auth_cookie_with_retry(window: &WebviewWindow) -> Result<(String, Option
                                 break;
                             }
                             if let Some(identity) =
-                                crate::providers::grok::extract_identity_from_jwt(value)
+                                crate::providers::identity::extract_identity_from_jwt(value)
                             {
                                 discovered_email = Some(identity);
                                 break;

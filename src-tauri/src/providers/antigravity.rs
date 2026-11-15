@@ -1,3 +1,4 @@
+use super::json_values::value_as_f64;
 use super::{
     body_too_large, classify_status,
     oauth_refresh::{
@@ -628,13 +629,6 @@ fn fraction_to_percent(value: f64) -> Option<f64> {
     } else {
         value.clamp(0.0, 100.0)
     })
-}
-
-fn value_as_f64(value: &Value) -> Option<f64> {
-    value
-        .as_f64()
-        .or_else(|| value.as_str()?.parse().ok())
-        .filter(|v| v.is_finite())
 }
 
 fn classify_id(label: &str) -> String {
