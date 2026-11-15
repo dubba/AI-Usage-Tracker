@@ -2445,3 +2445,26 @@ fn airgap_export_clears_a_confirm_freeze_before_using_the_live_choice() {
         .expect("airgap builds the payload");
     assert!(unfreeze < write && write < export);
 }
+
+#[test]
+fn abort_reasons_keep_their_wire_numbers() {
+    use crate::pairing::protocol::AbortReason::*;
+    let expected: [(crate::pairing::protocol::AbortReason, u8); 13] = [
+        (BadHandshake, 0x01),
+        (KeyDerivationFailed, 0x03),
+        (RoleSelectFailed, 0x04),
+        (RoleSelectTimedOut, 0x05),
+        (CanceledBeforeRole, 0x06),
+        (RoleChoiceDropped, 0x07),
+        (CanceledBeforeConfirm, 0x08),
+        (SasRejected, 0x09),
+        (PayloadInvalid, 0x0A),
+        (PayloadTimedOut, 0x0B),
+        (ImportFailed, 0x0C),
+        (InvalidPeerKey, 0x0D),
+        (InvalidRole, 0x10),
+    ];
+    for (reason, byte) in expected {
+        assert_eq!(reason.payload(), [byte], "{reason:?}");
+    }
+}

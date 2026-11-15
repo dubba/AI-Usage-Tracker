@@ -8,9 +8,11 @@ use crate::{
         payload::{create_export_payload, import_sync_payload, SyncSummary},
         protocol::{
             compute_display_fingerprint, format_uri_host, read_frame_limited, write_frame,
-            ParsedQrPayload, MAX_CONTROL_FRAME_SIZE, MAX_FRAME_SIZE, MAX_PREAUTH_FRAME_SIZE,
-            MSG_ABORT, MSG_ACK, MSG_ENCRYPTED_PAYLOAD, MSG_HANDSHAKE_INIT, MSG_HANDSHAKE_RESP,
-            MSG_ROLE_SELECT, MSG_ROLE_SELECT_RESP, MSG_SAS_CONFIRM,
+            AbortReason, ParsedQrPayload, CONFIRM_TAG_LEN, HANDSHAKE_INIT_LEN,
+            MAX_CONTROL_FRAME_SIZE, MAX_FRAME_SIZE, MAX_PREAUTH_FRAME_SIZE, MSG_ABORT, MSG_ACK,
+            MSG_ENCRYPTED_PAYLOAD, MSG_HANDSHAKE_INIT, MSG_HANDSHAKE_RESP, MSG_ROLE_SELECT,
+            MSG_ROLE_SELECT_RESP, MSG_SAS_CONFIRM, PUBLIC_KEY_LEN, RESP_OK, ROLE_JOINER_RECEIVES,
+            ROLE_JOINER_SENDS, SAS_ACCEPTED, SAS_CONFIRM_LEN, SESSION_ID_LEN,
         },
     },
     state::AppState,
@@ -32,6 +34,8 @@ use zeroize::Zeroize;
 
 pub const SESSION_TIMEOUT_SECS: u64 = 300; // 5 minutes
 pub const SOCKET_TIMEOUT_SECS: u64 = 30; // 30 seconds
+/// Time allowed for the joiner's TCP connection to the host to open.
+const CONNECT_TIMEOUT_SECS: u64 = 10;
 /// Time allowed for both users to compare verification codes and confirm.
 /// Longer than the socket timeout: comparing two screens and tapping twice
 /// on two devices takes a while.
@@ -273,7 +277,7 @@ pub async fn run_host_listener(
             };
 
             let mut stream = accepted;
-            let handshake_res: Result<Result<[u8; 32], String>, _> =
+            let handshake_res: Result<Result<[u8; PUBLIC_KEY_LEN], String>, _> =
                 timeout(Duration::from_secs(SOCKET_TIMEOUT_SECS), async {
                     // Pre-authentication: strict 1 KiB budget so an
                     // unauthenticated LAN peer cannot force a 16 MB allocation.
@@ -282,15 +286,15 @@ pub async fn run_host_listener(
                     if msg_type != MSG_HANDSHAKE_INIT {
                         return Err("Expected MSG_HANDSHAKE_INIT".into());
                     }
-                    if payload.len() != 48 {
+                    if payload.len() != HANDSHAKE_INIT_LEN {
                         return Err(format!("Invalid handshake length: {}", payload.len()));
                     }
 
-                    let mut client_pubkey = [0u8; 32];
-                    client_pubkey.copy_from_slice(&payload[..32]);
+                    let mut client_pubkey = [0u8; PUBLIC_KEY_LEN];
+                    client_pubkey.copy_from_slice(&payload[..PUBLIC_KEY_LEN]);
 
-                    let mut received_session_id = [0u8; 16];
-                    received_session_id.copy_from_slice(&payload[32..48]);
+                    let mut received_session_id = [0u8; SESSION_ID_LEN];
+                    received_session_id.copy_from_slice(&payload[PUBLIC_KEY_LEN..]);
 
                     if received_session_id != session_id_bytes {
                         return Err("Session ID mismatch".into());
@@ -306,7 +310,9 @@ pub async fn run_host_listener(
                     // Abort this connection only. Bad handshakes must not kill
                     // the session (any LAN host can send garbage); a short delay
                     // throttles brute-force attempts.
-                    let _ = write_frame(&mut stream, MSG_ABORT, &[0x01]).await;
+                    let _ =
+                        write_frame(&mut stream, MSG_ABORT, &AbortReason::BadHandshake.payload())
+                            .await;
                     tokio::time::sleep(FAILED_HANDSHAKE_DELAY).await;
                 }
             }
@@ -320,14 +326,24 @@ pub async fn run_host_listener(
                 // Invalid (non-contributory) peer key: abort this connection
                 // only and keep listening for a legitimate peer. Do not emit
                 // a Failed event here; the session is still alive.
-                let _ = write_frame(&mut stream, MSG_ABORT, &[0x0D]).await;
+                let _ = write_frame(
+                    &mut stream,
+                    MSG_ABORT,
+                    &AbortReason::InvalidPeerKey.payload(),
+                )
+                .await;
                 continue 'session;
             }
         };
         let mut encryption_key = match derived.derive_encryption_key(&session_nonce) {
             Ok(k) => k,
             Err(e) => {
-                let _ = write_frame(&mut stream, MSG_ABORT, &[0x03]).await;
+                let _ = write_frame(
+                    &mut stream,
+                    MSG_ABORT,
+                    &AbortReason::KeyDerivationFailed.payload(),
+                )
+                .await;
                 let _ = status_tx.send(HostEvent::Failed(e)).await;
                 return;
             }
@@ -343,7 +359,7 @@ pub async fn run_host_listener(
         let sas_code = compute_sas_code(&encryption_key, &transcript);
 
         // Send Handshake OK response
-        if write_frame(&mut stream, MSG_HANDSHAKE_RESP, &[0x00])
+        if write_frame(&mut stream, MSG_HANDSHAKE_RESP, &[RESP_OK])
             .await
             .is_err()
         {
@@ -376,17 +392,17 @@ pub async fn run_host_listener(
                 }
 
                 match payload[0] {
-                    0x01 => {
+                    ROLE_JOINER_SENDS => {
                         // Client selected "Send accounts from this device" -> Host is Receiver
                         let count = if payload.len() >= 3 {
                             u16::from_be_bytes([payload[1], payload[2]]) as usize
                         } else {
                             0
                         };
-                        write_frame(&mut stream, MSG_ROLE_SELECT_RESP, &[0x00]).await?;
+                        write_frame(&mut stream, MSG_ROLE_SELECT_RESP, &[RESP_OK]).await?;
                         Ok((false, count))
                     }
-                    0x02 => {
+                    ROLE_JOINER_RECEIVES => {
                         // Client selected "Receive accounts on this device" -> Host is Sender
                         let host_count = state.store.list().len();
                         let count_bytes = (host_count as u16).to_be_bytes();
@@ -413,12 +429,22 @@ pub async fn run_host_listener(
                 // The peer failed, aborted, or disconnected before choosing a
                 // role. Don't wedge the session on that connection — go back to
                 // accepting so the legitimate device can still connect.
-                let _ = write_frame(&mut stream, MSG_ABORT, &[0x04]).await;
+                let _ = write_frame(
+                    &mut stream,
+                    MSG_ABORT,
+                    &AbortReason::RoleSelectFailed.payload(),
+                )
+                .await;
                 encryption_key.zeroize();
                 continue 'session;
             }
             Err(_) => {
-                let _ = write_frame(&mut stream, MSG_ABORT, &[0x05]).await;
+                let _ = write_frame(
+                    &mut stream,
+                    MSG_ABORT,
+                    &AbortReason::RoleSelectTimedOut.payload(),
+                )
+                .await;
                 let _ = status_tx
                     .send(HostEvent::Failed(
                         "Timed out waiting for role selection".into(),
@@ -516,7 +542,11 @@ pub async fn run_client_connector(
         .parse::<std::net::IpAddr>()
         .map(|ip| std::net::SocketAddr::new(ip, parsed.port).to_string())
         .unwrap_or_else(|_| format!("{}:{}", format_uri_host(&parsed.host), parsed.port));
-    let mut stream = match timeout(Duration::from_secs(10), TcpStream::connect(&connect_addr)).await
+    let mut stream = match timeout(
+        Duration::from_secs(CONNECT_TIMEOUT_SECS),
+        TcpStream::connect(&connect_addr),
+    )
+    .await
     {
         Ok(Ok(s)) => s,
         Ok(Err(e)) => {
@@ -542,7 +572,7 @@ pub async fn run_client_connector(
     let session_id_bytes = *parsed.session_id.as_bytes();
 
     // Send Handshake Init
-    let mut init_payload = Vec::with_capacity(48);
+    let mut init_payload = Vec::with_capacity(HANDSHAKE_INIT_LEN);
     init_payload.extend_from_slice(&client_pubkey);
     init_payload.extend_from_slice(&session_id_bytes);
 
@@ -559,7 +589,7 @@ pub async fn run_client_connector(
             if msg_type != MSG_HANDSHAKE_RESP {
                 return Err("Expected MSG_HANDSHAKE_RESP".into());
             }
-            if payload.len() != 1 || payload[0] != 0x00 {
+            if payload.len() != 1 || payload[0] != RESP_OK {
                 return Err("Host rejected handshake".into());
             }
             Ok(())
@@ -646,7 +676,7 @@ pub async fn run_client_connector(
     // Wait for role selection from frontend
     let role_choice = tokio::select! {
         _ = &mut cancel_rx => {
-            let _ = write_frame(&mut stream, MSG_ABORT, &[0x06]).await;
+            let _ = write_frame(&mut stream, MSG_ABORT, &AbortReason::CanceledBeforeRole.payload()).await;
             let _ = status_tx.send(ClientEvent::Cancelled).await;
             encryption_key.zeroize();
             return;
@@ -655,7 +685,7 @@ pub async fn run_client_connector(
             match res {
                 Ok(r) => r,
                 Err(_) => {
-                    let _ = write_frame(&mut stream, MSG_ABORT, &[0x07]).await;
+                    let _ = write_frame(&mut stream, MSG_ABORT, &AbortReason::RoleChoiceDropped.payload()).await;
                     let _ = status_tx.send(ClientEvent::Failed("Role selection canceled".into())).await;
                     encryption_key.zeroize();
                     return;
@@ -665,7 +695,7 @@ pub async fn run_client_connector(
     };
 
     if role_choice != "send" && role_choice != "receive" {
-        let _ = write_frame(&mut stream, MSG_ABORT, &[0x10]).await;
+        let _ = write_frame(&mut stream, MSG_ABORT, &AbortReason::InvalidRole.payload()).await;
         let _ = status_tx
             .send(ClientEvent::Failed(format!(
                 "Invalid pairing role '{role_choice}'. Expected 'send' or 'receive'."
@@ -679,7 +709,7 @@ pub async fn run_client_connector(
         let count = local_account_count;
         let count_bytes = (count as u16).to_be_bytes();
         let mut msg = Vec::with_capacity(3);
-        msg.push(0x01);
+        msg.push(ROLE_JOINER_SENDS);
         msg.extend_from_slice(&count_bytes);
 
         if let Err(e) = write_frame(&mut stream, MSG_ROLE_SELECT, &msg).await {
@@ -718,7 +748,7 @@ pub async fn run_client_connector(
         (true, count)
     } else {
         // "receive"
-        let msg = [0x02, 0x00, 0x00];
+        let msg = [ROLE_JOINER_RECEIVES, 0x00, 0x00];
         if let Err(e) = write_frame(&mut stream, MSG_ROLE_SELECT, &msg).await {
             let _ = status_tx.send(ClientEvent::Failed(e)).await;
             encryption_key.zeroize();
@@ -856,20 +886,20 @@ async fn run_authenticated_transfer<E>(
     let writer_task = async {
         tokio::select! {
             _ = &mut cancel_rx => {
-                let _ = write_frame(&mut write_half, MSG_ABORT, &[0x08]).await;
+                let _ = write_frame(&mut write_half, MSG_ABORT, &AbortReason::CanceledBeforeConfirm.payload()).await;
                 Err("Canceled by user".to_string())
             }
             confirmed = &mut sas_confirm_rx => {
                 match confirmed {
                     Ok(true) => {
-                        let mut confirm_payload = Vec::with_capacity(33);
-                        confirm_payload.push(0x01);
+                        let mut confirm_payload = Vec::with_capacity(SAS_CONFIRM_LEN);
+                        confirm_payload.push(SAS_ACCEPTED);
                         confirm_payload.extend_from_slice(&my_tag);
                         write_frame(&mut write_half, MSG_SAS_CONFIRM, &confirm_payload).await?;
                         Ok(())
                     }
                     _ => {
-                        let _ = write_frame(&mut write_half, MSG_ABORT, &[0x09]).await;
+                        let _ = write_frame(&mut write_half, MSG_ABORT, &AbortReason::SasRejected.payload()).await;
                         Err("User rejected verification code".to_string())
                     }
                 }
@@ -885,11 +915,11 @@ async fn run_authenticated_transfer<E>(
         if msg_type != MSG_SAS_CONFIRM {
             return Err("Expected MSG_SAS_CONFIRM from peer".to_string());
         }
-        if payload.len() != 33 || payload[0] != 0x01 {
+        if payload.len() != SAS_CONFIRM_LEN || payload[0] != SAS_ACCEPTED {
             return Err("Peer rejected verification code".to_string());
         }
-        let mut peer_tag = [0u8; 32];
-        peer_tag.copy_from_slice(&payload[1..33]);
+        let mut peer_tag = [0u8; CONFIRM_TAG_LEN];
+        peer_tag.copy_from_slice(&payload[1..]);
 
         if !verify_confirmation_tag(&encryption_key, &sas_code, peer_tag_info, &peer_tag) {
             return Err(
@@ -1025,13 +1055,23 @@ async fn run_authenticated_transfer<E>(
         let mut decrypted_bytes = match payload_res {
             Ok(Ok(bytes)) => bytes,
             Ok(Err(e)) => {
-                let _ = write_frame(&mut stream, MSG_ABORT, &[0x0A]).await;
+                let _ = write_frame(
+                    &mut stream,
+                    MSG_ABORT,
+                    &AbortReason::PayloadInvalid.payload(),
+                )
+                .await;
                 let _ = status_tx.send(TransferEvent::Failed(e).into()).await;
                 encryption_key.zeroize();
                 return;
             }
             Err(_) => {
-                let _ = write_frame(&mut stream, MSG_ABORT, &[0x0B]).await;
+                let _ = write_frame(
+                    &mut stream,
+                    MSG_ABORT,
+                    &AbortReason::PayloadTimedOut.payload(),
+                )
+                .await;
                 let _ = status_tx
                     .send(TransferEvent::Failed("Payload reception timed out".into()).into())
                     .await;
@@ -1044,7 +1084,8 @@ async fn run_authenticated_transfer<E>(
         let summary = match import_sync_payload(&state, &decrypted_bytes).await {
             Ok(s) => s,
             Err(e) => {
-                let _ = write_frame(&mut stream, MSG_ABORT, &[0x0C]).await;
+                let _ =
+                    write_frame(&mut stream, MSG_ABORT, &AbortReason::ImportFailed.payload()).await;
                 let _ = status_tx.send(TransferEvent::Failed(e).into()).await;
                 decrypted_bytes.zeroize();
                 encryption_key.zeroize();
