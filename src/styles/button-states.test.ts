@@ -36,9 +36,9 @@ describe("Button hover and active state invariants", () => {
     expect(MODAL_CLOSE_CSS).toContain(".button.remove-confirm-button:active:not(:disabled)");
   });
 
-  it("provides hover and active states for the filter active banner clear button", () => {
-    expect(OBSIDIAN_CSS).toContain(".filter-active-banner .compact-button:hover:not(:disabled)");
-    expect(OBSIDIAN_CSS).toContain(".filter-active-banner .compact-button:active:not(:disabled)");
+  it("provides hover and active states for the inline filter clear button", () => {
+    expect(OBSIDIAN_CSS).toContain(".summary-strip .compact-button:hover:not(:disabled)");
+    expect(OBSIDIAN_CSS).toContain(".summary-strip .compact-button:active:not(:disabled)");
   });
 
   it("provides active states for account card actions and rename buttons", () => {
@@ -73,9 +73,9 @@ describe("Button hover and active state invariants", () => {
     );
   });
 
-  it("keeps full 4-sided amber borders on the attention card without border-left clobbering", () => {
+  it("keeps full 4-sided amber borders on the attention bar without border-left clobbering", () => {
     expect(OBSIDIAN_CSS).not.toContain(".summary-strip > .summary-card + .summary-card");
-    expect(OBSIDIAN_CSS).toContain(".summary-card.attention-card.is-filtering");
+    expect(OBSIDIAN_CSS).toContain(".summary-strip.has-attention.is-filtering");
     expect(OBSIDIAN_CSS).toContain("border-color: var(--obsidian-amber)");
   });
 

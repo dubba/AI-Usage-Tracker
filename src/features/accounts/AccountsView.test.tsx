@@ -185,6 +185,7 @@ describe("AccountsView header", () => {
   afterEach(() => {
     app?.unmount();
     app = null;
+    vi.restoreAllMocks();
   });
 
   it("describes what the page is for in the header subheader", () => {
@@ -197,60 +198,266 @@ describe("AccountsView header", () => {
       "Monitor weekly limits, session limits, and reset times across all your AI subscriptions."
     );
   });
+
+  it("keeps the Group pill inline inside the title row on a wide window", () => {
+    setNarrowWindow(false);
+    app = renderView({
+      selectedGroup: bucketGroup,
+      onEditBucket: () => undefined,
+    });
+    const row = document.querySelector(".dashboard-title-row");
+    const pill = row?.querySelector(".dashboard-bucket-pill");
+    expect(pill?.textContent).toBe("Group");
+    expect(document.querySelector(".dashboard-bucket-title-stack")).toBeNull();
+    expect(row?.hasAttribute("data-pill-wrapped")).toBe(false);
+  });
+
+  it("keeps the Group pill inline on line 1 on a phone when there is enough horizontal space", () => {
+    setNarrowWindow(true);
+    app = renderView({
+      selectedGroup: bucketGroup,
+      onToggleSidebar: () => undefined,
+      onEditBucket: () => undefined,
+      onAddGroup: () => undefined,
+    });
+    const row = document.querySelector(".dashboard-title-row")!;
+    const main = row.querySelector(".dashboard-bucket-title-main")!;
+    expect(row.hasAttribute("data-pill-wrapped")).toBe(false);
+    expect(main.querySelector(".dashboard-bucket-pill")?.textContent).toBe("Group");
+    expect(main.querySelector(".edit-bucket-title-btn")).not.toBeNull();
+    expect(document.querySelectorAll(".dashboard-bucket-pill")).toHaveLength(1);
+  });
+
+  it("wraps the Group pill onto line 2 under the title on a phone only when cramped", () => {
+    setNarrowWindow(true);
+    let cramped = true;
+    let triggerResize: (() => void) | null = null;
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(cb: ResizeObserverCallback) {
+          triggerResize = () => cb([], this as unknown as ResizeObserver);
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    vi.spyOn(HTMLElement.prototype, "scrollWidth", "get").mockImplementation(function (this: HTMLElement) {
+      if (this.tagName === "H1") return cramped ? 220 : 120;
+      return 0;
+    });
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(function (this: HTMLElement) {
+      if (this.tagName === "H1") return cramped ? 160 : 180;
+      return 0;
+    });
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function (this: HTMLElement) {
+      if (this.classList.contains("dashboard-bucket-pill")) return 54;
+      return 0;
+    });
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      if (this.classList.contains("dashboard-bucket-title-main")) {
+        return { left: 60, right: cramped ? 250 : 180, top: 0, bottom: 24, width: 120, height: 24, x: 60, y: 0, toJSON: () => ({}) };
+      }
+      if (this.classList.contains("dashboard-header-actions")) {
+        return { left: 262, right: 350, top: 0, bottom: 40, width: 88, height: 40, x: 262, y: 0, toJSON: () => ({}) };
+      }
+      return { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0, x: 0, y: 0, toJSON: () => ({}) };
+    });
+
+    app = renderView({
+      selectedGroup: bucketGroup,
+      onToggleSidebar: () => undefined,
+      onEditBucket: () => undefined,
+      onAddGroup: () => undefined,
+    });
+
+    const row = document.querySelector(".dashboard-title-row")!;
+    const stack = row.querySelector(".dashboard-bucket-title-stack")!;
+    const main = stack.querySelector(".dashboard-bucket-title-main")!;
+
+    expect(row.hasAttribute("data-pill-wrapped")).toBe(true);
+    expect(main.querySelector(".dashboard-bucket-pill")).toBeNull();
+    expect(main.querySelector(".edit-bucket-title-btn")).not.toBeNull();
+    expect(stack.lastElementChild?.classList.contains("dashboard-bucket-pill")).toBe(true);
+    expect(document.querySelectorAll(".dashboard-bucket-pill")).toHaveLength(1);
+
+    // When space opens up again, the pill returns inline to line 1.
+    cramped = false;
+    act(() => triggerResize?.());
+    expect(row.hasAttribute("data-pill-wrapped")).toBe(false);
+    expect(main.querySelector(".dashboard-bucket-pill")?.textContent).toBe("Group");
+  });
+
+  it("does not render a Group pill or stack for non-bucket views", () => {
+    setNarrowWindow(true);
+    app = renderView({
+      selectedGroup: allGroup,
+      onToggleSidebar: () => undefined,
+    });
+    expect(document.querySelector(".dashboard-bucket-pill")).toBeNull();
+    expect(document.querySelector(".dashboard-bucket-title-stack")).toBeNull();
+  });
 });
 
-describe("AccountsView summary cards", () => {
+describe("AccountsView summary status strip", () => {
   let app: Mounted | null = null;
 
   afterEach(() => {
     app?.unmount();
     app = null;
+    setNarrowWindow(false);
+    vi.restoreAllMocks();
   });
 
-  it("displays total accounts count and healthy count in Accounts card", () => {
-    app = renderView({
-      allAccounts: [account, healthyAccount],
-      accounts: [account, healthyAccount],
-      selectedGroup: { ...allGroup, accounts: [account, healthyAccount] },
-    });
-    const totalCard = document.querySelector(".summary-card.total-card")!;
-    expect(totalCard).not.toBeNull();
-    expect(totalCard.querySelector(".summary-value-cluster strong")?.textContent).toBe("2");
-    expect(totalCard.querySelector(".summary-helper")?.textContent).toContain("1 healthy");
-  });
-
-  it("renders Action Needed as a native button when attention is required, without duplicate counts", () => {
-    app = renderView({
-      allAccounts: [account, { ...account, id: "acct-2" }],
-      accounts: [account, { ...account, id: "acct-2" }],
-      selectedGroup: { ...allGroup, accounts: [account, { ...account, id: "acct-2" }] },
-    });
-    const attentionBtn = document.querySelector<HTMLButtonElement>("button.summary-card.attention-card");
-    expect(attentionBtn).not.toBeNull();
-    expect(attentionBtn?.tagName).toBe("BUTTON");
-    expect(attentionBtn?.getAttribute("type")).toBe("button");
-    expect(attentionBtn?.getAttribute("aria-pressed")).toBe("false");
-    expect(attentionBtn?.querySelector(".summary-helper")?.textContent).toContain("Requires action");
-    expect(attentionBtn?.querySelector(".summary-value-cluster strong")?.textContent).toBe("2");
-
-    // Click toggles filtering
-    click(attentionBtn!);
-    expect(attentionBtn?.getAttribute("aria-pressed")).toBe("true");
-    expect(document.querySelector(".filter-active-banner")).not.toBeNull();
-  });
-
-  it("renders Action Needed as a non-interactive div when all accounts are good", () => {
+  it("renders a non-interactive status bar with 'All accounts good' and 'No upcoming reset' when healthy", () => {
     app = renderView({
       allAccounts: [healthyAccount],
       accounts: [healthyAccount],
       selectedGroup: { ...allGroup, accounts: [healthyAccount] },
     });
-    expect(document.querySelector("button.summary-card.attention-card")).toBeNull();
-    const attentionDiv = document.querySelector<HTMLDivElement>("div.summary-card.attention-card")!;
-    expect(attentionDiv).not.toBeNull();
-    expect(attentionDiv.tagName).toBe("DIV");
-    expect(attentionDiv.querySelector(".summary-helper")?.textContent).toContain("All good");
-    expect(attentionDiv.querySelector(".summary-value-cluster strong")?.textContent).toBe("0");
+    expect(document.querySelector("button.summary-strip")).toBeNull();
+    const strip = document.querySelector<HTMLDivElement>("div.summary-strip");
+    expect(strip).not.toBeNull();
+    expect(strip?.tagName).toBe("DIV");
+    expect(strip?.classList.contains("has-attention")).toBe(false);
+    expect(strip?.querySelector(".summary-status-text")?.textContent).toBe("All accounts good");
+    expect(strip?.querySelector(".summary-attention-count")).toBeNull();
+    expect(strip?.querySelector(".next-reset-inline")?.textContent).toBe("No upcoming reset");
+  });
+
+  it("formats next reset inline for desktop and compactly for phone", () => {
+    const now = Date.now();
+    vi.spyOn(Date, "now").mockReturnValue(now);
+    const futureReset = new Date(now + (4 * 60 + 16) * 60_000).toISOString();
+    const withReset = {
+      ...healthyAccount,
+      lastUsage: {
+        freshness: "live",
+        windows: [
+          {
+            id: "five_hour",
+            kind: "five_hour",
+            label: "5-hour",
+            usedPercent: 25,
+            remainingPercent: 75,
+            resetsAt: futureReset,
+          },
+        ],
+      },
+    } as unknown as Account;
+
+    app = renderView({
+      allAccounts: [withReset],
+      accounts: [withReset],
+      selectedGroup: { ...allGroup, accounts: [withReset] },
+    });
+    const desktopNext = document.querySelector(".summary-strip .next-reset-inline")!;
+    expect(desktopNext.textContent).toContain("Next reset:");
+    expect(desktopNext.querySelector(".next-reset-limit")?.textContent).toBe("5H");
+    expect(desktopNext.querySelector(".next-reset-account")?.textContent).toBe("Claude");
+    expect(desktopNext.textContent).toContain("in");
+    expect(desktopNext.querySelector(".next-reset-pill")?.textContent).toBeTruthy();
+
+    app.unmount();
+    setNarrowWindow(true);
+    app = renderView({
+      allAccounts: [withReset],
+      accounts: [withReset],
+      selectedGroup: { ...allGroup, accounts: [withReset] },
+    });
+    const phoneNext = document.querySelector(".summary-strip .next-reset-inline")!;
+    expect(phoneNext.textContent).toContain("Next:");
+    expect(phoneNext.textContent).not.toContain("Next reset:");
+
+    app.unmount();
+    setNarrowWindow(false);
+    const antigravityGemini = {
+      ...healthyAccount,
+      id: "acct-ag",
+      label: "Antigravity",
+      provider: "antigravity",
+      lastUsage: {
+        freshness: "live",
+        windows: [
+          {
+            id: "gemini_pro",
+            kind: "five_hour",
+            label: "Gemini",
+            usedPercent: 10,
+            remainingPercent: 90,
+            resetsAt: futureReset,
+          },
+        ],
+      },
+    } as unknown as Account;
+    app = renderView({
+      allAccounts: [antigravityGemini],
+      accounts: [antigravityGemini],
+      selectedGroup: { ...allGroup, accounts: [antigravityGemini] },
+    });
+    const limitPills = document.querySelectorAll(".summary-strip .next-reset-limit");
+    expect(limitPills).toHaveLength(1);
+    expect(limitPills[0]?.textContent).toBe("5H Gemini");
+  });
+
+  it("combines status, next reset, and Show all into one amber box when filtering on desktop and mobile", () => {
+    app = renderView({
+      allAccounts: [account, { ...account, id: "acct-2" }, healthyAccount],
+      accounts: [account, { ...account, id: "acct-2" }, healthyAccount],
+      selectedGroup: { ...allGroup, accounts: [account, { ...account, id: "acct-2" }, healthyAccount] },
+    });
+    const attentionBtn = document.querySelector<HTMLButtonElement>("button.summary-strip.has-attention");
+    expect(attentionBtn).not.toBeNull();
+    expect(attentionBtn?.tagName).toBe("BUTTON");
+    expect(attentionBtn?.getAttribute("type")).toBe("button");
+    expect(attentionBtn?.getAttribute("aria-pressed")).toBe("false");
+    expect(attentionBtn?.classList.contains("is-filtering")).toBe(false);
+    expect(attentionBtn?.querySelector(".summary-status-text")?.textContent).toBe("Attention needed");
+    expect(attentionBtn?.querySelector(".summary-attention-count")?.textContent).toBe("2");
+    expect(document.querySelectorAll(".provider-account-card")).toHaveLength(3);
+
+    // Desktop click turns the strip into the combined two-row Option A box.
+    click(attentionBtn!);
+    expect(document.querySelector(".filter-active-banner")).toBeNull();
+    const filteringBox = document.querySelector(".summary-strip.has-attention.is-filtering")!;
+    expect(filteringBox).not.toBeNull();
+    expect(filteringBox.querySelector(".summary-strip-toggle .summary-status-text")?.textContent).toBe("Attention needed");
+    expect(filteringBox.querySelector(".summary-strip-toggle .summary-attention-count")?.textContent).toBe("2");
+    expect(filteringBox.querySelector(".summary-strip-toggle")?.getAttribute("aria-pressed")).toBe("true");
+    const desktopSubrow = filteringBox.querySelector(".summary-filter-subrow")!;
+    expect(desktopSubrow).not.toBeNull();
+    expect(desktopSubrow.textContent).toContain("Showing 2 accounts needing attention");
+    expect(document.querySelectorAll(".provider-account-card")).toHaveLength(2);
+
+    // Show all clears the filter and restores the clickable status strip.
+    const clearBtn = desktopSubrow.querySelector<HTMLButtonElement>(".filter-active-clear-btn")!;
+    expect(clearBtn).not.toBeNull();
+    click(clearBtn);
+    expect(document.querySelector(".summary-strip.is-filtering")).toBeNull();
+    expect(document.querySelectorAll(".provider-account-card")).toHaveLength(3);
+
+    // Phone uses the same two-row combined box layout.
+    app.unmount();
+    setNarrowWindow(true);
+    app = renderView({
+      allAccounts: [account, { ...account, id: "acct-2" }, healthyAccount],
+      accounts: [account, { ...account, id: "acct-2" }, healthyAccount],
+      selectedGroup: { ...allGroup, accounts: [account, { ...account, id: "acct-2" }, healthyAccount] },
+    });
+    click(document.querySelector<HTMLButtonElement>("button.summary-strip.has-attention")!);
+    const phoneBox = document.querySelector(".summary-strip.has-attention.is-filtering")!;
+    expect(phoneBox.querySelector(".summary-strip-toggle .summary-status-text")?.textContent).toBe("Attention needed");
+    expect(phoneBox.querySelector(".summary-strip-toggle .summary-attention-count")?.textContent).toBe("2");
+    const subrow = phoneBox.querySelector(".summary-filter-subrow")!;
+    expect(subrow).not.toBeNull();
+    expect(subrow.textContent).toContain("Showing 2 accounts needing attention");
+    expect(subrow.querySelector(".filter-active-clear-btn")).not.toBeNull();
+    expect(document.querySelectorAll(".provider-account-card")).toHaveLength(2);
+
+    // Clicking the status toggle row also clears filtering.
+    click(phoneBox.querySelector<HTMLButtonElement>(".summary-strip-toggle")!);
+    expect(document.querySelector(".summary-strip.is-filtering")).toBeNull();
+    expect(document.querySelectorAll(".provider-account-card")).toHaveLength(3);
   });
 });
 

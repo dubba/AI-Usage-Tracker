@@ -1,15 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type BusyKeys } from "../../shared/lib/busy";
 import { useReorderHint } from "./useReorderHint";
-import { useHidePillWhenCramped } from "./useHidePillWhenCramped";
+import { useWrapPillWhenCramped } from "./useWrapPillWhenCramped";
 import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
 import { UsageDisplayToggle } from "../dashboard/UsageDisplayToggle";
 import { MOBILE_OVERLAY_QUERY } from "../sidebar/sidebar-width";
 import { useMediaQuery } from "../../shared/hooks/useMediaQuery";
 import {
-  AlertCircleIcon,
-  CheckCircleIcon,
-  ClockIcon,
   CloseIcon,
   EditIcon,
   PlusIcon,
@@ -48,8 +45,8 @@ function dashboardDescription(group: SidebarGroup, accountCount: number): string
 }
 
 /** Time until the soonest reset. Updates itself with the shared clock, so the dashboard does not re-render for it. */
-function NextResetCard({ accounts }: { accounts: Account[] }) {
-  const account = useClock((now) => nextResetSummary(accounts, now).account ?? "No upcoming reset");
+function NextResetInline({ accounts, phone }: { accounts: Account[]; phone: boolean }) {
+  const account = useClock((now) => nextResetSummary(accounts, now).account);
   // Which limit resets, not only whose: "7D Grok", "5H Claude", the limit styled like a card's "5-HOUR". Antigravity
   // and the Grok Bot limit add their model after it: "5H Gemini Antigravity", "7D Bot Grok".
   const limit = useClock((now) => nextResetSummary(accounts, now).limit?.replace("-hour", "H").replace("-day", "D") ?? null);
@@ -58,20 +55,21 @@ function NextResetCard({ accounts }: { accounts: Account[] }) {
     return nextResetModelLabel(next.provider, next.window);
   });
   const value = useClock((now) => nextResetSummary(accounts, now).value);
+  const badge = [limit, model].filter(Boolean).join(" ");
+  if (!account) {
+    return (
+      <div className="next-reset-inline">
+        <span className="next-reset-prefix">No upcoming reset</span>
+      </div>
+    );
+  }
   return (
-    <div className="summary-card next-reset-card">
-      <div>
-        <span className="summary-label">Next reset</span>
-        <strong className="next-reset-account">
-          {limit ? <span className="next-reset-limit">{limit}</span> : null}
-          {model ? <span className="next-reset-limit">{model}</span> : null}
-          {account}
-        </strong>
-      </div>
-      <div className="next-reset-actions">
-        <span className="next-reset-pill">{value}</span>
-        <ClockIcon />
-      </div>
+    <div className="next-reset-inline">
+      <span className="next-reset-prefix">{phone ? "Next:" : "Next reset:"}</span>
+      {badge ? <span className="next-reset-limit">{badge}</span> : null}
+      <strong className="next-reset-account">{account}</strong>
+      {phone ? null : <span className="next-reset-prefix">in</span>}
+      <span className="next-reset-pill">{value}</span>
     </div>
   );
 }
@@ -106,7 +104,11 @@ export function AccountsView(props: {
   // The L / U switch sits in the title row on a phone and at the header's top right on a wide window.
   const phone = useMediaQuery(MOBILE_OVERLAY_QUERY);
   const titleRowRef = useRef<HTMLDivElement>(null);
-  useHidePillWhenCramped(titleRowRef, phone && props.selectedGroup.type === "bucket", props.selectedGroup.title);
+  const pillWrapped = useWrapPillWhenCramped(
+    titleRowRef,
+    phone && props.selectedGroup.type === "bucket",
+    props.selectedGroup.title,
+  );
 
   useEffect(() => {
     setShowAttentionOnly(false);
@@ -147,34 +149,55 @@ export function AccountsView(props: {
     disabled: !props.onRefreshAll,
   });
 
+  const titleHeading = (
+    <h1 className="eyebrow" tabIndex={-1} style={{ outline: "none" }}>
+      {props.selectedGroup.type === "all"
+        ? props.allAccounts.length === 0 ? "Dashboard" : "All accounts"
+        : `${props.selectedGroup.title} Accounts`}
+    </h1>
+  );
+  const bucketPill = props.selectedGroup.type === "bucket" ? (
+    <span className="dashboard-bucket-pill">Group</span>
+  ) : null;
+  const editBucketBtn = props.selectedGroup.type === "bucket" && props.selectedGroup.bucket ? (
+    <button
+      type="button"
+      className="edit-bucket-title-btn"
+      onClick={() => props.onEditBucket?.(props.selectedGroup.bucket!)}
+      aria-label="Edit Group"
+      data-tooltip="Edit Group"
+    >
+      <EditIcon />
+    </button>
+  ) : null;
+
   return (
     <div ref={containerRef} className="content-scroll dashboard-content">
       <PullToRefreshIndicator data={pullData} />
       <header className="dashboard-header">
         <div>
-          <div className="dashboard-title-row" ref={titleRowRef}>
+          <div
+            className="dashboard-title-row"
+            ref={titleRowRef}
+            data-pill-wrapped={pillWrapped ? "" : undefined}
+          >
             {props.onToggleSidebar ? <MobileSidebarToggle onToggle={props.onToggleSidebar} open={props.sidebarOpen} /> : null}
-            <h1 className="eyebrow" tabIndex={-1} style={{ outline: "none" }}>
-              {props.selectedGroup.type === "all"
-                ? props.allAccounts.length === 0 ? "Dashboard" : "All accounts"
-                : `${props.selectedGroup.title} Accounts`}
-            </h1>
-            {props.selectedGroup.type === "bucket" ? (
-              <span className="dashboard-bucket-pill">Group</span>
-            ) : null}
-            {props.selectedGroup.type === "bucket" && props.selectedGroup.bucket ? (
+            {phone && props.selectedGroup.type === "bucket" ? (
+              <div className="dashboard-bucket-title-stack">
+                <div className="dashboard-bucket-title-main">
+                  {titleHeading}
+                  {pillWrapped ? null : bucketPill}
+                  {editBucketBtn}
+                </div>
+                {pillWrapped ? bucketPill : null}
+              </div>
+            ) : (
               <>
-                <button
-                  type="button"
-                  className="edit-bucket-title-btn"
-                  onClick={() => props.onEditBucket?.(props.selectedGroup.bucket!)}
-                  aria-label="Edit Group"
-                  data-tooltip="Edit Group"
-                >
-                  <EditIcon />
-                </button>
+                {titleHeading}
+                {bucketPill}
+                {editBucketBtn}
               </>
-            ) : null}
+            )}
             {/* On a phone the title row ends with icon-only New group and Add account buttons, the same
                 actions as the side menu's labeled ones. A wide window has them in the top bar. The
                 % Left / % Used switch is at the bottom of the side menu (Sidebar.tsx). */}
@@ -216,82 +239,70 @@ export function AccountsView(props: {
       </header>
 
       <div ref={scrollRef} className="dashboard-scroll">
-        <section className="summary-strip" aria-label="Account status overview">
-          <div className="summary-card total-card">
-            <div>
-              <span className="summary-label">Accounts</span>
-              <strong className="summary-helper">
-                {needsAttention > 0
-                  ? `${props.accounts.length - needsAttention} healthy`
-                  : "Total"}
-              </strong>
-            </div>
-            <div className="summary-value-cluster">
-              <strong>{props.accounts.length}</strong>
-              <UsersIcon />
-            </div>
-          </div>
+        <section className="summary-status-region" aria-label="Account status overview">
           {needsAttention > 0 ? (
-            <button
-              type="button"
-              className={`summary-card attention-card has-attention is-clickable ${showAttentionOnly ? "is-filtering" : ""}`}
-              aria-pressed={showAttentionOnly}
-              aria-describedby={ATTENTION_HINT_ID}
-              data-tooltip={
-                showAttentionOnly
-                  ? "Show all accounts"
-                  : "Show only accounts needing attention"
-              }
-              onClick={() => {
-                setShowAttentionOnly((prev) => !prev);
-              }}
-            >
-              <div>
-                <span className="summary-label">Action Needed</span>
-                <strong className="summary-helper">
-                  <AlertCircleIcon /> Requires action
-                </strong>
+            showAttentionOnly ? (
+              <div className="summary-strip has-attention is-filtering">
+                <button
+                  type="button"
+                  className="summary-strip-toggle"
+                  aria-pressed={true}
+                  aria-describedby={ATTENTION_HINT_ID}
+                  data-tooltip={phone ? undefined : "Show all accounts"}
+                  onClick={() => setShowAttentionOnly(false)}
+                >
+                  <span className="summary-status-cluster">
+                    <span className="summary-status-dot" aria-hidden="true" />
+                    <span className="summary-status-text">Attention needed</span>
+                    <span className="summary-attention-count">{needsAttention}</span>
+                  </span>
+                  <NextResetInline accounts={props.accounts} phone={phone} />
+                  <span id={ATTENTION_HINT_ID} className="sr-only">
+                    Currently showing only accounts needing attention. Activate to show all accounts.
+                  </span>
+                </button>
+                <div className="summary-filter-subrow">
+                  <span>Showing {formatCount(displayedAccounts.length, ACCOUNT_FORMS)} needing attention</span>
+                  <button
+                    type="button"
+                    className="button ghost compact-button filter-active-clear-btn"
+                    onClick={() => setShowAttentionOnly(false)}
+                    aria-label="Show all accounts"
+                  >
+                    Show all <CloseIcon />
+                  </button>
+                </div>
               </div>
-              <div className="summary-value-cluster">
-                <strong>{needsAttention}</strong>
-                <AlertCircleIcon />
-              </div>
-              <span id={ATTENTION_HINT_ID} className="sr-only">
-                {showAttentionOnly
-                  ? "Currently showing only accounts needing attention. Activate to show all accounts."
-                  : "Activate to show only accounts needing attention."}
-              </span>
-            </button>
+            ) : (
+              <button
+                type="button"
+                className="summary-strip has-attention is-clickable"
+                aria-pressed={false}
+                aria-describedby={ATTENTION_HINT_ID}
+                data-tooltip="Show only accounts needing attention"
+                onClick={() => setShowAttentionOnly(true)}
+              >
+                <span className="summary-status-cluster">
+                  <span className="summary-status-dot" aria-hidden="true" />
+                  <span className="summary-status-text">Attention needed</span>
+                  <span className="summary-attention-count">{needsAttention}</span>
+                </span>
+                <NextResetInline accounts={props.accounts} phone={phone} />
+                <span id={ATTENTION_HINT_ID} className="sr-only">
+                  Activate to show only accounts needing attention.
+                </span>
+              </button>
+            )
           ) : (
-            <div className="summary-card attention-card">
-              <div>
-                <span className="summary-label">Action Needed</span>
-                <strong className="summary-helper">
-                  <CheckCircleIcon /> All good
-                </strong>
-              </div>
-              <div className="summary-value-cluster">
-                <strong>0</strong>
-                <AlertCircleIcon />
-              </div>
+            <div className="summary-strip">
+              <span className="summary-status-cluster">
+                <span className="summary-status-dot" aria-hidden="true" />
+                <span className="summary-status-text">All accounts good</span>
+              </span>
+              <NextResetInline accounts={props.accounts} phone={phone} />
             </div>
           )}
-          <NextResetCard accounts={props.accounts} />
         </section>
-
-        {showAttentionOnly ? (
-          <div className="filter-active-banner">
-            <span>Showing {formatCount(displayedAccounts.length, ACCOUNT_FORMS)} needing attention</span>
-            <button
-              type="button"
-              className="button ghost compact-button filter-active-clear-btn"
-              onClick={() => setShowAttentionOnly(false)}
-              aria-label="Show all accounts"
-            >
-              Show all <CloseIcon />
-            </button>
-          </div>
-        ) : null}
 
         {showReorderHint ? (
           <div className="reorder-hint-banner" role="note">

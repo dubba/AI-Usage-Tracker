@@ -225,9 +225,25 @@
     stroke-width: 1.75;
   }
 
-  /* A custom group's page also has the Group pill and the edit pen. They stay on the title's line, right
-     after the title, and the add buttons keep the right edge. When the three do not fit, the title
-     gives way first and ends in an ellipsis. */
+  /* A custom group's page keeps the title, Group pill, and edit pen on one line when they fit, and
+     wraps only the Group pill tight beneath the title when cramped so both stay centered to the
+     filter button. When the title still overflows, it truncates cleanly with an ellipsis. */
+  .dashboard-bucket-title-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .dashboard-bucket-title-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .dashboard-title-row:has(.dashboard-header-actions):has(.edit-bucket-title-btn) h1.eyebrow {
     flex: 0 1 auto;
     min-width: 0;
@@ -236,56 +252,25 @@
     white-space: nowrap;
   }
 
-  .dashboard-title-row:has(.dashboard-header-actions):has(.edit-bucket-title-btn) .dashboard-bucket-pill,
-  .dashboard-title-row:has(.dashboard-header-actions):has(.edit-bucket-title-btn) .edit-bucket-title-btn {
+  .dashboard-bucket-title-stack .dashboard-bucket-pill,
+  .dashboard-bucket-title-main .edit-bucket-title-btn {
     flex-shrink: 0;
+    margin-left: 0;
+  }
+
+  .dashboard-title-row[data-pill-wrapped] .dashboard-bucket-title-stack {
+    margin-top: -2px;
+  }
+
+  .dashboard-title-row[data-pill-wrapped] .dashboard-bucket-title-stack > .dashboard-bucket-pill {
+    height: 18px;
+    padding: 0 8px;
+    font-size: 11px;
+    margin-top: -1px;
   }
 
   .dashboard-title-row:has(.dashboard-header-actions):has(.edit-bucket-title-btn) .dashboard-header-actions {
     margin-left: auto;
-  }
-
-  /* Tighter around the pill and the pen: 6px from the title to the pill, between the pill and the pen,
-     and from the pen to the add buttons (the row's own gap is 12px, and the pill has 4px of margin). */
-  .dashboard-title-row:has(.dashboard-header-actions):has(.edit-bucket-title-btn) .dashboard-bucket-pill {
-    margin-left: -6px;
-  }
-
-  .dashboard-title-row:has(.dashboard-header-actions):has(.edit-bucket-title-btn) .edit-bucket-title-btn {
-    margin-inline: -6px;
-  }
-
-  /* A title too long for the pill, the pen and the add buttons loses the pill instead of its ending
-     (useHidePillWhenCramped). */
-  .dashboard-title-row[data-pill-hidden] .dashboard-bucket-pill {
-    display: none;
-  }
-
-  /* Without the pill the pen sits midway between the title and the add buttons: the same gap on both
-     sides, 5px at the least (the row's gap, narrowed from 10px; the menu button keeps its 10px with a
-     margin). When the title ends in an ellipsis,
-     useHidePillWhenCramped shrinks its box to end right after the dots, so the blank space the dots
-     leave goes to the pen's two sides. */
-  .dashboard-title-row[data-pill-hidden]:has(.dashboard-header-actions):has(.edit-bucket-title-btn) {
-    column-gap: 5px;
-  }
-
-  .dashboard-title-row[data-pill-hidden]:has(.dashboard-header-actions):has(.edit-bucket-title-btn) > :first-child {
-    margin-right: 5px;
-  }
-
-  .dashboard-title-row[data-pill-hidden]:has(.dashboard-header-actions):has(.edit-bucket-title-btn) .edit-bucket-title-btn {
-    margin-inline: auto;
-  }
-
-  .dashboard-title-row[data-pill-hidden]:has(.dashboard-header-actions):has(.edit-bucket-title-btn) .dashboard-header-actions {
-    margin-left: 0;
-  }
-
-  /* The dots of an ellipsis carry about 8px of blank space on their right; moving the pen half of that
-     towards the title evens the two gaps out. */
-  .dashboard-title-row[data-title-cut] .edit-bucket-title-btn {
-    translate: -4px 0;
   }
 
   /* A phone shows no tooltips, and the switch's hidden ones would widen the list's scroll area. */

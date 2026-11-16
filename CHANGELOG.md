@@ -1,9 +1,11 @@
 # Changelog
 
-## Unreleased (5 changes)
+## Unreleased (7 changes)
 
-### Improved (2)
+### Improved (4)
 
+- The Dashboard summary strip now shows a single compact status line on both desktop and mobile ("All accounts good" when healthy, or an interactive amber "Attention needed" bar with a count that filters to cards needing attention and folds "Show all" into the same box), paired with the next reset countdown on the right.
+- On phones, when a custom group's name is too wide to share the title row with the Group badge, the Group badge now drops directly beneath the group name (centered together with the filter button) instead of hiding, and returns inline whenever there is enough room.
 - On phones, the box for renaming an account now sits on the line above the plan and status badges, so it stays wide enough to read the name instead of shrinking beside them.
 - Hovering over an account card's Refresh, Alerts, and rename buttons, a group's edit button, or Remove account in the card menu now fills the button in its own color with a white icon, matching the save and cancel buttons in the rename box.
 

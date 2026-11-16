@@ -26,7 +26,7 @@ const BUDGET: Record<string, { important: number; rawColors: number }> = {
   "styles/base.css": { important: 4, rawColors: 0 },
   "styles/dashboard-reorder.css": { important: 19, rawColors: 3 },
   "styles/modal-close.css": { important: 9, rawColors: 0 },
-  "styles/obsidian-dashboard.css": { important: 173, rawColors: 13 },
+  "styles/obsidian-dashboard.css": { important: 166, rawColors: 13 },
   "styles/shell-patches.css": { important: 9, rawColors: 0 },
   "styles/sidebar-list.css": { important: 22, rawColors: 0 },
   "styles/theme-palette.css": { important: 0, rawColors: 0 },

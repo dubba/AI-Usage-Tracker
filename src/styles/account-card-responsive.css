@@ -1555,13 +1555,13 @@
   }
 }
 
-/* The Group pill beside a group's name in its page header, drawn like the plan chip on an account
-   card ("Pro/$20"): a rounded purple pill in normal case, at every width. (Sidebar group rows sit
-   under the Groups heading, so they carry no pill.) */
+/* The Group pill beside a group's name in its page header (or directly beneath it on a cramped
+   phone header), drawn like the plan chip on an account card ("Pro/$20"): a rounded purple pill in
+   normal case. (Sidebar group rows sit under the Groups heading, so they carry no pill.) */
 .dashboard-title-row .dashboard-bucket-pill {
-  height: 22px;
-  margin-left: 6px;
-  padding: 0 10px;
+  height: 26px;
+  margin-left: 4px;
+  padding: 0 11px;
   border-radius: 999px;
   background: var(--purple-surface);
   color: var(--purple-text);
@@ -1569,12 +1569,6 @@
   font-weight: 650;
   letter-spacing: 0;
   text-transform: none;
-}
-
-.dashboard-title-row .dashboard-bucket-pill {
-  height: 26px;
-  margin-left: 4px;
-  padding: 0 11px;
 }
 
 /* Account card and sidebar bars: the same purple ramp for healthy levels,
