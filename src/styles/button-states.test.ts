@@ -96,8 +96,8 @@ describe("Button hover and active state invariants", () => {
   });
 
   it("right-aligns tooltips for all buttons in left/used and 7d/30d segmented switches", () => {
-    expect(TOP_BAR_CSS).toMatch(/\.top-bar-segmented\s+button\[data-tooltip\]::after\s*\{[^}]*right:\s*2px\s*!important/);
-    expect(ACTIVITY_CSS).toMatch(/\.activity-period-switch\s+button\[data-tooltip\]::after\s*\{[^}]*right:\s*2px\s*!important/);
+    expect(TOP_BAR_CSS).toMatch(/\.top-bar-segmented\s+button\[data-tooltip\]::after\s*\{[^}]*right:\s*2px/);
+    expect(ACTIVITY_CSS).toMatch(/\.activity-period-switch\s+button\[data-tooltip\]::after\s*\{[^}]*right:\s*2px/);
   });
 
   it("lines the page switch up with the left edge of the sidebar cards", () => {
@@ -108,11 +108,11 @@ describe("Button hover and active state invariants", () => {
 
   it("positions page switch tooltips: Dashboard left, Usage centered, and Settings right", () => {
     expect(TOP_BAR_CSS).toContain(".top-bar-nav-item:first-child[data-tooltip]::after");
-    expect(TOP_BAR_CSS).toMatch(/\.top-bar-nav-item:first-child\[data-tooltip\]::after\s*\{[^}]*left:\s*3px\s*!important/);
+    expect(TOP_BAR_CSS).toMatch(/\.top-bar-nav-item:first-child\[data-tooltip\]::after\s*\{[^}]*left:\s*3px/);
     expect(TOP_BAR_CSS).toContain(".top-bar-nav-item:nth-child(2)[data-tooltip]::after");
-    expect(TOP_BAR_CSS).toMatch(/\.top-bar-nav-item:nth-child\(2\)\[data-tooltip\]::after\s*\{[^}]*left:\s*50%\s*!important/);
+    expect(TOP_BAR_CSS).toMatch(/\.top-bar-nav-item:nth-child\(2\)\[data-tooltip\]::after\s*\{[^}]*left:\s*50%/);
     expect(TOP_BAR_CSS).toContain(".top-bar-nav-item:last-child[data-tooltip]::after");
-    expect(TOP_BAR_CSS).toMatch(/\.top-bar-nav-item:last-child\[data-tooltip\]::after\s*\{[^}]*right:\s*3px\s*!important/);
+    expect(TOP_BAR_CSS).toMatch(/\.top-bar-nav-item:last-child\[data-tooltip\]::after\s*\{[^}]*right:\s*3px/);
   });
 
   it("scales down the pairing modal title on phones to fit on one line", () => {
@@ -127,7 +127,7 @@ describe("Button hover and active state invariants", () => {
       /\.dashboard-header-actions\s+\.sidebar-section-button\[data-tooltip\]::after\s*\{[^}]*white-space:\s*pre-line;/,
     );
     expect(TOP_BAR_CSS).toMatch(
-      /\.top-bar-add-account\[data-tooltip\]::after\s*\{[^}]*left:\s*auto\s*!important;\s*right:\s*0\s*!important;\s*transform:\s*none\s*!important;/,
+      /\.top-bar-add-account\[data-tooltip\]::after\s*\{[^}]*left:\s*auto;\s*right:\s*0;\s*transform:\s*none;/,
     );
   });
 

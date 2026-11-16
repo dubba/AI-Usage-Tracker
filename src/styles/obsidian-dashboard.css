@@ -50,10 +50,12 @@ body {
   line-height: 1.45;
 }
 
-button,
-input,
-select {
-  font: inherit;
+@layer base {
+  button,
+  input,
+  select {
+    font: inherit;
+  }
 }
 
 .obsidian-shell {

@@ -27,14 +27,19 @@ The order below **is the cascade**. Later files override earlier ones, so do not
 
 The newer component stylesheets are the first rules in `@layer components`: `features/activity/activity.css` (the Usage page), `app/bottom-nav.css` (the bottom navigation bar) and `app/top-bar.css` (the desktop top bar with the Accounts, Usage and Settings pages and the add buttons, which also puts the shell in two rows while it shows). Each is imported by its component, so it loads with the component and not in the order of the table above; that does not matter, because a layered rule loses to every unlayered one whatever the order.
 
-That has one consequence for what they can style. A few global rules are unlayered and set properties the components need to set themselves:
+The element defaults those components override are in `@layer base`, which comes before `components`, so a layered component overrides them with an ordinary rule:
 
-- `button { color: inherit; font: inherit }` (`base.css`, `obsidian-dashboard.css`), so a layered button cannot set its own `color`, `font-size`, `font-weight` or `line-height`;
-- `svg { width: 18px; height: 18px }` (`base.css`), so a layered icon cannot set its size;
-- `:focus-visible { outline-offset: 2px }`;
-- the tooltip rules, `[data-tooltip] { position: relative }` and `[data-tooltip]::after { left; top; transform; white-space }` (`ui-refinements.css`), so a layered rule cannot move or wrap a tooltip.
+- `button, input { font: inherit }` and `button { color: inherit }` (`base.css`, and the copy in `obsidian-dashboard.css`);
+- `svg { width: 18px; height: 18px }` (`base.css`);
+- `:focus-visible { outline-offset: 2px }` (`base.css`);
+- the tooltip bubble, `[data-tooltip]::after { ... }` (`ui-refinements.css`).
 
-The layered files set those properties with `!important`, which inverts the order (a layered `!important` beats an unlayered one, as the section on `!important` below says), and each file says so in its header. That is a different thing from winning a specificity fight: nothing else in them needs `!important`, because every class is new. If those global rules move into `@layer base` one day, the `!important`s can go.
+Two things next to them are deliberately still unlayered:
+
+- `:focus-visible { outline: 2px solid ... }`. A few single-class rules written before `base.css` (`.pairing-code-input { outline: none }`) lose to it today by source order; in a layer they would win and hide the focus ring.
+- `[data-tooltip]:not(...) { position: relative }`. It is specific enough to beat most `position` declarations in the unlayered files, and elements rely on that. A layered rule that needs another `position` on an element with a tooltip sets it with `!important`, which inverts the order (a layered `!important` beats an unlayered one).
+
+So a layered file needs `!important` only where an unlayered rule sets the same property on the same element: that `position`, the Usage page's top padding, the shared `.button` radius, and the segment indicator's transparent fill. Each says so in a comment.
 
 `--bottom-nav-height` is how the bar and the page shell agree. The bar is a neutral pill that floats over the page, centered, `--bottom-nav-offset` above the bottom edge: 6px above the system area (`--safe-area-bottom`: navigation buttons, a gesture handle or a home indicator), and never under 12px. `--bottom-nav-height` is the bar plus that offset, the room it takes up from the bottom edge, and `.app-shell.has-bottom-nav` sets both while the bar shows. With Menu Bar Labels off (`.bottom-nav.is-icon-only`) the items are 40px, not 48px, and a `:has()` rule on the shell lowers the variable by the same 8px. The page runs under the bar: `.main-stage` keeps `height: 100%`, and the `.has-bottom-nav` rule in `ui-refinements.css` pads `.dashboard-scroll` by the variable so the last row can be scrolled clear. The toasts there sit above the variable too, with a `0px` fallback. The current page sits on a `--purple-fill` pill with the `--purple-on-fill` label, as in the desktop top bar; the bar's other colours are the `--bottom-nav-*` tokens in `tokens.css`, hex in both themes so `src/styles/bottom-nav.test.ts` can check their contrast. `--android-nav-buttons`, which `MainActivity.kt` still reports, is no longer read by any stylesheet.
 
@@ -69,7 +74,7 @@ Most tokens follow the theme. A few are fixed, the same in both themes: `--white
 
 ## Layers
 
-`tokens.css` declares `@layer tokens, base, components, utilities;`, and only the tokens are in a layer today. Everything else is unlayered, and **an unlayered rule beats a layered one however specific it is**.
+`tokens.css` declares `@layer tokens, base, components, utilities;`. The tokens, the element defaults listed under "Layered component files" and the newer component stylesheets are in layers. Everything else is unlayered, and **an unlayered rule beats a layered one however specific it is**.
 
 Do not wrap an existing file in a layer to "tidy up". It changes how the file cascades:
 
@@ -77,6 +82,8 @@ Do not wrap an existing file in a layer to "tidy up". It changes how the file ca
 - For `!important`, layer order inverts, so a layered `!important` beats an unlayered one.
 
 When adding new CSS, put it in a layer. To migrate an existing file, first resolve its specificity conflicts, then move it and check the result visually at several widths.
+
+Moving a rule into a layer changes two things, and both need checking. Every unlayered declaration of the same property that the rule beats today (lower specificity, or the same and earlier in the load order) starts to win. Every layered declaration that loses to it today starts to apply.
 
 ## `!important`
 

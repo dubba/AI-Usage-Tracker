@@ -4,10 +4,11 @@
  * It only renders while the sidebar is not an overlay, so none of this
  * reaches a phone.
  *
- * Layered rules lose to unlayered ones, and the global rules `button { color: inherit; font: inherit }`,
- * `svg { width; height }` and `:focus-visible { outline-offset }` are unlayered. The declarations
- * below that must beat them are `!important`, which inverts the order (a layered `!important`
- * beats an unlayered one); see docs/CSS_ARCHITECTURE.md. */
+ * Layered rules lose to unlayered ones. The element defaults these rules override (`button`,
+ * `svg`, `:focus-visible { outline-offset }`, the tooltip bubble) are in `@layer base`, so plain
+ * declarations win. One global rule is still unlayered, `[data-tooltip] { position: relative }`,
+ * so `position` on an element with a tooltip is `!important`, which inverts the order (a layered
+ * `!important` beats an unlayered one); see docs/CSS_ARCHITECTURE.md. */
 @layer components {
   /* The bar takes the first row across both columns; the sidebar and the page share the second. */
   .app-shell.has-top-bar {
@@ -59,9 +60,9 @@
     border: 1px solid transparent;
     border-radius: 7px;
     background: transparent;
-    color: var(--obsidian-muted) !important;
-    font-size: 14px !important;
-    font-weight: 600 !important;
+    color: var(--obsidian-muted);
+    font-size: 14px;
+    font-weight: 600;
     cursor: pointer;
     /* Colour only. The purple fill slides on its own (segment-indicator.css); a fading
        background here would leave a second pill behind. */
@@ -70,39 +71,39 @@
 
   /* The same icons as the phone's bottom bar (BottomNav.tsx), at Group's 18px. */
   .top-bar-nav-item svg {
-    width: 18px !important;
-    height: 18px !important;
+    width: 18px;
+    height: 18px;
     flex-shrink: 0;
   }
 
   .top-bar-nav-item.is-active {
     border-color: var(--purple-fill);
     background: var(--purple-fill);
-    color: var(--white) !important;
+    color: var(--white);
   }
 
   /* Page switch tooltips (TopBar.tsx): Dashboard hangs from the left edge, Usage is
      centered under the switch, and Settings hangs from the right edge so they never
      overlap each other or clip off-screen. */
   .top-bar-nav-item:first-child[data-tooltip]::after {
-    left: 3px !important;
-    right: auto !important;
-    top: calc(100% + 5px) !important;
-    transform: none !important;
+    left: 3px;
+    right: auto;
+    top: calc(100% + 5px);
+    transform: none;
   }
 
   .top-bar-nav-item:nth-child(2)[data-tooltip]::after {
-    left: 50% !important;
-    right: auto !important;
-    top: calc(100% + 5px) !important;
-    transform: translateX(-50%) !important;
+    left: 50%;
+    right: auto;
+    top: calc(100% + 5px);
+    transform: translateX(-50%);
   }
 
   .top-bar-nav-item:last-child[data-tooltip]::after {
-    left: auto !important;
-    right: 3px !important;
-    top: calc(100% + 5px) !important;
-    transform: none !important;
+    left: auto;
+    right: 3px;
+    top: calc(100% + 5px);
+    transform: none;
   }
 
   /* The Left / Used switch (on the Accounts page, AccountsView.tsx) and the Usage page's 7D / 30D
@@ -128,26 +129,26 @@
     border: 0;
     border-radius: 5px;
     background: transparent;
-    color: var(--obsidian-muted) !important;
-    font-size: 12px !important;
-    font-weight: 600 !important;
+    color: var(--obsidian-muted);
+    font-size: 12px;
+    font-weight: 600;
     cursor: pointer;
     transition: color 120ms ease;
   }
 
   .top-bar-segmented button.active {
     background: var(--purple-fill);
-    color: var(--purple-on-fill) !important;
+    color: var(--purple-on-fill);
   }
 
   /* The switch is at the page's right edge, so the options' tooltips hang from the switch's right edge
      (matching the used button) instead of being right-justified to their individual buttons. The global
-     tooltip rule is unlayered, hence !important (see the header). */
+     tooltip bubble is in the base layer, so these plain declarations override it. */
   .top-bar-segmented button[data-tooltip]::after {
-    left: auto !important;
-    right: 2px !important;
-    top: calc(100% + 6px) !important;
-    transform: none !important;
+    left: auto;
+    right: 2px;
+    top: calc(100% + 6px);
+    transform: none;
   }
 
   .top-bar-actions {
@@ -172,14 +173,14 @@
     /* The same dark fill as Refresh all and the Settings page's View button, with the off-white
        label the Settings buttons use. */
     background: var(--obsidian-surface-low, var(--c-1c1b1b));
-    color: var(--c-f7f4ff) !important;
+    color: var(--c-f7f4ff);
     cursor: pointer;
     transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
   }
 
   .top-bar-icon-button svg {
-    width: 18px !important;
-    height: 18px !important;
+    width: 18px;
+    height: 18px;
   }
 
   /* Group: the icon button with its word beside the icon, like Account next to it. */
@@ -190,8 +191,8 @@
     width: auto;
     /* 12px before the icon, 14px after the word, as on the Settings page's icon buttons. */
     padding: 0 14px 0 12px;
-    font-size: 14px !important;
-    font-weight: 650 !important;
+    font-size: 14px;
+    font-weight: 650;
     white-space: nowrap;
   }
 
@@ -212,9 +213,9 @@
     border: 1px solid var(--purple-fill);
     border-radius: 10px;
     background: var(--purple-fill);
-    color: var(--white) !important;
-    font-size: 14px !important;
-    font-weight: 650 !important;
+    color: var(--white);
+    font-size: 14px;
+    font-weight: 650;
     white-space: nowrap;
     cursor: pointer;
     transition: background 120ms ease;
@@ -222,33 +223,33 @@
 
   /* 18px, the same as Group's icon beside it. */
   .top-bar-add-account svg {
-    width: 18px !important;
-    height: 18px !important;
+    width: 18px;
+    height: 18px;
     /* The plus is drawn with a 1.8 stroke (a 24px box scaled to 18px: about 1.35px), thin beside the
        bold label; 3 gives it the label's weight. */
     stroke-width: 3;
   }
 
   /* Its copy breaks after "usage" on purpose, as on the phone header's Group button. The global
-     tooltip rule keeps tooltips on one line, so this needs !important (see the header). */
+     tooltip rule keeps tooltips on one line; it is in the base layer, so this overrides it. */
   .top-bar-add-group[data-tooltip]::after {
-    width: max-content !important;
+    width: max-content;
     max-width: 320px;
-    white-space: pre-line !important;
+    white-space: pre-line;
     text-align: left;
   }
 
   /* + Account sits at the top-right edge, so right-align its tooltip to keep it inside the window. */
   .top-bar-add-account[data-tooltip]::after {
-    left: auto !important;
-    right: 0 !important;
-    transform: none !important;
+    left: auto;
+    right: 0;
+    transform: none;
   }
 
   @media (hover: hover) {
     .top-bar-nav-item:not(.is-active):hover,
     .top-bar-segmented button:not(.active):hover {
-      color: var(--obsidian-text) !important;
+      color: var(--obsidian-text);
     }
 
     /* The page switch and the Left / Used switch outline in purple, like the buttons beside them. */
@@ -260,7 +261,7 @@
     .top-bar-icon-button:not(:disabled):hover {
       border-color: var(--purple-accent);
       background: var(--purple-surface);
-      color: var(--obsidian-text) !important;
+      color: var(--obsidian-text);
     }
 
     .top-bar-add-account:hover {
@@ -284,6 +285,6 @@
   .top-bar-icon-button:focus-visible,
   .top-bar-add-account:focus-visible {
     outline: 2px solid var(--purple-accent);
-    outline-offset: 2px !important;
+    outline-offset: 2px;
   }
 }

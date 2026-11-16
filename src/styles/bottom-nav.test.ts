@@ -48,7 +48,7 @@ describe("bottom bar colors", () => {
   });
 
   it("marks the current page in the desktop top bar with the purple fill and white label", () => {
-    expect(TOP_BAR).toMatch(/\.top-bar-nav-item\.is-active \{\s*border-color: var\(--purple-fill\);\s*background: var\(--purple-fill\);\s*color: var\(--white\) !important;/);
+    expect(TOP_BAR).toMatch(/\.top-bar-nav-item\.is-active \{\s*border-color: var\(--purple-fill\);\s*background: var\(--purple-fill\);\s*color: var\(--white\);/);
   });
 
   it("keeps the selected and unselected labels readable in both themes (4.5:1)", () => {
@@ -64,7 +64,7 @@ describe("bottom bar colors", () => {
   });
 
   it("marks the current page with a purple pill, the on-fill label and a heavier weight", () => {
-    expect(NAV).toMatch(/\.bottom-nav-item\.is-active \{\s*background: var\(--purple-fill\);\s*color: var\(--purple-on-fill\) !important;\s*font-weight: 750 !important;/);
+    expect(NAV).toMatch(/\.bottom-nav-item\.is-active \{\s*background: var\(--purple-fill\);\s*color: var\(--purple-on-fill\);\s*font-weight: 750;/);
     // The light theme does not recolor the pill or its label.
     for (const name of ["--purple-fill", "--purple-on-fill"]) {
       expect(LIGHT, name).not.toContain(`${name}:`);

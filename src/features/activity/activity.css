@@ -1,11 +1,11 @@
 /* The Usage page (ActivityView.tsx and the components beside it).
  *
- * Layered rules lose to unlayered ones, and a few global rules are unlayered: `button { color:
- * inherit; font: inherit }`, `svg { width; height }`, `:focus-visible { outline-offset }`, and the
- * tooltip rules `[data-tooltip] { position }` / `[data-tooltip]::after { left; top; transform;
- * white-space }`. The declarations below that must beat them are `!important`, which inverts the
- * order (a layered `!important` beats an unlayered one); see docs/CSS_ARCHITECTURE.md. Nothing else
- * here needs it, because every class is new.
+ * Layered rules lose to unlayered ones. The element defaults these rules override (`button`,
+ * `svg`, `:focus-visible { outline-offset }`, the tooltip bubble `[data-tooltip]::after`) are in
+ * `@layer base`, so plain declarations win. What still needs `!important`, which inverts the order
+ * (a layered `!important` beats an unlayered one), is whatever an unlayered rule also sets:
+ * `position` on an element with a tooltip (`[data-tooltip] { position: relative }` is unlayered),
+ * the page's own top padding, and the shared `.button` radius. See docs/CSS_ARCHITECTURE.md.
  *
  * Breakpoints: only the shared 860 / 861 split, for where the 7D / 30D switch sits. The grid fits as
  * many 540px columns as the page has room for. */
@@ -94,30 +94,30 @@
     border: 0;
     border-radius: 5px;
     background: transparent;
-    color: var(--obsidian-muted) !important;
-    font-size: 12px !important;
-    font-weight: 600 !important;
+    color: var(--obsidian-muted);
+    font-size: 12px;
+    font-weight: 600;
     cursor: pointer;
     transition: color 120ms ease;
   }
 
   .activity-period-switch button.active {
     background: var(--purple-fill);
-    color: var(--purple-on-fill) !important;
+    color: var(--purple-on-fill);
   }
 
   /* The switch is at the right edge of the page, so the tooltips hang from the switch's right edge
      instead of being right-justified to their individual buttons. */
   .activity-period-switch button[data-tooltip]::after {
-    left: auto !important;
-    right: 2px !important;
-    top: calc(100% + 6px) !important;
-    transform: none !important;
+    left: auto;
+    right: 2px;
+    top: calc(100% + 6px);
+    transform: none;
   }
 
   .activity-period-switch button:focus-visible {
     outline: 2px solid var(--purple-accent);
-    outline-offset: 2px !important;
+    outline-offset: 2px;
   }
 
   @media (hover: hover) and (pointer: fine) {
@@ -126,7 +126,7 @@
     }
 
     .activity-period-switch button:not(.active):hover {
-      color: var(--obsidian-text) !important;
+      color: var(--obsidian-text);
     }
 
     .activity-period-switch button.active:hover {
@@ -176,8 +176,8 @@
   }
 
   .activity-message > svg {
-    width: 36px !important;
-    height: 36px !important;
+    width: 36px;
+    height: 36px;
     color: var(--purple-accent);
   }
 
@@ -333,8 +333,8 @@
 
   .activity-card-icon svg,
   .activity-card-icon img {
-    width: 28px !important;
-    height: 28px !important;
+    width: 28px;
+    height: 28px;
     object-fit: contain;
   }
 
@@ -774,22 +774,22 @@
     width: max-content;
     max-width: 240px;
     /* Wraps, but keeps the line break between a bar's day and the note about it. */
-    white-space: pre-line !important;
+    white-space: pre-line;
     text-align: left;
   }
 
   .activity-bar.is-left[data-tooltip]::after,
   .activity-reset-hit.is-left[data-tooltip]::after {
-    left: 0 !important;
-    right: auto !important;
-    transform: none !important;
+    left: 0;
+    right: auto;
+    transform: none;
   }
 
   .activity-bar.is-right[data-tooltip]::after,
   .activity-reset-hit.is-right[data-tooltip]::after {
-    left: auto !important;
-    right: 0 !important;
-    transform: none !important;
+    left: auto;
+    right: 0;
+    transform: none;
   }
 
   /* The shared rule puts `position: relative` on every element with a tooltip; the marker line is
