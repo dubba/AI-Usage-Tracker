@@ -2,6 +2,14 @@
 
 ## Unreleased (0 changes)
 
+## v0.6.1 - 2026-11-15 (3 changes)
+
+### Fixed (3)
+
+- On phones, the New group and Add account buttons in the Dashboard header now show their tooltips, aligned cleanly inside the screen.
+- Turning Menu Bar Labels on or off in Settings now resizes the bottom navigation bar and its active purple highlight together instead of briefly overflowing the bar's border.
+- On phones, an account card's actions menu now opens above the floating bottom navigation bar instead of being cut off behind it.
+
 ## v0.6.0 - 2026-11-15 (18 changes)
 
 ### Added (1)

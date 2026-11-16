@@ -17,7 +17,7 @@
       "category": "utilities",
       "version": "0.6.1",
       "versionDate": "2026-11-16T02:07:20.400Z",
-      "versionDescription": "Release v0.6.1",
+      "versionDescription": "On phones, the New group and Add account buttons in the Dashboard header now show their tooltips, aligned cleanly inside the screen.\nTurning Menu Bar Labels on or off in Settings now resizes the bottom navigation bar and its active purple highlight together instead of briefly overflowing the bar's border.\nOn phones, an account card's actions menu now opens above the floating bottom navigation bar instead of being cut off behind it.",
       "downloadURL": "https://github.com/dubba/AI-Usage-Tracker/releases/download/v0.6.1/AI%20Usage%20Tracker_0.6.1.ipa",
       "size": 6032451,
       "minOSVersion": "16.0"
