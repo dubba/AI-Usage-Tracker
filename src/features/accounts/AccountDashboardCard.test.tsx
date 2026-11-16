@@ -233,6 +233,54 @@ describe("AccountDashboardCard actions dropdown placement", () => {
     expect(placement.openUpward).toBe(true);
   });
 
+  it("keeps the menu above the bottom navigation bar, flipping upward when it does not fit", () => {
+    const rectOf = (top: number, bottom: number) => () =>
+      ({ top, bottom, left: 300, right: 332, width: 32, height: bottom - top, x: 300, y: top, toJSON: () => ({}) }) as DOMRect;
+    const nav = document.createElement("nav");
+    nav.className = "bottom-nav";
+    // The bar covers the last 80px of the 768px viewport.
+    nav.getBoundingClientRect = rectOf(window.innerHeight - 80, window.innerHeight);
+    document.body.appendChild(nav);
+    const menu = document.createElement("div");
+    Object.defineProperty(menu, "scrollHeight", { value: 300, configurable: true });
+    try {
+      // 300px of menu fits the 348px between this toggle and the bar.
+      const high = document.createElement("button");
+      high.getBoundingClientRect = rectOf(300, 332);
+      const below = computeAccountCardMenuPlacement(high, true, menu);
+      expect(below.openUpward).toBe(false);
+      expect(below.maxHeight).toBe(window.innerHeight - 80 - 8 - 332 - 8);
+
+      // Lower down it would run under the bar (it would still fit the bare viewport), so it flips.
+      const low = document.createElement("button");
+      low.getBoundingClientRect = rectOf(420, 452);
+      const above = computeAccountCardMenuPlacement(low, true, menu);
+      expect(above.openUpward).toBe(true);
+      expect(above.maxHeight).toBe(420 - 8);
+    } finally {
+      nav.remove();
+    }
+  });
+
+  it("is not limited by the card or any other ancestor of the toggle, since the menu is on body", () => {
+    const card = document.createElement("article");
+    card.style.transform = "translateY(0)";
+    card.getBoundingClientRect = () =>
+      ({ top: 80, bottom: 200, left: 0, right: 400, width: 400, height: 120, x: 0, y: 80, toJSON: () => ({}) }) as DOMRect;
+    const toggle = document.createElement("button");
+    toggle.getBoundingClientRect = () =>
+      ({ top: 100, bottom: 132, left: 300, right: 332, width: 32, height: 32, x: 300, y: 100, toJSON: () => ({}) }) as DOMRect;
+    card.appendChild(toggle);
+    document.body.appendChild(card);
+    try {
+      const placement = computeAccountCardMenuPlacement(toggle, true);
+      expect(placement.openUpward).toBe(false);
+      expect(placement.maxHeight).toBe(window.innerHeight - 132 - 8);
+    } finally {
+      card.remove();
+    }
+  });
+
   it("restores focus to toggle button when mobile menu closes on Escape", async () => {
     app = mount(
       <AccountDashboardCard

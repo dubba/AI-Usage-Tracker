@@ -53,5 +53,23 @@ export function useInlineAccountRename(account: Account, onRename: (label: strin
     setEditing(false);
   };
 
+  // Escape cancels the rename even when the field has lost focus. On a phone the back button
+  // stands in for Escape: Android sends the key to whatever has focus, and once the keyboard has
+  // been dismissed that is no longer the field, so the field's own key handler never sees it.
+  // An open dialog or menu takes Escape for itself first.
+  const cancelRef = useRef(cancel);
+  cancelRef.current = cancel;
+  useEffect(() => {
+    if (!editing) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (document.querySelector('[aria-modal="true"], [role="menu"]')) return;
+      event.preventDefault();
+      cancelRef.current();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [editing]);
+
   return { editing, startEditing: () => setEditing(true), label, setLabel, renameError, commit, cancel };
 }

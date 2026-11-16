@@ -16,6 +16,29 @@ export type MobileMenuPlacement = {
   style?: CSSProperties;
 };
 
+/** Space kept between the menu and the bottom navigation bar. */
+const MENU_BOTTOM_NAV_MARGIN = 8;
+
+/**
+ * The part of the screen the menu may cover. The menu is a portal on `body`, so nothing around
+ * the card clips it; what it must stay clear of is the bottom navigation bar and the area above
+ * the page's scrolling list (the page header, and the status bar above that).
+ */
+function menuBounds(toggle: HTMLElement): { top: number; bottom: number } {
+  const viewportTop = window.visualViewport?.offsetTop ?? 0;
+  const viewportBottom = viewportTop + (window.visualViewport?.height ?? window.innerHeight);
+  let top = viewportTop;
+  let bottom = viewportBottom;
+  const list = toggle.closest(".dashboard-scroll");
+  if (list) top = Math.max(top, list.getBoundingClientRect().top);
+  const bottomNav = document.querySelector(".bottom-nav");
+  if (bottomNav) {
+    const navRect = bottomNav.getBoundingClientRect();
+    if (navRect.height > 0) bottom = Math.min(bottom, navRect.top - MENU_BOTTOM_NAV_MARGIN);
+  }
+  return { top, bottom };
+}
+
 export function computeAccountCardMenuPlacement(
   toggle: HTMLElement | null,
   hasMoveMenu: boolean,
@@ -33,7 +56,7 @@ export function computeAccountCardMenuPlacement(
     gap: MENU_GAP,
     minHeight: 80,
     estimatedHeight,
-    isFixed: true,
+    bounds: menuBounds(toggle),
   });
 
   const right = Math.max(8, viewportWidth - rect.right);

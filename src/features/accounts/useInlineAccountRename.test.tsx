@@ -113,6 +113,39 @@ describe("useInlineAccountRename", () => {
     expect(latest.editing).toBe(false);
   });
 
+  it("cancels on Escape pressed anywhere on the page, and keeps the app from also handling it", () => {
+    mounted = mount(<Probe account={account} onRename={vi.fn()} />);
+    act(() => latest.startEditing());
+    act(() => latest.setLabel("Draft"));
+    const event = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+    act(() => {
+      document.body.dispatchEvent(event);
+    });
+    expect(latest.editing).toBe(false);
+    expect(latest.label).toBe("Work");
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("leaves Escape to an open menu or dialog, and ignores it when not editing", () => {
+    mounted = mount(<Probe account={account} onRename={vi.fn()} />);
+    const idle = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+    document.body.dispatchEvent(idle);
+    expect(idle.defaultPrevented).toBe(false);
+
+    act(() => latest.startEditing());
+    const menu = document.createElement("div");
+    menu.setAttribute("role", "menu");
+    document.body.appendChild(menu);
+    try {
+      act(() => {
+        document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+      });
+      expect(latest.editing).toBe(true);
+    } finally {
+      menu.remove();
+    }
+  });
+
   it("follows a label changed elsewhere, unless the user is typing", () => {
     mounted = mount(<Probe account={account} onRename={vi.fn()} />);
     mounted.rerender(<Probe account={{ ...account, label: "Renamed" }} onRename={vi.fn()} />);

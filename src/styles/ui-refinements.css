@@ -361,16 +361,19 @@
   background: var(--c-72-41-0-a420);
 }
 
+/* Hover and press fill Refresh (green) and Alerts (amber) solid in their own color with a white
+   icon, like the rename box's check and X and the Remove button below. Same in both themes. The
+   color is !important because the desktop card's neutral hover rule is more specific. */
 .account-card-action.notify-action:hover:not(:disabled) {
-  color: var(--c-ffd19a);
-  border-color: rgb(var(--tint-amber-rgb) / 0.9) !important;
-  background: var(--c-72-41-0-a720) !important;
+  color: var(--white) !important;
+  border-color: var(--warning-line-hover) !important;
+  background: var(--warning-fill-hover) !important;
 }
 
 .account-card-action.notify-action:active:not(:disabled) {
-  color: var(--c-ffd19a);
-  border-color: rgb(var(--tint-amber-rgb) / 0.9) !important;
-  background: rgba(114, 41, 0, 0.9) !important;
+  color: var(--white) !important;
+  border-color: var(--warning-line-active) !important;
+  background: var(--warning-fill-active) !important;
 }
 
 .account-card-action.remove-action {
@@ -416,15 +419,15 @@
 }
 
 .account-card-action.refresh-action:hover:not(:disabled) {
-  color: var(--c-8af0c2);
-  border-color: rgb(var(--tint-green-rgb) / 0.9) !important;
-  background: var(--c-0-56-36-a720) !important;
+  color: var(--white) !important;
+  border-color: var(--success-line-hover) !important;
+  background: var(--success-fill-hover) !important;
 }
 
 .account-card-action.refresh-action:active:not(:disabled) {
-  color: var(--c-8af0c2);
-  border-color: rgb(var(--tint-green-rgb) / 0.9) !important;
-  background: rgba(0, 56, 36, 0.9) !important;
+  color: var(--white) !important;
+  border-color: var(--success-line-active) !important;
+  background: var(--success-fill-active) !important;
 }
 
 .account-card-action,
@@ -2088,18 +2091,6 @@ html::after {
   color: var(--obsidian-text);
   border-color: var(--obsidian-purple-strong) !important;
   background: var(--purple-surface) !important;
-}
-
-:root[data-theme="light"] .account-card-action.refresh-action:hover:not(:disabled) {
-  color: var(--obsidian-green);
-  border-color: var(--obsidian-green) !important;
-  background: rgb(10 143 95 / 0.1) !important;
-}
-
-:root[data-theme="light"] .account-card-action.notify-action:hover:not(:disabled) {
-  color: var(--obsidian-amber);
-  border-color: var(--obsidian-amber) !important;
-  background: rgb(178 94 0 / 0.1) !important;
 }
 
 /* The rename pen and group edit pen use the same solid purple fill and white icon as the primary

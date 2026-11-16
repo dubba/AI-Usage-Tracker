@@ -1,6 +1,17 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (5 changes)
+
+### Improved (2)
+
+- On phones, the box for renaming an account now sits on the line above the plan and status badges, so it stays wide enough to read the name instead of shrinking beside them.
+- Hovering over an account card's Refresh, Alerts, and rename buttons, a group's edit button, or Remove account in the card menu now fills the button in its own color with a white icon, matching the save and cancel buttons in the rename box.
+
+### Fixed (3)
+
+- Pressing Escape, or the Back button on Android, now cancels renaming an account even after the name box has lost focus.
+- An account card's actions menu is no longer cut off at the bottom edge of its card.
+- On phones, an account card's actions menu now stops above the bottom navigation bar and opens upward when there is not enough room below, instead of running off the screen.
 
 ## v0.6.1 - 2026-11-15 (3 changes)
 

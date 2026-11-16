@@ -20,6 +20,12 @@ export type DropdownPlacementOptions = {
    * clip the element. When false, all scrollable/clipping ancestors are intersected.
    */
   isFixed?: boolean;
+  /**
+   * The top and bottom edges the menu must stay inside, in viewport coordinates. Give these for
+   * a menu rendered outside the anchor's ancestors (a portal on `body`), where what clips the
+   * anchor says nothing about the menu. When set, `isFixed` is not used.
+   */
+  bounds?: { top: number; bottom: number };
 };
 
 export type DropdownPlacementResult = {
@@ -243,10 +249,11 @@ export function computeDropdownPlacement(
     maxHeightCap,
     estimatedHeight = 150,
     isFixed = false,
+    bounds,
   } = options;
 
   const anchorRect = anchor.getBoundingClientRect();
-  const { top: topBoundary, bottom: bottomBoundary } = getClippingBounds(anchor, { isFixed });
+  const { top: topBoundary, bottom: bottomBoundary } = bounds ?? getClippingBounds(anchor, { isFixed });
 
   const spaceBelow = Math.max(0, bottomBoundary - anchorRect.bottom - gap);
   const spaceAbove = Math.max(0, anchorRect.top - topBoundary - gap);

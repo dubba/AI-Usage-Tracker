@@ -133,6 +133,11 @@
     --success-line-hover: #20a85c;
     --success-fill-active: #106637;
     --success-line-active: #178749;
+    /* The Alerts button filled amber on hover and pressed (white icon on it). */
+    --warning-fill-hover: #c26a00;
+    --warning-line-hover: #e58a1f;
+    --warning-fill-active: #9a5200;
+    --warning-line-active: #b96a00;
     /* Green, amber and red for tinted backgrounds, borders and glows, used with an alpha:
      * rgb(var(--tint-green-rgb) / 0.14). They are the dark values of --obsidian-green, -amber
      * and -red and do not follow the theme; a light-theme rule that needs another tint sets it. */
