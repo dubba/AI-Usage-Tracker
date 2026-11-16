@@ -375,10 +375,10 @@
   border-radius: 4px;
 }
 
-/* Ensure dropdown appears above collapsed cards and sibling cards */
+/* Ensure dropdown appears above the floating bottom nav (100), headers, and sibling cards */
 .provider-account-card:has(.mobile-dropdown-menu),
 .provider-account-card.has-open-menu {
-  z-index: 100 !important;
+  z-index: var(--z-dropdown, 1000) !important;
   overflow: visible;
 }
 
