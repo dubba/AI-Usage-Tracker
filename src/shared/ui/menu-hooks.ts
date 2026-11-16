@@ -60,11 +60,13 @@ export function useAnchoredMenuPlacement<Placement>({
 export function useMenuDismissal({
   open,
   containerRef,
+  menuRef,
   pressEvents,
   onDismiss,
 }: {
   open: boolean;
   containerRef: RefObject<HTMLElement | null>;
+  menuRef?: RefObject<HTMLElement | null>;
   pressEvents: readonly string[];
   onDismiss: (restoreFocus: boolean) => void;
 }) {
@@ -74,7 +76,10 @@ export function useMenuDismissal({
   useEffect(() => {
     if (!open) return;
     const handlePress = (event: Event) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) dismiss(false);
+      const target = event.target as Node | null;
+      const inContainer = Boolean(target && containerRef.current?.contains(target));
+      const inMenu = Boolean(target && menuRef?.current?.contains(target));
+      if (containerRef.current && !inContainer && !inMenu) dismiss(false);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -88,7 +93,7 @@ export function useMenuDismissal({
       for (const name of pressKey.split(",")) document.removeEventListener(name, handlePress);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open, containerRef, pressKey]);
+  }, [open, containerRef, menuRef, pressKey]);
 }
 
 /**

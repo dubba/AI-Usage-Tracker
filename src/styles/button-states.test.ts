@@ -119,12 +119,55 @@ describe("Button hover and active state invariants", () => {
     expect(PAIRING_CSS).toMatch(/@media\s*\(max-width:\s*480px\)\s*\{[\s\S]*?\.modal-card\.pairing-modal\s+h2[^{]*\{[^}]*font-size:\s*1\.2rem\s*!important/);
   });
 
-  it("right-aligns mobile header Add group and Add account tooltips inside the viewport", () => {
+  it("right-aligns mobile header and top-bar + Account tooltips inside the viewport", () => {
     expect(SIDEBAR_LIST_CSS).toMatch(
       /\.dashboard-header-actions\s+\.sidebar-section-button\[data-tooltip\]::after\s*\{[^}]*left:\s*auto;\s*right:\s*0;\s*transform:\s*none;/,
     );
     expect(SIDEBAR_LIST_CSS).toMatch(
       /\.dashboard-header-actions\s+\.sidebar-section-button\[data-tooltip\]::after\s*\{[^}]*white-space:\s*pre-line;/,
+    );
+    expect(TOP_BAR_CSS).toMatch(
+      /\.top-bar-add-account\[data-tooltip\]::after\s*\{[^}]*left:\s*auto\s*!important;\s*right:\s*0\s*!important;\s*transform:\s*none\s*!important;/,
+    );
+  });
+
+  it("styles X buttons on mobile to match their desktop red hover appearance", () => {
+    expect(MODAL_CLOSE_CSS).toMatch(
+      /@media\s*\(max-width:\s*860px\),\s*\(hover:\s*none\),\s*\(pointer:\s*coarse\)\s*\{[\s\S]*?\.ui-modal-close:not\(:disabled\)\s*\{[^}]*color:\s*var\(--white\);[^}]*border-color:\s*var\(--danger-line-hover\);[^}]*background:\s*var\(--danger-fill-hover\);/,
+    );
+    expect(MODAL_CLOSE_CSS).toMatch(
+      /@media\s*\(max-width:\s*860px\),\s*\(hover:\s*none\),\s*\(pointer:\s*coarse\)\s*\{[\s\S]*?:root\[data-theme="light"\]\s+\.ui-modal-close:not\(:disabled\)\s*\{[^}]*color:\s*var\(--white\);[^}]*border-color:\s*var\(--danger-line\);[^}]*background:\s*var\(--danger-fill\);/,
+    );
+    expect(UI_REFINEMENTS_CSS).toMatch(
+      /@media\s*\(max-width:\s*860px\),\s*\(hover:\s*none\),\s*\(pointer:\s*coarse\)\s*\{[\s\S]*?\.account-name-cancel:not\(:disabled\)\s*\{[^}]*color:\s*var\(--white\)\s*!important;[^}]*border-color:\s*var\(--danger-line-hover\)\s*!important;[^}]*background:\s*var\(--danger-fill-hover\)\s*!important;/,
+    );
+    expect(UI_REFINEMENTS_CSS).toMatch(
+      /@media\s*\(max-width:\s*860px\),\s*\(hover:\s*none\),\s*\(pointer:\s*coarse\)\s*\{[\s\S]*?\.sidebar-mobile-header\s+\.mobile-sidebar-close-btn:not\(:disabled\),[\s\S]*?\.mobile-sidebar-close-btn:not\(:disabled\)\s*\{[^}]*background:\s*var\(--danger-fill-hover\)\s*!important;[^}]*border-color:\s*var\(--danger-line-hover\)\s*!important;[^}]*color:\s*var\(--white\)\s*!important;/,
+    );
+  });
+
+  it("centers X icons inside their buttons and matches the sidebar close button size to the filter button", () => {
+    expect(UI_REFINEMENTS_CSS).toMatch(
+      /\.sidebar-mobile-header\s+\.mobile-sidebar-close-btn,\s*\.mobile-sidebar-close-btn\s*\{[^}]*border-radius:\s*6px\s*!important;[^}]*width:\s*40px;[^}]*height:\s*40px;[^}]*display:\s*inline-flex;\s*align-items:\s*center;\s*justify-content:\s*center;[^}]*padding:\s*0;\s*line-height:\s*0;/,
+    );
+    expect(UI_REFINEMENTS_CSS).toMatch(
+      /\.sidebar-mobile-header\s+\.mobile-sidebar-close-btn\s+svg,\s*\.mobile-sidebar-close-btn\s+svg\s*\{[^}]*display:\s*block;[^}]*width:\s*20px;\s*height:\s*20px;/,
+    );
+    expect(MODAL_CLOSE_CSS).toMatch(
+      /\.ui-modal-close\s*\{[^}]*width:\s*32px;\s*height:\s*32px;\s*display:\s*flex;\s*align-items:\s*center;\s*justify-content:\s*center;\s*padding:\s*0;[^}]*line-height:\s*0;/,
+    );
+    expect(MODAL_CLOSE_CSS).toMatch(/\.ui-modal-close\s+svg\s*\{[^}]*display:\s*block;/);
+    expect(UI_REFINEMENTS_CSS).toMatch(
+      /\.account-name-cancel\s+svg\s*\{[^}]*display:\s*block;[^}]*width:\s*14px\s*!important;\s*height:\s*14px\s*!important;/,
+    );
+  });
+
+  it("styles the inline rename checkmark button with a solid green background and white icon on hover and on mobile", () => {
+    expect(UI_REFINEMENTS_CSS).toMatch(
+      /@media\s*\(max-width:\s*860px\),\s*\(hover:\s*none\),\s*\(pointer:\s*coarse\)\s*\{[\s\S]*?\.account-name-confirm:not\(:disabled\)\s*\{[^}]*color:\s*var\(--white\)\s*!important;[^}]*border-color:\s*var\(--success-line-hover\)\s*!important;[^}]*background:\s*var\(--success-fill-hover\)\s*!important;/,
+    );
+    expect(UI_REFINEMENTS_CSS).toMatch(
+      /\.account-name-confirm:hover:not\(:disabled\),\s*\.account-name-confirm:focus-visible\s*\{[^}]*color:\s*var\(--white\)\s*!important;[^}]*border-color:\s*var\(--success-line-hover\)\s*!important;[^}]*background:\s*var\(--success-fill-hover\)\s*!important;/,
     );
   });
 });

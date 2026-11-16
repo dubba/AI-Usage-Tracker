@@ -252,6 +252,8 @@
 }
 
 .account-name-cancel {
+  width: 24px !important;
+  line-height: 0;
   color: var(--obsidian-red);
   border-color: rgb(var(--tint-red-rgb) / 0.45);
   background: var(--c-85-15-15-a420);
@@ -265,6 +267,13 @@
 .delete-bucket-title-btn svg {
   width: 13px !important;
   height: 13px !important;
+}
+
+.account-name-cancel svg {
+  display: block;
+  flex-shrink: 0;
+  width: 14px !important;
+  height: 14px !important;
 }
 
 .account-name-edit svg,
@@ -304,17 +313,33 @@
   color: var(--c-ffffff) !important;
 }
 
+@media (max-width: 860px), (hover: none), (pointer: coarse) {
+  .account-name-confirm:not(:disabled) {
+    color: var(--white) !important;
+    border-color: var(--success-line-hover) !important;
+    background: var(--success-fill-hover) !important;
+  }
+}
+
 .account-name-confirm:hover:not(:disabled),
 .account-name-confirm:focus-visible {
-  color: var(--c-8af0c2) !important;
-  border-color: rgb(var(--tint-green-rgb) / 0.9) !important;
-  background: var(--c-0-56-36-a720) !important;
+  color: var(--white) !important;
+  border-color: var(--success-line-hover) !important;
+  background: var(--success-fill-hover) !important;
 }
 
 .account-name-confirm:active:not(:disabled) {
-  color: var(--c-8af0c2) !important;
+  color: var(--white) !important;
   border-color: var(--success-line-active) !important;
   background: var(--success-fill-active) !important;
+}
+
+@media (max-width: 860px), (hover: none), (pointer: coarse) {
+  .account-name-cancel:not(:disabled) {
+    color: var(--white) !important;
+    border-color: var(--danger-line-hover) !important;
+    background: var(--danger-fill-hover) !important;
+  }
 }
 
 .account-name-cancel:hover:not(:disabled),
@@ -1723,20 +1748,24 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   color: var(--obsidian-purple) !important;
 }
 
-/* Phone drawer close button: at rest it looks like the hamburger it replaces (same 40px box, grey
-   outline and fill); it turns red only on hover, focus and press, like the dialog close button
-   (modal-close.css). Light theme: see the white-fill rule below. */
+/* Phone drawer close button: exact same 40px square, 6px corners, and 20px icon box as the
+   filter button it replaces, with centered X icon. */
 .sidebar-mobile-header .mobile-sidebar-close-btn,
 .mobile-sidebar-close-btn {
   background: var(--obsidian-surface-low, var(--c-1c1b1b)) !important;
   border: 1px solid var(--obsidian-border-strong) !important;
-  border-radius: 8px !important;
+  border-radius: 6px !important;
   color: var(--c-ffffff) !important;
+  box-sizing: border-box;
   width: 40px;
   height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  margin: 0;
   padding: 0;
   line-height: 0;
   cursor: pointer;
@@ -1746,11 +1775,12 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .sidebar-mobile-header .mobile-sidebar-close-btn svg,
 .mobile-sidebar-close-btn svg {
   display: block;
-  width: 22px;
-  height: 22px;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
   color: inherit !important;
   stroke: currentColor !important;
-  stroke-width: 2.2;
+  stroke-width: 2;
 }
 
 .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn) {
@@ -1881,6 +1911,15 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 :where(:root[data-theme="light"]) .sidebar-mobile-header .mobile-sidebar-close-btn {
   background: var(--white) !important;
   color: var(--black) !important;
+}
+
+@media (max-width: 860px), (hover: none), (pointer: coarse) {
+  .sidebar-mobile-header .mobile-sidebar-close-btn:not(:disabled),
+  .mobile-sidebar-close-btn:not(:disabled) {
+    background: var(--danger-fill-hover) !important;
+    border-color: var(--danger-line-hover) !important;
+    color: var(--white) !important;
+  }
 }
 
 /* Purple fill only while the menu is open. Closed leftover :hover/:active/:focus

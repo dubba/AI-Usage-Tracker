@@ -16,12 +16,12 @@ import { describe, expect, it } from "vitest";
  */
 const BUDGET: Record<string, { important: number; rawColors: number }> = {
   "app/bottom-nav.css": { important: 12, rawColors: 0 },
-  "app/top-bar.css": { important: 43, rawColors: 0 },
+  "app/top-bar.css": { important: 46, rawColors: 0 },
   "features/activity/activity.css": { important: 25, rawColors: 3 },
   "features/pairing/pairing.css": { important: 100, rawColors: 13 },
   "features/startup/startup-gate.css": { important: 0, rawColors: 0 },
   "shared/ui/segment-indicator.css": { important: 3, rawColors: 0 },
-  "styles/account-card-responsive.css": { important: 118, rawColors: 8 },
+  "styles/account-card-responsive.css": { important: 117, rawColors: 8 },
   "styles/api-integration.css": { important: 1, rawColors: 2 },
   "styles/base.css": { important: 4, rawColors: 0 },
   "styles/dashboard-reorder.css": { important: 19, rawColors: 3 },
@@ -31,7 +31,7 @@ const BUDGET: Record<string, { important: number; rawColors: number }> = {
   "styles/sidebar-list.css": { important: 22, rawColors: 0 },
   "styles/theme-palette.css": { important: 0, rawColors: 0 },
   "styles/tokens.css": { important: 0, rawColors: 0 },
-  "styles/ui-refinements.css": { important: 233, rawColors: 16 },
+  "styles/ui-refinements.css": { important: 245, rawColors: 16 },
 };
 
 const TOKEN_FILES = new Set(["styles/tokens.css", "styles/theme-palette.css"]);

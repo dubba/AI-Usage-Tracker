@@ -6,7 +6,7 @@ import type { Section } from "./useSidebarNavigation";
 import "./top-bar.css";
 
 const PAGE_TOOLTIPS: Record<Section, string> = {
-  accounts: "View all your AI accounts, their limits, and reset times",
+  accounts: "Lists all your AI accounts, their limits, and reset times",
   activity: "Shows daily usage across your AI accounts",
   settings: "Customize app preferences and sync devices",
 };
@@ -58,7 +58,7 @@ export function TopBar({
           className="top-bar-icon-button top-bar-add-group has-label"
           onClick={onAddGroup}
           aria-label="Add new group"
-          data-tooltip={"Group accounts to track usage in\none place, like “Work” or “Personal”"}
+          data-tooltip={"Group AI accounts to track their usage\ntogether, such as Work or Personal"}
         >
           <StackPlusIcon />
           <span>Group</span>
@@ -68,7 +68,7 @@ export function TopBar({
           className="top-bar-add-account"
           onClick={onAddAccount}
           aria-label="Add new account"
-          data-tooltip="Add new account"
+          data-tooltip="Connect an AI account to track usage"
         >
           <PlusIcon />Account
         </button>

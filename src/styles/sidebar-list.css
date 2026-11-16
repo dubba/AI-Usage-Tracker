@@ -207,7 +207,7 @@
     right: 0;
     transform: none;
     width: max-content;
-    max-width: min(260px, calc(100vw - 32px));
+    max-width: min(320px, calc(100vw - 32px));
     white-space: pre-line;
     text-align: left;
   }

@@ -27,9 +27,7 @@
   border-radius: 8px;
   background: var(--obsidian-surface-low);
   color: var(--muted);
-  font-size: 26px;
-  font-weight: 600;
-  line-height: 1;
+  line-height: 0;
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -47,6 +45,8 @@
 }
 
 .ui-modal-close svg {
+  display: block;
+  flex-shrink: 0;
   width: 20px;
   height: 20px;
   stroke: currentColor;
@@ -55,6 +55,14 @@
 
 @media (hover: hover) and (pointer: fine) {
   .ui-modal-close:hover:not(:disabled) {
+    color: var(--white);
+    border-color: var(--danger-line-hover);
+    background: var(--danger-fill-hover);
+  }
+}
+
+@media (max-width: 860px), (hover: none), (pointer: coarse) {
+  .ui-modal-close:not(:disabled) {
     color: var(--white);
     border-color: var(--danger-line-hover);
     background: var(--danger-fill-hover);
@@ -100,6 +108,14 @@
 /* Light theme: the same rest look as dark (above); only the red states use a deeper red. */
 @media (hover: hover) and (pointer: fine) {
   :root[data-theme="light"] .ui-modal-close:hover:not(:disabled) {
+    color: var(--white);
+    border-color: var(--danger-line);
+    background: var(--danger-fill);
+  }
+}
+
+@media (max-width: 860px), (hover: none), (pointer: coarse) {
+  :root[data-theme="light"] .ui-modal-close:not(:disabled) {
     color: var(--white);
     border-color: var(--danger-line);
     background: var(--danger-fill);

@@ -229,13 +229,20 @@
     stroke-width: 3;
   }
 
-  /* Its copy breaks after "in" on purpose, as on the phone sidebar's Group button. The global
+  /* Its copy breaks after "usage" on purpose, as on the phone header's Group button. The global
      tooltip rule keeps tooltips on one line, so this needs !important (see the header). */
   .top-bar-add-group[data-tooltip]::after {
     width: max-content !important;
-    max-width: 260px;
+    max-width: 320px;
     white-space: pre-line !important;
     text-align: left;
+  }
+
+  /* + Account sits at the top-right edge, so right-align its tooltip to keep it inside the window. */
+  .top-bar-add-account[data-tooltip]::after {
+    left: auto !important;
+    right: 0 !important;
+    transform: none !important;
   }
 
   @media (hover: hover) {
