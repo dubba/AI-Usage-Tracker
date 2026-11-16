@@ -4,10 +4,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mount, type Mounted } from "../../test-utils/react";
 import { UI_EVENTS } from "../../shared/lib/events";
 import { STORAGE_KEYS, writeJson } from "../../shared/lib/storage";
+import { clearPendingAllOrder, storePageAccountOrder } from "./dashboard-page-state";
 import { getLayout, resetLayoutForTests, subscribeLayout, useLayout, type Layout } from "./layout-store";
+import { resetSidebarOrderLeadsAllPageForTests, storeSidebarGroupOrder } from "./sidebar-order";
 
 beforeEach(() => {
   localStorage.clear();
+  clearPendingAllOrder();
+  resetSidebarOrderLeadsAllPageForTests();
   resetLayoutForTests();
 });
 afterEach(() => resetLayoutForTests());
@@ -22,7 +26,14 @@ describe("layout store", () => {
     expect(layout.providerOrder.slice(0, 2)).toEqual(["grok", "openai"]);
     expect(new Set(layout.providerOrder).size).toBe(layout.providerOrder.length);
     expect(layout.groupOrder).toEqual(["provider:grok", "bucket:b1"]);
-    expect(layout.pageOrderVersion).toBe(0);
+    expect(layout.pageOrders).toEqual({});
+    expect(layout.sidebarOrderLeadsAllPage).toBe(false);
+  });
+
+  it("starts with the page orders that were saved", () => {
+    storePageAccountOrder("bucket:b1", ["b", "a"]);
+    resetLayoutForTests();
+    expect(getLayout().pageOrders).toEqual({ "bucket:b1": ["b", "a"] });
   });
 
   it("gives the same snapshot until something changes", () => {
@@ -59,13 +70,46 @@ describe("layout store", () => {
     unsubscribe();
   });
 
-  it("counts every saved page order", () => {
+  it("holds each page's account order, and the dragged All order until a snapshot clears it", () => {
     const heard = vi.fn();
     const unsubscribe = subscribeLayout(heard);
-    act(() => fire(UI_EVENTS.pageOrderChanged));
-    act(() => fire(UI_EVENTS.pageOrderChanged));
-    expect(getLayout().pageOrderVersion).toBe(2);
+    act(() => storePageAccountOrder("bucket:b1", ["b", "a"]));
+    act(() => storePageAccountOrder("all", ["c", "a", "b"]));
+    expect(getLayout().pageOrders).toEqual({ "bucket:b1": ["b", "a"], all: ["c", "a", "b"] });
     expect(heard).toHaveBeenCalledTimes(2);
+    act(() => clearPendingAllOrder());
+    expect(getLayout().pageOrders).toEqual({ "bucket:b1": ["b", "a"] });
+    expect(heard).toHaveBeenCalledTimes(3);
+    unsubscribe();
+  });
+
+  it("keeps the snapshot when a page order is stored again unchanged", () => {
+    const heard = vi.fn();
+    const unsubscribe = subscribeLayout(heard);
+    act(() => storePageAccountOrder("bucket:b1", ["b", "a"]));
+    const before = getLayout();
+    act(() => storePageAccountOrder("bucket:b1", ["b", "a"]));
+    expect(getLayout()).toBe(before);
+    expect(heard).toHaveBeenCalledTimes(1);
+    unsubscribe();
+  });
+
+  it("says the All page follows the sidebar once a sidebar order was saved, even an unchanged one", () => {
+    const heard = vi.fn();
+    const unsubscribe = subscribeLayout(heard);
+    expect(getLayout().sidebarOrderLeadsAllPage).toBe(false);
+    act(() => storeSidebarGroupOrder([]));
+    expect(getLayout().sidebarOrderLeadsAllPage).toBe(true);
+    expect(heard).toHaveBeenCalledTimes(1);
+    unsubscribe();
+  });
+
+  it("catches up on a page order stored while nothing subscribed", () => {
+    getLayout();
+    storePageAccountOrder("bucket:b1", ["b", "a"]);
+    expect(getLayout().pageOrders).toEqual({});
+    const unsubscribe = subscribeLayout(vi.fn());
+    expect(getLayout().pageOrders).toEqual({ "bucket:b1": ["b", "a"] });
     unsubscribe();
   });
 
@@ -96,8 +140,8 @@ describe("layout store", () => {
       writeJson(STORAGE_KEYS.sidebarGroupOrder, ["provider:openai"]);
       act(() => fire(UI_EVENTS.groupOrderChanged));
       expect(seen.groupOrder).toEqual(["provider:openai"]);
-      act(() => fire(UI_EVENTS.pageOrderChanged));
-      expect(seen.pageOrderVersion).toBe(1);
+      act(() => storePageAccountOrder("all", ["b", "a"]));
+      expect(seen.pageOrders.all).toEqual(["b", "a"]);
     } finally {
       mounted.unmount();
     }

@@ -1,22 +1,29 @@
 import { useSyncExternalStore } from "react";
 import { UI_EVENTS } from "../../shared/lib/events";
 import type { Provider } from "../../types";
-import { readSidebarGroupOrder, readDashboardProviderOrder } from "./sidebar-order";
+import { currentPageAccountOrders } from "./dashboard-page-state";
+import { readSidebarGroupOrder, readDashboardProviderOrder, sidebarOrderLeadsAllPageNow } from "./sidebar-order";
 
 /**
- * The saved dashboard layout the screens follow: the provider order, the sidebar group order, and
- * a counter that moves whenever any page's account order was saved (the orders themselves are read
- * from storage by `applyPageAccountOrder`; the counter says to read again).
+ * The dashboard layout the screens follow: the provider order, the sidebar group order, each
+ * page's account order, and whether the All page follows the sidebar.
  *
- * The writers (`storeSidebarGroupOrder`, `storePageAccountOrder`, a layout received from a paired
- * device) save to storage and dispatch the `UI_EVENTS` events; this store turns those events into a
- * snapshot for `useSyncExternalStore`, so the screens need no listeners or tick counters of their
- * own. It listens only while something subscribes.
+ * The writers (`storeSidebarGroupOrder`, `storePageAccountOrder`, `clearPendingAllOrder`, a layout
+ * received from a paired device) keep the state and dispatch the `UI_EVENTS` events; this store
+ * turns those events into a snapshot for `useSyncExternalStore`, so the screens need no listeners
+ * or tick counters of their own, and what they compute from it has real dependencies. It listens
+ * only while something subscribes.
  */
 export type Layout = {
   providerOrder: readonly Provider[];
   groupOrder: readonly string[];
-  pageOrderVersion: number;
+  /**
+   * Account order by page id (see `currentPageAccountOrders`). A page without an entry shows its
+   * accounts as given. Apply one with `orderAccounts`.
+   */
+  pageOrders: Readonly<Record<string, readonly string[]>>;
+  /** A sidebar order was saved this session, so the All page follows the sidebar rows (see `sidebar-order`). */
+  sidebarOrderLeadsAllPage: boolean;
 };
 
 let current: Layout | null = null;
@@ -29,7 +36,8 @@ export function getLayout(): Layout {
   current ??= {
     providerOrder: readDashboardProviderOrder(),
     groupOrder: readSidebarGroupOrder(),
-    pageOrderVersion: 0,
+    pageOrders: currentPageAccountOrders(),
+    sidebarOrderLeadsAllPage: sidebarOrderLeadsAllPageNow(),
   };
   return current;
 }
@@ -43,8 +51,29 @@ function refreshOrders(): boolean {
   const before = getLayout();
   const providerOrder = readDashboardProviderOrder();
   const groupOrder = readSidebarGroupOrder();
-  if (sameList(before.providerOrder, providerOrder) && sameList(before.groupOrder, groupOrder)) return false;
-  current = { ...before, providerOrder, groupOrder };
+  const sidebarOrderLeadsAllPage = sidebarOrderLeadsAllPageNow();
+  if (
+    sameList(before.providerOrder, providerOrder) &&
+    sameList(before.groupOrder, groupOrder) &&
+    before.sidebarOrderLeadsAllPage === sidebarOrderLeadsAllPage
+  ) {
+    return false;
+  }
+  current = { ...before, providerOrder, groupOrder, sidebarOrderLeadsAllPage };
+  return true;
+}
+
+const samePageOrders = (a: Layout["pageOrders"], b: Layout["pageOrders"]) => {
+  const pages = Object.keys(a);
+  return pages.length === Object.keys(b).length && pages.every((page) => b[page] != null && sameList(a[page], b[page]));
+};
+
+/** Re-reads the page orders; the snapshot changes only if they differ. */
+function refreshPageOrders(): boolean {
+  const before = getLayout();
+  const pageOrders = currentPageAccountOrders();
+  if (samePageOrders(before.pageOrders, pageOrders)) return false;
+  current = { ...before, pageOrders };
   return true;
 }
 
@@ -53,14 +82,13 @@ function onOrdersChanged() {
 }
 
 function onPageOrderChanged() {
-  const before = getLayout();
-  current = { ...before, pageOrderVersion: before.pageOrderVersion + 1 };
-  emit();
+  if (refreshPageOrders()) emit();
 }
 
 function attach() {
   // Anything saved while nobody was listening is picked up now.
   refreshOrders();
+  refreshPageOrders();
   window.addEventListener(UI_EVENTS.groupOrderChanged, onOrdersChanged);
   window.addEventListener(UI_EVENTS.providerOrderChanged, onOrdersChanged);
   window.addEventListener(UI_EVENTS.pageOrderChanged, onPageOrderChanged);

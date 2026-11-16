@@ -14,8 +14,8 @@ import { GROUP_REORDER_HINT_ID } from "../features/dashboard/SidebarGroupRow";
 import { UsageAlertToasts } from "../features/alerts/UsageAlertToasts";
 import "../features/pairing/pairing.css";
 import { persistGroupOrder } from "../features/reorder";
-import { sidebarOrderLeadsAllPageNow, storeSidebarGroupOrder } from "../features/dashboard/sidebar-order";
-import { applyPageAccountOrder } from "../features/dashboard/dashboard-page-state";
+import { storeSidebarGroupOrder } from "../features/dashboard/sidebar-order";
+import { orderAccounts } from "../features/dashboard/dashboard-page-state";
 import { DEFAULT_ACCOUNT_REFRESH_MINUTES } from "../shared/lib/constants";
 import { useAccountActions } from "../features/accounts/useAccountActions";
 import { useAppSettings } from "../features/settings/useAppSettings";
@@ -73,7 +73,7 @@ export default function App() {
   );
   const nav = useSidebarNavigation();
   const { selectedGroupId, section, sidebarOpen } = nav;
-  const { providerOrder, groupOrder: sidebarGroupOrder, pageOrderVersion } = useLayout();
+  const { providerOrder, groupOrder: sidebarGroupOrder, pageOrders, sidebarOrderLeadsAllPage } = useLayout();
   const [groupAnnouncement, setGroupAnnouncement] = useState("");
   useTouchTooltips();
   useDragReorder();
@@ -207,24 +207,22 @@ export default function App() {
 
   useGroupOrderReconcile({ snapshot, accounts, buckets });
 
-  // Card drags store a pending order (`pageOrderVersion`). A sidebar row drag updates the
-  // group order in the same turn; follow that here so the Accounts and Usage pages move
-  // with the sidebar instead of waiting for the saved snapshot to reload.
+  // A card drag on the All page leaves a pending order in `pageOrders`. A sidebar row drag
+  // updates the group order in the same turn; follow that here so the Accounts and Usage pages
+  // move with the sidebar instead of waiting for the saved snapshot to reload.
+  const allPageOrder = pageOrders[ALL_ACCOUNTS_GROUP_ID];
   const allPageAccounts = useMemo(() => {
-    const base = applyPageAccountOrder(accounts, ALL_ACCOUNTS_GROUP_ID);
-    if (!sidebarOrderLeadsAllPageNow()) return base;
+    const base = orderAccounts(accounts, allPageOrder);
+    if (!sidebarOrderLeadsAllPage) return base;
     return allPageAccountsForSidebar(base, sidebarGroups, buckets);
-    // pageOrderVersion changes when a card drag stores an order outside React state.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accounts, buckets, sidebarGroups, pageOrderVersion]);
+  }, [accounts, buckets, sidebarGroups, allPageOrder, sidebarOrderLeadsAllPage]);
+  const selectedPageOrder = pageOrders[selectedGroup.id];
   const visibleAccounts = useMemo(
     () =>
       selectedGroup.id === ALL_ACCOUNTS_GROUP_ID
         ? allPageAccounts
-        : applyPageAccountOrder(selectedGroup.accounts, selectedGroup.id),
-    // The page order for a provider or group page lives outside React state.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedGroup, pageOrderVersion, allPageAccounts],
+        : orderAccounts(selectedGroup.accounts, selectedPageOrder),
+    [selectedGroup, selectedPageOrder, allPageAccounts],
   );
   const activityAccounts = allPageAccounts;
 

@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  applyPageAccountOrder,
   applyPageUiState,
   clearPendingAllOrder,
   collectPageUiState,
+  currentPageAccountOrders,
   isCardCollapsedOnPage,
   migrateLegacyAllPageOrder,
   migrateLegacyCollapsedCards,
+  orderAccounts,
   parseCollapsedKey,
   readPageAccountOrder,
   setCardCollapsedOnPage,
@@ -19,6 +20,10 @@ import { captureEvents, installFakeWindow } from "../../test-utils/fakeWindow";
 import type { Account } from "../../types";
 
 let env: ReturnType<typeof installFakeWindow>;
+
+/** What a screen shows for a page: its accounts in that page's current order. */
+const applyPageAccountOrder = (accounts: Account[], pageId: string) =>
+  orderAccounts(accounts, currentPageAccountOrders()[pageId]);
 
 beforeEach(() => {
   env = installFakeWindow();
@@ -109,6 +114,21 @@ describe("the all page follows the backend order", () => {
     clearPendingAllOrder();
     const accounts = [account("b"), account("a"), account("c")];
     expect(applyPageAccountOrder(accounts, "all")).toBe(accounts);
+  });
+
+  it("announces that the dragged order is gone, once", () => {
+    storePageAccountOrder("all", ["c", "a", "b"]);
+    const events = captureEvents(env.window, UI_EVENTS.pageOrderChanged);
+    clearPendingAllOrder();
+    clearPendingAllOrder();
+    expect(events).toEqual([{ pageId: "all", order: [] }]);
+  });
+
+  it("lists the saved page orders with the dragged All order beside them", () => {
+    storePageAccountOrder("bucket:b1", ["b", "a"]);
+    expect(currentPageAccountOrders()).toEqual({ "bucket:b1": ["b", "a"] });
+    storePageAccountOrder("all", ["c", "a", "b"]);
+    expect(currentPageAccountOrders()).toEqual({ "bucket:b1": ["b", "a"], all: ["c", "a", "b"] });
   });
 
   it("keeps the dragged order over a snapshot that arrives while the save is still running", async () => {

@@ -22,9 +22,15 @@ let pendingAllOrder: string[] | null = null;
 // predate the save, so it must not replace the order on screen.
 let allOrderSavesInFlight = 0;
 
+function announcePageOrder(pageId: string, order: string[]): void {
+  window.dispatchEvent(new CustomEvent(UI_EVENTS.pageOrderChanged, { detail: { pageId, order } }));
+}
+
 /** Called when a fresh snapshot arrives: its account order is the saved one, unless a save is still running. */
 export function clearPendingAllOrder(): void {
-  if (allOrderSavesInFlight === 0) pendingAllOrder = null;
+  if (allOrderSavesInFlight > 0 || pendingAllOrder === null) return;
+  pendingAllOrder = null;
+  announcePageOrder(ALL_PAGE_ID, []);
 }
 
 /** Runs `save` while keeping the order just shown on the "all" page in place of any snapshot loaded meanwhile. */
@@ -96,9 +102,7 @@ export function storePageAccountOrder(pageId: string, accountIds: string[]): voi
     // If storage is unavailable the order still applies for this session via the event below.
     writeJson(`${PAGE_ORDER_PREFIX}${pageId}`, accountIds);
   }
-  window.dispatchEvent(
-    new CustomEvent(UI_EVENTS.pageOrderChanged, { detail: { pageId, order: accountIds } }),
-  );
+  announcePageOrder(pageId, accountIds);
 }
 
 /**
@@ -117,8 +121,13 @@ export function migrateLegacyAllPageOrder(currentIds: string[]): string[] | null
   return next.every((id, index) => id === currentIds[index]) ? null : next;
 }
 
-export function applyPageAccountOrder(accounts: Account[], pageId: string): Account[] {
-  const saved = pageId === ALL_PAGE_ID ? (pendingAllOrder ?? []) : readPageAccountOrder(pageId);
+/**
+ * `accounts` in a page's account order: the ids in `order` first, in that order, then the rest as
+ * they were. Ids in `order` that are not in `accounts` are skipped. Without an order the same
+ * array comes back.
+ */
+export function orderAccounts(accounts: Account[], order: readonly string[] | undefined): Account[] {
+  const saved = order ?? [];
   if (!saved.length) return accounts;
   const remaining = new Map(accounts.map((account) => [account.id, account]));
   const ordered: Account[] = [];
@@ -152,6 +161,18 @@ function collectPageOrders(): Record<string, string[]> {
     const order = readPageAccountOrder(pageId);
     if (pageId && order.length) orders[pageId] = order;
   }
+  return orders;
+}
+
+/**
+ * Every page's account order as the screens should apply it now, by page id: the saved order of
+ * each provider and group page, plus, under "all", the order just dragged there while it waits
+ * for the next snapshot. `layout-store` publishes this as `pageOrders`; every change to it is
+ * announced with `UI_EVENTS.pageOrderChanged`.
+ */
+export function currentPageAccountOrders(): Record<string, string[]> {
+  const orders = collectPageOrders();
+  if (pendingAllOrder?.length) orders[ALL_PAGE_ID] = pendingAllOrder;
   return orders;
 }
 
