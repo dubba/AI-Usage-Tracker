@@ -4,7 +4,7 @@ import { act } from "react";
 import { setNarrowWindow } from "../../test-utils/media";
 import { click, mount, settle, type Mounted } from "../../test-utils/react";
 import type { Account, UsageSnapshot } from "../../types";
-import { setCardCollapsedOnPage } from "../dashboard/dashboard-page-state";
+import { setCardCollapsedOnPage } from "../layout/dashboard-page-state";
 import { CREDENTIAL_PROTECTION_ACCOUNT_NOTE } from "../dashboard/credential-protection";
 import { computeAccountCardMenuPlacement } from "./AccountCardMenu";
 import { AccountDashboardCard } from "./AccountDashboardCard";

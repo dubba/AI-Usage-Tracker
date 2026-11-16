@@ -2,7 +2,7 @@ import { arraysEqual, committedOrder, dragFromPointerTarget, isInteractivePointe
 import { beginReordering, DROP_COOLDOWN_MS, droppedWithin, endReordering } from "../../shared/lib/reorder-activity";
 import { persistGroupOrder, persistVisibleAccountOrder } from "./persist";
 import { clearDragArtifacts, enterDragVisuals, moveFloat, prepareDrag, settleVisualDrag, updatePlaceholderFromPointer } from "./preview";
-import { storeSidebarGroupOrder } from "../dashboard/sidebar-order";
+import { storeSidebarGroupOrder } from "../sidebar/sidebar-order";
 import { announceReorder } from "../../shared/lib/events";
 import type { ActiveDrag, PointerCandidate } from "./types";
 

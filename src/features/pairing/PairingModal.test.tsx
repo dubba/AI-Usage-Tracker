@@ -84,7 +84,7 @@ vi.mock("./hooks/useQrScanner", async () => {
     },
   };
 });
-vi.mock("../dashboard/ui-state", () => ({ collectUiState: () => ({ marker: true }) }));
+vi.mock("../layout/ui-state", () => ({ collectUiState: () => ({ marker: true }) }));
 
 import { click, mount, settle, typeInto, type Mounted } from "../../test-utils/react";
 import { ERROR_AUTO_DISMISS_MS } from "../../shared/hooks/useAutoDismissedError";

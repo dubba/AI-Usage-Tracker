@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mount, type Mounted } from "../../test-utils/react";
 import { announceReorder } from "../../shared/lib/events";
 import { STORAGE_KEYS, storageGet, storageSet } from "../../shared/lib/storage";
-import { resetLayoutForTests } from "../dashboard/layout-store";
+import { resetLayoutForTests } from "../layout/layout-store";
 import { countReorderHintSession, isReorderHintEligible, MAX_REORDER_HINT_OPENS, useReorderHint } from "./useReorderHint";
 
 let latest: ReturnType<typeof useReorderHint>;

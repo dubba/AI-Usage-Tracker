@@ -12,18 +12,18 @@ vi.mock("../../shared/lib/events", () => ({ requestDashboardResync: resync }));
 const latest = vi.hoisted(() => ({ snapshot: null as unknown }));
 vi.mock("../dashboard/snapshot-store", () => ({ getLatestSnapshot: () => latest.snapshot }));
 const sidebar = vi.hoisted(() => ({ saved: [] as string[], store: vi.fn() }));
-vi.mock("../dashboard/sidebar-order", () => ({
+vi.mock("../sidebar/sidebar-order", () => ({
   readDashboardProviderOrder: () => ["openai", "anthropic", "grok"],
   readSidebarGroupOrder: () => sidebar.saved,
   storeSidebarGroupOrder: sidebar.store,
 }));
 const pageOrder = vi.hoisted(() => vi.fn());
-vi.mock("../dashboard/dashboard-page-state", () => ({
+vi.mock("../layout/dashboard-page-state", () => ({
   storePageAccountOrder: pageOrder,
   whileSavingAllOrder: (save: () => Promise<unknown>) => save(),
 }));
 
-import { accountOrderForGroups, buildSidebarGroups, groupOrderForAccounts, listAccountsUnderProviders } from "../dashboard/sidebar-groups";
+import { accountOrderForGroups, buildSidebarGroups, groupOrderForAccounts, listAccountsUnderProviders } from "../sidebar/sidebar-groups";
 import { persistGroupOrder, persistVisibleAccountOrder } from "./persist";
 import type { Account } from "../../types";
 

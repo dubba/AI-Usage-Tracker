@@ -5,7 +5,7 @@ import { announceReorder } from "../../shared/lib/events";
 import { setNarrowWindow } from "../../test-utils/media";
 import { click, mount, type Mounted } from "../../test-utils/react";
 import type { Account, AccountBucket } from "../../types";
-import { ALL_ACCOUNTS_GROUP_ID, type SidebarGroup } from "../dashboard/sidebar-groups";
+import { ALL_ACCOUNTS_GROUP_ID, type SidebarGroup } from "../sidebar/sidebar-groups";
 import { AccountsView } from "./AccountsView";
 
 const account = {

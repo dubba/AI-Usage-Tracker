@@ -1,15 +1,15 @@
 import { useRef, type RefObject } from "react";
-import { SyncStatusLine } from "../features/dashboard/SyncStatusLine";
-import { SidebarGroupRow } from "../features/dashboard/SidebarGroupRow";
-import { SidebarResizeHandle } from "../features/dashboard/SidebarResizeHandle";
-import { UsageDisplayToggle } from "../features/dashboard/UsageDisplayToggle";
-import { ALL_ACCOUNTS_GROUP_ID, isBucketGroup, type SidebarGroup } from "../features/dashboard/sidebar-groups";
-import { SIDEBAR_ID } from "../shared/lib/constants";
-import type { BusyKeys } from "../shared/lib/busy";
-import { useScrollThumb } from "../shared/hooks/useScrollThumb";
-import { CloseIcon, GaugeIcon } from "../shared/ui/icons";
-import type { Account } from "../types";
-import type { Section } from "./useSidebarNavigation";
+import { SyncStatusLine } from "../dashboard/SyncStatusLine";
+import { SidebarGroupRow } from "./SidebarGroupRow";
+import { SidebarResizeHandle } from "./SidebarResizeHandle";
+import { UsageDisplayToggle } from "../dashboard/UsageDisplayToggle";
+import { ALL_ACCOUNTS_GROUP_ID, isBucketGroup, type SidebarGroup } from "./sidebar-groups";
+import { SIDEBAR_ID } from "../../shared/lib/constants";
+import type { BusyKeys } from "../../shared/lib/busy";
+import { useScrollThumb } from "../../shared/hooks/useScrollThumb";
+import { CloseIcon, GaugeIcon } from "../../shared/ui/icons";
+import type { Account } from "../../types";
+import type { Section } from "../../app/useSidebarNavigation";
 
 /**
  * The navigation sidebar: the All accounts row and one row per group, with the sync status and

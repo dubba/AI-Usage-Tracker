@@ -4,7 +4,7 @@ import { describeError } from "../../../shared/lib/errors";
 import { logIgnored } from "../../../shared/lib/log";
 import type { useLatestRequest } from "../../../shared/hooks/useLatestRequest";
 import type { PairingStatus } from "../../../types";
-import { collectUiState } from "../../dashboard/ui-state";
+import { collectUiState } from "../../layout/ui-state";
 import type { FlowAction } from "../lib/flow-state";
 import { PAIRING_CODE_LENGTH, type IntendedRole } from "../lib/view-model";
 

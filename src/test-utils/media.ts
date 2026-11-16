@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import { MOBILE_OVERLAY_QUERY } from "../features/dashboard/sidebar-width";
+import { MOBILE_OVERLAY_QUERY } from "../features/sidebar/sidebar-width";
 
 /**
  * Makes `matchMedia` report a phone-width window (`narrow`) or a wide one, for components that lay

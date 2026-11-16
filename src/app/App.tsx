@@ -8,14 +8,14 @@ import { AccountsView } from "../features/accounts/AccountsView";
 import { ActivityView } from "../features/activity/ActivityView";
 import { ErrorBanner } from "../shared/ui/ErrorBanner";
 import { SettingsView } from "../features/settings/SettingsView";
-import { useLayout } from "../features/dashboard/layout-store";
+import { useLayout } from "../features/layout/layout-store";
 import { AppSettingsContext, AppUpdateContext } from "../features/settings/settings-context";
-import { GROUP_REORDER_HINT_ID } from "../features/dashboard/SidebarGroupRow";
+import { GROUP_REORDER_HINT_ID } from "../features/sidebar/SidebarGroupRow";
 import { UsageAlertToasts } from "../features/alerts/UsageAlertToasts";
 import "../features/pairing/pairing.css";
 import { persistGroupOrder } from "../features/reorder";
-import { storeSidebarGroupOrder } from "../features/dashboard/sidebar-order";
-import { orderAccounts } from "../features/dashboard/dashboard-page-state";
+import { storeSidebarGroupOrder } from "../features/sidebar/sidebar-order";
+import { orderAccounts } from "../features/layout/dashboard-page-state";
 import { DEFAULT_ACCOUNT_REFRESH_MINUTES } from "../shared/lib/constants";
 import { useAccountActions } from "../features/accounts/useAccountActions";
 import { useAppSettings } from "../features/settings/useAppSettings";
@@ -25,7 +25,7 @@ import { isMobileDevice } from "../shared/lib/platform";
 import { useDashboardData } from "../features/dashboard/useDashboardData";
 import { useDragReorder } from "../features/reorder/useDragReorder";
 import { usePairingEvents } from "../features/pairing/hooks/usePairingEvents";
-import { useSidebarOverlay } from "../features/dashboard/useSidebarOverlay";
+import { useSidebarOverlay } from "../features/sidebar/useSidebarOverlay";
 import { useTouchTooltips } from "../shared/hooks/useTouchTooltips";
 import { useUsageAlerts } from "../features/alerts/useUsageAlerts";
 import {
@@ -37,7 +37,7 @@ import {
   listAccountsUnderProviders,
   moveGroupWithinSection,
   type SidebarGroup,
-} from "../features/dashboard/sidebar-groups";
+} from "../features/sidebar/sidebar-groups";
 import { moveAnnouncement } from "../features/reorder/reorder-utils";
 import { announceReorder, requestDashboardResync } from "../shared/lib/events";
 import { bridgeApi } from "../shared/lib/api";
@@ -45,7 +45,7 @@ import { clearAppStorage } from "../shared/lib/storage";
 import type { Account, AccountBucket, Provider } from "../types";
 import { AppModals } from "./AppModals";
 import { BottomNav } from "./BottomNav";
-import { Sidebar } from "./Sidebar";
+import { Sidebar } from "../features/sidebar/Sidebar";
 import { TopBar } from "./TopBar";
 import { useAfterAccountAdded } from "./useAfterAccountAdded";
 import { useAppMigrations } from "./useAppMigrations";

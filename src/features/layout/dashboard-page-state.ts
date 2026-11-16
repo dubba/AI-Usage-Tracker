@@ -1,4 +1,4 @@
-import { isBucketGroupId, isProviderGroupId } from "./sidebar-groups";
+import { isBucketGroupId, isProviderGroupId } from "../sidebar/sidebar-groups";
 import { UI_EVENTS } from "../../shared/lib/events";
 import { readJson, storageGet, storageKeys, storageRemove, storageSet, STORAGE_PREFIXES, writeJson } from "../../shared/lib/storage";
 import type { Account } from "../../types";

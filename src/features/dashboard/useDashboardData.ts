@@ -11,7 +11,7 @@ import {
 import { isReordering, subscribeReordering } from "../../shared/lib/reorder-activity";
 import { onDashboardResync } from "../../shared/lib/events";
 import { publishSnapshot } from "./snapshot-store";
-import { clearPendingAllOrder } from "./dashboard-page-state";
+import { clearPendingAllOrder } from "../layout/dashboard-page-state";
 import { accountsNeedScheduledRefresh } from "../../shared/lib/usage-logic";
 import { useTauriEvent } from "../../shared/hooks/useTauriEvent";
 import type { DashboardSnapshot } from "../../types";

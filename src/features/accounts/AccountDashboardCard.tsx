@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { busyKey, REFRESH_ALL_KEY, type BusyKeys } from "../../shared/lib/busy";
-import { isCardCollapsedOnPage, setCardCollapsedOnPage } from "../dashboard/dashboard-page-state";
+import { isCardCollapsedOnPage, setCardCollapsedOnPage } from "../layout/dashboard-page-state";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -41,7 +41,7 @@ import { CREDENTIAL_PROTECTION_ACCOUNT_NOTE } from "../dashboard/credential-prot
 import { AccountCardMenu } from "./AccountCardMenu";
 import { useInlineAccountRename } from "./useInlineAccountRename";
 import { useMediaQuery } from "../../shared/hooks/useMediaQuery";
-import { MOBILE_OVERLAY_QUERY } from "../dashboard/sidebar-width";
+import { MOBILE_OVERLAY_QUERY } from "../sidebar/sidebar-width";
 
 /** Id of the visually hidden hint that AccountsView renders once for every card. */
 export const REORDER_HINT_ID = "account-reorder-hint";

@@ -6,7 +6,7 @@ import { UI_EVENTS } from "../../shared/lib/events";
 import { STORAGE_KEYS, writeJson } from "../../shared/lib/storage";
 import { clearPendingAllOrder, storePageAccountOrder } from "./dashboard-page-state";
 import { getLayout, resetLayoutForTests, subscribeLayout, useLayout, type Layout } from "./layout-store";
-import { resetSidebarOrderLeadsAllPageForTests, storeSidebarGroupOrder } from "./sidebar-order";
+import { resetSidebarOrderLeadsAllPageForTests, storeSidebarGroupOrder } from "../sidebar/sidebar-order";
 
 beforeEach(() => {
   localStorage.clear();

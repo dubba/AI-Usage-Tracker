@@ -2,7 +2,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { MOBILE_OVERLAY_QUERY } from "../features/dashboard/sidebar-width";
+import { MOBILE_OVERLAY_QUERY } from "../features/sidebar/sidebar-width";
 
 /**
  * Every width used in a CSS media or container query. Keep this list, the table in

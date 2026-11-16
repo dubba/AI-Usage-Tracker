@@ -1,16 +1,16 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { click, mount, type Mounted } from "../test-utils/react";
-import { ALL_ACCOUNTS_GROUP_ID, type SidebarGroup } from "../features/dashboard/sidebar-groups";
+import { click, mount, type Mounted } from "../../test-utils/react";
+import { ALL_ACCOUNTS_GROUP_ID, type SidebarGroup } from "./sidebar-groups";
 import { Sidebar } from "./Sidebar";
-import type { Section } from "./useSidebarNavigation";
+import type { Section } from "../../app/useSidebarNavigation";
 
 // The parts of the sidebar that are not under test measure and observe the page.
-vi.mock("../features/dashboard/SyncStatusLine", () => ({
+vi.mock("../dashboard/SyncStatusLine", () => ({
   SyncStatusLine: () => <div className="sidebar-sync-status" />,
 }));
-vi.mock("../features/dashboard/SidebarResizeHandle", () => ({ SidebarResizeHandle: () => null }));
-vi.mock("../shared/hooks/useScrollThumb", () => ({ useScrollThumb: () => ({ overflows: false }) }));
+vi.mock("./SidebarResizeHandle", () => ({ SidebarResizeHandle: () => null }));
+vi.mock("../../shared/hooks/useScrollThumb", () => ({ useScrollThumb: () => ({ overflows: false }) }));
 
 let mounted: Mounted | null = null;
 afterEach(() => {

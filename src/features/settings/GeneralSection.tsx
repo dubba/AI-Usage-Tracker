@@ -5,7 +5,7 @@ import { useMediaQuery } from "../../shared/hooks/useMediaQuery";
 import { useThemePreference } from "../../shared/hooks/useThemePreference";
 import { isAndroid, isIOS } from "../../shared/lib/platform";
 import type { ThemePreference } from "../../shared/lib/theme";
-import { MOBILE_OVERLAY_QUERY } from "../dashboard/sidebar-width";
+import { MOBILE_OVERLAY_QUERY } from "../sidebar/sidebar-width";
 import { useAppSettingsState } from "./settings-context";
 
 /**

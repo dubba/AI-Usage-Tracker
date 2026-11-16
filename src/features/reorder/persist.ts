@@ -1,13 +1,13 @@
 import { bridgeApi } from "../../shared/lib/api";
-import { storePageAccountOrder, whileSavingAllOrder } from "../dashboard/dashboard-page-state";
+import { storePageAccountOrder, whileSavingAllOrder } from "../layout/dashboard-page-state";
 import {
   accountOrderForGroups,
   bucketIdFromGroup,
   buildSidebarGroups,
   groupOrderForAccounts,
   listAccountsUnderProviders,
-} from "../dashboard/sidebar-groups";
-import { readDashboardProviderOrder, readSidebarGroupOrder, storeSidebarGroupOrder } from "../dashboard/sidebar-order";
+} from "../sidebar/sidebar-groups";
+import { readDashboardProviderOrder, readSidebarGroupOrder, storeSidebarGroupOrder } from "../sidebar/sidebar-order";
 import { requestDashboardResync } from "../../shared/lib/events";
 import { logIgnored } from "../../shared/lib/log";
 import { getLatestSnapshot } from "../dashboard/snapshot-store";

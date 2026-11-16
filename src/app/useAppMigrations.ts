@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { bridgeApi } from "../shared/lib/api";
 import { requestDashboardResync } from "../shared/lib/events";
 import { logIgnored } from "../shared/lib/log";
-import { migrateLegacyAllPageOrder, migrateLegacyCollapsedCards } from "../features/dashboard/dashboard-page-state";
+import { migrateLegacyAllPageOrder, migrateLegacyCollapsedCards } from "../features/layout/dashboard-page-state";
 import type { DashboardSnapshot } from "../types";
 
 /**

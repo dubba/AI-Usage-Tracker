@@ -2,7 +2,7 @@ import { useCallback, useState, type MutableRefObject } from "react";
 import { pairingApi } from "../../../shared/lib/api";
 import { describeError } from "../../../shared/lib/errors";
 import type { AirgapExport, PairingStatus } from "../../../types";
-import { collectUiState } from "../../dashboard/ui-state";
+import { collectUiState } from "../../layout/ui-state";
 import type { PairingActionContext } from "./usePairingSession";
 import type { useAirgapCapture } from "./useAirgapCapture";
 import { useAirgapPlayer } from "./useAirgapPlayer";

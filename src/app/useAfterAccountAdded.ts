@@ -3,7 +3,7 @@ import { bridgeApi } from "../shared/lib/api";
 import { busyKey } from "../shared/lib/busy";
 import type { ReportError } from "../shared/lib/errors";
 import { displayAccountLabel, googleAiStudioHasQuotaWindows } from "../shared/lib/usage-logic";
-import { providerGroupId } from "../features/dashboard/sidebar-groups";
+import { providerGroupId } from "../features/sidebar/sidebar-groups";
 import type { Account, DashboardSnapshot } from "../types";
 
 /**

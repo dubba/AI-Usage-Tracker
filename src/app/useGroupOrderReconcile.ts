@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
-import { readDashboardProviderOrder, readSidebarGroupOrder, storeSidebarGroupOrder } from "../features/dashboard/sidebar-order";
-import { buildSidebarGroups, listAccountsUnderProviders, reconciledSidebarGroupOrder } from "../features/dashboard/sidebar-groups";
+import { readDashboardProviderOrder, readSidebarGroupOrder, storeSidebarGroupOrder } from "../features/sidebar/sidebar-order";
+import { buildSidebarGroups, listAccountsUnderProviders, reconciledSidebarGroupOrder } from "../features/sidebar/sidebar-groups";
 import type { Account, AccountBucket, DashboardSnapshot } from "../types";
 
 /**

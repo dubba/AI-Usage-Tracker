@@ -1,4 +1,4 @@
-import { KNOWN_PROVIDERS, uniqueStrings } from "../dashboard/sidebar-order";
+import { KNOWN_PROVIDERS, uniqueStrings } from "../sidebar/sidebar-order";
 import type { Provider } from "../../types";
 import type { ActiveDrag, DragDescriptor } from "./types";
 

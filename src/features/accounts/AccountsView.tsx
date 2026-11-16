@@ -4,7 +4,7 @@ import { useReorderHint } from "./useReorderHint";
 import { useHidePillWhenCramped } from "./useHidePillWhenCramped";
 import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
 import { UsageDisplayToggle } from "../dashboard/UsageDisplayToggle";
-import { MOBILE_OVERLAY_QUERY } from "../dashboard/sidebar-width";
+import { MOBILE_OVERLAY_QUERY } from "../sidebar/sidebar-width";
 import { useMediaQuery } from "../../shared/hooks/useMediaQuery";
 import {
   AlertCircleIcon,
@@ -23,7 +23,7 @@ import {
   displayAccountLabel,
   nextResetSummary,
 } from "../../shared/lib/usage-logic";
-import type { SidebarGroup } from "../dashboard/sidebar-groups";
+import type { SidebarGroup } from "../sidebar/sidebar-groups";
 import type {
   Account,
   AccountBucket,

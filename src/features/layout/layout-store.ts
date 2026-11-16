@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react";
 import { UI_EVENTS } from "../../shared/lib/events";
 import type { Provider } from "../../types";
 import { currentPageAccountOrders } from "./dashboard-page-state";
-import { readSidebarGroupOrder, readDashboardProviderOrder, sidebarOrderLeadsAllPageNow } from "./sidebar-order";
+import { readSidebarGroupOrder, readDashboardProviderOrder, sidebarOrderLeadsAllPageNow } from "../sidebar/sidebar-order";
 
 /**
  * The dashboard layout the screens follow: the provider order, the sidebar group order, each

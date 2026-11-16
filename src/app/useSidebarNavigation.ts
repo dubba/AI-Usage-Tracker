@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ALL_ACCOUNTS_GROUP_ID } from "../features/dashboard/sidebar-groups";
+import { ALL_ACCOUNTS_GROUP_ID } from "../features/sidebar/sidebar-groups";
 import { createPreferenceStore } from "../shared/lib/preference-store";
 import { STORAGE_KEYS } from "../shared/lib/storage";
 import { rememberVisiblePageScroll } from "./page-scroll";

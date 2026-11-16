@@ -19,7 +19,7 @@ import {
   sidebarToggleStacks,
 } from "./sidebar-width";
 import { storageGet, storageSet, STORAGE_KEYS } from "../../shared/lib/storage";
-import { keepWindowWideEnough } from "./window-min-width";
+import { keepWindowWideEnough } from "../dashboard/window-min-width";
 
 function readSavedWidth(key: string): number | null {
   const value = Number.parseFloat(storageGet(key) ?? "");

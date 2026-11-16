@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { pairingApi } from "../../../shared/lib/api";
 import { logIgnored } from "../../../shared/lib/log";
-import { applyUiState } from "../../dashboard/ui-state";
+import { applyUiState } from "../../layout/ui-state";
 import { isPairingUri } from "../lib/uri";
 import { useTauriEvent } from "../../../shared/hooks/useTauriEvent";
 
