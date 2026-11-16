@@ -17,7 +17,7 @@ export type MobileMenuPlacement = {
 };
 
 /** Space kept between the menu and the bottom navigation bar. */
-const MENU_BOTTOM_NAV_MARGIN = 8;
+const MENU_BOTTOM_NAV_MARGIN = 5;
 
 /**
  * The part of the screen the menu may cover. The menu is a portal on `body`, so nothing around

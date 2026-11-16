@@ -244,12 +244,12 @@ describe("AccountDashboardCard actions dropdown placement", () => {
     const menu = document.createElement("div");
     Object.defineProperty(menu, "scrollHeight", { value: 300, configurable: true });
     try {
-      // 300px of menu fits the 348px between this toggle and the bar.
+      // 300px of menu fits between this toggle and the bar, with 5px kept clear of the bar.
       const high = document.createElement("button");
       high.getBoundingClientRect = rectOf(300, 332);
       const below = computeAccountCardMenuPlacement(high, true, menu);
       expect(below.openUpward).toBe(false);
-      expect(below.maxHeight).toBe(window.innerHeight - 80 - 8 - 332 - 8);
+      expect(below.maxHeight).toBe(window.innerHeight - 80 - 5 - 332 - 8);
 
       // Lower down it would run under the bar (it would still fit the bare viewport), so it flips.
       const low = document.createElement("button");
