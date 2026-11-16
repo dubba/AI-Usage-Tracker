@@ -115,4 +115,16 @@ describe("account card metric row spacing", () => {
     expect(ACTIVITY_CSS).toMatch(/\.activity-message > svg\s*\{[\s\S]*?margin-top:\s*43\.95px;/);
     expect(ACTIVITY_CSS).toMatch(/\.activity-message > h2\s*\{[\s\S]*?margin-bottom:\s*53\.95px;/);
   });
+
+  it("caps the desktop inline rename input box to the end of the progress bar", () => {
+    expect(RESPONSIVE_CSS).toMatch(
+      /\.provider-account-card\.desktop-card\s*\{[^}]*container-type:\s*inline-size;/,
+    );
+    expect(RESPONSIVE_CSS).toMatch(
+      /\.provider-account-card\.desktop-card\s+\.account-card-name-edit-wrap\s*\{[^}]*width:\s*min\(360px,\s*100cqi - 104px\);/,
+    );
+    expect(RESPONSIVE_CSS).toMatch(
+      /\.provider-account-card\.desktop-card:has\(\.account-card-metrics\.two-column-metrics\)\s+\.account-card-name-edit-wrap\s*\{[^}]*width:\s*calc\(50cqi - 102px\);/,
+    );
+  });
 });

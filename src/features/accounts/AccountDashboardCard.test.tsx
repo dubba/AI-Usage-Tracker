@@ -149,7 +149,7 @@ describe("AccountDashboardCard actions dropdown placement", () => {
     expect(parseInt(menu.style.maxHeight, 10)).toBeGreaterThanOrEqual(80);
   });
 
-  it("calculates placement taking scroll container bounds into account", () => {
+  it("uses viewport bounds rather than scroll container bounds so the portaled fixed menu is not clipped", () => {
     const fakeToggle = document.createElement("button");
     fakeToggle.getBoundingClientRect = () => ({
       top: 500,
@@ -167,7 +167,7 @@ describe("AccountDashboardCard actions dropdown placement", () => {
     scrollContainer.className = "dashboard-scroll";
     scrollContainer.getBoundingClientRect = () => ({
       top: 80,
-      bottom: 550, // Only 18px below the toggle
+      bottom: 550, // Only 18px below the toggle inside the scroll container
       left: 0,
       right: 400,
       width: 400,
@@ -182,8 +182,8 @@ describe("AccountDashboardCard actions dropdown placement", () => {
 
     try {
       const placement = computeAccountCardMenuPlacement(fakeToggle, true);
-      expect(placement.openUpward).toBe(true);
-      expect(placement.maxHeight).toBe(412); // 500 - 80 - 8 = 412
+      expect(placement.openUpward).toBe(false);
+      expect(placement.maxHeight).toBe(window.innerHeight - 532 - 8); // 228 at 768px viewport
     } finally {
       document.body.removeChild(scrollContainer);
     }

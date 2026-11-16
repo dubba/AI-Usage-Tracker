@@ -28,7 +28,7 @@ describe("TopBar", () => {
   it("describes each page in a tooltip", () => {
     const { pages } = render("accounts");
     expect(pages.map((page) => page.getAttribute("data-tooltip"))).toEqual([
-      "View all your AI accounts, their limits, and reset times",
+      "Lists all your AI accounts, their limits, and reset times",
       "Shows daily usage across your AI accounts",
       "Customize app preferences and sync devices",
     ]);
@@ -49,8 +49,14 @@ describe("TopBar", () => {
     expect(container.querySelector('[aria-label="Usage display"]')).toBeNull();
     // Named like the phone sidebar's add buttons: an icon, then one word.
     expect(container.querySelector(".top-bar-add-group")?.textContent).toBe("Group");
+    expect(container.querySelector(".top-bar-add-group")?.getAttribute("data-tooltip")).toBe(
+      "Group AI accounts to track their usage\ntogether, such as Work or Personal",
+    );
     expect(container.querySelector(".top-bar-add-account")?.textContent).toBe("Account");
     expect(container.querySelector(".top-bar-add-account")?.getAttribute("aria-label")).toBe("Add new account");
+    expect(container.querySelector(".top-bar-add-account")?.getAttribute("data-tooltip")).toBe(
+      "Connect an AI account to track usage",
+    );
     click(container.querySelector<HTMLButtonElement>(".top-bar-add-account")!);
     click(container.querySelector<HTMLButtonElement>('[aria-label="Add new group"]')!);
     expect(handlers.onAddAccount).toHaveBeenCalledTimes(1);

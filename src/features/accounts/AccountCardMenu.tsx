@@ -1,4 +1,5 @@
-import { useRef } from "react";
+import { useRef, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { ArrowDownIcon, ArrowUpIcon, BellIcon, ChevronIcon, EditIcon, RefreshIcon, TrashIcon } from "../../shared/ui/icons";
 import { computeDropdownPlacement } from "../../shared/ui/dropdown-placement";
 import { useAnchoredMenuPlacement, useMenuDismissal, useMenuKeyboardNav } from "../../shared/ui/menu-hooks";
@@ -12,6 +13,7 @@ export const MENU_ESTIMATED_HEIGHT_BASIC = 135;
 export type MobileMenuPlacement = {
   openUpward: boolean;
   maxHeight?: number;
+  style?: CSSProperties;
 };
 
 export function computeAccountCardMenuPlacement(
@@ -23,17 +25,29 @@ export function computeAccountCardMenuPlacement(
     return { openUpward: false };
   }
 
+  const rect = toggle.getBoundingClientRect();
+  const viewportHeight = window.innerHeight;
+  const viewportWidth = window.innerWidth;
   const estimatedHeight = hasMoveMenu ? MENU_ESTIMATED_HEIGHT_MOVE : MENU_ESTIMATED_HEIGHT_BASIC;
   const result = computeDropdownPlacement(toggle, menu ?? null, {
     gap: MENU_GAP,
     minHeight: 80,
     estimatedHeight,
-    isFixed: false,
+    isFixed: true,
   });
+
+  const right = Math.max(8, viewportWidth - rect.right);
 
   return {
     openUpward: result.openUpward,
     maxHeight: result.maxHeight,
+    style: {
+      position: "fixed",
+      right,
+      top: result.openUpward ? "auto" : rect.bottom + MENU_GAP,
+      bottom: result.openUpward ? viewportHeight - rect.top + MENU_GAP : "auto",
+      maxHeight: `${result.maxHeight}px`,
+    },
   };
 }
 
@@ -92,7 +106,12 @@ export function AccountCardMenu({
     open,
     initial: { openUpward: false },
     measure: () => computeAccountCardMenuPlacement(toggleRef.current, hasMove, menuRef.current),
-    isSame: (a, b) => a.openUpward === b.openUpward && a.maxHeight === b.maxHeight,
+    isSame: (a, b) =>
+      a.openUpward === b.openUpward &&
+      a.maxHeight === b.maxHeight &&
+      a.style?.top === b.style?.top &&
+      a.style?.bottom === b.style?.bottom &&
+      a.style?.right === b.style?.right,
     changeKey: hasMove,
   });
 
@@ -116,8 +135,7 @@ export function AccountCardMenu({
   useMenuDismissal({
     open,
     containerRef,
-    // pointerdown too: a press on a card or sidebar row starts the reorder gesture, which cancels
-    // the press's default action, so no mousedown follows it.
+    menuRef,
     pressEvents: ["pointerdown", "mousedown", "touchstart"],
     onDismiss: (restoreFocus) => close(restoreFocus),
   });
@@ -129,7 +147,7 @@ export function AccountCardMenu({
     action();
   };
 
-  const menuStyle = placement.maxHeight != null ? { maxHeight: `${placement.maxHeight}px` } : undefined;
+  const menuStyle = placement.style ?? (placement.maxHeight != null ? { maxHeight: `${placement.maxHeight}px` } : undefined);
   const moveItems = hasMove ? (
     <>
       <button type="button" role="menuitem" className="mobile-dropdown-item move-action" disabled={cardBusy || !canMoveUp} onClick={choose(() => onMove(-1))}>
@@ -140,6 +158,49 @@ export function AccountCardMenu({
       </button>
     </>
   ) : null;
+
+  const menuBody = (
+    <div
+      ref={menuRef}
+      className={`mobile-dropdown-menu account-card-menu-list ${placement.openUpward ? "upward" : ""}`}
+      id={menuId}
+      role="menu"
+      aria-label={`Actions for ${label}`}
+      style={menuStyle}
+    >
+      {moveItems}
+      {onToggleCollapse ? (
+        <button type="button" role="menuitem" className="mobile-dropdown-item collapse-action" onClick={choose(onToggleCollapse)}>
+          <ChevronIcon className={collapsed ? "is-collapsed" : undefined} /> {collapsed ? "Expand card" : "Collapse card"}
+        </button>
+      ) : null}
+      {onRename ? (
+        <button type="button" role="menuitem" className="mobile-dropdown-item rename-action" disabled={cardBusy} onClick={() => {
+          // Focus goes to the name field, not back to the toggle.
+          close();
+          onRename();
+        }}>
+          <EditIcon /> Rename
+        </button>
+      ) : null}
+      {variant === "mobile" ? (
+        <>
+          <button type="button" role="menuitem" className="mobile-dropdown-item mobile-only-item refresh-action" disabled={cardBusy || refreshDisabled} onClick={choose(onRefresh)}>
+            <RefreshIcon /> Refresh
+          </button>
+          <button type="button" role="menuitem" className="mobile-dropdown-item mobile-only-item notify-action" disabled={cardBusy} onClick={choose(onNotifications)}>
+            <BellIcon /> Notifications
+          </button>
+        </>
+      ) : null}
+      <div className="account-card-menu-separator" role="separator" />
+      <button type="button" role="menuitem" className="mobile-dropdown-item remove-action" disabled={cardBusy} onClick={choose(onRemove)}>
+        <TrashIcon /> {variant === "desktop" ? "Remove account" : "Remove"}
+      </button>
+    </div>
+  );
+
+  const menuPortal = open ? createPortal(menuBody, document.body) : null;
 
   if (variant === "desktop") {
     return (
@@ -157,36 +218,7 @@ export function AccountCardMenu({
         >
           <ChevronIcon className={open ? "open" : ""} />
         </button>
-        {open ? (
-          <div
-            ref={menuRef}
-            className={`mobile-dropdown-menu account-card-menu-list ${placement.openUpward ? "upward" : ""}`}
-            id={menuId}
-            role="menu"
-            aria-label={`Actions for ${label}`}
-            style={menuStyle}
-          >
-            {moveItems}
-            {onToggleCollapse ? (
-              <button type="button" role="menuitem" className="mobile-dropdown-item collapse-action" onClick={choose(onToggleCollapse)}>
-                <ChevronIcon className={collapsed ? "is-collapsed" : undefined} /> {collapsed ? "Expand card" : "Collapse card"}
-              </button>
-            ) : null}
-            {onRename ? (
-              <button type="button" role="menuitem" className="mobile-dropdown-item rename-action" disabled={cardBusy} onClick={() => {
-                // Focus goes to the name field, not back to the toggle.
-                close();
-                onRename();
-              }}>
-                <EditIcon /> Rename
-              </button>
-            ) : null}
-            <div className="account-card-menu-separator" role="separator" />
-            <button type="button" role="menuitem" className="mobile-dropdown-item remove-action" disabled={cardBusy} onClick={choose(onRemove)}>
-              <TrashIcon /> Remove account
-            </button>
-          </div>
-        ) : null}
+        {menuPortal}
       </div>
     );
   }
@@ -205,42 +237,7 @@ export function AccountCardMenu({
       >
         <ChevronIcon className={open ? "open" : ""} />
       </button>
-      {open ? (
-        <div
-          ref={menuRef}
-          className={`mobile-dropdown-menu account-card-menu-list ${placement.openUpward ? "upward" : ""}`}
-          id={menuId}
-          role="menu"
-          aria-label={`Actions for ${label}`}
-          style={menuStyle}
-        >
-          {moveItems}
-          {onToggleCollapse ? (
-            <button type="button" role="menuitem" className="mobile-dropdown-item collapse-action" onClick={choose(onToggleCollapse)}>
-              <ChevronIcon className={collapsed ? "is-collapsed" : undefined} /> {collapsed ? "Expand card" : "Collapse card"}
-            </button>
-          ) : null}
-          {onRename ? (
-            <button type="button" role="menuitem" className="mobile-dropdown-item rename-action" disabled={cardBusy} onClick={() => {
-              // Focus goes to the name field, not back to the toggle.
-              close();
-              onRename();
-            }}>
-              <EditIcon /> Rename
-            </button>
-          ) : null}
-          <button type="button" role="menuitem" className="mobile-dropdown-item mobile-only-item refresh-action" disabled={cardBusy || refreshDisabled} onClick={choose(onRefresh)}>
-            <RefreshIcon /> Refresh
-          </button>
-          <button type="button" role="menuitem" className="mobile-dropdown-item mobile-only-item notify-action" disabled={cardBusy} onClick={choose(onNotifications)}>
-            <BellIcon /> Notifications
-          </button>
-          <div className="account-card-menu-separator" role="separator" />
-          <button type="button" role="menuitem" className="mobile-dropdown-item remove-action" disabled={cardBusy} onClick={choose(onRemove)}>
-            <TrashIcon /> Remove
-          </button>
-        </div>
-      ) : null}
+      {menuPortal}
     </div>
   );
 }

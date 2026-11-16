@@ -340,9 +340,7 @@
 }
 
 .mobile-dropdown-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
+  position: fixed;
   width: max-content;
   max-width: calc(100vw - 32px);
   background: var(--obsidian-surface-low);
@@ -356,8 +354,6 @@
 }
 
 .mobile-dropdown-menu.upward {
-  top: auto;
-  bottom: calc(100% + 8px);
   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4);
   animation: customDropdownFadeInUp 120ms ease-out;
 }
@@ -373,13 +369,6 @@
 .mobile-dropdown-menu::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
   border-radius: 4px;
-}
-
-/* Ensure dropdown appears above the floating bottom nav (100), headers, and sibling cards */
-.provider-account-card:has(.mobile-dropdown-menu),
-.provider-account-card.has-open-menu {
-  z-index: var(--z-dropdown, 1000) !important;
-  overflow: visible;
 }
 
 .provider-account-card {
@@ -1301,6 +1290,7 @@
 @media (min-width: 861px) {
   .provider-account-card.desktop-card {
     border-radius: 14px;
+    container-type: inline-size;
   }
 
   /* When the name and the actions do not fit on one line, the actions drop below, right-aligned,
@@ -1337,6 +1327,17 @@
 
   .provider-account-card.desktop-card .account-card-identity h2 {
     font-size: 18px;
+  }
+
+  /* Keep the inline rename box aligned with the first metric column's progress bar rather than
+     extending past it into the second column (header left pad 28px + 44px icon + 12px gap = 84px;
+     metrics margin 20px and 36px column-gap place column 1's right edge at 50cqi - 18px). */
+  .provider-account-card.desktop-card .account-card-name-edit-wrap {
+    width: min(360px, 100cqi - 104px);
+  }
+
+  .provider-account-card.desktop-card:has(.account-card-metrics.two-column-metrics) .account-card-name-edit-wrap {
+    width: calc(50cqi - 102px);
   }
 
   /* The pencil beside the name takes the look of the card's menu button (.more-action below): a
@@ -1837,6 +1838,85 @@
   .provider-account-card .limit-resets-section {
     margin-right: 14px;
     margin-left: 12px;
+  }
+
+  /* Renaming on the phone. The plan and status pills sit beside the name and would squeeze the
+     edit box down to a few characters, so while it is open the header becomes a grid: the box
+     moves up to the "Updated ..." line and runs as far as that label, and the email shares the
+     line below with the pills and the menu button. The box is taller than the label, so it is
+     pulled 9px up into the header's top padding; the card grows by the other 9px, which keeps
+     the box clear of the pills below it. */
+  .provider-account-card .provider-account-card-header:has(.account-card-name-edit-wrap) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+    grid-template-rows: auto auto;
+    gap: 4px;
+  }
+
+  .provider-account-card-header:has(.account-card-name-edit-wrap) .account-card-provider-icon {
+    grid-column: 1;
+    grid-row: 1 / -1;
+    margin-right: 5px;
+  }
+
+  .provider-account-card-header:has(.account-card-name-edit-wrap) .account-card-identity,
+  .provider-account-card-header:has(.account-card-name-edit-wrap) .account-card-header-actions {
+    display: contents;
+  }
+
+  .provider-account-card-header:has(.account-card-name-edit-wrap) .account-card-name-row {
+    grid-column: 2 / span 2;
+    grid-row: 1;
+    align-self: start;
+    align-items: center;
+    margin-top: -9px;
+    width: auto;
+    max-width: none;
+    margin-right: 5px;
+  }
+
+  /* The row places the box here, so drop the 8px lift it has in the stacked layout. */
+  .provider-account-card-header:has(.account-card-name-edit-wrap) .account-card-name-input {
+    transform: none;
+    margin-bottom: 0;
+  }
+
+  .provider-account-card-header:has(.account-card-name-edit-wrap) .account-card-name-edit-actions {
+    transform: translateY(-50%);
+  }
+
+  .provider-account-card-header:has(.account-card-name-edit-wrap) .account-card-name-edit-wrap {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+
+  .provider-account-card-header:has(.account-card-name-edit-wrap) .account-card-email {
+    grid-column: 2;
+    grid-row: 2;
+    margin: 0 5px 0 0;
+  }
+
+  .provider-account-card-header:has(.account-card-name-edit-wrap) .account-card-inline-error {
+    grid-column: 2 / -1;
+    grid-row: 3;
+  }
+
+  .provider-account-card-header:has(.account-card-name-edit-wrap) .account-card-updated {
+    grid-column: 4 / span 2;
+    grid-row: 1;
+    /* Top of the row, which puts the label level with the middle of the lifted box. */
+    align-self: start;
+  }
+
+  .provider-account-card-header:has(.account-card-name-edit-wrap) .account-card-header-meta {
+    grid-column: 3 / span 2;
+    grid-row: 2;
+  }
+
+  .provider-account-card-header:has(.account-card-name-edit-wrap) .account-card-menu {
+    grid-column: 5;
+    grid-row: 2;
+    justify-self: end;
   }
 }
 

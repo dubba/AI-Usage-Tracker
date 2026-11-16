@@ -20,16 +20,15 @@ describe("mobile shell clears the bottom bar", () => {
     );
   });
 
-  it("layers open account card dropdowns above the floating bottom bar and below modals", () => {
+  it("layers open account card dropdowns above the floating bottom bar without lifting the card above it", () => {
     const navZ = Number(BOTTOM_NAV.match(/\.bottom-nav\s*\{[\s\S]*?z-index:\s*(\d+);/)?.[1]);
     const dropdownZ = Number(TOKENS.match(/--z-dropdown:\s*(\d+);/)?.[1]);
     const modalZ = Number(TOKENS.match(/--z-modal:\s*(\d+);/)?.[1]);
     expect(dropdownZ).toBeGreaterThan(navZ);
     expect(modalZ).toBeGreaterThan(dropdownZ);
-    expect(CARD_RESPONSIVE).toMatch(
-      /\.provider-account-card:has\(\.mobile-dropdown-menu\),\s*\.provider-account-card\.has-open-menu\s*\{[^}]*z-index:\s*var\(--z-dropdown,\s*1000\)\s*!important;/,
-    );
+    expect(CARD_RESPONSIVE).toMatch(/\.mobile-dropdown-menu\s*\{[^}]*position:\s*fixed;/);
     expect(CARD_RESPONSIVE).toMatch(/\.mobile-dropdown-menu\s*\{[^}]*z-index:\s*var\(--z-dropdown,\s*1000\);/);
+    expect(CARD_RESPONSIVE).not.toMatch(/\.provider-account-card[^{]*\{[^}]*z-index:\s*var\(--z-dropdown/);
     expect(OBSIDIAN).toMatch(/\.modal-backdrop\s*\{[^}]*z-index:\s*var\(--z-modal,\s*10000\);/);
   });
 

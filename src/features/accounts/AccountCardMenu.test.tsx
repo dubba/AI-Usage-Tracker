@@ -223,4 +223,24 @@ describe("AccountCardMenu", () => {
     click(toggle());
     expect(items().map((item) => item.textContent?.trim())).toContain("Expand card");
   });
+
+  it("portals the menu into document.body with fixed viewport positioning and keeps it open when pressed inside", () => {
+    mounted = mount(<Harness handlers={handlers()} />);
+    toggle().getBoundingClientRect = () => ({ top: 100, bottom: 132, left: 300, right: 332, width: 32, height: 32, x: 300, y: 100, toJSON: () => ({}) });
+    click(toggle());
+
+    const renderedMenu = menu()!;
+    expect(renderedMenu.parentElement).toBe(document.body);
+    expect(mounted.container.contains(renderedMenu)).toBe(false);
+    expect(renderedMenu.style.position).toBe("fixed");
+    expect(renderedMenu.style.top).toBe("140px");
+    expect(renderedMenu.style.right).toBe(`${window.innerWidth - 332}px`);
+
+    act(() => {
+      renderedMenu.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+      renderedMenu.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      renderedMenu.dispatchEvent(new Event("touchstart", { bubbles: true }));
+    });
+    expect(menu()).not.toBeNull();
+  });
 });

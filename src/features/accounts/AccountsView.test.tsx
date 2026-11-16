@@ -364,9 +364,9 @@ describe("AccountsView L / U switch", () => {
     expect(actions.classList.contains("dashboard-header-actions")).toBe(true);
     const [group, account] = [...actions.querySelectorAll("button")];
     expect(group.getAttribute("aria-label")).toBe("Add new group");
-    expect(group.getAttribute("data-tooltip")).toBe("Group accounts to track usage in\none place, like “Work” or “Personal”");
+    expect(group.getAttribute("data-tooltip")).toBe("Group AI accounts to track their usage\ntogether, such as Work or Personal");
     expect(account.getAttribute("aria-label")).toBe("Add new account");
-    expect(account.getAttribute("data-tooltip")).toBe("Add new account");
+    expect(account.getAttribute("data-tooltip")).toBe("Connect an AI account to track usage");
     expect(group.textContent).toBe("");
     expect(account.textContent).toBe("");
     click(group);
