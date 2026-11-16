@@ -73,7 +73,7 @@ describe("account card metric row spacing", () => {
 
   it("styles account card progress bars with amber and red for warning and critical tones", () => {
     expect(RESPONSIVE_CSS).toMatch(/\.account-metric-track\s*>\s*\.tone-warning\s*\{[^}]*background:\s*var\(--obsidian-amber\)/);
-    expect(RESPONSIVE_CSS).toMatch(/\.account-metric-track\s*>\s*\.tone-critical\s*\{[^}]*background:\s*#c53131/);
+    expect(RESPONSIVE_CSS).toMatch(/\.account-metric-track\s*>\s*\.tone-critical\s*\{[^}]*background:\s*var\(--danger-fill\)/);
   });
 
   it("styles sidebar meter text and bars with amber and red matching account cards", () => {
@@ -81,7 +81,7 @@ describe("account card metric row spacing", () => {
     expect(SIDEBAR_CSS).toMatch(/\.sidebar-meter-value\.tone-critical\s*\{[^}]*color:\s*var\(--tone-critical-text\)/);
     expect(SIDEBAR_CSS).toMatch(/\.sidebar-meter-value\.tone-warning\s*\{[^}]*color:\s*var\(--tone-warning-text\)/);
     expect(SIDEBAR_CSS).toMatch(/\.provider-summary-track\s*>\s*\.tone-warning\s*\{[^}]*background:\s*var\(--obsidian-amber\)/);
-    expect(SIDEBAR_CSS).toMatch(/\.provider-summary-track\s*>\s*\.tone-critical\s*\{[^}]*background:\s*#c53131/);
+    expect(SIDEBAR_CSS).toMatch(/\.provider-summary-track\s*>\s*\.tone-critical\s*\{[^}]*background:\s*var\(--danger-fill\)/);
     expect(SIDEBAR_CSS).toMatch(/\.provider-summary-track\s*>\s*\.tone-healthy\s*\{[^}]*background:\s*linear-gradient\(90deg,\s*var\(--purple-fill\),\s*var\(--purple-accent\)\)\s*!important/);
   });
 

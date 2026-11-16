@@ -245,7 +245,7 @@ html[data-sidebar-toggle-stacked] .provider-sidebar-heading-stack .usage-display
 
 /* Same solid purple fill and white label as the + Account / + Group primary buttons. */
 .provider-window-toggle button.active {
-  color: #ffffff;
+  color: var(--white);
   background: var(--purple-fill);
 }
 
@@ -548,7 +548,7 @@ html[data-sidebar-toggle-stacked] .provider-sidebar-heading-stack .usage-display
 
 .provider-summary-track > .tone-critical,
 .account-metric-track > .tone-critical {
-  background: #c53131;
+  background: var(--danger-fill);
 }
 
 .tone-neutral,
@@ -1027,7 +1027,7 @@ button.summary-card:focus-visible {
 .summary-card.attention-card.is-filtering {
   border-color: var(--obsidian-amber);
   background: linear-gradient(110deg, var(--c-2a1c12), var(--c-392617));
-  box-shadow: 0 0 16px rgba(255, 184, 105, 0.25);
+  box-shadow: 0 0 16px rgb(var(--tint-amber-rgb) / 0.25);
 }
 
 .filter-active-banner {
@@ -1037,8 +1037,8 @@ button.summary-card:focus-visible {
   gap: 12px;
   padding: 8px 14px;
   margin: 0 0 12px;
-  background: rgba(255, 184, 105, 0.08);
-  border: 1px solid rgba(255, 184, 105, 0.3);
+  background: rgb(var(--tint-amber-rgb) / 0.08);
+  border: 1px solid rgb(var(--tint-amber-rgb) / 0.3);
   border-radius: 8px;
   color: var(--obsidian-amber);
   font-size: 12px;
@@ -1053,19 +1053,19 @@ button.summary-card:focus-visible {
   padding: 0 10px;
   font-size: 11px;
   font-weight: 600;
-  border-color: rgba(255, 184, 105, 0.4);
+  border-color: rgb(var(--tint-amber-rgb) / 0.4);
   color: var(--obsidian-amber);
 }
 
 .filter-active-banner .compact-button:hover:not(:disabled),
 .filter-active-banner .compact-button:focus-visible:not(:disabled) {
-  background: rgba(255, 184, 105, 0.2) !important;
+  background: rgb(var(--tint-amber-rgb) / 0.2) !important;
   border-color: var(--obsidian-amber) !important;
   color: var(--c-ffffff) !important;
 }
 
 .filter-active-banner .compact-button:active:not(:disabled) {
-  background: rgba(255, 184, 105, 0.35) !important;
+  background: rgb(var(--tint-amber-rgb) / 0.35) !important;
   border-color: var(--obsidian-amber) !important;
   color: var(--c-ffffff) !important;
 }
@@ -1234,7 +1234,7 @@ button.summary-card:focus-visible {
 .next-reset-pill {
   padding: 4px 10px;
   border-radius: 4px;
-  border: 1px solid rgba(78, 222, 163, 0.45);
+  border: 1px solid rgb(var(--tint-green-rgb) / 0.45);
   color: var(--obsidian-green);
   background: var(--c-0-56-36-a420);
   font-size: 18px;
@@ -1257,7 +1257,7 @@ button.summary-card:focus-visible {
 }
 
 .provider-account-card.needs-attention {
-  border-color: rgba(255, 133, 133, 0.42);
+  border-color: rgb(var(--tint-red-rgb) / 0.42);
   background: linear-gradient(90deg, var(--c-147-0-10-a120), var(--obsidian-surface-low) 18%);
 }
 
@@ -1519,7 +1519,7 @@ button.account-card-provider-icon:active {
   padding: 8px 16px;
   color: var(--c-ffb4ab);
   background: var(--c-147-0-10-a120);
-  border-bottom: 1px solid rgba(255, 133, 133, 0.18);
+  border-bottom: 1px solid rgb(var(--tint-red-rgb) / 0.18);
   font-size: 12px;
 }
 
@@ -1541,7 +1541,7 @@ button.account-card-provider-icon:active {
   padding: 12px 16px;
   color: var(--c-ffb4ab);
   background: var(--c-147-0-10-a120);
-  border-bottom: 1px solid rgba(255, 133, 133, 0.18);
+  border-bottom: 1px solid rgb(var(--tint-red-rgb) / 0.18);
   font-size: 12px;
   line-height: 1.4;
 }
@@ -1993,13 +1993,13 @@ button.account-card-provider-icon:active {
 
 .status-indicator-dot.green {
   background: var(--obsidian-green);
-  box-shadow: 0 0 6px rgba(78, 222, 163, 0.5);
+  box-shadow: 0 0 6px rgb(var(--tint-green-rgb) / 0.5);
 }
 
 /* "Version X available": an update is good news, not an error, so amber rather than red. */
 .status-indicator-dot.amber {
   background: var(--obsidian-amber);
-  box-shadow: 0 0 6px rgb(255 184 105 / 0.5);
+  box-shadow: 0 0 6px rgb(var(--tint-amber-rgb) / 0.5);
 }
 
 .settings-update-action {
@@ -2015,31 +2015,31 @@ button.account-card-provider-icon:active {
    What's Changed modal's Update button, and the Paseo Bridge window's Regenerate. */
 .settings-update-action.button-green,
 .update-notes-actions .settings-update-action {
-  background: #147d44 !important;
-  border: 1px solid #1a9d56 !important;
-  color: #ffffff !important;
+  background: var(--success-fill) !important;
+  border: 1px solid var(--success-line) !important;
+  color: var(--white) !important;
 }
 
 .settings-update-action.button-green:hover:not(:disabled),
 .settings-update-action.button-green:focus-visible,
 .update-notes-actions .settings-update-action:hover:not(:disabled),
 .update-notes-actions .settings-update-action:focus-visible {
-  background: #189250 !important;
-  border-color: #20a85c !important;
-  color: #ffffff !important;
+  background: var(--success-fill-hover) !important;
+  border-color: var(--success-line-hover) !important;
+  color: var(--white) !important;
 }
 
 .settings-update-action.button-green:active:not(:disabled),
 .update-notes-actions .settings-update-action:active:not(:disabled) {
-  background: #106637 !important;
-  border-color: #178749 !important;
-  color: #ffffff !important;
+  background: var(--success-fill-active) !important;
+  border-color: var(--success-line-active) !important;
+  color: var(--white) !important;
 }
 
 /* Primary buttons: the solid purple fill with a white label that light uses, in dark too
    (the shared dark primary above is a pale lavender with dark text). */
 :root:not([data-theme="light"]) .button.primary {
-  color: #ffffff;
+  color: var(--white);
   background: var(--purple-fill);
   border-color: var(--purple-fill);
 }
@@ -2047,7 +2047,7 @@ button.account-card-provider-icon:active {
 :root:not([data-theme="light"]) .button.primary:hover:not(:disabled),
 :root:not([data-theme="light"]) .button.primary:focus-visible,
 :root:not([data-theme="light"]) .button.primary:active:not(:disabled) {
-  color: #ffffff;
+  color: var(--white);
   background: var(--purple-fill-hover) !important;
   border-color: var(--purple-fill-line) !important;
 }
@@ -2960,22 +2960,22 @@ select.text-input option,
 }
 
 .button.ghost.bucket-delete-button {
-  color: #fff !important;
-  background: #c53131 !important;
-  border-color: #d94a4a !important;
+  color: var(--white) !important;
+  background: var(--danger-fill) !important;
+  border-color: var(--danger-line) !important;
 }
 
 .button.ghost.bucket-delete-button:hover:not(:disabled),
 .button.ghost.bucket-delete-button:focus-visible:not(:disabled) {
-  background: #d93d3d !important;
-  border-color: #ff6464 !important;
-  color: #fff !important;
+  background: var(--danger-fill-hover) !important;
+  border-color: var(--danger-line-hover) !important;
+  color: var(--white) !important;
 }
 
 .button.ghost.bucket-delete-button:active:not(:disabled) {
-  background: #b52828 !important;
-  border-color: #a82020 !important;
-  color: #fff !important;
+  background: var(--danger-fill-active) !important;
+  border-color: var(--danger-line-active) !important;
+  color: var(--white) !important;
 }
 
 /* The shared confirmation dialog. When it stacks over another dialog (e.g. the
@@ -3749,7 +3749,7 @@ select.text-input option,
   .provider-window-toggle button.active:focus,
   .provider-window-toggle button.active:focus-visible {
     background: var(--purple-fill) !important;
-    color: #ffffff !important;
+    color: var(--white) !important;
   }
 
   .provider-window-toggle button:not(.active),

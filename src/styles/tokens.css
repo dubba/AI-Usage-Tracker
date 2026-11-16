@@ -114,6 +114,31 @@
     --toast-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 0 0 16px rgb(var(--purple-accent-rgb) / 0.22);
     --danger-banner-surface: rgba(38, 18, 20, 0.96);
     --danger-banner-border: rgba(255, 111, 111, 0.4);
+    /* Fixed colors: the same in both themes, so the light block below does not redefine them.
+     * (--c-ffffff and --c-000000 in theme-palette.css are the inverting pair.) */
+    --white: #ffffff;
+    --black: #000000;
+    /* Destructive buttons (remove, delete, close on hover): fill and border at rest, on hover
+     * and pressed. --danger-fill is also the critical usage bar. */
+    --danger-fill: #c53131;
+    --danger-line: #d94a4a;
+    --danger-fill-hover: #d93d3d;
+    --danger-line-hover: #ff6464;
+    --danger-fill-active: #b52828;
+    --danger-line-active: #a82020;
+    /* Solid green buttons (install update, confirm rename), in the same three states. */
+    --success-fill: #147d44;
+    --success-line: #1a9d56;
+    --success-fill-hover: #189250;
+    --success-line-hover: #20a85c;
+    --success-fill-active: #106637;
+    --success-line-active: #178749;
+    /* Green, amber and red for tinted backgrounds, borders and glows, used with an alpha:
+     * rgb(var(--tint-green-rgb) / 0.14). They are the dark values of --obsidian-green, -amber
+     * and -red and do not follow the theme; a light-theme rule that needs another tint sets it. */
+    --tint-green-rgb: 78 222 163;
+    --tint-amber-rgb: 255 184 105;
+    --tint-red-rgb: 255 133 133;
     color-scheme: dark;
     /* Documented z-index scale by role */
     --z-dropdown: 1000;

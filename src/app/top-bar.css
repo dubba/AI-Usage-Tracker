@@ -78,7 +78,7 @@
   .top-bar-nav-item.is-active {
     border-color: var(--purple-fill);
     background: var(--purple-fill);
-    color: #ffffff !important;
+    color: var(--white) !important;
   }
 
   /* Page switch tooltips (TopBar.tsx): Dashboard hangs from the left edge, Usage is
@@ -212,7 +212,7 @@
     border: 1px solid var(--purple-fill);
     border-radius: 10px;
     background: var(--purple-fill);
-    color: #ffffff !important;
+    color: var(--white) !important;
     font-size: 14px !important;
     font-weight: 650 !important;
     white-space: nowrap;

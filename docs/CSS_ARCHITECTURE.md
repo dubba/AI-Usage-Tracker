@@ -61,6 +61,10 @@ The desktop account card (`desktop-card`, from 861px) is a separate set of rules
 
 Add new colors and shared sizes to `styles/tokens.css` and use `var(--name)`; do not repeat a hex value that already has a token. A fallback such as `var(--token, #hex)` is not needed, because the token is always defined.
 
+Most tokens follow the theme. A few are fixed, the same in both themes: `--white` and `--black`, the destructive-button reds (`--danger-fill`, `--danger-line` and their `-hover` and `-active` shades), the solid green button (`--success-*`, same pattern), and the tint triplets `--tint-green-rgb`, `--tint-amber-rgb` and `--tint-red-rgb`, used with an alpha as `rgb(var(--tint-green-rgb) / 0.14)`. Do not swap a fixed token for a themed one of the same dark value (`--white` for `--c-ffffff`, a tint for `--obsidian-green`): the light theme would change.
+
+`src/styles/css-debt.test.ts` holds a per-file count of the color literals still written outside the token files (mostly black and white shadows and overlays with an alpha). The count may only go down; lower the number in that test when you remove one.
+
 `--sidebar-width` is deliberately **not** in `tokens.css`: its value depends on source order and media queries (and the app also sets it from JavaScript).
 
 ## Layers
@@ -76,7 +80,9 @@ When adding new CSS, put it in a layer. To migrate an existing file, first resol
 
 ## `!important`
 
-About two thirds of the old `!important` flags were removed because nothing relied on them. The ~300 that remain are either needed (they beat a higher-specificity rule or an inline style) or sit on selectors that matched nothing in the views that were checked (error banners, update dialogs, the scanner and air-gap views). Do not add `!important` to win a specificity fight; raise or restructure the selector instead.
+About two thirds of the old `!important` flags were removed because nothing relied on them, and the number has grown again since. The ones that remain are either needed (they beat a higher-specificity rule or an inline style) or sit on selectors that matched nothing in the views that were checked (error banners, update dialogs, the scanner and air-gap views). Do not add `!important` to win a specificity fight; raise or restructure the selector instead.
+
+`src/styles/css-debt.test.ts` pins the number of `!important` flags in each stylesheet, and a stylesheet it does not list gets none. The test fails when a count rises, and also when one falls, so the number there is lowered in the same change. The layered component files are listed with the flags described under "Layered component files" above.
 
 ## Checking a CSS change
 

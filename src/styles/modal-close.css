@@ -55,22 +55,22 @@
 
 @media (hover: hover) and (pointer: fine) {
   .ui-modal-close:hover:not(:disabled) {
-    color: #fff;
-    border-color: #ff6464;
-    background: #d93d3d;
+    color: var(--white);
+    border-color: var(--danger-line-hover);
+    background: var(--danger-fill-hover);
   }
 }
 
 .ui-modal-close:focus-visible {
-  color: #fff;
-  border-color: #ff6464;
-  background: #d93d3d;
+  color: var(--white);
+  border-color: var(--danger-line-hover);
+  background: var(--danger-fill-hover);
 }
 
 .ui-modal-close:active:not(:disabled) {
-  color: #fff;
-  background: #b52828;
-  border-color: #a82020;
+  color: var(--white);
+  background: var(--danger-fill-active);
+  border-color: var(--danger-line-active);
 }
 
 .ui-modal-close:disabled {
@@ -79,41 +79,41 @@
 }
 
 .button.remove-confirm-button {
-  color: #fff !important;
-  background: #c53131 !important;
-  border-color: #d94a4a !important;
+  color: var(--white) !important;
+  background: var(--danger-fill) !important;
+  border-color: var(--danger-line) !important;
 }
 
 .button.remove-confirm-button:hover:not(:disabled),
 .button.remove-confirm-button:focus-visible:not(:disabled) {
-  background: #d93d3d !important;
-  border-color: #ff6464 !important;
-  color: #fff !important;
+  background: var(--danger-fill-hover) !important;
+  border-color: var(--danger-line-hover) !important;
+  color: var(--white) !important;
 }
 
 .button.remove-confirm-button:active:not(:disabled) {
-  background: #b52828 !important;
-  border-color: #a82020 !important;
-  color: #fff !important;
+  background: var(--danger-fill-active) !important;
+  border-color: var(--danger-line-active) !important;
+  color: var(--white) !important;
 }
 
 /* Light theme: the same rest look as dark (above); only the red states use a deeper red. */
 @media (hover: hover) and (pointer: fine) {
   :root[data-theme="light"] .ui-modal-close:hover:not(:disabled) {
-    color: #fff;
-    border-color: #d94a4a;
-    background: #c53131;
+    color: var(--white);
+    border-color: var(--danger-line);
+    background: var(--danger-fill);
   }
 }
 
 :root[data-theme="light"] .ui-modal-close:focus-visible {
-  color: #fff;
-  border-color: #d94a4a;
-  background: #c53131;
+  color: var(--white);
+  border-color: var(--danger-line);
+  background: var(--danger-fill);
 }
 
 :root[data-theme="light"] .ui-modal-close:active:not(:disabled) {
-  color: #fff;
-  border-color: #a82020;
-  background: #b52828;
+  color: var(--white);
+  border-color: var(--danger-line-active);
+  background: var(--danger-fill-active);
 }

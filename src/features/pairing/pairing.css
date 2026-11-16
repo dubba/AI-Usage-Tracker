@@ -110,7 +110,7 @@
   align-items: center;
   justify-content: center;
   /* QR codes are black-on-white by design; keep a white card behind them in both themes. */
-  background: #ffffff;
+  background: var(--white);
   padding: 10px;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
@@ -155,8 +155,8 @@
 }
 
 .pairing-meta-tag.timer {
-  background: rgba(255, 184, 105, 0.08);
-  border: 1px solid rgba(255, 184, 105, 0.22);
+  background: rgb(var(--tint-amber-rgb) / 0.08);
+  border: 1px solid rgb(var(--tint-amber-rgb) / 0.22);
   color: var(--obsidian-amber);
 }
 
@@ -196,7 +196,7 @@
   height: 260px;
   border-radius: 14px;
   overflow: hidden;
-  background: #000000;
+  background: var(--black);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
   pointer-events: auto;
   cursor: pointer;
@@ -241,7 +241,7 @@
   .pairing-switch-camera-fab:hover:not(:disabled) {
     background: rgb(var(--purple-accent-rgb) / 0.28);
     border-color: var(--purple-text);
-    color: #ffffff;
+    color: var(--white);
     box-shadow: 0 0 16px rgb(var(--purple-accent-rgb) / 0.5);
     transform: scale(1.06);
   }
@@ -352,7 +352,7 @@
   left: 4px;
   right: 4px;
   height: 2px;
-  background: linear-gradient(90deg, transparent, var(--obsidian-purple), #ffffff, var(--obsidian-purple), transparent);
+  background: linear-gradient(90deg, transparent, var(--obsidian-purple), var(--white), var(--obsidian-purple), transparent);
   box-shadow: 0 0 8px rgb(var(--purple-accent-rgb) / 0.8);
   animation: scanBeam 2.2s ease-in-out infinite alternate;
 }
@@ -620,7 +620,7 @@
 }
 
 .pairing-role-card-icon.receive {
-  background: rgba(78, 222, 163, 0.14);
+  background: rgb(var(--tint-green-rgb) / 0.14);
   color: var(--obsidian-green);
 }
 
@@ -764,10 +764,10 @@
    purple Wi-Fi SAS code. */
 .airgap-sender-content .pairing-sas-badge,
 .airgap-pin-prompt-card .pairing-sas-badge {
-  background: rgba(255, 184, 105, 0.08);
+  background: rgb(var(--tint-amber-rgb) / 0.08);
   border-color: var(--obsidian-amber);
   color: var(--c-ffffff);
-  text-shadow: 0 0 14px rgba(255, 184, 105, 0.4);
+  text-shadow: 0 0 14px rgb(var(--tint-amber-rgb) / 0.4);
 }
 
 .pairing-transfer-info {
@@ -894,9 +894,9 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: rgba(78, 222, 163, 0.15);
+  background: rgb(var(--tint-green-rgb) / 0.15);
   color: var(--obsidian-green);
-  box-shadow: 0 0 16px rgba(78, 222, 163, 0.25);
+  box-shadow: 0 0 16px rgb(var(--tint-green-rgb) / 0.25);
 }
 
 .pairing-success-icon svg {
@@ -1510,17 +1510,17 @@
 }
 
 .pairing-mode-card-icon.scan {
-  background: rgba(78, 222, 163, 0.14);
+  background: rgb(var(--tint-green-rgb) / 0.14);
   color: var(--obsidian-green);
 }
 
 .pairing-mode-card-icon.airgap {
-  background: rgba(78, 222, 163, 0.14);
+  background: rgb(var(--tint-green-rgb) / 0.14);
   color: var(--obsidian-green);
 }
 
 .pairing-mode-card-icon.qr {
-  background: rgba(255, 184, 105, 0.14);
+  background: rgb(var(--tint-amber-rgb) / 0.14);
   color: var(--obsidian-amber);
 }
 
@@ -1567,21 +1567,21 @@
 }
 
 .pairing-mode-badge.scan {
-  background: rgba(78, 222, 163, 0.18);
+  background: rgb(var(--tint-green-rgb) / 0.18);
   color: var(--obsidian-green);
-  border: 1px solid rgba(78, 222, 163, 0.3);
+  border: 1px solid rgb(var(--tint-green-rgb) / 0.3);
 }
 
 .pairing-mode-badge.airgap {
-  background: rgba(78, 222, 163, 0.18);
+  background: rgb(var(--tint-green-rgb) / 0.18);
   color: var(--obsidian-green);
-  border: 1px solid rgba(78, 222, 163, 0.3);
+  border: 1px solid rgb(var(--tint-green-rgb) / 0.3);
 }
 
 .pairing-mode-badge.qr {
-  background: rgba(255, 184, 105, 0.18);
+  background: rgb(var(--tint-amber-rgb) / 0.18);
   color: var(--obsidian-amber);
-  border: 1px solid rgba(255, 184, 105, 0.3);
+  border: 1px solid rgb(var(--tint-amber-rgb) / 0.3);
 }
 
 .pairing-offline-link {

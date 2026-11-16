@@ -18,7 +18,7 @@
 .provider-summary-track > .tone-critical,
 .account-metric-track > .tone-critical,
 .progress-fill.danger {
-  background: #c53131 !important;
+  background: var(--danger-fill) !important;
 }
 
 .provider-summary-track > .tone-neutral,
@@ -173,41 +173,41 @@
   vertical-align: middle;
   position: relative;
   flex-shrink: 0;
-  color: #ffffff;
-  border-color: #d94a4a;
-  background: #c53131;
+  color: var(--white);
+  border-color: var(--danger-line);
+  background: var(--danger-fill);
   box-shadow: none;
   transition: background 150ms ease, transform 100ms ease, border-color 150ms ease, color 150ms ease;
 }
 
 .delete-bucket-title-btn svg {
-  color: #ffffff;
+  color: var(--white);
   transition: color 150ms ease;
 }
 
 .delete-bucket-title-btn:hover:not(:disabled),
 .delete-bucket-title-btn:focus-visible {
-  color: #ffffff !important;
-  border-color: #ff6464 !important;
-  background: #d93d3d !important;
+  color: var(--white) !important;
+  border-color: var(--danger-line-hover) !important;
+  background: var(--danger-fill-hover) !important;
   box-shadow: none !important;
 }
 
 .delete-bucket-title-btn:hover:not(:disabled) svg,
 .delete-bucket-title-btn:focus-visible svg {
-  color: #ffffff !important;
+  color: var(--white) !important;
 }
 
 .delete-bucket-title-btn:active:not(:disabled) {
-  color: #ffffff !important;
-  border-color: #a82020 !important;
-  background: #b52828 !important;
+  color: var(--white) !important;
+  border-color: var(--danger-line-active) !important;
+  background: var(--danger-fill-active) !important;
   box-shadow: none !important;
   transform: scale(0.95);
 }
 
 .delete-bucket-title-btn:active:not(:disabled) svg {
-  color: #ffffff !important;
+  color: var(--white) !important;
 }
 
 @media (min-width: 861px) {
@@ -247,13 +247,13 @@
 
 .account-name-confirm {
   color: var(--obsidian-green);
-  border-color: rgba(78, 222, 163, 0.45);
+  border-color: rgb(var(--tint-green-rgb) / 0.45);
   background: var(--c-0-56-36-a420);
 }
 
 .account-name-cancel {
   color: var(--obsidian-red);
-  border-color: rgba(255, 133, 133, 0.45);
+  border-color: rgb(var(--tint-red-rgb) / 0.45);
   background: var(--c-85-15-15-a420);
 }
 
@@ -307,27 +307,27 @@
 .account-name-confirm:hover:not(:disabled),
 .account-name-confirm:focus-visible {
   color: var(--c-8af0c2) !important;
-  border-color: rgba(78, 222, 163, 0.9) !important;
+  border-color: rgb(var(--tint-green-rgb) / 0.9) !important;
   background: var(--c-0-56-36-a720) !important;
 }
 
 .account-name-confirm:active:not(:disabled) {
   color: var(--c-8af0c2) !important;
-  border-color: #178749 !important;
-  background: #106637 !important;
+  border-color: var(--success-line-active) !important;
+  background: var(--success-fill-active) !important;
 }
 
 .account-name-cancel:hover:not(:disabled),
 .account-name-cancel:focus-visible {
-  color: #fff !important;
-  border-color: #ff6464 !important;
-  background: #d93d3d !important;
+  color: var(--white) !important;
+  border-color: var(--danger-line-hover) !important;
+  background: var(--danger-fill-hover) !important;
 }
 
 .account-name-cancel:active:not(:disabled) {
-  color: #fff !important;
-  border-color: #a82020 !important;
-  background: #b52828 !important;
+  color: var(--white) !important;
+  border-color: var(--danger-line-active) !important;
+  background: var(--danger-fill-active) !important;
 }
 
 .account-card-action.notify-action {
@@ -338,32 +338,32 @@
 
 .account-card-action.notify-action:hover:not(:disabled) {
   color: var(--c-ffd19a);
-  border-color: rgba(255, 184, 105, 0.9) !important;
+  border-color: rgb(var(--tint-amber-rgb) / 0.9) !important;
   background: var(--c-72-41-0-a720) !important;
 }
 
 .account-card-action.notify-action:active:not(:disabled) {
   color: var(--c-ffd19a);
-  border-color: rgba(255, 184, 105, 0.9) !important;
+  border-color: rgb(var(--tint-amber-rgb) / 0.9) !important;
   background: rgba(114, 41, 0, 0.9) !important;
 }
 
 .account-card-action.remove-action {
-  color: #c53131;
-  border-color: #c53131;
+  color: var(--danger-fill);
+  border-color: var(--danger-fill);
   background: var(--c-85-15-15-a420);
 }
 
 .account-card-action.remove-action:hover:not(:disabled) {
-  color: #fff !important;
-  border-color: #ff6464 !important;
-  background: #d93d3d !important;
+  color: var(--white) !important;
+  border-color: var(--danger-line-hover) !important;
+  background: var(--danger-fill-hover) !important;
 }
 
 .account-card-action.remove-action:active:not(:disabled) {
-  color: #fff !important;
-  border-color: #a82020 !important;
-  background: #b52828 !important;
+  color: var(--white) !important;
+  border-color: var(--danger-line-active) !important;
+  background: var(--danger-fill-active) !important;
 }
 
 .account-card-action.move-action {
@@ -373,14 +373,14 @@
 }
 
 .account-card-action.move-action:hover:not(:disabled) {
-  color: #fff;
-  border-color: #fff !important;
+  color: var(--white);
+  border-color: var(--white) !important;
   background: var(--c-353335) !important;
 }
 
 .account-card-action.move-action:active:not(:disabled) {
-  color: #fff !important;
-  border-color: #fff !important;
+  color: var(--white) !important;
+  border-color: var(--white) !important;
   background: var(--c-242323) !important;
 }
 
@@ -392,13 +392,13 @@
 
 .account-card-action.refresh-action:hover:not(:disabled) {
   color: var(--c-8af0c2);
-  border-color: rgba(78, 222, 163, 0.9) !important;
+  border-color: rgb(var(--tint-green-rgb) / 0.9) !important;
   background: var(--c-0-56-36-a720) !important;
 }
 
 .account-card-action.refresh-action:active:not(:disabled) {
   color: var(--c-8af0c2);
-  border-color: rgba(78, 222, 163, 0.9) !important;
+  border-color: rgb(var(--tint-green-rgb) / 0.9) !important;
   background: rgba(0, 56, 36, 0.9) !important;
 }
 
@@ -475,7 +475,7 @@
   border: 1px solid var(--purple-fill);
   border-radius: 6px;
   background: var(--purple-fill);
-  color: #fff;
+  color: var(--white);
   font-size: 11px;
   font-weight: 600;
   line-height: 1.2;
@@ -1809,24 +1809,24 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 @media (hover: hover) {
   .sidebar-mobile-header .mobile-sidebar-close-btn:hover:not(:disabled),
   .mobile-sidebar-close-btn:hover:not(:disabled) {
-    background: #d93d3d !important;
-    border-color: #ff6464 !important;
-    color: #fff !important;
+    background: var(--danger-fill-hover) !important;
+    border-color: var(--danger-line-hover) !important;
+    color: var(--white) !important;
   }
 }
 
 .sidebar-mobile-header .mobile-sidebar-close-btn:focus-visible,
 .mobile-sidebar-close-btn:focus-visible {
-  background: #d93d3d !important;
-  border-color: #ff6464 !important;
-  color: #fff !important;
+  background: var(--danger-fill-hover) !important;
+  border-color: var(--danger-line-hover) !important;
+  color: var(--white) !important;
 }
 
 .sidebar-mobile-header .mobile-sidebar-close-btn:active:not(:disabled),
 .mobile-sidebar-close-btn:active:not(:disabled) {
-  background: #b52828 !important;
-  border-color: #a82020 !important;
-  color: #fff !important;
+  background: var(--danger-fill-active) !important;
+  border-color: var(--danger-line-active) !important;
+  color: var(--white) !important;
   transform: scale(0.96);
 }
 
@@ -1840,7 +1840,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 :root[data-theme="light"] .button.primary svg,
 :root[data-theme="light"] .button.primary span,
 :root[data-theme="light"] .provider-window-toggle button.active {
-  color: #ffffff !important;
+  color: var(--white) !important;
 }
 
 /* Light theme: hamburger, account-card dropdown, and Settings use a
@@ -1856,8 +1856,8 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 :root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):hover:not(:disabled),
 :root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):focus-visible,
 :root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):active:not(:disabled) {
-  background: #ffffff !important;
-  color: #000000 !important;
+  background: var(--white) !important;
+  color: var(--black) !important;
 }
 
 :root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn) svg,
@@ -1873,14 +1873,14 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 :root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):focus-visible > span,
 :root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):active:not(:disabled) svg,
 :root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):active:not(:disabled) > span {
-  color: #000000 !important;
+  color: var(--black) !important;
 }
 
 /* Light theme drawer close X at rest: white fill and black ink, like the hamburger above. `:where`
    keeps this at the base rule's specificity, so the red hover, focus and press rules still win. */
 :where(:root[data-theme="light"]) .sidebar-mobile-header .mobile-sidebar-close-btn {
-  background: #ffffff !important;
-  color: #000000 !important;
+  background: var(--white) !important;
+  color: var(--black) !important;
 }
 
 /* Purple fill only while the menu is open. Closed leftover :hover/:active/:focus
@@ -1890,9 +1890,9 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 :root[data-theme="light"] .mobile-dropdown-toggle:focus-visible,
 :root[data-theme="light"] .mobile-dropdown-toggle:active,
 :root[data-theme="light"] .mobile-dropdown-toggle[aria-expanded="false"] {
-  background: #ffffff !important;
+  background: var(--white) !important;
   border-color: var(--chrome-border) !important;
-  color: #000000 !important;
+  color: var(--black) !important;
 }
 
 :root[data-theme="light"] .mobile-dropdown-toggle[aria-expanded="true"],
@@ -1901,24 +1901,24 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 :root[data-theme="light"] .mobile-dropdown-toggle[aria-expanded="true"]:active {
   background: var(--purple-surface-active) !important;
   border-color: var(--obsidian-purple-strong) !important;
-  color: #000000 !important;
+  color: var(--black) !important;
 }
 
 :root[data-theme="light"] .mobile-dropdown-toggle:hover svg,
 :root[data-theme="light"] .mobile-dropdown-toggle:focus-visible svg,
 :root[data-theme="light"] .mobile-dropdown-toggle:active svg,
 :root[data-theme="light"] .mobile-dropdown-toggle[aria-expanded="true"] svg {
-  color: #000000 !important;
+  color: var(--black) !important;
 }
 
 :root[data-theme="light"] .settings-account-refresh .custom-dropdown-trigger:hover:not(:disabled),
 :root[data-theme="light"] .settings-account-refresh .custom-dropdown-trigger:focus-visible,
 :root[data-theme="light"] .settings-account-refresh .custom-dropdown-trigger:active:not(:disabled),
 :root[data-theme="light"] .settings-account-refresh .custom-dropdown-container:not(.open) .custom-dropdown-trigger {
-  background: #ffffff !important;
-  background-color: #ffffff !important;
+  background: var(--white) !important;
+  background-color: var(--white) !important;
   border-color: var(--chrome-border) !important;
-  color: #000000 !important;
+  color: var(--black) !important;
 }
 
 /* Light theme at rest: the gray outline of a switch that is off (#857f90 above), on the dropdowns
@@ -1935,7 +1935,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   background: var(--purple-surface-active) !important;
   background-color: var(--purple-surface-active) !important;
   border-color: var(--obsidian-purple-strong) !important;
-  color: #000000 !important;
+  color: var(--black) !important;
 }
 
 :root[data-theme="light"] .settings-account-refresh .custom-dropdown-trigger:hover:not(:disabled) .custom-dropdown-label,
@@ -1944,19 +1944,19 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 :root[data-theme="light"] .settings-account-refresh .custom-dropdown-container.open .custom-dropdown-trigger .custom-dropdown-chevron,
 :root[data-theme="light"] .settings-account-refresh .custom-dropdown-trigger:active:not(:disabled) .custom-dropdown-label,
 :root[data-theme="light"] .settings-account-refresh .custom-dropdown-trigger:active:not(:disabled) .custom-dropdown-chevron {
-  color: #000000 !important;
+  color: var(--black) !important;
 }
 
 :root[data-theme="light"] .account-card-provider-icon,
 :root[data-theme="light"] button.account-card-provider-icon {
-  background: #ffffff !important;
+  background: var(--white) !important;
   border-color: var(--chrome-border) !important;
 }
 
 :root[data-theme="light"] .pull-to-refresh-indicator,
 :root[data-theme="light"] .pull-to-refresh-indicator.is-primed,
 :root[data-theme="light"] .pull-to-refresh-indicator.is-refreshing {
-  background: #ffffff !important;
+  background: var(--white) !important;
 }
 
 /* Light theme: toggle switches when off have a light, subtle track and knob
@@ -2013,7 +2013,7 @@ html::after {
 
 :root[data-theme="light"] .sidebar-refresh-btn.spinning,
 :root[data-theme="light"] .sidebar-refresh-btn.spinning:disabled {
-  background: #ffffff;
+  background: var(--white);
 }
 
 .sidebar-refresh-btn.spinning svg {
@@ -2067,14 +2067,14 @@ html::after {
    buttons, in both themes. */
 :root .account-name-edit,
 :root .edit-bucket-title-btn {
-  color: #ffffff !important;
+  color: var(--white) !important;
   border-color: var(--purple-fill) !important;
   background: var(--purple-fill) !important;
 }
 
 :root .account-name-edit svg,
 :root .edit-bucket-title-btn svg {
-  color: #ffffff !important;
+  color: var(--white) !important;
 }
 
 :root .account-name-edit:hover:not(:disabled),
@@ -2083,7 +2083,7 @@ html::after {
 :root .edit-bucket-title-btn:hover:not(:disabled),
 :root .edit-bucket-title-btn:focus-visible,
 :root .edit-bucket-title-btn:active:not(:disabled) {
-  color: #ffffff !important;
+  color: var(--white) !important;
   border-color: var(--purple-fill-line) !important;
   background: var(--purple-fill-hover) !important;
   box-shadow: none !important;
@@ -2095,44 +2095,44 @@ html::after {
 :root .edit-bucket-title-btn:hover:not(:disabled) svg,
 :root .edit-bucket-title-btn:focus-visible svg,
 :root .edit-bucket-title-btn:active:not(:disabled) svg {
-  color: #ffffff !important;
+  color: var(--white) !important;
 }
 
 /* The group delete trashcan button uses a solid red fill and white icon, matching
    the destructive action style in both themes. */
 :root .delete-bucket-title-btn {
-  color: #ffffff !important;
-  border-color: #d94a4a !important;
-  background: #c53131 !important;
+  color: var(--white) !important;
+  border-color: var(--danger-line) !important;
+  background: var(--danger-fill) !important;
 }
 
 :root .delete-bucket-title-btn svg {
-  color: #ffffff !important;
+  color: var(--white) !important;
 }
 
 :root .delete-bucket-title-btn:hover:not(:disabled),
 :root .delete-bucket-title-btn:focus-visible {
-  color: #ffffff !important;
-  border-color: #ff6464 !important;
-  background: #d93d3d !important;
+  color: var(--white) !important;
+  border-color: var(--danger-line-hover) !important;
+  background: var(--danger-fill-hover) !important;
   box-shadow: none !important;
 }
 
 :root .delete-bucket-title-btn:hover:not(:disabled) svg,
 :root .delete-bucket-title-btn:focus-visible svg {
-  color: #ffffff !important;
+  color: var(--white) !important;
 }
 
 :root .delete-bucket-title-btn:active:not(:disabled) {
-  color: #ffffff !important;
-  border-color: #a82020 !important;
-  background: #b52828 !important;
+  color: var(--white) !important;
+  border-color: var(--danger-line-active) !important;
+  background: var(--danger-fill-active) !important;
   box-shadow: none !important;
   transform: scale(0.95);
 }
 
 :root .delete-bucket-title-btn:active:not(:disabled) svg {
-  color: #ffffff !important;
+  color: var(--white) !important;
 }
 
 /* Settings > Data: the destructive row's title is red, and a failure shows under the card. */
@@ -2169,5 +2169,5 @@ html::after {
 
 :root body .settings-style-content :is(.button.primary, .button-green, .bucket-delete-button),
 :root body .settings-style-content :is(.button.primary, .button-green, .bucket-delete-button) :is(span, svg) {
-  color: #ffffff !important;
+  color: var(--white) !important;
 }

@@ -794,7 +794,7 @@ body.sidebar-resizing * {
 .sidebar-footer.update-available {
   background: var(--purple-fill);
   border-color: var(--purple-fill-line);
-  color: #fff;
+  color: var(--white);
 }
 
 .sidebar-footer.update-available:hover,

@@ -760,7 +760,7 @@
 
 .provider-summary-track > .tone-critical,
 .account-usage-metric .account-metric-track > .tone-critical {
-  background: #c53131 !important;
+  background: var(--danger-fill) !important;
 }
 
 .provider-summary-track > .tone-neutral,
@@ -806,9 +806,9 @@
 }
 
 .account-card-name-actions .account-card-action.remove-action:focus-visible:not(:disabled) {
-  color: #fff !important;
-  border-color: #ff6464 !important;
-  background: #d93d3d !important;
+  color: var(--white) !important;
+  border-color: var(--danger-line-hover) !important;
+  background: var(--danger-fill-hover) !important;
 }
 
 /* Settings: keyboard shortcut list (desktop only). */
@@ -995,7 +995,7 @@
   border: 2px solid var(--obsidian-surface-low);
   border-radius: 50%;
   background: var(--scrollbar-thumb);
-  color: #fff;
+  color: var(--white);
   transform: rotate(90deg);
   transition: transform 160ms ease;
 }
@@ -1159,7 +1159,7 @@
   padding: 0 11px;
   border-radius: 999px;
   background: var(--purple-fill);
-  color: #ffffff;
+  color: var(--white);
   font-size: 12px;
   font-weight: 650;
   letter-spacing: 0;
@@ -1265,9 +1265,9 @@
 }
 
 .provider-account-card .limit-reset-use.button:hover:not(:disabled) {
-  background: #d93d3d;
-  border-color: #ff6464;
-  color: #fff;
+  background: var(--danger-fill-hover);
+  border-color: var(--danger-line-hover);
+  color: var(--white);
 }
 
 .provider-account-card .limit-reset-use.button:disabled {
@@ -1415,7 +1415,7 @@
   }
 
   .provider-account-card.desktop-card .account-status-chip.warning {
-    background: rgb(255 184 105 / 0.14);
+    background: rgb(var(--tint-amber-rgb) / 0.14);
     color: var(--obsidian-amber);
   }
 
@@ -1584,7 +1584,7 @@
 }
 
 .obsidian-shell .account-usage-metric .account-metric-track > .tone-critical {
-  background: #c53131 !important;
+  background: var(--danger-fill) !important;
 }
 
 .obsidian-shell .account-usage-metric .account-metric-track > .tone-neutral {
@@ -1751,7 +1751,7 @@
   }
 
   .provider-account-card .account-card-header-meta .account-status-chip.warning {
-    background: rgb(255 184 105 / 0.14);
+    background: rgb(var(--tint-amber-rgb) / 0.14);
     color: var(--obsidian-amber);
   }
 
@@ -1920,7 +1920,7 @@
 .provider-account-card .account-card-action.refresh-action.is-suggested {
   color: var(--tone-healthy-text);
   border-color: var(--obsidian-green);
-  box-shadow: 0 0 0 3px rgb(78 222 163 / 0.3);
+  box-shadow: 0 0 0 3px rgb(var(--tint-green-rgb) / 0.3);
 }
 
 :root[data-theme="light"] .provider-account-card .account-card-action.refresh-action.is-suggested {

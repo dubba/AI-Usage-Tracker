@@ -83,7 +83,7 @@
 .sidebar-section-button.is-primary {
   border-color: var(--purple-fill);
   background: var(--purple-fill);
-  color: #ffffff !important;
+  color: var(--white) !important;
 }
 
 .sidebar-section-button.is-primary svg {
@@ -534,7 +534,7 @@ html[data-sidebar-meters-stacked] .provider-summary-row .sidebar-meter {
 }
 
 .provider-summary-row .provider-summary-track > .tone-critical {
-  background: #c53131 !important;
+  background: var(--danger-fill) !important;
 }
 
 .provider-summary-row .provider-summary-track > .tone-neutral {

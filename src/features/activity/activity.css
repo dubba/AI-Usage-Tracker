@@ -469,7 +469,7 @@
     margin: 8px calc(-1 * var(--activity-card-pad-right)) 0 calc(-1 * var(--activity-card-pad-left));
     padding: 8px 16px;
     border: 0;
-    border-bottom: 1px solid rgba(255, 133, 133, 0.18);
+    border-bottom: 1px solid rgb(var(--tint-red-rgb) / 0.18);
     border-radius: 0;
     background: var(--c-147-0-10-a120);
     color: var(--c-ffb4ab);
@@ -504,12 +504,12 @@
   /* Mimic .provider-account-card.needs-attention: red border and subtle left tint when an account
      has an error or needs sign-in. Placed after .is-no-weekly so it tints dashed cards too. */
   .activity-card.needs-attention {
-    border-color: rgba(255, 133, 133, 0.42);
+    border-color: rgb(var(--tint-red-rgb) / 0.42);
     background: linear-gradient(90deg, var(--c-147-0-10-a120), var(--obsidian-surface-low) 18%);
   }
 
   .activity-card.is-no-weekly.needs-attention {
-    border-color: rgba(255, 133, 133, 0.42);
+    border-color: rgb(var(--tint-red-rgb) / 0.42);
     background: linear-gradient(90deg, var(--c-147-0-10-a120), transparent 18%);
   }
 
