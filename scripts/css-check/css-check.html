@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>css check</title>
+    <style>html, body, #root { background-color: #000; margin: 0; padding: 0; }</style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      // A fixed clock, so "Updated 1m ago" and reset countdowns are the same in every run.
+      (() => { const fixed = Date.UTC(2026, 10, 16, 12, 0, 0); const Real = Date;
+        class Fixed extends Real { constructor(...a) { if (a.length) super(...a); else super(fixed); } static now() { return fixed; } }
+        window.Date = Fixed; })();
+    </script>
+    <style>*, *::before, *::after { transition: none !important; animation: none !important; }</style>
+    <script type="module">
+      import { makeAccount, makeWindow, makeTracker, makeActivity, measured, estimated, noData } from "/src/test-utils/activity-fixtures.ts";
+      const theme = new URLSearchParams(location.search).get("theme") || "dark";
+      const scenario = new URLSearchParams(location.search).get("scenario") || "full";
+      localStorage.clear();
+      if (scenario === "icons") localStorage.setItem("ai-usage-tracker:bottom-nav-labels", "off");
+      document.documentElement.dataset.theme = theme;
+      const now = Date.now(), iso = (ms) => new Date(now + ms).toISOString();
+      const usage = (windows, extra = {}) => ({ plan: null, email: null, windows, creditsUsd: null, unlimitedCredits: false, fetchedAt: iso(-60000), freshness: "live", source: "test", ...extra });
+      const accounts = [
+        makeAccount({ id: "a1", label: "Claude", provider: "anthropic", email: "user@example.com", plan: "Pro/$20", authRequired: true, lastError: "Re-authentication required", lastUsage: null }),
+        makeAccount({ id: "a2", label: "ChatGPT", provider: "openai", email: "user@example.com", plan: "Free", updatedAt: iso(-60000),
+          lastUsage: usage([makeWindow({ id: "weekly", label: "ChatGPT", usedPercent: 6, remainingPercent: 94, resetsAt: iso(2 * 864e5), windowSeconds: 30 * 86400, kind: "monthly" })]) }),
+        makeAccount({ id: "a3", label: "Grok", provider: "grok", email: "user@example.com", plan: "SuperGrok/$30", updatedAt: iso(-60000),
+          lastUsage: usage([makeWindow({ id: "w1", label: "Bot", usedPercent: 0, remainingPercent: 100, resetsAt: iso(3 * 864e5) }), makeWindow({ id: "w2", label: "Grok", usedPercent: 82, remainingPercent: 18, resetsAt: iso(3 * 864e5) })]) }),
+        makeAccount({ id: "a4", label: "Work", provider: "anthropic", email: "work@example.com", plan: "Max", updatedAt: iso(-3 * 864e5),
+          lastUsage: usage([makeWindow({ id: "five", label: "5-hour", usedPercent: 96, remainingPercent: 4, resetsAt: iso(3600e3), windowSeconds: 18000, kind: "session" }), makeWindow({ id: "weekly", usedPercent: 55, remainingPercent: 45, resetsAt: iso(4 * 864e5) })]) }),
+        makeAccount({ id: "a5", label: "Antigravity", provider: "antigravity", email: "user@example.com", plan: "Pro/$20", updatedAt: iso(-60000),
+          lastUsage: usage([makeWindow({ id: "g5", label: "Gemini", usedPercent: 20, remainingPercent: 80, resetsAt: iso(7200e3), windowSeconds: 18000, kind: "session" }), makeWindow({ id: "weekly", label: "Gemini", usedPercent: 35, remainingPercent: 65, resetsAt: iso(5 * 864e5) })]) }),
+      ];
+      if (scenario === "empty") accounts.length = 0;
+      const snapshot = { accounts, buckets: [{ id: "b1", name: "Personal", provider: null, accountIds: scenario === "empty" ? [] : ["a2", "a3"], createdAt: iso(-1e9), updatedAt: iso(-1e9) }], bridge: { enabled: false, running: false, port: null, baseUrl: null }, unprotectedCredentials: 0, unprotectedAccountIds: [] };
+      const activity = makeActivity([
+        makeTracker({ accountId: "a2", windowLabel: "ChatGPT", currentUsedPercent: 6 }, 7, measured(1)),
+        makeTracker({ accountId: "a3", windowLabel: "Grok", currentUsedPercent: 82, days: [measured(10), estimated(20), noData, measured(30), measured(0), measured(12), measured(10)] }),
+        makeTracker({ accountId: "a4", currentUsedPercent: 55, resets: [iso(-5.5 * 864e5), iso(-3 * 864e5), iso(-0.2 * 864e5)], resetUsedPercent: [70, null, 90] }, 7, measured(8)),
+        makeTracker({ accountId: "a5", windowLabel: "Gemini", currentUsedPercent: 35, resets: [iso(-2 * 864e5)], resetUsedPercent: [40] }, 7, measured(5)),
+      ].filter(() => scenario !== "empty"), scenario === "empty" ? [] : [{ accountId: "a1", otherLimits: [] }]);
+      const answers = {
+        get_dashboard_snapshot: () => snapshot,
+        get_app_settings: () => ({ accountRefreshMinutes: 15, paseoBridgeEnabled: false, automaticUpdatesEnabled: true, includeBetaUpdates: false, autostartEnabled: false }),
+        get_weekly_activity: () => activity,
+        get_startup_issue: () => null, get_pending_update_notice: () => null, get_pending_pairing_uri: () => null,
+        get_account_alerts: () => [], get_autostart: () => false, current_login_status: () => null,
+        get_bridge_info: () => ({ enabled: false, running: false, port: null, baseUrl: null, token: "abcd••••wxyz", tokenLast4: "wxyz" }),
+        get_diagnostics: () => ({}), refresh_all: () => snapshot, refresh_account: () => snapshot, check_for_app_update: () => null,
+        "plugin:app|version": () => "0.6.1", "plugin:app|name": () => "AI Usage Tracker",
+        "plugin:event|listen": () => 1, "plugin:event|unlisten": () => null,
+      };
+      window.__calls = [];
+      let cb = 0;
+      window.__TAURI_INTERNALS__ = {
+        metadata: { currentWindow: { label: "main" }, currentWebview: { windowLabel: "main", label: "main" } },
+        transformCallback: (fn) => { const id = ++cb; window["_" + id] = fn; return id; },
+        unregisterCallback: () => {},
+        convertFileSrc: (p) => p,
+        invoke: async (cmd, args) => {
+          window.__calls.push(cmd);
+          if (cmd in answers) return answers[cmd](args);
+          if (cmd.startsWith("plugin:window|")) return cmd.includes("is_") ? false : cmd.includes("size") ? { width: innerWidth, height: innerHeight } : cmd.includes("scale") ? 1 : null;
+          return null;
+        },
+      };
+      window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener: () => {} };
+      await import("/src/app/main.tsx");
+    </script>
+  </body>
+</html>

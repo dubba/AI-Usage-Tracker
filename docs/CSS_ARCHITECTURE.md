@@ -94,3 +94,15 @@ About two thirds of the old `!important` flags were removed because nothing reli
 ## Checking a CSS change
 
 Static screenshots miss most regressions here. A change is only safe once computed styles are compared against the old CSS across the app's views, at widths either side of every breakpoint (360, 400, 480, 600, 640, 720, 760, 768, 860, 1180, 1220), and with `:hover`, `:focus-visible` and `:active` applied. Note that below 768px the browser pane emulates a touch device, which also exercises the `(pointer: coarse)` rules.
+
+`scripts/css-check/` holds the tool for that comparison. It loads the real app with fake accounts in headless Chrome and records the computed styles of every element at 12 widths, in both themes, on the Dashboard, Usage and Settings pages, with hover, focus and pressed states forced and a card menu open.
+
+1. Start the dev server: `npx vite --port 1437 --strictPort`
+2. Start Chrome: `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --remote-debugging-port=9444 --user-data-dir=<a temporary folder> about:blank`
+3. With the old CSS in place, record: `node scripts/css-check/dump.mjs <temporary folder>/before.json`
+4. Make the CSS change, then record again to `after.json`.
+5. Compare: `node scripts/css-check/diff.mjs <temporary folder>/before.json <temporary folder>/after.json`
+
+A full recording takes a few minutes and is over 100 MB, so keep recordings outside the repository. `WIDTHS=400,1400` (also `THEMES`, `SCENARIOS`) gives a quick partial run. Before trusting a result of zero differences, record the unchanged CSS twice and confirm those two match, and confirm that a deliberate small change is reported.
+
+The tool does not cover dialogs (pairing, add account, alerts) or the inline rename box; check those by hand. The fake data in `css-check.html` answers the app's backend calls, so it needs updating when a command's response shape changes.
