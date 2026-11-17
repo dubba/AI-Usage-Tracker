@@ -324,7 +324,9 @@ export function AccountsView(props: {
         <section className={`provider-account-cards${compact ? " is-compact" : ""}`} data-group-id={props.selectedGroup?.id || undefined}>
         {displayedAccounts.length ? displayedAccounts.map((account, index) => (
           <AccountDashboardCard
-            key={`${props.selectedGroup.id}:${account.id}`}
+            // The layout is part of the key: switching Compact view remounts the cards, so each one
+            // reads its own toggle again after the button reset it.
+            key={`${props.selectedGroup.id}:${account.id}:${compact ? "compact" : "full"}`}
             pageId={props.selectedGroup.id}
             account={account}
             compact={compact}

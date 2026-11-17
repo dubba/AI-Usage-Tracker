@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased (16 changes)
+## Unreleased (17 changes)
 
-### Improved (8)
+### Improved (9)
 
+- On desktop, clicking an account's icon now shrinks just that card to the Compact view row, with all its usage bars and the next reset, instead of hiding everything but the lowest percentage. Clicking it again restores the full card. While Compact view is on, clicking an icon opens that one card in full, and pressing the Compact button puts every card back in the layout it picks.
 - The offline (QR code) transfer no longer asks you to compare a code on both screens. The sending device shows the animated codes with a Done button, and once the receiving device has scanned every frame it asks "Add 3 accounts from the other device?" with one Add Accounts button.
 - Linking two devices over Wi-Fi no longer asks you to compare a 12-character code on both screens. After the link code is entered, only the sending device asks you to press Send, and the receiving device waits for it.
 - The Dashboard summary strip now shows a single compact status line on both desktop and mobile ("All accounts good" when healthy, or an interactive amber "Attention needed" bar with a count that filters to cards needing attention and folds "Show all" into the same box), paired with the next reset countdown on the right.

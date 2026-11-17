@@ -445,21 +445,22 @@ describe("AccountDashboardCard on a wide window", () => {
     expect(rendered.handlers.onNotifications).toHaveBeenCalledTimes(1);
   });
 
-  it("collapses the card and starts renaming from the menu", async () => {
-    const rendered = renderDesktopCard();
+  it("collapses the card to the compact row and starts renaming from the menu", async () => {
+    const rendered = renderDesktopCard({ account: { ...account, id: "desktop-menu-collapse", plan: "pro" } });
     app = rendered.app;
     const toggle = () => app!.container.querySelector<HTMLButtonElement>('[aria-label="More actions for Claude"]')!;
     const item = (text: string) => [...document.querySelectorAll<HTMLButtonElement>(".account-card-menu-list .mobile-dropdown-item")].find((b) => b.textContent?.includes(text))!;
 
     click(toggle());
     click(item("Collapse card"));
-    expect(app.container.querySelector(".provider-account-card")?.classList.contains("is-collapsed")).toBe(true);
+    expect(app.container.querySelector(".provider-account-card")?.classList.contains("is-compact")).toBe(true);
 
     click(toggle());
     expect(item("Expand card")).toBeDefined();
     click(item("Rename"));
     await settle();
     expect(app.container.querySelector<HTMLInputElement>(".account-card-name-input")).not.toBeNull();
+    setCardCollapsedOnPage("all", "desktop-menu-collapse", false);
   });
 
   it("moves and removes from the menu", () => {
@@ -575,46 +576,56 @@ describe("AccountDashboardCard on a wide window", () => {
     expect(app.container.querySelector(".account-card-error")).toBeNull();
   });
 
-  it("shows the percentage pill when collapsed on desktop", () => {
-    const rendered = renderDesktopCard({
-      account: {
-        ...account,
-        id: "desktop-collapse-pill-test",
-        plan: "pro",
-        lastUsage: {
-          plan: "pro",
-          email: null,
-          windows: [
-            {
-              id: "5h",
-              label: "5-Hour",
-              remainingPercent: 70,
-              usedPercent: 30,
-              resetsAt: new Date(Date.now() + 3600000).toISOString(),
-              windowSeconds: 5 * 3600,
-              kind: "five_hour",
-            },
-          ],
-          creditsUsd: null,
-          unlimitedCredits: false,
-          fetchedAt: new Date().toISOString(),
-          freshness: "live",
-          source: "test",
-        },
-      },
-    });
+  it("collapses to the compact row with its bars, as Compact view draws it, and expands back", () => {
+    const usage: UsageSnapshot = {
+      plan: "pro",
+      email: null,
+      windows: [
+        { id: "5h", label: "5-Hour", remainingPercent: 70, usedPercent: 30, resetsAt: new Date(Date.now() + 3600000).toISOString(), windowSeconds: 5 * 3600, kind: "five_hour" },
+        { id: "7d", label: "Weekly", remainingPercent: 40, usedPercent: 60, resetsAt: new Date(Date.now() + 86400000).toISOString(), windowSeconds: 7 * 86400, kind: "weekly" },
+      ],
+      creditsUsd: null,
+      unlimitedCredits: false,
+      fetchedAt: new Date().toISOString(),
+      freshness: "live",
+      source: "test",
+    };
+    const rendered = renderDesktopCard({ pageId: "desktop-collapse", account: { ...account, id: "desktop-collapse-test", plan: "pro", lastUsage: usage } });
     app = rendered.app;
-    expect(app.container.querySelector(".collapsed-summary")).toBeNull();
+    const card = () => app!.container.querySelector(".provider-account-card")!;
+    const icon = () => app!.container.querySelector<HTMLButtonElement>(".account-card-provider-icon")!;
+    expect(card().classList.contains("is-compact")).toBe(false);
+    expect(icon().getAttribute("aria-label")).toBe("Collapse Claude");
 
-    const toggle = app.container.querySelector<HTMLButtonElement>('[aria-label="More actions for Claude"]')!;
-    click(toggle);
-    const collapseBtn = [...document.querySelectorAll<HTMLButtonElement>(".account-card-menu-list .mobile-dropdown-item")].find((b) => b.textContent?.includes("Collapse card"))!;
-    click(collapseBtn);
+    click(icon());
+    expect(card().classList.contains("is-compact")).toBe(true);
+    // Every bar stays, not just the lowest percentage.
+    expect(card().querySelectorAll(".compact-metric-item")).toHaveLength(2);
+    expect(card().classList.contains("is-collapsed")).toBe(false);
+    expect(card().querySelector(".compact-card-collapsed-summary")).toBeNull();
+    expect(card().querySelector(".compact-card-reset")?.textContent).toContain("Resets");
+    expect(icon().getAttribute("aria-label")).toBe("Expand Claude");
+    expect(icon().getAttribute("aria-expanded")).toBe("false");
 
-    expect(app.container.querySelector(".provider-account-card")?.classList.contains("is-collapsed")).toBe(true);
-    const pill = app.container.querySelector(".collapsed-summary");
-    expect(pill).not.toBeNull();
-    expect(pill?.textContent).toBe("70% left");
+    click(icon());
+    expect(card().classList.contains("is-compact")).toBe(false);
+    expect(card().querySelector(".account-card-metrics")).not.toBeNull();
+    expect(icon().getAttribute("aria-label")).toBe("Collapse Claude");
+  });
+
+  it("while Compact view is on, opens just that card to the full layout", () => {
+    const rendered = renderDesktopCard({ pageId: "desktop-compact-open", compact: true, account: { ...account, id: "desktop-compact-open-test", plan: "pro" } });
+    app = rendered.app;
+    const card = () => app!.container.querySelector(".provider-account-card")!;
+    const icon = () => app!.container.querySelector<HTMLButtonElement>(".account-card-provider-icon")!;
+    expect(card().classList.contains("is-compact")).toBe(true);
+    expect(icon().getAttribute("aria-label")).toBe("Expand Claude");
+
+    click(icon());
+    expect(card().classList.contains("is-compact")).toBe(false);
+    expect(card().querySelector(".provider-account-card-header")).not.toBeNull();
+    expect(icon().getAttribute("aria-label")).toBe("Collapse Claude");
+    setCardCollapsedOnPage("desktop-compact-open", "desktop-compact-open-test", false);
   });
 });
 

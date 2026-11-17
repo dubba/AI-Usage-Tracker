@@ -1005,31 +1005,6 @@
   }
 }
 
-.collapsed-summary {
-  display: inline-flex;
-  align-items: center;
-  margin-right: 4px;
-  padding: 2px 8px;
-  border: 1px solid currentColor;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
-.collapsed-summary.tone-healthy {
-  color: var(--c-f5f1ef);
-}
-
-.collapsed-summary.tone-warning {
-  color: var(--tone-warning-text);
-}
-
-.collapsed-summary.tone-critical {
-  color: var(--tone-critical-text);
-}
-
 /* A usage window of an account card (AccountUsageMetric.tsx): its span and name beside the percent,
    the bar, then the reset time and date. The phone and a wide window draw it the same way. */
 .desktop-metric .desktop-metric-head {
@@ -1513,11 +1488,6 @@
 
   .provider-account-card.desktop-card .account-card-desktop-actions .refresh-action.spinning svg {
     animation: account-refresh-spin 0.8s linear infinite;
-  }
-
-  .provider-account-card.desktop-card .collapsed-summary {
-    font-size: 13px;
-    font-weight: 700;
   }
 
   .account-card-menu {

@@ -118,6 +118,14 @@ export function AccountDashboardCard({
   // A wide window gets the desktop header: a status chip (unless the account is live), the plan chip,
   // then Refresh, Alerts and a menu behind a chevron.
   const desktop = !useMediaQuery(MOBILE_OVERLAY_QUERY);
+  // On a wide window, collapsing a card switches it to the other layout: a full card shrinks to the
+  // compact row (with its bars), and while Compact view is on, a compact card opens to full. The
+  // Compact button resets every card to its layout. On a phone, collapsing hides the details and
+  // leaves the lowest percentage.
+  const cardCompact = desktop ? compact !== isCollapsed : compact;
+  const hideDetails = !desktop && isCollapsed;
+  // What the icon, its tooltip and the menu offer next: "Expand card" when the card is the smaller one.
+  const shownCollapsed = desktop ? cardCompact : isCollapsed;
 
   const toggleCollapse = () => {
     // Persist outside the state updater: updaters must be pure (StrictMode runs them twice).
@@ -163,10 +171,10 @@ export function AccountDashboardCard({
     window.setTimeout(() => iconButtonRef.current?.focus(), 0);
   };
 
-  if (compact && !rename.editing) {
+  if (cardCompact && !rename.editing) {
     return (
       <article
-        className={`provider-account-card${desktop ? " desktop-card" : ""} is-compact ${needsAttention ? "needs-attention" : ""} ${isCollapsed ? "is-collapsed" : ""} ${mobileMenuOpen ? "has-open-menu" : ""}`}
+        className={`provider-account-card${desktop ? " desktop-card" : ""} is-compact ${needsAttention ? "needs-attention" : ""} ${hideDetails ? "is-collapsed" : ""} ${mobileMenuOpen ? "has-open-menu" : ""}`}
         data-account-id={account.id}
         data-reorder-provider={account.provider}
         data-reorder-enabled="true"
@@ -177,7 +185,7 @@ export function AccountDashboardCard({
           <button
             ref={iconButtonRef}
             type="button"
-            className={`account-card-provider-icon provider-${account.provider}${isCollapsed ? " is-collapsed" : ""}`}
+            className={`account-card-provider-icon provider-${account.provider}${shownCollapsed ? " is-collapsed" : ""}`}
             onClick={(event) => {
               event.stopPropagation();
               toggleCollapse();
@@ -190,9 +198,9 @@ export function AccountDashboardCard({
             }}
             aria-keyshortcuts={onMove ? "Alt+ArrowUp Alt+ArrowDown" : undefined}
             aria-describedby={onMove ? REORDER_HINT_ID : undefined}
-            data-tooltip={isCollapsed ? "Expand card" : "Collapse card"}
-            aria-label={isCollapsed ? `Expand ${displayAccountLabel(account)}` : `Collapse ${displayAccountLabel(account)}`}
-            aria-expanded={!isCollapsed}
+            data-tooltip={shownCollapsed ? "Expand card" : "Collapse card"}
+            aria-label={shownCollapsed ? `Expand ${displayAccountLabel(account)}` : `Collapse ${displayAccountLabel(account)}`}
+            aria-expanded={!shownCollapsed}
           >
             <ProviderIcon provider={account.provider} />
             <span className="collapse-chevron" aria-hidden="true"><ChevronIcon /></span>
@@ -209,7 +217,7 @@ export function AccountDashboardCard({
             {plan ? <span className="account-plan-badge">{plan}</span> : null}
           </div>
 
-          {!isCollapsed ? (
+          {!hideDetails ? (
             <div className={`compact-card-metrics${windows.length > 4 ? " is-two-col" : ""}`}>
               {windows.length ? windows.map((window) => {
                 const remaining = window.remainingPercent;
@@ -253,7 +261,7 @@ export function AccountDashboardCard({
           ) : null}
 
           <div className="compact-card-trailing">
-            {isCollapsed && lowestRemaining != null ? (
+            {hideDetails && lowestRemaining != null ? (
               <span className={`compact-card-collapsed-summary tone-${usageTone(lowestRemaining)}`}>
                 {Math.round(displayPercent(lowestRemaining, displayMode))}% {usageDisplaySuffix(displayMode)}
               </span>
@@ -307,7 +315,7 @@ export function AccountDashboardCard({
                 onNotifications={onNotifications}
                 onRemove={onRemove}
                 variant={desktop ? "desktop" : undefined}
-                collapsed={isCollapsed}
+                collapsed={shownCollapsed}
                 onToggleCollapse={toggleCollapse}
                 onRename={rename.startEditing}
               />
@@ -325,7 +333,7 @@ export function AccountDashboardCard({
 
   return (
     <article
-      className={`provider-account-card${desktop ? " desktop-card" : ""}${compact ? " is-compact" : ""} ${needsAttention ? "needs-attention" : ""} ${isCollapsed ? "is-collapsed" : ""} ${mobileMenuOpen ? "has-open-menu" : ""}`}
+      className={`provider-account-card${desktop ? " desktop-card" : ""}${cardCompact ? " is-compact" : ""} ${needsAttention ? "needs-attention" : ""} ${hideDetails ? "is-collapsed" : ""} ${mobileMenuOpen ? "has-open-menu" : ""}`}
       data-account-id={account.id}
       data-reorder-provider={account.provider}
       data-reorder-enabled="true"
@@ -336,7 +344,7 @@ export function AccountDashboardCard({
         <button
           ref={iconButtonRef}
           type="button"
-          className={`account-card-provider-icon provider-${account.provider}${isCollapsed ? " is-collapsed" : ""}`}
+          className={`account-card-provider-icon provider-${account.provider}${shownCollapsed ? " is-collapsed" : ""}`}
           onClick={(event) => {
             event.stopPropagation();
             toggleCollapse();
@@ -349,9 +357,9 @@ export function AccountDashboardCard({
           }}
           aria-keyshortcuts={onMove ? "Alt+ArrowUp Alt+ArrowDown" : undefined}
           aria-describedby={onMove ? REORDER_HINT_ID : undefined}
-          data-tooltip={isCollapsed ? "Expand card" : "Collapse card"}
-          aria-label={isCollapsed ? `Expand ${displayAccountLabel(account)}` : `Collapse ${displayAccountLabel(account)}`}
-          aria-expanded={!isCollapsed}
+          data-tooltip={shownCollapsed ? "Expand card" : "Collapse card"}
+          aria-label={shownCollapsed ? `Expand ${displayAccountLabel(account)}` : `Collapse ${displayAccountLabel(account)}`}
+          aria-expanded={!shownCollapsed}
         >
           <ProviderIcon provider={account.provider} />
           <span className="collapse-chevron" aria-hidden="true"><ChevronIcon /></span>
@@ -420,9 +428,6 @@ export function AccountDashboardCard({
                 {modelsOnly || waitingForMetrics ? "Connect Cloud Usage" : "Change Cloud Project"}
               </button>
             ) : null}
-            {isCollapsed && lowestRemaining != null ? (
-              <span className={`collapsed-summary tone-${usageTone(lowestRemaining)}`}>{Math.round(displayPercent(lowestRemaining, displayMode))}% {usageDisplaySuffix(displayMode)}</span>
-            ) : null}
             {status.label !== "LIVE" ? (
               <span className={`account-status-chip ${status.className}`}>
                 <span className="account-status-chip-dot" aria-hidden="true" />
@@ -462,7 +467,7 @@ export function AccountDashboardCard({
               onNotifications={onNotifications}
               onRemove={onRemove}
               variant="desktop"
-              collapsed={isCollapsed}
+              collapsed={shownCollapsed}
               onToggleCollapse={toggleCollapse}
               onRename={rename.startEditing}
             />
@@ -549,7 +554,7 @@ export function AccountDashboardCard({
                 onRefresh={onRefresh}
                 onNotifications={onNotifications}
                 onRemove={onRemove}
-                collapsed={isCollapsed}
+                collapsed={shownCollapsed}
                 onToggleCollapse={toggleCollapse}
                 onRename={rename.startEditing}
               />
@@ -565,7 +570,7 @@ export function AccountDashboardCard({
         </p>
       ) : null}
 
-      {!isCollapsed ? (
+      {!hideDetails ? (
         <>
           {signedOut ? (
             <div className="account-card-error is-signed-out">

@@ -90,6 +90,14 @@ export function setCardCollapsedOnPage(pageId: string, accountId: string, collap
   else storageRemove(key);
 }
 
+/**
+ * Forgets every card's own collapsed choice, on every page. The desktop Compact button calls it,
+ * so that switching the whole Dashboard puts every card in the layout it picked.
+ */
+export function clearCollapsedCards(): void {
+  for (const key of storageKeys(COLLAPSED_PREFIX)) storageRemove(key);
+}
+
 export function readPageAccountOrder(pageId: string): string[] {
   return readJson<unknown[]>(`${PAGE_ORDER_PREFIX}${pageId}`, [], Array.isArray)
     .filter((id): id is string => typeof id === "string" && id.length > 0);
