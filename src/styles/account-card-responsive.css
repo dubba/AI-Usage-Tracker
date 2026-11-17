@@ -1068,157 +1068,104 @@
   font-size: 13px;
 }
 
+/* One line: "Resets in 4h 24m · Today, 2:29p". Only the countdown is bold and bright; the rest is
+   regular muted text. In a narrow column the date drops to a second line whole, never cut off. */
 .desktop-metric .desktop-metric-foot .metric-reset {
   margin: 0;
   text-align: left;
   color: var(--obsidian-muted);
   font-size: 13px;
-  white-space: nowrap;
+  font-weight: 400;
+  white-space: normal;
 }
 
 .desktop-metric .desktop-metric-foot .metric-reset strong {
-  color: var(--obsidian-muted-bright);
+  color: var(--obsidian-text);
   font-weight: 650;
+  white-space: nowrap;
 }
 
-/* The same 550 weight as "Resets in" beside it (`.account-usage-metric .metric-reset`). */
 .desktop-metric .desktop-metric-date {
-  margin-left: auto;
-  font-weight: 550;
   white-space: nowrap;
 }
 
-/* Saved limit resets, under the meters. The block is rendered only when the account has one,
-   and it starts closed. The same rules apply on a phone and a wide window. */
+/* Saved limit resets, under the meters: one tinted row per reset (the first only, until "N more"
+   is pressed). The block is rendered only when the account has one. The same rules apply on a
+   phone and a wide window. */
 .provider-account-card .limit-resets-section {
-  /* 11px plus the toggle's 8px bottom padding is 19px under the pill. That
-     matches the space above the provider icon on a wide card: the header's
-     18px top padding, plus 1px because the name and email are 2px taller
-     than the 44px icon and the icon is centered on them. */
-  margin: 0 20px 11px;
-  border-top: 1px solid var(--obsidian-border);
-}
-
-.provider-account-card .limit-resets-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 36px;
-  margin: 0;
-  padding: 12px 0 8px;
-  border: 0;
-  background: transparent;
-  color: var(--obsidian-muted);
-  cursor: pointer;
-  text-align: left;
-}
-
-/* Same size and shape as the plan chip. The fill is the Add account button's purple. */
-.provider-account-card .limit-resets-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 26px;
-  padding: 0 11px;
-  border-radius: 999px;
-  background: var(--purple-fill);
-  color: var(--white);
-  font-size: 12px;
-  font-weight: 650;
-  letter-spacing: 0;
-  line-height: 1;
-  text-transform: none;
-  white-space: nowrap;
-  transition: background 120ms ease;
-}
-
-.provider-account-card .limit-resets-chevron {
-  width: 16px;
-  height: 16px;
-  margin-left: auto;
-  transition: transform 200ms ease, color 120ms ease;
-}
-
-/* The pill brightens like Add account. The chevron turns the same colour as the
-   Advanced chevron in Settings. */
-@media (hover: hover) {
-  .provider-account-card .limit-resets-toggle:hover .limit-resets-kicker {
-    background: var(--purple-fill-hover);
-  }
-
-  .provider-account-card .limit-resets-toggle:hover .limit-resets-chevron {
-    color: var(--obsidian-text);
-  }
-}
-
-.provider-account-card .limit-resets-toggle[aria-expanded="true"] {
-  /* No divider under the pill: the list starts right below it, and its first row's own 12px of
-     padding is the space. Closed rows keep 8px so the card edge stays 19px below the pill. */
-  padding-bottom: 0;
-}
-
-.provider-account-card .limit-resets-toggle[aria-expanded="true"] .limit-resets-chevron {
-  transform: rotate(90deg);
+  margin: 4px 20px 18px;
 }
 
 .provider-account-card .limit-resets {
   display: flex;
   flex-direction: column;
+  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .provider-account-card .limit-reset {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas: "name action" "when action" "detail detail";
-  column-gap: 12px;
-  row-gap: 2px;
+  display: flex;
   align-items: center;
-  padding: 12px 0;
+  gap: 12px;
+  min-height: 52px;
+  padding: 9px 10px 9px 10px;
+  /* The same near-black box and border as the Current Version box in Settings. */
+  border: 1px solid var(--c-2d2c2c);
+  border-radius: 12px;
+  background: var(--c-141313);
 }
 
-.provider-account-card .limit-reset.is-readonly {
-  grid-template-areas: "name name" "when when" "detail detail";
+.provider-account-card .limit-reset-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--purple-surface);
+  color: var(--purple-text);
 }
 
-.provider-account-card .limit-reset + .limit-reset {
-  border-top: 1px solid var(--obsidian-border);
+.provider-account-card .limit-reset-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.provider-account-card .limit-reset.is-readonly .limit-reset-icon {
+  background: var(--obsidian-border);
+  color: var(--obsidian-muted-bright);
+}
+
+.provider-account-card .limit-reset-text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 .provider-account-card .limit-reset-name {
-  grid-area: name;
-  min-width: 0;
+  overflow: hidden;
   color: var(--obsidian-text);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 650;
-}
-
-.provider-account-card .limit-reset-when {
-  grid-area: when;
-  color: var(--obsidian-muted-bright);
-  font-size: 13px;
-}
-
-.provider-account-card .limit-reset-when:empty {
-  display: none;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .provider-account-card .limit-reset-detail {
-  grid-area: detail;
-  margin: 2px 0 0;
   color: var(--obsidian-muted);
-  font-size: 13px;
+  font-size: 12.5px;
   line-height: 1.35;
 }
 
 .provider-account-card .limit-reset-use.button {
-  grid-area: action;
-  align-self: center;
-  height: 30px;
-  min-height: 30px;
+  flex: 0 0 auto;
+  height: 32px;
+  min-height: 32px;
   padding: 0 14px;
   border: 1px solid var(--obsidian-border-strong);
   border-radius: 8px !important;
@@ -1228,9 +1175,11 @@
   font-weight: 600;
 }
 
+/* Hover fills it with the plain purple, not the brighter hover shade: the button is not purple
+   to begin with, so there is nothing to brighten. */
 .provider-account-card .limit-reset-use.button:hover:not(:disabled) {
-  background: var(--danger-fill-hover);
-  border-color: var(--danger-line-hover);
+  background: var(--purple-fill);
+  border-color: var(--purple-fill);
   color: var(--white);
 }
 
@@ -1238,21 +1187,39 @@
   opacity: 0.5;
 }
 
-/* Same size and colors as the plan chip (Pro/$20). */
-.provider-account-card .limit-resets-note {
-  display: inline-flex;
+.provider-account-card .limit-resets-footer {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  box-sizing: border-box;
-  height: 26px;
-  margin: 10px 0 4px;
-  padding: 0 11px;
-  border-radius: 999px;
-  background: var(--purple-surface);
+  gap: 4px 12px;
+  margin-top: 6px;
+  padding: 0 2px;
+}
+
+.provider-account-card .limit-resets-more {
+  min-height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--purple-text);
-  font-size: 12px;
-  font-weight: 650;
-  line-height: 1;
-  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .provider-account-card .limit-resets-more:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+.provider-account-card .limit-resets-note {
+  margin: 0;
+  color: var(--obsidian-muted);
+  font-size: 12.5px;
+  line-height: 1.35;
 }
 
 /* ==========================================================================

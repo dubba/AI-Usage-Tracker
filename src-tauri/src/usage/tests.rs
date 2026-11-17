@@ -672,7 +672,7 @@ async fn use_limit_reset_refuses_a_display_only_grant_before_loading_credentials
             account.last_usage.as_mut().unwrap().limit_resets = vec![crate::model::LimitReset {
                 id: "shown-1".into(),
                 label: "Limit reset".into(),
-                detail: "Clears the weekly limit".into(),
+                detail: "Clears the 7-day limit".into(),
                 expires_at: None,
                 usable: false,
             }];

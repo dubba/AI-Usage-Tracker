@@ -64,7 +64,7 @@ fn account(with_usage: bool) -> Account {
             limit_resets: vec![LimitReset {
                 id: "grant-1".into(),
                 label: "Full reset".into(),
-                detail: "Clears the 5-hour and weekly limits".into(),
+                detail: "Clears the 5-hour and 7-day limits".into(),
                 expires_at: Some("2026-12-10T00:00:00Z".into()),
                 usable: true,
             }],

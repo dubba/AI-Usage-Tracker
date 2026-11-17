@@ -1,9 +1,11 @@
 import { useId, useState } from "react";
 import { createPortal } from "react-dom";
+import { useClock } from "../../shared/hooks/useClock";
 import { formatMonthDay } from "../../shared/lib/format";
 import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
-import { ChevronIcon } from "../../shared/ui/icons";
-import type { LimitReset } from "../../types";
+import { HistoryResetIcon } from "../../shared/ui/icons";
+import type { LimitReset, UsageWindow } from "../../types";
+import { limitResetAdvice } from "./limit-reset-advice";
 
 /** Ends the detail the backend writes for a reset that is paused or cooling down. */
 const NOT_USABLE_NOW = "Not usable right now.";
@@ -15,84 +17,134 @@ function expiryLabel(value: string | null): string | null {
   return `Expires ${formatMonthDay(date)}`;
 }
 
-function confirmBody(detail: string): string {
-  const sentence = detail.trim().replace(/\.+$/, "");
-  return `${sentence}. This cannot be undone.`;
+function withoutPeriod(text: string): string {
+  return text.trim().replace(/\.+$/, "");
 }
 
-function availableLabel(count: number): string {
-  const noun = count === 1 ? "Limit Reset" : "Limit Resets";
-  return `You have ${count} available ${noun}`;
+const CANNOT_UNDO = "This can't be undone.";
+
+/**
+ * "Clears the 5-hour and 7-day limits for **Claude2**. You have only 1 left." The can't-be-undone line
+ * goes at the end of the advice when there is some, so the dialog says it once, beside the numbers.
+ */
+function confirmBody(detail: string, accountLabel: string | undefined, usableCount: number, withAdvice: boolean) {
+  return (
+    <>
+      {withoutPeriod(detail)}
+      {accountLabel ? <> for <strong>{accountLabel}</strong></> : null}
+      {`. You have only ${usableCount} left.`}
+      {withAdvice ? null : ` ${CANNOT_UNDO}`}
+    </>
+  );
 }
 
-/** The limit-reset block on an account card. Render it only when `grants` is not empty. */
+function expiryTime(grant: LimitReset): number {
+  const time = grant.expiresAt ? new Date(grant.expiresAt).getTime() : Number.NaN;
+  return Number.isNaN(time) ? Number.POSITIVE_INFINITY : time;
+}
+
+/** Usable resets first, then the one that expires soonest, so the row shown first is the one to spend first. */
+function orderedGrants(grants: LimitReset[]): LimitReset[] {
+  return [...grants].sort((left, right) => {
+    const usable = Number(right.usable !== false) - Number(left.usable !== false);
+    return usable || expiryTime(left) - expiryTime(right);
+  });
+}
+
+/**
+ * The limit resets on an account card, one compact row each, under the meters. Only the first
+ * shows until the person asks for the rest. Render it only when `grants` is not empty.
+ */
 export function LimitResetsSection({
   grants,
+  windows,
+  accountLabel,
   busy,
   onUse,
 }: {
   grants: LimitReset[];
+  /** The account's name, for the confirm dialog ("…for Claude2"). */
+  accountLabel?: string;
+  /** The account's usage windows, for the advice in the confirm dialog. */
+  windows: UsageWindow[];
   busy: boolean;
   onUse?: (grantId: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const [pending, setPending] = useState<LimitReset | null>(null);
-  const panelId = useId();
+  const listId = useId();
+  const ordered = orderedGrants(grants);
+  const shown = showAll ? ordered : ordered.slice(0, 1);
+  const hiddenCount = ordered.length - 1;
+  const allReadOnly = grants.every((grant) => grant.usable === false);
+  const usableCount = grants.filter((grant) => grant.usable !== false).length;
+  // Follows the usage and the clock while the dialog is open, so a refresh then updates it.
+  const advice = useClock((now) => (pending ? limitResetAdvice(pending, windows, now) : null));
 
   return (
-    <section className="limit-resets-section">
-      <button
-        type="button"
-        className="limit-resets-toggle"
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={() => setOpen((current) => !current)}
-      >
-        <span className="limit-resets-kicker">{availableLabel(grants.length)}</span>
-        <ChevronIcon className="limit-resets-chevron" />
-      </button>
-      {open ? (
-        <div id={panelId}>
-          <ul className="limit-resets">
-            {grants.map((grant) => {
-              const expires = expiryLabel(grant.expiresAt);
-              const readOnly = grant.usable === false;
-              return (
-                <li key={grant.id} className={readOnly ? "limit-reset is-readonly" : "limit-reset"}>
-                  <span className="limit-reset-name">{grant.label}</span>
-                  {readOnly ? null : (
-                    <button
-                      type="button"
-                      className="button ghost limit-reset-use"
-                      disabled={busy || !onUse}
-                      onClick={() => setPending(grant)}
-                    >
-                      Use
-                    </button>
-                  )}
-                  {expires ? <span className="limit-reset-when">{expires}</span> : <span className="limit-reset-when" />}
-                  <p className="limit-reset-detail">{grant.detail}</p>
-                </li>
-              );
-            })}
-          </ul>
-          <p className="limit-resets-note">
-            {grants.every((grant) => grant.usable === false)
-              ? grants.some((grant) => grant.detail.endsWith(NOT_USABLE_NOW))
-                ? "These can't be used right now. Try again in a few minutes."
-                : "Redeem these in Grok, under Settings → Usage."
-              : "Warning: This reset action cannot be undone!"}
-          </p>
+    <section className="limit-resets-section" aria-label="Limit resets">
+      <ul id={listId} className="limit-resets">
+        {shown.map((grant) => {
+          const readOnly = grant.usable === false;
+          const meta = [withoutPeriod(grant.detail), expiryLabel(grant.expiresAt)].filter(Boolean).join(" · ");
+          return (
+            <li key={grant.id} className={readOnly ? "limit-reset is-readonly" : "limit-reset"}>
+              <span className="limit-reset-icon">
+                <HistoryResetIcon />
+              </span>
+              <span className="limit-reset-text">
+                <span className="limit-reset-name">{grant.label}</span>
+                <span className="limit-reset-detail">{meta}</span>
+              </span>
+              {readOnly ? null : (
+                <button
+                  type="button"
+                  className="button ghost limit-reset-use"
+                  aria-label={`Use ${grant.label}`}
+                  disabled={busy || !onUse}
+                  onClick={() => setPending(grant)}
+                >
+                  Use…
+                </button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {hiddenCount > 0 || allReadOnly ? (
+        <div className="limit-resets-footer">
+          {hiddenCount > 0 ? (
+            <button
+              type="button"
+              className="limit-resets-more"
+              aria-expanded={showAll}
+              aria-controls={listId}
+              onClick={() => setShowAll((current) => !current)}
+            >
+              {showAll ? "Show less" : `${hiddenCount} more ${hiddenCount === 1 ? "reset" : "resets"}`}
+            </button>
+          ) : null}
+          {allReadOnly ? (
+            <p className="limit-resets-note">
+              {grants.some((grant) => grant.detail.endsWith(NOT_USABLE_NOW))
+                ? `${grants.length === 1 ? "This can't" : "These can't"} be used right now. Try again in a few minutes.`
+                : `Redeem ${grants.length === 1 ? "it" : "these"} in Grok, under Settings → Usage.`}
+            </p>
+          ) : null}
         </div>
       ) : null}
       {/* A portal: the card is a containing block for fixed descendants (container-type), which clipped the dialog. */}
       {createPortal(
         <ConfirmDialog
           open={pending != null}
-          kicker="Limit reset"
-          title={pending?.label ?? "Limit reset"}
-          body={pending ? confirmBody(pending.detail) : ""}
-          confirmLabel="Use"
+          kicker={pending?.label ?? "Limit reset"}
+          title={usableCount > 1 ? "Use this limit reset?" : "Use your limit reset?"}
+          body={pending ? confirmBody(pending.detail, accountLabel, usableCount, advice != null) : ""}
+          note={advice ? `${advice} ${CANNOT_UNDO}` : undefined}
+          noteTone="caution"
+          cancelLabel="Keep for later"
+          confirmLabel="Use reset"
+          confirmDanger={false}
           busyLabel="Using…"
           busy={busy}
           onConfirm={() => {

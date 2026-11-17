@@ -915,9 +915,30 @@ html[data-sidebar-toggle-stacked] .provider-window-toggle button:last-child[data
     padding: 0 var(--scrollbar-gap) 0 0;
   }
 
+  /* Settings is one centered 720px column (settings-layout.css). The scroller is only as wide as
+     the column plus --scrollbar-gap on each side, so the bar sits right beside the cards instead of
+     at the pane's edge. The left gap mirrors the bar's, which keeps the cards centered under the
+     title. */
   .obsidian-shell .settings-style-content .dashboard-scroll {
+    width: 100%;
+    max-width: calc(720px + 2 * var(--scrollbar-gap));
+    margin-right: auto;
+    margin-left: auto;
     padding-top: 10px;
     padding-bottom: 10px;
+    padding-left: var(--scrollbar-gap);
+  }
+
+  /* The line under the title spans the column, not the pane: it moves from the header to the
+     column-wide block inside it, with the same 18px above it. */
+  .obsidian-shell .settings-style-content .dashboard-header {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .obsidian-shell .settings-style-content .dashboard-header > div:first-child {
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--c-1f1e1f);
   }
 
   .obsidian-shell .settings-style-content .dashboard-scroll > .settings-card:last-of-type {

@@ -11,11 +11,11 @@ const MAX_LABEL_CHARS: usize = 80;
 const MAX_DETAIL_CHARS: usize = 160;
 
 pub const DETAIL_FALLBACK: &str = "Restores that limit.";
-pub const DETAIL_FULL: &str = "Clears the 5-hour and weekly limits";
-pub const DETAIL_FABLE_FIVE: &str = "Clears weekly Fable usage and refills the 5-hour limit";
-pub const DETAIL_FABLE: &str = "Clears weekly Fable usage";
+pub const DETAIL_FULL: &str = "Clears the 5-hour and 7-day limits";
+pub const DETAIL_FABLE_FIVE: &str = "Clears 7-day Fable usage and refills the 5-hour limit";
+pub const DETAIL_FABLE: &str = "Clears 7-day Fable usage";
 pub const DETAIL_FIVE: &str = "Clears the 5-hour limit";
-pub const DETAIL_WEEK: &str = "Clears the weekly limit";
+pub const DETAIL_WEEK: &str = "Clears the 7-day limit";
 pub const DETAIL_RATE: &str = "Restores that rate limit.";
 pub const DETAIL_WAITING: &str = "Not usable right now.";
 
@@ -138,29 +138,31 @@ pub fn sanitize_stored(grants: &mut Vec<LimitReset>) {
     sort_and_cap(grants);
 }
 
-/// Grok lists reset tokens without a spend id. Each row is display-only.
-/// An expiry in the past is dropped. A token with no expiry is kept.
-pub fn from_grok_expiries(
-    expiries: Vec<Option<DateTime<Utc>>>,
+/// Grok's reset tokens: each one's id (when it is a plain id the card can send back) and expiry.
+/// A token with an id can be spent from the card. One without is shown without a Use button and
+/// gets a `shown-N` placeholder id. An expiry in the past is dropped. A token with no expiry is kept.
+pub fn from_grok_tokens(
+    tokens: Vec<(Option<String>, Option<DateTime<Utc>>)>,
     now: DateTime<Utc>,
 ) -> Vec<LimitReset> {
     let mut grants = Vec::new();
-    for expiry in expiries {
+    for (id, expiry) in tokens {
         let expires_at = match expiry {
             Some(when) if when > now => Some(when.to_rfc3339_opts(SecondsFormat::Secs, true)),
             Some(_) => continue,
             None => None,
         };
+        let id = id.filter(|id| is_valid_grant_id(id));
         grants.push(LimitReset {
-            id: "shown".into(),
+            usable: id.is_some(),
+            id: id.unwrap_or_default(),
             label: LABEL_GENERIC.to_string(),
             detail: DETAIL_WEEK.to_string(),
             expires_at,
-            usable: false,
         });
     }
     let mut grants = finish(grants);
-    for (index, grant) in grants.iter_mut().enumerate() {
+    for (index, grant) in grants.iter_mut().filter(|grant| !grant.usable).enumerate() {
         grant.id = format!("shown-{}", index + 1);
     }
     grants
@@ -652,40 +654,69 @@ mod tests {
     }
 
     #[test]
-    fn grok_rows_are_display_only_and_soonest_first() {
+    fn grok_rows_with_an_id_can_be_used_and_come_soonest_first() {
         let soon = Utc.with_ymd_and_hms(2026, 11, 17, 0, 0, 0).unwrap();
         let later = Utc.with_ymd_and_hms(2026, 12, 10, 0, 0, 0).unwrap();
         let past = Utc.with_ymd_and_hms(2026, 11, 1, 0, 0, 0).unwrap();
-        let grants = from_grok_expiries(vec![Some(later), None, Some(past), Some(soon)], now());
-        assert_eq!(grants.len(), 3);
-        assert_eq!(grants[0].id, "shown-1");
+        let grants = from_grok_tokens(
+            vec![
+                (Some("tok-later".into()), Some(later)),
+                (Some("tok-undated".into()), None),
+                (Some("tok-past".into()), Some(past)),
+                (Some("tok-soon".into()), Some(soon)),
+            ],
+            now(),
+        );
+        let ids: Vec<_> = grants.iter().map(|grant| grant.id.as_str()).collect();
+        assert_eq!(ids, ["tok-soon", "tok-later", "tok-undated"]);
         assert_eq!(
             grants[0].expires_at.as_deref(),
             Some(soon.to_rfc3339_opts(SecondsFormat::Secs, true).as_str())
         );
-        assert_eq!(grants[1].id, "shown-2");
-        assert_eq!(
-            grants[1].expires_at.as_deref(),
-            Some(later.to_rfc3339_opts(SecondsFormat::Secs, true).as_str())
-        );
-        assert_eq!(grants[2].id, "shown-3");
         assert!(grants[2].expires_at.is_none());
         assert!(grants.iter().all(|grant| {
-            !grant.usable && grant.label == LABEL_GENERIC && grant.detail == DETAIL_WEEK
+            grant.usable && grant.label == LABEL_GENERIC && grant.detail == DETAIL_WEEK
         }));
-        assert!(!format!("{grants:?}").contains("spend"));
+    }
+
+    #[test]
+    fn a_grok_token_without_a_plain_id_is_shown_without_use() {
+        let later = Utc.with_ymd_and_hms(2026, 12, 10, 0, 0, 0).unwrap();
+        let grants = from_grok_tokens(
+            vec![
+                (None, Some(later)),
+                (Some("has space".into()), None),
+                (Some("tok-ok".into()), None),
+            ],
+            now(),
+        );
+        assert_eq!(grants.len(), 3);
+        assert_eq!(
+            (grants[0].id.as_str(), grants[0].usable),
+            ("shown-1", false)
+        );
+        assert_eq!(
+            (grants[1].id.as_str(), grants[1].usable),
+            ("shown-2", false)
+        );
+        assert_eq!((grants[2].id.as_str(), grants[2].usable), ("tok-ok", true));
+        assert!(!format!("{grants:?}").contains("has space"));
     }
 
     #[test]
     fn grok_rows_keep_at_most_eight() {
-        let expiries: Vec<_> = (1..=9)
-            .map(|day| Some(now() + chrono::Duration::days(day)))
+        let tokens: Vec<_> = (1..=9)
+            .map(|day| {
+                (
+                    Some(format!("tok-{day}")),
+                    Some(now() + chrono::Duration::days(day)),
+                )
+            })
             .collect();
-        let grants = from_grok_expiries(expiries, now());
+        let grants = from_grok_tokens(tokens, now());
         assert_eq!(grants.len(), MAX_GRANTS);
-        assert_eq!(grants[0].id, "shown-1");
-        assert_eq!(grants[7].id, "shown-8");
-        assert!(grants.iter().all(|grant| !grant.usable));
+        assert_eq!(grants[0].id, "tok-1");
+        assert_eq!(grants[7].id, "tok-8");
     }
 
     #[test]

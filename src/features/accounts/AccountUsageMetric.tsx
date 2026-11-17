@@ -1,7 +1,7 @@
 import { useClock } from "../../shared/hooks/useClock";
 import { useUsageDisplayMode } from "../../shared/hooks/useUsageDisplayMode";
 import { displayPercent, usageDisplaySuffix } from "../../shared/lib/usage-display";
-import { formatResetAtDate, resetCountdown } from "../../shared/lib/format";
+import { formatResetAtDay, resetCountdown } from "../../shared/lib/format";
 import { usageTone, windowLength } from "../../shared/lib/usage-logic";
 import { metricWindowParts } from "../../shared/lib/display";
 import type {
@@ -18,8 +18,8 @@ function noResetNote(remaining: number | null | undefined, provider: Provider | 
 }
 
 /**
- * One usage window of an account card: its span and name beside the percent, the bar, then the reset
- * time and date. The phone and a wide window draw it the same way. With `unavailable` (the provider
+ * One usage window of an account card: its span and name beside the percent, the bar, then one line
+ * with the countdown and the reset day and time ("Resets in 4h 24m · Today, 2:29p"). The phone and a wide window draw it the same way. With `unavailable` (the provider
  * reported no windows at all) it shows an empty bar and says to refresh instead, or, while the account
  * is signed out, that usage comes after signing in (a refresh can't fetch it then).
  */
@@ -76,7 +76,7 @@ function WindowMetric({
 }: WindowMetricProps) {
   const remaining = window.remainingPercent;
   const countdown = useClock((now) => resetCountdown(window.resetsAt, now, window.windowSeconds));
-  const when = formatResetAtDate(window.resetsAt);
+  const when = useClock((now) => formatResetAtDay(window.resetsAt, now));
   const [displayMode] = useUsageDisplayMode();
   const shown = remaining == null ? null : displayPercent(remaining, displayMode);
   const suffix = usageDisplaySuffix(displayMode);
@@ -109,8 +109,8 @@ function WindowMetric({
       <div className="desktop-metric-foot">
         <span className="metric-reset">
           {countdown ? <>Resets in <strong>{countdown}</strong></> : when ? "Resets" : noResetNote(remaining, provider)}
+          {when ? <> · <span className="desktop-metric-date">{when}</span></> : null}
         </span>
-        {when ? <span className="desktop-metric-date">{when}</span> : null}
         {creditLabel ? <span className="metric-inline-credit">{creditLabel}</span> : null}
       </div>
     </div>

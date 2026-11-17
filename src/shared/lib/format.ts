@@ -42,12 +42,23 @@ export function formatResetAtShort(value: string | null | undefined, locale?: st
   return `${formatMonthDay(date, locale)} @ ${formatClockTime(date, locale)}`;
 }
 
-/** "Nov 3, 1:32a": the reset date as the desktop account card shows it, under the bar. */
-export function formatResetAtDate(value: string | null | undefined, locale?: string): string | null {
+/**
+ * The reset date as an account card shows it after the countdown: "Today, 2:29p" on the day of
+ * `now`, otherwise the short weekday and date, "Wed, Nov 18, 4:00a". `now` is a parameter so a
+ * card re-renders past midnight with the right word.
+ */
+export function formatResetAtDay(
+  value: string | null | undefined,
+  now: number = Date.now(),
+  locale?: string,
+): string | null {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return `${formatMonthDay(date, locale)}, ${formatClockTime(date, locale)}`;
+  const day = date.toDateString() === new Date(now).toDateString()
+    ? "Today"
+    : `${date.toLocaleString(locale, { weekday: "short" })}, ${formatMonthDay(date, locale)}`;
+  return `${day}, ${formatClockTime(date, locale)}`;
 }
 
 export function formatRemainingDuration(remainingMs: number): string | null {

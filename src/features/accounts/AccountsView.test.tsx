@@ -196,7 +196,7 @@ describe("AccountsView header", () => {
       selectedGroup: { ...allGroup, accounts: [account] },
     });
     expect(document.querySelector(".dashboard-description")?.textContent).toBe(
-      "Monitor weekly limits, session limits, and reset times across all your AI subscriptions."
+      "Monitor 5-hour & 7-day limits and reset times across all your AI subscriptions."
     );
   });
 

@@ -136,12 +136,22 @@
     color: var(--purple-text);
   }
 
-  /* ---- 720px desktop Settings column ---- */
+  /* ---- 720px desktop Settings column, centered in the pane ---- */
   @media (min-width: 861px) {
+    /* The scroller itself is centered at this width plus its scrollbar gaps (ui-refinements.css). */
     .settings-style-content .dashboard-scroll > * {
       width: 100%;
       max-width: 720px;
+      margin-right: auto;
+      margin-left: auto;
       box-sizing: border-box;
+    }
+
+    /* The title and description start at the column's left edge, not the pane's. */
+    .settings-style-content .dashboard-header > div:first-child {
+      width: 100%;
+      max-width: 720px;
+      margin: 0 auto;
     }
 
     .settings-style-content .dashboard-scroll > .settings-section-title {

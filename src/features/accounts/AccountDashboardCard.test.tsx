@@ -827,7 +827,7 @@ describe("AccountDashboardCard error display on mobile vs desktop", () => {
 const resetGrant = {
   id: "grant-secret-1",
   label: "Full reset",
-  detail: "Clears the 5-hour and weekly limits",
+  detail: "Clears the 5-hour and 7-day limits",
   expiresAt: "2026-12-10T16:00:00Z",
 };
 
@@ -883,12 +883,11 @@ describe("AccountDashboardCard limit resets", () => {
     expect(document.querySelector(".limit-resets-section")).toBeNull();
   });
 
-  it("shows a closed section only when a reset is available", () => {
+  it("shows the reset as one row with Use when a reset is available", () => {
     renderResets(usageWithResets([resetGrant]));
-    const toggle = document.querySelector(".limit-resets-toggle");
-    expect(toggle?.getAttribute("aria-expanded")).toBe("false");
-    expect(document.body.textContent).toContain("You have 1 available Limit Reset");
-    expect(document.body.textContent).not.toContain("Clears the 5-hour and weekly limits");
+    expect(document.querySelectorAll(".limit-reset")).toHaveLength(1);
+    expect(document.body.textContent).toContain("Clears the 5-hour and 7-day limits");
+    expect(document.querySelector(".limit-reset-use")?.textContent).toBe("Use…");
     expect(document.body.textContent).not.toContain("grant-secret-1");
   });
 

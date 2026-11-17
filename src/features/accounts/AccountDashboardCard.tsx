@@ -609,6 +609,8 @@ export function AccountDashboardCard({
           {limitResets.length > 0 ? (
             <LimitResetsSection
               grants={limitResets}
+              windows={account.lastUsage?.windows ?? []}
+              accountLabel={account.label}
               busy={cardBusy}
               onUse={onUseLimitReset}
             />

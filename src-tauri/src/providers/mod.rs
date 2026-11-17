@@ -318,8 +318,8 @@ pub async fn refresh(
     }
 }
 
-/// Spends one limit reset the card is already showing. Grok lists resets
-/// without a spend id, and those rows never reach this call.
+/// Spends one limit reset the card is already showing. A Grok row without an
+/// id it can send back is display-only and never reaches this call.
 pub async fn use_limit_reset(
     app: &AppState,
     account: &Account,
@@ -334,6 +334,8 @@ pub async fn use_limit_reset(
         ProviderSecret::Anthropic(secret) => {
             anthropic::redeem_limit_reset(app, secret, grant_id, request_id).await
         }
+        // grok.com's redeem call takes only the token id: there is no request id to send.
+        ProviderSecret::Grok(secret) => grok::redeem_limit_reset(app, secret, grant_id).await,
         _ => limit_resets::RedeemOutcome::Rejected("This account has no limit resets."),
     }
 }

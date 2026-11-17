@@ -5,7 +5,7 @@ import {
   formatElapsed,
   formatMonthDay,
   formatRemainingDuration,
-  formatResetAtDate,
+  formatResetAtDay,
   formatResetAtShort,
   formatUpdatedAt,
   resetCountdown,
@@ -170,15 +170,23 @@ describe("formatResetAtShort", () => {
   });
 });
 
-describe("formatResetAtDate", () => {
+describe("formatResetAtDay", () => {
+  const now = new Date(2026, 10, 17, 10, 0).getTime();
+
   it("returns null for empty or invalid input", () => {
-    expect(formatResetAtDate(null)).toBeNull();
-    expect(formatResetAtDate("nope")).toBeNull();
+    expect(formatResetAtDay(null, now)).toBeNull();
+    expect(formatResetAtDay("nope", now)).toBeNull();
   });
 
-  it("joins the date and the app's compact time with a comma", () => {
-    expect(formatResetAtDate(new Date(2026, 10, 3, 1, 32).toISOString(), "en-US")).toBe("Nov 3, 1:32a");
-    expect(formatResetAtDate(new Date(2026, 9, 6, 14, 5).toISOString(), "en-GB")).toBe("6 Oct, 14:05");
+  it("says Today for a reset later the same day", () => {
+    expect(formatResetAtDay(new Date(2026, 10, 17, 14, 29).toISOString(), now, "en-US")).toBe("Today, 2:29p");
+    expect(formatResetAtDay(new Date(2026, 10, 17, 23, 59).toISOString(), now, "en-US")).toBe("Today, 11:59p");
+  });
+
+  it("gives the short weekday and date for any other day", () => {
+    expect(formatResetAtDay(new Date(2026, 10, 18, 4, 0).toISOString(), now, "en-US")).toBe("Wed, Nov 18, 4:00a");
+    expect(formatResetAtDay(new Date(2026, 10, 22, 16, 0).toISOString(), now, "en-US")).toBe("Sun, Nov 22, 4:00p");
+    expect(formatResetAtDay(new Date(2026, 9, 6, 14, 5).toISOString(), now, "en-GB")).toBe("Tue, 6 Oct, 14:05");
   });
 });
 

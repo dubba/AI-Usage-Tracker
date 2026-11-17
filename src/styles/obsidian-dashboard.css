@@ -3036,6 +3036,41 @@ select.text-input option,
   max-width: 420px;
 }
 
+/* A name in the body ("…for Claude2") stands out from the muted sentence around it. */
+.confirm-dialog-backdrop .modal-card p strong {
+  color: var(--obsidian-text);
+  font-weight: 650;
+}
+
+/* Advice under the body (what a limit reset would get back). The body's 18px bottom margin is
+ * the space above it; the actions keep their own 19px below. */
+.confirm-dialog-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: -6px;
+  padding: 10px 12px;
+  border: 1px solid rgb(var(--purple-text-rgb) / 0.22);
+  border-radius: 10px;
+  background: rgb(var(--purple-text-rgb) / 0.08);
+  color: var(--obsidian-text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.confirm-dialog-note.is-caution {
+  border-color: rgb(var(--tint-amber-rgb) / 0.32);
+  background: rgb(var(--tint-amber-rgb) / 0.11);
+}
+
+.confirm-dialog-note-icon {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  color: var(--tone-warning-text);
+}
+
 .sidebar-backdrop {
   display: none;
 }

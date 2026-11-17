@@ -1,9 +1,19 @@
 # Changelog
 
-## Unreleased (17 changes)
+## Unreleased (24 changes)
 
-### Improved (9)
+### Added (1)
 
+- Grok accounts can now use a saved limit reset from the account card, with the same confirmation as Claude and ChatGPT, instead of only listing it and sending you to grok.com.
+
+### Improved (15)
+
+- The All Accounts subtitle now reads "Monitor 5-hour & 7-day limits and reset times across all your AI subscriptions."
+- Each usage bar on an account card now shows its reset on one line, such as "Resets in **4h 24m** · Today, 2:29p" or "Resets in **1d 6h** · Wed, Nov 18, 4:00a". Only the countdown is bold; resets later today say Today, and later days include the weekday.
+- On a wide window, the Settings page is now one centered column: the title, the line under it, and the cards share the same width, and the scrollbar sits right beside the cards instead of at the window's edge.
+- A saved limit reset now shows on its account card as one compact row with what it clears, when it expires, and a Use button, instead of a purple banner you had to open first. With more than one reset, the one that expires soonest is shown and the rest are one tap away.
+- Before you use a limit reset, the confirmation now names the account and how many resets it has left, and warns in an amber box what you'd actually get back from your current usage, for example that your 5-hour limit is already full so only 22% of your 7-day limit would come back. It also points out a limit that resets on its own within a day and a reset that expires within three days, and it updates if the account refreshes while it is open. The always-visible "cannot be undone" warning on the card is gone; the confirmation still says it.
+- Limit resets now say "7-day" instead of "weekly" ("Clears the 5-hour and 7-day limits"), matching the rest of the app.
 - On desktop, clicking an account's icon now shrinks just that card to the Compact view row, with all its usage bars and the next reset, instead of hiding everything but the lowest percentage. Clicking it again restores the full card. While Compact view is on, clicking an icon opens that one card in full, and pressing the Compact button puts every card back in the layout it picks.
 - The offline (QR code) transfer no longer asks you to compare a code on both screens. The sending device shows the animated codes with a Done button, and once the receiving device has scanned every frame it asks "Add 3 accounts from the other device?" with one Add Accounts button.
 - Linking two devices over Wi-Fi no longer asks you to compare a 12-character code on both screens. After the link code is entered, only the sending device asks you to press Send, and the receiving device waits for it.

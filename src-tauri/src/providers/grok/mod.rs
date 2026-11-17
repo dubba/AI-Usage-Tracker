@@ -1,8 +1,8 @@
 // Grok billing integration is adapted from the MIT-licensed CodexBar Grok
 // provider and the MIT-licensed Grok Rate Limit Display userscript. The live
-// path uses the same grok.com billing request as Grok's own Usage page, and
-// reads that page's reset-token list without keeping the id that would spend
-// one. The tracker never reads the Grok Build CLI's ~/.grok/auth.json
+// path uses the same grok.com billing request as Grok's own Usage page, reads
+// that page's reset-token list, and spends a token the way that page does
+// (`resets.rs`). The tracker never reads the Grok Build CLI's ~/.grok/auth.json
 // credentials. No message or token allowance is estimated.
 
 use super::{
@@ -126,8 +126,7 @@ pub async fn refresh(
     };
 
     // Bot usage and the reset-token list run beside billing. Either one
-    // failing leaves the SuperGrok window in place. Reset rows are
-    // display-only.
+    // failing leaves the SuperGrok window in place.
     let (billing, bot, resets) = tokio::join!(
         fetch_web_billing(app, cookie_header),
         fetch_bot_usage(cookie_header),
@@ -144,6 +143,25 @@ pub async fn refresh(
         }
         Err(error) => Err(error.into_provider_error()),
     }
+}
+
+/// Spends one Grok limit reset with the account's grok.com session, after the
+/// person confirmed it on the card.
+pub(crate) async fn redeem_limit_reset(
+    app: &AppState,
+    secret: &GrokSecret,
+    grant_id: &str,
+) -> crate::providers::limit_resets::RedeemOutcome {
+    let Some(cookie_header) = secret
+        .cookie_header
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+    else {
+        return crate::providers::limit_resets::RedeemOutcome::Rejected(
+            "Sign in to this account again before using a limit reset.",
+        );
+    };
+    resets::redeem_reset(app, cookie_header, grant_id).await
 }
 
 pub async fn probe_cookie(

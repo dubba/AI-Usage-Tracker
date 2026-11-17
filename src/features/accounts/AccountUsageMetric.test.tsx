@@ -172,8 +172,9 @@ describe.each([
     expect(metric.querySelector(".metric-full-value")?.textContent).toBe("21%");
     expect(metric.querySelector(".metric-full-value")?.classList.contains("tone-warning")).toBe(true);
     expect(metric.querySelector(".metric-percent-suffix")?.textContent).toBe("left");
-    expect(metric.querySelector(".metric-reset")?.textContent).toBe("Resets in 2h 8m");
-    expect(metric.querySelector(".desktop-metric-date")?.textContent).toMatch(/, /);
+    expect(metric.querySelector(".metric-reset strong")?.textContent).toBe("2h 8m");
+    expect(metric.querySelector(".metric-reset")?.textContent).toMatch(/^Resets in 2h 8m · (Today|\w{3}, \w{3} \d+), \d+:\d\d[ap]?/);
+    expect(metric.querySelector(".metric-reset .desktop-metric-date")).not.toBeNull();
     const parts = [...metric.children].map((child) => child.className);
     expect(parts).toEqual(["desktop-metric-head", "account-metric-track", "desktop-metric-foot"]);
     expect(metric.querySelector(".account-metric-track")?.getAttribute("aria-label")).toBe("7-day Grok remaining");

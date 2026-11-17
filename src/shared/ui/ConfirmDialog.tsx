@@ -1,6 +1,7 @@
 import { useId, useRef, type ReactNode } from "react";
 import { useModalA11y } from "../hooks/useModalA11y";
 import { useModalClosePolicy } from "../hooks/useModalClosePolicy";
+import { AlertCircleIcon } from "./icons";
 import { ModalDialog } from "./ModalDialog";
 
 /**
@@ -15,6 +16,9 @@ export function ConfirmDialog({
   kicker,
   title,
   body,
+  note,
+  noteTone = "info",
+  cancelLabel = "Cancel",
   confirmLabel,
   confirmDanger = true,
   busyLabel,
@@ -28,6 +32,11 @@ export function ConfirmDialog({
   title: ReactNode;
   /** Say exactly what is removed or lost, and what is unaffected. */
   body: ReactNode;
+  /** An optional callout under the body: advice that bears on the choice. */
+  note?: ReactNode;
+  /** `caution` tints the note amber. */
+  noteTone?: "info" | "caution";
+  cancelLabel?: string;
   confirmLabel: string;
   /** Danger-red for deletions; primary for other actions such as Turn On Wi-Fi. */
   confirmDanger?: boolean;
@@ -40,6 +49,7 @@ export function ConfirmDialog({
   const dialogRef = useRef<HTMLElement>(null);
   const titleId = useId();
   const bodyId = useId();
+  const noteId = useId();
   const requestCancel = useModalClosePolicy(!busy, onCancel);
   useModalA11y(dialogRef, open, requestCancel);
   if (!open) return null;
@@ -49,7 +59,7 @@ export function ConfirmDialog({
       dialogRef={dialogRef}
       role="alertdialog"
       labelledBy={titleId}
-      describedBy={bodyId}
+      describedBy={note ? `${bodyId} ${noteId}` : bodyId}
       className="remove-account-modal"
       backdropClassName="confirm-dialog-backdrop"
       onClose={requestCancel}
@@ -58,9 +68,15 @@ export function ConfirmDialog({
       <div className="modal-kicker">{kicker}</div>
       <h2 id={titleId}>{title}</h2>
       <p id={bodyId}>{body}</p>
+      {note ? (
+        <div id={noteId} className={`confirm-dialog-note is-${noteTone}`}>
+          {noteTone === "caution" ? <AlertCircleIcon className="confirm-dialog-note-icon" /> : null}
+          <span>{note}</span>
+        </div>
+      ) : null}
       <div className="modal-actions">
         <button type="button" className="button ghost" disabled={busy} onClick={requestCancel}>
-          Cancel
+          {cancelLabel}
         </button>
         <button
           type="button"
