@@ -73,11 +73,10 @@
       padding-right: var(--activity-switch-room);
     }
 
-    /* Room between the header's divider and the first card, as the Accounts page has above its summary
-       cards (18px). Without it the first card's top edge sits on the divider and the two read as one
-       line. The page's own padding is unlayered, hence !important. */
+    /* Equal 10px breathing room above the legend, below it (10px), and at the bottom of the scroll
+       area while preserving the scrollbar gutter. The page's own padding is unlayered, hence !important. */
     .activity-content .dashboard-scroll {
-      padding-top: 18px !important;
+      padding: 10px var(--scrollbar-gap) 10px 0 !important;
     }
 
     .activity-period {
