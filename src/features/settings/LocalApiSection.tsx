@@ -21,6 +21,7 @@ export function LocalApiSection({
   return (
     <>
       <section className="settings-card">
+        <h3 className="settings-card-heading">Integrations</h3>
         <SettingsToggleRow
           checked={Boolean(bridge?.enabled)}
           labelledBy="setting-bridge-label"

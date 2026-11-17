@@ -91,6 +91,7 @@ export function DataSection({
   return (
     <>
       <section className="settings-card">
+        <h3 className="settings-card-heading">Data</h3>
         <div className="settings-row">
           <div>
             <strong>Refresh Usage</strong>
@@ -110,7 +111,7 @@ export function DataSection({
         <div className="settings-row">
           <div>
             <strong>Clear Usage History</strong>
-            <small>Deletes your Usage chart history and restarts tracking. Accounts remains unchanged.</small>
+            <small>Deletes your Usage chart history and restarts tracking. Accounts remain unchanged.</small>
           </div>
           <button
             type="button"

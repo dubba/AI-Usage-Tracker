@@ -3,6 +3,7 @@ import { UI_EVENTS } from "../../shared/lib/events";
 import { STORAGE_KEYS, storageGet } from "../../shared/lib/storage";
 import { captureEvents, installFakeWindow } from "../../test-utils/fakeWindow";
 import { getBottomNavLabels, setBottomNavLabels } from "../../shared/lib/bottom-nav-labels";
+import { getCompactDashboardMode, setCompactDashboardMode } from "../../shared/lib/compact-dashboard";
 import { getUsageDisplayMode, setUsageDisplayMode } from "../../shared/lib/usage-display";
 import { applyUiState, collectUiState } from "./ui-state";
 
@@ -15,6 +16,7 @@ beforeEach(() => {
 afterEach(() => {
   setUsageDisplayMode("left");
   setBottomNavLabels("on");
+  setCompactDashboardMode("off");
   vi.unstubAllGlobals();
 });
 
@@ -53,6 +55,12 @@ describe("applyUiState", () => {
     expect(getBottomNavLabels()).toBe("off");
   });
 
+  it("applies compact dashboard mode to storage and the running app", () => {
+    applyUiState({ compact_dashboard: "on" });
+    expect(storageGet(STORAGE_KEYS.compactDashboard)).toBe("on");
+    expect(getCompactDashboardMode()).toBe("on");
+  });
+
   it("leaves menu bar labels alone when an older transfer omits them", () => {
     setBottomNavLabels("off");
     applyUiState({});
@@ -67,12 +75,14 @@ describe("applyUiState", () => {
       theme: "sepia",
       usage_display_mode: "remaining",
       bottom_nav_labels: "maybe<script>",
+      compact_dashboard: "huge",
     });
     expect(storageGet(STORAGE_KEYS.sidebarWidthDesktop)).toBeNull();
     expect(storageGet(STORAGE_KEYS.sidebarGroupOrder)).toBeNull();
     expect(storageGet(STORAGE_KEYS.theme)).toBeNull();
     expect(storageGet(STORAGE_KEYS.usageDisplayMode)).toBeNull();
     expect(storageGet(STORAGE_KEYS.bottomNavLabels)).toBeNull();
+    expect(storageGet(STORAGE_KEYS.compactDashboard)).toBeNull();
   });
 
   it("asks the dashboard to resync afterwards", () => {
@@ -84,7 +94,12 @@ describe("applyUiState", () => {
 
 describe("collectUiState", () => {
   it("reports the default theme and display mode when nothing has been customized", () => {
-    expect(collectUiState()).toEqual({ theme: "dark", usage_display_mode: "left", bottom_nav_labels: "on" });
+    expect(collectUiState()).toEqual({
+      theme: "dark",
+      usage_display_mode: "left",
+      bottom_nav_labels: "on",
+      compact_dashboard: "off",
+    });
   });
 
   it("round-trips through applyUiState", () => {
@@ -96,6 +111,7 @@ describe("collectUiState", () => {
       theme: "light",
       usage_display_mode: "used",
       bottom_nav_labels: "off",
+      compact_dashboard: "on",
     });
     expect(collectUiState()).toEqual({
       sidebar_group_order: ["provider:grok"],
@@ -105,6 +121,7 @@ describe("collectUiState", () => {
       theme: "light",
       usage_display_mode: "used",
       bottom_nav_labels: "off",
+      compact_dashboard: "on",
     });
   });
 });

@@ -100,6 +100,13 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .activity-card a {
   bottom: calc(21px - 2px);
 }
 
+.provider-account-card.is-compact[data-reorder-enabled="true"] .compact-card-row .reorder-grip {
+  left: 12px;
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
+}
+
 .activity-card[data-reorder-enabled="true"] .reorder-grip {
   left: 12px;
   top: 30px;
@@ -264,6 +271,12 @@ html.dashboard-reordering .provider-list {
 
 .activity-grid .dashboard-reorder-placeholder {
   grid-column: auto;
+}
+
+@media (min-width: 1400px) {
+  .provider-account-cards .dashboard-reorder-placeholder {
+    grid-column: auto;
+  }
 }
 
 .provider-reorder-placeholder {

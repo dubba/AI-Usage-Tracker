@@ -247,7 +247,7 @@ export function measureMainMinWidth(shell: HTMLElement): number | null {
   const main = shell.querySelector<HTMLElement>(".main-stage");
   if (!main) return null;
   let widest: number | null = null;
-  for (const header of shell.querySelectorAll<HTMLElement>(".provider-account-card.desktop-card .provider-account-card-header")) {
+  for (const header of shell.querySelectorAll<HTMLElement>(".provider-account-card.desktop-card:not(.is-compact) .provider-account-card-header")) {
     const headerWidth = header.getBoundingClientRect().width;
     if (headerWidth <= 0) continue;
     const parts = [...header.children].filter(

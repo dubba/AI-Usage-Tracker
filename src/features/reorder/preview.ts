@@ -68,14 +68,33 @@ function floatingCenterY(drag: ActiveDrag): number {
 
 export function updatePlaceholderFromPointer(drag: ActiveDrag): void {
   const clientY = floatingCenterY(drag);
+  const clientX = drag.lastClientX;
   const elements = reorderElements(drag);
   if (elements.length === 0) return;
+  const rects = elements.map((el) => el.getBoundingClientRect());
+  const containerWidth = drag.container.getBoundingClientRect().width;
+  const isMultiColumn =
+    rects.some((b, i) => i > 0 && Math.abs(b.top - rects[i - 1].top) < 8) ||
+    (containerWidth > 0 && rects[0].width > 0 && rects[0].width < containerWidth * 0.75);
+
   let reference: HTMLElement | null = null;
-  for (const element of elements) {
-    const bounds = element.getBoundingClientRect();
-    if (clientY < bounds.top + bounds.height / 2) {
-      reference = element;
-      break;
+  for (let i = 0; i < elements.length; i++) {
+    const element = elements[i];
+    const bounds = rects[i];
+    if (!isMultiColumn) {
+      if (clientY < bounds.top + bounds.height / 2) {
+        reference = element;
+        break;
+      }
+    } else {
+      if (clientY < bounds.top) {
+        reference = element;
+        break;
+      }
+      if (clientY <= bounds.bottom && typeof clientX === "number" && clientX < bounds.left + bounds.width / 2) {
+        reference = element;
+        break;
+      }
     }
   }
 

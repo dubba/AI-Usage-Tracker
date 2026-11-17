@@ -3,11 +3,12 @@ import { requestDashboardResync, UI_EVENTS } from "../../shared/lib/events";
 import { isStringArray, readJson, storageGet, storageSet, STORAGE_KEYS, writeJson } from "../../shared/lib/storage";
 import { isThemePreference, readThemePreference, setThemePreference } from "../../shared/lib/theme";
 import { getBottomNavLabels, isBottomNavLabels, setBottomNavLabels } from "../../shared/lib/bottom-nav-labels";
+import { getCompactDashboardMode, isCompactDashboardMode, setCompactDashboardMode } from "../../shared/lib/compact-dashboard";
 import { getUsageDisplayMode, isUsageDisplayMode, setUsageDisplayMode } from "../../shared/lib/usage-display";
 
 type UiState = Record<string, unknown>;
 
-/** Layout state (group/provider order, collapsed cards, page order, sidebar width, theme, usage display mode, menu bar labels) to send to a paired device. */
+/** Layout state (group/provider order, collapsed cards, page order, sidebar width, theme, usage display mode, menu bar labels, compact dashboard) to send to a paired device. */
 export function collectUiState(): UiState {
   const ui: UiState = {};
   const groupOrder = readJson<string[]>(STORAGE_KEYS.sidebarGroupOrder, [], isStringArray);
@@ -20,6 +21,7 @@ export function collectUiState(): UiState {
   ui.theme = readThemePreference();
   ui.usage_display_mode = getUsageDisplayMode();
   ui.bottom_nav_labels = getBottomNavLabels();
+  ui.compact_dashboard = getCompactDashboardMode();
   return ui;
 }
 
@@ -47,6 +49,9 @@ export function applyUiState(payload: UiState): void {
   // Absent on a transfer from an older app, which leaves this device's own choice alone.
   if (isBottomNavLabels(payload.bottom_nav_labels)) {
     setBottomNavLabels(payload.bottom_nav_labels);
+  }
+  if (isCompactDashboardMode(payload.compact_dashboard)) {
+    setCompactDashboardMode(payload.compact_dashboard);
   }
   requestDashboardResync();
 }

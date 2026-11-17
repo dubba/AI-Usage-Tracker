@@ -20,7 +20,14 @@ afterEach(() => {
 
 const allGroup: SidebarGroup = { id: ALL_ACCOUNTS_GROUP_ID, type: "all", title: "All Accounts", provider: null, accounts: [] };
 
-function render(props: { section: Section; topBar: boolean; selectedGroupId?: string; groups?: SidebarGroup[] }) {
+function render(props: {
+  section: Section;
+  topBar: boolean;
+  selectedGroupId?: string;
+  groups?: SidebarGroup[];
+  activeSettingsSection?: "general" | "updates" | "devices" | "advanced";
+  onJumpToSettingsSection?: (section: "general" | "updates" | "devices" | "advanced") => void;
+}) {
   const onSelectGroup = vi.fn();
   mounted = mount(
     <Sidebar
@@ -158,6 +165,43 @@ describe("Sidebar", () => {
       render({ section: "accounts", topBar: true, groups: [mixed[1]] });
       const empties = [...mounted!.container.querySelectorAll(".sidebar-section-empty")].map((el) => el.textContent);
       expect(empties).toEqual(["No groups yet"]);
+    });
+
+    it("renders Settings section jump links on desktop instead of accounts and groups (L3)", () => {
+      const onJump = vi.fn();
+      render({
+        section: "settings",
+        topBar: true,
+        groups: mixed,
+        activeSettingsSection: "devices",
+        onJumpToSettingsSection: onJump,
+      });
+
+      const nav = mounted!.container.querySelector(".settings-jump-nav");
+      expect(nav).not.toBeNull();
+      expect(mounted!.container.querySelector(".is-all-row")).toBeNull();
+      const labels = [...mounted!.container.querySelectorAll(".settings-jump-label")].map((el) => el.textContent);
+      expect(labels).toEqual(["General", "Updates", "Devices", "Advanced"]);
+
+      const devicesBtn = [...mounted!.container.querySelectorAll<HTMLButtonElement>(".settings-jump-item")].find((btn) =>
+        btn.textContent?.includes("Devices"),
+      )!;
+      expect(devicesBtn.getAttribute("aria-current")).toBe("location");
+
+      const advBtn = [...mounted!.container.querySelectorAll<HTMLButtonElement>(".settings-jump-item")].find((btn) =>
+        btn.textContent?.includes("Advanced"),
+      )!;
+      click(advBtn);
+      expect(onJump).toHaveBeenCalledWith("advanced");
+    });
+
+    it("places the Compact toggle beside % Used / % Left in the mobile sidebar footer (L7)", () => {
+      render({ section: "accounts", topBar: false });
+      const switchRow = mounted!.container.querySelector(".sidebar-display-switch")!;
+      const compactBtn = switchRow.querySelector<HTMLButtonElement>(".compact-dashboard-toggle");
+      expect(compactBtn).not.toBeNull();
+      expect(compactBtn?.classList.contains("is-mobile")).toBe(true);
+      expect(compactBtn?.getAttribute("aria-label")).toBe("Compact view");
     });
   });
 });

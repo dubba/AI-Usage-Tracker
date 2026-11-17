@@ -115,3 +115,77 @@ describe("sidebar row drags stay inside their section", () => {
     expect(order(container).slice(0, 5)).toEqual(["sidebar-section-header", "provider:a", "dashboard-reorder-placeholder", "provider:b", "provider:c"]);
   });
 });
+
+describe("2-column dashboard grid drag placement (L7)", () => {
+  function buildGrid() {
+    const container = document.createElement("section");
+    container.className = "provider-account-cards is-compact";
+    const card = (id: string) => {
+      const el = document.createElement("article");
+      el.className = "provider-account-card is-compact";
+      el.dataset.accountId = id;
+      el.dataset.reorderProvider = "anthropic";
+      el.dataset.reorderEnabled = "true";
+      return el;
+    };
+    const cards = {
+      c1: card("a1"),
+      c2: card("a2"),
+      c3: card("a3"),
+      c4: card("a4"),
+    };
+    container.append(cards.c1, cards.c2, cards.c3, cards.c4);
+    document.body.append(container);
+    // 2 columns (x=0..300 and x=320..620), 2 rows (y=0..80 and y=90..170)
+    const rects: Record<string, DOMRect> = {
+      a1: new DOMRect(0, 0, 300, 80),
+      a2: new DOMRect(320, 0, 300, 80),
+      a3: new DOMRect(0, 90, 300, 80),
+      a4: new DOMRect(320, 90, 300, 80),
+    };
+    Object.values(cards).forEach((el) => {
+      vi.spyOn(el, "getBoundingClientRect").mockImplementation(() => rects[el.dataset.accountId!]);
+    });
+    return { container, cards };
+  }
+
+  function startCardDrag(container: HTMLElement, source: HTMLElement, pointerX: number, pointerY: number): ActiveDrag {
+    const placeholder = document.createElement("div");
+    placeholder.className = "dashboard-reorder-placeholder";
+    source.after(placeholder);
+    return {
+      descriptor: { kind: "account", accountId: source.dataset.accountId!, provider: "anthropic", source },
+      container,
+      source,
+      placeholder,
+      lastClientX: pointerX,
+      lastClientY: pointerY,
+      floatGrabY: 0,
+      floatHeight: 80,
+    } as unknown as ActiveDrag;
+  }
+
+  const cardOrder = (container: HTMLElement) =>
+    Array.from(container.children).map((el) => (el as HTMLElement).dataset.accountId ?? el.className);
+
+  it("moves placeholder across columns in the same row using horizontal pointer coordinates", () => {
+    const { container, cards } = buildGrid();
+    // Dragging a1 into the left half of a2 (col 2, row 1) places placeholder before a2
+    const drag = startCardDrag(container, cards.c1, 360, 40);
+    updatePlaceholderFromPointer(drag);
+    expect(cardOrder(container)).toEqual(["a1", "dashboard-reorder-placeholder", "a2", "a3", "a4"]);
+
+    // Dragging into the right half of a2 (x > midX=470) places placeholder after a2
+    drag.lastClientX = 560;
+    drag.lastClientY = 40;
+    updatePlaceholderFromPointer(drag);
+    expect(cardOrder(container)).toEqual(["a1", "a2", "dashboard-reorder-placeholder", "a3", "a4"]);
+  });
+
+  it("moves placeholder into row 2 column 2 when dragged to the bottom-right card", () => {
+    const { container, cards } = buildGrid();
+    const drag = startCardDrag(container, cards.c1, 560, 130);
+    updatePlaceholderFromPointer(drag);
+    expect(cardOrder(container)).toEqual(["a1", "a2", "a3", "a4", "dashboard-reorder-placeholder"]);
+  });
+});

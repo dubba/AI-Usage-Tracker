@@ -3,9 +3,12 @@ import { type BusyKeys } from "../../shared/lib/busy";
 import { useReorderHint } from "./useReorderHint";
 import { useWrapPillWhenCramped } from "./useWrapPillWhenCramped";
 import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
+import { CompactDashboardToggle } from "../dashboard/CompactDashboardToggle";
 import { UsageDisplayToggle } from "../dashboard/UsageDisplayToggle";
+import { useCompactDashboard } from "../../shared/hooks/useCompactDashboard";
 import { MOBILE_OVERLAY_QUERY } from "../sidebar/sidebar-width";
 import { useMediaQuery } from "../../shared/hooks/useMediaQuery";
+import "./accounts-layout.css";
 import {
   CloseIcon,
   EditIcon,
@@ -101,6 +104,7 @@ export function AccountsView(props: {
 }) {
   const [showAttentionOnly, setShowAttentionOnly] = useState(false);
   const [announcement, setAnnouncement] = useState("");
+  const [compact] = useCompactDashboard();
   // The L / U switch sits in the title row on a phone and at the header's top right on a wide window.
   const phone = useMediaQuery(MOBILE_OVERLAY_QUERY);
   const titleRowRef = useRef<HTMLDivElement>(null);
@@ -233,6 +237,7 @@ export function AccountsView(props: {
               {/* Names what the switch chooses, as "Period" does on the Usage page; the group already has its own name. */}
               <span className="accounts-display-label" aria-hidden="true">Show</span>
               <UsageDisplayToggle labels="words" className="top-bar-segmented" />
+              <CompactDashboardToggle />
             </div>
           )}
         </div>
@@ -318,12 +323,13 @@ export function AccountsView(props: {
           </div>
         ) : null}
 
-        <section className="provider-account-cards" data-group-id={props.selectedGroup?.id || undefined}>
+        <section className={`provider-account-cards${compact ? " is-compact" : ""}`} data-group-id={props.selectedGroup?.id || undefined}>
         {displayedAccounts.length ? displayedAccounts.map((account, index) => (
           <AccountDashboardCard
             key={`${props.selectedGroup.id}:${account.id}`}
             pageId={props.selectedGroup.id}
             account={account}
+            compact={compact}
             busy={props.busy}
             onRefresh={() => props.onRefresh(account)}
             onReconnect={() => props.onReconnect(account)}

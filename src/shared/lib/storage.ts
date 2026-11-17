@@ -40,6 +40,8 @@ export const STORAGE_KEYS = {
   bottomNavLabels: "ai-usage-tracker:bottom-nav-labels",
   /** "activity" | "accounts" | "settings": the page to open on the next launch. */
   openSection: "ai-usage-tracker:open-section",
+  /** "on" | "off": whether Dashboard account cards render in compact single-row mode. */
+  compactDashboard: "ai-usage-tracker:compact-dashboard",
 } as const;
 
 export const STORAGE_PREFIXES = {

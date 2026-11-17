@@ -1,0 +1,167 @@
+/* Settings layout improvements (L3):
+ * - Desktop section jump navigation inside the sidebar when viewing Settings.
+ * - 720px column cap for desktop Settings cards so toggles sit close to labels.
+ * - Card eyebrow headings for the four Advanced settings cards.
+ *
+ * Layered in `@layer components` with zero `!important` flags and zero raw color literals
+ * (tokens only; see docs/CSS_ARCHITECTURE.md and src/styles/css-debt.test.ts).
+ */
+@layer components {
+  /* ---- Section Jump Sidebar (desktop Settings) ---- */
+  .settings-jump-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 2px;
+  }
+
+  .settings-jump-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 12px 6px;
+    color: var(--obsidian-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .settings-jump-heading::after {
+    content: "";
+    flex: 1 1 auto;
+    height: 1px;
+    background: var(--obsidian-border);
+  }
+
+  .settings-jump-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    width: 100%;
+    padding: 10px 12px 10px 15px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--obsidian-text);
+    text-align: left;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+  }
+
+  .settings-jump-icon {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 auto;
+    border: 1px solid var(--obsidian-border);
+    border-radius: 8px;
+    background: var(--obsidian-surface-container-high);
+    color: var(--obsidian-muted-bright);
+    transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+  }
+
+  .settings-jump-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .settings-jump-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 2px;
+  }
+
+  .settings-jump-label {
+    font-size: 13.5px;
+    font-weight: 650;
+    line-height: 1.25;
+    color: var(--obsidian-text);
+  }
+
+  .settings-jump-hint {
+    font-size: 11.5px;
+    line-height: 1.25;
+    color: var(--obsidian-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  @media (hover: hover) {
+    .settings-jump-item:not(.is-active):hover {
+      background: rgb(var(--purple-accent-rgb) / 0.08);
+    }
+
+    .settings-jump-item:not(.is-active):hover .settings-jump-icon {
+      border-color: var(--obsidian-purple-strong);
+      color: var(--obsidian-purple);
+    }
+  }
+
+  .settings-jump-item:focus-visible {
+    outline: 2px solid var(--purple-accent);
+    outline-offset: 2px;
+  }
+
+  .settings-jump-item.is-active {
+    background: var(--purple-surface);
+  }
+
+  .settings-jump-item.is-active::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--obsidian-purple-strong);
+  }
+
+  .settings-jump-item.is-active .settings-jump-icon {
+    border-color: rgb(var(--purple-accent-rgb) / 0.35);
+    background: rgb(var(--purple-accent-rgb) / 0.16);
+    color: var(--obsidian-purple);
+  }
+
+  .settings-jump-item.is-active .settings-jump-label {
+    color: var(--purple-text);
+  }
+
+  /* ---- 720px desktop Settings column ---- */
+  @media (min-width: 861px) {
+    .settings-style-content .dashboard-scroll > * {
+      width: 100%;
+      max-width: 720px;
+      box-sizing: border-box;
+    }
+
+    .settings-style-content .dashboard-scroll > .settings-section-title {
+      max-width: calc(720px - 6px);
+    }
+  }
+
+  .settings-section-title {
+    scroll-margin-top: 18px;
+  }
+
+  /* ---- Advanced card headings ---- */
+  .settings-card-heading {
+    margin: 0;
+    padding: 10px 19px 8px;
+    color: var(--obsidian-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  .settings-shortcuts-card .settings-shortcuts {
+    margin: 0;
+  }
+}

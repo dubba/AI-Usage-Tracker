@@ -179,3 +179,12 @@ export const StackPlusIcon = (props: IconProps) => (
     <path d="M19 16v6M16 19h6" />
   </Base>
 );
+
+/** Three slim horizontal bars: toggle compact single-row account cards. */
+export const CompactRowsIcon = (props: IconProps) => (
+  <Base {...props}>
+    <rect x="3" y="5" width="18" height="3" rx="1" />
+    <rect x="3" y="10.5" width="18" height="3" rx="1" />
+    <rect x="3" y="16" width="18" height="3" rx="1" />
+  </Base>
+);

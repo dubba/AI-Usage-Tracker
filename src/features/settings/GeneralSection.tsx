@@ -32,7 +32,7 @@ export function GeneralSection() {
 
   return (
     <>
-      <h2 className="settings-section-title">General</h2>
+      <h2 id="settings-section-general" className="settings-section-title">General</h2>
       <section className="settings-card">
         {/* Neither Android nor iOS lets an app open its screen when the phone starts, so the switch would do nothing. */}
         {!isAndroid() && !isIOS() ? (

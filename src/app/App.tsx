@@ -55,6 +55,7 @@ import { watchPageScrollRestore } from "./page-scroll";
 import { useSidebarNavigation } from "./useSidebarNavigation";
 import { useSwipePageNavigation } from "./useSwipePageNavigation";
 import { useUnprotectedSignIns } from "./useUnprotectedSignIns";
+import type { SettingsSectionId } from "../features/settings/settings-sections";
 
 // One shared empty list, so the "not loaded yet" value is the same object on every render.
 const NO_ACCOUNTS: Account[] = [];
@@ -75,6 +76,12 @@ export default function App() {
   const { selectedGroupId, section, sidebarOpen } = nav;
   const { providerOrder, groupOrder: sidebarGroupOrder, pageOrders, sidebarOrderLeadsAllPage } = useLayout();
   const [groupAnnouncement, setGroupAnnouncement] = useState("");
+  const [activeSettingsSection, setActiveSettingsSection] = useState<SettingsSectionId>("general");
+  const [settingsJumpTarget, setSettingsJumpTarget] = useState<{ section: SettingsSectionId; seq: number } | null>(null);
+  const jumpToSettingsSection = useCallback((target: SettingsSectionId) => {
+    setActiveSettingsSection(target);
+    setSettingsJumpTarget((prev) => ({ section: target, seq: (prev?.seq ?? 0) + 1 }));
+  }, []);
   useTouchTooltips();
   useDragReorder();
   const shellRef = useRef<HTMLDivElement>(null);
@@ -382,6 +389,8 @@ export default function App() {
               onOpenUpdateNotes={() => update.setUpdateNotesOpen(true)}
               onUsageCleared={handleUsageCleared}
               onAllDataDeleted={handleAllDataDeleted}
+              jumpTarget={settingsJumpTarget}
+              onActiveSectionChange={setActiveSettingsSection}
             />
           </AppUpdateContext.Provider>
         </AppSettingsContext.Provider>
@@ -419,6 +428,8 @@ export default function App() {
         refreshMinutes={refreshMinutes}
         busy={busy}
         topBar={!sidebarIsOverlay}
+        activeSettingsSection={activeSettingsSection}
+        onJumpToSettingsSection={jumpToSettingsSection}
         onClose={nav.closeSidebar}
         onSelectGroup={(groupId) => nav.selectGroup(groupId, { closeSidebar: true })}
         onMoveGroup={moveGroup}
