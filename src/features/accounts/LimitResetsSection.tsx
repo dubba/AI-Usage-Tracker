@@ -1,8 +1,12 @@
 import { useId, useState } from "react";
+import { createPortal } from "react-dom";
 import { formatMonthDay } from "../../shared/lib/format";
 import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
 import { ChevronIcon } from "../../shared/ui/icons";
 import type { LimitReset } from "../../types";
+
+/** Ends the detail the backend writes for a reset that is paused or cooling down. */
+const NOT_USABLE_NOW = "Not usable right now.";
 
 function expiryLabel(value: string | null): string | null {
   if (!value) return null;
@@ -74,28 +78,34 @@ export function LimitResetsSection({
           </ul>
           <p className="limit-resets-note">
             {grants.every((grant) => grant.usable === false)
-              ? "Redeem these in Grok, under Settings → Usage."
+              ? grants.some((grant) => grant.detail.endsWith(NOT_USABLE_NOW))
+                ? "These can't be used right now. Try again in a few minutes."
+                : "Redeem these in Grok, under Settings → Usage."
               : "Warning: This reset action cannot be undone!"}
           </p>
         </div>
       ) : null}
-      <ConfirmDialog
-        open={pending != null}
-        kicker="Limit reset"
-        title={pending?.label ?? "Limit reset"}
-        body={pending ? confirmBody(pending.detail) : ""}
-        confirmLabel="Use"
-        busyLabel="Using…"
-        busy={busy}
-        onConfirm={() => {
-          if (!pending || busy) return;
-          onUse?.(pending.id);
-          setPending(null);
-        }}
-        onCancel={() => {
-          if (!busy) setPending(null);
-        }}
-      />
+      {/* A portal: the card is a containing block for fixed descendants (container-type), which clipped the dialog. */}
+      {createPortal(
+        <ConfirmDialog
+          open={pending != null}
+          kicker="Limit reset"
+          title={pending?.label ?? "Limit reset"}
+          body={pending ? confirmBody(pending.detail) : ""}
+          confirmLabel="Use"
+          busyLabel="Using…"
+          busy={busy}
+          onConfirm={() => {
+            if (!pending || busy) return;
+            onUse?.(pending.id);
+            setPending(null);
+          }}
+          onCancel={() => {
+            if (!busy) setPending(null);
+          }}
+        />,
+        document.body,
+      )}
     </section>
   );
 }

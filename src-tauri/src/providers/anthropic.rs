@@ -141,6 +141,52 @@ pub async fn refresh(
                 _ => None,
             });
 
+    let parsed_resets =
+        limit_resets::from_cedar_ember(raw.cedar_ember.as_ref(), chrono::Utc::now());
+    if let Some(block) = raw.cedar_ember.as_ref() {
+        let flags = ["at_limit", "eligible", "cooldown_until"].map(|key| {
+            format!(
+                "{key}={}",
+                block.get(key).map_or("-".into(), |value| value.to_string())
+            )
+        });
+        let grants = block
+            .get("grants")
+            .and_then(Value::as_array)
+            .map(|grants| {
+                grants
+                    .iter()
+                    .map(|grant| {
+                        [
+                            "id",
+                            "resets_left",
+                            "usable_now",
+                            "paused",
+                            "use_requires_limit",
+                            "unavailable_reason",
+                            "blocking",
+                            "starts_at",
+                            "ends_at",
+                        ]
+                        .map(|key| {
+                            format!(
+                                "{key}={}",
+                                grant.get(key).map_or("-".into(), |value| value.to_string())
+                            )
+                        })
+                        .join(" ")
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" | ")
+            })
+            .unwrap_or_default();
+        crate::diagnostics::info(&format!(
+            "Anthropic limit resets: kept {} ({}) grants: {grants}",
+            parsed_resets.len(),
+            flags.join(" "),
+        ));
+    }
+
     Ok((
         ProviderUsage {
             plan,
@@ -150,10 +196,7 @@ pub async fn refresh(
             credits_usd,
             unlimited_credits: false,
             source: "anthropic_oauth_usage".into(),
-            limit_resets: limit_resets::from_cedar_ember(
-                raw.cedar_ember.as_ref(),
-                chrono::Utc::now(),
-            ),
+            limit_resets: parsed_resets,
         },
         secret,
     ))

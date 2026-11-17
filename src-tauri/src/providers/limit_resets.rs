@@ -17,6 +17,7 @@ pub const DETAIL_FABLE: &str = "Clears weekly Fable usage";
 pub const DETAIL_FIVE: &str = "Clears the 5-hour limit";
 pub const DETAIL_WEEK: &str = "Clears the weekly limit";
 pub const DETAIL_RATE: &str = "Restores that rate limit.";
+pub const DETAIL_WAITING: &str = "Not usable right now.";
 
 const LABEL_FABLE: &str = "Fable reset";
 const LABEL_FULL: &str = "Full reset";
@@ -188,9 +189,14 @@ fn claude_grant(value: &Value, now: DateTime<Utc>) -> Option<LimitReset> {
     if !is_valid_grant_id(id) {
         return None;
     }
-    if !count_available(value.get("resets_left")) || !window_open(value, now) {
+    // A grant that is not usable right now (paused, or a cooldown after the last
+    // reset) is still the user's, so it stays listed, read-only, until it is spent
+    // or its window ends. Dropping it made the next one vanish after a redeem.
+    if !count_available(value.get("resets_left")) || !window_open(value, now, false) {
         return None;
     }
+    let usable_now =
+        !(flag_refuses(value.get("usable_now"), false) || flag_refuses(value.get("paused"), true));
     let clears = clear_tokens(value.get("clears"));
     let label = sanitize_label(value.get("label").and_then(Value::as_str).unwrap_or(""));
     let label = if label.is_empty() {
@@ -201,9 +207,13 @@ fn claude_grant(value: &Value, now: DateTime<Utc>) -> Option<LimitReset> {
     Some(LimitReset {
         id: id.to_string(),
         label,
-        detail: claude_detail(&clears).to_string(),
+        detail: if usable_now {
+            claude_detail(&clears).to_string()
+        } else {
+            format!("{}. {DETAIL_WAITING}", claude_detail(&clears))
+        },
         expires_at: expiry_text(value.get("ends_at"), now),
-        usable: true,
+        usable: usable_now,
     })
 }
 
@@ -216,7 +226,7 @@ fn chatgpt_grant(value: &Value, now: DateTime<Utc>) -> Option<LimitReset> {
         return None;
     }
     let id = value.get("id").and_then(Value::as_str)?;
-    if !is_valid_grant_id(id) || !window_open(value, now) {
+    if !is_valid_grant_id(id) || !window_open(value, now, true) {
         return None;
     }
     let title = value.get("title").and_then(Value::as_str).unwrap_or("");
@@ -243,8 +253,10 @@ fn count_available(value: Option<&Value>) -> bool {
     }
 }
 
-fn window_open(value: &Value, now: DateTime<Utc>) -> bool {
-    if flag_refuses(value.get("usable_now"), false) || flag_refuses(value.get("paused"), true) {
+fn window_open(value: &Value, now: DateTime<Utc>, require_usable: bool) -> bool {
+    if require_usable
+        && (flag_refuses(value.get("usable_now"), false) || flag_refuses(value.get("paused"), true))
+    {
         return false;
     }
     if let Some(start) = value.get("starts_at") {
@@ -464,11 +476,9 @@ mod tests {
     fn claude_drops_grants_that_cannot_be_used() {
         let block = serde_json::json!({
             "grants": [
-                {"id": "paused", "resets_left": 1, "paused": true, "ends_at": "2026-12-01T00:00:00Z"},
                 {"id": "spent", "resets_left": 0, "ends_at": "2026-12-01T00:00:00Z"},
                 {"id": "later", "resets_left": 1, "starts_at": "2026-12-01T00:00:00Z", "ends_at": "2026-12-20T00:00:00Z"},
                 {"id": "expired", "resets_left": 1, "ends_at": "2026-11-01T00:00:00Z"},
-                {"id": "blocked", "resets_left": 1, "usable_now": false, "ends_at": "2026-12-01T00:00:00Z"},
                 {"id": "bad id", "resets_left": 1, "ends_at": "2026-12-01T00:00:00Z"},
                 {"id": "kept", "resets_left": 1, "ends_at": "2026-12-01T00:00:00Z", "clears": ["five_hour"]}
             ]
@@ -477,6 +487,27 @@ mod tests {
         assert_eq!(grants.len(), 1);
         assert_eq!(grants[0].id, "kept");
         assert_eq!(grants[0].detail, DETAIL_FIVE);
+    }
+
+    #[test]
+    fn claude_keeps_a_paused_or_cooling_down_grant_as_read_only() {
+        let block = serde_json::json!({
+            "grants": [
+                {"id": "paused", "resets_left": 1, "paused": true, "ends_at": "2026-12-01T00:00:00Z", "clears": ["five_hour"]},
+                {"id": "blocked", "resets_left": 1, "usable_now": false, "ends_at": "2026-12-02T00:00:00Z"},
+                {"id": "ready", "resets_left": 1, "usable_now": true, "ends_at": "2026-12-03T00:00:00Z"}
+            ]
+        });
+        let grants = from_cedar_ember(Some(&block), now());
+        let usable: Vec<_> = grants
+            .iter()
+            .map(|grant| (grant.id.as_str(), grant.usable))
+            .collect();
+        assert_eq!(
+            usable,
+            [("paused", false), ("blocked", false), ("ready", true)]
+        );
+        assert!(grants[0].detail.ends_with(DETAIL_WAITING));
     }
 
     #[test]
