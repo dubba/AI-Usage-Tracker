@@ -2973,10 +2973,21 @@ select.text-input option,
   margin-top: 8px;
 }
 
-/* The form's 16px row gap already separates the error from the buttons, which matches the
-   16px left below it (see the modal error note in base.css). */
+/* The form's 16px row gap already separates the error from the buttons. Below it, the shared
+   rule in base.css leaves 16px to the inside of the card's 1px border, which reads as 17px, so
+   this dialog pulls the error down one more pixel to make both gaps look the same. */
 .bucket-modal-form > .modal-error {
   margin-top: 0;
+}
+
+.modal-card .bucket-modal-form > .modal-error:last-child {
+  margin-bottom: -9px;
+}
+
+@media (max-width: 860px) {
+  .modal-card .bucket-modal-form > .modal-error:last-child {
+    margin-bottom: -5px;
+  }
 }
 
 .bucket-modal-save-group {
