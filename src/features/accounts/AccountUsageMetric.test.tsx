@@ -188,4 +188,44 @@ describe.each([
     expect(document.querySelector(".desktop-metric .metric-reset")?.textContent).toBe("Starts on first use");
     expect(document.querySelector(".desktop-metric-date")).toBeNull();
   });
+
+  it("hides old percentages, hatches the bar, and says Reset on <date> · last seen <N>% when expired", () => {
+    const expiredAt = new Date(Date.now() - 6 * 86_400_000).toISOString();
+    const expectedDay = new Date(expiredAt).toLocaleString(undefined, { month: "short", day: "numeric" });
+    app = mount(
+      <AccountUsageMetric
+        window={{ id: "five_hour", label: "5-Hour Window", usedPercent: 23, remainingPercent: 77, resetsAt: expiredAt, windowSeconds: 18000, kind: "five_hour" }}
+        provider="anthropic"
+        stale
+      />,
+    );
+    const metric = document.querySelector(".desktop-metric")!;
+    expect(metric.classList.contains("is-expired")).toBe(true);
+    expect(metric.classList.contains("is-stale")).toBe(false);
+    expect(metric.querySelector(".metric-full-value")?.textContent).toBe("—");
+    expect(metric.querySelector(".metric-full-value")?.classList.contains("tone-neutral")).toBe(true);
+    expect(metric.querySelector(".metric-percent-suffix")).toBeNull();
+    const track = metric.querySelector(".account-metric-track")!;
+    expect(track.classList.contains("is-hatched")).toBe(true);
+    expect((track.firstElementChild as HTMLElement).style.width).toBe("0%");
+    expect((track.firstElementChild as HTMLElement).classList.contains("tone-neutral")).toBe(true);
+    expect(track.getAttribute("aria-valuenow")).toBeNull();
+    expect(track.getAttribute("aria-valuetext")).toBe(`Reset on ${expectedDay}, last seen 77% left`);
+    expect(metric.querySelector(".metric-reset")?.textContent).toBe(`Reset on ${expectedDay} · last seen 77% left`);
+    expect(metric.querySelector(".desktop-metric-date")).toBeNull();
+  });
+
+  it("omits last seen when an expired window had no recorded percentage", () => {
+    const expiredAt = new Date(Date.now() - 86_400_000).toISOString();
+    const expectedDay = new Date(expiredAt).toLocaleString(undefined, { month: "short", day: "numeric" });
+    app = mount(
+      <AccountUsageMetric
+        window={{ id: "five_hour", label: "5-Hour Window", usedPercent: null, remainingPercent: null, resetsAt: expiredAt, windowSeconds: 18000, kind: "five_hour" }}
+        provider="anthropic"
+      />,
+    );
+    expect(document.querySelector(".metric-full-value")?.textContent).toBe("—");
+    expect(document.querySelector(".metric-reset")?.textContent).toBe(`Reset on ${expectedDay}`);
+    expect(document.querySelector(".desktop-metric-date")).toBeNull();
+  });
 });

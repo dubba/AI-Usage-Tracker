@@ -695,6 +695,40 @@ describe("AccountDashboardCard on a wide window", () => {
     expect(icon().getAttribute("aria-label")).toBe("Collapse Claude");
     setCardCollapsedOnPage("desktop-compact-open", "desktop-compact-open-test", false);
   });
+
+  it("shows a dash, not the old percentage, for a limit that has reset in the compact card", () => {
+    const rendered = renderDesktopCard({
+      compact: true,
+      pageId: "desktop-compact-expired",
+      account: {
+        ...account,
+        id: "desktop-compact-expired-test",
+        plan: "pro",
+        lastUsage: {
+          plan: "pro",
+          email: null,
+          windows: [
+            { id: "5h", label: "5-Hour", remainingPercent: 12, usedPercent: 88, resetsAt: new Date(Date.now() - 3600_000).toISOString(), windowSeconds: 5 * 3600, kind: "five_hour" },
+            { id: "7d", label: "Weekly", remainingPercent: 40, usedPercent: 60, resetsAt: new Date(Date.now() + 86_400_000).toISOString(), windowSeconds: 7 * 86400, kind: "weekly" },
+          ],
+          creditsUsd: null,
+          unlimitedCredits: false,
+          fetchedAt: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+          freshness: "live",
+          source: "test",
+        },
+      },
+    });
+    app = rendered.app;
+    const [expired, live] = [...app.container.querySelectorAll(".compact-metric-item")];
+    expect(expired.querySelector(".compact-metric-value")?.textContent).toBe("—");
+    expect(expired.querySelector(".compact-metric-value")?.classList.contains("tone-neutral")).toBe(true);
+    const track = expired.querySelector(".account-metric-track")!;
+    expect(track.classList.contains("is-hatched")).toBe(true);
+    expect(track.getAttribute("aria-valuenow")).toBeNull();
+    expect(track.getAttribute("aria-valuetext")).toBe("Reset, usage unknown until the next refresh");
+    expect(live.querySelector(".compact-metric-value")?.textContent).toBe("40%");
+  });
 });
 
 describe("AccountDashboardCard menu on a wide window", () => {

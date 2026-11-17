@@ -17,6 +17,7 @@ import {
   accountNeedsAttention,
   accountSignedOut,
   accountStatus,
+  isWindowExpired,
   usageTone,
   cardWindows,
   nextResetSummary,
@@ -153,6 +154,12 @@ export function AccountDashboardCard({
     return Number.isFinite(fetchedAt) ? formatElapsed(now - fetchedAt) : "Not updated yet";
   });
   const updatedAgoId = useId();
+  // Ids of the windows whose reset time has passed; their old percentages are no longer current.
+  const expiredWindowIds = useClock((now) => {
+    const currentNow = Math.max(now, Date.now());
+    return windows.filter((window) => isWindowExpired(window.resetsAt, currentNow)).map((window) => window.id).join("\n");
+  });
+  const expiredWindows = new Set(expiredWindowIds ? expiredWindowIds.split("\n") : []);
   const soonestReset = useClock((now) => {
     const next = nextResetSummary([account], now);
     return next.account ? next.value : null;
@@ -219,12 +226,15 @@ export function AccountDashboardCard({
 
           <div className={`compact-card-metrics${windows.length > 4 ? " is-two-col" : ""}`}>
             {windows.length ? windows.map((window) => {
-              const remaining = window.remainingPercent;
+              const expired = expiredWindows.has(window.id);
+              const remaining = expired ? null : window.remainingPercent;
               const shown = remaining == null ? null : displayPercent(remaining, displayMode);
               const suffix = usageDisplaySuffix(displayMode);
               const width = shown == null ? 0 : Math.min(100, Math.max(0, shown));
               const tone = usageTone(remaining);
               const hatchTrack = shown == null;
+              const missingText = expired ? "—" : googleUnavailableLabel;
+              const missingAria = expired ? "Reset, usage unknown until the next refresh" : googleUnavailableLabel;
               const staleFill = usageStale && !hatchTrack;
               const { span, name } = metricWindowParts(window, account.provider);
               const label = compactWindowLabel(window, account.provider);
@@ -235,7 +245,7 @@ export function AccountDashboardCard({
                   <div className="compact-metric-head">
                     <span className="compact-metric-label" title={window.label}>{label}</span>
                     <span className={`compact-metric-value tone-${tone}`}>
-                      {shown == null ? googleUnavailableLabel : `${Math.round(shown)}%`}
+                      {shown == null ? missingText : `${Math.round(shown)}%`}
                     </span>
                   </div>
                   <span
@@ -245,7 +255,7 @@ export function AccountDashboardCard({
                     aria-valuemin={0}
                     aria-valuemax={100}
                     aria-valuenow={shown == null ? undefined : Math.round(shown)}
-                    aria-valuetext={shown == null ? googleUnavailableLabel : `${Math.round(shown)}% ${suffix}`}
+                    aria-valuetext={shown == null ? missingAria : `${Math.round(shown)}% ${suffix}`}
                   >
                     <span className={`tone-${tone}`} style={{ width: `${width}%` }} />
                   </span>

@@ -1,6 +1,7 @@
 import { useId } from "react";
+import { useClock } from "../../shared/hooks/useClock";
 import { displayAccountError, displayPlan } from "../../shared/lib/display";
-import { displayAccountLabel, usageTone } from "../../shared/lib/usage-logic";
+import { displayAccountLabel, isWindowExpired, usageTone } from "../../shared/lib/usage-logic";
 import { ProviderIcon } from "../../shared/ui/ProviderIcon";
 import type { Account, ActivityTracker } from "../../types";
 import { accountEmail } from "./account-title";
@@ -27,7 +28,8 @@ export function WeeklyTracker({
   const titleId = useId();
   const label = displayAccountLabel(account);
   const plan = displayPlan(account);
-  const used = tracker.currentUsedPercent;
+  const expired = useClock((now) => isWindowExpired(tracker.resetsAt, Math.max(now, Date.now())));
+  const used = expired ? null : tracker.currentUsedPercent;
   // Toned by what is left, like the account cards. The number itself is always what was used:
   // this page is about consumption, and the daily bars below count usage too.
   const tone = usageTone(used == null ? null : 100 - used);
@@ -66,11 +68,21 @@ export function WeeklyTracker({
           {limitName ? <span className="activity-card-limit">{limitName}</span> : null}
         </div>
         <div className={`activity-card-total tone-${tone}`}>
-          <strong aria-label={used == null ? "Usage unknown" : `${formatDayPercent(used)} of the ${monthly ? "monthly" : "weekly"} limit used`}>
+          <strong
+            aria-label={
+              expired
+                ? "Usage unknown since reset"
+                : used == null
+                  ? "Usage unknown"
+                  : `${formatDayPercent(used)} of the ${monthly ? "monthly" : "weekly"} limit used`
+            }
+          >
             {formatDayPercent(used)}
           </strong>
           <span className="activity-card-total-period" aria-hidden="true">
-            {`${used == null ? "" : "used "}${monthly ? "this month" : "this week"}`}
+            {expired
+              ? (monthly ? "month ended" : "week ended")
+              : `${used == null ? "" : "used "}${monthly ? "this month" : "this week"}`}
           </span>
         </div>
       </header>

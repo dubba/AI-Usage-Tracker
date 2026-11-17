@@ -474,6 +474,25 @@ describe("SidebarGroupRow averages and account problems", () => {
     const row = render([makeAccount({ id: "a1", fiveRemaining: 50 })]);
     expect(row.querySelector(".sidebar-row-alert")).toBeNull();
   });
+
+  it("leaves expired windows out of group averages and falls back to Sign-in needed when none are current", () => {
+    const past = new Date(Date.now() - 86_400_000).toISOString();
+    const expiredSignedOut = makeAccount({ id: "a1", fiveRemaining: 77, weeklyRemaining: 55 });
+    expiredSignedOut.authRequired = true;
+    expiredSignedOut.lastUsage!.freshness = "auth_required";
+    expiredSignedOut.lastUsage!.windows.forEach((w) => {
+      w.resetsAt = past;
+    });
+
+    const liveAccount = makeAccount({ id: "a2", fiveRemaining: 100, weeklyRemaining: 100 });
+    let row = render([expiredSignedOut, liveAccount]);
+    expect(values().map(([text]) => text)).toEqual(["100%", "100%"]);
+    app!.unmount();
+
+    row = render([expiredSignedOut]);
+    expect(row.querySelector(".sidebar-group-signin")?.textContent).toBe("Sign-in needed");
+    expect(row.querySelector(".sidebar-meters")).toBeNull();
+  });
 });
 
 describe("SidebarGroupRow custom group", () => {

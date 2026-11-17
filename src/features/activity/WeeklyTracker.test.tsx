@@ -46,6 +46,25 @@ describe("WeeklyTracker", () => {
     expect(root.querySelector("article")!.getAttribute("aria-labelledby")).toBe(root.querySelector(".activity-card-title")!.id);
   });
 
+  it("hides an old percentage once the week or month has reset, and says it ended", () => {
+    const account = makeAccount({ id: "a1", label: "Work Claude", plan: "max" });
+    const pastReset = "2026-10-15T15:00:00Z";
+    const root = render(account, makeTracker({ accountId: "a1", currentUsedPercent: 45, resetsAt: pastReset }));
+    expect(text(root, ".activity-card-total strong")).toBe("—");
+    expect(root.querySelector(".activity-card-total")!.classList.contains("tone-neutral")).toBe(true);
+    expect(text(root, ".activity-card-total-period")).toBe("week ended");
+    expect(root.querySelector(".activity-card-total strong")!.getAttribute("aria-label")).toBe("Usage unknown since reset");
+    mounted!.unmount();
+    mounted = null;
+
+    const monthlyRoot = render(
+      account,
+      makeTracker({ accountId: "a1", windowKind: "monthly", currentUsedPercent: 30, resetsAt: pastReset }),
+    );
+    expect(text(monthlyRoot, ".activity-card-total strong")).toBe("—");
+    expect(text(monthlyRoot, ".activity-card-total-period")).toBe("month ended");
+  });
+
   it("leaves out what it does not know", () => {
     const root = render(makeAccount({ id: "a1", label: "Plain" }), makeTracker({ accountId: "a1", resetsAt: null }));
     expect(root.querySelector(".activity-plan-pill")).toBeNull();

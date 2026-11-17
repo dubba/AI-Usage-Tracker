@@ -15,7 +15,7 @@ import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
 import { useVirtualKeyboard } from "../../shared/hooks/useVirtualKeyboard";
 import { useUsageDisplayMode } from "../../shared/hooks/useUsageDisplayMode";
 import { displayPercent } from "../../shared/lib/usage-display";
-import { cardWindows } from "../../shared/lib/usage-logic";
+import { cardWindows, isWindowExpired } from "../../shared/lib/usage-logic";
 
 const ALL_PROVIDERS: { id: Provider; label: string }[] = (Object.keys(PROVIDER_META) as Provider[])
   .map((id) => ({ id, label: PROVIDER_META[id].name }))
@@ -268,7 +268,7 @@ export function BucketModal({
                       <strong className="bucket-account-label">{account.label}</strong>
                       <span className="bucket-account-email">{account.email ?? account.plan ?? account.provider}</span>
                     </div>
-                    {sessionWindow?.remainingPercent != null ? (
+                    {sessionWindow?.remainingPercent != null && !isWindowExpired(sessionWindow.resetsAt) ? (
                       <span className="bucket-account-percent">
                         {Math.round(displayPercent(sessionWindow.remainingPercent, displayMode))}%
                       </span>

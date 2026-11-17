@@ -1027,9 +1027,10 @@
 
 .desktop-metric .desktop-metric-foot {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
+  gap: 2px 12px;
   color: var(--obsidian-muted);
   font-size: 13px;
 }
@@ -1038,10 +1039,15 @@
    regular muted text. In a narrow column the date drops to a second line whole, never cut off. */
 .desktop-metric .desktop-metric-foot .metric-reset {
   margin: 0;
+  min-width: 0;
   text-align: left;
   color: var(--obsidian-muted);
   font-size: 13px;
   font-weight: 400;
+  white-space: normal;
+}
+
+.desktop-metric.is-expired .desktop-metric-foot .metric-reset {
   white-space: normal;
 }
 

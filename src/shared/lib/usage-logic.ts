@@ -101,31 +101,57 @@ export function canonicalWindow(window: UsageWindow, target: SidebarWindow): boo
 export function isMonthlyWindow(window: UsageWindow): boolean {
   return window.kind === "monthly";
 }
-export function accountWindowRemaining(account: Account, target: SidebarWindow): number | null {
+/** True when `resetsAt` parses to a valid timestamp that has already passed at `now`. */
+export function isWindowExpired(resetsAt: string | null | undefined, now: number = Date.now()): boolean {
+  if (!resetsAt) return false;
+  const resetAt = new Date(resetsAt).getTime();
+  return Number.isFinite(resetAt) && resetAt <= now;
+}
+export function accountWindowRemaining(
+  account: Account,
+  target: SidebarWindow,
+  now: number = Date.now(),
+): number | null {
   const windows = account.lastUsage?.windows ?? [];
   if (!windows.length) return null;
 
   // 1. If H (hourly / 5-hour) is selected, only return usage for providers that actually have an hourly rate.
   // Accounts without an hourly window (such as Grok with a 7d limit, or free GPT with a 30d limit) return null (dash "—").
   if (target === "five_hour") {
-    const hourly = windows.find((candidate) => canonicalWindow(candidate, "five_hour"));
+    const hourly = windows.find(
+      (candidate) => canonicalWindow(candidate, "five_hour") && !isWindowExpired(candidate.resetsAt, now),
+    );
     return hourly?.remainingPercent ?? null;
   }
 
   // 2. If W (weekly) is selected:
-  // First look for a 7-day / weekly window.
-  const weekly = windows.find((candidate) => canonicalWindow(candidate, "weekly"));
+  // First look for a non-expired 7-day / weekly window with a value.
+  const weekly = windows.find(
+    (candidate) =>
+      canonicalWindow(candidate, "weekly")
+      && !isWindowExpired(candidate.resetsAt, now)
+      && candidate.remainingPercent != null,
+  );
   if (weekly?.remainingPercent != null) return weekly.remainingPercent;
 
   // For GPT or accounts with a monthly / 30-day limit, show the 30-day limit under W.
-  const monthly = windows.find(isMonthlyWindow);
+  const monthly = windows.find(
+    (candidate) =>
+      isMonthlyWindow(candidate)
+      && !isWindowExpired(candidate.resetsAt, now)
+      && candidate.remainingPercent != null,
+  );
   if (monthly?.remainingPercent != null) return monthly.remainingPercent;
 
   return null;
 }
-export function groupAverage(accounts: Account[], target: SidebarWindow): number | null {
+export function groupAverage(
+  accounts: Account[],
+  target: SidebarWindow,
+  now: number = Date.now(),
+): number | null {
   const values = accounts
-    .map((account) => accountWindowRemaining(account, target))
+    .map((account) => accountWindowRemaining(account, target, now))
     .filter((value): value is number => value != null && Number.isFinite(value));
   if (!values.length) return null;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
@@ -135,9 +161,11 @@ export function isGrokOnlyGroup(accounts: Account[]): boolean {
   return accounts.length > 0 && accounts.every((account) => account.provider === "grok");
 }
 /** Average percent remaining of the Grok Bot limit over the accounts that report one. */
-export function grokBotAverage(accounts: Account[]): number | null {
+export function grokBotAverage(accounts: Account[], now: number = Date.now()): number | null {
   const values = accounts.flatMap((account) => {
-    const remaining = account.lastUsage?.windows.find((window) => window.id === GROK_BOT_WINDOW_ID)?.remainingPercent;
+    const window = account.lastUsage?.windows.find((candidate) => candidate.id === GROK_BOT_WINDOW_ID);
+    if (!window || isWindowExpired(window.resetsAt, now)) return [];
+    const remaining = window.remainingPercent;
     return remaining != null && Number.isFinite(remaining) ? [remaining] : [];
   });
   if (!values.length) return null;

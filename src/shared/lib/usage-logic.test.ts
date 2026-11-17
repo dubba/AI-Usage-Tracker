@@ -9,8 +9,10 @@ import {
   groupAlert,
   groupAverage,
   groupSecondMeterLabel,
+  grokBotAverage,
   cardWindows,
   isMonthlyWindow,
+  isWindowExpired,
   nextResetSummary,
   windowLimitName,
   orderedWindows,
@@ -236,6 +238,47 @@ describe("accountWindowRemaining / groupAverage", () => {
     expect(groupAverage([hourlyAndWeekly, weeklyOnly, monthlyOnly], "weekly")).toBeCloseTo(70);
     expect(groupAverage([hourlyAndWeekly, weeklyOnly], "five_hour")).toBe(40);
     expect(groupAverage([weeklyOnly], "five_hour")).toBeNull();
+  });
+
+  it("identifies expired reset timestamps", () => {
+    expect(isWindowExpired(null, NOW)).toBe(false);
+    expect(isWindowExpired("not-a-date", NOW)).toBe(false);
+    expect(isWindowExpired(new Date(NOW + MINUTE).toISOString(), NOW)).toBe(false);
+    expect(isWindowExpired(new Date(NOW).toISOString(), NOW)).toBe(true);
+    expect(isWindowExpired(new Date(NOW - MINUTE).toISOString(), NOW)).toBe(true);
+  });
+
+  it("excludes expired windows from accountWindowRemaining, groupAverage, and grokBotAverage", () => {
+    const past = new Date(NOW - HOUR).toISOString();
+    const future = new Date(NOW + HOUR).toISOString();
+    const expiredAccount = account({
+      id: "expired",
+      provider: "grok",
+      lastUsage: usage({
+        windows: [
+          win({ id: "five_hour", remainingPercent: 20, resetsAt: past }),
+          win({ id: "weekly", label: "Weekly", remainingPercent: 55, resetsAt: past }),
+          win({ id: "grok_bot", label: "Grok Bot", kind: "weekly", remainingPercent: 10, resetsAt: past }),
+        ],
+      }),
+    });
+    const liveGrok = account({
+      id: "live-grok",
+      provider: "grok",
+      lastUsage: usage({
+        windows: [
+          win({ id: "weekly", label: "Weekly", remainingPercent: 90, resetsAt: future }),
+          win({ id: "grok_bot", label: "Grok Bot", kind: "weekly", remainingPercent: 80, resetsAt: future }),
+        ],
+      }),
+    });
+
+    expect(accountWindowRemaining(expiredAccount, "five_hour", NOW)).toBeNull();
+    expect(accountWindowRemaining(expiredAccount, "weekly", NOW)).toBeNull();
+    expect(groupAverage([expiredAccount, hourlyAndWeekly], "five_hour", NOW)).toBe(40);
+    expect(groupAverage([expiredAccount, liveGrok], "weekly", NOW)).toBe(90);
+    expect(grokBotAverage([expiredAccount, liveGrok], NOW)).toBe(80);
+    expect(grokBotAverage([expiredAccount], NOW)).toBeNull();
   });
 });
 

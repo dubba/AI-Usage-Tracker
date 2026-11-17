@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (11 changes)
+## Unreleased (12 changes)
 
 ### Security (5)
 
@@ -10,8 +10,9 @@
 - Cancelling a device pairing while it is still looking for the other device now stops it; it can no longer carry on starting in the background.
 - Two imports from paired devices at the same moment can no longer both add the same account and save one sign-in over the other; the first one is kept.
 
-### Fixed (6)
+### Fixed (7)
 
+- A limit whose reset time has passed no longer shows its old percentage as if it were current. Account cards, compact cards and the Usage page show a dash instead, with "Reset on <date> · last seen <percent>" on full cards and "week ended" or "month ended" on the Usage page, and the sidebar and group averages leave it out until the next refresh.
 - A Claude refresh whose reply holds no usage numbers no longer replaces your last numbers with empty bars; the last numbers stay, marked out of date, until a real reading arrives.
 - When Antigravity asks the app to slow down, the refresh now waits the time it asked for, instead of making a second request straight away and showing empty usage.
 - A Google AI Studio refresh can no longer keep going indefinitely if Google keeps sending more pages; it stops after a fixed number of pages, entries, or one minute and keeps the last usage.

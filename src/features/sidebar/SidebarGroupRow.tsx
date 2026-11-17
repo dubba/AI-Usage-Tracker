@@ -13,6 +13,7 @@ import {
   usageTone,
   type GroupAlert,
 } from "../../shared/lib/usage-logic";
+import { useClock } from "../../shared/hooks/useClock";
 import { useUsageDisplayMode } from "../../shared/hooks/useUsageDisplayMode";
 import { displayPercent } from "../../shared/lib/usage-display";
 import { ACCOUNT_FORMS, formatCount } from "../../shared/lib/format";
@@ -103,9 +104,14 @@ export function SidebarGroupRow({
   const grokOnly = isGrokOnlyGroup(group.accounts);
   const firstMeterLabel = grokOnly ? "7D Bot" : "5h";
   const secondMeterLabel = groupSecondMeterLabel(group.accounts);
-  // Each meter shows the average of the row's accounts.
-  const five = grokOnly ? grokBotAverage(group.accounts) : groupAverage(group.accounts, "five_hour");
-  const weekly = groupAverage(group.accounts, "weekly");
+  // Each meter shows the average of the row's accounts, leaving out windows whose reset time has passed.
+  const five = useClock((now) => {
+    const currentNow = Math.max(now, Date.now());
+    return grokOnly
+      ? grokBotAverage(group.accounts, currentNow)
+      : groupAverage(group.accounts, "five_hour", currentNow);
+  });
+  const weekly = useClock((now) => groupAverage(group.accounts, "weekly", Math.max(now, Date.now())));
   const alert = groupAlert(group.accounts);
   const meterText = (value: number | null) =>
     value == null ? "—" : `${Math.round(displayPercent(value, displayMode))}%`;
