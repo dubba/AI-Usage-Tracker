@@ -2973,6 +2973,12 @@ select.text-input option,
   margin-top: 8px;
 }
 
+/* The form's 16px row gap already separates the error from the buttons, which matches the
+   16px left below it (see the modal error note in base.css). */
+.bucket-modal-form > .modal-error {
+  margin-top: 0;
+}
+
 .bucket-modal-save-group {
   display: flex;
   align-items: center;
