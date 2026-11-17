@@ -767,9 +767,23 @@
   }
 
   /* ---- tooltips: the shared ones are centered under their element, which would run off the
-     card at either end of the chart; these hang from the near edge and may wrap. ---- */
+     card at either end of the chart; these hang from the near edge and may wrap. */
 
-  .activity-bar[data-tooltip]::after,
+  .activity-bar-slot {
+    cursor: pointer;
+  }
+
+  @media (hover: hover) {
+    .activity-bar-slot:hover .activity-bar {
+      filter: brightness(1.12);
+    }
+  }
+
+  .activity-bar-slot[data-tooltip-active] .activity-bar {
+    filter: brightness(1.15);
+  }
+
+  .activity-bar-slot[data-tooltip]::after,
   .activity-reset-hit[data-tooltip]::after {
     width: max-content;
     max-width: 240px;
@@ -778,14 +792,14 @@
     text-align: left;
   }
 
-  .activity-bar.is-left[data-tooltip]::after,
+  .activity-bar-slot.is-left[data-tooltip]::after,
   .activity-reset-hit.is-left[data-tooltip]::after {
     left: 0;
     right: auto;
     transform: none;
   }
 
-  .activity-bar.is-right[data-tooltip]::after,
+  .activity-bar-slot.is-right[data-tooltip]::after,
   .activity-reset-hit.is-right[data-tooltip]::after {
     left: auto;
     right: 0;
@@ -796,6 +810,7 @@
      positioned by its wrapper, so it only needs its own box. */
   .activity-reset-hit[data-tooltip] {
     position: absolute !important;
+    z-index: 2;
   }
 
   /* ---- consolidated Antigravity card ---- */
@@ -950,5 +965,105 @@
       margin-top: 14px;
       padding-top: 14px;
     }
+  }
+
+  /* ---- visible chart legend & stats ---- */
+
+  .activity-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    list-style: none;
+    margin: 0 0 10px;
+    padding: 8px 12px;
+    border: 1px solid var(--obsidian-border);
+    border-radius: 8px;
+    background: var(--obsidian-surface-low);
+    color: var(--obsidian-muted-bright);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.2;
+  }
+
+  .activity-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+
+  .activity-legend-swatch {
+    position: relative;
+    display: inline-block;
+    flex-shrink: 0;
+    width: 11px;
+    height: 11px;
+    border-radius: 2px;
+  }
+
+  .activity-legend-swatch.is-measured {
+    background: var(--obsidian-purple-strong);
+  }
+
+  .activity-legend-swatch.is-approximate {
+    background: var(--obsidian-purple-strong);
+  }
+
+  .activity-legend-swatch.is-approximate::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    background: repeating-linear-gradient(90deg, var(--white) 0 2px, transparent 2px 4px);
+  }
+
+  .activity-legend-swatch.is-empty {
+    box-sizing: border-box;
+    border: 1px solid var(--border-strong);
+    background: repeating-linear-gradient(135deg, var(--border-strong) 0 2px, transparent 2px 5px);
+    opacity: 0.85;
+  }
+
+  .activity-legend-swatch.is-reset {
+    width: 2px;
+    height: 12px;
+    border-radius: 0;
+    background: var(--purple-accent);
+    -webkit-mask-image: repeating-linear-gradient(to top, var(--black) 0 3px, transparent 3px 6px);
+    mask-image: repeating-linear-gradient(to top, var(--black) 0 3px, transparent 3px 6px);
+  }
+
+  .activity-chart-stats {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 14px;
+    margin: 10px 0 0;
+    padding: 8px 0 0;
+    border-top: 1px solid var(--obsidian-border);
+    font-size: 11.5px;
+    line-height: 1.3;
+  }
+
+  .activity-chart-stat {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+    min-width: 0;
+  }
+
+  .activity-chart-stat dt {
+    color: var(--obsidian-muted);
+    font-weight: 500;
+  }
+
+  .activity-chart-stat dd {
+    margin: 0;
+    color: var(--text);
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
   }
 }

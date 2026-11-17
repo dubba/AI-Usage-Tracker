@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ActivityDay, OtherLimit } from "../../types";
 import {
   barHeightPercent,
+  chartStats,
   chartSummary,
   dayLabel,
   describeOtherLimits,
@@ -115,6 +116,32 @@ describe("chartSummary", () => {
 
   it("says 0% for a day that was watched and used nothing", () => {
     expect(chartSummary("A", [day(0), day(0)], starts.slice(0, 3), "7d", "en-US")).toBe("A, last 2 days: Mon 0%, Today 0%");
+  });
+});
+
+describe("chartStats", () => {
+  const starts = Array.from({ length: 4 }, (_, index) => new Date(2026, 9, 12 + index, 12));
+
+  it("computes Today, Peak, and daily Average across observed days", () => {
+    expect(chartStats([day(10), day(null), day(30), day(20)], starts, "en-US")).toEqual({
+      todayLabel: "20%",
+      peakLabel: "30% (Oct 14)",
+      avgLabel: "20%/day",
+    });
+  });
+
+  it("notes Today as estimated or No data and names Today when it is the peak", () => {
+    expect(chartStats([day(5), day(25, "approximate")], starts.slice(0, 3), "en-US")).toEqual({
+      todayLabel: "25% est.",
+      peakLabel: "25% (Today)",
+      avgLabel: "15%/day",
+    });
+
+    expect(chartStats([day(null), day(null)], starts.slice(0, 3), "en-US")).toEqual({
+      todayLabel: "No data",
+      peakLabel: null,
+      avgLabel: null,
+    });
   });
 });
 

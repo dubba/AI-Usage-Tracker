@@ -4,6 +4,7 @@ import type { ActivityDay } from "../../types";
 import {
   APPROXIMATE_DAY_TOOLTIP,
   barHeightPercent,
+  chartStats,
   chartSummary,
   dayLabel,
   formatDayPercent,
@@ -125,6 +126,7 @@ export function DailyBars({
   const gap = GAP_PX[period];
   const labelled = period === "7d";
   const summary = chartSummary(name, days, dayStarts, period);
+  const stats = chartStats(days, dayStarts);
   const markers = resetMarkers(resets, resetUsedPercent, dayStarts, gap);
   const showsUsed = markers.some((marker) => marker.usedPercent != null);
   const style = {
@@ -157,11 +159,12 @@ export function DailyBars({
         {days.map((day, index) => {
           const isToday = index === days.length - 1;
           const empty = day.usedPercent == null;
+          const side = tooltipSide((index + 0.5) / days.length);
+          const slotClass = ["activity-bar-slot", side].filter(Boolean).join(" ");
           const barClass = [
             "activity-bar",
             empty ? "is-empty" : day.quality === "approximate" ? "is-approximate" : "",
             !empty && day.usedPercent === 0 ? "is-zero" : "",
-            tooltipSide((index + 0.5) / days.length),
           ]
             .filter(Boolean)
             .join(" ");
@@ -169,11 +172,10 @@ export function DailyBars({
           const dayResets = markers.filter((marker) => marker.day === index);
           return (
             <div className="activity-day" key={dayStarts[index].getTime()}>
-              <div className="activity-bar-slot">
+              <div className={slotClass} data-tooltip={dayTooltip(day, dayStarts[index], isToday)}>
                 <div
                   className={barClass}
                   style={barHeight == null ? undefined : { height: barHeight }}
-                  data-tooltip={dayTooltip(day, dayStarts[index], isToday)}
                 />
                 {dayResets.map((marker) => (
                   <span
@@ -218,6 +220,24 @@ export function DailyBars({
           })}
         </div>
       )}
+      <dl className="activity-chart-stats">
+        <div className="activity-chart-stat">
+          <dt>Today</dt>
+          <dd>{stats.todayLabel}</dd>
+        </div>
+        {stats.peakLabel ? (
+          <div className="activity-chart-stat">
+            <dt>Peak</dt>
+            <dd>{stats.peakLabel}</dd>
+          </div>
+        ) : null}
+        {stats.avgLabel ? (
+          <div className="activity-chart-stat">
+            <dt>Avg</dt>
+            <dd>{stats.avgLabel}</dd>
+          </div>
+        ) : null}
+      </dl>
       {/* A table treats height as a minimum, so .sr-only on the table alone leaves a tall
           invisible box and the page scrolls past the cards. The wrapper is an ordinary 1px box. */}
       <div className="sr-only">

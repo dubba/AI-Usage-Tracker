@@ -68,26 +68,30 @@ describe("DailyBars, 7 days", () => {
   });
 
   it("draws no data as a striped placeholder, not as an empty bar", () => {
-    const bar = all(render({ days }), ".activity-bar")[1];
+    const root = render({ days });
+    const bar = all(root, ".activity-bar")[1];
+    const slot = all(root, ".activity-bar-slot")[1];
     expect(bar.classList.contains("is-empty")).toBe(true);
     expect(bar.style.height).toBe("");
-    expect(bar.dataset.tooltip).toBe("Oct 10: no data");
+    expect(slot.dataset.tooltip).toBe("Oct 10: no data");
   });
 
-  it("tells the date and the value in each bar's tooltip, since the bars carry no percent", () => {
-    const bars = all(render({ days }), ".activity-bar");
-    expect(bars.map((bar) => bar.dataset.tooltip?.split("\n")[0])).toEqual([
+  it("tells the date and the value in each column slot's tooltip so even short or 0% bars stay tappable", () => {
+    const slots = all(render({ days }), ".activity-bar-slot");
+    expect(slots.map((slot) => slot.dataset.tooltip?.split("\n")[0])).toEqual([
       "Oct 9: 15% used", "Oct 10: no data", "Oct 11: <1% used", "Oct 12: 0% used", "Oct 13: 8% used", "Oct 14: 100% used", "Today: 3% used",
     ]);
   });
 
   it("marks estimated days and explains them on a second line", () => {
-    const bars = all(render({ days }), ".activity-bar");
+    const root = render({ days });
+    const bars = all(root, ".activity-bar");
+    const slots = all(root, ".activity-bar-slot");
     expect(bars[4].classList.contains("is-approximate")).toBe(true);
-    expect(bars[4].dataset.tooltip).toBe(`Oct 13: 8% used\n${APPROXIMATE_DAY_TOOLTIP}`);
+    expect(slots[4].dataset.tooltip).toBe(`Oct 13: 8% used\n${APPROXIMATE_DAY_TOOLTIP}`);
     expect(APPROXIMATE_DAY_TOOLTIP).toBe("Estimated bc data didn't refresh\nfor part of this day");
     expect(bars[0].classList.contains("is-approximate")).toBe(false);
-    expect(bars[0].dataset.tooltip).not.toContain("Estimated");
+    expect(slots[0].dataset.tooltip).not.toContain("Estimated");
   });
 
   it("shows a measured zero as a thin bar, not as missing", () => {
@@ -97,9 +101,22 @@ describe("DailyBars, 7 days", () => {
   });
 
   it("anchors tooltips to the near edge at either end of the chart", () => {
-    const bars = all(render({ days: [estimated(1), estimated(1), estimated(1), estimated(1), estimated(1), estimated(1), estimated(1)] }), ".activity-bar");
-    expect(bars.map((bar) => (bar.classList.contains("is-left") ? "left" : bar.classList.contains("is-right") ? "right" : "mid"))).toEqual([
+    const slots = all(render({ days: [estimated(1), estimated(1), estimated(1), estimated(1), estimated(1), estimated(1), estimated(1)] }), ".activity-bar-slot");
+    expect(slots.map((slot) => (slot.classList.contains("is-left") ? "left" : slot.classList.contains("is-right") ? "right" : "mid"))).toEqual([
       "left", "left", "mid", "mid", "mid", "right", "right",
+    ]);
+  });
+
+  it("shows readable Today, Peak, and Avg stats below the chart without hovering (T4 / R10)", () => {
+    const root = render({ days });
+    const stats = all(root, ".activity-chart-stat").map((el) => [
+      el.querySelector("dt")?.textContent,
+      el.querySelector("dd")?.textContent,
+    ]);
+    expect(stats).toEqual([
+      ["Today", "3%"],
+      ["Peak", "100% (Oct 14)"],
+      ["Avg", "21%/day"],
     ]);
   });
 
@@ -261,12 +278,12 @@ describe("DailyBars, 30 days", () => {
     });
   });
 
-  it("tells the date and the value in each bar's tooltip", () => {
-    const bars = all(render({ days }), ".activity-bar");
-    expect(bars[1].dataset.tooltip).toBe("Sep 17: 1% used");
-    expect(bars[0].dataset.tooltip).toBe("Sep 16: no data");
-    expect(bars[5].dataset.tooltip).toBe(`Sep 21: 5% used\n${APPROXIMATE_DAY_TOOLTIP}`);
-    expect(bars[29].dataset.tooltip).toBe("Today: 29% used");
+  it("tells the date and the value in each bar slot's tooltip", () => {
+    const slots = all(render({ days }), ".activity-bar-slot");
+    expect(slots[1].dataset.tooltip).toBe("Sep 17: 1% used");
+    expect(slots[0].dataset.tooltip).toBe("Sep 16: no data");
+    expect(slots[5].dataset.tooltip).toBe(`Sep 21: 5% used\n${APPROXIMATE_DAY_TOOLTIP}`);
+    expect(slots[29].dataset.tooltip).toBe("Today: 29% used");
   });
 
   it("marks each weekly reset in its day's column at the right fraction of the day", () => {
