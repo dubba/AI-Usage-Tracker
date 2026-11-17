@@ -146,7 +146,8 @@ mod tests {
     fn android_blocks_capture_with_flag_secure() {
         let activity = include_str!(
             "../../gen/android/app/src/main/java/com/dubba/ai/usage/tracker/MainActivity.kt"
-        );
+        )
+        .replace("\r\n", "\n");
         let start = activity
             .find("fun setScreenCaptureBlocked(blocked: Boolean)")
             .expect("the method Rust calls over JNI");
