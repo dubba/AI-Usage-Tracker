@@ -58,7 +58,7 @@ export function WeeklyTracker({
         draggable={false}
       >
         <span className="reorder-grip" data-tooltip="Drag to reorder" aria-hidden="true" />
-        <div className="activity-compact-row">
+        <div className="activity-compact-head">
           <span className="activity-card-icon">
             <ProviderIcon provider={account.provider} />
           </span>
@@ -68,20 +68,8 @@ export function WeeklyTracker({
                 {label}
               </h2>
               {plan ? <span className="activity-plan-pill is-compact">{plan}</span> : null}
+              {compactMeta ? <span className="activity-compact-meta">{compactMeta}</span> : null}
             </div>
-            {compactMeta ? <p className="activity-compact-meta">{compactMeta}</p> : null}
-          </div>
-          <div className="activity-compact-chart">
-            <DailyBars
-              name={chartName}
-              days={tracker.days}
-              dayStarts={dayStarts}
-              resets={tracker.resets}
-              resetUsedPercent={tracker.resetUsedPercent}
-              period={period}
-              limit={tracker.windowKind}
-              compact
-            />
           </div>
           <div className="activity-compact-trailing">
             <div className={`activity-card-total is-compact tone-${tone}`}>
@@ -89,7 +77,7 @@ export function WeeklyTracker({
                 {formatDayPercent(used)}
               </strong>
               <span className="activity-card-total-period" aria-hidden="true">
-                {monthly ? "month" : "week"}
+                {`${used == null ? "" : "used "}${monthly ? "this month" : "this week"}`}
               </span>
             </div>
             {needsSignIn && onReconnect ? (
@@ -99,6 +87,16 @@ export function WeeklyTracker({
             ) : null}
           </div>
         </div>
+        <DailyBars
+          name={chartName}
+          days={tracker.days}
+          dayStarts={dayStarts}
+          resets={tracker.resets}
+          resetUsedPercent={tracker.resetUsedPercent}
+          period={period}
+          limit={tracker.windowKind}
+          compact
+        />
       </article>
     );
   }

@@ -736,12 +736,13 @@ describe("ActivityView", () => {
     act(() => setCompactDashboardMode("on"));
     expect(root.querySelector(".activity-grid")?.classList.contains("is-compact")).toBe(true);
     expect(select(root, ".activity-card.is-compact")).toHaveLength(3);
-    expect(root.querySelector(".activity-compact-row")).not.toBeNull();
+    expect(root.querySelector(".activity-compact-head")).not.toBeNull();
     expect(root.querySelector(".activity-model-sections.is-compact")).not.toBeNull();
     expect(root.querySelector(".activity-card.is-no-weekly.is-compact")).not.toBeNull();
-    expect(root.querySelector(".activity-yaxis")).toBeNull();
-    expect(root.querySelector(".activity-chart-stats")).toBeNull();
+    // Compact mode keeps 0%/max y-axis bounds and Today/Peak/Avg stats for readability
     expect(select(root, ".activity-chart.is-compact")).toHaveLength(3);
+    expect(select(root, ".activity-chart.is-compact .activity-tick-label")).toHaveLength(6);
+    expect(select(root, ".activity-chart.is-compact .activity-chart-stats")).toHaveLength(3);
     // Daily bars and accessible table remain intact in compact mode
     expect(select(root, ".activity-bar")).toHaveLength(21);
     expect(select(root, ".activity-chart.is-compact .sr-only table")).toHaveLength(3);

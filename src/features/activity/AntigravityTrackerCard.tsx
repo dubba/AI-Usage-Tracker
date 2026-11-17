@@ -83,7 +83,10 @@ export function AntigravityTrackerCard({
               <section className="activity-model-section" key={tracker.windowId} aria-label={modelName}>
                 <div className="activity-model-head">
                   <div className="activity-model-identity">
-                    <h3 className="activity-model-name" title={reset ? `Resets ${reset}` : undefined}>{modelName}</h3>
+                    <div className="activity-compact-title-row">
+                      <h3 className="activity-model-name">{modelName}</h3>
+                      {reset ? <span className="activity-compact-meta">Resets {reset}</span> : null}
+                    </div>
                   </div>
                   <div className={`activity-card-total activity-model-total tone-${tone}`}>
                     <strong aria-label={used == null ? "Usage unknown" : `${formatDayPercent(used)} of the ${monthly ? "monthly" : "weekly"} limit used`}>

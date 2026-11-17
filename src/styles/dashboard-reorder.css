@@ -114,7 +114,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .activity-card a {
 }
 
 .activity-card.is-compact[data-reorder-enabled="true"] .reorder-grip {
-  top: 26px;
+  top: 28px;
 }
 
 .provider-summary-row[data-reorder-enabled="true"]:hover .reorder-grip,

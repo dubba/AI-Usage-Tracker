@@ -126,12 +126,16 @@ export function DailyBars({
   compact?: boolean;
 }) {
   const axis = yAxis(days);
+  const visibleTicks = compact ? [0, axis.top] : axis.ticks;
   const gap = (compact ? COMPACT_GAP_PX : GAP_PX)[period];
-  const labelled = !compact && period === "7d";
+  const labelled = period === "7d";
   const summary = chartSummary(name, days, dayStarts, period);
   const stats = chartStats(days, dayStarts);
   const markers = resetMarkers(resets, resetUsedPercent, dayStarts, gap);
   const showsUsed = !compact && markers.some((marker) => marker.usedPercent != null);
+  const axisIndices = compact
+    ? [0, Math.floor((days.length - 1) / 2), days.length - 1]
+    : [0, ...thirdsOf(days.length), days.length - 1];
   const style = {
     "--activity-days": days.length,
     "--activity-gap": `${gap}px`,
@@ -140,17 +144,15 @@ export function DailyBars({
 
   return (
     <div className={`activity-chart is-${period}${showsUsed ? " has-used" : ""}${compact ? " is-compact" : ""}`} style={style}>
-      {compact ? null : (
-        <div className="activity-yaxis" aria-hidden="true">
-          <div className="activity-scale">
-            {axis.ticks.map((tick) => (
-              <span className="activity-tick-label" style={{ bottom: `${(tick / axis.top) * 100}%` }} key={tick}>
-                {tick}%
-              </span>
-            ))}
-          </div>
+      <div className="activity-yaxis" aria-hidden="true">
+        <div className="activity-scale">
+          {visibleTicks.map((tick) => (
+            <span className="activity-tick-label" style={{ bottom: `${(tick / axis.top) * 100}%` }} key={tick}>
+              {tick}%
+            </span>
+          ))}
         </div>
-      )}
+      </div>
       <div className="activity-bars" role="img" aria-label={summary}>
         <div className="activity-gridlines" aria-hidden="true">
           {axis.ticks.map((tick) => (
@@ -210,9 +212,9 @@ export function DailyBars({
           </span>
         ))}
       </div>
-      {compact || labelled ? null : (
+      {labelled ? null : (
         <div className="activity-axis" aria-hidden="true">
-          {[0, ...thirdsOf(days.length), days.length - 1].map((index) => {
+          {axisIndices.map((index) => {
             const place = index === 0 ? "is-first" : index === days.length - 1 ? "is-last" : "is-middle";
             const left = columnCenter(index, days.length, gap);
             return (
@@ -225,26 +227,24 @@ export function DailyBars({
           })}
         </div>
       )}
-      {compact ? null : (
-        <dl className="activity-chart-stats">
+      <dl className="activity-chart-stats">
+        <div className="activity-chart-stat">
+          <dt>Today</dt>
+          <dd>{stats.todayLabel}</dd>
+        </div>
+        {stats.peakLabel ? (
           <div className="activity-chart-stat">
-            <dt>Today</dt>
-            <dd>{stats.todayLabel}</dd>
+            <dt>Peak</dt>
+            <dd>{stats.peakLabel}</dd>
           </div>
-          {stats.peakLabel ? (
-            <div className="activity-chart-stat">
-              <dt>Peak</dt>
-              <dd>{stats.peakLabel}</dd>
-            </div>
-          ) : null}
-          {stats.avgLabel ? (
-            <div className="activity-chart-stat">
-              <dt>Avg</dt>
-              <dd>{stats.avgLabel}</dd>
-            </div>
-          ) : null}
-        </dl>
-      )}
+        ) : null}
+        {stats.avgLabel ? (
+          <div className="activity-chart-stat">
+            <dt>Avg</dt>
+            <dd>{stats.avgLabel}</dd>
+          </div>
+        ) : null}
+      </dl>
       {/* A table treats height as a minimum, so .sr-only on the table alone leaves a tall
           invisible box and the page scrolls past the cards. The wrapper is an ordinary 1px box. */}
       <div className="sr-only">
