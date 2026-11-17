@@ -115,12 +115,14 @@ describe("buildAllAccountsGroup", () => {
 });
 
 describe("groupFilterLabel", () => {
-  it("uses All Accounts for the all group and appends Accounts for provider and custom groups", () => {
-    expect(groupFilterLabel({ type: "all", title: "All Accounts" })).toBe("All Accounts");
-    expect(groupFilterLabel({ type: "provider", title: "Grok" })).toBe("Grok Accounts");
-    expect(groupFilterLabel({ type: "provider", title: "Claude" })).toBe("Claude Accounts");
-    expect(groupFilterLabel({ type: "bucket", title: "Work" })).toBe("Work Accounts");
-    expect(groupFilterLabel({ type: "bucket", title: "Work Accounts" })).toBe("Work Accounts");
+  it("uses All Accounts for all, <Provider> Accts for provider groups (ignoring custom card names), and <Name> Acct for custom groups", () => {
+    expect(groupFilterLabel({ type: "all", title: "All Accounts", provider: null })).toBe("All Accounts");
+    expect(groupFilterLabel({ type: "provider", title: "Grok", provider: "grok" })).toBe("Grok Accts");
+    expect(groupFilterLabel({ type: "provider", title: "Claude123", provider: "anthropic" })).toBe("Claude Accts");
+    expect(groupFilterLabel({ type: "provider", title: "Work", provider: "openai" })).toBe("ChatGPT Accts");
+    expect(groupFilterLabel({ type: "bucket", title: "Work", provider: null })).toBe("Work Acct");
+    expect(groupFilterLabel({ type: "bucket", title: "Work", provider: "anthropic" })).toBe("Work Acct");
+    expect(groupFilterLabel({ type: "bucket", title: "Work Acct", provider: null })).toBe("Work Acct");
   });
 });
 

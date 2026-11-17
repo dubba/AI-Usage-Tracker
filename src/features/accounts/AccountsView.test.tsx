@@ -681,7 +681,7 @@ describe("AccountsView L / U switch", () => {
       />,
     );
     const workPill = document.querySelector<HTMLButtonElement>(".dashboard-title-row h1.eyebrow .mobile-sidebar-toggle-btn")!;
-    expect(workPill.querySelector(".mobile-sidebar-toggle-label")?.textContent).toBe("Work Accounts");
+    expect(workPill.querySelector(".mobile-sidebar-toggle-label")?.textContent).toBe("Work Acct");
     expect(workPill.classList.contains("is-filtered")).toBe(true);
     expect(document.querySelector(".dashboard-bucket-pill")?.textContent).toBe("Group");
     expect(document.querySelector(".edit-bucket-title-btn")).not.toBeNull();
@@ -712,7 +712,35 @@ describe("AccountsView L / U switch", () => {
       />,
     );
     const grokPill = document.querySelector<HTMLButtonElement>(".dashboard-title-row h1.eyebrow .mobile-sidebar-toggle-btn")!;
-    expect(grokPill.querySelector(".mobile-sidebar-toggle-label")?.textContent).toBe("Grok Accounts");
+    expect(grokPill.querySelector(".mobile-sidebar-toggle-label")?.textContent).toBe("Grok Accts");
     expect(grokPill.classList.contains("is-filtered")).toBe(true);
+
+    const claudeCustomCardGroup: SidebarGroup = {
+      id: "provider:anthropic",
+      type: "provider",
+      title: "Claude123",
+      provider: "anthropic",
+      accounts: [{ ...account, provider: "anthropic", label: "Claude123" }],
+    };
+    app.rerender(
+      <AccountsView
+        allAccounts={[account]}
+        accounts={[account]}
+        selectedGroup={claudeCustomCardGroup}
+        refreshMinutes={15}
+        onToggleSidebar={() => undefined}
+        onAdd={() => undefined}
+        onAddGroup={() => undefined}
+        onRefresh={() => undefined}
+        onReconnect={() => undefined}
+        onConnectGoogleUsage={() => undefined}
+        onRename={async () => undefined}
+        onRemove={() => undefined}
+        onNotifications={() => undefined}
+        busy={new Set()}
+      />,
+    );
+    const claudePill = document.querySelector<HTMLButtonElement>(".dashboard-title-row h1.eyebrow .mobile-sidebar-toggle-btn")!;
+    expect(claudePill.querySelector(".mobile-sidebar-toggle-label")?.textContent).toBe("Claude Accts");
   });
 });

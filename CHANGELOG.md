@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (1 change)
+
+### Improved (1)
+
+- On phones, the header filter pill now shows the provider name with `Accts` when filtering by a provider (for example, `Claude Accts` instead of the account card's name) and `<Group> Acct` for custom groups (such as `Work Acct`), while keeping `All Accounts` when unfiltered.
 
 ## v0.6.3 - 2026-11-17 (9 changes)
 

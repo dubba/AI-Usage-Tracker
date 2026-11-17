@@ -1,4 +1,5 @@
 import { displayProviderGroupTitle } from "../../shared/lib/display";
+import { providerName } from "../../shared/lib/providers";
 import { moveById } from "../reorder/reorder-utils";
 import type { Account, AccountBucket, Provider } from "../../types";
 
@@ -45,12 +46,18 @@ export function buildAllAccountsGroup(accounts: Account[]): SidebarGroup {
 
 /**
  * Filter pill label in the mobile Dashboard/Usage header: "All Accounts" when unfiltered,
- * or "<GroupTitle> Accounts" for provider and custom groups.
+ * "<Provider> Accts" for provider groups, or "<GroupTitle> Acct" for custom groups.
  */
-export function groupFilterLabel(group: Pick<SidebarGroup, "type" | "title">): string {
+export function groupFilterLabel(
+  group: Pick<SidebarGroup, "type" | "title" | "provider">,
+): string {
   if (group.type === "all") return "All Accounts";
+  if (group.type === "provider") {
+    const label = group.provider ? providerName(group.provider) : group.title.trim();
+    return /\b(accounts|accts?)$/i.test(label) ? label : `${label} Accts`;
+  }
   const title = group.title.trim();
-  return /\baccounts$/i.test(title) ? title : `${title} Accounts`;
+  return /\b(accounts|accts?)$/i.test(title) ? title : `${title} Acct`;
 }
 
 /**
