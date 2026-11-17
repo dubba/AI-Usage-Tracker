@@ -2794,7 +2794,7 @@ select.text-input option,
 }
 
 .bucket-account-picker-list {
-  --bucket-visible-rows: 4;
+  --bucket-visible-rows: 3;
   --bucket-gap: 6px;
   --bucket-list-pad-y: 6px;
   --bucket-list-pad-x: 6px;
