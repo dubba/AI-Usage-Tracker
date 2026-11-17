@@ -1755,8 +1755,10 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   color: var(--obsidian-purple) !important;
 }
 
-/* Phone drawer close button: exact same 40px square, 6px corners, and 20px icon box as the
-   filter button it replaces, with centered X icon. */
+/* Phone drawer close button: sits where the filter button was and takes the same 40px of
+   room (36px square plus a 2px margin), with the same 6px corners. On touch devices it is solid
+   red at rest, and a solid 40px square looked larger than the outlined filter button, so the
+   square is 36px and the X 18px. */
 .sidebar-mobile-header .mobile-sidebar-close-btn,
 .mobile-sidebar-close-btn {
   background: var(--obsidian-surface-low, var(--c-1c1b1b)) !important;
@@ -1764,15 +1766,15 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   border-radius: 6px !important;
   color: var(--c-ffffff) !important;
   box-sizing: border-box;
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  min-height: 40px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin: 0;
+  margin: 2px;
   padding: 0;
   line-height: 0;
   cursor: pointer;
@@ -1783,8 +1785,8 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .mobile-sidebar-close-btn svg {
   display: block;
   flex-shrink: 0;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   color: inherit !important;
   stroke: currentColor !important;
   stroke-width: 2;

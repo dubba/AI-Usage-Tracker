@@ -146,12 +146,12 @@ describe("Button hover and active state invariants", () => {
     );
   });
 
-  it("centers X icons inside their buttons and matches the sidebar close button size to the filter button", () => {
+  it("centers X icons inside their buttons and gives the sidebar close button the filter button's 40px footprint", () => {
     expect(UI_REFINEMENTS_CSS).toMatch(
-      /\.sidebar-mobile-header\s+\.mobile-sidebar-close-btn,\s*\.mobile-sidebar-close-btn\s*\{[^}]*border-radius:\s*6px\s*!important;[^}]*width:\s*40px;[^}]*height:\s*40px;[^}]*display:\s*inline-flex;\s*align-items:\s*center;\s*justify-content:\s*center;[^}]*padding:\s*0;\s*line-height:\s*0;/,
+      /\.sidebar-mobile-header\s+\.mobile-sidebar-close-btn,\s*\.mobile-sidebar-close-btn\s*\{[^}]*border-radius:\s*6px\s*!important;[^}]*width:\s*36px;[^}]*height:\s*36px;[^}]*display:\s*inline-flex;\s*align-items:\s*center;\s*justify-content:\s*center;\s*margin:\s*2px;\s*padding:\s*0;\s*line-height:\s*0;/,
     );
     expect(UI_REFINEMENTS_CSS).toMatch(
-      /\.sidebar-mobile-header\s+\.mobile-sidebar-close-btn\s+svg,\s*\.mobile-sidebar-close-btn\s+svg\s*\{[^}]*display:\s*block;[^}]*width:\s*20px;\s*height:\s*20px;/,
+      /\.sidebar-mobile-header\s+\.mobile-sidebar-close-btn\s+svg,\s*\.mobile-sidebar-close-btn\s+svg\s*\{[^}]*display:\s*block;[^}]*width:\s*18px;\s*height:\s*18px;/,
     );
     expect(MODAL_CLOSE_CSS).toMatch(
       /\.ui-modal-close\s*\{[^}]*width:\s*32px;\s*height:\s*32px;\s*display:\s*flex;\s*align-items:\s*center;\s*justify-content:\s*center;\s*padding:\s*0;[^}]*line-height:\s*0;/,
