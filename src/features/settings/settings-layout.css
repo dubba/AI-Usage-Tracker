@@ -149,7 +149,7 @@
     scroll-margin-top: 18px;
   }
 
-  /* ---- Advanced card headings ---- */
+  /* ---- Card header bars ---- */
   .settings-card-heading {
     margin: 0;
     padding: 10px 19px;
@@ -161,6 +161,7 @@
     letter-spacing: 0.09em;
     line-height: 1.2;
     text-transform: uppercase;
+    scroll-margin-top: 18px;
   }
 
   .settings-shortcuts-card .settings-shortcuts {

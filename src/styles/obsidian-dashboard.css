@@ -1715,6 +1715,12 @@ button.account-card-provider-icon:active {
   overflow: hidden;
 }
 
+@media (min-width: 861px) {
+  .settings-style-content .dashboard-scroll {
+    padding-top: 18px;
+  }
+}
+
 .settings-style-content .dashboard-scroll > .settings-card:first-child {
   margin-top: 8px;
 }
@@ -2027,8 +2033,14 @@ button.account-card-provider-icon:active {
   padding-inline: 12px 14px;
 }
 
+.settings-update-action:has(> span:first-child) {
+  padding-inline: 14px 12px;
+}
+
 .settings-update-action svg,
 .settings-update-action-icon {
+  width: 16px;
+  height: 16px;
   stroke-width: 2.5;
 }
 
@@ -3632,6 +3644,10 @@ select.text-input option,
 
   .settings-style-content .settings-update-action {
     padding-inline: 10px 12px;
+  }
+
+  .settings-style-content .settings-update-action:has(> span:first-child) {
+    padding-inline: 12px 10px;
   }
 
   .settings-updates-subcard {

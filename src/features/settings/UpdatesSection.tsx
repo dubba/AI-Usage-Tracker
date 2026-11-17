@@ -32,10 +32,9 @@ export function UpdatesSection({
   const includeBetaUpdates = appSettings?.includeBetaUpdates ?? false;
 
   return (
-    <>
-      <h2 id="settings-section-updates" className="settings-section-title">Updates</h2>
-      <section className="settings-card">
-        <div className="settings-row settings-updates-group-row">
+    <section className="settings-card">
+      <h2 id="settings-section-updates" className="settings-card-heading">Updates</h2>
+      <div className="settings-row settings-updates-group-row">
           <SettingsToggleRow
             className="settings-updates-group-header"
             checked={automaticUpdates}
@@ -124,16 +123,15 @@ export function UpdatesSection({
           </div>
           <button
             type="button"
-            className="button ghost settings-changelog-button"
+            className="button ghost settings-changelog-button settings-update-action"
             aria-label="View change log (opens in web browser)"
             data-tooltip="Opens in web browser"
             onClick={() => onOpenLink(CHANGELOG_URL)}
           >
             <span>View</span>
-            <ExternalLinkIcon />
+            <ExternalLinkIcon className="settings-update-action-icon" />
           </button>
         </div>
       </section>
-    </>
   );
 }
