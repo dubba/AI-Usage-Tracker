@@ -52,7 +52,7 @@ describe("DataSection", () => {
     const { onAllDataDeleted } = render();
     expect(document.body.textContent).toContain("Clear Usage History");
     expect(document.body.textContent).toContain(
-      "Deletes your Usage chart history and restarts tracking. Accounts remain unchanged.",
+      "Clears usage history and restarts tracking. Keeps dashboard data.",
     );
 
     click(byLabel("Clear usage history"));

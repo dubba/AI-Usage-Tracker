@@ -91,7 +91,7 @@ export function DataSection({
         <div className="settings-row">
           <div>
             <strong>Clear Usage History</strong>
-            <small>Deletes your Usage chart history and restarts tracking. Accounts remain unchanged.</small>
+            <small>Clears usage history and restarts tracking. Keeps dashboard data.</small>
           </div>
           <button
             type="button"
