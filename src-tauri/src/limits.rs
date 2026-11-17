@@ -26,8 +26,6 @@ pub const MAX_SIDEBAR_WIDTH: u32 = 4000;
 pub const MAX_AIRGAP_FRAMES_SUBMITTED: usize = 1000;
 /// A single air-gap frame URI is about 500 characters.
 pub const MAX_AIRGAP_FRAME_URI_CHARS: usize = 4096;
-/// Pairing QR / deep-link URIs carry a key and nonce, well under 1 KiB.
-pub const MAX_PAIRING_URI_CHARS: usize = 2048;
 /// Raw cookie text pasted by the user, before it is filtered down.
 pub const MAX_RAW_COOKIE_INPUT_BYTES: usize = 256 * 1024;
 

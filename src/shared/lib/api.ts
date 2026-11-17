@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { logIgnored } from "./log";
 import { storageGet, storageRemove, storageSet, STORAGE_KEYS } from "./storage";
-import type { Account, AccountBucket, AirgapExport, AirgapVerifyResult, AppSettings, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, PairingHostInit, PairingStatus, Provider, StartupIssue, SyncSummary, UsageAlertSetting, WeeklyActivity } from "../../types";
+import type { Account, AccountBucket, AirgapExport, AirgapPreview, AppSettings, AppUpdateStatus, BridgeInfo, BridgeStatus, DashboardSnapshot, LoginStart, LoginStatus, PairingHostInit, PairingStatus, Provider, StartupIssue, SyncSummary, UsageAlertSetting, WeeklyActivity } from "../../types";
 
 export function rememberLoginAttempt(attemptId: string) {
   storageSet(STORAGE_KEYS.loginAttempt, attemptId, "session");
@@ -103,15 +103,16 @@ export const pairingApi = {
   ensureCameraPermission: () => invoke<void>("ensure_camera_permission"),
   wifiEnabled: () => invoke<boolean>("pairing_wifi_enabled"),
   openWifiSettings: () => invoke<void>("pairing_open_wifi_settings"),
-  startHost: () => invoke<PairingHostInit>("pairing_start_host"),
-  startClient: (qrUri: string) => invoke<void>("pairing_start_client", { qrUri }),
-  startClientByCode: (code: string) => invoke<void>("pairing_start_client_by_code", { code }),
+  /** `acceptSettings`: this device's "Also Transfer Settings & Layout" choice, used if it receives. */
+  startHost: (acceptSettings: boolean) =>
+    invoke<PairingHostInit>("pairing_start_host", { acceptSettings }),
+  startClientByCode: (code: string, acceptSettings: boolean) =>
+    invoke<void>("pairing_start_client_by_code", { code, acceptSettings }),
   selectRole: (role: "send" | "receive") => invoke<void>("pairing_select_role", { role }),
-  confirmSas: (sessionId: string, confirmed: boolean) =>
-    invoke<void>("pairing_confirm_sas", { sessionId, confirmed }),
+  confirmTransfer: (sessionId: string, confirmed: boolean) =>
+    invoke<void>("pairing_confirm_transfer", { sessionId, confirmed }),
   cancel: () => invoke<void>("pairing_cancel"),
   status: () => invoke<PairingStatus>("pairing_status"),
-  getPendingPairingUri: () => invoke<string | null>("get_pending_pairing_uri"),
   setIncludeSettings: (include: boolean) =>
     invoke<void>("pairing_set_include_settings", { include }),
   setPendingUiState: (uiState: Record<string, unknown>) =>
@@ -122,10 +123,11 @@ export const pairingApi = {
       includeSettings,
       uiState: uiState ?? null,
     }),
-  verifyAirgapFrames: (chunks: string[]) =>
-    invoke<AirgapVerifyResult>("pairing_verify_airgap", { chunks }),
-  importAirgapFrames: (chunks: string[]) =>
-    invoke<SyncSummary>("pairing_import_airgap", { chunks }),
+  /** Opens a complete capture and says how many accounts it holds; imports nothing. */
+  previewAirgapFrames: (chunks: string[]) =>
+    invoke<AirgapPreview>("pairing_verify_airgap", { chunks }),
+  importAirgapFrames: (chunks: string[], acceptSettings: boolean) =>
+    invoke<SyncSummary>("pairing_import_airgap", { chunks, acceptSettings }),
 };
 
 /** Best-effort cancel: the user is already leaving the flow, so a failure is logged rather than shown. */

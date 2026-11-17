@@ -5,17 +5,19 @@
 //! animated looping sequence of QR codes. The receiver's camera captures all
 //! frames and reassembles the payload.
 //!
-//! Like the Wi-Fi flow's SAS comparison, both sides independently display the
-//! same short verification code: the sender shows the code for its payload,
-//! and the receiver shows the code computed from the scanned frames. The user
-//! confirms the codes match before anything is imported. A full screen
-//! recording would capture the frames (which carry the transfer key), so the
-//! code is a confirmation/integrity check — not secrecy from observers.
+//! The frames carry their own transfer key, so a recording of all of them can
+//! be decrypted: this transfer is not secret from someone who can film the
+//! screen (the window is kept out of screenshots while they show, see
+//! `platform::capture_protection`). Integrity needs no user check: each frame
+//! has a checksum, and the payload is sealed with XChaCha20-Poly1305, so a
+//! damaged, mixed or altered capture fails to open instead of importing wrong
+//! data. Before importing, the receiver decrypts the frames once to show how
+//! many accounts they hold, and the user agrees to add them.
 
 use crate::{
     pairing::{
         crypto::{decrypt_payload, encrypt_payload},
-        payload::{create_export_payload, import_sync_payload, SyncSummary},
+        payload::{create_export_payload, import_sync_payload, validate_payload, SyncSummary},
         transport::generate_qr_svg,
     },
     state::AppState,
@@ -34,7 +36,6 @@ pub const MAX_AIRGAP_DECOMPRESSED_SIZE: usize = 16 * 1024 * 1024; // 16 MB max
 pub const AIRGAP_URI_SCHEME: &str = "aiut-airgap";
 pub const CHUNK_BINARY_SIZE: usize = 350; // 350 bytes binary -> ~467 bytes base64
 const AIRGAP_INFO: &[u8] = b"aiut-airgap-v1";
-const AIRGAP_VERIFY_INFO: &[u8] = b"aiut-airgap-verify-v1";
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -63,17 +64,18 @@ impl std::fmt::Debug for AirgapExportFrame {
 #[serde(rename_all = "camelCase")]
 pub struct AirgapExport {
     pub session_id: String,
-    pub verify_code: String,
     pub total_chunks: usize,
     pub frames: Vec<AirgapExportFrame>,
 }
 
+/// What a complete capture holds, shown before the user agrees to import it.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AirgapVerifyResult {
+pub struct AirgapPreview {
     pub session_id: String,
-    pub verify_code: String,
     pub total_chunks: usize,
+    /// Accounts in the transfer. Ones this device already has are skipped on import.
+    pub account_count: usize,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -96,21 +98,6 @@ impl std::fmt::Debug for ParsedAirgapChunk {
     }
 }
 
-/// Computes the short verification code (e.g. "4F2A-8B91-C3D2") shown on both
-/// devices, mirroring the Wi-Fi flow's SAS format. Sender and receiver each
-/// compute it independently over identical container bytes; the user confirms
-/// the two screens match before importing.
-pub fn compute_verify_code(session_id: &str, container: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(AIRGAP_VERIFY_INFO);
-    hasher.update(session_id.as_bytes());
-    hasher.update(container);
-    let digest = hasher.finalize();
-
-    // 48 bits, shown as three groups, the same format as the Wi-Fi code.
-    super::crypto::format_verification_code(&digest, 6)
-}
-
 /// Computes an 8-character hex checksum of base64 chunk data.
 pub fn chunk_checksum(data: &str) -> String {
     let mut hasher = Sha256::new();
@@ -130,8 +117,7 @@ pub fn prepare_airgap_export(state: &AppState) -> Result<AirgapExport, String> {
     let compressed = miniz_oxide::deflate::compress_to_vec(&raw_payload_bytes, 6);
 
     // 2. Random 32-byte transfer key. The key travels inside the frames, so a
-    // complete frame capture is sufficient to decrypt — the verification code
-    // below is the human confirmation step, not a second secret.
+    // complete frame capture is sufficient to decrypt.
     let mut key = [0u8; 32];
     rand::rngs::OsRng.fill_bytes(&mut key);
 
@@ -145,7 +131,6 @@ pub fn prepare_airgap_export(state: &AppState) -> Result<AirgapExport, String> {
 
     // 5. Slice container into chunks of CHUNK_BINARY_SIZE
     let session_id = Uuid::new_v4().simple().to_string()[..8].to_string();
-    let verify_code = compute_verify_code(&session_id, &container);
     let binary_chunks: Vec<&[u8]> = container.chunks(CHUNK_BINARY_SIZE).collect();
     let total_chunks = binary_chunks.len();
 
@@ -169,7 +154,6 @@ pub fn prepare_airgap_export(state: &AppState) -> Result<AirgapExport, String> {
 
     Ok(AirgapExport {
         session_id,
-        verify_code,
         total_chunks,
         frames,
     })
@@ -238,7 +222,7 @@ pub fn parse_airgap_uri(raw_uri: &str) -> Result<ParsedAirgapChunk, String> {
 }
 
 /// Parses, validates, and reassembles captured airgap chunks into the
-/// `(session_id, container)` pair. Shared by verification and import so both
+/// `(session_id, container)` pair. Shared by preview and import so both
 /// operate on identical bytes.
 fn reassemble_container(raw_chunks: Vec<String>) -> Result<(String, usize, Vec<u8>), String> {
     if raw_chunks.is_empty() {
@@ -303,52 +287,54 @@ fn reassemble_container(raw_chunks: Vec<String>) -> Result<(String, usize, Vec<u
     Ok((expected_session, total_chunks, container))
 }
 
-/// Verifies scanned frames and returns the verification code to display for
-/// human comparison with the sender's screen. No data is imported.
-pub fn verify_airgap_frames(raw_chunks: Vec<String>) -> Result<AirgapVerifyResult, String> {
-    let (session_id, total_chunks, container) = reassemble_container(raw_chunks)?;
+/// Decrypts and decompresses a reassembled container. Fails on any damaged
+/// or altered byte (the payload is authenticated).
+fn open_container(container: &[u8]) -> Result<Vec<u8>, String> {
     if container.len() < 32 + 40 {
         return Err("Air-gap container is too short".into());
     }
-    let verify_code = compute_verify_code(&session_id, &container);
-    Ok(AirgapVerifyResult {
+    let (key_bytes, ciphertext_with_nonce) = container.split_at(32);
+    let mut key = [0u8; 32];
+    key.copy_from_slice(key_bytes);
+    let compressed = decrypt_payload(&key, AIRGAP_INFO, ciphertext_with_nonce);
+    key.zeroize();
+    let mut compressed = compressed
+        .map_err(|_| "Corrupted transfer. Please rescan the animated codes.".to_string())?;
+    let decompressed = miniz_oxide::inflate::decompress_to_vec_with_limit(
+        &compressed,
+        MAX_AIRGAP_DECOMPRESSED_SIZE,
+    )
+    .map_err(|_| "Corrupted transfer. Please rescan the animated codes.".to_string());
+    compressed.zeroize();
+    decompressed
+}
+
+/// Checks a complete capture and says how many accounts it holds, so the user
+/// can agree to add them. Nothing is imported.
+pub fn preview_airgap_frames(raw_chunks: Vec<String>) -> Result<AirgapPreview, String> {
+    let (session_id, total_chunks, container) = reassemble_container(raw_chunks)?;
+    let mut bytes = open_container(&container)?;
+    let payload = validate_payload(&bytes);
+    bytes.zeroize();
+    let account_count = payload?.accounts.len();
+    Ok(AirgapPreview {
         session_id,
-        verify_code,
         total_chunks,
+        account_count,
     })
 }
 
 /// Reassembles captured airgap chunks, decrypts with the embedded transfer
-/// key, decompresses, and imports. Call only after the user confirms the
-/// verification code matches the sender's screen.
+/// key, decompresses, and imports. Call only after the user agreed to add the
+/// accounts. `accept_settings` is the receiving user's own choice.
 pub async fn import_airgap_payload(
     state: &Arc<AppState>,
     raw_chunks: Vec<String>,
+    accept_settings: bool,
 ) -> Result<SyncSummary, String> {
     let (_session_id, _total_chunks, container) = reassemble_container(raw_chunks)?;
-
-    if container.len() < 32 + 40 {
-        return Err("Air-gap container is too short".into());
-    }
-
-    let (key_bytes, ciphertext_with_nonce) = container.split_at(32);
-    let mut key = [0u8; 32];
-    key.copy_from_slice(key_bytes);
-
-    let mut decompressed_bytes = match decrypt_payload(&key, AIRGAP_INFO, ciphertext_with_nonce) {
-        Ok(compressed) => miniz_oxide::inflate::decompress_to_vec_with_limit(
-            &compressed,
-            MAX_AIRGAP_DECOMPRESSED_SIZE,
-        )
-        .map_err(|e| format!("Decompression failed: {e:?}"))?,
-        Err(_) => {
-            key.zeroize();
-            return Err("Corrupted transfer. Please rescan the animated codes.".into());
-        }
-    };
-    key.zeroize();
-
-    let summary = import_sync_payload(state, &decompressed_bytes).await;
+    let mut decompressed_bytes = open_container(&container)?;
+    let summary = import_sync_payload(state, &decompressed_bytes, accept_settings).await;
     decompressed_bytes.zeroize();
     summary
 }
@@ -363,13 +349,13 @@ mod tests {
     #[test]
     fn oversized_frame_submissions_are_rejected_before_parsing() {
         let many = vec!["aiut-airgap://1/x/1/1/00000000?d=AA".to_string(); 1001];
-        assert!(verify_airgap_frames(many).is_err());
+        assert!(preview_airgap_frames(many).is_err());
 
         let long_frame = format!(
             "aiut-airgap://1/x/1/1/00000000?d={}",
             "A".repeat(crate::limits::MAX_AIRGAP_FRAME_URI_CHARS)
         );
-        let error = verify_airgap_frames(vec![long_frame]).unwrap_err();
+        let error = preview_airgap_frames(vec![long_frame]).unwrap_err();
         assert!(error.contains("rescan"), "{error}");
     }
 
@@ -378,44 +364,73 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let state = Arc::new(AppState::new(dir.path().to_path_buf(), "token".into()).unwrap());
 
+        state
+            .persist_connected_account(
+                crate::model::Account {
+                    id: "acc-airgap".into(),
+                    label: "Claude".into(),
+                    provider: crate::model::Provider::Anthropic,
+                    email: Some("airgap@example.com".into()),
+                    provider_account_id: None,
+                    chatgpt_account_id: None,
+                    plan: None,
+                    created_at: chrono::Utc::now().to_rfc3339(),
+                    updated_at: chrono::Utc::now().to_rfc3339(),
+                    last_usage: None,
+                    last_error: None,
+                    auth_required: false,
+                },
+                &crate::model::ProviderSecret::Anthropic(crate::model::OAuthSecret {
+                    access_token: "a".into(),
+                    refresh_token: "r".into(),
+                    id_token: None,
+                    expires_at: 0,
+                }),
+            )
+            .await
+            .unwrap();
+
         // Prepare export
         let export = prepare_airgap_export(&state).expect("Airgap export failed");
         assert!(!export.frames.is_empty());
         assert_eq!(export.frames.len(), export.total_chunks);
-        assert_eq!(export.verify_code.len(), 14);
 
         // Collect frame URIs, shuffling them to simulate out-of-order camera reads
         let mut uris: Vec<String> = export.frames.into_iter().map(|f| f.uri).collect();
         uris.reverse();
 
-        // Verify step returns the same code the sender displays
-        let verify = verify_airgap_frames(uris.clone()).expect("Airgap verify failed");
-        assert_eq!(verify.verify_code, export.verify_code);
-        assert_eq!(verify.total_chunks, export.total_chunks);
+        // The preview opens the frames and counts the accounts, importing nothing
+        let preview = preview_airgap_frames(uris.clone()).expect("Airgap preview failed");
+        assert_eq!(preview.account_count, 1);
+        assert_eq!(preview.total_chunks, export.total_chunks);
+        assert_eq!(preview.session_id, export.session_id);
 
         let dir2 = TempDir::new().unwrap();
         let state2 = Arc::new(AppState::new(dir2.path().to_path_buf(), "token2".into()).unwrap());
-        let summary = import_airgap_payload(&state2, uris.clone())
+        let summary = import_airgap_payload(&state2, uris.clone(), true)
             .await
             .expect("Airgap import failed");
         assert_eq!(summary.skipped, 0);
+        assert_eq!(summary.added, 1);
 
-        // Test tampered frames fail verification (checksum mismatch surfaces first)
+        // Test tampered frames fail the preview (checksum mismatch surfaces first)
         let mut tampered_uris = uris.clone();
         tampered_uris[0] = tampered_uris[0].replace("d=", "d=corrupted");
-        let err = verify_airgap_frames(tampered_uris).unwrap_err();
+        let err = preview_airgap_frames(tampered_uris).unwrap_err();
         assert!(err.contains("checksum mismatch"));
 
         // Test corrupted URI fails checksum
         let mut corrupted_uris = uris.clone();
         corrupted_uris[0] = corrupted_uris[0].replace("d=", "d=corrupted");
-        let err = import_airgap_payload(&state2, corrupted_uris)
+        let err = import_airgap_payload(&state2, corrupted_uris, true)
             .await
             .unwrap_err();
         assert!(err.contains("checksum mismatch"));
 
         // Test empty frames list
-        let err_empty = import_airgap_payload(&state2, vec![]).await.unwrap_err();
+        let err_empty = import_airgap_payload(&state2, vec![], true)
+            .await
+            .unwrap_err();
         assert!(err_empty.contains("No air-gap frames provided"));
 
         // Test missing frame (frame specifies total_chunks=2 but only 1 is provided)
@@ -423,15 +438,47 @@ mod tests {
             &format!("/1/{}/", export.total_chunks),
             &format!("/1/{}/", export.total_chunks + 1),
         );
-        let err_missing = import_airgap_payload(&state2, vec![incomplete_uri])
+        let err_missing = import_airgap_payload(&state2, vec![incomplete_uri], true)
             .await
             .unwrap_err();
         assert!(err_missing.contains("Missing frames"));
 
-        // Verify codes differ across transfers (random key + session per export)
+        // Each export has its own session (and key)
         let export2 = prepare_airgap_export(&state).expect("Airgap export failed");
         assert_ne!(export2.session_id, export.session_id);
-        assert_ne!(export2.verify_code, export.verify_code);
+    }
+
+    /// Frames re-made with valid checksums but changed bytes (someone editing
+    /// the transfer) must fail to open: the encryption, not a human code
+    /// comparison, is what guards integrity now.
+    #[tokio::test]
+    async fn altered_frames_with_valid_checksums_are_refused() {
+        let dir = TempDir::new().unwrap();
+        let state = Arc::new(AppState::new(dir.path().to_path_buf(), "token".into()).unwrap());
+        let export = prepare_airgap_export(&state).expect("Airgap export failed");
+        let mut uris: Vec<String> = export.frames.into_iter().map(|f| f.uri).collect();
+
+        let last = uris.len() - 1;
+        let chunk = parse_airgap_uri(&uris[last]).unwrap();
+        let mut bytes = URL_SAFE_NO_PAD.decode(chunk.data.as_bytes()).unwrap();
+        let end = bytes.len() - 1;
+        bytes[end] ^= 0x01;
+        let data = URL_SAFE_NO_PAD.encode(&bytes);
+        uris[last] = format!(
+            "{AIRGAP_URI_SCHEME}://1/{}/{}/{}/{}?d={data}",
+            chunk.session_id,
+            chunk.chunk_index,
+            chunk.total_chunks,
+            chunk_checksum(&data)
+        );
+
+        assert!(preview_airgap_frames(uris.clone())
+            .unwrap_err()
+            .contains("Corrupted transfer"));
+        let dir2 = TempDir::new().unwrap();
+        let state2 = Arc::new(AppState::new(dir2.path().to_path_buf(), "token2".into()).unwrap());
+        assert!(import_airgap_payload(&state2, uris, true).await.is_err());
+        assert!(state2.store.list().is_empty());
     }
 
     #[test]
@@ -459,7 +506,6 @@ mod tests {
         };
         let export = AirgapExport {
             session_id: "abcd1234".into(),
-            verify_code: "4F2A-8B91-C3D2".into(),
             total_chunks: 2,
             frames: vec![frame.clone()],
         };

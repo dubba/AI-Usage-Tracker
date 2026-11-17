@@ -36,7 +36,7 @@ const spies = {
 function fakeCapture(overrides: Partial<Capture> = {}): Capture {
   return {
     importing: false,
-    verifyCode: "4821",
+    accountCount: 2,
     chunks: new Map([
       [1, "frame-1"],
       [2, "frame-2"],
@@ -102,7 +102,6 @@ function deferred<T>() {
 
 const exported: AirgapExport = {
   sessionId: "s1",
-  verifyCode: "4821",
   totalChunks: 3,
   frames: [1, 2, 3].map((chunkIndex) => ({ chunkIndex, totalChunks: 3, uri: `aiut-airgap://1/s1/${chunkIndex}/3/ab?d=x`, svg: "<svg/>" })),
 };
@@ -205,7 +204,7 @@ describe("useAirgapFlow: receiving", () => {
   it("imports the captured frames and marks the transfer complete", async () => {
     render();
     await act(() => flow.handleAirgapImport());
-    expect(api.importAirgapFrames).toHaveBeenCalledWith(["frame-1", "frame-2"]);
+    expect(api.importAirgapFrames).toHaveBeenCalledWith(["frame-1", "frame-2"], false);
     expect(hasCompletedRef.current).toBe(true);
     expect(spies.closePrompt).toHaveBeenCalledTimes(1);
     expect(spies.stopCamera).toHaveBeenCalledTimes(1);
@@ -214,8 +213,8 @@ describe("useAirgapFlow: receiving", () => {
     expect(spies.setImporting.mock.calls).toEqual([[true], [false]]);
   });
 
-  it("does nothing before the codes can be compared, or while an import is running", async () => {
-    render({ capture: fakeCapture({ verifyCode: null }) });
+  it("does nothing before the frames are opened, or while an import is running", async () => {
+    render({ capture: fakeCapture({ accountCount: null }) });
     await act(() => flow.handleAirgapImport());
     mounted?.rerender(<Harness capture={fakeCapture({ importing: true })} />);
     await act(() => flow.handleAirgapImport());

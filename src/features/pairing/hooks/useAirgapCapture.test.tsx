@@ -2,7 +2,7 @@
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const api = vi.hoisted(() => ({ verifyAirgapFrames: vi.fn() }));
+const api = vi.hoisted(() => ({ previewAirgapFrames: vi.fn() }));
 vi.mock("../../../shared/lib/api", () => ({ pairingApi: api }));
 
 import { mount, settle, type Mounted } from "../../../test-utils/react";
@@ -36,8 +36,8 @@ function scan(code: string): boolean {
 }
 
 beforeEach(() => {
-  api.verifyAirgapFrames.mockReset();
-  api.verifyAirgapFrames.mockResolvedValue({ sessionId: "s1", verifyCode: "4821" });
+  api.previewAirgapFrames.mockReset();
+  api.previewAirgapFrames.mockResolvedValue({ sessionId: "s1", totalChunks: 2, accountCount: 4 });
   for (const spy of Object.values(callbacks)) spy.mockReset();
 });
 
@@ -53,7 +53,7 @@ describe("useAirgapCapture: collecting frames", () => {
     expect(capture.chunks.size).toBe(0);
     expect(capture.total).toBe(0);
     expect(capture.verifyPrompt).toBe(false);
-    expect(capture.verifyCode).toBeNull();
+    expect(capture.accountCount).toBeNull();
   });
 
   it("keeps each frame once and reports the total", () => {
@@ -113,28 +113,28 @@ describe("useAirgapCapture: asking for the code to compare", () => {
     expect(capture.verifying).toBe(true);
     expect(callbacks.onVerifyStart).toHaveBeenCalledTimes(1);
     await settle();
-    expect(api.verifyAirgapFrames).toHaveBeenCalledTimes(1);
-    expect(api.verifyAirgapFrames).toHaveBeenCalledWith([frame("s1", 2, 2), frame("s1", 1, 2)]);
-    expect(capture.verifyCode).toBe("4821");
+    expect(api.previewAirgapFrames).toHaveBeenCalledTimes(1);
+    expect(api.previewAirgapFrames).toHaveBeenCalledWith([frame("s1", 2, 2), frame("s1", 1, 2)]);
+    expect(capture.accountCount).toBe(4);
     expect(capture.verifying).toBe(false);
     // Re-rendering with the code in hand does not ask again.
     mounted?.rerender(<Harness />);
     await settle();
-    expect(api.verifyAirgapFrames).toHaveBeenCalledTimes(1);
+    expect(api.previewAirgapFrames).toHaveBeenCalledTimes(1);
   });
 
   it("waits until the scanner is on screen", async () => {
     render(false);
     scan(frame("s1", 1, 1));
     await settle();
-    expect(api.verifyAirgapFrames).not.toHaveBeenCalled();
+    expect(api.previewAirgapFrames).not.toHaveBeenCalled();
     mounted?.rerender(<Harness active />);
     await settle();
-    expect(api.verifyAirgapFrames).toHaveBeenCalledTimes(1);
+    expect(api.previewAirgapFrames).toHaveBeenCalledTimes(1);
   });
 
   it("on failure reports it, throws the frames away and asks to scan again", async () => {
-    api.verifyAirgapFrames.mockRejectedValue(new Error("frames do not match"));
+    api.previewAirgapFrames.mockRejectedValue(new Error("frames do not match"));
     render();
     scan(frame("s1", 1, 1));
     await settle();
@@ -149,15 +149,15 @@ describe("useAirgapCapture: asking for the code to compare", () => {
   });
 
   it("verifies again when the same transfer is rescanned after a failure", async () => {
-    api.verifyAirgapFrames.mockRejectedValueOnce("bad frames");
+    api.previewAirgapFrames.mockRejectedValueOnce("bad frames");
     render();
     scan(frame("s1", 1, 1));
     await settle();
     expect(callbacks.onVerifyError).toHaveBeenCalledWith("bad frames");
     scan(frame("s1", 1, 1));
     await settle();
-    expect(api.verifyAirgapFrames).toHaveBeenCalledTimes(2);
-    expect(capture.verifyCode).toBe("4821");
+    expect(api.previewAirgapFrames).toHaveBeenCalledTimes(2);
+    expect(capture.accountCount).toBe(4);
   });
 });
 
@@ -166,14 +166,14 @@ describe("useAirgapCapture: leaving the comparison", () => {
     render();
     scan(frame("s1", 1, 1));
     await settle();
-    expect(capture.verifyCode).toBe("4821");
+    expect(capture.accountCount).toBe(4);
   }
 
   it("rescan goes back to scanning the same transfer with nothing captured", async () => {
     await completed();
     act(() => capture.rescan());
     expect(capture.verifyPrompt).toBe(false);
-    expect(capture.verifyCode).toBeNull();
+    expect(capture.accountCount).toBeNull();
     expect(capture.chunks.size).toBe(0);
     expect(capture.captureSecs).toBeNull();
     // The transfer is still the one being scanned, so its next frame adds to it.
@@ -185,7 +185,7 @@ describe("useAirgapCapture: leaving the comparison", () => {
     act(() => capture.closePrompt());
     expect(capture.verifyPrompt).toBe(false);
     expect(capture.verifyPromptRef.current).toBe(false);
-    expect(capture.verifyCode).toBe("4821");
+    expect(capture.accountCount).toBe(4);
     expect(capture.chunks.size).toBe(1);
   });
 
@@ -194,7 +194,7 @@ describe("useAirgapCapture: leaving the comparison", () => {
     act(() => capture.clearCapture());
     expect(capture.chunks.size).toBe(0);
     expect(capture.total).toBe(0);
-    expect(capture.verifyCode).toBeNull();
+    expect(capture.accountCount).toBeNull();
     expect(capture.sessionIdRef.current).toBeNull();
     expect(capture.verifyPrompt).toBe(true);
   });
@@ -205,7 +205,7 @@ describe("useAirgapCapture: leaving the comparison", () => {
     act(() => capture.resetAll());
     expect(capture.chunks.size).toBe(0);
     expect(capture.verifyPrompt).toBe(false);
-    expect(capture.verifyCode).toBeNull();
+    expect(capture.accountCount).toBeNull();
     expect(capture.importing).toBe(false);
     expect(capture.verifying).toBe(false);
   });

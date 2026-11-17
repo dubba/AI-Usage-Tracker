@@ -13,13 +13,12 @@ import { pairingFailedMessage } from "./lib/pairing-errors";
 import {
   hasOwnActionButtons as viewHasOwnActionButtons,
   isWaitingStatus,
+  confirmFields,
   pairingHeader,
-  sasFields,
   type ActiveFlow,
   type ViewMode,
 } from "./lib/view-model";
 import { isAirgapFrameCode } from "./lib/airgap-frame";
-import { isPairingUri } from "./lib/uri";
 import { useLatestRequest } from "../../shared/hooks/useLatestRequest";
 import { usePairingSession } from "./hooks/usePairingSession";
 import { useWifiGate } from "./hooks/useWifiGate";
@@ -32,7 +31,6 @@ import {
 } from "../../shared/lib/errors";
 import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
 import { ModalDialog } from "../../shared/ui/ModalDialog";
-import { AirgapConfirmView } from "./views/AirgapConfirmView";
 import { AirgapSenderView } from "./views/AirgapSenderView";
 import { CodeEntryView } from "./views/CodeEntryView";
 import { HostCodeView } from "./views/HostCodeView";
@@ -45,23 +43,19 @@ import {
   ConnectingPanel,
   FailedCard,
   PeerConnectedPanel,
+  ConfirmTransferCard,
   RoleFallbackView,
-  SasCard,
   TransferringPanel,
 } from "./views/StatusPanels";
 
 /** Wait after a view change before moving keyboard focus into it, so the new view has rendered. */
 const FOCUS_DELAY_MS = 50;
-/** How long opening the modal waits for a pairing link that arrived with the app launch. */
-const PENDING_URI_WAIT_MS = 1500;
 export function PairingModal({
   open,
-  initialJoinUri,
   onClose,
   onCompleted,
 }: {
   open: boolean;
-  initialJoinUri?: string | null;
   onClose: () => void;
   onCompleted: () => void;
 }) {
@@ -71,7 +65,7 @@ export function PairingModal({
   const [busy, setBusy] = useState(false);
   const { error: errorMessage, setError: setErrorMessage } = useAutoDismissedError(viewMode);
   const { error: airgapPrepareError, setError: setAirgapPrepareError } = useAutoDismissedError(viewMode);
-  const [confirmedSas, setConfirmedSas] = useState(false);
+  const [confirmedTransfer, setConfirmedTransfer] = useState(false);
   const [includeSettings, setIncludeSettings] = useState(true);
   const [isKeyboardOpen, setIsKeyboardOpen] = useVirtualKeyboard(open);
   const [scannerRestartKey, setScannerRestartKey] = useState(0);
@@ -97,9 +91,6 @@ export function PairingModal({
 
   const dialogRef = useRef<HTMLElement>(null);
   const roleAutoSelectedRef = useRef(false);
-  // The pairing link (deep link or link opened in-app) this session joined through, so
-  // "Try Again" after a failed link join can repeat the join instead of jumping to the mode picker.
-  const joinUriRef = useRef<string | null>(null);
 
   // Every pairing failure goes through the friendly-message utility: what was being done,
   // a plain explanation, and the raw detail kept for Copy Diagnostics.
@@ -137,20 +128,10 @@ export function PairingModal({
   } = useQrScanner({
     active: viewMode === "scanner" && open,
     restartKey: scannerRestartKey,
-    onDecoded: async (code, controls) => {
-      if (isPairingUri(code)) {
-        // A pairing link on the other device's screen: join it.
-        controls.stopCamera();
-        showView("host");
-        request.cancel();
-        setBusy(true);
-        setErrorMessage(null);
-        await pairingApi.startClient(code);
-        return true;
-      }
+    onDecoded: (code, controls) => {
       if (isAirgapFrameCode(code)) capture.addFrame(code, controls.stopCamera);
     },
-    // A scanned code that could not be acted on is dropped; the backend reports a failed join itself.
+    // A scanned code that could not be acted on is dropped.
     onError: (cause) => logIgnored("pairing.scan", cause),
   });
 
@@ -214,9 +195,6 @@ export function PairingModal({
       case "select-mode":
         showView("select-role");
         return true;
-      case "airgap-confirm":
-        showView("airgap-sender");
-        return true;
       case "host":
       case "code":
         backToModes();
@@ -249,7 +227,7 @@ export function PairingModal({
 
   useEffect(() => {
     if (
-      status.status === "sasVerification" ||
+      status.status === "confirmTransfer" ||
       status.status === "roleSelection" ||
       status.status === "failed" ||
       status.status === "transferring" ||
@@ -258,8 +236,8 @@ export function PairingModal({
     ) {
       setBusy(false);
     }
-    if (status.status !== "sasVerification") {
-      setConfirmedSas(false);
+    if (status.status !== "confirmTransfer") {
+      setConfirmedTransfer(false);
     }
     if (status.status === "completed") {
       if (!hasCompletedRef.current) {
@@ -333,13 +311,11 @@ export function PairingModal({
     return () => clearTimeout(timer);
   }, [viewMode, status.status, open]);
 
-  const { initHostSession, startFromUri, handleConnectByCode, handleSelectRole, handleConfirmSas } = usePairingSession({
+  const { initHostSession, handleConnectByCode, handleSelectRole, handleConfirmTransfer } = usePairingSession({
     context: actionContext,
-    dispatchFlow,
-    joinUriRef,
     roleAutoSelectedRef,
     includeSettings,
-    setConfirmedSas,
+    setConfirmed: setConfirmedTransfer,
   });
 
   // Start showing a link code. A newer start (or leaving the view) makes an older one's result moot.
@@ -358,50 +334,21 @@ export function PairingModal({
     onReady: startLinkCode,
   });
 
-  // On open: join straight away if a pairing link is waiting; on close: forget everything.
+  // On close: forget everything, so the next open starts at step 1.
   useEffect(() => {
-    if (!open) {
-      discardSession();
-      clearAllErrors();
-      setJoinCodeInput("");
-      dispatchFlow({ type: "reset" });
-      roleAutoSelectedRef.current = false;
-      setBusy(false);
-      setConfirmedSas(false);
-      setIncludeSettings(true);
-      clearExport();
-      setWifiPrompt(null);
-      request.cancel();
-      joinUriRef.current = null;
-      return;
-    }
-
-    const checkPendingAndStart = async () => {
-      let pendingUri: string | null = initialJoinUri || null;
-      if (!pendingUri) {
-        try {
-          pendingUri = await Promise.race([
-            pairingApi.getPendingPairingUri().catch((cause) => {
-              logIgnored("pending pairing uri", cause);
-              return null;
-            }),
-            new Promise<null>((resolve) => setTimeout(() => resolve(null), PENDING_URI_WAIT_MS)),
-          ]);
-        } catch (cause) {
-          logIgnored("pending pairing uri", cause);
-        }
-      }
-
-      if (pendingUri && isPairingUri(pendingUri)) {
-        void startFromUri(pendingUri);
-        return;
-      }
-
-      // Normal modal open: wait on Step 1 for the user to choose a role
-    };
-
-    void checkPendingAndStart();
-  }, [open, initialJoinUri, setStatus, startFromUri, clearAllErrors, request, setWifiPrompt, clearExport]);
+    if (open) return;
+    discardSession();
+    clearAllErrors();
+    setJoinCodeInput("");
+    dispatchFlow({ type: "reset" });
+    roleAutoSelectedRef.current = false;
+    setBusy(false);
+    setConfirmedTransfer(false);
+    setIncludeSettings(true);
+    clearExport();
+    setWifiPrompt(null);
+    request.cancel();
+  }, [open, clearAllErrors, request, setWifiPrompt, clearExport]);
 
   if (!open) return null;
 
@@ -421,8 +368,9 @@ export function PairingModal({
     activeFlow,
     intendedRole,
     airgapVerifyPrompt: capture.verifyPrompt,
+    isSender: confirmFields(status)?.isSender,
   });
-  const sas = sasFields(status);
+  const confirm = confirmFields(status);
 
   return (
     <>
@@ -490,7 +438,7 @@ export function PairingModal({
             airgapTotalChunks={capture.total}
             airgapCaptureSecs={capture.captureSecs}
             airgapVerifying={capture.verifying}
-            airgapVerifyCode={capture.verifyCode}
+            airgapAccountCount={capture.accountCount}
             airgapImporting={capture.importing}
             airgapCapturedChunks={capture.chunks}
             cameraError={cameraError}
@@ -537,18 +485,9 @@ export function PairingModal({
             speed={player.speed}
             onTogglePlaying={player.togglePlaying}
             onToggleSpeed={player.toggleSpeed}
-            onContinue={() => showView("airgap-confirm")}
+            onDone={handleClose}
             onRetry={() => void startAirgapSender()}
             onBack={goBack}
-            onCancel={requestClose}
-          />
-        )}
-
-        {isWaitingState && viewMode === "airgap-confirm" && airgapExport && (
-          <AirgapConfirmView
-            verifyCode={airgapExport.verifyCode}
-            onBack={goBack}
-            onCancel={requestClose}
           />
         )}
 
@@ -556,22 +495,25 @@ export function PairingModal({
 
         {status.status === "peerConnected" && <PeerConnectedPanel />}
 
-        {/* Role selection is applied automatically when chosen in step 1; this is the fallback for devices that joined through a pairing link. */}
+        {/* Role selection is applied automatically from the choice in step 1; this is the fallback if none was made. */}
         {status.status === "roleSelection" && !intendedRole && (
           <RoleFallbackView busy={busy} onChoose={(role) => void handleSelectRole(role)} />
         )}
 
         {status.status === "roleSelection" && intendedRole && <ApplyingRolePanel role={intendedRole} />}
 
-        {sas && (
-          <SasCard
-            sasCode={sas.sasCode}
-            isSender={sas.isSender}
-            accountCount={sas.accountCount}
+        {confirm && (
+          <ConfirmTransferCard
+            isSender={confirm.isSender}
+            accountCount={confirm.accountCount}
             busy={busy}
-            confirmed={confirmedSas}
-            onConfirm={() => void handleConfirmSas(sas.sessionId, true, sas.role)}
-            onDecline={() => void handleConfirmSas(sas.sessionId, false, sas.role)}
+            confirmed={confirmedTransfer}
+            onConfirm={() => void handleConfirmTransfer(confirm.sessionId, true)}
+            onCancel={
+              confirm.isSender
+                ? () => void handleConfirmTransfer(confirm.sessionId, false)
+                : requestClose
+            }
           />
         )}
 
@@ -587,9 +529,6 @@ export function PairingModal({
                 void startAirgapSender();
               } else if (viewMode === "host") {
                 void initHostSession();
-              } else if (joinUriRef.current) {
-                // The join through a link failed; retry that join.
-                void startFromUri(joinUriRef.current);
               } else {
                 dispatchFlow({ type: "set-flow", flow: null });
                 backToModes();

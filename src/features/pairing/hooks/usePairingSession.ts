@@ -1,11 +1,9 @@
-import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { pairingApi } from "../../../shared/lib/api";
-import { describeError } from "../../../shared/lib/errors";
 import { logIgnored } from "../../../shared/lib/log";
 import type { useLatestRequest } from "../../../shared/hooks/useLatestRequest";
 import type { PairingStatus } from "../../../types";
 import { collectUiState } from "../../layout/ui-state";
-import type { FlowAction } from "../lib/flow-state";
 import { PAIRING_CODE_LENGTH, type IntendedRole } from "../lib/view-model";
 
 /** What the session actions share with the dialog around them. */
@@ -21,42 +19,35 @@ export interface PairingActionContext {
 
 /**
  * The calls that start and steer a Wi-Fi pairing session: show a link code (host), join with a
- * code or a pairing link, apply the send/receive role, and confirm the codes. Each begins a
+ * code, apply the send/receive role, and confirm the transfer. Each begins a
  * request on `context.request`, so an answer that arrives after the user moved on is dropped.
  */
 export function usePairingSession({
   context,
-  dispatchFlow,
-  joinUriRef,
   roleAutoSelectedRef,
   includeSettings,
-  setConfirmedSas,
+  setConfirmed,
 }: {
   context: PairingActionContext;
-  dispatchFlow: Dispatch<FlowAction>;
-  /** The link this session joined through, so "Try Again" can repeat the join. */
-  joinUriRef: MutableRefObject<string | null>;
   roleAutoSelectedRef: MutableRefObject<boolean>;
+  /** "Also Transfer Settings & Layout" on this device: what it sends, and what it accepts. */
   includeSettings: boolean;
-  setConfirmedSas: (confirmed: boolean) => void;
+  setConfirmed: (confirmed: boolean) => void;
 }) {
   const { request, busy, setBusy, setStatus, setErrorMessage, showError } = context;
 
-  /** Start showing a link code and a QR code for the other device to join. */
+  /** Start showing a link code for the other device to type. */
   const initHostSession = async () => {
     const ticket = request.begin();
     setBusy(true);
     setErrorMessage(null);
     try {
-      const init = await pairingApi.startHost();
+      const init = await pairingApi.startHost(includeSettings);
       if (!request.isLatest(ticket)) return;
       setStatus({
         status: "hostWaiting",
         data: {
           sessionId: init.sessionId,
-          qrSvg: init.qrSvg,
-          qrUri: init.qrUri,
-          fingerprint: init.fingerprint,
           joinCode: init.joinCode,
           expiresAt: init.expiresAt,
         },
@@ -69,30 +60,6 @@ export function usePairingSession({
     }
   };
 
-  /** Join a session from a pairing link: a deep link, or one handed to the modal on open. */
-  const startFromUri = useCallback(
-    async (pendingUri: string) => {
-      joinUriRef.current = pendingUri;
-      const ticket = request.begin();
-      dispatchFlow({ type: "set-flow", flow: "wifi" });
-      setBusy(true);
-      setStatus({ status: "clientConnecting", data: { sessionId: "" } });
-      try {
-        await pairingApi.startClient(pendingUri);
-      } catch (err) {
-        if (!request.isLatest(ticket)) return;
-        setBusy(false);
-        const msg = describeError("pairing", "Couldn't connect with the link", err);
-        setErrorMessage(msg);
-        setStatus({
-          status: "failed",
-          data: { error: msg },
-        });
-      }
-    },
-    [joinUriRef, request, dispatchFlow, setBusy, setStatus, setErrorMessage],
-  );
-
   /** Join the session whose six-digit link code was typed. */
   const handleConnectByCode = async (code: string) => {
     const digits = code.replace(/\D/g, "").slice(0, PAIRING_CODE_LENGTH);
@@ -101,7 +68,7 @@ export function usePairingSession({
     setBusy(true);
     setErrorMessage(null);
     try {
-      await pairingApi.startClientByCode(digits);
+      await pairingApi.startClientByCode(digits, includeSettings);
     } catch (err) {
       if (!request.isLatest(ticket)) return;
       showError("Couldn't connect with that code", err);
@@ -126,18 +93,18 @@ export function usePairingSession({
     }
   };
 
-  const handleConfirmSas = async (sessionId: string, confirmed: boolean, role?: string) => {
+  /** The sending device's answer to "Send these accounts?". */
+  const handleConfirmTransfer = async (sessionId: string, confirmed: boolean) => {
     if (confirmed) {
-      setConfirmedSas(true);
+      setConfirmed(true);
     }
     const ticket = request.begin();
     setBusy(true);
     try {
       if (confirmed) {
-        const shouldInclude = role === "sender" && includeSettings;
         try {
-          await pairingApi.setIncludeSettings(shouldInclude);
-          if (shouldInclude) {
+          await pairingApi.setIncludeSettings(includeSettings);
+          if (includeSettings) {
             await pairingApi.setPendingUiState(collectUiState());
           } else {
             await pairingApi.clearPendingUiState();
@@ -147,11 +114,11 @@ export function usePairingSession({
           logIgnored("pairing settings transfer", cause);
         }
       }
-      await pairingApi.confirmSas(sessionId, confirmed);
+      await pairingApi.confirmTransfer(sessionId, confirmed);
     } catch (err) {
       if (!request.isLatest(ticket)) return;
-      showError("Couldn't confirm the codes", err);
-      setConfirmedSas(false);
+      showError("Couldn't start the transfer", err);
+      setConfirmed(false);
     } finally {
       if (request.isLatest(ticket)) {
         setBusy(false);
@@ -159,5 +126,5 @@ export function usePairingSession({
     }
   };
 
-  return { initHostSession, startFromUri, handleConnectByCode, handleSelectRole, handleConfirmSas };
+  return { initHostSession, handleConnectByCode, handleSelectRole, handleConfirmTransfer };
 }

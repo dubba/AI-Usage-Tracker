@@ -108,7 +108,7 @@ export default function App() {
   });
   const update = useAppUpdate({ automaticUpdatesEnabled: appSettings?.automaticUpdatesEnabled });
   const { alerts: inAppAlerts, dismiss: dismissAlert } = useUsageAlerts();
-  const { pairingOpen, setPairingOpen, pairingInitialUri, closePairing } = usePairingEvents();
+  const { pairingOpen, setPairingOpen, closePairing } = usePairingEvents();
   const swipeNavigationEnabled =
     (sidebarIsOverlay || isMobileDevice())
     && !sidebarModal
@@ -480,7 +480,7 @@ export default function App() {
         onAlertSaved={handleAlertSaved}
         onRemoveAccount={(account, onStarted) => void remove(account, onStarted)}
         unprotectedSignIns={unprotectedSignIns}
-        pairing={{ open: pairingOpen, initialUri: pairingInitialUri, onClose: closePairing, onCompleted: handlePairingCompleted }}
+        pairing={{ open: pairingOpen, onClose: closePairing, onCompleted: handlePairingCompleted }}
         update={update}
         onCloseUpdateNotes={() => update.setUpdateNotesOpen(false)}
       />

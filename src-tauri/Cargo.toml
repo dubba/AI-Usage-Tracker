@@ -35,6 +35,10 @@ rustls = { version = "0.23", default-features = false, features = ["ring"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
+# Password-authenticated key exchange for link-code pairing (pairing/crypto.rs): the six-digit
+# code proves both devices are the ones the user is holding. Its dependencies (curve25519-dalek,
+# hkdf, sha2, rand_core) are already in the tree.
+spake2 = "0.4"
 subtle = "2"
 # 2.12 is the first release whose iOS window layer supports the scene life cycle that
 # Info.ios.plist opts into, which apps built with the iOS 27 SDK require.
@@ -57,7 +61,6 @@ tokio = { version = "1", features = ["io-util", "macros", "net", "process", "rt-
 tokio-tungstenite = { version = "0.30.0", default-features = false, features = ["connect", "rustls-tls-webpki-roots"] }
 url = "2"
 uuid = { version = "1", features = ["v4", "serde"] }
-x25519-dalek = { version = "2", features = ["static_secrets"] }
 zeroize = { version = "1", features = ["derive"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]

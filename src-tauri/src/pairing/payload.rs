@@ -311,11 +311,22 @@ pub fn create_export_payload(state: &AppState) -> Result<Vec<u8>, String> {
 /// Pairing never replaces credentials: an account this device already has keeps its local
 /// secret and metadata (it is counted as skipped, and the sender's layout is mapped onto it). A
 /// transfer therefore cannot overwrite a sign-in, however the other device is set up.
+///
+/// `accept_settings` is the receiving user's own choice ("Also Transfer Settings & Layout" on this
+/// device). Without it the sender's app settings, account order, alerts and layout are dropped,
+/// whatever the sender chose to include: a sender cannot change this device's settings alone.
 pub async fn import_sync_payload(
     state: &Arc<AppState>,
     payload_bytes: &[u8],
+    accept_settings: bool,
 ) -> Result<SyncSummary, String> {
     let mut payload = validate_payload(payload_bytes)?;
+    if !accept_settings {
+        payload.settings = None;
+        payload.account_order = None;
+        payload.alerts = None;
+        payload.ui_state = None;
+    }
     let mut summary = SyncSummary::default();
     let planned = plan_account_ids(std::mem::take(&mut payload.accounts), &mut summary)?;
     apply_import(state, planned, payload, summary).await
@@ -323,7 +334,7 @@ pub async fn import_sync_payload(
 
 /// The payload as sent, once its shape is accepted: JSON of the expected format, within the
 /// account limit. Nothing is read from the device's own state here.
-fn validate_payload(payload_bytes: &[u8]) -> Result<SyncPayload, String> {
+pub(crate) fn validate_payload(payload_bytes: &[u8]) -> Result<SyncPayload, String> {
     let payload: SyncPayload = serde_json::from_slice(payload_bytes)
         .map_err(|e| format!("Invalid sync payload JSON: {e}"))?;
 

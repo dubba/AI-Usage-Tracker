@@ -146,10 +146,9 @@ pub fn run() {
             commands::pairing::pairing_wifi_enabled,
             commands::pairing::pairing_open_wifi_settings,
             commands::pairing::pairing_start_host,
-            commands::pairing::pairing_start_client,
             commands::pairing::pairing_start_client_by_code,
             commands::pairing::pairing_select_role,
-            commands::pairing::pairing_confirm_sas,
+            commands::pairing::pairing_confirm_transfer,
             commands::pairing::pairing_cancel,
             commands::pairing::pairing_status,
             commands::pairing::pairing_set_include_settings,
@@ -158,7 +157,6 @@ pub fn run() {
             commands::pairing::pairing_prepare_airgap_export,
             commands::pairing::pairing_verify_airgap,
             commands::pairing::pairing_import_airgap,
-            commands::pairing::get_pending_pairing_uri,
         ])
         .build(tauri::generate_context!())
         .expect("error while building AI Usage Tracker")

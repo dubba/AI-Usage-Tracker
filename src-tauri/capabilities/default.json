@@ -87,10 +87,9 @@
     "allow-pairing-wifi-enabled",
     "allow-pairing-open-wifi-settings",
     "allow-pairing-start-host",
-    "allow-pairing-start-client",
     "allow-pairing-start-client-by-code",
     "allow-pairing-select-role",
-    "allow-pairing-confirm-sas",
+    "allow-pairing-confirm-transfer",
     "allow-pairing-cancel",
     "allow-pairing-status",
     "allow-pairing-set-include-settings",
@@ -98,7 +97,6 @@
     "allow-pairing-clear-pending-ui-state",
     "allow-pairing-prepare-airgap-export",
     "allow-pairing-verify-airgap",
-    "allow-pairing-import-airgap",
-    "allow-get-pending-pairing-uri"
+    "allow-pairing-import-airgap"
   ]
 }

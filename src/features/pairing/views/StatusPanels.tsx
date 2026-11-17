@@ -31,7 +31,7 @@ export function ApplyingRolePanel({ role }: { role: IntendedRole }) {
     <div className="pairing-panel-status">
       <span className="spinner" />
       <h3>{role === "send" ? "Sending from this device…" : "Receiving on this device…"}</h3>
-      <p>Finishing the connection so both devices can confirm the code.</p>
+      <p>Finishing the connection with the other device.</p>
     </div>
   );
 }
@@ -46,7 +46,7 @@ export function TransferringPanel() {
   );
 }
 
-/** Fallback when the devices connected through a pairing link, so no role was chosen up front. */
+/** Fallback for a connection that reached role selection with no role chosen in step 1. */
 export function RoleFallbackView({ busy, onChoose }: { busy: boolean; onChoose: (role: IntendedRole) => void }) {
   return (
     <div className="pairing-role-selection-view">
@@ -60,64 +60,74 @@ export function RoleFallbackView({ busy, onChoose }: { busy: boolean; onChoose: 
   );
 }
 
-/** Both devices show the same code; the user confirms they match. */
-export function SasCard({
-  sasCode,
+/**
+ * The devices are connected and each proved it knows the link code. The sending device asks once
+ * before anything moves; the receiving device has nothing to confirm and waits.
+ */
+export function ConfirmTransferCard({
   isSender,
   accountCount,
   busy,
   confirmed,
   onConfirm,
-  onDecline,
+  onCancel,
 }: {
-  sasCode: string;
   isSender: boolean;
   accountCount: number | undefined;
   busy: boolean;
   confirmed: boolean;
+  /** Sender only: send the accounts. */
   onConfirm: () => void;
-  onDecline: () => void;
+  /** Sender: decline. Receiver: stop waiting and end the pairing. */
+  onCancel: () => void;
 }) {
+  const accounts = accountCount === 1 ? "1 account" : `${accountCount ?? ""} accounts`.trim();
+  if (!isSender) {
+    return (
+      <div className="pairing-sas-card">
+        <div className="pairing-sas-icon"><ShieldIcon /></div>
+        <h3>Waiting for the other device</h3>
+        <div className="pairing-transfer-info receiver">
+          Ready to <strong>receive {accounts}</strong> and groups
+        </div>
+        <div className="pairing-sas-waiting-note">
+          <span className="spinner button-spinner" />
+          <span>Press Send on the other device to start the transfer.</span>
+        </div>
+        <div className="pairing-sas-actions">
+          <button type="button" className="button ghost" onClick={onCancel}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="pairing-sas-card">
       <div className="pairing-sas-icon"><ShieldIcon /></div>
-      <h3>Do both devices show this code?</h3>
-
-      <div className="pairing-sas-badge" aria-label={`Verification code ${sasCode}`}>
-        {sasCode}
+      <h3>Send to the other device?</h3>
+      <div className="pairing-transfer-info sender">
+        Ready to <strong>send {accounts}</strong> and groups
       </div>
-      <p className="pairing-instruction">Compare all three groups. Confirm only when every group matches.</p>
-
-      <div className={`pairing-transfer-info ${isSender ? "sender" : "receiver"}`}>
-        {isSender ? (
-          <>Ready to <strong>send {accountCount ?? ""} account(s)</strong> and groups</>
-        ) : (
-          <>Ready to <strong>receive {accountCount ?? ""} account(s)</strong> and groups</>
-        )}
-      </div>
+      <p className="pairing-instruction">
+        The other device entered this device&apos;s link code, or showed the one you entered.
+      </p>
 
       <div className="pairing-sas-actions">
         <button type="button" className="button primary" disabled={busy || confirmed} onClick={onConfirm}>
           {confirmed ? (
             <>
               <span className="spinner button-spinner" />
-              <span>Waiting for Other Device…</span>
+              <span>Sending…</span>
             </>
           ) : (
-            "Yes, Codes Match"
+            "Send"
           )}
         </button>
-        <button type="button" className="button ghost" disabled={busy || confirmed} onClick={onDecline}>
+        <button type="button" className="button ghost" disabled={busy || confirmed} onClick={onCancel}>
           Cancel
         </button>
       </div>
-
-      {confirmed && (
-        <div className="pairing-sas-waiting-note">
-          <span className="spinner button-spinner" />
-          <span>Confirmed on this device. Waiting for the other device to confirm…</span>
-        </div>
-      )}
     </div>
   );
 }

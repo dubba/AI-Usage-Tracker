@@ -1,29 +1,17 @@
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
-use sha2::{Digest, Sha256};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
-use url::Url;
 use uuid::Uuid;
 
-pub const PROTOCOL_VERSION: u32 = 1;
+/// Version 2: the six-digit link code is the shared secret of a password-authenticated key
+/// exchange. Version 1 announced the code on the network and relied on both users comparing a
+/// verification code; a version 1 device cannot pair with this one.
+pub const PROTOCOL_VERSION: u32 = 2;
+/// The version older builds announce, recognised only to tell the user to update that device.
+pub const LEGACY_PROTOCOL_VERSION: u32 = 1;
 
-/// Bracket IPv6 literals so `host:port` is unambiguous in pairing URIs.
-pub fn format_uri_host(host: &str) -> String {
-    let host = host
-        .strip_prefix('[')
-        .and_then(|h| h.strip_suffix(']'))
-        .unwrap_or(host);
-    if host.parse::<std::net::Ipv6Addr>().is_ok() {
-        format!("[{host}]")
-    } else {
-        host.to_string()
-    }
-}
-pub const PAIRING_SCHEME: &str = "aiusage-pair";
-pub const SECONDARY_PAIRING_SCHEME: &str = "aiusage";
-pub const MAX_FRAME_SIZE: usize = 16 * 1024 * 1024; // 16 MB (encrypted payload only, post-SAS)
-/// Maximum frame size permitted before SAS mutual confirmation succeeds.
-/// Handshake init is 49 bytes, role select <= 4 bytes, SAS confirm 34 bytes,
-/// abort 2 bytes, handshake resp 2 bytes. 1 KiB leaves ample room while
+pub const MAX_FRAME_SIZE: usize = 16 * 1024 * 1024; // 16 MB (encrypted payload only, post-confirmation)
+/// Maximum frame size permitted before both sides confirmed the transfer.
+/// Handshake init is 50 bytes, handshake resp 34, key confirm 33, role select
+/// <= 4, transfer confirm 34, abort 2. 1 KiB leaves ample room while
 /// preventing unauthenticated 16 MB allocations (memory-DoS).
 pub const MAX_PREAUTH_FRAME_SIZE: usize = 1024;
 /// Maximum frame size for small authenticated control frames (ACK, role resp).
@@ -31,32 +19,33 @@ pub const MAX_CONTROL_FRAME_SIZE: usize = 1024;
 
 pub const MSG_HANDSHAKE_INIT: u8 = 0x01;
 pub const MSG_HANDSHAKE_RESP: u8 = 0x02;
-pub const MSG_SAS_CONFIRM: u8 = 0x03;
+pub const MSG_TRANSFER_CONFIRM: u8 = 0x03;
 pub const MSG_ENCRYPTED_PAYLOAD: u8 = 0x04;
 pub const MSG_ACK: u8 = 0x05;
+pub const MSG_KEY_CONFIRM: u8 = 0x06;
 pub const MSG_ROLE_SELECT: u8 = 0x10;
 pub const MSG_ROLE_SELECT_RESP: u8 = 0x11;
 pub const MSG_ABORT: u8 = 0xFF;
 
-/// Length of an X25519 public key on the wire.
-pub const PUBLIC_KEY_LEN: usize = 32;
+/// Length of one side's key exchange message on the wire (SPAKE2 over Ed25519:
+/// a side byte and a compressed point).
+pub const PAKE_MESSAGE_LEN: usize = 33;
 /// Length of the session id (a UUID) on the wire.
 pub const SESSION_ID_LEN: usize = 16;
-/// `MSG_HANDSHAKE_INIT` payload: the joiner's public key, then the session id.
-pub const HANDSHAKE_INIT_LEN: usize = PUBLIC_KEY_LEN + SESSION_ID_LEN;
-/// The one-byte payload of an accepting `MSG_HANDSHAKE_RESP`, and of the
-/// `MSG_ROLE_SELECT_RESP` that answers a joiner who sends.
+/// `MSG_HANDSHAKE_INIT` payload: the joiner's key exchange message, then the session id.
+pub const HANDSHAKE_INIT_LEN: usize = PAKE_MESSAGE_LEN + SESSION_ID_LEN;
+/// The one-byte payload of the `MSG_ROLE_SELECT_RESP` that answers a joiner who sends.
 pub const RESP_OK: u8 = 0x00;
 /// First byte of `MSG_ROLE_SELECT`: the joiner sends its accounts, so the host receives.
 pub const ROLE_JOINER_SENDS: u8 = 0x01;
 /// First byte of `MSG_ROLE_SELECT`: the joiner receives, so the host sends.
 pub const ROLE_JOINER_RECEIVES: u8 = 0x02;
-/// Length of the confirmation tag in `MSG_SAS_CONFIRM`.
+/// Length of a confirmation tag (`MSG_KEY_CONFIRM`, `MSG_TRANSFER_CONFIRM`).
 pub const CONFIRM_TAG_LEN: usize = 32;
-/// First byte of `MSG_SAS_CONFIRM`: this side's user accepted the verification code.
-pub const SAS_ACCEPTED: u8 = 0x01;
-/// `MSG_SAS_CONFIRM` payload: the accept byte, then the confirmation tag.
-pub const SAS_CONFIRM_LEN: usize = 1 + CONFIRM_TAG_LEN;
+/// First byte of `MSG_TRANSFER_CONFIRM`: this side agreed to the transfer.
+pub const TRANSFER_ACCEPTED: u8 = 0x01;
+/// `MSG_TRANSFER_CONFIRM` payload: the accept byte, then the confirmation tag.
+pub const TRANSFER_CONFIRM_LEN: usize = 1 + CONFIRM_TAG_LEN;
 
 /// The one-byte payload of an `MSG_ABORT` frame: why this side gave up. The
 /// peer does not act on the value (any abort ends its read), so it is there
@@ -66,8 +55,7 @@ pub const SAS_CONFIRM_LEN: usize = 1 + CONFIRM_TAG_LEN;
 pub enum AbortReason {
     /// Host: the handshake init was malformed, for another session, or timed out.
     BadHandshake = 0x01,
-    /// Host: the encryption key could not be derived.
-    KeyDerivationFailed = 0x03,
+    // 0x02 and 0x03 were used by protocol version 1; they stay unused.
     /// Host: the joiner sent a bad role selection or disconnected before choosing.
     RoleSelectFailed = 0x04,
     /// Host: the joiner did not choose a role in time.
@@ -76,18 +64,20 @@ pub enum AbortReason {
     CanceledBeforeRole = 0x06,
     /// Joiner: the role choice was dropped without an answer.
     RoleChoiceDropped = 0x07,
-    /// Either side: the user canceled while the verification code was showing.
+    /// Either side: the user canceled before the transfer was confirmed.
     CanceledBeforeConfirm = 0x08,
-    /// Either side: the user rejected the verification code.
-    SasRejected = 0x09,
+    /// Sender: the user declined to send.
+    TransferDeclined = 0x09,
     /// Receiver: the encrypted payload could not be read or decrypted.
     PayloadInvalid = 0x0A,
     /// Receiver: the encrypted payload did not arrive in time.
     PayloadTimedOut = 0x0B,
     /// Receiver: the payload decrypted but could not be imported.
     ImportFailed = 0x0C,
-    /// Host: the joiner's public key was invalid (non-contributory).
+    /// Host: the joiner's key exchange message was malformed.
     InvalidPeerKey = 0x0D,
+    /// Either side: the peer did not prove it knows the link code.
+    WrongCode = 0x0E,
     /// Joiner: the app asked for a role other than send or receive.
     InvalidRole = 0x10,
 }
@@ -104,7 +94,6 @@ impl AbortReason {
 /// loopback, link-local, or CGNAT (Tailscale) range.
 pub(crate) fn is_allowed_pairing_host(host: &str) -> bool {
     use std::net::IpAddr;
-    // url::Url::host_str() keeps square brackets around IPv6 literals.
     let host = host
         .strip_prefix('[')
         .and_then(|h| h.strip_suffix(']'))
@@ -130,182 +119,14 @@ pub(crate) fn is_allowed_pairing_host(host: &str) -> bool {
     }
 }
 
-pub fn compute_display_fingerprint(
-    session_id: &Uuid,
-    public_key: &[u8; 32],
-    nonce: &[u8],
-) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(session_id.as_bytes());
-    hasher.update(public_key);
-    hasher.update(nonce);
-    let digest = hasher.finalize();
-    format!(
-        "{:02X}{:02X}-{:02X}{:02X}",
-        digest[0], digest[1], digest[2], digest[3]
-    )
-}
-
+/// A pairing host found on the local network. Nothing here is secret or
+/// trusted: the link code, which is never announced, authenticates the host.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ParsedQrPayload {
+pub struct DiscoveredHost {
     pub host: String,
     pub port: u16,
     pub session_id: Uuid,
-    pub peer_public_key: [u8; 32],
     pub session_nonce: Vec<u8>,
-    pub fingerprint: String,
-    pub version: u32,
-}
-
-impl ParsedQrPayload {
-    pub fn to_uri(&self) -> String {
-        let pk_b64 = URL_SAFE_NO_PAD.encode(self.peer_public_key);
-        let nonce_b64 = URL_SAFE_NO_PAD.encode(&self.session_nonce);
-        format!(
-            "{}://{}:{}?session_id={}&pk={}&nonce={}&fp={}&v={}",
-            PAIRING_SCHEME,
-            format_uri_host(&self.host),
-            self.port,
-            self.session_id,
-            pk_b64,
-            nonce_b64,
-            self.fingerprint,
-            self.version
-        )
-    }
-
-    pub fn parse(raw_uri: &str) -> Result<Self, String> {
-        let trimmed = raw_uri.trim();
-        if trimmed.len() > crate::limits::MAX_PAIRING_URI_CHARS {
-            return Err("Pairing URI is too long".into());
-        }
-        let url = Url::parse(trimmed).map_err(|e| format!("Invalid pairing URI: {e}"))?;
-
-        let scheme = url.scheme();
-        if scheme != PAIRING_SCHEME && scheme != SECONDARY_PAIRING_SCHEME {
-            return Err(format!(
-                "Unsupported scheme '{scheme}'. Expected '{PAIRING_SCHEME}'."
-            ));
-        }
-
-        let host_raw = url
-            .host_str()
-            .ok_or_else(|| "Pairing URI missing host".to_string())?;
-        // url::Url::host_str() keeps square brackets around IPv6 literals.
-        let host = host_raw
-            .strip_prefix('[')
-            .and_then(|h| h.strip_suffix(']'))
-            .unwrap_or(host_raw)
-            .to_string();
-
-        if host.is_empty()
-            || host.contains('/')
-            || host.contains('\\')
-            || host.contains('?')
-            || host.contains('#')
-        {
-            return Err("Invalid host in pairing URI".to_string());
-        }
-
-        if !is_allowed_pairing_host(&host) {
-            return Err(
-                "Pairing host must be a local network address (private, loopback, or link-local IP). Refusing to connect."
-                    .to_string(),
-            );
-        }
-
-        let port = url
-            .port()
-            .ok_or_else(|| "Pairing URI missing port".to_string())?;
-
-        let mut session_id = None;
-        let mut public_key = None;
-        let mut session_nonce = None;
-        let mut fingerprint = None;
-        let mut version = None;
-
-        for (k, v) in url.query_pairs() {
-            match k.as_ref() {
-                "session_id" => {
-                    let uuid =
-                        Uuid::parse_str(&v).map_err(|e| format!("Invalid session_id UUID: {e}"))?;
-                    session_id = Some(uuid);
-                }
-                "pk" => {
-                    let decoded = URL_SAFE_NO_PAD
-                        .decode(v.as_bytes())
-                        .or_else(|_| base64::engine::general_purpose::STANDARD.decode(v.as_bytes()))
-                        .map_err(|e| format!("Invalid base64 in public key: {e}"))?;
-
-                    if decoded.len() != 32 {
-                        return Err(format!(
-                            "Invalid public key length: expected 32 bytes, got {}",
-                            decoded.len()
-                        ));
-                    }
-                    let mut pk = [0u8; 32];
-                    pk.copy_from_slice(&decoded);
-                    public_key = Some(pk);
-                }
-                "nonce" => {
-                    let decoded = URL_SAFE_NO_PAD
-                        .decode(v.as_bytes())
-                        .or_else(|_| base64::engine::general_purpose::STANDARD.decode(v.as_bytes()))
-                        .map_err(|e| format!("Invalid base64 in nonce: {e}"))?;
-
-                    if decoded.len() < 16 || decoded.len() > 64 {
-                        return Err(format!("Invalid nonce length: {} bytes", decoded.len()));
-                    }
-                    session_nonce = Some(decoded);
-                }
-                "fp" => {
-                    if !v.is_empty() {
-                        fingerprint = Some(v.to_string());
-                    }
-                }
-                "v" => {
-                    let parsed: u32 = v
-                        .parse()
-                        .map_err(|_| "Invalid protocol version".to_string())?;
-                    version = Some(parsed);
-                }
-                _ => {}
-            }
-        }
-
-        let session_id = session_id.ok_or_else(|| "Missing session_id in URI".to_string())?;
-        let public_key = public_key.ok_or_else(|| "Missing pk in URI".to_string())?;
-        let session_nonce = session_nonce.ok_or_else(|| "Missing nonce in URI".to_string())?;
-        let version = version.unwrap_or(PROTOCOL_VERSION);
-
-        if version != PROTOCOL_VERSION {
-            return Err(format!("Incompatible pairing protocol version: {version}"));
-        }
-
-        let calculated_fp = compute_display_fingerprint(&session_id, &public_key, &session_nonce);
-        // Never trust a peer-supplied fingerprint for display: recompute locally
-        // and reject mismatches so a crafted QR/deep-link cannot spoof the
-        // verification string shown next to the SAS code.
-        if let Some(provided) = fingerprint {
-            if provided.to_ascii_uppercase() != calculated_fp {
-                return Err(
-                    "Pairing fingerprint mismatch: the code in the QR does not match its key. Refusing to connect."
-                        .to_string(),
-                );
-            }
-        }
-        let fp = calculated_fp;
-
-        Ok(Self {
-            host,
-            port,
-            session_id,
-            peer_public_key: public_key,
-            session_nonce,
-            fingerprint: fp,
-            version,
-        })
-    }
 }
 
 /// Reads a length-prefixed frame: `[4 bytes length][1 byte type][payload]`
@@ -395,53 +216,4 @@ pub async fn write_frame<W: AsyncWrite + Unpin>(
         .map_err(|e| format!("Socket flush error: {e}"))?;
 
     Ok(())
-}
-
-pub fn generate_qr_uri(
-    host: &str,
-    port: u16,
-    public_key: &[u8; 32],
-    session_id: Uuid,
-    nonce: &[u8],
-) -> String {
-    let fp = compute_display_fingerprint(&session_id, public_key, nonce);
-    ParsedQrPayload {
-        host: host.to_string(),
-        port,
-        session_id,
-        peer_public_key: *public_key,
-        session_nonce: nonce.to_vec(),
-        fingerprint: fp,
-        version: PROTOCOL_VERSION,
-    }
-    .to_uri()
-}
-
-pub fn parse_qr_uri(raw_uri: &str) -> Result<ParsedQrPayload, String> {
-    ParsedQrPayload::parse(raw_uri)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn oversized_pairing_uris_are_rejected_before_parsing() {
-        let long = format!(
-            "aiusage-pair://192.168.1.5:4000?x={}",
-            "a".repeat(crate::limits::MAX_PAIRING_URI_CHARS)
-        );
-        let error = ParsedQrPayload::parse(&long).unwrap_err();
-        assert!(error.contains("too long"), "{error}");
-    }
-
-    #[test]
-    fn format_uri_host_brackets_ipv6_literals() {
-        assert_eq!(format_uri_host("::1"), "[::1]");
-        assert_eq!(format_uri_host("[::1]"), "[::1]");
-        assert_eq!(format_uri_host("fd12:3456:789a::1"), "[fd12:3456:789a::1]");
-        assert_eq!(format_uri_host("127.0.0.1"), "127.0.0.1");
-        assert_eq!(format_uri_host("192.168.1.5"), "192.168.1.5");
-        assert_eq!(format_uri_host("localhost"), "localhost");
-    }
 }

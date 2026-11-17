@@ -100,9 +100,6 @@ fn pairing_statuses() -> Vec<PairingStatus> {
         PairingStatus::Idle,
         PairingStatus::HostWaiting {
             session_id: session(),
-            qr_svg: "<svg/>".into(),
-            qr_uri: "aiut-pair://x".into(),
-            fingerprint: "AB:CD".into(),
             join_code: "123456".into(),
             expires_at: 1_790_000_000,
         },
@@ -111,25 +108,17 @@ fn pairing_statuses() -> Vec<PairingStatus> {
         },
         PairingStatus::PeerConnected {
             session_id: session(),
-            fingerprint: "AB:CD".into(),
-            sas_code: "1234".into(),
         },
         PairingStatus::RoleSelection {
             session_id: session(),
-            fingerprint: "AB:CD".into(),
-            sas_code: "1234".into(),
         },
-        PairingStatus::SasVerification {
+        PairingStatus::ConfirmTransfer {
             session_id: session(),
-            sas_code: "1234".into(),
-            fingerprint: "AB:CD".into(),
             role: "sender".into(),
             account_count: None,
         },
-        PairingStatus::SasVerification {
+        PairingStatus::ConfirmTransfer {
             session_id: session(),
-            sas_code: "1234".into(),
-            fingerprint: "AB:CD".into(),
             role: "receiver".into(),
             account_count: Some(3),
         },
@@ -261,9 +250,6 @@ fn samples() -> Value {
         "PairingStatus": to_json(&pairing_statuses()),
         "PairingHostInit": to_json(&[PairingHostInit {
             session_id: "session-1".into(),
-            qr_svg: "<svg/>".into(),
-            qr_uri: "aiut-pair://x".into(),
-            fingerprint: "AB:CD".into(),
             join_code: "123456".into(),
             expires_at: 1_790_000_000,
         }]),

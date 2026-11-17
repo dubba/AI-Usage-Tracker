@@ -1,13 +1,13 @@
-//! mDNS/Bonjour short-code discovery for pairing.
+//! mDNS/Bonjour discovery for link-code pairing.
 //!
-//! The host advertises `_aiut-pair._tcp.local` with the 6-digit join code in
-//! the instance name and the pairing session parameters (session id, public
-//! key, nonce) in TXT records. A joiner types the 6-digit code, browses for
-//! the matching instance, resolves host/port, and reconstructs the same
-//! `ParsedQrPayload` a QR scan would have produced.
+//! The host advertises `_aiut-pair._tcp.local` under a random instance name
+//! with its session id and nonce in TXT records. A joiner browses for those
+//! hosts and tries the code its user typed against them.
 //!
-//! The code is a *discovery handle*, not a secret: security comes from the
-//! ECDH exchange and SAS comparison performed after the TCP connection.
+//! The six-digit link code is never announced: it is the shared secret of the
+//! key exchange that follows the TCP connection (`crypto::PakeExchange`), so
+//! nothing here is trusted or secret. A device that only pretends to be a
+//! pairing host fails that exchange.
 //!
 //! iOS goes through the system's Bonjour service ([`super::dnssd`]) because
 //! it blocks the raw multicast sockets `mdns-sd` uses; every other platform
@@ -15,13 +15,13 @@
 
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 #[cfg(not(target_os = "ios"))]
-use mdns_sd::{Receiver, ServiceDaemon, ServiceEvent, ServiceInfo};
+use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
 use rand::Rng;
-use std::net::IpAddr;
+use std::{net::IpAddr, time::Duration};
 use uuid::Uuid;
 
 use super::protocol::{
-    compute_display_fingerprint, is_allowed_pairing_host, ParsedQrPayload, PROTOCOL_VERSION,
+    is_allowed_pairing_host, DiscoveredHost, LEGACY_PROTOCOL_VERSION, PROTOCOL_VERSION,
 };
 
 #[cfg_attr(target_os = "ios", allow(dead_code))]
@@ -29,26 +29,35 @@ pub const SERVICE_TYPE: &str = "_aiut-pair._tcp.local.";
 /// The service type without its domain, as DNS-SD registers and resolves it.
 #[cfg_attr(not(any(target_os = "ios", test)), allow(dead_code))]
 pub(crate) const DNSSD_REGTYPE: &str = "_aiut-pair._tcp";
-const NOT_FOUND: &str = "No device found with that pairing code. Check the code and that both devices are on the same Wi-Fi network.";
+pub const NOT_FOUND: &str = "No device is showing a link code on this Wi-Fi network. Check that both devices are on the same Wi-Fi and that the other device is showing its code.";
+pub const OLDER_VERSION: &str = "The other device has an older version of AI Usage Tracker that can't pair with this one. Update the app on both devices and try again.";
 const CODE_DIGITS: usize = 6;
+/// How long a joiner looks for a host before giving up.
 #[cfg(not(test))]
-const RESOLVE_TIMEOUT_MS: u64 = 15_000;
+pub(crate) const DISCOVERY_TIMEOUT: Duration = Duration::from_millis(15_000);
 #[cfg(test)]
-const RESOLVE_TIMEOUT_MS: u64 = 25;
-/// Failed join-by-code lookups per code before the joiner is locked out.
-/// The code is a discovery handle, not authentication — SAS still authenticates.
-pub const MAX_JOIN_ATTEMPTS: u8 = 5;
+pub(crate) const DISCOVERY_TIMEOUT: Duration = Duration::from_millis(25);
+/// Once one host is found, how much longer to listen for others on the network.
+const DISCOVERY_SETTLE: Duration = Duration::from_millis(700);
+/// Hosts kept from one browse. A network holds one or two real ones; the cap
+/// bounds what a flood of fake announcements can make the joiner hold.
+const MAX_DISCOVERED_HOSTS: usize = 8;
 
-pub(crate) fn instance_name(code: &str) -> String {
-    format!("AIUT-{code}")
+/// A random instance name for one pairing session. It says nothing about the
+/// link code or the session.
+pub(crate) fn generate_instance_name() -> String {
+    let mut bytes = [0u8; 4];
+    rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut bytes);
+    let hex: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+    format!("AIUT-{hex}")
 }
 
 pub fn is_valid_join_code(code: &str) -> bool {
     code.len() == CODE_DIGITS && code.bytes().all(|b| b.is_ascii_digit())
 }
 
-/// Rejects trivial LAN codes (all identical digits or strictly sequential).
-/// Collision resistance on a local segment is the goal; this is not entropy for auth.
+/// Rejects the codes a guesser would try first (all identical digits or
+/// strictly sequential).
 pub fn is_weak_join_code(code: &str) -> bool {
     if !is_valid_join_code(code) {
         return true;
@@ -62,9 +71,10 @@ pub fn is_weak_join_code(code: &str) -> bool {
     ascending || descending
 }
 
-/// Generates a random 6-digit numeric join code (leading zeros allowed).
+/// Generates a random 6-digit numeric link code (leading zeros allowed) from
+/// the operating system's random source: the code is the pairing secret.
 pub fn generate_join_code() -> String {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rngs::OsRng;
     loop {
         let value = rng.gen_range(0..1_000_000u32);
         let code = format!("{value:06}");
@@ -97,83 +107,71 @@ impl Drop for MdnsAdvertisement {
     }
 }
 
-/// Advertise this pairing host on the LAN under the given join code.
+/// The TXT records of a pairing host: where its session is, never the link
+/// code or any key.
+pub(crate) fn advertised_properties(session_id: Uuid, nonce: &[u8]) -> [(&'static str, String); 3] {
+    [
+        ("sid", session_id.to_string()),
+        ("nonce", URL_SAFE_NO_PAD.encode(nonce)),
+        ("v", PROTOCOL_VERSION.to_string()),
+    ]
+}
+
+/// Advertise this pairing host on the LAN under `instance`.
 pub fn advertise(
-    code: &str,
+    instance: &str,
     host_ip: &str,
     port: u16,
     session_id: Uuid,
-    public_key: &[u8; 32],
     nonce: &[u8],
 ) -> Result<MdnsAdvertisement, String> {
-    if !is_valid_join_code(code) {
-        return Err("Pairing code must be 6 digits".into());
-    }
     if port == 0 {
         return Err("Invalid pairing port".into());
     }
     if nonce.len() < 16 || nonce.len() > 64 {
         return Err("Invalid nonce length".into());
     }
-    // Validate the advertised IP with the same allowlist enforced for QR
-    // pairing so a misconfigured host never advertises a non-local address.
+    // A misconfigured host never advertises a non-local address.
     if !is_allowed_pairing_host(host_ip) {
         return Err("Pairing host must be a local network address".into());
     }
 
-    let properties = [
-        ("sid", session_id.to_string()),
-        ("pk", URL_SAFE_NO_PAD.encode(public_key)),
-        ("nonce", URL_SAFE_NO_PAD.encode(nonce)),
-        ("v", PROTOCOL_VERSION.to_string()),
-    ];
+    let properties = advertised_properties(session_id, nonce);
 
     #[cfg(target_os = "ios")]
     {
         // Announce only on the interface the listener is bound to, so the
         // address the joiner resolves is the one that accepts it.
         let interface_index = super::transport::interface_index_for_ip(host_ip).unwrap_or(0);
-        let registration = super::dnssd::register(
-            &instance_name(code),
-            DNSSD_REGTYPE,
-            port,
-            interface_index,
-            &properties,
-        )?;
+        let registration =
+            super::dnssd::register(instance, DNSSD_REGTYPE, port, interface_index, &properties)?;
         Ok(MdnsAdvertisement {
             _registration: registration,
         })
     }
 
     #[cfg(not(target_os = "ios"))]
-    advertise_mdns_sd(code, host_ip, port, &properties)
+    advertise_mdns_sd(instance, host_ip, port, &properties)
 }
 
 #[cfg(not(target_os = "ios"))]
 fn advertise_mdns_sd(
-    code: &str,
+    instance: &str,
     host_ip: &str,
     port: u16,
     properties: &[(&str, String)],
 ) -> Result<MdnsAdvertisement, String> {
     let daemon = ServiceDaemon::new().map_err(|e| format!("mDNS unavailable: {e}"))?;
-    // Use a random local hostname: embedding the full session id in the
-    // hostname would expose it to passive LAN observers even before TXT
-    // validation.
-    let mut host_rand = [0u8; 4];
-    rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut host_rand);
-    let host_rand_hex: String = host_rand.iter().map(|b| format!("{b:02x}")).collect();
-    let host_name = format!("aiut-{host_rand_hex}.local.");
+    let host_name = format!("{}.local.", instance.to_ascii_lowercase());
     let info = ServiceInfo::new(
         SERVICE_TYPE,
-        &instance_name(code),
+        instance,
         &host_name,
         host_ip,
         port,
         properties,
     )
     .map_err(|e| format!("Invalid mDNS service info: {e}"))?;
-    // Host side doesn't need to announce hostnames separately.
     let fullname = info.get_fullname().to_string();
     daemon
         .register(info)
@@ -182,63 +180,128 @@ fn advertise_mdns_sd(
     Ok(MdnsAdvertisement { daemon, fullname })
 }
 
-/// Look up a pairing host by its 6-digit code and rebuild the QR payload.
-pub async fn resolve(code: &str) -> Result<ParsedQrPayload, String> {
-    if !is_valid_join_code(code) {
-        return Err("Pairing code must be 6 digits".into());
+/// What one browse of the network found.
+#[derive(Debug, Default)]
+pub struct Discovery {
+    pub hosts: Vec<DiscoveredHost>,
+    /// A device announcing the older pairing protocol was seen.
+    pub saw_older_version: bool,
+}
+
+impl Discovery {
+    fn add(&mut self, resolved: Result<DiscoveredHost, ResolveError>) {
+        match resolved {
+            Ok(host) => {
+                let known = self.hosts.iter().any(|h| h.session_id == host.session_id);
+                if !known && self.hosts.len() < MAX_DISCOVERED_HOSTS {
+                    self.hosts.push(host);
+                }
+            }
+            Err(ResolveError::OlderVersion) => self.saw_older_version = true,
+            Err(ResolveError::Invalid) => {}
+        }
     }
 
+    /// The hosts to try, or why there are none.
+    pub fn into_hosts(self) -> Result<Vec<DiscoveredHost>, String> {
+        if !self.hosts.is_empty() {
+            Ok(self.hosts)
+        } else if self.saw_older_version {
+            Err(OLDER_VERSION.into())
+        } else {
+            Err(NOT_FOUND.into())
+        }
+    }
+}
+
+/// Finds the pairing hosts on the local network.
+pub async fn discover() -> Result<Vec<DiscoveredHost>, String> {
     #[cfg(target_os = "ios")]
     {
-        resolve_dnssd(code).await
+        discover_dnssd(DISCOVERY_TIMEOUT).await?.into_hosts()
     }
 
     #[cfg(not(target_os = "ios"))]
-    resolve_mdns_sd(code).await
+    discover_mdns_sd(DISCOVERY_TIMEOUT).await?.into_hosts()
 }
 
 #[cfg(any(target_os = "ios", all(test, target_os = "macos")))]
-pub(crate) async fn resolve_dnssd(code: &str) -> Result<ParsedQrPayload, String> {
-    let instance = instance_name(code);
-    let resolved = tokio::task::spawn_blocking(move || {
-        super::dnssd::resolve(
-            &instance,
+pub(crate) async fn discover_dnssd(timeout: Duration) -> Result<Discovery, String> {
+    tokio::task::spawn_blocking(move || {
+        let deadline = std::time::Instant::now() + timeout;
+        let instances = super::dnssd::browse(
             DNSSD_REGTYPE,
-            std::time::Duration::from_millis(RESOLVE_TIMEOUT_MS),
-        )
+            timeout,
+            DISCOVERY_SETTLE,
+            MAX_DISCOVERED_HOSTS,
+        )?;
+        let mut discovery = Discovery::default();
+        for instance in instances {
+            let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+            if remaining.is_zero() {
+                break;
+            }
+            let Ok(resolved) = super::dnssd::resolve(&instance, DNSSD_REGTYPE, remaining) else {
+                continue;
+            };
+            let host = pick_resolved_host(&resolved.addresses);
+            let property = |key: &str| resolved.properties.get(key).map(String::as_str);
+            discovery.add(parsed_from_resolved(
+                host.as_deref(),
+                resolved.port,
+                property("sid"),
+                property("nonce"),
+                property("v"),
+            ));
+        }
+        Ok(discovery)
     })
     .await
-    .map_err(|_| NOT_FOUND.to_string())??;
-    let host = pick_resolved_host(&resolved.addresses);
-    let property = |key: &str| resolved.properties.get(key).map(String::as_str);
-    parsed_from_resolved(
-        host.as_deref(),
-        resolved.port,
-        property("sid"),
-        property("pk"),
-        property("nonce"),
-        property("v"),
-    )
+    .map_err(|_| NOT_FOUND.to_string())?
 }
 
 #[cfg(not(target_os = "ios"))]
-pub(crate) async fn resolve_mdns_sd(code: &str) -> Result<ParsedQrPayload, String> {
-    let target_fullname = format!("{}.{}", instance_name(code), SERVICE_TYPE);
+pub(crate) async fn discover_mdns_sd(timeout: Duration) -> Result<Discovery, String> {
     let daemon = ServiceDaemon::new().map_err(|e| format!("mDNS unavailable: {e}"))?;
     let receiver = daemon
         .browse(SERVICE_TYPE)
         .map_err(|e| format!("Failed to browse for pairing services: {e}"))?;
 
-    let result = tokio::time::timeout(
-        std::time::Duration::from_millis(RESOLVE_TIMEOUT_MS),
-        wait_for_resolution(&receiver, &target_fullname),
-    )
-    .await;
+    let mut discovery = Discovery::default();
+    let mut deadline = tokio::time::Instant::now() + timeout;
+    let mut settling = false;
+    loop {
+        let event = match tokio::time::timeout_at(deadline, receiver.recv_async()).await {
+            Ok(Ok(event)) => event,
+            Ok(Err(_)) | Err(_) => break,
+        };
+        let ServiceEvent::ServiceResolved(info) = event else {
+            continue;
+        };
+        let mut addresses: Vec<IpAddr> = info
+            .get_addresses_v4()
+            .into_iter()
+            .map(|ip| IpAddr::V4(*ip))
+            .collect();
+        addresses.extend(info.get_addresses().iter().filter(|ip| ip.is_ipv6()));
+        let host = pick_resolved_host(&addresses);
+        discovery.add(parsed_from_resolved(
+            host.as_deref(),
+            info.get_port(),
+            info.get_property_val_str("sid"),
+            info.get_property_val_str("nonce"),
+            info.get_property_val_str("v"),
+        ));
+        if !discovery.hosts.is_empty() && !settling {
+            // Found one: listen a little longer for others, then stop.
+            settling = true;
+            deadline = deadline.min(tokio::time::Instant::now() + DISCOVERY_SETTLE);
+        }
+    }
 
     let _ = daemon.stop_browse(SERVICE_TYPE);
     let _ = daemon.shutdown();
-
-    result.map_err(|_| NOT_FOUND.to_string())?
+    Ok(discovery)
 }
 
 /// Chooses which resolved address of the host to connect to: a private LAN
@@ -273,123 +336,67 @@ fn pick_resolved_host(addresses: &[IpAddr]) -> Option<String> {
         .or_else(|| addresses.first().map(|a| a.to_string()))
 }
 
-#[cfg(not(target_os = "ios"))]
-async fn wait_for_resolution(
-    receiver: &Receiver<ServiceEvent>,
-    target_fullname: &str,
-) -> Result<ParsedQrPayload, String> {
-    loop {
-        let event = receiver
-            .recv_async()
-            .await
-            .map_err(|_| "mDNS browse channel closed".to_string())?;
-        let ServiceEvent::ServiceResolved(info) = event else {
-            continue;
-        };
-        if info.get_fullname() != target_fullname {
-            continue;
-        }
-
-        let port = info.get_port();
-        let mut addresses: Vec<IpAddr> = info
-            .get_addresses_v4()
-            .into_iter()
-            .map(|ip| IpAddr::V4(*ip))
-            .collect();
-        addresses.extend(info.get_addresses().iter().filter(|ip| ip.is_ipv6()));
-        let host = pick_resolved_host(&addresses);
-        let sid = info.get_property_val_str("sid");
-        let pk = info.get_property_val_str("pk");
-        let nonce = info.get_property_val_str("nonce");
-        let version = info.get_property_val_str("v");
-        return parsed_from_resolved(host.as_deref(), port, sid, pk, nonce, version);
-    }
+/// Why an announced service is not a host this build can pair with.
+#[derive(Debug, PartialEq, Eq)]
+pub enum ResolveError {
+    /// It speaks the older protocol: that device needs updating.
+    OlderVersion,
+    /// Its records are missing, malformed, or point outside the local network.
+    Invalid,
 }
 
-/// Rebuilds the QR payload from resolved mDNS fields. Extracted so unit tests
-/// can cover session resolution without a live DNS-SD browse.
+/// Builds a host from resolved mDNS fields. Extracted so unit tests can cover
+/// it without a live DNS-SD browse.
 pub fn parsed_from_resolved(
     host: Option<&str>,
     port: u16,
     sid: Option<&str>,
-    pk_b64: Option<&str>,
     nonce_b64: Option<&str>,
     version: Option<&str>,
-) -> Result<ParsedQrPayload, String> {
+) -> Result<DiscoveredHost, ResolveError> {
+    // Builds before versioning sent no `v`; they are version 1.
+    let version = version.unwrap_or("1");
+    if version.len() > 8 {
+        return Err(ResolveError::Invalid);
+    }
+    match version.parse::<u32>() {
+        Ok(PROTOCOL_VERSION) => {}
+        Ok(LEGACY_PROTOCOL_VERSION) => return Err(ResolveError::OlderVersion),
+        _ => return Err(ResolveError::Invalid),
+    }
+
     if port == 0 {
-        return Err("Resolved pairing service has no port".into());
+        return Err(ResolveError::Invalid);
     }
     let host = host
         .filter(|h| !h.is_empty())
-        .ok_or_else(|| "Resolved pairing service has no IP addresses".to_string())?
-        .to_string();
-    // Apply the same LAN allowlist enforced for QR pairing: a rogue mDNS
-    // responder must not steer the TCP connection at a non-local address.
-    // Strip IPv6 brackets the same way the QR parser does.
-    if !is_allowed_pairing_host(&host) {
-        return Err(
-            "Resolved pairing host is not a local network address. Refusing to connect."
-                .to_string(),
-        );
+        .ok_or(ResolveError::Invalid)?;
+    // A rogue mDNS responder must not steer the TCP connection at a
+    // non-local address.
+    if !is_allowed_pairing_host(host) {
+        return Err(ResolveError::Invalid);
     }
 
-    let sid = sid.ok_or_else(|| "Pairing service is missing its session id".to_string())?;
-    if sid.len() > 64 {
-        return Err("Invalid session id from mDNS".into());
-    }
-    let session_id =
-        Uuid::parse_str(sid).map_err(|e| format!("Invalid session id from mDNS: {e}"))?;
+    let sid = sid
+        .filter(|sid| sid.len() <= 64)
+        .ok_or(ResolveError::Invalid)?;
+    let session_id = Uuid::parse_str(sid).map_err(|_| ResolveError::Invalid)?;
 
-    let pk_b64 = pk_b64.ok_or_else(|| "Pairing service is missing its public key".to_string())?;
-    if pk_b64.len() > 64 {
-        return Err("Invalid public key from mDNS".into());
-    }
-    let pk_bytes = URL_SAFE_NO_PAD
-        .decode(pk_b64.as_bytes())
-        .map_err(|e| format!("Invalid public key from mDNS: {e}"))?;
-    if pk_bytes.len() != 32 {
-        return Err("Invalid public key length from mDNS".into());
-    }
-    let mut peer_public_key = [0u8; 32];
-    peer_public_key.copy_from_slice(&pk_bytes);
-    // Reject low-order peer keys at discovery time (defense in depth; the
-    // transport layer re-checks during DH).
-    if peer_public_key == [0u8; 32] {
-        return Err("Invalid public key from mDNS".into());
-    }
-
-    let nonce_b64 = nonce_b64.ok_or_else(|| "Pairing service is missing its nonce".to_string())?;
-    if nonce_b64.len() > 128 {
-        return Err("Invalid nonce from mDNS".into());
-    }
+    let nonce_b64 = nonce_b64
+        .filter(|nonce| nonce.len() <= 128)
+        .ok_or(ResolveError::Invalid)?;
     let session_nonce = URL_SAFE_NO_PAD
         .decode(nonce_b64.as_bytes())
-        .map_err(|e| format!("Invalid nonce from mDNS: {e}"))?;
+        .map_err(|_| ResolveError::Invalid)?;
     if session_nonce.len() < 16 || session_nonce.len() > 64 {
-        return Err("Invalid nonce length from mDNS".into());
+        return Err(ResolveError::Invalid);
     }
 
-    let version_str = version.unwrap_or("1");
-    if version_str.len() > 8 {
-        return Err("Invalid protocol version from mDNS".into());
-    }
-    let version = version_str
-        .parse::<u32>()
-        .map_err(|_| "Invalid protocol version from mDNS".to_string())?;
-    if version != PROTOCOL_VERSION {
-        return Err(format!("Incompatible pairing protocol version: {version}"));
-    }
-
-    let fingerprint = compute_display_fingerprint(&session_id, &peer_public_key, &session_nonce);
-
-    Ok(ParsedQrPayload {
-        host,
+    Ok(DiscoveredHost {
+        host: host.to_string(),
         port,
         session_id,
-        peer_public_key,
         session_nonce,
-        fingerprint,
-        version,
     })
 }
 
@@ -426,58 +433,105 @@ mod tests {
     #[test]
     fn rejects_invalid_codes() {
         for code in ["", "12345", "1234567", "abcdef", "12345x"] {
-            assert!(advertise(code, "127.0.0.1", 1, Uuid::nil(), &[0u8; 32], &[0u8; 16]).is_err());
+            assert!(!is_valid_join_code(code), "{code}");
         }
     }
 
+    /// The announcement must never carry the link code or a key: the code is
+    /// the pairing secret, and everything announced is public.
     #[test]
-    fn resolve_rejects_invalid_codes() {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-        rt.block_on(async {
-            assert!(resolve("abc").await.is_err());
-        });
+    fn the_announcement_carries_only_the_session_id_nonce_and_version() {
+        let properties = advertised_properties(Uuid::new_v4(), &[9u8; 16]);
+        let keys: Vec<&str> = properties.iter().map(|(key, _)| *key).collect();
+        assert_eq!(keys, ["sid", "nonce", "v"]);
+
+        let code = generate_join_code();
+        for _ in 0..50 {
+            let name = generate_instance_name();
+            assert!(name.starts_with("AIUT-") && name.len() == 13, "{name}");
+            assert!(!name.contains(&code), "{name}");
+            assert!(
+                !name["AIUT-".len()..].bytes().all(|b| b.is_ascii_digit())
+                    || name.len() != "AIUT-".len() + CODE_DIGITS,
+                "an instance name must not look like a link code: {name}"
+            );
+        }
     }
 
-    #[test]
-    fn reconstructs_payload_from_resolved_txt() {
+    fn resolved(version: Option<&str>) -> Result<DiscoveredHost, ResolveError> {
         let session_id = Uuid::new_v4();
-        let pk = [7u8; 32];
-        let nonce = [9u8; 16];
-        let pk_b64 = URL_SAFE_NO_PAD.encode(pk);
-        let nonce_b64 = URL_SAFE_NO_PAD.encode(nonce);
-        let parsed = parsed_from_resolved(
+        let nonce_b64 = URL_SAFE_NO_PAD.encode([9u8; 16]);
+        parsed_from_resolved(
             Some("192.168.1.10"),
             49200,
             Some(&session_id.to_string()),
-            Some(&pk_b64),
             Some(&nonce_b64),
-            Some("1"),
+            version,
         )
-        .unwrap();
-        assert_eq!(parsed.host, "192.168.1.10");
-        assert_eq!(parsed.port, 49200);
-        assert_eq!(parsed.session_id, session_id);
-        assert_eq!(parsed.peer_public_key, pk);
-        assert_eq!(parsed.session_nonce, nonce);
     }
 
     #[test]
-    fn resolved_payload_rejects_incompatible_version() {
+    fn builds_a_host_from_resolved_txt() {
         let session_id = Uuid::new_v4();
-        let pk_b64 = URL_SAFE_NO_PAD.encode([7u8; 32]);
-        let nonce_b64 = URL_SAFE_NO_PAD.encode([9u8; 16]);
-        let err = parsed_from_resolved(
-            Some("127.0.0.1"),
-            1,
+        let nonce = [9u8; 16];
+        let nonce_b64 = URL_SAFE_NO_PAD.encode(nonce);
+        let host = parsed_from_resolved(
+            Some("192.168.1.10"),
+            49200,
             Some(&session_id.to_string()),
-            Some(&pk_b64),
             Some(&nonce_b64),
-            Some("99"),
+            Some("2"),
         )
-        .unwrap_err();
-        assert!(err.contains("Incompatible"));
+        .unwrap();
+        assert_eq!(host.host, "192.168.1.10");
+        assert_eq!(host.port, 49200);
+        assert_eq!(host.session_id, session_id);
+        assert_eq!(host.session_nonce, nonce);
+    }
+
+    #[test]
+    fn an_older_host_is_reported_as_needing_an_update() {
+        assert_eq!(resolved(Some("1")), Err(ResolveError::OlderVersion));
+        assert_eq!(resolved(None), Err(ResolveError::OlderVersion));
+        assert_eq!(resolved(Some("99")), Err(ResolveError::Invalid));
+        assert_eq!(resolved(Some("abc")), Err(ResolveError::Invalid));
+
+        let mut discovery = Discovery::default();
+        discovery.add(resolved(Some("1")));
+        assert_eq!(discovery.into_hosts().unwrap_err(), OLDER_VERSION);
+        assert_eq!(Discovery::default().into_hosts().unwrap_err(), NOT_FOUND);
+    }
+
+    #[test]
+    fn hosts_outside_the_local_network_or_malformed_are_ignored() {
+        let sid = Uuid::new_v4().to_string();
+        let nonce = URL_SAFE_NO_PAD.encode([9u8; 16]);
+        let invalid = |host, port, sid: Option<&str>, nonce: Option<&str>| {
+            assert_eq!(
+                parsed_from_resolved(host, port, sid, nonce, Some("2")),
+                Err(ResolveError::Invalid)
+            );
+        };
+        invalid(Some("8.8.8.8"), 1, Some(&sid), Some(&nonce));
+        invalid(Some("example.com"), 1, Some(&sid), Some(&nonce));
+        invalid(None, 1, Some(&sid), Some(&nonce));
+        invalid(Some("192.168.1.10"), 0, Some(&sid), Some(&nonce));
+        invalid(Some("192.168.1.10"), 1, Some("not-a-uuid"), Some(&nonce));
+        invalid(Some("192.168.1.10"), 1, None, Some(&nonce));
+        invalid(Some("192.168.1.10"), 1, Some(&sid), Some("AAAA"));
+        invalid(Some("192.168.1.10"), 1, Some(&sid), None);
+    }
+
+    #[test]
+    fn a_browse_keeps_each_session_once_and_a_bounded_number() {
+        let mut discovery = Discovery::default();
+        let host = resolved(Some("2")).unwrap();
+        discovery.add(Ok(host.clone()));
+        discovery.add(Ok(host));
+        assert_eq!(discovery.hosts.len(), 1);
+        for _ in 0..20 {
+            discovery.add(resolved(Some("2")));
+        }
+        assert_eq!(discovery.hosts.len(), MAX_DISCOVERED_HOSTS);
     }
 }

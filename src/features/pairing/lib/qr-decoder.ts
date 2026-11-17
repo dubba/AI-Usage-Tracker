@@ -14,7 +14,7 @@ import jsQR from "jsqr";
 const QR_MAX_DIMENSION = 960;
 const QR_MAX_PIXELS = QR_MAX_DIMENSION * QR_MAX_DIMENSION;
 const QR_MAX_PAYLOAD_CHARS = 2048;
-const QR_ALLOWED_PREFIXES = ["aiusage-pair:", "aiusage:", "aiut-airgap:", "aiut-airgap://"];
+const QR_ALLOWED_PREFIXES = ["aiut-airgap:"];
 
 export function sanitizeDecodedQrText(raw: unknown): string | null {
   if (typeof raw !== "string") return null;

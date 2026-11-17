@@ -308,10 +308,7 @@
   "PairingHostInit": [
     {
       "expiresAt": 1790000000,
-      "fingerprint": "AB:CD",
       "joinCode": "123456",
-      "qrSvg": "<svg/>",
-      "qrUri": "aiut-pair://x",
       "sessionId": "session-1"
     }
   ],
@@ -322,10 +319,7 @@
     {
       "data": {
         "expiresAt": 1790000000,
-        "fingerprint": "AB:CD",
         "joinCode": "123456",
-        "qrSvg": "<svg/>",
-        "qrUri": "aiut-pair://x",
         "sessionId": "session-1"
       },
       "status": "hostWaiting"
@@ -338,16 +332,12 @@
     },
     {
       "data": {
-        "fingerprint": "AB:CD",
-        "sasCode": "1234",
         "sessionId": "session-1"
       },
       "status": "peerConnected"
     },
     {
       "data": {
-        "fingerprint": "AB:CD",
-        "sasCode": "1234",
         "sessionId": "session-1"
       },
       "status": "roleSelection"
@@ -355,22 +345,18 @@
     {
       "data": {
         "accountCount": null,
-        "fingerprint": "AB:CD",
         "role": "sender",
-        "sasCode": "1234",
         "sessionId": "session-1"
       },
-      "status": "sasVerification"
+      "status": "confirmTransfer"
     },
     {
       "data": {
         "accountCount": 3,
-        "fingerprint": "AB:CD",
         "role": "receiver",
-        "sasCode": "1234",
         "sessionId": "session-1"
       },
-      "status": "sasVerification"
+      "status": "confirmTransfer"
     },
     {
       "data": {

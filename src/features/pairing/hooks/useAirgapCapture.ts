@@ -3,9 +3,10 @@ import { pairingApi } from "../../../shared/lib/api";
 import { parseAirgapFrame } from "../lib/airgap-frame";
 
 /**
- * The receiving side of an air-gap transfer: frames captured by the camera, the code to compare
- * with the sender, and the progress flags around them. When every frame is in, it asks the
- * backend for the verification code; if that fails it clears the capture and asks to scan again.
+ * The receiving side of an air-gap transfer: frames captured by the camera, how many accounts
+ * they hold, and the progress flags around them. When every frame is in, it asks the backend to
+ * open them and count the accounts; if they cannot be opened it clears the capture and asks to
+ * scan again.
  */
 export function useAirgapCapture({
   active,
@@ -24,7 +25,7 @@ export function useAirgapCapture({
   const [chunks, setChunks] = useState<Map<number, string>>(new Map());
   const [total, setTotal] = useState(0);
   const [verifyPrompt, setVerifyPrompt] = useState(false);
-  const [verifyCode, setVerifyCode] = useState<string | null>(null);
+  const [accountCount, setAccountCount] = useState<number | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [importing, setImporting] = useState(false);
   const [captureSecs, setCaptureSecs] = useState<number | null>(null);
@@ -43,14 +44,14 @@ export function useAirgapCapture({
   const clearCapture = () => {
     setChunks(new Map());
     setTotal(0);
-    setVerifyCode(null);
+    setAccountCount(null);
     verifyStartedRef.current = false;
     sessionIdRef.current = null;
     captureStartRef.current = null;
     setCaptureSecs(null);
   };
 
-  /** Back from the code comparison to scanning the same transfer again. */
+  /** Back from "Add these accounts?" to scanning the same transfer again. */
   const rescan = () => {
     setVerifyPrompt(false);
     verifyPromptRef.current = false;
@@ -58,10 +59,10 @@ export function useAirgapCapture({
     captureStartRef.current = null;
     setCaptureSecs(null);
     setChunks(new Map());
-    setVerifyCode(null);
+    setAccountCount(null);
   };
 
-  /** The comparison is finished (the frames were imported). */
+  /** The prompt is finished (the frames were imported). */
   const closePrompt = () => {
     verifyPromptRef.current = false;
     setVerifyPrompt(false);
@@ -70,7 +71,7 @@ export function useAirgapCapture({
   /**
    * Takes in one scanned frame. A frame of another transfer starts the capture over; a frame
    * already held is ignored. When the last frame arrives the capture time is recorded, the
-   * comparison is asked for, and `onComplete` runs (the caller stops the camera).
+   * preview is asked for, and `onComplete` runs (the caller stops the camera).
    */
   const addFrame = (code: string, onComplete: () => void) => {
     const frame = parseAirgapFrame(code);
@@ -111,20 +112,20 @@ export function useAirgapCapture({
     setImporting(false);
   };
 
-  // When all frames are captured, ask the backend for the code to compare with the sender.
+  // When all frames are captured, ask the backend to open them and count the accounts.
   // Do not put `verifying` in the deps: flipping it to true used to cancel this effect and skip a
   // new run, leaving "Checking captured frames…" on screen forever.
   useEffect(() => {
     if (!active || !verifyPrompt) return;
-    if (verifyCode || verifyStartedRef.current) return;
+    if (accountCount !== null || verifyStartedRef.current) return;
     if (total === 0 || chunks.size < total) return;
     verifyStartedRef.current = true;
     setVerifying(true);
     callbacksRef.current.onVerifyStart();
     void pairingApi
-      .verifyAirgapFrames(Array.from(chunks.values()))
+      .previewAirgapFrames(Array.from(chunks.values()))
       .then((res) => {
-        setVerifyCode(res.verifyCode);
+        setAccountCount(res.accountCount);
       })
       .catch((err) => {
         callbacksRef.current.onVerifyError(err instanceof Error ? err.message : String(err));
@@ -140,7 +141,7 @@ export function useAirgapCapture({
       .finally(() => {
         setVerifying(false);
       });
-  }, [active, verifyPrompt, chunks, total, verifyCode]);
+  }, [active, verifyPrompt, chunks, total, accountCount]);
 
   return {
     chunks,
@@ -149,7 +150,7 @@ export function useAirgapCapture({
     setTotal,
     verifyPrompt,
     setVerifyPrompt,
-    verifyCode,
+    accountCount,
     verifying,
     importing,
     setImporting,

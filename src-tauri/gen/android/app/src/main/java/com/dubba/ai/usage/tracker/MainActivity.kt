@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Looper
+import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.WebView
 import androidx.activity.OnBackPressedCallback
@@ -33,7 +34,7 @@ fun reapplyWindowInsetsFrom(view: WebView) {
 
 /**
  * The app's one activity. It owns the WebView (history, cookies, the back gesture), takes in
- * pairing and update-notice intents, and is the object Rust calls over JNI by method name.
+ * update-notice intents, and is the object Rust calls over JNI by method name.
  * Each of those calls is forwarded to the class that does the work: [PairingNetwork],
  * [SignInTabLauncher], [UpdateNotifications], [AppUpdateInstaller] and [WebViewInsets].
  * A method Rust calls must keep its name and signature here.
@@ -51,13 +52,7 @@ class MainActivity : TauriActivity() {
     }
 
     @Volatile
-    private var pendingUriMemory: String? = null
-
-    @Volatile
     private var pendingUpdateNoticeMemory: String? = null
-
-    @JvmStatic
-    external fun setPendingPairingUri(uri: String)
 
     @JvmStatic
     external fun setPendingUpdateNotice(version: String)
@@ -266,29 +261,8 @@ class MainActivity : TauriActivity() {
     }
   }
 
-  // Intents: pairing links and the update notification's tap.
-
-  private fun isPairingUri(uri: String): Boolean {
-    // Length-bounded allowlist check shared by intake and forwarding. Pairing
-    // URIs carry an ephemeral public key, session id and nonce: validate the
-    // value before storing or forwarding it, and never log its contents
-    // (logcat is readable by other apps on some devices).
-    if (uri.length > 2048) return false
-    return uri.startsWith("aiusage-pair:") || uri.startsWith("aiusage:")
-  }
-
-  private fun handlePairingIntent(intent: Intent?) {
-    val uri = intent?.dataString ?: return
-    if (!isPairingUri(uri)) return
-    android.util.Log.i(TAG, "Received pairing intent (len=${uri.length})")
-    pendingUriMemory = uri
-    try {
-      setPendingPairingUri(uri)
-      android.util.Log.i(TAG, "Forwarded pairing URI to Rust")
-    } catch (e: Throwable) {
-      android.util.Log.w(TAG, "setPendingPairingUri deferred until runtime init: ${e.message}")
-    }
-  }
+  // Intents: the update notification's tap. Links from other apps are not acted on: the only
+  // other filter (aiusage-signin) just brings the app forward.
 
   private fun handleUpdateIntent(intent: Intent?) {
     val version = intent?.getStringExtra("open_update_notes") ?: return
@@ -308,7 +282,6 @@ class MainActivity : TauriActivity() {
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
     setIntent(intent)
-    handlePairingIntent(intent)
     handleUpdateIntent(intent)
   }
 
@@ -361,15 +334,7 @@ class MainActivity : TauriActivity() {
     )
     insets.install()
 
-    handlePairingIntent(intent)
     handleUpdateIntent(intent)
-    pendingUriMemory?.let { uri ->
-      try {
-        setPendingPairingUri(uri)
-      } catch (e: Throwable) {
-        android.util.Log.e(TAG, "Retry setPendingPairingUri failed: ${e.message}")
-      }
-    }
     pendingUpdateNoticeMemory?.let { ver ->
       try {
         setPendingUpdateNotice(ver)
@@ -391,6 +356,20 @@ class MainActivity : TauriActivity() {
   fun openWifiSettings() = pairingNetwork.openWifiSettings()
 
   fun setPairingLanBinding(enabled: Boolean) = pairingNetwork.setLanBinding(enabled)
+
+  /**
+   * Keeps this window out of screenshots, screen recordings and the recent-apps preview while
+   * the air-gap transfer codes are showing (capture_protection.rs).
+   */
+  fun setScreenCaptureBlocked(blocked: Boolean) {
+    runOnUiThread {
+      if (blocked) {
+        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+      } else {
+        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+      }
+    }
+  }
 
   // Sign-in Custom Tab (sign_in_tab.rs). openSignInTab is never called on the UI thread.
   fun openSignInTab(url: String, freshSession: Boolean): Int = signInTabs.open(url, freshSession)

@@ -5,18 +5,16 @@ import type { AirgapExport, PairingStatus } from "../../types";
 
 const api = vi.hoisted(() => ({
   startHost: vi.fn(),
-  startClient: vi.fn(),
   startClientByCode: vi.fn(),
   selectRole: vi.fn(),
-  confirmSas: vi.fn(),
+  confirmTransfer: vi.fn(),
   cancel: vi.fn(),
   status: vi.fn(),
-  getPendingPairingUri: vi.fn(),
   setIncludeSettings: vi.fn(),
   setPendingUiState: vi.fn(),
   clearPendingUiState: vi.fn(),
   prepareAirgapExport: vi.fn(),
-  verifyAirgapFrames: vi.fn(),
+  previewAirgapFrames: vi.fn(),
   importAirgapFrames: vi.fn(),
   ensureCameraPermission: vi.fn(),
   wifiEnabled: vi.fn(),
@@ -98,11 +96,10 @@ const QR = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><path d="M
 const AIRGAP: AirgapExport = {
   frames: [{ svg: QR }, { svg: QR }, { svg: QR }],
   totalChunks: 3,
-  verifyCode: "482 193",
 } as unknown as AirgapExport;
 
-function render(props: { open?: boolean; initialJoinUri?: string | null } = {}) {
-  mounted = mount(<PairingModal open={props.open ?? true} initialJoinUri={props.initialJoinUri} onClose={onClose} onCompleted={onCompleted} />);
+function render(props: { open?: boolean } = {}) {
+  mounted = mount(<PairingModal open={props.open ?? true} onClose={onClose} onCompleted={onCompleted} />);
 }
 
 const text = () => document.body.textContent ?? "";
@@ -123,21 +120,19 @@ async function emit(status: PairingStatus) {
   });
 }
 
-const HOST_INIT = { sessionId: "s1", qrSvg: QR, qrUri: "aiusage-pair:abc", fingerprint: "ff:ee", joinCode: "123456", expiresAt: Math.floor(Date.now() / 1000) + 125 };
-const SAS = (role: "sender" | "receiver", extra: object = {}) =>
-  ({ status: "sasVerification", data: { sessionId: "s1", sasCode: "905 112", fingerprint: "ff", role, accountCount: 3, ...extra } }) as PairingStatus;
+const HOST_INIT = { sessionId: "s1", joinCode: "123456", expiresAt: Math.floor(Date.now() / 1000) + 125 };
+const CONFIRM = (role: "sender" | "receiver", extra: object = {}) =>
+  ({ status: "confirmTransfer", data: { sessionId: "s1", role, accountCount: 3, ...extra } }) as PairingStatus;
 
 beforeEach(() => {
   vi.clearAllMocks();
   events.handler = null;
   scanner.options = null;
   api.status.mockResolvedValue({ status: "idle" });
-  api.getPendingPairingUri.mockResolvedValue(null);
   api.startHost.mockResolvedValue(HOST_INIT);
-  api.startClient.mockResolvedValue(undefined);
   api.startClientByCode.mockResolvedValue(undefined);
   api.selectRole.mockResolvedValue(undefined);
-  api.confirmSas.mockResolvedValue(undefined);
+  api.confirmTransfer.mockResolvedValue(undefined);
   api.cancel.mockResolvedValue(undefined);
   api.setIncludeSettings.mockResolvedValue(undefined);
   api.setPendingUiState.mockResolvedValue(undefined);
@@ -339,7 +334,7 @@ describe("entering a link code", () => {
     await openCodeEntry();
     typeInto(input(), "123456");
     await press("Connect to Device");
-    expect(api.startClientByCode).toHaveBeenCalledWith("123456");
+    expect(api.startClientByCode).toHaveBeenCalledWith("123456", true);
   });
 
   it("connects when Enter is pressed on a full code only", async () => {
@@ -349,7 +344,7 @@ describe("entering a link code", () => {
     expect(api.startClientByCode).not.toHaveBeenCalled();
     typeInto(input(), "123456");
     act(() => input().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
-    expect(api.startClientByCode).toHaveBeenCalledWith("123456");
+    expect(api.startClientByCode).toHaveBeenCalledWith("123456", true);
   });
 
   it("shows a connection error and lets the user retry", async () => {
@@ -441,49 +436,6 @@ describe("entering a link code", () => {
   });
 });
 
-describe("opening from a pairing link", () => {
-  it("connects straight away with the link it was opened with", async () => {
-    render({ initialJoinUri: "aiusage-pair:xyz" });
-    await settle();
-    expect(api.startClient).toHaveBeenCalledWith("aiusage-pair:xyz");
-    expect(title()).toBe("Connecting");
-  });
-
-  it("uses a link the backend already holds", async () => {
-    api.getPendingPairingUri.mockResolvedValue("aiusage:held");
-    render();
-    await settle();
-    expect(api.startClient).toHaveBeenCalledWith("aiusage:held");
-  });
-
-  it("ignores a held value that is not a pairing link", async () => {
-    api.getPendingPairingUri.mockResolvedValue("https://example.com");
-    render();
-    await settle();
-    expect(api.startClient).not.toHaveBeenCalled();
-    expect(title()).toBe("Send or Receive Accounts");
-  });
-
-  it("shows the failure when the link cannot be used", async () => {
-    api.startClient.mockRejectedValue(new Error("expired link"));
-    render({ initialJoinUri: "aiusage-pair:xyz" });
-    await settle();
-    expect(text()).toContain("Pairing Failed");
-    expect(text()).toContain("expired link");
-  });
-
-  it("repeats the link join on Try Again instead of dropping to the mode picker", async () => {
-    api.startClient.mockRejectedValueOnce(new Error("expired link"));
-    render({ initialJoinUri: "aiusage-pair:xyz" });
-    await settle();
-    expect(text()).toContain("Pairing Failed");
-    await press("Try Again");
-    expect(api.startClient).toHaveBeenCalledTimes(2);
-    expect(api.startClient).toHaveBeenLastCalledWith("aiusage-pair:xyz");
-    expect(title()).toBe("Connecting");
-  });
-});
-
 describe("progress reported by the backend", () => {
   it("shows connecting and connected states", async () => {
     render();
@@ -491,7 +443,7 @@ describe("progress reported by the backend", () => {
     await emit({ status: "clientConnecting", data: { sessionId: "s1" } });
     expect(title()).toBe("Connecting");
     expect(text()).toContain("Finding the other device on your Wi-Fi and opening an encrypted link.");
-    await emit({ status: "peerConnected", data: { sessionId: "s1", fingerprint: "ff", sasCode: "1" } });
+    await emit({ status: "peerConnected", data: { sessionId: "s1" } });
     expect(title()).toBe("Connected");
     expect(document.querySelector('[aria-label="Step 2 of 3"]')).not.toBeNull();
   });
@@ -500,16 +452,16 @@ describe("progress reported by the backend", () => {
     render();
     await press("Send Accounts from This Device");
     await press("Show Link Code");
-    await emit({ status: "roleSelection", data: { sessionId: "s1", fingerprint: "ff", sasCode: "1" } });
+    await emit({ status: "roleSelection", data: { sessionId: "s1" } });
     await settle();
     expect(api.selectRole).toHaveBeenCalledWith("send");
     expect(text()).toContain("Sending from this device…");
   });
 
-  it("asks which role to take when the devices connected through a link", async () => {
-    render({ initialJoinUri: "aiusage-pair:xyz" });
+  it("asks which role to take if the devices connect with none chosen", async () => {
+    render();
     await settle();
-    await emit({ status: "roleSelection", data: { sessionId: "s1", fingerprint: "ff", sasCode: "1" } });
+    await emit({ status: "roleSelection", data: { sessionId: "s1" } });
     expect(title()).toBe("Send or Receive Accounts");
     expect(text()).toContain("Devices are connected. Choose what this device should do:");
     await press("Receive Accounts on This Device");
@@ -542,98 +494,121 @@ describe("progress reported by the backend", () => {
   });
 });
 
-describe("confirming the code", () => {
-  it("shows the code and what will be transferred", async () => {
+describe("confirming the transfer", () => {
+  it("asks the sender once, with what will be sent and no code to compare", async () => {
     render();
     await settle();
-    await emit(SAS("receiver"));
-    expect(title()).toBe("Confirm the connection");
+    await emit(CONFIRM("sender"));
+    expect(title()).toBe("Confirm the transfer");
     expect(document.querySelector('[aria-label="Step 3 of 3"]')).not.toBeNull();
-    expect(document.querySelector('[aria-label="Verification code 905 112"]')).not.toBeNull();
-    expect(text()).toContain("Compare all three groups. Confirm only when every group matches.");
-    expect(text()).toContain("receive 3 account(s)");
+    expect(text()).toContain("Send to the other device?");
+    expect(text()).toContain("send 3 accounts");
+    expect(text()).not.toContain("Codes Match");
+    expect(document.querySelector(".pairing-sas-badge")).toBeNull();
   });
 
-  it("describes a sender as sending", async () => {
+  it("gives the receiver nothing to confirm, only a way to cancel", async () => {
     render();
     await settle();
-    await emit(SAS("sender"));
-    expect(text()).toContain("send 3 account(s)");
+    await emit(CONFIRM("receiver"));
+    expect(title()).toBe("Devices connected");
+    expect(text()).toContain("Waiting for the other device");
+    expect(text()).toContain("receive 3 accounts");
+    expect(buttons().some((b) => b.textContent?.trim() === "Send")).toBe(false);
+    await press("Cancel");
+    expect(api.confirmTransfer).not.toHaveBeenCalled();
+    expect(cancelPairing).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("says one account in the singular", async () => {
+    render();
+    await settle();
+    await emit(CONFIRM("sender", { accountCount: 1 }));
+    expect(text()).toContain("send 1 account");
+    expect(text()).not.toContain("1 accounts");
   });
 
   it("reads the same details from a snake_case payload", async () => {
     render();
     await settle();
     await emit({
-      status: "sasVerification",
-      data: { sas_code: "777 888", session_id: "s9", role: "receiver", account_count: 5 },
+      status: "confirmTransfer",
+      data: { session_id: "s9", role: "sender", account_count: 5 },
     } as unknown as PairingStatus);
-    expect(document.querySelector('[aria-label="Verification code 777 888"]')).not.toBeNull();
-    expect(text()).toContain("receive 5 account(s)");
-    await press("Yes, Codes Match");
-    expect(api.confirmSas).toHaveBeenCalledWith("s9", true);
+    expect(text()).toContain("send 5 accounts");
+    await press("Send");
+    expect(api.confirmTransfer).toHaveBeenCalledWith("s9", true);
   });
 
-  it("confirms without sending settings from a receiver", async () => {
+  it("sends the settings and layout by default when the sender confirms", async () => {
     render();
     await settle();
-    await emit(SAS("receiver"));
-    await press("Yes, Codes Match");
-    expect(api.setIncludeSettings).toHaveBeenCalledWith(false);
-    expect(api.clearPendingUiState).toHaveBeenCalled();
-    expect(api.confirmSas).toHaveBeenCalledWith("s1", true);
-    expect(text()).toContain("Confirmed on this device. Waiting for the other device to confirm…");
-  });
-
-  it("sends the settings and layout by default when a sender confirms", async () => {
-    render();
-    await settle();
-    await emit(SAS("sender"));
-    await press("Yes, Codes Match");
+    await emit(CONFIRM("sender"));
+    await press("Send");
     expect(api.setIncludeSettings).toHaveBeenCalledWith(true);
     expect(api.setPendingUiState).toHaveBeenCalledWith({ marker: true });
-    expect(api.confirmSas).toHaveBeenCalledWith("s1", true);
+    expect(api.confirmTransfer).toHaveBeenCalledWith("s1", true);
+    expect(text()).toContain("Sending…");
   });
 
-  it("excludes settings and layout when a sender unchecks the option", async () => {
+  it("excludes settings and layout when the sender unchecks the option", async () => {
     render();
     const toggle = document.querySelector<HTMLInputElement>(".pairing-settings-toggle input")!;
     click(toggle);
     await settle();
-    await emit(SAS("sender"));
-    await press("Yes, Codes Match");
+    await emit(CONFIRM("sender"));
+    await press("Send");
     expect(api.setIncludeSettings).toHaveBeenCalledWith(false);
     expect(api.clearPendingUiState).toHaveBeenCalled();
-    expect(api.confirmSas).toHaveBeenCalledWith("s1", true);
+    expect(api.confirmTransfer).toHaveBeenCalledWith("s1", true);
   });
 
-  it("still confirms when the settings could not be prepared", async () => {
+  it("still sends when the settings could not be prepared", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     api.setIncludeSettings.mockRejectedValue(new Error("nope"));
     render();
     await settle();
-    await emit(SAS("receiver"));
-    await press("Yes, Codes Match");
-    expect(api.confirmSas).toHaveBeenCalledWith("s1", true);
+    await emit(CONFIRM("sender"));
+    await press("Send");
+    expect(api.confirmTransfer).toHaveBeenCalledWith("s1", true);
   });
 
-  it("declines when the codes do not match", async () => {
+  it("declines from the sender's Cancel", async () => {
     render();
     await settle();
-    await emit(SAS("receiver"));
+    await emit(CONFIRM("sender"));
     await press("Cancel");
-    expect(api.confirmSas).toHaveBeenCalledWith("s1", false);
+    expect(api.confirmTransfer).toHaveBeenCalledWith("s1", false);
     expect(api.setIncludeSettings).not.toHaveBeenCalled();
   });
 
-  it("shows an error and re-enables the buttons if confirming fails", async () => {
-    api.confirmSas.mockRejectedValue(new Error("link dropped"));
+  it("shows an error and re-enables Send if confirming fails", async () => {
+    api.confirmTransfer.mockRejectedValue(new Error("link dropped"));
     render();
     await settle();
-    await emit(SAS("receiver"));
-    await press("Yes, Codes Match");
+    await emit(CONFIRM("sender"));
+    await press("Send");
     expect(text()).toContain("link dropped");
-    expect(button("Yes, Codes Match").disabled).toBe(false);
+    expect(button("Send").disabled).toBe(false);
+  });
+});
+
+describe("accepting the other device's settings", () => {
+  it("tells the backend this device's choice when it shows a link code", async () => {
+    render();
+    await press("Receive Accounts on This Device");
+    await press("Show Link Code");
+    expect(api.startHost).toHaveBeenLastCalledWith(true);
+  });
+
+  it("passes an unticked choice when it shows or enters a code", async () => {
+    render();
+    click(document.querySelector<HTMLInputElement>(".pairing-settings-toggle input")!);
+    await settle();
+    await press("Receive Accounts on This Device");
+    await press("Show Link Code");
+    expect(api.startHost).toHaveBeenLastCalledWith(false);
   });
 });
 
@@ -810,13 +785,14 @@ describe("air-gap transfer: sending", () => {
     expect(text()).toMatch(/Frame [23]\/3/);
   });
 
-  it("shows the verification code to compare, and goes back", async () => {
+  it("has no code to compare: Done closes the dialog and ends the transfer", async () => {
     await openSender();
-    await press("After all frames are scanned, click here to continue.");
-    expect(title()).toBe("Confirm the connection");
-    expect(document.querySelector('[aria-label="Verification code 482 193"]')).not.toBeNull();
-    await press("Back");
-    expect(title()).toBe("Show QR Code");
+    expect(text()).not.toContain("click here to continue");
+    expect(document.querySelector(".pairing-sas-badge")).toBeNull();
+    expect(text()).toContain("it asks there to add the accounts");
+    await press("Done");
+    expect(cancelPairing).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it("shows why the export failed, with a retry instead of an endless spinner", async () => {
@@ -971,9 +947,9 @@ describe("scanning", () => {
   });
 
   it("marks failures as alerts and moves focus to Try Again", async () => {
-    api.startClient.mockRejectedValue(new Error("expired link"));
-    render({ initialJoinUri: "aiusage-pair:xyz" });
+    render();
     await settle();
+    await emit({ status: "failed", data: { error: "The other device left." } });
     expect(document.querySelector(".pairing-error-card")?.getAttribute("role")).toBe("alert");
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 80));
@@ -1056,36 +1032,40 @@ describe("air-gap transfer: receiving", () => {
     await settle();
   }
 
-  it("verifies the captured frames and shows the code to compare", async () => {
-    api.verifyAirgapFrames.mockResolvedValue({ verifyCode: "311 207" });
+  it("opens the captured frames and asks to add the accounts, with no code to compare", async () => {
+    api.previewAirgapFrames.mockResolvedValue({ sessionId: "sess-1", totalChunks: 2, accountCount: 3 });
     await captureAll();
-    expect(api.verifyAirgapFrames).toHaveBeenCalledWith([FRAME_1, FRAME_2]);
-    expect(title()).toBe("Confirm the connection");
+    expect(api.previewAirgapFrames).toHaveBeenCalledWith([FRAME_1, FRAME_2]);
+    expect(title()).toBe("Add the accounts");
     expect(text()).toContain("Captured all 2 frames in 7 seconds");
-    expect(document.querySelector('[aria-label="Verification code 311 207"]')).not.toBeNull();
+    expect(text()).toContain("Add 3 accounts from the other device?");
+    expect(document.querySelector(".pairing-sas-badge")).toBeNull();
+    // Nothing is imported until the user agrees.
+    expect(api.importAirgapFrames).not.toHaveBeenCalled();
   });
 
-  it("imports the frames once the codes are confirmed", async () => {
-    api.verifyAirgapFrames.mockResolvedValue({ verifyCode: "311 207" });
+  it("imports the frames once the user agrees to add them", async () => {
+    api.previewAirgapFrames.mockResolvedValue({ sessionId: "sess-1", totalChunks: 2, accountCount: 3 });
     api.importAirgapFrames.mockResolvedValue({ added: 1, updated: 0, skipped: 0 });
     await captureAll();
-    await press("Yes, They Match");
-    expect(api.importAirgapFrames).toHaveBeenCalledWith([FRAME_1, FRAME_2]);
+    await press("Add Accounts");
+    // The receiving device's own "Also Transfer Settings & Layout" choice goes with the import.
+    expect(api.importAirgapFrames).toHaveBeenCalledWith([FRAME_1, FRAME_2], true);
     expect(title()).toBe("Devices linked");
     expect(onCompleted).toHaveBeenCalledTimes(1);
   });
 
   it("shows an import error and stays on the comparison", async () => {
-    api.verifyAirgapFrames.mockResolvedValue({ verifyCode: "311 207" });
+    api.previewAirgapFrames.mockResolvedValue({ sessionId: "sess-1", totalChunks: 2, accountCount: 3 });
     api.importAirgapFrames.mockRejectedValue(new Error("wrong key"));
     await captureAll();
-    await press("Yes, They Match");
+    await press("Add Accounts");
     expect(text()).toContain("wrong key");
     expect(onCompleted).not.toHaveBeenCalled();
   });
 
   it("restarts the scan when the frames fail verification", async () => {
-    api.verifyAirgapFrames.mockRejectedValue(new Error("frames damaged"));
+    api.previewAirgapFrames.mockRejectedValue(new Error("frames damaged"));
     render();
     await press("Receive Accounts on This Device");
     await press("Scan QR Code");
@@ -1097,8 +1077,8 @@ describe("air-gap transfer: receiving", () => {
     expect(document.querySelector(".airgap-pin-prompt-card")).toBeNull();
   });
 
-  it("returns to scanning from Back on the comparison", async () => {
-    api.verifyAirgapFrames.mockResolvedValue({ verifyCode: "311 207" });
+  it("returns to scanning from Back on the prompt", async () => {
+    api.previewAirgapFrames.mockResolvedValue({ sessionId: "sess-1", totalChunks: 2, accountCount: 3 });
     await captureAll();
     const before = scanner.options!.restartKey;
     await press("Back");

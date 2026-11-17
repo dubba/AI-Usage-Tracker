@@ -16,10 +16,9 @@ export function AirgapSenderView({
   speed,
   onTogglePlaying,
   onToggleSpeed,
-  onContinue,
+  onDone,
   onRetry,
   onBack,
-  onCancel,
 }: {
   exportData: AirgapExport | null;
   busy: boolean;
@@ -30,12 +29,11 @@ export function AirgapSenderView({
   speed: AirgapSpeed;
   onTogglePlaying: () => void;
   onToggleSpeed: () => void;
-  /** All frames were scanned; move on to comparing codes. */
-  onContinue: () => void;
+  /** The other device has the accounts; close the dialog. */
+  onDone: () => void;
   /** Preparing failed; run the export again. */
   onRetry: () => void;
   onBack: () => void;
-  onCancel: () => void;
 }) {
   // Heading + Try Again stay after the detail banner auto-dismisses.
   const failed = !busy && !exportData;
@@ -98,18 +96,16 @@ export function AirgapSenderView({
 
           <div className="airgap-verify-block">
             <p className="pairing-instruction">{RECORDING_WARNING}</p>
-            <p className="airgap-pin-hint">
-              <button type="button" className="pairing-offline-link" onClick={onContinue}>
-                After all frames are scanned, click here to continue.
-              </button>
+            <p className="pairing-instruction">
+              When the other device has scanned every frame, it asks there to add the accounts.
             </p>
             <div className="pairing-nav-row">
-              <button type="button" className="button primary pairing-back-btn" onClick={onBack}>
+              <button type="button" className="button ghost pairing-back-btn" onClick={onBack}>
                 <ChevronIcon style={{ transform: "rotate(180deg)" }} />
                 <span>Back</span>
               </button>
-              <button type="button" className="button ghost" onClick={onCancel}>
-                Cancel
+              <button type="button" className="button primary" onClick={onDone}>
+                Done
               </button>
             </div>
           </div>

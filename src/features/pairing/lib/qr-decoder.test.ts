@@ -10,19 +10,21 @@ const frame = (width: number, height: number) =>
   ({ width, height, data: new Uint8ClampedArray(Math.max(0, Math.min(width * height * 4, 16))) }) as unknown as ImageData;
 
 describe("sanitizeDecodedQrText", () => {
-  it.each(["aiusage-pair:abc", "aiusage:abc", "aiut-airgap:1/3/payload", "aiut-airgap://payload"])("accepts %s", (text) => {
+  it.each(["aiut-airgap:1/3/payload", "aiut-airgap://payload"])("accepts %s", (text) => {
     expect(sanitizeDecodedQrText(text)).toBe(text);
   });
 
   it("trims surrounding whitespace", () => {
-    expect(sanitizeDecodedQrText("  aiusage:abc\n")).toBe("aiusage:abc");
+    expect(sanitizeDecodedQrText("  aiut-airgap:abc\n")).toBe("aiut-airgap:abc");
   });
 
   it.each([
     ["https://example.com", "another scheme"],
     ["javascript:alert(1)", "script scheme"],
     ["file:///etc/passwd", "file scheme"],
-    ["xaiusage:abc", "prefix not at the start"],
+    ["xaiut-airgap:abc", "prefix not at the start"],
+    ["aiusage-pair:abc", "a pairing link (no longer used)"],
+    ["aiusage" + ":abc", "the short pairing link (no longer used)"],
     ["AIUSAGE:abc", "different case"],
     ["", "empty text"],
     ["   ", "only whitespace"],
@@ -31,18 +33,18 @@ describe("sanitizeDecodedQrText", () => {
   });
 
   it("rejects control characters inside the text", () => {
-    expect(sanitizeDecodedQrText("aiusage:ab\u0000c")).toBeNull();
-    expect(sanitizeDecodedQrText("aiusage:ab\ncd")).toBeNull();
-    expect(sanitizeDecodedQrText("aiusage:ab\u007Fcd")).toBeNull();
+    expect(sanitizeDecodedQrText("aiut-airgap:ab\u0000c")).toBeNull();
+    expect(sanitizeDecodedQrText("aiut-airgap:ab\ncd")).toBeNull();
+    expect(sanitizeDecodedQrText("aiut-airgap:ab\u007Fcd")).toBeNull();
   });
 
   it("rejects payloads over the length cap but accepts one right at it", () => {
-    const prefix = "aiusage:";
+    const prefix = "aiut-airgap:";
     expect(sanitizeDecodedQrText(prefix + "a".repeat(2048 - prefix.length))).not.toBeNull();
     expect(sanitizeDecodedQrText(prefix + "a".repeat(2049 - prefix.length))).toBeNull();
   });
 
-  it.each([null, undefined, 42, {}, ["aiusage:x"]])("rejects the non-string %j", (value) => {
+  it.each([null, undefined, 42, {}, ["aiut-airgap:x"]])("rejects the non-string %j", (value) => {
     expect(sanitizeDecodedQrText(value)).toBeNull();
   });
 });
@@ -56,8 +58,8 @@ describe("decodeQrSandboxed", () => {
   });
 
   it("returns the text jsQR finds when it is an allowed payload", () => {
-    jsqr.mockReturnValue({ data: "aiusage-pair:token" });
-    expect(decodeQrSandboxed(frame(640, 480))).toBe("aiusage-pair:token");
+    jsqr.mockReturnValue({ data: "aiut-airgap:token" });
+    expect(decodeQrSandboxed(frame(640, 480))).toBe("aiut-airgap:token");
     expect(jsqr).toHaveBeenCalledWith(expect.anything(), 640, 480, { inversionAttempts: "attemptBoth" });
   });
 
@@ -116,8 +118,8 @@ describe("decodeQrSandboxed", () => {
 
     it("shrinks a frame above the pixel budget before decoding", () => {
       fakeCanvases();
-      jsqr.mockReturnValue({ data: "aiusage:x" });
-      expect(decodeQrSandboxed(frame(1920, 1080))).toBe("aiusage:x");
+      jsqr.mockReturnValue({ data: "aiut-airgap:x" });
+      expect(decodeQrSandboxed(frame(1920, 1080))).toBe("aiut-airgap:x");
       const [, width, height] = jsqr.mock.calls[0];
       expect(width * height).toBeLessThanOrEqual(960 * 960);
       expect(width / height).toBeCloseTo(1920 / 1080, 1);

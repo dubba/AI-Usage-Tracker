@@ -51,7 +51,7 @@ export function AppModals({
   /** Removes `account`, calling `onStarted` once the removal is accepted. */
   onRemoveAccount: (account: Account, onStarted: () => void) => void;
   unprotectedSignIns: ReturnType<typeof useUnprotectedSignIns>;
-  pairing: { open: boolean; initialUri: string | null; onClose: () => void; onCompleted: () => void };
+  pairing: { open: boolean; onClose: () => void; onCompleted: () => void };
   update: AppUpdateState;
   onCloseUpdateNotes: () => void;
 }) {
@@ -105,7 +105,6 @@ export function AppModals({
       />
       <PairingModal
         open={pairing.open}
-        initialJoinUri={pairing.initialUri}
         onClose={pairing.onClose}
         onCompleted={pairing.onCompleted}
       />

@@ -14,7 +14,7 @@ export function HostCodeView({
 }) {
   const host = hostWaitingFields(status);
   const joinCode = host?.joinCode ?? "";
-  if (!host?.qrSvg && !joinCode) {
+  if (!joinCode) {
     return (
       <div className="pairing-panel-status">
         <span className="spinner" />

@@ -4,13 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const api = vi.hoisted(() => ({
   startHost: vi.fn(),
-  startClient: vi.fn(),
   startClientByCode: vi.fn(),
   selectRole: vi.fn(),
   setIncludeSettings: vi.fn(),
   setPendingUiState: vi.fn(),
   clearPendingUiState: vi.fn(),
-  confirmSas: vi.fn(),
+  confirmTransfer: vi.fn(),
 }));
 vi.mock("../../../shared/lib/api", () => ({ pairingApi: api }));
 vi.mock("../../layout/ui-state", () => ({ collectUiState: () => ({ layout: "saved" }) }));
@@ -22,7 +21,6 @@ import { usePairingSession, type PairingActionContext } from "./usePairingSessio
 type Session = ReturnType<typeof usePairingSession>;
 let session: Session;
 let request: ReturnType<typeof useLatestRequest>;
-let joinUriRef: { current: string | null };
 let roleAutoSelectedRef: { current: boolean };
 
 const spies = {
@@ -30,20 +28,17 @@ const spies = {
   setStatus: vi.fn(),
   setErrorMessage: vi.fn(),
   showError: vi.fn(),
-  dispatchFlow: vi.fn(),
-  setConfirmedSas: vi.fn(),
+  setConfirmed: vi.fn(),
 };
 
-function capture(value: Session, latestRequest: ReturnType<typeof useLatestRequest>, join: typeof joinUriRef, auto: typeof roleAutoSelectedRef) {
+function capture(value: Session, latestRequest: ReturnType<typeof useLatestRequest>, auto: typeof roleAutoSelectedRef) {
   session = value;
   request = latestRequest;
-  joinUriRef = join;
   roleAutoSelectedRef = auto;
 }
 
 function Harness({ busy = false, includeSettings = false }: { busy?: boolean; includeSettings?: boolean }) {
   const latestRequest = useLatestRequest();
-  const join = useRef<string | null>(null);
   const auto = useRef(true);
   const context: PairingActionContext = {
     request: latestRequest,
@@ -56,14 +51,11 @@ function Harness({ busy = false, includeSettings = false }: { busy?: boolean; in
   capture(
     usePairingSession({
       context,
-      dispatchFlow: spies.dispatchFlow,
-      joinUriRef: join,
       roleAutoSelectedRef: auto,
       includeSettings,
-      setConfirmedSas: spies.setConfirmedSas,
+      setConfirmed: spies.setConfirmed,
     }),
     latestRequest,
-    join,
     auto,
   );
   return null;
@@ -85,7 +77,7 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-const hostInit = { sessionId: "s1", qrSvg: "<svg/>", qrUri: "aiut://pair", fingerprint: "ab:cd", joinCode: "123456", expiresAt: "2026-11-16T12:05:00Z" };
+const hostInit = { sessionId: "s1", joinCode: "123456", expiresAt: 1_790_000_000 };
 
 beforeEach(() => {
   for (const spy of [...Object.values(api), ...Object.values(spies)]) spy.mockReset();
@@ -105,6 +97,16 @@ describe("usePairingSession: showing a link code", () => {
     expect(spies.setErrorMessage).toHaveBeenCalledWith(null);
     expect(spies.setStatus).toHaveBeenCalledWith({ status: "hostWaiting", data: hostInit });
     expect(spies.setBusy.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it("tells the backend whether this device accepts the other one's settings", async () => {
+    api.startHost.mockResolvedValue(hostInit);
+    render({ includeSettings: true });
+    await act(() => session.initHostSession());
+    expect(api.startHost).toHaveBeenLastCalledWith(true);
+    mounted?.rerender(<Harness includeSettings={false} />);
+    await act(() => session.initHostSession());
+    expect(api.startHost).toHaveBeenLastCalledWith(false);
   });
 
   it("shows why the session could not start", async () => {
@@ -148,43 +150,18 @@ describe("usePairingSession: showing a link code", () => {
   });
 });
 
-describe("usePairingSession: joining from a link", () => {
-  it("remembers the link, switches to the Wi-Fi flow and shows connecting", async () => {
-    render();
-    await act(() => session.startFromUri("aiut://pair?x=1"));
-    expect(joinUriRef.current).toBe("aiut://pair?x=1");
-    expect(spies.dispatchFlow).toHaveBeenCalledWith({ type: "set-flow", flow: "wifi" });
-    expect(spies.setStatus).toHaveBeenCalledWith({ status: "clientConnecting", data: { sessionId: "" } });
-    expect(api.startClient).toHaveBeenCalledWith("aiut://pair?x=1");
-    // Still busy: the backend's status events take over from here.
-    expect(spies.setBusy.mock.calls).toEqual([[true]]);
-  });
-
-  it("turns a refused link into the failed status with a readable message", async () => {
-    api.startClient.mockRejectedValue(new Error("host unreachable"));
-    render();
-    await act(() => session.startFromUri("aiut://pair"));
-    const failed = spies.setStatus.mock.calls.at(-1)?.[0];
-    expect(failed.status).toBe("failed");
-    expect(failed.data.error).toContain("Couldn't connect with the link");
-    expect(spies.setErrorMessage).toHaveBeenCalledWith(failed.data.error);
-    expect(spies.setBusy).toHaveBeenLastCalledWith(false);
-  });
-
-  it("keeps the same callback between renders", () => {
-    render();
-    const first = session.startFromUri;
-    mounted?.rerender(<Harness busy />);
-    expect(session.startFromUri).toBe(first);
-  });
-});
-
 describe("usePairingSession: joining with a typed code", () => {
   it("sends only the digits", async () => {
     render();
     await act(() => session.handleConnectByCode("12 34-56"));
-    expect(api.startClientByCode).toHaveBeenCalledWith("123456");
+    expect(api.startClientByCode).toHaveBeenCalledWith("123456", false);
     expect(spies.setBusy.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it("tells the backend whether this device accepts the other one's settings", async () => {
+    render({ includeSettings: true });
+    await act(() => session.handleConnectByCode("123456"));
+    expect(api.startClientByCode).toHaveBeenCalledWith("123456", true);
   });
 
   it("ignores a code that is too short, and any code while busy", async () => {
@@ -226,55 +203,50 @@ describe("usePairingSession: choosing send or receive", () => {
   });
 });
 
-describe("usePairingSession: confirming the codes", () => {
-  it("as the sender with settings on, sends the layout before confirming", async () => {
+describe("usePairingSession: confirming the transfer", () => {
+  it("with settings on, sends the layout before confirming", async () => {
     render({ includeSettings: true });
-    await act(() => session.handleConfirmSas("s1", true, "sender"));
-    expect(spies.setConfirmedSas).toHaveBeenCalledWith(true);
+    await act(() => session.handleConfirmTransfer("s1", true));
+    expect(spies.setConfirmed).toHaveBeenCalledWith(true);
     expect(api.setIncludeSettings).toHaveBeenCalledWith(true);
     expect(api.setPendingUiState).toHaveBeenCalledWith({ layout: "saved" });
     expect(api.clearPendingUiState).not.toHaveBeenCalled();
-    expect(api.confirmSas).toHaveBeenCalledWith("s1", true);
-    expect(api.setPendingUiState.mock.invocationCallOrder[0]).toBeLessThan(api.confirmSas.mock.invocationCallOrder[0]);
+    expect(api.confirmTransfer).toHaveBeenCalledWith("s1", true);
+    expect(api.setPendingUiState.mock.invocationCallOrder[0]).toBeLessThan(api.confirmTransfer.mock.invocationCallOrder[0]);
     expect(spies.setBusy.mock.calls).toEqual([[true], [false]]);
   });
 
-  it("as the receiver, or with settings off, clears any layout waiting to be sent", async () => {
-    render({ includeSettings: true });
-    await act(() => session.handleConfirmSas("s1", true, "receiver"));
+  it("with settings off, clears any layout waiting to be sent", async () => {
+    render({ includeSettings: false });
+    await act(() => session.handleConfirmTransfer("s1", true));
     expect(api.setIncludeSettings).toHaveBeenCalledWith(false);
     expect(api.clearPendingUiState).toHaveBeenCalledTimes(1);
-    expect(api.setPendingUiState).not.toHaveBeenCalled();
-
-    mounted?.rerender(<Harness includeSettings={false} />);
-    await act(() => session.handleConfirmSas("s1", true, "sender"));
-    expect(api.setIncludeSettings).toHaveBeenLastCalledWith(false);
     expect(api.setPendingUiState).not.toHaveBeenCalled();
   });
 
   it("still confirms when the settings step fails", async () => {
     api.setIncludeSettings.mockRejectedValue(new Error("settings store busy"));
     render({ includeSettings: true });
-    await act(() => session.handleConfirmSas("s1", true, "sender"));
-    expect(api.confirmSas).toHaveBeenCalledWith("s1", true);
+    await act(() => session.handleConfirmTransfer("s1", true));
+    expect(api.confirmTransfer).toHaveBeenCalledWith("s1", true);
     expect(spies.showError).not.toHaveBeenCalled();
   });
 
-  it("rejecting the codes skips the settings step", async () => {
+  it("declining skips the settings step", async () => {
     render({ includeSettings: true });
-    await act(() => session.handleConfirmSas("s1", false, "sender"));
-    expect(spies.setConfirmedSas).not.toHaveBeenCalled();
+    await act(() => session.handleConfirmTransfer("s1", false));
+    expect(spies.setConfirmed).not.toHaveBeenCalled();
     expect(api.setIncludeSettings).not.toHaveBeenCalled();
-    expect(api.confirmSas).toHaveBeenCalledWith("s1", false);
+    expect(api.confirmTransfer).toHaveBeenCalledWith("s1", false);
   });
 
   it("takes the confirmation back when the backend refuses it", async () => {
     const cause = new Error("session expired");
-    api.confirmSas.mockRejectedValue(cause);
+    api.confirmTransfer.mockRejectedValue(cause);
     render();
-    await act(() => session.handleConfirmSas("s1", true, "receiver"));
-    expect(spies.showError).toHaveBeenCalledWith("Couldn't confirm the codes", cause);
-    expect(spies.setConfirmedSas.mock.calls).toEqual([[true], [false]]);
+    await act(() => session.handleConfirmTransfer("s1", true));
+    expect(spies.showError).toHaveBeenCalledWith("Couldn't start the transfer", cause);
+    expect(spies.setConfirmed.mock.calls).toEqual([[true], [false]]);
     expect(spies.setBusy).toHaveBeenLastCalledWith(false);
   });
 });

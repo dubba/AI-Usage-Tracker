@@ -134,9 +134,9 @@ Act as a penetration tester. For each path give prerequisites, steps, impact, li
 
 **Device pairing** (`pairing/`):
 - mDNS exposure: confirm TXT records carry only the ephemeral public key, session id, and nonce.
-- The 6-digit join code is a discovery handle only. Try to find any code path where it grants trust.
-- Man-in-the-middle: SAS derivation covers both public keys and nonces; SAS comparison cannot be skipped or auto-confirmed; downgrade of role by the peer. Pairing never replaces the credentials of an account the receiver already has, so there is no flag for a peer to downgrade.
-- Crypto: X25519 low-order points, HKDF context separation, XChaCha20-Poly1305 nonce uniqueness, key reuse across sessions, replay of a captured handshake.
+- The six-digit link code is the pairing secret (SPAKE2). Look for any path where it is sent, logged, or announced, where a peer reaches the user without proving the key, where the host proves its key before the joiner (which would give a guesser a free oracle), or where wrong guesses are not counted.
+- Man-in-the-middle and relay: two concurrent sessions, a fake host answering mDNS, role disagreement between the sides (confirmation tags are bound to the role). Pairing never replaces the credentials of an account the receiver already has, and a receiver takes settings only when its own user opted in.
+- Crypto: SPAKE2 message validation (malformed and reflected messages), HKDF context separation, XChaCha20-Poly1305 nonce uniqueness, key reuse across sessions, replay of a captured handshake.
 - Transport: message size limits, timeouts, malformed frames, concurrent sessions, session cleanup after cancel.
 - Payload import: what a malicious paired device can write into the importer (settings, accounts, credentials) and whether it can overwrite existing credentials without consent.
 
@@ -238,7 +238,7 @@ Assume every previous pass missed something and that every "Checked and sound" i
 - Try to refute five randomly chosen *sound* claims from earlier passes by reading the code yourself.
 - Chain findings: a Low plus a Low that becomes a High (for example, a loopback callback race plus verbose error logging plus a diagnostics export).
 - Look at seams between components: Rust to Kotlin, Rust to frontend, frontend to OS, app to installer, pairing import to store.
-- Look for logic flaws: state machines that can be driven out of order (pairing `select_role`, `confirm_sas`, `set_include_settings`), operations that succeed partially, and time-of-check to time-of-use gaps.
+- Look for logic flaws: state machines that can be driven out of order (pairing `select_role`, `confirm_transfer`, `set_include_settings`), operations that succeed partially, and time-of-check to time-of-use gaps.
 - Look for assumptions: "the provider will always return X", "only one instance runs", "the user never clears the Keychain", "the clock is correct".
 - Give no credit to tests you have not read. Do not report anything already in the ledger unless its status is wrong.
 

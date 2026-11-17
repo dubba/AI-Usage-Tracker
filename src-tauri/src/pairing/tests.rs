@@ -1,24 +1,24 @@
 use super::{
     crypto::{
-        build_transcript, compute_confirmation_tag, compute_sas_code, decrypt_payload,
-        encrypt_payload, verify_confirmation_tag, EphemeralKeyPair, CONFIRM_RECEIVER_INFO,
-        CONFIRM_SENDER_INFO,
+        build_transcript, compute_confirmation_tag, decrypt_payload, encrypt_payload,
+        verify_confirmation_tag, PakeExchange, CONFIRM_RECEIVER_INFO, CONFIRM_SENDER_INFO,
+        KEY_CONFIRM_HOST_INFO, KEY_CONFIRM_JOINER_INFO,
     },
     payload::{create_export_payload, import_sync_payload},
     protocol::{
-        generate_qr_uri, parse_qr_uri, read_frame, read_frame_limited, write_frame, MAX_FRAME_SIZE,
-        MAX_PREAUTH_FRAME_SIZE, MSG_ABORT, MSG_HANDSHAKE_INIT, MSG_HANDSHAKE_RESP,
+        read_frame, read_frame_limited, write_frame, AbortReason, DiscoveredHost,
+        HANDSHAKE_INIT_LEN, MAX_FRAME_SIZE, MAX_PREAUTH_FRAME_SIZE, MSG_ABORT, MSG_HANDSHAKE_INIT,
+        MSG_HANDSHAKE_RESP, MSG_KEY_CONFIRM, PAKE_MESSAGE_LEN,
     },
     transport::{
-        run_client_connector, run_host_listener, run_receiver_listener, run_sender_client,
-        ClientEvent, HostEvent, ReceiverEvent, SenderEvent,
+        run_client_connector, run_host_listener, ClientEvent, HostEvent, MAX_CODE_ATTEMPTS,
+        MAX_HOSTS_TRIED, TOO_MANY_WRONG_CODES, WRONG_CODE,
     },
 };
 use crate::{
     model::{Account, Provider, ProviderSecret},
     state::AppState,
 };
-use base64::Engine as _;
 use chrono::Utc;
 use std::{sync::Arc, time::Duration};
 use tokio::{
@@ -30,145 +30,11 @@ use uuid::Uuid;
 
 #[test]
 fn test_qr_code_svg() {
-    let uri = "aiusage-pair://192.168.1.100:9000?session=test&key=abc&nonce=123";
+    let uri = "aiut-airgap://1/abcd1234/1/1/00000000?d=AAAA";
     let svg = crate::pairing::transport::generate_qr_svg(uri).unwrap();
     assert!(svg.contains("<svg"));
     assert!(svg.contains("fill=\"#000000\""));
     assert!(svg.contains("fill=\"#ffffff\""));
-}
-
-#[test]
-fn test_ephemeral_diffie_hellman_and_hkdf() {
-    let alice = EphemeralKeyPair::generate();
-    let bob = EphemeralKeyPair::generate();
-
-    let alice_pub = alice.public_bytes();
-    let bob_pub = bob.public_bytes();
-
-    let session_id = Uuid::new_v4();
-    let session_nonce = [1u8; 16];
-
-    // Alice is receiver, Bob is sender
-    let alice_transcript =
-        build_transcript(session_id.as_bytes(), &session_nonce, &alice_pub, &bob_pub);
-    let bob_transcript =
-        build_transcript(session_id.as_bytes(), &session_nonce, &alice_pub, &bob_pub);
-    assert_eq!(alice_transcript, bob_transcript);
-
-    let bob_point = x25519_dalek::PublicKey::from(bob_pub);
-    let alice_derived = alice
-        .diffie_hellman(&bob_point)
-        .expect("DH should succeed for a valid peer key");
-    let alice_key = alice_derived.derive_encryption_key(&session_nonce).unwrap();
-
-    let alice_point = x25519_dalek::PublicKey::from(alice_pub);
-    let bob_derived = bob
-        .diffie_hellman(&alice_point)
-        .expect("DH should succeed for a valid peer key");
-    let bob_key = bob_derived.derive_encryption_key(&session_nonce).unwrap();
-
-    assert_eq!(alice_key, bob_key);
-
-    // SAS codes match
-    let alice_sas = compute_sas_code(&alice_key, &alice_transcript);
-    let bob_sas = compute_sas_code(&bob_key, &bob_transcript);
-    assert_eq!(alice_sas, bob_sas);
-    // 48 bits shown as three groups, e.g. "4F2A-8B91-C3D2".
-    assert_eq!(alice_sas.len(), 14);
-    let groups: Vec<&str> = alice_sas.split('-').collect();
-    assert_eq!(groups.len(), 3);
-    assert!(groups
-        .iter()
-        .all(|group| group.len() == 4 && group.bytes().all(|b| b.is_ascii_hexdigit())));
-}
-
-#[test]
-fn test_confirmation_tag_covers_the_full_code_and_rejects_the_legacy_prefix() {
-    use sha2::{Digest, Sha256};
-    let key = [7u8; 32];
-    let transcript = b"transcript-bytes";
-    let displayed = compute_sas_code(&key, transcript);
-
-    // What builds before the third group computed and confirmed.
-    let mut hasher = Sha256::new();
-    hasher.update(super::crypto::SAS_INFO);
-    hasher.update(key);
-    hasher.update(transcript);
-    let digest = hasher.finalize();
-    let legacy = format!(
-        "{:02X}{:02X}-{:02X}{:02X}",
-        digest[0], digest[1], digest[2], digest[3]
-    );
-
-    assert!(displayed.starts_with(&legacy));
-    assert_ne!(displayed, legacy);
-    let full = compute_confirmation_tag(&key, &displayed, CONFIRM_SENDER_INFO);
-    let prefix_only = compute_confirmation_tag(&key, &legacy, CONFIRM_SENDER_INFO);
-    assert_ne!(full, prefix_only);
-    assert!(!verify_confirmation_tag(
-        &key,
-        &displayed,
-        CONFIRM_SENDER_INFO,
-        &prefix_only
-    ));
-}
-
-#[test]
-fn test_diffie_hellman_rejects_low_order_public_key() {
-    let alice = EphemeralKeyPair::generate();
-    // All-zero public key is a classic low-order point: DH against it yields a
-    // predictable all-zero shared secret and must be rejected.
-    let low_order = x25519_dalek::PublicKey::from([0u8; 32]);
-    assert!(alice.diffie_hellman(&low_order).is_err());
-}
-
-#[test]
-fn test_confirmation_tags() {
-    let alice = EphemeralKeyPair::generate();
-    let bob = EphemeralKeyPair::generate();
-    let session_id = Uuid::new_v4();
-    let session_nonce = [10u8; 16];
-
-    let transcript = build_transcript(
-        session_id.as_bytes(),
-        &session_nonce,
-        &alice.public_bytes(),
-        &bob.public_bytes(),
-    );
-
-    let bob_point = x25519_dalek::PublicKey::from(bob.public_bytes());
-    let alice_derived = alice
-        .diffie_hellman(&bob_point)
-        .expect("DH should succeed for a valid peer key");
-    let key = alice_derived.derive_encryption_key(&session_nonce).unwrap();
-
-    let sas_code = compute_sas_code(&key, &transcript);
-    let tag_receiver = compute_confirmation_tag(&key, &sas_code, CONFIRM_RECEIVER_INFO);
-    let tag_sender = compute_confirmation_tag(&key, &sas_code, CONFIRM_SENDER_INFO);
-
-    assert_ne!(tag_receiver, tag_sender);
-    assert!(verify_confirmation_tag(
-        &key,
-        &sas_code,
-        CONFIRM_RECEIVER_INFO,
-        &tag_receiver
-    ));
-    assert!(verify_confirmation_tag(
-        &key,
-        &sas_code,
-        CONFIRM_SENDER_INFO,
-        &tag_sender
-    ));
-
-    // Tampered tag must fail
-    let mut tampered = tag_receiver;
-    tampered[0] ^= 0xFF;
-    assert!(!verify_confirmation_tag(
-        &key,
-        &sas_code,
-        CONFIRM_RECEIVER_INFO,
-        &tampered
-    ));
 }
 
 #[test]
@@ -196,89 +62,6 @@ fn test_payload_encryption_and_tamper_detection() {
     // Wrong key fails
     let wrong_key = [99u8; 32];
     assert!(decrypt_payload(&wrong_key, transcript, &ciphertext).is_err());
-}
-
-#[test]
-fn test_qr_uri_parsing_and_formatting() {
-    let ip = "192.168.1.100";
-    let port = 49200;
-    let pubkey = [7u8; 32];
-    let session_id = Uuid::new_v4();
-    let nonce = [9u8; 16];
-
-    let uri = generate_qr_uri(ip, port, &pubkey, session_id, &nonce);
-    let parsed = parse_qr_uri(&uri).unwrap();
-
-    assert_eq!(parsed.host, ip);
-    assert_eq!(parsed.port, port);
-    assert_eq!(parsed.peer_public_key, pubkey);
-    assert_eq!(parsed.session_id, session_id);
-    assert_eq!(parsed.session_nonce, nonce);
-    assert!(!parsed.fingerprint.is_empty());
-    assert_eq!(parsed.fingerprint.len(), 9); // e.g. "XXXX-XXXX"
-                                             // Bad scheme
-    assert!(parse_qr_uri("http://example.com").is_err());
-
-    // Missing host
-    assert!(parse_qr_uri("aiusage-pair://:8080?pk=aa&sid=bb&n=cc").is_err());
-    // Missing pk
-    assert!(parse_qr_uri(&format!("aiusage-pair://{ip}:{port}?sid={session_id}&n=aa")).is_err());
-    // Corrupt hex in pk
-    assert!(parse_qr_uri(&format!(
-        "aiusage-pair://{ip}:{port}?pk=nothex&sid={session_id}&n=aa"
-    ))
-    .is_err());
-
-    // Non-local hosts are refused (credential exfiltration prevention)
-    assert!(parse_qr_uri(&format!(
-        "aiusage-pair://8.8.8.8:{port}?sid={session_id}&n=aa"
-    ))
-    .is_err());
-    assert!(parse_qr_uri(&format!(
-        "aiusage-pair://203.0.113.5:{port}?sid={session_id}&n=aa"
-    ))
-    .is_err());
-    assert!(parse_qr_uri(&format!(
-        "aiusage-pair://example.com:{port}?sid={session_id}&n=aa"
-    ))
-    .is_err());
-
-    // Loopback, link-local, CGNAT (Tailscale) and other private ranges are allowed
-    let pk_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(pubkey);
-    let nonce_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(nonce);
-    let query = format!("session_id={session_id}&pk={pk_b64}&nonce={nonce_b64}");
-    for host in [
-        "127.0.0.1",
-        "10.0.0.5",
-        "172.16.3.4",
-        "192.168.0.2",
-        "169.254.1.1",
-        "100.64.1.1",
-        "::1",
-    ] {
-        let uri = if host.contains(':') {
-            format!("aiusage-pair://[{host}]:{port}?{query}")
-        } else {
-            format!("aiusage-pair://{host}:{port}?{query}")
-        };
-        assert!(parse_qr_uri(&uri).is_ok(), "host {host} should be allowed");
-    }
-}
-
-#[test]
-fn ipv6_pairing_uri_roundtrips_with_brackets() {
-    let public_key = [0x11u8; 32];
-    let nonce = [0x22u8; 16];
-    let session_id = Uuid::nil();
-    let uri = generate_qr_uri("::1", 9000, &public_key, session_id, &nonce);
-    assert!(
-        uri.starts_with("aiusage-pair://[::1]:9000?"),
-        "IPv6 pairing URI must bracket the host: {uri}"
-    );
-    let parsed = parse_qr_uri(&uri).expect("bracketed IPv6 pairing URI should parse");
-    assert_eq!(parsed.host, "::1");
-    assert_eq!(parsed.port, 9000);
-    assert_eq!(parsed.to_uri(), uri);
 }
 
 #[tokio::test]
@@ -356,82 +139,6 @@ async fn preauth_frame_cap_rejects_oversized_frames() {
     assert_eq!(payload.len(), 1024);
 }
 
-#[test]
-fn preauth_transport_sites_use_max_preauth_frame_size() {
-    let source = include_str!("transport.rs");
-    // Ensure all 4 pre-authentication frame reads pass MAX_PREAUTH_FRAME_SIZE
-    let stream_preauth = source
-        .matches("read_frame_limited(&mut stream, MAX_PREAUTH_FRAME_SIZE)")
-        .count();
-    let read_half_preauth = source
-        .matches("read_frame_limited(&mut read_half, MAX_PREAUTH_FRAME_SIZE)")
-        .count();
-    assert_eq!(
-        stream_preauth + read_half_preauth,
-        4,
-        "Expected exactly 4 pre-auth reads using MAX_PREAUTH_FRAME_SIZE"
-    );
-
-    // Small authenticated control frames use MAX_CONTROL_FRAME_SIZE
-    let control_reads = source
-        .matches("read_frame_limited(&mut stream, MAX_CONTROL_FRAME_SIZE)")
-        .count();
-    assert_eq!(
-        control_reads, 3,
-        "Expected 3 control frame reads using MAX_CONTROL_FRAME_SIZE"
-    );
-
-    // Only the post-SAS encrypted payload uses the 16 MB MAX_FRAME_SIZE budget
-    let payload_reads = source
-        .matches("read_frame_limited(&mut stream, MAX_FRAME_SIZE)")
-        .count();
-    assert_eq!(
-        payload_reads, 1,
-        "Only the post-SAS encrypted payload read must use MAX_FRAME_SIZE"
-    );
-}
-
-#[tokio::test]
-async fn join_code_lockout_locks_after_five_failed_attempts() {
-    let dir = tempfile::tempdir().unwrap();
-    let state = Arc::new(AppState::new(dir.path().to_path_buf(), "tok1".into()).unwrap());
-    let manager = crate::pairing::PairingSessionManager::new();
-
-    let code = "123456";
-    // 5 attempts fail during discovery resolution
-    for attempt in 1..=5 {
-        let res = manager
-            .start_client_by_code(state.clone(), code.to_string())
-            .await;
-        let err = res.expect_err(&format!("attempt {attempt} must fail resolution"));
-        assert!(
-            err.contains("No device found with that pairing code"),
-            "attempt {attempt} must fail with resolution error, got: {err}"
-        );
-    }
-
-    // 6th attempt must be locked out immediately without resolving
-    let res6 = manager
-        .start_client_by_code(state.clone(), code.to_string())
-        .await;
-    let err6 = res6.expect_err("6th attempt must be locked out");
-    assert_eq!(
-        err6,
-        "Too many attempts for this code. Ask the other device to start a new pairing session."
-    );
-
-    // A different code is not locked out and still attempts resolution
-    let other_code = "654321";
-    let res_other = manager
-        .start_client_by_code(state.clone(), other_code.to_string())
-        .await;
-    let err_other = res_other.expect_err("other code must fail resolution, not lockout");
-    assert!(
-        err_other.contains("No device found with that pairing code"),
-        "different code must not be locked out, got: {err_other}"
-    );
-}
-
 #[tokio::test]
 async fn test_export_and_import_payload() {
     let dir_sender = tempfile::tempdir().unwrap();
@@ -483,7 +190,7 @@ async fn test_export_and_import_payload() {
     let state_receiver =
         Arc::new(AppState::new(dir_receiver.path().to_path_buf(), "tok2".into()).unwrap());
 
-    let summary = import_sync_payload(&state_receiver, &export_bytes)
+    let summary = import_sync_payload(&state_receiver, &export_bytes, true)
         .await
         .unwrap();
     assert_eq!(summary.added, 1);
@@ -502,7 +209,7 @@ async fn test_export_and_import_payload() {
     assert_eq!(buckets[0].account_ids, vec!["acc-1".to_string()]);
 
     // Importing again never replaces what is already here: the account is skipped.
-    let summary2 = import_sync_payload(&state_receiver, &export_bytes)
+    let summary2 = import_sync_payload(&state_receiver, &export_bytes, true)
         .await
         .unwrap();
     assert_eq!(summary2.added, 0);
@@ -555,7 +262,7 @@ async fn import_replaces_unsafe_peer_account_ids_with_local_ids() {
     let dir_receiver = tempfile::tempdir().unwrap();
     let state_receiver =
         Arc::new(AppState::new(dir_receiver.path().to_path_buf(), "tok2".into()).unwrap());
-    let summary = import_sync_payload(&state_receiver, &tampered)
+    let summary = import_sync_payload(&state_receiver, &tampered, true)
         .await
         .unwrap();
     assert_eq!(summary.added, 1);
@@ -633,9 +340,13 @@ async fn import_bounds_peer_supplied_fields() {
     let dir_receiver = tempfile::tempdir().unwrap();
     let state_receiver =
         Arc::new(AppState::new(dir_receiver.path().to_path_buf(), "tok2".into()).unwrap());
-    let summary = import_sync_payload(&state_receiver, &serde_json::to_vec(&payload).unwrap())
-        .await
-        .unwrap();
+    let summary = import_sync_payload(
+        &state_receiver,
+        &serde_json::to_vec(&payload).unwrap(),
+        true,
+    )
+    .await
+    .unwrap();
     assert_eq!(summary.added, 1);
 
     let accounts = state_receiver.store.list();
@@ -763,7 +474,7 @@ async fn test_settings_transfer_includes_beta_flag() {
     let state_receiver =
         Arc::new(AppState::new(dir_receiver.path().to_path_buf(), "tok-beta-r".into()).unwrap());
     assert!(!state_receiver.settings.get().include_beta_updates);
-    import_sync_payload(&state_receiver, &export_bytes)
+    import_sync_payload(&state_receiver, &export_bytes, true)
         .await
         .unwrap();
     assert!(state_receiver.settings.get().include_beta_updates);
@@ -849,7 +560,7 @@ async fn test_import_keeps_accounts_sharing_project_id() {
     let state_receiver =
         Arc::new(AppState::new(dir_receiver.path().to_path_buf(), "tok-ar".into()).unwrap());
 
-    let summary = import_sync_payload(&state_receiver, &export_bytes)
+    let summary = import_sync_payload(&state_receiver, &export_bytes, true)
         .await
         .unwrap();
     let accounts = state_receiver.store.list();
@@ -863,7 +574,7 @@ async fn test_import_keeps_accounts_sharing_project_id() {
     assert_eq!(buckets[0].account_ids.len(), 2);
 
     // A second import of the same payload keeps all three accounts as they are.
-    let summary2 = import_sync_payload(&state_receiver, &export_bytes)
+    let summary2 = import_sync_payload(&state_receiver, &export_bytes, true)
         .await
         .unwrap();
     assert_eq!(summary2.added, 0);
@@ -898,7 +609,7 @@ async fn test_import_keeps_distinct_antigravity_accounts() {
         Arc::new(AppState::new(dir_receiver.path().to_path_buf(), "tok-br".into()).unwrap());
 
     let export_bytes = create_export_payload(&state_sender).unwrap();
-    let summary = import_sync_payload(&state_receiver, &export_bytes)
+    let summary = import_sync_payload(&state_receiver, &export_bytes, true)
         .await
         .unwrap();
     assert_eq!(summary.added, 3);
@@ -931,7 +642,7 @@ async fn test_import_collapses_accounts_with_duplicate_email() {
         Arc::new(AppState::new(dir_receiver.path().to_path_buf(), "tok-cr".into()).unwrap());
 
     let export_bytes = create_export_payload(&state_sender).unwrap();
-    let summary = import_sync_payload(&state_receiver, &export_bytes)
+    let summary = import_sync_payload(&state_receiver, &export_bytes, true)
         .await
         .unwrap();
     assert_eq!(summary.added, 1);
@@ -958,7 +669,9 @@ async fn test_live_retransfer_restores_locally_deleted_account() {
 
     let dir_b = tempfile::tempdir().unwrap();
     let state_b = Arc::new(AppState::new(dir_b.path().to_path_buf(), "tok-db".into()).unwrap());
-    let summary = import_sync_payload(&state_b, &export_ab).await.unwrap();
+    let summary = import_sync_payload(&state_b, &export_ab, true)
+        .await
+        .unwrap();
     assert_eq!(summary.added, 1);
     assert!(state_b.store.get("ghost-1").is_some());
 
@@ -969,7 +682,9 @@ async fn test_live_retransfer_restores_locally_deleted_account() {
     crate::store::save_provider_secret("ghost-1", &antigravity_secret("ghost")).unwrap();
 
     let export_ab2 = create_export_payload(&state_a).unwrap();
-    let summary = import_sync_payload(&state_b, &export_ab2).await.unwrap();
+    let summary = import_sync_payload(&state_b, &export_ab2, true)
+        .await
+        .unwrap();
     assert_eq!(
         summary.added, 1,
         "live re-transfer must restore a locally deleted account"
@@ -996,14 +711,18 @@ async fn test_sender_deletion_does_not_remove_receiver_account() {
 
     let dir_b = tempfile::tempdir().unwrap();
     let state_b = Arc::new(AppState::new(dir_b.path().to_path_buf(), "tok-db2".into()).unwrap());
-    let summary = import_sync_payload(&state_b, &export_ab).await.unwrap();
+    let summary = import_sync_payload(&state_b, &export_ab, true)
+        .await
+        .unwrap();
     assert_eq!(summary.added, 1);
 
     state_a.store.remove("ghost-2").unwrap();
     crate::store::save_provider_secret("ghost-2", &antigravity_secret("ghost2")).unwrap();
 
     let export_a2 = create_export_payload(&state_a).unwrap();
-    let summary = import_sync_payload(&state_b, &export_a2).await.unwrap();
+    let summary = import_sync_payload(&state_b, &export_a2, true)
+        .await
+        .unwrap();
     assert_eq!(summary.added, 0);
     assert!(
         state_b.store.get("ghost-2").is_some(),
@@ -1023,174 +742,6 @@ async fn test_select_role_rejects_invalid_role_string() {
     let long = "x".repeat(10_000);
     let err = manager.select_role(&long).await.unwrap_err();
     assert!(err.len() < 100, "error must not grow with the input");
-}
-
-#[tokio::test]
-async fn test_host_survives_garbage_and_squatter_before_real_peer() {
-    // A LAN attacker who learns the (broadcast) session id must neither crash
-    // the session with garbage handshakes nor wedge it by squatting: the host
-    // must keep accepting until the legitimate peer shows up.
-    let dir_host = tempfile::tempdir().unwrap();
-    let state_host =
-        Arc::new(AppState::new(dir_host.path().to_path_buf(), "tok-h4".into()).unwrap());
-
-    let dir_client = tempfile::tempdir().unwrap();
-    let state_client =
-        Arc::new(AppState::new(dir_client.path().to_path_buf(), "tok-c4".into()).unwrap());
-
-    let account = Account {
-        id: "client-acc-9".into(),
-        label: "Real Peer Account".into(),
-        provider: Provider::Anthropic,
-        email: Some("real@example.com".into()),
-        provider_account_id: None,
-        chatgpt_account_id: None,
-        plan: None,
-        created_at: Utc::now().to_rfc3339(),
-        updated_at: Utc::now().to_rfc3339(),
-        last_usage: None,
-        last_error: None,
-        auth_required: false,
-    };
-    let secret = ProviderSecret::Anthropic(crate::model::OAuthSecret {
-        access_token: "sk-ant-real".into(),
-        refresh_token: "sk-ant-real-ref".into(),
-        id_token: None,
-        expires_at: 0,
-    });
-    state_client
-        .persist_connected_account(account, &secret)
-        .await
-        .unwrap();
-
-    let host_keypair = EphemeralKeyPair::generate();
-    let session_id = Uuid::new_v4();
-    let host_nonce = vec![55u8; 16];
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let port = listener.local_addr().unwrap().port();
-
-    let qr_uri = generate_qr_uri(
-        "127.0.0.1",
-        port,
-        &host_keypair.public_bytes(),
-        session_id,
-        &host_nonce,
-    );
-    let parsed_qr = parse_qr_uri(&qr_uri).unwrap();
-
-    let (host_status_tx, mut host_status_rx) = mpsc::channel(16);
-    let (host_confirm_tx, host_confirm_rx) = oneshot::channel();
-    let (_host_cancel_tx, host_cancel_rx) = oneshot::channel();
-
-    tokio::spawn(run_host_listener(
-        state_host.clone(),
-        session_id,
-        listener,
-        host_keypair,
-        host_nonce,
-        parsed_qr.fingerprint.clone(),
-        host_status_tx,
-        None,
-        host_confirm_rx,
-        host_cancel_rx,
-    ));
-
-    // 1) Garbage handshake: wrong session id must be aborted, not kill the session.
-    {
-        let mut garbage = TcpStream::connect(("127.0.0.1", port)).await.unwrap();
-        let mut bad_init = Vec::with_capacity(48);
-        bad_init.extend_from_slice(&[7u8; 32]);
-        bad_init.extend_from_slice(Uuid::new_v4().as_bytes());
-        write_frame(&mut garbage, MSG_HANDSHAKE_INIT, &bad_init)
-            .await
-            .unwrap();
-        let (msg_type, _) = read_frame(&mut garbage).await.unwrap();
-        assert_eq!(msg_type, MSG_ABORT);
-    }
-
-    // 2) Squatter: completes the handshake (knows the public session id),
-    //    receives the host response, then disconnects without choosing a role.
-    {
-        let mut squatter = TcpStream::connect(("127.0.0.1", port)).await.unwrap();
-        let mut init = Vec::with_capacity(48);
-        init.extend_from_slice(&EphemeralKeyPair::generate().public_bytes());
-        init.extend_from_slice(session_id.as_bytes());
-        write_frame(&mut squatter, MSG_HANDSHAKE_INIT, &init)
-            .await
-            .unwrap();
-        let (msg_type, _) = read_frame(&mut squatter).await.unwrap();
-        assert_eq!(msg_type, MSG_HANDSHAKE_RESP);
-        // squatter dropped here
-    }
-
-    // Give the host a moment to notice the squatter's disconnect and loop back.
-    tokio::time::sleep(Duration::from_millis(300)).await;
-
-    // 3) The real client must still be able to pair and transfer.
-    let (send_status_tx, mut send_status_rx) = mpsc::channel(16);
-    let (send_confirm_tx, send_confirm_rx) = oneshot::channel();
-    let (_send_cancel_tx, send_cancel_rx) = oneshot::channel();
-
-    tokio::spawn(run_sender_client(
-        state_client.clone(),
-        parsed_qr,
-        send_status_tx,
-        send_confirm_rx,
-        send_cancel_rx,
-    ));
-
-    // Drain host events until SasVerification (host may report the squatter as
-    // PeerConnected first; keep going), then confirm.
-    let mut host_sas_seen = false;
-    while let Some(ev) = timeout(Duration::from_secs(5), host_status_rx.recv())
-        .await
-        .unwrap()
-    {
-        match ev {
-            HostEvent::SasVerification {
-                role,
-                account_count,
-                ..
-            } => {
-                assert_eq!(role, "receiver");
-                assert_eq!(account_count, 1);
-                host_sas_seen = true;
-                break;
-            }
-            HostEvent::Failed(e) => panic!("Host failed: {e}"),
-            _ => {}
-        }
-    }
-    assert!(host_sas_seen);
-
-    host_confirm_tx.send(true).unwrap();
-
-    let mut send_confirm_tx = Some(send_confirm_tx);
-    let mut send_completed = false;
-    while let Some(ev) = timeout(Duration::from_secs(5), send_status_rx.recv())
-        .await
-        .unwrap()
-    {
-        match ev {
-            SenderEvent::SasVerification { .. } => {
-                if let Some(tx) = send_confirm_tx.take() {
-                    tx.send(true).unwrap();
-                }
-            }
-            SenderEvent::Completed(summary) => {
-                assert_eq!(summary.added, 1);
-                send_completed = true;
-                break;
-            }
-            SenderEvent::Failed(e) => panic!("Sender failed: {e}"),
-            _ => {}
-        }
-    }
-    assert!(send_completed);
-
-    let host_accounts = state_host.store.list();
-    assert_eq!(host_accounts.len(), 1);
-    assert_eq!(host_accounts[0].label, "Real Peer Account");
 }
 
 #[tokio::test]
@@ -1264,7 +815,7 @@ async fn test_bucket_account_remapping_on_import() {
         .unwrap();
 
     let export_bytes = create_export_payload(&state_sender).unwrap();
-    let summary = import_sync_payload(&state_receiver, &export_bytes)
+    let summary = import_sync_payload(&state_receiver, &export_bytes, true)
         .await
         .unwrap();
     assert_eq!(summary.added, 0);
@@ -1309,535 +860,13 @@ async fn test_bucket_account_remapping_on_import() {
         )
         .await
         .unwrap();
-    let preserve = import_sync_payload(&state_receiver2, &export_bytes)
+    let preserve = import_sync_payload(&state_receiver2, &export_bytes, true)
         .await
         .unwrap();
     assert_eq!(preserve.added, 0);
     assert_eq!(preserve.updated, 0);
     assert_eq!(preserve.skipped, 1);
     assert_eq!(state_receiver2.buckets.list().len(), 1);
-}
-
-#[tokio::test]
-async fn test_end_to_end_pairing_flow() {
-    let dir_sender = tempfile::tempdir().unwrap();
-    let state_sender =
-        Arc::new(AppState::new(dir_sender.path().to_path_buf(), "tok-s".into()).unwrap());
-
-    let account = Account {
-        id: "sender-acc-1".into(),
-        label: "OpenAI Main".into(),
-        provider: Provider::Openai,
-        email: Some("dev@example.com".into()),
-        provider_account_id: None,
-        chatgpt_account_id: None,
-        plan: Some("Plus".into()),
-        created_at: Utc::now().to_rfc3339(),
-        updated_at: Utc::now().to_rfc3339(),
-        last_usage: None,
-        last_error: None,
-        auth_required: false,
-    };
-    let secret = ProviderSecret::Openai(crate::model::OAuthSecret {
-        access_token: "sk-openai-access-123".into(),
-        refresh_token: "sk-openai-refresh-123".into(),
-        id_token: None,
-        expires_at: 0,
-    });
-    state_sender
-        .persist_connected_account(account, &secret)
-        .await
-        .unwrap();
-
-    let dir_receiver = tempfile::tempdir().unwrap();
-    let state_receiver =
-        Arc::new(AppState::new(dir_receiver.path().to_path_buf(), "tok-r".into()).unwrap());
-
-    // Start receiver on 127.0.0.1
-    let receiver_keypair = EphemeralKeyPair::generate();
-    let session_id = Uuid::new_v4();
-    let receiver_nonce = vec![11u8; 16];
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let port = listener.local_addr().unwrap().port();
-
-    let qr_uri = generate_qr_uri(
-        "127.0.0.1",
-        port,
-        &receiver_keypair.public_bytes(),
-        session_id,
-        &receiver_nonce,
-    );
-
-    let (recv_status_tx, mut recv_status_rx) = mpsc::channel(16);
-    let (recv_confirm_tx, recv_confirm_rx) = oneshot::channel();
-    let (_recv_cancel_tx, recv_cancel_rx) = oneshot::channel();
-
-    tokio::spawn(run_receiver_listener(
-        state_receiver.clone(),
-        session_id,
-        listener,
-        receiver_keypair,
-        receiver_nonce,
-        recv_status_tx,
-        recv_confirm_rx,
-        recv_cancel_rx,
-    ));
-
-    // Start sender
-    let parsed_qr = parse_qr_uri(&qr_uri).unwrap();
-
-    let (send_status_tx, mut send_status_rx) = mpsc::channel(16);
-    let (send_confirm_tx, send_confirm_rx) = oneshot::channel();
-    let (_send_cancel_tx, send_cancel_rx) = oneshot::channel();
-
-    tokio::spawn(run_sender_client(
-        state_sender.clone(),
-        parsed_qr,
-        send_status_tx,
-        send_confirm_rx,
-        send_cancel_rx,
-    ));
-
-    // Await the first event from both sides: each carries the verification code
-    let recv_sas = match timeout(Duration::from_secs(5), recv_status_rx.recv())
-        .await
-        .unwrap()
-        .unwrap()
-    {
-        ReceiverEvent::PeerConnected { sas_code, .. } => sas_code,
-        _other => panic!("Expected ReceiverEvent::PeerConnected, got other event"),
-    };
-
-    let send_sas = match timeout(Duration::from_secs(5), send_status_rx.recv())
-        .await
-        .unwrap()
-        .unwrap()
-    {
-        SenderEvent::RoleSelection { sas_code, .. } => sas_code,
-        _other => panic!("Expected SenderEvent::RoleSelection, got other event"),
-    };
-    // The sender then reports how many accounts it is about to send.
-    match timeout(Duration::from_secs(5), send_status_rx.recv())
-        .await
-        .unwrap()
-        .unwrap()
-    {
-        SenderEvent::SasVerification { account_count, .. } => assert_eq!(account_count, 1),
-        _other => panic!("Expected SenderEvent::SasVerification, got other event"),
-    };
-
-    // Verify SAS codes match
-    assert_eq!(recv_sas, send_sas);
-
-    // Confirm on both sides
-    recv_confirm_tx.send(true).unwrap();
-    send_confirm_tx.send(true).unwrap();
-
-    // Await Transferring and Completed on receiver
-    let mut recv_completed = false;
-    while let Some(event) = recv_status_rx.recv().await {
-        match event {
-            ReceiverEvent::Transferring => {}
-            ReceiverEvent::Completed(summary) => {
-                assert_eq!(summary.added, 1);
-                recv_completed = true;
-                break;
-            }
-            ReceiverEvent::Failed(err) => panic!("Receiver failed: {err}"),
-            _ => {}
-        }
-    }
-    assert!(recv_completed);
-
-    // Await Completed on sender
-    let mut send_completed = false;
-    while let Some(event) = send_status_rx.recv().await {
-        match event {
-            SenderEvent::Transferring => {}
-            SenderEvent::Completed(summary) => {
-                assert_eq!(summary.added, 1);
-                send_completed = true;
-                break;
-            }
-            SenderEvent::Failed(err) => panic!("Sender failed: {err}"),
-            _ => {}
-        }
-    }
-    assert!(send_completed);
-
-    // Verify receiver now has the account
-    let imported_accounts = state_receiver.store.list();
-    assert_eq!(imported_accounts.len(), 1);
-    assert_eq!(imported_accounts[0].label, "OpenAI Main");
-}
-
-#[tokio::test]
-async fn test_end_to_end_role_selection_client_sends() {
-    // Client has account, Host is empty. Client connects and chooses "send".
-    let dir_client = tempfile::tempdir().unwrap();
-    let state_client =
-        Arc::new(AppState::new(dir_client.path().to_path_buf(), "tok-c".into()).unwrap());
-
-    let account = Account {
-        id: "client-acc-1".into(),
-        label: "Client Grok Account".into(),
-        provider: Provider::Grok,
-        email: Some("grok@example.com".into()),
-        provider_account_id: None,
-        chatgpt_account_id: None,
-        plan: Some("Premium".into()),
-        created_at: Utc::now().to_rfc3339(),
-        updated_at: Utc::now().to_rfc3339(),
-        last_usage: None,
-        last_error: None,
-        auth_required: false,
-    };
-    let secret = ProviderSecret::Grok(crate::model::GrokSecret {
-        cookie_header: Some("sso-cookie-secret".into()),
-    });
-    state_client
-        .persist_connected_account(account, &secret)
-        .await
-        .unwrap();
-
-    let dir_host = tempfile::tempdir().unwrap();
-    let state_host =
-        Arc::new(AppState::new(dir_host.path().to_path_buf(), "tok-h".into()).unwrap());
-
-    let host_keypair = EphemeralKeyPair::generate();
-    let session_id = Uuid::new_v4();
-    let host_nonce = vec![22u8; 16];
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let port = listener.local_addr().unwrap().port();
-
-    let qr_uri = generate_qr_uri(
-        "127.0.0.1",
-        port,
-        &host_keypair.public_bytes(),
-        session_id,
-        &host_nonce,
-    );
-
-    let (host_status_tx, mut host_status_rx) = mpsc::channel(16);
-    let (host_confirm_tx, host_confirm_rx) = oneshot::channel();
-    let (_host_cancel_tx, host_cancel_rx) = oneshot::channel();
-    let parsed_qr = parse_qr_uri(&qr_uri).unwrap();
-    let fp = parsed_qr.fingerprint.clone();
-
-    tokio::spawn(run_host_listener(
-        state_host.clone(),
-        session_id,
-        listener,
-        host_keypair,
-        host_nonce,
-        fp,
-        host_status_tx,
-        None,
-        host_confirm_rx,
-        host_cancel_rx,
-    ));
-
-    let (client_status_tx, mut client_status_rx) = mpsc::channel(16);
-    let (role_select_tx, role_select_rx) = oneshot::channel();
-    let (client_confirm_tx, client_confirm_rx) = oneshot::channel();
-    let (_client_cancel_tx, client_cancel_rx) = oneshot::channel();
-
-    tokio::spawn(run_client_connector(
-        state_client.clone(),
-        parsed_qr,
-        client_status_tx,
-        None,
-        role_select_rx,
-        None,
-        client_confirm_rx,
-        client_cancel_rx,
-    ));
-
-    // Client selects "send"
-    role_select_tx.send("send".to_string()).unwrap();
-
-    // Verify host role resolves to receiver
-    let mut host_sas = String::new();
-    while let Some(ev) = host_status_rx.recv().await {
-        if let HostEvent::SasVerification {
-            sas_code,
-            role,
-            account_count,
-            ..
-        } = ev
-        {
-            assert_eq!(role, "receiver");
-            assert_eq!(account_count, 1);
-            host_sas = sas_code;
-            break;
-        }
-    }
-
-    // Verify client role resolves to sender
-    let mut client_sas = String::new();
-    while let Some(ev) = client_status_rx.recv().await {
-        if let ClientEvent::SasVerification {
-            sas_code,
-            role,
-            account_count,
-            ..
-        } = ev
-        {
-            assert_eq!(role, "sender");
-            assert_eq!(account_count, 1);
-            client_sas = sas_code;
-            break;
-        }
-    }
-
-    assert_eq!(host_sas, client_sas);
-
-    // Both confirm
-    host_confirm_tx.send(true).unwrap();
-    client_confirm_tx.send(true).unwrap();
-
-    // Verify host received and imported account
-    while let Some(ev) = host_status_rx.recv().await {
-        if let HostEvent::Completed(summary) = ev {
-            assert_eq!(summary.added, 1);
-            break;
-        }
-    }
-
-    let host_accounts = state_host.store.list();
-    assert_eq!(host_accounts.len(), 1);
-    assert_eq!(host_accounts[0].label, "Client Grok Account");
-}
-
-#[tokio::test]
-async fn test_end_to_end_role_selection_client_receives() {
-    // Host has account, Client is empty. Client connects and chooses "receive".
-    let dir_host = tempfile::tempdir().unwrap();
-    let state_host =
-        Arc::new(AppState::new(dir_host.path().to_path_buf(), "tok-h2".into()).unwrap());
-
-    let account = Account {
-        id: "host-acc-1".into(),
-        label: "Host Claude Account".into(),
-        provider: Provider::Anthropic,
-        email: Some("claude@example.com".into()),
-        provider_account_id: None,
-        chatgpt_account_id: None,
-        plan: Some("Pro".into()),
-        created_at: Utc::now().to_rfc3339(),
-        updated_at: Utc::now().to_rfc3339(),
-        last_usage: None,
-        last_error: None,
-        auth_required: false,
-    };
-    let secret = ProviderSecret::Anthropic(crate::model::OAuthSecret {
-        access_token: "sk-ant-123".into(),
-        refresh_token: "sk-ant-ref".into(),
-        id_token: None,
-        expires_at: 0,
-    });
-    state_host
-        .persist_connected_account(account, &secret)
-        .await
-        .unwrap();
-
-    let dir_client = tempfile::tempdir().unwrap();
-    let state_client =
-        Arc::new(AppState::new(dir_client.path().to_path_buf(), "tok-c2".into()).unwrap());
-
-    let host_keypair = EphemeralKeyPair::generate();
-    let session_id = Uuid::new_v4();
-    let host_nonce = vec![33u8; 16];
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let port = listener.local_addr().unwrap().port();
-
-    let qr_uri = generate_qr_uri(
-        "127.0.0.1",
-        port,
-        &host_keypair.public_bytes(),
-        session_id,
-        &host_nonce,
-    );
-
-    let (host_status_tx, mut host_status_rx) = mpsc::channel(16);
-    let (host_confirm_tx, host_confirm_rx) = oneshot::channel();
-    let (_host_cancel_tx, host_cancel_rx) = oneshot::channel();
-    let parsed_qr = parse_qr_uri(&qr_uri).unwrap();
-    let fp = parsed_qr.fingerprint.clone();
-
-    tokio::spawn(run_host_listener(
-        state_host.clone(),
-        session_id,
-        listener,
-        host_keypair,
-        host_nonce,
-        fp,
-        host_status_tx,
-        None,
-        host_confirm_rx,
-        host_cancel_rx,
-    ));
-
-    let (client_status_tx, mut client_status_rx) = mpsc::channel(16);
-    let (role_select_tx, role_select_rx) = oneshot::channel();
-    let (client_confirm_tx, client_confirm_rx) = oneshot::channel();
-    let (_client_cancel_tx, client_cancel_rx) = oneshot::channel();
-
-    tokio::spawn(run_client_connector(
-        state_client.clone(),
-        parsed_qr,
-        client_status_tx,
-        None,
-        role_select_rx,
-        None,
-        client_confirm_rx,
-        client_cancel_rx,
-    ));
-
-    // Client selects "receive"
-    role_select_tx.send("receive".to_string()).unwrap();
-
-    // Verify host role resolves to sender
-    let mut host_sas = String::new();
-    while let Some(ev) = host_status_rx.recv().await {
-        if let HostEvent::SasVerification {
-            sas_code,
-            role,
-            account_count,
-            ..
-        } = ev
-        {
-            assert_eq!(role, "sender");
-            assert_eq!(account_count, 1);
-            host_sas = sas_code;
-            break;
-        }
-    }
-
-    // Verify client role resolves to receiver
-    let mut client_sas = String::new();
-    while let Some(ev) = client_status_rx.recv().await {
-        if let ClientEvent::SasVerification {
-            sas_code,
-            role,
-            account_count,
-            ..
-        } = ev
-        {
-            assert_eq!(role, "receiver");
-            assert_eq!(account_count, 1);
-            client_sas = sas_code;
-            break;
-        }
-    }
-
-    assert_eq!(host_sas, client_sas);
-
-    // Both confirm
-    host_confirm_tx.send(true).unwrap();
-    client_confirm_tx.send(true).unwrap();
-
-    // Verify client received and imported account
-    while let Some(ev) = client_status_rx.recv().await {
-        if let ClientEvent::Completed(summary) = ev {
-            assert_eq!(summary.added, 1);
-            break;
-        }
-    }
-
-    let client_accounts = state_client.store.list();
-    assert_eq!(client_accounts.len(), 1);
-    assert_eq!(client_accounts[0].label, "Host Claude Account");
-}
-
-#[tokio::test]
-async fn test_end_to_end_sas_rejection_aborts() {
-    let dir_host = tempfile::tempdir().unwrap();
-    let state_host =
-        Arc::new(AppState::new(dir_host.path().to_path_buf(), "tok-h3".into()).unwrap());
-    let dir_client = tempfile::tempdir().unwrap();
-    let state_client =
-        Arc::new(AppState::new(dir_client.path().to_path_buf(), "tok-c3".into()).unwrap());
-
-    let host_keypair = EphemeralKeyPair::generate();
-    let session_id = Uuid::new_v4();
-    let host_nonce = vec![44u8; 16];
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let port = listener.local_addr().unwrap().port();
-
-    let qr_uri = generate_qr_uri(
-        "127.0.0.1",
-        port,
-        &host_keypair.public_bytes(),
-        session_id,
-        &host_nonce,
-    );
-
-    let (host_status_tx, mut host_status_rx) = mpsc::channel(16);
-    let (host_confirm_tx, host_confirm_rx) = oneshot::channel();
-    let (_host_cancel_tx, host_cancel_rx) = oneshot::channel();
-    let parsed_qr = parse_qr_uri(&qr_uri).unwrap();
-    let fp = parsed_qr.fingerprint.clone();
-
-    tokio::spawn(run_host_listener(
-        state_host.clone(),
-        session_id,
-        listener,
-        host_keypair,
-        host_nonce,
-        fp,
-        host_status_tx,
-        None,
-        host_confirm_rx,
-        host_cancel_rx,
-    ));
-
-    let (client_status_tx, mut client_status_rx) = mpsc::channel(16);
-    let (role_select_tx, role_select_rx) = oneshot::channel();
-    let (_client_confirm_tx, client_confirm_rx) = oneshot::channel();
-    let (_client_cancel_tx, client_cancel_rx) = oneshot::channel();
-
-    tokio::spawn(run_client_connector(
-        state_client.clone(),
-        parsed_qr,
-        client_status_tx,
-        None,
-        role_select_rx,
-        None,
-        client_confirm_rx,
-        client_cancel_rx,
-    ));
-
-    role_select_tx.send("receive".to_string()).unwrap();
-
-    // Wait until verification
-    while let Some(ev) = host_status_rx.recv().await {
-        if let HostEvent::SasVerification { .. } = ev {
-            break;
-        }
-    }
-
-    // Host user rejects code
-    host_confirm_tx.send(false).unwrap();
-
-    // Both should terminate with Failed
-    let mut host_failed = false;
-    while let Some(ev) = host_status_rx.recv().await {
-        if let HostEvent::Failed(_) = ev {
-            host_failed = true;
-            break;
-        }
-    }
-    assert!(host_failed);
-
-    let mut client_failed = false;
-    while let Some(ev) = client_status_rx.recv().await {
-        if let ClientEvent::Failed(_) = ev {
-            client_failed = true;
-            break;
-        }
-    }
-    assert!(client_failed);
 }
 
 #[tokio::test]
@@ -1916,113 +945,6 @@ fn host_address_prefers_wifi_over_cellular_and_vpn() {
     assert_eq!(select_lan_ipv4(&none), None);
 }
 
-/// Link-code discovery across the two mDNS implementations the apps ship:
-/// Apple's DNS-SD (iOS) and mdns-sd (Android, desktop). Each case advertises
-/// with one, resolves the code with the other, and connects to the listener
-/// bound the way `start_host` binds it. Needs a Wi-Fi or Ethernet address and
-/// macOS's mDNSResponder, so it only runs on request:
-/// `cargo test --lib pairing::tests::link_code -- --ignored --test-threads=1`
-#[cfg(target_os = "macos")]
-mod link_code_interop {
-    use super::super::{discovery, dnssd, transport};
-    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-    use base64::Engine as _;
-    use std::time::Duration;
-    use tokio::net::TcpStream;
-    use uuid::Uuid;
-
-    #[derive(Clone, Copy, Debug)]
-    enum Side {
-        DnsSd,
-        MdnsSd,
-    }
-
-    async fn check(advertiser: Side, resolver: Side) {
-        let ip = transport::get_local_lan_ip();
-        let listener = super::super::bind_pairing_listener(&ip)
-            .await
-            .expect("this test needs a Wi-Fi or Ethernet address");
-        let port = listener.local_addr().unwrap().port();
-        let code = discovery::generate_join_code();
-        let session_id = Uuid::new_v4();
-        let public_key = [7u8; 32];
-        let nonce = [9u8; 16];
-
-        let properties = [
-            ("sid", session_id.to_string()),
-            ("pk", URL_SAFE_NO_PAD.encode(public_key)),
-            ("nonce", URL_SAFE_NO_PAD.encode(nonce)),
-            ("v", super::super::protocol::PROTOCOL_VERSION.to_string()),
-        ];
-        let _dnssd_ad;
-        let _mdns_ad;
-        match advertiser {
-            Side::DnsSd => {
-                _dnssd_ad = Some(
-                    dnssd::register(
-                        &discovery::instance_name(&code),
-                        discovery::DNSSD_REGTYPE,
-                        port,
-                        transport::interface_index_for_ip(&ip).unwrap_or(0),
-                        &properties,
-                    )
-                    .unwrap(),
-                );
-            }
-            Side::MdnsSd => {
-                _mdns_ad = Some(
-                    discovery::advertise(&code, &ip, port, session_id, &public_key, &nonce)
-                        .unwrap(),
-                );
-            }
-        }
-
-        let parsed = match resolver {
-            Side::DnsSd => discovery::resolve_dnssd(&code).await,
-            Side::MdnsSd => discovery::resolve_mdns_sd(&code).await,
-        }
-        .unwrap_or_else(|e| panic!("{advertiser:?} -> {resolver:?}: {e}"));
-
-        assert_eq!(parsed.host, ip, "{advertiser:?} -> {resolver:?}");
-        assert_eq!(parsed.port, port);
-        assert_eq!(parsed.session_id, session_id);
-        assert_eq!(parsed.peer_public_key, public_key);
-        assert_eq!(parsed.session_nonce, nonce);
-
-        // The address the joiner resolved reaches the bound listener.
-        let (accepted, connected) = tokio::join!(
-            tokio::time::timeout(Duration::from_secs(5), listener.accept()),
-            TcpStream::connect((parsed.host.as_str(), parsed.port)),
-        );
-        connected.expect("joiner connects to the resolved address");
-        accepted.expect("host accepts in time").unwrap();
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    #[ignore = "needs a LAN address and mDNSResponder"]
-    async fn link_code_ios_host_android_joiner() {
-        check(Side::DnsSd, Side::MdnsSd).await;
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    #[ignore = "needs a LAN address and mDNSResponder"]
-    async fn link_code_android_host_ios_joiner() {
-        check(Side::MdnsSd, Side::DnsSd).await;
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    #[ignore = "needs a LAN address and mDNSResponder"]
-    async fn link_code_android_host_android_joiner() {
-        check(Side::MdnsSd, Side::MdnsSd).await;
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    #[ignore = "needs a LAN address and mDNSResponder"]
-    async fn link_code_ios_host_ios_joiner() {
-        check(Side::DnsSd, Side::DnsSd).await;
-    }
-}
-
 /// A sender with an account plus everything an opted-in transfer carries: a group, non-default
 /// settings, an account order and an alert.
 async fn export_everything() -> (tempfile::TempDir, Vec<u8>) {
@@ -2093,7 +1015,7 @@ async fn import_reports_no_warnings_when_everything_is_saved() {
     let state_receiver =
         Arc::new(AppState::new(dir_receiver.path().to_path_buf(), "tok-w-r".into()).unwrap());
 
-    let summary = import_sync_payload(&state_receiver, &export_bytes)
+    let summary = import_sync_payload(&state_receiver, &export_bytes, true)
         .await
         .unwrap();
 
@@ -2121,7 +1043,7 @@ async fn import_reports_each_part_it_could_not_save_without_failing_the_transfer
         std::fs::create_dir(dir_receiver.path().join(file)).unwrap();
     }
 
-    let summary = import_sync_payload(&state_receiver, &export_bytes)
+    let summary = import_sync_payload(&state_receiver, &export_bytes, true)
         .await
         .unwrap();
 
@@ -2164,12 +1086,14 @@ fn transfer_options_default_to_nothing_extra_and_reset_clears_every_choice() {
 
     let mut options = PairingTransferOptions {
         include_settings: true,
+        accept_incoming_settings: true,
         pending_ui_state: Some(serde_json::json!({"theme": "dark"})),
         frozen: None,
     };
     options.freeze();
     options.reset();
     assert!(!options.include_settings);
+    assert!(!options.accept_incoming_settings);
     assert!(options.pending_ui_state.is_none());
     // A confirm-time snapshot must not survive into the next transfer.
     assert!(!options.exported_extras().0);
@@ -2186,7 +1110,7 @@ async fn starting_a_host_session_resets_the_transfer_options() {
     }
     // A host session needs a local network address; where there is none it fails after the
     // reset, which is the part under test.
-    let _ = state.pairing.start_host(state.clone()).await;
+    let _ = state.pairing.start_host(state.clone(), false).await;
     state.pairing.cancel().await;
     let options = state.pairing_options.read();
     assert!(!options.include_settings);
@@ -2245,7 +1169,7 @@ async fn import_never_overwrites_an_existing_accounts_local_credentials() {
         .unwrap();
     let export_bytes = create_export_payload(&state_sender).unwrap();
 
-    let summary = import_sync_payload(&state_receiver, &export_bytes)
+    let summary = import_sync_payload(&state_receiver, &export_bytes, true)
         .await
         .unwrap();
 
@@ -2294,7 +1218,7 @@ async fn import_keeps_credentials_when_only_the_account_id_matches() {
         .await
         .unwrap();
 
-    let summary = import_sync_payload(&state_receiver, &export_bytes)
+    let summary = import_sync_payload(&state_receiver, &export_bytes, true)
         .await
         .unwrap();
     assert_eq!(summary.skipped, 1);
@@ -2320,12 +1244,12 @@ async fn answers_are_refused_until_that_phase_and_a_confirm_freezes_the_extras()
 
     let role_err = state.pairing.select_role("send").await.unwrap_err();
     assert!(role_err.contains("not in role selection"));
-    let sas_err = state
+    let confirm_err = state
         .pairing
-        .confirm_sas(session_id, true, &state.pairing_options)
+        .confirm_transfer(session_id, true, &state.pairing_options)
         .await
         .unwrap_err();
-    assert!(sas_err.contains("not waiting for SAS"));
+    assert!(confirm_err.contains("not waiting for confirmation"));
 
     // An offer for a different session is dropped, and this session stays closed.
     let (bogus_role_tx, mut bogus_role_rx) = oneshot::channel();
@@ -2350,17 +1274,20 @@ async fn answers_are_refused_until_that_phase_and_a_confirm_freezes_the_extras()
         options.include_settings = true;
         options.pending_ui_state = Some(serde_json::json!({"theme": "dark"}));
     }
-    let (sas_tx, mut sas_rx) = oneshot::channel();
-    state.pairing.offer_sas_confirm(session_id, sas_tx).await;
+    let (confirm_tx, mut confirm_rx) = oneshot::channel();
     state
         .pairing
-        .confirm_sas(session_id, true, &state.pairing_options)
+        .offer_transfer_confirm(session_id, confirm_tx)
+        .await;
+    state
+        .pairing
+        .confirm_transfer(session_id, true, &state.pairing_options)
         .await
         .unwrap();
-    assert!(sas_rx.try_recv().unwrap());
+    assert!(confirm_rx.try_recv().unwrap());
     assert!(state
         .pairing
-        .confirm_sas(session_id, true, &state.pairing_options)
+        .confirm_transfer(session_id, true, &state.pairing_options)
         .await
         .is_err());
 
@@ -2385,14 +1312,17 @@ async fn a_confirm_while_settings_are_off_keeps_them_out_of_the_export() {
     let session_id = "session-off";
     state.pairing.testing_open_session(session_id).await;
 
-    let (sas_tx, mut sas_rx) = oneshot::channel();
-    state.pairing.offer_sas_confirm(session_id, sas_tx).await;
+    let (confirm_tx, mut confirm_rx) = oneshot::channel();
     state
         .pairing
-        .confirm_sas(session_id, true, &state.pairing_options)
+        .offer_transfer_confirm(session_id, confirm_tx)
+        .await;
+    state
+        .pairing
+        .confirm_transfer(session_id, true, &state.pairing_options)
         .await
         .unwrap();
-    assert!(sas_rx.try_recv().unwrap());
+    assert!(confirm_rx.try_recv().unwrap());
 
     state.pairing_options.write().include_settings = true;
     state.pairing_options.write().pending_ui_state = Some(serde_json::json!({"theme": "light"}));
@@ -2402,21 +1332,24 @@ async fn a_confirm_while_settings_are_off_keeps_them_out_of_the_export() {
 }
 
 #[tokio::test]
-async fn rejecting_the_code_does_not_freeze_the_extras() {
+async fn declining_the_transfer_does_not_freeze_the_extras() {
     let dir = tempfile::tempdir().unwrap();
     let state = Arc::new(AppState::new(dir.path().to_path_buf(), "tok-phase-no".into()).unwrap());
     let session_id = "session-reject";
     state.pairing.testing_open_session(session_id).await;
     state.pairing_options.write().include_settings = true;
 
-    let (sas_tx, mut sas_rx) = oneshot::channel();
-    state.pairing.offer_sas_confirm(session_id, sas_tx).await;
+    let (confirm_tx, mut confirm_rx) = oneshot::channel();
     state
         .pairing
-        .confirm_sas(session_id, false, &state.pairing_options)
+        .offer_transfer_confirm(session_id, confirm_tx)
+        .await;
+    state
+        .pairing
+        .confirm_transfer(session_id, false, &state.pairing_options)
         .await
         .unwrap();
-    assert!(!sas_rx.try_recv().unwrap());
+    assert!(!confirm_rx.try_recv().unwrap());
 
     state.pairing_options.write().include_settings = false;
     assert!(exported_payload(&state).settings.is_none());
@@ -2461,25 +1394,684 @@ fn airgap_export_clears_a_confirm_freeze_before_using_the_live_choice() {
     assert!(unfreeze < write && write < export);
 }
 
+// ---------------------------------------------------------------------------
+// Link-code key exchange and the pairing flow it gates
+// ---------------------------------------------------------------------------
+
+#[test]
+fn the_same_code_gives_both_sides_the_same_key_and_another_code_does_not() {
+    let salt = [3u8; 16];
+    let (joiner, joiner_message) = PakeExchange::start_joiner("482019");
+    let (host, host_message) = PakeExchange::start_host("482019");
+    assert_eq!(joiner_message.len(), PAKE_MESSAGE_LEN);
+    assert_eq!(host_message.len(), PAKE_MESSAGE_LEN);
+    let joiner_key = joiner.finish(&host_message, &salt).unwrap();
+    let host_key = host.finish(&joiner_message, &salt).unwrap();
+    assert_eq!(joiner_key, host_key);
+
+    // A wrong code is not an error: it is a key the other side does not have.
+    let (guesser, guess_message) = PakeExchange::start_joiner("482018");
+    let (host, host_message) = PakeExchange::start_host("482019");
+    let guess_key = guesser.finish(&host_message, &salt).unwrap();
+    let host_key = host.finish(&guess_message, &salt).unwrap();
+    assert_ne!(guess_key, host_key);
+
+    // The session nonce is part of the key.
+    let (joiner, joiner_message) = PakeExchange::start_joiner("482019");
+    let (host, host_message) = PakeExchange::start_host("482019");
+    assert_ne!(
+        joiner.finish(&host_message, &[1u8; 16]).unwrap(),
+        host.finish(&joiner_message, &[2u8; 16]).unwrap()
+    );
+}
+
+#[test]
+fn malformed_and_reflected_key_exchange_messages_are_rejected() {
+    let (host, host_message) = PakeExchange::start_host("482019");
+    assert!(host.finish(&[0u8; 5], &[0u8; 16]).is_err());
+    // A message sent back to the side that made it must not be accepted.
+    let (host, _) = PakeExchange::start_host("482019");
+    assert!(host.finish(&host_message, &[0u8; 16]).is_err());
+}
+
+#[test]
+fn confirmation_tags_are_bound_to_the_key_the_session_and_the_role() {
+    let key = [7u8; 32];
+    let transcript = build_transcript(&[1u8; 16], &[2u8; 16], &[3u8; 33], &[4u8; 33]);
+    let tag = compute_confirmation_tag(&key, &transcript, KEY_CONFIRM_JOINER_INFO);
+    assert!(verify_confirmation_tag(
+        &key,
+        &transcript,
+        KEY_CONFIRM_JOINER_INFO,
+        &tag
+    ));
+    // Not replayable as the other side's proof, or as a transfer confirmation.
+    for other in [
+        KEY_CONFIRM_HOST_INFO,
+        CONFIRM_SENDER_INFO,
+        CONFIRM_RECEIVER_INFO,
+    ] {
+        assert!(!verify_confirmation_tag(&key, &transcript, other, &tag));
+    }
+    assert!(!verify_confirmation_tag(
+        &[8u8; 32],
+        &transcript,
+        KEY_CONFIRM_JOINER_INFO,
+        &tag
+    ));
+    let other_session = build_transcript(&[9u8; 16], &[2u8; 16], &[3u8; 33], &[4u8; 33]);
+    assert!(!verify_confirmation_tag(
+        &key,
+        &other_session,
+        KEY_CONFIRM_JOINER_INFO,
+        &tag
+    ));
+}
+
+/// Every frame read before the transfer is confirmed must use a small budget,
+/// so a device on the network cannot make this one allocate 16 MB.
+#[test]
+fn only_the_encrypted_payload_is_read_with_the_large_frame_budget() {
+    let source = include_str!("transport.rs").replace("\r\n", "\n");
+    let mut large = 0;
+    for (index, _) in source.match_indices("read_frame_limited(") {
+        let call = &source[index..];
+        let call = &call[..call.find(')').expect("end of call")];
+        if call.contains("MAX_PREAUTH_FRAME_SIZE") || call.contains("MAX_CONTROL_FRAME_SIZE") {
+            continue;
+        }
+        assert!(call.contains("MAX_FRAME_SIZE"), "unbounded read: {call}");
+        large += 1;
+    }
+    assert_eq!(large, 1, "only the encrypted payload may be a large frame");
+    let receive = &source[source.find("async fn receive_accounts(").unwrap()..];
+    assert!(receive.contains("read_frame_limited(&mut stream, MAX_FRAME_SIZE)"));
+}
+
 #[test]
 fn abort_reasons_keep_their_wire_numbers() {
     use crate::pairing::protocol::AbortReason::*;
-    let expected: [(crate::pairing::protocol::AbortReason, u8); 13] = [
+    let expected: [(AbortReason, u8); 13] = [
         (BadHandshake, 0x01),
-        (KeyDerivationFailed, 0x03),
         (RoleSelectFailed, 0x04),
         (RoleSelectTimedOut, 0x05),
         (CanceledBeforeRole, 0x06),
         (RoleChoiceDropped, 0x07),
         (CanceledBeforeConfirm, 0x08),
-        (SasRejected, 0x09),
+        (TransferDeclined, 0x09),
         (PayloadInvalid, 0x0A),
         (PayloadTimedOut, 0x0B),
         (ImportFailed, 0x0C),
         (InvalidPeerKey, 0x0D),
+        (WrongCode, 0x0E),
         (InvalidRole, 0x10),
     ];
-    for (reason, byte) in expected {
-        assert_eq!(reason.payload(), [byte], "{reason:?}");
+    for (reason, number) in expected {
+        assert_eq!(reason.payload(), [number], "{reason:?}");
+    }
+}
+
+const TEST_CODE: &str = "482019";
+
+async fn state_in(dir: &tempfile::TempDir, token: &str) -> Arc<AppState> {
+    Arc::new(AppState::new(dir.path().to_path_buf(), token.into()).unwrap())
+}
+
+async fn state_with_account(dir: &tempfile::TempDir, token: &str) -> Arc<AppState> {
+    let state = state_in(dir, token).await;
+    state
+        .persist_connected_account(
+            claude_account("acc-pair", "Claude Pair", "pair@example.com"),
+            &claude_secret("pair"),
+        )
+        .await
+        .unwrap();
+    state
+}
+
+/// A host session listening on loopback.
+struct TestHost {
+    found: DiscoveredHost,
+    events: mpsc::Receiver<HostEvent>,
+    confirm: oneshot::Sender<bool>,
+    cancel: oneshot::Sender<()>,
+}
+
+async fn spawn_host(state: &Arc<AppState>, code: &str) -> TestHost {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let session_id = Uuid::new_v4();
+    let nonce = vec![11u8; 16];
+    let (status_tx, events) = mpsc::channel(16);
+    let (confirm, confirm_rx) = oneshot::channel();
+    let (cancel, cancel_rx) = oneshot::channel();
+    tokio::spawn(run_host_listener(
+        state.clone(),
+        session_id,
+        listener,
+        code.to_string(),
+        nonce.clone(),
+        status_tx,
+        None,
+        confirm_rx,
+        cancel_rx,
+    ));
+    TestHost {
+        found: DiscoveredHost {
+            host: "127.0.0.1".into(),
+            port,
+            session_id,
+            session_nonce: nonce,
+        },
+        events,
+        confirm,
+        cancel,
+    }
+}
+
+/// A joining device.
+struct TestClient {
+    events: mpsc::Receiver<ClientEvent>,
+    role: oneshot::Sender<String>,
+    confirm: oneshot::Sender<bool>,
+    cancel: oneshot::Sender<()>,
+}
+
+fn spawn_client(state: &Arc<AppState>, hosts: Vec<DiscoveredHost>, code: &str) -> TestClient {
+    let (status_tx, events) = mpsc::channel(16);
+    let (role, role_rx) = oneshot::channel();
+    let (confirm, confirm_rx) = oneshot::channel();
+    let (cancel, cancel_rx) = oneshot::channel();
+    tokio::spawn(run_client_connector(
+        state.clone(),
+        "client-session".into(),
+        hosts,
+        code.to_string(),
+        status_tx,
+        None,
+        role_rx,
+        None,
+        confirm_rx,
+        cancel_rx,
+    ));
+    TestClient {
+        events,
+        role,
+        confirm,
+        cancel,
+    }
+}
+
+async fn next<E>(events: &mut mpsc::Receiver<E>) -> E {
+    timeout(Duration::from_secs(10), events.recv())
+        .await
+        .expect("an event in time")
+        .expect("the session is still running")
+}
+
+async fn host_completed(events: &mut mpsc::Receiver<HostEvent>) -> super::payload::SyncSummary {
+    loop {
+        match next(events).await {
+            HostEvent::Completed(summary) => return summary,
+            HostEvent::Failed(error) => panic!("host failed: {error}"),
+            _ => {}
+        }
+    }
+}
+
+async fn client_completed(events: &mut mpsc::Receiver<ClientEvent>) -> super::payload::SyncSummary {
+    loop {
+        match next(events).await {
+            ClientEvent::Completed(summary) => return summary,
+            ClientEvent::Failed(error) => panic!("client failed: {error}"),
+            _ => {}
+        }
+    }
+}
+
+async fn host_failure(events: &mut mpsc::Receiver<HostEvent>) -> String {
+    loop {
+        if let HostEvent::Failed(error) = next(events).await {
+            return error;
+        }
+    }
+}
+
+async fn client_failure(events: &mut mpsc::Receiver<ClientEvent>) -> String {
+    loop {
+        if let ClientEvent::Failed(error) = next(events).await {
+            return error;
+        }
+    }
+}
+
+#[tokio::test]
+async fn the_joiner_sends_after_one_confirmation_and_the_receiver_needs_none() {
+    let (dir_host, dir_client) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    let host_state = state_in(&dir_host, "tok-h").await;
+    let client_state = state_with_account(&dir_client, "tok-c").await;
+
+    let mut host = spawn_host(&host_state, TEST_CODE).await;
+    let mut client = spawn_client(&client_state, vec![host.found.clone()], TEST_CODE);
+
+    assert!(matches!(
+        next(&mut host.events).await,
+        HostEvent::PeerConnected
+    ));
+    assert!(matches!(
+        next(&mut client.events).await,
+        ClientEvent::RoleSelection
+    ));
+    client.role.send("send".into()).unwrap();
+
+    match next(&mut client.events).await {
+        ClientEvent::ConfirmTransfer {
+            role,
+            account_count,
+        } => {
+            assert_eq!(role, "sender");
+            assert_eq!(account_count, 1);
+        }
+        other => panic!("unexpected client event: {other:?}"),
+    }
+    match next(&mut host.events).await {
+        HostEvent::ConfirmTransfer {
+            role,
+            account_count,
+        } => {
+            assert_eq!(role, "receiver");
+            assert_eq!(account_count, 1);
+        }
+        other => panic!("unexpected host event: {other:?}"),
+    }
+
+    // Nothing moves until the sending user confirms.
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    assert!(host_state.store.list().is_empty());
+
+    // Only the sender confirms. The receiver's answer channel is never used.
+    client.confirm.send(true).unwrap();
+    assert_eq!(host_completed(&mut host.events).await.added, 1);
+    assert_eq!(client_completed(&mut client.events).await.added, 1);
+    assert_eq!(host_state.store.list()[0].label, "Claude Pair");
+    drop(host.confirm);
+}
+
+#[tokio::test]
+async fn the_host_sends_when_the_joiner_chooses_to_receive() {
+    let (dir_host, dir_client) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    let host_state = state_with_account(&dir_host, "tok-h2").await;
+    let client_state = state_in(&dir_client, "tok-c2").await;
+    // The sender includes its settings, but the receiving user did not ask for them.
+    host_state
+        .settings
+        .set_automatic_updates_enabled(false)
+        .unwrap();
+    host_state.pairing_options.write().include_settings = true;
+    assert!(client_state.settings.get().automatic_updates_enabled);
+
+    let mut host = spawn_host(&host_state, TEST_CODE).await;
+    let mut client = spawn_client(&client_state, vec![host.found.clone()], TEST_CODE);
+    next(&mut host.events).await;
+    next(&mut client.events).await;
+    client.role.send("receive".into()).unwrap();
+
+    match next(&mut host.events).await {
+        HostEvent::ConfirmTransfer { role, .. } => assert_eq!(role, "sender"),
+        other => panic!("unexpected host event: {other:?}"),
+    }
+    host.confirm.send(true).unwrap();
+    assert_eq!(client_completed(&mut client.events).await.added, 1);
+    assert_eq!(host_completed(&mut host.events).await.added, 1);
+    assert_eq!(client_state.store.list().len(), 1);
+    assert!(
+        client_state.settings.get().automatic_updates_enabled,
+        "a sender must not change the receiver's settings unasked"
+    );
+    drop(client.confirm);
+}
+
+#[tokio::test]
+async fn a_declined_transfer_sends_nothing() {
+    let (dir_host, dir_client) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    let host_state = state_in(&dir_host, "tok-h3").await;
+    let client_state = state_with_account(&dir_client, "tok-c3").await;
+
+    let mut host = spawn_host(&host_state, TEST_CODE).await;
+    let mut client = spawn_client(&client_state, vec![host.found.clone()], TEST_CODE);
+    next(&mut host.events).await;
+    next(&mut client.events).await;
+    client.role.send("send".into()).unwrap();
+    next(&mut client.events).await;
+
+    client.confirm.send(false).unwrap();
+    assert!(client_failure(&mut client.events)
+        .await
+        .contains("declined"));
+    host_failure(&mut host.events).await;
+    assert!(host_state.store.list().is_empty());
+}
+
+#[tokio::test]
+async fn the_receiver_can_cancel_while_waiting_for_the_sender() {
+    let (dir_host, dir_client) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    let host_state = state_in(&dir_host, "tok-h4").await;
+    let client_state = state_with_account(&dir_client, "tok-c4").await;
+
+    let mut host = spawn_host(&host_state, TEST_CODE).await;
+    let mut client = spawn_client(&client_state, vec![host.found.clone()], TEST_CODE);
+    next(&mut host.events).await;
+    next(&mut client.events).await;
+    client.role.send("send".into()).unwrap();
+    next(&mut client.events).await;
+    assert!(matches!(
+        next(&mut host.events).await,
+        HostEvent::ConfirmTransfer { .. }
+    ));
+
+    // The receiving host cancels before the sender presses Send.
+    host.cancel.send(()).unwrap();
+    assert!(host_failure(&mut host.events).await.contains("Canceled"));
+    // A Send pressed afterwards must not transfer anything.
+    let _ = client.confirm.send(true);
+    client_failure(&mut client.events).await;
+    assert!(host_state.store.list().is_empty());
+}
+
+#[tokio::test]
+async fn a_wrong_code_shows_nothing_on_the_host_and_three_end_the_session() {
+    let (dir_host, dir_client) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    let host_state = state_with_account(&dir_host, "tok-h5").await;
+    let client_state = state_in(&dir_client, "tok-c5").await;
+    let mut host = spawn_host(&host_state, TEST_CODE).await;
+
+    for attempt in 1..MAX_CODE_ATTEMPTS {
+        let mut wrong = spawn_client(&client_state, vec![host.found.clone()], "482018");
+        assert_eq!(client_failure(&mut wrong.events).await, WRONG_CODE);
+        // A device that does not know the code never reaches the host's user.
+        assert!(
+            host.events.try_recv().is_err(),
+            "attempt {attempt} must not produce a host event"
+        );
+    }
+
+    let mut last = spawn_client(&client_state, vec![host.found.clone()], "482017");
+    assert_eq!(client_failure(&mut last.events).await, WRONG_CODE);
+    assert_eq!(host_failure(&mut host.events).await, TOO_MANY_WRONG_CODES);
+
+    // The session is over: even the right code no longer connects.
+    let mut late = spawn_client(&client_state, vec![host.found.clone()], TEST_CODE);
+    client_failure(&mut late.events).await;
+    assert!(client_state.store.list().is_empty());
+}
+
+#[tokio::test]
+async fn a_typo_does_not_end_the_session() {
+    let (dir_host, dir_client) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    let host_state = state_with_account(&dir_host, "tok-h6").await;
+    let client_state = state_in(&dir_client, "tok-c6").await;
+    let mut host = spawn_host(&host_state, TEST_CODE).await;
+
+    let mut wrong = spawn_client(&client_state, vec![host.found.clone()], "482010");
+    assert_eq!(client_failure(&mut wrong.events).await, WRONG_CODE);
+
+    let mut client = spawn_client(&client_state, vec![host.found.clone()], TEST_CODE);
+    assert!(matches!(
+        next(&mut host.events).await,
+        HostEvent::PeerConnected
+    ));
+    next(&mut client.events).await;
+    client.role.send("receive".into()).unwrap();
+    next(&mut host.events).await;
+    host.confirm.send(true).unwrap();
+    assert_eq!(client_completed(&mut client.events).await.added, 1);
+}
+
+/// A device on the network knows the session id (it is announced) but not the
+/// code. Whatever it sends, the host shows nothing and stays usable.
+#[tokio::test]
+async fn garbage_and_strangers_do_not_reach_the_user_or_use_up_attempts() {
+    let (dir_host, dir_client) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    let host_state = state_with_account(&dir_host, "tok-h7").await;
+    let client_state = state_in(&dir_client, "tok-c7").await;
+    let mut host = spawn_host(&host_state, TEST_CODE).await;
+    let address = ("127.0.0.1", host.found.port);
+
+    // More than MAX_CODE_ATTEMPTS malformed connections: none is a guess.
+    for _ in 0..(MAX_CODE_ATTEMPTS + 2) {
+        // Not a handshake at all.
+        let mut socket = TcpStream::connect(address).await.unwrap();
+        write_frame(&mut socket, MSG_HANDSHAKE_RESP, b"nonsense")
+            .await
+            .unwrap();
+        let (kind, _) = read_frame(&mut socket).await.unwrap();
+        assert_eq!(kind, MSG_ABORT);
+
+        // The right session id with an invalid key exchange message.
+        let mut socket = TcpStream::connect(address).await.unwrap();
+        let mut init = vec![0xEEu8; PAKE_MESSAGE_LEN];
+        init.extend_from_slice(host.found.session_id.as_bytes());
+        assert_eq!(init.len(), HANDSHAKE_INIT_LEN);
+        write_frame(&mut socket, MSG_HANDSHAKE_INIT, &init)
+            .await
+            .unwrap();
+        let (kind, _) = read_frame(&mut socket).await.unwrap();
+        assert_eq!(kind, MSG_ABORT);
+    }
+
+    // A well-formed exchange that stops before proving anything: the host
+    // answers with its message only, never with its own proof.
+    let mut socket = TcpStream::connect(address).await.unwrap();
+    let (_exchange, message) = PakeExchange::start_joiner("000042");
+    let mut init = message.clone();
+    init.extend_from_slice(host.found.session_id.as_bytes());
+    write_frame(&mut socket, MSG_HANDSHAKE_INIT, &init)
+        .await
+        .unwrap();
+    let (kind, payload) = read_frame(&mut socket).await.unwrap();
+    assert_eq!(kind, MSG_HANDSHAKE_RESP);
+    assert_eq!(payload.len(), PAKE_MESSAGE_LEN);
+    // A made-up proof is one wrong guess and gets an abort, not the host's proof.
+    write_frame(&mut socket, MSG_KEY_CONFIRM, &[0u8; 32])
+        .await
+        .unwrap();
+    let (kind, payload) = read_frame(&mut socket).await.unwrap();
+    assert_eq!(kind, MSG_ABORT);
+    assert_eq!(payload, AbortReason::WrongCode.payload());
+
+    assert!(host.events.try_recv().is_err(), "nothing reached the user");
+
+    // The real device still pairs.
+    let mut client = spawn_client(&client_state, vec![host.found.clone()], TEST_CODE);
+    assert!(matches!(
+        next(&mut host.events).await,
+        HostEvent::PeerConnected
+    ));
+    next(&mut client.events).await;
+    client.role.send("receive".into()).unwrap();
+    next(&mut host.events).await;
+    host.confirm.send(true).unwrap();
+    assert_eq!(client_completed(&mut client.events).await.added, 1);
+}
+
+#[tokio::test]
+async fn a_joiner_skips_hosts_that_do_not_share_the_code_but_only_a_few() {
+    let dir_real = tempfile::tempdir().unwrap();
+    let real_state = state_with_account(&dir_real, "tok-real").await;
+    let dir_client = tempfile::tempdir().unwrap();
+    let client_state = state_in(&dir_client, "tok-c8").await;
+
+    // Other pairing hosts on the network, showing other codes.
+    let mut others = Vec::new();
+    let mut other_dirs = Vec::new();
+    for index in 0..MAX_HOSTS_TRIED {
+        let dir = tempfile::tempdir().unwrap();
+        let state = state_in(&dir, &format!("tok-other-{index}")).await;
+        others.push(spawn_host(&state, "135790").await);
+        other_dirs.push(dir);
+    }
+
+    // One other host first: the joiner moves on to the real one.
+    let mut real = spawn_host(&real_state, TEST_CODE).await;
+    let mut client = spawn_client(
+        &client_state,
+        vec![others[0].found.clone(), real.found.clone()],
+        TEST_CODE,
+    );
+    assert!(matches!(
+        next(&mut real.events).await,
+        HostEvent::PeerConnected
+    ));
+    assert!(matches!(
+        next(&mut client.events).await,
+        ClientEvent::RoleSelection
+    ));
+    drop(client.cancel);
+
+    // More hosts than the limit ahead of the real one: the joiner stops
+    // before reaching it, so a crowd of fake hosts gets few guesses.
+    let mut hosts: Vec<DiscoveredHost> = others.iter().map(|host| host.found.clone()).collect();
+    let mut second_real = spawn_host(&real_state, TEST_CODE).await;
+    hosts.push(second_real.found.clone());
+    let mut crowded = spawn_client(&client_state, hosts, TEST_CODE);
+    assert_eq!(client_failure(&mut crowded.events).await, WRONG_CODE);
+    assert!(second_real.events.try_recv().is_err());
+}
+
+#[tokio::test]
+async fn settings_are_imported_only_when_the_receiving_user_asked_for_them() {
+    let (_sender_dir, export_bytes) = export_everything().await;
+    let dir_receiver = tempfile::tempdir().unwrap();
+    let receiver = state_in(&dir_receiver, "tok-opt-in").await;
+
+    let summary = import_sync_payload(&receiver, &export_bytes, false)
+        .await
+        .unwrap();
+    assert_eq!(summary.added, 1, "accounts always come over");
+    assert!(receiver.settings.get().automatic_updates_enabled);
+    assert!(receiver.alerts.get("acc-w").is_empty());
+    // Groups are part of the accounts, not of the settings.
+    assert_eq!(receiver.buckets.list().len(), 1);
+}
+
+#[tokio::test]
+async fn starting_a_session_records_whether_this_device_accepts_settings() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = state_in(&dir, "tok-accept").await;
+    // Hosting needs a local network address; without one it fails after the
+    // options are set, which is the part under test.
+    let _ = state.pairing.start_host(state.clone(), true).await;
+    assert!(state.pairing_options.read().accept_incoming_settings);
+    state.pairing.cancel().await;
+    let _ = state.pairing.start_host(state.clone(), false).await;
+    assert!(!state.pairing_options.read().accept_incoming_settings);
+    state.pairing.cancel().await;
+}
+
+#[tokio::test]
+async fn joining_without_a_host_on_the_network_says_so() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = state_in(&dir, "tok-nohost").await;
+    let error = state
+        .pairing
+        .start_client_by_code(state.clone(), "12345".into(), false)
+        .await
+        .unwrap_err();
+    assert!(error.contains("6-digit"), "{error}");
+}
+
+// Discovery between Bonjour (iOS) and mdns-sd (every other platform), in
+// both directions. Needs a real network interface, so these are run by hand.
+#[cfg(target_os = "macos")]
+mod link_code_interop {
+    use super::super::{discovery, dnssd, transport};
+    use std::time::Duration;
+    use tokio::net::TcpStream;
+    use uuid::Uuid;
+
+    #[derive(Clone, Copy, Debug)]
+    enum Side {
+        DnsSd,
+        MdnsSd,
+    }
+
+    async fn check(advertiser: Side, browser: Side) {
+        let ip = transport::get_local_lan_ip();
+        let listener = super::super::bind_pairing_listener(&ip)
+            .await
+            .expect("this test needs a Wi-Fi or Ethernet address");
+        let port = listener.local_addr().unwrap().port();
+        let session_id = Uuid::new_v4();
+        let nonce = [9u8; 16];
+        let instance = discovery::generate_instance_name();
+
+        let _dnssd_ad;
+        let _mdns_ad;
+        match advertiser {
+            Side::DnsSd => {
+                _dnssd_ad = Some(
+                    dnssd::register(
+                        &instance,
+                        discovery::DNSSD_REGTYPE,
+                        port,
+                        transport::interface_index_for_ip(&ip).unwrap_or(0),
+                        &discovery::advertised_properties(session_id, &nonce),
+                    )
+                    .unwrap(),
+                );
+            }
+            Side::MdnsSd => {
+                _mdns_ad =
+                    Some(discovery::advertise(&instance, &ip, port, session_id, &nonce).unwrap());
+            }
+        }
+
+        let timeout = Duration::from_secs(15);
+        let found = match browser {
+            Side::DnsSd => discovery::discover_dnssd(timeout).await,
+            Side::MdnsSd => discovery::discover_mdns_sd(timeout).await,
+        }
+        .unwrap_or_else(|e| panic!("{advertiser:?} -> {browser:?}: {e}"));
+        let host = found
+            .hosts
+            .into_iter()
+            .find(|host| host.session_id == session_id)
+            .unwrap_or_else(|| panic!("{advertiser:?} -> {browser:?}: host not found"));
+
+        assert_eq!(host.host, ip, "{advertiser:?} -> {browser:?}");
+        assert_eq!(host.port, port);
+        assert_eq!(host.session_nonce, nonce);
+
+        // The address the joiner found reaches the bound listener.
+        let (accepted, connected) = tokio::join!(
+            tokio::time::timeout(Duration::from_secs(5), listener.accept()),
+            TcpStream::connect((host.host.as_str(), host.port)),
+        );
+        connected.expect("joiner connects to the found address");
+        accepted.expect("host accepts in time").unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "needs a LAN address and mDNSResponder"]
+    async fn link_code_ios_host_android_joiner() {
+        check(Side::DnsSd, Side::MdnsSd).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "needs a LAN address and mDNSResponder"]
+    async fn link_code_android_host_ios_joiner() {
+        check(Side::MdnsSd, Side::DnsSd).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "needs a LAN address and mDNSResponder"]
+    async fn link_code_android_host_android_joiner() {
+        check(Side::MdnsSd, Side::MdnsSd).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "needs a LAN address and mDNSResponder"]
+    async fn link_code_ios_host_ios_joiner() {
+        check(Side::DnsSd, Side::DnsSd).await;
     }
 }

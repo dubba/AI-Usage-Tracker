@@ -1,9 +1,11 @@
 # Changelog
 
-## Unreleased (10 changes)
+## Unreleased (16 changes)
 
-### Improved (6)
+### Improved (8)
 
+- The offline (QR code) transfer no longer asks you to compare a code on both screens. The sending device shows the animated codes with a Done button, and once the receiving device has scanned every frame it asks "Add 3 accounts from the other device?" with one Add Accounts button.
+- Linking two devices over Wi-Fi no longer asks you to compare a 12-character code on both screens. After the link code is entered, only the sending device asks you to press Send, and the receiving device waits for it.
 - The Dashboard summary strip now shows a single compact status line on both desktop and mobile ("All accounts good" when healthy, or an interactive amber "Attention needed" bar with a count that filters to cards needing attention and folds "Show all" into the same box), paired with the next reset countdown on the right.
 - On phones, when a custom group's name is too wide to share the title row with the Group badge, the Group badge now drops directly beneath the group name (centered together with the filter button) instead of hiding, and returns inline whenever there is enough room.
 - On phones, the box for renaming an account now sits on the line above the plan and status badges, so it stays wide enough to read the name instead of shrinking beside them.
@@ -17,6 +19,13 @@
 - An account card's actions menu is no longer cut off at the bottom edge of its card.
 - On phones, an account card's actions menu now stops above the bottom navigation bar and opens upward when there is not enough room below, instead of running off the screen.
 - In the Create Group and Edit Group dialog, the space above an error message now matches the space below it.
+
+### Security (4)
+
+- Linking devices over Wi-Fi now uses the six-digit link code as the secret that connects them. The code is never sent over the network, a device that doesn't know it can't reach your screen, and three wrong codes end the session so you need a new code. Both devices need this version to link.
+- A device receiving accounts now takes the other device's settings and layout only when "Also Transfer Settings & Layout" is ticked on the receiving device too. Before, only the sending device's choice counted.
+- On Android, the app no longer opens pairing links from other apps or websites. Linking starts only from Link Devices inside the app.
+- While the animated transfer codes of an offline (air-gapped) transfer are showing, the app window is now kept out of screenshots and screen recordings on Windows, macOS, and Android. On Android the app also shows blank in the recent-apps list during that time. iPhone and iPad cannot block screenshots, so the on-screen warning still applies there.
 
 ## v0.6.1 - 2026-11-15 (3 changes)
 

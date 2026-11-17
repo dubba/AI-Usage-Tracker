@@ -34,8 +34,8 @@ type DnsServiceErrorType = i32;
 const NO_ERROR: DnsServiceErrorType = 0;
 const FLAGS_MORE_COMING: DnsServiceFlags = 0x1;
 const FLAGS_ADD: DnsServiceFlags = 0x2;
-/// Fail on a name conflict instead of renaming to "AIUT-123456 (2)", which
-/// the other device would never look up.
+/// Fail on a name conflict instead of renaming. Instance names are random,
+/// so a conflict means something else is wrong.
 const FLAGS_NO_AUTO_RENAME: DnsServiceFlags = 0x8;
 const PROTOCOL_IPV4: u32 = 0x01;
 const PROTOCOL_IPV6: u32 = 0x02;
@@ -46,6 +46,16 @@ const POLLIN: i16 = 0x0001;
 type RegisterReply = unsafe extern "C" fn(
     DnsServiceRef,
     DnsServiceFlags,
+    DnsServiceErrorType,
+    *const c_char,
+    *const c_char,
+    *const c_char,
+    *mut c_void,
+);
+type BrowseReply = unsafe extern "C" fn(
+    DnsServiceRef,
+    DnsServiceFlags,
+    u32,
     DnsServiceErrorType,
     *const c_char,
     *const c_char,
@@ -97,6 +107,15 @@ extern "C" {
         txt_len: u16,
         txt_record: *const c_void,
         callback: RegisterReply,
+        context: *mut c_void,
+    ) -> DnsServiceErrorType;
+    fn DNSServiceBrowse(
+        sd_ref: *mut DnsServiceRef,
+        flags: DnsServiceFlags,
+        interface_index: u32,
+        regtype: *const c_char,
+        domain: *const c_char,
+        callback: BrowseReply,
         context: *mut c_void,
     ) -> DnsServiceErrorType;
     fn DNSServiceResolve(
@@ -332,6 +351,78 @@ fn pump(service: &ServiceRef, deadline: Instant, mut done: impl FnMut() -> bool)
     true
 }
 
+struct BrowseState {
+    instances: Vec<String>,
+    limit: usize,
+}
+
+unsafe extern "C" fn on_browse(
+    _sd_ref: DnsServiceRef,
+    flags: DnsServiceFlags,
+    _interface_index: u32,
+    error: DnsServiceErrorType,
+    service_name: *const c_char,
+    _regtype: *const c_char,
+    _domain: *const c_char,
+    context: *mut c_void,
+) {
+    // SAFETY: context is the &mut BrowseState passed to DNSServiceBrowse,
+    // alive for the whole pump on this thread.
+    let state = unsafe { &mut *context.cast::<BrowseState>() };
+    if error != NO_ERROR || flags & FLAGS_ADD == 0 || service_name.is_null() {
+        return;
+    }
+    // SAFETY: DNS-SD passes a NUL-terminated instance name.
+    let Ok(name) = unsafe { CStr::from_ptr(service_name) }.to_str() else {
+        return;
+    };
+    if state.instances.len() < state.limit && !state.instances.iter().any(|known| known == name) {
+        state.instances.push(name.to_string());
+    }
+}
+
+/// Lists the instances of `regtype` announced in `local.`. Waits up to
+/// `timeout` for the first one, then `settle` longer for others, and returns
+/// at most `limit` names. Blocking: run it off the async runtime.
+pub fn browse(
+    regtype: &str,
+    timeout: Duration,
+    settle: Duration,
+    limit: usize,
+) -> Result<Vec<String>, String> {
+    let deadline = Instant::now() + timeout;
+    let regtype = cstring(regtype)?;
+    let domain = cstring("local.")?;
+    let mut state = BrowseState {
+        instances: Vec::new(),
+        limit,
+    };
+    let mut sd_ref: DnsServiceRef = ptr::null_mut();
+    // SAFETY: valid pointers; the context outlives the operation, which is
+    // deallocated (ServiceRef drop) before `state` goes out of scope.
+    let err = unsafe {
+        DNSServiceBrowse(
+            &mut sd_ref,
+            0,
+            0,
+            regtype.as_ptr(),
+            domain.as_ptr(),
+            on_browse,
+            (&mut state as *mut BrowseState).cast(),
+        )
+    };
+    if err != NO_ERROR || sd_ref.is_null() {
+        return Err(format!("Failed to look for pairing devices (DNS-SD {err})"));
+    }
+    let service = ServiceRef(sd_ref);
+    if pump(&service, deadline, || !state.instances.is_empty()) {
+        let settle_deadline = deadline.min(Instant::now() + settle);
+        pump(&service, settle_deadline, || state.instances.len() >= limit);
+    }
+    drop(service);
+    Ok(state.instances)
+}
+
 struct ResolveState {
     found: Option<(u32, CString, u16, HashMap<String, String>)>,
 }
@@ -504,7 +595,7 @@ pub fn resolve(instance: &str, regtype: &str, timeout: Duration) -> Result<Resol
     })
 }
 
-const NOT_FOUND: &str = "No device found with that pairing code. Check the code and that both devices are on the same Wi-Fi network.";
+use super::discovery::NOT_FOUND;
 
 #[cfg(test)]
 mod tests {

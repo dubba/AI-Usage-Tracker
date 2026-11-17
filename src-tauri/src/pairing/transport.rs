@@ -1,18 +1,18 @@
 use crate::{
     pairing::{
         crypto::{
-            build_transcript, compute_confirmation_tag, compute_sas_code, decrypt_payload,
-            encrypt_payload, verify_confirmation_tag, EphemeralKeyPair, CONFIRM_RECEIVER_INFO,
-            CONFIRM_SENDER_INFO,
+            build_transcript, compute_confirmation_tag, decrypt_payload, encrypt_payload,
+            verify_confirmation_tag, PakeExchange, CONFIRM_RECEIVER_INFO, CONFIRM_SENDER_INFO,
+            KEY_CONFIRM_HOST_INFO, KEY_CONFIRM_JOINER_INFO,
         },
         payload::{create_export_payload, import_sync_payload, SyncSummary},
         protocol::{
-            compute_display_fingerprint, format_uri_host, read_frame_limited, write_frame,
-            AbortReason, ParsedQrPayload, CONFIRM_TAG_LEN, HANDSHAKE_INIT_LEN,
-            MAX_CONTROL_FRAME_SIZE, MAX_FRAME_SIZE, MAX_PREAUTH_FRAME_SIZE, MSG_ABORT, MSG_ACK,
-            MSG_ENCRYPTED_PAYLOAD, MSG_HANDSHAKE_INIT, MSG_HANDSHAKE_RESP, MSG_ROLE_SELECT,
-            MSG_ROLE_SELECT_RESP, MSG_SAS_CONFIRM, PUBLIC_KEY_LEN, RESP_OK, ROLE_JOINER_RECEIVES,
-            ROLE_JOINER_SENDS, SAS_ACCEPTED, SAS_CONFIRM_LEN, SESSION_ID_LEN,
+            read_frame_limited, write_frame, AbortReason, DiscoveredHost, CONFIRM_TAG_LEN,
+            HANDSHAKE_INIT_LEN, MAX_CONTROL_FRAME_SIZE, MAX_FRAME_SIZE, MAX_PREAUTH_FRAME_SIZE,
+            MSG_ABORT, MSG_ACK, MSG_ENCRYPTED_PAYLOAD, MSG_HANDSHAKE_INIT, MSG_HANDSHAKE_RESP,
+            MSG_KEY_CONFIRM, MSG_ROLE_SELECT, MSG_ROLE_SELECT_RESP, MSG_TRANSFER_CONFIRM,
+            PAKE_MESSAGE_LEN, RESP_OK, ROLE_JOINER_RECEIVES, ROLE_JOINER_SENDS, SESSION_ID_LEN,
+            TRANSFER_ACCEPTED, TRANSFER_CONFIRM_LEN,
         },
     },
     state::AppState,
@@ -36,10 +36,22 @@ pub const SESSION_TIMEOUT_SECS: u64 = 300; // 5 minutes
 pub const SOCKET_TIMEOUT_SECS: u64 = 30; // 30 seconds
 /// Time allowed for the joiner's TCP connection to the host to open.
 const CONNECT_TIMEOUT_SECS: u64 = 10;
-/// Time allowed for both users to compare verification codes and confirm.
-/// Longer than the socket timeout: comparing two screens and tapping twice
-/// on two devices takes a while.
+/// Time allowed for the sending user to read what will be sent and confirm.
 pub const CONFIRM_TIMEOUT_SECS: u64 = 60; // 60 seconds
+/// Wrong link codes a host accepts before it ends the session. Each wrong
+/// code is one guess out of a million, so three keeps guessing hopeless while
+/// forgiving a typo.
+pub const MAX_CODE_ATTEMPTS: u8 = 3;
+/// Hosts a joiner tries one typed code against. A device that only pretends
+/// to be a pairing host learns whether one guess of its own was right from
+/// each attempt, so the number is kept small.
+pub const MAX_HOSTS_TRIED: usize = 3;
+/// Shown on the host when [`MAX_CODE_ATTEMPTS`] is reached.
+pub const TOO_MANY_WRONG_CODES: &str =
+    "The wrong link code was entered too many times. Start again to get a new code.";
+/// Shown on the joiner when no host accepted the code.
+pub const WRONG_CODE: &str =
+    "That link code didn't match the other device. Check the code and try again.";
 /// Delay before rejecting a bad handshake, throttles brute-force/garbage
 /// connections without letting them kill the pairing session.
 const FAILED_HANDSHAKE_DELAY: Duration = Duration::from_millis(300);
@@ -180,13 +192,8 @@ pub fn generate_qr_svg(uri: &str) -> Result<String, String> {
 
 #[derive(Debug, Clone)]
 pub enum HostEvent {
-    PeerConnected {
-        sas_code: String,
-        fingerprint: String,
-    },
-    SasVerification {
-        sas_code: String,
-        fingerprint: String,
+    PeerConnected,
+    ConfirmTransfer {
         role: String, // "sender" | "receiver"
         account_count: usize,
     },
@@ -197,18 +204,10 @@ pub enum HostEvent {
     Failed(String),
 }
 
-#[cfg(test)]
-pub type ReceiverEvent = HostEvent;
-
 #[derive(Debug, Clone)]
 pub enum ClientEvent {
-    RoleSelection {
-        sas_code: String,
-        fingerprint: String,
-    },
-    SasVerification {
-        sas_code: String,
-        fingerprint: String,
+    RoleSelection,
+    ConfirmTransfer {
         role: String, // "sender" | "receiver"
         account_count: usize,
     },
@@ -218,29 +217,37 @@ pub enum ClientEvent {
     Failed(String),
 }
 
-#[cfg(test)]
-pub type SenderEvent = ClientEvent;
-
 /// Tells the peer why this side is ending the connection. Best effort: the
 /// peer may already be gone.
 async fn send_abort<W: AsyncWrite + Unpin>(writer: &mut W, reason: AbortReason) {
     let _ = write_frame(writer, MSG_ABORT, &reason.payload()).await;
 }
 
-/// A connection whose key exchange and role selection are done. What is left
-/// is for both users to confirm the verification code.
-struct NegotiatedPeer {
+/// A connection whose peer proved it knows the link code. `encryption_key`
+/// is shared with that peer only.
+pub struct AuthenticatedPeer {
     stream: TcpStream,
     encryption_key: [u8; 32],
     transcript: Vec<u8>,
-    sas_code: String,
+}
+
+impl Drop for AuthenticatedPeer {
+    fn drop(&mut self) {
+        self.encryption_key.zeroize();
+    }
+}
+
+/// An authenticated connection whose role selection is done. What is left is
+/// for the sending user to confirm.
+struct NegotiatedPeer {
+    peer: AuthenticatedPeer,
     is_sender: bool,
     account_count: usize,
 }
 
 /// What the host does after one connection's negotiation ends.
 enum HostStep {
-    /// Carry on to the verification code with this peer.
+    /// Carry on to the transfer confirmation with this peer.
     Proceed(NegotiatedPeer),
     /// This connection is finished but the session is not: accept another.
     NextPeer,
@@ -248,27 +255,27 @@ enum HostStep {
     EndSession,
 }
 
-/// Runs the host listener loop (displays QR code, accepts incoming peer connection)
+/// Runs the host listener loop (shows the link code, accepts the joining device)
 // Session plumbing: one channel/handle per concern, kept as separate
-// arguments so the host, receiver, and client paths stay symmetrical.
+// arguments so the host and client paths stay symmetrical.
 #[allow(clippy::too_many_arguments)]
 pub async fn run_host_listener(
     state: Arc<AppState>,
     session_id: Uuid,
     listener: TcpListener,
-    keypair: EphemeralKeyPair,
+    code: String,
     session_nonce: Vec<u8>,
-    fingerprint: String,
     status_tx: mpsc::Sender<HostEvent>,
-    mut sas_offer: Option<oneshot::Sender<bool>>,
-    sas_confirm_rx: oneshot::Receiver<bool>,
+    mut confirm_offer: Option<oneshot::Sender<bool>>,
+    confirm_rx: oneshot::Receiver<bool>,
     mut cancel_rx: oneshot::Receiver<()>,
 ) {
     let session_id_bytes = *session_id.as_bytes();
     let deadline = Instant::now() + Duration::from_secs(SESSION_TIMEOUT_SECS);
+    let mut wrong_codes: u8 = 0;
 
-    let peer = loop {
-        let Some((stream, client_pubkey)) = accept_handshake(
+    let negotiated = loop {
+        let Some((stream, joiner_message)) = accept_handshake(
             &listener,
             deadline,
             &session_id_bytes,
@@ -283,65 +290,64 @@ pub async fn run_host_listener(
         let step = negotiate_as_host(
             &state,
             stream,
-            client_pubkey,
-            &keypair,
+            joiner_message,
+            &code,
             &session_id_bytes,
             &session_nonce,
-            &fingerprint,
+            &mut wrong_codes,
             &status_tx,
         )
         .await;
         match step {
-            HostStep::Proceed(peer) => break peer,
+            HostStep::Proceed(negotiated) => break negotiated,
             HostStep::NextPeer => continue,
             HostStep::EndSession => return,
         }
     };
 
-    let host_role = if peer.is_sender { "sender" } else { "receiver" };
+    let host_role = if negotiated.is_sender {
+        "sender"
+    } else {
+        "receiver"
+    };
     // Install the answer channel only once this phase is reached, and before
     // the UI is told, so an earlier confirm has nothing to send on.
-    if let Some(tx) = sas_offer.take() {
+    if let Some(tx) = confirm_offer.take() {
         state
             .pairing
-            .offer_sas_confirm(&session_id.to_string(), tx)
+            .offer_transfer_confirm(&session_id.to_string(), tx)
             .await;
     }
     let _ = status_tx
-        .send(HostEvent::SasVerification {
-            sas_code: peer.sas_code.clone(),
-            fingerprint: fingerprint.clone(),
+        .send(HostEvent::ConfirmTransfer {
             role: host_role.to_string(),
-            account_count: peer.account_count,
+            account_count: negotiated.account_count,
         })
         .await;
 
-    // Proceed to mutual confirmation and payload transfer
     run_authenticated_transfer(
         state,
-        peer.stream,
-        peer.is_sender,
-        peer.encryption_key,
-        peer.transcript,
-        peer.sas_code,
-        sas_confirm_rx,
+        negotiated.peer,
+        negotiated.is_sender,
+        confirm_rx,
         cancel_rx,
         status_tx,
     )
     .await;
 }
 
-/// Waits for a connection that opens with a valid handshake for this session
-/// and returns it with the peer's public key. Connections that send anything
-/// else are turned away and the wait goes on. Returns `None` once the session
-/// is cancelled, expires, or the listener fails; the UI has been told by then.
+/// Waits for a connection that opens with a well-formed handshake for this
+/// session and returns it with the joiner's key exchange message. Connections
+/// that send anything else are turned away and the wait goes on. Returns
+/// `None` once the session is cancelled, expires, or the listener fails; the
+/// UI has been told by then.
 async fn accept_handshake(
     listener: &TcpListener,
     deadline: Instant,
     session_id_bytes: &[u8; SESSION_ID_LEN],
     cancel_rx: &mut oneshot::Receiver<()>,
     status_tx: &mpsc::Sender<HostEvent>,
-) -> Option<(TcpStream, [u8; PUBLIC_KEY_LEN])> {
+) -> Option<(TcpStream, [u8; PAKE_MESSAGE_LEN])> {
     loop {
         let remaining = deadline.saturating_duration_since(Instant::now());
         if remaining.is_zero() {
@@ -378,11 +384,11 @@ async fn accept_handshake(
         .await;
 
         match handshake_res {
-            Ok(Ok(client_pubkey)) => return Some((stream, client_pubkey)),
+            Ok(Ok(joiner_message)) => return Some((stream, joiner_message)),
             Ok(Err(_)) | Err(_) => {
                 // Abort this connection only. Bad handshakes must not kill
                 // the session (any LAN host can send garbage); a short delay
-                // throttles brute-force attempts.
+                // throttles them.
                 send_abort(&mut stream, AbortReason::BadHandshake).await;
                 tokio::time::sleep(FAILED_HANDSHAKE_DELAY).await;
             }
@@ -390,12 +396,12 @@ async fn accept_handshake(
     }
 }
 
-/// The joiner's public key from its opening frame, provided the frame names
-/// this session.
+/// The joiner's key exchange message from its opening frame, provided the
+/// frame names this session.
 fn parse_handshake_init(
     (msg_type, payload): (u8, Vec<u8>),
     session_id_bytes: &[u8; SESSION_ID_LEN],
-) -> Result<[u8; PUBLIC_KEY_LEN], String> {
+) -> Result<[u8; PAKE_MESSAGE_LEN], String> {
     if msg_type != MSG_HANDSHAKE_INIT {
         return Err("Expected MSG_HANDSHAKE_INIT".into());
     }
@@ -403,115 +409,160 @@ fn parse_handshake_init(
         return Err(format!("Invalid handshake length: {}", payload.len()));
     }
 
-    let mut client_pubkey = [0u8; PUBLIC_KEY_LEN];
-    client_pubkey.copy_from_slice(&payload[..PUBLIC_KEY_LEN]);
+    let mut joiner_message = [0u8; PAKE_MESSAGE_LEN];
+    joiner_message.copy_from_slice(&payload[..PAKE_MESSAGE_LEN]);
 
-    let mut received_session_id = [0u8; SESSION_ID_LEN];
-    received_session_id.copy_from_slice(&payload[PUBLIC_KEY_LEN..]);
-
-    if &received_session_id != session_id_bytes {
+    if &payload[PAKE_MESSAGE_LEN..] != session_id_bytes {
         return Err("Session ID mismatch".into());
     }
 
-    Ok(client_pubkey)
+    Ok(joiner_message)
 }
 
-/// Derives the shared key with a peer whose handshake was accepted, answers
-/// the handshake, and waits for the peer to choose who sends.
+/// What the joiner's proof that it knows the link code turned out to be.
+enum JoinerProof {
+    Valid,
+    /// A well-formed proof made with another code: one wrong guess.
+    WrongCode,
+    /// No proof arrived (timeout, disconnect, or another frame).
+    Missing,
+}
+
+/// Reads the joiner's key confirmation and checks it.
+async fn read_joiner_proof(
+    stream: &mut TcpStream,
+    encryption_key: &[u8; 32],
+    transcript: &[u8],
+) -> JoinerProof {
+    let frame = timeout(
+        Duration::from_secs(SOCKET_TIMEOUT_SECS),
+        read_frame_limited(stream, MAX_PREAUTH_FRAME_SIZE),
+    )
+    .await;
+    let Ok(Ok((MSG_KEY_CONFIRM, payload))) = frame else {
+        return JoinerProof::Missing;
+    };
+    let Ok(tag) = <[u8; CONFIRM_TAG_LEN]>::try_from(payload.as_slice()) else {
+        return JoinerProof::Missing;
+    };
+    if verify_confirmation_tag(encryption_key, transcript, KEY_CONFIRM_JOINER_INFO, &tag) {
+        JoinerProof::Valid
+    } else {
+        JoinerProof::WrongCode
+    }
+}
+
+/// Runs the key exchange with a joiner whose handshake was accepted, requires
+/// its proof that it knows the link code, proves the same back, and waits for
+/// it to choose who sends. A joiner without the code never gets past the
+/// proof, so nothing is shown to the user for it.
 // One argument per piece of session material, as in `run_host_listener`.
 #[allow(clippy::too_many_arguments)]
 async fn negotiate_as_host(
     state: &AppState,
     mut stream: TcpStream,
-    client_pubkey: [u8; PUBLIC_KEY_LEN],
-    keypair: &EphemeralKeyPair,
+    joiner_message: [u8; PAKE_MESSAGE_LEN],
+    code: &str,
     session_id_bytes: &[u8; SESSION_ID_LEN],
     session_nonce: &[u8],
-    fingerprint: &str,
+    wrong_codes: &mut u8,
     status_tx: &mpsc::Sender<HostEvent>,
 ) -> HostStep {
-    // Perform DH and key derivation
-    let client_point = x25519_dalek::PublicKey::from(client_pubkey);
-    let derived = match keypair.diffie_hellman(&client_point) {
-        Ok(d) => d,
+    let (exchange, host_message) = PakeExchange::start_host(code);
+    let encryption_key = match exchange.finish(&joiner_message, session_nonce) {
+        Ok(key) => key,
         Err(_) => {
-            // Invalid (non-contributory) peer key: abort this connection
-            // only and keep listening for a legitimate peer. Do not emit
-            // a Failed event here; the session is still alive.
+            // A malformed message, not a guess: turn this connection away and
+            // keep listening. Do not emit a Failed event; the session is alive.
             send_abort(&mut stream, AbortReason::InvalidPeerKey).await;
             return HostStep::NextPeer;
         }
     };
-    let mut encryption_key = match derived.derive_encryption_key(session_nonce) {
-        Ok(k) => k,
-        Err(e) => {
-            send_abort(&mut stream, AbortReason::KeyDerivationFailed).await;
-            let _ = status_tx.send(HostEvent::Failed(e)).await;
-            return HostStep::EndSession;
-        }
-    };
-
     let transcript = build_transcript(
         session_id_bytes,
         session_nonce,
-        &keypair.public_bytes(),
-        &client_pubkey,
+        &joiner_message,
+        &host_message,
     );
+    let mut peer = AuthenticatedPeer {
+        stream,
+        encryption_key,
+        transcript,
+    };
 
-    let sas_code = compute_sas_code(&encryption_key, &transcript);
-
-    // Send Handshake OK response
-    if write_frame(&mut stream, MSG_HANDSHAKE_RESP, &[RESP_OK])
+    if write_frame(&mut peer.stream, MSG_HANDSHAKE_RESP, &host_message)
         .await
         .is_err()
     {
-        // Peer is already gone; go back to accepting connections. Do not
-        // emit a Failed event; the session is still alive.
-        encryption_key.zeroize();
+        // Peer is already gone; go back to accepting connections.
         return HostStep::NextPeer;
     }
 
-    // Tell the UI a peer has connected
-    let _ = status_tx
-        .send(HostEvent::PeerConnected {
-            sas_code: sas_code.clone(),
-            fingerprint: fingerprint.to_string(),
-        })
-        .await;
+    // The joiner proves itself first. The host's own proof would let a
+    // stranger check a guess without being counted, so it is sent only after.
+    match read_joiner_proof(&mut peer.stream, &peer.encryption_key, &peer.transcript).await {
+        JoinerProof::Valid => {}
+        JoinerProof::WrongCode => {
+            *wrong_codes += 1;
+            send_abort(&mut peer.stream, AbortReason::WrongCode).await;
+            tokio::time::sleep(FAILED_HANDSHAKE_DELAY).await;
+            if *wrong_codes >= MAX_CODE_ATTEMPTS {
+                let _ = status_tx
+                    .send(HostEvent::Failed(TOO_MANY_WRONG_CODES.into()))
+                    .await;
+                return HostStep::EndSession;
+            }
+            return HostStep::NextPeer;
+        }
+        JoinerProof::Missing => {
+            send_abort(&mut peer.stream, AbortReason::BadHandshake).await;
+            return HostStep::NextPeer;
+        }
+    }
+
+    let host_proof = compute_confirmation_tag(
+        &peer.encryption_key,
+        &peer.transcript,
+        KEY_CONFIRM_HOST_INFO,
+    );
+    if write_frame(&mut peer.stream, MSG_KEY_CONFIRM, &host_proof)
+        .await
+        .is_err()
+    {
+        return HostStep::NextPeer;
+    }
+
+    // Tell the UI the other device has connected
+    let _ = status_tx.send(HostEvent::PeerConnected).await;
 
     // Wait for the joiner to pick send/receive. This is a user action, so it
     // uses the session timeout rather than the short socket timeout.
     let role_res = timeout(Duration::from_secs(SESSION_TIMEOUT_SECS), async {
-        let frame = read_frame_limited(&mut stream, MAX_PREAUTH_FRAME_SIZE).await?;
-        answer_role_selection(state, &mut stream, frame).await
+        let frame = read_frame_limited(&mut peer.stream, MAX_PREAUTH_FRAME_SIZE).await?;
+        answer_role_selection(state, &mut peer.stream, frame).await
     })
     .await;
 
     match role_res {
         Ok(Ok((is_sender, account_count))) => HostStep::Proceed(NegotiatedPeer {
-            stream,
-            encryption_key,
-            transcript,
-            sas_code,
+            peer,
             is_sender,
             account_count,
         }),
         Ok(Err(_)) => {
             // The peer failed, aborted, or disconnected before choosing a
-            // role. Don't wedge the session on that connection — go back to
-            // accepting so the legitimate device can still connect.
-            send_abort(&mut stream, AbortReason::RoleSelectFailed).await;
-            encryption_key.zeroize();
+            // role. Don't wedge the session on that connection: go back to
+            // accepting so the user can try again from the other device.
+            send_abort(&mut peer.stream, AbortReason::RoleSelectFailed).await;
             HostStep::NextPeer
         }
         Err(_) => {
-            send_abort(&mut stream, AbortReason::RoleSelectTimedOut).await;
+            send_abort(&mut peer.stream, AbortReason::RoleSelectTimedOut).await;
             let _ = status_tx
                 .send(HostEvent::Failed(
                     "Timed out waiting for role selection".into(),
                 ))
                 .await;
-            encryption_key.zeroize();
             HostStep::EndSession
         }
     }
@@ -553,111 +604,154 @@ async fn answer_role_selection(
     }
 }
 
-#[cfg(test)]
-// Session plumbing: one channel/handle per concern, kept as separate
-// arguments so the host, receiver, and client paths stay symmetrical.
-#[allow(clippy::too_many_arguments)]
-pub async fn run_receiver_listener(
-    state: Arc<AppState>,
-    session_id: Uuid,
-    listener: TcpListener,
-    keypair: EphemeralKeyPair,
-    session_nonce: Vec<u8>,
-    status_tx: mpsc::Sender<ReceiverEvent>,
-    sas_confirm_rx: oneshot::Receiver<bool>,
-    cancel_rx: oneshot::Receiver<()>,
-) {
-    let fp = crate::pairing::protocol::compute_display_fingerprint(
-        &session_id,
-        &keypair.public_bytes(),
-        &session_nonce,
-    );
-    run_host_listener(
-        state,
-        session_id,
-        listener,
-        keypair,
-        session_nonce,
-        fp,
-        status_tx,
-        None,
-        sas_confirm_rx,
-        cancel_rx,
-    )
-    .await;
+/// Why one host could not be joined.
+#[derive(Debug)]
+pub enum JoinError {
+    /// The host (or something posing as one) did not share the code.
+    WrongCode,
+    /// The host could not be reached or did not follow the protocol.
+    Unreachable(String),
 }
 
-/// Runs the client connector loop (connects to host, selects role, verifies SAS, transfers)
-// Session plumbing: one channel/handle per concern, kept as separate
-// arguments so the host, receiver, and client paths stay symmetrical.
-#[allow(clippy::too_many_arguments)]
-pub async fn run_client_connector(
-    state: Arc<AppState>,
-    parsed: ParsedQrPayload,
-    status_tx: mpsc::Sender<ClientEvent>,
-    mut role_offer: Option<oneshot::Sender<String>>,
-    mut role_select_rx: oneshot::Receiver<String>,
-    mut sas_offer: Option<oneshot::Sender<bool>>,
-    sas_confirm_rx: oneshot::Receiver<bool>,
-    mut cancel_rx: oneshot::Receiver<()>,
-) {
-    let mut stream = match connect_to_host(&parsed).await {
-        Ok(s) => s,
-        Err(e) => {
-            let _ = status_tx.send(ClientEvent::Failed(e)).await;
-            return;
+/// Connects to `host` and runs the key exchange with `code`. Succeeds only if
+/// the host proves it holds the same code.
+pub async fn join_host(host: &DiscoveredHost, code: &str) -> Result<AuthenticatedPeer, JoinError> {
+    let mut stream = connect_to_host(host)
+        .await
+        .map_err(JoinError::Unreachable)?;
+
+    let (exchange, joiner_message) = PakeExchange::start_joiner(code);
+    let mut init_payload = Vec::with_capacity(HANDSHAKE_INIT_LEN);
+    init_payload.extend_from_slice(&joiner_message);
+    init_payload.extend_from_slice(host.session_id.as_bytes());
+    write_frame(&mut stream, MSG_HANDSHAKE_INIT, &init_payload)
+        .await
+        .map_err(JoinError::Unreachable)?;
+
+    let host_message = match timeout(
+        Duration::from_secs(SOCKET_TIMEOUT_SECS),
+        read_frame_limited(&mut stream, MAX_PREAUTH_FRAME_SIZE),
+    )
+    .await
+    {
+        Ok(Ok((MSG_HANDSHAKE_RESP, payload))) if payload.len() == PAKE_MESSAGE_LEN => payload,
+        Ok(Ok(_)) => {
+            return Err(JoinError::Unreachable(
+                "The other device rejected the connection.".into(),
+            ))
+        }
+        Ok(Err(e)) => return Err(JoinError::Unreachable(e)),
+        Err(_) => {
+            return Err(JoinError::Unreachable(
+                "Handshake timed out waiting for the other device".into(),
+            ))
         }
     };
 
-    let keypair = EphemeralKeyPair::generate();
-    let client_pubkey = keypair.public_bytes();
-    let session_id_bytes = *parsed.session_id.as_bytes();
-
-    // Send Handshake Init
-    let mut init_payload = Vec::with_capacity(HANDSHAKE_INIT_LEN);
-    init_payload.extend_from_slice(&client_pubkey);
-    init_payload.extend_from_slice(&session_id_bytes);
-
-    if let Err(e) = write_frame(&mut stream, MSG_HANDSHAKE_INIT, &init_payload).await {
-        let _ = status_tx.send(ClientEvent::Failed(e)).await;
-        return;
-    }
-
-    // Read Handshake Resp
-    let resp_res = timeout(Duration::from_secs(SOCKET_TIMEOUT_SECS), async {
-        let frame = read_frame_limited(&mut stream, MAX_PREAUTH_FRAME_SIZE).await?;
-        check_handshake_resp(frame)
-    })
-    .await;
-
-    match resp_res {
-        Ok(Ok(())) => {}
-        Ok(Err(e)) => {
-            // The host answered with MSG_ABORT or a rejection payload.
-            let _ = status_tx
-                .send(ClientEvent::Failed(format!(
-                    "Host rejected the connection: {e}"
-                )))
-                .await;
-            return;
-        }
-        Err(_) => {
-            let _ = status_tx
-                .send(ClientEvent::Failed(
-                    "Handshake timed out waiting for host".to_string(),
-                ))
-                .await;
-            return;
-        }
-    }
-
-    let ClientKeys {
-        mut encryption_key,
+    let encryption_key = exchange
+        .finish(&host_message, &host.session_nonce)
+        .map_err(JoinError::Unreachable)?;
+    let transcript = build_transcript(
+        host.session_id.as_bytes(),
+        &host.session_nonce,
+        &joiner_message,
+        &host_message,
+    );
+    let mut peer = AuthenticatedPeer {
+        stream,
+        encryption_key,
         transcript,
-        sas_code,
-        verified_fingerprint,
-    } = match derive_client_keys(&keypair, &parsed) {
-        Ok(keys) => keys,
+    };
+
+    let joiner_proof = compute_confirmation_tag(
+        &peer.encryption_key,
+        &peer.transcript,
+        KEY_CONFIRM_JOINER_INFO,
+    );
+    write_frame(&mut peer.stream, MSG_KEY_CONFIRM, &joiner_proof)
+        .await
+        .map_err(JoinError::Unreachable)?;
+
+    match timeout(
+        Duration::from_secs(SOCKET_TIMEOUT_SECS),
+        read_frame_limited(&mut peer.stream, MAX_PREAUTH_FRAME_SIZE),
+    )
+    .await
+    {
+        Ok(Ok((MSG_KEY_CONFIRM, payload))) => {
+            let valid = <[u8; CONFIRM_TAG_LEN]>::try_from(payload.as_slice()).is_ok_and(|tag| {
+                verify_confirmation_tag(
+                    &peer.encryption_key,
+                    &peer.transcript,
+                    KEY_CONFIRM_HOST_INFO,
+                    &tag,
+                )
+            });
+            if valid {
+                Ok(peer)
+            } else {
+                send_abort(&mut peer.stream, AbortReason::WrongCode).await;
+                Err(JoinError::WrongCode)
+            }
+        }
+        Ok(Ok((MSG_ABORT, payload))) if payload == AbortReason::WrongCode.payload() => {
+            Err(JoinError::WrongCode)
+        }
+        Ok(Ok(_)) => Err(JoinError::Unreachable(
+            "The other device rejected the connection.".into(),
+        )),
+        Ok(Err(e)) => Err(JoinError::Unreachable(e)),
+        Err(_) => Err(JoinError::Unreachable(
+            "Handshake timed out waiting for the other device".into(),
+        )),
+    }
+}
+
+/// Tries the typed code against the hosts found on the network, at most
+/// [`MAX_HOSTS_TRIED`], and returns the first that shares it.
+async fn join_any_host(hosts: &[DiscoveredHost], code: &str) -> Result<AuthenticatedPeer, String> {
+    let mut wrong_code = false;
+    let mut last_error = None;
+    for host in hosts.iter().take(MAX_HOSTS_TRIED) {
+        match join_host(host, code).await {
+            Ok(peer) => return Ok(peer),
+            Err(JoinError::WrongCode) => wrong_code = true,
+            Err(JoinError::Unreachable(error)) => last_error = Some(error),
+        }
+    }
+    if wrong_code {
+        return Err(WRONG_CODE.into());
+    }
+    Err(last_error.unwrap_or_else(|| "No device to connect to.".into()))
+}
+
+/// Runs the joining device: finds the host that shares the code, selects the
+/// role, waits for the transfer to be confirmed, and transfers. `session_id`
+/// is this device's own name for the session (the hosts' ids are theirs).
+// Session plumbing: one channel/handle per concern, kept as separate
+// arguments so the host and client paths stay symmetrical.
+#[allow(clippy::too_many_arguments)]
+pub async fn run_client_connector(
+    state: Arc<AppState>,
+    session_id: String,
+    hosts: Vec<DiscoveredHost>,
+    code: String,
+    status_tx: mpsc::Sender<ClientEvent>,
+    mut role_offer: Option<oneshot::Sender<String>>,
+    mut role_select_rx: oneshot::Receiver<String>,
+    mut confirm_offer: Option<oneshot::Sender<bool>>,
+    confirm_rx: oneshot::Receiver<bool>,
+    mut cancel_rx: oneshot::Receiver<()>,
+) {
+    let joined = tokio::select! {
+        _ = &mut cancel_rx => {
+            let _ = status_tx.send(ClientEvent::Cancelled).await;
+            return;
+        }
+        joined = join_any_host(&hosts, &code) => joined,
+    };
+    let mut peer = match joined {
+        Ok(peer) => peer,
         Err(e) => {
             let _ = status_tx.send(ClientEvent::Failed(e)).await;
             return;
@@ -668,54 +762,46 @@ pub async fn run_client_connector(
     // Install the answer channel only once this phase is reached, and before
     // the UI is told, so an earlier role choice has nothing to send on.
     if let Some(tx) = role_offer.take() {
-        state
-            .pairing
-            .offer_role_select(&parsed.session_id.to_string(), tx)
-            .await;
+        state.pairing.offer_role_select(&session_id, tx).await;
     }
-    let _ = status_tx
-        .send(ClientEvent::RoleSelection {
-            sas_code: sas_code.clone(),
-            fingerprint: verified_fingerprint.clone(),
-        })
-        .await;
+    let _ = status_tx.send(ClientEvent::RoleSelection).await;
 
     let client_is_sender =
-        match await_role_choice(&mut stream, &mut cancel_rx, &mut role_select_rx).await {
+        match await_role_choice(&mut peer.stream, &mut cancel_rx, &mut role_select_rx).await {
             Ok(is_sender) => is_sender,
             Err(event) => {
                 let _ = status_tx.send(event).await;
-                encryption_key.zeroize();
                 return;
             }
         };
 
     // Tell the host the choice. Whichever side sends also says how many
     // accounts it has.
+    let stream = &mut peer.stream;
     let announced: Result<usize, String> = async {
         if client_is_sender {
             let count_bytes = (local_account_count as u16).to_be_bytes();
             let mut msg = Vec::with_capacity(3);
             msg.push(ROLE_JOINER_SENDS);
             msg.extend_from_slice(&count_bytes);
-            write_frame(&mut stream, MSG_ROLE_SELECT, &msg).await?;
+            write_frame(stream, MSG_ROLE_SELECT, &msg).await?;
 
             // Wait for Host response
             let resp = timeout(
                 Duration::from_secs(SOCKET_TIMEOUT_SECS),
-                read_frame_limited(&mut stream, MAX_CONTROL_FRAME_SIZE),
+                read_frame_limited(stream, MAX_CONTROL_FRAME_SIZE),
             )
             .await;
             check_role_select_ack(resp)?;
             Ok(local_account_count)
         } else {
             let msg = [ROLE_JOINER_RECEIVES, 0x00, 0x00];
-            write_frame(&mut stream, MSG_ROLE_SELECT, &msg).await?;
+            write_frame(stream, MSG_ROLE_SELECT, &msg).await?;
 
             // Host responds with its account count
             let resp = timeout(
                 Duration::from_secs(SOCKET_TIMEOUT_SECS),
-                read_frame_limited(&mut stream, MAX_CONTROL_FRAME_SIZE),
+                read_frame_limited(stream, MAX_CONTROL_FRAME_SIZE),
             )
             .await;
             parse_host_account_count(resp)
@@ -726,7 +812,6 @@ pub async fn run_client_connector(
         Ok(count) => count,
         Err(e) => {
             let _ = status_tx.send(ClientEvent::Failed(e)).await;
-            encryption_key.zeroize();
             return;
         }
     };
@@ -736,46 +821,37 @@ pub async fn run_client_connector(
     } else {
         "receiver"
     };
-    if let Some(tx) = sas_offer.take() {
-        state
-            .pairing
-            .offer_sas_confirm(&parsed.session_id.to_string(), tx)
-            .await;
+    if let Some(tx) = confirm_offer.take() {
+        state.pairing.offer_transfer_confirm(&session_id, tx).await;
     }
     let _ = status_tx
-        .send(ClientEvent::SasVerification {
-            sas_code: sas_code.clone(),
-            fingerprint: verified_fingerprint,
+        .send(ClientEvent::ConfirmTransfer {
             role: client_role.to_string(),
             account_count,
         })
         .await;
 
-    // Proceed to mutual confirmation and payload transfer
     run_authenticated_transfer(
         state,
-        stream,
+        peer,
         client_is_sender,
-        encryption_key,
-        transcript,
-        sas_code,
-        sas_confirm_rx,
+        confirm_rx,
         cancel_rx,
         status_tx,
     )
     .await;
 }
 
-/// Opens the TCP connection to the host named in the QR code or join code.
-async fn connect_to_host(parsed: &ParsedQrPayload) -> Result<TcpStream, String> {
-    let connect_addr = parsed
+/// Opens the TCP connection to a host found on the network.
+async fn connect_to_host(host: &DiscoveredHost) -> Result<TcpStream, String> {
+    let ip = host
         .host
         .parse::<std::net::IpAddr>()
-        .map(|ip| std::net::SocketAddr::new(ip, parsed.port).to_string())
-        .unwrap_or_else(|_| format!("{}:{}", format_uri_host(&parsed.host), parsed.port));
+        .map_err(|_| "The other device's address is not valid.".to_string())?;
+    let connect_addr = std::net::SocketAddr::new(ip, host.port);
     match timeout(
         Duration::from_secs(CONNECT_TIMEOUT_SECS),
-        TcpStream::connect(&connect_addr),
+        TcpStream::connect(connect_addr),
     )
     .await
     {
@@ -783,58 +859,6 @@ async fn connect_to_host(parsed: &ParsedQrPayload) -> Result<TcpStream, String> 
         Ok(Err(e)) => Err(format!("Connection failed to {connect_addr}: {e}")),
         Err(_) => Err(format!("Connection timed out to {connect_addr}")),
     }
-}
-
-/// Accepts the host's answer to the opening frame only if it is the OK reply.
-fn check_handshake_resp((msg_type, payload): (u8, Vec<u8>)) -> Result<(), String> {
-    if msg_type != MSG_HANDSHAKE_RESP {
-        return Err("Expected MSG_HANDSHAKE_RESP".into());
-    }
-    if payload.len() != 1 || payload[0] != RESP_OK {
-        return Err("Host rejected handshake".into());
-    }
-    Ok(())
-}
-
-/// What the joiner derives from its own key pair and the host's details.
-struct ClientKeys {
-    encryption_key: [u8; 32],
-    transcript: Vec<u8>,
-    sas_code: String,
-    verified_fingerprint: String,
-}
-
-/// Derives the encryption key, the verification code and the fingerprint to
-/// show for the host named in `parsed`.
-fn derive_client_keys(
-    keypair: &EphemeralKeyPair,
-    parsed: &ParsedQrPayload,
-) -> Result<ClientKeys, String> {
-    let host_point = x25519_dalek::PublicKey::from(parsed.peer_public_key);
-    let derived = keypair.diffie_hellman(&host_point)?;
-    let encryption_key = derived.derive_encryption_key(&parsed.session_nonce)?;
-
-    let transcript = build_transcript(
-        parsed.session_id.as_bytes(),
-        &parsed.session_nonce,
-        &parsed.peer_public_key,
-        &keypair.public_bytes(),
-    );
-
-    let sas_code = compute_sas_code(&encryption_key, &transcript);
-    // Recompute the fingerprint from the actual peer key — never display the
-    // peer-supplied `fp` value (already rejected on mismatch at parse time).
-    let verified_fingerprint = compute_display_fingerprint(
-        &parsed.session_id,
-        &parsed.peer_public_key,
-        &parsed.session_nonce,
-    );
-    Ok(ClientKeys {
-        encryption_key,
-        transcript,
-        sas_code,
-        verified_fingerprint,
-    })
 }
 
 /// Waits for the user to choose whether this device sends or receives, and
@@ -866,9 +890,9 @@ async fn await_role_choice(
         "receive" => Ok(false),
         _ => {
             send_abort(stream, AbortReason::InvalidRole).await;
-            Err(ClientEvent::Failed(format!(
-                "Invalid pairing role '{role_choice}'. Expected 'send' or 'receive'."
-            )))
+            Err(ClientEvent::Failed(
+                "Invalid pairing role. Expected 'send' or 'receive'.".into(),
+            ))
         }
     }
 }
@@ -907,72 +931,29 @@ fn parse_host_account_count(resp: TimedFrame) -> Result<usize, String> {
     Ok(u16::from_be_bytes([payload[0], payload[1]]) as usize)
 }
 
-#[cfg(test)]
-pub async fn run_sender_client(
-    state: Arc<AppState>,
-    parsed: ParsedQrPayload,
-    status_tx: mpsc::Sender<SenderEvent>,
-    sas_confirm_rx: oneshot::Receiver<bool>,
-    cancel_rx: oneshot::Receiver<()>,
-) {
-    let (role_tx, role_rx) = oneshot::channel();
-    let _ = role_tx.send("send".to_string());
-    run_client_connector(
-        state,
-        parsed,
-        status_tx,
-        None,
-        role_rx,
-        None,
-        sas_confirm_rx,
-        cancel_rx,
-    )
-    .await;
-}
-
-/// Shared mutual confirmation and authenticated data transfer logic for both Host and Client
-// Session plumbing: one channel/handle per concern, kept as separate
-// arguments so the host, receiver, and client paths stay symmetrical.
-#[allow(clippy::too_many_arguments)]
+/// Shared transfer confirmation and authenticated data transfer for both Host and Client
 async fn run_authenticated_transfer<E>(
     state: Arc<AppState>,
-    stream: TcpStream,
+    mut peer: AuthenticatedPeer,
     is_sender: bool,
-    mut encryption_key: [u8; 32],
-    transcript: Vec<u8>,
-    sas_code: String,
-    sas_confirm_rx: oneshot::Receiver<bool>,
+    confirm_rx: oneshot::Receiver<bool>,
     cancel_rx: oneshot::Receiver<()>,
     status_tx: mpsc::Sender<E>,
 ) where
     E: From<TransferEvent> + Send + 'static,
 {
-    let stream = match exchange_confirmations(
-        stream,
-        is_sender,
-        &encryption_key,
-        &sas_code,
-        sas_confirm_rx,
-        cancel_rx,
-    )
-    .await
-    {
-        Ok(s) => s,
-        Err(e) => {
-            let _ = status_tx.send(TransferEvent::Failed(e).into()).await;
-            encryption_key.zeroize();
-            return;
-        }
-    };
+    if let Err(e) = exchange_confirmations(&mut peer, is_sender, confirm_rx, cancel_rx).await {
+        let _ = status_tx.send(TransferEvent::Failed(e).into()).await;
+        return;
+    }
 
     let _ = status_tx.send(TransferEvent::Transferring.into()).await;
 
     let result = if is_sender {
-        send_accounts(&state, stream, &encryption_key, &transcript).await
+        send_accounts(&state, &mut peer).await
     } else {
-        receive_accounts(&state, stream, &encryption_key, &transcript).await
+        receive_accounts(&state, &mut peer).await
     };
-    encryption_key.zeroize();
 
     let event = match result {
         Ok(summary) => TransferEvent::Completed(summary),
@@ -981,90 +962,99 @@ async fn run_authenticated_transfer<E>(
     let _ = status_tx.send(event.into()).await;
 }
 
-/// Sends this side's confirmation of the verification code once the user
-/// accepts it, and checks the peer's. Returns the connection only when both
-/// sides confirmed the same code; nothing large is read before that.
+/// Both sides agree to the transfer before anything large is sent or read.
+///
+/// The sender's agreement is its user pressing Send. The receiver agrees at
+/// once: its user already asked to receive from the device whose code they
+/// typed or showed, the peer proved it is that device, and a transfer only
+/// adds accounts. The tags are bound to the role, so both sides must also
+/// agree on who sends.
 async fn exchange_confirmations(
-    stream: TcpStream,
+    peer: &mut AuthenticatedPeer,
     is_sender: bool,
-    encryption_key: &[u8; 32],
-    sas_code: &str,
-    mut sas_confirm_rx: oneshot::Receiver<bool>,
+    mut confirm_rx: oneshot::Receiver<bool>,
     mut cancel_rx: oneshot::Receiver<()>,
-) -> Result<TcpStream, String> {
-    let my_tag_info = if is_sender {
-        CONFIRM_SENDER_INFO
+) -> Result<(), String> {
+    let (my_tag_info, peer_tag_info) = if is_sender {
+        (CONFIRM_SENDER_INFO, CONFIRM_RECEIVER_INFO)
     } else {
-        CONFIRM_RECEIVER_INFO
+        (CONFIRM_RECEIVER_INFO, CONFIRM_SENDER_INFO)
     };
-    let peer_tag_info = if is_sender {
-        CONFIRM_RECEIVER_INFO
-    } else {
-        CONFIRM_SENDER_INFO
-    };
+    let encryption_key = peer.encryption_key;
+    let transcript = peer.transcript.clone();
+    let my_tag = compute_confirmation_tag(&encryption_key, &transcript, my_tag_info);
+    let mut confirm_payload = Vec::with_capacity(TRANSFER_CONFIRM_LEN);
+    confirm_payload.push(TRANSFER_ACCEPTED);
+    confirm_payload.extend_from_slice(&my_tag);
 
-    let my_tag = compute_confirmation_tag(encryption_key, sas_code, my_tag_info);
+    let (mut read_half, mut write_half) = peer.stream.split();
 
-    // Split stream for concurrent mutual confirmation exchange
-    let (mut read_half, mut write_half) = stream.into_split();
+    // Each failure carries the reason to tell the peer.
+    type Stopped = (AbortReason, String);
+    let stopped = |message: String| (AbortReason::CanceledBeforeConfirm, message);
 
     let writer_task = async {
-        tokio::select! {
-            _ = &mut cancel_rx => {
-                send_abort(&mut write_half, AbortReason::CanceledBeforeConfirm).await;
-                Err("Canceled by user".to_string())
-            }
-            confirmed = &mut sas_confirm_rx => {
-                match confirmed {
-                    Ok(true) => {
-                        let mut confirm_payload = Vec::with_capacity(SAS_CONFIRM_LEN);
-                        confirm_payload.push(SAS_ACCEPTED);
-                        confirm_payload.extend_from_slice(&my_tag);
-                        write_frame(&mut write_half, MSG_SAS_CONFIRM, &confirm_payload).await?;
-                        Ok(())
-                    }
-                    _ => {
-                        send_abort(&mut write_half, AbortReason::SasRejected).await;
-                        Err("User rejected verification code".to_string())
-                    }
+        if is_sender {
+            match (&mut confirm_rx).await {
+                Ok(true) => {}
+                _ => {
+                    return Err::<(), Stopped>((
+                        AbortReason::TransferDeclined,
+                        "The transfer was declined on this device".to_string(),
+                    ))
                 }
             }
         }
+        write_frame(&mut write_half, MSG_TRANSFER_CONFIRM, &confirm_payload)
+            .await
+            .map_err(stopped)
     };
 
     let reader_task = async {
-        // Still pre-authentication (SAS not yet mutually confirmed): keep the
-        // 1 KiB budget. The large encrypted payload is only accepted later.
-        let (msg_type, payload) =
-            read_frame_limited(&mut read_half, MAX_PREAUTH_FRAME_SIZE).await?;
-        if msg_type != MSG_SAS_CONFIRM {
-            return Err("Expected MSG_SAS_CONFIRM from peer".to_string());
+        // Still before the transfer is confirmed: keep the 1 KiB budget. The
+        // large encrypted payload is only accepted later.
+        let (msg_type, payload) = read_frame_limited(&mut read_half, MAX_PREAUTH_FRAME_SIZE)
+            .await
+            .map_err(stopped)?;
+        if msg_type != MSG_TRANSFER_CONFIRM {
+            return Err(stopped(
+                "The other device canceled the transfer.".to_string(),
+            ));
         }
-        if payload.len() != SAS_CONFIRM_LEN || payload[0] != SAS_ACCEPTED {
-            return Err("Peer rejected verification code".to_string());
+        if payload.len() != TRANSFER_CONFIRM_LEN || payload[0] != TRANSFER_ACCEPTED {
+            return Err(stopped(
+                "The other device declined the transfer.".to_string(),
+            ));
         }
         let mut peer_tag = [0u8; CONFIRM_TAG_LEN];
         peer_tag.copy_from_slice(&payload[1..]);
 
-        if !verify_confirmation_tag(encryption_key, sas_code, peer_tag_info, &peer_tag) {
-            return Err(
-                "The codes do not match. Compare all three groups. If the other device shows only two, update it and try again."
+        if !verify_confirmation_tag(&encryption_key, &transcript, peer_tag_info, &peer_tag) {
+            return Err(stopped(
+                "The two devices disagree about which one sends. Start the transfer again."
                     .to_string(),
-            );
+            ));
         }
         Ok(())
     };
 
     let exchange_task = async { tokio::try_join!(writer_task, reader_task) };
 
-    let exchange_res = timeout(Duration::from_secs(CONFIRM_TIMEOUT_SECS), exchange_task).await;
+    // Cancel is watched for both roles: the receiver has no button to wait on.
+    let result: Result<(), Stopped> = tokio::select! {
+        _ = &mut cancel_rx => Err(stopped("Canceled by user".to_string())),
+        result = timeout(Duration::from_secs(CONFIRM_TIMEOUT_SECS), exchange_task) => match result {
+            Ok(result) => result.map(|_| ()),
+            Err(_) => Err(stopped("Confirmation exchange timed out".to_string())),
+        },
+    };
 
-    match exchange_res {
-        Ok(Ok((_, _))) => read_half
-            .reunite(write_half)
-            .map_err(|e| format!("Socket reunite error: {e}")),
-        Ok(Err(e)) => Err(e),
-        Err(_) => Err("Confirmation exchange timed out".into()),
+    match result {
+        Ok(()) => Ok(()),
+        Err((reason, message)) => {
+            send_abort(&mut peer.stream, reason).await;
+            Err(message)
+        }
     }
 }
 
@@ -1072,10 +1062,11 @@ async fn exchange_confirmations(
 /// returns what the receiver says it did with them.
 async fn send_accounts(
     state: &AppState,
-    mut stream: TcpStream,
-    encryption_key: &[u8; 32],
-    transcript: &[u8],
+    peer: &mut AuthenticatedPeer,
 ) -> Result<SyncSummary, String> {
+    let encryption_key = &peer.encryption_key;
+    let transcript = &peer.transcript;
+    let mut stream = &mut peer.stream;
     let mut export_bytes = create_export_payload(state)?;
     // Clear the confirm-time snapshot and the live flags after
     // snapshotting, so this transfer's choices do not leak into the next one.
@@ -1119,12 +1110,13 @@ async fn send_accounts(
 /// the sender what happened.
 async fn receive_accounts(
     state: &Arc<AppState>,
-    mut stream: TcpStream,
-    encryption_key: &[u8; 32],
-    transcript: &[u8],
+    peer: &mut AuthenticatedPeer,
 ) -> Result<SyncSummary, String> {
+    let encryption_key = &peer.encryption_key;
+    let transcript = &peer.transcript;
+    let mut stream = &mut peer.stream;
     // This is the only large frame in the protocol and it is accepted
-    // solely after mutual SAS confirmation succeeded.
+    // solely after both sides confirmed the transfer.
     let payload_res: Result<Result<Vec<u8>, String>, _> =
         timeout(Duration::from_secs(SOCKET_TIMEOUT_SECS), async {
             let (msg_type, payload) = read_frame_limited(&mut stream, MAX_FRAME_SIZE).await?;
@@ -1149,7 +1141,9 @@ async fn receive_accounts(
     };
 
     // Import into native keystore and accounts.json
-    let imported = import_sync_payload(state, &decrypted_bytes).await;
+    // Settings, order, alerts and layout are taken only if this device's user asked for them.
+    let accept_settings = state.pairing_options.read().accept_incoming_settings;
+    let imported = import_sync_payload(state, &decrypted_bytes, accept_settings).await;
     decrypted_bytes.zeroize();
     let summary = match imported {
         Ok(s) => s,

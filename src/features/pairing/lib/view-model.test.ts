@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PairingStatus } from "../../../types";
 import {
+  confirmFields,
   formatCountdown,
   formatJoinCode,
   hasOwnActionButtons,
@@ -8,7 +9,6 @@ import {
   isWaitingStatus,
   pairingHeader,
   pairingStep,
-  sasFields,
   waitingExpiresAt,
   type ViewMode,
 } from "./view-model";
@@ -32,8 +32,8 @@ describe("pairingStep", () => {
     expect(pairingStep("roleSelection", "select-role")).toBe(2);
   });
 
-  it("is step 3 once the code is being confirmed or later", () => {
-    for (const status of ["sasVerification", "transferring", "completed"] as const) {
+  it("is step 3 once the transfer is being confirmed or later", () => {
+    for (const status of ["confirmTransfer", "transferring", "completed"] as const) {
       expect(pairingStep(status, "select-role")).toBe(3);
     }
   });
@@ -52,12 +52,12 @@ describe("pairingHeader titles", () => {
     ["peer connected", { status: "peerConnected" }, "Connected"],
     ["asking for a role", { status: "roleSelection" }, "Send or Receive Accounts"],
     ["applying a chosen role", { status: "roleSelection", intendedRole: "send" }, "Connecting"],
-    ["confirming", { status: "sasVerification" }, "Confirm the connection"],
+    ["confirming as the sender", { status: "confirmTransfer", isSender: true }, "Confirm the transfer"],
+    ["waiting as the receiver", { status: "confirmTransfer", isSender: false }, "Devices connected"],
     ["transferring", { status: "transferring" }, "Transferring"],
     ["done", { status: "completed" }, "Devices linked"],
     ["failed", { status: "failed" }, "Link Devices"],
-    ["air-gap receiver comparing codes", { viewMode: "scanner", airgapVerifyPrompt: true }, "Confirm the connection"],
-    ["air-gap sender comparing codes", { viewMode: "airgap-confirm" }, "Confirm the connection"],
+    ["air-gap receiver with every frame", { viewMode: "scanner", airgapVerifyPrompt: true }, "Add the accounts"],
   ];
   it.each(cases)("%s", (_name, over, title) => {
     expect(header(over).title).toBe(title);
@@ -76,12 +76,17 @@ describe("pairingHeader subtitles and steps", () => {
     expect(header({ viewMode: "airgap-sender" }).subtitle).toContain("scan this QR code below");
   });
 
-  it("uses the same confirm text for Wi-Fi and air-gap confirmation", () => {
-    expect(header({ status: "sasVerification" }).subtitle).toBe(header({ viewMode: "airgap-confirm" }).subtitle);
+  it("tells the sender to send and the receiver to wait, with no code to compare", () => {
+    const sender = header({ status: "confirmTransfer", isSender: true }).subtitle;
+    const receiver = header({ status: "confirmTransfer", isSender: false }).subtitle;
+    expect(sender).toContain("send it");
+    expect(receiver).toContain("Waiting for the other device");
+    // No flow compares a code any more.
+    const airgap = header({ viewMode: "scanner", airgapVerifyPrompt: true }).subtitle;
+    for (const subtitle of [sender, receiver, airgap]) expect(subtitle).not.toContain("same code");
   });
 
-  it("is on step 3 while air-gap codes are compared, whatever the status", () => {
-    expect(header({ viewMode: "airgap-confirm" }).step).toBe(3);
+  it("is on step 3 while the air-gap receiver asks to add the accounts, whatever the status", () => {
     expect(header({ viewMode: "scanner", airgapVerifyPrompt: true }).step).toBe(3);
     expect(header().step).toBe(1);
     expect(header({ viewMode: "host" }).step).toBe(2);
@@ -101,13 +106,13 @@ describe("hasOwnActionButtons", () => {
   });
 
   it("lets scanner, code entry and air-gap views draw their own buttons", () => {
-    for (const mode of ["scanner", "code", "airgap-sender", "airgap-confirm"] as ViewMode[]) {
+    for (const mode of ["scanner", "code", "airgap-sender"] as ViewMode[]) {
       expect(hasOwnActionButtons("idle", mode)).toBe(true);
     }
   });
 
   it("lets confirmation and completion draw their own, but not other states", () => {
-    expect(hasOwnActionButtons("sasVerification", "select-role")).toBe(true);
+    expect(hasOwnActionButtons("confirmTransfer", "select-role")).toBe(true);
     expect(hasOwnActionButtons("completed", "select-role")).toBe(true);
     expect(hasOwnActionButtons("failed", "select-role")).toBe(false);
     expect(hasOwnActionButtons("transferring", "select-role")).toBe(false);
@@ -118,17 +123,8 @@ describe("waiting-state fields", () => {
   const waiting = (data: object) => ({ status: "hostWaiting", data }) as unknown as PairingStatus;
 
   it("reads the host's code from camelCase or snake_case keys", () => {
-    expect(hostWaitingFields(waiting({ qrSvg: "<svg/>", qrUri: "u", fingerprint: "f", joinCode: "123456" }))).toEqual({
-      qrSvg: "<svg/>",
-      qrUri: "u",
-      fingerprint: "f",
-      joinCode: "123456",
-    });
-    expect(hostWaitingFields(waiting({ qr_svg: "<svg/>", qr_uri: "u", join_code: "654321" }))).toMatchObject({
-      qrSvg: "<svg/>",
-      qrUri: "u",
-      joinCode: "654321",
-    });
+    expect(hostWaitingFields(waiting({ joinCode: "123456" }))).toEqual({ joinCode: "123456" });
+    expect(hostWaitingFields(waiting({ join_code: "654321" }))).toEqual({ joinCode: "654321" });
   });
 
   it("treats missing or non-string values as empty, and other states as not hosting", () => {
@@ -149,12 +145,11 @@ describe("waiting-state fields", () => {
   });
 });
 
-describe("sasFields", () => {
-  const sas = (data: object) => ({ status: "sasVerification", data }) as unknown as PairingStatus;
+describe("confirmFields", () => {
+  const confirming = (data: object) => ({ status: "confirmTransfer", data }) as unknown as PairingStatus;
 
   it("reads camelCase fields", () => {
-    expect(sasFields(sas({ sasCode: "1 2", sessionId: "s", role: "sender", accountCount: 4 }))).toEqual({
-      sasCode: "1 2",
+    expect(confirmFields(confirming({ sessionId: "s", role: "sender", accountCount: 4 }))).toEqual({
       sessionId: "s",
       role: "sender",
       accountCount: 4,
@@ -163,8 +158,7 @@ describe("sasFields", () => {
   });
 
   it("falls back to snake_case fields", () => {
-    expect(sasFields(sas({ sas_code: "3 4", session_id: "t", role: "receiver", account_count: 0 }))).toEqual({
-      sasCode: "3 4",
+    expect(confirmFields(confirming({ session_id: "t", role: "receiver", account_count: 0 }))).toEqual({
       sessionId: "t",
       role: "receiver",
       accountCount: 0,
@@ -173,7 +167,7 @@ describe("sasFields", () => {
   });
 
   it("is null for other states", () => {
-    expect(sasFields({ status: "idle" })).toBeNull();
+    expect(confirmFields({ status: "idle" })).toBeNull();
   });
 });
 

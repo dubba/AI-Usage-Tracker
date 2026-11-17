@@ -55,16 +55,9 @@
                 <!-- AndroidTV support -->
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
-            <!-- Handle device pairing QR code links from camera and QR scanners -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="aiusage-pair" />
-                <data android:scheme="aiusage" />
-            </intent-filter>
             <!-- The sign-in tab's page links here to bring the app back over the tab. Only brings
-                 the activity forward: it is not a pairing link (MainActivity.isPairingUri). -->
+                 the activity forward: the activity does not read the link. No other link opens
+                 the app; pairing is started inside the app only. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

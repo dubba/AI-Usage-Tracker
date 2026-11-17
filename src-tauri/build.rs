@@ -69,10 +69,9 @@ const APP_COMMANDS: &[&str] = &[
     "pairing_wifi_enabled",
     "pairing_open_wifi_settings",
     "pairing_start_host",
-    "pairing_start_client",
     "pairing_start_client_by_code",
     "pairing_select_role",
-    "pairing_confirm_sas",
+    "pairing_confirm_transfer",
     "pairing_cancel",
     "pairing_status",
     "pairing_set_include_settings",
@@ -81,7 +80,6 @@ const APP_COMMANDS: &[&str] = &[
     "pairing_prepare_airgap_export",
     "pairing_verify_airgap",
     "pairing_import_airgap",
-    "get_pending_pairing_uri",
 ];
 
 fn main() {

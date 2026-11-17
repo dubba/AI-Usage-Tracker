@@ -8,6 +8,7 @@ pub(crate) mod android_keystore;
 pub(crate) mod apk_install;
 pub(crate) mod autostart;
 pub(crate) mod camera_permission;
+pub(crate) mod capture_protection;
 pub(crate) mod fs_util;
 #[cfg(target_os = "ios")]
 pub(crate) mod ios_background;

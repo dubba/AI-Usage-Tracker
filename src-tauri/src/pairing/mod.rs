@@ -14,12 +14,10 @@ pub mod tests;
 
 use crate::{
     pairing::{
-        crypto::EphemeralKeyPair,
         payload::SyncSummary,
-        protocol::{compute_display_fingerprint, generate_qr_uri, parse_qr_uri},
         transport::{
-            generate_qr_svg, get_local_lan_ip, run_client_connector, run_host_listener,
-            ClientEvent, HostEvent, SESSION_TIMEOUT_SECS,
+            get_local_lan_ip, run_client_connector, run_host_listener, ClientEvent, HostEvent,
+            SESSION_TIMEOUT_SECS,
         },
     },
     state::AppState,
@@ -27,7 +25,6 @@ use crate::{
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
     net::IpAddr,
     sync::{
         atomic::{AtomicU64, Ordering},
@@ -46,36 +43,29 @@ use uuid::Uuid;
 #[serde(tag = "status", content = "data", rename_all = "camelCase")]
 pub enum PairingStatus {
     Idle,
-    #[serde(rename_all = "camelCase", alias = "receiverWaiting")]
+    #[serde(rename_all = "camelCase")]
     HostWaiting {
         session_id: String,
-        qr_svg: String,
-        qr_uri: String,
-        fingerprint: String,
         join_code: String,
         expires_at: u64,
     },
-    #[serde(rename_all = "camelCase", alias = "senderConnecting")]
+    #[serde(rename_all = "camelCase")]
     ClientConnecting {
         session_id: String,
     },
     #[serde(rename_all = "camelCase")]
     PeerConnected {
         session_id: String,
-        fingerprint: String,
-        sas_code: String,
     },
     #[serde(rename_all = "camelCase")]
     RoleSelection {
         session_id: String,
-        fingerprint: String,
-        sas_code: String,
     },
+    /// Both devices proved they share the link code. The sending device asks its user to
+    /// confirm; the receiving device waits.
     #[serde(rename_all = "camelCase")]
-    SasVerification {
+    ConfirmTransfer {
         session_id: String,
-        sas_code: String,
-        fingerprint: String,
         role: String, // "receiver" | "sender"
         account_count: Option<usize>,
     },
@@ -97,20 +87,20 @@ pub enum PairingStatus {
 #[serde(rename_all = "camelCase")]
 pub struct PairingHostInit {
     pub session_id: String,
-    pub qr_svg: String,
-    pub qr_uri: String,
-    pub fingerprint: String,
     pub join_code: String,
     pub expires_at: u64,
 }
 
 /// What one pairing transfer carries beyond the accounts, chosen by the user for that transfer.
 /// Everything defaults to "nothing extra" and goes back to it between transfers (`reset`).
-/// Confirming the code freezes the choice, so a later write cannot change what that transfer sends.
+/// Confirming the transfer freezes the choice, so a later write cannot change what it sends.
 #[derive(Clone, Debug, Default)]
 pub struct PairingTransferOptions {
     /// Also send the app settings, account order and alerts.
     pub include_settings: bool,
+    /// This device's user agreed to take the settings, account order, alerts and layout a sender
+    /// includes. Set when the session starts; without it an import keeps only the accounts.
+    pub accept_incoming_settings: bool,
     /// The layout (localStorage snapshot) the frontend supplied for this transfer.
     pub pending_ui_state: Option<serde_json::Value>,
     /// Set once, when the user confirms the code. Export prefers this over the live fields.
@@ -167,17 +157,14 @@ pub struct ActiveSession {
     pub cancel_tx: Option<oneshot::Sender<()>>,
     /// Installed when role selection starts. Absent until then, so an earlier answer is refused.
     pub role_select_tx: Option<oneshot::Sender<String>>,
-    /// Installed when code confirmation starts. Absent until then, so an earlier answer is refused.
-    pub sas_confirm_tx: Option<oneshot::Sender<bool>>,
+    /// Installed when the transfer confirmation starts. Absent until then, so an earlier answer is refused.
+    pub transfer_confirm_tx: Option<oneshot::Sender<bool>>,
     pub advertisement: Option<discovery::MdnsAdvertisement>,
 }
 
 pub struct PairingSessionManager {
     status: Arc<RwLock<PairingStatus>>,
     active: Arc<RwLock<Option<ActiveSession>>>,
-    /// Failed join-by-code lookups. The 6-digit code is a discovery handle,
-    /// not a secret; this only slows LAN brute-force of advertised names.
-    join_attempts: Arc<RwLock<HashMap<String, u8>>>,
     epoch: AtomicU64,
 }
 
@@ -192,7 +179,6 @@ impl PairingSessionManager {
         Self {
             status: Arc::new(RwLock::new(PairingStatus::Idle)),
             active: Arc::new(RwLock::new(None)),
-            join_attempts: Arc::new(RwLock::new(HashMap::new())),
             epoch: AtomicU64::new(0),
         }
     }
@@ -232,7 +218,7 @@ impl PairingSessionManager {
         Ok(())
     }
 
-    pub async fn confirm_sas(
+    pub async fn confirm_transfer(
         &self,
         session_id: &str,
         confirmed: bool,
@@ -250,10 +236,8 @@ impl PairingSessionManager {
             if session.session_id != session_id {
                 return Err("Session ID mismatch".into());
             }
-            let Some(confirm_tx) = session.sas_confirm_tx.take() else {
-                return Err(
-                    "Confirmation already handled or not waiting for SAS confirmation".into(),
-                );
+            let Some(confirm_tx) = session.transfer_confirm_tx.take() else {
+                return Err("Confirmation already handled or not waiting for confirmation".into());
             };
             confirm_tx
         };
@@ -278,30 +262,40 @@ impl PairingSessionManager {
         drop(tx);
     }
 
-    /// Publish the code-confirmation channel once that phase is reached.
+    /// Publish the transfer-confirmation channel once that phase is reached.
     /// A session that has moved on, or that already has a channel, drops `tx`.
-    pub(crate) async fn offer_sas_confirm(&self, session_id: &str, tx: oneshot::Sender<bool>) {
+    pub(crate) async fn offer_transfer_confirm(&self, session_id: &str, tx: oneshot::Sender<bool>) {
         let mut active = self.active.write().await;
         if let Some(session) = active.as_mut() {
-            if session.session_id == session_id && session.sas_confirm_tx.is_none() {
-                session.sas_confirm_tx = Some(tx);
+            if session.session_id == session_id && session.transfer_confirm_tx.is_none() {
+                session.transfer_confirm_tx = Some(tx);
                 return;
             }
         }
         drop(tx);
     }
 
-    pub async fn start_host(&self, state: Arc<AppState>) -> Result<PairingHostInit, String> {
+    /// Starts hosting: shows a link code and waits for the device that types it.
+    /// `accept_settings` is this device's "Also Transfer Settings & Layout" choice, used if it
+    /// turns out to be the receiver.
+    pub async fn start_host(
+        &self,
+        state: Arc<AppState>,
+        accept_settings: bool,
+    ) -> Result<PairingHostInit, String> {
         self.cancel().await;
-        // Reset per-transfer flags for the new session. Credential replacement
-        // in particular requires fresh explicit opt-in each session.
-        state.pairing_options.write().reset();
+        // Reset per-transfer flags for the new session, so one transfer's
+        // choices never carry into the next.
+        {
+            let mut options = state.pairing_options.write();
+            options.reset();
+            options.accept_incoming_settings = accept_settings;
+        }
         let epoch = self.epoch.fetch_add(1, Ordering::SeqCst) + 1;
 
-        let keypair = EphemeralKeyPair::generate();
         let session_id = Uuid::new_v4();
         let mut session_nonce = vec![0u8; 16];
-        rand::thread_rng().fill_bytes(&mut session_nonce);
+        rand::rngs::OsRng.fill_bytes(&mut session_nonce);
 
         let ip = get_local_lan_ip();
         let listener = bind_pairing_listener(&ip)
@@ -312,21 +306,8 @@ impl PairingSessionManager {
             .map_err(|e| format!("Failed to get local port: {e}"))?
             .port();
 
-        let fingerprint =
-            compute_display_fingerprint(&session_id, &keypair.public_bytes(), &session_nonce);
-
-        let qr_uri = generate_qr_uri(
-            &ip,
-            port,
-            &keypair.public_bytes(),
-            session_id,
-            &session_nonce,
-        );
-        let qr_svg = generate_qr_svg(&qr_uri)?;
-
-        // Join code is generated immediately so the UI can render. mDNS
-        // advertise is best-effort and must not block returning the QR/code —
-        // ServiceDaemon::new() can hang on Android until multicast is ready.
+        // The link code is the pairing secret: it is shown on this screen and
+        // typed on the other device, and never sent or announced.
         let join_code = discovery::generate_join_code();
 
         let expires_at = SystemTime::now()
@@ -337,25 +318,19 @@ impl PairingSessionManager {
 
         let init = PairingHostInit {
             session_id: session_id.to_string(),
-            qr_svg: qr_svg.clone(),
-            qr_uri: qr_uri.clone(),
-            fingerprint: fingerprint.clone(),
             join_code: join_code.clone(),
             expires_at,
         };
 
         let new_status = PairingStatus::HostWaiting {
             session_id: session_id.to_string(),
-            qr_svg,
-            qr_uri,
-            fingerprint: fingerprint.clone(),
             join_code: join_code.clone(),
             expires_at,
         };
 
         if self.epoch.load(Ordering::SeqCst) != epoch {
             // A concurrent start/cancel superseded this session. Never hand the
-            // caller a QR for a session that has no listener behind it.
+            // caller a code for a session that has no listener behind it.
             return Err(
                 "Pairing session was interrupted. Please try starting the transfer again."
                     .to_string(),
@@ -365,30 +340,30 @@ impl PairingSessionManager {
         *self.status.write().await = new_status.clone();
 
         let (cancel_tx, cancel_rx) = oneshot::channel();
-        let (sas_confirm_tx, sas_confirm_rx) = oneshot::channel();
+        let (confirm_tx, confirm_rx) = oneshot::channel();
         let (status_tx, mut status_rx) = mpsc::channel(16);
 
         *self.active.write().await = Some(ActiveSession {
             session_id: session_id.to_string(),
             cancel_tx: Some(cancel_tx),
             role_select_tx: None,
-            sas_confirm_tx: None,
+            transfer_confirm_tx: None,
             advertisement: None,
         });
 
+        // mDNS advertise is best-effort and must not block returning the code:
+        // ServiceDaemon::new() can hang on Android until multicast is ready.
         let advertise_ip = ip.clone();
-        let advertise_pk = keypair.public_bytes();
         let advertise_nonce = session_nonce.clone();
         let advertise_active = self.active.clone();
         let advertise_sid = session_id.to_string();
         tokio::spawn(async move {
             let advertised = tokio::task::spawn_blocking(move || {
                 discovery::advertise(
-                    &join_code,
+                    &discovery::generate_instance_name(),
                     &advertise_ip,
                     port,
                     session_id,
-                    &advertise_pk,
                     &advertise_nonce,
                 )
             })
@@ -407,7 +382,6 @@ impl PairingSessionManager {
 
         let app_handle_opt = state.app_handle.read().clone();
         let state_for_listener = state.clone();
-        let fp_clone = fingerprint.clone();
 
         // Spawn listener
         tokio::spawn(async move {
@@ -415,12 +389,11 @@ impl PairingSessionManager {
                 state_for_listener,
                 session_id,
                 listener,
-                keypair,
+                join_code,
                 session_nonce,
-                fp_clone,
                 status_tx,
-                Some(sas_confirm_tx),
-                sas_confirm_rx,
+                Some(confirm_tx),
+                confirm_rx,
                 cancel_rx,
             )
             .await;
@@ -434,23 +407,14 @@ impl PairingSessionManager {
         tokio::spawn(async move {
             while let Some(event) = status_rx.recv().await {
                 let current_status = match event {
-                    HostEvent::PeerConnected {
-                        sas_code,
-                        fingerprint,
-                    } => PairingStatus::PeerConnected {
+                    HostEvent::PeerConnected => PairingStatus::PeerConnected {
                         session_id: session_id_str.clone(),
-                        sas_code,
-                        fingerprint,
                     },
-                    HostEvent::SasVerification {
-                        sas_code,
-                        fingerprint,
+                    HostEvent::ConfirmTransfer {
                         role,
                         account_count,
-                    } => PairingStatus::SasVerification {
+                    } => PairingStatus::ConfirmTransfer {
                         session_id: session_id_str.clone(),
-                        sas_code,
-                        fingerprint,
                         role,
                         account_count: Some(account_count),
                     },
@@ -494,17 +458,52 @@ impl PairingSessionManager {
         Ok(init)
     }
 
-    pub async fn start_client(&self, state: Arc<AppState>, qr_uri: String) -> Result<(), String> {
-        self.cancel().await;
-        state.pairing_options.write().reset();
-        self.epoch.fetch_add(1, Ordering::SeqCst);
+    /// Joins the device showing `code`: finds the pairing hosts on the network and tries the
+    /// code against them. `accept_settings` is this device's "Also Transfer Settings & Layout"
+    /// choice, used if it turns out to be the receiver.
+    pub async fn start_client_by_code(
+        &self,
+        state: Arc<AppState>,
+        code: String,
+        accept_settings: bool,
+    ) -> Result<(), String> {
+        let code = code.trim().to_string();
+        if !discovery::is_valid_join_code(&code) {
+            return Err("Enter the 6-digit code shown on the other device.".into());
+        }
 
-        let parsed = parse_qr_uri(&qr_uri)?;
-        let session_id_str = parsed.session_id.to_string();
+        self.cancel().await;
+        {
+            let mut options = state.pairing_options.write();
+            options.reset();
+            options.accept_incoming_settings = accept_settings;
+        }
+        let epoch = self.epoch.fetch_add(1, Ordering::SeqCst) + 1;
+
+        let hosts = discovery::discover().await?;
+        if self.epoch.load(Ordering::SeqCst) != epoch {
+            return Err(
+                "Pairing session was interrupted. Please try starting the transfer again."
+                    .to_string(),
+            );
+        }
+        self.start_client(state, hosts, code).await;
+        Ok(())
+    }
+
+    /// Runs the joining side against `hosts`. The session id is this device's own: the hosts'
+    /// ids are theirs, and which host shares the code is not known yet.
+    pub(crate) async fn start_client(
+        &self,
+        state: Arc<AppState>,
+        hosts: Vec<protocol::DiscoveredHost>,
+        code: String,
+    ) {
+        let session_id_str = Uuid::new_v4().to_string();
 
         let (cancel_tx, cancel_rx) = oneshot::channel();
         let (role_select_tx, role_select_rx) = oneshot::channel();
-        let (sas_confirm_tx, sas_confirm_rx) = oneshot::channel();
+        let (confirm_tx, confirm_rx) = oneshot::channel();
         let (status_tx, mut status_rx) = mpsc::channel(16);
 
         *self.status.write().await = PairingStatus::ClientConnecting {
@@ -515,7 +514,7 @@ impl PairingSessionManager {
             session_id: session_id_str.clone(),
             cancel_tx: Some(cancel_tx),
             role_select_tx: None,
-            sas_confirm_tx: None,
+            transfer_confirm_tx: None,
             advertisement: None,
         });
 
@@ -527,12 +526,14 @@ impl PairingSessionManager {
         tokio::spawn(async move {
             run_client_connector(
                 state_for_client,
-                parsed,
+                session_id_str,
+                hosts,
+                code,
                 status_tx,
                 Some(role_select_tx),
                 role_select_rx,
-                Some(sas_confirm_tx),
-                sas_confirm_rx,
+                Some(confirm_tx),
+                confirm_rx,
                 cancel_rx,
             )
             .await;
@@ -545,23 +546,14 @@ impl PairingSessionManager {
         tokio::spawn(async move {
             while let Some(event) = status_rx.recv().await {
                 let current_status = match event {
-                    ClientEvent::RoleSelection {
-                        sas_code,
-                        fingerprint,
-                    } => PairingStatus::RoleSelection {
+                    ClientEvent::RoleSelection => PairingStatus::RoleSelection {
                         session_id: sid.clone(),
-                        sas_code,
-                        fingerprint,
                     },
-                    ClientEvent::SasVerification {
-                        sas_code,
-                        fingerprint,
+                    ClientEvent::ConfirmTransfer {
                         role,
                         account_count,
-                    } => PairingStatus::SasVerification {
+                    } => PairingStatus::ConfirmTransfer {
                         session_id: sid.clone(),
-                        sas_code,
-                        fingerprint,
                         role,
                         account_count: Some(account_count),
                     },
@@ -594,41 +586,6 @@ impl PairingSessionManager {
                 }
             }
         });
-
-        Ok(())
-    }
-
-    pub async fn start_client_by_code(
-        &self,
-        state: Arc<AppState>,
-        code: String,
-    ) -> Result<(), String> {
-        let code = code.trim().to_string();
-        if !discovery::is_valid_join_code(&code) {
-            return Err("Enter the 6-digit code shown on the other device.".into());
-        }
-
-        {
-            let attempts = self.join_attempts.read().await;
-            if attempts.get(&code).copied().unwrap_or(0) >= discovery::MAX_JOIN_ATTEMPTS {
-                return Err(
-                    "Too many attempts for this code. Ask the other device to start a new pairing session."
-                        .into(),
-                );
-            }
-        }
-
-        match discovery::resolve(&code).await {
-            Ok(parsed) => {
-                self.join_attempts.write().await.remove(&code);
-                self.start_client(state, parsed.to_uri()).await
-            }
-            Err(err) => {
-                let mut attempts = self.join_attempts.write().await;
-                *attempts.entry(code).or_insert(0) += 1;
-                Err(err)
-            }
-        }
     }
 
     /// An open session with neither answer channel installed, for tests of the phase gate.
@@ -638,15 +595,15 @@ impl PairingSessionManager {
             session_id: session_id.to_string(),
             cancel_tx: None,
             role_select_tx: None,
-            sas_confirm_tx: None,
+            transfer_confirm_tx: None,
             advertisement: None,
         });
     }
 }
 
-/// Binds the host listener to the address the QR code and mDNS record
-/// advertise, and only if that is a local-network address: private,
-/// link-local, CGNAT, or loopback, the same rule receivers apply to QR codes.
+/// Binds the host listener to the address the mDNS record advertises, and
+/// only if that is a local-network address: private, link-local, CGNAT, or
+/// loopback, the same rule joiners apply to the hosts they find.
 /// There is no fallback to all interfaces. A public address, or one that
 /// cannot be bound (it vanished since we read it), fails host mode with an
 /// explanation instead of exposing the listener beyond the local network for

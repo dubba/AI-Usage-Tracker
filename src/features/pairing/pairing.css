@@ -1325,13 +1325,6 @@
   color: var(--c-ffffff);
 }
 
-.airgap-pin-hint {
-  margin: 0;
-  font-size: 0.72rem;
-  line-height: 1.35;
-  color: var(--obsidian-muted);
-}
-
 .airgap-verify-block {
   display: flex;
   flex-direction: column;
@@ -1340,8 +1333,7 @@
   width: 100%;
 }
 
-.airgap-verify-block .pairing-sas-badge,
-.airgap-verify-block .airgap-pin-hint {
+.airgap-verify-block .pairing-instruction {
   margin: 0 !important;
 }
 
@@ -1582,25 +1574,6 @@
   background: rgb(var(--tint-amber-rgb) / 0.18);
   color: var(--obsidian-amber);
   border: 1px solid rgb(var(--tint-amber-rgb) / 0.3);
-}
-
-.pairing-offline-link {
-  margin: 2px 0 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--obsidian-purple);
-  font-size: 0.8rem;
-  font-weight: 500;
-  line-height: 1.35;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
-
-.pairing-offline-link:hover,
-.pairing-offline-link:focus-visible {
-  color: var(--purple-ink);
 }
 
 .pairing-step-dots {

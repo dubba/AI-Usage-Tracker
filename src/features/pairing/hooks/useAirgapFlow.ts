@@ -66,15 +66,15 @@ export function useAirgapFlow({
     }
   };
 
-  /** Import the captured frames once the receiver has confirmed the codes match. */
+  /** Import the captured frames once the receiving user agreed to add the accounts. */
   const handleAirgapImport = async () => {
-    if (capture.importing || !capture.verifyCode) return;
+    if (capture.importing || capture.accountCount === null) return;
     const ticket = request.begin();
     capture.setImporting(true);
     setErrorMessage(null);
     try {
       const chunks = Array.from(capture.chunks.values());
-      const summary = await pairingApi.importAirgapFrames(chunks);
+      const summary = await pairingApi.importAirgapFrames(chunks, includeSettings);
       if (!request.isLatest(ticket)) return;
       hasCompletedRef.current = true;
       capture.closePrompt();

@@ -6,7 +6,8 @@ export interface ScannerViewProps {
   airgapTotalChunks: number;
   airgapCaptureSecs: number | null;
   airgapVerifying: boolean;
-  airgapVerifyCode: string | null;
+  /** Accounts in the complete capture, once the backend has opened it. */
+  airgapAccountCount: number | null;
   airgapImporting: boolean;
   airgapCapturedChunks: Map<number, string>;
   cameraError: string | null;
@@ -31,7 +32,7 @@ export function ScannerView({
   airgapTotalChunks,
   airgapCaptureSecs,
   airgapVerifying,
-  airgapVerifyCode,
+  airgapAccountCount,
   airgapImporting,
   airgapCapturedChunks,
   cameraError,
@@ -56,23 +57,18 @@ export function ScannerView({
           <p className="pairing-instruction airgap-capture-summary">
             Captured all {airgapTotalChunks} frames{airgapCaptureSecs !== null ? ` in ${airgapCaptureSecs} seconds` : ""}!
           </p>
-          <h3>Do both devices show this code?</h3>
-          <p className="pairing-instruction">
-            Compare this code with the sending device. If they match, the transfer is intact.
-          </p>
-
-          {airgapVerifying || !airgapVerifyCode ? (
+          {airgapVerifying || airgapAccountCount === null ? (
             <div className="pairing-panel-status">
               <span className="spinner" />
               <p>Assembling scanned frames…</p>
             </div>
           ) : (
-            <div
-              className="pairing-sas-badge"
-              aria-label={`Verification code ${airgapVerifyCode}`}
-            >
-              {airgapVerifyCode}
-            </div>
+            <>
+              <h3>Add {accountsText(airgapAccountCount)} from the other device?</h3>
+              <p className="pairing-instruction">
+                Accounts already on this device are kept as they are.
+              </p>
+            </>
           )}
 
           <div className="airgap-prompt-actions">
@@ -88,16 +84,16 @@ export function ScannerView({
             <button
               type="button"
               className="button primary"
-              disabled={!airgapVerifyCode || airgapImporting || airgapVerifying}
+              disabled={airgapAccountCount === null || airgapImporting || airgapVerifying}
               onClick={onAirgapImport}
             >
               {airgapImporting ? (
                 <>
                   <span className="spinner button-spinner" />
-                  <span>Decrypting &amp; Importing…</span>
+                  <span>Adding…</span>
                 </>
               ) : (
-                <span>Yes, They Match</span>
+                <span>Add Accounts</span>
               )}
             </button>
           </div>
@@ -199,4 +195,9 @@ export function ScannerView({
       )}
     </div>
   );
+}
+
+/** "1 account", "3 accounts". */
+function accountsText(count: number): string {
+  return count === 1 ? "1 account" : `${count} accounts`;
 }

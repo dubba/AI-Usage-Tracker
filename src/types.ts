@@ -191,9 +191,6 @@ export interface SyncSummary {
 
 export interface PairingHostInit {
   sessionId: string;
-  qrSvg: string;
-  qrUri: string;
-  fingerprint: string;
   joinCode: string;
   expiresAt: number;
 }
@@ -205,9 +202,6 @@ export type PairingStatus =
       status: "hostWaiting" | "receiverWaiting";
       data: {
         sessionId: string;
-        qrSvg: string;
-        qrUri: string;
-        fingerprint: string;
         joinCode: string;
         expiresAt: number;
       };
@@ -222,24 +216,19 @@ export type PairingStatus =
       status: "peerConnected";
       data: {
         sessionId: string;
-        fingerprint: string;
-        sasCode: string;
       };
     }
   | {
       status: "roleSelection";
       data: {
         sessionId: string;
-        fingerprint: string;
-        sasCode: string;
       };
     }
   | {
-      status: "sasVerification";
+      /** Both devices proved they share the link code. The sender confirms; the receiver waits. */
+      status: "confirmTransfer";
       data: {
         sessionId: string;
-        sasCode: string;
-        fingerprint: string;
         role: "receiver" | "sender";
         accountCount?: number | null;
       };
@@ -279,13 +268,14 @@ export interface AirgapExportFrame {
 
 export interface AirgapExport {
   sessionId: string;
-  verifyCode: string;
   totalChunks: number;
   frames: AirgapExportFrame[];
 }
 
-export interface AirgapVerifyResult {
+/** What a complete air-gap capture holds, shown before the receiving user agrees to add it. */
+export interface AirgapPreview {
   sessionId: string;
-  verifyCode: string;
   totalChunks: number;
+  /** Accounts in the transfer; ones this device already has are skipped on import. */
+  accountCount: number;
 }
