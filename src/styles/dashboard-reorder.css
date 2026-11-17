@@ -113,10 +113,6 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .activity-card a {
   transform: translateY(-50%);
 }
 
-.activity-card.is-compact[data-reorder-enabled="true"] .reorder-grip {
-  top: 28px;
-}
-
 .provider-summary-row[data-reorder-enabled="true"]:hover .reorder-grip,
 .provider-account-card[data-reorder-enabled="true"]:hover .reorder-grip,
 .activity-card[data-reorder-enabled="true"]:hover .reorder-grip {

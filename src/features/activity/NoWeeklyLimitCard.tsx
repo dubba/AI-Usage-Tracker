@@ -10,17 +10,14 @@ export function NoWeeklyLimitCard({
   account,
   otherLimits,
   monthlyOn30d = false,
-  compact = false,
 }: {
   account: Account;
   otherLimits: readonly OtherLimit[];
   /** Its monthly usage is charted on the 30 day view: say so. */
   monthlyOn30d?: boolean;
-  compact?: boolean;
 }) {
   const titleId = useId();
   const email = accountEmail(account);
-  const label = displayAccountLabel(account);
   const hasError = Boolean(
     account.authRequired
     || account.lastError
@@ -29,7 +26,7 @@ export function NoWeeklyLimitCard({
   );
   return (
     <article
-      className={`activity-card is-no-weekly${compact ? " is-compact" : ""}${hasError ? " needs-attention" : ""}`}
+      className={`activity-card is-no-weekly${hasError ? " needs-attention" : ""}`}
       aria-labelledby={titleId}
       data-account-id={account.id}
       data-reorder-provider={account.provider}
@@ -42,8 +39,8 @@ export function NoWeeklyLimitCard({
       </span>
       <div className="activity-card-identity">
         <div className="activity-card-title-row">
-          <h2 className="activity-card-title" id={titleId} title={compact && email ? email : undefined}>
-            {compact ? label : <ActivityAccountTitle label={label} email={email} />}
+          <h2 className="activity-card-title" id={titleId}>
+            <ActivityAccountTitle label={displayAccountLabel(account)} email={email} />
           </h2>
           <span className="activity-badge">No weekly limit</span>
         </div>
