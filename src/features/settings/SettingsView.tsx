@@ -154,7 +154,7 @@ export function SettingsView({
           <h2 id="settings-section-devices" className="settings-card-heading">Devices</h2>
           <div className="settings-row">
             <div>
-              <strong>Device Transfer</strong>
+              <strong>Device Sync</strong>
               <small>Sync accounts &amp; credentials to another device securely.</small>
             </div>
             <button
