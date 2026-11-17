@@ -1,0 +1,341 @@
+/* Accounts Dashboard improvements (L7):
+ * - Compact view toggle beside % Used | % Left and in mobile sidebar footer.
+ * - Slim single-row compact account card layout (.provider-account-card.is-compact).
+ * - Two-column card grid on very wide viewports (@media (min-width: 1400px)).
+ *
+ * Layered in `@layer components` with zero `!important` flags and zero raw color literals
+ * (tokens only; see docs/CSS_ARCHITECTURE.md and src/styles/css-debt.test.ts).
+ */
+@layer components {
+  /* ---- Compact toggle button ---- */
+  .compact-dashboard-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 11px;
+    border: 1px solid var(--obsidian-border-strong);
+    border-radius: 9px;
+    background: var(--obsidian-surface-low);
+    color: var(--obsidian-muted);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+  }
+
+  .compact-dashboard-toggle svg {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+  }
+
+  .compact-dashboard-toggle.active {
+    border-color: var(--purple-fill);
+    background: var(--purple-fill);
+    color: var(--purple-on-fill);
+  }
+
+  @media (hover: hover) {
+    .compact-dashboard-toggle:not(.active):hover {
+      border-color: var(--purple-accent);
+      color: var(--obsidian-text);
+    }
+
+    .compact-dashboard-toggle.active:hover {
+      border-color: var(--purple-fill-hover);
+      background: var(--purple-fill-hover);
+    }
+  }
+
+  .compact-dashboard-toggle:focus-visible {
+    outline: 2px solid var(--purple-accent);
+    outline-offset: 2px;
+  }
+
+  .accounts-display-switch .compact-dashboard-toggle[data-tooltip]::after {
+    left: auto;
+    right: 0;
+    transform: none;
+  }
+
+  @media (max-width: 860px) {
+    .sidebar-display-switch {
+      display: flex;
+      align-items: stretch;
+      gap: 8px;
+    }
+
+    .sidebar-display-switch .provider-window-toggle.is-words {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .compact-dashboard-toggle.is-mobile {
+      height: auto;
+      min-height: 38px;
+      flex: 0 0 auto;
+      padding: 0 10px;
+    }
+
+    .sidebar-display-switch .compact-dashboard-toggle[data-tooltip]::after {
+      display: none;
+    }
+  }
+
+  /* ---- 2-column grid on very wide windows (1400px+) ---- */
+  @media (min-width: 1400px) {
+    .obsidian-shell .provider-account-cards {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: start;
+    }
+
+    .obsidian-shell .provider-account-cards.is-compact {
+      align-items: stretch;
+    }
+
+    .obsidian-shell .provider-account-cards > :not(.provider-account-card):not(.dashboard-reorder-placeholder) {
+      grid-column: 1 / -1;
+    }
+  }
+
+  /* ---- Compact single-row account cards ---- */
+  .obsidian-shell .provider-account-cards.is-compact {
+    gap: 8px;
+  }
+
+  .provider-account-card.is-compact {
+    border-radius: 10px;
+  }
+
+  .compact-card-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 54px;
+    padding: 9px 14px 9px 14px;
+    box-sizing: border-box;
+  }
+
+  .provider-account-card.is-compact[data-reorder-enabled="true"] .compact-card-row {
+    padding-left: 28px;
+  }
+
+  .compact-card-identity {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex: 0 1 200px;
+    min-width: 110px;
+    overflow: hidden;
+  }
+
+  .compact-card-identity h2 {
+    margin: 0;
+    min-width: 0;
+    flex: 0 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--c-f5f1f0);
+    font-size: 14px;
+    line-height: 1.25;
+    font-weight: 650;
+  }
+
+  .compact-card-identity .account-plan-badge {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    padding: 0 7px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--purple-surface);
+    color: var(--purple-text);
+    font-size: 11px;
+    font-weight: 650;
+    line-height: 1;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .compact-card-identity .account-status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 20px;
+    padding: 0 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 650;
+    line-height: 1;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .compact-card-identity .account-status-chip.warning {
+    background: rgb(var(--tint-amber-rgb) / 0.14);
+    color: var(--obsidian-amber);
+  }
+
+  .compact-card-identity .account-status-chip.danger {
+    background: rgb(var(--tint-red-rgb) / 0.14);
+    color: var(--tone-critical-text);
+  }
+
+  .compact-card-identity .account-status-chip.neutral {
+    background: var(--obsidian-surface-container-high);
+    color: var(--obsidian-muted-bright);
+  }
+
+  .compact-card-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    flex: 1 1 200px;
+    min-width: 0;
+  }
+
+  .compact-metric-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1 1 86px;
+    min-width: 74px;
+    max-width: 170px;
+  }
+
+  .compact-metric-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .compact-metric-label {
+    color: var(--obsidian-muted);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .compact-metric-value {
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .compact-metric-value.tone-healthy {
+    color: var(--c-f5f1ef);
+  }
+
+  .compact-metric-value.tone-warning {
+    color: var(--tone-warning-text);
+  }
+
+  .compact-metric-value.tone-critical {
+    color: var(--tone-critical-text);
+  }
+
+  .compact-metric-value.tone-na,
+  .compact-metric-value.tone-neutral {
+    color: var(--obsidian-muted);
+  }
+
+  .compact-metric-item .account-metric-track {
+    width: 100%;
+    height: 4px;
+    margin: 0;
+    border-radius: 2px;
+  }
+
+  .compact-card-empty-status {
+    color: var(--obsidian-muted);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .compact-card-trailing {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    flex: 0 0 auto;
+  }
+
+  .compact-card-reset {
+    color: var(--obsidian-muted-bright);
+    font-size: 11.5px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .compact-card-collapsed-summary {
+    font-size: 12.5px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .compact-card-action-btn {
+    min-height: 26px;
+    height: 26px;
+    padding: 0 10px;
+    font-size: 11.5px;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .compact-card-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+  }
+
+  @media (max-width: 860px), (pointer: coarse) {
+    .provider-account-card.is-compact[data-reorder-enabled="true"] .compact-card-row {
+      padding-left: 12px;
+    }
+  }
+
+  @media (max-width: 860px) {
+    .compact-card-row {
+      flex-wrap: wrap;
+      gap: 8px 10px;
+      padding: 10px 12px;
+    }
+
+    .compact-card-identity {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+
+    .compact-card-metrics {
+      order: 3;
+      flex: 1 0 100%;
+    }
+
+    .compact-metric-item {
+      max-width: none;
+    }
+
+    .compact-card-trailing {
+      order: 2;
+      gap: 6px;
+    }
+  }
+}

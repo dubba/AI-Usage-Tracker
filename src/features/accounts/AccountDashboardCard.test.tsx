@@ -969,3 +969,161 @@ describe("AccountDashboardCard Claude limits", () => {
   });
 });
 
+describe("AccountDashboardCard compact mode (L7)", () => {
+  let app: Mounted | null = null;
+
+  beforeEach(() => {
+    setNarrowWindow(false);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-11T08:00:00Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    app?.unmount();
+    app = null;
+    setCardCollapsedOnPage("compact-page", "acct-compact", false);
+  });
+
+  it("renders a single slim row with identity, compact metric bars, soonest reset, and actions", () => {
+    const compactAccount: Account = {
+      ...account,
+      id: "acct-compact",
+      label: "Work Claude",
+      plan: "claude_max_200",
+      lastUsage: {
+        plan: "claude_max_200",
+        email: "work@example.com",
+        windows: [
+          {
+            id: "five_hour",
+            label: "5 hour",
+            usedPercent: 25,
+            remainingPercent: 75,
+            resetsAt: "2026-11-11T10:30:00Z",
+            windowSeconds: 18000,
+            kind: "five_hour",
+          },
+          {
+            id: "weekly",
+            label: "Weekly",
+            usedPercent: 10,
+            remainingPercent: 90,
+            resetsAt: "2026-11-15T08:00:00Z",
+            windowSeconds: 604800,
+            kind: "weekly",
+          },
+        ],
+        creditsUsd: null,
+        unlimitedCredits: false,
+        fetchedAt: "2026-11-11T07:55:00Z",
+        freshness: "live",
+        source: "anthropic_oauth_usage",
+      },
+    };
+
+    const onRefresh = vi.fn();
+    app = mount(
+      <AccountDashboardCard
+        pageId="compact-page"
+        account={compactAccount}
+        compact
+        busy={new Set()}
+        onRefresh={onRefresh}
+        onReconnect={() => undefined}
+        onConnectGoogleUsage={() => undefined}
+        onRename={async () => undefined}
+        onRemove={() => undefined}
+        onNotifications={() => undefined}
+      />,
+    );
+
+    const card = app.container.querySelector(".provider-account-card")!;
+    expect(card.classList.contains("is-compact")).toBe(true);
+    expect(card.querySelector(".compact-card-row")).not.toBeNull();
+    expect(card.querySelector(".compact-card-identity h2")?.textContent).toBe("Work Claude");
+    expect(card.querySelector(".account-plan-badge")?.textContent).toBe("Max/$200");
+
+    const metrics = [...card.querySelectorAll(".compact-metric-item")];
+    expect(metrics).toHaveLength(2);
+    expect(metrics[0].querySelector(".compact-metric-label")?.textContent).toBe("5h · Claude");
+    expect(metrics[0].querySelector(".compact-metric-value")?.textContent).toBe("75%");
+    expect(metrics[1].querySelector(".compact-metric-label")?.textContent).toBe("7d · Claude");
+    expect(metrics[1].querySelector(".compact-metric-value")?.textContent).toBe("90%");
+    expect(metrics[0].querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow")).toBe("75");
+
+    expect(card.querySelector(".compact-card-reset")?.textContent).toContain("Resets");
+    click(card.querySelector<HTMLButtonElement>(".refresh-action")!);
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows compact Sign in / Retry actions and collapses cleanly to lowest percent", () => {
+    const onReconnect = vi.fn();
+    const onRefresh = vi.fn();
+    app = mount(
+      <AccountDashboardCard
+        pageId="compact-page"
+        account={{ ...account, id: "acct-compact-auth", authRequired: true }}
+        compact
+        busy={new Set()}
+        onRefresh={onRefresh}
+        onReconnect={onReconnect}
+        onConnectGoogleUsage={() => undefined}
+        onRename={async () => undefined}
+        onRemove={() => undefined}
+        onNotifications={() => undefined}
+      />,
+    );
+
+    const signInBtn = app.container.querySelector<HTMLButtonElement>(".compact-card-action-btn")!;
+    expect(signInBtn.textContent).toBe("Sign in");
+    click(signInBtn);
+    expect(onReconnect).toHaveBeenCalledTimes(1);
+
+    app.rerender(
+      <AccountDashboardCard
+        pageId="compact-page"
+        account={{ ...account, id: "acct-compact-err", lastError: "Timed out" }}
+        compact
+        busy={new Set()}
+        onRefresh={onRefresh}
+        onReconnect={onReconnect}
+        onConnectGoogleUsage={() => undefined}
+        onRename={async () => undefined}
+        onRemove={() => undefined}
+        onNotifications={() => undefined}
+      />,
+    );
+
+    const retryBtn = app.container.querySelector<HTMLButtonElement>(".compact-card-action-btn")!;
+    expect(retryBtn.textContent).toBe("Retry");
+    click(retryBtn);
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("switches to the inline rename input when Rename is chosen from the card menu", () => {
+    app = mount(
+      <AccountDashboardCard
+        pageId="compact-page"
+        account={{ ...account, id: "acct-compact-rename" }}
+        compact
+        busy={new Set()}
+        onRefresh={() => undefined}
+        onReconnect={() => undefined}
+        onConnectGoogleUsage={() => undefined}
+        onRename={async () => undefined}
+        onRemove={() => undefined}
+        onNotifications={() => undefined}
+      />,
+    );
+
+    expect(app.container.querySelector(".compact-card-row")).not.toBeNull();
+    click(app.container.querySelector<HTMLButtonElement>('[aria-label="More actions for Claude"]')!);
+    const renameBtn = [...document.querySelectorAll<HTMLButtonElement>(".account-card-menu-list .mobile-dropdown-item")].find((b) =>
+      b.textContent?.includes("Rename"),
+    )!;
+    click(renameBtn);
+    expect(app.container.querySelector(".account-card-name-input")).not.toBeNull();
+  });
+});
+

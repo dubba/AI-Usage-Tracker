@@ -606,4 +606,30 @@ describe("AccountsView L / U switch", () => {
     expect(document.querySelector(".dashboard-title-row .top-bar-segmented")).toBeNull();
     expect(document.querySelectorAll(".top-bar-segmented")).toHaveLength(1);
   });
+
+  it("renders a Compact toggle beside Show % Used / % Left and toggles compact cards (L7)", () => {
+    setNarrowWindow(false);
+    app = renderView({
+      allAccounts: [account],
+      accounts: [account],
+      selectedGroup: { ...allGroup, accounts: [account] },
+      onToggleSidebar: () => undefined,
+    });
+
+    const compactToggle = document.querySelector<HTMLButtonElement>(".accounts-display-switch .compact-dashboard-toggle")!;
+    expect(compactToggle).not.toBeNull();
+    expect(compactToggle.getAttribute("aria-pressed")).toBe("false");
+    expect(document.querySelector(".provider-account-cards")?.classList.contains("is-compact")).toBe(false);
+    expect(document.querySelector(".compact-card-row")).toBeNull();
+
+    click(compactToggle);
+    expect(compactToggle.getAttribute("aria-pressed")).toBe("true");
+    expect(document.querySelector(".provider-account-cards")?.classList.contains("is-compact")).toBe(true);
+    expect(document.querySelector(".compact-card-row")).not.toBeNull();
+
+    // Restore default off state for subsequent tests
+    click(compactToggle);
+    expect(compactToggle.getAttribute("aria-pressed")).toBe("false");
+    expect(document.querySelector(".provider-account-cards")?.classList.contains("is-compact")).toBe(false);
+  });
 });

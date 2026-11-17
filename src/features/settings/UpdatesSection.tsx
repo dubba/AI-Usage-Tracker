@@ -33,7 +33,7 @@ export function UpdatesSection({
 
   return (
     <>
-      <h2 className="settings-section-title">Updates</h2>
+      <h2 id="settings-section-updates" className="settings-section-title">Updates</h2>
       <section className="settings-card">
         <div className="settings-row settings-updates-group-row">
           <SettingsToggleRow

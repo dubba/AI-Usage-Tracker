@@ -380,3 +380,35 @@ describe("Devices and the local API", () => {
     expect(onToggleSidebar).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("SettingsView section layout and jump navigation (L3)", () => {
+  it("labels all four Advanced cards clearly with h3 headings inside each card", () => {
+    app = mount(view());
+    openAdvanced();
+    const headings = [...document.querySelectorAll("#settings-advanced-content .settings-card-heading")].map((el) =>
+      el.textContent?.trim(),
+    );
+    expect(headings).toEqual(["Data", "Diagnostics", "Integrations", "Keyboard Shortcuts"]);
+    expect(document.querySelector("#settings-advanced-content h2")).toBeNull();
+    act(() => document.querySelector<HTMLButtonElement>(".settings-advanced-toggle")!.click());
+  });
+
+  it("expands Advanced and scrolls the target section when jumpTarget changes", async () => {
+    const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return 1;
+    });
+    const onActiveSectionChange = vi.fn();
+    app = mount(view({ props: { onActiveSectionChange } }));
+    const scroller = document.querySelector<HTMLDivElement>(".dashboard-scroll")!;
+    const scrollToSpy = vi.fn();
+    scroller.scrollTo = scrollToSpy;
+
+    app.rerender(view({ props: { jumpTarget: { section: "advanced", seq: 1 }, onActiveSectionChange } }));
+    expect(document.querySelector("#settings-advanced-content")).not.toBeNull();
+    expect(scrollToSpy).toHaveBeenCalledTimes(1);
+    expect(onActiveSectionChange).toHaveBeenCalledWith("advanced");
+    rafSpy.mockRestore();
+    act(() => document.querySelector<HTMLButtonElement>(".settings-advanced-toggle")!.click());
+  });
+});

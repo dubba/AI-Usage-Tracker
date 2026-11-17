@@ -20,15 +20,20 @@ import {
   accountStatus,
   usageTone,
   cardWindows,
+  nextResetSummary,
+  windowLength,
 } from "../../shared/lib/usage-logic";
 import { formatUpdatedAt } from "../../shared/lib/format";
 import {
   displayAccountError,
   displayAccountSubtitle,
   displayPlan,
+  metricWindowParts,
 } from "../../shared/lib/display";
 import type {
   Account,
+  Provider,
+  UsageWindow,
 } from "../../types";
 import { useClock } from "../../shared/hooks/useClock";
 import { useUsageDisplayMode } from "../../shared/hooks/useUsageDisplayMode";
@@ -46,16 +51,25 @@ import { MOBILE_OVERLAY_QUERY } from "../sidebar/sidebar-width";
 /** Id of the visually hidden hint that AccountsView renders once for every card. */
 export const REORDER_HINT_ID = "account-reorder-hint";
 
-
 /** "LIVE" / "AUTH NEEDED" as the desktop status chip says them: "Live" / "Auth needed". */
 function statusChipLabel(label: string): string {
   const lower = label.toLowerCase();
   return lower.charAt(0).toUpperCase() + lower.slice(1);
 }
 
+/** Concise label for a compact single-row metric: e.g. "5h · Claude", "7d · Bot", "5h · Argon". */
+function compactWindowLabel(window: UsageWindow, provider: Provider | string): string {
+  const { span, name } = metricWindowParts(window, provider);
+  const shortSpan = span
+    ? span.replace(/-hour$/i, "h").replace(/-day$/i, "d")
+    : null;
+  return [shortSpan, name].filter(Boolean).join(" · ") || windowLength(window) || window.label;
+}
+
 export function AccountDashboardCard({
   pageId,
   account,
+  compact = false,
   busy,
   onRefresh,
   onReconnect,
@@ -71,6 +85,7 @@ export function AccountDashboardCard({
 }: {
   pageId: string;
   account: Account;
+  compact?: boolean;
   busy: BusyKeys;
   onRefresh: () => void;
   onReconnect: () => void;
@@ -129,6 +144,10 @@ export function AccountDashboardCard({
   const waitingForMetrics = isGoogleSetupPending(account);
   const googleUnavailableLabel = modelsOnly ? "Key only" : waitingForMetrics ? "Setup in progress" : "Unavailable";
   const updatedAtLabel = useClock((now) => formatUpdatedAt(account.lastUsage?.fetchedAt, now) ?? "Not updated yet");
+  const soonestReset = useClock((now) => {
+    const next = nextResetSummary([account], now);
+    return next.account ? next.value : null;
+  });
   const creditLabel = account.provider !== "openai"
     ? null
     : account.lastUsage?.unlimitedCredits
@@ -144,9 +163,169 @@ export function AccountDashboardCard({
     window.setTimeout(() => iconButtonRef.current?.focus(), 0);
   };
 
+  if (compact && !rename.editing) {
+    return (
+      <article
+        className={`provider-account-card${desktop ? " desktop-card" : ""} is-compact ${needsAttention ? "needs-attention" : ""} ${isCollapsed ? "is-collapsed" : ""} ${mobileMenuOpen ? "has-open-menu" : ""}`}
+        data-account-id={account.id}
+        data-reorder-provider={account.provider}
+        data-reorder-enabled="true"
+        draggable={false}
+      >
+        <div className="compact-card-row">
+          <span className="reorder-grip" data-tooltip="Drag to reorder" aria-hidden="true" />
+          <button
+            ref={iconButtonRef}
+            type="button"
+            className={`account-card-provider-icon provider-${account.provider}${isCollapsed ? " is-collapsed" : ""}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              toggleCollapse();
+            }}
+            onKeyDown={(event) => {
+              const delta = onMove ? reorderKeyDelta(event) : null;
+              if (delta == null) return;
+              event.preventDefault();
+              requestMove(delta);
+            }}
+            aria-keyshortcuts={onMove ? "Alt+ArrowUp Alt+ArrowDown" : undefined}
+            aria-describedby={onMove ? REORDER_HINT_ID : undefined}
+            data-tooltip={isCollapsed ? "Expand card" : "Collapse card"}
+            aria-label={isCollapsed ? `Expand ${displayAccountLabel(account)}` : `Collapse ${displayAccountLabel(account)}`}
+            aria-expanded={!isCollapsed}
+          >
+            <ProviderIcon provider={account.provider} />
+            <span className="collapse-chevron" aria-hidden="true"><ChevronIcon /></span>
+          </button>
+
+          <div className="compact-card-identity">
+            <h2 title={displayAccountSubtitle(account)}>{displayAccountLabel(account)}</h2>
+            {status.label !== "LIVE" ? (
+              <span className={`account-status-chip ${status.className}`}>
+                <span className="account-status-chip-dot" aria-hidden="true" />
+                {statusChipLabel(status.label)}
+              </span>
+            ) : null}
+            {plan ? <span className="account-plan-badge">{plan}</span> : null}
+          </div>
+
+          {!isCollapsed ? (
+            <div className="compact-card-metrics">
+              {windows.length ? windows.map((window) => {
+                const remaining = window.remainingPercent;
+                const shown = remaining == null ? null : displayPercent(remaining, displayMode);
+                const suffix = usageDisplaySuffix(displayMode);
+                const width = shown == null ? 0 : Math.min(100, Math.max(0, shown));
+                const tone = usageTone(remaining);
+                const hatchTrack = shown == null;
+                const staleFill = usageStale && !hatchTrack;
+                const { span, name } = metricWindowParts(window, account.provider);
+                const label = compactWindowLabel(window, account.provider);
+                const ariaLabel = `${[span, name].filter(Boolean).join(" ") || windowLength(window) || window.label} ${displayMode === "used" ? "used" : "remaining"}`;
+
+                return (
+                  <div key={window.id} className={`compact-metric-item${staleFill ? " is-stale" : ""}`}>
+                    <div className="compact-metric-head">
+                      <span className="compact-metric-label" title={window.label}>{label}</span>
+                      <span className={`compact-metric-value tone-${tone}`}>
+                        {shown == null ? googleUnavailableLabel : `${Math.round(shown)}%`}
+                      </span>
+                    </div>
+                    <span
+                      className={`account-metric-track${hatchTrack ? " is-hatched" : ""}`}
+                      role="progressbar"
+                      aria-label={ariaLabel}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={shown == null ? undefined : Math.round(shown)}
+                      aria-valuetext={shown == null ? googleUnavailableLabel : `${Math.round(shown)}% ${suffix}`}
+                    >
+                      <span className={`tone-${tone}`} style={{ width: `${width}%` }} />
+                    </span>
+                  </div>
+                );
+              }) : (
+                <span className="compact-card-empty-status">
+                  {signedOut ? "Sign in required" : "Refresh to load limits"}
+                </span>
+              )}
+            </div>
+          ) : null}
+
+          <div className="compact-card-trailing">
+            {isCollapsed && lowestRemaining != null ? (
+              <span className={`compact-card-collapsed-summary tone-${usageTone(lowestRemaining)}`}>
+                {Math.round(displayPercent(lowestRemaining, displayMode))}% {usageDisplaySuffix(displayMode)}
+              </span>
+            ) : signedOut ? (
+              <button
+                type="button"
+                className="button primary compact-button compact-card-action-btn"
+                disabled={cardBusy}
+                onClick={onReconnect}
+              >
+                {account.provider === "google_ai_studio" ? "Reconnect" : "Sign in"}
+              </button>
+            ) : account.lastError ? (
+              <button
+                type="button"
+                className="button ghost compact-button compact-card-action-btn"
+                aria-label={`Retry refreshing ${account.label}`}
+                disabled={cardBusy || isGlobalRefresh}
+                onClick={onRefresh}
+              >
+                Retry
+              </button>
+            ) : soonestReset ? (
+              <span className="compact-card-reset" title="Soonest quota reset">Resets {soonestReset}</span>
+            ) : null}
+
+            <div className={desktop ? "account-card-desktop-actions compact-card-actions" : "compact-card-actions"}>
+              {desktop ? (
+                <button
+                  type="button"
+                  className={`account-card-action refresh-action ${isRefreshing ? "spinning" : ""}${outOfDate ? " is-suggested" : ""}`}
+                  data-tooltip="Refresh this account"
+                  aria-label={`Refresh ${account.label}`}
+                  disabled={cardBusy || isGlobalRefresh}
+                  onClick={onRefresh}
+                >
+                  <RefreshIcon />
+                </button>
+              ) : null}
+              <AccountCardMenu
+                account={account}
+                open={mobileMenuOpen}
+                onOpenChange={setMobileMenuOpen}
+                hasMove={Boolean(onMove)}
+                canMoveUp={canMoveUp}
+                canMoveDown={canMoveDown}
+                cardBusy={cardBusy}
+                refreshDisabled={isGlobalRefresh}
+                onMove={requestMove}
+                onRefresh={onRefresh}
+                onNotifications={onNotifications}
+                onRemove={onRemove}
+                variant={desktop ? "desktop" : undefined}
+                collapsed={isCollapsed}
+                onToggleCollapse={toggleCollapse}
+                onRename={rename.startEditing}
+              />
+            </div>
+          </div>
+        </div>
+        {signInUnprotected ? (
+          <p className="account-card-protection-note" role="status">
+            {CREDENTIAL_PROTECTION_ACCOUNT_NOTE}
+          </p>
+        ) : null}
+      </article>
+    );
+  }
+
   return (
     <article
-      className={`provider-account-card${desktop ? " desktop-card" : ""} ${needsAttention ? "needs-attention" : ""} ${isCollapsed ? "is-collapsed" : ""} ${mobileMenuOpen ? "has-open-menu" : ""}`}
+      className={`provider-account-card${desktop ? " desktop-card" : ""}${compact ? " is-compact" : ""} ${needsAttention ? "needs-attention" : ""} ${isCollapsed ? "is-collapsed" : ""} ${mobileMenuOpen ? "has-open-menu" : ""}`}
       data-account-id={account.id}
       data-reorder-provider={account.provider}
       data-reorder-enabled="true"

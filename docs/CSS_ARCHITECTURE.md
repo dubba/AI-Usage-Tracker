@@ -49,6 +49,7 @@ Width breakpoints belong to individual components, so they are not collapsed int
 
 | Width | Used for |
 |-------|----------|
+| 1400 | Very wide viewports: Dashboard account cards lay out in two columns |
 | 860 / 861 | The main mobile/desktop split (sidebar overlay, card actions, mobile menu). The JS constant `MOBILE_OVERLAY_QUERY` must stay `(max-width: 860px)` |
 | 1220, 1180 | Summary cards: 4 columns, then 2 columns, then the Next Reset card spans a full row. |
 | 768 | The Link Devices dialog becomes a full-screen sheet |
