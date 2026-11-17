@@ -980,7 +980,7 @@
     padding: 8px 12px;
     border: 1px solid var(--obsidian-border);
     border-radius: 8px;
-    background: var(--obsidian-surface-low);
+    background: var(--obsidian-canvas);
     color: var(--obsidian-muted-bright);
     font-size: 12px;
     font-weight: 500;
