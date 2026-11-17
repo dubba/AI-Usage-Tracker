@@ -902,7 +902,9 @@ describe("AccountDashboardCard limit resets", () => {
   it("shows the reset as one row with Use when a reset is available", () => {
     renderResets(usageWithResets([resetGrant]));
     expect(document.querySelectorAll(".limit-reset")).toHaveLength(1);
-    expect(document.body.textContent).toContain("Clears the 5-hour and 7-day limits");
+    expect(document.querySelector(".limit-reset-name")?.textContent).toBe("Full reset");
+    expect(document.querySelector(".limit-reset-detail")?.textContent).toContain("Expires");
+    expect(document.body.textContent).not.toContain("Clears the 5-hour and 7-day limits");
     expect(document.querySelector(".limit-reset-use")?.textContent).toBe("Use…");
     expect(document.body.textContent).not.toContain("grant-secret-1");
   });

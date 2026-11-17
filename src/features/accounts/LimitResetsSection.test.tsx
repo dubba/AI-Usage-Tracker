@@ -49,9 +49,10 @@ describe("LimitResetsSection", () => {
     const rows = document.querySelectorAll(".limit-reset");
     expect(rows).toHaveLength(1);
     expect(rows[0].textContent).toContain("Full reset");
-    expect(rows[0].textContent).toContain(
-      `Clears the 5-hour and 7-day limits · Expires ${formatMonthDay(new Date("2026-12-10T16:00:00Z"))}`,
+    expect(rows[0].querySelector(".limit-reset-detail")?.textContent).toBe(
+      `Expires ${formatMonthDay(new Date("2026-12-10T16:00:00Z"))}`,
     );
+    expect(rows[0].textContent).not.toContain("Clears the 5-hour and 7-day limits");
     expect(useButtons()[0].textContent).toBe("Use…");
     expect(useButtons()[0].getAttribute("aria-label")).toBe("Use Full reset");
     expect(document.body.textContent).not.toContain("cannot be undone");
@@ -61,9 +62,11 @@ describe("LimitResetsSection", () => {
     expect(more.textContent).toBe("1 more reset");
     expect(more.getAttribute("aria-expanded")).toBe("false");
     click(more);
-    expect(document.querySelectorAll(".limit-reset")).toHaveLength(2);
-    expect(document.body.textContent).toContain("Clears 7-day Fable usage and refills the 5-hour limit");
-    expect(document.body.textContent).not.toContain("limit. ·");
+    const expandedRows = document.querySelectorAll(".limit-reset");
+    expect(expandedRows).toHaveLength(2);
+    expect(expandedRows[1].textContent).toContain("Fable reset");
+    expect(expandedRows[1].querySelector(".limit-reset-detail")).toBeNull();
+    expect(document.body.textContent).not.toContain("Clears 7-day Fable usage");
     expect(more.textContent).toBe("Show less");
   });
 
@@ -157,9 +160,10 @@ describe("LimitResetsSection", () => {
     expect(document.querySelector(".limit-reset-use")).toBeNull();
     expect(document.querySelector(".limit-reset")?.classList.contains("is-readonly")).toBe(true);
     expect(document.body.textContent).toContain("Limit reset");
-    expect(document.body.textContent).toContain(
-      `Clears the 7-day limit · Expires ${formatMonthDay(new Date("2026-12-10T16:00:00Z"))}`,
+    expect(document.querySelector(".limit-reset-detail")?.textContent).toBe(
+      `Expires ${formatMonthDay(new Date("2026-12-10T16:00:00Z"))}`,
     );
+    expect(document.body.textContent).not.toContain("Clears the 7-day limit");
     expect(document.body.textContent).toContain("Redeem it in Grok, under Settings → Usage.");
     expect(document.body.textContent).not.toContain("spend-secret-id");
     expect(onUse).not.toHaveBeenCalled();

@@ -86,7 +86,7 @@ export function LimitResetsSection({
       <ul id={listId} className="limit-resets">
         {shown.map((grant) => {
           const readOnly = grant.usable === false;
-          const meta = [withoutPeriod(grant.detail), expiryLabel(grant.expiresAt)].filter(Boolean).join(" · ");
+          const expiry = expiryLabel(grant.expiresAt);
           return (
             <li key={grant.id} className={readOnly ? "limit-reset is-readonly" : "limit-reset"}>
               <span className="limit-reset-icon">
@@ -94,7 +94,7 @@ export function LimitResetsSection({
               </span>
               <span className="limit-reset-text">
                 <span className="limit-reset-name">{grant.label}</span>
-                <span className="limit-reset-detail">{meta}</span>
+                {expiry ? <span className="limit-reset-detail">{expiry}</span> : null}
               </span>
               {readOnly ? null : (
                 <button
