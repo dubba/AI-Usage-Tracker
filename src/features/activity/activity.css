@@ -797,4 +797,158 @@
   .activity-reset-hit[data-tooltip] {
     position: absolute !important;
   }
+
+  /* ---- consolidated Antigravity card ---- */
+
+  .activity-consolidated-head {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: 6px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--obsidian-border);
+  }
+
+  .activity-consolidated-identity {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .activity-consolidated-title-row {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .activity-consolidated-title-row .activity-card-title {
+    flex: 0 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+  }
+
+  /* Matches .provider-account-card .account-plan-badge pill styling on the dashboard. */
+  .activity-plan-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    height: 24px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--purple-surface);
+    color: var(--purple-text);
+    font-size: 12px;
+    font-weight: 650;
+    line-height: 1;
+    letter-spacing: 0;
+    white-space: nowrap;
+  }
+
+  .activity-consolidated-email {
+    margin: 2px 0 0;
+    color: var(--c-b8b1bc);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 16px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  .activity-model-sections {
+    display: flex;
+    flex-direction: column;
+    margin-top: 14px;
+  }
+
+  .activity-model-section + .activity-model-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--obsidian-border);
+  }
+
+  .activity-model-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 12px;
+  }
+
+  .activity-model-identity {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .activity-model-name {
+    margin: 0;
+    color: var(--purple-accent);
+    font-size: 13px;
+    font-weight: 650;
+    line-height: 18px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .activity-model-reset {
+    margin: 2px 0 0;
+    color: var(--c-b8b1bc);
+    font-size: 11px;
+    line-height: 15px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .activity-model-total .activity-card-total-period {
+    position: static;
+    margin-top: 2px;
+  }
+
+  .activity-model-section .activity-chart {
+    margin-top: 12px;
+  }
+
+  .activity-model-section .activity-chart.has-used {
+    margin-top: 6px;
+  }
+
+  .activity-card.is-dimmed .activity-consolidated-head,
+  .activity-card.is-dimmed .activity-model-head {
+    opacity: 0.55;
+  }
+
+  @media (max-width: 860px) {
+    .activity-consolidated-head {
+      padding-bottom: 12px;
+    }
+
+    .activity-plan-pill {
+      height: 24px;
+      padding: 0 9px;
+      font-size: 12px;
+    }
+
+    .activity-consolidated-email {
+      font-size: 11px;
+      line-height: 14px;
+    }
+
+    .activity-model-sections {
+      margin-top: 12px;
+    }
+
+    .activity-model-section + .activity-model-section {
+      margin-top: 14px;
+      padding-top: 14px;
+    }
+  }
 }

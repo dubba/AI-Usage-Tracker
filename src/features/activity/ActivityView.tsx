@@ -8,6 +8,7 @@ import { EmptyAccountPanel } from "../accounts/EmptyAccountPanel";
 import { useReorderHint } from "../accounts/useReorderHint";
 import type { Account, ActivityTracker, Provider, UntrackedAccount } from "../../types";
 import { ACTIVITY_PERIODS, ACTIVITY_PERIOD_DAYS, type ActivityPeriod } from "./activity-period";
+import { AntigravityTrackerCard } from "./AntigravityTrackerCard";
 import { NoWeeklyLimitCard } from "./NoWeeklyLimitCard";
 import { useActivityPeriod } from "./useActivityPeriod";
 import { useWeeklyActivity } from "./useWeeklyActivity";
@@ -147,7 +148,36 @@ export function ActivityView({
   // Nothing recorded yet for the charts on screen, or no limits known at all.
   const waitingForReadings = trackers.length > 0 ? !hasReadings : untracked.length === 0;
 
-  const canReorder = accounts.length > 1 && (trackers.length + untracked.length) > 1;
+  const trackerCards = useMemo<
+    Array<
+      | { kind: "single"; account: Account; tracker: ActivityTracker }
+      | { kind: "antigravity"; account: Account; trackers: ActivityTracker[] }
+    >
+  >(() => {
+    const items: Array<
+      | { kind: "single"; account: Account; tracker: ActivityTracker }
+      | { kind: "antigravity"; account: Account; trackers: ActivityTracker[] }
+    > = [];
+    const antigravityByAccount = new Map<string, { kind: "antigravity"; account: Account; trackers: ActivityTracker[] }>();
+    for (const tracker of trackers) {
+      const account = accountById.get(tracker.accountId);
+      if (!account) continue;
+      if (account.provider === "antigravity") {
+        let grouped = antigravityByAccount.get(account.id);
+        if (!grouped) {
+          grouped = { kind: "antigravity", account, trackers: [] };
+          antigravityByAccount.set(account.id, grouped);
+          items.push(grouped);
+        }
+        grouped.trackers.push(tracker);
+      } else {
+        items.push({ kind: "single", account, tracker });
+      }
+    }
+    return items;
+  }, [trackers, accountById]);
+
+  const canReorder = accounts.length > 1 && (trackerCards.length + untracked.length) > 1;
   const { showReorderHint, dismissReorderHint } = useReorderHint(canReorder, "activity");
 
   const retry = (
@@ -209,20 +239,27 @@ export function ActivityView({
         ) : null}
         <div className="activity-grid" data-group-id="all">
           {hasReadings
-            ? trackers.map((tracker) => {
-                const account = accountById.get(tracker.accountId);
-                if (!account) return null;
-                return (
-                  <WeeklyTracker
-                    key={`${tracker.accountId}|${tracker.windowId}`}
-                    tracker={tracker}
-                    account={account}
+            ? trackerCards.map((entry) =>
+                entry.kind === "antigravity" ? (
+                  <AntigravityTrackerCard
+                    key={entry.account.id}
+                    account={entry.account}
+                    trackers={entry.trackers}
                     dayStarts={data.dayStarts}
                     period={chartPeriod}
                     onReconnect={onReconnect}
                   />
-                );
-              })
+                ) : (
+                  <WeeklyTracker
+                    key={`${entry.tracker.accountId}|${entry.tracker.windowId}`}
+                    tracker={entry.tracker}
+                    account={entry.account}
+                    dayStarts={data.dayStarts}
+                    period={chartPeriod}
+                    onReconnect={onReconnect}
+                  />
+                ),
+              )
             : null}
           {untracked.map((entry) => {
             const account = accountById.get(entry.accountId);

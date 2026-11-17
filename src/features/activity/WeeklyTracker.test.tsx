@@ -89,7 +89,7 @@ describe("WeeklyTracker", () => {
   it("names the Antigravity model family and leaves off the weekly limit", () => {
     const families = [
       ["Gemini Models · Weekly Limit Remaining", "Gemini Models"],
-      ["Claude and GPT models · Weekly Limit Remaining", "Claude & GPT Models"],
+      ["Claude and GPT models · Weekly Limit Remaining", "Other Models"],
       ["Gemini 4 Argon · Weekly Limit", "Argon Models"],
       ["Gemini 4 Carbon · Weekly Limit", "Carbon Models"],
     ] as const;
@@ -140,7 +140,7 @@ describe("WeeklyTracker", () => {
     const identity = root.querySelector(".activity-card-identity")!;
     expect(identity).not.toBeNull();
     expect(identity.querySelector(".activity-card-title")!.textContent).toBe("Antigravity · m.bahabib@yahoo.com");
-    expect(identity.querySelector(".activity-card-limit")!.textContent).toBe("Claude & GPT Models");
+    expect(identity.querySelector(".activity-card-limit")!.textContent).toBe("Other Models");
 
     // Total column contains the percentage and the period label below it
     const total = root.querySelector(".activity-card-total")!;

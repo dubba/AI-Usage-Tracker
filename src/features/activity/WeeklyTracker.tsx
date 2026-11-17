@@ -7,22 +7,8 @@ import type { Account, ActivityTracker } from "../../types";
 import { accountEmail, ActivityAccountTitle } from "./account-title";
 import { formatDayPercent } from "./activity-format";
 import type { ActivityPeriod } from "./activity-period";
+import { antigravityFamilyLabel } from "./antigravity-models";
 import { DailyBars } from "./DailyBars";
-
-/** Usage-card names. Account chips keep their own shorter labels. */
-const ANTIGRAVITY_FAMILY_NAMES: Record<string, string> = {
-  "claude and gpt models": "Claude & GPT Models",
-  "claude & gpt models": "Claude & GPT Models",
-  "gemini 4 argon": "Argon Models",
-  "gemini 4 carbon": "Carbon Models",
-};
-
-/** "Gemini Models · Weekly Limit Remaining" -> "Gemini Models". A name with no family stays whole. */
-function antigravityFamilyLabel(windowLabel: string): string {
-  const splitAt = windowLabel.indexOf(" · ");
-  const family = (splitAt <= 0 ? windowLabel : windowLabel.slice(0, splitAt)).trim();
-  return ANTIGRAVITY_FAMILY_NAMES[family.toLowerCase()] ?? family;
-}
 
 /** One weekly limit of one account: who and when it resets, how much is used, and the daily bars. */
 export function WeeklyTracker({

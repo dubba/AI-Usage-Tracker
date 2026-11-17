@@ -620,4 +620,76 @@ describe("ActivityView", () => {
       expect(root.querySelector(".reorder-hint-banner")).toBeNull();
     });
   });
+
+  describe("consolidated Antigravity card", () => {
+    const anti1 = makeAccount({
+      id: "anti-1",
+      label: "Antigravity",
+      provider: "antigravity",
+      plan: "pro",
+      email: "m.bahabib@yahoo.com",
+    });
+    const anti2 = makeAccount({
+      id: "anti-2",
+      label: "Antigravity 2",
+      provider: "antigravity",
+      plan: "ultra",
+      email: "second@example.com",
+    });
+
+    it("combines all three Antigravity model groups into a single consolidated card in account order", async () => {
+      api.getWeeklyActivity.mockResolvedValue(
+        makeActivity([
+          makeTracker({ accountId: "anti-1", windowId: "argon_weekly", windowLabel: "Gemini 4 Argon · Weekly Limit", currentUsedPercent: 46 }),
+          makeTracker({ accountId: "work", windowId: "weekly" }),
+          makeTracker({ accountId: "anti-1", windowId: "claude_weekly", windowLabel: "Claude and GPT models · Weekly Limit Remaining", currentUsedPercent: 23 }),
+          makeTracker({ accountId: "anti-1", windowId: "gemini_weekly", windowLabel: "Gemini Models · Weekly Limit Remaining", currentUsedPercent: 36 }),
+        ]),
+      );
+
+      const { root } = renderView([work, anti1]);
+      await settle();
+
+      const cards = select(root, ".activity-card");
+      expect(cards).toHaveLength(2);
+      expect(cards[0].getAttribute("data-account-id")).toBe("work");
+      expect(cards[1].getAttribute("data-account-id")).toBe("anti-1");
+      expect(cards[1].classList.contains("activity-card-consolidated")).toBe(true);
+
+      expect(cards[1].querySelector(".activity-card-title")!.textContent).toBe("Antigravity");
+      expect(cards[1].querySelector(".activity-plan-pill")!.textContent).toBe("Pro/$20");
+      expect(cards[1].querySelector(".activity-consolidated-email")!.textContent).toBe("m.bahabib@yahoo.com");
+      expect(select(cards[1], ".activity-model-name").map((el) => el.textContent)).toEqual([
+        "Gemini Models",
+        "Other Models",
+        "Argon Models",
+      ]);
+      expect(select(cards[1], ".activity-model-total strong").map((el) => el.textContent)).toEqual([
+        "36%",
+        "23%",
+        "46%",
+      ]);
+    });
+
+    it("keeps multiple Antigravity accounts as separate consolidated cards", async () => {
+      api.getWeeklyActivity.mockResolvedValue(
+        makeActivity([
+          makeTracker({ accountId: "anti-1", windowId: "gemini_weekly", windowLabel: "Gemini Models · Weekly" }),
+          makeTracker({ accountId: "anti-1", windowId: "claude_weekly", windowLabel: "Claude and GPT models · Weekly" }),
+          makeTracker({ accountId: "anti-2", windowId: "gemini_weekly", windowLabel: "Gemini Models · Weekly" }),
+          makeTracker({ accountId: "anti-2", windowId: "argon_weekly", windowLabel: "Gemini 4 Argon · Weekly" }),
+        ]),
+      );
+
+      const { root } = renderView([anti1, anti2]);
+      await settle();
+
+      const cards = select(root, ".activity-card.activity-card-consolidated");
+      expect(cards).toHaveLength(2);
+      expect(cards[0].getAttribute("data-account-id")).toBe("anti-1");
+      expect(select(cards[0], ".activity-model-name").map((el) => el.textContent)).toEqual(["Gemini Models", "Other Models"]);
+      expect(cards[1].getAttribute("data-account-id")).toBe("anti-2");
+      expect(select(cards[1], ".activity-model-name").map((el) => el.textContent)).toEqual(["Gemini Models", "Argon Models"]);
+    });
+  });
 });
