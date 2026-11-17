@@ -323,7 +323,7 @@ export function ActivityView({
       <MobileSidebarToggle
         onToggle={onToggleSidebar}
         open={sidebarOpen}
-        filterLabel={filterLabel ?? "All accounts"}
+        filterLabel={filterLabel ?? "All Accounts"}
         isFiltered={isFiltered}
       />
     </h1>

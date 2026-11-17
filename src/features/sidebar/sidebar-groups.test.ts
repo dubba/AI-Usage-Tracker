@@ -6,6 +6,7 @@ import {
   bucketIdFromGroup,
   buildAllAccountsGroup,
   buildSidebarGroups,
+  groupFilterLabel,
   groupOrderForAccounts,
   isBucketGroupId,
   isProviderGroupId,
@@ -110,6 +111,16 @@ describe("buildAllAccountsGroup", () => {
       provider: null,
       accounts,
     });
+  });
+});
+
+describe("groupFilterLabel", () => {
+  it("uses All Accounts for the all group and appends Accounts for provider and custom groups", () => {
+    expect(groupFilterLabel({ type: "all", title: "All Accounts" })).toBe("All Accounts");
+    expect(groupFilterLabel({ type: "provider", title: "Grok" })).toBe("Grok Accounts");
+    expect(groupFilterLabel({ type: "provider", title: "Claude" })).toBe("Claude Accounts");
+    expect(groupFilterLabel({ type: "bucket", title: "Work" })).toBe("Work Accounts");
+    expect(groupFilterLabel({ type: "bucket", title: "Work Accounts" })).toBe("Work Accounts");
   });
 });
 

@@ -6,7 +6,7 @@
 
 - The Clear Usage History setting now clarifies that clearing usage history keeps Dashboard data intact.
 - Saved limit reset rows on account cards now show only the reset title and expiry date, and long reset titles wrap cleanly instead of truncating.
-- On phones, Dashboard and Usage now share an interactive filter pill (`All accounts` or the selected group) in the header instead of a separate funnel icon, while App Settings shows a clean, left-aligned white `App Settings` header.
+- On phones, Dashboard and Usage now share an interactive filter pill (`All Accounts`, or `<Name> Accounts` such as `Grok Accounts` or `Work Accounts`) in the header instead of a separate funnel icon, while App Settings shows a clean, left-aligned white `App Settings` header.
 - On phones, selecting an account or group in the drawer now filters the Usage page as well as the Dashboard.
 - On phones, the `% U` / `% L` usage display switcher now sits at the top right of the Dashboard header beside the New group and Add account buttons instead of inside the drawer, and the Period label beside `7D` / `30D` on Usage is hidden to match.
 - On phones, tapping an account card's provider icon now toggles Compact view for that card—matching desktop—and the Compact button has been removed from the mobile header.

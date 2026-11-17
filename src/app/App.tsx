@@ -34,6 +34,7 @@ import {
   bucketGroupId,
   buildAllAccountsGroup,
   buildSidebarGroups,
+  groupFilterLabel,
   listAccountsUnderProviders,
   moveGroupWithinSection,
   type SidebarGroup,
@@ -340,7 +341,7 @@ export default function App() {
       <div className="kept-page" data-page="activity" hidden={section !== "activity"} inert={section !== "activity"}>
         <ActivityView
           accounts={activityAccounts}
-          filterLabel={selectedGroup.type === "all" ? "All accounts" : selectedGroup.title}
+          filterLabel={groupFilterLabel(selectedGroup)}
           isFiltered={sidebarIsOverlay && selectedGroup.type !== "all"}
           groupId={sidebarIsOverlay ? selectedGroup.id : ALL_ACCOUNTS_GROUP_ID}
           hasAnyAccounts={accounts.length > 0}

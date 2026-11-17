@@ -22,7 +22,7 @@ import {
   displayAccountLabel,
   nextResetSummary,
 } from "../../shared/lib/usage-logic";
-import type { SidebarGroup } from "../sidebar/sidebar-groups";
+import { groupFilterLabel, type SidebarGroup } from "../sidebar/sidebar-groups";
 import type {
   Account,
   AccountBucket,
@@ -158,7 +158,7 @@ export function AccountsView(props: {
       <MobileSidebarToggle
         onToggle={props.onToggleSidebar}
         open={props.sidebarOpen}
-        filterLabel={props.selectedGroup.type === "all" ? "All accounts" : props.selectedGroup.title}
+        filterLabel={groupFilterLabel(props.selectedGroup)}
         isFiltered={isFiltered}
       />
     </h1>

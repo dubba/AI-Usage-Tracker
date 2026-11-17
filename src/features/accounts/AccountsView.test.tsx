@@ -655,7 +655,7 @@ describe("AccountsView L / U switch", () => {
     const allPill = heading.querySelector<HTMLButtonElement>(".mobile-sidebar-toggle-btn")!;
     expect(allPill).not.toBeNull();
     expect(document.querySelectorAll(".dashboard-title-row .mobile-sidebar-toggle-btn")).toHaveLength(1);
-    expect(allPill.querySelector(".mobile-sidebar-toggle-label")?.textContent).toBe("All accounts");
+    expect(allPill.querySelector(".mobile-sidebar-toggle-label")?.textContent).toBe("All Accounts");
     expect(allPill.querySelector("svg.mobile-sidebar-toggle-chevron")).not.toBeNull();
     expect(allPill.classList.contains("is-filtered")).toBe(false);
     expect(document.querySelector('.dashboard-header-actions [aria-label="Add new group"]')).not.toBeNull();
@@ -681,9 +681,38 @@ describe("AccountsView L / U switch", () => {
       />,
     );
     const workPill = document.querySelector<HTMLButtonElement>(".dashboard-title-row h1.eyebrow .mobile-sidebar-toggle-btn")!;
-    expect(workPill.querySelector(".mobile-sidebar-toggle-label")?.textContent).toBe("Work");
+    expect(workPill.querySelector(".mobile-sidebar-toggle-label")?.textContent).toBe("Work Accounts");
     expect(workPill.classList.contains("is-filtered")).toBe(true);
     expect(document.querySelector(".dashboard-bucket-pill")?.textContent).toBe("Group");
     expect(document.querySelector(".edit-bucket-title-btn")).not.toBeNull();
+
+    const grokGroup: SidebarGroup = {
+      id: "provider:grok",
+      type: "provider",
+      title: "Grok",
+      provider: "grok",
+      accounts: [account],
+    };
+    app.rerender(
+      <AccountsView
+        allAccounts={[account]}
+        accounts={[account]}
+        selectedGroup={grokGroup}
+        refreshMinutes={15}
+        onToggleSidebar={() => undefined}
+        onAdd={() => undefined}
+        onAddGroup={() => undefined}
+        onRefresh={() => undefined}
+        onReconnect={() => undefined}
+        onConnectGoogleUsage={() => undefined}
+        onRename={async () => undefined}
+        onRemove={() => undefined}
+        onNotifications={() => undefined}
+        busy={new Set()}
+      />,
+    );
+    const grokPill = document.querySelector<HTMLButtonElement>(".dashboard-title-row h1.eyebrow .mobile-sidebar-toggle-btn")!;
+    expect(grokPill.querySelector(".mobile-sidebar-toggle-label")?.textContent).toBe("Grok Accounts");
+    expect(grokPill.classList.contains("is-filtered")).toBe(true);
   });
 });

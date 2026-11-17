@@ -44,6 +44,16 @@ export function buildAllAccountsGroup(accounts: Account[]): SidebarGroup {
 }
 
 /**
+ * Filter pill label in the mobile Dashboard/Usage header: "All Accounts" when unfiltered,
+ * or "<GroupTitle> Accounts" for provider and custom groups.
+ */
+export function groupFilterLabel(group: Pick<SidebarGroup, "type" | "title">): string {
+  if (group.type === "all") return "All Accounts";
+  const title = group.title.trim();
+  return /\baccounts$/i.test(title) ? title : `${title} Accounts`;
+}
+
+/**
  * Custom groups first, then one group per provider for accounts that are not
  * in any custom group, sorted by the user's saved sidebar order.
  */
