@@ -7,7 +7,7 @@ type CopyState = "idle" | "copying" | "copied" | "failed";
 
 /**
  * Copies the redacted diagnostics report; shows the outcome next to the button.
- * `compact` shows "Copy" followed by a copy icon, laid out like the Settings View buttons (for places that
+ * `compact` shows a copy icon followed by "Copy", laid out like the Settings View buttons (for places that
  * already say "Diagnostics" beside it).
  */
 export function CopyDiagnosticsButton({
@@ -52,8 +52,12 @@ export function CopyDiagnosticsButton({
       >
         {compact ? (
           <>
+            {state === "copied" ? (
+              <CheckIcon className="settings-update-action-icon" />
+            ) : (
+              <CopyIcon className="settings-update-action-icon" />
+            )}
             <span>{state === "copying" ? "Copying…" : state === "copied" ? "Copied!" : "Copy"}</span>
-            {state === "copied" ? <CheckIcon /> : <CopyIcon />}
           </>
         ) : state === "copying" ? "Copying…" : state === "copied" ? "Copied!" : "Copy Diagnostics"}
       </button>

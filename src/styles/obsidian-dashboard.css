@@ -1717,12 +1717,9 @@ button.account-card-provider-icon:active {
 
 @media (min-width: 861px) {
   .settings-style-content .dashboard-scroll {
-    padding-top: 18px;
+    padding-top: 10px;
+    padding-bottom: 10px;
   }
-}
-
-.settings-style-content .dashboard-scroll > .settings-card:first-child {
-  margin-top: 8px;
 }
 
 .settings-section-title {

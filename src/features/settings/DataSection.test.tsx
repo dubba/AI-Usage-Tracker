@@ -5,7 +5,7 @@ import { click, mount, type Mounted } from "../../test-utils/react";
 import { DataSection } from "./DataSection";
 
 const api = vi.hoisted(() => ({
-  clearCachedUsage: vi.fn(),
+  getDiagnostics: vi.fn(),
   clearActivityHistory: vi.fn(),
   deleteAllLocalData: vi.fn(),
 }));
@@ -14,7 +14,7 @@ vi.mock("../../shared/lib/api", () => ({ bridgeApi: api }));
 let app: Mounted | null = null;
 
 beforeEach(() => {
-  api.clearCachedUsage.mockReset().mockResolvedValue(undefined);
+  api.getDiagnostics.mockReset().mockResolvedValue("{}");
   api.clearActivityHistory.mockReset().mockResolvedValue(undefined);
   api.deleteAllLocalData.mockReset().mockResolvedValue(undefined);
 });
@@ -30,44 +30,26 @@ const byLabel = (label: string) => document.querySelector(`button[aria-label="${
 const flush = () => act(async () => {});
 
 function render(props: Partial<Parameters<typeof DataSection>[0]> = {}) {
-  const onUsageCleared = vi.fn();
   const onAllDataDeleted = vi.fn();
-  app = mount(<DataSection onUsageCleared={onUsageCleared} onAllDataDeleted={onAllDataDeleted} {...props} />);
-  return { onUsageCleared, onAllDataDeleted };
+  app = mount(<DataSection onAllDataDeleted={onAllDataDeleted} {...props} />);
+  return { onAllDataDeleted };
 }
 
 describe("DataSection", () => {
-  it("clears cached usage and refreshes all accounts on one click", async () => {
-    const { onUsageCleared, onAllDataDeleted } = render();
-    expect(document.querySelector("h2")).toBeNull();
-    expect(document.body.textContent).toContain("Refresh Usage");
-    expect(document.body.textContent).toContain("Clears cached usage data and fetches fresh usage for all accounts.");
-
-    click(button("Refresh"));
-    await flush();
-
-    expect(api.clearCachedUsage).toHaveBeenCalledTimes(1);
-    expect(onUsageCleared).toHaveBeenCalledTimes(1);
-    expect(button("Refreshed!")).toBeTruthy();
-    expect(document.querySelector("[role=status]")?.textContent).toBe("Usage refreshed.");
-    expect(api.deleteAllLocalData).not.toHaveBeenCalled();
-    expect(onAllDataDeleted).not.toHaveBeenCalled();
+  it("renders Diagnostics first, followed by Clear Usage History and Delete Local App Data, with left-aligned button icons", () => {
+    render();
+    expect(document.querySelector("h2#settings-section-data")?.textContent?.trim()).toBe("Data & Diagnostics");
+    expect(document.body.textContent).not.toContain("Refresh Usage");
+    const titles = [...document.querySelectorAll(".settings-row strong")].map((el) => el.textContent?.trim());
+    expect(titles).toEqual(["Diagnostics", "Clear Usage History", "Delete Local App Data"]);
+    for (const btn of [byLabel("Copy diagnostics"), byLabel("Clear usage history"), button("Delete")]) {
+      const childTags = [...btn.children].map((el) => el.tagName.toLowerCase());
+      expect(childTags).toEqual(["svg", "span"]);
+    }
   });
 
-  it("shows why refreshing failed and does not report success", async () => {
-    api.clearCachedUsage.mockRejectedValue(new Error("disk full"));
-    const { onUsageCleared } = render();
-
-    click(button("Refresh"));
-    await flush();
-
-    expect(document.querySelector("[role=alert]")?.textContent).toBe("Couldn't refresh usage: disk full");
-    expect(onUsageCleared).not.toHaveBeenCalled();
-    expect(button("Refresh")).toBeTruthy();
-  });
-
-  it("clears the usage history on one click, without touching cached usage", async () => {
-    const { onUsageCleared, onAllDataDeleted } = render();
+  it("clears the usage history on one click", async () => {
+    const { onAllDataDeleted } = render();
     expect(document.body.textContent).toContain("Clear Usage History");
     expect(document.body.textContent).toContain(
       "Deletes your Usage chart history and restarts tracking. Accounts remain unchanged.",
@@ -77,13 +59,12 @@ describe("DataSection", () => {
     await flush();
 
     expect(api.clearActivityHistory).toHaveBeenCalledTimes(1);
-    expect(api.clearCachedUsage).not.toHaveBeenCalled();
-    expect(onUsageCleared).not.toHaveBeenCalled();
     expect(api.deleteAllLocalData).not.toHaveBeenCalled();
     expect(onAllDataDeleted).not.toHaveBeenCalled();
     expect(byLabel("Clear usage history").textContent).toBe("Cleared!");
-    expect(byLabel("Refresh usage").textContent).toBe("Refresh");
-    expect(document.querySelector("[role=status]")?.textContent).toBe("Usage history cleared.");
+    expect([...document.querySelectorAll("[role=status]")].map((el) => el.textContent).join("")).toBe(
+      "Usage history cleared.",
+    );
   });
 
   it("shows the usage history clearing in progress, and the button cannot be pressed twice", async () => {
@@ -103,8 +84,8 @@ describe("DataSection", () => {
     expect(byLabel("Clear usage history").textContent).toBe("Cleared!");
   });
 
-  it("shows why clearing the usage history failed and does not report success", async () => {
-    api.clearActivityHistory.mockRejectedValue(new Error("disk full"));
+  it("shows why clearing the usage history failed and clears the error on a later success", async () => {
+    api.clearActivityHistory.mockRejectedValueOnce(new Error("disk full")).mockResolvedValueOnce(undefined);
     render();
 
     click(byLabel("Clear usage history"));
@@ -112,11 +93,12 @@ describe("DataSection", () => {
 
     expect(document.querySelector("[role=alert]")?.textContent).toBe("Couldn't clear usage history: disk full");
     expect(byLabel("Clear usage history").textContent).toBe("Clear");
-    expect(document.querySelector("[role=status]")?.textContent).toBe("");
-    // The refresh usage row is unaffected, and a later success clears the message.
-    click(byLabel("Refresh usage"));
+    expect([...document.querySelectorAll("[role=status]")].map((el) => el.textContent).join("")).toBe("");
+
+    click(byLabel("Clear usage history"));
     await flush();
     expect(document.querySelector("[role=alert]")).toBeNull();
+    expect(byLabel("Clear usage history").textContent).toBe("Cleared!");
   });
 
   it("says that deleting everything removes the usage history too", () => {

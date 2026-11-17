@@ -914,6 +914,15 @@ html[data-sidebar-toggle-stacked] .provider-window-toggle button:last-child[data
     overflow-y: scroll;
     padding: 0 var(--scrollbar-gap) 0 0;
   }
+
+  .obsidian-shell .settings-style-content .dashboard-scroll {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .obsidian-shell .settings-style-content .dashboard-scroll > .settings-card:last-of-type {
+    margin-bottom: 0;
+  }
 }
 
 /* Lists with a drawn thumb (useScrollThumb). The macOS app's WebView lays

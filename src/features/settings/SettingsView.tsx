@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { ChevronIcon, DevicesIcon } from "../../shared/ui/icons";
-import { CopyDiagnosticsButton } from "./CopyDiagnosticsButton";
+import { useEffect, useRef } from "react";
+import { DevicesIcon } from "../../shared/ui/icons";
 import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
 import type { BridgeStatus } from "../../types";
 import { SETTINGS_DESCRIPTION } from "../../shared/lib/constants";
@@ -10,7 +9,6 @@ import { DataSection } from "./DataSection";
 import { GeneralSection } from "./GeneralSection";
 import { LocalApiSection } from "./LocalApiSection";
 import { UpdatesSection } from "./UpdatesSection";
-import { readSettingsAdvancedOpen, writeSettingsAdvancedOpen } from "./settings-view-state";
 import { SETTINGS_JUMP_SECTIONS, type SettingsSectionId } from "./settings-sections";
 import "./settings-layout.css";
 
@@ -30,7 +28,6 @@ export function SettingsView({
   onToggleBridge,
   onViewBridgeWindow,
   onOpenUpdateNotes,
-  onUsageCleared,
   onAllDataDeleted,
   jumpTarget,
   onActiveSectionChange,
@@ -45,73 +42,95 @@ export function SettingsView({
   onToggleBridge: (enabled: boolean) => void;
   onViewBridgeWindow: () => void;
   onOpenUpdateNotes?: () => void;
-  onUsageCleared: () => void | Promise<void>;
   onAllDataDeleted: () => void;
   jumpTarget?: { section: SettingsSectionId; seq: number } | null;
   onActiveSectionChange?: (section: SettingsSectionId) => void;
 }) {
-  const [advancedOpen, setAdvancedOpen] = useState(readSettingsAdvancedOpen);
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  const toggleAdvanced = () => {
-    setAdvancedOpen((prev) => {
-      const next = !prev;
-      writeSettingsAdvancedOpen(next);
-      return next;
-    });
-  };
+  const suppressScrollSpyRef = useRef(false);
 
   useEffect(() => {
     if (!jumpTarget) return;
-    if (jumpTarget.section === "advanced" && !advancedOpen) {
-      setAdvancedOpen(true);
-      writeSettingsAdvancedOpen(true);
-    }
     const scroller = scrollRef.current;
     if (!scroller) return;
     const targetSection = SETTINGS_JUMP_SECTIONS.find((entry) => entry.id === jumpTarget.section);
     if (!targetSection) return;
     const reducedMotion = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const behavior: ScrollBehavior = reducedMotion ? "auto" : "smooth";
+    let clearTimer: number | null = null;
+    const clearSuppression = () => {
+      suppressScrollSpyRef.current = false;
+      if (clearTimer !== null) {
+        window.clearTimeout(clearTimer);
+        clearTimer = null;
+      }
+      scroller.removeEventListener("scrollend", clearSuppression);
+    };
 
     const frame = window.requestAnimationFrame(() => {
       const target = document.getElementById(targetSection.elementId);
       if (!target) return;
-      const top = Math.max(0, target.offsetTop - 18);
+      const anchor = target.closest(".settings-card") ?? target;
+      const top = Math.max(0, scroller.scrollTop + (anchor.getBoundingClientRect().top - scroller.getBoundingClientRect().top) - 18);
       if (typeof scroller.scrollTo === "function") {
+        if (behavior === "smooth") {
+          suppressScrollSpyRef.current = true;
+          scroller.addEventListener("scrollend", clearSuppression, { once: true });
+          clearTimer = window.setTimeout(clearSuppression, 700);
+        }
         scroller.scrollTo({ top, behavior });
       } else {
         scroller.scrollTop = top;
       }
       onActiveSectionChange?.(jumpTarget.section);
     });
-    return () => window.cancelAnimationFrame(frame);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      clearSuppression();
+    };
   }, [jumpTarget]);
 
   useEffect(() => {
     const scroller = scrollRef.current;
     if (!scroller || !onActiveSectionChange) return;
 
+    const releaseProgrammaticLock = () => {
+      suppressScrollSpyRef.current = false;
+    };
+
     const updateActiveFromScroll = () => {
+      if (suppressScrollSpyRef.current) return;
       const scrollerRect = scroller.getBoundingClientRect();
-      const nearBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight <= 24;
-      if (nearBottom && scroller.scrollTop > 0) {
-        onActiveSectionChange("advanced");
-        return;
-      }
-      let current: SettingsSectionId = "general";
-      for (const entry of SETTINGS_JUMP_SECTIONS) {
-        const heading = document.getElementById(entry.elementId);
-        if (!heading) continue;
-        if (heading.getBoundingClientRect().top - scrollerRect.top <= 48) {
+      const visibleSections = SETTINGS_JUMP_SECTIONS.filter((entry) => document.getElementById(entry.elementId) !== null);
+      if (visibleSections.length === 0) return;
+
+      // Interpolate the focal line from near the top (at scrollTop = 0) to near the bottom
+      // (at maxScroll) so sections in the lower half still activate sequentially even when
+      // they cannot scroll all the way to the top edge of the viewport.
+      const maxScroll = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+      const progress = maxScroll > 0 ? Math.min(1, Math.max(0, scroller.scrollTop / maxScroll)) : 0;
+      const anchorOffset = 48 + progress * Math.max(0, scroller.clientHeight - 96);
+
+      let current: SettingsSectionId = visibleSections[0]!.id;
+      for (const entry of visibleSections) {
+        const heading = document.getElementById(entry.elementId)!;
+        if (heading.getBoundingClientRect().top - scrollerRect.top <= anchorOffset) {
           current = entry.id;
         }
       }
       onActiveSectionChange(current);
     };
 
+    scroller.addEventListener("wheel", releaseProgrammaticLock, { passive: true });
+    scroller.addEventListener("touchstart", releaseProgrammaticLock, { passive: true });
+    scroller.addEventListener("pointerdown", releaseProgrammaticLock, { passive: true });
     scroller.addEventListener("scroll", updateActiveFromScroll, { passive: true });
-    return () => scroller.removeEventListener("scroll", updateActiveFromScroll);
+    return () => {
+      scroller.removeEventListener("wheel", releaseProgrammaticLock);
+      scroller.removeEventListener("touchstart", releaseProgrammaticLock);
+      scroller.removeEventListener("pointerdown", releaseProgrammaticLock);
+      scroller.removeEventListener("scroll", updateActiveFromScroll);
+    };
   }, [onActiveSectionChange]);
 
   return (
@@ -131,8 +150,8 @@ export function SettingsView({
 
         <UpdatesSection onOpenLink={onOpenLink} onOpenUpdateNotes={onOpenUpdateNotes} />
 
-        <h2 id="settings-section-devices" className="settings-section-title">Devices</h2>
         <section className="settings-card">
+          <h2 id="settings-section-devices" className="settings-card-heading">Devices</h2>
           <div className="settings-row">
             <div>
               <strong>Device Transfer</strong>
@@ -149,61 +168,36 @@ export function SettingsView({
           </div>
         </section>
 
-        <h2 id="settings-section-advanced" className="settings-section-title">
-          <button
-            type="button"
-            className="settings-advanced-toggle"
-            onClick={toggleAdvanced}
-            aria-expanded={advancedOpen}
-            aria-controls="settings-advanced-content"
-          >
-            <span>Advanced</span>
-            <ChevronIcon className={`settings-advanced-chevron ${advancedOpen ? "open" : ""}`} />
-          </button>
-        </h2>
+        <DataSection onAllDataDeleted={onAllDataDeleted} />
 
-        {advancedOpen ? (
-          <div id="settings-advanced-content" className="settings-advanced-group">
-            <DataSection onUsageCleared={onUsageCleared} onAllDataDeleted={onAllDataDeleted} />
-            <section className="settings-card">
-              <h3 className="settings-card-heading">Diagnostics</h3>
-              <div className="settings-row">
-                <div>
-                  <strong>Diagnostics Report</strong>
-                  <small>Bug report with tokens, cookies, and emails removed.</small>
-                </div>
-                <CopyDiagnosticsButton compact className="button ghost settings-changelog-button" />
+        <LocalApiSection
+          bridge={bridge}
+          bridgeBusy={bridgeBusy}
+          integrationWindowBusy={integrationWindowBusy}
+          onToggleBridge={onToggleBridge}
+          onViewBridgeWindow={onViewBridgeWindow}
+        />
+
+        {!isMobileDevice() ? (
+          <section className="settings-card settings-shortcuts-card" aria-labelledby="settings-section-shortcuts">
+            <h2 id="settings-section-shortcuts" className="settings-card-heading">Keyboard Shortcuts</h2>
+            <div className="settings-row settings-shortcuts-row">
+              <div>
+                <ul className="settings-shortcuts">
+                  {SHORTCUTS.map((shortcut) => (
+                    <li key={shortcut.action}>
+                      <span>{shortcut.label}</span>
+                      <span className="settings-shortcut-keys">
+                        {shortcut.keys.map((k) => (
+                          <kbd key={k}>{shortcutLabel(k, isMacPlatform())}</kbd>
+                        ))}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-            </section>
-            <LocalApiSection
-              bridge={bridge}
-              bridgeBusy={bridgeBusy}
-              integrationWindowBusy={integrationWindowBusy}
-              onToggleBridge={onToggleBridge}
-              onViewBridgeWindow={onViewBridgeWindow}
-            />
-            {!isMobileDevice() ? (
-              <section className="settings-card settings-shortcuts-card" aria-labelledby="settings-shortcuts-heading">
-                <h3 id="settings-shortcuts-heading" className="settings-card-heading">Keyboard Shortcuts</h3>
-                <div className="settings-row settings-shortcuts-row">
-                  <div>
-                    <ul className="settings-shortcuts">
-                      {SHORTCUTS.map((shortcut) => (
-                        <li key={shortcut.action}>
-                          <span>{shortcut.label}</span>
-                          <span className="settings-shortcut-keys">
-                            {shortcut.keys.map((k) => (
-                              <kbd key={k}>{shortcutLabel(k, isMacPlatform())}</kbd>
-                            ))}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </section>
-            ) : null}
-          </div>
+            </div>
+          </section>
         ) : null}
       </div>
     </div>

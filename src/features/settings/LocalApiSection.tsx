@@ -21,7 +21,7 @@ export function LocalApiSection({
   return (
     <>
       <section className="settings-card">
-        <h3 className="settings-card-heading">Integrations</h3>
+        <h2 id="settings-section-integrations" className="settings-card-heading">Integrations</h2>
         <SettingsToggleRow
           checked={Boolean(bridge?.enabled)}
           labelledBy="setting-bridge-label"
@@ -40,14 +40,14 @@ export function LocalApiSection({
           </div>
           <button
             type="button"
-            className="button ghost settings-changelog-button"
+            className="button ghost settings-changelog-button settings-update-action"
             aria-label="View integration window (opens in a new window)"
             data-tooltip="Opens in a new window"
             disabled={integrationWindowBusy}
             onClick={onViewBridgeWindow}
           >
             <span>View</span>
-            <ExternalLinkIcon />
+            <ExternalLinkIcon className="settings-update-action-icon" />
           </button>
         </div>
       </section>

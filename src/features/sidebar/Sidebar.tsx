@@ -8,7 +8,8 @@ import { ALL_ACCOUNTS_GROUP_ID, isBucketGroup, type SidebarGroup } from "./sideb
 import { SIDEBAR_ID } from "../../shared/lib/constants";
 import type { BusyKeys } from "../../shared/lib/busy";
 import { useScrollThumb } from "../../shared/hooks/useScrollThumb";
-import { ArrowUpCircleIcon, CloseIcon, DevicesIcon, GaugeIcon, SettingsIcon, ShieldIcon } from "../../shared/ui/icons";
+import { ArrowUpCircleIcon, CloseIcon, DatabaseIcon, DevicesIcon, GaugeIcon, KeyboardIcon, PlugIcon, SettingsIcon } from "../../shared/ui/icons";
+import { isMobileDevice } from "../../shared/lib/platform";
 import type { Account } from "../../types";
 import type { Section } from "../../app/useSidebarNavigation";
 import { SETTINGS_JUMP_SECTIONS, type SettingsSectionId } from "../settings/settings-sections";
@@ -22,8 +23,12 @@ function settingsJumpIcon(id: SettingsSectionId) {
       return <ArrowUpCircleIcon />;
     case "devices":
       return <DevicesIcon />;
-    case "advanced":
-      return <ShieldIcon />;
+    case "data":
+      return <DatabaseIcon />;
+    case "integrations":
+      return <PlugIcon />;
+    case "shortcuts":
+      return <KeyboardIcon />;
   }
 }
 
@@ -80,7 +85,10 @@ export function Sidebar({
   // The list keeps room for its scroll bar only while it overflows, so the cards sit centered otherwise.
   const providerListRef = useRef<HTMLDivElement>(null);
   const showSettingsJump = topBar && section === "settings";
-  const providerListOverflows = useScrollThumb(providerListRef, true, showSettingsJump ? SETTINGS_JUMP_SECTIONS : groups).overflows;
+  const jumpSections = isMobileDevice()
+    ? SETTINGS_JUMP_SECTIONS.filter((item) => !item.desktopOnly)
+    : SETTINGS_JUMP_SECTIONS;
+  const providerListOverflows = useScrollThumb(providerListRef, true, showSettingsJump ? jumpSections : groups).overflows;
 
   // Provider rows and custom groups share one saved order, but the sidebar lists them in two sections.
   const accountGroups = groups.filter((group) => !isBucketGroup(group));
@@ -138,25 +146,52 @@ export function Sidebar({
       {showSettingsJump ? (
         <div ref={providerListRef} className={`provider-list settings-jump-list${providerListOverflows ? " has-overflow" : ""}`}>
           <nav className="settings-jump-nav" aria-label="Settings sections">
-            <div className="settings-jump-heading">Sections</div>
-            {SETTINGS_JUMP_SECTIONS.map((item) => {
-              const active = activeSettingsSection === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`settings-jump-item${active ? " is-active" : ""}`}
-                  aria-current={active ? "location" : undefined}
-                  onClick={() => onJumpToSettingsSection?.(item.id)}
-                >
-                  <span className="settings-jump-icon" aria-hidden="true">{settingsJumpIcon(item.id)}</span>
-                  <span className="settings-jump-text">
-                    <span className="settings-jump-label">{item.label}</span>
-                    <span className="settings-jump-hint">{item.hint}</span>
-                  </span>
-                </button>
-              );
-            })}
+            <div className="settings-jump-heading">Settings Section</div>
+            {jumpSections
+              .filter((item) => item.group === "settings")
+              .map((item) => {
+                const active = activeSettingsSection === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`settings-jump-item${active ? " is-active" : ""}`}
+                    aria-current={active ? "location" : undefined}
+                    onClick={() => onJumpToSettingsSection?.(item.id)}
+                  >
+                    <span className="settings-jump-icon" aria-hidden="true">{settingsJumpIcon(item.id)}</span>
+                    <span className="settings-jump-text">
+                      <span className="settings-jump-label">{item.label}</span>
+                      <span className="settings-jump-hint">{item.hint}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            {jumpSections.some((item) => item.group === "advanced") ? (
+              <>
+                <div className="settings-jump-heading">Advanced Section</div>
+                {jumpSections
+                  .filter((item) => item.group === "advanced")
+                  .map((item) => {
+                    const active = activeSettingsSection === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={`settings-jump-item${active ? " is-active" : ""}`}
+                        aria-current={active ? "location" : undefined}
+                        onClick={() => onJumpToSettingsSection?.(item.id)}
+                      >
+                        <span className="settings-jump-icon" aria-hidden="true">{settingsJumpIcon(item.id)}</span>
+                        <span className="settings-jump-text">
+                          <span className="settings-jump-label">{item.label}</span>
+                          <span className="settings-jump-hint">{item.hint}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+              </>
+            ) : null}
           </nav>
         </div>
       ) : (

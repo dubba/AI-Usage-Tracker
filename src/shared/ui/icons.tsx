@@ -100,10 +100,13 @@ export const QrIcon = (props: IconProps) => (
   </Base>
 );
 
+/** Monitor paired with a smartphone: cross-device sync and transfer. */
 export const DevicesIcon = (props: IconProps) => (
   <Base {...props}>
-    <rect x="3" y="8" width="10" height="13" rx="2" />
-    <rect x="11" y="3" width="10" height="13" rx="2" />
+    <path d="M18 8V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h8" />
+    <path d="M10 15v4" />
+    <path d="M7 19h5" />
+    <rect x="16" y="12" width="6" height="10" rx="1.5" />
   </Base>
 );
 
@@ -186,5 +189,41 @@ export const CompactRowsIcon = (props: IconProps) => (
     <rect x="3" y="5" width="18" height="3" rx="1" />
     <rect x="3" y="10.5" width="18" height="3" rx="1" />
     <rect x="3" y="16" width="18" height="3" rx="1" />
+  </Base>
+);
+
+/** Counter-clockwise clock rewind: resetting or clearing recorded history. */
+export const HistoryResetIcon = (props: IconProps) => (
+  <Base {...props}>
+    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+    <path d="M3 3v5h5" />
+    <path d="M12 7v5l3 2" />
+  </Base>
+);
+
+/** Stacked database cylinder: data & diagnostics settings. */
+export const DatabaseIcon = (props: IconProps) => (
+  <Base {...props}>
+    <ellipse cx="12" cy="5" rx="9" ry="3" />
+    <path d="M3 5v14a9 3 0 0 0 18 0V5" />
+    <path d="M3 12a9 3 0 0 0 18 0" />
+  </Base>
+);
+
+/** Power plug: local API & integrations settings. */
+export const PlugIcon = (props: IconProps) => (
+  <Base {...props}>
+    <path d="M12 22v-5" />
+    <path d="M9 8V2" />
+    <path d="M15 8V2" />
+    <path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z" />
+  </Base>
+);
+
+/** Keyboard outline: keyboard shortcuts settings. */
+export const KeyboardIcon = (props: IconProps) => (
+  <Base {...props}>
+    <rect x="2" y="5" width="20" height="14" rx="2" />
+    <path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M8 13h.01M12 13h.01M16 13h.01M7 16h10" />
   </Base>
 );

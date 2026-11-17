@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { bridgeApi } from "../../shared/lib/api";
 import { errorMessage } from "../../shared/lib/errors";
-import { CheckIcon, TrashIcon } from "../../shared/ui/icons";
+import { CheckIcon, HistoryResetIcon, TrashIcon } from "../../shared/ui/icons";
 import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
+import { CopyDiagnosticsButton } from "./CopyDiagnosticsButton";
 
 type ClearState = "idle" | "clearing" | "cleared";
 
@@ -41,19 +42,15 @@ function useClearAction(
 }
 
 /**
- * Clearing cached usage or the usage history, and deleting everything the app keeps on this device.
+ * Diagnostics, clearing the usage history, and deleting everything the app keeps on this device.
  *
- * Clearing cached usage is harmless (usage is fetched again straight away), so it runs on one click.
  * Clearing the usage history discards only the recorded daily bars (accounts and sign-ins stay),
- * and it too runs on one click. Deleting signs out every account and cannot be undone, so it asks
- * first, naming what goes and what does not.
+ * and runs on one click. Deleting signs out every account and cannot be undone, so it asks first,
+ * naming what goes and what does not.
  */
 export function DataSection({
-  onUsageCleared,
   onAllDataDeleted,
 }: {
-  /** Runs once the saved usage is gone: the app reloads the dashboard and fetches fresh usage. */
-  onUsageCleared: () => void | Promise<void>;
   /** Runs once everything is deleted; the app reloads itself so no screen keeps showing removed data. */
   onAllDataDeleted: () => void;
 }) {
@@ -61,14 +58,6 @@ export function DataSection({
   const [deleting, setDeleting] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
 
-  const [clearState, clearUsage] = useClearAction(
-    async () => {
-      await bridgeApi.clearCachedUsage();
-      await onUsageCleared();
-    },
-    "Couldn't refresh usage",
-    setFailure,
-  );
   const [historyState, clearHistory] = useClearAction(
     () => bridgeApi.clearActivityHistory(),
     "Couldn't clear usage history",
@@ -91,22 +80,13 @@ export function DataSection({
   return (
     <>
       <section className="settings-card">
-        <h3 className="settings-card-heading">Data</h3>
+        <h2 id="settings-section-data" className="settings-card-heading">Data &amp; Diagnostics</h2>
         <div className="settings-row">
           <div>
-            <strong>Refresh Usage</strong>
-            <small>Clears cached usage data and fetches fresh usage for all accounts.</small>
+            <strong>Diagnostics</strong>
+            <small>Bug report with tokens, cookies, and emails removed.</small>
           </div>
-          <button
-            type="button"
-            className="button ghost settings-changelog-button"
-            aria-label="Refresh usage"
-            disabled={clearState === "clearing"}
-            onClick={() => void clearUsage()}
-          >
-            <span>{clearState === "clearing" ? "Refreshing…" : clearState === "cleared" ? "Refreshed!" : "Refresh"}</span>
-            {clearState === "cleared" ? <CheckIcon /> : null}
-          </button>
+          <CopyDiagnosticsButton compact className="button ghost settings-changelog-button settings-update-action" />
         </div>
         <div className="settings-row">
           <div>
@@ -115,13 +95,17 @@ export function DataSection({
           </div>
           <button
             type="button"
-            className="button ghost settings-changelog-button"
+            className="button ghost settings-changelog-button settings-update-action"
             aria-label="Clear usage history"
             disabled={historyState === "clearing"}
             onClick={() => void clearHistory()}
           >
+            {historyState === "cleared" ? (
+              <CheckIcon className="settings-update-action-icon" />
+            ) : (
+              <HistoryResetIcon className="settings-update-action-icon" />
+            )}
             <span>{historyState === "clearing" ? "Clearing…" : historyState === "cleared" ? "Cleared!" : "Clear"}</span>
-            {historyState === "cleared" ? <CheckIcon /> : null}
           </button>
         </div>
         <div className="settings-row">
@@ -141,7 +125,7 @@ export function DataSection({
         </div>
       </section>
       <span className="sr-only" role="status" aria-live="polite">
-        {clearState === "cleared" ? "Usage refreshed." : historyState === "cleared" ? "Usage history cleared." : ""}
+        {historyState === "cleared" ? "Usage history cleared." : ""}
       </span>
       {failure ? (
         <p className="settings-data-error" role="alert">

@@ -31,9 +31,10 @@ try {
 document.documentElement.classList.toggle("api-integration-window-root", isApiIntegrationWindow);
 initTheme();
 
-// One-time removal of legacy localStorage account emails, now stored in the backend.
+// One-time removal of legacy localStorage account emails and collapsed Advanced state.
 storageRemove(LEGACY_STORAGE.opencodeAccountEmails);
 for (const key of storageKeys(LEGACY_STORAGE.accountEmailPrefix)) storageRemove(key);
+storageRemove(LEGACY_STORAGE.settingsAdvancedOpen);
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

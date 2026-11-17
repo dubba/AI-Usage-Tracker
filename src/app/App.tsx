@@ -387,7 +387,6 @@ export default function App() {
               onToggleBridge={(enabled) => void setApiIntegrationEnabled(enabled)}
               onViewBridgeWindow={() => void openApiIntegrationWindow()}
               onOpenUpdateNotes={() => update.setUpdateNotesOpen(true)}
-              onUsageCleared={handleUsageCleared}
               onAllDataDeleted={handleAllDataDeleted}
               jumpTarget={settingsJumpTarget}
               onActiveSectionChange={setActiveSettingsSection}

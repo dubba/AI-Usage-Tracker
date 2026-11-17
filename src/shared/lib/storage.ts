@@ -32,8 +32,6 @@ export const STORAGE_KEYS = {
   activityReorderHintSessionCounted: "ai-usage-tracker:activity-reorder-hint-session-counted",
   /** sessionStorage: "1" if the usage reorder hint was dismissed in the current session. */
   activityReorderHintSessionDismissed: "ai-usage-tracker:activity-reorder-hint-session-dismissed",
-  /** "true" if the Advanced section in Settings is expanded. */
-  settingsAdvancedOpen: "ai-usage-tracker:settings-advanced-open",
   /** "7d" | "30d": how many days the Usage page shows. */
   activityPeriod: "ai-usage-tracker:activity-period",
   /** "on" | "off": whether the bottom navigation bar shows the page names under its icons. */
@@ -53,6 +51,7 @@ export const STORAGE_PREFIXES = {
 export const LEGACY_STORAGE = {
   opencodeAccountEmails: "ai-subscription-tracker:opencode-account-emails",
   accountEmailPrefix: "paseo-usage-bridge:account-email:",
+  settingsAdvancedOpen: "ai-usage-tracker:settings-advanced-open",
 } as const;
 
 type Area = "local" | "session";

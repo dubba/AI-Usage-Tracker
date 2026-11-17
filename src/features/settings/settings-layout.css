@@ -34,6 +34,10 @@
     background: var(--obsidian-border);
   }
 
+  .settings-jump-heading:not(:first-child) {
+    margin-top: 8px;
+  }
+
   .settings-jump-item {
     position: relative;
     display: flex;

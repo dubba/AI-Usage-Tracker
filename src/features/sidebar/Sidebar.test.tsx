@@ -4,6 +4,7 @@ import { click, mount, type Mounted } from "../../test-utils/react";
 import { ALL_ACCOUNTS_GROUP_ID, type SidebarGroup } from "./sidebar-groups";
 import { Sidebar } from "./Sidebar";
 import type { Section } from "../../app/useSidebarNavigation";
+import type { SettingsSectionId } from "../settings/settings-sections";
 
 // The parts of the sidebar that are not under test measure and observe the page.
 vi.mock("../dashboard/SyncStatusLine", () => ({
@@ -25,8 +26,8 @@ function render(props: {
   topBar: boolean;
   selectedGroupId?: string;
   groups?: SidebarGroup[];
-  activeSettingsSection?: "general" | "updates" | "devices" | "advanced";
-  onJumpToSettingsSection?: (section: "general" | "updates" | "devices" | "advanced") => void;
+  activeSettingsSection?: SettingsSectionId;
+  onJumpToSettingsSection?: (section: SettingsSectionId) => void;
 }) {
   const onSelectGroup = vi.fn();
   mounted = mount(
@@ -177,22 +178,35 @@ describe("Sidebar", () => {
         onJumpToSettingsSection: onJump,
       });
 
-      const nav = mounted!.container.querySelector(".settings-jump-nav");
+      const nav = mounted!.container.querySelector(".settings-jump-nav")!;
       expect(nav).not.toBeNull();
       expect(mounted!.container.querySelector(".is-all-row")).toBeNull();
-      const labels = [...mounted!.container.querySelectorAll(".settings-jump-label")].map((el) => el.textContent);
-      expect(labels).toEqual(["General", "Updates", "Devices", "Advanced"]);
+      const headings = [...nav.querySelectorAll(".settings-jump-heading")].map((el) => el.textContent);
+      expect(headings).toEqual(["Settings Section", "Advanced Section"]);
+      const navOrder = [...nav.children].map((el) =>
+        el.classList.contains("settings-jump-heading") ? `#${el.textContent}` : el.querySelector(".settings-jump-label")?.textContent,
+      );
+      expect(navOrder).toEqual([
+        "#Settings Section",
+        "General",
+        "Updates",
+        "Devices",
+        "#Advanced Section",
+        "Data & Diagnostics",
+        "Integrations",
+        "Keyboard Shortcuts",
+      ]);
 
       const devicesBtn = [...mounted!.container.querySelectorAll<HTMLButtonElement>(".settings-jump-item")].find((btn) =>
         btn.textContent?.includes("Devices"),
       )!;
       expect(devicesBtn.getAttribute("aria-current")).toBe("location");
 
-      const advBtn = [...mounted!.container.querySelectorAll<HTMLButtonElement>(".settings-jump-item")].find((btn) =>
-        btn.textContent?.includes("Advanced"),
+      const integrationsBtn = [...mounted!.container.querySelectorAll<HTMLButtonElement>(".settings-jump-item")].find((btn) =>
+        btn.textContent?.includes("Integrations"),
       )!;
-      click(advBtn);
-      expect(onJump).toHaveBeenCalledWith("advanced");
+      click(integrationsBtn);
+      expect(onJump).toHaveBeenCalledWith("integrations");
     });
 
     it("places the Compact toggle beside % Used / % Left in the mobile sidebar footer (L7)", () => {

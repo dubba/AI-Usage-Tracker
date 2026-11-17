@@ -60,7 +60,6 @@ function view(
           integrationWindowBusy={false}
           onToggleBridge={vi.fn()}
           onViewBridgeWindow={vi.fn()}
-          onUsageCleared={vi.fn()}
           onAllDataDeleted={vi.fn()}
           {...props}
         />
@@ -77,11 +76,6 @@ afterEach(() => {
 
 const button = (label: string) =>
   [...document.querySelectorAll("button")].find((el) => el.textContent?.trim() === label || el.getAttribute("aria-label") === label)!;
-/** The Advanced section remembers being open between mounts, so open it only if it is closed. */
-function openAdvanced() {
-  if (document.querySelector("#settings-advanced-content")) return;
-  act(() => document.querySelector<HTMLButtonElement>(".settings-advanced-toggle")!.click());
-}
 const toggleLabelled = (id: string) => document.querySelector<HTMLButtonElement>(`button[role=switch][aria-labelledby="${id}"]`)!;
 
 describe("SettingsView header", () => {
@@ -114,61 +108,25 @@ describe("SettingsView accessibility", () => {
 
   it("names every switch by its visible label", () => {
     app = mount(view());
-    for (const id of ["setting-autostart-label", "setting-auto-update-label", "setting-beta-label"]) {
+    for (const id of ["setting-autostart-label", "setting-auto-update-label", "setting-beta-label", "setting-bridge-label"]) {
       expect(document.getElementById(id), id).not.toBeNull();
       expect(toggleLabelled(id), id).not.toBeNull();
     }
   });
 
-  it("puts the data controls in Advanced, above Diagnostics", () => {
+  it("displays Diagnostics, Clear Usage History, and Delete Local App Data directly without an Advanced toggle", () => {
     app = mount(view());
-    expect(document.body.textContent).not.toContain("Refresh Usage");
-    openAdvanced();
-    const titles = [...document.querySelectorAll(".settings-section-title")].map((el) => el.textContent?.replace(/\s+/g, " ").trim());
-    expect(titles).not.toContain("Data");
-    const cards = [...document.querySelectorAll("#settings-advanced-content > .settings-card")];
-    expect(cards[0]?.textContent).toContain("Refresh Usage");
-    expect(cards[0]?.textContent).toContain("Delete Local App Data");
-    expect(cards[1]?.textContent).toContain("Diagnostics");
-    act(() => document.querySelector<HTMLButtonElement>(".settings-advanced-toggle")!.click());
-  });
-
-  it("remembers whether the Advanced section is expanded or collapsed", () => {
-    app = mount(view());
-    const toggle = () => document.querySelector<HTMLButtonElement>(".settings-advanced-toggle")!;
-    expect(toggle().getAttribute("aria-expanded")).toBe("false");
-    expect(document.querySelector("#settings-advanced-content")).toBeNull();
-
-    // Click to expand
-    act(() => {
-      toggle().click();
-    });
-    expect(toggle().getAttribute("aria-expanded")).toBe("true");
-    expect(document.querySelector("#settings-advanced-content")).not.toBeNull();
-
-    // Remounting (e.g. switching to dashboard and back to settings) keeps it expanded
-    app.unmount();
-    app = mount(view());
-    expect(toggle().getAttribute("aria-expanded")).toBe("true");
-    expect(document.querySelector("#settings-advanced-content")).not.toBeNull();
-
-    // Click to collapse
-    act(() => {
-      toggle().click();
-    });
-    expect(toggle().getAttribute("aria-expanded")).toBe("false");
-    expect(document.querySelector("#settings-advanced-content")).toBeNull();
-
-    // Remounting keeps it collapsed
-    app.unmount();
-    app = mount(view());
-    expect(toggle().getAttribute("aria-expanded")).toBe("false");
-    expect(document.querySelector("#settings-advanced-content")).toBeNull();
+    expect(document.querySelector(".settings-advanced-toggle")).toBeNull();
+    const dataCard = document.querySelector("#settings-section-data")?.closest(".settings-card");
+    expect(dataCard).not.toBeNull();
+    const dataRows = [...dataCard!.querySelectorAll(".settings-row strong")].map((el) => el.textContent?.trim());
+    expect(dataRows).toEqual(["Diagnostics", "Clear Usage History", "Delete Local App Data"]);
+    expect(dataCard?.textContent).not.toContain("Refresh Usage");
   });
 
   it("needs its contexts", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    expect(() => mount(<SettingsView onOpenLink={vi.fn()} bridge={null} bridgeBusy={false} integrationWindowBusy={false} onToggleBridge={vi.fn()} onViewBridgeWindow={vi.fn()} onUsageCleared={vi.fn()} onAllDataDeleted={vi.fn()} />)).toThrow(
+    expect(() => mount(<SettingsView onOpenLink={vi.fn()} bridge={null} bridgeBusy={false} integrationWindowBusy={false} onToggleBridge={vi.fn()} onViewBridgeWindow={vi.fn()} onAllDataDeleted={vi.fn()} />)).toThrow(
       /AppSettingsContext/,
     );
     error.mockRestore();
@@ -344,12 +302,11 @@ describe("Devices and the local API", () => {
     expect(onOpenPairing).toHaveBeenCalledTimes(1);
   });
 
-  it("shows the Paseo Bridge switch and window in Advanced, and its error", () => {
+  it("shows the Paseo Bridge switch and window directly, and its error", () => {
     const bridge = { enabled: true, error: "Port busy" } as BridgeStatus;
     const onToggleBridge = vi.fn();
     const onViewBridgeWindow = vi.fn();
     app = mount(view({ props: { bridge, onToggleBridge, onViewBridgeWindow } }));
-    openAdvanced();
     const toggle = toggleLabelled("setting-bridge-label");
     expect(toggle.getAttribute("aria-checked")).toBe("true");
     click(toggle);
@@ -364,7 +321,6 @@ describe("Devices and the local API", () => {
 
   it("disables the bridge controls while they work", () => {
     app = mount(view({ props: { bridge: { enabled: false } as BridgeStatus, bridgeBusy: true, integrationWindowBusy: true } }));
-    openAdvanced();
     expect(toggleLabelled("setting-bridge-label").disabled).toBe(true);
     expect(button("View integration window (opens in a new window)").disabled).toBe(true);
   });
@@ -382,18 +338,13 @@ describe("Devices and the local API", () => {
 });
 
 describe("SettingsView section layout and jump navigation (L3)", () => {
-  it("labels all four Advanced cards clearly with h3 headings inside each card", () => {
+  it("labels all Settings cards directly with h2 headings", () => {
     app = mount(view());
-    openAdvanced();
-    const headings = [...document.querySelectorAll("#settings-advanced-content .settings-card-heading")].map((el) =>
-      el.textContent?.trim(),
-    );
-    expect(headings).toEqual(["Data", "Diagnostics", "Integrations", "Keyboard Shortcuts"]);
-    expect(document.querySelector("#settings-advanced-content h2")).toBeNull();
-    act(() => document.querySelector<HTMLButtonElement>(".settings-advanced-toggle")!.click());
+    const headings = [...document.querySelectorAll("h2.settings-card-heading")].map((el) => el.textContent?.trim());
+    expect(headings).toEqual(["General", "Updates", "Devices", "Data & Diagnostics", "Integrations", "Keyboard Shortcuts"]);
   });
 
-  it("expands Advanced and scrolls the target section when jumpTarget changes", async () => {
+  it("scrolls the target section when jumpTarget changes", () => {
     const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
       cb(0);
       return 1;
@@ -404,11 +355,65 @@ describe("SettingsView section layout and jump navigation (L3)", () => {
     const scrollToSpy = vi.fn();
     scroller.scrollTo = scrollToSpy;
 
-    app.rerender(view({ props: { jumpTarget: { section: "advanced", seq: 1 }, onActiveSectionChange } }));
-    expect(document.querySelector("#settings-advanced-content")).not.toBeNull();
+    app.rerender(view({ props: { jumpTarget: { section: "integrations", seq: 1 }, onActiveSectionChange } }));
     expect(scrollToSpy).toHaveBeenCalledTimes(1);
-    expect(onActiveSectionChange).toHaveBeenCalledWith("advanced");
+    expect(onActiveSectionChange).toHaveBeenCalledWith("integrations");
+
+    app.rerender(view({ props: { jumpTarget: { section: "shortcuts", seq: 2 }, onActiveSectionChange } }));
+    expect(scrollToSpy).toHaveBeenCalledTimes(2);
+    expect(onActiveSectionChange).toHaveBeenCalledWith("shortcuts");
     rafSpy.mockRestore();
-    act(() => document.querySelector<HTMLButtonElement>(".settings-advanced-toggle")!.click());
+  });
+
+  it("tracks Data & Diagnostics and Integrations during scroll instead of skipping from Devices to Keyboard Shortcuts", () => {
+    const onActiveSectionChange = vi.fn();
+    app = mount(view({ props: { onActiveSectionChange } }));
+    const scroller = document.querySelector<HTMLDivElement>(".dashboard-scroll")!;
+
+    let currentScrollTop = 0;
+    Object.defineProperty(scroller, "clientHeight", { value: 900, configurable: true });
+    Object.defineProperty(scroller, "scrollHeight", { value: 1450, configurable: true });
+    Object.defineProperty(scroller, "scrollTop", {
+      get: () => currentScrollTop,
+      set: (value: number) => {
+        currentScrollTop = value;
+      },
+      configurable: true,
+    });
+    vi.spyOn(scroller, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 720, 900));
+
+    const tops: Record<string, number> = {
+      "settings-section-general": 18,
+      "settings-section-updates": 270,
+      "settings-section-devices": 620,
+      "settings-section-data": 740,
+      "settings-section-integrations": 990,
+      "settings-section-shortcuts": 1170,
+    };
+    for (const [id, contentTop] of Object.entries(tops)) {
+      const el = document.getElementById(id)!;
+      vi.spyOn(el, "getBoundingClientRect").mockImplementation(() => new DOMRect(0, contentTop - currentScrollTop, 720, 32));
+    }
+
+    const activeAt = (scrollTop: number) => {
+      currentScrollTop = scrollTop;
+      act(() => {
+        scroller.dispatchEvent(new Event("scroll"));
+      });
+      return onActiveSectionChange.mock.calls.at(-1)?.[0];
+    };
+
+    expect(activeAt(0)).toBe("general");
+    expect(activeAt(100)).toBe("updates");
+    expect(activeAt(240)).toBe("devices");
+    expect(activeAt(300)).toBe("data");
+    expect(activeAt(400)).toBe("integrations");
+    expect(activeAt(550)).toBe("shortcuts");
+    // Scrolling back up hits Integrations and Data & Diagnostics before Devices
+    expect(activeAt(400)).toBe("integrations");
+    expect(activeAt(300)).toBe("data");
+    expect(activeAt(240)).toBe("devices");
+
+    vi.restoreAllMocks();
   });
 });
