@@ -1,4 +1,5 @@
 import { useId, useMemo, useRef } from "react";
+import { useCompactDashboard } from "../../shared/hooks/useCompactDashboard";
 import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
 import { BarChartIcon, CloseIcon } from "../../shared/ui/icons";
 import { useSegmentIndicator } from "../../shared/ui/segment-indicator";
@@ -102,6 +103,7 @@ export function ActivityView({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [compact] = useCompactDashboard();
 
   const [period, setPeriod] = useActivityPeriod();
   const refreshKey = useMemo(() => refreshKeyOf(accounts), [accounts]);
@@ -257,7 +259,7 @@ export function ActivityView({
             </li>
           </ul>
         ) : null}
-        <div className="activity-grid" data-group-id="all">
+        <div className={`activity-grid${compact ? " is-compact" : ""}`} data-group-id="all">
           {hasReadings
             ? trackerCards.map((entry) =>
                 entry.kind === "antigravity" ? (
@@ -267,6 +269,7 @@ export function ActivityView({
                     trackers={entry.trackers}
                     dayStarts={data.dayStarts}
                     period={chartPeriod}
+                    compact={compact}
                     onReconnect={onReconnect}
                   />
                 ) : (
@@ -276,6 +279,7 @@ export function ActivityView({
                     account={entry.account}
                     dayStarts={data.dayStarts}
                     period={chartPeriod}
+                    compact={compact}
                     onReconnect={onReconnect}
                   />
                 ),
@@ -290,6 +294,7 @@ export function ActivityView({
                 account={account}
                 otherLimits={entry.otherLimits}
                 monthlyOn30d={chartPeriod === "7d" && monthlyAccountIds.has(entry.accountId)}
+                compact={compact}
               />
             );
           })}

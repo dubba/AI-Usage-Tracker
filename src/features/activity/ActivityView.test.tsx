@@ -14,6 +14,7 @@ import {
 import type { Account, WeeklyActivity } from "../../types";
 import { getActivityPeriod, refreshActivityPeriod, setActivityPeriod } from "./activity-period";
 import { ActivityView } from "./ActivityView";
+import { setCompactDashboardMode } from "../../shared/lib/compact-dashboard";
 import { STORAGE_KEYS, storageGet, storageSet } from "../../shared/lib/storage";
 import { MAX_REORDER_HINT_OPENS } from "../accounts/useReorderHint";
 
@@ -27,6 +28,7 @@ beforeEach(() => {
   process.env.TZ = "UTC";
   localStorage.clear();
   sessionStorage.clear();
+  setCompactDashboardMode("off");
   refreshActivityPeriod();
   api.getWeeklyActivity.mockReset().mockResolvedValue(makeActivity());
 });
@@ -710,5 +712,41 @@ describe("ActivityView", () => {
     const empty = renderView([work]);
     await settle();
     expect(empty.root.querySelector(".activity-legend")).toBeNull();
+  });
+
+  it("renders slim compact cards across Usage when shared compact mode is enabled", async () => {
+    const anti = makeAccount({ id: "anti-compact", label: "Antigravity", provider: "antigravity", plan: "pro" });
+    api.getWeeklyActivity.mockResolvedValue(
+      makeActivity(
+        [
+          makeTracker({ accountId: "work", currentUsedPercent: 42 }),
+          makeTracker({ accountId: "anti-compact", windowId: "gemini_weekly", windowLabel: "Gemini Models · Weekly", currentUsedPercent: 36 }),
+          makeTracker({ accountId: "anti-compact", windowId: "claude_weekly", windowLabel: "Claude and GPT models · Weekly", currentUsedPercent: 23 }),
+        ],
+        [{ accountId: "studio", otherLimits: ["daily"] }],
+      ),
+    );
+    const { root } = renderView([work, anti, studio]);
+    await settle();
+
+    expect(root.querySelector(".activity-grid")?.classList.contains("is-compact")).toBe(false);
+    expect(root.querySelector(".activity-yaxis")).not.toBeNull();
+    expect(root.querySelector(".activity-chart-stats")).not.toBeNull();
+
+    act(() => setCompactDashboardMode("on"));
+    expect(root.querySelector(".activity-grid")?.classList.contains("is-compact")).toBe(true);
+    expect(select(root, ".activity-card.is-compact")).toHaveLength(3);
+    expect(root.querySelector(".activity-compact-row")).not.toBeNull();
+    expect(root.querySelector(".activity-model-sections.is-compact")).not.toBeNull();
+    expect(root.querySelector(".activity-card.is-no-weekly.is-compact")).not.toBeNull();
+    expect(root.querySelector(".activity-yaxis")).toBeNull();
+    expect(root.querySelector(".activity-chart-stats")).toBeNull();
+    expect(select(root, ".activity-chart.is-compact")).toHaveLength(3);
+    // Daily bars and accessible table remain intact in compact mode
+    expect(select(root, ".activity-bar")).toHaveLength(21);
+    expect(select(root, ".activity-chart.is-compact .sr-only table")).toHaveLength(3);
+
+    act(() => setCompactDashboardMode("off"));
+    expect(root.querySelector(".activity-grid")?.classList.contains("is-compact")).toBe(false);
   });
 });

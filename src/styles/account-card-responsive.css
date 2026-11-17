@@ -1933,8 +1933,8 @@
     position: relative;
     flex: 1 1 auto;
     min-width: 0;
-    /* The label (about 36px), its 8px gap, the % switch (about 132px), 8px gap, Compact toggle (about 96px) and gap before it. */
-    padding-right: 320px;
+    /* The label (about 36px), its 8px gap, the % switch (about 132px) and the gap before it. */
+    padding-right: 212px;
   }
 
   /* At the header's right edge, the same edge as the Usage page's 7D / 30D switch and the top bar's
@@ -1965,8 +1965,8 @@
     border-radius: 9px;
   }
 
-  .provider-account-card.desktop-card.is-compact .account-card-provider-icon svg,
-  .provider-account-card.desktop-card.is-compact .account-card-provider-icon img {
+  .provider-account-card.desktop-card.is-compact .account-card-provider-icon > svg,
+  .provider-account-card.desktop-card.is-compact .account-card-provider-icon > img {
     width: 20px;
     height: 20px;
   }
@@ -1996,8 +1996,8 @@
     border-radius: 8px;
   }
 
-  .provider-account-card.is-compact .account-card-provider-icon svg,
-  .provider-account-card.is-compact .account-card-provider-icon img {
+  .provider-account-card.is-compact .account-card-provider-icon > svg,
+  .provider-account-card.is-compact .account-card-provider-icon > img {
     width: 19px;
     height: 19px;
   }

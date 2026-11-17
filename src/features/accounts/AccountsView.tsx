@@ -3,7 +3,6 @@ import { type BusyKeys } from "../../shared/lib/busy";
 import { useReorderHint } from "./useReorderHint";
 import { useWrapPillWhenCramped } from "./useWrapPillWhenCramped";
 import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
-import { CompactDashboardToggle } from "../dashboard/CompactDashboardToggle";
 import { UsageDisplayToggle } from "../dashboard/UsageDisplayToggle";
 import { useCompactDashboard } from "../../shared/hooks/useCompactDashboard";
 import { MOBILE_OVERLAY_QUERY } from "../sidebar/sidebar-width";
@@ -237,7 +236,6 @@ export function AccountsView(props: {
               {/* Names what the switch chooses, as "Period" does on the Usage page; the group already has its own name. */}
               <span className="accounts-display-label" aria-hidden="true">Show</span>
               <UsageDisplayToggle labels="words" className="top-bar-segmented" />
-              <CompactDashboardToggle />
             </div>
           )}
         </div>

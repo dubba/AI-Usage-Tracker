@@ -40,13 +40,26 @@ describe("TopBar", () => {
     expect(handlers.onSelect).toHaveBeenCalledWith("settings");
   });
 
-  it("offers Add account and New group, and leaves the sync status, Refresh all and the Left / Used switch to others", () => {
+  it("offers Compact before Group and Account, and leaves the sync status, Refresh all and the Left / Used switch to others", () => {
     const { handlers } = render("accounts");
     const container = mounted!.container;
     // The sync status and Refresh all sit at the foot of the sidebar, as on a phone.
     expect(container.textContent).not.toContain("synced");
     expect(container.querySelector('[aria-label="Refresh all accounts"]')).toBeNull();
     expect(container.querySelector('[aria-label="Usage display"]')).toBeNull();
+
+    const actionButtons = [...container.querySelectorAll<HTMLButtonElement>(".top-bar-actions > button")];
+    expect(actionButtons.map((btn) => btn.textContent?.trim())).toEqual(["Compact", "Group", "Account"]);
+
+    const compactBtn = container.querySelector<HTMLButtonElement>(".top-bar-compact")!;
+    expect(compactBtn.getAttribute("aria-label")).toBe("Compact view");
+    expect(compactBtn.getAttribute("aria-pressed")).toBe("false");
+    click(compactBtn);
+    expect(compactBtn.getAttribute("aria-pressed")).toBe("true");
+    expect(compactBtn.classList.contains("active")).toBe(true);
+    click(compactBtn);
+    expect(compactBtn.getAttribute("aria-pressed")).toBe("false");
+
     // Named like the phone sidebar's add buttons: an icon, then one word.
     expect(container.querySelector(".top-bar-add-group")?.textContent).toBe("Group");
     expect(container.querySelector(".top-bar-add-group")?.getAttribute("data-tooltip")).toBe(

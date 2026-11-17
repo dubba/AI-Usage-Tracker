@@ -16,6 +16,7 @@ export function WeeklyTracker({
   account,
   dayStarts,
   period,
+  compact = false,
   onReconnect,
 }: {
   tracker: ActivityTracker;
@@ -23,6 +24,7 @@ export function WeeklyTracker({
   /** The local midnights the tracker's days were counted between. */
   dayStarts: readonly Date[];
   period: ActivityPeriod;
+  compact?: boolean;
   onReconnect?: (account: Account) => void;
 }) {
   const titleId = useId();
@@ -38,10 +40,68 @@ export function WeeklyTracker({
     || account.lastUsage.freshness !== "live";
   const limitName = account.provider === "antigravity" ? antigravityFamilyLabel(tracker.windowLabel) : null;
   const email = accountEmail(account);
+  const plan = displayPlan(account);
   const reset = formatResetAtShort(tracker.resetsAt);
-  const details = [displayPlan(account), reset ? `resets ${reset}` : null].filter(Boolean).join(" · ");
+  const details = [plan, reset ? `resets ${reset}` : null].filter(Boolean).join(" · ");
   const chartName = limitName ? `${label} ${limitName}` : label;
   const monthly = tracker.windowKind === "monthly";
+
+  if (compact) {
+    const compactMeta = [limitName, reset ? `Resets ${reset}` : null].filter(Boolean).join(" · ");
+    return (
+      <article
+        className={`activity-card is-compact${needsSignIn ? " is-dimmed" : ""}${hasError ? " needs-attention" : ""}`}
+        aria-labelledby={titleId}
+        data-account-id={account.id}
+        data-reorder-provider={account.provider}
+        data-reorder-enabled="true"
+        draggable={false}
+      >
+        <span className="reorder-grip" data-tooltip="Drag to reorder" aria-hidden="true" />
+        <div className="activity-compact-row">
+          <span className="activity-card-icon">
+            <ProviderIcon provider={account.provider} />
+          </span>
+          <div className="activity-compact-identity">
+            <div className="activity-compact-title-row">
+              <h2 className="activity-card-title" id={titleId} title={email ?? undefined}>
+                {label}
+              </h2>
+              {plan ? <span className="activity-plan-pill is-compact">{plan}</span> : null}
+            </div>
+            {compactMeta ? <p className="activity-compact-meta">{compactMeta}</p> : null}
+          </div>
+          <div className="activity-compact-chart">
+            <DailyBars
+              name={chartName}
+              days={tracker.days}
+              dayStarts={dayStarts}
+              resets={tracker.resets}
+              resetUsedPercent={tracker.resetUsedPercent}
+              period={period}
+              limit={tracker.windowKind}
+              compact
+            />
+          </div>
+          <div className="activity-compact-trailing">
+            <div className={`activity-card-total is-compact tone-${tone}`}>
+              <strong aria-label={used == null ? "Usage unknown" : `${formatDayPercent(used)} of the ${monthly ? "monthly" : "weekly"} limit used`}>
+                {formatDayPercent(used)}
+              </strong>
+              <span className="activity-card-total-period" aria-hidden="true">
+                {monthly ? "month" : "week"}
+              </span>
+            </div>
+            {needsSignIn && onReconnect ? (
+              <button type="button" className="button primary compact-button compact-card-action-btn" onClick={() => onReconnect(account)}>
+                {account.provider === "google_ai_studio" ? "Reconnect" : "Sign in"}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </article>
+    );
+  }
 
   return (
     <article

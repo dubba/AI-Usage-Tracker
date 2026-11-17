@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { setCompactDashboardMode } from "../../shared/lib/compact-dashboard";
 import { announceReorder } from "../../shared/lib/events";
 import { setNarrowWindow } from "../../test-utils/media";
 import { click, mount, type Mounted } from "../../test-utils/react";
@@ -607,8 +608,9 @@ describe("AccountsView L / U switch", () => {
     expect(document.querySelectorAll(".top-bar-segmented")).toHaveLength(1);
   });
 
-  it("renders a Compact toggle beside Show % Used / % Left and toggles compact cards (L7)", () => {
+  it("leaves Compact toggle to the top bar and responds to shared compact mode changes (L7)", () => {
     setNarrowWindow(false);
+    setCompactDashboardMode("off");
     app = renderView({
       allAccounts: [account],
       accounts: [account],
@@ -616,20 +618,16 @@ describe("AccountsView L / U switch", () => {
       onToggleSidebar: () => undefined,
     });
 
-    const compactToggle = document.querySelector<HTMLButtonElement>(".accounts-display-switch .compact-dashboard-toggle")!;
-    expect(compactToggle).not.toBeNull();
-    expect(compactToggle.getAttribute("aria-pressed")).toBe("false");
+    expect(document.querySelector(".accounts-display-switch .compact-dashboard-toggle")).toBeNull();
     expect(document.querySelector(".provider-account-cards")?.classList.contains("is-compact")).toBe(false);
     expect(document.querySelector(".compact-card-row")).toBeNull();
 
-    click(compactToggle);
-    expect(compactToggle.getAttribute("aria-pressed")).toBe("true");
+    act(() => setCompactDashboardMode("on"));
     expect(document.querySelector(".provider-account-cards")?.classList.contains("is-compact")).toBe(true);
     expect(document.querySelector(".compact-card-row")).not.toBeNull();
 
     // Restore default off state for subsequent tests
-    click(compactToggle);
-    expect(compactToggle.getAttribute("aria-pressed")).toBe("false");
+    act(() => setCompactDashboardMode("off"));
     expect(document.querySelector(".provider-account-cards")?.classList.contains("is-compact")).toBe(false);
   });
 });

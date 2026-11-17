@@ -1334,8 +1334,8 @@ button.account-card-provider-icon:active {
   border-bottom-color: transparent;
 }
 
-.account-card-provider-icon svg,
-.account-card-provider-icon img {
+.account-card-provider-icon > svg,
+.account-card-provider-icon > img {
   width: 28px;
   height: 28px;
   object-fit: contain;
@@ -3449,8 +3449,8 @@ select.text-input option,
     align-self: flex-end;
   }
 
-  .account-card-provider-icon svg,
-  .account-card-provider-icon img {
+  .account-card-provider-icon > svg,
+  .account-card-provider-icon > img {
     width: 26px;
     height: 26px;
   }

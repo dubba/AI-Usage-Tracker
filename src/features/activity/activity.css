@@ -1067,4 +1067,275 @@
     font-weight: 650;
     font-variant-numeric: tabular-nums;
   }
+
+  /* ---- compact usage cards (mirrors compact Dashboard cards) ---- */
+
+  .activity-grid.is-compact {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  @media (min-width: 1400px) {
+    .activity-grid.is-compact {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: stretch;
+    }
+  }
+
+  .activity-card.is-compact {
+    padding-top: 9px;
+    padding-bottom: 9px;
+    padding-right: 14px;
+    border-radius: 10px;
+  }
+
+  .activity-compact-row,
+  .activity-compact-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 36px;
+  }
+
+  .activity-card.is-compact .activity-card-icon {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    margin-right: 0;
+    border: 1px solid var(--obsidian-border);
+    border-radius: 9px;
+    background: var(--obsidian-surface-container-high);
+  }
+
+  .activity-card.is-compact .activity-card-icon > svg,
+  .activity-card.is-compact .activity-card-icon > img {
+    width: 20px;
+    height: 20px;
+  }
+
+  .activity-compact-identity {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    flex: 0 1 190px;
+    min-width: 105px;
+    overflow: hidden;
+  }
+
+  .activity-card-consolidated.is-compact .activity-compact-identity {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .activity-compact-title-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+  }
+
+  .activity-card.is-compact .activity-card-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+    line-height: 1.25;
+    font-weight: 650;
+  }
+
+  .activity-plan-pill.is-compact {
+    height: 20px;
+    padding: 0 7px;
+    font-size: 11px;
+  }
+
+  .activity-compact-meta {
+    margin: 0;
+    color: var(--obsidian-muted);
+    font-size: 11px;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .activity-compact-chart {
+    flex: 1 1 180px;
+    min-width: 100px;
+  }
+
+  .activity-chart.is-compact {
+    display: block;
+    margin-top: 0;
+  }
+
+  .activity-chart.is-compact .activity-bars {
+    padding: 2px 0 0;
+  }
+
+  .activity-chart.is-compact .activity-bar-slot {
+    height: 26px;
+    margin-top: 0;
+  }
+
+  .activity-chart.is-compact .activity-bar {
+    max-width: 28px;
+    min-height: 2px;
+    border-radius: 3px 3px 1px 1px;
+  }
+
+  .activity-chart.is-compact .activity-bar.is-empty {
+    height: 10px;
+  }
+
+  .activity-compact-trailing {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+    flex: 0 0 auto;
+  }
+
+  .activity-card-total.is-compact {
+    min-width: 44px;
+    align-items: flex-end;
+  }
+
+  .activity-card-total.is-compact strong {
+    font-size: 15px;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .activity-card-total.is-compact .activity-card-total-period {
+    position: static;
+    margin-top: 2px;
+    font-size: 10.5px;
+    line-height: 1;
+  }
+
+  /* Consolidated Antigravity card in compact mode */
+  .activity-card-consolidated.is-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .activity-card-consolidated.is-compact .compact-card-action-btn {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .activity-model-sections.is-compact {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 14px;
+    margin-top: 0;
+    padding-top: 8px;
+    border-top: 1px solid var(--obsidian-border);
+  }
+
+  .activity-model-sections.is-compact .activity-model-section + .activity-model-section {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .activity-model-sections.is-compact .activity-model-head {
+    margin-bottom: 4px;
+  }
+
+  .activity-model-sections.is-compact .activity-model-name {
+    font-size: 11.5px;
+    line-height: 1.2;
+  }
+
+  .activity-model-sections.is-compact .activity-model-total strong {
+    font-size: 13px;
+  }
+
+  .activity-model-sections.is-compact .activity-chart.is-compact {
+    margin-top: 0;
+  }
+
+  .activity-model-sections.is-compact .activity-chart.is-compact .activity-bar-slot {
+    height: 22px;
+  }
+
+  /* No-weekly-limit card in compact mode */
+  .activity-card.is-no-weekly.is-compact {
+    align-items: center;
+    gap: 12px;
+  }
+
+  .activity-card.is-no-weekly.is-compact .activity-card-identity {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+    flex-wrap: wrap;
+  }
+
+  .activity-card.is-no-weekly.is-compact .activity-card-details {
+    margin: 0;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 860px) {
+    .activity-card.is-compact {
+      padding-top: 10px;
+      padding-bottom: 10px;
+      padding-right: 12px;
+    }
+
+    .activity-card.is-compact .activity-card-icon {
+      width: 32px;
+      height: 32px;
+      min-width: 32px;
+      border-radius: 8px;
+    }
+
+    .activity-card.is-compact .activity-card-icon > svg,
+    .activity-card.is-compact .activity-card-icon > img {
+      width: 19px;
+      height: 19px;
+    }
+
+    .activity-compact-row {
+      flex-wrap: wrap;
+      gap: 8px 10px;
+    }
+
+    .activity-compact-identity {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+
+    .activity-compact-chart {
+      order: 3;
+      flex: 1 0 100%;
+    }
+
+    .activity-compact-trailing {
+      order: 2;
+      gap: 8px;
+    }
+
+    .activity-model-sections.is-compact {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 10px;
+    }
+
+    .activity-card.is-no-weekly.is-compact .activity-card-identity {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+    }
+
+    .activity-card.is-no-weekly.is-compact .activity-card-details {
+      white-space: normal;
+    }
+  }
 }
