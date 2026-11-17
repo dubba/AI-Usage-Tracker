@@ -73,8 +73,9 @@
       padding-right: var(--activity-switch-room);
     }
 
-    /* Equal 10px breathing room above the legend, below it (10px), and at the bottom of the scroll
-       area while preserving the scrollbar gutter. The page's own padding is unlayered, hence !important. */
+    /* 10px of room at the top and bottom of the scroll area (the legend adds 8px more above it, to
+       match the Dashboard's 18px), keeping the scrollbar gutter. The page's own padding is unlayered,
+       hence !important. */
     .activity-content .dashboard-scroll {
       padding: 10px var(--scrollbar-gap) 10px 0 !important;
     }
@@ -970,14 +971,19 @@
 
   /* ---- visible chart legend & stats ---- */
 
+  /* The same box and spacing as the Dashboard's status bar (.summary-strip in obsidian-dashboard.css),
+     so the two pages line up when switching between them. On a wide window the strip sits 18px
+     under the header rule and 18px above the cards; the scroll area here already adds 10px on top. */
   .activity-legend {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 8px 16px;
     list-style: none;
-    margin: 0 0 10px;
-    padding: 8px 12px;
+    box-sizing: border-box;
+    min-height: 40px;
+    margin: 8px 0 18px;
+    padding: 8px 14px;
     border: 1px solid var(--obsidian-border);
     border-radius: 8px;
     background: var(--obsidian-canvas);
@@ -985,6 +991,15 @@
     font-size: 12px;
     font-weight: 500;
     line-height: 1.2;
+  }
+
+  /* A phone's strip: 36px tall, 10px to the cards, right under the scroll area's 10px top padding. */
+  @media (max-width: 860px) {
+    .activity-legend {
+      min-height: 36px;
+      margin: 0 0 10px;
+      padding: 7px 10px;
+    }
   }
 
   .activity-legend-item {
