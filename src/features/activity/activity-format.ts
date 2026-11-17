@@ -74,6 +74,56 @@ export function chartSummary(
   return `${name}, last ${days.length} days: ${parts.join(", ")}`;
 }
 
+export interface ChartStats {
+  todayLabel: string;
+  peakLabel: string | null;
+  avgLabel: string | null;
+}
+
+/**
+ * Visible numeric stats for a chart so users can read Today, Peak, and daily Average without
+ * hovering or tapping individual bars.
+ */
+export function chartStats(
+  days: readonly ActivityDay[],
+  starts: readonly Date[],
+  locale?: string,
+): ChartStats {
+  if (days.length === 0) {
+    return { todayLabel: "—", peakLabel: null, avgLabel: null };
+  }
+  const today = days[days.length - 1];
+  const todayLabel = today.usedPercent == null
+    ? "No data"
+    : `${formatDayPercent(today.usedPercent)}${today.quality === "approximate" ? " est." : ""}`;
+
+  let observedCount = 0;
+  let observedSum = 0;
+  let peakIndex = -1;
+  let peakValue = -1;
+
+  days.forEach((day, index) => {
+    if (day.usedPercent == null) return;
+    observedCount += 1;
+    observedSum += day.usedPercent;
+    if (day.usedPercent >= peakValue) {
+      peakValue = day.usedPercent;
+      peakIndex = index;
+    }
+  });
+
+  if (observedCount === 0 || peakIndex < 0) {
+    return { todayLabel, peakLabel: null, avgLabel: null };
+  }
+
+  const peakWhen = peakIndex === days.length - 1 ? "Today" : formatMonthDay(starts[peakIndex], locale);
+  return {
+    todayLabel,
+    peakLabel: `${formatDayPercent(peakValue)} (${peakWhen})`,
+    avgLabel: `${formatDayPercent(observedSum / observedCount)}/day`,
+  };
+}
+
 const LIMIT_NAMES: Record<Exclude<OtherLimit, "other">, string> = {
   five_hour: "5-hour",
   daily: "daily",

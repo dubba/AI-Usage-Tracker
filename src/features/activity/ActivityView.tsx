@@ -237,6 +237,26 @@ export function ActivityView({
             Tracking starts at the next refresh.
           </p>
         ) : null}
+        {hasReadings ? (
+          <ul className="activity-legend" aria-label="Chart legend">
+            <li className="activity-legend-item">
+              <span className="activity-legend-swatch is-measured" aria-hidden="true" />
+              <span>Measured</span>
+            </li>
+            <li className="activity-legend-item">
+              <span className="activity-legend-swatch is-approximate" aria-hidden="true" />
+              <span>Estimated</span>
+            </li>
+            <li className="activity-legend-item">
+              <span className="activity-legend-swatch is-empty" aria-hidden="true" />
+              <span>No data</span>
+            </li>
+            <li className="activity-legend-item">
+              <span className="activity-legend-swatch is-reset" aria-hidden="true" />
+              <span>Reset</span>
+            </li>
+          </ul>
+        ) : null}
         <div className="activity-grid" data-group-id="all">
           {hasReadings
             ? trackerCards.map((entry) =>

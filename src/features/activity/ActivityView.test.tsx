@@ -349,7 +349,7 @@ describe("ActivityView", () => {
     const { root } = renderView([work]);
     await settle();
     expect(select(root, ".activity-day-value")).toHaveLength(0);
-    expect(select(root, ".activity-bar").slice(0, 4).map((bar) => bar.dataset.tooltip?.split("\n")[0].split(": ")[1])).toEqual(["5% used", "no data", "2% used", "0% used"]);
+    expect(select(root, ".activity-bar-slot").slice(0, 4).map((slot) => slot.dataset.tooltip?.split("\n")[0].split(": ")[1])).toEqual(["5% used", "no data", "2% used", "0% used"]);
     expect(select(root, ".activity-bar.is-empty")).toHaveLength(1);
     expect(select(root, ".activity-bar.is-approximate")).toHaveLength(1);
   });
@@ -691,5 +691,24 @@ describe("ActivityView", () => {
       expect(cards[1].getAttribute("data-account-id")).toBe("anti-2");
       expect(select(cards[1], ".activity-model-name").map((el) => el.textContent)).toEqual(["Gemini Models", "Argon Models"]);
     });
+  });
+
+  it("shows a visible chart legend when chart readings are displayed and hides it when empty (T4 / R10)", async () => {
+    api.getWeeklyActivity.mockResolvedValue(answer());
+    const { root } = renderView([work]);
+    await settle();
+
+    const legend = root.querySelector(".activity-legend");
+    expect(legend).not.toBeNull();
+    const items = select(root, ".activity-legend-item").map((el) => el.textContent?.trim());
+    expect(items).toEqual(["Measured", "Estimated", "No data", "Reset"]);
+
+    mounted!.unmount();
+    api.getWeeklyActivity.mockResolvedValue(
+      makeActivity([makeTracker({ accountId: "work", days: Array(7).fill(noData) })]),
+    );
+    const empty = renderView([work]);
+    await settle();
+    expect(empty.root.querySelector(".activity-legend")).toBeNull();
   });
 });
