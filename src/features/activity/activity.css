@@ -639,6 +639,7 @@
   }
 
   .activity-bar {
+    position: relative;
     width: 100%;
     max-width: 44px;
     min-height: 3px;
@@ -660,6 +661,7 @@
     position: absolute;
     inset: 0 0 auto;
     height: 3px;
+    max-height: 100%;
     border-radius: 4px 4px 0 0;
     background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.85) 0 2px, transparent 2px 4px);
   }
