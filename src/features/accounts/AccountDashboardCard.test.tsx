@@ -1011,6 +1011,31 @@ describe("AccountDashboardCard compact mode (L7)", () => {
     setCardCollapsedOnPage("compact-page", "acct-compact", false);
   });
 
+  it("keeps Refresh, Alerts and the menu in the compact row", () => {
+    const onNotifications = vi.fn();
+    app = mount(
+      <AccountDashboardCard
+        pageId="compact-page"
+        account={{ ...account, id: "acct-compact" }}
+        compact
+        busy={new Set()}
+        onRefresh={() => undefined}
+        onReconnect={() => undefined}
+        onConnectGoogleUsage={() => undefined}
+        onRename={async () => undefined}
+        onRemove={() => undefined}
+        onNotifications={onNotifications}
+      />,
+    );
+    const actions = app.container.querySelector(".compact-card-actions")!;
+    const labels = [...actions.querySelectorAll<HTMLButtonElement>(":scope > button, .account-card-menu > button")].map((b) =>
+      b.getAttribute("aria-label"),
+    );
+    expect(labels).toEqual(["Refresh Claude", "Configure usage notifications for Claude", "More actions for Claude"]);
+    click(actions.querySelector<HTMLButtonElement>('[aria-label="Configure usage notifications for Claude"]')!);
+    expect(onNotifications).toHaveBeenCalledTimes(1);
+  });
+
   it("renders a single slim row with identity, compact metric bars, soonest reset, and actions", () => {
     const compactAccount: Account = {
       ...account,

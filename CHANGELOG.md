@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (25 changes)
+## Unreleased (26 changes)
 
 ### Added (1)
 
@@ -25,8 +25,9 @@
 - The account list in the Create Group and Edit Group dialog now shows three accounts at a time instead of four; a fourth account brings in the scrollbar.
 - On phones, the red close button at the top of the accounts and groups drawer is slightly smaller, so it no longer looks larger than the filter button it replaces.
 
-### Fixed (4)
+### Fixed (5)
 
+- In Compact view on a wide window, each account row now has its Alerts button again, between Refresh and the menu.
 - Pressing Escape, or the Back button on Android, now cancels renaming an account even after the name box has lost focus.
 - An account card's actions menu is no longer cut off at the bottom edge of its card.
 - On phones, an account card's actions menu now stops above the bottom navigation bar and opens upward when there is not enough room below, instead of running off the screen.

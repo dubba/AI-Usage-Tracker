@@ -1404,7 +1404,7 @@
   }
 
   /* Refresh carries the last update time ("⟳ 8m ago"), so the time is the control: the same 36px
-     height, edge, fill and hover as the icon buttons beside it. */
+     height, edge and fill as the icon buttons beside it. */
   .provider-account-card.desktop-card .account-card-desktop-actions .account-card-refresh-time {
     display: inline-flex;
     align-items: center;
@@ -1433,10 +1433,18 @@
     opacity: 0.5;
   }
 
+  /* Fills green with white text and icon on hover and darker when pressed, like the icon-only
+     Refresh in the compact row (`.account-card-action.refresh-action` in ui-refinements.css). */
   .provider-account-card.desktop-card .account-card-desktop-actions .account-card-refresh-time:not(:disabled):hover {
-    border-color: var(--purple-accent);
-    background: var(--purple-surface);
-    color: var(--obsidian-text);
+    border-color: var(--success-line-hover);
+    background: var(--success-fill-hover);
+    color: var(--white);
+  }
+
+  .provider-account-card.desktop-card .account-card-desktop-actions .account-card-refresh-time:not(:disabled):active {
+    border-color: var(--success-line-active);
+    background: var(--success-fill-active);
+    color: var(--white);
   }
 
   /* ui-refinements.css caps every card action at 28px (max-width / max-height), which left these

@@ -296,16 +296,28 @@ export function AccountDashboardCard({
 
             <div className={desktop ? "account-card-desktop-actions compact-card-actions" : "compact-card-actions"}>
               {desktop ? (
-                <button
-                  type="button"
-                  className={`account-card-action refresh-action ${isRefreshing ? "spinning" : ""}${outOfDate ? " is-suggested" : ""}`}
-                  data-tooltip="Refresh this account"
-                  aria-label={`Refresh ${account.label}`}
-                  disabled={cardBusy || isGlobalRefresh}
-                  onClick={onRefresh}
-                >
-                  <RefreshIcon />
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className={`account-card-action refresh-action ${isRefreshing ? "spinning" : ""}${outOfDate ? " is-suggested" : ""}`}
+                    data-tooltip="Refresh this account"
+                    aria-label={`Refresh ${account.label}`}
+                    disabled={cardBusy || isGlobalRefresh}
+                    onClick={onRefresh}
+                  >
+                    <RefreshIcon />
+                  </button>
+                  <button
+                    type="button"
+                    className="account-card-action notify-action"
+                    data-tooltip="Update account alerts"
+                    aria-label={`Configure usage notifications for ${account.label}`}
+                    disabled={cardBusy}
+                    onClick={onNotifications}
+                  >
+                    <BellIcon />
+                  </button>
+                </>
               ) : null}
               <AccountCardMenu
                 account={account}
