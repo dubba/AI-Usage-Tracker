@@ -4,10 +4,10 @@
 
 ## Required behavior for coding agents
 
-For every pull request that changes something a user can see or experience:
+Any time you push changes to GitHub (directly to `main` or any branch) or open/update a pull request that changes something a user can see or experience:
 
 1. Review the final diff and identify the actual user-visible results.
-2. Update `CHANGELOG.md` in the same pull request.
+2. Update `CHANGELOG.md` in the same push / pull request before pushing.
 3. Add concise bullets under `## Unreleased` using the most appropriate heading:
    - `Added` — a new capability.
    - `Improved` — an existing capability works or feels better.
@@ -16,7 +16,7 @@ For every pull request that changes something a user can see or experience:
    - `Removed` — a user-facing capability was removed.
 4. Update change counts in parentheses next to each affected category heading (e.g. `### Fixed (46)`) and update the total change count on the release header (e.g. `## Unreleased (111 changes)`).
 5. Write one bullet for each distinct user-visible result.
-6. If the pull request has no user-facing change, do not add a changelog entry and state `No user-facing change` in the pull request description.
+6. If the push / pull request has no user-facing change, do not add a changelog entry (and state `No user-facing change` in the pull request description if opening a PR).
 
 ## Writing rules
 
@@ -77,9 +77,9 @@ A release task may:
 
 Released entries should remain unchanged except for correcting a clear typo or factual error.
 
-## Pull request self-check
+## Push and pull request self-check
 
-Before opening or finishing a pull request, confirm one of these is true:
+Before pushing to GitHub or opening/updating a pull request, confirm one of these is true:
 
-- `CHANGELOG.md` includes every user-visible result from the pull request.
-- The pull request explicitly states `No user-facing change`.
+- `CHANGELOG.md` includes every user-visible result from the pushed commits / pull request.
+- There is no user-facing change (and the pull request description explicitly states `No user-facing change` if opening a PR).

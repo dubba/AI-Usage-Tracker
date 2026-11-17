@@ -1,6 +1,21 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (9 changes)
+
+### Improved (8)
+
+- The Clear Usage History setting now clarifies that clearing usage history keeps Dashboard data intact.
+- Saved limit reset rows on account cards now show only the reset title and expiry date, and long reset titles wrap cleanly instead of truncating.
+- On phones, Dashboard and Usage now share an interactive filter pill (`All accounts` or the selected group) in the header instead of a separate funnel icon, while App Settings shows a clean, left-aligned white `App Settings` header.
+- On phones, selecting an account or group in the drawer now filters the Usage page as well as the Dashboard.
+- On phones, the `% U` / `% L` usage display switcher now sits at the top right of the Dashboard header beside the New group and Add account buttons instead of inside the drawer, and the Period label beside `7D` / `30D` on Usage is hidden to match.
+- On phones, tapping an account card's provider icon now toggles Compact view for that card—matching desktop—and the Compact button has been removed from the mobile header.
+- On desktop, the Compact toggle in the top bar is now labeled `Compact View`, and the corner chevron badge on account card provider icons has been removed.
+- The sidebar sync status label now reads "All accounts last updated:" instead of "All accounts updated:".
+
+### Fixed (1)
+
+- In Compact view on phones, an account's plan badge (such as `SuperGrok/$30`) now uses the same purple pill styling as the expanded card instead of a small grey box.
 
 ## v0.6.2 - 2026-11-17 (26 changes)
 

@@ -14,10 +14,10 @@ Adding a provider: follow `docs/ADDING_A_PROVIDER.md`, which lists every place a
 
 Changelog:
 
-- Read `docs/CHANGELOG_WORKFLOW.md` before completing a pull request.
-- Every user-visible change must update `CHANGELOG.md` under `## Unreleased` in the same pull request.
-- Always keep item counts up to date in parentheses next to each category header (e.g. `### Security (4)`) and total items next to the release header (e.g. `## Unreleased (111 items)`).
-- When there is no user-facing change, leave `CHANGELOG.md` unchanged and state `No user-facing change` in the pull request description.
+- Read `docs/CHANGELOG_WORKFLOW.md` before pushing to GitHub or completing a pull request.
+- Any time you push changes to GitHub (directly to `main` or any branch, as well as in a pull request), every user-visible change must be added to `CHANGELOG.md` under `## Unreleased` before pushing.
+- Always keep item counts up to date in parentheses next to each category header (e.g. `### Security (4)`) and total changes next to the release header (e.g. `## Unreleased (9 changes)`).
+- When there is no user-facing change, leave `CHANGELOG.md` unchanged (and state `No user-facing change` in the pull request description when opening a PR).
 
 Android APK & iOS SideStore builds:
 
