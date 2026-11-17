@@ -36,12 +36,21 @@ describe("CompactDashboardToggle", () => {
     expect(isCardCollapsedOnPage("provider:openai", "a2")).toBe(false);
   });
 
-  it("on a phone, leaves collapsed cards collapsed", () => {
+  it("on a phone, puts every card back in the layout it picks", () => {
     setNarrowWindow(true);
     app = mount(<CompactDashboardToggle />);
     press();
     expect(getCompactDashboardMode()).toBe("on");
-    expect(isCardCollapsedOnPage("all", "a1")).toBe(true);
-    expect(isCardCollapsedOnPage("provider:openai", "a2")).toBe(true);
+    expect(isCardCollapsedOnPage("all", "a1")).toBe(false);
+    expect(isCardCollapsedOnPage("provider:openai", "a2")).toBe(false);
+  });
+
+  it("labels the button Compact View", () => {
+    setNarrowWindow(false);
+    app = mount(<CompactDashboardToggle />);
+    const button = document.querySelector<HTMLButtonElement>(".compact-dashboard-toggle")!;
+    expect(button.getAttribute("aria-label")).toBe("Compact view");
+    expect(button.textContent).toBe("Compact View");
+    expect(button.querySelector("svg")).not.toBeNull();
   });
 });

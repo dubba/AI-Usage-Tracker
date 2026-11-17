@@ -48,10 +48,14 @@ export function useSidebarNavigation() {
     navigate(page, closeSidebar);
   }, [navigate]);
 
-  /** Shows the accounts of `groupId`. Pass `closeSidebar` when the choice was made in the sidebar. */
+  /** Shows the accounts of `groupId`. Pass `closeSidebar` when the choice was made in the sidebar, and `keepSection` when filtering Usage in place on mobile. */
   const selectGroup = useCallback(
-    (groupId: string, options: { closeSidebar?: boolean } = {}) => {
+    (groupId: string, options: { closeSidebar?: boolean; keepSection?: boolean } = {}) => {
       setSelectedGroupId(groupId);
+      if (options.keepSection && currentSection.current === "activity") {
+        if (options.closeSidebar) setSidebarOpen(false);
+        return;
+      }
       showPage("accounts", Boolean(options.closeSidebar));
     },
     [showPage],

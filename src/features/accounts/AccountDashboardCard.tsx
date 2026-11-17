@@ -6,7 +6,6 @@ import {
   ArrowUpIcon,
   BellIcon,
   CheckIcon,
-  ChevronIcon,
   CloseIcon,
   EditIcon,
   RefreshIcon,
@@ -118,14 +117,12 @@ export function AccountDashboardCard({
   // A wide window gets the desktop header: a status chip (unless the account is live), the plan chip,
   // then Refresh, Alerts and a menu behind a chevron.
   const desktop = !useMediaQuery(MOBILE_OVERLAY_QUERY);
-  // On a wide window, collapsing a card switches it to the other layout: a full card shrinks to the
+  // Collapsing a card switches it to the other layout on every width: a full card shrinks to the
   // compact row (with its bars), and while Compact view is on, a compact card opens to full. The
-  // Compact button resets every card to its layout. On a phone, collapsing hides the details and
-  // leaves the lowest percentage.
-  const cardCompact = desktop ? compact !== isCollapsed : compact;
-  const hideDetails = !desktop && isCollapsed;
+  // Compact button resets every card to its layout.
+  const cardCompact = compact !== isCollapsed;
   // What the icon, its tooltip and the menu offer next: "Expand card" when the card is the smaller one.
-  const shownCollapsed = desktop ? cardCompact : isCollapsed;
+  const shownCollapsed = cardCompact;
 
   const toggleCollapse = () => {
     // Persist outside the state updater: updaters must be pure (StrictMode runs them twice).
@@ -145,8 +142,6 @@ export function AccountDashboardCard({
   const cardBusy = isRefreshing || isRenaming || isRemoving || isUsingReset;
   const limitResets = account.lastUsage?.limitResets ?? [];
   const windows = cardWindows(account.lastUsage?.windows ?? [], account.provider);
-  const remainingValues = windows.flatMap((window) => (window.remainingPercent == null ? [] : [window.remainingPercent]));
-  const lowestRemaining = remainingValues.length ? Math.min(...remainingValues) : null;
   const [displayMode] = useUsageDisplayMode();
   const modelsOnly = isGoogleKeyOnly(account);
   const waitingForMetrics = isGoogleSetupPending(account);
@@ -180,7 +175,7 @@ export function AccountDashboardCard({
   if (cardCompact && !rename.editing) {
     return (
       <article
-        className={`provider-account-card${desktop ? " desktop-card" : ""} is-compact ${needsAttention ? "needs-attention" : ""} ${hideDetails ? "is-collapsed" : ""} ${mobileMenuOpen ? "has-open-menu" : ""}`}
+        className={`provider-account-card${desktop ? " desktop-card" : ""} is-compact ${needsAttention ? "needs-attention" : ""} ${mobileMenuOpen ? "has-open-menu" : ""}`}
         data-account-id={account.id}
         data-reorder-provider={account.provider}
         data-reorder-enabled="true"
@@ -209,7 +204,6 @@ export function AccountDashboardCard({
             aria-expanded={!shownCollapsed}
           >
             <ProviderIcon provider={account.provider} />
-            <span className="collapse-chevron" aria-hidden="true"><ChevronIcon /></span>
           </button>
 
           <div className="compact-card-identity">
@@ -223,55 +217,49 @@ export function AccountDashboardCard({
             {plan ? <span className="account-plan-badge">{plan}</span> : null}
           </div>
 
-          {!hideDetails ? (
-            <div className={`compact-card-metrics${windows.length > 4 ? " is-two-col" : ""}`}>
-              {windows.length ? windows.map((window) => {
-                const remaining = window.remainingPercent;
-                const shown = remaining == null ? null : displayPercent(remaining, displayMode);
-                const suffix = usageDisplaySuffix(displayMode);
-                const width = shown == null ? 0 : Math.min(100, Math.max(0, shown));
-                const tone = usageTone(remaining);
-                const hatchTrack = shown == null;
-                const staleFill = usageStale && !hatchTrack;
-                const { span, name } = metricWindowParts(window, account.provider);
-                const label = compactWindowLabel(window, account.provider);
-                const ariaLabel = `${[span, name].filter(Boolean).join(" ") || windowLength(window) || window.label} ${displayMode === "used" ? "used" : "remaining"}`;
+          <div className={`compact-card-metrics${windows.length > 4 ? " is-two-col" : ""}`}>
+            {windows.length ? windows.map((window) => {
+              const remaining = window.remainingPercent;
+              const shown = remaining == null ? null : displayPercent(remaining, displayMode);
+              const suffix = usageDisplaySuffix(displayMode);
+              const width = shown == null ? 0 : Math.min(100, Math.max(0, shown));
+              const tone = usageTone(remaining);
+              const hatchTrack = shown == null;
+              const staleFill = usageStale && !hatchTrack;
+              const { span, name } = metricWindowParts(window, account.provider);
+              const label = compactWindowLabel(window, account.provider);
+              const ariaLabel = `${[span, name].filter(Boolean).join(" ") || windowLength(window) || window.label} ${displayMode === "used" ? "used" : "remaining"}`;
 
-                return (
-                  <div key={window.id} className={`compact-metric-item${staleFill ? " is-stale" : ""}`}>
-                    <div className="compact-metric-head">
-                      <span className="compact-metric-label" title={window.label}>{label}</span>
-                      <span className={`compact-metric-value tone-${tone}`}>
-                        {shown == null ? googleUnavailableLabel : `${Math.round(shown)}%`}
-                      </span>
-                    </div>
-                    <span
-                      className={`account-metric-track${hatchTrack ? " is-hatched" : ""}`}
-                      role="progressbar"
-                      aria-label={ariaLabel}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-valuenow={shown == null ? undefined : Math.round(shown)}
-                      aria-valuetext={shown == null ? googleUnavailableLabel : `${Math.round(shown)}% ${suffix}`}
-                    >
-                      <span className={`tone-${tone}`} style={{ width: `${width}%` }} />
+              return (
+                <div key={window.id} className={`compact-metric-item${staleFill ? " is-stale" : ""}`}>
+                  <div className="compact-metric-head">
+                    <span className="compact-metric-label" title={window.label}>{label}</span>
+                    <span className={`compact-metric-value tone-${tone}`}>
+                      {shown == null ? googleUnavailableLabel : `${Math.round(shown)}%`}
                     </span>
                   </div>
-                );
-              }) : (
-                <span className="compact-card-empty-status">
-                  {signedOut ? "Sign in required" : "Refresh to load limits"}
-                </span>
-              )}
-            </div>
-          ) : null}
+                  <span
+                    className={`account-metric-track${hatchTrack ? " is-hatched" : ""}`}
+                    role="progressbar"
+                    aria-label={ariaLabel}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={shown == null ? undefined : Math.round(shown)}
+                    aria-valuetext={shown == null ? googleUnavailableLabel : `${Math.round(shown)}% ${suffix}`}
+                  >
+                    <span className={`tone-${tone}`} style={{ width: `${width}%` }} />
+                  </span>
+                </div>
+              );
+            }) : (
+              <span className="compact-card-empty-status">
+                {signedOut ? "Sign in required" : "Refresh to load limits"}
+              </span>
+            )}
+          </div>
 
           <div className="compact-card-trailing">
-            {hideDetails && lowestRemaining != null ? (
-              <span className={`compact-card-collapsed-summary tone-${usageTone(lowestRemaining)}`}>
-                {Math.round(displayPercent(lowestRemaining, displayMode))}% {usageDisplaySuffix(displayMode)}
-              </span>
-            ) : signedOut ? (
+            {signedOut ? (
               <button
                 type="button"
                 className="button primary compact-button compact-card-action-btn"
@@ -351,7 +339,7 @@ export function AccountDashboardCard({
 
   return (
     <article
-      className={`provider-account-card${desktop ? " desktop-card" : ""}${cardCompact ? " is-compact" : ""} ${needsAttention ? "needs-attention" : ""} ${hideDetails ? "is-collapsed" : ""} ${mobileMenuOpen ? "has-open-menu" : ""}`}
+      className={`provider-account-card${desktop ? " desktop-card" : ""}${cardCompact ? " is-compact" : ""} ${needsAttention ? "needs-attention" : ""} ${mobileMenuOpen ? "has-open-menu" : ""}`}
       data-account-id={account.id}
       data-reorder-provider={account.provider}
       data-reorder-enabled="true"
@@ -380,7 +368,6 @@ export function AccountDashboardCard({
           aria-expanded={!shownCollapsed}
         >
           <ProviderIcon provider={account.provider} />
-          <span className="collapse-chevron" aria-hidden="true"><ChevronIcon /></span>
         </button>
         <div className="account-card-identity">
           <div className="account-card-name-row">
@@ -600,52 +587,48 @@ export function AccountDashboardCard({
         </p>
       ) : null}
 
-      {!hideDetails ? (
-        <>
-          {signedOut ? (
-            <div className="account-card-error is-signed-out">
-              <span>{accountErrorMessage ?? "This account is signed out."}</span>
-              <button type="button" className="button primary compact-button" disabled={cardBusy} onClick={onReconnect}>
-                {account.provider === "google_ai_studio" ? "Reconnect Cloud Usage" : "Sign in again"}
-              </button>
-            </div>
-          ) : account.lastError ? (
-            <div className="account-card-error">
-              <span>{accountErrorMessage ?? account.lastError}</span>
-              <button
-                type="button"
-                className="button ghost compact-button"
-                aria-label={`Retry refreshing ${account.label}`}
-                disabled={cardBusy || isGlobalRefresh}
-                onClick={onRefresh}
-              >Retry</button>
-            </div>
-          ) : null}
+      {signedOut ? (
+        <div className="account-card-error is-signed-out">
+          <span>{accountErrorMessage ?? "This account is signed out."}</span>
+          <button type="button" className="button primary compact-button" disabled={cardBusy} onClick={onReconnect}>
+            {account.provider === "google_ai_studio" ? "Reconnect Cloud Usage" : "Sign in again"}
+          </button>
+        </div>
+      ) : account.lastError ? (
+        <div className="account-card-error">
+          <span>{accountErrorMessage ?? account.lastError}</span>
+          <button
+            type="button"
+            className="button ghost compact-button"
+            aria-label={`Retry refreshing ${account.label}`}
+            disabled={cardBusy || isGlobalRefresh}
+            onClick={onRefresh}
+          >Retry</button>
+        </div>
+      ) : null}
 
-          <div className={`account-card-metrics${windows.length > 1 ? " two-column-metrics" : ""}${windows.length > 2 ? " multi-row-metrics" : ""}`}>
-            {windows.length ? windows.map((window, index) => (
-              <AccountUsageMetric
-                key={window.id}
-                window={window}
-                provider={account.provider}
-                unavailableLabel={googleUnavailableLabel}
-                creditLabel={index === 0 ? creditLabel : null}
-                stale={usageStale}
-              />
-            )) : (
-              <AccountUsageMetric unavailable signedOut={signedOut} creditLabel={creditLabel} />
-            )}
-          </div>
-          {limitResets.length > 0 ? (
-            <LimitResetsSection
-              grants={limitResets}
-              windows={account.lastUsage?.windows ?? []}
-              accountLabel={account.label}
-              busy={cardBusy}
-              onUse={onUseLimitReset}
-            />
-          ) : null}
-        </>
+      <div className={`account-card-metrics${windows.length > 1 ? " two-column-metrics" : ""}${windows.length > 2 ? " multi-row-metrics" : ""}`}>
+        {windows.length ? windows.map((window, index) => (
+          <AccountUsageMetric
+            key={window.id}
+            window={window}
+            provider={account.provider}
+            unavailableLabel={googleUnavailableLabel}
+            creditLabel={index === 0 ? creditLabel : null}
+            stale={usageStale}
+          />
+        )) : (
+          <AccountUsageMetric unavailable signedOut={signedOut} creditLabel={creditLabel} />
+        )}
+      </div>
+      {limitResets.length > 0 ? (
+        <LimitResetsSection
+          grants={limitResets}
+          windows={account.lastUsage?.windows ?? []}
+          accountLabel={account.label}
+          busy={cardBusy}
+          onUse={onUseLimitReset}
+        />
       ) : null}
     </article>
   );

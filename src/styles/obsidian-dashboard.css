@@ -3322,6 +3322,7 @@ select.text-input option,
     display: flex;
     align-items: center;
     gap: 8px;
+    min-height: 40px;
     margin-bottom: 0 !important;
     width: 100%;
   }
@@ -3789,11 +3790,15 @@ select.text-input option,
     background: transparent !important;
   }
 
-  /* The spelled-out switch matches 7D / 30D, whose selected label is --purple-on-fill, not pure white. */
+  /* The inset switches match 7D / 30D, whose selected label is --purple-on-fill, not pure white. */
   .provider-window-toggle.is-words button.active,
   .provider-window-toggle.is-words button.active:hover,
   .provider-window-toggle.is-words button.active:focus,
-  .provider-window-toggle.is-words button.active:focus-visible {
+  .provider-window-toggle.is-words button.active:focus-visible,
+  .provider-window-toggle.is-mobile-header button.active,
+  .provider-window-toggle.is-mobile-header button.active:hover,
+  .provider-window-toggle.is-mobile-header button.active:focus,
+  .provider-window-toggle.is-mobile-header button.active:focus-visible {
     color: var(--purple-on-fill) !important;
   }
 }

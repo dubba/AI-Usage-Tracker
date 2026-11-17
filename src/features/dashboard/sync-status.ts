@@ -10,14 +10,14 @@ export type SyncTone = "none" | "fresh" | "stale" | "sign-in";
 
 export type SyncStatus = {
   tone: SyncTone;
-  /** "All accounts updated: 4m ago". Problem accounts only change the dot's colour: the sidebar rows,
+  /** "All accounts last updated: 4m ago". Problem accounts only change the dot's colour: the sidebar rows,
    * the Action needed card and each account's chip already say which ones. */
   label: string;
 };
 
 const MIN_STALE_MINUTES = 10;
 
-const SYNCED_PREFIX = "All accounts updated:";
+const SYNCED_PREFIX = "All accounts last updated:";
 
 /**
  * When the data on screen was last refreshed, and whether any of it has been
@@ -49,7 +49,7 @@ export function computeSyncStatus(accounts: Account[], now: number, refreshMinut
 }
 
 /**
- * Splits "All accounts updated: 4m ago" into the title and the elapsed time, which the sidebar shows
+ * Splits "All accounts last updated: 4m ago" into the title and the elapsed time, which the sidebar shows
  * on its own line under the title. Other labels ("Not synced yet") have no elapsed part.
  */
 export function splitSyncLabel(label: string): { title: string; elapsed: string | null } {

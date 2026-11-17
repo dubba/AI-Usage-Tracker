@@ -143,12 +143,20 @@ describe("useSidebarNavigation", () => {
     expect(nav.selectedGroupId).toBe("bucket:b1");
   });
 
-  it("choosing a group from Usage shows the accounts", () => {
+  it("choosing a group from Usage shows the accounts by default, or stays on Usage when keepSection is set", () => {
     mounted = mount(<Probe />);
     act(() => nav.showActivity());
     act(() => nav.selectGroup("provider:openai", { closeSidebar: true }));
     expect(nav.section).toBe("accounts");
     expect(nav.selectedGroupId).toBe("provider:openai");
+
+    act(() => nav.showActivity());
+    act(() => nav.toggleSidebar());
+    expect(nav.sidebarOpen).toBe(true);
+    act(() => nav.selectGroup("bucket:b1", { closeSidebar: true, keepSection: true }));
+    expect(nav.section).toBe("activity");
+    expect(nav.selectedGroupId).toBe("bucket:b1");
+    expect(nav.sidebarOpen).toBe(false);
   });
 
   it("the cycle shortcut steps Dashboard, Usage, Settings and round again", () => {

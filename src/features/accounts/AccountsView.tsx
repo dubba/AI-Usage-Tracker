@@ -152,10 +152,23 @@ export function AccountsView(props: {
     disabled: !props.onRefreshAll,
   });
 
-  const titleHeading = (
+  const isFiltered = props.selectedGroup.type !== "all";
+  const mobileTitleFilter = phone && props.onToggleSidebar ? (
+    <h1 className="eyebrow mobile-title-filter-heading" tabIndex={-1} style={{ outline: "none" }}>
+      <MobileSidebarToggle
+        onToggle={props.onToggleSidebar}
+        open={props.sidebarOpen}
+        filterLabel={props.selectedGroup.type === "all" ? "All accounts" : props.selectedGroup.title}
+        isFiltered={isFiltered}
+      />
+    </h1>
+  ) : null;
+  const titleHeading = mobileTitleFilter ?? (
     <h1 className="eyebrow" tabIndex={-1} style={{ outline: "none" }}>
       {props.selectedGroup.type === "all"
-        ? props.allAccounts.length === 0 ? "Dashboard" : "All accounts"
+        ? phone || props.allAccounts.length === 0
+          ? "Dashboard"
+          : "All accounts"
         : `${props.selectedGroup.title} Accounts`}
     </h1>
   );
@@ -184,7 +197,6 @@ export function AccountsView(props: {
             ref={titleRowRef}
             data-pill-wrapped={pillWrapped ? "" : undefined}
           >
-            {props.onToggleSidebar ? <MobileSidebarToggle onToggle={props.onToggleSidebar} open={props.sidebarOpen} /> : null}
             {phone && props.selectedGroup.type === "bucket" ? (
               <div className="dashboard-bucket-title-stack">
                 <div className="dashboard-bucket-title-main">
@@ -201,11 +213,14 @@ export function AccountsView(props: {
                 {editBucketBtn}
               </>
             )}
-            {/* On a phone the title row ends with icon-only New group and Add account buttons, the same
-                actions as the side menu's labeled ones. A wide window has them in the top bar. The
-                % Left / % Used switch is at the bottom of the side menu (Sidebar.tsx). */}
+            {/* On a phone the title row ends with L / U, New group, and Add account buttons.
+                A wide window has them in the top bar and header top-right instead. */}
             {phone ? (
               <div className="dashboard-header-actions">
+                <UsageDisplayToggle
+                  labels="letters"
+                  className="provider-window-toggle usage-display-toggle is-mobile-header"
+                />
                 {props.onAddGroup ? (
                   <button
                     type="button"

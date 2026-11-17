@@ -49,7 +49,7 @@ describe("TopBar", () => {
     expect(container.querySelector('[aria-label="Usage display"]')).toBeNull();
 
     const actionButtons = [...container.querySelectorAll<HTMLButtonElement>(".top-bar-actions > button")];
-    expect(actionButtons.map((btn) => btn.textContent?.trim())).toEqual(["Compact", "Group", "Account"]);
+    expect(actionButtons.map((btn) => btn.textContent?.trim())).toEqual(["Compact View", "Group", "Account"]);
 
     const compactBtn = container.querySelector<HTMLButtonElement>(".top-bar-compact")!;
     expect(compactBtn.getAttribute("aria-label")).toBe("Compact view");

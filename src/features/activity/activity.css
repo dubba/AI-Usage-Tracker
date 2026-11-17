@@ -54,11 +54,15 @@
 
   @media (max-width: 860px) {
     .activity-period {
-      margin-block: -11px;
+      margin-block: 0;
     }
 
-    /* 32px options in the 3px track and 1px border: a 40px switch on a phone, as tall as the menu button
-       and the % Left / % Used switch. */
+    .activity-period-label {
+      display: none;
+    }
+
+    /* 32px options in the 3px track and 1px border: a 40px switch on a phone, as tall as the filter
+       pill and the % Left / % Used switch. */
     .activity-period .activity-period-switch button {
       height: 32px;
     }

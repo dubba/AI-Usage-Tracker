@@ -2,8 +2,6 @@ import { useRef, type RefObject } from "react";
 import { SyncStatusLine } from "../dashboard/SyncStatusLine";
 import { SidebarGroupRow } from "./SidebarGroupRow";
 import { SidebarResizeHandle } from "./SidebarResizeHandle";
-import { UsageDisplayToggle } from "../dashboard/UsageDisplayToggle";
-import { CompactDashboardToggle } from "../dashboard/CompactDashboardToggle";
 import { ALL_ACCOUNTS_GROUP_ID, isBucketGroup, type SidebarGroup } from "./sidebar-groups";
 import { SIDEBAR_ID } from "../../shared/lib/constants";
 import type { BusyKeys } from "../../shared/lib/busy";
@@ -93,6 +91,7 @@ export function Sidebar({
   // Provider rows and custom groups share one saved order, but the sidebar lists them in two sections.
   const accountGroups = groups.filter((group) => !isBucketGroup(group));
   const bucketGroups = groups.filter(isBucketGroup);
+  const showsSelectedGroup = section === "accounts" || (!topBar && section === "activity");
   const renderRow = (group: SidebarGroup, index: number, list: SidebarGroup[]) => (
     <SidebarGroupRow
       key={group.id}
@@ -101,7 +100,7 @@ export function Sidebar({
         const target = index + delta;
         if (target >= 0 && target < list.length) onMoveGroup(group, delta);
       }}
-      selected={section === "accounts" && selectedGroupId === group.id}
+      selected={showsSelectedGroup && selectedGroupId === group.id}
       onSelect={() => onSelectGroup(group.id)}
     />
   );
@@ -109,7 +108,7 @@ export function Sidebar({
   const allAccountsRow = (
     <SidebarGroupRow
       group={allAccountsGroup}
-      selected={section === "accounts" && selectedGroupId === ALL_ACCOUNTS_GROUP_ID}
+      selected={showsSelectedGroup && selectedGroupId === ALL_ACCOUNTS_GROUP_ID}
       onSelect={() => onSelectGroup(ALL_ACCOUNTS_GROUP_ID)}
     />
   );
@@ -209,16 +208,6 @@ export function Sidebar({
           ) : (
             bucketGroups.map((group, index) => renderRow(group, index, bucketGroups))
           )}
-        </div>
-      )}
-
-      {/* Phone overlay: the % Left / % Used switch, full width and pinned above the sync line, outside
-          the scrolling list. It changes these meters and every card, on every page. A wide window
-          keeps it at the Dashboard header's top right (AccountsView). */}
-      {topBar ? null : (
-        <div className="sidebar-display-switch">
-          <UsageDisplayToggle labels="words" className="provider-window-toggle usage-display-toggle is-words" />
-          <CompactDashboardToggle className="compact-dashboard-toggle is-mobile" />
         </div>
       )}
 

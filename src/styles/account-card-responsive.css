@@ -968,41 +968,8 @@
   color: #f5f1ef;
 }
 
-/* Collapse affordance: a chevron badge on the provider icon, and the lowest remaining % shown while collapsed. */
 .account-card-provider-icon {
   position: relative;
-}
-
-.collapse-chevron {
-  position: absolute;
-  right: -5px;
-  bottom: -5px;
-  display: grid;
-  place-items: center;
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--obsidian-surface-low);
-  border-radius: 50%;
-  background: var(--scrollbar-thumb);
-  color: var(--white);
-  transform: rotate(90deg);
-  transition: transform 160ms ease;
-}
-
-.account-card-provider-icon.is-collapsed .collapse-chevron {
-  transform: rotate(0deg);
-}
-
-.account-card-provider-icon .collapse-chevron svg {
-  width: 10px;
-  height: 10px;
-  stroke-width: 3;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .collapse-chevron {
-    transition: none;
-  }
 }
 
 /* A usage window of an account card (AccountUsageMetric.tsx): its span and name beside the percent,
@@ -1281,10 +1248,10 @@
   }
 
   /* The pencil beside the name takes the look of the card's menu button (.more-action below) at
-     rest: a soft purple tint and edge. On hover it fills solid purple with a white pen, like
-     Refresh and Alerts fill in their colors, and darkens when pressed. The filled purple pencil
-     (`:root .account-name-edit` in ui-refinements.css) is !important, so the overrides here are
-     too. */
+     rest: a soft purple tint and edge. On hover it fills with plain purple and a white pen (like
+     .limit-reset-use — not the brighter --purple-fill-hover used for buttons that are already
+     solid purple). The filled purple pencil (`:root .account-name-edit` in ui-refinements.css) is
+     !important, so the overrides here are too. */
   .provider-account-card.desktop-card .account-name-edit {
     border: 1px solid rgb(var(--purple-accent-rgb) / 0.35) !important;
     border-radius: 6px;
@@ -1327,13 +1294,13 @@
   .provider-account-card.desktop-card .account-name-edit:hover:not(:disabled),
   .provider-account-card.desktop-card .account-card-name-hit:hover .account-name-edit:not(:disabled),
   .provider-account-card.desktop-card .account-name-edit:focus-visible {
-    border-color: var(--purple-fill-line) !important;
-    background: var(--purple-fill-hover) !important;
+    border-color: var(--purple-fill) !important;
+    background: var(--purple-fill) !important;
     color: var(--white) !important;
   }
 
   .provider-account-card.desktop-card .account-name-edit:active:not(:disabled) {
-    border-color: var(--purple-fill-hover) !important;
+    border-color: var(--purple-fill) !important;
     background: var(--purple-fill) !important;
     color: var(--white) !important;
   }
@@ -1596,9 +1563,9 @@
 }
 
 /* The group page's edit pen takes the look of the account cards' pen, at every width (see
-   `.account-name-edit` in the desktop-card rules): a soft purple tint and edge at rest, solid
-   purple with a white pen on hover, darker when pressed. The filled purple pen
-   (`:root .edit-bucket-title-btn` in ui-refinements.css) is !important, so these are too. */
+   `.account-name-edit` in the desktop-card rules): a soft purple tint and edge at rest, plain
+   solid purple with a white pen on hover (not the brighter --purple-fill-hover). The filled purple
+   pen (`:root .edit-bucket-title-btn` in ui-refinements.css) is !important, so these are too. */
 :root .dashboard-header .edit-bucket-title-btn {
   border: 1px solid rgb(var(--purple-accent-rgb) / 0.35) !important;
   border-radius: 6px;
@@ -1616,13 +1583,13 @@
 
 :root .dashboard-header .edit-bucket-title-btn:hover:not(:disabled),
 :root .dashboard-header .edit-bucket-title-btn:focus-visible {
-  border-color: var(--purple-fill-line) !important;
-  background: var(--purple-fill-hover) !important;
+  border-color: var(--purple-fill) !important;
+  background: var(--purple-fill) !important;
   color: var(--white) !important;
 }
 
 :root .dashboard-header .edit-bucket-title-btn:active:not(:disabled) {
-  border-color: var(--purple-fill-hover) !important;
+  border-color: var(--purple-fill) !important;
   background: var(--purple-fill) !important;
   color: var(--white) !important;
 }
@@ -1697,15 +1664,18 @@
     color: inherit !important;
   }
 
-  /* Pressed: solid purple with a white pen, as on the desktop card. */
+  /* Hover, focus, and pressed: plain solid purple with a white pen, as on the desktop card. */
+  :root .provider-account-card .account-name-edit:hover:not(:disabled),
+  :root .provider-account-card .account-name-edit:focus-visible,
   :root .provider-account-card .account-name-edit:active:not(:disabled) {
-    border-color: var(--purple-fill-hover) !important;
+    border-color: var(--purple-fill) !important;
     background: var(--purple-fill) !important;
     color: var(--white) !important;
   }
 
-  /* The plan chip: the desktop pill. */
-  .provider-account-card .account-card-header-meta .account-plan-badge {
+  /* The plan chip: the desktop pill (same in expanded and compact cards). */
+  .provider-account-card .account-card-header-meta .account-plan-badge,
+  .provider-account-card .compact-card-identity .account-plan-badge {
     display: inline-flex;
     align-items: center;
     height: 26px;
@@ -2028,12 +1998,14 @@
   @media (max-width: 860px) {
     .mobile-sidebar-toggle-btn,
     .sidebar-section-button,
+    .provider-window-toggle.is-mobile-header button,
     .provider-window-toggle.is-words button {
       position: relative;
     }
 
     .mobile-sidebar-toggle-btn::before,
     .sidebar-section-button::before,
+    .provider-window-toggle.is-mobile-header button::before,
     .provider-window-toggle.is-words button::before {
       content: "";
       position: absolute;
@@ -2044,6 +2016,7 @@
       transform: translate(-50%, -50%);
     }
 
+    .provider-window-toggle.is-mobile-header button::before,
     .provider-window-toggle.is-words button::before {
       width: 100%;
     }

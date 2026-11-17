@@ -18,15 +18,15 @@ describe("UsageDisplayToggle", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders L and U toggle buttons with correct initial active state", () => {
+  it("renders % U and % L toggle buttons with correct initial active state", () => {
     app = mount(<UsageDisplayToggle />);
 
     const buttons = document.querySelectorAll<HTMLButtonElement>(".provider-window-toggle button");
     expect(buttons.length).toBe(2);
 
     const [usedBtn, leftBtn] = Array.from(buttons);
-    expect(usedBtn.textContent?.trim()).toBe("U");
-    expect(leftBtn.textContent?.trim()).toBe("L");
+    expect(usedBtn.textContent?.trim()).toBe("% U");
+    expect(leftBtn.textContent?.trim()).toBe("% L");
 
     expect(leftBtn.classList.contains("active")).toBe(true);
     expect(leftBtn.getAttribute("aria-pressed")).toBe("true");
@@ -34,7 +34,7 @@ describe("UsageDisplayToggle", () => {
     expect(usedBtn.getAttribute("aria-pressed")).toBe("false");
   });
 
-  it("switches to U when clicked and updates active class", () => {
+  it("switches to % U when clicked and updates active class", () => {
     app = mount(<UsageDisplayToggle />);
 
     const buttons = document.querySelectorAll<HTMLButtonElement>(".provider-window-toggle button");
@@ -59,8 +59,8 @@ describe("UsageDisplayToggle", () => {
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
       if (this.getAttribute("role") === "group") return new DOMRect(0, 0, 100, 30);
       const label = this.textContent?.trim();
-      if (label === "U") return new DOMRect(2, 3, 40, 26);
-      if (label === "L") return new DOMRect(46, 3, 40, 26);
+      if (label === "% U") return new DOMRect(2, 3, 40, 26);
+      if (label === "% L") return new DOMRect(46, 3, 40, 26);
       return new DOMRect();
     });
     app = mount(<UsageDisplayToggle />);
@@ -93,8 +93,8 @@ describe("UsageDisplayToggle", () => {
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
       if (this.getAttribute("role") === "group") return new DOMRect(10, 20, 100, 36);
       const label = this.textContent?.trim();
-      if (label === "U") return new DOMRect(14, 24, 40, 28);
-      if (label === "L") return new DOMRect(56, 24, 40, 28);
+      if (label === "% U") return new DOMRect(14, 24, 40, 28);
+      if (label === "% L") return new DOMRect(56, 24, 40, 28);
       return new DOMRect();
     });
     app = mount(<UsageDisplayToggle />);

@@ -33,7 +33,10 @@ export function useWrapPillWhenCramped(
     const actions = row.querySelector<HTMLElement>(".dashboard-header-actions");
     if (!title || !stack || !main || !pill || !actions) return;
 
-    const isCut = () => title.scrollWidth > title.clientWidth + 0.5;
+    const labelEl = title.querySelector<HTMLElement>(".mobile-sidebar-toggle-label");
+    const isCut = () =>
+      title.scrollWidth > title.clientWidth + 0.5 ||
+      (labelEl ? labelEl.scrollWidth > labelEl.clientWidth + 0.5 : false);
 
     const freeSpace = () => {
       const rowGap = parseFloat(getComputedStyle(row).columnGap) || 0;
@@ -43,6 +46,7 @@ export function useWrapPillWhenCramped(
     };
 
     const ellipsisEnd = () => {
+      if (labelEl) return null;
       const text = title.firstChild;
       if (!text || text.nodeType !== Node.TEXT_NODE) return null;
       const probe = document.createElement("span");

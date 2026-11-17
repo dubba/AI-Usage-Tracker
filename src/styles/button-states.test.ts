@@ -7,6 +7,7 @@ const STYLES = __dirname;
 const OBSIDIAN_CSS = readFileSync(join(STYLES, "obsidian-dashboard.css"), "utf8");
 const MODAL_CLOSE_CSS = readFileSync(join(STYLES, "modal-close.css"), "utf8");
 const UI_REFINEMENTS_CSS = readFileSync(join(STYLES, "ui-refinements.css"), "utf8");
+const CARD_RESPONSIVE_CSS = readFileSync(join(STYLES, "account-card-responsive.css"), "utf8");
 const TOP_BAR_CSS = readFileSync(join(STYLES, "../app/top-bar.css"), "utf8");
 const SIDEBAR_LIST_CSS = readFileSync(join(STYLES, "sidebar-list.css"), "utf8");
 const ACTIVITY_CSS = readFileSync(join(STYLES, "../features/activity/activity.css"), "utf8");
@@ -168,6 +169,21 @@ describe("Button hover and active state invariants", () => {
     );
     expect(UI_REFINEMENTS_CSS).toMatch(
       /\.account-name-confirm:hover:not\(:disabled\),\s*\.account-name-confirm:focus-visible\s*\{[^}]*color:\s*var\(--white\)\s*!important;[^}]*border-color:\s*var\(--success-line-hover\)\s*!important;[^}]*background:\s*var\(--success-fill-hover\)\s*!important;/,
+    );
+  });
+
+  it("fills rename pen buttons on hover with plain purple like Use… rather than the brighter already-purple hover shade", () => {
+    expect(CARD_RESPONSIVE_CSS).toMatch(
+      /\.provider-account-card\s+\.limit-reset-use\.button:hover:not\(:disabled\)\s*\{[^}]*background:\s*var\(--purple-fill\);\s*border-color:\s*var\(--purple-fill\);\s*color:\s*var\(--white\);/,
+    );
+    expect(CARD_RESPONSIVE_CSS).toMatch(
+      /\.provider-account-card\.desktop-card\s+\.account-name-edit:hover:not\(:disabled\),\s*\.provider-account-card\.desktop-card\s+\.account-card-name-hit:hover\s+\.account-name-edit:not\(:disabled\),\s*\.provider-account-card\.desktop-card\s+\.account-name-edit:focus-visible\s*\{[^}]*border-color:\s*var\(--purple-fill\)\s*!important;\s*background:\s*var\(--purple-fill\)\s*!important;\s*color:\s*var\(--white\)\s*!important;/,
+    );
+    expect(CARD_RESPONSIVE_CSS).toMatch(
+      /:root\s+\.dashboard-header\s+\.edit-bucket-title-btn:hover:not\(:disabled\),\s*:root\s+\.dashboard-header\s+\.edit-bucket-title-btn:focus-visible\s*\{[^}]*border-color:\s*var\(--purple-fill\)\s*!important;\s*background:\s*var\(--purple-fill\)\s*!important;\s*color:\s*var\(--white\)\s*!important;/,
+    );
+    expect(CARD_RESPONSIVE_CSS).toMatch(
+      /:root\s+\.provider-account-card\s+\.account-name-edit:hover:not\(:disabled\),\s*:root\s+\.provider-account-card\s+\.account-name-edit:focus-visible,\s*:root\s+\.provider-account-card\s+\.account-name-edit:active:not\(:disabled\)\s*\{[^}]*border-color:\s*var\(--purple-fill\)\s*!important;\s*background:\s*var\(--purple-fill\)\s*!important;\s*color:\s*var\(--white\)\s*!important;/,
     );
   });
 });

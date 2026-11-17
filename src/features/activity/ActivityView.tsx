@@ -1,7 +1,9 @@
 import { useId, useMemo, useRef } from "react";
+import { useMediaQuery } from "../../shared/hooks/useMediaQuery";
 import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
 import { BarChartIcon, CloseIcon } from "../../shared/ui/icons";
 import { useSegmentIndicator } from "../../shared/ui/segment-indicator";
+import { MOBILE_OVERLAY_QUERY } from "../sidebar/sidebar-width";
 import { PullToRefreshIndicator } from "../dashboard/PullToRefreshIndicator";
 import { usePullToRefresh } from "../dashboard/usePullToRefresh";
 import { EmptyAccountPanel } from "../accounts/EmptyAccountPanel";
@@ -83,6 +85,10 @@ function SkeletonCards() {
  */
 export function ActivityView({
   accounts,
+  filterLabel,
+  isFiltered = false,
+  groupId = "all",
+  hasAnyAccounts = false,
   onToggleSidebar,
   sidebarOpen,
   onAddAccount,
@@ -90,8 +96,12 @@ export function ActivityView({
   onReconnect,
   onRefresh,
 }: {
-  /** The accounts in the order the All accounts page shows them. */
+  /** The accounts in the order the active view shows them. */
   accounts: readonly Account[];
+  filterLabel?: string;
+  isFiltered?: boolean;
+  groupId?: string;
+  hasAnyAccounts?: boolean;
   onToggleSidebar?: () => void;
   sidebarOpen?: boolean;
   /** Opens add-account for a provider. With no provider, the chooser starts on its default. */
@@ -100,6 +110,7 @@ export function ActivityView({
   onReconnect?: (account: Account) => void;
   onRefresh?: () => void | Promise<void>;
 }) {
+  const phone = useMediaQuery(MOBILE_OVERLAY_QUERY);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -188,6 +199,15 @@ export function ActivityView({
 
   const renderBody = () => {
     if (accounts.length === 0) {
+      if (hasAnyAccounts && isFiltered) {
+        return (
+          <section className="activity-message" aria-label="No accounts in filter">
+            <BarChartIcon />
+            <h2>No accounts in {filterLabel}</h2>
+            <p>Add accounts to this group or choose another filter.</p>
+          </section>
+        );
+      }
       return (
         <section className="activity-message" aria-label="No accounts">
           <BarChartIcon />
@@ -257,7 +277,7 @@ export function ActivityView({
             </li>
           </ul>
         ) : null}
-        <div className="activity-grid" data-group-id="all">
+        <div className="activity-grid" data-group-id={groupId}>
           {hasReadings
             ? trackerCards.map((entry) =>
                 entry.kind === "antigravity" ? (
@@ -298,14 +318,26 @@ export function ActivityView({
     );
   };
 
+  const titleHeading = phone && onToggleSidebar ? (
+    <h1 className="eyebrow mobile-title-filter-heading" tabIndex={-1} style={{ outline: "none" }}>
+      <MobileSidebarToggle
+        onToggle={onToggleSidebar}
+        open={sidebarOpen}
+        filterLabel={filterLabel ?? "All accounts"}
+        isFiltered={isFiltered}
+      />
+    </h1>
+  ) : (
+    <h1 className="eyebrow" tabIndex={-1} style={{ outline: "none" }}>Usage</h1>
+  );
+
   return (
     <div ref={containerRef} className="content-scroll dashboard-content activity-content">
       <PullToRefreshIndicator data={pullData} />
       <header className="dashboard-header">
         <div className="activity-header-main">
           <div className="dashboard-title-row activity-title-row">
-            {onToggleSidebar ? <MobileSidebarToggle onToggle={onToggleSidebar} open={sidebarOpen} /> : null}
-            <h1 className="eyebrow" tabIndex={-1} style={{ outline: "none" }}>Usage</h1>
+            {titleHeading}
             <PeriodSwitch period={period} onChange={setPeriod} />
           </div>
           <p className="dashboard-description">Track daily usage as a percentage of each account's weekly limit.</p>

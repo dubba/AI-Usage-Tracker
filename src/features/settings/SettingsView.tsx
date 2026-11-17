@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import { DevicesIcon } from "../../shared/ui/icons";
-import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
 import type { BridgeStatus } from "../../types";
 import { SETTINGS_DESCRIPTION } from "../../shared/lib/constants";
 import { isMobileDevice } from "../../shared/lib/platform";
@@ -14,12 +13,10 @@ import "./settings-layout.css";
 
 /**
  * The Settings page. The app settings and the update state it shows come from the contexts in
- * `settings-context.tsx`; the props are what only the app shell knows (the sidebar, the pairing
- * dialog, links, and the local API state).
+ * `settings-context.tsx`; the props are what only the app shell knows (the pairing dialog, links,
+ * and the local API state).
  */
 export function SettingsView({
-  onToggleSidebar,
-  sidebarOpen,
   onOpenPairing,
   onOpenLink,
   bridge,
@@ -32,8 +29,6 @@ export function SettingsView({
   jumpTarget,
   onActiveSectionChange,
 }: {
-  onToggleSidebar?: () => void;
-  sidebarOpen?: boolean;
   onOpenPairing?: () => void;
   onOpenLink: (url: string) => void;
   bridge: BridgeStatus | null;
@@ -138,7 +133,6 @@ export function SettingsView({
       <header className="dashboard-header">
         <div>
           <div className="dashboard-title-row">
-            {onToggleSidebar ? <MobileSidebarToggle onToggle={onToggleSidebar} open={sidebarOpen} /> : null}
             <h1 className="eyebrow" tabIndex={-1} style={{ outline: "none" }}>App Settings</h1>
           </div>
           {/* A full sentence, like the other pages' subtitles; the top bar tooltip uses the same words without the period. */}

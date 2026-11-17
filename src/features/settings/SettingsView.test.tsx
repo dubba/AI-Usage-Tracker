@@ -325,15 +325,11 @@ describe("Devices and the local API", () => {
     expect(button("View integration window (opens in a new window)").disabled).toBe(true);
   });
 
-  it("shows the menu button only when the shell provides one", () => {
+  it("hides the sidebar filter button on Settings because Settings is global", () => {
+    setNarrowWindow(true);
     app = mount(view());
     expect(document.querySelector(".mobile-sidebar-toggle-btn")).toBeNull();
-    const onToggleSidebar = vi.fn();
-    app.rerender(view({ props: { onToggleSidebar, sidebarOpen: true } }));
-    const menu = document.querySelector<HTMLButtonElement>(".mobile-sidebar-toggle-btn")!;
-    expect(menu.getAttribute("aria-expanded")).toBe("true");
-    click(menu);
-    expect(onToggleSidebar).toHaveBeenCalledTimes(1);
+    expect(document.querySelector("h1.eyebrow")?.textContent).toBe("App Settings");
   });
 });
 

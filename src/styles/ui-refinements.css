@@ -1419,7 +1419,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   }
 }
 
-/* Two lines beside Refresh all: a dot and "All accounts updated:" on the first, the elapsed time under
+/* Two lines beside Refresh all: a dot and "All accounts last updated:" on the first, the elapsed time under
    the words on the second, both starting at the same left edge, and the block centered on the button.
    Out-of-date accounts only turn the dot amber, like the dots on their sidebar rows.
    The letters sit low in the line, so the block is shifted up 1px. With the row's 12px top padding
@@ -1824,8 +1824,8 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 
 .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn) {
   /* The same grey outline and dark fill as the Settings page's View button and the sidebar's buttons. */
-  border: 1px solid var(--obsidian-border-strong) !important;
-  background: var(--obsidian-surface-low, var(--c-1c1b1b)) !important;
+  border: 1px solid var(--mobile-filter-border, var(--obsidian-border-strong)) !important;
+  background: var(--mobile-filter-bg, var(--obsidian-surface-low, var(--c-1c1b1b))) !important;
   color: var(--c-ffffff) !important;
   box-shadow: none !important;
   line-height: 0;
@@ -1925,7 +1925,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 :root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):hover:not(:disabled),
 :root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):focus-visible,
 :root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):active:not(:disabled) {
-  background: var(--white) !important;
+  background: var(--mobile-filter-bg, var(--white)) !important;
   color: var(--black) !important;
 }
 

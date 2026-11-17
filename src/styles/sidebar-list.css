@@ -152,40 +152,9 @@
     padding-right: 13px;
   }
 
-  /* Phone overlay (Sidebar.tsx): the % Left / % Used switch, full width with two equal options, pinned
-     between the scrolling list and the sync line. One divider above it starts the footer; the sync
-     line drops its own (ui-refinements.css) so the switch and sync line read as one block. */
-  .sidebar-display-switch {
-    flex: 0 0 auto;
-    margin-top: 4px;
-    /* The sync line is pinned to the drawer's bottom (ui-refinements.css) and its contents would start
-       about 21px below the switch; pulling the switch 9px into the drawer's reserved bottom space
-       leaves 12px, the same as between the divider and the switch. */
-    margin-bottom: -9px;
-    padding-top: 12px;
-    border-top: 1px solid var(--obsidian-border);
-  }
-
-  /* No second divider, and only 2px of top padding so the sync line's box stays clear of the
-     switch and never takes its taps. */
-  .obsidian-shell .sidebar-display-switch + .sidebar-sync-status {
-    border-top: 0;
-    padding-top: 2px;
-  }
-
-  .sidebar-display-switch .provider-window-toggle.is-words {
-    display: flex;
-    width: 100%;
-    margin-left: 0;
-  }
-
-  .sidebar-display-switch .provider-window-toggle.is-words button {
-    flex: 1 1 0;
-  }
-
-  /* Phone Dashboard header (AccountsView.tsx): icon-only New group and Add account at the right end of
-     the title row. The side menu's button colors, in a 40px square with 6px corners to match the menu
-     button beside the title. */
+  /* Phone Dashboard header (AccountsView.tsx): % U | % L switcher to the left of New group and Add
+     account at the right end of the title row. All square buttons match the 40px menu button
+     footprint with 6px corners; % U | % L matches the 40px 7D / 30D inset pill. */
   .dashboard-header-actions {
     display: flex;
     align-items: center;
@@ -194,14 +163,44 @@
     margin-left: auto;
   }
 
+  .dashboard-header-actions .provider-window-toggle.is-mobile-header {
+    gap: 2px;
+    height: 40px;
+    box-sizing: border-box;
+    margin-left: 0;
+    padding: 3px;
+    border-radius: 9px;
+    --segment-radius: 5px;
+    background: var(--obsidian-surface-low);
+  }
+
+  .dashboard-header-actions .provider-window-toggle.is-mobile-header button {
+    width: auto;
+    min-width: 34px;
+    height: 32px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 5px;
+    color: var(--obsidian-muted);
+    font-size: 12px;
+    font-weight: 650;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .dashboard-header-actions .provider-window-toggle.is-mobile-header button.active {
+    color: var(--purple-on-fill);
+  }
+
   .dashboard-header-actions .sidebar-section-button {
     width: 40px;
     height: 40px;
     border-radius: 6px;
   }
 
-  /* Both buttons sit at the right edge of the header, so anchor their tooltips to their right
-     edges to keep them inside the viewport and preserve the group tooltip's line break. */
+  /* Header action buttons sit near the right edge, so anchor their tooltips to their right edges
+     to keep them inside the viewport and preserve the group tooltip's line break. */
+  .dashboard-header-actions .provider-window-toggle.is-mobile-header button[data-tooltip]::after,
   .dashboard-header-actions .sidebar-section-button[data-tooltip]::after {
     left: auto;
     right: 0;
@@ -273,9 +272,74 @@
     margin-left: auto;
   }
 
-  /* A phone shows no tooltips, and the switch's hidden ones would widen the list's scroll area. */
-  .sidebar-display-switch [data-tooltip]::after {
-    display: none !important;
+  .settings-style-content .dashboard-header h1.eyebrow,
+  .sidebar-mobile-header .eyebrow.sidebar-title {
+    color: var(--c-ffffff);
+    font-size: 16px;
+    line-height: 1.2;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    text-transform: none;
+  }
+
+  /* Match the 1px border + 14px left padding inside the Dashboard/Usage All accounts pill. */
+  .settings-style-content .dashboard-header h1.eyebrow {
+    font-size: 15px;
+    padding-left: 15px;
+  }
+
+  /* Title-as-filter pill on Dashboard and Usage: matches the header's 40px height, displays the
+     active filter with a downward chevron, and truncates cleanly when space beside actions is tight. */
+  .dashboard-header .dashboard-title-row h1.mobile-title-filter-heading {
+    display: flex;
+    align-items: center;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    overflow: visible;
+    margin: 0;
+    font-size: 15px;
+    font-weight: 650;
+    letter-spacing: normal;
+    line-height: 1;
+    text-transform: none;
+  }
+
+  .dashboard-header > div:first-child .mobile-sidebar-toggle-btn.has-filter-label {
+    width: auto;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    height: 40px;
+    gap: 8px;
+    padding: 0 12px 0 14px;
+    border-radius: 10px;
+    line-height: 1.2;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+
+  .dashboard-header .mobile-sidebar-toggle-btn.has-filter-label svg.mobile-sidebar-toggle-chevron {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    opacity: 0.85;
+  }
+
+  .mobile-sidebar-toggle-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 15px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    text-transform: none;
+  }
+
+  .mobile-sidebar-toggle-btn.is-filtered:not(.mobile-sidebar-close-btn) {
+    --mobile-filter-border: var(--purple-accent);
+    --mobile-filter-bg: var(--purple-surface);
   }
 }
 

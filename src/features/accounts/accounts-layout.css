@@ -1,5 +1,5 @@
 /* Accounts Dashboard improvements (L7):
- * - Compact view toggle beside % Used | % Left and in mobile sidebar footer.
+ * - Compact View toggle beside Group in the desktop top bar.
  * - Slim single-row compact account card layout (.provider-account-card.is-compact).
  * - Two-column card grid on very wide viewports (@media (min-width: 1400px)).
  *
@@ -7,7 +7,7 @@
  * (tokens only; see docs/CSS_ARCHITECTURE.md and src/styles/css-debt.test.ts).
  */
 @layer components {
-  /* ---- Compact toggle button (mobile sidebar footer) ---- */
+  /* ---- Compact toggle button ---- */
   .compact-dashboard-toggle:not(.top-bar-compact) {
     display: inline-flex;
     align-items: center;
@@ -54,30 +54,6 @@
   .compact-dashboard-toggle:not(.top-bar-compact):focus-visible {
     outline: 2px solid var(--purple-accent);
     outline-offset: 2px;
-  }
-
-  @media (max-width: 860px) {
-    .sidebar-display-switch {
-      display: flex;
-      align-items: stretch;
-      gap: 8px;
-    }
-
-    .sidebar-display-switch .provider-window-toggle.is-words {
-      flex: 1 1 auto;
-      min-width: 0;
-    }
-
-    .compact-dashboard-toggle.is-mobile {
-      height: auto;
-      min-height: 38px;
-      flex: 0 0 auto;
-      padding: 0 10px;
-    }
-
-    .sidebar-display-switch .compact-dashboard-toggle[data-tooltip]::after {
-      display: none;
-    }
   }
 
   /* ---- 2-column grid on very wide windows (1400px+) ---- */
@@ -144,13 +120,13 @@
   .compact-card-identity .account-plan-badge {
     display: inline-flex;
     align-items: center;
-    height: 20px;
-    padding: 0 7px;
+    height: 26px;
+    padding: 0 11px;
     border: 0;
     border-radius: 999px;
     background: var(--purple-surface);
     color: var(--purple-text);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 650;
     line-height: 1;
     white-space: nowrap;

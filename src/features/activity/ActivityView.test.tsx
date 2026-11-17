@@ -2,6 +2,7 @@
 /// <reference types="node" />
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setNarrowWindow } from "../../test-utils/media";
 import { click, mount, settle, type Mounted } from "../../test-utils/react";
 import {
   estimated,
@@ -33,6 +34,7 @@ beforeEach(() => {
 afterEach(() => {
   mounted?.unmount();
   mounted = null;
+  vi.restoreAllMocks();
   if (originalZone === undefined) delete process.env.TZ;
   else process.env.TZ = originalZone;
 });
@@ -457,16 +459,16 @@ describe("ActivityView", () => {
   });
 
   it("keeps the 7D / 30D switch in the title row, after the title, so a phone shows them on one line", async () => {
+    setNarrowWindow(true);
     const { root } = renderView([work], { onToggleSidebar: vi.fn() });
     await settle();
     const row = root.querySelector(".dashboard-title-row")!;
     const children = [...row.children];
     expect(children.map((child) => child.tagName + (child.classList.contains("activity-period") ? ".period" : ""))).toEqual([
-      "BUTTON",
       "H1",
       "DIV.period",
     ]);
-    // The label comes first, so the switch reads "Period 7D 30D".
+    // The label stays in the DOM for aria-labelledby while mobile CSS hides it visually beside 7D | 30D.
     expect([...row.querySelector(".activity-period")!.children].map((child) => child.className)).toEqual([
       "activity-period-label",
       "activity-period-switch segmented",
@@ -474,14 +476,34 @@ describe("ActivityView", () => {
     expect(root.querySelectorAll(".activity-period-switch")).toHaveLength(1);
   });
 
-  it("has the title as a focusable heading, and the sidebar button when it is given one", async () => {
+  it("renders the mobile filter pill inside h1 on a phone and keeps plain Usage heading on desktop", async () => {
+    setNarrowWindow(false);
     const onToggleSidebar = vi.fn();
     const { root } = renderView([work], { onToggleSidebar, sidebarOpen: false });
     await settle();
     expect(root.querySelector("h1")!.textContent).toBe("Usage");
-    expect(root.querySelector("h1")!.getAttribute("tabindex")).toBe("-1");
-    click(root.querySelector<HTMLButtonElement>('button[aria-label="Filter by account or group"]')!);
+    expect(root.querySelector(".mobile-sidebar-toggle-btn")).toBeNull();
+
+    mounted!.unmount();
+    setNarrowWindow(true);
+    const mobile = renderView([work], { onToggleSidebar, sidebarOpen: false, filterLabel: "Work", isFiltered: true, groupId: "bucket:work" });
+    await settle();
+    const heading = mobile.root.querySelector("h1")!;
+    expect(heading.getAttribute("tabindex")).toBe("-1");
+    const filterBtn = heading.querySelector<HTMLButtonElement>('button[aria-label="Work, filter by account or group"]')!;
+    expect(filterBtn.querySelector(".mobile-sidebar-toggle-label")?.textContent).toBe("Work");
+    expect(filterBtn.querySelector("svg.mobile-sidebar-toggle-chevron")).not.toBeNull();
+    expect(filterBtn.classList.contains("is-filtered")).toBe(true);
+    expect(mobile.root.querySelector(".activity-grid")?.getAttribute("data-group-id")).toBe("bucket:work");
+    click(filterBtn);
     expect(onToggleSidebar).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a filtered empty message when accounts exist overall but the chosen filter has none", async () => {
+    const { root } = renderView([], { hasAnyAccounts: true, isFiltered: true, filterLabel: "Work" });
+    await settle();
+    expect(root.querySelector(".activity-message h2")?.textContent).toBe("No accounts in Work");
+    expect(root.querySelector(".empty-provider-card")).toBeNull();
   });
 
   it("passes Reconnect for an account that needs it", async () => {

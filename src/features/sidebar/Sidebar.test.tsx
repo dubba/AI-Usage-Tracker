@@ -82,14 +82,20 @@ describe("Sidebar", () => {
     expect(mounted!.container.textContent).not.toContain("Settings");
   });
 
-  it("leaves the group rows selected only on the Accounts page", () => {
+  it("leaves the group rows selected on Accounts, and on mobile Usage overlay only", () => {
     render({ section: "accounts", topBar: true });
     expect(mounted!.container.querySelector(".provider-summary-row.selected")).not.toBeNull();
     mounted!.unmount();
     render({ section: "activity", topBar: true });
     expect(mounted!.container.querySelector(".provider-summary-row.selected")).toBeNull();
     mounted!.unmount();
+    render({ section: "activity", topBar: false });
+    expect(mounted!.container.querySelector(".provider-summary-row.selected")).not.toBeNull();
+    mounted!.unmount();
     render({ section: "settings", topBar: true });
+    expect(mounted!.container.querySelector(".provider-summary-row.selected")).toBeNull();
+    mounted!.unmount();
+    render({ section: "settings", topBar: false });
     expect(mounted!.container.querySelector(".provider-summary-row.selected")).toBeNull();
   });
 
@@ -132,21 +138,14 @@ describe("Sidebar", () => {
     });
 
     it.each(["accounts", "activity", "settings"] as const)(
-      "starts the phone overlay's list with All Accounts and pins the % Left / % Used switch above the sync line (%s page)",
+      "starts the phone overlay's list with All Accounts and goes directly to the sync line (%s page)",
       (section) => {
         render({ section, topBar: false });
         const list = mounted!.container.querySelector(".provider-list")!;
         expect(list.children[0].classList.contains("is-all-row")).toBe(true);
         expect(list.querySelector(".sidebar-filter-header")).toBeNull();
-
-        // Outside the scrolling list, between it and the sync line.
-        const switchRow = list.nextElementSibling!;
-        expect(switchRow.classList.contains("sidebar-display-switch")).toBe(true);
-        expect(switchRow.nextElementSibling?.classList.contains("sidebar-sync-status")).toBe(true);
-        const toggle = switchRow.querySelector(".usage-display-toggle")!;
-        expect(toggle.classList.contains("is-words")).toBe(true);
-        expect(toggle.textContent).toBe("% Used% Left");
-        expect(list.querySelector(".usage-display-toggle")).toBeNull();
+        expect(list.nextElementSibling?.classList.contains("sidebar-sync-status")).toBe(true);
+        expect(mounted!.container.querySelector(".sidebar-display-switch, .usage-display-toggle, .compact-dashboard-toggle")).toBeNull();
       },
     );
 
@@ -209,13 +208,10 @@ describe("Sidebar", () => {
       expect(onJump).toHaveBeenCalledWith("integrations");
     });
 
-    it("places the Compact toggle beside % Used / % Left in the mobile sidebar footer (L7)", () => {
+    it("keeps Compact toggle out of the mobile sidebar (moved to Dashboard header)", () => {
       render({ section: "accounts", topBar: false });
-      const switchRow = mounted!.container.querySelector(".sidebar-display-switch")!;
-      const compactBtn = switchRow.querySelector<HTMLButtonElement>(".compact-dashboard-toggle");
-      expect(compactBtn).not.toBeNull();
-      expect(compactBtn?.classList.contains("is-mobile")).toBe(true);
-      expect(compactBtn?.getAttribute("aria-label")).toBe("Compact view");
+      expect(mounted!.container.querySelector(".sidebar-display-switch")).toBeNull();
+      expect(mounted!.container.querySelector(".compact-dashboard-toggle")).toBeNull();
     });
   });
 });

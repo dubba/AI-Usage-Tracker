@@ -562,7 +562,7 @@ describe("AccountsView L / U switch", () => {
     vi.restoreAllMocks();
   });
 
-  it("ends the phone title row with icon-only New group and Add account buttons", () => {
+  it("ends the phone title row with % U | % L, New group, and Add account in order, without Compact", () => {
     setNarrowWindow(true);
     const onAdd = vi.fn();
     const onAddGroup = vi.fn();
@@ -570,10 +570,19 @@ describe("AccountsView L / U switch", () => {
     const row = document.querySelector(".dashboard-title-row")!;
     const actions = row.lastElementChild!;
     expect(actions.classList.contains("dashboard-header-actions")).toBe(true);
-    const [group, account] = [...actions.querySelectorAll("button")];
-    expect(group.getAttribute("aria-label")).toBe("Add new group");
+    expect([...actions.children].map((el) => {
+      if (el.classList.contains("usage-display-toggle")) return "usage-display";
+      return el.getAttribute("aria-label");
+    })).toEqual(["usage-display", "Add new group", "Add new account"]);
+
+    const usageSwitch = actions.querySelector(".usage-display-toggle")!;
+    expect(usageSwitch.classList.contains("is-mobile-header")).toBe(true);
+    expect([...usageSwitch.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["% U", "% L"]);
+    expect(document.querySelector(".compact-dashboard-toggle")).toBeNull();
+
+    const group = actions.querySelector<HTMLButtonElement>('[aria-label="Add new group"]')!;
+    const account = actions.querySelector<HTMLButtonElement>('[aria-label="Add new account"]')!;
     expect(group.getAttribute("data-tooltip")).toBe("Group AI accounts to track their usage\ntogether, such as Work or Personal");
-    expect(account.getAttribute("aria-label")).toBe("Add new account");
     expect(account.getAttribute("data-tooltip")).toBe("Connect an AI account to track usage");
     expect(group.textContent).toBe("");
     expect(account.textContent).toBe("");
@@ -589,10 +598,12 @@ describe("AccountsView L / U switch", () => {
     expect(document.querySelector(".dashboard-header-actions")).toBeNull();
   });
 
-  it("is not in the page header on a phone: the side menu has it (Sidebar.tsx)", () => {
+  it("places % U | % L in the phone header instead of top-bar-segmented or Compact button", () => {
     setNarrowWindow(true);
     app = renderView({ onToggleSidebar: () => undefined });
-    expect(document.querySelector(".dashboard-header .usage-display-toggle")).toBeNull();
+    const buttons = document.querySelectorAll(".dashboard-header-actions .usage-display-toggle.is-mobile-header button");
+    expect([...buttons].map((b) => b.textContent)).toEqual(["% U", "% L"]);
+    expect(document.querySelector(".dashboard-header .compact-dashboard-toggle")).toBeNull();
     expect(document.querySelector(".dashboard-header .top-bar-segmented")).toBeNull();
   });
 
@@ -629,5 +640,50 @@ describe("AccountsView L / U switch", () => {
     // Restore default off state for subsequent tests
     act(() => setCompactDashboardMode("off"));
     expect(document.querySelector(".provider-account-cards")?.classList.contains("is-compact")).toBe(false);
+  });
+
+  it("uses the title as the phone filter pill and marks filtered groups while keeping add actions", () => {
+    setNarrowWindow(true);
+    app = renderView({
+      allAccounts: [account],
+      accounts: [account],
+      selectedGroup: { ...allGroup, accounts: [account] },
+      onToggleSidebar: () => undefined,
+      onAddGroup: () => undefined,
+    });
+    const heading = document.querySelector(".dashboard-title-row h1.eyebrow")!;
+    const allPill = heading.querySelector<HTMLButtonElement>(".mobile-sidebar-toggle-btn")!;
+    expect(allPill).not.toBeNull();
+    expect(document.querySelectorAll(".dashboard-title-row .mobile-sidebar-toggle-btn")).toHaveLength(1);
+    expect(allPill.querySelector(".mobile-sidebar-toggle-label")?.textContent).toBe("All accounts");
+    expect(allPill.querySelector("svg.mobile-sidebar-toggle-chevron")).not.toBeNull();
+    expect(allPill.classList.contains("is-filtered")).toBe(false);
+    expect(document.querySelector('.dashboard-header-actions [aria-label="Add new group"]')).not.toBeNull();
+    expect(document.querySelector('.dashboard-header-actions [aria-label="Add new account"]')).not.toBeNull();
+
+    app.rerender(
+      <AccountsView
+        allAccounts={[account]}
+        accounts={[account]}
+        selectedGroup={bucketGroup}
+        refreshMinutes={15}
+        onToggleSidebar={() => undefined}
+        onAdd={() => undefined}
+        onAddGroup={() => undefined}
+        onEditBucket={() => undefined}
+        onRefresh={() => undefined}
+        onReconnect={() => undefined}
+        onConnectGoogleUsage={() => undefined}
+        onRename={async () => undefined}
+        onRemove={() => undefined}
+        onNotifications={() => undefined}
+        busy={new Set()}
+      />,
+    );
+    const workPill = document.querySelector<HTMLButtonElement>(".dashboard-title-row h1.eyebrow .mobile-sidebar-toggle-btn")!;
+    expect(workPill.querySelector(".mobile-sidebar-toggle-label")?.textContent).toBe("Work");
+    expect(workPill.classList.contains("is-filtered")).toBe(true);
+    expect(document.querySelector(".dashboard-bucket-pill")?.textContent).toBe("Group");
+    expect(document.querySelector(".edit-bucket-title-btn")).not.toBeNull();
   });
 });

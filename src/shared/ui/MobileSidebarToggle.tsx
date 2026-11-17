@@ -1,23 +1,49 @@
 import { SIDEBAR_ID } from "../lib/constants";
-import { FilterIcon } from "./icons";
+import { ChevronDownIcon, FilterIcon } from "./icons";
 
 /**
- * The button that opens the sidebar on a narrow screen; the pages render it only when given
- * `onToggle`. It is a funnel, not a hamburger: the sidebar lists accounts and groups to filter the
- * page by, and the pages themselves are in the bottom bar.
+ * The button that opens the sidebar on a narrow screen; Dashboard and Usage render it with the
+ * active filter label so it reads as a filter picker rather than page navigation. Settings hides
+ * it because Settings is global.
  */
-export function MobileSidebarToggle({ onToggle, open }: { onToggle: () => void; open?: boolean }) {
+export function MobileSidebarToggle({
+  onToggle,
+  open,
+  filterLabel,
+  isFiltered = false,
+}: {
+  onToggle: () => void;
+  open?: boolean;
+  filterLabel?: string;
+  isFiltered?: boolean;
+}) {
+  const label = filterLabel?.trim() || undefined;
+  const classes = [
+    "mobile-sidebar-toggle-btn",
+    label ? "has-filter-label" : "",
+    isFiltered ? "is-filtered" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <button
       type="button"
-      className="mobile-sidebar-toggle-btn"
+      className={classes}
       onClick={onToggle}
       aria-expanded={open ?? false}
       aria-controls={SIDEBAR_ID}
-      aria-label="Filter by account or group"
+      aria-label={label ? `${label}, filter by account or group` : "Filter by account or group"}
       data-tooltip="Filter by account or group"
     >
-      <FilterIcon />
+      {label ? (
+        <>
+          <span className="mobile-sidebar-toggle-label">{label}</span>
+          <ChevronDownIcon className="mobile-sidebar-toggle-chevron" />
+        </>
+      ) : (
+        <FilterIcon />
+      )}
     </button>
   );
 }

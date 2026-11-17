@@ -333,13 +333,13 @@ describe("AccountDashboardCard actions dropdown placement", () => {
 
     const collapseBtn = [...document.querySelectorAll<HTMLButtonElement>(".mobile-dropdown-menu .mobile-dropdown-item")].find((b) => b.textContent?.includes("Collapse card"))!;
     click(collapseBtn);
-    expect(app.container.querySelector(".provider-account-card")?.classList.contains("is-collapsed")).toBe(true);
+    expect(app.container.querySelector(".provider-account-card")?.classList.contains("is-compact")).toBe(true);
   });
 
-  it("does not render the percentage pill when collapsed on mobile", () => {
+  it("compacts just that card with its metric bars when the provider icon is tapped on mobile", () => {
     app = mount(
       <AccountDashboardCard
-        pageId="all"
+        pageId="mobile-collapse"
         account={{
           ...account,
           id: "mobile-collapse-pill-test",
@@ -356,6 +356,15 @@ describe("AccountDashboardCard actions dropdown placement", () => {
                 resetsAt: new Date(Date.now() + 3600000).toISOString(),
                 windowSeconds: 5 * 3600,
                 kind: "five_hour",
+              },
+              {
+                id: "7d",
+                label: "Weekly",
+                remainingPercent: 40,
+                usedPercent: 60,
+                resetsAt: new Date(Date.now() + 86400000).toISOString(),
+                windowSeconds: 7 * 86400,
+                kind: "weekly",
               },
             ],
             creditsUsd: null,
@@ -374,13 +383,55 @@ describe("AccountDashboardCard actions dropdown placement", () => {
         onNotifications={() => undefined}
       />,
     );
-    const toggle = app.container.querySelector<HTMLButtonElement>(".mobile-dropdown-toggle")!;
-    click(toggle);
+    const card = () => app!.container.querySelector(".provider-account-card")!;
+    const icon = () => app!.container.querySelector<HTMLButtonElement>(".account-card-provider-icon")!;
 
-    const collapseBtn = [...document.querySelectorAll<HTMLButtonElement>(".mobile-dropdown-menu .mobile-dropdown-item")].find((b) => b.textContent?.includes("Collapse card"))!;
-    click(collapseBtn);
-    expect(app.container.querySelector(".provider-account-card")?.classList.contains("is-collapsed")).toBe(true);
-    expect(app.container.querySelector(".collapsed-summary")).toBeNull();
+    expect(card().classList.contains("is-compact")).toBe(false);
+    expect(icon().getAttribute("aria-label")).toBe("Collapse Claude");
+    expect(icon().querySelector(".collapse-chevron")).toBeNull();
+
+    click(icon());
+    expect(card().classList.contains("is-compact")).toBe(true);
+    expect(card().classList.contains("is-collapsed")).toBe(false);
+    expect(card().querySelectorAll(".compact-metric-item")).toHaveLength(2);
+    expect(card().querySelector(".compact-card-collapsed-summary")).toBeNull();
+    expect(icon().querySelector(".collapse-chevron")).toBeNull();
+    expect(icon().getAttribute("aria-label")).toBe("Expand Claude");
+    expect(icon().getAttribute("aria-expanded")).toBe("false");
+
+    click(icon());
+    expect(card().classList.contains("is-compact")).toBe(false);
+    expect(card().querySelector(".account-card-metrics")).not.toBeNull();
+    expect(icon().getAttribute("aria-label")).toBe("Collapse Claude");
+    setCardCollapsedOnPage("mobile-collapse", "mobile-collapse-pill-test", false);
+  });
+
+  it("while Compact view is on on mobile, tapping the provider icon expands just that card", () => {
+    app = mount(
+      <AccountDashboardCard
+        pageId="mobile-compact-open"
+        account={{ ...account, id: "mobile-compact-open-test", plan: "pro" }}
+        compact
+        busy={new Set()}
+        onRefresh={() => undefined}
+        onReconnect={() => undefined}
+        onConnectGoogleUsage={() => undefined}
+        onRename={async () => undefined}
+        onRemove={() => undefined}
+        onNotifications={() => undefined}
+      />,
+    );
+    const card = () => app!.container.querySelector(".provider-account-card")!;
+    const icon = () => app!.container.querySelector<HTMLButtonElement>(".account-card-provider-icon")!;
+
+    expect(card().classList.contains("is-compact")).toBe(true);
+    expect(icon().getAttribute("aria-label")).toBe("Expand Claude");
+
+    click(icon());
+    expect(card().classList.contains("is-compact")).toBe(false);
+    expect(card().querySelector(".provider-account-card-header")).not.toBeNull();
+    expect(icon().getAttribute("aria-label")).toBe("Collapse Claude");
+    setCardCollapsedOnPage("mobile-compact-open", "mobile-compact-open-test", false);
   });
 });
 

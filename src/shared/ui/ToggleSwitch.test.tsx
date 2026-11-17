@@ -76,4 +76,13 @@ describe("MobileSidebarToggle", () => {
     mounted = mount(<MobileSidebarToggle onToggle={() => {}} />);
     expect(document.querySelector("button")!.getAttribute("aria-expanded")).toBe("false");
   });
+
+  it("renders the active filter label, chevron icon, and filtered state when provided", () => {
+    mounted = mount(<MobileSidebarToggle onToggle={() => {}} filterLabel="Work" isFiltered />);
+    const button = document.querySelector("button")!;
+    expect(button.className).toBe("mobile-sidebar-toggle-btn has-filter-label is-filtered");
+    expect(button.getAttribute("aria-label")).toBe("Work, filter by account or group");
+    expect(button.querySelector(".mobile-sidebar-toggle-label")?.textContent).toBe("Work");
+    expect(button.querySelector("svg.mobile-sidebar-toggle-chevron")).not.toBeNull();
+  });
 });

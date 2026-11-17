@@ -231,7 +231,7 @@ export default function App() {
         : orderAccounts(selectedGroup.accounts, selectedPageOrder),
     [selectedGroup, selectedPageOrder, allPageAccounts],
   );
-  const activityAccounts = allPageAccounts;
+  const activityAccounts = sidebarIsOverlay ? visibleAccounts : allPageAccounts;
 
   const loadError = errors.find((entry) => entry.source === "load");
   const refreshMinutes = appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES;
@@ -340,12 +340,16 @@ export default function App() {
       <div className="kept-page" data-page="activity" hidden={section !== "activity"} inert={section !== "activity"}>
         <ActivityView
           accounts={activityAccounts}
+          filterLabel={selectedGroup.type === "all" ? "All accounts" : selectedGroup.title}
+          isFiltered={sidebarIsOverlay && selectedGroup.type !== "all"}
+          groupId={sidebarIsOverlay ? selectedGroup.id : ALL_ACCOUNTS_GROUP_ID}
+          hasAnyAccounts={accounts.length > 0}
           onToggleSidebar={nav.toggleSidebar}
           sidebarOpen={sidebarOpen}
-          onAddAccount={(provider) => openAdd(undefined, provider)}
+          onAddAccount={(provider) => openAdd(undefined, provider ?? selectedGroup.provider ?? undefined)}
           onOpenPairing={() => setPairingOpen(true)}
           onReconnect={reconnect}
-          onRefresh={accounts.length === 0 ? undefined : handleRefreshUsage}
+          onRefresh={activityAccounts.length === 0 ? undefined : handleRefreshUsage}
         />
       </div>
       <div className="kept-page" data-page="accounts" hidden={section !== "accounts"} inert={section !== "accounts"}>
@@ -377,8 +381,6 @@ export default function App() {
         <AppSettingsContext.Provider value={settings}>
           <AppUpdateContext.Provider value={update}>
             <SettingsView
-              onToggleSidebar={nav.toggleSidebar}
-              sidebarOpen={sidebarOpen}
               onOpenPairing={() => setPairingOpen(true)}
               onOpenLink={openLink}
               bridge={snapshot?.bridge ?? null}
@@ -430,7 +432,9 @@ export default function App() {
         activeSettingsSection={activeSettingsSection}
         onJumpToSettingsSection={jumpToSettingsSection}
         onClose={nav.closeSidebar}
-        onSelectGroup={(groupId) => nav.selectGroup(groupId, { closeSidebar: true })}
+        onSelectGroup={(groupId) =>
+          nav.selectGroup(groupId, { closeSidebar: true, keepSection: sidebarIsOverlay && section === "activity" })
+        }
         onMoveGroup={moveGroup}
         onRefreshAll={() => void refreshAll()}
       />
