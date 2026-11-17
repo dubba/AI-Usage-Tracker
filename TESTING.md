@@ -19,7 +19,7 @@ its assertions would plausibly fail if the guard were removed.
 
 ### Local-only vs CI
 
-CI (`validate.yml`, on every PR and as the gate at the start of each release; not on push, where `npm run preflight` is the local equivalent) runs: `npm audit --audit-level=high`, `npm run
+CI (`validate.yml`, on every PR and as the gate at the start of each release; not on push, where `npm run preflight` is the local equivalent) runs: `npm audit --omit=dev --audit-level=high`, `npm run
 check`, `npm test`, the 5 `npm run test:*` script suites, `npm run build`, rustsec
 `audit-check` for `src-tauri`, `cargo fmt --check`, `cargo clippy -D warnings` in **both
 debug and release**, `cargo test --lib` (which covers all 498 tests) on Windows + macOS, and `cargo check` on
