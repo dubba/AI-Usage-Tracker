@@ -210,7 +210,7 @@ export function AccountDashboardCard({
           </div>
 
           {!isCollapsed ? (
-            <div className="compact-card-metrics">
+            <div className={`compact-card-metrics${windows.length > 4 ? " is-two-col" : ""}`}>
               {windows.length ? windows.map((window) => {
                 const remaining = window.remainingPercent;
                 const shown = remaining == null ? null : displayPercent(remaining, displayMode);

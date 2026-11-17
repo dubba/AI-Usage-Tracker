@@ -1125,5 +1125,61 @@ describe("AccountDashboardCard compact mode (L7)", () => {
     click(renameBtn);
     expect(app.container.querySelector(".account-card-name-input")).not.toBeNull();
   });
+
+  it("uses two-per-row layout (.is-two-col) when compact account has more than 4 windows", () => {
+    const fiveWindows = [1, 2, 3, 4, 5].map((n) => ({
+      id: `w-${n}`,
+      label: `Model ${n} · Weekly`,
+      usedPercent: n * 10,
+      remainingPercent: 100 - n * 10,
+      resetsAt: "2026-11-15T08:00:00Z",
+      windowSeconds: 604800,
+      kind: "weekly" as const,
+    }));
+    const manyUsage: UsageSnapshot = {
+      plan: "pro",
+      email: "antigravity@example.com",
+      windows: fiveWindows,
+      creditsUsd: null,
+      unlimitedCredits: false,
+      fetchedAt: "2026-11-11T07:55:00Z",
+      freshness: "live",
+      source: "antigravity",
+    };
+
+    app = mount(
+      <AccountDashboardCard
+        pageId="compact-page"
+        account={{ ...account, id: "acct-compact-4", lastUsage: { ...manyUsage, windows: fiveWindows.slice(0, 4) } }}
+        compact
+        busy={new Set()}
+        onRefresh={() => undefined}
+        onReconnect={() => undefined}
+        onConnectGoogleUsage={() => undefined}
+        onRename={async () => undefined}
+        onRemove={() => undefined}
+        onNotifications={() => undefined}
+      />,
+    );
+    expect(app.container.querySelector(".compact-card-metrics")?.classList.contains("is-two-col")).toBe(false);
+
+    app.rerender(
+      <AccountDashboardCard
+        pageId="compact-page"
+        account={{ ...account, id: "acct-compact-5", provider: "antigravity", lastUsage: manyUsage }}
+        compact
+        busy={new Set()}
+        onRefresh={() => undefined}
+        onReconnect={() => undefined}
+        onConnectGoogleUsage={() => undefined}
+        onRename={async () => undefined}
+        onRemove={() => undefined}
+        onNotifications={() => undefined}
+      />,
+    );
+    const metricsContainer = app.container.querySelector(".compact-card-metrics")!;
+    expect(metricsContainer.classList.contains("is-two-col")).toBe(true);
+    expect(metricsContainer.querySelectorAll(".compact-metric-item")).toHaveLength(5);
+  });
 });
 
