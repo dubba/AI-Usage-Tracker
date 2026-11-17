@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { busyKey, REFRESH_ALL_KEY, type BusyKeys } from "../../shared/lib/busy";
 import { isCardCollapsedOnPage, setCardCollapsedOnPage } from "../layout/dashboard-page-state";
 import {
@@ -23,7 +23,7 @@ import {
   nextResetSummary,
   windowLength,
 } from "../../shared/lib/usage-logic";
-import { formatUpdatedAt } from "../../shared/lib/format";
+import { formatElapsed, formatUpdatedAt } from "../../shared/lib/format";
 import {
   displayAccountError,
   displayAccountSubtitle,
@@ -152,6 +152,12 @@ export function AccountDashboardCard({
   const waitingForMetrics = isGoogleSetupPending(account);
   const googleUnavailableLabel = modelsOnly ? "Key only" : waitingForMetrics ? "Setup in progress" : "Unavailable";
   const updatedAtLabel = useClock((now) => formatUpdatedAt(account.lastUsage?.fetchedAt, now) ?? "Not updated yet");
+  // The desktop Refresh button carries the time itself: "⟳ 8m ago".
+  const updatedAgo = useClock((now) => {
+    const fetchedAt = account.lastUsage?.fetchedAt ? new Date(account.lastUsage.fetchedAt).getTime() : Number.NaN;
+    return Number.isFinite(fetchedAt) ? formatElapsed(now - fetchedAt) : "Not updated yet";
+  });
+  const updatedAgoId = useId();
   const soonestReset = useClock((now) => {
     const next = nextResetSummary([account], now);
     return next.account ? next.value : null;
@@ -411,8 +417,17 @@ export function AccountDashboardCard({
                   </button>
                 </div>
               </div>
+            ) : desktop ? (
+              // On a wide window the name and the pencil are one click target, from the first letter
+              // to the pencil. The pencil stays the keyboard control; its click bubbles up to here.
+              <span className="account-card-name-hit" onClick={rename.startEditing}>
+                <h2>{displayAccountLabel(account)}</h2>
+                <button type="button" className="account-name-edit" data-tooltip="Edit account name" aria-label={`Edit ${account.label}`}>
+                  <EditIcon />
+                </button>
+              </span>
             ) : <h2>{displayAccountLabel(account)}</h2>}
-            {!rename.editing ? (
+            {!rename.editing && !desktop ? (
               <button type="button" className="account-name-edit" data-tooltip="Edit account name" aria-label={`Edit ${account.label}`} onClick={rename.startEditing}>
                 <EditIcon />
               </button>
@@ -435,15 +450,18 @@ export function AccountDashboardCard({
               </span>
             ) : null}
             {plan ? <span className="account-plan-badge">{plan}</span> : null}
-            <span className="account-card-updated">{updatedAtLabel}</span>
             <button
               type="button"
-              className={`account-card-action refresh-action ${isRefreshing ? "spinning" : ""}${outOfDate ? " is-suggested" : ""}`}
+              className={`account-card-refresh-time refresh-action${isRefreshing ? " spinning" : ""}${outOfDate ? " is-suggested" : ""}`}
               data-tooltip="Refresh this account"
               aria-label={`Refresh ${account.label}`}
+              aria-describedby={updatedAgoId}
               disabled={cardBusy || isGlobalRefresh}
               onClick={onRefresh}
-            ><RefreshIcon /></button>
+            >
+              <RefreshIcon />
+              <span id={updatedAgoId} className="account-card-refresh-time-label">{updatedAgo}</span>
+            </button>
             <button
               type="button"
               className="account-card-action notify-action"

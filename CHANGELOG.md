@@ -1,13 +1,14 @@
 # Changelog
 
-## Unreleased (24 changes)
+## Unreleased (25 changes)
 
 ### Added (1)
 
 - Grok accounts can now use a saved limit reset from the account card, with the same confirmation as Claude and ChatGPT, instead of only listing it and sending you to grok.com.
 
-### Improved (15)
+### Improved (16)
 
+- On a wide window, the time since an account card's last update is now on its Refresh button ("⟳ 8m ago"), and the rename pencil only appears while you point at the card. Clicking the account's name, not just the pencil, starts renaming it.
 - The All Accounts subtitle now reads "Monitor 5-hour & 7-day limits and reset times across all your AI subscriptions."
 - Each usage bar on an account card now shows its reset on one line, such as "Resets in **4h 24m** · Today, 2:29p" or "Resets in **1d 6h** · Wed, Nov 18, 4:00a". Only the countdown is bold; resets later today say Today, and later days include the weekday.
 - On a wide window, the Settings page is now one centered column: the title, the line under it, and the cards share the same width, and the scrollbar sits right beside the cards instead of at the window's edge.

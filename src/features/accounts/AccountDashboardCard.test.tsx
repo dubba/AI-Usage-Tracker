@@ -420,20 +420,37 @@ describe("AccountDashboardCard on a wide window", () => {
     vi.restoreAllMocks();
   });
 
-  it("shows the plan chip, the updated time, then Refresh, Alerts and a more-actions menu", () => {
+  it("shows the plan chip, then Refresh with the updated time, Alerts and a more-actions menu", () => {
     const rendered = renderDesktopCard();
     app = rendered.app;
     const actions = app.container.querySelector(".account-card-desktop-actions")!;
-    // A live account needs no status chip.
+    // A live account needs no status chip, and the time is on Refresh, not a separate item.
     expect(actions.querySelector(".account-status-chip")).toBeNull();
     expect(actions.querySelector(".account-plan-badge")?.textContent).toBe("Pro/$20");
-    expect(actions.querySelector(".account-card-updated")?.textContent).toMatch(/^Updated /);
+    expect(actions.querySelector(".account-card-updated")).toBeNull();
+    const refresh = actions.querySelector<HTMLButtonElement>(".account-card-refresh-time")!;
+    const time = refresh.querySelector(".account-card-refresh-time-label")!;
+    expect(time.textContent).toMatch(/ago$|^just now$/);
+    expect(refresh.getAttribute("aria-describedby")).toBe(time.id);
     const buttons = [...actions.querySelectorAll<HTMLButtonElement>(":scope > button, .account-card-menu > button")].map((b) => b.getAttribute("aria-label"));
     expect(buttons).toEqual(["Refresh Claude", "Configure usage notifications for Claude", "More actions for Claude"]);
     // The phone layout's chevron menu and the old row of move / remove buttons are gone.
     expect(app.container.querySelector(".mobile-dropdown-toggle")).toBeNull();
     expect(app.container.querySelector('[aria-label="Remove Claude"]')).toBeNull();
     expect(app.container.querySelector(".provider-account-card")?.classList.contains("desktop-card")).toBe(true);
+  });
+
+  it("starts renaming from a click on the name or the pencil, once", () => {
+    const rendered = renderDesktopCard({ account: { ...account, id: "desktop-name-click" } });
+    app = rendered.app;
+    const hit = app.container.querySelector(".account-card-name-hit")!;
+    expect([...hit.children].map((child) => child.tagName)).toEqual(["H2", "BUTTON"]);
+    click(hit.querySelector("h2")!);
+    expect(app.container.querySelector(".account-card-name-input")).not.toBeNull();
+    click(app.container.querySelector<HTMLButtonElement>('[aria-label="Cancel renaming Claude"]')!);
+    expect(app.container.querySelector(".account-card-name-input")).toBeNull();
+    click(app.container.querySelector<HTMLButtonElement>('[aria-label="Edit Claude"]')!);
+    expect(app.container.querySelector(".account-card-name-input")).not.toBeNull();
   });
 
   it("runs Refresh and Alerts from their buttons", () => {
@@ -811,11 +828,10 @@ describe("AccountDashboardCard error display on mobile vs desktop", () => {
       />,
     );
 
-    // Desktop header keeps the timestamp
-    const updated = app.container.querySelector(".account-card-updated");
+    // Desktop header keeps the timestamp, on the Refresh button
+    const updated = app.container.querySelector(".account-card-refresh-time-label");
     expect(updated).not.toBeNull();
-    expect(updated?.classList.contains("is-error")).toBe(false);
-    expect(updated?.textContent).toMatch(/^Updated /);
+    expect(updated?.textContent).toMatch(/ago$|^just now$/);
 
     // Desktop renders the error banner below the header
     const errorBanner = app.container.querySelector(".account-card-error");

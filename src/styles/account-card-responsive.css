@@ -1293,7 +1293,31 @@
     background: rgb(var(--purple-accent-rgb) / 0.12) !important;
     color: var(--purple-text) !important;
     box-shadow: none !important;
-    transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+    transition: background 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;
+  }
+
+  /* Renaming is rare, so the pencil (last in the name row, so nothing moves when it appears) shows
+     only while the card is hovered or a key press moved focus into it. On a touch screen there is
+     no hover, so it stays visible; Rename is also in the ⋯ menu. */
+  @media (hover: hover) {
+    .provider-account-card.desktop-card:not(:hover):not(:has(:focus-visible)) .account-name-edit {
+      opacity: 0;
+    }
+  }
+
+  /* The name and the pencil are one click target (AccountDashboardCard), so pointing anywhere from
+     the first letter to the pencil shows the hand and lights the pencil as if it were hovered. */
+  .provider-account-card.desktop-card .account-card-name-hit {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    cursor: pointer;
+  }
+
+  .provider-account-card.desktop-card .account-card-name-hit > h2 {
+    min-width: 0;
+    flex: 0 1 auto;
   }
 
   .provider-account-card.desktop-card .account-name-edit svg {
@@ -1303,6 +1327,7 @@
   }
 
   .provider-account-card.desktop-card .account-name-edit:hover:not(:disabled),
+  .provider-account-card.desktop-card .account-card-name-hit:hover .account-name-edit:not(:disabled),
   .provider-account-card.desktop-card .account-name-edit:focus-visible {
     border-color: var(--purple-fill-line) !important;
     background: var(--purple-fill-hover) !important;
@@ -1378,11 +1403,40 @@
     color: var(--obsidian-muted-bright);
   }
 
-  .provider-account-card.desktop-card .account-card-desktop-actions .account-card-updated {
-    margin: 0 4px 0 2px;
+  /* Refresh carries the last update time ("⟳ 8m ago"), so the time is the control: the same 36px
+     height, edge, fill and hover as the icon buttons beside it. */
+  .provider-account-card.desktop-card .account-card-desktop-actions .account-card-refresh-time {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 36px;
+    min-height: 36px;
+    padding: 0 12px 0 11px;
+    border: 1px solid var(--obsidian-border-strong);
+    border-radius: 9px;
+    background: var(--obsidian-surface-container);
+    color: var(--obsidian-muted-bright);
     font-size: 13px;
-    color: var(--obsidian-muted);
+    font-weight: 550;
+    line-height: 1;
     white-space: nowrap;
+    box-shadow: none;
+  }
+
+  .provider-account-card.desktop-card .account-card-desktop-actions .account-card-refresh-time svg {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+  }
+
+  .provider-account-card.desktop-card .account-card-desktop-actions .account-card-refresh-time:disabled {
+    opacity: 0.5;
+  }
+
+  .provider-account-card.desktop-card .account-card-desktop-actions .account-card-refresh-time:not(:disabled):hover {
+    border-color: var(--purple-accent);
+    background: var(--purple-surface);
+    color: var(--obsidian-text);
   }
 
   /* ui-refinements.css caps every card action at 28px (max-width / max-height), which left these
@@ -2004,13 +2058,15 @@
 /* Out of date: Refresh turns green with a soft ring to point at the fix. Unlayered, because the card
    action rules above it set the neutral desktop look (and box-shadow: none) unlayered. The keyboard
    focus ring is an outline, so the two never fight. */
-.provider-account-card .account-card-action.refresh-action.is-suggested {
+.provider-account-card .account-card-action.refresh-action.is-suggested,
+.provider-account-card .account-card-refresh-time.is-suggested {
   color: var(--tone-healthy-text);
   border-color: var(--obsidian-green);
   box-shadow: 0 0 0 3px rgb(var(--tint-green-rgb) / 0.3);
 }
 
-:root[data-theme="light"] .provider-account-card .account-card-action.refresh-action.is-suggested {
+:root[data-theme="light"] .provider-account-card .account-card-action.refresh-action.is-suggested,
+:root[data-theme="light"] .provider-account-card .account-card-refresh-time.is-suggested {
   box-shadow: 0 0 0 3px rgb(10 143 95 / 0.22);
 }
 
