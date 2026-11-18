@@ -100,7 +100,7 @@ describe("SidebarGroupRow bucket composite icons", () => {
     );
   const composite = () => document.querySelector(".provider-summary-icon.provider-composite");
 
-  it("splits a two-provider group into left and right halves", () => {
+  it("places a two-provider group in opposite corners (top-left and bottom-right)", () => {
     renderGroup([
       makeAccount({ id: "a1", provider: "openai" }),
       makeAccount({ id: "a2", provider: "grok" }),
@@ -110,7 +110,7 @@ describe("SidebarGroupRow bucket composite icons", () => {
     expect(iconLabels()).toEqual(["ChatGPT", "Grok"]);
   });
 
-  it("stacks two icons beside a third in a three-provider group", () => {
+  it("places a three-provider group into three corners in the group's order", () => {
     renderGroup([
       makeAccount({ id: "a1", provider: "anthropic" }),
       makeAccount({ id: "a2", provider: "grok" }),
@@ -121,7 +121,7 @@ describe("SidebarGroupRow bucket composite icons", () => {
     expect(iconLabels()).toEqual(["Claude", "Grok", "ChatGPT"]);
   });
 
-  it("uses quadrants for a four-provider group, in the group's order", () => {
+  it("places a four-provider group into all four corners in the group's order", () => {
     renderGroup([
       makeAccount({ id: "a1", provider: "opencode_go" }),
       makeAccount({ id: "a2", provider: "grok" }),

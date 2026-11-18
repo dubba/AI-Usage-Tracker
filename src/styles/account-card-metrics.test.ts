@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 const RESPONSIVE_CSS = readFileSync(join(__dirname, "account-card-responsive.css"), "utf8");
 const SIDEBAR_CSS = readFileSync(join(__dirname, "sidebar-list.css"), "utf8");
+const OBSIDIAN_CSS = readFileSync(join(__dirname, "obsidian-dashboard.css"), "utf8");
 const ACTIVITY_CSS = readFileSync(join(__dirname, "../features/activity/activity.css"), "utf8");
 
 describe("account card metric row spacing", () => {
@@ -126,5 +127,15 @@ describe("account card metric row spacing", () => {
     expect(RESPONSIVE_CSS).toMatch(
       /\.provider-account-card\.desktop-card:has\(\.account-card-metrics\.two-column-metrics\)\s+\.account-card-name-edit-wrap\s*\{[^}]*width:\s*calc\(50cqi - 102px\);/,
     );
+  });
+
+  it("places composite group icons into opposite corners on a 2x2 grid", () => {
+    expect(OBSIDIAN_CSS).toMatch(
+      /\.provider-summary-icon\.provider-composite\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*1fr\);\s*grid-template-rows:\s*repeat\(2,\s*1fr\);/,
+    );
+    expect(OBSIDIAN_CSS).toContain(".provider-composite .composite-cell:nth-child(1) { grid-area: 1 / 1; }");
+    expect(OBSIDIAN_CSS).toContain(".provider-composite .composite-cell:nth-child(2) { grid-area: 2 / 2; }");
+    expect(OBSIDIAN_CSS).toContain(".provider-composite .composite-cell:nth-child(3) { grid-area: 2 / 1; }");
+    expect(OBSIDIAN_CSS).toContain(".provider-composite .composite-cell:nth-child(4) { grid-area: 1 / 2; }");
   });
 });

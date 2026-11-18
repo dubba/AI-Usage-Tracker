@@ -23,8 +23,8 @@ export const GROUP_REORDER_HINT_ID = "group-reorder-hint";
 
 /**
  * Icon chip for a custom group: up to four member provider icons in the
- * group's configured account order, split across the chip (two accounts share
- * it left/right, three stack two beside one, four or more fill quadrants).
+ * group's configured account order, placed in the corners of a 2x2 grid (1st
+ * top-left, 2nd bottom-right, 3rd bottom-left, 4th top-right).
  * A group whose visible accounts all share one provider keeps the single
  * provider icon; an empty group keeps the generic people icon.
  */

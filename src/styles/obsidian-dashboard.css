@@ -389,12 +389,16 @@ html[data-sidebar-toggle-stacked] .provider-sidebar-heading-stack .usage-display
   color: var(--obsidian-purple);
 }
 
-/* Custom groups: composite chip of up to four member provider icons in the
-   group's configured order. Fixed 28px grid; each cell clips independently so
-   individual marks stay recognizable at sidebar size. */
+/* Custom groups: composite chip of up to four member provider icons arranged
+   into the four corners in the group's configured order (1st top-left, 2nd
+   bottom-right, 3rd bottom-left, 4th top-right). */
 .provider-summary-icon.provider-composite {
   display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
   gap: 1px;
+  padding: 2px;
+  box-sizing: border-box;
   overflow: hidden;
 }
 
@@ -406,37 +410,16 @@ html[data-sidebar-toggle-stacked] .provider-sidebar-heading-stack .usage-display
   overflow: hidden;
 }
 
-/* Two accounts: one icon per vertical half. */
-.provider-composite.composite-2 {
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: 1fr;
-}
-
-/* Three accounts: two stacked in the left half, third filling the right half. */
-.provider-composite.composite-3 {
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(2, 1fr);
-}
-.provider-composite.composite-3 .composite-cell:nth-child(1) { grid-area: 1 / 1; }
-.provider-composite.composite-3 .composite-cell:nth-child(2) { grid-area: 2 / 1; }
-.provider-composite.composite-3 .composite-cell:last-child { grid-area: 1 / 2 / -1 / -1; }
-
-/* Four or more accounts: 2x2 quadrants. */
-.provider-composite.composite-4 {
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(2, 1fr);
-}
+.provider-composite .composite-cell:nth-child(1) { grid-area: 1 / 1; }
+.provider-composite .composite-cell:nth-child(2) { grid-area: 2 / 2; }
+.provider-composite .composite-cell:nth-child(3) { grid-area: 2 / 1; }
+.provider-composite .composite-cell:nth-child(4) { grid-area: 1 / 2; }
 
 .provider-composite .composite-cell svg,
 .provider-composite .composite-cell img {
   width: 12px;
   height: 12px;
   object-fit: contain;
-}
-.provider-composite.composite-3 .composite-cell:last-child svg,
-.provider-composite.composite-3 .composite-cell:last-child img {
-  width: 13px;
-  height: 13px;
 }
 
 .provider-summary-content {
