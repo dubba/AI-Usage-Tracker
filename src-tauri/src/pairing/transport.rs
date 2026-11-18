@@ -255,28 +255,55 @@ enum HostStep {
     EndSession,
 }
 
+/// The channels between one running session and the rest of the app, the same
+/// for both devices.
+pub struct SessionChannels<E> {
+    /// Progress for the UI.
+    pub status_tx: mpsc::Sender<E>,
+    /// Where the user's answer to "send these accounts?" should go. It is handed
+    /// to the pairing manager only once that step is reached, so an earlier
+    /// answer has nothing to send on. Tests pass `None` and answer directly.
+    pub confirm_offer: Option<oneshot::Sender<bool>>,
+    pub confirm_rx: oneshot::Receiver<bool>,
+    pub cancel_rx: oneshot::Receiver<()>,
+}
+
+/// What the hosting device listens on and checks joiners against.
+pub struct HostSession {
+    pub session_id: Uuid,
+    pub listener: TcpListener,
+    pub code: String,
+    pub session_nonce: Vec<u8>,
+}
+
+/// The joining device's channel for its user's send-or-receive choice. Like
+/// `SessionChannels::confirm_offer`, `role_offer` is handed over only once the
+/// choice is asked for.
+pub struct RoleChannels {
+    pub role_offer: Option<oneshot::Sender<String>>,
+    pub role_select_rx: oneshot::Receiver<String>,
+}
+
 /// Runs the host listener loop (shows the link code, accepts the joining device)
-// Session plumbing: one channel/handle per concern, kept as separate
-// arguments so the host and client paths stay symmetrical.
-#[allow(clippy::too_many_arguments)]
 pub async fn run_host_listener(
     state: Arc<AppState>,
-    session_id: Uuid,
-    listener: TcpListener,
-    code: String,
-    session_nonce: Vec<u8>,
-    status_tx: mpsc::Sender<HostEvent>,
-    mut confirm_offer: Option<oneshot::Sender<bool>>,
-    confirm_rx: oneshot::Receiver<bool>,
-    mut cancel_rx: oneshot::Receiver<()>,
+    session: HostSession,
+    channels: SessionChannels<HostEvent>,
 ) {
+    let SessionChannels {
+        status_tx,
+        mut confirm_offer,
+        confirm_rx,
+        mut cancel_rx,
+    } = channels;
+    let session_id = session.session_id;
     let session_id_bytes = *session_id.as_bytes();
     let deadline = Instant::now() + Duration::from_secs(SESSION_TIMEOUT_SECS);
     let mut wrong_codes: u8 = 0;
 
     let negotiated = loop {
         let Some((stream, joiner_message)) = accept_handshake(
-            &listener,
+            &session.listener,
             deadline,
             &session_id_bytes,
             &mut cancel_rx,
@@ -291,9 +318,7 @@ pub async fn run_host_listener(
             &state,
             stream,
             joiner_message,
-            &code,
-            &session_id_bytes,
-            &session_nonce,
+            &session,
             &mut wrong_codes,
             &status_tx,
         )
@@ -456,18 +481,17 @@ async fn read_joiner_proof(
 /// its proof that it knows the link code, proves the same back, and waits for
 /// it to choose who sends. A joiner without the code never gets past the
 /// proof, so nothing is shown to the user for it.
-// One argument per piece of session material, as in `run_host_listener`.
-#[allow(clippy::too_many_arguments)]
 async fn negotiate_as_host(
     state: &AppState,
     mut stream: TcpStream,
     joiner_message: [u8; PAKE_MESSAGE_LEN],
-    code: &str,
-    session_id_bytes: &[u8; SESSION_ID_LEN],
-    session_nonce: &[u8],
+    session: &HostSession,
     wrong_codes: &mut u8,
     status_tx: &mpsc::Sender<HostEvent>,
 ) -> HostStep {
+    let code = session.code.as_str();
+    let session_id_bytes = session.session_id.as_bytes();
+    let session_nonce = session.session_nonce.as_slice();
     let (exchange, host_message) = PakeExchange::start_host(code);
     let encryption_key = match exchange.finish(&joiner_message, session_nonce) {
         Ok(key) => key,
@@ -728,21 +752,24 @@ async fn join_any_host(hosts: &[DiscoveredHost], code: &str) -> Result<Authentic
 /// Runs the joining device: finds the host that shares the code, selects the
 /// role, waits for the transfer to be confirmed, and transfers. `session_id`
 /// is this device's own name for the session (the hosts' ids are theirs).
-// Session plumbing: one channel/handle per concern, kept as separate
-// arguments so the host and client paths stay symmetrical.
-#[allow(clippy::too_many_arguments)]
 pub async fn run_client_connector(
     state: Arc<AppState>,
     session_id: String,
     hosts: Vec<DiscoveredHost>,
     code: String,
-    status_tx: mpsc::Sender<ClientEvent>,
-    mut role_offer: Option<oneshot::Sender<String>>,
-    mut role_select_rx: oneshot::Receiver<String>,
-    mut confirm_offer: Option<oneshot::Sender<bool>>,
-    confirm_rx: oneshot::Receiver<bool>,
-    mut cancel_rx: oneshot::Receiver<()>,
+    channels: SessionChannels<ClientEvent>,
+    role: RoleChannels,
 ) {
+    let SessionChannels {
+        status_tx,
+        mut confirm_offer,
+        confirm_rx,
+        mut cancel_rx,
+    } = channels;
+    let RoleChannels {
+        mut role_offer,
+        mut role_select_rx,
+    } = role;
     let joined = tokio::select! {
         _ = &mut cancel_rx => {
             let _ = status_tx.send(ClientEvent::Cancelled).await;

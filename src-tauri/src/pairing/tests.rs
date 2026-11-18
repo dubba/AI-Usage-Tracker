@@ -11,8 +11,8 @@ use super::{
         MSG_HANDSHAKE_RESP, MSG_KEY_CONFIRM, PAKE_MESSAGE_LEN,
     },
     transport::{
-        run_client_connector, run_host_listener, ClientEvent, HostEvent, MAX_CODE_ATTEMPTS,
-        MAX_HOSTS_TRIED, TOO_MANY_WRONG_CODES, WRONG_CODE,
+        run_client_connector, run_host_listener, ClientEvent, HostEvent, HostSession, RoleChannels,
+        SessionChannels, MAX_CODE_ATTEMPTS, MAX_HOSTS_TRIED, TOO_MANY_WRONG_CODES, WRONG_CODE,
     },
 };
 use crate::{
@@ -1547,14 +1547,18 @@ async fn spawn_host(state: &Arc<AppState>, code: &str) -> TestHost {
     let (cancel, cancel_rx) = oneshot::channel();
     tokio::spawn(run_host_listener(
         state.clone(),
-        session_id,
-        listener,
-        code.to_string(),
-        nonce.clone(),
-        status_tx,
-        None,
-        confirm_rx,
-        cancel_rx,
+        HostSession {
+            session_id,
+            listener,
+            code: code.to_string(),
+            session_nonce: nonce.clone(),
+        },
+        SessionChannels {
+            status_tx,
+            confirm_offer: None,
+            confirm_rx,
+            cancel_rx,
+        },
     ));
     TestHost {
         found: DiscoveredHost {
@@ -1587,12 +1591,16 @@ fn spawn_client(state: &Arc<AppState>, hosts: Vec<DiscoveredHost>, code: &str) -
         "client-session".into(),
         hosts,
         code.to_string(),
-        status_tx,
-        None,
-        role_rx,
-        None,
-        confirm_rx,
-        cancel_rx,
+        SessionChannels {
+            status_tx,
+            confirm_offer: None,
+            confirm_rx,
+            cancel_rx,
+        },
+        RoleChannels {
+            role_offer: None,
+            role_select_rx: role_rx,
+        },
     ));
     TestClient {
         events,

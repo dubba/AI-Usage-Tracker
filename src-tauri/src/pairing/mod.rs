@@ -17,7 +17,7 @@ use crate::{
         payload::SyncSummary,
         transport::{
             get_local_lan_ip, run_client_connector, run_host_listener, ClientEvent, HostEvent,
-            SESSION_TIMEOUT_SECS,
+            HostSession, RoleChannels, SessionChannels, SESSION_TIMEOUT_SECS,
         },
     },
     state::AppState,
@@ -404,14 +404,18 @@ impl PairingSessionManager {
         tokio::spawn(async move {
             run_host_listener(
                 state_for_listener,
-                session_id,
-                listener,
-                join_code,
-                session_nonce,
-                status_tx,
-                Some(confirm_tx),
-                confirm_rx,
-                cancel_rx,
+                HostSession {
+                    session_id,
+                    listener,
+                    code: join_code,
+                    session_nonce,
+                },
+                SessionChannels {
+                    status_tx,
+                    confirm_offer: Some(confirm_tx),
+                    confirm_rx,
+                    cancel_rx,
+                },
             )
             .await;
         });
@@ -547,12 +551,16 @@ impl PairingSessionManager {
                 session_id_str,
                 hosts,
                 code,
-                status_tx,
-                Some(role_select_tx),
-                role_select_rx,
-                Some(confirm_tx),
-                confirm_rx,
-                cancel_rx,
+                SessionChannels {
+                    status_tx,
+                    confirm_offer: Some(confirm_tx),
+                    confirm_rx,
+                    cancel_rx,
+                },
+                RoleChannels {
+                    role_offer: Some(role_select_tx),
+                    role_select_rx,
+                },
             )
             .await;
         });
