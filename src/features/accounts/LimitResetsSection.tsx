@@ -144,7 +144,7 @@ export function LimitResetsSection({
           noteTone="caution"
           cancelLabel="Keep for later"
           confirmLabel="Use reset"
-          confirmDanger={false}
+          confirmDanger
           busyLabel="Using…"
           busy={busy}
           onConfirm={() => {
