@@ -355,6 +355,10 @@
     min-width: 0;
   }
 
+  .activity-card-head .activity-card-identity {
+    padding-right: 6px;
+  }
+
   .activity-card-title {
     margin: 0;
     color: var(--text);

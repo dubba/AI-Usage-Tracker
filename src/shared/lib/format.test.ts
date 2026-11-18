@@ -179,14 +179,14 @@ describe("formatResetAtDay", () => {
   });
 
   it("says Today for a reset later the same day", () => {
-    expect(formatResetAtDay(new Date(2026, 10, 17, 14, 29).toISOString(), now, "en-US")).toBe("Today, 2:29p");
-    expect(formatResetAtDay(new Date(2026, 10, 17, 23, 59).toISOString(), now, "en-US")).toBe("Today, 11:59p");
+    expect(formatResetAtDay(new Date(2026, 10, 17, 14, 29).toISOString(), now, "en-US")).toBe("Today @ 2:29p");
+    expect(formatResetAtDay(new Date(2026, 10, 17, 23, 59).toISOString(), now, "en-US")).toBe("Today @ 11:59p");
   });
 
   it("gives the short weekday and date for any other day", () => {
-    expect(formatResetAtDay(new Date(2026, 10, 18, 4, 0).toISOString(), now, "en-US")).toBe("Wed, Nov 18, 4:00a");
-    expect(formatResetAtDay(new Date(2026, 10, 22, 16, 0).toISOString(), now, "en-US")).toBe("Sun, Nov 22, 4:00p");
-    expect(formatResetAtDay(new Date(2026, 9, 6, 14, 5).toISOString(), now, "en-GB")).toBe("Tue, 6 Oct, 14:05");
+    expect(formatResetAtDay(new Date(2026, 10, 18, 4, 0).toISOString(), now, "en-US")).toBe("Wed, Nov 18 @ 4:00a");
+    expect(formatResetAtDay(new Date(2026, 10, 22, 16, 0).toISOString(), now, "en-US")).toBe("Sun, Nov 22 @ 4:00p");
+    expect(formatResetAtDay(new Date(2026, 9, 6, 14, 5).toISOString(), now, "en-GB")).toBe("Tue, 6 Oct @ 14:05");
   });
 });
 

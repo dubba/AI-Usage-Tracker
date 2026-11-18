@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { click, mount, type Mounted } from "../../test-utils/react";
 import { makeAccount, makeTracker, measured } from "../../test-utils/activity-fixtures";
 import { displayPlan } from "../../shared/lib/display";
-import { formatResetAtShort } from "../../shared/lib/format";
+import { formatResetAtDay } from "../../shared/lib/format";
 import { setUsageDisplayMode } from "../../shared/lib/usage-display";
 import type { Account } from "../../types";
 import { NoWeeklyLimitCard } from "./NoWeeklyLimitCard";
@@ -15,11 +15,14 @@ let mounted: Mounted | null = null;
 
 beforeEach(() => {
   process.env.TZ = "UTC";
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-10-16T12:00:00Z"));
 });
 afterEach(() => {
   mounted?.unmount();
   mounted = null;
   setUsageDisplayMode("left");
+  vi.useRealTimers();
   if (originalZone === undefined) delete process.env.TZ;
   else process.env.TZ = originalZone;
 });
@@ -34,16 +37,33 @@ function render(account: Account, tracker = makeTracker({ accountId: account.id 
 const text = (root: ParentNode, selector: string) => root.querySelector(selector)?.textContent ?? null;
 
 describe("WeeklyTracker", () => {
-  it("names the account, its plan and when the week resets", () => {
-    const account = makeAccount({ id: "a1", label: "Work Claude", plan: "max" });
+  it("names the account with its plan pill, email, and reset day/time", () => {
+    const account = makeAccount({ id: "a1", label: "Work Claude", plan: "max", email: "work@example.com" });
     const root = render(account, makeTracker({ accountId: "a1", resetsAt: "2026-10-27T15:00:00Z" }));
     expect(text(root, ".activity-card-title")).toBe("Work Claude");
-    expect(text(root, ".activity-card-details")).toBe(`${displayPlan(account)} · resets ${formatResetAtShort("2026-10-27T15:00:00Z")}`);
+    expect(text(root, ".activity-plan-pill")).toBe(displayPlan(account));
+    expect(text(root, ".activity-consolidated-email")).toBe("work@example.com");
+    expect(text(root, ".activity-card-details")).toBe(`Resets ${formatResetAtDay("2026-10-27T15:00:00Z", Date.now())}`);
     expect(root.querySelector("article")!.getAttribute("aria-labelledby")).toBe(root.querySelector(".activity-card-title")!.id);
+  });
+
+  it("formats resets today as Resets Today @ <time> and future days with weekday, date, and @", () => {
+    vi.setSystemTime(new Date("2026-11-17T12:00:00Z"));
+    const account = makeAccount({ id: "a1", label: "Claude123", plan: "pro", email: "m.bahabib@yahoo.com" });
+
+    const todayRoot = render(account, makeTracker({ accountId: "a1", resetsAt: "2026-11-17T22:50:00Z" }));
+    expect(text(todayRoot, ".activity-card-details")).toBe("Resets Today @ 10:50p");
+    mounted!.unmount();
+    mounted = null;
+
+    const futureRoot = render(account, makeTracker({ accountId: "a1", resetsAt: "2026-11-22T02:59:00Z" }));
+    expect(text(futureRoot, ".activity-card-details")).toBe("Resets Sun, Nov 22 @ 2:59a");
   });
 
   it("leaves out what it does not know", () => {
     const root = render(makeAccount({ id: "a1", label: "Plain" }), makeTracker({ accountId: "a1", resetsAt: null }));
+    expect(root.querySelector(".activity-plan-pill")).toBeNull();
+    expect(root.querySelector(".activity-consolidated-email")).toBeNull();
     expect(root.querySelector(".activity-card-details")).toBeNull();
   });
 
@@ -98,10 +118,10 @@ describe("WeeklyTracker", () => {
         makeAccount({ id: "a1", provider: "antigravity", label: "Antigravity", email: "me@example.com" }),
         makeTracker({ accountId: "a1", windowId: "gemini", windowLabel }),
       );
-      expect(text(root, ".activity-card-title-line")).toBe("Antigravity · me@example.com");
+      expect(text(root, ".activity-card-title")).toBe("Antigravity");
+      expect(text(root, ".activity-consolidated-email")).toBe("me@example.com");
       expect(text(root, ".activity-card-limit")).toBe(family);
       expect(root.querySelector(".activity-card-family")).toBeNull();
-      expect(root.querySelector(".activity-card-dot")?.textContent).toBe(" · ");
       expect(root.querySelector('.activity-bars[role="img"]')!.getAttribute("aria-label")).toContain(`Antigravity ${family}, last 7 days`);
       mounted!.unmount();
       mounted = null;
@@ -120,32 +140,34 @@ describe("WeeklyTracker", () => {
       makeTracker({ accountId: "a1", windowLabel: "Gemini Models · Weekly Limit Remaining" }),
     );
     expect(claude.querySelector(".activity-card-limit")).toBeNull();
-    expect(text(claude, ".activity-card-title-line")).toBe("Work Claude · work@example.com");
+    expect(text(claude, ".activity-card-title")).toBe("Work Claude");
+    expect(text(claude, ".activity-consolidated-email")).toBe("work@example.com");
   });
 
-  it("shows the account email beside the name for every provider", () => {
-    const root = render(makeAccount({ id: "a1", label: "Work Claude", provider: "anthropic", email: "work@example.com" }));
-    expect(text(root, ".activity-card-title-line")).toBe("Work Claude · work@example.com");
-    expect(text(root, ".activity-card-provider")).toBe("Work Claude");
-    expect(text(root, ".activity-card-email")).toBe("work@example.com");
+  it("shows the plan pill beside the name and email on its own line for every provider", () => {
+    const root = render(makeAccount({ id: "a1", label: "ChatGPT", provider: "openai", plan: "plus", email: "user@example.com" }));
+    expect(text(root, ".activity-card-title")).toBe("ChatGPT");
+    expect(text(root, ".activity-plan-pill")).toBe("Plus/$20");
+    expect(text(root, ".activity-consolidated-email")).toBe("user@example.com");
     expect(root.querySelector(".activity-card-limit")).toBeNull();
   });
 
-  it("places the title and limit in the identity column beside the total usage percentage", () => {
+  it("places the title, plan pill, email, and reset in the identity column beside the total usage percentage", () => {
     const root = render(
-      makeAccount({ id: "a1", label: "Antigravity", provider: "antigravity", email: "m.bahabib@yahoo.com" }),
-      makeTracker({ accountId: "a1", currentUsedPercent: 17, windowLabel: "Claude and GPT Models · Weekly Limit Remaining" }),
+      makeAccount({ id: "a1", label: "Claude123", provider: "anthropic", plan: "pro", email: "m.bahabib@yahoo.com" }),
+      makeTracker({ accountId: "a1", currentUsedPercent: 27, resetsAt: "2026-10-16T22:50:00Z" }),
     );
-    // Identity column contains the title (with email) and the limit name directly stacked
     const identity = root.querySelector(".activity-card-identity")!;
     expect(identity).not.toBeNull();
-    expect(identity.querySelector(".activity-card-title")!.textContent).toBe("Antigravity · m.bahabib@yahoo.com");
-    expect(identity.querySelector(".activity-card-limit")!.textContent).toBe("Other Models");
+    expect(identity.querySelector(".activity-consolidated-title-row .activity-card-title")!.textContent).toBe("Claude123");
+    expect(identity.querySelector(".activity-consolidated-title-row .activity-plan-pill")!.textContent).toBe("Pro/$20");
+    expect(identity.querySelector(".activity-consolidated-email")!.textContent).toBe("m.bahabib@yahoo.com");
+    expect(identity.querySelector(".activity-card-details")!.textContent).toBe("Resets Today @ 10:50p");
 
     // Total column contains the percentage and the period label below it
     const total = root.querySelector(".activity-card-total")!;
     expect(total).not.toBeNull();
-    expect(total.querySelector("strong")!.textContent).toBe("17%");
+    expect(total.querySelector("strong")!.textContent).toBe("27%");
     expect(total.querySelector(".activity-card-total-period")!.textContent).toBe("used this week");
   });
 
@@ -153,7 +175,7 @@ describe("WeeklyTracker", () => {
     const account = makeAccount({ id: "a1", label: "Grok", provider: "grok" });
     account.lastUsage!.email = "grok@example.com";
     const root = render(account);
-    expect(text(root, ".activity-card-email")).toBe("grok@example.com");
+    expect(text(root, ".activity-consolidated-email")).toBe("grok@example.com");
   });
 
   it("draws the daily bars for its days and resets", () => {

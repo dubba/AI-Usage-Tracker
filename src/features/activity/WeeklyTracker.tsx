@@ -1,10 +1,11 @@
 import { useId } from "react";
-import { formatResetAtShort } from "../../shared/lib/format";
+import { useClock } from "../../shared/hooks/useClock";
+import { formatResetAtDay } from "../../shared/lib/format";
 import { displayAccountError, displayPlan } from "../../shared/lib/display";
 import { displayAccountLabel, usageTone } from "../../shared/lib/usage-logic";
 import { ProviderIcon } from "../../shared/ui/ProviderIcon";
 import type { Account, ActivityTracker } from "../../types";
-import { accountEmail, ActivityAccountTitle } from "./account-title";
+import { accountEmail } from "./account-title";
 import { formatDayPercent } from "./activity-format";
 import type { ActivityPeriod } from "./activity-period";
 import { antigravityFamilyLabel } from "./antigravity-models";
@@ -27,6 +28,7 @@ export function WeeklyTracker({
 }) {
   const titleId = useId();
   const label = displayAccountLabel(account);
+  const plan = displayPlan(account);
   const used = tracker.currentUsedPercent;
   // Toned by what is left, like the account cards. The number itself is always what was used:
   // this page is about consumption, and the daily bars below count usage too.
@@ -38,8 +40,7 @@ export function WeeklyTracker({
     || account.lastUsage.freshness !== "live";
   const limitName = account.provider === "antigravity" ? antigravityFamilyLabel(tracker.windowLabel) : null;
   const email = accountEmail(account);
-  const reset = formatResetAtShort(tracker.resetsAt);
-  const details = [displayPlan(account), reset ? `resets ${reset}` : null].filter(Boolean).join(" · ");
+  const reset = useClock((now) => formatResetAtDay(tracker.resetsAt, now));
   const chartName = limitName ? `${label} ${limitName}` : label;
   const monthly = tracker.windowKind === "monthly";
 
@@ -58,10 +59,14 @@ export function WeeklyTracker({
           <ProviderIcon provider={account.provider} />
         </span>
         <div className="activity-card-identity">
-          <h2 className="activity-card-title" id={titleId}>
-            <ActivityAccountTitle label={label} email={email} />
-          </h2>
-          {details ? <p className="activity-card-details">{details}</p> : null}
+          <div className="activity-consolidated-title-row">
+            <h2 className="activity-card-title" id={titleId}>
+              {label}
+            </h2>
+            {plan ? <span className="activity-plan-pill">{plan}</span> : null}
+          </div>
+          {email ? <p className="activity-consolidated-email">{email}</p> : null}
+          {reset ? <p className="activity-card-details">Resets {reset}</p> : null}
           {limitName ? <span className="activity-card-limit">{limitName}</span> : null}
         </div>
         <div className={`activity-card-total tone-${tone}`}>

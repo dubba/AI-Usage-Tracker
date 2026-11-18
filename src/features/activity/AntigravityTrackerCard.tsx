@@ -1,6 +1,7 @@
 import { useId } from "react";
+import { useClock } from "../../shared/hooks/useClock";
 import { displayAccountError, displayPlan } from "../../shared/lib/display";
-import { formatResetAtShort } from "../../shared/lib/format";
+import { formatResetAtDay } from "../../shared/lib/format";
 import { displayAccountLabel, usageTone } from "../../shared/lib/usage-logic";
 import { ProviderIcon } from "../../shared/ui/ProviderIcon";
 import type { Account, ActivityTracker } from "../../types";
@@ -32,6 +33,10 @@ export function AntigravityTrackerCard({
   const label = displayAccountLabel(account);
   const plan = displayPlan(account);
   const email = accountEmail(account);
+  const todayMidnight = useClock((now) => {
+    const date = new Date(now);
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  });
   const needsSignIn = account.authRequired || account.lastUsage?.freshness === "auth_required";
   const hasError = needsSignIn
     || Boolean(account.lastError)
@@ -78,7 +83,7 @@ export function AntigravityTrackerCard({
           const modelName = antigravityFamilyLabel(tracker.windowLabel);
           const used = tracker.currentUsedPercent;
           const tone = usageTone(used == null ? null : 100 - used);
-          const reset = formatResetAtShort(tracker.resetsAt);
+          const reset = formatResetAtDay(tracker.resetsAt, todayMidnight);
           const monthly = tracker.windowKind === "monthly";
           const chartName = `${label} ${modelName}`;
 
