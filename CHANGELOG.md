@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (11 changes)
+## Unreleased (12 changes)
 
 ### Improved (8)
 
@@ -13,11 +13,12 @@
 - On phones, the usage display switcher in the header now shows `U` and `L` without `%` to leave more room for the title.
 - On the Usage page, the chart legend bar now starts with a compact purple `KEY` pill and uses tighter item spacing so all legend items fit cleanly on one line.
 
-### Security (3)
+### Security (4)
 
 - If a provider ever sends back part of your sign-in token inside account details (plan, email, account id, usage labels), the app no longer saves or shows it. That refresh is skipped, the account keeps its last usage marked as out of date, and the card explains why; a sign-in or import with such details is refused.
 - Copy Diagnostics no longer includes Claude limit-reset ids, reasons, or dates; the log now records only how many resets there are and whether they can be used.
 - The recent-error lines in Copy Diagnostics no longer include account names, email addresses, or your computer's user folder name, and error messages from saving groups, account order, alerts, and settings no longer show that folder name either.
+- Removing an account now also deletes sign-in pieces left in the system keychain by older app versions, and an upgrade that was interrupted while moving those sign-ins finishes its cleanup the next time the app reads them.
 
 ## v0.6.3 - 2026-11-17 (9 changes)
 

@@ -149,6 +149,7 @@ pub(crate) fn read_credential_generation(
 }
 
 #[cfg(not(target_os = "android"))]
+#[cfg_attr(any(target_os = "macos", target_os = "ios"), allow(dead_code))]
 pub(crate) fn delete_credential_generation(
     account_id: &str,
     generation: &CredentialGeneration,

@@ -4,6 +4,8 @@ pub(super) mod chunking;
 mod keychain_access;
 #[cfg(not(target_os = "android"))]
 pub(super) mod keyring_store;
+#[cfg(not(target_os = "android"))]
+pub(super) mod legacy_cleanup;
 
 use self::cache::{
     cached_secret, cached_secret_is_clean, forget_secret, mark_secret_clean, remember_secret,
@@ -11,8 +13,7 @@ use self::cache::{
 };
 #[cfg(all(not(target_os = "android"), not(debug_assertions)))]
 use self::chunking::{
-    decode_provider_secret, delete_credential_generation, parse_credential_manifest,
-    read_credential_generation,
+    decode_provider_secret, parse_credential_manifest, read_credential_generation,
 };
 // Only the chunked format (Windows and other non-Apple desktops) writes credentials in pieces.
 #[cfg(all(
@@ -20,16 +21,16 @@ use self::chunking::{
     not(debug_assertions)
 ))]
 use self::chunking::{
-    generate_credential_generation, read_credential_manifest, split_utf16_chunks,
-    write_credential_generation, write_credential_manifest, CredentialGeneration,
-    CredentialManifest, CHUNKED_CREDENTIAL_FORMAT, CREDENTIAL_CHUNK_UTF16_UNITS,
-    MAX_CREDENTIAL_CHUNKS,
+    delete_credential_generation, generate_credential_generation, read_credential_manifest,
+    split_utf16_chunks, write_credential_generation, write_credential_manifest,
+    CredentialGeneration, CredentialManifest, CHUNKED_CREDENTIAL_FORMAT,
+    CREDENTIAL_CHUNK_UTF16_UNITS, MAX_CREDENTIAL_CHUNKS,
 };
 #[cfg(all(not(target_os = "android"), not(debug_assertions)))]
 use self::keyring_store::{
     account_credential_entry, account_credential_user, credential_chunk_user, credential_entry,
     credential_entry_for, delete_credential, delete_legacy_credential, BRIDGE_TOKEN_USER,
-    CREDENTIAL_SERVICE, LEGACY_CREDENTIAL_SERVICE,
+    LEGACY_CREDENTIAL_SERVICE,
 };
 use crate::model::ProviderSecret;
 #[cfg(any(target_os = "android", debug_assertions))]
@@ -213,18 +214,27 @@ pub(crate) fn load_keychain_secret(account_id: &str) -> Result<ProviderSecret, S
     #[cfg(not(any(target_os = "macos", target_os = "ios")))]
     let should_migrate = from_legacy;
 
-    if should_migrate && persist_provider_secret(account_id, &secret).is_ok() {
-        let _ = delete_legacy_credential(&user);
+    let migrated = should_migrate && persist_provider_secret(account_id, &secret).is_ok();
+    // Apple platforms only: a current-service manifest was just rewritten as
+    // one item, so its chunks are no longer referenced.
+    if migrated && !from_legacy {
         if let Some(manifest) = manifest.as_ref() {
             for generation in std::iter::once(&manifest.active).chain(manifest.previous.as_ref()) {
                 for index in 0..generation.chunks {
                     let chunk_user =
                         credential_chunk_user(account_id, &generation.generation, index);
-                    let _ = delete_legacy_credential(&chunk_user);
                     let _ = delete_credential(&chunk_user);
                 }
             }
         }
+    }
+    // Removes the legacy root and the chunks it lists once the current service
+    // holds the secret. It also runs when the secret came from the current
+    // service, which finishes a migration an earlier run started but did not
+    // clean up (L-81). A failure leaves the legacy root in place for the next
+    // load. Never runs while the legacy entry is the only copy.
+    if migrated || !from_legacy {
+        let _ = legacy_cleanup::remove_legacy_credentials(&legacy_cleanup::Keychain, account_id);
     }
 
     Ok(secret)
@@ -264,53 +274,11 @@ pub fn load_provider_secret(account_id: &str) -> Result<ProviderSecret, StoreErr
     Ok(secret)
 }
 
+/// Removes the account's root entries and every chunk they list, under both
+/// the current and the legacy service (L-81). See `legacy_cleanup`.
 #[cfg(all(not(target_os = "android"), not(debug_assertions)))]
 pub(crate) fn delete_keychain_secret(account_id: &str) -> Result<(), StoreError> {
-    let user = account_credential_user(account_id);
-    let mut first_error = None;
-    let mut manifests = Vec::new();
-
-    match credential_entry_for(CREDENTIAL_SERVICE, &user)?.get_password() {
-        Ok(stored) => {
-            if let Some(manifest) = parse_credential_manifest(&stored)? {
-                manifests.push(manifest);
-            }
-        }
-        Err(keyring::Error::NoEntry) => {
-            match credential_entry_for(LEGACY_CREDENTIAL_SERVICE, &user)?.get_password() {
-                Ok(stored) => {
-                    if let Some(manifest) = parse_credential_manifest(&stored)? {
-                        manifests.push(manifest);
-                    }
-                }
-                Err(keyring::Error::NoEntry) => {}
-                Err(error) => {
-                    first_error.get_or_insert(StoreError::Credential(error.to_string()));
-                }
-            }
-        }
-        Err(error) => {
-            first_error.get_or_insert(StoreError::Credential(error.to_string()));
-        }
-    }
-
-    for manifest in &manifests {
-        for generation in std::iter::once(&manifest.active).chain(manifest.previous.as_ref()) {
-            if let Err(error) = delete_credential_generation(account_id, generation) {
-                first_error.get_or_insert(error);
-            }
-        }
-    }
-
-    if let Err(error) = delete_credential(&user) {
-        first_error.get_or_insert(error);
-    }
-
-    if let Some(error) = first_error {
-        Err(error)
-    } else {
-        Ok(())
-    }
+    legacy_cleanup::delete_account_credentials(&legacy_cleanup::Keychain, account_id)
 }
 
 #[cfg(any(target_os = "android", debug_assertions))]
