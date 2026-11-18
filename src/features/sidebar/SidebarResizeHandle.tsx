@@ -7,6 +7,7 @@ import {
   FALLBACK_MIN_SIDEBAR_WIDTH,
   KEYBOARD_STEP,
   maxSidebarWidth,
+  measureAccountCardMinWidth,
   measureMainMinWidth,
   measureMeterFitWidth,
   measureMinSidebarWidth,
@@ -99,7 +100,11 @@ export function SidebarResizeHandle({
     if (!sidebar) return;
     minWidth.current = measureMinSidebarWidth(sidebar);
     const shell = shellRef.current;
-    const mainMin = shell ? measureMainMinWidth(shell) : null;
+    // The account card list goes to two columns only where a card this wide fits in each
+    // (accounts-layout.css). Kept while no card is on screen, like the main area's minimum.
+    const cardMin = shell ? measureAccountCardMinWidth(shell) : null;
+    if (cardMin !== null) document.documentElement.style.setProperty("--account-card-min", `${cardMin}px`);
+    const mainMin = shell ? measureMainMinWidth(shell, cardMin) : null;
     if (mainMin !== null) mainMinWidth.current = mainMin;
     toggleLineWidth.current = measureToggleLineWidth(sidebar);
     // On a wide window the default lines the cards up with the top bar's page switch; on the phone

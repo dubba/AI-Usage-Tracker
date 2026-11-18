@@ -14,6 +14,14 @@ export function windowMinWidth(sidebarWidth: number, mainMin: number | null): nu
 let applied: number | null = null;
 
 /**
+ * Changes this small are measuring noise (fractional widths rounded up), not a card that needs more
+ * room; `measureMainMinWidth` already adds a 2px margin that absorbs them. Applying them did harm: on
+ * macOS a minimum above the window's width widens the window from its left edge, so while the left
+ * edge was dragged against the minimum, each 1px rise pushed the whole window right.
+ */
+const MIN_WIDTH_JITTER_PX = 2;
+
+/**
  * Stops the desktop window from being made narrower than the sidebar plus the room the account
  * cards need on one line (`measureMainMinWidth`), so narrowing the window never wraps a card's
  * header. Phones and tablets have no window to resize.
@@ -21,7 +29,7 @@ let applied: number | null = null;
 export function keepWindowWideEnough(sidebarWidth: number, mainMin: number | null) {
   if (isMobileDevice()) return;
   const width = windowMinWidth(sidebarWidth, mainMin);
-  if (width === applied) return;
+  if (applied !== null && Math.abs(width - applied) <= MIN_WIDTH_JITTER_PX) return;
   applied = width;
   try {
     void getCurrentWindow()

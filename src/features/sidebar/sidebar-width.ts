@@ -1,3 +1,5 @@
+import { worstResetLineWidth } from "../accounts/reset-line-width";
+
 export const MOBILE_OVERLAY_QUERY = "(max-width: 860px)";
 
 export const FALLBACK_MIN_SIDEBAR_WIDTH = 240;
@@ -238,32 +240,64 @@ export function measureMinSidebarWidth(sidebar: HTMLElement): number {
 }
 
 /**
- * Narrowest the main area can be before a desktop account card's header wraps: the name and email,
- * then the chips, updated time and buttons, all on one line. That is the widest header's one-line
- * width plus everything between the header and the main area's edges (card and page padding, the
- * scroll bar). Null when no desktop card is on screen (another page, or the phone layout).
+ * Narrowest a desktop account card can be with its header on one line (the name and email, then the
+ * chips, updated time and buttons) and every usage row's reset line on one line, whatever the
+ * countdown and date (`worstResetLineWidth`). Null when no desktop card is on screen (another page,
+ * the phone layout, or compact cards).
+ *
+ * Only differences between widths go in (the card's padding beside its header, a usage row's share
+ * of the card), so the answer is the same whether the list is in one column or two.
  */
-export function measureMainMinWidth(shell: HTMLElement): number | null {
-  const main = shell.querySelector<HTMLElement>(".main-stage");
-  if (!main) return null;
+export function measureAccountCardMinWidth(shell: HTMLElement): number | null {
   let widest: number | null = null;
-  for (const header of shell.querySelectorAll<HTMLElement>(".provider-account-card.desktop-card:not(.is-compact) .provider-account-card-header")) {
-    const headerWidth = header.getBoundingClientRect().width;
-    if (headerWidth <= 0) continue;
-    const parts = [...header.children].filter(
-      (child): child is HTMLElement => child instanceof HTMLElement && getComputedStyle(child).position !== "absolute",
-    );
-    if (!parts.length) continue;
-    // The header wraps rather than shrinking its parts, so each one is at its full width already,
-    // on one line or two. (A hidden copy of a part measures narrower than the part itself.)
-    const gap = parseFloat(getComputedStyle(header).columnGap);
-    const line =
-      parts.reduce((sum, part) => sum + part.getBoundingClientRect().width, 0) +
-      (Number.isFinite(gap) ? gap : 0) * (parts.length - 1) +
-      horizontalChrome(header);
-    const around = main.getBoundingClientRect().width - headerWidth;
-    const need = Math.ceil(line + around + MEASURE_BUFFER_PX);
+  const consider = (need: number) => {
     if (Number.isFinite(need) && (widest === null || need > widest)) widest = need;
+  };
+  for (const card of shell.querySelectorAll<HTMLElement>(".provider-account-card.desktop-card:not(.is-compact)")) {
+    const cardWidth = card.getBoundingClientRect().width;
+    if (cardWidth <= 0) continue;
+
+    const header = card.querySelector<HTMLElement>(".provider-account-card-header");
+    const headerWidth = header?.getBoundingClientRect().width ?? 0;
+    if (header && headerWidth > 0) {
+      const parts = [...header.children].filter(
+        (child): child is HTMLElement => child instanceof HTMLElement && getComputedStyle(child).position !== "absolute",
+      );
+      if (parts.length) {
+        // The header wraps rather than shrinking its parts, so each one is at its full width already,
+        // on one line or two. (A hidden copy of a part measures narrower than the part itself.)
+        const gap = parseFloat(getComputedStyle(header).columnGap);
+        const line =
+          parts.reduce((sum, part) => sum + part.getBoundingClientRect().width, 0) +
+          (Number.isFinite(gap) ? gap : 0) * (parts.length - 1) +
+          horizontalChrome(header);
+        consider(line + cardWidth - headerWidth);
+      }
+    }
+
+    // The usage rows share the card's width in equal columns, so the card grows by each column's
+    // shortfall (or may shrink by what each has to spare) for the widest possible reset line.
+    const metrics = card.querySelector<HTMLElement>(".account-card-metrics");
+    const foot = metrics?.querySelector<HTMLElement>(".desktop-metric-foot");
+    const footWidth = foot?.getBoundingClientRect().width ?? 0;
+    if (metrics && foot && footWidth > 0) {
+      const columns = getComputedStyle(metrics).gridTemplateColumns.split(" ").filter(Boolean).length || 1;
+      consider(cardWidth + columns * (worstResetLineWidth(foot) - footWidth));
+    }
   }
-  return widest;
+  return widest === null ? null : Math.ceil(widest + MEASURE_BUFFER_PX);
+}
+
+/**
+ * Narrowest the main area can be with a desktop account card at its minimum
+ * (`measureAccountCardMinWidth`) in one column: that plus the page's padding outside the card list
+ * and the scroll bar. Below the width where two cards fit side by side the list is one column, so
+ * this is the real floor. Null when no desktop card is on screen.
+ */
+export function measureMainMinWidth(shell: HTMLElement, cardMin = measureAccountCardMinWidth(shell)): number | null {
+  if (cardMin === null) return null;
+  const main = shell.querySelector<HTMLElement>(".main-stage");
+  const list = shell.querySelector<HTMLElement>(".provider-account-cards");
+  if (!main || !list) return null;
+  return Math.ceil(cardMin + main.getBoundingClientRect().width - list.getBoundingClientRect().width);
 }

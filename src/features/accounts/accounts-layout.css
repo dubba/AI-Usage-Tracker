@@ -1,7 +1,7 @@
 /* Accounts Dashboard improvements (L7):
  * - Compact View toggle beside Group in the desktop top bar.
  * - Slim single-row compact account card layout (.provider-account-card.is-compact).
- * - Two-column card grid on very wide viewports (@media (min-width: 1400px)).
+ * - Two-column card grid once two cards fit side by side (compact cards: @media (min-width: 1400px)).
  *
  * Layered in `@layer components` with zero `!important` flags and zero raw color literals
  * (tokens only; see docs/CSS_ARCHITECTURE.md and src/styles/css-debt.test.ts).
@@ -56,19 +56,31 @@
     outline-offset: 2px;
   }
 
-  /* ---- 2-column grid on very wide windows (1400px+) ---- */
-  @media (min-width: 1400px) {
-    .obsidian-shell .provider-account-cards {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* ---- 2-column grid once two cards fit side by side ----
+     `--account-card-min` is the narrowest a card can be with its header and every reset line on one
+     line (measureAccountCardMinWidth, set by the sidebar's resize handle). Each column is at least
+     that, and at least half the list, so there are never more than two; until two fit there is one.
+     With no measurement yet (100%) the list stays in one column. 16px is the list's gap
+     (obsidian-dashboard.css). */
+  @media (min-width: 861px) {
+    .obsidian-shell .provider-account-cards:not(.is-compact) {
+      grid-template-columns: repeat(
+        auto-fill,
+        minmax(min(100%, max(var(--account-card-min, 100%), calc((100% - 16px) / 2))), 1fr)
+      );
       align-items: start;
-    }
-
-    .obsidian-shell .provider-account-cards.is-compact {
-      align-items: stretch;
     }
 
     .obsidian-shell .provider-account-cards > :not(.provider-account-card):not(.dashboard-reorder-placeholder) {
       grid-column: 1 / -1;
+    }
+  }
+
+  /* ---- Compact cards: 2 columns on very wide windows (1400px+) ---- */
+  @media (min-width: 1400px) {
+    .obsidian-shell .provider-account-cards.is-compact {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: stretch;
     }
   }
 
