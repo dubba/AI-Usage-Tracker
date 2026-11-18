@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod android_bridge_contract;
 mod auth;
 mod backend;
 #[cfg(any(target_os = "android", target_os = "ios"))]
