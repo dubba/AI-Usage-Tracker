@@ -895,7 +895,7 @@ async fn host_listener_binds_only_the_advertised_address() {
 
 #[test]
 fn host_address_prefers_wifi_over_cellular_and_vpn() {
-    use super::transport::select_lan_ipv4;
+    use super::transport::lan::select_lan_ipv4;
     use std::net::Ipv4Addr;
     let candidates = |list: &[(&str, [u8; 4])]| -> Vec<(String, Ipv4Addr)> {
         list.iter()
@@ -1472,7 +1472,17 @@ fn confirmation_tags_are_bound_to_the_key_the_session_and_the_role() {
 /// so a device on the network cannot make this one allocate 16 MB.
 #[test]
 fn only_the_encrypted_payload_is_read_with_the_large_frame_budget() {
-    let source = include_str!("transport.rs").replace("\r\n", "\n");
+    let source = [
+        include_str!("transport/mod.rs"),
+        include_str!("transport/host.rs"),
+        include_str!("transport/client.rs"),
+        include_str!("transport/transfer.rs"),
+        include_str!("transport/events.rs"),
+        include_str!("transport/lan.rs"),
+        include_str!("transport/qr.rs"),
+    ]
+    .concat()
+    .replace("\r\n", "\n");
     let mut large = 0;
     for (index, _) in source.match_indices("read_frame_limited(") {
         let call = &source[index..];
@@ -2022,7 +2032,7 @@ mod link_code_interop {
                         &instance,
                         discovery::DNSSD_REGTYPE,
                         port,
-                        transport::interface_index_for_ip(&ip).unwrap_or(0),
+                        transport::lan::interface_index_for_ip(&ip).unwrap_or(0),
                         &discovery::advertised_properties(session_id, &nonce),
                     )
                     .unwrap(),

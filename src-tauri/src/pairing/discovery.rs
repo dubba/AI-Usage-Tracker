@@ -142,7 +142,7 @@ pub fn advertise(
     {
         // Announce only on the interface the listener is bound to, so the
         // address the joiner resolves is the one that accepts it.
-        let interface_index = super::transport::interface_index_for_ip(host_ip).unwrap_or(0);
+        let interface_index = super::transport::lan::interface_index_for_ip(host_ip).unwrap_or(0);
         let registration =
             super::dnssd::register(instance, DNSSD_REGTYPE, port, interface_index, &properties)?;
         Ok(MdnsAdvertisement {
