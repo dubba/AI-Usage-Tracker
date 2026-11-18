@@ -187,6 +187,21 @@ describe("Button hover and active state invariants", () => {
     );
   });
 
+  it("matches the desktop chevron menu's interactive states to the rename pen", () => {
+    expect(CARD_RESPONSIVE_CSS).toMatch(
+      /\.provider-account-card\.desktop-card\s+\.account-card-desktop-actions\s+\.account-card-action\.more-action:not\(:disabled\):hover,\s*\.provider-account-card\.desktop-card\s+\.account-card-desktop-actions\s+\.account-card-action\.more-action:focus-visible,\s*\.provider-account-card\.desktop-card\s+\.account-card-desktop-actions\s+\.account-card-action\.more-action:not\(:disabled\):active\s*\{[^}]*border-color:\s*var\(--purple-fill\);[^}]*background:\s*var\(--purple-fill\);[^}]*color:\s*var\(--white\);/,
+    );
+  });
+
+  it("gives the desktop Refresh, bell, and chevron buttons matching 9px corners", () => {
+    expect(CARD_RESPONSIVE_CSS).toMatch(
+      /\.provider-account-card\.desktop-card\s+\.account-card-desktop-actions\s+\.account-card-refresh-time\s*\{[^}]*border-radius:\s*9px;/,
+    );
+    expect(CARD_RESPONSIVE_CSS).toMatch(
+      /\.provider-account-card\.desktop-card\s+\.account-card-desktop-actions\s+\.account-card-action\s*\{[^}]*border-radius:\s*9px\s*!important;/,
+    );
+  });
+
   it("styles the limit reset Use button on mobile with the desktop hover purple fill", () => {
     expect(CARD_RESPONSIVE_CSS).toMatch(
       /@media\s*\(max-width:\s*860px\)\s*\{[\s\S]*?\.provider-account-card\s+\.limit-reset-use\.button\s*\{[^}]*background:\s*var\(--purple-fill\);\s*border-color:\s*var\(--purple-fill\);\s*color:\s*var\(--white\);/,

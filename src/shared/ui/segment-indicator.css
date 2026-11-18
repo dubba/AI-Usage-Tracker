@@ -10,6 +10,7 @@
 @layer components {
   .segmented {
     isolation: isolate;
+    align-items: center;
   }
 
   /* A tooltip's z-index lives inside this control once it is its own stacking context. Lift the
@@ -24,21 +25,23 @@
     content: "";
     position: absolute;
     z-index: -1;
-    left: 0;
-    top: 0;
+    /* Layout placement keeps the fill on the same pixel grid as the option. A composited translate3d
+       can round its fractional origin differently, leaving one more pixel below than above it. */
+    left: var(--segment-x, 0px);
+    top: var(--segment-y, 0px);
     width: var(--segment-w, 0px);
     height: var(--segment-h, 0px);
     border-radius: var(--segment-radius, 7px);
     background: var(--purple-fill);
     pointer-events: none;
-    transform: translate3d(var(--segment-x, 0px), var(--segment-y, 0px), 0);
   }
 
   /* The first placement happens before this attribute, so opening a screen does not slide in
      from the corner. After that, the fill travels. */
   .segmented[data-segment-ready]::before {
     transition:
-      transform 280ms cubic-bezier(0.22, 0.8, 0.28, 1),
+      left 280ms cubic-bezier(0.22, 0.8, 0.28, 1),
+      top 280ms cubic-bezier(0.22, 0.8, 0.28, 1),
       width 280ms cubic-bezier(0.22, 0.8, 0.28, 1),
       height 280ms cubic-bezier(0.22, 0.8, 0.28, 1),
       background-color 160ms ease;

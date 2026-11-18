@@ -1426,7 +1426,8 @@
     max-height: 36px;
     padding: 0;
     border: 1px solid var(--obsidian-border-strong);
-    border-radius: 9px;
+    /* Beat the global 6px !important so the icon buttons match Refresh's 9px corners. */
+    border-radius: 9px !important;
     background: var(--obsidian-surface-container);
     color: var(--obsidian-muted-bright);
     box-shadow: none;
@@ -1460,11 +1461,19 @@
     color: var(--purple-text);
   }
 
-  .provider-account-card.desktop-card .account-card-desktop-actions .account-card-action.more-action:not(:disabled):hover,
   .provider-account-card.desktop-card .account-card-desktop-actions .account-card-action.more-action[aria-expanded="true"] {
     border-color: var(--purple-accent);
     background: rgb(var(--purple-accent-rgb) / 0.28);
     color: var(--purple-ink);
+  }
+
+  /* Hover, focus, and pressed match the rename pen: solid purple with a white icon. */
+  .provider-account-card.desktop-card .account-card-desktop-actions .account-card-action.more-action:not(:disabled):hover,
+  .provider-account-card.desktop-card .account-card-desktop-actions .account-card-action.more-action:focus-visible,
+  .provider-account-card.desktop-card .account-card-desktop-actions .account-card-action.more-action:not(:disabled):active {
+    border-color: var(--purple-fill);
+    background: var(--purple-fill);
+    color: var(--white);
   }
 
   /* The menu's chevron points down, and up while the menu is open, as on the phone layout. */
