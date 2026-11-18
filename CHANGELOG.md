@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased (14 changes)
+## Unreleased (15 changes)
 
-### Improved (8)
+### Improved (9)
 
 - With no accounts added, the Dashboard and the Usage page now show the same small box at the top: a purple icon and "No accounts yet" in white, in place of the Dashboard's "All accounts good". On the Usage page the Connect an AI Account card sits below it, as on the Dashboard.
 - On phones, the header filter pill now shows the provider name with `Accts` when filtering by a provider (for example, `Claude Accts` instead of the account card's name) and `<Group> Acct` for custom groups (such as `Work Acct`), while keeping `All Accounts` when unfiltered.
@@ -12,6 +12,7 @@
 - On cramped phone headers for custom groups, the `Group` badge now sits directly above the centered edit pen button instead of wrapping beneath the title pill.
 - On phones, the usage display switcher in the header now shows `U` and `L` without `%` to leave more room for the title.
 - On the Usage page, the chart legend bar now starts with a compact purple `KEY` pill and uses tighter item spacing so all legend items fit cleanly on one line.
+- Removing an account now says it only removes the sign-in from this device, and that any other device you paired the account to keeps its own copy and keeps working.
 
 ### Security (5)
 
