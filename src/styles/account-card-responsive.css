@@ -118,7 +118,6 @@
   .account-card-identity p {
     font-size: 11px;
     line-height: 14px;
-    letter-spacing: -0.01em;
   }
 
   .provider-account-card .account-card-name-row > h2 {
@@ -1612,6 +1611,9 @@
 @media (max-width: 860px) {
   .provider-account-card {
     border-radius: 14px;
+    /* 14px on both sides. The header's left padding, the error bar and the protection note read this;
+       the header's right padding and the usage rows below match it. */
+    --account-card-inline-padding: 14px;
   }
 
   .provider-account-card .provider-account-card-header {
@@ -1789,9 +1791,9 @@
   .provider-account-card .account-card-metrics.two-column-metrics,
   .provider-account-card .account-card-metrics.multi-row-metrics {
     gap: 13px;
-    /* The left edge lines up with the icon above (the header's left padding is 12px on a phone, see
-       dashboard-reorder.css), the right edge with the menu button. */
-    margin: 0 14px 0 12px;
+    /* The left edge lines up with the icon above (the header's left padding, see dashboard-reorder.css),
+       the right edge with the menu button: 14px each. */
+    margin: 0 14px;
     padding: 16px 0;
   }
 
@@ -1820,7 +1822,8 @@
   /* Same side edges as the meters above (their margin in this block). */
   .provider-account-card .limit-resets-section {
     margin-right: 14px;
-    margin-left: 12px;
+    margin-bottom: 16px;
+    margin-left: 14px;
   }
 
   /* Mobile has no hover, so Use starts filled with the desktop hover purple. */

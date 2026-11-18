@@ -355,11 +355,22 @@
        bar reads these so it still reaches both edges. */
     --activity-card-pad-left: 16px;
     --activity-card-pad-right: 16px;
-    /* 12px top balances the 24px title row / percentage line box against the 16px bottom gap below stats. */
-    padding: 12px 16px 16px;
+    /* Inter puts the percentage's 24px digits ~3.3px under their line box's top, and the stats line's
+       baseline ~3.3px over its box's bottom, so equal 16px pads give equal visible gaps top and bottom. */
+    padding: 16px 16px 16px;
     border: 1px solid var(--obsidian-border);
-    border-radius: 8px;
+    /* The dashboard's account cards' corners (.provider-account-card, account-card-responsive.css). */
+    border-radius: 14px;
     background: var(--obsidian-surface-low);
+  }
+
+  /* With no drag grip (a narrow window or a touch screen, dashboard-reorder.css) the sides are 14px,
+     as on the phone's account cards. */
+  @media (max-width: 860px), (pointer: coarse) {
+    .activity-card {
+      --activity-card-pad-right: 14px;
+      padding-right: 14px;
+    }
   }
 
   /* A tooltip hangs over the next card, so the card it belongs to comes to the front. */
@@ -407,6 +418,59 @@
 
   .activity-card-head .activity-card-identity {
     padding-right: 6px;
+  }
+
+  /* The header is laid out like a dashboard account card's (.provider-account-card.desktop-card): the
+     name (24px row) and email (2px gap, 18px line, 2px under it) make a 46px block at the top of the
+     header, and the 44px tile is centred on it, so 1px down. The reset line follows. */
+  .activity-card-head > .activity-card-icon {
+    margin-top: 1px;
+  }
+
+  /* A provider's mark sits in a 44px tile with a 28px image, as on the dashboard's account cards
+     (.account-card-provider-icon). */
+  .activity-card-head > .activity-card-icon,
+  .activity-consolidated-head > .activity-card-icon {
+    box-sizing: border-box;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--obsidian-border);
+    border-radius: 11px;
+    background: var(--obsidian-surface-container-high);
+  }
+
+  @media (max-width: 860px) {
+    .activity-card-head > .activity-card-icon,
+    .activity-consolidated-head > .activity-card-icon {
+      width: 44px;
+      height: 44px;
+    }
+  }
+
+  /* "used this week" is 13px like the email and shares its baseline. The email's 18px line starts
+     26px down the head (the 24px name row, 2px gap), and 13px text puts its baseline ~13.73px down
+     it, so ~39.73px. The period's 14px line puts 13px text's baseline ~11.73px down, so it starts 28px
+     down: 4px under the 24px percentage. */
+  /* The reset line under the email reads like it: 13px muted text in an 18px line, as the
+     dashboard's reset times are, so the name is the only bright text. The same visible gap below the
+     email as above it, from the line one row's letters sit on to the top of the next row's capitals:
+     above, 5.45px under the name in its 24px row, the 2px margin and 4.28px over the email's
+     capitals (11.73px); below, 4.27px under the email in its line, its 2px padding and 4.28px over
+     the reset line's capitals, so the margin is 1.18px. */
+  .activity-card-head .activity-card-details {
+    margin-top: 1.18px;
+    color: var(--obsidian-muted);
+    font-size: 13px;
+    line-height: 18px;
+  }
+
+  .activity-card-head > .activity-card-total {
+    justify-content: flex-start;
+  }
+
+  .activity-card-head > .activity-card-total .activity-card-total-period {
+    margin-top: 4px;
+    font-size: 13px;
   }
 
   .activity-card-title {
@@ -466,7 +530,7 @@
   .activity-card-details {
     margin: 2px 0 0;
     color: var(--c-b8b1bc);
-    font-size: 11px;
+    font-size: 12px;
     line-height: 14px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -902,7 +966,9 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 14px;
+    /* A 24px line box, the pill's height, keeps the name centred on the pill. */
+    font-size: 18px;
+    line-height: 24px;
   }
 
   /* Matches .provider-account-card .account-plan-badge pill styling on the dashboard. */
@@ -924,12 +990,14 @@
     white-space: nowrap;
   }
 
+  /* As the dashboard card's email (.provider-account-card.desktop-card .account-card-email). */
   .activity-consolidated-email {
     margin: 2px 0 0;
-    color: var(--c-b8b1bc);
-    font-size: 12px;
-    font-weight: 600;
-    line-height: 16px;
+    padding-bottom: 2px;
+    color: var(--obsidian-muted);
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 18px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1000,6 +1068,57 @@
     opacity: 0.55;
   }
 
+  /* A narrow window: the phone dashboard card's header (account-card-responsive.css, "Phone account
+     card"): a 26px mark in the tile, a 14px name in an 18px line, a 12px email in a 15.6px line, and
+     9px from the tile to the name. As there, the name row (24px, the dashboard's pen button and this
+     pill) starts at the tile's top with the name centred in it, and the email starts 26px down. The
+     gaps around the email stay even (12.35px from the line letters sit on to the next capitals: 6.9px
+     under the name in its row, the 2px margin, 3.45px over the email's capitals), so the reset line,
+     which matches the email, sits 3.47px under its 2px padding. "used this week" matches too; its
+     baseline (~11.37px down its 14px line) meets the email's (26 + 12.17 = 38.17px) 2.8px under the
+     24px percentage. */
+  @media (max-width: 860px) {
+    .activity-card-head > .activity-card-icon,
+    .activity-consolidated-head > .activity-card-icon {
+      margin-right: 3px;
+    }
+
+    .activity-card-head > .activity-card-icon :is(svg, img),
+    .activity-consolidated-head > .activity-card-icon :is(svg, img) {
+      width: 26px;
+      height: 26px;
+    }
+
+    .activity-card-head > .activity-card-icon {
+      margin-top: 0;
+    }
+
+    .activity-card-head > .activity-card-identity {
+      margin-top: 0;
+    }
+
+    .activity-consolidated-title-row .activity-card-title {
+      font-size: 14px;
+      line-height: 18px;
+    }
+
+    .activity-consolidated-email {
+      font-size: 12px;
+      line-height: 15.6px;
+    }
+
+    .activity-card-head .activity-card-details {
+      margin-top: 3.47px;
+      font-size: 12px;
+      line-height: 15.6px;
+    }
+
+    .activity-card-head > .activity-card-total .activity-card-total-period {
+      margin-top: 2.8px;
+      font-size: 12px;
+    }
+  }
+
   @media (max-width: 860px) {
     .activity-consolidated-head {
       padding-bottom: 12px;
@@ -1009,11 +1128,6 @@
       height: 24px;
       padding: 0 9px;
       font-size: 12px;
-    }
-
-    .activity-consolidated-email {
-      font-size: 11px;
-      line-height: 14px;
     }
 
     .activity-model-sections {

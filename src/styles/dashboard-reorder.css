@@ -107,10 +107,17 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .activity-card a {
   transform: translateY(-50%);
 }
 
+/* Centred on the 44px icon tile, as on a dashboard card: the card's 16px top padding plus half the
+   tile. */
 .activity-card[data-reorder-enabled="true"] .reorder-grip {
   left: 12px;
-  top: 26px;
+  top: 38px;
   transform: translateY(-50%);
+}
+
+/* A card with no weekly limit keeps the plain 28px calendar mark: 16px of padding plus half of it. */
+.activity-card.is-no-weekly[data-reorder-enabled="true"] .reorder-grip {
+  top: 30px;
 }
 
 .provider-summary-row[data-reorder-enabled="true"]:hover .reorder-grip,
@@ -127,9 +134,10 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .activity-card a {
   .provider-account-card[data-reorder-enabled="true"] .provider-account-card-header {
     padding-left: var(--account-card-inline-padding, 16px) !important;
   }
+  /* 14px on both sides, as on the phone's account cards; the right side is in activity.css. */
   .activity-card[data-reorder-enabled="true"] {
-    padding-left: 16px !important;
-    --activity-card-pad-left: 16px;
+    padding-left: 14px !important;
+    --activity-card-pad-left: 14px;
   }
   .reorder-grip {
     display: none;
@@ -271,6 +279,14 @@ html.dashboard-reordering .provider-list {
 
 .activity-grid .dashboard-reorder-placeholder {
   grid-column: auto;
+}
+
+/* A desktop card list can be two columns at any width (accounts-layout.css): the gap a dragged card
+   leaves is one column, which in a one-column list is the whole row anyway. */
+@media (min-width: 861px) {
+  .provider-account-cards:not(.is-compact) .dashboard-reorder-placeholder {
+    grid-column: auto;
+  }
 }
 
 @media (min-width: 1400px) {

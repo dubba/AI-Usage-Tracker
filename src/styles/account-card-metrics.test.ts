@@ -97,7 +97,7 @@ describe("account card metric row spacing", () => {
   });
 
   it("styles activity card header with aligned columns and tight title-detail spacing", () => {
-    expect(ACTIVITY_CSS).toMatch(/\.activity-card\s*\{[\s\S]*?padding:\s*12px 16px 16px;/);
+    expect(ACTIVITY_CSS).toMatch(/\.activity-card\s*\{[\s\S]*?padding:\s*16px 16px 16px;/);
     expect(ACTIVITY_CSS).toMatch(/\.activity-card-head\s*\{[\s\S]*?grid-template-columns:\s*auto\s+minmax\(0,\s*1fr\)\s+auto;[\s\S]*?align-items:\s*start;[\s\S]*?column-gap:\s*6px;/);
     expect(ACTIVITY_CSS).toMatch(/\.activity-card-identity\s*\{[\s\S]*?display:\s*flex;[\s\S]*?flex-direction:\s*column;/);
     expect(ACTIVITY_CSS).toMatch(/\.activity-card-total\s*\{[\s\S]*?display:\s*flex;[\s\S]*?flex-direction:\s*column;[\s\S]*?align-items:\s*flex-end;[\s\S]*?justify-content:\s*space-between;[\s\S]*?align-self:\s*stretch;/);

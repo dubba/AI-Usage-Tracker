@@ -3512,7 +3512,8 @@ select.text-input option,
     align-items: center;
     height: auto;
     min-height: 0;
-    gap: 6px;
+    /* 8px, as between the name and the plan pill on the Usage page (.activity-consolidated-title-row). */
+    gap: 8px;
   }
 
   .account-card-name-row h2 {
