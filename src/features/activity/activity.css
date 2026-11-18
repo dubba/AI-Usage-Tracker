@@ -237,6 +237,55 @@
     }
   }
 
+  /* No accounts yet: the same small box as the Dashboard's "All accounts good" bar (.summary-strip in
+     obsidian-dashboard.css), holding the purple icon and the text, with the Connect card under it.
+     The margins match .activity-legend, which already lines up with that bar. */
+  .activity-empty {
+    width: 100%;
+  }
+
+  .activity-empty-strip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    min-height: 40px;
+    margin: 8px 0 18px;
+    padding: 8px 14px;
+    border: 1px solid var(--obsidian-border);
+    border-radius: 8px;
+    background: var(--obsidian-canvas);
+  }
+
+  .activity-empty-strip > svg {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    color: var(--purple-accent);
+  }
+
+  .activity-empty-strip > h2 {
+    margin: 0;
+    color: inherit;
+    font-size: 13px;
+    line-height: 1.25;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .activity-empty .mockup-empty-panel {
+    width: 100%;
+    margin-top: 0;
+  }
+
+  @media (max-width: 860px) {
+    .activity-empty-strip {
+      min-height: 36px;
+      margin: 0 0 10px;
+      padding: 7px 10px;
+    }
+  }
+
   .activity-note {
     margin: 0 0 8px;
     padding: 12px 14px;

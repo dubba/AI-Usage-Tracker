@@ -10,6 +10,7 @@ import "./accounts-layout.css";
 import {
   CloseIcon,
   EditIcon,
+  GridIcon,
   PlusIcon,
   StackPlusIcon,
   TrashIcon,
@@ -294,10 +295,20 @@ export function AccountsView(props: {
               </button>
             )
           ) : (
-            <div className="summary-strip">
+            <div className={`summary-strip${props.accounts.length === 0 ? " is-empty" : ""}`}>
               <span className="summary-status-cluster">
-                <span className="summary-status-dot" aria-hidden="true" />
-                <span className="summary-status-text">All accounts good</span>
+                {/* With nothing to monitor yet, the same purple icon and wording as the Usage page's box. */}
+                {props.accounts.length === 0 ? (
+                  <>
+                    <GridIcon aria-hidden="true" />
+                    <span className="summary-status-text">No accounts yet</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="summary-status-dot" aria-hidden="true" />
+                    <span className="summary-status-text">All accounts good</span>
+                  </>
+                )}
               </span>
               <NextResetInline accounts={props.accounts} phone={phone} />
             </div>

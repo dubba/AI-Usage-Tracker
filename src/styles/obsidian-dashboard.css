@@ -1157,6 +1157,18 @@ button.summary-strip:focus-visible {
   box-shadow: 0 0 0 3px rgb(var(--tint-green-rgb) / 0.16);
 }
 
+/* No accounts yet: the purple icon and white text the Usage page's empty box uses. */
+.summary-strip.is-empty .summary-status-cluster > svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--purple-accent);
+}
+
+.summary-strip.is-empty .summary-status-text {
+  color: inherit;
+}
+
 .summary-strip.has-attention .summary-status-dot {
   background: var(--obsidian-amber);
   box-shadow: 0 0 0 3px rgb(var(--tint-amber-rgb) / 0.2);

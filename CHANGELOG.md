@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased (7 changes)
+## Unreleased (8 changes)
 
-### Improved (7)
+### Improved (8)
 
+- With no accounts added, the Dashboard and the Usage page now show the same small box at the top: a purple icon and "No accounts yet" in white, in place of the Dashboard's "All accounts good". On the Usage page the Connect an AI Account card sits below it, as on the Dashboard.
 - On phones, the header filter pill now shows the provider name with `Accts` when filtering by a provider (for example, `Claude Accts` instead of the account card's name) and `<Group> Acct` for custom groups (such as `Work Acct`), while keeping `All Accounts` when unfiltered.
 - Saved limit reset rows on account cards now use slightly more compact text sizing for the reset title and expiry date, tighter horizontal padding on the `Use…` button, and tighter spacing between the text and the button before wrapping.
 - On phones, removed the left selection bar and reduced side padding on sidebar group cards so their content has more horizontal space.

@@ -215,9 +215,11 @@ export function ActivityView({
         );
       }
       return (
-        <section className="activity-message" aria-label="No accounts">
-          <BarChartIcon />
-          <h2>No accounts yet</h2>
+        <section className="activity-empty" aria-label="No accounts">
+          <div className="activity-empty-strip">
+            <BarChartIcon />
+            <h2>No accounts yet</h2>
+          </div>
           <EmptyAccountPanel onAdd={onAddAccount} onOpenPairing={onOpenPairing} />
         </section>
       );

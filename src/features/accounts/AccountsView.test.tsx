@@ -262,6 +262,15 @@ describe("AccountsView summary status strip", () => {
     expect(strip?.querySelector(".next-reset-inline")?.textContent).toBe("No upcoming reset");
   });
 
+  it("says 'No accounts yet' with an icon in the status bar when there are no accounts", () => {
+    app = renderView({ allAccounts: [], accounts: [], selectedGroup: { ...allGroup, accounts: [] } });
+    const strip = document.querySelector<HTMLDivElement>("div.summary-strip");
+    expect(strip?.classList.contains("is-empty")).toBe(true);
+    expect(strip?.querySelector(".summary-status-text")?.textContent).toBe("No accounts yet");
+    expect(strip?.querySelector(".summary-status-dot")).toBeNull();
+    expect(strip?.querySelector(".summary-status-cluster > svg")).not.toBeNull();
+  });
+
   it("formats next reset inline for desktop and compactly for phone", () => {
     const now = Date.now();
     vi.spyOn(Date, "now").mockReturnValue(now);
