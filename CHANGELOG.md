@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased (1 change)
+## Unreleased (2 changes)
 
-### Improved (1)
+### Improved (2)
 
 - On phones, the header filter pill now shows the provider name with `Accts` when filtering by a provider (for example, `Claude Accts` instead of the account card's name) and `<Group> Acct` for custom groups (such as `Work Acct`), while keeping `All Accounts` when unfiltered.
+- Saved limit reset rows on account cards now use slightly more compact text sizing for the reset title and expiry date, tighter horizontal padding on the `Use…` button, and tighter spacing between the text and the button before wrapping.
 
 ## v0.6.3 - 2026-11-17 (9 changes)
 

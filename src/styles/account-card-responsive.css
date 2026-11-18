@@ -1075,7 +1075,7 @@
 .provider-account-card .limit-reset {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
   min-height: 52px;
   padding: 9px 10px 9px 10px;
   /* The same near-black box and border as the Current Version box in Settings. */
@@ -1090,6 +1090,7 @@
   place-items: center;
   width: 32px;
   height: 32px;
+  margin-right: 6px;
   border-radius: 9px;
   background: var(--purple-surface);
   color: var(--purple-text);
@@ -1115,7 +1116,7 @@
 
 .provider-account-card .limit-reset-name {
   color: var(--obsidian-text);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 650;
   line-height: 1.25;
   overflow-wrap: break-word;
@@ -1123,7 +1124,7 @@
 
 .provider-account-card .limit-reset-detail {
   color: var(--obsidian-muted);
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 1.35;
 }
 
@@ -1131,7 +1132,7 @@
   flex: 0 0 auto;
   height: 32px;
   min-height: 32px;
-  padding: 0 14px;
+  padding: 0 10px;
   border: 1px solid var(--obsidian-border-strong);
   border-radius: 8px !important;
   background: transparent;
