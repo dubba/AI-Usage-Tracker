@@ -12,6 +12,45 @@ pub(super) const GITHUB_RELEASES_LIST_URL: &str =
 pub(super) const GITHUB_LATEST_RELEASE_URL: &str =
     "https://api.github.com/repos/dubba/AI-Usage-Tracker/releases/latest";
 
+/// Most of a GitHub release listing (30 releases with their notes and asset
+/// lists, well under 1 MiB in practice) the app will read. A bigger answer is
+/// refused instead of buffered.
+pub(super) const MAX_RELEASE_JSON_BYTES: usize = 4 * 1024 * 1024;
+
+/// Hosts a release download may be redirected through: GitHub itself, then the
+/// storage hosts it hands asset downloads to.
+#[cfg(any(desktop, target_os = "android", test))]
+pub(super) const RELEASE_DOWNLOAD_HOSTS: &[&str] = &[
+    "github.com",
+    "objects.githubusercontent.com",
+    "release-assets.githubusercontent.com",
+];
+
+/// A hop an update download may follow: HTTPS on one of GitHub's download hosts.
+#[cfg(any(desktop, target_os = "android", test))]
+pub(super) fn is_release_download_host(url: &reqwest::Url) -> bool {
+    url.scheme() == "https"
+        && url.port().is_none()
+        && url
+            .host_str()
+            .is_some_and(|host| RELEASE_DOWNLOAD_HOSTS.contains(&host))
+}
+
+/// Redirect policy for update downloads: at most 10 hops, each to a GitHub
+/// download host. A redirect anywhere else fails the download.
+#[cfg(any(target_os = "android", test))]
+pub(super) fn release_download_redirects() -> reqwest::redirect::Policy {
+    reqwest::redirect::Policy::custom(|attempt| {
+        if attempt.previous().len() >= 10 {
+            attempt.error("too many redirects")
+        } else if is_release_download_host(attempt.url()) {
+            attempt.follow()
+        } else {
+            attempt.error("the update download was redirected away from GitHub")
+        }
+    })
+}
+
 /// Where this repository's release assets are downloaded from. The API's
 /// `browser_download_url` is always under this prefix.
 pub(super) const RELEASE_ASSET_URL_PREFIX: &str =
@@ -204,9 +243,17 @@ pub(super) async fn fetch_github_latest_release(
         ));
     }
 
-    let body = response
-        .json::<serde_json::Value>()
+    let text = read_capped_text(response, MAX_RELEASE_JSON_BYTES)
         .await
+        .map_err(|error| match error {
+            CappedBodyError::TooLarge => {
+                "Unable to check for updates: GitHub's answer was larger than expected.".to_string()
+            }
+            CappedBodyError::Unreadable(_) => {
+                "Unable to check for updates: GitHub's answer could not be read.".to_string()
+            }
+        })?;
+    let body = serde_json::from_str::<serde_json::Value>(&text)
         .map_err(|error| format!("Unable to check for updates: {error}"))?;
     let json = if include_prereleases {
         newest_release_in_listing(&body, required_asset)

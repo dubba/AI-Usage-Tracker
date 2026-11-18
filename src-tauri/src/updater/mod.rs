@@ -1,5 +1,6 @@
 #[cfg(target_os = "android")]
 use crate::platform::apk_install;
+use crate::providers::{read_capped_text, CappedBodyError};
 use crate::{model::AppUpdateStatus, state::AppState};
 use serde::Serialize;
 use std::{sync::Arc, time::Duration};
@@ -19,6 +20,7 @@ mod version;
 
 #[cfg(any(target_os = "android", test))]
 use android::*;
+#[cfg(any(desktop, test))]
 use desktop::*;
 use github::*;
 use version::*;
@@ -379,32 +381,44 @@ pub async fn install_app_update(
             // through to the releases-page fallback below.
             let checked = tokio::time::timeout(UPDATER_CHECK_TIMEOUT, updater.check()).await;
             if let Ok(Ok(Some(update))) = checked {
+                if !update_download_allowed(&update.download_url) {
+                    return Err(
+                        "The update is not hosted on this app's GitHub releases, so it was not downloaded. Download the installer from the releases page instead.".into(),
+                    );
+                }
                 emit_update_progress(&app, "downloading", 0, None);
-                let downloaded = std::sync::atomic::AtomicU64::new(0);
+                let cap = DownloadCap::new();
                 // Bound the whole download+install as well so a mid-download
                 // stall surfaces as an error instead of an eternal spinner.
-                let result = tokio::time::timeout(
-                    UPDATER_INSTALL_TIMEOUT,
-                    update.download_and_install(
-                        |chunk, total| {
-                            let so_far = downloaded
-                                .fetch_add(chunk as u64, std::sync::atomic::Ordering::Relaxed)
-                                + chunk as u64;
-                            emit_update_progress(&app, "downloading", so_far, total);
-                        },
-                        || {
-                            emit_update_progress(&app, "installing", 0, None);
-                        },
-                    ),
-                )
+                // A package past the size cap is abandoned the moment it is
+                // seen, before more of it is buffered.
+                let result = tokio::time::timeout(UPDATER_INSTALL_TIMEOUT, async {
+                    tokio::select! {
+                        result = update.download_and_install(
+                            |chunk, total| {
+                                let so_far = cap.record(chunk, total);
+                                emit_update_progress(&app, "downloading", so_far, total);
+                            },
+                            || {
+                                emit_update_progress(&app, "installing", 0, None);
+                            },
+                        ) => Some(result),
+                        () = cap.exceeded() => None,
+                    }
+                })
                 .await;
                 match result {
-                    Ok(Ok(())) => {
+                    Ok(None) => {
+                        return Err(
+                            "The update package is larger than expected, so it was not installed. Download the installer from the releases page instead.".into(),
+                        );
+                    }
+                    Ok(Some(Ok(()))) => {
                         app.restart();
                         #[allow(unreachable_code)]
                         return Ok(());
                     }
-                    Ok(Err(error)) => {
+                    Ok(Some(Err(error))) => {
                         return Err(format!("Unable to install the update: {error}"));
                     }
                     Err(_) => {

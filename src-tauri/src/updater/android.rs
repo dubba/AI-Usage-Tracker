@@ -3,36 +3,9 @@ use super::*;
 #[cfg(any(target_os = "android", test))]
 use tokio::io::AsyncWriteExt;
 
-/// Hosts a release download may be redirected through: GitHub itself, then the
-/// storage hosts it hands asset downloads to.
-pub(super) const RELEASE_DOWNLOAD_HOSTS: &[&str] = &[
-    "github.com",
-    "objects.githubusercontent.com",
-    "release-assets.githubusercontent.com",
-];
-
-/// A hop an update download may follow: HTTPS on one of GitHub's download hosts.
-pub(super) fn is_release_download_host(url: &reqwest::Url) -> bool {
-    url.scheme() == "https"
-        && url.port().is_none()
-        && url
-            .host_str()
-            .is_some_and(|host| RELEASE_DOWNLOAD_HOSTS.contains(&host))
-}
-
-/// Redirect policy for update downloads: at most 10 hops, each to a GitHub
-/// download host. A redirect anywhere else fails the download.
-pub(super) fn release_download_redirects() -> reqwest::redirect::Policy {
-    reqwest::redirect::Policy::custom(|attempt| {
-        if attempt.previous().len() >= 10 {
-            attempt.error("too many redirects")
-        } else if is_release_download_host(attempt.url()) {
-            attempt.follow()
-        } else {
-            attempt.error("the update download was redirected away from GitHub")
-        }
-    })
-}
+/// Most of an `.sha256` file the app will read.
+#[cfg(any(target_os = "android", test))]
+pub(super) const MAX_CHECKSUM_BYTES: usize = 4 * 1024;
 
 #[cfg(any(target_os = "android", test))]
 pub(super) async fn fetch_apk_sha256(url: &str) -> Result<String, String> {
@@ -53,10 +26,13 @@ pub(super) async fn fetch_apk_sha256(url: &str) -> Result<String, String> {
     if !response.status().is_success() {
         return Err("Unable to download the update checksum.".into());
     }
-    let body = response
-        .text()
+    // A checksum file is one line (64 hex characters and a file name).
+    let body = read_capped_text(response, MAX_CHECKSUM_BYTES)
         .await
-        .map_err(|error| format!("Unable to read the update checksum: {error}"))?;
+        .map_err(|error| match error {
+            CappedBodyError::TooLarge => "The published update checksum is too large.".to_string(),
+            CappedBodyError::Unreadable(_) => "Unable to read the update checksum.".to_string(),
+        })?;
     parse_sha256_digest(&body).ok_or_else(|| "The published update checksum is invalid.".into())
 }
 

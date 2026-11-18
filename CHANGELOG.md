@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (15 changes)
+## Unreleased (16 changes)
 
 ### Improved (9)
 
@@ -14,13 +14,14 @@
 - On the Usage page, the chart legend bar now starts with a compact purple `KEY` pill and uses tighter item spacing so all legend items fit cleanly on one line.
 - Removing an account now says it only removes the sign-in from this device, and that any other device you paired the account to keeps its own copy and keeps working.
 
-### Security (5)
+### Security (6)
 
 - If a provider ever sends back part of your sign-in token inside account details (plan, email, account id, usage labels), the app no longer saves or shows it. That refresh is skipped, the account keeps its last usage marked as out of date, and the card explains why; a sign-in or import with such details is refused.
 - Copy Diagnostics no longer includes Claude limit-reset ids, reasons, or dates; the log now records only how many resets there are and whether they can be used.
 - The recent-error lines in Copy Diagnostics no longer include account names, email addresses, or your computer's user folder name, and error messages from saving groups, account order, alerts, and settings no longer show that folder name either.
 - Removing an account now also deletes sign-in pieces left in the system keychain by older app versions, and an upgrade that was interrupted while moving those sign-ins finishes its cleanup the next time the app reads them.
 - On Android and iOS, the in-app sign-in window now only opens that sign-in's own return address on your device, and installed builds never treat a page from a development server on the local network as part of the app.
+- Update checks and downloads are stricter: on desktop, an update package must be one of this app's GitHub release files, may only be redirected between GitHub's download servers, and is abandoned if it is larger than 250 MB; release information from GitHub and checksum files are no longer read if they are unexpectedly large. Provider requests also refuse to follow a redirect to an unencrypted address, and the Google AI Studio key is never sent along a redirect.
 
 ### Fixed (1)
 

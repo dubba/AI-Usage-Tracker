@@ -54,6 +54,10 @@ tauri-plugin-single-instance = "2"
 # tarballs. Windows updates are NSIS installers, and macOS updates use tar,
 # which the plugin builds without this feature.
 tauri-plugin-updater = { version = "2", default-features = false, features = ["rustls-tls", "system-proxy"] }
+# The updater plugin's HTTP client is reqwest 0.13, not the 0.12 used elsewhere. This names that
+# version only to build the plugin's redirect policy (`configure_client`); the plugin already
+# compiles it, so no new code is built.
+reqwest_updater = { package = "reqwest", version = "0.13", default-features = false }
 tauri-plugin-window-state = "2.4.1"
 tempfile = "3"
 thiserror = "2"

@@ -341,8 +341,10 @@ async fn list_models(app: &AppState, api_key: &str) -> Result<Vec<TrackableModel
     let mut models = Vec::new();
 
     loop {
+        // The key travels in a custom header, which a redirect would carry to
+        // another origin, so this request follows no redirects.
         let mut request = app
-            .client
+            .api_key_client
             .get(MODELS_URL)
             .header("x-goog-api-key", api_key)
             .query(&[("pageSize", "1000")]);

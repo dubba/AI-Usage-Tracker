@@ -348,6 +348,122 @@ async fn update_download_client_refuses_a_redirect_off_github() {
     assert!(error.is_redirect(), "{error}");
 }
 
+#[cfg(desktop)]
+#[tokio::test]
+async fn desktop_update_client_refuses_a_redirect_off_github() {
+    use axum::{response::Redirect, routing::get, Router};
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let router = Router::new().route(
+        "/",
+        get(|| async { Redirect::temporary("https://evil.example/app.tar.gz") }),
+    );
+    tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+
+    // Built the way the updater plugin builds its client, with the policy the
+    // desktop updater hands it (`configure_client`). The plugin installs this
+    // crypto provider itself before building a client.
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    let client = super::desktop::release_only_redirects_for_tests();
+    let error = client
+        .get(format!("http://{address}/"))
+        .send()
+        .await
+        .expect_err("a redirect to another host must fail the download");
+    assert!(error.is_redirect(), "{error}");
+}
+
+#[test]
+fn desktop_update_packages_only_come_from_this_repos_releases() {
+    for ok in [
+        "https://github.com/dubba/AI-Usage-Tracker/releases/download/v0.6.4/app.tar.gz",
+        "https://github.com/dubba/AI-Usage-Tracker/releases/download/v0.6.4/AI.Usage.Tracker_0.6.4_x64-setup.exe",
+        // The form the published latest.json uses today.
+        "https://api.github.com/repos/dubba/AI-Usage-Tracker/releases/assets/761063220",
+    ] {
+        assert!(super::update_download_allowed(&ok.parse().unwrap()), "{ok}");
+    }
+    for bad in [
+        "http://github.com/dubba/AI-Usage-Tracker/releases/download/v1/a.tar.gz",
+        "https://github.com/other/repo/releases/download/v1/a.tar.gz",
+        "https://github.com/dubba/AI-Usage-Tracker/releases/download/../../../x/a.tar.gz",
+        "https://evil.example/dubba/AI-Usage-Tracker/releases/download/v1/a.tar.gz",
+        "https://objects.githubusercontent.com/github-production-release-asset/1",
+        "https://user@github.com/dubba/AI-Usage-Tracker/releases/download/v1/a.tar.gz",
+        "https://api.github.com/repos/other/repo/releases/assets/761063220",
+        "https://api.github.com/repos/dubba/AI-Usage-Tracker/releases/assets/",
+        "https://api.github.com/repos/dubba/AI-Usage-Tracker/releases/assets/12%2F..%2F34",
+        "https://api.github.com/repos/dubba/AI-Usage-Tracker/releases/assets/12?x=1",
+        "https://api.github.com/repos/dubba/AI-Usage-Tracker/contents/x",
+        "http://api.github.com/repos/dubba/AI-Usage-Tracker/releases/assets/12",
+        "https://api.github.com:8443/repos/dubba/AI-Usage-Tracker/releases/assets/12",
+    ] {
+        assert!(
+            !super::update_download_allowed(&bad.parse().unwrap()),
+            "{bad}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn a_desktop_update_download_is_stopped_when_it_passes_the_size_cap() {
+    use std::time::Duration;
+    let max = super::MAX_DESKTOP_UPDATE_BYTES;
+    async fn stops(cap: &super::DownloadCap) -> bool {
+        tokio::time::timeout(Duration::from_millis(50), cap.exceeded())
+            .await
+            .is_ok()
+    }
+
+    // Within the cap, whatever the number of chunks, it keeps going.
+    let cap = super::DownloadCap::new();
+    assert_eq!(cap.record(1024, Some(2048)), 1024);
+    assert_eq!(cap.record(1024, Some(2048)), 2048);
+    assert!(!stops(&cap).await);
+    assert_eq!(cap.record(max as usize - 2048, Some(max)), max);
+    assert!(!stops(&cap).await, "exactly at the cap is allowed");
+
+    // The announced size alone is enough, before any body arrives.
+    let cap = super::DownloadCap::new();
+    cap.record(10, Some(max + 1));
+    assert!(stops(&cap).await);
+
+    // Without an announced size, what actually arrives counts.
+    let cap = super::DownloadCap::new();
+    cap.record(max as usize, None);
+    assert!(!stops(&cap).await);
+    cap.record(1, None);
+    assert!(stops(&cap).await);
+}
+
+#[test]
+fn updater_network_reads_are_capped() {
+    // Every body the updater reads goes through `read_capped_text` (release
+    // JSON, checksum) or is streamed against a limit (the APK); none is read
+    // whole with `.json()`, `.text()` or `.bytes()`.
+    for (name, source) in [
+        ("github.rs", include_str!("github.rs")),
+        ("android.rs", include_str!("android.rs")),
+        ("desktop.rs", include_str!("desktop.rs")),
+        ("mod.rs", include_str!("mod.rs")),
+    ] {
+        let code = source.split("#[cfg(test)]").next().unwrap();
+        for call in [
+            ".json::<",
+            ".json().await",
+            ".text().await",
+            ".bytes().await",
+        ] {
+            assert!(
+                !code.contains(call),
+                "{name} reads a body without a cap: {call}"
+            );
+        }
+    }
+    const { assert!(super::MAX_RELEASE_JSON_BYTES >= 1024 * 1024) };
+    const { assert!(super::MAX_CHECKSUM_BYTES >= 128 && super::MAX_CHECKSUM_BYTES <= 64 * 1024) };
+}
+
 #[test]
 fn release_tags_are_checked_before_they_go_into_urls() {
     for ok in ["v0.4.1", "v0.4.2-beta.1", "0.4.0", "v1_2"] {

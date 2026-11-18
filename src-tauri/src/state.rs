@@ -117,6 +117,32 @@ impl std::fmt::Debug for PendingAuthExchange {
     }
 }
 
+/// The HTTP client every provider request uses, with the app's timeouts and user agent.
+fn build_http_client(redirects: reqwest::redirect::Policy) -> Result<Client, reqwest::Error> {
+    Client::builder()
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(15))
+        .user_agent(concat!("AI-Usage-Tracker/", env!("CARGO_PKG_VERSION")))
+        .redirect(redirects)
+        .build()
+}
+
+/// Redirects provider requests may follow: at most 10, and only to HTTPS
+/// addresses, so a redirect cannot move a request onto an unencrypted link.
+/// (A redirect that changes origin still drops `Authorization` and cookies;
+/// requests with a custom key header use `api_key_client` instead.)
+pub(crate) fn provider_redirects() -> reqwest::redirect::Policy {
+    reqwest::redirect::Policy::custom(|attempt| {
+        if attempt.previous().len() >= 10 {
+            attempt.error("too many redirects")
+        } else if attempt.url().scheme() != "https" {
+            attempt.error("redirected to an address that is not HTTPS")
+        } else {
+            attempt.follow()
+        }
+    })
+}
+
 pub struct AppState {
     pub store: AccountStore,
     pub account_order: AccountOrderStore,
@@ -126,6 +152,11 @@ pub struct AppState {
     /// Weekly usage readings for the Usage page.
     pub history: HistoryStore,
     pub client: Client,
+    /// For requests that carry an API key in a custom header. It follows no
+    /// redirect at all: reqwest only strips `Authorization` and cookies when a
+    /// redirect changes origin, so a custom key header would travel to wherever
+    /// a redirect pointed (L-84).
+    pub api_key_client: Client,
     pub pending_login: RwLock<Option<LoginStatus>>,
     /// The loopback OAuth callback (`redirect_uri`) of the sign-in that set
     /// it, keyed by attempt id. The mobile navigation guard lets the main
@@ -190,11 +221,8 @@ impl AppState {
         })?;
         // Cannot fail: unreadable history is set aside and the app starts without it.
         let history = HistoryStore::load(&data_dir);
-        let client = Client::builder()
-            .connect_timeout(Duration::from_secs(10))
-            .timeout(Duration::from_secs(15))
-            .user_agent(concat!("AI-Usage-Tracker/", env!("CARGO_PKG_VERSION")))
-            .build()
+        let client = build_http_client(provider_redirects()).map_err(|error| error.to_string())?;
+        let api_key_client = build_http_client(reqwest::redirect::Policy::none())
             .map_err(|error| error.to_string())?;
         Ok(Self {
             store,
@@ -204,6 +232,7 @@ impl AppState {
             settings,
             history,
             client,
+            api_key_client,
             pending_login: RwLock::new(None),
             login_callback: RwLock::new(None),
             pending_auth_exchange: Mutex::new(None),

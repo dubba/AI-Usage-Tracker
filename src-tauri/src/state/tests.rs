@@ -624,3 +624,110 @@ fn the_login_callback_is_offered_only_while_its_own_attempt_runs() {
     app.set_login_callback("second", "not a url");
     assert_eq!(app.active_login_callback(), None);
 }
+
+/// A local server that records whether each request carried `x-goog-api-key`,
+/// and one that redirects to it, standing in for a provider that redirects
+/// across origins. Returns the redirecting server's URL and the record.
+async fn redirect_to_a_recording_server() -> (String, std::sync::Arc<Mutex<Vec<bool>>>) {
+    use axum::{http::HeaderMap, response::Redirect, routing::get, Router};
+    let seen = std::sync::Arc::new(Mutex::new(Vec::new()));
+
+    let sink = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let sink_address = sink.local_addr().unwrap();
+    let record = seen.clone();
+    let sink_router = Router::new().route(
+        "/",
+        get(move |headers: HeaderMap| {
+            let record = record.clone();
+            async move {
+                record.lock().push(headers.contains_key("x-goog-api-key"));
+                "ok"
+            }
+        }),
+    );
+    tokio::spawn(async move { axum::serve(sink, sink_router).await.unwrap() });
+
+    let origin = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let origin_address = origin.local_addr().unwrap();
+    let target = format!("http://{sink_address}/");
+    let origin_router = Router::new().route(
+        "/",
+        get(move || {
+            let target = target.clone();
+            async move { Redirect::temporary(&target) }
+        }),
+    );
+    tokio::spawn(async move { axum::serve(origin, origin_router).await.unwrap() });
+    (format!("http://{origin_address}/"), seen)
+}
+
+#[tokio::test]
+async fn provider_requests_do_not_follow_a_redirect_to_an_unencrypted_address() {
+    // L-84: the shared client follows redirects only to HTTPS.
+    let temp = tempfile::tempdir().unwrap();
+    let app = AppState::new(temp.path().to_path_buf(), "test-token".into()).unwrap();
+    let (url, seen) = redirect_to_a_recording_server().await;
+    let error = app
+        .client
+        .get(url)
+        .send()
+        .await
+        .expect_err("a redirect to http must fail");
+    assert!(error.is_redirect(), "{error}");
+    assert!(
+        seen.lock().is_empty(),
+        "the http target must never be requested"
+    );
+}
+
+#[tokio::test]
+async fn the_api_key_client_never_sends_its_key_header_to_a_redirect_target() {
+    // L-84: reqwest forwards a custom header such as `x-goog-api-key` across
+    // origins, so the request that carries it must not follow redirects.
+    let temp = tempfile::tempdir().unwrap();
+    let app = AppState::new(temp.path().to_path_buf(), "test-token".into()).unwrap();
+
+    // Without the fix, a default client hands the key to the other origin.
+    let (url, seen) = redirect_to_a_recording_server().await;
+    let default_client = reqwest::Client::new();
+    default_client
+        .get(&url)
+        .header("x-goog-api-key", "AIzaSyExampleKey")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(
+        *seen.lock(),
+        vec![true],
+        "reqwest forwards the custom header"
+    );
+
+    // The api-key client stops at the redirect and never reaches the target.
+    let (url, seen) = redirect_to_a_recording_server().await;
+    let response = app
+        .api_key_client
+        .get(url)
+        .header("x-goog-api-key", "AIzaSyExampleKey")
+        .send()
+        .await
+        .unwrap();
+    assert!(response.status().is_redirection());
+    assert!(
+        seen.lock().is_empty(),
+        "the key must not reach the redirect target"
+    );
+}
+
+#[test]
+fn only_the_google_models_request_uses_the_api_key_client() {
+    // Anything that puts the key in a header must use `api_key_client`.
+    let source = include_str!("../providers/google_ai_studio/mod.rs");
+    let code = source.split("#[cfg(test)]").next().unwrap();
+    for (index, _) in code.match_indices("x-goog-api-key") {
+        let before = &code[index.saturating_sub(260)..index];
+        assert!(
+            before.contains("api_key_client"),
+            "a request with x-goog-api-key does not use api_key_client: {before}"
+        );
+    }
+}
