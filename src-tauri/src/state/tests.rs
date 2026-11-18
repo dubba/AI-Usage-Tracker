@@ -598,3 +598,29 @@ async fn clearing_cached_usage_keeps_the_activity_history() {
         .is_none());
     assert_eq!(recorded_readings(&state, "state-history-cache"), 1);
 }
+
+#[test]
+fn the_login_callback_is_offered_only_while_its_own_attempt_runs() {
+    // L-96: the mobile navigation guard allows this one callback, and only
+    // for the sign-in that recorded it.
+    let temp = tempfile::tempdir().unwrap();
+    let app = AppState::new(temp.path().to_path_buf(), "test-token".into()).unwrap();
+    assert_eq!(app.active_login_callback(), None);
+
+    app.begin_login("first", None).unwrap();
+    app.set_login_callback("first", "http://localhost:1455/auth/callback");
+    assert_eq!(
+        app.active_login_callback().map(|url| url.to_string()),
+        Some("http://localhost:1455/auth/callback".to_string())
+    );
+
+    // Finished: no callback is allowed any more.
+    app.fail_login_if_waiting("first", "stopped".into());
+    assert_eq!(app.active_login_callback(), None);
+
+    // A new attempt does not inherit the previous attempt's callback.
+    app.begin_login("second", None).unwrap();
+    assert_eq!(app.active_login_callback(), None);
+    app.set_login_callback("second", "not a url");
+    assert_eq!(app.active_login_callback(), None);
+}

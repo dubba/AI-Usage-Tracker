@@ -83,9 +83,13 @@ class MainActivity : TauriActivity() {
     }
     val host = uri.host?.lowercase().orEmpty()
     val scheme = uri.scheme?.lowercase().orEmpty()
+    // The dev server on port 1420 is the app's shell only in debug builds; a release build never
+    // treats local-network content as its own page (L-96).
+    val isDevShell = BuildConfig.DEBUG && uri.port == 1420 &&
+      (host == "localhost" || host == "127.0.0.1" || host.startsWith("192.168.") || host.startsWith("10."))
     val isApp = (host == "tauri.localhost") ||
       (scheme == "tauri" && host == "localhost") ||
-      (uri.port == 1420 && (host == "localhost" || host == "127.0.0.1" || host.startsWith("192.168.") || host.startsWith("10.")))
+      isDevShell
     if (isApp) {
       appShellUrl = url
     }

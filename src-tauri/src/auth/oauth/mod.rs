@@ -92,6 +92,7 @@ pub async fn start_login(
     let challenge = pkce_challenge(&verifier);
     let expected_state = random_base64(24);
     let redirect_uri = redirect_uri(&provider, addr);
+    app.set_login_callback(&attempt_id, &redirect_uri);
     let authorization_url = build_authorization_url(
         &provider,
         &redirect_uri,

@@ -127,6 +127,11 @@ pub struct AppState {
     pub history: HistoryStore,
     pub client: Client,
     pub pending_login: RwLock<Option<LoginStatus>>,
+    /// The loopback OAuth callback (`redirect_uri`) of the sign-in that set
+    /// it, keyed by attempt id. The mobile navigation guard lets the main
+    /// window load only this URL's origin and path, and only while that same
+    /// attempt is in progress (L-96).
+    login_callback: RwLock<Option<(String, tauri::Url)>>,
     pub pending_auth_exchange: Mutex<Option<PendingAuthExchange>>,
     /// Serializes OAuth callback completion so overlapping status polls cannot
     /// replay a single-use authorization code.
@@ -200,6 +205,7 @@ impl AppState {
             history,
             client,
             pending_login: RwLock::new(None),
+            login_callback: RwLock::new(None),
             pending_auth_exchange: Mutex::new(None),
             login_status_lock: AsyncMutex::new(()),
             login_shutdowns: Mutex::new(HashMap::new()),
@@ -348,6 +354,28 @@ impl AppState {
             attempt_id: attempt_id.to_string(),
             armed: true,
         })
+    }
+
+    /// Records the loopback callback of sign-in `attempt_id`. A value that is
+    /// not a URL records nothing, so no callback is allowed.
+    pub fn set_login_callback(&self, attempt_id: &str, redirect_uri: &str) {
+        *self.login_callback.write() = tauri::Url::parse(redirect_uri)
+            .ok()
+            .map(|url| (attempt_id.to_string(), url));
+    }
+
+    /// The callback the main window may load now: only while the sign-in that
+    /// recorded it is still in progress.
+    pub fn active_login_callback(&self) -> Option<tauri::Url> {
+        let pending = self.pending_login.read();
+        let login = pending
+            .as_ref()
+            .filter(|login| login.status.is_in_progress())?;
+        self.login_callback
+            .read()
+            .as_ref()
+            .filter(|(attempt_id, _)| *attempt_id == login.attempt_id)
+            .map(|(_, url)| url.clone())
     }
 
     /// Forgets the pending login if it is attempt `attempt_id`, e.g. when starting it failed

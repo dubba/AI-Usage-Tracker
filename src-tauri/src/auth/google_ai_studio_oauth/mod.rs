@@ -118,6 +118,7 @@ async fn start_oauth(
     let (listener, addr) = crate::auth::oauth::bind_ephemeral_loopback().await?;
     let expected_state = random_base64(24);
     let redirect_uri = crate::auth::oauth::loopback_http_origin(addr);
+    app.set_login_callback(&attempt_id, &redirect_uri);
     let verifier = random_base64(48);
     let challenge = pkce_challenge(&verifier);
     let scopes = match &mode {

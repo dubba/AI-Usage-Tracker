@@ -9,7 +9,10 @@
 //! - the app's own pages and `about:blank` are always allowed;
 //! - while a sign-in is in progress, HTTPS pages on [`SIGN_IN_HOSTS`] (the
 //!   providers and the single-sign-on, account, and challenge pages their
-//!   flows pass through) and the loopback OAuth callback are allowed too;
+//!   flows pass through) and that sign-in's own loopback OAuth callback (its
+//!   exact host, port, and path) are allowed too;
+//! - the dev server counts as the app only when the app runs from it
+//!   (`tauri dev`), never in a packaged build (L-96);
 //! - everything else is blocked, and its host is logged so that a sign-in
 //!   host missing from the list shows up in the diagnostics report.
 
@@ -113,12 +116,44 @@ pub(crate) fn is_app_page(url: &Url, dev_url: Option<&Url>) -> bool {
     false
 }
 
-/// Whether the main window may navigate to `url`. `dev_url` is the dev server
-/// (`build.devUrl`), whose pages are the app's own in development builds.
+/// Whether a sign-in is running in the main window, and the loopback callback
+/// it is waiting for (none for sign-ins without one, such as Grok).
+#[derive(Clone, Copy)]
+pub(crate) enum SignIn<'a> {
+    None,
+    InProgress { callback: Option<&'a Url> },
+}
+
+/// True when `url` is the sign-in's own callback: plain HTTP on the same
+/// loopback host, port, and path. The query (code and state) may differ.
+fn is_active_callback(url: &Url, callback: &Url) -> bool {
+    url.scheme() == "http"
+        && callback.scheme() == "http"
+        && url.username().is_empty()
+        && url.host_str().is_some()
+        && url.host_str() == callback.host_str()
+        && url.port_or_known_default() == callback.port_or_known_default()
+        && url.path() == callback.path()
+}
+
+/// The dev server, only when the app is running from it. Pass
+/// `tauri::is_dev()`: the Tauri CLI enables `tauri/custom-protocol` for every
+/// packaged build (`tauri build`, release or `--debug`), which makes it false,
+/// and leaves it off for `tauri dev`. A packaged build therefore ignores
+/// `build.devUrl` (L-96).
+pub(crate) fn active_dev_url(
+    configured: Option<&Url>,
+    running_from_dev_server: bool,
+) -> Option<&Url> {
+    configured.filter(|_| running_from_dev_server)
+}
+
+/// Whether the main window may navigate to `url`. `dev_url` is the dev server,
+/// whose pages are the app's own while the app runs from it.
 pub(crate) fn is_allowed_main_navigation(
     url: &Url,
     dev_url: Option<&Url>,
-    signing_in: bool,
+    sign_in: SignIn,
 ) -> bool {
     // The "Account connected" page the app shows when a sign-in has finished
     // (mobile_auth): only the exact page it made, never `data:` in general.
@@ -128,8 +163,13 @@ pub(crate) fn is_allowed_main_navigation(
     if is_app_page(url, dev_url) {
         return true;
     }
-    if !signing_in {
+    let SignIn::InProgress { callback } = sign_in else {
         return false;
+    };
+    // This sign-in's loopback OAuth callback, which mobile_auth intercepts.
+    // Any other loopback port or path is refused.
+    if callback.is_some_and(|callback| is_active_callback(url, callback)) {
+        return true;
     }
     let Some(host) = url
         .host_str()
@@ -137,10 +177,6 @@ pub(crate) fn is_allowed_main_navigation(
     else {
         return false;
     };
-    // The loopback OAuth callback, which mobile_auth intercepts.
-    if url.scheme() == "http" && matches!(host.as_str(), "localhost" | "127.0.0.1") {
-        return true;
-    }
     url.scheme() == "https"
         && url.port().is_none()
         && url.username().is_empty()
@@ -156,19 +192,28 @@ pub(crate) fn plugin<R: Runtime>() -> TauriPlugin<R> {
             if webview.label() != "main" {
                 return true;
             }
-            let signing_in = webview
-                .try_state::<Arc<crate::state::AppState>>()
-                .is_some_and(|state| {
-                    state
-                        .pending_login
-                        .read()
-                        .as_ref()
-                        .is_some_and(|login| login.status.is_in_progress())
-                });
+            let state = webview.try_state::<Arc<crate::state::AppState>>();
+            let signing_in = state.as_ref().is_some_and(|state| {
+                state
+                    .pending_login
+                    .read()
+                    .as_ref()
+                    .is_some_and(|login| login.status.is_in_progress())
+            });
+            let callback = state
+                .as_ref()
+                .and_then(|state| state.active_login_callback());
+            let sign_in = if signing_in {
+                SignIn::InProgress {
+                    callback: callback.as_ref(),
+                }
+            } else {
+                SignIn::None
+            };
             let allowed = is_allowed_main_navigation(
                 url,
-                webview.config().build.dev_url.as_ref(),
-                signing_in,
+                active_dev_url(webview.config().build.dev_url.as_ref(), tauri::is_dev()),
+                sign_in,
             );
             if allowed {
                 crate::auth::mobile_auth::note_main_navigation(url);
@@ -184,7 +229,7 @@ pub(crate) fn plugin<R: Runtime>() -> TauriPlugin<R> {
             if webview.label() == "main" && matches!(payload.event(), PageLoadEvent::Finished) {
                 crate::auth::mobile_auth::note_main_page_loaded(
                     payload.url(),
-                    webview.config().build.dev_url.as_ref(),
+                    active_dev_url(webview.config().build.dev_url.as_ref(), tauri::is_dev()),
                 );
             }
         })
@@ -195,9 +240,87 @@ pub(crate) fn plugin<R: Runtime>() -> TauriPlugin<R> {
 mod tests {
     use super::*;
 
+    const CALLBACK: &str = "http://localhost:1455/auth/callback";
+
+    /// `signing_in` runs an OAuth sign-in waiting for `CALLBACK`. The dev
+    /// server is passed as `tauri dev` would pass it.
     fn allowed(url: &str, signing_in: bool) -> bool {
         let dev: Url = "http://192.168.1.20:1420".parse().unwrap();
-        is_allowed_main_navigation(&url.parse().unwrap(), Some(&dev), signing_in)
+        let callback: Url = CALLBACK.parse().unwrap();
+        let sign_in = if signing_in {
+            SignIn::InProgress {
+                callback: Some(&callback),
+            }
+        } else {
+            SignIn::None
+        };
+        is_allowed_main_navigation(&url.parse().unwrap(), Some(&dev), sign_in)
+    }
+
+    fn allowed_with(url: &str, callback: Option<&str>) -> bool {
+        let callback: Option<Url> = callback.map(|value| value.parse().unwrap());
+        is_allowed_main_navigation(
+            &url.parse().unwrap(),
+            None,
+            SignIn::InProgress {
+                callback: callback.as_ref(),
+            },
+        )
+    }
+
+    #[test]
+    fn only_the_active_sign_ins_own_callback_loads() {
+        // L-96: the exact host, port, and path, with any query.
+        assert!(allowed_with(
+            "http://localhost:1455/auth/callback?code=x&state=y",
+            Some(CALLBACK)
+        ));
+        assert!(allowed_with(
+            "http://127.0.0.1:53692/?code=x&state=y",
+            Some("http://127.0.0.1:53692")
+        ));
+        for url in [
+            "http://localhost:1456/auth/callback?code=x",
+            "http://localhost:1455/callback?code=x",
+            "http://localhost:1455/auth/callback/extra",
+            "http://127.0.0.1:1455/auth/callback?code=x",
+            "https://localhost:1455/auth/callback?code=x",
+            "http://user@localhost:1455/auth/callback",
+            "http://localhost:8080/",
+            "http://127.0.0.1:53692/admin",
+        ] {
+            assert!(!allowed_with(url, Some(CALLBACK)), "{url}");
+        }
+        // A sign-in without a loopback callback (Grok, OpenCode) loads none.
+        assert!(!allowed_with(
+            "http://localhost:1455/auth/callback?code=x",
+            None
+        ));
+        assert!(!allowed_with("http://127.0.0.1:53692/?code=x", None));
+    }
+
+    #[test]
+    fn packaged_builds_never_treat_the_dev_server_as_the_app() {
+        let dev: Url = "http://192.168.1.20:1420".parse().unwrap();
+        assert_eq!(active_dev_url(Some(&dev), true), Some(&dev), "tauri dev");
+        assert_eq!(active_dev_url(Some(&dev), false), None, "packaged build");
+        for signing_in in [false, true] {
+            let sign_in = if signing_in {
+                SignIn::InProgress { callback: None }
+            } else {
+                SignIn::None
+            };
+            for url in ["http://192.168.1.20:1420/", "http://localhost:1420/"] {
+                assert!(
+                    !is_allowed_main_navigation(
+                        &url.parse().unwrap(),
+                        active_dev_url(Some(&dev), false),
+                        sign_in
+                    ),
+                    "{url}"
+                );
+            }
+        }
     }
 
     #[test]
@@ -245,7 +368,6 @@ mod tests {
             "https://challenges.cloudflare.com/x",
             "https://accounts.youtube.com/accounts/SetSID?ssdc=1",
             "http://localhost:1455/auth/callback?code=x&state=y",
-            "http://127.0.0.1:53692/callback?code=x",
         ] {
             assert!(allowed(url, true), "{url}");
         }
@@ -260,6 +382,8 @@ mod tests {
             "https://claude.ai:8443/",
             "https://user@claude.ai/",
             "http://192.168.1.50/",
+            "http://127.0.0.1:53692/callback?code=x",
+            "http://localhost:9000/auth/callback?code=x",
             "file:///data/data/app/files/credentials",
             "javascript:alert(1)",
             "data:text/html,<p>sign in</p>",
