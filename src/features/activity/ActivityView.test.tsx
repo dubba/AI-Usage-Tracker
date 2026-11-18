@@ -722,6 +722,7 @@ describe("ActivityView", () => {
 
     const legend = root.querySelector(".activity-legend");
     expect(legend).not.toBeNull();
+    expect(root.querySelector(".activity-legend-label")?.textContent?.trim()).toBe("KEY");
     const items = select(root, ".activity-legend-item").map((el) => el.textContent?.trim());
     expect(items).toEqual(["Measured", "Estimated", "No data", "Reset"]);
 

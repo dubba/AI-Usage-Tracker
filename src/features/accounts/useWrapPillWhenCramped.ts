@@ -3,12 +3,12 @@ import { useLayoutEffect, useRef, useState, type RefObject } from "react";
 /**
  * On a phone, a custom group's header row tries to keep the title, the Group pill, the edit pen,
  * and the right-hand add buttons on a single line. When the title would truncate to fit the pill
- * alongside it, this hook moves the Group pill onto a second line directly under the title so the
- * full title has room, and moves it back inline if the window widens or the title shrinks enough
- * for both to fit again.
+ * alongside it, this hook stacks the Group pill directly above the edit pen so the title keeps
+ * more horizontal room, and moves the pill back inline if the window widens or the title shrinks
+ * enough for all of them to fit again.
  *
- * When a title still truncates even after wrapping the pill, `title.style.maxWidth` is tightened to
- * the visible end of the ellipsis so the edit pen stays close to the truncated text.
+ * When a title still truncates even after stacking the pill, `title.style.maxWidth` is tightened to
+ * the visible end of the ellipsis so the pill/pen column stays close to the truncated text.
  */
 export function useWrapPillWhenCramped(
   rowRef: RefObject<HTMLElement | null>,
@@ -16,7 +16,7 @@ export function useWrapPillWhenCramped(
   titleKey: string,
 ): boolean {
   const [wrapped, setWrapped] = useState(false);
-  const pillSpaceRef = useRef(0);
+  const inlineControlsWidthRef = useRef(0);
 
   // Reset to inline when switching groups, leaving mobile, or renaming the group.
   useLayoutEffect(() => {
@@ -30,6 +30,7 @@ export function useWrapPillWhenCramped(
     const stack = row.querySelector<HTMLElement>(".dashboard-bucket-title-stack");
     const main = row.querySelector<HTMLElement>(".dashboard-bucket-title-main");
     const pill = row.querySelector<HTMLElement>(".dashboard-bucket-pill");
+    const pen = row.querySelector<HTMLElement>(".edit-bucket-title-btn");
     const actions = row.querySelector<HTMLElement>(".dashboard-header-actions");
     if (!title || !stack || !main || !pill || !actions) return;
 
@@ -71,14 +72,18 @@ export function useWrapPillWhenCramped(
       if (!wrapped) {
         if (pill.offsetWidth > 0) {
           const mainGap = parseFloat(getComputedStyle(main).columnGap) || 0;
-          pillSpaceRef.current = pill.offsetWidth + mainGap;
+          const penWidth = pen ? mainGap + pen.offsetWidth : 0;
+          inlineControlsWidthRef.current = pill.offsetWidth + mainGap + penWidth;
         }
         if (isCut()) {
           setWrapped(true);
           return;
         }
       } else {
-        const needed = pillSpaceRef.current || pill.offsetWidth || 64;
+        const aside = row.querySelector<HTMLElement>(".dashboard-bucket-pill-pen-stack");
+        const stackedWidth = aside?.offsetWidth ?? 0;
+        const inlineWidth = inlineControlsWidthRef.current || pill.offsetWidth || 64;
+        const needed = Math.max(1, inlineWidth - stackedWidth);
         if (!isCut() && freeSpace() >= needed + 1) {
           setWrapped(false);
           return;

@@ -4,12 +4,12 @@ import type { UsageDisplayMode } from "../../shared/lib/usage-display";
 import { useSegmentIndicator } from "../../shared/ui/segment-indicator";
 
 const OPTIONS: ReadonlyArray<{ mode: UsageDisplayMode; letter: string; word: string; tooltip: string }> = [
-  { mode: "used", letter: "% U", word: "% Used", tooltip: "Show the percentage already used" },
-  { mode: "left", letter: "% L", word: "% Left", tooltip: "Show the percentage of usage left" },
+  { mode: "used", letter: "U", word: "% Used", tooltip: "Show the percentage already used" },
+  { mode: "left", letter: "L", word: "% Left", tooltip: "Show the percentage of usage left" },
 ];
 
 /**
- * Switches every usage percentage between the quota used (% U) and the quota left (% L). Used is
+ * Switches every usage percentage between the quota used (U) and the quota left (L). Used is
  * the left option. Wide windows spell the options out (`labels` "words") as % Used / % Left.
  */
 export function UsageDisplayToggle({

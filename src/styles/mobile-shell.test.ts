@@ -96,4 +96,10 @@ describe("mobile shell clears the bottom bar", () => {
       /\.provider-account-card\s+\.account-card-header-meta\s+\.account-plan-badge,\s*\.provider-account-card\s+\.compact-card-identity\s+\.account-plan-badge\s*\{[^}]*height:\s*26px;[^}]*border-radius:\s*999px;[^}]*background:\s*var\(--purple-surface\);[^}]*color:\s*var\(--purple-text\);/,
     );
   });
+
+  it("stacks the Group pill directly above the centered edit pen when the mobile header is cramped", () => {
+    expect(SIDEBAR_LIST).toMatch(
+      /\.dashboard-bucket-pill-pen-stack\s*\{[^}]*display:\s*flex;\s*flex-direction:\s*column;\s*align-items:\s*center;/,
+    );
+  });
 });

@@ -1,13 +1,16 @@
 # Changelog
 
-## Unreleased (4 changes)
+## Unreleased (7 changes)
 
-### Improved (4)
+### Improved (7)
 
 - On phones, the header filter pill now shows the provider name with `Accts` when filtering by a provider (for example, `Claude Accts` instead of the account card's name) and `<Group> Acct` for custom groups (such as `Work Acct`), while keeping `All Accounts` when unfiltered.
 - Saved limit reset rows on account cards now use slightly more compact text sizing for the reset title and expiry date, tighter horizontal padding on the `Use…` button, and tighter spacing between the text and the button before wrapping.
 - On phones, removed the left selection bar and reduced side padding on sidebar group cards so their content has more horizontal space.
 - Custom group chips with multiple providers now place each icon in a corner (first top-left, second bottom-right, third bottom-left, fourth top-right).
+- On cramped phone headers for custom groups, the `Group` badge now sits directly above the centered edit pen button instead of wrapping beneath the title pill.
+- On phones, the usage display switcher in the header now shows `U` and `L` without `%` to leave more room for the title.
+- On the Usage page, the chart legend bar now starts with a compact purple `KEY` pill and uses tighter item spacing so all legend items fit cleanly on one line.
 
 ## v0.6.3 - 2026-11-17 (9 changes)
 

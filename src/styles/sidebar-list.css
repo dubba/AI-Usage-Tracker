@@ -156,9 +156,9 @@
     padding-right: 13px;
   }
 
-  /* Phone Dashboard header (AccountsView.tsx): % U | % L switcher to the left of New group and Add
+  /* Phone Dashboard header (AccountsView.tsx): U | L switcher to the left of New group and Add
      account at the right end of the title row. All square buttons match the 40px menu button
-     footprint with 6px corners; % U | % L matches the 40px 7D / 30D inset pill. */
+     footprint with 6px corners; U | L matches the 40px 7D / 30D inset pill. */
   .dashboard-header-actions {
     display: flex;
     align-items: center;
@@ -180,7 +180,7 @@
 
   .dashboard-header-actions .provider-window-toggle.is-mobile-header button {
     width: auto;
-    min-width: 34px;
+    min-width: 32px;
     height: 32px;
     padding: 0 8px;
     border: 0;
@@ -229,8 +229,8 @@
   }
 
   /* A custom group's page keeps the title, Group pill, and edit pen on one line when they fit, and
-     wraps only the Group pill tight beneath the title when cramped so both stay centered to the
-     filter button. When the title still overflows, it truncates cleanly with an ellipsis. */
+     stacks the Group pill directly above the centered edit pen when cramped so the title keeps
+     more horizontal room. When the title still overflows, it truncates cleanly with an ellipsis. */
   .dashboard-bucket-title-stack {
     display: flex;
     flex-direction: column;
@@ -261,15 +261,19 @@
     margin-left: 0;
   }
 
-  .dashboard-title-row[data-pill-wrapped] .dashboard-bucket-title-stack {
-    margin-top: -2px;
+  .dashboard-bucket-pill-pen-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
   }
 
-  .dashboard-title-row[data-pill-wrapped] .dashboard-bucket-title-stack > .dashboard-bucket-pill {
+  .dashboard-bucket-pill-pen-stack > .dashboard-bucket-pill {
     height: 18px;
     padding: 0 8px;
     font-size: 11px;
-    margin-top: -1px;
+    margin: 0;
   }
 
   .dashboard-title-row:has(.dashboard-header-actions):has(.edit-bucket-title-btn) .dashboard-header-actions {

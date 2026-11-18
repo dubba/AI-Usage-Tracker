@@ -201,10 +201,18 @@ export function AccountsView(props: {
               <div className="dashboard-bucket-title-stack">
                 <div className="dashboard-bucket-title-main">
                   {titleHeading}
-                  {pillWrapped ? null : bucketPill}
-                  {editBucketBtn}
+                  {pillWrapped ? (
+                    <div className="dashboard-bucket-pill-pen-stack">
+                      {bucketPill}
+                      {editBucketBtn}
+                    </div>
+                  ) : (
+                    <>
+                      {bucketPill}
+                      {editBucketBtn}
+                    </>
+                  )}
                 </div>
-                {pillWrapped ? bucketPill : null}
               </div>
             ) : (
               <>

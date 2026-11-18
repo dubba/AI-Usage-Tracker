@@ -229,7 +229,7 @@ describe("AccountsView header", () => {
     expect(document.querySelectorAll(".dashboard-bucket-pill")).toHaveLength(1);
   });
 
-  it("wraps the Group pill onto line 2 under the title on a phone only when cramped", () => {
+  it("stacks the Group pill above the edit pen beside the title on a phone only when cramped", () => {
     setNarrowWindow(true);
     let cramped = true;
     let triggerResize: (() => void) | null = null;
@@ -253,6 +253,8 @@ describe("AccountsView header", () => {
     });
     vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function (this: HTMLElement) {
       if (this.classList.contains("dashboard-bucket-pill")) return 54;
+      if (this.classList.contains("edit-bucket-title-btn")) return 24;
+      if (this.classList.contains("dashboard-bucket-pill-pen-stack")) return 48;
       return 0;
     });
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
@@ -273,20 +275,22 @@ describe("AccountsView header", () => {
     });
 
     const row = document.querySelector(".dashboard-title-row")!;
-    const stack = row.querySelector(".dashboard-bucket-title-stack")!;
-    const main = stack.querySelector(".dashboard-bucket-title-main")!;
+    const main = row.querySelector(".dashboard-bucket-title-main")!;
+    const pillPenStack = main.querySelector(".dashboard-bucket-pill-pen-stack")!;
 
     expect(row.hasAttribute("data-pill-wrapped")).toBe(true);
-    expect(main.querySelector(".dashboard-bucket-pill")).toBeNull();
-    expect(main.querySelector(".edit-bucket-title-btn")).not.toBeNull();
-    expect(stack.lastElementChild?.classList.contains("dashboard-bucket-pill")).toBe(true);
+    expect(pillPenStack).not.toBeNull();
+    expect(pillPenStack.firstElementChild?.classList.contains("dashboard-bucket-pill")).toBe(true);
+    expect(pillPenStack.lastElementChild?.classList.contains("edit-bucket-title-btn")).toBe(true);
     expect(document.querySelectorAll(".dashboard-bucket-pill")).toHaveLength(1);
 
-    // When space opens up again, the pill returns inline to line 1.
+    // When space opens up again, the pill and pen return inline to line 1.
     cramped = false;
     act(() => triggerResize?.());
     expect(row.hasAttribute("data-pill-wrapped")).toBe(false);
+    expect(main.querySelector(".dashboard-bucket-pill-pen-stack")).toBeNull();
     expect(main.querySelector(".dashboard-bucket-pill")?.textContent).toBe("Group");
+    expect(main.querySelector(".edit-bucket-title-btn")).not.toBeNull();
   });
 
   it("does not render a Group pill or stack for non-bucket views", () => {
@@ -562,7 +566,7 @@ describe("AccountsView L / U switch", () => {
     vi.restoreAllMocks();
   });
 
-  it("ends the phone title row with % U | % L, New group, and Add account in order, without Compact", () => {
+  it("ends the phone title row with U | L, New group, and Add account in order, without Compact", () => {
     setNarrowWindow(true);
     const onAdd = vi.fn();
     const onAddGroup = vi.fn();
@@ -577,7 +581,7 @@ describe("AccountsView L / U switch", () => {
 
     const usageSwitch = actions.querySelector(".usage-display-toggle")!;
     expect(usageSwitch.classList.contains("is-mobile-header")).toBe(true);
-    expect([...usageSwitch.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["% U", "% L"]);
+    expect([...usageSwitch.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["U", "L"]);
     expect(document.querySelector(".compact-dashboard-toggle")).toBeNull();
 
     const group = actions.querySelector<HTMLButtonElement>('[aria-label="Add new group"]')!;
@@ -598,11 +602,11 @@ describe("AccountsView L / U switch", () => {
     expect(document.querySelector(".dashboard-header-actions")).toBeNull();
   });
 
-  it("places % U | % L in the phone header instead of top-bar-segmented or Compact button", () => {
+  it("places U | L in the phone header instead of top-bar-segmented or Compact button", () => {
     setNarrowWindow(true);
     app = renderView({ onToggleSidebar: () => undefined });
     const buttons = document.querySelectorAll(".dashboard-header-actions .usage-display-toggle.is-mobile-header button");
-    expect([...buttons].map((b) => b.textContent)).toEqual(["% U", "% L"]);
+    expect([...buttons].map((b) => b.textContent)).toEqual(["U", "L"]);
     expect(document.querySelector(".dashboard-header .compact-dashboard-toggle")).toBeNull();
     expect(document.querySelector(".dashboard-header .top-bar-segmented")).toBeNull();
   });

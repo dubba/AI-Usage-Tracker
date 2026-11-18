@@ -259,6 +259,9 @@ export function ActivityView({
         ) : null}
         {hasReadings ? (
           <ul className="activity-legend" aria-label="Chart legend">
+            <li className="activity-legend-label" aria-hidden="true">
+              KEY
+            </li>
             <li className="activity-legend-item">
               <span className="activity-legend-swatch is-measured" aria-hidden="true" />
               <span>Measured</span>
