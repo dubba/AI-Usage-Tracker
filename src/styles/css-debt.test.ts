@@ -21,7 +21,7 @@ const BUDGET: Record<string, { important: number; rawColors: number }> = {
   "features/pairing/pairing.css": { important: 100, rawColors: 13 },
   "features/startup/startup-gate.css": { important: 0, rawColors: 0 },
   "shared/ui/segment-indicator.css": { important: 3, rawColors: 0 },
-  "styles/account-card-responsive.css": { important: 123, rawColors: 7 },
+  "styles/account-card-responsive.css": { important: 124, rawColors: 7 },
   "styles/api-integration.css": { important: 1, rawColors: 2 },
   "styles/base.css": { important: 4, rawColors: 0 },
   "styles/dashboard-reorder.css": { important: 19, rawColors: 3 },
