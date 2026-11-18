@@ -536,3 +536,24 @@ test("the updater key password comes from a secret, never a hard-coded empty str
     assert.doesNotMatch(set.stdout, /::warning::/);
   }
 });
+
+test("the signing key check runs by hand from main only, in the release Environment, and builds nothing (L-79)", async () => {
+  const { spawnSync } = await import("node:child_process");
+  const check = workflows.find((w) => w.name === "check-signing-key.yml").text;
+  assert.match(check, /^on:\n  workflow_dispatch:\n\n/m, "manual runs only");
+  assert.match(check, /^permissions:\n  contents: read\n/m);
+  assert.doesNotMatch(check, /contents: write|tauri-action|tauri build|git push|gh release/);
+  const [job, ...others] = jobsOf(check);
+  assert.equal(others.length, 0);
+  assert.match(job.text, /^    environment: release$/m);
+  assert.match(job.text, /steps:\n(?:      #[^\n]*\n)*      - name: Refuse to run from anything but main\n/, "guard is the first step");
+  for (const block of checkoutOptions(job.text)) assert.match(block, /persist-credentials: false/);
+  assert.match(job.text, /npm ci --ignore-scripts/, "no install scripts run next to the secrets");
+
+  const [script] = runScriptsOfStep(check, "Refuse to run from anything but main");
+  const run = (ref) => spawnSync("bash", ["-c", script], { env: { ...process.env, REF: ref }, encoding: "utf-8" });
+  assert.equal(run("refs/heads/main").status, 0);
+  for (const ref of ["refs/heads/feature", "refs/tags/v9.9.9", "refs/pull/1/merge", ""]) {
+    assert.equal(run(ref).status, 1, `ref ${JSON.stringify(ref)} must be refused`);
+  }
+});

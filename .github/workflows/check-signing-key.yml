@@ -1,0 +1,84 @@
+name: Check updater signing key
+
+# Run by hand after changing TAURI_SIGNING_PRIVATE_KEY or its password. It
+# signs a test file with the two secrets, the way a release does, and checks
+# the signature against the public key pinned in tauri.conf.json, which every
+# installed copy trusts. Nothing is built or published.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    environment: release
+    timeout-minutes: 10
+    steps:
+      # Same rule as a release: the signing secrets are only used from main.
+      - name: Refuse to run from anything but main
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          if [ "$REF" != "refs/heads/main" ]; then
+            echo "::error::The signing key check only runs from main (got '$REF')."
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      # Only the Tauri CLI is needed, and no package needs its install script
+      # for that, so none run while the signing secrets are in this job.
+      - name: Install the Tauri CLI from the lockfile
+        run: npm ci --ignore-scripts
+      - name: Install minisign
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq minisign
+      - name: Sign a test file and verify it against the app's public key
+        env:
+          RAW_TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          # Same normalising as the release: drop a BOM and any whitespace.
+          key=$(printf '%s' "$RAW_TAURI_SIGNING_PRIVATE_KEY" | sed $'1s/^\xEF\xBB\xBF//' | tr -d ' \t\r\n')
+          if [ -z "$key" ]; then
+            echo "::error::TAURI_SIGNING_PRIVATE_KEY is not set."
+            exit 1
+          fi
+          echo "::add-mask::$key"
+          if [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::TAURI_SIGNING_PRIVATE_KEY_PASSWORD is not set."
+            exit 1
+          fi
+
+          dir="$RUNNER_TEMP/signing-check"
+          mkdir -p "$dir"
+          echo "signing key check $(date -u +%FT%TZ)" > "$dir/payload"
+          sign() {
+            TAURI_SIGNING_PRIVATE_KEY="$key" TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$1" \
+              timeout 120 npx --no-install tauri signer sign "$dir/payload" < /dev/null > /dev/null 2>&1
+          }
+
+          # The key must refuse an empty password, or it is not protected.
+          if sign ""; then
+            echo "::error::The key signs with an empty password, so it is not password-protected."
+            exit 1
+          fi
+          if ! sign "$KEY_PASSWORD"; then
+            echo "::error::Signing failed: TAURI_SIGNING_PRIVATE_KEY_PASSWORD does not open TAURI_SIGNING_PRIVATE_KEY."
+            exit 1
+          fi
+
+          node -e 'process.stdout.write(Buffer.from(require("./src-tauri/tauri.conf.json").plugins.updater.pubkey, "base64"))' > "$dir/app.pub"
+          base64 -d < "$dir/payload.sig" > "$dir/payload.minisig"
+          if ! minisign -V -p "$dir/app.pub" -m "$dir/payload" -x "$dir/payload.minisig"; then
+            echo "::error::The signature does not match the public key in tauri.conf.json, so installed apps would refuse updates signed with this key."
+            exit 1
+          fi
+          rm -rf "$dir"
+          echo "Signing key OK: password-protected, the password opens it, and installed apps accept its signatures."
