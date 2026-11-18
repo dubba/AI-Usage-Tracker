@@ -1,6 +1,7 @@
 use crate::{
     model::{now_rfc3339, Account, Provider, ProviderSecret, UsageFreshness, UsageSnapshot},
     providers::{self, ProviderError, ProviderUsage},
+    secret_echo::{SecretEcho, USAGE_ECHO_MESSAGE},
     state::AppState,
     store::{load_provider_secret, save_provider_secret},
 };
@@ -12,6 +13,7 @@ use std::{
 };
 use tauri::Emitter;
 use tauri_plugin_notification::NotificationExt;
+use zeroize::Zeroizing;
 
 const ACCOUNT_REFRESH_TIMEOUT: Duration = Duration::from_secs(45);
 
@@ -130,18 +132,25 @@ where
     // A rotated secret is saved inside the task for the same reason: if it
     // were left for the caller, a timeout would drop it on the floor and the
     // next refresh would present a refresh token the provider already revoked.
+    //
+    // Before anything the provider said is kept, its free text is compared
+    // with the credentials sent and received (L-78). An echo is refused as a
+    // transient failure, so the last good snapshot stays, marked stale; the
+    // rotated secret is still saved, since the provider already issued it.
     let refresh_app = app.clone();
     let task_account_id = account_id.to_string();
+    let sent_secret = Zeroizing::new(secret.clone());
     let refresh_task = tokio::spawn(async move {
         let outcome = match run(refresh_app.clone(), account, secret).await {
             Ok((usage, refreshed_secret)) => {
+                let usage = reject_secret_echo(usage, &sent_secret, &refreshed_secret);
                 // A removed account must not get its credential written back.
                 if refresh_app.store.get(&task_account_id).is_some() {
                     save_provider_secret(&task_account_id, &refreshed_secret)
-                        .map(|()| Ok(usage))
+                        .map(|()| usage)
                         .map_err(|_| "Unable to save refreshed credentials.".to_string())
                 } else {
-                    Ok(Ok(usage))
+                    Ok(usage)
                 }
             }
             Err(error) => Ok(Err(error)),
@@ -177,6 +186,23 @@ where
     };
     in_flight_guard.finish(outcome.clone());
     outcome
+}
+
+/// The provider's answer, or a transient failure when any of its free text
+/// contains part of a credential. Neither the text nor the credential is
+/// logged.
+fn reject_secret_echo(
+    usage: ProviderUsage,
+    sent: &ProviderSecret,
+    refreshed: &ProviderSecret,
+) -> Result<ProviderUsage, ProviderError> {
+    if SecretEcho::new(&[sent, refreshed]).usage_echoes(&usage) {
+        crate::diagnostics::warn(
+            "A provider answer repeated part of a credential in its account details; the refresh was not saved.",
+        );
+        return Err(ProviderError::Transient(USAGE_ECHO_MESSAGE.into()));
+    }
+    Ok(usage)
 }
 
 /// Refreshes every eligible account now (the "Refresh all" button). Ignores

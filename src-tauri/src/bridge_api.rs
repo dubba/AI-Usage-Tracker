@@ -239,7 +239,7 @@ async fn usage(
 }
 
 /// The accounts as the local API lists them.
-fn public_accounts(accounts: Vec<Account>) -> Vec<PublicUsageAccount> {
+pub(crate) fn public_accounts(accounts: Vec<Account>) -> Vec<PublicUsageAccount> {
     accounts
         .into_iter()
         .map(|account| {

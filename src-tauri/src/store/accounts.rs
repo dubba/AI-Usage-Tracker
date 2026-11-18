@@ -263,6 +263,14 @@ impl AccountStore {
     ) -> Result<Account, StoreError> {
         set_data_dir(self.data_dir.clone());
         check_account_id(&account.id)?;
+        // Provider text saved with a sign-in, reconnect, or import must not
+        // carry the credential saved beside it (L-78). Checked before the
+        // secret is written, so a rejected account leaves nothing behind.
+        if crate::secret_echo::SecretEcho::new(&[secret]).account_echoes(&account) {
+            return Err(StoreError::Invalid(
+                crate::secret_echo::ACCOUNT_ECHO_MESSAGE.into(),
+            ));
+        }
         let id = account.id.clone();
         // Snapshot the previous secret so a metadata-write failure restores
         // the prior generation instead of leaving the new secret orphaned

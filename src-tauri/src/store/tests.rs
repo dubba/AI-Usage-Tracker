@@ -645,3 +645,35 @@ fn file_storage_secret_round_trip() {
     forget_secret(id);
     assert!(load_provider_secret(id).is_err());
 }
+
+#[test]
+fn an_account_whose_details_echo_its_credential_is_not_saved() {
+    // L-78: a sign-in, reconnect, or import whose provider text repeats the
+    // credential leaves neither the account nor the secret behind.
+    let dir = tempdir().unwrap();
+    set_data_dir(dir.path().to_path_buf());
+    let id = "test-secret-echo-refused";
+    forget_secret(id);
+    let token = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJzdG9yZS1lY2hvIn0.c3RvcmUtZWNoby1zaWc";
+    let secret = ProviderSecret::Openai(OAuthSecret {
+        access_token: token.into(),
+        refresh_token: "rt_store-echo-refresh-0123456789abcdef".into(),
+        id_token: None,
+        expires_at: 1,
+    });
+    let store = AccountStore::load(dir.path().to_path_buf()).unwrap();
+    let mut echoed = sample_account(id, "Work");
+    echoed.plan = Some(format!("plan {}", &token[4..30]));
+    let error = store.persist_account(echoed, &secret).unwrap_err();
+    assert!(error.to_string().contains("part of a credential"));
+    assert!(!error.to_string().contains(&token[4..30]));
+    assert!(store.list().is_empty());
+    assert!(load_provider_secret(id).is_err());
+
+    let mut clean = sample_account(id, "Work");
+    clean.plan = Some("Plus".into());
+    clean.email = Some("person@example.com".into());
+    store.persist_account(clean, &secret).unwrap();
+    assert_eq!(store.list().len(), 1);
+    forget_secret(id);
+}

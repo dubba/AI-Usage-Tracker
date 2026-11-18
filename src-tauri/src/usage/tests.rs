@@ -697,3 +697,158 @@ fn a_second_use_is_refused_while_the_first_grant_is_in_flight() {
     let again = InFlightGrant::try_begin("acct-flight", "grant-flight").unwrap();
     drop(again);
 }
+
+// L-78: provider free text that repeats a credential must never be stored.
+
+const ECHO_ACCESS: &str =
+    "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJsLTc4LWVjaG8tYWNjZXNzIn0.bC03OC1hY2Nlc3Mtc2lnbmF0dXJl";
+const ECHO_REFRESH: &str = "rt_l78-echo-refresh-token-0123456789abcdefghij";
+const ECHO_ROTATED_ACCESS: &str =
+    "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJsLTc4LXJvdGF0ZWQifQ.bC03OC1yb3RhdGVkLXNpZ25hdHVyZQ";
+
+fn echo_secret(provider: &Provider, access: &str, refresh: &str) -> ProviderSecret {
+    let oauth = crate::model::OAuthSecret {
+        access_token: access.into(),
+        refresh_token: refresh.into(),
+        id_token: None,
+        expires_at: i64::MAX,
+    };
+    match provider {
+        Provider::Openai => ProviderSecret::Openai(oauth),
+        Provider::Anthropic => ProviderSecret::Anthropic(oauth),
+        Provider::Antigravity => ProviderSecret::Antigravity(oauth),
+        other => panic!("no OAuth secret for {other:?}"),
+    }
+}
+
+/// An account with a live snapshot, saved with a full-length credential.
+fn echo_app(id: &str, provider: Provider) -> (Arc<AppState>, std::path::PathBuf) {
+    let temp = tempfile::tempdir().unwrap();
+    let dir = temp.path().to_path_buf();
+    let app = Arc::new(AppState::new(dir.clone(), "test-token".into()).unwrap());
+    std::mem::forget(temp);
+    let mut saved = account(provider.clone(), "previous-source", false);
+    saved.id = id.into();
+    saved.plan = Some("Pro".into());
+    saved.email = Some("person@example.com".into());
+    saved.last_usage.as_mut().unwrap().windows = usage_with_one_window().windows;
+    app.store
+        .persist_account(saved, &echo_secret(&provider, ECHO_ACCESS, ECHO_REFRESH))
+        .unwrap();
+    (app, dir)
+}
+
+fn assert_marker_nowhere(app: &AppState, dir: &std::path::Path, account: &Account, marker: &str) {
+    let fragment = &marker[10..30];
+    let ipc = serde_json::to_string(account).unwrap();
+    assert!(
+        !ipc.contains(fragment),
+        "credential reached the IPC account"
+    );
+    let file = std::fs::read_to_string(dir.join("accounts.json")).unwrap();
+    assert!(!file.contains(fragment), "credential reached accounts.json");
+    let public =
+        serde_json::to_string(&crate::bridge_api::public_accounts(app.store.list())).unwrap();
+    assert!(
+        !public.contains(fragment),
+        "credential reached /v1/paseo-usage"
+    );
+}
+
+fn assert_kept_stale(account: &Account) {
+    assert_eq!(account.last_error.as_deref(), Some(USAGE_ECHO_MESSAGE));
+    assert!(!account.auth_required);
+    assert_eq!(account.plan.as_deref(), Some("Pro"));
+    assert_eq!(account.email.as_deref(), Some("person@example.com"));
+    let usage = account.last_usage.as_ref().unwrap();
+    assert_eq!(usage.freshness, UsageFreshness::Stale);
+    assert_eq!(usage.source, "previous-source");
+    assert_eq!(usage.windows.len(), 1);
+}
+
+#[tokio::test]
+async fn provider_text_echoing_a_credential_is_refused_for_each_oauth_provider() {
+    type Echo = fn(&mut ProviderUsage, String);
+    let fields: [(&str, Echo); 3] = [
+        ("plan", |usage, text| usage.plan = Some(text)),
+        ("email", |usage, text| usage.email = Some(text)),
+        ("account id", |usage, text| {
+            usage.provider_account_id = Some(text)
+        }),
+    ];
+    for provider in [Provider::Openai, Provider::Anthropic, Provider::Antigravity] {
+        for (field, echo) in fields {
+            for marker in [ECHO_ACCESS, ECHO_REFRESH] {
+                let id = "usage-secret-echo";
+                let (app, dir) = echo_app(id, provider.clone());
+                let mut usage = usage_with_one_window();
+                // Part of the token inside ordinary text, as a provider bug would echo it.
+                echo(&mut usage, format!("plan {} x", &marker[5..40]));
+                let secret = echo_secret(&provider, ECHO_ACCESS, ECHO_REFRESH);
+                let result = refresh_account_with(
+                    app.clone(),
+                    id,
+                    Duration::from_secs(5),
+                    move |_, _, _| async move { Ok((usage, secret)) },
+                )
+                .await
+                .unwrap_or_else(|_| panic!("{provider:?} {field}: refresh failed"));
+                assert_kept_stale(&result);
+                assert_marker_nowhere(&app, &dir, &result, marker);
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn an_echo_of_the_rotated_token_is_refused_and_the_rotation_is_still_saved() {
+    let id = "usage-secret-echo-rotated";
+    let (app, dir) = echo_app(id, Provider::Openai);
+    let mut usage = usage_with_one_window();
+    usage.email = Some(format!("{ECHO_ROTATED_ACCESS}@example.com"));
+    let rotated = echo_secret(
+        &Provider::Openai,
+        ECHO_ROTATED_ACCESS,
+        "rt_rotated-refresh-token-0123456789",
+    );
+    let result = refresh_account_with(
+        app.clone(),
+        id,
+        Duration::from_secs(5),
+        move |_, _, _| async move { Ok((usage, rotated)) },
+    )
+    .await
+    .unwrap();
+    assert_kept_stale(&result);
+    assert_marker_nowhere(&app, &dir, &result, ECHO_ROTATED_ACCESS);
+    match load_provider_secret(id).unwrap() {
+        ProviderSecret::Openai(secret) => {
+            assert_eq!(secret.access_token, ECHO_ROTATED_ACCESS)
+        }
+        _ => panic!("unexpected provider secret"),
+    }
+}
+
+#[tokio::test]
+async fn ordinary_provider_text_is_still_saved_with_full_length_credentials() {
+    let id = "usage-secret-echo-clean";
+    let (app, _dir) = echo_app(id, Provider::Anthropic);
+    let mut usage = usage_with_one_window();
+    usage.plan = Some("Max".into());
+    usage.email = Some("someone.else@example.com".into());
+    let secret = echo_secret(&Provider::Anthropic, ECHO_ACCESS, ECHO_REFRESH);
+    let result = refresh_account_with(
+        app.clone(),
+        id,
+        Duration::from_secs(5),
+        move |_, _, _| async move { Ok((usage, secret)) },
+    )
+    .await
+    .unwrap();
+    assert_eq!(result.last_error, None);
+    assert_eq!(result.plan.as_deref(), Some("Max"));
+    assert_eq!(
+        result.last_usage.as_ref().unwrap().freshness,
+        UsageFreshness::Live
+    );
+}

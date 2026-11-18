@@ -17,6 +17,7 @@ mod platform;
 mod providers;
 mod refresh_backoff;
 mod refresh_loop;
+mod secret_echo;
 mod startup;
 mod state;
 mod store;
