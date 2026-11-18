@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { DevicesIcon } from "../../shared/ui/icons";
+import { DevicesIcon, SettingsIcon } from "../../shared/ui/icons";
 import type { BridgeStatus } from "../../types";
 import { SETTINGS_DESCRIPTION } from "../../shared/lib/constants";
 import { isMobileDevice } from "../../shared/lib/platform";
@@ -133,7 +133,10 @@ export function SettingsView({
       <header className="dashboard-header">
         <div>
           <div className="dashboard-title-row">
-            <h1 className="eyebrow" tabIndex={-1} style={{ outline: "none" }}>App Settings</h1>
+            <h1 className="eyebrow" tabIndex={-1} style={{ outline: "none" }}>
+              <SettingsIcon className="settings-title-icon" />
+              <span>App Settings</span>
+            </h1>
           </div>
           {/* A full sentence, like the other pages' subtitles; the top bar tooltip uses the same words without the period. */}
           <p className="dashboard-description">{SETTINGS_DESCRIPTION}.</p>

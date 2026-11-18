@@ -5,7 +5,7 @@ import { click, mount, type Mounted } from "../../test-utils/react";
 import { SidebarGroupRow } from "./SidebarGroupRow";
 import { setUsageDisplayMode } from "../../shared/lib/usage-display";
 import type { SidebarGroup } from "./sidebar-groups";
-import type { Account, Provider, UsageSnapshot, UsageWindow } from "../../types";
+import type { Account, AccountBucket, Provider, UsageSnapshot, UsageWindow } from "../../types";
 
 function makeAccount({
   id = "acc1",
@@ -492,5 +492,71 @@ describe("SidebarGroupRow custom group", () => {
     expect(app.container.querySelector(".bucket-mini-badge")).toBeNull();
     expect(app.container.querySelector(".sidebar-group-name")!.textContent).toBe("My Group");
     expect(app.container.querySelector(".sidebar-group-count")!.textContent).toBe("1");
+  });
+
+  it("renders an edit pen button beside the group title and count pill, and opens edit without selecting the row", () => {
+    const bucket: AccountBucket = {
+      id: "b1",
+      name: "My Group",
+      provider: "anthropic",
+      accountIds: ["a1"],
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    };
+    const onSelect = vi.fn();
+    const onEditBucket = vi.fn();
+    const onMove = vi.fn();
+    const bucketGroup: SidebarGroup = { ...makeBucketGroup([makeAccount({ id: "a1", fiveRemaining: 50 })]), bucket };
+
+    app = mount(
+      <SidebarGroupRow
+        group={bucketGroup}
+        selected={false}
+        onSelect={onSelect}
+        onMove={onMove}
+        onEditBucket={onEditBucket}
+      />,
+    );
+
+    const row = app.container.querySelector<HTMLElement>(".provider-summary-row.is-bucket-row")!;
+    const topline = row.querySelector(".provider-summary-topline")!;
+    const title = topline.querySelector(".sidebar-group-title")!;
+    const editBtn = topline.querySelector<HTMLButtonElement>(".sidebar-group-edit-btn")!;
+    const selectHit = row.querySelector<HTMLButtonElement>(".sidebar-group-select-hit")!;
+
+    expect(editBtn).not.toBeNull();
+    expect(title.nextElementSibling).toBe(editBtn);
+    expect(editBtn.getAttribute("aria-label")).toBe("Edit My Group");
+    expect(editBtn.getAttribute("data-tooltip")).toBe("Edit Group");
+    // Ensure buttons are siblings, never nested.
+    expect(selectHit.contains(editBtn)).toBe(false);
+    expect(editBtn.contains(selectHit)).toBe(false);
+
+    click(editBtn);
+    expect(onEditBucket).toHaveBeenCalledTimes(1);
+    expect(onEditBucket).toHaveBeenCalledWith(bucket);
+    expect(onSelect).not.toHaveBeenCalled();
+
+    click(selectHit);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onEditBucket).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      selectHit.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", altKey: true, bubbles: true, cancelable: true }));
+    });
+    expect(onMove).toHaveBeenCalledWith(-1);
+  });
+
+  it("never renders an edit pen button on provider rows or All Accounts", () => {
+    const onEditBucket = vi.fn();
+    app = mount(
+      <SidebarGroupRow
+        group={makeGroup([makeAccount({ id: "a1", fiveRemaining: 50 })])}
+        selected={false}
+        onSelect={vi.fn()}
+        onEditBucket={onEditBucket}
+      />,
+    );
+    expect(app.container.querySelector(".sidebar-group-edit-btn")).toBeNull();
   });
 });

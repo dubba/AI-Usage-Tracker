@@ -186,4 +186,10 @@ describe("Button hover and active state invariants", () => {
       /:root\s+\.provider-account-card\s+\.account-name-edit:hover:not\(:disabled\),\s*:root\s+\.provider-account-card\s+\.account-name-edit:focus-visible,\s*:root\s+\.provider-account-card\s+\.account-name-edit:active:not\(:disabled\)\s*\{[^}]*border-color:\s*var\(--purple-fill\)\s*!important;\s*background:\s*var\(--purple-fill\)\s*!important;\s*color:\s*var\(--white\)\s*!important;/,
     );
   });
+
+  it("styles the limit reset Use button on mobile with the desktop hover purple fill", () => {
+    expect(CARD_RESPONSIVE_CSS).toMatch(
+      /@media\s*\(max-width:\s*860px\)\s*\{[\s\S]*?\.provider-account-card\s+\.limit-reset-use\.button\s*\{[^}]*background:\s*var\(--purple-fill\);\s*border-color:\s*var\(--purple-fill\);\s*color:\s*var\(--white\);/,
+    );
+  });
 });

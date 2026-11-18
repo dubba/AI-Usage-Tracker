@@ -1,5 +1,6 @@
 import { isReordering } from "../reorder";
 import {
+  EditIcon,
   UsersIcon,
 } from "../../shared/ui/icons";
 import { ProviderIcon } from "../../shared/ui/ProviderIcon";
@@ -16,6 +17,7 @@ import { useUsageDisplayMode } from "../../shared/hooks/useUsageDisplayMode";
 import { displayPercent } from "../../shared/lib/usage-display";
 import { ACCOUNT_FORMS, formatCount } from "../../shared/lib/format";
 import { reorderKeyDelta } from "../reorder/reorder-utils";
+import type { AccountBucket } from "../../types";
 import type { SidebarGroup } from "./sidebar-groups";
 
 /** Id of the visually hidden hint that App renders once for every reorderable group row. */
@@ -86,12 +88,15 @@ export function SidebarGroupRow({
   selected,
   onSelect,
   onMove,
+  onEditBucket,
 }: {
   group: SidebarGroup;
   selected: boolean;
   onSelect: () => void;
   /** Keyboard alternative to dragging; only passed for groups that can be reordered. */
   onMove?: (delta: -1 | 1) => void;
+  /** Opens the edit modal for custom groups (`group.type === "bucket"`). */
+  onEditBucket?: (bucket: AccountBucket) => void;
 }) {
   const [displayMode] = useUsageDisplayMode();
   // Grok has no 5-hour limit, so a Grok-only row uses that slot for the Grok Bot limit.
@@ -108,39 +113,35 @@ export function SidebarGroupRow({
     value == null ? 0 : Math.min(100, Math.max(0, displayPercent(value, displayMode)));
   const hasMeterData = five != null || weekly != null;
   const reorderable = group.type !== "all";
-  return (
-    <button
-      type="button"
-      className={`provider-summary-row ${group.type === "bucket" ? "is-bucket-row" : ""} ${group.type === "all" ? "is-all-row" : ""} ${selected ? "selected" : ""}`}
-      onClick={(e) => {
-        if (isReordering()) {
-          e.preventDefault();
-          e.stopPropagation();
-          return;
-        }
-        onSelect();
-      }}
-      data-provider={group.provider ?? undefined}
-      data-reorder-provider={group.provider ?? undefined}
-      data-group-id={group.id}
-      data-reorder-enabled={reorderable ? "true" : undefined}
-      draggable={false}
-      aria-keyshortcuts={onMove ? "Alt+ArrowUp Alt+ArrowDown" : undefined}
-      aria-describedby={onMove ? GROUP_REORDER_HINT_ID : undefined}
-      onKeyDown={(event) => {
-        const delta = onMove ? reorderKeyDelta(event) : null;
-        if (delta == null) return;
-        event.preventDefault();
-        onMove?.(delta);
-      }}
-      aria-label={[
-        group.title,
-        formatCount(group.accounts.length, ACCOUNT_FORMS),
-        alert ? alertSpoken(alert) : null,
-        `${firstMeterLabel} ${meterText(five)}`,
-        `${secondMeterLabel} ${meterText(weekly)}`,
-      ].filter(Boolean).join(", ")}
-    >
+  const canEditBucket = group.type === "bucket" && Boolean(group.bucket && onEditBucket);
+
+  const rowClassName = `provider-summary-row ${group.type === "bucket" ? "is-bucket-row" : ""} ${group.type === "all" ? "is-all-row" : ""} ${selected ? "selected" : ""}`;
+  const rowAriaLabel = [
+    group.title,
+    formatCount(group.accounts.length, ACCOUNT_FORMS),
+    alert ? alertSpoken(alert) : null,
+    `${firstMeterLabel} ${meterText(five)}`,
+    `${secondMeterLabel} ${meterText(weekly)}`,
+  ].filter(Boolean).join(", ");
+
+  const handleRowClick = (e: React.MouseEvent<HTMLElement>) => {
+    if (isReordering()) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    onSelect();
+  };
+
+  const handleRowKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+    const delta = onMove ? reorderKeyDelta(event) : null;
+    if (delta == null) return;
+    event.preventDefault();
+    onMove?.(delta);
+  };
+
+  const rowInner = (
+    <>
       {reorderable ? <span className="reorder-grip" data-tooltip="Drag to reorder" aria-hidden="true" /> : null}
       {group.type === "bucket" ? (
         <BucketGroupIcon group={group} />
@@ -156,6 +157,24 @@ export function SidebarGroupRow({
             <span className="sidebar-group-name">{group.title}</span>
             <span className="sidebar-group-count">{group.accounts.length}</span>
           </strong>
+          {canEditBucket ? (
+            <button
+              type="button"
+              className="sidebar-group-edit-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isReordering()) {
+                  e.preventDefault();
+                  return;
+                }
+                onEditBucket!(group.bucket!);
+              }}
+              aria-label={`Edit ${group.title}`}
+              data-tooltip="Edit Group"
+            >
+              <EditIcon />
+            </button>
+          ) : null}
         </span>
         {group.accounts.length === 0 ? (
           <span className="sidebar-group-empty">No accounts yet</span>
@@ -168,6 +187,53 @@ export function SidebarGroupRow({
           </span>
         )}
       </span>
+    </>
+  );
+
+  if (canEditBucket) {
+    return (
+      <div
+        className={rowClassName}
+        onClick={handleRowClick}
+        onKeyDown={handleRowKeyDown}
+        data-provider={group.provider ?? undefined}
+        data-reorder-provider={group.provider ?? undefined}
+        data-group-id={group.id}
+        data-reorder-enabled={reorderable ? "true" : undefined}
+        draggable={false}
+      >
+        <button
+          type="button"
+          className="sidebar-group-select-hit"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleRowClick(e);
+          }}
+          aria-keyshortcuts={onMove ? "Alt+ArrowUp Alt+ArrowDown" : undefined}
+          aria-describedby={onMove ? GROUP_REORDER_HINT_ID : undefined}
+          aria-label={rowAriaLabel}
+        />
+        {rowInner}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className={rowClassName}
+      onClick={handleRowClick}
+      data-provider={group.provider ?? undefined}
+      data-reorder-provider={group.provider ?? undefined}
+      data-group-id={group.id}
+      data-reorder-enabled={reorderable ? "true" : undefined}
+      draggable={false}
+      aria-keyshortcuts={onMove ? "Alt+ArrowUp Alt+ArrowDown" : undefined}
+      aria-describedby={onMove ? GROUP_REORDER_HINT_ID : undefined}
+      onKeyDown={handleRowKeyDown}
+      aria-label={rowAriaLabel}
+    >
+      {rowInner}
     </button>
   );
 }

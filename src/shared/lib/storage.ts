@@ -32,6 +32,22 @@ export const STORAGE_KEYS = {
   activityReorderHintSessionCounted: "ai-usage-tracker:activity-reorder-hint-session-counted",
   /** sessionStorage: "1" if the usage reorder hint was dismissed in the current session. */
   activityReorderHintSessionDismissed: "ai-usage-tracker:activity-reorder-hint-session-dismissed",
+  /** "1" once the user has completed a pull-to-refresh gesture on the dashboard. */
+  pullRefreshHintSeen: "ai-usage-tracker:pull-refresh-hint-seen",
+  /** Number of newly opened app sessions (up to 2) where the dashboard pull-to-refresh hint was eligible. */
+  pullRefreshHintOpenCount: "ai-usage-tracker:pull-refresh-hint-open-count",
+  /** sessionStorage: "1" once this session has been counted toward the dashboard pull-to-refresh open count. */
+  pullRefreshHintSessionCounted: "ai-usage-tracker:pull-refresh-hint-session-counted",
+  /** sessionStorage: "1" if the dashboard pull-to-refresh hint was dismissed in the current session. */
+  pullRefreshHintSessionDismissed: "ai-usage-tracker:pull-refresh-hint-session-dismissed",
+  /** "1" once the user has completed a pull-to-refresh gesture on the usage page. */
+  activityPullRefreshHintSeen: "ai-usage-tracker:activity-pull-refresh-hint-seen",
+  /** Number of newly opened app sessions (up to 2) where the usage pull-to-refresh hint was eligible. */
+  activityPullRefreshHintOpenCount: "ai-usage-tracker:activity-pull-refresh-hint-open-count",
+  /** sessionStorage: "1" once this session has been counted toward the usage pull-to-refresh open count. */
+  activityPullRefreshHintSessionCounted: "ai-usage-tracker:activity-pull-refresh-hint-session-counted",
+  /** sessionStorage: "1" if the usage pull-to-refresh hint was dismissed in the current session. */
+  activityPullRefreshHintSessionDismissed: "ai-usage-tracker:activity-pull-refresh-hint-session-dismissed",
   /** "7d" | "30d": how many days the Usage page shows. */
   activityPeriod: "ai-usage-tracker:activity-period",
   /** "on" | "off": whether the bottom navigation bar shows the page names under its icons. */

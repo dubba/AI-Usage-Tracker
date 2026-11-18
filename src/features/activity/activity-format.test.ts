@@ -126,7 +126,7 @@ describe("chartStats", () => {
     expect(chartStats([day(10), day(null), day(30), day(20)], starts, "en-US")).toEqual({
       todayLabel: "20%",
       peakLabel: "30% (Oct 14)",
-      avgLabel: "20%/day",
+      avgLabel: "20% /day",
     });
   });
 
@@ -134,7 +134,7 @@ describe("chartStats", () => {
     expect(chartStats([day(5), day(25, "approximate")], starts.slice(0, 3), "en-US")).toEqual({
       todayLabel: "25% est.",
       peakLabel: "25% (Today)",
-      avgLabel: "15%/day",
+      avgLabel: "15% /day",
     });
 
     expect(chartStats([day(null), day(null)], starts.slice(0, 3), "en-US")).toEqual({

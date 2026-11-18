@@ -60,4 +60,9 @@ ensure_identity
 WATCHER=$!
 trap 'kill $WATCHER 2>/dev/null' EXIT
 
-npx tauri dev
+if nc -z 127.0.0.1 1420 2>/dev/null || nc -z localhost 1420 2>/dev/null; then
+  echo "Using the dev server already running on port 1420."
+  npx tauri dev --config '{"build":{"beforeDevCommand":""}}'
+else
+  npx tauri dev
+fi

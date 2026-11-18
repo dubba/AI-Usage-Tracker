@@ -6,6 +6,7 @@ import { useSegmentIndicator } from "../../shared/ui/segment-indicator";
 import { MOBILE_OVERLAY_QUERY } from "../sidebar/sidebar-width";
 import { PullToRefreshIndicator } from "../dashboard/PullToRefreshIndicator";
 import { usePullToRefresh } from "../dashboard/usePullToRefresh";
+import { useCanPullRefreshEnvironment, usePullRefreshHint } from "../dashboard/usePullRefreshHint";
 import { EmptyAccountPanel } from "../accounts/EmptyAccountPanel";
 import { useReorderHint } from "../accounts/useReorderHint";
 import type { Account, ActivityTracker, Provider, UntrackedAccount } from "../../types";
@@ -122,6 +123,10 @@ export function ActivityView({
     enabled: accounts.length > 0,
   });
 
+  const canPullRefreshEnv = useCanPullRefreshEnvironment();
+  const canPullRefresh = Boolean(onRefresh) && accounts.length > 0 && Boolean(data) && canPullRefreshEnv;
+  const { showPullRefreshHint, dismissPullRefreshHint, completePullRefreshHint } = usePullRefreshHint(canPullRefresh, "activity");
+
   const pullData = usePullToRefresh({
     containerRef,
     scrollRef,
@@ -131,6 +136,7 @@ export function ActivityView({
           await reload();
         }
       : undefined,
+    onTriggered: completePullRefreshHint,
     disabled: !onRefresh || accounts.length === 0,
   });
 
@@ -237,6 +243,19 @@ export function ActivityView({
               className="reorder-hint-dismiss"
               onClick={dismissReorderHint}
               aria-label="Dismiss reorder hint"
+            >
+              <CloseIcon />
+            </button>
+          </div>
+        ) : null}
+        {showPullRefreshHint ? (
+          <div className="pull-refresh-hint-banner" role="note">
+            <span>Pull down on the screen to refresh data</span>
+            <button
+              type="button"
+              className="pull-refresh-hint-dismiss"
+              onClick={dismissPullRefreshHint}
+              aria-label="Dismiss pull-to-refresh hint"
             >
               <CloseIcon />
             </button>

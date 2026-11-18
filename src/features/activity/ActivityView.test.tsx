@@ -491,6 +491,7 @@ describe("ActivityView", () => {
     const heading = mobile.root.querySelector("h1")!;
     expect(heading.getAttribute("tabindex")).toBe("-1");
     const filterBtn = heading.querySelector<HTMLButtonElement>('button[aria-label="Work, filter by account or group"]')!;
+    expect(filterBtn.querySelector("svg.mobile-sidebar-toggle-filter")).not.toBeNull();
     expect(filterBtn.querySelector(".mobile-sidebar-toggle-label")?.textContent).toBe("Work");
     expect(filterBtn.querySelector("svg.mobile-sidebar-toggle-chevron")).not.toBeNull();
     expect(filterBtn.classList.contains("is-filtered")).toBe(true);
@@ -517,6 +518,16 @@ describe("ActivityView", () => {
   });
 
   describe("pull to refresh", () => {
+    const originalInnerWidth = window.innerWidth;
+    const hadOntouchstart = "ontouchstart" in window;
+
+    afterEach(() => {
+      Object.defineProperty(window, "innerWidth", { value: originalInnerWidth, writable: true, configurable: true });
+      if (!hadOntouchstart && "ontouchstart" in window) {
+        delete (window as unknown as { ontouchstart?: unknown }).ontouchstart;
+      }
+    });
+
     function createTouchEvent(type: string, target: Element, clientX: number, clientY: number) {
       const touch = { clientX, clientY, identifier: 0, target };
       return new TouchEvent(type, {
@@ -734,4 +745,99 @@ describe("ActivityView", () => {
     await settle();
     expect(empty.root.querySelector(".activity-legend")).toBeNull();
   });
+
+  describe("pull-to-refresh hint banner", () => {
+    const originalInnerWidth = window.innerWidth;
+    const hadOntouchstart = "ontouchstart" in window;
+
+    afterEach(() => {
+      Object.defineProperty(window, "innerWidth", { value: originalInnerWidth, writable: true, configurable: true });
+      if (!hadOntouchstart && "ontouchstart" in window) {
+        delete (window as unknown as { ontouchstart?: unknown }).ontouchstart;
+      }
+    });
+
+    function createTouchEvent(type: string, target: Element, clientX: number, clientY: number) {
+      const touch = { clientX, clientY, identifier: 0, target };
+      return new TouchEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        touches: type === "touchend" || type === "touchcancel" ? [] : [touch as unknown as Touch],
+        targetTouches: type === "touchend" || type === "touchcancel" ? [] : [touch as unknown as Touch],
+        changedTouches: [touch as unknown as Touch],
+      });
+    }
+
+    it("stays hidden on desktop non-touch viewports and when there are no accounts", async () => {
+      api.getWeeklyActivity.mockResolvedValue(answer(1));
+      const { root } = renderView([work], { onRefresh: vi.fn() });
+      await settle();
+      expect(root.querySelector(".pull-refresh-hint-banner")).toBeNull();
+
+      mounted!.unmount();
+      setNarrowWindow(true);
+      const empty = renderView([], { onRefresh: vi.fn() });
+      await settle();
+      expect(empty.root.querySelector(".pull-refresh-hint-banner")).toBeNull();
+    });
+
+    it("shows on mobile for up to 2 sessions, dismisses for the session, and hides on the 3rd", async () => {
+      setNarrowWindow(true);
+      api.getWeeklyActivity.mockResolvedValue(answer(1));
+
+      const first = renderView([work], { onRefresh: vi.fn() });
+      await settle();
+      const banner = first.root.querySelector(".pull-refresh-hint-banner");
+      expect(banner).not.toBeNull();
+      expect(banner?.textContent).toContain("Pull down on the screen to refresh data");
+      expect(storageGet(STORAGE_KEYS.activityPullRefreshHintOpenCount)).toBe("1");
+
+      click(banner!.querySelector<HTMLButtonElement>(".pull-refresh-hint-dismiss")!);
+      expect(first.root.querySelector(".pull-refresh-hint-banner")).toBeNull();
+      expect(storageGet(STORAGE_KEYS.activityPullRefreshHintSessionDismissed, "session")).toBe("1");
+      mounted!.unmount();
+
+      sessionStorage.clear();
+      const second = renderView([work], { onRefresh: vi.fn() });
+      await settle();
+      expect(second.root.querySelector(".pull-refresh-hint-banner")).not.toBeNull();
+      expect(storageGet(STORAGE_KEYS.activityPullRefreshHintOpenCount)).toBe("2");
+      mounted!.unmount();
+
+      sessionStorage.clear();
+      const third = renderView([work], { onRefresh: vi.fn() });
+      await settle();
+      expect(third.root.querySelector(".pull-refresh-hint-banner")).toBeNull();
+    });
+
+    it("permanently dismisses when the user performs a pull-to-refresh gesture", async () => {
+      Object.defineProperty(window, "innerWidth", { value: 400, writable: true, configurable: true });
+      Object.defineProperty(window, "ontouchstart", { value: {}, writable: true, configurable: true });
+      setNarrowWindow(true);
+      api.getWeeklyActivity.mockResolvedValue(answer(1));
+
+      const onRefresh = vi.fn().mockResolvedValue(undefined);
+      const { root } = renderView([work], { onRefresh });
+      await settle();
+      expect(root.querySelector(".pull-refresh-hint-banner")).not.toBeNull();
+
+      const container = root.querySelector(".content-scroll")!;
+      await act(async () => {
+        container.dispatchEvent(createTouchEvent("touchstart", container, 100, 100));
+        window.dispatchEvent(createTouchEvent("touchmove", container, 100, 260));
+        window.dispatchEvent(createTouchEvent("touchend", container, 100, 260));
+      });
+
+      expect(onRefresh).toHaveBeenCalledTimes(1);
+      expect(root.querySelector(".pull-refresh-hint-banner")).toBeNull();
+      expect(storageGet(STORAGE_KEYS.activityPullRefreshHintSeen)).toBe("1");
+      mounted!.unmount();
+
+      sessionStorage.clear();
+      const next = renderView([work], { onRefresh });
+      await settle();
+      expect(next.root.querySelector(".pull-refresh-hint-banner")).toBeNull();
+    });
+  });
 });
+

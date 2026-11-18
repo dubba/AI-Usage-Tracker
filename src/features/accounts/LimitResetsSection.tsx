@@ -104,7 +104,7 @@ export function LimitResetsSection({
                   disabled={busy || !onUse}
                   onClick={() => setPending(grant)}
                 >
-                  Use…
+                  Use
                 </button>
               )}
             </li>

@@ -120,7 +120,7 @@ export function chartStats(
   return {
     todayLabel,
     peakLabel: `${formatDayPercent(peakValue)} (${peakWhen})`,
-    avgLabel: `${formatDayPercent(observedSum / observedCount)}/day`,
+    avgLabel: `${formatDayPercent(observedSum / observedCount)} /day`,
   };
 }
 

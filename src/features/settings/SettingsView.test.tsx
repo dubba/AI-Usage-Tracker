@@ -329,7 +329,9 @@ describe("Devices and the local API", () => {
     setNarrowWindow(true);
     app = mount(view());
     expect(document.querySelector(".mobile-sidebar-toggle-btn")).toBeNull();
-    expect(document.querySelector("h1.eyebrow")?.textContent).toBe("App Settings");
+    const heading = document.querySelector("h1.eyebrow");
+    expect(heading?.querySelector("svg.settings-title-icon")).not.toBeNull();
+    expect(heading?.textContent).toBe("App Settings");
   });
 });
 

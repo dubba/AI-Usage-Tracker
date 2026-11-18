@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { click, mount, type Mounted } from "../../test-utils/react";
 import { ALL_ACCOUNTS_GROUP_ID, type SidebarGroup } from "./sidebar-groups";
 import { Sidebar } from "./Sidebar";
+import type { AccountBucket } from "../../types";
 import type { Section } from "../../app/useSidebarNavigation";
 import type { SettingsSectionId } from "../settings/settings-sections";
 
@@ -28,8 +29,10 @@ function render(props: {
   groups?: SidebarGroup[];
   activeSettingsSection?: SettingsSectionId;
   onJumpToSettingsSection?: (section: SettingsSectionId) => void;
+  onEditBucket?: (bucket: AccountBucket) => void;
 }) {
   const onSelectGroup = vi.fn();
+  const onEditBucket = props.onEditBucket ?? vi.fn();
   mounted = mount(
     <Sidebar
       sidebarRef={{ current: null }}
@@ -47,10 +50,11 @@ function render(props: {
       onMoveGroup={vi.fn()}
       onRefreshAll={vi.fn()}
       onSelectGroup={onSelectGroup}
+      onEditBucket={onEditBucket}
       {...props}
     />,
   );
-  return { onSelectGroup };
+  return { onSelectGroup, onEditBucket };
 }
 
 describe("Sidebar", () => {
@@ -212,6 +216,30 @@ describe("Sidebar", () => {
       render({ section: "accounts", topBar: false });
       expect(mounted!.container.querySelector(".sidebar-display-switch")).toBeNull();
       expect(mounted!.container.querySelector(".compact-dashboard-toggle")).toBeNull();
+    });
+
+    it("adds an edit pen button next to custom groups only and opens edit without selecting the group", () => {
+      const workBucket: AccountBucket = {
+        id: "b1",
+        name: "work",
+        provider: null,
+        accountIds: [],
+        createdAt: "2026-01-01T00:00:00Z",
+        updatedAt: "2026-01-01T00:00:00Z",
+      };
+      const withBucket: SidebarGroup[] = [
+        { ...mixed[0], bucket: workBucket },
+        mixed[1],
+      ];
+      const { onEditBucket, onSelectGroup } = render({ section: "accounts", topBar: true, groups: withBucket });
+      const editButtons = mounted!.container.querySelectorAll<HTMLButtonElement>(".sidebar-group-edit-btn");
+      expect(editButtons).toHaveLength(1);
+      expect(editButtons[0].closest(".provider-summary-row")?.getAttribute("data-group-id")).toBe("bucket:b1");
+
+      click(editButtons[0]);
+      expect(onEditBucket).toHaveBeenCalledTimes(1);
+      expect(onEditBucket).toHaveBeenCalledWith(workBucket);
+      expect(onSelectGroup).not.toHaveBeenCalled();
     });
   });
 });

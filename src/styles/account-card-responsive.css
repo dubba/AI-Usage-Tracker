@@ -1814,6 +1814,13 @@
     margin-left: 12px;
   }
 
+  /* Mobile has no hover, so Use starts filled with the desktop hover purple. */
+  .provider-account-card .limit-reset-use.button {
+    background: var(--purple-fill);
+    border-color: var(--purple-fill);
+    color: var(--white);
+  }
+
   /* Renaming on the phone. The plan and status pills sit beside the name and would squeeze the
      edit box down to a few characters, so while it is open the header becomes a grid: the box
      moves up to the "Updated ..." line and runs as far as that label, and the email shares the

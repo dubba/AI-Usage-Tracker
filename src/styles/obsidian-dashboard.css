@@ -1074,7 +1074,8 @@ button.summary-strip:focus-visible {
   height: 12px;
 }
 
-.reorder-hint-banner {
+.reorder-hint-banner,
+.pull-refresh-hint-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1091,12 +1092,14 @@ button.summary-strip:focus-visible {
   box-sizing: border-box;
 }
 
-.reorder-hint-banner span {
+.reorder-hint-banner span,
+.pull-refresh-hint-banner span {
   flex: 1 1 auto;
   min-width: 0;
 }
 
-.reorder-hint-dismiss {
+.reorder-hint-dismiss,
+.pull-refresh-hint-dismiss {
   display: grid;
   place-items: center;
   width: 30px;
@@ -1112,15 +1115,18 @@ button.summary-strip:focus-visible {
   transition: background-color 120ms ease;
 }
 
-.reorder-hint-dismiss:hover {
+.reorder-hint-dismiss:hover,
+.pull-refresh-hint-dismiss:hover {
   background: rgb(var(--purple-fill-rgb) / 0.22);
 }
 
-.reorder-hint-dismiss:active {
+.reorder-hint-dismiss:active,
+.pull-refresh-hint-dismiss:active {
   background: rgb(var(--purple-fill-rgb) / 0.35);
 }
 
-.reorder-hint-dismiss svg {
+.reorder-hint-dismiss svg,
+.pull-refresh-hint-dismiss svg {
   width: 14px;
   height: 14px;
 }
@@ -3438,7 +3444,8 @@ select.text-input option,
     font-size: 11px;
   }
 
-  .reorder-hint-banner {
+  .reorder-hint-banner,
+  .pull-refresh-hint-banner {
     margin: 0 0 10px;
     padding: 8px 6px 8px 12px;
   }

@@ -14,6 +14,7 @@ interface UsePullToRefreshOptions {
   containerRef: RefObject<HTMLElement | null>;
   scrollRef: RefObject<HTMLElement | null>;
   onRefresh?: () => void | Promise<void>;
+  onTriggered?: () => void;
   disabled?: boolean;
 }
 
@@ -30,6 +31,7 @@ export function usePullToRefresh({
   containerRef,
   scrollRef,
   onRefresh,
+  onTriggered,
   disabled = false,
 }: UsePullToRefreshOptions): PullToRefreshData {
   const [pullData, setPullData] = useState<PullToRefreshData>({
@@ -48,6 +50,8 @@ export function usePullToRefresh({
   const hasTriggeredHapticRef = useRef(false);
   const onRefreshRef = useRef(onRefresh);
   onRefreshRef.current = onRefresh;
+  const onTriggeredRef = useRef(onTriggered);
+  onTriggeredRef.current = onTriggered;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -143,6 +147,7 @@ export function usePullToRefresh({
       touchStartYRef.current = 0;
 
       if (primed && onRefreshRef.current) {
+        onTriggeredRef.current?.();
         setPullData({
           state: "refreshing",
           distance: REFRESH_RESTING_DISTANCE,

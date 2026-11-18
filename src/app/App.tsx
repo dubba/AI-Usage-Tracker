@@ -279,7 +279,8 @@ export default function App() {
     setGroupAnnouncement(moveAnnouncement(group.title, move.to, move.total));
     // React moves the row's DOM node, which drops focus; put it back once the move has rendered.
     window.setTimeout(() => {
-      document.querySelector<HTMLElement>(`.provider-summary-row[data-group-id="${CSS.escape(group.id)}"]`)?.focus();
+      const row = document.querySelector<HTMLElement>(`.provider-summary-row[data-group-id="${CSS.escape(group.id)}"]`);
+      (row?.querySelector<HTMLElement>(".sidebar-group-select-hit") ?? row)?.focus();
     }, 0);
   };
 
@@ -437,6 +438,10 @@ export default function App() {
           nav.selectGroup(groupId, { closeSidebar: true, keepSection: sidebarIsOverlay && section === "activity" })
         }
         onMoveGroup={moveGroup}
+        onEditBucket={(bucket) => {
+          nav.closeSidebar();
+          openEditBucket(bucket);
+        }}
         onRefreshAll={() => void refreshAll()}
       />
 

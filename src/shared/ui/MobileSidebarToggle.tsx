@@ -38,6 +38,7 @@ export function MobileSidebarToggle({
     >
       {label ? (
         <>
+          <FilterIcon className="mobile-sidebar-toggle-filter" />
           <span className="mobile-sidebar-toggle-label">{label}</span>
           <ChevronDownIcon className="mobile-sidebar-toggle-chevron" />
         </>

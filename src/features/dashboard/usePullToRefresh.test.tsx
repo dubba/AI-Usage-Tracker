@@ -6,7 +6,13 @@ import { usePullToRefresh } from "./usePullToRefresh";
 import { PullToRefreshIndicator } from "./PullToRefreshIndicator";
 import * as reorderActivity from "../../shared/lib/reorder-activity";
 
-function TestPullComponent({ onRefresh }: { onRefresh?: () => void | Promise<void> }) {
+function TestPullComponent({
+  onRefresh,
+  onTriggered,
+}: {
+  onRefresh?: () => void | Promise<void>;
+  onTriggered?: () => void;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -14,6 +20,7 @@ function TestPullComponent({ onRefresh }: { onRefresh?: () => void | Promise<voi
     containerRef,
     scrollRef,
     onRefresh,
+    onTriggered,
   });
 
   return (
@@ -113,7 +120,8 @@ describe("usePullToRefresh and PullToRefreshIndicator", () => {
   it("triggers onRefresh on release when primed and animates through states", async () => {
     vi.useFakeTimers();
     const onRefresh = vi.fn().mockResolvedValue(undefined);
-    app = mount(<TestPullComponent onRefresh={onRefresh} />);
+    const onTriggered = vi.fn();
+    app = mount(<TestPullComponent onRefresh={onRefresh} onTriggered={onTriggered} />);
     const container = document.querySelector(".test-container")!;
 
     act(() => {
@@ -123,6 +131,7 @@ describe("usePullToRefresh and PullToRefreshIndicator", () => {
     });
 
     expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(onTriggered).toHaveBeenCalledTimes(1);
     const indicator = document.querySelector(".pull-to-refresh-indicator");
     expect(indicator?.classList.contains("is-refreshing")).toBe(true);
 
@@ -144,7 +153,8 @@ describe("usePullToRefresh and PullToRefreshIndicator", () => {
   it("does not trigger onRefresh if released before reaching threshold", async () => {
     vi.useFakeTimers();
     const onRefresh = vi.fn();
-    app = mount(<TestPullComponent onRefresh={onRefresh} />);
+    const onTriggered = vi.fn();
+    app = mount(<TestPullComponent onRefresh={onRefresh} onTriggered={onTriggered} />);
     const container = document.querySelector(".test-container")!;
 
     act(() => {
@@ -154,6 +164,7 @@ describe("usePullToRefresh and PullToRefreshIndicator", () => {
     });
 
     expect(onRefresh).not.toHaveBeenCalled();
+    expect(onTriggered).not.toHaveBeenCalled();
 
     await act(async () => {
       vi.advanceTimersByTime(250);

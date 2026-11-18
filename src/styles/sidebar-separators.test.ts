@@ -88,4 +88,10 @@ describe("sidebar list separators", () => {
       /\.sidebar-section-header::after\s*\{[^}]*flex:\s*1\s+1\s+auto;[^}]*height:\s*1px;[^}]*background:\s*var\(--obsidian-border\);/,
     );
   });
+
+  it("hides the sidebar group edit pen until row hover or focus on desktop", () => {
+    expect(SIDEBAR_CSS).toMatch(
+      /@media\s*\(min-width:\s*861px\)\s*and\s*\(hover:\s*hover\)\s*\{[\s\S]*?\.provider-summary-row:not\(:hover\):not\(:has\(:focus-visible\)\)\s*\.sidebar-group-edit-btn\s*\{[^}]*opacity:\s*0;/,
+    );
+  });
 });

@@ -956,7 +956,7 @@ describe("AccountDashboardCard limit resets", () => {
     expect(document.querySelector(".limit-reset-name")?.textContent).toBe("Full reset");
     expect(document.querySelector(".limit-reset-detail")?.textContent).toContain("Expires");
     expect(document.body.textContent).not.toContain("Clears the 5-hour and 7-day limits");
-    expect(document.querySelector(".limit-reset-use")?.textContent).toBe("Use…");
+    expect(document.querySelector(".limit-reset-use")?.textContent).toBe("Use");
     expect(document.body.textContent).not.toContain("grant-secret-1");
   });
 

@@ -79,12 +79,15 @@ describe("mobile shell clears the bottom bar", () => {
     expect(activityCss).toMatch(/@media\s*\(max-width:\s*860px\)\s*\{[\s\S]*?\.activity-period-label\s*\{[^}]*display:\s*none;/);
   });
 
-  it("styles mobile App Settings and AI Usage Tracker headers white without uppercase, with App Settings at 15px", () => {
+  it("styles mobile App Settings and AI Usage Tracker headers white without uppercase, with App Settings aligned to All Accounts", () => {
     expect(SIDEBAR_LIST).toMatch(
       /\.settings-style-content\s+\.dashboard-header\s+h1\.eyebrow,\s*\.sidebar-mobile-header\s+\.eyebrow\.sidebar-title\s*\{[^}]*color:\s*var\(--c-ffffff\);[^}]*text-transform:\s*none;/,
     );
     expect(SIDEBAR_LIST).toMatch(
-      /\.settings-style-content\s+\.dashboard-header\s+h1\.eyebrow\s*\{[^}]*font-size:\s*15px;\s*padding-left:\s*15px;/,
+      /\.settings-style-content\s+\.dashboard-header\s+h1\.eyebrow\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*gap:\s*8px;[^}]*min-height:\s*40px;[^}]*font-size:\s*15px;[^}]*padding-left:\s*13px;/,
+    );
+    expect(SIDEBAR_LIST).toMatch(
+      /\.settings-style-content\s+\.dashboard-header\s+\.settings-title-icon\s*\{[^}]*display:\s*block;[^}]*width:\s*16px;[^}]*height:\s*16px;[^}]*opacity:\s*0\.75;/,
     );
     expect(SIDEBAR_LIST).toMatch(
       /\.mobile-sidebar-toggle-label\s*\{[^}]*font-size:\s*15px;/,
@@ -97,9 +100,9 @@ describe("mobile shell clears the bottom bar", () => {
     );
   });
 
-  it("stacks the Group pill directly above the centered edit pen when the mobile header is cramped", () => {
+  it("sizes the leading filter icon and trailing chevron inside the mobile filter pill", () => {
     expect(SIDEBAR_LIST).toMatch(
-      /\.dashboard-bucket-pill-pen-stack\s*\{[^}]*display:\s*flex;\s*flex-direction:\s*column;\s*align-items:\s*center;/,
+      /\.dashboard-header\s+\.mobile-sidebar-toggle-btn\.has-filter-label\s+svg\.mobile-sidebar-toggle-filter,\s*\.dashboard-header\s+\.mobile-sidebar-toggle-btn\.has-filter-label\s+svg\.mobile-sidebar-toggle-chevron\s*\{[^}]*width:\s*16px;[^}]*height:\s*16px;/,
     );
   });
 });

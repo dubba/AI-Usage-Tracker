@@ -209,11 +209,10 @@ describe("AccountsView header", () => {
     const row = document.querySelector(".dashboard-title-row");
     const pill = row?.querySelector(".dashboard-bucket-pill");
     expect(pill?.textContent).toBe("Group");
-    expect(document.querySelector(".dashboard-bucket-title-stack")).toBeNull();
-    expect(row?.hasAttribute("data-pill-wrapped")).toBe(false);
+    expect(row?.querySelector(".edit-bucket-title-btn")).not.toBeNull();
   });
 
-  it("keeps the Group pill inline on line 1 on a phone when there is enough horizontal space", () => {
+  it("omits the Group pill on a phone while keeping the filter dropdown and edit pen", () => {
     setNarrowWindow(true);
     app = renderView({
       selectedGroup: bucketGroup,
@@ -222,85 +221,18 @@ describe("AccountsView header", () => {
       onAddGroup: () => undefined,
     });
     const row = document.querySelector(".dashboard-title-row")!;
-    const main = row.querySelector(".dashboard-bucket-title-main")!;
-    expect(row.hasAttribute("data-pill-wrapped")).toBe(false);
-    expect(main.querySelector(".dashboard-bucket-pill")?.textContent).toBe("Group");
-    expect(main.querySelector(".edit-bucket-title-btn")).not.toBeNull();
-    expect(document.querySelectorAll(".dashboard-bucket-pill")).toHaveLength(1);
+    expect(row.querySelector(".dashboard-bucket-pill")).toBeNull();
+    expect(row.querySelector(".mobile-sidebar-toggle-btn")).not.toBeNull();
+    expect(row.querySelector(".edit-bucket-title-btn")).not.toBeNull();
   });
 
-  it("stacks the Group pill above the edit pen beside the title on a phone only when cramped", () => {
-    setNarrowWindow(true);
-    let cramped = true;
-    let triggerResize: (() => void) | null = null;
-    vi.stubGlobal(
-      "ResizeObserver",
-      class {
-        constructor(cb: ResizeObserverCallback) {
-          triggerResize = () => cb([], this as unknown as ResizeObserver);
-        }
-        observe() {}
-        disconnect() {}
-      },
-    );
-    vi.spyOn(HTMLElement.prototype, "scrollWidth", "get").mockImplementation(function (this: HTMLElement) {
-      if (this.tagName === "H1") return cramped ? 220 : 120;
-      return 0;
-    });
-    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(function (this: HTMLElement) {
-      if (this.tagName === "H1") return cramped ? 160 : 180;
-      return 0;
-    });
-    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function (this: HTMLElement) {
-      if (this.classList.contains("dashboard-bucket-pill")) return 54;
-      if (this.classList.contains("edit-bucket-title-btn")) return 24;
-      if (this.classList.contains("dashboard-bucket-pill-pen-stack")) return 48;
-      return 0;
-    });
-    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
-      if (this.classList.contains("dashboard-bucket-title-main")) {
-        return { left: 60, right: cramped ? 250 : 180, top: 0, bottom: 24, width: 120, height: 24, x: 60, y: 0, toJSON: () => ({}) };
-      }
-      if (this.classList.contains("dashboard-header-actions")) {
-        return { left: 262, right: 350, top: 0, bottom: 40, width: 88, height: 40, x: 262, y: 0, toJSON: () => ({}) };
-      }
-      return { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0, x: 0, y: 0, toJSON: () => ({}) };
-    });
-
-    app = renderView({
-      selectedGroup: bucketGroup,
-      onToggleSidebar: () => undefined,
-      onEditBucket: () => undefined,
-      onAddGroup: () => undefined,
-    });
-
-    const row = document.querySelector(".dashboard-title-row")!;
-    const main = row.querySelector(".dashboard-bucket-title-main")!;
-    const pillPenStack = main.querySelector(".dashboard-bucket-pill-pen-stack")!;
-
-    expect(row.hasAttribute("data-pill-wrapped")).toBe(true);
-    expect(pillPenStack).not.toBeNull();
-    expect(pillPenStack.firstElementChild?.classList.contains("dashboard-bucket-pill")).toBe(true);
-    expect(pillPenStack.lastElementChild?.classList.contains("edit-bucket-title-btn")).toBe(true);
-    expect(document.querySelectorAll(".dashboard-bucket-pill")).toHaveLength(1);
-
-    // When space opens up again, the pill and pen return inline to line 1.
-    cramped = false;
-    act(() => triggerResize?.());
-    expect(row.hasAttribute("data-pill-wrapped")).toBe(false);
-    expect(main.querySelector(".dashboard-bucket-pill-pen-stack")).toBeNull();
-    expect(main.querySelector(".dashboard-bucket-pill")?.textContent).toBe("Group");
-    expect(main.querySelector(".edit-bucket-title-btn")).not.toBeNull();
-  });
-
-  it("does not render a Group pill or stack for non-bucket views", () => {
+  it("does not render a Group pill for non-bucket views", () => {
     setNarrowWindow(true);
     app = renderView({
       selectedGroup: allGroup,
       onToggleSidebar: () => undefined,
     });
     expect(document.querySelector(".dashboard-bucket-pill")).toBeNull();
-    expect(document.querySelector(".dashboard-bucket-title-stack")).toBeNull();
   });
 });
 
@@ -659,6 +591,7 @@ describe("AccountsView L / U switch", () => {
     const allPill = heading.querySelector<HTMLButtonElement>(".mobile-sidebar-toggle-btn")!;
     expect(allPill).not.toBeNull();
     expect(document.querySelectorAll(".dashboard-title-row .mobile-sidebar-toggle-btn")).toHaveLength(1);
+    expect(allPill.querySelector("svg.mobile-sidebar-toggle-filter")).not.toBeNull();
     expect(allPill.querySelector(".mobile-sidebar-toggle-label")?.textContent).toBe("All Accounts");
     expect(allPill.querySelector("svg.mobile-sidebar-toggle-chevron")).not.toBeNull();
     expect(allPill.classList.contains("is-filtered")).toBe(false);
@@ -687,7 +620,7 @@ describe("AccountsView L / U switch", () => {
     const workPill = document.querySelector<HTMLButtonElement>(".dashboard-title-row h1.eyebrow .mobile-sidebar-toggle-btn")!;
     expect(workPill.querySelector(".mobile-sidebar-toggle-label")?.textContent).toBe("Work Acct");
     expect(workPill.classList.contains("is-filtered")).toBe(true);
-    expect(document.querySelector(".dashboard-bucket-pill")?.textContent).toBe("Group");
+    expect(document.querySelector(".dashboard-bucket-pill")).toBeNull();
     expect(document.querySelector(".edit-bucket-title-btn")).not.toBeNull();
 
     const grokGroup: SidebarGroup = {
@@ -748,3 +681,114 @@ describe("AccountsView L / U switch", () => {
     expect(claudePill.querySelector(".mobile-sidebar-toggle-label")?.textContent).toBe("Claude Accts");
   });
 });
+
+describe("AccountsView pull-to-refresh hint banner", () => {
+  let app: Mounted | null = null;
+  const originalInnerWidth = window.innerWidth;
+  const hadOntouchstart = "ontouchstart" in window;
+
+  afterEach(() => {
+    app?.unmount();
+    app = null;
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    Object.defineProperty(window, "innerWidth", { value: originalInnerWidth, writable: true, configurable: true });
+    if (!hadOntouchstart && "ontouchstart" in window) {
+      delete (window as unknown as { ontouchstart?: unknown }).ontouchstart;
+    }
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  function createTouchEvent(type: string, target: Element, clientX: number, clientY: number) {
+    const touch = { clientX, clientY, identifier: 0, target };
+    return new TouchEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      touches: type === "touchend" || type === "touchcancel" ? [] : [touch as unknown as Touch],
+      targetTouches: type === "touchend" || type === "touchcancel" ? [] : [touch as unknown as Touch],
+      changedTouches: [touch as unknown as Touch],
+    });
+  }
+
+  it("stays hidden on desktop non-touch viewports and when there are no accounts", () => {
+    app = renderView({
+      allAccounts: [account],
+      accounts: [account],
+      selectedGroup: { ...allGroup, accounts: [account] },
+      onRefreshAll: vi.fn(),
+    });
+    expect(document.querySelector(".pull-refresh-hint-banner")).toBeNull();
+
+    app.unmount();
+    setNarrowWindow(true);
+    app = renderView({
+      allAccounts: [],
+      accounts: [],
+      selectedGroup: allGroup,
+      onRefreshAll: vi.fn(),
+    });
+    expect(document.querySelector(".pull-refresh-hint-banner")).toBeNull();
+  });
+
+  it("shows on mobile for up to 2 sessions, dismisses for the session, and stops on the 3rd", () => {
+    setNarrowWindow(true);
+    const props = {
+      allAccounts: [account],
+      accounts: [account],
+      selectedGroup: { ...allGroup, accounts: [account] },
+      onRefreshAll: vi.fn(),
+    };
+
+    app = renderView(props);
+    const banner = document.querySelector(".pull-refresh-hint-banner");
+    expect(banner).not.toBeNull();
+    expect(banner?.textContent).toContain("Pull down on the screen to refresh data");
+
+    click(banner!.querySelector<HTMLButtonElement>(".pull-refresh-hint-dismiss")!);
+    expect(document.querySelector(".pull-refresh-hint-banner")).toBeNull();
+    app.unmount();
+
+    sessionStorage.clear();
+    app = renderView(props);
+    expect(document.querySelector(".pull-refresh-hint-banner")).not.toBeNull();
+    app.unmount();
+
+    sessionStorage.clear();
+    app = renderView(props);
+    expect(document.querySelector(".pull-refresh-hint-banner")).toBeNull();
+  });
+
+  it("permanently dismisses when the user performs a pull-to-refresh gesture", () => {
+    Object.defineProperty(window, "innerWidth", { value: 400, writable: true, configurable: true });
+    Object.defineProperty(window, "ontouchstart", { value: {}, writable: true, configurable: true });
+    setNarrowWindow(true);
+
+    const onRefreshAll = vi.fn();
+    const props = {
+      allAccounts: [account],
+      accounts: [account],
+      selectedGroup: { ...allGroup, accounts: [account] },
+      onRefreshAll,
+    };
+
+    app = renderView(props);
+    expect(document.querySelector(".pull-refresh-hint-banner")).not.toBeNull();
+
+    const container = document.querySelector(".content-scroll")!;
+    act(() => {
+      container.dispatchEvent(createTouchEvent("touchstart", container, 100, 100));
+      window.dispatchEvent(createTouchEvent("touchmove", container, 100, 260));
+      window.dispatchEvent(createTouchEvent("touchend", container, 100, 260));
+    });
+
+    expect(onRefreshAll).toHaveBeenCalledTimes(1);
+    expect(document.querySelector(".pull-refresh-hint-banner")).toBeNull();
+    app.unmount();
+
+    sessionStorage.clear();
+    app = renderView(props);
+    expect(document.querySelector(".pull-refresh-hint-banner")).toBeNull();
+  });
+});
+

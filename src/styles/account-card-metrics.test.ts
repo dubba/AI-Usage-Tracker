@@ -97,10 +97,11 @@ describe("account card metric row spacing", () => {
   });
 
   it("styles activity card header with aligned columns and tight title-detail spacing", () => {
+    expect(ACTIVITY_CSS).toMatch(/\.activity-card\s*\{[\s\S]*?padding:\s*12px 16px 16px;/);
     expect(ACTIVITY_CSS).toMatch(/\.activity-card-head\s*\{[\s\S]*?grid-template-columns:\s*auto\s+minmax\(0,\s*1fr\)\s+auto;[\s\S]*?align-items:\s*start;[\s\S]*?column-gap:\s*6px;/);
     expect(ACTIVITY_CSS).toMatch(/\.activity-card-identity\s*\{[\s\S]*?display:\s*flex;[\s\S]*?flex-direction:\s*column;/);
-    expect(ACTIVITY_CSS).toMatch(/\.activity-card-total\s*\{[\s\S]*?display:\s*flex;[\s\S]*?flex-direction:\s*column;[\s\S]*?align-items:\s*flex-end;/);
-    expect(ACTIVITY_CSS).toMatch(/\.activity-card-total-period\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?top:\s*100%;[\s\S]*?right:\s*0;/);
+    expect(ACTIVITY_CSS).toMatch(/\.activity-card-total\s*\{[\s\S]*?display:\s*flex;[\s\S]*?flex-direction:\s*column;[\s\S]*?align-items:\s*flex-end;[\s\S]*?justify-content:\s*space-between;[\s\S]*?align-self:\s*stretch;/);
+    expect(ACTIVITY_CSS).toMatch(/\.activity-card-total-period\s*\{[\s\S]*?margin-top:\s*2px;[\s\S]*?line-height:\s*14px;/);
     expect(ACTIVITY_CSS).toMatch(/\.activity-card-limit\s*\{[\s\S]*?margin:\s*2px 0 0;/);
     expect(ACTIVITY_CSS).toMatch(/\.activity-card-details\s*\{[\s\S]*?margin:\s*2px 0 0;[\s\S]*?text-overflow:\s*ellipsis;[\s\S]*?white-space:\s*nowrap;/);
     expect(ACTIVITY_CSS).toMatch(/\.activity-card-icon\s*\{[\s\S]*?width:\s*28px;[\s\S]*?height:\s*28px;[\s\S]*?margin-right:\s*6px;/);

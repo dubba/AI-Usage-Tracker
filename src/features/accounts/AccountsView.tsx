@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type BusyKeys } from "../../shared/lib/busy";
 import { useReorderHint } from "./useReorderHint";
-import { useWrapPillWhenCramped } from "./useWrapPillWhenCramped";
 import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
 import { UsageDisplayToggle } from "../dashboard/UsageDisplayToggle";
 import { useCompactDashboard } from "../../shared/hooks/useCompactDashboard";
@@ -35,6 +34,7 @@ import { ACCOUNT_FORMS, formatCount } from "../../shared/lib/format";
 import { useClock } from "../../shared/hooks/useClock";
 import { nextResetModelLabel } from "../../shared/lib/display";
 import { usePullToRefresh } from "../dashboard/usePullToRefresh";
+import { useCanPullRefreshEnvironment, usePullRefreshHint } from "../dashboard/usePullRefreshHint";
 import { PullToRefreshIndicator } from "../dashboard/PullToRefreshIndicator";
 
 const ATTENTION_HINT_ID = "attention-filter-hint";
@@ -106,12 +106,6 @@ export function AccountsView(props: {
   const [compact] = useCompactDashboard();
   // The L / U switch sits in the title row on a phone and at the header's top right on a wide window.
   const phone = useMediaQuery(MOBILE_OVERLAY_QUERY);
-  const titleRowRef = useRef<HTMLDivElement>(null);
-  const pillWrapped = useWrapPillWhenCramped(
-    titleRowRef,
-    phone && props.selectedGroup.type === "bucket",
-    props.selectedGroup.title,
-  );
 
   useEffect(() => {
     setShowAttentionOnly(false);
@@ -145,11 +139,16 @@ export function AccountsView(props: {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const canPullRefreshEnv = useCanPullRefreshEnvironment();
+  const canPullRefresh = Boolean(props.onRefreshAll) && displayedAccounts.length > 0 && canPullRefreshEnv;
+  const { showPullRefreshHint, dismissPullRefreshHint, completePullRefreshHint } = usePullRefreshHint(canPullRefresh, "accounts");
+
   const pullData = usePullToRefresh({
     containerRef,
     scrollRef,
     onRefresh: props.onRefreshAll,
-    disabled: !props.onRefreshAll,
+    onTriggered: completePullRefreshHint,
+    disabled: !props.onRefreshAll || props.accounts.length === 0,
   });
 
   const isFiltered = props.selectedGroup.type !== "all";
@@ -172,7 +171,7 @@ export function AccountsView(props: {
         : `${props.selectedGroup.title} Accounts`}
     </h1>
   );
-  const bucketPill = props.selectedGroup.type === "bucket" ? (
+  const bucketPill = !phone && props.selectedGroup.type === "bucket" ? (
     <span className="dashboard-bucket-pill">Group</span>
   ) : null;
   const editBucketBtn = props.selectedGroup.type === "bucket" && props.selectedGroup.bucket ? (
@@ -192,35 +191,10 @@ export function AccountsView(props: {
       <PullToRefreshIndicator data={pullData} />
       <header className="dashboard-header">
         <div>
-          <div
-            className="dashboard-title-row"
-            ref={titleRowRef}
-            data-pill-wrapped={pillWrapped ? "" : undefined}
-          >
-            {phone && props.selectedGroup.type === "bucket" ? (
-              <div className="dashboard-bucket-title-stack">
-                <div className="dashboard-bucket-title-main">
-                  {titleHeading}
-                  {pillWrapped ? (
-                    <div className="dashboard-bucket-pill-pen-stack">
-                      {bucketPill}
-                      {editBucketBtn}
-                    </div>
-                  ) : (
-                    <>
-                      {bucketPill}
-                      {editBucketBtn}
-                    </>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <>
-                {titleHeading}
-                {bucketPill}
-                {editBucketBtn}
-              </>
-            )}
+          <div className="dashboard-title-row">
+            {titleHeading}
+            {bucketPill}
+            {editBucketBtn}
             {/* On a phone the title row ends with L / U, New group, and Add account buttons.
                 A wide window has them in the top bar and header top-right instead. */}
             {phone ? (
@@ -338,6 +312,20 @@ export function AccountsView(props: {
               className="reorder-hint-dismiss"
               onClick={dismissReorderHint}
               aria-label="Dismiss reorder hint"
+            >
+              <CloseIcon />
+            </button>
+          </div>
+        ) : null}
+
+        {showPullRefreshHint ? (
+          <div className="pull-refresh-hint-banner" role="note">
+            <span>Pull down on the screen to refresh data</span>
+            <button
+              type="button"
+              className="pull-refresh-hint-dismiss"
+              onClick={dismissPullRefreshHint}
+              aria-label="Dismiss pull-to-refresh hint"
             >
               <CloseIcon />
             </button>

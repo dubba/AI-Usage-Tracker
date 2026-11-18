@@ -53,7 +53,7 @@ describe("LimitResetsSection", () => {
       `Expires ${formatMonthDay(new Date("2026-12-10T16:00:00Z"))}`,
     );
     expect(rows[0].textContent).not.toContain("Clears the 5-hour and 7-day limits");
-    expect(useButtons()[0].textContent).toBe("Use…");
+    expect(useButtons()[0].textContent).toBe("Use");
     expect(useButtons()[0].getAttribute("aria-label")).toBe("Use Full reset");
     expect(document.body.textContent).not.toContain("cannot be undone");
     expect(document.body.textContent).not.toContain("grant-secret");

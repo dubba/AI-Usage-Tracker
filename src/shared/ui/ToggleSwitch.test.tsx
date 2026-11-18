@@ -77,12 +77,15 @@ describe("MobileSidebarToggle", () => {
     expect(document.querySelector("button")!.getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("renders the active filter label, chevron icon, and filtered state when provided", () => {
+  it("renders the filter icon, active filter label, chevron icon, and filtered state when provided", () => {
     mounted = mount(<MobileSidebarToggle onToggle={() => {}} filterLabel="Work" isFiltered />);
     const button = document.querySelector("button")!;
     expect(button.className).toBe("mobile-sidebar-toggle-btn has-filter-label is-filtered");
     expect(button.getAttribute("aria-label")).toBe("Work, filter by account or group");
+    expect(button.querySelector("svg.mobile-sidebar-toggle-filter")).not.toBeNull();
     expect(button.querySelector(".mobile-sidebar-toggle-label")?.textContent).toBe("Work");
     expect(button.querySelector("svg.mobile-sidebar-toggle-chevron")).not.toBeNull();
+    expect(button.firstElementChild?.classList.contains("mobile-sidebar-toggle-filter")).toBe(true);
+    expect(button.lastElementChild?.classList.contains("mobile-sidebar-toggle-chevron")).toBe(true);
   });
 });

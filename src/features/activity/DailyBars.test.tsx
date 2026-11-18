@@ -116,7 +116,7 @@ describe("DailyBars, 7 days", () => {
     expect(stats).toEqual([
       ["Today", "3%"],
       ["Peak", "100% (Oct 14)"],
-      ["Avg", "21%/day"],
+      ["Avg", "21% /day"],
     ]);
   });
 

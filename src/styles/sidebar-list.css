@@ -127,6 +127,10 @@
   box-shadow: none !important;
 }
 
+.settings-style-content .dashboard-header .settings-title-icon {
+  display: none;
+}
+
 /* Phone overlay: the drag dots are never drawn (dashboard-reorder.css hides them) and the left
    selection bar is hidden, so the icon only needs 9px from the edge (instead of 17px on desktop),
    and the right padding matches it to give the row content more room. The list also reaches 7px
@@ -228,23 +232,10 @@
     stroke-width: 1.75;
   }
 
-  /* A custom group's page keeps the title, Group pill, and edit pen on one line when they fit, and
-     stacks the Group pill directly above the centered edit pen when cramped so the title keeps
-     more horizontal room. When the title still overflows, it truncates cleanly with an ellipsis. */
-  .dashboard-bucket-title-stack {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    flex: 0 1 auto;
-    min-width: 0;
-  }
-
-  .dashboard-bucket-title-main {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-    max-width: 100%;
+  /* On a phone, a custom group's header omits the Group pill to preserve space for the filter
+     dropdown, edit pen, and action buttons on one row. Long titles truncate cleanly. */
+  .dashboard-title-row:has(.dashboard-header-actions):has(.edit-bucket-title-btn) {
+    column-gap: 6px;
   }
 
   .dashboard-title-row:has(.dashboard-header-actions):has(.edit-bucket-title-btn) h1.eyebrow {
@@ -255,25 +246,9 @@
     white-space: nowrap;
   }
 
-  .dashboard-bucket-title-stack .dashboard-bucket-pill,
-  .dashboard-bucket-title-main .edit-bucket-title-btn {
+  .dashboard-title-row:has(.dashboard-header-actions):has(.edit-bucket-title-btn) .edit-bucket-title-btn {
     flex-shrink: 0;
     margin-left: 0;
-  }
-
-  .dashboard-bucket-pill-pen-stack {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-    flex-shrink: 0;
-  }
-
-  .dashboard-bucket-pill-pen-stack > .dashboard-bucket-pill {
-    height: 18px;
-    padding: 0 8px;
-    font-size: 11px;
-    margin: 0;
   }
 
   .dashboard-title-row:has(.dashboard-header-actions):has(.edit-bucket-title-btn) .dashboard-header-actions {
@@ -290,14 +265,29 @@
     text-transform: none;
   }
 
-  /* Match the 1px border + 14px left padding inside the Dashboard/Usage All accounts pill. */
+  /* Match the 1px border + 12px left padding, 16px icon, 8px gap, and 40px row height of the
+     Dashboard/Usage All Accounts pill so the gear aligns with the funnel and App Settings aligns
+     with All Accounts. */
   .settings-style-content .dashboard-header h1.eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
     font-size: 15px;
-    padding-left: 15px;
+    padding-left: 13px;
+  }
+
+  .settings-style-content .dashboard-header .settings-title-icon {
+    display: block;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    opacity: 0.75;
   }
 
   /* Title-as-filter pill on Dashboard and Usage: matches the header's 40px height, displays the
-     active filter with a downward chevron, and truncates cleanly when space beside actions is tight. */
+     active filter with a leading funnel icon and trailing downward chevron, and truncates cleanly
+     when space beside actions is tight. */
   .dashboard-header .dashboard-title-row h1.mobile-title-filter-heading {
     display: flex;
     align-items: center;
@@ -320,18 +310,19 @@
     max-width: 100%;
     height: 40px;
     gap: 8px;
-    padding: 0 12px 0 14px;
+    padding: 0 12px;
     border-radius: 10px;
     line-height: 1.2;
     text-transform: none;
     letter-spacing: normal;
   }
 
+  .dashboard-header .mobile-sidebar-toggle-btn.has-filter-label svg.mobile-sidebar-toggle-filter,
   .dashboard-header .mobile-sidebar-toggle-btn.has-filter-label svg.mobile-sidebar-toggle-chevron {
     width: 16px;
     height: 16px;
     flex-shrink: 0;
-    opacity: 0.85;
+    opacity: 0.75;
   }
 
   .mobile-sidebar-toggle-label {
@@ -359,6 +350,7 @@
 }
 
 .provider-summary-row.provider-summary-row:not(.selected):focus-visible,
+.provider-summary-row.provider-summary-row:not(.selected):has(> .sidebar-group-select-hit:focus-visible),
 .provider-summary-row.provider-summary-row:not(.selected):active {
   background: rgb(var(--purple-accent-rgb) / 0.14) !important;
   border-color: transparent !important;
@@ -445,7 +437,8 @@
 }
 
 .provider-summary-row:hover .reorder-grip,
-.provider-summary-row:focus-visible .reorder-grip {
+.provider-summary-row:focus-visible .reorder-grip,
+.provider-summary-row:has(> .sidebar-group-select-hit:focus-visible) .reorder-grip {
   opacity: 1;
 }
 
@@ -477,11 +470,43 @@
 }
 
 /* Name line */
+.provider-summary-row > .sidebar-group-select-hit {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border: 0;
+  border-radius: inherit;
+  padding: 0;
+  background: transparent;
+}
+
+.provider-summary-row > .sidebar-group-select-hit:focus-visible {
+  outline: none;
+}
+
+.provider-summary-row:has(> .sidebar-group-select-hit:focus-visible) {
+  outline: 2px solid var(--purple);
+  outline-offset: 2px;
+}
+
+.provider-summary-row:has(> .sidebar-group-select-hit) > .provider-summary-icon,
+.provider-summary-row:has(> .sidebar-group-select-hit) > .provider-summary-content {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
 .provider-summary-row .provider-summary-content {
   gap: 8px;
 }
 
+.provider-summary-row .provider-summary-topline {
+  justify-content: flex-start;
+  gap: 6px;
+}
+
 .provider-summary-row .sidebar-group-title {
+  flex: 0 1 auto;
   font-size: 14px;
   gap: 6px;
 }
@@ -493,6 +518,78 @@
 
 .provider-summary-row.selected .sidebar-group-count {
   background: rgb(var(--purple-accent-rgb) / 0.2);
+}
+
+.provider-summary-row .sidebar-group-edit-btn {
+  position: relative;
+  z-index: 2;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgb(var(--purple-accent-rgb) / 0.35);
+  border-radius: 6px;
+  background: rgb(var(--purple-accent-rgb) / 0.12);
+  color: var(--purple-text);
+  pointer-events: auto;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;
+}
+
+/* On desktop, show the edit pen only while the group row is hovered or focused via keyboard,
+   matching the rename pen on desktop account cards. On touch screens / mobile, keep it visible. */
+@media (min-width: 861px) and (hover: hover) {
+  .provider-summary-row:not(:hover):not(:has(:focus-visible)) .sidebar-group-edit-btn {
+    opacity: 0;
+  }
+}
+
+.provider-summary-row .sidebar-group-edit-btn::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 34px;
+  min-height: 36px;
+}
+
+html:not(.dashboard-reordering):not(.dashboard-holding) .provider-summary-row .sidebar-group-edit-btn {
+  cursor: pointer;
+}
+
+.provider-summary-row .sidebar-group-edit-btn svg {
+  width: 13px;
+  height: 13px;
+  color: inherit;
+}
+
+@media (hover: hover) {
+  .provider-summary-row .sidebar-group-edit-btn:hover:not(:disabled) {
+    border-color: var(--purple-fill);
+    background: var(--purple-fill);
+    color: var(--white);
+  }
+}
+
+.provider-summary-row .sidebar-group-edit-btn:focus-visible,
+.provider-summary-row .sidebar-group-edit-btn:active:not(:disabled) {
+  border-color: var(--purple-fill);
+  background: var(--purple-fill);
+  color: var(--white);
+}
+
+.provider-summary-row .sidebar-group-edit-btn[data-tooltip]::after {
+  top: calc(100% + 6px);
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+.provider-summary-row:has(.sidebar-group-edit-btn:hover),
+.provider-summary-row:has(.sidebar-group-edit-btn:focus-visible) {
+  z-index: 3;
 }
 
 .sidebar-group-empty {

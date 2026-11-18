@@ -8,7 +8,7 @@ import type { BusyKeys } from "../../shared/lib/busy";
 import { useScrollThumb } from "../../shared/hooks/useScrollThumb";
 import { ArrowUpCircleIcon, CloseIcon, DatabaseIcon, DevicesIcon, GaugeIcon, KeyboardIcon, PlugIcon, SettingsIcon } from "../../shared/ui/icons";
 import { isMobileDevice } from "../../shared/lib/platform";
-import type { Account } from "../../types";
+import type { Account, AccountBucket } from "../../types";
 import type { Section } from "../../app/useSidebarNavigation";
 import { SETTINGS_JUMP_SECTIONS, type SettingsSectionId } from "../settings/settings-sections";
 import "../settings/settings-layout.css";
@@ -54,6 +54,7 @@ export function Sidebar({
   onClose,
   onSelectGroup,
   onMoveGroup,
+  onEditBucket,
   onRefreshAll,
 }: {
   sidebarRef: RefObject<HTMLElement | null>;
@@ -78,6 +79,7 @@ export function Sidebar({
   onClose: () => void;
   onSelectGroup: (groupId: string) => void;
   onMoveGroup: (group: SidebarGroup, delta: -1 | 1) => void;
+  onEditBucket?: (bucket: AccountBucket) => void;
   onRefreshAll: () => void;
 }) {
   // The list keeps room for its scroll bar only while it overflows, so the cards sit centered otherwise.
@@ -102,6 +104,7 @@ export function Sidebar({
       }}
       selected={showsSelectedGroup && selectedGroupId === group.id}
       onSelect={() => onSelectGroup(group.id)}
+      onEditBucket={group.type === "bucket" ? onEditBucket : undefined}
     />
   );
 
