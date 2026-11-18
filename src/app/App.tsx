@@ -291,6 +291,7 @@ export default function App() {
     load,
     reportError,
     openGoogleUsage: setGoogleUsageAccount,
+    reconnect: modal?.kind === "add" && modal.reconnectAccountId != null,
   });
   const handleBucketSaved = useCallback(
     async (saved: AccountBucket) => {

@@ -104,9 +104,11 @@ export function AccountsView(props: {
 }) {
   const [showAttentionOnly, setShowAttentionOnly] = useState(false);
   const [announcement, setAnnouncement] = useState("");
-  const [compact] = useCompactDashboard();
+  const [globalCompact] = useCompactDashboard();
   // The L / U switch sits in the title row on a phone and at the header's top right on a wide window.
   const phone = useMediaQuery(MOBILE_OVERLAY_QUERY);
+  // Mobile has no global Compact View toggle; cards on mobile ignore the desktop setting and use per-card collapse only.
+  const compact = phone ? false : globalCompact;
 
   useEffect(() => {
     setShowAttentionOnly(false);

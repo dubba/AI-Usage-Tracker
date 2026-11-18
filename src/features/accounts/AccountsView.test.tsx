@@ -587,6 +587,23 @@ describe("AccountsView L / U switch", () => {
     expect(document.querySelector(".provider-account-cards")?.classList.contains("is-compact")).toBe(false);
   });
 
+  it("ignores global compact mode on mobile so cards default to regular view", () => {
+    setNarrowWindow(true);
+    setCompactDashboardMode("on");
+    app = renderView({
+      allAccounts: [account],
+      accounts: [account],
+      selectedGroup: { ...allGroup, accounts: [account] },
+      onToggleSidebar: () => undefined,
+    });
+
+    expect(document.querySelector(".provider-account-cards")?.classList.contains("is-compact")).toBe(false);
+    expect(document.querySelector(".provider-account-card")?.classList.contains("is-compact")).toBe(false);
+    expect(document.querySelector(".compact-card-row")).toBeNull();
+
+    setCompactDashboardMode("off");
+  });
+
   it("uses the title as the phone filter pill and marks filtered groups while keeping add actions", () => {
     setNarrowWindow(true);
     app = renderView({

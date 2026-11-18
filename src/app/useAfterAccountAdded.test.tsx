@@ -6,6 +6,7 @@ vi.mock("../shared/lib/api", () => ({ bridgeApi: api }));
 
 import { mount, type Mounted } from "../test-utils/react";
 import type { Account, DashboardSnapshot } from "../types";
+import { isCardCollapsedOnPage, setCardCollapsedOnPage } from "../features/layout/dashboard-page-state";
 import { useAfterAccountAdded } from "./useAfterAccountAdded";
 
 function account(overrides: Partial<Account> = {}): Account {
@@ -31,14 +32,15 @@ function capture(fn: (account: Account) => Promise<void>) {
   handle = fn;
 }
 
-function Probe() {
-  capture(useAfterAccountAdded({ closeAddDialog, selectGroup, load, reportError, openGoogleUsage }));
+function Probe({ reconnect = false }: { reconnect?: boolean }) {
+  capture(useAfterAccountAdded({ closeAddDialog, selectGroup, load, reportError, openGoogleUsage, reconnect }));
   return null;
 }
 
 let mounted: Mounted | null = null;
 beforeEach(() => {
   for (const fn of [closeAddDialog, selectGroup, load, reportError, openGoogleUsage, api.refreshAccount]) fn.mockReset();
+  window.localStorage.clear();
   mounted = mount(<Probe />);
 });
 afterEach(() => {
@@ -117,5 +119,24 @@ describe("after an account is added", () => {
     load.mockResolvedValue(snapshotWith(connected));
     await handle(connected);
     expect(openGoogleUsage).not.toHaveBeenCalled();
+  });
+
+  it("starts a new account uncollapsed on both its provider page and All Accounts", async () => {
+    setCardCollapsedOnPage("provider:anthropic", "a1", true);
+    setCardCollapsedOnPage("all", "a1", true);
+    load.mockResolvedValue(snapshotWith(account({ lastUsage: usage() })));
+    await handle(account());
+    expect(isCardCollapsedOnPage("provider:anthropic", "a1")).toBe(false);
+    expect(isCardCollapsedOnPage("all", "a1")).toBe(false);
+  });
+
+  it("keeps an existing account's collapse choices when reconnecting", async () => {
+    setCardCollapsedOnPage("provider:anthropic", "a1", true);
+    setCardCollapsedOnPage("all", "a1", true);
+    mounted!.rerender(<Probe reconnect />);
+    load.mockResolvedValue(snapshotWith(account({ lastUsage: usage() })));
+    await handle(account());
+    expect(isCardCollapsedOnPage("provider:anthropic", "a1")).toBe(true);
+    expect(isCardCollapsedOnPage("all", "a1")).toBe(true);
   });
 });
