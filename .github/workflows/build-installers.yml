@@ -14,7 +14,7 @@ on:
         required: false
         default: true
       skip_validate:
-        description: "Ship without running the Validate gate (hotfix override)"
+        description: "Ship without running the Validate gate (hotfix override; main only)"
         type: boolean
         required: false
         default: false
@@ -42,8 +42,10 @@ on:
     paths:
       - .github/release-trigger
 
+# Read-only by default; each job that writes to the release or to main asks for
+# contents: write itself and runs in the release Environment (L-79).
 permissions:
-  contents: write
+  contents: read
 
 # One release at a time: a scheduled run that starts while another release is
 # still building waits for it, then sees that release and skips.
@@ -64,9 +66,23 @@ jobs:
       # heading carry the same date however long the builds take.
       release_date: ${{ steps.version.outputs.release_date }}
     steps:
+      # Releases are built from main only. A manual run can pick any branch or
+      # tag in the "Use workflow from" menu; that ref's code would then run with
+      # the signing keys and release write access (L-79). Every other job needs
+      # this one, so failing here stops the whole run, skip_validate included.
+      - name: Refuse to release from anything but main
+        shell: bash
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          if [ "$REF" != "refs/heads/main" ]; then
+            echo "::error::Releases are built from main only; this run is on $REF."
+            exit 1
+          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # fetch all tags and history to compare
+          persist-credentials: false
       - name: Inspect commits and schedule day
         id: check
         shell: bash
@@ -174,7 +190,6 @@ jobs:
     uses: ./.github/workflows/validate.yml
     permissions:
       contents: read
-      statuses: write
       checks: write
       issues: write
 
@@ -187,11 +202,15 @@ jobs:
     name: Create the GitHub release
     needs: [check-changes, validate]
     if: ${{ !cancelled() && needs.check-changes.outputs.should_build == 'true' && (needs.validate.result == 'success' || needs.validate.result == 'skipped') }}
+    # The release Environment only accepts deployments from main (L-79).
+    environment: release
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -220,9 +239,15 @@ jobs:
     name: Build Windows installer
     needs: [check-changes, create-release]
     if: needs.check-changes.outputs.should_build == 'true'
+    # The release Environment only accepts deployments from main (L-79).
+    environment: release
+    permissions:
+      contents: write
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Configure Windows runner exclusions
         shell: powershell
         run: |
@@ -264,6 +289,7 @@ jobs:
         shell: python
         env:
           RAW_TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          KEY_PASSWORD_SET: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD != '' }}
         run: |
           import base64
           import os
@@ -288,6 +314,12 @@ jobs:
           if "secret key" not in decoded.lower():
               fail("TAURI_SIGNING_PRIVATE_KEY does not contain a Tauri updater private key.")
 
+          # The key should be password-protected (L-79): re-encrypt it with
+          # `minisign -C` (same key, so installed apps keep trusting updates) and
+          # add TAURI_SIGNING_PRIVATE_KEY_PASSWORD. Until then, warn.
+          if os.environ.get("KEY_PASSWORD_SET") != "true":
+              print("::warning::TAURI_SIGNING_PRIVATE_KEY_PASSWORD is not set; the updater key is stored without a password.")
+
           print(f"::add-mask::{normalized_key}")
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env_file:
               env_file.write(f"TAURI_SIGNING_PRIVATE_KEY={normalized_key}\n")
@@ -295,7 +327,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ env.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: v__VERSION__
           releaseName: AI Usage Tracker v__VERSION__
@@ -316,13 +348,17 @@ jobs:
     name: Commit released version to main
     needs: [check-changes, create-release]
     if: needs.check-changes.outputs.should_build == 'true'
+    # The release Environment only accepts deployments from main (L-79).
+    environment: release
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      # Keeps the token in .git/config: this job pushes the version bump.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: true
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -368,9 +404,15 @@ jobs:
     name: Build macOS desktop
     needs: [check-changes, create-release]
     if: needs.check-changes.outputs.should_build == 'true' && needs.check-changes.outputs.build_apple == 'true'
+    # The release Environment only accepts deployments from main (L-79).
+    environment: release
+    permissions:
+      contents: write
     runs-on: macos-15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -405,6 +447,7 @@ jobs:
         shell: python
         env:
           RAW_TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          KEY_PASSWORD_SET: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD != '' }}
         run: |
           import base64
           import os
@@ -428,6 +471,12 @@ jobs:
               fail("TAURI_SIGNING_PRIVATE_KEY is not valid Base64.")
           if "secret key" not in decoded.lower():
               fail("TAURI_SIGNING_PRIVATE_KEY does not contain a Tauri updater private key.")
+
+          # The key should be password-protected (L-79): re-encrypt it with
+          # `minisign -C` (same key, so installed apps keep trusting updates) and
+          # add TAURI_SIGNING_PRIVATE_KEY_PASSWORD. Until then, warn.
+          if os.environ.get("KEY_PASSWORD_SET") != "true":
+              print("::warning::TAURI_SIGNING_PRIVATE_KEY_PASSWORD is not set; the updater key is stored without a password.")
 
           print(f"::add-mask::{normalized_key}")
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env_file:
@@ -470,7 +519,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ env.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: v__VERSION__
           releaseName: AI Usage Tracker v__VERSION__
@@ -503,11 +552,15 @@ jobs:
     name: Write the desktop updater manifest
     needs: [check-changes, create-release, publish-windows, publish-macos]
     if: ${{ !cancelled() && needs.check-changes.outputs.should_build == 'true' && needs.create-release.result == 'success' }}
+    # The release Environment only accepts deployments from main (L-79).
+    environment: release
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -538,11 +591,15 @@ jobs:
     name: Write release notes
     needs: [check-changes, validate, create-release, publish-windows, publish-macos, build-android, build-ios, updater-manifest]
     if: ${{ always() && needs.check-changes.outputs.should_build == 'true' && (needs.validate.result == 'success' || needs.validate.result == 'skipped') && needs.create-release.result == 'success' }}
+    # The release Environment only accepts deployments from main (L-79).
+    environment: release
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22

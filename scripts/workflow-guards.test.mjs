@@ -422,3 +422,117 @@ test("every job that writes the release date uses the one taken when the run sta
     4,
   );
 });
+
+/** Each job of a workflow, as `{ name, text }`, by its two-space-indented key under `jobs:`. */
+function jobsOf(text) {
+  const body = text.slice(text.indexOf("\njobs:\n"));
+  return [...body.matchAll(/^  ([\w-]+):\n([\s\S]*?)(?=^  [\w-]+:\n|(?![\s\S]))/gm)].map((m) => ({
+    name: m[1],
+    text: m[2],
+  }));
+}
+
+/** The `with:` block lines that follow each actions/checkout step in `text`. */
+function checkoutOptions(text) {
+  return [...text.matchAll(/- uses: actions\/checkout@\S+[^\n]*\n((?:        [^\n]*\n)*)/g)].map((m) => m[1]);
+}
+
+test("Validate gives pull-request code no write token and posts no statuses of its own (L-80)", () => {
+  const validate = workflows.find((w) => w.name === "validate.yml").text;
+  assert.doesNotMatch(validate, /statuses:\s*write/, "no statuses: write");
+  assert.doesNotMatch(validate, /\/statuses\//, "no hand-made commit statuses; jobs are native checks");
+  assert.match(validate, /^permissions:\n  contents: read\n\n/m, "workflow default is read-only");
+  const options = checkoutOptions(validate);
+  assert.ok(options.length >= 6, "every Validate job checks out");
+  for (const block of options) assert.match(block, /persist-credentials: false/);
+
+  const installers = workflows.find((w) => w.name === "build-installers.yml").text;
+  const gate = /^  validate:\n([\s\S]*?)(?=^  \S+:\n)/m.exec(installers);
+  assert.doesNotMatch(gate[1], /statuses/, "the release gate grants no statuses permission either");
+});
+
+test("a release only runs from main, whatever starts it (L-79)", async () => {
+  const { spawnSync } = await import("node:child_process");
+  const installers = workflows.find((w) => w.name === "build-installers.yml").text;
+  const first = jobsOf(installers).find((job) => job.name === "check-changes");
+  assert.ok(first, "check-changes found");
+  // The guard is the first step of the job every other job needs, so it also
+  // stops a manual run that sets skip_validate.
+  assert.match(first.text, /steps:\n(?:      #[^\n]*\n)*      - name: Refuse to release from anything but main\n/, "first step");
+  const [script] = runScriptsOfStep(installers, "Refuse to release from anything but main");
+  const run = (ref) => spawnSync("bash", ["-c", script], { env: { ...process.env, REF: ref }, encoding: "utf-8" });
+  assert.equal(run("refs/heads/main").status, 0);
+  for (const ref of ["refs/heads/feature", "refs/tags/v9.9.9", "refs/heads/main-old", "refs/pull/1/merge", ""]) {
+    const result = run(ref);
+    assert.equal(result.status, 1, `ref ${JSON.stringify(ref)} must be refused`);
+    assert.match(result.stdout, /::error::/);
+  }
+});
+
+test("every job that signs, writes the release, or pushes runs in the release Environment (L-79)", () => {
+  const installers = workflows.find((w) => w.name === "build-installers.yml").text;
+  // The workflow default is read-only, so a job only writes when it says so.
+  assert.match(installers, /^permissions:\n  contents: read\n/m);
+  assert.doesNotMatch(jobsOf(installers).find((job) => job.name === "check-changes").text, /contents: write/);
+  for (const job of jobsOf(installers)) {
+    const callsReusable = /^    uses: \.\/\.github\/workflows\/build-(android|ios)\.yml/m.test(job.text);
+    const writes = /contents: write/.test(job.text) || /secrets\.(TAURI|ANDROID|APPLE)_/.test(job.text);
+    if (job.name === "validate" || callsReusable) continue; // gate; the called workflows declare it on their own job
+    if (writes || /tauri-action/.test(job.text)) {
+      assert.match(job.text, /^    environment: release$/m, `${job.name} must run in the release Environment`);
+    }
+  }
+  for (const name of ["build-android.yml", "build-ios.yml"]) {
+    const text = workflows.find((w) => w.name === name).text;
+    for (const job of jobsOf(text)) {
+      assert.match(job.text, /^    environment: release$/m, `${name} ${job.name}`);
+    }
+  }
+});
+
+test("release checkouts keep no token unless the job pushes (L-79)", () => {
+  for (const name of ["build-installers.yml", "build-android.yml", "build-ios.yml"]) {
+    const text = workflows.find((w) => w.name === name).text;
+    for (const job of jobsOf(text)) {
+      const pushes = /git push/.test(job.text);
+      for (const block of checkoutOptions(job.text)) {
+        assert.match(
+          block,
+          pushes ? /persist-credentials: true/ : /persist-credentials: false/,
+          `${name} ${job.name}: ${pushes ? "pushes, so it keeps the token explicitly" : "must not keep the token"}`,
+        );
+      }
+    }
+  }
+});
+
+test("the updater key password comes from a secret, never a hard-coded empty string (L-79)", async () => {
+  const { spawnSync } = await import("node:child_process");
+  const { mkdtempSync, writeFileSync: write } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const installers = workflows.find((w) => w.name === "build-installers.yml").text;
+  assert.doesNotMatch(installers, /TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""/);
+  assert.equal(
+    (installers.match(/TAURI_SIGNING_PRIVATE_KEY_PASSWORD: \$\{\{ secrets\.TAURI_SIGNING_PRIVATE_KEY_PASSWORD \}\}/g) ?? []).length,
+    2,
+    "both desktop builds read the secret",
+  );
+  const keyShaped = Buffer.from("untrusted comment: rsign encrypted secret key\nRWRTY0Iy\n").toString("base64");
+  const dir = mkdtempSync(resolve(tmpdir(), "key-password-"));
+  for (const script of runScriptsOfStep(installers, "Normalize and verify updater signing key")) {
+    const run = (set) => {
+      const envFile = resolve(dir, "github_env");
+      write(envFile, "");
+      return spawnSync("python3", ["-c", script], {
+        env: { ...process.env, RAW_TAURI_SIGNING_PRIVATE_KEY: keyShaped, GITHUB_ENV: envFile, KEY_PASSWORD_SET: set },
+        encoding: "utf-8",
+      });
+    };
+    const unset = run("false");
+    assert.equal(unset.status, 0, "a missing password warns but does not fail the release yet");
+    assert.match(unset.stdout, /::warning::TAURI_SIGNING_PRIVATE_KEY_PASSWORD is not set/);
+    const set = run("true");
+    assert.equal(set.status, 0);
+    assert.doesNotMatch(set.stdout, /::warning::/);
+  }
+});

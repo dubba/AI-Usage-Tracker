@@ -6,9 +6,11 @@ on:
   pull_request:
   workflow_call:
 
+# Read-only. Each job shows up as a native GitHub check, so the jobs need no
+# write token: pull-request code runs here and must not be able to forge a
+# passing status (L-80). Checkouts keep no token in .git/config either.
 permissions:
   contents: read
-  statuses: write
 
 jobs:
   frontend:
@@ -17,6 +19,8 @@ jobs:
       # Pinned to immutable commit SHAs (see comments for the moving tag each
       # SHA was resolved from) so a compromised tag cannot inject CI code.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -36,19 +40,6 @@ jobs:
       - run: npm run test:macos-uninstall
       - run: npm run test:workflows
       - run: npm run build
-      - name: Publish frontend validation status
-        if: always()
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          JOB_STATUS: ${{ job.status }}
-        run: |
-          state="$JOB_STATUS"
-          if [ "$state" = "cancelled" ]; then state="error"; fi
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
-            -f state="$state" \
-            -f context="validate/frontend" \
-            -f description="Frontend type-check, tests, and production build"
 
   dependency-audit:
     runs-on: ubuntu-latest
@@ -61,6 +52,8 @@ jobs:
       issues: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: rustsec/audit-check@858dc40f52ca2b8570b7a997c1c4e35c6fc9a432 # main: v2.0.0 + Node 24 (#48), untagged
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -75,6 +68,8 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -95,19 +90,6 @@ jobs:
       # uses the OS keychain), so lint both.
       - run: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
       - run: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --release --all-targets -- -D warnings
-      - name: Publish Rust lint status
-        if: always()
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          JOB_STATUS: ${{ job.status }}
-        run: |
-          state="$JOB_STATUS"
-          if [ "$state" = "cancelled" ]; then state="error"; fi
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
-            -f state="$state" \
-            -f context="validate/rust-lint" \
-            -f description="rustfmt and clippy (-D warnings), debug and release"
 
   desktop-rust:
     strategy:
@@ -125,6 +107,8 @@ jobs:
       CARGO_PROFILE_TEST_DEBUG: 0
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Configure Windows runner exclusions
         if: runner.os == 'Windows'
         shell: powershell
@@ -161,20 +145,6 @@ jobs:
           test -s src-tauri/icons/icon.png
           test -s src-tauri/icons/icon.ico
           test -s src-tauri/icons/icon.icns
-      - name: Publish desktop validation status
-        if: always()
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          JOB_STATUS: ${{ job.status }}
-          TARGET_OS: ${{ matrix.os }}
-        run: |
-          state="$JOB_STATUS"
-          if [ "$state" = "cancelled" ]; then state="error"; fi
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
-            -f state="$state" \
-            -f context="validate/desktop-${TARGET_OS}" \
-            -f description="Rust tests, checks, and native icon generation on ${TARGET_OS}"
 
   # The iOS and Android code (WebView sign-in, cookie reset, JNI bridge) is
   # compiled nowhere else until a release build, so a mobile-only break would
@@ -184,6 +154,8 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -200,24 +172,13 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: cargo check --locked --manifest-path src-tauri/Cargo.toml --target aarch64-apple-ios --lib
-      - name: Publish iOS compile status
-        if: always()
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          JOB_STATUS: ${{ job.status }}
-        run: |
-          state="$JOB_STATUS"
-          if [ "$state" = "cancelled" ]; then state="error"; fi
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
-            -f state="$state" \
-            -f context="validate/ios-compile" \
-            -f description="Rust library compiles for aarch64-apple-ios"
 
   android-compile:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -246,16 +207,3 @@ jobs:
           export CC_aarch64_linux_android="$ndk_bin/aarch64-linux-android24-clang"
           export AR_aarch64_linux_android="$ndk_bin/llvm-ar"
           cargo check --locked --manifest-path src-tauri/Cargo.toml --target aarch64-linux-android --lib
-      - name: Publish Android compile status
-        if: always()
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          JOB_STATUS: ${{ job.status }}
-        run: |
-          state="$JOB_STATUS"
-          if [ "$state" = "cancelled" ]; then state="error"; fi
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
-            -f state="$state" \
-            -f context="validate/android-compile" \
-            -f description="Rust library compiles for aarch64-linux-android"
