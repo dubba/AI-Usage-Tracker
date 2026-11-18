@@ -165,6 +165,17 @@ describe("recorded error detail", () => {
     expect(line).not.toContain("abcdefghijklmnop");
   });
 
+  it("redacts the whole line: source and context as well as the cause", () => {
+    recordErrorDetail(
+      "remove:person@example.com",
+      "Couldn't remove work.person@example.com",
+      "Unable to write /Users/jane/Library/accounts.json and /home/jane/x and C:\\Users\\Jane\\AppData\\x: denied",
+    );
+    const [line] = recentErrorDetails();
+    expect(line).not.toMatch(/person@example\.com|jane|Jane/);
+    expect(line).toContain("[remove:[email]] Couldn't remove [email]: Unable to write ~/Library/accounts.json and ~/x and ~\\AppData\\x: denied");
+  });
+
   it("keeps only the latest entries and caps their length", () => {
     for (let i = 0; i < 30; i += 1) recordErrorDetail("s", undefined, `error ${i} ${"y".repeat(500)}`);
     const lines = recentErrorDetails();

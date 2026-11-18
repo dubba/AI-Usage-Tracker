@@ -144,47 +144,7 @@ pub async fn refresh(
     let parsed_resets =
         limit_resets::from_cedar_ember(raw.cedar_ember.as_ref(), chrono::Utc::now());
     if let Some(block) = raw.cedar_ember.as_ref() {
-        let flags = ["at_limit", "eligible", "cooldown_until"].map(|key| {
-            format!(
-                "{key}={}",
-                block.get(key).map_or("-".into(), |value| value.to_string())
-            )
-        });
-        let grants = block
-            .get("grants")
-            .and_then(Value::as_array)
-            .map(|grants| {
-                grants
-                    .iter()
-                    .map(|grant| {
-                        [
-                            "id",
-                            "resets_left",
-                            "usable_now",
-                            "paused",
-                            "use_requires_limit",
-                            "unavailable_reason",
-                            "blocking",
-                            "starts_at",
-                            "ends_at",
-                        ]
-                        .map(|key| {
-                            format!(
-                                "{key}={}",
-                                grant.get(key).map_or("-".into(), |value| value.to_string())
-                            )
-                        })
-                        .join(" ")
-                    })
-                    .collect::<Vec<_>>()
-                    .join(" | ")
-            })
-            .unwrap_or_default();
-        crate::diagnostics::info(&format!(
-            "Anthropic limit resets: kept {} ({}) grants: {grants}",
-            parsed_resets.len(),
-            flags.join(" "),
-        ));
+        crate::diagnostics::info(&limit_reset_summary(block, parsed_resets.len()));
     }
 
     Ok((
@@ -623,6 +583,48 @@ pub(crate) fn interpret_claude_reset(status: StatusCode, body: &str) -> RedeemOu
     }
 }
 
+/// The diagnostics line for Anthropic's limit-reset block: counts and fixed
+/// states only (L-82). Grant ids, reasons, and timestamps are account
+/// metadata the provider chose, so they never reach the log or a copied
+/// diagnostics report.
+fn limit_reset_summary(block: &Value, kept: usize) -> String {
+    let flag = |key: &str| match block.get(key) {
+        Some(Value::Bool(true)) => "yes",
+        Some(Value::Bool(false)) => "no",
+        None | Some(Value::Null) => "none",
+        Some(_) => "set",
+    };
+    let grants = block
+        .get("grants")
+        .and_then(Value::as_array)
+        .map(Vec::as_slice)
+        .unwrap_or_default();
+    let count = |key: &str| {
+        grants
+            .iter()
+            .filter(|grant| grant.get(key).and_then(Value::as_bool) == Some(true))
+            .count()
+    };
+    let unavailable = grants
+        .iter()
+        .filter(|grant| {
+            grant
+                .get("unavailable_reason")
+                .is_some_and(|reason| !reason.is_null())
+        })
+        .count();
+    format!(
+        "Anthropic limit resets: {} offered, {kept} kept, {} usable now, {} paused, {} unavailable; at_limit={} eligible={} cooldown={}",
+        grants.len(),
+        count("usable_now"),
+        count("paused"),
+        unavailable,
+        flag("at_limit"),
+        flag("eligible"),
+        flag("cooldown_until"),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -931,5 +933,49 @@ mod tests {
         let org =
             serde_json::json!({"organization": {"uuid": "550e8400-e29b-41d4-a716-446655440000"}});
         assert!(organization_uuid(&org).is_some());
+    }
+
+    #[test]
+    fn limit_reset_log_line_carries_only_counts_and_fixed_states() {
+        // L-82: every grant field holds a marker; none may reach the log line.
+        let block = serde_json::json!({
+            "at_limit": false,
+            "eligible": true,
+            "cooldown_until": "2026-11-20T00:00:00Z-marker-cooldown",
+            "grants": [
+                {
+                    "id": "3f1c2b8e-1d4a-4c55-9a77-0f6c2e1b9d10",
+                    "resets_left": 7,
+                    "usable_now": true,
+                    "paused": false,
+                    "use_requires_limit": "marker-requires",
+                    "unavailable_reason": null,
+                    "blocking": ["marker-blocking"],
+                    "starts_at": "2026-11-10T21:30:00+00:00",
+                    "ends_at": "2026-12-10T22:00:00+00:00"
+                },
+                {
+                    "id": "full-reset-marker-id",
+                    "usable_now": false,
+                    "paused": true,
+                    "unavailable_reason": "marker-reason",
+                    "starts_at": "2026-11-11T09:00:00+00:00"
+                }
+            ]
+        });
+        let line = limit_reset_summary(&block, 1);
+        assert_eq!(
+            line,
+            "Anthropic limit resets: 2 offered, 1 kept, 1 usable now, 1 paused, 1 unavailable; at_limit=no eligible=yes cooldown=set"
+        );
+        for leaked in ["3f1c2b8e", "marker", "2026-", "full-reset", "7"] {
+            assert!(!line.contains(leaked), "{leaked} reached the log line");
+        }
+
+        let empty = limit_reset_summary(&serde_json::json!({}), 0);
+        assert_eq!(
+            empty,
+            "Anthropic limit resets: 0 offered, 0 kept, 0 usable now, 0 paused, 0 unavailable; at_limit=none eligible=none cooldown=none"
+        );
     }
 }

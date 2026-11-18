@@ -2,8 +2,12 @@ import { useCallback, useState } from "react";
 
 export type AppError = { source: string; message: string };
 
-/** Shows an error banner for `source`; `context` says what was being done. Provided by `useAppErrors`. */
-export type ReportError = (source: string, cause: unknown, context?: string) => void;
+/**
+ * Shows an error banner for `source`; `context` says what was being done. Provided by `useAppErrors`.
+ * When `context` names an account, pass `diagnosticContext` without the name: that is what Copy
+ * Diagnostics keeps, so the report carries no account labels, as the backend report does not.
+ */
+export type ReportError = (source: string, cause: unknown, context?: string, diagnosticContext?: string) => void;
 
 /** Turns anything thrown (Error, Tauri's string rejections, objects) into readable text. */
 export function errorMessage(cause: unknown): string {
@@ -78,18 +82,22 @@ const MAX_RECORDED = 20;
 const MAX_DETAIL_LENGTH = 300;
 const recorded: string[] = [];
 
-/** Removes email addresses and long token-like strings before a message is kept. */
+/** Removes email addresses, home-folder names, and long token-like strings before a message is kept. */
 export function redactDetail(raw: string): string {
   return raw
     .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, "[email]")
+    // "/Users/name/...", "/home/name/...", "C:\Users\name\..." -> "~/...", as the backend does.
+    .replace(/(?:\/Users|\/home)\/[^/\s]+/g, "~")
+    .replace(/\b[A-Za-z]:\\Users\\[^\\\s]+/gi, "~")
     .replace(/\b[A-Za-z0-9_\-+/=]{24,}\b/g, "[redacted]")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, MAX_DETAIL_LENGTH);
 }
 
+/** Keeps one line for Copy Diagnostics. The whole line is redacted: source and context too, not just the cause. */
 export function recordErrorDetail(source: string, context: string | undefined, raw: string): void {
-  const line = `${new Date().toISOString()} [${source}] ${context ? `${context}: ` : ""}${redactDetail(raw)}`;
+  const line = `${new Date().toISOString()} ${redactDetail(`[${source}] ${context ? `${context}: ` : ""}${raw}`)}`;
   recorded.push(line);
   if (recorded.length > MAX_RECORDED) recorded.shift();
 }
@@ -119,9 +127,9 @@ export function clearRecordedErrorDetails(): void {
  */
 export function useAppErrors() {
   const [errors, setErrors] = useState<AppError[]>([]);
-  const report = useCallback((source: string, cause: unknown, context?: string) => {
+  const report = useCallback((source: string, cause: unknown, context?: string, diagnosticContext?: string) => {
     const raw = errorMessage(cause);
-    recordErrorDetail(source, context, raw);
+    recordErrorDetail(source, diagnosticContext ?? context, raw);
     setErrors((current) => reportError(current, source, friendlyMessage(context, raw)));
   }, []);
   const clear = useCallback((source: string) => {

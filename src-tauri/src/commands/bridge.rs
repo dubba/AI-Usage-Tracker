@@ -101,7 +101,10 @@ pub(crate) async fn set_api_integration_enabled(
         return Err("The Paseo Bridge is only available on desktop.".into());
     }
 
-    state.settings.set_paseo_bridge_enabled(enabled)?;
+    state
+        .settings
+        .set_paseo_bridge_enabled(enabled)
+        .map_err(crate::diagnostics::command_error)?;
 
     for _ in 0..20 {
         let status = bridge_status(state.inner().as_ref());

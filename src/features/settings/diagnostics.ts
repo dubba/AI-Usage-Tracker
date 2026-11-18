@@ -1,5 +1,5 @@
 import { bridgeApi } from "../../shared/lib/api";
-import { recentErrorDetails } from "../../shared/lib/errors";
+import { recentErrorDetails, redactDetail } from "../../shared/lib/errors";
 
 /**
  * Copies the redacted diagnostics report (versions, settings, per-account
@@ -13,7 +13,9 @@ export async function copyDiagnostics(): Promise<void> {
     throw new Error("Copying to the clipboard is not available here.");
   }
   // The banners show plain sentences; the technical cause behind them goes here.
-  const details = recentErrorDetails();
+  // Each line was redacted when it was recorded; redacting again here keeps the copied text safe
+  // even if a line ever reaches the list another way.
+  const details = recentErrorDetails().map(redactDetail);
   const full = details.length ? `${report}\n\nRecent app errors (technical detail):\n${details.join("\n")}` : report;
   await navigator.clipboard.writeText(full);
 }

@@ -88,7 +88,12 @@ describe("after an account is added", () => {
     const cause = new Error("offline");
     api.refreshAccount.mockRejectedValue(cause);
     await handle(account({ label: "Work" }));
-    expect(reportError).toHaveBeenCalledWith("refresh:a1", cause, "Added Work, but couldn't refresh it yet");
+    expect(reportError).toHaveBeenCalledWith(
+      "refresh:a1",
+      cause,
+      "Added Work, but couldn't refresh it yet",
+      "Added an account, but couldn't refresh it yet",
+    );
     expect(load).toHaveBeenCalledTimes(1);
   });
 

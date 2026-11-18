@@ -74,7 +74,7 @@ export function useAccountActions({
       await load();
       clearError(key);
     } catch (cause) {
-      reportError(key, cause, `Couldn't remove ${displayAccountLabel(account)}`);
+      reportError(key, cause, `Couldn't remove ${displayAccountLabel(account)}`, "Couldn't remove an account");
     } finally {
       end(key);
     }

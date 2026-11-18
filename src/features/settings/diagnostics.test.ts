@@ -46,6 +46,27 @@ describe("copyDiagnostics", () => {
     expect(copied).toContain("[settings] Couldn't load app settings: Cannot read properties of undefined");
   });
 
+  it("copies no email, home folder, or token from the recent error lines (L-83)", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    invoke.mockResolvedValue("report");
+    recordErrorDetail(
+      "refresh:acct",
+      "Couldn't remove me@example.com",
+      "Unable to write /Users/jane/Library/x.json: token eyJhbGciOiJIUzI1NiJ9abcdefghijklmnop rejected",
+    );
+    recordErrorDetail("settings", undefined, "C:\\Users\\Jane\\AppData\\Roaming\\x: access is denied");
+
+    await copyDiagnostics();
+
+    const copied = writeText.mock.calls[0][0] as string;
+    for (const leaked of ["me@example.com", "jane", "Jane", "eyJhbGciOiJIUzI1NiJ9"]) {
+      expect(copied).not.toContain(leaked);
+    }
+    expect(copied).toContain("[refresh:acct] Couldn't remove [email]: Unable to write ~/Library/x.json: token [redacted] rejected");
+    expect(copied).toContain("[settings] ~\\AppData\\Roaming\\x: access is denied");
+  });
+
   it("reports when the clipboard is unavailable", async () => {
     vi.stubGlobal("navigator", {});
     invoke.mockResolvedValue("report");

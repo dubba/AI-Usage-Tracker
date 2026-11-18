@@ -104,7 +104,10 @@ pub fn save_account_alerts(
         request_notification_permission(app);
     }
 
-    let saved = state.alerts.save(&account_id, settings)?;
+    let saved = state
+        .alerts
+        .save(&account_id, settings)
+        .map_err(crate::diagnostics::command_error)?;
     usage::emit_alerts_for_account(state.inner().as_ref(), &account);
     Ok(saved)
 }

@@ -234,8 +234,15 @@ describe("remove", () => {
     await act(async () => {
       await actions.remove(makeAccount("a1", "Work"));
     });
-    expect(reportError).toHaveBeenCalledWith("remove:a1", cause, expect.stringContaining("Work"));
+    expect(reportError).toHaveBeenCalledWith(
+      "remove:a1",
+      cause,
+      expect.stringContaining("Work"),
+      "Couldn't remove an account",
+    );
     expect(reportError.mock.calls[0][2]).toMatch(/^Couldn't remove /);
+    // Copy Diagnostics gets the context without the account's name (L-83).
+    expect(reportError.mock.calls[0][3]).not.toContain("Work");
     expect(busy.has("remove:a1")).toBe(false);
   });
 });

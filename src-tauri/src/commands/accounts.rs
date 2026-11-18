@@ -11,7 +11,10 @@ use tauri::State;
 pub async fn get_dashboard_snapshot(
     state: State<'_, Arc<AppState>>,
 ) -> Result<DashboardSnapshot, String> {
-    let accounts = state.account_order.apply(state.store.list())?;
+    let accounts = state
+        .account_order
+        .apply(state.store.list())
+        .map_err(crate::diagnostics::command_error)?;
     let buckets = state.buckets.list();
     let protection = retry_credential_sealing(state.inner()).await;
     let unprotected_account_ids = accounts
@@ -87,7 +90,10 @@ pub fn reorder_accounts(
     state: State<'_, Arc<AppState>>,
     account_ids: Vec<String>,
 ) -> Result<Vec<Account>, String> {
-    state.account_order.save(account_ids, state.store.list())
+    state
+        .account_order
+        .save(account_ids, state.store.list())
+        .map_err(crate::diagnostics::command_error)
 }
 
 #[tauri::command]

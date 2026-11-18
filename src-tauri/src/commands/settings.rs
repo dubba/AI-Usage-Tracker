@@ -15,7 +15,10 @@ pub fn set_account_refresh_minutes(
     state: State<'_, Arc<AppState>>,
     minutes: u64,
 ) -> Result<AppSettings, String> {
-    state.settings.set_account_refresh_minutes(minutes)
+    state
+        .settings
+        .set_account_refresh_minutes(minutes)
+        .map_err(crate::diagnostics::command_error)
 }
 
 #[tauri::command]
@@ -23,7 +26,10 @@ pub fn set_automatic_updates_enabled(
     state: State<'_, Arc<AppState>>,
     enabled: bool,
 ) -> Result<AppSettings, String> {
-    state.settings.set_automatic_updates_enabled(enabled)
+    state
+        .settings
+        .set_automatic_updates_enabled(enabled)
+        .map_err(crate::diagnostics::command_error)
 }
 
 #[tauri::command]
@@ -31,7 +37,10 @@ pub fn set_include_beta_updates(
     state: State<'_, Arc<AppState>>,
     enabled: bool,
 ) -> Result<AppSettings, String> {
-    state.settings.set_include_beta_updates(enabled)
+    state
+        .settings
+        .set_include_beta_updates(enabled)
+        .map_err(crate::diagnostics::command_error)
 }
 
 #[tauri::command]
@@ -76,7 +85,10 @@ pub fn set_autostart(
     #[cfg(not(desktop))]
     let _ = app;
 
-    state.settings.set_autostart_enabled(enabled)?;
+    state
+        .settings
+        .set_autostart_enabled(enabled)
+        .map_err(crate::diagnostics::command_error)?;
     Ok(enabled)
 }
 

@@ -41,7 +41,12 @@ export function useAfterAccountAdded({
           await load();
         } catch (cause) {
           // The account is saved and stays available with cached state; say that the first refresh failed.
-          reportError(busyKey("refresh", account.id), cause, `Added ${displayAccountLabel(account)}, but couldn't refresh it yet`);
+          reportError(
+            busyKey("refresh", account.id),
+            cause,
+            `Added ${displayAccountLabel(account)}, but couldn't refresh it yet`,
+            "Added an account, but couldn't refresh it yet",
+          );
         }
       }
       if (nextAccount.provider === "google_ai_studio" && !googleAiStudioHasQuotaWindows(nextAccount)) {
