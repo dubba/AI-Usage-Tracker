@@ -101,6 +101,8 @@ npm install
 npm run tauri:dev
 ```
 
+The dev app runs as "AI Usage Tracker Dev" (`com.dubba.ai.usage.tracker.dev`), so it keeps its own data folder (on macOS, `~/Library/Application Support/com.dubba.ai.usage.tracker.dev`) and never reads or changes the installed app's accounts. Dev builds store logins as plain files in that folder, so use test accounts or delete the folder when you are done.
+
 ### Run the Android app (Live Dev with HMR)
 
 ```bash

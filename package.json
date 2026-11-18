@@ -26,6 +26,7 @@
     "test:macos-uninstall": "node --test scripts/macos-uninstall-targets.test.mjs",
     "uninstall:macos": "bash scripts/uninstall-macos.sh",
     "test:workflows": "node --test scripts/workflow-guards.test.mjs",
+    "test:tauri-dev": "node --test scripts/tauri-dev.test.mjs",
     "test": "vitest run",
     "preflight": "bash scripts/preflight.sh",
     "hooks:install": "git config core.hooksPath .githooks"

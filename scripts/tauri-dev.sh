@@ -60,9 +60,12 @@ ensure_identity
 WATCHER=$!
 trap 'kill $WATCHER 2>/dev/null' EXIT
 
+# Own identifier, so dev data stays out of the installed app's data folder
+# (see DEV_IDENTITY_CONFIG in tauri-dev.mjs).
+DEV_CONFIG="src-tauri/tauri.dev.conf.json"
 if nc -z 127.0.0.1 1420 2>/dev/null || nc -z localhost 1420 2>/dev/null; then
   echo "Using the dev server already running on port 1420."
-  npx tauri dev --config '{"build":{"beforeDevCommand":""}}'
+  npx tauri dev --config "$DEV_CONFIG" --config '{"build":{"beforeDevCommand":""}}'
 else
-  npx tauri dev
+  npx tauri dev --config "$DEV_CONFIG"
 fi

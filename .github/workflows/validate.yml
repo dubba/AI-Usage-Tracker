@@ -39,6 +39,7 @@ jobs:
       - run: npm run test:windows-uninstall
       - run: npm run test:macos-uninstall
       - run: npm run test:workflows
+      - run: npm run test:tauri-dev
       - run: npm run build
 
   dependency-audit:

@@ -6,6 +6,14 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const DEV_PORT = 1420;
 const SHARE_CONFIG = '{"build":{"beforeDevCommand":""}}';
+// Gives the desktop dev app its own identifier, so its data folder
+// (~/Library/Application Support/com.dubba.ai.usage.tracker.dev on macOS) is
+// separate from the installed app's. Dev builds keep logins as plain files,
+// and removing an account in dev must never touch the real account list. It
+// also gets its own name ("AI Usage Tracker Dev"), which launch at startup is
+// registered under, so "Delete local app data" in dev cannot turn off the
+// installed app's launch at startup.
+export const DEV_IDENTITY_CONFIG = "src-tauri/tauri.dev.conf.json";
 
 export function hasConfigFlag(args) {
   return args.some(
@@ -18,7 +26,8 @@ export function hasConfigFlag(args) {
 }
 
 export function buildTauriDevArgs(args, portInUse) {
-  const result = ["dev", ...args];
+  // Later --config values win, so a caller's own --config can still override.
+  const result = ["dev", "--config", DEV_IDENTITY_CONFIG, ...args];
   if (portInUse && !hasConfigFlag(args)) {
     result.push("--config", SHARE_CONFIG);
   }
