@@ -407,6 +407,91 @@ describe("AccountsView summary status strip", () => {
     expect(document.querySelector(".summary-strip.is-filtering")).toBeNull();
     expect(document.querySelectorAll(".provider-account-card")).toHaveLength(3);
   });
+
+  it("scrolls to and highlights the targeted account card when highlightedAccount is set", () => {
+    vi.useFakeTimers();
+    const scrollIntoView = vi.spyOn(HTMLElement.prototype, "scrollIntoView").mockImplementation(() => {});
+    try {
+      app = renderView({
+        allAccounts: [account, healthyAccount],
+        accounts: [account, healthyAccount],
+        selectedGroup: { ...allGroup, accounts: [account, healthyAccount] },
+        highlightedAccount: { accountId: healthyAccount.id, seq: 1 },
+      });
+
+      const targetCard = document.querySelector<HTMLElement>(`.provider-account-card[data-account-id="${healthyAccount.id}"]`)!;
+      expect(targetCard).not.toBeNull();
+      expect(targetCard.classList.contains("is-alert-highlighted")).toBe(true);
+
+      vi.advanceTimersByTime(10);
+      expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
+    } finally {
+      scrollIntoView.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows '1 low limit' in amber under 30% and in red under 15% without turning the strip into has-attention", () => {
+    const now = Date.now();
+    vi.spyOn(Date, "now").mockReturnValue(now);
+    const futureReset = new Date(now + 60 * 60_000).toISOString();
+
+    const makeLiveWithRemaining = (id: string, label: string, remainingPercent: number): Account => ({
+      ...healthyAccount,
+      id,
+      label,
+      lastUsage: {
+        ...healthyAccount.lastUsage!,
+        windows: [
+          {
+            id: "five_hour",
+            kind: "five_hour",
+            label: "5-hour",
+            usedPercent: 100 - remainingPercent,
+            remainingPercent,
+            resetsAt: futureReset,
+            windowSeconds: 18_000,
+          },
+        ],
+      },
+    });
+
+    const amberAccount = makeLiveWithRemaining("acct-amber", "Codex", 25);
+    app = renderView({
+      allAccounts: [amberAccount],
+      accounts: [amberAccount],
+      selectedGroup: { ...allGroup, accounts: [amberAccount] },
+    });
+    let strip = document.querySelector<HTMLDivElement>("div.summary-strip")!;
+    expect(strip).not.toBeNull();
+    expect(strip.classList.contains("has-attention")).toBe(false);
+    expect(strip.classList.contains("is-low-warning")).toBe(true);
+    expect(strip.classList.contains("is-low-critical")).toBe(false);
+    expect(strip.querySelector(".summary-status-text")?.textContent).toBe("1 low limit");
+
+    app.unmount();
+    const redAccount = makeLiveWithRemaining("acct-red", "Claude123", 10);
+    app = renderView({
+      allAccounts: [amberAccount, redAccount],
+      accounts: [amberAccount, redAccount],
+      selectedGroup: { ...allGroup, accounts: [amberAccount, redAccount] },
+    });
+    strip = document.querySelector<HTMLDivElement>("div.summary-strip")!;
+    expect(strip.classList.contains("has-attention")).toBe(false);
+    expect(strip.classList.contains("is-low-critical")).toBe(true);
+    expect(strip.querySelector(".summary-status-text")?.textContent).toBe("2 low limits");
+
+    // Attention needed stays higher priority when another account needs sign-in.
+    app.unmount();
+    app = renderView({
+      allAccounts: [account, redAccount],
+      accounts: [account, redAccount],
+      selectedGroup: { ...allGroup, accounts: [account, redAccount] },
+    });
+    const attentionBtn = document.querySelector<HTMLButtonElement>("button.summary-strip.has-attention");
+    expect(attentionBtn).not.toBeNull();
+    expect(attentionBtn?.querySelector(".summary-status-text")?.textContent).toBe("Attention needed");
+  });
 });
 
 describe("AccountsView reorder hint banner", () => {

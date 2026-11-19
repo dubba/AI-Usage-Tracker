@@ -17,7 +17,7 @@ import {
   UsersIcon,
 } from "../../shared/ui/icons";
 import { DASHBOARD_EMPTY_ACCOUNT_DESCRIPTION, EmptyAccountPanel } from "./EmptyAccountPanel";
-import { accountNeedsAttention, nextResetSummary } from "../../shared/lib/usage-logic";
+import { accountNeedsAttention, lowLimitSummary, nextResetSummary } from "../../shared/lib/usage-logic";
 import { groupFilterLabel, type SidebarGroup } from "../sidebar/sidebar-groups";
 import type {
   Account,
@@ -35,6 +35,7 @@ import { useCanPullRefreshEnvironment, usePullRefreshHint } from "../dashboard/u
 import { PullToRefreshIndicator } from "../dashboard/PullToRefreshIndicator";
 
 const ATTENTION_HINT_ID = "attention-filter-hint";
+const LOW_LIMIT_FORMS = { one: "low limit", other: "low limits" };
 
 function dashboardDescription(group: SidebarGroup, accountCount: number): string {
   const count = formatCount(accountCount, ACCOUNT_FORMS);
@@ -97,6 +98,7 @@ export function AccountsView(props: {
   busy: BusyKeys;
   /** Accounts whose saved sign-in could not be locked on this phone. */
   unprotectedAccountIds?: string[];
+  highlightedAccount?: { accountId: string; seq: number } | null;
 }) {
   const [showAttentionOnly, setShowAttentionOnly] = useState(false);
   const [announcement, setAnnouncement] = useState("");
@@ -111,6 +113,8 @@ export function AccountsView(props: {
   }, [props.selectedGroup.id]);
 
   const needsAttention = useMemo(() => props.accounts.filter(accountNeedsAttention).length, [props.accounts]);
+  const lowLimitCount = useClock((now) => (needsAttention > 0 ? 0 : lowLimitSummary(props.accounts, now).count));
+  const lowLimitLevel = useClock((now) => (needsAttention > 0 ? null : lowLimitSummary(props.accounts, now).level));
 
   useEffect(() => {
     if (showAttentionOnly && needsAttention === 0) {
@@ -137,6 +141,25 @@ export function AccountsView(props: {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const target = props.highlightedAccount;
+    if (!target) return;
+    if (showAttentionOnly && !displayedAccounts.some((account) => account.id === target.accountId)) {
+      setShowAttentionOnly(false);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      const root = scrollRef.current ?? containerRef.current;
+      if (!root) return;
+      const cards = root.querySelectorAll<HTMLElement>("[data-account-id]");
+      const match = Array.from(cards).find((el) => el.dataset.accountId === target.accountId);
+      if (match && typeof match.scrollIntoView === "function") {
+        match.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [props.highlightedAccount, showAttentionOnly, displayedAccounts]);
 
   const canPullRefreshEnv = useCanPullRefreshEnvironment();
   const canPullRefresh = Boolean(props.onRefreshAll) && displayedAccounts.length > 0 && canPullRefreshEnv;
@@ -324,7 +347,15 @@ export function AccountsView(props: {
               </button>
             )
           ) : (
-            <div className={`summary-strip${props.accounts.length === 0 ? " is-empty" : ""}`}>
+            <div
+              className={`summary-strip${
+                props.accounts.length === 0
+                  ? " is-empty"
+                  : lowLimitCount > 0 && lowLimitLevel
+                    ? ` is-low-${lowLimitLevel}`
+                    : ""
+              }`}
+            >
               <span className="summary-status-cluster">
                 {/* With nothing to monitor yet, the same purple icon and wording as the Usage page's box. */}
                 {props.accounts.length === 0 ? (
@@ -335,7 +366,9 @@ export function AccountsView(props: {
                 ) : (
                   <>
                     <span className="summary-status-dot" aria-hidden="true" />
-                    <span className="summary-status-text">All accounts good</span>
+                    <span className="summary-status-text">
+                      {lowLimitCount > 0 ? formatCount(lowLimitCount, LOW_LIMIT_FORMS) : "All accounts good"}
+                    </span>
                   </>
                 )}
               </span>
@@ -369,6 +402,7 @@ export function AccountsView(props: {
             canMoveDown={canReorder && index < displayedAccounts.length - 1}
             onMove={canReorder ? (delta) => moveAccount(account, delta) : undefined}
             signInUnprotected={props.unprotectedAccountIds?.includes(account.id) ?? false}
+            highlighted={props.highlightedAccount?.accountId === account.id}
           />
         )) : showAttentionOnly || props.selectedGroup.type === "bucket" ? (
           <section className="welcome-panel mockup-empty-panel">

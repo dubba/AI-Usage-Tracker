@@ -7,6 +7,7 @@ import {
   grokBotAverage,
   cardWindows,
   isWindowExpired,
+  lowLimitSummary,
   nextResetSummary,
   windowLimitName,
   orderedWindows,
@@ -141,6 +142,36 @@ describe("usageTone", () => {
     expect(usageTone(30)).toBe("warning");
     expect(usageTone(30.1)).toBe("healthy");
     expect(usageTone(100)).toBe("healthy");
+  });
+});
+
+describe("lowLimitSummary", () => {
+  it("reports zero when all active windows are above 30%", () => {
+    const accounts = [account({ lastUsage: usage({ windows: [win({ remainingPercent: 31 })] }) })];
+    expect(lowLimitSummary(accounts, NOW)).toEqual({ count: 0, level: null });
+  });
+
+  it("flags warning at <= 30% and critical at <= 15%, counting each account once", () => {
+    const warning = account({
+      id: "w",
+      lastUsage: usage({ windows: [win({ remainingPercent: 25 }), win({ id: "weekly", remainingPercent: 20 })] }),
+    });
+    expect(lowLimitSummary([warning], NOW)).toEqual({ count: 1, level: "warning" });
+
+    const critical = account({
+      id: "c",
+      lastUsage: usage({ windows: [win({ remainingPercent: 10 }), win({ id: "weekly", remainingPercent: 25 })] }),
+    });
+    expect(lowLimitSummary([warning, critical], NOW)).toEqual({ count: 2, level: "critical" });
+  });
+
+  it("ignores expired low windows", () => {
+    const expired = account({
+      lastUsage: usage({
+        windows: [win({ remainingPercent: 5, resetsAt: new Date(NOW - MINUTE).toISOString() })],
+      }),
+    });
+    expect(lowLimitSummary([expired], NOW)).toEqual({ count: 0, level: null });
   });
 });
 

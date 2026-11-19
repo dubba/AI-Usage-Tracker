@@ -1171,9 +1171,15 @@ button.summary-strip:focus-visible {
   color: inherit;
 }
 
-.summary-strip.has-attention .summary-status-dot {
+.summary-strip.has-attention .summary-status-dot,
+.summary-strip.is-low-warning .summary-status-dot {
   background: var(--obsidian-amber);
   box-shadow: 0 0 0 3px rgb(var(--tint-amber-rgb) / 0.2);
+}
+
+.summary-strip.is-low-critical .summary-status-dot {
+  background: var(--obsidian-red);
+  box-shadow: 0 0 0 3px rgb(var(--tint-red-rgb) / 0.22);
 }
 
 .summary-status-text {
@@ -1184,8 +1190,13 @@ button.summary-strip:focus-visible {
   white-space: nowrap;
 }
 
-.summary-strip.has-attention .summary-status-text {
+.summary-strip.has-attention .summary-status-text,
+.summary-strip.is-low-warning .summary-status-text {
   color: var(--tone-warning-text);
+}
+
+.summary-strip.is-low-critical .summary-status-text {
+  color: var(--tone-critical-text);
 }
 
 .summary-attention-count {

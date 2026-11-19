@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { appendAlert, MAX_VISIBLE_ALERTS, type UsageAlertToast } from "./usage-alerts";
 
-const toast = (id: string): UsageAlertToast => ({ id, title: id, body: "", timestamp: 0 });
+const toast = (id: string): UsageAlertToast => ({ id, accountId: `acc-${id}`, title: id, body: "", timestamp: 0 });
 
 describe("appendAlert", () => {
   it("appends in arrival order", () => {

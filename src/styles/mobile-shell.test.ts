@@ -105,4 +105,16 @@ describe("mobile shell clears the bottom bar", () => {
       /\.dashboard-header\s+\.mobile-sidebar-toggle-btn\.has-filter-label\s+svg\.mobile-sidebar-toggle-filter,\s*\.dashboard-header\s+\.mobile-sidebar-toggle-btn\.has-filter-label\s+svg\.mobile-sidebar-toggle-chevron\s*\{[^}]*width:\s*16px;[^}]*height:\s*16px;/,
     );
   });
+
+  it("positions desktop in-app alert toasts at the top right below the header/top bar and gates them off mobile", () => {
+    const appSource = readFileSync(join(__dirname, "..", "app", "App.tsx"), "utf8");
+    expect(appSource).toContain("const inAppAlertsEnabled = !isAndroid() && !isIOS();");
+    expect(appSource).toContain("useUsageAlerts(inAppAlertsEnabled)");
+    expect(appSource).toContain("<UsageAlertToasts");
+    expect(appSource).toContain("onSelectAlert={handleSelectAlert}");
+    expect(UI).toMatch(/\.usage-alert-toast-container\s*\{[^}]*top:\s*calc\(64px \+ var\(--safe-area-top, 0px\)\);[^}]*right:\s*24px;/);
+    expect(UI).not.toMatch(/\.usage-alert-toast-container\s*\{[^}]*bottom:/);
+    expect(UI).toMatch(/\.app-shell\.has-top-bar\s+\.usage-alert-toast-container\s*\{[^}]*top:\s*calc\(81px \+ var\(--safe-area-top, 0px\)\);/);
+    expect(UI).toMatch(/@keyframes\s+toastSlideIn\s*\{[\s\S]*?translateY\(-16px\)/);
+  });
 });

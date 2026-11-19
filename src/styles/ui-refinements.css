@@ -1111,10 +1111,10 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   }
 }
 
-/* In-App Usage Alert Toasts */
+/* In-App Usage Alert Toasts (desktop only; top right) */
 .usage-alert-toast-container {
   position: fixed;
-  bottom: calc(24px + var(--bottom-nav-height, var(--safe-area-bottom, 0px)));
+  top: calc(64px + var(--safe-area-top, 0px));
   right: 24px;
   z-index: var(--z-toast, 10100);
   display: flex;
@@ -1125,26 +1125,89 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   pointer-events: none;
 }
 
+.app-shell.has-top-bar .usage-alert-toast-container {
+  top: calc(81px + var(--safe-area-top, 0px));
+}
+
 .usage-alert-toast {
+  position: relative;
   pointer-events: auto;
   background: var(--toast-surface);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--toast-border);
   border-radius: 12px;
-  padding: 14px 16px;
+  padding: 10px 10px 10px 14px;
   box-shadow: var(--toast-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--c-f3f4f6);
+  animation: toastSlideIn 0.25s ease-out;
+  transition: border-color 0.15s ease;
+}
+
+.usage-alert-toast:hover {
+  border-color: var(--purple-accent);
+}
+
+.usage-alert-toast.is-stacked {
+  border-color: rgb(var(--tint-amber-rgb) / 0.45);
+}
+
+.usage-alert-toast.is-stacked::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -5px;
+  height: 6px;
+  border-radius: 0 0 10px 10px;
+  background: var(--toast-surface);
+  border: 1px solid var(--toast-border);
+  border-top: none;
+  z-index: -1;
+}
+
+.usage-alert-toast-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.usage-alert-toast-main {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  color: var(--c-f3f4f6);
-  animation: toastSlideIn 0.25s ease-out;
+  padding: 4px 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.usage-alert-toast-main:focus-visible {
+  outline: 2px solid var(--purple-accent);
+  outline-offset: 2px;
+}
+
+.usage-alert-toast-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
 }
 
 @keyframes toastSlideIn {
   from {
     opacity: 0;
-    transform: translateY(16px) scale(0.96);
+    transform: translateY(-16px) scale(0.96);
   }
   to {
     opacity: 1;
@@ -1175,7 +1238,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 
 .usage-alert-toast-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 3px;
@@ -1187,6 +1250,21 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   color: var(--purple-ink);
   line-height: 1.3;
   min-width: 0;
+  flex: 1;
+}
+
+.usage-alert-toast-count {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgb(var(--tint-amber-rgb) / 0.18);
+  border: 1px solid rgb(var(--tint-amber-rgb) / 0.42);
+  color: var(--tone-warning-text);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .usage-alert-toast-time {
@@ -1204,14 +1282,39 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   word-break: break-word;
 }
 
+.usage-alert-toast-more {
+  color: var(--tone-warning-text);
+  font-weight: 600;
+}
+
+.usage-alert-toast-expand {
+  background: transparent;
+  border: 1px solid rgb(var(--purple-accent-rgb) / 0.35);
+  color: var(--purple-text);
+  cursor: pointer;
+  padding: 0 8px;
+  min-height: 28px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.usage-alert-toast-expand:hover {
+  color: var(--c-ffffff);
+  background: rgb(var(--purple-accent-rgb) / 0.22);
+  border-color: var(--purple-accent);
+}
+
 .usage-alert-toast-close {
   background: transparent;
   border: none;
   color: var(--c-9ca3af);
   cursor: pointer;
   padding: 10px;
-  min-width: 44px;
-  min-height: 44px;
+  min-width: 36px;
+  min-height: 36px;
   border-radius: 6px;
   flex-shrink: 0;
   display: flex;
@@ -1230,12 +1333,101 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   background: var(--c-255-255-255-a100);
 }
 
+.usage-alert-toast-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid rgb(var(--purple-accent-rgb) / 0.2);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.usage-alert-toast-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 8px;
+  background: rgb(var(--purple-accent-rgb) / 0.08);
+  padding: 4px 4px 4px 8px;
+}
+
+.usage-alert-toast-item-jump {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.usage-alert-toast-item-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--purple-ink);
+}
+
+.usage-alert-toast-item-body {
+  font-size: 11px;
+  color: var(--c-d1d5db);
+  line-height: 1.35;
+}
+
+.usage-alert-toast-item-close {
+  background: transparent;
+  border: none;
+  color: var(--c-9ca3af);
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.usage-alert-toast-item-close:hover {
+  color: var(--c-ffffff);
+  background: var(--c-255-255-255-a100);
+}
+
+.usage-alert-toast-item-close svg {
+  width: 12px;
+  height: 12px;
+}
+
+.provider-account-card.is-alert-highlighted {
+  border-color: var(--purple-accent);
+  box-shadow: 0 0 0 2px rgb(var(--purple-accent-rgb) / 0.45), 0 0 22px rgb(var(--purple-accent-rgb) / 0.28);
+  animation: accountAlertHighlight 1.8s ease-out;
+}
+
+@keyframes accountAlertHighlight {
+  0% {
+    border-color: var(--obsidian-amber);
+    box-shadow: 0 0 0 3px rgb(var(--tint-amber-rgb) / 0.55), 0 0 26px rgb(var(--tint-amber-rgb) / 0.35);
+  }
+  35% {
+    border-color: var(--purple-accent);
+    box-shadow: 0 0 0 2px rgb(var(--purple-accent-rgb) / 0.5), 0 0 24px rgb(var(--purple-accent-rgb) / 0.32);
+  }
+  100% {
+    border-color: var(--obsidian-border);
+    box-shadow: 0 0 0 0 rgb(var(--purple-accent-rgb) / 0);
+  }
+}
+
 @media (max-width: 600px) {
   .usage-alert-toast-container {
     left: 16px;
     right: 16px;
     width: auto;
-    bottom: calc(16px + var(--bottom-nav-height, var(--safe-area-bottom, 0px)));
   }
 }
 

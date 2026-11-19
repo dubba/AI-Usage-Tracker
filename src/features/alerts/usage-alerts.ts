@@ -1,4 +1,13 @@
-export type UsageAlertToast = { id: string; title: string; body: string; timestamp: number };
+export type UsageAlertToast = {
+  id: string;
+  accountId: string;
+  accountLabel?: string;
+  provider?: string;
+  windowLabel?: string;
+  title: string;
+  body: string;
+  timestamp: number;
+};
 
 export const MAX_VISIBLE_ALERTS = 5;
 
@@ -10,3 +19,4 @@ export function appendAlert(
 ): UsageAlertToast[] {
   return [...alerts, alert].slice(-max);
 }
+

@@ -17,13 +17,14 @@ function safeUnlisten(unlisten: (() => void) | undefined): void {
  * `listen(...).then(fn => unlisten = fn)`, this still unsubscribes when the
  * component unmounts before `listen` has resolved.
  */
-export function useTauriEvent<T>(event: string, handler: (payload: T) => void): void {
+export function useTauriEvent<T>(event: string, handler: (payload: T) => void, enabled = true): void {
   const handlerRef = useRef(handler);
   useEffect(() => {
     handlerRef.current = handler;
   });
 
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
     let unlisten: (() => void) | undefined;
     listen<T>(event, (incoming) => handlerRef.current(incoming.payload))
@@ -36,5 +37,5 @@ export function useTauriEvent<T>(event: string, handler: (payload: T) => void): 
       cancelled = true;
       safeUnlisten(unlisten);
     };
-  }, [event]);
+  }, [event, enabled]);
 }

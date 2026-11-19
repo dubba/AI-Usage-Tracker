@@ -75,6 +75,7 @@ export function AccountDashboardCard({
   onMove,
   onUseLimitReset,
   signInUnprotected = false,
+  highlighted = false,
 }: {
   pageId: string;
   account: Account;
@@ -93,6 +94,7 @@ export function AccountDashboardCard({
   onUseLimitReset?: (grantId: string) => void;
   /** This account's saved sign-in is still a plain file because locking it failed. */
   signInUnprotected?: boolean;
+  highlighted?: boolean;
 }) {
   const status = accountStatus(account);
   // Signed out, the card asks for one thing only: sign in again. Its notice holds the button.
@@ -175,7 +177,7 @@ export function AccountDashboardCard({
   if (cardCompact && !rename.editing) {
     return (
       <article
-        className={`provider-account-card${desktop ? " desktop-card" : ""} is-compact ${needsAttention ? "needs-attention" : ""} ${mobileMenuOpen ? "has-open-menu" : ""}`}
+        className={`provider-account-card${desktop ? " desktop-card" : ""} is-compact ${needsAttention ? "needs-attention" : ""} ${mobileMenuOpen ? "has-open-menu" : ""}${highlighted ? " is-alert-highlighted" : ""}`}
         data-account-id={account.id}
         data-reorder-provider={account.provider}
         data-reorder-enabled="true"
@@ -342,7 +344,7 @@ export function AccountDashboardCard({
 
   return (
     <article
-      className={`provider-account-card${desktop ? " desktop-card" : ""}${cardCompact ? " is-compact" : ""} ${needsAttention ? "needs-attention" : ""} ${mobileMenuOpen ? "has-open-menu" : ""}`}
+      className={`provider-account-card${desktop ? " desktop-card" : ""}${cardCompact ? " is-compact" : ""} ${needsAttention ? "needs-attention" : ""} ${mobileMenuOpen ? "has-open-menu" : ""}${highlighted ? " is-alert-highlighted" : ""}`}
       data-account-id={account.id}
       data-reorder-provider={account.provider}
       data-reorder-enabled="true"

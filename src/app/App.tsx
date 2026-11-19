@@ -21,13 +21,14 @@ import { useAccountActions } from "../features/accounts/useAccountActions";
 import { useAppSettings } from "../features/settings/useAppSettings";
 import { useAppUpdate } from "../features/settings/useAppUpdate";
 import { useKeyboardShortcuts } from "../features/shortcuts/useKeyboardShortcuts";
-import { isMobileDevice } from "../shared/lib/platform";
+import { isAndroid, isIOS, isMobileDevice } from "../shared/lib/platform";
 import { useDashboardData } from "../features/dashboard/useDashboardData";
 import { useDragReorder } from "../features/reorder/useDragReorder";
 import { usePairingEvents } from "../features/pairing/hooks/usePairingEvents";
 import { useSidebarOverlay } from "../features/sidebar/useSidebarOverlay";
 import { useTouchTooltips } from "../shared/hooks/useTouchTooltips";
 import { useUsageAlerts } from "../features/alerts/useUsageAlerts";
+import type { UsageAlertToast } from "../features/alerts/usage-alerts";
 import {
   ALL_ACCOUNTS_GROUP_ID,
   allPageAccountsForSidebar,
@@ -104,7 +105,19 @@ export default function App() {
   const { appSettings, reloadFromBackend } = settings;
   const { snapshot, setSnapshot, load } = useDashboardData({ reportError, clearError });
   const update = useAppUpdate({ automaticUpdatesEnabled: appSettings?.automaticUpdatesEnabled });
-  const { alerts: inAppAlerts, dismiss: dismissAlert } = useUsageAlerts();
+  const inAppAlertsEnabled = !isAndroid() && !isIOS();
+  const {
+    alerts: inAppAlerts,
+    dismiss: dismissAlert,
+    dismissAll: dismissAllAlerts,
+    setPaused: setAlertsPaused,
+  } = useUsageAlerts(inAppAlertsEnabled);
+  const [highlightedAccount, setHighlightedAccount] = useState<{ accountId: string; seq: number } | null>(null);
+  useEffect(() => {
+    if (!highlightedAccount) return;
+    const timer = window.setTimeout(() => setHighlightedAccount(null), 1800);
+    return () => window.clearTimeout(timer);
+  }, [highlightedAccount]);
   const { pairingOpen, setPairingOpen, closePairing } = usePairingEvents();
   const swipeNavigationEnabled =
     (sidebarIsOverlay || isMobileDevice())
@@ -229,6 +242,17 @@ export default function App() {
     [selectedGroup, selectedPageOrder, allPageAccounts],
   );
   const activityAccounts = sidebarIsOverlay ? visibleAccounts : allPageAccounts;
+
+  const handleSelectAlert = useCallback((alert: UsageAlertToast) => {
+    nav.showAccounts();
+    if (
+      selectedGroup.id !== ALL_ACCOUNTS_GROUP_ID
+      && !visibleAccounts.some((account) => account.id === alert.accountId)
+    ) {
+      nav.resetGroup();
+    }
+    setHighlightedAccount((prev) => ({ accountId: alert.accountId, seq: (prev?.seq ?? 0) + 1 }));
+  }, [nav, selectedGroup.id, visibleAccounts]);
 
   const loadError = errors.find((entry) => entry.source === "load");
   const refreshMinutes = appSettings?.accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES;
@@ -374,6 +398,7 @@ export default function App() {
           onUseLimitReset={(account, grantId) => void redeemLimitReset(account.id, grantId)}
           busy={busy}
           unprotectedAccountIds={snapshot?.unprotectedAccountIds}
+          highlightedAccount={highlightedAccount}
         />
       </div>
       <div className="kept-page" data-page="settings" hidden={section !== "settings"} inert={section !== "settings"}>
@@ -495,7 +520,15 @@ export default function App() {
         errors={snapshot ? errors : errors.filter((entry) => entry.source !== "load")}
         onDismiss={clearError}
       />
-      <UsageAlertToasts alerts={inAppAlerts} onDismiss={dismissAlert} />
+      {inAppAlertsEnabled ? (
+        <UsageAlertToasts
+          alerts={inAppAlerts}
+          onDismiss={dismissAlert}
+          onDismissAll={dismissAllAlerts}
+          onSelectAlert={handleSelectAlert}
+          onPauseChange={setAlertsPaused}
+        />
+      ) : null}
       <p id={GROUP_REORDER_HINT_ID} className="sr-only">Press Alt with the up or down arrow key to move this group.</p>
       <div className="sr-only" role="status" aria-live="polite">{groupAnnouncement}</div>
     </div>

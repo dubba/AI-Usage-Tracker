@@ -3,7 +3,7 @@
  *
  * `--bottom-nav-height` is set on the shell only while the bar is showing: the room the bar takes
  * up from the bottom edge of the screen. The page runs under the bar; ui-refinements.css pads the
- * page scroll by this much so the last row can be scrolled clear, and the toasts sit above it. */
+ * page scroll by this much so the last row can be scrolled clear. */
 /* Layered rules lose to unlayered ones. The element defaults these rules override (`button`, `svg`,
  * `:focus-visible { outline-offset }`) are in `@layer base`, so nothing here needs `!important`;
  * see docs/CSS_ARCHITECTURE.md. */

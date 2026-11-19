@@ -210,6 +210,45 @@ export function usageTone(remaining: number | null): string {
   if (remaining <= 30) return "warning";
   return "healthy";
 }
+
+export type LowLimitLevel = "warning" | "critical";
+
+export type LowLimitSummary = {
+  count: number;
+  level: LowLimitLevel | null;
+};
+
+/**
+ * Counts accounts with at least one active (unexpired) window at or below the
+ * warning (30%) or critical (15%) thresholds. Critical outranks warning.
+ */
+export function lowLimitSummary(accounts: Account[], now: number = Date.now()): LowLimitSummary {
+  let count = 0;
+  let hasCritical = false;
+  for (const account of accounts) {
+    let accountLevel: LowLimitLevel | null = null;
+    for (const window of account.lastUsage?.windows ?? []) {
+      if (isWindowExpired(window.resetsAt, now)) continue;
+      if (window.remainingPercent == null || !Number.isFinite(window.remainingPercent)) continue;
+      const tone = usageTone(window.remainingPercent);
+      if (tone === "critical") {
+        accountLevel = "critical";
+        break;
+      }
+      if (tone === "warning") {
+        accountLevel = "warning";
+      }
+    }
+    if (accountLevel) {
+      count += 1;
+      if (accountLevel === "critical") hasCritical = true;
+    }
+  }
+  return {
+    count,
+    level: count === 0 ? null : hasCritical ? "critical" : "warning",
+  };
+}
 export function orderedWindows(windows: UsageWindow[]): UsageWindow[] {
   const groupOrder: string[] = [];
   for (const w of windows) {
