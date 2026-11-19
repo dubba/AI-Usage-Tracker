@@ -1,12 +1,22 @@
 #!/usr/bin/env bash
 # Uninstalls AI Usage Tracker on macOS, purging application data, preferences,
-# temporary login profiles, and saved generic credentials from the Apple Keychain.
+# temporary login profiles, the launch-at-startup LaunchAgent, and saved generic
+# credentials from the Apple Keychain. Exits 1 and lists what is left if any step fails.
 set -euo pipefail
 
 BUNDLE_ID="com.dubba.ai.usage.tracker"
 APP_NAME="AI Usage Tracker"
 SERVICES=("ai-usage-tracker" "paseo-usage-bridge")
 TEMP_PREFIXES=("ai-usage-grok-" "ai-usage-oauth-" "ai-usage-opencode-")
+# Launch at startup: tauri-plugin-autostart (LaunchAgent mode) writes
+# ~/Library/LaunchAgents/<productName>.plist with the product name as its label.
+LAUNCH_AGENT_LABEL="${APP_NAME}"
+LAUNCH_AGENT_PLIST="$HOME/Library/LaunchAgents/${LAUNCH_AGENT_LABEL}.plist"
+# security(1) exits with errSecItemNotFound when nothing is left to delete.
+KEYCHAIN_NOT_FOUND=44
+
+# Steps that could not finish; reported at the end instead of claiming success.
+FAILURES=()
 
 DRY_RUN=0
 CONFIRM=1
@@ -52,7 +62,7 @@ done
 
 if [[ "$CONFIRM" -eq 1 ]]; then
   echo "This will permanently delete all local accounts, settings, temporary profiles,"
-  echo "and Apple Keychain credentials for ${APP_NAME} (${BUNDLE_ID})."
+  echo "the launch-at-startup entry, and Apple Keychain credentials for ${APP_NAME} (${BUNDLE_ID})."
   if [[ "$REMOVE_APP" -eq 1 ]]; then
     echo "It will also delete the application bundle at: ${APP_PATH}"
   fi
@@ -87,11 +97,19 @@ for service in "${SERVICES[@]}"; do
   else
     echo "--> Removing Keychain credentials for service '${service}'..."
     count=0
-    while security delete-generic-password -s "${service}" >/dev/null 2>&1; do
+    status=0
+    while true; do
+      status=0
+      security delete-generic-password -s "${service}" >/dev/null 2>&1 || status=$?
+      [[ "$status" -eq 0 ]] || break
       count=$((count + 1))
     done
     if [[ "$count" -gt 0 ]]; then
       echo "    Removed ${count} Keychain entry(ies) for '${service}'."
+    fi
+    if [[ "$status" -ne "$KEYCHAIN_NOT_FOUND" ]]; then
+      echo "    Could not delete Keychain credentials for '${service}' (security exit ${status})." >&2
+      FAILURES+=("Keychain credentials for service '${service}' (security exit ${status})")
     fi
   fi
 done
@@ -112,10 +130,22 @@ for target in "${DATA_DIRS[@]}"; do
       echo "[dry-run] Would remove: ${target}"
     else
       echo "--> Removing ${target}..."
-      rm -rf "$target"
+      rm -rf "$target" || FAILURES+=("${target}")
     fi
   fi
 done
+
+# 3b. Remove the launch-at-startup entry (only this app's exact plist)
+if [[ -e "$LAUNCH_AGENT_PLIST" || -L "$LAUNCH_AGENT_PLIST" ]]; then
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    echo "[dry-run] Would remove launch-at-startup entry: ${LAUNCH_AGENT_PLIST}"
+  else
+    echo "--> Removing launch-at-startup entry ${LAUNCH_AGENT_PLIST}..."
+    # Unload it from this login session too; not loaded is fine.
+    launchctl bootout "gui/$(id -u)/${LAUNCH_AGENT_LABEL}" >/dev/null 2>&1 || true
+    rm -f "$LAUNCH_AGENT_PLIST" || FAILURES+=("${LAUNCH_AGENT_PLIST}")
+  fi
+fi
 
 # 4. Clear UserDefaults preferences cache
 if [[ "$DRY_RUN" -eq 1 ]]; then
@@ -137,7 +167,7 @@ if [[ -d "$TEMP_DIR" ]]; then
             echo "[dry-run] Would remove temporary profile: ${dir}"
           else
             echo "--> Removing temporary login profile: ${dir}..."
-            rm -rf "$dir"
+            rm -rf "$dir" || FAILURES+=("${dir}")
           fi
         fi
       fi
@@ -152,13 +182,20 @@ if [[ "$REMOVE_APP" -eq 1 ]]; then
       echo "[dry-run] Would remove application bundle: ${APP_PATH}"
     else
       echo "--> Removing application bundle at ${APP_PATH}..."
-      rm -rf "$APP_PATH"
+      rm -rf "$APP_PATH" || FAILURES+=("${APP_PATH}")
     fi
   fi
 fi
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
   echo "==> Dry run complete. No files were modified."
+elif [[ "${#FAILURES[@]}" -gt 0 ]]; then
+  echo "==> ${APP_NAME} was only partly uninstalled. These could not be removed:" >&2
+  for failure in "${FAILURES[@]}"; do
+    echo "    - ${failure}" >&2
+  done
+  echo "    Remove them by hand (Keychain Access for credentials), then run this again." >&2
+  exit 1
 else
   echo "==> ${APP_NAME} uninstalled successfully. All data and credentials cleared."
 fi

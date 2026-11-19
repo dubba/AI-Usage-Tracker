@@ -1,6 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, existsSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -116,4 +126,67 @@ test("isTempProfileName matches profile directories and rejects traversal", () =
 
   // Length limits
   assert.equal(isTempProfileName(`ai-usage-grok-${"a".repeat(200)}`, rules), false);
+});
+
+// Runs the real script against a throwaway HOME, with stand-ins for the macOS
+// commands it calls. `security` deletes `deletions` entries, then exits with
+// `finalStatus` (44 is errSecItemNotFound: nothing left).
+function runUninstaller({ finalStatus = 44, deletions = 0 } = {}) {
+  const sandbox = mkdtempSync(join(tmpdir(), "uninstall-macos-test-"));
+  const home = join(sandbox, "home");
+  const bin = join(sandbox, "bin");
+  const agents = join(home, "Library", "LaunchAgents");
+  mkdirSync(agents, { recursive: true });
+  mkdirSync(bin);
+  const log = join(sandbox, "calls.log");
+  const stub = (name, body) => {
+    writeFileSync(join(bin, name), `#!/bin/bash\necho "${name} $*" >> "${log}"\n${body}\n`);
+    chmodSync(join(bin, name), 0o755);
+  };
+  stub(
+    "security",
+    `n=$(cat "${sandbox}/deleted" 2>/dev/null || echo 0)
+if [ "$n" -lt ${deletions} ]; then echo $((n + 1)) > "${sandbox}/deleted"; exit 0; fi
+exit ${finalStatus}`
+  );
+  stub("launchctl", "exit 0");
+  stub("pgrep", "exit 1");
+  stub("defaults", "exit 0");
+  const ours = join(agents, "AI Usage Tracker.plist");
+  const other = join(agents, "com.example.other.plist");
+  writeFileSync(ours, "<plist/>");
+  writeFileSync(other, "<plist/>");
+  const result = spawnSync("bash", [scriptPath, "--yes"], {
+    encoding: "utf8",
+    env: { PATH: `${bin}:/usr/bin:/bin`, HOME: home, TMPDIR: join(sandbox, "tmp") },
+  });
+  const calls = existsSync(log) ? readFileSync(log, "utf8") : "";
+  const state = { result, calls, ourPlistLeft: existsSync(ours), otherPlistLeft: existsSync(other) };
+  rmSync(sandbox, { recursive: true, force: true });
+  return state;
+}
+
+test("the uninstaller removes this app's launch-at-startup entry and nothing else", () => {
+  const { result, calls, ourPlistLeft, otherPlistLeft } = runUninstaller();
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(ourPlistLeft, false);
+  assert.equal(otherPlistLeft, true);
+  assert.match(calls, /^launchctl bootout gui\/\d+\/AI Usage Tracker$/m);
+  assert.match(result.stdout, /All data and credentials cleared/);
+});
+
+test("the uninstaller reports success when the Keychain has nothing left to delete", () => {
+  const { result } = runUninstaller({ deletions: 3 });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /Removed 3 Keychain entry\(ies\) for 'ai-usage-tracker'/);
+  assert.match(result.stdout, /All data and credentials cleared/);
+});
+
+test("the uninstaller does not claim success when a Keychain delete fails", () => {
+  // 51 is errSecAuthFailed, e.g. the user denied access.
+  const { result } = runUninstaller({ deletions: 1, finalStatus: 51 });
+  assert.equal(result.status, 1);
+  assert.doesNotMatch(result.stdout, /All data and credentials cleared/);
+  assert.match(result.stderr, /only partly uninstalled/);
+  assert.match(result.stderr, /Keychain credentials for service 'ai-usage-tracker' \(security exit 51\)/);
 });
