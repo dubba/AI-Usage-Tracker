@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (2 changes)
+
+### Improved (2)
+
+- On desktop, in-app usage alert notifications now appear at the top right and stack into a single card when multiple arrive, with an expandable list to inspect or dismiss individual alerts and a "Dismiss all" button. Single alerts pause their auto-dismiss timer while hovered or focused, stacked alerts stay open until dismissed, and clicking an alert jumps to and highlights that account's card on the Dashboard (in-app alert toasts are no longer shown on Android and iOS).
+- When all accounts are connected but one or more active limits are at or below the warning (30%) or critical (15%) thresholds, the Dashboard summary strip now shows the number of affected accounts (such as "1 low limit" or "2 low limits") in amber or red instead of "All accounts good".
 
 ## v0.6.5 - 2026-11-19 (12 changes)
 
