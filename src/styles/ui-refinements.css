@@ -1785,26 +1785,25 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
   color: var(--obsidian-purple) !important;
 }
 
-/* Phone drawer close button: sits where the filter button was and takes the same 40px of
-   room (36px square plus a 2px margin), with the same 6px corners. On touch devices it is solid
-   red at rest, and a solid 40px square looked larger than the outlined filter button, so the
-   square is 36px and the X 18px. */
+/* Phone drawer close button: the same size as the dialogs' × (.ui-modal-close): a 32px square with
+   8px corners and a 20px X. It sits where the filter button was and keeps its 40px of room (a 4px
+   margin all round), and a 44px invisible tap area around it. */
 .sidebar-mobile-header .mobile-sidebar-close-btn,
 .mobile-sidebar-close-btn {
   background: var(--obsidian-surface-low, var(--c-1c1b1b)) !important;
   border: 1px solid var(--obsidian-border-strong) !important;
-  border-radius: 6px !important;
+  border-radius: 8px !important;
   color: var(--c-ffffff) !important;
   box-sizing: border-box;
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
-  min-height: 36px;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin: 2px;
+  margin: 4px;
   padding: 0;
   line-height: 0;
   cursor: pointer;
@@ -1815,11 +1814,21 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .mobile-sidebar-close-btn svg {
   display: block;
   flex-shrink: 0;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   color: inherit !important;
   stroke: currentColor !important;
-  stroke-width: 2;
+  stroke-width: 2.2;
+}
+
+.mobile-sidebar-close-btn::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn) {

@@ -3224,8 +3224,10 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
     box-shadow: none;
   }
 
+  /* Open, it has no transform at all (the slide still animates to it): a transformed layer is
+     drawn as one picture and can land between pixels, which blurred the close button's X. */
   .obsidian-shell .sidebar.mobile-open {
-    transform: translateX(0);
+    transform: none;
     box-shadow: 8px 0 36px rgba(0, 0, 0, 0.85);
   }
 
@@ -3244,9 +3246,9 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
-    margin: 2px;
+    width: 32px;
+    height: 32px;
+    margin: 4px;
     padding: 0;
     flex-shrink: 0;
     cursor: pointer;
