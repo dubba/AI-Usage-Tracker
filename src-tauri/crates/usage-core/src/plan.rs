@@ -9,7 +9,33 @@
 //! - Google: Free | Plus $5 (4.99 rounded) | Pro $20 (19.99 rounded) | Ultra $100 | Ultra $200
 //! - xAI: Free | SuperGrok $30 | SuperGrok $100 | Heavy $300
 
-use crate::model::Provider;
+use crate::model::{Account, Provider};
+
+/// What a ChatGPT account's stored plan says about its limits. A free plan has one 30-day limit;
+/// a paid one has 5-hour and weekly limits.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ChatgptPlan {
+    /// The plan names a free tier ("free", "Free", "free_workspace").
+    Free,
+    /// Any other plan.
+    Paid,
+    /// No plan stored yet (a new account, or one saved before plans were read). Rules decide for
+    /// themselves what to assume.
+    Unknown,
+}
+
+/// The one rule for whether a ChatGPT account is on a free plan, used by the sidebar's long-meter
+/// label (`headline.rs`) and the 30-day alerts (`alerts.rs`). `None` for another provider.
+pub fn chatgpt_plan(account: &Account) -> Option<ChatgptPlan> {
+    if account.provider != Provider::Openai {
+        return None;
+    }
+    Some(match account.plan.as_deref().map(str::trim) {
+        None | Some("") => ChatgptPlan::Unknown,
+        Some(plan) if plan.to_lowercase().contains("free") => ChatgptPlan::Free,
+        Some(_) => ChatgptPlan::Paid,
+    })
+}
 
 /// A raw plan in the forms the rules read.
 struct PlanText<'a> {

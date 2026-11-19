@@ -3,7 +3,10 @@
 //! (`Account`'s `Serialize` in `model.rs`). The frontend still skips a window whose reset time
 //! has passed, because that depends on the clock when it draws, not when the account was sent.
 
-use crate::model::{Account, Provider, UsageWindow, WindowKind};
+use crate::{
+    model::{Account, UsageWindow, WindowKind},
+    plan::{chatgpt_plan, ChatgptPlan},
+};
 use serde::Serialize;
 
 /// Indexes into the account's `lastUsage.windows`, best first.
@@ -68,13 +71,9 @@ impl Headline {
     }
 }
 
-/// A ChatGPT account on a free plan ("free", "Free", "free_workspace").
+/// A ChatGPT account whose stored plan is a free one. Without a plan, the label waits for usage.
 fn is_free_chatgpt(account: &Account) -> bool {
-    account.provider == Provider::Openai
-        && account
-            .plan
-            .as_deref()
-            .is_some_and(|plan| plan.to_lowercase().contains("free"))
+    chatgpt_plan(account) == Some(ChatgptPlan::Free)
 }
 
 #[cfg(test)]

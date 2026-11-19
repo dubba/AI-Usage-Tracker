@@ -1,16 +1,16 @@
-use crate::{
-    model::{Account, UsageWindow, WindowKind},
-    store::json_file::JsonFileStore,
-};
+use crate::{model::Account, store::json_file::JsonFileStore};
+// The rules (which windows an alert watches, when it fires) live in `usage_core::alerts`; this
+// store keeps the settings and what each one already notified about.
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     path::Path,
 };
+pub use usage_core::alerts::AlertNotification;
+use usage_core::alerts::{self, ALERT_WINDOW_IDS};
 
 const ALERTS_FILE_NAME: &str = "usage-alerts.json";
-const ALERT_WINDOW_IDS: [&str; 3] = ["five_hour", "weekly", "monthly"];
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -19,13 +19,6 @@ pub struct UsageAlertSetting {
     #[cfg_attr(test, ts(type = r#""five_hour" | "weekly" | "monthly""#))]
     pub window_id: String,
     pub enabled: bool,
-    pub threshold_percent: u8,
-}
-
-#[derive(Clone, Debug)]
-pub struct AlertNotification {
-    pub window_label: String,
-    pub remaining_percent: u8,
     pub threshold_percent: u8,
 }
 
@@ -166,9 +159,9 @@ impl AlertStore {
     }
 
     pub fn evaluate(&self, account: &Account) -> Result<Vec<AlertNotification>, String> {
-        let Some(usage) = account.last_usage.as_ref() else {
+        if account.last_usage.is_none() {
             return Ok(Vec::new());
-        };
+        }
         let mut accounts = self.accounts.write();
         let Some(settings) = accounts.get_mut(&account.id) else {
             return Ok(Vec::new());
@@ -177,100 +170,30 @@ impl AlertStore {
         let mut notifications = Vec::new();
         let mut changed = false;
         for setting in settings.iter_mut().filter(|setting| setting.enabled) {
-            let matching_windows: Vec<&UsageWindow> = usage
-                .windows
-                .iter()
-                .filter(|window| {
-                    if canonical_window_id(window) == Some(setting.window_id.as_str()) {
-                        return true;
-                    }
-                    if account.provider == crate::model::Provider::Openai
-                        && setting.window_id == "monthly"
-                        && account
-                            .plan
-                            .as_deref()
-                            .is_none_or(|p| p.eq_ignore_ascii_case("free"))
-                        && (window.id == "session" || window.id == "monthly")
-                    {
-                        return true;
-                    }
-                    false
-                })
-                .collect();
-
-            if matching_windows.is_empty() {
-                continue;
-            }
-
-            let mut notified_keys: HashSet<String> = setting
+            let mut notified: HashSet<String> = setting
                 .last_notified_key
                 .as_deref()
                 .unwrap_or("")
                 .split('|')
-                .filter(|k| !k.is_empty())
+                .filter(|key| !key.is_empty())
                 .map(str::to_string)
                 .collect();
+            let (sent, keys_changed) = alerts::check(
+                account,
+                &setting.window_id,
+                setting.threshold_percent,
+                &mut notified,
+            );
+            notifications.extend(sent);
+            changed |= keys_changed;
 
-            for window in matching_windows {
-                let Some(remaining) = window.remaining_percent.filter(|value| value.is_finite())
-                else {
-                    continue;
-                };
-                let remaining = remaining.clamp(0.0, 100.0).round() as u8;
-                let (notification_key, legacy_key) = match window.resets_at.as_deref() {
-                    Some(period) => (
-                        format!("{}:{}:{}", window.id, period, setting.threshold_percent),
-                        Some(format!("{period}:{}", setting.threshold_percent)),
-                    ),
-                    None => (format!("{}:{}", window.id, setting.threshold_percent), None),
-                };
-
-                let already_notified = notified_keys.contains(&notification_key)
-                    || legacy_key
-                        .as_deref()
-                        .is_some_and(|k| notified_keys.contains(k));
-
-                if remaining <= setting.threshold_percent {
-                    if !already_notified {
-                        notified_keys.insert(notification_key);
-                        changed = true;
-
-                        let base_label = display_window_label(&setting.window_id);
-                        let window_label = if let Some((group, _)) = window.label.split_once(" · ")
-                        {
-                            let clean_group = group.trim();
-                            if !clean_group.is_empty() {
-                                format!("{base_label} ({clean_group})")
-                            } else {
-                                base_label.into()
-                            }
-                        } else {
-                            base_label.into()
-                        };
-
-                        notifications.push(AlertNotification {
-                            window_label,
-                            remaining_percent: remaining,
-                            threshold_percent: setting.threshold_percent,
-                        });
-                    }
-                } else if notified_keys.remove(&notification_key)
-                    || legacy_key
-                        .as_deref()
-                        .is_some_and(|k| notified_keys.remove(k))
-                {
-                    changed = true;
-                }
-            }
-
-            let updated_key = if notified_keys.is_empty() {
+            let updated_key = if notified.is_empty() {
                 None
             } else {
-                let mut keys: Vec<String> = notified_keys.into_iter().collect();
+                let mut keys: Vec<String> = notified.into_iter().collect();
                 keys.sort();
                 Some(keys.join("|"))
             };
-
             if setting.last_notified_key != updated_key {
                 setting.last_notified_key = updated_key;
                 changed = true;
@@ -309,20 +232,6 @@ impl AlertStore {
             version: 1,
             accounts: accounts.clone(),
         })
-    }
-}
-
-/// The id the alert settings use for a window: its kind, if it has one.
-pub fn canonical_window_id(window: &UsageWindow) -> Option<&'static str> {
-    window.kind.map(WindowKind::as_str)
-}
-
-fn display_window_label(window_id: &str) -> &'static str {
-    match window_id {
-        "five_hour" => "5 hour",
-        "weekly" => "Weekly",
-        "monthly" => "30-day",
-        _ => "Usage",
     }
 }
 

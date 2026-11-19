@@ -125,7 +125,7 @@ guard.
 | A rate-limited Antigravity quota summary ends the refresh with its Retry-After instead of falling through to the models endpoint | `providers/antigravity.rs` (`summary_windows`) | `a_rate_limited_quota_summary_stops_the_refresh` (providers/antigravity.rs) | guards |
 | A Claude reply with no percentage in any window is a transient failure, so the last good usage stays (stale) | `providers/anthropic.rs` (`has_a_reading`, `push_window`) | `a_reply_without_any_percentage_is_not_a_reading` (providers/anthropic.rs) | guards |
 | Google AI Studio listings stop at 20 pages, 5,000 items, a repeated page token, or 60 s; at most 100 quota metric types per refresh | `providers/google_ai_studio/paging.rs` (`Pager`), `providers/google_ai_studio/mod.rs` | 5 tests in providers/google_ai_studio/paging.rs | guards |
-| Usage alerts dedup once per period | `store/alerts.rs:148-279` | `notifies_once_per_period_below_threshold` (store/alerts/tests.rs:41) | guards |
+| Usage alerts dedup once per period | `usage-core/src/alerts.rs` (`check`), `store/alerts.rs` (`evaluate`) | `notifies_once_per_period_and_again_after_recovering` (usage-core/src/alerts/tests.rs); `notifies_once_per_period_below_threshold` (store/alerts/tests.rs:42) | guards |
 | Imported accounts/limits clamped (NaN, ∞, oversized) | `usage-core/src/limits.rs:103-121` | `imported_accounts_are_brought_within_bounds` (usage-core/src/limits.rs:181); `ui_state_size_is_capped` (usage-core/src/limits.rs:219) | guards |
 | Frontend QR decode sandboxed (size/scheme/payload caps) | `src/features/pairing/lib/qr-decoder.ts` | `qr-decoder.test.ts` | guards |
 | Frontend QR SVGs sanitized | `src/features/pairing/lib/sanitizeSvg.ts` | `sanitizeSvg.test.ts` | guards |
@@ -154,7 +154,7 @@ rediscover it.
    - Updater fail-closed on missing `.apk.sha256` (updater/mod.rs:180-186) — no test.
    - Android APK max-size and magic-byte download rules (updater/) — no test. (The host and redirect rules are covered; see the map above.)
    - Airgap decompression limit — the library's `decompress_to_vec_with_limit` is tested directly, but the production wiring (pairing/airgap.rs:313-316) is not.
-2. **`commands/` has exactly one test** (commands/alerts.rs:117) across 57 command functions (the Usage page's commands are thin: their checks are tested in `history/report/tests.rs`).
+2. **`commands/` has few tests** (`auth.rs`, `bridge.rs`, `error.rs`) across 58 command functions. Most commands are thin: their checks are tested where the work happens (`history/report/tests.rs`, `usage-core/src/alerts/tests.rs` for which alerts can be turned on).
 3. **Frontend screens with no dedicated tests**: `SettingsView`,
    `ApiIntegrationWindow`, `GoogleAiStudioUsageModal`, `BucketModal`, `AccountAlertModal`,
    plus the `useAppSettings` hook (only indirectly exercised; `useDashboardData`, `useAppUpdate` and `useAccountActions` now have direct tests).

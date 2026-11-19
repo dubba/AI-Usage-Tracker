@@ -1,5 +1,5 @@
 use super::*;
-use crate::model::{now_rfc3339, Provider, UsageFreshness, UsageSnapshot};
+use crate::model::{now_rfc3339, Provider, UsageFreshness, UsageSnapshot, UsageWindow};
 
 fn account_with_weekly(remaining: f64) -> Account {
     let now = now_rfc3339();
@@ -259,8 +259,15 @@ fn a_window_is_alerted_under_its_kind() {
         window_seconds: None,
         kind: None,
     };
-    assert_eq!(canonical_window_id(&weekly), None, "not classified yet");
-    assert_eq!(canonical_window_id(&weekly.classified()), Some("weekly"));
+    assert_eq!(
+        usage_core::alerts::window_id(&weekly),
+        None,
+        "not classified yet"
+    );
+    assert_eq!(
+        usage_core::alerts::window_id(&weekly.classified()),
+        Some("weekly")
+    );
 }
 
 #[test]
