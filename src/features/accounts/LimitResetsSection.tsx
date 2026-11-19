@@ -32,7 +32,9 @@ function confirmBody(detail: string, accountLabel: string | undefined, usableCou
     <>
       {withoutPeriod(detail)}
       {accountLabel ? <> for <strong>{accountLabel}</strong></> : null}
-      {`. You have only ${usableCount} left.`}
+      {". You have "}
+      <strong>{`only ${usableCount}`}</strong>
+      {` ${usableCount === 1 ? "reset limit" : "reset limits"} left.`}
       {withAdvice ? null : ` ${CANNOT_UNDO}`}
     </>
   );

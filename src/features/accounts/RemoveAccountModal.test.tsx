@@ -26,8 +26,9 @@ describe("RemoveAccountModal (L-113)", () => {
     render();
     const dialog = document.querySelector('[role="alertdialog"]')!;
     expect(dialog.textContent).toContain("Remove Work?");
-    expect(dialog.textContent).toContain("from this device only");
-    expect(dialog.textContent).toContain("will not be canceled");
+    expect(dialog.textContent).toContain(
+      "Removes this account’s saved credentials from this device only. Your AI provider account won’t be deleted or canceled.",
+    );
     const note = dialog.querySelector(".confirm-dialog-note")!;
     expect(note.textContent).toBe("This only removes the account from this device. Other synced devices, if any, remain unchanged.");
     expect(note.classList.contains("is-caution")).toBe(true);

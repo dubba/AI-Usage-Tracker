@@ -19,8 +19,8 @@ export function RemoveAccountModal({
       title={account ? `Remove ${account.label}?` : "Remove account?"}
       body={
         <>
-          Deletes the stored credentials for this account from <strong>this device only</strong>.
-          The provider account itself will not be canceled.
+          Removes this account&rsquo;s saved credentials from <strong>this device only</strong>. Your AI provider
+          account won&rsquo;t be deleted or canceled.
         </>
       }
       note="This only removes the account from this device. Other synced devices, if any, remain unchanged."

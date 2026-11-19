@@ -136,22 +136,16 @@ export function DataSection({
         open={confirmingDelete}
         kicker="Delete local app data"
         className="delete-data-dialog"
-        title={
-          <span className="delete-data-title">
-            <TrashIcon className="delete-data-title-icon" aria-hidden="true" />
-            Remove All Device Data
-          </span>
-        }
+        title="Delete local app data?"
         richBody
         body={
           <>
             <p>
-              Removes all accounts, app data, and settings. AI provider accounts won&rsquo;t be deleted or canceled.
-              Other synced devices, if any, remain unchanged.
+              Removes all saved accounts, credentials, and settings from this device. AI provider accounts won&rsquo;t be deleted or canceled.
             </p>
             <div className="delete-data-warning">
               <AlertTriangleIcon className="delete-data-warning-icon" aria-hidden="true" />
-              <p>This action cannot be undone.</p>
+              <p>This action cannot be undone. Other synced devices, if any, remain unchanged.</p>
             </div>
           </>
         }

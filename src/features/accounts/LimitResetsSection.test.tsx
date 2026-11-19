@@ -83,7 +83,7 @@ describe("LimitResetsSection", () => {
     expect(dialog.querySelector(".modal-kicker")?.textContent).toBe("Full reset");
     expect(dialog.querySelector("h2")?.textContent).toBe("Use this limit reset?");
     expect(dialog.querySelector("p")?.textContent).toBe(
-      "Clears the 5-hour and 7-day limits for Claude2. You have only 2 left.",
+      "Clears the 5-hour and 7-day limits for Claude2. You have only 2 reset limits left.",
     );
     expect(dialog.querySelector("p strong")?.textContent).toBe("Claude2");
     const note = document.querySelector(".confirm-dialog-note");
@@ -127,7 +127,7 @@ describe("LimitResetsSection", () => {
     click(useButtons()[1]);
     expect(document.querySelector(".confirm-dialog-note")).toBeNull();
     expect(document.querySelector('[role="alertdialog"] p')?.textContent).toBe(
-      "Clears 7-day Fable usage and refills the 5-hour limit for Claude2. You have only 2 left. This can't be undone.",
+      "Clears 7-day Fable usage and refills the 5-hour limit for Claude2. You have only 2 reset limits left. This can't be undone.",
     );
     expect(document.body.textContent).not.toContain("limit..");
   });
@@ -136,7 +136,7 @@ describe("LimitResetsSection", () => {
     render(vi.fn(), false, [grants[1]]);
     click(useButtons()[0]);
     expect(document.querySelector('[role="alertdialog"] h2')?.textContent).toBe("Use your limit reset?");
-    expect(document.body.textContent).toContain("You have only 1 left.");
+    expect(document.body.textContent).toContain("You have only 1 reset limit left.");
   });
 
   it("lists a Grok reset without a Use button", () => {
