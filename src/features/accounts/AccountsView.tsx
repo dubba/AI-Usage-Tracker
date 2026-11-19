@@ -242,6 +242,35 @@ export function AccountsView(props: {
       </header>
 
       <div ref={scrollRef} className="dashboard-scroll">
+        {/* The hints come first, above the status strip, as on the Usage page. */}
+        {showReorderHint ? (
+          <div className="reorder-hint-banner" role="note">
+            <span>Press & drag a card below or in the sidebar to reorder</span>
+            <button
+              type="button"
+              className="reorder-hint-dismiss"
+              onClick={dismissReorderHint}
+              aria-label="Dismiss reorder hint"
+            >
+              <CloseIcon />
+            </button>
+          </div>
+        ) : null}
+
+        {showPullRefreshHint ? (
+          <div className="pull-refresh-hint-banner" role="note">
+            <span>Pull down on the screen to refresh data</span>
+            <button
+              type="button"
+              className="pull-refresh-hint-dismiss"
+              onClick={dismissPullRefreshHint}
+              aria-label="Dismiss pull-to-refresh hint"
+            >
+              <CloseIcon />
+            </button>
+          </div>
+        ) : null}
+
         <section className="summary-status-region" aria-label="Account status overview">
           {needsAttention > 0 ? (
             showAttentionOnly ? (
@@ -316,34 +345,6 @@ export function AccountsView(props: {
             </div>
           )}
         </section>
-
-        {showReorderHint ? (
-          <div className="reorder-hint-banner" role="note">
-            <span>Press & drag a card below or in the sidebar to reorder</span>
-            <button
-              type="button"
-              className="reorder-hint-dismiss"
-              onClick={dismissReorderHint}
-              aria-label="Dismiss reorder hint"
-            >
-              <CloseIcon />
-            </button>
-          </div>
-        ) : null}
-
-        {showPullRefreshHint ? (
-          <div className="pull-refresh-hint-banner" role="note">
-            <span>Pull down on the screen to refresh data</span>
-            <button
-              type="button"
-              className="pull-refresh-hint-dismiss"
-              onClick={dismissPullRefreshHint}
-              aria-label="Dismiss pull-to-refresh hint"
-            >
-              <CloseIcon />
-            </button>
-          </div>
-        ) : null}
 
         <section className={`provider-account-cards${compact ? " is-compact" : ""}`} data-group-id={props.selectedGroup?.id || undefined}>
         {displayedAccounts.length ? displayedAccounts.map((account, index) => (
