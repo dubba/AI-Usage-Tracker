@@ -45,6 +45,10 @@ use tokio::{net::TcpListener, sync::oneshot};
 use url::Url;
 use uuid::Uuid;
 
+/// Returned when the page asks about a sign-in while none is pending (the app restarted, or it
+/// already ended). The page stops watching on it (`ErrorCode::LoginAttemptGone`).
+pub(crate) const LOGIN_ATTEMPT_GONE: &str = "No login attempt is available.";
+
 const OPENAI_ISSUER: &str = "https://auth.openai.com";
 const OPENAI_ORIGINATOR: &str = "ai_usage_tracker";
 /// Codex CLI Hydra allow-list: 1455 preferred, 1457 fallback.
@@ -241,7 +245,7 @@ pub async fn login_status(app: &Arc<AppState>, attempt_id: &str) -> Result<Login
     let pending = app.pending_login.read();
     let status = pending
         .as_ref()
-        .ok_or_else(|| "No login attempt is available.".to_string())?;
+        .ok_or_else(|| LOGIN_ATTEMPT_GONE.to_string())?;
     if status.attempt_id != attempt_id {
         return Err("The login attempt is no longer active.".into());
     }

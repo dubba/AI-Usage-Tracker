@@ -2485,3 +2485,36 @@ fn an_unknown_enum_value_from_a_newer_peer_refuses_the_payload() {
         );
     }
 }
+
+/// The page shows a pairing failure's message as it is: the sentences the pairing code writes
+/// for people keep their text and get a code, and protocol detail never reaches the page.
+#[test]
+fn pairing_failures_are_sentences_with_codes() {
+    use super::transport::{
+        CANCELED_BY_USER, NO_DEVICE, OTHER_DEVICE_DECLINED, ROLES_DISAGREE, TOO_MANY_WRONG_CODES,
+        WRONG_CODE,
+    };
+    use crate::commands::error::ErrorCode;
+    let cases = [
+        (WRONG_CODE, ErrorCode::Invalid),
+        (TOO_MANY_WRONG_CODES, ErrorCode::Invalid),
+        (OTHER_DEVICE_DECLINED, ErrorCode::Cancelled),
+        (CANCELED_BY_USER, ErrorCode::Cancelled),
+        (NO_DEVICE, ErrorCode::NotFound),
+        (ROLES_DISAGREE, ErrorCode::Pairing),
+    ];
+    for (sentence, code) in cases {
+        let error = super::failure(sentence.to_string());
+        assert_eq!((error.code, error.message.as_str()), (code, sentence));
+    }
+    for detail in [
+        "Expected MSG_ACK",
+        "Invalid handshake length: 12",
+        "Socket accept error: Bearer abcdefghijklmnopqrstuvwxyz0123456789",
+        "Timed out waiting for host account count",
+    ] {
+        let error = super::failure(detail.to_string());
+        assert_eq!(error.code, ErrorCode::Pairing);
+        assert_eq!(error.message, super::LINK_BROKE);
+    }
+}

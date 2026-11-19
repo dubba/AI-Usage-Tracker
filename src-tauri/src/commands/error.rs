@@ -1,10 +1,10 @@
 //! The error every command returns: a code the frontend can branch on, and a sentence for the
 //! person. Tauri rejects the `invoke` promise with it serialized as `{ code, message }`.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(ts_rs::TS))]
 pub struct CommandError {
     pub code: ErrorCode,
@@ -15,13 +15,9 @@ pub struct CommandError {
 
 /// What kind of failure a command reports. The frontend picks its wording by this, and never
 /// adds codes of its own.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(test, derive(ts_rs::TS))]
-#[expect(
-    dead_code,
-    reason = "codes are given out module by module after the switch"
-)]
 pub enum ErrorCode {
     /// An argument failed validation (a label too long, a bad id); the message says what to fix.
     Invalid,

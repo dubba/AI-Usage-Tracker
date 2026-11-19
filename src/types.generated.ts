@@ -361,7 +361,10 @@ export type PairingStatus = {
 } | {
   "status": "failed",
   "data": {
-    error: string,
+    /**
+     * A sentence for the person: see [`failure`].
+     */
+    error: CommandError,
   }
 };
 

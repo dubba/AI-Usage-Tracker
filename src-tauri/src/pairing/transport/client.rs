@@ -3,7 +3,8 @@
 
 use super::{
     send_abort, transfer::run_authenticated_transfer, AuthenticatedPeer, ClientEvent,
-    SessionChannels, CONNECT_TIMEOUT_SECS, MAX_HOSTS_TRIED, SOCKET_TIMEOUT_SECS, WRONG_CODE,
+    SessionChannels, BAD_ADDRESS, CONNECTION_REJECTED, CONNECT_TIMEOUT_SECS, MAX_HOSTS_TRIED,
+    NO_DEVICE, ROLE_SELECTION_CANCELED, SOCKET_TIMEOUT_SECS, WRONG_CODE,
 };
 use crate::{
     pairing::{
@@ -62,11 +63,7 @@ async fn join_host(host: &DiscoveredHost, code: &str) -> Result<AuthenticatedPee
     .await
     {
         Ok(Ok((MSG_HANDSHAKE_RESP, payload))) if payload.len() == PAKE_MESSAGE_LEN => payload,
-        Ok(Ok(_)) => {
-            return Err(JoinError::Unreachable(
-                "The other device rejected the connection.".into(),
-            ))
-        }
+        Ok(Ok(_)) => return Err(JoinError::Unreachable(CONNECTION_REJECTED.into())),
         Ok(Err(e)) => return Err(JoinError::Unreachable(e)),
         Err(_) => {
             return Err(JoinError::Unreachable(
@@ -124,9 +121,7 @@ async fn join_host(host: &DiscoveredHost, code: &str) -> Result<AuthenticatedPee
         Ok(Ok((MSG_ABORT, payload))) if payload == AbortReason::WrongCode.payload() => {
             Err(JoinError::WrongCode)
         }
-        Ok(Ok(_)) => Err(JoinError::Unreachable(
-            "The other device rejected the connection.".into(),
-        )),
+        Ok(Ok(_)) => Err(JoinError::Unreachable(CONNECTION_REJECTED.into())),
         Ok(Err(e)) => Err(JoinError::Unreachable(e)),
         Err(_) => Err(JoinError::Unreachable(
             "Handshake timed out waiting for the other device".into(),
@@ -149,7 +144,7 @@ async fn join_any_host(hosts: &[DiscoveredHost], code: &str) -> Result<Authentic
     if wrong_code {
         return Err(WRONG_CODE.into());
     }
-    Err(last_error.unwrap_or_else(|| "No device to connect to.".into()))
+    Err(last_error.unwrap_or_else(|| NO_DEVICE.into()))
 }
 
 /// Runs the joining device: finds the host that shares the code, selects the
@@ -277,7 +272,7 @@ async fn connect_to_host(host: &DiscoveredHost) -> Result<TcpStream, String> {
     let ip = host
         .host
         .parse::<std::net::IpAddr>()
-        .map_err(|_| "The other device's address is not valid.".to_string())?;
+        .map_err(|_| BAD_ADDRESS.to_string())?;
     let connect_addr = std::net::SocketAddr::new(ip, host.port);
     match timeout(
         Duration::from_secs(CONNECT_TIMEOUT_SECS),
@@ -309,7 +304,7 @@ async fn await_role_choice(
                 Ok(r) => r,
                 Err(_) => {
                     send_abort(stream, AbortReason::RoleChoiceDropped).await;
-                    return Err(ClientEvent::Failed("Role selection canceled".into()));
+                    return Err(ClientEvent::Failed(ROLE_SELECTION_CANCELED.into()));
                 }
             }
         }

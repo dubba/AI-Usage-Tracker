@@ -452,7 +452,10 @@
     },
     {
       "data": {
-        "error": "Timed out"
+        "error": {
+          "code": "invalid",
+          "message": "That link code didn't match the other device. Check the code and try again."
+        }
       },
       "status": "failed"
     }

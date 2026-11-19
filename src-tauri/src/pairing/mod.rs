@@ -13,6 +13,7 @@ pub mod transport;
 pub mod tests;
 
 use crate::{
+    commands::error::{CommandError, ErrorCode},
     pairing::{
         payload::SyncSummary,
         transport::{
@@ -84,7 +85,8 @@ pub enum PairingStatus {
     },
     #[serde(rename_all = "camelCase")]
     Failed {
-        error: String,
+        /// A sentence for the person: see [`failure`].
+        error: CommandError,
     },
 }
 
@@ -100,6 +102,38 @@ pub struct PairingHostInit {
 /// What one pairing transfer carries beyond the accounts, chosen by the user for that transfer.
 /// Everything defaults to "nothing extra" and goes back to it between transfers (`reset`).
 /// Confirming the transfer freezes the choice, so a later write cannot change what it sends.
+/// What the page shows when the link to the other device broke for a reason that is not one of
+/// the sentences below.
+pub(crate) const LINK_BROKE: &str =
+    "The link to the other device broke. Keep both devices on this \
+     screen and connected to the same Wi-Fi, then try again.";
+
+/// A pairing failure as the page shows it. The sentences the pairing code writes for people
+/// (`transport::WRONG_CODE` and the rest) are shown as written, with a code; anything else is
+/// protocol detail (a frame, a handshake, a socket error), which goes to the log for Copy
+/// Diagnostics while the page says the link broke.
+pub(crate) fn failure(detail: String) -> CommandError {
+    use transport::*;
+    let code = match detail.as_str() {
+        CANCELED_BY_USER
+        | ROLE_SELECTION_CANCELED
+        | DECLINED_HERE
+        | OTHER_DEVICE_CANCELED
+        | OTHER_DEVICE_DECLINED => ErrorCode::Cancelled,
+        WRONG_CODE | TOO_MANY_WRONG_CODES | BAD_ADDRESS => ErrorCode::Invalid,
+        NO_DEVICE => ErrorCode::NotFound,
+        CONNECTION_REJECTED | ROLES_DISAGREE | SESSION_TIMED_OUT => ErrorCode::Pairing,
+        _ => {
+            crate::diagnostics::warn(&format!(
+                "Pairing failed: {}",
+                crate::diagnostics::redact(&detail)
+            ));
+            return CommandError::new(ErrorCode::Pairing, LINK_BROKE);
+        }
+    };
+    CommandError::new(code, detail)
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct PairingTransferOptions {
     /// Also send the app settings, account order and alerts.
@@ -448,9 +482,11 @@ impl PairingSessionManager {
                     HostEvent::Completed(summary) => PairingStatus::Completed { summary },
                     HostEvent::Cancelled => PairingStatus::Idle,
                     HostEvent::Expired => PairingStatus::Failed {
-                        error: "Pairing session timed out".into(),
+                        error: failure(transport::SESSION_TIMED_OUT.into()),
                     },
-                    HostEvent::Failed(err) => PairingStatus::Failed { error: err },
+                    HostEvent::Failed(err) => PairingStatus::Failed {
+                        error: failure(err),
+                    },
                 };
 
                 *status_lock.write().await = current_status.clone();
@@ -591,7 +627,9 @@ impl PairingSessionManager {
                     },
                     ClientEvent::Completed(summary) => PairingStatus::Completed { summary },
                     ClientEvent::Cancelled => PairingStatus::Idle,
-                    ClientEvent::Failed(err) => PairingStatus::Failed { error: err },
+                    ClientEvent::Failed(err) => PairingStatus::Failed {
+                        error: failure(err),
+                    },
                 };
 
                 *status_lock.write().await = current_status.clone();

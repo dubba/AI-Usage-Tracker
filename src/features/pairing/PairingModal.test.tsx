@@ -664,7 +664,7 @@ describe("finishing", () => {
     render();
     await press("Send Accounts from This Device");
     await press("Scan QR Code");
-    await emit({ status: "failed", data: { error: "peer vanished" } });
+    await emit({ status: "failed", data: { error: { code: "pairing" as const, message: "peer vanished" } } });
     expect(text()).toContain("Pairing Failed");
     expect(text()).toContain("peer vanished");
     expect(document.querySelector(".pairing-step-dots")).toBeNull();
@@ -679,7 +679,7 @@ describe("finishing", () => {
       render();
       await press("Send Accounts from This Device");
       await press("Scan QR Code");
-      const failed = { status: "failed" as const, data: { error: "peer vanished" } };
+      const failed = { status: "failed" as const, data: { error: { code: "pairing" as const, message: "peer vanished" } } };
       api.status.mockResolvedValue(failed);
       await emit(failed);
       expect(document.querySelector(".modal-error")?.textContent).toContain("peer vanished");
@@ -706,7 +706,7 @@ describe("finishing", () => {
     render();
     await press("Send Accounts from This Device");
     await press("Show Link Code");
-    await emit({ status: "failed", data: { error: "timed out" } });
+    await emit({ status: "failed", data: { error: { code: "pairing" as const, message: "timed out" } } });
     await press("Try Again");
     expect(api.startHost).toHaveBeenCalledTimes(2);
   });
@@ -714,7 +714,7 @@ describe("finishing", () => {
   it("closes with Close after a failure", async () => {
     render();
     await settle();
-    await emit({ status: "failed", data: { error: "x" } });
+    await emit({ status: "failed", data: { error: { code: "pairing" as const, message: "x" } } });
     await press("Close");
     expect(onClose).toHaveBeenCalled();
   });
@@ -949,7 +949,7 @@ describe("scanning", () => {
   it("marks failures as alerts and moves focus to Try Again", async () => {
     render();
     await settle();
-    await emit({ status: "failed", data: { error: "The other device left." } });
+    await emit({ status: "failed", data: { error: { code: "pairing" as const, message: "The other device left." } } });
     expect(document.querySelector(".pairing-error-card")?.getAttribute("role")).toBe("alert");
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 80));

@@ -9,7 +9,6 @@ import { useVirtualKeyboard } from "../../shared/hooks/useVirtualKeyboard";
 import { logIgnored } from "../../shared/lib/log";
 import { isMobileDevice } from "../../shared/lib/platform";
 import { flowReducer, INITIAL_FLOW } from "./lib/flow-state";
-import { pairingFailedMessage } from "./lib/pairing-errors";
 import {
   hasOwnActionButtons as viewHasOwnActionButtons,
   isWaitingStatus,
@@ -25,10 +24,7 @@ import { useWifiGate } from "./hooks/useWifiGate";
 import { useAutoDismissedError } from "../../shared/hooks/useAutoDismissedError";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { useModalClosePolicy } from "../../shared/hooks/useModalClosePolicy";
-import {
-  describeError,
-  recordErrorDetail,
-} from "../../shared/lib/errors";
+import { describeError } from "../../shared/lib/errors";
 import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
 import { ModalDialog } from "../../shared/ui/ModalDialog";
 import { AirgapSenderView } from "./views/AirgapSenderView";
@@ -247,18 +243,15 @@ export function PairingModal({
     }
   }, [status.status, onCompleted, hasCompletedRef]);
 
-  // Backend-driven pairing failures arrive as raw protocol errors; keep the raw
-  // detail for Copy Diagnostics while the box below the footer shows the translation.
-  const backendFailedError = status.status === "failed" ? status.data.error : null;
-  useEffect(() => {
-    if (backendFailedError) recordErrorDetail("pairing", "Pairing failed", backendFailedError);
-  }, [backendFailedError]);
+  // The backend sends a sentence for every pairing failure (`pairing::failure`); protocol detail
+  // goes to its log, which Copy Diagnostics includes.
+  const backendFailedError = status.status === "failed" ? status.data.error.message : null;
 
   // The failed status is polled every 800ms; copy it into the banner once so the
   // timer is not restarted, and so Back to another step can hide it.
   useEffect(() => {
     if (backendFailedError == null) return;
-    setErrorMessage(pairingFailedMessage(backendFailedError));
+    setErrorMessage(backendFailedError);
   }, [backendFailedError, setErrorMessage]);
 
   // Apply the role chosen in step 1 as soon as the devices have connected.

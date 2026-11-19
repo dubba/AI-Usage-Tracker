@@ -1,9 +1,10 @@
-use super::error::CommandResult;
+use super::error::{CommandError, CommandResult, ErrorCode};
 use super::validate_label;
 use crate::{
     auth::google_ai_studio_oauth,
     auth::grok_login,
     auth::oauth,
+    auth::oauth_common,
     auth::opencode_login,
     limits,
     model::{Account, LoginStart, LoginState, LoginStatus, Provider},
@@ -23,6 +24,20 @@ const LOGIN_WINDOW_LABELS: [&str; 3] = [
     grok_login::LOGIN_WINDOW_LABEL,
     oauth::PROVIDER_LOGIN_WINDOW,
 ];
+
+/// A sign-in failure, with a code for the two states the page acts on: another sign-in still
+/// running (it offers to cancel that one) and an attempt this app no longer has (it stops
+/// watching). Every other sentence is passed on as it is.
+fn login_error(message: String) -> CommandError {
+    let code = if message == oauth_common::LOGIN_IN_PROGRESS_MESSAGE {
+        ErrorCode::LoginInProgress
+    } else if message == oauth::LOGIN_ATTEMPT_GONE {
+        ErrorCode::LoginAttemptGone
+    } else {
+        ErrorCode::Unclassified
+    };
+    CommandError::new(code, message)
+}
 
 #[tauri::command]
 pub async fn start_login(
@@ -53,11 +68,11 @@ pub async fn start_login(
             reconnect_account_id,
         )
         .await
-        .map_err(Into::into)
+        .map_err(login_error)
     } else if provider == Provider::Grok {
         grok_login::start_login(state.inner().clone(), label, reconnect_account_id)
             .await
-            .map_err(Into::into)
+            .map_err(login_error)
     } else {
         oauth::start_login(
             state.inner().clone(),
@@ -67,7 +82,7 @@ pub async fn start_login(
             reconnect_account_id,
         )
         .await
-        .map_err(Into::into)
+        .map_err(login_error)
     }
 }
 
@@ -116,7 +131,7 @@ pub async fn start_google_ai_studio_usage_login(
         enable_monitoring,
     )
     .await
-    .map_err(Into::into)
+    .map_err(login_error)
 }
 
 #[tauri::command]
@@ -175,7 +190,7 @@ pub async fn get_login_status(
 ) -> CommandResult<LoginStatus> {
     oauth::login_status(state.inner(), &attempt_id)
         .await
-        .map_err(Into::into)
+        .map_err(login_error)
 }
 
 #[tauri::command]
@@ -223,7 +238,20 @@ pub fn cancel_login(
 
 #[cfg(test)]
 mod tests {
-    use super::LOGIN_WINDOW_LABELS;
+    use super::{login_error, oauth, oauth_common, ErrorCode, LOGIN_WINDOW_LABELS};
+
+    #[test]
+    fn the_two_sign_in_states_the_page_acts_on_have_codes() {
+        let busy = login_error(oauth_common::LOGIN_IN_PROGRESS_MESSAGE.into());
+        assert_eq!(busy.code, ErrorCode::LoginInProgress);
+        assert_eq!(busy.message, oauth_common::LOGIN_IN_PROGRESS_MESSAGE);
+        assert_eq!(
+            login_error(oauth::LOGIN_ATTEMPT_GONE.into()).code,
+            ErrorCode::LoginAttemptGone
+        );
+        let other = login_error("The login attempt is no longer active.".into());
+        assert_eq!(other.code, ErrorCode::Unclassified);
+    }
     use std::{collections::BTreeSet, fs, path::Path};
 
     fn rust_sources(dir: &Path, out: &mut Vec<std::path::PathBuf>) {

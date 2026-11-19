@@ -149,7 +149,7 @@ fn pairing_statuses() -> Vec<PairingStatus> {
             },
         },
         PairingStatus::Failed {
-            error: "Timed out".into(),
+            error: crate::pairing::failure(crate::pairing::transport::WRONG_CODE.into()),
         },
     ]
 }

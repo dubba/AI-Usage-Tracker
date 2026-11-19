@@ -1,5 +1,5 @@
 import { bridgeApi, clearLoginAttempt, readLoginAttempt, rememberLoginAttempt } from "./api";
-import { errorMessage } from "./errors";
+import { commandError } from "./errors";
 import { UI_EVENTS } from "./events";
 import { logIgnored } from "./log";
 import type { LoginStatus } from "../../types";
@@ -63,7 +63,8 @@ async function tick(): Promise<void> {
     }
   } catch (cause) {
     if (activeAttemptId !== attemptId) return;
-    if (errorMessage(cause).toLowerCase().includes("no login attempt is available")) {
+    // The backend no longer has this attempt (the app restarted, or it ended): stop watching it.
+    if (commandError(cause)?.code === "login_attempt_gone") {
       stopWatchingLoginAttempt();
       clearLoginAttempt();
       return;

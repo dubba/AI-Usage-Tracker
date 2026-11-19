@@ -132,7 +132,7 @@ describe("browser sign-in providers", () => {
 
   it("recovers from a stale sign-in that is still in progress and tries again", async () => {
     api.startLogin
-      .mockRejectedValueOnce(new Error("A login is already in progress"))
+      .mockRejectedValueOnce({ code: "login_in_progress", message: "Another provider login is already in progress." })
       .mockResolvedValueOnce({ attemptId: "att-2", authorizationUrl: "https://auth.example/2" });
     render();
     click(primary());

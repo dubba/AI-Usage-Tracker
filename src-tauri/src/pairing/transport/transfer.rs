@@ -1,7 +1,9 @@
 //! The confirmed, encrypted transfer both sides run once the roles are chosen.
 
 use super::{
-    events::TransferEvent, send_abort, AuthenticatedPeer, CONFIRM_TIMEOUT_SECS, SOCKET_TIMEOUT_SECS,
+    events::TransferEvent, send_abort, AuthenticatedPeer, CANCELED_BY_USER, CONFIRM_TIMEOUT_SECS,
+    DECLINED_HERE, OTHER_DEVICE_CANCELED, OTHER_DEVICE_DECLINED, ROLES_DISAGREE,
+    SOCKET_TIMEOUT_SECS,
 };
 use crate::{
     pairing::{
@@ -95,7 +97,7 @@ async fn exchange_confirmations(
                 _ => {
                     return Err::<(), Stopped>((
                         AbortReason::TransferDeclined,
-                        "The transfer was declined on this device".to_string(),
+                        DECLINED_HERE.to_string(),
                     ))
                 }
             }
@@ -112,23 +114,16 @@ async fn exchange_confirmations(
             .await
             .map_err(stopped)?;
         if msg_type != MSG_TRANSFER_CONFIRM {
-            return Err(stopped(
-                "The other device canceled the transfer.".to_string(),
-            ));
+            return Err(stopped(OTHER_DEVICE_CANCELED.to_string()));
         }
         if payload.len() != TRANSFER_CONFIRM_LEN || payload[0] != TRANSFER_ACCEPTED {
-            return Err(stopped(
-                "The other device declined the transfer.".to_string(),
-            ));
+            return Err(stopped(OTHER_DEVICE_DECLINED.to_string()));
         }
         let mut peer_tag = [0u8; CONFIRM_TAG_LEN];
         peer_tag.copy_from_slice(&payload[1..]);
 
         if !verify_confirmation_tag(&encryption_key, &transcript, peer_tag_info, &peer_tag) {
-            return Err(stopped(
-                "The two devices disagree about which one sends. Start the transfer again."
-                    .to_string(),
-            ));
+            return Err(stopped(ROLES_DISAGREE.to_string()));
         }
         Ok(())
     };
@@ -137,7 +132,7 @@ async fn exchange_confirmations(
 
     // Cancel is watched for both roles: the receiver has no button to wait on.
     let result: Result<(), Stopped> = tokio::select! {
-        _ = &mut cancel_rx => Err(stopped("Canceled by user".to_string())),
+        _ = &mut cancel_rx => Err(stopped(CANCELED_BY_USER.to_string())),
         result = timeout(Duration::from_secs(CONFIRM_TIMEOUT_SECS), exchange_task) => match result {
             Ok(result) => result.map(|_| ()),
             Err(_) => Err(stopped("Confirmation exchange timed out".to_string())),

@@ -44,6 +44,19 @@ pub const TOO_MANY_WRONG_CODES: &str =
 /// Shown on the joiner when no host accepted the code.
 pub const WRONG_CODE: &str =
     "That link code didn't match the other device. Check the code and try again.";
+/// The failures a person is shown as written (`pairing::failure` gives each its code). Any other
+/// failure text is protocol detail, which is logged and replaced by one sentence about the link.
+pub const CONNECTION_REJECTED: &str = "The other device rejected the connection.";
+pub const BAD_ADDRESS: &str = "The other device's address is not valid.";
+pub const NO_DEVICE: &str = "No device to connect to.";
+pub const ROLE_SELECTION_CANCELED: &str = "Role selection canceled";
+pub const DECLINED_HERE: &str = "The transfer was declined on this device";
+pub const OTHER_DEVICE_CANCELED: &str = "The other device canceled the transfer.";
+pub const OTHER_DEVICE_DECLINED: &str = "The other device declined the transfer.";
+pub const ROLES_DISAGREE: &str =
+    "The two devices disagree about which one sends. Start the transfer again.";
+pub const CANCELED_BY_USER: &str = "Canceled by user";
+pub const SESSION_TIMED_OUT: &str = "Pairing session timed out";
 /// Delay before rejecting a bad handshake, throttles brute-force/garbage
 /// connections without letting them kill the pairing session.
 const FAILED_HANDSHAKE_DELAY: Duration = Duration::from_millis(300);

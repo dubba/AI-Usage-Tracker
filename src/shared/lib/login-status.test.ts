@@ -169,7 +169,7 @@ describe("a failing status check", () => {
   });
 
   it("drops the attempt silently when the backend no longer knows it", async () => {
-    api.bridgeApi.loginStatus.mockRejectedValue(new Error("No login attempt is available for this id."));
+    api.bridgeApi.loginStatus.mockRejectedValue({ code: "login_attempt_gone", message: "No login attempt is available." });
     mod.watchLoginAttempt("a1");
     await flush();
     expect(seen).toEqual([]);
