@@ -1315,10 +1315,11 @@
     width: 22px;
     height: 22px;
     padding: 0;
-    border: 1px solid var(--obsidian-border-strong);
+    /* Like the rename pen at rest: a purple frame on a light purple fill. */
+    border: 1px solid var(--obsidian-purple-strong);
     border-radius: 7px;
-    background: transparent;
-    color: var(--obsidian-text);
+    background: var(--purple-surface);
+    color: var(--purple-text);
     cursor: pointer;
   }
 
@@ -1331,25 +1332,20 @@
     transform: scaleX(-1);
   }
 
+  /* Nothing further that way: a plain grey outline, so it does not read as a live button. */
   .activity-pager-button:disabled {
-    opacity: 0.45;
+    border-color: var(--obsidian-border-strong);
+    background: transparent;
+    color: var(--obsidian-muted);
+    opacity: 0.6;
     cursor: default;
   }
 
-  /* Like the limit reset's Use button: plain, and filled with purple on hover. */
+  /* Hover fills it with solid purple and a white arrow. */
   .activity-pager-button:hover:not(:disabled) {
     border-color: var(--purple-fill);
     background: var(--purple-fill);
     color: var(--white);
-  }
-
-  /* A phone has no hover, so the arrows start purple, as Use does there. */
-  @media (max-width: 860px) {
-    .activity-pager-button {
-      border-color: var(--purple-fill);
-      background: var(--purple-fill);
-      color: var(--white);
-    }
   }
 
   .activity-chart-stat {
