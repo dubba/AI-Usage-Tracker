@@ -114,7 +114,7 @@ npx tauri android dev
 ```bash
 npm run check
 npm run build
-cargo test --manifest-path src-tauri/Cargo.toml
+cargo test --manifest-path src-tauri/Cargo.toml --workspace
 cargo check --manifest-path src-tauri/Cargo.toml
 ```
 

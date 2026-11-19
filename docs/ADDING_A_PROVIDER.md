@@ -16,13 +16,13 @@ Use an existing provider of the same kind as the model:
 ## 1. The id
 
 - `src/types.generated.ts` — the `Provider` union is generated from the Rust enum; regenerate it with `UPDATE_FIXTURES=1 cargo test --manifest-path src-tauri/Cargo.toml --lib type_contract`.
-- `src-tauri/src/model.rs` — add a `Provider` variant, and its arms in `id()`, `display_name()` and `FromStr` (`"…" | alias`). Add a `ProviderSecret` variant carrying the credential type, and its arm in `ProviderSecret::provider()`. A credential struct needs a hand-written redacting `Debug` and `Zeroize` like `OAuthSecret` and `GrokSecret`.
+- `src-tauri/crates/usage-core/src/model.rs` — add a `Provider` variant, and its arms in `id()`, `display_name()` and `FromStr` (`"…" | alias`). Add a `ProviderSecret` variant carrying the credential type, and its arm in `ProviderSecret::provider()`. A credential struct needs a hand-written redacting `Debug` and `Zeroize` like `OAuthSecret` and `GrokSecret`.
 - `src/shared/lib/providers.ts` — an entry in `PROVIDER_META` (`name`, `connectLabel`, `connectDetail`) and a place in `DEFAULT_PROVIDER_ORDER`.
 - `src-tauri/src/frontend_contract.rs` — add the variant to `all_providers()` and update the count in `the_extractors_read_what_they_should`. `provider_display_names_match_the_frontend` then checks that `PROVIDER_META[...].name` equals `Provider::display_name()`.
 
 ## 2. Reading usage
 
-- `src-tauri/src/providers/<name>.rs` (or a folder) — a `refresh` function that returns `ProviderUsage` with `UsageWindow`s. Window ids and labels are the provider's own words; the backend works out each window's `kind` (5 hour, weekly, monthly) from them in `WindowKind::classify` (`model.rs`), so check that a new provider's labels classify as intended by adding a case to `src/shared/lib/window-kinds.fixture.json`.
+- `src-tauri/src/providers/<name>.rs` (or a folder) — a `refresh` function that returns `ProviderUsage` with `UsageWindow`s. Window ids and labels are the provider's own words; the backend works out each window's `kind` (5 hour, weekly, monthly) from them in `WindowKind::classify` (`crates/usage-core/src/model.rs`), so check that a new provider's labels classify as intended by adding a case to `src/shared/lib/window-kinds.fixture.json`.
 - `ProviderUsage.limit_resets` is the saved grants the account card can spend. Leave it empty unless that provider documents a grant list. Reading the list is part of refresh. Spending one is `providers::use_limit_reset`, and only after the person confirms. Grok's resets come from grok.com's own Usage page service, which xAI does not document: each token's id is kept when it is a plain id and is spent with `RedeemReset`. A token without one is shown without a Use button.
 - `src-tauri/src/providers/mod.rs` — `pub mod <name>;` and the arm in `refresh`.
 - Nothing to add for the Usage page (code: `features/activity`): a provider's first window that classifies as `Weekly` becomes a tracker on the Usage page automatically (`history::tracker_windows`; Antigravity tracks every weekly window), an account with no weekly window but a monthly one tracks that instead and the page charts it on the 30 day view, and an account with no weekly window gets a "No weekly limit" card. Keep window ids stable between refreshes, because they key the stored history.
@@ -89,7 +89,7 @@ A new command means four edits, and a test fails if one is missing:
 ```bash
 npm run check
 npx vitest run
-cargo test --manifest-path src-tauri/Cargo.toml --lib
+cargo test --manifest-path src-tauri/Cargo.toml --workspace --lib
 cargo check --manifest-path src-tauri/Cargo.toml --lib --target aarch64-apple-ios-sim
 ```
 

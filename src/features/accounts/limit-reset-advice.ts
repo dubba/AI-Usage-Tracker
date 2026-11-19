@@ -6,7 +6,7 @@ type ResetTarget = "five_hour" | "weekly" | "fable_weekly";
 
 /**
  * What each reset clears, read from the detail the backend writes (the `DETAIL_*` constants in
- * `src-tauri/src/providers/limit_resets.rs`; a test keeps the two in step). Longer prefixes come
+ * `src-tauri/crates/usage-core/src/providers/limit_resets.rs`; a test keeps the two in step). Longer prefixes come
  * first, so "Clears 7-day Fable usage and refills…" is not read as the Fable-only reset. A detail
  * that matches none of these (a rate limit, the generic fallback) gets no advice.
  */

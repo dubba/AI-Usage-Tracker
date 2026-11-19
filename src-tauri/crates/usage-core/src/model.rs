@@ -5,7 +5,7 @@ use zeroize::Zeroize;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub enum Provider {
     #[default]
     Openai,
@@ -78,7 +78,7 @@ const MONTHLY_WINDOW_SECONDS: std::ops::RangeInclusive<u64> = 2_000_000..=2_700_
 /// those into the three kinds the app has alerts, sidebar slots and styling for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub enum WindowKind {
     FiveHour,
     Weekly,
@@ -158,7 +158,7 @@ impl WindowKind {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct UsageWindow {
     pub id: String,
     pub label: String,
@@ -180,7 +180,6 @@ impl UsageWindow {
     }
 
     /// This window with its kind set.
-    #[cfg(test)]
     pub fn classified(mut self) -> Self {
         self.classify();
         self
@@ -204,7 +203,7 @@ fn limit_reset_is_usable() -> bool {
 /// is never stored.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct LimitReset {
     pub id: String,
     pub label: String,
@@ -217,7 +216,7 @@ pub struct LimitReset {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct UsageSnapshot {
     pub plan: Option<String>,
     pub email: Option<String>,
@@ -234,7 +233,7 @@ pub struct UsageSnapshot {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub enum UsageFreshness {
     Live,
     Stale,
@@ -244,7 +243,7 @@ pub enum UsageFreshness {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct Account {
     pub id: String,
     pub label: String,
@@ -285,7 +284,7 @@ impl Account {
 /// What `{:?}` prints in place of a credential. The secret structs below
 /// implement `Debug` by hand so that formatting one (a stray `{:?}`, a panic
 /// message, an `assert_eq!` failure) cannot write a token or cookie anywhere.
-pub(crate) const REDACTED_DEBUG: &str = "<redacted>";
+pub const REDACTED_DEBUG: &str = "<redacted>";
 
 fn redacted_option<T>(value: &Option<T>) -> Option<&'static str> {
     value.as_ref().map(|_| REDACTED_DEBUG)
@@ -400,7 +399,7 @@ impl ProviderSecret {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct LoginStart {
     pub attempt_id: String,
     pub authorization_url: String,
@@ -409,7 +408,7 @@ pub struct LoginStart {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct CloudProjectOption {
     pub project_id: String,
     pub project_number: String,
@@ -420,7 +419,7 @@ pub struct CloudProjectOption {
 /// generated from this enum.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub enum LoginState {
     Waiting,
     Complete,
@@ -442,7 +441,7 @@ impl LoginState {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct LoginStatus {
     pub attempt_id: String,
     pub status: LoginState,
@@ -498,7 +497,7 @@ impl LoginStatus {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct BridgeStatus {
     pub endpoint: String,
     pub enabled: bool,
@@ -508,7 +507,7 @@ pub struct BridgeStatus {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct BridgeInfo {
     pub endpoint: String,
     /// Masked bearer token (e.g. `abcd••••••wxyz`). The full token is never
@@ -534,7 +533,7 @@ pub fn mask_bridge_token(token: &str) -> String {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct AccountBucket {
     pub id: String,
     pub name: String,
@@ -546,7 +545,7 @@ pub struct AccountBucket {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct DashboardSnapshot {
     pub accounts: Vec<Account>,
     pub buckets: Vec<AccountBucket>,
@@ -561,7 +560,7 @@ pub struct DashboardSnapshot {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct AppUpdateStatus {
     pub current_version: String,
     pub available: bool,
@@ -679,28 +678,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn dashboard_snapshot_omits_bridge_token() {
-        let snapshot = DashboardSnapshot {
-            accounts: Vec::new(),
-            buckets: Vec::new(),
-            bridge: BridgeStatus {
-                endpoint: crate::bridge_api::bridge_endpoint(),
-                enabled: true,
-                running: true,
-                error: None,
-            },
-            unprotected_credentials: 0,
-            unprotected_account_ids: Vec::new(),
-        };
-        let json = serde_json::to_value(&snapshot).unwrap();
-        assert!(json["bridge"].get("token").is_none());
-        assert_eq!(
-            json["bridge"]["endpoint"],
-            "http://127.0.0.1:47831/v1/paseo-usage"
-        );
-    }
-
-    #[test]
     fn app_update_status_serializes_structured_error() {
         let failed =
             AppUpdateStatus::failed("0.3.3".into(), "Unable to check for updates: network down");
@@ -774,7 +751,7 @@ mod tests {
     #[test]
     fn window_kinds_match_the_shared_fixture() {
         let fixture: serde_json::Value = serde_json::from_str(include_str!(
-            "../../src/shared/lib/window-kinds.fixture.json"
+            "../../../../src/shared/lib/window-kinds.fixture.json"
         ))
         .unwrap();
         let cases = fixture["cases"].as_array().unwrap();

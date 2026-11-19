@@ -411,3 +411,25 @@ fn security_headers_are_set_and_override_the_handler() {
     );
     assert_eq!(headers["cross-origin-resource-policy"], "same-origin");
 }
+
+#[test]
+fn dashboard_snapshot_omits_bridge_token() {
+    let snapshot = crate::model::DashboardSnapshot {
+        accounts: Vec::new(),
+        buckets: Vec::new(),
+        bridge: crate::model::BridgeStatus {
+            endpoint: bridge_endpoint(),
+            enabled: true,
+            running: true,
+            error: None,
+        },
+        unprotected_credentials: 0,
+        unprotected_account_ids: Vec::new(),
+    };
+    let json = serde_json::to_value(&snapshot).unwrap();
+    assert!(json["bridge"].get("token").is_none());
+    assert_eq!(
+        json["bridge"]["endpoint"],
+        "http://127.0.0.1:47831/v1/paseo-usage"
+    );
+}

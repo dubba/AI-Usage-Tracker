@@ -86,11 +86,11 @@ jobs:
       # tauri::generate_context! needs the built frontend at compile time.
       - run: npm ci
       - run: npm run build
-      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --all --check
       # Debug and release compile different credential-storage code (release
       # uses the OS keychain), so lint both.
-      - run: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
-      - run: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --release --all-targets -- -D warnings
+      - run: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --workspace --all-targets -- -D warnings
+      - run: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --workspace --release --all-targets -- -D warnings
 
   desktop-rust:
     strategy:
@@ -130,11 +130,11 @@ jobs:
       - name: Run Rust unit tests
         shell: bash
         run: |
-          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib --no-run
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --workspace --lib --no-run
           if [ "$RUNNER_OS" = "Windows" ]; then
             find src-tauri/target/debug -name "*.dll" -exec cp -f {} src-tauri/target/debug/deps/ \; 2>/dev/null || true
           fi
-          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --workspace --lib
       # The non-test build of the library and the binary. rust-lint's
       # clippy --all-targets already compiles both on macOS, so only Windows
       # needs it; nothing else compiles Windows' non-test code before a release.

@@ -1,0 +1,21 @@
+[package]
+name = "usage-core"
+version = "0.0.0"
+description = "Usage data model and the rules about it, without Tauri: accounts, windows, limits, limit resets, refresh backoff and usage history"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[features]
+# Derives `ts_rs::TS` on the types the frontend receives. Only the app crate's tests enable it
+# (`type_contract.rs` writes `src/types.generated.ts`), so no build of the app compiles ts-rs.
+ts = ["dep:ts-rs"]
+
+[dependencies]
+base64 = "0.22"
+chrono = { version = "0.4", features = ["serde"] }
+rand = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ts-rs = { version = "12", optional = true }
+zeroize = { version = "1", features = ["derive"] }

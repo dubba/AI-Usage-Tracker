@@ -99,7 +99,7 @@ describe("limitResetAdvice", () => {
   });
 
   it("matches every detail the backend writes for a reset it can read", () => {
-    const rust = readFileSync(resolve(__dirname, "../../../src-tauri/src/providers/limit_resets.rs"), "utf8");
+    const rust = readFileSync(resolve(__dirname, "../../../src-tauri/crates/usage-core/src/providers/limit_resets.rs"), "utf8");
     const details = [...rust.matchAll(/pub const DETAIL_\w+: &str = "([^"]+)";/g)].map((match) => match[1]);
     for (const [prefix] of RESET_CLEARS) {
       expect(details).toContain(prefix);

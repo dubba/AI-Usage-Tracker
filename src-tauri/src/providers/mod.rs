@@ -2,10 +2,9 @@ pub mod anthropic;
 pub mod antigravity;
 pub mod google_ai_studio;
 pub mod grok;
-pub mod identity;
-pub mod json_values;
-pub mod limit_resets;
 pub mod oauth_refresh;
+// Pure helpers that live in `crates/usage-core`.
+pub use usage_core::providers::{identity, json_values, limit_resets};
 pub mod openai;
 pub mod opencode_go;
 

@@ -50,13 +50,13 @@ Validation:
 ```bash
 npm run check
 npm run build
-cargo test --manifest-path src-tauri/Cargo.toml
+cargo test --manifest-path src-tauri/Cargo.toml --workspace
 cargo check --manifest-path src-tauri/Cargo.toml
-cargo fmt --manifest-path src-tauri/Cargo.toml --check
-cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+cargo fmt --manifest-path src-tauri/Cargo.toml --all --check
+cargo clippy --manifest-path src-tauri/Cargo.toml --workspace --all-targets -- -D warnings
 ```
 
-Do not run these by hand before every commit, and never after every edit: the `pre-push` hook runs the ones the push needs once, through `scripts/preflight.sh` (below), when commits are pushed. Commit freely; if preflight fails on push, fix it in a follow-up commit and push again. Any Rust edit recompiles the whole `ai-usage-tracker` crate, so each of `cargo clippy`, `cargo test`, and a mobile `cargo check` is a separate build of about 1.5 to 3 minutes, and stacking them after small edits adds up fast. While iterating, run only the one check that can catch a mistake in what changed: the touched module's tests (`cargo test --manifest-path src-tauri/Cargo.toml --lib <module>`), or `cargo check --manifest-path src-tauri/Cargo.toml --lib --target aarch64-apple-ios-sim` for `cfg(mobile)` code, which desktop clippy and tests never compile.
+Do not run these by hand before every commit, and never after every edit: the `pre-push` hook runs the ones the push needs once, through `scripts/preflight.sh` (below), when commits are pushed. Commit freely; if preflight fails on push, fix it in a follow-up commit and push again. Any Rust edit recompiles the whole `ai-usage-tracker` crate, so each of `cargo clippy`, `cargo test`, and a mobile `cargo check` is a separate build of about 1.5 to 3 minutes, and stacking them after small edits adds up fast. The data model and the rules about it (`model`, `limits`, `refresh_backoff`, limit-reset parsing, usage history) live in the `usage-core` crate (`src-tauri/crates/usage-core`), which has no Tauri dependency: after an edit there, `cargo test --manifest-path src-tauri/Cargo.toml -p usage-core` builds and runs its tests in seconds. While iterating, run only the one check that can catch a mistake in what changed: the touched module's tests (`cargo test --manifest-path src-tauri/Cargo.toml --lib <module>`), or `cargo check --manifest-path src-tauri/Cargo.toml --lib --target aarch64-apple-ios-sim` for `cfg(mobile)` code, which desktop clippy and tests never compile.
 
 `npm run preflight` runs the CI-equivalent checks (npm steps, fmt, clippy debug and release, `cargo test --lib`, iOS and Android compiles, `npm audit`, `cargo audit`) in a throwaway worktree, so gitignored generated files cannot hide a failure that CI would catch. Run by hand it checks everything on `HEAD`. `npm run hooks:install` points `core.hooksPath` at `.githooks` so it also runs before every `git push`. There it checks out the commit being pushed and, for a fast-forward of one branch, runs only the groups the push touches:
 

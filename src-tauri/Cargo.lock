@@ -76,6 +76,7 @@ dependencies = [
  "tokio-tungstenite",
  "ts-rs",
  "url",
+ "usage-core",
  "uuid",
  "winreg 0.10.1",
  "zeroize",
@@ -5546,6 +5547,19 @@ dependencies = [
  "regex",
  "serde",
  "url",
+]
+
+[[package]]
+name = "usage-core"
+version = "0.0.0"
+dependencies = [
+ "base64 0.22.1",
+ "chrono",
+ "rand 0.8.8",
+ "serde",
+ "serde_json",
+ "ts-rs",
+ "zeroize",
 ]
 
 [[package]]

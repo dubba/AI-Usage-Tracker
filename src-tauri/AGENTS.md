@@ -22,6 +22,6 @@ This directory owns all sensitive and platform-specific behavior.
 Run:
 
 ```bash
-cargo test --manifest-path src-tauri/Cargo.toml
+cargo test --manifest-path src-tauri/Cargo.toml --workspace
 cargo check --manifest-path src-tauri/Cargo.toml
 ```

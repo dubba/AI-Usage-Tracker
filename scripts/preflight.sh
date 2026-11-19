@@ -196,7 +196,7 @@ no_frontend="no frontend changes in push"
 
 # Setup: npm ci, with the format check beside it (it needs neither node_modules nor dist).
 if [ "$rust" = 1 ]; then
-  step "cargo fmt --check" fail cargo fmt --manifest-path $manifest --check &
+  step "cargo fmt --check" fail cargo fmt --manifest-path $manifest --all --check &
 else
   skip "cargo fmt --check" "$no_rust"
 fi
@@ -248,9 +248,9 @@ elif ! passed "npm run build"; then
   # tauri::generate_context! reads dist/ at compile time.
   for id in "${cargo_ids[@]}"; do skip "$id" "needs dist/, and npm run build failed"; done
 else
-  clippy_debug() { step "cargo clippy (debug)" fail cargo clippy --locked --manifest-path $manifest --all-targets -- -D warnings; }
-  cargo_test() { step "cargo test --lib" fail cargo test --locked --manifest-path $manifest --lib; }
-  clippy_release() { step "cargo clippy (release)" fail cargo clippy --locked --manifest-path $manifest --release --all-targets -- -D warnings; }
+  clippy_debug() { step "cargo clippy (debug)" fail cargo clippy --locked --manifest-path $manifest --workspace --all-targets -- -D warnings; }
+  cargo_test() { step "cargo test --lib" fail cargo test --locked --manifest-path $manifest --workspace --lib; }
+  clippy_release() { step "cargo clippy (release)" fail cargo clippy --locked --manifest-path $manifest --workspace --release --all-targets -- -D warnings; }
   ios() {
     if xcrun --sdk iphoneos --show-sdk-path >/dev/null 2>&1; then
       step "iOS compile" fail cargo check --locked --manifest-path $manifest --target aarch64-apple-ios --lib

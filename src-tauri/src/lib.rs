@@ -11,13 +11,12 @@ mod diagnostics;
 #[cfg(test)]
 mod frontend_contract;
 mod history;
-mod limits;
+// The data model and its rules live in `crates/usage-core`; these keep their old paths.
+use usage_core::{limits, model, refresh_backoff};
 mod migrations;
-mod model;
 mod pairing;
 mod platform;
 mod providers;
-mod refresh_backoff;
 mod refresh_loop;
 mod secret_echo;
 mod startup;

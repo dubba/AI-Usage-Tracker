@@ -1,5 +1,5 @@
 {
-  "_comment": "Shared by src/shared/lib/window-kinds.test.ts and the window_kinds_match_the_shared_fixture test in src-tauri/src/model.rs (WindowKind::classify). `kind` is what the backend must classify the window as; the frontend only reads it.",
+  "_comment": "Shared by src/shared/lib/window-kinds.test.ts and the window_kinds_match_the_shared_fixture test in src-tauri/crates/usage-core/src/model.rs (WindowKind::classify). `kind` is what the backend must classify the window as; the frontend only reads it.",
   "cases": [
     { "name": "five_hour id and seconds", "id": "five_hour", "label": "5 hour limit", "windowSeconds": 18000, "kind": "five_hour" },
     { "name": "five_hour sub-window", "id": "five_hour_2", "label": "Gemini models · 5-Hour Limit", "windowSeconds": 18000, "kind": "five_hour" },

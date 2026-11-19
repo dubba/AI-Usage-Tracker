@@ -28,9 +28,9 @@ function toWindow(entry: Case): UsageWindow {
 
 /**
  * The backend decides what kind a window is (`WindowKind::classify`, checked against the same
- * fixture in `src-tauri/src/model.rs`); the frontend must answer from that kind alone.
+ * fixture in `src-tauri/crates/usage-core/src/model.rs`); the frontend must answer from that kind alone.
  */
-describe("window kinds (the fixture shared with src-tauri/src/model.rs)", () => {
+describe("window kinds (the fixture shared with src-tauri/crates/usage-core/src/model.rs)", () => {
   it.each(cases)("$name", (entry) => {
     const window = toWindow(entry);
     expect(canonicalWindow(window, "five_hour")).toBe(entry.kind === "five_hour");

@@ -117,7 +117,7 @@ For each provider (OpenAI, Anthropic, Antigravity, Google AI Studio, Grok, OpenC
 - OAuth: PKCE verifier entropy and one-time use; `state` generation and validation; redirect URI exactness; code replay; loopback callback listener lifetime, port binding to `127.0.0.1` only, and what a second local process can do by hitting the callback first; callback handling when the user cancels or the flow times out.
 - Mobile: system-browser flow, deep-link scheme registration and hijacking by another app, intent filter `autoVerify`, state tied to the originating session (`auth/mobile_auth/`).
 - Cookie capture (`auth/grok_login.rs`, `auth/opencode_login.rs`): `on_navigation` host allowlists, incognito isolation, which cookies are retained, what happens to the session on logout and account removal, Android single-WebView limitation.
-- Token refresh: rotating refresh tokens, failure after rotation but before persist, revoked-token handling, backoff (`refresh_backoff.rs`) that avoids lockout.
+- Token refresh: rotating refresh tokens, failure after rotation but before persist, revoked-token handling, backoff (`usage-core/src/refresh_backoff.rs`) that avoids lockout.
 - Account removal: are credentials actually deleted from the OS store, memory cache, and any legacy item?
 - URL validation for every WebView load: HTTPS or the exact loopback callback only; no `javascript:`, `intent:`, `file:`, `content:`.
 

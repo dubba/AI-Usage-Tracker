@@ -30,7 +30,7 @@ fn percent_decode(input: &str) -> String {
     String::from_utf8_lossy(&bytes).into_owned()
 }
 
-pub(crate) fn extract_identity_from_jwt(token: &str) -> Option<String> {
+pub fn extract_identity_from_jwt(token: &str) -> Option<String> {
     let segment = token.split('.').nth(1)?;
     let decoded = URL_SAFE_NO_PAD
         .decode(segment)
@@ -50,7 +50,7 @@ pub(crate) fn extract_identity_from_jwt(token: &str) -> Option<String> {
     find_identity_in_json(&value)
 }
 
-pub(crate) fn find_identity_in_json(value: &Value) -> Option<String> {
+pub fn find_identity_in_json(value: &Value) -> Option<String> {
     // 1. Email addresses (highest priority)
     for key in &["email", "email_address", "user_email", "mail"] {
         if let Some(s) = value.get(*key).and_then(Value::as_str) {
@@ -93,7 +93,7 @@ pub(crate) fn find_identity_in_json(value: &Value) -> Option<String> {
     None
 }
 
-pub(crate) fn extract_identity_from_cookies(cookie_header: &str) -> Option<String> {
+pub fn extract_identity_from_cookies(cookie_header: &str) -> Option<String> {
     for part in cookie_header.split(';') {
         let trimmed = part.trim();
         let Some((key, val)) = trimmed.split_once('=') else {

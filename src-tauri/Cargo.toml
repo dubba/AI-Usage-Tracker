@@ -10,6 +10,12 @@ license = "MIT"
 name = "ai_usage_tracker_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+# `usage-core` holds the data model and the rules about it without Tauri, so its tests build in
+# seconds. The notification plugin under `vendor/` is a patched dependency, not a member.
+[workspace]
+members = ["crates/usage-core"]
+exclude = ["vendor/tauri-plugin-notification"]
+
 [build-dependencies]
 image = { version = "0.25", default-features = false, features = ["png"] }
 resvg = { version = "0.48", default-features = false }
@@ -64,6 +70,7 @@ thiserror = "2"
 tokio = { version = "1", features = ["io-util", "macros", "net", "process", "rt-multi-thread", "sync", "time"] }
 tokio-tungstenite = { version = "0.30.0", default-features = false, features = ["connect", "rustls-tls-webpki-roots"] }
 url = "2"
+usage-core = { path = "crates/usage-core" }
 uuid = { version = "1", features = ["v4", "serde"] }
 zeroize = { version = "1", features = ["derive"] }
 
@@ -102,6 +109,7 @@ tempfile = "3"
 # written by `type_contract.rs`). Test-only: the derives are `cfg_attr(test, ...)`, so release
 # builds never compile it.
 ts-rs = "12"
+usage-core = { path = "crates/usage-core", features = ["ts"] }
 
 [profile.dev]
 debug = 1
