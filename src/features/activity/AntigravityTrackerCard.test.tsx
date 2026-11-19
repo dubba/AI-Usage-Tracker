@@ -107,11 +107,11 @@ describe("AntigravityTrackerCard", () => {
     ]);
   });
 
-  it("keeps each model group's reset info, percentage, tone, and chart independent", () => {
+  it("keeps each model group's percentage, tone, and chart independent, with no reset line", () => {
     const root = renderCard(antigravityAccount, [geminiTracker, claudeTracker, argonTracker]);
     const sections = [...root.querySelectorAll(".activity-model-section")];
+    expect(root.querySelector(".activity-model-reset")).toBeNull();
 
-    expect(sections[0].querySelector(".activity-model-reset")!.textContent).toBe("Resets Sat, Nov 21 @ 3:28p");
     expect(sections[0].querySelector(".activity-model-total strong")!.textContent).toBe("36%");
     expect(sections[0].querySelector(".activity-model-total")!.classList.contains("tone-healthy")).toBe(true);
     expect(sections[0].querySelector(".activity-bars")!.getAttribute("aria-label")).toContain("Antigravity Gemini Models, last 7 days");
@@ -119,28 +119,17 @@ describe("AntigravityTrackerCard", () => {
     expect(sections[0].querySelectorAll(".activity-bar.is-empty")).toHaveLength(1);
     expect(sections[0].querySelectorAll(".activity-bar.is-approximate")).toHaveLength(1);
 
-    expect(sections[1].querySelector(".activity-model-reset")!.textContent).toBe("Resets Mon, Nov 23 @ 11:25p");
     expect(sections[1].querySelector(".activity-model-total strong")!.textContent).toBe("72%");
     expect(sections[1].querySelector(".activity-model-total")!.classList.contains("tone-warning")).toBe(true);
     expect(sections[1].querySelector(".activity-bars")!.getAttribute("aria-label")).toContain("Antigravity Other Models, last 7 days");
     expect(sections[1].querySelectorAll(".activity-reset")).toHaveLength(0);
 
-    expect(sections[2].querySelector(".activity-model-reset")!.textContent).toBe("Resets Mon, Nov 23 @ 11:15p");
     expect(sections[2].querySelector(".activity-model-total strong")!.textContent).toBe("88%");
     expect(sections[2].querySelector(".activity-model-total")!.classList.contains("tone-critical")).toBe(true);
     expect(sections[2].querySelector(".activity-bars")!.getAttribute("aria-label")).toContain("Antigravity Argon Models, last 7 days");
   });
 
-  it("formats same-day Antigravity resets as Resets Today @ <time>", () => {
-    const todayTracker = makeTracker({
-      ...geminiTracker,
-      resetsAt: "2026-11-17T22:50:00Z",
-    });
-    const root = renderCard(antigravityAccount, [todayTracker]);
-    expect(root.querySelector(".activity-model-reset")!.textContent).toBe("Resets Today @ 10:50p");
-  });
-
-  it("omits missing plan pill, email, and reset info cleanly", () => {
+  it("omits missing plan pill and email cleanly", () => {
     const plain = makeAccount({ id: "anti-plain", provider: "antigravity", label: "Antigravity" });
     const bareTracker = makeTracker({
       accountId: "anti-plain",
@@ -153,7 +142,6 @@ describe("AntigravityTrackerCard", () => {
 
     expect(root.querySelector(".activity-plan-pill")).toBeNull();
     expect(root.querySelector(".activity-consolidated-email")).toBeNull();
-    expect(root.querySelector(".activity-model-reset")).toBeNull();
     expect(root.querySelector(".activity-model-total strong")!.textContent).toBe("—");
     expect(root.querySelector(".activity-model-total-period")).toBeNull();
     expect(root.querySelector(".activity-card-total-period")!.textContent).toBe("this week");

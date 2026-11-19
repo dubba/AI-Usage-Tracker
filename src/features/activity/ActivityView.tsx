@@ -18,9 +18,9 @@ import { useWeeklyActivity } from "./useWeeklyActivity";
 import { WeeklyTracker } from "./WeeklyTracker";
 import "./activity.css";
 
-const PERIOD_LABELS: Record<ActivityPeriod, string> = { "7d": "7D", "30d": "30D" };
-const PERIOD_NAMES: Record<ActivityPeriod, string> = { "7d": "Last 7 days", "30d": "Last 30 days" };
-const PERIOD_TOOLTIPS: Record<ActivityPeriod, string> = { "7d": "Show the last 7 days", "30d": "Show the last 30 days" };
+const PERIOD_LABELS: Record<ActivityPeriod, string> = { "7d": "7D", "30d": "30D", "90d": "90D" };
+const PERIOD_NAMES: Record<ActivityPeriod, string> = { "7d": "Last 7 days", "30d": "Last 30 days", "90d": "Last 90 days" };
+const PERIOD_TOOLTIPS: Record<ActivityPeriod, string> = { "7d": "Show the last 7 days", "30d": "Show the last 30 days", "90d": "Show the last 90 days" };
 
 /**
  * A key that changes when a refresh brings new usage or the accounts change, so the page loads the
@@ -38,7 +38,7 @@ function inAccountOrder<T extends { accountId: string }>(items: readonly T[], ac
     .sort((left, right) => position.get(left.accountId)! - position.get(right.accountId)!);
 }
 
-/** The 7D / 30D switch with a label saying what it chooses: how many days the charts cover. */
+/** The 7D / 30D / 90D switch with a label saying what it chooses: how many days the charts cover. */
 function PeriodSwitch({ period, onChange }: { period: ActivityPeriod; onChange: (next: ActivityPeriod) => void }) {
   const labelId = useId();
   const switchRef = useRef<HTMLDivElement>(null);
@@ -143,10 +143,11 @@ export function ActivityView({
   const accountById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts]);
   // The switch updates immediately. The chart stays on the period it has data for until the other
   // report arrives, so the cards are not replaced by placeholders in between.
-  const chartPeriod: ActivityPeriod = data == null ? period : data.dayCount === ACTIVITY_PERIOD_DAYS["30d"] ? "30d" : "7d";
+  const chartPeriod: ActivityPeriod =
+    data == null ? period : (ACTIVITY_PERIODS.find((candidate) => ACTIVITY_PERIOD_DAYS[candidate] === data.dayCount) ?? "7d");
   const trackers = useMemo<ActivityTracker[]>(
-    // An account with no weekly limit but a monthly one is charted on the 30 day view only.
-    () => (data ? inAccountOrder(data.activity.trackers.filter((tracker) => chartPeriod === "30d" || tracker.windowKind === "weekly"), accounts) : []),
+    // An account with no weekly limit but a monthly one is charted on the 30 and 90 day views only.
+    () => (data ? inAccountOrder(data.activity.trackers.filter((tracker) => chartPeriod !== "7d" || tracker.windowKind === "weekly"), accounts) : []),
     [data, accounts, chartPeriod],
   );
   const hasReadings = trackers.some((tracker) => tracker.days.some((day) => day.quality !== "none"));
@@ -158,7 +159,7 @@ export function ActivityView({
   // The "No weekly limit" cards belong to the 7 day view. The 30 day view charts monthly
   // usage instead, and says tracking has not started yet when nothing is recorded.
   const untracked = useMemo<UntrackedAccount[]>(() => {
-    if (!data || chartPeriod === "30d") return [];
+    if (!data || chartPeriod !== "7d") return [];
     const charted = new Set(hasReadings ? trackers.map((tracker) => tracker.accountId) : []);
     return inAccountOrder(data.activity.untracked, accounts).filter((entry) => !charted.has(entry.accountId));
   }, [data, accounts, trackers, hasReadings, chartPeriod]);

@@ -1,15 +1,15 @@
 import { createPreferenceStore } from "../../shared/lib/preference-store";
 import { STORAGE_KEYS } from "../../shared/lib/storage";
 
-/** How far back the Usage page looks: the last 7 or the last 30 days, today included. */
-export type ActivityPeriod = "7d" | "30d";
+/** How far back the Usage page looks: the last 7, 30 or 90 days, today included. */
+export type ActivityPeriod = "7d" | "30d" | "90d";
 
-export const ACTIVITY_PERIODS: readonly ActivityPeriod[] = ["7d", "30d"];
+export const ACTIVITY_PERIODS: readonly ActivityPeriod[] = ["7d", "30d", "90d"];
 
-export const ACTIVITY_PERIOD_DAYS: Record<ActivityPeriod, number> = { "7d": 7, "30d": 30 };
+export const ACTIVITY_PERIOD_DAYS: Record<ActivityPeriod, number> = { "7d": 7, "30d": 30, "90d": 90 };
 
 export function isActivityPeriod(value: unknown): value is ActivityPeriod {
-  return value === "7d" || value === "30d";
+  return value === "7d" || value === "30d" || value === "90d";
 }
 
 const store = createPreferenceStore<ActivityPeriod>(STORAGE_KEYS.activityPeriod, "7d", isActivityPeriod);

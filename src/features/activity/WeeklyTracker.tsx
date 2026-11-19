@@ -1,6 +1,4 @@
 import { useId } from "react";
-import { useClock } from "../../shared/hooks/useClock";
-import { formatResetAtDay } from "../../shared/lib/format";
 import { displayAccountError, displayPlan } from "../../shared/lib/display";
 import { displayAccountLabel, usageTone } from "../../shared/lib/usage-logic";
 import { ProviderIcon } from "../../shared/ui/ProviderIcon";
@@ -11,7 +9,7 @@ import type { ActivityPeriod } from "./activity-period";
 import { antigravityFamilyLabel } from "./antigravity-models";
 import { DailyBars } from "./DailyBars";
 
-/** One weekly limit of one account: who and when it resets, how much is used, and the daily bars. */
+/** One weekly limit of one account: who it is, how much is used, and the daily bars (with the resets marked). */
 export function WeeklyTracker({
   tracker,
   account,
@@ -40,7 +38,6 @@ export function WeeklyTracker({
     || account.lastUsage.freshness !== "live";
   const limitName = account.provider === "antigravity" ? antigravityFamilyLabel(tracker.windowLabel) : null;
   const email = accountEmail(account);
-  const reset = useClock((now) => formatResetAtDay(tracker.resetsAt, now));
   const chartName = limitName ? `${label} ${limitName}` : label;
   const monthly = tracker.windowKind === "monthly";
 
@@ -66,7 +63,6 @@ export function WeeklyTracker({
             {plan ? <span className="activity-plan-pill">{plan}</span> : null}
           </div>
           {email ? <p className="activity-consolidated-email">{email}</p> : null}
-          {reset ? <p className="activity-card-details">Resets {reset}</p> : null}
           {limitName ? <span className="activity-card-limit">{limitName}</span> : null}
         </div>
         <div className={`activity-card-total tone-${tone}`}>

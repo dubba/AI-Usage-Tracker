@@ -48,7 +48,7 @@ export const STORAGE_KEYS = {
   activityPullRefreshHintSessionCounted: "ai-usage-tracker:activity-pull-refresh-hint-session-counted",
   /** sessionStorage: "1" if the usage pull-to-refresh hint was dismissed in the current session. */
   activityPullRefreshHintSessionDismissed: "ai-usage-tracker:activity-pull-refresh-hint-session-dismissed",
-  /** "7d" | "30d": how many days the Usage page shows. */
+  /** "7d" | "30d" | "90d": how many days the Usage page shows. */
   activityPeriod: "ai-usage-tracker:activity-period",
   /** "on" | "off": whether the bottom navigation bar shows the page names under its icons. */
   bottomNavLabels: "ai-usage-tracker:bottom-nav-labels",

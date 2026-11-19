@@ -7,12 +7,12 @@
  * `position` on an element with a tooltip (`[data-tooltip] { position: relative }` is unlayered),
  * the page's own top padding, and the shared `.button` radius. See docs/CSS_ARCHITECTURE.md.
  *
- * Breakpoints: only the shared 860 / 861 split, for where the 7D / 30D switch sits. The grid fits as
+ * Breakpoints: only the shared 860 / 861 split, for where the 7D / 30D / 90D switch sits. The grid fits as
  * many 540px columns as the page has room for. */
 @layer components {
   /* ---- header ---- */
 
-  /* The 7D / 30D switch and its label. On a phone it sits in the title row, at the right end and
+  /* The 7D / 30D / 90D switch and its label. On a phone it sits in the title row, at the right end and
      centered on the title: the switch is taller than the title line, so its vertical margins are
      negative and the row stays as high as the menu button. On a wide window it stays where it
      always was, at the top right of the header, out of the flow, with room kept beside the title
@@ -422,7 +422,7 @@
 
   /* The header is laid out like a dashboard account card's (.provider-account-card.desktop-card): the
      name (24px row) and email (2px gap, 18px line, 2px under it) make a 46px block at the top of the
-     header, and the 44px tile is centred on it, so 1px down. The reset line follows. */
+     header, and the 44px tile is centred on it, so 1px down. */
   .activity-card-head > .activity-card-icon {
     margin-top: 1px;
   }
@@ -474,19 +474,6 @@
      26px down the head (the 24px name row, 2px gap), and 13px text puts its baseline ~13.73px down
      it, so ~39.73px. The period's 14px line puts 13px text's baseline ~11.73px down, so it starts 28px
      down: 4px under the 24px percentage. */
-  /* The reset line under the email reads like it: 13px muted text in an 18px line, as the
-     dashboard's reset times are, so the name is the only bright text. The same visible gap below the
-     email as above it, from the line one row's letters sit on to the top of the next row's capitals:
-     above, 5.45px under the name in its 24px row, the 2px margin and 4.28px over the email's
-     capitals (11.73px); below, 3px less (8.73px): 4.27px under the email in its line, its 2px
-     padding and 4.28px over the reset line's capitals, so the margin is -1.82px. */
-  .activity-card-head .activity-card-details {
-    margin-top: -1.82px;
-    color: var(--obsidian-muted);
-    font-size: 13px;
-    line-height: 18px;
-  }
-
   .activity-card-head > .activity-card-total {
     justify-content: flex-start;
   }
@@ -702,9 +689,20 @@
     margin-top: 4px;
   }
 
+  /* As wide as its widest label (see `.activity-yaxis-sizer`), so the chart starts at the card's
+     content edge with no empty room left of the labels. */
   .activity-yaxis {
     position: relative;
-    width: 30px;
+  }
+
+  .activity-yaxis-sizer {
+    display: block;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    font-size: 11px;
+    line-height: 1;
+    white-space: nowrap;
   }
 
   .activity-scale {
@@ -1039,11 +1037,18 @@
     border-top: 1px solid var(--obsidian-border);
   }
 
+  /* The model's name sits on the percentage's baseline, so their letters end on one line; "used
+     this week" hangs below. The total stretches in a card header, so it is set back to baseline
+     here. */
   .activity-model-head {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
+    align-items: baseline;
     column-gap: 12px;
+  }
+
+  .activity-model-head > .activity-model-total {
+    align-self: baseline;
   }
 
   .activity-model-identity {
@@ -1055,19 +1060,9 @@
   .activity-model-name {
     margin: 0;
     color: var(--purple-accent);
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 650;
-    line-height: 18px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .activity-model-reset {
-    margin: 2px 0 0;
-    color: var(--c-b8b1bc);
-    font-size: 11px;
-    line-height: 15px;
+    line-height: 20px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1094,10 +1089,8 @@
   /* A narrow window: the phone dashboard card's header (account-card-responsive.css, "Phone account
      card"): a 26px mark in the tile, a 14px name in an 18px line, a 12px email in a 15.6px line, and
      9px from the tile to the name. As there, the name row (24px, the dashboard's pen button and this
-     pill) starts at the tile's top with the name centred in it, and the email starts 26px down. The
-     gap above the email is 12.35px from the line letters sit on to the next capitals (6.9px under the
-     name in its row, the 2px margin, 3.45px over the email's capitals); the one below is 3px less, so
-     the reset line, which matches the email, sits 0.47px under its 2px padding. "used this week" matches too; its
+     pill) starts at the tile's top with the name centred in it, and the email starts 26px down.
+     "used this week" is 12px like the email; its
      baseline (~11.37px down its 14px line) meets the email's (26 + 12.17 = 38.17px) 2.8px under the
      24px percentage. */
   @media (max-width: 860px) {
@@ -1126,12 +1119,6 @@
     }
 
     .activity-consolidated-email {
-      font-size: 12px;
-      line-height: 15.6px;
-    }
-
-    .activity-card-head .activity-card-details {
-      margin-top: 0.47px;
       font-size: 12px;
       line-height: 15.6px;
     }
@@ -1172,7 +1159,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 6px 12px;
+    gap: 6px 16px;
     list-style: none;
     box-sizing: border-box;
     min-height: 40px;
@@ -1215,7 +1202,7 @@
   @media (max-width: 860px) {
     .activity-legend {
       min-height: 36px;
-      gap: 6px 8px;
+      gap: 6px 12px;
       margin: 0 0 10px;
       padding: 7px 9px;
       font-size: 11.5px;
@@ -1279,6 +1266,90 @@
     border-top: 1px solid var(--obsidian-border);
     font-size: 11.5px;
     line-height: 1.3;
+  }
+
+  /* ---- a chart longer than a page (90 days): 30 days in view, arrows to the others ---- */
+
+  /* The view clips only sideways, so tooltips and the week percents can still hang out above and
+     below. The bars and the dates are each a track as wide as all the pages (plus the gaps between
+     pages), slid so the chosen page fills the view. */
+  .activity-page-view {
+    grid-column: 2;
+    min-width: 0;
+    overflow-x: clip;
+  }
+
+  .activity-chart.is-paged .activity-bars,
+  .activity-chart.is-paged .activity-axis {
+    width: calc(var(--activity-pages) * 100% + (var(--activity-pages) - 1) * var(--activity-gap));
+    transform: translateX(calc((100% + var(--activity-gap)) * var(--activity-page) / var(--activity-pages) * -1));
+    transition: transform 260ms ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .activity-chart.is-paged .activity-bars,
+    .activity-chart.is-paged .activity-axis {
+      transition: none;
+    }
+  }
+
+  /* The arrows sit at the right end of the numbers row. They have no tooltips: moving between the
+     two swapped one bubble for the other and lifted the card in and out of the front, which made
+     the arrows jump. The chevrons say enough, and screen readers get their labels. */
+  .activity-chart.is-paged .activity-chart-stats {
+    padding-right: 56px;
+  }
+
+  /* 22px tall, hanging 2px below the row's text, so they stay clear of the separator above. */
+  .activity-pager {
+    position: absolute;
+    right: 0;
+    bottom: -2px;
+    display: flex;
+    gap: 4px;
+  }
+
+  .activity-pager-button {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid var(--obsidian-border-strong);
+    border-radius: 7px;
+    background: transparent;
+    color: var(--obsidian-text);
+    cursor: pointer;
+  }
+
+  .activity-pager-button svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .activity-pager-button.is-earlier svg {
+    transform: scaleX(-1);
+  }
+
+  .activity-pager-button:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+
+  /* Like the limit reset's Use button: plain, and filled with purple on hover. */
+  .activity-pager-button:hover:not(:disabled) {
+    border-color: var(--purple-fill);
+    background: var(--purple-fill);
+    color: var(--white);
+  }
+
+  /* A phone has no hover, so the arrows start purple, as Use does there. */
+  @media (max-width: 860px) {
+    .activity-pager-button {
+      border-color: var(--purple-fill);
+      background: var(--purple-fill);
+      color: var(--white);
+    }
   }
 
   .activity-chart-stat {

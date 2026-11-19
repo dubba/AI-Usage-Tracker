@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 /// <reference types="node" />
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mount, type Mounted } from "../../test-utils/react";
 import { estimated, measured, noData } from "../../test-utils/activity-fixtures";
@@ -190,26 +191,26 @@ describe("DailyBars y-axis", () => {
   const heightOf = (element: HTMLElement) => parseFloat(element.style.height);
   const bottomOf = (element: HTMLElement) => parseFloat(element.style.bottom);
 
-  it("ticks every 5% for a quiet week, from 0 up to at least 15%", () => {
-    expect(labels(render({ days: sevenDays(3, 6) }))).toEqual(["0%", "5%", "10%", "15%"]);
+  it("ticks every 5% for a quiet week, up to at least 15%, with no label at 0", () => {
+    expect(labels(render({ days: sevenDays(3, 6) }))).toEqual(["5%", "10%", "15%"]);
     mounted!.unmount();
-    expect(labels(render({ days: sevenDays(17, 2) }))).toEqual(["0%", "5%", "10%", "15%", "20%"]);
+    expect(labels(render({ days: sevenDays(17, 2) }))).toEqual(["5%", "10%", "15%", "20%"]);
   });
 
   it("ticks every 10% for a busier week", () => {
-    expect(labels(render({ days: sevenDays(31, 8) }))).toEqual(["0%", "10%", "20%", "30%", "40%"]);
+    expect(labels(render({ days: sevenDays(31, 8) }))).toEqual(["10%", "20%", "30%", "40%"]);
   });
 
   it("ticks every 20% for the busiest weeks", () => {
-    expect(labels(render({ days: sevenDays(64, 8) }))).toEqual(["0%", "20%", "40%", "60%", "80%"]);
+    expect(labels(render({ days: sevenDays(64, 8) }))).toEqual(["20%", "40%", "60%", "80%"]);
     mounted!.unmount();
-    expect(labels(render({ days: sevenDays(99.5) }))).toEqual(["0%", "20%", "40%", "60%", "80%", "100%"]);
+    expect(labels(render({ days: sevenDays(99.5) }))).toEqual(["20%", "40%", "60%", "80%", "100%"]);
   });
 
   it("is on the 30 day chart too, and follows the 30 days' busiest day", () => {
     const days = Array.from({ length: 30 }, (_, index) => measured(index === 12 ? 33 : 2));
     const root = render({ days });
-    expect(labels(root)).toEqual(["0%", "10%", "20%", "30%", "40%"]);
+    expect(labels(root)).toEqual(["10%", "20%", "30%", "40%"]);
     expect(all(root, ".activity-gridline")).toHaveLength(5);
   });
 
@@ -226,7 +227,9 @@ describe("DailyBars y-axis", () => {
 
   it("puts each tick label at the height of its gridline", () => {
     const root = render({ days: sevenDays(31, 8) });
-    expect(all(root, ".activity-tick-label").map(bottomOf)).toEqual(all(root, ".activity-gridline").map(bottomOf));
+    // Every gridline but the baseline has its label.
+    expect(all(root, ".activity-tick-label").map(bottomOf)).toEqual(all(root, ".activity-gridline").map(bottomOf).slice(1));
+    expect(root.querySelector(".activity-yaxis-sizer")!.textContent).toBe("40%");
     expect(root.querySelector(".activity-yaxis")!.getAttribute("aria-hidden")).toBe("true");
   });
 
@@ -325,5 +328,75 @@ describe("DailyBars, 30 days", () => {
     const label = render({ days }).querySelector('[role="img"]')!.getAttribute("aria-label")!;
     expect(label.startsWith("Work Claude, last 30 days: Sep 16 no data, Sep 17 1%")).toBe(true);
     expect(label.endsWith("Today 29%")).toBe(true);
+  });
+});
+
+describe("DailyBars, 90 days", () => {
+  const quarter = startsFrom(new Date("2026-08-17T00:00:00Z"), 90);
+  const days = Array.from({ length: 90 }, (_, index) => measured(index % 10));
+  const renderQuarter = () => render({ days, dayStarts: quarter, period: "90d" });
+  const chart = (root: ParentNode) => root.querySelector<HTMLElement>(".activity-chart")!;
+  const [earlier, later] = [0, 1].map((index) => (root: ParentNode) => all(root, ".activity-pager-button")[index] as HTMLButtonElement);
+
+  it("opens on the latest 30 days, with every day still in the chart", () => {
+    const root = renderQuarter();
+    expect(chart(root).classList.contains("is-paged")).toBe(true);
+    expect(chart(root).style.getPropertyValue("--activity-pages")).toBe("3");
+    expect(chart(root).style.getPropertyValue("--activity-page")).toBe("2");
+    expect(all(root, ".activity-bar")).toHaveLength(90);
+    expect(later(root).disabled).toBe(true);
+    expect(earlier(root).disabled).toBe(false);
+  });
+
+  it("moves a page at a time with the arrows, and stops at either end", () => {
+    const root = renderQuarter();
+    act(() => earlier(root).click());
+    expect(chart(root).style.getPropertyValue("--activity-page")).toBe("1");
+    act(() => earlier(root).click());
+    expect(chart(root).style.getPropertyValue("--activity-page")).toBe("0");
+    expect(earlier(root).disabled).toBe(true);
+    act(() => later(root).click());
+    expect(chart(root).style.getPropertyValue("--activity-page")).toBe("1");
+  });
+
+  it("dates each page like the 30 day chart: its first day, thirds of the way along, and its last", () => {
+    const root = renderQuarter();
+    const dates = texts(root, ".activity-axis > span");
+    expect(dates).toHaveLength(12);
+    expect(dates.at(-1)).toBe("Today");
+    expect(all(root, ".activity-axis > span").map((span) => span.className)).toEqual(
+      Array.from({ length: 3 }, () => ["is-first", "is-middle", "is-middle", "is-last"]).flat(),
+    );
+  });
+
+  it("has no arrows on a 30 day chart", () => {
+    const root = render({ days: days.slice(0, 30) });
+    expect(all(root, ".activity-pager-button")).toHaveLength(0);
+    expect(chart(root).classList.contains("is-paged")).toBe(false);
+  });
+});
+
+describe("DailyBars, from 30 to 90 days", () => {
+  it("shows the latest page in the first paint after the chart grows to 90 days", () => {
+    const quarter = startsFrom(new Date("2026-08-17T00:00:00Z"), 90);
+    const thirty = Array.from({ length: 30 }, () => measured(5));
+    const ninety = Array.from({ length: 90 }, () => measured(5));
+    const root = render({ days: thirty });
+    mounted!.rerender(<DailyBars name="Work Claude" days={ninety} dayStarts={quarter} resets={[]} period="90d" />);
+    expect(root.querySelector<HTMLElement>(".activity-chart")!.style.getPropertyValue("--activity-page")).toBe("2");
+  });
+});
+
+describe("DailyBars, turning into a 90 day chart", () => {
+  it("draws new bars and dates rather than sliding the 30 day chart's elements over", () => {
+    const quarter = startsFrom(new Date("2026-08-17T00:00:00Z"), 90);
+    const root = render({ days: Array.from({ length: 30 }, () => measured(5)) });
+    const before = [...root.querySelectorAll(".activity-chart *")];
+    mounted!.rerender(
+      <DailyBars name="Work Claude" days={Array.from({ length: 90 }, () => measured(5))} dayStarts={quarter} resets={[]} period="90d" />,
+    );
+    for (const selector of [".activity-bars", ".activity-axis"]) {
+      expect(before).not.toContain(root.querySelector(selector));
+    }
   });
 });

@@ -17,14 +17,15 @@ beforeEach(() => {
 });
 
 describe("activity period", () => {
-  it("is 7 days until the user picks another, and 30 days means 30", () => {
+  it("is 7 days until the user picks another, 30 days means 30, and 90 days means 90", () => {
     expect(getActivityPeriod()).toBe("7d");
-    expect(ACTIVITY_PERIOD_DAYS).toEqual({ "7d": 7, "30d": 30 });
+    expect(ACTIVITY_PERIOD_DAYS).toEqual({ "7d": 7, "30d": 30, "90d": 90 });
   });
 
-  it("accepts only the two periods", () => {
+  it("accepts only the three periods", () => {
     expect(isActivityPeriod("7d")).toBe(true);
     expect(isActivityPeriod("30d")).toBe(true);
+    expect(isActivityPeriod("90d")).toBe(true);
     for (const value of ["14d", "7", "", null, undefined, 7]) expect(isActivityPeriod(value)).toBe(false);
   });
 

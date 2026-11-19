@@ -16,9 +16,9 @@ use crate::{
 use chrono::{DateTime, SecondsFormat, Utc};
 use serde::Serialize;
 
-/// Fewest and most boundaries a request may carry: 1 to 31 days.
+/// Fewest and most boundaries a request may carry: 1 to 91 days (the Usage page asks for up to 90).
 const MIN_BOUNDARIES: usize = 2;
-const MAX_BOUNDARIES: usize = 32;
+const MAX_BOUNDARIES: usize = 92;
 /// A local day is 24 hours, or 23 or 25 across a daylight saving change. Time zone shifts of other
 /// kinds stay within an hour of that.
 const MIN_DAY_SECONDS: i64 = 22 * 3600;
@@ -94,7 +94,7 @@ impl OtherLimit {
 
 /// The day boundaries as unix seconds, or why they are refused. `now` is unix seconds.
 ///
-/// Refused: fewer than 2 or more than 32 boundaries, a boundary that is not an RFC 3339 instant,
+/// Refused: fewer than 2 or more than 92 boundaries, a boundary that is not an RFC 3339 instant,
 /// boundaries that do not strictly increase, a day shorter than 22 or longer than 26 hours, and a
 /// last boundary more than 26 hours from now (it is the end of today, so it cannot be further).
 pub fn validate_day_starts(day_starts: &[String], now: i64) -> Result<Vec<i64>, String> {

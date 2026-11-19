@@ -1,7 +1,5 @@
 import { useId } from "react";
-import { useClock } from "../../shared/hooks/useClock";
 import { displayAccountError, displayPlan } from "../../shared/lib/display";
-import { formatResetAtDay } from "../../shared/lib/format";
 import { displayAccountLabel, usageTone } from "../../shared/lib/usage-logic";
 import { ProviderIcon } from "../../shared/ui/ProviderIcon";
 import type { Account, ActivityTracker } from "../../types";
@@ -13,7 +11,7 @@ import { DailyBars } from "./DailyBars";
 
 /**
  * One consolidated card for an Antigravity account: shared provider header (icon, name, plan pill,
- * email) followed by each model group's own reset info, percentage used, and daily usage chart.
+ * email) followed by each model group's percentage used and daily usage chart (with its resets marked).
  */
 export function AntigravityTrackerCard({
   account,
@@ -33,10 +31,6 @@ export function AntigravityTrackerCard({
   const label = displayAccountLabel(account);
   const plan = displayPlan(account);
   const email = accountEmail(account);
-  const todayMidnight = useClock((now) => {
-    const date = new Date(now);
-    return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-  });
   const needsSignIn = account.authRequired || account.lastUsage?.freshness === "auth_required";
   const hasError = needsSignIn
     || Boolean(account.lastError)
@@ -83,7 +77,6 @@ export function AntigravityTrackerCard({
           const modelName = antigravityFamilyLabel(tracker.windowLabel);
           const used = tracker.currentUsedPercent;
           const tone = usageTone(used == null ? null : 100 - used);
-          const reset = formatResetAtDay(tracker.resetsAt, todayMidnight);
           const monthly = tracker.windowKind === "monthly";
           const chartName = `${label} ${modelName}`;
 
@@ -92,7 +85,6 @@ export function AntigravityTrackerCard({
               <div className="activity-model-head">
                 <div className="activity-model-identity">
                   <h3 className="activity-model-name">{modelName}</h3>
-                  {reset ? <p className="activity-model-reset">Resets {reset}</p> : null}
                 </div>
                 <div className={`activity-card-total activity-model-total tone-${tone}`}>
                   <strong aria-label={used == null ? "Usage unknown" : `${formatDayPercent(used)} of the ${monthly ? "monthly" : "weekly"} limit used`}>

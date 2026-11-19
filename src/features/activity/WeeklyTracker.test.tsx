@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { click, mount, type Mounted } from "../../test-utils/react";
 import { makeAccount, makeTracker, measured } from "../../test-utils/activity-fixtures";
 import { displayPlan } from "../../shared/lib/display";
-import { formatResetAtDay } from "../../shared/lib/format";
 import { setUsageDisplayMode } from "../../shared/lib/usage-display";
 import type { Account } from "../../types";
 import { NoWeeklyLimitCard } from "./NoWeeklyLimitCard";
@@ -37,34 +36,20 @@ function render(account: Account, tracker = makeTracker({ accountId: account.id 
 const text = (root: ParentNode, selector: string) => root.querySelector(selector)?.textContent ?? null;
 
 describe("WeeklyTracker", () => {
-  it("names the account with its plan pill, email, and reset day/time", () => {
+  it("names the account with its plan pill and email, without a reset line", () => {
     const account = makeAccount({ id: "a1", label: "Work Claude", plan: "max", email: "work@example.com" });
     const root = render(account, makeTracker({ accountId: "a1", resetsAt: "2026-10-27T15:00:00Z" }));
     expect(text(root, ".activity-card-title")).toBe("Work Claude");
     expect(text(root, ".activity-plan-pill")).toBe(displayPlan(account));
     expect(text(root, ".activity-consolidated-email")).toBe("work@example.com");
-    expect(text(root, ".activity-card-details")).toBe(`Resets ${formatResetAtDay("2026-10-27T15:00:00Z", Date.now())}`);
+    expect(root.querySelector(".activity-card-head .activity-card-details")).toBeNull();
     expect(root.querySelector("article")!.getAttribute("aria-labelledby")).toBe(root.querySelector(".activity-card-title")!.id);
-  });
-
-  it("formats resets today as Resets Today @ <time> and future days with weekday, date, and @", () => {
-    vi.setSystemTime(new Date("2026-11-17T12:00:00Z"));
-    const account = makeAccount({ id: "a1", label: "Claude123", plan: "pro", email: "m.bahabib@yahoo.com" });
-
-    const todayRoot = render(account, makeTracker({ accountId: "a1", resetsAt: "2026-11-17T22:50:00Z" }));
-    expect(text(todayRoot, ".activity-card-details")).toBe("Resets Today @ 10:50p");
-    mounted!.unmount();
-    mounted = null;
-
-    const futureRoot = render(account, makeTracker({ accountId: "a1", resetsAt: "2026-11-22T02:59:00Z" }));
-    expect(text(futureRoot, ".activity-card-details")).toBe("Resets Sun, Nov 22 @ 2:59a");
   });
 
   it("leaves out what it does not know", () => {
     const root = render(makeAccount({ id: "a1", label: "Plain" }), makeTracker({ accountId: "a1", resetsAt: null }));
     expect(root.querySelector(".activity-plan-pill")).toBeNull();
     expect(root.querySelector(".activity-consolidated-email")).toBeNull();
-    expect(root.querySelector(".activity-card-details")).toBeNull();
   });
 
   it("shows this week's percent, toned by how little is left", () => {
@@ -152,7 +137,7 @@ describe("WeeklyTracker", () => {
     expect(root.querySelector(".activity-card-limit")).toBeNull();
   });
 
-  it("places the title, plan pill, email, and reset in the identity column beside the total usage percentage", () => {
+  it("places the title, plan pill, and email in the identity column beside the total usage percentage", () => {
     const root = render(
       makeAccount({ id: "a1", label: "Claude123", provider: "anthropic", plan: "pro", email: "m.bahabib@yahoo.com" }),
       makeTracker({ accountId: "a1", currentUsedPercent: 27, resetsAt: "2026-10-16T22:50:00Z" }),
@@ -162,7 +147,7 @@ describe("WeeklyTracker", () => {
     expect(identity.querySelector(".activity-consolidated-title-row .activity-card-title")!.textContent).toBe("Claude123");
     expect(identity.querySelector(".activity-consolidated-title-row .activity-plan-pill")!.textContent).toBe("Pro/$20");
     expect(identity.querySelector(".activity-consolidated-email")!.textContent).toBe("m.bahabib@yahoo.com");
-    expect(identity.querySelector(".activity-card-details")!.textContent).toBe("Resets Today @ 10:50p");
+    expect(identity.querySelector(".activity-card-details")).toBeNull();
 
     // Total column contains the percentage and the period label below it
     const total = root.querySelector(".activity-card-total")!;

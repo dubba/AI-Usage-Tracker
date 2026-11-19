@@ -59,14 +59,14 @@ fn well_formed_boundaries_are_accepted() {
 
 #[test]
 fn too_few_or_too_many_boundaries_are_refused() {
-    assert!(refused(&[]).contains("between 2 and 32"));
-    assert!(refused(&[iso(at(15, 0, 0))]).contains("between 2 and 32"));
-    let many: Vec<String> = (0..33)
-        .map(|day| iso(at(15, 0, 0) - (32 - day) * DAY))
+    assert!(refused(&[]).contains("between 2 and 92"));
+    assert!(refused(&[iso(at(15, 0, 0))]).contains("between 2 and 92"));
+    let many: Vec<String> = (0..93)
+        .map(|day| iso(at(15, 0, 0) - (92 - day) * DAY))
         .collect();
-    assert_eq!(many.len(), 33);
-    assert!(refused(&many).contains("between 2 and 32"));
-    // 32 is the most: 31 days.
+    assert_eq!(many.len(), 93);
+    assert!(refused(&many).contains("between 2 and 92"));
+    // 92 is the most: 91 days.
     assert!(validate_day_starts(&many[1..], now()).is_ok());
 }
 
@@ -516,7 +516,7 @@ fn a_request_with_bad_boundaries_reads_nothing() {
         .upsert(claude_at(1.0, at(17, 0, 0), now()))
         .unwrap();
     let error = weekly_activity(&app, &["nope".to_string()], now()).unwrap_err();
-    assert!(error.contains("between 2 and 32"));
+    assert!(error.contains("between 2 and 92"));
     assert!(weekly_activity(&app, &[], now()).is_err());
 }
 
