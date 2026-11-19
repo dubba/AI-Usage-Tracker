@@ -26,6 +26,8 @@ export function useAirgapCapture({
   const [total, setTotal] = useState(0);
   const [verifyPrompt, setVerifyPrompt] = useState(false);
   const [accountCount, setAccountCount] = useState<number | null>(null);
+  /** The frames the backend checked and the one-time ticket for importing exactly those. */
+  const [preview, setPreview] = useState<{ chunks: string[]; ticket: string } | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [importing, setImporting] = useState(false);
   const [captureSecs, setCaptureSecs] = useState<number | null>(null);
@@ -35,6 +37,9 @@ export function useAirgapCapture({
   const verifyPromptRef = useRef(false);
   const captureStartRef = useRef<number | null>(null);
   const verifyStartedRef = useRef(false);
+  // Bumped whenever the capture is thrown away or restarted, so a preview that answers after
+  // that is ignored instead of approving frames that are no longer on screen.
+  const generationRef = useRef(0);
 
   // Latest callbacks, read inside the verification effect without making it re-run.
   const callbacksRef = useRef({ onVerifyStart, onVerifyError, onRescan });
@@ -42,9 +47,11 @@ export function useAirgapCapture({
 
   /** Forget the captured frames and the transfer they belong to. */
   const clearCapture = () => {
+    generationRef.current += 1;
     setChunks(new Map());
     setTotal(0);
     setAccountCount(null);
+    setPreview(null);
     verifyStartedRef.current = false;
     sessionIdRef.current = null;
     captureStartRef.current = null;
@@ -53,6 +60,7 @@ export function useAirgapCapture({
 
   /** Back from "Add these accounts?" to scanning the same transfer again. */
   const rescan = () => {
+    generationRef.current += 1;
     setVerifyPrompt(false);
     verifyPromptRef.current = false;
     verifyStartedRef.current = false;
@@ -60,6 +68,7 @@ export function useAirgapCapture({
     setCaptureSecs(null);
     setChunks(new Map());
     setAccountCount(null);
+    setPreview(null);
   };
 
   /** The prompt is finished (the frames were imported). */
@@ -80,6 +89,7 @@ export function useAirgapCapture({
     setChunks((previous) => {
       let next: Map<number, string>;
       if (sessionIdRef.current !== sessionId) {
+        generationRef.current += 1;
         sessionIdRef.current = sessionId;
         captureStartRef.current = Date.now();
         setCaptureSecs(null);
@@ -122,12 +132,17 @@ export function useAirgapCapture({
     verifyStartedRef.current = true;
     setVerifying(true);
     callbacksRef.current.onVerifyStart();
+    const generation = generationRef.current;
+    const checked = Array.from(chunks.values());
     void pairingApi
-      .previewAirgapFrames(Array.from(chunks.values()))
+      .previewAirgapFrames(checked)
       .then((res) => {
+        if (generationRef.current !== generation) return;
+        setPreview({ chunks: checked, ticket: res.ticket });
         setAccountCount(res.accountCount);
       })
       .catch((err) => {
+        if (generationRef.current !== generation) return;
         callbacksRef.current.onVerifyError(err instanceof Error ? err.message : String(err));
         verifyStartedRef.current = false;
         setVerifyPrompt(false);
@@ -139,7 +154,8 @@ export function useAirgapCapture({
         callbacksRef.current.onRescan();
       })
       .finally(() => {
-        setVerifying(false);
+        // Unless a newer check has started since, which clears it itself.
+        if (generationRef.current === generation || !verifyStartedRef.current) setVerifying(false);
       });
   }, [active, verifyPrompt, chunks, total, accountCount]);
 
@@ -151,6 +167,7 @@ export function useAirgapCapture({
     verifyPrompt,
     setVerifyPrompt,
     accountCount,
+    preview,
     verifying,
     importing,
     setImporting,

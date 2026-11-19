@@ -37,7 +37,7 @@ function scan(code: string): boolean {
 
 beforeEach(() => {
   api.previewAirgapFrames.mockReset();
-  api.previewAirgapFrames.mockResolvedValue({ sessionId: "s1", totalChunks: 2, accountCount: 4 });
+  api.previewAirgapFrames.mockResolvedValue({ sessionId: "s1", totalChunks: 2, accountCount: 4, ticket: "t1" });
   for (const spy of Object.values(callbacks)) spy.mockReset();
 });
 
@@ -116,6 +116,7 @@ describe("useAirgapCapture: asking for the code to compare", () => {
     expect(api.previewAirgapFrames).toHaveBeenCalledTimes(1);
     expect(api.previewAirgapFrames).toHaveBeenCalledWith([frame("s1", 2, 2), frame("s1", 1, 2)]);
     expect(capture.accountCount).toBe(4);
+    expect(capture.preview).toEqual({ chunks: [frame("s1", 2, 2), frame("s1", 1, 2)], ticket: "t1" });
     expect(capture.verifying).toBe(false);
     // Re-rendering with the code in hand does not ask again.
     mounted?.rerender(<Harness />);
@@ -161,6 +162,37 @@ describe("useAirgapCapture: asking for the code to compare", () => {
   });
 });
 
+describe("useAirgapCapture: a preview that answers late", () => {
+  it("is ignored once the capture was thrown away or restarted", async () => {
+    let answer: (value: unknown) => void = () => {};
+    api.previewAirgapFrames.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)));
+    render();
+    scan(frame("s1", 1, 1));
+    act(() => capture.rescan());
+    // A different transfer is captured while the first check is still out.
+    scan(frame("s2", 1, 1));
+    await act(async () => {
+      answer({ sessionId: "s1", totalChunks: 1, accountCount: 9, ticket: "stale" });
+    });
+    await settle();
+    expect(capture.preview).toEqual({ chunks: [frame("s2", 1, 1)], ticket: "t1" });
+    expect(capture.accountCount).toBe(4);
+  });
+
+  it("is ignored after the dialog resets", async () => {
+    let answer: (value: unknown) => void = () => {};
+    api.previewAirgapFrames.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)));
+    render();
+    scan(frame("s1", 1, 1));
+    act(() => capture.resetAll());
+    await act(async () => {
+      answer({ sessionId: "s1", totalChunks: 1, accountCount: 9, ticket: "stale" });
+    });
+    expect(capture.preview).toBeNull();
+    expect(capture.accountCount).toBeNull();
+  });
+});
+
 describe("useAirgapCapture: leaving the comparison", () => {
   async function completed() {
     render();
@@ -174,6 +206,7 @@ describe("useAirgapCapture: leaving the comparison", () => {
     act(() => capture.rescan());
     expect(capture.verifyPrompt).toBe(false);
     expect(capture.accountCount).toBeNull();
+    expect(capture.preview).toBeNull();
     expect(capture.chunks.size).toBe(0);
     expect(capture.captureSecs).toBeNull();
     // The transfer is still the one being scanned, so its next frame adds to it.

@@ -126,8 +126,9 @@ export const pairingApi = {
   /** Opens a complete capture and says how many accounts it holds; imports nothing. */
   previewAirgapFrames: (chunks: string[]) =>
     invoke<AirgapPreview>("pairing_verify_airgap", { chunks }),
-  importAirgapFrames: (chunks: string[], acceptSettings: boolean) =>
-    invoke<SyncSummary>("pairing_import_airgap", { chunks, acceptSettings }),
+  /** Imports the frames a preview checked, with the ticket that preview returned (used once). */
+  importAirgapFrames: (chunks: string[], ticket: string, acceptSettings: boolean) =>
+    invoke<SyncSummary>("pairing_import_airgap", { chunks, ticket, acceptSettings }),
 };
 
 /** Best-effort cancel: the user is already leaving the flow, so a failure is logged rather than shown. */

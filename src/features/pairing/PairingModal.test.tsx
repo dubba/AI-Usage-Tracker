@@ -1033,7 +1033,7 @@ describe("air-gap transfer: receiving", () => {
   }
 
   it("opens the captured frames and asks to add the accounts, with no code to compare", async () => {
-    api.previewAirgapFrames.mockResolvedValue({ sessionId: "sess-1", totalChunks: 2, accountCount: 3 });
+    api.previewAirgapFrames.mockResolvedValue({ sessionId: "sess-1", totalChunks: 2, accountCount: 3, ticket: "ticket-1" });
     await captureAll();
     expect(api.previewAirgapFrames).toHaveBeenCalledWith([FRAME_1, FRAME_2]);
     expect(title()).toBe("Add the accounts");
@@ -1045,18 +1045,18 @@ describe("air-gap transfer: receiving", () => {
   });
 
   it("imports the frames once the user agrees to add them", async () => {
-    api.previewAirgapFrames.mockResolvedValue({ sessionId: "sess-1", totalChunks: 2, accountCount: 3 });
+    api.previewAirgapFrames.mockResolvedValue({ sessionId: "sess-1", totalChunks: 2, accountCount: 3, ticket: "ticket-1" });
     api.importAirgapFrames.mockResolvedValue({ added: 1, updated: 0, skipped: 0 });
     await captureAll();
     await press("Add Accounts");
     // The receiving device's own "Also Transfer Settings & Layout" choice goes with the import.
-    expect(api.importAirgapFrames).toHaveBeenCalledWith([FRAME_1, FRAME_2], true);
+    expect(api.importAirgapFrames).toHaveBeenCalledWith([FRAME_1, FRAME_2], "ticket-1", true);
     expect(title()).toBe("Devices linked");
     expect(onCompleted).toHaveBeenCalledTimes(1);
   });
 
   it("shows an import error and stays on the comparison", async () => {
-    api.previewAirgapFrames.mockResolvedValue({ sessionId: "sess-1", totalChunks: 2, accountCount: 3 });
+    api.previewAirgapFrames.mockResolvedValue({ sessionId: "sess-1", totalChunks: 2, accountCount: 3, ticket: "ticket-1" });
     api.importAirgapFrames.mockRejectedValue(new Error("wrong key"));
     await captureAll();
     await press("Add Accounts");
@@ -1078,7 +1078,7 @@ describe("air-gap transfer: receiving", () => {
   });
 
   it("returns to scanning from Back on the prompt", async () => {
-    api.previewAirgapFrames.mockResolvedValue({ sessionId: "sess-1", totalChunks: 2, accountCount: 3 });
+    api.previewAirgapFrames.mockResolvedValue({ sessionId: "sess-1", totalChunks: 2, accountCount: 3, ticket: "ticket-1" });
     await captureAll();
     const before = scanner.options!.restartKey;
     await press("Back");

@@ -41,6 +41,7 @@ function fakeCapture(overrides: Partial<Capture> = {}): Capture {
       [1, "frame-1"],
       [2, "frame-2"],
     ]),
+    preview: { chunks: ["frame-1", "frame-2"], ticket: "ticket-1" },
     setImporting: spies.setImporting,
     closePrompt: spies.closePrompt,
     ...overrides,
@@ -204,7 +205,7 @@ describe("useAirgapFlow: receiving", () => {
   it("imports the captured frames and marks the transfer complete", async () => {
     render();
     await act(() => flow.handleAirgapImport());
-    expect(api.importAirgapFrames).toHaveBeenCalledWith(["frame-1", "frame-2"], false);
+    expect(api.importAirgapFrames).toHaveBeenCalledWith(["frame-1", "frame-2"], "ticket-1", false);
     expect(hasCompletedRef.current).toBe(true);
     expect(spies.closePrompt).toHaveBeenCalledTimes(1);
     expect(spies.stopCamera).toHaveBeenCalledTimes(1);
@@ -217,6 +218,9 @@ describe("useAirgapFlow: receiving", () => {
     render({ capture: fakeCapture({ accountCount: null }) });
     await act(() => flow.handleAirgapImport());
     mounted?.rerender(<Harness capture={fakeCapture({ importing: true })} />);
+    await act(() => flow.handleAirgapImport());
+    // No ticket from a preview: nothing to import.
+    mounted?.rerender(<Harness capture={fakeCapture({ preview: null })} />);
     await act(() => flow.handleAirgapImport());
     expect(api.importAirgapFrames).not.toHaveBeenCalled();
     expect(spies.setImporting).not.toHaveBeenCalled();

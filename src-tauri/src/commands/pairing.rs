@@ -176,18 +176,20 @@ pub async fn pairing_prepare_airgap_export(
 
 #[tauri::command]
 pub fn pairing_verify_airgap(
+    state: State<'_, Arc<AppState>>,
     chunks: Vec<String>,
 ) -> Result<pairing::airgap::AirgapPreview, String> {
-    pairing::airgap::preview_airgap_frames(chunks)
+    pairing::airgap::preview_airgap_frames(state.inner(), chunks)
 }
 
 #[tauri::command]
 pub async fn pairing_import_airgap(
     state: State<'_, Arc<AppState>>,
     chunks: Vec<String>,
+    ticket: String,
     accept_settings: bool,
 ) -> Result<pairing::payload::SyncSummary, String> {
-    pairing::airgap::import_airgap_payload(state.inner(), chunks, accept_settings).await
+    pairing::airgap::import_airgap_payload(state.inner(), chunks, &ticket, accept_settings).await
 }
 
 pub static GLOBAL_APP_HANDLE: parking_lot::Mutex<Option<AppHandle>> = parking_lot::Mutex::new(None);

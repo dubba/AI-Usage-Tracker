@@ -278,4 +278,6 @@ export interface AirgapPreview {
   totalChunks: number;
   /** Accounts in the transfer; ones this device already has are skipped on import. */
   accountCount: number;
+  /** One-time ticket for importing exactly the previewed frames. */
+  ticket: string;
 }

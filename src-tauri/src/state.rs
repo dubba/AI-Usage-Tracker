@@ -167,6 +167,9 @@ pub struct AppState {
     /// Serializes OAuth callback completion so overlapping status polls cannot
     /// replay a single-use authorization code.
     pub login_status_lock: AsyncMutex<()>,
+    /// Held for a whole pairing or air-gap import, so two imports cannot both
+    /// find an account missing and then save over each other (L-106).
+    pub import_lock: AsyncMutex<()>,
     login_shutdowns: Mutex<HashMap<String, oneshot::Sender<()>>>,
     pub bridge_token: RwLock<String>,
     /// Per-client token buckets for bridge rate limiting, keyed by client IP.
@@ -189,6 +192,8 @@ pub struct AppState {
     unprotected_account_ids: RwLock<Vec<String>>,
     pub app_handle: RwLock<Option<AppHandle>>,
     pub pairing: Arc<crate::pairing::PairingSessionManager>,
+    /// The ticket the latest air-gap preview handed out (L-104).
+    pub airgap_import_ticket: Mutex<Option<crate::pairing::airgap::AirgapImportTicket>>,
     account_locks: Mutex<HashMap<String, Arc<AsyncMutex<()>>>>,
     in_flight_refreshes: Mutex<HashMap<String, InFlightRefreshReceiver>>,
     /// Caps how many accounts are refreshed at once so a large account list
@@ -237,6 +242,7 @@ impl AppState {
             login_callback: RwLock::new(None),
             pending_auth_exchange: Mutex::new(None),
             login_status_lock: AsyncMutex::new(()),
+            import_lock: AsyncMutex::new(()),
             login_shutdowns: Mutex::new(HashMap::new()),
             bridge_token: RwLock::new(bridge_token),
             bridge_rate_limit: Mutex::new(std::collections::HashMap::new()),
@@ -250,6 +256,7 @@ impl AppState {
             unprotected_account_ids: RwLock::new(Vec::new()),
             app_handle: RwLock::new(None),
             pairing: Arc::new(crate::pairing::PairingSessionManager::new()),
+            airgap_import_ticket: Mutex::new(None),
             account_locks: Mutex::new(HashMap::new()),
             in_flight_refreshes: Mutex::new(HashMap::new()),
             refresh_permits: Arc::new(Semaphore::new(MAX_CONCURRENT_REFRESHES)),
@@ -557,6 +564,26 @@ impl AppState {
         let lock = self.account_lock(&account.id);
         let _guard = lock.lock().await;
         self.store.persist_account(account, secret)
+    }
+
+    /// Like [`Self::persist_connected_account`], but builds the secret from the
+    /// one stored now (`None` when there is none or it cannot be read), under
+    /// the account lock. A flow that keeps fields it does not own, such as an
+    /// API-key reconnect keeping the Cloud sign-in, uses this so a token a
+    /// refresh rotated meanwhile is not replaced by an earlier copy.
+    pub async fn persist_connected_account_from_current<F>(
+        &self,
+        account: Account,
+        build: F,
+    ) -> Result<Account, StoreError>
+    where
+        F: FnOnce(Option<ProviderSecret>) -> ProviderSecret,
+    {
+        let lock = self.account_lock(&account.id);
+        let _guard = lock.lock().await;
+        let current = crate::store::load_provider_secret(&account.id).ok();
+        let secret = build(current);
+        self.store.persist_account(account, &secret)
     }
 }
 

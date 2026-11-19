@@ -57,10 +57,13 @@ pub(crate) enum Lifetime {
 
 impl Lifetime {
     /// How many seconds the token lives: what the reply said, or this rule's answer when it said
-    /// nothing. `None` means the reply is malformed.
+    /// nothing. `None` means the reply is malformed, including a lifetime that is zero, negative,
+    /// or longer than [`MAX_LIFETIME_SECS`].
     pub(crate) fn seconds(self, expires_in: Option<i64>) -> Option<i64> {
         match (expires_in, self) {
-            (Some(seconds), _) => Some(seconds),
+            (Some(seconds), _) => (1..=MAX_LIFETIME_SECS)
+                .contains(&seconds)
+                .then_some(seconds),
             (None, Lifetime::DefaultsToOneHour) => Some(DEFAULT_LIFETIME_SECS),
             (None, Lifetime::Required) => None,
         }
@@ -106,7 +109,29 @@ impl std::fmt::Debug for TokenResponse {
     }
 }
 
+impl TokenResponse {
+    /// Checks the reply before anything from it is stored, and works out when its access token
+    /// runs out (Unix milliseconds). `None` means it is malformed: a blank access token, a blank
+    /// rotated refresh token, or a missing (where [`Lifetime::Required`]) or out-of-range lifetime.
+    /// Every sign-in exchange and refresh goes through this, so none can save a token that cannot
+    /// work or an expiry that never comes.
+    pub(crate) fn checked_expires_at(&self, lifetime: Lifetime) -> Option<i64> {
+        let blank = |token: &str| token.trim().is_empty();
+        if blank(&self.access_token) || self.refresh_token.as_deref().is_some_and(blank) {
+            return None;
+        }
+        let seconds = lifetime.seconds(self.expires_in)?;
+        Utc::now()
+            .timestamp_millis()
+            .checked_add(seconds.checked_mul(1000)?)
+    }
+}
+
 const DEFAULT_LIFETIME_SECS: i64 = 3600;
+/// The longest access-token lifetime accepted. Providers issue hours to days; anything past this
+/// is treated as a malformed reply, because a far-off expiry would stop the app from ever
+/// refreshing the token.
+pub(crate) const MAX_LIFETIME_SECS: i64 = 90 * 24 * 60 * 60;
 
 fn needs_new_sign_in(status: StatusCode, body: &str, rule: InvalidGrant) -> bool {
     if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
@@ -149,9 +174,8 @@ pub(crate) async fn refresh_oauth_secret(
     let invalid =
         || ProviderError::Transient(format!("Invalid {provider} token refresh response."));
     let reply: TokenResponse = serde_json::from_str(&body).map_err(|_| invalid())?;
-    let lifetime_secs = request
-        .lifetime
-        .seconds(reply.expires_in)
+    let expires_at = reply
+        .checked_expires_at(request.lifetime)
         .ok_or_else(invalid)?;
     let id_token = match request.id_token {
         IdToken::KeepCurrent => secret.id_token.clone(),
@@ -163,7 +187,7 @@ pub(crate) async fn refresh_oauth_secret(
             .refresh_token
             .unwrap_or_else(|| secret.refresh_token.clone()),
         id_token,
-        expires_at: Utc::now().timestamp_millis() + lifetime_secs * 1000,
+        expires_at,
     })
 }
 
@@ -346,6 +370,56 @@ mod tests {
         assert!(
             defaulted.expires_at >= before + 3_600_000 && defaulted.expires_at < before + 3_605_000
         );
+    }
+
+    #[tokio::test]
+    async fn malformed_tokens_and_lifetimes_are_refused_before_anything_is_stored() {
+        for body in [
+            r#"{"access_token":"","expires_in":3600}"#,
+            r#"{"access_token":"   ","expires_in":3600}"#,
+            r#"{"access_token":"a","refresh_token":"","expires_in":3600}"#,
+            r#"{"access_token":"a","refresh_token":" \n","expires_in":3600}"#,
+            r#"{"access_token":"a","expires_in":0}"#,
+            r#"{"access_token":"a","expires_in":-60}"#,
+            r#"{"access_token":"a","expires_in":7776001}"#,
+            r#"{"access_token":"a","expires_in":9223372036854775807}"#,
+            r#"{"access_token":"a","expires_in":-9223372036854775808}"#,
+        ] {
+            for lifetime in [Lifetime::Required, Lifetime::DefaultsToOneHour] {
+                let result = run(
+                    200,
+                    body,
+                    InvalidGrant::AnyStatus,
+                    lifetime,
+                    IdToken::KeepCurrent,
+                )
+                .await;
+                assert_eq!(
+                    message(result.unwrap_err()),
+                    "Invalid Acme token refresh response.",
+                    "{body}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_longest_accepted_lifetime_is_ninety_days() {
+        let reply = |expires_in| TokenResponse {
+            access_token: "a".into(),
+            refresh_token: None,
+            id_token: None,
+            expires_in: Some(expires_in),
+        };
+        let before = Utc::now().timestamp_millis();
+        let at = reply(MAX_LIFETIME_SECS)
+            .checked_expires_at(Lifetime::Required)
+            .unwrap();
+        assert!(at >= before + MAX_LIFETIME_SECS * 1000);
+        assert!(reply(1).checked_expires_at(Lifetime::Required).is_some());
+        assert!(reply(MAX_LIFETIME_SECS + 1)
+            .checked_expires_at(Lifetime::Required)
+            .is_none());
     }
 
     #[tokio::test]

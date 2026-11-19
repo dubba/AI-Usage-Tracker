@@ -200,13 +200,6 @@ pub async fn add_account(
                     && account.provider_account_id.as_deref() == Some(provider_account_id.as_str())
             })
         });
-    let existing_secret = duplicate
-        .as_ref()
-        .and_then(|account| crate::store::load_provider_secret(&account.id).ok())
-        .and_then(|secret| match secret {
-            ProviderSecret::GoogleAiStudio(secret) => Some(secret),
-            _ => None,
-        });
     let mut account = merge_into_existing(
         duplicate.as_ref(),
         ConnectedFields {
@@ -237,20 +230,40 @@ pub async fn add_account(
         limit_resets: Vec::new(),
     });
 
+    // The Cloud project and sign-in are kept from the secret stored when this
+    // saves, under the account lock, not from a copy read earlier: a usage
+    // refresh may rotate the Cloud token while the models are checked.
     state
-        .persist_connected_account(
-            account,
-            &ProviderSecret::GoogleAiStudio(GoogleAiStudioSecret {
+        .persist_connected_account_from_current(account, |current| {
+            ProviderSecret::GoogleAiStudio(with_stored_cloud_fields(
                 api_key,
                 selected_models,
-                cloud_project_id: existing_secret
-                    .as_ref()
-                    .and_then(|secret| secret.cloud_project_id.clone()),
-                cloud_oauth: existing_secret.and_then(|secret| secret.cloud_oauth),
-            }),
-        )
+                current,
+            ))
+        })
         .await
         .map_err(|error| error.to_string())
+}
+
+/// The secret an API-key connect saves: the new key and models, plus the Cloud
+/// project and sign-in from `current` when it is a Google AI Studio secret.
+pub(crate) fn with_stored_cloud_fields(
+    api_key: String,
+    selected_models: Vec<String>,
+    current: Option<ProviderSecret>,
+) -> GoogleAiStudioSecret {
+    let (cloud_project_id, cloud_oauth) = match current {
+        Some(ProviderSecret::GoogleAiStudio(stored)) => {
+            (stored.cloud_project_id, stored.cloud_oauth)
+        }
+        _ => (None, None),
+    };
+    GoogleAiStudioSecret {
+        api_key,
+        selected_models,
+        cloud_project_id,
+        cloud_oauth,
+    }
 }
 
 pub async fn refresh(

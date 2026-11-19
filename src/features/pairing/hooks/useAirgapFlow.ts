@@ -68,13 +68,14 @@ export function useAirgapFlow({
 
   /** Import the captured frames once the receiving user agreed to add the accounts. */
   const handleAirgapImport = async () => {
-    if (capture.importing || capture.accountCount === null) return;
+    const preview = capture.preview;
+    if (capture.importing || capture.accountCount === null || !preview) return;
     const ticket = request.begin();
     capture.setImporting(true);
     setErrorMessage(null);
     try {
-      const chunks = Array.from(capture.chunks.values());
-      const summary = await pairingApi.importAirgapFrames(chunks, includeSettings);
+      // Exactly the frames the preview checked, with its one-time ticket.
+      const summary = await pairingApi.importAirgapFrames(preview.chunks, preview.ticket, includeSettings);
       if (!request.isLatest(ticket)) return;
       hasCompletedRef.current = true;
       capture.closePrompt();

@@ -2075,3 +2075,97 @@ mod link_code_interop {
         check(Side::DnsSd, Side::DnsSd).await;
     }
 }
+
+/// A cancel while a join is still finding hosts must stop that join: it may
+/// not install a session or report "connecting" afterwards (L-105).
+#[tokio::test]
+async fn a_join_cancelled_during_discovery_does_not_start_afterwards() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = state_in(&dir, "tok-cancel-join").await;
+    let epoch = state.pairing.testing_begin_start();
+    // The user cancels while discovery is still running.
+    state.pairing.cancel().await;
+    let result = state
+        .pairing
+        .start_client(state.clone(), Vec::new(), "482019".into(), epoch)
+        .await;
+    assert!(result.unwrap_err().contains("interrupted"));
+    assert!(matches!(
+        state.pairing.get_status().await,
+        super::PairingStatus::Idle
+    ));
+    assert!(
+        state.pairing.select_role("send").await.is_err(),
+        "no session was installed"
+    );
+}
+
+async fn export_with_secret(id: &str, refresh_token: &str) -> Vec<u8> {
+    let dir = tempfile::tempdir().unwrap();
+    let sender = Arc::new(AppState::new(dir.path().to_path_buf(), "tok-send".into()).unwrap());
+    let account = Account {
+        id: id.into(),
+        label: "Claude".into(),
+        provider: Provider::Anthropic,
+        email: Some("l106@example.com".into()),
+        provider_account_id: None,
+        chatgpt_account_id: None,
+        plan: None,
+        created_at: Utc::now().to_rfc3339(),
+        updated_at: Utc::now().to_rfc3339(),
+        last_usage: None,
+        last_error: None,
+        auth_required: false,
+    };
+    let secret = ProviderSecret::Anthropic(crate::model::OAuthSecret {
+        access_token: format!("access-{refresh_token}"),
+        refresh_token: refresh_token.into(),
+        id_token: None,
+        expires_at: 0,
+    });
+    sender
+        .persist_connected_account(account, &secret)
+        .await
+        .unwrap();
+    create_export_payload(&sender).unwrap()
+}
+
+/// Two imports of the same account with different sign-ins, at the same
+/// time: the first adds it, the second finds it and skips, and the first
+/// sign-in is the one kept (L-106).
+#[tokio::test]
+async fn concurrent_imports_of_one_account_add_it_once_and_keep_the_first_sign_in() {
+    let id = "acc-l106-concurrent";
+    let first = export_with_secret(id, "refresh-first").await;
+    let second = export_with_secret(id, "refresh-second").await;
+    let dir = tempfile::tempdir().unwrap();
+    let receiver = Arc::new(AppState::new(dir.path().to_path_buf(), "tok-recv".into()).unwrap());
+
+    // Hold the account's lock, as a refresh would, so both imports are in
+    // flight before either can save.
+    let lock = receiver.account_lock(id);
+    let guard = lock.lock().await;
+    let import = |payload: Vec<u8>| {
+        let receiver = receiver.clone();
+        tokio::spawn(async move {
+            import_sync_payload(&receiver, &payload, false)
+                .await
+                .unwrap()
+        })
+    };
+    let first_import = import(first);
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let second_import = import(second);
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    drop(guard);
+    let first_summary = first_import.await.unwrap();
+    let second_summary = second_import.await.unwrap();
+
+    assert_eq!((first_summary.added, first_summary.skipped), (1, 0));
+    assert_eq!((second_summary.added, second_summary.skipped), (0, 1));
+    assert_eq!(receiver.store.list().len(), 1);
+    match crate::store::load_provider_secret(id).unwrap() {
+        ProviderSecret::Anthropic(secret) => assert_eq!(secret.refresh_token, "refresh-first"),
+        other => panic!("unexpected secret {other:?}"),
+    }
+}

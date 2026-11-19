@@ -39,6 +39,9 @@ use tokio::{
 };
 use uuid::Uuid;
 
+const INTERRUPTED: &str =
+    "Pairing session was interrupted. Please try starting the transfer again.";
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "status", content = "data", rename_all = "camelCase")]
 pub enum PairingStatus {
@@ -187,8 +190,22 @@ impl PairingSessionManager {
         self.status.read().await.clone()
     }
 
+    /// Starts a new generation and returns it. A start installs its session
+    /// only while the generation is still the one it began with.
+    fn next_epoch(&self) -> u64 {
+        self.epoch.fetch_add(1, Ordering::SeqCst) + 1
+    }
+
+    fn is_current(&self, epoch: u64) -> bool {
+        self.epoch.load(Ordering::SeqCst) == epoch
+    }
+
     pub async fn cancel(&self) {
         let mut active = self.active.write().await;
+        // Under the session lock, so a start that is still discovering hosts
+        // or binding its listener sees the cancel when it goes to install its
+        // session, and gives up instead of starting after it (L-105).
+        self.epoch.fetch_add(1, Ordering::SeqCst);
         if let Some(session) = active.take() {
             if let Some(cancel_tx) = session.cancel_tx {
                 let _ = cancel_tx.send(());
@@ -291,7 +308,7 @@ impl PairingSessionManager {
             options.reset();
             options.accept_incoming_settings = accept_settings;
         }
-        let epoch = self.epoch.fetch_add(1, Ordering::SeqCst) + 1;
+        let epoch = self.next_epoch();
 
         let session_id = Uuid::new_v4();
         let mut session_nonce = vec![0u8; 16];
@@ -328,28 +345,28 @@ impl PairingSessionManager {
             expires_at,
         };
 
-        if self.epoch.load(Ordering::SeqCst) != epoch {
-            // A concurrent start/cancel superseded this session. Never hand the
-            // caller a code for a session that has no listener behind it.
-            return Err(
-                "Pairing session was interrupted. Please try starting the transfer again."
-                    .to_string(),
-            );
-        }
-
-        *self.status.write().await = new_status.clone();
-
         let (cancel_tx, cancel_rx) = oneshot::channel();
         let (confirm_tx, confirm_rx) = oneshot::channel();
         let (status_tx, mut status_rx) = mpsc::channel(16);
 
-        *self.active.write().await = Some(ActiveSession {
-            session_id: session_id.to_string(),
-            cancel_tx: Some(cancel_tx),
-            role_select_tx: None,
-            transfer_confirm_tx: None,
-            advertisement: None,
-        });
+        {
+            // Checked and installed under the lock `cancel` takes, so a cancel
+            // either lands before this check or cancels the installed session.
+            let mut active = self.active.write().await;
+            if !self.is_current(epoch) {
+                // A concurrent start/cancel superseded this session. Never hand the
+                // caller a code for a session that has no listener behind it.
+                return Err(INTERRUPTED.to_string());
+            }
+            *self.status.write().await = new_status.clone();
+            *active = Some(ActiveSession {
+                session_id: session_id.to_string(),
+                cancel_tx: Some(cancel_tx),
+                role_select_tx: None,
+                transfer_confirm_tx: None,
+                advertisement: None,
+            });
+        }
 
         // mDNS advertise is best-effort and must not block returning the code:
         // ServiceDaemon::new() can hang on Android until multicast is ready.
@@ -478,17 +495,10 @@ impl PairingSessionManager {
             options.reset();
             options.accept_incoming_settings = accept_settings;
         }
-        let epoch = self.epoch.fetch_add(1, Ordering::SeqCst) + 1;
+        let epoch = self.next_epoch();
 
         let hosts = discovery::discover().await?;
-        if self.epoch.load(Ordering::SeqCst) != epoch {
-            return Err(
-                "Pairing session was interrupted. Please try starting the transfer again."
-                    .to_string(),
-            );
-        }
-        self.start_client(state, hosts, code).await;
-        Ok(())
+        self.start_client(state, hosts, code, epoch).await
     }
 
     /// Runs the joining side against `hosts`. The session id is this device's own: the hosts'
@@ -498,7 +508,8 @@ impl PairingSessionManager {
         state: Arc<AppState>,
         hosts: Vec<protocol::DiscoveredHost>,
         code: String,
-    ) {
+        epoch: u64,
+    ) -> Result<(), String> {
         let session_id_str = Uuid::new_v4().to_string();
 
         let (cancel_tx, cancel_rx) = oneshot::channel();
@@ -506,17 +517,24 @@ impl PairingSessionManager {
         let (confirm_tx, confirm_rx) = oneshot::channel();
         let (status_tx, mut status_rx) = mpsc::channel(16);
 
-        *self.status.write().await = PairingStatus::ClientConnecting {
-            session_id: session_id_str.clone(),
-        };
-
-        *self.active.write().await = Some(ActiveSession {
-            session_id: session_id_str.clone(),
-            cancel_tx: Some(cancel_tx),
-            role_select_tx: None,
-            transfer_confirm_tx: None,
-            advertisement: None,
-        });
+        {
+            // A cancel during discovery moved the generation on: stop here,
+            // before any status, session, or connection exists (L-105).
+            let mut active = self.active.write().await;
+            if !self.is_current(epoch) {
+                return Err(INTERRUPTED.to_string());
+            }
+            *self.status.write().await = PairingStatus::ClientConnecting {
+                session_id: session_id_str.clone(),
+            };
+            *active = Some(ActiveSession {
+                session_id: session_id_str.clone(),
+                cancel_tx: Some(cancel_tx),
+                role_select_tx: None,
+                transfer_confirm_tx: None,
+                advertisement: None,
+            });
+        }
 
         let app_handle_opt = state.app_handle.read().clone();
         let state_for_client = state.clone();
@@ -586,6 +604,13 @@ impl PairingSessionManager {
                 }
             }
         });
+        Ok(())
+    }
+
+    /// Begins a generation the way a start does, for tests of cancel races.
+    #[cfg(test)]
+    pub(crate) fn testing_begin_start(&self) -> u64 {
+        self.next_epoch()
     }
 
     /// An open session with neither answer channel installed, for tests of the phase gate.

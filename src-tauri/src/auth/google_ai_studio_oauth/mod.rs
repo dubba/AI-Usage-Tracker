@@ -13,7 +13,7 @@ use crate::{
     },
     providers::{
         google_ai_studio,
-        oauth_refresh::{IdToken, RefreshBody, TokenResponse},
+        oauth_refresh::{IdToken, Lifetime, RefreshBody, TokenResponse},
         ProviderError,
     },
     state::AppState,
@@ -29,6 +29,7 @@ use chrono::{Duration, Utc};
 use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::{json, Value};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::oneshot;
 use url::Url;
@@ -51,7 +52,6 @@ enum LoginMode {
     EnableMonitoring { project_id: String },
 }
 
-#[derive(Clone)]
 struct LoginContext {
     app: Arc<AppState>,
     attempt_id: String,
@@ -60,6 +60,9 @@ struct LoginContext {
     expected_state: String,
     redirect_uri: String,
     verifier: String,
+    /// Set by the first request that carries `expected_state`, so the code is
+    /// exchanged once even if the redirect arrives twice.
+    callback_claimed: AtomicBool,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -141,6 +144,7 @@ async fn start_oauth(
         expected_state,
         redirect_uri,
         verifier,
+        callback_claimed: AtomicBool::new(false),
     });
     let router = Router::new()
         .route("/", get(callback))
@@ -262,6 +266,9 @@ async fn callback(
     if query.state.as_deref() != Some(context.expected_state.as_str()) {
         return crate::auth::result_pages::unrecognized_callback_response();
     }
+    if context.callback_claimed.swap(true, Ordering::SeqCst) {
+        return crate::auth::result_pages::finishing_sign_in_response();
+    }
     let result = complete_callback(context.clone(), query).await;
     if let Err(error) = &result {
         context
@@ -317,6 +324,9 @@ async fn complete_callback(
                 if !context.app.login_is_waiting(&context.attempt_id) {
                     return Err("The Google authorization was canceled.".into());
                 }
+                let expires_at = tokens
+                    .checked_expires_at(Lifetime::DefaultsToOneHour)
+                    .ok_or_else(|| String::from("Invalid Google token response."))?;
                 let refresh_token = tokens
                     .refresh_token
                     .or_else(|| {
@@ -333,8 +343,7 @@ async fn complete_callback(
                     access_token: tokens.access_token,
                     refresh_token,
                     id_token: tokens.id_token,
-                    expires_at: Utc::now().timestamp_millis()
-                        + tokens.expires_in.unwrap_or(3600) * 1000,
+                    expires_at,
                 };
                 let email = fetch_email(context.app.as_ref(), &oauth.access_token)
                     .await
@@ -412,7 +421,7 @@ async fn finish_project_setup(
     if monitoring_enabled(app.as_ref(), &project, &oauth.access_token).await? {
         finish_connected_project(app, account_id, project, oauth, email).await
     } else {
-        save_project_selection(app.as_ref(), account_id, &project, oauth, email)?;
+        save_project_selection(app.as_ref(), account_id, &project, oauth, email).await?;
         Ok(CallbackOutcome::MonitoringDisabled(project))
     }
 }
@@ -426,7 +435,7 @@ async fn finish_connected_project(
 ) -> Result<CallbackOutcome, String> {
     validate_monitoring_access_with_retry(app.as_ref(), &project.project_id, &oauth.access_token)
         .await?;
-    save_project_selection(app.as_ref(), account_id, &project, oauth, email)?;
+    save_project_selection(app.as_ref(), account_id, &project, oauth, email).await?;
     let account = usage::refresh_account(app, account_id).await?;
     Ok(CallbackOutcome::Complete(account))
 }
@@ -451,7 +460,11 @@ async fn validate_monitoring_access_with_retry(
     Err(last_error.unwrap_or_else(|| "Google Cloud Monitoring could not be reached.".into()))
 }
 
-fn save_project_selection(
+/// Saves the chosen project. Every caller already saved `oauth` under the
+/// account lock before the project checks ran, and a usage refresh may have
+/// rotated it since, so the stored Cloud sign-in is kept as it is now; `oauth`
+/// is only used when none is stored.
+async fn save_project_selection(
     app: &AppState,
     account_id: &str,
     project: &CloudProjectOption,
@@ -459,10 +472,10 @@ fn save_project_selection(
     email: Option<String>,
 ) -> Result<(), String> {
     let lock = app.account_lock(account_id);
-    let _guard = lock.blocking_lock();
+    let _guard = lock.lock().await;
     let mut stored = load_google_ai_studio_secret(account_id)?;
     stored.cloud_project_id = Some(project.project_id.clone());
-    stored.cloud_oauth = Some(oauth);
+    stored.cloud_oauth.get_or_insert(oauth);
     save_provider_secret(account_id, &ProviderSecret::GoogleAiStudio(stored))
         .map_err(|error| error.to_string())?;
     app.store
@@ -706,6 +719,7 @@ mod tests {
             expected_state: "s".into(),
             redirect_uri: "http://127.0.0.1:1".into(),
             verifier: "v".into(),
+            callback_claimed: AtomicBool::new(false),
         });
         for state in [None, Some("wrong".to_string())] {
             let _ = callback(
@@ -720,6 +734,50 @@ mod tests {
             .await;
             assert!(app.login_is_waiting("attempt"));
         }
+    }
+
+    #[tokio::test]
+    async fn only_the_first_callback_with_this_attempts_state_is_handled() {
+        use axum::extract::{Query, State};
+        let temp = tempfile::tempdir().unwrap();
+        let app = Arc::new(AppState::new(temp.path().to_path_buf(), "test-token".into()).unwrap());
+        *app.pending_login.write() = Some(crate::model::LoginStatus {
+            attempt_id: "attempt".into(),
+            status: crate::model::LoginState::Waiting,
+            message: None,
+            account: None,
+            projects: None,
+            selected_project_id: None,
+        });
+        let context = Arc::new(LoginContext {
+            app: app.clone(),
+            attempt_id: "attempt".into(),
+            account_id: "account".into(),
+            mode: LoginMode::Connect,
+            expected_state: "s".into(),
+            redirect_uri: "http://127.0.0.1:1".into(),
+            verifier: "v".into(),
+            callback_claimed: AtomicBool::new(false),
+        });
+        let denied = || {
+            Query(CallbackQuery {
+                code: None,
+                state: Some("s".into()),
+                error: Some("access_denied".into()),
+                error_description: None,
+            })
+        };
+        // A first request is still being handled (its exchange is in flight).
+        context.callback_claimed.store(true, Ordering::SeqCst);
+        let _ = callback(State(context.clone()), denied()).await;
+        assert!(
+            app.login_is_waiting("attempt"),
+            "a second request must not be handled while the first one runs"
+        );
+        // The first request is the one that settles the sign-in.
+        context.callback_claimed.store(false, Ordering::SeqCst);
+        let _ = callback(State(context.clone()), denied()).await;
+        assert!(!app.login_is_waiting("attempt"));
     }
 
     fn function_body<'a>(source: &'a str, signature: &str) -> &'a str {
@@ -829,6 +887,96 @@ mod tests {
             "rotated",
             "the refresh that waited for the lock keeps the token it rotated"
         );
+    }
+
+    fn studio_account(account_id: &str) -> Account {
+        let now = crate::model::now_rfc3339();
+        Account {
+            id: account_id.into(),
+            label: "Google AI Studio".into(),
+            provider: Provider::GoogleAiStudio,
+            email: None,
+            provider_account_id: None,
+            chatgpt_account_id: None,
+            plan: Some("Google AI Studio".into()),
+            created_at: now.clone(),
+            updated_at: now,
+            last_usage: None,
+            last_error: None,
+            auth_required: false,
+        }
+    }
+
+    #[tokio::test]
+    async fn saving_the_project_keeps_a_cloud_token_rotated_after_the_sign_in() {
+        let temp = tempfile::tempdir().unwrap();
+        let app = Arc::new(AppState::new(temp.path().to_path_buf(), "test-token".into()).unwrap());
+        let _credentials = crate::store::pin_data_dir_for_test(temp.path().to_path_buf());
+        let account_id = "l85-project";
+        app.store.upsert(studio_account(account_id)).unwrap();
+        // The sign-in saved its token, then a refresh rotated it while the
+        // project checks ran; the flow still holds the sign-in's copy.
+        save_provider_secret(account_id, &studio_secret("rotated")).unwrap();
+        let ProviderSecret::GoogleAiStudio(earlier) = studio_secret("from-sign-in") else {
+            unreachable!()
+        };
+        let project = CloudProjectOption {
+            project_id: "example-project-123".into(),
+            project_number: "123".into(),
+            display_name: "Example".into(),
+        };
+        save_project_selection(
+            &app,
+            account_id,
+            &project,
+            earlier.cloud_oauth.unwrap(),
+            None,
+        )
+        .await
+        .unwrap();
+        let stored = load_google_ai_studio_secret(account_id).unwrap();
+        assert_eq!(
+            stored.cloud_project_id.as_deref(),
+            Some("example-project-123")
+        );
+        assert_eq!(stored.cloud_oauth.unwrap().refresh_token, "rotated");
+    }
+
+    #[tokio::test]
+    async fn an_api_key_reconnect_keeps_the_cloud_token_stored_when_it_saves() {
+        let temp = tempfile::tempdir().unwrap();
+        let app = Arc::new(AppState::new(temp.path().to_path_buf(), "test-token".into()).unwrap());
+        // No data-dir pin: saving the account sets the data dir itself, which
+        // waits on the same test lock. The id is unique to this test.
+        let account_id = "l85-reconnect";
+        app.store.upsert(studio_account(account_id)).unwrap();
+        save_provider_secret(account_id, &studio_secret("before")).unwrap();
+
+        // A usage refresh holds the account lock and rotates the token while
+        // the reconnect is waiting to save.
+        let lock = app.account_lock(account_id);
+        let guard = lock.lock().await;
+        let save_app = app.clone();
+        let reconnect = tokio::spawn(async move {
+            save_app
+                .persist_connected_account_from_current(studio_account(account_id), |current| {
+                    ProviderSecret::GoogleAiStudio(google_ai_studio::with_stored_cloud_fields(
+                        "new-api-key".into(),
+                        vec!["gemini-2.5-pro".into()],
+                        current,
+                    ))
+                })
+                .await
+                .unwrap();
+        });
+        tokio::task::yield_now().await;
+        save_provider_secret(account_id, &studio_secret("rotated")).unwrap();
+        drop(guard);
+        reconnect.await.unwrap();
+
+        let stored = load_google_ai_studio_secret(account_id).unwrap();
+        assert_eq!(stored.api_key, "new-api-key");
+        assert_eq!(stored.cloud_oauth.unwrap().refresh_token, "rotated");
     }
 
     fn studio_secret(refresh_token: &str) -> ProviderSecret {

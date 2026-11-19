@@ -67,10 +67,7 @@ pub(super) async fn handle_callback(
         .callback_claimed
         .swap(true, std::sync::atomic::Ordering::SeqCst)
     {
-        return callback_html(
-            r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;min-height:100vh;min-height:100dvh;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000000;color:#f4f6f8;font-family:system-ui;padding:24px 20px;text-align:center"><div style="max-width:480px;width:100%"><h1 style="margin:0 0 12px;font-size:28px">Finishing sign-in</h1><p style="color:#d1d5db;margin:0">Return to AI Usage Tracker.</p></div></body></html>"#
-                .into(),
-        );
+        return crate::auth::result_pages::finishing_sign_in_response();
     }
     if let Some(error) = query.error {
         let message = query.error_description.unwrap_or(error);

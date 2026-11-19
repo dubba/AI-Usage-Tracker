@@ -210,12 +210,12 @@ pub(super) async fn complete_exchange(
     Ok(account)
 }
 
-/// When an access token runs out, given the reply's `expires_in`. A reply that does not say gets an hour.
-fn expires_at(expires_in: Option<i64>) -> i64 {
-    let seconds = Lifetime::DefaultsToOneHour
-        .seconds(expires_in)
-        .unwrap_or_default();
-    Utc::now().timestamp_millis() + seconds * 1000
+/// Checks a sign-in reply and works out when its access token runs out. A reply that does not
+/// say how long the token lives gets an hour; a blank token or an out-of-range lifetime is refused.
+fn expires_at(tokens: &TokenResponse, provider: &str) -> ExchangeResult<i64> {
+    tokens
+        .checked_expires_at(Lifetime::DefaultsToOneHour)
+        .ok_or_else(|| ExchangeError::from(format!("Invalid {provider} token response.")))
 }
 
 pub(super) async fn exchange_tokens(
@@ -260,9 +260,9 @@ pub(super) async fn exchange_openai(
     let tokens: TokenResponse =
         serde_json::from_str(&body).map_err(|_| String::from("Invalid OpenAI token response."))?;
     // Unlike the other providers, OpenAI always reports a lifetime; a response without one is malformed.
-    let expires_in = Lifetime::Required
-        .seconds(tokens.expires_in)
-        .ok_or_else(|| "Invalid OpenAI token response: missing field `expires_in`".to_string())?;
+    let expires_at = tokens
+        .checked_expires_at(Lifetime::Required)
+        .ok_or_else(|| "Invalid OpenAI token response.".to_string())?;
     let refresh_token = tokens
         .refresh_token
         .clone()
@@ -285,7 +285,7 @@ pub(super) async fn exchange_openai(
             access_token: tokens.access_token,
             refresh_token,
             id_token: tokens.id_token,
-            expires_at: Utc::now().timestamp_millis() + expires_in * 1000,
+            expires_at,
         }),
         identity,
     ))
@@ -320,6 +320,7 @@ pub(super) async fn exchange_anthropic(
         .map_err(|_| String::from("Invalid Anthropic token response."))?;
     let tokens: TokenResponse = serde_json::from_value(token_json.clone())
         .map_err(|_| String::from("Invalid Anthropic token response."))?;
+    let expires_at = expires_at(&tokens, "Anthropic")?;
     let refresh_token = tokens
         .refresh_token
         .clone()
@@ -333,7 +334,7 @@ pub(super) async fn exchange_anthropic(
             access_token: tokens.access_token,
             refresh_token,
             id_token: tokens.id_token,
-            expires_at: expires_at(tokens.expires_in),
+            expires_at,
         }),
         identity,
     ))
@@ -366,6 +367,7 @@ pub(super) async fn exchange_antigravity(
     }
     let tokens: TokenResponse =
         serde_json::from_str(&body).map_err(|_| String::from("Invalid Google token response."))?;
+    let expires_at = expires_at(&tokens, "Google")?;
     let refresh_token = tokens.refresh_token.clone().ok_or_else(|| {
         "Google did not return a refresh token. Revoke access and try again.".to_string()
     })?;
@@ -384,7 +386,7 @@ pub(super) async fn exchange_antigravity(
             access_token: tokens.access_token,
             refresh_token,
             id_token: tokens.id_token,
-            expires_at: expires_at(tokens.expires_in),
+            expires_at,
         }),
         identity,
     ))

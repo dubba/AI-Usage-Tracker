@@ -329,6 +329,9 @@ pub async fn import_sync_payload(
     }
     let mut summary = SyncSummary::default();
     let planned = plan_account_ids(std::mem::take(&mut payload.accounts), &mut summary)?;
+    // One import at a time: each checks which accounts this device already has
+    // and then saves the rest, and that check must still hold when it saves.
+    let _import = state.import_lock.lock().await;
     apply_import(state, planned, payload, summary).await
 }
 
