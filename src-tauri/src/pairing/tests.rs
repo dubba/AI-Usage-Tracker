@@ -2378,23 +2378,27 @@ fn payload_from_an_older_peer_without_newer_fields_parses() {
 #[test]
 fn an_unknown_enum_value_from_a_newer_peer_refuses_the_payload() {
     let expected = serde_json::to_value(full_sync_payload()).unwrap();
-    let cases: [(&str, fn(&mut serde_json::Value)); 4] = [
-        ("provider", |payload| {
-            payload["accounts"][0]["account"]["provider"] = "new_provider".into();
-        }),
-        ("window kind", |payload| {
-            payload["accounts"][0]["account"]["lastUsage"]["windows"][0]["kind"] = "daily".into();
-        }),
-        ("freshness", |payload| {
-            payload["accounts"][0]["account"]["lastUsage"]["freshness"] = "partial".into();
-        }),
-        ("secret provider", |payload| {
-            payload["accounts"][0]["secret"]["provider"] = "new_provider".into();
-        }),
+    let cases = [
+        ("provider", "/accounts/0/account/provider", "new_provider"),
+        (
+            "window kind",
+            "/accounts/0/account/lastUsage/windows/0/kind",
+            "daily",
+        ),
+        (
+            "freshness",
+            "/accounts/0/account/lastUsage/freshness",
+            "partial",
+        ),
+        (
+            "secret provider",
+            "/accounts/0/secret/provider",
+            "new_provider",
+        ),
     ];
-    for (name, change) in cases {
+    for (name, pointer, value) in cases {
         let mut payload = expected.clone();
-        change(&mut payload);
+        *payload.pointer_mut(pointer).unwrap() = value.into();
         let bytes = serde_json::to_vec(&payload).unwrap();
         assert!(
             super::payload::validate_payload(&bytes).is_err(),
