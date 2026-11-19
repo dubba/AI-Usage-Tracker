@@ -28,6 +28,12 @@ pub(crate) fn show_main_window(app: &AppHandle) {
     }
 }
 
+/// Whether this build runs under the dev app's identifier (tauri.dev.conf.json).
+#[cfg(desktop)]
+fn is_dev_identifier(identifier: &str) -> bool {
+    identifier.ends_with(".dev")
+}
+
 /// Restores the saved window state and makes closing the window hide it to the tray.
 #[cfg(desktop)]
 pub(crate) fn setup_main_window(app: &tauri::App) {
@@ -35,6 +41,12 @@ pub(crate) fn setup_main_window(app: &tauri::App) {
         let start_hidden = std::env::args().any(|argument| argument == "--hidden");
         if let Some(icon) = app.default_window_icon() {
             let _ = window.set_icon(icon.clone());
+        }
+        // The dev app (`npm run tauri:dev`) has its own identifier and name (tauri.dev.conf.json),
+        // but the window's title comes from tauri.conf.json. Show the dev name in the title bar so
+        // the dev window is never mistaken for the installed app.
+        if is_dev_identifier(&app.config().identifier) {
+            let _ = window.set_title(&app.package_info().name);
         }
         let _ = window.restore_state(SAVED_WINDOW_STATE);
         paint_desktop_title_bar(&window);
@@ -325,6 +337,15 @@ fn paint_windows_title_bar(window: &tauri::WebviewWindow) {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn only_the_dev_identifier_counts_as_the_dev_app() {
+        assert!(super::is_dev_identifier("com.dubba.ai.usage.tracker.dev"));
+        assert!(!super::is_dev_identifier("com.dubba.ai.usage.tracker"));
+        assert!(!super::is_dev_identifier(
+            "com.dubba.ai.usage.tracker.localtest"
+        ));
+    }
+
     use super::{is_titlebar_chrome_class, windows_caption_colorref};
 
     #[test]
