@@ -2391,8 +2391,9 @@ select.text-input option,
   height: 100dvh;
   max-height: 100dvh;
   z-index: var(--z-modal, 10000);
-  background: rgba(0, 0, 0, 0.72);
-  backdrop-filter: blur(3px);
+  background: var(--scrim);
+  -webkit-backdrop-filter: blur(var(--scrim-blur));
+  backdrop-filter: blur(var(--scrim-blur));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3029,11 +3030,17 @@ select.text-input option,
   color: var(--white) !important;
 }
 
-/* The shared confirmation dialog. When it stacks over another dialog (e.g. the
- * group form), it must sit above it and dim it. */
+/* The shared confirmation dialog. On its own it dims the page like any dialog. When it stacks
+ * over another dialog (e.g. the group form), it sits above it and adds only a light layer with no
+ * blur of its own, since the dialog under it already dims and blurs the page. */
 .confirm-dialog-backdrop {
   z-index: 1100;
-  background: rgba(0, 0, 0, 0.55) !important;
+}
+
+body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop {
+  background: var(--scrim-stacked);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .confirm-dialog-backdrop .modal-card {
@@ -3062,9 +3069,16 @@ select.text-input option,
   line-height: 1.45;
 }
 
-.confirm-dialog-note.is-caution {
-  border-color: rgb(var(--tint-amber-rgb) / 0.32);
-  background: rgb(var(--tint-amber-rgb) / 0.11);
+/* A warning: amber text in a solid amber frame with a yellow triangle, the look of the API
+ * Integration window's "bridge is disabled" notice (.bridge-window-warning). The delete-data
+ * dialog's warning (.delete-data-warning) matches it. */
+.confirm-dialog-note.is-caution,
+.delete-data-warning {
+  padding: 13px 15px;
+  border: 1px solid var(--obsidian-amber);
+  border-radius: 8px;
+  background: rgb(var(--tint-amber-rgb) / 0.1);
+  color: var(--obsidian-amber);
 }
 
 .confirm-dialog-note-icon {
@@ -3072,7 +3086,7 @@ select.text-input option,
   width: 16px;
   height: 16px;
   margin-top: 1px;
-  color: var(--tone-warning-text);
+  color: var(--obsidian-amber);
 }
 
 .sidebar-backdrop {
@@ -3174,9 +3188,9 @@ select.text-input option,
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    background: var(--scrim);
+    -webkit-backdrop-filter: blur(var(--scrim-blur));
+    backdrop-filter: blur(var(--scrim-blur));
     z-index: 200;
     opacity: 0;
     pointer-events: none;
@@ -3878,3 +3892,47 @@ select.text-input option,
   }
 }
 
+
+/* Delete local app data: what goes and what stays in one paragraph, then an amber warning. */
+.delete-data-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.delete-data-title-icon {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  color: var(--obsidian-muted-bright);
+}
+
+.confirm-dialog-backdrop .modal-card .confirm-dialog-body {
+  margin-bottom: 18px;
+}
+
+.confirm-dialog-backdrop .modal-card .confirm-dialog-body p {
+  margin: 0;
+}
+
+.delete-data-warning-icon {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+}
+
+/* The icon and the one line side by side. */
+.delete-data-warning {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.delete-data-warning-icon {
+  color: var(--obsidian-amber);
+}
+
+.confirm-dialog-backdrop .modal-card .delete-data-warning p {
+  color: var(--obsidian-amber);
+}

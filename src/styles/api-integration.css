@@ -89,15 +89,28 @@
   background: rgba(255, 111, 111, 0.1);
 }
 
+/* The same warning box as the dialogs' (.confirm-dialog-note.is-caution): amber text in a solid
+   amber frame, led by a yellow triangle. */
 .bridge-window-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
   margin-bottom: 14px;
   padding: 13px 15px;
   border: 1px solid var(--obsidian-amber);
   border-radius: 8px;
   color: var(--obsidian-amber);
-  background: rgba(245, 182, 66, 0.1);
-  font-size: 12px;
+  background: rgb(var(--tint-amber-rgb) / 0.1);
+  font-size: 13px;
   line-height: 1.45;
+}
+
+.bridge-window-warning-icon {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  color: var(--obsidian-amber);
 }
 
 .bridge-detail-card,

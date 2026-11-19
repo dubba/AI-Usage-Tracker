@@ -105,7 +105,12 @@ describe("DataSection", () => {
     render();
     expect(document.body.textContent).toContain("Remove all accounts, usage history, and settings from this device.");
     click(button("Delete"));
-    expect(document.querySelector("[role=alertdialog]")?.textContent).toContain("usage snapshots, usage history, groups");
+    const dialog = document.querySelector("[role=alertdialog]")!;
+    expect(dialog.textContent).toContain("Remove All Device Data");
+    expect(dialog.textContent).toContain(
+      "Removes all accounts, app data, and settings. AI provider accounts won’t be deleted or canceled. Other synced devices, if any, remain unchanged.",
+    );
+    expect(dialog.textContent).toContain("This action cannot be undone.");
   });
 
   it("deletes nothing until the confirmation is accepted", async () => {

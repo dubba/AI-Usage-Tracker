@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { bridgeApi } from "../../shared/lib/api";
 import { errorMessage } from "../../shared/lib/errors";
-import { CheckIcon, HistoryResetIcon, TrashIcon } from "../../shared/ui/icons";
+import { AlertTriangleIcon, CheckIcon, HistoryResetIcon, TrashIcon } from "../../shared/ui/icons";
 import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
 import { CopyDiagnosticsButton } from "./CopyDiagnosticsButton";
 
@@ -135,8 +135,26 @@ export function DataSection({
       <ConfirmDialog
         open={confirmingDelete}
         kicker="Delete local app data"
-        title="Delete local app data?"
-        body="Removes every account and its saved sign-in, usage snapshots, usage history, groups, alert settings, and app settings from this device, and replaces the local API token. Your provider accounts are not canceled, other linked devices keep their own copies, and this can't be undone."
+        className="delete-data-dialog"
+        title={
+          <span className="delete-data-title">
+            <TrashIcon className="delete-data-title-icon" aria-hidden="true" />
+            Remove All Device Data
+          </span>
+        }
+        richBody
+        body={
+          <>
+            <p>
+              Removes all accounts, app data, and settings. AI provider accounts won&rsquo;t be deleted or canceled.
+              Other synced devices, if any, remain unchanged.
+            </p>
+            <div className="delete-data-warning">
+              <AlertTriangleIcon className="delete-data-warning-icon" aria-hidden="true" />
+              <p>This action cannot be undone.</p>
+            </div>
+          </>
+        }
         confirmLabel="Delete Everything"
         busyLabel="Deleting…"
         busy={deleting}

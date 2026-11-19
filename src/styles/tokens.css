@@ -149,6 +149,12 @@
     --z-dropdown: 1000;
     --z-tooltip: 1100;
     --z-modal: 10000;
+    /* What every dialog (and the phone menu) lays over the page: 70% black and a 3px blur, in both
+     * themes. A confirmation that opens over another dialog adds only the light stacked layer, so
+     * the two together do not turn the window black. */
+    --scrim: rgba(0, 0, 0, 0.7);
+    --scrim-stacked: rgba(0, 0, 0, 0.3);
+    --scrim-blur: 3px;
     --z-toast: 10100;
     --z-error-banner: 10200;
     --safe-area-top: max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px));

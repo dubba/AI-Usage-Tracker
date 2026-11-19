@@ -23,7 +23,8 @@ export function RemoveAccountModal({
           The provider account itself will not be canceled.
         </>
       }
-      note="If you paired this account to another device, that device keeps its own copy of the sign-in and keeps working."
+      note="This only removes the account from this device. Other synced devices, if any, remain unchanged."
+      noteTone="caution"
       confirmLabel="Remove"
       busyLabel="Removing…"
       busy={busy}

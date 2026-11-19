@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { bridgeApi } from "../../shared/lib/api";
 import { useAsyncAction } from "../../shared/hooks/useAsyncAction";
 import { describeError } from "../../shared/lib/errors";
-import { EyeIcon, EyeOffIcon, RefreshIcon } from "../../shared/ui/icons";
+import { AlertTriangleIcon, EyeIcon, EyeOffIcon, RefreshIcon } from "../../shared/ui/icons";
 import type { BridgeInfo } from "../../types";
 
 const DETAILS_REFRESH_MS = 2_000;
@@ -172,7 +172,10 @@ export function ApiIntegrationWindow() {
       </header>
 
       {!bridge.enabled ? (
-        <div className="bridge-window-warning">The Paseo Bridge is disabled. Return to Settings in the main app to turn it on.</div>
+        <div className="bridge-window-warning">
+          <AlertTriangleIcon className="bridge-window-warning-icon" />
+          <span>The Paseo Bridge is disabled. Return to Settings in the main app to turn it on.</span>
+        </div>
       ) : null}
       {bridge.error ? <div className="error-panel" role="alert">{bridge.error}</div> : null}
       {error ? <div className="error-panel" role="alert">{error}</div> : null}

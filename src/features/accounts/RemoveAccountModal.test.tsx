@@ -22,15 +22,15 @@ function render(props: Partial<Parameters<typeof RemoveAccountModal>[0]> = {}) {
 }
 
 describe("RemoveAccountModal (L-113)", () => {
-  it("says removal is local and that a paired device keeps its own copy", () => {
+  it("says removal is local and that other synced devices are not affected", () => {
     render();
     const dialog = document.querySelector('[role="alertdialog"]')!;
     expect(dialog.textContent).toContain("Remove Work?");
     expect(dialog.textContent).toContain("from this device only");
     expect(dialog.textContent).toContain("will not be canceled");
     const note = dialog.querySelector(".confirm-dialog-note")!;
-    expect(note.textContent).toContain("paired this account to another device");
-    expect(note.textContent).toContain("keeps its own copy of the sign-in and keeps working");
+    expect(note.textContent).toBe("This only removes the account from this device. Other synced devices, if any, remain unchanged.");
+    expect(note.classList.contains("is-caution")).toBe(true);
     // The note is part of the dialog's accessible description.
     const describedBy = dialog.getAttribute("aria-describedby")!.split(" ");
     expect(describedBy).toContain(note.id);

@@ -1,7 +1,8 @@
 import { useId, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useModalA11y } from "../hooks/useModalA11y";
 import { useModalClosePolicy } from "../hooks/useModalClosePolicy";
-import { AlertCircleIcon } from "./icons";
+import { AlertTriangleIcon } from "./icons";
 import { ModalDialog } from "./ModalDialog";
 
 /**
@@ -10,12 +11,18 @@ import { ModalDialog } from "./ModalDialog";
  * confirm, and a Cancel that always returns to the dialog that opened it
  * without touching its state. Focus returns to the control that opened it via
  * useModalA11y.
+ *
+ * It is drawn at the end of <body>, not where it is used: a page section that is a containing
+ * block (a transform, a filter or `container-type` on an ancestor) would otherwise hold its fixed
+ * backdrop, which then dims only that section and leaves the rest of the window clickable.
  */
 export function ConfirmDialog({
   open,
   kicker,
   title,
   body,
+  richBody = false,
+  className,
   note,
   noteTone = "info",
   cancelLabel = "Cancel",
@@ -32,6 +39,10 @@ export function ConfirmDialog({
   title: ReactNode;
   /** Say exactly what is removed or lost, and what is unaffected. */
   body: ReactNode;
+  /** The body holds its own blocks (headings, paragraphs, callouts) instead of one sentence. */
+  richBody?: boolean;
+  /** Added to the dialog card's class, for a dialog with a layout of its own. */
+  className?: string;
   /** An optional callout under the body: advice that bears on the choice. */
   note?: ReactNode;
   /** `caution` tints the note amber. */
@@ -54,23 +65,29 @@ export function ConfirmDialog({
   useModalA11y(dialogRef, open, requestCancel);
   if (!open) return null;
 
-  return (
+  return createPortal(
     <ModalDialog
       dialogRef={dialogRef}
       role="alertdialog"
       labelledBy={titleId}
       describedBy={note ? `${bodyId} ${noteId}` : bodyId}
-      className="remove-account-modal"
+      className={className ? `remove-account-modal ${className}` : "remove-account-modal"}
       backdropClassName="confirm-dialog-backdrop"
       onClose={requestCancel}
       closeDisabled={busy}
     >
       <div className="modal-kicker">{kicker}</div>
       <h2 id={titleId}>{title}</h2>
-      <p id={bodyId}>{body}</p>
+      {richBody ? (
+        <div id={bodyId} className="confirm-dialog-body">
+          {body}
+        </div>
+      ) : (
+        <p id={bodyId}>{body}</p>
+      )}
       {note ? (
         <div id={noteId} className={`confirm-dialog-note is-${noteTone}`}>
-          {noteTone === "caution" ? <AlertCircleIcon className="confirm-dialog-note-icon" /> : null}
+          {noteTone === "caution" ? <AlertTriangleIcon className="confirm-dialog-note-icon" /> : null}
           <span>{note}</span>
         </div>
       ) : null}
@@ -87,6 +104,7 @@ export function ConfirmDialog({
           {busy ? (busyLabel ?? confirmLabel) : confirmLabel}
         </button>
       </div>
-    </ModalDialog>
+    </ModalDialog>,
+    document.body,
   );
 }
