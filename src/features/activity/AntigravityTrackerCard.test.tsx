@@ -48,7 +48,7 @@ describe("AntigravityTrackerCard", () => {
   const antigravityAccount = makeAccount({
     id: "anti-1",
     provider: "antigravity",
-    label: "Google Antigravity",
+    label: "Antigravity",
     plan: "pro",
     planDisplay: "Pro/$20",
     email: "m.bahabib@yahoo.com",

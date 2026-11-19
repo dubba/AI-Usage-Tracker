@@ -2,7 +2,6 @@ import { useCallback } from "react";
 import { bridgeApi } from "../shared/lib/api";
 import { busyKey } from "../shared/lib/busy";
 import type { ReportError } from "../shared/lib/errors";
-import { displayAccountLabel } from "../shared/lib/usage-logic";
 import { ALL_ACCOUNTS_GROUP_ID, providerGroupId } from "../features/sidebar/sidebar-groups";
 import { setCardCollapsedOnPage } from "../features/layout/dashboard-page-state";
 import type { Account, DashboardSnapshot } from "../types";
@@ -54,7 +53,7 @@ export function useAfterAccountAdded({
           reportError(
             busyKey("refresh", account.id),
             cause,
-            `Added ${displayAccountLabel(account)}, but couldn't refresh it yet`,
+            `Added ${account.label}, but couldn't refresh it yet`,
             "Added an account, but couldn't refresh it yet",
           );
         }

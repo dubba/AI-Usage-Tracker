@@ -1,5 +1,6 @@
 use crate::{
-    commands::pairing::GLOBAL_APP_HANDLE, migrations::migrate_google_ai_studio_accounts,
+    commands::pairing::GLOBAL_APP_HANDLE,
+    migrations::{migrate_google_ai_studio_accounts, normalize_legacy_text},
     refresh_loop::run_account_refresh_loop,
 };
 use crate::{diagnostics, startup, state::AppState, store::load_or_create_bridge_token};
@@ -103,5 +104,7 @@ fn build_state(data_dir: &std::path::Path) -> Result<Arc<AppState>, startup::Sta
         credential_upgrade.failed_accounts,
     );
     migrate_google_ai_studio_accounts(state.as_ref());
+    // After the move above, so a moved account's label is compared with its new provider.
+    normalize_legacy_text(state.as_ref());
     Ok(state)
 }

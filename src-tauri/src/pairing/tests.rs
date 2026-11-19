@@ -281,6 +281,53 @@ async fn import_replaces_unsafe_peer_account_ids_with_local_ids() {
     assert_eq!(buckets[0].account_ids, vec![local_id]);
 }
 
+/// A sender on an older version may still hold a legacy default label and sign-in error, which
+/// this version rewrote at its own start; the receiver rewrites them too.
+#[tokio::test]
+async fn import_rewrites_legacy_labels_and_errors_from_an_older_sender() {
+    let dir_sender = tempfile::tempdir().unwrap();
+    let state_sender =
+        Arc::new(AppState::new(dir_sender.path().to_path_buf(), "tok1".into()).unwrap());
+    let account = Account {
+        id: "acc-old".into(),
+        label: "Anthropic Claude 2".into(),
+        provider: Provider::Anthropic,
+        email: Some("old@example.com".into()),
+        provider_account_id: None,
+        chatgpt_account_id: None,
+        plan: None,
+        created_at: Utc::now().to_rfc3339(),
+        updated_at: Utc::now().to_rfc3339(),
+        last_usage: None,
+        last_error: Some("authentication is required".into()),
+        auth_required: true,
+    };
+    let secret = ProviderSecret::Anthropic(crate::model::OAuthSecret {
+        access_token: "sk-ant-access-old".into(),
+        refresh_token: "sk-ant-refresh-old".into(),
+        id_token: None,
+        expires_at: 0,
+    });
+    state_sender
+        .persist_connected_account(account, &secret)
+        .await
+        .unwrap();
+    let export_bytes = create_export_payload(&state_sender).unwrap();
+
+    let dir_receiver = tempfile::tempdir().unwrap();
+    let state_receiver =
+        Arc::new(AppState::new(dir_receiver.path().to_path_buf(), "tok2".into()).unwrap());
+    import_sync_payload(&state_receiver, &export_bytes, true)
+        .await
+        .unwrap();
+    let imported = state_receiver.store.list().remove(0);
+    assert_eq!(imported.label, "Claude 2");
+    assert_eq!(
+        imported.last_error.as_deref(),
+        Some("Re-authentication required")
+    );
+}
+
 #[tokio::test]
 async fn import_bounds_peer_supplied_fields() {
     use crate::limits::{MAX_BUCKETS, MAX_EMAIL_CHARS, MAX_LABEL_CHARS};

@@ -115,7 +115,11 @@ pub fn rename_account(
     let label = validate_label(&label)?;
     state
         .store
-        .mutate(&account_id, |account| account.label = label)
+        // A legacy default name ("Codex/GPT") is stored as the current one, as every start would
+        // rewrite it anyway (`usage_core::legacy`).
+        .mutate(&account_id, |account| {
+            account.label = usage_core::legacy::current_label(&account.provider, &label)
+        })
         .map_err(crate::diagnostics::command_error)
 }
 

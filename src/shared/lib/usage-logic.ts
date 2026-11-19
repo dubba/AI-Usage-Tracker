@@ -1,5 +1,4 @@
 import { formatRemainingDuration } from "./format";
-import { providerName } from "./providers";
 import { GROK_BOT_WINDOW_ID } from "./usage-sources";
 import type { Account, AccountHealth, Provider, UsageWindow, WindowKind } from "../../types";
 
@@ -26,30 +25,6 @@ export function windowLimitName(window: UsageWindow): string | null {
   return hours >= 24 && hours % 24 === 0 ? `${hours / 24}-day` : `${hours}-hour`;
 }
 
-// Legacy accounts were auto-labeled with an older provider display name
-// (e.g. "Google Antigravity"). Collapse only those obsolete branded defaults
-// for the matching provider, including numbered copies ("Grok/Cursor 2").
-const LEGACY_DEFAULT_LABELS: Partial<Record<Provider, string[]>> = {
-  antigravity: ["Google Antigravity"],
-  grok: ["Grok / SuperGrok", "Grok/Cursor"],
-  openai: ["OpenAI Codex", "Codex/GPT", "GPT/Codex"],
-  anthropic: ["Anthropic Claude"],
-  google_ai_studio: ["Google AI Studio"],
-};
-
-export function displayAccountLabel(account: Account): string {
-  const current = providerName(account.provider);
-  const legacy = LEGACY_DEFAULT_LABELS[account.provider] ?? [];
-  if (legacy.includes(account.label)) return current;
-  for (const old of legacy) {
-    const prefix = `${old} `;
-    if (account.label.startsWith(prefix)) {
-      const rest = account.label.slice(prefix.length);
-      if (/^\d+$/.test(rest)) return `${current} ${rest}`;
-    }
-  }
-  return account.label;
-}
 // An account's health and Google setup are worked out by the backend (`usage-core/src/health.rs`)
 // and arrive with the account; the functions below only decide how to show them.
 
@@ -200,7 +175,7 @@ export function nextResetSummary(accounts: Account[], now: number = Date.now()):
       if (!Number.isFinite(resetAt) || resetAt <= currentNow) return [];
       return [{
         resetAt,
-        account: displayAccountLabel(account),
+        account: account.label,
         provider: account.provider,
         window,
         limit: windowLimitName(window),

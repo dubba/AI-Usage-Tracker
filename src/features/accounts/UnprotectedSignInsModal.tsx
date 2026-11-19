@@ -3,7 +3,6 @@ import type { Account } from "../../types";
 import { useModalA11y } from "../../shared/hooks/useModalA11y";
 import { useModalClosePolicy } from "../../shared/hooks/useModalClosePolicy";
 import { providerName } from "../../shared/lib/providers";
-import { displayAccountLabel } from "../../shared/lib/usage-logic";
 import { ModalDialog } from "../../shared/ui/ModalDialog";
 
 export type UnprotectedSignInsBusy = "retry" | "remove" | null;
@@ -49,7 +48,7 @@ export function UnprotectedSignInsModal({
       <ul>
         {accounts.map((account) => (
           <li key={account.id}>
-            {displayAccountLabel(account)} ({providerName(account.provider)})
+            {account.label} ({providerName(account.provider)})
           </li>
         ))}
       </ul>

@@ -1,7 +1,6 @@
 import { useId } from "react";
 import { useClock } from "../../shared/hooks/useClock";
-import { displayAccountError } from "../../shared/lib/display";
-import { displayAccountLabel, isWindowExpired, usageTone } from "../../shared/lib/usage-logic";
+import { isWindowExpired, usageTone } from "../../shared/lib/usage-logic";
 import { ProviderIcon } from "../../shared/ui/ProviderIcon";
 import type { Account, ActivityTracker } from "../../types";
 import { accountEmail } from "./account-title";
@@ -26,7 +25,7 @@ export function WeeklyTracker({
   onReconnect?: (account: Account) => void;
 }) {
   const titleId = useId();
-  const label = displayAccountLabel(account);
+  const label = account.label;
   const plan = account.planDisplay;
   const expired = useClock((now) => isWindowExpired(tracker.resetsAt, Math.max(now, Date.now())));
   const used = expired ? null : tracker.currentUsedPercent;
@@ -88,7 +87,7 @@ export function WeeklyTracker({
       </header>
       {needsSignIn ? (
         <div className="activity-card-notice">
-          <span>{displayAccountError(account.lastError) ?? "Sign in again to keep tracking this account."}</span>
+          <span>{account.lastError ?? "Sign in again to keep tracking this account."}</span>
           {onReconnect ? (
             <button type="button" className="button primary compact-button" onClick={() => onReconnect(account)}>
               {account.provider === "google_ai_studio" ? "Reconnect Cloud Usage" : "Sign in again"}

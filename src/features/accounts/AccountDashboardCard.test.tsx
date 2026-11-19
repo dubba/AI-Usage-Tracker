@@ -839,31 +839,6 @@ describe("AccountDashboardCard error display on mobile vs desktop", () => {
     expect(onReconnect).toHaveBeenCalledTimes(1);
   });
 
-  it("formats 'authentication is required' to 'Re-authentication required' on mobile", () => {
-    setNarrowWindow(true);
-    app = mount(
-      <AccountDashboardCard
-        pageId="all"
-        account={{
-          ...account,
-          id: "mobile-reauth-test",
-          authRequired: true,
-          lastError: "authentication is required",
-          health: "signed_out",
-        }}
-        busy={new Set()}
-        onRefresh={() => undefined}
-        onReconnect={() => undefined}
-        onConnectGoogleUsage={() => undefined}
-        onRename={async () => undefined}
-        onRemove={() => undefined}
-        onNotifications={() => undefined}
-      />,
-    );
-
-    expect(app.container.querySelector(".account-card-error span")?.textContent).toBe("Re-authentication required");
-  });
-
   it("shows Reconnect Cloud Usage for a Google AI Studio signed-out account on mobile", () => {
     setNarrowWindow(true);
     const onReconnect = vi.fn();

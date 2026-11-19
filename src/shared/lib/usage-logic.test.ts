@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   accountWindowRemaining,
   canonicalWindow,
-  displayAccountLabel,
   groupAlert,
   groupAverage,
   grokBotAverage,
@@ -253,18 +252,6 @@ describe("accountWindowRemaining / groupAverage", () => {
     expect(groupAverage([expiredAccount, liveGrok], "weekly", NOW)).toBe(90);
     expect(grokBotAverage([expiredAccount, liveGrok], NOW)).toBe(80);
     expect(grokBotAverage([expiredAccount], NOW)).toBeNull();
-  });
-});
-
-describe("displayAccountLabel", () => {
-  it("collapses obsolete branded default labels to the current provider name", () => {
-    expect(displayAccountLabel(account({ provider: "antigravity", label: "Google Antigravity" }))).toBe("Antigravity");
-    expect(displayAccountLabel(account({ provider: "openai", label: "Codex/GPT 2" }))).toBe("ChatGPT 2");
-  });
-
-  it("leaves custom labels alone", () => {
-    expect(displayAccountLabel(account({ provider: "openai", label: "My ChatGPT" }))).toBe("My ChatGPT");
-    expect(displayAccountLabel(account({ provider: "openai", label: "Codex/GPT beta" }))).toBe("Codex/GPT beta");
   });
 });
 

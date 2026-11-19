@@ -60,7 +60,9 @@ the TypeScript types, which are generated from the Rust types (`src/types.genera
 6. **Changes that cannot be additive are migrations.** Rewriting stored values (a renamed provider,
    a changed label) goes in `migrations.rs`: run on every start, idempotent, retried on failure.
    Apply the same rewrite to accounts that arrive by pairing, since the sender may still hold the
-   old form. Test it on copies of real old files.
+   old form. Test it on copies of real old files. Text rewrites (a provider's old default label, an
+   error message the app no longer writes) go in `usage_core::legacy::normalize_account`, which
+   startup, pairing import and rename already run, so the frontend never translates stored text.
 7. **The local API is its own set of types.** Fields reach it only through
    `bridge_api::public_accounts`, so a field added to `Account` or `UsageWindow` does not appear
    there by accident. Changes there are additive only; anything else needs a `schemaVersion` bump

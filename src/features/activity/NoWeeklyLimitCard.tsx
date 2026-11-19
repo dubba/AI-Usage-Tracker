@@ -1,5 +1,4 @@
 import { useId } from "react";
-import { displayAccountLabel } from "../../shared/lib/usage-logic";
 import { CalendarOffIcon } from "../../shared/ui/icons";
 import type { Account, OtherLimit } from "../../types";
 import { accountEmail, ActivityAccountTitle } from "./account-title";
@@ -40,7 +39,7 @@ export function NoWeeklyLimitCard({
       <div className="activity-card-identity">
         <div className="activity-card-title-row">
           <h2 className="activity-card-title" id={titleId}>
-            <ActivityAccountTitle label={displayAccountLabel(account)} email={email} />
+            <ActivityAccountTitle label={account.label} email={email} />
           </h2>
           <span className="activity-badge">No weekly limit</span>
         </div>

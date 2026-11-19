@@ -3,7 +3,6 @@ import { createPortal } from "react-dom";
 import { ArrowDownIcon, ArrowUpIcon, BellIcon, ChevronIcon, EditIcon, RefreshIcon, TrashIcon } from "../../shared/ui/icons";
 import { computeDropdownPlacement } from "../../shared/ui/dropdown-placement";
 import { useAnchoredMenuPlacement, useMenuDismissal, useMenuKeyboardNav } from "../../shared/ui/menu-hooks";
-import { displayAccountLabel } from "../../shared/lib/usage-logic";
 import type { Account } from "../../types";
 
 export const MENU_GAP = 8;
@@ -123,7 +122,7 @@ export function AccountCardMenu({
   const toggleRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuId = `account-actions-${account.id}`;
-  const label = displayAccountLabel(account);
+  const label = account.label;
 
   const [placement, measurePlacement] = useAnchoredMenuPlacement<MobileMenuPlacement>({
     open,

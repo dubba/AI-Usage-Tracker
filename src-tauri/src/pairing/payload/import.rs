@@ -101,6 +101,8 @@ fn plan_account_ids(
             entry.account.id = uuid::Uuid::new_v4().to_string();
         }
         sanitize_imported_account(&mut entry.account);
+        // The sender may still hold text this version rewrote at its own start.
+        usage_core::legacy::normalize_account(&mut entry.account);
 
         // Enforce per-secret serialized size limit
         let secret_bytes = serde_json::to_vec(&entry.secret)

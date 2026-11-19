@@ -1,4 +1,27 @@
 use crate::{model::Provider, state::AppState};
+use usage_core::legacy;
+
+/// Rewrites text older versions stored (legacy default labels, the old sign-in error, blank
+/// errors), so the frontend shows stored text as it is (`usage_core::legacy`). Runs on every
+/// start after the provider moves below; a write that fails is tried again at the next launch.
+pub(crate) fn normalize_legacy_text(state: &AppState) {
+    for account in state.store.list() {
+        if !legacy::normalize_account(&mut account.clone()) {
+            continue;
+        }
+        if state
+            .store
+            .mutate(&account.id, |account| {
+                legacy::normalize_account(account);
+            })
+            .is_err()
+        {
+            crate::diagnostics::warn(
+                "Could not update an account's saved label or error; it will be tried again at the next launch.",
+            );
+        }
+    }
+}
 
 /// Runs on every successful startup. A write that fails is logged and tried
 /// again on the next launch, because the account still looks unmigrated.

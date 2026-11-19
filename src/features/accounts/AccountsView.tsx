@@ -17,11 +17,7 @@ import {
   UsersIcon,
 } from "../../shared/ui/icons";
 import { DASHBOARD_EMPTY_ACCOUNT_DESCRIPTION, EmptyAccountPanel } from "./EmptyAccountPanel";
-import {
-  accountNeedsAttention,
-  displayAccountLabel,
-  nextResetSummary,
-} from "../../shared/lib/usage-logic";
+import { accountNeedsAttention, nextResetSummary } from "../../shared/lib/usage-logic";
 import { groupFilterLabel, type SidebarGroup } from "../sidebar/sidebar-groups";
 import type {
   Account,
@@ -136,7 +132,7 @@ export function AccountsView(props: {
     if (!move) return;
     if (showReorderHint) completeReorderHint();
     void persistVisibleAccountOrder(move.ids, props.selectedGroup.id);
-    setAnnouncement(moveAnnouncement(displayAccountLabel(account), move.to, move.ids.length));
+    setAnnouncement(moveAnnouncement(account.label, move.to, move.ids.length));
   };
 
   const containerRef = useRef<HTMLDivElement>(null);

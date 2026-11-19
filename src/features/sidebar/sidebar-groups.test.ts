@@ -87,8 +87,8 @@ describe("buildSidebarGroups", () => {
   });
 
   it("titles a provider group after a shared custom label, else the provider name", () => {
-    const [shared] = buildSidebarGroups([account("a", "openai", "Codex/GPT")], [], PROVIDERS, []);
-    expect(shared.title).toBe("ChatGPT");
+    const [shared] = buildSidebarGroups([account("a", "openai", "Codex")], [], PROVIDERS, []);
+    expect(shared.title).toBe("Codex");
     const [mixed] = buildSidebarGroups(
       [account("a", "openai", "Work"), account("b", "openai", "Home")],
       [],

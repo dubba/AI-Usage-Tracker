@@ -7,6 +7,7 @@
 pub mod headline;
 pub mod health;
 pub mod history;
+pub mod legacy;
 pub mod limits;
 pub mod model;
 pub mod plan;

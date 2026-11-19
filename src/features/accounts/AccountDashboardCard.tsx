@@ -13,7 +13,6 @@ import {
 } from "../../shared/ui/icons";
 import { ProviderIcon } from "../../shared/ui/ProviderIcon";
 import {
-  displayAccountLabel,
   accountNeedsAttention,
   accountSignedOut,
   accountStatus,
@@ -24,11 +23,7 @@ import {
   windowLength,
 } from "../../shared/lib/usage-logic";
 import { formatElapsed, formatUpdatedAt } from "../../shared/lib/format";
-import {
-  displayAccountError,
-  displayAccountSubtitle,
-  metricWindowParts,
-} from "../../shared/lib/display";
+import { displayAccountSubtitle, metricWindowParts } from "../../shared/lib/display";
 import type {
   Account,
   Provider,
@@ -102,7 +97,7 @@ export function AccountDashboardCard({
   const status = accountStatus(account);
   // Signed out, the card asks for one thing only: sign in again. Its notice holds the button.
   const signedOut = accountSignedOut(account);
-  const accountErrorMessage = displayAccountError(account.lastError);
+  const accountErrorMessage = account.lastError;
   // Older usage is still on screen: point at Refresh.
   const outOfDate = !signedOut && account.lastUsage?.freshness === "stale";
   // A bar that still has a percent, but the reading is signed out, out of date, or unavailable, is striped.
@@ -205,14 +200,14 @@ export function AccountDashboardCard({
             aria-keyshortcuts={onMove ? "Alt+ArrowUp Alt+ArrowDown" : undefined}
             aria-describedby={onMove ? REORDER_HINT_ID : undefined}
             data-tooltip={shownCollapsed ? "Expand card" : "Collapse card"}
-            aria-label={shownCollapsed ? `Expand ${displayAccountLabel(account)}` : `Collapse ${displayAccountLabel(account)}`}
+            aria-label={shownCollapsed ? `Expand ${account.label}` : `Collapse ${account.label}`}
             aria-expanded={!shownCollapsed}
           >
             <ProviderIcon provider={account.provider} />
           </button>
 
           <div className="compact-card-identity">
-            <h2 title={displayAccountSubtitle(account)}>{displayAccountLabel(account)}</h2>
+            <h2 title={displayAccountSubtitle(account)}>{account.label}</h2>
             {status.label !== "LIVE" ? (
               <span className={`account-status-chip ${status.className}`}>
                 <span className="account-status-chip-dot" aria-hidden="true" />
@@ -372,7 +367,7 @@ export function AccountDashboardCard({
           aria-keyshortcuts={onMove ? "Alt+ArrowUp Alt+ArrowDown" : undefined}
           aria-describedby={onMove ? REORDER_HINT_ID : undefined}
           data-tooltip={shownCollapsed ? "Expand card" : "Collapse card"}
-          aria-label={shownCollapsed ? `Expand ${displayAccountLabel(account)}` : `Collapse ${displayAccountLabel(account)}`}
+          aria-label={shownCollapsed ? `Expand ${account.label}` : `Collapse ${account.label}`}
           aria-expanded={!shownCollapsed}
         >
           <ProviderIcon provider={account.provider} />
@@ -428,12 +423,12 @@ export function AccountDashboardCard({
               // On a wide window the name and the pencil are one click target, from the first letter
               // to the pencil. The pencil stays the keyboard control; its click bubbles up to here.
               <span className="account-card-name-hit" onClick={rename.startEditing}>
-                <h2>{displayAccountLabel(account)}</h2>
+                <h2>{account.label}</h2>
                 <button type="button" className="account-name-edit" data-tooltip="Edit account name" aria-label={`Edit ${account.label}`}>
                   <EditIcon />
                 </button>
               </span>
-            ) : <h2>{displayAccountLabel(account)}</h2>}
+            ) : <h2>{account.label}</h2>}
             {!rename.editing && !desktop ? (
               <button type="button" className="account-name-edit" data-tooltip="Edit account name" aria-label={`Edit ${account.label}`} onClick={rename.startEditing}>
                 <EditIcon />

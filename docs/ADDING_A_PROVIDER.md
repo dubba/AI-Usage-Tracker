@@ -16,7 +16,7 @@ Use an existing provider of the same kind as the model:
 ## 1. The id
 
 - `src/types.generated.ts` — the `Provider` union is generated from the Rust enum; regenerate it with `UPDATE_FIXTURES=1 cargo test --manifest-path src-tauri/Cargo.toml --lib type_contract`.
-- `src-tauri/crates/usage-core/src/model.rs` — add a `Provider` variant, and its arms in `id()`, `display_name()` and `FromStr` (`"…" | alias`). Add a `ProviderSecret` variant carrying the credential type, and its arm in `ProviderSecret::provider()`. A credential struct needs a hand-written redacting `Debug` and `Zeroize` like `OAuthSecret` and `GrokSecret`.
+- `src-tauri/crates/usage-core/src/model.rs` — add a `Provider` variant, and its arms in `id()`, `display_name()` and `FromStr` (`"…" | alias`). Add a `ProviderSecret` variant carrying the credential type, and its arm in `ProviderSecret::provider()`. A credential struct needs a hand-written redacting `Debug` and `Zeroize` like `OAuthSecret` and `GrokSecret`. The exhaustive matches in `usage-core/src/legacy.rs` (`legacy_default_labels`, usually `&[]`) and `plan.rs` also need an arm.
 - `src/shared/lib/providers.ts` — an entry in `PROVIDER_META` (`name`, `connectLabel`, `connectDetail`) and a place in `DEFAULT_PROVIDER_ORDER`.
 - `src-tauri/src/frontend_contract.rs` — add the variant to `all_providers()` and update the count in `the_extractors_read_what_they_should`. `provider_display_names_match_the_frontend` then checks that `PROVIDER_META[...].name` equals `Provider::display_name()`.
 

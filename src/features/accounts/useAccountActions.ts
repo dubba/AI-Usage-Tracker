@@ -2,7 +2,6 @@ import { useCallback } from "react";
 import type { ReportError } from "../../shared/lib/errors";
 import { bridgeApi } from "../../shared/lib/api";
 import { busyKey, REFRESH_ALL_KEY, type BusyTracker } from "../../shared/lib/busy";
-import { displayAccountLabel } from "../../shared/lib/usage-logic";
 import type { Account, BridgeStatus, DashboardSnapshot } from "../../types";
 
 /** Per-account and bridge operations. Each one holds its own busy key and error source. */
@@ -74,7 +73,7 @@ export function useAccountActions({
       await load();
       clearError(key);
     } catch (cause) {
-      reportError(key, cause, `Couldn't remove ${displayAccountLabel(account)}`, "Couldn't remove an account");
+      reportError(key, cause, `Couldn't remove ${account.label}`, "Couldn't remove an account");
     } finally {
       end(key);
     }

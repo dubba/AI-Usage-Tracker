@@ -100,3 +100,59 @@ fn other_providers_are_left_alone_and_a_second_run_changes_nothing() {
         Some("acct-not-digits")
     );
 }
+
+#[test]
+fn legacy_labels_and_errors_are_rewritten_once() {
+    let mut codex = account("codex", Provider::Openai, None);
+    codex.label = "Codex/GPT 2".into();
+    codex.last_error = Some("authentication is required".into());
+    let mut custom = account("custom", Provider::Openai, None);
+    custom.label = "Work".into();
+    custom.last_error = Some("Rate limit exceeded. Try again later.".into());
+    let app = app_with(vec![codex, custom]);
+
+    normalize_legacy_text(&app);
+    let codex = app.store.get("codex").unwrap();
+    assert_eq!(codex.label, "ChatGPT 2");
+    assert_eq!(
+        codex.last_error.as_deref(),
+        Some("Re-authentication required")
+    );
+    let custom = app.store.get("custom").unwrap();
+    assert_eq!(custom.label, "Work");
+    assert_eq!(
+        custom.last_error.as_deref(),
+        Some("Rate limit exceeded. Try again later.")
+    );
+
+    let updated_at = codex.updated_at.clone();
+    normalize_legacy_text(&app);
+    assert_eq!(
+        app.store.get("codex").unwrap().updated_at,
+        updated_at,
+        "a second run writes nothing"
+    );
+}
+
+#[test]
+fn a_moved_google_ai_studio_account_gets_the_current_name() {
+    let mut legacy = account(
+        "studio",
+        Provider::Antigravity,
+        Some("google-ai-studio:abc"),
+    );
+    legacy.label = "Google AI Studio".into();
+    let app = app_with(vec![legacy]);
+    migrate_google_ai_studio_accounts(&app);
+    normalize_legacy_text(&app);
+    assert_eq!(app.store.get("studio").unwrap().label, "AI Studio");
+}
+
+/// The error the migration writes is the one a refused sign-in produces today.
+#[test]
+fn the_rewritten_sign_in_error_is_the_current_one() {
+    assert_eq!(
+        crate::providers::ProviderError::Auth.to_string(),
+        usage_core::legacy::AUTH_ERROR
+    );
+}

@@ -1,10 +1,9 @@
 import type { Account, Provider, UsageWindow, WindowKind } from "../../types";
 import { providerName } from "./providers";
-import { displayAccountLabel } from "./usage-logic";
 import { GROK_BOT_WINDOW_ID } from "./usage-sources";
 
 export function displayProviderGroupTitle(provider: Provider, accounts: Account[]): string {
-  const labels = accounts.map(displayAccountLabel).filter((label) => label.trim());
+  const labels = accounts.map((account) => account.label).filter((label) => label.trim());
   if (labels.length === 0) return providerName(provider);
   const first = labels[0];
   if (labels.every((label) => label === first)) return first;
@@ -15,7 +14,7 @@ export function displayAccountSubtitle(account: Account): string {
   if (account.email && account.email.trim()) {
     return account.email.trim();
   }
-  const label = displayAccountLabel(account);
+  const label = account.label;
   const pName = providerName(account.provider);
   if (label.trim().toLowerCase() === pName.trim().toLowerCase()) {
     return "Connected account";
@@ -247,17 +246,3 @@ const WINDOW_PILL_CLASS: Record<WindowKind, string> = {
 export function windowPillClass(window: UsageWindow): string {
   return (window.kind && WINDOW_PILL_CLASS[window.kind]) || "window-pill-default";
 }
-
-/**
- * Sanitizes and formats account error messages for UI display.
- * Maps legacy or unformatted "authentication is required" to "Re-authentication required".
- */
-export function displayAccountError(error: string | null | undefined): string | null {
-  if (!error) return null;
-  const trimmed = error.trim();
-  if (/^authentication is required$/i.test(trimmed)) {
-    return "Re-authentication required";
-  }
-  return error;
-}
-
