@@ -25,8 +25,10 @@ use std::{
     sync::Arc,
 };
 
+mod paging;
 mod quota;
 
+use paging::Pager;
 use quota::*;
 
 const MODELS_URL: &str = "https://generativelanguage.googleapis.com/v1beta/models";
@@ -352,6 +354,7 @@ fn models_only_usage(account: &Account, models: Vec<TrackableModel>) -> Provider
 async fn list_models(app: &AppState, api_key: &str) -> Result<Vec<TrackableModel>, ProviderError> {
     let mut page_token: Option<String> = None;
     let mut models = Vec::new();
+    let mut pager = Pager::new("Google models.list");
 
     loop {
         // The key travels in a custom header, which a redirect would carry to
@@ -367,9 +370,7 @@ async fn list_models(app: &AppState, api_key: &str) -> Result<Vec<TrackableModel
 
         let page: ModelsPage = google_json(request, "Google models.list").await?;
         models.extend(filter_trackable_models(page.models));
-        page_token = page
-            .next_page_token
-            .filter(|token| !token.trim().is_empty());
+        page_token = pager.next(page.next_page_token, models.len())?;
         if page_token.is_none() {
             break;
         }
@@ -392,13 +393,20 @@ async fn fetch_cloud_usage(
     selected_models: &[TrackableModel],
 ) -> Result<Vec<UsageWindow>, ProviderError> {
     let descriptors = list_metric_descriptors(app, project_id, access_token).await?;
+    // Each type is one more listing, so the same type is queried once.
     let metric_types = descriptors
         .into_iter()
         .map(|descriptor| descriptor.metric_type)
         .filter(|metric_type| supported_metric_type(metric_type))
-        .collect::<Vec<_>>();
+        .collect::<std::collections::BTreeSet<_>>();
     if metric_types.is_empty() {
         return Ok(Vec::new());
+    }
+    if metric_types.len() > paging::MAX_METRIC_TYPES {
+        return Err(ProviderError::Transient(
+            "Google Cloud Monitoring returned more quota metrics than expected. Cached usage is being kept."
+                .into(),
+        ));
     }
 
     let end = Utc::now();
@@ -420,6 +428,7 @@ async fn list_metric_descriptors(
 ) -> Result<Vec<MetricDescriptor>, ProviderError> {
     let mut page_token: Option<String> = None;
     let mut descriptors = Vec::new();
+    let mut pager = Pager::new("Google Cloud Monitoring");
     loop {
         let mut request = app
             .client
@@ -440,9 +449,7 @@ async fn list_metric_descriptors(
         }
         let page: MetricDescriptorPage = google_json(request, "Google Cloud Monitoring").await?;
         descriptors.extend(page.metric_descriptors);
-        page_token = page
-            .next_page_token
-            .filter(|token| !token.trim().is_empty());
+        page_token = pager.next(page.next_page_token, descriptors.len())?;
         if page_token.is_none() {
             break;
         }
@@ -460,6 +467,7 @@ async fn query_time_series(
 ) -> Result<Vec<QuotaSeries>, ProviderError> {
     let mut page_token: Option<String> = None;
     let mut result = Vec::new();
+    let mut pager = Pager::new("Google Cloud Monitoring");
     loop {
         let mut request = app
             .client
@@ -507,9 +515,7 @@ async fn query_time_series(
                 });
             }
         }
-        page_token = page
-            .next_page_token
-            .filter(|token| !token.trim().is_empty());
+        page_token = pager.next(page.next_page_token, result.len())?;
         if page_token.is_none() {
             break;
         }

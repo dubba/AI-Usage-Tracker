@@ -852,3 +852,48 @@ async fn ordinary_provider_text_is_still_saved_with_full_length_credentials() {
         UsageFreshness::Live
     );
 }
+
+/// Refreshing ids that name no account leaves no lock entries behind (L-111).
+#[tokio::test]
+async fn refreshing_unknown_account_ids_leaves_no_lock_entries() {
+    let app = test_app_with_account("usage-l111-known");
+    let before = app.account_lock_count();
+    for index in 0..50 {
+        let error = refresh_account_with(
+            app.clone(),
+            &format!("usage-l111-missing-{index}"),
+            Duration::from_secs(5),
+            // Reaching the provider would end in Ok with this error saved.
+            |_, _, _| async { Err(ProviderError::Transient("reached the provider".into())) },
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(error, "Account not found.");
+    }
+    assert_eq!(app.account_lock_count(), before);
+}
+
+/// An account removed while its refresh waited for the lock has its lock
+/// entry dropped once that refresh gives up (L-111).
+#[tokio::test]
+async fn a_refresh_that_finds_its_account_removed_drops_the_lock_entry() {
+    let id = "usage-l111-removed";
+    let app = test_app_with_account(id);
+    let lock = app.account_lock(id);
+    let guard = lock.clone().lock_owned().await;
+    let refresh = tokio::spawn({
+        let app = app.clone();
+        async move {
+            refresh_account_with(app, id, Duration::from_secs(5), |_, _, _| async {
+                Err(ProviderError::Transient("reached the provider".into()))
+            })
+            .await
+        }
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    app.store.remove(id).unwrap();
+    drop(guard);
+    drop(lock);
+    assert_eq!(refresh.await.unwrap().unwrap_err(), "Account not found.");
+    assert_eq!(app.account_lock_count(), 0);
+}

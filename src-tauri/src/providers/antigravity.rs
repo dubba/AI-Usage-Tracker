@@ -203,11 +203,7 @@ async fn fetch_usage(
     )
     .await;
 
-    let mut windows = match summary {
-        Ok(value) => parse_quota_value(&value),
-        Err(ProviderError::Auth) => return Err(ProviderError::Auth),
-        Err(_) => Vec::new(),
-    };
+    let mut windows = summary_windows(summary)?;
     let mut source = "antigravity_quota_summary".to_string();
 
     if windows.is_empty() {
@@ -440,6 +436,21 @@ fn extract_plan(value: &Value) -> Option<String> {
         .and_then(Value::as_str)
         .filter(|value| !value.trim().is_empty())
         .map(str::to_string)
+}
+
+/// The quota summary's windows, or why the refresh stops here. Only a failure
+/// that the models endpoint can stand in for falls through to it as "no
+/// windows": a rejected sign-in or a rate limit ends the refresh, so a 429 is
+/// not followed straight away by a second request and its `Retry-After` is
+/// kept for the backoff (L-89).
+fn summary_windows(
+    summary: Result<Value, ProviderError>,
+) -> Result<Vec<UsageWindow>, ProviderError> {
+    match summary {
+        Ok(value) => Ok(parse_quota_value(&value)),
+        Err(error @ (ProviderError::Auth | ProviderError::RateLimited { .. })) => Err(error),
+        Err(_) => Ok(Vec::new()),
+    }
 }
 
 fn parse_quota_value(value: &Value) -> Vec<UsageWindow> {
@@ -882,6 +893,31 @@ mod tests {
         assert_eq!(fraction_to_percent(1.0), Some(100.0));
         assert_eq!(fraction_to_percent(75.0), Some(75.0));
         assert_eq!(fraction_to_percent(150.0), Some(100.0));
+    }
+
+    /// A rate-limited quota summary ends the refresh with its `Retry-After`
+    /// instead of reading as "no quota" and calling the models endpoint
+    /// straight away (L-89). Other failures still fall back to that endpoint.
+    #[test]
+    fn a_rate_limited_quota_summary_stops_the_refresh() {
+        let limited = summary_windows(Err(ProviderError::RateLimited {
+            message: "slow down".into(),
+            retry_after: Some(Duration::from_secs(90)),
+        }));
+        assert!(matches!(
+            limited,
+            Err(ProviderError::RateLimited { retry_after, .. })
+                if retry_after == Some(Duration::from_secs(90))
+        ));
+        assert!(matches!(
+            summary_windows(Err(ProviderError::Auth)),
+            Err(ProviderError::Auth)
+        ));
+        let fallback = summary_windows(Err(ProviderError::Transient("502".into()))).unwrap();
+        assert!(
+            fallback.is_empty(),
+            "a server error falls back to the models list"
+        );
     }
 
     #[test]

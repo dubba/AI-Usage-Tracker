@@ -71,6 +71,11 @@ where
     Run: FnOnce(Arc<AppState>, Account, ProviderSecret) -> RunFuture + Send + 'static,
     RunFuture: Future<Output = RefreshOutcome> + Send + 'static,
 {
+    // An id that names no account gets no refresh or lock state at all: each
+    // unknown id would otherwise leave a lock entry behind for good (L-111).
+    if app.store.get(account_id).is_none() {
+        return Err("Account not found.".into());
+    }
     let in_flight_guard = match app.join_or_lead_refresh(account_id) {
         crate::state::InFlightRefresh::Joined(rx) => {
             return wait_for_in_flight(&app, account_id, rx).await;
@@ -83,13 +88,15 @@ where
         Err(_) => return Err("Refresh permit queue closed.".into()),
     };
 
-    let lock = app.account_lock(account_id);
-    let guard = lock.lock_owned().await;
+    let guard = app.account_lock(account_id).lock_owned().await;
 
-    let mut account = app
-        .store
-        .get(account_id)
-        .ok_or_else(|| "Account not found.".to_string())?;
+    let Some(mut account) = app.store.get(account_id) else {
+        // Removed while this refresh waited. The removal could not drop the
+        // lock entry while this refresh held it, so drop it here.
+        drop(guard);
+        app.forget_account_lock(account_id);
+        return Err("Account not found.".into());
+    };
     let secret = match load_provider_secret(account_id) {
         Ok(secret) if secret.provider() == account.provider => secret,
         Ok(secret)

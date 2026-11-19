@@ -111,7 +111,11 @@ pub async fn refresh(
     .await?;
 
     let windows = windows_from_raw(&raw);
-    if windows.is_empty() {
+    // A reply whose windows carry no percentage at all (empty objects, or
+    // reset dates only) is not a reading. Saving it would replace the last
+    // good numbers with a "live" snapshot that shows nothing, so it is a
+    // transient failure and the last numbers stay, marked stale (L-88).
+    if !has_a_reading(&windows) {
         return Err(ProviderError::Transient(
             "Anthropic returned no usable usage windows.".into(),
         ));
@@ -360,6 +364,13 @@ fn windows_from_raw(raw: &RawUsage) -> Vec<UsageWindow> {
     windows
 }
 
+/// Whether at least one window says how much is used.
+fn has_a_reading(windows: &[UsageWindow]) -> bool {
+    windows
+        .iter()
+        .any(|window| window.used_percent.is_some_and(f64::is_finite))
+}
+
 fn push_window(
     windows: &mut Vec<UsageWindow>,
     id: &str,
@@ -368,6 +379,10 @@ fn push_window(
     window_seconds: Option<u64>,
 ) {
     let Some(raw) = raw else { return };
+    // An empty object says nothing about this window.
+    if raw.utilization.is_none() && raw.resets_at.is_none() {
+        return;
+    }
     let used = raw.utilization.map(|value| value.clamp(0.0, 100.0));
     windows.push(UsageWindow {
         id: id.into(),
@@ -781,6 +796,41 @@ mod tests {
             windows[2].resets_at.as_deref(),
             Some("2026-11-15T08:00:00Z")
         );
+    }
+
+    /// Replies that say nothing about usage are not a reading, so they cannot
+    /// replace the last good numbers (L-88).
+    #[test]
+    fn a_reply_without_any_percentage_is_not_a_reading() {
+        for body in [
+            serde_json::json!({}),
+            serde_json::json!({ "five_hour": {}, "seven_day": {} }),
+            serde_json::json!({
+                "five_hour": { "utilization": null, "resets_at": null },
+                "seven_day": { "utilization": null, "resets_at": null }
+            }),
+            serde_json::json!({
+                "five_hour": { "resets_at": "2026-11-10T16:00:00Z" },
+                "seven_day": { "resets_at": "2026-11-15T12:00:00Z" }
+            }),
+        ] {
+            let raw: RawUsage = serde_json::from_value(body.clone()).unwrap();
+            assert!(!has_a_reading(&windows_from_raw(&raw)), "{body}");
+        }
+        // Empty objects add no window at all.
+        let raw: RawUsage =
+            serde_json::from_value(serde_json::json!({ "five_hour": {}, "seven_day": {} }))
+                .unwrap();
+        assert!(windows_from_raw(&raw).is_empty());
+        // One real percentage is enough, and a reset-only window beside it stays.
+        let raw: RawUsage = serde_json::from_value(serde_json::json!({
+            "five_hour": { "utilization": 0, "resets_at": null },
+            "seven_day": { "resets_at": "2026-11-15T12:00:00Z" }
+        }))
+        .unwrap();
+        let windows = windows_from_raw(&raw);
+        assert!(has_a_reading(&windows));
+        assert_eq!(windows.len(), 2);
     }
 
     #[test]

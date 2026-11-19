@@ -469,6 +469,11 @@ impl AppState {
         abandoned
     }
 
+    #[cfg(test)]
+    pub(crate) fn account_lock_count(&self) -> usize {
+        self.account_locks.lock().len()
+    }
+
     pub fn account_lock(&self, account_id: &str) -> Arc<AsyncMutex<()>> {
         let mut locks = self.account_locks.lock();
         locks
@@ -479,7 +484,7 @@ impl AppState {
 
     /// Drops the lock entry for a removed account once nobody else holds or
     /// awaits it, so the map does not grow with every account ever added.
-    fn forget_account_lock(&self, account_id: &str) {
+    pub(crate) fn forget_account_lock(&self, account_id: &str) {
         let mut locks = self.account_locks.lock();
         if locks
             .get(account_id)
