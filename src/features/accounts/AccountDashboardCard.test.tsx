@@ -22,6 +22,8 @@ const account = {
   lastUsage: null,
   lastError: null,
   authRequired: false,
+  health: "inactive",
+  googleSetup: null,
 } as Account;
 
 function renderCard(signInUnprotected: boolean): Mounted {
@@ -342,6 +344,7 @@ describe("AccountDashboardCard actions dropdown placement", () => {
         pageId="mobile-collapse"
         account={{
           ...account,
+          health: "live",
           id: "mobile-collapse-pill-test",
           plan: "pro",
           lastUsage: {
@@ -447,7 +450,7 @@ function renderDesktopCard(overrides: Partial<Parameters<typeof AccountDashboard
   const app = mount(
     <AccountDashboardCard
       pageId="all"
-      account={{ ...account, plan: "pro", lastUsage: { plan: "pro", email: null, windows: [], creditsUsd: null, unlimitedCredits: false, fetchedAt: new Date().toISOString(), freshness: "live", source: "test", limitResets: [] } }}
+      account={{ ...account, plan: "pro", health: "live", lastUsage: { plan: "pro", email: null, windows: [], creditsUsd: null, unlimitedCredits: false, fetchedAt: new Date().toISOString(), freshness: "live", source: "test", limitResets: [] } }}
       busy={new Set()}
       onReconnect={() => undefined}
       onConnectGoogleUsage={() => undefined}
@@ -547,7 +550,7 @@ describe("AccountDashboardCard on a wide window", () => {
   });
 
   it("names a status that is not live in the chip", () => {
-    const rendered = renderDesktopCard({ account: { ...account, authRequired: true } });
+    const rendered = renderDesktopCard({ account: { ...account, authRequired: true, health: "signed_out" } });
     app = rendered.app;
     const chip = app.container.querySelector(".account-status-chip")!;
     expect(chip.textContent).toBe("Signed out");
@@ -558,7 +561,7 @@ describe("AccountDashboardCard on a wide window", () => {
     const onReconnect = vi.fn();
     const onConnectGoogleUsage = vi.fn();
     const rendered = renderDesktopCard({
-      account: { ...account, id: "signed-out-google", provider: "google_ai_studio", authRequired: true, lastError: "Google authorization expired. Sign in again." },
+      account: { ...account, id: "signed-out-google", provider: "google_ai_studio", authRequired: true, lastError: "Google authorization expired. Sign in again.", health: "signed_out", googleSetup: "unknown" },
       onReconnect,
       onConnectGoogleUsage,
     });
@@ -578,7 +581,7 @@ describe("AccountDashboardCard on a wide window", () => {
   });
 
   it("offers Sign in again even when the provider sent no message", () => {
-    const rendered = renderDesktopCard({ account: { ...account, id: "signed-out-silent", authRequired: true } });
+    const rendered = renderDesktopCard({ account: { ...account, id: "signed-out-silent", authRequired: true, health: "signed_out" } });
     app = rendered.app;
     const notice = app.container.querySelector(".account-card-error")!;
     expect(notice.textContent).toBe("This account is signed out.Sign in again");
@@ -591,6 +594,7 @@ describe("AccountDashboardCard on a wide window", () => {
         id: "out-of-date",
         lastError: "OpenAI rate-limited the usage request.",
         lastUsage: { plan: null, email: null, windows: [], creditsUsd: null, unlimitedCredits: false, fetchedAt: new Date().toISOString(), freshness: "stale", source: "test", limitResets: [] },
+        health: "out_of_date",
       },
     });
     app = rendered.app;
@@ -624,7 +628,7 @@ describe("AccountDashboardCard on a wide window", () => {
       limitResets: [],
     };
     const stale = renderDesktopCard({
-      account: { ...account, id: "stale-bar", plan: "pro", lastUsage: { ...usage, freshness: "stale" } },
+      account: { ...account, id: "stale-bar", plan: "pro", lastUsage: { ...usage, freshness: "stale" }, health: "out_of_date" },
     });
     app = stale.app;
     expect(app.container.querySelector(".account-usage-metric")?.classList.contains("is-stale")).toBe(true);
@@ -632,7 +636,7 @@ describe("AccountDashboardCard on a wide window", () => {
 
     app.unmount();
     const live = renderDesktopCard({
-      account: { ...account, id: "live-bar", plan: "pro", lastUsage: { ...usage, freshness: "live" } },
+      account: { ...account, id: "live-bar", plan: "pro", lastUsage: { ...usage, freshness: "live" }, health: "live" },
     });
     app = live.app;
     expect(app.container.querySelector(".account-usage-metric")?.classList.contains("is-stale")).toBe(false);
@@ -661,7 +665,7 @@ describe("AccountDashboardCard on a wide window", () => {
       source: "test",
       limitResets: [],
     };
-    const rendered = renderDesktopCard({ pageId: "desktop-collapse", account: { ...account, id: "desktop-collapse-test", plan: "pro", lastUsage: usage } });
+    const rendered = renderDesktopCard({ pageId: "desktop-collapse", account: { ...account, id: "desktop-collapse-test", plan: "pro", lastUsage: usage, health: "live" } });
     app = rendered.app;
     const card = () => app!.container.querySelector(".provider-account-card")!;
     const icon = () => app!.container.querySelector<HTMLButtonElement>(".account-card-provider-icon")!;
@@ -705,6 +709,7 @@ describe("AccountDashboardCard on a wide window", () => {
       pageId: "desktop-compact-expired",
       account: {
         ...account,
+        health: "live",
         id: "desktop-compact-expired-test",
         plan: "pro",
         lastUsage: {
@@ -764,6 +769,7 @@ describe("AccountDashboardCard error display on mobile vs desktop", () => {
         pageId="all"
         account={{
           ...account,
+          health: "out_of_date",
           id: "mobile-error-test",
           lastError: "Rate limit exceeded. Try again later.",
           lastUsage: {
@@ -812,6 +818,7 @@ describe("AccountDashboardCard error display on mobile vs desktop", () => {
           id: "mobile-signed-out-test",
           authRequired: true,
           lastError: "Session expired. Sign in again.",
+          health: "signed_out",
         }}
         busy={new Set()}
         onRefresh={() => undefined}
@@ -842,6 +849,7 @@ describe("AccountDashboardCard error display on mobile vs desktop", () => {
           id: "mobile-reauth-test",
           authRequired: true,
           lastError: "authentication is required",
+          health: "signed_out",
         }}
         busy={new Set()}
         onRefresh={() => undefined}
@@ -868,6 +876,8 @@ describe("AccountDashboardCard error display on mobile vs desktop", () => {
           provider: "google_ai_studio",
           authRequired: true,
           lastError: null,
+          health: "signed_out",
+          googleSetup: "unknown",
         }}
         busy={new Set()}
         onRefresh={() => undefined}
@@ -895,6 +905,7 @@ describe("AccountDashboardCard error display on mobile vs desktop", () => {
         pageId="all"
         account={{
           ...account,
+          health: "out_of_date",
           id: "desktop-error-test",
           lastError: "Server temporarily unavailable.",
           lastUsage: {
@@ -967,7 +978,7 @@ describe("AccountDashboardCard limit resets", () => {
     app = mount(
       <AccountDashboardCard
         pageId="resets"
-        account={{ ...account, id: "acct-resets", lastUsage }}
+        account={{ ...account, id: "acct-resets", lastUsage, health: lastUsage ? "live" : "inactive" }}
         busy={new Set()}
         onRefresh={() => undefined}
         onReconnect={() => undefined}
@@ -1062,7 +1073,7 @@ describe("AccountDashboardCard Claude limits", () => {
     app = mount(
       <AccountDashboardCard
         pageId="all"
-        account={{ ...account, id: "acct-claude-3", lastUsage: claudeUsage }}
+        account={{ ...account, id: "acct-claude-3", lastUsage: claudeUsage, health: "live" }}
         busy={new Set()}
         onRefresh={() => undefined}
         onReconnect={() => undefined}
@@ -1130,6 +1141,7 @@ describe("AccountDashboardCard compact mode (L7)", () => {
   it("renders a single slim row with identity, compact metric bars, soonest reset, and actions", () => {
     const compactAccount: Account = {
       ...account,
+      health: "live",
       id: "acct-compact",
       label: "Work Claude",
       plan: "claude_max_200",
@@ -1206,7 +1218,7 @@ describe("AccountDashboardCard compact mode (L7)", () => {
     app = mount(
       <AccountDashboardCard
         pageId="compact-page"
-        account={{ ...account, id: "acct-compact-auth", authRequired: true }}
+        account={{ ...account, id: "acct-compact-auth", authRequired: true, health: "signed_out" }}
         compact
         busy={new Set()}
         onRefresh={onRefresh}
@@ -1226,7 +1238,7 @@ describe("AccountDashboardCard compact mode (L7)", () => {
     app.rerender(
       <AccountDashboardCard
         pageId="compact-page"
-        account={{ ...account, id: "acct-compact-err", lastError: "Timed out" }}
+        account={{ ...account, id: "acct-compact-err", lastError: "Timed out", health: "refresh_failed" }}
         compact
         busy={new Set()}
         onRefresh={onRefresh}
@@ -1294,7 +1306,7 @@ describe("AccountDashboardCard compact mode (L7)", () => {
     app = mount(
       <AccountDashboardCard
         pageId="compact-page"
-        account={{ ...account, id: "acct-compact-4", lastUsage: { ...manyUsage, windows: fiveWindows.slice(0, 4) } }}
+        account={{ ...account, id: "acct-compact-4", lastUsage: { ...manyUsage, windows: fiveWindows.slice(0, 4) }, health: "live" }}
         compact
         busy={new Set()}
         onRefresh={() => undefined}
@@ -1310,7 +1322,7 @@ describe("AccountDashboardCard compact mode (L7)", () => {
     app.rerender(
       <AccountDashboardCard
         pageId="compact-page"
-        account={{ ...account, id: "acct-compact-5", provider: "antigravity", lastUsage: manyUsage }}
+        account={{ ...account, id: "acct-compact-5", provider: "antigravity", lastUsage: manyUsage, health: "live" }}
         compact
         busy={new Set()}
         onRefresh={() => undefined}

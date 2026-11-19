@@ -1,7 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  accountNeedsAttention,
-  accountStatus,
   accountWindowRemaining,
   accountsNeedScheduledRefresh,
   canonicalWindow,
@@ -71,6 +69,8 @@ function account(overrides: Partial<Account> = {}): Account {
     lastUsage: usage(),
     lastError: null,
     authRequired: false,
+    health: "live",
+    googleSetup: null,
     ...overrides,
   };
 }
@@ -158,6 +158,8 @@ describe("accountsNeedScheduledRefresh", () => {
     const keyOnly = account({
       provider: "google_ai_studio",
       lastUsage: usage({ source: "google_ai_studio_model_access" }),
+      health: "key_only",
+      googleSetup: "key_only",
     });
     expect(accountsNeedScheduledRefresh([keyOnly], 15, NOW + HOUR)).toBe(false);
   });
@@ -326,45 +328,6 @@ describe("groupSecondMeterLabel", () => {
   });
 });
 
-describe("accountNeedsAttention / accountStatus", () => {
-  it("is healthy for a live account with usage", () => {
-    expect(accountNeedsAttention(account())).toBe(false);
-    expect(accountStatus(account())).toEqual({ label: "LIVE", className: "success" });
-  });
-
-  it.each([
-    ["auth required", { authRequired: true }],
-    ["a last error", { lastError: "boom" }],
-    ["no usage yet", { lastUsage: null }],
-    ["stale usage", { lastUsage: usage({ freshness: "stale" }) }],
-  ] as const)("needs attention with %s", (_name, overrides) => {
-    expect(accountNeedsAttention(account({ ...overrides }))).toBe(true);
-  });
-
-  it("reports the right status label", () => {
-    expect(accountStatus(account({ authRequired: true })).label).toBe("SIGNED OUT");
-    expect(accountStatus(account({ lastUsage: usage({ freshness: "auth_required" }) })).label).toBe("SIGNED OUT");
-    expect(accountStatus(account({ lastError: "x" })).label).toBe("REFRESH FAILED");
-    expect(accountStatus(account({ lastUsage: usage({ freshness: "stale" }) })).label).toBe("OUT OF DATE");
-    expect(accountStatus(account({ lastUsage: null })).label).toBe("INACTIVE");
-  });
-
-  it("flags Google AI Studio accounts without quota windows", () => {
-    const keyOnly = account({
-      provider: "google_ai_studio",
-      lastUsage: usage({ source: "google_ai_studio_model_access" }),
-    });
-    expect(accountNeedsAttention(keyOnly)).toBe(true);
-    expect(accountStatus(keyOnly).label).toBe("KEY ONLY");
-
-    const monitored = account({
-      provider: "google_ai_studio",
-      lastUsage: usage({ source: "google_ai_studio_cloud_monitoring" }),
-    });
-    expect(accountNeedsAttention(monitored)).toBe(false);
-  });
-});
-
 describe("displayAccountLabel", () => {
   it("collapses obsolete branded default labels to the current provider name", () => {
     expect(displayAccountLabel(account({ provider: "antigravity", label: "Google Antigravity" }))).toBe("Antigravity");
@@ -442,10 +405,10 @@ describe("orderedWindows", () => {
 
 describe("groupAlert", () => {
   const live = account({ id: "live", lastUsage: usage({ freshness: "live" }) });
-  const stale = account({ id: "stale", lastUsage: usage({ freshness: "stale" }) });
-  const errored = account({ id: "err", lastError: "Couldn't refresh", lastUsage: usage({ freshness: "live" }) });
-  const signedOut = account({ id: "out", authRequired: true, lastUsage: null });
-  const authFreshness = account({ id: "auth", lastUsage: usage({ freshness: "auth_required" }) });
+  const stale = account({ id: "stale", lastUsage: usage({ freshness: "stale" }), health: "out_of_date" });
+  const errored = account({ id: "err", lastError: "Couldn't refresh", lastUsage: usage({ freshness: "live" }), health: "refresh_failed" });
+  const signedOut = account({ id: "out", authRequired: true, lastUsage: null, health: "signed_out" });
+  const authFreshness = account({ id: "auth", lastUsage: usage({ freshness: "auth_required" }), health: "signed_out" });
 
   it("is null when every account is live", () => {
     expect(groupAlert([live])).toBeNull();

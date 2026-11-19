@@ -9,7 +9,8 @@ function account(id: string, fetchedMinutesAgo: number | null, overrides: Partia
   const lastUsage = fetchedMinutesAgo == null
     ? null
     : ({ fetchedAt: new Date(NOW - fetchedMinutesAgo * MIN).toISOString(), freshness: "live", source: "test", windows: [] } as unknown as UsageSnapshot);
-  return { id, label: id, provider: "openai", lastUsage, lastError: null, authRequired: false, ...overrides } as Account;
+  const health = lastUsage ? "live" : "inactive";
+  return { id, label: id, provider: "openai", lastUsage, lastError: null, authRequired: false, health, googleSetup: null, ...overrides } as Account;
 }
 
 describe("computeSyncStatus", () => {
@@ -50,22 +51,22 @@ describe("computeSyncStatus", () => {
   });
 
   it("turns red when an account must sign in again, however fresh the rest are", () => {
-    const status = computeSyncStatus([account("a", 1), account("b", 300, { authRequired: true })], NOW, 15);
+    const status = computeSyncStatus([account("a", 1), account("b", 300, { authRequired: true, health: "signed_out" })], NOW, 15);
     expect(status.tone).toBe("sign-in");
   });
 
   it("turns red for a signed-out account that never loaded any usage", () => {
-    expect(computeSyncStatus([account("a", 1), account("b", null, { authRequired: true })], NOW, 15).tone).toBe("sign-in");
+    expect(computeSyncStatus([account("a", 1), account("b", null, { authRequired: true, health: "signed_out" })], NOW, 15).tone).toBe("sign-in");
   });
 
   it("turns amber when a recent refresh failed or left older usage on screen", () => {
-    expect(computeSyncStatus([account("a", 1), account("b", 1, { lastError: "boom" })], NOW, 15).tone).toBe("stale");
+    expect(computeSyncStatus([account("a", 1), account("b", 1, { lastError: "boom", health: "refresh_failed" })], NOW, 15).tone).toBe("stale");
     const staleUsage = { ...account("b", 1).lastUsage, freshness: "stale" } as UsageSnapshot;
-    expect(computeSyncStatus([account("a", 1), account("b", 1, { lastUsage: staleUsage })], NOW, 15).tone).toBe("stale");
+    expect(computeSyncStatus([account("a", 1), account("b", 1, { lastUsage: staleUsage, health: "out_of_date" })], NOW, 15).tone).toBe("stale");
   });
 
   it("shows red rather than amber when both problems are present", () => {
-    const accounts = [account("a", 90), account("b", 1, { authRequired: true })];
+    const accounts = [account("a", 90), account("b", 1, { authRequired: true, health: "signed_out" })];
     expect(computeSyncStatus(accounts, NOW, 15).tone).toBe("sign-in");
   });
 });

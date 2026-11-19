@@ -1,5 +1,5 @@
 use super::*;
-use crate::state::AppState;
+use crate::{model::UsageFreshness, state::AppState};
 use std::net::{IpAddr, Ipv4Addr};
 
 fn test_app() -> Arc<AppState> {
@@ -171,6 +171,70 @@ fn usage_response_matches_the_documented_contract_exactly() {
         }]
     });
     assert_eq!(serde_json::to_value(&response).unwrap(), expected);
+}
+
+/// The local API's `status` for every combination of the stored fields it could depend on. Pinned
+/// so that moving or sharing the rule with the app's own account health cannot change what other
+/// programs read: only `authRequired` and the usage freshness decide it, never the last error,
+/// the provider or the usage source.
+#[test]
+fn usage_status_strings_are_pinned_for_every_account_state() {
+    let freshness = [
+        (None, "unavailable", "auth_required"),
+        (Some(UsageFreshness::Live), "available", "auth_required"),
+        (Some(UsageFreshness::Stale), "stale", "auth_required"),
+        (
+            Some(UsageFreshness::Unavailable),
+            "unavailable",
+            "auth_required",
+        ),
+        (
+            Some(UsageFreshness::AuthRequired),
+            "auth_required",
+            "auth_required",
+        ),
+    ];
+    let sources = [
+        (crate::model::Provider::Anthropic, "anthropic_oauth_usage"),
+        (
+            crate::model::Provider::GoogleAiStudio,
+            "google_ai_studio_model_access",
+        ),
+        (
+            crate::model::Provider::GoogleAiStudio,
+            "google_ai_studio_monitoring_waiting",
+        ),
+        (
+            crate::model::Provider::GoogleAiStudio,
+            "google_ai_studio_cloud_monitoring",
+        ),
+    ];
+    for (freshness, signed_in, signed_out) in freshness {
+        for auth_required in [false, true] {
+            for last_error in [None, Some("Refresh failed".to_string())] {
+                for (provider, source) in &sources {
+                    let mut account = sample_account();
+                    account.provider = provider.clone();
+                    account.auth_required = auth_required;
+                    account.last_error = last_error.clone();
+                    match &freshness {
+                        Some(freshness) => {
+                            let usage = account.last_usage.as_mut().unwrap();
+                            usage.freshness = freshness.clone();
+                            usage.source = (*source).into();
+                        }
+                        None => account.last_usage = None,
+                    }
+                    let expected = if auth_required { signed_out } else { signed_in };
+                    let status = public_accounts(vec![account]).remove(0).status;
+                    assert_eq!(
+                        status, expected,
+                        "freshness {freshness:?}, authRequired {auth_required}, error {last_error:?}, source {source}"
+                    );
+                }
+            }
+        }
+    }
 }
 
 #[test]

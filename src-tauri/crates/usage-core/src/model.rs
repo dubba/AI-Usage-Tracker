@@ -1,5 +1,6 @@
+use crate::health::{AccountHealth, GoogleSetup};
 use chrono::Utc;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use std::{fmt, str::FromStr};
 use zeroize::Zeroize;
 
@@ -241,9 +242,10 @@ pub enum UsageFreshness {
     AuthRequired,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+/// An account as the app stores it. Serialized with the values the app works out from these fields
+/// (see [`AccountOut`]).
+#[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct Account {
     pub id: String,
     pub label: String,
@@ -260,6 +262,70 @@ pub struct Account {
     pub last_usage: Option<UsageSnapshot>,
     pub last_error: Option<String>,
     pub auth_required: bool,
+}
+
+/// An account: its stored fields, then the health and Google setup the backend works out from them.
+// What an `Account` serializes as. Computing `health` and `googleSetup` here means every copy the
+// frontend gets (the dashboard, a refresh result, a login) carries current values. They are also
+// written to the account file and pairing payloads, where readers ignore them: `Account` has no
+// such fields, so they are never read back (docs/DATA_COMPATIBILITY.md, rule 5).
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(rename = "Account"))]
+pub struct AccountOut<'a> {
+    id: &'a String,
+    label: &'a String,
+    provider: &'a Provider,
+    email: &'a Option<String>,
+    provider_account_id: &'a Option<String>,
+    chatgpt_account_id: &'a Option<String>,
+    plan: &'a Option<String>,
+    created_at: &'a String,
+    updated_at: &'a String,
+    last_usage: &'a Option<UsageSnapshot>,
+    last_error: &'a Option<String>,
+    auth_required: &'a bool,
+    health: AccountHealth,
+    /// `null` for an account of another provider.
+    google_setup: Option<GoogleSetup>,
+}
+
+impl Serialize for Account {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        // Listing every field makes adding one to `Account` fail to compile until it is added
+        // to `AccountOut` too, so a new field cannot silently go unsaved.
+        let Account {
+            id,
+            label,
+            provider,
+            email,
+            provider_account_id,
+            chatgpt_account_id,
+            plan,
+            created_at,
+            updated_at,
+            last_usage,
+            last_error,
+            auth_required,
+        } = self;
+        AccountOut {
+            id,
+            label,
+            provider,
+            email,
+            provider_account_id,
+            chatgpt_account_id,
+            plan,
+            created_at,
+            updated_at,
+            last_usage,
+            last_error,
+            auth_required,
+            health: AccountHealth::of(self),
+            google_setup: GoogleSetup::of(self),
+        }
+        .serialize(serializer)
+    }
 }
 
 impl Account {
@@ -446,6 +512,7 @@ pub struct LoginStatus {
     pub attempt_id: String,
     pub status: LoginState,
     pub message: Option<String>,
+    #[cfg_attr(feature = "ts", ts(as = "Option<AccountOut<'static>>"))]
     pub account: Option<Account>,
     #[serde(default)]
     pub projects: Option<Vec<CloudProjectOption>>,
@@ -547,6 +614,7 @@ pub struct AccountBucket {
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct DashboardSnapshot {
+    #[cfg_attr(feature = "ts", ts(as = "Vec<AccountOut<'static>>"))]
     pub accounts: Vec<Account>,
     pub buckets: Vec<AccountBucket>,
     pub bridge: BridgeStatus,

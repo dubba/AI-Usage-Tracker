@@ -1,7 +1,7 @@
 import { formatRemainingDuration } from "./format";
 import { providerName } from "./providers";
-import { GROK_BOT_WINDOW_ID, isGoogleCloudMonitored, isGoogleKeyOnly } from "./usage-sources";
-import type { Account, Provider, UsageWindow, WindowKind } from "../../types";
+import { GROK_BOT_WINDOW_ID } from "./usage-sources";
+import type { Account, AccountHealth, Provider, UsageWindow, WindowKind } from "../../types";
 
 export type SidebarWindow = "five_hour" | "weekly";
 
@@ -50,49 +50,34 @@ export function displayAccountLabel(account: Account): string {
   }
   return account.label;
 }
-export function googleAiStudioHasQuotaWindows(account: Account): boolean {
-  return isGoogleCloudMonitored(account)
-    && (account.lastUsage?.windows ?? []).some((window) => window.remainingPercent != null);
-}
+// An account's health and Google setup are worked out by the backend (`usage-core/src/health.rs`)
+// and arrive with the account; the functions below only decide how to show them.
+
+/** Anything but live: the Action needed list and the card's highlight. */
 export function accountNeedsAttention(account: Account): boolean {
-  if (account.provider === "google_ai_studio" && !googleAiStudioHasQuotaWindows(account)) {
-    return true;
-  }
-  return Boolean(
-    account.authRequired
-    || account.lastError
-    || !account.lastUsage
-    || account.lastUsage.freshness !== "live",
-  );
+  return account.health !== "live";
 }
 /** The provider stopped accepting this account's saved sign-in: only signing in again fixes it. */
 export function accountSignedOut(account: Account): boolean {
-  return Boolean(account.authRequired || account.lastUsage?.freshness === "auth_required");
+  return account.health === "signed_out";
 }
+
+const STATUS_CHIPS: Record<AccountHealth, { label: string; className: string }> = {
+  signed_out: { label: "SIGNED OUT", className: "danger" },
+  out_of_date: { label: "OUT OF DATE", className: "warning" },
+  refresh_failed: { label: "REFRESH FAILED", className: "warning" },
+  key_only: { label: "KEY ONLY", className: "warning" },
+  setup: { label: "SETUP", className: "warning" },
+  inactive: { label: "INACTIVE", className: "neutral" },
+  live: { label: "LIVE", className: "success" },
+};
+
 /**
  * The card's status chip. Each label says what is wrong: signed out (sign in again), out of date
  * (older usage is still shown) or a refresh that failed before any usage loaded.
  */
 export function accountStatus(account: Account): { label: string; className: string } {
-  if (accountSignedOut(account)) {
-    return { label: "SIGNED OUT", className: "danger" };
-  }
-  if (account.lastUsage?.freshness === "stale") {
-    return { label: "OUT OF DATE", className: "warning" };
-  }
-  if (account.lastError) {
-    return { label: "REFRESH FAILED", className: "warning" };
-  }
-  if (isGoogleKeyOnly(account)) {
-    return { label: "KEY ONLY", className: "warning" };
-  }
-  if (account.provider === "google_ai_studio" && !googleAiStudioHasQuotaWindows(account)) {
-    return { label: "SETUP", className: "warning" };
-  }
-  if (!account.lastUsage || account.lastUsage.freshness === "unavailable") {
-    return { label: "INACTIVE", className: "neutral" };
-  }
-  return { label: "LIVE", className: "success" };
+  return STATUS_CHIPS[account.health];
 }
 /** True when the window is of the given kind. The backend works the kind out once (`WindowKind` in `model.rs`). */
 export function canonicalWindow(window: UsageWindow, target: SidebarWindow): boolean {
@@ -182,8 +167,8 @@ export interface GroupAlert {
 }
 
 function accountAlertLevel(account: Account): GroupAlertLevel | null {
-  if (account.authRequired || account.lastUsage?.freshness === "auth_required") return "sign-in";
-  if (account.lastError || account.lastUsage?.freshness === "stale") return "stale";
+  if (account.health === "signed_out") return "sign-in";
+  if (account.health === "out_of_date" || account.health === "refresh_failed") return "stale";
   return null;
 }
 
@@ -269,10 +254,7 @@ export function nextResetSummary(accounts: Account[], now: number = Date.now()):
 }
 export function accountAutoRefreshEligible(account: Account): boolean {
   if (account.authRequired) return false;
-  if (isGoogleKeyOnly(account)) {
-    return false;
-  }
-  return true;
+  return account.googleSetup !== "key_only";
 }
 export function accountsNeedScheduledRefresh(accounts: Account[], minutes: number, now = Date.now()): boolean {
   const maxAgeMs = minutes * 60_000;

@@ -4,10 +4,7 @@
 
 use crate::{
     model::{Provider, FIVE_HOUR_WINDOW_SECONDS, WEEKLY_WINDOW_SECONDS},
-    providers::{
-        google_ai_studio::{SOURCE_MODELS_ONLY, SOURCE_MONITORING, SOURCE_MONITORING_WAITING},
-        grok::GROK_BOT_WINDOW_ID,
-    },
+    providers::grok::GROK_BOT_WINDOW_ID,
     store::settings::{DEFAULT_ACCOUNT_REFRESH_MINUTES, OFFERED_REFRESH_MINUTES},
 };
 use std::{collections::BTreeMap, str::FromStr};
@@ -54,36 +51,6 @@ fn ts_number(source: &str, name: &str) -> u64 {
     value
         .parse()
         .unwrap_or_else(|_| panic!("`{name}` is not a plain number: {value}"))
-}
-
-/// `key: "value"` pairs of an object literal, e.g. `USAGE_SOURCES`.
-fn ts_string_object(source: &str, name: &str) -> BTreeMap<String, String> {
-    ts_const(source, name)
-        .lines()
-        .filter_map(|line| {
-            let (key, value) = line.trim().split_once(':')?;
-            let value = value.trim().strip_prefix('"')?;
-            let value = &value[..value.find('"')?];
-            Some((key.trim().to_string(), value.to_string()))
-        })
-        .collect()
-}
-
-#[test]
-fn usage_source_strings_match_the_frontend() {
-    let sources = ts_string_object(USAGE_SOURCES_TS, "USAGE_SOURCES");
-    let expected: BTreeMap<String, String> = [
-        ("googleModelAccess", SOURCE_MODELS_ONLY),
-        ("googleMonitoringWaiting", SOURCE_MONITORING_WAITING),
-        ("googleCloudMonitoring", SOURCE_MONITORING),
-    ]
-    .into_iter()
-    .map(|(key, value)| (key.to_string(), value.to_string()))
-    .collect();
-    assert_eq!(
-        sources, expected,
-        "src/shared/lib/usage-sources.ts and providers/google_ai_studio/mod.rs disagree"
-    );
 }
 
 #[test]
@@ -182,7 +149,10 @@ fn provider_display_names_match_the_frontend() {
 #[test]
 fn the_extractors_read_what_they_should() {
     // A guard against the helpers above quietly matching nothing.
-    assert_eq!(ts_string_object(USAGE_SOURCES_TS, "USAGE_SOURCES").len(), 3);
+    assert_eq!(
+        ts_string(USAGE_SOURCES_TS, "GROK_BOT_WINDOW_ID"),
+        "grok_bot"
+    );
     assert_eq!(ts_provider_names().len(), 6);
     assert_eq!(ts_number(CONSTANTS_TS, "FIVE_HOUR_WINDOW_SECONDS"), 18_000);
 }

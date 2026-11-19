@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { bridgeApi } from "../shared/lib/api";
 import { busyKey } from "../shared/lib/busy";
 import type { ReportError } from "../shared/lib/errors";
-import { displayAccountLabel, googleAiStudioHasQuotaWindows } from "../shared/lib/usage-logic";
+import { displayAccountLabel } from "../shared/lib/usage-logic";
 import { ALL_ACCOUNTS_GROUP_ID, providerGroupId } from "../features/sidebar/sidebar-groups";
 import { setCardCollapsedOnPage } from "../features/layout/dashboard-page-state";
 import type { Account, DashboardSnapshot } from "../types";
@@ -59,7 +59,8 @@ export function useAfterAccountAdded({
           );
         }
       }
-      if (nextAccount.provider === "google_ai_studio" && !googleAiStudioHasQuotaWindows(nextAccount)) {
+      // A Google AI Studio account without quota windows yet: offer to connect Cloud usage.
+      if (nextAccount.googleSetup != null && nextAccount.googleSetup !== "ready") {
         openGoogleUsage(nextAccount);
       }
     },

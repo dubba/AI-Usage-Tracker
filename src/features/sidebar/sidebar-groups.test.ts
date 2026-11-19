@@ -32,6 +32,8 @@ function account(id: string, provider: Provider, label = id): Account {
     lastUsage: null,
     lastError: null,
     authRequired: false,
+    health: "inactive",
+    googleSetup: null,
   };
 }
 

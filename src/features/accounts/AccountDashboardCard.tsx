@@ -38,7 +38,6 @@ import type {
 import { useClock } from "../../shared/hooks/useClock";
 import { useUsageDisplayMode } from "../../shared/hooks/useUsageDisplayMode";
 import { displayPercent, usageDisplaySuffix } from "../../shared/lib/usage-display";
-import { isGoogleKeyOnly, isGoogleSetupPending } from "../../shared/lib/usage-sources";
 import { reorderKeyDelta } from "../reorder/reorder-utils";
 import { AccountUsageMetric } from "./AccountUsageMetric";
 import { LimitResetsSection } from "./LimitResetsSection";
@@ -144,8 +143,8 @@ export function AccountDashboardCard({
   const limitResets = account.lastUsage?.limitResets ?? [];
   const windows = cardWindows(account.lastUsage?.windows ?? [], account.provider);
   const [displayMode] = useUsageDisplayMode();
-  const modelsOnly = isGoogleKeyOnly(account);
-  const waitingForMetrics = isGoogleSetupPending(account);
+  const modelsOnly = account.googleSetup === "key_only";
+  const waitingForMetrics = account.googleSetup === "waiting";
   const googleUnavailableLabel = modelsOnly ? "Key only" : waitingForMetrics ? "Setup in progress" : "Unavailable";
   const updatedAtLabel = useClock((now) => formatUpdatedAt(account.lastUsage?.fetchedAt, now) ?? "Not updated yet");
   // The desktop Refresh button carries the time itself: "⟳ 8m ago".

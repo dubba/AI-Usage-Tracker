@@ -51,12 +51,12 @@ the TypeScript types, which are generated from the Rust types (`src/types.genera
    Adding a provider is the known exception: a new `Provider` value is unavoidable, so an older
    peer refuses any payload that holds an account of the new provider (both devices need the
    update). Stored files are unaffected unless the user downgrades.
-5. **Values the backend derives are not read back.** A field that Rust computes from other data
-   (for example account health or a plan display name) is marked `#[serde(default,
-   skip_deserializing)]` and recomputed after loading and after a pairing import, so a peer cannot
-   set it and a stale stored value is never trusted. Older readers ignore it as an unknown field, so
-   its enum may gain values freely. Prefer keeping such fields off the stored and paired types
-   altogether when a separate IPC type is practical.
+5. **Values the backend derives are not read back.** A value that Rust computes from other data
+   (for example account health or a plan display name) is not a field of the stored type. It is
+   added when the type is serialized, as `Account`'s `health` and `googleSetup` are (`AccountOut`
+   in `model.rs`), so every copy is current and a peer or an old file cannot set it. It is also
+   written to files and payloads, where every reader ignores it as an unknown field, so its enum
+   may gain values freely.
 6. **Changes that cannot be additive are migrations.** Rewriting stored values (a renamed provider,
    a changed label) goes in `migrations.rs`: run on every start, idempotent, retried on failure.
    Apply the same rewrite to accounts that arrive by pairing, since the sender may still hold the
@@ -71,6 +71,6 @@ the TypeScript types, which are generated from the Rust types (`src/types.genera
 - [ ] `#[serde(default)]` (or a default function) chosen so missing means the old behaviour
 - [ ] The field is filled in `full_sync_payload` in `pairing/tests.rs` if the type is in the payload,
       and listed in `payload_from_an_older_peer_without_newer_fields_parses`
-- [ ] If the field is derived: `skip_deserializing` and recomputed on load and import
+- [ ] If the value is derived: added at serialization (rule 5), not stored as a field
 - [ ] If the type is sent to the frontend: `src/types.generated.ts` and the `type_contract.rs` samples regenerated (`UPDATE_FIXTURES=1`)
 - [ ] No new enum value written to files or payloads (rule 4)

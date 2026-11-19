@@ -10,7 +10,7 @@ import { isCardCollapsedOnPage, setCardCollapsedOnPage } from "../features/layou
 import { useAfterAccountAdded } from "./useAfterAccountAdded";
 
 function account(overrides: Partial<Account> = {}): Account {
-  return { id: "a1", label: "Work", provider: "anthropic", lastUsage: null, lastError: null, authRequired: false, ...overrides } as unknown as Account;
+  return { id: "a1", label: "Work", provider: "anthropic", lastUsage: null, lastError: null, authRequired: false, health: "inactive", googleSetup: null, ...overrides } as unknown as Account;
 }
 
 function usage(source = "oauth", windows: unknown[] = []) {
@@ -107,7 +107,7 @@ describe("after an account is added", () => {
   });
 
   it("sends a Google AI Studio key without quota windows to the Cloud connection", async () => {
-    const key = account({ provider: "google_ai_studio", lastUsage: usage("google_ai_studio_model_access") });
+    const key = account({ provider: "google_ai_studio", lastUsage: usage("google_ai_studio_model_access"), health: "key_only", googleSetup: "key_only" });
     load.mockResolvedValue(snapshotWith(key));
     await handle(key);
     expect(openGoogleUsage).toHaveBeenCalledWith(expect.objectContaining({ id: "a1" }));
@@ -115,7 +115,7 @@ describe("after an account is added", () => {
 
   it("leaves a Google AI Studio account that already has quota windows alone", async () => {
     const window = { id: "w", label: "Gemini", usedPercent: 10, remainingPercent: 90, resetsAt: null, windowSeconds: null, kind: null };
-    const connected = account({ provider: "google_ai_studio", lastUsage: usage("google_ai_studio_cloud_monitoring", [window]) });
+    const connected = account({ provider: "google_ai_studio", lastUsage: usage("google_ai_studio_cloud_monitoring", [window]), health: "live", googleSetup: "ready" });
     load.mockResolvedValue(snapshotWith(connected));
     await handle(connected);
     expect(openGoogleUsage).not.toHaveBeenCalled();

@@ -59,6 +59,19 @@ export type UsageSnapshot = {
   limitResets: Array<LimitReset>,
 };
 
+/**
+ * The one state an account's card reports, worst first: the first that applies wins.
+ */
+export type AccountHealth = "signed_out" | "out_of_date" | "refresh_failed" | "key_only" | "setup" | "inactive" | "live";
+
+/**
+ * How far a Google AI Studio account's Cloud usage setup has got, from its last usage.
+ */
+export type GoogleSetup = "key_only" | "waiting" | "ready" | "unknown";
+
+/**
+ * An account: its stored fields, then the health and Google setup the backend works out from them.
+ */
 export type Account = {
   id: string,
   label: string,
@@ -72,6 +85,11 @@ export type Account = {
   lastUsage: UsageSnapshot | null,
   lastError: string | null,
   authRequired: boolean,
+  health: AccountHealth,
+  /**
+   * `null` for an account of another provider.
+   */
+  googleSetup: GoogleSetup | null,
 };
 
 export type UsageAlertSetting = {

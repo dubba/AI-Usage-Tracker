@@ -1,8 +1,6 @@
 use crate::{
-    model::{
-        now_rfc3339, Account, BridgeUsageWindow, PublicUsageAccount, PublicUsageResponse,
-        UsageFreshness,
-    },
+    health,
+    model::{now_rfc3339, Account, BridgeUsageWindow, PublicUsageAccount, PublicUsageResponse},
     state::AppState,
 };
 use axum::{
@@ -243,17 +241,8 @@ pub(crate) fn public_accounts(accounts: Vec<Account>) -> Vec<PublicUsageAccount>
     accounts
         .into_iter()
         .map(|account| {
+            let status = health::public_status(&account);
             let usage = account.last_usage.clone();
-            let status = if account.auth_required {
-                "auth_required"
-            } else {
-                match usage.as_ref().map(|usage| &usage.freshness) {
-                    Some(UsageFreshness::Live) => "available",
-                    Some(UsageFreshness::Stale) => "stale",
-                    Some(UsageFreshness::AuthRequired) => "auth_required",
-                    _ => "unavailable",
-                }
-            };
             PublicUsageAccount {
                 id: account.id,
                 label: account.label,

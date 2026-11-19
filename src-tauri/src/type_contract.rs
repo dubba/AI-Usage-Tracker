@@ -14,14 +14,15 @@
 //! `UPDATE_FIXTURES=1 cargo test --manifest-path src-tauri/Cargo.toml --lib type_contract`.
 
 use crate::{
+    health::{AccountHealth, GoogleSetup},
     history::{
         activity::{DayQuality, DayUsage},
         report::{ActivityTracker, OtherLimit, UntrackedAccount, WeeklyActivity},
     },
     model::{
-        Account, AccountBucket, AppUpdateStatus, BridgeInfo, BridgeStatus, CloudProjectOption,
-        DashboardSnapshot, LimitReset, LoginStart, LoginState, LoginStatus, Provider,
-        UsageFreshness, UsageSnapshot, UsageWindow, WindowKind,
+        Account, AccountBucket, AccountOut, AppUpdateStatus, BridgeInfo, BridgeStatus,
+        CloudProjectOption, DashboardSnapshot, LimitReset, LoginStart, LoginState, LoginStatus,
+        Provider, UsageFreshness, UsageSnapshot, UsageWindow, WindowKind,
     },
     pairing::{
         airgap::{AirgapExport, AirgapExportFrame, AirgapPreview},
@@ -324,7 +325,9 @@ fn generated_bindings() -> String {
         UsageWindow,
         LimitReset,
         UsageSnapshot,
-        Account,
+        AccountHealth,
+        GoogleSetup,
+        AccountOut<'static>,
         UsageAlertSetting,
         BridgeStatus,
         BridgeInfo,

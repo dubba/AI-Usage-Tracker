@@ -1,0 +1,53 @@
+{
+  "_comment": "Shared by src/shared/lib/account-health.test.ts and the health_matches_the_shared_fixture test in src-tauri/crates/usage-core/src/health/tests.rs. Each case is `account` merged over `baseAccount`, with `usage` merged over `baseUsage` (null: no usage yet). `health` and `googleSetup` are what the backend works out and sends with the account; `chip`, `tone` and `alert` are what the frontend shows for them.",
+  "baseAccount": {
+    "id": "account-1",
+    "label": "Personal",
+    "provider": "anthropic",
+    "email": "person@example.com",
+    "providerAccountId": null,
+    "chatgptAccountId": null,
+    "plan": "max",
+    "createdAt": "2026-09-01T00:00:00Z",
+    "updatedAt": "2026-09-03T12:00:00Z",
+    "lastError": null,
+    "authRequired": false
+  },
+  "baseUsage": {
+    "plan": "max",
+    "email": null,
+    "windows": [
+      { "id": "five_hour", "label": "5 hour", "usedPercent": 18.5, "remainingPercent": 81.5, "resetsAt": "2026-09-03T17:00:00Z", "windowSeconds": 18000, "kind": "five_hour" }
+    ],
+    "creditsUsd": null,
+    "unlimitedCredits": false,
+    "fetchedAt": "2026-09-03T12:00:00Z",
+    "freshness": "live",
+    "source": "anthropic_oauth_usage",
+    "limitResets": []
+  },
+  "cases": [
+    { "name": "live usage", "account": {}, "usage": {}, "health": "live", "googleSetup": null, "chip": "LIVE", "tone": "success", "alert": null },
+    { "name": "sign-in refused, usage still live", "account": { "authRequired": true }, "usage": {}, "health": "signed_out", "googleSetup": null, "chip": "SIGNED OUT", "tone": "danger", "alert": "sign-in" },
+    { "name": "usage says sign in again", "account": {}, "usage": { "freshness": "auth_required" }, "health": "signed_out", "googleSetup": null, "chip": "SIGNED OUT", "tone": "danger", "alert": "sign-in" },
+    { "name": "sign-in refused with no usage and an error", "account": { "authRequired": true, "lastError": "Sign in again" }, "usage": null, "health": "signed_out", "googleSetup": null, "chip": "SIGNED OUT", "tone": "danger", "alert": "sign-in" },
+    { "name": "failed refresh over older usage", "account": { "lastError": "Network error" }, "usage": { "freshness": "stale" }, "health": "out_of_date", "googleSetup": null, "chip": "OUT OF DATE", "tone": "warning", "alert": "stale" },
+    { "name": "stale usage without an error", "account": {}, "usage": { "freshness": "stale" }, "health": "out_of_date", "googleSetup": null, "chip": "OUT OF DATE", "tone": "warning", "alert": "stale" },
+    { "name": "failed refresh before any usage", "account": { "lastError": "Network error" }, "usage": null, "health": "refresh_failed", "googleSetup": null, "chip": "REFRESH FAILED", "tone": "warning", "alert": "stale" },
+    { "name": "error next to live usage", "account": { "lastError": "Network error" }, "usage": {}, "health": "refresh_failed", "googleSetup": null, "chip": "REFRESH FAILED", "tone": "warning", "alert": "stale" },
+    { "name": "no usage yet", "account": {}, "usage": null, "health": "inactive", "googleSetup": null, "chip": "INACTIVE", "tone": "neutral", "alert": null },
+    { "name": "usage unavailable", "account": {}, "usage": { "freshness": "unavailable" }, "health": "inactive", "googleSetup": null, "chip": "INACTIVE", "tone": "neutral", "alert": null },
+    { "name": "another provider with a Google source string", "account": { "provider": "openai" }, "usage": { "source": "google_ai_studio_model_access" }, "health": "live", "googleSetup": null, "chip": "LIVE", "tone": "success", "alert": null },
+    { "name": "Google key only", "account": { "provider": "google_ai_studio" }, "usage": { "source": "google_ai_studio_model_access", "windows": [] }, "health": "key_only", "googleSetup": "key_only", "chip": "KEY ONLY", "tone": "warning", "alert": null },
+    { "name": "Google waiting for Cloud data", "account": { "provider": "google_ai_studio" }, "usage": { "source": "google_ai_studio_monitoring_waiting", "windows": [] }, "health": "setup", "googleSetup": "waiting", "chip": "SETUP", "tone": "warning", "alert": null },
+    { "name": "Google with Cloud quota windows", "account": { "provider": "google_ai_studio" }, "usage": { "source": "google_ai_studio_cloud_monitoring" }, "health": "live", "googleSetup": "ready", "chip": "LIVE", "tone": "success", "alert": null },
+    { "name": "Google Cloud windows without values", "account": { "provider": "google_ai_studio" }, "usage": { "source": "google_ai_studio_cloud_monitoring", "windows": [{ "id": "rpm", "label": "Requests per minute", "usedPercent": null, "remainingPercent": null, "resetsAt": null, "windowSeconds": 60, "kind": null }] }, "health": "setup", "googleSetup": "unknown", "chip": "SETUP", "tone": "warning", "alert": null },
+    { "name": "Google Cloud with no windows", "account": { "provider": "google_ai_studio" }, "usage": { "source": "google_ai_studio_cloud_monitoring", "windows": [] }, "health": "setup", "googleSetup": "unknown", "chip": "SETUP", "tone": "warning", "alert": null },
+    { "name": "Google with no usage yet", "account": { "provider": "google_ai_studio" }, "usage": null, "health": "setup", "googleSetup": "unknown", "chip": "SETUP", "tone": "warning", "alert": null },
+    { "name": "Google key only, out of date", "account": { "provider": "google_ai_studio", "lastError": "Network error" }, "usage": { "source": "google_ai_studio_model_access", "freshness": "stale", "windows": [] }, "health": "out_of_date", "googleSetup": "key_only", "chip": "OUT OF DATE", "tone": "warning", "alert": "stale" },
+    { "name": "Google key only, signed out", "account": { "provider": "google_ai_studio", "authRequired": true }, "usage": { "source": "google_ai_studio_model_access", "windows": [] }, "health": "signed_out", "googleSetup": "key_only", "chip": "SIGNED OUT", "tone": "danger", "alert": "sign-in" },
+    { "name": "Google key only with an error", "account": { "provider": "google_ai_studio", "lastError": "Network error" }, "usage": { "source": "google_ai_studio_model_access", "windows": [] }, "health": "refresh_failed", "googleSetup": "key_only", "chip": "REFRESH FAILED", "tone": "warning", "alert": "stale" },
+    { "name": "Google key only, usage unavailable", "account": { "provider": "google_ai_studio" }, "usage": { "source": "google_ai_studio_model_access", "freshness": "unavailable", "windows": [] }, "health": "key_only", "googleSetup": "key_only", "chip": "KEY ONLY", "tone": "warning", "alert": null },
+    { "name": "Google ready but unavailable", "account": { "provider": "google_ai_studio" }, "usage": { "source": "google_ai_studio_cloud_monitoring", "freshness": "unavailable" }, "health": "inactive", "googleSetup": "ready", "chip": "INACTIVE", "tone": "neutral", "alert": null }
+  ]
+}

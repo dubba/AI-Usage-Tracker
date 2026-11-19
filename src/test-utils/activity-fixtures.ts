@@ -31,6 +31,8 @@ export function makeAccount(overrides: Partial<Account> & { id: string }): Accou
     },
     lastError: null,
     authRequired: false,
+    health: "live",
+    googleSetup: null,
     ...overrides,
   };
 }

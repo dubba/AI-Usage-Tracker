@@ -22,10 +22,12 @@ const account = {
   lastUsage: null,
   lastError: null,
   authRequired: false,
+  health: "inactive",
+  googleSetup: null,
 } as Account;
 
 /** An account that needs nothing: it has live usage. (`account` above has none, so it needs attention.) */
-const healthyAccount = { ...account, id: "acct-healthy", lastUsage: { freshness: "live", windows: [] } } as unknown as Account;
+const healthyAccount = { ...account, id: "acct-healthy", lastUsage: { freshness: "live", windows: [] }, health: "live" } as unknown as Account;
 
 const allGroup: SidebarGroup = {
   id: ALL_ACCOUNTS_GROUP_ID,

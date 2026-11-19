@@ -53,6 +53,8 @@ function makeAccount({
     } as unknown as UsageSnapshot,
     lastError: null,
     authRequired: false,
+    health: "live",
+    googleSetup: null,
   } as Account;
 }
 
@@ -384,6 +386,8 @@ describe("SidebarGroupRow monthly limit (e.g. ChatGPT Free)", () => {
       } as unknown as UsageSnapshot,
       lastError: null,
       authRequired: false,
+      health: "live",
+      googleSetup: null,
     } as Account;
   }
 
@@ -437,7 +441,7 @@ describe("SidebarGroupRow averages and account problems", () => {
   });
 
   it("flags a signed-out account and says so instead of blank meters", () => {
-    const signedOut = { ...makeAccount({ id: "a1" }), authRequired: true, lastUsage: null };
+    const signedOut = { ...makeAccount({ id: "a1" }), authRequired: true, lastUsage: null, health: "signed_out" as const };
     const row = render([signedOut]);
     expect(row.querySelector(".sidebar-row-alert")!.className).toBe("sidebar-row-alert is-sign-in");
     expect(row.querySelector(".sidebar-group-signin")!.textContent).toBe("Sign-in needed");
@@ -446,7 +450,7 @@ describe("SidebarGroupRow averages and account problems", () => {
   });
 
   it("keeps the other accounts' meters when only one of several must sign in", () => {
-    const signedOut = { ...makeAccount({ id: "a1" }), authRequired: true, lastUsage: null };
+    const signedOut = { ...makeAccount({ id: "a1" }), authRequired: true, lastUsage: null, health: "signed_out" as const };
     const row = render([signedOut, makeAccount({ id: "a2", fiveRemaining: 70, weeklyRemaining: 50 })]);
     expect(row.querySelector(".sidebar-row-alert.is-sign-in")).not.toBeNull();
     expect(values().map(([text]) => text)).toEqual(["70%", "50%"]);
@@ -456,7 +460,8 @@ describe("SidebarGroupRow averages and account problems", () => {
   it("marks out-of-date data in amber, and sign-in outranks it", () => {
     const stale = makeAccount({ id: "a1", fiveRemaining: 50 });
     stale.lastUsage!.freshness = "stale";
-    const errored = { ...makeAccount({ id: "a2", fiveRemaining: 50 }), lastError: "Couldn't refresh" };
+    stale.health = "out_of_date";
+    const errored = { ...makeAccount({ id: "a2", fiveRemaining: 50 }), lastError: "Couldn't refresh", health: "refresh_failed" as const };
     let row = render([stale, errored]);
     const alertDot = row.querySelector(".sidebar-row-alert")!;
     expect(alertDot.className).toBe("sidebar-row-alert is-stale");
@@ -465,7 +470,7 @@ describe("SidebarGroupRow averages and account problems", () => {
     expect(row.getAttribute("aria-label")).toContain(", 2 accounts out of date, ");
     app!.unmount();
 
-    const signedOut = { ...makeAccount({ id: "a3", fiveRemaining: 50 }), authRequired: true };
+    const signedOut = { ...makeAccount({ id: "a3", fiveRemaining: 50 }), authRequired: true, health: "signed_out" as const };
     row = render([stale, signedOut]);
     expect(row.querySelector(".sidebar-row-alert")!.className).toBe("sidebar-row-alert is-sign-in");
   });
@@ -480,6 +485,7 @@ describe("SidebarGroupRow averages and account problems", () => {
     const expiredSignedOut = makeAccount({ id: "a1", fiveRemaining: 77, weeklyRemaining: 55 });
     expiredSignedOut.authRequired = true;
     expiredSignedOut.lastUsage!.freshness = "auth_required";
+    expiredSignedOut.health = "signed_out";
     expiredSignedOut.lastUsage!.windows.forEach((w) => {
       w.resetsAt = past;
     });

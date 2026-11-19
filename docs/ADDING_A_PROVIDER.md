@@ -31,7 +31,7 @@ Use an existing provider of the same kind as the model:
   - Map HTTP failures with `classify_status` and a `StatusPolicy`, so only a rejected credential marks the account as needing sign-in.
   - Errors must not echo provider text; use fixed sentences.
 - Endpoints are fixed `https://` / `wss://` constants in the provider file. Never build a host from user or response data.
-- `src/shared/lib/usage-sources.ts` — if the frontend branches on the provider's `source` values, add them to `USAGE_SOURCES` and to the matching constants in the provider file; `frontend_contract.rs` keeps both sides equal.
+- The frontend never reads `source` values. If the account's health depends on them (as Google AI Studio's "key only" and "setup" states do), work that out in `AccountHealth::of` (`crates/usage-core/src/health.rs`), which the account carries to the frontend, and add cases to `src/shared/lib/account-health.fixture.json`.
 
 ## 3. Signing in
 
