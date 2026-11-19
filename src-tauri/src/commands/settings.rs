@@ -1,3 +1,4 @@
+use super::error::CommandResult;
 use crate::{
     state::AppState,
     store::{rotate_bridge_token, settings::AppSettings},
@@ -6,7 +7,7 @@ use std::sync::Arc;
 use tauri::{AppHandle, State};
 
 #[tauri::command]
-pub fn get_app_settings(state: State<'_, Arc<AppState>>) -> Result<AppSettings, String> {
+pub fn get_app_settings(state: State<'_, Arc<AppState>>) -> CommandResult<AppSettings> {
     Ok(state.settings.get())
 }
 
@@ -14,37 +15,40 @@ pub fn get_app_settings(state: State<'_, Arc<AppState>>) -> Result<AppSettings, 
 pub fn set_account_refresh_minutes(
     state: State<'_, Arc<AppState>>,
     minutes: u64,
-) -> Result<AppSettings, String> {
+) -> CommandResult<AppSettings> {
     state
         .settings
         .set_account_refresh_minutes(minutes)
         .map_err(crate::diagnostics::command_error)
+        .map_err(Into::into)
 }
 
 #[tauri::command]
 pub fn set_automatic_updates_enabled(
     state: State<'_, Arc<AppState>>,
     enabled: bool,
-) -> Result<AppSettings, String> {
+) -> CommandResult<AppSettings> {
     state
         .settings
         .set_automatic_updates_enabled(enabled)
         .map_err(crate::diagnostics::command_error)
+        .map_err(Into::into)
 }
 
 #[tauri::command]
 pub fn set_include_beta_updates(
     state: State<'_, Arc<AppState>>,
     enabled: bool,
-) -> Result<AppSettings, String> {
+) -> CommandResult<AppSettings> {
     state
         .settings
         .set_include_beta_updates(enabled)
         .map_err(crate::diagnostics::command_error)
+        .map_err(Into::into)
 }
 
 #[tauri::command]
-pub fn get_autostart(app: AppHandle, state: State<'_, Arc<AppState>>) -> Result<bool, String> {
+pub fn get_autostart(app: AppHandle, state: State<'_, Arc<AppState>>) -> CommandResult<bool> {
     #[cfg(desktop)]
     {
         use tauri_plugin_autostart::ManagerExt;
@@ -67,7 +71,7 @@ pub fn set_autostart(
     app: AppHandle,
     state: State<'_, Arc<AppState>>,
     enabled: bool,
-) -> Result<bool, String> {
+) -> CommandResult<bool> {
     #[cfg(desktop)]
     {
         use tauri_plugin_autostart::ManagerExt;
@@ -95,7 +99,7 @@ pub fn set_autostart(
 /// Drops every account's saved usage snapshot. Accounts, sign-ins and settings are untouched; the
 /// page refreshes usage afterwards.
 #[tauri::command]
-pub fn clear_cached_usage(state: State<'_, Arc<AppState>>) -> Result<(), String> {
+pub fn clear_cached_usage(state: State<'_, Arc<AppState>>) -> CommandResult<()> {
     state
         .store
         .clear_cached_usage()
@@ -110,7 +114,7 @@ pub fn clear_cached_usage(state: State<'_, Arc<AppState>>) -> Result<(), String>
 pub async fn delete_all_local_data(
     app: AppHandle,
     state: State<'_, Arc<AppState>>,
-) -> Result<(), String> {
+) -> CommandResult<()> {
     #[cfg(desktop)]
     {
         use tauri_plugin_autostart::ManagerExt;

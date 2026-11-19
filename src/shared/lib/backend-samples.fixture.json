@@ -124,6 +124,16 @@
       "error": "Offline"
     }
   ],
+  "CommandError": [
+    {
+      "code": "login_in_progress",
+      "message": "A sign-in is already in progress."
+    },
+    {
+      "code": "unclassified",
+      "message": "Account label is required."
+    }
+  ],
   "DashboardSnapshot": [
     {
       "accounts": [

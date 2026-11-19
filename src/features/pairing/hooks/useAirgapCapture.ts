@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { pairingApi } from "../../../shared/lib/api";
+import { errorMessage } from "../../../shared/lib/errors";
 import { parseAirgapFrame } from "../lib/airgap-frame";
 
 /**
@@ -143,7 +144,7 @@ export function useAirgapCapture({
       })
       .catch((err) => {
         if (generationRef.current !== generation) return;
-        callbacksRef.current.onVerifyError(err instanceof Error ? err.message : String(err));
+        callbacksRef.current.onVerifyError(errorMessage(err));
         verifyStartedRef.current = false;
         setVerifyPrompt(false);
         verifyPromptRef.current = false;

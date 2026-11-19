@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import type { CommandError } from "../../types";
 
 export type AppError = { source: string; message: string };
 
@@ -9,7 +10,18 @@ export type AppError = { source: string; message: string };
  */
 export type ReportError = (source: string, cause: unknown, context?: string, diagnosticContext?: string) => void;
 
-/** Turns anything thrown (Error, Tauri's string rejections, objects) into readable text. */
+/**
+ * The error a backend command rejected with (`{ code, message }`, `commands/error.rs`), or null
+ * for anything else: a JavaScript error, or a string from Tauri itself (an unknown command, a
+ * permission denial).
+ */
+export function commandError(cause: unknown): CommandError | null {
+  if (!cause || typeof cause !== "object") return null;
+  const { code, message } = cause as Partial<Record<keyof CommandError, unknown>>;
+  return typeof code === "string" && typeof message === "string" ? (cause as CommandError) : null;
+}
+
+/** Turns anything thrown (Error, Tauri's string rejections, a command's `{ code, message }`) into readable text. */
 export function errorMessage(cause: unknown): string {
   if (cause instanceof Error) return cause.message.trim() || "Something went wrong.";
   if (typeof cause === "string") return cause.trim() || "Something went wrong.";

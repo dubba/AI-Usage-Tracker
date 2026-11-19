@@ -1,3 +1,4 @@
+use super::error::CommandResult;
 use crate::backend::initialize_backend;
 use crate::{diagnostics, startup, state::AppState};
 use std::sync::Arc;
@@ -30,7 +31,7 @@ pub fn get_startup_issue(
 /// Runs backend initialization again after a startup failure. Returns the
 /// remaining problem, or `None` once the app is running.
 #[tauri::command]
-pub async fn retry_startup(app: AppHandle) -> Result<Option<startup::StartupIssue>, String> {
+pub async fn retry_startup(app: AppHandle) -> CommandResult<Option<startup::StartupIssue>> {
     tauri::async_runtime::spawn_blocking(move || {
         let status = app.state::<startup::StartupStatus>();
         match initialize_backend(&app) {
@@ -46,4 +47,5 @@ pub async fn retry_startup(app: AppHandle) -> Result<Option<startup::StartupIssu
             crate::diagnostics::command_error(error)
         )
     })
+    .map_err(Into::into)
 }

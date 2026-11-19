@@ -1,3 +1,4 @@
+use super::error::CommandResult;
 use super::validate_label;
 use crate::{
     auth::google_ai_studio_oauth,
@@ -31,7 +32,7 @@ pub async fn start_login(
     provider: String,
     email: Option<String>,
     reconnect_account_id: Option<String>,
-) -> Result<LoginStart, String> {
+) -> CommandResult<LoginStart> {
     let provider = Provider::from_str(&provider)?;
     let email = limits::normalize_optional_email(email)?;
     let label = if label.trim().is_empty() {
@@ -52,8 +53,11 @@ pub async fn start_login(
             reconnect_account_id,
         )
         .await
+        .map_err(Into::into)
     } else if provider == Provider::Grok {
-        grok_login::start_login(state.inner().clone(), label, reconnect_account_id).await
+        grok_login::start_login(state.inner().clone(), label, reconnect_account_id)
+            .await
+            .map_err(Into::into)
     } else {
         oauth::start_login(
             state.inner().clone(),
@@ -63,6 +67,7 @@ pub async fn start_login(
             reconnect_account_id,
         )
         .await
+        .map_err(Into::into)
     }
 }
 
@@ -70,13 +75,14 @@ pub async fn start_login(
 pub async fn probe_google_ai_studio_key(
     state: State<'_, Arc<AppState>>,
     api_key: String,
-) -> Result<Account, String> {
+) -> CommandResult<Account> {
     providers::google_ai_studio::probe_account(
         state.inner().clone(),
         "Google AI Studio".into(),
         api_key,
     )
     .await
+    .map_err(Into::into)
 }
 
 #[tauri::command]
@@ -85,7 +91,7 @@ pub async fn add_google_ai_studio_account(
     label: String,
     api_key: String,
     selected_models: Vec<String>,
-) -> Result<Account, String> {
+) -> CommandResult<Account> {
     providers::google_ai_studio::add_account(
         state.inner().clone(),
         validate_label(&label)?,
@@ -93,6 +99,7 @@ pub async fn add_google_ai_studio_account(
         selected_models,
     )
     .await
+    .map_err(Into::into)
 }
 
 #[tauri::command]
@@ -101,7 +108,7 @@ pub async fn start_google_ai_studio_usage_login(
     account_id: String,
     project_id: String,
     enable_monitoring: bool,
-) -> Result<LoginStart, String> {
+) -> CommandResult<LoginStart> {
     google_ai_studio_oauth::start_login(
         state.inner().clone(),
         account_id,
@@ -109,6 +116,7 @@ pub async fn start_google_ai_studio_usage_login(
         enable_monitoring,
     )
     .await
+    .map_err(Into::into)
 }
 
 #[tauri::command]
@@ -117,7 +125,7 @@ pub async fn add_grok_account(
     label: String,
     cookie_header: String,
     reconnect_account_id: Option<String>,
-) -> Result<Account, String> {
+) -> CommandResult<Account> {
     let label = if label.trim().is_empty() {
         Provider::Grok.display_name().to_string()
     } else {
@@ -130,6 +138,7 @@ pub async fn add_grok_account(
         reconnect_account_id,
     )
     .await
+    .map_err(Into::into)
 }
 
 #[tauri::command]
@@ -140,7 +149,7 @@ pub async fn add_opencode_go_account(
     auth_cookie: String,
     email: Option<String>,
     reconnect_account_id: Option<String>,
-) -> Result<Account, String> {
+) -> CommandResult<Account> {
     let label = if label.trim().is_empty() {
         Provider::OpencodeGo.display_name().to_string()
     } else {
@@ -156,14 +165,17 @@ pub async fn add_opencode_go_account(
         reconnect_account_id,
     )
     .await
+    .map_err(Into::into)
 }
 
 #[tauri::command]
 pub async fn get_login_status(
     state: State<'_, Arc<AppState>>,
     attempt_id: String,
-) -> Result<LoginStatus, String> {
-    oauth::login_status(state.inner(), &attempt_id).await
+) -> CommandResult<LoginStatus> {
+    oauth::login_status(state.inner(), &attempt_id)
+        .await
+        .map_err(Into::into)
 }
 
 #[tauri::command]
@@ -176,7 +188,7 @@ pub fn cancel_login(
     app: AppHandle,
     state: State<'_, Arc<AppState>>,
     attempt_id: String,
-) -> Result<(), String> {
+) -> CommandResult<()> {
     let cancelled = {
         let mut pending = state.pending_login.write();
         let cancellable = pending

@@ -1,3 +1,4 @@
+use super::error::CommandResult;
 use crate::{limits, pairing, state::AppState};
 use std::sync::Arc;
 use tauri::{AppHandle, State};
@@ -7,17 +8,18 @@ pub async fn pairing_start_host(
     app: AppHandle,
     state: State<'_, Arc<AppState>>,
     accept_settings: bool,
-) -> Result<crate::pairing::PairingHostInit, String> {
+) -> CommandResult<crate::pairing::PairingHostInit> {
     crate::platform::capture_protection::release(&app);
     crate::platform::lan_binding::configure_pairing_network(true);
     state
         .pairing
         .start_host(state.inner().clone(), accept_settings)
         .await
+        .map_err(Into::into)
 }
 
 #[tauri::command]
-pub async fn ensure_camera_permission() -> Result<(), String> {
+pub async fn ensure_camera_permission() -> CommandResult<()> {
     tauri::async_runtime::spawn_blocking(crate::platform::camera_permission::ensure)
         .await
         .map_err(|e| {
@@ -26,10 +28,11 @@ pub async fn ensure_camera_permission() -> Result<(), String> {
                 crate::diagnostics::command_error(e)
             )
         })?
+        .map_err(Into::into)
 }
 
 #[tauri::command]
-pub async fn pairing_wifi_enabled() -> Result<bool, String> {
+pub async fn pairing_wifi_enabled() -> CommandResult<bool> {
     tauri::async_runtime::spawn_blocking(crate::platform::wifi::is_enabled)
         .await
         .map_err(|e| {
@@ -38,10 +41,11 @@ pub async fn pairing_wifi_enabled() -> Result<bool, String> {
                 crate::diagnostics::command_error(e)
             )
         })?
+        .map_err(Into::into)
 }
 
 #[tauri::command]
-pub async fn pairing_open_wifi_settings() -> Result<(), String> {
+pub async fn pairing_open_wifi_settings() -> CommandResult<()> {
     tauri::async_runtime::spawn_blocking(crate::platform::wifi::open_settings)
         .await
         .map_err(|e| {
@@ -50,6 +54,7 @@ pub async fn pairing_open_wifi_settings() -> Result<(), String> {
                 crate::diagnostics::command_error(e)
             )
         })?
+        .map_err(Into::into)
 }
 
 #[tauri::command]
@@ -58,21 +63,22 @@ pub async fn pairing_start_client_by_code(
     state: State<'_, Arc<AppState>>,
     code: String,
     accept_settings: bool,
-) -> Result<(), String> {
+) -> CommandResult<()> {
     crate::platform::capture_protection::release(&app);
     crate::platform::lan_binding::configure_pairing_network(true);
     state
         .pairing
         .start_client_by_code(state.inner().clone(), code, accept_settings)
         .await
+        .map_err(Into::into)
 }
 
 #[tauri::command]
 pub async fn pairing_select_role(
     state: State<'_, Arc<AppState>>,
     role: String,
-) -> Result<(), String> {
-    state.pairing.select_role(&role).await
+) -> CommandResult<()> {
+    state.pairing.select_role(&role).await.map_err(Into::into)
 }
 
 #[tauri::command]
@@ -80,15 +86,16 @@ pub async fn pairing_confirm_transfer(
     state: State<'_, Arc<AppState>>,
     session_id: String,
     confirmed: bool,
-) -> Result<(), String> {
+) -> CommandResult<()> {
     state
         .pairing
         .confirm_transfer(&session_id, confirmed, &state.pairing_options)
         .await
+        .map_err(Into::into)
 }
 
 #[tauri::command]
-pub async fn pairing_cancel(app: AppHandle, state: State<'_, Arc<AppState>>) -> Result<(), String> {
+pub async fn pairing_cancel(app: AppHandle, state: State<'_, Arc<AppState>>) -> CommandResult<()> {
     // The transfer codes, if any were showing, are gone once the flow is left.
     crate::platform::capture_protection::release(&app);
     state.pairing.cancel().await;
@@ -100,7 +107,7 @@ pub async fn pairing_cancel(app: AppHandle, state: State<'_, Arc<AppState>>) -> 
 #[tauri::command]
 pub async fn pairing_status(
     state: State<'_, Arc<AppState>>,
-) -> Result<crate::pairing::PairingStatus, String> {
+) -> CommandResult<crate::pairing::PairingStatus> {
     Ok(state.pairing.get_status().await)
 }
 
@@ -108,7 +115,7 @@ pub async fn pairing_status(
 pub fn pairing_set_include_settings(
     state: State<'_, Arc<AppState>>,
     include: bool,
-) -> Result<(), String> {
+) -> CommandResult<()> {
     state.pairing_options.write().include_settings = include;
     Ok(())
 }
@@ -117,7 +124,7 @@ pub fn pairing_set_include_settings(
 pub fn pairing_set_pending_ui_state(
     state: State<'_, Arc<AppState>>,
     ui_state: serde_json::Value,
-) -> Result<(), String> {
+) -> CommandResult<()> {
     // Validate that it's an object with expected optional fields
     if !ui_state.is_object() && !ui_state.is_null() {
         return Err("UI state must be an object".into());
@@ -128,7 +135,7 @@ pub fn pairing_set_pending_ui_state(
 }
 
 #[tauri::command]
-pub fn pairing_clear_pending_ui_state(state: State<'_, Arc<AppState>>) -> Result<(), String> {
+pub fn pairing_clear_pending_ui_state(state: State<'_, Arc<AppState>>) -> CommandResult<()> {
     let mut options = state.pairing_options.write();
     options.pending_ui_state = None;
     options.include_settings = false;
@@ -141,7 +148,7 @@ pub async fn pairing_prepare_airgap_export(
     state: State<'_, Arc<AppState>>,
     include_settings: bool,
     ui_state: Option<serde_json::Value>,
-) -> Result<pairing::airgap::AirgapExport, String> {
+) -> CommandResult<pairing::airgap::AirgapExport> {
     if let Some(ui) = ui_state.as_ref() {
         limits::check_ui_state_size(ui)?;
     }
@@ -172,14 +179,15 @@ pub async fn pairing_prepare_airgap_export(
         },
     )
     .await
+    .map_err(Into::into)
 }
 
 #[tauri::command]
 pub fn pairing_verify_airgap(
     state: State<'_, Arc<AppState>>,
     chunks: Vec<String>,
-) -> Result<pairing::airgap::AirgapPreview, String> {
-    pairing::airgap::preview_airgap_frames(state.inner(), chunks)
+) -> CommandResult<pairing::airgap::AirgapPreview> {
+    pairing::airgap::preview_airgap_frames(state.inner(), chunks).map_err(Into::into)
 }
 
 #[tauri::command]
@@ -188,8 +196,10 @@ pub async fn pairing_import_airgap(
     chunks: Vec<String>,
     ticket: String,
     accept_settings: bool,
-) -> Result<pairing::payload::SyncSummary, String> {
-    pairing::airgap::import_airgap_payload(state.inner(), chunks, &ticket, accept_settings).await
+) -> CommandResult<pairing::payload::SyncSummary> {
+    pairing::airgap::import_airgap_payload(state.inner(), chunks, &ticket, accept_settings)
+        .await
+        .map_err(Into::into)
 }
 
 pub static GLOBAL_APP_HANDLE: parking_lot::Mutex<Option<AppHandle>> = parking_lot::Mutex::new(None);

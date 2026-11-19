@@ -1,3 +1,4 @@
+use super::error::CommandResult;
 use super::{bridge::bridge_status, validate_label};
 use crate::{
     model::{Account, DashboardSnapshot},
@@ -11,7 +12,7 @@ use tauri::State;
 #[tauri::command]
 pub async fn get_dashboard_snapshot(
     state: State<'_, Arc<AppState>>,
-) -> Result<DashboardSnapshot, String> {
+) -> CommandResult<DashboardSnapshot> {
     let accounts = state
         .account_order
         .apply(state.store.list())
@@ -68,8 +69,10 @@ async fn retry_credential_sealing(state: &Arc<AppState>) -> CredentialProtection
 pub async fn refresh_account(
     state: State<'_, Arc<AppState>>,
     account_id: String,
-) -> Result<Account, String> {
-    usage::refresh_account(state.inner().clone(), &account_id).await
+) -> CommandResult<Account> {
+    usage::refresh_account(state.inner().clone(), &account_id)
+        .await
+        .map_err(Into::into)
 }
 
 #[tauri::command]
@@ -77,12 +80,14 @@ pub async fn use_limit_reset(
     state: State<'_, Arc<AppState>>,
     account_id: String,
     grant_id: String,
-) -> Result<Account, String> {
-    usage::use_limit_reset(state.inner().clone(), &account_id, &grant_id).await
+) -> CommandResult<Account> {
+    usage::use_limit_reset(state.inner().clone(), &account_id, &grant_id)
+        .await
+        .map_err(Into::into)
 }
 
 #[tauri::command]
-pub async fn refresh_all(state: State<'_, Arc<AppState>>) -> Result<Vec<Account>, String> {
+pub async fn refresh_all(state: State<'_, Arc<AppState>>) -> CommandResult<Vec<Account>> {
     Ok(usage::refresh_all(state.inner().clone()).await)
 }
 
@@ -91,7 +96,7 @@ pub async fn refresh_all(state: State<'_, Arc<AppState>>) -> Result<Vec<Account>
 /// view, so usage that went out of date while it was hidden is fetched at once. Returns whether
 /// it refreshed.
 #[tauri::command]
-pub async fn refresh_if_due(state: State<'_, Arc<AppState>>) -> Result<bool, String> {
+pub async fn refresh_if_due(state: State<'_, Arc<AppState>>) -> CommandResult<bool> {
     Ok(usage::refresh_all_if_due(state.inner().clone(), Utc::now()).await)
 }
 
@@ -99,11 +104,12 @@ pub async fn refresh_if_due(state: State<'_, Arc<AppState>>) -> Result<bool, Str
 pub fn reorder_accounts(
     state: State<'_, Arc<AppState>>,
     account_ids: Vec<String>,
-) -> Result<Vec<Account>, String> {
+) -> CommandResult<Vec<Account>> {
     state
         .account_order
         .save(account_ids, state.store.list())
         .map_err(crate::diagnostics::command_error)
+        .map_err(Into::into)
 }
 
 #[tauri::command]
@@ -111,7 +117,7 @@ pub fn rename_account(
     state: State<'_, Arc<AppState>>,
     account_id: String,
     label: String,
-) -> Result<Account, String> {
+) -> CommandResult<Account> {
     let label = validate_label(&label)?;
     state
         .store
@@ -121,6 +127,7 @@ pub fn rename_account(
             account.label = usage_core::legacy::current_label(&account.provider, &label)
         })
         .map_err(crate::diagnostics::command_error)
+        .map_err(Into::into)
 }
 
 /// Removes the accounts whose saved sign-in is still unencrypted, after the
@@ -129,7 +136,7 @@ pub fn rename_account(
 #[tauri::command]
 pub async fn remove_unprotected_accounts(
     state: State<'_, Arc<AppState>>,
-) -> Result<Vec<String>, String> {
+) -> CommandResult<Vec<String>> {
     let ids = state.unprotected_account_ids();
     let mut removed = Vec::new();
     for id in ids {
@@ -144,6 +151,6 @@ pub async fn remove_unprotected_accounts(
 pub async fn remove_account(
     state: State<'_, Arc<AppState>>,
     account_id: String,
-) -> Result<(), String> {
-    state.remove_account(&account_id).await
+) -> CommandResult<()> {
+    state.remove_account(&account_id).await.map_err(Into::into)
 }

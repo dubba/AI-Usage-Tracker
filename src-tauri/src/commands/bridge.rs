@@ -1,3 +1,4 @@
+use super::error::CommandResult;
 use crate::{
     model::{BridgeInfo, BridgeStatus},
     state::AppState,
@@ -88,7 +89,7 @@ fn logical_inner_size(window: &tauri::WebviewWindow) -> Option<(f64, f64)> {
 }
 
 #[tauri::command]
-pub(crate) fn get_bridge_info(state: State<'_, Arc<AppState>>) -> Result<BridgeInfo, String> {
+pub(crate) fn get_bridge_info(state: State<'_, Arc<AppState>>) -> CommandResult<BridgeInfo> {
     Ok(bridge_info(state.inner().as_ref()))
 }
 
@@ -96,7 +97,7 @@ pub(crate) fn get_bridge_info(state: State<'_, Arc<AppState>>) -> Result<BridgeI
 pub(crate) async fn set_api_integration_enabled(
     state: State<'_, Arc<AppState>>,
     enabled: bool,
-) -> Result<BridgeStatus, String> {
+) -> CommandResult<BridgeStatus> {
     if cfg!(mobile) {
         return Err("The Paseo Bridge is only available on desktop.".into());
     }
@@ -122,7 +123,7 @@ pub(crate) async fn set_api_integration_enabled(
 pub(crate) async fn open_api_integration_window(
     app: AppHandle,
     state: State<'_, Arc<AppState>>,
-) -> Result<(), String> {
+) -> CommandResult<()> {
     if !state.settings.paseo_bridge_enabled() {
         return Err("Enable the Paseo Bridge before opening its configuration.".into());
     }
@@ -186,7 +187,7 @@ pub(crate) async fn open_api_integration_window(
 #[tauri::command]
 pub(crate) fn regenerate_bridge_token(
     state: State<'_, Arc<AppState>>,
-) -> Result<BridgeInfo, String> {
+) -> CommandResult<BridgeInfo> {
     let token = rotate_bridge_token().map_err(crate::diagnostics::command_error)?;
     *state.bridge_token.write() = token;
     // Return masked info only; the UI must call reveal_bridge_token after
@@ -202,7 +203,7 @@ pub(crate) fn regenerate_bridge_token(
 pub(crate) async fn reveal_bridge_token(
     app: AppHandle,
     state: State<'_, Arc<AppState>>,
-) -> Result<String, String> {
+) -> CommandResult<String> {
     // A native dialog, outside the page, decides: page code cannot answer it.
     crate::confirm::after_confirmation(
         &crate::confirm::REVEAL_BRIDGE_TOKEN,
@@ -210,6 +211,7 @@ pub(crate) async fn reveal_bridge_token(
         || Ok(state.bridge_token.read().clone()),
     )
     .await
+    .map_err(Into::into)
 }
 
 pub(crate) fn bridge_status(state: &AppState) -> BridgeStatus {

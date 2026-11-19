@@ -1,4 +1,5 @@
 import { bridgeApi, clearLoginAttempt, readLoginAttempt, rememberLoginAttempt } from "./api";
+import { errorMessage } from "./errors";
 import { UI_EVENTS } from "./events";
 import { logIgnored } from "./log";
 import type { LoginStatus } from "../../types";
@@ -62,7 +63,7 @@ async function tick(): Promise<void> {
     }
   } catch (cause) {
     if (activeAttemptId !== attemptId) return;
-    if (String(cause).toLowerCase().includes("no login attempt is available")) {
+    if (errorMessage(cause).toLowerCase().includes("no login attempt is available")) {
       stopWatchingLoginAttempt();
       clearLoginAttempt();
       return;

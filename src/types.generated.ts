@@ -402,3 +402,18 @@ export type AirgapPreview = {
    */
   ticket: string,
 };
+
+/**
+ * What kind of failure a command reports. The frontend picks its wording by this, and never
+ * adds codes of its own.
+ */
+export type ErrorCode = "invalid" | "not_found" | "login_in_progress" | "login_attempt_gone" | "auth_required" | "rate_limited" | "network" | "provider" | "storage" | "pairing" | "cancelled" | "unsupported" | "internal" | "unclassified";
+
+export type CommandError = {
+  code: ErrorCode,
+  /**
+   * A plain sentence for the person. Never raw provider, IO or serde text: caller-supplied
+   * detail goes through `diagnostics::command_error` first.
+   */
+  message: string,
+};

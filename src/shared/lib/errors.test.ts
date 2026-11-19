@@ -3,6 +3,7 @@ import {
   classifyError,
   clearError,
   clearRecordedErrorDetails,
+  commandError,
   describeError,
   errorMessage,
   friendlyMessage,
@@ -182,5 +183,37 @@ describe("recorded error detail", () => {
     expect(lines).toHaveLength(20);
     expect(lines[0]).toContain("error 10");
     expect(lines.every((line) => line.length < 400)).toBe(true);
+  });
+});
+
+describe("commandError", () => {
+  it("recognises the { code, message } a backend command rejects with", () => {
+    const cause = { code: "login_in_progress", message: "A sign-in is already in progress." };
+    expect(commandError(cause)).toBe(cause);
+    expect(errorMessage(cause)).toBe("A sign-in is already in progress.");
+  });
+
+  it("is null for anything else", () => {
+    expect(commandError("command not found")).toBeNull();
+    expect(commandError(new Error("boom"))).toBeNull();
+    expect(commandError({ message: "no code" })).toBeNull();
+    expect(commandError({ code: 1, message: "x" })).toBeNull();
+    expect(commandError(null)).toBeNull();
+  });
+});
+
+describe("errors before they have a code", () => {
+  // Commands now reject with `{ code: "unclassified", message }` where they used to reject with the
+  // message alone; every banner must read the same.
+  it.each([
+    "Account label is required.",
+    "Grok login timed out. Start the connection again.",
+    "error sending request for url (https://example.com)",
+    "status code: 500",
+    "command refresh_all not found",
+  ])("shows %s as before", (message) => {
+    const before = friendlyMessage("Couldn't refresh", errorMessage(message));
+    const after = friendlyMessage("Couldn't refresh", errorMessage({ code: "unclassified", message }));
+    expect(after).toBe(before);
   });
 });

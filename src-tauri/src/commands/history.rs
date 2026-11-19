@@ -1,3 +1,4 @@
+use super::error::CommandResult;
 use crate::{
     history::report::{weekly_activity, WeeklyActivity},
     state::AppState,
@@ -14,21 +15,23 @@ use tauri::State;
 pub async fn get_weekly_activity(
     state: State<'_, Arc<AppState>>,
     day_starts: Vec<String>,
-) -> Result<WeeklyActivity, String> {
+) -> CommandResult<WeeklyActivity> {
     let app = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         weekly_activity(&app, &day_starts, chrono::Utc::now().timestamp())
     })
     .await
     .map_err(|_| "Usage history could not be loaded.".to_string())?
+    .map_err(Into::into)
 }
 
 /// Deletes the recorded weekly readings of every account. Accounts and their current usage stay.
 #[tauri::command]
-pub async fn clear_activity_history(state: State<'_, Arc<AppState>>) -> Result<(), String> {
+pub async fn clear_activity_history(state: State<'_, Arc<AppState>>) -> CommandResult<()> {
     let app = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || app.history.clear())
         .await
         .map_err(|_| "Usage history could not be cleared.".to_string())?
         .map_err(crate::diagnostics::command_error)
+        .map_err(Into::into)
 }

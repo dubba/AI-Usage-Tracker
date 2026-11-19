@@ -13,6 +13,7 @@
 //! After an intended change, rewrite both files with
 //! `UPDATE_FIXTURES=1 cargo test --manifest-path src-tauri/Cargo.toml --lib type_contract`.
 
+use crate::commands::error::{CommandError, ErrorCode};
 use crate::{
     health::{AccountHealth, GoogleSetup},
     history::{
@@ -244,6 +245,10 @@ fn samples() -> Value {
     login.push(choose);
     json!({
         "Account": to_json(&[account(true), account(false)]),
+        "CommandError": to_json(&[
+            CommandError::new(ErrorCode::LoginInProgress, "A sign-in is already in progress."),
+            CommandError::from("Account label is required.".to_string()),
+        ]),
         "DashboardSnapshot": to_json(&[
             DashboardSnapshot {
                 accounts: vec![account(true), account(false)],
@@ -358,6 +363,8 @@ fn generated_bindings() -> String {
         AirgapExportFrame,
         AirgapExport,
         AirgapPreview,
+        ErrorCode,
+        CommandError,
     );
     out
 }

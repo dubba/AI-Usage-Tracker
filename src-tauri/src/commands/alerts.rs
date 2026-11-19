@@ -1,3 +1,4 @@
+use super::error::CommandResult;
 use crate::store::alerts;
 use crate::{
     model::{Account, Provider},
@@ -33,7 +34,7 @@ fn request_notification_permission(app: tauri::AppHandle) {
 pub fn get_account_alerts(
     state: State<'_, Arc<AppState>>,
     account_id: String,
-) -> Result<Vec<UsageAlertSetting>, String> {
+) -> CommandResult<Vec<UsageAlertSetting>> {
     if state.store.get(&account_id).is_none() {
         return Err("Account not found.".into());
     }
@@ -81,7 +82,7 @@ pub fn save_account_alerts(
     state: State<'_, Arc<AppState>>,
     account_id: String,
     settings: Vec<UsageAlertSetting>,
-) -> Result<Vec<UsageAlertSetting>, String> {
+) -> CommandResult<Vec<UsageAlertSetting>> {
     let account = state
         .store
         .get(&account_id)
@@ -95,7 +96,8 @@ pub fn save_account_alerts(
             return Err(format!(
                 "{} is not available for this account's current plan.",
                 setting.window_id.replace('_', " ")
-            ));
+            )
+            .into());
         }
     }
 

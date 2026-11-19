@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { openSafeUrl } from "../../shared/lib/safeUrl";
 import { bridgeApi } from "../../shared/lib/api";
+import { errorMessage } from "../../shared/lib/errors";
 import {
   defaultAccountName,
   emptyDraft,
@@ -181,7 +182,7 @@ export function AddAccountModal({
     try {
       start = await startLogin();
     } catch (cause) {
-      if (!String(cause).toLowerCase().includes("already in progress") || attemptIdRef.current) {
+      if (!errorMessage(cause).toLowerCase().includes("already in progress") || attemptIdRef.current) {
         throw cause;
       }
       await recoverFromStaleLogin();
