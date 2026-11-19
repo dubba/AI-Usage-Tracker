@@ -192,7 +192,7 @@ fn a_racing_finish_and_failure_never_both_win() {
 
 #[test]
 fn login_state_matches_the_frontend_union() {
-    // src/types.ts: "waiting" | "complete" | "failed" | "choose_project" | "monitoring_disabled"
+    // LoginState in src/types.generated.ts: "waiting" | "complete" | "failed" | "choose_project" | "monitoring_disabled"
     for (state, wire) in [
         (LoginState::Waiting, "waiting"),
         (LoginState::Complete, "complete"),

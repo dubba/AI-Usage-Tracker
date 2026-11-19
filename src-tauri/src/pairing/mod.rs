@@ -44,6 +44,7 @@ const INTERRUPTED: &str =
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "status", content = "data", rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub enum PairingStatus {
     Idle,
     #[serde(rename_all = "camelCase")]
@@ -69,7 +70,8 @@ pub enum PairingStatus {
     #[serde(rename_all = "camelCase")]
     ConfirmTransfer {
         session_id: String,
-        role: String, // "receiver" | "sender"
+        #[cfg_attr(test, ts(type = r#""receiver" | "sender""#))]
+        role: String,
         account_count: Option<usize>,
     },
     #[serde(rename_all = "camelCase")]
@@ -88,6 +90,7 @@ pub enum PairingStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct PairingHostInit {
     pub session_id: String,
     pub join_code: String,

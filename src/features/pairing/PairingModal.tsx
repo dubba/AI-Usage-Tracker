@@ -491,7 +491,7 @@ export function PairingModal({
           />
         )}
 
-        {(status.status === "clientConnecting" || status.status === "senderConnecting") && <ConnectingPanel />}
+        {status.status === "clientConnecting" && <ConnectingPanel />}
 
         {status.status === "peerConnected" && <PeerConnectedPanel />}
 

@@ -39,6 +39,7 @@ const AIRGAP_INFO: &[u8] = b"aiut-airgap-v1";
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct AirgapExportFrame {
     pub chunk_index: usize,
     pub total_chunks: usize,
@@ -62,6 +63,7 @@ impl std::fmt::Debug for AirgapExportFrame {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct AirgapExport {
     pub session_id: String,
     pub total_chunks: usize,
@@ -71,6 +73,7 @@ pub struct AirgapExport {
 /// What a complete capture holds, shown before the user agrees to import it.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct AirgapPreview {
     pub session_id: String,
     pub total_chunks: usize,

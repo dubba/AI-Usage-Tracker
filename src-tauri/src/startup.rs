@@ -12,6 +12,7 @@ use std::path::Path;
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct StartupIssue {
     pub message: String,
     /// Where the app keeps its saved data, so the user can look at it.

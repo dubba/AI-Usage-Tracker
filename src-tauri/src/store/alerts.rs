@@ -14,7 +14,9 @@ const ALERT_WINDOW_IDS: [&str; 3] = ["five_hour", "weekly", "monthly"];
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct UsageAlertSetting {
+    #[cfg_attr(test, ts(type = r#""five_hour" | "weekly" | "monthly""#))]
     pub window_id: String,
     pub enabled: bool,
     pub threshold_percent: u8,

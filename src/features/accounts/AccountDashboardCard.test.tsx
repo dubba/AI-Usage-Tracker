@@ -372,6 +372,7 @@ describe("AccountDashboardCard actions dropdown placement", () => {
             fetchedAt: new Date().toISOString(),
             freshness: "live",
             source: "test",
+            limitResets: [],
           },
         }}
         busy={new Set()}
@@ -446,7 +447,7 @@ function renderDesktopCard(overrides: Partial<Parameters<typeof AccountDashboard
   const app = mount(
     <AccountDashboardCard
       pageId="all"
-      account={{ ...account, plan: "pro", lastUsage: { plan: "pro", email: null, windows: [], creditsUsd: null, unlimitedCredits: false, fetchedAt: new Date().toISOString(), freshness: "live", source: "test" } }}
+      account={{ ...account, plan: "pro", lastUsage: { plan: "pro", email: null, windows: [], creditsUsd: null, unlimitedCredits: false, fetchedAt: new Date().toISOString(), freshness: "live", source: "test", limitResets: [] } }}
       busy={new Set()}
       onReconnect={() => undefined}
       onConnectGoogleUsage={() => undefined}
@@ -589,7 +590,7 @@ describe("AccountDashboardCard on a wide window", () => {
         ...account,
         id: "out-of-date",
         lastError: "OpenAI rate-limited the usage request.",
-        lastUsage: { plan: null, email: null, windows: [], creditsUsd: null, unlimitedCredits: false, fetchedAt: new Date().toISOString(), freshness: "stale", source: "test" },
+        lastUsage: { plan: null, email: null, windows: [], creditsUsd: null, unlimitedCredits: false, fetchedAt: new Date().toISOString(), freshness: "stale", source: "test", limitResets: [] },
       },
     });
     app = rendered.app;
@@ -620,6 +621,7 @@ describe("AccountDashboardCard on a wide window", () => {
       unlimitedCredits: false,
       fetchedAt: new Date().toISOString(),
       source: "test",
+      limitResets: [],
     };
     const stale = renderDesktopCard({
       account: { ...account, id: "stale-bar", plan: "pro", lastUsage: { ...usage, freshness: "stale" } },
@@ -657,6 +659,7 @@ describe("AccountDashboardCard on a wide window", () => {
       fetchedAt: new Date().toISOString(),
       freshness: "live",
       source: "test",
+      limitResets: [],
     };
     const rendered = renderDesktopCard({ pageId: "desktop-collapse", account: { ...account, id: "desktop-collapse-test", plan: "pro", lastUsage: usage } });
     app = rendered.app;
@@ -716,6 +719,7 @@ describe("AccountDashboardCard on a wide window", () => {
           fetchedAt: new Date(Date.now() - 2 * 86_400_000).toISOString(),
           freshness: "live",
           source: "test",
+          limitResets: [],
         },
       },
     });
@@ -771,6 +775,7 @@ describe("AccountDashboardCard error display on mobile vs desktop", () => {
             fetchedAt: new Date().toISOString(),
             freshness: "stale",
             source: "test",
+            limitResets: [],
           },
         }}
         busy={new Set()}
@@ -901,6 +906,7 @@ describe("AccountDashboardCard error display on mobile vs desktop", () => {
             fetchedAt: new Date().toISOString(),
             freshness: "stale",
             source: "test",
+            limitResets: [],
           },
         }}
         busy={new Set()}
@@ -930,9 +936,10 @@ const resetGrant = {
   label: "Full reset",
   detail: "Clears the 5-hour and 7-day limits",
   expiresAt: "2026-12-10T16:00:00Z",
+  usable: true,
 };
 
-function usageWithResets(limitResets?: UsageSnapshot["limitResets"]): UsageSnapshot {
+function usageWithResets(limitResets: UsageSnapshot["limitResets"]): UsageSnapshot {
   return {
     plan: "pro",
     email: null,
@@ -978,9 +985,6 @@ describe("AccountDashboardCard limit resets", () => {
     expect(document.querySelector(".limit-resets-section")).toBeNull();
     app?.unmount();
     renderResets(usageWithResets([]));
-    expect(document.querySelector(".limit-resets-section")).toBeNull();
-    app?.unmount();
-    renderResets(usageWithResets(undefined));
     expect(document.querySelector(".limit-resets-section")).toBeNull();
   });
 
@@ -1157,6 +1161,7 @@ describe("AccountDashboardCard compact mode (L7)", () => {
         fetchedAt: "2026-11-11T07:55:00Z",
         freshness: "live",
         source: "anthropic_oauth_usage",
+        limitResets: [],
       },
     };
 
@@ -1283,6 +1288,7 @@ describe("AccountDashboardCard compact mode (L7)", () => {
       fetchedAt: "2026-11-11T07:55:00Z",
       freshness: "live",
       source: "antigravity",
+      limitResets: [],
     };
 
     app = mount(

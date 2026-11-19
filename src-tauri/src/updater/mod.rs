@@ -26,7 +26,9 @@ use github::*;
 use version::*;
 
 #[derive(Clone, Serialize)]
-struct AppUpdateProgress {
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub(crate) struct AppUpdateProgress {
+    #[cfg_attr(test, ts(type = r#""downloading" | "verifying" | "installing""#))]
     phase: &'static str,
     downloaded: u64,
     total: Option<u64>,

@@ -31,6 +31,8 @@ const SAME_RESET_SECONDS: i64 = 24 * 3600;
 /// How well a day's value is known.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(test, ts(rename = "ActivityQuality"))]
 pub enum DayQuality {
     /// Every refresh that contributed was at most three hours from the one before it.
     Measured,
@@ -42,6 +44,8 @@ pub enum DayQuality {
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(test, ts(rename = "ActivityDay"))]
 pub struct DayUsage {
     /// Percent of the weekly limit used that day, or `None` when `quality` is `None`.
     pub used_percent: Option<f64>,

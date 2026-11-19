@@ -5,6 +5,7 @@ use zeroize::Zeroize;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub enum Provider {
     #[default]
     Openai,
@@ -77,6 +78,7 @@ const MONTHLY_WINDOW_SECONDS: std::ops::RangeInclusive<u64> = 2_000_000..=2_700_
 /// those into the three kinds the app has alerts, sidebar slots and styling for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub enum WindowKind {
     FiveHour,
     Weekly,
@@ -156,6 +158,7 @@ impl WindowKind {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct UsageWindow {
     pub id: String,
     pub label: String,
@@ -201,6 +204,7 @@ fn limit_reset_is_usable() -> bool {
 /// is never stored.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct LimitReset {
     pub id: String,
     pub label: String,
@@ -213,6 +217,7 @@ pub struct LimitReset {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct UsageSnapshot {
     pub plan: Option<String>,
     pub email: Option<String>,
@@ -229,6 +234,7 @@ pub struct UsageSnapshot {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub enum UsageFreshness {
     Live,
     Stale,
@@ -238,6 +244,7 @@ pub enum UsageFreshness {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct Account {
     pub id: String,
     pub label: String,
@@ -393,6 +400,7 @@ impl ProviderSecret {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct LoginStart {
     pub attempt_id: String,
     pub authorization_url: String,
@@ -401,16 +409,18 @@ pub struct LoginStart {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct CloudProjectOption {
     pub project_id: String,
     pub project_number: String,
     pub display_name: String,
 }
 
-/// Where a sign-in attempt stands. Serialized in snake_case to match the
-/// `LoginStatus["status"]` union in `src/types.ts`.
+/// Where a sign-in attempt stands. Serialized in snake_case; the frontend's `LoginState` type is
+/// generated from this enum.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub enum LoginState {
     Waiting,
     Complete,
@@ -432,6 +442,7 @@ impl LoginState {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct LoginStatus {
     pub attempt_id: String,
     pub status: LoginState,
@@ -487,6 +498,7 @@ impl LoginStatus {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct BridgeStatus {
     pub endpoint: String,
     pub enabled: bool,
@@ -496,6 +508,7 @@ pub struct BridgeStatus {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct BridgeInfo {
     pub endpoint: String,
     /// Masked bearer token (e.g. `abcd••••••wxyz`). The full token is never
@@ -521,6 +534,7 @@ pub fn mask_bridge_token(token: &str) -> String {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct AccountBucket {
     pub id: String,
     pub name: String,
@@ -532,6 +546,7 @@ pub struct AccountBucket {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct DashboardSnapshot {
     pub accounts: Vec<Account>,
     pub buckets: Vec<AccountBucket>,
@@ -546,6 +561,7 @@ pub struct DashboardSnapshot {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct AppUpdateStatus {
     pub current_version: String,
     pub available: bool,

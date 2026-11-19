@@ -15,7 +15,7 @@ before adding a value to an enum.
 | Frontend IPC | The Rust backend | The WebView of the same build | Anything a command returns or an event carries |
 
 Frontend IPC never crosses versions (the WebView ships in the same bundle), so it only has to match
-`src/types.ts`; see `type_contract.rs`. Everything else follows the rules below.
+the TypeScript types, which are generated from the Rust types (`src/types.generated.ts`, see `type_contract.rs`). Everything else follows the rules below.
 
 ## What happens to an unknown or missing field
 
@@ -72,5 +72,5 @@ Frontend IPC never crosses versions (the WebView ships in the same bundle), so i
 - [ ] The field is filled in `full_sync_payload` in `pairing/tests.rs` if the type is in the payload,
       and listed in `payload_from_an_older_peer_without_newer_fields_parses`
 - [ ] If the field is derived: `skip_deserializing` and recomputed on load and import
-- [ ] If the type is sent to the frontend: `src/types.ts` and the `type_contract.rs` samples updated
+- [ ] If the type is sent to the frontend: `src/types.generated.ts` and the `type_contract.rs` samples regenerated (`UPDATE_FIXTURES=1`)
 - [ ] No new enum value written to files or payloads (rule 4)

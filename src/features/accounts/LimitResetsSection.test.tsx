@@ -11,12 +11,14 @@ const grants: LimitReset[] = [
     label: "Fable reset",
     detail: "Clears 7-day Fable usage and refills the 5-hour limit.",
     expiresAt: null,
+    usable: true,
   },
   {
     id: "grant-secret-1",
     label: "Full reset",
     detail: "Clears the 5-hour and 7-day limits",
     expiresAt: "2026-12-10T16:00:00Z",
+    usable: true,
   },
 ];
 

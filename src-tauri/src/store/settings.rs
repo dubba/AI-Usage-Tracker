@@ -18,6 +18,7 @@ const MAX_REMEMBERED_WINDOW_PIXELS: u32 = 16_384;
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct AppSettings {
     pub account_refresh_minutes: u64,
     pub paseo_bridge_enabled: bool,

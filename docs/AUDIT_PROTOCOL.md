@@ -93,7 +93,7 @@ Produce an inventory of assets, entry points, and trust boundaries before auditi
 
 Verify each rule in `AGENTS.md` and `src-tauri/AGENTS.md` is actually enforced by code, not just written down.
 
-- Credentials never cross into the frontend: trace every Tauri command response type in `src-tauri/src/commands/` and the TypeScript types in `src/types.ts`.
+- Credentials never cross into the frontend: trace every Tauri command response type in `src-tauri/src/commands/` and the TypeScript types in `src/types.generated.ts` (generated from the Rust types; `src/types.ts` re-exports them).
 - Token refresh is serialized per account (`refresh_loop.rs`, `providers/oauth_refresh.rs`). Look for any second refresh path.
 - Only `https://chatgpt.com/backend-api/wham/usage` is used for OpenAI quota retrieval.
 - Last-known-good usage survives transient failure and is marked stale.

@@ -35,6 +35,7 @@ const MONTHLY_WINDOW_SECONDS: i64 = 30 * 24 * 3600;
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct WeeklyActivity {
     pub trackers: Vec<ActivityTracker>,
     pub untracked: Vec<UntrackedAccount>,
@@ -42,11 +43,13 @@ pub struct WeeklyActivity {
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct ActivityTracker {
     pub account_id: String,
     pub window_id: String,
     pub window_label: String,
     /// `weekly`, or `monthly` for an account that has no weekly limit (shown on the 30 day view).
+    #[cfg_attr(test, ts(type = r#""weekly" | "monthly""#))]
     pub window_kind: WindowKind,
     pub current_used_percent: Option<f64>,
     pub resets_at: Option<String>,
@@ -62,6 +65,7 @@ pub struct ActivityTracker {
 /// An account that has no weekly limit to chart.
 #[derive(Clone, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct UntrackedAccount {
     pub account_id: String,
     pub other_limits: Vec<OtherLimit>,
@@ -70,6 +74,7 @@ pub struct UntrackedAccount {
 /// What an account without a weekly limit has instead.
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub enum OtherLimit {
     FiveHour,
     Daily,

@@ -27,6 +27,7 @@ export function makeAccount(overrides: Partial<Account> & { id: string }): Accou
       fetchedAt: "2026-10-24T12:00:00Z",
       freshness: "live",
       source: "test",
+      limitResets: [],
     },
     lastError: null,
     authRequired: false,

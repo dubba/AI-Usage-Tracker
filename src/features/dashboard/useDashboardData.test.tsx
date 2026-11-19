@@ -45,6 +45,7 @@ function makeSnapshot(tag: string, accounts: Account[] = [], unprotectedCredenti
     buckets: [],
     bridge: {} as DashboardSnapshot["bridge"],
     unprotectedCredentials,
+    unprotectedAccountIds: [],
   };
 }
 

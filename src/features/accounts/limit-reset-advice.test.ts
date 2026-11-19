@@ -21,7 +21,7 @@ function window(kind: UsageWindow["kind"], remainingPercent: number | null, extr
 }
 
 function grant(detail: string, expiresAt: string | null = null): LimitReset {
-  return { id: "g", label: "Full reset", detail, expiresAt };
+  return { id: "g", label: "Full reset", detail, expiresAt, usable: true };
 }
 
 const FULL = "Clears the 5-hour and 7-day limits";

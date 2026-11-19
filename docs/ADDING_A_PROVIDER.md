@@ -15,7 +15,7 @@ Use an existing provider of the same kind as the model:
 
 ## 1. The id
 
-- `src/types.ts` — add the id to the `Provider` union.
+- `src/types.generated.ts` — the `Provider` union is generated from the Rust enum; regenerate it with `UPDATE_FIXTURES=1 cargo test --manifest-path src-tauri/Cargo.toml --lib type_contract`.
 - `src-tauri/src/model.rs` — add a `Provider` variant, and its arms in `id()`, `display_name()` and `FromStr` (`"…" | alias`). Add a `ProviderSecret` variant carrying the credential type, and its arm in `ProviderSecret::provider()`. A credential struct needs a hand-written redacting `Debug` and `Zeroize` like `OAuthSecret` and `GrokSecret`.
 - `src/shared/lib/providers.ts` — an entry in `PROVIDER_META` (`name`, `connectLabel`, `connectDetail`) and a place in `DEFAULT_PROVIDER_ORDER`.
 - `src-tauri/src/frontend_contract.rs` — add the variant to `all_providers()` and update the count in `the_extractors_read_what_they_should`. `provider_display_names_match_the_frontend` then checks that `PROVIDER_META[...].name` equals `Provider::display_name()`.
@@ -75,7 +75,7 @@ A new command means four edits, and a test fails if one is missing:
 - `src/features/add-account/AddAccountModal.tsx` — `PICKER_ORDER` (the order in the picker) and, when the provider needs its own fields, the case in `providerFields` plus a component in `add-account/fields/`.
 - `src/features/accounts/AccountsView.tsx` — `EMPTY_STATE_PROVIDERS` is the short list of first-run cards. Add the provider only if it should be offered there.
 - `src/shared/lib/display.ts` — `PLAN_RULES` and `PLAN_FALLBACK` (how the stored plan string is shown), and `DEFAULT_GROUP_BY_PROVIDER` (the group a window falls into when its label names none). Add cases to `display.test.ts`.
-- `src/types.ts` — only if the provider adds a field. Then run `UPDATE_FIXTURES=1 cargo test --manifest-path src-tauri/Cargo.toml --lib type_contract` and `npx vitest run src/shared/lib/types-contract.test.ts`.
+- `src/types.generated.ts` — only if the provider adds a field to a type the frontend receives. Add the field in Rust, then run `UPDATE_FIXTURES=1 cargo test --manifest-path src-tauri/Cargo.toml --lib type_contract` and `npx vitest run src/shared/lib/types-contract.test.ts`.
 
 ## 5. Documents and release notes
 

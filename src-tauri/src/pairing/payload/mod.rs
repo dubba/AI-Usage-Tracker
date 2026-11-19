@@ -168,6 +168,7 @@ pub struct SyncPayload {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct SyncSummary {
     pub added: u16,
     pub updated: u16,

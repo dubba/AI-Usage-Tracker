@@ -52,6 +52,7 @@ function usage(overrides: Partial<UsageSnapshot> = {}): UsageSnapshot {
     fetchedAt: new Date(NOW).toISOString(),
     freshness: "live",
     source: "test",
+    limitResets: [],
     ...overrides,
   };
 }

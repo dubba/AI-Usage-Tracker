@@ -6,7 +6,7 @@ export type ActiveFlow = "wifi" | "airgap" | null;
 
 /** True before the devices are connected: the user is still choosing, showing a code, or scanning. */
 export function isWaitingStatus(status: PairingStatus["status"]): boolean {
-  return status === "idle" || status === "hostWaiting" || status === "receiverWaiting";
+  return status === "idle" || status === "hostWaiting";
 }
 
 export function pairingStep(status: PairingStatus["status"], viewMode: ViewMode): 1 | 2 | 3 {
@@ -44,7 +44,7 @@ export function pairingHeader(input: {
   if (activeFlow === "airgap" || viewMode === "airgap-sender") {
     subtitle = "On the other device, open Link Devices, select Scan QR Code, then scan this QR code below.";
   }
-  if (status === "clientConnecting" || status === "senderConnecting") {
+  if (status === "clientConnecting") {
     title = "Connecting";
     subtitle = "Finding the other device on your Wi-Fi.";
   } else if (waiting && viewMode === "airgap-sender") {
@@ -109,7 +109,7 @@ export function hasOwnActionButtons(status: PairingStatus["status"], viewMode: V
   );
 }
 
-type WaitingStatus = Extract<PairingStatus, { status: "hostWaiting" | "receiverWaiting" }>;
+type WaitingStatus = Extract<PairingStatus, { status: "hostWaiting" }>;
 
 function readField(data: Record<string, unknown>, camel: string, snake: string): string {
   const value = data[camel] ?? data[snake];
@@ -118,14 +118,14 @@ function readField(data: Record<string, unknown>, camel: string, snake: string):
 
 /** The link code a host shows, tolerating the backend's camelCase or snake_case keys. */
 export function hostWaitingFields(status: PairingStatus): { joinCode: string } | null {
-  if (status.status !== "hostWaiting" && status.status !== "receiverWaiting") return null;
+  if (status.status !== "hostWaiting") return null;
   const data = (status as WaitingStatus).data as unknown as Record<string, unknown>;
   return { joinCode: readField(data, "joinCode", "join_code") };
 }
 
 /** When the code being shown expires, in Unix seconds, or null when it is not a waiting state or has none. */
 export function waitingExpiresAt(status: PairingStatus): number | null {
-  if (status.status !== "hostWaiting" && status.status !== "receiverWaiting") return null;
+  if (status.status !== "hostWaiting") return null;
   const raw = status.data as unknown as Record<string, unknown>;
   if (typeof status.data.expiresAt === "number") return status.data.expiresAt;
   return typeof raw?.expires_at === "number" ? raw.expires_at : null;

@@ -48,7 +48,6 @@ describe("pairingHeader titles", () => {
     ["entering a code", { viewMode: "code" }, "Enter Link Code"],
     ["showing animated QR", { viewMode: "airgap-sender" }, "Show QR Code"],
     ["connecting as client", { status: "clientConnecting" }, "Connecting"],
-    ["connecting as sender", { status: "senderConnecting" }, "Connecting"],
     ["peer connected", { status: "peerConnected" }, "Connected"],
     ["asking for a role", { status: "roleSelection" }, "Send or Receive Accounts"],
     ["applying a chosen role", { status: "roleSelection", intendedRole: "send" }, "Connecting"],
@@ -140,7 +139,7 @@ describe("waiting-state fields", () => {
   });
 
   it("recognizes the states that count as waiting", () => {
-    expect(["idle", "hostWaiting", "receiverWaiting"].every((s) => isWaitingStatus(s as PairingStatus["status"]))).toBe(true);
+    expect(["idle", "hostWaiting"].every((s) => isWaitingStatus(s as PairingStatus["status"]))).toBe(true);
     expect(isWaitingStatus("completed")).toBe(false);
   });
 });
