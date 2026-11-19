@@ -1,6 +1,20 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (8 changes)
+
+### Security (5)
+
+- Sign-ins and token renewals now refuse a reply with an empty token, or one that says the token lasts no time at all, a negative time, more than 90 days, or an impossibly long time, instead of saving it.
+- The Google AI Studio sign-in now finishes only once, even if Google's return page is opened twice.
+- An air-gap import now adds exactly the codes whose account count you were shown, once. Codes captured or changed after that check, or an import repeated with the same check, are refused and ask you to scan again.
+- Cancelling a device pairing while it is still looking for the other device now stops it; it can no longer carry on starting in the background.
+- Two imports from paired devices at the same moment can no longer both add the same account and save one sign-in over the other; the first one is kept.
+
+### Fixed (3)
+
+- Re-adding a Google AI Studio API key, or choosing its Cloud project, no longer puts back an older Google Cloud sign-in over one the app had just renewed, which could sign the account out. Saving the chosen project could also fail; it now waits its turn properly.
+- The macOS uninstaller now also removes the launch-at-startup entry.
+- The macOS uninstaller no longer says everything was cleared when it could not delete some saved sign-ins from the Keychain or some files; it lists what is left and ends with an error.
 
 ## v0.6.4 - 2026-11-18 (16 changes)
 
