@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   accountWindowRemaining,
-  accountsNeedScheduledRefresh,
   canonicalWindow,
   displayAccountLabel,
   groupAlert,
@@ -71,6 +70,7 @@ function account(overrides: Partial<Account> = {}): Account {
     authRequired: false,
     health: "live",
     googleSetup: null,
+    autoRefresh: true,
     ...overrides,
   };
 }
@@ -130,38 +130,6 @@ describe("nextResetSummary", () => {
       }),
     ];
     expect(nextResetSummary(accounts, NOW).account).toBeNull();
-  });
-});
-
-describe("accountsNeedScheduledRefresh", () => {
-  it("is false when every account was fetched within the interval", () => {
-    expect(accountsNeedScheduledRefresh([account()], 15, NOW + 14 * MINUTE)).toBe(false);
-  });
-
-  it("is true once an account is at or past the interval", () => {
-    expect(accountsNeedScheduledRefresh([account()], 15, NOW + 15 * MINUTE)).toBe(true);
-  });
-
-  it("is true for accounts that were never fetched or have a bad timestamp", () => {
-    expect(accountsNeedScheduledRefresh([account({ lastUsage: null })], 15, NOW)).toBe(true);
-    expect(
-      accountsNeedScheduledRefresh([account({ lastUsage: usage({ fetchedAt: "nope" }) })], 15, NOW),
-    ).toBe(true);
-  });
-
-  it("skips accounts that need re-authentication", () => {
-    const stale = account({ authRequired: true, lastUsage: null });
-    expect(accountsNeedScheduledRefresh([stale], 15, NOW + HOUR)).toBe(false);
-  });
-
-  it("skips Google AI Studio accounts that only have key/model access", () => {
-    const keyOnly = account({
-      provider: "google_ai_studio",
-      lastUsage: usage({ source: "google_ai_studio_model_access" }),
-      health: "key_only",
-      googleSetup: "key_only",
-    });
-    expect(accountsNeedScheduledRefresh([keyOnly], 15, NOW + HOUR)).toBe(false);
   });
 });
 

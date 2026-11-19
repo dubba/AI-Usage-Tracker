@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReportError } from "../../shared/lib/errors";
 import { bridgeApi } from "../../shared/lib/api";
 import { withTimeout } from "../../shared/lib/async-utils";
-import { DEFAULT_ACCOUNT_REFRESH_MINUTES } from "../../shared/lib/constants";
 import {
   CREDENTIAL_PROTECTION_ERROR_SOURCE,
   credentialProtectionAction,
@@ -12,7 +11,6 @@ import { isReordering, subscribeReordering } from "../../shared/lib/reorder-acti
 import { onDashboardResync } from "../../shared/lib/events";
 import { publishSnapshot } from "./snapshot-store";
 import { clearPendingAllOrder } from "../layout/dashboard-page-state";
-import { accountsNeedScheduledRefresh } from "../../shared/lib/usage-logic";
 import { useTauriEvent } from "../../shared/hooks/useTauriEvent";
 import type { DashboardSnapshot } from "../../types";
 
@@ -23,11 +21,9 @@ const LOAD_TIMEOUT_MS = 10_000;
 export function useDashboardData({
   reportError,
   clearError,
-  accountRefreshMinutes,
 }: {
   reportError: ReportError;
   clearError: (source: string) => void;
-  accountRefreshMinutes: number | undefined;
 }) {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
   const refreshDueInFlightRef = useRef(false);
@@ -105,9 +101,8 @@ export function useDashboardData({
     try {
       const latest = await load();
       if (!latest) return;
-      const minutes = accountRefreshMinutes ?? DEFAULT_ACCOUNT_REFRESH_MINUTES;
-      if (!accountsNeedScheduledRefresh(latest.accounts, minutes)) return;
-      await bridgeApi.refreshAll();
+      // The backend decides whether any account is a refresh interval old (`refresh_if_due`).
+      if (!(await bridgeApi.refreshIfDue())) return;
       await load();
       clearError("refresh-due");
     } catch (cause) {
@@ -115,7 +110,7 @@ export function useDashboardData({
     } finally {
       refreshDueInFlightRef.current = false;
     }
-  }, [load, accountRefreshMinutes, clearError, reportError]);
+  }, [load, clearError, reportError]);
 
   useEffect(() => {
     const onVisibility = () => {

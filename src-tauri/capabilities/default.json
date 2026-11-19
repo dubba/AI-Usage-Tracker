@@ -58,6 +58,7 @@
     "allow-refresh-account",
     "allow-use-limit-reset",
     "allow-refresh-all",
+    "allow-refresh-if-due",
     "allow-get-app-settings",
     "allow-set-account-refresh-minutes",
     "allow-set-automatic-updates-enabled",

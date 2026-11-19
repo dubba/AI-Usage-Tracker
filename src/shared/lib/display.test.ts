@@ -33,6 +33,7 @@ function account(overrides: Partial<Account> = {}): Account {
     authRequired: false,
     health: "inactive",
     googleSetup: null,
+    autoRefresh: true,
     ...overrides,
   };
 }

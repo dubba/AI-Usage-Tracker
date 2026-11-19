@@ -40,6 +40,7 @@ const APP_COMMANDS: &[&str] = &[
     "refresh_account",
     "use_limit_reset",
     "refresh_all",
+    "refresh_if_due",
     "get_app_settings",
     "set_account_refresh_minutes",
     "set_automatic_updates_enabled",

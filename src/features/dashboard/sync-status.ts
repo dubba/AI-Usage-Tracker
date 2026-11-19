@@ -1,5 +1,5 @@
 import { formatElapsed } from "../../shared/lib/format";
-import { accountAutoRefreshEligible, groupAlert } from "../../shared/lib/usage-logic";
+import { groupAlert } from "../../shared/lib/usage-logic";
 import type { Account } from "../../types";
 
 /**
@@ -40,7 +40,7 @@ export function computeSyncStatus(accounts: Account[], now: number, refreshMinut
   const oldest = Math.min(...fetchedTimes.map((entry) => entry.time));
   const staleAfterMs = Math.max(MIN_STALE_MINUTES, refreshMinutes * 2) * 60_000;
   const stale = fetchedTimes.filter(
-    (entry) => accountAutoRefreshEligible(entry.account) && now - entry.time >= staleAfterMs,
+    (entry) => entry.account.autoRefresh && now - entry.time >= staleAfterMs,
   ).length;
   const label = `${SYNCED_PREFIX} ${formatElapsed(now - oldest)}`;
   const alert = groupAlert(accounts);

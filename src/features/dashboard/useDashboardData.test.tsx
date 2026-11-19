@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const api = vi.hoisted(() => ({
   snapshot: vi.fn(),
-  refreshAll: vi.fn(),
+  refreshIfDue: vi.fn(),
 }));
 vi.mock("../../shared/lib/api", () => ({ bridgeApi: api }));
 
@@ -67,8 +67,8 @@ function capture(value: ReturnType<typeof useDashboardData>) {
   latest = value;
 }
 
-function Harness({ accountRefreshMinutes }: { accountRefreshMinutes?: number }) {
-  capture(useDashboardData({ reportError, clearError, accountRefreshMinutes }));
+function Harness() {
+  capture(useDashboardData({ reportError, clearError }));
   return null;
 }
 
@@ -90,8 +90,8 @@ beforeEach(() => {
   vi.setSystemTime(NOW);
   resetReorderingForTests();
   api.snapshot.mockReset();
-  api.refreshAll.mockReset();
-  api.refreshAll.mockResolvedValue([]);
+  api.refreshIfDue.mockReset();
+  api.refreshIfDue.mockResolvedValue(false);
   reportError.mockReset();
   clearError.mockReset();
 });
@@ -144,10 +144,10 @@ describe("useDashboardData", () => {
     mounted = mount(<Harness />);
     await settle();
     expect(api.snapshot).toHaveBeenCalledTimes(1);
-    expect(api.refreshAll).not.toHaveBeenCalled();
+    expect(api.refreshIfDue).not.toHaveBeenCalled();
 
     await advance(3_000);
-    expect(api.refreshAll).not.toHaveBeenCalled();
+    expect(api.refreshIfDue).not.toHaveBeenCalled();
     expect(api.snapshot).toHaveBeenCalledTimes(1);
 
     await advance(27_000);
@@ -215,9 +215,6 @@ describe("useDashboardData", () => {
   });
 
   describe("refresh when due on return", () => {
-    const stale = makeAccount("stale", "2026-03-01T10:00:00Z");
-    const fresh = makeAccount("fresh", "2026-03-01T11:59:00Z");
-
     afterEach(() => setVisibility("visible"));
 
     async function hideThenShow() {
@@ -226,61 +223,56 @@ describe("useDashboardData", () => {
       await settle();
     }
 
-    it("refreshes all accounts when one is older than the refresh interval", async () => {
-      api.snapshot.mockResolvedValue(makeSnapshot("x", [stale, fresh]));
-      mounted = mount(<Harness accountRefreshMinutes={15} />);
+    it("asks the backend to refresh, and reloads when it did", async () => {
+      api.snapshot.mockResolvedValue(makeSnapshot("x"));
+      mounted = mount(<Harness />);
       await settle();
+      api.refreshIfDue.mockResolvedValueOnce(true);
       await hideThenShow();
-      expect(api.refreshAll).toHaveBeenCalledTimes(1);
+      expect(api.refreshIfDue).toHaveBeenCalledTimes(1);
+      expect(api.snapshot).toHaveBeenCalledTimes(3);
       expect(clearError).toHaveBeenCalledWith("refresh-due");
     });
 
-    it("does nothing when every account is recent enough", async () => {
-      api.snapshot.mockResolvedValue(makeSnapshot("x", [fresh]));
-      mounted = mount(<Harness accountRefreshMinutes={15} />);
-      await settle();
-      await hideThenShow();
-      expect(api.snapshot).toHaveBeenCalledTimes(2);
-      expect(api.refreshAll).not.toHaveBeenCalled();
-    });
-
-    it("uses the default interval while settings have not loaded", async () => {
-      api.snapshot.mockResolvedValue(makeSnapshot("x", [stale]));
+    it("does not reload again when nothing was due", async () => {
+      api.snapshot.mockResolvedValue(makeSnapshot("x"));
       mounted = mount(<Harness />);
       await settle();
       await hideThenShow();
-      expect(api.refreshAll).toHaveBeenCalledTimes(1);
+      expect(api.refreshIfDue).toHaveBeenCalledTimes(1);
+      expect(api.snapshot).toHaveBeenCalledTimes(2);
+      expect(clearError).not.toHaveBeenCalledWith("refresh-due");
     });
 
     it("does nothing when the window was never hidden", async () => {
-      api.snapshot.mockResolvedValue(makeSnapshot("x", [stale]));
-      mounted = mount(<Harness accountRefreshMinutes={15} />);
+      api.snapshot.mockResolvedValue(makeSnapshot("x"));
+      mounted = mount(<Harness />);
       await settle();
       setVisibility("visible");
       await settle();
       expect(api.snapshot).toHaveBeenCalledTimes(1);
-      expect(api.refreshAll).not.toHaveBeenCalled();
+      expect(api.refreshIfDue).not.toHaveBeenCalled();
     });
 
     it("reports a failed refresh", async () => {
-      api.snapshot.mockResolvedValue(makeSnapshot("x", [stale]));
-      mounted = mount(<Harness accountRefreshMinutes={15} />);
+      api.snapshot.mockResolvedValue(makeSnapshot("x"));
+      mounted = mount(<Harness />);
       await settle();
-      api.refreshAll.mockRejectedValueOnce(new Error("offline"));
+      api.refreshIfDue.mockRejectedValueOnce(new Error("offline"));
       await hideThenShow();
       expect(reportError).toHaveBeenCalledWith("refresh-due", expect.any(Error), "Couldn't refresh accounts");
     });
 
     it("ignores a second return while the first refresh is still running", async () => {
-      api.snapshot.mockResolvedValue(makeSnapshot("x", [stale]));
-      mounted = mount(<Harness accountRefreshMinutes={15} />);
+      api.snapshot.mockResolvedValue(makeSnapshot("x"));
+      mounted = mount(<Harness />);
       await settle();
-      const pending = deferred<Account[]>();
-      api.refreshAll.mockReturnValueOnce(pending.promise);
+      const pending = deferred<boolean>();
+      api.refreshIfDue.mockReturnValueOnce(pending.promise);
       await hideThenShow();
       await hideThenShow();
-      expect(api.refreshAll).toHaveBeenCalledTimes(1);
-      pending.resolve([]);
+      expect(api.refreshIfDue).toHaveBeenCalledTimes(1);
+      pending.resolve(true);
       await settle();
     });
   });

@@ -6,6 +6,7 @@
 //! `model.rs`), so the frontend shows them and never works them out itself.
 
 use crate::model::{Account, Provider, UsageFreshness};
+use chrono::{DateTime, TimeDelta, Utc};
 use serde::Serialize;
 
 /// The `source` strings of a Google AI Studio usage snapshot (written by the app's
@@ -97,6 +98,32 @@ impl GoogleSetup {
             _ => Self::Unknown,
         })
     }
+}
+
+/// Whether the scheduled refresh includes this account. Not one that must sign in again (the
+/// refresh cannot succeed) or a Google AI Studio key without Cloud usage (there is nothing to
+/// refresh until it is connected). A refresh the person starts still includes it.
+pub fn refreshes_on_schedule(account: &Account) -> bool {
+    !account.auth_required && GoogleSetup::of(account) != Some(GoogleSetup::KeyOnly)
+}
+
+/// Whether the app's scheduled refresh is due at `now`: some account it includes was last
+/// refreshed `interval` or longer ago, or never, or at a time that does not parse.
+pub fn scheduled_refresh_is_due(
+    accounts: &[Account],
+    interval: TimeDelta,
+    now: DateTime<Utc>,
+) -> bool {
+    accounts
+        .iter()
+        .filter(|account| refreshes_on_schedule(account))
+        .any(|account| {
+            let fetched = account
+                .last_usage
+                .as_ref()
+                .and_then(|usage| DateTime::parse_from_rfc3339(&usage.fetched_at).ok());
+            fetched.is_none_or(|fetched| now.signed_duration_since(fetched) >= interval)
+        })
 }
 
 /// The provider stopped accepting this account's saved sign-in.

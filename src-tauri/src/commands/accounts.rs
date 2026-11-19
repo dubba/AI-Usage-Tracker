@@ -4,6 +4,7 @@ use crate::{
     state::AppState,
     usage,
 };
+use chrono::Utc;
 use std::sync::Arc;
 use tauri::State;
 
@@ -83,6 +84,15 @@ pub async fn use_limit_reset(
 #[tauri::command]
 pub async fn refresh_all(state: State<'_, Arc<AppState>>) -> Result<Vec<Account>, String> {
     Ok(usage::refresh_all(state.inner().clone()).await)
+}
+
+/// Refreshes every account when the scheduled refresh is due at the interval in Settings (see
+/// `health::scheduled_refresh_is_due`). The frontend calls it when the window comes back into
+/// view, so usage that went out of date while it was hidden is fetched at once. Returns whether
+/// it refreshed.
+#[tauri::command]
+pub async fn refresh_if_due(state: State<'_, Arc<AppState>>) -> Result<bool, String> {
+    Ok(usage::refresh_all_if_due(state.inner().clone(), Utc::now()).await)
 }
 
 #[tauri::command]

@@ -1,6 +1,6 @@
 use super::refresh_accounts_with;
 use super::*;
-use crate::providers::google_ai_studio::SOURCE_MONITORING;
+use crate::providers::google_ai_studio::SOURCE_MODELS_ONLY;
 
 fn account(provider: Provider, source: &str, auth_required: bool) -> Account {
     let now = now_rfc3339();
@@ -30,31 +30,32 @@ fn account(provider: Provider, source: &str, auth_required: bool) -> Account {
     }
 }
 
-#[test]
-fn skips_accounts_that_require_reconnection() {
-    assert!(!should_auto_refresh(&account(
-        Provider::Openai,
-        "wham",
-        true,
-    )));
-}
+/// The frontend asks when the window comes back into view; nothing is refreshed until some
+/// account is a whole refresh interval old (the rule itself is tested in `usage_core::health`).
+#[tokio::test]
+async fn refresh_if_due_waits_for_the_refresh_interval() {
+    let temp = tempfile::tempdir().unwrap();
+    let app = Arc::new(AppState::new(temp.path().to_path_buf(), "test-token".into()).unwrap());
+    let account = account(Provider::Openai, "wham", false);
+    let fetched_at =
+        chrono::DateTime::parse_from_rfc3339(&account.last_usage.as_ref().unwrap().fetched_at)
+            .unwrap()
+            .with_timezone(&chrono::Utc);
+    app.store.upsert(account).unwrap();
+    let interval = chrono::TimeDelta::minutes(app.settings.account_refresh_minutes() as i64);
 
-#[test]
-fn skips_google_ai_studio_until_cloud_setup_finishes() {
-    assert!(!should_auto_refresh(&account(
-        Provider::GoogleAiStudio,
-        SOURCE_MODELS_ONLY,
-        false,
-    )));
-}
+    assert!(
+        !refresh_all_if_due(
+            app.clone(),
+            fetched_at + interval - chrono::TimeDelta::seconds(1)
+        )
+        .await
+    );
+    assert!(app.store.get("account").unwrap().last_error.is_none());
 
-#[test]
-fn refreshes_connected_google_ai_studio_accounts() {
-    assert!(should_auto_refresh(&account(
-        Provider::GoogleAiStudio,
-        SOURCE_MONITORING,
-        false,
-    )));
+    assert!(refresh_all_if_due(app.clone(), fetched_at + interval).await);
+    // It has no saved sign-in, so the refresh that ran recorded a failure.
+    assert!(app.store.get("account").unwrap().last_error.is_some());
 }
 
 #[test]

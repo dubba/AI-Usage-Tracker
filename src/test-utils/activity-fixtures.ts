@@ -33,6 +33,7 @@ export function makeAccount(overrides: Partial<Account> & { id: string }): Accou
     authRequired: false,
     health: "live",
     googleSetup: null,
+    autoRefresh: true,
     ...overrides,
   };
 }

@@ -14,6 +14,7 @@ function toAccount(entry: Case): Account {
     lastUsage,
     health: entry.health as AccountHealth,
     googleSetup: entry.googleSetup as GoogleSetup | null,
+    autoRefresh: true,
   } as Account;
 }
 

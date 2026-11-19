@@ -102,11 +102,7 @@ export default function App() {
   // the dashboard, the pairing dialog and the update-notes dialog need them on every page.
   const settings = useAppSettings({ reportError, clearError });
   const { appSettings, reloadFromBackend } = settings;
-  const { snapshot, setSnapshot, load } = useDashboardData({
-    reportError,
-    clearError,
-    accountRefreshMinutes: appSettings?.accountRefreshMinutes,
-  });
+  const { snapshot, setSnapshot, load } = useDashboardData({ reportError, clearError });
   const update = useAppUpdate({ automaticUpdatesEnabled: appSettings?.automaticUpdatesEnabled });
   const { alerts: inAppAlerts, dismiss: dismissAlert } = useUsageAlerts();
   const { pairingOpen, setPairingOpen, closePairing } = usePairingEvents();

@@ -1,4 +1,4 @@
-use crate::health::{AccountHealth, GoogleSetup};
+use crate::health::{self, AccountHealth, GoogleSetup};
 use chrono::Utc;
 use serde::{Deserialize, Serialize, Serializer};
 use std::{fmt, str::FromStr};
@@ -264,8 +264,8 @@ pub struct Account {
     pub auth_required: bool,
 }
 
-/// An account: its stored fields, then the health and Google setup the backend works out from them.
-// What an `Account` serializes as. Computing `health` and `googleSetup` here means every copy the
+/// An account: its stored fields, then what the backend works out from them.
+// What an `Account` serializes as. Computing `health`, `googleSetup` and `autoRefresh` here means every copy the
 // frontend gets (the dashboard, a refresh result, a login) carries current values. They are also
 // written to the account file and pairing payloads, where readers ignore them: `Account` has no
 // such fields, so they are never read back (docs/DATA_COMPATIBILITY.md, rule 5).
@@ -288,6 +288,9 @@ pub struct AccountOut<'a> {
     health: AccountHealth,
     /// `null` for an account of another provider.
     google_setup: Option<GoogleSetup>,
+    /// Included in the scheduled refresh (not when it must sign in again, or a Google key without
+    /// Cloud usage).
+    auto_refresh: bool,
 }
 
 impl Serialize for Account {
@@ -323,6 +326,7 @@ impl Serialize for Account {
             auth_required,
             health: AccountHealth::of(self),
             google_setup: GoogleSetup::of(self),
+            auto_refresh: health::refreshes_on_schedule(self),
         }
         .serialize(serializer)
     }

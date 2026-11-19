@@ -119,6 +119,7 @@ pub fn run() {
             commands::accounts::refresh_account,
             commands::accounts::use_limit_reset,
             commands::accounts::refresh_all,
+            commands::accounts::refresh_if_due,
             commands::settings::get_app_settings,
             commands::settings::set_account_refresh_minutes,
             commands::settings::set_automatic_updates_enabled,

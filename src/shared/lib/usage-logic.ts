@@ -252,21 +252,6 @@ export function nextResetSummary(accounts: Account[], now: number = Date.now()):
     window: next.window,
   };
 }
-export function accountAutoRefreshEligible(account: Account): boolean {
-  if (account.authRequired) return false;
-  return account.googleSetup !== "key_only";
-}
-export function accountsNeedScheduledRefresh(accounts: Account[], minutes: number, now = Date.now()): boolean {
-  const maxAgeMs = minutes * 60_000;
-  return accounts.some((account) => {
-    if (!accountAutoRefreshEligible(account)) return false;
-    const fetchedAt = account.lastUsage?.fetchedAt;
-    if (!fetchedAt) return true;
-    const then = Date.parse(fetchedAt);
-    if (!Number.isFinite(then)) return true;
-    return now - then >= maxAgeMs;
-  });
-}
 export function usageTone(remaining: number | null): string {
   if (remaining == null) return "neutral";
   if (remaining <= 15) return "critical";

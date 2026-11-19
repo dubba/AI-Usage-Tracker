@@ -61,6 +61,8 @@ export const bridgeApi = {
   useLimitReset: (accountId: string, grantId: string) =>
     invoke<Account>("use_limit_reset", { accountId, grantId }),
   refreshAll: () => invoke<Account[]>("refresh_all"),
+  /** Refreshes every account if one is a refresh interval old; true when it refreshed. */
+  refreshIfDue: () => invoke<boolean>("refresh_if_due"),
   getAppSettings: () => invoke<AppSettings>("get_app_settings"),
   setAccountRefreshMinutes: (minutes: number) => invoke<AppSettings>("set_account_refresh_minutes", { minutes }),
   setAutomaticUpdatesEnabled: (enabled: boolean) => invoke<AppSettings>("set_automatic_updates_enabled", { enabled }),

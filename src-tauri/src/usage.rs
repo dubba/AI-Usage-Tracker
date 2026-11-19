@@ -1,11 +1,12 @@
 use crate::{
+    health,
     model::{now_rfc3339, Account, Provider, ProviderSecret, UsageFreshness, UsageSnapshot},
     providers::{self, ProviderError, ProviderUsage},
     secret_echo::{SecretEcho, USAGE_ECHO_MESSAGE},
     state::AppState,
     store::{load_provider_secret, save_provider_secret},
 };
-use providers::google_ai_studio::SOURCE_MODELS_ONLY;
+use chrono::{DateTime, TimeDelta, Utc};
 use std::{
     future::Future,
     sync::Arc,
@@ -218,6 +219,19 @@ pub async fn refresh_all(app: Arc<AppState>) -> Vec<Account> {
     refresh_accounts(app, false).await
 }
 
+/// Refreshes every eligible account, as [`refresh_all`] does, when the scheduled refresh is due at
+/// `now` (some account it includes is at least one refresh interval old). Returns whether it
+/// refreshed.
+pub async fn refresh_all_if_due(app: Arc<AppState>, now: DateTime<Utc>) -> bool {
+    let minutes = i64::try_from(app.settings.account_refresh_minutes()).unwrap_or(i64::MAX);
+    let interval = TimeDelta::try_minutes(minutes).unwrap_or(TimeDelta::MAX);
+    if !health::scheduled_refresh_is_due(&app.store.list(), interval, now) {
+        return false;
+    }
+    refresh_all(app).await;
+    true
+}
+
 /// Scheduled refresh. Skips accounts still backing off after repeated
 /// failures or a provider `Retry-After`.
 pub async fn refresh_all_auto(app: Arc<AppState>) -> Vec<Account> {
@@ -245,7 +259,7 @@ where
     let mut tasks = tokio::task::JoinSet::new();
 
     for account in &accounts {
-        if !should_auto_refresh(account) {
+        if !health::refreshes_on_schedule(account) {
             continue;
         }
         if respect_backoff && app.refresh_backoff.lock().is_deferred(&account.id, now) {
@@ -276,23 +290,6 @@ where
     }
 
     app.store.list()
-}
-
-fn should_auto_refresh(account: &Account) -> bool {
-    if account.auth_required {
-        return false;
-    }
-
-    if account.provider == Provider::GoogleAiStudio
-        && account
-            .last_usage
-            .as_ref()
-            .is_some_and(|usage| usage.source == SOURCE_MODELS_ONLY)
-    {
-        return false;
-    }
-
-    true
 }
 
 fn mark_account_refresh_suspended(

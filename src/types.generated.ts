@@ -70,7 +70,7 @@ export type AccountHealth = "signed_out" | "out_of_date" | "refresh_failed" | "k
 export type GoogleSetup = "key_only" | "waiting" | "ready" | "unknown";
 
 /**
- * An account: its stored fields, then the health and Google setup the backend works out from them.
+ * An account: its stored fields, then what the backend works out from them.
  */
 export type Account = {
   id: string,
@@ -90,6 +90,11 @@ export type Account = {
    * `null` for an account of another provider.
    */
   googleSetup: GoogleSetup | null,
+  /**
+   * Included in the scheduled refresh (not when it must sign in again, or a Google key without
+   * Cloud usage).
+   */
+  autoRefresh: boolean,
 };
 
 export type UsageAlertSetting = {
