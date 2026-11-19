@@ -455,10 +455,10 @@
      dashboard's reset times are, so the name is the only bright text. The same visible gap below the
      email as above it, from the line one row's letters sit on to the top of the next row's capitals:
      above, 5.45px under the name in its 24px row, the 2px margin and 4.28px over the email's
-     capitals (11.73px); below, 4.27px under the email in its line, its 2px padding and 4.28px over
-     the reset line's capitals, so the margin is 1.18px. */
+     capitals (11.73px); below, 3px less (8.73px): 4.27px under the email in its line, its 2px
+     padding and 4.28px over the reset line's capitals, so the margin is -1.82px. */
   .activity-card-head .activity-card-details {
-    margin-top: 1.18px;
+    margin-top: -1.82px;
     color: var(--obsidian-muted);
     font-size: 13px;
     line-height: 18px;
@@ -1072,9 +1072,9 @@
      card"): a 26px mark in the tile, a 14px name in an 18px line, a 12px email in a 15.6px line, and
      9px from the tile to the name. As there, the name row (24px, the dashboard's pen button and this
      pill) starts at the tile's top with the name centred in it, and the email starts 26px down. The
-     gaps around the email stay even (12.35px from the line letters sit on to the next capitals: 6.9px
-     under the name in its row, the 2px margin, 3.45px over the email's capitals), so the reset line,
-     which matches the email, sits 3.47px under its 2px padding. "used this week" matches too; its
+     gap above the email is 12.35px from the line letters sit on to the next capitals (6.9px under the
+     name in its row, the 2px margin, 3.45px over the email's capitals); the one below is 3px less, so
+     the reset line, which matches the email, sits 0.47px under its 2px padding. "used this week" matches too; its
      baseline (~11.37px down its 14px line) meets the email's (26 + 12.17 = 38.17px) 2.8px under the
      24px percentage. */
   @media (max-width: 860px) {
@@ -1108,7 +1108,7 @@
     }
 
     .activity-card-head .activity-card-details {
-      margin-top: 3.47px;
+      margin-top: 0.47px;
       font-size: 12px;
       line-height: 15.6px;
     }
