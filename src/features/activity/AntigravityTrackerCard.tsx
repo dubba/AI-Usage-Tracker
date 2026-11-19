@@ -31,7 +31,7 @@ export function AntigravityTrackerCard({
   const label = displayAccountLabel(account);
   const plan = displayPlan(account);
   const email = accountEmail(account);
-  const needsSignIn = account.authRequired || account.lastUsage?.freshness === "auth_required";
+  const needsSignIn = account.health === "signed_out";
   const hasError = needsSignIn
     || Boolean(account.lastError)
     || !account.lastUsage

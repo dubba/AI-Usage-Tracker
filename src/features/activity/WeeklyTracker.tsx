@@ -33,7 +33,7 @@ export function WeeklyTracker({
   // Toned by what is left, like the account cards. The number itself is always what was used:
   // this page is about consumption, and the daily bars below count usage too.
   const tone = usageTone(used == null ? null : 100 - used);
-  const needsSignIn = account.authRequired || account.lastUsage?.freshness === "auth_required";
+  const needsSignIn = account.health === "signed_out";
   const hasError = needsSignIn
     || Boolean(account.lastError)
     || !account.lastUsage

@@ -508,7 +508,7 @@ describe("ActivityView", () => {
   });
 
   it("passes Reconnect for an account that needs it", async () => {
-    const stale = makeAccount({ id: "work", label: "Work Claude", authRequired: true, lastError: "Sign in again." });
+    const stale = makeAccount({ id: "work", label: "Work Claude", authRequired: true, lastError: "Sign in again.", health: "signed_out" });
     api.getWeeklyActivity.mockResolvedValue(makeActivity([makeTracker({ accountId: "work" })]));
     const onReconnect = vi.fn();
     const { root } = renderView([stale], { onReconnect });

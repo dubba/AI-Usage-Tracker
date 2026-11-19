@@ -212,7 +212,7 @@ describe("WeeklyTracker", () => {
 
   it("dims an account that needs to sign in, keeps its data, and offers to reconnect", () => {
     const onReconnect = vi.fn();
-    const account = makeAccount({ id: "a1", authRequired: true, lastError: "Sign-in expired." });
+    const account = makeAccount({ id: "a1", authRequired: true, lastError: "Sign-in expired.", health: "signed_out" });
     const root = render(account, undefined, onReconnect);
     const card = root.querySelector(".activity-card")!;
     expect(card.classList.contains("is-dimmed")).toBe(true);
@@ -239,6 +239,7 @@ describe("WeeklyTracker", () => {
   it("treats an auth_required snapshot like a sign-in notice, with a fallback text and the Cloud wording", () => {
     const account = makeAccount({ id: "a1", provider: "google_ai_studio" });
     account.lastUsage!.freshness = "auth_required";
+    account.health = "signed_out";
     const root = render(account, undefined, vi.fn());
     expect(root.querySelector(".activity-card")!.classList.contains("needs-attention")).toBe(true);
     expect(text(root, ".activity-card-notice span")).toBe("Sign in again to keep tracking this account.");
@@ -246,7 +247,7 @@ describe("WeeklyTracker", () => {
   });
 
   it("shows no reconnect button when it cannot reconnect", () => {
-    const root = render(makeAccount({ id: "a1", authRequired: true }));
+    const root = render(makeAccount({ id: "a1", authRequired: true, health: "signed_out" }));
     expect(root.querySelector(".activity-card-notice button")).toBeNull();
   });
 });

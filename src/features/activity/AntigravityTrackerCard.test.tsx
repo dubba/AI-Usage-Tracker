@@ -153,6 +153,7 @@ describe("AntigravityTrackerCard", () => {
       ...antigravityAccount,
       authRequired: true,
       lastError: "Sign-in expired.",
+      health: "signed_out",
     });
     const root = renderCard(stale, [geminiTracker, claudeTracker, argonTracker], "7d", dayStarts, onReconnect);
 
