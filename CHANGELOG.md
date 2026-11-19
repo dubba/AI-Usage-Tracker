@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (8 changes)
+## Unreleased (11 changes)
 
 ### Security (5)
 
@@ -10,8 +10,11 @@
 - Cancelling a device pairing while it is still looking for the other device now stops it; it can no longer carry on starting in the background.
 - Two imports from paired devices at the same moment can no longer both add the same account and save one sign-in over the other; the first one is kept.
 
-### Fixed (3)
+### Fixed (6)
 
+- A Claude refresh whose reply holds no usage numbers no longer replaces your last numbers with empty bars; the last numbers stay, marked out of date, until a real reading arrives.
+- When Antigravity asks the app to slow down, the refresh now waits the time it asked for, instead of making a second request straight away and showing empty usage.
+- A Google AI Studio refresh can no longer keep going indefinitely if Google keeps sending more pages; it stops after a fixed number of pages, entries, or one minute and keeps the last usage.
 - Re-adding a Google AI Studio API key, or choosing its Cloud project, no longer puts back an older Google Cloud sign-in over one the app had just renewed, which could sign the account out. Saving the chosen project could also fail; it now waits its turn properly.
 - The macOS uninstaller now also removes the launch-at-startup entry.
 - The macOS uninstaller no longer says everything was cleared when it could not delete some saved sign-ins from the Keychain or some files; it lists what is left and ends with an error.
