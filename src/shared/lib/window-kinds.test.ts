@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { UsageWindow, WindowKind } from "../../types";
-import { canonicalWindow, isMonthlyWindow } from "./usage-logic";
+import { canonicalWindow } from "./usage-logic";
 import { windowPillClass } from "./display";
 import fixture from "./window-kinds.fixture.json";
 
@@ -35,7 +35,6 @@ describe("window kinds (the fixture shared with src-tauri/crates/usage-core/src/
     const window = toWindow(entry);
     expect(canonicalWindow(window, "five_hour")).toBe(entry.kind === "five_hour");
     expect(canonicalWindow(window, "weekly")).toBe(entry.kind === "weekly");
-    expect(isMonthlyWindow(window)).toBe(entry.kind === "monthly");
     const pills = { five_hour: "window-pill-5h", weekly: "window-pill-7d", monthly: "window-pill-monthly" };
     expect(windowPillClass(window)).toBe(entry.kind ? pills[entry.kind] : "window-pill-default");
   });

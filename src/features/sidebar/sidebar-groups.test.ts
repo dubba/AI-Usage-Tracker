@@ -35,6 +35,7 @@ function account(id: string, provider: Provider, label = id): Account {
     health: "inactive",
     googleSetup: null,
     autoRefresh: true,
+    headline: { fiveHour: [], long: [], longWindow: null },
   };
 }
 

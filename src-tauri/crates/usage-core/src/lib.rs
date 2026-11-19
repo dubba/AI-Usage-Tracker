@@ -4,6 +4,7 @@
 //! seconds (`cargo test -p usage-core`) instead of waiting for the whole app crate. The app crate
 //! re-exports these modules at their old paths (`crate::model`, `crate::limits`, ...).
 
+pub mod headline;
 pub mod health;
 pub mod history;
 pub mod limits;

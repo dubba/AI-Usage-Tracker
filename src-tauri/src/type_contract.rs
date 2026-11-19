@@ -34,6 +34,7 @@ use crate::{
     updater::AppUpdateProgress,
 };
 use serde_json::{json, Value};
+use usage_core::headline::{Headline, LongWindow};
 
 const FIXTURE: &str = "../src/shared/lib/backend-samples.fixture.json";
 const BINDINGS: &str = "../src/types.generated.ts";
@@ -329,6 +330,8 @@ fn generated_bindings() -> String {
         UsageSnapshot,
         AccountHealth,
         GoogleSetup,
+        LongWindow,
+        Headline,
         AccountOut<'static>,
         UsageAlertSetting,
         BridgeStatus,

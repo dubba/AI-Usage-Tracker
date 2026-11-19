@@ -5,10 +5,8 @@ import {
   displayAccountLabel,
   groupAlert,
   groupAverage,
-  groupSecondMeterLabel,
   grokBotAverage,
   cardWindows,
-  isMonthlyWindow,
   isWindowExpired,
   nextResetSummary,
   windowLimitName,
@@ -71,6 +69,7 @@ function account(overrides: Partial<Account> = {}): Account {
     health: "live",
     googleSetup: null,
     autoRefresh: true,
+    headline: { fiveHour: [], long: [], longWindow: null },
     ...overrides,
   };
 }
@@ -152,23 +151,21 @@ describe("window classification", () => {
     const fiveHour = win({ id: "x", label: "misc", kind: "five_hour" });
     expect(canonicalWindow(fiveHour, "five_hour")).toBe(true);
     expect(canonicalWindow(fiveHour, "weekly")).toBe(false);
-    expect(isMonthlyWindow(fiveHour)).toBe(false);
 
     const weekly = win({ id: "x", label: "x", kind: "weekly" });
     expect(canonicalWindow(weekly, "weekly")).toBe(true);
     expect(canonicalWindow(weekly, "five_hour")).toBe(false);
-
-    expect(isMonthlyWindow(win({ id: "x", label: "x", kind: "monthly" }))).toBe(true);
   });
 
   it("does not guess a kind from the name when there is none", () => {
     const unknown = win({ id: "weekly", label: "Weekly", windowSeconds: 604_800, kind: null });
     expect(canonicalWindow(unknown, "weekly")).toBe(false);
     expect(canonicalWindow(unknown, "five_hour")).toBe(false);
-    expect(isMonthlyWindow(unknown)).toBe(false);
   });
 });
 
+// Which windows each meter reads is the backend's (`headline.test.ts` and its shared fixture); these
+// accounts carry the candidates it would send.
 describe("accountWindowRemaining / groupAverage", () => {
   const hourlyAndWeekly = account({
     lastUsage: usage({
@@ -177,14 +174,17 @@ describe("accountWindowRemaining / groupAverage", () => {
         win({ id: "weekly", label: "Weekly", remainingPercent: 70 }),
       ],
     }),
+    headline: { fiveHour: [0], long: [1], longWindow: "weekly" },
   });
   const weeklyOnly = account({
     id: "b",
     lastUsage: usage({ windows: [win({ id: "weekly", label: "Weekly", remainingPercent: 50 })] }),
+    headline: { fiveHour: [], long: [0], longWindow: "weekly" },
   });
   const monthlyOnly = account({
     id: "c",
     lastUsage: usage({ windows: [win({ id: "monthly", label: "Monthly", remainingPercent: 90 })] }),
+    headline: { fiveHour: [], long: [0], longWindow: "monthly" },
   });
 
   it("returns the matching window's remaining percent", () => {
@@ -232,6 +232,7 @@ describe("accountWindowRemaining / groupAverage", () => {
           win({ id: "grok_bot", label: "Grok Bot", kind: "weekly", remainingPercent: 10, resetsAt: past }),
         ],
       }),
+      headline: { fiveHour: [0], long: [1, 2], longWindow: "weekly" },
     });
     const liveGrok = account({
       id: "live-grok",
@@ -242,6 +243,7 @@ describe("accountWindowRemaining / groupAverage", () => {
           win({ id: "grok_bot", label: "Grok Bot", kind: "weekly", remainingPercent: 80, resetsAt: future }),
         ],
       }),
+      headline: { fiveHour: [], long: [0, 1], longWindow: "weekly" },
     });
 
     expect(accountWindowRemaining(expiredAccount, "five_hour", NOW)).toBeNull();
@@ -250,49 +252,6 @@ describe("accountWindowRemaining / groupAverage", () => {
     expect(groupAverage([expiredAccount, liveGrok], "weekly", NOW)).toBe(90);
     expect(grokBotAverage([expiredAccount, liveGrok], NOW)).toBe(80);
     expect(grokBotAverage([expiredAccount], NOW)).toBeNull();
-  });
-});
-
-describe("groupSecondMeterLabel", () => {
-  const weeklyAccount = account({
-    id: "w1",
-    provider: "anthropic",
-    lastUsage: usage({ windows: [win({ id: "weekly", label: "Weekly", kind: "weekly" })] }),
-  });
-  const monthlyAccount = account({
-    id: "m1",
-    provider: "openai",
-    plan: "Free",
-    lastUsage: usage({ windows: [win({ id: "monthly", label: "GPT · 30-Day Limit", kind: "monthly" })] }),
-  });
-  const grokAccount = account({
-    id: "g1",
-    provider: "grok",
-    lastUsage: usage({ windows: [win({ id: "weekly", label: "Grok 7d", kind: "weekly" })] }),
-  });
-
-  it("returns '7D Grok' for a Grok-only group", () => {
-    expect(groupSecondMeterLabel([grokAccount])).toBe("7D Grok");
-  });
-
-  it("returns '7d' when any account in the group has a weekly window", () => {
-    expect(groupSecondMeterLabel([weeklyAccount])).toBe("7d");
-    expect(groupSecondMeterLabel([weeklyAccount, monthlyAccount])).toBe("7d");
-  });
-
-  it("returns '30d' when accounts report a monthly window and no weekly window", () => {
-    expect(groupSecondMeterLabel([monthlyAccount])).toBe("30d");
-  });
-
-  it("defaults free OpenAI accounts to '30d' even before usage is fetched", () => {
-    const pendingFree = account({ provider: "openai", plan: "free", lastUsage: null });
-    expect(groupSecondMeterLabel([pendingFree])).toBe("30d");
-  });
-
-  it("defaults to '7d' when no weekly or monthly windows are reported", () => {
-    const pendingPaid = account({ provider: "openai", plan: "Plus", lastUsage: null });
-    expect(groupSecondMeterLabel([pendingPaid])).toBe("7d");
-    expect(groupSecondMeterLabel([])).toBe("7d");
   });
 });
 

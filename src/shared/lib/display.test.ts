@@ -34,6 +34,7 @@ function account(overrides: Partial<Account> = {}): Account {
     health: "inactive",
     googleSetup: null,
     autoRefresh: true,
+    headline: { fiveHour: [], long: [], longWindow: null },
     ...overrides,
   };
 }

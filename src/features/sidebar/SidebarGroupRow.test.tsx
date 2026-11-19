@@ -55,6 +55,13 @@ function makeAccount({
     authRequired: false,
     health: "live",
     googleSetup: null,
+    autoRefresh: true,
+    // The candidates the backend would send for these windows (`usage-core/src/headline.rs`).
+    headline: {
+      fiveHour: fiveRemaining !== null ? [0] : [],
+      long: weeklyRemaining !== null ? [windows.length - 1] : [],
+      longWindow: weeklyRemaining !== null ? "weekly" : null,
+    },
   } as Account;
 }
 
@@ -324,6 +331,7 @@ describe("SidebarGroupRow Grok Bot limit", () => {
         windowSeconds: 604800,
         kind: "weekly",
       });
+      account.headline.long.push(account.lastUsage!.windows.length - 1);
     }
     return account;
   }
@@ -388,6 +396,8 @@ describe("SidebarGroupRow monthly limit (e.g. ChatGPT Free)", () => {
       authRequired: false,
       health: "live",
       googleSetup: null,
+      autoRefresh: true,
+      headline: { fiveHour: [] as number[], long: [0], longWindow: "monthly" as const },
     } as Account;
   }
 

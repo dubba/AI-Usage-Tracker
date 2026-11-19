@@ -66,6 +66,7 @@ fn every_stored_field_is_still_serialized() {
     assert!(object.remove("health").is_some());
     assert!(object.remove("googleSetup").is_some());
     assert!(object.remove("autoRefresh").is_some());
+    assert!(object.remove("headline").is_some());
     assert_eq!(serialized, stored);
 }
 

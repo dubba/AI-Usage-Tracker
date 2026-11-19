@@ -1,0 +1,165 @@
+{
+  "_comment": "Shared by src/shared/lib/headline.test.ts and the headline_matches_the_shared_fixture test in src-tauri/crates/usage-core/src/headline/tests.rs. Each account is `provider`, `plan` and `windows` (null: no usage yet). `headline` is what the backend sends with the account: indexes into the windows each sidebar meter can read, best first, and what the long meter measures. `fiveHour` and `long` are the percents the sidebar shows at `now`, after the frontend skips windows that have already reset. Each group lists accounts by name and the label of its second meter.",
+  "now": "2026-09-03T12:00:00Z",
+  "accounts": [
+    {
+      "name": "claude with both limits",
+      "provider": "anthropic", "plan": "max",
+      "windows": [
+        { "id": "five_hour", "label": "5-Hour", "remainingPercent": 70, "resetsAt": "2026-09-03T15:00:00Z", "windowSeconds": 18000, "kind": "five_hour" },
+        { "id": "seven_day", "label": "Weekly", "remainingPercent": 40, "resetsAt": "2026-09-08T00:00:00Z", "windowSeconds": 604800, "kind": "weekly" }
+      ],
+      "headline": { "fiveHour": [0], "long": [1], "longWindow": "weekly" },
+      "fiveHour": 70, "long": 40
+    },
+    {
+      "name": "expired windows are skipped",
+      "provider": "anthropic", "plan": "max",
+      "windows": [
+        { "id": "five_hour", "label": "5-Hour", "remainingPercent": 10, "resetsAt": "2026-09-03T11:00:00Z", "windowSeconds": 18000, "kind": "five_hour" },
+        { "id": "seven_day", "label": "Weekly", "remainingPercent": 5, "resetsAt": "2026-09-01T00:00:00Z", "windowSeconds": 604800, "kind": "weekly" }
+      ],
+      "headline": { "fiveHour": [0], "long": [1], "longWindow": "weekly" },
+      "fiveHour": null, "long": null
+    },
+    {
+      "name": "the first current five-hour window counts even without a value",
+      "provider": "antigravity", "plan": null,
+      "windows": [
+        { "id": "gemini_5h", "label": "Gemini · 5-Hour", "remainingPercent": null, "resetsAt": null, "windowSeconds": 18000, "kind": "five_hour" },
+        { "id": "claude_5h", "label": "Claude · 5-Hour", "remainingPercent": 60, "resetsAt": null, "windowSeconds": 18000, "kind": "five_hour" }
+      ],
+      "headline": { "fiveHour": [0, 1], "long": [], "longWindow": null },
+      "fiveHour": null, "long": null
+    },
+    {
+      "name": "an expired five-hour window gives way to the next",
+      "provider": "antigravity", "plan": null,
+      "windows": [
+        { "id": "gemini_5h", "label": "Gemini · 5-Hour", "remainingPercent": 20, "resetsAt": "2026-09-03T10:00:00Z", "windowSeconds": 18000, "kind": "five_hour" },
+        { "id": "claude_5h", "label": "Claude · 5-Hour", "remainingPercent": 60, "resetsAt": null, "windowSeconds": 18000, "kind": "five_hour" }
+      ],
+      "headline": { "fiveHour": [0, 1], "long": [], "longWindow": null },
+      "fiveHour": 60, "long": null
+    },
+    {
+      "name": "a weekly window without a value gives way to the next weekly",
+      "provider": "anthropic", "plan": "max",
+      "windows": [
+        { "id": "seven_day", "label": "Weekly", "remainingPercent": null, "resetsAt": null, "windowSeconds": 604800, "kind": "weekly" },
+        { "id": "seven_day_fable", "label": "Fable · Weekly", "remainingPercent": 55, "resetsAt": null, "windowSeconds": 604800, "kind": "weekly" }
+      ],
+      "headline": { "fiveHour": [], "long": [0, 1], "longWindow": "weekly" },
+      "fiveHour": null, "long": 55
+    },
+    {
+      "name": "weekly comes before monthly whatever the order",
+      "provider": "opencode_go", "plan": null,
+      "windows": [
+        { "id": "monthly", "label": "Monthly", "remainingPercent": 90, "resetsAt": null, "windowSeconds": 2592000, "kind": "monthly" },
+        { "id": "weekly", "label": "Weekly", "remainingPercent": 30, "resetsAt": null, "windowSeconds": 604800, "kind": "weekly" }
+      ],
+      "headline": { "fiveHour": [], "long": [1, 0], "longWindow": "weekly" },
+      "fiveHour": null, "long": 30
+    },
+    {
+      "name": "an expired weekly falls back to monthly",
+      "provider": "opencode_go", "plan": null,
+      "windows": [
+        { "id": "weekly", "label": "Weekly", "remainingPercent": 30, "resetsAt": "2026-09-02T00:00:00Z", "windowSeconds": 604800, "kind": "weekly" },
+        { "id": "monthly", "label": "Monthly", "remainingPercent": 90, "resetsAt": null, "windowSeconds": 2592000, "kind": "monthly" }
+      ],
+      "headline": { "fiveHour": [], "long": [0, 1], "longWindow": "weekly" },
+      "fiveHour": null, "long": 90
+    },
+    {
+      "name": "free chatgpt with its 30-day limit",
+      "provider": "openai", "plan": "free",
+      "windows": [
+        { "id": "monthly", "label": "GPT · 30-Day Limit", "remainingPercent": 64, "resetsAt": null, "windowSeconds": 2592000, "kind": "monthly" }
+      ],
+      "headline": { "fiveHour": [], "long": [0], "longWindow": "monthly" },
+      "fiveHour": null, "long": 64
+    },
+    {
+      "name": "free chatgpt before any usage",
+      "provider": "openai", "plan": "Free",
+      "windows": null,
+      "headline": { "fiveHour": [], "long": [], "longWindow": "monthly_by_plan" },
+      "fiveHour": null, "long": null
+    },
+    {
+      "name": "free workspace chatgpt with only a session window",
+      "provider": "openai", "plan": "free_workspace",
+      "windows": [
+        { "id": "session", "label": "GPT · Session Limit", "remainingPercent": 80, "resetsAt": null, "windowSeconds": null, "kind": null }
+      ],
+      "headline": { "fiveHour": [], "long": [], "longWindow": "monthly_by_plan" },
+      "fiveHour": null, "long": null
+    },
+    {
+      "name": "paid chatgpt before any usage",
+      "provider": "openai", "plan": "plus",
+      "windows": null,
+      "headline": { "fiveHour": [], "long": [], "longWindow": null },
+      "fiveHour": null, "long": null
+    },
+    {
+      "name": "chatgpt with no plan yet",
+      "provider": "openai", "plan": null,
+      "windows": null,
+      "headline": { "fiveHour": [], "long": [], "longWindow": null },
+      "fiveHour": null, "long": null
+    },
+    {
+      "name": "a window named weekly without a kind still sets the label",
+      "provider": "opencode_go", "plan": null,
+      "windows": [
+        { "id": "weekly", "label": "Allowance", "remainingPercent": 50, "resetsAt": null, "windowSeconds": null, "kind": null }
+      ],
+      "headline": { "fiveHour": [], "long": [], "longWindow": "weekly" },
+      "fiveHour": null, "long": null
+    },
+    {
+      "name": "a window named monthly without a kind still sets the label",
+      "provider": "opencode_go", "plan": null,
+      "windows": [
+        { "id": "monthly", "label": "Allowance", "remainingPercent": 50, "resetsAt": null, "windowSeconds": null, "kind": null }
+      ],
+      "headline": { "fiveHour": [], "long": [], "longWindow": "monthly" },
+      "fiveHour": null, "long": null
+    },
+    {
+      "name": "grok with its weekly and bot limits",
+      "provider": "grok", "plan": null,
+      "windows": [
+        { "id": "grok_weekly", "label": "SuperGrok 7d", "remainingPercent": 30, "resetsAt": null, "windowSeconds": 604800, "kind": "weekly" },
+        { "id": "grok_bot", "label": "Grok Bot weekly", "remainingPercent": 90, "resetsAt": null, "windowSeconds": 604800, "kind": "weekly" }
+      ],
+      "headline": { "fiveHour": [], "long": [0, 1], "longWindow": "weekly" },
+      "fiveHour": null, "long": 30
+    },
+    {
+      "name": "a google key with request quotas only",
+      "provider": "google_ai_studio", "plan": null,
+      "windows": [
+        { "id": "rpm", "label": "Requests per minute", "remainingPercent": 99, "resetsAt": null, "windowSeconds": 60, "kind": null }
+      ],
+      "headline": { "fiveHour": [], "long": [], "longWindow": null },
+      "fiveHour": null, "long": null
+    }
+  ],
+  "groups": [
+    { "name": "one weekly account", "accounts": ["claude with both limits"], "label": "7d" },
+    { "name": "weekly wins over monthly", "accounts": ["free chatgpt with its 30-day limit", "weekly comes before monthly whatever the order"], "label": "7d" },
+    { "name": "monthly only", "accounts": ["free chatgpt with its 30-day limit"], "label": "30d" },
+    { "name": "every account free before usage", "accounts": ["free chatgpt before any usage", "free workspace chatgpt with only a session window"], "label": "30d" },
+    { "name": "free and paid before usage", "accounts": ["free chatgpt before any usage", "paid chatgpt before any usage"], "label": "7d" },
+    { "name": "monthly from usage beats a paid account without", "accounts": ["free chatgpt with its 30-day limit", "paid chatgpt before any usage"], "label": "30d" },
+    { "name": "grok only", "accounts": ["grok with its weekly and bot limits"], "label": "7D Grok" },
+    { "name": "named windows", "accounts": ["a window named monthly without a kind still sets the label"], "label": "30d" },
+    { "name": "named weekly", "accounts": ["a window named weekly without a kind still sets the label"], "label": "7d" },
+    { "name": "nothing to go on", "accounts": ["a google key with request quotas only"], "label": "7d" },
+    { "name": "empty", "accounts": [], "label": "7d" }
+  ]
+}

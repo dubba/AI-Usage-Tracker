@@ -80,6 +80,27 @@ export type AccountHealth = "signed_out" | "out_of_date" | "refresh_failed" | "k
  */
 export type GoogleSetup = "key_only" | "waiting" | "ready" | "unknown";
 
+export type LongWindow = "weekly" | "monthly" | "monthly_by_plan";
+
+/**
+ * Indexes into the account's `lastUsage.windows`, best first.
+ */
+export type Headline = {
+  /**
+   * The 5-hour windows. The meter shows the first that has not reset yet, even without a value.
+   */
+  fiveHour: Array<number>,
+  /**
+   * The 7-day windows, then the 30-day ones. The meter shows the first that has not reset yet
+   * and has a value.
+   */
+  long: Array<number>,
+  /**
+   * What the long meter measures for this account, for its label.
+   */
+  longWindow: LongWindow | null,
+};
+
 /**
  * An account: its stored fields, then what the backend works out from them.
  */
@@ -106,6 +127,10 @@ export type Account = {
    * Cloud usage).
    */
   autoRefresh: boolean,
+  /**
+   * The windows the sidebar's meters read.
+   */
+  headline: Headline,
 };
 
 export type UsageAlertSetting = {

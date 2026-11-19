@@ -83,52 +83,44 @@ export function accountStatus(account: Account): { label: string; className: str
 export function canonicalWindow(window: UsageWindow, target: SidebarWindow): boolean {
   return window.kind === target;
 }
-export function isMonthlyWindow(window: UsageWindow): boolean {
-  return window.kind === "monthly";
-}
 /** True when `resetsAt` parses to a valid timestamp that has already passed at `now`. */
 export function isWindowExpired(resetsAt: string | null | undefined, now: number = Date.now()): boolean {
   if (!resetsAt) return false;
   const resetAt = new Date(resetsAt).getTime();
   return Number.isFinite(resetAt) && resetAt <= now;
 }
+/**
+ * The first of `candidates` (indexes into the account's windows) that has not reset by `now`, and,
+ * with `needsValue`, has a percent.
+ */
+function currentWindow(account: Account, candidates: number[], now: number, needsValue: boolean): UsageWindow | undefined {
+  const windows = account.lastUsage?.windows ?? [];
+  for (const index of candidates) {
+    const window = windows[index];
+    if (!window || isWindowExpired(window.resetsAt, now)) continue;
+    if (needsValue && window.remainingPercent == null) continue;
+    return window;
+  }
+  return undefined;
+}
+
+/**
+ * The percent a sidebar meter shows for an account. The backend sends which windows each meter
+ * can read, best first (`headline`, from `usage-core/src/headline.rs`): the 5-hour ones, and the
+ * 7-day ones followed by the 30-day ones (so free ChatGPT shows its 30-day limit under the long
+ * meter). Only the check against the clock happens here. An account without a 5-hour window (Grok,
+ * free ChatGPT) shows a dash on that meter.
+ */
 export function accountWindowRemaining(
   account: Account,
   target: SidebarWindow,
   now: number = Date.now(),
 ): number | null {
-  const windows = account.lastUsage?.windows ?? [];
-  if (!windows.length) return null;
-
-  // 1. If H (hourly / 5-hour) is selected, only return usage for providers that actually have an hourly rate.
-  // Accounts without an hourly window (such as Grok with a 7d limit, or free GPT with a 30d limit) return null (dash "—").
-  if (target === "five_hour") {
-    const hourly = windows.find(
-      (candidate) => canonicalWindow(candidate, "five_hour") && !isWindowExpired(candidate.resetsAt, now),
-    );
-    return hourly?.remainingPercent ?? null;
-  }
-
-  // 2. If W (weekly) is selected:
-  // First look for a non-expired 7-day / weekly window with a value.
-  const weekly = windows.find(
-    (candidate) =>
-      canonicalWindow(candidate, "weekly")
-      && !isWindowExpired(candidate.resetsAt, now)
-      && candidate.remainingPercent != null,
-  );
-  if (weekly?.remainingPercent != null) return weekly.remainingPercent;
-
-  // For GPT or accounts with a monthly / 30-day limit, show the 30-day limit under W.
-  const monthly = windows.find(
-    (candidate) =>
-      isMonthlyWindow(candidate)
-      && !isWindowExpired(candidate.resetsAt, now)
-      && candidate.remainingPercent != null,
-  );
-  if (monthly?.remainingPercent != null) return monthly.remainingPercent;
-
-  return null;
+  const { headline } = account;
+  const window = target === "five_hour"
+    ? currentWindow(account, headline.fiveHour, now, false)
+    : currentWindow(account, headline.long, now, true);
+  return window?.remainingPercent ?? null;
 }
 export function groupAverage(
   accounts: Account[],
@@ -184,34 +176,19 @@ export function groupAlert(accounts: Account[]): GroupAlert | null {
   return stale ? { level: "stale", count: stale } : null;
 }
 /**
- * The label for the second meter in a sidebar group row.
+ * The label for the second meter in a sidebar group row, from what each account's long meter
+ * measures (`headline.longWindow`, worked out by the backend).
  * - Grok-only groups show "7D Grok".
  * - Groups containing an account with a weekly window show "7d".
  * - Groups whose reported limit is monthly (such as ChatGPT Free) show "30d".
- * - When accounts have no usage yet, free OpenAI groups default to "30d", all others to "7d".
+ * - When accounts have no usage yet, groups of free ChatGPT accounts default to "30d", all others to "7d".
  */
 export function groupSecondMeterLabel(accounts: Account[]): string {
   if (isGrokOnlyGroup(accounts)) return "7D Grok";
-
-  const hasWeekly = accounts.some((account) =>
-    (account.lastUsage?.windows ?? []).some(
-      (window) => canonicalWindow(window, "weekly") || window.id === "weekly",
-    ),
-  );
-  if (hasWeekly) return "7d";
-
-  const hasMonthly = accounts.some((account) =>
-    (account.lastUsage?.windows ?? []).some(
-      (window) => isMonthlyWindow(window) || window.id === "monthly",
-    ),
-  );
-  if (hasMonthly) return "30d";
-
-  const isAllFreeOpenAI =
-    accounts.length > 0 &&
-    accounts.every((account) => account.provider === "openai" && account.plan?.toLowerCase().includes("free"));
-  if (isAllFreeOpenAI) return "30d";
-
+  const long = accounts.map((account) => account.headline.longWindow);
+  if (long.includes("weekly")) return "7d";
+  if (long.includes("monthly")) return "30d";
+  if (long.length > 0 && long.every((window) => window === "monthly_by_plan")) return "30d";
   return "7d";
 }
 export function nextResetSummary(accounts: Account[], now: number = Date.now()): NextResetSummary {

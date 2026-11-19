@@ -7,6 +7,13 @@
       "createdAt": "2026-09-01T00:00:00Z",
       "email": "person@example.com",
       "googleSetup": "unknown",
+      "headline": {
+        "fiveHour": [
+          0
+        ],
+        "long": [],
+        "longWindow": null
+      },
       "health": "signed_out",
       "id": "account-1",
       "label": "Personal",
@@ -65,6 +72,11 @@
       "createdAt": "2026-09-01T00:00:00Z",
       "email": null,
       "googleSetup": "unknown",
+      "headline": {
+        "fiveHour": [],
+        "long": [],
+        "longWindow": null
+      },
       "health": "signed_out",
       "id": "account-1",
       "label": "Personal",
@@ -120,6 +132,13 @@
           "createdAt": "2026-09-01T00:00:00Z",
           "email": "person@example.com",
           "googleSetup": "unknown",
+          "headline": {
+            "fiveHour": [
+              0
+            ],
+            "long": [],
+            "longWindow": null
+          },
           "health": "signed_out",
           "id": "account-1",
           "label": "Personal",
@@ -178,6 +197,11 @@
           "createdAt": "2026-09-01T00:00:00Z",
           "email": null,
           "googleSetup": "unknown",
+          "headline": {
+            "fiveHour": [],
+            "long": [],
+            "longWindow": null
+          },
           "health": "signed_out",
           "id": "account-1",
           "label": "Personal",
@@ -252,6 +276,13 @@
         "createdAt": "2026-09-01T00:00:00Z",
         "email": "person@example.com",
         "googleSetup": "unknown",
+        "headline": {
+          "fiveHour": [
+            0
+          ],
+          "long": [],
+          "longWindow": null
+        },
         "health": "signed_out",
         "id": "account-1",
         "label": "Personal",
