@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased (12 changes)
+## Unreleased (0 changes)
+
+## v0.6.5 - 2026-11-19 (12 changes)
 
 ### Security (5)
 
