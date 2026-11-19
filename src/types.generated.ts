@@ -28,6 +28,11 @@ export type UsageWindow = {
 };
 
 /**
+ * A limit a saved reset clears.
+ */
+export type ResetTarget = "five_hour" | "weekly" | "fable_weekly" | "other";
+
+/**
  * One saved limit reset the provider has offered. Spending it is a separate,
  * confirmed action. `id` is the provider's redeem id when `usable` is true.
  * A display-only row uses an id this app made, and the provider's spend id
@@ -42,6 +47,12 @@ export type LimitReset = {
    * Missing on snapshots saved before this field. Those grants can be used.
    */
   usable: boolean,
+  /**
+   * The limits using it clears, in the order the advice names them. Empty when the provider
+   * does not say which (a rate limit, an unknown grant), and on snapshots saved before this
+   * field until the next refresh.
+   */
+  clears: Array<ResetTarget>,
 };
 
 export type UsageSnapshot = {

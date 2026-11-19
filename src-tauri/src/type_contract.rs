@@ -22,7 +22,7 @@ use crate::{
     model::{
         Account, AccountBucket, AccountOut, AppUpdateStatus, BridgeInfo, BridgeStatus,
         CloudProjectOption, DashboardSnapshot, LimitReset, LoginStart, LoginState, LoginStatus,
-        Provider, UsageFreshness, UsageSnapshot, UsageWindow, WindowKind,
+        Provider, ResetTarget, UsageFreshness, UsageSnapshot, UsageWindow, WindowKind,
     },
     pairing::{
         airgap::{AirgapExport, AirgapExportFrame, AirgapPreview},
@@ -79,6 +79,7 @@ fn account(with_usage: bool) -> Account {
                 detail: "Clears the 5-hour and 7-day limits".into(),
                 expires_at: Some("2026-12-10T00:00:00Z".into()),
                 usable: true,
+                clears: vec![ResetTarget::FiveHour, ResetTarget::Weekly],
             }],
         }),
         last_error: (!with_usage).then(|| "Sign in again".into()),
@@ -323,6 +324,7 @@ fn generated_bindings() -> String {
         UsageFreshness,
         WindowKind,
         UsageWindow,
+        ResetTarget,
         LimitReset,
         UsageSnapshot,
         AccountHealth,

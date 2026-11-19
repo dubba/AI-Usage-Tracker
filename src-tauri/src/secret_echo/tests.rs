@@ -42,6 +42,7 @@ fn usage() -> ProviderUsage {
             detail: "Resets your weekly limit once.".into(),
             expires_at: None,
             usable: true,
+            clears: Vec::new(),
         }],
     }
 }

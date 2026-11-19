@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { setNarrowWindow } from "../../test-utils/media";
 import { click, mount, settle, type Mounted } from "../../test-utils/react";
-import type { Account, UsageSnapshot } from "../../types";
+import type { Account, LimitReset, UsageSnapshot } from "../../types";
 import { setCardCollapsedOnPage } from "../layout/dashboard-page-state";
 import { CREDENTIAL_PROTECTION_ACCOUNT_NOTE } from "../dashboard/credential-protection";
 import { computeAccountCardMenuPlacement } from "./AccountCardMenu";
@@ -948,7 +948,8 @@ const resetGrant = {
   detail: "Clears the 5-hour and 7-day limits",
   expiresAt: "2026-12-10T16:00:00Z",
   usable: true,
-};
+  clears: ["five_hour", "weekly"],
+} satisfies LimitReset;
 
 function usageWithResets(limitResets: UsageSnapshot["limitResets"]): UsageSnapshot {
   return {

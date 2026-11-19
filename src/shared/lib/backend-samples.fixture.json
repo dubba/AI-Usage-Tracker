@@ -18,6 +18,10 @@
         "freshness": "auth_required",
         "limitResets": [
           {
+            "clears": [
+              "five_hour",
+              "weekly"
+            ],
             "detail": "Clears the 5-hour and 7-day limits",
             "expiresAt": "2026-12-10T00:00:00Z",
             "id": "grant-1",
@@ -127,6 +131,10 @@
             "freshness": "auth_required",
             "limitResets": [
               {
+                "clears": [
+                  "five_hour",
+                  "weekly"
+                ],
                 "detail": "Clears the 5-hour and 7-day limits",
                 "expiresAt": "2026-12-10T00:00:00Z",
                 "id": "grant-1",
@@ -255,6 +263,10 @@
           "freshness": "auth_required",
           "limitResets": [
             {
+              "clears": [
+                "five_hour",
+                "weekly"
+              ],
               "detail": "Clears the 5-hour and 7-day limits",
               "expiresAt": "2026-12-10T00:00:00Z",
               "id": "grant-1",

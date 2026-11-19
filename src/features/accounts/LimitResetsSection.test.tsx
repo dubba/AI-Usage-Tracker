@@ -12,6 +12,7 @@ const grants: LimitReset[] = [
     detail: "Clears 7-day Fable usage and refills the 5-hour limit.",
     expiresAt: null,
     usable: true,
+    clears: ["fable_weekly", "five_hour"],
   },
   {
     id: "grant-secret-1",
@@ -19,6 +20,7 @@ const grants: LimitReset[] = [
     detail: "Clears the 5-hour and 7-day limits",
     expiresAt: "2026-12-10T16:00:00Z",
     usable: true,
+    clears: ["five_hour", "weekly"],
   },
 ];
 
@@ -152,6 +154,7 @@ describe("LimitResetsSection", () => {
             detail: "Clears the 7-day limit",
             expiresAt: "2026-12-10T16:00:00Z",
             usable: false,
+            clears: ["weekly"],
           },
         ]}
         windows={windows}
@@ -175,8 +178,8 @@ describe("LimitResetsSection", () => {
     app = mount(
       <LimitResetsSection
         grants={[
-          { id: "a", label: "Limit reset", detail: "Clears the 5-hour limit. Not usable right now.", expiresAt: null, usable: false },
-          { id: "b", label: "Limit reset", detail: "Clears the 7-day limit", expiresAt: null, usable: false },
+          { id: "a", label: "Limit reset", detail: "Clears the 5-hour limit. Not usable right now.", expiresAt: null, usable: false, clears: ["five_hour"] },
+          { id: "b", label: "Limit reset", detail: "Clears the 7-day limit", expiresAt: null, usable: false, clears: ["weekly"] },
         ]}
         windows={windows}
         busy={false}

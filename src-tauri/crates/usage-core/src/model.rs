@@ -213,6 +213,38 @@ pub struct LimitReset {
     /// Missing on snapshots saved before this field. Those grants can be used.
     #[serde(default = "limit_reset_is_usable")]
     pub usable: bool,
+    /// The limits using it clears, in the order the advice names them. Empty when the provider
+    /// does not say which (a rate limit, an unknown grant), and on snapshots saved before this
+    /// field until the next refresh.
+    #[serde(default)]
+    pub clears: Vec<ResetTarget>,
+}
+
+/// A limit a saved reset clears.
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+pub enum ResetTarget {
+    FiveHour,
+    Weekly,
+    /// Claude's 7-day Fable limit.
+    FableWeekly,
+    /// A value written by a newer version. Matches no window.
+    Other,
+}
+
+/// Reads any value this version does not know as `Other`, so that adding a target does not make
+/// older readers refuse the snapshot (docs/DATA_COMPATIBILITY.md, rule 4). This is what
+/// `#[serde(other)]` does; it is written out because ts-rs warns about that attribute.
+impl<'de> Deserialize<'de> for ResetTarget {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        Ok(match String::deserialize(deserializer)?.as_str() {
+            "five_hour" => Self::FiveHour,
+            "weekly" => Self::Weekly,
+            "fable_weekly" => Self::FableWeekly,
+            _ => Self::Other,
+        })
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

@@ -1,24 +1,11 @@
 import { formatRemainingDuration } from "../../shared/lib/format";
 import { GROK_BOT_WINDOW_ID } from "../../shared/lib/usage-sources";
-import type { LimitReset, UsageWindow } from "../../types";
+import type { LimitReset, ResetTarget, UsageWindow } from "../../types";
 
-type ResetTarget = "five_hour" | "weekly" | "fable_weekly";
+/** The limits the app can match to a window; "other" (from a newer version) matches none. */
+type KnownTarget = Exclude<ResetTarget, "other">;
 
-/**
- * What each reset clears, read from the detail the backend writes (the `DETAIL_*` constants in
- * `src-tauri/crates/usage-core/src/providers/limit_resets.rs`; a test keeps the two in step). Longer prefixes come
- * first, so "Clears 7-day Fable usage and refills…" is not read as the Fable-only reset. A detail
- * that matches none of these (a rate limit, the generic fallback) gets no advice.
- */
-export const RESET_CLEARS: ReadonlyArray<readonly [string, readonly ResetTarget[]]> = [
-  ["Clears 7-day Fable usage and refills the 5-hour limit", ["fable_weekly", "five_hour"]],
-  ["Clears 7-day Fable usage", ["fable_weekly"]],
-  ["Clears the 5-hour and 7-day limits", ["five_hour", "weekly"]],
-  ["Clears the 5-hour limit", ["five_hour"]],
-  ["Clears the 7-day limit", ["weekly"]],
-];
-
-const TARGET_NAME: Record<ResetTarget, string> = {
+const TARGET_NAME: Record<KnownTarget, string> = {
   five_hour: "5-hour",
   weekly: "7-day",
   fable_weekly: "7-day Fable",
@@ -35,7 +22,7 @@ const isFable = (window: UsageWindow) => /\bfable\b/i.test(`${window.id} ${windo
  * The account's main window of a kind: an ungrouped one ("Weekly") before a grouped one ("Codex · Weekly").
  * Grok Bot's 7-day window is its own allowance, which a Grok reset does not clear.
  */
-function windowFor(target: ResetTarget, windows: UsageWindow[]): UsageWindow | undefined {
+function windowFor(target: KnownTarget, windows: UsageWindow[]): UsageWindow | undefined {
   const matches = (window: UsageWindow) =>
     window.id !== GROK_BOT_WINDOW_ID &&
     (target === "fable_weekly"
@@ -58,16 +45,17 @@ function untilLabel(value: string | null | undefined, now: number, within: numbe
 }
 
 /**
- * One or two sentences on what using this reset would get back right now, from the account's
- * current usage. `null` when the reset clears something the app cannot match to a window, or the
- * usage is missing, so the dialog never guesses.
+ * One or two sentences on what using this reset would get back right now, from the limits the
+ * backend says it clears (`clears`) and the account's current usage. `null` when it does not say,
+ * clears something the app cannot match to a window, or the usage is missing, so the dialog never
+ * guesses.
  */
 export function limitResetAdvice(grant: LimitReset, windows: UsageWindow[], now: number): string | null {
-  const targets = RESET_CLEARS.find(([prefix]) => grant.detail.startsWith(prefix))?.[1];
-  if (!targets) return null;
+  if (!grant.clears.length) return null;
 
   const items = [];
-  for (const target of targets) {
+  for (const target of grant.clears) {
+    if (target === "other") return null;
     const window = windowFor(target, windows);
     if (window?.remainingPercent == null) return null;
     const gain = Math.round(100 - Math.min(100, Math.max(0, window.remainingPercent)));

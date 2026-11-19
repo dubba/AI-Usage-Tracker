@@ -16,7 +16,7 @@ use super::{
     },
 };
 use crate::{
-    model::{Account, Provider, ProviderSecret},
+    model::{Account, Provider, ProviderSecret, ResetTarget},
     state::AppState,
 };
 use chrono::Utc;
@@ -2236,6 +2236,7 @@ fn full_sync_payload() -> super::payload::SyncPayload {
                         detail: "Clears the 5-hour limit".into(),
                         expires_at: None,
                         usable: true,
+                        clears: vec![ResetTarget::FiveHour],
                     }],
                 }),
                 last_error: None,
@@ -2351,16 +2352,28 @@ fn payload_from_an_older_peer_without_newer_fields_parses() {
     }
     let usage = &mut account["lastUsage"];
     usage["windows"][0].as_object_mut().unwrap().remove("kind");
-    usage["limitResets"][0]
+    let reset = usage["limitResets"][0].as_object_mut().unwrap();
+    reset.remove("usable");
+    reset.remove("clears");
+    let mut without_resets = payload.clone();
+    without_resets["accounts"][0]["account"]["lastUsage"]
         .as_object_mut()
         .unwrap()
-        .remove("usable");
-    let snapshot = usage.as_object_mut().unwrap();
-    snapshot.remove("limitResets");
+        .remove("limitResets");
 
     let bytes = serde_json::to_vec(&payload).unwrap();
     let parsed = super::payload::validate_payload(&bytes).unwrap();
     assert!(parsed.settings.is_none() && parsed.ui_state.is_none());
+    let reset = &parsed.accounts[0]
+        .account
+        .last_usage
+        .as_ref()
+        .unwrap()
+        .limit_resets[0];
+    assert!(reset.usable && reset.clears.is_empty());
+
+    let bytes = serde_json::to_vec(&without_resets).unwrap();
+    let parsed = super::payload::validate_payload(&bytes).unwrap();
     assert!(parsed.accounts[0]
         .account
         .last_usage
@@ -2368,6 +2381,25 @@ fn payload_from_an_older_peer_without_newer_fields_parses() {
         .unwrap()
         .limit_resets
         .is_empty());
+}
+
+/// `ResetTarget` shipped with its fallback, so a target a newer peer adds is read as `Other`
+/// instead of refusing the payload (docs/DATA_COMPATIBILITY.md, rule 4).
+#[test]
+fn a_reset_target_from_a_newer_peer_is_read_as_other() {
+    let mut payload = serde_json::to_value(full_sync_payload()).unwrap();
+    *payload
+        .pointer_mut("/accounts/0/account/lastUsage/limitResets/0/clears/0")
+        .unwrap() = "monthly".into();
+    let bytes = serde_json::to_vec(&payload).unwrap();
+    let parsed = super::payload::validate_payload(&bytes).unwrap();
+    let reset = &parsed.accounts[0]
+        .account
+        .last_usage
+        .as_ref()
+        .unwrap()
+        .limit_resets[0];
+    assert_eq!(reset.clears, [ResetTarget::Other]);
 }
 
 /// The limit of the rule above: a value this version does not know for an existing enum (a new

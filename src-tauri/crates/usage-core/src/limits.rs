@@ -226,6 +226,7 @@ mod tests {
                 detail: "No".into(),
                 expires_at: None,
                 usable: true,
+                clears: Vec::new(),
             },
             LimitReset {
                 id: "ok".into(),
@@ -233,6 +234,7 @@ mod tests {
                 detail: format!("Clears it. {}", "D".repeat(400)),
                 expires_at: Some("not-a-date".into()),
                 usable: false,
+                clears: Vec::new(),
             },
         ];
         for index in 0..10 {
@@ -242,6 +244,7 @@ mod tests {
                 detail: "Restores that limit.".into(),
                 expires_at: None,
                 usable: true,
+                clears: Vec::new(),
             });
         }
         account.last_usage.as_mut().unwrap().limit_resets = grants;

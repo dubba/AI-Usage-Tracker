@@ -1,7 +1,7 @@
 //! Saved limit resets a provider sometimes grants, separate from the weekly
 //! reset time. The list is display data. Spending one is a different call.
 
-use crate::model::LimitReset;
+use crate::model::{LimitReset, ResetTarget};
 use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
 use serde_json::Value;
 
@@ -9,6 +9,8 @@ pub const MAX_GRANTS: usize = 8;
 const MAX_GRANT_ID_CHARS: usize = 128;
 const MAX_LABEL_CHARS: usize = 80;
 const MAX_DETAIL_CHARS: usize = 160;
+/// More targets than there are kinds of limit: room for values a newer version adds.
+const MAX_CLEARS: usize = 8;
 
 pub const DETAIL_FALLBACK: &str = "Restores that limit.";
 pub const DETAIL_FULL: &str = "Clears the 5-hour and 7-day limits";
@@ -133,6 +135,13 @@ pub fn sanitize_stored(grants: &mut Vec<LimitReset>) {
             grant.detail = DETAIL_FALLBACK.to_string();
         }
         grant.expires_at = grant.expires_at.as_deref().and_then(clean_expiry);
+        let mut seen = Vec::new();
+        grant.clears.retain(|target| {
+            let first = !seen.contains(target);
+            seen.push(*target);
+            first
+        });
+        grant.clears.truncate(MAX_CLEARS);
         true
     });
     sort_and_cap(grants);
@@ -159,6 +168,7 @@ pub fn from_grok_tokens(
             label: LABEL_GENERIC.to_string(),
             detail: DETAIL_WEEK.to_string(),
             expires_at,
+            clears: vec![ResetTarget::Weekly],
         });
     }
     let mut grants = finish(grants);
@@ -206,16 +216,18 @@ fn claude_grant(value: &Value, now: DateTime<Utc>) -> Option<LimitReset> {
     } else {
         label
     };
+    let (detail, targets) = claude_detail(&clears);
     Some(LimitReset {
         id: id.to_string(),
         label,
         detail: if usable_now {
-            claude_detail(&clears).to_string()
+            detail.to_string()
         } else {
-            format!("{}. {DETAIL_WAITING}", claude_detail(&clears))
+            format!("{detail}. {DETAIL_WAITING}")
         },
         expires_at: expiry_text(value.get("ends_at"), now),
         usable: usable_now,
+        clears: targets,
     })
 }
 
@@ -238,12 +250,14 @@ fn chatgpt_grant(value: &Value, now: DateTime<Utc>) -> Option<LimitReset> {
     } else {
         label
     };
+    let (detail, clears) = chatgpt_detail(title);
     Some(LimitReset {
         id: id.to_string(),
         label,
-        detail: chatgpt_detail(title).to_string(),
+        detail: detail.to_string(),
         expires_at: expiry_text(value.get("expires_at"), now),
         usable: true,
+        clears,
     })
 }
 
@@ -318,33 +332,40 @@ fn claude_label(clears: &[String]) -> &'static str {
     }
 }
 
-fn claude_detail(clears: &[String]) -> &'static str {
+/// The detail a Claude grant shows, and the limits it clears.
+fn claude_detail(clears: &[String]) -> (&'static str, Vec<ResetTarget>) {
+    use ResetTarget::{FableWeekly, FiveHour, Weekly};
     let fable = clears.iter().any(|token| is_fable(token));
     let five = clears.iter().any(|token| token == "five_hour");
     let week = clears
         .iter()
         .any(|token| token == "seven_day" || token == "seven_day_overage_included");
     if fable && five && !week {
-        DETAIL_FABLE_FIVE
+        (DETAIL_FABLE_FIVE, vec![FableWeekly, FiveHour])
     } else if five && week {
-        DETAIL_FULL
+        (DETAIL_FULL, vec![FiveHour, Weekly])
     } else if fable {
-        DETAIL_FABLE
+        (DETAIL_FABLE, vec![FableWeekly])
     } else if five {
-        DETAIL_FIVE
+        (DETAIL_FIVE, vec![FiveHour])
     } else if week {
-        DETAIL_WEEK
+        (DETAIL_WEEK, vec![Weekly])
     } else {
-        DETAIL_FALLBACK
+        (DETAIL_FALLBACK, Vec::new())
     }
 }
 
-fn chatgpt_detail(title: &str) -> &'static str {
+/// The detail a ChatGPT credit shows, and the limits it clears. A rate-limit credit clears no
+/// window the app shows.
+fn chatgpt_detail(title: &str) -> (&'static str, Vec<ResetTarget>) {
     let lower = title.to_ascii_lowercase();
     if lower.contains("weekly") && title.contains('5') {
-        DETAIL_FULL
+        (
+            DETAIL_FULL,
+            vec![ResetTarget::FiveHour, ResetTarget::Weekly],
+        )
     } else {
-        DETAIL_RATE
+        (DETAIL_RATE, Vec::new())
     }
 }
 
@@ -457,6 +478,10 @@ mod tests {
         assert_eq!(grants[0].label, "Full reset");
         assert_eq!(grants[0].detail, DETAIL_FULL);
         assert_eq!(
+            grants[0].clears,
+            [ResetTarget::FiveHour, ResetTarget::Weekly]
+        );
+        assert_eq!(
             grants[0].expires_at.as_deref(),
             Some("2026-12-10T16:00:00Z")
         );
@@ -472,6 +497,10 @@ mod tests {
         }));
         assert_eq!(grants[0].label, LABEL_FABLE);
         assert_eq!(grants[0].detail, DETAIL_FABLE_FIVE);
+        assert_eq!(
+            grants[0].clears,
+            [ResetTarget::FableWeekly, ResetTarget::FiveHour]
+        );
     }
 
     #[test]
@@ -489,6 +518,7 @@ mod tests {
         assert_eq!(grants.len(), 1);
         assert_eq!(grants[0].id, "kept");
         assert_eq!(grants[0].detail, DETAIL_FIVE);
+        assert_eq!(grants[0].clears, [ResetTarget::FiveHour]);
     }
 
     #[test]
@@ -510,6 +540,54 @@ mod tests {
             [("paused", false), ("blocked", false), ("ready", true)]
         );
         assert!(grants[0].detail.ends_with(DETAIL_WAITING));
+        assert_eq!(
+            grants[0].clears,
+            [ResetTarget::FiveHour],
+            "a grant not usable yet still says what it clears"
+        );
+    }
+
+    #[test]
+    fn stored_targets_are_deduplicated_and_unknown_ones_kept_as_other() {
+        let stored: LimitReset = serde_json::from_value(serde_json::json!({
+            "id": "grant-1",
+            "label": "Full reset",
+            "detail": DETAIL_FULL,
+            "expiresAt": null,
+            "clears": ["five_hour", "weekly", "five_hour", "monthly_from_a_newer_version"]
+        }))
+        .unwrap();
+        let mut grants = vec![stored];
+        sanitize_stored(&mut grants);
+        assert_eq!(
+            grants[0].clears,
+            [
+                ResetTarget::FiveHour,
+                ResetTarget::Weekly,
+                ResetTarget::Other
+            ]
+        );
+        let older: LimitReset = serde_json::from_value(serde_json::json!({
+            "id": "grant-1", "label": "Full reset", "detail": DETAIL_FULL, "expiresAt": null
+        }))
+        .unwrap();
+        assert!(
+            older.clears.is_empty(),
+            "a snapshot saved before `clears` existed"
+        );
+    }
+
+    #[test]
+    fn every_target_reads_back_as_itself() {
+        for target in [
+            ResetTarget::FiveHour,
+            ResetTarget::Weekly,
+            ResetTarget::FableWeekly,
+            ResetTarget::Other,
+        ] {
+            let json = serde_json::to_value(target).unwrap();
+            assert_eq!(serde_json::from_value::<ResetTarget>(json).unwrap(), target);
+        }
     }
 
     #[test]
@@ -565,6 +643,10 @@ mod tests {
         assert_eq!(grants.len(), 1);
         assert_eq!(grants[0].id, "Credit_1");
         assert_eq!(grants[0].detail, DETAIL_FULL);
+        assert_eq!(
+            grants[0].clears,
+            [ResetTarget::FiveHour, ResetTarget::Weekly]
+        );
         assert!(!grants[0].detail.contains("SECRET"));
         assert!(!grants[0].label.contains("SECRET"));
     }
@@ -578,6 +660,7 @@ mod tests {
             now(),
         );
         assert_eq!(grants[0].detail, DETAIL_RATE);
+        assert!(grants[0].clears.is_empty());
         assert_eq!(grants[0].label, "A free reset");
     }
 
@@ -604,6 +687,7 @@ mod tests {
                 detail: "No".into(),
                 expires_at: None,
                 usable: true,
+                clears: Vec::new(),
             },
             LimitReset {
                 id: "a".repeat(200),
@@ -611,6 +695,7 @@ mod tests {
                 detail: "No".into(),
                 expires_at: None,
                 usable: true,
+                clears: Vec::new(),
             },
             LimitReset {
                 id: "ok".into(),
@@ -618,6 +703,7 @@ mod tests {
                 detail: format!("Clears it. {}", "D".repeat(400)),
                 expires_at: Some("2026-12-10T00:00:00Z\nbearer".into()),
                 usable: true,
+                clears: Vec::new(),
             },
             LimitReset {
                 id: "marks".into(),
@@ -625,6 +711,7 @@ mod tests {
                 detail: "Gone".into(),
                 expires_at: None,
                 usable: true,
+                clears: Vec::new(),
             },
         ];
         for index in 0..10 {
@@ -634,6 +721,7 @@ mod tests {
                 detail: DETAIL_FALLBACK.into(),
                 expires_at: None,
                 usable: true,
+                clears: Vec::new(),
             });
         }
         sanitize_stored(&mut grants);
@@ -701,6 +789,14 @@ mod tests {
         );
         assert_eq!((grants[2].id.as_str(), grants[2].usable), ("tok-ok", true));
         assert!(!format!("{grants:?}").contains("has space"));
+    }
+
+    #[test]
+    fn grok_rows_clear_the_weekly_limit() {
+        let grants = from_grok_tokens(vec![(Some("token-1".into()), None), (None, None)], now());
+        assert!(grants
+            .iter()
+            .all(|grant| grant.detail == DETAIL_WEEK && grant.clears == [ResetTarget::Weekly]));
     }
 
     #[test]
