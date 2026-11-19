@@ -2187,3 +2187,218 @@ async fn concurrent_imports_of_one_account_add_it_once_and_keep_the_first_sign_i
         other => panic!("unexpected secret {other:?}"),
     }
 }
+
+/// A payload with every optional part filled in, as a newer or older peer might send it.
+fn full_sync_payload() -> super::payload::SyncPayload {
+    use super::payload::{
+        AccountOrderSyncPayload, AlertSyncEntry, AppSettingsSyncPayload, SyncAccountEntry,
+        SyncPayload, UiStateSyncPayload, PAYLOAD_FORMAT,
+    };
+    use crate::model::{
+        AccountBucket, LimitReset, OAuthSecret, UsageFreshness, UsageSnapshot, UsageWindow,
+        WindowKind,
+    };
+    let pages = || std::collections::BTreeMap::from([("all".to_string(), vec!["acc-1".into()])]);
+    SyncPayload {
+        format: PAYLOAD_FORMAT.into(),
+        exported_at: "2026-11-19T00:00:00Z".into(),
+        accounts: vec![SyncAccountEntry {
+            account: Account {
+                id: "acc-1".into(),
+                label: "Work".into(),
+                provider: Provider::Anthropic,
+                email: Some("user@example.com".into()),
+                provider_account_id: Some("org-1".into()),
+                chatgpt_account_id: None,
+                plan: Some("max".into()),
+                created_at: "2026-11-01T00:00:00Z".into(),
+                updated_at: "2026-11-19T00:00:00Z".into(),
+                last_usage: Some(UsageSnapshot {
+                    plan: Some("max".into()),
+                    email: None,
+                    windows: vec![UsageWindow {
+                        id: "five_hour".into(),
+                        label: "5 hour".into(),
+                        used_percent: Some(40.0),
+                        remaining_percent: Some(60.0),
+                        resets_at: Some("2026-11-19T05:00:00Z".into()),
+                        window_seconds: Some(18_000),
+                        kind: Some(WindowKind::FiveHour),
+                    }],
+                    credits_usd: Some(2.5),
+                    unlimited_credits: false,
+                    fetched_at: "2026-11-19T00:00:00Z".into(),
+                    freshness: UsageFreshness::Live,
+                    source: "test".into(),
+                    limit_resets: vec![LimitReset {
+                        id: "grant-1".into(),
+                        label: "Full reset".into(),
+                        detail: "Clears the 5-hour limit".into(),
+                        expires_at: None,
+                        usable: true,
+                    }],
+                }),
+                last_error: None,
+                auth_required: false,
+            },
+            secret: ProviderSecret::Anthropic(OAuthSecret {
+                access_token: "access".into(),
+                refresh_token: "refresh".into(),
+                id_token: Some("id".into()),
+                expires_at: 1_790_000_000,
+            }),
+        }],
+        buckets: vec![AccountBucket {
+            id: "bucket-1".into(),
+            name: "Work".into(),
+            provider: Some(Provider::Anthropic),
+            account_ids: vec!["acc-1".into()],
+            created_at: "2026-11-01T00:00:00Z".into(),
+            updated_at: "2026-11-01T00:00:00Z".into(),
+        }],
+        deleted_account_ids: vec!["acc-0".into()],
+        settings: Some(AppSettingsSyncPayload {
+            account_refresh_minutes: 15,
+            automatic_updates_enabled: true,
+            include_beta_updates: false,
+            autostart_enabled: false,
+            paseo_bridge_enabled: false,
+        }),
+        account_order: Some(AccountOrderSyncPayload {
+            account_ids: vec!["acc-1".into()],
+        }),
+        alerts: Some(vec![AlertSyncEntry {
+            account_id: "acc-1".into(),
+            settings: vec![crate::store::alerts::UsageAlertSetting {
+                window_id: "five_hour".into(),
+                enabled: true,
+                threshold_percent: 20,
+            }],
+        }]),
+        ui_state: Some(UiStateSyncPayload {
+            sidebar_group_order: Some(vec!["anthropic".into()]),
+            provider_order: Some(vec!["anthropic".into()]),
+            sidebar_window: Some("five_hour".into()),
+            collapsed_account_ids: Some(vec!["acc-1".into()]),
+            collapsed_cards: Some(pages()),
+            page_account_order: Some(pages()),
+            sidebar_width: Some(300),
+            theme: Some("dark".into()),
+            usage_display_mode: Some("left".into()),
+            bottom_nav_labels: Some("on".into()),
+        }),
+    }
+}
+
+/// Adds a field this version does not know to every JSON object in `value`, except the maps whose
+/// keys are page names (any key there is a page, not a field).
+fn add_unknown_fields(value: &mut serde_json::Value) -> usize {
+    const PAGE_MAPS: [&str; 2] = ["collapsed_cards", "page_account_order"];
+    match value {
+        serde_json::Value::Object(object) => {
+            let mut added = 0;
+            for (key, child) in object.iter_mut() {
+                if !PAGE_MAPS.contains(&key.as_str()) {
+                    added += add_unknown_fields(child);
+                }
+            }
+            object.insert(
+                "fieldFromANewerVersion".into(),
+                serde_json::json!({ "nested": [1, "two", null] }),
+            );
+            added + 1
+        }
+        serde_json::Value::Array(items) => items.iter_mut().map(add_unknown_fields).sum(),
+        _ => 0,
+    }
+}
+
+/// New optional fields can be added to anything a peer sends (accounts, snapshots, windows, limit
+/// resets, groups, settings, alerts, layout, secrets) without breaking older receivers: a field a
+/// device does not know is ignored, and everything it does know still arrives. Nothing in the
+/// payload may use `#[serde(deny_unknown_fields)]`.
+#[test]
+fn payload_fields_from_a_newer_peer_are_ignored() {
+    let expected = serde_json::to_value(full_sync_payload()).unwrap();
+    let mut from_newer_peer = expected.clone();
+    let added = add_unknown_fields(&mut from_newer_peer);
+    // Every struct in the payload got one, from the top level down to the secret's credentials.
+    assert!(added >= 14, "only {added} objects were extended");
+
+    let bytes = serde_json::to_vec(&from_newer_peer).unwrap();
+    let parsed = super::payload::validate_payload(&bytes).unwrap();
+    assert_eq!(serde_json::to_value(parsed).unwrap(), expected);
+}
+
+/// Fields a newer peer leaves out entirely parse too, so an older peer's payload is accepted. This
+/// lists the fields that may be missing; a new one belongs here with `#[serde(default)]`.
+#[test]
+fn payload_from_an_older_peer_without_newer_fields_parses() {
+    let mut payload = serde_json::to_value(full_sync_payload()).unwrap();
+    let object = payload.as_object_mut().unwrap();
+    for key in [
+        "deleted_account_ids",
+        "settings",
+        "account_order",
+        "alerts",
+        "ui_state",
+    ] {
+        object.remove(key);
+    }
+    let account = &mut payload["accounts"][0]["account"];
+    for key in ["provider", "providerAccountId", "chatgptAccountId"] {
+        account.as_object_mut().unwrap().remove(key);
+    }
+    let usage = &mut account["lastUsage"];
+    usage["windows"][0].as_object_mut().unwrap().remove("kind");
+    usage["limitResets"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("usable");
+    let snapshot = usage.as_object_mut().unwrap();
+    snapshot.remove("limitResets");
+
+    let bytes = serde_json::to_vec(&payload).unwrap();
+    let parsed = super::payload::validate_payload(&bytes).unwrap();
+    assert!(parsed.settings.is_none() && parsed.ui_state.is_none());
+    assert!(parsed.accounts[0]
+        .account
+        .last_usage
+        .as_ref()
+        .unwrap()
+        .limit_resets
+        .is_empty());
+}
+
+/// The limit of the rule above: a value this version does not know for an existing enum (a new
+/// provider, window kind or freshness) is not ignored, and the whole payload is refused. New values
+/// for those enums therefore need a fallback (`#[serde(other)]`) first, or must stay out of what
+/// peers send. If this starts passing payloads through, update the additive-fields rule in
+/// `docs/DATA_COMPATIBILITY.md`.
+#[test]
+fn an_unknown_enum_value_from_a_newer_peer_refuses_the_payload() {
+    let expected = serde_json::to_value(full_sync_payload()).unwrap();
+    let cases: [(&str, fn(&mut serde_json::Value)); 4] = [
+        ("provider", |payload| {
+            payload["accounts"][0]["account"]["provider"] = "new_provider".into();
+        }),
+        ("window kind", |payload| {
+            payload["accounts"][0]["account"]["lastUsage"]["windows"][0]["kind"] = "daily".into();
+        }),
+        ("freshness", |payload| {
+            payload["accounts"][0]["account"]["lastUsage"]["freshness"] = "partial".into();
+        }),
+        ("secret provider", |payload| {
+            payload["accounts"][0]["secret"]["provider"] = "new_provider".into();
+        }),
+    ];
+    for (name, change) in cases {
+        let mut payload = expected.clone();
+        change(&mut payload);
+        let bytes = serde_json::to_vec(&payload).unwrap();
+        assert!(
+            super::payload::validate_payload(&bytes).is_err(),
+            "an unknown {name} was accepted"
+        );
+    }
+}

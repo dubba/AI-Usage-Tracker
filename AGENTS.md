@@ -12,6 +12,8 @@ Before changing behavior:
 
 Adding a provider: follow `docs/ADDING_A_PROVIDER.md`, which lists every place a provider is wired in.
 
+Changing stored or paired data: follow `docs/DATA_COMPATIBILITY.md` before adding, renaming or removing a field on a type that is saved to disk, sent to a paired device, or published by the local API, or before adding an enum value.
+
 Changelog:
 
 - Read `docs/CHANGELOG_WORKFLOW.md` before pushing to GitHub or completing a pull request.

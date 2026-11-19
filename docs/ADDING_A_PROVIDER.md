@@ -82,6 +82,7 @@ A new command means four edits, and a test fails if one is missing:
 - `docs/THREAT_MODEL.md` — the provider's endpoints and hosts (section 8), its login window or callback (sections 3 and 4), and where its credential is stored (section 9). Update `file:line` references in the same change.
 - `TESTING.md` — the test map rows for new guards.
 - `CHANGELOG.md` — an `Added` entry under `## Unreleased`, with the counts updated (`docs/CHANGELOG_WORKFLOW.md`).
+- Release notes should say that pairing an account of the new provider needs the update on both devices: an older receiver refuses a payload with a `Provider` value it does not know (`docs/DATA_COMPATIBILITY.md`, rule 4).
 
 ## Checklist of checks
 
