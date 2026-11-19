@@ -159,7 +159,7 @@ export function AccountAlertModal({
       </section>
 
       <div className="credential-note alert-notification-note">
-        Alerts use your OS notifications and are sent only once per quota period.
+        Alerts use your OS notifications and notify at your threshold, then again at 15%, 5%, and 0% per quota period.
       </div>
       <div className="modal-actions">
         <button type="button" className="button ghost" onClick={requestClose} disabled={saving}>Cancel</button>

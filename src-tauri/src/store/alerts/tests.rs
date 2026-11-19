@@ -349,3 +349,53 @@ fn window_without_reset_time_notifies_once_and_does_not_repeat_on_subsequent_ref
     assert_eq!(alerts_recovered.len(), 1);
     assert_eq!(alerts_recovered[0].remaining_percent, 10);
 }
+
+#[test]
+fn persists_milestone_alerts_across_reload_and_ignores_reset_jitter() {
+    let directory = tempfile::tempdir().unwrap();
+    let store = AlertStore::load(directory.path()).unwrap();
+    store
+        .save(
+            "account-1",
+            vec![UsageAlertSetting {
+                window_id: "weekly".into(),
+                enabled: true,
+                threshold_percent: 20,
+            }],
+        )
+        .unwrap();
+
+    let mut account = account_with_weekly(19.0);
+    assert_eq!(store.evaluate(&account).unwrap().len(), 1);
+
+    // Reload from disk and jitter resets_at while above 15%: no alert.
+    let reloaded = AlertStore::load(directory.path()).unwrap();
+    if let Some(usage) = account.last_usage.as_mut() {
+        usage.windows[0].remaining_percent = Some(16.0);
+        usage.windows[0].used_percent = Some(84.0);
+        usage.windows[0].resets_at = Some("2026-07-20T00:00:08Z".into());
+    }
+    assert!(reloaded.evaluate(&account).unwrap().is_empty());
+
+    // Reaching 15%, 5%, and 0% each emit one alert; 11%, 10%, 1% do not.
+    for (pct, reset, expected) in [
+        (15.0, "2026-07-20T00:00:12Z", 1),
+        (11.0, "2026-07-20T00:00:15Z", 0),
+        (10.0, "2026-07-20T00:00:18Z", 0),
+        (5.0, "2026-07-20T00:00:22Z", 1),
+        (1.0, "2026-07-20T00:00:25Z", 0),
+        (0.0, "2026-07-20T00:00:30Z", 1),
+        (0.0, "2026-07-20T00:00:35Z", 0),
+    ] {
+        if let Some(usage) = account.last_usage.as_mut() {
+            usage.windows[0].remaining_percent = Some(pct);
+            usage.windows[0].used_percent = Some(100.0 - pct);
+            usage.windows[0].resets_at = Some(reset.into());
+        }
+        assert_eq!(
+            reloaded.evaluate(&account).unwrap().len(),
+            expected,
+            "unexpected alert count at {pct}%"
+        );
+    }
+}
