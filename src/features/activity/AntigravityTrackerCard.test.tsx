@@ -50,6 +50,7 @@ describe("AntigravityTrackerCard", () => {
     provider: "antigravity",
     label: "Google Antigravity",
     plan: "pro",
+    planDisplay: "Pro/$20",
     email: "m.bahabib@yahoo.com",
   });
 

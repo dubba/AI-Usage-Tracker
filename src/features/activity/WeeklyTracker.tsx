@@ -1,6 +1,6 @@
 import { useId } from "react";
 import { useClock } from "../../shared/hooks/useClock";
-import { displayAccountError, displayPlan } from "../../shared/lib/display";
+import { displayAccountError } from "../../shared/lib/display";
 import { displayAccountLabel, isWindowExpired, usageTone } from "../../shared/lib/usage-logic";
 import { ProviderIcon } from "../../shared/ui/ProviderIcon";
 import type { Account, ActivityTracker } from "../../types";
@@ -27,7 +27,7 @@ export function WeeklyTracker({
 }) {
   const titleId = useId();
   const label = displayAccountLabel(account);
-  const plan = displayPlan(account);
+  const plan = account.planDisplay;
   const expired = useClock((now) => isWindowExpired(tracker.resetsAt, Math.max(now, Date.now())));
   const used = expired ? null : tracker.currentUsedPercent;
   // Toned by what is left, like the account cards. The number itself is always what was used:

@@ -1,6 +1,7 @@
 use crate::{
     headline::Headline,
     health::{self, AccountHealth, GoogleSetup},
+    plan,
 };
 use chrono::Utc;
 use serde::{Deserialize, Serialize, Serializer};
@@ -300,10 +301,10 @@ pub struct Account {
 }
 
 /// An account: its stored fields, then what the backend works out from them.
-// What an `Account` serializes as. Computing `health`, `googleSetup`, `autoRefresh` and `headline` here means every copy the
-// frontend gets (the dashboard, a refresh result, a login) carries current values. They are also
-// written to the account file and pairing payloads, where readers ignore them: `Account` has no
-// such fields, so they are never read back (docs/DATA_COMPATIBILITY.md, rule 5).
+// What an `Account` serializes as. Computing the fields after `authRequired` here means every
+// copy the frontend gets (the dashboard, a refresh result, a login) carries current values. They
+// are also written to the account file and pairing payloads, where readers ignore them: `Account`
+// has no such fields, so they are never read back (docs/DATA_COMPATIBILITY.md, rule 5).
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(rename = "Account"))]
@@ -328,6 +329,8 @@ pub struct AccountOut<'a> {
     auto_refresh: bool,
     /// The windows the sidebar's meters read.
     headline: Headline,
+    /// The plan as the app shows it ("Max/$100"), worked out from `plan`; `null` to show none.
+    plan_display: Option<String>,
 }
 
 impl Serialize for Account {
@@ -365,6 +368,7 @@ impl Serialize for Account {
             google_setup: GoogleSetup::of(self),
             auto_refresh: health::refreshes_on_schedule(self),
             headline: Headline::of(self),
+            plan_display: plan::plan_display(provider, plan.as_deref()),
         }
         .serialize(serializer)
     }

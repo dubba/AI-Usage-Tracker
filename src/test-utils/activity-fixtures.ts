@@ -35,6 +35,7 @@ export function makeAccount(overrides: Partial<Account> & { id: string }): Accou
     googleSetup: null,
     autoRefresh: true,
     headline: { fiveHour: [], long: [], longWindow: null },
+    planDisplay: null,
     ...overrides,
   };
 }

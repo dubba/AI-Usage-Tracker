@@ -9,5 +9,6 @@ pub mod health;
 pub mod history;
 pub mod limits;
 pub mod model;
+pub mod plan;
 pub mod providers;
 pub mod refresh_backoff;

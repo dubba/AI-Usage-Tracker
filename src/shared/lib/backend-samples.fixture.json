@@ -61,6 +61,7 @@
         ]
       },
       "plan": "pro",
+      "planDisplay": "Pro/$20",
       "provider": "google_ai_studio",
       "providerAccountId": "provider-id",
       "updatedAt": "2026-09-03T12:00:00Z"
@@ -83,6 +84,7 @@
       "lastError": "Sign in again",
       "lastUsage": null,
       "plan": null,
+      "planDisplay": null,
       "provider": "google_ai_studio",
       "providerAccountId": null,
       "updatedAt": "2026-09-03T12:00:00Z"
@@ -186,6 +188,7 @@
             ]
           },
           "plan": "pro",
+          "planDisplay": "Pro/$20",
           "provider": "google_ai_studio",
           "providerAccountId": "provider-id",
           "updatedAt": "2026-09-03T12:00:00Z"
@@ -208,6 +211,7 @@
           "lastError": "Sign in again",
           "lastUsage": null,
           "plan": null,
+          "planDisplay": null,
           "provider": "google_ai_studio",
           "providerAccountId": null,
           "updatedAt": "2026-09-03T12:00:00Z"
@@ -330,6 +334,7 @@
           ]
         },
         "plan": "pro",
+        "planDisplay": "Pro/$20",
         "provider": "google_ai_studio",
         "providerAccountId": "provider-id",
         "updatedAt": "2026-09-03T12:00:00Z"

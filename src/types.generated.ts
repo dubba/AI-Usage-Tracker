@@ -131,6 +131,10 @@ export type Account = {
    * The windows the sidebar's meters read.
    */
   headline: Headline,
+  /**
+   * The plan as the app shows it ("Max/$100"), worked out from `plan`; `null` to show none.
+   */
+  planDisplay: string | null,
 };
 
 export type UsageAlertSetting = {

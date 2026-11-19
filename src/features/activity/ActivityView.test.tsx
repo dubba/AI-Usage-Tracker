@@ -660,6 +660,7 @@ describe("ActivityView", () => {
       label: "Antigravity",
       provider: "antigravity",
       plan: "pro",
+      planDisplay: "Pro/$20",
       email: "m.bahabib@yahoo.com",
     });
     const anti2 = makeAccount({
@@ -667,6 +668,7 @@ describe("ActivityView", () => {
       label: "Antigravity 2",
       provider: "antigravity",
       plan: "ultra",
+      planDisplay: "Ultra/$100",
       email: "second@example.com",
     });
 

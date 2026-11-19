@@ -450,7 +450,7 @@ function renderDesktopCard(overrides: Partial<Parameters<typeof AccountDashboard
   const app = mount(
     <AccountDashboardCard
       pageId="all"
-      account={{ ...account, plan: "pro", health: "live", lastUsage: { plan: "pro", email: null, windows: [], creditsUsd: null, unlimitedCredits: false, fetchedAt: new Date().toISOString(), freshness: "live", source: "test", limitResets: [] } }}
+      account={{ ...account, plan: "pro", planDisplay: "Pro/$20", health: "live", lastUsage: { plan: "pro", email: null, windows: [], creditsUsd: null, unlimitedCredits: false, fetchedAt: new Date().toISOString(), freshness: "live", source: "test", limitResets: [] } }}
       busy={new Set()}
       onReconnect={() => undefined}
       onConnectGoogleUsage={() => undefined}
@@ -1146,6 +1146,7 @@ describe("AccountDashboardCard compact mode (L7)", () => {
       id: "acct-compact",
       label: "Work Claude",
       plan: "claude_max_200",
+      planDisplay: "Max/$200",
       lastUsage: {
         plan: "claude_max_200",
         email: "work@example.com",

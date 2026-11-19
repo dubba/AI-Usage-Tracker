@@ -36,6 +36,7 @@ function account(id: string, provider: Provider, label = id): Account {
     googleSetup: null,
     autoRefresh: true,
     headline: { fiveHour: [], long: [], longWindow: null },
+    planDisplay: null,
   };
 }
 

@@ -27,7 +27,6 @@ import { formatElapsed, formatUpdatedAt } from "../../shared/lib/format";
 import {
   displayAccountError,
   displayAccountSubtitle,
-  displayPlan,
   metricWindowParts,
 } from "../../shared/lib/display";
 import type {
@@ -108,7 +107,7 @@ export function AccountDashboardCard({
   const outOfDate = !signedOut && account.lastUsage?.freshness === "stale";
   // A bar that still has a percent, but the reading is signed out, out of date, or unavailable, is striped.
   const usageStale = signedOut || account.lastUsage?.freshness === "stale" || account.lastUsage?.freshness === "unavailable";
-  const plan = displayPlan(account);
+  const plan = account.planDisplay;
   const needsAttention = accountNeedsAttention(account);
   const [isCollapsed, setIsCollapsed] = useState(() => isCardCollapsedOnPage(pageId, account.id));
   const rename = useInlineAccountRename(account, onRename);

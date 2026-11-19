@@ -3,7 +3,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { click, mount, type Mounted } from "../../test-utils/react";
 import { makeAccount, makeTracker, measured } from "../../test-utils/activity-fixtures";
-import { displayPlan } from "../../shared/lib/display";
 import { setUsageDisplayMode } from "../../shared/lib/usage-display";
 import type { Account } from "../../types";
 import { NoWeeklyLimitCard } from "./NoWeeklyLimitCard";
@@ -37,10 +36,10 @@ const text = (root: ParentNode, selector: string) => root.querySelector(selector
 
 describe("WeeklyTracker", () => {
   it("names the account with its plan pill and email, without a reset line", () => {
-    const account = makeAccount({ id: "a1", label: "Work Claude", plan: "max", email: "work@example.com" });
+    const account = makeAccount({ id: "a1", label: "Work Claude", plan: "max", planDisplay: "Max/$100", email: "work@example.com" });
     const root = render(account, makeTracker({ accountId: "a1", resetsAt: "2026-10-27T15:00:00Z" }));
     expect(text(root, ".activity-card-title")).toBe("Work Claude");
-    expect(text(root, ".activity-plan-pill")).toBe(displayPlan(account));
+    expect(text(root, ".activity-plan-pill")).toBe("Max/$100");
     expect(text(root, ".activity-consolidated-email")).toBe("work@example.com");
     expect(root.querySelector(".activity-card-head .activity-card-details")).toBeNull();
     expect(root.querySelector("article")!.getAttribute("aria-labelledby")).toBe(root.querySelector(".activity-card-title")!.id);
@@ -149,7 +148,7 @@ describe("WeeklyTracker", () => {
   });
 
   it("shows the plan pill beside the name and email on its own line for every provider", () => {
-    const root = render(makeAccount({ id: "a1", label: "ChatGPT", provider: "openai", plan: "plus", email: "user@example.com" }));
+    const root = render(makeAccount({ id: "a1", label: "ChatGPT", provider: "openai", plan: "plus", planDisplay: "Plus/$20", email: "user@example.com" }));
     expect(text(root, ".activity-card-title")).toBe("ChatGPT");
     expect(text(root, ".activity-plan-pill")).toBe("Plus/$20");
     expect(text(root, ".activity-consolidated-email")).toBe("user@example.com");
@@ -158,7 +157,7 @@ describe("WeeklyTracker", () => {
 
   it("places the title, plan pill, and email in the identity column beside the total usage percentage", () => {
     const root = render(
-      makeAccount({ id: "a1", label: "Claude123", provider: "anthropic", plan: "pro", email: "m.bahabib@yahoo.com" }),
+      makeAccount({ id: "a1", label: "Claude123", provider: "anthropic", plan: "pro", planDisplay: "Pro/$20", email: "m.bahabib@yahoo.com" }),
       makeTracker({ accountId: "a1", currentUsedPercent: 27, resetsAt: "2026-10-16T22:50:00Z" }),
     );
     const identity = root.querySelector(".activity-card-identity")!;

@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { displayAccountError, displayPlan } from "../../shared/lib/display";
+import { displayAccountError } from "../../shared/lib/display";
 import { displayAccountLabel, usageTone } from "../../shared/lib/usage-logic";
 import { ProviderIcon } from "../../shared/ui/ProviderIcon";
 import type { Account, ActivityTracker } from "../../types";
@@ -29,7 +29,7 @@ export function AntigravityTrackerCard({
 }) {
   const titleId = useId();
   const label = displayAccountLabel(account);
-  const plan = displayPlan(account);
+  const plan = account.planDisplay;
   const email = accountEmail(account);
   const needsSignIn = account.health === "signed_out";
   const hasError = needsSignIn

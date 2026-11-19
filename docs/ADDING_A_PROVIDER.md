@@ -74,7 +74,8 @@ A new command means four edits, and a test fails if one is missing:
 - `src/features/add-account/strategies.ts` — an entry in `STRATEGIES` (`Record<Provider, ProviderStrategy>`). Start from `browserSignIn("<id>")` and override only what differs: `connectMode`, `validate`, `description`, `connectDirect`, `actionLabel`.
 - `src/features/add-account/AddAccountModal.tsx` — `PICKER_ORDER` (the order in the picker) and, when the provider needs its own fields, the case in `providerFields` plus a component in `add-account/fields/`.
 - `src/features/accounts/AccountsView.tsx` — `EMPTY_STATE_PROVIDERS` is the short list of first-run cards. Add the provider only if it should be offered there.
-- `src/shared/lib/display.ts` — `PLAN_RULES` and `PLAN_FALLBACK` (how the stored plan string is shown), and `DEFAULT_GROUP_BY_PROVIDER` (the group a window falls into when its label names none). Add cases to `display.test.ts`.
+- `src-tauri/crates/usage-core/src/plan.rs` — the provider's arm in `plan_display` (how the stored plan string is shown; the match is exhaustive, so a new provider does not compile without one). Add cases to `plan_names.json` next to it.
+- `src/shared/lib/display.ts` — `DEFAULT_GROUP_BY_PROVIDER` (the group a window falls into when its label names none). Add cases to `display.test.ts`.
 - `src/types.generated.ts` — only if the provider adds a field to a type the frontend receives. Add the field in Rust, then run `UPDATE_FIXTURES=1 cargo test --manifest-path src-tauri/Cargo.toml --lib type_contract` and `npx vitest run src/shared/lib/types-contract.test.ts`.
 
 ## 5. Documents and release notes
