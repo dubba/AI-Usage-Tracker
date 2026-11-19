@@ -377,7 +377,8 @@ html[data-sidebar-toggle-stacked] .provider-sidebar-heading-stack .usage-display
   object-fit: contain;
 }
 
-.provider-summary-icon.provider-openai {
+.provider-summary-icon.provider-openai,
+.provider-summary-icon.provider-grok {
   color: var(--c-f2efef);
 }
 
@@ -852,7 +853,8 @@ button.button.ghost.empty-provider-other:active:not(:disabled) {
   object-fit: contain;
 }
 
-.empty-provider-mark.provider-openai {
+.empty-provider-mark.provider-openai,
+.empty-provider-mark.provider-grok {
   color: var(--c-f4f1f1);
 }
 
@@ -1342,7 +1344,8 @@ button.account-card-provider-icon:active {
   object-fit: contain;
 }
 
-.account-card-provider-icon.provider-openai {
+.account-card-provider-icon.provider-openai,
+.account-card-provider-icon.provider-grok {
   color: var(--c-f4f1f1);
 }
 

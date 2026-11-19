@@ -437,6 +437,29 @@
     border: 1px solid var(--obsidian-border);
     border-radius: 11px;
     background: var(--obsidian-surface-container-high);
+    /* The mark colours the dashboard's tiles use (obsidian-dashboard.css .account-card-provider-icon):
+       the ChatGPT and Grok marks take their colour from here; the other marks have their own. */
+    color: var(--c-d7d1da);
+  }
+
+  .activity-card-icon.provider-openai,
+  .activity-card-icon.provider-grok {
+    color: var(--c-f4f1f1);
+  }
+
+  .activity-card-icon.provider-anthropic {
+    color: var(--c-e5bb86);
+  }
+
+  .activity-card-icon.provider-opencode_go {
+    color: var(--obsidian-purple);
+  }
+
+  /* Light theme: a white tile, as the dashboard's (ui-refinements.css). */
+  :root[data-theme="light"] .activity-card-head > .activity-card-icon,
+  :root[data-theme="light"] .activity-consolidated-head > .activity-card-icon {
+    border-color: var(--chrome-border);
+    background: var(--white);
   }
 
   @media (max-width: 860px) {

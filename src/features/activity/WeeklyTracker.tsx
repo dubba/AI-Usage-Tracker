@@ -55,7 +55,7 @@ export function WeeklyTracker({
     >
       <span className="reorder-grip" data-tooltip="Drag to reorder" aria-hidden="true" />
       <header className="activity-card-head">
-        <span className="activity-card-icon">
+        <span className={`activity-card-icon provider-${account.provider}`}>
           <ProviderIcon provider={account.provider} />
         </span>
         <div className="activity-card-identity">
