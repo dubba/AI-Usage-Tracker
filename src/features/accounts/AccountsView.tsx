@@ -154,6 +154,17 @@ export function AccountsView(props: {
     disabled: !props.onRefreshAll || props.accounts.length === 0,
   });
 
+  const editBucketBtn = props.selectedGroup.type === "bucket" && props.selectedGroup.bucket ? (
+    <button
+      type="button"
+      className="edit-bucket-title-btn"
+      onClick={() => props.onEditBucket?.(props.selectedGroup.bucket!)}
+      aria-label="Edit Group"
+      data-tooltip="Edit Group"
+    >
+      <EditIcon />
+    </button>
+  ) : null;
   const isFiltered = props.selectedGroup.type !== "all";
   const mobileTitleFilter = phone && props.onToggleSidebar ? (
     <h1 className="eyebrow mobile-title-filter-heading" tabIndex={-1} style={{ outline: "none" }}>
@@ -162,6 +173,7 @@ export function AccountsView(props: {
         open={props.sidebarOpen}
         filterLabel={groupFilterLabel(props.selectedGroup)}
         isFiltered={isFiltered}
+        trailing={editBucketBtn}
       />
     </h1>
   ) : null;
@@ -177,17 +189,6 @@ export function AccountsView(props: {
   const bucketPill = !phone && props.selectedGroup.type === "bucket" ? (
     <span className="dashboard-bucket-pill">Group</span>
   ) : null;
-  const editBucketBtn = props.selectedGroup.type === "bucket" && props.selectedGroup.bucket ? (
-    <button
-      type="button"
-      className="edit-bucket-title-btn"
-      onClick={() => props.onEditBucket?.(props.selectedGroup.bucket!)}
-      aria-label="Edit Group"
-      data-tooltip="Edit Group"
-    >
-      <EditIcon />
-    </button>
-  ) : null;
 
   return (
     <div ref={containerRef} className="content-scroll dashboard-content">
@@ -197,7 +198,8 @@ export function AccountsView(props: {
           <div className="dashboard-title-row">
             {titleHeading}
             {bucketPill}
-            {editBucketBtn}
+            {/* On a phone the pen is inside the filter pill (MobileSidebarToggle's `trailing`). */}
+            {mobileTitleFilter ? null : editBucketBtn}
             {/* On a phone the title row ends with L / U, New group, and Add account buttons.
                 A wide window has them in the top bar and header top-right instead. */}
             {phone ? (

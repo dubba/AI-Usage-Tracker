@@ -340,6 +340,42 @@
     --mobile-filter-border: var(--purple-accent);
     --mobile-filter-bg: var(--purple-surface);
   }
+
+  /* A group's Edit Group pen inside the filter pill's right end. The pen is the pill's sibling,
+     not its child, so the two stay separate buttons: the pill keeps 40px on its right (8px, the
+     24px pen, 8px) and the pen is placed over that room. Only the pill's own area opens the
+     filter; the pen sits above it. (The selector outweighs the shared tooltip rule's
+     `position: relative`.) */
+  .mobile-filter-with-edit {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .dashboard-header > div:first-child .mobile-filter-with-edit > .mobile-sidebar-toggle-btn.has-filter-label {
+    padding-right: 40px;
+  }
+
+  .dashboard-header .dashboard-title-row .mobile-filter-with-edit > .edit-bucket-title-btn.edit-bucket-title-btn {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    z-index: 1;
+    margin: 0;
+    transform: translateY(-50%);
+  }
+
+  /* The pen takes every tap in the pill's 40px right end (8px, the pen, 8px; the pill's full
+     height), so a press beside the pen never falls through to the filter. Its usual tap area
+     (36px by 44px, in ui-refinements.css) left 2px on each side to the filter. */
+  .dashboard-header .dashboard-title-row .mobile-filter-with-edit > .edit-bucket-title-btn.edit-bucket-title-btn::before {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
 }
 
 @media (hover: hover) {
