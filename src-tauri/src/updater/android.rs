@@ -22,7 +22,9 @@ pub(super) async fn fetch_apk_sha256(url: &str) -> Result<String, String> {
         .header("User-Agent", "AI-Usage-Tracker")
         .send()
         .await
-        .map_err(|error| format!("Unable to verify the update checksum: {error}"))?;
+        .map_err(|error| {
+            crate::providers::request_failed("Unable to verify the update checksum", &error)
+        })?;
     if !response.status().is_success() {
         return Err("Unable to download the update checksum.".into());
     }
@@ -97,10 +99,9 @@ pub(super) async fn download_android_apk_from_response(
 
     let download = async {
         loop {
-            let chunk = response
-                .chunk()
-                .await
-                .map_err(|error| format!("Unable to download the update: {error}"))?;
+            let chunk = response.chunk().await.map_err(|error| {
+                crate::providers::request_failed("Unable to download the update", &error)
+            })?;
             let Some(chunk) = chunk else {
                 break;
             };
@@ -181,7 +182,9 @@ pub(super) async fn download_android_apk(
         .header("User-Agent", "AI-Usage-Tracker")
         .send()
         .await
-        .map_err(|error| format!("Unable to download the update: {error}"))?;
+        .map_err(|error| {
+            crate::providers::request_failed("Unable to download the update", &error)
+        })?;
     if !response.status().is_success() {
         return Err(format!(
             "Unable to download the update: GitHub returned HTTP {}",

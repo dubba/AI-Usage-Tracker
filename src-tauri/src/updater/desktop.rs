@@ -9,6 +9,25 @@ pub(super) fn updater_error_is_no_release(error: &tauri_plugin_updater::Error) -
     matches!(error, tauri_plugin_updater::Error::ReleaseNotFound)
 }
 
+/// `action` and why the updater failed, for the update status or the install error. A failed
+/// request gets the same sentence as other requests (`providers::request_failed`), because its
+/// own text names the request URL.
+#[cfg(any(test, desktop))]
+pub(super) fn updater_failure(action: &str, error: &tauri_plugin_updater::Error) -> String {
+    match error {
+        tauri_plugin_updater::Error::Reqwest(error) => crate::providers::request_failed_with(
+            action,
+            crate::providers::Transport {
+                timeout: error.is_timeout(),
+                connect: error.is_connect(),
+                unreadable: error.is_decode() || error.is_body(),
+            },
+            &error.to_string(),
+        ),
+        other => format!("{action}: {other}"),
+    }
+}
+
 /// Updater for the desktop app. With beta releases enabled it is pointed at the
 /// newest release's own `latest.json`, because the configured
 /// `releases/latest/download/latest.json` endpoint ignores pre-releases. If the

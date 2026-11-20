@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (1 change)
+
+### Fixed (1)
+
+- When a sign-in, the Google Cloud usage setup, or an update check or download can't reach the server, the app now says so in a plain sentence ("…: the connection could not be made. Check your internet connection and try again.") instead of showing the raw request error with its web address. This also applies to the sign-in page shown in the browser.
 
 ## v0.6.7 - 2026-11-20 (5 changes)
 

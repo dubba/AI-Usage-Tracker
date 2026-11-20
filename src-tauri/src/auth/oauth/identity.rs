@@ -28,7 +28,7 @@ pub(super) async fn fetch_json_with_headers(
     let response = request
         .send()
         .await
-        .map_err(|error| format!("Profile request failed: {error}"))?;
+        .map_err(|error| crate::providers::request_failed("Profile request failed", &error))?;
     let status = response.status();
     let body = crate::providers::read_sign_in_body(
         response,

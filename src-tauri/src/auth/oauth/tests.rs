@@ -765,7 +765,10 @@ async fn a_refused_connection_is_unreachable_and_a_malformed_request_is_not() {
     let refused = reqwest::Client::new().post(&url).send().await.unwrap_err();
     let error = ExchangeError::from_send("Acme token exchange failed", &refused);
     assert!(error.is_retryable());
-    assert!(error.message().starts_with("Acme token exchange failed: "));
+    assert_eq!(
+        error.message(),
+        "Acme token exchange failed: the connection could not be made. Check your internet connection and try again."
+    );
 
     let malformed = reqwest::Client::new()
         .post("not a url")

@@ -1,3 +1,4 @@
+use crate::commands::error::CommandResult;
 #[cfg(target_os = "android")]
 use crate::platform::apk_install;
 use crate::providers::{read_capped_text, CappedBodyError};
@@ -267,7 +268,7 @@ pub(crate) fn open_update_notes_on_click(app: &AppHandle) {
 }
 
 #[tauri::command]
-pub async fn get_pending_update_notice() -> Result<Option<String>, String> {
+pub async fn get_pending_update_notice() -> CommandResult<Option<String>> {
     Ok(PENDING_UPDATE_NOTICE.lock().take())
 }
 
@@ -276,7 +277,7 @@ pub async fn check_for_app_update(
     app: AppHandle,
     state: State<'_, Arc<AppState>>,
     notify: Option<bool>,
-) -> Result<AppUpdateStatus, String> {
+) -> CommandResult<AppUpdateStatus> {
     let notify = notify.unwrap_or(true);
     let current_version = app.package_info().version.to_string();
 
@@ -332,7 +333,7 @@ pub async fn check_for_app_update(
                 Ok(Err(error)) => {
                     return Ok(AppUpdateStatus::failed(
                         current_version,
-                        format!("Unable to check for updates: {error}"),
+                        updater_failure("Unable to check for updates", &error),
                     ));
                 }
                 Err(_) => {
@@ -373,7 +374,7 @@ pub async fn check_for_app_update(
 pub async fn install_app_update(
     app: AppHandle,
     state: State<'_, Arc<AppState>>,
-) -> Result<(), String> {
+) -> CommandResult<()> {
     #[cfg(desktop)]
     {
         if let Ok(updater) = desktop_updater(&app, state.inner().as_ref()).await {
@@ -421,7 +422,7 @@ pub async fn install_app_update(
                         return Ok(());
                     }
                     Ok(Some(Err(error))) => {
-                        return Err(format!("Unable to install the update: {error}"));
+                        return Err(updater_failure("Unable to install the update", &error).into());
                     }
                     Err(_) => {
                         return Err(
@@ -444,7 +445,8 @@ pub async fn install_app_update(
             .unwrap_or_else(|_| {
                 apk_install::clear_update_notification();
                 Err("The update failed unexpectedly. Please try again.".into())
-            });
+            })
+            .map_err(Into::into);
     }
 
     #[cfg(target_os = "ios")]

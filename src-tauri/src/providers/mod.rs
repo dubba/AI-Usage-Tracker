@@ -48,15 +48,68 @@ pub fn parse_retry_after(value: &str) -> Option<Duration> {
 /// `reqwest::Error`'s own text names the request URL and can quote what the
 /// server sent, so it must never be interpolated into a stored message.
 pub fn transport_failure(error: &reqwest::Error) -> &'static str {
-    if error.is_timeout() {
+    transport_failure_of(Transport::of(error))
+}
+
+/// What a `reqwest::Error` says about why a request failed. Separate from the error so that the
+/// updater plugin's errors, from another `reqwest` version, get the same sentences.
+#[derive(Clone, Copy)]
+pub struct Transport {
+    pub timeout: bool,
+    pub connect: bool,
+    pub unreadable: bool,
+}
+
+impl Transport {
+    fn of(error: &reqwest::Error) -> Self {
+        Self {
+            timeout: error.is_timeout(),
+            connect: error.is_connect(),
+            unreadable: error.is_decode() || error.is_body(),
+        }
+    }
+}
+
+fn transport_failure_of(transport: Transport) -> &'static str {
+    if transport.timeout {
         "the request timed out"
-    } else if error.is_connect() {
+    } else if transport.connect {
         "the connection could not be made"
-    } else if error.is_decode() || error.is_body() {
+    } else if transport.unreadable {
         "the response could not be read"
     } else {
         "the connection failed"
     }
+}
+
+/// The sentence for a request that got no usable answer, in a message the person sees (a command
+/// error, a sign-in failure, an update status): `"{action}: the request timed out. Check your
+/// internet connection and try again."`. The full cause goes to the log (redacted) for Copy
+/// Diagnostics; [`transport_failure`] says why it must not go in the message.
+pub fn request_failed(action: &str, error: &reqwest::Error) -> String {
+    request_failed_with(action, Transport::of(error), &error_chain(error))
+}
+
+/// [`request_failed`] for an error already taken apart: `detail` is only logged.
+pub fn request_failed_with(action: &str, transport: Transport, detail: &str) -> String {
+    crate::diagnostics::warn(&format!("{action}: {detail}"));
+    format!(
+        "{action}: {}. Check your internet connection and try again.",
+        transport_failure_of(transport)
+    )
+}
+
+/// `error` and every error under it, for the log and for telling a network failure apart from a
+/// bad request.
+pub(crate) fn error_chain(error: &reqwest::Error) -> String {
+    use std::error::Error;
+    let mut chain = error.to_string();
+    let mut current: Option<&(dyn Error + 'static)> = error.source();
+    while let Some(source) = current {
+        chain.push_str(&format!(" -> {source}"));
+        current = source.source();
+    }
+    chain
 }
 
 /// Largest provider body a refresh or a sign-in will keep. The shared client
@@ -764,5 +817,23 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(error, "OpenAI returned a response that is too large.");
+    }
+
+    /// A failed request's own text names the URL it was sent to; the sentence the person sees
+    /// must not, and must say what to do.
+    #[tokio::test]
+    async fn a_failed_request_becomes_a_sentence_without_the_address() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!(
+            "http://{}/releases?token=abc",
+            listener.local_addr().unwrap()
+        );
+        drop(listener);
+        let refused = http_client().get(&url).send().await.unwrap_err();
+        assert!(error_chain(&refused).contains("127.0.0.1"));
+        assert_eq!(
+            request_failed("Unable to check for updates", &refused),
+            "Unable to check for updates: the connection could not be made. Check your internet connection and try again."
+        );
     }
 }

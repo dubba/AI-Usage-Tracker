@@ -180,10 +180,12 @@ describe("GoogleAiStudioUsageModal", () => {
 
   it("shows a start failure in plain words and lets the user try again", async () => {
     render();
-    api.startGoogleAiStudioUsageLogin.mockRejectedValue(new Error("error sending request"));
+    api.startGoogleAiStudioUsageLogin.mockRejectedValue(new Error("TypeError: x is not iterable"));
     click(button("Sign In with Google"));
     await settle();
-    expect(errorText()).toBe("Couldn't start the Google Cloud connection. Check your internet connection and try again.");
+    expect(errorText()).toBe(
+      "Couldn't start the Google Cloud connection. Something unexpected went wrong. Try again. If it keeps happening, use Copy Diagnostics in Settings.",
+    );
     expect(button("Sign In with Google").disabled).toBe(false);
   });
 

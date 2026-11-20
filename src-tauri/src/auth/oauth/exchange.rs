@@ -50,17 +50,13 @@ impl ExchangeError {
         matches!(self, Self::Unreachable(_))
     }
 
-    /// A request that never got an answer. The message names the whole cause chain, so a failure
-    /// can be told apart from the user's side (no network, DNS, a firewall).
+    /// A request that never got an answer. The message is a plain sentence: it is shown in the app
+    /// and on the browser's callback page. The whole cause chain goes to the log, and decides
+    /// whether the failure is on the user's side (no network, DNS, a firewall).
     pub(super) fn from_send(prefix: &str, error: &reqwest::Error) -> Self {
-        use std::error::Error;
-        let mut message = format!("{prefix}: {error}");
-        let mut current: Option<&(dyn Error + 'static)> = error.source();
-        while let Some(source) = current {
-            message.push_str(&format!(" -> {source}"));
-            current = source.source();
-        }
-        if error.is_connect() || error.is_timeout() || looks_unreachable(&message) {
+        let chain = crate::providers::error_chain(error);
+        let message = crate::providers::request_failed(prefix, error);
+        if error.is_connect() || error.is_timeout() || looks_unreachable(&chain) {
             Self::Unreachable(message)
         } else {
             Self::Failed(message)

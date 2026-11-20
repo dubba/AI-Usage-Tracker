@@ -578,7 +578,9 @@ async fn fetch_email(app: &AppState, access_token: &str) -> Result<String, Strin
         .bearer_auth(access_token)
         .send()
         .await
-        .map_err(|error| format!("Google user-info request failed: {error}"))?;
+        .map_err(|error| {
+            crate::providers::request_failed("Google user-info request failed", &error)
+        })?;
     let status = response.status();
     let body = read_google_body(response).await?;
     if !status.is_success() {

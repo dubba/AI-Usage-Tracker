@@ -79,11 +79,11 @@ describe("ApiIntegrationWindow bearer token", () => {
 
   it("explains a failed token change in plain words", async () => {
     await open();
-    bridgeApi.regenerateToken.mockRejectedValue(new Error("error sending request"));
+    bridgeApi.regenerateToken.mockRejectedValue(new Error("TypeError: x is not iterable"));
     click(button("Regenerate"));
     await settle();
     expect(document.querySelector("[role=alert]")?.textContent).toBe(
-      "Couldn't generate a new token. Check your internet connection and try again.",
+      "Couldn't generate a new token. Something unexpected went wrong. Try again. If it keeps happening, use Copy Diagnostics in Settings.",
     );
   });
 });

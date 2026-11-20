@@ -79,12 +79,6 @@ describe("classifyError", () => {
     expect(classifyError("plugin:window|x not allowed by ACL for this command")).toBe("backend");
   });
 
-  it("recognizes connection problems", () => {
-    expect(classifyError("error sending request for url (https://example.test)")).toBe("network");
-    expect(classifyError("Failed to fetch")).toBe("network");
-    expect(classifyError("operation timed out")).toBe("network");
-    expect(classifyError("error trying to connect: dns error: failed to lookup address")).toBe("network");
-  });
 
   it("recognizes technical text", () => {
     expect(classifyError("TypeError: x is not iterable")).toBe("technical");
@@ -102,6 +96,8 @@ describe("classifyError", () => {
     expect(classifyError("The update download timed out. Check your connection and try again, or download the installer from the releases page.")).toBe("plain");
     expect(classifyError("Account refresh timed out.")).toBe("plain");
     expect(classifyError("Replacing credentials on this device is not allowed.")).toBe("plain");
+    // A failed request, as the backend words it (`providers::request_failed`).
+    expect(classifyError("Unable to check for updates: the connection could not be made. Check your internet connection and try again.")).toBe("plain");
   });
 });
 
@@ -115,10 +111,12 @@ describe("friendlyMessage", () => {
     expect(text).not.toContain("invoke");
   });
 
-  it("tells people to check their connection", () => {
-    expect(friendlyMessage("Couldn't refresh account", "error sending request")).toBe(
-      "Couldn't refresh account. Check your internet connection and try again.",
+  it("shows a command error with a code as written, whatever it looks like", () => {
+    const cause = { code: "pairing", message: "The other device answered with HTTP 502. Try again." };
+    expect(friendlyMessage("Couldn't pair", cause)).toBe(
+      "Couldn't pair: The other device answered with HTTP 502. Try again.",
     );
+    expect(friendlyMessage("Couldn't pair", { ...cause, code: "unclassified" })).toMatch(/^Couldn't pair\. Something unexpected/);
   });
 
   it("works without a context", () => {
@@ -142,11 +140,10 @@ describe("describeError", () => {
     expect(text).not.toMatch(/Error:/);
   });
 
-  it("replaces technical and network detail with a plain sentence", () => {
+  it("replaces technical detail with a plain sentence and keeps the backend's network sentence", () => {
     expect(describeError("s", "Couldn't load", new TypeError("TypeError: x is not a function"))).toMatch(/background service/);
-    expect(describeError("s", "Couldn't load", "error sending request for url")).toBe(
-      "Couldn't load. Check your internet connection and try again.",
-    );
+    const offline = "Profile request failed: the request timed out. Check your internet connection and try again.";
+    expect(describeError("s", "Couldn't load", { code: "unclassified", message: offline })).toBe(`Couldn't load: ${offline}`);
   });
 
   it("keeps the raw detail for Copy Diagnostics", () => {

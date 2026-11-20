@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { errorMessage, friendlyMessage } from "../../shared/lib/errors";
+import { friendlyMessage } from "../../shared/lib/errors";
 import type { Account } from "../../types";
 
 /**
@@ -41,7 +41,7 @@ export function useInlineAccountRename(account: Account, onRename: (label: strin
       setEditing(false);
       setRenameError(null);
     } catch (cause) {
-      setRenameError(friendlyMessage("Couldn't rename this account", errorMessage(cause)));
+      setRenameError(friendlyMessage("Couldn't rename this account", cause));
     } finally {
       committingRef.current = false;
     }

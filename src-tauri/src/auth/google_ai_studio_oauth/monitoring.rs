@@ -33,7 +33,9 @@ pub(super) async fn monitoring_enabled(
         .bearer_auth(access_token)
         .send()
         .await
-        .map_err(|error| format!("Unable to check Cloud Monitoring: {error}"))?;
+        .map_err(|error| {
+            crate::providers::request_failed("Unable to check Cloud Monitoring", &error)
+        })?;
     let status = response.status();
     let body = read_google_body(response).await?;
     if status == StatusCode::UNAUTHORIZED {
@@ -68,7 +70,9 @@ pub(super) async fn enable_monitoring(
         .json(&json!({}))
         .send()
         .await
-        .map_err(|error| format!("Unable to enable Cloud Monitoring: {error}"))?;
+        .map_err(|error| {
+            crate::providers::request_failed("Unable to enable Cloud Monitoring", &error)
+        })?;
     let status = response.status();
     let body = read_google_body(response).await?;
     if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
@@ -107,7 +111,12 @@ pub(super) async fn poll_operation(
             .bearer_auth(access_token)
             .send()
             .await
-            .map_err(|error| format!("Unable to check Cloud Monitoring enablement: {error}"))?;
+            .map_err(|error| {
+                crate::providers::request_failed(
+                    "Unable to check Cloud Monitoring enablement",
+                    &error,
+                )
+            })?;
         let status = response.status();
         let body = read_google_body(response).await?;
         if !status.is_success() {

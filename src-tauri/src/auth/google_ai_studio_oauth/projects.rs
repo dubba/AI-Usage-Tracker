@@ -85,10 +85,9 @@ pub(super) async fn list_projects(
         if let Some(token) = page_token.as_deref() {
             request = request.query(&[("pageToken", token)]);
         }
-        let response = request
-            .send()
-            .await
-            .map_err(|error| format!("Google Cloud project search failed: {error}"))?;
+        let response = request.send().await.map_err(|error| {
+            crate::providers::request_failed("Google Cloud project search failed", &error)
+        })?;
         let status = response.status();
         let body = read_google_body(response).await?;
         if status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN {
@@ -141,7 +140,9 @@ pub(super) async fn resolve_project_resource(
         .bearer_auth(access_token)
         .send()
         .await
-        .map_err(|error| format!("Google Cloud project lookup failed: {error}"))?;
+        .map_err(|error| {
+            crate::providers::request_failed("Google Cloud project lookup failed", &error)
+        })?;
     let status = response.status();
     let body = read_google_body(response).await?;
     if status == StatusCode::NOT_FOUND {

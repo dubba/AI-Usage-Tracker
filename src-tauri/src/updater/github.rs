@@ -229,7 +229,7 @@ pub(super) async fn fetch_github_latest_release(
         .header("Accept", "application/vnd.github+json")
         .send()
         .await
-        .map_err(|error| format!("Unable to check for updates: {error}"))?;
+        .map_err(|error| crate::providers::request_failed("Unable to check for updates", &error))?;
 
     let status = response.status();
     if github_latest_http_is_inaccessible(status) {
@@ -254,7 +254,7 @@ pub(super) async fn fetch_github_latest_release(
             }
         })?;
     let body = serde_json::from_str::<serde_json::Value>(&text)
-        .map_err(|error| format!("Unable to check for updates: {error}"))?;
+        .map_err(|_| "Unable to check for updates: GitHub's answer could not be read.")?;
     let json = if include_prereleases {
         newest_release_in_listing(&body, required_asset)
             .ok_or("Unable to check for updates: GitHub returned no matching releases.")?
