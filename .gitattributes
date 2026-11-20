@@ -2,6 +2,8 @@
 # line endings identical on every platform, including Windows CI checkouts.
 *.rs text eol=lf
 
-# The backend-samples fixture is compared byte for byte with generated JSON (type_contract.rs),
-# so a Windows checkout must not turn its line endings into CRLF.
+# The backend-samples fixture and generated TypeScript bindings are compared byte for byte
+# with generated output (type_contract.rs), so a Windows checkout must not turn their line
+# endings into CRLF.
 *.fixture.json text eol=lf
+src/types.generated.ts text eol=lf
