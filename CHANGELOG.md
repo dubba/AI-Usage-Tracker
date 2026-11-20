@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased (0 changes)
+## Unreleased (1 change)
+
+### Improved (1)
+
+- On phones, the Dashboard status bar now places the next-reset summary on a second line beneath the account status text and spells out "Next reset: ... in ..." like desktop so longer account names fit without clipping.
 
 ## v0.6.6 - 2026-11-20 (2 changes)
 

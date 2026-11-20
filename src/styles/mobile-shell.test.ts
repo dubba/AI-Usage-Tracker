@@ -117,4 +117,15 @@ describe("mobile shell clears the bottom bar", () => {
     expect(UI).toMatch(/\.app-shell\.has-top-bar\s+\.usage-alert-toast-container\s*\{[^}]*top:\s*calc\(81px \+ var\(--safe-area-top, 0px\)\);/);
     expect(UI).toMatch(/@keyframes\s+toastSlideIn\s*\{[\s\S]*?translateY\(-16px\)/);
   });
+
+  it("stacks the mobile summary strip into two lines with next reset on the second line", () => {
+    const mobileIndex = OBSIDIAN.indexOf("@media (max-width: 860px)");
+    expect(mobileIndex).toBeGreaterThan(-1);
+    const mobileCss = OBSIDIAN.slice(mobileIndex);
+    expect(mobileCss).toMatch(/\.summary-strip\s*\{[^}]*flex-direction:\s*column;[^}]*align-items:\s*stretch;/);
+    expect(mobileCss).toMatch(
+      /\.summary-strip\.has-attention\.is-filtering\s+\.summary-strip-toggle\s*\{[^}]*flex-direction:\s*column;[^}]*align-items:\s*stretch;/,
+    );
+    expect(mobileCss).toMatch(/\.next-reset-inline\s*\{[^}]*justify-content:\s*flex-start;[^}]*margin-left:\s*0;/);
+  });
 });

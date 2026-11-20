@@ -3429,7 +3429,9 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
   }
 
   .summary-strip {
-    gap: 8px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
     min-height: 36px;
     margin: 0 0 10px 0;
     padding: 7px 10px;
@@ -3446,7 +3448,9 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
   }
 
   .summary-strip.has-attention.is-filtering .summary-strip-toggle {
-    gap: 8px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
     min-height: 36px;
     padding: 7px 10px;
   }
@@ -3466,6 +3470,9 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
   }
 
   .next-reset-inline {
+    justify-content: flex-start;
+    width: 100%;
+    margin-left: 0;
     gap: 5px;
   }
 

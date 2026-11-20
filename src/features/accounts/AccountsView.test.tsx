@@ -273,7 +273,7 @@ describe("AccountsView summary status strip", () => {
     expect(strip?.querySelector(".summary-status-cluster > svg")).not.toBeNull();
   });
 
-  it("formats next reset inline for desktop and compactly for phone", () => {
+  it("formats next reset inline identically for desktop and phone", () => {
     const now = Date.now();
     vi.spyOn(Date, "now").mockReturnValue(now);
     const futureReset = new Date(now + (4 * 60 + 16) * 60_000).toISOString();
@@ -314,8 +314,11 @@ describe("AccountsView summary status strip", () => {
       selectedGroup: { ...allGroup, accounts: [withReset] },
     });
     const phoneNext = document.querySelector(".summary-strip .next-reset-inline")!;
-    expect(phoneNext.textContent).toContain("Next:");
-    expect(phoneNext.textContent).not.toContain("Next reset:");
+    expect(phoneNext.textContent).toContain("Next reset:");
+    expect(phoneNext.querySelector(".next-reset-limit")?.textContent).toBe("5H");
+    expect(phoneNext.querySelector(".next-reset-account")?.textContent).toBe("Claude");
+    expect(phoneNext.textContent).toContain("in");
+    expect(phoneNext.querySelector(".next-reset-pill")?.textContent).toBeTruthy();
 
     app.unmount();
     setNarrowWindow(false);

@@ -45,7 +45,7 @@ function dashboardDescription(group: SidebarGroup, accountCount: number): string
 }
 
 /** Time until the soonest reset. Updates itself with the shared clock, so the dashboard does not re-render for it. */
-function NextResetInline({ accounts, phone }: { accounts: Account[]; phone: boolean }) {
+function NextResetInline({ accounts }: { accounts: Account[] }) {
   const account = useClock((now) => nextResetSummary(accounts, now).account);
   // Which limit resets, not only whose: "7D Grok", "5H Claude", the limit styled like a card's "5-HOUR". Antigravity
   // and the Grok Bot limit add their model after it: "5H Gemini Antigravity", "7D Bot Grok".
@@ -65,10 +65,10 @@ function NextResetInline({ accounts, phone }: { accounts: Account[]; phone: bool
   }
   return (
     <div className="next-reset-inline">
-      <span className="next-reset-prefix">{phone ? "Next:" : "Next reset:"}</span>
+      <span className="next-reset-prefix">Next reset:</span>
       {badge ? <span className="next-reset-limit">{badge}</span> : null}
       <strong className="next-reset-account">{account}</strong>
-      {phone ? null : <span className="next-reset-prefix">in</span>}
+      <span className="next-reset-prefix">in</span>
       <span className="next-reset-pill">{value}</span>
     </div>
   );
@@ -309,7 +309,7 @@ export function AccountsView(props: {
                     <span className="summary-status-text">Attention needed</span>
                     <span className="summary-attention-count">{needsAttention}</span>
                   </span>
-                  <NextResetInline accounts={props.accounts} phone={phone} />
+                  <NextResetInline accounts={props.accounts} />
                   <span id={ATTENTION_HINT_ID} className="sr-only">
                     Currently showing only accounts needing attention. Activate to show all accounts.
                   </span>
@@ -340,7 +340,7 @@ export function AccountsView(props: {
                   <span className="summary-status-text">Attention needed</span>
                   <span className="summary-attention-count">{needsAttention}</span>
                 </span>
-                <NextResetInline accounts={props.accounts} phone={phone} />
+                <NextResetInline accounts={props.accounts} />
                 <span id={ATTENTION_HINT_ID} className="sr-only">
                   Activate to show only accounts needing attention.
                 </span>
@@ -372,7 +372,7 @@ export function AccountsView(props: {
                   </>
                 )}
               </span>
-              <NextResetInline accounts={props.accounts} phone={phone} />
+              <NextResetInline accounts={props.accounts} />
             </div>
           )}
         </section>
