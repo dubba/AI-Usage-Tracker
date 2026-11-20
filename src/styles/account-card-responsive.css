@@ -1061,17 +1061,21 @@
   white-space: nowrap;
 }
 
-/* Saved limit resets, under the meters: one tinted row per reset (the first only, until "N more"
-   is pressed). The block is rendered only when the account has one. The same rules apply on a
-   phone and a wide window. */
+/* Saved limit resets, anchored to the bottom of the card as a black band behind a full-width
+   separator (the first only, until "N more" is pressed). The block is rendered only when the
+   account has one. The same rules apply on a phone and a wide window. */
 .provider-account-card .limit-resets-section {
-  margin: 4px 20px 18px;
+  margin: 0;
+  padding: 12px 20px 14px;
+  border-top: 1px solid var(--obsidian-border);
+  border-radius: 0 0 13px 13px;
+  background: var(--obsidian-canvas);
 }
 
 .provider-account-card .limit-resets {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1081,12 +1085,11 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  min-height: 52px;
-  padding: 9px 10px 9px 10px;
-  /* The same near-black box and border as the Current Version box in Settings. */
-  border: 1px solid var(--c-2d2c2c);
-  border-radius: 12px;
-  background: var(--c-141313);
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .provider-account-card .limit-reset-icon {
@@ -1163,8 +1166,8 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 12px;
-  margin-top: 6px;
-  padding: 0 2px;
+  margin-top: 8px;
+  padding: 0;
 }
 
 .provider-account-card .limit-resets-more {
@@ -1825,11 +1828,10 @@
     margin: 4px 0;
   }
 
-  /* Same side edges as the meters above (their margin in this block). */
+  /* Same side inset as the header and meters above (14px). */
   .provider-account-card .limit-resets-section {
-    margin-right: 14px;
-    margin-bottom: 16px;
-    margin-left: 14px;
+    margin: 0;
+    padding: 12px 14px;
   }
 
   /* Mobile has no hover, so Use starts filled with the desktop hover purple. */

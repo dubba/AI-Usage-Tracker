@@ -128,4 +128,9 @@ describe("mobile shell clears the bottom bar", () => {
     );
     expect(mobileCss).toMatch(/\.next-reset-inline\s*\{[^}]*justify-content:\s*flex-start;[^}]*margin-left:\s*0;/);
   });
+
+  it("splits low-limit summary strips into two shaded rows with a divider", () => {
+    expect(OBSIDIAN).toMatch(/\.summary-strip\.is-low-warning,\s*\.summary-strip\.is-low-critical\s*\{[^}]*flex-direction:\s*column;[^}]*gap:\s*0;[^}]*padding:\s*0;/);
+    expect(OBSIDIAN).toMatch(/\.summary-strip\.is-low-warning\s+\.next-reset-inline,\s*\.summary-strip\.is-low-critical\s+\.next-reset-inline\s*\{[^}]*border-top:\s*1px solid var\(--obsidian-border\);[^}]*background:\s*var\(--obsidian-surface-container\);/);
+  });
 });

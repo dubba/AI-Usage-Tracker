@@ -237,7 +237,7 @@
     }
   }
 
-  /* No accounts yet: the same small box as the Dashboard's "All accounts good" bar (.summary-strip in
+  /* No accounts yet: the same small box as the Dashboard's "All accounts are healthy" bar (.summary-strip in
      obsidian-dashboard.css), holding the purple icon and the text, with the Connect card under it.
      The margins match .activity-legend, which already lines up with that bar. */
   .activity-empty {

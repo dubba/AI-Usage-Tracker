@@ -961,7 +961,7 @@ button.button.ghost.empty-provider-other:active:not(:disabled) {
   justify-content: space-between;
   gap: 12px;
   min-height: 40px;
-  margin: 18px 0;
+  margin: 8px 0 18px;
   padding: 8px 14px;
   border: 1px solid var(--obsidian-border);
   border-radius: 8px;
@@ -1150,6 +1150,60 @@ button.summary-strip:focus-visible {
   flex-shrink: 0;
 }
 
+.summary-strip.is-low-warning,
+.summary-strip.is-low-critical {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+}
+
+.summary-strip.is-low-warning .summary-status-cluster,
+.summary-strip.is-low-critical .summary-status-cluster {
+  flex-shrink: 1;
+  flex-wrap: wrap;
+  row-gap: 4px;
+  min-height: 40px;
+  padding: 8px 14px;
+  box-sizing: border-box;
+}
+
+.summary-strip.is-low-warning .next-reset-inline,
+.summary-strip.is-low-critical .next-reset-inline {
+  justify-content: flex-start;
+  width: 100%;
+  margin-left: 0;
+  padding: 6px 14px;
+  border-top: 1px solid var(--obsidian-border);
+  border-radius: 0 0 7px 7px;
+  background: var(--obsidian-surface-container);
+  box-sizing: border-box;
+}
+
+.summary-low-limits {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.summary-low-limit-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.summary-low-limit-sep {
+  color: var(--obsidian-muted);
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1;
+  user-select: none;
+}
+
 .summary-status-dot {
   width: 7px;
   height: 7px;
@@ -1199,6 +1253,11 @@ button.summary-strip:focus-visible {
   color: var(--tone-critical-text);
 }
 
+.summary-strip.is-low-warning .summary-status-text,
+.summary-strip.is-low-critical .summary-status-text {
+  white-space: normal;
+}
+
 .summary-attention-count {
   display: inline-flex;
   align-items: center;
@@ -1225,7 +1284,7 @@ button.summary-strip:focus-visible {
 
 .next-reset-prefix {
   color: var(--obsidian-muted);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
   flex-shrink: 0;
@@ -1253,7 +1312,7 @@ button.summary-strip:focus-visible {
   overflow: hidden;
   min-width: 0;
   color: var(--c-f3f0ef);
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.25;
   font-weight: 650;
   white-space: nowrap;
@@ -3447,6 +3506,23 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
     padding: 0;
   }
 
+  .summary-strip.is-low-warning,
+  .summary-strip.is-low-critical {
+    gap: 0;
+    padding: 0;
+  }
+
+  .summary-strip.is-low-warning .summary-status-cluster,
+  .summary-strip.is-low-critical .summary-status-cluster {
+    min-height: 36px;
+    padding: 7px 10px;
+  }
+
+  .summary-strip.is-low-warning .next-reset-inline,
+  .summary-strip.is-low-critical .next-reset-inline {
+    padding: 5px 10px;
+  }
+
   .summary-strip.has-attention.is-filtering .summary-strip-toggle {
     flex-direction: column;
     align-items: stretch;
@@ -3465,6 +3541,14 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
     gap: 6px;
   }
 
+  .summary-low-limits {
+    gap: 5px;
+  }
+
+  .summary-low-limit-item {
+    gap: 4px;
+  }
+
   .summary-status-text {
     font-size: 12px;
   }
@@ -3478,7 +3562,7 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
 
   .next-reset-prefix,
   .next-reset-account {
-    font-size: 11.5px;
+    font-size: 12px;
   }
 
   .next-reset-limit {

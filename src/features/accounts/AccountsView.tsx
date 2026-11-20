@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { type BusyKeys } from "../../shared/lib/busy";
 import { useReorderHint } from "./useReorderHint";
 import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
@@ -17,12 +17,13 @@ import {
   UsersIcon,
 } from "../../shared/ui/icons";
 import { DASHBOARD_EMPTY_ACCOUNT_DESCRIPTION, EmptyAccountPanel } from "./EmptyAccountPanel";
-import { accountNeedsAttention, lowLimitSummary, nextResetSummary } from "../../shared/lib/usage-logic";
+import { accountNeedsAttention, lowLimitEntries, lowLimitSummary, nextResetSummary } from "../../shared/lib/usage-logic";
 import { groupFilterLabel, type SidebarGroup } from "../sidebar/sidebar-groups";
 import type {
   Account,
   AccountBucket,
   Provider,
+  UsageWindow,
 } from "../../types";
 import { persistVisibleAccountOrder } from "../reorder";
 import { moveAnnouncement, moveById } from "../reorder/reorder-utils";
@@ -35,7 +36,6 @@ import { useCanPullRefreshEnvironment, usePullRefreshHint } from "../dashboard/u
 import { PullToRefreshIndicator } from "../dashboard/PullToRefreshIndicator";
 
 const ATTENTION_HINT_ID = "attention-filter-hint";
-const LOW_LIMIT_FORMS = { one: "low limit", other: "low limits" };
 
 function dashboardDescription(group: SidebarGroup, accountCount: number): string {
   const count = formatCount(accountCount, ACCOUNT_FORMS);
@@ -44,18 +44,35 @@ function dashboardDescription(group: SidebarGroup, accountCount: number): string
   return "Monitor 5-hour & 7-day limits and reset times across all your AI subscriptions.";
 }
 
+function healthyStatusText(count: number): string {
+  return count === 1 ? "1 account is healthy" : `All ${count} accounts are healthy`;
+}
+
+function lowLimitStatusText(totalAccounts: number, lowLimitCount: number): string {
+  const healthyCount = Math.max(0, totalAccounts - lowLimitCount);
+  return `${healthyCount} healthy & ${lowLimitCount} low limit:`;
+}
+
+function formatLimitBadge(
+  limit: string | null,
+  provider: Provider | null,
+  window: UsageWindow | null,
+): string {
+  const shortLimit = limit?.replace("-hour", "H").replace("-day", "D") ?? "";
+  const model = nextResetModelLabel(provider, window);
+  return [shortLimit, model].filter(Boolean).join(" ");
+}
+
 /** Time until the soonest reset. Updates itself with the shared clock, so the dashboard does not re-render for it. */
 function NextResetInline({ accounts }: { accounts: Account[] }) {
   const account = useClock((now) => nextResetSummary(accounts, now).account);
   // Which limit resets, not only whose: "7D Grok", "5H Claude", the limit styled like a card's "5-HOUR". Antigravity
   // and the Grok Bot limit add their model after it: "5H Gemini Antigravity", "7D Bot Grok".
-  const limit = useClock((now) => nextResetSummary(accounts, now).limit?.replace("-hour", "H").replace("-day", "D") ?? null);
-  const model = useClock((now) => {
+  const badge = useClock((now) => {
     const next = nextResetSummary(accounts, now);
-    return nextResetModelLabel(next.provider, next.window);
+    return formatLimitBadge(next.limit, next.provider, next.window);
   });
   const value = useClock((now) => nextResetSummary(accounts, now).value);
-  const badge = [limit, model].filter(Boolean).join(" ");
   if (!account) {
     return (
       <div className="next-reset-inline">
@@ -115,6 +132,22 @@ export function AccountsView(props: {
   const needsAttention = useMemo(() => props.accounts.filter(accountNeedsAttention).length, [props.accounts]);
   const lowLimitCount = useClock((now) => (needsAttention > 0 ? 0 : lowLimitSummary(props.accounts, now).count));
   const lowLimitLevel = useClock((now) => (needsAttention > 0 ? null : lowLimitSummary(props.accounts, now).level));
+  const lowLimitKey = useClock((now) => {
+    if (needsAttention > 0) return "";
+    const entries = lowLimitEntries(props.accounts, now);
+    if (entries.length === 0) return "";
+    return JSON.stringify(
+      entries.map((entry) => ({
+        accountId: entry.accountId,
+        badge: formatLimitBadge(entry.limit, entry.provider, entry.window),
+        account: entry.account,
+      })),
+    );
+  });
+  const lowLimits = useMemo(
+    () => (lowLimitKey ? (JSON.parse(lowLimitKey) as Array<{ accountId: string; badge: string; account: string }>) : []),
+    [lowLimitKey],
+  );
 
   useEffect(() => {
     if (showAttentionOnly && needsAttention === 0) {
@@ -367,8 +400,23 @@ export function AccountsView(props: {
                   <>
                     <span className="summary-status-dot" aria-hidden="true" />
                     <span className="summary-status-text">
-                      {lowLimitCount > 0 ? formatCount(lowLimitCount, LOW_LIMIT_FORMS) : "All accounts good"}
+                      {lowLimitCount > 0 ? lowLimitStatusText(props.accounts.length, lowLimitCount) : healthyStatusText(props.accounts.length)}
                     </span>
+                    {lowLimits.length > 0 ? (
+                      <span className="summary-low-limits">
+                        {lowLimits.map((item, index) => (
+                          <Fragment key={item.accountId}>
+                            {index > 0 ? (
+                              <span className="summary-low-limit-sep" aria-hidden="true">·</span>
+                            ) : null}
+                            <span className="summary-low-limit-item">
+                              {item.badge ? <span className="next-reset-limit">{item.badge}</span> : null}
+                              <strong className="next-reset-account">{item.account}</strong>
+                            </span>
+                          </Fragment>
+                        ))}
+                      </span>
+                    ) : null}
                   </>
                 )}
               </span>

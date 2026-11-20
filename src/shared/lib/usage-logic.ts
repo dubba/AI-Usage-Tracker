@@ -218,6 +218,34 @@ export type LowLimitSummary = {
   level: LowLimitLevel | null;
 };
 
+export type LowLimitEntry = {
+  accountId: string;
+  account: string;
+  provider: Provider;
+  window: UsageWindow;
+  limit: string | null;
+  level: LowLimitLevel;
+  remainingPercent: number;
+};
+
+function accountLowestLowWindow(
+  account: Account,
+  now: number,
+): { window: UsageWindow; level: LowLimitLevel; remainingPercent: number } | null {
+  let best: { window: UsageWindow; level: LowLimitLevel; remainingPercent: number } | null = null;
+  for (const window of account.lastUsage?.windows ?? []) {
+    if (isWindowExpired(window.resetsAt, now)) continue;
+    if (window.remainingPercent == null || !Number.isFinite(window.remainingPercent)) continue;
+    const tone = usageTone(window.remainingPercent);
+    if (tone !== "critical" && tone !== "warning") continue;
+    const level: LowLimitLevel = tone;
+    if (!best || window.remainingPercent < best.remainingPercent) {
+      best = { window, level, remainingPercent: window.remainingPercent };
+    }
+  }
+  return best;
+}
+
 /**
  * Counts accounts with at least one active (unexpired) window at or below the
  * warning (30%) or critical (15%) thresholds. Critical outranks warning.
@@ -226,28 +254,38 @@ export function lowLimitSummary(accounts: Account[], now: number = Date.now()): 
   let count = 0;
   let hasCritical = false;
   for (const account of accounts) {
-    let accountLevel: LowLimitLevel | null = null;
-    for (const window of account.lastUsage?.windows ?? []) {
-      if (isWindowExpired(window.resetsAt, now)) continue;
-      if (window.remainingPercent == null || !Number.isFinite(window.remainingPercent)) continue;
-      const tone = usageTone(window.remainingPercent);
-      if (tone === "critical") {
-        accountLevel = "critical";
-        break;
-      }
-      if (tone === "warning") {
-        accountLevel = "warning";
-      }
-    }
-    if (accountLevel) {
-      count += 1;
-      if (accountLevel === "critical") hasCritical = true;
-    }
+    const low = accountLowestLowWindow(account, now);
+    if (!low) continue;
+    count += 1;
+    if (low.level === "critical") hasCritical = true;
   }
   return {
     count,
     level: count === 0 ? null : hasCritical ? "critical" : "warning",
   };
+}
+
+/**
+ * One entry per account with an active low limit (<= 30%), picking its lowest-remaining
+ * window and ordered from lowest remaining percent upward.
+ */
+export function lowLimitEntries(accounts: Account[], now: number = Date.now()): LowLimitEntry[] {
+  const entries: LowLimitEntry[] = [];
+  for (const account of accounts) {
+    const low = accountLowestLowWindow(account, now);
+    if (!low) continue;
+    entries.push({
+      accountId: account.id,
+      account: account.label,
+      provider: account.provider,
+      window: low.window,
+      limit: windowLimitName(low.window),
+      level: low.level,
+      remainingPercent: low.remainingPercent,
+    });
+  }
+  entries.sort((left, right) => left.remainingPercent - right.remainingPercent);
+  return entries;
 }
 export function orderedWindows(windows: UsageWindow[]): UsageWindow[] {
   const groupOrder: string[] = [];

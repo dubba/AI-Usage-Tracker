@@ -910,9 +910,10 @@ html[data-sidebar-toggle-stacked] .provider-window-toggle button:last-child[data
   .obsidian-shell .dashboard-scroll {
     /* Always keep the 6px classic track, plus --scrollbar-gap so cards do not
        sit on the bar. Both are reserved even when content fits, so Settings
-       and All Accounts cards do not jump when overflow starts. */
+       and All Accounts cards do not jump when overflow starts. 10px top/bottom
+       padding matches the Usage page (.activity-content .dashboard-scroll). */
     overflow-y: scroll;
-    padding: 0 var(--scrollbar-gap) 0 0;
+    padding: 10px var(--scrollbar-gap) 10px 0;
   }
 
   /* Settings is one centered 720px column (settings-layout.css). The scroller is only as wide as

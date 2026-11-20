@@ -248,7 +248,7 @@ describe("AccountsView summary status strip", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders a non-interactive status bar with 'All accounts good' and 'No upcoming reset' when healthy", () => {
+  it("renders a non-interactive status bar with the healthy account count and 'No upcoming reset' when healthy", () => {
     app = renderView({
       allAccounts: [healthyAccount],
       accounts: [healthyAccount],
@@ -259,9 +259,25 @@ describe("AccountsView summary status strip", () => {
     expect(strip).not.toBeNull();
     expect(strip?.tagName).toBe("DIV");
     expect(strip?.classList.contains("has-attention")).toBe(false);
-    expect(strip?.querySelector(".summary-status-text")?.textContent).toBe("All accounts good");
+    expect(strip?.querySelector(".summary-status-text")?.textContent).toBe("1 account is healthy");
     expect(strip?.querySelector(".summary-attention-count")).toBeNull();
     expect(strip?.querySelector(".next-reset-inline")?.textContent).toBe("No upcoming reset");
+
+    app.unmount();
+    const fourHealthy = [
+      healthyAccount,
+      { ...healthyAccount, id: "acct-healthy-2" },
+      { ...healthyAccount, id: "acct-healthy-3" },
+      { ...healthyAccount, id: "acct-healthy-4" },
+    ];
+    app = renderView({
+      allAccounts: fourHealthy,
+      accounts: fourHealthy,
+      selectedGroup: { ...allGroup, accounts: fourHealthy },
+    });
+    expect(document.querySelector("div.summary-strip .summary-status-text")?.textContent).toBe(
+      "All 4 accounts are healthy",
+    );
   });
 
   it("says 'No accounts yet' with an icon in the status bar when there are no accounts", () => {
@@ -470,10 +486,34 @@ describe("AccountsView summary status strip", () => {
     expect(strip.classList.contains("has-attention")).toBe(false);
     expect(strip.classList.contains("is-low-warning")).toBe(true);
     expect(strip.classList.contains("is-low-critical")).toBe(false);
-    expect(strip.querySelector(".summary-status-text")?.textContent).toBe("1 low limit");
+    expect(strip.querySelector(".summary-status-text")?.textContent).toBe("0 healthy & 1 low limit:");
+    let lowItems = [...strip.querySelectorAll(".summary-low-limit-item")];
+    expect(lowItems).toHaveLength(1);
+    expect(lowItems[0]?.querySelector(".next-reset-limit")?.textContent).toBe("5H");
+    expect(lowItems[0]?.querySelector(".next-reset-account")?.textContent).toBe("Codex");
+    expect(strip.querySelectorAll(".summary-low-limit-sep")).toHaveLength(0);
 
     app.unmount();
-    const redAccount = makeLiveWithRemaining("acct-red", "Claude123", 10);
+    const redAccount: Account = {
+      ...healthyAccount,
+      id: "acct-red",
+      label: "Claude",
+      provider: "anthropic",
+      lastUsage: {
+        ...healthyAccount.lastUsage!,
+        windows: [
+          {
+            id: "weekly",
+            kind: "weekly",
+            label: "7-day",
+            usedPercent: 90,
+            remainingPercent: 10,
+            resetsAt: futureReset,
+            windowSeconds: 604_800,
+          },
+        ],
+      },
+    };
     app = renderView({
       allAccounts: [amberAccount, redAccount],
       accounts: [amberAccount, redAccount],
@@ -482,7 +522,43 @@ describe("AccountsView summary status strip", () => {
     strip = document.querySelector<HTMLDivElement>("div.summary-strip")!;
     expect(strip.classList.contains("has-attention")).toBe(false);
     expect(strip.classList.contains("is-low-critical")).toBe(true);
-    expect(strip.querySelector(".summary-status-text")?.textContent).toBe("2 low limits");
+    expect(strip.querySelector(".summary-status-text")?.textContent).toBe("0 healthy & 2 low limit:");
+    lowItems = [...strip.querySelectorAll(".summary-low-limit-item")];
+    expect(lowItems).toHaveLength(2);
+    expect(lowItems[0]?.querySelector(".next-reset-limit")?.textContent).toBe("7D");
+    expect(lowItems[0]?.querySelector(".next-reset-account")?.textContent).toBe("Claude");
+    expect(lowItems[1]?.querySelector(".next-reset-limit")?.textContent).toBe("5H");
+    expect(lowItems[1]?.querySelector(".next-reset-account")?.textContent).toBe("Codex");
+    expect(strip.querySelector(".summary-low-limits")?.textContent).toBe("7DClaude·5HCodex");
+    expect([...strip.querySelectorAll(".summary-low-limit-sep")].map((el) => el.textContent)).toEqual(["·"]);
+
+    // Includes healthy accounts in the status text when some accounts are above the threshold.
+    app.unmount();
+    const healthyPlusLow = [
+      healthyAccount,
+      { ...healthyAccount, id: "acct-h2" },
+      { ...healthyAccount, id: "acct-h3" },
+      amberAccount,
+    ];
+    app = renderView({
+      allAccounts: healthyPlusLow,
+      accounts: healthyPlusLow,
+      selectedGroup: { ...allGroup, accounts: healthyPlusLow },
+    });
+    strip = document.querySelector<HTMLDivElement>("div.summary-strip")!;
+    expect(strip.classList.contains("is-low-warning")).toBe(true);
+    expect(strip.querySelector(".summary-status-text")?.textContent).toBe("3 healthy & 1 low limit:");
+
+    app.unmount();
+    const twoHealthyTwoLow = [healthyAccount, { ...healthyAccount, id: "acct-h2" }, amberAccount, redAccount];
+    app = renderView({
+      allAccounts: twoHealthyTwoLow,
+      accounts: twoHealthyTwoLow,
+      selectedGroup: { ...allGroup, accounts: twoHealthyTwoLow },
+    });
+    expect(document.querySelector("div.summary-strip .summary-status-text")?.textContent).toBe(
+      "2 healthy & 2 low limit:",
+    );
 
     // Attention needed stays higher priority when another account needs sign-in.
     app.unmount();

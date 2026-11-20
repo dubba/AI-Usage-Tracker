@@ -7,6 +7,7 @@ import {
   grokBotAverage,
   cardWindows,
   isWindowExpired,
+  lowLimitEntries,
   lowLimitSummary,
   nextResetSummary,
   windowLimitName,
@@ -172,6 +173,68 @@ describe("lowLimitSummary", () => {
       }),
     });
     expect(lowLimitSummary([expired], NOW)).toEqual({ count: 0, level: null });
+  });
+});
+
+describe("lowLimitEntries", () => {
+  it("picks each affected account's lowest active low window and orders lowest remaining first", () => {
+    const healthy = account({
+      id: "h",
+      label: "Healthy",
+      lastUsage: usage({ windows: [win({ remainingPercent: 50 })] }),
+    });
+    const warning = account({
+      id: "w",
+      label: "Codex",
+      provider: "openai",
+      lastUsage: usage({
+        windows: [
+          win({ id: "five_hour", remainingPercent: 25 }),
+          win({ id: "weekly", remainingPercent: 20 }),
+        ],
+      }),
+    });
+    const critical = account({
+      id: "c",
+      label: "Claude",
+      provider: "anthropic",
+      lastUsage: usage({
+        windows: [
+          win({ id: "five_hour", remainingPercent: 10 }),
+          win({ id: "weekly", remainingPercent: 25 }),
+        ],
+      }),
+    });
+
+    expect(lowLimitEntries([healthy, warning, critical], NOW)).toEqual([
+      {
+        accountId: "c",
+        account: "Claude",
+        provider: "anthropic",
+        window: critical.lastUsage!.windows[0],
+        limit: "5-hour",
+        level: "critical",
+        remainingPercent: 10,
+      },
+      {
+        accountId: "w",
+        account: "Codex",
+        provider: "openai",
+        window: warning.lastUsage!.windows[1],
+        limit: "7-day",
+        level: "warning",
+        remainingPercent: 20,
+      },
+    ]);
+  });
+
+  it("ignores expired low windows", () => {
+    const expired = account({
+      lastUsage: usage({
+        windows: [win({ remainingPercent: 5, resetsAt: new Date(NOW - MINUTE).toISOString() })],
+      }),
+    });
+    expect(lowLimitEntries([expired], NOW)).toEqual([]);
   });
 });
 

@@ -207,4 +207,10 @@ describe("Button hover and active state invariants", () => {
       /@media\s*\(max-width:\s*860px\)\s*\{[\s\S]*?\.provider-account-card\s+\.limit-reset-use\.button\s*\{[^}]*background:\s*var\(--purple-fill\);\s*border-color:\s*var\(--purple-fill\);\s*color:\s*var\(--white\);/,
     );
   });
+
+  it("styles limit resets as a full-width black footer band with a top separator", () => {
+    expect(CARD_RESPONSIVE_CSS).toMatch(
+      /\.provider-account-card\s+\.limit-resets-section\s*\{[^}]*margin:\s*0;[^}]*border-top:\s*1px solid var\(--obsidian-border\);[^}]*background:\s*var\(--obsidian-canvas\);/,
+    );
+  });
 });

@@ -1,10 +1,14 @@
 # Changelog
 
-## Unreleased (1 change)
+## Unreleased (5 changes)
 
-### Improved (1)
+### Improved (5)
 
 - On phones, the Dashboard status bar now places the next-reset summary on a second line beneath the account status text and spells out "Next reset: ... in ..." like desktop so longer account names fit without clipping.
+- Aligned the top spacing of the Dashboard status bar with the Usage page.
+- When all accounts are healthy, the Dashboard status bar now includes the account count (for example, "All 4 accounts are healthy" or "1 account is healthy").
+- When one or more accounts have a low limit, the Dashboard status bar now shows `<healthy> healthy & <low> low limit:` alongside each affected limit badge and account name above a shaded `Next reset:` row with matching text sizing across both rows.
+- Saved limit resets at the bottom of account cards now appear in a full-width dark footer section separated by a top border.
 
 ## v0.6.6 - 2026-11-20 (2 changes)
 
