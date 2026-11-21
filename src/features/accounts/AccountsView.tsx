@@ -420,7 +420,7 @@ export function AccountsView(props: {
                   </>
                 )}
               </span>
-              <NextResetInline accounts={props.accounts} />
+              {props.accounts.length > 0 ? <NextResetInline accounts={props.accounts} /> : null}
             </div>
           )}
         </section>

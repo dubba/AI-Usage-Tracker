@@ -13,14 +13,6 @@
     align-items: center;
   }
 
-  /* A tooltip's z-index lives inside this control once it is its own stacking context. Lift the
-     whole control while a tooltip is open so the tip still paints over the page under it. */
-  .segmented:has([data-tooltip]:hover),
-  .segmented:has([data-tooltip]:focus-visible),
-  .segmented:has([data-tooltip-active]) {
-    z-index: var(--z-tooltip, 1100);
-  }
-
   .segmented::before {
     content: "";
     position: absolute;

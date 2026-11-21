@@ -26,12 +26,12 @@ const BUDGET: Record<string, { important: number; rawColors: number }> = {
   "styles/base.css": { important: 4, rawColors: 0 },
   "styles/dashboard-reorder.css": { important: 19, rawColors: 3 },
   "styles/modal-close.css": { important: 9, rawColors: 0 },
-  "styles/obsidian-dashboard.css": { important: 165, rawColors: 10 },
+  "styles/obsidian-dashboard.css": { important: 161, rawColors: 10 },
   "styles/shell-patches.css": { important: 9, rawColors: 0 },
   "styles/sidebar-list.css": { important: 21, rawColors: 0 },
   "styles/theme-palette.css": { important: 0, rawColors: 0 },
   "styles/tokens.css": { important: 0, rawColors: 0 },
-  "styles/ui-refinements.css": { important: 245, rawColors: 12 },
+  "styles/ui-refinements.css": { important: 233, rawColors: 11 },
 };
 
 const TOKEN_FILES = new Set(["styles/tokens.css", "styles/theme-palette.css"]);

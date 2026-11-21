@@ -206,19 +206,6 @@
     border-radius: 6px;
   }
 
-  /* Header action buttons sit near the right edge, so anchor their tooltips to their right edges
-     to keep them inside the viewport and preserve the group tooltip's line break. */
-  .dashboard-header-actions .provider-window-toggle.is-mobile-header button[data-tooltip]::after,
-  .dashboard-header-actions .sidebar-section-button[data-tooltip]::after {
-    left: auto;
-    right: 0;
-    transform: none;
-    width: max-content;
-    max-width: min(320px, calc(100vw - 32px));
-    white-space: pre-line;
-    text-align: left;
-  }
-
   .dashboard-header-actions .sidebar-section-button svg {
     width: 20px;
     height: 20px;
@@ -614,18 +601,6 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-summary-row .s
   border-color: var(--purple-fill);
   background: var(--purple-fill);
   color: var(--white);
-}
-
-.provider-summary-row .sidebar-group-edit-btn[data-tooltip]::after {
-  top: calc(100% + 6px);
-  left: auto;
-  right: 0;
-  transform: none;
-}
-
-.provider-summary-row:has(.sidebar-group-edit-btn:hover),
-.provider-summary-row:has(.sidebar-group-edit-btn:focus-visible) {
-  z-index: 3;
 }
 
 .sidebar-group-empty {

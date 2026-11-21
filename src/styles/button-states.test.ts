@@ -1,17 +1,27 @@
 /// <reference types="node" />
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join, relative, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const STYLES = __dirname;
+const SRC = join(STYLES, "..");
 const OBSIDIAN_CSS = readFileSync(join(STYLES, "obsidian-dashboard.css"), "utf8");
 const MODAL_CLOSE_CSS = readFileSync(join(STYLES, "modal-close.css"), "utf8");
 const UI_REFINEMENTS_CSS = readFileSync(join(STYLES, "ui-refinements.css"), "utf8");
 const CARD_RESPONSIVE_CSS = readFileSync(join(STYLES, "account-card-responsive.css"), "utf8");
 const TOP_BAR_CSS = readFileSync(join(STYLES, "../app/top-bar.css"), "utf8");
 const SIDEBAR_LIST_CSS = readFileSync(join(STYLES, "sidebar-list.css"), "utf8");
-const ACTIVITY_CSS = readFileSync(join(STYLES, "../features/activity/activity.css"), "utf8");
 const PAIRING_CSS = readFileSync(join(STYLES, "../features/pairing/pairing.css"), "utf8");
+const TOKENS_CSS = readFileSync(join(STYLES, "tokens.css"), "utf8");
+const TOOLTIP_LAYER_CSS = readFileSync(join(STYLES, "../shared/ui/tooltip-layer.css"), "utf8");
+
+function allCssFiles(dir: string): string[] {
+  return readdirSync(dir).flatMap((name: string) => {
+    const path = join(dir, name);
+    if (statSync(path).isDirectory()) return allCssFiles(path);
+    return path.endsWith(".css") ? [path] : [];
+  });
+}
 
 describe("Button hover and active state invariants", () => {
   it("excludes the green update button and other custom buttons from generic button:hover override", () => {
@@ -80,9 +90,27 @@ describe("Button hover and active state invariants", () => {
     expect(OBSIDIAN_CSS).toContain("border-color: var(--obsidian-amber)");
   });
 
-  it("anchors L / U tooltips to the left edge when stacked on a second line", () => {
-    expect(UI_REFINEMENTS_CSS).toContain("html[data-sidebar-toggle-stacked] .provider-window-toggle button[data-tooltip]::after");
-    expect(UI_REFINEMENTS_CSS).toContain("html[data-sidebar-toggle-stacked] .provider-window-toggle button:last-child[data-tooltip]::after");
+  it("renders tooltips exclusively through the top-level portal above every UI layer, never as ::after pseudo-elements", () => {
+    const offenders = allCssFiles(SRC).flatMap((file) => {
+      const css = readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+      if (/data-tooltip[^\n{]*::after/.test(css)) {
+        return [relative(SRC, file).split(sep).join("/")];
+      }
+      return [];
+    });
+    expect(offenders).toEqual([]);
+    expect(TOOLTIP_LAYER_CSS).toMatch(/\.app-tooltip\s*\{[^}]*position:\s*fixed;[^}]*z-index:\s*var\(--z-tooltip\);/);
+
+    const zValue = (token: string) => {
+      const match = TOKENS_CSS.match(new RegExp(`--z-${token}:\\s*(\\d+);`));
+      expect(match, `--z-${token} must be defined in tokens.css`).not.toBeNull();
+      return Number(match![1]);
+    };
+    const tooltipZ = zValue("tooltip");
+    expect(tooltipZ).toBeGreaterThan(zValue("dropdown"));
+    expect(tooltipZ).toBeGreaterThan(zValue("modal"));
+    expect(tooltipZ).toBeGreaterThan(zValue("toast"));
+    expect(tooltipZ).toBeGreaterThan(zValue("error-banner"));
   });
 
   it("keeps the group title pen and delete button at the account-card size without stretching the title row", () => {
@@ -96,40 +124,14 @@ describe("Button hover and active state invariants", () => {
     );
   });
 
-  it("right-aligns tooltips for all buttons in left/used and 7d/30d segmented switches", () => {
-    expect(TOP_BAR_CSS).toMatch(/\.top-bar-segmented\s+button\[data-tooltip\]::after\s*\{[^}]*right:\s*2px/);
-    expect(ACTIVITY_CSS).toMatch(/\.activity-period-switch\s+button\[data-tooltip\]::after\s*\{[^}]*right:\s*2px/);
-  });
-
   it("lines the page switch up with the left edge of the sidebar cards", () => {
     // Sidebar padding 12px plus the list's 5px. The switch used to start at the provider icons.
     expect(SIDEBAR_LIST_CSS).toMatch(/--sidebar-card-inset:\s*17px/);
     expect(TOP_BAR_CSS).toMatch(/padding:\s*12px 24px 12px var\(--sidebar-card-inset,\s*17px\)/);
   });
 
-  it("positions page switch tooltips: Dashboard left, Usage centered, and Settings right", () => {
-    expect(TOP_BAR_CSS).toContain(".top-bar-nav-item:first-child[data-tooltip]::after");
-    expect(TOP_BAR_CSS).toMatch(/\.top-bar-nav-item:first-child\[data-tooltip\]::after\s*\{[^}]*left:\s*3px/);
-    expect(TOP_BAR_CSS).toContain(".top-bar-nav-item:nth-child(2)[data-tooltip]::after");
-    expect(TOP_BAR_CSS).toMatch(/\.top-bar-nav-item:nth-child\(2\)\[data-tooltip\]::after\s*\{[^}]*left:\s*50%/);
-    expect(TOP_BAR_CSS).toContain(".top-bar-nav-item:last-child[data-tooltip]::after");
-    expect(TOP_BAR_CSS).toMatch(/\.top-bar-nav-item:last-child\[data-tooltip\]::after\s*\{[^}]*right:\s*3px/);
-  });
-
   it("scales down the pairing modal title on phones to fit on one line", () => {
     expect(PAIRING_CSS).toMatch(/@media\s*\(max-width:\s*480px\)\s*\{[\s\S]*?\.modal-card\.pairing-modal\s+h2[^{]*\{[^}]*font-size:\s*1\.2rem\s*!important/);
-  });
-
-  it("right-aligns mobile header and top-bar + Account tooltips inside the viewport", () => {
-    expect(SIDEBAR_LIST_CSS).toMatch(
-      /\.dashboard-header-actions\s+\.sidebar-section-button\[data-tooltip\]::after\s*\{[^}]*left:\s*auto;\s*right:\s*0;\s*transform:\s*none;/,
-    );
-    expect(SIDEBAR_LIST_CSS).toMatch(
-      /\.dashboard-header-actions\s+\.sidebar-section-button\[data-tooltip\]::after\s*\{[^}]*white-space:\s*pre-line;/,
-    );
-    expect(TOP_BAR_CSS).toMatch(
-      /\.top-bar-add-account\[data-tooltip\]::after\s*\{[^}]*left:\s*auto;\s*right:\s*0;\s*transform:\s*none;/,
-    );
   });
 
   it("styles X buttons on mobile to match their desktop red hover appearance", () => {

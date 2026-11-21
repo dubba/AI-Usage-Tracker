@@ -76,16 +76,8 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .activity-card a {
   bottom: -10px;
 }
 
-/* Beside the grip rather than below the card, where the shared tooltip would land. */
 .reorder-grip[data-tooltip] {
   z-index: 3;
-}
-
-.reorder-grip[data-tooltip]::after {
-  left: calc(100% + 10px);
-  right: auto;
-  top: 50%;
-  transform: translateY(-50%);
 }
 
 /* The icon sits at the header's bottom edge (above its 16px padding), so the grip is centered on the icon, not on the taller header. */

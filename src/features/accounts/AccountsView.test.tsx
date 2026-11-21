@@ -287,6 +287,7 @@ describe("AccountsView summary status strip", () => {
     expect(strip?.querySelector(".summary-status-text")?.textContent).toBe("No accounts yet");
     expect(strip?.querySelector(".summary-status-dot")).toBeNull();
     expect(strip?.querySelector(".summary-status-cluster > svg")).not.toBeNull();
+    expect(strip?.querySelector(".next-reset-inline")).toBeNull();
   });
 
   it("formats next reset inline identically for desktop and phone", () => {

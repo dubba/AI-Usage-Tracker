@@ -112,6 +112,7 @@
     --toast-surface: rgba(22, 19, 32, 0.95);
     --toast-border: rgb(var(--purple-accent-rgb) / 0.35);
     --toast-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 0 0 16px rgb(var(--purple-accent-rgb) / 0.22);
+    --tooltip-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
     --danger-banner-surface: rgba(38, 18, 20, 0.96);
     --danger-banner-border: rgba(255, 111, 111, 0.4);
     /* Fixed colors: the same in both themes, so the light block below does not redefine them.
@@ -147,7 +148,6 @@
     color-scheme: dark;
     /* Documented z-index scale by role */
     --z-dropdown: 1000;
-    --z-tooltip: 1100;
     --z-modal: 10000;
     /* What every dialog (and the phone menu) lays over the page: 70% black and a 3px blur, in both
      * themes. A confirmation that opens over another dialog adds only the light stacked layer, so
@@ -157,6 +157,8 @@
     --scrim-blur: 3px;
     --z-toast: 10100;
     --z-error-banner: 10200;
+    /* Portal tooltips render directly onto document.body and always sit above all app UI layers. */
+    --z-tooltip: 10300;
     --safe-area-top: max(var(--android-safe-top, 0px), env(safe-area-inset-top, 0px));
     --safe-area-bottom: max(var(--android-safe-bottom, 0px), env(safe-area-inset-bottom, 0px));
     --safe-area-left: max(var(--android-safe-left, 0px), env(safe-area-inset-left, 0px));

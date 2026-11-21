@@ -26,7 +26,7 @@ import { useDashboardData } from "../features/dashboard/useDashboardData";
 import { useDragReorder } from "../features/reorder/useDragReorder";
 import { usePairingEvents } from "../features/pairing/hooks/usePairingEvents";
 import { useSidebarOverlay } from "../features/sidebar/useSidebarOverlay";
-import { useTouchTooltips } from "../shared/hooks/useTouchTooltips";
+import { TooltipLayer } from "../shared/ui/TooltipLayer";
 import { useUsageAlerts } from "../features/alerts/useUsageAlerts";
 import type { UsageAlertToast } from "../features/alerts/usage-alerts";
 import {
@@ -84,7 +84,6 @@ export default function App() {
     setActiveSettingsSection(target);
     setSettingsJumpTarget((prev) => ({ section: target, seq: (prev?.seq ?? 0) + 1 }));
   }, []);
-  useTouchTooltips();
   useDragReorder();
   const shellRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
@@ -531,6 +530,7 @@ export default function App() {
       ) : null}
       <p id={GROUP_REORDER_HINT_ID} className="sr-only">Press Alt with the up or down arrow key to move this group.</p>
       <div className="sr-only" role="status" aria-live="polite">{groupAnnouncement}</div>
+      <TooltipLayer />
     </div>
   );
 }

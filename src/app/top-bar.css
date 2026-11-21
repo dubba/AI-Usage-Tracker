@@ -82,30 +82,6 @@
     color: var(--white);
   }
 
-  /* Page switch tooltips (TopBar.tsx): Dashboard hangs from the left edge, Usage is
-     centered under the switch, and Settings hangs from the right edge so they never
-     overlap each other or clip off-screen. */
-  .top-bar-nav-item:first-child[data-tooltip]::after {
-    left: 3px;
-    right: auto;
-    top: calc(100% + 5px);
-    transform: none;
-  }
-
-  .top-bar-nav-item:nth-child(2)[data-tooltip]::after {
-    left: 50%;
-    right: auto;
-    top: calc(100% + 5px);
-    transform: translateX(-50%);
-  }
-
-  .top-bar-nav-item:last-child[data-tooltip]::after {
-    left: auto;
-    right: 3px;
-    top: calc(100% + 5px);
-    transform: none;
-  }
-
   /* The Left / Used switch (on the Accounts page, AccountsView.tsx) and the Usage page's 7D / 30D
      switch (activity.css) share one smaller look: the same purple selected option and hover as the page switch above, in a 28px box inside 3px padding. */
   .top-bar-segmented {
@@ -139,16 +115,6 @@
   .top-bar-segmented button.active {
     background: var(--purple-fill);
     color: var(--purple-on-fill);
-  }
-
-  /* The switch is at the page's right edge, so the options' tooltips hang from the switch's right edge
-     (matching the used button) instead of being right-justified to their individual buttons. The global
-     tooltip bubble is in the base layer, so these plain declarations override it. */
-  .top-bar-segmented button[data-tooltip]::after {
-    left: auto;
-    right: 2px;
-    top: calc(100% + 6px);
-    transform: none;
   }
 
   .top-bar-actions {
@@ -228,22 +194,6 @@
     /* The plus is drawn with a 1.8 stroke (a 24px box scaled to 18px: about 1.35px), thin beside the
        bold label; 3 gives it the label's weight. */
     stroke-width: 3;
-  }
-
-  /* Its copy breaks after "usage" on purpose, as on the phone header's Group button. The global
-     tooltip rule keeps tooltips on one line; it is in the base layer, so this overrides it. */
-  .top-bar-add-group[data-tooltip]::after {
-    width: max-content;
-    max-width: 320px;
-    white-space: pre-line;
-    text-align: left;
-  }
-
-  /* + Account sits at the top-right edge, so right-align its tooltip to keep it inside the window. */
-  .top-bar-add-account[data-tooltip]::after {
-    left: auto;
-    right: 0;
-    transform: none;
   }
 
   .top-bar-actions .top-bar-compact {

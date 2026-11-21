@@ -31,8 +31,9 @@ The element defaults those components override are in `@layer base`, which comes
 
 - `button, input { font: inherit }` and `button { color: inherit }` (`base.css`, and the copy in `obsidian-dashboard.css`);
 - `svg { width: 18px; height: 18px }` (`base.css`);
-- `:focus-visible { outline-offset: 2px }` (`base.css`);
-- the tooltip bubble, `[data-tooltip]::after { ... }` (`ui-refinements.css`).
+- `:focus-visible { outline-offset: 2px }` (`base.css`).
+
+Tooltips are rendered in a single top-level portal directly onto `document.body` (`shared/ui/TooltipLayer.tsx` and `shared/ui/tooltip-layer.css` in `@layer components`, using `--z-tooltip`), never as `[data-tooltip]::after` pseudo-elements, so ancestor stacking contexts and `overflow` clips can never cover or clip them.
 
 Two things next to them are deliberately still unlayered:
 

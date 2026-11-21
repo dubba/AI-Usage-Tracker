@@ -110,15 +110,6 @@
     color: var(--purple-on-fill);
   }
 
-  /* The switch is at the right edge of the page, so the tooltips hang from the switch's right edge
-     instead of being right-justified to their individual buttons. */
-  .activity-period-switch button[data-tooltip]::after {
-    left: auto;
-    right: 2px;
-    top: calc(100% + 6px);
-    transform: none;
-  }
-
   .activity-period-switch button:focus-visible {
     outline: 2px solid var(--purple-accent);
     outline-offset: 2px;
@@ -371,12 +362,6 @@
       --activity-card-pad-right: 14px;
       padding-right: 14px;
     }
-  }
-
-  /* A tooltip hangs over the next card, so the card it belongs to comes to the front. */
-  .activity-card:has([data-tooltip]:hover),
-  .activity-card:has([data-tooltip-active]) {
-    z-index: 50;
   }
 
   .activity-card-head {
@@ -910,8 +895,7 @@
     mask-image: repeating-linear-gradient(to top, #000 0 4px, transparent 4px 7px);
   }
 
-  /* ---- tooltips: the shared ones are centered under their element, which would run off the
-     card at either end of the chart; these hang from the near edge and may wrap. */
+  /* ---- bar hover/tap highlight; tooltips render in the global portal (TooltipLayer.tsx). */
 
   .activity-bar-slot {
     cursor: pointer;
@@ -925,29 +909,6 @@
 
   .activity-bar-slot[data-tooltip-active] .activity-bar {
     filter: brightness(1.15);
-  }
-
-  .activity-bar-slot[data-tooltip]::after,
-  .activity-reset-hit[data-tooltip]::after {
-    width: max-content;
-    max-width: 240px;
-    /* Wraps, but keeps the line break between a bar's day and the note about it. */
-    white-space: pre-line;
-    text-align: left;
-  }
-
-  .activity-bar-slot.is-left[data-tooltip]::after,
-  .activity-reset-hit.is-left[data-tooltip]::after {
-    left: 0;
-    right: auto;
-    transform: none;
-  }
-
-  .activity-bar-slot.is-right[data-tooltip]::after,
-  .activity-reset-hit.is-right[data-tooltip]::after {
-    left: auto;
-    right: 0;
-    transform: none;
   }
 
   /* The shared rule puts `position: relative` on every element with a tooltip; the marker line is
@@ -1260,7 +1221,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
-    gap: 6px 14px;
+    gap: 4px 8px;
     margin: 10px 0 0;
     padding: 8px 0 0;
     border-top: 1px solid var(--obsidian-border);
@@ -1270,8 +1231,8 @@
 
   /* ---- a chart longer than a page (90 days): 30 days in view, arrows to the others ---- */
 
-  /* The view clips only sideways, so tooltips and the week percents can still hang out above and
-     below. The bars and the dates are each a track as wide as all the pages (plus the gaps between
+  /* The view clips only sideways, so the week percents can still hang out above.
+     The bars and the dates are each a track as wide as all the pages (plus the gaps between
      pages), slid so the chosen page fills the view. */
   .activity-page-view {
     grid-column: 2;
@@ -1293,39 +1254,38 @@
     }
   }
 
-  /* The arrows sit at the right end of the numbers row. They have no tooltips: moving between the
-     two swapped one bubble for the other and lifted the card in and out of the front, which made
-     the arrows jump. The chevrons say enough, and screen readers get their labels. */
+  /* The arrows sit at the right end of the numbers row. The chevrons say enough, and screen
+     readers get their labels. */
   .activity-chart.is-paged .activity-chart-stats {
-    padding-right: 56px;
+    padding-right: 65px;
   }
 
-  /* 22px tall, hanging 2px below the row's text, so they stay clear of the separator above. */
+  /* 26px tall, hanging 8px below the row's text so they sit clearly below the separator above. */
   .activity-pager {
     position: absolute;
     right: 0;
-    bottom: -2px;
+    bottom: -8px;
     display: flex;
-    gap: 4px;
+    gap: 5px;
   }
 
   .activity-pager-button {
     display: grid;
     place-items: center;
-    width: 22px;
-    height: 22px;
+    width: 26px;
+    height: 26px;
     padding: 0;
     /* Like the rename pen at rest: a purple frame on a light purple fill. */
     border: 1px solid var(--obsidian-purple-strong);
-    border-radius: 7px;
+    border-radius: 8px;
     background: var(--purple-surface);
     color: var(--purple-text);
     cursor: pointer;
   }
 
   .activity-pager-button svg {
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
   }
 
   .activity-pager-button.is-earlier svg {
@@ -1351,7 +1311,7 @@
   .activity-chart-stat {
     display: inline-flex;
     align-items: baseline;
-    gap: 5px;
+    gap: 4px;
     min-width: 0;
   }
 

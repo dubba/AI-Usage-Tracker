@@ -121,6 +121,19 @@ describe("DailyBars, 7 days", () => {
     ]);
   });
 
+  it("shows 0% under Today on the stats line when today has no data yet", () => {
+    const root = render({ days: [measured(10), noData, noData, noData, noData, noData, noData] });
+    const stats = all(root, ".activity-chart-stat").map((el) => [
+      el.querySelector("dt")?.textContent,
+      el.querySelector("dd")?.textContent,
+    ]);
+    expect(stats).toEqual([
+      ["Today", "0%"],
+      ["Peak", "10% (Oct 9)"],
+      ["Avg", "10% /day"],
+    ]);
+  });
+
   it("describes the chart in a sentence and in a table for screen readers", () => {
     const root = render({ days });
     const picture = root.querySelector('[role="img"]')!;

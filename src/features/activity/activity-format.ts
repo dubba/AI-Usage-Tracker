@@ -93,9 +93,7 @@ export function chartStats(
     return { todayLabel: "—", peakLabel: null, avgLabel: null };
   }
   const today = days[days.length - 1];
-  const todayLabel = today.usedPercent == null
-    ? "No data"
-    : `${formatDayPercent(today.usedPercent)}${today.quality === "approximate" ? " est." : ""}`;
+  const todayLabel = today.usedPercent == null ? "0%" : formatDayPercent(today.usedPercent);
 
   let observedCount = 0;
   let observedSum = 0;

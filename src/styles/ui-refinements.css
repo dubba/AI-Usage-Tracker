@@ -453,30 +453,11 @@
   z-index: 9;
 }
 
-/* Raise the entire card above siblings so tooltips aren't clipped by adjacent cards */
-.provider-account-card:has(.account-card-action:hover),
-.provider-account-card:has(.account-card-action:focus-visible),
-.provider-account-card:has(.account-name-edit:hover),
-.provider-account-card:has(.account-name-edit:focus-visible),
-.provider-account-card:has(.account-name-confirm:hover),
-.provider-account-card:has(.account-name-confirm:focus-visible),
-.provider-account-card:has(.account-name-cancel:hover),
-.provider-account-card:has(.account-name-cancel:focus-visible),
-.provider-account-card:has(.account-card-provider-icon:hover),
-.provider-account-card:has(.account-card-provider-icon:focus-visible),
-.provider-account-card:has([data-tooltip-active]),
-.provider-account-card:has([data-tooltip]:hover),
-.provider-account-card:has([data-tooltip]:focus-visible) {
-  z-index: 50;
-}
-
-.provider-account-card:has([data-tooltip-dismissed]:not([data-tooltip-active])) {
-  z-index: auto;
-}
-
 /* ==========================================================================
    Universal Custom Tooltips
-   Matches the Obsidian dark theme, timing, and mobile touch behavior.
+   Tooltips render in the top-level TooltipLayer portal (src/shared/ui/TooltipLayer.tsx)
+   so they are never trapped inside ancestor stacking contexts or overflow clips.
+   Keep the positioning rules below intact for existing elements that rely on them.
    ========================================================================== */
 
 [data-tooltip]:not(.sidebar-resize-grip):not(.reorder-grip):not(.ui-modal-close):not(.pairing-switch-camera-fab) {
@@ -492,225 +473,11 @@
   position: relative !important;
 }
 
-/* The tooltip bubble is in the base layer, so a component stylesheet in `@layer components` can
-   move or wrap its own tooltips with an ordinary rule. */
-@layer base {
-  [data-tooltip]::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    left: 50%;
-    top: calc(100% + 8px);
-    z-index: var(--z-tooltip, 1100);
-    transform: translateX(-50%);
-    padding: 6px 9px;
-    border: 1px solid var(--purple-fill);
-    border-radius: 6px;
-    background: var(--purple-fill);
-    color: var(--white);
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 1.2;
-    white-space: nowrap;
-    opacity: 0;
-    pointer-events: none;
-    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
-    transition: opacity 0.15s ease-out;
-  }
-}
-
-/* Keep the sidebar average tooltip inside the sidebar: it sits at the row's right edge. */
-.provider-average[data-tooltip]::after {
-  left: auto;
-  right: 0;
-  transform: none;
-}
-
-/* Suppress empty or invalid tooltips */
-[data-tooltip=""]::after,
-[data-tooltip="false"]::after,
-[data-tooltip="undefined"]::after {
-  display: none !important;
-}
-
-/* Hover and focus states on desktop / pointer devices */
-[data-tooltip]:hover::after,
-[data-tooltip]:focus-visible::after,
-.sidebar-resize-handle:focus-visible .sidebar-resize-grip[data-tooltip]::after,
-[data-tooltip-active]::after {
-  opacity: 1;
-}
-
-/* On mobile / touch devices: hold the tooltip, then fade it out by 2.5 seconds. */
-@media (hover: none), (pointer: coarse) {
-  [data-tooltip]:hover::after,
-  [data-tooltip]:focus-visible::after,
-  .sidebar-resize-handle:focus-visible .sidebar-resize-grip[data-tooltip]::after,
-  [data-tooltip-active]::after {
-    animation: mobile-tooltip-timer 2.5s forwards ease-out;
-  }
-}
-
-.ui-modal-close:focus:not(:focus-visible)::after {
-  display: none !important;
-  opacity: 0 !important;
-}
-
-@keyframes mobile-tooltip-timer {
-  0% {
-    opacity: 1;
-    visibility: visible;
-  }
-  92% {
-    opacity: 1;
-    visibility: visible;
-  }
-  100% {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-  }
-}
-
-/* Explicitly dismissed tooltip state on mobile */
-[data-tooltip-dismissed]::after {
-  opacity: 0 !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-  animation: none !important;
-}
-
-/* Specific position adjustments for accounts and grips */
-.account-card-action[data-tooltip]::after {
-  top: calc(100% + 26px);
-  z-index: 1000;
-}
-
-.account-card-name-actions .account-card-action[data-tooltip]::after,
-.sidebar-resize-grip[data-tooltip]::after {
-  top: calc(100% + 26px);
-  left: auto;
-  right: 0;
-  transform: none;
-}
-
-.sidebar-resize-handle.dragging .sidebar-resize-grip[data-tooltip]::after {
-  opacity: 0;
-}
-
-.account-name-edit[data-tooltip]::after,
-.account-name-confirm[data-tooltip]::after,
-.account-name-cancel[data-tooltip]::after,
-.edit-bucket-title-btn[data-tooltip]::after,
-.delete-bucket-title-btn[data-tooltip]::after {
-  top: calc(100% + 26px);
-  left: 0;
-  right: auto;
-  transform: none;
-}
-
-/* Provider icon tooltip: below the icon, clear of the pointing-hand cursor */
-.account-card-provider-icon[data-tooltip]::after {
-  left: 0;
-  right: auto;
-  transform: none;
-  top: calc(100% + 24px);
-}
-
 /* Sidebar heading actions: + Group button and H / W window toggle buttons */
 .provider-sidebar-heading {
   position: relative;
   z-index: 1000;
   overflow: visible;
-}
-
-/* The buttons sit at the left of the heading, so each tooltip opens rightwards from its own
-   button's left edge. */
-.add-bucket-header-button[data-tooltip]::after,
-.add-account-header-button[data-tooltip]::after {
-  top: calc(100% + 24px);
-  left: 0;
-  right: auto;
-  transform: none;
-  z-index: 1000;
-}
-
-/* The group tooltip is two lines with a fixed break in its copy. A box that
-   wraps and balances its text cannot shrink to the text, which left dead space
-   on the right; breaking explicitly lets max-content hug the longer line, so
-   the right inset equals the left padding. */
-.add-bucket-header-button[data-tooltip]::after {
-  width: max-content;
-  max-width: 260px;
-  white-space: pre-line;
-  text-align: left;
-}
-
-.provider-window-toggle button[data-tooltip]::after {
-  top: calc(100% + 24px);
-  left: auto;
-  right: 0;
-  transform: none;
-  z-index: 1000;
-}
-
-.provider-window-toggle button:first-child[data-tooltip]::after {
-  right: -31px;
-}
-
-/* When the L / U toggle drops below the buttons on its own row, it aligns with the left
-   edge of the heading. Anchor its tooltips to the toggle's left edge so they open rightwards
-   into the sidebar instead of clipping past the left edge of the screen. */
-html[data-sidebar-toggle-stacked] .provider-window-toggle button[data-tooltip]::after {
-  top: calc(100% + 8px);
-  left: 0;
-  right: auto !important;
-  width: max-content;
-  max-width: calc(var(--sidebar-width) - 24px);
-  white-space: normal;
-}
-
-html[data-sidebar-toggle-stacked] .provider-window-toggle button:last-child[data-tooltip]::after {
-  left: -31px;
-}
-
-/* Modal close button: right-aligned so it doesn't escape the top-right corner of the modal */
-.ui-modal-close[data-tooltip]::after {
-  top: calc(100% + 6px);
-  left: auto;
-  right: 0;
-  transform: none;
-}
-
-/* Header sidebar toggle buttons: left-aligned so it stays cleanly within window bounds */
-.mobile-sidebar-toggle-btn[data-tooltip]::after {
-  top: calc(100% + 8px);
-  left: 0;
-  transform: none;
-}
-
-/* Sidebar mobile close button */
-.mobile-sidebar-close-btn[data-tooltip]::after {
-  top: calc(100% + 8px);
-  left: auto;
-  right: 0;
-  transform: none;
-}
-
-/* Pairing switch camera FAB button: centered above the button on the controls row */
-.pairing-switch-camera-fab[data-tooltip]::after {
-  bottom: calc(100% + 8px);
-  top: auto;
-  left: 50%;
-  right: auto;
-  transform: translateX(-50%);
-  z-index: 100;
-}
-
-@media (max-width: 400px) {
-  .pairing-switch-camera-fab[data-tooltip]::after {
-    font-size: 10px;
-    padding: 5px 8px;
-  }
 }
 
 .account-usage-metric {
@@ -1591,25 +1358,6 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 .sidebar-settings-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-}
-
-.sidebar-settings-btn[data-tooltip]::after {
-  top: auto;
-  bottom: calc(100% + 8px);
-  left: auto;
-  right: 0;
-  transform: none;
-  z-index: 1000;
-}
-
-@media (max-width: 860px), (hover: none), (pointer: coarse) {
-  .sidebar-settings-btn[data-tooltip]::after,
-  .sidebar-settings-btn[data-tooltip-active]::after {
-    display: none !important;
-    opacity: 0 !important;
-    visibility: hidden !important;
-    pointer-events: none !important;
-  }
 }
 
 /* Two lines beside Refresh all: a dot and "All accounts last updated:" on the first, the elapsed time under

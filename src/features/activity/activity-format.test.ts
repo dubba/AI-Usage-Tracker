@@ -130,15 +130,15 @@ describe("chartStats", () => {
     });
   });
 
-  it("notes Today as estimated or No data and names Today when it is the peak", () => {
+  it("shows Today as a plain percentage (or 0% when no data) and names Today when it is the peak", () => {
     expect(chartStats([day(5), day(25, "approximate")], starts.slice(0, 3), "en-US")).toEqual({
-      todayLabel: "25% est.",
+      todayLabel: "25%",
       peakLabel: "25% (Today)",
       avgLabel: "15% /day",
     });
 
     expect(chartStats([day(null), day(null)], starts.slice(0, 3), "en-US")).toEqual({
-      todayLabel: "No data",
+      todayLabel: "0%",
       peakLabel: null,
       avgLabel: null,
     });
