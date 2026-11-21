@@ -1,10 +1,16 @@
 # Changelog
 
-## Unreleased (1 change)
+## Unreleased (4 changes)
 
-### Fixed (1)
+### Improved (1)
+
+- On the Usage page, the Today summary stat now shows 0% when today has no usage yet (instead of "No data") and omits the "est." suffix.
+
+### Fixed (3)
 
 - When a sign-in, the Google Cloud usage setup, or an update check or download can't reach the server, the app now says so in a plain sentence ("…: the connection could not be made. Check your internet connection and try again.") instead of showing the raw request error with its web address. This also applies to the sign-in page shown in the browser.
+- Tooltips across the app now appear above all cards, charts, and scroll containers and stay within the visible screen edges instead of being clipped or covered.
+- When no accounts are added, the Dashboard status bar no longer shows "No upcoming reset" beside "No accounts yet".
 
 ## v0.6.7 - 2026-11-20 (5 changes)
 
