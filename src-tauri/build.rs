@@ -97,6 +97,8 @@ fn main() {
     println!("cargo:rerun-if-changed=gen/android/app/src/main/java/com/dubba/ai/usage/tracker/generated/RustWebViewClient.kt");
     println!("cargo:rerun-if-changed=gen/android/app/src/main/java/com/dubba/ai/usage/tracker/generated/Ipc.kt");
     println!("cargo:rerun-if-changed=webview_ipc_patch.rs");
+    // Inserted into the Android sign-in popup's Kotlin (`android_patches.rs`).
+    println!("cargo:rerun-if-changed=src/auth/mobile_auth/back_button.js");
     println!("cargo:rerun-if-changed=build");
 
     let manifest_dir = PathBuf::from(
