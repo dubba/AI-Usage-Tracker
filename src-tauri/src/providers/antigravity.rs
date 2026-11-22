@@ -1,13 +1,11 @@
 use super::json_values::value_as_f64;
 use super::{
     body_too_large, classify_status,
-    oauth_refresh::{
-        refresh_oauth_secret, IdToken, InvalidGrant, Lifetime, RefreshBody, RefreshRequest,
-    },
+    oauth_refresh::{IdToken, Lifetime},
     read_capped_bytes, read_capped_text, with_fresh_secret, CappedBodyError, Forbidden,
     ProviderError, ProviderUsage, StatusPolicy, MAX_PROVIDER_BODY_BYTES,
 };
-use crate::auth::google_client::{client_secret, CLIENT_ID, TOKEN_URL};
+use crate::auth::google_client::refresh_google_secret;
 use crate::{
     diagnostics,
     model::{Account, OAuthSecret, ProviderSecret, UsageWindow},
@@ -308,25 +306,7 @@ async fn refresh_secret(
     app: &AppState,
     secret: &OAuthSecret,
 ) -> Result<OAuthSecret, ProviderError> {
-    let client_secret = client_secret();
-    refresh_oauth_secret(
-        RefreshRequest {
-            client: &app.client,
-            provider: "Google",
-            url: TOKEN_URL,
-            body: RefreshBody::Form(&[
-                ("client_id", CLIENT_ID),
-                ("client_secret", client_secret.as_str()),
-                ("refresh_token", secret.refresh_token.as_str()),
-                ("grant_type", "refresh_token"),
-            ]),
-            invalid_grant: InvalidGrant::AnyStatus,
-            lifetime: Lifetime::Required,
-            id_token: IdToken::KeepCurrent,
-        },
-        secret,
-    )
-    .await
+    refresh_google_secret(app, secret, Lifetime::Required, IdToken::KeepCurrent).await
 }
 
 async fn fetch_email(app: &AppState, access_token: &str) -> Result<String, ProviderError> {

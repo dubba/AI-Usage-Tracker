@@ -47,28 +47,20 @@ struct RawExtraUsage {
 
 #[derive(Clone, Debug, Deserialize)]
 struct RawLimitScopeModel {
-    #[allow(dead_code)]
-    id: Option<String>,
     display_name: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 struct RawLimitScope {
     model: Option<RawLimitScopeModel>,
-    #[allow(dead_code)]
-    surface: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 struct RawLimit {
-    #[allow(dead_code)]
-    group: Option<String>,
     kind: Option<String>,
     percent: Option<f64>,
     resets_at: Option<String>,
     scope: Option<RawLimitScope>,
-    #[allow(dead_code)]
-    severity: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

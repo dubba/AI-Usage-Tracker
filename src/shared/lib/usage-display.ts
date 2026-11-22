@@ -4,8 +4,6 @@ import { STORAGE_KEYS } from "./storage";
 /** "left" shows the quota remaining, "used" shows the quota already consumed. */
 export type UsageDisplayMode = "left" | "used";
 
-export const USAGE_DISPLAY_MODES: readonly UsageDisplayMode[] = ["left", "used"];
-
 const DEFAULT_MODE: UsageDisplayMode = "left";
 
 export function isUsageDisplayMode(value: unknown): value is UsageDisplayMode {

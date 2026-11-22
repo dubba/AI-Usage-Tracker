@@ -104,7 +104,6 @@ jni = "0.21"
 winreg = "0.10"
 
 [dev-dependencies]
-tempfile = "3"
 # Generates the TypeScript types the frontend uses for backend values (`src/types.generated.ts`,
 # written by `type_contract.rs`). Test-only: the derives are `cfg_attr(test, ...)`, so release
 # builds never compile it.

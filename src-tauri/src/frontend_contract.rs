@@ -3,7 +3,7 @@
 //! files and check that both sides agree. (`lib.rs` does the same for the command list.)
 
 use crate::{
-    model::{Provider, FIVE_HOUR_WINDOW_SECONDS, WEEKLY_WINDOW_SECONDS},
+    model::Provider,
     providers::grok::GROK_BOT_WINDOW_ID,
     store::settings::{DEFAULT_ACCOUNT_REFRESH_MINUTES, OFFERED_REFRESH_MINUTES},
 };
@@ -66,18 +66,6 @@ fn default_refresh_interval_matches_the_frontend() {
     assert_eq!(
         ts_number(CONSTANTS_TS, "DEFAULT_ACCOUNT_REFRESH_MINUTES"),
         DEFAULT_ACCOUNT_REFRESH_MINUTES
-    );
-}
-
-#[test]
-fn window_lengths_match_the_frontend() {
-    assert_eq!(
-        ts_number(CONSTANTS_TS, "FIVE_HOUR_WINDOW_SECONDS"),
-        FIVE_HOUR_WINDOW_SECONDS
-    );
-    assert_eq!(
-        ts_number(CONSTANTS_TS, "WEEKLY_WINDOW_SECONDS"),
-        WEEKLY_WINDOW_SECONDS
     );
 }
 
@@ -154,7 +142,10 @@ fn the_extractors_read_what_they_should() {
         "grok_bot"
     );
     assert_eq!(ts_provider_names().len(), 6);
-    assert_eq!(ts_number(CONSTANTS_TS, "FIVE_HOUR_WINDOW_SECONDS"), 18_000);
+    assert_eq!(
+        ts_number(CONSTANTS_TS, "DEFAULT_ACCOUNT_REFRESH_MINUTES"),
+        15
+    );
 }
 
 #[test]

@@ -6,18 +6,11 @@ import type { DashboardSnapshot } from "../../types";
  * backend themselves.
  */
 let latest: DashboardSnapshot | null = null;
-const listeners = new Set<(snapshot: DashboardSnapshot) => void>();
 
 export function publishSnapshot(snapshot: DashboardSnapshot): void {
   latest = snapshot;
-  for (const listener of [...listeners]) listener(snapshot);
 }
 
 export function getLatestSnapshot(): DashboardSnapshot | null {
   return latest;
-}
-
-export function onSnapshot(listener: (snapshot: DashboardSnapshot) => void): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
 }

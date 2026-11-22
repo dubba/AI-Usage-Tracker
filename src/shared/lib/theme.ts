@@ -5,8 +5,6 @@ import { STORAGE_KEYS } from "./storage";
 export type ThemePreference = "dark" | "light" | "system";
 export type ResolvedTheme = "dark" | "light";
 
-export const THEME_PREFERENCES: readonly ThemePreference[] = ["dark", "light", "system"];
-
 const DEFAULT_PREFERENCE: ThemePreference = "dark";
 const LIGHT_QUERY = "(prefers-color-scheme: light)";
 

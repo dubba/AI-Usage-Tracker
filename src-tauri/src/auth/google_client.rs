@@ -6,6 +6,16 @@
 //! client secret is not confidential (Google documents that it ships with the app); this is
 //! not a protection for it.
 
+use crate::{
+    model::OAuthSecret,
+    providers::{
+        oauth_refresh::{
+            refresh_oauth_secret, IdToken, InvalidGrant, Lifetime, RefreshBody, RefreshRequest,
+        },
+        ProviderError,
+    },
+    state::AppState,
+};
 use zeroize::Zeroizing;
 
 /// Where the client's authorization codes and refresh tokens are exchanged. Sign-in
@@ -23,6 +33,36 @@ const CLIENT_SECRET_BYTES: &[u8] = &[
 /// The client secret, wiped from memory when dropped.
 pub(crate) fn client_secret() -> Zeroizing<String> {
     Zeroizing::new(String::from_utf8_lossy(CLIENT_SECRET_BYTES).to_string())
+}
+
+/// Exchanges the refresh token of a secret issued to this client for a new access token. Both
+/// Google providers send the same request; they differ only in whether the reply must state the
+/// token's lifetime and which `id_token` they keep.
+pub(crate) async fn refresh_google_secret(
+    app: &AppState,
+    secret: &OAuthSecret,
+    lifetime: Lifetime,
+    id_token: IdToken,
+) -> Result<OAuthSecret, ProviderError> {
+    let client_secret = client_secret();
+    refresh_oauth_secret(
+        RefreshRequest {
+            client: &app.client,
+            provider: "Google",
+            url: TOKEN_URL,
+            body: RefreshBody::Form(&[
+                ("client_id", CLIENT_ID),
+                ("client_secret", client_secret.as_str()),
+                ("refresh_token", secret.refresh_token.as_str()),
+                ("grant_type", "refresh_token"),
+            ]),
+            invalid_grant: InvalidGrant::AnyStatus,
+            lifetime,
+            id_token,
+        },
+        secret,
+    )
+    .await
 }
 
 #[cfg(test)]

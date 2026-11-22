@@ -1,5 +1,5 @@
 use crate::{
-    auth::google_client::{client_secret, CLIENT_ID, TOKEN_URL},
+    auth::google_client::refresh_google_secret,
     auth::oauth_common::{merge_into_existing, ConnectedFields},
     model::{
         now_rfc3339, Account, GoogleAiStudioSecret, OAuthSecret, Provider, ProviderSecret,
@@ -7,9 +7,7 @@ use crate::{
     },
     providers::{
         body_too_large, classify_status,
-        oauth_refresh::{
-            refresh_oauth_secret, IdToken, InvalidGrant, Lifetime, RefreshBody, RefreshRequest,
-        },
+        oauth_refresh::{IdToken, Lifetime},
         read_capped_text, save_refreshed, CappedBodyError, Forbidden, ProviderError, ProviderUsage,
         StatusPolicy, MAX_PROVIDER_BODY_BYTES, REFRESH_SKEW_SECS,
     },
@@ -578,25 +576,7 @@ pub(crate) async fn refresh_cloud_secret(
     secret: &OAuthSecret,
     id_token: IdToken,
 ) -> Result<OAuthSecret, ProviderError> {
-    let client_secret = client_secret();
-    refresh_oauth_secret(
-        RefreshRequest {
-            client: &app.client,
-            provider: "Google",
-            url: TOKEN_URL,
-            body: RefreshBody::Form(&[
-                ("client_id", CLIENT_ID),
-                ("client_secret", client_secret.as_str()),
-                ("refresh_token", secret.refresh_token.as_str()),
-                ("grant_type", "refresh_token"),
-            ]),
-            invalid_grant: InvalidGrant::AnyStatus,
-            lifetime: Lifetime::DefaultsToOneHour,
-            id_token,
-        },
-        secret,
-    )
-    .await
+    refresh_google_secret(app, secret, Lifetime::DefaultsToOneHour, id_token).await
 }
 
 fn filter_trackable_models(models: Vec<GoogleModel>) -> Vec<TrackableModel> {
