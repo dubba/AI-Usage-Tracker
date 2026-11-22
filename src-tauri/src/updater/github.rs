@@ -304,11 +304,16 @@ pub(super) async fn fetch_github_latest_release(
     })
 }
 
+/// How many releases' notes the update window shows at most, newest first.
+pub(super) const MAX_MISSED_RELEASE_NOTES: usize = 10;
+
 /// The release notes of every release after `current` up to and including `target`, newest first,
 /// from a GitHub `/releases` listing, so someone several versions behind sees everything they
 /// missed. Drafts are skipped, and pre-releases unless `include_prereleases` (the beta opt-in).
-/// Returns the joined notes and the publish time of `target`, or `None` when the listing has no
-/// notes for `target` itself, so the caller falls back to that one release's notes.
+/// At most `MAX_MISSED_RELEASE_NOTES` releases are joined, the newest ones, so the window stays
+/// readable for someone far behind. Returns the joined notes and the publish time of `target`, or
+/// `None` when the listing has no notes for `target` itself, so the caller falls back to that one
+/// release's notes.
 pub(super) fn notes_since(
     listing: &serde_json::Value,
     current: &str,
@@ -360,6 +365,7 @@ pub(super) fn notes_since(
     });
     let joined = picked
         .iter()
+        .take(MAX_MISSED_RELEASE_NOTES)
         .map(|(_, body, _)| body.trim())
         .collect::<Vec<_>>()
         .join("\n\n");

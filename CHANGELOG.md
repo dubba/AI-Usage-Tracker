@@ -4,7 +4,7 @@
 
 ### Improved (3)
 
-- When an update skips several versions (for example, from v0.6.4 to v0.6.7), the update window now lists the changes of every release since your version, newest first, instead of only the newest release.
+- When an update skips several versions (for example, from v0.6.4 to v0.6.7), the update window now lists the changes of every release since your version (up to the 10 newest), newest first, instead of only the newest release.
 - Switching the Usage page between 7D, 30D, and 90D is now smoother: the other periods load in the background, the switch responds at once, and the charts dim briefly while they redraw.
 - On the Usage page, the Today summary stat now shows 0% when today has no usage yet (instead of "No data") and omits the "est." suffix.
 

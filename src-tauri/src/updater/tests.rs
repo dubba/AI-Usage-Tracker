@@ -909,3 +909,21 @@ fn notes_since_is_none_without_the_target_release() {
     let empty = serde_json::json!([listing_release("v0.6.7", "  ", false)]);
     assert!(notes_since(&empty, "0.6.5", "0.6.7", false).is_none());
 }
+
+#[test]
+fn notes_since_shows_at_most_the_ten_newest_releases() {
+    let listing = serde_json::Value::Array(
+        (1..=15)
+            .rev()
+            .map(|patch| {
+                listing_release(&format!("v0.7.{patch}"), &format!("## v0.7.{patch}"), false)
+            })
+            .collect(),
+    );
+    let (body, date) = notes_since(&listing, "0.7.0", "0.7.15", false).unwrap();
+    let headings: Vec<&str> = body.split("\n\n").collect();
+    assert_eq!(headings.len(), MAX_MISSED_RELEASE_NOTES);
+    assert_eq!(headings.first(), Some(&"## v0.7.15"));
+    assert_eq!(headings.last(), Some(&"## v0.7.6"));
+    assert_eq!(date.as_deref(), Some("v0.7.15-published"));
+}
