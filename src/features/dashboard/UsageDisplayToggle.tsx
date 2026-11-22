@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { useUsageDisplayMode } from "../../shared/hooks/useUsageDisplayMode";
+import { useUsageDisplayMode } from "../../shared/hooks/usePreferences";
 import type { UsageDisplayMode } from "../../shared/lib/usage-display";
 import { useSegmentIndicator } from "../../shared/ui/segment-indicator";
 

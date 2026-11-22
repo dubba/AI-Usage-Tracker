@@ -1,4 +1,4 @@
-import { useCompactDashboard } from "../../shared/hooks/useCompactDashboard";
+import { useCompactDashboard } from "../../shared/hooks/usePreferences";
 import { CompactRowsIcon } from "../../shared/ui/icons";
 import { clearCollapsedCards } from "../layout/dashboard-page-state";
 

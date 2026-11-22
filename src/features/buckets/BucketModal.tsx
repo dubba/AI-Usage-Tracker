@@ -13,7 +13,7 @@ import { useModalClosePolicy, useEscapeOrClosePolicy } from "../../shared/hooks/
 import { ModalDialog } from "../../shared/ui/ModalDialog";
 import { ConfirmDialog } from "../../shared/ui/ConfirmDialog";
 import { useVirtualKeyboard } from "../../shared/hooks/useVirtualKeyboard";
-import { useUsageDisplayMode } from "../../shared/hooks/useUsageDisplayMode";
+import { useUsageDisplayMode } from "../../shared/hooks/usePreferences";
 import { displayPercent } from "../../shared/lib/usage-display";
 import { cardWindows, isWindowExpired } from "../../shared/lib/usage-logic";
 

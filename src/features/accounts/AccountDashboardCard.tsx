@@ -30,7 +30,7 @@ import type {
   UsageWindow,
 } from "../../types";
 import { useClock } from "../../shared/hooks/useClock";
-import { useUsageDisplayMode } from "../../shared/hooks/useUsageDisplayMode";
+import { useUsageDisplayMode } from "../../shared/hooks/usePreferences";
 import { displayPercent, usageDisplaySuffix } from "../../shared/lib/usage-display";
 import { reorderKeyDelta } from "../reorder/reorder-utils";
 import { AccountUsageMetric } from "./AccountUsageMetric";

@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { useBottomNavLabels } from "../shared/hooks/useBottomNavLabels";
+import { useBottomNavLabels } from "../shared/hooks/usePreferences";
 import { BarChartIcon, GridIcon, SettingsIcon } from "../shared/ui/icons";
 import { useSegmentIndicator } from "../shared/ui/segment-indicator";
 import type { Section } from "./useSidebarNavigation";

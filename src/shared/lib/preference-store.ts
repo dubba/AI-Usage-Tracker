@@ -48,3 +48,21 @@ export function createPreferenceStore<T extends string>(key: string, fallback: T
     },
   };
 }
+
+/**
+ * A preference store that is loaded at once and follows the same key being changed in the app's
+ * other windows, for a preference every window shows.
+ */
+export function createSharedPreference<T extends string>(key: string, fallback: T, isValid: (value: unknown) => value is T) {
+  const store = createPreferenceStore(key, fallback, isValid);
+  store.refresh();
+  if (typeof window !== "undefined") store.followOtherWindows();
+  return store;
+}
+
+/** A switch saved as "on" or "off". */
+export type OnOff = "on" | "off";
+
+export function isOnOff(value: unknown): value is OnOff {
+  return value === "on" || value === "off";
+}

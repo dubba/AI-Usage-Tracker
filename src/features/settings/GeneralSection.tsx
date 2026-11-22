@@ -1,8 +1,7 @@
 import { CustomDropdown } from "../../shared/ui/CustomDropdown";
 import { SettingsToggleRow } from "./SettingsToggleRow";
-import { useBottomNavLabels } from "../../shared/hooks/useBottomNavLabels";
+import { useBottomNavLabels, useThemePreference } from "../../shared/hooks/usePreferences";
 import { useMediaQuery } from "../../shared/hooks/useMediaQuery";
-import { useThemePreference } from "../../shared/hooks/useThemePreference";
 import { isAndroid, isIOS } from "../../shared/lib/platform";
 import type { ThemePreference } from "../../shared/lib/theme";
 import { MOBILE_OVERLAY_QUERY } from "../sidebar/sidebar-width";

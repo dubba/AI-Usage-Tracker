@@ -3,7 +3,7 @@ import { type BusyKeys } from "../../shared/lib/busy";
 import { useReorderHint } from "./useReorderHint";
 import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
 import { UsageDisplayToggle } from "../dashboard/UsageDisplayToggle";
-import { useCompactDashboard } from "../../shared/hooks/useCompactDashboard";
+import { useCompactDashboard } from "../../shared/hooks/usePreferences";
 import { MOBILE_OVERLAY_QUERY } from "../sidebar/sidebar-width";
 import { useMediaQuery } from "../../shared/hooks/useMediaQuery";
 import "./accounts-layout.css";

@@ -1,5 +1,5 @@
 import { useClock } from "../../shared/hooks/useClock";
-import { useUsageDisplayMode } from "../../shared/hooks/useUsageDisplayMode";
+import { useUsageDisplayMode } from "../../shared/hooks/usePreferences";
 import { displayPercent, usageDisplaySuffix } from "../../shared/lib/usage-display";
 import { formatMonthDay, formatResetAtDay, resetCountdown } from "../../shared/lib/format";
 import { isWindowExpired, usageTone, windowLength } from "../../shared/lib/usage-logic";

@@ -14,7 +14,7 @@ import {
   type GroupAlert,
 } from "../../shared/lib/usage-logic";
 import { useClock } from "../../shared/hooks/useClock";
-import { useUsageDisplayMode } from "../../shared/hooks/useUsageDisplayMode";
+import { useUsageDisplayMode } from "../../shared/hooks/usePreferences";
 import { displayPercent } from "../../shared/lib/usage-display";
 import { ACCOUNT_FORMS, formatCount } from "../../shared/lib/format";
 import { reorderKeyDelta } from "../reorder/reorder-utils";

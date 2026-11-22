@@ -1,4 +1,4 @@
-import { createPreferenceStore } from "./preference-store";
+import { createSharedPreference } from "./preference-store";
 import { STORAGE_KEYS } from "./storage";
 
 /** "left" shows the quota remaining, "used" shows the quota already consumed. */
@@ -19,14 +19,8 @@ export function usageDisplaySuffix(mode: UsageDisplayMode): string {
   return mode === "used" ? "used" : "left";
 }
 
-const store = createPreferenceStore<UsageDisplayMode>(STORAGE_KEYS.usageDisplayMode, DEFAULT_MODE, isUsageDisplayMode);
-store.refresh();
+const store = createSharedPreference<UsageDisplayMode>(STORAGE_KEYS.usageDisplayMode, DEFAULT_MODE, isUsageDisplayMode);
 
 export const getUsageDisplayMode = store.get;
 export const subscribeUsageDisplayMode = store.subscribe;
 export const setUsageDisplayMode = store.set;
-
-if (typeof window !== "undefined") {
-  // Keeps the app's other windows in step when the choice changes in one of them.
-  store.followOtherWindows();
-}
