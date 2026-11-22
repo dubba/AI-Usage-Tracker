@@ -208,7 +208,7 @@ src-tauri/src/store/               Metadata, native credential storage, settings
 src-tauri/src/platform/            Android, macOS and tray integration, autostart, Wi-Fi and local network
 src-tauri/src/bridge_api.rs        Versioned localhost API
 
-docs/provider-integrations-plan.md Implementation and security plan
+docs/THREAT_MODEL.md               Assets, entry points, and the code that guards them
 docs/CHANGELOG_WORKFLOW.md         Changelog maintenance guide
 docs/ADDING_A_PROVIDER.md          Every place a new provider has to be wired in
 ```

@@ -52,7 +52,7 @@ Width breakpoints belong to individual components, so they are not collapsed int
 |-------|----------|
 | 1400 | Very wide viewports: Dashboard account cards lay out in two columns |
 | 860 / 861 | The main mobile/desktop split (sidebar overlay, card actions, mobile menu). The JS constant `MOBILE_OVERLAY_QUERY` must stay `(max-width: 860px)` |
-| 1220, 1180 | Summary cards: 4 columns, then 2 columns, then the Next Reset card spans a full row. |
+| 1180 | The empty-account provider grid drops to two columns. The Usage page's empty message adds the offset the Dashboard status bar takes when it wraps. |
 | 768 | The Link Devices dialog becomes a full-screen sheet |
 | 760, 720 | Stacked rows in the remove-account confirmation and the API window |
 | 640, 600 | Release-notes dialog and alert toasts fill the width; summary grid spacing |
@@ -95,7 +95,7 @@ About two thirds of the old `!important` flags were removed because nothing reli
 
 ## Checking a CSS change
 
-Static screenshots miss most regressions here. A change is only safe once computed styles are compared against the old CSS across the app's views, at widths either side of every breakpoint (360, 400, 480, 600, 640, 720, 760, 768, 860, 1180, 1220), and with `:hover`, `:focus-visible` and `:active` applied. Note that below 768px the browser pane emulates a touch device, which also exercises the `(pointer: coarse)` rules.
+Static screenshots miss most regressions here. A change is only safe once computed styles are compared against the old CSS across the app's views, at widths either side of every breakpoint (360, 400, 480, 600, 640, 720, 760, 768, 860, 1180), and with `:hover`, `:focus-visible` and `:active` applied. Note that below 768px the browser pane emulates a touch device, which also exercises the `(pointer: coarse)` rules.
 
 `scripts/css-check/` holds the tool for that comparison. It loads the real app with fake accounts in headless Chrome and records the computed styles of every element at 12 widths, in both themes, on the Dashboard, Usage and Settings pages, with hover, focus and pressed states forced and a card menu open.
 

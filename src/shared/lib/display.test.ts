@@ -7,7 +7,6 @@ import {
   metricGroupLabel,
   metricWindowParts,
   nextResetModelLabel,
-  windowPillClass,
 } from "./display";
 import type { Account, UsageWindow } from "../../types";
 
@@ -144,15 +143,6 @@ describe("metricWindowParts", () => {
 
   it("gives a length alone when the chip names nothing else", () => {
     expect(metricWindowParts(win({ id: "weekly", label: "Weekly", kind: "weekly" }), "zai")).toEqual({ span: "7-day", name: null });
-  });
-});
-
-describe("windowPillClass", () => {
-  it("classifies by window kind", () => {
-    expect(windowPillClass(win({ kind: "five_hour" }))).toBe("window-pill-5h");
-    expect(windowPillClass(win({ kind: "weekly" }))).toBe("window-pill-7d");
-    expect(windowPillClass(win({ kind: "monthly" }))).toBe("window-pill-monthly");
-    expect(windowPillClass(win({ id: "five_hour", kind: null }))).toBe("window-pill-default");
   });
 });
 

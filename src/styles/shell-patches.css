@@ -310,15 +310,8 @@ select.text-input option {
 
 .brand strong { font-size: 15px; }
 .brand small { font-size: 13px; }
-.sidebar-footer strong { font-size: 13px; }
-.sidebar-footer small { font-size: 11px; line-height: 1.35; }
 .eyebrow { font-size: 11px; }
 .button { padding-inline: 15px; }
-.usage-label { font-size: 12px; line-height: 1.4; }
-.usage-heading strong { font-size: 24px; margin-top: 7px; }
-.window-pill { font-size: 11px; padding: 5px 8px; }
-.progress-track { height: 9px; margin-top: 20px; }
-.reset-label { font-size: 11px; line-height: 1.4; margin-top: 11px; }
 .error-panel { font-size: 12px; line-height: 1.5; }
 .settings-row { min-height: 0; padding: 12px 19px; }
 .settings-row strong { font-size: 14px; }
@@ -346,7 +339,6 @@ select.text-input option {
   margin: 0 auto;
   width: 100%;
 }
-
 
 /* ==========================================================================
    sidebar-controls (was sidebar-controls.css)
@@ -510,14 +502,12 @@ select.text-input option {
   margin-top: 14px;
 }
 
-
 /* ==========================================================================
    sidebar-width (was sidebar-width.css)
    ========================================================================== */
 .app-shell {
   grid-template-columns: 480px minmax(0, 1fr);
 }
-
 
 /* ==========================================================================
    macos-account-actions (was macos-account-actions.css)
@@ -661,7 +651,6 @@ body.sidebar-resizing * {
   -webkit-user-select: none !important;
 }
 
-
 @media (max-width: 860px) {
 
   .sidebar-resize-handle {
@@ -708,10 +697,7 @@ body.sidebar-resizing * {
    dashboard-typography (was dashboard-typography.css)
    ========================================================================== */
 /* Keep dashboard helper text at least as large as the page description. */
-.main-stage .button,
-.main-stage .usage-label,
-.main-stage .window-pill,
-.main-stage .reset-label {
+.main-stage .button {
   font-size: var(--dashboard-body-text-size);
   line-height: 1.45;
 }
@@ -761,56 +747,4 @@ body.sidebar-resizing * {
   min-height: 0;
   padding-top: 16px;
   padding-bottom: 12px;
-}
-
-.sidebar-footer {
-  flex: 0 0 auto;
-  min-height: 46px;
-  margin-top: 10px;
-  padding: 0 10px;
-  border: 1px solid var(--border-strong);
-  border-radius: 9px;
-  background: var(--c-151a17);
-  color: var(--text);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1;
-  text-align: center;
-  outline: none;
-  user-select: none;
-}
-
-.sidebar-footer:hover,
-.sidebar-footer:focus-visible {
-  background: var(--c-202620);
-  border-color: var(--purple);
-}
-
-.sidebar-footer.update-available {
-  background: var(--purple-fill);
-  border-color: var(--purple-fill-line);
-  color: var(--white);
-}
-
-.sidebar-footer.update-available:hover,
-.sidebar-footer.update-available:focus-visible {
-  background: var(--purple-fill-hover);
-  border-color: var(--purple-fill-line);
-}
-
-.sidebar-footer[aria-busy="true"] {
-  opacity: .72;
-  cursor: wait;
-}
-
-button.sidebar-footer {
-  width: 100%;
-  appearance: none;
-  font: inherit;
-  color: inherit;
 }

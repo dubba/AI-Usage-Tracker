@@ -278,12 +278,6 @@
     white-space: nowrap;
   }
 
-  .compact-card-collapsed-summary {
-    font-size: 12.5px;
-    font-weight: 700;
-    white-space: nowrap;
-  }
-
   .compact-card-action-btn {
     min-height: 26px;
     height: 26px;

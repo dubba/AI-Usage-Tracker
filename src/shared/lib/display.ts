@@ -1,4 +1,4 @@
-import type { Account, Provider, UsageWindow, WindowKind } from "../../types";
+import type { Account, Provider, UsageWindow } from "../../types";
 import { providerName } from "./providers";
 import { GROK_BOT_WINDOW_ID } from "./usage-sources";
 
@@ -235,14 +235,4 @@ export function metricWindowParts(window: UsageWindow, provider?: Provider | str
   const span = DURATION_SPAN[first] ?? null;
   if (!span) return { span: null, name: chip };
   return { span, name: rest.join(" · ") || null };
-}
-
-const WINDOW_PILL_CLASS: Record<WindowKind, string> = {
-  five_hour: "window-pill-5h",
-  weekly: "window-pill-7d",
-  monthly: "window-pill-monthly",
-};
-
-export function windowPillClass(window: UsageWindow): string {
-  return (window.kind && WINDOW_PILL_CLASS[window.kind]) || "window-pill-default";
 }

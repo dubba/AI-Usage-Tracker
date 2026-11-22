@@ -153,14 +153,6 @@
       max-width: 720px;
       margin: 0 auto;
     }
-
-    .settings-style-content .dashboard-scroll > .settings-section-title {
-      max-width: calc(720px - 6px);
-    }
-  }
-
-  .settings-section-title {
-    scroll-margin-top: 18px;
   }
 
   /* ---- Card header bars ---- */

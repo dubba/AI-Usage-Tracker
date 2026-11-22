@@ -33,12 +33,12 @@ describe("mobile shell clears the bottom bar", () => {
     expect(OBSIDIAN).toMatch(/\.modal-backdrop\s*\{[^}]*z-index:\s*var\(--z-modal,\s*10000\);/);
   });
 
-  it("matches the gap above the first settings section title to the other sections", () => {
+  it("clears the extra gap above the first settings card", () => {
     const mobileIndex = OBSIDIAN.indexOf("@media (max-width: 860px)");
     expect(mobileIndex).toBeGreaterThan(-1);
     const mobileCss = OBSIDIAN.slice(mobileIndex);
     expect(mobileCss).toMatch(
-      /\.settings-style-content \.dashboard-scroll > \.settings-section-title:first-child[^}]*margin-top:\s*8px;/
+      /\.settings-style-content \.dashboard-scroll > \.settings-card:first-child[^}]*margin-top:\s*0\s*!important;/
     );
   });
 

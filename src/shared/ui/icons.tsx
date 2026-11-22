@@ -21,20 +21,12 @@ export const ChevronIcon = (props: IconProps) => <Base {...props}><path d="m9 18
 export const ChevronDownIcon = (props: IconProps) => <Base {...props}><path d="m6 9 6 6 6-6"/></Base>;
 export const BellIcon = (props: IconProps) => <Base {...props}><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></Base>;
 export const CloseIcon = (props: IconProps) => <Base {...props}><path d="M6 6l12 12M18 6 6 18"/></Base>;
-export const ClockIcon = (props: IconProps) => <Base {...props}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></Base>;
 export const CheckCircleIcon = (props: IconProps) => <Base {...props}><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></Base>;
 export const AlertTriangleIcon = (props: IconProps) => (
   <Base {...props}>
     <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
     <line x1="12" y1="9" x2="12" y2="13" />
     <line x1="12" y1="17" x2="12.01" y2="17" />
-  </Base>
-);
-export const AlertCircleIcon = (props: IconProps) => (
-  <Base {...props}>
-    <circle cx="12" cy="12" r="9" />
-    <line x1="12" y1="8" x2="12" y2="12" />
-    <line x1="12" y1="16" x2="12.01" y2="16" />
   </Base>
 );
 export const BarChartIcon = (props: IconProps) => <Base {...props}><path d="M4 20V4"/><path d="M4 20h16"/><path d="M8.5 20v-6M13 20V8M17.5 20v-9"/></Base>;

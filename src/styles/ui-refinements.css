@@ -1,6 +1,5 @@
 .provider-summary-track > span,
-.account-metric-track > span,
-.progress-fill {
+.account-metric-track > span {
   background: var(--obsidian-purple-strong);
 }
 
@@ -10,24 +9,20 @@
 }
 
 .provider-summary-track > .tone-warning,
-.account-metric-track > .tone-warning,
-.progress-fill.warning {
+.account-metric-track > .tone-warning {
   background: var(--obsidian-amber) !important;
 }
 
 .provider-summary-track > .tone-critical,
-.account-metric-track > .tone-critical,
-.progress-fill.danger {
+.account-metric-track > .tone-critical {
   background: var(--danger-fill) !important;
 }
 
 .provider-summary-track > .tone-neutral,
-.account-metric-track > .tone-neutral,
-.progress-fill.neutral {
+.account-metric-track > .tone-neutral {
   background: var(--c-69656d) !important;
 }
 
-.account-status-badge,
 .account-plan-badge {
   display: inline-flex;
   align-items: center;
@@ -484,10 +479,6 @@
   display: block;
 }
 
-.account-usage-metric .metric-label {
-  min-width: 0;
-}
-
 .account-usage-metric .metric-header-row {
   display: flex;
   align-items: center;
@@ -496,45 +487,6 @@
   width: 100%;
   min-width: 0;
   margin: 0 0 2px;
-}
-
-.account-usage-metric .metric-window-pill {
-  flex: 0 0 auto;
-  width: fit-content;
-  margin: 0;
-  padding: 2px 8px;
-  color: var(--obsidian-text);
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06) !important;
-  box-shadow: none !important;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  line-height: 1.35;
-  white-space: nowrap;
-}
-
-:root[data-theme="light"] .account-usage-metric .metric-window-pill {
-  background: rgba(0, 0, 0, 0.05) !important;
-  border-color: rgba(0, 0, 0, 0.12) !important;
-  color: var(--obsidian-text);
-}
-
-/* One identity color per window length; the leading :root outranks the light-theme rule above. */
-:root .account-usage-metric .metric-window-pill.window-pill-5h {
-  border-color: rgb(var(--window-5h-rgb) / 0.5) !important;
-  background: rgb(var(--window-5h-rgb) / 0.12) !important;
-}
-
-:root .account-usage-metric .metric-window-pill.window-pill-7d {
-  border-color: rgb(var(--window-7d-rgb) / 0.5) !important;
-  background: rgb(var(--window-7d-rgb) / 0.12) !important;
-}
-
-:root .account-usage-metric .metric-window-pill.window-pill-monthly {
-  border-color: rgb(var(--window-30d-rgb) / 0.5) !important;
-  background: rgb(var(--window-30d-rgb) / 0.12) !important;
 }
 
 .account-usage-metric .metric-value-row {
@@ -553,23 +505,6 @@
   flex: 1 1 0;
   min-width: 0;
   width: auto;
-}
-
-.account-usage-metric .metric-reset-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  min-width: 0;
-  margin: 0 0 8px;
-}
-
-.account-usage-metric .metric-reset-lead {
-  display: inline-flex;
-  align-items: center;
-  flex: 0 1 auto;
-  min-width: 0;
 }
 
 .account-usage-metric .metric-reset {
@@ -1870,11 +1805,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 :root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):hover:not(:disabled),
 :root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):focus-visible,
 :root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):active:not(:disabled),
-:root[data-theme="light"] .mobile-dropdown-toggle,
-:root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active),
-:root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):hover:not(:disabled),
-:root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):focus-visible,
-:root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):active:not(:disabled) {
+:root[data-theme="light"] .mobile-dropdown-toggle {
   background: var(--mobile-filter-bg, var(--white)) !important;
   color: var(--black) !important;
 }
@@ -1883,15 +1814,7 @@ html:not(.dashboard-reordering):not(.dashboard-holding) .provider-account-card i
 :root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):hover:not(:disabled) svg,
 :root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):focus-visible svg,
 :root[data-theme="light"] .mobile-sidebar-toggle-btn:not(.mobile-sidebar-close-btn):active:not(:disabled) svg,
-:root[data-theme="light"] .mobile-dropdown-toggle svg,
-:root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active) svg,
-:root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active) > span,
-:root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):hover:not(:disabled) svg,
-:root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):hover:not(:disabled) > span,
-:root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):focus-visible svg,
-:root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):focus-visible > span,
-:root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):active:not(:disabled) svg,
-:root[data-theme="light"] .obsidian-shell button.sidebar-footer:not(.update-available):not(.active):active:not(:disabled) > span {
+:root[data-theme="light"] .mobile-dropdown-toggle svg {
   color: var(--black) !important;
 }
 
@@ -2023,8 +1946,6 @@ html::after {
   pointer-events: none;
   z-index: 2147483647;
 }
-
-
 
 .sidebar-refresh-btn:disabled {
   cursor: default;

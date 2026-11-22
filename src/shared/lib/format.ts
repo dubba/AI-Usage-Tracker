@@ -35,13 +35,6 @@ export function formatClockTime(date: Date, locale?: string): string {
   return date.toLocaleTimeString(locale, { hour: is24Hour ? "2-digit" : "numeric", minute: "2-digit" });
 }
 
-export function formatResetAtShort(value: string | null | undefined, locale?: string): string | null {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return `${formatMonthDay(date, locale)} @ ${formatClockTime(date, locale)}`;
-}
-
 /**
  * The reset date as an account card shows it after the countdown: "Today @ 2:29p" on the day of
  * `now`, otherwise the short weekday and date, "Wed, Nov 18 @ 4:00a". `now` is a parameter so a
@@ -99,15 +92,6 @@ export function formatUpdatedAt(value: string | null | undefined, now = Date.now
   const then = new Date(value).getTime();
   if (!Number.isFinite(then)) return null;
   return `Updated ${formatElapsed(now - then)}`;
-}
-
-export function resetCountdownLabel(
-  value: string | null | undefined,
-  now: number = Date.now(),
-  windowSeconds?: number | null,
-): string | null {
-  const remaining = resetCountdown(value, now, windowSeconds);
-  return remaining ? `Reset: ${remaining}` : null;
 }
 
 /** Time left until a reset ("2h 8m"), capped just under the window length; null once it has passed. */

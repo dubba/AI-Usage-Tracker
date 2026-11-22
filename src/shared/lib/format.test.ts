@@ -6,10 +6,8 @@ import {
   formatMonthDay,
   formatRemainingDuration,
   formatResetAtDay,
-  formatResetAtShort,
   formatUpdatedAt,
   resetCountdown,
-  resetCountdownLabel,
 } from "./format";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z").getTime();
@@ -93,34 +91,6 @@ describe("formatRemainingDuration", () => {
   });
 });
 
-describe("resetCountdownLabel", () => {
-  it("returns null without a usable reset time", () => {
-    expect(resetCountdownLabel(null)).toBeNull();
-    expect(resetCountdownLabel(undefined)).toBeNull();
-    expect(resetCountdownLabel("not a date")).toBeNull();
-  });
-
-  it("returns null once the reset time has passed", () => {
-    expect(resetCountdownLabel(new Date(NOW - MINUTE).toISOString(), NOW)).toBeNull();
-  });
-
-  it("labels the time remaining", () => {
-    const resetsAt = new Date(NOW + 90 * MINUTE).toISOString();
-    expect(resetCountdownLabel(resetsAt, NOW)).toBe("Reset: 1h 30m");
-  });
-
-  it("never reports more than one full window remaining", () => {
-    const resetsAt = new Date(NOW + 10 * HOUR).toISOString();
-    expect(resetCountdownLabel(resetsAt, NOW, 5 * 3600)).toBe("Reset: 4h 59m");
-  });
-
-  it("does not count down from a stale `now` older than the real clock", () => {
-    const resetsAt = new Date(NOW + 30 * MINUTE).toISOString();
-    vi.setSystemTime(NOW + 10 * MINUTE);
-    expect(resetCountdownLabel(resetsAt, NOW)).toBe("Reset: 20m");
-  });
-});
-
 describe("resetCountdown", () => {
   it("is the time remaining without the label", () => {
     expect(resetCountdown(new Date(NOW + 128 * MINUTE).toISOString(), NOW)).toBe("2h 8m");
@@ -150,23 +120,6 @@ describe("formatUpdatedAt", () => {
 
   it("treats timestamps in the future as just now", () => {
     expect(formatUpdatedAt(new Date(NOW + HOUR).toISOString(), NOW)).toBe("Updated just now");
-  });
-});
-
-describe("formatResetAtShort", () => {
-  it("returns null for empty or invalid input", () => {
-    expect(formatResetAtShort(null)).toBeNull();
-    expect(formatResetAtShort("nope")).toBeNull();
-  });
-
-  it("uses a compact 12-hour time with a single-letter meridiem for English locales", () => {
-    expect(formatResetAtShort(new Date(2026, 8, 30, 14, 5).toISOString(), "en-US")).toMatch(/ @ 2:05p$/);
-    expect(formatResetAtShort(new Date(2026, 8, 30, 0, 7).toISOString(), "en-US")).toMatch(/ @ 12:07a$/);
-    expect(formatResetAtShort(new Date(2026, 8, 30, 12, 0).toISOString(), "en-US")).toMatch(/ @ 12:00p$/);
-  });
-
-  it("uses the locale's own date and 24-hour time elsewhere", () => {
-    expect(formatResetAtShort(new Date(2026, 9, 6, 14, 5).toISOString(), "en-GB")).toBe("6 Oct @ 14:05");
   });
 });
 

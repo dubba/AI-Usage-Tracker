@@ -130,26 +130,6 @@ body {
   min-width: 0;
 }
 
-/* The buttons and the L / U toggle share a row. The resize handle marks the page when the
-   sidebar is narrower than that row, and the toggle then drops below the buttons,
-   left-aligned with the Account button. */
-.provider-sidebar-heading-stack {
-  display: contents;
-}
-
-html[data-sidebar-toggle-stacked] .provider-sidebar-heading-stack {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-/* Its auto left margin pins it right on the shared row; in the stack it follows the Account
-   button's left edge. */
-html[data-sidebar-toggle-stacked] .provider-sidebar-heading-stack .usage-display-toggle {
-  margin-left: 0;
-}
-
 .provider-sidebar-heading-actions {
   display: flex;
   align-items: center;
@@ -217,32 +197,6 @@ html[data-sidebar-toggle-stacked] .provider-sidebar-heading-stack .usage-display
 
 .provider-window-toggle button:last-child {
   border-right: 0;
-}
-
-/* The phone title row's % Left / % Used switch. The same inset pill as the Usage page's 7D / 30D
-   switch: 3px of track around 32px options (a 40px switch, as tall as the menu button), 9px outer corners and 5px option corners. */
-.provider-window-toggle.is-words {
-  gap: 2px;
-  padding: 3px;
-  border-radius: 9px;
-  --segment-radius: 5px;
-  background: var(--obsidian-surface-low);
-}
-
-.provider-window-toggle.is-words button {
-  width: auto;
-  height: 32px;
-  padding: 0 11px;
-  border: 0;
-  border-radius: 5px;
-  color: var(--obsidian-muted);
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.provider-window-toggle.is-words button.active {
-  color: var(--purple-on-fill);
 }
 
 /* Same solid purple fill and white label as the + Account / + Group primary buttons. */
@@ -483,8 +437,7 @@ html[data-sidebar-toggle-stacked] .provider-sidebar-heading-stack .usage-display
   font-weight: 600;
 }
 
-.provider-average .tone-na,
-.provider-average .tone-pipe {
+.provider-average .tone-na {
   color: var(--c-eeeaea);
 }
 
@@ -545,82 +498,6 @@ html[data-sidebar-toggle-stacked] .provider-sidebar-heading-stack .usage-display
 .provider-summary-track > .tone-neutral,
 .account-metric-track > .tone-neutral {
   background: var(--c-69656d);
-}
-
-.provider-empty {
-  margin: 0 8px;
-  border-color: var(--obsidian-border) !important;
-  background: var(--obsidian-surface-low) !important;
-}
-
-.obsidian-shell .sidebar-footer {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  flex: 0 0 auto;
-  min-height: 44px;
-  margin: auto 0 0;
-  padding: 0 14px;
-  border: 1px solid var(--obsidian-purple);
-  border-radius: 4px;
-  background: var(--obsidian-purple);
-  color: var(--purple-on-text);
-  box-shadow: none;
-  cursor: pointer;
-  transition: border-color 120ms ease, background 120ms ease, color 120ms ease, transform 100ms ease;
-}
-
-.obsidian-shell .sidebar-footer svg {
-  width: 18px;
-  height: 18px;
-  color: var(--purple-on-text);
-}
-
-.obsidian-shell .sidebar-footer > span {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--purple-on-text);
-}
-
-@media (hover: hover) {
-  .obsidian-shell .sidebar-footer:hover {
-    border-color: var(--obsidian-purple-strong) !important;
-    background: var(--purple-chip) !important;
-    color: var(--purple-on-text) !important;
-  }
-}
-
-.obsidian-shell .sidebar-footer:focus-visible {
-  border-color: var(--obsidian-purple-strong) !important;
-  background: var(--purple-chip) !important;
-  color: var(--purple-on-text) !important;
-}
-
-.obsidian-shell .sidebar-footer:active {
-  background: var(--purple-chip-active) !important;
-  border-color: var(--obsidian-purple-strong) !important;
-  color: var(--purple-on-text) !important;
-  transform: scale(0.98);
-}
-
-.obsidian-shell .sidebar-footer.update-available {
-  color: var(--purple-on-text);
-  background: var(--purple-chip);
-  border-color: var(--obsidian-purple-strong);
-}
-
-.obsidian-shell .sidebar-footer.active {
-  border-color: var(--obsidian-purple-strong) !important;
-  background: var(--purple-chip) !important;
-  color: var(--purple-on-text) !important;
-  box-shadow: 0 0 0 1px var(--obsidian-purple-strong) !important;
-}
-
-.obsidian-shell .sidebar-footer.active svg,
-.obsidian-shell .sidebar-footer.active > span {
-  color: var(--purple-on-text) !important;
 }
 
 .obsidian-shell .main-stage {
@@ -904,12 +781,6 @@ button.button.ghost.empty-provider-other:active:not(:disabled) {
   white-space: nowrap;
 }
 
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 .button {
   min-height: 38px;
   font-size: 14px;
@@ -1131,15 +1002,6 @@ button.summary-strip:focus-visible {
 .pull-refresh-hint-dismiss svg {
   width: 14px;
   height: 14px;
-}
-
-.metric-label {
-  color: var(--obsidian-muted-bright);
-  font-size: 11px;
-  line-height: 14px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .summary-status-cluster {
@@ -1486,26 +1348,6 @@ button.account-card-provider-icon:active {
   height: 18px;
 }
 
-.account-status-badge.success {
-  color: var(--c-6ffbbe);
-  background: var(--c-0-82-54-a550);
-}
-
-.account-status-badge.warning {
-  color: var(--c-ffca83);
-  background: var(--c-103-61-0-a550);
-}
-
-.account-status-badge.danger {
-  color: var(--c-ffb4ab);
-  background: var(--c-105-0-5-a580);
-}
-
-.account-status-badge.neutral {
-  color: var(--c-c2bdc6);
-  background: var(--c-353434);
-}
-
 .account-plan-badge {
   color: var(--c-ddd7e2);
   background: var(--c-3a3939);
@@ -1666,9 +1508,7 @@ button.account-card-provider-icon:active {
   padding: 14px 0;
 }
 
-.metric-window-pill,
-.metric-inline-credit,
-.window-pill {
+.metric-inline-credit {
   flex: 0 0 auto;
   padding: 2px 8px;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -1679,13 +1519,6 @@ button.account-card-provider-icon:active {
   font-weight: 600;
   letter-spacing: 0.02em;
   white-space: nowrap;
-}
-
-:root[data-theme="light"] .metric-window-pill,
-:root[data-theme="light"] .window-pill {
-  background: rgba(0, 0, 0, 0.05);
-  border-color: rgba(0, 0, 0, 0.12);
-  color: var(--obsidian-text);
 }
 
 .metric-value-row {
@@ -1721,16 +1554,6 @@ button.account-card-provider-icon:active {
   min-width: 0;
   width: auto;
   height: 6px;
-}
-
-.metric-reset-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  min-width: 0;
-  margin: 0 0 8px;
 }
 
 .metric-reset {
@@ -1793,80 +1616,6 @@ button.account-card-provider-icon:active {
   .settings-style-content .dashboard-scroll {
     padding-top: 10px;
     padding-bottom: 10px;
-  }
-}
-
-.settings-section-title {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--obsidian-muted);
-  /* 6px clears the Advanced focus ring (2px outline + 3px offset). The scroll
-     area clips overflow, and the old 2px inset cut off the left of that ring.
-     Every section title uses the same inset so the labels stay aligned. */
-  margin: 18px 0 8px 6px;
-  line-height: 1.2;
-}
-
-.settings-style-content .dashboard-scroll > .settings-section-title:first-child,
-.settings-style-content .dashboard-scroll > .settings-section-title:first-of-type {
-  margin-top: 18px;
-}
-
-.settings-advanced-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  /* Pull 1px left so the focus ring (2px outline + 3px offset = 5px) starts
-     flush with the settings-card edge instead of 1px inside it. The 1px left
-     padding puts the label text back at the shared 6px inset so the "A" stays
-     aligned with the other section titles; the 1px right padding balances the
-     cropped chevron on the other side. */
-  margin: 0 0 0 -1px;
-  padding: 0 1px;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  letter-spacing: inherit;
-  text-transform: inherit;
-  cursor: pointer;
-}
-
-.settings-advanced-toggle:hover {
-  color: var(--obsidian-text);
-}
-
-.settings-advanced-toggle:focus-visible {
-  outline: 2px solid var(--obsidian-purple-strong);
-  outline-offset: 3px;
-  border-radius: 3px;
-}
-
-.settings-advanced-chevron {
-  width: 12px;
-  height: 12px;
-  stroke-width: 2.5;
-  color: currentColor;
-  /* The chevron glyph ends at x=15 of a 24-unit viewBox, leaving ~4px of empty
-     trailing space in its 12px box. Crop it so the ink sits as close to the
-     focus ring on the right as the "A" does on the left. */
-  margin-right: -4px;
-  transform: rotate(0deg);
-  transition: transform 180ms ease, margin-right 180ms ease;
-}
-
-.settings-advanced-chevron.open {
-  /* Rotated 90° the glyph's taller vertical extent (y=6..18) lies horizontal,
-     leaving only ~2.5px of trailing space, so crop less to keep the same gap. */
-  margin-right: -2.5px;
-  transform: rotate(90deg);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .settings-advanced-chevron {
-    transition: none;
   }
 }
 
@@ -2154,10 +1903,6 @@ button.account-card-provider-icon:active {
   color: var(--white);
   background: var(--purple-fill-hover) !important;
   border-color: var(--purple-fill-line) !important;
-}
-
-.edit-bucket-header-btn {
-  display: none !important;
 }
 
 /* Mobile: keep the version label on one line even with prerelease
@@ -3462,16 +3207,6 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
     margin-top: 0 !important;
   }
 
-  /* The scroll area already adds 10px of top padding, so General needs 8px to total 18px, matching Updates, Devices, and Advanced. */
-  .settings-style-content .dashboard-scroll > .settings-section-title:first-child,
-  .settings-style-content .dashboard-scroll > .settings-section-title:first-of-type {
-    margin-top: 8px;
-  }
-
-  .settings-style-content .dashboard-scroll > .settings-section-title:last-child {
-    margin-bottom: 0;
-  }
-
   .dashboard-header {
     border-top: 0;
     border-left: 0;
@@ -3481,10 +3216,6 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
 
   .dashboard-header {
     padding-bottom: 10px;
-  }
-
-  .dashboard-header .header-actions {
-    display: none;
   }
 
   .summary-strip {
@@ -3687,7 +3418,7 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
     flex-shrink: 0;
   }
 
-  .account-status-badge,
+  
   .account-plan-badge {
     display: inline-flex;
     align-items: center;
@@ -3759,7 +3490,6 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
   }
 
   .account-usage-metric,
-  .account-credit-metric,
   .account-usage-metric + .account-usage-metric {
     padding: 14px 0;
     border-left: 0;
@@ -3907,10 +3637,7 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
   }
 
   /* The inset switches match 7D / 30D, whose selected label is --purple-on-fill, not pure white. */
-  .provider-window-toggle.is-words button.active,
-  .provider-window-toggle.is-words button.active:hover,
-  .provider-window-toggle.is-words button.active:focus,
-  .provider-window-toggle.is-words button.active:focus-visible,
+  
   .provider-window-toggle.is-mobile-header button.active,
   .provider-window-toggle.is-mobile-header button.active:hover,
   .provider-window-toggle.is-mobile-header button.active:focus,
@@ -3918,76 +3645,6 @@ body:has(.modal-backdrop:not(.confirm-dialog-backdrop)) .confirm-dialog-backdrop
     color: var(--purple-on-fill) !important;
   }
 }
-
-@media (max-width: 860px) {
-  .obsidian-shell .sidebar-footer {
-    position: absolute;
-    bottom: max(56px, calc(var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) + 56px));
-    left: max(16px, calc(var(--safe-area-left, env(safe-area-inset-left, 0px)) + 14px));
-    right: max(16px, calc(var(--safe-area-right, env(safe-area-inset-right, 0px)) + 14px));
-    width: auto;
-    margin: 0;
-    min-height: 40px;
-    height: 40px;
-    border: 1px solid var(--obsidian-purple);
-    border-radius: 4px;
-    background: var(--obsidian-purple);
-    color: var(--purple-on-text);
-    box-shadow: none;
-    font-size: 14px;
-    font-weight: 700;
-    gap: 6px;
-    padding: 0 14px;
-    box-sizing: border-box;
-    justify-content: center;
-  }
-
-  @media (hover: hover) {
-    .obsidian-shell .sidebar-footer:hover {
-      border-color: var(--obsidian-purple-strong) !important;
-      background: var(--purple-chip) !important;
-      color: var(--purple-on-text) !important;
-    }
-  }
-
-  .obsidian-shell .sidebar-footer:focus-visible {
-    border-color: var(--obsidian-purple-strong) !important;
-    background: var(--purple-chip) !important;
-    color: var(--purple-on-text) !important;
-  }
-
-  .obsidian-shell .sidebar-footer:active {
-    background: var(--purple-chip-active) !important;
-    border-color: var(--obsidian-purple-strong) !important;
-    color: var(--purple-on-text) !important;
-    transform: scale(0.98);
-  }
-
-  .obsidian-shell .sidebar-footer.active {
-    border-color: var(--obsidian-purple-strong) !important;
-    background: var(--purple-chip) !important;
-    color: var(--purple-on-text) !important;
-    box-shadow: 0 0 0 1px var(--obsidian-purple-strong) !important;
-  }
-
-  .obsidian-shell .sidebar-footer.active svg,
-  .obsidian-shell .sidebar-footer.active > span {
-    color: var(--purple-on-text) !important;
-  }
-
-  .obsidian-shell .sidebar-footer svg {
-    width: 18px;
-    height: 18px;
-    color: var(--purple-on-text);
-  }
-
-  .obsidian-shell .sidebar-footer > span {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--purple-on-text);
-  }
-}
-
 
 /* Delete local app data: what goes and what stays in one paragraph, then an amber warning. */
 .confirm-dialog-backdrop .modal-card .confirm-dialog-body {
