@@ -108,13 +108,11 @@ fn sample_account() -> Account {
         provider: crate::model::Provider::Anthropic,
         email: Some("person@example.com".into()),
         provider_account_id: Some("provider-account-id".into()),
-        chatgpt_account_id: None,
         plan: Some("max".into()),
         created_at: "2026-09-03T11:00:00Z".into(),
         updated_at: "2026-09-03T11:00:00Z".into(),
         last_usage: Some(crate::model::UsageSnapshot {
             plan: Some("max".into()),
-            email: None,
             windows: vec![crate::model::UsageWindow {
                 id: "five_hour".into(),
                 label: "5 hour".into(),
@@ -124,15 +122,11 @@ fn sample_account() -> Account {
                 window_seconds: Some(18_000),
                 kind: None,
             }],
-            credits_usd: None,
-            unlimited_credits: false,
             fetched_at: "2026-09-03T12:00:00Z".into(),
-            freshness: UsageFreshness::Live,
             source: "anthropic_oauth_usage".into(),
-            limit_resets: Vec::new(),
+            ..crate::model::UsageSnapshot::for_test()
         }),
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     }
 }
 

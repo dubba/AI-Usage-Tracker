@@ -1,5 +1,5 @@
 use super::*;
-use crate::model::{GoogleAiStudioSecret, GrokSecret, OpenCodeGoSecret, UsageFreshness};
+use crate::model::{GoogleAiStudioSecret, GrokSecret, OpenCodeGoSecret};
 
 const ACCESS: &str =
     "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJlY2hvLXRlc3QtYWNjZXNzIn0.c2lnbmF0dXJlLWFjY2Vzcy10b2tlbg";
@@ -174,15 +174,12 @@ fn every_account_field_is_checked() {
             plan: Some("Plus".into()),
             email: Some("person@example.com".into()),
             windows: usage().windows,
-            credits_usd: None,
-            unlimited_credits: false,
             fetched_at: "2026-11-18T00:00:00Z".into(),
-            freshness: UsageFreshness::Live,
             source: "wham".into(),
             limit_resets: usage().limit_resets,
+            ..UsageSnapshot::for_test()
         }),
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     };
     assert!(!echo.account_echoes(&base));
 

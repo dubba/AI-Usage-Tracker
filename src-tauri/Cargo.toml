@@ -108,7 +108,7 @@ winreg = "0.10"
 # written by `type_contract.rs`). Test-only: the derives are `cfg_attr(test, ...)`, so release
 # builds never compile it.
 ts-rs = "12"
-usage-core = { path = "crates/usage-core", features = ["ts"] }
+usage-core = { path = "crates/usage-core", features = ["test-util", "ts"] }
 
 [profile.dev]
 debug = 1

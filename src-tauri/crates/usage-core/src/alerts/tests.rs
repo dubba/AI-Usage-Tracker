@@ -1,5 +1,5 @@
 use super::*;
-use crate::model::{now_rfc3339, Provider, UsageFreshness, UsageSnapshot};
+use crate::model::{now_rfc3339, Provider, UsageSnapshot};
 
 fn window(id: &str, label: &str, remaining: f64, resets_at: Option<&str>) -> UsageWindow {
     UsageWindow {
@@ -19,25 +19,15 @@ fn account(provider: Provider, plan: Option<&str>, windows: Option<Vec<UsageWind
         id: "account".into(),
         label: "Account".into(),
         provider,
-        email: None,
-        provider_account_id: None,
-        chatgpt_account_id: None,
         plan: plan.map(Into::into),
         created_at: now_rfc3339(),
         updated_at: now_rfc3339(),
         last_usage: windows.map(|windows| UsageSnapshot {
-            plan: None,
-            email: None,
             windows,
-            credits_usd: None,
-            unlimited_credits: false,
             fetched_at: now_rfc3339(),
-            freshness: UsageFreshness::Live,
-            source: "test".into(),
-            limit_resets: Vec::new(),
+            ..UsageSnapshot::for_test()
         }),
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     }
 }
 

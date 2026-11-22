@@ -253,13 +253,10 @@ fn appends_grok_bot_window_after_supergrok_weekly_window() {
         provider: crate::model::Provider::Grok,
         email: Some("user@example.com".into()),
         provider_account_id: Some("grok-browser-session".into()),
-        chatgpt_account_id: None,
         plan: Some("SuperGrok Heavy".into()),
         created_at: String::new(),
         updated_at: String::new(),
-        last_usage: None,
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     };
     let supergrok_reset = Utc.timestamp_opt(1_792_477_920, 0).single().unwrap();
     let bot_start = Utc.timestamp_opt(1_792_093_380, 0).single().unwrap();

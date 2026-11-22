@@ -92,15 +92,9 @@ fn login_status_constructors_build_the_expected_states() {
         id: "acc".into(),
         label: "Acc".into(),
         provider: crate::model::Provider::Openai,
-        email: None,
-        provider_account_id: None,
-        chatgpt_account_id: None,
-        plan: None,
         created_at: String::new(),
         updated_at: String::new(),
-        last_usage: None,
-        last_error: None,
-        auth_required: false,
+        ..crate::model::Account::for_test()
     };
     let complete = LoginStatus::complete("a", account.clone());
     assert_eq!(complete.status, LoginState::Complete);
@@ -224,15 +218,9 @@ async fn remove_account_waits_for_an_in_flight_refresh() {
         id: id.into(),
         label: "Removal".into(),
         provider: crate::model::Provider::Openai,
-        email: None,
-        provider_account_id: None,
-        chatgpt_account_id: None,
-        plan: None,
         created_at: now.clone(),
         updated_at: now,
-        last_usage: None,
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     };
     let secret = ProviderSecret::Openai(crate::model::OAuthSecret {
         access_token: "a".into(),
@@ -272,15 +260,9 @@ async fn delete_all_local_data_removes_accounts_groups_alerts_and_settings() {
             id: id.into(),
             label: id.into(),
             provider: crate::model::Provider::Openai,
-            email: None,
-            provider_account_id: None,
-            chatgpt_account_id: None,
-            plan: None,
             created_at: now.clone(),
             updated_at: now,
-            last_usage: None,
-            last_error: None,
-            auth_required: false,
+            ..Account::for_test()
         };
         let secret = ProviderSecret::Openai(crate::model::OAuthSecret {
             access_token: "a".into(),
@@ -418,15 +400,9 @@ fn update_login_account_updates_completed_login() {
         id: "acc-1".into(),
         label: "Test".into(),
         provider: crate::model::Provider::Openai,
-        email: None,
-        provider_account_id: None,
-        chatgpt_account_id: None,
-        plan: None,
         created_at: "2026-01-01T00:00:00Z".into(),
         updated_at: "2026-01-01T00:00:00Z".into(),
-        last_usage: None,
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     };
     *state.pending_login.write() = Some(LoginStatus {
         attempt_id: "attempt-1".into(),
@@ -441,15 +417,10 @@ fn update_login_account_updates_completed_login() {
         id: "acc-1".into(),
         label: "Test".into(),
         provider: crate::model::Provider::Openai,
-        email: None,
-        provider_account_id: None,
-        chatgpt_account_id: None,
         plan: Some("ChatGPT Plus".into()),
         created_at: "2026-01-01T00:00:00Z".into(),
         updated_at: "2026-01-01T00:00:00Z".into(),
-        last_usage: None,
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     };
 
     // Mismatched attempt_id does not update
@@ -485,21 +456,15 @@ fn update_login_account_updates_completed_login() {
 
 /// An account whose last refresh was live and reported a weekly window, so it has a tracker.
 fn account_with_weekly_usage(id: &str) -> Account {
-    use crate::model::{UsageFreshness, UsageSnapshot, UsageWindow, WindowKind};
+    use crate::model::{UsageSnapshot, UsageWindow, WindowKind};
     let now = crate::model::now_rfc3339();
     Account {
         id: id.into(),
         label: id.into(),
         provider: crate::model::Provider::Anthropic,
-        email: None,
-        provider_account_id: None,
-        chatgpt_account_id: None,
-        plan: None,
         created_at: now.clone(),
         updated_at: now.clone(),
         last_usage: Some(UsageSnapshot {
-            plan: None,
-            email: None,
             windows: vec![UsageWindow {
                 id: "weekly".into(),
                 label: "Weekly".into(),
@@ -509,15 +474,10 @@ fn account_with_weekly_usage(id: &str) -> Account {
                 window_seconds: Some(crate::model::WEEKLY_WINDOW_SECONDS),
                 kind: Some(WindowKind::Weekly),
             }],
-            credits_usd: None,
-            unlimited_credits: false,
             fetched_at: now,
-            freshness: UsageFreshness::Live,
-            source: "test".into(),
-            limit_resets: Vec::new(),
+            ..UsageSnapshot::for_test()
         }),
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     }
 }
 

@@ -192,14 +192,11 @@ fn the_report_lists_status_without_identity_or_secrets() {
                 label: "Private Label".into(),
                 provider: Provider::Anthropic,
                 email: Some("someone@example.com".into()),
-                provider_account_id: None,
-                chatgpt_account_id: None,
                 plan: Some("Pro".into()),
                 created_at: now.clone(),
                 updated_at: now,
-                last_usage: None,
                 last_error: Some("Anthropic returned 429 for someone@example.com".into()),
-                auth_required: false,
+                ..Account::for_test()
             },
             &ProviderSecret::Anthropic(OAuthSecret {
                 access_token: "secret-access".into(),

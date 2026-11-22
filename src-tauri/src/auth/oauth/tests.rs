@@ -42,12 +42,11 @@ fn stored_openai(app: &AppState, email: Option<&str>, account_id: Option<&str>) 
             email: email.map(str::to_string),
             provider_account_id: account_id.map(str::to_string),
             chatgpt_account_id: account_id.map(str::to_string),
-            plan: None,
             created_at: now.clone(),
             updated_at: now,
-            last_usage: None,
             last_error: Some("expired".into()),
             auth_required: true,
+            ..Account::for_test()
         })
         .unwrap()
 }

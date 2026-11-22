@@ -145,15 +145,9 @@ mod tests {
             id: id.into(),
             label: label.into(),
             provider: Provider::Openai,
-            email: None,
-            provider_account_id: None,
-            chatgpt_account_id: None,
-            plan: None,
             created_at: created_at.into(),
             updated_at: created_at.into(),
-            last_usage: None,
-            last_error: None,
-            auth_required: false,
+            ..Account::for_test()
         }
     }
 

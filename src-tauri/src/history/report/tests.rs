@@ -1,5 +1,5 @@
 use super::*;
-use crate::model::{Provider, UsageFreshness, UsageSnapshot};
+use crate::model::{Provider, UsageSnapshot};
 use chrono::TimeZone;
 use serde_json::json;
 
@@ -162,25 +162,14 @@ fn account(
         id: id.into(),
         label: format!("{id} label"),
         provider,
-        email: None,
-        provider_account_id: None,
-        chatgpt_account_id: None,
-        plan: None,
         created_at: iso(fetched_at),
         updated_at: iso(fetched_at),
         last_usage: windows.map(|windows| UsageSnapshot {
-            plan: None,
-            email: None,
             windows,
-            credits_usd: None,
-            unlimited_credits: false,
             fetched_at: iso(fetched_at),
-            freshness: UsageFreshness::Live,
-            source: "test".into(),
-            limit_resets: Vec::new(),
+            ..UsageSnapshot::for_test()
         }),
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     }
 }
 

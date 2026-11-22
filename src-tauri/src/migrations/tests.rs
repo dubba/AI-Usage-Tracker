@@ -8,15 +8,10 @@ fn account(id: &str, provider: Provider, provider_account_id: Option<&str>) -> A
         id: id.into(),
         label: id.into(),
         provider,
-        email: None,
         provider_account_id: provider_account_id.map(Into::into),
-        chatgpt_account_id: None,
-        plan: None,
         created_at: now.clone(),
         updated_at: now,
-        last_usage: None,
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     }
 }
 

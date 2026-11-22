@@ -415,14 +415,9 @@ mod tests {
                     label: "Claude".into(),
                     provider: crate::model::Provider::Anthropic,
                     email: Some("airgap@example.com".into()),
-                    provider_account_id: None,
-                    chatgpt_account_id: None,
-                    plan: None,
                     created_at: chrono::Utc::now().to_rfc3339(),
                     updated_at: chrono::Utc::now().to_rfc3339(),
-                    last_usage: None,
-                    last_error: None,
-                    auth_required: false,
+                    ..crate::model::Account::for_test()
                 },
                 &crate::model::ProviderSecret::Anthropic(crate::model::OAuthSecret {
                     access_token: "a".into(),
@@ -541,14 +536,9 @@ mod tests {
                     label: "Claude".into(),
                     provider: crate::model::Provider::Anthropic,
                     email: Some(email.into()),
-                    provider_account_id: None,
-                    chatgpt_account_id: None,
-                    plan: None,
                     created_at: chrono::Utc::now().to_rfc3339(),
                     updated_at: chrono::Utc::now().to_rfc3339(),
-                    last_usage: None,
-                    last_error: None,
-                    auth_required: false,
+                    ..crate::model::Account::for_test()
                 },
                 &crate::model::ProviderSecret::Anthropic(crate::model::OAuthSecret {
                     access_token: "a".into(),

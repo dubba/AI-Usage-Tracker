@@ -1,5 +1,5 @@
 use super::*;
-use crate::model::{now_rfc3339, Provider, UsageFreshness, UsageSnapshot, UsageWindow};
+use crate::model::{now_rfc3339, Provider, UsageSnapshot, UsageWindow};
 
 fn account_with_weekly(remaining: f64) -> Account {
     let now = now_rfc3339();
@@ -7,15 +7,9 @@ fn account_with_weekly(remaining: f64) -> Account {
         id: "account-1".into(),
         label: "Test account".into(),
         provider: Provider::Openai,
-        email: None,
-        provider_account_id: None,
-        chatgpt_account_id: None,
-        plan: None,
         created_at: now.clone(),
         updated_at: now.clone(),
         last_usage: Some(UsageSnapshot {
-            plan: None,
-            email: None,
             windows: vec![UsageWindow {
                 id: "weekly".into(),
                 label: "Weekly".into(),
@@ -26,15 +20,10 @@ fn account_with_weekly(remaining: f64) -> Account {
                 kind: None,
             }
             .classified()],
-            credits_usd: None,
-            unlimited_credits: false,
             fetched_at: now,
-            freshness: UsageFreshness::Live,
-            source: "test".into(),
-            limit_resets: Vec::new(),
+            ..UsageSnapshot::for_test()
         }),
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     }
 }
 
@@ -100,15 +89,9 @@ fn antigravity_multi_window_evaluation_triggers_alert_for_depleted_window() {
         id: "antigravity-1".into(),
         label: "Work Antigravity".into(),
         provider: Provider::Antigravity,
-        email: None,
-        provider_account_id: None,
-        chatgpt_account_id: None,
-        plan: None,
         created_at: now.clone(),
         updated_at: now.clone(),
         last_usage: Some(UsageSnapshot {
-            plan: None,
-            email: None,
             windows: vec![
                 UsageWindow {
                     id: "five_hour_1".into(),
@@ -151,15 +134,11 @@ fn antigravity_multi_window_evaluation_triggers_alert_for_depleted_window() {
                 }
                 .classified(),
             ],
-            credits_usd: None,
-            unlimited_credits: false,
             fetched_at: now.clone(),
-            freshness: UsageFreshness::Live,
             source: "antigravity".into(),
-            limit_resets: Vec::new(),
+            ..UsageSnapshot::for_test()
         }),
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     };
 
     // First evaluation: Gemini 5h and Gemini weekly are below 20%
@@ -208,15 +187,9 @@ fn thirty_day_alert_triggers_and_formats_label() {
         id: "openai-1".into(),
         label: "Free ChatGPT".into(),
         provider: Provider::Openai,
-        email: None,
-        provider_account_id: None,
-        chatgpt_account_id: None,
-        plan: None,
         created_at: now.clone(),
         updated_at: now.clone(),
         last_usage: Some(UsageSnapshot {
-            plan: None,
-            email: None,
             windows: vec![UsageWindow {
                 id: "monthly".into(),
                 label: "GPT · 30-Day Limit".into(),
@@ -227,15 +200,11 @@ fn thirty_day_alert_triggers_and_formats_label() {
                 kind: None,
             }
             .classified()],
-            credits_usd: None,
-            unlimited_credits: false,
             fetched_at: now,
-            freshness: UsageFreshness::Live,
             source: "wham".into(),
-            limit_resets: Vec::new(),
+            ..UsageSnapshot::for_test()
         }),
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     };
 
     let alerts = store.evaluate(&account).unwrap();
@@ -289,15 +258,9 @@ fn window_without_reset_time_notifies_once_and_does_not_repeat_on_subsequent_ref
         id: "account-no-reset".into(),
         label: "Account without reset".into(),
         provider: Provider::Openai,
-        email: None,
-        provider_account_id: None,
-        chatgpt_account_id: None,
-        plan: None,
         created_at: "2026-11-01T00:00:00Z".into(),
         updated_at: "2026-11-01T00:00:00Z".into(),
         last_usage: Some(UsageSnapshot {
-            plan: None,
-            email: None,
             windows: vec![UsageWindow {
                 id: "five_hour".into(),
                 label: "5-Hour Limit".into(),
@@ -308,15 +271,10 @@ fn window_without_reset_time_notifies_once_and_does_not_repeat_on_subsequent_ref
                 kind: None,
             }
             .classified()],
-            credits_usd: None,
-            unlimited_credits: false,
             fetched_at: "2026-11-01T12:00:00Z".into(),
-            freshness: UsageFreshness::Live,
-            source: "test".into(),
-            limit_resets: Vec::new(),
+            ..UsageSnapshot::for_test()
         }),
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     };
 
     // First evaluation: remaining is 15% <= 20% -> triggers alert

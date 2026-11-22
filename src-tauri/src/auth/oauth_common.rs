@@ -141,14 +141,9 @@ mod tests {
             label: label.to_string(),
             provider,
             email: email.map(str::to_string),
-            provider_account_id: None,
-            chatgpt_account_id: None,
-            plan: None,
             created_at: String::new(),
             updated_at: String::new(),
-            last_usage: None,
-            last_error: None,
-            auth_required: false,
+            ..Account::for_test()
         }
     }
 

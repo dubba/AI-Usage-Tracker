@@ -151,14 +151,10 @@ async fn test_export_and_import_payload() {
         label: "Claude Primary".into(),
         provider: Provider::Anthropic,
         email: Some("user@example.com".into()),
-        provider_account_id: None,
-        chatgpt_account_id: None,
         plan: Some("Pro".into()),
         created_at: Utc::now().to_rfc3339(),
         updated_at: Utc::now().to_rfc3339(),
-        last_usage: None,
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     };
     let secret = ProviderSecret::Anthropic(crate::model::OAuthSecret {
         access_token: "sk-ant-access-123".into(),
@@ -227,14 +223,9 @@ async fn import_replaces_unsafe_peer_account_ids_with_local_ids() {
         label: "Peer Account".into(),
         provider: Provider::Anthropic,
         email: Some("peer@example.com".into()),
-        provider_account_id: None,
-        chatgpt_account_id: None,
-        plan: None,
         created_at: Utc::now().to_rfc3339(),
         updated_at: Utc::now().to_rfc3339(),
-        last_usage: None,
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     };
     let secret = ProviderSecret::Anthropic(crate::model::OAuthSecret {
         access_token: "sk-ant-access-evil".into(),
@@ -293,14 +284,11 @@ async fn import_rewrites_legacy_labels_and_errors_from_an_older_sender() {
         label: "Anthropic Claude 2".into(),
         provider: Provider::Anthropic,
         email: Some("old@example.com".into()),
-        provider_account_id: None,
-        chatgpt_account_id: None,
-        plan: None,
         created_at: Utc::now().to_rfc3339(),
         updated_at: Utc::now().to_rfc3339(),
-        last_usage: None,
         last_error: Some("authentication is required".into()),
         auth_required: true,
+        ..Account::for_test()
     };
     let secret = ProviderSecret::Anthropic(crate::model::OAuthSecret {
         access_token: "sk-ant-access-old".into(),
@@ -340,14 +328,9 @@ async fn import_bounds_peer_supplied_fields() {
         label: "Peer".into(),
         provider: Provider::Anthropic,
         email: Some("peer@example.com".into()),
-        provider_account_id: None,
-        chatgpt_account_id: None,
-        plan: None,
         created_at: Utc::now().to_rfc3339(),
         updated_at: Utc::now().to_rfc3339(),
-        last_usage: None,
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     };
     let secret = ProviderSecret::Anthropic(crate::model::OAuthSecret {
         access_token: "a".into(),
@@ -549,13 +532,10 @@ fn antigravity_account(id: &str, label: &str, email: &str, project_id: Option<&s
         provider: Provider::Antigravity,
         email: Some(email.into()),
         provider_account_id: project_id.map(str::to_string),
-        chatgpt_account_id: None,
         plan: Some("Antigravity".into()),
         created_at: Utc::now().to_rfc3339(),
         updated_at: Utc::now().to_rfc3339(),
-        last_usage: None,
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     }
 }
 
@@ -803,14 +783,9 @@ async fn test_bucket_account_remapping_on_import() {
         label: "Claude Local".into(),
         provider: Provider::Anthropic,
         email: Some("claude@example.com".into()),
-        provider_account_id: None,
-        chatgpt_account_id: None,
-        plan: None,
         created_at: Utc::now().to_rfc3339(),
         updated_at: Utc::now().to_rfc3339(),
-        last_usage: None,
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     };
     let secret = ProviderSecret::Anthropic(crate::model::OAuthSecret {
         access_token: "sk-ant-local".into(),
@@ -832,14 +807,9 @@ async fn test_bucket_account_remapping_on_import() {
         label: "Claude Sender".into(),
         provider: Provider::Anthropic,
         email: Some("claude@example.com".into()),
-        provider_account_id: None,
-        chatgpt_account_id: None,
-        plan: None,
         created_at: Utc::now().to_rfc3339(),
         updated_at: Utc::now().to_rfc3339(),
-        last_usage: None,
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     };
     let sender_secret = ProviderSecret::Anthropic(crate::model::OAuthSecret {
         access_token: "sk-ant-sender".into(),
@@ -889,14 +859,9 @@ async fn test_bucket_account_remapping_on_import() {
                 label: "Claude Local".into(),
                 provider: Provider::Anthropic,
                 email: Some("claude@example.com".into()),
-                provider_account_id: None,
-                chatgpt_account_id: None,
-                plan: None,
                 created_at: Utc::now().to_rfc3339(),
                 updated_at: Utc::now().to_rfc3339(),
-                last_usage: None,
-                last_error: None,
-                auth_required: false,
+                ..Account::for_test()
             },
             &ProviderSecret::Anthropic(crate::model::OAuthSecret {
                 access_token: "sk-ant-local".into(),
@@ -1003,14 +968,10 @@ async fn export_everything() -> (tempfile::TempDir, Vec<u8>) {
         label: "Claude Work".into(),
         provider: Provider::Anthropic,
         email: Some("work@example.com".into()),
-        provider_account_id: None,
-        chatgpt_account_id: None,
         plan: Some("Pro".into()),
         created_at: Utc::now().to_rfc3339(),
         updated_at: Utc::now().to_rfc3339(),
-        last_usage: None,
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     };
     let secret = ProviderSecret::Anthropic(crate::model::OAuthSecret {
         access_token: "sk-ant-access-w".into(),
@@ -1170,14 +1131,10 @@ fn claude_account(id: &str, label: &str, email: &str) -> Account {
         label: label.into(),
         provider: Provider::Anthropic,
         email: Some(email.into()),
-        provider_account_id: None,
-        chatgpt_account_id: None,
         plan: Some("Pro".into()),
         created_at: Utc::now().to_rfc3339(),
         updated_at: Utc::now().to_rfc3339(),
-        last_usage: None,
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     }
 }
 
@@ -2173,14 +2130,9 @@ async fn export_with_secret(id: &str, refresh_token: &str) -> Vec<u8> {
         label: "Claude".into(),
         provider: Provider::Anthropic,
         email: Some("l106@example.com".into()),
-        provider_account_id: None,
-        chatgpt_account_id: None,
-        plan: None,
         created_at: Utc::now().to_rfc3339(),
         updated_at: Utc::now().to_rfc3339(),
-        last_usage: None,
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     };
     let secret = ProviderSecret::Anthropic(crate::model::OAuthSecret {
         access_token: format!("access-{refresh_token}"),
@@ -2242,8 +2194,7 @@ fn full_sync_payload() -> super::payload::SyncPayload {
         SyncPayload, UiStateSyncPayload, PAYLOAD_FORMAT,
     };
     use crate::model::{
-        AccountBucket, LimitReset, OAuthSecret, UsageFreshness, UsageSnapshot, UsageWindow,
-        WindowKind,
+        AccountBucket, LimitReset, OAuthSecret, UsageSnapshot, UsageWindow, WindowKind,
     };
     let pages = || std::collections::BTreeMap::from([("all".to_string(), vec!["acc-1".into()])]);
     SyncPayload {
@@ -2256,13 +2207,11 @@ fn full_sync_payload() -> super::payload::SyncPayload {
                 provider: Provider::Anthropic,
                 email: Some("user@example.com".into()),
                 provider_account_id: Some("org-1".into()),
-                chatgpt_account_id: None,
                 plan: Some("max".into()),
                 created_at: "2026-11-01T00:00:00Z".into(),
                 updated_at: "2026-11-19T00:00:00Z".into(),
                 last_usage: Some(UsageSnapshot {
                     plan: Some("max".into()),
-                    email: None,
                     windows: vec![UsageWindow {
                         id: "five_hour".into(),
                         label: "5 hour".into(),
@@ -2273,10 +2222,7 @@ fn full_sync_payload() -> super::payload::SyncPayload {
                         kind: Some(WindowKind::FiveHour),
                     }],
                     credits_usd: Some(2.5),
-                    unlimited_credits: false,
                     fetched_at: "2026-11-19T00:00:00Z".into(),
-                    freshness: UsageFreshness::Live,
-                    source: "test".into(),
                     limit_resets: vec![LimitReset {
                         id: "grant-1".into(),
                         label: "Full reset".into(),
@@ -2285,9 +2231,9 @@ fn full_sync_payload() -> super::payload::SyncPayload {
                         usable: true,
                         clears: vec![ResetTarget::FiveHour],
                     }],
+                    ..UsageSnapshot::for_test()
                 }),
-                last_error: None,
-                auth_required: false,
+                ..Account::for_test()
             },
             secret: ProviderSecret::Anthropic(OAuthSecret {
                 access_token: "access".into(),

@@ -100,7 +100,7 @@ pub(crate) async fn run_account_refresh_loop(state: Arc<AppState>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{Provider, UsageFreshness, UsageSnapshot};
+    use crate::model::{Provider, UsageSnapshot};
     use std::time::{Duration, SystemTime};
 
     fn account(fetched_at: Option<&str>) -> Account {
@@ -108,25 +108,13 @@ mod tests {
             id: "a".into(),
             label: "A".into(),
             provider: Provider::Openai,
-            email: None,
-            provider_account_id: None,
-            chatgpt_account_id: None,
-            plan: None,
             created_at: "2026-10-25T00:00:00Z".into(),
             updated_at: "2026-10-25T00:00:00Z".into(),
             last_usage: fetched_at.map(|fetched_at| UsageSnapshot {
-                plan: None,
-                email: None,
-                windows: vec![],
-                credits_usd: None,
-                unlimited_credits: false,
                 fetched_at: fetched_at.into(),
-                freshness: UsageFreshness::Live,
-                source: "test".into(),
-                limit_resets: Vec::new(),
+                ..UsageSnapshot::for_test()
             }),
-            last_error: None,
-            auth_required: false,
+            ..Account::for_test()
         }
     }
 

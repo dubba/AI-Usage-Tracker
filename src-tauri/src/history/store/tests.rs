@@ -57,24 +57,16 @@ fn account_with(
         label: "A label that must not be stored".into(),
         provider,
         email: Some("person@example.com".into()),
-        provider_account_id: None,
-        chatgpt_account_id: None,
         plan: Some("pro".into()),
         created_at: rfc3339(fetched_at),
         updated_at: rfc3339(fetched_at),
         last_usage: Some(UsageSnapshot {
-            plan: None,
-            email: None,
             windows,
-            credits_usd: None,
-            unlimited_credits: false,
             fetched_at: rfc3339(fetched_at),
             freshness,
-            source: "test".into(),
-            limit_resets: Vec::new(),
+            ..UsageSnapshot::for_test()
         }),
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     }
 }
 

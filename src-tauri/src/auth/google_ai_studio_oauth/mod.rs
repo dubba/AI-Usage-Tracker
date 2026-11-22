@@ -838,15 +838,10 @@ mod tests {
                 id: account_id.into(),
                 label: "Google AI Studio".into(),
                 provider: Provider::GoogleAiStudio,
-                email: None,
-                provider_account_id: None,
-                chatgpt_account_id: None,
                 plan: Some("Google AI Studio".into()),
                 created_at: now.clone(),
                 updated_at: now,
-                last_usage: None,
-                last_error: None,
-                auth_required: false,
+                ..Account::for_test()
             })
             .unwrap();
         save_provider_secret(account_id, &studio_secret("old")).unwrap();
@@ -897,15 +892,10 @@ mod tests {
             id: account_id.into(),
             label: "Google AI Studio".into(),
             provider: Provider::GoogleAiStudio,
-            email: None,
-            provider_account_id: None,
-            chatgpt_account_id: None,
             plan: Some("Google AI Studio".into()),
             created_at: now.clone(),
             updated_at: now,
-            last_usage: None,
-            last_error: None,
-            auth_required: false,
+            ..Account::for_test()
         }
     }
 

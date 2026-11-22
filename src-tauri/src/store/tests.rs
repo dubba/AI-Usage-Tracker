@@ -37,9 +37,7 @@ fn metadata_round_trip() {
             plan: Some("plus".into()),
             created_at: now.clone(),
             updated_at: now,
-            last_usage: None,
-            last_error: None,
-            auth_required: false,
+            ..Account::for_test()
         })
         .unwrap();
     let reopened = AccountStore::load(dir.path().to_path_buf()).unwrap();
@@ -246,10 +244,8 @@ fn tombstone_list_is_capped_and_a_corrupt_file_is_rebuilt() {
 
 #[test]
 fn window_kinds_are_set_on_load_upsert_and_update() {
-    use crate::model::{UsageFreshness, UsageWindow, WindowKind};
+    use crate::model::{UsageWindow, WindowKind};
     let usage = |id: &str, label: &str| UsageSnapshot {
-        plan: None,
-        email: None,
         windows: vec![UsageWindow {
             id: id.into(),
             label: label.into(),
@@ -259,12 +255,8 @@ fn window_kinds_are_set_on_load_upsert_and_update() {
             window_seconds: None,
             kind: None,
         }],
-        credits_usd: None,
-        unlimited_credits: false,
         fetched_at: now_rfc3339(),
-        freshness: UsageFreshness::Live,
-        source: "test".into(),
-        limit_resets: Vec::new(),
+        ..UsageSnapshot::for_test()
     };
     let kind_of = |account: &Account| account.last_usage.as_ref().unwrap().windows[0].kind;
 
@@ -389,7 +381,6 @@ fn ignores_regular_provider_secret_json() {
 
 #[test]
 fn upsert_preserves_newer_usage_when_reconnecting() {
-    use crate::model::UsageFreshness;
     let dir = tempdir().unwrap();
     let store = AccountStore::load(dir.path().to_path_buf()).unwrap();
     let mut current = sample_account("one", "Main");
@@ -397,13 +388,9 @@ fn upsert_preserves_newer_usage_when_reconnecting() {
     current.last_usage = Some(UsageSnapshot {
         plan: Some("plus".into()),
         email: Some("old@example.com".into()),
-        windows: Vec::new(),
-        credits_usd: None,
-        unlimited_credits: false,
         fetched_at: "2026-08-30T12:00:00Z".into(),
-        freshness: UsageFreshness::Live,
         source: "wham".into(),
-        limit_resets: Vec::new(),
+        ..UsageSnapshot::for_test()
     });
     store.upsert(current).unwrap();
 
@@ -412,13 +399,9 @@ fn upsert_preserves_newer_usage_when_reconnecting() {
     incoming.last_usage = Some(UsageSnapshot {
         plan: Some("plus".into()),
         email: Some("new@example.com".into()),
-        windows: Vec::new(),
-        credits_usd: None,
-        unlimited_credits: false,
         fetched_at: "2026-08-30T11:00:00Z".into(),
-        freshness: UsageFreshness::Live,
         source: "wham".into(),
-        limit_resets: Vec::new(),
+        ..UsageSnapshot::for_test()
     });
     let saved = store.upsert(incoming).unwrap();
     assert_eq!(saved.label, "Renamed");
@@ -438,15 +421,9 @@ fn sample_account(id: &str, label: &str) -> Account {
         id: id.into(),
         label: label.into(),
         provider: Provider::Openai,
-        email: None,
-        provider_account_id: None,
-        chatgpt_account_id: None,
-        plan: None,
         created_at: now.clone(),
         updated_at: now,
-        last_usage: None,
-        last_error: None,
-        auth_required: false,
+        ..Account::for_test()
     }
 }
 
@@ -495,7 +472,6 @@ fn remove_drops_account_after_secret_delete() {
 
 #[test]
 fn clearing_cached_usage_keeps_the_accounts_and_survives_a_restart() {
-    use crate::model::UsageFreshness;
     let dir = tempdir().unwrap();
     let store = AccountStore::load(dir.path().to_path_buf()).unwrap();
     let mut with_usage = sample_account("one", "Main");
@@ -503,14 +479,9 @@ fn clearing_cached_usage_keeps_the_accounts_and_survives_a_restart() {
     with_usage.last_error = Some("Rate limited".into());
     with_usage.last_usage = Some(UsageSnapshot {
         plan: Some("plus".into()),
-        email: None,
-        windows: Vec::new(),
-        credits_usd: None,
-        unlimited_credits: false,
         fetched_at: "2026-08-30T12:00:00Z".into(),
-        freshness: UsageFreshness::Live,
         source: "wham".into(),
-        limit_resets: Vec::new(),
+        ..UsageSnapshot::for_test()
     });
     store.upsert(with_usage).unwrap();
     store.upsert(sample_account("two", "Empty")).unwrap();

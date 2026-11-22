@@ -300,6 +300,46 @@ pub struct Account {
     pub auth_required: bool,
 }
 
+/// Fills in the fields a test does not care about: `Account { label: .., ..Account::for_test() }`.
+#[cfg(any(test, feature = "test-util"))]
+impl Account {
+    /// An OpenAI account with nothing loaded: no usage, no error, signed in.
+    pub fn for_test() -> Self {
+        Self {
+            id: "account".into(),
+            label: "Account".into(),
+            provider: Provider::default(),
+            email: None,
+            provider_account_id: None,
+            chatgpt_account_id: None,
+            plan: None,
+            created_at: "2026-01-01T00:00:00Z".into(),
+            updated_at: "2026-01-01T00:00:00Z".into(),
+            last_usage: None,
+            last_error: None,
+            auth_required: false,
+        }
+    }
+}
+
+#[cfg(any(test, feature = "test-util"))]
+impl UsageSnapshot {
+    /// A live reading with no windows, no plan and nothing to spend.
+    pub fn for_test() -> Self {
+        Self {
+            plan: None,
+            email: None,
+            windows: Vec::new(),
+            credits_usd: None,
+            unlimited_credits: false,
+            fetched_at: "2026-01-01T00:00:00Z".into(),
+            freshness: UsageFreshness::Live,
+            source: "test".into(),
+            limit_resets: Vec::new(),
+        }
+    }
+}
+
 /// An account: its stored fields, then what the backend works out from them.
 // What an `Account` serializes as. Computing the fields after `authRequired` here means every
 // copy the frontend gets (the dashboard, a refresh result, a login) carries current values. They

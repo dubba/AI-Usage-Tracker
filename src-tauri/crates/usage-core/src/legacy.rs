@@ -72,15 +72,10 @@ mod tests {
             id: "account".into(),
             label: label.into(),
             provider,
-            email: None,
-            provider_account_id: None,
-            chatgpt_account_id: None,
-            plan: None,
             created_at: now_rfc3339(),
             updated_at: now_rfc3339(),
-            last_usage: None,
             last_error: error.map(Into::into),
-            auth_required: false,
+            ..Account::for_test()
         }
     }
 

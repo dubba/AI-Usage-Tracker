@@ -10,6 +10,9 @@ publish = false
 # Derives `ts_rs::TS` on the types the frontend receives. Only the app crate's tests enable it
 # (`type_contract.rs` writes `src/types.generated.ts`), so no build of the app compiles ts-rs.
 ts = ["dep:ts-rs"]
+# `Account::for_test` and `UsageSnapshot::for_test`, which the app crate's tests use to fill struct
+# literals. Turned on only by its dev-dependency, so no build of the app compiles them.
+test-util = []
 
 [dependencies]
 base64 = "0.22"

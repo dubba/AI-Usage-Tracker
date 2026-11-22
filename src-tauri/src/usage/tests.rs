@@ -8,25 +8,15 @@ fn account(provider: Provider, source: &str, auth_required: bool) -> Account {
         id: "account".into(),
         label: "Account".into(),
         provider,
-        email: None,
-        provider_account_id: None,
-        chatgpt_account_id: None,
-        plan: None,
         created_at: now.clone(),
         updated_at: now.clone(),
         last_usage: Some(UsageSnapshot {
-            plan: None,
-            email: None,
-            windows: Vec::new(),
-            credits_usd: None,
-            unlimited_credits: false,
             fetched_at: now,
-            freshness: UsageFreshness::Live,
             source: source.into(),
-            limit_resets: Vec::new(),
+            ..UsageSnapshot::for_test()
         }),
-        last_error: None,
         auth_required,
+        ..Account::for_test()
     }
 }
 

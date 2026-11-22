@@ -122,7 +122,7 @@ pub fn sanitize_imported_account(account: &mut Account) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{now_rfc3339, Provider, UsageFreshness};
+    use crate::model::{now_rfc3339, Provider};
 
     #[test]
     fn clamp_chars_counts_characters_not_bytes() {
@@ -153,7 +153,6 @@ mod tests {
             updated_at: now.clone(),
             last_usage: Some(UsageSnapshot {
                 plan: Some("x".repeat(1000)),
-                email: None,
                 windows: (0..500)
                     .map(|index| UsageWindow {
                         id: format!("w{index}").repeat(100),
@@ -166,11 +165,9 @@ mod tests {
                     })
                     .collect(),
                 credits_usd: Some(f64::INFINITY),
-                unlimited_credits: false,
                 fetched_at: now,
-                freshness: UsageFreshness::Live,
                 source: "s".repeat(1000),
-                limit_resets: Vec::new(),
+                ..UsageSnapshot::for_test()
             }),
             last_error: Some("!".repeat(5000)),
             auth_required: false,
@@ -302,13 +299,11 @@ mod tests {
             provider: Provider::Openai,
             email: Some("me@example.com".into()),
             provider_account_id: Some("acct_123".into()),
-            chatgpt_account_id: None,
             plan: Some("plus".into()),
             created_at: now.clone(),
             updated_at: now,
-            last_usage: None,
             last_error: Some("OpenAI rate-limited the usage request.".into()),
-            auth_required: false,
+            ..Account::for_test()
         };
         let mut cleaned = original.clone();
         sanitize_imported_account(&mut cleaned);
