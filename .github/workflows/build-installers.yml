@@ -252,77 +252,13 @@ jobs:
         shell: powershell
         run: |
           Set-MpPreference -DisableRealtimeMonitoring $true -ExclusionPath @((Get-Location).Path, "$env:USERPROFILE\.cargo", "$env:USERPROFILE\.rustup")
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - name: Prepare the release build
+        id: prepare
+        uses: ./.github/actions/prepare-desktop-release
         with:
-          node-version: 22
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
-        with:
-          workspaces: src-tauri
-          # Only main saves: PR caches count toward the repo's 10 GB and push out
-          # the caches release builds restore. PR runs still restore main's.
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-      - run: npm ci
-      - name: Apply release version
-        # Passed through the environment, never pasted into the script. bash,
-        # because the Windows default (PowerShell) would not expand "$RELEASE_VERSION",
-        # and an empty version makes the script number the build from package.json.
-        shell: bash
-        env:
-          RELEASE_VERSION: ${{ needs.check-changes.outputs.version }}
-        run: |
-          node scripts/resolve-release-version.mjs --version "$RELEASE_VERSION" --apply
-      - name: Detect beta version
-        id: release_kind
-        shell: python
-        run: |
-          import json
-          import os
-
-          with open("src-tauri/tauri.conf.json", encoding="utf-8") as config_file:
-              version = json.load(config_file)["version"]
-          is_beta = "-" in version
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"version={version}\n")
-              output.write(f"is_beta={'true' if is_beta else 'false'}\n")
-      - name: Normalize and verify updater signing key
-        shell: python
-        env:
-          RAW_TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          KEY_PASSWORD_SET: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD != '' }}
-        run: |
-          import base64
-          import os
-          import sys
-
-          # Without a valid key the release would still upload latest.json, which every
-          # installed copy refuses, so updates stop until a signed manifest replaces it.
-          # Fail before building instead.
-          def fail(message):
-              print(f"::error::{message}")
-              sys.exit(1)
-
-          raw_key = os.environ.get("RAW_TAURI_SIGNING_PRIVATE_KEY", "")
-          normalized_key = "".join(raw_key.lstrip("﻿").split())
-
-          if not normalized_key:
-              fail("TAURI_SIGNING_PRIVATE_KEY is not set; refusing to publish an unsigned release.")
-          try:
-              decoded = base64.b64decode(normalized_key, validate=True).decode("utf-8")
-          except Exception:
-              fail("TAURI_SIGNING_PRIVATE_KEY is not valid Base64.")
-          if "secret key" not in decoded.lower():
-              fail("TAURI_SIGNING_PRIVATE_KEY does not contain a Tauri updater private key.")
-
-          # The key should be password-protected (L-79): re-encrypt it with
-          # `minisign -C` (same key, so installed apps keep trusting updates) and
-          # add TAURI_SIGNING_PRIVATE_KEY_PASSWORD. Until then, warn.
-          if os.environ.get("KEY_PASSWORD_SET") != "true":
-              print("::warning::TAURI_SIGNING_PRIVATE_KEY_PASSWORD is not set; the updater key is stored without a password.")
-
-          print(f"::add-mask::{normalized_key}")
-          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env_file:
-              env_file.write(f"TAURI_SIGNING_PRIVATE_KEY={normalized_key}\n")
+          release-version: ${{ needs.check-changes.outputs.version }}
+          signing-key: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          key-password-set: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD != '' }}
       - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -332,11 +268,11 @@ jobs:
           tagName: v__VERSION__
           releaseName: AI Usage Tracker v__VERSION__
           releaseDraft: false
-          prerelease: ${{ steps.release_kind.outputs.is_beta == 'true' }}
+          prerelease: ${{ steps.prepare.outputs.is-beta == 'true' }}
           # latest.json is written once by updater-manifest, after both desktop jobs.
           uploadUpdaterJson: false
           # `-- --locked` reaches cargo: build exactly what Cargo.lock records.
-          args: ${{ steps.release_kind.outputs.is_beta == 'true' && '--bundles nsis -- --locked' || '-- --locked' }}
+          args: ${{ steps.prepare.outputs.is-beta == 'true' && '--bundles nsis -- --locked' || '-- --locked' }}
 
   # Releases are numbered from the tags, not from package.json, so a released
   # version is bumped automatically (0.4.1 -> 0.4.2). Write the number that
@@ -413,74 +349,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - name: Prepare the release build
+        id: prepare
+        uses: ./.github/actions/prepare-desktop-release
         with:
-          node-version: 22
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
-        with:
-          workspaces: src-tauri
-          # Only main saves: PR caches count toward the repo's 10 GB and push out
-          # the caches release builds restore. PR runs still restore main's.
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-      - run: npm ci
-      - name: Apply release version
-        # Passed through the environment, never pasted into the script.
-        env:
-          RELEASE_VERSION: ${{ needs.check-changes.outputs.version }}
-        run: |
-          node scripts/resolve-release-version.mjs --version "$RELEASE_VERSION" --apply
-      - name: Detect beta version
-        id: release_kind
-        shell: python
-        run: |
-          import json
-          import os
-
-          with open("src-tauri/tauri.conf.json", encoding="utf-8") as config_file:
-              version = json.load(config_file)["version"]
-          is_beta = "-" in version
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"version={version}\n")
-              output.write(f"is_beta={'true' if is_beta else 'false'}\n")
-      - name: Normalize and verify updater signing key
-        shell: python
-        env:
-          RAW_TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          KEY_PASSWORD_SET: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD != '' }}
-        run: |
-          import base64
-          import os
-          import sys
-
-          # Without a valid key the release would still upload latest.json, which every
-          # installed copy refuses, so updates stop until a signed manifest replaces it.
-          # Fail before building instead.
-          def fail(message):
-              print(f"::error::{message}")
-              sys.exit(1)
-
-          raw_key = os.environ.get("RAW_TAURI_SIGNING_PRIVATE_KEY", "")
-          normalized_key = "".join(raw_key.lstrip("﻿").split())
-
-          if not normalized_key:
-              fail("TAURI_SIGNING_PRIVATE_KEY is not set; refusing to publish an unsigned release.")
-          try:
-              decoded = base64.b64decode(normalized_key, validate=True).decode("utf-8")
-          except Exception:
-              fail("TAURI_SIGNING_PRIVATE_KEY is not valid Base64.")
-          if "secret key" not in decoded.lower():
-              fail("TAURI_SIGNING_PRIVATE_KEY does not contain a Tauri updater private key.")
-
-          # The key should be password-protected (L-79): re-encrypt it with
-          # `minisign -C` (same key, so installed apps keep trusting updates) and
-          # add TAURI_SIGNING_PRIVATE_KEY_PASSWORD. Until then, warn.
-          if os.environ.get("KEY_PASSWORD_SET") != "true":
-              print("::warning::TAURI_SIGNING_PRIVATE_KEY_PASSWORD is not set; the updater key is stored without a password.")
-
-          print(f"::add-mask::{normalized_key}")
-          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env_file:
-              env_file.write(f"TAURI_SIGNING_PRIVATE_KEY={normalized_key}\n")
+          release-version: ${{ needs.check-changes.outputs.version }}
+          signing-key: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          key-password-set: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD != '' }}
       - name: Configure macOS code signing
         shell: python
         env:
@@ -524,7 +399,7 @@ jobs:
           tagName: v__VERSION__
           releaseName: AI Usage Tracker v__VERSION__
           releaseDraft: false
-          prerelease: ${{ steps.release_kind.outputs.is_beta == 'true' }}
+          prerelease: ${{ steps.prepare.outputs.is-beta == 'true' }}
           # latest.json is written once by updater-manifest, after both desktop jobs.
           uploadUpdaterJson: false
           # `-- --locked` reaches cargo: build exactly what Cargo.lock records.

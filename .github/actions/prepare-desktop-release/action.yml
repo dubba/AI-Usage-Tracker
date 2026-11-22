@@ -1,0 +1,95 @@
+name: Prepare a desktop release build
+description: >-
+  The setup both desktop release jobs share (build-installers.yml): Node, Rust and its cache, npm
+  packages, the release version, whether it is a beta, and the updater signing key, checked and
+  exported as TAURI_SIGNING_PRIVATE_KEY for tauri-action. Values reach the scripts through env:,
+  never pasted into them.
+inputs:
+  release-version:
+    description: The version to release (check-changes.outputs.version); empty numbers it from package.json.
+    required: false
+    default: ""
+  signing-key:
+    description: The updater signing key (secrets.TAURI_SIGNING_PRIVATE_KEY).
+    required: true
+  key-password-set:
+    description: '"true" when secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD is set.'
+    required: true
+outputs:
+  is-beta:
+    description: '"true" when the version has a pre-release part (e.g. 0.7.0-beta.1).'
+    value: ${{ steps.release_kind.outputs.is_beta }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: 22
+    - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      with:
+        workspaces: src-tauri
+        # Only main saves: PR caches count toward the repo's 10 GB and push out
+        # the caches release builds restore. PR runs still restore main's.
+        save-if: ${{ github.ref == 'refs/heads/main' }}
+    - run: npm ci
+      shell: bash
+    - name: Apply release version
+      # bash on every runner: the Windows default (PowerShell) would not expand
+      # "$RELEASE_VERSION", and an empty version makes the script number the build
+      # from package.json (v0.4.1 shipped on the previous version that way).
+      shell: bash
+      env:
+        RELEASE_VERSION: ${{ inputs.release-version }}
+      run: |
+        node scripts/resolve-release-version.mjs --version "$RELEASE_VERSION" --apply
+    - name: Detect beta version
+      id: release_kind
+      shell: python
+      run: |
+        import json
+        import os
+
+        with open("src-tauri/tauri.conf.json", encoding="utf-8") as config_file:
+            version = json.load(config_file)["version"]
+        is_beta = "-" in version
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+            output.write(f"is_beta={'true' if is_beta else 'false'}\n")
+    - name: Normalize and verify updater signing key
+      shell: python
+      env:
+        RAW_TAURI_SIGNING_PRIVATE_KEY: ${{ inputs.signing-key }}
+        KEY_PASSWORD_SET: ${{ inputs.key-password-set }}
+      run: |
+        import base64
+        import os
+        import sys
+
+        # Without a valid key the release would still upload latest.json, which every
+        # installed copy refuses, so updates stop until a signed manifest replaces it.
+        # Fail before building instead.
+        def fail(message):
+            print(f"::error::{message}")
+            sys.exit(1)
+
+        raw_key = os.environ.get("RAW_TAURI_SIGNING_PRIVATE_KEY", "")
+        normalized_key = "".join(raw_key.lstrip("﻿").split())
+
+        if not normalized_key:
+            fail("TAURI_SIGNING_PRIVATE_KEY is not set; refusing to publish an unsigned release.")
+        try:
+            decoded = base64.b64decode(normalized_key, validate=True).decode("utf-8")
+        except Exception:
+            fail("TAURI_SIGNING_PRIVATE_KEY is not valid Base64.")
+        if "secret key" not in decoded.lower():
+            fail("TAURI_SIGNING_PRIVATE_KEY does not contain a Tauri updater private key.")
+
+        # The key should be password-protected (L-79): re-encrypt it with
+        # `minisign -C` (same key, so installed apps keep trusting updates) and
+        # add TAURI_SIGNING_PRIVATE_KEY_PASSWORD. Until then, warn.
+        if os.environ.get("KEY_PASSWORD_SET") != "true":
+            print("::warning::TAURI_SIGNING_PRIVATE_KEY_PASSWORD is not set; the updater key is stored without a password.")
+
+        print(f"::add-mask::{normalized_key}")
+        with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env_file:
+            env_file.write(f"TAURI_SIGNING_PRIVATE_KEY={normalized_key}\n")

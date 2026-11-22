@@ -11,6 +11,21 @@ const workflowsDir = resolve(dirname(fileURLToPath(import.meta.url)), "../.githu
 const workflows = readdirSync(workflowsDir)
   .filter((name) => name.endsWith(".yml") || name.endsWith(".yaml"))
   .map((name) => ({ name, text: readFileSync(resolve(workflowsDir, name), "utf-8") }));
+// Local composite actions (`.github/actions/<name>/action.yml`): their steps run inside the jobs
+// that use them, so the checks on run scripts, installs and caches cover them too.
+const actionsDir = resolve(workflowsDir, "../actions");
+const actions = readdirSync(actionsDir).map((name) => ({
+  name: `actions/${name}`,
+  text: readFileSync(resolve(actionsDir, name, "action.yml"), "utf-8"),
+}));
+const prepareDesktop = actions.find((a) => a.name === "actions/prepare-desktop-release").text;
+
+/** The text of job `name` in a workflow, up to the next job. */
+function jobText(workflow, name) {
+  const job = new RegExp(`^  ${name}:\n([\\s\\S]*?)(?=^  \\S+:\n|(?![\\s\\S]))`, "m").exec(workflow);
+  assert.ok(job, `${name} job found`);
+  return job[1];
+}
 
 /**
  * Lines of `run:` scripts (inline or block) that contain a `${{ }}` expression.
@@ -66,13 +81,13 @@ test("the scanner finds expressions in inline and block run scripts only", () =>
 });
 
 test("no workflow pastes a ${{ }} expression into a run script", () => {
-  for (const { name, text } of workflows) {
+  for (const { name, text } of [...workflows, ...actions]) {
     assert.deepEqual(interpolationsInRunScripts(text), [], `${name}: use env: and "$VAR" instead`);
   }
 });
 
 test("installs use the committed lockfiles", () => {
-  for (const { name, text } of workflows) {
+  for (const { name, text } of [...workflows, ...actions]) {
     assert.doesNotMatch(text, /\bnpm install\b/, `${name}: use npm ci so package-lock.json is the source of truth`);
     for (const line of text.split("\n")) {
       if (/\bcargo (test|check|clippy|build)\b/.test(line)) {
@@ -124,8 +139,16 @@ test("a release without a valid updater signing key fails instead of publishing"
   const { mkdtempSync, writeFileSync: write, readFileSync: read } = await import("node:fs");
   const { tmpdir } = await import("node:os");
   const installers = workflows.find((w) => w.name === "build-installers.yml").text;
-  const scripts = runScriptsOfStep(installers, "Normalize and verify updater signing key");
-  assert.equal(scripts.length, 2, "one key check per desktop job");
+  // Both desktop jobs check the key through the shared action, before they build.
+  for (const job of ["publish-windows", "publish-macos"]) {
+    const text = jobText(installers, job);
+    assert.match(text, /uses: \.\/\.github\/actions\/prepare-desktop-release\n/, `${job} runs the shared key check`);
+    assert.match(text, /signing-key: \$\{\{ secrets\.TAURI_SIGNING_PRIVATE_KEY \}\}/, `${job} passes the key`);
+    assert.ok(text.indexOf("prepare-desktop-release") < text.indexOf("tauri-action"), `${job} checks the key before building`);
+  }
+  assert.equal(runScriptsOfStep(installers, "Normalize and verify updater signing key").length, 0, "no inline copy left");
+  const scripts = runScriptsOfStep(prepareDesktop, "Normalize and verify updater signing key");
+  assert.equal(scripts.length, 1, "one key check, in the shared action");
 
   const dir = mkdtempSync(resolve(tmpdir(), "signing-key-"));
   const run = (script, key) => {
@@ -300,10 +323,10 @@ test("the Windows release job runs its version step under bash", () => {
   // "$RELEASE_VERSION" empty; the script then numbers the build from package.json
   // and the installers land on the previous release (v0.4.1 shipped that way).
   const installers = workflows.find((w) => w.name === "build-installers.yml").text;
-  const job = /^  publish-windows:\n([\s\S]*?)(?=^  \S+:\n)/m.exec(installers);
-  assert.ok(job, "publish-windows job found");
-  assert.match(job[1], /runs-on: windows-/);
-  const step = /- name: Apply release version\n([\s\S]*?)(?=\n      - )/.exec(job[1]);
+  const job = jobText(installers, "publish-windows");
+  assert.match(job, /runs-on: windows-/);
+  assert.match(job, /uses: \.\/\.github\/actions\/prepare-desktop-release\n/, "the version step runs in the shared action");
+  const step = /- name: Apply release version\n([\s\S]*?)(?=\n    - )/.exec(prepareDesktop);
   assert.ok(step, "version step found");
   assert.match(step[1], /shell: bash/, "version step must not use the Windows default shell");
 });
@@ -367,7 +390,7 @@ test("latest.json is written once, after both desktop jobs", () => {
 test("only runs on main save Rust caches", () => {
   // The repo has 10 GB of Actions cache. PR runs saving their own Rust caches
   // pushed out main's, and the v0.4.3 release rebuilt from cold (37 minutes).
-  for (const { name, text } of workflows) {
+  for (const { name, text } of [...workflows, ...actions]) {
     const steps = text.split(/\n(?=\s*- )/).filter((step) => /uses: Swatinem\/rust-cache@/.test(step));
     for (const step of steps) {
       assert.match(step, /save-if: \$\{\{ github\.ref == 'refs\/heads\/main' \}\}/, `${name}: rust-cache must only save on main`);
@@ -519,7 +542,12 @@ test("the updater key password comes from a secret, never a hard-coded empty str
   );
   const keyShaped = Buffer.from("untrusted comment: rsign encrypted secret key\nRWRTY0Iy\n").toString("base64");
   const dir = mkdtempSync(resolve(tmpdir(), "key-password-"));
-  for (const script of runScriptsOfStep(installers, "Normalize and verify updater signing key")) {
+  assert.equal(
+    (installers.match(/key-password-set: \$\{\{ secrets\.TAURI_SIGNING_PRIVATE_KEY_PASSWORD != '' \}\}/g) ?? []).length,
+    2,
+    "both desktop builds tell the key check whether the password is set",
+  );
+  for (const script of runScriptsOfStep(prepareDesktop, "Normalize and verify updater signing key")) {
     const run = (set) => {
       const envFile = resolve(dir, "github_env");
       write(envFile, "");
