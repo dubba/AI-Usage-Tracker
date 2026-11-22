@@ -8,10 +8,9 @@ import { mount, type Mounted } from "../test-utils/react";
 import type { Account, DashboardSnapshot } from "../types";
 import { isCardCollapsedOnPage, setCardCollapsedOnPage } from "../features/layout/dashboard-page-state";
 import { useAfterAccountAdded } from "./useAfterAccountAdded";
+import { makeAccount } from "../test-utils/accounts";
 
-function account(overrides: Partial<Account> = {}): Account {
-  return { id: "a1", label: "Work", provider: "anthropic", lastUsage: null, lastError: null, authRequired: false, health: "inactive", googleSetup: null, ...overrides } as unknown as Account;
-}
+const account = (overrides: Partial<Account> = {}): Account => makeAccount({ id: "a1", provider: "anthropic", ...overrides });
 
 function usage(source = "oauth", windows: unknown[] = []) {
   return { source, windows, freshness: "live", fetchedAt: "2026-01-01T00:00:00Z" } as unknown as Account["lastUsage"];

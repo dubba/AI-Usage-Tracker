@@ -6,6 +6,7 @@ import { SidebarGroupRow } from "./SidebarGroupRow";
 import { setUsageDisplayMode } from "../../shared/lib/usage-display";
 import type { SidebarGroup } from "./sidebar-groups";
 import type { Account, AccountBucket, Provider, UsageSnapshot, UsageWindow } from "../../types";
+import { makeAccount as baseAccount } from "../../test-utils/accounts";
 
 function makeAccount({
   id = "acc1",
@@ -41,7 +42,7 @@ function makeAccount({
       kind: "weekly",
     });
   }
-  return {
+  return baseAccount({
     id,
     label: "Test Account",
     provider,
@@ -51,18 +52,14 @@ function makeAccount({
       source: "test",
       windows,
     } as unknown as UsageSnapshot,
-    lastError: null,
-    authRequired: false,
     health: "live",
-    googleSetup: null,
-    autoRefresh: true,
     // The candidates the backend would send for these windows (`usage-core/src/headline.rs`).
     headline: {
       fiveHour: fiveRemaining !== null ? [0] : [],
       long: weeklyRemaining !== null ? [windows.length - 1] : [],
       longWindow: weeklyRemaining !== null ? "weekly" : null,
     },
-  } as Account;
+  });
 }
 
 function makeGroup(accounts: Account[]): SidebarGroup {

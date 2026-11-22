@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { computeSyncStatus, splitSyncLabel } from "./sync-status";
 import type { Account, UsageSnapshot } from "../../types";
+import { makeAccount } from "../../test-utils/accounts";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z").getTime();
 const MIN = 60_000;
@@ -9,8 +10,7 @@ function account(id: string, fetchedMinutesAgo: number | null, overrides: Partia
   const lastUsage = fetchedMinutesAgo == null
     ? null
     : ({ fetchedAt: new Date(NOW - fetchedMinutesAgo * MIN).toISOString(), freshness: "live", source: "test", windows: [] } as unknown as UsageSnapshot);
-  const health = lastUsage ? "live" : "inactive";
-  return { id, label: id, provider: "openai", lastUsage, lastError: null, authRequired: false, health, googleSetup: null, autoRefresh: true, ...overrides } as Account;
+  return makeAccount({ id, label: id, lastUsage, health: lastUsage ? "live" : "inactive", ...overrides });
 }
 
 describe("computeSyncStatus", () => {

@@ -8,23 +8,9 @@ import { setCardCollapsedOnPage } from "../layout/dashboard-page-state";
 import { CREDENTIAL_PROTECTION_ACCOUNT_NOTE } from "../dashboard/credential-protection";
 import { computeAccountCardMenuPlacement } from "./AccountCardMenu";
 import { AccountDashboardCard } from "./AccountDashboardCard";
+import { makeAccount } from "../../test-utils/accounts";
 
-const account = {
-  id: "acct-1",
-  label: "Claude",
-  provider: "anthropic",
-  email: "ada@example.com",
-  providerAccountId: null,
-  chatgptAccountId: null,
-  plan: null,
-  createdAt: "2026-01-01T00:00:00Z",
-  updatedAt: "2026-01-01T00:00:00Z",
-  lastUsage: null,
-  lastError: null,
-  authRequired: false,
-  health: "inactive",
-  googleSetup: null,
-} as Account;
+const account = makeAccount({ id: "acct-1", label: "Claude", provider: "anthropic", email: "ada@example.com" });
 
 function renderCard(signInUnprotected: boolean): Mounted {
   return mount(

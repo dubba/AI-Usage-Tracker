@@ -17,10 +17,9 @@ import { mount, settle, type Mounted } from "../../test-utils/react";
 import { createBusyTracker, REFRESH_ALL_KEY } from "../../shared/lib/busy";
 import type { Account, BridgeStatus, DashboardSnapshot } from "../../types";
 import { useAccountActions } from "./useAccountActions";
+import { makeAccount as baseAccount } from "../../test-utils/accounts";
 
-function makeAccount(id: string, label = `Account ${id}`): Account {
-  return { id, label, provider: "openai", email: null, lastUsage: null, lastError: null, authRequired: false } as unknown as Account;
-}
+const makeAccount = (id: string, label = `Account ${id}`): Account => baseAccount({ id, label });
 
 function deferred<T>() {
   let resolve!: (value: T) => void;

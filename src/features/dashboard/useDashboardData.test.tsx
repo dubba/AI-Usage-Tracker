@@ -21,23 +21,16 @@ vi.mock("@tauri-apps/api/event", () => ({
 import { mount, settle, type Mounted } from "../../test-utils/react";
 import { UI_EVENTS } from "../../shared/lib/events";
 import { beginReordering, DROP_COOLDOWN_MS, endReordering, resetReorderingForTests } from "../../shared/lib/reorder-activity";
-import type { Account, DashboardSnapshot } from "../../types";
+import type { Account, DashboardSnapshot, UsageSnapshot } from "../../types";
 import { CREDENTIAL_PROTECTION_ERROR_SOURCE } from "./credential-protection";
 import { getLatestSnapshot } from "./snapshot-store";
 import { useDashboardData } from "./useDashboardData";
+import { makeAccount as baseAccount } from "../../test-utils/accounts";
 
 const NOW = new Date("2026-03-01T12:00:00Z");
 
-function makeAccount(id: string, fetchedAt: string | null): Account {
-  return {
-    id,
-    label: id,
-    provider: "openai",
-    lastUsage: fetchedAt ? { fetchedAt, windows: [] } : null,
-    lastError: null,
-    authRequired: false,
-  } as unknown as Account;
-}
+const makeAccount = (id: string, fetchedAt: string | null): Account =>
+  baseAccount({ id, label: id, lastUsage: fetchedAt ? ({ fetchedAt, windows: [] } as unknown as UsageSnapshot) : null });
 
 function makeSnapshot(tag: string, accounts: Account[] = [], unprotectedCredentials = 0): DashboardSnapshot {
   return {

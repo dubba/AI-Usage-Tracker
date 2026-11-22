@@ -8,34 +8,14 @@ import {
   metricWindowParts,
   nextResetModelLabel,
 } from "./display";
-import type { Account, UsageWindow } from "../../types";
+import type { UsageWindow } from "../../types";
+import { makeAccount } from "../../test-utils/accounts";
 
 function win(overrides: Partial<UsageWindow> = {}): UsageWindow {
   return { id: "x", label: "x", usedPercent: null, remainingPercent: null, resetsAt: null, windowSeconds: null, kind: null, ...overrides };
 }
 
-function account(overrides: Partial<Account> = {}): Account {
-  return {
-    id: "a",
-    label: "Work",
-    provider: "openai",
-    email: null,
-    providerAccountId: null,
-    chatgptAccountId: null,
-    plan: null,
-    createdAt: "",
-    updatedAt: "",
-    lastUsage: null,
-    lastError: null,
-    authRequired: false,
-    health: "inactive",
-    googleSetup: null,
-    autoRefresh: true,
-    headline: { fiveHour: [], long: [], longWindow: null },
-    planDisplay: null,
-    ...overrides,
-  };
-}
+const account = makeAccount;
 
 describe("cleanModelPrefix", () => {
   it("normalizes Claude and GPT and strips 'models'", () => {

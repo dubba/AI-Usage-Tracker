@@ -16,6 +16,7 @@ import {
   windowLength,
 } from "./usage-logic";
 import type { Account, UsageSnapshot, UsageWindow } from "../../types";
+import { makeAccount } from "../../test-utils/accounts";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z").getTime();
 const MINUTE = 60_000;
@@ -54,26 +55,8 @@ function usage(overrides: Partial<UsageSnapshot> = {}): UsageSnapshot {
 }
 
 function account(overrides: Partial<Account> = {}): Account {
-  return {
-    id: "a1",
-    label: "Work",
-    provider: "openai",
-    email: null,
-    providerAccountId: null,
-    chatgptAccountId: null,
-    plan: null,
-    createdAt: new Date(NOW).toISOString(),
-    updatedAt: new Date(NOW).toISOString(),
-    lastUsage: usage(),
-    lastError: null,
-    authRequired: false,
-    health: "live",
-    googleSetup: null,
-    autoRefresh: true,
-    headline: { fiveHour: [], long: [], longWindow: null },
-    planDisplay: null,
-    ...overrides,
-  };
+  const at = new Date(NOW).toISOString();
+  return makeAccount({ id: "a1", createdAt: at, updatedAt: at, lastUsage: usage(), health: "live", ...overrides });
 }
 
 beforeEach(() => {

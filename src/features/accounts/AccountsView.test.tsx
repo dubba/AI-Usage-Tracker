@@ -8,23 +8,9 @@ import { click, mount, type Mounted } from "../../test-utils/react";
 import type { Account, AccountBucket } from "../../types";
 import { ALL_ACCOUNTS_GROUP_ID, type SidebarGroup } from "../sidebar/sidebar-groups";
 import { AccountsView } from "./AccountsView";
+import { makeAccount } from "../../test-utils/accounts";
 
-const account = {
-  id: "acct-1",
-  label: "Claude",
-  provider: "anthropic",
-  email: "ada@example.com",
-  providerAccountId: null,
-  chatgptAccountId: null,
-  plan: null,
-  createdAt: "2026-01-01T00:00:00Z",
-  updatedAt: "2026-01-01T00:00:00Z",
-  lastUsage: null,
-  lastError: null,
-  authRequired: false,
-  health: "inactive",
-  googleSetup: null,
-} as Account;
+const account = makeAccount({ id: "acct-1", label: "Claude", provider: "anthropic", email: "ada@example.com" });
 
 /** An account that needs nothing: it has live usage. (`account` above has none, so it needs attention.) */
 const healthyAccount = { ...account, id: "acct-healthy", lastUsage: { freshness: "live", windows: [] }, health: "live" } as unknown as Account;

@@ -17,28 +17,9 @@ import {
   reconciledSidebarGroupOrder,
 } from "./sidebar-groups";
 import type { Account, AccountBucket, Provider } from "../../types";
+import { makeAccount } from "../../test-utils/accounts";
 
-function account(id: string, provider: Provider, label = id): Account {
-  return {
-    id,
-    label,
-    provider,
-    email: null,
-    providerAccountId: null,
-    chatgptAccountId: null,
-    plan: null,
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
-    lastUsage: null,
-    lastError: null,
-    authRequired: false,
-    health: "inactive",
-    googleSetup: null,
-    autoRefresh: true,
-    headline: { fiveHour: [], long: [], longWindow: null },
-    planDisplay: null,
-  };
-}
+const account = (id: string, provider: Provider, label = id): Account => makeAccount({ id, provider, label });
 
 function bucket(id: string, name: string, accountIds: string[], provider: Provider | null = null): AccountBucket {
   return { id, name, provider, accountIds, createdAt: "", updatedAt: "" };

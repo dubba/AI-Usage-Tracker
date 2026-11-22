@@ -3,23 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { click, mount, type Mounted } from "../../test-utils/react";
 import type { Account } from "../../types";
 import { UnprotectedSignInsModal } from "./UnprotectedSignInsModal";
+import { makeAccount } from "../../test-utils/accounts";
 
-function account(id: string, label: string, provider: Account["provider"]): Account {
-  return {
-    id,
-    label,
-    provider,
-    email: null,
-    providerAccountId: null,
-    chatgptAccountId: null,
-    plan: null,
-    createdAt: "2026-01-01T00:00:00Z",
-    updatedAt: "2026-01-01T00:00:00Z",
-    lastUsage: null,
-    lastError: null,
-    authRequired: false,
-  } as Account;
-}
+const account = (id: string, label: string, provider: Account["provider"]) => makeAccount({ id, label, provider });
 
 let mounted: Mounted | null = null;
 afterEach(() => {

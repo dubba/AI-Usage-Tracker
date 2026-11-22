@@ -11,6 +11,7 @@ vi.mock("../../shared/lib/api", () => ({ bridgeApi: api }));
 import { act } from "react";
 import { click, mount, settle, typeInto, type Mounted } from "../../test-utils/react";
 import { BucketModal } from "./BucketModal";
+import { makeAccount as baseAccount } from "../../test-utils/accounts";
 
 let mounted: Mounted | null = null;
 
@@ -20,16 +21,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-function makeAccount(id: string, provider: Provider): Account {
-  return {
-    id,
-    label: `Account ${id}`,
-    provider,
-    lastUsage: null,
-    lastError: null,
-    authRequired: false,
-  } as unknown as Account;
-}
+const makeAccount = (id: string, provider: Provider): Account => baseAccount({ id, label: `Account ${id}`, provider });
 
 function makeBucket(accountIds: string[], provider: Provider | null): AccountBucket {
   return {
