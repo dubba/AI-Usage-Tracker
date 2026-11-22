@@ -853,3 +853,59 @@ async fn android_apk_missing_checksum_fails_closed() {
     );
     assert!(!dest.exists(), "unconfirmed APK must be deleted from disk");
 }
+
+fn listing_release(tag: &str, body: &str, prerelease: bool) -> serde_json::Value {
+    serde_json::json!({
+        "tag_name": tag,
+        "draft": false,
+        "prerelease": prerelease,
+        "body": body,
+        "published_at": format!("{tag}-published"),
+    })
+}
+
+#[test]
+fn notes_since_joins_every_missed_release_newest_first() {
+    let listing = serde_json::json!([
+        listing_release("v0.6.7", "## v0.6.7\n\n- seven", false),
+        listing_release("v0.6.6", "## v0.6.6\n\n- six", false),
+        listing_release("v0.6.6-beta.1", "## beta", true),
+        listing_release("v0.6.5", "## v0.6.5\n\n- five", false),
+        listing_release("v0.6.4", "## v0.6.4\n\n- four", false),
+    ]);
+    let (body, date) = notes_since(&listing, "0.6.4", "0.6.7", false).unwrap();
+    assert_eq!(
+        body,
+        "## v0.6.7\n\n- seven\n\n## v0.6.6\n\n- six\n\n## v0.6.5\n\n- five"
+    );
+    assert_eq!(date.as_deref(), Some("v0.6.7-published"));
+
+    // One version behind: only that release.
+    let (body, _) = notes_since(&listing, "0.6.6", "v0.6.7", false).unwrap();
+    assert_eq!(body, "## v0.6.7\n\n- seven");
+
+    // The beta opt-in brings pre-releases in range along.
+    let (body, _) = notes_since(&listing, "0.6.5", "0.6.7", true).unwrap();
+    assert!(body.contains("## beta"));
+}
+
+#[test]
+fn notes_since_skips_drafts_and_releases_past_the_target() {
+    let mut draft = listing_release("v0.6.6", "## draft", false);
+    draft["draft"] = serde_json::json!(true);
+    let listing = serde_json::json!([
+        listing_release("v0.6.8", "## v0.6.8", false),
+        listing_release("v0.6.7", "## v0.6.7", false),
+        draft,
+    ]);
+    let (body, _) = notes_since(&listing, "0.6.5", "0.6.7", false).unwrap();
+    assert_eq!(body, "## v0.6.7");
+}
+
+#[test]
+fn notes_since_is_none_without_the_target_release() {
+    let listing = serde_json::json!([listing_release("v0.6.6", "## v0.6.6", false)]);
+    assert!(notes_since(&listing, "0.6.5", "0.6.7", false).is_none());
+    let empty = serde_json::json!([listing_release("v0.6.7", "  ", false)]);
+    assert!(notes_since(&empty, "0.6.5", "0.6.7", false).is_none());
+}

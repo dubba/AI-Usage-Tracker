@@ -305,6 +305,26 @@ pub async fn check_for_app_update(
                         .body
                         .as_deref()
                         .is_some_and(|body| !body.trim().is_empty());
+                    // Someone several versions behind sees the notes of every release they
+                    // missed, not only the newest one.
+                    let missed = if manifest_has_notes {
+                        None
+                    } else {
+                        fetch_notes_since(
+                            &current_version,
+                            &available_version,
+                            beta_updates_wanted(state.inner().as_ref()),
+                        )
+                        .await
+                    };
+                    if let Some((body, date)) = missed {
+                        return Ok(AppUpdateStatus::available(
+                            current_version,
+                            available_version,
+                            date.or_else(|| update.date.map(|date| date.to_string())),
+                            Some(body),
+                        ));
+                    }
                     let github = if manifest_has_notes {
                         None
                     } else {
@@ -359,13 +379,28 @@ pub async fn check_for_app_update(
     )
     .await
     {
-        Ok(latest) => Ok(status_from_github_latest(
-            current_version,
-            latest,
-            &app,
-            state.inner().as_ref(),
-            notify,
-        )),
+        Ok(mut latest) => {
+            if is_newer_version(&latest.version, &current_version) {
+                // Every release the user missed, not only the newest one.
+                if let Some((body, date)) = fetch_notes_since(
+                    &current_version,
+                    &latest.version,
+                    beta_updates_wanted(state.inner().as_ref()),
+                )
+                .await
+                {
+                    latest.body = Some(body);
+                    latest.published_at = date.or(latest.published_at);
+                }
+            }
+            Ok(status_from_github_latest(
+                current_version,
+                latest,
+                &app,
+                state.inner().as_ref(),
+                notify,
+            ))
+        }
         Err(error) => Ok(AppUpdateStatus::failed(current_version, error)),
     }
 }

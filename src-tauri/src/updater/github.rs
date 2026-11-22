@@ -210,21 +210,16 @@ pub(super) fn newest_release_in_listing<'a>(
     best.map(|(release, _)| release)
 }
 
-pub(super) async fn fetch_github_latest_release(
-    include_prereleases: bool,
-    required_asset: Option<&str>,
-) -> Result<GitHubLatestRelease, String> {
+/// Fetches one of the repository's release endpoints as JSON, with the error wording the update
+/// window shows.
+async fn fetch_github_json(url: &str) -> Result<serde_json::Value, String> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(8))
         .build()
         .map_err(|error| format!("Unable to check for updates: {error}"))?;
 
     let response = client
-        .get(if include_prereleases {
-            GITHUB_RELEASES_LIST_URL
-        } else {
-            GITHUB_LATEST_RELEASE_URL
-        })
+        .get(url)
         .header("User-Agent", "AI-Usage-Tracker")
         .header("Accept", "application/vnd.github+json")
         .send()
@@ -255,6 +250,19 @@ pub(super) async fn fetch_github_latest_release(
         })?;
     let body = serde_json::from_str::<serde_json::Value>(&text)
         .map_err(|_| "Unable to check for updates: GitHub's answer could not be read.")?;
+    Ok(body)
+}
+
+pub(super) async fn fetch_github_latest_release(
+    include_prereleases: bool,
+    required_asset: Option<&str>,
+) -> Result<GitHubLatestRelease, String> {
+    let body = fetch_github_json(if include_prereleases {
+        GITHUB_RELEASES_LIST_URL
+    } else {
+        GITHUB_LATEST_RELEASE_URL
+    })
+    .await?;
     let json = if include_prereleases {
         newest_release_in_listing(&body, required_asset)
             .ok_or("Unable to check for updates: GitHub returned no matching releases.")?
@@ -294,6 +302,80 @@ pub(super) async fn fetch_github_latest_release(
         apk_url,
         apk_sha256_url,
     })
+}
+
+/// The release notes of every release after `current` up to and including `target`, newest first,
+/// from a GitHub `/releases` listing, so someone several versions behind sees everything they
+/// missed. Drafts are skipped, and pre-releases unless `include_prereleases` (the beta opt-in).
+/// Returns the joined notes and the publish time of `target`, or `None` when the listing has no
+/// notes for `target` itself, so the caller falls back to that one release's notes.
+pub(super) fn notes_since(
+    listing: &serde_json::Value,
+    current: &str,
+    target: &str,
+    include_prereleases: bool,
+) -> Option<(String, Option<String>)> {
+    let bare = |value: &str| value.trim().trim_start_matches(['v', 'V']).to_string();
+    let target = bare(target);
+    let mut picked: Vec<(String, &str, Option<&str>)> = Vec::new();
+    for release in listing.as_array()? {
+        let flag = |key: &str| release.get(key).and_then(|value| value.as_bool()) == Some(true);
+        if flag("draft") || (flag("prerelease") && !include_prereleases) {
+            continue;
+        }
+        let Some(version) = release
+            .get("tag_name")
+            .and_then(|value| value.as_str())
+            .map(bare)
+            .filter(|version| !version.is_empty())
+        else {
+            continue;
+        };
+        if !is_newer_version(&version, current) || is_newer_version(&version, &target) {
+            continue;
+        }
+        let Some(body) = release
+            .get("body")
+            .and_then(|value| value.as_str())
+            .filter(|body| !body.trim().is_empty())
+        else {
+            continue;
+        };
+        let published = release.get("published_at").and_then(|value| value.as_str());
+        picked.push((version, body, published));
+    }
+    let date = picked
+        .iter()
+        .find(|(version, _, _)| *version == target)?
+        .2
+        .map(str::to_string);
+    picked.sort_by(|a, b| {
+        if is_newer_version(&a.0, &b.0) {
+            std::cmp::Ordering::Less
+        } else if is_newer_version(&b.0, &a.0) {
+            std::cmp::Ordering::Greater
+        } else {
+            std::cmp::Ordering::Equal
+        }
+    });
+    let joined = picked
+        .iter()
+        .map(|(_, body, _)| body.trim())
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    Some((joined, date))
+}
+
+/// The notes of every release between `current` and `target` (see `notes_since`). `None` when
+/// the listing cannot be fetched or lacks `target`; the caller then keeps the single release's
+/// notes it already has.
+pub(super) async fn fetch_notes_since(
+    current: &str,
+    target: &str,
+    include_prereleases: bool,
+) -> Option<(String, Option<String>)> {
+    let listing = fetch_github_json(GITHUB_RELEASES_LIST_URL).await.ok()?;
+    notes_since(&listing, current, target, include_prereleases)
 }
 
 /// Beta releases are an opt-in on every platform. Betas are published as

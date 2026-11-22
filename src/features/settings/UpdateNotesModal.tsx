@@ -146,6 +146,7 @@ function renderInline(text: string, onOpenLink: OpenLink): ReactNode {
 export function UpdateNotesModal({
   open,
   version,
+  currentVersion,
   releaseDate,
   releaseNotes,
   onClose,
@@ -157,6 +158,8 @@ export function UpdateNotesModal({
 }: {
   open: boolean;
   version: string | null;
+  /** The version running now. Named in the title when the notes cover several releases. */
+  currentVersion?: string | null;
   releaseDate?: string | null;
   releaseNotes?: string | null;
   onClose: () => void;
@@ -173,6 +176,14 @@ export function UpdateNotesModal({
 
   const cleanVersion = (version || "").replace(/^v/i, "");
   const blocks = releaseNotes ? parseMarkdownBlocks(cleanReleaseNotes(releaseNotes)) : [];
+  // The notes of every release since the running one: each starts with its "## v0.6.7 - …" heading.
+  const releaseCount = blocks.filter((block) => block.type === "h2" && /^v?\d/i.test(block.text ?? "")).length;
+  const cleanCurrent = (currentVersion || "").replace(/^v/i, "");
+  const title = !cleanVersion
+    ? "Release Changes"
+    : releaseCount > 1 && cleanCurrent
+      ? `What changed since v${cleanCurrent}`
+      : `What changed in v${cleanVersion}`;
   const formattedDate = formatReleaseDate(releaseDate);
   const isUpdating = updateBusy === "downloading" || updateBusy === "verifying" || updateBusy === "installing";
 
@@ -180,10 +191,12 @@ export function UpdateNotesModal({
     <ModalDialog dialogRef={dialogRef} labelledBy="update-notes-title" className="update-notes-modal" onClose={onClose}>
       <div className="modal-kicker">App Update</div>
       <h2 id="update-notes-title">
-        {cleanVersion ? `What changed in v${cleanVersion}` : "Release Changes"}
+        {title}
       </h2>
       {formattedDate ? (
-        <p className="update-notes-subtitle">Published {formattedDate}</p>
+        <p className="update-notes-subtitle">
+          {releaseCount > 1 ? `v${cleanVersion} published ${formattedDate} · ${releaseCount} releases` : `Published ${formattedDate}`}
+        </p>
       ) : null}
 
       <div className={`update-notes-content${isUpdating ? " has-progress" : ""}`}>

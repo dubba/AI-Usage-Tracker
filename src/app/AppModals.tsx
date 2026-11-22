@@ -111,6 +111,7 @@ export function AppModals({
       <UpdateNotesModal
         open={update.updateNotesOpen}
         version={update.appUpdate?.availableVersion ?? update.pendingUpdateVersion ?? null}
+        currentVersion={update.appUpdate?.currentVersion ?? null}
         releaseDate={update.appUpdate?.date}
         releaseNotes={update.appUpdate?.body}
         onClose={onCloseUpdateNotes}
