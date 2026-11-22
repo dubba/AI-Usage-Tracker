@@ -221,6 +221,161 @@ pub(crate) fn open_private_login_window<'a>(
     Ok(window)
 }
 
+/// The banner a cookie sign-in window shows above the provider's page (`connect_banner_script`).
+#[cfg(desktop)]
+const CONNECT_BANNER_TEMPLATE: &str = r#"
+(() => {
+  if (window.top !== window || !(@@PAGE_CHECK@@)) return;
+
+  const installBanner = () => {
+    if (!document.body || document.getElementById('@@ID@@')) return;
+    const banner = document.createElement('div');
+    banner.id = '@@ID@@';
+    banner.setAttribute('role', 'status');
+    banner.textContent = '@@TEXT@@';
+    Object.assign(banner.style, {
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      right: '0',
+      zIndex: '2147483647',
+      boxSizing: 'border-box',
+      padding: 'max(28px, calc(env(safe-area-inset-top, 0px) + 10px)) 18px 12px 18px',
+      background: '#211936',
+      color: '#f7f4ff',
+      borderBottom: '1px solid #a078ff',
+      fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
+      fontSize: '14px',
+      fontWeight: '650',
+      lineHeight: '1.45',
+      textAlign: 'center',
+      boxShadow: '0 8px 24px rgba(0, 0, 0, .3)'
+    });
+    document.body.prepend(banner);
+    const height = Math.ceil(banner.getBoundingClientRect().height);
+    const padding = Number.parseFloat(getComputedStyle(document.body).paddingTop) || 0;
+    document.body.style.paddingTop = `${padding + height}px`;
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', installBanner, { once: true });
+  } else {
+    installBanner();
+  }
+})();
+"#;
+
+/// The script that shows `text` in a bar above the provider's page, pushing the page down by the
+/// bar's height, on the top-level pages where `page_check` (a JavaScript expression) is true.
+/// `element_id` keeps the bar from being added twice. `element_id` and `text` are written into
+/// single-quoted JavaScript strings, so they must not contain `'` or `\`.
+#[cfg(desktop)]
+pub(crate) fn connect_banner_script(page_check: &str, element_id: &str, text: &str) -> String {
+    debug_assert!(![element_id, text]
+        .iter()
+        .any(|value| value.contains('\'') || value.contains('\\')));
+    CONNECT_BANNER_TEMPLATE
+        .replace("@@PAGE_CHECK@@", page_check)
+        .replace("@@ID@@", element_id)
+        .replace("@@TEXT@@", text)
+}
+
+/// One provider's cookie sign-in window (`open_cookie_login_window`).
+#[cfg(desktop)]
+pub(crate) struct CookieLoginWindow {
+    /// The window's label (see `LOGIN_WINDOW_LABELS` in `commands/auth.rs`).
+    pub label: &'static str,
+    pub title: &'static str,
+    /// The provider's name in the error and diagnostics lines.
+    pub provider: &'static str,
+    pub start_url: Url,
+    /// Prefix of the attempt's throwaway profile directory (`login_profile`).
+    pub profile_prefix: &'static str,
+    /// The provider's own page script; the Back button is added after it.
+    pub page_script: String,
+    /// `None` keeps the WebView's own user agent.
+    pub user_agent: Option<&'static str>,
+    /// The provider's allowlist of pages the window may load.
+    pub is_allowed: fn(&Url) -> bool,
+    pub timeout_minutes: i64,
+    pub canceled: &'static str,
+    pub timed_out: &'static str,
+}
+
+/// Opens the cookie sign-in window of attempt `attempt_id` (Grok, OpenCode): closes one left open,
+/// gives the attempt a fresh private profile, so no earlier session can sign in a second account
+/// by itself, guards its navigation with the provider's allowlist, and ends the attempt when the
+/// window is closed or times out. `customize` adds the provider's own handlers. Returns the window
+/// and its profile directory.
+#[cfg(desktop)]
+pub(crate) fn open_cookie_login_window<'a>(
+    app: &'a AppHandle,
+    state: &Arc<AppState>,
+    attempt_id: &str,
+    spec: CookieLoginWindow,
+    customize: impl FnOnce(
+        WebviewWindowBuilder<'a, tauri::Wry, AppHandle>,
+    ) -> WebviewWindowBuilder<'a, tauri::Wry, AppHandle>,
+) -> Result<(WebviewWindow, PathBuf), String> {
+    if let Some(window) = app.get_webview_window(spec.label) {
+        crate::auth::mobile_auth::dismiss_login_window(&window);
+    }
+    // Sweep profiles left behind by a previous crash or kill before creating the new one, which
+    // is owner-only.
+    crate::auth::login_profile::sweep_stale_profiles(spec.profile_prefix);
+    let profile_dir =
+        crate::auth::login_profile::create_private_profile_dir(spec.profile_prefix, attempt_id)?;
+    let opened = open_private_login_window(
+        app,
+        LoginWindowSpec {
+            label: spec.label,
+            title: spec.title,
+            start_url: spec.start_url,
+            profile_dir: profile_dir.clone(),
+            init_script: format!("{}\n{BACK_BUTTON_SCRIPT}", spec.page_script),
+            user_agent: spec.user_agent,
+        },
+        |builder| {
+            customize(builder.on_navigation(guard_login_navigation(
+                app,
+                state,
+                attempt_id,
+                LoginNavigationRules {
+                    label: spec.label,
+                    provider: spec.provider,
+                    canceled: spec.canceled,
+                    is_allowed: spec.is_allowed,
+                },
+            )))
+        },
+    );
+    let window = match opened {
+        Ok(window) => window,
+        Err(error) => {
+            let _ = std::fs::remove_dir_all(&profile_dir);
+            return Err(format!(
+                "Unable to open the {} login window: {}",
+                spec.provider,
+                crate::diagnostics::command_error(error)
+            ));
+        }
+    };
+    spawn_login_close_and_timeout(
+        app,
+        state,
+        &window,
+        attempt_id,
+        &profile_dir,
+        LoginWindowEnd {
+            label: spec.label,
+            timeout_minutes: spec.timeout_minutes,
+            canceled: spec.canceled,
+            timed_out: spec.timed_out,
+        },
+    );
+    Ok((window, profile_dir))
+}
+
 /// How `spawn_login_close_and_timeout` ends an attempt, and what it tells the user.
 #[cfg(desktop)]
 pub(crate) struct LoginWindowEnd {

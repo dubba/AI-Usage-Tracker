@@ -47,7 +47,7 @@ Pick the path that matches the provider.
 
 **Cookie capture in a login WebView**
 
-- `src-tauri/src/auth/<name>_login.rs` — built on `login_window::open_private_login_window` (private profile, navigation allowlist, Back button, close and timeout handling) and `oauth_common::finish_window_login`.
+- `src-tauri/src/auth/<name>_login.rs` — built on `login_window::open_cookie_login_window` (private profile, navigation allowlist, Back button, close and timeout handling; `connect_banner_script` for the banner) and `oauth_common::finish_window_login`.
 - The window label: add a `LOGIN_WINDOW_LABEL` constant in that file and put it in `LOGIN_WINDOW_LABELS` in `src-tauri/src/commands/auth.rs`, so `cancel_login` closes the window. `cancel_login_closes_every_sign_in_window` scans the sources and fails if a label is missing.
 - Cookie normalization must reject CR/LF and keep only the cookie names the provider's usage client needs.
 - A login window gets no capability file: it must have no IPC commands.

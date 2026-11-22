@@ -1,18 +1,12 @@
 use crate::auth::login_window::LoginAttempt;
 #[cfg(desktop)]
-use crate::auth::login_window::{
-    self, LoginNavigationRules, LoginWindowEnd, LoginWindowSpec, BACK_BUTTON_SCRIPT,
-    LOGIN_USER_AGENT,
-};
+use crate::auth::login_window::{self, CookieLoginWindow, LOGIN_USER_AGENT};
 use crate::{
     auth::oauth_common::{finish_window_login, merge_into_existing, ConnectedFields},
     model::{Account, GrokSecret, LoginStart, Provider, ProviderSecret},
     providers::{
         self,
-        grok::{
-            has_grok_session_cookie, is_allowed_cookie_host, normalize_cookie_header,
-            GROK_COOKIE_URLS,
-        },
+        grok::{has_grok_session_cookie, is_allowed_cookie_host, normalize_cookie_header},
         ProviderError,
     },
     state::AppState,
@@ -29,8 +23,6 @@ use std::{
 };
 #[cfg(mobile)]
 use tauri::AppHandle;
-#[cfg(desktop)]
-use tauri::Manager;
 use tauri::WebviewWindow;
 use url::Url;
 use uuid::Uuid;
@@ -49,49 +41,6 @@ const LOGIN_URL: &str = "https://accounts.x.ai/sign-in?redirect_uri=https%3A%2F%
 const COOKIE_LOGIN_TIMEOUT_MINUTES: i64 = 10;
 const COOKIE_POLL_INTERVAL_MS: u64 = 750;
 const COOKIE_POLL_ATTEMPTS: usize = 800;
-
-#[cfg(desktop)]
-const CONNECT_BANNER_SCRIPT: &str = r#"
-(() => {
-  if (window.top !== window || !window.location.hostname.endsWith('grok.com')) return;
-
-  const installBanner = () => {
-    if (!document.body || document.getElementById('ai-tracker-grok-connect-banner')) return;
-    const banner = document.createElement('div');
-    banner.id = 'ai-tracker-grok-connect-banner';
-    banner.setAttribute('role', 'status');
-    banner.textContent = 'AI Usage Tracker: Sign in to Grok. This private window closes automatically after your provider-reported weekly usage is detected.';
-    Object.assign(banner.style, {
-      position: 'fixed',
-      top: '0',
-      left: '0',
-      right: '0',
-      zIndex: '2147483647',
-      boxSizing: 'border-box',
-      padding: 'max(28px, calc(env(safe-area-inset-top, 0px) + 10px)) 18px 12px 18px',
-      background: '#211936',
-      color: '#f7f4ff',
-      borderBottom: '1px solid #a078ff',
-      fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
-      fontSize: '14px',
-      fontWeight: '650',
-      lineHeight: '1.45',
-      textAlign: 'center',
-      boxShadow: '0 8px 24px rgba(0, 0, 0, .3)'
-    });
-    document.body.prepend(banner);
-    const height = Math.ceil(banner.getBoundingClientRect().height);
-    const padding = Number.parseFloat(getComputedStyle(document.body).paddingTop) || 0;
-    document.body.style.paddingTop = `${padding + height}px`;
-  };
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', installBanner, { once: true });
-  } else {
-    installBanner();
-  }
-})();
-"#;
 
 /// Last resort when neither the reconnect target nor the signed-in identity matches a
 /// stored Grok account: reuse one that already carries the label the user typed.
@@ -265,64 +214,30 @@ pub async fn start_login(
 
     #[cfg(desktop)]
     {
-        if let Some(window) = app.get_webview_window(LOGIN_WINDOW_LABEL) {
-            close_login_window(&window);
-        }
-
-        // Sweep profiles left behind by a previous crash/kill before creating a
-        // new one, then create the new profile as owner-only.
-        crate::auth::login_profile::sweep_stale_profiles(GROK_PROFILE_PREFIX);
-        let temp_data_dir = crate::auth::login_profile::create_private_profile_dir(
-            GROK_PROFILE_PREFIX,
-            &attempt_id,
-        )?;
-
-        let login_window = match login_window::open_private_login_window(
-            &app,
-            LoginWindowSpec {
-                label: LOGIN_WINDOW_LABEL,
-                title: "Connect Grok",
-                start_url: login_url,
-                profile_dir: temp_data_dir.clone(),
-                init_script: format!("{CONNECT_BANNER_SCRIPT}\n{BACK_BUTTON_SCRIPT}"),
-                user_agent: Some(LOGIN_USER_AGENT),
-            },
-            |builder| {
-                builder.on_navigation(login_window::guard_login_navigation(
-                    &app,
-                    &state,
-                    &attempt_id,
-                    LoginNavigationRules {
-                        label: LOGIN_WINDOW_LABEL,
-                        provider: "Grok",
-                        canceled: GROK_CANCELED_MESSAGE,
-                        is_allowed: is_allowed_login_navigation,
-                    },
-                ))
-            },
-        ) {
-            Ok(window) => window,
-            Err(error) => {
-                let _ = std::fs::remove_dir_all(&temp_data_dir);
-                return Err(format!("Unable to open the Grok login window: {error}"));
-            }
-        };
-
-        start_cookie_poll(login_window.clone(), attempt, Some(temp_data_dir.clone()));
-
-        login_window::spawn_login_close_and_timeout(
+        let (login_window, temp_data_dir) = login_window::open_cookie_login_window(
             &app,
             &state,
-            &login_window,
             &attempt_id,
-            &temp_data_dir,
-            LoginWindowEnd {
+            CookieLoginWindow {
                 label: LOGIN_WINDOW_LABEL,
+                title: "Connect Grok",
+                provider: "Grok",
+                start_url: login_url,
+                profile_prefix: GROK_PROFILE_PREFIX,
+                page_script: login_window::connect_banner_script(
+                    "window.location.hostname.endsWith('grok.com')",
+                    "ai-tracker-grok-connect-banner",
+                    "AI Usage Tracker: Sign in to Grok. This private window closes automatically after your provider-reported weekly usage is detected.",
+                ),
+                user_agent: Some(LOGIN_USER_AGENT),
+                is_allowed: is_allowed_login_navigation,
                 timeout_minutes: COOKIE_LOGIN_TIMEOUT_MINUTES,
                 canceled: GROK_CANCELED_MESSAGE,
                 timed_out: GROK_TIMED_OUT_MESSAGE,
             },
-        );
+            |builder| builder,
+        )?;
+        start_cookie_poll(login_window, attempt, Some(temp_data_dir));
 
         pending.keep();
         Ok(LoginStart {
@@ -618,47 +533,38 @@ fn is_xai_signin_host(url: &Url) -> bool {
 }
 
 fn read_cookie_header(window: &WebviewWindow) -> Result<String, String> {
-    #[allow(unused_mut)]
     let mut pairs = BTreeMap::new();
     // Tauri's cookie lookups block the main thread in a nested run loop, which can crash the
     // app on iOS, so read the store once without blocking (see ios_cookies.rs) and filter here.
     #[cfg(target_os = "ios")]
-    {
-        let cookies = crate::auth::ios_cookies::all_cookies(window)?;
-        for cookie in cookies {
-            let domain = cookie.domain().unwrap_or("").trim_start_matches('.');
-            let value = cookie.value().trim();
-            if value.is_empty() || !is_allowed_cookie_host(domain) {
-                continue;
-            }
-            pairs.insert(cookie.name().to_string(), value.to_string());
+    for cookie in crate::auth::ios_cookies::all_cookies(window)? {
+        let domain = cookie.domain().unwrap_or("").trim_start_matches('.');
+        let value = cookie.value().trim();
+        if value.is_empty() || !is_allowed_cookie_host(domain) {
+            continue;
         }
-        let header = pairs
-            .into_iter()
-            .map(|(name, value)| format!("{name}={value}"))
-            .collect::<Vec<_>>()
-            .join("; ");
-        return normalize_cookie_header(&header);
+        pairs.insert(cookie.name().to_string(), value.to_string());
     }
     #[cfg(not(target_os = "ios"))]
     {
         if let Ok(current_url) = window.url() {
             collect_cookies_for_url(window, &current_url, &mut pairs);
         }
-        for target in GROK_COOKIE_URLS {
+        for target in providers::grok::GROK_COOKIE_URLS {
             if let Ok(url) = Url::parse(target) {
                 collect_cookies_for_url(window, &url, &mut pairs);
             }
         }
-        let header = pairs
-            .into_iter()
-            .map(|(name, value)| format!("{name}={value}"))
-            .collect::<Vec<_>>()
-            .join("; ");
-        normalize_cookie_header(&header)
     }
+    let header = pairs
+        .into_iter()
+        .map(|(name, value)| format!("{name}={value}"))
+        .collect::<Vec<_>>()
+        .join("; ");
+    normalize_cookie_header(&header)
 }
 
+#[cfg(not(target_os = "ios"))]
 fn collect_cookies_for_url(
     window: &WebviewWindow,
     url: &Url,
