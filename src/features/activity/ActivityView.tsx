@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef } from "react";
+import { useDeferredValue, useId, useMemo, useRef } from "react";
 import { useMediaQuery } from "../../shared/hooks/useMediaQuery";
 import { MobileSidebarToggle } from "../../shared/ui/MobileSidebarToggle";
 import { BarChartIcon, CloseIcon } from "../../shared/ui/icons";
@@ -18,6 +18,7 @@ import { useWeeklyActivity } from "./useWeeklyActivity";
 import { WeeklyTracker } from "./WeeklyTracker";
 import "./activity.css";
 
+const ALL_PERIOD_DAYS = ACTIVITY_PERIODS.map((candidate) => ACTIVITY_PERIOD_DAYS[candidate]);
 const PERIOD_LABELS: Record<ActivityPeriod, string> = { "7d": "7D", "30d": "30D", "90d": "90D" };
 const PERIOD_NAMES: Record<ActivityPeriod, string> = { "7d": "Last 7 days", "30d": "Last 30 days", "90d": "Last 90 days" };
 const PERIOD_TOOLTIPS: Record<ActivityPeriod, string> = { "7d": "Show the last 7 days", "30d": "Show the last 30 days", "90d": "Show the last 90 days" };
@@ -117,11 +118,17 @@ export function ActivityView({
 
   const [period, setPeriod] = useActivityPeriod();
   const refreshKey = useMemo(() => refreshKeyOf(accounts), [accounts]);
-  const { data, error, reload } = useWeeklyActivity({
+  const { data: latest, error, reload } = useWeeklyActivity({
     dayCount: ACTIVITY_PERIOD_DAYS[period],
+    alsoLoad: ALL_PERIOD_DAYS,
     refreshKey,
     enabled: accounts.length > 0,
   });
+
+  // Drawing 90 bars on every card is heavy. Deferring the answer lets the switch itself move at once
+  // and the charts follow a moment later, instead of the whole tap waiting on the redraw.
+  const data = useDeferredValue(latest);
+  const redrawing = data !== latest;
 
   const canPullRefreshEnv = useCanPullRefreshEnvironment();
   const canPullRefresh = Boolean(onRefresh) && accounts.length > 0 && Boolean(data) && canPullRefreshEnv;
@@ -302,7 +309,7 @@ export function ActivityView({
             </li>
           </ul>
         ) : null}
-        <div className="activity-grid" data-group-id={groupId}>
+        <div className={`activity-grid${redrawing ? " is-redrawing" : ""}`} data-group-id={groupId}>
           {hasReadings
             ? trackerCards.map((entry) =>
                 entry.kind === "antigravity" ? (

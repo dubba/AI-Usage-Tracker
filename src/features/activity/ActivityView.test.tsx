@@ -52,6 +52,8 @@ function renderView(accounts: Account[], props: Partial<Parameters<typeof Activi
 const select = (root: ParentNode, selector: string) => [...root.querySelectorAll<HTMLElement>(selector)];
 const titles = (root: ParentNode) => select(root, ".activity-card-title").map((title) => title.textContent);
 const button = (root: ParentNode, label: string) => root.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!;
+/** How many reports were asked for that cover `days` days; the other periods are fetched quietly in the background. */
+const callsFor = (days: number): number => api.getWeeklyActivity.mock.calls.filter(([starts]) => starts.length === days + 1).length;
 const requested = (call: number): string[] => api.getWeeklyActivity.mock.calls[call][0];
 
 function answer(trackerCount = 1, dayCount = 7): WeeklyActivity {
@@ -110,7 +112,7 @@ describe("ActivityView", () => {
     await settle();
     expect(root.querySelector('[role="alert"]')).toBeNull();
     expect(titles(root)).toEqual(["Work Claude"]);
-    expect(api.getWeeklyActivity).toHaveBeenCalledTimes(2);
+    expect(callsFor(7)).toBe(2);
   });
 
   it("keeps the charts on screen when a later refresh fails, and says so", async () => {
@@ -233,8 +235,8 @@ describe("ActivityView", () => {
 
     click(button(root, "Last 30 days"));
     await settle();
-    expect(api.getWeeklyActivity).toHaveBeenCalledTimes(2);
-    expect(requested(1)).toHaveLength(31);
+    expect(callsFor(30)).toBeGreaterThanOrEqual(1);
+    expect(select(root, ".activity-bar")).toHaveLength(30);
     expect(select(root, ".activity-bar")).toHaveLength(30);
     expect(button(root, "Last 30 days").getAttribute("aria-pressed")).toBe("true");
     expect(getActivityPeriod()).toBe("30d");
@@ -360,23 +362,23 @@ describe("ActivityView", () => {
     api.getWeeklyActivity.mockResolvedValue(answer());
     const { root } = renderView([work]);
     await settle();
-    expect(api.getWeeklyActivity).toHaveBeenCalledTimes(1);
+    expect(callsFor(7)).toBe(1);
 
     // The same data in new objects (a poll with nothing new): no request.
     mounted!.rerender(<ActivityView accounts={[{ ...work }]} onAddAccount={vi.fn()} />);
     await settle();
-    expect(api.getWeeklyActivity).toHaveBeenCalledTimes(1);
+    expect(callsFor(7)).toBe(1);
 
     // A refresh finished: new fetch time.
     const refreshed = { ...work, lastUsage: { ...work.lastUsage!, fetchedAt: "2026-10-24T12:15:00Z" } };
     mounted!.rerender(<ActivityView accounts={[refreshed]} onAddAccount={vi.fn()} />);
     await settle();
-    expect(api.getWeeklyActivity).toHaveBeenCalledTimes(2);
+    expect(callsFor(7)).toBe(2);
 
     // An account was added.
     mounted!.rerender(<ActivityView accounts={[refreshed, personal]} onAddAccount={vi.fn()} />);
     await settle();
-    expect(api.getWeeklyActivity).toHaveBeenCalledTimes(3);
+    expect(callsFor(7)).toBe(3);
     expect(root.isConnected).toBe(true);
   });
 
@@ -386,11 +388,11 @@ describe("ActivityView", () => {
     await settle();
     act(() => void window.dispatchEvent(new Event("focus")));
     await settle();
-    expect(api.getWeeklyActivity).toHaveBeenCalledTimes(2);
+    expect(callsFor(7)).toBe(2);
     Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true });
     act(() => void document.dispatchEvent(new Event("visibilitychange")));
     await settle();
-    expect(api.getWeeklyActivity).toHaveBeenCalledTimes(3);
+    expect(callsFor(7)).toBe(3);
   });
 
   it("ignores a slow answer for a period the user has already left", async () => {
@@ -413,16 +415,21 @@ describe("ActivityView", () => {
   });
 
   it("hides the old period's error while the new one loads, and keeps its charts", async () => {
-    api.getWeeklyActivity.mockResolvedValueOnce(answer());
+    let failSevenDays = false;
+    api.getWeeklyActivity.mockImplementation(async (starts: string[]) => {
+      if (starts.length === 31) return new Promise<WeeklyActivity>(() => {});
+      if (starts.length === 8 && failSevenDays) throw "offline";
+      return answer(1, starts.length - 1);
+    });
     const { root } = renderView([work]);
     await settle();
 
-    api.getWeeklyActivity.mockRejectedValueOnce("offline");
+    failSevenDays = true;
     act(() => void window.dispatchEvent(new Event("focus")));
     await settle();
     expect(root.querySelector('[role="alert"]')!.textContent).toContain("Couldn’t refresh usage: offline");
 
-    api.getWeeklyActivity.mockReturnValueOnce(new Promise(() => {}));
+    failSevenDays = false;
     click(button(root, "Last 30 days"));
     await settle();
     expect(root.querySelector('[role="alert"]')).toBeNull();

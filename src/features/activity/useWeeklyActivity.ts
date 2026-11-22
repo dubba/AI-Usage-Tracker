@@ -26,10 +26,13 @@ export interface ActivityData {
  */
 export function useWeeklyActivity({
   dayCount,
+  alsoLoad = [],
   refreshKey,
   enabled,
 }: {
   dayCount: number;
+  /** Other periods to fetch quietly after the shown one, so switching to them is instant. */
+  alsoLoad?: readonly number[];
   refreshKey: string;
   enabled: boolean;
 }) {
@@ -69,6 +72,32 @@ export function useWeeklyActivity({
   }, [load, refreshKey]);
 
   useOnAppResume(() => void load());
+
+  // Fetches the other periods in the background, one after another and only once the shown one is
+  // in, so the switch finds them ready. A failure here is ignored: tapping the period retries it.
+  const shownLoaded = byCount[dayCount] != null;
+  const alsoLoadKey = alsoLoad.join(",");
+  useEffect(() => {
+    if (!enabled || !shownLoaded) return;
+    let cancelled = false;
+    void (async () => {
+      for (const count of alsoLoadKey ? alsoLoadKey.split(",").map(Number) : []) {
+        if (count === dayCount) continue;
+        try {
+          const dayStarts = dayStartsFor(count);
+          const activity = await bridgeApi.getWeeklyActivity(dayStartInstants(dayStarts));
+          if (cancelled) return;
+          setByCount((current) => ({ ...current, [count]: { dayCount: count, dayStarts, activity } }));
+        } catch {
+          if (cancelled) return;
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // A new `refreshKey` means fresh usage, so the other periods are fetched again too.
+  }, [enabled, shownLoaded, dayCount, alsoLoadKey, refreshKey]);
 
   // Leaving the page makes an answer still on its way stale.
   useEffect(
