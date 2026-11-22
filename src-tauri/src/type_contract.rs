@@ -28,6 +28,7 @@ use crate::{
     pairing::{
         airgap::{AirgapExport, AirgapExportFrame, AirgapPreview},
         payload::SyncSummary,
+        transport::QrMatrix,
         PairingHostInit, PairingStatus,
     },
     startup::StartupIssue,
@@ -360,6 +361,7 @@ fn generated_bindings() -> String {
         PairingHostInit,
         PairingStatus,
         StartupIssue,
+        QrMatrix,
         AirgapExportFrame,
         AirgapExport,
         AirgapPreview,

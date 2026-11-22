@@ -104,7 +104,7 @@ function deferred<T>() {
 const exported: AirgapExport = {
   sessionId: "s1",
   totalChunks: 3,
-  frames: [1, 2, 3].map((chunkIndex) => ({ chunkIndex, totalChunks: 3, uri: `aiut-airgap://1/s1/${chunkIndex}/3/ab?d=x`, svg: "<svg/>" })),
+  frames: [1, 2, 3].map((chunkIndex) => ({ chunkIndex, totalChunks: 3, uri: `aiut-airgap://1/s1/${chunkIndex}/3/ab?d=x`, qr: { size: 1, modules: "1" } })),
 };
 const summary = { added: 2, updated: 1, skipped: 0, warnings: [] };
 

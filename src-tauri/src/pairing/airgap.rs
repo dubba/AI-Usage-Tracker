@@ -18,7 +18,7 @@ use crate::{
     pairing::{
         crypto::{decrypt_payload, encrypt_payload},
         payload::{create_export_payload, import_sync_payload, validate_payload, SyncSummary},
-        transport::generate_qr_svg,
+        transport::{qr_matrix, QrMatrix},
     },
     state::AppState,
 };
@@ -44,7 +44,8 @@ pub struct AirgapExportFrame {
     pub chunk_index: usize,
     pub total_chunks: usize,
     pub uri: String,
-    pub svg: String,
+    /// The frame's QR code: `uri`, as the modules the sender draws.
+    pub qr: QrMatrix,
 }
 
 impl std::fmt::Debug for AirgapExportFrame {
@@ -56,7 +57,7 @@ impl std::fmt::Debug for AirgapExportFrame {
             .field("chunk_index", &self.chunk_index)
             .field("total_chunks", &self.total_chunks)
             .field("uri_len", &self.uri.len())
-            .field("svg_len", &self.svg.len())
+            .field("qr_size", &self.qr.size)
             .finish()
     }
 }
@@ -126,7 +127,7 @@ pub fn chunk_checksum(data: &str) -> String {
     )
 }
 
-/// Prepares an encrypted, compressed air-gap export as an animated sequence of SVG QR frames.
+/// Prepares an encrypted, compressed air-gap export as an animated sequence of QR frames.
 pub fn prepare_airgap_export(state: &AppState) -> Result<AirgapExport, String> {
     let raw_payload_bytes = create_export_payload(state)?;
 
@@ -160,12 +161,12 @@ pub fn prepare_airgap_export(state: &AppState) -> Result<AirgapExport, String> {
         let uri = format!(
             "{AIRGAP_URI_SCHEME}://1/{session_id}/{chunk_index}/{total_chunks}/{crc}?d={b64_data}"
         );
-        let svg = generate_qr_svg(&uri)?;
+        let qr = qr_matrix(&uri)?;
         frames.push(AirgapExportFrame {
             chunk_index,
             total_chunks,
             uri,
-            svg,
+            qr,
         });
     }
 
@@ -636,7 +637,10 @@ mod tests {
             chunk_index: 0,
             total_chunks: 2,
             uri: "aiusage://airgap?d=SECRET_KEY_AND_CIPHERTEXT".into(),
-            svg: "<svg>SECRET_QR</svg>".into(),
+            qr: QrMatrix {
+                size: 1,
+                modules: "1".into(),
+            },
         };
         let export = AirgapExport {
             session_id: "abcd1234".into(),

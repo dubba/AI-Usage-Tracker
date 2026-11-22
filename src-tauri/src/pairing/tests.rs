@@ -29,12 +29,22 @@ use tokio::{
 use uuid::Uuid;
 
 #[test]
-fn test_qr_code_svg() {
+fn air_gap_qr_codes_are_a_square_grid_of_modules() {
     let uri = "aiut-airgap://1/abcd1234/1/1/00000000?d=AAAA";
-    let svg = crate::pairing::transport::generate_qr_svg(uri).unwrap();
-    assert!(svg.contains("<svg"));
-    assert!(svg.contains("fill=\"#000000\""));
-    assert!(svg.contains("fill=\"#ffffff\""));
+    let qr = crate::pairing::transport::qr_matrix(uri).unwrap();
+    assert_eq!(qr.modules.len(), qr.size * qr.size);
+    assert!(qr
+        .modules
+        .chars()
+        .all(|module| module == '0' || module == '1'));
+    // Every QR code starts with a finder pattern: a full dark row of seven modules.
+    assert_eq!(&qr.modules[..7], "1111111");
+    // A full-size air-gap frame (its longest URI) still fits a QR code.
+    let longest = format!(
+        "aiut-airgap://1/abcd1234/999/999/0a1b2c3d?d={}",
+        "A".repeat(crate::pairing::airgap::CHUNK_BINARY_SIZE.div_ceil(3) * 4)
+    );
+    assert!(crate::pairing::transport::qr_matrix(&longest).is_ok());
 }
 
 #[test]

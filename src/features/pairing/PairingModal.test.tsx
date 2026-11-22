@@ -92,9 +92,9 @@ const onClose = vi.fn();
 const onCompleted = vi.fn();
 let mounted: Mounted;
 
-const QR = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><path d="M0 0h1v1H0z"/></svg>';
+const QR = { size: 1, modules: "1" };
 const AIRGAP: AirgapExport = {
-  frames: [{ svg: QR }, { svg: QR }, { svg: QR }],
+  frames: [{ qr: QR }, { qr: QR }, { qr: QR }],
   totalChunks: 3,
 } as unknown as AirgapExport;
 
@@ -752,7 +752,9 @@ describe("air-gap transfer: sending", () => {
     expect(title()).toBe("Show QR Code");
     expect(text()).toContain("A photo or screen recording of these frames can decrypt the accounts in this transfer.");
     expect(text()).toContain("Frame 1/3");
-    expect(document.querySelector(".airgap-qr-card svg")).not.toBeNull();
+    // Drawn from the frame's modules inside the 4-module quiet zone, not from backend markup.
+    expect(document.querySelector(".airgap-qr-card svg path")?.getAttribute("d")).toBe("M4 4h1v1h-1z");
+    expect(document.querySelector(".airgap-qr-card svg")?.getAttribute("viewBox")).toBe("0 0 9 9");
   });
 
   it("excludes settings and layout when unchecking the option in step 1", async () => {

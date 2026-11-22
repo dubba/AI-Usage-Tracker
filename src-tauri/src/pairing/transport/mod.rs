@@ -13,7 +13,7 @@ pub use client::{run_client_connector, RoleChannels};
 pub use events::{ClientEvent, HostEvent};
 pub use host::{run_host_listener, HostSession};
 pub use lan::get_local_lan_ip;
-pub use qr::generate_qr_svg;
+pub use qr::{qr_matrix, QrMatrix};
 
 use crate::pairing::protocol::{write_frame, AbortReason, MSG_ABORT};
 use std::time::Duration;

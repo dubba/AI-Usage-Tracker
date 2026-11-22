@@ -376,11 +376,23 @@ export type StartupIssue = {
   dataDir: string | null,
 };
 
+/**
+ * A QR code: `size` × `size` modules, row by row, `'1'` for a dark one and `'0'` for a light
+ * one. The quiet zone around the code is not included; whoever draws it adds that.
+ */
+export type QrMatrix = {
+  size: number,
+  modules: string,
+};
+
 export type AirgapExportFrame = {
   chunkIndex: number,
   totalChunks: number,
   uri: string,
-  svg: string,
+  /**
+   * The frame's QR code: `uri`, as the modules the sender draws.
+   */
+  qr: QrMatrix,
 };
 
 export type AirgapExport = {

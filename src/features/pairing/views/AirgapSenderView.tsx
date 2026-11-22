@@ -1,10 +1,21 @@
 import { ChevronIcon, PauseIcon, PlayIcon } from "../../../shared/ui/icons";
 import type { AirgapSpeed } from "../hooks/useAirgapPlayer";
-import { sanitizeQrSvg } from "../lib/sanitizeSvg";
-import type { AirgapExport } from "../../../types";
+import { QR_QUIET_ZONE, qrPath } from "../lib/qr-path";
+import type { AirgapExport, QrMatrix } from "../../../types";
 
 const RECORDING_WARNING =
   "A photo or screen recording of these frames can decrypt the accounts in this transfer.";
+
+/** One QR code, black on white, drawn from its modules (the card sets its size on screen). */
+function QrCodeImage({ qr }: { qr: QrMatrix }) {
+  const extent = qr.size + 2 * QR_QUIET_ZONE;
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox={`0 0 ${extent} ${extent}`} shapeRendering="crispEdges" aria-hidden="true">
+      <rect width={extent} height={extent} fill="#ffffff" />
+      <path fill="#000000" d={qrPath(qr)} />
+    </svg>
+  );
+}
 
 /** The animated QR code an air-gap sender shows for the other device to scan. */
 export function AirgapSenderView({
@@ -64,11 +75,10 @@ export function AirgapSenderView({
           <div className="airgap-qr-stage">
             <div
               className="pairing-qr-card airgap-qr-card"
-              dangerouslySetInnerHTML={{
-                __html: sanitizeQrSvg(exportData.frames[frameIndex]?.svg || ""),
-              }}
               aria-label={`Air-gap Frame ${frameIndex + 1} of ${exportData.totalChunks}`}
-            />
+            >
+              {exportData.frames[frameIndex] ? <QrCodeImage qr={exportData.frames[frameIndex].qr} /> : null}
+            </div>
 
             <div className="airgap-playback-bar">
               <span className="airgap-frame-pill">

@@ -1,33 +1,28 @@
-//! QR codes for the pairing link.
+//! QR codes for the air-gap transfer, as a grid of modules the frontend draws itself, so no
+//! markup from the backend is ever inserted into the page.
 
-use qrcode::{render::svg, QrCode};
+use qrcode::{Color, QrCode};
+use serde::{Deserialize, Serialize};
 
-pub fn generate_qr_svg(uri: &str) -> Result<String, String> {
+/// A QR code: `size` × `size` modules, row by row, `'1'` for a dark one and `'0'` for a light
+/// one. The quiet zone around the code is not included; whoever draws it adds that.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub struct QrMatrix {
+    pub size: usize,
+    pub modules: String,
+}
+
+pub fn qr_matrix(uri: &str) -> Result<QrMatrix, String> {
     let code = QrCode::new(uri.as_bytes()).map_err(|e| format!("QR Code generation error: {e}"))?;
-    let image = code
-        .render::<svg::Color>()
-        .min_dimensions(240, 240)
-        .dark_color(svg::Color("#000000"))
-        .light_color(svg::Color("#ffffff"))
-        .build();
-
-    let trimmed = image.trim();
-    if !trimmed.starts_with("<?xml") && !trimmed.starts_with("<svg") {
-        return Err("Generated QR is not valid SVG markup".into());
-    }
-    if !trimmed.contains("<svg") || !trimmed.ends_with("</svg>") {
-        return Err("Malformed QR SVG markup".into());
-    }
-    let lower = trimmed.to_ascii_lowercase();
-    if lower.contains("<script")
-        || lower.contains("<foreignobject")
-        || lower.contains("<use")
-        || lower.contains("onload")
-        || lower.contains("onerror")
-        || lower.contains("javascript:")
-    {
-        return Err("Generated QR SVG contains disallowed elements or attributes".into());
-    }
-
-    Ok(image)
+    let modules = code
+        .to_colors()
+        .into_iter()
+        .map(|color| if color == Color::Dark { '1' } else { '0' })
+        .collect();
+    Ok(QrMatrix {
+        size: code.width(),
+        modules,
+    })
 }
