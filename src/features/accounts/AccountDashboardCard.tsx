@@ -174,48 +174,109 @@ export function AccountDashboardCard({
     window.setTimeout(() => iconButtonRef.current?.focus(), 0);
   };
 
+  // Both layouts share the card element, the provider button and these controls.
+  const articleProps = {
+    className: `provider-account-card${desktop ? " desktop-card" : ""}${cardCompact ? " is-compact" : ""} ${needsAttention ? "needs-attention" : ""} ${mobileMenuOpen ? "has-open-menu" : ""}${highlighted ? " is-alert-highlighted" : ""}`,
+    "data-account-id": account.id,
+    "data-reorder-provider": account.provider,
+    "data-reorder-enabled": "true",
+    draggable: false,
+  };
+  const providerButton = (
+    <button
+      ref={iconButtonRef}
+      type="button"
+      className={`account-card-provider-icon provider-${account.provider}${shownCollapsed ? " is-collapsed" : ""}`}
+      onClick={(event) => {
+        event.stopPropagation();
+        toggleCollapse();
+      }}
+      onKeyDown={(event) => {
+        const delta = onMove ? reorderKeyDelta(event) : null;
+        if (delta == null) return;
+        event.preventDefault();
+        requestMove(delta);
+      }}
+      aria-keyshortcuts={onMove ? "Alt+ArrowUp Alt+ArrowDown" : undefined}
+      aria-describedby={onMove ? REORDER_HINT_ID : undefined}
+      data-tooltip={shownCollapsed ? "Expand card" : "Collapse card"}
+      aria-label={shownCollapsed ? `Expand ${account.label}` : `Collapse ${account.label}`}
+      aria-expanded={!shownCollapsed}
+    >
+      <ProviderIcon provider={account.provider} />
+    </button>
+  );
+  const statusChip = status.label !== "LIVE" ? (
+    <span className={`account-status-chip ${status.className}`}>
+      <span className="account-status-chip-dot" aria-hidden="true" />
+      {statusChipLabel(status.label)}
+    </span>
+  ) : null;
+  const refreshButton = (
+    <button
+      type="button"
+      className={`account-card-action refresh-action ${isRefreshing ? "spinning" : ""}${outOfDate ? " is-suggested" : ""}`}
+      data-tooltip="Refresh this account"
+      aria-label={`Refresh ${account.label}`}
+      disabled={cardBusy || isGlobalRefresh}
+      onClick={onRefresh}
+    >
+      <RefreshIcon />
+    </button>
+  );
+  const alertsButton = (
+    <button
+      type="button"
+      className="account-card-action notify-action"
+      data-tooltip="Update account alerts"
+      aria-label={`Configure usage notifications for ${account.label}`}
+      disabled={cardBusy}
+      onClick={onNotifications}
+    >
+      <BellIcon />
+    </button>
+  );
+  const googleConnectButton = account.provider === "google_ai_studio" && !signedOut ? (
+    <button type="button" className="button ghost compact-button google-cloud-connect-action" disabled={cardBusy} onClick={onConnectGoogleUsage}>
+      {modelsOnly || waitingForMetrics ? "Connect Cloud Usage" : "Change Cloud Project"}
+    </button>
+  ) : null;
+  const cardMenu = (
+    <AccountCardMenu
+      account={account}
+      open={mobileMenuOpen}
+      onOpenChange={setMobileMenuOpen}
+      hasMove={Boolean(onMove)}
+      canMoveUp={canMoveUp}
+      canMoveDown={canMoveDown}
+      cardBusy={cardBusy}
+      refreshDisabled={isGlobalRefresh}
+      onMove={requestMove}
+      onRefresh={onRefresh}
+      onNotifications={onNotifications}
+      onRemove={onRemove}
+      variant={desktop ? "desktop" : undefined}
+      collapsed={shownCollapsed}
+      onToggleCollapse={toggleCollapse}
+      onRename={rename.startEditing}
+    />
+  );
+  const protectionNote = signInUnprotected ? (
+    <p className="account-card-protection-note" role="status">
+      {CREDENTIAL_PROTECTION_ACCOUNT_NOTE}
+    </p>
+  ) : null;
+
   if (cardCompact && !rename.editing) {
     return (
-      <article
-        className={`provider-account-card${desktop ? " desktop-card" : ""} is-compact ${needsAttention ? "needs-attention" : ""} ${mobileMenuOpen ? "has-open-menu" : ""}${highlighted ? " is-alert-highlighted" : ""}`}
-        data-account-id={account.id}
-        data-reorder-provider={account.provider}
-        data-reorder-enabled="true"
-        draggable={false}
-      >
+      <article {...articleProps}>
         <div className="compact-card-row">
           <span className="reorder-grip" data-tooltip="Drag to reorder" aria-hidden="true" />
-          <button
-            ref={iconButtonRef}
-            type="button"
-            className={`account-card-provider-icon provider-${account.provider}${shownCollapsed ? " is-collapsed" : ""}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              toggleCollapse();
-            }}
-            onKeyDown={(event) => {
-              const delta = onMove ? reorderKeyDelta(event) : null;
-              if (delta == null) return;
-              event.preventDefault();
-              requestMove(delta);
-            }}
-            aria-keyshortcuts={onMove ? "Alt+ArrowUp Alt+ArrowDown" : undefined}
-            aria-describedby={onMove ? REORDER_HINT_ID : undefined}
-            data-tooltip={shownCollapsed ? "Expand card" : "Collapse card"}
-            aria-label={shownCollapsed ? `Expand ${account.label}` : `Collapse ${account.label}`}
-            aria-expanded={!shownCollapsed}
-          >
-            <ProviderIcon provider={account.provider} />
-          </button>
+          {providerButton}
 
           <div className="compact-card-identity">
             <h2 title={displayAccountSubtitle(account)}>{account.label}</h2>
-            {status.label !== "LIVE" ? (
-              <span className={`account-status-chip ${status.className}`}>
-                <span className="account-status-chip-dot" aria-hidden="true" />
-                {statusChipLabel(status.label)}
-              </span>
-            ) : null}
+            {statusChip}
             {plan ? <span className="account-plan-badge">{plan}</span> : null}
           </div>
 
@@ -290,90 +351,24 @@ export function AccountDashboardCard({
             <div className={desktop ? "account-card-desktop-actions compact-card-actions" : "compact-card-actions"}>
               {desktop ? (
                 <>
-                  <button
-                    type="button"
-                    className={`account-card-action refresh-action ${isRefreshing ? "spinning" : ""}${outOfDate ? " is-suggested" : ""}`}
-                    data-tooltip="Refresh this account"
-                    aria-label={`Refresh ${account.label}`}
-                    disabled={cardBusy || isGlobalRefresh}
-                    onClick={onRefresh}
-                  >
-                    <RefreshIcon />
-                  </button>
-                  <button
-                    type="button"
-                    className="account-card-action notify-action"
-                    data-tooltip="Update account alerts"
-                    aria-label={`Configure usage notifications for ${account.label}`}
-                    disabled={cardBusy}
-                    onClick={onNotifications}
-                  >
-                    <BellIcon />
-                  </button>
+                  {refreshButton}
+                  {alertsButton}
                 </>
               ) : null}
-              <AccountCardMenu
-                account={account}
-                open={mobileMenuOpen}
-                onOpenChange={setMobileMenuOpen}
-                hasMove={Boolean(onMove)}
-                canMoveUp={canMoveUp}
-                canMoveDown={canMoveDown}
-                cardBusy={cardBusy}
-                refreshDisabled={isGlobalRefresh}
-                onMove={requestMove}
-                onRefresh={onRefresh}
-                onNotifications={onNotifications}
-                onRemove={onRemove}
-                variant={desktop ? "desktop" : undefined}
-                collapsed={shownCollapsed}
-                onToggleCollapse={toggleCollapse}
-                onRename={rename.startEditing}
-              />
+              {cardMenu}
             </div>
           </div>
         </div>
-        {signInUnprotected ? (
-          <p className="account-card-protection-note" role="status">
-            {CREDENTIAL_PROTECTION_ACCOUNT_NOTE}
-          </p>
-        ) : null}
+        {protectionNote}
       </article>
     );
   }
 
   return (
-    <article
-      className={`provider-account-card${desktop ? " desktop-card" : ""}${cardCompact ? " is-compact" : ""} ${needsAttention ? "needs-attention" : ""} ${mobileMenuOpen ? "has-open-menu" : ""}${highlighted ? " is-alert-highlighted" : ""}`}
-      data-account-id={account.id}
-      data-reorder-provider={account.provider}
-      data-reorder-enabled="true"
-      draggable={false}
-    >
+    <article {...articleProps}>
       <header className="provider-account-card-header">
         <span className="reorder-grip" data-tooltip="Drag to reorder" aria-hidden="true" />
-        <button
-          ref={iconButtonRef}
-          type="button"
-          className={`account-card-provider-icon provider-${account.provider}${shownCollapsed ? " is-collapsed" : ""}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            toggleCollapse();
-          }}
-          onKeyDown={(event) => {
-            const delta = onMove ? reorderKeyDelta(event) : null;
-            if (delta == null) return;
-            event.preventDefault();
-            requestMove(delta);
-          }}
-          aria-keyshortcuts={onMove ? "Alt+ArrowUp Alt+ArrowDown" : undefined}
-          aria-describedby={onMove ? REORDER_HINT_ID : undefined}
-          data-tooltip={shownCollapsed ? "Expand card" : "Collapse card"}
-          aria-label={shownCollapsed ? `Expand ${account.label}` : `Collapse ${account.label}`}
-          aria-expanded={!shownCollapsed}
-        >
-          <ProviderIcon provider={account.provider} />
-        </button>
+        {providerButton}
         <div className="account-card-identity">
           <div className="account-card-name-row">
             {rename.editing ? (
@@ -442,17 +437,8 @@ export function AccountDashboardCard({
         </div>
         {desktop ? (
           <div className="account-card-desktop-actions">
-            {account.provider === "google_ai_studio" && !signedOut ? (
-              <button type="button" className="button ghost compact-button google-cloud-connect-action" disabled={cardBusy} onClick={onConnectGoogleUsage}>
-                {modelsOnly || waitingForMetrics ? "Connect Cloud Usage" : "Change Cloud Project"}
-              </button>
-            ) : null}
-            {status.label !== "LIVE" ? (
-              <span className={`account-status-chip ${status.className}`}>
-                <span className="account-status-chip-dot" aria-hidden="true" />
-                {statusChipLabel(status.label)}
-              </span>
-            ) : null}
+            {googleConnectButton}
+            {statusChip}
             {plan ? <span className="account-plan-badge">{plan}</span> : null}
             <button
               type="button"
@@ -466,53 +452,20 @@ export function AccountDashboardCard({
               <RefreshIcon />
               <span id={updatedAgoId} className="account-card-refresh-time-label">{updatedAgo}</span>
             </button>
-            <button
-              type="button"
-              className="account-card-action notify-action"
-              data-tooltip="Update account alerts"
-              aria-label={`Configure usage notifications for ${account.label}`}
-              disabled={cardBusy}
-              onClick={onNotifications}
-            ><BellIcon /></button>
+            {alertsButton}
             {isRemoving ? <span className="account-card-action remove-action" aria-label={`Removing ${account.label}`} role="status"><span className="mini-spinner" /></span> : null}
-            <AccountCardMenu
-              account={account}
-              open={mobileMenuOpen}
-              onOpenChange={setMobileMenuOpen}
-              hasMove={Boolean(onMove)}
-              canMoveUp={canMoveUp}
-              canMoveDown={canMoveDown}
-              cardBusy={cardBusy}
-              refreshDisabled={isGlobalRefresh}
-              onMove={requestMove}
-              onRefresh={onRefresh}
-              onNotifications={onNotifications}
-              onRemove={onRemove}
-              variant="desktop"
-              collapsed={shownCollapsed}
-              onToggleCollapse={toggleCollapse}
-              onRename={rename.startEditing}
-            />
+            {cardMenu}
           </div>
         ) : (
           <div className={`account-card-header-actions ${account.provider === "google_ai_studio" && !signedOut ? "has-google-action" : ""}`}>
             <div className="account-card-header-meta">
-              {status.label !== "LIVE" ? (
-                <span className={`account-status-chip ${status.className}`}>
-                  <span className="account-status-chip-dot" aria-hidden="true" />
-                  {statusChipLabel(status.label)}
-                </span>
-              ) : null}
+              {statusChip}
               {plan ? (
                 <span className="plan-with-dot">
                   <span className="account-plan-badge">{plan}</span>
                 </span>
               ) : null}
-              {account.provider === "google_ai_studio" && !signedOut ? (
-                <button type="button" className="button ghost compact-button google-cloud-connect-action" disabled={cardBusy} onClick={onConnectGoogleUsage}>
-                  {modelsOnly || waitingForMetrics ? "Connect Cloud Usage" : "Change Cloud Project"}
-                </button>
-              ) : null}
+              {googleConnectButton}
             </div>
             <div className="account-card-action-stack">
               <p className="account-card-updated">{updatedAtLabel}</p>
@@ -538,22 +491,8 @@ export function AccountDashboardCard({
                   ><ArrowDownIcon /></button>
                 </>
               ) : null}
-              <button
-                type="button"
-                className={`account-card-action refresh-action ${isRefreshing ? "spinning" : ""}${outOfDate ? " is-suggested" : ""}`}
-                data-tooltip="Refresh this account"
-                aria-label={`Refresh ${account.label}`}
-                disabled={cardBusy || isGlobalRefresh}
-                onClick={onRefresh}
-              ><RefreshIcon /></button>
-              <button
-                type="button"
-                className="account-card-action notify-action"
-                data-tooltip="Update account alerts"
-                aria-label={`Configure usage notifications for ${account.label}`}
-                disabled={cardBusy}
-                onClick={onNotifications}
-              ><BellIcon /></button>
+              {refreshButton}
+              {alertsButton}
               <button
                 type="button"
                 className="account-card-action remove-action"
@@ -563,34 +502,14 @@ export function AccountDashboardCard({
                 onClick={onRemove}
               >{isRemoving ? <span className="mini-spinner" /> : <TrashIcon />}</button>
              </div>
-              <AccountCardMenu
-                account={account}
-                open={mobileMenuOpen}
-                onOpenChange={setMobileMenuOpen}
-                hasMove={Boolean(onMove)}
-                canMoveUp={canMoveUp}
-                canMoveDown={canMoveDown}
-                cardBusy={cardBusy}
-                refreshDisabled={isGlobalRefresh}
-                onMove={requestMove}
-                onRefresh={onRefresh}
-                onNotifications={onNotifications}
-                onRemove={onRemove}
-                collapsed={shownCollapsed}
-                onToggleCollapse={toggleCollapse}
-                onRename={rename.startEditing}
-              />
+              {cardMenu}
               </div>
             </div>
           </div>
         )}
       </header>
 
-      {signInUnprotected ? (
-        <p className="account-card-protection-note" role="status">
-          {CREDENTIAL_PROTECTION_ACCOUNT_NOTE}
-        </p>
-      ) : null}
+      {protectionNote}
 
       {signedOut ? (
         <div className="account-card-error is-signed-out">
