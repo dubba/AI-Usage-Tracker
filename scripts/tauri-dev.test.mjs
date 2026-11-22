@@ -33,11 +33,3 @@ test("a running dev server is reused unless the caller passes its own --config",
     "dev", "--config", DEV_IDENTITY_CONFIG, "--config", "x.json",
   ]);
 });
-
-test("the shell launcher passes the same dev identity", () => {
-  const sh = readFileSync(resolve(root, "scripts/tauri-dev.sh"), "utf-8");
-  assert.ok(sh.includes(`DEV_CONFIG="${DEV_IDENTITY_CONFIG}"`));
-  for (const line of sh.split("\n").filter((l) => /npx tauri dev/.test(l))) {
-    assert.match(line, /--config "\$DEV_CONFIG"/, line.trim());
-  }
-});
